@@ -41,6 +41,8 @@ val string_of_condition : condition -> string
 
 val string_of_float_condition : float_condition -> string
 
+val string_of_float_condition_imm : arg -> string
+
 val string_of_symbol : (*prefix*) string -> string -> string
 
 val string_of_rounding : rounding -> string

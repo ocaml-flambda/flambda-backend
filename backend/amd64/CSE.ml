@@ -38,6 +38,7 @@ let class_of_operation (op : Operation.t)
     | Ibswap _ -> Use_default
     | Irdtsc | Irdpmc
     | Ilfence | Isfence | Imfence -> Class Op_other
+    | Ipackf32 -> Class Op_pure
     | Isimd op ->
       Class (of_simd_class (Simd.class_of_operation op))
     | Isimd_mem (op,_addr) ->

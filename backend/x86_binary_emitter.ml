@@ -12,7 +12,7 @@
   * Fabrice LE FESSANT (INRIA/OCamlPro)
 *)
 
-[@@@ocaml.warning "+A-4-9-69"]
+[@@@ocaml.warning "+A-4-9-42-69"]
 
 open! Int_replace_polymorphic_compare
 open X86_ast
@@ -682,27 +682,6 @@ let emit_bsr b ~dst ~src =
     emit_mod_rm_reg b rexw [ 0x0F; 0xBD ] rm (rd_of_reg64 reg)
   | _ -> assert false
 
-let imm8_of_rounding rounding =
-  (* bits are:
-     - 3: Precision Mask (0 = Normal, 1 = Inexact)
-     - 2: Rounding Select (0 = Use bits 1 and 0 for Rounding mode, 1 = MXCSR.RC)
-     - 1 and 0: Rounding mode *)
-  match rounding with
-  | RoundNearest -> 0b0000
-  | RoundDown -> 0b0001
-  | RoundUp -> 0b0010
-  | RoundTruncate -> 0b0011
-  | RoundCurrent -> 0b0100
-
-let emit_roundsd b dst rounding src =
-  let rounding = imm8_of_rounding rounding in
-  match (dst, src) with
-  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0x66;
-      emit_mod_rm_reg b 0 [ 0x0f; 0x3A; 0x0B ] rm (rd_of_regf reg);
-      buf_int8 b rounding
-  | _ -> assert false
-
 let emit_add_float ~(width : Cmm.float_width) b dst src =
   match (dst, src) with
   | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
@@ -710,15 +689,6 @@ let emit_add_float ~(width : Cmm.float_width) b dst src =
       | Cmm.Float64 -> buf_int8 b 0xF2
       | Cmm.Float32 -> buf_int8 b 0xF3);
       emit_mod_rm_reg b 0 [ 0x0f; 0x58 ] rm (rd_of_regf reg)
-  | _ -> assert false
-
-let emit_sqrt_float ~(width : Cmm.float_width) b dst src =
-  match (dst, src) with
-  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      (match width with
-      | Cmm.Float64 -> buf_int8 b 0xF2
-      | Cmm.Float32 -> buf_int8 b 0xF3);
-      emit_mod_rm_reg b 0 [ 0x0f; 0x51 ] rm (rd_of_regf reg)
   | _ -> assert false
 
 let emit_mul_float ~(width : Cmm.float_width) b dst src =
@@ -775,26 +745,6 @@ let emit_CVTSI2SD b dst src =
   | Regf reg, ((Reg32 _ | Mem { typ = DWORD }) as rm) ->
       buf_int8 b 0xF2;
       emit_mod_rm_reg b 0 [ 0x0f; 0x2A ] rm (rd_of_regf reg)
-  | _ -> assert false
-
-let emit_CVTSS2SI b dst src =
-  match (dst, src) with
-  | Reg64 reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0xF3;
-      emit_mod_rm_reg b rexw [ 0x0f; 0x2D ] rm (rd_of_reg64 reg)
-  | Reg32 reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0xF3;
-      emit_mod_rm_reg b 0 [ 0x0f; 0x2D ] rm (rd_of_reg64 reg)
-  | _ -> assert false
-
-let emit_CVTSD2SI b dst src =
-  match (dst, src) with
-  | Reg64 reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0xF2;
-      emit_mod_rm_reg b rexw [ 0x0f; 0x2D ] rm (rd_of_reg64 reg)
-  | Reg32 reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0xF2;
-      emit_mod_rm_reg b 0 [ 0x0f; 0x2D ] rm (rd_of_reg64 reg)
   | _ -> assert false
 
 let emit_CVTTSS2SI b dst src =
@@ -916,310 +866,16 @@ let emit_MOV b dst src =
       Format.printf "src = %a@." print_old_arg src;
       assert false
 
-let check_rf_rfm ops b dst src =
-  match (dst, src) with
-  | Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm) ->
-      emit_mod_rm_reg b 0 ops rm (rd_of_regf reg)
-  | _ -> assert false
-
-let check_rf_rf ops b dst src =
-  match (dst, src) with
-  | Regf reg, (Regf _ as rm) ->
-      emit_mod_rm_reg b 0 ops rm (rd_of_regf reg)
-  | _ -> assert false
-
-let suffix f op b suf dst src =
-  f op b dst src;
-  buf_int8 b suf
-
-let prefix pref f op b dst src =
-  buf_int8 b pref;
-  f op b dst src
-
-let emit_rf_rf op b dst src = check_rf_rf [ 0x0f; op ] b dst src
-let emit_rf_rfm op b dst src = check_rf_rfm [ 0x0f; op ] b dst src
-let emit_rep_rf_rfm = prefix 0xF3 emit_rf_rfm
-let emit_repne_rf_rfm = prefix 0xF2 emit_rf_rfm
-let emit_osize_rf_rfm = prefix 0x66 emit_rf_rfm
-let emit_osize_rf_rfm_38 =
-  let emit op b dst src = check_rf_rfm [ 0x0f; 0x38; op ] b dst src in
-  prefix 0x66 emit
-let emit_osize_rf_rfm_3A =
-  let emit op b dst src = check_rf_rfm [ 0x0f; 0x3A; op ] b dst src in
-  prefix 0x66 emit
-
-let emit_cmpps = suffix emit_rf_rfm 0xC2
-let emit_shufps = suffix emit_rf_rfm 0xC6
-let emit_addps = emit_rf_rfm 0x58
-let emit_subps = emit_rf_rfm 0x5C
-let emit_mulps = emit_rf_rfm 0x59
-let emit_divps = emit_rf_rfm 0x5E
-let emit_minps = emit_rf_rfm 0x5D
-let emit_maxps = emit_rf_rfm 0x5F
-let emit_rcpps = emit_rf_rfm 0x53
-let emit_sqrtps = emit_rf_rfm 0x51
-let emit_rsqrtps = emit_rf_rfm 0x52
-let emit_unpcklps = emit_rf_rfm 0x14
-let emit_unpckhps = emit_rf_rfm 0x15
-let emit_movhlps = emit_rf_rf 0x12
-let emit_movlhps = emit_rf_rf 0x16
-let emit_paddb = emit_osize_rf_rfm 0xFC
-let emit_paddw = emit_osize_rf_rfm 0xFD
-let emit_paddd = emit_osize_rf_rfm 0xFE
-let emit_paddq = emit_osize_rf_rfm 0xD4
-let emit_addpd = emit_osize_rf_rfm 0x58
-let emit_paddsb = emit_osize_rf_rfm 0xEC
-let emit_paddsw = emit_osize_rf_rfm 0xED
-let emit_paddusb = emit_osize_rf_rfm 0xDC
-let emit_paddusw = emit_osize_rf_rfm 0xDD
-let emit_psubb = emit_osize_rf_rfm 0xF8
-let emit_psubw = emit_osize_rf_rfm 0xF9
-let emit_psubd = emit_osize_rf_rfm 0xFA
-let emit_psubq = emit_osize_rf_rfm 0xFB
-let emit_subpd = emit_osize_rf_rfm 0x5C
-let emit_psubsb = emit_osize_rf_rfm 0xE8
-let emit_psubsw = emit_osize_rf_rfm 0xE9
-let emit_psubusb = emit_osize_rf_rfm 0xD8
-let emit_psubusw = emit_osize_rf_rfm 0xD9
-let emit_pmaxub = emit_osize_rf_rfm 0xDE
-let emit_pmaxsw = emit_osize_rf_rfm 0xEE
-let emit_maxpd = emit_osize_rf_rfm 0x5F
-let emit_pminub = emit_osize_rf_rfm 0xDA
-let emit_pminsw = emit_osize_rf_rfm 0xEA
-let emit_minpd = emit_osize_rf_rfm 0x5D
-let emit_mulpd = emit_osize_rf_rfm 0x59
-let emit_divpd = emit_osize_rf_rfm 0x5E
-let emit_sqrtpd = emit_osize_rf_rfm 0x51
-let emit_pand = emit_osize_rf_rfm 0xDB
-let emit_pandnot = emit_osize_rf_rfm 0xDF
-let emit_por = emit_osize_rf_rfm 0xEB
-let emit_pxor = emit_osize_rf_rfm 0xEF
-let emit_pcmpeqb = emit_osize_rf_rfm 0x74
-let emit_pcmpeqw = emit_osize_rf_rfm 0x75
-let emit_pcmpeqd = emit_osize_rf_rfm 0x76
-let emit_pcmpgtb = emit_osize_rf_rfm 0x64
-let emit_pcmpgtw = emit_osize_rf_rfm 0x65
-let emit_pcmpgtd = emit_osize_rf_rfm 0x66
-let emit_cvtdq2pd = emit_rep_rf_rfm 0xE6
-let emit_cvtdq2ps = emit_rf_rfm 0x5B
-let emit_cvtpd2dq = emit_repne_rf_rfm 0xE6
-let emit_cvtpd2ps = emit_osize_rf_rfm 0x5A
-let emit_cvtps2dq = emit_osize_rf_rfm 0x5B
-let emit_cvtps2pd = emit_rf_rfm 0x5A
-let emit_psllw = emit_osize_rf_rfm 0xF1
-let emit_pslld = emit_osize_rf_rfm 0xF2
-let emit_psllq = emit_osize_rf_rfm 0xF3
-let emit_psrlw = emit_osize_rf_rfm 0xD1
-let emit_psrld = emit_osize_rf_rfm 0xD2
-let emit_psrlq = emit_osize_rf_rfm 0xD3
-let emit_psraw = emit_osize_rf_rfm 0xE1
-let emit_psrad = emit_osize_rf_rfm 0xE2
-let emit_punpckhbw = emit_osize_rf_rfm 0x68
-let emit_punpckhwd = emit_osize_rf_rfm 0x69
-let emit_punpckhqdq = emit_osize_rf_rfm 0x6D
-let emit_punpcklbw = emit_osize_rf_rfm 0x60
-let emit_punpcklwd = emit_osize_rf_rfm 0x61
-let emit_punpcklqdq = emit_osize_rf_rfm 0x6C
-let emit_addsubps = emit_repne_rf_rfm 0xD0
-let emit_addsubpd = emit_osize_rf_rfm 0xD0
-let emit_haddps = emit_repne_rf_rfm 0x7C
-let emit_haddpd = emit_osize_rf_rfm 0x7C
-let emit_hsubps = emit_repne_rf_rfm 0x7D
-let emit_hsubpd = emit_osize_rf_rfm 0x7D
-let emit_movddup = emit_repne_rf_rfm 0x12
-let emit_movshdup = emit_rep_rf_rfm 0x16
-let emit_movsldup = emit_rep_rf_rfm 0x12
-let emit_pabsb = emit_osize_rf_rfm_38 0x1C
-let emit_pabsw = emit_osize_rf_rfm_38 0x1D
-let emit_pabsd = emit_osize_rf_rfm_38 0x1E
-let emit_phaddw = emit_osize_rf_rfm_38 0x01
-let emit_phaddd = emit_osize_rf_rfm_38 0x02
-let emit_phaddsw = emit_osize_rf_rfm_38 0x03
-let emit_phsubw = emit_osize_rf_rfm_38 0x05
-let emit_phsubd = emit_osize_rf_rfm_38 0x06
-let emit_phsubsw = emit_osize_rf_rfm_38 0x07
-let emit_psignb = emit_osize_rf_rfm_38 0x08
-let emit_psignw = emit_osize_rf_rfm_38 0x09
-let emit_psignd = emit_osize_rf_rfm_38 0x0A
-let emit_pshufb = emit_osize_rf_rfm_38 0x00
-let emit_pblendvb = emit_osize_rf_rfm_38 0x10
-let emit_blendvps = emit_osize_rf_rfm_38 0x14
-let emit_blendvpd = emit_osize_rf_rfm_38 0x15
-let emit_pcmpeqq = emit_osize_rf_rfm_38 0x29
-let emit_pmovsxbw = emit_osize_rf_rfm_38 0x20
-let emit_pmovsxbd = emit_osize_rf_rfm_38 0x21
-let emit_pmovsxbq = emit_osize_rf_rfm_38 0x22
-let emit_pmovsxwd = emit_osize_rf_rfm_38 0x23
-let emit_pmovsxwq = emit_osize_rf_rfm_38 0x24
-let emit_pmovsxdq = emit_osize_rf_rfm_38 0x25
-let emit_pmovzxbw = emit_osize_rf_rfm_38 0x30
-let emit_pmovzxbd = emit_osize_rf_rfm_38 0x31
-let emit_pmovzxbq = emit_osize_rf_rfm_38 0x32
-let emit_pmovzxwd = emit_osize_rf_rfm_38 0x33
-let emit_pmovzxwq = emit_osize_rf_rfm_38 0x34
-let emit_pmovzxdq = emit_osize_rf_rfm_38 0x35
-let emit_pmaxsb = emit_osize_rf_rfm_38 0x3C
-let emit_pmaxsd = emit_osize_rf_rfm_38 0x3D
-let emit_pmaxuw = emit_osize_rf_rfm_38 0x3E
-let emit_pmaxud = emit_osize_rf_rfm_38 0x3F
-let emit_pminsb = emit_osize_rf_rfm_38 0x38
-let emit_pminsd = emit_osize_rf_rfm_38 0x39
-let emit_pminuw = emit_osize_rf_rfm_38 0x3A
-let emit_pminud = emit_osize_rf_rfm_38 0x3B
-let emit_pcmpgtq = emit_osize_rf_rfm_38 0x37
-let emit_pcmpestrm = suffix emit_osize_rf_rfm_3A 0x60
-let emit_pcmpestri = suffix emit_osize_rf_rfm_3A 0x61
-let emit_pcmpistrm = suffix emit_osize_rf_rfm_3A 0x62
-let emit_pcmpistri = suffix emit_osize_rf_rfm_3A 0x63
-
-let emit_pavgb = emit_osize_rf_rfm 0xE0
-let emit_pavgw = emit_osize_rf_rfm 0xE3
-let emit_psadbw = emit_osize_rf_rfm 0xF6
-let emit_packsswb = emit_osize_rf_rfm 0x63
-let emit_packssdw = emit_osize_rf_rfm 0x6B
-let emit_packuswb = emit_osize_rf_rfm 0x67
-let emit_packusdw = emit_osize_rf_rfm_38 0x2B
-let emit_palignr = suffix emit_osize_rf_rfm_3A 0x0F
-let emit_mpsadbw = suffix emit_osize_rf_rfm_3A 0x42
-let emit_phminposuw = emit_osize_rf_rfm_38 0x41
-
-let emit_cmppd = suffix emit_osize_rf_rfm 0xC2
-let emit_shufpd = suffix emit_osize_rf_rfm 0xC6
-let emit_pshufhw = suffix emit_rep_rf_rfm 0x70
-let emit_pshuflw = suffix emit_repne_rf_rfm 0x70
-let emit_pblendw = suffix emit_osize_rf_rfm_3A 0x0E
-let emit_blendps = suffix emit_osize_rf_rfm_3A 0x0C
-let emit_blendpd = suffix emit_osize_rf_rfm_3A 0x0D
-let emit_dpps = suffix emit_osize_rf_rfm_3A 0x40
-let emit_dppd = suffix emit_osize_rf_rfm_3A 0x41
-let emit_roundps = suffix emit_osize_rf_rfm_3A 0x08
-let emit_roundpd = suffix emit_osize_rf_rfm_3A 0x09
-let emit_roundss = suffix emit_osize_rf_rfm_3A 0x0A
-
-let emit_pmulhw = emit_osize_rf_rfm 0xE5
-let emit_pmulhuw = emit_osize_rf_rfm 0xE4
-let emit_pmullw = emit_osize_rf_rfm 0xD5
-let emit_pmaddwd = emit_osize_rf_rfm 0xF5
-let emit_pmaddubsw = emit_osize_rf_rfm_38 0x04
-let emit_pmulld = emit_osize_rf_rfm_38 0x40
-
-let emit_pclmulqdq = suffix emit_osize_rf_rfm_3A 0x44
-
-let emit_osize_rf op rmod b dst =
-  match dst with
-  | Regf reg ->
-      buf_int8 b 0x66;
-      let rm = rd_of_regf reg in
-      emit_rex b (rex lor rexb_rm rm);
-      buf_opcodes b [ 0x0F; op ];
-      buf_int8 b (mod_rm_reg 0b11 rm rmod)
-  | _ -> assert false
-
-let emit_psllwi b n dst = emit_osize_rf 0x71 0x06 b dst; buf_int8 b n
-let emit_pslldi b n dst = emit_osize_rf 0x72 0x06 b dst; buf_int8 b n
-let emit_psllqi b n dst = emit_osize_rf 0x73 0x06 b dst; buf_int8 b n
-let emit_psrlwi b n dst = emit_osize_rf 0x71 0x02 b dst; buf_int8 b n
-let emit_psrldi b n dst = emit_osize_rf 0x72 0x02 b dst; buf_int8 b n
-let emit_psrlqi b n dst = emit_osize_rf 0x73 0x02 b dst; buf_int8 b n
-let emit_psrawi b n dst = emit_osize_rf 0x71 0x04 b dst; buf_int8 b n
-let emit_psradi b n dst = emit_osize_rf 0x72 0x04 b dst; buf_int8 b n
-let emit_pslldq b n dst = emit_osize_rf 0x73 0x07 b dst; buf_int8 b n
-let emit_psrldq b n dst = emit_osize_rf 0x73 0x03 b dst; buf_int8 b n
-
-let emit_pextrb b n dst src =
-  match (dst, src) with
-  | ((Reg64 _ | Mem _ | Mem64_RIP _) as rm), Regf reg ->
-      buf_int8 b 0x66;
-      emit_mod_rm_reg b 0 [ 0x0f; 0x3A; 0x14 ] rm (rd_of_regf reg);
-      buf_int8 b n
-  | _ -> assert false
-
-let emit_pextrw b n dst src =
-  match (dst, src) with
-  | ((Reg64 _ | Mem _ | Mem64_RIP _) as rm), Regf reg ->
-      buf_int8 b 0x66;
-      emit_mod_rm_reg b 0 [ 0x0f; 0x3A; 0x15 ] rm (rd_of_regf reg);
-      buf_int8 b n
-  | _ -> assert false
-
-let emit_pextrd b n dst src =
-  match (dst, src) with
-  | ((Reg32 _ | Mem _ | Mem64_RIP _) as rm), Regf reg ->
-      buf_int8 b 0x66;
-      emit_mod_rm_reg b 0 [ 0x0f; 0x3A; 0x16 ] rm (rd_of_regf reg);
-      buf_int8 b n
-  | _ -> assert false
-
-let emit_pextrq b n dst src =
-  match (dst, src) with
-  | ((Reg64 _ | Mem _ | Mem64_RIP _) as rm), Regf reg ->
-      buf_int8 b 0x66;
-      emit_mod_rm_reg b rexw [ 0x0f; 0x3A; 0x16 ] rm (rd_of_regf reg);
-      buf_int8 b n
-  | _ -> assert false
-
-let emit_pinsrb b n dst src =
-  match (dst, src) with
-  | Regf reg, ((Reg32 _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0x66;
-      emit_mod_rm_reg b 0 [ 0x0f; 0x3A; 0x20 ] rm (rd_of_regf reg);
-      buf_int8 b n
-  | _ -> assert false
-
-let emit_pinsrw b n dst src =
-  match (dst, src) with
-  | Regf reg, ((Reg32 _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0x66;
-      emit_mod_rm_reg b 0 [ 0x0f; 0xC4 ] rm (rd_of_regf reg);
-      buf_int8 b n
-  | _ -> assert false
-
-let emit_pinsrd b n dst src  =
-  match (dst, src) with
-  | Regf reg, ((Reg32 _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0x66;
-      emit_mod_rm_reg b 0 [ 0x0f; 0x3A; 0x22 ] rm (rd_of_regf reg);
-      buf_int8 b n
-  | _ -> assert false
-
-let emit_pinsrq b n dst src  =
-  match (dst, src) with
-  | Regf reg, ((Reg64 _ | Mem _ | Mem64_RIP _) as rm) ->
-      buf_int8 b 0x66;
-      emit_mod_rm_reg b rexw [ 0x0f; 0x3A; 0x22 ] rm (rd_of_regf reg);
-      buf_int8 b n
-  | _ -> assert false
-
-let emit_movmskps b dst src =
-  match (dst, src) with
-  | Reg64 reg, (Regf _ as rm) ->
-      emit_mod_rm_reg b 0 [ 0x0f; 0x50 ] rm (rd_of_reg64 reg)
-  | _ -> assert false
-
-let emit_pmovmskb b dst src =
-  match (dst, src) with
-  | Reg64 reg, (Regf _ as rm) ->
-      buf_int8 b 0x66;
-      emit_mod_rm_reg b 0 [ 0x0f; 0xD7 ] rm (rd_of_reg64 reg)
-  | _ -> assert false
-
-let emit_movmskpd b dst src =
-  match (dst, src) with
-  | Reg64 reg, (Regf _ as rm) ->
-      buf_int8 b 0x66;
-      emit_mod_rm_reg b 0 [ 0x0f; 0x50 ] rm (rd_of_reg64 reg)
-  | _ -> assert false
-
-let emit_vex3 buf ~rexr ~rexx ~rexb ~vexm ~vexw ~vexv ~vexl ~vexp =
+let emit_vex3 buf ~rexr ~rexx ~rexb ~vex_m ~vex_w ~vex_v ~vex_l ~vex_p =
   buf_int8 buf 0xC4;
   buf_int8 buf (((lnot rexr) lsl 7) lor
                 ((lnot rexx) lsl 6) lor
                 ((lnot rexb) lsl 5) lor
-                vexm);
-  buf_int8 buf ((vexw lsl 7) lor
-                ((lnot vexv) lsl 3) lor
-                (vexl lsl 2) lor
-                vexp)
+                vex_m);
+  buf_int8 buf ((vex_w lsl 7) lor
+                ((lnot vex_v) lsl 3) lor
+                (vex_l lsl 2) lor
+                vex_p)
 
 let vex_prefix_adaptor f =
   fun b ~rex:_ ~rexr ~rexb ~rexx ->
@@ -1228,21 +884,103 @@ let vex_prefix_adaptor f =
     let rexx = if rexx <> 0 then 1 else 0 in
     f b ~rexr ~rexx ~rexb
 
-let emit_pext b dst src0 src1 =
-  match (dst, src0, src1) with
-  | Reg64 dreg, Reg64 s0reg, ((Reg64 _ | Mem _ | Mem64_RIP _) as s1rm) ->
-    emit_prefix_modrm b [ 0xf5 ] s1rm (rd_of_reg64 dreg)
-      ~prefix:(vex_prefix_adaptor
-        (emit_vex3 ~vexm:2 ~vexw:1 ~vexv:(rd_of_reg64 s0reg) ~vexl:0 ~vexp:2));
+let emit_vex_rm_reg b ops rm reg ~vex_m ~vex_w ~vex_v ~vex_l ~vex_p =
+  let vex_w, vex_l = Bool.to_int vex_w, Bool.to_int vex_l in
+  emit_prefix_modrm b ops rm reg ~prefix:(vex_prefix_adaptor (fun b ~rexr ~rexx ~rexb ->
+    emit_vex3 b ~rexr ~rexx ~rexb ~vex_m ~vex_w ~vex_v ~vex_l ~vex_p))
+
+let rd_of_reg = function
+  | Regf reg -> rd_of_regf reg
+  | Reg32 reg | Reg64 reg -> rd_of_reg64 reg
   | _ -> assert false
 
-let emit_pdep b dst src0 src1 =
-  match (dst, src0, src1) with
-  | Reg64 dreg, Reg64 s0reg, ((Reg64 _ | Mem _ | Mem64_RIP _) as s1rm) ->
-    emit_prefix_modrm b [ 0xf5 ] s1rm (rd_of_reg64 dreg)
-      ~prefix:(vex_prefix_adaptor
-        (emit_vex3 ~vexm:2 ~vexw:1 ~vexv:(rd_of_reg64 s0reg) ~vexl:0 ~vexp:3));
-  | _ -> assert false
+let emit_simd b (instr : Amd64_simd_instrs.instr) args =
+  let open Amd64_simd_defs in
+  let imm, args =
+    match instr.imm with
+    | true -> Some args.(0), Array.sub args 1 (Array.length args - 1)
+    | false -> None, args
+  in
+  let enc i =
+    match instr.res with
+    | First_arg | Res { enc = Implicit; _ } -> instr.args.(i).enc
+    | Res { enc; _ } when i = 0 -> enc
+    | Res _ -> instr.args.(i - 1).enc
+  in
+  let rm_only () =
+    match args with
+    | [| src |] ->
+      (match enc 0  with
+      | RM_rm -> src
+      | _ -> failwith instr.mnemonic)
+    | _ -> failwith instr.mnemonic
+  in
+  let rm_reg () =
+    match args with
+    | [| src; dst |] ->
+      (match enc 1, enc 0 with
+      | RM_rm, RM_r -> src, rd_of_reg dst
+      | RM_r, RM_rm -> dst, rd_of_reg src
+      | _ -> failwith instr.mnemonic)
+    | _ -> failwith instr.mnemonic
+  in
+  let rm_vexv_reg () =
+    match args with
+    | [| src2; src1; dst |] ->
+      (match enc 2, enc 1, enc 0 with
+      | RM_rm, Vex_v, RM_r -> dst, rd_of_reg src1, rd_of_reg src2
+      (* CR-soon mslater: more configs for AVX *)
+      | _ -> failwith instr.mnemonic)
+    | _ -> failwith instr.mnemonic
+  in
+  let emit_legacy_prefix = function
+    | Prx_none -> ()
+    | Prx_66 -> buf_int8 b 0x66
+    | Prx_F3 -> buf_int8 b 0xF3
+    | Prx_F2 -> buf_int8 b 0xF2
+  in
+  let legacy_escape = function
+    | Esc_none -> [instr.enc.opcode]
+    | Esc_0F -> [0x0F; instr.enc.opcode]
+    | Esc_0F38 -> [0x0F; 0x38; instr.enc.opcode]
+    | Esc_0F3A -> [0x0F; 0x3A; instr.enc.opcode]
+  in
+  let mk_rex = function
+    | Rex_none -> no_rex
+    | Rex -> rex
+    | Rex_w -> rexw
+  in
+  let vex_map = function
+    | Vexm_0F -> 1
+    | Vexm_0F38 -> 2
+    | Vexm_0F3A -> 3
+  in
+  let vex_prefix = function
+    | Prx_none -> 0
+    | Prx_66 -> 1
+    | Prx_F3 -> 2
+    | Prx_F2 -> 3
+  in
+  (match instr.enc.rm_reg, instr.enc.prefix with
+  | Spec rmod, Legacy { prefix; rex; escape } ->
+    let rm = rm_only () in
+    emit_legacy_prefix prefix;
+    emit_mod_rm_reg b (mk_rex rex) (legacy_escape escape) rm rmod
+  | Reg, Legacy { prefix; rex; escape } ->
+    let rm, reg = rm_reg () in
+    emit_legacy_prefix prefix;
+    emit_mod_rm_reg b (mk_rex rex) (legacy_escape escape) rm reg
+  | Reg, Vex { vex_m; vex_w; vex_l; vex_p } ->
+    buf_int8 b 0xC4; (* We only emit 3-byte VEX instructions. *)
+    let rm, vex_v, reg = rm_vexv_reg () in
+    emit_vex_rm_reg b [instr.enc.opcode] rm reg
+      ~vex_m:(vex_map vex_m) ~vex_w ~vex_v ~vex_l ~vex_p:(vex_prefix vex_p)
+  (* CR-soon mslater: more configs for AVX *)
+  | _ -> failwith instr.mnemonic);
+  match imm with
+  | Some (Imm imm) -> buf_int8 b (Int64.to_int imm)
+  | Some _ -> failwith instr.mnemonic
+  | None -> ()
 
 type simple_encoding = {
   rm8_r8 : int list;
@@ -1756,34 +1494,6 @@ let emit_mfence b = buf_opcodes b [ 0x0F; 0xAE; 0xF0 ]
 
 let emit_leave b = buf_int8 b 0xC9
 
-let emit_maxss b ~dst ~src =
-  match (dst, src) with
-  | (Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm)) ->
-    buf_int8 b 0xF3;
-    emit_mod_rm_reg b no_rex [ 0x0F; 0x5F ] rm (rd_of_regf reg)
-  | _ -> assert false
-
-let emit_minss b ~dst ~src =
-  match (dst, src) with
-  | (Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm)) ->
-    buf_int8 b 0xF3;
-    emit_mod_rm_reg b no_rex [ 0x0F; 0x5D ] rm (rd_of_regf reg)
-  | _ -> assert false
-
-let emit_maxsd b ~dst ~src =
-  match (dst, src) with
-  | (Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm)) ->
-    buf_int8 b 0xF2;
-    emit_mod_rm_reg b no_rex [ 0x0F; 0x5F ] rm (rd_of_regf reg)
-  | _ -> assert false
-
-let emit_minsd b ~dst ~src =
-  match (dst, src) with
-  | (Regf reg, ((Regf _ | Mem _ | Mem64_RIP _) as rm)) ->
-    buf_int8 b 0xF2;
-    emit_mod_rm_reg b no_rex [ 0x0F; 0x5D ] rm (rd_of_regf reg)
-  | _ -> assert false
-
 let emit_inc b = function
   | (Reg64 _ | Reg32 _ | Mem _ | Mem64_RIP _) as rm ->
       emit_mod_rm_reg b rexw [ 0xFF ] rm 0
@@ -1809,26 +1519,6 @@ let emit_ret b = buf_int8 b 0xC3
 let emit_cqto b =
   emit_rex b rexw;
   buf_int8 b 0x99
-
-let emit_crc32 b ~dst ~src =
-  match (dst, src) with
-  | (Reg32 reg, ((Reg8L _ | Reg8H _ | Mem {typ = BYTE; _} | Mem64_RIP (BYTE, _, _)) as rm)) ->
-    (* CRC32 r32, r/m8 *)
-    buf_int8 b 0xF2;
-    emit_mod_rm_reg b rex [ 0x0F; 0x38; 0xF0 ] rm (rd_of_reg64 reg)
-  | (Reg64 reg, ((Reg8L _ | Reg8H _ | Mem {typ = BYTE; _} | Mem64_RIP (BYTE, _, _)) as rm)) ->
-    (* CRC32 r64, r/m8 *)
-    buf_int8 b 0xF2;
-    emit_mod_rm_reg b rexw [ 0x0F; 0x38; 0xF0 ] rm (rd_of_reg64 reg)
-  | (Reg32 reg, ((Reg16 _ | Reg32 _ | Mem _ | Mem64_RIP _) as rm)) ->
-    (* CRC32 r32, r/m16 and CRC32 r32, r/m32 *)
-    buf_int8 b 0xF2;
-    emit_mod_rm_reg b no_rex [ 0x0F; 0x38; 0xF1 ] rm (rd_of_reg64 reg)
-  | (Reg64 reg, ((Reg64 _ | Mem _ | Mem64_RIP _) as rm)) ->
-     (* CRC32 r64, r/m64 *)
-    buf_int8 b 0xF2;
-    emit_mod_rm_reg b rexw [ 0x0F; 0x38; 0xF1 ] rm (rd_of_reg64 reg)
-  | _ -> assert false
 
 let emit_BSWAP b = function
   | Reg32 reg -> buf_opcodes b [ 0x0F; 0xC8 + reg7 (rd_of_reg64 reg) ]
@@ -1860,8 +1550,6 @@ let emit_XCHG b src dst =
       emit_mod_rm_reg b no_rex [ 0x86 ] rm (rd_of_reg8 reg)
   | _ -> assert false
 
-let imm arg = match arg with Imm n -> Int64.to_int n | _ -> assert false
-
 let assemble_instr b loc = function
   | ADD (src, dst) -> emit_ADD b dst src
   | ADDSD (src, dst) -> emit_add_float ~width:Cmm.Float64 b dst src
@@ -1874,8 +1562,6 @@ let assemble_instr b loc = function
   | CLDEMOTE rm -> emit_cldemote b rm
   | CVTSI2SS (src, dst) -> emit_CVTSI2SS b dst src
   | CVTSI2SD (src, dst) -> emit_CVTSI2SD b dst src
-  | CVTSD2SI (src, dst) -> emit_CVTSD2SI b dst src
-  | CVTSS2SI (src, dst) -> emit_CVTSS2SI b dst src
   | CVTTSS2SI (src, dst) -> emit_CVTTSS2SI b dst src
   | CVTTSD2SI (src, dst) -> emit_CVTTSD2SI b dst src
   | CVTSD2SS (src, dst) -> emit_CVTSD2SS b dst src
@@ -1904,8 +1590,6 @@ let assemble_instr b loc = function
   | LOCK_AND (src, dst) -> emit_lock_and b dst src
   | LOCK_OR (src, dst) -> emit_lock_or b dst src
   | LOCK_XOR (src, dst) -> emit_lock_xor b dst src
-  | MAXSD (src, dst) -> emit_maxsd b ~dst ~src
-  | MINSD (src, dst) -> emit_minsd b ~dst ~src
   | MOV (src, dst) -> emit_MOV b dst src
   | MOVAPD (src, dst) -> emit_movapd b dst src
   | MOVUPD (src, dst) -> emit_movupd b dst src
@@ -1932,12 +1616,10 @@ let assemble_instr b loc = function
   | SFENCE -> emit_sfence b
   | MFENCE -> emit_mfence b
   | RET -> emit_ret b
-  | ROUNDSD (rounding, src, dst) -> emit_roundsd b dst rounding src
   | SAL (src, dst) -> emit_SAL b dst src
   | SAR (src, dst) -> emit_SAR b dst src
   | SHR (src, dst) -> emit_SHR b dst src
   | SUBSD (src, dst) -> emit_sub_float ~width:Cmm.Float64 b dst src
-  | SQRTSD (src, dst) -> emit_sqrt_float ~width:Cmm.Float64 b dst src
   | SUB (src, dst) -> emit_SUB b dst src
   | SET (condition, dst) -> emit_set b condition dst
   | TEST (src, dst) -> emit_test b dst src
@@ -1951,190 +1633,12 @@ let assemble_instr b loc = function
   | DIVSS (src, dst) -> emit_div_float ~width:Cmm.Float32 b dst src
   | COMISS (src, dst) -> emit_comi_float ~width:Cmm.Float32 b dst src
   | UCOMISS (src, dst) -> emit_ucomi_float ~width:Cmm.Float32 b dst src
-  | SQRTSS (src, dst) -> emit_sqrt_float ~width:Cmm.Float32 b dst src
   | XORPS (src, dst) -> emit_xor_float ~width:Cmm.Float32 b dst src
   | ANDPS (src, dst) -> emit_and_float ~width:Cmm.Float32 b dst src
   | CMPSS (condition, src, dst) -> emit_cmp_float ~width:Cmm.Float32 b ~condition ~dst ~src
-  | SSE MINSS (src, dst) -> emit_minss b ~dst ~src
-  | SSE MAXSS (src, dst) -> emit_maxss b ~dst ~src
-  | SSE CMPPS (cmp, src, dst) -> emit_cmpps b (imm8_of_float_condition cmp) dst src
-  | SSE ADDPS (src, dst) -> emit_addps b dst src
-  | SSE SUBPS (src, dst) -> emit_subps b dst src
-  | SSE MULPS (src, dst) -> emit_mulps b dst src
-  | SSE DIVPS (src, dst) -> emit_divps b dst src
-  | SSE MAXPS (src, dst) -> emit_maxps b dst src
-  | SSE MINPS (src, dst) -> emit_minps b dst src
-  | SSE RCPPS (src, dst) -> emit_rcpps b dst src
-  | SSE SQRTPS (src, dst) -> emit_sqrtps b dst src
-  | SSE RSQRTPS (src, dst) -> emit_rsqrtps b dst src
-  | SSE MOVHLPS (src, dst) -> emit_movhlps b dst src
-  | SSE MOVLHPS (src, dst) -> emit_movlhps b dst src
-  | SSE UNPCKHPS (src, dst) -> emit_unpckhps b dst src
-  | SSE UNPCKLPS (src, dst) -> emit_unpcklps b dst src
-  | SSE MOVMSKPS (src, dst) -> emit_movmskps b dst src
-  | SSE SHUFPS (shuf, src, dst) -> emit_shufps b (imm shuf) dst src
-  | SSE2 PADDB (src, dst) -> emit_paddb b dst src
-  | SSE2 PADDW (src, dst) -> emit_paddw b dst src
-  | SSE2 PADDD (src, dst) -> emit_paddd b dst src
-  | SSE2 PADDQ (src, dst) -> emit_paddq b dst src
-  | SSE2 ADDPD (src, dst) -> emit_addpd b dst src
-  | SSE2 PADDSB (src, dst) -> emit_paddsb b dst src
-  | SSE2 PADDSW (src, dst) -> emit_paddsw b dst src
-  | SSE2 PADDUSB (src, dst) -> emit_paddusb b dst src
-  | SSE2 PADDUSW (src, dst) -> emit_paddusw b dst src
-  | SSE2 PSUBB (src, dst) -> emit_psubb b dst src
-  | SSE2 PSUBW (src, dst) -> emit_psubw b dst src
-  | SSE2 PSUBD (src, dst) -> emit_psubd b dst src
-  | SSE2 PSUBQ (src, dst) -> emit_psubq b dst src
-  | SSE2 SUBPD (src, dst) -> emit_subpd b dst src
-  | SSE2 PSUBSB (src, dst) -> emit_psubsb b dst src
-  | SSE2 PSUBSW (src, dst) -> emit_psubsw b dst src
-  | SSE2 PSUBUSB (src, dst) -> emit_psubusb b dst src
-  | SSE2 PSUBUSW (src, dst) -> emit_psubusw b dst src
-  | SSE2 PMAXUB (src, dst) -> emit_pmaxub b dst src
-  | SSE2 PMAXSW (src, dst) -> emit_pmaxsw b dst src
-  | SSE2 MAXPD (src, dst) -> emit_maxpd b dst src
-  | SSE2 PMINUB (src, dst) -> emit_pminub b dst src
-  | SSE2 PMINSW (src, dst) -> emit_pminsw b dst src
-  | SSE2 MINPD (src, dst) -> emit_minpd b dst src
-  | SSE2 MULPD (src, dst) -> emit_mulpd b dst src
-  | SSE2 DIVPD (src, dst) -> emit_divpd b dst src
-  | SSE2 SQRTPD (src, dst) -> emit_sqrtpd b dst src
-  | SSE2 PAND (src, dst) -> emit_pand b dst src
-  | SSE2 PANDNOT (src, dst) -> emit_pandnot b dst src
-  | SSE2 POR (src, dst) -> emit_por b dst src
-  | SSE2 PXOR (src, dst) -> emit_pxor b dst src
-  | SSE2 PMOVMSKB (src, dst) -> emit_pmovmskb b dst src
-  | SSE2 MOVMSKPD (src, dst) -> emit_movmskpd b dst src
-  | SSE2 PSLLDQ (n, dst) -> emit_pslldq b (imm n) dst
-  | SSE2 PSRLDQ (n, dst) -> emit_psrldq b (imm n) dst
-  | SSE2 PCMPEQB (src, dst) -> emit_pcmpeqb b dst src
-  | SSE2 PCMPEQW (src, dst) -> emit_pcmpeqw b dst src
-  | SSE2 PCMPEQD (src, dst) -> emit_pcmpeqd b dst src
-  | SSE2 PCMPGTB (src, dst) -> emit_pcmpgtb b dst src
-  | SSE2 PCMPGTW (src, dst) -> emit_pcmpgtw b dst src
-  | SSE2 PCMPGTD (src, dst) -> emit_pcmpgtd b dst src
-  | SSE2 CMPPD (n, src, dst) -> emit_cmppd b (imm8_of_float_condition n) dst src
-  | SSE2 CVTDQ2PD (src, dst) -> emit_cvtdq2pd b dst src
-  | SSE2 CVTDQ2PS (src, dst) -> emit_cvtdq2ps b dst src
-  | SSE2 CVTPD2DQ (src, dst) -> emit_cvtpd2dq b dst src
-  | SSE2 CVTPD2PS (src, dst) -> emit_cvtpd2ps b dst src
-  | SSE2 CVTPS2DQ (src, dst) -> emit_cvtps2dq b dst src
-  | SSE2 CVTPS2PD (src, dst) -> emit_cvtps2pd b dst src
-  | SSE2 PSLLW (src, dst) -> emit_psllw b dst src
-  | SSE2 PSLLD (src, dst) -> emit_pslld b dst src
-  | SSE2 PSLLQ (src, dst) -> emit_psllq b dst src
-  | SSE2 PSRLW (src, dst) -> emit_psrlw b dst src
-  | SSE2 PSRLD (src, dst) -> emit_psrld b dst src
-  | SSE2 PSRLQ (src, dst) -> emit_psrlq b dst src
-  | SSE2 PSRAW (src, dst) -> emit_psraw b dst src
-  | SSE2 PSRAD (src, dst) -> emit_psrad b dst src
-  | SSE2 PSLLWI (n, dst) -> emit_psllwi b (imm n) dst
-  | SSE2 PSLLDI (n, dst) -> emit_pslldi b (imm n) dst
-  | SSE2 PSLLQI (n, dst) -> emit_psllqi b (imm n) dst
-  | SSE2 PSRLWI (n, dst) -> emit_psrlwi b (imm n) dst
-  | SSE2 PSRLDI (n, dst) -> emit_psrldi b (imm n) dst
-  | SSE2 PSRLQI (n, dst) -> emit_psrlqi b (imm n) dst
-  | SSE2 PSRAWI (n, dst) -> emit_psrawi b (imm n) dst
-  | SSE2 PSRADI (n, dst) -> emit_psradi b (imm n) dst
-  | SSE2 SHUFPD (n, src, dst) -> emit_shufpd b (imm n) dst src
-  | SSE2 PSHUFHW (n, src, dst) -> emit_pshufhw b (imm n) dst src
-  | SSE2 PSHUFLW (n, src, dst) -> emit_pshuflw b (imm n) dst src
-  | SSE2 PUNPCKHBW (src, dst) -> emit_punpckhbw b dst src
-  | SSE2 PUNPCKHWD (src, dst) -> emit_punpckhwd b dst src
-  | SSE2 PUNPCKHQDQ (src, dst) -> emit_punpckhqdq b dst src
-  | SSE2 PUNPCKLBW (src, dst) -> emit_punpcklbw b dst src
-  | SSE2 PUNPCKLWD (src, dst) -> emit_punpcklwd b dst src
-  | SSE2 PUNPCKLQDQ (src, dst) -> emit_punpcklqdq b dst src
-  | SSE2 PAVGB (src, dst) -> emit_pavgb b dst src
-  | SSE2 PAVGW (src, dst) -> emit_pavgw b dst src
-  | SSE2 PSADBW (src, dst) -> emit_psadbw b dst src
-  | SSE2 PACKSSWB (src, dst) -> emit_packsswb b dst src
-  | SSE2 PACKSSDW (src, dst) -> emit_packssdw b dst src
-  | SSE2 PACKUSWB (src, dst) -> emit_packuswb b dst src
-  | SSE2 PACKUSDW (src, dst) -> emit_packusdw b dst src
-  | SSE2 PMULHW (src, dst) -> emit_pmulhw b dst src
-  | SSE2 PMULHUW (src, dst) -> emit_pmulhuw b dst src
-  | SSE2 PMULLW (src, dst) -> emit_pmullw b dst src
-  | SSE2 PMADDWD (src, dst) -> emit_pmaddwd b dst src
-  | SSE3 ADDSUBPS (src, dst) -> emit_addsubps b dst src
-  | SSE3 ADDSUBPD (src, dst) -> emit_addsubpd b dst src
-  | SSE3 HADDPS (src, dst) -> emit_haddps b dst src
-  | SSE3 HADDPD (src, dst) -> emit_haddpd b dst src
-  | SSE3 HSUBPS (src, dst) -> emit_hsubps b dst src
-  | SSE3 HSUBPD (src, dst) -> emit_hsubpd b dst src
-  | SSE3 MOVDDUP (src, dst) -> emit_movddup b dst src
-  | SSE3 MOVSHDUP (src, dst) -> emit_movshdup b dst src
-  | SSE3 MOVSLDUP (src, dst) -> emit_movsldup b dst src
-  | SSSE3 PABSB (src, dst) -> emit_pabsb b dst src
-  | SSSE3 PABSW (src, dst) -> emit_pabsw b dst src
-  | SSSE3 PABSD (src, dst) -> emit_pabsd b dst src
-  | SSSE3 PHADDW (src, dst) -> emit_phaddw b dst src
-  | SSSE3 PHADDD (src, dst) -> emit_phaddd b dst src
-  | SSSE3 PHADDSW (src, dst) -> emit_phaddsw b dst src
-  | SSSE3 PHSUBW (src, dst) -> emit_phsubw b dst src
-  | SSSE3 PHSUBD (src, dst) -> emit_phsubd b dst src
-  | SSSE3 PHSUBSW (src, dst) -> emit_phsubsw b dst src
-  | SSSE3 PSIGNB (src, dst) -> emit_psignb b dst src
-  | SSSE3 PSIGNW (src, dst) -> emit_psignw b dst src
-  | SSSE3 PSIGND (src, dst) -> emit_psignd b dst src
-  | SSSE3 PSHUFB (src, dst) -> emit_pshufb b dst src
-  | SSSE3 PALIGNR (n, src, dst) -> emit_palignr b (imm n) dst src
-  | SSE41 PBLENDW (n, src, dst) -> emit_pblendw b (imm n) dst src
-  | SSE41 BLENDPS (n, src, dst) -> emit_blendps b (imm n) dst src
-  | SSE41 BLENDPD (n, src, dst) -> emit_blendpd b (imm n) dst src
-  | SSE41 PBLENDVB (src, dst) -> emit_pblendvb b dst src
-  | SSE41 BLENDVPS (src, dst) -> emit_blendvps b dst src
-  | SSE41 BLENDVPD (src, dst) -> emit_blendvpd b dst src
-  | SSE41 PCMPEQQ (src, dst) -> emit_pcmpeqq b dst src
-  | SSE41 PMOVSXBW (src, dst) -> emit_pmovsxbw b dst src
-  | SSE41 PMOVSXBD (src, dst) -> emit_pmovsxbd b dst src
-  | SSE41 PMOVSXBQ (src, dst) -> emit_pmovsxbq b dst src
-  | SSE41 PMOVSXWD (src, dst) -> emit_pmovsxwd b dst src
-  | SSE41 PMOVSXWQ (src, dst) -> emit_pmovsxwq b dst src
-  | SSE41 PMOVSXDQ (src, dst) -> emit_pmovsxdq b dst src
-  | SSE41 PMOVZXBW (src, dst) -> emit_pmovzxbw b dst src
-  | SSE41 PMOVZXBD (src, dst) -> emit_pmovzxbd b dst src
-  | SSE41 PMOVZXBQ (src, dst) -> emit_pmovzxbq b dst src
-  | SSE41 PMOVZXWD (src, dst) -> emit_pmovzxwd b dst src
-  | SSE41 PMOVZXWQ (src, dst) -> emit_pmovzxwq b dst src
-  | SSE41 PMOVZXDQ (src, dst) -> emit_pmovzxdq b dst src
-  | SSE41 DPPS (n, src, dst) -> emit_dpps b (imm n) dst src
-  | SSE41 DPPD (n, src, dst) -> emit_dppd b (imm n) dst src
-  | SSE41 PEXTRB (n, src, dst) -> emit_pextrb b (imm n) dst src
-  | SSE41 PEXTRW (n, src, dst) -> emit_pextrw b (imm n) dst src
-  | SSE41 PEXTRD (n, src, dst) -> emit_pextrd b (imm n) dst src
-  | SSE41 PEXTRQ (n, src, dst) -> emit_pextrq b (imm n) dst src
-  | SSE41 PINSRB (n, src, dst) -> emit_pinsrb b (imm n) dst src
-  | SSE41 PINSRW (n, src, dst) -> emit_pinsrw b (imm n) dst src
-  | SSE41 PINSRD (n, src, dst) -> emit_pinsrd b (imm n) dst src
-  | SSE41 PINSRQ (n, src, dst) -> emit_pinsrq b (imm n) dst src
-  | SSE41 PMAXSB (src, dst) -> emit_pmaxsb b dst src
-  | SSE41 PMAXSD (src, dst) -> emit_pmaxsd b dst src
-  | SSE41 PMAXUW (src, dst) -> emit_pmaxuw b dst src
-  | SSE41 PMAXUD (src, dst) -> emit_pmaxud b dst src
-  | SSE41 PMINSB (src, dst) -> emit_pminsb b dst src
-  | SSE41 PMINSD (src, dst) -> emit_pminsd b dst src
-  | SSE41 PMINUW (src, dst) -> emit_pminuw b dst src
-  | SSE41 PMINUD (src, dst) -> emit_pminud b dst src
-  | SSE41 ROUNDPD (n, src, dst) -> emit_roundpd b (imm8_of_rounding n) dst src
-  | SSE41 ROUNDPS (n, src, dst) -> emit_roundps b (imm8_of_rounding n) dst src
-  | SSE41 ROUNDSS (n, src, dst) -> emit_roundss b (imm8_of_rounding n) dst src
-  | SSE41 PHMINPOSUW (src, dst) -> emit_phminposuw b dst src
-  | SSE41 PMULLD (src, dst) -> emit_pmulld b dst src
-  | SSE41 MPSADBW (n, src, dst) -> emit_mpsadbw b (imm n) dst src
-  | SSE42 PCMPGTQ (src, dst) -> emit_pcmpgtq b dst src
-  | SSE42 PCMPESTRI (n, src, dst) -> emit_pcmpestri b (imm n) dst src
-  | SSE42 PCMPESTRM (n, src, dst) -> emit_pcmpestrm b (imm n) dst src
-  | SSE42 PCMPISTRI (n, src, dst) -> emit_pcmpistri b (imm n) dst src
-  | SSE42 PCMPISTRM (n, src, dst) -> emit_pcmpistrm b (imm n) dst src
-  | SSE42 CRC32 (src, dst) -> emit_crc32 b ~dst ~src
-  | PCLMULQDQ (n, src, dst) -> emit_pclmulqdq b (imm n) dst src
-  | SSSE3 PMADDUBSW (src, dst) -> emit_pmaddubsw b dst src
-  | PEXT (src1, src0, dst) -> emit_pext b dst src0 src1
-  | PDEP (src1, src0, dst) -> emit_pdep b dst src0 src1
   | TZCNT (src, dst) -> emit_tzcnt b ~dst ~src
   | LZCNT (src, dst) -> emit_lzcnt b ~dst ~src
+  | SIMD (instr, args) -> emit_simd b instr args
 
 let assemble_line b loc ins =
   try

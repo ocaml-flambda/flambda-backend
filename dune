@@ -45,6 +45,8 @@
 
 (copy_files# "backend/%{env:ARCH=amd64}/*.ml{,i}")
 
+(copy_files# tools/simdgen/*.ml{,i})
+
 (copy_files# backend/cfg/*.ml{,i})
 
 (copy_files# backend/debug/*.ml{,i})
@@ -464,8 +466,9 @@
   proc
   simd
   simd_selection
-  simd_reload
   simd_proc
+  amd64_simd_defs
+  amd64_simd_instrs
   stack_check
   sub_cfg
   reg
