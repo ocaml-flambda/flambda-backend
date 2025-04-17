@@ -25,8 +25,6 @@ module Int8 = Numbers.Int8
 module Int16 = Numbers.Int16
 module Uint64 = Numbers.Uint64
 module TS = Target_system
-
-(* CR sspies: replace polymorphic compare *)
 open! Int_replace_polymorphic_compare
 
 (* CR sspies: Removed [dwarf_supported] *)

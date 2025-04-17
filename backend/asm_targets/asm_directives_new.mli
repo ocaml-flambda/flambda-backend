@@ -410,7 +410,7 @@ end
     Calling the functions in this module will cause directives to be passed
     to the given [emit] function (a typical implementation of which will just
     call [Directive.print] on its parameter).
-    This function _does not_ swich sections.
+    This function _does not_ switch sections.
     If Dwarf debug information is supposed to be produced,
     additionally [debug_header] should be called, which
     will switch to the text section after emitting some debug section labels.  *)
