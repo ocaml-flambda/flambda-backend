@@ -1357,24 +1357,6 @@ module Const = struct
         name = "immutable_data"
       }
 
-    let immutable_separable_value =
-      { jkind =
-          { layout = Base Value;
-            mod_bounds =
-              Mod_bounds.create ~locality:Locality.Const.max
-                ~linearity:Linearity.Const.min
-                ~portability:Portability.Const.min ~yielding:Yielding.Const.min
-                ~uniqueness:Uniqueness.Const_op.max
-                ~contention:Contention.Const_op.min
-                ~statefulness:Statefulness.Const.min
-                ~visibility:Visibility.Const_op.min ~externality:Externality.max
-                ~nullability:Nullability.Non_null
-                ~separability:Jkind_axis.Separability.Separable;
-            with_bounds = No_with_bounds
-          };
-        name = "immutable_separable_value"
-      }
-
     let non_float_value =
       { jkind =
           mk_jkind (Base Value) ~mode_crossing:false ~nullability:Non_null
@@ -1594,7 +1576,6 @@ module Const = struct
         value_or_null_mod_everything;
         value;
         non_float_value;
-        immutable_separable_value;
         immutable_data;
         sync_data;
         mutable_data;
@@ -1868,7 +1849,6 @@ module Const = struct
       | "value_or_null" -> Builtin.value_or_null.jkind
       | "value" -> Builtin.value.jkind
       | "non_float_value" -> Builtin.non_float_value.jkind
-      | "immutable_separable_value" -> Builtin.immutable_separable_value.jkind
       | "void" -> Builtin.void.jkind
       | "immediate64" -> Builtin.immediate64.jkind
       | "immediate" -> Builtin.immediate.jkind
@@ -2084,9 +2064,6 @@ module Jkind_desc = struct
 
     let non_float_value = of_const Const.Builtin.non_float_value.jkind
 
-    let immutable_separable_value =
-      of_const Const.Builtin.immutable_separable_value.jkind
-
     let immutable_data = of_const Const.Builtin.immutable_data.jkind
 
     let sync_data = of_const Const.Builtin.sync_data.jkind
@@ -2184,11 +2161,6 @@ module Builtin = struct
 
   let value ~(why : History.value_creation_reason) =
     fresh_jkind Jkind_desc.Builtin.value ~annotation:(mk_annot "value")
-      ~why:(Value_creation why)
-
-  let immutable_separable_value ~(why : History.value_creation_reason) =
-    fresh_jkind Jkind_desc.Builtin.immutable_separable_value
-      ~annotation:(mk_annot "immutable_separable_value")
       ~why:(Value_creation why)
 
   let non_float_value ~(why : History.value_creation_reason) =
@@ -2468,6 +2440,23 @@ let for_object =
       with_bounds = No_with_bounds
     }
     ~annotation:None ~why:(Value_creation Object)
+
+let for_float ident =
+  fresh_jkind
+    { layout = Sort (Base Value);
+      mod_bounds =
+        Mod_bounds.create ~locality:Locality.Const.max
+          ~linearity:Linearity.Const.min ~portability:Portability.Const.min
+          ~yielding:Yielding.Const.min ~uniqueness:Uniqueness.Const_op.max
+          ~contention:Contention.Const_op.min
+          ~statefulness:Statefulness.Const.min
+          ~visibility:Visibility.Const_op.min ~externality:Externality.max
+          ~nullability:Nullability.Non_null
+          ~separability:Jkind_axis.Separability.Separable;
+      with_bounds = No_with_bounds
+    }
+    ~annotation:None ~why:(Primitive ident)
+  |> mark_best
 
 (******************************)
 (* elimination and defaulting *)

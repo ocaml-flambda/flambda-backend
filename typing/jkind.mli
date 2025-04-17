@@ -276,9 +276,6 @@ module Const : sig
     (** Values that are not floats. *)
     val non_float_value : t
 
-    (** Immutable separable values that don't contain functions. *)
-    val immutable_separable_value : t
-
     (** Immutable values that don't contain functions and are not floats. *)
     val immutable_data : t
 
@@ -360,9 +357,6 @@ module Builtin : sig
   val value : why:History.value_creation_reason -> 'd Types.jkind
 
   val non_float_value : why:History.value_creation_reason -> 'd Types.jkind
-
-  val immutable_separable_value :
-    why:History.value_creation_reason -> 'd Types.jkind
 
   (** This is suitable for records or variants without mutable fields. *)
   val immutable_data : why:History.value_creation_reason -> 'd Types.jkind
@@ -519,6 +513,9 @@ val for_arrow : Types.jkind_l
 
 (** The jkind of an object type.  *)
 val for_object : Types.jkind_l
+
+(** The jkind of a float. *)
+val for_float : Ident.t -> Types.jkind_l
 
 (******************************)
 (* elimination and defaulting *)

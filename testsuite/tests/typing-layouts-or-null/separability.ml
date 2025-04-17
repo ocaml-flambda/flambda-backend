@@ -394,7 +394,7 @@ Line 1, characters 13-18:
 1 | type fails = float accepts_nonfloat
                  ^^^^^
 Error: This type "float" should be an instance of type "('a : any mod non_float)"
-       The kind of float is immutable_separable_value
+       The kind of float is value mod many unyielding stateless immutable
          because it is the primitive type float.
        But the kind of float must be a subkind of any mod non_float
          because of the definition of accepts_nonfloat at line 3, characters 0-46.
