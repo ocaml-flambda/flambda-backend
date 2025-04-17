@@ -615,7 +615,8 @@ let emit_jump_tables () =
   List.iter emit_jump_table !jump_tables;
   jump_tables := []
 
-  let file_emitter ~file_num ~file_name = ND.file ~file_num:(Some file_num) ~file_name
+let file_emitter ~file_num ~file_name =
+  ND.file ~file_num:(Some file_num) ~file_name
 
 let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
   (module Asm_targets.Asm_directives.Make (struct
