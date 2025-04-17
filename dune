@@ -124,6 +124,7 @@
   mode_intf)
  (modules
   ;; UTILS
+  arrayset
   config
   build_path_prefix_map
   misc

@@ -319,13 +319,8 @@ let internal_assembler = ref None
 let register_internal_assembler f = internal_assembler := Some f
 
 (* Which asm conventions to use *)
-let masm =
-  match system with
-  | S_win32 | S_win64 -> true
-  | S_macosx | S_gnu | S_cygwin | S_solaris | S_linux_elf | S_bsd_elf | S_beos
-  | S_mingw | S_linux | S_mingw64 | S_freebsd | S_netbsd | S_openbsd | S_unknown
-    ->
-    false
+let (masm [@warning "-4"]) =
+  match system with S_win32 | S_win64 -> true | _ -> false
 
 let use_plt =
   match system with
@@ -334,10 +329,9 @@ let use_plt =
   | S_mingw | S_freebsd | S_netbsd | S_openbsd | S_unknown ->
     !Clflags.dlcode
 
-(*= Shall we use an external assembler command ?
-   If [binary_content] contains some data, we can directly
-   save it. Otherwise, we have to ask an external command.
-*)
+(* Shall we use an external assembler command ? If [binary_content] contains
+   some data, we can directly save it. Otherwise, we have to ask an external
+   command. *)
 let binary_content = ref None
 
 let compile infile outfile =

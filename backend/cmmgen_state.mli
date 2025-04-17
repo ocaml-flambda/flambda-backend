@@ -25,7 +25,10 @@ type ustructured_constant =
   | Const_int32 of int32
   | Const_int64 of int64
   | Const_nativeint of nativeint
-  | Const_vec128 of { high : int64; low : int64 }
+  | Const_vec128 of
+      { high : int64;
+        low : int64
+      }
   | Const_block of int * uconstant list
   | Const_float_array of float list
   | Const_string of string
@@ -36,13 +39,12 @@ and uconstant =
 
 (* Comparison functions for constants *)
 
-val compare_structured_constants:
-        ustructured_constant -> ustructured_constant -> int
-val compare_constants:
-        uconstant -> uconstant -> int
+val compare_structured_constants :
+  ustructured_constant -> ustructured_constant -> int
 
-type constant =
-  | Const_table of Cmm.is_global * Cmm.data_item list
+val compare_constants : uconstant -> uconstant -> int
+
+type constant = Const_table of Cmm.is_global * Cmm.data_item list
 
 val add_constant : Misc.Stdlib.String.t -> constant -> unit
 
@@ -58,6 +60,7 @@ val clear_local_structured_constants : unit -> unit
 
 val add_global_structured_constant : string -> ustructured_constant -> unit
 
-val get_structured_constant : string -> (Cmm.is_global * ustructured_constant) option
+val get_structured_constant :
+  string -> (Cmm.is_global * ustructured_constant) option
 
 val structured_constant_of_sym : string -> ustructured_constant option

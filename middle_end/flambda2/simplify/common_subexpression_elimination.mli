@@ -22,6 +22,7 @@ module P = Flambda_primitive
 module RI = Apply_cont_rewrite_id
 module T = Flambda2_types
 module TE = Flambda2_types.Typing_env
+module TEE = Flambda2_types.Typing_env_extension
 
 type t
 
@@ -41,7 +42,7 @@ module Join_result : sig
   type nonrec t = private
     { cse_at_join_point : t;
       extra_params : EPA.t;
-      extra_equations : T.t Name.Map.t;
+      env_extension : TEE.t;
       extra_allowed_names : Name_occurrences.t
     }
 end
