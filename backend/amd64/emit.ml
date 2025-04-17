@@ -653,9 +653,9 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
 
       let loc ~file_num ~line ~col ?discriminator () =
         ignore discriminator;
-        D.loc ~file_num ~line ~col ?discriminator ()
+        ND.loc ~file_num ~line ~col ?discriminator ()
 
-      let comment str = D.comment str
+      let comment str = ND.comment str
 
       let label ?data_type str =
         let _ = data_type in
@@ -667,9 +667,9 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
         | [".text"], _, _ -> ND.text ()
         | name, flags, args -> ND.switch_to_section_raw ~names:name ~flags ~args
 
-      let text () = D.text ()
+      let text () = ND.text ()
 
-      let new_line () = D.new_line ()
+      let new_line () = ND.new_line ()
 
       let emit_constant const size =
         emit_directive
