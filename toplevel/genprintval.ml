@@ -622,7 +622,8 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                         | Value -> `Continue (O.field obj pos)
                         | Float_boxed | Float64 ->
                             `Continue (O.repr (O.double_field obj pos))
-                        | Float32 | Bits32 | Bits64 | Vec128 | Word ->
+                        | Float32 | Bits32 | Bits64 | Vec128 | Word
+                        | Product _ ->
                             `Stop (Oval_stuff "<abstr>")
                       in
                       match fld with
