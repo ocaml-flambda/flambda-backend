@@ -319,8 +319,8 @@ let internal_assembler = ref None
 let register_internal_assembler f = internal_assembler := Some f
 
 (* Which asm conventions to use *)
-let (masm [@warning "-4"]) =
-  match system with S_win32 | S_win64 -> true | _ -> false
+let masm =
+  match[@warning "-4"] system with S_win32 | S_win64 -> true | _ -> false
 
 let use_plt =
   match system with

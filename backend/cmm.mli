@@ -128,7 +128,7 @@ val cur_label : unit -> label
 
 type exit_label =
   | Return_lbl
-  | Lbl of static_label
+  | Lbl of Lambda.static_label
 
 type prefetch_temporal_locality_hint =
   | Nonlocal
