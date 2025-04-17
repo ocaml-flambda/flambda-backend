@@ -341,7 +341,7 @@ module Directive = struct
     | Size (s, c) -> bprintf buf "\t.size %s,%a" s Constant.print c
     | Sleb128 { constant; comment } ->
       let comment = gas_comment_opt comment in
-      bprintf buf "\t.sleb128 %a%s" Constant.print constant comment
+      bprintf buf "\t.sleb128\t%a%s" Constant.print constant comment
     | Type (s, typ) ->
       (* We use the "STT" forms when they are supported as they are unambiguous
          across platforms (cf. https://sourceware.org/binutils/docs/as/Type.html
@@ -352,7 +352,7 @@ module Directive = struct
       bprintf buf "\t.type %s %s" s typ
     | Uleb128 { constant; comment } ->
       let comment = gas_comment_opt comment in
-      bprintf buf "\t.uleb128 %a%s" Constant.print constant comment
+      bprintf buf "\t.uleb128\t%a%s" Constant.print constant comment
     | Direct_assignment (var, const) -> (
       match TS.assembler () with
       | MacOS -> bprintf buf "\t.set %s, %a" var Constant.print const
