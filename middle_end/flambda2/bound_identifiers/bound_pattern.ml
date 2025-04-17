@@ -88,6 +88,21 @@ let rename t =
     Set_of_closures bound_vars
   | Static _ -> t
 
+let is_renamed_version_of t t' =
+  match t, t' with
+  | Singleton bound_var, Singleton bound_var' ->
+    Bound_var.is_renamed_version_of bound_var bound_var'
+  | Set_of_closures bound_vars, Set_of_closures bound_vars' ->
+    Misc.Stdlib.List.equal Bound_var.is_renamed_version_of bound_vars
+      bound_vars'
+  | Static _bound_static, Static _bound_static' ->
+    (* CR gbury/ncourant: We should try and compare the bound statics here *)
+    true
+  | Singleton _, (Set_of_closures _ | Static _)
+  | Set_of_closures _, (Singleton _ | Static _)
+  | Static _, (Singleton _ | Set_of_closures _) ->
+    false
+
 let renaming t1 ~guaranteed_fresh:t2 =
   match t1, t2 with
   | Singleton bound_var1, Singleton bound_var2 ->

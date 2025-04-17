@@ -53,7 +53,7 @@ val is_empty : t -> bool
 val length : t -> int
 
 (** Add a new parameter *)
-val new_param : t -> Bound_parameter.t -> t
+val new_param : t -> replay_history:Replay_history.t -> Bound_parameter.t -> t
 
 (** Rename all new parameters, and returns the corresponding renaming. *)
 val rename : t -> t * Renaming.t
