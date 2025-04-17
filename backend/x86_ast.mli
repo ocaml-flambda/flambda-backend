@@ -417,20 +417,24 @@ type asm_line =
   | Align of bool * int
   | Byte of constant
   | Bytes of string
+  (** directive for an 8-bit constant *)
   | Comment of string
   | Global of string
   | Protected of string
   | Hidden of string
   | Weak of string
   | Long of constant
+  (** directive for a 32-bit constant *)
   | NewLabel of string * data_type
   | NewLine
   | Quad of constant
+  (** directive for a 64-bit constant *)
   | Section of string list * string option * string list * bool
   | Sleb128 of constant
   | Space of int
   | Uleb128 of constant
   | Word of constant
+  (** directive for a 16-bit constant *)
 
   (* masm only (the gas emitter will fail on them) *)
   | External of string * data_type
