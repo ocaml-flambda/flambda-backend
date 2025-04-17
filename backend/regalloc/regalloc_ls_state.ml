@@ -41,7 +41,7 @@ let dummy_interval =
 let make_class_interval_array () =
   (* CR-soon xclerc for xclerc: this will essentially use twice the required
      memory *)
-  { elements = Array.make (Reg.num_registers ()) dummy_interval; length = 0 }
+  { elements = Array.make (Reg.total_registers ()) dummy_interval; length = 0 }
 
 let add_class_interval_array ci x =
   assert (ci.length < Array.length ci.elements);

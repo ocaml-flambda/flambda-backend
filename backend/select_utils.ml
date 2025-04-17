@@ -290,17 +290,6 @@ let swap_intcomp = function
   | Operation.Isigned cmp -> Operation.Isigned (swap_integer_comparison cmp)
   | Operation.Iunsigned cmp -> Operation.Iunsigned (swap_integer_comparison cmp)
 
-(* Naming of registers *)
-
-let name_regs id rv =
-  let id = VP.var id in
-  if Array.length rv = 1
-  then rv.(0).Reg.raw_name <- Reg.Raw_name.create_from_var id
-  else
-    for i = 0 to Array.length rv - 1 do
-      rv.(i).Reg.raw_name <- Reg.Raw_name.create_from_var id
-    done
-
 (* Name of function being compiled *)
 let current_function_name = ref ""
 
@@ -598,11 +587,6 @@ let make_const_vec128 x = Operation.Const_vec128 x
 let make_const_symbol x = Operation.Const_symbol x
 
 let make_opaque () = Operation.Opaque
-(* Return an array of fresh registers of the given type. Normally implemented as
-   Reg.createv, but some ports (e.g. Arm) can override this definition to store
-   float values in pairs of integer registers. *)
-
-let regs_for tys = Reg.createv tys
 
 let insert_debug (_env : environment) sub_cfg basic dbg arg res =
   Sub_cfg.add_instruction sub_cfg basic arg res dbg

@@ -148,9 +148,8 @@ let rewrite_gen :
   let spilled_map : Reg.t Reg.Tbl.t =
     List.fold_left spilled_nodes ~init:(Reg.Tbl.create 17)
       ~f:(fun spilled_map reg ->
-        let spilled = Reg.create reg.Reg.typ in
+        let spilled = Reg.create_with_typ_and_name reg in
         (* for printing *)
-        spilled.Reg.raw_name <- reg.Reg.raw_name;
         let slot =
           Regalloc_stack_slots.get_or_create (State.stack_slots state) reg
         in
@@ -164,9 +163,7 @@ let rewrite_gen :
   let new_inst_temporaries : Reg.t list ref = ref [] in
   let new_block_temporaries = ref [] in
   let make_new_temporary ~(move : Move.t) (reg : Reg.t) : Reg.t =
-    let res =
-      make_temporary ~same_class_and_base_name_as:reg ~name_prefix:"temp"
-    in
+    let res = Reg.create_with_typ_and_name ~prefix_if_var:"temp" reg in
     new_inst_temporaries := res :: !new_inst_temporaries;
     if debug
     then
@@ -335,7 +332,7 @@ let prelude :
   on_fatal ~f:on_fatal_callback;
   if debug
   then Utils.log "run (%S)" (Cfg_with_layout.cfg cfg_with_layout).fun_name;
-  Reg.reinit ();
+  Reg.reinit_relocatable_regs ();
   if debug && Lazy.force invariants
   then (
     Utils.log "precondition";

@@ -179,8 +179,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
 
   let bind_let (env : SU.environment) sub_cfg v r1 =
     let env =
-      let rv = Reg.createv_like r1 in
-      SU.name_regs v rv;
+      let rv = Reg.createv_with_typs_and_id ~id:(VP.var v) r1 in
       SU.insert_moves env sub_cfg r1 rv;
       SU.env_add v rv env
     in
@@ -545,7 +544,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
           (* The normal case *)
           let id = V.create_local "bind" in
           (* Introduce a fresh temp to hold the result *)
-          let tmp = Reg.createv_like r in
+          let tmp = Reg.createv_with_typs_and_id ~id r in
           SU.insert_moves env sub_cfg r tmp;
           Ok (Cmm.Cvar id, SU.env_add (VP.create id) tmp env)
 
@@ -660,7 +659,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
               | Within_range -> !addressing_mode
               | Out_of_range ->
                 (* Use a temporary to store the address [!base + offset]. *)
-                let tmp = SU.regs_for Cmm.typ_int in
+                let tmp = Reg.createv Cmm.typ_int in
                 (* CR-someday xclerc: Now that this code in the "generic" part,
                    it is maybe a bit unexpected to assume there is no better
                    sequence to emit x += k. That being said, it is a corner
@@ -708,25 +707,25 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       Reg.t array Or_never_returns.t =
     match exp with
     | Cconst_int (n, _dbg) ->
-      let r = SU.regs_for Cmm.typ_int in
+      let r = Reg.createv Cmm.typ_int in
       Ok (insert_op env sub_cfg (SU.make_const_int (Nativeint.of_int n)) [||] r)
     | Cconst_natint (n, _dbg) ->
-      let r = SU.regs_for Cmm.typ_int in
+      let r = Reg.createv Cmm.typ_int in
       Ok (insert_op env sub_cfg (SU.make_const_int n) [||] r)
     | Cconst_float32 (n, _dbg) ->
-      let r = SU.regs_for Cmm.typ_float32 in
+      let r = Reg.createv Cmm.typ_float32 in
       Ok
         (insert_op env sub_cfg
            (SU.make_const_float32 (Int32.bits_of_float n))
            [||] r)
     | Cconst_float (n, _dbg) ->
-      let r = SU.regs_for Cmm.typ_float in
+      let r = Reg.createv Cmm.typ_float in
       Ok
         (insert_op env sub_cfg
            (SU.make_const_float (Int64.bits_of_float n))
            [||] r)
     | Cconst_vec128 (bits, _dbg) ->
-      let r = SU.regs_for Cmm.typ_vec128 in
+      let r = Reg.createv Cmm.typ_vec128 in
       Ok (insert_op env sub_cfg (SU.make_const_vec128 bits) [||] r)
     | Cconst_symbol (n, _dbg) ->
       (* Cconst_symbol _ evaluates to a statically-allocated address, so its
@@ -736,7 +735,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
          may point to heap values. However, any such blocks will be registered
          in the compilation unit's global roots structure, so adding this
          register to the frame table would be redundant *)
-      let r = SU.regs_for Cmm.typ_int in
+      let r = Reg.createv Cmm.typ_int in
       Ok (insert_op env sub_cfg (SU.make_const_symbol n) [||] r)
     | Cvar v -> (
       try Ok (SU.env_find v env)
@@ -868,7 +867,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       | Terminator (Call { op = Indirect; label_after } as term) ->
         let* r1 = emit_tuple env sub_cfg new_args in
         let rarg = Array.sub r1 1 (Array.length r1 - 1) in
-        let rd = SU.regs_for ty in
+        let rd = Reg.createv ty in
         let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv rarg) in
         let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
         let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
@@ -886,7 +885,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         Ok rd
       | Terminator (Call { op = Direct _; label_after } as term) ->
         let* r1 = emit_tuple env sub_cfg new_args in
-        let rd = SU.regs_for ty in
+        let rd = Reg.createv ty in
         let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
         let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
         let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
@@ -902,7 +901,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         let* loc_arg, stack_ofs =
           emit_extcall_args env sub_cfg ty_args new_args dbg
         in
-        let rd = SU.regs_for ty_res in
+        let rd = Reg.createv ty_res in
         let term =
           Cfg.Prim { op = External { r with stack_ofs }; label_after }
         in
@@ -917,7 +916,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         Ok rd
       | Terminator (Prim { op = Probe _; label_after } as term) ->
         let* r1 = emit_tuple env sub_cfg new_args in
-        let rd = SU.regs_for ty in
+        let rd = Reg.createv ty in
         let rd = SU.insert_op_debug' env sub_cfg term dbg r1 rd in
         SU.set_traps_for_raise env;
         Sub_cfg.add_never_block sub_cfg ~label:label_after;
@@ -933,7 +932,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         let returns, ty =
           if keep_for_checking then true, Cmm.typ_int else false, ty
         in
-        let rd = SU.regs_for ty in
+        let rd = Reg.createv ty in
         let label = Cmm.new_label () in
         let r = { r with stack_ofs } in
         let term : Cfg.terminator =
@@ -952,7 +951,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
           Ok rd)
         else Never_returns
       | Basic (Op (Alloc { bytes = _; mode; dbginfo = [placeholder] })) ->
-        let rd = SU.regs_for Cmm.typ_val in
+        let rd = Reg.createv Cmm.typ_val in
         let bytes = SU.size_expr env (Ctuple new_args) in
         let alloc_words = (bytes + Arch.size_addr - 1) / Arch.size_addr in
         let op =
@@ -973,7 +972,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
           (List.length dbginfo)
       | Basic (Op op) ->
         let* r1 = emit_tuple env sub_cfg new_args in
-        let rd = SU.regs_for ty in
+        let rd = Reg.createv ty in
         add_naming_op_for_bound_name sub_cfg rd;
         Ok (insert_op_debug env sub_cfg op dbg r1 rd)
       | Basic basic ->
@@ -1033,8 +1032,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
           let rs =
             List.map
               (fun (id, typ) ->
-                let r = SU.regs_for typ in
-                SU.name_regs id r;
+                let r = Reg.createv_with_id ~id:(VP.var id) typ in
                 r)
               ids
           in
@@ -1157,7 +1155,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         in
         (* Intermediate registers to handle cases where some registers from src
            are present in dest *)
-        let tmp_regs = Reg.createv_like src in
+        let tmp_regs = Reg.createv_with_typs src in
         (* Ccatch registers must not contain out of heap pointers *)
         Array.iter
           (fun reg ->
@@ -1220,7 +1218,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       match new_op with
       | Terminator (Call { op = Indirect; label_after } as term) ->
         let** r1 = emit_tuple env sub_cfg new_args in
-        let rd = SU.regs_for ty in
+        let rd = Reg.createv ty in
         let rarg = Array.sub r1 1 (Array.length r1 - 1) in
         let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv rarg) in
         let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
@@ -1243,7 +1241,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
           insert_return env sub_cfg (Ok loc_res) (SU.pop_all_traps env))
       | Terminator (Call { op = Direct func; label_after } as term) ->
         let** r1 = emit_tuple env sub_cfg new_args in
-        let rd = SU.regs_for ty in
+        let rd = Reg.createv ty in
         let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
         let loc_res, stack_ofs_res = Proc.loc_results_call (Reg.typv rd) in
         let stack_ofs = Stdlib.Int.max stack_ofs_args stack_ofs_res in
@@ -1312,8 +1310,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
           let rs =
             List.map
               (fun (id, typ) ->
-                let r = SU.regs_for typ in
-                SU.name_regs id r;
+                let r = Reg.createv_with_id ~id:(VP.var id) typ in
                 r)
               ids
           in
@@ -1432,8 +1429,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     let rargs =
       List.mapi
         (fun arg_index (var, ty) ->
-          let r = SU.regs_for ty in
-          SU.name_regs var r;
+          let r = Reg.createv_with_id ~id:(VP.var var) ty in
           num_regs_per_arg.(arg_index) <- Array.length r;
           r)
         f.Cmm.fun_args

@@ -48,7 +48,7 @@ let update_register_locations : State.t -> unit =
             Hardware_register.print_location location;
         reg.Reg.loc <- Hardware_register.reg_location_of_location location)
   in
-  List.iter (Reg.all_registers ()) ~f:update_register;
+  List.iter (Reg.all_relocatable_regs ()) ~f:update_register;
   if debug then dedent ()
 
 module Prio_queue = Priority_queue.Make (Int)
