@@ -130,22 +130,22 @@ let register_name ty r =
 
 let hard_int_reg =
   let v = Array.make 13 Reg.dummy in
-  for i = 0 to 12 do v.(i) <- Reg.at_location Int (Reg i) done;
+  for i = 0 to 12 do v.(i) <- Reg.create_at_location Int (Reg i) done;
   v
 
 let hard_float_reg =
   let v = Array.make 16 Reg.dummy in
-  for i = 0 to 15 do v.(i) <- Reg.at_location Float (Reg (100 + i)) done;
+  for i = 0 to 15 do v.(i) <- Reg.create_at_location Float (Reg (100 + i)) done;
   v
 
 let hard_vec128_reg =
   let v = Array.make 16 Reg.dummy in
-  for i = 0 to 15 do v.(i) <- Reg.at_location Vec128 (Reg (100 + i)) done;
+  for i = 0 to 15 do v.(i) <- Reg.create_at_location Vec128 (Reg (100 + i)) done;
   v
 
 let hard_float32_reg =
   let v = Array.make 16 Reg.dummy in
-  for i = 0 to 15 do v.(i) <- Reg.at_location Float32 (Reg (100 + i)) done;
+  for i = 0 to 15 do v.(i) <- Reg.create_at_location Float32 (Reg (100 + i)) done;
   v
 
 let all_phys_regs =
@@ -208,7 +208,7 @@ let destroyed_by_plt_stub =
 
 let destroyed_by_plt_stub_set = Reg.set_of_array destroyed_by_plt_stub
 
-let stack_slot slot ty = Reg.at_location ty (Stack slot)
+let stack_slot slot ty = Reg.create_at_location ty (Stack slot)
 
 (* Instruction selection *)
 

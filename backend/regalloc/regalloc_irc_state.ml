@@ -60,13 +60,13 @@ type t =
 let max_capacity = 1024
 
 let[@inline] make ~initial ~stack_slots ~last_used () =
-  let num_registers = List.length (Reg.all_registers ()) in
+  let num_registers = List.length (Reg.all_relocatable_regs ()) in
   let reg_work_list = Reg.Tbl.create num_registers in
   let reg_color = Reg.Tbl.create num_registers in
   let reg_alias = Reg.Tbl.create num_registers in
   let reg_interf = Reg.Tbl.create num_registers in
   let reg_degree = Reg.Tbl.create num_registers in
-  List.iter (Reg.all_registers ()) ~f:(fun reg ->
+  List.iter (Reg.all_relocatable_regs ()) ~f:(fun reg ->
       Reg.Tbl.replace reg_work_list reg WorkList.Unknown_list;
       Reg.Tbl.replace reg_color reg None;
       Reg.Tbl.replace reg_alias reg None;
@@ -161,7 +161,7 @@ let[@inline] reset state ~new_inst_temporaries ~new_block_temporaries =
     InstructionWorkList.iter iwl ~f:(fun instr ->
         instr.irc_work_list <- Unknown_list)
   in
-  List.iter (Reg.all_registers ()) ~f:(fun reg ->
+  List.iter (Reg.all_relocatable_regs ()) ~f:(fun reg ->
       Reg.Tbl.replace state.reg_color reg None;
       Reg.Tbl.replace state.reg_alias reg None;
       Reg.Tbl.replace state.reg_interf reg [];
@@ -574,7 +574,7 @@ let[@inline] diff_all_introduced_temporaries state set =
 
 let update_register_locations state =
   if debug then log "update_register_locations";
-  List.iter (Reg.all_registers ()) ~f:(fun reg ->
+  List.iter (Reg.all_relocatable_regs ()) ~f:(fun reg ->
       match reg.Reg.loc with
       | Reg _ -> ()
       | Stack _ -> ()
@@ -631,7 +631,9 @@ let[@inline] invariant state =
   if debug && Lazy.force invariants
   then (
     (* interf (list) is morally a set *)
-    List.iter (Reg.all_registers ()) ~f:(check_inter_has_no_duplicates state);
+    List.iter
+      (Reg.all_relocatable_regs ())
+      ~f:(check_inter_has_no_duplicates state);
     Reg.Set.iter (check_inter_has_no_duplicates state) (all_precolored_regs ());
     (* register sets are disjoint *)
     check_disjoint ~is_disjoint:Reg.Set.disjoint

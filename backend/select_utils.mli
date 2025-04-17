@@ -103,8 +103,6 @@ val size_expr : environment -> Cmm.expression -> int
 
 val swap_intcomp : Operation.integer_comparison -> Operation.integer_comparison
 
-val name_regs : VP.t -> Reg.t array -> unit
-
 val current_function_name : string ref
 
 val current_function_is_check_enabled : bool ref
@@ -241,8 +239,6 @@ val make_const_vec128 : Cmm.vec128_bits -> Operation.t
 val make_const_symbol : Cmm.symbol -> Operation.t
 
 val make_opaque : unit -> Operation.t
-
-val regs_for : Cmm.machtype -> Reg.t array
 
 val insert_debug :
   environment ->

@@ -15,17 +15,18 @@
 
 (* Pseudo-registers *)
 
-module Raw_name : sig
+module Name : sig
   type t
-  val create_from_var : Backend_var.t -> t
-  val to_string : t -> string option
+
+  val to_string : t -> string
 end
 
 type t =
-  { mutable raw_name: Raw_name.t;         (* Name *)
-    stamp: int;                           (* Unique stamp *)
-    typ: Cmm.machtype_component;          (* Type of contents *)
-    mutable loc: location; }              (* Actual location *)
+  { name: Name.t;                (* Name *)
+    stamp: int;                  (* Unique stamp *)
+    typ: Cmm.machtype_component; (* Type of contents *)
+    preassigned: bool;           (* Pinned to a hardware register or stack slot *)
+    mutable loc: location; }     (* Actual location, immutable if preassigned *)
 
 and location =
     Unknown
@@ -63,17 +64,20 @@ and stack_location =
 val equal_location : location -> location -> bool
 
 val dummy: t
+
 val create: Cmm.machtype_component -> t
+val create_with_typ: t -> t
+val create_with_typ_and_name: ?prefix_if_var:string -> t -> t
+val create_at_location: Cmm.machtype_component -> location -> t
+
 val createv: Cmm.machtype -> t array
-val createv_like: t array -> t array
-val clone: t -> t
-val at_location: Cmm.machtype_component -> location -> t
+val createv_with_id: id:Ident.t -> Cmm.machtype -> t array
+val createv_with_typs: t array -> t array
+val createv_with_typs_and_id: id:Ident.t -> t array -> t array
+
 val typv: t array -> Cmm.machtype
 val is_preassigned : t -> bool
 val is_unknown : t -> bool
-
-(* Name for printing *)
-val name : t -> string
 
 (* Check [t]'s location *)
 val is_reg : t -> bool
@@ -90,10 +94,10 @@ val disjoint_set_array: Set.t -> t array -> bool
 val set_of_array: t array -> Set.t
 val set_has_collisions : Set.t -> bool
 
-val reset: unit -> unit
-val all_registers: unit -> t list
-val num_registers: unit -> int
-val reinit: unit -> unit
+val total_registers : unit -> int
+val all_relocatable_regs: unit -> t list
+val clear_relocatable_regs: unit -> unit
+val reinit_relocatable_regs: unit -> unit
 
 val same_phys_reg : t -> t -> bool
 val same_loc : t -> t -> bool
