@@ -31,6 +31,7 @@ open! Operation
 open Linear
 open Emitaux
 module I = Arm64_ast.Instruction_name
+module D = Asm_targets.Asm_directives_new
 open! Int_replace_polymorphic_compare
 
 (* Tradeoff between code size and code speed *)
@@ -54,7 +55,6 @@ let reg_stack_arg_begin = phys_reg Int 17 (* x20 *)
 let reg_stack_arg_end = phys_reg Int 18 (* x21 *)
 
 (* Output a label *)
-
 let label_prefix = if macosx then "L" else ".L"
 
 let femit_label out lbl =
@@ -2114,7 +2114,7 @@ let data l =
 let emit_line str = emit_string (str ^ "\n")
 
 let file_emitter ~file_num ~file_name =
-  emit_line (Printf.sprintf "\t.file\t%d\t%S" file_num file_name)
+  D.file ~file_num:(Some file_num) ~file_name
 
 let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
   (module Asm_targets.Asm_directives.Make (struct
@@ -2125,43 +2125,31 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
     let debugging_comments_in_asm_files = !Flambda_backend_flags.dasm_comments
 
     module D = struct
-      type constant =
-        | Int64 of Int64.t
-        | Label of string
-        | Add of constant * constant
-        | Sub of constant * constant
+      type constant = D.Directive.Constant.t
 
-      let rec string_of_constant const =
-        match const with
-        | Add (c1, c2) ->
-          Printf.sprintf "%s + %s"
-            (string_of_const_with_paren c1)
-            (string_of_const_with_paren c2)
-        | Sub (c1, c2) ->
-          Printf.sprintf "%s - %s"
-            (string_of_const_with_paren c1)
-            (string_of_const_with_paren c2)
-        | Int64 _ as c -> string_of_const_with_paren c
-        | Label _ as c -> string_of_const_with_paren c
+      let const_int64 num = D.Directive.Constant.Signed_int num
 
-      and string_of_const_with_paren const =
-        match const with
-        | Int64 n -> Int64.to_string n
-        | Label s -> s
-        | Add (c1, c2) ->
-          Printf.sprintf "(%s + %s)" (string_of_constant c1)
-            (string_of_constant c2)
-        | Sub (c1, c2) ->
-          Printf.sprintf "(%s - %s)" (string_of_constant c1)
-            (string_of_constant c2)
+      let const_label str = D.Directive.Constant.Named_thing str
 
-      let const_int64 num = Int64 num
+      let const_add c1 c2 = D.Directive.Constant.Add (c1, c2)
 
-      let const_label str = Label str
+      let const_sub c1 c2 = D.Directive.Constant.Sub (c1, c2)
 
-      let const_add c1 c2 = Add (c1, c2)
+      (* CR sspies: The functions depending on [emit_line_with_buf] below break
+         abstractions. This is intensional at the moment, because this is only
+         the first step of getting rid of the first-class module entirely. *)
+      let emit_directive dir =
+        let buf = Buffer.create 80 in
+        D.Directive.print buf dir;
+        Buffer.add_string buf "\n";
+        Buffer.output_buffer !output_channel buf
 
-      let const_sub c1 c2 = Sub (c1, c2)
+      let emit_constant const size =
+        emit_directive
+          (Const
+             { constant = D.Directive.Constant_with_width.create const size;
+               comment = None
+             })
 
       type data_type =
         | NONE
@@ -2173,62 +2161,55 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
 
       let loc ~file_num ~line ~col ?discriminator () =
         ignore discriminator;
-        emit_line (Printf.sprintf "\t.loc\t%d\t%d\t%d" file_num line col)
+        D.loc ~file_num ~line ~col ?discriminator ()
 
-      let comment str = emit_line (Printf.sprintf "\t\t\t/* %s */" str)
+      let comment str = D.comment str
 
-      let label ?data_type str =
-        let _ = data_type in
-        emit_line (Printf.sprintf "%s:" str)
+      let label ?data_type:_ str = emit_directive (New_label (str, Code))
 
       let section ?delayed:_ name flags args =
         match name, flags, args with
-        | [".data"], _, _ -> emit_line "\t.data"
-        | [".text"], _, _ -> emit_line "\t.text"
-        | name, flags, args ->
-          emit_string (Printf.sprintf "\t.section %s" (String.concat "," name));
-          (match flags with
-          | None -> ()
-          | Some flags -> emit_string (Printf.sprintf ",%S" flags));
-          (match args with
-          | [] -> ()
-          | _ -> emit_string (Printf.sprintf ",%s" (String.concat "," args)));
-          emit_string "\n"
+        | [".data"], _, _ -> D.data ()
+        | [".text"], _, _ -> D.text ()
+        | name, flags, args -> D.switch_to_section_raw ~names:name ~flags ~args
 
-      let text () = emit_line "\t.text"
+      let text () = D.text ()
 
-      let new_line () = emit_line ""
+      let new_line () = D.new_line ()
 
-      let global sym = emit_line (Printf.sprintf "\t.globl %s" sym)
+      let global sym = emit_directive (Global sym)
 
-      let protected sym =
-        if not macosx then emit_line (Printf.sprintf "\t.protected %s" sym)
+      let protected sym = if not macosx then emit_directive (Protected sym)
 
-      let type_ sym typ_ = emit_line (Printf.sprintf "\t.type %s,%s" sym typ_)
+      let type_ sym typ_ =
+        let typ_ : D.symbol_type =
+          match typ_ with
+          | "@function" -> Function
+          | "@object" -> Object
+          | "STT_FUNC" -> Function
+          | "STT_OBJECT" -> Object
+          | _ -> Misc.fatal_errorf "Unsupported assembly type %s" typ_
+        in
+        emit_directive (Type (sym, typ_))
 
-      let byte const =
-        emit_line (Printf.sprintf "\t.byte\t%s" (string_of_constant const))
+      let byte const = emit_constant const Eight
 
-      let word const =
-        emit_line (Printf.sprintf "\t.2byte\t%s" (string_of_constant const))
+      let word const = emit_constant const Sixteen
 
-      let long const =
-        emit_line (Printf.sprintf "\t.4byte\t%s" (string_of_constant const))
+      let long const = emit_constant const Thirty_two
 
-      let qword const =
-        emit_line (Printf.sprintf "\t.8byte\t%s" (string_of_constant const))
+      let qword const = emit_constant const Sixty_four
 
-      let bytes str = emit_line (Printf.sprintf "\t.ascii\t%S" str)
+      let bytes str = D.string str
 
       let uleb128 const =
-        emit_line (Printf.sprintf "\t.uleb128\t%s" (string_of_constant const))
+        emit_directive (Uleb128 { constant = const; comment = None })
 
       let sleb128 const =
-        emit_line (Printf.sprintf "\t.sleb128\t%s" (string_of_constant const))
+        emit_directive (Sleb128 { constant = const; comment = None })
 
       let direct_assignment var const =
-        emit_line
-          (Printf.sprintf "\t.set %s, %s" var (string_of_constant const))
+        emit_directive (Direct_assignment (var, const))
     end
   end))
 
@@ -2236,6 +2217,14 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
 
 let begin_assembly _unix =
   reset_debug_info ();
+  Asm_targets.Asm_label.initialize ~new_label:(fun () ->
+      Cmm.new_label () |> Label.to_int);
+  let asm_line_buffer = Buffer.create 200 in
+  D.initialize ~big_endian:Arch.big_endian ~emit:(fun d ->
+      Buffer.clear asm_line_buffer;
+      D.Directive.print asm_line_buffer d;
+      Buffer.add_string asm_line_buffer "\n";
+      Buffer.output_buffer !output_channel asm_line_buffer);
   emit_printf "\t.file\t\"\"\n";
   (* PR#7037 *)
   let lbl_begin = Cmm_helpers.make_symbol "data_begin" in
