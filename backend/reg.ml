@@ -121,9 +121,9 @@ let is_reg t =
   | Stack _ | Unknown -> false
 
 let clear_relocatable_regs () =
-  (* When restart is called for the first time, the current
-     stamp reflects all hard pseudo-registers that have been allocated by Proc,
-     so remember it and use it as the base stamp for allocating soft pseudo-registers *)
+  (* When clear_relocatable_regs is called for the first time, the current
+     stamp reflects all hardware pseudo-registers that have been allocated by Proc,
+     so remember it and use it as the base stamp for allocating temp pseudo-registers *)
   if !first_virtual_reg_stamp = -1 then begin
     first_virtual_reg_stamp := !currstamp;
     (* Only hard regs created before now *)
@@ -132,10 +132,8 @@ let clear_relocatable_regs () =
   currstamp := !first_virtual_reg_stamp;
   all_relocatable_regs := []
 
-let reinit_reg r =
-  r.loc <- Unknown
+let reinit_relocatable_regs () = List.iter (fun r -> r.loc <- Unknown) !all_relocatable_regs
 
-let reinit_relocatable_regs () = List.iter reinit_reg !all_relocatable_regs
 let all_relocatable_regs () = !all_relocatable_regs
 
 let compare r1 r2 =

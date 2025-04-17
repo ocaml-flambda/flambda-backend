@@ -2176,6 +2176,7 @@ let assemble_line b loc ins =
     | Cfi_restore_state -> ()
     | Cfi_def_cfa_register _ -> ()
     | Cfi_def_cfa_offset _ -> ()
+    | Cfi_offset _ -> ()
     | File _ -> ()
     | Loc _ -> ()
     | Private_extern _ -> assert false
