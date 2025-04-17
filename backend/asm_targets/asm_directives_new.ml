@@ -817,8 +817,8 @@ let force_assembly_time_constant expr =
        writing expressions such as "L100 - L101" inline can cause unexpected
        results when one of the labels is on a section boundary, for example.) *)
     let temp = new_temp_var () in
-    direct_assignment temp expr;
     let lbl = Asm_label.create_string Data temp in
+    direct_assignment (Asm_label.encode lbl) expr;
     const_label lbl (* not really a label, but OK. *)
 
 let between_symbols_in_current_unit ~upper ~lower =
