@@ -21,6 +21,17 @@ module Name : sig
   val to_string : t -> string
 end
 
+(* Every temp and physical register has a unique stamp, but physical registers
+   aliased at different types share stamps.
+
+   Comparisons and containers for [t] consider both [t.stamp] and [t.typ], so
+   this overlap is not visible to the rest of the compiler unless it directly
+   manipulates stamps.
+
+   The IRC allocator builds an interference graph based on stamps, which makes sure
+   that it remembers adjacency between machine registers aliased at multiple types.
+*)
+
 type t =
   { name: Name.t;                (* Name *)
     stamp: int;                  (* Unique stamp *)
@@ -76,12 +87,12 @@ val createv_with_typs: t array -> t array
 val createv_with_typs_and_id: id:Ident.t -> t array -> t array
 
 val typv: t array -> Cmm.machtype
-val is_preassigned : t -> bool
-val is_unknown : t -> bool
 
 (* Check [t]'s location *)
 val is_reg : t -> bool
 val is_stack :  t -> bool
+val is_unknown : t -> bool
+val is_preassigned : t -> bool
 
 module Set: Set.S with type elt = t
 module Map: Map.S with type key = t
@@ -94,12 +105,10 @@ val disjoint_set_array: Set.t -> t array -> bool
 val set_of_array: t array -> Set.t
 val set_has_collisions : Set.t -> bool
 
-val total_registers : unit -> int
 val all_relocatable_regs: unit -> t list
 val clear_relocatable_regs: unit -> unit
 val reinit_relocatable_regs: unit -> unit
 
-val same_phys_reg : t -> t -> bool
-val same_loc : t -> t -> bool
 val same : t -> t -> bool
 val compare : t -> t -> int
+val same_loc : t -> t -> bool

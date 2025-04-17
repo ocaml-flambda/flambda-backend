@@ -66,13 +66,7 @@ module T = struct
       debug_info : Debug_info.t option
     }
 
-  module Order = struct
-    type t = Reg.t
-
-    let compare (t1 : t) (t2 : t) = t1.stamp - t2.stamp
-  end
-
-  let compare t1 t2 = Order.compare t1.reg t2.reg
+  let compare t1 t2 = Reg.compare t1.reg t2.reg
 end
 
 include T
@@ -183,14 +177,14 @@ module Set = struct
       (Reg.set_of_array regs_clobbered)
       (* ~init:*) empty
 
-  let mem_reg t (reg : Reg.t) = exists (fun t -> t.reg.stamp = reg.stamp) t
+  let mem_reg t (reg : Reg.t) = exists (fun t -> Reg.same t.reg reg) t
 
-  let filter_reg t (reg : Reg.t) = filter (fun t -> t.reg.stamp <> reg.stamp) t
+  let filter_reg t (reg : Reg.t) = filter (fun t -> not (Reg.same t.reg reg)) t
 
   (* CR-someday mshinwell: Well, it looks like we should have used a map.
      mshinwell: Also see @chambart's suggestion on GPR#856. *)
   let find_reg_exn t (reg : Reg.t) =
-    match elements (filter (fun t -> t.reg.stamp = reg.stamp) t) with
+    match elements (filter (fun t -> Reg.same t.reg reg) t) with
     | [] -> raise Not_found
     | [reg] -> reg
     | _ -> assert false
