@@ -451,6 +451,7 @@ type asm_line =
   | Cfi_restore_state
   | Cfi_def_cfa_register of string
   | Cfi_def_cfa_offset of int
+  | Cfi_offset of int * int
   | File of int * string (* (file_num, file_name) *)
   | Indirect_symbol of string
   | Loc of { file_num:int; line:int; col:int; discriminator: int option }
