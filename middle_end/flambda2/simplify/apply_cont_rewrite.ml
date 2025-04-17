@@ -46,7 +46,7 @@ let print_params_used ppf (params, usage) =
 
 let [@ocamlformat "disable"] print ppf
   { original_params_usage; extra_params_usage; extra_args;
-    original_params; extra_params } =
+    original_params; extra_params; } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(original_params@ (%a))@]@ \
       @[<hov 1>(extra_params@ %a)@]@ \
@@ -149,7 +149,8 @@ let extra_args_list rewrite id =
     | _ :: _ ->
       Misc.fatal_errorf
         "Apply_cont_rewrite.extra_args_list:@ Could not find extra args but \
-         extra params were not empty")
+         extra params were not empty for id %a"
+        Apply_cont_rewrite_id.print id)
 
 let make_rewrite rewrite ~ctx id args : _ Or_invalid.t =
   let invariant_args, args =

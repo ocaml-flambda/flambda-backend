@@ -26,6 +26,18 @@ val get_continuation_uses : t -> Continuation.t -> Continuation_uses.t option
 
 val remove : t -> Continuation.t -> t
 
+val clear_continuation_uses : t -> Continuation.t -> t
+
 val union : t -> t -> t
 
 val mark_non_inlinable : t -> t
+
+(* Beware: this function should be used carefully. *)
+val add_continuation_use :
+  t ->
+  Continuation.t ->
+  Continuation_use_kind.t ->
+  id:Apply_cont_rewrite_id.t ->
+  env_at_use:Downwards_env.t ->
+  arg_types:Flambda2_types.t list ->
+  t
