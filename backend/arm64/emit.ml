@@ -2135,7 +2135,7 @@ let build_asm_directives () : (module Asm_targets.Asm_directives_intf.S) =
 
       let const_sub c1 c2 = D.Directive.Constant.Sub (c1, c2)
 
-      (* CR sspies: The functions depending on [emit_line_with_buf] below break
+      (* CR sspies: The functions depending on [emit_directive] below break
          abstractions. This is intensional at the moment, because this is only
          the first step of getting rid of the first-class module entirely. *)
       let emit_directive dir =
