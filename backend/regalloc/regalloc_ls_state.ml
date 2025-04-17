@@ -24,8 +24,9 @@ let[@inline] make ~stack_slots ~last_used =
   let instruction_id = InstructionId.make_sequence ~last_used () in
   { interval_dll; active; stack_slots; instruction_id }
 
+(* CR-someday xclerc: consider using Dynarray *)
 type class_interval_array =
-  { elements : Interval.t array;
+  { mutable elements : Interval.t array;
     mutable length : int
   }
 
@@ -39,12 +40,15 @@ let dummy_interval =
   }
 
 let make_class_interval_array () =
-  (* CR-soon xclerc for xclerc: this will essentially use twice the required
-     memory *)
-  { elements = Array.make (Reg.total_registers ()) dummy_interval; length = 0 }
+  { elements = Array.make 32 dummy_interval; length = 0 }
 
 let add_class_interval_array ci x =
-  assert (ci.length < Array.length ci.elements);
+  if ci.length >= Array.length ci.elements
+  then (
+    let old = ci.elements in
+    let len = Array.length old in
+    ci.elements <- Array.make (Int.max ci.length (2 * len)) dummy_interval;
+    Array.blit ~src:old ~dst:ci.elements ~src_pos:0 ~dst_pos:0 ~len);
   ci.elements.(ci.length) <- x;
   ci.length <- succ ci.length
 

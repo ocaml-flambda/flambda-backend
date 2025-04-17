@@ -8,7 +8,7 @@ module Doubly_linked_list = Flambda_backend_utils.Doubly_linked_list
 module RegWorkList = Arrayset.Make (struct
   type t = Reg.t
 
-  let compare left right = Int.compare left.Reg.stamp right.Reg.stamp
+  let compare = Reg.compare
 
   let dummy = { Reg.dummy with stamp = -1 }
 end)
@@ -390,12 +390,6 @@ let[@inline] mem_adj_set state reg1 reg2 =
     (RegisterStamp.pair reg1.Reg.stamp reg2.Reg.stamp)
 
 let[@inline] adj_list state reg = Reg.Tbl.find state.reg_interf reg
-
-let[@inline] interferes_with_adj state reg1 reg2 =
-  mem_adj_set state reg1 reg2
-  || List.exists
-       (Reg.Tbl.find state.reg_interf reg1)
-       ~f:(Reg.same_phys_reg reg2)
 
 let[@inline] add_edge state u v =
   let is_interesting_reg reg =

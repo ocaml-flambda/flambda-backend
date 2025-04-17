@@ -112,7 +112,6 @@ let register_name ty r =
 
 (* Representation of hard registers by pseudo-registers *)
 
-
 let hard_reg_gen typ n =
   let reg_class = register_class_of_machtype_component typ in
   let first = first_available_register.(reg_class) in
@@ -120,12 +119,13 @@ let hard_reg_gen typ n =
   for i = 0 to n - 1 do
     v.(i) <- Reg.create_at_location typ (Reg(first + i))
   done;
-v
+  v
 
 let hard_int_reg = hard_reg_gen Int (Array.length int_reg_name)
 let hard_float_reg = hard_reg_gen Float (Array.length float_reg_name)
-let hard_float32_reg = hard_reg_gen Float32 (Array.length float32_reg_name)
-let hard_vec128_reg = hard_reg_gen Vec128 (Array.length vec128_reg_name)
+
+let hard_vec128_reg = Array.map (fun r -> {r with typ = Vec128}) hard_float_reg
+let hard_float32_reg = Array.map (fun r -> {r with typ = Float32}) hard_float_reg
 
 let all_phys_regs =
   Array.concat [hard_int_reg; hard_float_reg; hard_float32_reg; hard_vec128_reg; ]

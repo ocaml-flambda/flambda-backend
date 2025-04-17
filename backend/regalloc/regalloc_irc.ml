@@ -62,7 +62,7 @@ let build : State.t -> Cfg_with_infos.t -> unit =
       if is_move_instruction instr
          && (not (Reg.is_stack instr.arg.(0)))
          && (not (Reg.is_stack instr.res.(0)))
-         && same_reg_class instr.arg.(0) instr.res.(0)
+         && Proc.types_are_compatible instr.arg.(0) instr.res.(0)
       then (
         State.add_move_list state instr.arg.(0) instr;
         if not (Reg.same instr.arg.(0) instr.res.(0))
@@ -205,13 +205,7 @@ let coalesce : State.t -> unit =
     if debug then log "case #1/4";
     State.add_coalesced_moves state m;
     add_work_list state u)
-  else if State.is_precolored state v
-          || (* We must not alias v->u if u uses the same register as a neighbor
-                of v. Simply checking whether u and v are adjacent is not
-                sufficient because the interference graph treats machine
-                registers aliased at multiple types (e.g. xmm0 at float32,
-                float, and vec128) as disjoint. *)
-          State.interferes_with_adj state v u
+  else if State.is_precolored state v || State.mem_adj_set state v u
   then (
     if debug then log "case #2/4";
     State.add_constrained_moves state m;
