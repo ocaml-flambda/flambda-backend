@@ -36,20 +36,20 @@ type machtype_component = Cmx_format.machtype_component =
      Such derived pointers are produced by e.g. array indexing.
    - [Float] is for unboxed floating-point numbers.
 
- The purpose of these types is twofold.  First, they guide register
- allocation: type [Float] goes in FP registers, the other types go
- into integer registers.  Second, they determine how local variables are
- tracked by the GC:
-    - Variables of type [Val] are GC roots.  If they are pointers, the
-      GC will not deallocate the addressed heap block, and will update
-      the local variable if the heap block moves.
-    - Variables of type [Int] and [Float] are ignored by the GC.
-      The GC does not change their values.
-    - Variables of type [Addr] must never be live across an allocation
-      point or function call.  They cannot be given as roots to the GC
-      because they don't point after a well-formed block header of the
-      kind that the GC needs.  However, the GC may move the block pointed
-      into, invalidating the value of the [Addr] variable.
+The purpose of these types is twofold.  First, they guide register
+allocation: type [Float] goes in FP registers, the other types go
+into integer registers.  Second, they determine how local variables are
+tracked by the GC:
+   - Variables of type [Val] are GC roots.  If they are pointers, the
+     GC will not deallocate the addressed heap block, and will update
+     the local variable if the heap block moves.
+   - Variables of type [Int] and [Float] are ignored by the GC.
+     The GC does not change their values.
+   - Variables of type [Addr] must never be live across an allocation
+     point or function call.  They cannot be given as roots to the GC
+     because they don't point after a well-formed block header of the
+     kind that the GC needs.  However, the GC may move the block pointed
+     into, invalidating the value of the [Addr] variable.
 *)
 
 type machtype = machtype_component array
