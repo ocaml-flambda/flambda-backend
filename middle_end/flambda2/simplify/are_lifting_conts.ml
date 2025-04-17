@@ -17,14 +17,15 @@ type t =
   | Not_lifting
   | Analyzing of
       { continuation : Continuation.t;
+        is_exn_handler : bool;
         uses : Continuation_uses.t
       }
   | Lifting_out_of of { continuation : Continuation.t }
 
 let no_lifting : t = Not_lifting
 
-let think_about_lifting_out_of continuation uses =
-  Analyzing { continuation; uses }
+let think_about_lifting_out_of ~is_exn_handler continuation uses =
+  Analyzing { continuation; uses; is_exn_handler }
 
 let lift_continuations_out_of continuation : t = Lifting_out_of { continuation }
 
@@ -37,10 +38,12 @@ let [@ocamlformat "disable"] print ppf t =
         @[<hov 1>(continuation@ %a)@]\
       )@]"
       Continuation.print continuation
-  | Analyzing { continuation; uses; } ->
+  | Analyzing { continuation; is_exn_handler; uses; } ->
     Format.fprintf ppf "@[<hov>(analysing@ \
         @[<hov 1>(continuation@ %a)@]@ \
+        @[<hov 1>(is_exn_handler@ %b)@]@ \
         @[<hov 1>(uses@ %a)@]\
       )@]"
       Continuation.print continuation
+      is_exn_handler
       Continuation_uses.print uses
