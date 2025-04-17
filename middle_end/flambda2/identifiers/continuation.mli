@@ -38,6 +38,8 @@ val create : ?sort:Sort.t -> ?name:string -> unit -> t
 
 val rename : t -> t
 
+val is_renamed_version_of : t -> t -> bool
+
 val name : t -> string
 
 val sort : t -> Sort.t
