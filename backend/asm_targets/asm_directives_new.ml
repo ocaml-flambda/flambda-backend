@@ -33,6 +33,8 @@ let big_endian_ref = ref None
 
 let current_section_ref = ref None
 
+let emit_assembly_comments_ref = ref None
+
 let not_initialized () =
   Misc.fatal_error "[Asm_directives.initialize] has not been called"
 
@@ -50,6 +52,14 @@ let big_endian () =
   match !big_endian_ref with
   | None -> not_initialized ()
   | Some big_endian -> big_endian
+
+
+let emit_comments () =
+  let emit_assembly_comments =
+    match !emit_assembly_comments_ref with
+    | None -> not_initialized ()
+    | Some emit_assembly_comments -> emit_assembly_comments
+  in emit_assembly_comments && !Clflags.keep_asm_file
 
 type symbol_type =
   | Function
@@ -187,7 +197,6 @@ module Directive = struct
 
   let bprintf = Printf.bprintf
 
-  let emit_comments () = !Clflags.keep_asm_file
 
   (* CR sspies: This code is a duplicate with [emit_string_literal] in
      [emitaux.ml]. Hopefully, we can deduplicate this soon. *)
@@ -293,7 +302,7 @@ module Directive = struct
       | Solaris, _ | _, POWER -> buf_bytes_directive buf ~directive:".byte" str
       | _ -> print_ascii_string_gas buf str);
       bprintf buf "%s" (gas_comment_opt comment)
-    | Comment s -> bprintf buf "\t\t\t/* %s */" s
+    | Comment s -> if emit_comments () then bprintf buf "\t\t\t/* %s */" s
     | Global s -> bprintf buf "\t.globl\t%s" s
     | New_label (s, _typ) -> bprintf buf "%s:" s
     | New_line -> ()
@@ -496,7 +505,7 @@ let cfi_offset ~reg ~offset =
 
 let cfi_startproc () = if should_generate_cfi () then emit Cfi_startproc
 
-let comment text = if !Clflags.keep_asm_file then emit (Comment text)
+let comment text = if emit_comments () then emit (Comment text)
 
 let loc ~file_num ~line ~col ?discriminator () =
   emit_non_masm (Loc { file_num; line; col; discriminator })
@@ -699,9 +708,10 @@ let file ~file_num ~file_name () =
   in
   emit_non_masm (File { file_num; filename = file_name })
 
-let initialize ~big_endian ~(emit : Directive.t -> unit) =
+let initialize ~big_endian ~emit_assembly_comments ~(emit : Directive.t -> unit) =
   big_endian_ref := Some big_endian;
   emit_ref := Some emit;
+  emit_assembly_comments_ref := Some emit_assembly_comments;
   reset ()
 
 let debug_header ~get_file_num =
@@ -781,6 +791,7 @@ let targetint ?comment n =
   | Int64 n -> int64 ?comment n
 
 let cache_string ?comment section str =
+  let comment = if emit_comments () then comment else None in
   let cached : Cached_string.t = { section; str; comment } in
   match Cached_string.Map.find cached !cached_strings with
   | label -> label
@@ -790,6 +801,7 @@ let cache_string ?comment section str =
     label
 
 let emit_cached_strings () =
+  let old_dwarf_section = !current_section_ref in
   Cached_string.Map.iter
     (fun { section; str; comment } label_name ->
       switch_to_section section;
@@ -797,7 +809,8 @@ let emit_cached_strings () =
       string ?comment str;
       int8 Int8.zero)
     !cached_strings;
-  cached_strings := Cached_string.Map.empty
+  cached_strings := Cached_string.Map.empty;
+  Option.iter (switch_to_section ~emit_label_on_first_occurrence:false) old_dwarf_section
 
 let mark_stack_non_executable () =
   let current_section = current_section () in

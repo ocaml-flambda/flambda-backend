@@ -414,7 +414,7 @@ end
     If Dwarf debug information is supposed to be produced,
     additionally [debug_header] should be called, which
     will switch to the text section after emitting some debug section labels.  *)
-val initialize : big_endian:bool -> emit:(Directive.t -> unit) -> unit
+val initialize : big_endian:bool -> emit_assembly_comments:bool -> emit:(Directive.t -> unit) -> unit
 
 val debug_header : get_file_num:(string -> int) -> unit
 
