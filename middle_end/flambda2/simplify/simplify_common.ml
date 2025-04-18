@@ -255,8 +255,7 @@ let split_direct_over_application apply
              (Flambda_arity.unarized_components full_apply_result_arity))
       in
       Continuation_handler.create params
-        ~handler:
-          (Expr.create_invalid (Over_application_never_returns apply))
+        ~handler:(Expr.create_invalid (Over_application_never_returns apply))
         ~free_names_of_handler:(Known Name_occurrences.empty)
         ~is_exn_handler:false ~is_cold:true
     else
