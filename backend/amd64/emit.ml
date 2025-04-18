@@ -1452,6 +1452,20 @@ let check_simd_instr (simd : Simd.instr) imm instr =
   | First_arg -> assert (Reg.same_loc instr.arg.(0) instr.res.(0))
   | Res { loc; _ } -> assert_loc loc instr.res.(0)
 
+let to_arg_with_width (loc : Simd.loc) instr j =
+  match Simd.loc_requires_width loc with
+  | Some Eight -> arg8 instr j
+  | Some Sixteen -> arg16 instr j
+  | Some Thirtytwo -> arg32 instr j
+  | Some Sixtyfour | None -> arg instr j
+
+let to_res_with_width loc instr i =
+  match Simd.loc_requires_width loc with
+  | Some Eight -> res8 instr i
+  | Some Sixteen -> res16 instr i
+  | Some Thirtytwo -> res32 instr i
+  | Some Sixtyfour | None -> res instr i
+
 let emit_simd_instr (simd : Simd.instr) imm instr =
   check_simd_instr simd imm instr;
   let total_args = Array.length instr.arg in
@@ -1461,12 +1475,7 @@ let emit_simd_instr (simd : Simd.instr) imm instr =
     List.init total_args (fun j ->
         if Simd.arg_is_implicit simd.args.(j)
         then None
-        else
-          match Simd.loc_requires_width simd.args.(j).loc with
-          | Some Eight -> Some (arg8 instr j)
-          | Some Sixteen -> Some (arg16 instr j)
-          | Some Thirtytwo -> Some (arg32 instr j)
-          | Some Sixtyfour | None -> Some (arg instr j))
+        else Some (to_arg_with_width simd.args.(j).loc instr j))
     |> List.filter_map (fun arg -> arg)
   in
   let args =
@@ -1475,13 +1484,7 @@ let emit_simd_instr (simd : Simd.instr) imm instr =
     | Res { loc; enc = RM_r | RM_rm | Vex_v } -> (
       match Simd.loc_is_pinned loc with
       | Some _ -> args
-      | None ->
-        (match Simd.loc_requires_width loc with
-        | Some Eight -> res8 instr 0
-        | Some Sixteen -> res16 instr 0
-        | Some Thirtytwo -> res32 instr 0
-        | Some Sixtyfour | None -> res instr 0)
-        :: args)
+      | None -> to_res_with_width loc instr 0 :: args)
   in
   let args =
     match imm with
