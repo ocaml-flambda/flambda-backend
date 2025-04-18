@@ -129,12 +129,12 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
         sections_seen := section :: !sections_seen;
         true)
     in
-      current_dwarf_section_ref := Some section;
-      let ({ names; flags; args } : Asm_section.section_details) =
-        Asm_section.details section ~first_occurrence
-      in
-      D.section ~delayed:(Asm_section.is_delayed section) names flags args;
-      if first_occurrence then define_label (Asm_label.for_section section)
+    current_dwarf_section_ref := Some section;
+    let ({ names; flags; args } : Asm_section.section_details) =
+      Asm_section.details section ~first_occurrence
+    in
+    D.section ~delayed:(Asm_section.is_delayed section) names flags args;
+    if first_occurrence then define_label (Asm_label.for_section section)
 
   let initialize () =
     cached_strings := Cached_string.Map.empty;
@@ -301,8 +301,8 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     (* CR poechsel: use the arguments *)
     A.emit_line "between_labels_64_bit"
 
-  let between_labels_64_bit_with_offsets ?comment:comment' ~upper ~upper_offset ~lower
-      ~lower_offset () =
+  let between_labels_64_bit_with_offsets ?comment:comment' ~upper ~upper_offset
+      ~lower ~lower_offset () =
     Option.iter comment comment';
     let upper_offset = Targetint.to_int64 upper_offset in
     let lower_offset = Targetint.to_int64 lower_offset in
@@ -317,8 +317,8 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
     in
     const_machine_width (force_assembly_time_constant expr)
 
-  let between_symbol_in_current_unit_and_label_offset ?comment:comment' ~upper ~lower
-      ~offset_upper () =
+  let between_symbol_in_current_unit_and_label_offset ?comment:comment' ~upper
+      ~lower ~offset_upper () =
     (* CR mshinwell: add checks, as above: check_symbol_in_current_unit lower;
        check_symbol_and_label_in_same_section lower upper; *)
     Option.iter comment comment';
