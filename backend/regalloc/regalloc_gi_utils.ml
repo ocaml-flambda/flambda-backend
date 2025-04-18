@@ -346,25 +346,25 @@ let build_intervals : Cfg_with_infos.t -> Interval.t Reg.Tbl.t =
 
 module Hardware_register = struct
   type location =
-    { reg_class : int;
+    { reg_class : Reg_class.t;
       reg_index_in_class : int
     }
 
   let make_location ~reg_class ~reg_index_in_class =
-    if reg_class < 0 || reg_class >= Proc.num_register_classes
-    then fatal "invalid register class: %d" reg_class;
     if reg_index_in_class < 0
-       || reg_index_in_class >= Proc.num_available_registers.(reg_class)
+       || reg_index_in_class >= Reg_class.num_available_registers reg_class
     then
-      fatal "invalid register index: %d (class=%d)" reg_index_in_class reg_class;
+      fatal "invalid register index: %d (class=%a)" reg_index_in_class
+        Reg_class.print reg_class;
     { reg_class; reg_index_in_class }
 
   let print_location ppf { reg_class; reg_index_in_class } =
-    Format.fprintf ppf "{ cls=%d; idx=%d }" reg_class reg_index_in_class
+    Format.fprintf ppf "{ cls=%a; idx=%d }" Reg_class.print reg_class
+      reg_index_in_class
 
   let reg_location_of_location { reg_class; reg_index_in_class } =
     let reg_index =
-      Proc.first_available_register.(reg_class) + reg_index_in_class
+      Reg_class.first_available_register reg_class + reg_index_in_class
     in
     Reg.Reg reg_index
 
@@ -399,14 +399,13 @@ type available =
   | Split_or_spill
 
 module Hardware_registers = struct
-  type t = Hardware_register.t array array
-  (* first array index is register class, second array index is register
-     index *)
+  type t = Hardware_register.t array Reg_class.Tbl.t
+  (* array index is register index in class *)
 
   let make () =
-    Array.init Proc.num_register_classes ~f:(fun reg_class ->
+    Reg_class.Tbl.init ~f:(fun reg_class ->
         let num_available_registers =
-          Proc.num_available_registers.(reg_class)
+          Reg_class.num_available_registers reg_class
         in
         Array.init num_available_registers ~f:(fun reg_index_in_class ->
             let location =
@@ -420,25 +419,28 @@ module Hardware_registers = struct
   let of_reg (t : t) (reg : Reg.t) : Hardware_register.t option =
     match reg.loc with
     | Reg reg_index ->
-      let reg_class : int = Proc.register_class reg in
+      let reg_class : Reg_class.t = Reg_class.of_machtype reg.typ in
       let reg_index_in_class : int =
-        reg_index - Proc.first_available_register.(reg_class)
+        reg_index - Reg_class.first_available_register reg_class
       in
-      if reg_index_in_class < Array.length t.(reg_class)
-      then Some t.(reg_class).(reg_index_in_class)
+      let hw_regs = Reg_class.Tbl.find t reg_class in
+      if reg_index_in_class < Array.length hw_regs
+      then Some hw_regs.(reg_index_in_class)
       else None
     | Unknown -> fatal "`Unknown` location (expected `Reg _`)"
     | Stack _ -> fatal "`Stack _` location (expected `Reg _`)"
 
   let find_in_class (t : t) ~(of_reg : Reg.t) ~(f : Hardware_register.t -> bool)
       =
-    Array.find_opt t.(Proc.register_class of_reg) ~f
+    let reg_class = Reg_class.of_machtype of_reg.typ in
+    Array.find_opt (Reg_class.Tbl.find t reg_class) ~f
 
   let fold_class :
       type a.
       t -> of_reg:Reg.t -> f:(a -> Hardware_register.t -> a) -> init:a -> a =
    fun t ~of_reg ~f ~init ->
-    Array.fold_left t.(Proc.register_class of_reg) ~f ~init
+    let reg_class = Reg_class.of_machtype of_reg.typ in
+    Array.fold_left (Reg_class.Tbl.find t reg_class) ~f ~init
 
   let actual_cost (costs : SpillCosts.t) (reg : Reg.t) : int =
     (* CR xclerc for xclerc: it could make sense to give a lower cost to reg

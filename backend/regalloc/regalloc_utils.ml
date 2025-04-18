@@ -279,7 +279,9 @@ end
 
 let same_reg_class : Reg.t -> Reg.t -> bool =
  fun reg1 reg2 ->
-  Int.equal (Proc.register_class reg1) (Proc.register_class reg2)
+  Reg_class.equal
+    (Reg_class.of_machtype reg1.typ)
+    (Reg_class.of_machtype reg2.typ)
 
 let same_stack_class : Reg.t -> Reg.t -> bool =
  fun reg1 reg2 ->

@@ -515,7 +515,10 @@ let same_location (r1 : Reg.t) (r2 : Reg.t) =
   &&
   match r1.loc with
   | Unknown -> Misc.fatal_errorf "Cfg got unknown register location."
-  | Reg _ -> Proc.register_class r1 = Proc.register_class r2
+  | Reg _ ->
+    Reg_class.equal
+      (Reg_class.of_machtype r1.typ)
+      (Reg_class.of_machtype r2.typ)
   | Stack _ ->
     Stack_class.equal
       (Stack_class.of_machtype r1.typ)

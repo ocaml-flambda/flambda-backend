@@ -229,18 +229,17 @@ end = struct
      16; 17; |]
   (* 26 - 27 *)
 
-  let reg_name_to_arch_index reg_class name_index =
+  let reg_name_to_arch_index (reg_class : Reg_class.t) (name_index : int) =
     match reg_class with
-    | 0 (* general-purpose registers *) ->
+    | Reg_class.Int64 (* general-purpose registers *) ->
       int_reg_name_to_arch_index.(name_index)
-    | 1 (* neon registers *) -> name_index
-    | _ -> assert false
+    | Reg_class.Float128 (* neon registers *) -> name_index
 
   let reg_index reg =
     match reg with
-    | { loc = Reg r; _ } ->
-      let reg_class = Proc.register_class reg in
-      let name_index = r - Proc.first_available_register.(reg_class) in
+    | { loc = Reg r; typ; _ } ->
+      let reg_class = Reg_class.of_machtype typ in
+      let name_index = r - Reg_class.first_available_register reg_class in
       reg_name_to_arch_index reg_class name_index
     | { loc = Stack _ | Unknown; _ } -> fatal_error "Emit.reg"
 

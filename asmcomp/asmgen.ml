@@ -376,7 +376,6 @@ let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
 
 let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
   let module Cfg_selection = Cfg_selectgen.Make (Cfg_selection) in
-  Proc.init ();
   Reg.clear_relocatable_regs ();
   fd_cmm
   ++ Profile.record ~accumulate:true "cmm_invariants" (cmm_invariants ppf_dump)

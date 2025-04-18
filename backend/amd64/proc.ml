@@ -77,34 +77,6 @@ let win64 = Arch.win64
      stub saves them into the GC regs block).
 *)
 
-let int_reg_name =
-  match Config.ccomp_type with
-  | "msvc" ->
-      [| "rax"; "rbx"; "rdi"; "rsi"; "rdx"; "rcx"; "r8"; "r9";
-         "r12"; "r13"; "r10"; "r11"; "rbp" |]
-  | _ ->
-      [| "%rax"; "%rbx"; "%rdi"; "%rsi"; "%rdx"; "%rcx"; "%r8"; "%r9";
-         "%r12"; "%r13"; "%r10"; "%r11"; "%rbp" |]
-
-let float_reg_name =
-  match Config.ccomp_type with
-  | "msvc" ->
-      [| "xmm0"; "xmm1"; "xmm2"; "xmm3"; "xmm4"; "xmm5"; "xmm6"; "xmm7";
-         "xmm8"; "xmm9"; "xmm10"; "xmm11";
-         "xmm12"; "xmm13"; "xmm14"; "xmm15" |]
-  | _ ->
-      [| "%xmm0"; "%xmm1"; "%xmm2"; "%xmm3"; "%xmm4"; "%xmm5"; "%xmm6"; "%xmm7";
-         "%xmm8"; "%xmm9"; "%xmm10"; "%xmm11";
-         "%xmm12"; "%xmm13"; "%xmm14"; "%xmm15" |]
-
-let num_register_classes = 2
-
-let register_class (r : Reg.t) =
-  match r.typ with
-  | Val | Int | Addr -> 0
-  | Float | Float32 | Vec128 | Valx2 -> 1
-
-
 let types_are_compatible (left : Reg.t)  (right : Reg.t) =
   match left.typ, right.typ with
   | (Int | Val | Addr), (Int | Val | Addr)
@@ -113,18 +85,6 @@ let types_are_compatible (left : Reg.t)  (right : Reg.t) =
   | (Valx2 | Vec128), (Valx2 | Vec128) ->
     true
   | (Int | Val | Addr | Float | Float32 | Vec128 | Valx2), _ -> false
-
-let num_available_registers = [| 13; 16 |]
-
-let first_available_register = [| 0; 100 |]
-
-let register_name ty r =
-  (* If the ID doesn't match the type, the array access will raise. *)
-  match (ty : machtype_component) with
-  | Int | Addr | Val ->
-    int_reg_name.(r - first_available_register.(0))
-  | Float | Float32 | Vec128 | Valx2 ->
-    float_reg_name.(r - first_available_register.(1))
 
 (* Representation of hard registers by pseudo-registers *)
 
@@ -150,39 +110,6 @@ let phys_reg ty n =
   | Float -> hard_float_reg.(n - 100)
   | Float32 -> hard_float32_reg.(n - 100)
   | Vec128 | Valx2 -> hard_vec128_reg.(n - 100)
-
-let gc_regs_offset (reg : Reg.t) =
-  (* Given register [r], return the offset (the number of [value] slots,
-     not their size in bytes) of the register from the
-     [gc_regs] pointer during GC at runtime. Keep in sync with [amd64.S]. *)
-  let r =
-    match reg.loc with
-    | Reg r -> r
-    | Stack _ | Unknown ->
-      Misc.fatal_errorf "Unexpected register location for %d" reg.stamp
-  in
-  let reg_class = register_class reg in
-  let index = (r - first_available_register.(reg_class)) in
-  match reg_class with
-  | 0 -> index
-  | 1 ->
-    let slot_size_in_vals = 2 in
-    assert (Arch.size_vec128 / Arch.size_int = slot_size_in_vals);
-    if Config.runtime5
-    then
-      (* xmm slots are above regular slots based at [gc_regs_bucket] *)
-      let num_regular_slots =
-        (* rbp is always spilled even without frame pointers *)
-        13
-      in
-      num_regular_slots + (index * slot_size_in_vals)
-    else
-      (* xmm slots are below [gc_regs] pointer *)
-      let num_xmm_slots = 16 in
-      let offset = Int.neg (num_xmm_slots * slot_size_in_vals) in
-      offset + (index * slot_size_in_vals)
-  | _ -> assert false
-
 
 let rax = phys_reg Int 0
 let rdi = phys_reg Int 2
@@ -420,20 +347,6 @@ let loc_external_arguments ty_args =
   Array.map (fun reg -> [|reg|]) loc, stack_ofs
 
 let loc_exn_bucket = rax
-
-(** See "System V Application Binary Interface, AMD64 Architecture Processor
-    Supplement" (www.x86-64.org/documentation/abi.pdf) page 57, fig. 3.36. *)
-let int_dwarf_reg_numbers =
-  [| 0; 3; 5; 4; 1; 2; 8; 9; 12; 13; 10; 11; 6 |]
-
-let float_dwarf_reg_numbers =
-  [| 17; 18; 19; 20; 21; 22; 23; 24; 25; 26; 27; 28; 29; 30; 31; 32 |]
-
-let dwarf_register_numbers ~reg_class =
-  match reg_class with
-  | 0 -> int_dwarf_reg_numbers
-  | 1 -> float_dwarf_reg_numbers
-  | _ -> Misc.fatal_errorf "Bad register class %d" reg_class
 
 let stack_ptr_dwarf_register_number = 7
 let domainstate_ptr_dwarf_register_number = 14
@@ -700,12 +613,6 @@ let slot_offset loc ~stack_class ~stack_offset ~fun_contains_calls
 
 let assemble_file infile outfile =
   X86_proc.assemble_file infile outfile
-
-let init () =
-  if fp then begin
-    num_available_registers.(0) <- 12
-  end else
-    num_available_registers.(0) <- 13
 
 (* Precolored_regs is not always the same as [all_phys_regs], as some physical registers
    may not be allocatable (e.g. rbp when frame pointers are enabled). *)

@@ -11,9 +11,9 @@ let filter_unavailable : Reg.t array -> Reg.t array =
     match reg.loc with
     | Unknown -> true
     | Reg r ->
-      let reg_class = Proc.register_class reg in
-      r - Proc.first_available_register.(reg_class)
-      < Proc.num_available_registers.(reg_class)
+      let reg_class = Reg_class.of_machtype reg.typ in
+      r - Reg_class.first_available_register reg_class
+      < Reg_class.num_available_registers reg_class
     | Stack _ -> true
   in
   let num_available =
@@ -323,13 +323,9 @@ let assign_colors : State.t -> Cfg_with_layout.t -> unit =
       then (
         log "%a" Printreg.reg n;
         indent ());
-      let reg_class = Proc.register_class n in
-      let reg_num_avail =
-        Array.unsafe_get Proc.num_available_registers reg_class
-      in
-      let reg_first_avail =
-        Array.unsafe_get Proc.first_available_register reg_class
-      in
+      let reg_class = Reg_class.of_machtype n.typ in
+      let reg_num_avail = Reg_class.num_available_registers reg_class in
+      let reg_first_avail = Reg_class.first_available_register reg_class in
       let ok_colors = Array.make reg_num_avail true in
       let counter = ref reg_num_avail in
       let rec mark_adjacent_colors_and_get_first_available (adj : Reg.t list) :
