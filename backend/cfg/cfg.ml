@@ -511,18 +511,9 @@ let is_pure_basic : basic -> bool = function
     false
 
 let same_location (r1 : Reg.t) (r2 : Reg.t) =
-  Reg.same_loc r1 r2
-  &&
   match r1.loc with
   | Unknown -> Misc.fatal_errorf "Cfg got unknown register location."
-  | Reg _ ->
-    Reg_class.equal
-      (Reg_class.of_machtype r1.typ)
-      (Reg_class.of_machtype r2.typ)
-  | Stack _ ->
-    Stack_class.equal
-      (Stack_class.of_machtype r1.typ)
-      (Stack_class.of_machtype r2.typ)
+  | Reg _ | Stack _ -> Reg.same_loc r1 r2
 
 let is_noop_move instr =
   match instr.desc with
