@@ -2,6 +2,7 @@
 amd64/cfg_selection.ml
 amd64/emit.ml
 amd64/reg_class.ml
+amd64/reg_class.mli
 amd64/selection.ml
 amd64/selection_utils.ml
 amd64/simd*.ml
@@ -11,6 +12,7 @@ amd64/vectorize_specific.ml
 arm64/cfg_selection.ml
 arm64/emit.ml
 arm64/reg_class.ml
+arm64/reg_class.mli
 arm64/selection.ml
 arm64/selection_utils.ml
 arm64/simd*.ml
