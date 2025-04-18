@@ -22,6 +22,8 @@ val make_sequence : ?last_used:t -> unit -> sequence
 
 val reset : sequence -> unit
 
-val get_next : sequence -> t
+val get : sequence -> t
+
+val get_and_incr : sequence -> t
 
 val to_int_unsafe : t -> int

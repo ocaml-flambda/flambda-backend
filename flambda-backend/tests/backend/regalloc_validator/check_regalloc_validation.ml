@@ -234,11 +234,11 @@ let float = Array.init 8 (fun _ -> Reg.create Float)
 let base_templ () : Cfg_desc.t * (unit -> InstructionId.t) =
   let make_id =
     let seq = InstructionId.make_sequence () in
-    let _zero : InstructionId.t = InstructionId.get_next seq in
-    let _one : InstructionId.t = InstructionId.get_next seq in
-    let _two : InstructionId.t = InstructionId.get_next seq in
+    let _zero : InstructionId.t = InstructionId.get_and_incr seq in
+    let _one : InstructionId.t = InstructionId.get_and_incr seq in
+    let _two : InstructionId.t = InstructionId.get_and_incr seq in
     fun () ->
-      InstructionId.get_next seq
+      InstructionId.get_and_incr seq
   in
   let make_locs regs f =
     let locs = f (Array.map (fun (r : Reg.t) -> r.typ) regs) in
@@ -830,11 +830,11 @@ let () =
 let make_loop ~loop_loc_first n =
   let make_id =
     let seq = InstructionId.make_sequence () in
-    let _zero : InstructionId.t = InstructionId.get_next seq in
-    let _one : InstructionId.t = InstructionId.get_next seq in
-    let _two : InstructionId.t = InstructionId.get_next seq in
+    let _zero : InstructionId.t = InstructionId.get_and_incr seq in
+    let _one : InstructionId.t = InstructionId.get_and_incr seq in
+    let _two : InstructionId.t = InstructionId.get_and_incr seq in
     fun () ->
-      InstructionId.get_next seq
+      InstructionId.get_and_incr seq
   in
   let make_locs regs f =
     let locs = f (Array.map (fun (r : Reg.t) -> r.typ) regs) in

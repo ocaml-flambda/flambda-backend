@@ -580,7 +580,7 @@ let instr_id = InstructionId.make_sequence ()
 
 let reset_instr_id () = InstructionId.reset instr_id
 
-let next_instr_id () = InstructionId.get_next instr_id
+let next_instr_id () = InstructionId.get_and_incr instr_id
 
 let make_instr desc arg res dbg =
   { desc;

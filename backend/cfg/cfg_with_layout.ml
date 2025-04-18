@@ -456,7 +456,7 @@ let insert_block :
       ( Debuginfo.none,
         Fdo_info.none,
         Reg.Set.empty,
-        predecessor_block.stack_offset,
+        predecessor_block.terminator.stack_offset,
         None,
         None )
     | Some
