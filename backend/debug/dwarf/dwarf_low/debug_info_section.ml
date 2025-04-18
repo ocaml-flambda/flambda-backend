@@ -17,6 +17,7 @@
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open Asm_targets
 module DIE = Debugging_information_entry
+module A = Asm_directives_new
 
 type t =
   { dies : DIE.t list;
@@ -70,24 +71,23 @@ let size t =
   let initial_length = Initial_length.create size_without_first_word in
   Dwarf_int.add (Initial_length.size initial_length) size_without_first_word
 
-let emit ~asm_directives t =
-  let module A = (val asm_directives : Asm_directives.S) in
+let emit t =
   let size_without_first_word = size_without_first_word t in
   let initial_length = Initial_length.create size_without_first_word in
   A.define_label t.compilation_unit_header_label;
-  Initial_length.emit ~asm_directives initial_length;
-  Dwarf_version.emit ~asm_directives (dwarf_version ());
+  Initial_length.emit initial_length;
+  Dwarf_version.emit (dwarf_version ());
   (match dwarf_version () with
   | Four ->
-    Dwarf_value.emit ~asm_directives (debug_abbrev_offset t);
-    Dwarf_value.emit ~asm_directives address_width_in_bytes_on_target
+    Dwarf_value.emit (debug_abbrev_offset t);
+    Dwarf_value.emit address_width_in_bytes_on_target
   | Five ->
-    Unit_type.emit ~asm_directives unit_type;
-    Dwarf_value.emit ~asm_directives address_width_in_bytes_on_target;
-    Dwarf_value.emit ~asm_directives (debug_abbrev_offset t));
+    Unit_type.emit unit_type;
+    Dwarf_value.emit address_width_in_bytes_on_target;
+    Dwarf_value.emit (debug_abbrev_offset t));
   A.new_line ();
   A.comment "Debugging information entries:";
   A.new_line ();
   Profile.record "die_emission"
-    (fun dies -> List.iter (fun die -> DIE.emit ~asm_directives die) dies)
+    (fun dies -> List.iter (fun die -> DIE.emit die) dies)
     t.dies

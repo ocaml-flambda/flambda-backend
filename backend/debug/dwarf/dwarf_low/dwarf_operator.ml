@@ -740,24 +740,23 @@ module Size = Make (struct
 end)
 
 module Emit = Make (struct
-  type param = (module Asm_directives.S)
+  type param = unit
 
   type result = unit
 
   let unit_result () = ()
 
-  let opcode asm_directives t =
+  let opcode () t =
     let comment = opcode_name t in
-    V.emit ~asm_directives
-      (V.uint8 ~comment (Uint8.of_nonnegative_int_exn (opcode t)))
+    V.emit (V.uint8 ~comment (Uint8.of_nonnegative_int_exn (opcode t)))
 
-  let value asm_directives v = V.emit ~asm_directives v
+  let value () v = V.emit v
 
-  let ( >>> ) _asm_directives () f = f ()
+  let ( >>> ) () () f = f ()
 end)
 
 let print ppf t = Print.run ppf t
 
 let size t = Size.run () t
 
-let emit ~asm_directives t = Emit.run asm_directives t
+let emit t = Emit.run () t

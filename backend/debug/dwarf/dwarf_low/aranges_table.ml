@@ -59,6 +59,6 @@ let create ~start_of_code_symbol ~end_of_code_symbol ~debug_info_label =
 
 let size t = t.size
 
-let emit ~asm_directives t =
-  Initial_length.emit ~asm_directives (Initial_length.create t.size);
-  List.iter (fun v -> Dwarf_value.emit ~asm_directives v) t.values
+let emit t =
+  Initial_length.emit (Initial_length.create t.size);
+  List.iter (fun v -> Dwarf_value.emit v) t.values

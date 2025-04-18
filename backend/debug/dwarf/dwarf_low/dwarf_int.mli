@@ -32,8 +32,6 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
-open Asm_targets
-
 type t
 
 val print : Format.formatter -> t -> unit
@@ -67,5 +65,4 @@ val succ : t -> t
 
 val size : t -> t
 
-val emit :
-  asm_directives:(module Asm_directives.S) -> ?comment:string -> t -> unit
+val emit : ?comment:string -> t -> unit

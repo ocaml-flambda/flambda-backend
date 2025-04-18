@@ -17,6 +17,7 @@
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open Asm_targets
 module Int8 = Numbers.Int8
+module A = Asm_directives_new
 
 type 'payload entry =
   | End_of_list
@@ -140,8 +141,7 @@ struct
 
   let size t = Dwarf_int.succ (size0 t)
 
-  let emit ~asm_directives t =
-    let module A = (val asm_directives : Asm_directives.S) in
+  let emit t =
     (* DWARF-5 spec page 44 lines 14--15. *)
     A.comment "List entry:";
     let comment =
@@ -165,41 +165,39 @@ struct
     (match t.entry with
     | End_of_list -> ()
     | Base_addressx addr_index ->
-      Address_index.emit ~asm_directives ~comment:"base address" addr_index
+      Address_index.emit ~comment:"base address" addr_index
     | Startx_endx { start_inclusive; end_exclusive; payload } ->
-      Address_index.emit ~asm_directives ~comment:"start_inclusive"
-        start_inclusive;
-      Address_index.emit ~asm_directives ~comment:"end_exclusive" end_exclusive;
-      Payload.emit ~asm_directives payload
+      Address_index.emit ~comment:"start_inclusive" start_inclusive;
+      Address_index.emit ~comment:"end_exclusive" end_exclusive;
+      Payload.emit payload
     | Startx_length { start_inclusive; length; payload } ->
-      Address_index.emit ~asm_directives ~comment:"start_inclusive"
-        start_inclusive;
+      Address_index.emit ~comment:"start_inclusive" start_inclusive;
       A.targetint ~comment:"length" length;
-      Payload.emit ~asm_directives payload
+      Payload.emit payload
     | Offset_pair { start_offset_inclusive; end_offset_exclusive; payload } ->
-      Dwarf_value.emit ~asm_directives
+      Dwarf_value.emit
         (Dwarf_value.sleb128 ~comment:"start_offset_inclusive"
            (Targetint.to_int64 start_offset_inclusive));
-      Dwarf_value.emit ~asm_directives
+      Dwarf_value.emit
         (Dwarf_value.sleb128 ~comment:"end_offset_exclusive"
            (Targetint.to_int64 end_offset_exclusive));
-      Payload.emit ~asm_directives payload
+      Payload.emit payload
     | Base_address sym -> A.symbol sym
     | Start_end { start_inclusive; end_exclusive; end_adjustment; payload } ->
-      Dwarf_value.emit ~asm_directives
+      Dwarf_value.emit
         (label_address ~comment:"start_inclusive" t start_inclusive
            ~adjustment:0);
-      Dwarf_value.emit ~asm_directives
+      Dwarf_value.emit
         (label_address ~comment:"end_exclusive" t end_exclusive
            ~adjustment:end_adjustment);
-      Payload.emit ~asm_directives payload
+      Payload.emit payload
     | Start_length { start_inclusive; length; payload } ->
-      Dwarf_value.emit ~asm_directives
+      Dwarf_value.emit
         (label_address ~comment:"start_inclusive" t start_inclusive
            ~adjustment:0);
-      Dwarf_value.emit ~asm_directives
+      Dwarf_value.emit
         (Dwarf_value.uleb128 ~comment:"length"
            (Targetint.nonnegative_to_uint64_exn length));
-      Payload.emit ~asm_directives payload);
+      Payload.emit payload);
     if !Clflags.keep_asm_file then A.new_line ()
 end

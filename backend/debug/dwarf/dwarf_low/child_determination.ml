@@ -24,9 +24,9 @@ let encode = function Yes -> 0x01 | No -> 0x00
 
 let size _t = Dwarf_int.one ()
 
-let emit ~asm_directives t =
+let emit t =
   let comment = match t with Yes -> "Has children" | No -> "No children" in
-  Dwarf_value.emit ~asm_directives
+  Dwarf_value.emit
     (Dwarf_value.int8 ~comment (Numbers.Int8.of_int_exn (encode t)))
 
 let compare t1 t2 = Stdlib.compare t1 t2

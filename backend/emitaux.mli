@@ -159,7 +159,6 @@ module Dwarf_helpers : sig
   val init : disable_dwarf:bool -> sourcefile:string option -> unit
 
   val begin_dwarf :
-    build_asm_directives:(unit -> (module Asm_targets.Asm_directives_intf.S)) ->
     code_begin:string ->
     code_end:string ->
     file_emitter:(file_num:int -> file_name:string -> unit) ->

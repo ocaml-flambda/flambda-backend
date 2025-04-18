@@ -19,6 +19,7 @@ open Asm_targets
 module Uint8 = Numbers.Uint8
 module Uint32 = Numbers.Uint32
 module Uint64 = Numbers.Uint64
+module A = Asm_directives_new
 
 module Make (Location_or_range_list : sig
   include Dwarf_emittable.S
@@ -107,10 +108,9 @@ struct
       (Initial_length.size initial_length)
       (Initial_length.to_dwarf_int initial_length)
 
-  let emit ~asm_directives t =
-    let module A = (val asm_directives : Asm_directives.S) in
-    Initial_length.emit ~asm_directives (initial_length t);
-    Dwarf_version.emit ~asm_directives Dwarf_version.five;
+  let emit t =
+    Initial_length.emit (initial_length t);
+    Dwarf_version.emit Dwarf_version.five;
     A.uint8 ~comment:"Dwarf_arch_sizes.size_addr"
       (Uint8.of_nonnegative_int_exn Dwarf_arch_sizes.size_addr);
     A.uint8 ~comment:"Segment selector size" Uint8.zero;
@@ -129,12 +129,12 @@ struct
             then Some (Printf.sprintf "offset to list number %d" index)
             else None
           in
-          Dwarf_int.emit ~asm_directives ?comment offset)
+          Dwarf_int.emit ?comment offset)
         t.lists);
     A.comment "Range or location list(s):";
     List.iter
       (fun { list; label; _ } ->
         A.define_label label;
-        Location_or_range_list.emit ~asm_directives list)
+        Location_or_range_list.emit list)
       t.lists
 end

@@ -24,8 +24,8 @@ include Int64
 let size t =
   Dwarf_value.size (Dwarf_value.uleb128 (Uint64.of_nonnegative_int64_exn t))
 
-let emit ~asm_directives ?comment t =
-  Dwarf_value.emit ~asm_directives
+let emit ?comment t =
+  Dwarf_value.emit
     (Dwarf_value.uleb128 ?comment (Uint64.of_nonnegative_int64_exn t))
 
 include Identifiable.Make (struct

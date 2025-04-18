@@ -40,7 +40,4 @@ let size t =
       Dwarf_int.add size (Dwarf_4_range_list.size range_list))
     (Dwarf_int.zero ()) !t
 
-let emit ~asm_directives t =
-  List.iter
-    (fun range_list -> Dwarf_4_range_list.emit ~asm_directives range_list)
-    !t
+let emit t = List.iter (fun range_list -> Dwarf_4_range_list.emit range_list) !t

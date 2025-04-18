@@ -16,6 +16,7 @@
 
 open! Int_replace_polymorphic_compare
 open Asm_targets
+module A = Asm_directives_new
 
 module Location_list_entry = struct
   type t =
@@ -77,13 +78,12 @@ module Location_list_entry = struct
     Dwarf_value.size v1 + Dwarf_value.size v2 + Dwarf_value.size v3
     + Single_location_description.size t.expr
 
-  let emit ~asm_directives t =
-    let module A = (val asm_directives : Asm_directives.S) in
-    Dwarf_value.emit ~asm_directives (beginning_value t);
-    Dwarf_value.emit ~asm_directives (ending_value t);
+  let emit t =
+    Dwarf_value.emit (beginning_value t);
+    Dwarf_value.emit (ending_value t);
     A.int16 ~comment:"expression size" (expr_size t);
     A.comment "Single location description (DWARF expression):";
-    Single_location_description.emit ~asm_directives t.expr
+    Single_location_description.emit t.expr
 end
 
 module Base_address_selection_entry = struct
@@ -102,8 +102,7 @@ module Base_address_selection_entry = struct
       (fun acc v -> Dwarf_int.add acc (Dwarf_value.size v))
       (Dwarf_int.zero ()) (to_dwarf_values t)
 
-  let emit ~asm_directives t =
-    List.iter (fun v -> Dwarf_value.emit ~asm_directives v) (to_dwarf_values t)
+  let emit t = List.iter (fun v -> Dwarf_value.emit v) (to_dwarf_values t)
 end
 
 type t =
@@ -129,16 +128,15 @@ let size = function
   | Base_address_selection_entry entry ->
     Base_address_selection_entry.size entry
 
-let emit ~asm_directives t =
-  let module A = (val asm_directives : Asm_directives.S) in
+let emit t =
   match t with
   | Location_list_entry entry ->
     A.new_line ();
     A.comment "Location list entry:";
-    Location_list_entry.emit ~asm_directives entry
+    Location_list_entry.emit entry
   | Base_address_selection_entry entry ->
     A.comment "Base address selection entry:";
-    Base_address_selection_entry.emit ~asm_directives entry
+    Base_address_selection_entry.emit entry
 
 let compare_ascending_vma t1 t2 =
   (* This relies on a certain ordering on labels. See [Compute_ranges]. *)

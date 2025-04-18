@@ -15,7 +15,6 @@
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
-open Asm_targets
 
 module type S = sig
   type t
@@ -24,7 +23,7 @@ module type S = sig
   val size : t -> Dwarf_int.t
 
   (** Emit assembler directives to describe the given entity. *)
-  val emit : asm_directives:(module Asm_directives.S) -> t -> unit
+  val emit : t -> unit
 end
 
 module type S1_ignore = sig
@@ -34,5 +33,5 @@ module type S1_ignore = sig
   val size : _ t -> Dwarf_int.t
 
   (** Emit assembler directives to describe the given entity. *)
-  val emit : asm_directives:(module Asm_directives.S) -> _ t -> unit
+  val emit : _ t -> unit
 end

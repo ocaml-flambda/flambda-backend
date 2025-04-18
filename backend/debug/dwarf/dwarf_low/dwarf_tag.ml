@@ -263,6 +263,6 @@ let encode t =
 
 let size t = Dwarf_value.size (encode t)
 
-let emit ~asm_directives t = Dwarf_value.emit ~asm_directives (encode t)
+let emit t = Dwarf_value.emit (encode t)
 
 let compare t1 t2 = Stdlib.compare t1 t2

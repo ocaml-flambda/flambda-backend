@@ -17,6 +17,7 @@
 open! Int_replace_polymorphic_compare
 open Asm_targets
 module Uint8 = Numbers.Uint8
+module A = Asm_directives_new
 
 module Entry = struct
   type t =
@@ -95,14 +96,12 @@ let entry_to_dwarf_value (entry : entry_and_soc_symbol) =
     ~upper:entry.entry.addr ~lower:entry.start_of_code_symbol
     ~offset_upper:adjustment ()
 
-let emit ~asm_directives t =
-  let module A = (val asm_directives : Asm_directives.S) in
-  Initial_length.emit ~asm_directives (initial_length t);
-  Dwarf_version.emit ~asm_directives Dwarf_version.five;
+let emit t =
+  Initial_length.emit (initial_length t);
+  Dwarf_version.emit Dwarf_version.five;
   A.uint8 (Uint8.of_nonnegative_int_exn Dwarf_arch_sizes.size_addr);
   A.uint8 Uint8.zero;
   A.define_label t.base_addr;
   Address_index.Map.iter
-    (fun _index entry ->
-      Dwarf_value.emit ~asm_directives (entry_to_dwarf_value entry))
+    (fun _index entry -> Dwarf_value.emit (entry_to_dwarf_value entry))
     t.table

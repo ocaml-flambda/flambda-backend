@@ -30,11 +30,10 @@ let size t = Dwarf_int.size t
 
 let sixty_four_bit_indicator = 0xffffffffl
 
-let emit ~asm_directives t =
+let emit t =
   match Dwarf_format.get () with
-  | Thirty_two ->
-    Dwarf_int.emit ~asm_directives ~comment:"32-bit initial length" t
+  | Thirty_two -> Dwarf_int.emit ~comment:"32-bit initial length" t
   | Sixty_four ->
-    Dwarf_value.emit ~asm_directives
+    Dwarf_value.emit
       (Dwarf_value.int32 ~comment:"64-bit indicator" sixty_four_bit_indicator);
-    Dwarf_int.emit ~asm_directives ~comment:"64-bit initial length" t
+    Dwarf_int.emit ~comment:"64-bit initial length" t

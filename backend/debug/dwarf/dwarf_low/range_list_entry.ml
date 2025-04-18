@@ -23,7 +23,7 @@ include Location_or_range_list_entry.Make (struct
 
     let size () = Dwarf_int.zero ()
 
-    let emit ~asm_directives:_ () = ()
+    let emit () = ()
   end
 
   let code_for_entry_kind (entry : _ Location_or_range_list_entry.entry) =

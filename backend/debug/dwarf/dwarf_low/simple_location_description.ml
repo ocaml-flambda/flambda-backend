@@ -24,5 +24,4 @@ let size t =
     (fun size op -> Dwarf_int.add size (Operator.size op))
     (Dwarf_int.zero ()) t
 
-let emit ~asm_directives t =
-  List.iter (fun op -> Operator.emit ~asm_directives op) t
+let emit t = List.iter (fun op -> Operator.emit op) t

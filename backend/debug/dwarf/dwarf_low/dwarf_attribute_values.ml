@@ -16,6 +16,7 @@
 
 open! Int_replace_polymorphic_compare
 open Asm_targets
+module A = Asm_directives_new
 
 module Value = struct
   type internal_t =
@@ -163,8 +164,7 @@ module Attribute_value = struct
         (uleb128_size (Dwarf_int.to_int64 loc_desc_size))
         loc_desc_size
 
-  let emit ~asm_directives ((spec, value) : t) =
-    let module A = (val asm_directives : Asm_directives.S) in
+  let emit ((spec, value) : t) =
     match value with
     | Dwarf_value value ->
       let value =
@@ -177,15 +177,15 @@ module Attribute_value = struct
           in
           Dwarf_value.append_to_comment value comment
       in
-      Dwarf_value.emit ~asm_directives value
+      Dwarf_value.emit value
     | Single_location_description loc_desc ->
       A.uleb128 ~comment:"size of single location desc."
         (Dwarf_int.to_uint64_exn (Single_location_description.size loc_desc));
-      Single_location_description.emit ~asm_directives loc_desc
+      Single_location_description.emit loc_desc
     | Composite_location_description loc_desc ->
       A.uleb128 ~comment:"size of composite location desc."
         (Dwarf_int.to_uint64_exn (Composite_location_description.size loc_desc));
-      Composite_location_description.emit ~asm_directives loc_desc
+      Composite_location_description.emit loc_desc
 
   let attribute_spec (spec, _value) = spec
 end

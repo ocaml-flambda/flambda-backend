@@ -32,12 +32,12 @@ let size t =
              (Dwarf_operator.size pieces)))
       (Dwarf_int.zero ()) slds
 
-let emit ~asm_directives t =
+let emit t =
   match t with
   | Pieces slds ->
     List.iter
       (fun (sld, size_in_bytes) ->
-        Simple_location_description.emit ~asm_directives sld;
+        Simple_location_description.emit sld;
         let pieces = Dwarf_operator.DW_op_piece { size_in_bytes } in
-        Dwarf_operator.emit ~asm_directives pieces)
+        Dwarf_operator.emit pieces)
       slds
