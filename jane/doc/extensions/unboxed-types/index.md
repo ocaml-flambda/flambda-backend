@@ -30,6 +30,7 @@ by a *type*. The type system knows about a collection of fixed *base* layouts:
   `immediate < immediate64 < value`. Types declared with `[@@immediate64]` have layout
   `immediate64`.
 * `float64` is the layout of the `float#` unboxed float type.
+* `float32` is the layout of the `float32#` unboxed 32-bit float type.
 * `bits32` is the layout of the `int32#` unboxed int32 type.
 * `bits64` is the layout of the `int64#` unboxed int64 type.
 * `vec128` is the layout of 128-bit unboxed SIMD vector types.
