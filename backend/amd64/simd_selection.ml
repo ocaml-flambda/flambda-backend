@@ -472,31 +472,31 @@ let pseudoregs_for_mem_operation (op : Simd.Mem.operation) arg res =
   | SSE Div_f32 ->
     [| res.(0); arg.(1) |], res
 
+let rax = Proc.phys_reg Int 0
+
+let rcx = Proc.phys_reg Int 5
+
+let rdx = Proc.phys_reg Int 4
+
+let xmm0v = Proc.phys_reg Vec128 100
+
+let to_phys_reg (pinned_reg : Simd.reg) =
+  match pinned_reg with RAX -> rax | RCX -> rcx | RDX -> rdx | XMM0 -> xmm0v
+
+let maybe_pin arr i loc =
+  match Simd.loc_is_pinned loc with
+  | None -> ()
+  | Some pinned_loc -> arr.(i) <- to_phys_reg pinned_loc
+
 let pseudoregs_for_instr (simd : Simd.instr) arg_regs res_regs =
-  let rax = Proc.phys_reg Int 0 in
-  let rcx = Proc.phys_reg Int 5 in
-  let rdx = Proc.phys_reg Int 4 in
-  let xmm0v () = Proc.phys_reg Vec128 100 in
   Array.iteri
-    (fun i (arg : Simd.arg) ->
-      match Simd.loc_is_pinned arg.loc with
-      | Some RAX -> arg_regs.(i) <- rax
-      | Some RCX -> arg_regs.(i) <- rcx
-      | Some RDX -> arg_regs.(i) <- rdx
-      | Some XMM0 -> arg_regs.(i) <- xmm0v ()
-      | None -> ())
+    (fun i (simd_arg : Simd.arg) -> maybe_pin arg_regs i simd_arg.loc)
     simd.args;
   (match simd.res with
   | First_arg ->
     assert (not (Reg.is_preassigned arg_regs.(0)));
     arg_regs.(0) <- res_regs.(0)
-  | Res { loc; _ } -> (
-    match Simd.loc_is_pinned loc with
-    | Some RAX -> res_regs.(0) <- rax
-    | Some RCX -> res_regs.(0) <- rcx
-    | Some RDX -> res_regs.(0) <- rdx
-    | Some XMM0 -> res_regs.(0) <- xmm0v ()
-    | None -> ()));
+  | Res { loc; _ } -> maybe_pin res_regs 0 loc);
   arg_regs, res_regs
 
 let pseudoregs_for_operation (simd : Simd.operation) arg res =
