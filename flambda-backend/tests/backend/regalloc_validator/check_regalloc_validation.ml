@@ -573,8 +573,12 @@ let () =
       cfg, cfg)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: instruction 20 has a register (anon:V/68) with an unknown \
+    ( if String.equal Config.architecture "amd64" then
+      ">> Fatal error: instruction 20 has a register (anon:V/37) with an unknown \
        location"
+    else
+      ">> Fatal error: instruction 20 has a register (anon:V/68) with an unknown \
+       location")
 
 let () =
   check "Precoloring can't change"
