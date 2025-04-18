@@ -28,77 +28,25 @@ module T = struct
     | Int64 -> int_dwarf_reg_numbers
     | Float128 -> float_dwarf_reg_numbers
 
-  let int_reg_name =
+  let[@ocamlformat "disable"] int_reg_name =
     match Config.ccomp_type with
     | "msvc" ->
-      [| "rax";
-         "rbx";
-         "rdi";
-         "rsi";
-         "rdx";
-         "rcx";
-         "r8";
-         "r9";
-         "r12";
-         "r13";
-         "r10";
-         "r11";
-         "rbp"
-      |]
+      [| "rax"; "rbx"; "rdi"; "rsi"; "rdx"; "rcx"; "r8"; "r9";
+         "r12"; "r13"; "r10"; "r11"; "rbp" |]
     | _ ->
-      [| "%rax";
-         "%rbx";
-         "%rdi";
-         "%rsi";
-         "%rdx";
-         "%rcx";
-         "%r8";
-         "%r9";
-         "%r12";
-         "%r13";
-         "%r10";
-         "%r11";
-         "%rbp"
-      |]
+      [| "%rax"; "%rbx"; "%rdi"; "%rsi"; "%rdx"; "%rcx"; "%r8"; "%r9";
+         "%r12"; "%r13"; "%r10"; "%r11"; "%rbp" |]
 
-  let float_reg_name =
+  let[@ocamlformat "disable"] float_reg_name =
     match Config.ccomp_type with
     | "msvc" ->
-      [| "xmm0";
-         "xmm1";
-         "xmm2";
-         "xmm3";
-         "xmm4";
-         "xmm5";
-         "xmm6";
-         "xmm7";
-         "xmm8";
-         "xmm9";
-         "xmm10";
-         "xmm11";
-         "xmm12";
-         "xmm13";
-         "xmm14";
-         "xmm15"
-      |]
+      [| "xmm0"; "xmm1"; "xmm2"; "xmm3"; "xmm4"; "xmm5"; "xmm6"; "xmm7";
+         "xmm8"; "xmm9"; "xmm10"; "xmm11";
+         "xmm12"; "xmm13"; "xmm14"; "xmm15" |]
     | _ ->
-      [| "%xmm0";
-         "%xmm1";
-         "%xmm2";
-         "%xmm3";
-         "%xmm4";
-         "%xmm5";
-         "%xmm6";
-         "%xmm7";
-         "%xmm8";
-         "%xmm9";
-         "%xmm10";
-         "%xmm11";
-         "%xmm12";
-         "%xmm13";
-         "%xmm14";
-         "%xmm15"
-      |]
+      [| "%xmm0"; "%xmm1"; "%xmm2"; "%xmm3"; "%xmm4"; "%xmm5"; "%xmm6"; "%xmm7";
+         "%xmm8"; "%xmm9"; "%xmm10"; "%xmm11";
+         "%xmm12"; "%xmm13"; "%xmm14"; "%xmm15" |]
 
   let register_name ty r =
     (* If the ID doesn't match the type, the array access will raise. *)
