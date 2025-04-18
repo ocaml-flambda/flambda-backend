@@ -1543,7 +1543,7 @@ let close_exact_or_unknown_apply acc env
           let result_arity_from_code = Code_metadata.result_arity meta in
           if (* See comment about when this check can be done, in
                 simplify_apply_expr.ml *)
-             not
+             Flambda_features.kind_checks () && not
                (Flambda_arity.equal_ignoring_subkinds return_arity
                   result_arity_from_code)
           then

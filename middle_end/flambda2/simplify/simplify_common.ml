@@ -256,10 +256,7 @@ let split_direct_over_application apply
       in
       Continuation_handler.create params
         ~handler:
-          (Expr.create_invalid
-             (Message
-                "Over-application of a function that does not return a \
-                 singleton value"))
+          (Expr.create_invalid (Over_application_never_returns apply))
         ~free_names_of_handler:(Known Name_occurrences.empty)
         ~is_exn_handler:false ~is_cold:true
     else
