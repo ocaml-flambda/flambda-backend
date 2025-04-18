@@ -60,8 +60,6 @@ module Seq = struct
     | Pcmpistrz -> "pcmpistrz"
 
   let equal { id = id0; instr = instr0 } { id = id1; instr = instr1 } =
-    Stdlib.( == ) instr0 instr1
-    &&
     match id0, id1 with
     | Sqrtss, Sqrtss
     | Sqrtsd, Sqrtsd
@@ -77,6 +75,7 @@ module Seq = struct
     | Pcmpistro, Pcmpistro
     | Pcmpistrs, Pcmpistrs
     | Pcmpistrz, Pcmpistrz ->
+      assert (Stdlib.( == ) instr0 instr1);
       true
     | ( ( Sqrtss | Sqrtsd | Roundss | Roundsd | Pcmpestra | Pcmpestrc
         | Pcmpestro | Pcmpestrs | Pcmpestrz | Pcmpistra | Pcmpistrc | Pcmpistro
