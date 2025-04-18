@@ -37,12 +37,40 @@ module Seq = struct
     | Pcmpistrs
     | Pcmpistrz
 
-  type nonrec instr =
+  type nonrec t =
     { id : id;
-      instr : instr
+      instr : Amd64_simd_instrs.instr
     }
 
-  let mnemonic ({ id; _ } : instr) =
+  let sqrtss = { id = Sqrtss; instr = Amd64_simd_instrs.sqrtss }
+
+  let sqrtsd = { id = Sqrtsd; instr = Amd64_simd_instrs.sqrtsd }
+
+  let roundss = { id = Roundss; instr = Amd64_simd_instrs.roundss }
+
+  let roundsd = { id = Roundsd; instr = Amd64_simd_instrs.roundsd }
+
+  let pcmpestra = { id = Pcmpestra; instr = Amd64_simd_instrs.pcmpestri }
+
+  let pcmpestrc = { id = Pcmpestrc; instr = Amd64_simd_instrs.pcmpestri }
+
+  let pcmpestro = { id = Pcmpestro; instr = Amd64_simd_instrs.pcmpestri }
+
+  let pcmpestrs = { id = Pcmpestrs; instr = Amd64_simd_instrs.pcmpestri }
+
+  let pcmpestrz = { id = Pcmpestrz; instr = Amd64_simd_instrs.pcmpestri }
+
+  let pcmpistra = { id = Pcmpistra; instr = Amd64_simd_instrs.pcmpistri }
+
+  let pcmpistrc = { id = Pcmpistrc; instr = Amd64_simd_instrs.pcmpistri }
+
+  let pcmpistro = { id = Pcmpistro; instr = Amd64_simd_instrs.pcmpistri }
+
+  let pcmpistrs = { id = Pcmpistrs; instr = Amd64_simd_instrs.pcmpistri }
+
+  let pcmpistrz = { id = Pcmpistrz; instr = Amd64_simd_instrs.pcmpistri }
+
+  let mnemonic ({ id; _ } : t) =
     match id with
     | Sqrtss -> "sqrtss"
     | Sqrtsd -> "sqrtsd"
@@ -86,11 +114,11 @@ end
 
 type operation =
   | Instruction of
-      { instr : instr;
+      { instr : Amd64_simd_instrs.instr;
         imm : int option
       }
   | Sequence of
-      { seq : Seq.instr;
+      { seq : Seq.t;
         imm : int option
       }
 

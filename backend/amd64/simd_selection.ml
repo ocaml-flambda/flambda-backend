@@ -25,37 +25,7 @@ type error = Bad_immediate of string
 
 exception Error of error
 
-module Seq = struct
-  open! Simd.Seq
-
-  let sqrtss = { id = Sqrtss; instr = sqrtss }
-
-  let sqrtsd = { id = Sqrtsd; instr = sqrtsd }
-
-  let roundss = { id = Roundss; instr = roundss }
-
-  let roundsd = { id = Roundsd; instr = roundsd }
-
-  let pcmpestra = { id = Pcmpestra; instr = pcmpestri }
-
-  let pcmpestrc = { id = Pcmpestrc; instr = pcmpestri }
-
-  let pcmpestro = { id = Pcmpestro; instr = pcmpestri }
-
-  let pcmpestrs = { id = Pcmpestrs; instr = pcmpestri }
-
-  let pcmpestrz = { id = Pcmpestrz; instr = pcmpestri }
-
-  let pcmpistra = { id = Pcmpistra; instr = pcmpistri }
-
-  let pcmpistrc = { id = Pcmpistrc; instr = pcmpistri }
-
-  let pcmpistro = { id = Pcmpistro; instr = pcmpistri }
-
-  let pcmpistrs = { id = Pcmpistrs; instr = pcmpistri }
-
-  let pcmpistrz = { id = Pcmpistrz; instr = pcmpistri }
-end
+module Seq = Simd.Seq
 
 let instr instr ?i args = Some (Simd.Instruction { instr; imm = i }, args)
 
