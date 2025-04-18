@@ -1490,37 +1490,36 @@ let emit_simd_instr (simd : Simd.instr) imm instr =
   in
   I.simd simd (Array.of_list args)
 
-let emit_simd (simd : Simd.operation) instr =
-  match simd with
-  | Instruction { instr = simd; imm } -> emit_simd_instr simd imm instr
-  | Sequence { seq; imm } -> (
-    (* Prefix *)
-    (match seq.id with
+let emit_simd (op : Simd.operation) instr =
+  let imm = op.imm in
+  match op.instr with
+  | Instruction simd -> emit_simd_instr simd imm instr
+  | Sequence seq -> (
+    match seq.id with
     | Sqrtss | Sqrtsd | Roundss | Roundsd ->
       (* Avoids partial register stall *)
       if not (equal_arg (arg instr 0) (res instr 0))
-      then I.xorpd (res instr 0) (res instr 0)
-    | Pcmpestra | Pcmpistra | Pcmpestrc | Pcmpistrc | Pcmpestro | Pcmpistro
-    | Pcmpestrs | Pcmpistrs | Pcmpestrz | Pcmpistrz ->
-      ());
-    (* Instruction *)
-    emit_simd_instr seq.instr imm instr;
-    (* Suffix *)
-    match seq.id with
-    | Sqrtss | Sqrtsd | Roundss | Roundsd -> ()
+      then I.xorpd (res instr 0) (res instr 0);
+      (* Instruction *)
+      emit_simd_instr seq.instr imm instr
     | Pcmpestra | Pcmpistra ->
+      emit_simd_instr seq.instr imm instr;
       I.set A (res8 instr 0);
       I.movzx (res8 instr 0) (res instr 0)
     | Pcmpestrc | Pcmpistrc ->
+      emit_simd_instr seq.instr imm instr;
       I.set B (res8 instr 0);
       I.movzx (res8 instr 0) (res instr 0)
     | Pcmpestro | Pcmpistro ->
+      emit_simd_instr seq.instr imm instr;
       I.set O (res8 instr 0);
       I.movzx (res8 instr 0) (res instr 0)
     | Pcmpestrs | Pcmpistrs ->
+      emit_simd_instr seq.instr imm instr;
       I.set S (res8 instr 0);
       I.movzx (res8 instr 0) (res instr 0)
     | Pcmpestrz | Pcmpistrz ->
+      emit_simd_instr seq.instr imm instr;
       I.set E (res8 instr 0);
       I.movzx (res8 instr 0) (res instr 0))
 

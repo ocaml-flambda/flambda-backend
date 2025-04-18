@@ -27,9 +27,9 @@ exception Error of error
 
 module Seq = Simd.Seq
 
-let instr instr ?i args = Some (Simd.Instruction { instr; imm = i }, args)
+let instr instr ?i args = Some (Simd.instruction instr i, args)
 
-let seq seq ?i args = Some (Simd.Sequence { seq; imm = i }, args)
+let seq seq ?i args = Some (Simd.sequence seq i, args)
 
 let bad_immediate fmt =
   Format.kasprintf (fun msg -> raise (Error (Bad_immediate msg))) fmt
@@ -502,9 +502,9 @@ let pseudoregs_for_instr (simd : Simd.instr) arg_regs res_regs =
 let pseudoregs_for_operation (simd : Simd.operation) arg res =
   let arg_regs = Array.copy arg in
   let res_regs = Array.copy res in
-  match simd with
-  | Instruction { instr; _ } -> pseudoregs_for_instr instr arg_regs res_regs
-  | Sequence { seq; _ } -> (
+  match simd.instr with
+  | Instruction instr -> pseudoregs_for_instr instr arg_regs res_regs
+  | Sequence seq -> (
     match seq.id with
     | Sqrtss | Sqrtsd | Roundss | Roundsd | Pcmpestra | Pcmpestrc | Pcmpestro
     | Pcmpestrs | Pcmpestrz | Pcmpistra | Pcmpistrc | Pcmpistro | Pcmpistrs
@@ -530,9 +530,7 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
     ~arg_count ~res_count ~alignment_in_bytes (cfg_ops : Operation.t list) :
     Vectorize_utils.Vectorized_instruction.t list option =
   (* Assumes cfg_ops are isomorphic *)
-  let instr instr =
-    Operation.Specific (Isimd (Instruction { instr; imm = None }))
-  in
+  let instr instr = Operation.Specific (Isimd (Simd.instruction instr None)) in
   let width_in_bits = Vectorize_utils.Width_in_bits.to_int width_type in
   let length = List.length cfg_ops in
   assert (length * width_in_bits = vector_width_in_bits);
