@@ -1300,7 +1300,7 @@ and let_cont_exprs env (let_cont1 : Let_cont.t) (let_cont2 : Let_cont.t) :
       ~f:(fun ~invariant_params ~body1 ~body2 cont_handlers1 cont_handlers2 ->
         pairs ~f1:exprs ~f2:compare_handler_maps
           ~subst2:(fun env map ->
-            Continuation.Lmap.map (subst_cont_handler env) map)
+            Continuation.Lmap.map_sharing (subst_cont_handler env) map)
           env
           (body1, cont_handlers1 |> Continuation_handlers.to_map)
           (body2, cont_handlers2 |> Continuation_handlers.to_map)
