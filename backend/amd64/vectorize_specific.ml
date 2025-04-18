@@ -50,10 +50,11 @@ let memory_access : Arch.specific_operation -> Memory_access.t option =
   | Icldemote _ | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence | Ipause ->
     (* Conservative, don't reorder around timing or ordering instructions. *)
     create Memory_access.Arbitrary
+  | Ipackf32 -> None
   | Isimd op ->
     (* Conservative. we don't have any simd operations with memory operations at
        the moment. *)
-    if Simd.is_pure op then None else create Memory_access.Arbitrary
+    if Simd.is_pure_operation op then None else create Memory_access.Arbitrary
   | Isimd_mem _ ->
     Misc.fatal_errorf
       "Unexpected simd instruction with memory operands before vectorization"
@@ -65,6 +66,6 @@ let is_seed_store :
   match op with
   | Istore_int _ -> Some W64
   | Ifloatarithmem _ | Ioffset_loc _ | Iprefetch _ | Icldemote _ | Irdtsc
-  | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Isimd _ | Isimd_mem _
-  | Ilea _ | Ibswap _ | Isextend32 | Izextend32 ->
+  | Irdpmc | Ilfence | Isfence | Imfence | Ipause | Ipackf32 | Isimd _
+  | Isimd_mem _ | Ilea _ | Ibswap _ | Isextend32 | Izextend32 ->
     None
