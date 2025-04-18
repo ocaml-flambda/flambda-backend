@@ -66,12 +66,14 @@ let () =
   | Sys.Break -> callback ()
   | _ -> assert false
 
+(*
 let[@loop never] rec stack_overflow () = stack_overflow () [@nontail]
 
 let () =
   try Sys.with_async_exns stack_overflow with
   | Stack_overflow -> callback ()
   | _ -> assert false
+*)
 
 (* Effects *)
 
