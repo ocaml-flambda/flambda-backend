@@ -722,25 +722,9 @@ let invariant_for_new_equation (t : t) name ty =
       Misc.fatal_errorf "New equation@ %a@ =@ %a@ has unbound names@ (%a):@ %a"
         Name.print name TG.print ty Name_occurrences.print unbound_names print t)
 
-let pattern_match_equation ~name ~const simple ty =
-  (* We have [(coerce <bare_lhs> <coercion>) : <ty>]. Thus [<bare_lhs> : (coerce
-     <ty> <coercion>^-1)]. *)
-  let bare_lhs = Simple.without_coercion simple in
-  let coercion_from_bare_lhs_to_ty = Simple.coercion simple in
-  let coercion_from_ty_to_bare_lhs =
-    Coercion.inverse coercion_from_bare_lhs_to_ty
-  in
-  let ty = TG.apply_coercion ty coercion_from_ty_to_bare_lhs in
-  let name eqn_name ~coercion =
-    (* true by definition *)
-    assert (Coercion.is_id coercion);
-    name eqn_name ty
-  in
-  Simple.pattern_match bare_lhs ~name ~const:(fun c -> const c ty)
-
 exception Bottom_equation
 
-let rec replace_equation (t : t) name ty =
+let replace_equation (t : t) name ty =
   (if Flambda_features.Debug.concrete_types_only_on_canonicals ()
   then
     let is_concrete =
@@ -792,33 +776,49 @@ let rec replace_equation (t : t) name ty =
   in
   with_current_level t ~current_level
 
-and replace_equation_or_add_alias_to_const t name ty =
-  match TG.recover_const_alias ty with
-  | None -> replace_equation t name ty
+let aliases_add t ~canonical_element1 ~canonical_element2 =
+  (* This may raise [Binding_time_resolver_failure]. *)
+  Aliases.add ~binding_time_resolver:t.binding_time_resolver (aliases t)
+    ~binding_times_and_modes:(names_to_types t) ~canonical_element1
+    ~canonical_element2
+
+let replace_concrete_equation t name ty =
+  match TG.must_be_singleton ty with
+  | None ->
+    (* [ty] must be a concrete type. *)
+    (match TG.get_alias_opt ty with
+    | None -> ()
+    | Some alias ->
+      Misc.fatal_errorf "Expected concrete type for %a but got an alias to %a"
+        Name.print name Simple.print alias);
+    replace_equation t name ty
   | Some const -> (
     match
-      Aliases.add ~binding_time_resolver:t.binding_time_resolver
-        ~binding_times_and_modes:(names_to_types t) (aliases t)
-        ~canonical_element1:(Simple.name name)
+      aliases_add t ~canonical_element1:(Simple.name name)
         ~canonical_element2:(Simple.const const)
     with
-    | Ok { canonical_element = _; alias_of_demoted_element; t = aliases } ->
-      if not (Simple.equal alias_of_demoted_element (Simple.name name))
-      then Misc.fatal_error "Unexpected demotion of constant.";
-      let t = with_aliases t ~aliases in
-      let kind = MTC.kind_for_const const in
-      let ty = TG.alias_type_of kind (Simple.const const) in
-      replace_equation t name ty
     | Bottom ->
-      Misc.fatal_error "Unexpected bottom while adding alias to constant.")
+      Misc.fatal_error "Unexpected bottom while adding alias to constant"
+    | exception Binding_time_resolver_failure ->
+      (* This should only happen when adding aliases between names defined in
+         external compilation units, but we are adding an alias to a
+         constant. *)
+      Misc.fatal_error
+        "Unexpected resolver failure while adding alias to constant"
+    | Ok { canonical_element; demoted_name; t = aliases } ->
+      if (not (Name.equal demoted_name name))
+         || not (Simple.equal canonical_element (Simple.const const))
+      then Misc.fatal_error "Unexpected demotion of constant.";
+      let kind = MTC.kind_for_const const in
+      let ty = TG.alias_type_of kind canonical_element in
+      let t = with_aliases t ~aliases in
+      replace_equation t demoted_name ty)
 
-and add_non_alias_equation ~raise_on_bottom t lhs_simple rhs_ty
+let add_concrete_equation_on_canonical ~raise_on_bottom t simple ty
     ~(meet_type : meet_type) =
-  (* We are about to add a non-alias type on a canonical *simple*. This type
-     might have been provided by the caller of [add_equation], or it might come
-     from an existing equation. In either case, we need to call [meet] with the
-     existing type in order to ensure that we record the most precise type
-     available.
+  (* When adding a type to a canonical name, we need to call [meet] with the
+     existing type for that name in order to ensure we record the most precise
+     type available.
 
      For example, suppose [p] is defined earlier than [x], with [p] of type
      [ty1] and [x] of type [ty2]. If the caller says that the type of [p] is now
@@ -833,137 +833,112 @@ and add_non_alias_equation ~raise_on_bottom t lhs_simple rhs_ty
      compatible with the previous type of [p].
 
      Note also that [p] and [x] may have different name modes! *)
-  let[@inline always] name eqn_name ty =
-    let existing_ty = find t eqn_name (Some (TG.kind ty)) in
-    match meet_type t ty existing_ty with
-    | Bottom ->
-      if raise_on_bottom
-      then raise Bottom_equation
-      else replace_equation t eqn_name (MTC.bottom (TG.kind ty))
-    | Ok (meet_ty, env) -> (
-      match meet_ty with
-      | Left_input -> replace_equation_or_add_alias_to_const env eqn_name ty
-      | Right_input | Both_inputs -> env
-      | New_result ty' ->
-        replace_equation_or_add_alias_to_const env eqn_name ty')
-  in
-  let[@inline always] const const ty =
-    (* If we are applying an alias-to-constant type to a name, the constant
-       becomes canonical and we need to apply the type to the constant instead.
-       This merely reduces to checking that the type is compatible (e.g. if we
-       are adding [x : (= 0)] in a context where [x : { 1, 2 }] holds). *)
-    let existing_ty = MTC.type_for_const const in
-    match meet_type t ty existing_ty with
-    | Bottom -> if raise_on_bottom then raise Bottom_equation else t
-    | Ok (_, env) -> env
-  in
-  pattern_match_equation lhs_simple rhs_ty ~name ~const
+  Simple.pattern_match simple
+    ~const:(fun const ->
+      match meet_type t ty (MTC.type_for_const const) with
+      | Ok (_, env) -> env
+      | Bottom -> if raise_on_bottom then raise Bottom_equation else t)
+    ~name:(fun name ~coercion ->
+      (* If [(coerce name coercion)] has type [ty], then [name] has type
+         [(coerce ty coercion^-1)]. *)
+      let ty = TG.apply_coercion ty (Coercion.inverse coercion) in
+      (* Note: this will check that the [existing_ty] has the expected kind. *)
+      let existing_ty = find t name (Some (TG.kind ty)) in
+      match meet_type t ty existing_ty with
+      | Bottom ->
+        if raise_on_bottom
+        then raise Bottom_equation
+        else replace_equation t name (MTC.bottom (TG.kind ty))
+      | Ok ((Right_input | Both_inputs), env) -> env
+      | Ok (Left_input, env) -> replace_concrete_equation env name ty
+      | Ok (New_result ty', env) -> replace_concrete_equation env name ty')
 
-and orient_and_add_equation ~raise_on_bottom t name ty ~meet_type =
+let record_demotion ~raise_on_bottom t kind demoted canonical ~meet_type =
+  (* We have demoted [demoted], which used to be canonical, to [canonical] in
+     the aliases structure.
+
+     We now need to record that information in the types structure, and add the
+     previous type of [demoted] to [canonical] to ensure we do not lose
+     information that was only stored on the type of [demoted]. *)
+  let ty_of_demoted = find t demoted (Some kind) in
   (if Flambda_features.check_light_invariants ()
   then
-    let existing_ty = find t name None in
-    if not (K.equal (TG.kind existing_ty) (TG.kind ty))
-    then
+    match TG.get_alias_opt ty_of_demoted with
+    | None -> ()
+    | Some alias ->
       Misc.fatal_errorf
-        "Cannot add equation %a = %a@ given existing binding %a = %a@ whose \
-         type is of a different kind:@ %a"
-        Name.print name TG.print ty Name.print name TG.print existing_ty print t);
-  (if Flambda_features.check_light_invariants ()
-  then
-    match TG.get_alias_exn ty with
-    | exception Not_found -> ()
-    | simple ->
-      Simple.pattern_match simple
-        ~name:(fun name' ~coercion:_ ->
-          if Name.equal name name'
-          then
-            Misc.fatal_errorf
-              "Directly recursive equation@ %a = %a@ disallowed:@ %a" Name.print
-              name TG.print ty print t)
-        ~const:(fun _ -> ()));
-  let inputs =
-    let aliases = aliases t in
-    let find_canonical name =
-      Aliases.get_canonical_ignoring_name_mode aliases name
-    in
-    match TG.get_alias_exn ty with
-    | exception Not_found ->
-      (* Equations giving concrete types may only be added to the canonical
-         element as known by the relevant alias tracker (the actual canonical,
-         ignoring any name modes). *)
-      Some (find_canonical name, t, ty)
-    | alias_rhs -> (
-      (* Forget where [name] and [alias_rhs] came from---our job is now to
-         record that they're equal. In general, they have canonical expressions
-         [c_l] and [c_r], respectively, so what we ultimately need to record is
-         that [c_l] = [c_r]. Clearly, only one of them can remain canonical, so
-         we pick whichever was bound earlier. If [c_r] was bound earlier, then
-         we demote [c_l] and give [name] the type "= c_r" (which will always be
-         valid since [c_r] was bound earlier). Otherwise, we demote [c_r] and
-         give [alias_of] the type "= c_l". *)
-      (* The canonical elements [c_r] and [c_l] might not be present in the
-         current aliases structure, so we force a lookup of canonical elements
-         first using the relevant structure *)
-      let alias_lhs = find_canonical name in
-      let alias_rhs =
-        Simple.pattern_match alias_rhs
-          ~const:(fun _ -> alias_rhs)
-          ~name:(fun name ~coercion ->
-            Simple.apply_coercion_exn (find_canonical name) coercion)
+        "Expected %a to have a concrete type, not an alias type to %a"
+        Name.print demoted Simple.print alias);
+  let t = replace_equation t demoted (TG.alias_type_of kind canonical) in
+  add_concrete_equation_on_canonical ~raise_on_bottom t canonical ty_of_demoted
+    ~meet_type
+
+let add_alias_between_canonicals ~raise_on_bottom t kind canonical_element1
+    canonical_element2 ~meet_type =
+  (* We are adding an equality between two canonical simples [canonical1] and
+     [canonical2].
+
+     We'll ask the aliases structure to record the equality and determine which
+     of [canonical1] or [canonical2] should remain canonical, then forward to
+     [record_demotion] which takes care of recording an alias type on the
+     demoted element and updating the type of the element that remains
+     canonical. *)
+  if Simple.equal canonical_element1 canonical_element2
+  then t
+  else
+    match aliases_add t ~canonical_element1 ~canonical_element2 with
+    | Bottom -> if raise_on_bottom then raise Bottom_equation else t
+    | exception Binding_time_resolver_failure ->
+      (* Addition of aliases between names that are both in external compilation
+         units failed, e.g. due to a missing .cmx file. Simply drop the
+         equation. *)
+      t
+    | Ok { demoted_name; canonical_element; t = aliases } ->
+      let t = with_aliases t ~aliases in
+      record_demotion ~raise_on_bottom t kind demoted_name canonical_element
+        ~meet_type
+
+let get_canonical_simple_ignoring_name_mode t simple =
+  Simple.pattern_match simple
+    ~const:(fun _ -> simple)
+    ~name:(fun name ~coercion ->
+      let canonical_of_name =
+        Aliases.get_canonical_ignoring_name_mode (aliases t) name
       in
-      if Simple.equal alias_lhs alias_rhs
-      then None
-      else
-        let kind = TG.kind ty in
-        match
-          (* This may raise [Binding_time_resolver_failure]. *)
-          Aliases.add ~binding_time_resolver:t.binding_time_resolver aliases
-            ~binding_times_and_modes:(names_to_types t)
-            ~canonical_element1:alias_lhs ~canonical_element2:alias_rhs
-        with
-        | Ok { canonical_element; alias_of_demoted_element; t = aliases } ->
-          let t = with_aliases t ~aliases in
-          (* If we are demoting [x] to [p], we need to add the type "= p" to
-             [x]. However, we also need to add the current type of [x] to [p],
-             otherwise that information would be lost. *)
-          let existing_ty =
-            Simple.pattern_match alias_of_demoted_element
-              ~const:MTC.type_for_const ~name:(fun name ~coercion ->
-                TG.apply_coercion (find t name (Some kind)) coercion)
-          in
-          let ty = TG.alias_type_of kind canonical_element in
-          let t =
-            pattern_match_equation alias_of_demoted_element ty
-              ~name:(fun name ty -> replace_equation t name ty)
-              ~const:(fun _ _ ->
-                Misc.fatal_error "Unexpected demotion of constant.")
-          in
-          Some (canonical_element, t, existing_ty)
-        | Bottom -> if raise_on_bottom then raise Bottom_equation else None)
-  in
-  match inputs with
-  | None -> t
-  | Some (simple, t, ty) ->
-    add_non_alias_equation ~raise_on_bottom t simple ty ~meet_type
+      Simple.apply_coercion_exn canonical_of_name coercion)
 
-and[@inline always] add_equation ~raise_on_bottom t name ty ~meet_type =
-  match orient_and_add_equation ~raise_on_bottom t name ty ~meet_type with
-  | exception Binding_time_resolver_failure ->
-    (* Addition of aliases between names that are both in external compilation
-       units failed, e.g. due to a missing .cmx file. Simply drop the
-       equation. *)
-    t
-  | t -> t
+let add_equation_on_canonical ~raise_on_bottom t simple ty ~meet_type =
+  (* We are adding a type [ty] to [simple], which must be canonical. There are
+     two general cases to consider:
 
-and add_env_extension ~raise_on_bottom t
+     - Either [ty] is a concrete (non-alias) type, to be recorded in the types
+     structure on the [canonical_simple];
+
+     - or [ty] is an alias "= alias" to another simple, to be recorded in the
+     aliases structure. *)
+  match TG.get_alias_opt ty with
+  | None ->
+    add_concrete_equation_on_canonical ~raise_on_bottom t simple ty ~meet_type
+  | Some alias ->
+    let alias = get_canonical_simple_ignoring_name_mode t alias in
+    add_alias_between_canonicals ~raise_on_bottom t (TG.kind ty) simple alias
+      ~meet_type
+
+let add_equation_on_simple ~raise_on_bottom t simple ty ~meet_type =
+  let canonical = get_canonical_simple_ignoring_name_mode t simple in
+  add_equation_on_canonical ~raise_on_bottom t canonical ty ~meet_type
+
+let add_equation ~raise_on_bottom t name ty ~meet_type =
+  add_equation_on_simple ~raise_on_bottom t (Simple.name name) ty ~meet_type
+
+let add_env_extension ~raise_on_bottom t
     (env_extension : Typing_env_extension.t) ~meet_type =
   Typing_env_extension.fold
     ~equation:(fun name ty t ->
       add_equation ~raise_on_bottom t name ty ~meet_type)
     env_extension t
 
-and add_env_extension_with_extra_variables t
+let add_env_extension_with_extra_variables t
     (env_extension : Typing_env_extension.With_extra_variables.t) ~meet_type =
   Typing_env_extension.With_extra_variables.fold
     ~variable:(fun var kind t ->
