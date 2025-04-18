@@ -196,7 +196,7 @@ module Polls_before_prtc_transfer = struct
         | Intop_atomic _
         | Floatop (_, _)
         | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
-        | Specific _ | Name_for_debugger _ | Extcall _ )
+        | Specific _ | Name_for_debugger _ | External _ )
     | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
       Ok dom
 
@@ -360,7 +360,7 @@ let add_poll_or_alloc_basic :
     | Intop _ | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _
     | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _ | Opaque
     | Begin_region | End_region | Specific _ | Name_for_debugger _ | Dls_get
-    | Extcall _ ->
+    | External _ ->
       points
     | Poll -> (Poll, instr.dbg) :: points
     | Alloc _ -> (Alloc, instr.dbg) :: points)

@@ -41,7 +41,7 @@ module Witness = struct
     | Indirect_tailcall
     | Direct_call of { callee : string }
     | Direct_tailcall of { callee : string }
-    | Extcall of { callee : string }
+    | External of { callee : string }
     | Arch_specific
     | Probe of
         { name : string;
@@ -71,7 +71,7 @@ module Witness = struct
     | Direct_call { callee } -> fprintf ppf "direct call %s" callee
     | Direct_tailcall { callee : string } ->
       fprintf ppf "direct tailcall %s" callee
-    | Extcall { callee } -> fprintf ppf "external call to %s" callee
+    | External { callee } -> fprintf ppf "external call to %s" callee
     | Arch_specific -> fprintf ppf "arch specific operation"
     | Probe { name; handler_code_sym } ->
       fprintf ppf "probe \"%s\" handler %s" name handler_code_sym
@@ -1704,7 +1704,7 @@ end = struct
                (widening applied in function %s%s)" t.fun_name component_msg,
             [] )
         | Indirect_call | Indirect_tailcall | Direct_call _ | Direct_tailcall _
-        | Extcall _ ->
+        | External _ ->
           ( Format.dprintf "called function may allocate%s (%a)" component_msg
               Witness.print_kind w.kind,
             [] )
@@ -2513,7 +2513,7 @@ end = struct
           transform t ~effect ~next ~exn:Value.bot "heap allocation" dbg
         | Specific s -> transform_specific t s ~next ~exn:Value.bot dbg
         | Dls_get -> next
-        | Extcall _ ->
+        | External _ ->
           (* This variety of external call operation cannot allocate. *)
           next
 
@@ -2563,13 +2563,13 @@ end = struct
           ->
           (* Sound to ignore [next] because the call never returns. *)
           (* CR gyorsh: we do not currently generate this, but may later. *)
-          let w = create_witnesses t (Extcall { callee = func }) dbg in
+          let w = create_witnesses t (External { callee = func }) dbg in
           transform_top t ~next:Value.bot ~exn w
             ("external call to " ^ func)
             dbg
         | Call (External { returns = _; alloc = true; func_symbol = func; _ })
           ->
-          let w = create_witnesses t (Extcall { callee = func }) dbg in
+          let w = create_witnesses t (External { callee = func }) dbg in
           transform_top t ~next ~exn w ("external call to " ^ func) dbg
         | Call (External { func_symbol; alloc = false; returns = Some _; _ }) ->
           Misc.fatal_errorf

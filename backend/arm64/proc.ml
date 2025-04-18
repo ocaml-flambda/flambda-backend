@@ -354,7 +354,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op Poll -> destroyed_at_alloc_or_poll
   | Op (Alloc _) ->
     destroyed_at_alloc_or_poll
-  | Op (Extcall { stack_ofs; _ }) ->
+  | Op (External { stack_ofs; _ }) ->
     if stack_ofs > 0 then all_phys_regs else destroyed_at_c_noalloc_call
   | Op(Load {memory_chunk = Single { reg = Float64 }; _ }
       | Store(Single { reg = Float64 }, _, _))

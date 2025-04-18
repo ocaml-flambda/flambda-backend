@@ -142,7 +142,7 @@ let is_last_instruction_const_int (body : C.basic C.instruction Dll.t) :
               | Intop_atomic _
               | Floatop (_, _)
               | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
-              | Specific _ | Name_for_debugger _ | Alloc _ | Extcall _ ) );
+              | Specific _ | Name_for_debugger _ | Alloc _ | External _ ) );
         _
       } ->
     None

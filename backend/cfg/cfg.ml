@@ -564,7 +564,7 @@ let is_noop_move instr =
       | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _
       | Intop_imm _ | Intop_atomic _ | Floatop _ | Opaque | Reinterpret_cast _
       | Static_cast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
-      | Begin_region | End_region | Dls_get | Poll | Alloc _ | Extcall _ )
+      | Begin_region | End_region | Dls_get | Poll | Alloc _ | External _ )
   | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
     false
 
@@ -655,7 +655,7 @@ let is_poll (instr : basic instruction) =
       | Intop_atomic _
       | Floatop (_, _)
       | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
-      | Specific _ | Name_for_debugger _ | Extcall _ ) ->
+      | Specific _ | Name_for_debugger _ | External _ ) ->
     false
 
 let is_alloc (instr : basic instruction) =
@@ -672,7 +672,7 @@ let is_alloc (instr : basic instruction) =
       | Intop_atomic _
       | Floatop (_, _)
       | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
-      | Specific _ | Name_for_debugger _ | Extcall _ ) ->
+      | Specific _ | Name_for_debugger _ | External _ ) ->
     false
 
 let is_end_region (b : basic) =
@@ -689,7 +689,7 @@ let is_end_region (b : basic) =
       | Intop_atomic _
       | Floatop (_, _)
       | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
-      | Specific _ | Name_for_debugger _ | Extcall _ ) ->
+      | Specific _ | Name_for_debugger _ | External _ ) ->
     false
 
 let basic_block_contains_calls block =
@@ -711,7 +711,7 @@ let basic_block_contains_calls block =
      | Call _ -> true)
   || DLL.exists block.body ~f:(fun (instr : basic instruction) ->
          match instr.desc with
-         | Op (Alloc _ | Poll | Extcall _) -> true
+         | Op (Alloc _ | Poll | External _) -> true
          | Op
              ( Move | Spill | Reload | Const_int _ | Const_float32 _
              | Const_float _ | Const_symbol _ | Const_vec128 _ | Stackoffset _

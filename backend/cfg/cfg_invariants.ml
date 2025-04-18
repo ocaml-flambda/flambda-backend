@@ -124,7 +124,7 @@ let check_call t _label block =
   | Call (External { alloc = false; returns = Some _; _ }) ->
     report t
       "[Call External] with alloc=false and returns=Some must be encoded as \
-       [Op Extcall]"
+       [Op External]"
   | _ -> ()
 
 let check_tailrec t _label block =

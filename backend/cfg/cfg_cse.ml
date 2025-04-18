@@ -329,7 +329,7 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
     | Probe_is_enabled _ -> Op_other
     | Begin_region | End_region -> Op_other
     | Dls_get -> Op_load Mutable
-    | Extcall _ -> assert false (* treated specially *)
+    | External _ -> assert false (* treated specially *)
 
   let class_of_operation op =
     match Target.class_of_operation op with
@@ -344,7 +344,7 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
     | Intop_imm (_, _)
     | Intop_atomic _ | Floatop _ | Csel _ | Static_cast _ | Reinterpret_cast _
     | Specific _ | Name_for_debugger _ | Probe_is_enabled _ | Begin_region
-    | End_region | Dls_get | Extcall _ ->
+    | End_region | Dls_get | External _ ->
       false
 
   let kill_loads (n : numbering) : numbering = remove_mutable_load_numbering n
@@ -363,7 +363,7 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
     | Op Opaque ->
       (* Assume arbitrary side effects from Iopaque *)
       empty_numbering
-    | Op (Extcall _) ->
+    | Op (External _) ->
       (* Likewise for external calls *)
       (* CR mshinwell: could do better with knowledge about effects *)
       empty_numbering

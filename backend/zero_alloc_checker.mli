@@ -53,7 +53,7 @@ module Witness : sig
     | Indirect_tailcall
     | Direct_call of { callee : string }
     | Direct_tailcall of { callee : string }
-    | Extcall of { callee : string }
+    | External of { callee : string }
     | Arch_specific
     | Probe of
         { name : string;

@@ -859,7 +859,7 @@ let num_call_gc_points instr =
         | Intop_atomic _
         | Floatop (_, _)
         | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
-        | Name_for_debugger _ | Extcall _ )
+        | Name_for_debugger _ | External _ )
     | Lprologue | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap | Lcall_op _
     | Llabel _ | Lbranch _
     | Lcondbranch (_, _)
@@ -926,7 +926,7 @@ module BR = Branch_relaxation.Make (struct
           | Intop_atomic _
           | Floatop (_, _)
           | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
-          | Name_for_debugger _ | Extcall _ )
+          | Name_for_debugger _ | External _ )
       | Lprologue | Lend | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap
       | Lcall_op _ | Llabel _ | Lbranch _ | Lswitch _ | Ladjust_stack_offset _
       | Lpushtrap _ | Lraise _ | Lstackcheck _ ->
@@ -972,7 +972,7 @@ module BR = Branch_relaxation.Make (struct
           { alloc; stack_ofs; func = _; ty_res = _; ty_args = _; returns = _ })
       ->
       if Config.runtime5 && stack_ofs > 0 then 5 else if alloc then 3 else 5
-    | Lop (Extcall _) ->
+    | Lop (External _) ->
       (* Never allocates *)
       5
     | Lop (Stackoffset _) -> 2
@@ -1514,7 +1514,7 @@ let emit_instr i =
   | Lcall_op (Lextcall { func; alloc; stack_ofs; _ }) ->
     emit_extcall i ~func ~alloc ~stack_ofs
   | Lop
-      (Extcall
+      (External
         { func_symbol = func;
           effects = _;
           ty_args = _;

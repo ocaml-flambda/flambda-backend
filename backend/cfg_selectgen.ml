@@ -276,7 +276,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         func ()
     | Cextcall { func; ty; ty_args; builtin = false; effects; _ } ->
       ( Op
-          (Extcall
+          (External
              { func_symbol = func;
                effects;
                ty_res = ty;
@@ -974,14 +974,15 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       let ty = SU.oper_result_type op in
       let new_op, new_args = select_operation op simple_args dbg in
       match new_op with
-      | Op (Extcall { func_symbol; effects; ty_res; ty_args; stack_ofs = _ }) ->
+      | Op (External { func_symbol; effects; ty_res; ty_args; stack_ofs = _ })
+        ->
         (* XXX is it correct that [stack_ofs] gets ignored? *)
         let* loc_arg, stack_ofs =
           emit_extcall_args env sub_cfg ty_args new_args dbg
         in
         let rd = SU.regs_for ty_res in
         let term : Cfg.basic =
-          Op (Extcall { func_symbol; effects; ty_res; ty_args; stack_ofs })
+          Op (External { func_symbol; effects; ty_res; ty_args; stack_ofs })
         in
         let loc_res = Proc.loc_external_results (Reg.typv rd) in
         insert_debug env sub_cfg term dbg loc_arg loc_res;
