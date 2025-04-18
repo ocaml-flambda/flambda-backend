@@ -502,14 +502,12 @@ let pseudoregs_for_instr (simd : Simd.instr) arg_regs res_regs =
 let pseudoregs_for_operation (simd : Simd.operation) arg res =
   let arg_regs = Array.copy arg in
   let res_regs = Array.copy res in
-  match simd.instr with
-  | Instruction instr -> pseudoregs_for_instr instr arg_regs res_regs
-  | Sequence seq -> (
-    match seq.id with
-    | Sqrtss | Sqrtsd | Roundss | Roundsd | Pcmpestra | Pcmpestrc | Pcmpestro
-    | Pcmpestrs | Pcmpestrz | Pcmpistra | Pcmpistrc | Pcmpistro | Pcmpistrs
-    | Pcmpistrz ->
-      pseudoregs_for_instr seq.instr arg_regs res_regs)
+  let instr =
+    match simd.instr with
+    | Instruction instr -> instr
+    | Sequence seq -> seq.instr
+  in
+  pseudoregs_for_instr instr arg_regs res_regs
 
 (* Error report *)
 

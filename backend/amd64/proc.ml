@@ -529,9 +529,7 @@ let destroyed_by_simd_op (op : Simd.operation) =
     destroyed_by_simd_instr seq.instr
     |> Array.append
       (match seq.id with
-      | Sqrtss | Sqrtsd | Roundss | Roundsd
-      | Pcmpestra | Pcmpestrc | Pcmpestro | Pcmpestrs | Pcmpestrz
-      | Pcmpistra | Pcmpistrc | Pcmpistro | Pcmpistrs | Pcmpistrz -> [||])
+       | Sqrtss | Sqrtsd | Roundss | Roundsd | Pcompare_string _ -> [||])
 
 let destroyed_by_simd_mem_op (instr : Simd.Mem.operation) =
   match instr with

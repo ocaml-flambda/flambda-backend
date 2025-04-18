@@ -12,7 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-42"]
+[@@@ocaml.warning "+a-40-42"]
 
 open! Int_replace_polymorphic_compare [@@warning "-66"]
 open Format
@@ -26,12 +26,8 @@ end
 
 type instr = Amd64_simd_instrs.instr
 
-module Seq = struct
-  type id =
-    | Sqrtss
-    | Sqrtsd
-    | Roundss
-    | Roundsd
+module Pcompare_string = struct
+  type t =
     | Pcmpestra
     | Pcmpestrc
     | Pcmpestro
@@ -42,6 +38,46 @@ module Seq = struct
     | Pcmpistro
     | Pcmpistrs
     | Pcmpistrz
+
+  let equal t1 t2 =
+    match t1, t2 with
+    | Pcmpestra, Pcmpestra
+    | Pcmpestrc, Pcmpestrc
+    | Pcmpestro, Pcmpestro
+    | Pcmpestrs, Pcmpestrs
+    | Pcmpestrz, Pcmpestrz
+    | Pcmpistra, Pcmpistra
+    | Pcmpistrc, Pcmpistrc
+    | Pcmpistro, Pcmpistro
+    | Pcmpistrs, Pcmpistrs
+    | Pcmpistrz, Pcmpistrz ->
+      true
+    | ( ( Pcmpestra | Pcmpestrc | Pcmpestro | Pcmpestrs | Pcmpestrz | Pcmpistra
+        | Pcmpistrc | Pcmpistro | Pcmpistrs | Pcmpistrz ),
+        _ ) ->
+      false
+
+  let mnemonic t =
+    match t with
+    | Pcmpestra -> "pcmpestra"
+    | Pcmpestrc -> "pcmpestrc"
+    | Pcmpestro -> "pcmpestro"
+    | Pcmpestrs -> "pcmpestrs"
+    | Pcmpestrz -> "pcmpestrz"
+    | Pcmpistra -> "pcmpistra"
+    | Pcmpistrc -> "pcmpistrc"
+    | Pcmpistro -> "pcmpistro"
+    | Pcmpistrs -> "pcmpistrs"
+    | Pcmpistrz -> "pcmpistrz"
+end
+
+module Seq = struct
+  type id =
+    | Sqrtss
+    | Sqrtsd
+    | Roundss
+    | Roundsd
+    | Pcompare_string of Pcompare_string.t
 
   type nonrec t =
     { id : id;
@@ -56,25 +92,35 @@ module Seq = struct
 
   let roundsd = { id = Roundsd; instr = Amd64_simd_instrs.roundsd }
 
-  let pcmpestra = { id = Pcmpestra; instr = Amd64_simd_instrs.pcmpestri }
+  let pcmpestra =
+    { id = Pcompare_string Pcmpestra; instr = Amd64_simd_instrs.pcmpestri }
 
-  let pcmpestrc = { id = Pcmpestrc; instr = Amd64_simd_instrs.pcmpestri }
+  let pcmpestrc =
+    { id = Pcompare_string Pcmpestrc; instr = Amd64_simd_instrs.pcmpestri }
 
-  let pcmpestro = { id = Pcmpestro; instr = Amd64_simd_instrs.pcmpestri }
+  let pcmpestro =
+    { id = Pcompare_string Pcmpestro; instr = Amd64_simd_instrs.pcmpestri }
 
-  let pcmpestrs = { id = Pcmpestrs; instr = Amd64_simd_instrs.pcmpestri }
+  let pcmpestrs =
+    { id = Pcompare_string Pcmpestrs; instr = Amd64_simd_instrs.pcmpestri }
 
-  let pcmpestrz = { id = Pcmpestrz; instr = Amd64_simd_instrs.pcmpestri }
+  let pcmpestrz =
+    { id = Pcompare_string Pcmpestrz; instr = Amd64_simd_instrs.pcmpestri }
 
-  let pcmpistra = { id = Pcmpistra; instr = Amd64_simd_instrs.pcmpistri }
+  let pcmpistra =
+    { id = Pcompare_string Pcmpistra; instr = Amd64_simd_instrs.pcmpistri }
 
-  let pcmpistrc = { id = Pcmpistrc; instr = Amd64_simd_instrs.pcmpistri }
+  let pcmpistrc =
+    { id = Pcompare_string Pcmpistrc; instr = Amd64_simd_instrs.pcmpistri }
 
-  let pcmpistro = { id = Pcmpistro; instr = Amd64_simd_instrs.pcmpistri }
+  let pcmpistro =
+    { id = Pcompare_string Pcmpistro; instr = Amd64_simd_instrs.pcmpistri }
 
-  let pcmpistrs = { id = Pcmpistrs; instr = Amd64_simd_instrs.pcmpistri }
+  let pcmpistrs =
+    { id = Pcompare_string Pcmpistrs; instr = Amd64_simd_instrs.pcmpistri }
 
-  let pcmpistrz = { id = Pcmpistrz; instr = Amd64_simd_instrs.pcmpistri }
+  let pcmpistrz =
+    { id = Pcompare_string Pcmpistrz; instr = Amd64_simd_instrs.pcmpistri }
 
   let mnemonic ({ id; _ } : t) =
     match id with
@@ -82,40 +128,19 @@ module Seq = struct
     | Sqrtsd -> "sqrtsd"
     | Roundss -> "roundss"
     | Roundsd -> "roundsd"
-    | Pcmpestra -> "pcmpestra"
-    | Pcmpestrc -> "pcmpestrc"
-    | Pcmpestro -> "pcmpestro"
-    | Pcmpestrs -> "pcmpestrs"
-    | Pcmpestrz -> "pcmpestrz"
-    | Pcmpistra -> "pcmpistra"
-    | Pcmpistrc -> "pcmpistrc"
-    | Pcmpistro -> "pcmpistro"
-    | Pcmpistrs -> "pcmpistrs"
-    | Pcmpistrz -> "pcmpistrz"
+    | Pcompare_string p -> Pcompare_string.mnemonic p
 
   let equal { id = id0; instr = instr0 } { id = id1; instr = instr1 } =
-    match id0, id1 with
-    | Sqrtss, Sqrtss
-    | Sqrtsd, Sqrtsd
-    | Roundss, Roundss
-    | Roundsd, Roundsd
-    | Pcmpestra, Pcmpestra
-    | Pcmpestrc, Pcmpestrc
-    | Pcmpestro, Pcmpestro
-    | Pcmpestrs, Pcmpestrs
-    | Pcmpestrz, Pcmpestrz
-    | Pcmpistra, Pcmpistra
-    | Pcmpistrc, Pcmpistrc
-    | Pcmpistro, Pcmpistro
-    | Pcmpistrs, Pcmpistrs
-    | Pcmpistrz, Pcmpistrz ->
+    let return_true () =
       assert (Amd64_simd_instrs.equal instr0 instr1);
       true
-    | ( ( Sqrtss | Sqrtsd | Roundss | Roundsd | Pcmpestra | Pcmpestrc
-        | Pcmpestro | Pcmpestrs | Pcmpestrz | Pcmpistra | Pcmpistrc | Pcmpistro
-        | Pcmpistrs | Pcmpistrz ),
-        _ ) ->
-      false
+    in
+    match id0, id1 with
+    | Sqrtss, Sqrtss | Sqrtsd, Sqrtsd | Roundss, Roundss | Roundsd, Roundsd ->
+      return_true ()
+    | Pcompare_string p1, Pcompare_string p2 ->
+      if Pcompare_string.equal p1 p2 then return_true () else false
+    | (Sqrtss | Sqrtsd | Roundss | Roundsd | Pcompare_string _), _ -> false
 end
 
 module Pseudo_instr = struct
