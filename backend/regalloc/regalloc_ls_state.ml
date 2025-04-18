@@ -111,7 +111,7 @@ let[@inline] active_classes state = state.active
 let[@inline] stack_slots state = state.stack_slots
 
 let[@inline] get_and_incr_instruction_id state =
-  InstructionId.get_next state.instruction_id
+  InstructionId.get_and_incr state.instruction_id
 
 let rec check_ranges (prev : Range.t) (cell : Range.t DLL.cell option) : int =
   if prev.begin_ > prev.end_
