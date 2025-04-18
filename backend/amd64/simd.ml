@@ -12,9 +12,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-42-66"]
+[@@@ocaml.warning "+a-42"]
 
-open! Int_replace_polymorphic_compare
+open! Int_replace_polymorphic_compare [@@warning "-66"]
 open Format
 include Amd64_simd_defs
 
