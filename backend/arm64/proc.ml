@@ -60,7 +60,7 @@ let types_are_compatible left right =
 let hard_reg_gen typ =
   let reg_class = Reg_class.of_machtype typ in
   let first = Reg_class.first_available_register reg_class in
-  let n = Reg_class.num_available_registers reg_class in
+  let n = Reg_class.num_registers reg_class in
   let v = Array.make n Reg.dummy in
   for i = 0 to n - 1 do
     v.(i) <- Reg.create_at_location typ (Reg(first + i))

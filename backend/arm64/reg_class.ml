@@ -16,6 +16,8 @@ module T = struct
     | Int64 -> 23
     | Float128 -> 32
 
+  let num_registers : t -> int = function Int64 -> 28 | Float128 -> 32
+
   (* See "DWARF for the ARM 64-bit architecture (AArch64)" available from
      developer.arm.com. *)
 

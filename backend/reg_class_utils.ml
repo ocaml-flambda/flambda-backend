@@ -11,6 +11,8 @@ module type T = sig
 
   val num_available_registers : t -> int
 
+  val num_registers : t -> int
+
   val dwarf_register_numbers : t -> int array
 
   val register_name : Cmm.machtype_component -> int -> string

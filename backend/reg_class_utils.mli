@@ -12,6 +12,8 @@ module type T = sig
 
   val num_available_registers : t -> int
 
+  val num_registers : t -> int
+
   (** For a given register class, the DWARF register numbering for that class.
     Given an allocated register with location [Reg n] and class [reg_class], the
     returned array contains the corresponding DWARF register number at index

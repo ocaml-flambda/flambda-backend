@@ -15,6 +15,8 @@ module T = struct
     | Int64 -> if Config.with_frame_pointers then 12 else 13
     | Float128 -> 16
 
+  let num_registers : t -> int = function Int64 -> 13 | Float128 -> 16
+
   (** See "System V Application Binary Interface, AMD64 Architecture Processor
     Supplement" (www.x86-64.org/documentation/abi.pdf) page 57, fig. 3.36. *)
   let int_dwarf_reg_numbers = [| 0; 3; 5; 4; 1; 2; 8; 9; 12; 13; 10; 11; 6 |]
