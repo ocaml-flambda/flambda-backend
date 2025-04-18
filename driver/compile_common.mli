@@ -34,6 +34,7 @@ val with_info :
   native:bool ->
   tool_name:string ->
   source_file:string ->
+  kind:Compilation_unit.intf_or_impl ->
   output_prefix:string ->
   compilation_unit:compilation_unit_or_inferred ->
   dump_ext:string ->

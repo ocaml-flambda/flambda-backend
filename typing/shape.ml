@@ -16,7 +16,10 @@
 module Uid = struct
   type t =
     | Compilation_unit of string
-    | Item of { comp_unit: string; id: int }
+    | Item of {
+        comp_unit: string;
+        id: int;
+        from: Compilation_unit.intf_or_impl }
     | Internal
     | Predef of string
     | Unboxed_version of t
@@ -29,7 +32,10 @@ module Uid = struct
       | Compilation_unit s1, Compilation_unit s2 -> String.compare s1 s2
       | Item c1, Item c2 ->
         let c = Int.compare c1.id c2.id in
-        if c <> 0 then c else String.compare c1.comp_unit c2.comp_unit
+        let c =
+          if c <> 0 then c else String.compare c1.comp_unit c2.comp_unit
+        in
+        if c <> 0 then c else Stdlib.compare c1.from c2.from
       | Internal, Internal -> 0
       | Predef s1, Predef s2 -> String.compare s1 s2
       | Unboxed_version t1, Unboxed_version t2 -> compare t1 t2
@@ -50,11 +56,16 @@ module Uid = struct
 
     let hash (x : t) = Hashtbl.hash x
 
+    let pp_intf_or_impl fmt = function
+      | Compilation_unit.Intf -> Format.pp_print_string fmt "[intf]"
+      | Compilation_unit.Impl -> ()
+
     let rec print fmt = function
       | Internal -> Format.pp_print_string fmt "<internal>"
       | Predef name -> Format.fprintf fmt "<predef:%s>" name
       | Compilation_unit s -> Format.pp_print_string fmt s
-      | Item { comp_unit; id } -> Format.fprintf fmt "%s.%d" comp_unit id
+      | Item { comp_unit; id; from } ->
+          Format.fprintf fmt "%a%s.%d" pp_intf_or_impl from comp_unit id
       | Unboxed_version t -> Format.fprintf fmt "%a#" print t
 
     let output oc t =
@@ -67,13 +78,13 @@ module Uid = struct
   let reinit () = id := (-1)
 
   let mk  ~current_unit =
-      incr id;
-      let comp_unit =
+      let comp_unit, from =
         match current_unit with
-        | Some cu -> cu |> Compilation_unit.full_path_as_string
-        | None -> ""
+        | None -> "", Compilation_unit.Impl
+        | Some (cu, kind) -> Compilation_unit.full_path_as_string cu, kind
       in
-      Item { comp_unit; id = !id }
+      incr id;
+      Item { comp_unit; id = !id; from }
 
   let of_compilation_unit_id id =
     Compilation_unit (id |> Compilation_unit.full_path_as_string)

@@ -1610,7 +1610,7 @@ let lambda_of_loc kind sloc =
     let module_name =
       match name with
       | None -> "//"^filename^"//"
-      | Some comp_unit ->
+      | Some (comp_unit, _) ->
         Compilation_unit.name_as_string comp_unit
     in
     Lconst (Const_immstring module_name)

@@ -18,18 +18,6 @@
 open Typedtree
 open Types
 
-(** Type describing which arguments of an inclusion to consider as used
-    for the usage warnings. [Mark_both] is the default. *)
-type mark =
-  | Mark_both
-      (** Mark definitions used from both arguments *)
-  | Mark_positive
-      (** Mark definitions used from the positive (first) argument *)
-  | Mark_negative
-      (** Mark definitions used from the negative (second) argument *)
-  | Mark_neither
-      (** Do not mark definitions used from either argument *)
-
 module Error: sig
 
   type ('elt,'explanation) diff = {
@@ -155,15 +143,15 @@ type modes = Includecore.mmodes
 (* Typechecking *)
 
 val modtypes:
-  loc:Location.t -> Env.t -> mark:mark -> modes:modes ->
+  loc:Location.t -> Env.t -> mark:bool -> modes:modes ->
   module_type -> module_type -> module_coercion
 
 val modtypes_with_shape:
-  shape:Shape.t -> loc:Location.t -> Env.t -> mark:mark -> modes:modes ->
+  shape:Shape.t -> loc:Location.t -> Env.t -> mark:bool -> modes:modes ->
   module_type -> module_type -> module_coercion * Shape.t
 
 val strengthened_module_decl:
-  loc:Location.t -> aliasable:bool -> Env.t -> mark:mark -> mmodes:modes ->
+  loc:Location.t -> aliasable:bool -> Env.t -> mark:bool -> mmodes:modes ->
   module_declaration -> Path.t -> module_declaration -> module_coercion
 
 val check_modtype_inclusion :
@@ -176,21 +164,24 @@ val check_modtype_inclusion :
 val check_modtype_equiv:
   loc:Location.t -> Env.t -> Ident.t -> module_type -> module_type -> unit
 
-val signatures: Env.t -> mark:mark -> modes:modes ->
+val signatures: Env.t -> mark:bool -> modes:modes ->
   signature -> signature -> module_coercion
 
-val include_functor_signatures : Env.t -> mark:mark ->
+val include_functor_signatures : Env.t -> mark:bool ->
   signature -> signature -> (Ident.t * module_coercion) list
 
+val check_implementation: Env.t -> modes:modes -> signature -> signature -> unit
+(** Check an implementation against an interface *)
+
 val compunit:
-      Env.t -> mark:mark -> string -> signature ->
+      Env.t -> mark:bool -> string -> signature ->
       string -> signature -> Shape.t -> module_coercion * Shape.t
 
 val compunit_as_argument:
       Env.t -> string -> signature -> string -> signature -> module_coercion
 
 val type_declarations:
-  loc:Location.t -> Env.t -> mark:mark ->
+  loc:Location.t -> Env.t -> mark:bool ->
   Ident.t -> type_declaration -> type_declaration -> unit
 
 val print_coercion: Format.formatter -> module_coercion -> unit

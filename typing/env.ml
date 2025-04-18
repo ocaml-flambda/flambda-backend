@@ -1007,8 +1007,8 @@ let rec address_head = function
 
 (* The name of the compilation unit currently compiled. *)
 module Current_unit_name : sig
-  val get : unit -> Compilation_unit.t option
-  val set : Compilation_unit.t option -> unit
+  val get : unit -> (Compilation_unit.with_kind) option
+  val set : (Compilation_unit.with_kind) option -> unit
   val is : string -> bool
   val is_ident : Ident.t -> bool
   val is_path : Path.t -> bool
@@ -1018,7 +1018,7 @@ end = struct
   let set comp_unit =
     Compilation_unit.set_current comp_unit
   let get_name () =
-    Option.map Compilation_unit.name (get ())
+    Option.map (fun (cu, _) -> Compilation_unit.name cu) (get ())
   let is name =
     let current_name_string =
       Option.map Compilation_unit.Name.to_string (get_name ())
