@@ -21,6 +21,8 @@ let make_sequence ?(last_used = -1) () = { next = succ last_used }
 
 let reset seq = seq.next <- 0
 
+let get seq = seq.next
+
 let get_next seq =
   let res = seq.next in
   seq.next <- succ seq.next;

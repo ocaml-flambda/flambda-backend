@@ -321,7 +321,7 @@ end = struct
   (* CR-someday xclerc for xclerc: move to Cfg_loop_infos? *)
   let is_in_loop : Cfg_loop_infos.t -> Label.t -> bool =
    fun loops label ->
-    Cfg_loop_infos.EdgeMap.exists
+    Cfg_edge.Map.exists
       (fun _ (loop : Cfg_loop_infos.loop) -> Label.Set.mem label loop)
       loops.loops
 

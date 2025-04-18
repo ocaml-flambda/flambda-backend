@@ -400,6 +400,8 @@ let insert_phi_moves : State.t -> Cfg_with_infos.t -> Substitution.map -> bool =
             let instrs = DLL.make_empty () in
             add_phi_moves_to_instr_list state ~before:predecessor_block
               ~phi:block substs to_unify instrs;
+            (* CR-soon xclerc for xclerc: now that we preprocess critical nodes,
+               no insertion should occur here. *)
             let inserted_blocks =
               Cfg_with_layout.insert_block
                 (Cfg_with_infos.cfg_with_layout cfg_with_infos)

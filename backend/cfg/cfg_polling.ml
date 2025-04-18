@@ -299,7 +299,7 @@ let exists_unsafe_path :
 let instr_cfg_with_layout :
     Cfg_with_layout.t ->
     safe_map:bool Label.Tbl.t ->
-    back_edges:Cfg_loop_infos.EdgeSet.t ->
+    back_edges:Cfg_edge.Set.t ->
     bool =
  fun cfg_with_layout ~safe_map ~back_edges ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
@@ -311,8 +311,8 @@ let instr_cfg_with_layout :
   let next_instruction_id () =
     InstructionId.get_next (Lazy.force instruction_id)
   in
-  Cfg_loop_infos.EdgeSet.fold
-    (fun { Cfg_loop_infos.Edge.src; dst } added_poll ->
+  Cfg_edge.Set.fold
+    (fun { Cfg_edge.src; dst } added_poll ->
       let needs_poll =
         (not (Label.Tbl.find safe_map src))
         && exists_unsafe_path cfg ~safe_map ~from:dst ~to_:src
