@@ -305,7 +305,8 @@ let base_templ () : Cfg_desc.t * (unit -> InstructionId.t) =
             exn = None;
             terminator =
               { id = make_id ();
-                desc = Call { op = Indirect; label_after = move_tmp_res_label };
+                desc = Call (
+                  OCaml { op = Indirect; returns = move_tmp_res_label });
                 arg = arg_locs;
                 res = tmp_result_locs
               }

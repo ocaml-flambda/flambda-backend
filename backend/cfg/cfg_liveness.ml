@@ -88,8 +88,7 @@ module Transfer :
         ~can_raise:(Cfg.can_raise_terminator instr.desc)
         ~exn Domain.bot instr
     | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-    | Switch _ | Return | Raise _ | Tailcall_func _ | Call_no_return _ | Call _
-    | Prim _ ->
+    | Switch _ | Return | Raise _ | Tailcall_func _ | Call _ ->
       instruction
         ~can_raise:(Cfg.can_raise_terminator instr.desc)
         ~exn domain instr

@@ -486,7 +486,7 @@ module Stack_offset_and_exn = struct
         InstructionId.format term.id
     | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
     | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-    | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ ->
+    | Tailcall_func _ | Call _ ->
       stack_offset, traps
 
   let rec process_basic :
@@ -516,7 +516,7 @@ module Stack_offset_and_exn = struct
         | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Static_cast _
         | Reinterpret_cast _ | Probe_is_enabled _ | Opaque | Begin_region
         | End_region | Specific _ | Name_for_debugger _ | Dls_get | Poll
-        | Alloc _ )
+        | Alloc _ | External _ )
     | Reloadretaddr | Prologue ->
       stack_offset, traps
     | Stack_check _ ->

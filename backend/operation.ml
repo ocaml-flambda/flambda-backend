@@ -318,6 +318,13 @@ type t =
         dbginfo : Cmm.alloc_dbginfo;
         mode : Cmm.Alloc_mode.t
       }
+  | External of
+      { func_symbol : string;
+        effects : Cmm.effects;
+        ty_res : Cmm.machtype;
+        ty_args : Cmm.exttype list;
+        stack_ofs : int
+      }
 
 let is_pure = function
   | Move -> true
@@ -353,6 +360,9 @@ let is_pure = function
   | Dls_get -> true
   | Poll -> false
   | Alloc _ -> false
+  | External _ ->
+    (* CR mshinwell/xclerc: refine this using [effects] *)
+    false
 
 (* The next 2 functions are copied almost as is from asmcomp/printmach.ml
    because there is no interface to call them. Eventually this won't be needed
@@ -432,3 +442,6 @@ let dump ppf op =
     Format.fprintf ppf "alloc %i" bytes
   | Alloc { bytes; dbginfo = _; mode = Local } ->
     Format.fprintf ppf "alloc_local %i" bytes
+  | External
+      { func_symbol; effects = _; ty_res = _; ty_args = _; stack_ofs = _ } ->
+    Format.fprintf ppf "extcall %s" func_symbol
