@@ -63,12 +63,11 @@ val debug_info : t -> Debug_info.t option
 
 (** [at_same_location t reg] holds iff the register [t] corresponds to the same
     (physical or pseudoregister) location as the register [reg], which is not
-    equipped with debugging information. [register_class] should be
-    [Proc.register_class]. *)
+    equipped with debugging information. *)
 val at_same_location :
   t ->
   Reg.t ->
-  register_class:(Reg.t -> int) ->
+  register_class:(Reg.t -> Reg_class.t) ->
   stack_class:(Reg.t -> Stack_class.t) ->
   bool
 
@@ -104,11 +103,11 @@ module Set : sig
   (** [made_unavailable_by_clobber t ~regs_clobbered ~register_class] returns
       the largest subset of [t] whose locations do not overlap with any
       registers in [regs_clobbered]. (Think of [t] as a set of available
-      registers.) [register_class] should always be [Proc.register_class]. *)
+      registers.) *)
   val made_unavailable_by_clobber :
     t ->
     regs_clobbered:Reg.t array ->
-    register_class:(Reg.t -> int) ->
+    register_class:(Reg.t -> Reg_class.t) ->
     stack_class:(Reg.t -> Stack_class.t) ->
     t
 end

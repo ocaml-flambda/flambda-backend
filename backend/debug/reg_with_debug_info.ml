@@ -121,7 +121,7 @@ let regs_at_same_location (reg1 : Reg.t) (reg2 : Reg.t) ~register_class
   Reg.equal_location reg1.loc reg2.loc
   &&
   match reg1.loc with
-  | Reg _ -> register_class reg1 = register_class reg2
+  | Reg _ -> Reg_class.equal (register_class reg1) (register_class reg2)
   | Stack _ -> Stack_class.equal (stack_class reg1) (stack_class reg2)
   | Unknown -> Misc.fatal_errorf "regs_at_same_location got Unknown locations"
 

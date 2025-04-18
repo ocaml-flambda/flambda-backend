@@ -20,20 +20,7 @@
 (* Instruction selection *)
 val word_addressed : bool
 
-(* Registers available for register allocation *)
-val num_register_classes : int
-
-val register_class : Reg.t -> int
-
-val num_available_registers : int array
-
-val first_available_register : int array
-
-val register_name : Cmm.machtype_component -> int -> string
-
 val phys_reg : Cmm.machtype_component -> int -> Reg.t
-
-val gc_regs_offset : Reg.t -> int
 
 val precolored_regs : unit -> Reg.Set.t
 
@@ -129,9 +116,6 @@ val domainstate_ptr_dwarf_register_number : int
 
 (* Calling the assembler *)
 val assemble_file : string -> string -> int
-
-(* Called before translating a fundecl. *)
-val init : unit -> unit
 
 (** [operation_supported op] returns true when [op]
     can be implemented directly with a hardware instruction.

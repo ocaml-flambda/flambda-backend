@@ -469,6 +469,8 @@
   stack_check
   sub_cfg
   reg
+  reg_class
+  reg_class_utils
   relocation_entry
   relocation_table
   section_table

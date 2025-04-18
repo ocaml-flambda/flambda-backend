@@ -436,14 +436,14 @@ let record_frame_label live dbg =
   Reg.Set.iter
     (fun (r : Reg.t) ->
       match r with
-      | { typ = Val; loc = Reg r; _ } as reg ->
-        assert (Proc.gc_regs_offset reg = r);
+      | { typ = Val; loc = Reg r; _ } ->
+        assert (Reg_class.gc_regs_offset Val r = r);
         live_offset := ((r lsl 1) + 1) :: !live_offset
       | { typ = Val; loc = Stack s; _ } as reg ->
         live_offset
           := slot_offset s (Stack_class.of_machtype reg.typ) :: !live_offset
-      | { typ = Valx2; loc = Reg _; _ } as reg ->
-        let n = Proc.gc_regs_offset reg in
+      | { typ = Valx2; loc = Reg r; _ } ->
+        let n = Reg_class.gc_regs_offset Valx2 r in
         let encode n = (n lsl 1) + 1 in
         live_offset := encode n :: encode (n + 1) :: !live_offset
       | { typ = Valx2; loc = Stack s; _ } as reg ->
@@ -2755,7 +2755,7 @@ let emit_probe_notes0 () =
       | Stack s ->
         Printf.sprintf "%d(%%rsp)"
           (slot_offset s (Stack_class.of_machtype arg.Reg.typ))
-      | Reg reg -> Proc.register_name arg.Reg.typ reg
+      | Reg reg -> Reg_class.register_name arg.Reg.typ reg
       | Unknown ->
         Misc.fatal_errorf "Cannot create probe: illegal argument: %a"
           Printreg.reg arg
