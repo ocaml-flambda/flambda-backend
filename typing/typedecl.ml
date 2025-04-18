@@ -955,7 +955,8 @@ let transl_declaration env sdecl (id, uid) =
                    Constructor_uniform_value, sorts)
                 (Array.of_list cstrs)
             ),
-            Jkind.Builtin.value ~why:Boxed_variant
+          (* CR layouts: should this be (im)mutable_data with ...? *)
+          Jkind.Builtin.non_float_value ~why:Boxed_variant
         in
           Ttype_variant tcstrs, Type_variant (cstrs, rep, None), jkind
       | Ptype_record lbls ->
@@ -973,7 +974,8 @@ let transl_declaration env sdecl (id, uid) =
                [Record_mixed].  Those cases are fixed up after we can get
                accurate sorts for the fields, in [update_decl_jkind]. *)
               Record_boxed (Array.make (List.length lbls) Jkind.Sort.Const.void),
-              Jkind.Builtin.value ~why:Boxed_record
+              (* CR layouts: should this be (im)mutable_data with ...? *)
+              Jkind.Builtin.non_float_value ~why:Boxed_record
           in
           Ttype_record lbls, Type_record(lbls', rep, None), jkind
       | Ptype_record_unboxed_product lbls ->
@@ -994,7 +996,7 @@ let transl_declaration env sdecl (id, uid) =
           Type_record_unboxed_product(lbls', Record_unboxed_product, None), jkind
       | Ptype_open ->
         Ttype_open, Type_open,
-        Jkind.Builtin.value ~why:Extensible_variant
+        Jkind.Builtin.non_float_value ~why:Extensible_variant
       in
     let jkind =
     (* - If there's an annotation, we use that. It's checked against
@@ -1970,7 +1972,9 @@ let rec update_decl_jkind env dpath decl =
       decl
     | Type_open ->
       let type_jkind =
-        Jkind.Builtin.value ~why:Extensible_variant
+        Jkind.Builtin.non_float_value ~why:Extensible_variant
+        (* CR layouts: below is no longer true, and will be even less true
+           when exceptions start crossing portable/contended. Rethink? *)
         (* It's unlikely we'll ever be able to give better kinds than [value] to
            extensible variants, so we're not worried about backwards compatibility if we
            mark them as best here, and we want to be able to normalize them away *)

@@ -46,18 +46,18 @@ Error: The definition of "bad" is recursive without boxing:
    [testsuite/tests/typing-layouts-products/basics_alpha.ml]. *)
 
 (* [t3] is allowed for unboxed tuples, and disallowed for (un)boxed records *)
-type t1 : any mod non_null
+type t1 : any mod non_null separable
 type t2 : value
-type t3 : any mod non_null = #{ t1 : t1 ; t2 : t2};;
+type t3 : any mod non_null separable = #{ t1 : t1 ; t2 : t2};;
 [%%expect{|
 type t1 : any_non_null
 type t2
-Line 3, characters 32-41:
-3 | type t3 : any mod non_null = #{ t1 : t1 ; t2 : t2};;
-                                    ^^^^^^^^^
+Line 3, characters 42-51:
+3 | type t3 : any mod non_null separable = #{ t1 : t1 ; t2 : t2};;
+                                              ^^^^^^^^^
 Error: Unboxed record element types must have a representable layout.
        The layout of t1 is any
-         because of the definition of t1 at line 1, characters 0-26.
+         because of the definition of t1 at line 1, characters 0-36.
        But the layout of t1 must be representable
          because it is the type of record field t1.
 |}]
@@ -65,47 +65,47 @@ Error: Unboxed record element types must have a representable layout.
 (* CR layouts v7.2: once [any] is allowed in unboxed record declarations, check
    that [non_null] behaves correctly in the following tests. *)
 
-type t1 : any mod non_null
+type t1 : any mod non_null separable
 type t2 : value
-type t3 : any & value mod non_null = #{ t1 : t1 ; t2 : t2};;
+type t3 : any & value mod non_null separable = #{ t1 : t1 ; t2 : t2};;
 [%%expect{|
 type t1 : any_non_null
 type t2
-Line 3, characters 40-49:
-3 | type t3 : any & value mod non_null = #{ t1 : t1 ; t2 : t2};;
-                                            ^^^^^^^^^
+Line 3, characters 50-59:
+3 | type t3 : any & value mod non_null separable = #{ t1 : t1 ; t2 : t2};;
+                                                      ^^^^^^^^^
 Error: Unboxed record element types must have a representable layout.
        The layout of t1 is any
-         because of the definition of t1 at line 1, characters 0-26.
+         because of the definition of t1 at line 1, characters 0-36.
        But the layout of t1 must be representable
          because it is the type of record field t1.
 |}]
 
-type t1 : any mod non_null
+type t1 : any mod non_null separable
 type t2 : value
-type t3 : (any mod non_null) & (value mod non_null) = #{ t1 : t1 ; t2 : t2};;
+type t3 : (any mod non_null separable) & (value mod non_null separable) = #{ t1 : t1 ; t2 : t2};;
 [%%expect{|
 type t1 : any_non_null
 type t2
-Line 3, characters 57-66:
-3 | type t3 : (any mod non_null) & (value mod non_null) = #{ t1 : t1 ; t2 : t2};;
-                                                             ^^^^^^^^^
+Line 3, characters 77-86:
+3 | type t3 : (any mod non_null separable) & (value mod non_null separable) = #{ t1 : t1 ; t2 : t2};;
+                                                                                 ^^^^^^^^^
 Error: Unboxed record element types must have a representable layout.
        The layout of t1 is any
-         because of the definition of t1 at line 1, characters 0-26.
+         because of the definition of t1 at line 1, characters 0-36.
        But the layout of t1 must be representable
          because it is the type of record field t1.
 |}]
 
 type t1 : any
-type t2 : any mod non_null
-type t3 : any & (any mod non_null) = #{ t1 : t1 ; t2 : t2 };;
+type t2 : any mod non_null separable
+type t3 : any & (any mod non_null separable) = #{ t1 : t1 ; t2 : t2 };;
 [%%expect{|
 type t1 : any
 type t2 : any_non_null
-Line 3, characters 40-49:
-3 | type t3 : any & (any mod non_null) = #{ t1 : t1 ; t2 : t2 };;
-                                            ^^^^^^^^^
+Line 3, characters 50-59:
+3 | type t3 : any & (any mod non_null separable) = #{ t1 : t1 ; t2 : t2 };;
+                                                      ^^^^^^^^^
 Error: Unboxed record element types must have a representable layout.
        The layout of t1 is any
          because of the definition of t1 at line 1, characters 0-13.
@@ -115,14 +115,14 @@ Error: Unboxed record element types must have a representable layout.
 
 (* Should not be allowed for either unboxed tuples or (un)boxed records. *)
 type t1 : any
-type t2 : any mod non_null
-type t3 : any mod non_null = #{ t1 : t1 ; t2 : t2 };;
+type t2 : any mod non_null separable
+type t3 : any mod non_null separable = #{ t1 : t1 ; t2 : t2 };;
 [%%expect{|
 type t1 : any
 type t2 : any_non_null
-Line 3, characters 32-41:
-3 | type t3 : any mod non_null = #{ t1 : t1 ; t2 : t2 };;
-                                    ^^^^^^^^^
+Line 3, characters 42-51:
+3 | type t3 : any mod non_null separable = #{ t1 : t1 ; t2 : t2 };;
+                                              ^^^^^^^^^
 Error: Unboxed record element types must have a representable layout.
        The layout of t1 is any
          because of the definition of t1 at line 1, characters 0-13.
@@ -131,14 +131,14 @@ Error: Unboxed record element types must have a representable layout.
 |}]
 
 type t1 : any
-type t2 : any mod non_null
-type t3 : any & any mod non_null = #{ t1 : t1 ; t2 : t2 };;
+type t2 : any mod non_null separable
+type t3 : any & any mod non_null separable = #{ t1 : t1 ; t2 : t2 };;
 [%%expect{|
 type t1 : any
 type t2 : any_non_null
-Line 3, characters 38-47:
-3 | type t3 : any & any mod non_null = #{ t1 : t1 ; t2 : t2 };;
-                                          ^^^^^^^^^
+Line 3, characters 48-57:
+3 | type t3 : any & any mod non_null separable = #{ t1 : t1 ; t2 : t2 };;
+                                                    ^^^^^^^^^
 Error: Unboxed record element types must have a representable layout.
        The layout of t1 is any
          because of the definition of t1 at line 1, characters 0-13.
@@ -147,14 +147,14 @@ Error: Unboxed record element types must have a representable layout.
 |}]
 
 type t1 : any
-type t2 : any mod non_null
-type t3 : (any mod non_null) & (any mod non_null) = #{ t1 : t1 ; t2 : t2 };;
+type t2 : any mod non_null separable
+type t3 : (any mod non_null separable) & (any mod non_null separable) = #{ t1 : t1 ; t2 : t2 };;
 [%%expect{|
 type t1 : any
 type t2 : any_non_null
-Line 3, characters 55-64:
-3 | type t3 : (any mod non_null) & (any mod non_null) = #{ t1 : t1 ; t2 : t2 };;
-                                                           ^^^^^^^^^
+Line 3, characters 75-84:
+3 | type t3 : (any mod non_null separable) & (any mod non_null separable) = #{ t1 : t1 ; t2 : t2 };;
+                                                                               ^^^^^^^^^
 Error: Unboxed record element types must have a representable layout.
        The layout of t1 is any
          because of the definition of t1 at line 1, characters 0-13.

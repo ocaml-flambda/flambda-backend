@@ -276,7 +276,7 @@ type t
 Line 2, characters 0-44:
 2 | type u : immutable_data with t = [`foo of t]
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "[ `foo of t ]" is value
+Error: The kind of type "[ `foo of t ]" is non_float_value
          because it's a polymorphic variant type.
        But the kind of type "[ `foo of t ]" must be a subkind of immutable_data
          with t
