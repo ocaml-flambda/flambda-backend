@@ -111,8 +111,7 @@ let assigned_to_stack t =
   | Stack (Local _ | Incoming _ | Outgoing _) -> true
   | Stack (Domainstate _) | Reg _ | Unknown -> false
 
-let regs_at_same_location (reg1 : Reg.t) (reg2 : Reg.t) ~register_class
-    ~stack_class =
+let regs_at_same_location (reg1 : Reg.t) (reg2 : Reg.t) =
   (* We need to check the register classes too: two locations both saying "stack
      offset N" might actually be different physical locations, for example if
      one is of class "Int" and another "Float" on amd64. [register_class] will
@@ -121,12 +120,17 @@ let regs_at_same_location (reg1 : Reg.t) (reg2 : Reg.t) ~register_class
   Reg.equal_location reg1.loc reg2.loc
   &&
   match reg1.loc with
-  | Reg _ -> Reg_class.equal (register_class reg1) (register_class reg2)
-  | Stack _ -> Stack_class.equal (stack_class reg1) (stack_class reg2)
+  | Reg _ ->
+    Reg_class.equal
+      (Reg_class.of_machtype reg1.typ)
+      (Reg_class.of_machtype reg2.typ)
+  | Stack _ ->
+    Stack_class.equal
+      (Stack_class.of_machtype reg1.typ)
+      (Stack_class.of_machtype reg2.typ)
   | Unknown -> Misc.fatal_errorf "regs_at_same_location got Unknown locations"
 
-let at_same_location t (reg : Reg.t) ~register_class ~stack_class =
-  regs_at_same_location t.reg reg ~register_class ~stack_class
+let at_same_location t (reg : Reg.t) = regs_at_same_location t.reg reg
 
 let debug_info t = t.debug_info
 
@@ -163,15 +167,11 @@ module Set = struct
       (fun reg acc -> add (create_without_debug_info ~reg) acc)
       regs empty
 
-  let made_unavailable_by_clobber t ~regs_clobbered ~register_class ~stack_class
-      =
+  let made_unavailable_by_clobber t ~regs_clobbered =
     Reg.Set.fold
       (fun reg acc ->
         let made_unavailable =
-          filter
-            (fun reg' ->
-              regs_at_same_location reg'.reg reg ~register_class ~stack_class)
-            t
+          filter (fun reg' -> regs_at_same_location reg'.reg reg) t
         in
         union made_unavailable acc)
       (Reg.set_of_array regs_clobbered)
