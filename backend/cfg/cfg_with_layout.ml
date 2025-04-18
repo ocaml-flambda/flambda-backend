@@ -122,22 +122,7 @@ let dump ppf t ~msg =
   let print_block label =
     let block = Label.Tbl.find t.cfg.blocks label in
     fprintf ppf "\n%a:\n" Label.format label;
-    let pp_with_id ppf ~pp (instr : _ Cfg.instruction) =
-      fprintf ppf "(id:%a) %a\n" InstructionId.format instr.id pp instr
-    in
-    DLL.iter ~f:(pp_with_id ppf ~pp:Cfg.print_basic) block.body;
-    pp_with_id ppf ~pp:Cfg.print_terminator block.terminator;
-    fprintf ppf "\npredecessors:";
-    Label.Set.iter (fprintf ppf " %a" Label.format) block.predecessors;
-    fprintf ppf "\nsuccessors:";
-    Label.Set.iter
-      (fprintf ppf " %a" Label.format)
-      (Cfg.successor_labels ~normal:true ~exn:false block);
-    fprintf ppf "\nexn-successors:";
-    Label.Set.iter
-      (fprintf ppf " %a" Label.format)
-      (Cfg.successor_labels ~normal:false ~exn:true block);
-    fprintf ppf "\n"
+    Cfg.print_block ppf block
   in
   DLL.iter ~f:print_block t.layout
 

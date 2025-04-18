@@ -247,3 +247,5 @@ val basic_block_contains_calls : basic_block -> bool
 val max_instr_id : t -> InstructionId.t
 
 val equal_irc_work_list : irc_work_list -> irc_work_list -> bool
+
+val print_block : Format.formatter -> basic_block -> unit
