@@ -309,7 +309,7 @@ let instr_cfg_with_layout :
        InstructionId.make_sequence ~last_used:(Cfg.max_instr_id cfg) ())
   in
   let next_instruction_id () =
-    InstructionId.get_next (Lazy.force instruction_id)
+    InstructionId.get_and_incr (Lazy.force instruction_id)
   in
   Cfg_edge.Set.fold
     (fun { Cfg_edge.src; dst } added_poll ->

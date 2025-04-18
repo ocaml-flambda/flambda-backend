@@ -270,7 +270,7 @@ end = struct
     { instruction_id }
 
   let get_and_incr_instruction_id state =
-    InstructionId.get_next state.instruction_id
+    InstructionId.get_and_incr state.instruction_id
 end
 
 let insert_single_move :

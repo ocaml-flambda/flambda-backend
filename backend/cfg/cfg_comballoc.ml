@@ -170,7 +170,7 @@ let rec combine : instr_id:InstructionId.sequence -> cell option -> unit =
             Cfg.Op (Intop_imm (Operation.Iadd, total_size_of_other_allocations));
           arg = [| first_allocation_res0 |];
           res = [| first_allocation_res0 |];
-          id = InstructionId.get_next instr_id
+          id = InstructionId.get_and_incr instr_id
         });
     combine ~instr_id compatible_allocs.next_cell
 

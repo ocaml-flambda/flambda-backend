@@ -392,7 +392,7 @@ let prelude :
               ~after:(Cfg.get_block_exn cfg src)
               ~before:(Some (Cfg.get_block_exn cfg dst))
               ~next_instruction_id:(fun () ->
-                InstructionId.get_next instruction_id)
+                InstructionId.get_and_incr instruction_id)
           in
           ())
         critical_edges;
