@@ -43,9 +43,10 @@ module S = struct
       returns : Label.t option;
           (** At least one of [alloc] and [returns] must be set.  Otherwise,
               use [Op]. *)
-      (* CR mshinwell: same comment as in cmm.mli about [effects], [alloc] and
-         [returns]. In addition this should apply to the [OCaml] case below e.g.
-         to know that an OCaml function doesn't return. *)
+      (* CR mshinwell: same comment as in cmm.mli (see the [External]
+         constructor) about [effects], [alloc] and [returns]. In addition this
+         should apply to the [OCaml] case below e.g. to know that an OCaml
+         function doesn't return. *)
       effects : Cmm.effects;
       ty_res : Cmm.machtype;
       ty_args : Cmm.exttype list;
@@ -56,6 +57,10 @@ module S = struct
     | OCaml of
         { op : func_call_operation;
           returns : Label.t
+              (* CR mshinwell: we should track [Rc_nontail] here: at the moment
+                 it is impossible to turn a non-tail call into a tail call in
+                 Cfg, because this information has been dropped in
+                 [Cfg_selectgen]. *)
         }
     | External of external_call_operation
     | Probe of

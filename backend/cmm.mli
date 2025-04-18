@@ -470,10 +470,10 @@ and apply =
         returns : bool;
             (** At least one of [alloc] and [returns] must be [true].  Otherwise,
           use [Cop]. *)
-        (* CR mshinwell: improve description of effects/alloc/returns, including
-           ruling out impossible cases e.g. for extcalls treated as operations
-           where they are never allocated to allocate and should always
-           return. *)
+        (* CR mshinwell: improve description of effects/coeffects/alloc/returns,
+           including ruling out impossible cases e.g. for extcalls treated as
+           operations where they are never allocated to allocate and should
+           always return. *)
         effects : effects;
         coeffects : coeffects
       }
