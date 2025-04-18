@@ -130,6 +130,14 @@ let report fmt t =
     | Must_be_inlined -> "must")
     report_decision t
 
+let is_stub t =
+  match t with
+  | Stub -> true
+  | Not_yet_decided | Never_inline_attribute | Function_body_too_large _
+  | Attribute_inline | Small_function _ | Speculatively_inlinable _ | Functor _
+  | Recursive ->
+    false
+
 let must_be_inlined t =
   match behaviour t with
   | Must_be_inlined -> true
