@@ -89,10 +89,10 @@ let rec fib = function | 0 | 1 -> 1 | n -> (fib (n - 1)) + (fib (n - 2))
       <def_rec>
         pattern (test_locations.ml[17,534+8]..test_locations.ml[17,534+11])
           Tpat_var "fib"
-          value_mode meet(local,once,nonportable,yielding,stateful)(modevar#0[global,many,portable,unyielding,stateful .. global,many,nonportable,unyielding,stateful]);imply(unique,uncontended,read_write)(modevar#1[aliased,contended,immutable .. unique,uncontended,read_write])
+          value_mode global,many,portable,unyielding,stateful;imply(unique,uncontended,read_write)(modevar#1[aliased,contended,immutable .. unique,uncontended,read_write])
         expression (test_locations.ml[17,534+14]..test_locations.ml[19,572+34])
           Texp_function
-          alloc_mode map_comonadic(regional_to_global)(modevar#6[global,many,portable,unyielding,stateful .. global,many,nonportable,unyielding,stateful]);id(modevar#7[aliased,contended,immutable .. unique,uncontended,read_write])
+          alloc_mode global,many,portable,unyielding,stateful;id(modevar#7[aliased,contended,immutable .. unique,uncontended,read_write])
           []
           Tfunction_cases (test_locations.ml[17,534+14]..test_locations.ml[19,572+34])
           alloc_mode global,many,nonportable,unyielding,stateful;aliased,uncontended,read_write
