@@ -164,34 +164,35 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   begin match instr.desc with
   | Op (Floatop (_, (Iaddf | Isubf | Imulf | Idivf))) ->
     may_use_stack_operand_for_second_argument map instr ~num_args:2 ~res_is_fst:true
-  | Op (Specific (Isimd op)) ->
-    (match Simd_proc.register_behavior op with
-    | R_to_fst | R_to_R | R_R_to_fst -> May_still_have_spilled_registers
-    | R_RM_to_fst ->
-      may_use_stack_operand_for_second_argument map instr ~num_args:2 ~res_is_fst:true
-    | R_RM_to_rcx | R_RM_to_xmm0 | R_RM_to_R ->
-      may_use_stack_operand_for_second_argument map instr ~num_args:2 ~res_is_fst:false
-    | R_RM_rax_rdx_to_rcx | R_RM_rax_rdx_to_xmm0 ->
-      may_use_stack_operand_for_second_argument map instr ~num_args:4 ~res_is_fst:false
-    | R_RM_xmm0_to_fst ->
-      may_use_stack_operand_for_second_argument map instr ~num_args:3 ~res_is_fst:true
-    | R_to_RM -> may_use_stack_operand_for_result map instr ~num_args:1
-    | RM_to_R -> may_use_stack_operand_for_only_argument map instr ~has_result:true)
-  | Op (Specific (Isimd_mem (op,_))) ->
-    (match Simd_proc.Mem.register_behavior op with
-     | R_RM_to_fst -> May_still_have_spilled_registers
-     | R_to_fst
-     | R_to_R
-     | R_to_RM
-     | RM_to_R
-     | R_R_to_fst
-     | R_RM_to_R
-     | R_RM_xmm0_to_fst
-     | R_RM_rax_rdx_to_rcx
-     | R_RM_to_rcx
-     | R_RM_rax_rdx_to_xmm0
-     | R_RM_to_xmm0
-      -> Misc.fatal_error "Unexpected simd operation with memory arguments")
+  | Op (Specific Ipackf32) -> May_still_have_spilled_registers
+  | Op (Specific (Isimd (Instruction { instr = simd; _ })))
+  | Op (Specific (Isimd (Sequence { seq = { instr = simd; id =
+          Sqrtss | Sqrtsd | Roundss | Roundsd |
+          Pcmpestra | Pcmpestrc | Pcmpestro | Pcmpestrs | Pcmpestrz |
+          Pcmpistra | Pcmpistrc | Pcmpistro | Pcmpistrs | Pcmpistrz }; _ }))) ->
+    (match Array.length simd.args, simd.res with
+    | 1, First_arg -> May_still_have_spilled_registers
+    | 1, Res { loc = res_loc; _ } ->
+      let arg_mem = Simd.loc_allows_mem simd.args.(0).loc in
+      let res_mem = Simd.loc_allows_mem res_loc in
+      assert (not (arg_mem && res_mem));
+      if arg_mem then may_use_stack_operand_for_only_argument map instr ~has_result:true
+      else if res_mem then may_use_stack_operand_for_result map instr ~num_args:1
+      else May_still_have_spilled_registers
+    | num_args, First_arg ->
+      if Simd.loc_allows_mem simd.args.(1).loc
+      then may_use_stack_operand_for_second_argument map instr ~num_args ~res_is_fst:true
+      else May_still_have_spilled_registers
+    | num_args, Res { loc = res_loc; _ } ->
+      let arg_mem = Simd.loc_allows_mem simd.args.(1).loc in
+      let res_mem = Simd.loc_allows_mem res_loc in
+      assert (not (arg_mem && res_mem));
+      if arg_mem then may_use_stack_operand_for_second_argument map instr ~num_args ~res_is_fst:false
+      else if res_mem then may_use_stack_operand_for_result map instr ~num_args
+      else May_still_have_spilled_registers)
+  | Op (Specific (Isimd_mem ((SSE2 Add_f64 | SSE2 Sub_f64 | SSE2 Mul_f64 | SSE2 Div_f64 |
+                              SSE Add_f32 | SSE Sub_f32 | SSE Mul_f32 | SSE Div_f32), _))) ->
+    May_still_have_spilled_registers
   | Op (Reinterpret_cast (Float_of_float32 | Float32_of_float | V128_of_v128))
   | Op (Static_cast (V128_of_scalar Float64x2 | Scalar_of_v128 Float64x2))
   | Op (Static_cast (V128_of_scalar Float32x4 | Scalar_of_v128 Float32x4)) ->

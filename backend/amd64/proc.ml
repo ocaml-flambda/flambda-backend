@@ -511,20 +511,32 @@ let destroyed_at_single_float64_store =
     (destroy_xmm 15)
 ;;
 
-let destroyed_by_simd_op (register_behavior : Simd_proc.register_behavior) =
-  match register_behavior with
-  | R_RM_rax_rdx_to_xmm0
-  | R_RM_to_xmm0 -> destroy_xmm 0
-  | R_RM_rax_rdx_to_rcx
-  | R_RM_to_rcx -> [| rcx |]
-  | R_to_fst
-  | R_to_R
-  | R_to_RM
-  | RM_to_R
-  | R_R_to_fst
-  | R_RM_to_fst
-  | R_RM_to_R
-  | R_RM_xmm0_to_fst -> [||]
+let destroyed_by_simd_instr (instr : Simd.instr) =
+  match instr.res with
+  | First_arg -> [||]
+  | Res { loc; _ } ->
+    match Simd.loc_is_pinned loc with
+    | Some RAX -> [|rax|]
+    | Some RCX -> [|rcx|]
+    | Some RDX -> [|rdx|]
+    | Some XMM0 -> destroy_xmm 0
+    | None -> [||]
+
+let destroyed_by_simd_op (op : Simd.operation) =
+  match op with
+  | Instruction { instr; _ } -> destroyed_by_simd_instr instr
+  | Sequence { seq; _ } ->
+    destroyed_by_simd_instr seq.instr
+    |> Array.append
+      (match seq.id with
+      | Sqrtss | Sqrtsd | Roundss | Roundsd
+      | Pcmpestra | Pcmpestrc | Pcmpestro | Pcmpestrs | Pcmpestrz
+      | Pcmpistra | Pcmpistrc | Pcmpistro | Pcmpistrs | Pcmpistrz -> [||])
+
+let destroyed_by_simd_mem_op (instr : Simd.Mem.operation) =
+  match instr with
+  | SSE Add_f32 | SSE Sub_f32 | SSE Mul_f32 | SSE Div_f32
+  | SSE2 Add_f64 | SSE2 Sub_f64 | SSE2 Mul_f64 | SSE2 Div_f64 -> [||]
 
 let destroyed_at_raise = all_phys_regs
 
@@ -560,10 +572,11 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op Poll -> destroyed_at_alloc_or_poll
   | Op (Alloc _) ->
     destroyed_at_alloc_or_poll
+  | Op (Specific Ipackf32) -> [||]
   | Op (Specific (Isimd op)) ->
-    destroyed_by_simd_op (Simd_proc.register_behavior op)
+    destroyed_by_simd_op op
   | Op (Specific (Isimd_mem (op,_))) ->
-    destroyed_by_simd_op (Simd_proc.Mem.register_behavior op)
+    destroyed_by_simd_mem_op op
   | Op (Move | Spill | Reload
        | Const_int _ | Const_float _ | Const_float32 _ | Const_symbol _
        | Const_vec128 _

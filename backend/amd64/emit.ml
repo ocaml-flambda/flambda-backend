@@ -32,6 +32,7 @@ open X86_ast_utils
 open X86_proc
 open X86_dsl
 module String = Misc.Stdlib.String
+module Simd_instrs = Amd64_simd_instrs
 
 (* [Branch_relaxation] is not used in this file, but is required by emit.ml
    files for certain other targets; the reference here ensures that when
@@ -1431,307 +1432,112 @@ let emit_static_cast (cast : Cmm.static_cast) i =
        load 32 bits once we have unboxed int16/int8 *)
     I.movd (arg32 i 0) (res i 0)
 
-let check_simd_instr (register_behavior : Simd_proc.register_behavior) i =
-  (match register_behavior with
-  | R_to_fst ->
-    assert (Reg.same_loc i.arg.(0) i.res.(0));
-    assert (Reg.is_reg i.arg.(0))
-  | R_to_RM -> assert (Reg.is_reg i.arg.(0))
-  | RM_to_R -> assert (Reg.is_reg i.res.(0))
-  | R_to_R -> assert (Reg.is_reg i.arg.(0) && Reg.is_reg i.res.(0))
-  | R_RM_to_fst ->
-    assert (Reg.same_loc i.arg.(0) i.res.(0));
-    assert (Reg.is_reg i.arg.(0))
-  | R_RM_to_R ->
-    assert (Reg.is_reg i.arg.(0));
-    assert (Reg.is_reg i.res.(0))
-  | R_RM_xmm0_to_fst ->
-    assert (Reg.same_loc i.arg.(0) i.res.(0));
-    assert (Reg.is_reg i.arg.(0));
-    assert (Reg.same_loc i.arg.(2) (phys_xmm0v ()))
-  | R_R_to_fst ->
-    assert (Reg.same_loc i.arg.(0) i.res.(0));
-    assert (Reg.is_reg i.arg.(0) && Reg.is_reg i.arg.(1))
-  | R_RM_rax_rdx_to_rcx ->
-    assert (Reg.is_reg i.arg.(0));
-    assert (Reg.same_loc i.arg.(2) phys_rax);
-    assert (Reg.same_loc i.arg.(3) phys_rdx);
-    assert (Reg.same_loc i.res.(0) phys_rcx)
-  | R_RM_to_rcx ->
-    assert (Reg.is_reg i.arg.(0));
-    assert (Reg.same_loc i.res.(0) phys_rcx)
-  | R_RM_rax_rdx_to_xmm0 ->
-    assert (Reg.is_reg i.arg.(0));
-    assert (Reg.same_loc i.arg.(2) phys_rax);
-    assert (Reg.same_loc i.arg.(3) phys_rdx);
-    assert (Reg.same_loc i.res.(0) (phys_xmm0v ()))
-  | R_RM_to_xmm0 ->
-    assert (Reg.is_reg i.arg.(0));
-    assert (Reg.same_loc i.res.(0) (phys_xmm0v ())));
-  ()
+let assert_loc (loc : Simd.loc) arg =
+  (match Reg.is_reg arg with
+  | true -> assert (Simd.loc_allows_reg loc)
+  | false -> assert (Simd.loc_allows_mem loc));
+  match Simd.loc_is_pinned loc with
+  | Some RAX -> assert (Reg.same_loc arg phys_rax)
+  | Some RCX -> assert (Reg.same_loc arg phys_rcx)
+  | Some RDX -> assert (Reg.same_loc arg phys_rdx)
+  | Some XMM0 -> assert (Reg.same_loc arg (phys_xmm0v ()))
+  | None -> ()
 
-let emit_simd_instr_with_memory_arg op i addr =
-  check_simd_instr (Simd_proc.Mem.register_behavior op) i;
-  match (op : Simd.Mem.operation) with
-  | SSE2 Add_f64 -> I.addpd addr (res i 0)
-  | SSE2 Sub_f64 -> I.subpd addr (res i 0)
-  | SSE2 Mul_f64 -> I.mulpd addr (res i 0)
-  | SSE2 Div_f64 -> I.divpd addr (res i 0)
-  | SSE Add_f32 -> I.addps addr (res i 0)
-  | SSE Sub_f32 -> I.subps addr (res i 0)
-  | SSE Mul_f32 -> I.mulps addr (res i 0)
-  | SSE Div_f32 -> I.divps addr (res i 0)
+let check_simd_instr (simd : Simd.instr) imm instr =
+  assert (Bool.equal simd.imm (Option.is_some imm));
+  Array.iteri
+    (fun j (arg : Simd.arg) -> assert_loc arg.loc instr.arg.(j))
+    simd.args;
+  match simd.res with
+  | First_arg -> assert (Reg.same_loc instr.arg.(0) instr.res.(0))
+  | Res { loc; _ } -> assert_loc loc instr.res.(0)
 
-let emit_simd_instr op i =
-  check_simd_instr (Simd_proc.register_behavior op) i;
-  match (op : Simd.operation) with
-  | CLMUL (Clmul_64 n) -> I.pclmulqdq (X86_dsl.int n) (arg i 1) (res i 0)
-  | BMI2 Extract_64 -> I.pext (arg i 1) (arg i 0) (res i 0)
-  | BMI2 Deposit_64 -> I.pdep (arg i 1) (arg i 0) (res i 0)
-  | SSE Round_current_f32_i64 -> I.cvtss2si (arg i 0) (res i 0)
-  | SSE Sqrt_scalar_f32 ->
-    if not (equal_arg (arg i 0) (res i 0)) then I.xorpd (res i 0) (res i 0);
-    (* avoid partial register stall *)
-    I.sqrtss (arg i 0) (res i 0)
-  | SSE Max_scalar_f32 -> I.maxss (arg i 1) (res i 0)
-  | SSE Min_scalar_f32 -> I.minss (arg i 1) (res i 0)
-  | SSE (Cmp_f32 n) -> I.cmpps n (arg i 1) (res i 0)
-  | SSE Add_f32 -> I.addps (arg i 1) (res i 0)
-  | SSE Sub_f32 -> I.subps (arg i 1) (res i 0)
-  | SSE Mul_f32 -> I.mulps (arg i 1) (res i 0)
-  | SSE Div_f32 -> I.divps (arg i 1) (res i 0)
-  | SSE Max_f32 -> I.maxps (arg i 1) (res i 0)
-  | SSE Min_f32 -> I.minps (arg i 1) (res i 0)
-  | SSE Rcp_f32 -> I.rcpps (arg i 0) (res i 0)
-  | SSE Sqrt_f32 -> I.sqrtps (arg i 0) (res i 0)
-  | SSE Rsqrt_f32 -> I.rsqrtps (arg i 0) (res i 0)
-  | SSE High_64_to_low_64 -> I.movhlps (arg i 1) (res i 0)
-  | SSE Low_64_to_high_64 -> I.movlhps (arg i 1) (res i 0)
-  | SSE Interleave_high_32 -> I.unpckhps (arg i 1) (res i 0)
-  | SSE (Interleave_low_32 | Interleave_low_32_regs) ->
-    I.unpcklps (arg i 1) (res i 0)
-  | SSE Movemask_32 -> I.movmskps (arg i 0) (res i 0)
-  | SSE (Shuffle_32 n) -> I.shufps (X86_dsl.int n) (arg i 1) (res i 0)
-  | SSE2 Max_scalar_f64 -> I.maxsd (arg i 1) (res i 0)
-  | SSE2 Min_scalar_f64 -> I.minsd (arg i 1) (res i 0)
-  | SSE2 Sqrt_scalar_f64 ->
-    if not (equal_arg (arg i 0) (res i 0)) then I.xorpd (res i 0) (res i 0);
-    (* avoid partial register stall *)
-    I.sqrtsd (arg i 0) (res i 0)
-  | SSE2 Sqrt_f64 -> I.sqrtpd (arg i 0) (res i 0)
-  | SSE2 Add_i8 -> I.paddb (arg i 1) (res i 0)
-  | SSE2 Add_i16 -> I.paddw (arg i 1) (res i 0)
-  | SSE2 Add_i32 -> I.paddd (arg i 1) (res i 0)
-  | SSE2 Add_i64 -> I.paddq (arg i 1) (res i 0)
-  | SSE2 Add_f64 -> I.addpd (arg i 1) (res i 0)
-  | SSE2 Add_saturating_i8 -> I.paddsb (arg i 1) (res i 0)
-  | SSE2 Add_saturating_i16 -> I.paddsw (arg i 1) (res i 0)
-  | SSE2 Add_saturating_unsigned_i8 -> I.paddusb (arg i 1) (res i 0)
-  | SSE2 Add_saturating_unsigned_i16 -> I.paddusw (arg i 1) (res i 0)
-  | SSE2 Sub_i8 -> I.psubb (arg i 1) (res i 0)
-  | SSE2 Sub_i16 -> I.psubw (arg i 1) (res i 0)
-  | SSE2 Sub_i32 -> I.psubd (arg i 1) (res i 0)
-  | SSE2 Sub_i64 -> I.psubq (arg i 1) (res i 0)
-  | SSE2 Sub_f64 -> I.subpd (arg i 1) (res i 0)
-  | SSE2 Sub_saturating_i8 -> I.psubsb (arg i 1) (res i 0)
-  | SSE2 Sub_saturating_i16 -> I.psubsw (arg i 1) (res i 0)
-  | SSE2 Sub_saturating_unsigned_i8 -> I.psubusb (arg i 1) (res i 0)
-  | SSE2 Sub_saturating_unsigned_i16 -> I.psubusw (arg i 1) (res i 0)
-  | SSE2 Max_unsigned_i8 -> I.pmaxub (arg i 1) (res i 0)
-  | SSE2 Max_i16 -> I.pmaxsw (arg i 1) (res i 0)
-  | SSE2 Max_f64 -> I.maxpd (arg i 1) (res i 0)
-  | SSE2 Min_unsigned_i8 -> I.pminub (arg i 1) (res i 0)
-  | SSE2 Min_i16 -> I.pminsw (arg i 1) (res i 0)
-  | SSE2 Min_f64 -> I.minpd (arg i 1) (res i 0)
-  | SSE2 Mul_f64 -> I.mulpd (arg i 1) (res i 0)
-  | SSE2 Div_f64 -> I.divpd (arg i 1) (res i 0)
-  | SSE2 Avg_unsigned_i8 -> I.pavgb (arg i 1) (res i 0)
-  | SSE2 Avg_unsigned_i16 -> I.pavgw (arg i 1) (res i 0)
-  | SSE2 SAD_unsigned_i8 -> I.psadbw (arg i 1) (res i 0)
-  | SSE2 Mulhi_i16 -> I.pmulhw (arg i 1) (res i 0)
-  | SSE2 Mulhi_unsigned_i16 -> I.pmulhuw (arg i 1) (res i 0)
-  | SSE2 Mullo_i16 -> I.pmullw (arg i 1) (res i 0)
-  | SSE2 Mul_hadd_i16_to_i32 -> I.pmaddwd (arg i 1) (res i 0)
-  | SSE2 And_bits -> I.pand (arg i 1) (res i 0)
-  | SSE2 Andnot_bits -> I.pandnot (arg i 1) (res i 0)
-  | SSE2 Or_bits -> I.por (arg i 1) (res i 0)
-  | SSE2 Xor_bits -> I.pxor (arg i 1) (res i 0)
-  | SSE2 Movemask_8 -> I.pmovmskb (arg i 0) (res i 0)
-  | SSE2 Movemask_64 -> I.movmskpd (arg i 0) (res i 0)
-  | SSE2 (Shift_left_bytes n) -> I.pslldq (X86_dsl.int n) (arg i 0)
-  | SSE2 (Shift_right_bytes n) -> I.psrldq (X86_dsl.int n) (arg i 0)
-  | SSE2 Cmpeq_i8 -> I.pcmpeqb (arg i 1) (res i 0)
-  | SSE2 Cmpeq_i16 -> I.pcmpeqw (arg i 1) (res i 0)
-  | SSE2 Cmpeq_i32 -> I.pcmpeqd (arg i 1) (res i 0)
-  | SSE2 Cmpgt_i8 -> I.pcmpgtb (arg i 1) (res i 0)
-  | SSE2 Cmpgt_i16 -> I.pcmpgtw (arg i 1) (res i 0)
-  | SSE2 Cmpgt_i32 -> I.pcmpgtd (arg i 1) (res i 0)
-  | SSE2 (Cmp_f64 n) -> I.cmppd n (arg i 1) (res i 0)
-  | SSE2 I32_to_f64 -> I.cvtdq2pd (arg i 0) (res i 0)
-  | SSE2 I32_to_f32 -> I.cvtdq2ps (arg i 0) (res i 0)
-  | SSE2 F64_to_i32 -> I.cvtpd2dq (arg i 0) (res i 0)
-  | SSE2 F64_to_f32 -> I.cvtpd2ps (arg i 0) (res i 0)
-  | SSE2 F32_to_i32 -> I.cvtps2dq (arg i 0) (res i 0)
-  | SSE2 F32_to_f64 -> I.cvtps2pd (arg i 0) (res i 0)
-  | SSE2 I16_to_i8 -> I.packsswb (arg i 1) (res i 0)
-  | SSE2 I32_to_i16 -> I.packssdw (arg i 1) (res i 0)
-  | SSE2 I16_to_unsigned_i8 -> I.packuswb (arg i 1) (res i 0)
-  | SSE2 I32_to_unsigned_i16 -> I.packusdw (arg i 1) (res i 0)
-  | SSE2 Round_current_f64_i64 -> I.cvtsd2si (arg i 0) (res i 0)
-  | SSE2 SLL_i16 -> I.psllw (arg i 1) (res i 0)
-  | SSE2 SLL_i32 -> I.pslld (arg i 1) (res i 0)
-  | SSE2 SLL_i64 -> I.psllq (arg i 1) (res i 0)
-  | SSE2 SRL_i16 -> I.psrlw (arg i 1) (res i 0)
-  | SSE2 SRL_i32 -> I.psrld (arg i 1) (res i 0)
-  | SSE2 SRL_i64 -> I.psrlq (arg i 1) (res i 0)
-  | SSE2 SRA_i16 -> I.psraw (arg i 1) (res i 0)
-  | SSE2 SRA_i32 -> I.psrad (arg i 1) (res i 0)
-  | SSE2 (SLLi_i16 n) -> I.psllwi (X86_dsl.int n) (res i 0)
-  | SSE2 (SLLi_i32 n) -> I.pslldi (X86_dsl.int n) (res i 0)
-  | SSE2 (SLLi_i64 n) -> I.psllqi (X86_dsl.int n) (res i 0)
-  | SSE2 (SRLi_i16 n) -> I.psrlwi (X86_dsl.int n) (res i 0)
-  | SSE2 (SRLi_i32 n) -> I.psrldi (X86_dsl.int n) (res i 0)
-  | SSE2 (SRLi_i64 n) -> I.psrlqi (X86_dsl.int n) (res i 0)
-  | SSE2 (SRAi_i16 n) -> I.psrawi (X86_dsl.int n) (res i 0)
-  | SSE2 (SRAi_i32 n) -> I.psradi (X86_dsl.int n) (res i 0)
-  | SSE2 (Shuffle_64 n) -> I.shufpd (X86_dsl.int n) (arg i 1) (res i 0)
-  | SSE2 (Shuffle_high_16 n) -> I.pshufhw (X86_dsl.int n) (arg i 0) (res i 0)
-  | SSE2 (Shuffle_low_16 n) -> I.pshuflw (X86_dsl.int n) (arg i 0) (res i 0)
-  | SSE2 Interleave_high_8 -> I.punpckhbw (arg i 1) (res i 0)
-  | SSE2 Interleave_high_16 -> I.punpckhwd (arg i 1) (res i 0)
-  | SSE2 Interleave_high_64 -> I.punpckhqdq (arg i 1) (res i 0)
-  | SSE2 Interleave_low_8 -> I.punpcklbw (arg i 1) (res i 0)
-  | SSE2 Interleave_low_16 -> I.punpcklwd (arg i 1) (res i 0)
-  | SSE2 Interleave_low_64 -> I.punpcklqdq (arg i 1) (res i 0)
-  | SSE3 Addsub_f32 -> I.addsubps (arg i 1) (res i 0)
-  | SSE3 Addsub_f64 -> I.addsubpd (arg i 1) (res i 0)
-  | SSE3 Hadd_f32 -> I.haddps (arg i 1) (res i 0)
-  | SSE3 Hadd_f64 -> I.haddpd (arg i 1) (res i 0)
-  | SSE3 Hsub_f32 -> I.hsubps (arg i 1) (res i 0)
-  | SSE3 Hsub_f64 -> I.hsubpd (arg i 1) (res i 0)
-  | SSE3 Dup_low_64 -> I.movddup (arg i 0) (res i 0)
-  | SSE3 Dup_odd_32 -> I.movshdup (arg i 0) (res i 0)
-  | SSE3 Dup_even_32 -> I.movsldup (arg i 0) (res i 0)
-  | SSSE3 Abs_i8 -> I.pabsb (arg i 0) (res i 0)
-  | SSSE3 Abs_i16 -> I.pabsw (arg i 0) (res i 0)
-  | SSSE3 Abs_i32 -> I.pabsd (arg i 0) (res i 0)
-  | SSSE3 Hadd_i16 -> I.phaddw (arg i 1) (res i 0)
-  | SSSE3 Hadd_i32 -> I.phaddd (arg i 1) (res i 0)
-  | SSSE3 Hadd_saturating_i16 -> I.phaddsw (arg i 1) (res i 0)
-  | SSSE3 Hsub_i16 -> I.phsubw (arg i 1) (res i 0)
-  | SSSE3 Hsub_i32 -> I.phsubd (arg i 1) (res i 0)
-  | SSSE3 Hsub_saturating_i16 -> I.phsubsw (arg i 1) (res i 0)
-  | SSSE3 Mulsign_i8 -> I.psignb (arg i 1) (res i 0)
-  | SSSE3 Mulsign_i16 -> I.psignw (arg i 1) (res i 0)
-  | SSSE3 Mulsign_i32 -> I.psignd (arg i 1) (res i 0)
-  | SSSE3 (Alignr_i8 n) -> I.palignr (X86_dsl.int n) (arg i 1) (res i 0)
-  | SSSE3 Shuffle_8 -> I.pshufb (arg i 1) (res i 0)
-  | SSSE3 Mul_unsigned_hadd_saturating_i8_to_i16 ->
-    I.pmaddubsw (arg i 1) (res i 0)
-  | SSE41 (Blend_16 n) -> I.pblendw (X86_dsl.int n) (arg i 1) (res i 0)
-  | SSE41 (Blend_32 n) -> I.blendps (X86_dsl.int n) (arg i 1) (res i 0)
-  | SSE41 (Blend_64 n) -> I.blendpd (X86_dsl.int n) (arg i 1) (res i 0)
-  | SSE41 Blendv_8 -> I.pblendvb (arg i 1) (res i 0)
-  | SSE41 Blendv_32 -> I.blendvps (arg i 1) (res i 0)
-  | SSE41 Blendv_64 -> I.blendvpd (arg i 1) (res i 0)
-  | SSE41 Cmpeq_i64 -> I.pcmpeqq (arg i 1) (res i 0)
-  | SSE41 I8_sx_i16 -> I.pmovsxbw (arg i 0) (res i 0)
-  | SSE41 I8_sx_i32 -> I.pmovsxbd (arg i 0) (res i 0)
-  | SSE41 I8_sx_i64 -> I.pmovsxbq (arg i 0) (res i 0)
-  | SSE41 I16_sx_i32 -> I.pmovsxwd (arg i 0) (res i 0)
-  | SSE41 I16_sx_i64 -> I.pmovsxwq (arg i 0) (res i 0)
-  | SSE41 I32_sx_i64 -> I.pmovsxdq (arg i 0) (res i 0)
-  | SSE41 I8_zx_i16 -> I.pmovzxbw (arg i 0) (res i 0)
-  | SSE41 I8_zx_i32 -> I.pmovzxbd (arg i 0) (res i 0)
-  | SSE41 I8_zx_i64 -> I.pmovzxbq (arg i 0) (res i 0)
-  | SSE41 I16_zx_i32 -> I.pmovzxwd (arg i 0) (res i 0)
-  | SSE41 I16_zx_i64 -> I.pmovzxwq (arg i 0) (res i 0)
-  | SSE41 I32_zx_i64 -> I.pmovzxdq (arg i 0) (res i 0)
-  | SSE41 (Dp_f32 n) -> I.dpps (X86_dsl.int n) (arg i 1) (res i 0)
-  | SSE41 (Dp_f64 n) -> I.dppd (X86_dsl.int n) (arg i 1) (res i 0)
-  | SSE41 (Extract_i8 n) ->
-    (* CR mslater: (SIMD) change once we have unboxed int8 *)
-    I.pextrb (X86_dsl.int n) (arg i 0) (res i 0);
-    I.movzx (res8 i 0) (res i 0)
-  | SSE41 (Extract_i16 n) ->
-    (* CR mslater: (SIMD) change once we have unboxed int16, the result will not
-       need to zero-extend. *)
-    I.pextrw (X86_dsl.int n) (arg i 0) (res i 0);
-    I.movzx (res16 i 0) (res i 0)
-  | SSE41 (Extract_i32 n) -> I.pextrd (X86_dsl.int n) (arg i 0) (res32 i 0)
-  | SSE41 (Extract_i64 n) -> I.pextrq (X86_dsl.int n) (arg i 0) (res i 0)
-  | SSE41 (Insert_i8 n) -> I.pinsrb (X86_dsl.int n) (arg32 i 1) (res i 0)
-  | SSE41 (Insert_i16 n) -> I.pinsrw (X86_dsl.int n) (arg32 i 1) (res i 0)
-  | SSE41 (Insert_i32 n) -> I.pinsrd (X86_dsl.int n) (arg32 i 1) (res i 0)
-  | SSE41 (Insert_i64 n) -> I.pinsrq (X86_dsl.int n) (arg i 1) (res i 0)
-  | SSE41 Max_i8 -> I.pmaxsb (arg i 1) (res i 0)
-  | SSE41 Max_i32 -> I.pmaxsd (arg i 1) (res i 0)
-  | SSE41 Max_unsigned_i16 -> I.pmaxuw (arg i 1) (res i 0)
-  | SSE41 Max_unsigned_i32 -> I.pmaxud (arg i 1) (res i 0)
-  | SSE41 Min_i8 -> I.pminsb (arg i 1) (res i 0)
-  | SSE41 Min_i32 -> I.pminsd (arg i 1) (res i 0)
-  | SSE41 Min_unsigned_i16 -> I.pminuw (arg i 1) (res i 0)
-  | SSE41 Min_unsigned_i32 -> I.pminud (arg i 1) (res i 0)
-  | SSE41 (Round_scalar_f64 n) ->
-    if not (equal_arg (arg i 0) (res i 0)) then I.xorpd (res i 0) (res i 0);
-    (* avoid partial register stall *)
-    I.roundsd n (arg i 0) (res i 0)
-  | SSE41 (Round_scalar_f32 n) ->
-    if not (equal_arg (arg i 0) (res i 0)) then I.xorpd (res i 0) (res i 0);
-    (* avoid partial register stall *)
-    I.roundss n (arg i 0) (res i 0)
-  | SSE41 (Round_f64 n) -> I.roundpd n (arg i 0) (res i 0)
-  | SSE41 (Round_f32 n) -> I.roundps n (arg i 0) (res i 0)
-  | SSE41 (Multi_sad_unsigned_i8 n) ->
-    I.mpsadbw (X86_dsl.int n) (arg i 1) (res i 0)
-  | SSE41 Minpos_unsigned_i16 -> I.phminposuw (arg i 0) (res i 0)
-  | SSE41 Mullo_i32 -> I.pmulld (arg i 1) (res i 0)
-  | SSE42 Cmpgt_i64 -> I.pcmpgtq (arg i 1) (res i 0)
-  | SSE42 Crc32_64 -> I.crc32 (arg i 1) (res i 0)
-  | SSE42 (Cmpestrm n) -> I.pcmpestrm (X86_dsl.int n) (arg i 1) (arg i 0)
-  | SSE42 (Cmpistrm n) -> I.pcmpistrm (X86_dsl.int n) (arg i 1) (arg i 0)
-  | SSE42 (Cmpestri n) -> I.pcmpestri (X86_dsl.int n) (arg i 1) (arg i 0)
-  | SSE42 (Cmpistri n) -> I.pcmpistri (X86_dsl.int n) (arg i 1) (arg i 0)
-  | SSE42 (Cmpestra n) ->
-    I.pcmpestri (X86_dsl.int n) (arg i 1) (arg i 0);
-    I.set A (res8 i 0);
-    I.movzx (res8 i 0) (res i 0)
-  | SSE42 (Cmpestrc n) ->
-    I.pcmpestri (X86_dsl.int n) (arg i 1) (arg i 0);
-    I.set B (res8 i 0);
-    I.movzx (res8 i 0) (res i 0)
-  | SSE42 (Cmpestro n) ->
-    I.pcmpestri (X86_dsl.int n) (arg i 1) (arg i 0);
-    I.set O (res8 i 0);
-    I.movzx (res8 i 0) (res i 0)
-  | SSE42 (Cmpestrs n) ->
-    I.pcmpestri (X86_dsl.int n) (arg i 1) (arg i 0);
-    I.set S (res8 i 0);
-    I.movzx (res8 i 0) (res i 0)
-  | SSE42 (Cmpestrz n) ->
-    I.pcmpestri (X86_dsl.int n) (arg i 1) (arg i 0);
-    I.set E (res8 i 0);
-    I.movzx (res8 i 0) (res i 0)
-  | SSE42 (Cmpistra n) ->
-    I.pcmpistri (X86_dsl.int n) (arg i 1) (arg i 0);
-    I.set A (res8 i 0);
-    I.movzx (res8 i 0) (res i 0)
-  | SSE42 (Cmpistrc n) ->
-    I.pcmpistri (X86_dsl.int n) (arg i 1) (arg i 0);
-    I.set B (res8 i 0);
-    I.movzx (res8 i 0) (res i 0)
-  | SSE42 (Cmpistro n) ->
-    I.pcmpistri (X86_dsl.int n) (arg i 1) (arg i 0);
-    I.set O (res8 i 0);
-    I.movzx (res8 i 0) (res i 0)
-  | SSE42 (Cmpistrs n) ->
-    I.pcmpistri (X86_dsl.int n) (arg i 1) (arg i 0);
-    I.set S (res8 i 0);
-    I.movzx (res8 i 0) (res i 0)
-  | SSE42 (Cmpistrz n) ->
-    I.pcmpistri (X86_dsl.int n) (arg i 1) (arg i 0);
-    I.set E (res8 i 0);
-    I.movzx (res8 i 0) (res i 0)
+let emit_simd_instr (simd : Simd.instr) imm instr =
+  check_simd_instr simd imm instr;
+  let total_args = Array.length instr.arg in
+  if total_args <> Array.length simd.args
+  then Misc.fatal_errorf "wrong number of arguments for %s" simd.mnemonic;
+  let args =
+    List.init total_args (fun j ->
+        if Simd.arg_is_implicit simd.args.(j)
+        then None
+        else
+          match Simd.loc_requires_width simd.args.(j).loc with
+          | Some Eight -> Some (arg8 instr j)
+          | Some Sixteen -> Some (arg16 instr j)
+          | Some Thirtytwo -> Some (arg32 instr j)
+          | Some Sixtyfour | None -> Some (arg instr j))
+    |> List.filter_map (fun arg -> arg)
+  in
+  let args =
+    match simd.res with
+    | First_arg | Res { enc = Implicit; _ } -> args
+    | Res { loc; enc = RM_r | RM_rm | Vex_v } -> (
+      match Simd.loc_is_pinned loc with
+      | Some _ -> args
+      | None ->
+        (match Simd.loc_requires_width loc with
+        | Some Eight -> res8 instr 0
+        | Some Sixteen -> res16 instr 0
+        | Some Thirtytwo -> res32 instr 0
+        | Some Sixtyfour | None -> res instr 0)
+        :: args)
+  in
+  let args =
+    match imm with
+    | None -> List.rev args
+    | Some imm -> X86_dsl.int imm :: List.rev args
+  in
+  I.simd simd (Array.of_list args)
+
+let emit_simd (simd : Simd.operation) instr =
+  match simd with
+  | Instruction { instr = simd; imm } -> emit_simd_instr simd imm instr
+  | Sequence { seq; imm } -> (
+    (* Prefix *)
+    (match seq.id with
+    | Sqrtss | Sqrtsd | Roundss | Roundsd ->
+      (* Avoids partial register stall *)
+      if not (equal_arg (arg instr 0) (res instr 0))
+      then I.xorpd (res instr 0) (res instr 0)
+    | Pcmpestra | Pcmpistra | Pcmpestrc | Pcmpistrc | Pcmpestro | Pcmpistro
+    | Pcmpestrs | Pcmpistrs | Pcmpestrz | Pcmpistrz ->
+      ());
+    (* Instruction *)
+    emit_simd_instr seq.instr imm instr;
+    (* Suffix *)
+    match seq.id with
+    | Sqrtss | Sqrtsd | Roundss | Roundsd -> ()
+    | Pcmpestra | Pcmpistra ->
+      I.set A (res8 instr 0);
+      I.movzx (res8 instr 0) (res instr 0)
+    | Pcmpestrc | Pcmpistrc ->
+      I.set B (res8 instr 0);
+      I.movzx (res8 instr 0) (res instr 0)
+    | Pcmpestro | Pcmpistro ->
+      I.set O (res8 instr 0);
+      I.movzx (res8 instr 0) (res instr 0)
+    | Pcmpestrs | Pcmpistrs ->
+      I.set S (res8 instr 0);
+      I.movzx (res8 instr 0) (res instr 0)
+    | Pcmpestrz | Pcmpistrz ->
+      I.set E (res8 instr 0);
+      I.movzx (res8 instr 0) (res instr 0))
+
+let emit_simd_instr_with_memory_arg (simd : Simd.Mem.operation) i addr =
+  let open Simd_instrs in
+  assert (Reg.is_reg i.arg.(0));
+  assert (not (Reg.is_reg i.arg.(1)));
+  assert (Reg.same_loc i.arg.(0) i.res.(0));
+  match simd with
+  | SSE2 Add_f64 -> I.simd addpd [| addr; res i 0 |]
+  | SSE2 Sub_f64 -> I.simd subpd [| addr; res i 0 |]
+  | SSE2 Mul_f64 -> I.simd mulpd [| addr; res i 0 |]
+  | SSE2 Div_f64 -> I.simd divpd [| addr; res i 0 |]
+  | SSE Add_f32 -> I.simd addps [| addr; res i 0 |]
+  | SSE Sub_f32 -> I.simd subps [| addr; res i 0 |]
+  | SSE Mul_f32 -> I.simd mulps [| addr; res i 0 |]
+  | SSE Div_f32 -> I.simd divps [| addr; res i 0 |]
 
 (* Emit an instruction *)
 let emit_instr ~first ~fallthrough i =
@@ -2140,7 +1946,11 @@ let emit_instr ~first ~fallthrough i =
   | Lop (Specific Ilfence) -> I.lfence ()
   | Lop (Specific Isfence) -> I.sfence ()
   | Lop (Specific Imfence) -> I.mfence ()
-  | Lop (Specific (Isimd op)) -> emit_simd_instr op i
+  | Lop (Specific Ipackf32) ->
+    let arg0, arg1 = i.arg.(0), i.arg.(1) in
+    assert (Reg.is_reg arg0 && Reg.is_reg arg1 && Reg.same_loc arg0 i.res.(0));
+    I.simd Simd_instrs.unpcklps [| arg i 1; res i 0 |]
+  | Lop (Specific (Isimd op)) -> emit_simd op i
   | Lop (Specific (Isimd_mem (op, addressing_mode))) ->
     let address = addressing addressing_mode VEC128 i 1 in
     Address_sanitizer.emit_sanitize

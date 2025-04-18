@@ -295,6 +295,22 @@ let string_of_float_condition = function
   | NLEf -> "nle"
   | ORDf -> "ord"
 
+let float_condition_of_imm = function
+  | Imm 0L -> EQf
+  | Imm 1L -> LTf
+  | Imm 2L -> LEf
+  | Imm 3L -> UNORDf
+  | Imm 4L -> NEQf
+  | Imm 5L -> NLTf
+  | Imm 6L -> NLEf
+  | Imm 7L -> ORDf
+  | Sym _ | Reg8L _ | Reg8H _ | Reg16 _ | Reg32 _ | Reg64 _ | Regf _ | Mem _
+  | Mem64_RIP _ | Imm _ ->
+    Misc.fatal_errorf "Invalid float condition immediate arg"
+
+let string_of_float_condition_imm imm =
+  float_condition_of_imm imm |> string_of_float_condition
+
 let string_of_rounding = function
   | RoundDown -> "roundsd.down"
   | RoundUp -> "roundsd.up"

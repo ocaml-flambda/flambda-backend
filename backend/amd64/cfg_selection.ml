@@ -131,7 +131,8 @@ let pseudoregs_for_operation op arg res =
   match (op : Operation.t) with
   (* Two-address binary operations: arg.(0) and res.(0) must be the same *)
   | Intop (Iadd | Isub | Imul | Iand | Ior | Ixor)
-  | Floatop ((Float32 | Float64), (Iaddf | Isubf | Imulf | Idivf)) ->
+  | Floatop ((Float32 | Float64), (Iaddf | Isubf | Imulf | Idivf))
+  | Specific Ipackf32 ->
     [| res.(0); arg.(1) |], res
   | Intop_atomic { op = Compare_set; size = _; addr = _ } ->
     (* first arg must be rax *)
@@ -192,14 +193,9 @@ let pseudoregs_for_operation op arg res =
        edx (high) and eax (low). Make it simple and force the argument in rcx,
        and rax and rdx clobbered *)
     [| rcx |], res
-  | Specific (Isimd op) ->
-    Simd_selection.pseudoregs_for_operation
-      (Simd_proc.register_behavior op)
-      arg res
+  | Specific (Isimd op) -> Simd_selection.pseudoregs_for_operation op arg res
   | Specific (Isimd_mem (op, _addr)) ->
-    Simd_selection.pseudoregs_for_operation
-      (Simd_proc.Mem.register_behavior op)
-      arg res
+    Simd_selection.pseudoregs_for_mem_operation op arg res
   | Csel _ ->
     (* last arg must be the same as res.(0) *)
     let len = Array.length arg in
@@ -351,7 +347,7 @@ let select_operation
        a float stack slot, the resulting UNPCKLPS instruction would enforce the
        validity of loading it as a 128-bit memory location, even though it only
        loads 64 bits. *)
-    Rewritten (specific (Isimd (SSE Interleave_low_32_regs)), args)
+    Rewritten (specific Ipackf32, args)
   (* Special cases overriding C implementations (regardless of [@@builtin]). *)
   | Cextcall { func = "sqrt" as func; _ }
   (* x86 intrinsics ([@@builtin]) *)
