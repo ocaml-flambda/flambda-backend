@@ -23,7 +23,7 @@ module Field : sig
     | Direct_code_pointer
 
   type t =
-    | Block of int (* nth field of a block *)
+    | Block of int * Flambda_kind.t (* nth field of a block *)
     | Value_slot of Value_slot.t
     | Function_slot of Function_slot.t
     | Code_of_closure (* code_id in a set of closurse *)
@@ -35,6 +35,8 @@ module Field : sig
   val equal : t -> t -> bool
 
   val print : Format.formatter -> t -> unit
+
+  val kind : t -> Flambda_kind.t
 
   module Map : Container_types.Map with type key = t
 
@@ -64,13 +66,13 @@ module Dep : sig
        source, since a block has multiple fields for instance *)
     | Alias_if_def of
         { target : Name.t;
-          if_defined : Code_id.t
+          if_defined : Code_id_or_name.t
         }
     (* If [if_defined] is not bottom, then this is equivalent to an alias to
        [target] *)
     | Propagate of
         { target : Name.t;
-          source : Name.t
+          source : Code_id_or_name.t
         }
   (* If the source this not bottom, then [source] is an alias to [target]
      (counterpart of [Alias_if_def], always generated in pairs) *)
@@ -130,10 +132,31 @@ val add_use_dep :
 val add_use : graph -> Code_id_or_name.t -> unit
 
 val add_propagate_dep :
-  graph -> if_used:Code_id.t -> to_:Name.t -> from:Name.t -> unit
+  graph ->
+  if_used:Code_id_or_name.t ->
+  to_:Code_id_or_name.t ->
+  from:Name.t ->
+  unit
 
 val add_constructor_dep :
   graph -> base:Code_id_or_name.t -> Field.t -> from:Code_id_or_name.t -> unit
 
 val add_accessor_dep :
   graph -> to_:Code_id_or_name.t -> Field.t -> base:Name.t -> unit
+
+module Dual : sig
+  type edge =
+    | Alias of { target : Code_id_or_name.t }
+    | Constructor of
+        { target : Code_id_or_name.t;
+          relation : Field.t
+        }
+    | Accessor of
+        { target : Code_id_or_name.t;
+          relation : Field.t
+        }
+
+  type edges = edge list
+
+  type graph = edges Code_id_or_name.Map.t
+end

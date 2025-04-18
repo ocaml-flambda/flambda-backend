@@ -241,13 +241,34 @@ let split_direct_over_application apply
         ~free_names_of_body:(Known perform_over_application_free_names)
   in
   let after_full_application = Continuation.create () in
+  let full_apply_result_arity =
+    Code_metadata.result_arity callee's_code_metadata
+  in
   let after_full_application_handler =
-    let func_param = BP.create func_var K.With_subkind.any_value in
-    Continuation_handler.create
-      (Bound_parameters.create [func_param])
-      ~handler:perform_over_application
-      ~free_names_of_handler:(Known perform_over_application_free_names)
-      ~is_exn_handler:false ~is_cold:false
+    if not (Flambda_arity.is_one_param_of_kind_value full_apply_result_arity)
+    then
+      let params =
+        Bound_parameters.create
+          (List.map
+             (fun kind ->
+               Bound_parameter.create (Variable.create "over_app_result") kind)
+             (Flambda_arity.unarized_components full_apply_result_arity))
+      in
+      Continuation_handler.create params
+        ~handler:
+          (Expr.create_invalid
+             (Message
+                "Over-application of a function that does not return a \
+                 singleton value"))
+        ~free_names_of_handler:(Known Name_occurrences.empty)
+        ~is_exn_handler:false ~is_cold:true
+    else
+      let func_param = BP.create func_var K.With_subkind.any_value in
+      Continuation_handler.create
+        (Bound_parameters.create [func_param])
+        ~handler:perform_over_application
+        ~free_names_of_handler:(Known perform_over_application_free_names)
+        ~is_exn_handler:false ~is_cold:false
   in
   let full_apply =
     Apply.create ~callee:(Apply.callee apply)

@@ -1383,7 +1383,7 @@ let result_kind_of_unary_primitive p : result_kind =
   | Untag_immediate -> Singleton K.naked_immediate
   | Box_number _ | Tag_immediate | Project_function_slot _ -> Singleton K.value
   | Project_value_slot { value_slot; _ } ->
-    Singleton (K.With_subkind.kind (Value_slot.kind value_slot))
+    Singleton (Value_slot.kind value_slot)
   | Is_boxed_float | Is_flat_float_array -> Singleton K.naked_immediate
   | End_region _ -> Singleton K.value
   | End_try_region _ -> Singleton K.value

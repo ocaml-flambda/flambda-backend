@@ -1462,7 +1462,7 @@ module Invalid = struct
         [`Unarized] Flambda_arity.t * Apply_expr.t
     | Application_result_kind_mismatch of
         [`Unarized] Flambda_arity.t * Apply_expr.t
-    | Partial_application_mode_mismatch of Apply_expr.t
+    | Partial_application_mode_mismatch of Apply_expr.t * Code_metadata.t
     | Partial_application_mode_mismatch_in_lambda of Debuginfo.t
     | Calling_local_returning_closure_with_normal_apply of Apply_expr.t
     | Zero_switch_arms
@@ -1499,11 +1499,11 @@ module Invalid = struct
         "@[<hov 1>(Application_result_kind_mismatch@ @[<hov 1>(result_arity@ \
          %a)@ (apply_expr@ %a)@])@]"
         Flambda_arity.print result_arity Apply_expr.print apply_expr
-    | Partial_application_mode_mismatch apply_expr ->
+    | Partial_application_mode_mismatch (apply_expr, code_metadata) ->
       Format.asprintf
         "@[<hov 1>(Partial_application_mode_mismatch@ @[<hov 1>(apply_expr@ \
-         %a)@])@]"
-        Apply_expr.print apply_expr
+         %a)@ (callee's_code_metadata@ (%a))@])@]"
+        Apply_expr.print apply_expr Code_metadata.print code_metadata
     | Partial_application_mode_mismatch_in_lambda dbg ->
       Format.asprintf
         "@[<hov 1>(Partial_application_mode_mismatch_in_lambda@ @[<hov 1>(dbg@ \

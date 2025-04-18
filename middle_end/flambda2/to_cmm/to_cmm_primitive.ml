@@ -930,7 +930,7 @@ let unary_primitive env res dbg f arg =
       value_slot_offset env value_slot, function_slot_offset env project_from
     with
     | Live_value_slot { offset; _ }, Live_function_slot { offset = base; _ } ->
-      let memory_chunk = To_cmm_shared.memory_chunk_of_kind kind in
+      let memory_chunk = To_cmm_shared.memory_chunk_of_kind (KS.anything kind) in
       let expr =
         C.get_field_gen_given_memory_chunk memory_chunk Asttypes.Immutable arg
           (offset - base) dbg

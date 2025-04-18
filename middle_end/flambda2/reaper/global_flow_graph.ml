@@ -24,7 +24,7 @@ module Field = struct
       | Direct_code_pointer
 
     type t =
-      | Block of int
+      | Block of int * Flambda_kind.t
       | Value_slot of Value_slot.t
       | Function_slot of Function_slot.t
       | Code_of_closure
@@ -45,7 +45,9 @@ module Field = struct
 
     let compare t1 t2 =
       match t1, t2 with
-      | Block n1, Block n2 -> Int.compare n1 n2
+      | Block (n1, k1), Block (n2, k2) ->
+        let c = Int.compare n1 n2 in
+        if c <> 0 then c else Flambda_kind.compare k1 k2
       | Value_slot v1, Value_slot v2 -> Value_slot.compare v1 v2
       | Function_slot f1, Function_slot f2 -> Function_slot.compare f1 f2
       | Code_of_closure, Code_of_closure -> 0
@@ -90,7 +92,7 @@ module Field = struct
       | Direct_code_pointer -> "Direct_code_pointer"
 
     let print ppf = function
-      | Block i -> Format.fprintf ppf "%i" i
+      | Block (i, k) -> Format.fprintf ppf "%i_%a" i Flambda_kind.print k
       | Value_slot s -> Format.fprintf ppf "%a" Value_slot.print s
       | Function_slot f -> Format.fprintf ppf "%a" Function_slot.print f
       | Code_of_closure -> Format.fprintf ppf "Code"
@@ -105,6 +107,14 @@ module Field = struct
   end
 
   include M
+  let kind : t -> _ = function
+  | Block (_, kind) -> kind
+  | Value_slot vs -> Value_slot.kind vs
+  | Function_slot _ -> Flambda_kind.value
+  | Is_int | Get_tag -> Flambda_kind.naked_immediate
+  | (Code_of_closure | Apply _) as field ->
+    Misc.fatal_errorf "[field_kind] for virtual field %a" print field
+  
   module Container = Container_types.Make (M)
   module Map = Container.Map
 
@@ -141,11 +151,11 @@ module Dep = struct
           }
       | Alias_if_def of
           { target : Name.t;
-            if_defined : Code_id.t
+            if_defined : Code_id_or_name.t
           }
       | Propagate of
           { target : Name.t;
-            source : Name.t
+            source : Code_id_or_name.t
           }
 
     let compare t1 t2 =
@@ -173,11 +183,11 @@ module Dep = struct
       | ( Alias_if_def { target = target1; if_defined = if_defined1 },
           Alias_if_def { target = target2; if_defined = if_defined2 } ) ->
         let c = Name.compare target1 target2 in
-        if c <> 0 then c else Code_id.compare if_defined1 if_defined2
+        if c <> 0 then c else Code_id_or_name.compare if_defined1 if_defined2
       | ( Propagate { target = target1; source = source1 },
           Propagate { target = target2; source = source2 } ) ->
         let c = Name.compare target1 target2 in
-        if c <> 0 then c else Name.compare source1 source2
+        if c <> 0 then c else Code_id_or_name.compare source1 source2
       | ( ( Alias _ | Use _ | Accessor _ | Constructor _ | Alias_if_def _
           | Propagate _ ),
           _ ) ->
@@ -198,13 +208,15 @@ module Dep = struct
         Format.fprintf ppf "Constructor %a %a" Field.print relation
           Code_id_or_name.print target
       | Alias_if_def { target; if_defined } ->
-        Format.fprintf ppf "Alias_if_def %a %a" Name.print target Code_id.print
-          if_defined
+        Format.fprintf ppf "Alias_if_def %a %a" Name.print target
+          Code_id_or_name.print if_defined
       | Propagate { target; source } ->
-        Format.fprintf ppf "Propagate %a %a" Name.print target Name.print source
+        Format.fprintf ppf "Propagate %a %a" Name.print target
+          Code_id_or_name.print source
   end
 
   include M
+
   module Container = Container_types.Make (M)
   module Set = Container.Set
 end
@@ -253,7 +265,8 @@ let used_pred = Used_pred.create ~name:"used"
 
 let used_fields_top_rel = Used_fields_top_rel.create ~name:"used_fields_top"
 
-let used_fields_rel = Used_fields_rel.create ~name:"used_fields_rel"
+let used_fields_rel =
+  Datalog.create_relation ~name:"used_fields" Used_fields_rel.columns
 
 let name_to_dep { name_to_dep; _ } = name_to_dep
 
@@ -340,31 +353,29 @@ let add_use_dep t ~to_ ~from =
   add_graph_dep t to_ (Use { target = from });
   t.use_rel <- Use_rel.add_or_replace [to_; from] () t.use_rel
 
+let encode_field _t field =
+  Field.encode field
+
 let add_constructor_dep t ~base relation ~from =
   add_graph_dep t base (Constructor { relation; target = from });
   t.constructor_rel
     <- Constructor_rel.add_or_replace
-         [base; Field.encode relation; from]
+         [base; encode_field t relation; from]
          () t.constructor_rel
 
 let add_accessor_dep t ~to_ relation ~base =
   add_graph_dep t to_ (Accessor { relation; target = base });
   t.accessor_rel
     <- Accessor_rel.add_or_replace
-         [to_; Field.encode relation; Code_id_or_name.name base]
+         [to_; encode_field t relation; Code_id_or_name.name base]
          () t.accessor_rel
 
 let add_propagate_dep t ~if_used ~to_ ~from =
-  add_graph_dep t
-    (Code_id_or_name.code_id if_used)
-    (Propagate { target = from; source = to_ });
-  add_graph_dep t (Code_id_or_name.name to_)
-    (Alias_if_def { target = from; if_defined = if_used });
+  add_graph_dep t if_used (Propagate { target = from; source = to_ });
+  add_graph_dep t to_ (Alias_if_def { target = from; if_defined = if_used });
   t.propagate_rel
     <- Propagate_rel.add_or_replace
-         [ Code_id_or_name.code_id if_used;
-           Code_id_or_name.name to_;
-           Code_id_or_name.name from ]
+         [if_used; to_; Code_id_or_name.name from]
          () t.propagate_rel
 
 let add_opaque_let_dependency t ~to_ ~from =
@@ -382,3 +393,20 @@ let add_opaque_let_dependency t ~to_ ~from =
 let add_use t (var : Code_id_or_name.t) =
   Hashtbl.replace t.used var ();
   t.used_pred <- Used_pred.add_or_replace [var] () t.used_pred
+
+module Dual = struct
+  type edge =
+    | Alias of { target : Code_id_or_name.t }
+    | Constructor of
+        { target : Code_id_or_name.t;
+          relation : Field.t
+        }
+    | Accessor of
+        { target : Code_id_or_name.t;
+          relation : Field.t
+        }
+
+  type edges = edge list
+
+  type graph = edges Code_id_or_name.Map.t
+end
