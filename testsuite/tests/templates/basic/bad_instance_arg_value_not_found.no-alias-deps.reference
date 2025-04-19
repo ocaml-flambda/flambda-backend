@@ -1,0 +1,4 @@
+File "bad_instance_arg_value_not_found.ml", line 2, characters 2-61:
+2 |   Monoid_utils(Monoid)(Banana) [@jane.non_erasable.instances]
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 49 [no-cmi-file]: no valid cmi file was found in path for module Monoid_utils. Can't find argument Banana

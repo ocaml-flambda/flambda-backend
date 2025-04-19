@@ -1,0 +1,4 @@
+File "bad_instance_arg_value_not_arg.ml", line 2, characters 2-88:
+2 |   Monoid_utils(Monoid)(Monoid_utils(Monoid)(List_monoid)) [@jane.non_erasable.instances]
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 49 [no-cmi-file]: no valid cmi file was found in path for module Monoid_utils. Monoid_utils[Monoid:List_monoid] is not an argument
