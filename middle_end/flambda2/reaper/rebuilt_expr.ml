@@ -19,7 +19,7 @@ type continuation_handler =
   }
 
 type continuation_handlers =
-  { handlers : Flambda.Continuation_handler.t Continuation.Map.t;
+  { handlers : Flambda.Continuation_handler.t Continuation.Lmap.t;
     free_names : Name_occurrences.t
   }
 
@@ -56,13 +56,14 @@ let create_continuation_handler bound_parameters ~handler ~is_exn_handler
   { handler; free_names }
 
 let create_continuation_handlers handlers =
-  Continuation.Map.fold
-    (fun cont (handler : continuation_handler) { handlers; free_names } ->
-      let handlers = Continuation.Map.add cont handler.handler handlers in
-      let free_names = Name_occurrences.union free_names handler.free_names in
-      { handlers; free_names })
-    handlers
-    { handlers = Continuation.Map.empty; free_names = Name_occurrences.empty }
+  let free_names, handlers =
+    Continuation.Lmap.fold_left_map
+      (fun free_names _cont (handler : continuation_handler) ->
+        let free_names = Name_occurrences.union free_names handler.free_names in
+        free_names, handler.handler)
+      Name_occurrences.empty handlers
+  in
+  { handlers; free_names }
 
 let create_non_recursive_let_cont cont (cont_handler : continuation_handler)
     ~body =
@@ -92,7 +93,7 @@ let create_recursive_let_cont ~invariant_params handlers0 ~body =
       (Name_occurrences.increase_counts handlers_free_names)
   in
   let free_names =
-    Continuation.Map.fold
+    Continuation.Lmap.fold
       (fun cont _ free_names ->
         Name_occurrences.remove_continuation free_names ~continuation:cont)
       handlers0 free_names

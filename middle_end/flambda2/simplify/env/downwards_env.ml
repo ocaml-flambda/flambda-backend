@@ -47,6 +47,8 @@ type t =
     all_code : Code.t Code_id.Map.t;
     inlining_history_tracker : Inlining_history.Tracker.t;
     loopify_state : Loopify_state.t;
+    replay_history : Replay_history.t;
+        (* Replay history for the current continuation handler (or toplevel) *)
     defined_variables_by_scope : Lifted_cont_params.t list;
         (* Stack of variables defined. The first element of the list refers to
            variables defined by the current continuation, and the last element
@@ -74,7 +76,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
                 do_not_rebuild_terms; closure_info;
                 unit_toplevel_return_continuation; all_code;
                 get_imported_code = _; inlining_history_tracker = _;
-                loopify_state; defined_variables_by_scope;
+                loopify_state; replay_history; defined_variables_by_scope;
                 lifted = _; cost_of_lifting_continuations_out_of_current_one;
               } =
   Format.fprintf ppf "@[<hov 1>(\
@@ -94,6 +96,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
       @[<hov 1>(closure_info@ %a)@]@ \
       @[<hov 1>(all_code@ %a)@]@ \
       @[<hov 1>(loopify_state@ %a)@]@ \
+      @[<hov 1>(binding_histories@ %a)@]@ \
       @[<hov 1>(defined_variables_by_scope@ %a)@]@ \
       @[<hov 1>(cost_of_lifting_continuation_out_of_current_one %d)@]\
       )@]"
@@ -113,12 +116,24 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
     Closure_info.print closure_info
     (Code_id.Map.print Code.print) all_code
     Loopify_state.print loopify_state
+    Replay_history.print replay_history
     (Format.pp_print_list ~pp_sep:Format.pp_print_space Lifted_cont_params.print) defined_variables_by_scope
     cost_of_lifting_continuations_out_of_current_one
 
-let define_variable t var kind =
+let define_continuations t conts =
+  let replay_history =
+    Replay_history.define_continuations conts t.replay_history
+  in
+  { t with replay_history }
+
+let define_variable0 ~extra t var kind =
+  let replay_history =
+    if extra
+    then t.replay_history
+    else Replay_history.define_variable (Bound_var.var var) t.replay_history
+  in
   let defined_variables_by_scope =
-    if Variable.Set.mem (Bound_var.var var) t.lifted
+    if extra || Variable.Set.mem (Bound_var.var var) t.lifted
     then t.defined_variables_by_scope
     else
       match t.defined_variables_by_scope with
@@ -126,7 +141,8 @@ let define_variable t var kind =
       | variables_defined_in_current_continuation :: r ->
         let kind = Flambda_kind.With_subkind.anything kind in
         let variables_defined_in_current_continuation =
-          Lifted_cont_params.new_param variables_defined_in_current_continuation
+          Lifted_cont_params.new_param ~replay_history
+            variables_defined_in_current_continuation
             (Bound_parameter.create (Bound_var.var var) kind)
         in
         variables_defined_in_current_continuation :: r
@@ -142,9 +158,16 @@ let define_variable t var kind =
   in
   { t with
     typing_env;
+    replay_history;
     variables_defined_at_toplevel;
     defined_variables_by_scope
   }
+
+let define_variable t var kind =
+  (define_variable0 [@inlined hint]) ~extra:false t var kind
+
+let define_extra_variable t var kind =
+  (define_variable0 [@inlined hint]) ~extra:true t var kind
 
 let create ~round ~(resolver : resolver)
     ~(get_imported_names : get_imported_names)
@@ -172,6 +195,7 @@ let create ~round ~(resolver : resolver)
       inlining_history_tracker =
         Inlining_history.Tracker.empty (Compilation_unit.get_current_exn ());
       loopify_state = Loopify_state.do_not_loopify;
+      replay_history = Replay_history.first_pass;
       defined_variables_by_scope = [Lifted_cont_params.empty];
       lifted = Variable.Set.empty;
       cost_of_lifting_continuations_out_of_current_one = 0
@@ -248,6 +272,7 @@ let enter_set_of_closures
       all_code;
       inlining_history_tracker;
       loopify_state = _;
+      replay_history = _;
       defined_variables_by_scope = _;
       lifted = _;
       cost_of_lifting_continuations_out_of_current_one = _
@@ -270,6 +295,7 @@ let enter_set_of_closures
     all_code;
     inlining_history_tracker;
     loopify_state = Loopify_state.do_not_loopify;
+    replay_history = Replay_history.first_pass;
     defined_variables_by_scope = [Lifted_cont_params.empty];
     lifted = Variable.Set.empty;
     cost_of_lifting_continuations_out_of_current_one = 0
@@ -290,11 +316,14 @@ let define_name t name kind =
         kind)
     ~symbol:(fun [@inline] sym -> (define_symbol [@inlined hint]) t sym kind)
 
-let add_variable t var ty =
-  let t = (define_variable [@inlined hint]) t var (T.kind ty) in
+let add_variable0 ~extra t var ty =
+  let t = (define_variable0 [@inlined hint]) ~extra t var (T.kind ty) in
   { t with
     typing_env = TE.add_equation t.typing_env (Name.var (Bound_var.var var)) ty
   }
+
+let add_variable t var ty =
+  (add_variable0 [@inlined hint]) ~extra:false t var ty
 
 let add_symbol t sym ty =
   let t = (define_symbol [@inlined hint]) t sym (T.kind ty) in
@@ -339,15 +368,16 @@ let add_equation_on_name t name ty =
   let typing_env = TE.add_equation t.typing_env name ty in
   { t with typing_env }
 
-let define_parameters t ~params =
+let define_parameters ~extra t ~params =
   List.fold_left
     (fun t param ->
       let var = Bound_var.create (BP.var param) Name_mode.normal in
-      define_variable t var (K.With_subkind.kind (BP.kind param)))
+      define_variable0 ~extra t var (K.With_subkind.kind (BP.kind param)))
     t
     (Bound_parameters.to_list params)
 
-let add_parameters ?(name_mode = Name_mode.normal) t params ~param_types =
+let add_parameters ~extra ?(name_mode = Name_mode.normal) t params ~param_types
+    =
   let params' = params in
   let params = Bound_parameters.to_list params in
   if List.compare_lengths params param_types <> 0
@@ -360,10 +390,10 @@ let add_parameters ?(name_mode = Name_mode.normal) t params ~param_types =
   List.fold_left2
     (fun t param param_type ->
       let var = Bound_var.create (BP.var param) name_mode in
-      add_variable t var param_type)
+      add_variable0 ~extra t var param_type)
     t params param_types
 
-let add_parameters_with_unknown_types ?alloc_modes ?name_mode t params =
+let add_parameters_with_unknown_types ~extra ?alloc_modes ?name_mode t params =
   let params' = params in
   let params = Bound_parameters.to_list params in
   let alloc_modes =
@@ -380,7 +410,7 @@ let add_parameters_with_unknown_types ?alloc_modes ?name_mode t params =
     ListLabels.map2 params alloc_modes ~f:(fun param alloc_mode ->
         T.unknown_with_subkind ~alloc_mode (BP.kind param))
   in
-  add_parameters ?name_mode t params' ~param_types
+  add_parameters ~extra ?name_mode t params' ~param_types
 
 let mark_parameters_as_toplevel t params =
   let variables_defined_at_toplevel =
@@ -569,6 +599,17 @@ let with_code_age_relation code_age_relation t =
     typing_env = TE.with_code_age_relation t.typing_env code_age_relation
   }
 
+let with_replay_history replay t =
+  (* CR gbury: should we try and have a "dummy" replay history for the temporary
+     envs created during join points ? *)
+  let replay_history =
+    match replay with
+    | None -> Replay_history.first_pass
+    | Some (previous_history, always_inline) ->
+      Replay_history.replay ~always_inline previous_history
+  in
+  { t with replay_history }
+
 let enter_continuation_handler lifted_params t =
   let lifted =
     Lifted_cont_params.fold ~init:Variable.Set.empty
@@ -598,6 +639,10 @@ let add_lifting_cost cost t =
         t.cost_of_lifting_continuations_out_of_current_one + cost
     }
 
+let must_inline t = Replay_history.must_inline t.replay_history
+
+let replay_history t = t.replay_history
+
 let denv_for_lifted_continuation ~denv_for_join ~denv =
   (* At this point, we are lifting a continuation k' with handler [handlers],
      out of a continuation k, and:
@@ -620,6 +665,7 @@ let denv_for_lifted_continuation ~denv_for_join ~denv =
     variables_defined_at_toplevel = denv_for_join.variables_defined_at_toplevel;
     cse = denv_for_join.cse;
     comparison_results = denv_for_join.comparison_results;
+    replay_history = denv_for_join.replay_history;
     defined_variables_by_scope = denv_for_join.defined_variables_by_scope;
     lifted = denv_for_join.lifted;
     cost_of_lifting_continuations_out_of_current_one =
