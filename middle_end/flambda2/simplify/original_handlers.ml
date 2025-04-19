@@ -17,7 +17,7 @@ type t =
   | Recursive of
       { invariant_params : Bound_parameters.t;
         lifted_params : Lifted_cont_params.t;
-        continuation_handlers : One_recursive_handler.t Continuation.Map.t
+        continuation_handlers : One_recursive_handler.t Continuation.Lmap.t
       }
   | Non_recursive of Non_recursive_handler.t
 
@@ -31,13 +31,18 @@ let print ppf t =
        %a)@]@ @[<hv 1>(continuation handlers@ %a)@])@]"
       Bound_parameters.print invariant_params Lifted_cont_params.print
       lifted_params
-      (Continuation.Map.print One_recursive_handler.print)
+      (Continuation.Lmap.print One_recursive_handler.print)
       continuation_handlers
 
 let create_recursive ~invariant_params ~lifted_params ~continuation_handlers =
   Recursive { invariant_params; lifted_params; continuation_handlers }
 
 let create_non_recursive non_rec_handler = Non_recursive non_rec_handler
+
+let bound_continuations = function
+  | Non_recursive non_rec_handler -> [non_rec_handler.cont]
+  | Recursive { continuation_handlers; _ } ->
+    Continuation.Lmap.keys continuation_handlers
 
 let add_params_to_lift t params_to_lift =
   let lifted_params, renaming = Lifted_cont_params.rename params_to_lift in
@@ -53,7 +58,7 @@ let add_params_to_lift t params_to_lift =
     if Lifted_cont_params.is_empty old_lifted
     then
       let continuation_handlers =
-        Continuation.Map.map
+        Continuation.Lmap.map
           (fun ({ params; handler; is_cold } : One_recursive_handler.t) ->
             let handler = Flambda.Expr.apply_renaming handler renaming in
             One_recursive_handler.create ~params ~handler ~is_cold)
