@@ -22,7 +22,7 @@ type t : value mod contended portable
 
 external thread_initialize : unit -> unit = "caml_thread_initialize"
 external thread_cleanup : unit -> unit @@ portable = "caml_thread_cleanup"
-external thread_new : (unit -> unit) -> t @@ portable = "caml_thread_new"
+external thread_new : (unit -> unit) @ once -> t @@ portable = "caml_thread_new"
 external thread_uncaught_exception : exn -> unit @@ portable =
             "caml_thread_uncaught_exception"
 
@@ -45,7 +45,7 @@ let set_uncaught_exception_handler (fn @ portable) = Atomic.Contended.set uncaug
 
 exception Exit
 
-let create fn arg =
+let create (fn @ once) arg =
   thread_new
     (fun () ->
       try
@@ -73,8 +73,10 @@ let create fn arg =
           flush stderr)
 
 module Portable = struct
-  let create = create
+  let create (fn @ once portable) arg = create fn arg
 end
+
+let create (fn @ many) arg = create fn arg
 
 let exit () =
   ignore (Sys.opaque_identity (check_memprof_cb ()));
