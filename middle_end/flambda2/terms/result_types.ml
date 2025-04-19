@@ -61,6 +61,12 @@ module Bound = struct
     let other_vars = List.map (fun var -> Variable.rename var) other_vars in
     { params; results; other_vars }
 
+  let is_renamed_version_of t t' =
+    Bound_parameters.is_renamed_version_of t.params t'.params
+    && Bound_parameters.is_renamed_version_of t.results t'.results
+    && Misc.Stdlib.List.equal Variable.is_renamed_version_of t.other_vars
+         t'.other_vars
+
   let print ppf { params; results; other_vars } =
     Format.fprintf ppf
       "@[<hov 1>(@[<hov 1>(params@ (%a))@]@ @[<hov 1>(results@ (%a))@]@ @[<hov \
