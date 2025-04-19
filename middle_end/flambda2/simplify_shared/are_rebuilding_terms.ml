@@ -15,14 +15,14 @@
 (**************************************************************************)
 
 type t = bool
+(* [true] if rebuilding, [false] if not rebuilding *)
 
-let of_bool t = t
+let are_rebuilding = true
 
-let to_bool t = t
+let are_not_rebuilding = false
 
-let do_not_rebuild_terms t = not (to_bool t)
+let print ppf t = Format.fprintf ppf "%b" t
 
-let [@ocamlformat "disable"] print ppf t =
-  Format.fprintf ppf "%b" (to_bool t)
+let do_rebuild_terms t = t
 
-let are_rebuilding t = t
+let do_not_rebuild_terms t = not t

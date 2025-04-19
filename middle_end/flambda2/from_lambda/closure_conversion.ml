@@ -287,7 +287,7 @@ module Inlining = struct
   (* CR keryan: we need to emit warnings *)
   let inlinable env apply callee_approx =
     let tracker = Env.inlining_history_tracker env in
-    let are_rebuilding_terms = Are_rebuilding_terms.of_bool true in
+    let are_rebuilding_terms = Are_rebuilding_terms.are_rebuilding in
     let compilation_unit =
       Env.inlining_history_tracker env
       |> Inlining_history.Tracker.absolute
@@ -2178,7 +2178,7 @@ let make_unboxed_function_wrapper acc function_slot ~unarized_params:params
       Inlining_report.record_decision_at_function_definition ~absolute_history
         ~code_metadata:(Code_or_metadata.code_metadata meta)
         ~pass:After_closure_conversion
-        ~are_rebuilding_terms:(Are_rebuilding_terms.of_bool true)
+        ~are_rebuilding_terms:Are_rebuilding_terms.are_rebuilding
         inlining_decision;
       if Function_decl_inlining_decision_type.must_be_inlined inlining_decision
       then code
@@ -2585,7 +2585,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
       Inlining_report.record_decision_at_function_definition ~absolute_history
         ~code_metadata:(Code_or_metadata.code_metadata meta)
         ~pass:After_closure_conversion
-        ~are_rebuilding_terms:(Are_rebuilding_terms.of_bool true)
+        ~are_rebuilding_terms:Are_rebuilding_terms.are_rebuilding
         inlining_decision;
       if Function_decl_inlining_decision_type.must_be_inlined inlining_decision
       then code
