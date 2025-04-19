@@ -93,6 +93,10 @@ module type Common = sig
   val print : ?verbose:bool -> unit -> Format.formatter -> ('l * 'r) t -> unit
 
   val of_const : Const.t -> ('l * 'r) t
+
+  val zap_to_floor : (allowed * 'r) t -> Const.t
+
+  val zap_to_ceil : ('l * allowed) t -> Const.t
 end
 
 module type S = sig
@@ -137,10 +141,6 @@ module type S = sig
     val global : lr
 
     val local : lr
-
-    val zap_to_floor : (allowed * 'r) t -> Const.t
-
-    val zap_to_ceil : ('l * allowed) t -> Const.t
 
     module Guts : sig
       (** This module exposes some functions that allow callers to inspect modes
@@ -246,8 +246,6 @@ module type S = sig
     val aliased : lr
 
     val unique : lr
-
-    val zap_to_ceil : ('l * allowed) t -> Const.t
   end
 
   module Contention : sig
@@ -426,7 +424,7 @@ module type S = sig
           (Comonadic.Const.t, 'a) Axis.t
           -> (('a, 'd) mode_comonadic, 'a, 'd) axis
 
-    type 'd axis_packed = P : ('m, 'a, 'd) axis -> 'd axis_packed
+    type axis_packed = P : ('m, 'a, 'l * 'r) axis -> axis_packed
 
     val print_axis : Format.formatter -> ('m, 'a, 'd) axis -> unit
 
@@ -434,7 +432,7 @@ module type S = sig
         monadic ones. *)
     val lattice_of_axis : ('m, 'a, 'd) axis -> (module Lattice with type t = 'a)
 
-    val all_axes : ('l * 'r) axis_packed list
+    val all_axes : axis_packed list
 
     type ('a, 'b, 'c, 'd, 'e, 'f, 'g, 'h) modes =
       { areality : 'a;
@@ -500,11 +498,14 @@ module type S = sig
       (** Similar to [Alloc.partial_apply] but for constants *)
       val partial_apply : t -> t
 
+      (** Project the specified axis out of the constant *)
+      val proj : ('m, 'a, 'l * 'r) axis -> t -> 'a
+
       (** Prints a constant on any axis. *)
       val print_axis : ('m, 'a, 'd) axis -> Format.formatter -> 'a -> unit
     end
 
-    type error = Error : ('m, 'a, 'd) axis * 'a Solver.error -> error
+    type error = Error : ('m, 'a, 'l * 'r) axis * 'a Solver.error -> error
 
     type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
 
@@ -530,8 +531,6 @@ module type S = sig
     val join_with : (_, 'a, _) axis -> 'a -> ('l * 'r) t -> ('l * 'r) t
 
     val zap_to_legacy : lr -> Const.t
-
-    val zap_to_ceil : ('l * allowed) t -> Const.t
 
     val comonadic_to_monadic : ('l * 'r) Comonadic.t -> ('r * 'l) Monadic.t
 
@@ -569,7 +568,9 @@ module type S = sig
     val alloc_as_value : Alloc.Const.t -> Value.Const.t
 
     module Axis : sig
-      val alloc_as_value : 'd Alloc.axis_packed -> 'd Value.axis_packed
+      val alloc_as_value : Alloc.axis_packed -> Value.axis_packed
+
+      val value_as_alloc : Value.axis_packed -> Alloc.axis_packed
     end
 
     val locality_as_regionality : Locality.Const.t -> Regionality.Const.t
@@ -691,7 +692,12 @@ module type S = sig
       (** The undefined modality. *)
       val undefined : t
 
-      (** Apply a modality on a left mode. *)
+      (* CR zqian: note that currently, [apply] and [sub] and [zap] are NOT
+         coherent for comonadic axes. That is, we do NOT have
+         [apply t m = Const.apply (zap t) m]. This is probably fine. *)
+
+      (** Apply a modality on a left mode. The calller should ensure that [apply
+      t m] is only called for [m >= md_mode] for inferred modalities. *)
       val apply : t -> (allowed * 'r) Value.t -> Value.l
 
       (** [sub t0 t1] checks that [t0 <= t1].
