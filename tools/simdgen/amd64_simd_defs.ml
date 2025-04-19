@@ -101,6 +101,8 @@ type enc =
     opcode : int
   }
 
+(* CR-someday gyorsh: restructure to avoid 'id and make the backend independent
+   of simdgen, backend should only depend on the result of simdgen. *)
 type 'id instr =
   { id : 'id;
     args : arg array;

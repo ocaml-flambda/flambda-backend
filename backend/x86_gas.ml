@@ -133,7 +133,7 @@ let i1_call_jmp b s = function
   | Sym x -> bprintf b "\t%s\t%s" s x
   | Imm _ | Reg8L _ | Reg8H _ | Reg16 _ | Regf _ -> assert false
 
-let[@warning "-4"] print_instr b = function
+let print_instr b = function
   | ADD (arg1, arg2) -> i2_s b "add" arg1 arg2
   | ADDSD (arg1, arg2) -> i2 b "addsd" arg1 arg2
   | AND (arg1, arg2) -> i2_s b "and" arg1 arg2
@@ -243,19 +243,18 @@ let[@warning "-4"] print_instr b = function
     i2 b ("cmp" ^ string_of_float_condition cmp ^ "ss") arg1 arg2
   | LZCNT (arg1, arg2) -> i2_s b "lzcnt" arg1 arg2
   | TZCNT (arg1, arg2) -> i2_s b "tzcnt" arg1 arg2
-  (* The assembler won't accept these mnemonics directly. *)
-  | SIMD ({ id = Cmpps; _ }, [| imm; arg1; arg2 |]) ->
-    i2 b ("cmp" ^ string_of_float_condition_imm imm ^ "ps") arg1 arg2
-  | SIMD ({ id = Cmppd; _ }, [| imm; arg1; arg2 |]) ->
-    i2 b ("cmp" ^ string_of_float_condition_imm imm ^ "pd") arg1 arg2
-  | SIMD ({ id = Crc32_r64_r64m64; _ }, [| arg1; arg2 |]) ->
-    i2 b "crc32q" arg1 arg2
-  (* All other simd instructions. *)
   | SIMD (instr, args) -> (
-    match args with
-    | [| arg1; arg2 |] -> i2 b instr.mnemonic arg1 arg2
-    | [| arg1; arg2; arg3 |] -> i3 b instr.mnemonic arg1 arg2 arg3
-    | _ ->
+    match[@warning "-4"] instr.id, args with
+    (* The assembler won't accept these mnemonics directly. *)
+    | Cmpps, [| imm; arg1; arg2 |] ->
+      i2 b ("cmp" ^ string_of_float_condition_imm imm ^ "ps") arg1 arg2
+    | Cmppd, [| imm; arg1; arg2 |] ->
+      i2 b ("cmp" ^ string_of_float_condition_imm imm ^ "pd") arg1 arg2
+    | Crc32_r64_r64m64, [| arg1; arg2 |] -> i2 b "crc32q" arg1 arg2
+    (* All other simd instructions. *)
+    | _, [| arg1; arg2 |] -> i2 b instr.mnemonic arg1 arg2
+    | _, [| arg1; arg2; arg3 |] -> i3 b instr.mnemonic arg1 arg2 arg3
+    | _, _ ->
       Misc.fatal_errorf "unexpected instruction layout for %s (%d args)"
         instr.mnemonic (Array.length args))
 
