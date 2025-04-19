@@ -218,17 +218,14 @@ Error: Signature mismatch:
        Modules do not match:
          sig type a = [ `a of string | `b ] type t end
        is not included in
-         sig
-           type a = [ `a of string | `b ]
-           type t : value mod global with a
-         end
+         sig type a = [ `a of string | `b ] type t : value mod unyielding end
        Type declarations do not match:
          type t
        is not included in
-         type t : value mod global with a
+         type t : value mod unyielding
        The kind of the first is value
          because of the definition of t at line 6, characters 2-8.
-       But the kind of the first must be a subkind of value mod global with a
+       But the kind of the first must be a subkind of value mod unyielding
          because of the definition of t at line 3, characters 2-34.
 |}]
 
@@ -240,33 +237,11 @@ end = struct
   type 'a t constraint 'a = [< `a of string | `b]
 end
 [%%expect {|
-Lines 4-7, characters 6-3:
-4 | ......struct
-5 |   type 'a u = [< `a of string | `b] as 'a
-6 |   type 'a t constraint 'a = [< `a of string | `b]
-7 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig
-           type 'a u = 'a constraint 'a = [< `a of string | `b ]
-           type 'a t constraint 'a = [< `a of string | `b ]
-         end
-       is not included in
-         sig
-           type 'a u = 'a constraint 'a = [< `a of string | `b ]
-           type 'a t : value mod global with [< `a of string | `b ] u
-             constraint 'a = [< `a of string | `b ]
-         end
-       Type declarations do not match:
-         type 'a t constraint 'a = [< `a of string | `b ]
-       is not included in
-         type 'a t : value mod global with [< `a of string | `b ] u
-           constraint 'a = [< `a of string | `b ]
-       The kind of the first is value
-         because of the definition of t at line 6, characters 2-49.
-       But the kind of the first must be a subkind of value mod global
-         with [< `a of string | `b ] u
-         because of the definition of t at line 3, characters 2-40.
+module M :
+  sig
+    type 'a u = 'a constraint 'a = [< `a of string | `b ]
+    type 'a t constraint 'a = [< `a of string | `b ]
+  end
 |}]
 
 module M : sig
@@ -277,33 +252,11 @@ end = struct
   type 'a t constraint 'a = [> `a of string | `b]
 end
 [%%expect {|
-Lines 4-7, characters 6-3:
-4 | ......struct
-5 |   type 'a u = [> `a of string | `b] as 'a
-6 |   type 'a t constraint 'a = [> `a of string | `b]
-7 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig
-           type 'a u = 'a constraint 'a = [> `a of string | `b ]
-           type 'a t constraint 'a = [> `a of string | `b ]
-         end
-       is not included in
-         sig
-           type 'a u = 'a constraint 'a = [> `a of string | `b ]
-           type 'a t : value mod portable with [> `a of string | `b ] u
-             constraint 'a = [> `a of string | `b ]
-         end
-       Type declarations do not match:
-         type 'a t constraint 'a = [> `a of string | `b ]
-       is not included in
-         type 'a t : value mod portable with [> `a of string | `b ] u
-           constraint 'a = [> `a of string | `b ]
-       The kind of the first is value
-         because of the definition of t at line 6, characters 2-49.
-       But the kind of the first must be a subkind of value mod portable
-         with [> `a of string | `b ] u
-         because of the definition of t at line 3, characters 2-42.
+module M :
+  sig
+    type 'a u = 'a constraint 'a = [> `a of string | `b ]
+    type 'a t constraint 'a = [> `a of string | `b ]
+  end
 |}]
 
 module M : sig
