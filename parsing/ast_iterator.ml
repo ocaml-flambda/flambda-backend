@@ -155,6 +155,8 @@ module T = struct
     | Ptyp_open (mod_ident, t) ->
         iter_loc sub mod_ident;
         sub.typ sub t
+    | Ptyp_of_kind jkind ->
+        sub.jkind_annotation sub jkind
     | Ptyp_extension x -> sub.extension sub x
 
   let iter_type_declaration sub

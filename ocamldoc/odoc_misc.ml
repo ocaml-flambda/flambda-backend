@@ -506,7 +506,8 @@ let remove_option typ =
     | Tfield _
     | Tnil
     | Tvariant _
-    | Tpackage _ -> t
+    | Tpackage _
+    | Tof_kind _ -> t
     | Tlink t2 -> trim (get_desc t2)
     | Tsubst _ -> assert false
   in

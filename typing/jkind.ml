@@ -958,7 +958,7 @@ module Layout_and_axes = struct
                   { t with constr = Path.Map.add p (fuel - 1, args) constr }
               else Stop { t with fuel_status = Ran_out_of_fuel })
           | Tvar _ | Tarrow _ | Tunboxed_tuple _ | Tobject _ | Tfield _ | Tnil
-          | Tvariant _ | Tunivar _ | Tpackage _ ->
+          | Tvariant _ | Tunivar _ | Tpackage _ | Tof_kind _ ->
             (* these cases either cannot be infinitely recursive or their jkinds
                do not have with_bounds *)
             (* CR layouts v2.8: Some of these might get with-bounds someday. We
@@ -2673,6 +2673,8 @@ module Format_history = struct
     | Type_variable name -> fprintf ppf "the type variable %s" name
     | Type_wildcard loc ->
       fprintf ppf "the wildcard _ at %a" Location.print_loc_in_lowercase loc
+    | Type_of_kind loc ->
+      fprintf ppf "the type at %a" Location.print_loc_in_lowercase loc
     | With_error_message (_message, context) ->
       (* message gets printed in [format_flattened_history] so we ignore it here *)
       format_annotation_context ppf context
@@ -3464,6 +3466,7 @@ module Debug_printers = struct
     | Type_variable name -> fprintf ppf "Type_variable %S" name
     | Type_wildcard loc ->
       fprintf ppf "Type_wildcard (%a)" Location.print_loc loc
+    | Type_of_kind loc -> fprintf ppf "Type_of_kind (%a)" Location.print_loc loc
     | With_error_message (message, context) ->
       fprintf ppf "With_error_message (%s, %a)" message annotation_context
         context

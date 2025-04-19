@@ -74,6 +74,7 @@ module Typ = struct
   let package ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_package (a, b))
   let extension ?loc ?attrs a = mk ?loc ?attrs (Ptyp_extension a)
   let open_ ?loc ?attrs mod_ident t = mk ?loc ?attrs (Ptyp_open (mod_ident, t))
+  let of_kind ?loc ?attrs a = mk ?loc ?attrs (Ptyp_of_kind a)
 
   let force_poly t =
     match t.ptyp_desc with
@@ -132,6 +133,8 @@ module Typ = struct
             Ptyp_package(longident,List.map (fun (n,typ) -> (n,loop typ) ) lst)
         | Ptyp_open (mod_ident, core_type) ->
             Ptyp_open (mod_ident, loop core_type)
+        | Ptyp_of_kind jkind ->
+            Ptyp_of_kind (loop_jkind jkind)
         | Ptyp_extension (s, arg) ->
             Ptyp_extension (s, arg)
       in
