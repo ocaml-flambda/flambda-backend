@@ -499,14 +499,14 @@ external time : unit -> (float [@unboxed]) @@ portable =
   "caml_unix_time" "caml_unix_time_unboxed" [@@noalloc]
 external gettimeofday : unit -> (float [@unboxed]) @@ portable =
   "caml_unix_gettimeofday" "caml_unix_gettimeofday_unboxed" [@@noalloc]
-external gmtime : float -> tm @@ portable = "caml_unix_gmtime"
-external localtime : float -> tm @@ portable = "caml_unix_localtime"
+external gmtime : float @ local -> tm @@ portable = "caml_unix_gmtime"
+external localtime : float @ local -> tm @@ portable = "caml_unix_localtime"
 external mktime : tm -> float * tm @@ portable = "caml_unix_mktime"
 external alarm : int -> int @@ portable = "caml_unix_alarm"
-external sleepf : float -> unit @@ portable = "caml_unix_sleep"
+external sleepf : float @ local -> unit @@ portable = "caml_unix_sleep"
 let sleep duration = sleepf (float duration)
 external times : unit -> process_times @@ portable = "caml_unix_times"
-external utimes : string -> float -> float -> unit @@ portable = "caml_unix_utimes"
+external utimes : string -> float @ local -> float @ local -> unit @@ portable = "caml_unix_utimes"
 
 type interval_timer =
     ITIMER_REAL
@@ -694,7 +694,7 @@ module SO: sig @@ portable
   val float: (socket_float_option, float) t
   val error: (socket_error_option, error option) t
   val get: ('opt, 'v) t -> file_descr -> 'opt -> 'v
-  val set: ('opt, 'v) t -> file_descr -> 'opt -> 'v -> unit
+  val set: ('opt, 'v) t -> file_descr -> 'opt -> 'v @ local -> unit
 end = struct
   type ('opt, 'v) t = int
   let bool = 0
@@ -704,7 +704,7 @@ end = struct
   let error = 4
   external get: ('opt, 'v) t -> file_descr -> 'opt -> 'v @@ portable
               = "caml_unix_getsockopt"
-  external set: ('opt, 'v) t -> file_descr -> 'opt -> 'v -> unit @@ portable
+  external set: ('opt, 'v) t -> file_descr -> 'opt -> 'v @ local -> unit @@ portable
               = "caml_unix_setsockopt"
 end
 
@@ -1124,7 +1124,7 @@ let close_process_full (inchan, outchan, errchan) =
 (* Polling *)
 
 external select :
-  file_descr list -> file_descr list -> file_descr list -> float ->
+  file_descr list -> file_descr list -> file_descr list -> float @ local ->
         file_descr list * file_descr list * file_descr list @@ portable = "caml_unix_select"
 
 (* High-level network functions *)
