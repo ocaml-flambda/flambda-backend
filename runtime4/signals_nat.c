@@ -113,6 +113,7 @@ struct signal_log_entry {
   long tid;
   long pid;
   caml_domain_state domain_state;
+  void* frame_address;
 };
 
 #define SIGNAL_LOG_SZ 256
@@ -136,6 +137,7 @@ DECLARE_SIGNAL_HANDLER(handle_signal)
     memset(&s->domain_state, 0, sizeof(caml_domain_state));
   else
     memcpy(&s->domain_state, st, sizeof(caml_domain_state));
+  s->frame_address = __builtin_frame_address(0);
   s->write_end = i;
 #endif
 
