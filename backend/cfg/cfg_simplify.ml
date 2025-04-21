@@ -74,7 +74,7 @@ end = struct
    fun cfg_with_layout ->
     let cfg = Cfg_with_layout.cfg cfg_with_layout in
     let handlers_are_entry_points =
-      !Flambda_backend_flags.cfg_eliminate_dead_trap_handlers
+      not !Flambda_backend_flags.cfg_eliminate_dead_trap_handlers
     in
     match Dataflow.run cfg ~init:Reachable ~handlers_are_entry_points () with
     | Result.Error _ ->
