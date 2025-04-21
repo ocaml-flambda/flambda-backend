@@ -158,7 +158,8 @@ let preserve_tailcall_for_prim = function
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
   | Pufloatfield _ | Psetufloatfield _ | Pmixedfield _ | Psetmixedfield _
   | Pmake_unboxed_product _ | Punboxed_product_field _
-  | Parray_element_size_in_bytes _ | Pidx_mixed_field _ | Pidx_deepen _
+  | Parray_element_size_in_bytes _ | Pidx_field _ | Pidx_mixed_field _
+  | Pidx_deepen _
   | Pccall _ | Praise _ | Pnot | Pnegint | Paddint | Psubint | Pmulint
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
@@ -421,7 +422,8 @@ let comp_primitive stack_info p sz args =
   | Punboxed_product_field (n, _layouts) -> Kgetfield n
   | Parray_element_size_in_bytes _array_kind ->
       Kconst (Const_base (Const_int (Sys.word_size / 8)))
-  | Pidx_mixed_field _ | Pidx_deepen _ -> Misc.fatal_error "unimplemented"
+  | Pidx_field _ | Pidx_mixed_field _ | Pidx_deepen _ ->
+    Misc.fatal_error "unimplemented"
   | Pfield_computed _sem -> Kgetvectitem
   | Psetfield(n, _ptr, _init) -> Ksetfield n
   | Psetfield_computed(_ptr, _init) -> Ksetvectitem

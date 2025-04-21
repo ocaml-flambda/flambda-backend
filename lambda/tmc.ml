@@ -980,6 +980,7 @@ let rec choice ctx t =
     | Psequand | Psequor
     | Ppoll
     | Ppeek _ | Ppoke _
+    | Pidx_field _
     | Pidx_mixed_field _
     | Pidx_deepen _
     | Pread_offset _ | Pwrite_offset _ ->

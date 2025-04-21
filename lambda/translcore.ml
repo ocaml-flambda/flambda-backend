@@ -862,9 +862,14 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       begin match lbl.lbl_repres with
       | Record_boxed _
       | Record_float | Record_ufloat ->
-        (* CR rtjoa: instead emit a Pidx_field and do this calculation later *)
-        let offset = Int64.of_int (lbl.lbl_pos * 8) in
-        Lconst (Const_base (Const_unboxed_int64 offset))
+        (* Assert that all unboxed fields are of singleton records *)
+        List.iter
+          (fun (Uaccess_unboxed_field (_, l)) ->
+             if Array.length l.lbl_all <> 1 then
+               Misc.fatal_error "Texp_idx: non-singleton unboxed record field \
+                 in non-mixed boxed record")
+          uas;
+        Lprim (Pidx_field lbl.lbl_pos, [], loc)
       | Record_inlined _ | Record_unboxed ->
         Misc.fatal_error "Texp_idx: unexpected unboxed/inlined record"
       | Record_mixed shape ->

@@ -1062,7 +1062,7 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Punbox_vector _
       | Pbox_vector (_, _)
       | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
-      | Punboxed_product_field _ | Parray_element_size_in_bytes _
+      | Punboxed_product_field _ | Parray_element_size_in_bytes _ | Pidx_field _
       | Pidx_mixed_field _ | Pidx_deepen _ | Pget_header _ | Prunstack
       | Pperform | Presume | Preperform | Patomic_exchange _
       | Patomic_compare_exchange _ | Patomic_compare_set _ | Patomic_fetch_add

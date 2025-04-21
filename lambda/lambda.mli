@@ -149,6 +149,7 @@ type primitive =
       (* the [layout list] is the layout of the whole product *)
   | Parray_element_size_in_bytes of array_kind
   (* Block indices *)
+  | Pidx_field of int
   | Pidx_mixed_field of int list * mixed_block_shape
   | Pidx_deepen of int list * layout list
   (* Context switches *)

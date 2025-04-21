@@ -1524,6 +1524,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         L.count_initializers_array_kind array_kind * 8
     in
     [Simple (Simple.const_int (Targetint_31_63.of_int num_bytes))]
+  | Pidx_field pos, [] ->
+    let idx_raw_value = Int64.mul (Int64.of_int pos) 8L in
+    [Simple (Simple.const (Reg_width_const.naked_int64 idx_raw_value))]
   | Pidx_mixed_field (field_path, shape), [] ->
     let shape =
       Mixed_block_shape.of_mixed_block_elements shape
@@ -2761,7 +2764,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
        here, either a bug in [Closure_conversion] or the wrong number of \
        arguments"
       Printlambda.primitive prim H.print_list_of_lists_of_simple_or_prim args
-  | (Pprobe_is_enabled _ | Pidx_mixed_field _), _ :: _ ->
+  | (Pprobe_is_enabled _ | Pidx_field _ | Pidx_mixed_field _), _ :: _ ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for nullary primitive \
        %a (%a)"

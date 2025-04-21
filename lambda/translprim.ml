@@ -1938,7 +1938,8 @@ let lambda_primitive_needs_event_after = function
   | Pgetglobal _ | Pgetpredef _ | Pmakeblock _ | Pmakefloatblock _
   | Pmakeufloatblock _ | Pmakemixedblock _ | Pmakelazyblock _
   | Pmake_unboxed_product _ | Punboxed_product_field _
-  | Parray_element_size_in_bytes _ | Pidx_mixed_field _ | Pidx_deepen _
+  | Parray_element_size_in_bytes _ | Pidx_field _ | Pidx_mixed_field _
+  | Pidx_deepen _
 
   | Pfield _ | Pfield_computed _ | Psetfield _
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Praise _
