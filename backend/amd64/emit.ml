@@ -1452,12 +1452,12 @@ let check_simd_instr (simd : Simd.instr) imm instr =
   | First_arg -> assert (Reg.same_loc instr.arg.(0) instr.res.(0))
   | Res { loc; _ } -> assert_loc loc instr.res.(0)
 
-let to_arg_with_width (loc : Simd.loc) instr j =
+let to_arg_with_width loc instr i =
   match Simd.loc_requires_width loc with
-  | Some Eight -> arg8 instr j
-  | Some Sixteen -> arg16 instr j
-  | Some Thirtytwo -> arg32 instr j
-  | Some Sixtyfour | None -> arg instr j
+  | Some Eight -> arg8 instr i
+  | Some Sixteen -> arg16 instr i
+  | Some Thirtytwo -> arg32 instr i
+  | Some Sixtyfour | None -> arg instr i
 
 let to_res_with_width loc instr i =
   match Simd.loc_requires_width loc with
@@ -1472,10 +1472,10 @@ let emit_simd_instr (simd : Simd.instr) imm instr =
   if total_args <> Array.length simd.args
   then Misc.fatal_errorf "wrong number of arguments for %s" simd.mnemonic;
   let args =
-    List.init total_args (fun j ->
-        if Simd.arg_is_implicit simd.args.(j)
+    List.init total_args (fun i ->
+        if Simd.arg_is_implicit simd.args.(i)
         then None
-        else Some (to_arg_with_width simd.args.(j).loc instr j))
+        else Some (to_arg_with_width simd.args.(i).loc instr i))
     |> List.filter_map (fun arg -> arg)
   in
   let args =
@@ -1503,7 +1503,6 @@ let emit_simd (op : Simd.operation) instr =
       (* Avoids partial register stall *)
       if not (equal_arg (arg instr 0) (res instr 0))
       then I.xorpd (res instr 0) (res instr 0);
-      (* Instruction *)
       emit_simd_instr seq.instr imm instr
     | Pcompare_string p ->
       let cond : X86_ast.condition =
