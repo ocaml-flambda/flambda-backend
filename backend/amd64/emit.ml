@@ -1452,21 +1452,30 @@ let check_simd_instr (simd : Simd.instr) imm instr =
   | First_arg -> assert (Reg.same_loc instr.arg.(0) instr.res.(0))
   | Res { loc; _ } -> assert_loc loc instr.res.(0)
 
+let to_arg_with_width loc instr i =
+  match Simd.loc_requires_width loc with
+  | Some Eight -> arg8 instr i
+  | Some Sixteen -> arg16 instr i
+  | Some Thirtytwo -> arg32 instr i
+  | Some Sixtyfour | None -> arg instr i
+
+let to_res_with_width loc instr i =
+  match Simd.loc_requires_width loc with
+  | Some Eight -> res8 instr i
+  | Some Sixteen -> res16 instr i
+  | Some Thirtytwo -> res32 instr i
+  | Some Sixtyfour | None -> res instr i
+
 let emit_simd_instr (simd : Simd.instr) imm instr =
   check_simd_instr simd imm instr;
   let total_args = Array.length instr.arg in
   if total_args <> Array.length simd.args
   then Misc.fatal_errorf "wrong number of arguments for %s" simd.mnemonic;
   let args =
-    List.init total_args (fun j ->
-        if Simd.arg_is_implicit simd.args.(j)
+    List.init total_args (fun i ->
+        if Simd.arg_is_implicit simd.args.(i)
         then None
-        else
-          match Simd.loc_requires_width simd.args.(j).loc with
-          | Some Eight -> Some (arg8 instr j)
-          | Some Sixteen -> Some (arg16 instr j)
-          | Some Thirtytwo -> Some (arg32 instr j)
-          | Some Sixtyfour | None -> Some (arg instr j))
+        else Some (to_arg_with_width simd.args.(i).loc instr i))
     |> List.filter_map (fun arg -> arg)
   in
   let args =
@@ -1475,13 +1484,7 @@ let emit_simd_instr (simd : Simd.instr) imm instr =
     | Res { loc; enc = RM_r | RM_rm | Vex_v } -> (
       match Simd.loc_is_pinned loc with
       | Some _ -> args
-      | None ->
-        (match Simd.loc_requires_width loc with
-        | Some Eight -> res8 instr 0
-        | Some Sixteen -> res16 instr 0
-        | Some Thirtytwo -> res32 instr 0
-        | Some Sixtyfour | None -> res instr 0)
-        :: args)
+      | None -> to_res_with_width loc instr 0 :: args)
   in
   let args =
     match imm with
@@ -1490,38 +1493,33 @@ let emit_simd_instr (simd : Simd.instr) imm instr =
   in
   I.simd simd (Array.of_list args)
 
-let emit_simd (simd : Simd.operation) instr =
-  match simd with
-  | Instruction { instr = simd; imm } -> emit_simd_instr simd imm instr
-  | Sequence { seq; imm } -> (
-    (* Prefix *)
-    (match seq.id with
+let emit_simd (op : Simd.operation) instr =
+  let imm = op.imm in
+  match op.instr with
+  | Instruction simd -> emit_simd_instr simd imm instr
+  | Sequence seq -> (
+    match seq.id with
     | Sqrtss | Sqrtsd | Roundss | Roundsd ->
       (* Avoids partial register stall *)
       if not (equal_arg (arg instr 0) (res instr 0))
-      then I.xorpd (res instr 0) (res instr 0)
-    | Pcmpestra | Pcmpistra | Pcmpestrc | Pcmpistrc | Pcmpestro | Pcmpistro
-    | Pcmpestrs | Pcmpistrs | Pcmpestrz | Pcmpistrz ->
-      ());
-    (* Instruction *)
-    emit_simd_instr seq.instr imm instr;
-    (* Suffix *)
-    match seq.id with
-    | Sqrtss | Sqrtsd | Roundss | Roundsd -> ()
-    | Pcmpestra | Pcmpistra ->
-      I.set A (res8 instr 0);
-      I.movzx (res8 instr 0) (res instr 0)
-    | Pcmpestrc | Pcmpistrc ->
-      I.set B (res8 instr 0);
-      I.movzx (res8 instr 0) (res instr 0)
-    | Pcmpestro | Pcmpistro ->
-      I.set O (res8 instr 0);
-      I.movzx (res8 instr 0) (res instr 0)
-    | Pcmpestrs | Pcmpistrs ->
-      I.set S (res8 instr 0);
-      I.movzx (res8 instr 0) (res instr 0)
-    | Pcmpestrz | Pcmpistrz ->
-      I.set E (res8 instr 0);
+      then I.xorpd (res instr 0) (res instr 0);
+      emit_simd_instr seq.instr imm instr
+    | Pcompare_string p ->
+      let cond : X86_ast.condition =
+        match p with
+        | Pcmpestra -> A
+        | Pcmpestrc -> B
+        | Pcmpestro -> O
+        | Pcmpestrs -> S
+        | Pcmpestrz -> E
+        | Pcmpistra -> A
+        | Pcmpistrc -> B
+        | Pcmpistro -> O
+        | Pcmpistrs -> S
+        | Pcmpistrz -> E
+      in
+      emit_simd_instr seq.instr imm instr;
+      I.set cond (res8 instr 0);
       I.movzx (res8 instr 0) (res instr 0))
 
 let emit_simd_instr_with_memory_arg (simd : Simd.Mem.operation) i addr =
