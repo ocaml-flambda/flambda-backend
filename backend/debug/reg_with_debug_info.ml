@@ -112,11 +112,8 @@ let assigned_to_stack t =
   | Stack (Domainstate _) | Reg _ | Unknown -> false
 
 let regs_at_same_location (reg1 : Reg.t) (reg2 : Reg.t) =
-  Reg.equal_location reg1.loc reg2.loc
-  &&
-  match reg1.loc with
-  | Reg _ | Stack _ -> true
-  | Unknown -> Misc.fatal_errorf "regs_at_same_location got Unknown locations"
+  Reg.same_loc_fatal_on_unknown
+    ~fatal_message:"regs_at_same_location got Unknown locations" reg1 reg2
 
 let at_same_location t (reg : Reg.t) = regs_at_same_location t.reg reg
 
