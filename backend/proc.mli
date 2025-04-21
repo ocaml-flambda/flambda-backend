@@ -20,20 +20,7 @@
 (* Instruction selection *)
 val word_addressed : bool
 
-(* Registers available for register allocation *)
-val num_register_classes : int
-
-val register_class : Reg.t -> int
-
-val num_available_registers : int array
-
-val first_available_register : int array
-
-val register_name : Cmm.machtype_component -> int -> string
-
 val phys_reg : Cmm.machtype_component -> int -> Reg.t
-
-val gc_regs_offset : Reg.t -> int
 
 val precolored_regs : unit -> Reg.Set.t
 
@@ -115,12 +102,6 @@ val slot_offset :
 val prologue_required :
   fun_contains_calls:bool -> fun_num_stack_slots:int Stack_class.Tbl.t -> bool
 
-(** For a given register class, the DWARF register numbering for that class.
-    Given an allocated register with location [Reg n] and class [reg_class], the
-    returned array contains the corresponding DWARF register number at index
-    [n - first_available_register.(reg_class)]. *)
-val dwarf_register_numbers : reg_class:int -> int array
-
 (** The DWARF register number corresponding to the stack pointer. *)
 val stack_ptr_dwarf_register_number : int
 
@@ -129,9 +110,6 @@ val domainstate_ptr_dwarf_register_number : int
 
 (* Calling the assembler *)
 val assemble_file : string -> string -> int
-
-(* Called before translating a fundecl. *)
-val init : unit -> unit
 
 (** [operation_supported op] returns true when [op]
     can be implemented directly with a hardware instruction.

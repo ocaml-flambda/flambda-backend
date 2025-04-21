@@ -121,11 +121,13 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
   let reg = interval.reg in
   match reg.loc with
   | Unknown -> (
-    let reg_class = Proc.register_class reg in
+    let reg_class = Reg_class.of_machtype reg.typ in
     let intervals = State.active state ~reg_class in
-    let first_available = Proc.first_available_register.(reg_class) in
-    match Proc.num_available_registers.(reg_class) with
-    | 0 -> fatal "register class %d has no available registers" reg_class
+    let first_available = Reg_class.first_available_register reg_class in
+    match Reg_class.num_available_registers reg_class with
+    | 0 ->
+      fatal "register class %a has no available registers" Reg_class.print
+        reg_class
     | num_available_registers ->
       let available = Array.make num_available_registers true in
       let num_still_available = ref num_available_registers in
@@ -175,7 +177,7 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
 let allocate_blocked_register : State.t -> Interval.t -> spilling_reg =
  fun state interval ->
   let reg = interval.reg in
-  let reg_class = Proc.register_class reg in
+  let reg_class = Reg_class.of_machtype reg.typ in
   let intervals = State.active state ~reg_class in
   match DLL.hd_cell intervals.active_dll with
   | Some hd_cell ->
@@ -265,8 +267,9 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
           (fun (intervals, active) ->
             Format.eprintf "Regalloc_ls.run (on_fatal):";
             Format.eprintf "\n\nactives:\n";
-            Array.iteri active ~f:(fun i a ->
-                Format.eprintf "class %d:\n %a\n" i ClassIntervals.print a);
+            Reg_class.Tbl.iter active ~f:(fun reg_class a ->
+                Format.eprintf "class %a:\n %a\n" Reg_class.print reg_class
+                  ClassIntervals.print a);
             Format.eprintf "\n\nintervals:\n";
             DLL.iter intervals ~f:(fun i ->
                 Format.eprintf "- %a\n" Interval.print i);
