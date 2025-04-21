@@ -233,7 +233,16 @@ let equal_location left right =
     false
 
 let same_loc left right =
-  (* CR-soon azewierzejew: This should also compare [reg_class] for [Stack
-     (Local _)]. That's complicated because [reg_class] is definied in [Proc]
-     which relies on [Reg]. *)
   equal_location left.loc right.loc
+  &&
+  match left.loc with
+  | Unknown -> true
+  | Reg _ ->
+    Reg_class.equal (Reg_class.of_machtype left.typ) (Reg_class.of_machtype right.typ)
+  | Stack _ ->
+    Stack_class.equal (Stack_class.of_machtype left.typ) (Stack_class.of_machtype right.typ)
+
+let same_loc_fatal_on_unknown ~fatal_message left right =
+  match left.loc with
+  | Unknown -> Misc.fatal_error fatal_message
+  | Reg _ | Stack _ -> same_loc left right

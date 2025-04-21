@@ -112,23 +112,8 @@ let assigned_to_stack t =
   | Stack (Domainstate _) | Reg _ | Unknown -> false
 
 let regs_at_same_location (reg1 : Reg.t) (reg2 : Reg.t) =
-  (* We need to check the register classes too: two locations both saying "stack
-     offset N" might actually be different physical locations, for example if
-     one is of class "Int" and another "Float" on amd64. [register_class] will
-     be [Proc.register_class], but cannot be here, due to a circular
-     dependency. *)
-  Reg.equal_location reg1.loc reg2.loc
-  &&
-  match reg1.loc with
-  | Reg _ ->
-    Reg_class.equal
-      (Reg_class.of_machtype reg1.typ)
-      (Reg_class.of_machtype reg2.typ)
-  | Stack _ ->
-    Stack_class.equal
-      (Stack_class.of_machtype reg1.typ)
-      (Stack_class.of_machtype reg2.typ)
-  | Unknown -> Misc.fatal_errorf "regs_at_same_location got Unknown locations"
+  Reg.same_loc_fatal_on_unknown
+    ~fatal_message:"regs_at_same_location got Unknown locations" reg1 reg2
 
 let at_same_location t (reg : Reg.t) = regs_at_same_location t.reg reg
 

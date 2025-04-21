@@ -112,3 +112,4 @@ val reinit_relocatable_regs: unit -> unit
 val same : t -> t -> bool
 val compare : t -> t -> int
 val same_loc : t -> t -> bool
+val same_loc_fatal_on_unknown : fatal_message:string -> t -> t -> bool
