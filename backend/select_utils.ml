@@ -452,8 +452,6 @@ let terminator_of_test :
   | Ioddtest -> Parity_test { ifso = label_false; ifnot = label_true }
   | Ieventest -> Parity_test { ifso = label_true; ifnot = label_false }
 
-let invalid_stack_offset = -1
-
 module Stack_offset_and_exn = struct
   (* This module relies on the field `can_raise` of basic blocks but does not
      rely on this field of individual Cfg instructions. This may need to be
@@ -467,7 +465,7 @@ module Stack_offset_and_exn = struct
   let check_and_set_stack_offset :
       'a Cfg.instruction -> stack_offset:int -> traps:handler_stack -> unit =
    fun instr ~stack_offset ~traps ->
-    assert (instr.stack_offset = invalid_stack_offset);
+    assert (instr.stack_offset = Cfg.invalid_stack_offset);
     Cfg.set_stack_offset instr (compute_stack_offset ~stack_offset ~traps)
 
   let process_terminator :
@@ -533,7 +531,7 @@ module Stack_offset_and_exn = struct
    fun cfg label ~stack_offset ~traps ->
     let block = Cfg.get_block_exn cfg label in
     let was_invalid =
-      if block.stack_offset = invalid_stack_offset
+      if block.stack_offset = Cfg.invalid_stack_offset
       then true
       else (
         if debug

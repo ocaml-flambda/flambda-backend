@@ -189,8 +189,6 @@ val int_test_of_integer_comparison :
 val terminator_of_test :
   Operation.test -> label_false:Label.t -> label_true:Label.t -> Cfg.terminator
 
-val invalid_stack_offset : int
-
 module Stack_offset_and_exn : sig
   type handler_stack = Label.t list
 
