@@ -345,7 +345,6 @@ let print_line b = function
   (* masm only *)
   | External _ | Mode386 | Model _ -> assert false
 
-
 let generate_asm oc lines =
   let b = Buffer.create 10000 in
   output_string oc "\t.file \"\"\n";
