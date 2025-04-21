@@ -2079,7 +2079,7 @@ let emit_instr ~first ~fallthrough i =
     cfi_adjust_cfa_offset 8;
     I.mov rsp (domain_field Domainstate.Domain_exn_handler);
     stack_offset := !stack_offset + 16
-  | Lpoptrap ->
+  | Lpoptrap _ ->
     emit_pop_trap_label ();
     I.pop (domain_field Domainstate.Domain_exn_handler);
     cfi_adjust_cfa_offset (-8);
@@ -2116,7 +2116,7 @@ let emit_instr ~first ~fallthrough i =
 let rec emit_all ~first ~fallthrough i =
   match i.desc with
   | Lend -> ()
-  | Lprologue | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap | Lop _
+  | Lprologue | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap _ | Lop _
   | Lcall_op _ | Llabel _ | Lbranch _
   | Lcondbranch (_, _)
   | Lcondbranch3 (_, _, _)
@@ -2410,7 +2410,7 @@ let emit_probe_handler_wrapper p =
       name, handler_code_sym
     | Lcall_op
         (Lcall_ind | Ltailcall_ind | Lcall_imm _ | Ltailcall_imm _ | Lextcall _)
-    | Lprologue | Lend | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap
+    | Lprologue | Lend | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap _
     | Lop _ | Llabel _ | Lbranch _
     | Lcondbranch (_, _)
     | Lcondbranch3 (_, _, _)
@@ -2578,7 +2578,7 @@ let emit_probe_notes0 () =
       | Lcall_op
           ( Lcall_ind | Ltailcall_ind | Lcall_imm _ | Ltailcall_imm _
           | Lextcall _ )
-      | Lprologue | Lend | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap
+      | Lprologue | Lend | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap _
       | Lop _ | Llabel _ | Lbranch _
       | Lcondbranch (_, _)
       | Lcondbranch3 (_, _, _)
