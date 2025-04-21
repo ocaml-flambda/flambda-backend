@@ -186,44 +186,6 @@ let add_block_exn t block =
       Label.format block.start;
   Label.Tbl.add t.blocks block.start block
 
-let remove_trap_instructions t removed_trap_handlers =
-  let remove_trap_instr _ b =
-    DLL.iter_cell b.body ~f:(fun cell ->
-        let i = DLL.value cell in
-        match i.desc with
-        | Pushtrap { lbl_handler } | Poptrap { lbl_handler } ->
-          if Label.Set.mem lbl_handler removed_trap_handlers
-          then DLL.delete_curr cell
-        | Op _ | Reloadretaddr | Prologue | Stack_check _ -> ())
-  in
-  if not (Label.Set.is_empty removed_trap_handlers)
-  then (
-    (* CR-someday gyorsh: avoid iterating over all the instructions to just to
-       remove a few pushtrap/poptrap. *)
-    assert Config.flambda2;
-    (* remove Lpushtrap and Lpoptrap instructions that refer to dead labels. *)
-    Label.Tbl.iter remove_trap_instr t.blocks)
-
-let remove_blocks t labels_to_remove =
-  let removed_labels = ref Label.Set.empty in
-  let removed_trap_handlers = ref Label.Set.empty in
-  Label.Tbl.filter_map_inplace
-    (fun l b ->
-      if Label.Set.mem l labels_to_remove
-      then (
-        if b.is_trap_handler
-        then removed_trap_handlers := Label.Set.add l !removed_trap_handlers;
-        removed_labels := Label.Set.add l !removed_labels;
-        None)
-      else Some b)
-    t.blocks;
-  let labels_not_found = Label.Set.diff labels_to_remove !removed_labels in
-  if not (Label.Set.is_empty labels_not_found)
-  then
-    Misc.fatal_errorf "Cfg.remove_blocks: not found blocks %a" Label.Set.print
-      labels_not_found;
-  remove_trap_instructions t !removed_trap_handlers
-
 let get_block t label = Label.Tbl.find_opt t.blocks label
 
 let get_block_exn t label =
@@ -705,3 +667,98 @@ let equal_irc_work_list left right =
     true
   | (Unknown_list | Coalesced | Constrained | Frozen | Work_list | Active), _ ->
     false
+
+let remove_trap_instructions t removed_trap_handlers =
+  (* Remove Lpushtrap and Lpoptrap instructions that refer to dead labels and
+     update stack_offsets of affected instructions and blocks. [stack_offset] is
+     in bytes throughout this function. *)
+  let visited = ref Label.Set.empty in
+  let update_instruction (i : _ instruction) ~stack_offset =
+    if not (Int.equal i.stack_offset stack_offset)
+    then set_stack_offset i stack_offset
+  in
+  let rec update_basic cursor ~stack_offset =
+    let update_basic_next r ~stack_offset =
+      match r with
+      | Error `End_of_list -> stack_offset
+      | Ok () -> update_basic cursor ~stack_offset
+    in
+    let basic = DLL.Cursor.value cursor in
+    update_instruction basic ~stack_offset;
+    match basic.desc with
+    | Pushtrap { lbl_handler } ->
+      if Label.Set.mem lbl_handler removed_trap_handlers
+      then update_basic_next (DLL.Cursor.delete_and_next cursor) ~stack_offset
+      else (
+        update_block lbl_handler ~stack_offset;
+        update_basic_next (DLL.Cursor.next cursor)
+          ~stack_offset:(stack_offset + Proc.trap_size_in_bytes))
+    | Poptrap { lbl_handler } ->
+      if Label.Set.mem lbl_handler removed_trap_handlers
+      then update_basic_next (DLL.Cursor.delete_and_next cursor) ~stack_offset
+      else
+        update_basic_next (DLL.Cursor.next cursor)
+          ~stack_offset:(stack_offset - Proc.trap_size_in_bytes)
+    | Op (Stackoffset n) ->
+      update_basic_next (DLL.Cursor.next cursor) ~stack_offset:(stack_offset + n)
+    | Op
+        ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_float32 _
+        | Const_symbol _ | Const_vec128 _ | Load _ | Store _ | Intop _
+        | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Static_cast _
+        | Reinterpret_cast _ | Probe_is_enabled _ | Opaque | Begin_region
+        | End_region | Specific _ | Name_for_debugger _ | Dls_get | Poll
+        | Alloc _ )
+    | Reloadretaddr | Prologue | Stack_check _ ->
+      update_basic_next (DLL.Cursor.next cursor) ~stack_offset
+  and update_basic_hd r ~stack_offset =
+    match r with
+    | Error `Empty -> stack_offset
+    | Ok cursor -> update_basic cursor ~stack_offset
+  and update_terminator terminator ~stack_offset =
+    (match terminator.desc with
+    | Tailcall_self _ -> assert (Int.equal stack_offset 0)
+    | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
+    | Int_test _ | Switch _ | Return | Raise _ | Tailcall_func _
+    | Call_no_return _ | Call _ | Prim _ ->
+      ());
+    update_instruction terminator ~stack_offset
+  and update_block label ~stack_offset =
+    let block = get_block_exn t label in
+    if Label.Set.mem label !visited
+    then assert (block.stack_offset = stack_offset)
+    else visited := Label.Set.add label !visited;
+    if not (Int.equal block.stack_offset stack_offset)
+    then block.stack_offset <- stack_offset;
+    let stack_offset =
+      update_basic_hd (DLL.create_hd_cursor block.body) ~stack_offset
+    in
+    update_terminator block.terminator ~stack_offset
+  in
+  if not (Label.Set.is_empty removed_trap_handlers)
+  then
+    (* CR-someday gyorsh: avoid iterating over all the instructions to just
+       remove a few pushtrap/poptraps. *)
+    (* update all blocks reachable from entry *)
+    update_block t.entry_label ~stack_offset:0
+
+let remove_blocks t labels_to_remove =
+  let removed_labels = ref Label.Set.empty in
+  let removed_trap_handlers = ref Label.Set.empty in
+  Label.Tbl.filter_map_inplace
+    (fun l b ->
+      if Label.Set.mem l labels_to_remove
+      then (
+        assert (Label.Set.is_empty b.predecessors);
+        assert (Label.Set.is_empty (successor_labels b ~normal:true ~exn:false));
+        if b.is_trap_handler
+        then removed_trap_handlers := Label.Set.add l !removed_trap_handlers;
+        removed_labels := Label.Set.add l !removed_labels;
+        None)
+      else Some b)
+    t.blocks;
+  let labels_not_found = Label.Set.diff labels_to_remove !removed_labels in
+  if not (Label.Set.is_empty labels_not_found)
+  then
+    Misc.fatal_errorf "Cfg.remove_blocks: not found blocks %a" Label.Set.print
+      labels_not_found;
+  remove_trap_instructions t !removed_trap_handlers
