@@ -176,11 +176,10 @@ let is_move_basic : Cfg.basic -> bool =
 let is_move_instruction : Cfg.basic Cfg.instruction -> bool =
  fun instr -> is_move_basic instr.desc
 
-let all_precolored_regs =
-  Proc.init ();
-  Proc.precolored_regs
+let all_precolored_regs = Proc.precolored_regs
 
-let k reg = Proc.num_available_registers.(Proc.register_class reg)
+let k reg =
+  Reg_class.num_available_registers (Reg_class.of_machtype reg.Reg.typ)
 
 module Spilling_heuristics = struct
   type t =

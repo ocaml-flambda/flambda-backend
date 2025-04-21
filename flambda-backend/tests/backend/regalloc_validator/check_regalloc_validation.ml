@@ -561,8 +561,8 @@ let () =
       (Printf.sprintf
         ">> Fatal error: In function arguments: changed preassigned register's \
          location from %s to %s"
-         (Proc.register_name Cmm.Int 0)
-         (Proc.register_name Cmm.Int 1))
+         (Reg_class.register_name Cmm.Int 0)
+         (Reg_class.register_name Cmm.Int 1))
 
 
 let () =
@@ -573,8 +573,12 @@ let () =
       cfg, cfg)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
+    ( if String.equal Config.architecture "amd64" then
       ">> Fatal error: instruction 20 has a register (anon:V/37) with an unknown \
        location"
+    else
+      ">> Fatal error: instruction 20 has a register (anon:V/68) with an unknown \
+       location")
 
 let () =
   check "Precoloring can't change"
@@ -589,8 +593,8 @@ let () =
       (Printf.sprintf
         ">> Fatal error: In instruction's no 17 results: changed preassigned \
          register's location from %s to %s"
-         (Proc.register_name Cmm.Int 2)
-         (Proc.register_name Cmm.Int 1))
+         (Reg_class.register_name Cmm.Int 2)
+         (Reg_class.register_name Cmm.Int 1))
 
 let () =
   check "Duplicate instruction found when validating description"
@@ -1051,22 +1055,22 @@ let test_loop ~loop_loc_first n =
          Equations: R[%s]=%s R[%s]=%s R[%s]=%s\n\
          Function argument descriptions: R[%s], R[%s], R[%s]\n\
          Function argument locations: %s, %s, %s"
-         (Proc.register_name Cmm.Int 2)
-         (Proc.register_name Cmm.Int 1)
-         (Proc.register_name Cmm.Int 1)
-         (Proc.register_name Cmm.Int 1)
-         (Proc.register_name Cmm.Int 0)
-         (Proc.register_name Cmm.Int 0)
-         (Proc.register_name Cmm.Int 2)
-         (Proc.register_name Cmm.Int 1)
-         (Proc.register_name Cmm.Int 2)
-         (Proc.register_name Cmm.Int 2)
-         (Proc.register_name Cmm.Int 0)
-         (Proc.register_name Cmm.Int 1)
-         (Proc.register_name Cmm.Int 2)
-         (Proc.register_name Cmm.Int 0)
-         (Proc.register_name Cmm.Int 1)
-         (Proc.register_name Cmm.Int 2))
+         (Reg_class.register_name Cmm.Int 2)
+         (Reg_class.register_name Cmm.Int 1)
+         (Reg_class.register_name Cmm.Int 1)
+         (Reg_class.register_name Cmm.Int 1)
+         (Reg_class.register_name Cmm.Int 0)
+         (Reg_class.register_name Cmm.Int 0)
+         (Reg_class.register_name Cmm.Int 2)
+         (Reg_class.register_name Cmm.Int 1)
+         (Reg_class.register_name Cmm.Int 2)
+         (Reg_class.register_name Cmm.Int 2)
+         (Reg_class.register_name Cmm.Int 0)
+         (Reg_class.register_name Cmm.Int 1)
+         (Reg_class.register_name Cmm.Int 2)
+         (Reg_class.register_name Cmm.Int 0)
+         (Reg_class.register_name Cmm.Int 1)
+         (Reg_class.register_name Cmm.Int 2))
     ~exp_err:"";
   let end_time = Sys.time () in
   Format.printf "  Time of loop test: %fs\n" (end_time -. start_time);
