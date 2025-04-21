@@ -5627,14 +5627,25 @@ and type_expect_
           (label_disambiguate Legacy Projection lid env expected_record_type)
           labels
       in
-      (match label.lbl_repres with
-       | Record_unboxed -> Misc.fatal_error "todo better error"
-       | _ -> ());
       let (_, ty_arg, ty_res) = instance_label ~fixed:false label in
       let mut = is_mutable label.lbl_mut in
       if mut then Env.mark_label_used Mutation label.lbl_uid;
       let ba = Baccess_field (lid, label) in
-      { ba; base_ty = ty_res; el_ty = ty_arg }
+      let el_ty =
+        match label.lbl_repres with
+        | Record_boxed _ -> ty_arg
+        | Record_mixed mixed ->
+          begin match mixed.(label.lbl_num) with
+          | Float_boxed -> Predef.type_unboxed_float
+          | Float64 | Float32 | Value | Bits32 | Bits64 | Vec128 | Word
+          | Product _ -> ty_arg
+          end
+        | Record_float -> Predef.type_unboxed_float
+        | Record_ufloat -> ty_arg (* equivalent to [float#] *)
+        | Record_unboxed | Record_inlined _ ->
+          Misc.fatal_error "todo better error"
+      in
+      { ba; base_ty = ty_res; el_ty}
     | Baccess_array (mut, index_kind, index) ->
       let el_ty = newvar (Jkind.of_new_sort ~why:Idx_element) in
       let base_ty =

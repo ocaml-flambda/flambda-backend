@@ -34,6 +34,8 @@ let _fail_when_no_extensions () = (.contents)
 external idx_imm_to_int64 : 'base ('a: any) . ('base, 'a) idx_imm -> int64 = "%box_int64"
 external magic_box_bits64 : ('a : bits64) 'b . 'a -> 'b = "%box_int64"
 external box_int64 : int64# -> int64 = "%box_int64"
+external[@layout_poly] read_idx_mut : 'a ('b : any). 'a -> ('a, 'b) idx_mut -> 'b = "%unsafe_read_idx"
+external[@layout_poly] write_idx_mut : 'a ('b : any). 'a -> ('a, 'b) idx_mut -> 'b -> unit = "%unsafe_write_idx"
 
 type pt = { x : int; y : int }
 type line = { p : pt#; q : pt# }
@@ -129,9 +131,6 @@ let () =
   Printf.printf "to_a_int (3):  %s\n" (show_idx to_a_int3);
   ()
 
-external[@layout_poly] read_idx_mut : 'a ('b : any). 'a -> ('a, 'b) idx_mut -> 'b = "%unsafe_read_idx"
-external[@layout_poly] write_idx_mut : 'a ('b : any). 'a -> ('a, 'b) idx_mut -> 'b -> unit = "%unsafe_write_idx"
-
 let print_t_b t =
   let #{ i = bi; a = #{ s; i }; s = bs } = read_idx_mut t (.b) in
   Printf.printf "{ %s { %s %s } %s }\n"
@@ -151,3 +150,12 @@ let () =
   write_idx_mut t deeper_idx #{ s = "aaa"; i = #200L };
   print_t_b t;
   ()
+
+
+type fr = { f : float }
+
+let () =
+  let fr = { f = 1.0 } in
+  let idx = (.f) in
+  let f = read_idx_mut f idx in
+  Printf.printf "f = %f\n" f
