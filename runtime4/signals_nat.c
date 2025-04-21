@@ -26,6 +26,11 @@
 #include <signal.h>
 #include <errno.h>
 #include <stdio.h>
+#include <stdatomic.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/syscall.h>
 #include "caml/codefrag.h"
 #include "caml/fail.h"
 #include "caml/memory.h"
@@ -99,8 +104,41 @@ void caml_garbage_collection(void)
   }
 }
 
+struct signal_log_entry {
+  _Atomic unsigned write_begin;
+  _Atomic unsigned write_end;
+  int sig;
+  siginfo_t siginfo;
+  ucontext_t context;
+  long tid;
+  long pid;
+  caml_domain_state domain_state;
+};
+
+#define SIGNAL_LOG_SZ 256
+struct signal_log_entry caml_recent_signals[SIGNAL_LOG_SZ];
+_Atomic unsigned caml_next_recent_signal = 0;
+
+
 DECLARE_SIGNAL_HANDLER(handle_signal)
 {
+#if defined(TARGET_amd64) && defined(SYS_linux)
+  unsigned i = atomic_fetch_add(&caml_next_recent_signal, 1);
+  struct signal_log_entry* s = &caml_recent_signals[(i % SIGNAL_LOG_SZ)];
+  s->write_begin = i;
+  s->sig = sig;
+  memcpy(&s->siginfo, info, sizeof(siginfo_t));
+  memcpy(&s->context, context, sizeof(ucontext_t));
+  s->tid = syscall(SYS_gettid);
+  s->pid = syscall(SYS_getpid);
+  caml_domain_state* st = Caml_state;
+  if (st == NULL)
+    memset(&s->domain_state, 0, sizeof(caml_domain_state));
+  else
+    memcpy(&s->domain_state, st, sizeof(caml_domain_state));
+  s->write_end = i;
+#endif
+
   int saved_errno;
   /* Save the value of errno (PR#5982). */
   saved_errno = errno;
