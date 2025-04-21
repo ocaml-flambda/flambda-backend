@@ -505,7 +505,10 @@ let pseudoregs_for_operation (simd : Simd.operation) arg res =
   let instr =
     match simd.instr with
     | Instruction instr -> instr
-    | Sequence seq -> seq.instr
+    | Sequence
+        { id = Sqrtss | Sqrtsd | Roundss | Roundsd | Pcompare_string _; instr }
+      ->
+      instr
   in
   pseudoregs_for_instr instr arg_regs res_regs
 

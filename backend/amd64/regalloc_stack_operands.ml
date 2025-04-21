@@ -161,7 +161,11 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
     let simd =
       match op.instr with
       | Instruction instr -> instr
-      | Sequence seq -> seq.instr
+      | Sequence
+          { id = Sqrtss | Sqrtsd | Roundss | Roundsd | Pcompare_string _;
+            instr
+          } ->
+        instr
     in
     match Array.length simd.args, simd.res with
     | 1, First_arg -> May_still_have_spilled_registers
