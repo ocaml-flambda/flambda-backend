@@ -226,19 +226,18 @@ let print_instr b = function
     i2 b ("cmp" ^ string_of_float_condition cmp ^ "ss") arg1 arg2
   | LZCNT (arg1, arg2) -> i2 b "lzcnt" arg1 arg2
   | TZCNT (arg1, arg2) -> i2 b "tzcnt" arg1 arg2
-  (* The assembler won't accept these mnemonics directly. *)
-  | SIMD ({ id = Cmpps; _ }, [| imm; arg1; arg2 |]) ->
-    i2 b ("cmp" ^ string_of_float_condition_imm imm ^ "ps") arg1 arg2
-  | SIMD ({ id = Cmppd; _ }, [| imm; arg1; arg2 |]) ->
-    i2 b ("cmp" ^ string_of_float_condition_imm imm ^ "pd") arg1 arg2
-  | SIMD ({ id = Crc32_r64_r64m64; _ }, [| arg1; arg2 |]) ->
-    i2 b "crc32q" arg1 arg2
-  (* All other simd instructions. *)
   | SIMD (instr, args) -> (
-    match args with
-    | [| arg1; arg2 |] -> i2 b instr.mnemonic arg1 arg2
-    | [| arg1; arg2; arg3 |] -> i3 b instr.mnemonic arg1 arg2 arg3
-    | _ ->
+    match instr.id, args with
+    (* The assembler won't accept these mnemonics directly. *)
+    | Cmpps, [| imm; arg1; arg2 |] ->
+      i2 b ("cmp" ^ string_of_float_condition_imm imm ^ "ps") arg1 arg2
+    | Cmppd, [| imm; arg1; arg2 |] ->
+      i2 b ("cmp" ^ string_of_float_condition_imm imm ^ "pd") arg1 arg2
+    | Crc32_r64_r64m64, [| arg1; arg2 |] -> i2 b "crc32q" arg1 arg2
+    (* All other simd instructions. *)
+    | _, [| arg1; arg2 |] -> i2 b instr.mnemonic arg1 arg2
+    | _, [| arg1; arg2; arg3 |] -> i3 b instr.mnemonic arg1 arg2 arg3
+    | _, _ ->
       Misc.fatal_errorf "unexpected instruction layout for %s (%d args)"
         instr.mnemonic (Array.length args))
 

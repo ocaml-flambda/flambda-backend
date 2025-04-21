@@ -25,41 +25,11 @@ type error = Bad_immediate of string
 
 exception Error of error
 
-module Seq = struct
-  open! Simd.Seq
+module Seq = Simd.Seq
 
-  let sqrtss = { id = Sqrtss; instr = sqrtss }
+let instr instr ?i args = Some (Simd.instruction instr i, args)
 
-  let sqrtsd = { id = Sqrtsd; instr = sqrtsd }
-
-  let roundss = { id = Roundss; instr = roundss }
-
-  let roundsd = { id = Roundsd; instr = roundsd }
-
-  let pcmpestra = { id = Pcmpestra; instr = pcmpestri }
-
-  let pcmpestrc = { id = Pcmpestrc; instr = pcmpestri }
-
-  let pcmpestro = { id = Pcmpestro; instr = pcmpestri }
-
-  let pcmpestrs = { id = Pcmpestrs; instr = pcmpestri }
-
-  let pcmpestrz = { id = Pcmpestrz; instr = pcmpestri }
-
-  let pcmpistra = { id = Pcmpistra; instr = pcmpistri }
-
-  let pcmpistrc = { id = Pcmpistrc; instr = pcmpistri }
-
-  let pcmpistro = { id = Pcmpistro; instr = pcmpistri }
-
-  let pcmpistrs = { id = Pcmpistrs; instr = pcmpistri }
-
-  let pcmpistrz = { id = Pcmpistrz; instr = pcmpistri }
-end
-
-let instr instr ?i args = Some (Simd.Instruction { instr; imm = i }, args)
-
-let seq seq ?i args = Some (Simd.Sequence { seq; imm = i }, args)
+let seq seq ?i args = Some (Simd.sequence seq i, args)
 
 let bad_immediate fmt =
   Format.kasprintf (fun msg -> raise (Error (Bad_immediate msg))) fmt
@@ -502,44 +472,45 @@ let pseudoregs_for_mem_operation (op : Simd.Mem.operation) arg res =
   | SSE Div_f32 ->
     [| res.(0); arg.(1) |], res
 
+let rax = Proc.phys_reg Int 0
+
+let rcx = Proc.phys_reg Int 5
+
+let rdx = Proc.phys_reg Int 4
+
+let xmm0v = Proc.phys_reg Vec128 100
+
+let to_phys_reg (pinned_reg : Simd.reg) =
+  match pinned_reg with RAX -> rax | RCX -> rcx | RDX -> rdx | XMM0 -> xmm0v
+
+let maybe_pin arr i loc =
+  match Simd.loc_is_pinned loc with
+  | None -> ()
+  | Some pinned_loc -> arr.(i) <- to_phys_reg pinned_loc
+
 let pseudoregs_for_instr (simd : Simd.instr) arg_regs res_regs =
-  let rax = Proc.phys_reg Int 0 in
-  let rcx = Proc.phys_reg Int 5 in
-  let rdx = Proc.phys_reg Int 4 in
-  let xmm0v () = Proc.phys_reg Vec128 100 in
   Array.iteri
-    (fun i (arg : Simd.arg) ->
-      match Simd.loc_is_pinned arg.loc with
-      | Some RAX -> arg_regs.(i) <- rax
-      | Some RCX -> arg_regs.(i) <- rcx
-      | Some RDX -> arg_regs.(i) <- rdx
-      | Some XMM0 -> arg_regs.(i) <- xmm0v ()
-      | None -> ())
+    (fun i (simd_arg : Simd.arg) -> maybe_pin arg_regs i simd_arg.loc)
     simd.args;
   (match simd.res with
   | First_arg ->
     assert (not (Reg.is_preassigned arg_regs.(0)));
     arg_regs.(0) <- res_regs.(0)
-  | Res { loc; _ } -> (
-    match Simd.loc_is_pinned loc with
-    | Some RAX -> res_regs.(0) <- rax
-    | Some RCX -> res_regs.(0) <- rcx
-    | Some RDX -> res_regs.(0) <- rdx
-    | Some XMM0 -> res_regs.(0) <- xmm0v ()
-    | None -> ()));
+  | Res { loc; _ } -> maybe_pin res_regs 0 loc);
   arg_regs, res_regs
 
 let pseudoregs_for_operation (simd : Simd.operation) arg res =
   let arg_regs = Array.copy arg in
   let res_regs = Array.copy res in
-  match simd with
-  | Instruction { instr; _ } -> pseudoregs_for_instr instr arg_regs res_regs
-  | Sequence { seq; _ } -> (
-    match seq.id with
-    | Sqrtss | Sqrtsd | Roundss | Roundsd | Pcmpestra | Pcmpestrc | Pcmpestro
-    | Pcmpestrs | Pcmpestrz | Pcmpistra | Pcmpistrc | Pcmpistro | Pcmpistrs
-    | Pcmpistrz ->
-      pseudoregs_for_instr seq.instr arg_regs res_regs)
+  let instr =
+    match simd.instr with
+    | Instruction instr -> instr
+    | Sequence
+        { id = Sqrtss | Sqrtsd | Roundss | Roundsd | Pcompare_string _; instr }
+      ->
+      instr
+  in
+  pseudoregs_for_instr instr arg_regs res_regs
 
 (* Error report *)
 
@@ -560,9 +531,7 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
     ~arg_count ~res_count ~alignment_in_bytes (cfg_ops : Operation.t list) :
     Vectorize_utils.Vectorized_instruction.t list option =
   (* Assumes cfg_ops are isomorphic *)
-  let instr instr =
-    Operation.Specific (Isimd (Instruction { instr; imm = None }))
-  in
+  let instr instr = Operation.Specific (Isimd (Simd.instruction instr None)) in
   let width_in_bits = Vectorize_utils.Width_in_bits.to_int width_type in
   let length = List.length cfg_ops in
   assert (length * width_in_bits = vector_width_in_bits);
