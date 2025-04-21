@@ -202,9 +202,7 @@ let remove_trap_instructions t removed_trap_handlers =
        remove a few pushtrap/poptrap. *)
     assert Config.flambda2;
     (* remove Lpushtrap and Lpoptrap instructions that refer to dead labels. *)
-    Label.Tbl.iter remove_trap_instr t.blocks;
-    Misc.fatal_errorf "Cfg of %s had dead trap handlers %a\n" t.fun_name
-      Label.Set.print removed_trap_handlers)
+    Label.Tbl.iter remove_trap_instr t.blocks)
 
 let remove_blocks t labels_to_remove =
   let removed_labels = ref Label.Set.empty in
