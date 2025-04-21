@@ -293,6 +293,8 @@ let rewrite_gen :
           if not (DLL.is_empty new_instrs)
           then
             (* insert block *)
+            (* CR-soon xclerc for xclerc: now that we preprocess critical nodes,
+               no insertion should occur here. *)
             let (_ : Cfg.basic_block list) =
               Cfg_with_layout.insert_block
                 (Cfg_with_infos.cfg_with_layout cfg_with_infos)
@@ -322,6 +324,37 @@ let rewrite_gen :
    above. *)
 let threshold_split_live_ranges = 1024
 
+(* A critical edge is an edge such that the source has several successors and
+   the destination has several predecessors. Such edges are problematic because
+   if an instruction needs to be inserted between the source and the
+   destination, a block will need to be inserted. *)
+let compute_critical_edges : Cfg.t -> Cfg_edge.Set.t =
+ fun cfg ->
+  Cfg.fold_blocks cfg ~init:Cfg_edge.Set.empty
+    ~f:(fun label block critical_edges ->
+      match block.exn with
+      | Some _ -> critical_edges
+      | None -> (
+        let successor_labels =
+          Cfg.successor_labels ~normal:true ~exn:false block
+        in
+        match Label.Set.cardinal successor_labels with
+        | 0 | 1 -> critical_edges
+        | _ ->
+          Label.Set.fold
+            (fun successor_label critical_edges ->
+              let successor_block = Cfg.get_block_exn cfg successor_label in
+              if (not (Cfg.can_raise_terminator block.terminator.desc))
+                 && (not (Label.equal label successor_label))
+                 && Label.Set.cardinal successor_block.predecessors > 1
+              then (
+                assert (not successor_block.is_trap_handler);
+                Cfg_edge.Set.add
+                  { Cfg_edge.src = label; dst = successor_label }
+                  critical_edges)
+              else critical_edges)
+            successor_labels critical_edges))
+
 let prelude :
     (module Utils) ->
     on_fatal_callback:(unit -> unit) ->
@@ -338,6 +371,32 @@ let prelude :
     Utils.log "precondition";
     Regalloc_invariants.precondition cfg_with_layout);
   let cfg_infos = collect_cfg_infos cfg_with_layout in
+  let cfg = Cfg_with_layout.cfg cfg_with_layout in
+  (* We identify critical edges, and pre-emptively insert block so that the
+     register allocator will not have to change the shape of the CFG. *)
+  let critical_edges = compute_critical_edges cfg in
+  let cfg_infos =
+    if Cfg_edge.Set.is_empty critical_edges
+    then cfg_infos
+    else
+      let instruction_id =
+        InstructionId.make_sequence ~last_used:cfg_infos.max_instruction_id ()
+      in
+      Cfg_edge.Set.iter
+        (fun { Cfg_edge.src; dst } ->
+          let (_inserted_blocks : Cfg.basic_block list) =
+            Cfg_with_layout.insert_block cfg_with_layout (DLL.make_empty ())
+              ~after:(Cfg.get_block_exn cfg src)
+              ~before:(Some (Cfg.get_block_exn cfg dst))
+              ~next_instruction_id:(fun () ->
+                InstructionId.get_and_incr instruction_id)
+          in
+          ())
+        critical_edges;
+      Cfg_with_infos.invalidate_liveness cfg_with_infos;
+      Cfg_with_infos.invalidate_dominators_and_loop_infos cfg_with_infos;
+      { cfg_infos with max_instruction_id = InstructionId.get instruction_id }
+  in
   let num_temporaries =
     (* note: this should probably be `Reg.Set.cardinal (Reg.Set.union
        cfg_infos.arg cfg_infos.res)` but the following experimentally produces

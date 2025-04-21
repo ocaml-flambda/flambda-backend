@@ -150,8 +150,6 @@ module Transfer = struct
     let made_unavailable_1 =
       let regs_clobbered = Array.append (destroyed_at instr.desc) instr.res in
       RD.Set.made_unavailable_by_clobber avail_before ~regs_clobbered
-        ~register_class:Proc.register_class ~stack_class:(fun r ->
-          Stack_class.of_machtype r.typ)
     in
     (* Second: the cases of (a) allocations, (b) other polling points, (c) OCaml
        to OCaml function calls and (d) end-region operations. In these cases,
@@ -270,8 +268,7 @@ module Transfer = struct
             then RD.Set.empty
             else
               RD.Set.made_unavailable_by_clobber avail_before
-                ~regs_clobbered:instr.res ~register_class:Proc.register_class
-                ~stack_class:(fun r -> Stack_class.of_machtype r.typ)
+                ~regs_clobbered:instr.res
           in
           let results =
             Array.map2

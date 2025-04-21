@@ -511,15 +511,8 @@ let is_pure_basic : basic -> bool = function
     false
 
 let same_location (r1 : Reg.t) (r2 : Reg.t) =
-  Reg.same_loc r1 r2
-  &&
-  match r1.loc with
-  | Unknown -> Misc.fatal_errorf "Cfg got unknown register location."
-  | Reg _ -> Proc.register_class r1 = Proc.register_class r2
-  | Stack _ ->
-    Stack_class.equal
-      (Stack_class.of_machtype r1.typ)
-      (Stack_class.of_machtype r2.typ)
+  Reg.same_loc_fatal_on_unknown
+    ~fatal_message:"Cfg got unknown register location." r1 r2
 
 let is_noop_move instr =
   match instr.desc with
@@ -580,7 +573,7 @@ let instr_id = InstructionId.make_sequence ()
 
 let reset_instr_id () = InstructionId.reset instr_id
 
-let next_instr_id () = InstructionId.get_next instr_id
+let next_instr_id () = InstructionId.get_and_incr instr_id
 
 let make_instr desc arg res dbg =
   { desc;
