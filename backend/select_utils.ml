@@ -382,7 +382,7 @@ let select_effects (e : Cmm.effects) : Effect.t =
 let select_coeffects (e : Cmm.coeffects) : Coeffect.t =
   match e with No_coeffects -> None | Has_coeffects -> Arbitrary
 
-let debug = false
+let debug = true
 
 let float_test_of_float_comparison :
     Cmm.float_width ->
