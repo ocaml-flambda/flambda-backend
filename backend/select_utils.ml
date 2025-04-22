@@ -499,14 +499,16 @@ module Stack_offset_and_exn = struct
     | Pushtrap { lbl_handler } ->
       update_block cfg lbl_handler ~stack_offset ~traps;
       stack_offset, lbl_handler :: traps
-    | Poptrap _ -> (
+    | Poptrap { lbl_handler } -> (
       match traps with
       | [] ->
         Misc.fatal_errorf
           "Cfgize.Stack_offset_and_exn.process_basic: trying to pop from an \
            empty stack (id=%a)"
           InstructionId.format instr.id
-      | _ :: traps -> stack_offset, traps)
+      | top_trap :: traps ->
+        assert (Label.equal lbl_handler top_trap);
+        stack_offset, traps)
     | Op (Stackoffset n) -> stack_offset + n, traps
     | Op
         ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_float32 _
