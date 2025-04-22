@@ -17,6 +17,7 @@ let use_ocamlcfg = ref true             (* -[no-]ocamlcfg *)
 let dump_cfg = ref false                (* -dcfg *)
 let cfg_invariants = ref false          (* -dcfg-invariants *)
 let regalloc = ref ""                   (* -regalloc *)
+let regalloc_linscan_threshold = ref 100_000 (* -regalloc-linscan-threshold *)
 let regalloc_params = ref ([] : string list)  (* -regalloc-param *)
 let regalloc_validate = ref true        (* -[no-]regalloc-validate *)
 

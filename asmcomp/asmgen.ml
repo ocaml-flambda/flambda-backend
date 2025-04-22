@@ -156,8 +156,13 @@ let write_ir prefix =
 
 let should_emit () = not (should_stop_after Compiler_pass.Linearization)
 
-let should_use_linscan fun_codegen_options =
-  !use_linscan || List.mem Cmm.Use_linscan_regalloc fun_codegen_options
+let should_use_linscan fd =
+  !use_linscan
+  || List.mem Cmm.Use_linscan_regalloc fd.fun_codegen_options
+  || List.compare_length_with
+       (Reg.all_relocatable_regs ())
+       !Flambda_backend_flags.regalloc_linscan_threshold
+     > 0
 
 let if_emit_do f x = if should_emit () then f x else ()
 
@@ -290,7 +295,7 @@ type register_allocator =
 
 let register_allocator fd : register_allocator =
   match String.lowercase_ascii !Flambda_backend_flags.regalloc with
-  | "" | "cfg" -> if should_use_linscan fd.fun_codegen_options then LS else IRC
+  | "" | "cfg" -> if should_use_linscan fd then LS else IRC
   | "gi" -> GI
   | "irc" -> IRC
   | "ls" -> LS

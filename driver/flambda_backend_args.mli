@@ -29,6 +29,7 @@ module type Flambda_backend_options = sig
   val dcfg : unit -> unit
   val dcfg_invariants : unit -> unit
   val regalloc : string -> unit
+  val regalloc_linscan_threshold : int -> unit
   val regalloc_param : string -> unit
   val regalloc_validate : unit -> unit
   val no_regalloc_validate : unit -> unit
