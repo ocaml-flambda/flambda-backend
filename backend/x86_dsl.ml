@@ -121,8 +121,6 @@ module D = struct
 
   let data () = section [".data"] None []
 
-  let direct_assignment var const = directive (Direct_assignment (var, const))
-
   let extrn s ptr = directive (External (s, ptr))
 
   let file ~file_num ~file_name = directive (File (file_num, file_name))

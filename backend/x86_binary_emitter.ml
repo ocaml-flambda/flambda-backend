@@ -1731,7 +1731,7 @@ let assemble_line b loc ins =
               offset = ConstSub (ConstThis, Const 4L);
             }  when String.Tbl.mem local_labels wrap_label ->
       record_local_reloc b ~offset:(-4) (RelocCall wrap_label)
-    | Reloc _ | Sleb128 _ | Uleb128 _ | Direct_assignment _ ->
+    | Reloc _ | Sleb128 _ | Uleb128 _ ->
       X86_gas.generate_asm Out_channel.stderr [ins];
       Misc.fatal_errorf "x86_binary_emitter: unsupported instruction"
   with e ->
