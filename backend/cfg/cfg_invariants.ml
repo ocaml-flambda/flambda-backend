@@ -185,9 +185,9 @@ let check_stack_offset t label (block : Cfg.basic_block) =
       if not (Int.equal terminator_stack_offset succ_block.stack_offset)
       then
         report t
-          "Wrong stack offset: block %s in successors of block %s, stack \
-           offset of the terminator of %s is %d, stack offset of block %s is \
-           %d.\n"
+          "Wrong stack offset: block %s in normal successors of block %s, \
+           stack offset of the terminator of %s is %d, stack offset of block \
+           %s is %d.\n"
           (Label.to_string successor)
           (Label.to_string label) (Label.to_string label)
           terminator_stack_offset
