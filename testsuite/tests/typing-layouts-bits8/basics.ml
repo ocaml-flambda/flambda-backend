@@ -472,7 +472,7 @@ external f10_7 : string -> int8# = "foo" "bar"
 
 external f10_8 : int8 -> int8#  = "foo" "bar" [@@unboxed];;
 [%%expect{|
-external f10_8 : (int8 [@unboxed]) -> int8# = "foo" "bar"
+external f10_8 : (int8 [@untagged]) -> int8# = "foo" "bar"
 |}];;
 
 external f10_9 : (int8#[@untagged]) -> bool -> string  = "foo" "bar";;

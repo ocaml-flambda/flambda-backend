@@ -275,9 +275,7 @@ module Unary_int_arith (I : A.Int_number_kind) = struct
     | Known_result ints ->
       assert (not (I.Num.Set.is_empty ints));
       let f =
-        match op with
-        | Neg -> I.Num.neg
-        | Swap_byte_endianness -> I.Num.swap_byte_endianness
+        match op with Swap_byte_endianness -> I.Num.swap_byte_endianness
       in
       let possible_results = I.Num.Set.map f ints in
       let ty = I.these_unboxed possible_results in

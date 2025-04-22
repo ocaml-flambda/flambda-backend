@@ -59,7 +59,7 @@ let of_lambda array_kind =
   | Punboxedfloatarray Unboxed_float64 ->
     Values_or_immediates_or_naked_floats
   | Punboxedfloatarray Unboxed_float32 -> Naked_float32s
-  | Punboxedintarray (Unboxed_int8 | Unboxed_int16) ->
+  | Punboxedintarray (Unboxed_int8 | Unboxed_int16 | Unboxed_int) ->
     Misc.unboxed_small_int_arrays_are_not_implemented ()
   | Punboxedintarray Unboxed_int32 -> Naked_int32s
   | Punboxedintarray Unboxed_int64 -> Naked_int64s

@@ -155,6 +155,9 @@ let classify ~classify_product env loc ty sort : _ classification =
   | Tconstr (p, _args, _abbrev) ->
       if Path.same p Predef.path_float then Float
       else if Path.same p Predef.path_lazy_t then Lazy
+      else if Path.same p Predef.path_int
+           || Path.same p Predef.path_int8
+           || Path.same p Predef.path_int16 then Int
       else if Path.same p Predef.path_string
            || Path.same p Predef.path_bytes
            || Path.same p Predef.path_array
@@ -253,7 +256,12 @@ let array_kind_of_elt ~elt_sort env loc ty =
   | Addr | Lazy -> Paddrarray
   | Int -> Pintarray
   | Unboxed_float f -> Punboxedfloatarray f
-  | Unboxed_int i -> Punboxedintarray i
+  | Unboxed_int Unboxed_int -> Punboxedintarray Unboxed_nativeint
+  | Unboxed_int Unboxed_int64 -> Punboxedintarray Unboxed_int64
+  | Unboxed_int Unboxed_nativeint -> Punboxedintarray Unboxed_nativeint
+  | Unboxed_int Unboxed_int32 -> Punboxedintarray Unboxed_int32
+  | Unboxed_int Unboxed_int16 -> Punboxedintarray Unboxed_int16
+  | Unboxed_int Unboxed_int8 -> Punboxedintarray Unboxed_int8
   | Unboxed_vector v -> Punboxedvectorarray v
   | Product c -> c
 
@@ -1015,7 +1023,7 @@ let rec layout_union l1 l2 =
   | Punboxed_float f1, Punboxed_float f2 ->
       if Primitive.equal_unboxed_float f1 f2 then l1 else Ptop
   | Punboxed_int bi1, Punboxed_int bi2 ->
-      if Primitive.equal_unboxed_integer bi1 bi2 then l1 else Ptop
+      if Lambda.equal_unboxed_integer bi1 bi2 then l1 else Ptop
   | Punboxed_vector vi1, Punboxed_vector vi2 ->
       if Primitive.equal_unboxed_vector vi1 vi2 then l1 else Ptop
   | Punboxed_product layouts1, Punboxed_product layouts2 ->

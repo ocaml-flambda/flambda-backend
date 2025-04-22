@@ -53,9 +53,9 @@ let unbox_number ~dbg kind arg =
   | Naked_float -> C.unbox_float dbg arg
   | Naked_float32 -> C.unbox_float32 dbg arg
   | Naked_vec128 -> C.unbox_vec128 dbg arg
-  | Naked_int32 | Naked_int64 | Naked_nativeint ->
-    let primitive_kind = K.Boxable_number.primitive_kind kind in
-    C.unbox_int dbg primitive_kind arg
+  | Naked_int32 -> C.unbox_int dbg Boxed_int32 arg
+  | Naked_int64 -> C.unbox_int dbg Boxed_int64 arg
+  | Naked_nativeint -> C.unbox_int dbg Boxed_nativeint arg
 
 let box_number ~dbg kind alloc_mode arg =
   let alloc_mode = C.alloc_mode_for_allocations_to_cmm alloc_mode in
@@ -63,9 +63,9 @@ let box_number ~dbg kind alloc_mode arg =
   | Naked_float32 -> C.box_float32 dbg alloc_mode arg
   | Naked_float -> C.box_float dbg alloc_mode arg
   | Naked_vec128 -> C.box_vec128 dbg alloc_mode arg
-  | Naked_int32 | Naked_int64 | Naked_nativeint ->
-    let primitive_kind = K.Boxable_number.primitive_kind kind in
-    C.box_int_gen dbg primitive_kind alloc_mode arg
+  | Naked_int32 -> C.box_int_gen dbg Boxed_int32 alloc_mode arg
+  | Naked_int64 -> C.box_int_gen dbg Boxed_int64 alloc_mode arg
+  | Naked_nativeint -> C.box_int_gen dbg Boxed_nativeint alloc_mode arg
 
 (* Block creation and access. For these functions, [index] is a tagged
    integer. *)
@@ -569,45 +569,35 @@ let scalar_type_of_standard_int_or_float :
 
 let unary_int_arith_primitive _env dbg kind op arg =
   match (op : P.unary_int_arith_op) with
-  | Neg -> (
-    match integral_of_standard_int kind with
-    | Tagged src ->
-      C.Scalar_type.Tagged_integer.conjugate ~dbg ~outer:src
-        ~inner:C.Scalar_type.Tagged_integer.immediate
-        ~f:(fun x -> C.negint x dbg)
-        arg
-    | Untagged src ->
-      let bits = C.Scalar_type.Integer.bit_width src in
-      C.Scalar_type.Integer.conjugate arg ~outer:src
-        ~inner:C.Scalar_type.Integer.nativeint ~dbg ~f:(fun arg ->
-          C.neg_int (C.low_bits ~bits arg ~dbg) dbg))
   | Swap_byte_endianness -> (
     match (kind : K.Standard_int.t) with
     | Tagged_immediate ->
-      (* This isn't currently needed since [Lambda_to_flambda_primitives] always
-         untags the integer first. *)
-      Misc.fatal_error "Not yet implemented"
+      C.Scalar_type.Integral.conjugate arg ~outer:tagged_immediate
+        ~inner:naked_immediate ~dbg ~f:(fun arg ->
+          C.bbswap Sixteen arg dbg |> C.zero_extend ~bits:16 ~dbg)
     | Naked_immediate ->
       (* This case should not have a sign extension, confusingly, because it
          arises from the [Pbswap16] Lambda primitive. That operation does not
          affect the sign of the resulting value. *)
       C.Scalar_type.Integral.static_cast arg ~dbg ~src:naked_immediate
         ~dst:naked_int16
-      |> (fun arg -> C.bbswap Unboxed_int16 arg dbg)
+      |> (fun arg -> C.bbswap Sixteen arg dbg)
       |> C.zero_extend ~bits:16 ~dbg
     | Naked_int8 -> arg
     | Naked_int16 ->
       (* Byte swaps of small integers need a sign-extension in order to match
          the Lambda semantics (where the swap might affect the sign). *)
-      C.sign_extend (C.bbswap Unboxed_int16 arg dbg) ~bits:16 ~dbg
-    | Naked_int32 ->
-      C.sign_extend (C.bbswap Unboxed_int32 arg dbg) ~bits:32 ~dbg
+      C.sign_extend (C.bbswap Sixteen arg dbg) ~bits:16 ~dbg
+    | Naked_int32 -> C.sign_extend (C.bbswap Thirtytwo arg dbg) ~bits:32 ~dbg
     (* int64 and nativeint don't require a sign-extension since they are already
        register-size, but the code is here for consistency: *)
-    | Naked_int64 ->
-      C.sign_extend (C.bbswap Unboxed_int64 arg dbg) ~bits:64 ~dbg
-    | Naked_nativeint ->
-      C.sign_extend (C.bbswap Unboxed_nativeint arg dbg) ~bits:C.arch_bits ~dbg)
+    | Naked_int64 -> C.sign_extend (C.bbswap Sixtyfour arg dbg) ~bits:64 ~dbg
+    | Naked_nativeint -> (
+      let bits = C.arch_bits in
+      match bits with
+      | 64 -> C.sign_extend (C.bbswap Sixtyfour arg dbg) ~bits ~dbg
+      | 32 -> C.sign_extend (C.bbswap Thirtytwo arg dbg) ~bits ~dbg
+      | _ -> assert false))
 
 let unary_float_arith_primitive _env dbg width op arg =
   match (width : P.float_bitwidth), (op : P.unary_float_arith_op) with

@@ -146,9 +146,9 @@ type integer_comparison = Lambda.integer_comparison =
   | Cle
   | Cge
 
-let negate_integer_comparison = Lambda.negate_integer_comparison
+let negate_integer_comparison = Scalar.Integer_comparison.negate
 
-let swap_integer_comparison = Lambda.swap_integer_comparison
+let swap_integer_comparison = Scalar.Integer_comparison.swap
 
 (* With floats [not (x < y)] is not the same as [x >= y] due to NaNs, so we
    provide additional comparisons to represent the negations.*)
@@ -164,9 +164,9 @@ type float_comparison = Lambda.float_comparison =
   | CFge
   | CFnge
 
-let negate_float_comparison = Lambda.negate_float_comparison
+let negate_float_comparison = Scalar.Float_comparison.negate
 
-let swap_float_comparison = Lambda.swap_float_comparison
+let swap_float_comparison = Scalar.Float_comparison.swap
 
 type label = Label.t
 

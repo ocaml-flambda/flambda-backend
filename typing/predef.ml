@@ -95,8 +95,10 @@ and path_float64x2 = Pident ident_float64x2
 let path_unboxed_float = Path.unboxed_version path_float
 and path_unboxed_float32 = Path.unboxed_version path_float32
 and path_unboxed_nativeint = Path.unboxed_version path_nativeint
-and path_unboxed_int8 = Path.unboxed_version path_int8
-and path_unboxed_int16 = Path.unboxed_version path_int16
+and path_naked_char = Path.unboxed_version path_char
+and path_naked_int = Path.unboxed_version path_int
+and path_naked_int8 = Path.unboxed_version path_int8
+and path_naked_int16 = Path.unboxed_version path_int16
 and path_unboxed_int32 = Path.unboxed_version path_int32
 and path_unboxed_int64 = Path.unboxed_version path_int64
 
@@ -137,8 +139,10 @@ and type_unboxed_nativeint =
       newgenty (Tconstr(path_unboxed_nativeint, [], ref Mnil))
 and type_unboxed_int32 = newgenty (Tconstr(path_unboxed_int32, [], ref Mnil))
 and type_unboxed_int64 = newgenty (Tconstr(path_unboxed_int64, [], ref Mnil))
-and type_unboxed_int8 = newgenty (Tconstr(path_unboxed_int8, [], ref Mnil))
-and type_unboxed_int16 = newgenty (Tconstr(path_unboxed_int16, [], ref Mnil))
+and type_naked_char = newgenty (Tconstr(path_naked_char, [], ref Mnil))
+and type_naked_int = newgenty (Tconstr(path_naked_int, [], ref Mnil))
+and type_naked_int8 = newgenty (Tconstr(path_naked_int8, [], ref Mnil))
+and type_naked_int16 = newgenty (Tconstr(path_naked_int16, [], ref Mnil))
 and type_or_null t = newgenty (Tconstr(path_or_null, [t], ref Mnil))
 
 and type_int8x16 = newgenty (Tconstr(path_int8x16, [], ref Mnil))
@@ -384,7 +388,7 @@ let unrestricted tvar ca_sort =
 
 (* CR layouts: Changes will be needed here as we add support for the built-ins
    to work with non-values, and as we relax the mixed block restriction. *)
-let build_initial_env add_type add_extension empty_env =
+let build_initial_env ~include_naked_small_integers add_type add_extension empty_env =
   let add_type_with_jkind, add_type = mk_add_type add_type
   and add_type1 = mk_add_type1 add_type
   and add_extension = mk_add_extension add_extension in
@@ -414,12 +418,15 @@ let build_initial_env add_type add_extension empty_env =
        ~kind:(variant [ cstr ident_false []; cstr ident_true []])
        ~jkind:Jkind.Const.Builtin.immediate
   |> add_type ident_char ~jkind:Jkind.Const.Builtin.immediate
+       ?unboxed_jkind:(if include_naked_small_integers then Some Jkind.Const.Builtin.kind_of_unboxed_int8 else None)
   |> add_type ident_exn ~kind:Type_open ~jkind:Jkind.Const.Builtin.value
   |> add_type ident_extension_constructor ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type ident_float ~jkind:Jkind.Const.Builtin.immutable_data
       ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_float
   |> add_type ident_floatarray ~jkind:Jkind.Const.Builtin.mutable_data
-  |> add_type ident_int ~jkind:Jkind.Const.Builtin.immediate
+  |> add_type ident_int
+       ~jkind:Jkind.Const.Builtin.immediate
+       ?unboxed_jkind:(if include_naked_small_integers then Some Jkind.Const.Builtin.kind_of_unboxed_nativeint else None)
   |> add_type ident_int32 ~jkind:Jkind.Const.Builtin.immutable_data
       ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_int32
   |> add_type ident_int64 ~jkind:Jkind.Const.Builtin.immutable_data
@@ -550,8 +557,6 @@ let add_small_number_beta_extension_types add_type env =
        ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_int8
   |> add_type ident_int16 ~jkind:Jkind.Const.Builtin.immediate
        ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_int16
-
-
 
 let or_null_argument_sort = Jkind.Sort.Const.value
 

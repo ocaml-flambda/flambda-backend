@@ -17,8 +17,144 @@
     These integers are {16} bits wide and use two's complement representation.
     All operations are taken modulo 2{^16}. They do not fail on overflow. *)
 
+(** {1:ints 16-bit Integers} *)
+
 (** The type for 16-bit integer values. *)
 type t = int16 [@@immediate]
 
-(** @inline *)
-include Int_wrapper.S with type t := int16
+(** The number of bits in an integer of type {!int16}. *)
+val size : int
+
+(** The 16-bit integer 0. *)
+val zero : int16
+
+(** The 16-bit integer 1. *)
+val one : int16
+
+(** The 16-bit integer -1. *)
+val minus_one : int16
+
+(** Unary negation. *)
+external neg : int16 -> int16 = "%int16_neg"
+
+(** Addition. *)
+external add : int16 -> int16 -> int16 = "%int16_add"
+
+(** Subtraction. *)
+external sub : int16 -> int16 -> int16 = "%int16_sub"
+
+(** Multiplication. *)
+external mul : int16 -> int16 -> int16 = "%int16_mul"
+
+(** Integer division. This division rounds the real quotient of
+    its arguments towards zero, as specified for {!Stdlib.(/)}.
+    @raise Division_by_zero if the second argument is zero. *)
+external div : int16 -> int16 -> int16 = "%int16_div"
+
+(** Same as {!div}, except that arguments and result are interpreted as {e
+    unsigned} integers. *)
+val unsigned_div : int16 -> int16 -> int16
+
+(** Integer remainder. If [y] is not zero, [rem x y = sub x (mul (div x y)
+    y)]. If [y] is zero, [rem x y] raises [Division_by_zero]. *)
+external rem : int16 -> int16 -> int16 = "%int16_mod"
+
+(** Same as {!rem}, except that arguments and result are interpreted as {e
+    unsigned} integers. *)
+val unsigned_rem : int16 -> int16 -> int16
+
+(** [succ x] is [add x 1]. *)
+external succ : int16 -> int16 = "%int16_succ"
+
+(** [pred x] is [sub x 1]. *)
+external pred : int16 -> int16 = "%int16_pred"
+
+(** [abs x] is the absolute value of [x]. That is [x] if [x] is positive and
+    [neg x] if [x] is negative. {b Warning.} This may be negative if the
+    argument is {!min_int}. *)
+val abs : int16 -> int16
+
+(** [max_int] is the greatest representable integer,
+    [2{^[size - 1]} - 1]. *)
+val max_int : int16
+
+(** [min_int] is the smallest representable integer,
+    [-2{^[size - 1]}]. *)
+val min_int : int16
+
+(** Bitwise logical and. *)
+external logand : int16 -> int16 -> int16 = "%int16_and"
+
+(** Bitwise logical or. *)
+external logor : int16 -> int16 -> int16 = "%int16_or"
+
+(** Bitwise logical exclusive or. *)
+external logxor : int16 -> int16 -> int16 = "%int16_xor"
+
+(** Bitwise logical negation. *)
+val lognot : int16 -> int16
+
+(** [shift_left x n] shifts [x] to the left by [n] bits. The result
+    is unspecified if [n < 0] or [n >= ]{!size}. *)
+external shift_left : int16 -> int -> int16 = "%int16_lsl"
+
+(** [shift_right x n] shifts [x] to the right by [n] bits. This is an
+    arithmetic shift: the sign bit of [x] is replicated and inserted
+    in the vacated bits. The result is unspecified if [n < 0] or
+    [n >=]{!size}. *)
+external shift_right : int16 -> int -> int16 = "%int16_asr"
+
+(** [shift_right x n] shifts [x] to the right by [n] bits. This is a
+    logical shift: zeroes are inserted in the vacated bits regardless
+    of the sign of [x]. The result is unspecified if [n < 0] or
+    [n >=]{!size}. *)
+external shift_right_logical : int16 -> int -> int16 = "%int16_lsr"
+
+(** {1:preds Predicates and comparisons} *)
+
+(** [equal x y] is [true] if and only if [x = y]. *)
+external equal : int16 -> int16 -> bool = "%int16_equal"
+
+(** [compare x y] is {!Stdlib.compare}[ x y] but more efficient. *)
+external compare : int16 -> int16 -> int = "%int16_compare"
+
+(** Same as {!compare}, except that arguments are interpreted as {e unsigned} integers. *)
+val unsigned_compare : int16 -> int16 -> int
+
+(** Return the lesser of the two arguments. *)
+val min : int16 -> int16 -> int16
+
+(** Return the greater of the two arguments. *)
+val max : int16 -> int16 -> int16
+
+(** {1:convert Converting} *)
+
+(** [to_int x] is [x] as an {!int}. *)
+external to_int : int16 -> int = "%int_of_int16"
+
+(** [of_int x] truncates the representation of [x] to fit in {!int16}. *)
+external of_int : int -> int16 = "%int16_of_int"
+
+(** Same as {!to_int}, but interprets the argument as an {e unsigned} integer. *)
+val unsigned_to_int : int16 -> int
+
+(** [to_float x] is [x] as a floating point number. *)
+external to_float : int16 -> float = "%float_of_int16"
+
+(** [of_float x] truncates [x] to an integer. The result is
+    unspecified if the argument is [nan] or falls outside the range of
+    representable integers. *)
+external of_float : float -> int16 = "%int16_of_float"
+
+(** [to_string x] is the written representation of [x] in decimal. *)
+val to_string : int16 -> string
+
+(** A seeded hash function for ints, with the same output value as
+    {!Hashtbl.seeded_hash}. This function allows this module to be passed as
+    argument to the functor {!Hashtbl.MakeSeeded}. *)
+val seeded_hash : int -> int16 -> int
+
+(** An unseeded hash function for ints, with the same output value as
+    {!Hashtbl.hash}. This function allows this module to be passed as argument
+    to the functor {!Hashtbl.Make}. *)
+val hash : int16 -> int

@@ -275,7 +275,8 @@ external float32_of_string : string -> Obj.t = "caml_float32_of_string"
 external int_as_pointer : int -> Obj.t = "%int_as_pointer"
 
 let rec transl_const = function
-    Const_base(Const_int i) -> Obj.repr i
+    Const_base(Const_int i)
+  | Const_naked_immediate (i, (Int8 | Int16 | Int)) -> Obj.repr i
   | Const_base(Const_char c) -> Obj.repr c
   | Const_base(Const_string (s, _, _)) -> Obj.repr s
   | Const_base(Const_float32 f)

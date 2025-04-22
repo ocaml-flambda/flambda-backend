@@ -177,8 +177,6 @@ module Boxable_number : sig
 
   val unboxed_kind : t -> kind
 
-  val primitive_kind : t -> Primitive.boxed_integer
-
   val print_lowercase : Format.formatter -> t -> unit
 
   val print_lowercase_short : Format.formatter -> t -> unit

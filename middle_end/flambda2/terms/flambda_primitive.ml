@@ -878,15 +878,11 @@ type num_dimensions = int
 
 let print_num_dimensions ppf d = Format.fprintf ppf "%d" d
 
-type unary_int_arith_op =
-  | Neg
-  | Swap_byte_endianness
+type unary_int_arith_op = Swap_byte_endianness
 
 let print_unary_int_arith_op ppf o =
   let fprintf = Format.fprintf in
-  match o with
-  | Neg -> fprintf ppf "~-"
-  | Swap_byte_endianness -> fprintf ppf "bswap"
+  match o with Swap_byte_endianness -> fprintf ppf "bswap"
 
 type unary_float_arith_op =
   | Abs
@@ -1424,7 +1420,7 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   | Int_as_pointer alloc_mode ->
     No_effects, coeffects_of_mode alloc_mode, Strict
   | Opaque_identity _ -> Arbitrary_effects, Has_coeffects, Strict
-  | Int_arith (_, (Neg | Swap_byte_endianness))
+  | Int_arith (_, Swap_byte_endianness)
   | Num_conv _ | Boolean_not | Reinterpret_64_bit_word _ ->
     No_effects, No_coeffects, Strict
   | Float_arith (_width, (Abs | Neg)) ->
@@ -1782,9 +1778,12 @@ let print_binary_primitive ppf p =
       num_dimensions Bigarray_kind.print kind Bigarray_layout.print layout
   | Phys_equal op ->
     Format.fprintf ppf "@[(Phys_equal %a)@]" print_equality_comparison op
-  | Int_arith (_k, op) -> print_binary_int_arith_op ppf op
+  | Int_arith (_k, op) ->
+    print_binary_int_arith_op ppf op;
+    K.Standard_int.print ppf _k
   | Int_shift (_k, op) -> print_int_shift_op ppf op
-  | Int_comp (_, comp_behaviour) ->
+  | Int_comp (k, comp_behaviour) ->
+    K.Standard_int.print ppf k;
     print_comparison_and_behaviour print_signed_or_unsigned ppf comp_behaviour
   | Float_arith (width, op) -> print_binary_float_arith_op ppf width op
   | Float_comp (_width, comp_behaviour) ->

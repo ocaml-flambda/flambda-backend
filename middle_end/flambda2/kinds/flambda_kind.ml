@@ -470,13 +470,6 @@ module Boxable_number = struct
     | Naked_nativeint -> Naked_number Naked_nativeint
     | Naked_vec128 -> Naked_number Naked_vec128
 
-  let primitive_kind t : Primitive.boxed_integer =
-    match t with
-    | Naked_vec128 | Naked_float | Naked_float32 -> assert false
-    | Naked_int32 -> Boxed_int32
-    | Naked_int64 -> Boxed_int64
-    | Naked_nativeint -> Boxed_nativeint
-
   include Container_types.Make (struct
     type nonrec t = t
 
@@ -971,7 +964,8 @@ module With_subkind = struct
       | Parrayval Pgenarray -> Generic_array
       | Parrayval (Punboxedfloatarray Unboxed_float64) -> Float_array
       | Parrayval (Punboxedfloatarray Unboxed_float32) -> Unboxed_float32_array
-      | Parrayval (Punboxedintarray (Unboxed_int8 | Unboxed_int16)) ->
+      | Parrayval
+          (Punboxedintarray (Unboxed_int8 | Unboxed_int16 | Unboxed_int)) ->
         Misc.unboxed_small_int_arrays_are_not_implemented ()
       | Parrayval (Punboxedintarray Unboxed_int32) -> Unboxed_int32_array
       | Parrayval (Punboxedintarray Unboxed_int64) -> Unboxed_int64_array
@@ -998,6 +992,7 @@ module With_subkind = struct
     | Punboxed_int Unboxed_int32 -> naked_int32
     | Punboxed_int Unboxed_int64 -> naked_int64
     | Punboxed_int Unboxed_nativeint -> naked_nativeint
+    | Punboxed_int Unboxed_int -> naked_immediate
     | Punboxed_vector Unboxed_vec128 -> naked_vec128
     | Punboxed_product _ | Ptop | Pbottom ->
       Misc.fatal_errorf

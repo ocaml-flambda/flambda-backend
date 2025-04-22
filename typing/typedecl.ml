@@ -3331,7 +3331,7 @@ let native_repr_of_type env kind ty sort_or_poly =
          | Sort (Base Value) -> true
          | Sort (Base _ | Product _) -> false
     ->
-    Some Untagged_immediate
+    Some (Unboxed_integer Unboxed_int)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float ->
     Some (Unboxed_float Boxed_float64)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float32 ->

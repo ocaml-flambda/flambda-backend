@@ -82,7 +82,8 @@ let print_float f =
   else printf "%s." f
 
 let rec print_struct_const = function
-    Const_base(Const_int i) -> printf "%d" i
+    Const_base(Const_int i)
+  | Const_naked_immediate (i, _) -> printf "%d" i
   | Const_base(Const_float f)
   | Const_base(Const_unboxed_float f)
   | Const_base(Const_float32 f)
