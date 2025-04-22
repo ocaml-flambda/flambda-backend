@@ -557,11 +557,11 @@ module Dwarf_helpers = struct
 
   let sourcefile_for_dwarf = ref None
 
-  let begin_dwarf ~build_asm_directives ~code_begin ~code_end ~file_emitter =
+  let begin_dwarf ~code_begin ~code_end ~file_emitter =
     match !sourcefile_for_dwarf with
     | None -> ()
     | Some sourcefile ->
-      let asm_directives = build_asm_directives () in
+      let asm_directives = Asm_targets.Asm_directives_dwarf.build_asm_directives () in
       let get_file_num = (get_file_num ~file_emitter) in
       Asm_targets.Asm_directives_new.debug_header ~get_file_num;
       let unit_name =
