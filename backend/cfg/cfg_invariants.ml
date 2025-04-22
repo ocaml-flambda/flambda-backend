@@ -153,6 +153,104 @@ let check_can_raise t label (block : Cfg.basic_block) =
       "Block %s has an exceptional successor but the terminator cannot raise."
       (Label.to_string label)
 
+let check_stack_offset t label (block : Cfg.basic_block) successors predecessors
+    =
+  let stack_offset = block.stack_offset in
+  List.iter
+    (fun predecessor ->
+      let pred_block = Cfg.get_block_exn t.cfg predecessor in
+      let pred_terminator_stack_offset = pred_block.terminator.stack_offset in
+      if not (Int.equal stack_offset pred_terminator_stack_offset)
+      then
+        report t
+          "Wrong stack offset: block %s in predecessors of block %s, stack \
+           offset of the terminator of %s is %d, stack offset of block %s is \
+           %d."
+          (Label.to_string predecessor)
+          (Label.to_string label)
+          (Label.to_string predecessor)
+          pred_terminator_stack_offset (Label.to_string label) stack_offset)
+    predecessors;
+  let terminator_stack_offset = block.terminator.stack_offset in
+  Label.Set.iter
+    (fun successor ->
+      let succ_block = Cfg.get_block_exn t.cfg successor in
+      if not (Int.equal terminator_stack_offset succ_block.stack_offset)
+      then
+        report t
+          "Wrong stack offset: block %s in successors of block %s, stack \
+           offset of the terminator of %s is %d, stack offset of block %s is \
+           %d."
+          (Label.to_string successor)
+          (Label.to_string label) (Label.to_string label)
+          terminator_stack_offset
+          (Label.to_string successor)
+          stack_offset)
+    successors;
+  let stack_offset_after_body =
+    DLL.fold_left block.body ~init:stack_offset
+      ~f:(fun cur_stack_offset (basic : Cfg.basic Cfg.instruction) ->
+        if not (Int.equal cur_stack_offset basic.stack_offset)
+        then
+          report t
+            "Wrong stack offset in block %s: the offset of [(id:%a) %a] \
+             instruction is %d, but expected %d."
+            (Label.to_string label) InstructionId.print basic.id Cfg.dump_basic
+            basic.desc basic.stack_offset cur_stack_offset;
+        match basic.desc with
+        | Pushtrap { lbl_handler } ->
+          let handler_block = Cfg.get_block_exn t.cfg lbl_handler in
+          if not (Int.equal cur_stack_offset handler_block.stack_offset)
+          then
+            report t
+              "Wrong stack offset in block %s: the offset of [(id:%a) %a] \
+               instruction is %d, the offset of block %s is %d."
+              (Label.to_string label) InstructionId.print basic.id
+              Cfg.dump_basic basic.desc cur_stack_offset
+              (Label.to_string lbl_handler)
+              handler_block.stack_offset;
+          cur_stack_offset + Proc.trap_size_in_bytes
+        | Poptrap { lbl_handler = _ } ->
+          let new_stack_offset = cur_stack_offset - Proc.trap_size_in_bytes in
+          if Int.compare new_stack_offset 0 < 0
+          then
+            report t
+              "Negative stack offset in block %s: the offset after [(id:%a) \
+               %a] instruction is %d"
+              (Label.to_string label) InstructionId.print basic.id
+              Cfg.dump_basic basic.desc new_stack_offset;
+          new_stack_offset
+        | Op (Stackoffset n) ->
+          let new_stack_offset = cur_stack_offset + n in
+          if Int.compare new_stack_offset 0 < 0
+          then
+            report t
+              "Negative stack offset in block %s: the offset after [(id:%a) \
+               %a] instruction is %d"
+              (Label.to_string label) InstructionId.print basic.id
+              Cfg.dump_basic basic.desc new_stack_offset;
+          new_stack_offset
+        | Op
+            ( Move | Spill | Reload | Const_int _ | Const_float _
+            | Const_float32 _ | Const_symbol _ | Const_vec128 _ | Load _
+            | Store _ | Intop _ | Intop_imm _ | Intop_atomic _ | Floatop _
+            | Csel _ | Static_cast _ | Reinterpret_cast _ | Probe_is_enabled _
+            | Opaque | Begin_region | End_region | Specific _
+            | Name_for_debugger _ | Dls_get | Poll | Alloc _ )
+        | Reloadretaddr | Prologue ->
+          cur_stack_offset
+        | Stack_check _ ->
+          Misc.fatal_error
+            "Cfgize.Stack_offset_and_exn.process_basic: unexpected stack check")
+  in
+  if not (Int.equal stack_offset_after_body terminator_stack_offset)
+  then
+    report t
+      "Wrong stack offset in block %s: stack offset after body is %d, stack \
+       offset of the terminator is %d."
+      (Label.to_string label) stack_offset_after_body terminator_stack_offset;
+  ()
+
 let check_block t label (block : Cfg.basic_block) =
   check_tailrec t label block;
   check_can_raise t label block;
@@ -176,6 +274,7 @@ let check_block t label (block : Cfg.basic_block) =
           (Label.to_string label) (Label.to_string label)
           (Label.to_string successor))
     successors;
+  let predecessors = Cfg.predecessor_labels block in
   List.iter
     (fun predecessor ->
       let pred_block = Cfg.get_block_exn t.cfg predecessor in
@@ -198,9 +297,10 @@ let check_block t label (block : Cfg.basic_block) =
       if block.is_trap_handler
       then check_edge ~must:exn ~must_not:normal
       else check_edge ~must:normal ~must_not:exn)
-    (Cfg.predecessor_labels block);
-  (* CR gyorsh: check stack_offset consistent across edges and calculated
-     correctly within blocks *)
+    predecessors;
+  (* [stack_offset] consistent across edges and calculated correctly within
+     blocks *)
+  check_stack_offset t label block successors predecessors;
   ()
 
 let run ppf cfg_with_layout =
