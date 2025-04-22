@@ -53,13 +53,13 @@ let big_endian () =
   | None -> not_initialized ()
   | Some big_endian -> big_endian
 
-
 let emit_comments () =
   let emit_assembly_comments =
     match !emit_assembly_comments_ref with
     | None -> not_initialized ()
     | Some emit_assembly_comments -> emit_assembly_comments
-  in emit_assembly_comments && !Clflags.keep_asm_file
+  in
+  emit_assembly_comments && !Clflags.keep_asm_file
 
 type symbol_type =
   | Function
@@ -196,7 +196,6 @@ module Directive = struct
     | Protected of string
 
   let bprintf = Printf.bprintf
-
 
   (* CR sspies: This code is a duplicate with [emit_string_literal] in
      [emitaux.ml]. Hopefully, we can deduplicate this soon. *)
@@ -443,8 +442,7 @@ type expr =
   | Symbol of Asm_symbol.t
   | Add of expr * expr
   | Sub of expr * expr
-  | Variable of string
-  (** macOS only *)
+  | Variable of string  (** macOS only *)
 
 let rec lower_expr (cst : expr) : Directive.Constant.t =
   match cst with
@@ -708,7 +706,8 @@ let file ~file_num ~file_name () =
   in
   emit_non_masm (File { file_num; filename = file_name })
 
-let initialize ~big_endian ~emit_assembly_comments ~(emit : Directive.t -> unit) =
+let initialize ~big_endian ~emit_assembly_comments ~(emit : Directive.t -> unit)
+    =
   big_endian_ref := Some big_endian;
   emit_ref := Some emit;
   emit_assembly_comments_ref := Some emit_assembly_comments;
@@ -810,7 +809,9 @@ let emit_cached_strings () =
       int8 Int8.zero)
     !cached_strings;
   cached_strings := Cached_string.Map.empty;
-  Option.iter (switch_to_section ~emit_label_on_first_occurrence:false) old_dwarf_section
+  Option.iter
+    (switch_to_section ~emit_label_on_first_occurrence:false)
+    old_dwarf_section
 
 let mark_stack_non_executable () =
   let current_section = current_section () in

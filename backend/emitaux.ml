@@ -561,8 +561,10 @@ module Dwarf_helpers = struct
     match !sourcefile_for_dwarf with
     | None -> ()
     | Some sourcefile ->
-      let asm_directives = Asm_targets.Asm_directives_dwarf.build_asm_directives () in
-      let get_file_num = (get_file_num ~file_emitter) in
+      let asm_directives =
+        Asm_targets.Asm_directives_dwarf.build_asm_directives ()
+      in
+      let get_file_num = get_file_num ~file_emitter in
       Asm_targets.Asm_directives_new.debug_header ~get_file_num;
       let unit_name =
         (* CR lmaurer: This doesn't actually need to be an [Ident.t] *)
@@ -574,8 +576,7 @@ module Dwarf_helpers = struct
       dwarf
         := Some
              (Dwarf.create ~sourcefile ~unit_name ~asm_directives
-                ~get_file_id:get_file_num
-                ~code_begin ~code_end)
+                ~get_file_id:get_file_num ~code_begin ~code_end)
 
   let reset_dwarf () =
     dwarf := None;

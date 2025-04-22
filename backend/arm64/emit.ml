@@ -2122,7 +2122,8 @@ let begin_assembly _unix =
   Asm_targets.Asm_label.initialize ~new_label:(fun () ->
       Cmm.new_label () |> Label.to_int);
   let asm_line_buffer = Buffer.create 200 in
-  D.initialize ~big_endian:Arch.big_endian ~emit_assembly_comments:!Flambda_backend_flags.dasm_comments ~emit:(fun d ->
+  D.initialize ~big_endian:Arch.big_endian
+    ~emit_assembly_comments:!Flambda_backend_flags.dasm_comments ~emit:(fun d ->
       Buffer.clear asm_line_buffer;
       D.Directive.print asm_line_buffer d;
       Buffer.add_string asm_line_buffer "\n";
