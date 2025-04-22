@@ -2281,7 +2281,7 @@ let end_assembly () =
         (fun n -> emit_printf "\t.align\t%a\n" femit_int (Misc.log2 n));
       efa_label_rel =
         (fun lbl ofs ->
-          emit_printf "\t.4byte\t(%a + %ld) - .\n" femit_label lbl ofs);
+          emit_printf "\t.4byte\t(%a - .) + %ld\n" femit_label lbl ofs);
       efa_def_label = (fun lbl -> emit_printf "%a:\n" femit_label lbl);
       efa_string = (fun s -> emit_string_directive "\t.ascii\t" (s ^ "\000"))
     };
