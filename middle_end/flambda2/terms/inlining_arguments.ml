@@ -284,3 +284,9 @@ let meet t1 t2 =
 let create ~round = Args.create ~round
 
 let equal t1 t2 = Args.equal t1 t2
+
+let is_oclassic t = Args.matches_opt_level t Flambda_backend_flags.Oclassic
+
+let is_o2 t = Args.matches_opt_level t Flambda_backend_flags.O2
+
+let is_o3 t = Args.matches_opt_level t Flambda_backend_flags.O3
