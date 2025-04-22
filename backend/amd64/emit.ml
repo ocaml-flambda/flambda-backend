@@ -80,7 +80,9 @@ let to_x86_directive (dir : ND.Directive.t) : X86_ast.asm_line list =
   | Const { constant; comment } ->
     comment_lines comment @ [to_x86_constant_with_width constant]
   | Direct_assignment (s, c) ->
-    [X86_ast.Direct_assignment (s, to_x86_constant c)]
+    (* We use [.set s c] for direct assignments, since it evaluates [c]
+       directly. The alternative, [s = c], is sensitive to relocations. *)
+    [X86_ast.Set (s, to_x86_constant c)]
   | File { file_num = None; _ } ->
     Misc.fatal_error "file directive must always carry a number on x86"
   | File { file_num = Some file_num; filename } ->
