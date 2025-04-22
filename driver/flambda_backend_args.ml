@@ -43,7 +43,7 @@ let mk_regalloc f =
   "-regalloc", Arg.String f, " Select the register allocator"
 
 let mk_regalloc_linscan_threshold f =
-  "-regalloc-linscan-threshold", Arg.Int f, " Set the threshold to switch to linscan"
+  "-regalloc-linscan-threshold", Arg.Int f, " Use linscan on functions bigger than the threshold (default is %d)"
 
 let mk_regalloc_param f =
   "-regalloc-param", Arg.String f, " Pass a parameter to the register allocator"
