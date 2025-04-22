@@ -20,3 +20,4 @@ to_a_int (3):  (offset 32, gap 0)
 { 1 { a 2 } b }
 { 10 { aa 20 } bb }
 { 10 { aaa 200 } bb }
+f = 1.000000

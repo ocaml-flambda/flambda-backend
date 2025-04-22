@@ -1396,7 +1396,8 @@ let rec count values flats : Lambda.layout -> _ = function
 
 let simple_i64 x = H.Simple (Simple.const (Reg_width_const.naked_int64 x))
 
-let idx_offsets layout ptr idx =
+let idx_offsets layout idx =
+  let kinds = convert_layout_to_offset_access_kinds layout in
   if is_mixed layout
   then (
     let mask = Int64.of_int ((1 lsl 48) - 1) in
@@ -1438,18 +1439,11 @@ let idx_offsets layout ptr idx =
         incr flat_i;
         nth_flat_offset !flat_i
     in
-    let kinds = convert_layout_to_offset_access_kinds layout in
     List.map f kinds)
   else
-    let f i kind =
-      let summand = Simple.const_int_of_kind K.naked_int64 (i * 8) in
-      let offset =
-        H.Binary (Int_arith (Naked_int64, Add), idx, Simple summand)
-      in
-      H.Binary (Read_offset kind, ptr, Prim offset)
-    in
-    let kinds = convert_layout_to_offset_access_kinds layout in
-    List.mapi f kinds
+    List.init (List.length kinds) (fun i ->
+        let summand = Simple.const_int_of_kind K.naked_int64 (i * 8) in
+        H.Binary (Int_arith (Naked_int64, Add), idx, Simple summand))
 
 (* Primitive conversion *)
 let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
@@ -2734,7 +2728,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pread_offset layout, [[ptr]; [idx]] ->
     (* CR rtjoa: the below assumes that each kind in an unboxed product is 8
        bytes apart. we shouldn't bake this in *)
-    let offsets = idx_offsets layout ptr idx in
+    let offsets = idx_offsets layout idx in
     let kinds = convert_layout_to_offset_access_kinds layout in
     let reads =
       List.map2
@@ -2743,7 +2737,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     in
     [H.maybe_create_unboxed_product reads]
   | Pwrite_offset layout, [[ptr]; [idx]; new_values] ->
-    let offsets = idx_offsets layout ptr idx in
+    let offsets = idx_offsets layout idx in
     let kinds = convert_layout_to_offset_access_kinds layout in
     let map3 f xs ys zs =
       List.map2 (fun x (y, z) -> f x y z) xs (List.combine ys zs)

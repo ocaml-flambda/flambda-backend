@@ -34,6 +34,8 @@ let _fail_when_no_extensions () = (.contents)
 external idx_imm_to_int64 : 'base ('a: any) . ('base, 'a) idx_imm -> int64 = "%box_int64"
 external magic_box_bits64 : ('a : bits64) 'b . 'a -> 'b = "%box_int64"
 external box_int64 : int64# -> int64 = "%box_int64"
+external box_float : float# -> float = "%box_float"
+external[@layout_poly] read_idx_imm : 'a ('b : any). 'a -> ('a, 'b) idx_imm -> 'b = "%unsafe_read_idx"
 external[@layout_poly] read_idx_mut : 'a ('b : any). 'a -> ('a, 'b) idx_mut -> 'b = "%unsafe_read_idx"
 external[@layout_poly] write_idx_mut : 'a ('b : any). 'a -> ('a, 'b) idx_mut -> 'b -> unit = "%unsafe_write_idx"
 
@@ -155,7 +157,5 @@ let () =
 type fr = { f : float }
 
 let () =
-  let fr = { f = 1.0 } in
-  let idx = (.f) in
-  let f = read_idx_mut f idx in
-  Printf.printf "f = %f\n" f
+  let f = read_idx_imm { f = 1.0 } (.f) in
+  Printf.printf "f = %f\n" (box_float f)

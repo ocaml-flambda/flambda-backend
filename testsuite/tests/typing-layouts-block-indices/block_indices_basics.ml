@@ -8,13 +8,10 @@
 (* Basic typechecking of indices *)
 
 type r = { i : int; j : int }
-type t = (r# array, r#) imm_idx
+type t = (r# array, r#) idx_imm
 [%%expect{|
 type r = { i : int; j : int; }
-Line 2, characters 24-31:
-2 | type t = (r# array, r#) imm_idx
-                            ^^^^^^^
-Error: Unbound type constructor "imm_idx"
+type t = (r# array, r#) idx_imm
 |}]
 
 (* Disambiguation of block access field *)
@@ -24,40 +21,35 @@ type t2 = { mutable a : string; b : int; c : string }
 
 let a2 () = (.a)
 let b2 () = (.b)
-let a1 () : (t1, _) mut_idx = (.a)
-let b2 () : (t1, _) imm_idx = (.b)
+let a1 () : (t1, _) idx_mut = (.a)
+let b2 () : (t1, _) idx_imm = (.b)
 [%%expect{|
 type t1 = { mutable a : string; b : int; }
 type t2 = { mutable a : string; b : int; c : string; }
 val a2 : unit -> (t2, string) idx_mut = <fun>
 val b2 : unit -> (t2, int) idx_imm = <fun>
-Line 6, characters 20-27:
-6 | let a1 () : (t1, _) mut_idx = (.a)
-                        ^^^^^^^
-Error: Unbound type constructor "mut_idx"
+val a1 : unit -> (t1, string) idx_mut = <fun>
+val b2 : unit -> (t1, int) idx_imm = <fun>
 |}]
 
 (* Still disambiguates through a Tpoly *)
 let a1 =
-  let a1 : 'a. (t1, _) mut_idx = (.a) in
+  let a1 : 'a. (t1, _) idx_mut = (.a) in
   fun () -> a1
 [%%expect{|
-Line 2, characters 23-30:
-2 |   let a1 : 'a. (t1, _) mut_idx = (.a) in
-                           ^^^^^^^
-Error: Unbound type constructor "mut_idx"
+val a1 : unit -> (t1, string) idx_mut = <fun>
 |}]
 
-(* Disambiguate by alias to imm_idx types *)
-type ('c, 'b, 'a) mi = ('a, 'b) mut_idx
-type ('c, 'b, 'a) i = ('a, 'b) imm_idx
-let a () : (t1, _) mut_idx = (.a)
+(* Disambiguate by alias to idx_imm types *)
+type ('c, 'b, 'a) mi = ('a, 'b) idx_mut
+type ('c, 'b, 'a) i = ('a, 'b) idx_imm
+let a () : (_, _, t1) mi = (.a)
 let b () : (float, int, t1) i = (.b)
 [%%expect{|
-Line 1, characters 32-39:
-1 | type ('c, 'b, 'a) mi = ('a, 'b) mut_idx
-                                    ^^^^^^^
-Error: Unbound type constructor "mut_idx"
+type ('c, 'b, 'a) mi = ('a, 'b) idx_mut
+type ('c, 'b, 'a) i = ('a, 'b) idx_imm
+val a : unit -> (t1, string) idx_mut = <fun>
+val b : unit -> (t1, int) idx_imm = <fun>
 |}]
 
 (* Block access disambiguates the unboxed access *)
@@ -65,16 +57,13 @@ type u = #{ x : int }
 type u2 = #{ x : string }
 type 'a r = { u : u }
 type 'a r2 = { u : u2 }
-let f () : (_ r, _) imm_idx = (.u.#x)
+let f () : (_ r, _) idx_imm = (.u.#x)
 [%%expect{|
 type u = #{ x : int; }
 type u2 = #{ x : string; }
 type 'a r = { u : u; }
 type 'a r2 = { u : u2; }
-Line 5, characters 20-27:
-5 | let f () : (_ r, _) imm_idx = (.u.#x)
-                        ^^^^^^^
-Error: Unbound type constructor "imm_idx"
+val f : unit -> ('a r, int) idx_imm = <fun>
 |}]
 
 (* Unboxed access disambiguates the next unboxed access *)
@@ -88,17 +77,19 @@ val f : unit -> (wrap_r, int) idx_imm = <fun>
 (* Disambiguation causes earlier error while typechecking block access *)
 type y = { y : int }
 type 'a t = { a : 'a }
-let f c = if c then
-    ((.a.#y) : (y# t, int) imm_idx)
+let bad c = if c then
+    ((.a.#y) : (y# t, int) idx_imm)
   else
     (.a.#a)
 [%%expect{|
 type y = { y : int; }
 type 'a t = { a : 'a; }
-Line 4, characters 27-34:
-4 |     ((.a.#y) : (y# t, int) imm_idx)
-                               ^^^^^^^
-Error: Unbound type constructor "imm_idx"
+Line 6, characters 4-11:
+6 |     (.a.#a)
+        ^^^^^^^
+Error: This expression has type "('a t# t, 'a) idx_imm"
+       but an expression was expected of type "(y# t, int) idx_imm"
+       Type "'a t#" is not compatible with type "y#"
 |}]
 
 (***************)
@@ -108,9 +99,9 @@ type pt = { x : int }
 let f () = (.x.#x)
 [%%expect{|
 type pt = { x : int; }
-Line 108, characters 16-17:
-108 | let f () = (.x.#x)
-                      ^
+Line 99, characters 16-17:
+99 | let f () = (.x.#x)
+                     ^
 Error: The index preceding this unboxed access has element type "int",
        which is not an unboxed record with field "x".
 |}]
@@ -122,12 +113,14 @@ type 'a t = { t : 'a; }
 val f : unit -> ('a t# t, 'a) idx_imm = <fun>
 |}]
 
-let f () : (int t, _) imm_idx = (.t.#t)
+let f () : (int t, _) idx_imm = (.t.#t)
 [%%expect{|
-Line 1, characters 22-29:
-1 | let f () : (int t, _) imm_idx = (.t.#t)
-                          ^^^^^^^
-Error: Unbound type constructor "imm_idx"
+Line 1, characters 32-39:
+1 | let f () : (int t, _) idx_imm = (.t.#t)
+                                    ^^^^^^^
+Error: This expression has type "('a t# t, 'a) idx_imm"
+       but an expression was expected of type "(int t, 'b) idx_imm"
+       Type "'a t#" is not compatible with type "int"
 |}]
 
 (**********)
@@ -178,8 +171,8 @@ Uncaught exception: Misc.Fatal_error
 
 let bad_index_type = (.("test"))
 [%%expect{|
-Line 179, characters 24-30:
-179 | let bad_index_type = (.("test"))
+Line 172, characters 24-30:
+172 | let bad_index_type = (.("test"))
                               ^^^^^^
 Error: This expression has type "string" but an expression was expected of type
          "int"
@@ -195,17 +188,24 @@ type 'a r = { u : u }
 type 'a r2 = { u : u }
 let f c =
   if c then
-    ((.u.#x) : (_ r, _) imm_idx)
+    ((.u.#x) : (_ r, _) idx_imm)
   else
     (.u.#x)
 [%%expect{|
 type u = #{ x : int; }
 type 'a r = { u : u; }
 type 'a r2 = { u : u; }
-Line 6, characters 24-31:
-6 |     ((.u.#x) : (_ r, _) imm_idx)
-                            ^^^^^^^
-Error: Unbound type constructor "imm_idx"
+val f : bool -> ('a r, int) idx_imm = <fun>
+|}, Principal{|
+type u = #{ x : int; }
+type 'a r = { u : u; }
+type 'a r2 = { u : u; }
+Line 193, characters 6-7:
+193 |     (.u.#x)
+            ^
+Warning 18 [not-principal]: this type-based field disambiguation is not principal.
+
+val f : bool -> ('a r, int) idx_imm = <fun>
 |}]
 
 (******************)

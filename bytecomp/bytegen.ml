@@ -423,7 +423,8 @@ let comp_primitive stack_info p sz args =
   | Parray_element_size_in_bytes _array_kind ->
       Kconst (Const_base (Const_int (Sys.word_size / 8)))
   | Pidx_field _ | Pidx_mixed_field _ | Pidx_deepen _ ->
-    Misc.fatal_error "unimplemented"
+    Kconst (Const_base (Const_int 0))
+    (* Misc.fatal_error "unimplemented" *)
   | Pfield_computed _sem -> Kgetvectitem
   | Psetfield(n, _ptr, _init) -> Ksetfield n
   | Psetfield_computed(_ptr, _init) -> Ksetvectitem
