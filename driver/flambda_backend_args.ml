@@ -1384,6 +1384,7 @@ module Extra_params = struct
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "cfg-invariants" -> set' Flambda_backend_flags.cfg_invariants
     | "regalloc" -> set_string Flambda_backend_flags.regalloc
+    | "regalloc-linscan-threshold" -> set_int' Flambda_backend_flags.regalloc_linscan_threshold
     | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
     | "vectorize" -> set' Flambda_backend_flags.vectorize
