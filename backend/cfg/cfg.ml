@@ -503,6 +503,14 @@ let set_stack_offset (instr : _ instruction) stack_offset =
       stack_offset;
   instr.stack_offset <- stack_offset
 
+let set_stack_offset_for_block (block : basic_block) stack_offset =
+  if stack_offset < 0
+  then
+    Misc.fatal_errorf
+      "Cfg.set_stack_offset_for_block: expected non-negative got %d"
+      stack_offset;
+  block.stack_offset <- stack_offset
+
 let set_live (instr : _ instruction) live = instr.live <- live
 
 let string_of_irc_work_list = function
@@ -729,7 +737,7 @@ let remove_trap_instructions t removed_trap_handlers =
     else (
       visited := Label.Set.add label !visited;
       if not (Int.equal block.stack_offset stack_offset)
-      then block.stack_offset <- stack_offset;
+      then set_stack_offset_for_block block stack_offset;
       let stack_offset =
         update_body (DLL.create_hd_cursor block.body) ~stack_offset
       in
