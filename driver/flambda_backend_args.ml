@@ -42,6 +42,11 @@ let mk_dcfg_invariants f =
 let mk_regalloc f =
   "-regalloc", Arg.String f, " Select the register allocator"
 
+let mk_regalloc_linscan_threshold f =
+  "-regalloc-linscan-threshold",
+  Arg.Int f,
+  (Printf.sprintf " Use linscan on functions with more temporaries than the threshold (default is %d)"Flambda_backend_flags.default_regalloc_linscan_threshold)
+
 let mk_regalloc_param f =
   "-regalloc-param", Arg.String f, " Pass a parameter to the register allocator"
 
@@ -725,6 +730,7 @@ module type Flambda_backend_options = sig
   val dcfg : unit -> unit
   val dcfg_invariants : unit -> unit
   val regalloc : string -> unit
+  val regalloc_linscan_threshold : int -> unit
   val regalloc_param : string -> unit
   val regalloc_validate : unit -> unit
   val no_regalloc_validate : unit -> unit
@@ -860,6 +866,7 @@ struct
     mk_dcfg F.dcfg;
     mk_dcfg_invariants F.dcfg_invariants;
     mk_regalloc F.regalloc;
+    mk_regalloc_linscan_threshold F.regalloc_linscan_threshold;
     mk_regalloc_param F.regalloc_param;
     mk_regalloc_validate F.regalloc_validate;
     mk_no_regalloc_validate F.no_regalloc_validate;
@@ -1026,6 +1033,7 @@ module Flambda_backend_options_impl = struct
   let dcfg = set' Flambda_backend_flags.dump_cfg
   let dcfg_invariants = set' Flambda_backend_flags.cfg_invariants
   let regalloc x = Flambda_backend_flags.regalloc := x
+  let regalloc_linscan_threshold x = Flambda_backend_flags.regalloc_linscan_threshold := x
   let regalloc_param x = Flambda_backend_flags.regalloc_params := x :: !Flambda_backend_flags.regalloc_params
   let regalloc_validate = set' Flambda_backend_flags.regalloc_validate
   let no_regalloc_validate = clear' Flambda_backend_flags.regalloc_validate
@@ -1378,6 +1386,7 @@ module Extra_params = struct
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "cfg-invariants" -> set' Flambda_backend_flags.cfg_invariants
     | "regalloc" -> set_string Flambda_backend_flags.regalloc
+    | "regalloc-linscan-threshold" -> set_int' Flambda_backend_flags.regalloc_linscan_threshold
     | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
     | "vectorize" -> set' Flambda_backend_flags.vectorize
