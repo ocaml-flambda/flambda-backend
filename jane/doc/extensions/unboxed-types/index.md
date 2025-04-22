@@ -30,6 +30,7 @@ by a *type*. The type system knows about a collection of fixed *base* layouts:
   `immediate < immediate64 < value`. Types declared with `[@@immediate64]` have layout
   `immediate64`.
 * `float64` is the layout of the `float#` unboxed float type.
+* `float32` is the layout of the `float32#` unboxed 32-bit float type.
 * `bits32` is the layout of the `int32#` unboxed int32 type.
 * `bits64` is the layout of the `int64#` unboxed int64 type.
 * `vec128` is the layout of 128-bit unboxed SIMD vector types.
@@ -116,48 +117,9 @@ decisions and contains additional examples.
 
 ## Layouts in module inclusion
 
-This is accepted:
-
-```ocaml
-module M1 : sig
-  type t : value   (* You can leave off the [: value], which is assumed. *)
-end = struct
-  type t = int
-end
-```
-
-This makes sense because the layout of `int` is `immediate`, which is a sublayout
-of `value`. Even though users of `M1.t` will be expecting a `value`, the `immediate`
-they get works great. Thus, the layouts of type declarations are *covariant* in the module
-inclusion check: a module type `S1` is included in `S2` when the layout of a type `t`
-in `S1` is included in the layout of `t` in `S2`.
-
-Similarly, this is accepted:
-
-```ocaml
-module M2 : sig
-  type ('a : immediate) t
-end = struct
-  type ('a : value) t
-end
-```
-
-This makes sense because users of `M2.t` are required to supply an `immediate`; even
-though the definition of `M2.t` expects a `value`, the `immediate` it gets works great.
-Thus, the layouts of type declaration arguments are *contravariant* in the module
-inclusion check: a module type `S1` is included in `S2` when the layout of the argument
-to a type `t` in `S2` is included in the layout of that argument in `S1`.
-
-Contravariance in type arguments allows us to have
-
-```ocaml
-module Array : sig
-  type ('a : any) t = 'a array
-  (* ... *)
-end
-```
-
-and still pass `Array` to functors expecting a `type 'a t`, which assumes `('a : value)`.
+Layouts are part of kinds, and therefore work just like kinds for the purposes
+of module inclusion. See the [kinds
+documentation][../kinds.md#inclusion-and-variance] for more.
 
 # Unboxed numbers
 
