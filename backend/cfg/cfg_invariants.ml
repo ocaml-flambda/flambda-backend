@@ -165,7 +165,7 @@ let check_stack_offset t label (block : Cfg.basic_block) successors predecessors
         report t
           "Wrong stack offset: block %s in predecessors of block %s, stack \
            offset of the terminator of %s is %d, stack offset of block %s is \
-           %d."
+           %d.\n"
           (Label.to_string predecessor)
           (Label.to_string label)
           (Label.to_string predecessor)
@@ -180,7 +180,7 @@ let check_stack_offset t label (block : Cfg.basic_block) successors predecessors
         report t
           "Wrong stack offset: block %s in successors of block %s, stack \
            offset of the terminator of %s is %d, stack offset of block %s is \
-           %d."
+           %d.\n"
           (Label.to_string successor)
           (Label.to_string label) (Label.to_string label)
           terminator_stack_offset
@@ -194,7 +194,7 @@ let check_stack_offset t label (block : Cfg.basic_block) successors predecessors
         then
           report t
             "Wrong stack offset in block %s: the offset of [(id:%a) %a] \
-             instruction is %d, but expected %d."
+             instruction is %d, but expected %d.\n"
             (Label.to_string label) InstructionId.print basic.id Cfg.dump_basic
             basic.desc basic.stack_offset cur_stack_offset;
         match basic.desc with
@@ -204,7 +204,7 @@ let check_stack_offset t label (block : Cfg.basic_block) successors predecessors
           then
             report t
               "Wrong stack offset in block %s: the offset of [(id:%a) %a] \
-               instruction is %d, the offset of block %s is %d."
+               instruction is %d, the offset of block %s is %d.\n"
               (Label.to_string label) InstructionId.print basic.id
               Cfg.dump_basic basic.desc cur_stack_offset
               (Label.to_string lbl_handler)
@@ -216,7 +216,7 @@ let check_stack_offset t label (block : Cfg.basic_block) successors predecessors
           then
             report t
               "Negative stack offset in block %s: the offset after [(id:%a) \
-               %a] instruction is %d"
+               %a] instruction is %d\n"
               (Label.to_string label) InstructionId.print basic.id
               Cfg.dump_basic basic.desc new_stack_offset;
           new_stack_offset
@@ -226,7 +226,7 @@ let check_stack_offset t label (block : Cfg.basic_block) successors predecessors
           then
             report t
               "Negative stack offset in block %s: the offset after [(id:%a) \
-               %a] instruction is %d"
+               %a] instruction is %d\n"
               (Label.to_string label) InstructionId.print basic.id
               Cfg.dump_basic basic.desc new_stack_offset;
           new_stack_offset
