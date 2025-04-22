@@ -241,13 +241,13 @@ let check_stack_offset t label (block : Cfg.basic_block) successors predecessors
           cur_stack_offset
         | Stack_check _ ->
           Misc.fatal_error
-            "Cfgize.Stack_offset_and_exn.process_basic: unexpected stack check")
+            "Cfg_invariant.check_stack_offset: unexpected stack check")
   in
   if not (Int.equal stack_offset_after_body terminator_stack_offset)
   then
     report t
       "Wrong stack offset in block %s: stack offset after body is %d, stack \
-       offset of the terminator is %d."
+       offset of the terminator is %d.\n"
       (Label.to_string label) stack_offset_after_body terminator_stack_offset;
   ()
 
