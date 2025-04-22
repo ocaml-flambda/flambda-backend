@@ -710,7 +710,7 @@ let remove_trap_instructions t removed_trap_handlers =
         | Alloc _ )
     | Reloadretaddr | Prologue | Stack_check _ ->
       update_basic_next (DLL.Cursor.next cursor) ~stack_offset
-  and update_basic_hd r ~stack_offset =
+  and update_body r ~stack_offset =
     match r with
     | Error `Empty -> stack_offset
     | Ok cursor -> update_basic cursor ~stack_offset
@@ -726,13 +726,21 @@ let remove_trap_instructions t removed_trap_handlers =
     let block = get_block_exn t label in
     if Label.Set.mem label !visited
     then assert (block.stack_offset = stack_offset)
-    else visited := Label.Set.add label !visited;
-    if not (Int.equal block.stack_offset stack_offset)
-    then block.stack_offset <- stack_offset;
-    let stack_offset =
-      update_basic_hd (DLL.create_hd_cursor block.body) ~stack_offset
-    in
-    update_terminator block.terminator ~stack_offset
+    else (
+      visited := Label.Set.add label !visited;
+      if not (Int.equal block.stack_offset stack_offset)
+      then block.stack_offset <- stack_offset;
+      let stack_offset =
+        update_body (DLL.create_hd_cursor block.body) ~stack_offset
+      in
+      update_terminator block.terminator ~stack_offset;
+      Label.Set.iter
+        (update_block ~stack_offset)
+        (successor_labels ~normal:true ~exn:false block)
+      (* Stack offset is not propagated across exceptional edges, because an
+         exception that is raised "folds" everything on the stack up to the top
+         of the currnt trap stack, and the amount can be different in different
+         blocks. *))
   in
   if not (Label.Set.is_empty removed_trap_handlers)
   then
