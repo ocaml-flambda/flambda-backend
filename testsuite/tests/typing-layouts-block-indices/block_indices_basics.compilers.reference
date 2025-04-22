@@ -1,0 +1,45 @@
+type r = { i : int; j : int; }
+type t = (r# array, r#) idx_imm
+type t1 = { mutable a : string; b : int; }
+type t2 = { mutable a : string; b : int; c : string; }
+val a2 : unit -> (t2, string) idx_mut = <fun>
+val a1 : unit -> (t1, string) idx_mut = <fun>
+val b2 : unit -> (t1, int) idx_imm = <fun>
+val a1 : unit -> (t1, string) idx_mut = <fun>
+type ('c, 'b, 'a) mi = ('a, 'b) idx_mut
+type ('c, 'b, 'a) i = ('a, 'b) idx_imm
+val a : unit -> (t1, string) idx_mut = <fun>
+val b : unit -> (t1, int) idx_imm = <fun>
+type u = #{ x : int; }
+type u2 = #{ x : string; }
+type 'a r = { u : u; }
+type 'a r2 = { u : u2; }
+val f : unit -> ('a r, int) idx_imm = <fun>
+type wrap_r = { r : int r#; }
+val f : unit -> (wrap_r, int) idx_imm = <fun>
+Line 8, characters 4-11:
+8 |     (.a.#a)
+        ^^^^^^^
+Error: This expression has type "('a t# t, 'a) idx_imm"
+       but an expression was expected of type "(y# t, int) idx_imm"
+       Type "'a t#" is not compatible with type "y#"
+Line 6, characters 16-17:
+6 | let f () = (.x.#x)
+                    ^
+Error: The index preceding this unboxed access has element type "int",
+       which is not an unboxed record with field "x".
+type 'a t = { t : 'a; }
+val f : unit -> ('a t# t, 'a) idx_imm = <fun>
+Line 2, characters 32-39:
+2 | let f () : (int t, _) idx_imm = (.t.#t)
+                                    ^^^^^^^
+Error: This expression has type "('a t# t, 'a) idx_imm"
+       but an expression was expected of type "(int t, 'b) idx_imm"
+       Type "'a t#" is not compatible with type "int"
+type u = #{ x : int; }
+type 'a r = { u : u; }
+type 'a r2 = { u : u; }
+val f : bool -> ('a r, int) idx_imm = <fun>
+val idx_imm : ('a, 'b) idx_imm -> ('a, 'b) idx_imm = <fun>
+val idx_mut : ('a, 'b) idx_mut -> ('a, 'b) idx_mut = <fun>
+
