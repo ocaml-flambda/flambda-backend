@@ -1124,23 +1124,31 @@ let transl_declaration env sdecl (id, uid) =
    also have unboxed versions, but these aren't stored in
    [type_unboxed_version].
 *)
+let record_gets_unboxed_version = function
+  | Record_unboxed | Record_inlined _ | Record_float | Record_ufloat -> false
+  | Record_boxed _ -> true
+  | Record_mixed shape ->
+    Array.for_all
+      (fun (kind : mixed_block_element) ->
+         match kind with
+         | Value | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> true
+         | Float_boxed -> false)
+      shape
 let gets_unboxed_version decl =
   (* This must be kept in sync with the match in [derive_unboxed_version] *)
   match decl.type_kind with
-  | Type_abstract _ | Type_open | Type_record_unboxed_product _ | Type_variant _
-  | Type_record (_, (Record_unboxed | Record_inlined _ | Record_float
-                    | Record_ufloat), _)->
-    false
-  | Type_record (_, (Record_boxed _ | Record_mixed _), _) ->
-    true
+  | Type_abstract _ | Type_open | Type_record_unboxed_product _
+  | Type_variant _ -> false
+  | Type_record (_, repr, _) -> record_gets_unboxed_version repr
 let derive_unboxed_version env path_in_group_has_unboxed_version decl =
   (* This must be kept in sync with the match in [gets_unboxed_version] *)
   match decl.type_kind with
-  | Type_abstract _ | Type_open | Type_record_unboxed_product _ | Type_variant _
-  | Type_record (_, (Record_unboxed | Record_inlined _ | Record_float
-                    | Record_ufloat), _)->
+  | Type_abstract _ | Type_open | Type_record_unboxed_product _
+  | Type_variant _ ->
     None
-  | Type_record (lbls, (Record_boxed _ | Record_mixed _), umc) ->
+  | Type_record (_, repr, _) when not (record_gets_unboxed_version repr) ->
+    None
+  | Type_record (lbls, _, umc) ->
     let keep_attribute a =
       (* If we keep [@deprecated_mutable], then a record that aliases
          a record with a [@deprecated_mutable] label will cause two alerts,
