@@ -156,6 +156,8 @@ let write_ir prefix =
 
 let should_emit () = not (should_stop_after Compiler_pass.Linearization)
 
+(* note: `should_use_linscan` relies on the state of the `Reg` module, as the
+   list of temporaries is retrieved to be compared to the threshold. *)
 let should_use_linscan fd =
   !use_linscan
   || List.mem Cmm.Use_linscan_regalloc fd.fun_codegen_options
