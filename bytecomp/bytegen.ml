@@ -422,9 +422,13 @@ let comp_primitive stack_info p sz args =
   | Punboxed_product_field (n, _layouts) -> Kgetfield n
   | Parray_element_size_in_bytes _array_kind ->
       Kconst (Const_base (Const_int (Sys.word_size / 8)))
-  | Pidx_field _ | Pidx_mixed_field _ | Pidx_deepen _ ->
-    (* CR rtjoa: error *)
-    Misc.fatal_error "unimplemented"
+  | Pidx_field pos ->
+      Kconst (Const_block (0, [Const_base (Const_int pos)]))
+  | Pidx_mixed_field (path, _) ->
+      let path_consts = List.map (fun x -> Const_base (Const_int x)) path in
+      Kconst (Const_block (0, path_consts))
+  | Pidx_deepen _ ->
+    Misc.fatal_error "jhandle early"
     (* Kconst (Const_base (Const_int 0)) *)
   (* CR layouts v8: support bytecode *)
   | Pfield_computed _sem -> Kgetvectitem
@@ -736,6 +740,10 @@ let comp_primitive stack_info p sz args =
   | Pmakearray_dynamic(_, _, Uninitialized) ->
     Misc.fatal_error "Pmakearray_dynamic Uninitialized should have been \
       translated to Pmakearray_dynamic Initialized earlier on"
+  | Pread_offset _ ->
+    Kccall("caml_idx_unsafe_read_bytecode", 2)
+  | Pwrite_offset _ ->
+    Kccall("caml_idx_unsafe_write_bytecode", 3)
   (* The cases below are handled in [comp_expr] before the [comp_primitive] call
      (in the order in which they appear below),
      so they should never be reached in this function. *)
@@ -757,9 +765,6 @@ let comp_primitive stack_info p sz args =
       fatal_error "Bytegen.comp_primitive"
   | Ppeek _ | Ppoke _ ->
       fatal_error "Bytegen.comp_primitive: Ppeek/Ppoke not supported in bytecode"
-  | Pread_offset _ | Pwrite_offset _ ->
-    fatal_error "Bytegen.comp_primitive: Pread_offset/Pwrite_offset not \
-      supported in bytecode"
 
 let is_immed n = immed_min <= n && n <= immed_max
 
@@ -980,6 +985,12 @@ and comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmakefloatblock (List.length args) :: cont)
+  | Lprim(Pidx_deepen (path, _), [path_prefix], _) ->
+    let path_consts = List.map (fun x -> Const_base (Const_int x)) path in
+    let path_suffix = Lconst (Const_block (0, path_consts)) in
+    let args = [path_prefix; path_suffix] in
+    (* CR rtjoa: what should size be? *)
+    comp_args stack_info env args sz (Kccall ("caml_idx_deepen_bytecode", 2) :: cont)
   | Lprim(Pmakemixedblock (tag, _, shape, _), args, loc) ->
       (* There is no notion of a mixed block at runtime in bytecode. Further,
          source-level unboxed types are represented as boxed in bytecode, so

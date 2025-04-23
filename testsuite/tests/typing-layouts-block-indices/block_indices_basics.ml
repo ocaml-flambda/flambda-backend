@@ -1,58 +1,78 @@
 (* TEST
  flags = "-extension layouts_beta";
- toplevel.opt;
+ expect;
 *)
 
-(* There is no native expect test mode, so we use toplevel.opt, and organize
-   into modules to improve side-by-side readability with the reference file. *)
 
 (*********************************)
 (* Basic typechecking of indices *)
 
-module Basic_index_types = struct
-  type t1 = (int iarray, int) idx_imm
-  type 'a t2 = ('a ref, 'a) idx_mut
-end
+type r = { i : int; j : int }
+type t = (r# array, r#) idx_imm
+[%%expect{|
+type r = { i : int; j : int; }
+type t = (r# array, r#) idx_imm
+|}]
 
-module Block_access_disambiguated_by_expected_ty = struct
-  type t1 = { mutable a : string; b : int }
-  type t2 = { mutable a : string; b : int; c : string }
+(* Disambiguation of block access field *)
 
-  let a2 () = (.a)
-  let b2 () = (.b)
-  let a1 () : (t1, _) idx_mut = (.a)
-  let b1 () : (t1, _) idx_imm = (.b)
+type t1 = { mutable a : string; b : int }
+type t2 = { mutable a : string; b : int; c : string }
 
-  (* Still disambiguates through a Tpoly *)
-  let a1' =
-    let a1' : 'a. (t1, _) idx_mut = (.a) in
-    fun () -> a1'
+let a2 () = (.a)
+let b2 () = (.b)
+let a1 () : (t1, _) idx_mut = (.a)
+let b2 () : (t1, _) idx_imm = (.b)
+[%%expect{|
+type t1 = { mutable a : string; b : int; }
+type t2 = { mutable a : string; b : int; c : string; }
+val a2 : unit -> (t2, string) idx_mut = <fun>
+val b2 : unit -> (t2, int) idx_imm = <fun>
+val a1 : unit -> (t1, string) idx_mut = <fun>
+val b2 : unit -> (t1, int) idx_imm = <fun>
+|}]
 
-  (* Disambiguate by alias to idx_imm types *)
-  type ('c, 'b, 'a) mi = ('a, 'b) idx_mut
-  type ('c, 'b, 'a) i = ('a, 'b) idx_imm
-  let a1'' () : (_, _, t1) mi = (.a)
-  let b1'' () : (float, int, t1) i = (.b)
-end
+(* Still disambiguates through a Tpoly *)
+let a1 =
+  let a1 : 'a. (t1, _) idx_mut = (.a) in
+  fun () -> a1
+[%%expect{|
+val a1 : unit -> (t1, string) idx_mut = <fun>
+|}]
 
-module Unboxed_access_disambiguated_by_prev_access = struct
-  (* Block access disambiguates the unboxed access *)
-  type u = #{ x : int }
-  type u2 = #{ x : string }
-  type 'a r = { u : u }
-  type 'a r2 = { u : u2 }
-  let f () : (_ r, _) idx_imm = (.u.#x)
+(* Disambiguate by alias to idx_imm types *)
+type ('c, 'b, 'a) mi = ('a, 'b) idx_mut
+type ('c, 'b, 'a) i = ('a, 'b) idx_imm
+let a () : (_, _, t1) mi = (.a)
+let b () : (float, int, t1) i = (.b)
+[%%expect{|
+type ('c, 'b, 'a) mi = ('a, 'b) idx_mut
+type ('c, 'b, 'a) i = ('a, 'b) idx_imm
+val a : unit -> (t1, string) idx_mut = <fun>
+val b : unit -> (t1, int) idx_imm = <fun>
+|}]
 
-  (* Unboxed access disambiguates the next unboxed access *)
-  type wrap_r = { r : int r# }
-  let f' () = (.r.#u.#x)
-end
-;;
+(* Block access disambiguates the unboxed access *)
+type u = #{ x : int }
+type u2 = #{ x : string }
+type 'a r = { u : u }
+type 'a r2 = { u : u2 }
+let f () : (_ r, _) idx_imm = (.u.#x)
+[%%expect{|
+type u = #{ x : int; }
+type u2 = #{ x : string; }
+type 'a r = { u : u; }
+type 'a r2 = { u : u2; }
+val f : unit -> ('a r, int) idx_imm = <fun>
+|}]
 
-(***************)
-(* Type errors *)
-module Type_errors_start = struct end
-;;
+(* Unboxed access disambiguates the next unboxed access *)
+type wrap_r = { r : int r# }
+let f () = (.r.#u.#x)
+[%%expect{|
+type wrap_r = { r : int r#; }
+val f : unit -> (wrap_r, int) idx_imm = <fun>
+|}]
 
 (* Disambiguation causes earlier error while typechecking block access *)
 type y = { y : int }
@@ -61,51 +81,47 @@ let bad c = if c then
     ((.a.#y) : (y# t, int) idx_imm)
   else
     (.a.#a)
-;;
+[%%expect{|
+type y = { y : int; }
+type 'a t = { a : 'a; }
+Line 6, characters 4-11:
+6 |     (.a.#a)
+        ^^^^^^^
+Error: This expression has type "('a t# t, 'a) idx_imm"
+       but an expression was expected of type "(y# t, int) idx_imm"
+       Type "'a t#" is not compatible with type "y#"
+|}]
+
+(***************)
+(* Type errors *)
 
 type pt = { x : int }
 let f () = (.x.#x)
-;;
+[%%expect{|
+type pt = { x : int; }
+Line 99, characters 16-17:
+99 | let f () = (.x.#x)
+                     ^
+Error: The index preceding this unboxed access has element type "int",
+       which is not an unboxed record with field "x".
+|}]
 
 type 'a t = { t : 'a }
 let f () = (.t.#t)
-;;
+[%%expect{|
+type 'a t = { t : 'a; }
+val f : unit -> ('a t# t, 'a) idx_imm = <fun>
+|}]
 
 let f () : (int t, _) idx_imm = (.t.#t)
-;;
-
-module Type_errors_end = struct end
-
-(****************)
-(* Principality *)
-
-(* We get a principality warning when the block index type is disambiguated
-   non-principally. *)
-
-module Principality = struct
-  type u = #{ x : int }
-  type 'a r = { u : u }
-  type 'a r2 = { u : u }
-  let f c =
-    if c then
-      ((.u.#x) : (_ r, _) idx_imm)
-    else
-      (.u.#x)
-end
-;;
-
-(******************)
-(* Block indices! *)
-
-module Deepening = struct
-  let idx_imm x = (.idx_imm(x))
-  let idx_mut x = (.idx_mut(x))
-end
-;;
-
-
-
-(* CR rtjoa; Tests for unimplemented features:
+[%%expect{|
+Line 1, characters 32-39:
+1 | let f () : (int t, _) idx_imm = (.t.#t)
+                                    ^^^^^^^
+Error: This expression has type "('a t# t, 'a) idx_imm"
+       but an expression was expected of type "(int t, 'b) idx_imm"
+       Type "'a t#" is not compatible with type "int"
+|}]
 
 (**********)
 (* Arrays *)
@@ -120,15 +136,84 @@ let idx_iarray_l x = (.:l(x))
 let idx_iarray_n x = (.:n(x))
 let idx_imm x = (.idx_imm(x))
 let idx_mut x = (.idx_mut(x))
+[%%expect{|
+>> Fatal error: Texp_idx: array unimplemented
+Uncaught exception: Misc.Fatal_error
 
-let bad_index_type = (.("test"))
+|}]
 
 type r = { a : string }
 let a () = (.(5).#contents.#a)
+[%%expect{|
+type r = { a : string; }
+>> Fatal error: Texp_idx: array unimplemented
+Uncaught exception: Misc.Fatal_error
+
+|}]
 
 type t = { mutable a : string; b : int }
 let a () = (.(5).#a)
+[%%expect{|
+type t = { mutable a : string; b : int; }
+>> Fatal error: Texp_idx: array unimplemented
+Uncaught exception: Misc.Fatal_error
+
+|}]
 
 type t1 = { mutable a : string; b : int }
 let b () = (.:(5).#a)
-*)
+[%%expect{|
+type t1 = { mutable a : string; b : int; }
+>> Fatal error: Texp_idx: array unimplemented
+Uncaught exception: Misc.Fatal_error
+
+|}]
+
+let bad_index_type = (.("test"))
+[%%expect{|
+Line 172, characters 24-30:
+172 | let bad_index_type = (.("test"))
+                              ^^^^^^
+Error: This expression has type "string" but an expression was expected of type
+         "int"
+|}]
+
+(****************)
+(* Principality *)
+
+(* We get a principality warning when the block index type is disambiguated
+   non-principally. *)
+type u = #{ x : int }
+type 'a r = { u : u }
+type 'a r2 = { u : u }
+let f c =
+  if c then
+    ((.u.#x) : (_ r, _) idx_imm)
+  else
+    (.u.#x)
+[%%expect{|
+type u = #{ x : int; }
+type 'a r = { u : u; }
+type 'a r2 = { u : u; }
+val f : bool -> ('a r, int) idx_imm = <fun>
+|}, Principal{|
+type u = #{ x : int; }
+type 'a r = { u : u; }
+type 'a r2 = { u : u; }
+Line 193, characters 6-7:
+193 |     (.u.#x)
+            ^
+Warning 18 [not-principal]: this type-based field disambiguation is not principal.
+
+val f : bool -> ('a r, int) idx_imm = <fun>
+|}]
+
+(******************)
+(* Block indices! *)
+
+let idx_imm x = (.idx_imm(x))
+let idx_mut x = (.idx_mut(x))
+[%%expect{|
+val idx_imm : ('a, 'b) idx_imm -> ('a, 'b) idx_imm = <fun>
+val idx_mut : ('a, 'b) idx_mut -> ('a, 'b) idx_mut = <fun>
+|}]

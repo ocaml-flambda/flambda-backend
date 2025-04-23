@@ -890,6 +890,71 @@ CAMLprim value caml_array_blit(value a1, value ofs1, value a2, value ofs2,
   return Val_unit;
 }
 
+CAMLprim value caml_idx_unsafe_read_bytecode(value base, value idx)
+{
+  CAMLassert (0);
+  CAMLassert (Tag_val(idx) == 0);
+  value res = base;
+  mlsize_t depth = Wosize_val(idx);
+  for (mlsize_t i = 0; i < depth; i++) {
+    long pos = Long_val(Field(idx, i));
+    res = Field(res, pos);
+  }
+  return res;
+}
+
+CAMLprim value caml_idx_unsafe_write_bytecode(value base, value idx, value v)
+{
+  CAMLassert (Tag_val(idx) == 0);
+  value* dst = &base;
+  mlsize_t depth = Wosize_val(idx);
+  for (mlsize_t i = 0; i < depth; i++) {
+    long pos = Long_val(Field(idx, i));
+    dst = &Field(*dst, pos);
+  }
+  *dst = v;
+  return Val_unit;
+}
+
+CAMLprim value caml_idx_deepen_bytecode(value idx_prefix, value idx_suffix) {
+  /* CR rtjoa: do we have to use CAMLparam2 and CAMLreturn? */
+  mlsize_t prefix_depth = Wosize_val(idx_prefix);
+  mlsize_t suffix_depth = Wosize_val(idx_suffix);
+
+  mlsize_t wosize = prefix_depth + suffix_depth;
+  tag_t tag = 0;
+  value block;
+  mlsize_t i = 0;
+  if (wosize <= Max_young_wosize) {
+#define Setup_for_gc
+#define Restore_after_gc
+    Alloc_small(block, wosize, tag);
+#undef Setup_for_gc
+#undef Restore_after_gc
+    for (mlsize_t j = 0; j < prefix_depth; j++) {
+      value jth = Field(idx_prefix, j);
+      Field(block, i) = jth;
+      i++;
+    }
+    for (mlsize_t j = 0; j < suffix_depth; j++) {
+      value jth = Field(idx_suffix, j);
+      Field(block, i) = jth;
+      i++;
+    }
+  } else {
+    block = caml_alloc_shr(wosize, tag);
+    for (mlsize_t j = 0; j < prefix_depth; j++) {
+      caml_initialize(&Field(block, i), Field(idx_prefix, j));
+      i++;
+    }
+    for (mlsize_t j = 0; j < suffix_depth; j++) {
+      caml_initialize(&Field(block, i), Field(idx_suffix, j));
+      i++;
+    }
+  }
+  return block;
+}
+
 /* A generic function for extraction and concatenation of sub-arrays */
 
 static value caml_array_gather(intnat num_arrays,
