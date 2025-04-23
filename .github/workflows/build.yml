@@ -205,18 +205,18 @@ jobs:
       id: cache
       with:
         path: ${{ github.workspace }}/ocaml-414/_install
-        key: ${{ matrix.os }}-cache-ocaml-414-dune-3152-menhir-20231231
+        key: ${{ matrix.os }}-cache-ocaml-414-patched-dune-3152-menhir-20231231
 
     - name: Checkout OCaml 4.14
       uses: actions/checkout@master
-      # if: steps.cache.outputs.cache-hit != 'true'
+      if: steps.cache.outputs.cache-hit != 'true'
       with:
         repository: 'ocaml/ocaml'
         path: 'ocaml-414'
         ref: '4.14'
 
     - name: Build OCaml 4.14
-      # if: steps.cache.outputs.cache-hit != 'true'
+      if: steps.cache.outputs.cache-hit != 'true'
       working-directory: ocaml-414
       run: |
         patch -p1 < $GITHUB_WORKSPACE/flambda_backend/arm64-issue-debug-upstream.patch
@@ -228,7 +228,7 @@ jobs:
 
     - name: Checkout dune github repo
       uses: actions/checkout@master
-      # if: steps.cache.outputs.cache-hit != 'true'
+      if: steps.cache.outputs.cache-hit != 'true'
       with:
         repository: 'ocaml/dune'
         ref: '3.15.2'
@@ -236,7 +236,7 @@ jobs:
 
     - name: Build dune
       working-directory: dune
-      # if: steps.cache.outputs.cache-hit != 'true'
+      if: steps.cache.outputs.cache-hit != 'true'
       run: |
         PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH make release
         cp _boot/dune.exe $GITHUB_WORKSPACE/ocaml-414/_install/bin/dune
@@ -244,7 +244,7 @@ jobs:
     # CR mshinwell: This should use git@gitlab.inria.fr:fpottier/menhir.git
     - name: Checkout menhir github repo
       uses: actions/checkout@master
-      # if: steps.cache.outputs.cache-hit != 'true'
+      if: steps.cache.outputs.cache-hit != 'true'
       with:
         repository: 'LexiFi/menhir'
         ref: '20231231'
@@ -252,7 +252,7 @@ jobs:
 
     - name: Build menhir
       working-directory: menhir
-      # if: steps.cache.outputs.cache-hit != 'true'
+      if: steps.cache.outputs.cache-hit != 'true'
       run: |
         PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH dune build
         cp _build/install/default/bin/menhir $GITHUB_WORKSPACE/ocaml-414/_install/bin/menhir
