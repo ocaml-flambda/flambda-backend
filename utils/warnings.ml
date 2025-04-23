@@ -611,6 +611,8 @@ let name_to_number =
 
 (* Must be the max number returned by the [number] function. *)
 
+let parsed_ocamlparam = ref "<not-set>"
+
 (* CR-soon xclerc for xclerc: remove the `for_debug` parameter... *)
 let letter for_debug = function
   | 'a' ->
@@ -643,7 +645,7 @@ let letter for_debug = function
   | 'z' -> [27]
   | chr ->
     let ocamlparam_from_env = match Sys.getenv_opt "OCAMLPARAM" with None -> "-" | Some  value -> value in
-    Misc.fatal_errorf "Warnings.letter %C (for_debug=%S, ocamlparam_from_env=%S)" chr for_debug ocamlparam_from_env
+    Misc.fatal_errorf "Warnings.letter %C (for_debug=%S, ocamlparam_from_env=%S ocamlparam_from_compenv=%S)" chr for_debug ocamlparam_from_env !parsed_ocamlparam
 
 type state =
   {
