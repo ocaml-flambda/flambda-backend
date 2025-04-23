@@ -641,7 +641,9 @@ let letter for_debug = function
   | 'x' -> [14; 15; 16; 17; 18; 19; 20; 21; 22; 23; 24; 30]
   | 'y' -> [26]
   | 'z' -> [27]
-  | chr -> Misc.fatal_errorf "Warnings.letter %C (%S)" chr for_debug
+  | chr ->
+    let ocamlparam_from_env = match Sys.getenv_opt "OCAMLPARAM" with None -> "-" | Some  value -> value in
+    Misc.fatal_errorf "Warnings.letter %C (for_debug=%S, ocamlparam_from_env=%S)" chr for_debug ocamlparam_from_env
 
 type state =
   {
