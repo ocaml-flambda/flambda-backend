@@ -2357,7 +2357,7 @@ let begin_assembly unix =
   Asm_targets.Asm_label.initialize ~new_label:(fun () ->
       Cmm.new_label () |> Label.to_int);
   ND.initialize ~big_endian:Arch.big_endian
-    ~emit_assembly_comments:false
+    ~emit_assembly_comments:!Flambda_backend_flags.dasm_comments
       (* As a first step, we emit by calling the corresponding x86 emit
          directives. *) ~emit:(fun d ->
       List.iter directive (to_x86_directive d));
