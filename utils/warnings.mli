@@ -188,3 +188,5 @@ type description =
     since : Sys.ocaml_release_info option; }
 
 val descriptions : description list
+
+val parsed_ocamlparam : string ref
