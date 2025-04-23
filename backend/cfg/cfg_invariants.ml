@@ -119,6 +119,13 @@ let check_tailrec_position t =
            followingsuccessors:@.%a@."
           Label.print tailrec_label Label.Set.print successors
 
+let check_call _t _label block =
+  match[@ocaml.warning "-fragile-match"] block.Cfg.terminator.desc with
+  (* CR mshinwell: re-enable once we generate the [External] op | Call (External
+     { alloc = false; returns = Some _; _ }) -> report t "[Call External] with
+     alloc=false and returns=Some must be encoded as \ [Op External]" *)
+  | _ -> ()
+
 let check_tailrec t _label block =
   (* check all Tailrec Self agree on the successor label *)
   match block.Cfg.terminator.desc with
@@ -130,9 +137,8 @@ let check_tailrec t _label block =
       then
         report t "Two self-tailcall terminators with different labels: %a %a"
           Label.print l Label.print destination)
-  | Call _ | Prim _ | Tailcall_func _ | Never | Always _ | Parity_test _
-  | Truth_test _ | Float_test _ | Int_test _ | Switch _ | Return | Raise _
-  | Call_no_return _ ->
+  | Call _ | Tailcall_func _ | Never | Always _ | Parity_test _ | Truth_test _
+  | Float_test _ | Int_test _ | Switch _ | Return | Raise _ ->
     ()
 
 let check_can_raise t label (block : Cfg.basic_block) =
@@ -154,6 +160,7 @@ let check_can_raise t label (block : Cfg.basic_block) =
       (Label.to_string label)
 
 let check_block t label (block : Cfg.basic_block) =
+  check_call t label block;
   check_tailrec t label block;
   check_can_raise t label block;
   (* exn and normal successors are disjoint *)

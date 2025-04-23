@@ -688,7 +688,8 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
       | Reinterpret_cast _ | Static_cast _ | Spill | Reload | Const_float32 _
       | Const_float _ | Const_symbol _ | Const_vec128 _ | Stackoffset _
       | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _ | Opaque
-      | Begin_region | End_region | Name_for_debugger _ | Dls_get | Poll ->
+      | Begin_region | End_region | Name_for_debugger _ | Dls_get | Poll
+      | External _ ->
         assert false
     in
     assert (arg_count = 0 && res_count = 1);
@@ -743,7 +744,7 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
       | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
       | Stackoffset _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
       | Opaque | Begin_region | End_region | Name_for_debugger _ | Dls_get
-      | Poll ->
+      | Poll | External _ ->
         assert false
     in
     let consts = List.map extract_intop_imm_int cfg_ops in
@@ -784,7 +785,7 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
         | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
         | Stackoffset _ | Intop_atomic _ | Floatop _ | Csel _
         | Probe_is_enabled _ | Opaque | Begin_region | End_region
-        | Name_for_debugger _ | Dls_get | Poll ->
+        | Name_for_debugger _ | Dls_get | Poll | External _ ->
           assert false
       in
       let get_scale op =
@@ -908,7 +909,7 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
           | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
           | Stackoffset _ | Intop_atomic _ | Floatop _ | Csel _
           | Probe_is_enabled _ | Opaque | Begin_region | End_region
-          | Name_for_debugger _ | Dls_get | Poll ->
+          | Name_for_debugger _ | Dls_get | Poll | External _ ->
             assert false
         in
         let consts = List.map extract_store_int_imm cfg_ops in
@@ -1014,5 +1015,6 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
   | Alloc _ | Reinterpret_cast _ | Static_cast _ | Spill | Reload
   | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
   | Stackoffset _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
-  | Opaque | Begin_region | End_region | Name_for_debugger _ | Dls_get | Poll ->
+  | Opaque | Begin_region | End_region | Name_for_debugger _ | Dls_get | Poll
+  | External _ ->
     None

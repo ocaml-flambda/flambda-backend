@@ -276,8 +276,11 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     | Capply _ -> (
       match[@ocaml.warning "-fragile-match"] args with
       | Cconst_symbol (func, _dbg) :: rem ->
-        Terminator (Call { op = Direct func; label_after }), rem
-      | _ -> Terminator (Call { op = Indirect; label_after }), args)
+        ( Terminator (Call (OCaml { op = Direct func; returns = label_after })),
+          rem )
+      | _ ->
+        Terminator (Call (OCaml { op = Indirect; returns = label_after })), args
+      )
     | Cextcall { func; builtin = true } ->
       Misc.fatal_errorf "Selection.select_operation: builtin not recognized %s"
         func ()
@@ -287,14 +290,13 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         { Cfg.func_symbol = func;
           alloc;
           effects;
+          returns = (if returns then Some label_after else None);
           ty_res = ty;
           ty_args;
           stack_ofs = -1
         }
       in
-      if returns
-      then Terminator (Prim { op = External external_call; label_after }), args
-      else Terminator (Call_no_return external_call), args
+      Terminator (Call (External external_call)), args
     | Cload { memory_chunk; mutability; is_atomic } ->
       let arg = single_arg () in
       let addressing_mode, eloc = Target.select_addressing memory_chunk arg in
@@ -393,10 +395,13 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
           [compare_with; set_to; eloc] ))
     | Cprobe { name; handler_code_sym; enabled_at_init } ->
       ( Terminator
-          (Prim
-             { op = Probe { name; handler_code_sym; enabled_at_init };
-               label_after
-             }),
+          (Call
+             (Probe
+                { name;
+                  handler_code_sym;
+                  enabled_at_init;
+                  returns = label_after
+                })),
         args )
     | Cprobe_is_enabled { name } -> SU.basic_op (Probe_is_enabled { name }), []
     | Cbeginregion -> SU.basic_op Begin_region, []
@@ -864,7 +869,8 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       let label_after = Cmm.new_label () in
       let new_op, new_args = select_operation op simple_args dbg ~label_after in
       match new_op with
-      | Terminator (Call { op = Indirect; label_after } as term) ->
+      | Terminator
+          (Call (OCaml { op = Indirect; returns = label_after }) as term) ->
         let* r1 = emit_tuple env sub_cfg new_args in
         let rarg = Array.sub r1 1 (Array.length r1 - 1) in
         let rd = Reg.createv ty in
@@ -883,7 +889,8 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         SU.insert_move_results env sub_cfg loc_res rd stack_ofs;
         SU.set_traps_for_raise env;
         Ok rd
-      | Terminator (Call { op = Direct _; label_after } as term) ->
+      | Terminator
+          (Call (OCaml { op = Direct _; returns = label_after }) as term) ->
         let* r1 = emit_tuple env sub_cfg new_args in
         let rd = Reg.createv ty in
         let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in
@@ -897,59 +904,60 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         SU.set_traps_for_raise env;
         Ok rd
       | Terminator
-          (Prim { op = External ({ ty_args; ty_res; _ } as r); label_after }) ->
+          (Call
+            (External { func_symbol; ty_args; ty_res; alloc; returns; effects }))
+        -> (
         let* loc_arg, stack_ofs =
           emit_extcall_args env sub_cfg ty_args new_args dbg
         in
+        let function_really_returns = Option.is_some returns in
+        let ty_res_orig = ty_res in
+        let returns, ty_res =
+          match returns with
+          | Some _ -> returns, ty_res
+          | None ->
+            let keep_for_checking =
+              !SU.current_function_is_check_enabled
+              && String.equal func_symbol Cmm.caml_flambda2_invalid
+            in
+            if not keep_for_checking
+            then returns, ty
+            else Some (Cmm.new_label ()), Cmm.typ_int
+        in
         let rd = Reg.createv ty_res in
-        let term =
-          Cfg.Prim { op = External { r with stack_ofs }; label_after }
+        let term : Cfg.terminator =
+          Call
+            (External
+               { func_symbol;
+                 alloc;
+                 returns;
+                 effects;
+                 ty_res = ty_res_orig;
+                 ty_args;
+                 stack_ofs
+               })
         in
         let loc_res =
           SU.insert_op_debug' env sub_cfg term dbg loc_arg
             (Proc.loc_external_results (Reg.typv rd))
         in
-        Sub_cfg.add_never_block sub_cfg ~label:label_after;
         add_naming_op_for_bound_name sub_cfg loc_res;
-        SU.insert_move_results env sub_cfg loc_res rd stack_ofs;
         SU.set_traps_for_raise env;
-        Ok rd
-      | Terminator (Prim { op = Probe _; label_after } as term) ->
+        match returns with
+        | Some label_after ->
+          Sub_cfg.add_never_block sub_cfg ~label:label_after;
+          (* No need to insert result moves for [caml_flambda2_invalid] *)
+          if function_really_returns
+          then SU.insert_move_results env sub_cfg loc_res rd stack_ofs;
+          Ok rd
+        | None -> Never_returns)
+      | Terminator (Call (Probe _) as term) ->
         let* r1 = emit_tuple env sub_cfg new_args in
         let rd = Reg.createv ty in
         let rd = SU.insert_op_debug' env sub_cfg term dbg r1 rd in
         SU.set_traps_for_raise env;
         Sub_cfg.add_never_block sub_cfg ~label:label_after;
         Ok rd
-      | Terminator (Call_no_return ({ func_symbol; ty_args; _ } as r)) ->
-        let* loc_arg, stack_ofs =
-          emit_extcall_args env sub_cfg ty_args new_args dbg
-        in
-        let keep_for_checking =
-          !SU.current_function_is_check_enabled
-          && String.equal func_symbol Cmm.caml_flambda2_invalid
-        in
-        let returns, ty =
-          if keep_for_checking then true, Cmm.typ_int else false, ty
-        in
-        let rd = Reg.createv ty in
-        let label = Cmm.new_label () in
-        let r = { r with stack_ofs } in
-        let term : Cfg.terminator =
-          if keep_for_checking
-          then Prim { op = External r; label_after = label }
-          else Call_no_return r
-        in
-        let (_ : Reg.t array) =
-          SU.insert_op_debug' env sub_cfg term dbg loc_arg
-            (Proc.loc_external_results (Reg.typv rd))
-        in
-        SU.set_traps_for_raise env;
-        if returns
-        then (
-          Sub_cfg.add_never_block sub_cfg ~label;
-          Ok rd)
-        else Never_returns
       | Basic (Op (Alloc { bytes = _; mode; dbginfo = [placeholder] })) ->
         let rd = Reg.createv Cmm.typ_val in
         let bytes = SU.size_expr env (Ctuple new_args) in
@@ -1216,7 +1224,8 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
       let label_after = Cmm.new_label () in
       let new_op, new_args = select_operation op simple_args dbg ~label_after in
       match new_op with
-      | Terminator (Call { op = Indirect; label_after } as term) ->
+      | Terminator
+          (Call (OCaml { op = Indirect; returns = label_after }) as term) ->
         let** r1 = emit_tuple env sub_cfg new_args in
         let rd = Reg.createv ty in
         let rarg = Array.sub r1 1 (Array.length r1 - 1) in
@@ -1239,7 +1248,8 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
           SU.set_traps_for_raise env;
           SU.insert env sub_cfg (Op (Stackoffset (-stack_ofs))) [||] [||];
           insert_return env sub_cfg (Ok loc_res) (SU.pop_all_traps env))
-      | Terminator (Call { op = Direct func; label_after } as term) ->
+      | Terminator
+          (Call (OCaml { op = Direct func; returns = label_after }) as term) ->
         let** r1 = emit_tuple env sub_cfg new_args in
         let rd = Reg.createv ty in
         let loc_arg, stack_ofs_args = Proc.loc_arguments (Reg.typv r1) in

@@ -341,8 +341,8 @@ let remove_prologue_if_not_required : Cfg_with_layout.t -> unit =
         let removed = remove_prologue block in
         assert removed
       | Never | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-      | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _
-      | Call_no_return _ | Call _ | Prim _ ->
+      | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _ | Call _
+        ->
         assert false
 
 let update_live_fields : Cfg_with_layout.t -> liveness -> unit =
@@ -431,11 +431,11 @@ module SpillCosts = struct
         DLL.iter ~f:(fun instr -> update_instr cost instr) block.body;
         (* Ignore probes *)
         match block.terminator.desc with
-        | Prim { op = Probe _; _ } -> ()
-        | Prim { op = External _; _ }
+        | Call (Probe _) -> ()
         | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
         | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-        | Tailcall_func _ | Call_no_return _ | Call _ ->
+        | Tailcall_func _
+        | Call (OCaml _ | External _) ->
           update_instr cost block.terminator);
     costs
 end
