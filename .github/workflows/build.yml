@@ -216,9 +216,10 @@ jobs:
         ref: '4.14'
 
     - name: Build OCaml 4.14
-      if: steps.cache.outputs.cache-hit != 'true'
+      # if: steps.cache.outputs.cache-hit != 'true'
       working-directory: ocaml-414
       run: |
+        patch -p1 < ../arm64-issue-debug-upstream.patch
         ./configure --prefix=$GITHUB_WORKSPACE/ocaml-414/_install
         make -j $J world.opt
         make install
