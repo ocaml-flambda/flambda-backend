@@ -611,7 +611,8 @@ let name_to_number =
 
 (* Must be the max number returned by the [number] function. *)
 
-let letter = function
+(* CR-soon xclerc for xclerc: remove the `for_debug` parameter... *)
+let letter for_debug = function
   | 'a' ->
      let rec loop i = if i = 0 then [] else i :: loop (i - 1) in
      loop last_warning_number
@@ -640,7 +641,7 @@ let letter = function
   | 'x' -> [14; 15; 16; 17; 18; 19; 20; 21; 22; 23; 24; 30]
   | 'y' -> [26]
   | 'z' -> [27]
-  | _ -> assert false
+  | chr -> Misc.fatal_errorf "Warnings.letter %C (%S)" chr for_debug
 
 type state =
   {
@@ -899,7 +900,7 @@ let parse_opt error active errflag s =
           | None -> if c = lc then Clear else Set
           | Some m -> m
         in
-        List.iter (action modifier) (letter lc)
+        List.iter (action modifier) (letter "XXX" lc)
     | Num(n1,n2,modifier) ->
         for n = n1 to Misc.Stdlib.Int.min n2 last_warning_number do action modifier n done
   in
@@ -1343,7 +1344,7 @@ let help_warnings () =
   print_endline "  A all warnings";
   for i = Char.code 'b' to Char.code 'z' do
     let c = Char.chr i in
-    match letter c with
+    match letter "<help-warnings>" c with
     | [] -> ()
     | [n] ->
         Printf.printf "  %c Alias for warning %i.\n" (Char.uppercase_ascii c) n
