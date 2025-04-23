@@ -36,6 +36,7 @@ val with_info :
   source_file:string ->
   output_prefix:string ->
   compilation_unit:compilation_unit_or_inferred ->
+  kind:Unit_info.intf_or_impl ->
   dump_ext:string ->
   (info -> 'a) -> 'a
 (** [with_info ~native ~tool_name ~source_file ~output_prefix ~dump_ext k]
