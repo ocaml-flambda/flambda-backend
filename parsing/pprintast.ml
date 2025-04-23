@@ -525,7 +525,7 @@ and core_type ctxt f x =
                           l)
           sl (core_type ctxt) ct
     | Ptyp_of_kind jkind ->
-      pp f "(type : %a)" (jkind_annotation reset_ctxt) jkind
+      pp f "@[(type@ :@ %a)@]" (jkind_annotation reset_ctxt) jkind
     | _ -> pp f "@[<2>%a@]" (core_type1 ctxt) x
 
 and core_type1 ctxt f x =
