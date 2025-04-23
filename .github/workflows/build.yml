@@ -205,7 +205,7 @@ jobs:
       id: cache
       with:
         path: ${{ github.workspace }}/ocaml-414/_install
-        key: ${{ matrix.os }}-cache-ocaml-414-dune-3152-menhir-20231231
+        key: ${{ matrix.os }}-cache-ocaml-414-patched-dune-3152-menhir-20231231
 
     - name: Checkout OCaml 4.14
       uses: actions/checkout@master
@@ -219,6 +219,7 @@ jobs:
       if: steps.cache.outputs.cache-hit != 'true'
       working-directory: ocaml-414
       run: |
+        patch -p1 < $GITHUB_WORKSPACE/flambda_backend/arm64-issue-debug-upstream.patch
         ./configure --prefix=$GITHUB_WORKSPACE/ocaml-414/_install
         make -j $J world.opt
         make install
