@@ -209,7 +209,7 @@ jobs:
 
     - name: Checkout OCaml 4.14
       uses: actions/checkout@master
-      if: steps.cache.outputs.cache-hit != 'true'
+      # if: steps.cache.outputs.cache-hit != 'true'
       with:
         repository: 'ocaml/ocaml'
         path: 'ocaml-414'
@@ -219,7 +219,7 @@ jobs:
       # if: steps.cache.outputs.cache-hit != 'true'
       working-directory: ocaml-414
       run: |
-        patch -p1 < $GITHUB_WORKSPACE/arm64-issue-debug-upstream.patch
+        patch -p1 < $GITHUB_WORKSPACE/flambda_backend/arm64-issue-debug-upstream.patch
         ./configure --prefix=$GITHUB_WORKSPACE/ocaml-414/_install
         make -j $J world.opt
         make install
