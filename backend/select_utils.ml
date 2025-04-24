@@ -508,7 +508,7 @@ module Stack_offset_and_exn = struct
           InstructionId.format instr.id
       | top_trap :: traps ->
         (* CR-soon gyorsh: investigate why this check sometimes fails. *)
-        if false && not (Label.equal lbl_handler top_trap)
+        if not (Label.equal lbl_handler top_trap)
         then
           Misc.fatal_errorf
             "Cfgize.Stack_offset_and_exn.process_basic: poptrap label %a does \
