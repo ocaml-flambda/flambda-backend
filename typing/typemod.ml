@@ -3752,7 +3752,13 @@ let check_argument_type_if_given env sourcefile actual_sig arg_module_opt =
         with Not_found ->
           raise(Error(Location.none, Env.empty,
                       Cannot_find_argument_type arg_module)) in
-      let arg_cmi = Unit_info.Artifact.from_filename arg_filename in
+      let for_pack_prefix =
+        (* Packed modules can't be arguments *)
+        Compilation_unit.Prefix.empty
+      in
+      let arg_cmi =
+        Unit_info.Artifact.from_filename ~for_pack_prefix arg_filename
+      in
       let arg_sig = Env.read_signature arg_module arg_cmi in
       if not (Env.is_parameter_unit arg_module) then
         raise (Error (Location.none, env,
@@ -3828,9 +3834,11 @@ let type_implementation target modulename initial_env ast =
         let source_intf = Unit_info.mli_from_source target in
         if !Clflags.cmi_file <> None
         || Sys.file_exists source_intf then begin
+          let for_pack_prefix = Compilation_unit.for_pack_prefix modulename in
           let compiled_intf_file =
             match !Clflags.cmi_file with
-            | Some cmi_file -> Unit_info.Artifact.from_filename cmi_file
+            | Some cmi_file ->
+              Unit_info.Artifact.from_filename ~for_pack_prefix cmi_file
             | None ->
               let cmi_file =
                 try
@@ -3839,7 +3847,7 @@ let type_implementation target modulename initial_env ast =
                   raise(Error(Location.in_file sourcefile, Env.empty,
                         Interface_not_compiled source_intf))
               in
-              Unit_info.Artifact.from_filename cmi_file
+              Unit_info.Artifact.from_filename ~for_pack_prefix cmi_file
           in
           (* We use pre-5.2 behaviour as regards which interface-related file
              is reported in error messages. *)
@@ -4024,16 +4032,12 @@ let package_units initial_env objfiles target_cmi modulename =
   let units =
     List.map
       (fun f ->
-         let pref = chop_extensions f in
-         let basename =
-           pref
-           |> Filename.basename
-           |> String.capitalize_ascii
+         let for_pack_prefix = Compilation_unit.to_prefix modulename in
+         let artifact = Unit_info.Artifact.from_filename ~for_pack_prefix f in
+         let modname = Unit_info.Artifact.modname artifact in
+         let global_name =
+           Compilation_unit.to_global_name_without_prefix modname
          in
-         let unit = Compilation_unit.Name.of_string basename in
-         let global_name = Global_module.Name.create_no_args basename in
-         let modname = Compilation_unit.create_child modulename unit in
-         let artifact = Unit_info.Artifact.from_filename f in
          let sg =
            Env.read_signature global_name (Unit_info.companion_cmi artifact)
          in

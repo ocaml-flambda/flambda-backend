@@ -100,8 +100,10 @@ val print_debug : Format.formatter -> t -> unit
     mangled in any way). *)
 val create : Prefix.t -> Name.t -> t
 
-(** Create a compilation unit contained by another. Effectively uses the
-    parent compilation unit as the prefix. *)
+(** Convert a compilation unit to a prefix. Used to form a child of a pack. *)
+val to_prefix : t -> Prefix.t
+
+(** Combines [create] and [to_prefix]. *)
 val create_child : t -> Name.t -> t
 
 type argument =
@@ -290,7 +292,7 @@ val split_instance_exn : t -> t * argument list
 type error = private
   | Invalid_character of char * string
   | Bad_compilation_unit_name of string
-  | Child_of_instance of { child_name : string }
+  | Child_of_instance of { parent_name : string }
   | Packed_instance of { name : string }
   | Already_an_instance of { name : string }
 

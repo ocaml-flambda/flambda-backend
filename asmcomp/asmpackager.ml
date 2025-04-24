@@ -41,8 +41,9 @@ type pack_member =
     pm_kind: pack_member_kind }
 
 let read_member_info pack_path file = (
-  let unit_info = Unit_info.Artifact.from_filename file in
-  let name = Unit_info.Artifact.modname unit_info |> CU.Name.of_string in
+  let for_pack_prefix = CU.to_prefix pack_path in
+  let unit_info = Unit_info.Artifact.from_filename ~for_pack_prefix file in
+  let name = Unit_info.Artifact.modname unit_info |> CU.name in
   let kind =
     if Unit_info.is_cmi unit_info then
       PM_intf
@@ -91,7 +92,8 @@ type flambda2 =
 let make_package_object unix ~ppf_dump members target coercion
       ~(flambda2 : flambda2) =
   let pack_name =
-    Printf.sprintf "pack(%s)" (Unit_info.Artifact.modname target) in
+    Printf.sprintf "pack(%s)"
+      (Unit_info.Artifact.modname target |> CU.name_as_string) in
   Profile.record_call pack_name (fun () ->
     let objtemp =
       if !Clflags.keep_asm_file
@@ -113,9 +115,7 @@ let make_package_object unix ~ppf_dump members target coercion
           | PM_intf -> None
           | PM_impl _ -> Some(CU.create_child (CU.get_current_exn ()) m.pm_name))
         members in
-    let for_pack_prefix = CU.Prefix.from_clflags () in
-    let modname = CU.Name.of_string (Unit_info.Artifact.modname target) in
-    let compilation_unit = CU.create for_pack_prefix modname in
+    let compilation_unit = Unit_info.Artifact.modname target in
     let prefixname = Filename.remove_extension objtemp in
     let required_globals = Compilation_unit.Set.empty in
     let transl_style : Translmod.compilation_unit_style =
@@ -229,11 +229,7 @@ let build_package_cmx members cmxfile ~main_module_block_size =
 
 let package_object_files unix ~ppf_dump files target
                          targetcmx coercion ~flambda2 =
-  let pack_path =
-    let for_pack_prefix = CU.Prefix.from_clflags () in
-    let name = Unit_info.Artifact.modname target |> CU.Name.of_string in
-    CU.create for_pack_prefix name
-  in
+  let pack_path = Unit_info.Artifact.modname target in
   let members = map_left_right (read_member_info pack_path) files in
   check_units members;
   let main_module_block_size =
@@ -250,17 +246,14 @@ let package_files unix ~ppf_dump initial_env files targetcmx ~flambda2 =
         try Load_path.find f
         with Not_found -> raise(Error(File_not_found f)))
       files in
-  let cmx = Unit_info.Artifact.from_filename targetcmx in
+  let for_pack_prefix = CU.Prefix.from_clflags () in
+  let cmx = Unit_info.Artifact.from_filename ~for_pack_prefix targetcmx in
   let cmi = Unit_info.companion_cmi cmx in
   let obj = Unit_info.companion_obj cmx in
   (* Set the name of the current "input" *)
   Location.input_name := targetcmx;
   (* Set the name of the current compunit *)
-  let comp_unit =
-    let for_pack_prefix = CU.Prefix.from_clflags () in
-    CU.create for_pack_prefix
-      (CU.Name.of_string (Unit_info.Artifact.modname cmi))
-  in
+  let comp_unit = Unit_info.Artifact.modname cmx in
   Compilenv.reset comp_unit;
   Misc.try_finally (fun () ->
       let coercion =

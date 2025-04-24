@@ -70,17 +70,20 @@ let no_docstring f x =
   Lexer.handle_docstrings := true;
   result
 
-let unit_from_source source_file =
-    Unit_info.make ~check_modname:false ~source_file
-      (Filename.remove_extension source_file)
+let unit_from_source source_file source_kind =
+  let for_pack_prefix =
+    (* CR-someday lmaurer: Definitely not right to assume that everything is in the same
+       pack and that pack is specified on the command line *)
+    Compilation_unit.Prefix.from_clflags ()
+  in
+  Unit_info.make ~check_modname:false ~source_file source_kind
+    (Filename.remove_extension source_file)
+    ~for_pack_prefix
 
 let process_implementation_file sourcefile =
   init_path ();
-  let source = unit_from_source sourcefile in
-  let compilation_unit =
-    Compilation_unit.create (Compilation_unit.Prefix.from_clflags ())
-      (Unit_info.modname source |> Compilation_unit.Name.of_string)
-  in
+  let source = unit_from_source sourcefile Unit_info.Impl in
+  let compilation_unit = Unit_info.modname source in
   Env.set_unit_name (Some compilation_unit);
   let inputfile = preprocess sourcefile in
   let env = initial_env () in
@@ -113,12 +116,8 @@ let process_implementation_file sourcefile =
    no error occurred, else None and an error message is printed.*)
 let process_interface_file sourcefile =
   init_path ();
-  let unit = unit_from_source sourcefile in
-  let modulename = Unit_info.modname unit in
-  let compilation_unit =
-    Compilation_unit.create (Compilation_unit.Prefix.from_clflags ())
-      (modulename |> Compilation_unit.Name.of_string)
-  in
+  let unit = unit_from_source sourcefile Unit_info.Intf in
+  let compilation_unit = Unit_info.modname unit in
   Env.set_unit_name (Some compilation_unit);
   let inputfile = preprocess sourcefile in
   let ast =

@@ -21,12 +21,12 @@
 
 (** {1:modname_from_strings Module name convention and computation} *)
 
-(* CR mshinwell: Consider changing [modname] to be [Compilation_unit.t] *)
-
 type intf_or_impl = Intf | Impl
 type modname = string
 type filename = string
 type file_prefix = string
+
+(* CR lmaurer: These overlap with functionality in [Compilation_unit] **)
 
 (** [modulize s] capitalizes the first letter of [s]. *)
 val modulize: string -> modname
@@ -68,7 +68,7 @@ val prefix: t -> file_prefix
 
 (** [modname u] or [artifact_modname a] is the module name of the unit
     or compilation artifact.*)
-val modname: t -> modname
+val modname: t -> Compilation_unit.t
 
 (** [kind u] is the kind (interface or implementation) of the unit. *)
 val kind: t -> intf_or_impl
@@ -78,7 +78,7 @@ val kind: t -> intf_or_impl
     by {!is_unit_name}[ ~strict:true]. *)
 val check_unit_name : t -> unit
 
-(** [make ~check ~source_file kind prefix] associates both the
+(** [make ~check ~source_file ~for_pack_prefix kind prefix] associates both the
     [source_file] and the module name {!modname_from_source}[ target_prefix] to
     the prefix filesystem path [prefix].
 
@@ -87,7 +87,16 @@ val check_unit_name : t -> unit
 *)
 val make:
     ?check_modname:bool -> source_file:filename ->
+    for_pack_prefix:Compilation_unit.Prefix.t ->
     intf_or_impl -> file_prefix -> t
+
+(** [make_with_known_compilation_unit ~source_file ~for_pack_prefix kind prefix compilation_unit]
+    associates both the [source_file] and the module name [compilation_unit] to
+    the prefix filesystem path [prefix]. It is assumed that checks were
+    performed by [Compilation_unit].
+*)
+val make_with_known_compilation_unit:
+  source_file:filename -> intf_or_impl -> file_prefix -> Compilation_unit.t -> t
 
 (** {1:artifact_function Build artifacts }*)
 module Artifact: sig
@@ -108,11 +117,11 @@ module Artifact: sig
    val filename: t -> filename
 
    (** [modname a] is the module name of the compilation artifact.*)
-   val modname: t -> modname
+   val modname: t -> Compilation_unit.t
 
    (** [from_filename filename] reconstructs the module name
        [modname_from_source filename] associated to the artifact [filename]. *)
-   val from_filename: filename -> t
+   val from_filename: for_pack_prefix:Compilation_unit.Prefix.t -> filename -> t
 
 end
 

@@ -21,7 +21,7 @@ type file_prefix = string
 type t = {
   source_file: filename;
   prefix: file_prefix;
-  modname: modname;
+  modname: Compilation_unit.t;
   kind: intf_or_impl;
 }
 
@@ -48,6 +48,12 @@ let normalize = Misc.normalized_unit_filename
 let modname_from_source source_file =
   source_file |> Filename.basename |> basename_chop_extensions |> modulize
 
+let compilation_unit_from_source ~for_pack_prefix source_file =
+  let modname =
+    modname_from_source source_file |> Compilation_unit.Name.of_string
+  in
+  Compilation_unit.create for_pack_prefix modname
+
 let start_char = function
   | 'A' .. 'Z' -> true
   | _ -> false
@@ -64,30 +70,37 @@ let is_unit_name name =
   && String.for_all is_identchar_latin1 name
 
 let check_unit_name file =
-  if not (is_unit_name (modname file)) then
+  let name = modname file |> Compilation_unit.name_as_string in
+  if not (is_unit_name name) then
     Location.prerr_warning (Location.in_file (source_file file))
-      (Warnings.Bad_module_name (modname file))
+      (Warnings.Bad_module_name name)
 
-let make ?(check_modname=true) ~source_file kind prefix =
-  let modname = modname_from_source prefix in
+let make ?(check_modname=true) ~source_file ~for_pack_prefix kind prefix =
+  let modname = compilation_unit_from_source ~for_pack_prefix prefix in
   let p = { modname; prefix; source_file; kind } in
   if check_modname then check_unit_name p;
   p
+
+(* CR lmaurer: This is something of a wart: some refactoring of `Compile_common`
+   could probably eliminate the need for it *)
+let make_with_known_compilation_unit ~source_file kind prefix modname =
+ { modname; prefix; source_file; kind }
 
 module Artifact = struct
   type t =
    {
      source_file: filename option;
      filename: filename;
-     modname: modname;
+     modname: Compilation_unit.t;
    }
   let source_file x = x.source_file
   let filename x = x.filename
   let modname x = x.modname
   let prefix x = Filename.remove_extension (filename x)
 
-  let from_filename filename =
-    let modname = modname_from_source filename in
+  let from_filename ~for_pack_prefix filename =
+    let modname = compilation_unit_from_source ~for_pack_prefix filename in
+
     { modname; filename; source_file = None }
 
 end
@@ -128,6 +141,6 @@ let mli_from_source u =
 let is_cmi f = Filename.check_suffix (Artifact.filename f) ".cmi"
 
 let find_normalized_cmi f =
-  let filename = modname f ^ ".cmi" in
+  let filename = (modname f |> Compilation_unit.name_as_string) ^ ".cmi" in
   let filename = Load_path.find_normalized filename in
   { Artifact.filename; modname = modname f; source_file = Some f.source_file  }

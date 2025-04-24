@@ -15,6 +15,8 @@
 
 open Misc
 
+(* CR lmaurer: No longer need both [target] and [module_name] here (true in lots
+   of places) *)
 type info = {
   target: Unit_info.t;
   module_name : Compilation_unit.t;
@@ -32,16 +34,16 @@ let with_info ~native ~tool_name ~source_file ~output_prefix
       ~compilation_unit ~kind ~dump_ext k =
   Compmisc.init_path ();
   Compmisc.init_parameters ();
-  let target = Unit_info.make ~source_file kind output_prefix in
-  let compilation_unit =
+  let target =
     match compilation_unit with
-    | Exactly compilation_unit -> compilation_unit
+    | Exactly compilation_unit ->
+        Unit_info.make_with_known_compilation_unit ~source_file kind
+          output_prefix compilation_unit
     | Inferred_from_output_prefix ->
-        let module_name = Unit_info.modname target in
         let for_pack_prefix = Compilation_unit.Prefix.from_clflags () in
-        Compilation_unit.create for_pack_prefix
-          (module_name |> Compilation_unit.Name.of_string)
+        Unit_info.make ~source_file ~for_pack_prefix kind output_prefix
   in
+  let compilation_unit = Unit_info.modname target in
   Compilation_unit.set_current (Some compilation_unit);
   Env.set_unit_name (Some compilation_unit);
   let env = Compmisc.initial_env() in

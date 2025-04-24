@@ -23,7 +23,7 @@ module String = Misc.Stdlib.String
 type error =
   | Invalid_character of char * string
   | Bad_compilation_unit_name of string
-  | Child_of_instance of { child_name : string }
+  | Child_of_instance of { parent_name : string }
   | Packed_instance of { name : string }
   | Already_an_instance of { name : string }
 
@@ -416,15 +416,18 @@ include T0
 
 let create prefix name = create_full prefix name []
 
-let create_child parent name_ =
+let to_prefix parent =
+  (* CR lmaurer: This is an obvious (and alarmingly longstanding) bug. Should be
+     checking the instance arguments, not the prefix. The result is that packed
+     packs are (I presume) currently broken. *)
   if not (Prefix.is_empty (for_pack_prefix parent))
   then
     (* CR-someday lmaurer: Same as for [create_full] *)
-    raise (Error (Child_of_instance { child_name = name_ |> Name.to_string }));
-  let prefix =
-    (for_pack_prefix parent |> Prefix.to_list) @ [name parent] |> Prefix.of_list
-  in
-  create prefix name_
+    raise
+      (Error (Child_of_instance { parent_name = name parent |> Name.to_string }));
+  (for_pack_prefix parent |> Prefix.to_list) @ [name parent] |> Prefix.of_list
+
+let create_child parent name_ = create (to_prefix parent) name_
 
 let of_string str =
   let for_pack_prefix, name =
