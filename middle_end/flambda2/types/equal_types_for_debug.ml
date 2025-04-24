@@ -311,6 +311,18 @@ let equal_head_of_kind_naked_float (t1 : TG.head_of_kind_naked_float)
     (t1 :> Numeric_types.Float_by_bit_pattern.Set.t)
     (t2 :> Numeric_types.Float_by_bit_pattern.Set.t)
 
+let equal_head_of_kind_naked_int8 (t1 : TG.head_of_kind_naked_int8)
+    (t2 : TG.head_of_kind_naked_int8) =
+  Numeric_types.Int8.Set.equal
+    (t1 :> Numeric_types.Int8.Set.t)
+    (t2 :> Numeric_types.Int8.Set.t)
+
+let equal_head_of_kind_naked_int16 (t1 : TG.head_of_kind_naked_int16)
+    (t2 : TG.head_of_kind_naked_int16) =
+  Numeric_types.Int16.Set.equal
+    (t1 :> Numeric_types.Int16.Set.t)
+    (t2 :> Numeric_types.Int16.Set.t)
+
 let equal_head_of_kind_naked_int32 (t1 : TG.head_of_kind_naked_int32)
     (t2 : TG.head_of_kind_naked_int32) =
   Numeric_types.Int32.Set.equal
@@ -351,9 +363,9 @@ let is_unknown_head_of_kind_value (t : TG.head_of_kind_value) =
 let is_non_obviously_unknown (t : ET.descr) =
   match t with
   | Value head -> is_unknown_head_of_kind_value head
-  | Naked_immediate _ | Naked_float32 _ | Naked_float _ | Naked_int32 _
-  | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ | Rec_info _ | Region _
-    ->
+  | Naked_immediate _ | Naked_float32 _ | Naked_float _ | Naked_int8 _
+  | Naked_int16 _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
+  | Naked_vec128 _ | Rec_info _ | Region _ ->
     false
 
 let is_bottom_head_of_kind_value (t : TG.head_of_kind_value) =
@@ -364,9 +376,9 @@ let is_bottom_head_of_kind_value (t : TG.head_of_kind_value) =
 let is_non_obviously_bottom (t : ET.descr) =
   match t with
   | Value head -> is_bottom_head_of_kind_value head
-  | Naked_immediate _ | Naked_float32 _ | Naked_float _ | Naked_int32 _
-  | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _ | Rec_info _ | Region _
-    ->
+  | Naked_immediate _ | Naked_float32 _ | Naked_float _ | Naked_int8 _
+  | Naked_int16 _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
+  | Naked_vec128 _ | Rec_info _ | Region _ ->
     false
 
 let equal_expanded_head ~equal_type env (t1 : ET.t) (t2 : ET.t) =
@@ -384,6 +396,8 @@ let equal_expanded_head ~equal_type env (t1 : ET.t) (t2 : ET.t) =
     | Naked_float32 t1, Naked_float32 t2 ->
       equal_head_of_kind_naked_float32 t1 t2
     | Naked_float t1, Naked_float t2 -> equal_head_of_kind_naked_float t1 t2
+    | Naked_int8 t1, Naked_int8 t2 -> equal_head_of_kind_naked_int8 t1 t2
+    | Naked_int16 t1, Naked_int16 t2 -> equal_head_of_kind_naked_int16 t1 t2
     | Naked_int32 t1, Naked_int32 t2 -> equal_head_of_kind_naked_int32 t1 t2
     | Naked_int64 t1, Naked_int64 t2 -> equal_head_of_kind_naked_int64 t1 t2
     | Naked_nativeint t1, Naked_nativeint t2 ->
@@ -392,8 +406,8 @@ let equal_expanded_head ~equal_type env (t1 : ET.t) (t2 : ET.t) =
     | Rec_info t1, Rec_info t2 -> equal_head_of_kind_rec_info t1 t2
     | Region t1, Region t2 -> equal_head_of_kind_region t1 t2
     | ( ( Value _ | Naked_immediate _ | Naked_float32 _ | Naked_float _
-        | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _
-        | Rec_info _ | Region _ ),
+        | Naked_int8 _ | Naked_int16 _ | Naked_int32 _ | Naked_int64 _
+        | Naked_nativeint _ | Naked_vec128 _ | Rec_info _ | Region _ ),
         _ ) ->
       false)
 

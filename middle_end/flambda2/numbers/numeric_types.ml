@@ -37,40 +37,62 @@ module Int = struct
   let to_string n = Int.to_string n
 end
 
-module Int8 = struct
-  type t = int
+module Short_int (M : sig
+  val num_bits : int
+end) =
+struct
+  let num_bits = M.num_bits
 
-  let zero = 0
+  let () = assert (0 < num_bits && num_bits < 31)
 
-  let one = 1
+  module T0 = struct
+    type t = int
 
-  let of_int_exn i =
-    if i < -(1 lsl 7) || i > (1 lsl 7) - 1
-    then Misc.fatal_errorf "Int8.of_int_exn: %d is out of range" i
-    else i
+    let zero = 0
 
-  let to_int i = i
+    let one = 1
+
+    let min_int64 = Int64.shift_left Int64.minus_one (num_bits - 1)
+
+    let max_int64 = Int64.lognot min_int64
+
+    let of_int64_exn i =
+      if Int64.compare i min_int64 < 0 || Int64.compare i max_int64 > 0
+      then Misc.fatal_errorf "Int%d: %Ld is out of range" num_bits i
+      else Int64.to_int i
+
+    let of_int_exn i = of_int64_exn (Int64.of_int i)
+
+    let of_int i =
+      let extra_bits = Sys.int_size - num_bits in
+      (i lsl extra_bits) asr extra_bits
+
+    let to_int i = i
+
+    let to_float = Float.of_int
+
+    let of_float f = of_int (Float.to_int f)
+
+    let compare = Int.compare
+
+    let equal = Int.equal
+
+    let hash = (Hashtbl.hash : t -> int)
+
+    let print = Format.pp_print_int
+  end
+
+  include T0
+  include Container_types.Make (T0)
 end
 
-module Int16 = struct
-  type t = int
+module Int8 = Short_int (struct
+  let num_bits = 8
+end)
 
-  let of_int_exn i =
-    if i < -(1 lsl 15) || i > (1 lsl 15) - 1
-    then Misc.fatal_errorf "Int16.of_int_exn: %d is out of range" i
-    else i
-
-  let lower_int64 = Int64.neg (Int64.shift_left Int64.one 15)
-
-  let upper_int64 = Int64.sub (Int64.shift_left Int64.one 15) Int64.one
-
-  let of_int64_exn i =
-    if Int64.compare i lower_int64 < 0 || Int64.compare i upper_int64 > 0
-    then Misc.fatal_errorf "Int16.of_int64_exn: %Ld is out of range" i
-    else Int64.to_int i
-
-  let to_int t = t
-end
+module Int16 = Short_int (struct
+  let num_bits = 16
+end)
 
 module Int32 = struct
   include Int32

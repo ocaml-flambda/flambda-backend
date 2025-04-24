@@ -99,6 +99,8 @@ let mixed_block_kinds shape =
         match flat_suffix_element with
         | Naked_float -> KS.naked_float
         | Naked_float32 -> KS.naked_float32
+        | Naked_int8 -> KS.naked_int8
+        | Naked_int16 -> KS.naked_int16
         | Naked_int32 -> KS.naked_int32
         | Naked_int64 -> KS.naked_int64
         | Naked_vec128 -> KS.naked_vec128
@@ -129,6 +131,8 @@ let memory_chunk_of_flat_suffix_element :
     K.flat_suffix_element -> Cmm.memory_chunk = function
   | Naked_float -> Double
   | Naked_float32 -> Single { reg = Float32 }
+  | Naked_int8 -> Byte_signed
+  | Naked_int16 -> Sixteen_signed
   | Naked_int32 -> Thirtytwo_signed
   | Naked_vec128 -> Onetwentyeight_unaligned
   | Naked_int64 | Naked_nativeint -> Word_int
@@ -520,6 +524,12 @@ let dead_slots_msg dbg function_slots value_slots =
 
 (* Arithmetic primitives *)
 
+let naked_int8 : C.Scalar_type.Integral.t =
+  Untagged (C.Scalar_type.Integer.create_exn ~bit_width:8 ~signedness:Signed)
+
+let naked_int16 : C.Scalar_type.Integral.t =
+  Untagged (C.Scalar_type.Integer.create_exn ~bit_width:16 ~signedness:Signed)
+
 let naked_int32 : C.Scalar_type.Integral.t =
   Untagged (C.Scalar_type.Integer.create_exn ~bit_width:32 ~signedness:Signed)
 
@@ -537,6 +547,8 @@ let tagged_immediate : C.Scalar_type.Integral.t =
 
 let integral_of_standard_int : K.Standard_int.t -> C.Scalar_type.Integral.t =
   function
+  | Naked_int8 -> naked_int8
+  | Naked_int16 -> naked_int16
   | Naked_int32 -> naked_int32
   | Naked_int64 -> naked_int64
   | Naked_nativeint -> naked_nativeint
@@ -545,6 +557,8 @@ let integral_of_standard_int : K.Standard_int.t -> C.Scalar_type.Integral.t =
 
 let scalar_type_of_standard_int_or_float :
     K.Standard_int_or_float.t -> C.Scalar_type.t = function
+  | Naked_int8 -> Integral naked_int8
+  | Naked_int16 -> Integral naked_int16
   | Naked_int32 -> Integral naked_int32
   | Naked_int64 -> Integral naked_int64
   | Naked_nativeint -> Integral naked_nativeint
@@ -577,7 +591,15 @@ let unary_int_arith_primitive _env dbg kind op arg =
       (* This case should not have a sign extension, confusingly, because it
          arises from the [Pbswap16] Lambda primitive. That operation does not
          affect the sign of the resulting value. *)
-      C.bswap16 arg dbg
+      C.Scalar_type.Integral.static_cast arg ~dbg ~src:naked_immediate
+        ~dst:naked_int16
+      |> (fun arg -> C.bbswap Unboxed_int16 arg dbg)
+      |> C.zero_extend ~bits:16 ~dbg
+    | Naked_int8 -> arg
+    | Naked_int16 ->
+      (* Byte swaps of small integers need a sign-extension in order to match
+         the Lambda semantics (where the swap might affect the sign). *)
+      C.sign_extend (C.bbswap Unboxed_int16 arg dbg) ~bits:16 ~dbg
     | Naked_int32 ->
       C.sign_extend (C.bbswap Unboxed_int32 arg dbg) ~bits:32 ~dbg
     (* int64 and nativeint don't require a sign-extension since they are already

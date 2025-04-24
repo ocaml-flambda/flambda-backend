@@ -3545,55 +3545,43 @@ let addr_array_length arg dbg =
    (e.g., bswap). *)
 
 let bbswap bi arg dbg =
-  let bitwidth : Cmm.bswap_bitwidth =
-    match (bi : Primitive.unboxed_integer) with
-    | Unboxed_nativeint -> if size_int = 4 then Thirtytwo else Sixtyfour
-    | Unboxed_int32 -> Thirtytwo
-    | Unboxed_int64 -> Sixtyfour
-  in
-  let op = Cbswap { bitwidth } in
-  if (bi = Primitive.Unboxed_int64 && size_int = 4)
-     || not (Proc.operation_supported op)
-  then
-    let prim, tyarg =
+  match (bi : Primitive.unboxed_integer) with
+  | Unboxed_int8 -> arg
+  | _ ->
+    let bitwidth : Cmm.bswap_bitwidth =
       match (bi : Primitive.unboxed_integer) with
-      | Unboxed_nativeint -> "nativeint", XInt
-      | Unboxed_int32 -> "int32", XInt32
-      | Unboxed_int64 -> "int64", XInt64
+      | Unboxed_nativeint -> if size_int = 4 then Thirtytwo else Sixtyfour
+      | Unboxed_int8 -> assert false
+      | Unboxed_int16 -> Sixteen
+      | Unboxed_int32 -> Thirtytwo
+      | Unboxed_int64 -> Sixtyfour
     in
-    Cop
-      ( Cextcall
-          { func = Printf.sprintf "caml_%s_direct_bswap" prim;
-            builtin = false;
-            returns = true;
-            effects = Arbitrary_effects;
-            coeffects = Has_coeffects;
-            ty = typ_int;
-            alloc = false;
-            ty_args = [tyarg]
-          },
-        [arg],
-        dbg )
-  else Cop (op, [arg], dbg)
-
-let bswap16 arg dbg =
-  let op = Cbswap { bitwidth = Cmm.Sixteen } in
-  if Proc.operation_supported op
-  then Cop (op, [arg], dbg)
-  else
-    Cop
-      ( Cextcall
-          { func = "caml_bswap16_direct";
-            builtin = false;
-            returns = true;
-            effects = Arbitrary_effects;
-            coeffects = Has_coeffects;
-            ty = typ_int;
-            alloc = false;
-            ty_args = []
-          },
-        [arg],
-        dbg )
+    let op = Cbswap { bitwidth } in
+    if (bi = Primitive.Unboxed_int64 && size_int = 4)
+       || not (Proc.operation_supported op)
+    then
+      let func, tyarg =
+        match (bi : Primitive.unboxed_integer) with
+        | Unboxed_int8 -> assert false
+        | Unboxed_int16 -> "caml_bswap16_direct", XInt16
+        | Unboxed_int32 -> "caml_int32_direct_bswap", XInt32
+        | Unboxed_nativeint -> "caml_nativeint_direct_bswap", XInt
+        | Unboxed_int64 -> "caml_int64_direct_bswap", XInt64
+      in
+      Cop
+        ( Cextcall
+            { func;
+              builtin = false;
+              returns = true;
+              effects = Arbitrary_effects;
+              coeffects = Has_coeffects;
+              ty = typ_int;
+              alloc = false;
+              ty_args = [tyarg]
+            },
+          [arg],
+          dbg )
+    else Cop (op, [arg], dbg)
 
 type binary_primitive = expression -> expression -> Debuginfo.t -> expression
 

@@ -29,6 +29,9 @@ val fatal_errorf: ('a, Format.formatter, unit, 'b) format4 -> 'a
   (** Format the arguments according to the given format string
       and raise [Fatal_error] with the resulting string. *)
 
+val unboxed_small_int_arrays_are_not_implemented : unit -> _
+  (** Unboxed small int arrays are not implemented. *)
+
 exception Fatal_error
 
 (** {1 Exceptions and finalization} *)
