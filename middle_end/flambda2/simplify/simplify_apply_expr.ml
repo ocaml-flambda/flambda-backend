@@ -50,7 +50,7 @@ let record_free_names_of_apply_as_used dacc ~use_id ~exn_cont_use_id apply =
 
 let loopify_decision_for_call dacc apply =
   let denv = DA.denv dacc in
-  if not (Are_rebuilding_terms.are_rebuilding (DE.are_rebuilding_terms denv))
+  if Are_rebuilding_terms.do_not_rebuild_terms (DE.are_rebuilding_terms denv)
   then
     (* During speculative inlining, we are only rebuilding the inlined body, and
        in particular we run the Flow Analysis on just the inlined body. The Flow
@@ -226,7 +226,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
         Simplify_rec_info_expr.known_remaining_unrolling_depth dacc
           (Call_site_inlining_decision.get_rec_info dacc ~function_type)
       in
-      if Are_rebuilding_terms.are_rebuilding
+      if Are_rebuilding_terms.do_rebuild_terms
            (DE.are_rebuilding_terms (DA.denv dacc))
       then
         Inlining_report.record_decision_at_call_site_for_known_function
@@ -917,7 +917,7 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
     (call : Call_kind.Function_call.t) ~apply_alloc_mode ~down_to_up =
   fail_if_probe apply;
   let denv = DA.denv dacc in
-  if Are_rebuilding_terms.are_rebuilding (DE.are_rebuilding_terms denv)
+  if Are_rebuilding_terms.do_rebuild_terms (DE.are_rebuilding_terms denv)
   then
     Inlining_report.record_decision_at_call_site_for_unknown_function
       ~pass:Inlining_report.Pass.Before_simplify
