@@ -2726,8 +2726,6 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let kind = standard_int_or_float_of_peek_or_poke layout in
     [Binary (Poke kind, ptr, new_value)]
   | Pread_offset layout, [[ptr]; [idx]] ->
-    (* CR rtjoa: the below assumes that each kind in an unboxed product is 8
-       bytes apart. we shouldn't bake this in *)
     let offsets = idx_offsets layout idx in
     let kinds = convert_layout_to_offset_access_kinds layout in
     let reads =

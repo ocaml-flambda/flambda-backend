@@ -76,8 +76,18 @@ let () =
   ()
 
 
-type fr = { f : float }
+type float_record = { f : float }
 
 let () =
-  let f = read_idx_imm { f = 1.0 } (.f) in
+  let r = { f = 1.0 } in
+  let f = read_idx_imm r (.f) in
   Printf.printf "f = %f\n" (box_float f)
+
+
+type mixed_float_record = { f : float; u: float# }
+
+let () =
+  let r = { f = 1.0; u = #2. } in
+  let f = read_idx_imm r (.f) in
+  let u = read_idx_imm r (.u) in
+  Printf.printf "f = %f; u = %f\n" (box_float f) (box_float u)

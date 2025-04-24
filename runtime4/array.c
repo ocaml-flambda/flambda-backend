@@ -890,9 +890,10 @@ CAMLprim value caml_array_blit(value a1, value ofs1, value a2, value ofs2,
   return Val_unit;
 }
 
+/* In bytecode, an index is represented as a block containing a list of field
+   positions */
 CAMLprim value caml_idx_unsafe_read_bytecode(value base, value idx)
 {
-  CAMLassert (0);
   CAMLassert (Tag_val(idx) == 0);
   value res = base;
   mlsize_t depth = Wosize_val(idx);
@@ -916,8 +917,8 @@ CAMLprim value caml_idx_unsafe_write_bytecode(value base, value idx, value v)
   return Val_unit;
 }
 
+/* Concatenates idx_prefix and idx_suffix */
 CAMLprim value caml_idx_deepen_bytecode(value idx_prefix, value idx_suffix) {
-  /* CR rtjoa: do we have to use CAMLparam2 and CAMLreturn? */
   mlsize_t prefix_depth = Wosize_val(idx_prefix);
   mlsize_t suffix_depth = Wosize_val(idx_suffix);
 

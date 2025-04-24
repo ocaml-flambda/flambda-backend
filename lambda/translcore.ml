@@ -842,47 +842,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         makearray lambda_arr_mut
       end
   | Texp_idx (ba, uas) ->
-    let uas_path =
-      List.map (function Uaccess_unboxed_field (_, lbl) -> lbl.lbl_pos)
-        uas
-    in
-    let loc = of_location ~scopes e.exp_loc in
-    begin match ba with
-    | Baccess_block (_, index) ->
-      let index = transl_exp ~scopes Jkind.Sort.Const.for_idx index in
-      begin match uas with
-      | [] -> index
-      | Uaccess_unboxed_field (_, lbl) :: _ ->
-        let lbl_layout l = layout e.exp_env l.lbl_loc l.lbl_sort l.lbl_arg in
-        let layouts = Array.to_list (Array.map lbl_layout lbl.lbl_all) in
-        Lprim (Pidx_deepen (uas_path, layouts), [index], loc)
-      end
-    | Baccess_field (id, lbl) ->
-      check_record_field_sort id.loc lbl.lbl_sort;
-      begin match lbl.lbl_repres with
-      | Record_boxed _
-      | Record_float | Record_ufloat ->
-        (* Assert that all unboxed fields are of singleton records *)
-        List.iter
-          (fun (Uaccess_unboxed_field (_, l)) ->
-             if Array.length l.lbl_all <> 1 then
-               Misc.fatal_error "Texp_idx: non-singleton unboxed record field \
-                 in non-mixed boxed record")
-          uas;
-        Lprim (Pidx_field lbl.lbl_pos, [], loc)
-      | Record_inlined _ | Record_unboxed ->
-        Misc.fatal_error "Texp_idx: unexpected unboxed/inlined record"
-      | Record_mixed shape ->
-        let shape =
-          Lambda.transl_mixed_product_shape
-            ~get_value_kind:(fun _ -> Lambda.generic_value) shape
-        in
-        let path = lbl.lbl_pos :: uas_path in
-        Lprim (Pidx_mixed_field (path, shape), [], loc)
-      end
-    | Baccess_array _ ->
-      Misc.fatal_error "Texp_idx: array unimplemented"
-    end
+    transl_idx ~scopes e.exp_loc e.exp_env ba uas
   | Texp_list_comprehension comp ->
       let loc = of_location ~scopes e.exp_loc in
       Transl_list_comprehension.comprehension
@@ -2220,6 +2180,84 @@ and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
       let layout = layout_exp init_expr_sort init_expr in
       let exp = transl_exp ~scopes init_expr_sort init_expr in
       Llet(Strict, layout, init_id, exp, lam)
+
+(* Note [Representation of block indices]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   Consider the following type:
+
+     type a = #{ s : string; i : int64# }
+     type b = #{ i : int64#; a : a; s : string }
+     type c = { mutable b : b; s : string }
+
+   The layout of [c] has the shape:
+     ((b_i64, (a_string, a_i64), b_string), c_string)
+
+   In the native code compiler, it gets reordered (a stable two-color sort by
+   values and non-values):
+        a_string b_string c_string b_i64 a_i64
+     b  ^^^^^^^^^^^^^^^^^          ^^^^^^^^^^^
+     a  ^^^^^^^^                         ^^^^^
+
+   In the bytecode compiler, unboxed records are actually boxed, and not
+   reordered.
+
+   Therefore, block indices have two different representations. In the native
+   compiler, they are the offset into the block and the gap between the values
+   and non-values of the pointed-to payload, both in bytes. In the bytecode
+   compiler, they are a block containing the sequence of field positions.
+
+     Idx in [c]  Native repr.      Bytecode repr.
+     ---------------------------------------------
+     (.b)        offset 0, gap 8   { 0 }
+     (.s)        offset 16, gap 0  { 1 }
+     (.b.#i)     offset 24, gap 0  { 0; 0 }
+     (.b.#a)     offset 0, gap 24  { 0; 1 }
+     (.b.#s)     offset 8, gap 0   { 0; 2 }
+     (.b.#a.#s)  offset 0, gap 0   { 0; 1; 0 }
+     (.b.#a.#i)  offset 32, gap 0  { 0; 1; 1 }
+*)
+and transl_idx ~scopes loc env ba uas =
+  let uas_path =
+    List.map (function Uaccess_unboxed_field (_, lbl) -> lbl.lbl_pos)
+      uas
+  in
+  let loc = of_location ~scopes loc in
+  begin match ba with
+  | Baccess_block (_, index) ->
+    let index = transl_exp ~scopes Jkind.Sort.Const.for_idx index in
+    begin match uas with
+    | [] -> index
+    | Uaccess_unboxed_field (_, lbl) :: _ ->
+      let lbl_layout l = layout env l.lbl_loc l.lbl_sort l.lbl_arg in
+      let layouts = Array.to_list (Array.map lbl_layout lbl.lbl_all) in
+      Lprim (Pidx_deepen (uas_path, layouts), [index], loc)
+    end
+  | Baccess_field (id, lbl) ->
+    check_record_field_sort id.loc lbl.lbl_sort;
+    begin match lbl.lbl_repres with
+    | Record_boxed _
+    | Record_float | Record_ufloat ->
+      (* Assert that all unboxed fields are of singleton records *)
+      List.iter
+        (fun (Uaccess_unboxed_field (_, l)) ->
+            if Array.length l.lbl_all <> 1 then
+              Misc.fatal_error "Texp_idx: non-singleton unboxed record field \
+                in non-mixed boxed record")
+        uas;
+      Lprim (Pidx_field lbl.lbl_pos, [], loc)
+    | Record_inlined _ | Record_unboxed ->
+      Misc.fatal_error "Texp_idx: unexpected unboxed/inlined record"
+    | Record_mixed shape ->
+      let shape =
+        Lambda.transl_mixed_product_shape
+          ~get_value_kind:(fun _ -> Lambda.generic_value) shape
+      in
+      let path = lbl.lbl_pos :: uas_path in
+      Lprim (Pidx_mixed_field (path, shape), [], loc)
+    end
+  | Baccess_array _ ->
+    Misc.fatal_error "Texp_idx: array unimplemented"
+  end
 
 and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
   let return_layout = layout_exp return_sort e in

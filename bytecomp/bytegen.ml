@@ -985,12 +985,6 @@ and comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz
         (Kmakefloatblock (List.length args) :: cont)
-  | Lprim(Pidx_deepen (path, _), [path_prefix], _) ->
-    let path_consts = List.map (fun x -> Const_base (Const_int x)) path in
-    let path_suffix = Lconst (Const_block (0, path_consts)) in
-    let args = [path_prefix; path_suffix] in
-    (* CR rtjoa: what should size be? *)
-    comp_args stack_info env args sz (Kccall ("caml_idx_deepen_bytecode", 2) :: cont)
   | Lprim(Pmakemixedblock (tag, _, shape, _), args, loc) ->
       (* There is no notion of a mixed block at runtime in bytecode. Further,
          source-level unboxed types are represented as boxed in bytecode, so
@@ -1176,6 +1170,14 @@ and comp_expr stack_info env exp sz cont =
   | Lprim(Pfloatfield (n, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz (Kgetfloatfield n :: cont)
+  | Lprim(Pidx_deepen (path, _), [path_prefix], loc) ->
+    (* In bytecode, an index is a block storing a series of positions; deepening
+       an index "appends" to the end (by making a new block) *)
+    let path_consts = List.map (fun x -> Const_base (Const_int x)) path in
+    let path_suffix = Lconst (Const_block (0, path_consts)) in
+    let cont = add_pseudo_event loc !compunit_name cont in
+    comp_args stack_info env [path_prefix; path_suffix] sz
+      (Kccall ("caml_idx_deepen_bytecode", 2) :: cont)
   | Lprim(p, args, _) ->
       let nargs = List.length args - 1 in
       comp_args stack_info env args sz
