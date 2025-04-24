@@ -22,6 +22,8 @@ type exported
 
 include Container_types.S with type t := t
 
+module Lmap : Lmap.S with type key := t
+
 module Sort : sig
   type t =
     | Normal_or_exn

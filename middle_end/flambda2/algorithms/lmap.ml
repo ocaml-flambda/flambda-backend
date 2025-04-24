@@ -61,6 +61,8 @@ module type S = sig
 
   val exists : (key -> 'a -> bool) -> 'a t -> bool
 
+  val choose : 'a t -> key * 'a
+
   val add_seq : (key * 'a) Seq.t -> 'a t -> 'a t
 
   val of_seq : (key * 'a) Seq.t -> 'a t
@@ -107,6 +109,8 @@ module Make (T : Thing) : S with type key = T.t = struct
     | (k, v) :: m -> f k v fixed_arg && for_all_with_fixed_arg f m fixed_arg
 
   let exists f m = List.exists (fun (k, v) -> f k v) m
+
+  let choose = function [] -> raise Not_found | res :: _ -> res
 
   let keys m = List.map fst m
 

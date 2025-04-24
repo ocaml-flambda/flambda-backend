@@ -1015,7 +1015,7 @@ and let_cont_expr env (lc : Flambda.Let_cont_expr.t) =
       ~f:(fun ~invariant_params:_ ~body handlers ->
         (* TODO support them *)
         let env =
-          Continuation.Set.fold
+          List.fold_right
             (fun c env ->
               let _, env = Env.bind_named_continuation env c in
               env)
@@ -1033,7 +1033,7 @@ and let_cont_expr env (lc : Flambda.Let_cont_expr.t) =
               in
               cont_handler env c sort handler)
             (handlers |> Flambda.Continuation_handlers.to_map
-           |> Continuation.Map.bindings)
+           |> Continuation.Lmap.bindings)
         in
         let body = expr env body in
         Fexpr.Let_cont { recursive = Recursive; bindings; body })
@@ -1236,7 +1236,7 @@ module Iter = struct
 
   and let_cont_rec f_c f_s conts body =
     let map = Continuation_handlers.to_map conts in
-    Continuation.Map.iter (continuation_handler f_c f_s) map;
+    Continuation.Lmap.iter (continuation_handler f_c f_s) map;
     expr f_c f_s body
 
   and continuation_handler f_c f_s _ h =
