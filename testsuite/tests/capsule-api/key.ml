@@ -1,6 +1,7 @@
 (* TEST
  include stdlib_alpha;
  flags = "-extension-universe alpha";
+ runtime5;
  { bytecode; }
  { native; }
 *)
@@ -161,7 +162,7 @@ let () =
 let () =
   let exception F of int in
   let (P k) = Capsule.create () in
-  (* Encapsulated exceptions from inside [with_password_shared_local] are unwrapped. *) 
+  (* Encapsulated exceptions from inside [with_password_shared_local] are unwrapped. *)
   try
     Capsule.Key.with_password_shared_local k
       (fun (type k) (p : k Capsule.Password.Shared.t) ->
