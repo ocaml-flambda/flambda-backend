@@ -49,7 +49,7 @@ and instruction_desc =
   | Lentertrap
   | Ladjust_stack_offset of { delta_bytes : int }
   | Lpushtrap of { lbl_handler : label }
-  | Lpoptrap
+  | Lpoptrap of { lbl_handler : label }
   | Lraise of Lambda.raise_kind
   | Lstackcheck of { max_frame_size_bytes : int }
 

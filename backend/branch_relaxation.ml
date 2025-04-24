@@ -28,7 +28,7 @@ module Make (T : Branch_relaxation_intf.S) = struct
       | Llabel { label = lbl; _ } ->
         Hashtbl.add map lbl pc;
         fill_map pc instr.next
-      | ( Lprologue | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap | Lop _
+      | ( Lprologue | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap _ | Lop _
         | Lcall_op _ | Lbranch _
         | Lcondbranch (_, _)
         | Lcondbranch3 (_, _, _)
@@ -80,7 +80,7 @@ module Make (T : Branch_relaxation_intf.S) = struct
           | Floatop (_, _)
           | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
           | Name_for_debugger _ )
-      | Lprologue | Lend | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap
+      | Lprologue | Lend | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap _
       | Lcall_op _ | Llabel _ | Lbranch _ | Lswitch _ | Ladjust_stack_offset _
       | Lpushtrap _ | Lraise _ | Lstackcheck _ ->
         Misc.fatal_error "Unsupported instruction for branch relaxation")
@@ -97,7 +97,7 @@ module Make (T : Branch_relaxation_intf.S) = struct
     let rec fixup did_fix pc instr =
       match instr.desc with
       | Lend -> did_fix
-      | Lprologue | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap | Lop _
+      | Lprologue | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap _ | Lop _
       | Lcall_op _ | Llabel _ | Lbranch _
       | Lcondbranch (_, _)
       | Lcondbranch3 (_, _, _)
@@ -137,8 +137,8 @@ module Make (T : Branch_relaxation_intf.S) = struct
             instr.desc <- cont.desc;
             instr.next <- cont.next;
             fixup true pc instr
-          | Lprologue | Lend | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap
-          | Lcall_op _ | Llabel _ | Lbranch _ | Lswitch _
+          | Lprologue | Lend | Lreloadretaddr | Lreturn | Lentertrap
+          | Lpoptrap _ | Lcall_op _ | Llabel _ | Lbranch _ | Lswitch _
           | Ladjust_stack_offset _ | Lpushtrap _ | Lraise _ | Lstackcheck _
           | Lop
               ( Move | Spill | Reload | Opaque | Begin_region | End_region
