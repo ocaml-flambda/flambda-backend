@@ -146,7 +146,8 @@ val f : 'a rep -> int = <fun>
 (***********************************)
 (* Implicit unboxed records basics *)
 
-(* Boxed, including mixed-block, records get implicit unboxed records *)
+(* Boxed records, including non-float mixed-block records, get implicit unboxed
+   records *)
 type r = { i : int ; s : string }
 type u : immediate & value = r#
 [%%expect{|
@@ -160,11 +161,20 @@ type r = { s : string; f : float#; }
 type u = r#
 |}]
 
-(* But not float or [@@unboxed] records *)
+(* But not float, mixed float/float#, or [@@unboxed] records *)
 type r = { f : float ; f2 : float }
 type bad = r#
 [%%expect{|
 type r = { f : float; f2 : float; }
+Line 2, characters 11-13:
+2 | type bad = r#
+               ^^
+Error: The type "r" has no unboxed version.
+|}]
+type r = { f : float ; f2 : float# }
+type bad = r#
+[%%expect{|
+type r = { f : float; f2 : float#; }
 Line 2, characters 11-13:
 2 | type bad = r#
                ^^
