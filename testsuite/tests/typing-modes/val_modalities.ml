@@ -88,6 +88,35 @@ module Module_type_of_comonadic :
   end
 |}]
 
+(* zapping behavior can cause type error that shouldn't happen in upstream ocaml *)
+module Module_type_of_error = struct
+  module M = struct
+    let x = fun x -> x
+  end
+
+  module M' : module type of M = struct
+    let y = ref 42
+    let x = fun x -> ignore !y; x
+  end
+end
+[%%expect{|
+Lines 6-9, characters 33-5:
+6 | .................................struct
+7 |     let y = ref 42
+8 |     let x = fun x -> ignore !y; x
+9 |   end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val y : int ref val x : 'a -> 'a end
+       is not included in
+         sig val x : 'a -> 'a @@ stateless end
+       Values do not match:
+         val x : 'a -> 'a
+       is not included in
+         val x : 'a -> 'a @@ stateless
+       The second is portable and the first is nonportable.
+|}]
+
 module Module_type_of_monadic = struct
     module M = struct
         let x : string ref @ uncontended = ref "hello"
