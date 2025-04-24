@@ -132,7 +132,18 @@ module Scalar = struct
     with
     | Floating l -> Builtin (Boxed (Boxed.floating (Floating.of_lambda (Value l))))
     | Integral l -> Or_small_int.map (Integral.of_lambda (Value l)) ~f:integral
+
+  module Unsupported_intrinsic = struct
+    type t =
+      | Three_way_compare_ints_unsigned of Scalar.any_locality_mode Scalar.Integral.t
+      | Unsigned_lessthan of Scalar.any_locality_mode Scalar.Integral.t
+      | Unsigned_greaterthan of Scalar.any_locality_mode Scalar.Integral.t
+      | Unsigned_lessequal of Scalar.any_locality_mode Scalar.Integral.t
+      | Unsigned_greaterequal of Scalar.any_locality_mode Scalar.Integral.t
+  end
 end
+
+exception Unsupported_intrinsic of Scalar.Unsupported_intrinsic.t
 
 (**** Label generation ****)
 
@@ -849,6 +860,32 @@ let zero_extend width cont =
   :: Kandint
   :: cont
 
+
+let flip_sign_bit size x ~dbg =
+  let size =
+    Lambda.Scalar.Integral.map size ~f:(fun Any_locality_mode -> Lambda.alloc_heap)
+  in
+  let bytecode_size : Scalar.Integral.t =
+    match Scalar.Integral.of_lambda size with
+    | Builtin builtin -> builtin
+    | Small (Int8 | Int16) -> (* sign-extended already since bytecode *) Int
+  in
+  let min_int =
+    match bytecode_size with
+    | Boxed Int32 -> Lconst (Const_base (Const_int32 Int32.min_int))
+    | Boxed Int64 -> Lconst (Const_base (Const_int64 Int64.min_int))
+    | Int | Boxed Nativeint ->
+      (* unknown width, must compute at runtime... *)
+      let max_int =
+        Lprim (Pscalar (Binary (Shift (size, Lsr, Int))),
+                [ lconst_int size (-1); lconst_int int 1 ],
+                dbg)
+      in
+      Lprim (Pscalar (Unary (Integral (size, Succ))), [max_int], dbg)
+  in
+  Lprim (Pscalar (Binary (Integral (size, Xor))), [x; min_int], dbg)
+
+
 let rec translate_float32s_or_nulls stack_info env cst sz cont =
   match cst with
   | Const_base (Const_float32 f | Const_unboxed_float32 f) ->
@@ -1169,8 +1206,34 @@ let rec translate_float32s_or_nulls stack_info env cst sz cont =
   | Lprim(Pfloatfield (n, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz (Kgetfloatfield n :: cont)
-  | Lprim(Pscalar scalar, args, _) ->
-    comp_args stack_info env args sz ( comp_scalar_intrinsic scalar cont)
+  | Lprim (Pscalar scalar, args, dbg) -> (
+    match comp_scalar_intrinsic scalar cont with
+    | cont -> comp_args stack_info env args sz cont
+    | exception Unsupported_intrinsic scalar ->
+      let exp =
+        match scalar with
+        | Three_way_compare_ints_unsigned size ->
+          Lprim (Pscalar (Binary (Three_way_compare_int (Signed, size))),
+                 List.map ( flip_sign_bit size ~dbg) args,
+                 dbg)
+        | Unsigned_greaterthan size ->
+          Lprim (Pscalar (Binary (Icmp (size, Cgt))),
+                 List.map ( flip_sign_bit size ~dbg) args,
+                 dbg)
+        | Unsigned_greaterequal size ->
+          Lprim (Pscalar (Binary (Icmp (size, Cge))),
+                 List.map ( flip_sign_bit size ~dbg) args,
+                 dbg)
+        | Unsigned_lessthan size ->
+          Lprim (Pscalar (Binary (Icmp (size, Clt))),
+                 List.map (flip_sign_bit size ~dbg) args,
+                 dbg)
+        | Unsigned_lessequal size ->
+          Lprim (Pscalar (Binary (Icmp (size, Cle))),
+                 List.map ( flip_sign_bit size ~dbg) args,
+                 dbg)
+      in
+      comp_expr stack_info env exp sz cont)
   | Lprim(p, args, _) ->
       let nargs = List.length args - 1 in
       comp_args stack_info env args sz
@@ -1461,9 +1524,9 @@ and comp_scalar_intrinsic (op : _ Lambda.Scalar.Intrinsic.t) cont =
     | Int ->
       (match op with
        | Add -> Kaddint :: cont
-       | Sub -> Ksubint:: cont
-       | Mul -> Kmulint:: cont
-       | Div (Safe | Unsafe)-> Kdivint :: cont
+       | Sub -> Ksubint :: cont
+       | Mul -> Kmulint :: cont
+       | Div (Safe | Unsafe) -> Kdivint :: cont
        | Mod (Safe | Unsafe) -> Kmodint :: cont
        | And -> Kandint :: cont
        | Or -> Korint :: cont
@@ -1516,6 +1579,19 @@ and comp_scalar_intrinsic (op : _ Lambda.Scalar.Intrinsic.t) cont =
     | Shift (size, op, Int) ->
       comp_shift (Scalar.Integral.of_lambda size) op cont
     | Icmp (size, cmp) ->
+      let (cmp : Instruct.integer_comparison) =
+        match cmp with
+        | Ceq -> Ceq
+        | Cne -> Cne
+        | Clt -> Clt
+        | Cgt -> Cgt
+        | Cle -> Cle
+        | Cge -> Cge
+        | Cult -> Cult
+        | Cuge -> Cuge
+        | Cule -> raise (Unsupported_intrinsic (Unsigned_lessequal size))
+        | Cugt -> raise (Unsupported_intrinsic (Unsigned_greaterthan size))
+      in
       (match Scalar.Integral.of_lambda size with
        | Small (Int8 | Int16) | Builtin Int -> Kintcomp cmp :: cont
        | Builtin (Boxed (Int32 | Nativeint | Int64)) ->
@@ -1525,7 +1601,10 @@ and comp_scalar_intrinsic (op : _ Lambda.Scalar.Intrinsic.t) cont =
           | Clt -> ccall 2 "caml_lessthan" cont
           | Cle -> ccall 2 "caml_lessequal" cont
           | Cgt -> ccall 2 "caml_greaterthan" cont
-          | Cge -> ccall 2 "caml_greaterequal" cont))
+          | Cge -> ccall 2 "caml_greaterequal" cont
+          | Cuge -> raise (Unsupported_intrinsic (Unsigned_greaterequal size))
+          | Cult -> raise (Unsupported_intrinsic (Unsigned_lessthan size))
+         ))
     | Fcmp (size, cmp) ->
       (match Scalar.Floating.of_lambda size with
        | Float | Float32 as size ->
@@ -1541,13 +1620,18 @@ and comp_scalar_intrinsic (op : _ Lambda.Scalar.Intrinsic.t) cont =
          | CFnle -> ccall 2 "caml_le_%s" size (Kboolnot :: cont)
          | CFge -> ccall 2 "caml_ge_%s" size (cont)
          | CFnge -> ccall 2 "caml_ge_%s" size (Kboolnot :: cont))
-    | Three_way_compare size ->
-      let size = match Scalar.of_lambda size with
-        | Small (Int8 | Int16) -> Scalar.Int
-        | Builtin (Int | Boxed (Int32 | Nativeint | Int64 | Float | Float32) as builtin )
+    | Three_way_compare_int (Signed, size) ->
+      let size = match Scalar.Integral.of_lambda size with
+        | Small (Int8 | Int16) -> Scalar.Integral.Int
+        | Builtin (Int | Boxed (Int32 | Nativeint | Int64) as builtin)
           -> builtin
       in
-      ccall 2 "caml_%s_compare" (Scalar.to_string size) cont
+      ccall 2 "caml_%s_compare" (Scalar.Integral.to_string size) cont
+    | Three_way_compare_int (Unsigned, size) ->
+      raise (Unsupported_intrinsic (Three_way_compare_ints_unsigned size))
+    | Three_way_compare_float size ->
+      let size = Scalar.Floating.of_lambda size in
+      ccall 2 "caml_%s_compare" (Scalar.Floating.to_string size) cont
   in
   let comp_unary_scalar_intrinsic op cont =
     (* we don't need to sign- or zero-extend the inputs because tagged small integers are

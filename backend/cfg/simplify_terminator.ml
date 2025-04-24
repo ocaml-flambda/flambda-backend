@@ -56,12 +56,14 @@ let simplify_switch (block : C.basic_block) labels =
     assert (Label.equal labels.(n) ln);
     assert (len = n + k);
     let desc =
-      C.Int_test { is_signed = false; imm = Some n; lt = l0; eq = ln; gt = ln }
+      C.Int_test
+        { is_signed = Unsigned; imm = Some n; lt = l0; eq = ln; gt = ln }
     in
     block.terminator <- { block.terminator with desc }
   | [(l0, m); (l1, 1); (l2, _)] when Label.equal l0 l2 ->
     let desc =
-      C.Int_test { is_signed = false; imm = Some m; lt = l0; eq = l1; gt = l0 }
+      C.Int_test
+        { is_signed = Unsigned; imm = Some m; lt = l0; eq = l1; gt = l0 }
     in
     block.terminator <- { block.terminator with desc }
   | [(l0, 1); (l1, 1); (l2, n)] ->
@@ -70,7 +72,8 @@ let simplify_switch (block : C.basic_block) labels =
     assert (Label.equal labels.(2) l2);
     assert (len = n + 2);
     let desc =
-      C.Int_test { is_signed = false; imm = Some 1; lt = l0; eq = l1; gt = l2 }
+      C.Int_test
+        { is_signed = Unsigned; imm = Some 1; lt = l0; eq = l1; gt = l2 }
     in
     block.terminator <- { block.terminator with desc }
   | _ -> ()
@@ -104,9 +107,9 @@ let evaluate_terminator ~(reg : Reg.t) ~(const : nativeint)
       then
         let const' = Nativeint.of_int const' in
         let result =
-          if is_signed
-          then Nativeint.compare const const'
-          else Nativeint.unsigned_compare const const'
+          match is_signed with
+          | Signed -> Nativeint.compare const const'
+          | Unsigned -> Nativeint.unsigned_compare const const'
         in
         if result < 0 then Some lt else if result > 0 then Some gt else Some eq
       else None)

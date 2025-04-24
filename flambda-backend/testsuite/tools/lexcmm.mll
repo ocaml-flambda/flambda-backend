@@ -157,28 +157,24 @@ rule token = parse
   | "/f" { DIVF }
   | "/" { DIVI }
   | eof { EOF }
-  | "==a" { EQA }
   | "==f" { EQF }
   | "==" { EQI }
-  | ">=a" { GEA }
   | ">=f" { GEF }
-  | ">=" { GEI }
-  | ">a" { GTA }
+  | ">=s" { GEI }
+  | ">u" { UGTI }
   | ">f" { GTF }
-  | ">" { GTI }
+  | ">s" { GTI }
   | "[" { LBRACKET }
-  | "<=a" { LEA }
   | "<=f" { LEF }
-  | "<=" { LEI }
+  | "<=s" { LEI }
   | "(" { LPAREN }
   | "<<" { LSL }
   | ">>u" { LSR }
-  | "<a" { LTA }
+  | "<u" { LTI }
   | "<f" { LTF }
-  | "<" { LTI }
+  | "<s" { LTI }
   | "*f" { MULF }
   | "*" { STAR }
-  | "!=a" { NEA }
   | "!=f" { NEF }
   | "!=" { NEI }
   | "!>=f" { NGEF }
@@ -189,6 +185,10 @@ rule token = parse
   | ")" { RPAREN }
   | "-f" { SUBF }
   | "-" { SUBI }
+  | ">=u" { UGEI }
+  | ">u" { UGTI }
+  | "<=u" { ULEI }
+  | "<u" { ULTI }
   | '-'? (['0'-'9']+ | "0x" ['0'-'9' 'a'-'f' 'A'-'F']+
                      | "0o" ['0'-'7']+ | "0b" ['0'-'1']+)
       { INTCONST(int_of_string(Lexing.lexeme lexbuf)) }

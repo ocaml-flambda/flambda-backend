@@ -603,18 +603,16 @@ let emit_stack_realloc () =
 
 let cond_for_comparison :
     integer_comparison -> Arm64_ast.Instruction_name.Cond.t = function
-  | Isigned Ceq -> EQ
-  | Isigned Cne -> NE
-  | Isigned Cle -> LE
-  | Isigned Cge -> GE
-  | Isigned Clt -> LT
-  | Isigned Cgt -> GT
-  | Iunsigned Ceq -> EQ
-  | Iunsigned Cne -> NE
-  | Iunsigned Cle -> LS
-  | Iunsigned Cge -> CS
-  | Iunsigned Clt -> CC
-  | Iunsigned Cgt -> HI
+  | Ceq -> EQ
+  | Cne -> NE
+  | Cle -> LE
+  | Cge -> GE
+  | Clt -> LT
+  | Cgt -> GT
+  | Cule -> LS
+  | Cuge -> CS
+  | Cult -> CC
+  | Cugt -> HI
 
 let instr_for_int_operation = function
   | Iadd -> I.ADD

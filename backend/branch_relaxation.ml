@@ -91,7 +91,7 @@ module Make (T : Branch_relaxation_intf.S) = struct
       | None -> next
       | Some l ->
         instr_cons
-          (Lcondbranch (Iinttest_imm (Isigned Cmm.Ceq, n), l))
+          (Lcondbranch (Iinttest_imm (Ceq, n), l))
           arg [||] next ~available_before:None ~available_across:None
     in
     let rec fixup did_fix pc instr =

@@ -92,13 +92,17 @@ val machtype_of_exttype : exttype -> machtype
 
 val machtype_of_exttype_list : exttype list -> machtype
 
-type integer_comparison = Lambda.integer_comparison =
+type integer_comparison = Scalar.Integer_comparison.t =
   | Ceq
   | Cne
   | Clt
   | Cgt
   | Cle
   | Cge
+  | Cult
+  | Cugt
+  | Cule
+  | Cuge
 
 val negate_integer_comparison : integer_comparison -> integer_comparison
 
@@ -361,7 +365,6 @@ type operation =
   | Ccmpi of integer_comparison
   | Caddv (* pointer addition that produces a [Val] (well-formed Caml value) *)
   | Cadda (* pointer addition that produces a [Addr] (derived heap pointer) *)
-  | Ccmpa of integer_comparison
   | Cnegf of float_width
   | Cabsf of float_width
   | Caddf of float_width

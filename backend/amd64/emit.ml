@@ -756,18 +756,16 @@ let instr_for_floatarithmem (width : Cmm.float_width) op =
   | Float32, Ifloatdiv -> I.divss
 
 let cond : Operation.integer_comparison -> X86_ast.condition = function
-  | Isigned Ceq -> E
-  | Isigned Cne -> NE
-  | Isigned Cle -> LE
-  | Isigned Cgt -> G
-  | Isigned Clt -> L
-  | Isigned Cge -> GE
-  | Iunsigned Ceq -> E
-  | Iunsigned Cne -> NE
-  | Iunsigned Cle -> BE
-  | Iunsigned Cgt -> A
-  | Iunsigned Clt -> B
-  | Iunsigned Cge -> AE
+  | Ceq -> E
+  | Cne -> NE
+  | Cle -> LE
+  | Cgt -> G
+  | Clt -> L
+  | Cge -> GE
+  | Cule -> BE
+  | Cugt -> A
+  | Cult -> B
+  | Cuge -> AE
 
 (* Output an = 0 or <> 0 test. *)
 
@@ -856,14 +854,11 @@ let emit_test i ~(taken : X86_ast.condition -> unit) = function
   | Iinttest cmp ->
     I.cmp (arg i 1) (arg i 0);
     taken (cond cmp)
-  | Iinttest_imm
-      (((Isigned Ceq | Isigned Cne | Iunsigned Ceq | Iunsigned Cne) as cmp), 0)
-    ->
+  | Iinttest_imm (((Ceq | Cne) as cmp), 0) ->
     output_test_zero i.arg.(0);
     taken (cond cmp)
   | Iinttest_imm
-      ( (( Isigned (Ceq | Cne | Clt | Cgt | Cle | Cge)
-         | Iunsigned (Ceq | Cne | Clt | Cgt | Cle | Cge) ) as cmp),
+      ( ((Ceq | Cne | Clt | Cgt | Cle | Cge | Cult | Cugt | Cule | Cuge) as cmp),
         n ) ->
     I.cmp (int n) (arg i 0);
     taken (cond cmp)
@@ -2023,7 +2018,7 @@ let emit_instr ~first ~fallthrough i =
     I.mov (addressing (Ibased (semaphore_sym, Global, 2)) WORD i 0) (res16 i 0);
     (* If the semaphore is 0, then the result is 0, otherwise 1. *)
     I.cmp (int 0) (res16 i 0);
-    I.set (cond (Iunsigned Cne)) (res8 i 0);
+    I.set (cond Cne) (res8 i 0);
     I.movzx (res8 i 0) (res i 0)
   | Lop Dls_get ->
     if Config.runtime5

@@ -16,7 +16,6 @@
 (* Pretty-print lists of instructions *)
 
 open Format
-open Lambda
 open Instruct
 
 let instruction ppf = function
@@ -96,6 +95,8 @@ let instruction ppf = function
   | Kintcomp Cgt -> fprintf ppf "\tgtint"
   | Kintcomp Cle -> fprintf ppf "\tleint"
   | Kintcomp Cge -> fprintf ppf "\tgeint"
+  | Kintcomp Cuge -> fprintf ppf "\tugeint"
+  | Kintcomp Cult -> fprintf ppf "\tultint"
   | Koffsetint n -> fprintf ppf "\toffsetint %i" n
   | Koffsetref n -> fprintf ppf "\toffsetref %i" n
   | Kisint -> fprintf ppf "\tisint"

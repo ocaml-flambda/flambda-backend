@@ -124,6 +124,9 @@ val mk_compare_floats : Debuginfo.t -> expression -> expression -> expression
 val mk_compare_ints_untagged :
   Debuginfo.t -> expression -> expression -> expression
 
+val mk_unsigned_compare_ints_untagged :
+  Debuginfo.t -> expression -> expression -> expression
+
 val mk_compare_floats_untagged :
   Debuginfo.t -> expression -> expression -> expression
 

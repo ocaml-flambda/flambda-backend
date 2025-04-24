@@ -318,7 +318,7 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
   | Int_test { lt; eq; gt; is_signed; imm } ->
     let cmp =
       Printf.sprintf " %s%s"
-        (if is_signed then "s" else "u")
+        (match is_signed with Signed -> "s" | Unsigned -> "u")
         (match imm with None -> second_arg | Some i -> " " ^ Int.to_string i)
     in
     fprintf ppf "if%s <%s goto %a%s" first_arg cmp Label.format lt sep;

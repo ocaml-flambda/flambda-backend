@@ -79,10 +79,14 @@ let symbol ppf s = fprintf ppf "%a:\"%s\"" is_global s.sym_global s.sym_name
 let integer_comparison = function
   | Ceq -> "=="
   | Cne -> "!="
-  | Clt -> "<"
-  | Cle -> "<="
-  | Cgt -> ">"
-  | Cge -> ">="
+  | Clt -> "<s"
+  | Cle -> "<=s"
+  | Cgt -> ">s"
+  | Cge -> ">=s"
+  | Cult -> "<u"
+  | Cule -> "<=u"
+  | Cugt -> ">u"
+  | Cuge -> ">=u"
 
 let float_comparison = function
   | CFeq -> "=="
@@ -250,7 +254,6 @@ let operation d = function
   | Ccmpi c -> integer_comparison c
   | Caddv -> "+v"
   | Cadda -> "+a"
-  | Ccmpa c -> Printf.sprintf "%sa" (integer_comparison c)
   | Cnegf Float64 -> "~f"
   | Cabsf Float64 -> "absf"
   | Caddf Float64 -> "+f"
