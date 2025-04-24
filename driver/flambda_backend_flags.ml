@@ -15,7 +15,7 @@
 (**************************************************************************)
 let use_ocamlcfg = ref true             (* -[no-]ocamlcfg *)
 let dump_cfg = ref false                (* -dcfg *)
-let cfg_invariants = ref false          (* -dcfg-invariants *)
+let cfg_invariants = ref true          (* -dcfg-invariants *)
 let regalloc = ref ""                   (* -regalloc *)
 let default_regalloc_linscan_threshold = 100_000
 let regalloc_linscan_threshold = ref max_int (* -regalloc-linscan-threshold *)
@@ -34,7 +34,7 @@ let cfg_peephole_optimize = ref true    (* -[no-]cfg-peephole-optimize *)
 let cfg_stack_checks = ref true         (* -[no-]cfg-stack-check *)
 let cfg_stack_checks_threshold = ref 16384 (* -cfg-stack-threshold *)
 
-let cfg_eliminate_dead_trap_handlers = ref false  (* -cfg-eliminate-dead-trap-handlers *)
+let cfg_eliminate_dead_trap_handlers = ref true  (* -cfg-eliminate-dead-trap-handlers *)
 
 let reorder_blocks_random = ref None    (* -reorder-blocks-random seed *)
 let basic_block_sections = ref false    (* -basic-block-sections *)
