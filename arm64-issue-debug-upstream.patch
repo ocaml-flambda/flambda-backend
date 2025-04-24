@@ -11,7 +11,7 @@ index 8b1c4e5559..3e7de2533d 100644
        let (before, after) =
          try
 diff --git a/utils/warnings.ml b/utils/warnings.ml
-index 895ef2be07..d54a2d3faa 100644
+index 895ef2be07..3bf85e10a8 100644
 --- a/utils/warnings.ml
 +++ b/utils/warnings.ml
 @@ -459,6 +459,10 @@ let name_to_number =
@@ -25,15 +25,6 @@ index 895ef2be07..d54a2d3faa 100644
  let letter = function
    | 'a' ->
       let rec loop i = if i = 0 then [] else i :: loop (i - 1) in
-@@ -488,7 +492,7 @@ let letter = function
-   | 'x' -> [14; 15; 16; 17; 18; 19; 20; 21; 22; 23; 24; 30]
-   | 'y' -> [26]
-   | 'z' -> [27]
--  | _ -> assert false
-+  | chr -> parsed_letter := chr; assert false
- ;;
- 
- type state =
 @@ -754,7 +758,7 @@ let parse_opt error active errflag s =
      List.iter eval tokens;
      letter_alert tokens
