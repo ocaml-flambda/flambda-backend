@@ -1131,7 +1131,7 @@ let record_gets_unboxed_version = function
     Array.for_all
       (fun (kind : mixed_block_element) ->
          match kind with
-         | Value | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> true
+         | Value | Float64 | Float32 | Bits8 | Bits16 | Bits32 | Bits64 | Vec128 | Word -> true
          | Float_boxed -> false)
       shape
 let gets_unboxed_version decl =
