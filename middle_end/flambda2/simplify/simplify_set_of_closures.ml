@@ -34,7 +34,8 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
   let dacc = C.dacc_inside_functions context in
   let alloc_modes = Code_metadata.param_modes code_metadata in
   let denv =
-    DE.add_parameters_with_unknown_types ~alloc_modes (DA.denv dacc) params
+    DE.add_parameters_with_unknown_types ~extra:false ~alloc_modes
+      (DA.denv dacc) params
     |> DE.set_inlining_arguments inlining_arguments
     |> DE.set_inlining_history_tracker
          (Inlining_history.Tracker.inside_function absolute_history)
