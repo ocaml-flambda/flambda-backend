@@ -256,10 +256,12 @@ let emit_imp_table () =
     D.qword (ConstLabel (emit_symbol s))
   in
   D.data ();
-  D.comment "relocation table start";
+  if !Clflags.keep_asm_file && !Flambda_backend_flags.dasm_comments
+  then D.comment "relocation table start";
   D.align ~data:true 8;
   Hashtbl.iter f imp_table;
-  D.comment "relocation table end"
+  if !Clflags.keep_asm_file && !Flambda_backend_flags.dasm_comments
+  then D.comment "relocation table end"
 
 let mem__imp s =
   let imp_s = get_imp_symbol s in
@@ -2115,6 +2117,12 @@ let fundecl fundecl =
   emit_function_type_and_size fundecl.fun_name
 
 (* Emission of data *)
+let const_label_offset s o : X86_ast.constant =
+  if Int64.equal o 0L
+  then ConstLabel s
+  else if Int64.compare o 0L > 0
+  then ConstAdd (ConstLabel s, Const o)
+  else ConstSub (ConstLabel s, Const (Int64.neg o))
 
 let emit_item : Cmm.data_item -> unit = function
   | Cdefine_symbol s -> (
@@ -2140,7 +2148,7 @@ let emit_item : Cmm.data_item -> unit = function
     D.qword (ConstLabel (emit_cmm_symbol s))
   | Csymbol_offset (s, o) ->
     add_used_symbol s.sym_name;
-    D.qword (ConstLabelOffset (emit_cmm_symbol s, o))
+    D.qword (const_label_offset (emit_cmm_symbol s) (Int64.of_int o))
   | Cstring s -> D.bytes s
   | Cskip n -> if n > 0 then D.space n
   | Calign n -> D.align ~data:true n
@@ -2340,7 +2348,8 @@ let emit_probe_handler_wrapper p =
   (* Account for the return address that is now pushed on the stack. *)
   stack_offset := !stack_offset + 8;
   (* Emit function entry code *)
-  D.comment (Printf.sprintf "probe %s %s" probe_name handler_code_sym);
+  if !Clflags.keep_asm_file && !Flambda_backend_flags.dasm_comments
+  then D.comment (Printf.sprintf "probe %s %s" probe_name handler_code_sym);
   emit_named_text_section wrap_label;
   D.align ~data:false 16;
   _label wrap_label;

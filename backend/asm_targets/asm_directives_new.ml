@@ -618,10 +618,19 @@ let size ?size_of symbol =
 
 let label ?comment label = const_machine_width ?comment (Label label)
 
+(* CR sspies: Without this smart constructor, there is a difference in the dwarf
+   assembly output. *)
+let const_add_offset s o =
+  if Int64.equal o 0L
+  then s
+  else if Int64.compare o 0L > 0
+  then const_add s (const_int64 o)
+  else const_sub s (const_int64 (Int64.neg o))
+
 let label_plus_offset ?comment lab ~offset_in_bytes =
   let offset_in_bytes = Targetint.to_int64 offset_in_bytes in
   let lab = const_label lab in
-  const_machine_width ?comment (const_add lab (const_int64 offset_in_bytes))
+  const_machine_width ?comment (const_add_offset lab offset_in_bytes)
 
 let define_label label =
   let lbl_section = Asm_label.section label in
@@ -793,7 +802,8 @@ let symbol ?comment sym = const_machine_width ?comment (Symbol sym)
 
 let symbol_plus_offset symbol ~offset_in_bytes =
   let offset_in_bytes = Targetint.to_int64 offset_in_bytes in
-  const_machine_width (Add (Symbol symbol, Signed_int offset_in_bytes))
+  let sym = Symbol symbol in
+  const_machine_width (const_add_offset sym offset_in_bytes)
 
 let int8 ?comment i =
   const ?comment (Signed_int (Int64.of_int (Int8.to_int i))) Eight
