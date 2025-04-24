@@ -73,45 +73,46 @@ module Module_type_of_comonadic = struct
     module M = struct
         let x @ portable = fun x -> x
     end
-    (* for comonadic axes, we default to id = meet_with_max, which is the
-    weakest. *)
+    (* for comonadic axes, we default to meet_with_min, which is the strongest.
+    *)
     module M' : module type of M = struct
         let x @ portable = fun x -> x
     end
     let _ = portable_use M.x (* The original inferred modality is zapped *)
 end
 [%%expect{|
-Line 10, characters 25-28:
-10 |     let _ = portable_use M.x (* The original inferred modality is zapped *)
-                              ^^^
-Error: This value is "nonportable" but expected to be "portable".
+module Module_type_of_comonadic :
+  sig
+    module M : sig val x : 'a -> 'a @@ stateless end
+    module M' : sig val x : 'a -> 'a @@ stateless end
+  end
 |}]
 
 module Module_type_of_monadic = struct
     module M = struct
-        let x @ uncontended = ref "hello"
+        let x : string ref @ uncontended = ref "hello"
     end
     module M' : module type of M = M
     (* for monadic axes, we try to push to the id = join_with_min. The original
     modality is pushed to floor. *)
     module M' : module type of M = struct
-        let x @ contended = ref "hello"
+        let x : string ref @ contended = ref "hello"
     end
 end
 [%%expect{|
 Lines 8-10, characters 35-7:
  8 | ...................................struct
- 9 |         let x @ contended = ref "hello"
+ 9 |         let x : string ref @ contended = ref "hello"
 10 |     end
 Error: Signature mismatch:
        Modules do not match:
          sig val x : string ref @@ contended end
        is not included in
-         sig val x : string ref end
+         sig val x : string ref @@ stateless end
        Values do not match:
          val x : string ref @@ contended
        is not included in
-         val x : string ref
+         val x : string ref @@ stateless
        The second is uncontended and the first is contended.
 |}]
 
@@ -119,42 +120,45 @@ module Module_type_nested = struct
     module M = struct
         let x @ portable = fun t -> t
         module N = struct
-            let y @ uncontended = ref "hello"
+            let y : string ref @ uncontended = ref "hello"
         end
     end
     module M' : module type of M = struct
-        let x @ nonportable = fun t -> t
+        let x @ portable = fun t -> t
         module N = struct
-            let y @ contended = ref "hello"
+            let y : string ref @ contended = ref "hello"
         end
     end
 end
 [%%expect{|
 Lines 8-13, characters 35-7:
  8 | ...................................struct
- 9 |         let x @ nonportable = fun t -> t
+ 9 |         let x @ portable = fun t -> t
 10 |         module N = struct
-11 |             let y @ contended = ref "hello"
+11 |             let y : string ref @ contended = ref "hello"
 12 |         end
 13 |     end
 Error: Signature mismatch:
        Modules do not match:
          sig
-           val x : 'a -> 'a
+           val x : 'a -> 'a @@ stateless
            module N : sig val y : string ref @@ contended end
          end
        is not included in
-         sig val x : 'a -> 'a module N : sig val y : string ref end end
+         sig
+           val x : 'a -> 'a @@ stateless
+           module N : sig val y : string ref @@ stateless end
+         end
        In module "N":
        Modules do not match:
          sig val y : string ref @@ contended end
        is not included in
-         sig val y : string ref end
+         sig val y : string ref @@ stateless end
        In module "N":
        Values do not match:
          val y : string ref @@ contended
        is not included in
-         val y : string ref
+         val y : string ref @@ stateless
        The second is uncontended and the first is contended.
 |}]
 
