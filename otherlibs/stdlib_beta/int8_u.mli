@@ -122,7 +122,7 @@ external equal : int8# -> int8# -> bool = "%int8#_equal"
 external compare : int8# -> int8# -> int = "%int8#_compare"
 
 (** Same as {!compare}, except that arguments are interpreted as {e unsigned} integers. *)
-val unsigned_compare : int8# -> int8# -> int
+external unsigned_compare : int8# -> int8# -> int = "%int8#_unsigned_compare"
 
 (** Return the lesser of the two arguments. *)
 val min : int8# -> int8# -> int8#

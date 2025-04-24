@@ -206,11 +206,13 @@ let emit_comp = function
 | Ceq -> out opEQ    | Cne -> out opNEQ
 | Clt -> out opLTINT | Cle -> out opLEINT
 | Cgt -> out opGTINT | Cge -> out opGEINT
+| Cult -> out opULTINT | Cuge -> out opUGEINT
 
 and emit_branch_comp = function
 | Ceq -> out opBEQ    | Cne -> out opBNEQ
 | Clt -> out opBLTINT | Cle -> out opBLEINT
 | Cgt -> out opBGTINT | Cge -> out opBGEINT
+| Cult -> out opBULTINT | Cuge -> out opBUGEINT
 
 let runtime5_only () =
   if not Config.runtime5 then
@@ -336,6 +338,17 @@ let remerge_events ev1 = function
     Kevent (Bytegen.merge_events ev1 ev2) :: c
   | c -> Kevent ev1 :: c
 
+
+let negate_integer_comparison = function
+  | Ceq -> Cne
+  | Cne -> Ceq
+  | Clt -> Cge
+  | Cle -> Cgt
+  | Cgt -> Cle
+  | Cge -> Clt
+  | Cult -> Cuge
+  | Cuge -> Cult
+
 let rec emit = function
     [] -> ()
   (* Peephole optimizations *)
@@ -348,7 +361,7 @@ let rec emit = function
         emit rem
   | Kpush::Kconst k::Kintcomp c::Kbranchifnot lbl::rem
       when is_immed_const k ->
-        emit_branch_comp (Scalar.Integer_comparison.negate c) ;
+        emit_branch_comp (negate_integer_comparison c) ;
         out_const k ;
         out_label lbl ;
         emit rem

@@ -21,16 +21,15 @@ include Stdlib.Int
 
 let size = Sys.int_size
 
-let[@inline available] of_int t = t
+external of_int : int -> int = "%identity"
 
-let[@inline available] to_int t = t
+external to_int : int -> int = "%identity"
 
-let[@inline available] unsigned_to_int t = t
+external unsigned_to_int : int -> int = "%identity"
 
-let[@inline available] unsigned_compare n m =
-  compare (sub n min_int) (sub m min_int)
+external unsigned_compare : int -> int -> int = "%int_unsigned_compare"
 
-let[@inline] unsigned_lt n m = sub n min_int < sub m min_int
+external unsigned_lt : int -> int -> bool = "%int_unsigned_lessthan"
 
 (* Unsigned division from signed division of the same bitness. See Warren Jr.,
    Henry S. (2013). Hacker's Delight (2 ed.), Sec 9-3. *)

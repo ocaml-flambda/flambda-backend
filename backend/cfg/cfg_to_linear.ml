@@ -51,17 +51,6 @@ let basic_to_linear (i : _ Cfg.instruction) ~next =
   let desc = Cfg_to_linear_desc.from_basic i.desc in
   to_linear_instr ~like:i desc ~next
 
-let mk_int_test ~lt ~eq ~gt : Cmm.integer_comparison =
-  match eq, lt, gt with
-  | true, false, false -> Ceq
-  | false, true, false -> Clt
-  | false, false, true -> Cgt
-  | false, true, true -> Cne
-  | true, true, false -> Cle
-  | true, false, true -> Cge
-  | true, true, true -> assert false
-  | false, false, false -> assert false
-
 (* Certain "unordered" outcomes of float comparisons are not expressible as a
    single Cmm.float_comparison operator, or a disjunction of disjoint
    Cmm.float_comparison operators. For example, for float_test { lt = L0; eq =
@@ -278,8 +267,8 @@ let linearize_terminator cfg_with_layout (func : string) start
            #8677 *)
         let can_emit_Lcondbranch3 =
           match is_signed, imm with
-          | false, Some 1 -> true
-          | false, Some _ | false, None | true, _ -> false
+          | Unsigned, Some n -> n = 1
+          | Unsigned, None | Signed, _ -> false
         in
         if Label.Set.cardinal cond_successor_labels = 2 && can_emit_Lcondbranch3
         then
@@ -295,21 +284,20 @@ let linearize_terminator cfg_with_layout (func : string) start
           let init = branch_or_fallthrough [] last in
           ( Label.Set.fold
               (fun lbl acc ->
-                let cond =
-                  mk_int_test ~lt:(Label.equal lt lbl) ~eq:(Label.equal eq lbl)
+                match
+                  Scalar.Integer_comparison.create is_signed
+                    ~lt:(Label.equal lt lbl) ~eq:(Label.equal eq lbl)
                     ~gt:(Label.equal gt lbl)
-                in
-                let comp =
-                  match is_signed with
-                  | true -> Operation.Isigned cond
-                  | false -> Operation.Iunsigned cond
-                in
-                let test =
-                  match imm with
-                  | None -> Operation.Iinttest comp
-                  | Some n -> Operation.Iinttest_imm (comp, n)
-                in
-                L.Lcondbranch (test, lbl) :: acc)
+                with
+                | Error false -> assert false
+                | Error true -> L.Lbranch lbl :: acc
+                | Ok comp ->
+                  let test =
+                    match imm with
+                    | None -> Operation.Iinttest comp
+                    | Some n -> Operation.Iinttest_imm (comp, n)
+                  in
+                  L.Lcondbranch (test, lbl) :: acc)
               cond_successor_labels init,
             None )
       | _ -> assert false)

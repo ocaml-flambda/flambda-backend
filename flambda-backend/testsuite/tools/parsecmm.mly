@@ -142,6 +142,10 @@ let access_array base numelt size =
 %token SUBI
 %token SWITCH
 %token TRY
+%token UGEI
+%token UGTI
+%token ULEI
+%token ULTI
 %token UNIT
 %token UNSIGNED
 %token VAL
@@ -387,14 +391,12 @@ binaryop:
   | LEI                         { Ccmpi Cle }
   | GTI                         { Ccmpi Cgt }
   | GEI                         { Ccmpi Cge }
+  | ULTI                        { Ccmpi Cult }
+  | ULEI                        { Ccmpi Cule }
+  | UGTI                        { Ccmpi Cugt }
+  | UGEI                        { Ccmpi Cuge }
   | ADDA                        { Cadda }
   | ADDV                        { Caddv }
-  | EQA                         { Ccmpa Ceq }
-  | NEA                         { Ccmpa Cne }
-  | LTA                         { Ccmpa Clt }
-  | LEA                         { Ccmpa Cle }
-  | GTA                         { Ccmpa Cgt }
-  | GEA                         { Ccmpa Cge }
   | ADDF                        { Caddf Float64 }
   | MULF                        { Cmulf Float64 }
   | DIVF                        { Cdivf Float64 }

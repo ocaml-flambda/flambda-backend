@@ -1,5 +1,22 @@
 type any_locality_mode = Any_locality_mode
 
+module Signedness = struct
+  type t =
+    | Signed
+    | Unsigned
+
+  let all = [Signed; Unsigned]
+
+  let equal ((Signed | Unsigned) as x : t) (y : t) =
+    (* polymorphic equality is fast and simple when they are all constant constructors *)
+    x = y
+
+  let print ppf t =
+    match t with
+    | Signed -> Format.pp_print_string ppf "signed"
+    | Unsigned -> Format.pp_print_string ppf "unsigned"
+end
+
 module Integer_comparison = struct
   type t =
     | Ceq
@@ -8,8 +25,18 @@ module Integer_comparison = struct
     | Cgt
     | Cle
     | Cge
+    | Cult
+    | Cugt
+    | Cule
+    | Cuge
 
-  let all = [Ceq; Cne; Clt; Cgt; Cle; Cge]
+  let all = [Ceq; Cne; Clt; Cgt; Cle; Cge; Cult; Cugt; Cule; Cuge]
+
+  let equal
+      ((Ceq | Cne | Clt | Cgt | Cle | Cge | Cult | Cugt | Cule | Cuge) as x : t)
+      (y : t) =
+    (* polymorphic equality is fast and simple when they are all constant constructors *)
+    x = y
 
   let to_string = function
     | Ceq -> "equal"
@@ -18,6 +45,10 @@ module Integer_comparison = struct
     | Cge -> "greaterequal"
     | Clt -> "lessthan"
     | Cle -> "lessequal"
+    | Cugt -> "unsigned_greaterthan"
+    | Cuge -> "unsigned_greaterequal"
+    | Cult -> "unsigned_lessthan"
+    | Cule -> "unsigned_lessequal"
 
   let negate = function
     | Ceq -> Cne
@@ -26,6 +57,10 @@ module Integer_comparison = struct
     | Cle -> Cgt
     | Cgt -> Cle
     | Cge -> Clt
+    | Cult -> Cuge
+    | Cule -> Cugt
+    | Cugt -> Cule
+    | Cuge -> Cult
 
   let swap = function
     | Ceq -> Ceq
@@ -34,6 +69,25 @@ module Integer_comparison = struct
     | Cle -> Cge
     | Cgt -> Clt
     | Cge -> Cle
+    | Cult -> Cugt
+    | Cule -> Cuge
+    | Cugt -> Cult
+    | Cuge -> Cule
+
+  let create signedness ~lt ~eq ~gt =
+    match lt, eq, gt, (signedness : Signedness.t) with
+    | false, true, false, (Signed | Unsigned) -> Ok Ceq
+    | true, false, true, (Signed | Unsigned) -> Ok Cne
+    | true, false, false, Signed -> Ok Clt
+    | false, false, true, Signed -> Ok Cgt
+    | true, true, false, Signed -> Ok Cle
+    | false, true, true, Signed -> Ok Cge
+    | true, false, false, Unsigned -> Ok Cult
+    | false, false, true, Unsigned -> Ok Cugt
+    | true, true, false, Unsigned -> Ok Cule
+    | false, true, true, Unsigned -> Ok Cuge
+    | true, true, true, (Signed | Unsigned) -> Error true
+    | false, false, false, (Signed | Unsigned) -> Error false
 end
 
 module Float_comparison = struct
@@ -376,8 +430,6 @@ let naked_float32 : _ t = Naked Width.float32
 
 let naked_float : _ t = Naked Width.float
 
-type 'a scalar = 'a t
-
 module Intrinsic = struct
   type 'mode info =
     { can_raise : bool;
@@ -538,14 +590,15 @@ module Intrinsic = struct
     (* CR jvanburen: comparisons that return naked values *)
 
     (** comparisons return a tagged immediate *)
-    type nonrec 'mode t =
+    type 'mode t =
       (* CR jvanburen: Fmod, Min, Max? *)
       | Integral of 'mode Integral.t * Int_op.t
       | Shift of 'mode Integral.t * Shift_op.t * Shift_op.Rhs.t
       | Floating of 'mode Floating.t * Float_op.t
       | Icmp of any_locality_mode Integral.t * Integer_comparison.t
       | Fcmp of any_locality_mode Floating.t * Float_comparison.t
-      | Three_way_compare of any_locality_mode t
+      | Three_way_compare_int of Signedness.t * any_locality_mode Integral.t
+      | Three_way_compare_float of any_locality_mode Floating.t
 
     let all =
       List.concat
@@ -561,7 +614,11 @@ module Intrinsic = struct
               List.map (fun size -> Icmp (size, cmp)) Integral.all);
           ListLabels.concat_map Float_comparison.all ~f:(fun cmp ->
               List.map (fun size -> Fcmp (size, cmp)) Floating.all);
-          List.map (fun size -> Three_way_compare size) all ]
+          ListLabels.concat_map Signedness.all ~f:(fun signedness ->
+              ListLabels.map Integral.all ~f:(fun size ->
+                  Three_way_compare_int (signedness, size)));
+          ListLabels.map Floating.all ~f:(fun size ->
+              Three_way_compare_float size) ]
 
     let sort = function
       | Integral
@@ -584,8 +641,11 @@ module Intrinsic = struct
       | Fcmp (width, (_ : Float_comparison.t)) ->
         let sort = Floating.sort width in
         sort, sort, Jkind_types.Sort.Const.value
-      | Three_way_compare width ->
-        let sort = sort width in
+      | Three_way_compare_int ((Signed | Unsigned), width) ->
+        let sort = Integral.sort width in
+        sort, sort, Jkind_types.Sort.Const.value
+      | Three_way_compare_float width ->
+        let sort = Floating.sort width in
         sort, sort, Jkind_types.Sort.Const.value
 
     let to_string t =
@@ -598,7 +658,10 @@ module Intrinsic = struct
         make (integral size) (Integer_comparison.to_string cmp)
       | Fcmp (size, cmp) ->
         make (floating size) (Float_comparison.to_string cmp)
-      | Three_way_compare size -> make size "compare"
+      | Three_way_compare_int (Signed, size) -> make (integral size) "compare"
+      | Three_way_compare_int (Unsigned, size) ->
+        make (integral size) "unsigned_compare"
+      | Three_way_compare_float size -> make (floating size) "compare"
 
     let map t ~f =
       match t with
@@ -607,7 +670,9 @@ module Intrinsic = struct
       | Shift (size, op, rhs) -> Shift (Integral.map size ~f, op, rhs)
       | Icmp (size, cmp) -> Icmp (size, cmp)
       | Fcmp (size, cmp) -> Fcmp (size, cmp)
-      | Three_way_compare size -> Three_way_compare size
+      | Three_way_compare_int (signedness, size) ->
+        Three_way_compare_int (signedness, size)
+      | Three_way_compare_float size -> Three_way_compare_float size
 
     let info = function
       | Integral
@@ -620,7 +685,9 @@ module Intrinsic = struct
         { result = floating size; can_raise = false }
       | Icmp ((_ : any_locality_mode Integral.t), (_ : Integer_comparison.t))
       | Fcmp ((_ : any_locality_mode Floating.t), (_ : Float_comparison.t))
-      | Three_way_compare (_ : any_locality_mode scalar) ->
+      | Three_way_compare_int
+          ((Signed | Unsigned), (_ : any_locality_mode Integral.t))
+      | Three_way_compare_float (_ : any_locality_mode Floating.t) ->
         { result = int; can_raise = false }
   end
 

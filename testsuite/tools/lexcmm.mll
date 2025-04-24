@@ -156,28 +156,26 @@ rule token = parse
   | "/f" { DIVF }
   | "/" { DIVI }
   | eof { EOF }
-  | "==a" { EQA }
   | "==f" { EQF }
   | "==" { EQI }
-  | ">=a" { GEA }
   | ">=f" { GEF }
+  | ">=u" { GEU }
   | ">=" { GEI }
-  | ">a" { GTA }
   | ">f" { GTF }
+  | ">u" { GTU }
   | ">" { GTI }
   | "[" { LBRACKET }
-  | "<=a" { LEA }
   | "<=f" { LEF }
   | "<=" { LEI }
+  | "<=u" { LEU }
   | "(" { LPAREN }
   | "<<" { LSL }
   | ">>u" { LSR }
-  | "<a" { LTA }
   | "<f" { LTF }
   | "<" { LTI }
+  | "<u" { LTU }
   | "*f" { MULF }
   | "*" { STAR }
-  | "!=a" { NEA }
   | "!=f" { NEF }
   | "!=" { NEI }
   | "!>=f" { NGEF }

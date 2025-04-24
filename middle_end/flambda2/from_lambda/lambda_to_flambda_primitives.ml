@@ -30,6 +30,10 @@ let convert_integer_comparison (comp : L.integer_comparison) :
   | Cgt -> Gt Signed
   | Cle -> Le Signed
   | Cge -> Ge Signed
+  | Cult -> Lt Unsigned
+  | Cugt -> Gt Unsigned
+  | Cule -> Le Unsigned
+  | Cuge -> Ge Unsigned
 
 let convert_float_comparison (comp : L.float_comparison) : unit P.comparison =
   match comp with
@@ -1760,40 +1764,35 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         Float_comp (width, Yielding_bool (convert_float_comparison cmp))
       in
       [tag_int (Binary (prim, arg1, arg2))]
-    | Three_way_compare size -> (
-      let int_compare size : H.expr_primitive list =
-        let width = integral_width size in
-        let maybe_unwrap arg =
-          static_cast arg ~current_region ~src:(Scalar.integral size)
-            ~dst:(integral_scalar width)
-        in
-        let arg1 = maybe_unwrap arg1 in
-        let arg2 = maybe_unwrap arg2 in
-        [ tag_int
-            (Binary
-               ( Int_comp (width, Yielding_int_like_compare_functions Signed),
-                 arg1,
-                 arg2 )) ]
+    | Three_way_compare_int (signedness, size) ->
+      let signedness : P.signed_or_unsigned =
+        match signedness with Signed -> Signed | Unsigned -> Unsigned
       in
-      let float_compare size : H.expr_primitive list =
-        let width = floating_width size in
-        let maybe_unwrap arg =
-          static_cast arg ~current_region ~src:(Scalar.floating size)
-            ~dst:(floating_scalar width)
-        in
-        let arg1 = maybe_unwrap arg1 in
-        let arg2 = maybe_unwrap arg2 in
-        [ tag_int
-            (Binary
-               ( Float_comp (width, Yielding_int_like_compare_functions ()),
-                 arg1,
-                 arg2 )) ]
+      let width = integral_width size in
+      let maybe_unwrap arg =
+        static_cast arg ~current_region ~src:(Scalar.integral size)
+          ~dst:(integral_scalar width)
       in
-      match size with
-      | Naked (Integral i) -> int_compare (Naked i)
-      | Value (Integral i) -> int_compare (Value i)
-      | Naked (Floating f) -> float_compare (Naked f)
-      | Value (Floating f) -> float_compare (Value f)))
+      let arg1 = maybe_unwrap arg1 in
+      let arg2 = maybe_unwrap arg2 in
+      [ tag_int
+          (Binary
+             ( Int_comp (width, Yielding_int_like_compare_functions signedness),
+               arg1,
+               arg2 )) ]
+    | Three_way_compare_float size ->
+      let width = floating_width size in
+      let maybe_unwrap arg =
+        static_cast arg ~current_region ~src:(Scalar.floating size)
+          ~dst:(floating_scalar width)
+      in
+      let arg1 = maybe_unwrap arg1 in
+      let arg2 = maybe_unwrap arg2 in
+      [ tag_int
+          (Binary
+             ( Float_comp (width, Yielding_int_like_compare_functions ()),
+               arg1,
+               arg2 )) ])
   | Punbox_vector Boxed_vec128, [[arg]] ->
     [Unary (Unbox_number Naked_vec128, arg)]
   | Pbox_vector (Boxed_vec128, mode), [[arg]] ->

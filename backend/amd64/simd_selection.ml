@@ -649,34 +649,32 @@ let vectorize_operation (width_type : Vectorize_utils.Width_in_bits.t)
         | W8 -> None
       in
       Option.bind op (fun op -> instr op |> make_default ~arg_count ~res_count)
-    | Icomp (Isigned intcomp) -> (
-      match intcomp with
-      | Ceq ->
-        let op =
-          match width_type with
-          | W128 -> assert false
-          | W64 -> pcmpeqq
-          | W32 -> pcmpeqd
-          | W16 -> pcmpeqw
-          | W8 -> pcmpeqb
-        in
-        instr op |> make_default ~arg_count ~res_count
-      | Cgt ->
-        let op =
-          match width_type with
-          | W128 -> assert false
-          | W64 -> pcmpgtq
-          | W32 -> pcmpgtd
-          | W16 -> pcmpgtw
-          | W8 -> pcmpgtb
-        in
-        instr op |> make_default ~arg_count ~res_count
-      | Cne | Clt | Cle | Cge ->
-        None
-        (* These instructions seem to not have a simd counterpart yet, could
-           also implement as a combination of other instructions if needed in
-           the future *))
-    | Idiv | Imod | Iclz _ | Ictz _ | Ipopcnt | Icomp (Iunsigned _) -> None
+    | Icomp Ceq ->
+      let op =
+        match width_type with
+        | W128 -> assert false
+        | W64 -> pcmpeqq
+        | W32 -> pcmpeqd
+        | W16 -> pcmpeqw
+        | W8 -> pcmpeqb
+      in
+      instr op |> make_default ~arg_count ~res_count
+    | Icomp Cgt ->
+      let op =
+        match width_type with
+        | W128 -> assert false
+        | W64 -> pcmpgtq
+        | W32 -> pcmpgtd
+        | W16 -> pcmpgtw
+        | W8 -> pcmpgtb
+      in
+      instr op |> make_default ~arg_count ~res_count
+    (* These instructions seem to not have a simd counterpart yet, could also
+       implement as a combination of other instructions if needed in the
+       future *)
+    | Icomp (Cne | Clt | Cle | Cge | Cugt | Cult | Cule | Cuge)
+    | Idiv | Imod | Iclz _ | Ictz _ | Ipopcnt ->
+      None
   in
   match List.hd cfg_ops with
   | Move -> Operation.Move |> make_default ~arg_count ~res_count

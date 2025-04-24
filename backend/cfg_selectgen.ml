@@ -66,10 +66,10 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         (* avoid reordering *)
         (* The remaining operations are simple if their args are *)
       | Cload _ | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor
-      | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf _
-      | Cclz _ | Cctz _ | Cpopcnt | Cbswap _ | Ccsel _ | Cabsf _ | Caddf _
-      | Csubf _ | Cmulf _ | Cdivf _ | Cpackf32 | Creinterpret_cast _
-      | Cstatic_cast _ | Ctuple_field _ | Ccmpf _ | Cdls_get ->
+      | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Cnegf _ | Cclz _
+      | Cctz _ | Cpopcnt | Cbswap _ | Ccsel _ | Cabsf _ | Caddf _ | Csubf _
+      | Cmulf _ | Cdivf _ | Cpackf32 | Creinterpret_cast _ | Cstatic_cast _
+      | Ctuple_field _ | Ccmpf _ | Cdls_get ->
         List.for_all is_simple_expr args)
     | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ -> false
 
@@ -121,9 +121,9 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
         | Cprobe_is_enabled _ -> EC.coeffect_only Arbitrary
         | Ctuple_field _ | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
         | Cand | Cor | Cxor | Cbswap _ | Ccsel _ | Cclz _ | Cctz _ | Cpopcnt
-        | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf _
-        | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _ | Cpackf32
-        | Creinterpret_cast _ | Cstatic_cast _ | Ccmpf _ ->
+        | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Cnegf _ | Cabsf _
+        | Caddf _ | Csubf _ | Cmulf _ | Cdivf _ | Cpackf32 | Creinterpret_cast _
+        | Cstatic_cast _ | Ccmpf _ ->
           EC.none
       in
       EC.join from_op (EC.join_list_map args effects_of)
@@ -156,20 +156,13 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
   let select_condition (arg : Cmm.expression) : Operation.test * Cmm.expression
       =
     match arg with
-    | Cop (Ccmpi cmp, [arg1; Cconst_int (n, _)], _)
-      when is_immediate_test (Isigned cmp) n ->
-      Iinttest_imm (Isigned cmp, n), arg1
+    | Cop (Ccmpi cmp, [arg1; Cconst_int (n, _)], _) when is_immediate_test cmp n
+      ->
+      Iinttest_imm (cmp, n), arg1
     | Cop (Ccmpi cmp, [Cconst_int (n, _); arg2], _)
-      when is_immediate_test (Isigned (Cmm.swap_integer_comparison cmp)) n ->
-      Iinttest_imm (Isigned (Cmm.swap_integer_comparison cmp), n), arg2
-    | Cop (Ccmpi cmp, args, _) -> Iinttest (Isigned cmp), Ctuple args
-    | Cop (Ccmpa cmp, [arg1; Cconst_int (n, _)], _)
-      when is_immediate_test (Iunsigned cmp) n ->
-      Iinttest_imm (Iunsigned cmp, n), arg1
-    | Cop (Ccmpa cmp, [Cconst_int (n, _); arg2], _)
-      when is_immediate_test (Iunsigned (Cmm.swap_integer_comparison cmp)) n ->
-      Iinttest_imm (Iunsigned (Cmm.swap_integer_comparison cmp), n), arg2
-    | Cop (Ccmpa cmp, args, _) -> Iinttest (Iunsigned cmp), Ctuple args
+      when is_immediate_test (Cmm.swap_integer_comparison cmp) n ->
+      Iinttest_imm (Cmm.swap_integer_comparison cmp, n), arg2
+    | Cop (Ccmpi cmp, args, _) -> Iinttest cmp, Ctuple args
     | Cop (Ccmpf (width, cmp), args, _) -> Ifloattest (width, cmp), Ctuple args
     | Cop (Cand, [arg1; Cconst_int (1, _)], _) -> Ioddtest, arg1
     | _ -> Itruetest, arg
@@ -245,8 +238,10 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     | [arg; Cconst_int (n, _)] when is_immediate (Operation.Icomp cmp) n ->
       SU.basic_op (Intop_imm (Icomp cmp, n)), [arg]
     | [Cconst_int (n, _); arg]
-      when is_immediate (Operation.Icomp (SU.swap_intcomp cmp)) n ->
-      SU.basic_op (Intop_imm (Icomp (SU.swap_intcomp cmp), n)), [arg]
+      when is_immediate (Operation.Icomp (Scalar.Integer_comparison.swap cmp)) n
+      ->
+      ( SU.basic_op (Intop_imm (Icomp (Scalar.Integer_comparison.swap cmp), n)),
+        [arg] )
     | _ -> SU.basic_op (Intop (Icomp cmp)), args
 
   (* Default instruction selection for operators *)
@@ -353,10 +348,9 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     | Cctz { arg_is_non_zero } ->
       SU.basic_op (Intop (Ictz { arg_is_non_zero })), args
     | Cpopcnt -> SU.basic_op (Intop Ipopcnt), args
-    | Ccmpi comp -> select_arith_comp (Isigned comp) args
+    | Ccmpi comp -> select_arith_comp comp args
     | Caddv -> select_arith_comm Iadd args
     | Cadda -> select_arith_comm Iadd args
-    | Ccmpa comp -> select_arith_comp (Iunsigned comp) args
     | Ccmpf (w, comp) -> SU.basic_op (Floatop (w, Icompf comp)), args
     | Ccsel _ ->
       let cond, ifso, ifnot = three_args () in

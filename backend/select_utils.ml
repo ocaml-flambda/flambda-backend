@@ -182,8 +182,7 @@ let oper_result_type = function
     typ_int
   | Catomic { op = Add | Sub | Land | Lor | Lxor; _ } -> typ_void
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand | Cor | Cxor | Clsl
-  | Clsr | Casr | Cclz _ | Cctz _ | Cpopcnt | Cbswap _ | Ccmpi _ | Ccmpa _
-  | Ccmpf _ ->
+  | Clsr | Casr | Cclz _ | Cctz _ | Cpopcnt | Cbswap _ | Ccmpi _ | Ccmpf _ ->
     typ_int
   | Caddv -> typ_val
   | Cadda -> typ_addr
@@ -283,12 +282,6 @@ let size_expr env exp =
     | _ -> Misc.fatal_error "Selection.size_expr"
   in
   size V.Map.empty exp
-
-(* Swap the two arguments of an integer comparison *)
-
-let swap_intcomp = function
-  | Operation.Isigned cmp -> Operation.Isigned (swap_integer_comparison cmp)
-  | Operation.Iunsigned cmp -> Operation.Iunsigned (swap_integer_comparison cmp)
 
 (* Name of function being compiled *)
 let current_function_name = ref ""
@@ -406,20 +399,23 @@ let float_test_of_float_comparison :
 
 let int_test_of_integer_comparison :
     Cmm.integer_comparison ->
-    signed:bool ->
     immediate:int option ->
     label_false:Label.t ->
     label_true:Label.t ->
     Cfg.int_test =
- fun comparison ~signed:is_signed ~immediate:imm ~label_false ~label_true ->
-  let lt, eq, gt =
+ fun comparison ~immediate:imm ~label_false ~label_true ->
+  let lt, eq, gt, is_signed =
     match comparison with
-    | Ceq -> label_false, label_true, label_false
-    | Cne -> label_true, label_false, label_true
-    | Clt -> label_true, label_false, label_false
-    | Cgt -> label_false, label_false, label_true
-    | Cle -> label_true, label_true, label_false
-    | Cge -> label_false, label_true, label_true
+    | Ceq -> label_false, label_true, label_false, Scalar.Signedness.Signed
+    | Cne -> label_true, label_false, label_true, Scalar.Signedness.Signed
+    | Clt -> label_true, label_false, label_false, Scalar.Signedness.Signed
+    | Cgt -> label_false, label_false, label_true, Scalar.Signedness.Signed
+    | Cle -> label_true, label_true, label_false, Scalar.Signedness.Signed
+    | Cge -> label_false, label_true, label_true, Scalar.Signedness.Signed
+    | Cult -> label_true, label_false, label_false, Scalar.Signedness.Unsigned
+    | Cugt -> label_false, label_false, label_true, Scalar.Signedness.Unsigned
+    | Cule -> label_true, label_true, label_false, Scalar.Signedness.Unsigned
+    | Cuge -> label_false, label_true, label_true, Scalar.Signedness.Unsigned
   in
   { lt; eq; gt; is_signed; imm }
 
@@ -430,12 +426,7 @@ let terminator_of_test :
     Cfg.terminator =
  fun test ~label_false ~label_true ->
   let int_test comparison immediate =
-    let signed, comparison =
-      match comparison with
-      | Operation.Isigned comparison -> true, comparison
-      | Operation.Iunsigned comparison -> false, comparison
-    in
-    int_test_of_integer_comparison comparison ~signed ~immediate ~label_false
+    int_test_of_integer_comparison comparison ~immediate ~label_false
       ~label_true
   in
   match test with

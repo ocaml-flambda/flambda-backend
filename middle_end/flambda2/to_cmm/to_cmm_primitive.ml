@@ -799,10 +799,7 @@ let binary_int_comp_primitive_yielding_int _env dbg _kind
     (signed : P.signed_or_unsigned) x y =
   match signed with
   | Signed -> C.mk_compare_ints_untagged dbg x y
-  | Unsigned ->
-    Misc.fatal_error
-      "Translation of [Int_comp] yielding an integer -1, 0 or 1 in unsigned \
-       mode is not yet implemented"
+  | Unsigned -> C.mk_unsigned_compare_ints_untagged dbg x y
 
 let binary_float_arith_primitive _env dbg width op x y =
   match (width : P.float_bitwidth), (op : P.binary_float_arith_op) with

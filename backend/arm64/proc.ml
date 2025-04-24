@@ -417,7 +417,7 @@ let operation_supported : Cmm.operation -> bool = function
   | Capply _ | Cextcall _ | Cload _ | Calloc _ | Cstore _
   | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
   | Cand | Cor | Cxor | Clsl | Clsr | Casr
-  | Ccmpi _ | Caddv | Cadda | Ccmpa _
+  | Ccmpi _ | Caddv | Cadda
   | Cnegf Float64 | Cabsf Float64 | Caddf Float64
   | Csubf Float64 | Cmulf Float64 | Cdivf Float64
   | Creinterpret_cast (Int_of_value | Value_of_int |

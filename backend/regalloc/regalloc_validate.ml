@@ -568,7 +568,8 @@ end = struct
     | ( Int_test { lt = lt1; eq = eq1; gt = gt1; is_signed = sign1; imm = imm1 },
         Int_test { lt = lt2; eq = eq2; gt = gt2; is_signed = sign2; imm = imm2 }
       )
-      when Bool.equal sign1 sign2 && Option.equal Int.equal imm1 imm2 ->
+      when Scalar.Signedness.equal sign1 sign2
+           && Option.equal Int.equal imm1 imm2 ->
       compare_label lt1 lt2;
       compare_label eq1 eq2;
       compare_label gt1 gt2

@@ -35,9 +35,7 @@ type trap_stack =
 
 val equal_trap_stack : trap_stack -> trap_stack -> bool
 
-type integer_comparison =
-  | Isigned of Cmm.integer_comparison
-  | Iunsigned of Cmm.integer_comparison
+type integer_comparison = Cmm.integer_comparison
 
 val string_of_integer_comparison : integer_comparison -> string
 

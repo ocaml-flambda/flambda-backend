@@ -74,7 +74,6 @@ let access_array base numelt size =
 %token DIVF
 %token DIVI
 %token EOF
-%token EQA
 %token EQF
 %token EQI
 %token EXIT
@@ -85,13 +84,13 @@ let access_array base numelt size =
 %token <string> FLOATCONST
 %token FLOATOFINT
 %token FUNCTION
-%token GEA
 %token GEF
 %token GEI
+%token GEU
 %token GLOBAL
-%token GTA
 %token GTF
 %token GTI
+%token GTU
 %token HALF
 %token <string> IDENT
 %token IF
@@ -101,24 +100,23 @@ let access_array base numelt size =
 %token INTOFFLOAT
 %token KSTRING
 %token LBRACKET
-%token LEA
 %token LEF
 %token LEI
 %token LET
+%token LEU
 %token LETMUT
 %token LOAD
 %token <Location.t> LOCATION
 %token LPAREN
 %token LSL
 %token LSR
-%token LTA
 %token LTF
 %token LTI
+%token LTU
 %token MODI
 %token MULF
 %token MULH
 %token MULI
-%token NEA
 %token NEF
 %token NEI
 %token NGEF
@@ -353,12 +351,10 @@ binaryop:
   | GEI                         { Ccmpi Cge }
   | ADDA                        { Cadda }
   | ADDV                        { Caddv }
-  | EQA                         { Ccmpa Ceq }
-  | NEA                         { Ccmpa Cne }
-  | LTA                         { Ccmpa Clt }
-  | LEA                         { Ccmpa Cle }
-  | GTA                         { Ccmpa Cgt }
-  | GEA                         { Ccmpa Cge }
+  | LTU                         { Ccmpi Cult }
+  | LEU                         { Ccmpi Cule }
+  | GTU                         { Ccmpi Cugt }
+  | GEU                         { Ccmpi Cuge }
   | ADDF                        { Caddf }
   | MULF                        { Cmulf }
   | DIVF                        { Cdivf }

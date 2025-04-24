@@ -88,9 +88,9 @@ let min_int () = succ (max_int ())
 
 let[@inline] unsigned_to_int t = to_int t land ((1 lsl size) - 1)
 
-let[@inline] unsigned_compare n m = compare (sub n (min_int ())) (sub m (min_int ()))
+external unsigned_compare : int16# -> int16# -> int = "%int16#_unsigned_compare"
 
-let[@inline] unsigned_lt n m = sub n (min_int ()) < sub m (min_int ())
+external unsigned_lt : int16# -> int16# -> bool = "%int16#_unsigned_lessthan"
 
 (* Unsigned division from signed division of the same bitness. See Warren Jr.,
    Henry S. (2013). Hacker's Delight (2 ed.), Sec 9-3. *)

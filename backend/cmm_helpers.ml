@@ -707,10 +707,6 @@ let mk_not dbg cmm =
       tag_int
         (Cop (Ccmpi (negate_integer_comparison cmp), [c1; c2], dbg''))
         dbg'
-    | Cop (Ccmpa cmp, [c1; c2], dbg'') ->
-      tag_int
-        (Cop (Ccmpa (negate_integer_comparison cmp), [c1; c2], dbg''))
-        dbg'
     | Cop (Ccmpf (w, cmp), [c1; c2], dbg'') ->
       tag_int
         (Cop (Ccmpf (w, negate_float_comparison cmp), [c1; c2], dbg''))
@@ -732,6 +728,13 @@ let mk_compare_ints_untagged dbg a1 a2 =
       bind "int_cmp" a1 (fun a1 ->
           let op1 = Cop (Ccmpi Cgt, [a1; a2], dbg) in
           let op2 = Cop (Ccmpi Clt, [a1; a2], dbg) in
+          sub_int op1 op2 dbg))
+
+let mk_unsigned_compare_ints_untagged dbg a1 a2 =
+  bind "uint_cmp" a2 (fun a2 ->
+      bind "uint_cmp" a1 (fun a1 ->
+          let op1 = Cop (Ccmpi Cugt, [a1; a2], dbg) in
+          let op2 = Cop (Ccmpi Cult, [a1; a2], dbg) in
           sub_int op1 op2 dbg))
 
 let mk_compare_ints dbg a1 a2 =
@@ -2712,9 +2715,9 @@ module SArgBlocks = struct
 
   let make_offset arg n = add_const arg n Debuginfo.none
 
-  let make_isout h arg = Cop (Ccmpa Clt, [h; arg], Debuginfo.none)
+  let make_isout h arg = Cop (Ccmpi Cult, [h; arg], Debuginfo.none)
 
-  let make_isin h arg = Cop (Ccmpa Cge, [h; arg], Debuginfo.none)
+  let make_isin h arg = Cop (Ccmpi Cuge, [h; arg], Debuginfo.none)
 
   let make_is_nonzero arg = arg
 
@@ -3176,7 +3179,7 @@ let send_function (arity, result, mode) =
             Clet
               ( VP.create real,
                 Cifthenelse
-                  ( Cop (Ccmpa Cne, [tag'; tag], dbg ()),
+                  ( Cop (Ccmpi Cne, [tag'; tag], dbg ()),
                     dbg (),
                     cache_public_method (Cvar meths) tag cache (dbg ()),
                     dbg (),
@@ -4134,13 +4137,13 @@ let gt = binary (Ccmpi Cgt)
 
 let ge = binary (Ccmpi Cge)
 
-let ult = binary (Ccmpa Clt)
+let ult = binary (Ccmpi Cult)
 
-let ule = binary (Ccmpa Cle)
+let ule = binary (Ccmpi Cule)
 
-let ugt = binary (Ccmpa Cgt)
+let ugt = binary (Ccmpi Cugt)
 
-let uge = binary (Ccmpa Cge)
+let uge = binary (Ccmpi Cuge)
 
 let float_abs = unary (Cabsf Float64)
 

@@ -83,6 +83,16 @@ and debug_event_repr = Debug_event.debug_event_repr =
 
 type label = int                        (* Symbolic code labels *)
 
+type integer_comparison =
+  | Ceq
+  | Cne
+  | Clt
+  | Cgt
+  | Cle
+  | Cge
+  | Cult
+  | Cuge
+
 type instruction =
     Klabel of label
   | Kacc of int
