@@ -29,7 +29,7 @@ jobs:
             os: ubuntu-latest
 
           - name: flambda2_debug_runtime5
-            config: --enable-middle-end=flambda2 --enable-runtime5
+            config: --enable-middle-end=flambda2 --enable-runtime5 --enable-stack-checks
             os: ubuntu-latest
             build_ocamlparam: ''
             use_runtime: d
