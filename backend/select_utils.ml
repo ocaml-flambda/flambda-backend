@@ -382,8 +382,6 @@ let select_effects (e : Cmm.effects) : Effect.t =
 let select_coeffects (e : Cmm.coeffects) : Coeffect.t =
   match e with No_coeffects -> None | Has_coeffects -> Arbitrary
 
-let debug = false
-
 let float_test_of_float_comparison :
     Cmm.float_width ->
     Cmm.float_comparison ->
@@ -452,8 +450,6 @@ let terminator_of_test :
   | Ioddtest -> Parity_test { ifso = label_false; ifnot = label_true }
   | Ieventest -> Parity_test { ifso = label_true; ifnot = label_false }
 
-let invalid_stack_offset = -1
-
 module Stack_offset_and_exn = struct
   (* This module relies on the field `can_raise` of basic blocks but does not
      rely on this field of individual Cfg instructions. This may need to be
@@ -461,13 +457,15 @@ module Stack_offset_and_exn = struct
      pushtrap/poptrap operations. *)
   type handler_stack = Label.t list
 
+  let fun_name = ref ""
+
   let compute_stack_offset ~stack_offset ~traps =
     stack_offset + (Proc.trap_size_in_bytes * List.length traps)
 
   let check_and_set_stack_offset :
       'a Cfg.instruction -> stack_offset:int -> traps:handler_stack -> unit =
    fun instr ~stack_offset ~traps ->
-    assert (instr.stack_offset = invalid_stack_offset);
+    assert (instr.stack_offset = Cfg.invalid_stack_offset);
     Cfg.set_stack_offset instr (compute_stack_offset ~stack_offset ~traps)
 
   let process_terminator :
@@ -501,14 +499,22 @@ module Stack_offset_and_exn = struct
     | Pushtrap { lbl_handler } ->
       update_block cfg lbl_handler ~stack_offset ~traps;
       stack_offset, lbl_handler :: traps
-    | Poptrap _ -> (
+    | Poptrap { lbl_handler } -> (
       match traps with
       | [] ->
         Misc.fatal_errorf
           "Cfgize.Stack_offset_and_exn.process_basic: trying to pop from an \
            empty stack (id=%a)"
           InstructionId.format instr.id
-      | _ :: traps -> stack_offset, traps)
+      | top_trap :: traps ->
+        (* CR-soon gyorsh: investigate why this check sometimes fails. *)
+        if false && not (Label.equal lbl_handler top_trap)
+        then
+          Misc.fatal_errorf
+            "Cfgize.Stack_offset_and_exn.process_basic: poptrap label %a does \
+             not match top of trap stack %a (stack_offset = %d) in CFG of %s\n"
+            Label.print lbl_handler Label.print top_trap stack_offset !fun_name;
+        stack_offset, traps)
     | Op (Stackoffset n) -> stack_offset + n, traps
     | Op
         ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_float32 _
@@ -533,12 +539,10 @@ module Stack_offset_and_exn = struct
    fun cfg label ~stack_offset ~traps ->
     let block = Cfg.get_block_exn cfg label in
     let was_invalid =
-      if block.stack_offset = invalid_stack_offset
+      if block.stack_offset = Cfg.invalid_stack_offset
       then true
       else (
-        if debug
-        then
-          assert (block.stack_offset = compute_stack_offset ~stack_offset ~traps);
+        assert (block.stack_offset = compute_stack_offset ~stack_offset ~traps);
         false)
     in
     if was_invalid
@@ -565,7 +569,9 @@ module Stack_offset_and_exn = struct
         | handler_label :: _ -> block.exn <- Some handler_label))
 
   let update_cfg : Cfg.t -> unit =
-   fun cfg -> update_block cfg cfg.entry_label ~stack_offset:0 ~traps:[]
+   fun cfg ->
+    fun_name := cfg.fun_name;
+    update_block cfg cfg.entry_label ~stack_offset:0 ~traps:[]
 end
 
 let make_stack_offset stack_ofs = Cfg.Op (Stackoffset stack_ofs)

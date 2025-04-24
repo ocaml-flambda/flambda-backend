@@ -649,7 +649,7 @@ let preproc_stack_check ~fun_body ~frame_size ~trap_size =
     | Lpushtrap _ ->
       let s = fs + trap_size in
       loop i.next s (max s max_fs) nontail_flag
-    | Lpoptrap -> loop i.next (fs - trap_size) max_fs nontail_flag
+    | Lpoptrap _ -> loop i.next (fs - trap_size) max_fs nontail_flag
     | Lop (Stackoffset n) ->
       let s = fs + n in
       loop i.next s (max s max_fs) nontail_flag

@@ -169,8 +169,6 @@ module Or_never_returns : sig
   end
 end
 
-val debug : bool
-
 val float_test_of_float_comparison :
   Cmm.float_width ->
   Lambda.float_comparison ->
@@ -189,32 +187,7 @@ val int_test_of_integer_comparison :
 val terminator_of_test :
   Operation.test -> label_false:Label.t -> label_true:Label.t -> Cfg.terminator
 
-val invalid_stack_offset : int
-
 module Stack_offset_and_exn : sig
-  type handler_stack = Label.t list
-
-  val compute_stack_offset : stack_offset:int -> traps:'a list -> int
-
-  val check_and_set_stack_offset :
-    'a Cfg.instruction -> stack_offset:int -> traps:handler_stack -> unit
-
-  val process_terminator :
-    stack_offset:int ->
-    traps:handler_stack ->
-    Cfg.terminator Cfg.instruction ->
-    int * handler_stack
-
-  val process_basic :
-    Cfg.t ->
-    stack_offset:int ->
-    traps:handler_stack ->
-    Cfg.basic Cfg.instruction ->
-    int * handler_stack
-
-  val update_block :
-    Cfg.t -> Label.t -> stack_offset:int -> traps:handler_stack -> unit
-
   val update_cfg : Cfg.t -> unit
 end
 

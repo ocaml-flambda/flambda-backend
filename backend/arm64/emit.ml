@@ -860,8 +860,8 @@ let num_call_gc_points instr =
         | Floatop (_, _)
         | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
         | Name_for_debugger _ )
-    | Lprologue | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap | Lcall_op _
-    | Llabel _ | Lbranch _
+    | Lprologue | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap _
+    | Lcall_op _ | Llabel _ | Lbranch _
     | Lcondbranch (_, _)
     | Lcondbranch3 (_, _, _)
     | Lswitch _ | Ladjust_stack_offset _ | Lpushtrap _ | Lraise _
@@ -927,7 +927,7 @@ module BR = Branch_relaxation.Make (struct
           | Floatop (_, _)
           | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
           | Name_for_debugger _ )
-      | Lprologue | Lend | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap
+      | Lprologue | Lend | Lreloadretaddr | Lreturn | Lentertrap | Lpoptrap _
       | Lcall_op _ | Llabel _ | Lbranch _ | Lswitch _ | Ladjust_stack_offset _
       | Lpushtrap _ | Lraise _ | Lstackcheck _ ->
         None
@@ -1085,7 +1085,7 @@ module BR = Branch_relaxation.Make (struct
     | Lentertrap -> 0
     | Ladjust_stack_offset _ -> 0
     | Lpushtrap _ -> 4
-    | Lpoptrap -> 1
+    | Lpoptrap _ -> 1
     | Lraise k -> (
       match k with
       | Lambda.Raise_regular -> 1
@@ -1966,7 +1966,7 @@ let emit_instr i =
       |];
     cfi_adjust_cfa_offset 16;
     DSL.ins I.MOV [| DSL.emit_reg reg_trap_ptr; DSL.sp |]
-  | Lpoptrap ->
+  | Lpoptrap _ ->
     DSL.ins I.LDR
       [| DSL.emit_reg reg_trap_ptr;
          DSL.mem_post ~base:Arm64_ast.Reg.sp ~offset:16
