@@ -11,20 +11,30 @@ index 8b1c4e5559..3e7de2533d 100644
        let (before, after) =
          try
 diff --git a/utils/warnings.ml b/utils/warnings.ml
-index 895ef2be07..94718c0fe2 100644
+index 895ef2be07..d54a2d3faa 100644
 --- a/utils/warnings.ml
 +++ b/utils/warnings.ml
-@@ -459,6 +459,9 @@ let name_to_number =
+@@ -459,6 +459,10 @@ let name_to_number =
  
  (* Must be the max number returned by the [number] function. *)
  
 +let parsed_ocamlparam = ref "<not-set>"
++let parsed_letter = ref ' '
 +
 +(* CR-soon xclerc for xclerc: remove the `for_debug` parameter... *)
  let letter = function
    | 'a' ->
       let rec loop i = if i = 0 then [] else i :: loop (i - 1) in
-@@ -754,7 +757,7 @@ let parse_opt error active errflag s =
+@@ -488,7 +492,7 @@ let letter = function
+   | 'x' -> [14; 15; 16; 17; 18; 19; 20; 21; 22; 23; 24; 30]
+   | 'y' -> [26]
+   | 'z' -> [27]
+-  | _ -> assert false
++  | chr -> parsed_letter := chr; assert false
+ ;;
+ 
+ type state =
+@@ -754,7 +758,7 @@ let parse_opt error active errflag s =
      List.iter eval tokens;
      letter_alert tokens
    in
@@ -33,24 +43,25 @@ index 895ef2be07..94718c0fe2 100644
    | Some n -> action Set n; None
    | None ->
        if s = "" then parse_and_eval s
-@@ -766,6 +769,10 @@ let parse_opt error active errflag s =
+@@ -766,6 +770,10 @@ let parse_opt error active errflag s =
          | '@', Some n -> action Set_all n; None
          | _ -> parse_and_eval s
        end
 +   with Assert_failure _ ->
 +     let ocamlparam_from_env = match Sys.getenv_opt "OCAMLPARAM" with None -> "-" | Some  value -> value in
-+     Misc.fatal_errorf "Warnings.letter (s=%S, ocamlparam_from_env=%S ocamlparam_from_compenv=%S)" s ocamlparam_from_env !parsed_ocamlparam
++     Misc.fatal_errorf "Warnings.letter (%C s=%S, ocamlparam_from_env=%S ocamlparam_from_compenv=%S)" !parsed_letter s ocamlparam_from_env !parsed_ocamlparam
 +
  ;;
  
  let parse_options errflag s =
 diff --git a/utils/warnings.mli b/utils/warnings.mli
-index 3d9ea91f38..70d17a9181 100644
+index 3d9ea91f38..17d327690f 100644
 --- a/utils/warnings.mli
 +++ b/utils/warnings.mli
-@@ -161,3 +161,5 @@ type description =
+@@ -161,3 +161,6 @@ type description =
      description : string; }
  
  val descriptions : description list
 +
 +val parsed_ocamlparam : string ref
++val parsed_letter : char ref
