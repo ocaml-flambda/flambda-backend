@@ -31,9 +31,13 @@ open Config
 module CU = Compilation_unit
 
 let make_cached_generic_functions unix ~ppf_dump ~id genfns =
-  Location.input_name := Generic_fns.Partition.name id; (* set name of "current" input *)
+  let name = Generic_fns.Partition.name id in
+  Location.input_name := name; (* set name of "current" input *)
   let startup_comp_unit = Generic_fns.Partition.to_cu id in
-  Compilenv.reset startup_comp_unit;
+  let startup_unit_info =
+    Unit_info.make_dummy ~input_name:name startup_comp_unit
+  in
+  Compilenv.reset startup_unit_info;
   Emit.begin_assembly unix;
   let compile_phrase p = Asmgen.compile_phrase ~ppf_dump p in
   Profile.record_call "genfns" (fun () ->

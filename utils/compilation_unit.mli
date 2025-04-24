@@ -299,8 +299,6 @@ type error = private
 (** The exception raised by conversion functions in this module. *)
 exception Error of error
 
-val set_current : t option -> unit
-
 val get_current : unit -> t option
 
 val get_current_or_dummy : unit -> t
@@ -308,3 +306,7 @@ val get_current_or_dummy : unit -> t
 val get_current_exn : unit -> t
 
 val is_current : t -> bool
+
+module Private : sig
+  val fwd_get_current : (unit -> t option) ref
+end

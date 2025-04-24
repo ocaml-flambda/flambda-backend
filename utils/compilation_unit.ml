@@ -640,17 +640,20 @@ let print_debug ppf t =
       "@[<hov 1>(@[<hov 1>(for_pack_prefix@ %a)@]@;@[<hov 1>(name@ %a)@]"
       Prefix.print for_pack_prefix Name.print name
 
-let current = ref None
+let fwd_get_current : (unit -> t option) ref = ref (fun () -> assert false)
 
-let set_current t_opt = current := t_opt
+let get_current () = !fwd_get_current ()
 
-let get_current () = !current
-
-let get_current_or_dummy () = Option.value !current ~default:dummy
+let get_current_or_dummy () = Option.value (get_current ()) ~default:dummy
 
 let get_current_exn () =
-  match !current with
+  match get_current () with
   | Some t -> t
   | None -> Misc.fatal_error "No compilation unit set"
 
-let is_current t = match !current with None -> false | Some t' -> equal t t'
+let is_current t =
+  match get_current () with None -> false | Some t' -> equal t t'
+
+module Private = struct
+  let fwd_get_current = fwd_get_current
+end

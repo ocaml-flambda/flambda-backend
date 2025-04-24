@@ -253,8 +253,11 @@ let package_files unix ~ppf_dump initial_env files targetcmx ~flambda2 =
   (* Set the name of the current "input" *)
   Location.input_name := targetcmx;
   (* Set the name of the current compunit *)
+  let unit_info =
+    Unit_info.of_artifact Impl cmx ~dummy_source_file:targetcmx
+  in
   let comp_unit = Unit_info.Artifact.modname cmx in
-  Compilenv.reset comp_unit;
+  Compilenv.reset unit_info;
   Misc.try_finally (fun () ->
       let coercion =
         Typemod.package_units initial_env files cmi comp_unit in

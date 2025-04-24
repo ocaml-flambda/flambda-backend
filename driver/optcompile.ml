@@ -84,7 +84,7 @@ type flambda2 =
 
 (* Emit assembly directly from Linear IR *)
 let emit unix i =
-  Compilenv.reset i.module_name;
+  Compilenv.reset i.target;
   Asmgen.compile_implementation_linear unix
     (Unit_info.prefix i.target)
     ~progname:(Unit_info.source_file i.target)
@@ -124,7 +124,7 @@ let implementation_aux unix ~(flambda2 : flambda2) ~start_from
   | Parsing ->
     let backend info ({ structure; coercion; argument_interface; _ }
                       : Typedtree.implementation) =
-      Compilenv.reset info.module_name;
+      Compilenv.reset info.target;
       let argument_coercion =
         match argument_interface with
         | Some { ai_coercion_from_primary; ai_signature = _ } ->
@@ -149,7 +149,7 @@ let implementation_aux unix ~(flambda2 : flambda2) ~start_from
       info ~backend
   | Emit -> emit unix info ~ppf_dump:info.ppf_dump
   | Instantiation { runtime_args; main_module_block_size; arg_descr } ->
-    Compilenv.reset info.module_name;
+    Compilenv.reset info.target;
     begin
       match !Clflags.as_argument_for with
       | Some _ ->

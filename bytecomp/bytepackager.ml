@@ -347,7 +347,12 @@ let package_files ~ppf_dump initial_env files targetfile =
   let for_pack_prefix = CU.Prefix.from_clflags () in
   let target = Unit_info.Artifact.from_filename ~for_pack_prefix targetfile in
   let comp_unit = Unit_info.Artifact.modname target in
-  CU.set_current (Some comp_unit);
+  let unit_info =
+    (* Do what [asmpackager] does and use the target .cmx as a dummy source
+       file *)
+    Unit_info.of_artifact Impl target ~dummy_source_file:targetfile
+  in
+  Env.set_unit_name (Some unit_info);
   Misc.try_finally (fun () ->
       let coercion =
         Typemod.package_units initial_env files (Unit_info.companion_cmi target)

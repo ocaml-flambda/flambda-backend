@@ -86,6 +86,10 @@ let make ?(check_modname=true) ~source_file ~for_pack_prefix kind prefix =
 let make_with_known_compilation_unit ~source_file kind prefix modname =
  { modname; prefix; source_file; kind }
 
+let make_dummy ~input_name modname =
+  make_with_known_compilation_unit ~source_file:input_name
+    Impl input_name modname
+
 module Artifact = struct
   type t =
    {
@@ -104,6 +108,12 @@ module Artifact = struct
     { modname; filename; source_file = None }
 
 end
+
+let of_artifact ~dummy_source_file kind (a : Artifact.t) =
+  let modname = Artifact.modname a in
+  let prefix = Artifact.prefix a in
+  let source_file = Option.value a.source_file ~default:dummy_source_file in
+  { modname; prefix; source_file; kind }
 
 let mk_artifact ext u =
   {

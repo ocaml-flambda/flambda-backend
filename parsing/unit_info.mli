@@ -98,6 +98,12 @@ val make:
 val make_with_known_compilation_unit:
   source_file:filename -> intf_or_impl -> file_prefix -> Compilation_unit.t -> t
 
+(** [make_dummy ~input_name compilation_unit] is used in places where there's no
+    actual source file but we do need to specify a [Compilation_unit.t]. The
+    [input_name] is a string like "startup", suitable as the value for
+    [Location.input_name] as well. *)
+val make_dummy: input_name:string -> Compilation_unit.t -> t
+
 (** {1:artifact_function Build artifacts }*)
 module Artifact: sig
   type t
@@ -177,3 +183,8 @@ val is_cmi: Artifact.t -> bool
     name [modname u].
     @raise Not_found if no such cmi exists *)
 val find_normalized_cmi: t -> Artifact.t
+
+(** [of_artifact ~dummy_source_file kind a] builds a [Unit_info.t] from a
+    [Unit_info.Artifact.t], using [dummy_source_file] as the filename if the
+    artifact doesn't have one attached. *)
+val of_artifact : dummy_source_file:filename -> intf_or_impl -> Artifact.t -> t

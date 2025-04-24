@@ -30,7 +30,7 @@ let init_path () = Compmisc.init_path ()
 let initial_env () =
   let current =
     match Env.get_unit_name () with
-    | Some cu -> cu |> Compilation_unit.full_path_as_string
+    | Some cu -> Unit_info.modname cu |> Compilation_unit.full_path_as_string
     | None -> ""
   in
   let initial = !Odoc_global.initially_opened_module in
@@ -84,7 +84,7 @@ let process_implementation_file sourcefile =
   init_path ();
   let source = unit_from_source sourcefile Unit_info.Impl in
   let compilation_unit = Unit_info.modname source in
-  Env.set_unit_name (Some compilation_unit);
+  Env.set_unit_name (Some source);
   let inputfile = preprocess sourcefile in
   let env = initial_env () in
   try
@@ -118,7 +118,7 @@ let process_interface_file sourcefile =
   init_path ();
   let unit = unit_from_source sourcefile Unit_info.Intf in
   let compilation_unit = Unit_info.modname unit in
-  Env.set_unit_name (Some compilation_unit);
+  Env.set_unit_name (Some unit);
   let inputfile = preprocess sourcefile in
   let ast =
     Pparse.file ~tool_name inputfile

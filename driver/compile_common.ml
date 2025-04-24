@@ -44,8 +44,7 @@ let with_info ~native ~tool_name ~source_file ~output_prefix
         Unit_info.make ~source_file ~for_pack_prefix kind output_prefix
   in
   let compilation_unit = Unit_info.modname target in
-  Compilation_unit.set_current (Some compilation_unit);
-  Env.set_unit_name (Some compilation_unit);
+  Env.set_unit_name (Some target);
   let env = Compmisc.initial_env() in
   let dump_file = String.concat "." [output_prefix; dump_ext] in
   Compmisc.with_ppf_dump ~file_prefix:dump_file (fun ppf_dump ->
