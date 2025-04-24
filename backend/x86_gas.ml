@@ -269,22 +269,25 @@ let print_line b = function
     match is_solaris system with
     | true -> buf_bytes_directive b ".byte" s
     | false ->
-      (* Very long lines can cause gas to be extremely slow so split up large
-         string literals. It turns out that gas reads files in 32kb chunks so
-         splitting the string into blocks of 25k characters should be close to
-         the sweet spot even with a lot of escapes. *)
-      let chunk_size = 25000 in
-      let rec chunk i =
-        if String.length s - i > chunk_size
-        then (
-          bprintf b "\t.ascii\t\"%s\"\n"
-            (string_of_substring_literal i chunk_size s);
-          chunk (i + chunk_size))
-        else i
-      in
-      let i = chunk 0 in
-      bprintf b "\t.ascii\t\"%s\""
-        (string_of_substring_literal i (String.length s - i) s))
+      if String.length s = 0
+      then ()
+      else
+        (* Very long lines can cause gas to be extremely slow so split up large
+           string literals. It turns out that gas reads files in 32kb chunks so
+           splitting the string into blocks of 25k characters should be close to
+           the sweet spot even with a lot of escapes. *)
+        let chunk_size = 25000 in
+        let rec chunk i =
+          if String.length s - i > chunk_size
+          then (
+            bprintf b "\t.ascii\t\"%s\"\n"
+              (string_of_substring_literal i chunk_size s);
+            chunk (i + chunk_size))
+          else i
+        in
+        let i = chunk 0 in
+        bprintf b "\t.ascii\t\"%s\""
+          (string_of_substring_literal i (String.length s - i) s))
   | Comment s -> bprintf b "\t\t\t\t/* %s */" s
   | Global s -> bprintf b "\t.globl\t%s" s
   | Protected s -> bprintf b "\t.protected\t%s" s
@@ -338,7 +341,7 @@ let print_line b = function
   | Size (s, c) -> bprintf b "\t.size %s,%a" s cst c
   | Type (s, typ) -> bprintf b "\t.type %s,%s" s typ
   | Reloc { offset; name; expr } ->
-    bprintf b "\t.reloc %a,%s,%a" cst offset
+    bprintf b "\t.reloc\t%a, %s, %a" cst offset
       (reloc_type_to_string name)
       cst expr
   (* masm only *)
