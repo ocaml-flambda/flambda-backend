@@ -2182,7 +2182,7 @@ and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
       Llet(Strict, layout, init_id, exp, lam)
 
 (* Note [Representation of block indices]
-   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    Consider the following type:
 
      type a = #{ s : string; i : int64# }
