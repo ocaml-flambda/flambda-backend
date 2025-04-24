@@ -169,8 +169,6 @@ module Or_never_returns : sig
   end
 end
 
-val debug : bool
-
 val float_test_of_float_comparison :
   Cmm.float_width ->
   Lambda.float_comparison ->
