@@ -558,6 +558,8 @@ val compare_machtype_component : machtype_component -> machtype_component -> int
 
 val equal_machtype_component : machtype_component -> machtype_component -> bool
 
+val hash_machtype_component : machtype_component -> int
+
 val equal_exttype : exttype -> exttype -> bool
 
 val equal_static_cast : static_cast -> static_cast -> bool
