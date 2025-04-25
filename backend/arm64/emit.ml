@@ -1238,7 +1238,7 @@ let emit_named_text_section func_name =
        currently does not supported named text sections. In the rest of this
        file, we pretend the section is called Text rather than the function
        specific text section. *)
-    D.unsafe_set_interal_section_ref Text)
+    D.unsafe_set_internal_section_ref Text)
   else D.text ()
 
 (* Emit code to load an emitted literal *)
