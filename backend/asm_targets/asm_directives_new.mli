@@ -145,6 +145,15 @@ val cfi_startproc : unit -> unit
 (** Mark the end of a function, for CFI purposes. *)
 val cfi_endproc : unit -> unit
 
+(** Remember the current state for CFI purposes. *)
+val cfi_remember_state : unit -> unit
+
+(** Restore the state for CFI purposes. *)
+val cfi_restore_state : unit -> unit
+
+(** Define a CFA register, for CFI purposes. *)
+val cfi_def_cfa_register : reg:string -> unit
+
 (** Mark that the call stack is not to be executable at runtime.  Not
     supported on all platforms. *)
 val mark_stack_non_executable : unit -> unit
@@ -171,6 +180,9 @@ val define_data_symbol : Asm_symbol.t -> unit
 (** Define a function symbol at the current output position.  An exception
     will be raised if the current section is not a text section. *)
 val define_function_symbol : Asm_symbol.t -> unit
+
+(** Define a symbol as a label at the current position. No type information is emitted. *)
+val define_symbol_label : section:Asm_section.t -> Asm_symbol.t -> unit
 
 (** Mark a symbol as global. *)
 val global : Asm_symbol.t -> unit
@@ -206,6 +218,9 @@ val label_plus_offset :
 type symbol_type =
   | Function
   | Object
+
+(** The string representation, architecture dependent at the moment. *)
+val symbol_type_to_string : symbol_type -> string
 
 val type_symbol : Asm_symbol.t -> ty:symbol_type -> unit
 
@@ -361,6 +376,9 @@ module Directive : sig
           offset : int
         }
     | Cfi_startproc
+    | Cfi_remember_state
+    | Cfi_restore_state
+    | Cfi_def_cfa_register of string
     | Comment of comment
     | Const of
         { constant : Constant_with_width.t;
@@ -424,3 +442,6 @@ val debug_header : get_file_num:(string -> int) -> unit
 
 (** Reinitialize the emitter before compiling a different source file. *)
 val reset : unit -> unit
+
+(** Directly set the internal section ref. Use this function with caution. It only makes sense when you manually switch directly to a section. *)
+val unsafe_set_interal_section_ref : Asm_section.t -> unit

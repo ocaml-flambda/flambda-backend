@@ -65,6 +65,16 @@ type symbol_type =
   | Function
   | Object
 
+(* CR sspies: We should use the "STT" forms when they are supported as they are
+   unambiguous across platforms (cf.
+   https://sourceware.org/binutils/docs/as/Type.html). *)
+let symbol_type_to_string sym =
+  match TS.architecture () with
+  | AArch64 -> ( match sym with Function -> "%function" | Object -> "%object")
+  | X86_64 -> (
+    match sym with Function -> "@function" | Object -> "STT_OBJECT")
+  | _ -> Misc.fatal_error "Symbol types not implemented for this architecture."
+
 let bprintf = Printf.bprintf
 
 module Directive = struct
@@ -156,6 +166,9 @@ module Directive = struct
           offset : int
         }
     | Cfi_startproc
+    | Cfi_remember_state
+    | Cfi_restore_state
+    | Cfi_def_cfa_register of string
     | Comment of comment
     | Const of
         { constant : Constant_with_width.t;
@@ -323,6 +336,9 @@ module Directive = struct
     | Cfi_offset { reg; offset } ->
       bprintf buf "\t.cfi_offset %d, %d" reg offset
     | Cfi_startproc -> bprintf buf "\t.cfi_startproc"
+    | Cfi_remember_state -> bprintf buf "\t.cfi_remember_state"
+    | Cfi_restore_state -> bprintf buf "\t.cfi_restore_state"
+    | Cfi_def_cfa_register reg -> bprintf buf "\t.cfi_def_cfa_register %%%s" reg
     | File { file_num = None; filename } ->
       bprintf buf "\t.file\t\"%s\"" filename
     | File { file_num = Some file_num; filename } ->
@@ -349,13 +365,12 @@ module Directive = struct
       let comment = gas_comment_opt comment in
       bprintf buf "\t.sleb128\t%a%s" Constant.print constant comment
     | Type (s, typ) ->
-      (* We use the "STT" forms when they are supported as they are unambiguous
-         across platforms (cf. https://sourceware.org/binutils/docs/as/Type.html
-         ). *)
-      let typ =
-        match typ with Function -> "STT_FUNC" | Object -> "STT_OBJECT"
-      in
-      bprintf buf "\t.type %s %s" s typ
+      let typ = symbol_type_to_string typ in
+      (* CR sspies: Technically, ",STT_OBJECT" violates the assembler syntax
+         (see https://sourceware.org/binutils/docs/as/Type.html). We probably
+         want to turn this into " STT_OBJECT", but for that we should use "STT_"
+         versions for all of them and probably on all architectures. *)
+      bprintf buf "\t.type %s,%s" s typ
     | Uleb128 { constant; comment } ->
       let comment = gas_comment_opt comment in
       bprintf buf "\t.uleb128\t%a%s" Constant.print constant comment
@@ -413,6 +428,9 @@ module Directive = struct
     | Cfi_endproc -> unsupported "Cfi_endproc"
     | Cfi_offset _ -> unsupported "Cfi_offset"
     | Cfi_startproc -> unsupported "Cfi_startproc"
+    | Cfi_remember_state -> unsupported "Cfi_remember_state"
+    | Cfi_restore_state -> unsupported "Cfi_restore_state"
+    | Cfi_def_cfa_register _ -> unsupported "Cfi_def_cfa_register"
     | File _ -> unsupported "File"
     | Indirect_symbol _ -> unsupported "Indirect_symbol"
     | Loc _ -> unsupported "Loc"
@@ -503,6 +521,14 @@ let cfi_offset ~reg ~offset =
 
 let cfi_startproc () = if should_generate_cfi () then emit Cfi_startproc
 
+let cfi_remember_state () =
+  if should_generate_cfi () then emit Cfi_remember_state
+
+let cfi_restore_state () = if should_generate_cfi () then emit Cfi_restore_state
+
+let cfi_def_cfa_register ~reg =
+  if should_generate_cfi () then emit (Cfi_def_cfa_register reg)
+
 let comment text = if emit_comments () then emit (Comment text)
 
 let loc ~file_num ~line ~col ?discriminator () =
@@ -513,6 +539,7 @@ let space ~bytes = emit (Space { bytes })
 (* We do not perform any checks that the string does not contain null bytes. The
    reason is that we sometimes want to emit strings that have an explicit null
    byte added. *)
+(* CR sspies: If the string is empty, should we just not emit anything? *)
 let string ?comment str = emit (Bytes { str; comment })
 
 let global symbol = emit (Global (Asm_symbol.encode symbol))
@@ -652,6 +679,8 @@ let switch_to_section ?(emit_label_on_first_occurrence = false) section =
 let switch_to_section_raw ~names ~flags ~args =
   emit (Section { names; flags; args })
 
+let unsafe_set_interal_section_ref section = current_section_ref := Some section
+
 let text () = switch_to_section Asm_section.Text
 
 let data () = switch_to_section Asm_section.Data
@@ -747,6 +776,12 @@ let define_function_symbol symbol =
   match TS.assembler (), TS.windows () with
   | GAS_like, false -> type_ (Asm_symbol.encode symbol) ~type_:Function
   | GAS_like, true | MacOS, _ | MASM, _ -> ()
+
+let define_symbol_label ~section symbol =
+  let typ : Directive.thing_after_label =
+    match section with Asm_section.Text -> Code | _ -> Machine_width_data
+  in
+  emit (New_label (Asm_symbol.encode symbol, typ))
 
 let type_symbol symbol ~ty =
   match TS.assembler (), TS.windows () with
@@ -887,7 +922,7 @@ let between_this_and_label_offset_32bit_expr ~upper ~offset_upper =
         Asm_label.print upper Asm_section.print upper_section Asm_section.print
         this_section);
   let offset_upper = Targetint.to_int64 offset_upper in
-  let expr = Sub (Add (Label upper, Signed_int offset_upper), This) in
+  let expr = Add (Sub (Label upper, This), Signed_int offset_upper) in
   const expr Thirty_two
 
 let between_symbol_in_current_unit_and_label_offset ?comment:_comment ~upper
