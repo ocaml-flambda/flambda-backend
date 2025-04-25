@@ -674,7 +674,8 @@ let switch_to_section ?(emit_label_on_first_occurrence = false) section =
 let switch_to_section_raw ~names ~flags ~args =
   emit (Section { names; flags; args })
 
-let unsafe_set_interal_section_ref section = current_section_ref := Some section
+let unsafe_set_internal_section_ref section =
+  current_section_ref := Some section
 
 let text () = switch_to_section Asm_section.Text
 
