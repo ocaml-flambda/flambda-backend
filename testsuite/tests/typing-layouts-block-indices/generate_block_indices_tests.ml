@@ -33,9 +33,10 @@
 
 module Idx_repr : sig
   type t
-  val of_idx_imm : ('a, 'b) idx_imm -> t
-  val of_idx_mut : ('a, 'b) idx_mut -> t
+  val of_idx_imm : 'a ('b : any). ('a, 'b) idx_imm -> t
+  val of_idx_mut : 'a ('b : any). ('a, 'b) idx_mut -> t
   val equal : t -> t -> bool
+  val debug_string : t -> string
 end = struct
   (* See Note [Representation of block indices] in [lambda/translcore.ml] *)
   type t =
@@ -77,4 +78,11 @@ end = struct
       Native { gap = gap2; offset = offset2 } ->
       Int.equal gap1 gap2 && Int.equal offset1 offset2
     | Bytecode _, Native _ | Native _, Bytecode _ -> assert false
+
+  let debug_string = function
+    | Bytecode { path } ->
+      Printf.sprintf "{ %s }"
+        (String.concat "; " (List.map Int.to_string path))
+    | Native { offset; gap } ->
+      Printf.sprintf "offset %d; gap %d" offset gap
 end

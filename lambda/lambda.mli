@@ -1193,6 +1193,8 @@ val mod_setfield: int -> primitive
 
 val structured_constant_layout : structured_constant -> layout
 
+val mixed_block_element_of_layout : layout -> unit mixed_block_element
+
 val primitive_result_layout : primitive -> layout
 
 val array_ref_kind_result_layout: array_ref_kind -> layout

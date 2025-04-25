@@ -2205,7 +2205,7 @@ and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
    Acccordingly, block indices have also two different representations. In the
    native compiler, they are the offset into the block and the gap between the
    values and non-values of the pointed-to payload, both in bytes. In the
-   bytecode compiler, they are a block containing the sequence of field
+   bytecode compiler, block indices are represented as a sequence of field
    positions.
 
      Idx in [c]  Native repr.      Bytecode repr.
@@ -2217,6 +2217,16 @@ and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
      (.b.#s)     offset 8, gap 0   { 0; 2 }
      (.b.#a.#s)  offset 0, gap 0   { 0; 1; 0 }
      (.b.#a.#i)  offset 32, gap 0  { 0; 1; 1 }
+
+   In-memory representation:
+   - In the native compiler, the offset and gap are packed into
+     a single [bits64]. There are two subcases
+     * The index is to product containing both values and non-values. In this
+       case, the offset is the lower 48 bits and the gap is the upper 16 bits.
+     * The index is to all values/non-values. In this case, all 64 bits are used
+       for the offset.
+   - In the bytecode compiler, the field positions are stored as tagged integers
+     in single block with tag 0.
 *)
 and transl_idx ~scopes loc env ba uas =
   let uas_path =
@@ -2229,7 +2239,6 @@ and transl_idx ~scopes loc env ba uas =
     begin match uas with
     | [] -> index
     | Uaccess_unboxed_field (_, lbl) :: _ ->
-      (* CR rtjoa: should this be lbl res??? *)
       let lbl_layout l = layout env l.lbl_loc l.lbl_sort l.lbl_arg in
       let layouts = Array.to_list (Array.map lbl_layout lbl.lbl_all) in
       Lprim (Pidx_deepen (uas_path, layouts), [index], loc)

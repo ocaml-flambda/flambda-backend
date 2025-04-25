@@ -489,7 +489,6 @@ let convert_field_read_semantics (sem : L.field_read_semantics) : Mutability.t =
 let rec convert_layout_to_offset_access_kinds (layout : L.layout) :
     P.Offset_access_kind.t list =
   match layout with
-  | Ptop -> assert false
   | Pvalue value_kind -> (
     match convert_block_access_field_kind_from_value_kind value_kind with
     | Any_value -> [Values]
@@ -500,9 +499,11 @@ let rec convert_layout_to_offset_access_kinds (layout : L.layout) :
   | Punboxed_int Unboxed_int64 -> [Naked_int64s]
   | Punboxed_int Unboxed_nativeint -> [Naked_nativeints]
   | Punboxed_vector Unboxed_vec128 -> [Naked_vec128s]
-  | Pbottom -> assert false
   | Punboxed_product layouts ->
     List.concat_map convert_layout_to_offset_access_kinds layouts
+  | Ptop | Pbottom ->
+    Misc.fatal_error
+      "Lambda_to_flambda_primitives.convert_layout_to_offset_access_kinds"
 
 let bigarray_dim_bound b dimension =
   H.Prim (Unary (Bigarray_length { dimension }, b))
@@ -1374,35 +1375,88 @@ let opaque layout arg ~middle_end_only : H.expr_primitive list =
       Unary (Opaque_identity { middle_end_only; kind }, arg_component))
     arg kinds
 
-let rec has_val_flat : Lambda.layout -> _ = function
-  | Ptop | Pbottom -> assert false
-  | Pvalue _ -> true, false
-  | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _ -> false, true
-  | Punboxed_product layouts ->
-    List.fold_left
-      (fun (has_val, has_flat) l ->
-        let has_val', has_flat' = has_val_flat l in
-        has_val || has_val', has_flat || has_flat')
-      (false, false) layouts
-
-let is_mixed l =
-  let has_val, has_flat = has_val_flat l in
-  has_val && has_flat
-
-let rec count values flats : Lambda.layout -> _ = function
-  | Ptop | Pbottom -> assert false
-  | Pvalue _ -> incr values
-  | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _ -> incr flats
-  | Punboxed_product layouts -> List.iter (count values flats) layouts
-
 let simple_i64 x = H.Simple (Simple.const (Reg_width_const.naked_int64 x))
+
+module Mixed_block_byte_counts = struct
+  type t =
+    { value : int;
+      flat : int
+    }
+
+  let zero = { value = 0; flat = 0 }
+
+  let add { value; flat } { value = value'; flat = flat' } =
+    { value = value + value'; flat = flat + flat' }
+
+  let rec count (el : _ L.mixed_block_element) : t =
+    match el with
+    | Value _ -> { value = 8; flat = 0 }
+    | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Word ->
+      { value = 0; flat = 8 }
+    | Vec128 -> { value = 0; flat = 16 }
+    | Product layouts ->
+      Array.fold_left (fun cts l -> add cts (count l)) zero layouts
+
+  let has_value_and_flat { value; flat } = value > 0 && flat > 0
+end
+
+module Mixed_block_byte_counts_wrt_subelement = struct
+  type t =
+    { here : Mixed_block_byte_counts.t;
+      left : Mixed_block_byte_counts.t;
+      right : Mixed_block_byte_counts.t
+    }
+
+  let zero =
+    { here = Mixed_block_byte_counts.zero;
+      left = Mixed_block_byte_counts.zero;
+      right = Mixed_block_byte_counts.zero
+    }
+
+  let add { here; left; right } { here = here'; left = left'; right = right' } =
+    { here = Mixed_block_byte_counts.add here here';
+      left = Mixed_block_byte_counts.add left left';
+      right = Mixed_block_byte_counts.add right right'
+    }
+
+  let rec count (el : _ L.mixed_block_element) path =
+    match path with
+    | [] -> { zero with here = Mixed_block_byte_counts.count el }
+    | i :: path_rest -> (
+      match el with
+      | Product els ->
+        let _, totals =
+          Array.fold_left
+            (fun (j, totals) el ->
+              ( j + 1,
+                add totals
+                  (if j = i
+                  then count el path_rest
+                  else if j < i
+                  then { zero with left = Mixed_block_byte_counts.count el }
+                  else { zero with right = Mixed_block_byte_counts.count el }) ))
+            (0, zero) els
+        in
+        totals
+      | Value _ | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Word
+      | Vec128 ->
+        Misc.fatal_error "Lambda_to_flambda_primitives: bad mixed block path")
+
+  let all { here; left; right } =
+    Mixed_block_byte_counts.
+      { value = here.value + left.value + right.value;
+        flat = here.flat + left.flat + right.flat
+      }
+end
 
 (* Given an index that points to data of some layout, produce the list of
    offsets needed to access each element *)
-let idx_offsets layout idx =
+let idx_access_offsets layout idx =
   let kinds = convert_layout_to_offset_access_kinds layout in
-  if is_mixed layout
-  then (
+  let el = L.mixed_block_element_of_layout layout in
+  let cts = Mixed_block_byte_counts.count el in
+  if Mixed_block_byte_counts.has_value_and_flat cts
+  then
     let mask = Int64.of_int ((1 lsl 48) - 1) in
     let values_start =
       H.Binary (Int_arith (Naked_int64, And), idx, simple_i64 mask)
@@ -1415,9 +1469,6 @@ let idx_offsets layout idx =
       in
       H.Binary (Int_shift (Naked_int64, Lsr), idx, shifter)
     in
-    let values, flats = ref 0, ref 0 in
-    count values flats layout;
-    let total_value_bytes = !values * 8 in
     let value_offset ~value_bytes_to_left =
       H.Binary
         ( Int_arith (Naked_int64, Add),
@@ -1429,7 +1480,7 @@ let idx_offsets layout idx =
         ( Int_arith (Naked_int64, Add),
           Prim
             (H.Binary (Int_arith (Naked_int64, Add), Prim values_start, Prim gap)),
-          simple_i64 (Int64.of_int (total_value_bytes + flat_bytes_to_left)) )
+          simple_i64 (Int64.of_int (cts.value + flat_bytes_to_left)) )
     in
     let _, prims =
       List.fold_left_map
@@ -1450,11 +1501,12 @@ let idx_offsets layout idx =
           acc, prim)
         (0, 0) kinds
     in
-    prims)
+    kinds, prims
   else
-    List.init (List.length kinds) (fun i ->
-        let summand = Simple.const_int_of_kind K.naked_int64 (i * 8) in
-        H.Binary (Int_arith (Naked_int64, Add), idx, Simple summand))
+    ( kinds,
+      List.init (List.length kinds) (fun i ->
+          let summand = Simple.const_int_of_kind K.naked_int64 (i * 8) in
+          H.Binary (Int_arith (Naked_int64, Add), idx, Simple summand)) )
 
 (* Primitive conversion *)
 let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
@@ -1533,47 +1585,21 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let idx_raw_value = Int64.mul (Int64.of_int pos) 8L in
     [Simple (Simple.const (Reg_width_const.naked_int64 idx_raw_value))]
   | Pidx_mixed_field (field_path, shape), [] ->
-    (* CR rtjoa: broken for vectors *)
-    let shape =
-      Mixed_block_shape.of_mixed_block_elements shape
-        ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
+    let cts =
+      Mixed_block_byte_counts_wrt_subelement.count (L.Product shape) field_path
     in
-    let flattened_reordered_shape =
-      Mixed_block_shape.flattened_reordered_shape shape
+    (* If an index points to a layout that's all values or all flats, then all
+       64 bits are the offset, and there's no gap *)
+    let gap_bytes =
+      if Mixed_block_byte_counts.has_value_and_flat cts.here
+      then cts.left.flat + cts.right.value
+      else 0
     in
-    let new_indexes =
-      Mixed_block_shape.lookup_path_producing_new_indexes shape field_path
+    let offset_bytes =
+      if cts.here.value > 0
+      then cts.left.value
+      else cts.left.value + cts.left.flat + cts.right.value
     in
-    let values, flats =
-      List.partition
-        (fun new_index ->
-          match flattened_reordered_shape.(new_index) with
-          | Value _ -> true
-          | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word
-            ->
-            false)
-        new_indexes
-    in
-    let values = Array.of_list values in
-    let flats = Array.of_list flats in
-    let check_sequential arr =
-      for i = 1 to Array.length arr - 1 do
-        if arr.(i - 1) + 1 <> arr.(i)
-        then Misc.fatal_error "Pidxmixedfield: prefix or suffix not continuous"
-      done
-    in
-    check_sequential values;
-    check_sequential flats;
-    let values_empty = Int.equal (Array.length values) 0 in
-    let flats_empty = Int.equal (Array.length flats) 0 in
-    let offset_words = if values_empty then flats.(0) else values.(0) in
-    let gap_words =
-      if values_empty || flats_empty
-      then 0
-      else flats.(0) - values.(Array.length values - 1) - 1
-    in
-    let offset_bytes = offset_words * 8 in
-    let gap_bytes = gap_words * 8 in
     if gap_bytes < 0 then Misc.fatal_error "Pidxmixedfield: negative gap";
     if gap_bytes >= 1 lsl 16
     then
@@ -1586,95 +1612,68 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         (Int64.of_int offset_bytes)
     in
     [Simple (Simple.const (Reg_width_const.naked_int64 idx_raw_value))]
-  | Pidx_deepen (field_path, layouts), [[index]] -> (
-    (* CR rtjoa: broken for vectors *)
-    let values_before, flats_before, values_after, flats_after =
-      ref 0, ref 0, ref 0, ref 0
+  | Pidx_deepen (field_path, layouts), [[index]] ->
+    let el = L.mixed_block_element_of_layout (L.Punboxed_product layouts) in
+    let cts = Mixed_block_byte_counts_wrt_subelement.count el field_path in
+    let outer_has_value_and_flat =
+      Mixed_block_byte_counts_wrt_subelement.all cts
+      |> Mixed_block_byte_counts.has_value_and_flat
     in
-    let count_before = count values_before flats_before in
-    let count_after = count values_after flats_after in
-    let rec count path (layout : Lambda.layout) =
-      match path with
-      | [] -> layout
-      | i :: path_rest -> (
-        match layout with
-        | Punboxed_product layouts ->
-          let res = ref None in
-          List.iteri
-            (fun j layout ->
-              if j = i
-              then res := Some (count path_rest layout)
-              else if j < i
-              then count_before layout
-              else count_after layout)
-            layouts;
-          Option.get !res
-        | Ptop | Pbottom | Pvalue _ | Punboxed_float _ | Punboxed_int _
-        | Punboxed_vector _ ->
-          Misc.fatal_error "Pidxdeepen: bad path")
-    in
-    let outer_layout = Lambda.Punboxed_product layouts in
-    let inner_layout = count field_path outer_layout in
-    (* Format.printf "outer layout: %a\ninner layout: %a\n" Printlambda.layout
-     *   outer_layout Printlambda.layout inner_layout;
-     * Printf.printf "%d %d %d %d\n" !values_before !flats_before !values_after
-     *   !flats_after; *)
-    let values_before_in_bytes = !values_before * 8 |> Int64.of_int in
-    let flats_before_in_bytes = !flats_before * 8 |> Int64.of_int in
-    let values_after_in_bytes = !values_after * 8 |> Int64.of_int in
-    match is_mixed outer_layout, has_val_flat inner_layout with
-    | true, (true, true) ->
-      (* print_endline "mixed product -> mixed product"; *)
-      (* Deepening from a mixed product to a mixed product, e.g. move index to a
-         #(i64#, #(string, i32#), string) to the inner product *)
-      (* offset += (values before); gap += (values after) + (flats before) *)
-      let to_add =
-        Int64.add
-          (Int64.shift_left
-             (Int64.add values_after_in_bytes flats_before_in_bytes)
-             48)
-          values_before_in_bytes
-      in
-      [Binary (Int_arith (Naked_int64, Add), index, simple_i64 to_add)]
-    | true, (true, false) ->
-      (* print_endline "mixed product -> all values"; *)
-      (* Deepening from a mixed product to all values. *)
-      (* gap = 0; offset += (values before) *)
-      let mask = Int64.of_int ((1 lsl 48) - 1) in
-      let gap_removed =
-        H.Binary (Int_arith (Naked_int64, And), index, simple_i64 mask)
-      in
-      [ Binary
-          ( Int_arith (Naked_int64, Add),
-            H.Prim gap_removed,
-            simple_i64 values_before_in_bytes ) ]
-    | true, (false, true) ->
-      (* Deepening from a mixed product to all flat. *)
-      (* offset += gap + (values before) + (values after) + (flats before) *)
-      let mask = Int64.of_int ((1 lsl 48) - 1) in
-      let offset =
-        H.Binary (Int_arith (Naked_int64, And), index, simple_i64 mask)
-      in
-      let shifter =
-        H.Simple
-          (Simple.const
-             (Reg_width_const.naked_immediate (Targetint_31_63.of_int 48)))
-      in
-      let gap = H.Binary (Int_shift (Naked_int64, Lsr), index, shifter) in
-      let to_add =
-        Int64.add values_before_in_bytes
-          (Int64.add values_after_in_bytes flats_before_in_bytes)
-      in
-      [ Binary
-          ( Int_arith (Naked_int64, Add),
-            H.Prim
-              (Binary (Int_arith (Naked_int64, Add), H.Prim offset, H.Prim gap)),
-            simple_i64 to_add ) ]
-    | _, (false, false) -> assert false
-    | false, _ ->
+    if outer_has_value_and_flat
+    then
+      match cts.here.value > 0, cts.here.flat > 0 with
+      | true, true ->
+        (* Deepening from a mixed product to a mixed product, e.g. move index to
+           a #(i64#, #(string, i32#), string) to the inner product *)
+        (* offset += (values before); gap += (values after) + (flats before) *)
+        let to_add =
+          Int64.add
+            (Int64.shift_left
+               (Int64.of_int (cts.right.value + cts.left.flat))
+               48)
+            (Int64.of_int cts.left.value)
+        in
+        [Binary (Int_arith (Naked_int64, Add), index, simple_i64 to_add)]
+      | true, false ->
+        (* Deepening from a mixed product to all values. *)
+        (* gap = 0; offset += (values before) *)
+        let mask = Int64.of_int ((1 lsl 48) - 1) in
+        let gap_removed =
+          H.Binary (Int_arith (Naked_int64, And), index, simple_i64 mask)
+        in
+        [ Binary
+            ( Int_arith (Naked_int64, Add),
+              H.Prim gap_removed,
+              simple_i64 (Int64.of_int cts.left.value) ) ]
+      | false, true ->
+        (* Deepening from a mixed product to all flat. *)
+        (* offset += gap + (values before) + (values after) + (flats before) *)
+        let mask = Int64.of_int ((1 lsl 48) - 1) in
+        let offset =
+          H.Binary (Int_arith (Naked_int64, And), index, simple_i64 mask)
+        in
+        let shifter =
+          H.Simple
+            (Simple.const
+               (Reg_width_const.naked_immediate (Targetint_31_63.of_int 48)))
+        in
+        let gap = H.Binary (Int_shift (Naked_int64, Lsr), index, shifter) in
+        let to_add =
+          Int64.of_int (cts.left.value + cts.right.value + cts.left.flat)
+        in
+        [ Binary
+            ( Int_arith (Naked_int64, Add),
+              H.Prim
+                (Binary (Int_arith (Naked_int64, Add), H.Prim offset, H.Prim gap)),
+              simple_i64 to_add ) ]
+      | false, false -> assert false
+    else
+      (* The initial index is to a layout that's all values or all flats,
+         meaning all of its 64 bits correspond to the offset, because there
+         can't be a gap. *)
       (* increase offset by (values before) + (flats before) *)
-      let to_add = Int64.add values_before_in_bytes flats_before_in_bytes in
-      [Binary (Int_arith (Naked_int64, Add), index, simple_i64 to_add)])
+      let to_add = Int64.of_int (cts.left.value + cts.left.flat) in
+      [Binary (Int_arith (Naked_int64, Add), index, simple_i64 to_add)]
   | Pmakefloatblock (mutability, mode), _ ->
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -2739,8 +2738,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let kind = standard_int_or_float_of_peek_or_poke layout in
     [Binary (Poke kind, ptr, new_value)]
   | Pget_idx layout, [[ptr]; [idx]] ->
-    let offsets = idx_offsets layout idx in
-    let kinds = convert_layout_to_offset_access_kinds layout in
+    let kinds, offsets = idx_access_offsets layout idx in
     let reads =
       List.map2
         (fun kind offset -> H.Binary (Read_offset kind, ptr, Prim offset))
@@ -2748,8 +2746,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     in
     [H.maybe_create_unboxed_product reads]
   | Pset_idx layout, [[ptr]; [idx]; new_values] ->
-    let offsets = idx_offsets layout idx in
-    let kinds = convert_layout_to_offset_access_kinds layout in
+    let kinds, offsets = idx_access_offsets layout idx in
     let map3 f xs ys zs =
       List.map2 (fun x (y, z) -> f x y z) xs (List.combine ys zs)
     in

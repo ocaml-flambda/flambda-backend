@@ -2270,6 +2270,20 @@ let rec layout_of_mixed_block_element : 'a. 'a mixed_block_element -> layout =
     Punboxed_product
       (Array.to_list (Array.map layout_of_mixed_block_element shape))
 
+let rec mixed_block_element_of_layout (layout : layout) :
+    unit mixed_block_element =
+  match layout with
+  | Punboxed_product layouts ->
+    Product (List.map mixed_block_element_of_layout layouts |> Array.of_list)
+  | Ptop | Pbottom -> Misc.fatal_error "Pidxdeepen"
+  | Pvalue value_kind -> Value value_kind
+  | Punboxed_float Unboxed_float64 -> Float64
+  | Punboxed_float Unboxed_float32 -> Float32
+  | Punboxed_int Unboxed_int64 -> Bits64
+  | Punboxed_int Unboxed_int32 -> Bits32
+  | Punboxed_int Unboxed_nativeint -> Word
+  | Punboxed_vector Unboxed_vec128 -> Vec128
+
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;
   match p with
