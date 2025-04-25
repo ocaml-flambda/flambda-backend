@@ -21,7 +21,7 @@
 
 open Cmx_format
 
-val reset : Compilation_unit.t -> unit
+val reset : Unit_info.t -> unit
         (* Reset the environment and record the name of the unit being
            compiled (including any associated -for-pack prefix). *)
 

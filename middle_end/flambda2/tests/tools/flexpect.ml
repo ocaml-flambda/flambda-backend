@@ -35,7 +35,8 @@ end
 let run_expect_test ~get_module_info ~extension ~filename
     ({ before; after = expected } : Fexpr.expect_test_spec) : Test_outcome.t =
   let comp_unit = Parse_flambda.make_compilation_unit ~extension ~filename () in
-  Compilation_unit.set_current (Some comp_unit);
+  let unit_info = Unit_info.make_dummy ~input_name:filename comp_unit in
+  Env.set_unit_name (Some unit_info);
   let before_fl = Fexpr_to_flambda.conv comp_unit before in
   check_invariants before_fl;
   let cmx_loader = Flambda_cmx.create_loader ~get_module_info in

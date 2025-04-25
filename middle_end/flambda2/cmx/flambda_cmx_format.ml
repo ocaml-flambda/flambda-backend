@@ -213,7 +213,10 @@ let merge t1_opt t2_opt =
 let print0 ~sections ~print_typing_env ~print_code ~print_offsets ppf t =
   Format.fprintf ppf "@[<hov>Original unit:@ %a@]@;" Compilation_unit.print
     t.original_compilation_unit;
-  Compilation_unit.set_current (Some t.original_compilation_unit);
+  let unit_info =
+    Unit_info.make_dummy ~input_name:"<none>" t.original_compilation_unit
+  in
+  Env.set_unit_name (Some unit_info);
   let typing_env, code = import_typing_env_and_code0 ~sections t in
   if print_typing_env
   then

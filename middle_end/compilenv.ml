@@ -65,10 +65,11 @@ let current_unit =
     ui_external_symbols = [];
   }
 
-let reset compilation_unit =
+let reset unit_info =
+  let compilation_unit = Unit_info.modname unit_info in
   Infos_table.clear global_infos_table;
   Zero_alloc_info.reset cached_zero_alloc_info;
-  CU.set_current (Some compilation_unit);
+  Env.set_unit_name (Some unit_info);
   current_unit.ui_unit <- compilation_unit;
   current_unit.ui_defines <- [compilation_unit];
   current_unit.ui_arg_descr <- None;

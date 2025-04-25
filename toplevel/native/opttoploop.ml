@@ -393,7 +393,10 @@ let execute_phrase print_outcome ppf phr =
         Compilation_unit.create Compilation_unit.Prefix.empty
           (!phrase_name |> Compilation_unit.Name.of_string)
       in
-      Compilenv.reset compilation_unit;
+      let unit_info =
+        Unit_info.make_dummy ~input_name:!phrase_name compilation_unit
+      in
+      Compilenv.reset unit_info;
       Typecore.reset_delayed_checks ();
       let (str, sg, names, _shape, newenv) =
         Typemod.type_toplevel_phrase oldenv oldsig sstr

@@ -70,7 +70,7 @@ module Uid = struct
       incr id;
       let comp_unit =
         match current_unit with
-        | Some cu -> cu |> Compilation_unit.full_path_as_string
+        | Some cu -> Unit_info.modname cu |> Compilation_unit.full_path_as_string
         | None -> ""
       in
       Item { comp_unit; id = !id }

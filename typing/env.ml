@@ -1007,18 +1007,22 @@ let rec address_head = function
 
 (* The name of the compilation unit currently compiled. *)
 module Current_unit_name : sig
-  val get : unit -> Compilation_unit.t option
-  val set : Compilation_unit.t option -> unit
+  val get : unit -> Unit_info.t option
+  val set : Unit_info.t option -> unit
   val is : string -> bool
   val is_ident : Ident.t -> bool
   val is_path : Path.t -> bool
 end = struct
+  let current_unit : Unit_info.t option ref =
+    ref None
   let get () =
-    Compilation_unit.get_current ()
-  let set comp_unit =
-    Compilation_unit.set_current comp_unit
+    !current_unit
+  let set cu =
+    current_unit := cu
+  let get_cu () =
+    Option.map Unit_info.modname (get ())
   let get_name () =
-    Option.map Compilation_unit.name (get ())
+    Option.map Compilation_unit.name (get_cu ())
   let is name =
     let current_name_string =
       Option.map Compilation_unit.Name.to_string (get_name ())
@@ -1181,7 +1185,7 @@ let reset_declaration_caches () =
   ()
 
 let reset_cache ~preserve_persistent_env =
-  Compilation_unit.set_current None;
+  Current_unit_name.set None;
   if not preserve_persistent_env then
     Persistent_env.clear !persistent_env;
   reset_declaration_caches ();
@@ -4667,3 +4671,9 @@ let () =
       | _ ->
           None
     )
+
+let () =
+  let get_current_compilation_unit () =
+    Option.map Unit_info.modname (get_unit_name ())
+  in
+  Compilation_unit.Private.fwd_get_current := get_current_compilation_unit
