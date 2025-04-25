@@ -82,13 +82,10 @@ let create_symbol (symbol : X86_binary_emitter.symbol) symbol_table sections
   let size = Option.value ~default:0 symbol.sy_size in
   let st_type =
     match symbol.sy_type with
-    (* CR mcollins - modify types to avoid string comparisons *)
-    | Some "@function" -> 2
-    | Some "object" -> 1
-    | Some "tls_object" -> 6
-    | Some "common" -> 5
-    | Some "notype" -> 0
-    | Some s -> failwith ("Unknown symbol type" ^ s)
+    (* Some common additional types, which are currently not used are:
+       tls_object = 6, common = 5, notype = 0 *)
+    | Some Function -> 2
+    | Some Object -> 1
     | None -> 0
   in
   let st_binding =

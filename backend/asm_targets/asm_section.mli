@@ -58,7 +58,8 @@ val to_string : t -> string
 type section_details = private
   { names : string list;
     flags : string option;
-    args : string list
+    args : string list;
+    is_delayed : bool
   }
 
 val dwarf_sections_in_order : unit -> t list
