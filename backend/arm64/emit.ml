@@ -777,7 +777,7 @@ let emit_literals p align emit_literal =
         ~args:[Int.to_string align ^ "byte_literals"];
       (* CR sspies: The following section is incorrect. We are in a data section
          here. Fix this when cleaning up the section mechanism. *)
-      D.unsafe_set_interal_section_ref Text);
+      D.unsafe_set_internal_section_ref Text);
     D.align ~bytes:align;
     List.iter emit_literal !p;
     p := [])
