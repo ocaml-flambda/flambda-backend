@@ -936,10 +936,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%reinterpret_unboxed_int64_as_tagged_int63" ->
       Primitive(Preinterpret_unboxed_int64_as_tagged_int63, 1)
     | "%unsafe_read_idx" ->
-      Primitive(Pread_offset layout, 2)
+      Primitive(Pget_idx layout, 2)
     | "%unsafe_write_idx" ->
       let layout = List.nth arg_layouts 2 in
-      Primitive(Pwrite_offset layout, 3)
+      Primitive(Pset_idx layout, 3)
     | "%peek" -> Peek None
     | "%poke" -> Poke None
     | s when String.length s > 0 && s.[0] = '%' ->
@@ -1968,7 +1968,7 @@ let lambda_primitive_needs_event_after = function
   | Pdls_get
   | Pobj_magic _ | Punbox_float _ | Punbox_int _ | Punbox_vector _
   | Preinterpret_unboxed_int64_as_tagged_int63 | Ppeek _ | Ppoke _
-  | Pread_offset _ | Pwrite_offset _
+  | Pget_idx _ | Pset_idx _
   (* These don't allocate in bytecode; they're just identity functions: *)
   | Pbox_float (_, _) | Pbox_int _ | Pbox_vector (_, _)
     -> false

@@ -934,10 +934,10 @@ let primitive ppf = function
   | Ppoke layout ->
       fprintf ppf "(poke@ %a)"
         peek_or_poke layout
-  | Pread_offset layout ->
+  | Pget_idx layout ->
       fprintf ppf "(read_offset@ %a)"
         (layout' false) layout
-  | Pwrite_offset layout ->
+  | Pset_idx layout ->
       fprintf ppf "(write_offset@ %a)"
         (layout' false) layout
 
@@ -1141,8 +1141,8 @@ let name_of_primitive = function
       "Preinterpret_unboxed_int64_as_tagged_int63"
   | Ppeek _ -> "Ppeek"
   | Ppoke _ -> "Ppoke"
-  | Pread_offset _ -> "Pread_offset"
-  | Pwrite_offset _ -> "Pwrite_offset"
+  | Pget_idx _ -> "Pget_idx"
+  | Pset_idx _ -> "Pset_idx"
 
 let zero_alloc_attribute ppf check =
   match check with

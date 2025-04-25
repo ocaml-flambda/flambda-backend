@@ -2725,7 +2725,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Ppoke layout, [[ptr]; [new_value]] ->
     let kind = standard_int_or_float_of_peek_or_poke layout in
     [Binary (Poke kind, ptr, new_value)]
-  | Pread_offset layout, [[ptr]; [idx]] ->
+  | Pget_idx layout, [[ptr]; [idx]] ->
     let offsets = idx_offsets layout idx in
     let kinds = convert_layout_to_offset_access_kinds layout in
     let reads =
@@ -2734,7 +2734,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         kinds offsets
     in
     [H.maybe_create_unboxed_product reads]
-  | Pwrite_offset layout, [[ptr]; [idx]; new_values] ->
+  | Pset_idx layout, [[ptr]; [idx]; new_values] ->
     let offsets = idx_offsets layout idx in
     let kinds = convert_layout_to_offset_access_kinds layout in
     let map3 f xs ys zs =
@@ -2825,7 +2825,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
       | Patomic_exchange _ | Patomic_set _ | Patomic_fetch_add | Patomic_add
       | Patomic_sub | Patomic_land | Patomic_lor | Patomic_lxor | Ppoke _
-      | Pread_offset _ ),
+      | Pget_idx _ ),
       ( []
       | [_]
       | _ :: _ :: _ :: _
@@ -2855,7 +2855,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
       | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
       | Punboxed_nativeint_array_set_128 _ | Patomic_compare_set _
-      | Patomic_compare_exchange _ | Pwrite_offset _ ),
+      | Patomic_compare_exchange _ | Pset_idx _ ),
       ( []
       | [_]
       | [_; _]

@@ -371,8 +371,8 @@ type primitive =
      handlers, finalizers, memprof callbacks, etc, as well as GCs and
      GC slices, so should not be moved or optimised away. *)
   | Ppoll
-  | Pread_offset of layout
-  | Pwrite_offset of layout
+  | Pget_idx of layout
+  | Pset_idx of layout
 
 (** This is the same as [Primitive.native_repr] but with [Repr_poly]
     compiled away. *)

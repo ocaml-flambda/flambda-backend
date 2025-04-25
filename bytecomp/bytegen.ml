@@ -203,7 +203,7 @@ let preserve_tailcall_for_prim = function
   | Patomic_lxor | Patomic_load _ | Patomic_set _
   | Pdls_get | Preinterpret_tagged_int63_as_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63 | Ppoll | Ppeek _ | Ppoke _
-  | Pread_offset _ | Pwrite_offset _ ->
+  | Pget_idx _ | Pset_idx _ ->
     false
 
 (* Add a Kpop N instruction in front of a continuation *)
@@ -736,9 +736,9 @@ let comp_primitive stack_info p sz args =
   | Pmakearray_dynamic(_, _, Uninitialized) ->
     Misc.fatal_error "Pmakearray_dynamic Uninitialized should have been \
       translated to Pmakearray_dynamic Initialized earlier on"
-  | Pread_offset _ ->
+  | Pget_idx _ ->
     Kccall("caml_idx_unsafe_read_bytecode", 2)
-  | Pwrite_offset _ ->
+  | Pset_idx _ ->
     Kccall("caml_idx_unsafe_write_bytecode", 3)
   (* The cases below are handled in [comp_expr] before the [comp_primitive] call
      (in the order in which they appear below),

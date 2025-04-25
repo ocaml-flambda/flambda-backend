@@ -983,7 +983,7 @@ let rec choice ctx t =
     | Pidx_field _
     | Pidx_mixed_field _
     | Pidx_deepen _
-    | Pread_offset _ | Pwrite_offset _ ->
+    | Pget_idx _ | Pset_idx _ ->
         let primargs = traverse_list ctx primargs in
         Choice.lambda (Lprim (prim, primargs, loc))
 
