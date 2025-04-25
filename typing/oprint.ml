@@ -563,7 +563,7 @@ and print_out_type_3 ppf =
     fprintf ppf "@[<1>(%a@ :@ %a)@]"
       print_out_type_0 t
       print_out_jkind jk
-  | Otyp_canonical jk ->
+  | Otyp_of_kind jk ->
     fprintf ppf "(type@ :@ %a)" print_out_jkind jk
 and print_out_type ppf typ =
   print_out_type_0 ppf typ

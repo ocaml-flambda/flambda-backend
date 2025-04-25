@@ -154,7 +154,7 @@ and out_type =
   | Otyp_jkind_annot of out_type * out_jkind
       (* Currently only introduced with very explicit code in [Printtyp] and not
          synthesized directly from the [Typedtree] *)
-  | Otyp_canonical of out_jkind
+  | Otyp_of_kind of out_jkind
 
 and out_constructor = {
   ocstr_name: string;
