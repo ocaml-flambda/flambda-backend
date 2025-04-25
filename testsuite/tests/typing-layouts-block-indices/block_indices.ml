@@ -1,6 +1,8 @@
 (* TEST
  reference = "${test_source_directory}/block_indices.reference";
  flambda2;
+ include stdlib_stable;
+ include stdlib_upstream_compatible;
  {
    ocamlc_byte_exit_status = "2";
    setup-ocamlc.byte-build-env;
@@ -33,14 +35,19 @@
 *)
 
 (* CR rtjoa: why does including
- include stdlib_upstream_compatible;
    after "flambda2;" above fail?
 *)
+
+open Stdlib_stable
+open Stdlib_upstream_compatible
 
 let _fail_when_no_extensions () = (.contents)
 
 external box_int64 : int64# -> int64 = "%box_int64"
-external box_float : float# -> float = "%box_float"
+(* external box_float : float# -> float = "%box_float" *)
+
+let box_float = Float_u.to_float
+
 external[@layout_poly] read_idx_imm : 'a ('b : any). 'a -> ('a, 'b) idx_imm -> 'b = "%unsafe_read_idx"
 external[@layout_poly] read_idx_mut : 'a ('b : any). 'a -> ('a, 'b) idx_mut -> 'b = "%unsafe_read_idx"
 external[@layout_poly] write_idx_mut : 'a ('b : any). 'a -> ('a, 'b) idx_mut -> 'b -> unit = "%unsafe_write_idx"
@@ -81,10 +88,21 @@ let () =
   Printf.printf "%f\n" (box_float r.u);
   ()
 
+type mixed_float32_record = { s : string; mutable f : float32# }
+
+(* let () =
+ *   print_endline "Mixed block record (float32# field)";
+ *   let r = { s = "foo"; f = #1.0s } in
+ *   let x = read_idx_mut r (.f) in
+ *   Printf.printf "%f\n" (Float_u.to_float (Float32_u.to_float x));
+ *   write_idx_mut r (.f) #2.0s;
+ *   Printf.printf "%f\n" (Float_u.to_float (Float32_u.to_float r.f));
+ *   () *)
+
 type nested_record = { f : float#; mutable r : r# }
 
 let () =
-  print_endline "Nested record";
+  print_endline "Nested mixed block record";
   let r = { f = -#100.0; r = #{ s = "foo"; f = 1.0 } } in
   let x = read_idx_mut r (.r.#f) in
   Printf.printf "%f\n" x;

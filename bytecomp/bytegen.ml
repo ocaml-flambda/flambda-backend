@@ -427,7 +427,6 @@ let comp_primitive stack_info p sz args =
   | Pidx_mixed_field (path, _) ->
       let path_consts = List.map (fun x -> Const_base (Const_int x)) path in
       Kconst (Const_block (0, path_consts))
-  (* CR layouts v8: support bytecode *)
   | Pfield_computed _sem -> Kgetvectitem
   | Psetfield(n, _ptr, _init) -> Ksetfield n
   | Psetfield_computed(_ptr, _init) -> Ksetvectitem
