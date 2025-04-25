@@ -82,14 +82,10 @@ type 'a replay_result =
   | Replayed of 'a
 
 (** If called on a history created with {!replay}, returns the mapping from variables
-    of the current pass to variables bound during the first pass.
-
-    On a first pass replay, this will raise a fatal error. *)
+    of the current pass to variables bound during the first pass. *)
 val replay_variable_mapping : t -> Variable.t Variable.Map.t replay_result
 
 (** If called on a history created with {!replay}, returns the mapping from continuations
-    of the current pass to continuations bound during the first pass.
-
-    On a first pass replay, this will raise a fatal error. *)
+    of the current pass to continuations bound during the first pass. *)
 val replay_continuation_mapping :
   t -> Continuation.t Continuation.Map.t replay_result
