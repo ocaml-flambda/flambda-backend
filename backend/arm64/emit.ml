@@ -787,11 +787,19 @@ let emit_literals p align emit_literal =
     p := [])
 
 let emit_float64_directive_with_comment f =
-  let comment = Printf.sprintf "\t/* %.12g */" (Int64.float_of_bits f) in
+  let comment =
+    if !Clflags.keep_asm_file && !Flambda_backend_flags.dasm_comments
+    then Printf.sprintf "\t/* %.12g */" (Int64.float_of_bits f)
+    else ""
+  in
   emit_printf "\t.8byte\t%Ld%s\n" f comment
 
 let emit_float32_directive_with_comment f =
-  let comment = Printf.sprintf "\t/* %.12f */" (Int32.float_of_bits f) in
+  let comment =
+    if !Clflags.keep_asm_file && !Flambda_backend_flags.dasm_comments
+    then Printf.sprintf "\t/* %.12f */" (Int32.float_of_bits f)
+    else ""
+  in
   emit_printf "\t.4byte\t%ld%s\n" f comment
 
 let emit_float_literal (f, lbl) =

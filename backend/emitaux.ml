@@ -432,14 +432,14 @@ let cfi_restore_state () =
 let cfi_adjust_cfa_offset n =
   if is_cfi_enabled ()
   then (
-    emit_string "\t.cfi_adjust_cfa_offset\t";
+    emit_string "\t.cfi_adjust_cfa_offset ";
     emit_int n;
     emit_string "\n")
 
 let cfi_def_cfa_offset n =
   if is_cfi_enabled ()
   then (
-    emit_string "\t.cfi_def_cfa_offset\t";
+    emit_string "\t.cfi_def_cfa_offset ";
     emit_int n;
     emit_string "\n")
 
