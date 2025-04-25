@@ -539,11 +539,6 @@ let box_vec128 mode (arg : H.expr_primitive) ~current_region : H.expr_primitive
 let unbox_vec128 (arg : H.simple_or_prim) : H.simple_or_prim =
   Prim (Unary (Unbox_number Naked_vec128, arg))
 
-let bint_unary_prim bi mode prim arg1 =
-  box_bint bi mode
-    (Unary
-       (Int_arith (standard_int_of_boxed_integer bi, prim), unbox_bint bi arg1))
-
 let bint_binary_prim bi mode prim arg1 arg2 =
   box_bint bi mode
     (Binary
@@ -1547,7 +1542,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           Printlambda.primitive prim
     in
     [Unary (Duplicate_block { kind }, arg)]
-  | Pnegint, [[arg]] -> [Unary (Int_arith (I.Tagged_immediate, Neg), arg)]
+  | Pnegint, [[arg]] ->
+    let kind = I.Tagged_immediate in
+    let zero = Simple.const_int_of_kind (I.to_kind kind) 0 in
+    [Binary (Int_arith (kind, Sub), Simple zero, arg)]
   | Paddint, [[arg1]; [arg2]] ->
     [Binary (Int_arith (I.Tagged_immediate, Add), arg1, arg2)]
   | Psubint, [[arg1]; [arg2]] ->
@@ -1890,7 +1888,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
              unbox_bint source arg ))
         ~current_region ]
   | Pnegbint (bi, mode), [[arg]] ->
-    [bint_unary_prim bi mode Neg arg ~current_region]
+    let size = standard_int_of_boxed_integer bi in
+    [ box_bint bi mode ~current_region
+        (Binary
+           ( Int_arith (size, Sub),
+             Simple (Simple.const_int_of_kind (I.to_kind size) 0),
+             unbox_bint bi arg )) ]
   | Paddbint (bi, mode), [[arg1]; [arg2]] ->
     [bint_binary_prim bi mode Add arg1 arg2 ~current_region]
   | Psubbint (bi, mode), [[arg1]; [arg2]] ->
