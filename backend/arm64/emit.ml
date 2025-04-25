@@ -2100,7 +2100,7 @@ let fundecl fundecl =
 (* Emission of data *)
 
 let int64_to_int32_exn n =
-  if Int64.compare n 0x80000000L (* Int32.int_min *) < 0
+  if Int64.compare n (-0x80000000L) (* Int32.int_min *) < 0
      || Int64.compare n 0x7FFFFFFFL (* Int32.int_max *) > 0
   then Misc.fatal_error "int64_to_int32_exn: out of range";
   Int64.to_int32 n
