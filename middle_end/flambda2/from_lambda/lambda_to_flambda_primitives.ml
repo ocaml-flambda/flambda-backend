@@ -490,9 +490,10 @@ let rec convert_layout_to_offset_access_kinds (layout : L.layout) :
     P.Offset_access_kind.t list =
   match layout with
   | Ptop -> assert false
-  | Pvalue _ ->
-    (* CR rtjoa: consider immediates *)
-    [Values]
+  | Pvalue value_kind -> (
+    match convert_block_access_field_kind_from_value_kind value_kind with
+    | Any_value -> [Values]
+    | Immediate -> [Immediates])
   | Punboxed_float Unboxed_float64 -> [Naked_floats]
   | Punboxed_float Unboxed_float32 -> [Naked_float32s]
   | Punboxed_int Unboxed_int32 -> [Naked_int32s]

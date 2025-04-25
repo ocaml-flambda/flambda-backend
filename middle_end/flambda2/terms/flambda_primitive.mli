@@ -232,6 +232,8 @@ module Offset_access_kind : sig
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
+
+  val to_kind_with_subkind : t -> Flambda_kind.With_subkind.t
 end
 
 (* CR-someday mshinwell: We should have unboxed arrays of int32, int64 and

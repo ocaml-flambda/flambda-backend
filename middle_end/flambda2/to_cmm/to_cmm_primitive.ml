@@ -1020,20 +1020,14 @@ let binary_primitive env dbg f x y =
     in
     C.store ~dbg memory_chunk Assignment ~addr:x ~new_value:y
     |> C.return_unit dbg
-  | Read_offset _kind ->
-    (* let memory_chunk =
-     * match kind with
-     * | Immediates -> Flambda_kind.With_subkind.tagged_immediate *)
-    (*   C.unaligned
-     * | Values -> Flambda_kind.With_subkind.any_value
-     * | Naked_floats -> Flambda_kind.With_subkind.
-     * | Naked_float32s
-     * | Naked_int32s
-     * | Naked_int64s
-     * | Naked_nativeints
-     * | Naked_vec128s *)
-    (* CR rtjoa: do we need to look at the kind? *)
-    C.unaligned_load_64 x y dbg
+  | Read_offset kind ->
+    let addr = C.add_int x y dbg in
+    let memory_chunk =
+      P.Offset_access_kind.to_kind_with_subkind kind |> C.memory_chunk_of_kind
+    in
+    (* CR layouts v8: [Mutable] is conservative, we could add a separate
+       primitive that uses [Immutable] and is only called with [idx_imm]s *)
+    C.load ~dbg memory_chunk Mutable ~addr
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
@@ -1043,10 +1037,12 @@ let ternary_primitive _env dbg f x y z =
     bytes_or_bigstring_set ~dbg kind width ~bytes:x ~index:y ~new_value:z
   | Bigarray_set (_dimensions, kind, _layout) ->
     bigarray_store ~dbg kind ~bigarray:x ~index:y ~new_value:z
-  | Write_offset _kind ->
-    (* CR rtjoa: do we need to look at the kind to determine whether to call
-       caml_modify? *)
-    C.unaligned_set_64 x y z dbg
+  | Write_offset kind ->
+    let addr = C.add_int x y dbg in
+    let memory_chunk =
+      P.Offset_access_kind.to_kind_with_subkind kind |> C.memory_chunk_of_kind
+    in
+    C.store ~dbg memory_chunk Assignment ~addr ~new_value:z |> C.return_unit dbg
   | Atomic_compare_and_set block_access_kind ->
     C.atomic_compare_and_set ~dbg
       (imm_or_ptr block_access_kind)

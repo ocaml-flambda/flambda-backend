@@ -597,6 +597,17 @@ module Offset_access_kind = struct
     | Naked_vec128s -> Format.pp_print_string ppf "Naked_vec128s"
 
   let compare = Stdlib.compare
+
+  let to_kind_with_subkind t =
+    match t with
+    | Naked_floats -> Flambda_kind.With_subkind.naked_float
+    | Naked_float32s -> Flambda_kind.With_subkind.naked_float32
+    | Naked_int32s -> Flambda_kind.With_subkind.naked_int32
+    | Naked_int64s -> Flambda_kind.With_subkind.naked_int64
+    | Naked_nativeints -> Flambda_kind.With_subkind.naked_nativeint
+    | Naked_vec128s -> Flambda_kind.With_subkind.naked_vec128
+    | Immediates -> Flambda_kind.With_subkind.tagged_immediate
+    | Values -> Flambda_kind.With_subkind.any_value
 end
 
 type string_or_bytes =
