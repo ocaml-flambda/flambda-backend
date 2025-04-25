@@ -502,6 +502,7 @@ let rec convert_layout_to_offset_access_kinds (layout : L.layout) :
   | Punboxed_product layouts ->
     List.concat_map convert_layout_to_offset_access_kinds layouts
   | Ptop | Pbottom ->
+    (* CR rtjoa: see if we can hit this with an [any] layout or something *)
     Misc.fatal_error
       "Lambda_to_flambda_primitives.convert_layout_to_offset_access_kinds"
 
@@ -1451,6 +1452,10 @@ end
 
 (* Given an index that points to data of some layout, produce the list of
    offsets needed to access each element *)
+(* CR rtjoa: there is a bit of duplicated logic here, in that it's being both
+   counted and converted to offset access kinds, which have a separate counting
+   mechanism. maybe instead fold left over the layout and use the counting
+   mechanism in this file? *)
 let idx_access_offsets layout idx =
   let kinds = convert_layout_to_offset_access_kinds layout in
   let el = L.mixed_block_element_of_layout layout in
