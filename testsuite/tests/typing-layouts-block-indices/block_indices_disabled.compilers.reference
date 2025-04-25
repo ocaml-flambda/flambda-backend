@@ -1,4 +1,4 @@
-File "block_indices.ml", line 44, characters 34-45:
-44 | let _fail_when_no_extensions () = (.contents)
+File "block_indices.ml", line 40, characters 34-45:
+40 | let _fail_when_no_extensions () = (.contents)
                                        ^^^^^^^^^^^
 Error: This construct requires the beta version of the extension "layouts", which is disabled and cannot be used

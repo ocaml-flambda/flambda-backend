@@ -1397,6 +1397,8 @@ let rec count values flats : Lambda.layout -> _ = function
 
 let simple_i64 x = H.Simple (Simple.const (Reg_width_const.naked_int64 x))
 
+(* Given an index that points to data of some layout, produce the list of
+   offsets needed to access each element *)
 let idx_offsets layout idx =
   let kinds = convert_layout_to_offset_access_kinds layout in
   if is_mixed layout
@@ -1415,32 +1417,40 @@ let idx_offsets layout idx =
     in
     let values, flats = ref 0, ref 0 in
     count values flats layout;
-    let nth_value_offset n =
+    let total_value_bytes = !values * 8 in
+    let value_offset ~value_bytes_to_left =
       H.Binary
         ( Int_arith (Naked_int64, Add),
           Prim values_start,
-          simple_i64 (Int64.of_int (n * 8)) )
+          simple_i64 (Int64.of_int value_bytes_to_left) )
     in
-    let nth_flat_offset n =
+    let flat_offset ~flat_bytes_to_left =
       H.Binary
         ( Int_arith (Naked_int64, Add),
           Prim
             (H.Binary (Int_arith (Naked_int64, Add), Prim values_start, Prim gap)),
-          simple_i64 (Int64.of_int ((n + !values) * 8)) )
+          simple_i64 (Int64.of_int (total_value_bytes + flat_bytes_to_left)) )
     in
-    let value_i = ref (-1) in
-    let flat_i = ref (-1) in
-    let f kind =
-      match (kind : P.Offset_access_kind.t) with
-      | Immediates | Values ->
-        incr value_i;
-        nth_value_offset !value_i
-      | Naked_floats | Naked_float32s | Naked_int32s | Naked_int64s
-      | Naked_nativeints | Naked_vec128s ->
-        incr flat_i;
-        nth_flat_offset !flat_i
+    let _, prims =
+      List.fold_left_map
+        (fun (value_bytes_to_left, flat_bytes_to_left) kind ->
+          let prim =
+            if P.Offset_access_kind.is_value kind
+            then value_offset ~value_bytes_to_left
+            else flat_offset ~flat_bytes_to_left
+          in
+          let size_in_bytes =
+            P.Offset_access_kind.record_element_size_in_bytes kind
+          in
+          let acc =
+            if P.Offset_access_kind.is_value kind
+            then value_bytes_to_left + size_in_bytes, flat_bytes_to_left
+            else value_bytes_to_left, flat_bytes_to_left + size_in_bytes
+          in
+          acc, prim)
+        (0, 0) kinds
     in
-    List.map f kinds)
+    prims)
   else
     List.init (List.length kinds) (fun i ->
         let summand = Simple.const_int_of_kind K.naked_int64 (i * 8) in
@@ -1523,6 +1533,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let idx_raw_value = Int64.mul (Int64.of_int pos) 8L in
     [Simple (Simple.const (Reg_width_const.naked_int64 idx_raw_value))]
   | Pidx_mixed_field (field_path, shape), [] ->
+    (* CR rtjoa: broken for vectors *)
     let shape =
       Mixed_block_shape.of_mixed_block_elements shape
         ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
@@ -1576,6 +1587,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     in
     [Simple (Simple.const (Reg_width_const.naked_int64 idx_raw_value))]
   | Pidx_deepen (field_path, layouts), [[index]] -> (
+    (* CR rtjoa: broken for vectors *)
     let values_before, flats_before, values_after, flats_after =
       ref 0, ref 0, ref 0, ref 0
     in

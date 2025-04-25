@@ -234,6 +234,10 @@ module Offset_access_kind : sig
   val compare : t -> t -> int
 
   val to_kind_with_subkind : t -> Flambda_kind.With_subkind.t
+
+  val record_element_size_in_bytes : t -> int
+
+  val is_value : t -> bool
 end
 
 (* CR-someday mshinwell: We should have unboxed arrays of int32, int64 and

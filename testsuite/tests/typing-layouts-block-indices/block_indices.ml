@@ -34,10 +34,6 @@
  }
 *)
 
-(* CR rtjoa: why does including
-   after "flambda2;" above fail?
-*)
-
 open Stdlib_stable
 open Stdlib_upstream_compatible
 
@@ -90,14 +86,14 @@ let () =
 
 type mixed_float32_record = { s : string; mutable f : float32# }
 
-(* let () =
- *   print_endline "Mixed block record (float32# field)";
- *   let r = { s = "foo"; f = #1.0s } in
- *   let x = read_idx_mut r (.f) in
- *   Printf.printf "%f\n" (Float_u.to_float (Float32_u.to_float x));
- *   write_idx_mut r (.f) #2.0s;
- *   Printf.printf "%f\n" (Float_u.to_float (Float32_u.to_float r.f));
- *   () *)
+let () =
+  print_endline "Mixed block record (float32# field)";
+  let r = { s = "foo"; f = #1.0s } in
+  let x = read_idx_mut r (.f) in
+  Printf.printf "%f\n" (Float_u.to_float (Float32_u.to_float x));
+  write_idx_mut r (.f) #2.0s;
+  Printf.printf "%f\n" (Float_u.to_float (Float32_u.to_float r.f));
+  ()
 
 type nested_record = { f : float#; mutable r : r# }
 
@@ -128,6 +124,39 @@ let () =
   Printf.printf "%f\n" (box_float x);
   write_idx_mut r (.u) #2.0;
   Printf.printf "%f\n" (box_float r.u);
+  ()
+
+type mixed_int32_record = { j : int32#; mutable i : int32# }
+
+let () =
+  print_endline "Mixed block record (int32# field)";
+  let r = { j = -#100l; i = #1l } in
+  let x = read_idx_mut r (.i) in
+  Printf.printf "%d\n" (Int32_u.to_int x);
+  write_idx_mut r (.i) #2l;
+  Printf.printf "%d\n" (Int32_u.to_int r.i);
+  ()
+
+type mixed_int64_record = { j : int64#; mutable i : int64# }
+
+let () =
+  print_endline "Mixed block record (int64# field)";
+  let r = { j = -#100L; i = #1L } in
+  let x = read_idx_mut r (.i) in
+  Printf.printf "%d\n" (Int64_u.to_int x);
+  write_idx_mut r (.i) #2L;
+  Printf.printf "%d\n" (Int64_u.to_int r.i);
+  ()
+
+type mixed_nativeint_record = { j : nativeint#; mutable i : nativeint# }
+
+let () =
+  print_endline "Mixed block record (nativeint# field)";
+  let r = { j = -#100n; i = #1n } in
+  let x = read_idx_mut r (.i) in
+  Printf.printf "%d\n" (Nativeint_u.to_int x);
+  write_idx_mut r (.i) #2n;
+  Printf.printf "%d\n" (Nativeint_u.to_int r.i);
   ()
 
 (***************************************)

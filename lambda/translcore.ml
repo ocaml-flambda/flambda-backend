@@ -2229,6 +2229,7 @@ and transl_idx ~scopes loc env ba uas =
     begin match uas with
     | [] -> index
     | Uaccess_unboxed_field (_, lbl) :: _ ->
+      (* CR rtjoa: should this be lbl res??? *)
       let lbl_layout l = layout env l.lbl_loc l.lbl_sort l.lbl_arg in
       let layouts = Array.to_list (Array.map lbl_layout lbl.lbl_all) in
       Lprim (Pidx_deepen (uas_path, layouts), [index], loc)

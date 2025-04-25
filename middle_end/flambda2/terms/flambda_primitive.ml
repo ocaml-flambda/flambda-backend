@@ -608,6 +608,17 @@ module Offset_access_kind = struct
     | Naked_vec128s -> Flambda_kind.With_subkind.naked_vec128
     | Immediates -> Flambda_kind.With_subkind.tagged_immediate
     | Values -> Flambda_kind.With_subkind.any_value
+
+  let is_value t =
+    to_kind_with_subkind t |> Flambda_kind.With_subkind.kind
+    |> Flambda_kind.is_value
+
+  let record_element_size_in_bytes t =
+    match t with
+    | Naked_floats | Naked_float32s | Naked_int32s | Naked_int64s
+    | Naked_nativeints | Immediates | Values ->
+      8
+    | Naked_vec128s -> 16
 end
 
 type string_or_bytes =
