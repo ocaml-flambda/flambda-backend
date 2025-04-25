@@ -44,108 +44,6 @@ module ND = Asm_targets.Asm_directives_new
 module S = Asm_targets.Asm_symbol
 module L = Asm_targets.Asm_label
 
-let rec to_x86_constant (c : ND.Directive.Constant.t) : X86_ast.constant =
-  match c with
-  | Signed_int i -> Const i
-  | Unsigned_int i -> Const (Numbers.Uint64.to_int64 i)
-  | This -> ConstThis
-  | Named_thing s ->
-    ConstLabel s
-    (* both seem to be printed directly to the buffer without any conversion*)
-  | Add (c1, c2) -> ConstAdd (to_x86_constant c1, to_x86_constant c2)
-  | Sub (c1, c2) -> ConstSub (to_x86_constant c1, to_x86_constant c2)
-
-let to_x86_constant_with_width (c : ND.Directive.Constant_with_width.t) :
-    X86_ast.asm_line =
-  let width = ND.Directive.Constant_with_width.width_in_bytes c in
-  let const = ND.Directive.Constant_with_width.constant c in
-  let const = to_x86_constant const in
-  match width with
-  | Eight -> Byte const
-  (* on x86 Word is 2 bytes; warning this is not the same on Arm *)
-  | Sixteen -> Word const
-  | Thirty_two -> Long const
-  | Sixty_four -> Quad const
-
-let to_x86_directive (dir : ND.Directive.t) : X86_ast.asm_line list =
-  let comment_lines comment =
-    (* CR sspies: This check is usually done in the printing function of the new
-       directives. Since we are skipping those at the moment (by emitting via
-       the X86 DSL), we do the same check here in the conversion. *)
-    if !Clflags.keep_asm_file && !Flambda_backend_flags.dasm_comments
-    then Option.to_list (Option.map (fun s -> X86_ast.Comment s) comment)
-    else []
-  in
-  match dir with
-  | Align { bytes; fill_x86_bin_emitter } ->
-    let data = match fill_x86_bin_emitter with Zero -> true | Nop -> false in
-    [X86_ast.Align (data, bytes)]
-    (* The [fill_x86_bin_emitter] field is currently ignored by GAS and MASM,
-       but used in the binary emitter. The bytes field is only converted to the
-       final value when printing. *)
-  | Bytes { str; comment } -> comment_lines comment @ [X86_ast.Bytes str]
-  | Comment s -> comment_lines (Some s)
-  | Const { constant; comment } ->
-    comment_lines comment @ [to_x86_constant_with_width constant]
-  | Direct_assignment (s, c) ->
-    (* We use [.set s c] for direct assignments, since it evaluates [c]
-       directly. The alternative, [s = c], is sensitive to relocations. *)
-    [X86_ast.Set (s, to_x86_constant c)]
-  | File { file_num = None; _ } ->
-    Misc.fatal_error "file directive must always carry a number on x86"
-  | File { file_num = Some file_num; filename } ->
-    [X86_ast.File (file_num, filename)]
-  | Global s -> [X86_ast.Global s]
-  | Indirect_symbol s -> [X86_ast.Indirect_symbol s]
-  | Loc { file_num; line; col; discriminator } ->
-    (* Behavior differs for negative column values. x86 will not output
-       anything, but new directives will output 0. *)
-    [X86_ast.Loc { file_num; line; col; discriminator }]
-  (* CR sspies: The [typ] matters only for MASM. The convention (implemented in
-     asm directives) is that in the text section, we use Code (NONE) and in the
-     data section, we use Machine_width_data (QWORD for amd64). The two will be
-     emitted differently by MASM. Because some code such as the frame tables
-     have moved from the data section to the text section (but were previously
-     still emitted with QUAD), using the new directives below changes this
-     behavior. *)
-  | New_label (s, Code) -> [X86_ast.NewLabel (s, NONE)]
-  | New_label (s, Machine_width_data) -> [X86_ast.NewLabel (s, QWORD)]
-  | New_line -> [X86_ast.NewLine]
-  | Private_extern s -> [X86_ast.Private_extern s]
-  | Section { names; flags; args } ->
-    [X86_ast.Section (names, flags, args, false)]
-    (* delayed for this directive is always ignored in GAS printing, and section
-       is not supported in binary emitter. In MASM, it only supports .text and
-       .data. *)
-  | Size (s, c) -> [X86_ast.Size (s, to_x86_constant c)]
-  | Sleb128 { constant; comment } ->
-    comment_lines comment @ [X86_ast.Sleb128 (to_x86_constant constant)]
-  | Space { bytes } -> [Space bytes]
-  | Type (n, st) ->
-    let typ = ND.symbol_type_to_string st in
-    [Type (n, typ)]
-  | Uleb128 { constant; comment } ->
-    comment_lines comment @ [X86_ast.Uleb128 (to_x86_constant constant)]
-  | Cfi_adjust_cfa_offset n -> [X86_ast.Cfi_adjust_cfa_offset n]
-  | Cfi_def_cfa_offset n -> [X86_ast.Cfi_def_cfa_offset n]
-  | Cfi_endproc -> [X86_ast.Cfi_endproc]
-  | Cfi_offset { reg; offset } -> [X86_ast.Cfi_offset (reg, offset)]
-  | Cfi_startproc -> [X86_ast.Cfi_startproc]
-  | Cfi_remember_state -> [X86_ast.Cfi_remember_state]
-  | Cfi_restore_state -> [X86_ast.Cfi_restore_state]
-  | Cfi_def_cfa_register r -> [X86_ast.Cfi_def_cfa_register r]
-  | Protected s -> [X86_ast.Protected s]
-  | Hidden s -> [X86_ast.Hidden s]
-  | Weak s -> [X86_ast.Weak s]
-  | External s -> [X86_ast.External (s, NEAR)]
-  (* All uses of [.extrn] use NEAR as the type. *)
-  | Reloc { offset; name = R_X86_64_PLT32; expr } ->
-    [ X86_ast.Reloc
-        { offset = to_x86_constant offset;
-          name = R_X86_64_PLT32;
-          expr = to_x86_constant expr
-        } ]
-
 (** Turn a Linear label into an assembly label. The section is checked against the
     section tracked by [D] when emitting label definitions. *)
 let label_to_asm_label (l : label) ~(section : Asm_targets.Asm_section.t) : L.t
@@ -348,7 +246,7 @@ let emit_named_text_section ?(suffix = "") func_name =
     | _ ->
       ND.switch_to_section_raw
         ~names:[Printf.sprintf ".text.caml.%s%s" (emit_symbol func_name) suffix]
-        ~flags:(Some "ax") ~args:["@progbits"];
+        ~flags:(Some "ax") ~args:["@progbits"] ~is_delayed:false;
       (* Warning: We set the internal section ref to Text here, because it
          currently does not supported named text sections. In the rest of this
          file, we pretend the section is called Text rather than the function
@@ -2237,8 +2135,7 @@ let begin_assembly unix =
   ND.initialize ~big_endian:Arch.big_endian
     ~emit_assembly_comments:!Flambda_backend_flags.dasm_comments
       (* As a first step, we emit by calling the corresponding x86 emit
-         directives. *) ~emit:(fun d ->
-      List.iter directive (to_x86_directive d));
+         directives. *) ~emit:(fun d -> directive (Directive d));
   let code_begin = Cmm_helpers.make_symbol "code_begin" in
   let code_end = Cmm_helpers.make_symbol "code_end" in
   Emitaux.Dwarf_helpers.begin_dwarf ~code_begin ~code_end ~file_emitter;

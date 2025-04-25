@@ -135,11 +135,11 @@ module Make (A : Asm_directives_intf.Arg) : Asm_directives_intf.S = struct
       ()
     | _ ->
       current_dwarf_section_ref := Some section;
-      let ({ names; flags; args } : Asm_section.section_details) =
+      let ({ names; flags; args; is_delayed } : Asm_section.section_details) =
         Asm_section.details section ~first_occurrence
       in
       if not first_occurrence then new_line ();
-      D.section ~delayed:(Asm_section.is_delayed section) names flags args;
+      D.section ~delayed:is_delayed names flags args;
       if first_occurrence then define_label (Asm_label.for_section section)
 
   let initialize () =
