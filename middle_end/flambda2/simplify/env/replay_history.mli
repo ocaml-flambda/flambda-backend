@@ -72,14 +72,14 @@ val define_continuations : Continuation.t list -> t -> t
 (** {2 Inspection API} *)
 
 (** Returns [true] is the replay history was created with the `always_inline` flag. (first pass
-    histories have the flage set to false). *)
+    histories have the flag set to false). *)
 val must_inline : t -> bool
 
 (** Type of results for inspection functions for which the result only makes sense
     when replaying a downwards pass. *)
 type 'a replay_result =
   | Still_recording
-  | Replayed of 'a (**)
+  | Replayed of 'a
 
 (** If called on a history created with {!replay}, returns the mapping from variables
     of the current pass to variables bound during the first pass.
