@@ -427,9 +427,6 @@ let comp_primitive stack_info p sz args =
   | Pidx_mixed_field (path, _) ->
       let path_consts = List.map (fun x -> Const_base (Const_int x)) path in
       Kconst (Const_block (0, path_consts))
-  | Pidx_deepen _ ->
-    Misc.fatal_error "jhandle early"
-    (* Kconst (Const_base (Const_int 0)) *)
   (* CR layouts v8: support bytecode *)
   | Pfield_computed _sem -> Kgetvectitem
   | Psetfield(n, _ptr, _init) -> Ksetfield n
@@ -758,6 +755,7 @@ let comp_primitive stack_info p sz args =
   | Pmakefloatblock _
   | Pmakeufloatblock _
   | Pmakemixedblock _
+  | Pidx_deepen _
   | Pmakelazyblock _
   | Pprobe_is_enabled _
   | Punbox_float _ | Pbox_float (_, _) | Punbox_int _ | Pbox_int _

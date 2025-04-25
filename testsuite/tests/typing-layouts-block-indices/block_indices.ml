@@ -1,6 +1,5 @@
 (* TEST
  reference = "${test_source_directory}/block_indices.reference";
- include stdlib_upstream_compatible;
  flambda2;
  {
    ocamlc_byte_exit_status = "2";
@@ -32,6 +31,12 @@
    native;
  }
 *)
+
+(* CR rtjoa: why does including
+ include stdlib_upstream_compatible;
+   after "flambda2;" above fail?
+*)
+
 let _fail_when_no_extensions () = (.contents)
 
 external box_int64 : int64# -> int64 = "%box_int64"
@@ -40,20 +45,79 @@ external[@layout_poly] read_idx_imm : 'a ('b : any). 'a -> ('a, 'b) idx_imm -> '
 external[@layout_poly] read_idx_mut : 'a ('b : any). 'a -> ('a, 'b) idx_mut -> 'b = "%unsafe_read_idx"
 external[@layout_poly] write_idx_mut : 'a ('b : any). 'a -> ('a, 'b) idx_mut -> 'b -> unit = "%unsafe_write_idx"
 
+(*******************************************************)
+(* Reads and writes for various record representations *)
+
+type r = { s : string; mutable f : float }
+
+let () =
+  print_endline "Boxed record";
+  let r = { s = "foo"; f = 1.0 } in
+  let x = read_idx_mut r (.f) in
+  Printf.printf "%f\n" x;
+  write_idx_mut r (.f) 2.0;
+  Printf.printf "%f\n" r.f;
+  ()
+
+type float_record = { f' : float; mutable f : float }
+
+let () =
+  print_endline "Float record";
+  let r = { f' = -100.0; f = 1.0 } in
+  let x = read_idx_mut r (.f) in
+  Printf.printf "%f\n" (box_float x);
+  write_idx_mut r (.f) #2.0;
+  Printf.printf "%f\n" r.f;
+  ()
+
+type mixed_record = { i : int; mutable u : float#; s : string }
+
+let () =
+  print_endline "Mixed block record";
+  let r = { i = -100; u = #1.0; s = "foo" } in
+  let x = read_idx_mut r (.u) in
+  Printf.printf "%f\n" (box_float x);
+  write_idx_mut r (.u) #2.0;
+  Printf.printf "%f\n" (box_float r.u);
+  ()
+
+type nested_record = { f : float#; mutable r : r# }
+
+let () =
+  print_endline "Nested record";
+  let r = { f = -#100.0; r = #{ s = "foo"; f = 1.0 } } in
+  let x = read_idx_mut r (.r.#f) in
+  Printf.printf "%f\n" x;
+  write_idx_mut r (.r.#f) 2.0;
+  Printf.printf "%f\n" r.r.#f;
+  ()
+
+type mixed_float_record = { mutable f : float; mutable u : float# }
+
+let () =
+  print_endline "Mixed float record (float field)";
+  let r = { f = 1.0; u = -#100.0 } in
+  let x = read_idx_mut r (.f) in
+  Printf.printf "%f\n" (box_float x);
+  write_idx_mut r (.f) #2.0;
+  Printf.printf "%f\n" r.f;
+  ()
+
+let () =
+  print_endline "Mixed float record (float# field)";
+  let r = { f = -100.0; u = #1.0 } in
+  let x = read_idx_mut r (.u) in
+  Printf.printf "%f\n" (box_float x);
+  write_idx_mut r (.u) #2.0;
+  Printf.printf "%f\n" (box_float r.u);
+  ()
+
+(***************************************)
+(* Nested product update and deepening *)
+
 type a = { s : string; i : int64# }
 type b = { i : int64#; a : a#; s : string }
 type c = { mutable b : b#; s : string }
-(*
-
-As written, this has layout:
-  ((b_int64#, (a_string, a_int64#), b_string), c_string)
-
-Then stable two-color sort by values and flats:
-
-   a_string b_string c_string b_i64 a_i64
-b  ^^^^^^^^^^^^^^^^^          ^^^^^^^^^^^
-a  ^^^^^^^^                         ^^^^^
-*)
 
 let print_t_b t =
   let #{ i = bi; a = #{ s; i }; s = bs } = read_idx_mut t (.b) in
@@ -64,6 +128,7 @@ let print_t_b t =
     bs
 
 let () =
+  print_endline "Nested product update and deepening";
   let t = { b = #{ i = #1L; a = #{ s = "a"; i = #2L }; s = "b" }; s = "c" } in
   print_t_b t;
   let idx = (.b) in
@@ -74,20 +139,3 @@ let () =
   write_idx_mut t deeper_idx #{ s = "aaa"; i = #200L };
   print_t_b t;
   ()
-
-
-type float_record = { f : float }
-
-let () =
-  let r = { f = 1.0 } in
-  let f = read_idx_imm r (.f) in
-  Printf.printf "f = %f\n" (box_float f)
-
-
-type mixed_float_record = { f : float; u: float# }
-
-let () =
-  let r = { f = 1.0; u = #2. } in
-  let f = read_idx_imm r (.f) in
-  let u = read_idx_imm r (.u) in
-  Printf.printf "f = %f; u = %f\n" (box_float f) (box_float u)

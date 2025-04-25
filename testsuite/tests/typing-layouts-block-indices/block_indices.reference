@@ -1,5 +1,22 @@
+Boxed record
+1.000000
+2.000000
+Float record
+1.000000
+2.000000
+Mixed block record
+1.000000
+2.000000
+Nested record
+1.000000
+2.000000
+Mixed float record (float field)
+1.000000
+2.000000
+Mixed float record (float# field)
+1.000000
+2.000000
+Nested product update and deepening
 { 1 { a 2 } b }
 { 10 { aa 20 } bb }
 { 10 { aaa 200 } bb }
-f = 1.000000
-f = 1.000000; u = 2.000000

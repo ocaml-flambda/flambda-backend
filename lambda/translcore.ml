@@ -842,7 +842,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         makearray lambda_arr_mut
       end
   | Texp_idx (ba, uas) ->
-    transl_idx ~scopes e.exp_loc e.exp_env ba uas
+    transl_idx ~scopes (of_location ~scopes e.exp_loc) e.exp_env ba uas
   | Texp_list_comprehension comp ->
       let loc = of_location ~scopes e.exp_loc in
       Transl_list_comprehension.comprehension
@@ -2189,11 +2189,12 @@ and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
      type b = #{ i : int64#; a : a; s : string }
      type c = { mutable b : b; s : string }
 
-   The layout of [c] has the shape:
-     ((b_i64, (a_string, a_i64), b_string), c_string)
+   The layout of [c] has the shape
+     ((b_i64, (a_string, a_i64), b_string), c_string),
+   whose representation differs between the native and bytecode compilers.
 
-   In the native code compiler, it gets reordered (a stable two-color sort by
-   values and non-values):
+   In the native code compiler, it gets reordered (a stable two-color sort that
+   puts values before non-values):
         a_string b_string c_string b_i64 a_i64
      b  ^^^^^^^^^^^^^^^^^          ^^^^^^^^^^^
      a  ^^^^^^^^                         ^^^^^
@@ -2201,10 +2202,11 @@ and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
    In the bytecode compiler, unboxed records are actually boxed, and not
    reordered.
 
-   Therefore, block indices have two different representations. In the native
-   compiler, they are the offset into the block and the gap between the values
-   and non-values of the pointed-to payload, both in bytes. In the bytecode
-   compiler, they are a block containing the sequence of field positions.
+   Acccordingly, block indices have also two different representations. In the
+   native compiler, they are the offset into the block and the gap between the
+   values and non-values of the pointed-to payload, both in bytes. In the
+   bytecode compiler, they are a block containing the sequence of field
+   positions.
 
      Idx in [c]  Native repr.      Bytecode repr.
      ---------------------------------------------
@@ -2221,7 +2223,6 @@ and transl_idx ~scopes loc env ba uas =
     List.map (function Uaccess_unboxed_field (_, lbl) -> lbl.lbl_pos)
       uas
   in
-  let loc = of_location ~scopes loc in
   begin match ba with
   | Baccess_block (_, index) ->
     let index = transl_exp ~scopes Jkind.Sort.Const.for_idx index in

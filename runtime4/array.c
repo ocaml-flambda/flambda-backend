@@ -894,27 +894,50 @@ CAMLprim value caml_array_blit(value a1, value ofs1, value a2, value ofs2,
    positions */
 CAMLprim value caml_idx_unsafe_read_bytecode(value base, value idx)
 {
+  CAMLparam2 (base, idx);
   CAMLassert (Tag_val(idx) == 0);
   value res = base;
   mlsize_t depth = Wosize_val(idx);
   for (mlsize_t i = 0; i < depth; i++) {
-    long pos = Long_val(Field(idx, i));
-    res = Field(res, pos);
+    intnat pos = Long_val(Field(idx, i));
+#ifdef FLAT_FLOAT_ARRAY
+      if (Tag_val(base) == Double_array_tag) {
+        double d = Double_flat_field(res, pos);
+        Store_double_val(res, d);
+      } else {
+        res = Field(res, pos);
+      }
+#else
+      res = Field(res, pos);
+#endif
   }
-  return res;
+
+  CAMLreturn (res);
 }
 
 CAMLprim value caml_idx_unsafe_write_bytecode(value base, value idx, value v)
 {
+  CAMLparam3 (base, idx, v);
   CAMLassert (Tag_val(idx) == 0);
-  value* dst = &base;
   mlsize_t depth = Wosize_val(idx);
+#ifdef FLAT_FLOAT_ARRAY
+  if (Tag_val(base) == Double_array_tag) {
+    intnat pos = 0;
+    for (mlsize_t i = 0; i < depth; i++) {
+      pos += Long_val(Field(idx, i));
+    }
+    double d = Double_val (v);
+    Store_double_flat_field(base, pos, d);
+    CAMLreturn (Val_unit);
+  }
+#endif
+  value* dst = &base;
   for (mlsize_t i = 0; i < depth; i++) {
-    long pos = Long_val(Field(idx, i));
+    intnat pos = Long_val(Field(idx, i));
     dst = &Field(*dst, pos);
   }
   *dst = v;
-  return Val_unit;
+  CAMLreturn (Val_unit);
 }
 
 /* Concatenates idx_prefix and idx_suffix */
