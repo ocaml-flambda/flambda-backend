@@ -1986,9 +1986,6 @@ let all_functions = ref []
 let emit_function_type_and_size fun_sym =
   (* Note: Symbol types and sizes are only needed on some platforms/systems.
      These functions check internally whether they are needed. *)
-  (* CR sspies: This does not match the old systems comparison exactly. The type
-     symbol function checks for [GAS_like], which matches a few more systems
-     than the old match. *)
   ND.type_symbol ~ty:Function fun_sym;
   if not !Flambda_backend_flags.basic_block_sections then ND.size fun_sym
 
@@ -2566,8 +2563,6 @@ let end_assembly () =
         (fun lbl ofs ->
           let lbl = label_to_asm_label ~section:Text lbl in
           let ofs = Targetint.of_int32 ofs in
-          (* CR sspies: On x86 macOS, this changes the name of the variables,
-             but should be semantically equivalent. *)
           ND.between_this_and_label_offset_32bit_expr ~upper:lbl
             ~offset_upper:ofs);
       efa_def_label =

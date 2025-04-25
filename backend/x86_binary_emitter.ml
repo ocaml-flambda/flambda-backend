@@ -1742,7 +1742,6 @@ let assemble_line b loc ins =
           buf_int8 b 0
         done
     | Directive (D.Hidden _) | Directive D.New_line -> ()
-    (* CR sspies: This requires some testing. *)
     | Directive (D.Reloc { name = D.R_X86_64_PLT32;
               expr = C.Sub (C.Named_thing wrap_label, C.Signed_int 4L);
               offset = C.Sub (C.This, C.Signed_int 4L);

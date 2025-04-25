@@ -71,7 +71,9 @@ val section : t -> Asm_section.t
 include Identifiable.S with type t := t
 
 (** Retrieve a distinguished label that is suitable for identifying the start of
-    the given section within a given compilation unit's assembly file. *)
+    the given section within a given compilation unit's assembly file. This function
+    supports only dwarf sections. To support more, additional sections and labels have
+    to be emitted in [Asm_directives.debug_header]. *)
 val for_section : Asm_section.t -> t
 
 (** Like [for_section], but for DWARF sections only. *)
