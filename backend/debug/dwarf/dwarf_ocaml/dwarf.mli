@@ -26,7 +26,7 @@ type t
 val create :
   sourcefile:string ->
   unit_name:Ident.t ->
-  asm_directives:(module Asm_directives.S) ->
+  asm_directives:Asm_directives_dwarf.t ->
   get_file_id:(string -> int) ->
   code_begin:Asm_symbol.t ->
   code_end:Asm_symbol.t ->

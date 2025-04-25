@@ -557,17 +557,15 @@ module Dwarf_helpers = struct
 
   let sourcefile_for_dwarf = ref None
 
-  let begin_dwarf ~build_asm_directives ~code_begin ~code_end ~file_emitter =
+  let begin_dwarf ~code_begin ~code_end ~file_emitter =
     match !sourcefile_for_dwarf with
     | None -> ()
     | Some sourcefile ->
-      let asm_directives = build_asm_directives () in
-      let (module Asm_directives : Asm_targets.Asm_directives_intf.S) =
-        asm_directives
+      let asm_directives =
+        Asm_targets.Asm_directives_dwarf.build_asm_directives ()
       in
-      Asm_targets.Asm_label.initialize ~new_label:(fun () ->
-          Cmm.new_label () |> Label.to_int);
-      Asm_directives.initialize ();
+      let get_file_num = get_file_num ~file_emitter in
+      Asm_targets.Asm_directives_new.debug_header ~get_file_num;
       let unit_name =
         (* CR lmaurer: This doesn't actually need to be an [Ident.t] *)
         Symbol.for_current_unit () |> Symbol.linkage_name
@@ -578,8 +576,7 @@ module Dwarf_helpers = struct
       dwarf
         := Some
              (Dwarf.create ~sourcefile ~unit_name ~asm_directives
-                ~get_file_id:(get_file_num ~file_emitter)
-                ~code_begin ~code_end)
+                ~get_file_id:get_file_num ~code_begin ~code_end)
 
   let reset_dwarf () =
     dwarf := None;

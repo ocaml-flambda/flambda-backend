@@ -33,6 +33,8 @@ let big_endian_ref = ref None
 
 let current_section_ref = ref None
 
+let emit_assembly_comments_ref = ref None
+
 let not_initialized () =
   Misc.fatal_error "[Asm_directives.initialize] has not been called"
 
@@ -50,6 +52,14 @@ let big_endian () =
   match !big_endian_ref with
   | None -> not_initialized ()
   | Some big_endian -> big_endian
+
+let emit_comments () =
+  let emit_assembly_comments =
+    match !emit_assembly_comments_ref with
+    | None -> not_initialized ()
+    | Some emit_assembly_comments -> emit_assembly_comments
+  in
+  emit_assembly_comments && !Clflags.keep_asm_file
 
 type symbol_type =
   | Function
@@ -187,8 +197,6 @@ module Directive = struct
 
   let bprintf = Printf.bprintf
 
-  let emit_comments () = !Clflags.keep_asm_file
-
   (* CR sspies: This code is a duplicate with [emit_string_literal] in
      [emitaux.ml]. Hopefully, we can deduplicate this soon. *)
   let string_of_string_literal s =
@@ -293,7 +301,7 @@ module Directive = struct
       | Solaris, _ | _, POWER -> buf_bytes_directive buf ~directive:".byte" str
       | _ -> print_ascii_string_gas buf str);
       bprintf buf "%s" (gas_comment_opt comment)
-    | Comment s -> bprintf buf "\t\t\t/* %s */" s
+    | Comment s -> if emit_comments () then bprintf buf "\t\t\t/* %s */" s
     | Global s -> bprintf buf "\t.globl\t%s" s
     | New_label (s, _typ) -> bprintf buf "%s:" s
     | New_line -> ()
@@ -434,6 +442,7 @@ type expr =
   | Symbol of Asm_symbol.t
   | Add of expr * expr
   | Sub of expr * expr
+  | Variable of string  (** macOS only *)
 
 let rec lower_expr (cst : expr) : Directive.Constant.t =
   match cst with
@@ -442,6 +451,7 @@ let rec lower_expr (cst : expr) : Directive.Constant.t =
   | This -> This
   | Label lbl -> Named_thing (Asm_label.encode lbl)
   | Symbol sym -> Named_thing (Asm_symbol.encode sym)
+  | Variable var -> Named_thing var
   | Add (cst1, cst2) -> Add (lower_expr cst1, lower_expr cst2)
   | Sub (cst1, cst2) -> Sub (lower_expr cst1, lower_expr cst2)
 
@@ -452,6 +462,8 @@ let const_add c1 c2 = Add (c1, c2)
 let const_label lbl = Label lbl
 
 let const_symbol sym = Symbol sym
+
+let const_variable var = Variable var
 
 let const_int64 i : expr = Signed_int i
 
@@ -491,7 +503,7 @@ let cfi_offset ~reg ~offset =
 
 let cfi_startproc () = if should_generate_cfi () then emit Cfi_startproc
 
-let comment text = if !Clflags.keep_asm_file then emit (Comment text)
+let comment text = if emit_comments () then emit (Comment text)
 
 let loc ~file_num ~line ~col ?discriminator () =
   emit_non_masm (Loc { file_num; line; col; discriminator })
@@ -694,9 +706,11 @@ let file ~file_num ~file_name () =
   in
   emit_non_masm (File { file_num; filename = file_name })
 
-let initialize ~big_endian ~(emit : Directive.t -> unit) =
+let initialize ~big_endian ~emit_assembly_comments ~(emit : Directive.t -> unit)
+    =
   big_endian_ref := Some big_endian;
   emit_ref := Some emit;
+  emit_assembly_comments_ref := Some emit_assembly_comments;
   reset ()
 
 let debug_header ~get_file_num =
@@ -776,6 +790,7 @@ let targetint ?comment n =
   | Int64 n -> int64 ?comment n
 
 let cache_string ?comment section str =
+  let comment = if emit_comments () then comment else None in
   let cached : Cached_string.t = { section; str; comment } in
   match Cached_string.Map.find cached !cached_strings with
   | label -> label
@@ -785,6 +800,7 @@ let cache_string ?comment section str =
     label
 
 let emit_cached_strings () =
+  let old_dwarf_section = !current_section_ref in
   Cached_string.Map.iter
     (fun { section; str; comment } label_name ->
       switch_to_section section;
@@ -792,7 +808,10 @@ let emit_cached_strings () =
       string ?comment str;
       int8 Int8.zero)
     !cached_strings;
-  cached_strings := Cached_string.Map.empty
+  cached_strings := Cached_string.Map.empty;
+  Option.iter
+    (switch_to_section ~emit_label_on_first_occurrence:false)
+    old_dwarf_section
 
 let mark_stack_non_executable () =
   let current_section = current_section () in
@@ -818,8 +837,7 @@ let force_assembly_time_constant expr =
        results when one of the labels is on a section boundary, for example.) *)
     let temp = new_temp_var () in
     direct_assignment temp expr;
-    let lbl = Asm_label.create_string Data temp in
-    const_label lbl (* not really a label, but OK. *)
+    const_variable temp
 
 let between_symbols_in_current_unit ~upper ~lower =
   (* CR-someday bkhajwal: Add checks below from gdb-names-gpr
