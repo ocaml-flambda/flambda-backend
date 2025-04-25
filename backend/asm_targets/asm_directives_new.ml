@@ -86,14 +86,26 @@ module Directive = struct
       | Add of t * t
       | Sub of t * t
 
-    let rec print buf t =
+    (* The [force_digits] option is for supporting .sleb128 directives. See the
+       comment in [print] below. *)
+    let rec print ~force_digits buf t =
       match t with
       | (Named_thing _ | Signed_int _ | Unsigned_int _ | This) as c ->
-        print_subterm buf c
-      | Add (c1, c2) -> bprintf buf "%a + %a" print_subterm c1 print_subterm c2
-      | Sub (c1, c2) -> bprintf buf "%a - %a" print_subterm c1 print_subterm c2
+        print_subterm ~force_digits buf c
+      | Add (c1, c2) ->
+        bprintf buf "%a + %a"
+          (print_subterm ~force_digits)
+          c1
+          (print_subterm ~force_digits)
+          c2
+      | Sub (c1, c2) ->
+        bprintf buf "%a - %a"
+          (print_subterm ~force_digits)
+          c1
+          (print_subterm ~force_digits)
+          c2
 
-    and print_subterm buf t =
+    and print_subterm ~force_digits buf t =
       match t with
       | This -> (
         match TS.assembler () with
@@ -101,25 +113,34 @@ module Directive = struct
         | MASM -> Buffer.add_string buf "THIS BYTE")
       | Named_thing name -> Buffer.add_string buf name
       | Signed_int n -> (
-        match TS.assembler () with
-        (* We use %Ld and not %Lx on Unix-like platforms to ensure that
-           ".sleb128" directives do not end up with hex arguments (since this
-           denotes a variable-length encoding it would not be clear where the
-           sign bit is). *)
-        | MacOS | GAS_like -> bprintf buf "%Ld" n
-        | MASM ->
-          if Int64.compare n 0x8000_0000L >= 0
-             && Int64.compare n 0x7fff_ffffL <= 0
+        match TS.assembler (), force_digits with
+        | _, true -> Buffer.add_string buf (Int64.to_string n)
+        | MASM, _ ->
+          if Int64.compare n 0x7FFF_FFFFL <= 0
+             && Int64.compare n (-0x8000_0000L) >= 0
           then Buffer.add_string buf (Int64.to_string n)
-          else bprintf buf "0%LxH" n)
+          else bprintf buf "0%LxH" n
+        | _, false ->
+          if Int64.compare n 0x7FFF_FFFFL <= 0
+             && Int64.compare n (-0x8000_0000L) >= 0
+          then Buffer.add_string buf (Int64.to_string n)
+          else bprintf buf "0x%Lx" n)
       | Unsigned_int n ->
         (* We can use the printer for [Signed_int] since we always print as an
            unsigned hex representation. *)
-        print_subterm buf (Signed_int (Uint64.to_int64 n))
+        print_subterm ~force_digits buf (Signed_int (Uint64.to_int64 n))
       | Add (c1, c2) ->
-        bprintf buf "(%a + %a)" print_subterm c1 print_subterm c2
+        bprintf buf "(%a + %a)"
+          (print_subterm ~force_digits)
+          c1
+          (print_subterm ~force_digits)
+          c2
       | Sub (c1, c2) ->
-        bprintf buf "(%a - %a)" print_subterm c1 print_subterm c2
+        bprintf buf "(%a - %a)"
+          (print_subterm ~force_digits)
+          c1
+          (print_subterm ~force_digits)
+          c2
   end
 
   module Constant_with_width = struct
@@ -197,7 +218,8 @@ module Directive = struct
     | Section of
         { names : string list;
           flags : string option;
-          args : string list
+          args : string list;
+          is_delayed : bool
         }
     | Size of string * Constant.t
     | Sleb128 of
@@ -222,32 +244,36 @@ module Directive = struct
 
   let bprintf = Printf.bprintf
 
-  (* CR sspies: This code is a duplicate with [emit_string_literal] in
-     [emitaux.ml]. Hopefully, we can deduplicate this soon. *)
-  let string_of_string_literal s =
+  (* CR sspies: This code is effectively a duplicate with [emit_string_literal]
+     in [emitaux.ml] and [string_of_substring_literal] in [x86_proc.ml].
+     Hopefully, we can deduplicate this soon. *)
+  let string_of_substring_literal ~start:k ~length:n s =
     let between x low high =
       Char.compare x low >= 0 && Char.compare x high <= 0
     in
-    let buf = Buffer.create (String.length s + 2) in
+    let b = Buffer.create (n + 2) in
     let last_was_escape = ref false in
-    for i = 0 to String.length s - 1 do
+    for i = k to k + n - 1 do
       let c = s.[i] in
       if between c '0' '9'
       then
         if !last_was_escape
-        then Printf.bprintf buf "\\%o" (Char.code c)
-        else Buffer.add_char buf c
+        then Printf.bprintf b "\\%o" (Char.code c)
+        else Buffer.add_char b c
       else if between c ' ' '~'
-              && (not (Char.equal c '"' (* '"' *)))
-              && not (Char.equal c '\\')
+              && (not (Char.equal c '"'))
+              (* '"' *) && not (Char.equal c '\\')
       then (
-        Buffer.add_char buf c;
+        Buffer.add_char b c;
         last_was_escape := false)
       else (
-        Printf.bprintf buf "\\%o" (Char.code c);
+        Printf.bprintf b "\\%o" (Char.code c);
         last_was_escape := true)
     done;
-    Buffer.contents buf
+    Buffer.contents b
+
+  let string_of_string_literal s =
+    string_of_substring_literal ~start:0 ~length:(String.length s) s
 
   let buf_bytes_directive buf ~directive s =
     let pos = ref 0 in
@@ -266,22 +292,22 @@ module Directive = struct
 
   (* CR sspies: This code is based on [emit_string_directive] in [emitaux.ml].
      We break up the string into smaller chunks. *)
-  let print_ascii_string_gas buf s =
+  let print_ascii_string_gas ~chunk_size buf s =
     let l = String.length s in
     if l = 0
     then ()
     else
-      (* We first print the string 80 characters at a time. *)
+      (* We first print the string [chunk_size] characters at a time. *)
       let i = ref 0 in
-      while l - !i > 80 do
+      while l - !i > chunk_size do
         bprintf buf "\t.ascii\t\"%s\"\n"
-          (string_of_string_literal (String.sub s !i 80));
-        i := !i + 80
+          (string_of_substring_literal ~start:!i ~length:chunk_size s);
+        i := !i + chunk_size
       done;
       (* Then we print the remainder. We do not append a new line, because every
          directive ends with a new line. *)
       bprintf buf "\t.ascii\t\"%s\""
-        (string_of_string_literal (String.sub s !i (l - !i)))
+        (string_of_substring_literal ~start:!i ~length:(l - !i) s)
 
   let reloc_type_to_string = function R_X86_64_PLT32 -> "R_X86_64_PLT32"
 
@@ -323,21 +349,29 @@ module Directive = struct
         | Sixty_four -> "8byte"
       in
       let comment = gas_comment_opt comment in
-      bprintf buf "\t.%s\t%a%s" directive Constant.print
+      bprintf buf "\t.%s\t%a%s" directive
+        (Constant.print ~force_digits:false)
         (Constant_with_width.constant constant)
         comment
     | Bytes { str; comment } ->
       (match TS.system (), TS.architecture () with
-      | Solaris, _ | _, POWER -> buf_bytes_directive buf ~directive:".byte" str
-      | _ -> print_ascii_string_gas buf str);
+      | Solaris, _ | _, POWER ->
+        buf_bytes_directive buf ~directive:".byte" str
+        (* Very long lines can cause gas to be extremely slow so split up large
+           string literals. It turns out that gas reads files in 32kb chunks so
+           splitting the string into blocks of 25k characters should be close to
+           the sweet spot even with a lot of escapes. *)
+      | _, X86_64 -> print_ascii_string_gas ~chunk_size:25000 buf str
+      | _, AArch64 -> print_ascii_string_gas ~chunk_size:80 buf str
+      | _, _ -> print_ascii_string_gas ~chunk_size:80 buf str);
       bprintf buf "%s" (gas_comment_opt comment)
-    | Comment s -> if emit_comments () then bprintf buf "\t\t\t/* %s */" s
+    | Comment s -> if emit_comments () then bprintf buf "\t\t\t\t/* %s */" s
     | Global s -> bprintf buf "\t.globl\t%s" s
     | New_label (s, _typ) -> bprintf buf "%s:" s
     | New_line -> ()
     | Section { names = [".data"]; _ } -> bprintf buf "\t.data"
     | Section { names = [".text"]; _ } -> bprintf buf "\t.text"
-    | Section { names; flags; args } -> (
+    | Section { names; flags; args; is_delayed = _ } -> (
       bprintf buf "\t.section %s" (String.concat "," names);
       (match flags with None -> () | Some flags -> bprintf buf ",%S" flags);
       match args with
@@ -377,10 +411,17 @@ module Directive = struct
       bprintf buf "\t.loc\t%d\t%d%a%a" file_num line print_col col
         print_discriminator discriminator
     | Private_extern s -> bprintf buf "\t.private_extern %s" s
-    | Size (s, c) -> bprintf buf "\t.size %s,%a" s Constant.print c
+    | Size (s, c) ->
+      bprintf buf "\t.size %s,%a" s (Constant.print ~force_digits:false) c
+      (* We use %Ld and not %Lx on Unix-like platforms to ensure that ".sleb128"
+         directives do not end up with hex arguments (since this denotes a
+         variable-length encoding it would not be clear where the sign bit
+         is). *)
     | Sleb128 { constant; comment } ->
       let comment = gas_comment_opt comment in
-      bprintf buf "\t.sleb128\t%a%s" Constant.print constant comment
+      bprintf buf "\t.sleb128\t%a%s"
+        (Constant.print ~force_digits:true)
+        constant comment
     | Type (s, typ) ->
       let typ = symbol_type_to_string typ in
       (* CR sspies: Technically, ",STT_OBJECT" violates the assembler syntax
@@ -390,10 +431,15 @@ module Directive = struct
       bprintf buf "\t.type %s,%s" s typ
     | Uleb128 { constant; comment } ->
       let comment = gas_comment_opt comment in
-      bprintf buf "\t.uleb128\t%a%s" Constant.print constant comment
+      bprintf buf "\t.uleb128\t%a%s"
+        (Constant.print ~force_digits:true)
+        constant comment
     | Direct_assignment (var, const) -> (
       match TS.assembler () with
-      | MacOS -> bprintf buf "\t.set %s, %a" var Constant.print const
+      | MacOS ->
+        bprintf buf "\t.set %s, %a" var
+          (Constant.print ~force_digits:false)
+          const
       | _ ->
         Misc.fatal_error
           "Cannot emit [Direct_assignment] except on macOS-like assemblers")
@@ -403,9 +449,12 @@ module Directive = struct
     (* masm only *)
     | External _ -> assert false
     | Reloc { offset; name; expr } ->
-      bprintf buf "\t.reloc\t%a, %s, %a" Constant.print offset
+      bprintf buf "\t.reloc\t%a, %s, %a"
+        (Constant.print ~force_digits:false)
+        offset
         (reloc_type_to_string name)
-        Constant.print expr
+        (Constant.print ~force_digits:false)
+        expr
 
   let print_masm buf t =
     let unsupported name =
@@ -437,7 +486,8 @@ module Directive = struct
         | Sixty_four -> "QWORD"
       in
       let comment = masm_comment_opt comment in
-      bprintf buf "\t%s\t%a%s" directive Constant.print
+      bprintf buf "\t%s\t%a%s" directive
+        (Constant.print ~force_digits:false)
         (Constant_with_width.constant constant)
         comment
     | Global s -> bprintf buf "\tPUBLIC\t%s" s
@@ -535,7 +585,8 @@ let emit (d : Directive.t) =
 let emit_non_masm (d : Directive.t) =
   match TS.assembler () with MASM -> () | MacOS | GAS_like -> emit d
 
-let section ~names ~flags ~args = emit (Section { names; flags; args })
+let section ~names ~flags ~args ~is_delayed =
+  emit (Section { names; flags; args; is_delayed })
 
 let align ~fill_x86_bin_emitter ~bytes =
   emit (Align { bytes; fill_x86_bin_emitter })
@@ -716,17 +767,17 @@ let switch_to_section ?(emit_label_on_first_occurrence = false) section =
       true)
   in
   current_section_ref := Some section;
-  let ({ names; flags; args } : Asm_section.section_details) =
+  let ({ names; flags; args; is_delayed } : Asm_section.section_details) =
     Asm_section.details section ~first_occurrence
   in
   (* CR sspies: We do not print an empty line here to be consistent with Arm
      emission. *)
-  emit (Section { names; flags; args });
+  emit (Section { names; flags; args; is_delayed });
   if first_occurrence && emit_label_on_first_occurrence
   then define_label (Asm_label.for_section section)
 
-let switch_to_section_raw ~names ~flags ~args =
-  emit (Section { names; flags; args })
+let switch_to_section_raw ~names ~flags ~args ~is_delayed =
+  emit (Section { names; flags; args; is_delayed })
 
 let unsafe_set_internal_section_ref section =
   current_section_ref := Some section
@@ -902,6 +953,7 @@ let mark_stack_non_executable () =
   match TS.system () with
   | Linux ->
     section ~names:[".note.GNU-stack"] ~flags:(Some "") ~args:["%progbits"]
+      ~is_delayed:false
   | _ -> ()
 
 let new_temp_var () =
