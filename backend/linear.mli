@@ -17,6 +17,8 @@
 
 [@@@ocaml.warning "+a-40-41-42"]
 
+(* CR sspies: Consider using [Asm_label.t] for this label to avoid duplication
+   in the assembly backends. *)
 type label = Cmm.label
 
 type instruction =
