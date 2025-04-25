@@ -145,10 +145,15 @@ module Directive = struct
     | Code
     | Machine_width_data
 
+  type reloc_type = R_X86_64_PLT32
+
   type comment = string
 
   type t =
-    | Align of { bytes : int }
+    | Align of
+        { bytes : int;
+          data_section : bool
+        }
     | Bytes of
         { str : string;
           comment : string option
@@ -202,6 +207,14 @@ module Directive = struct
           comment : string option
         }
     | Protected of string
+    | Hidden of string
+    | Weak of string
+    | External of string
+    | Reloc of
+        { offset : Constant.t;
+          name : reloc_type;
+          expr : Constant.t
+        }
 
   let bprintf = Printf.bprintf
 
@@ -266,6 +279,8 @@ module Directive = struct
       bprintf buf "\t.ascii\t\"%s\""
         (string_of_string_literal (String.sub s !i (l - !i)))
 
+  let reloc_type_to_string = function R_X86_64_PLT32 -> "R_X86_64_PLT32"
+
   let print_gas buf t =
     let gas_comment_opt comment_opt =
       if not (emit_comments ())
@@ -276,7 +291,9 @@ module Directive = struct
         | Some comment -> Printf.sprintf "\t/* %s */" comment
     in
     match t with
-    | Align { bytes = n } ->
+    | Align { bytes = n; data_section = _ } ->
+      (* The data_section is only relevant for the binary emitter. On GAS, we
+         can ignore it and just use [.align] in both cases. *)
       (* Some assemblers interpret the integer n as a 2^n alignment and others
          as a number of bytes. *)
       let n =
@@ -376,6 +393,14 @@ module Directive = struct
         Misc.fatal_error
           "Cannot emit [Direct_assignment] except on macOS-like assemblers")
     | Protected s -> bprintf buf "\t.protected\t%s" s
+    | Hidden s -> bprintf buf "\t.hidden\t%s" s
+    | Weak s -> bprintf buf "\t.weak\t%s" s
+    (* masm only *)
+    | External _ -> assert false
+    | Reloc { offset; name; expr } ->
+      bprintf buf "\t.reloc\t%a, %s, %a" Constant.print offset
+        (reloc_type_to_string name)
+        Constant.print expr
 
   let print_masm buf t =
     let unsupported name =
@@ -390,7 +415,10 @@ module Directive = struct
         | Some comment -> Printf.sprintf "\t; %s" comment
     in
     match t with
-    | Align { bytes } -> bprintf buf "\tALIGN\t%d" bytes
+    | Align { bytes; data_section = _ } ->
+      (* The data_section is only relevant for the binary emitter. On MASM, we
+         can ignore it. *)
+      bprintf buf "\tALIGN\t%d" bytes
     | Bytes { str; comment } ->
       buf_bytes_directive buf ~directive:"BYTE" str;
       bprintf buf "%s" (masm_comment_opt comment)
@@ -436,6 +464,11 @@ module Directive = struct
     | Uleb128 _ -> unsupported "Uleb128"
     | Direct_assignment _ -> unsupported "Direct_assignment"
     | Protected _ -> unsupported "Protected"
+    | Hidden _ -> unsupported "Hidden"
+    | Weak _ -> unsupported "Weak"
+    | External s -> bprintf buf "\tEXTRN\t%s: NEAR" s
+    (* The only supported "type" on EXTRN declarations i NEAR. *)
+    | Reloc _ -> unsupported "Reloc"
 
   let print b t =
     match TS.assembler () with
@@ -480,6 +513,13 @@ let const_variable var = Variable var
 
 let const_int64 i : expr = Signed_int i
 
+let const_with_offset const (offset : int64) =
+  if Int64.equal offset 0L
+  then const
+  else if Int64.compare offset 0L < 0
+  then Add (const, Signed_int (Int64.neg offset))
+  else Add (const, Signed_int offset)
+
 let emit_ref = ref None
 
 let emit (d : Directive.t) =
@@ -492,7 +532,7 @@ let emit_non_masm (d : Directive.t) =
 
 let section ~names ~flags ~args = emit (Section { names; flags; args })
 
-let align ~bytes = emit (Align { bytes })
+let align ~data_section ~bytes = emit (Align { bytes; data_section })
 
 let should_generate_cfi () =
   (* We generate CFI info even if we're not generating any other debugging
@@ -543,7 +583,15 @@ let indirect_symbol symbol = emit (Indirect_symbol (Asm_symbol.encode symbol))
 
 let private_extern symbol = emit (Private_extern (Asm_symbol.encode symbol))
 
+let extrn symbol = emit (External (Asm_symbol.encode symbol))
+
+let hidden symbol = emit (Hidden (Asm_symbol.encode symbol))
+
+let weak symbol = emit (Weak (Asm_symbol.encode symbol))
+
 let size symbol cst = emit (Size (Asm_symbol.encode symbol, lower_expr cst))
+
+let size_const sym n = emit (Size (Asm_symbol.encode sym, Signed_int n))
 
 let type_ symbol ~type_ = emit (Type (symbol, type_))
 
@@ -621,7 +669,7 @@ let label ?comment label = const_machine_width ?comment (Label label)
 let label_plus_offset ?comment lab ~offset_in_bytes =
   let offset_in_bytes = Targetint.to_int64 offset_in_bytes in
   let lab = const_label lab in
-  const_machine_width ?comment (const_add lab (const_int64 offset_in_bytes))
+  const_machine_width ?comment (const_with_offset lab offset_in_bytes)
 
 let define_label label =
   let lbl_section = Asm_label.section label in
@@ -793,7 +841,7 @@ let symbol ?comment sym = const_machine_width ?comment (Symbol sym)
 
 let symbol_plus_offset symbol ~offset_in_bytes =
   let offset_in_bytes = Targetint.to_int64 offset_in_bytes in
-  const_machine_width (Add (Symbol symbol, Signed_int offset_in_bytes))
+  const_machine_width (const_with_offset (Symbol symbol) offset_in_bytes)
 
 let int8 ?comment i =
   const ?comment (Signed_int (Int64.of_int (Int8.to_int i))) Eight
@@ -884,9 +932,11 @@ let between_labels_16_bit ?comment:_ ~upper:_ ~lower:_ () =
   (* CR poechsel: use the arguments *)
   Misc.fatal_error "between_labels_16_bit not implemented yet"
 
-let between_labels_32_bit ?comment:_ ~upper:_ ~lower:_ () =
-  (* CR poechsel: use the arguments *)
-  Misc.fatal_error "between_labels_32_bit not implemented yet"
+let between_labels_32_bit ?comment:_comment ~upper ~lower () =
+  let expr = const_sub (const_label upper) (const_label lower) in
+  (* CR sspies: Following the x86 implementation, we *do not* force an assembly
+     time constant here. *)
+  const expr Thirty_two
 
 let between_labels_64_bit ?comment:_ ~upper:_ ~lower:_ () =
   (* CR poechsel: use the arguments *)
@@ -1059,3 +1109,14 @@ let offset_into_dwarf_section_symbol ?comment:_comment
   match width with
   | Thirty_two -> const expr Thirty_two
   | Sixty_four -> const expr Sixty_four
+
+let reloc_x86_64_plt32 ~offset_from_this ~target_symbol ~rel_offset_from_next =
+  emit
+    (Reloc
+       { offset = Sub (This, Signed_int offset_from_this);
+         name = R_X86_64_PLT32;
+         expr =
+           Sub
+             ( Named_thing (Asm_symbol.encode target_symbol),
+               Signed_int rel_offset_from_next )
+       })
