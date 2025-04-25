@@ -207,12 +207,6 @@ let rename
     my_depth = Variable.rename my_depth
   }
 
-let region_is_renamed_version_of region1 region2 =
-  match region1, region2 with
-  | None, None -> true
-  | Some r1, Some r2 -> Variable.is_renamed_version_of r1 r2
-  | Some _, None | None, Some _ -> false
-
 let is_renamed_version_of t t' =
   Continuation.is_renamed_version_of t.return_continuation
     t'.return_continuation
