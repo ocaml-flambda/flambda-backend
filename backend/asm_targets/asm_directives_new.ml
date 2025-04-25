@@ -38,11 +38,6 @@ let emit_assembly_comments_ref = ref None
 let not_initialized () =
   Misc.fatal_error "[Asm_directives.initialize] has not been called"
 
-let current_section () =
-  match !current_section_ref with
-  | None -> not_initialized ()
-  | Some section -> section
-
 let current_section_is_text () =
   match !current_section_ref with
   | None -> not_initialized ()
@@ -534,7 +529,7 @@ let comment text = if emit_comments () then emit (Comment text)
 let loc ~file_num ~line ~col ?discriminator () =
   emit_non_masm (Loc { file_num; line; col; discriminator })
 
-let space ~bytes = emit (Space { bytes })
+let space ~bytes = if bytes > 0 then emit (Space { bytes })
 
 (* We do not perform any checks that the string does not contain null bytes. The
    reason is that we sometimes want to emit strings that have an explicit null
@@ -849,11 +844,9 @@ let emit_cached_strings () =
     old_dwarf_section
 
 let mark_stack_non_executable () =
-  let current_section = current_section () in
   match TS.system () with
   | Linux ->
-    section ~names:[".note.GNU-stack"] ~flags:(Some "") ~args:["%progbits"];
-    switch_to_section current_section
+    section ~names:[".note.GNU-stack"] ~flags:(Some "") ~args:["%progbits"]
   | _ -> ()
 
 let new_temp_var () =

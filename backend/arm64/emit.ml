@@ -2097,6 +2097,13 @@ let fundecl fundecl =
 
 (* Emission of data *)
 
+let int64_to_int32_exn n =
+  if Int64.compare n 0x80000000L (* Int32.int_min *) < 0
+     || Int64.compare n 0x7FFFFFFFL (* Int32.int_max *) > 0
+  then Misc.fatal_error "int64_to_int32_exn: out of range";
+  Int64.to_int32 n
+
+(* CR sspies: Share the [emit_item] code with the x86 backend in emitaux. *)
 let emit_item (d : Cmm.data_item) =
   match d with
   | Cdefine_symbol s ->
@@ -2109,14 +2116,10 @@ let emit_item (d : Cmm.data_item) =
          to be global. *)
       D.global sym;
     D.define_symbol_label ~section:Data sym
-  (* [Cint8] mirrors mshinwell/ocaml#gdb-names-gpr x86 emitter *)
   | Cint8 n -> D.int8 (Numbers.Int8.of_int_exn n)
-  (* [Cint16] mirrors mshinwell/ocaml#gdb-names-gpr x86 emitter *)
   | Cint16 n -> D.int16 (Numbers.Int16.of_int_exn n)
-  (* [Cint32] mirrors mshinwell/ocaml#gdb-names-gpr x86 emitter *)
-  | Cint32 n -> D.int32 (Nativeint.to_int32 n)
+  | Cint32 n -> D.int32 (int64_to_int32_exn (Int64.of_nativeint n))
   (* CR mshinwell: Add [Targetint.of_nativeint] *)
-  (* [Cint] mirrors mshinwell/ocaml#gdb-names-gpr x86 emitter *)
   | Cint n -> D.targetint (Targetint.of_int64 (Int64.of_nativeint n))
   | Csingle f -> D.float32 f
   | Cdouble f -> D.float64 f
@@ -2130,7 +2133,7 @@ let emit_item (d : Cmm.data_item) =
     let sym = S.create s.sym_name in
     D.symbol_plus_offset ~offset_in_bytes:(Targetint.of_int o) sym
   | Cstring s -> D.string s
-  | Cskip n -> if n > 0 then D.space ~bytes:n
+  | Cskip n -> D.space ~bytes:n
   | Calign n -> D.align ~bytes:n
 
 let data l =
@@ -2197,6 +2200,7 @@ let end_assembly () =
   let frametable_sym = S.create frametable in
   D.global frametable_sym;
   D.define_symbol_label ~section:Data frametable_sym;
+  (* CR sspies: Share the [emit_frames] code with the x86 backend. *)
   emit_frames
     { efa_code_label =
         (fun lbl ->
@@ -2208,17 +2212,10 @@ let end_assembly () =
           let lbl = label_to_asm_label ~section:Data lbl in
           D.type_label ~ty:Object lbl;
           D.label lbl);
-      (* [efa_8] is not part of mshinwell/ocaml#gdb-names-gpr *)
       efa_8 = (fun n -> D.uint8 (Numbers.Uint8.of_nonnegative_int_exn n));
-      (* [efa_16] is [D.uint16 (Numbers.Uint16.of_int_exn n)] in
-         mshinwell/ocaml#gdb-names-gpr x86 emitter *)
       efa_16 = (fun n -> D.uint16 (Numbers.Uint16.of_nonnegative_int_exn n));
-      (* [efa_32] is [D.uint32 (Numbers.Uint32.of_int32 n)] in
-         mshinwell/ocaml#gdb-names-gpr x86 emitter *)
       (* CR sspies: for some reason, we can get negative numbers here *)
       efa_32 = (fun n -> D.int32 n);
-      (* [efa_word] is [D.targetint (Targetint.of_int_exn n)] in
-         mshinwell/ocaml#gdb-names-gpr x86 emitter *)
       efa_word = (fun n -> D.targetint (Targetint.of_int_exn n));
       efa_align = (fun n -> D.align ~bytes:n);
       efa_label_rel =
@@ -2228,8 +2225,9 @@ let end_assembly () =
             ~offset_upper:(Targetint.of_int32 ofs));
       efa_def_label =
         (fun lbl ->
-          (* The frametable lives in the [.data] section on Arm, but in the
-             [.text] section on x86 *)
+          (* CR sspies: The frametable lives in the [.data] section on Arm, but
+             in the [.text] section on x86. The frametable should move to the
+             text section on Arm as well. *)
           let lbl = label_to_asm_label ~section:Data lbl in
           D.define_label lbl);
       efa_string = (fun s -> D.string (s ^ "\000"))
@@ -2238,9 +2236,4 @@ let end_assembly () =
   D.size frametable_sym;
   if not !Flambda_backend_flags.internal_assembler
   then Emitaux.Dwarf_helpers.emit_dwarf ();
-  match Config.system with
-  | "linux" ->
-    (* Mark stack as non-executable *)
-    D.switch_to_section_raw ~names:[".note.GNU-stack"] ~flags:(Some "")
-      ~args:["%progbits"]
-  | _ -> ()
+  D.mark_stack_non_executable ()
