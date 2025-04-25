@@ -505,7 +505,7 @@ let record_frame_label live dbg =
         Misc.fatal_errorf "Unknown location %a" Printreg.reg r
       | { typ = Int | Float | Float32 | Vec128; _ } -> ())
     live;
-  (* CR sspies: Consider chanting [record_frame_descr] to [Asm_label.t] instead
+  (* CR sspies: Consider changing [record_frame_descr] to [Asm_label.t] instead
      of linear labels. *)
   record_frame_descr ~label:lbl ~frame_size:(frame_size ())
     ~live_offset:!live_offset dbg;
@@ -2099,12 +2099,6 @@ let fundecl fundecl =
 
 (* Emission of data *)
 
-let int64_to_int32_exn n =
-  if Int64.compare n (-0x80000000L) (* Int32.int_min *) < 0
-     || Int64.compare n 0x7FFFFFFFL (* Int32.int_max *) > 0
-  then Misc.fatal_error "int64_to_int32_exn: out of range";
-  Int64.to_int32 n
-
 (* CR sspies: Share the [emit_item] code with the x86 backend in emitaux. *)
 let emit_item (d : Cmm.data_item) =
   match d with
@@ -2120,7 +2114,7 @@ let emit_item (d : Cmm.data_item) =
     D.define_symbol_label ~section:Data sym
   | Cint8 n -> D.int8 (Numbers.Int8.of_int_exn n)
   | Cint16 n -> D.int16 (Numbers.Int16.of_int_exn n)
-  | Cint32 n -> D.int32 (int64_to_int32_exn (Int64.of_nativeint n))
+  | Cint32 n -> D.int32 (Numbers.Int64.to_int32_exn (Int64.of_nativeint n))
   (* CR mshinwell: Add [Targetint.of_nativeint] *)
   | Cint n -> D.targetint (Targetint.of_int64 (Int64.of_nativeint n))
   | Csingle f -> D.float32 f
