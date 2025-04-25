@@ -48,6 +48,10 @@ type t =
   | Sixteen_byte_literals
   | Jump_tables
   | Text
+  | Stapsdt_base
+  | Stapsdt_note
+  | Probes
+  | Note_ocaml_eh
 
 let dwarf_sections_in_order () =
   let sections =
@@ -72,7 +76,7 @@ let is_delayed = function
       ( Debug_info | Debug_abbrev | Debug_aranges | Debug_str | Debug_loclists
       | Debug_rnglists | Debug_addr | Debug_loc | Debug_ranges )
   | Data | Read_only_data | Eight_byte_literals | Sixteen_byte_literals
-  | Jump_tables | Text ->
+  | Jump_tables | Text | Stapsdt_base | Stapsdt_note | Probes | Note_ocaml_eh ->
     false
 
 let print ppf t =
@@ -94,6 +98,10 @@ let print ppf t =
     | Sixteen_byte_literals -> "Sixteen_byte_literals"
     | Jump_tables -> "Jump_tables"
     | Text -> "Text"
+    | Stapsdt_base -> "Stapsdt_base"
+    | Stapsdt_note -> "Stapsdt_note"
+    | Probes -> "Probes"
+    | Note_ocaml_eh -> "Note_ocaml_eh"
   in
   Format.pp_print_string ppf str
 
@@ -104,7 +112,8 @@ let equal t1 t2 = Stdlib.compare t1 t2 = 0
 let section_is_text = function
   | Text -> true
   | Data | Read_only_data | Eight_byte_literals | Sixteen_byte_literals
-  | Jump_tables | DWARF _ ->
+  | Jump_tables | DWARF _ | Stapsdt_base | Stapsdt_note | Probes | Note_ocaml_eh
+    ->
     false
 
 type section_details =
@@ -164,19 +173,20 @@ let details t ~first_occurrence =
         | false, _ -> []
       in
       [name], flags, args
-    | (Eight_byte_literals | Sixteen_byte_literals), (ARM | AArch64 | Z), _
-    | (Eight_byte_literals | Sixteen_byte_literals), _, Solaris ->
-      rodata ()
-    | Sixteen_byte_literals, _, MacOS_like ->
-      ["__TEXT"; "__literal16"], None, ["16byte_literals"]
-    | Sixteen_byte_literals, _, (MinGW_64 | Cygwin) -> [".rdata"], Some "dr", []
-    | Sixteen_byte_literals, _, (MinGW_32 | Win32 | Win64) -> data ()
-    | Sixteen_byte_literals, _, _ -> [".rodata.cst8"], Some "a", ["@progbits"]
+    (* Eight Byte Literals; based on corresponding upstream secions *)
     | Eight_byte_literals, _, MacOS_like ->
       ["__TEXT"; "__literal8"], None, ["8byte_literals"]
     | Eight_byte_literals, _, (MinGW_64 | Cygwin) -> [".rdata"], Some "dr", []
-    | Eight_byte_literals, _, (MinGW_32 | Win32 | Win64) -> data ()
-    | Eight_byte_literals, _, _ -> [".rodata.cst8"], Some "a", ["@progbits"]
+    | Eight_byte_literals, _, Win64 -> data ()
+    | Eight_byte_literals, _, _ ->
+      [".rodata.cst8"], Some "aM", ["@progbits"; "8"]
+    (* Sixteen Byte Literals; based on corresponding upstream secions *)
+    | Sixteen_byte_literals, _, MacOS_like ->
+      ["__TEXT"; "__literal16"], None, ["16byte_literals"]
+    | Sixteen_byte_literals, _, (MinGW_64 | Cygwin) -> [".rdata"], Some "dr", []
+    | Sixteen_byte_literals, _, Win64 -> data ()
+    | Sixteen_byte_literals, _, _ ->
+      [".rodata.cst16"], Some "aM", ["@progbits"; "16"]
     | Jump_tables, _, (MinGW_64 | Cygwin) -> [".rdata"], Some "dr", []
     | Jump_tables, _, (MinGW_32 | Win32) -> data ()
     | Jump_tables, _, (MacOS_like | Win64) ->
@@ -185,6 +195,18 @@ let details t ~first_occurrence =
     | Read_only_data, _, (MinGW_32 | Win32) -> data ()
     | Read_only_data, _, (MinGW_64 | Cygwin) -> [".rdata"], Some "dr", []
     | Read_only_data, _, _ -> rodata ()
+    (* CR sspies: Is this one really possible on all systems? *)
+    | Stapsdt_base, _, _ ->
+      [".stapsdt.base"], Some "aG", ["\"progbits\""; ".stapsdt.base"; "comdat"]
+    | Stapsdt_note, _, MacOS_like ->
+      ["__DATA"; "__note_stapsdt"], None, ["regular"]
+    | Stapsdt_note, _, (GNU | Solaris | Linux | Generic_BSD | BeOS) ->
+      [".note.stapsdt"], Some "?", ["\"note\""]
+    | Stapsdt_note, _, _ ->
+      Misc.fatal_error "Target systems does not support stapsdt."
+    | Probes, _, MacOS_like -> ["__TEXT"; "__probes"], None, ["regular"]
+    | Probes, _, _ -> [".probes"], Some "wa", ["\"progbits\""]
+    | Note_ocaml_eh, _, _ -> [".note.ocaml_eh"], Some "?", ["\"note\""]
   in
   { names; flags; args }
 
