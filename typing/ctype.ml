@@ -2271,7 +2271,7 @@ let type_jkind_purely_if_principal' =
    don't. *)
 let rec estimate_type_jkind ~expand_component env ty =
   match get_desc ty with
-  | Tvar { jkind } | Tof_kind jkind -> Jkind.disallow_right jkind
+  | Tvar { jkind } -> Jkind.disallow_right jkind
   | Tarrow _ -> Jkind.for_arrow
   | Ttuple elts -> Jkind.for_boxed_tuple elts
   | Tunboxed_tuple ltys ->
@@ -2334,6 +2334,7 @@ let rec estimate_type_jkind ~expand_component env ty =
        down a test case that cares. *)
     Jkind.round_up ~jkind_of_type |>
     Jkind.disallow_right
+  | Tof_kind jkind -> Jkind.disallow_right jkind
   | Tpackage _ -> Jkind.Builtin.value ~why:First_class_module
 
 and close_open_jkind ~expand_component ~is_open env jkind =
