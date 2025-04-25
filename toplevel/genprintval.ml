@@ -583,14 +583,12 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                 find (row_fields row)
           | Tobject (_, _) ->
               Oval_stuff "<obj>"
-          | Tsubst _ | Tfield(_, _, _, _) | Tnil | Tlink _ ->
+          | Tsubst _ | Tfield(_, _, _, _) | Tnil | Tlink _ | Tof_kind _  ->
               fatal_error "Printval.outval_of_value"
           | Tpoly (ty, _) ->
               tree_of_val (depth - 1) obj ty
           | Tpackage _ ->
               Oval_stuff "<module>"
-          | Tof_kind _jkind ->
-              Oval_stuff "of_kind_ <kind>"
         end
 
       and tree_of_record_fields depth env path type_params ty_list
