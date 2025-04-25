@@ -505,6 +505,8 @@ let record_frame_label live dbg =
         Misc.fatal_errorf "Unknown location %a" Printreg.reg r
       | { typ = Int | Float | Float32 | Vec128; _ } -> ())
     live;
+  (* CR sspies: Consider chanting [record_frame_descr] to [Asm_label.t] instead
+     of linear labels. *)
   record_frame_descr ~label:lbl ~frame_size:(frame_size ())
     ~live_offset:!live_offset dbg;
   label_to_asm_label ~section:Text lbl
