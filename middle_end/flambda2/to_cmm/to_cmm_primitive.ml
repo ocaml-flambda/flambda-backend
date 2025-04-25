@@ -1020,17 +1020,18 @@ let binary_primitive env dbg f x y =
     in
     C.store ~dbg memory_chunk Assignment ~addr:x ~new_value:y
     |> C.return_unit dbg
-  | Read_offset kind ->
-    let memory_chunk =
-    match kind with
-    | Immediates -> Flambda_kind.With_subkind.tagged_immediate
-  | Values -> Flambda_kind.With_subkind.any_value
-  | Naked_floats -> Flambda_kind.With_subkind.
-  | Naked_float32s
-  | Naked_int32s
-  | Naked_int64s
-  | Naked_nativeints
-  | Naked_vec128s
+  | Read_offset _kind ->
+    (* let memory_chunk =
+     * match kind with
+     * | Immediates -> Flambda_kind.With_subkind.tagged_immediate *)
+    (*   C.unaligned
+     * | Values -> Flambda_kind.With_subkind.any_value
+     * | Naked_floats -> Flambda_kind.With_subkind.
+     * | Naked_float32s
+     * | Naked_int32s
+     * | Naked_int64s
+     * | Naked_nativeints
+     * | Naked_vec128s *)
     (* CR rtjoa: do we need to look at the kind? *)
     C.unaligned_load_64 x y dbg
 
