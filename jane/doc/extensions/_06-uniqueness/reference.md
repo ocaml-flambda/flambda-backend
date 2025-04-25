@@ -7,7 +7,7 @@ title: Reference
 # Uniqueness Reference
 
 The goal of this document is to be a reasonably complete reference to the
-uniqueness mode. For a gentler introduction, see [the introduction](intro.md).
+uniqueness mode. For a gentler introduction, see [the introduction](../intro).
 It will grow over time as we add more features such as overwriting and
 borrowing.
 
@@ -15,7 +15,7 @@ borrowing.
 
 ### Mixing unique and aliased uses
 
-Continuing the example from [the introduction](intro.md), we can have both a
+Continuing the example from [the introduction](../intro), we can have both a
 unique and an aliased access to a value, as long as those occur in separate
 branches:
 

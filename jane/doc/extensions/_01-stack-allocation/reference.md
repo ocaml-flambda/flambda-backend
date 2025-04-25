@@ -7,7 +7,7 @@ title: Reference
 
 The goal of this document is to be a reasonably complete reference to stack
 allocations in OCaml. For a gentler introduction, see [the
-introduction](intro.md).
+introduction](../intro).
 
 The stack allocations language extension allows the compiler to
 stack-allocate some values, placing them on a stack rather than the

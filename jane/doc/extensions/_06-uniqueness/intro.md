@@ -6,8 +6,9 @@ title: Intro
 
 # Introduction to Uniqueness
 
-See also the full feature [reference](reference.md) and [common pitfalls](pitfalls.md).
-In this document, we use the new [syntax for modes](../modes/syntax.md).
+See also the full feature [reference](../reference) and [common
+pitfalls](../pitfalls).  In this document, we use the new [syntax for
+modes](../modes/syntax).
 
 The `unique` mode designates values that have only a single reference pointing
 to them. If an operation takes a `unique` argument, it will consume the only
@@ -41,7 +42,7 @@ let delay_free : t @ unique -> (unit -> unit) @ once = fun t -> fun () -> free t
 
 These modes form two mode axes: the _uniqueness_ of a value is either `unique`
 or `aliased`, while the _affinity_ of a value is `once` or `many`. Similar to
-[locality](../stack/intro.md), uniqueness and affinity are deep properties. If a
+[locality](../stack/intro), uniqueness and affinity are deep properties. If a
 value is at mode `unique` then all of its children are also `unique`. If a value
 is `once` then all of the closures it contains are also at mode `once`.
 
@@ -179,4 +180,4 @@ let okay t =
 If the function passed to `use` takes its argument locally, this will create the
 necessary protections in the compiler to make this safe from segfaults.
 
-For more details, read [the reference](./reference.md).
+For more details, read [the reference](../reference).

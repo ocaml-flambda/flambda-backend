@@ -6,7 +6,7 @@ title: Kinds of types
 
 # Kinds of types
 
-[overview]: index.md
+[overview]: index
 
 This page describes how we compute the kind of both built-in types and
 user-defined types. You may want to read the [overview][] of the kind
@@ -58,7 +58,7 @@ with-bounds.)
 Types formed from the type algebra are also assigned kinds, according to
 the following algorithm.
 
-* All type variables have a kind. As described more on the [syntax](syntax.md)
+* All type variables have a kind. As described more on the [syntax](../syntax)
 page, flexible type variables infer their kinds, while rigid type variables must
 be assigned a kind when they are brought into scope. A rigid type variable
 brought into scope without a kind annotation defaults to kind `value`.

@@ -11,7 +11,8 @@ suggested workarounds. Over time, this list may grow (as experience
 discovers new things that go wrong) or shrink (as we deploy new
 compiler versions that ameliorate some issues).
 
-If you want an introduction to stack allocations, see the [introduction](intro.md).
+If you want an introduction to stack allocations, see the
+[introduction](../intro).
 
 ## Tail calls
 
@@ -19,7 +20,7 @@ Many OCaml functions just happen to end in a tail call, even those
 that are not intentionally tail-recursive. To preserve the
 constant-space property of tail calls, the compiler applies special
 rules around locality in tail calls (see [the
-reference](./reference.md)).
+reference](../reference)).
 
 If this causes a problem for calls that just happen to be in tail
 position, the easiest workaround is to prevent them from being

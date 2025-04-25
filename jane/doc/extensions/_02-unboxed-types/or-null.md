@@ -8,9 +8,9 @@ title: Or null
 
 This document describes the way we can add a null value to types, thus granting a
 non-allocating version of `option`. This extension builds on the *layouts*
-system described in the [main document for unboxed types](index.md). Before
+system described in the [main document for unboxed types](../intro). Before
 reading this document, you may wish to read up through the
-[layouts](index.md#layouts) section of the main document.
+[layouts](../intro#layouts) section of the main document.
 
 # Adding null
 

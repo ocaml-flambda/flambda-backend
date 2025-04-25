@@ -6,7 +6,8 @@ title: Intro
 
 # Introduction to Stack Allocations
 
-See also the full feature [reference](reference.md) and [common pitfalls](pitfalls.md).
+See also the full feature [reference](../reference) and
+[common pitfalls](../pitfalls).
 
 This page describes how OCaml sometimes allocates values on a stack,
 as opposed to its usual behavior of allocating on the heap.
@@ -168,4 +169,4 @@ over which values are stack-allocated, including:
     heap-allocated (and may freely escape regions), even though the record
     itself may be stack-allocated.
 
-For more details, read [the reference](./reference.md).
+For more details, read [the reference](../reference).

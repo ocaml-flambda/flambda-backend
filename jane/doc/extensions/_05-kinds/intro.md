@@ -11,9 +11,9 @@ system adds an extra level to the type system: terms are classified by types,
 and types are classified by kinds. This page provides an overview of the kind
 system, but several other pages flesh out the details:
 
-* [Syntax for kind annotations](syntax.md)
-* [The non-modal bounds](non-modal.md)
-* [How to compute the kinds of a type](types.md)
+* [Syntax for kind annotations](../syntax)
+* [The non-modal bounds](../non-modal)
+* [How to compute the kinds of a type](../types)
 
 Kinds capture properties of types along
 several different dimensions. For example, kinds can be used to identify which
@@ -37,9 +37,9 @@ less precise kind is expected.
 This page describes the kind system at a high level, and contains complete
 details for the non-modal bounds. It does not exhaustively describe the possible
 layouts (which are documented on the [unboxed types
-page](../unboxed-types/index.md)) or the modal axes (which are documented on the
-[modes page]()), but does explain how those components appear in kinds,
-including how the modal bounds are affected by the with-bounds.
+page](../unboxed-types/index)) or the modal axes (which are documented on the
+[modes page](../modes/intro)), but does explain how those components appear in
+kinds, including how the modal bounds are affected by the with-bounds.
 
 CR ccasinghino: add links to modes documentation after moving it here.
 
@@ -84,13 +84,14 @@ floating point numbers that are passed in SIMD registers), `bits64`
 and `bits32` (for types represented by unboxed/untagged integers) and product
 layouts like `float64 & bits32` (an unboxed pair that is passed in two
 registers). More detail on layouts and the unboxed types language feature can be
-found [here](../unboxed-types/index.md).
+found [here](../unboxed-types/index).
 
 Modal bounds all correspond to modal axes, which are described in more detail in
-the [modes documentation](). The logic for which types can cross on which axes
-is specific to each axis, often involving both the semantic meaning of the mode
-and details of the implementation of related features in the OxCaml runtime. See
-the documentation for each mode to understand which types cross on its axis.
+the [modes documentation](../modes/intro). The logic for which types can cross
+on which axes is specific to each axis, often involving both the semantic
+meaning of the mode and details of the implementation of related features in the
+OxCaml runtime. See the documentation for each mode to understand which types
+cross on its axis.
 
 Formally, these are called modal _bounds_ because the represent upper or lower
 bounds on the appropriate modal axes. For _future_ modal axes (like portability
@@ -232,7 +233,7 @@ type 'a list
   : value mod contended portable many immutable stateless unyielding with 'a
 ```
 
-also written (see our [syntax page](syntax.md) for details on `immutable_data`)
+also written (see our [syntax page](../syntax) for details on `immutable_data`)
 
 ```ocaml
 type 'a list : immutable_data with 'a
@@ -251,9 +252,10 @@ because `(int -> int) ref` mode-crosses nothing.
 
 ## Modalities in with-bounds
 
-Fields in a record or constructor can contain *modalities*, as described in
-our [modes documentation](). To get maximal mode-crossing, these modalities need
-to be reflected in the with-bounds as well. For example, we can have
+Fields in a record or constructor can contain *modalities*, as described in our
+[modes documentation](../modes/intro). To get maximal mode-crossing, these
+modalities need to be reflected in the with-bounds as well. For example, we can
+have
 
 ```ocaml
 type 'a portended = Portend of 'a @@ portable contended

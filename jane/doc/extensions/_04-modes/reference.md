@@ -7,12 +7,12 @@ title: Reference
 The goal of this document is to be a reasonably complete reference to the mode system in
 OCaml.
 
-<!-- CR zqian: For a gentler introduction, see [the introduction](intro.md). -->
+<!-- CR zqian: For a gentler introduction, see [the introduction](../intro). -->
 
 The mode system in the compiler tracks various properties of values, so that certain
 performance-enhancing operations can be performed safely. For example:
-- Locality tracks escaping. See [the local allocations reference](../stack/reference.md)
-- Uniqueness and linearity tracks aliasing. See [the uniqueness reference](../uniqueness/reference.md)
+- Locality tracks escaping. See [the local allocations reference](../stack/reference)
+- Uniqueness and linearity tracks aliasing. See [the uniqueness reference](../uniqueness/reference)
 - Portability and contention tracks inter-thread sharing.
     <!-- CR zqian: reference for portability and contention -->
 
