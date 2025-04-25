@@ -216,3 +216,13 @@ module Float = struct
     let print = Format.pp_print_float
   end)
 end
+
+module Int64 = struct
+
+  let to_int32_exn n =
+    if Int64.compare n (Int64.of_int32 Int32.min_int)  < 0
+       || Int64.compare n (Int64.of_int32 Int32.max_int)  > 0
+    then Misc.fatal_errorf "Integer %Ld is out of the 32-bit range." n;
+    Int64.to_int32 n
+
+end

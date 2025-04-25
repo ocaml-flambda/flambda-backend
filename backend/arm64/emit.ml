@@ -32,6 +32,8 @@ open Linear
 open Emitaux
 module I = Arm64_ast.Instruction_name
 module D = Asm_targets.Asm_directives_new
+module S = Asm_targets.Asm_symbol
+module L = Asm_targets.Asm_label
 open! Int_replace_polymorphic_compare
 
 (* Tradeoff between code size and code speed *)
@@ -54,31 +56,15 @@ let reg_stack_arg_begin = phys_reg Int 17 (* x20 *)
 
 let reg_stack_arg_end = phys_reg Int 18 (* x21 *)
 
-(* Output a label *)
-let label_prefix = if macosx then "L" else ".L"
-
-let femit_label out lbl =
-  femit_string out label_prefix;
-  femit_string out (Label.to_string lbl)
+(** Turn a Linear label into an assembly label. The section is checked against the
+    section tracked by [D] when emitting label definitions. *)
+let label_to_asm_label (l : label) ~(section : Asm_targets.Asm_section.t) : L.t
+    =
+  L.create_int section (Label.to_int l)
 
 (* Symbols *)
 
 (* CR sdolan: Support local symbol definitions & references on arm64 *)
-
-let femit_symbol out s =
-  if macosx then femit_string out "_";
-  Emitaux.femit_symbol out s
-
-(* Object types *)
-
-let emit_symbol_type emit_lbl_or_sym lbl_or_sym ty =
-  if not macosx
-  then
-    emit_printf "\t.type\t%a, %%%a\n" emit_lbl_or_sym lbl_or_sym femit_string ty
-
-let emit_symbol_size sym =
-  if not macosx
-  then emit_printf "\t.size\t%a, .-%a\n" femit_symbol sym femit_symbol sym
 
 (* Likewise, but with the 32-bit name of the register *)
 
@@ -171,14 +157,14 @@ module DSL : sig
     ?offset:int ->
     ?reloc:Arm64_ast.Symbol.reloc_directive ->
     Reg.t ->
-    string ->
+    S.t ->
     Arm64_ast.Operand.t
 
   val emit_mem_label :
     ?offset:int ->
     ?reloc:Arm64_ast.Symbol.reloc_directive ->
     Reg.t ->
-    label ->
+    L.t ->
     Arm64_ast.Operand.t
 
   val emit_shift : Arm64_ast.Operand.Shift.Kind.t -> int -> Arm64_ast.Operand.t
@@ -189,24 +175,24 @@ module DSL : sig
   val emit_label :
     ?offset:int ->
     ?reloc:Arm64_ast.Symbol.reloc_directive ->
-    label ->
+    L.t ->
     Arm64_ast.Operand.t
 
   val emit_symbol :
     ?offset:int ->
     ?reloc:Arm64_ast.Symbol.reloc_directive ->
-    string ->
+    S.t ->
     Arm64_ast.Operand.t
 
   val emit_immediate_symbol :
     ?offset:int ->
     ?reloc:Arm64_ast.Symbol.reloc_directive ->
-    string ->
+    S.t ->
     Arm64_ast.Operand.t
 
   val ins : I.t -> Arm64_ast.Operand.t array -> unit
 
-  val labeled_ins : label -> I.t -> Arm64_ast.Operand.t array -> unit
+  val labeled_ins : L.t -> I.t -> Arm64_ast.Operand.t array -> unit
 
   val simd_instr : Simd.operation -> Linear.instruction -> unit
 
@@ -279,24 +265,16 @@ end = struct
 
   let reg_s_7 = reg_s 7
 
-  let convert_symbol_representation (s : string) =
-    if macosx
-    then "_" ^ Emitaux.symbol_to_string s
-    else Emitaux.symbol_to_string s
-
-  let convert_label_representation (lbl : label) =
-    label_prefix ^ Label.to_string lbl
-
-  let emit_label ?offset ?reloc (s : label) =
-    let l = convert_label_representation s in
-    symbol (Arm64_ast.Symbol.create ?offset ?reloc l)
-
-  let emit_symbol ?offset ?reloc (s : string) =
-    let sym = convert_symbol_representation s in
+  let emit_label ?offset ?reloc (lbl : L.t) =
+    let sym = L.encode lbl in
     symbol (Arm64_ast.Symbol.create ?offset ?reloc sym)
 
-  let emit_immediate_symbol ?offset ?reloc (s : string) =
-    let sym = convert_symbol_representation s in
+  let emit_symbol ?offset ?reloc s =
+    let sym = S.encode s in
+    symbol (Arm64_ast.Symbol.create ?offset ?reloc sym)
+
+  let emit_immediate_symbol ?offset ?reloc s =
+    let sym = S.encode s in
     symbol (Arm64_ast.Symbol.create ?offset ?reloc sym)
 
   let emit_mem r = mem ~base:(translate_reg r)
@@ -317,17 +295,17 @@ end = struct
       (* see selection.ml *)
       let sym =
         Arm64_ast.Symbol.create ~reloc:LOWER_TWELVE ~offset:ofs
-          (convert_symbol_representation s)
+          (S.encode (S.create s))
       in
       mem_symbol ~base:(translate_reg r) ~symbol:sym
 
   let emit_mem_symbol ?offset ?reloc r s =
-    let sym = convert_symbol_representation s in
+    let sym = S.encode s in
     let base = translate_reg r in
     mem_symbol ~base ~symbol:(Arm64_ast.Symbol.create ?offset ?reloc sym)
 
   let emit_mem_label ?offset ?reloc r lbl =
-    let sym = convert_label_representation lbl in
+    let sym = L.encode lbl in
     let base = translate_reg r in
     mem_symbol ~base ~symbol:(Arm64_ast.Symbol.create ?offset ?reloc sym)
 
@@ -393,7 +371,7 @@ end = struct
   let ins name ops = print_ins name ops |> Emitaux.emit_string
 
   let labeled_ins lbl name ops =
-    Emitaux.emit_printf "%s:\n" (convert_label_representation lbl);
+    D.define_label lbl;
     print_ins name ops |> Emitaux.emit_string
 
   let ins_cond name cond ops =
@@ -527,49 +505,57 @@ let record_frame_label live dbg =
         Misc.fatal_errorf "Unknown location %a" Printreg.reg r
       | { typ = Int | Float | Float32 | Vec128; _ } -> ())
     live;
+  (* CR sspies: Consider changing [record_frame_descr] to [Asm_label.t] instead
+     of linear labels. *)
   record_frame_descr ~label:lbl ~frame_size:(frame_size ())
     ~live_offset:!live_offset dbg;
-  lbl
+  label_to_asm_label ~section:Text lbl
 
 let record_frame live dbg =
   let lbl = record_frame_label live dbg in
-  emit_printf "%a:\n" femit_label lbl
+  D.define_label lbl
 
 (* Record calls to the GC -- we've moved them out of the way *)
 
 type gc_call =
-  { gc_lbl: label;                      (* Entry label *)
-    gc_return_lbl: label;               (* Where to branch after GC *)
-    gc_frame_lbl: label }               (* Label of frame descriptor *)
+  { gc_lbl: L.t;                      (* Entry label *)
+    gc_return_lbl: L.t;               (* Where to branch after GC *)
+    gc_frame_lbl: L.t }               (* Label of frame descriptor *)
 [@@ocamlformat "disable"]
 
 let call_gc_sites = ref ([] : gc_call list)
 
 let emit_call_gc gc =
-  DSL.labeled_ins gc.gc_lbl I.BL [| DSL.emit_symbol "caml_call_gc" |];
+  DSL.labeled_ins gc.gc_lbl I.BL [| DSL.emit_symbol (S.create "caml_call_gc") |];
   DSL.labeled_ins gc.gc_frame_lbl I.B [| DSL.emit_label gc.gc_return_lbl |]
 
 (* Record calls to local stack reallocation *)
 
 type local_realloc_call =
-  { lr_lbl : label;
-    lr_return_lbl : label;
+  { lr_lbl : L.t;
+    lr_return_lbl : L.t;
     lr_dbg : Debuginfo.t
   }
 
 let local_realloc_sites = ref ([] : local_realloc_call list)
 
+let file_emitter ~file_num ~file_name =
+  D.file ~file_num:(Some file_num) ~file_name
+
+let emit_debug_info ?discriminator dbg =
+  Emitaux.emit_debug_info_gen ?discriminator dbg file_emitter D.loc
+
 let emit_local_realloc lr =
-  emit_printf "%a:\n" femit_label lr.lr_lbl;
+  D.define_label lr.lr_lbl;
   emit_debug_info lr.lr_dbg;
-  DSL.ins I.BL [| DSL.emit_symbol "caml_call_local_realloc" |];
+  DSL.ins I.BL [| DSL.emit_symbol (S.create "caml_call_local_realloc") |];
   DSL.ins I.B [| DSL.emit_label lr.lr_return_lbl |]
 
 (* Local stack reallocation *)
 
 type stack_realloc =
-  { sc_label : Label.t; (* Label of the reallocation code. *)
-    sc_return : Label.t; (* Label to return to after reallocation. *)
+  { sc_label : L.t; (* Label of the reallocation code. *)
+    sc_return : L.t; (* Label to return to after reallocation. *)
     sc_max_frame_size_in_bytes : int (* Size for reallocation. *)
   }
 
@@ -581,7 +567,7 @@ let emit_stack_realloc () =
   match !stack_realloc with
   | None -> ()
   | Some { sc_label; sc_return; sc_max_frame_size_in_bytes } ->
-    emit_printf "%a:\n" femit_label sc_label;
+    D.define_label sc_label;
     (* Pass the desired frame size on the stack, since all of the
        argument-passing registers may be in use. *)
     DSL.ins I.MOV
@@ -591,7 +577,7 @@ let emit_stack_realloc () =
          DSL.reg_x_30;
          DSL.mem_pre ~base:Arm64_ast.Reg.sp ~offset:(-16)
       |];
-    DSL.ins I.BL [| DSL.emit_symbol "caml_call_realloc_stack" |];
+    DSL.ins I.BL [| DSL.emit_symbol (S.create "caml_call_realloc_stack") |];
     DSL.ins I.LDP
       [| DSL.emit_reg reg_tmp1;
          DSL.reg_x_30;
@@ -706,7 +692,7 @@ let emit_stack_adjustment n =
   let ml = m land 0xFFF and mh = m land 0xFFF_000 in
   if mh <> 0 then DSL.ins instr [| DSL.sp; DSL.sp; DSL.imm mh |];
   if ml <> 0 then DSL.ins instr [| DSL.sp; DSL.sp; DSL.imm ml |];
-  if n <> 0 then cfi_adjust_cfa_offset (-n)
+  if n <> 0 then D.cfi_adjust_cfa_offset ~bytes:(-n)
 
 (* Deallocate the stack frame and reload the return address before a return or
    tail call *)
@@ -718,7 +704,7 @@ let output_epilogue f =
   if n > 0 then emit_stack_adjustment n;
   f ();
   (* reset CFA back because function body may continue *)
-  if n > 0 then cfi_adjust_cfa_offset n
+  if n > 0 then D.cfi_adjust_cfa_offset ~bytes:n
 
 (* Output add-immediate / sub-immediate / cmp-immediate instructions *)
 
@@ -758,15 +744,20 @@ let function_name = ref ""
 let tailrec_entry_point = ref None
 
 (* Pending floating-point literals *)
-let float_literals = ref ([] : (int64 * label) list)
+let float_literals = ref ([] : (int64 * L.t) list)
 
-let vec128_literals = ref ([] : (Cmm.vec128_bits * label) list)
+let vec128_literals = ref ([] : (Cmm.vec128_bits * L.t) list)
 
 (* Label a floating-point literal *)
 let add_literal p f =
   try List.assoc f !p
   with Not_found ->
-    let lbl = Cmm.new_label () in
+    (* CR sspies: The [Text] section here is incorrect. We should be in the
+       respective section of the literal type (i.e., 16 or 8 bytes). The code
+       below uses the [Text] section, because that is the section that we are in
+       when we emit literals in the function body. Only macOS currently switches
+       to a dedicated section. *)
+    let lbl = L.create Text in
     p := (f, lbl) :: !p;
     lbl
 
@@ -779,29 +770,26 @@ let emit_literals p align emit_literal =
   if not (Misc.Stdlib.List.is_empty !p)
   then (
     if macosx
-    then
-      emit_printf "\t.section __TEXT,__literal%a,%abyte_literals\n" femit_int
-        align femit_int align;
-    emit_printf "\t.align\t%a\n" femit_int (Misc.log2 align);
+    then (
+      D.switch_to_section_raw
+        ~names:["__TEXT,__literal" ^ Int.to_string align]
+        ~flags:None
+        ~args:[Int.to_string align ^ "byte_literals"];
+      (* CR sspies: The following section is incorrect. We are in a data section
+         here. Fix this when cleaning up the section mechanism. *)
+      D.unsafe_set_internal_section_ref Text);
+    D.align ~bytes:align;
     List.iter emit_literal !p;
     p := [])
 
-let emit_float64_directive_with_comment f =
-  let comment = Printf.sprintf "\t/* %.12g */" (Int64.float_of_bits f) in
-  emit_printf "\t.8byte\t%Ld%s\n" f comment
-
-let emit_float32_directive_with_comment f =
-  let comment = Printf.sprintf "\t/* %.12f */" (Int32.float_of_bits f) in
-  emit_printf "\t.4byte\t%ld%s\n" f comment
-
 let emit_float_literal (f, lbl) =
-  emit_printf "%a:\n" femit_label lbl;
-  emit_float64_directive_with_comment f
+  D.define_label lbl;
+  D.float64_from_bits f
 
 let emit_vec128_literal (({ high; low } : Cmm.vec128_bits), lbl) =
-  emit_printf "%a:\n" femit_label lbl;
-  emit_float64_directive_with_comment low;
-  emit_float64_directive_with_comment high
+  D.define_label lbl;
+  D.float64_from_bits low;
+  D.float64_from_bits high
 
 let emit_literals () =
   emit_literals float_literals size_float emit_float_literal;
@@ -1140,10 +1128,10 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
            reg_domain_state_ptr
       |];
     DSL.ins I.CMP [| DSL.emit_reg r; DSL.emit_reg reg_tmp1 |];
-    let lbl_call = Cmm.new_label () in
+    let lbl_call = L.create Text in
     DSL.ins (I.B_cond LT) [| DSL.emit_label lbl_call |];
-    let lbl_after_alloc = Cmm.new_label () in
-    emit_printf "%a:\n" femit_label lbl_after_alloc;
+    let lbl_after_alloc = L.create Text in
+    D.define_label lbl_after_alloc;
     DSL.ins I.LDR
       [| DSL.emit_reg reg_tmp1;
          DSL.emit_addressing (Iindexed domain_local_top_offset)
@@ -1158,8 +1146,8 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
     let lbl_frame = record_frame_label i.live (Dbg_alloc dbginfo) in
     if !fastcode_flag
     then (
-      let lbl_after_alloc = Cmm.new_label () in
-      let lbl_call_gc = Cmm.new_label () in
+      let lbl_after_alloc = L.create Text in
+      let lbl_call_gc = L.create Text in
       (*= n is at most Max_young_whsize * 8, i.e. currently 0x808,
          so it is reasonable to assume n < 0x1_000.  This makes
          the generated code simpler. *)
@@ -1174,10 +1162,10 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
       (if not far
       then DSL.ins (I.B_cond CC) [| DSL.emit_label lbl_call_gc |]
       else
-        let lbl = Cmm.new_label () in
+        let lbl = L.create Text in
         DSL.ins (I.B_cond CS) [| DSL.emit_label lbl |];
         DSL.ins I.B [| DSL.emit_label lbl_call_gc |];
-        emit_printf "%a:\n" femit_label lbl);
+        D.define_label lbl);
       DSL.labeled_ins lbl_after_alloc I.ADD
         [| DSL.emit_reg i.res.(0); DSL.emit_reg reg_alloc_ptr; DSL.imm 8 |];
       call_gc_sites
@@ -1188,20 +1176,20 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
            :: !call_gc_sites)
     else (
       (match n with
-      | 16 -> DSL.ins I.BL [| DSL.emit_symbol "caml_alloc1" |]
-      | 24 -> DSL.ins I.BL [| DSL.emit_symbol "caml_alloc2" |]
-      | 32 -> DSL.ins I.BL [| DSL.emit_symbol "caml_alloc3" |]
+      | 16 -> DSL.ins I.BL [| DSL.emit_symbol (S.create "caml_alloc1") |]
+      | 24 -> DSL.ins I.BL [| DSL.emit_symbol (S.create "caml_alloc2") |]
+      | 32 -> DSL.ins I.BL [| DSL.emit_symbol (S.create "caml_alloc3") |]
       | _ ->
         emit_intconst reg_x8 (Nativeint.of_int n);
-        DSL.ins I.BL [| DSL.emit_symbol "caml_allocN" |]);
+        DSL.ins I.BL [| DSL.emit_symbol (S.create "caml_allocN") |]);
       DSL.labeled_ins lbl_frame I.ADD
         [| DSL.emit_reg i.res.(0); DSL.emit_reg reg_alloc_ptr; DSL.imm 8 |])
 
 let assembly_code_for_poll i ~far ~return_label =
   let lbl_frame = record_frame_label i.live (Dbg_alloc []) in
-  let lbl_call_gc = Cmm.new_label () in
+  let lbl_call_gc = L.create Text in
   let lbl_after_poll =
-    match return_label with None -> Cmm.new_label () | Some lbl -> lbl
+    match return_label with None -> L.create Text | Some lbl -> lbl
   in
   let offset = Domainstate.(idx_of_field Domain_young_limit) * 8 in
   DSL.ins I.LDR
@@ -1214,7 +1202,7 @@ let assembly_code_for_poll i ~far ~return_label =
     match return_label with
     | None ->
       DSL.ins (I.B_cond LS) [| DSL.emit_label lbl_call_gc |];
-      emit_printf "%a:\n" femit_label lbl_after_poll
+      D.define_label lbl_after_poll
     | Some return_label ->
       DSL.ins (I.B_cond HI) [| DSL.emit_label return_label |];
       DSL.ins I.B [| DSL.emit_label lbl_call_gc |])
@@ -1223,9 +1211,9 @@ let assembly_code_for_poll i ~far ~return_label =
     | None ->
       DSL.ins (I.B_cond HI) [| DSL.emit_label lbl_after_poll |];
       DSL.ins I.B [| DSL.emit_label lbl_call_gc |];
-      emit_printf "%a:\n" femit_label lbl_after_poll
+      D.define_label lbl_after_poll
     | Some return_label ->
-      let lbl = Cmm.new_label () in
+      let lbl = L.create Text in
       DSL.ins (I.B_cond LS) [| DSL.emit_label lbl |];
       DSL.ins I.B [| DSL.emit_label return_label |];
       DSL.labeled_ins lbl I.B [| DSL.emit_label lbl_call_gc |]);
@@ -1240,10 +1228,18 @@ let assembly_code_for_poll i ~far ~return_label =
 
 let emit_named_text_section func_name =
   if !Clflags.function_sections
-  then
-    emit_printf "\t.section .text.caml.%a,%a,%%progbits\n" femit_symbol
-      func_name femit_string_literal "ax"
-  else emit_printf "\t.text\n"
+  then (
+    (* CR sspies: Clean this up and add proper support for function sections in
+       the new asm directives. *)
+    D.switch_to_section_raw
+      ~names:[".text.caml." ^ S.encode (S.create func_name)]
+      ~flags:(Some "ax") ~args:["%progbits"];
+    (* Warning: We set the internal section ref to Text here, because it
+       currently does not supported named text sections. In the rest of this
+       file, we pretend the section is called Text rather than the function
+       specific text section. *)
+    D.unsafe_set_internal_section_ref Text)
+  else D.text ()
 
 (* Emit code to load an emitted literal *)
 
@@ -1401,7 +1397,7 @@ let emit_instr i =
     if n > 0 then emit_stack_adjustment (-n);
     if !contains_calls
     then (
-      cfi_offset ~reg:30 (* return address *) ~offset:(-8);
+      D.cfi_offset ~reg:30 (* return address *) ~offset:(-8);
       DSL.ins I.STR [| DSL.reg_x_30; DSL.emit_mem_sp_offset (n - 8) |])
   | Lop (Intop_atomic _) ->
     (* Never generated; builtins are not yet translated to atomics *)
@@ -1431,7 +1427,10 @@ let emit_instr i =
       DSL.ins I.FMOV
         [| DSL.emit_reg i.res.(0); DSL.imm_float (Int32.float_of_bits f) |]
     else
-      (* float32 constants still take up 8 bytes; we load the lower half. *)
+      (* float32 constants take up 8 bytes when we emit them with
+         [float_literal] (see the conversion from int32 to int64 below). Thus,
+         we load the lower half. Note that this is different from Cmm 32-bit
+         floats ([Csingle]), which are emitted as 4-byte constants. *)
       let lbl = float_literal (Int64.of_int32 f) in
       emit_load_literal i.res.(0) lbl
   | Lop (Const_float f) ->
@@ -1453,12 +1452,13 @@ let emit_instr i =
     | _ ->
       let lbl = vec128_literal l in
       emit_load_literal i.res.(0) lbl)
-  | Lop (Const_symbol s) -> emit_load_symbol_addr i.res.(0) s.sym_name
+  | Lop (Const_symbol s) ->
+    emit_load_symbol_addr i.res.(0) (S.create s.sym_name)
   | Lcall_op Lcall_ind ->
     DSL.ins I.BLR [| DSL.emit_reg i.arg.(0) |];
     record_frame i.live (Dbg_other i.dbg)
   | Lcall_op (Lcall_imm { func }) ->
-    DSL.ins I.BL [| DSL.emit_symbol func.sym_name |];
+    DSL.ins I.BL [| DSL.emit_symbol (S.create func.sym_name) |];
     record_frame i.live (Dbg_other i.dbg)
   | Lcall_op Ltailcall_ind ->
     output_epilogue (fun () -> DSL.ins I.BR [| DSL.emit_reg i.arg.(0) |])
@@ -1471,7 +1471,7 @@ let emit_instr i =
         DSL.ins I.B [| DSL.emit_label tailrec_entry_point |]
     else
       output_epilogue (fun () ->
-          DSL.ins I.B [| DSL.emit_symbol func.sym_name |])
+          DSL.ins I.B [| DSL.emit_symbol (S.create func.sym_name) |])
   | Lcall_op (Lextcall { func; alloc; stack_ofs; _ }) ->
     if Config.runtime5 && stack_ofs > 0
     then (
@@ -1481,13 +1481,13 @@ let emit_instr i =
            DSL.sp;
            DSL.imm (Misc.align stack_ofs 16)
         |];
-      emit_load_symbol_addr reg_x8 func;
-      DSL.ins I.BL [| DSL.emit_symbol "caml_c_call_stack_args" |];
+      emit_load_symbol_addr reg_x8 (S.create func);
+      DSL.ins I.BL [| DSL.emit_symbol (S.create "caml_c_call_stack_args") |];
       record_frame i.live (Dbg_other i.dbg))
     else if alloc
     then (
-      emit_load_symbol_addr reg_x8 func;
-      DSL.ins I.BL [| DSL.emit_symbol "caml_c_call" |];
+      emit_load_symbol_addr reg_x8 (S.create func);
+      DSL.ins I.BL [| DSL.emit_symbol (S.create "caml_c_call") |];
       record_frame i.live (Dbg_other i.dbg))
     else (
       (*= store ocaml stack in the frame pointer register
@@ -1496,17 +1496,17 @@ let emit_instr i =
       if Config.runtime5
       then (
         DSL.ins I.MOV [| DSL.reg_x_29; DSL.sp |];
-        cfi_remember_state ();
-        cfi_def_cfa_register ~reg:29;
+        D.cfi_remember_state ();
+        D.cfi_def_cfa_register ~reg:(Int.to_string 29);
         let offset = Domainstate.(idx_of_field Domain_c_stack) * 8 in
         DSL.ins I.LDR
           [| DSL.emit_reg reg_tmp1;
              DSL.emit_addressing (Iindexed offset) reg_domain_state_ptr
           |];
         DSL.ins I.MOV [| DSL.sp; DSL.emit_reg reg_tmp1 |]);
-      DSL.ins I.BL [| DSL.emit_symbol func |];
+      DSL.ins I.BL [| DSL.emit_symbol (S.create func) |];
       if Config.runtime5 then DSL.ins I.MOV [| DSL.sp; DSL.reg_x_29 |];
-      cfi_restore_state ())
+      D.cfi_restore_state ())
   | Lop (Stackoffset n) ->
     assert (n mod 16 = 0);
     emit_stack_adjustment (-n);
@@ -1524,7 +1524,7 @@ let emit_instr i =
         assert (not !Clflags.dlcode);
         (* see selection_utils.ml *)
         DSL.ins I.ADRP
-          [| DSL.emit_reg reg_tmp1; DSL.emit_symbol ~offset:ofs s |];
+          [| DSL.emit_reg reg_tmp1; DSL.emit_symbol ~offset:ofs (S.create s) |];
         reg_tmp1
     in
     match memory_chunk with
@@ -1581,7 +1581,7 @@ let emit_instr i =
       | Ibased (s, ofs) ->
         assert (not !Clflags.dlcode);
         DSL.ins I.ADRP
-          [| DSL.emit_reg reg_tmp1; DSL.emit_symbol ~offset:ofs s |];
+          [| DSL.emit_reg reg_tmp1; DSL.emit_symbol ~offset:ofs (S.create s) |];
         reg_tmp1
     in
     match size with
@@ -1892,9 +1892,14 @@ let emit_instr i =
           |])
   | Lreloadretaddr -> ()
   | Lreturn -> output_epilogue (fun () -> DSL.ins I.RET [||])
-  | Llabel { label = lbl; _ } -> emit_printf "%a:\n" femit_label lbl
-  | Lbranch lbl -> DSL.ins I.B [| DSL.emit_label lbl |]
+  | Llabel { label = lbl; _ } ->
+    let lbl = label_to_asm_label ~section:Text lbl in
+    D.define_label lbl
+  | Lbranch lbl ->
+    let lbl = label_to_asm_label ~section:Text lbl in
+    DSL.ins I.B [| DSL.emit_label lbl |]
   | Lcondbranch (tst, lbl) -> (
+    let lbl = label_to_asm_label ~section:Text lbl in
     match tst with
     | Itruetest ->
       DSL.ins I.CBNZ [| DSL.emit_reg i.arg.(0); DSL.emit_label lbl |]
@@ -1920,15 +1925,21 @@ let emit_instr i =
     DSL.ins I.CMP [| DSL.emit_reg i.arg.(0); DSL.imm 1 |];
     (match lbl0 with
     | None -> ()
-    | Some lbl -> DSL.ins (I.B_cond LT) [| DSL.emit_label lbl |]);
+    | Some lbl ->
+      let lbl = label_to_asm_label ~section:Text lbl in
+      DSL.ins (I.B_cond LT) [| DSL.emit_label lbl |]);
     (match lbl1 with
     | None -> ()
-    | Some lbl -> DSL.ins (I.B_cond EQ) [| DSL.emit_label lbl |]);
+    | Some lbl ->
+      let lbl = label_to_asm_label ~section:Text lbl in
+      DSL.ins (I.B_cond EQ) [| DSL.emit_label lbl |]);
     match lbl2 with
     | None -> ()
-    | Some lbl -> DSL.ins (I.B_cond GT) [| DSL.emit_label lbl |])
+    | Some lbl ->
+      let lbl = label_to_asm_label ~section:Text lbl in
+      DSL.ins (I.B_cond GT) [| DSL.emit_label lbl |])
   | Lswitch jumptbl ->
-    let lbltbl = Cmm.new_label () in
+    let lbltbl = L.create Text in
     DSL.ins I.ADR [| DSL.emit_reg reg_tmp1; DSL.emit_label lbltbl |];
     DSL.ins I.ADD
       [| DSL.emit_reg reg_tmp1;
@@ -1937,9 +1948,10 @@ let emit_instr i =
          DSL.emit_shift LSL 2
       |];
     DSL.ins I.BR [| DSL.emit_reg reg_tmp1 |];
-    emit_printf "%a:\n" femit_label lbltbl;
+    D.define_label lbltbl;
     for j = 0 to Array.length jumptbl - 1 do
-      DSL.ins I.B [| DSL.emit_label jumptbl.(j) |]
+      let jumplbl = label_to_asm_label ~section:Text jumptbl.(j) in
+      DSL.ins I.B [| DSL.emit_label jumplbl |]
     done
   (*= Alternative:
         let lbltbl = Cmm.new_label() in
@@ -1954,9 +1966,10 @@ let emit_instr i =
 *)
   | Lentertrap -> ()
   | Ladjust_stack_offset { delta_bytes } ->
-    cfi_adjust_cfa_offset delta_bytes;
+    D.cfi_adjust_cfa_offset ~bytes:delta_bytes;
     stack_offset := !stack_offset + delta_bytes
   | Lpushtrap { lbl_handler } ->
+    let lbl_handler = label_to_asm_label ~section:Text lbl_handler in
     DSL.ins I.ADR [| DSL.emit_reg reg_tmp1; DSL.emit_label lbl_handler |];
     stack_offset := !stack_offset + 16;
     DSL.ins I.STP
@@ -1964,24 +1977,24 @@ let emit_instr i =
          DSL.emit_reg reg_tmp1;
          DSL.mem_pre ~base:Arm64_ast.Reg.sp ~offset:(-16)
       |];
-    cfi_adjust_cfa_offset 16;
+    D.cfi_adjust_cfa_offset ~bytes:16;
     DSL.ins I.MOV [| DSL.emit_reg reg_trap_ptr; DSL.sp |]
   | Lpoptrap _ ->
     DSL.ins I.LDR
       [| DSL.emit_reg reg_trap_ptr;
          DSL.mem_post ~base:Arm64_ast.Reg.sp ~offset:16
       |];
-    cfi_adjust_cfa_offset (-16);
+    D.cfi_adjust_cfa_offset ~bytes:(-16);
     stack_offset := !stack_offset - 16
   | Lraise k -> (
     match k with
     | Lambda.Raise_regular ->
-      DSL.ins I.BL [| DSL.emit_symbol "caml_raise_exn" |];
+      DSL.ins I.BL [| DSL.emit_symbol (S.create "caml_raise_exn") |];
       record_frame Reg.Set.empty (Dbg_raise i.dbg)
     | Lambda.Raise_reraise ->
       if Config.runtime5
-      then DSL.ins I.BL [| DSL.emit_symbol "caml_reraise_exn" |]
-      else DSL.ins I.BL [| DSL.emit_symbol "caml_raise_exn" |];
+      then DSL.ins I.BL [| DSL.emit_symbol (S.create "caml_reraise_exn") |]
+      else DSL.ins I.BL [| DSL.emit_symbol (S.create "caml_raise_exn") |];
       record_frame Reg.Set.empty (Dbg_raise i.dbg)
     | Lambda.Raise_notrace ->
       DSL.ins I.MOV [| DSL.sp; DSL.emit_reg reg_trap_ptr |];
@@ -1993,7 +2006,7 @@ let emit_instr i =
         |];
       DSL.ins I.BR [| DSL.emit_reg reg_tmp1 |])
   | Lstackcheck { max_frame_size_bytes } ->
-    let overflow = Cmm.new_label () and ret = Cmm.new_label () in
+    let overflow = L.create Text and ret = L.create Text in
     let threshold_offset =
       (Domainstate.stack_ctx_words * 8) + Stack_check.stack_threshold_size
     in
@@ -2006,7 +2019,7 @@ let emit_instr i =
     emit_addimm reg_tmp1 reg_tmp1 f;
     DSL.ins I.CMP [| DSL.sp; DSL.emit_reg reg_tmp1 |];
     DSL.ins (I.B_cond CC) [| DSL.emit_label overflow |];
-    emit_printf "%a:\n" femit_label ret;
+    D.define_label ret;
     stack_realloc
       := Some
            { sc_label = overflow;
@@ -2041,7 +2054,10 @@ let fundecl fundecl =
   in
   function_name := fundecl.fun_name;
   fastcode_flag := fundecl.fun_fast;
-  tailrec_entry_point := fundecl.fun_tailrec_entry_point_label;
+  tailrec_entry_point
+    := Option.map
+         (label_to_asm_label ~section:Text)
+         fundecl.fun_tailrec_entry_point_label;
   float_literals := [];
   stack_offset := 0;
   call_gc_sites := [];
@@ -2052,12 +2068,13 @@ let fundecl fundecl =
   prologue_required := fundecl.fun_prologue_required;
   contains_calls := fundecl.fun_contains_calls;
   emit_named_text_section !function_name;
-  emit_printf "\t.align\t3\n";
-  emit_printf "\t.globl\t%a\n" femit_symbol fundecl.fun_name;
-  emit_symbol_type femit_symbol fundecl.fun_name "function";
-  emit_printf "%a:\n" femit_symbol fundecl.fun_name;
+  let fun_sym = S.create fundecl.fun_name in
+  D.align ~bytes:8;
+  D.global fun_sym;
+  D.type_symbol ~ty:Function fun_sym;
+  D.define_symbol_label ~section:Text fun_sym;
   emit_debug_info fundecl.fun_dbg;
-  cfi_startproc ();
+  D.cfi_startproc ();
   let num_call_gc = num_call_gc_points fundecl.fun_body in
   let max_out_of_line_code_offset = max_out_of_line_code_offset ~num_call_gc in
   BR.relax fundecl.fun_body ~max_out_of_line_code_offset;
@@ -2068,47 +2085,56 @@ let fundecl fundecl =
   assert (List.length !call_gc_sites = num_call_gc);
   (match fun_end_label with
   | None -> ()
-  | Some fun_end_label -> emit_printf "%a:\n" femit_label fun_end_label);
-  cfi_endproc ();
-  emit_symbol_type femit_symbol fundecl.fun_name "function";
-  emit_symbol_size fundecl.fun_name;
+  | Some fun_end_label ->
+    let fun_end_label = label_to_asm_label ~section:Text fun_end_label in
+    D.define_label fun_end_label);
+  D.cfi_endproc ();
+  (* The type symbol and the size are system specific. They are not output on
+     macOS. The asm directives take care of correctly handling this distinction.
+     For the size, they automatically emit the size [. - symbol], meaning "this
+     minus symbol definition". *)
+  D.type_symbol ~ty:Function fun_sym;
+  D.size fun_sym;
   emit_literals ()
 
 (* Emission of data *)
 
+(* CR sspies: Share the [emit_item] code with the x86 backend in emitaux. *)
 let emit_item (d : Cmm.data_item) =
   match d with
   | Cdefine_symbol s ->
+    let sym = S.create s.sym_name in
     if !Clflags.dlcode || Cmm.equal_is_global s.sym_global Cmm.Global
     then
       (* GOT relocations against non-global symbols don't seem to work properly:
          GOT entries are not created for the symbols and the relocations
          evaluate to random other GOT entries. For the moment force all symbols
          to be global. *)
-      emit_printf "\t.globl\t%a\n" femit_symbol s.sym_name;
-    emit_printf "%a:\n" femit_symbol s.sym_name
-  | Cint8 n -> emit_printf "\t.byte\t%d\n" n
-  | Cint16 n -> emit_printf "\t.2byte\t%d\n" n
-  | Cint32 n -> emit_printf "\t.4byte\t%Ld\n" (Int64.of_nativeint n)
-  | Cint n -> emit_printf "\t.8byte\t%Ld\n" (Int64.of_nativeint n)
-  | Csingle f -> emit_float32_directive_with_comment (Int32.bits_of_float f)
-  | Cdouble f -> emit_float64_directive_with_comment (Int64.bits_of_float f)
+      D.global sym;
+    D.define_symbol_label ~section:Data sym
+  | Cint8 n -> D.int8 (Numbers.Int8.of_int_exn n)
+  | Cint16 n -> D.int16 (Numbers.Int16.of_int_exn n)
+  | Cint32 n -> D.int32 (Numbers.Int64.to_int32_exn (Int64.of_nativeint n))
+  (* CR mshinwell: Add [Targetint.of_nativeint] *)
+  | Cint n -> D.targetint (Targetint.of_int64 (Int64.of_nativeint n))
+  | Csingle f -> D.float32 f
+  | Cdouble f -> D.float64 f
   | Cvec128 { high; low } ->
-    emit_float64_directive_with_comment low;
-    emit_float64_directive_with_comment high
-  | Csymbol_address s -> emit_printf "\t.8byte\t%a\n" femit_symbol s.sym_name
+    D.float64_from_bits low;
+    D.float64_from_bits high
+  | Csymbol_address s ->
+    let sym = S.create s.sym_name in
+    D.symbol sym
   | Csymbol_offset (s, o) ->
-    emit_printf "\t.8byte\t%a+%a\n" femit_symbol s.sym_name femit_int o
-  | Cstring s ->
-    if String.length s = 0
-    then emit_string "\n"
-    else emit_string_directive "\t.ascii\t" s
-  | Cskip n -> if n > 0 then emit_printf "\t.space\t%a\n" femit_int n
-  | Calign n -> emit_printf "\t.align\t%a\n" femit_int (Misc.log2 n)
+    let sym = S.create s.sym_name in
+    D.symbol_plus_offset ~offset_in_bytes:(Targetint.of_int o) sym
+  | Cstring s -> D.string s
+  | Cskip n -> D.space ~bytes:n
+  | Calign n -> D.align ~bytes:n
 
 let data l =
-  emit_printf "\t.data\n";
-  emit_printf "\t.align\t3\n";
+  D.data ();
+  D.align ~bytes:8;
   List.iter emit_item l
 
 let file_emitter ~file_num ~file_name =
@@ -2127,16 +2153,18 @@ let begin_assembly _unix =
       D.Directive.print asm_line_buffer d;
       Buffer.add_string asm_line_buffer "\n";
       Buffer.output_buffer !output_channel asm_line_buffer);
-  emit_printf "\t.file\t\"\"\n";
+  D.file ~file_num:None ~file_name:"";
   (* PR#7037 *)
-  let lbl_begin = Cmm_helpers.make_symbol "data_begin" in
-  emit_printf "\t.data\n";
-  emit_printf "\t.globl\t%a\n" femit_symbol lbl_begin;
-  emit_printf "%a:\n" femit_symbol lbl_begin;
-  let lbl_begin = Cmm_helpers.make_symbol "code_begin" in
-  emit_named_text_section lbl_begin;
-  emit_printf "\t.globl\t%a\n" femit_symbol lbl_begin;
-  emit_printf "%a:\n" femit_symbol lbl_begin;
+  let data_begin = Cmm_helpers.make_symbol "data_begin" in
+  let data_begin_sym = S.create data_begin in
+  D.data ();
+  D.global data_begin_sym;
+  D.define_symbol_label ~section:Data data_begin_sym;
+  let code_begin = Cmm_helpers.make_symbol "code_begin" in
+  let code_begin_sym = S.create code_begin in
+  emit_named_text_section code_begin;
+  D.global code_begin_sym;
+  D.define_symbol_label ~section:Text code_begin_sym;
   (* we need to pad here to avoid collision for the unwind test between the
      code_begin symbol and the first function. (See also #4690) Alignment is
      needed to avoid linker warnings for shared_startup__code_{begin,end} (e.g.
@@ -2144,55 +2172,64 @@ let begin_assembly _unix =
   if macosx
   then (
     DSL.ins I.NOP [||];
-    emit_printf "\t.align\t3\n");
-  let lbl_end = Cmm_helpers.make_symbol "code_end" in
-  Emitaux.Dwarf_helpers.begin_dwarf ~code_begin:lbl_begin ~code_end:lbl_end
-    ~file_emitter
+    D.align ~bytes:8);
+  let code_end = Cmm_helpers.make_symbol "code_end" in
+  Emitaux.Dwarf_helpers.begin_dwarf ~code_begin ~code_end ~file_emitter
 
 let end_assembly () =
-  let lbl_end = Cmm_helpers.make_symbol "code_end" in
-  emit_named_text_section lbl_end;
-  emit_printf "\t.globl\t%a\n" femit_symbol lbl_end;
-  emit_printf "%a:\n" femit_symbol lbl_end;
-  let lbl_end = Cmm_helpers.make_symbol "data_end" in
-  emit_printf "\t.data\n";
-  emit_printf "\t.8byte\t0\n";
+  let code_end = Cmm_helpers.make_symbol "code_end" in
+  let code_end_sym = S.create code_end in
+  emit_named_text_section code_end;
+  D.global code_end_sym;
+  D.define_symbol_label ~section:Text code_end_sym;
+  let data_end = Cmm_helpers.make_symbol "data_end" in
+  let data_end_sym = S.create data_end in
+  D.data ();
+  D.int64 0L;
   (* PR#6329 *)
-  emit_printf "\t.globl\t%a\n" femit_symbol lbl_end;
-  emit_printf "%a:\n" femit_symbol lbl_end;
-  emit_printf "\t.8byte\t0\n";
-  emit_printf "\t.align\t3\n";
+  D.global data_end_sym;
+  D.define_symbol_label ~section:Data data_end_sym;
+  D.int64 0L;
+  D.align ~bytes:8;
   (* #7887 *)
-  let lbl = Cmm_helpers.make_symbol "frametable" in
-  emit_printf "\t.globl\t%a\n" femit_symbol lbl;
-  emit_printf "%a:\n" femit_symbol lbl;
+  let frametable = Cmm_helpers.make_symbol "frametable" in
+  let frametable_sym = S.create frametable in
+  D.global frametable_sym;
+  D.define_symbol_label ~section:Data frametable_sym;
+  (* CR sspies: Share the [emit_frames] code with the x86 backend. *)
   emit_frames
     { efa_code_label =
         (fun lbl ->
-          emit_symbol_type femit_label lbl "function";
-          emit_printf "\t.8byte\t%a\n" femit_label lbl);
+          let lbl = label_to_asm_label ~section:Text lbl in
+          D.type_label ~ty:Function lbl;
+          D.label lbl);
       efa_data_label =
         (fun lbl ->
-          emit_symbol_type femit_label lbl "object";
-          emit_printf "\t.8byte\t%a\n" femit_label lbl);
-      efa_8 = (fun n -> emit_printf "\t.byte\t%d\n" n);
-      efa_16 = (fun n -> emit_printf "\t.2byte\t%d\n" n);
-      efa_32 = (fun n -> emit_printf "\t.4byte\t%ld\n" n);
-      efa_word = (fun n -> emit_printf "\t.8byte\t%d\n" n);
-      efa_align =
-        (fun n -> emit_printf "\t.align\t%a\n" femit_int (Misc.log2 n));
+          let lbl = label_to_asm_label ~section:Data lbl in
+          D.type_label ~ty:Object lbl;
+          D.label lbl);
+      efa_8 = (fun n -> D.uint8 (Numbers.Uint8.of_nonnegative_int_exn n));
+      efa_16 = (fun n -> D.uint16 (Numbers.Uint16.of_nonnegative_int_exn n));
+      (* CR sspies: for some reason, we can get negative numbers here *)
+      efa_32 = (fun n -> D.int32 n);
+      efa_word = (fun n -> D.targetint (Targetint.of_int_exn n));
+      efa_align = (fun n -> D.align ~bytes:n);
       efa_label_rel =
         (fun lbl ofs ->
-          emit_printf "\t.4byte\t(%a - .) + %ld\n" femit_label lbl ofs);
-      efa_def_label = (fun lbl -> emit_printf "%a:\n" femit_label lbl);
-      efa_string = (fun s -> emit_string_directive "\t.ascii\t" (s ^ "\000"))
+          let lbl = label_to_asm_label ~section:Data lbl in
+          D.between_this_and_label_offset_32bit_expr ~upper:lbl
+            ~offset_upper:(Targetint.of_int32 ofs));
+      efa_def_label =
+        (fun lbl ->
+          (* CR sspies: The frametable lives in the [.data] section on Arm, but
+             in the [.text] section on x86. The frametable should move to the
+             text section on Arm as well. *)
+          let lbl = label_to_asm_label ~section:Data lbl in
+          D.define_label lbl);
+      efa_string = (fun s -> D.string (s ^ "\000"))
     };
-  emit_symbol_type femit_symbol lbl "object";
-  emit_symbol_size lbl;
+  D.type_symbol ~ty:Object frametable_sym;
+  D.size frametable_sym;
   if not !Flambda_backend_flags.internal_assembler
   then Emitaux.Dwarf_helpers.emit_dwarf ();
-  match Config.system with
-  | "linux" ->
-    (* Mark stack as non-executable *)
-    emit_printf "\t.section\t.note.GNU-stack,\"\",%%progbits\n"
-  | _ -> ()
+  D.mark_stack_non_executable ()

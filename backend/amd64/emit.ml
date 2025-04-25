@@ -113,7 +113,7 @@ let to_x86_directive (dir : ND.Directive.t) : X86_ast.asm_line list =
     comment_lines comment @ [X86_ast.Sleb128 (to_x86_constant constant)]
   | Space { bytes } -> [Space bytes]
   | Type (n, st) ->
-    let typ = match st with Function -> "STT_FUNC" | Object -> "STT_OBJECT" in
+    let typ = ND.symbol_type_to_string st in
     [Type (n, typ)]
   | Uleb128 { constant; comment } ->
     comment_lines comment @ [X86_ast.Uleb128 (to_x86_constant constant)]
@@ -122,6 +122,9 @@ let to_x86_directive (dir : ND.Directive.t) : X86_ast.asm_line list =
   | Cfi_endproc -> [X86_ast.Cfi_endproc]
   | Cfi_offset { reg; offset } -> [X86_ast.Cfi_offset (reg, offset)]
   | Cfi_startproc -> [X86_ast.Cfi_startproc]
+  | Cfi_remember_state -> [X86_ast.Cfi_remember_state]
+  | Cfi_restore_state -> [X86_ast.Cfi_restore_state]
+  | Cfi_def_cfa_register r -> [X86_ast.Cfi_def_cfa_register r]
   | Protected s -> [X86_ast.Protected s]
 
 let _label s = D.label ~typ:QWORD s
@@ -1495,7 +1498,10 @@ let emit_instr ~first ~fallthrough i =
       (* +0.0 *)
       I.xorpd (res i 0) (res i 0)
     | _ ->
-      (* float32 constants still take up 8 bytes; we load the lower half. *)
+      (* float32 constants take up 8 bytes when we emit them with
+         [float_literal] (see the conversion from int32 to int64 below). Thus,
+         we load the lower half. Note that this is different from Cmm 32-bit
+         floats ([Csingle]), which are emitted as 4-byte constants. *)
       let lbl = add_float_constant (Int64.of_int32 f) in
       I.movss (mem64_rip REAL4 (emit_label lbl)) (res i 0))
   | Lop (Const_float f) -> (
