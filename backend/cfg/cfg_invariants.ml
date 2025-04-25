@@ -244,11 +244,8 @@ let check_stack_offset t label (block : Cfg.basic_block) =
             | Csel _ | Static_cast _ | Reinterpret_cast _ | Probe_is_enabled _
             | Opaque | Begin_region | End_region | Specific _
             | Name_for_debugger _ | Dls_get | Poll | Alloc _ )
-        | Reloadretaddr | Prologue ->
-          cur_stack_offset
-        | Stack_check _ ->
-          Misc.fatal_error
-            "Cfg_invariant.check_stack_offset: unexpected stack check")
+        | Reloadretaddr | Prologue | Stack_check _ ->
+          cur_stack_offset)
   in
   if not (Int.equal stack_offset_after_body terminator_stack_offset)
   then
