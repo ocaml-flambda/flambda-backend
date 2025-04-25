@@ -28,112 +28,9 @@ exception Error of error
 
 let output_channel = ref stdout
 
-let femit_string out s = output_string out s
+let emit_string s = output_string !output_channel s
 
-let emit_string s = femit_string !output_channel s
-
-let femit_int out n = output_string out (Int.to_string n)
-
-let emit_int n = femit_int !output_channel n
-
-let femit_char out c = output_char out c
-
-let emit_char c = femit_char !output_channel c
-
-let femit_nativeint out n = output_string out (Nativeint.to_string n)
-
-let emit_nativeint n = femit_nativeint !output_channel n
-
-let emit_printf fmt = Printf.fprintf !output_channel fmt
-
-let femit_int32 out n = Printf.fprintf out "0x%lx" n
-
-let emit_int32 n = femit_int32 !output_channel n
-
-let pp_symbol fmt s =
-  for i = 0 to String.length s - 1 do
-    let c = s.[i] in
-    match c with
-    | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' | '.' ->
-      Format.pp_print_char fmt c
-    | _ -> Format.fprintf fmt "$%02x" (Char.code c)
-  done
-
-let symbol_to_string s = Format.asprintf "%a" pp_symbol s
-
-let femit_symbol out s = output_string out (symbol_to_string s)
-
-let emit_symbol s = femit_symbol !output_channel s
-
-let femit_string_literal out s =
-  let between x low high =
-    Char.compare x low >= 0 && Char.compare x high <= 0
-  in
-  let last_was_escape = ref false in
-  femit_string out "\"";
-  for i = 0 to String.length s - 1 do
-    let c = s.[i] in
-    if between c '0' '9'
-    then
-      if !last_was_escape
-      then Printf.fprintf out "\\%o" (Char.code c)
-      else output_char out c
-    else if between c ' ' '~'
-            && (not (Char.equal c '"' (* '"' *)))
-            && not (Char.equal c '\\')
-    then (
-      output_char out c;
-      last_was_escape := false)
-    else (
-      Printf.fprintf out "\\%o" (Char.code c);
-      last_was_escape := true)
-  done;
-  emit_string "\""
-
-let emit_string_literal s = femit_string_literal !output_channel s
-
-let emit_string_directive directive s =
-  let l = String.length s in
-  if l = 0
-  then ()
-  else if l < 80
-  then (
-    emit_string directive;
-    emit_string_literal s;
-    emit_char '\n')
-  else
-    let i = ref 0 in
-    while !i < l do
-      let n = min (l - !i) 80 in
-      emit_string directive;
-      emit_string_literal (String.sub s !i n);
-      emit_char '\n';
-      i := !i + n
-    done
-
-let emit_bytes_directive directive s =
-  let pos = ref 0 in
-  for i = 0 to String.length s - 1 do
-    if !pos = 0 then emit_string directive else emit_char ',';
-    emit_int (Char.code s.[i]);
-    incr pos;
-    if !pos >= 16
-    then (
-      emit_char '\n';
-      pos := 0)
-  done;
-  if !pos > 0 then emit_char '\n'
-
-let emit_float64_directive directive x = emit_printf "\t%s\t0x%Lx\n" directive x
-
-let emit_float64_split_directive directive x =
-  let lo = Int64.logand x 0xFFFF_FFFFL
-  and hi = Int64.shift_right_logical x 32 in
-  emit_printf "\t%s\t0x%Lx, 0x%Lx\n" directive
-    (if Arch.big_endian then hi else lo)
-    (if Arch.big_endian then lo else hi)
-
-let emit_float32_directive directive x = emit_printf "\t%s\t0x%lx\n" directive x
+let emit_buffer b = Buffer.output_buffer !output_channel b
 
 (* Record live pointers at call points *)
 
@@ -466,47 +363,6 @@ let is_generic_function name =
 
 let is_cfi_enabled () = Config.asm_cfi_supported
 
-let cfi_startproc () =
-  if is_cfi_enabled () then emit_string "\t.cfi_startproc\n"
-
-let cfi_endproc () = if is_cfi_enabled () then emit_string "\t.cfi_endproc\n"
-
-let cfi_remember_state () =
-  if is_cfi_enabled () then emit_string "\t.cfi_remember_state\n"
-
-let cfi_restore_state () =
-  if is_cfi_enabled () then emit_string "\t.cfi_restore_state\n"
-
-let cfi_adjust_cfa_offset n =
-  if is_cfi_enabled ()
-  then (
-    emit_string "\t.cfi_adjust_cfa_offset\t";
-    emit_int n;
-    emit_string "\n")
-
-let cfi_def_cfa_offset n =
-  if is_cfi_enabled ()
-  then (
-    emit_string "\t.cfi_def_cfa_offset\t";
-    emit_int n;
-    emit_string "\n")
-
-let cfi_offset ~reg ~offset =
-  if is_cfi_enabled ()
-  then (
-    emit_string "\t.cfi_offset ";
-    emit_int reg;
-    emit_string ", ";
-    emit_int offset;
-    emit_string "\n")
-
-let cfi_def_cfa_register ~reg =
-  if is_cfi_enabled ()
-  then (
-    emit_string "\t.cfi_def_cfa_register ";
-    emit_int reg;
-    emit_string "\n")
-
 (* Emit debug information *)
 
 (* This assoc list is expected to be very short *)
@@ -548,36 +404,6 @@ let emit_debug_info_gen ?discriminator dbg file_emitter loc_emitter =
         (* PR#6243 *)
         let file_num = get_file_num ~file_emitter file_name in
         loc_emitter ~file_num ~line ~col ?discriminator ()
-
-let femit_debug_info ?discriminator out dbg =
-  ignore discriminator;
-  emit_debug_info_gen dbg
-    (fun ~file_num ~file_name ->
-      femit_string out "\t.file\t";
-      femit_int out file_num;
-      femit_char out '\t';
-      femit_string_literal out file_name;
-      femit_char out '\n')
-    (fun ~file_num ~line ~col ?discriminator () ->
-      femit_string out "\t.loc\t";
-      femit_int out file_num;
-      femit_char out '\t';
-      femit_int out line;
-      femit_char out '\t';
-      (* PR#7726: Location.none uses column -1, breaks LLVM assembler *)
-      (* If we don't set the optional column field, debug_line program gets the
-         column value from the previous .loc directive. *)
-      if col >= 0 then femit_int out col else femit_int out 0;
-      (match discriminator with
-      | None -> ()
-      | Some k ->
-        femit_char out '\t';
-        femit_string out "discriminator ";
-        femit_int out k);
-      femit_char out '\n')
-
-let emit_debug_info ?discriminator dbg =
-  femit_debug_info ~discriminator !output_channel dbg
 
 let reset () =
   reset_debug_info ();

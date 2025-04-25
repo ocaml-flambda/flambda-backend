@@ -27,8 +27,6 @@ module Uint64 = Numbers.Uint64
 module TS = Target_system
 open! Int_replace_polymorphic_compare
 
-(* CR sspies: Removed [dwarf_supported] *)
-
 let big_endian_ref = ref None
 
 let current_section_ref = ref None
@@ -162,11 +160,7 @@ module Directive = struct
         width_in_bytes : width_in_bytes
       }
 
-    let create constant width_in_bytes =
-      (* CR sspies: Potentially enable range check again here. We currently emit
-         numbers like 158 as an 8-bit constant, which breaks int8 range checks,
-         but make the assembler perfectly happy. *)
-      { constant; width_in_bytes }
+    let create constant width_in_bytes = { constant; width_in_bytes }
 
     let constant t = t.constant
 
@@ -251,9 +245,6 @@ module Directive = struct
 
   let bprintf = Printf.bprintf
 
-  (* CR sspies: This code is effectively a duplicate with [emit_string_literal]
-     in [emitaux.ml] and [string_of_substring_literal] in [x86_proc.ml].
-     Hopefully, we can deduplicate this soon. *)
   let string_of_substring_literal ~start:k ~length:n s =
     let between x low high =
       Char.compare x low >= 0 && Char.compare x high <= 0
@@ -305,8 +296,6 @@ module Directive = struct
       if !pos >= 16 then pos := 0
     done
 
-  (* CR sspies: This code is based on [emit_string_directive] in [emitaux.ml].
-     We break up the string into smaller chunks. *)
   let print_ascii_string_gas ~chunk_size buf s =
     let l = String.length s in
     if l = 0
@@ -636,7 +625,8 @@ let space ~bytes = if bytes > 0 then emit (Space { bytes })
 (* We do not perform any checks that the string does not contain null bytes. The
    reason is that we sometimes want to emit strings that have an explicit null
    byte added. *)
-(* CR sspies: If the string is empty, should we just not emit anything? *)
+(* CR sspies: If the string is empty, should we just not emit anything?
+   Currently, we do this via the printing function on GAS. *)
 let string ?comment str = emit (Bytes { str; comment })
 
 let global symbol = emit (Global (Asm_symbol.encode symbol))
@@ -740,8 +730,6 @@ let define_label label =
     | None -> not_initialized ()
     | Some this_section -> this_section
   in
-  (* CR sspies: Thsis assumes no other mechanism was used to switch sections
-     such as calling [D.text] directly. *)
   if not (Asm_section.equal lbl_section this_section)
   then
     Misc.fatal_errorf
@@ -775,8 +763,6 @@ let switch_to_section ?(emit_label_on_first_occurrence = false) section =
   let ({ names; flags; args; is_delayed } : Asm_section.section_details) =
     Asm_section.details section ~first_occurrence
   in
-  (* CR sspies: We do not print an empty line here to be consistent with Arm
-     emission. *)
   emit (Section { names; flags; args; is_delayed });
   if first_occurrence && emit_label_on_first_occurrence
   then define_label (Asm_label.for_section section)
@@ -966,8 +952,6 @@ let new_temp_var () =
   incr temp_var_counter;
   Printf.sprintf "temp%d" id
 
-(* CR sspies: once there are richer symbols, make this function take the section
-   again *)
 let force_assembly_time_constant expr =
   if not (TS.is_macos ())
   then expr

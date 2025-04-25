@@ -1985,9 +1985,6 @@ let all_functions = ref []
 let emit_function_type_and_size fun_sym =
   (* Note: Symbol types and sizes are only needed on some platforms/systems.
      These functions check internally whether they are needed. *)
-  (* CR sspies: This does not match the old systems comparison exactly. The type
-     symbol function checks for [GAS_like], which matches a few more systems
-     than the old match. *)
   ND.type_symbol ~ty:Function fun_sym;
   if not !Flambda_backend_flags.basic_block_sections then ND.size fun_sym
 
