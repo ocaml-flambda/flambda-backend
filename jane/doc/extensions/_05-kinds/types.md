@@ -6,7 +6,7 @@ title: Kinds of types
 
 # Kinds of types
 
-[overview]: index
+[overview]: intro
 
 This page describes how we compute the kind of both built-in types and
 user-defined types. You may want to read the [overview][] of the kind
