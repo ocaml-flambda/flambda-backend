@@ -147,7 +147,7 @@ let pop_all_traps env =
     | Operation.Uncaught -> acc
     | Operation.Specific_trap (lbl, t) -> pop_all (Pop lbl :: acc) t
   in
-  pop_all [] env.trap_stack
+  pop_all [] env.trap_stack |> List.rev
 
 let env_create ~tailrec_label =
   { vars = V.Map.empty;
