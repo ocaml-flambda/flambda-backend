@@ -974,14 +974,14 @@ module Lattices_mono = struct
   end
 
   type ('a, 'b, 'd) morph =
-    | Id : ('a, 'a, 'd) morph  (** identity morphism *)
+    | Id : ('a, 'a, 'l * 'r) morph  (** identity morphism *)
     | Meet_with : 'a -> ('a, 'a, 'l * 'r) morph
         (** Meet the input with the parameter *)
-    | Imply : 'a -> ('a, 'a, disallowed * 'd) morph
+    | Imply : 'a -> ('a, 'a, disallowed * 'r) morph
         (** The right adjoint of [Meet_with] *)
     | Join_with : 'a -> ('a, 'a, 'l * 'r) morph
         (** Join the input with the parameter *)
-    | Subtract : 'a -> ('a, 'a, 'd * disallowed) morph
+    | Subtract : 'a -> ('a, 'a, 'l * disallowed) morph
         (** The left adjoint of [Join_with] *)
     | Proj : 't obj * ('t, 'r_) Axis.t -> ('t, 'r_, 'l * 'r) morph
         (** Project from a product to an axis *)
@@ -990,8 +990,8 @@ module Lattices_mono = struct
     | Min_with : ('t, 'r_) Axis.t -> ('r_, 't, 'l * disallowed) morph
         (** Combine an axis with minima along other axes *)
     | Map_comonadic :
-        ('a0, 'a1, 'd) morph
-        -> ('a0 comonadic_with, 'a1 comonadic_with, 'd) morph
+        ('a0, 'a1, 'l * 'r) morph
+        -> ('a0 comonadic_with, 'a1 comonadic_with, 'l * 'r) morph
         (** Lift an morphism on areality to a morphism on the comonadic fragment   *)
     | Monadic_to_comonadic_min
         : (Monadic_op.t, 'a comonadic_with, 'l * disallowed) morph
@@ -1015,8 +1015,11 @@ module Lattices_mono = struct
         (** Maps regional to global, identity otherwise *)
     | Global_to_regional : (Locality.t, Regionality.t, disallowed * 'r) morph
         (** Maps global to regional, local to local *)
-    | Compose : ('b, 'c, 'd) morph * ('a, 'b, 'd) morph -> ('a, 'c, 'd) morph
-        (** Compoistion of two morphisms *)
+    | Compose :
+        ('b, 'c, 'l * 'r) morph * ('a, 'b, 'l * 'r) morph
+        -> ('a, 'c, 'l * 'r) morph  (** Compoistion of two morphisms *)
+    constraint 'd = _ * _
+  [@@ocaml.warning "-62"]
 
   include Magic_allow_disallow (struct
     type ('a, 'b, 'd) sided = ('a, 'b, 'd) morph constraint 'd = 'l * 'r
@@ -1152,7 +1155,7 @@ module Lattices_mono = struct
     | Yielding | Statefulness ->
       assert false
 
-  let rec src : type a b d. b obj -> (a, b, d) morph -> a obj =
+  let rec src : type a b l r. b obj -> (a, b, l * r) morph -> a obj =
    fun dst f ->
     match f with
     | Id -> dst
@@ -1240,7 +1243,7 @@ module Lattices_mono = struct
   let eq_morph = Equal_morph.equal
 
   let rec print_morph :
-      type a b d. b obj -> Format.formatter -> (a, b, d) morph -> unit =
+      type a b l r. b obj -> Format.formatter -> (a, b, l * r) morph -> unit =
    fun dst ppf -> function
     | Id -> Format.fprintf ppf "id"
     | Join_with c -> Format.fprintf ppf "join(%a)" (print dst) c
@@ -1356,7 +1359,7 @@ module Lattices_mono = struct
     let statefulness = visibility_to_statefulness m.visibility in
     { areality; linearity; portability; yielding; statefulness }
 
-  let rec apply : type a b d. b obj -> (a, b, d) morph -> a -> b =
+  let rec apply : type a b l r. b obj -> (a, b, l * r) morph -> a -> b =
    fun dst f a ->
     match f with
     | Compose (f, g) ->
@@ -1388,8 +1391,11 @@ module Lattices_mono = struct
   (** Compose m0 after m1. Returns [Some f] if the composition can be
     represented by [f] instead of [Compose m0 m1]. [None] otherwise. *)
   let rec maybe_compose :
-      type a b c d.
-      c obj -> (b, c, d) morph -> (a, b, d) morph -> (a, c, d) morph option =
+      type a b c l r.
+      c obj ->
+      (b, c, l * r) morph ->
+      (a, b, l * r) morph ->
+      (a, c, l * r) morph option =
    fun dst m0 m1 ->
     let is_max c = le dst (max dst) c in
     let is_min c = le dst c (min dst) in
@@ -1547,8 +1553,9 @@ module Lattices_mono = struct
       .
 
   and compose :
-      type a b c d.
-      c obj -> (b, c, d) morph -> (a, b, d) morph -> (a, c, d) morph =
+      type a b c l r.
+      c obj -> (b, c, l * r) morph -> (a, b, l * r) morph -> (a, c, l * r) morph
+      =
    fun dst f g ->
     match maybe_compose dst f g with Some m -> m | None -> Compose (f, g)
 
@@ -1614,7 +1621,8 @@ module Lattices_mono = struct
 end
 
 module C = Lattices_mono
-module S = Solvers_polarized (C)
+module Solver = Solver_mono (C)
+module S = Solver
 
 type monadic = C.monadic =
   { uniqueness : C.Uniqueness.t;
@@ -1641,15 +1649,11 @@ let append_changes : (changes ref -> unit) ref = ref (fun _ -> assert false)
 
 let set_append_changes f = append_changes := f
 
-type ('a, 'd) mode_monadic = ('a, 'd) S.Negative.mode
-
-type ('a, 'd) mode_comonadic = ('a, 'd) S.Positive.mode
+type ('a, 'd) mode = ('a, 'd) S.mode
 
 (** Representing a single object *)
 module type Obj = sig
   type const
-
-  module Solver : S.Solver_polarized
 
   val obj : const C.obj
 end
@@ -1692,10 +1696,10 @@ let equate_from_submode' submode m0 m1 =
     | Ok () -> Ok ())
   [@@inline]
 
-module Common (Obj : Obj) = struct
+module Comonadic_gen (Obj : Obj) = struct
   open Obj
 
-  type 'd t = (const, 'd) Solver.mode
+  type 'd t = (const, 'l * 'r) Solver.mode constraint 'd = 'l * 'r
 
   type l = (allowed * disallowed) t
 
@@ -1761,18 +1765,90 @@ module Common (Obj : Obj) = struct
 end
 [@@inline]
 
+module Monadic_gen (Obj : Obj) = struct
+  (* Monadic fragment is flipped *)
+  open Obj
+
+  type 'd t = (const, 'r * 'l) Solver.mode constraint 'd = 'l * 'r
+
+  type l = (allowed * disallowed) t
+
+  type r = (disallowed * allowed) t
+
+  type lr = (allowed * allowed) t
+
+  type nonrec error = const error
+
+  type equate_error = equate_step * error
+
+  type (_, _, 'd) sided = 'd t
+
+  let flip_error = function
+    | Ok _ as r -> r
+    | Error { left; right } -> Error { left = right; right = left }
+
+  let disallow_right m = Solver.disallow_left m
+
+  let disallow_left m = Solver.disallow_right m
+
+  let allow_left m = Solver.allow_right m
+
+  let allow_right m = Solver.allow_left m
+
+  let newvar () = Solver.newvar obj
+
+  let min = Solver.max obj
+
+  let max = Solver.min obj
+
+  let newvar_above m = Solver.newvar_below obj m
+
+  let newvar_below m = Solver.newvar_above obj m
+
+  let submode_log a b ~log = Solver.submode obj b a ~log |> flip_error
+
+  let submode a b = try_with_log (submode_log a b)
+
+  let join l = Solver.meet obj l
+
+  let meet l = Solver.join obj l
+
+  let submode_exn m0 m1 = assert (submode m0 m1 |> Result.is_ok)
+
+  let equate a b = try_with_log (equate_from_submode submode_log a b)
+
+  let equate_exn m0 m1 = assert (equate m0 m1 |> Result.is_ok)
+
+  let print ?verbose () ppf m = Solver.print ?verbose obj ppf m
+
+  let zap_to_ceil m = with_log (Solver.zap_to_floor obj m)
+
+  let zap_to_floor m = with_log (Solver.zap_to_ceil obj m)
+
+  let of_const : type l r. const -> (l * r) t = fun a -> Solver.of_const obj a
+
+  module Guts = struct
+    let _get_floor m = Solver.get_ceil obj m
+
+    let get_ceil m = Solver.get_floor obj m
+
+    let _get_loose_floor m = Solver.get_loose_ceil obj m
+
+    let _get_loose_ceil m = Solver.get_loose_floor obj m
+  end
+end
+[@@inline]
+
 module Locality = struct
   module Const = C.Locality
 
   module Obj = struct
     type const = Const.t
 
-    module Solver = S.Positive
-
     let obj = C.Locality
   end
 
-  include Common (Obj)
+  include Comonadic_gen (Obj)
 
   let global = of_const Global
 
@@ -1801,12 +1877,10 @@ module Regionality = struct
   module Obj = struct
     type const = Const.t
 
-    module Solver = S.Positive
-
     let obj = C.Regionality
   end
 
-  include Common (Obj)
+  include Comonadic_gen (Obj)
 
   let local = of_const Const.Local
 
@@ -1825,12 +1899,10 @@ module Linearity = struct
   module Obj = struct
     type const = Const.t
 
-    module Solver = S.Positive
-
     let obj : _ C.obj = C.Linearity
   end
 
-  include Common (Obj)
+  include Comonadic_gen (Obj)
 
   let many = of_const Many
 
@@ -1847,12 +1919,10 @@ module Statefulness = struct
   module Obj = struct
     type const = Const.t
 
-    module Solver = S.Positive
-
     let obj = C.Statefulness
   end
 
-  include Common (Obj)
+  include Comonadic_gen (Obj)
 
   let stateless = of_const Stateless
 
@@ -1872,13 +1942,10 @@ module Visibility = struct
   module Obj = struct
     type const = Const.t
 
-    (* the negation of Visibility_op gives us the proper visibility *)
-    module Solver = S.Negative
-
     let obj = C.Visibility_op
   end
 
-  include Common (Obj)
+  include Monadic_gen (Obj)
 
   let immutable = of_const Immutable
 
@@ -1897,12 +1964,10 @@ module Portability = struct
   module Obj = struct
     type const = Const.t
 
-    module Solver = S.Positive
-
     let obj : _ C.obj = C.Portability
   end
 
-  include Common (Obj)
+  include Comonadic_gen (Obj)
 
   let legacy = of_const Const.legacy
 
@@ -1919,13 +1984,10 @@ module Uniqueness = struct
   module Obj = struct
     type const = Const.t
 
-    (* the negation of Uniqueness_op gives us the proper uniqueness *)
-    module Solver = S.Negative
-
     let obj = C.Uniqueness_op
   end
 
-  include Common (Obj)
+  include Monadic_gen (Obj)
 
   let aliased = of_const Aliased
 
@@ -1943,13 +2005,10 @@ module Contention = struct
   module Obj = struct
     type const = Const.t
 
-    (* the negation of Contention_op gives us the proper contention *)
-    module Solver = S.Negative
-
     let obj = C.Contention_op
   end
 
-  include Common (Obj)
+  include Monadic_gen (Obj)
 
   let legacy = of_const Const.legacy
 
@@ -1966,12 +2025,10 @@ module Yielding = struct
   module Obj = struct
     type const = Const.t
 
-    module Solver = S.Positive
-
     let obj = C.Yielding
   end
 
-  include Common (Obj)
+  include Comonadic_gen (Obj)
 
   let yielding = of_const Yielding
 
@@ -1985,33 +2042,29 @@ module Yielding = struct
     match global with true -> zap_to_floor | false -> zap_to_ceil
 end
 
-let regional_to_local m =
-  S.Positive.via_monotone Locality.Obj.obj C.Regional_to_local m
+let regional_to_local m = S.apply Locality.Obj.obj C.Regional_to_local m
 
 let locality_as_regionality m =
-  S.Positive.via_monotone Regionality.Obj.obj C.Locality_as_regionality m
+  S.apply Regionality.Obj.obj C.Locality_as_regionality m
 
-let regional_to_global m =
-  S.Positive.via_monotone Locality.Obj.obj C.Regional_to_global m
+let regional_to_global m = S.apply Locality.Obj.obj C.Regional_to_global m
 
 module type Areality = sig
   module Const : C.Areality
 
-  module Obj : Obj with type const = Const.t and module Solver = S.Positive
+  module Obj : Obj with type const = Const.t
 
-  val zap_to_legacy : (Const.t, allowed * 'r) Obj.Solver.mode -> Const.t
+  val zap_to_legacy : (Const.t, allowed * 'r) Solver.mode -> Const.t
 end
 
 module Comonadic_with (Areality : Areality) = struct
   module Obj = struct
-    type const = Areality.Obj.const C.comonadic_with
-
-    module Solver = S.Positive
+    type const = Areality.Const.t C.comonadic_with
 
     let obj = C.comonadic_with_obj Areality.Obj.obj
   end
 
-  include Common (Obj)
+  include Comonadic_gen (Obj)
 
   type error = Error : (Obj.const, 'a) C.Axis.t * 'a Solver.error -> error
 
@@ -2052,17 +2105,17 @@ module Comonadic_with (Areality : Areality) = struct
       | Statefulness -> (module Statefulness.Const)
   end
 
-  let proj ax m = Obj.Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
+  let proj ax m = Solver.apply (proj_obj ax) (Proj (Obj.obj, ax)) m
 
-  let meet_const c m = Obj.Solver.via_monotone Obj.obj (Meet_with c) m
+  let meet_const c m = Solver.apply Obj.obj (Meet_with c) m
 
-  let join_const c m = Obj.Solver.via_monotone Obj.obj (Join_with c) m
+  let join_const c m = Solver.apply Obj.obj (Join_with c) m
 
   let min_with ax m =
-    Obj.Solver.via_monotone Obj.obj (Min_with ax) (Obj.Solver.disallow_right m)
+    Solver.apply Obj.obj (Min_with ax) (Solver.disallow_right m)
 
   let max_with ax m =
-    Obj.Solver.via_monotone Obj.obj (Max_with ax) (Obj.Solver.disallow_left m)
+    Solver.apply Obj.obj (Max_with ax) (Solver.disallow_left m)
 
   let join_with ax c m = join_const (C.min_with Obj.obj ax c) m
 
@@ -2079,11 +2132,9 @@ module Comonadic_with (Areality : Areality) = struct
     let yielding = proj Yielding m |> Yielding.zap_to_legacy ~global in
     { areality; linearity; portability; yielding; statefulness }
 
-  let imply c m =
-    Obj.Solver.via_monotone Obj.obj (Imply c) (Obj.Solver.disallow_left m)
+  let imply c m = Solver.apply Obj.obj (Imply c) (Solver.disallow_left m)
 
-  let subtract c m =
-    Obj.Solver.via_monotone Obj.obj (Subtract c) (Obj.Solver.disallow_right m)
+  let subtract c m = Solver.apply Obj.obj (Subtract c) (Solver.disallow_right m)
 
   let legacy = of_const Const.legacy
 
@@ -2152,14 +2203,10 @@ module Monadic = struct
   module Obj = struct
     type const = C.Monadic_op.t
 
-    (* Negative solver on the opposite of monadic should give the monadic
-       fragment with original ordering *)
-    module Solver = S.Negative
-
     let obj = C.Monadic_op
   end
 
-  include Common (Obj)
+  include Monadic_gen (Obj)
 
   type error = Error : (Obj.const, 'a) C.Axis.t * 'a Solver.error -> error
 
@@ -2197,31 +2244,27 @@ module Monadic = struct
 
   module Const_op = C.Monadic_op
 
-  let proj ax m = Obj.Solver.via_monotone (proj_obj ax) (Proj (Obj.obj, ax)) m
+  let proj ax m = Solver.apply (proj_obj ax) (Proj (Obj.obj, ax)) m
 
-  (* The monadic fragment is inverted. Most of the inversion logic is taken care
-     by [Solver_polarized], but some remain, such as the [Min_with] below which
-     is inverted from [Max_with]. *)
+  (* The monadic fragment is inverted. *)
 
-  let meet_const c m = Obj.Solver.via_monotone Obj.obj (Join_with c) m
+  let meet_const c m = Solver.apply Obj.obj (Join_with c) m
 
-  let join_const c m = Obj.Solver.via_monotone Obj.obj (Meet_with c) m
+  let join_const c m = Solver.apply Obj.obj (Meet_with c) m
 
   let max_with ax m =
-    Obj.Solver.via_monotone Obj.obj (Min_with ax) (Obj.Solver.disallow_left m)
+    Solver.apply Obj.obj (Min_with ax) (Solver.disallow_right m)
 
   let min_with ax m =
-    Obj.Solver.via_monotone Obj.obj (Max_with ax) (Obj.Solver.disallow_right m)
+    Solver.apply Obj.obj (Max_with ax) (Solver.disallow_left m)
 
   let join_with ax c m = join_const (C.max_with Obj.obj ax c) m
 
   let meet_with ax c m = meet_const (C.min_with Obj.obj ax c) m
 
-  let imply c m =
-    Obj.Solver.via_monotone Obj.obj (Subtract c) (Obj.Solver.disallow_left m)
+  let imply c m = Solver.apply Obj.obj (Subtract c) (Solver.disallow_right m)
 
-  let subtract c m =
-    Obj.Solver.via_monotone Obj.obj (Imply c) (Obj.Solver.disallow_right m)
+  let subtract c m = Solver.apply Obj.obj (Imply c) (Solver.disallow_left m)
 
   let zap_to_legacy m : Const.t =
     let uniqueness = proj Uniqueness m |> Uniqueness.zap_to_legacy in
@@ -2295,22 +2338,18 @@ module Value_with (Areality : Areality) = struct
 
   type lr = (allowed * allowed) t
 
-  type ('m, 'a, 'd) axis =
-    | Monadic :
-        (Monadic.Const.t, 'a) Axis.t
-        -> (('a, 'd) mode_monadic, 'a, 'd) axis
-    | Comonadic :
-        (Comonadic.Const.t, 'a) Axis.t
-        -> (('a, 'd) mode_comonadic, 'a, 'd) axis
+  type ('a, 'd0, 'd1) axis =
+    | Monadic : (Monadic.Const.t, 'a) Axis.t -> ('a, 'd, 'd neg) axis
+    | Comonadic : (Comonadic.Const.t, 'a) Axis.t -> ('a, 'd, 'd pos) axis
 
-  type 'd axis_packed = P : ('m, 'a, 'd) axis -> 'd axis_packed
+  type axis_packed = P : (_, _, _) axis -> axis_packed
 
-  let print_axis (type m a d) ppf (axis : (m, a, d) axis) =
+  let print_axis (type a d0 d1) ppf (axis : (a, d0, d1) axis) =
     match axis with
     | Monadic ax -> Axis.print ppf ax
     | Comonadic ax -> Axis.print ppf ax
 
-  let lattice_of_axis (type m a d) (axis : (m, a, d) axis) :
+  let lattice_of_axis (type a d0 d1) (axis : (a, d0, d1) axis) :
       (module Lattice with type t = a) =
     match axis with
     | Comonadic ax -> Comonadic.Const.lattice_of_axis ax
@@ -2325,7 +2364,7 @@ module Value_with (Areality : Areality) = struct
       P (Comonadic Statefulness);
       P (Monadic Visibility) ]
 
-  let proj_obj : type m a d. (m, a, d) axis -> a C.obj = function
+  let proj_obj : type a d0 d1. (a, d0, d1) axis -> a C.obj = function
     | Monadic ax -> Monadic.proj_obj ax
     | Comonadic ax -> Comonadic.proj_obj ax
 
@@ -2565,29 +2604,29 @@ module Value_with (Areality : Areality) = struct
       let monadic = Monadic.min in
       merge { comonadic; monadic }
 
-    let print_axis : type m a d. (m, a, d) axis -> _ -> a -> unit =
+    let print_axis : type a. (a, _, _) axis -> _ -> a -> unit =
      fun ax ppf a ->
       let obj = proj_obj ax in
       C.print obj ppf a
 
-    let le_axis : type m a d. (m, a, d) axis -> a -> a -> bool =
+    let le_axis : type a d0 d1. (a, d0, d1) axis -> a -> a -> bool =
      fun ax m0 m1 ->
       match ax with
       | Comonadic ax -> Comonadic.le_axis ax m0 m1
       | Monadic ax -> Monadic.le_axis ax m0 m1
 
-    let min_axis : type m a d. (m, a, d) axis -> a = function
+    let min_axis : type a d0 d1. (a, d0, d1) axis -> a = function
       | Comonadic ax -> Comonadic.min_axis ax
       | Monadic ax -> Monadic.min_axis ax
 
-    let max_axis : type m a d. (m, a, d) axis -> a = function
+    let max_axis : type a d0 d1. (a, d0, d1) axis -> a = function
       | Comonadic ax -> Comonadic.max_axis ax
       | Monadic ax -> Monadic.max_axis ax
 
-    let is_max : type m a d. (m, a, d) axis -> a -> bool =
+    let is_max : type a d0 d1. (a, d0, d1) axis -> a -> bool =
      fun ax m -> le_axis ax (max_axis ax) m
 
-    let is_min : type m a d. (m, a, d) axis -> a -> bool =
+    let is_min : type a d0 d1. (a, d0, d1) axis -> a -> bool =
      fun ax m -> le_axis ax m (min_axis ax)
 
     let split = split
@@ -2638,7 +2677,7 @@ module Value_with (Areality : Areality) = struct
     let monadic, b1 = Monadic.newvar_below monadic in
     { monadic; comonadic }, b0 || b1
 
-  type error = Error : ('m, 'a, 'd) axis * 'a Solver.error -> error
+  type error = Error : ('a, _, _) axis * 'a Solver.error -> error
 
   type equate_error = equate_step * error
 
@@ -2674,7 +2713,9 @@ module Value_with (Areality : Areality) = struct
 
   let proj_comonadic ax { comonadic; _ } = Comonadic.proj ax comonadic
 
-  let proj : type m a l r. (m, a, l * r) axis -> (l * r) t -> m =
+  let proj :
+      type a l0 l1 r0 r1.
+      (a, l0 * r0, l1 * r1) axis -> (l0 * r0) t -> (a, l1 * r1) mode =
    fun ax m ->
     match ax with
     | Monadic ax -> proj_monadic ax m
@@ -2692,7 +2733,9 @@ module Value_with (Areality : Areality) = struct
     let monadic = Monadic.max |> Monadic.disallow_left |> Monadic.allow_right in
     { comonadic; monadic }
 
-  let max_with : type m a l r. (m, a, l * r) axis -> m -> (disallowed * r) t =
+  let max_with :
+      type a l0 l1 r0 r1.
+      (a, l0 * r0, l1 * r1) axis -> (a, l1 * r1) mode -> (disallowed * r0) t =
    fun ax m ->
     match ax with
     | Monadic ax -> max_with_monadic ax m
@@ -2710,7 +2753,9 @@ module Value_with (Areality : Areality) = struct
     let monadic = Monadic.min |> Monadic.disallow_right |> Monadic.allow_left in
     { comonadic; monadic }
 
-  let min_with : type m a l r. (m, a, l * r) axis -> m -> (l * disallowed) t =
+  let min_with :
+      type a l0 l1 r0 r1.
+      (a, l0 * r0, l1 * r1) axis -> (a, l1 * r1) mode -> (l0 * disallowed) t =
    fun ax m ->
     match ax with
     | Monadic ax -> min_with_monadic ax m
@@ -2724,8 +2769,9 @@ module Value_with (Areality : Areality) = struct
     let comonadic = Comonadic.join_with ax c comonadic in
     { comonadic; monadic }
 
-  let join_with : type m a d l r. (m, a, d) axis -> a -> (l * r) t -> (l * r) t
-      =
+  let join_with :
+      type a l0 l1 r0 r1.
+      (a, l0 * r0, l1 * r1) axis -> a -> (l0 * r0) t -> (l0 * r0) t =
    fun ax c m ->
     match ax with
     | Monadic ax -> join_with_monadic ax c m
@@ -2739,8 +2785,9 @@ module Value_with (Areality : Areality) = struct
     let comonadic = Comonadic.meet_with ax c comonadic in
     { comonadic; monadic }
 
-  let meet_with : type m a d l r. (m, a, d) axis -> a -> (l * r) t -> (l * r) t
-      =
+  let meet_with :
+      type a l0 r0 l1 r1.
+      (a, l0 * r0, l1 * r1) axis -> a -> (l0 * r0) t -> (l0 * r0) t =
    fun ax c m ->
     match ax with
     | Monadic ax -> meet_with_monadic ax c m
@@ -2769,12 +2816,10 @@ module Value_with (Areality : Areality) = struct
     { comonadic; monadic }
 
   let comonadic_to_monadic m =
-    S.Negative.via_antitone Monadic.Obj.obj
-      (Comonadic_to_monadic Comonadic.Obj.obj) m
+    S.apply Monadic.Obj.obj (Comonadic_to_monadic Comonadic.Obj.obj) m
 
   let monadic_to_comonadic_min m =
-    S.Positive.via_antitone Comonadic.Obj.obj Monadic_to_comonadic_min
-      (Monadic.disallow_left m)
+    S.apply Comonadic.Obj.obj Monadic_to_comonadic_min (Monadic.disallow_left m)
 
   let meet_const c { comonadic; monadic } =
     let c = split c in
@@ -2877,8 +2922,7 @@ module Const = struct
     }
 
   module Axis = struct
-    let alloc_as_value : type d. d Alloc.axis_packed -> d Value.axis_packed =
-      function
+    let alloc_as_value : Alloc.axis_packed -> Value.axis_packed = function
       | P (Comonadic Areality) -> P (Comonadic Areality)
       | P (Comonadic Linearity) -> P (Comonadic Linearity)
       | P (Comonadic Portability) -> P (Comonadic Portability)
@@ -2893,12 +2937,11 @@ module Const = struct
 end
 
 let comonadic_locality_as_regionality comonadic =
-  S.Positive.via_monotone Value.Comonadic.Obj.obj
-    (Map_comonadic Locality_as_regionality) comonadic
+  S.apply Value.Comonadic.Obj.obj (Map_comonadic Locality_as_regionality)
+    comonadic
 
 let comonadic_regional_to_local comonadic =
-  S.Positive.via_monotone Alloc.Comonadic.Obj.obj
-    (Map_comonadic Regional_to_local) comonadic
+  S.apply Alloc.Comonadic.Obj.obj (Map_comonadic Regional_to_local) comonadic
 
 let alloc_as_value m =
   let { comonadic; monadic } = m in
@@ -2908,8 +2951,7 @@ let alloc_as_value m =
 let alloc_to_value_l2r m =
   let { comonadic; monadic } = Alloc.disallow_right m in
   let comonadic =
-    S.Positive.via_monotone Value.Comonadic.Obj.obj
-      (Map_comonadic Local_to_regional) comonadic
+    S.apply Value.Comonadic.Obj.obj (Map_comonadic Local_to_regional) comonadic
   in
   { comonadic; monadic }
 
@@ -2917,8 +2959,7 @@ let value_to_alloc_r2g : type l r. (l * r) Value.t -> (l * r) Alloc.t =
  fun m ->
   let { comonadic; monadic } = m in
   let comonadic =
-    S.Positive.via_monotone Alloc.Comonadic.Obj.obj
-      (Map_comonadic Regional_to_global) comonadic
+    S.apply Alloc.Comonadic.Obj.obj (Map_comonadic Regional_to_global) comonadic
   in
   { comonadic; monadic }
 
@@ -2928,11 +2969,11 @@ let value_to_alloc_r2l m =
   { comonadic; monadic }
 
 module Modality = struct
-  type ('m, 'a) raw =
-    | Meet_with : 'a -> (('a, 'l * 'r) mode_comonadic, 'a) raw
-    | Join_with : 'a -> (('a, 'l * 'r) mode_monadic, 'a) raw
+  type 'a raw =
+    | Meet_with : 'a -> 'a raw
+    | Join_with : 'a -> 'a raw
 
-  type t = Atom : ('m, 'a, _) Value.axis * ('m, 'a) raw -> t
+  type t = Atom : ('a, _, _) Value.axis * 'a raw -> t
 
   let is_id (Atom (ax, a)) =
     match a with
@@ -2955,8 +2996,7 @@ module Modality = struct
 
     type 'a axis = (Mode.Const.t, 'a) Axis.t
 
-    type error =
-      | Error : 'a axis * (('a, _) mode_monadic, 'a) raw Solver.error -> error
+    type error = Error : 'a axis * 'a raw Solver.error -> error
 
     module Const = struct
       type t = Join_const of Mode.Const.t
@@ -2979,8 +3019,7 @@ module Modality = struct
             Error
               (Error (ax, { left = Join_with left; right = Join_with right }))
 
-      let compose :
-          type a l r. a axis -> ((a, l * r) mode_monadic, a) raw -> t -> t =
+      let compose : type a. a axis -> a raw -> t -> t =
        fun ax a t ->
         match a, t with
         | Join_with c0, Join_const c ->
@@ -3112,8 +3151,7 @@ module Modality = struct
 
     type 'a axis = (Mode.Const.t, 'a) Axis.t
 
-    type error =
-      | Error : 'a axis * (('a, _) mode_comonadic, 'a) raw Solver.error -> error
+    type error = Error : 'a axis * 'a raw Solver.error -> error
 
     module Const = struct
       type t = Meet_const of Mode.Const.t
@@ -3136,8 +3174,7 @@ module Modality = struct
             Error
               (Error (ax, { left = Meet_with left; right = Meet_with right }))
 
-      let compose :
-          type a l r. a axis -> ((a, l * r) mode_comonadic, a) raw -> t -> t =
+      let compose : type a. a axis -> a raw -> t -> t =
        fun ax a t ->
         match a, t with
         | Meet_with c0, Meet_const c ->
@@ -3270,8 +3307,7 @@ module Modality = struct
   end
 
   module Value = struct
-    type error =
-      | Error : ('m, 'a, _) Value.axis * ('m, 'a) raw Solver.error -> error
+    type error = Error : ('a, _, _) Value.axis * 'a raw Solver.error -> error
 
     type equate_error = equate_step * error
 
@@ -3322,7 +3358,8 @@ module Modality = struct
       let to_list { monadic; comonadic } =
         Comonadic.to_list comonadic @ Monadic.to_list monadic
 
-      let proj (type m a d) (ax : (m, a, d) Value.axis) { monadic; comonadic } =
+      let proj (type a d0 d1) (ax : (a, d0, d1) Value.axis)
+          { monadic; comonadic } =
         match ax with
         | Monadic ax -> Monadic.proj ax monadic
         | Comonadic ax -> Comonadic.proj ax comonadic
