@@ -256,7 +256,8 @@ type error =
   | Expr_record_type_has_wrong_boxing of record_form_packed * type_expr
   | Invalid_unboxed_access of
       { prev_el_type : type_expr; ua : Parsetree.unboxed_access }
-  | Block_access_multi_index
+  | Block_access_record_unboxed
+  | Block_access_array_unsupported
   | Submode_failed of
       Value.error * submode_reason *
       Env.locality_context option *
@@ -5642,11 +5643,17 @@ and type_expect_
           end
         | Record_float -> Predef.type_unboxed_float
         | Record_ufloat -> ty_arg (* equivalent to [float#] *)
-        | Record_unboxed | Record_inlined _ ->
-          Misc.fatal_error "todo better error"
+        | Record_unboxed ->
+          raise (Error (lid.loc, env, Block_access_record_unboxed))
+        | Record_inlined _ ->
+          Misc.fatal_error "Typecore.type_block_access: inlined record"
       in
       { ba; base_ty = ty_res; el_ty}
     | Baccess_array (mut, index_kind, index) ->
+      (* CR layouts v8: Support indices into arrays once we have the
+         separability mode.
+         - Require that [el_ty] is [non_float].
+         - Return the ignored [type_block_access_result] below. *)
       let el_ty = newvar (Jkind.of_new_sort ~why:Idx_element) in
       let base_ty =
         match mut with
@@ -5663,7 +5670,8 @@ and type_expect_
       let index =
         type_expect env mode_legacy index (mk_expected index_type_expected) in
       let ba = Baccess_array (mut, index_kind, index) in
-      { ba; base_ty; el_ty }
+      ignore ({ ba; base_ty; el_ty });
+      raise (Error (index.exp_loc, env, Block_access_array_unsupported))
     | Baccess_block (mut, index) ->
       let base_ty = newvar (Jkind.Builtin.value ~why:Idx_base) in
       let el_ty = newvar (Jkind.of_new_sort ~why:Idx_element) in
@@ -11035,9 +11043,12 @@ let report_error ~loc env =
           (Style.as_inline_code Printtyp.type_expr) prev_el_type
           (Style.as_inline_code longident) lid
       end
-  | Block_access_multi_index ->
+  | Block_access_record_unboxed ->
     Location.error ~loc
-      "Block indices do not support multi-index operators."
+      "Block indices do not support [@@unboxed] records."
+  | Block_access_array_unsupported ->
+    Location.error ~loc
+      "Block indices into arrays are not yet supported."
   | Submode_failed(fail_reason, submode_reason, locality_context,
       contention_context, shared_context)
      ->

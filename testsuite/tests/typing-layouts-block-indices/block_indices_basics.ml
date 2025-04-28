@@ -123,6 +123,16 @@ Error: This expression has type "('a t# t, 'a) idx_imm"
        Type "'a t#" is not compatible with type "int"
 |}]
 
+type t = { i : int } [@@unboxed]
+let f () = (.i)
+[%%expect{|
+type t = { i : int; } [@@unboxed]
+Line 127, characters 13-14:
+127 | let f () = (.i)
+                   ^
+Error: Block indices do not support [@@unboxed] records.
+|}]
+
 (**********)
 (* Arrays *)
 
@@ -137,42 +147,46 @@ let idx_iarray_n x = (.:n(x))
 let idx_imm x = (.idx_imm(x))
 let idx_mut x = (.idx_mut(x))
 [%%expect{|
->> Fatal error: Texp_idx: array unimplemented
-Uncaught exception: Misc.Fatal_error
-
+Line 139, characters 21-22:
+139 | let idx_array x = (.(x))
+                           ^
+Error: Block indices into arrays are not yet supported.
 |}]
 
 type r = { a : string }
 let a () = (.(5).#contents.#a)
 [%%expect{|
 type r = { a : string; }
->> Fatal error: Texp_idx: array unimplemented
-Uncaught exception: Misc.Fatal_error
-
+Line 157, characters 14-15:
+157 | let a () = (.(5).#contents.#a)
+                    ^
+Error: Block indices into arrays are not yet supported.
 |}]
 
 type t = { mutable a : string; b : int }
 let a () = (.(5).#a)
 [%%expect{|
 type t = { mutable a : string; b : int; }
->> Fatal error: Texp_idx: array unimplemented
-Uncaught exception: Misc.Fatal_error
-
+Line 167, characters 14-15:
+167 | let a () = (.(5).#a)
+                    ^
+Error: Block indices into arrays are not yet supported.
 |}]
 
 type t1 = { mutable a : string; b : int }
 let b () = (.:(5).#a)
 [%%expect{|
 type t1 = { mutable a : string; b : int; }
->> Fatal error: Texp_idx: array unimplemented
-Uncaught exception: Misc.Fatal_error
-
+Line 177, characters 15-16:
+177 | let b () = (.:(5).#a)
+                     ^
+Error: Block indices into arrays are not yet supported.
 |}]
 
 let bad_index_type = (.("test"))
 [%%expect{|
-Line 172, characters 24-30:
-172 | let bad_index_type = (.("test"))
+Line 186, characters 24-30:
+186 | let bad_index_type = (.("test"))
                               ^^^^^^
 Error: This expression has type "string" but an expression was expected of type
          "int"
@@ -200,8 +214,8 @@ val f : bool -> ('a r, int) idx_imm = <fun>
 type u = #{ x : int; }
 type 'a r = { u : u; }
 type 'a r2 = { u : u; }
-Line 193, characters 6-7:
-193 |     (.u.#x)
+Line 207, characters 6-7:
+207 |     (.u.#x)
             ^
 Warning 18 [not-principal]: this type-based field disambiguation is not principal.
 

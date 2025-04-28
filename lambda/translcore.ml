@@ -2267,7 +2267,7 @@ and transl_idx ~scopes loc env ba uas =
       Lprim (Pidx_mixed_field (path, shape), [], loc)
     end
   | Baccess_array _ ->
-    Misc.fatal_error "Texp_idx: array unimplemented"
+    Misc.fatal_error "Texp_idx: array unimplemented (type error expected)"
   end
 
 and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
