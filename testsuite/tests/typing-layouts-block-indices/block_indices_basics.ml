@@ -193,6 +193,67 @@ Error: This expression has type "string" but an expression was expected of type
 |}]
 
 (****************)
+(* Illegal gaps *)
+
+type a = float#
+type b = #(a * a * a * a * a * a * a * a) (* 2^6 bytes *)
+type c = #(b * b * b * b * b * b * b * b) (* 2^9 *)
+type d = #(c * c * c * c * c * c * c * c) (* 2^12 *)
+type e = #(d * d * d * d * d * d * d * d) (* 2^15 *)
+type f = #(e * e)                         (* 2^16 *)
+
+type si = { s : string; i : int64# }
+type r = { f : f; si : si# }
+[%%expect{|
+type a = float#
+type b = #(a * a * a * a * a * a * a * a)
+type c = #(b * b * b * b * b * b * b * b)
+type d = #(c * c * c * c * c * c * c * c)
+type e = #(d * d * d * d * d * d * d * d)
+type f = #(e * e)
+type si = { s : string; i : int64#; }
+type r = { f : f; si : si#; }
+|}]
+
+(* A gap of 2^16 bytes is not allowed *)
+let bad_idx () = (.si)
+[%%expect{|
+Line 1, characters 17-22:
+1 | let bad_idx () = (.si)
+                     ^^^^^
+Error: Block indices into records that contain both values and non-values,
+       and occupy over 2^16 bytes, cannot be created.
+|}]
+
+(* But we *can* construct a deeper, valid index *)
+let f () = (.si.#s)
+[%%expect{|
+val f : unit -> (r, string) idx_imm = <fun>
+|}]
+
+(* A valid index that could be deepened to a gap of 2^16 bytes is not allowed *)
+type hold_r = { s: string; r : r# }
+let bad_idx () = (.r)
+[%%expect{|
+type hold_r = { s : string; r : r#; }
+Line 2, characters 17-21:
+2 | let bad_idx () = (.r)
+                     ^^^^
+Error: Block indices into records that contain both values and non-values,
+       and occupy over 2^16 bytes, cannot be created.
+|}]
+
+(*************************************************************)
+(* Block indices into block index accesses (aka "deepening") *)
+
+let idx_imm x = (.idx_imm(x))
+let idx_mut x = (.idx_mut(x))
+[%%expect{|
+val idx_imm : ('a, 'b) idx_imm -> ('a, 'b) idx_imm = <fun>
+val idx_mut : ('a, 'b) idx_mut -> ('a, 'b) idx_mut = <fun>
+|}]
+
+(****************)
 (* Principality *)
 
 (* We get a principality warning when the block index type is disambiguated
@@ -214,20 +275,10 @@ val f : bool -> ('a r, int) idx_imm = <fun>
 type u = #{ x : int; }
 type 'a r = { u : u; }
 type 'a r2 = { u : u; }
-Line 207, characters 6-7:
-207 |     (.u.#x)
+Line 268, characters 6-7:
+268 |     (.u.#x)
             ^
 Warning 18 [not-principal]: this type-based field disambiguation is not principal.
 
 val f : bool -> ('a r, int) idx_imm = <fun>
-|}]
-
-(******************)
-(* Block indices! *)
-
-let idx_imm x = (.idx_imm(x))
-let idx_mut x = (.idx_mut(x))
-[%%expect{|
-val idx_imm : ('a, 'b) idx_imm -> ('a, 'b) idx_imm = <fun>
-val idx_mut : ('a, 'b) idx_mut -> ('a, 'b) idx_mut = <fun>
 |}]

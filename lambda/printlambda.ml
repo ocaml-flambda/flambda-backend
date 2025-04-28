@@ -581,16 +581,14 @@ let primitive ppf = function
       fprintf ppf "array_element_size_in_bytes (%s)" (array_kind ak)
   | Pidx_field pos ->
       fprintf ppf "idx_field %d" pos
-  | Pidx_mixed_field (path, shape) ->
+  | Pidx_mixed_field (path, el) ->
       fprintf ppf "idx_mixed_field %a %a"
         (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_int) path
-        (mixed_block_shape (fun _ppf () -> ()))
-        shape
-  | Pidx_deepen (path, layouts) ->
+        (mixed_block_element (fun _ppf () -> ())) el
+  | Pidx_deepen (path, el) ->
       fprintf ppf "idx_deepen %a %a"
         (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_int) path
-        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ", ") (layout' false))
-        layouts
+        (mixed_block_element (fun _ppf () -> ())) el
   | Pccall p -> fprintf ppf "%s" p.prim_name
   | Praise k -> fprintf ppf "%s" (Lambda.raise_kind k)
   | Psequand -> fprintf ppf "&&"

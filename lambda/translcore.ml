@@ -36,6 +36,7 @@ type error =
   | Void_sort of type_expr
   | Unboxed_vector_in_array_comprehension
   | Unboxed_product_in_array_comprehension
+  | Block_index_gap_overflow_possible
 
 exception Error of Location.t * error
 
@@ -842,7 +843,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         makearray lambda_arr_mut
       end
   | Texp_idx (ba, uas) ->
-    transl_idx ~scopes (of_location ~scopes e.exp_loc) e.exp_env ba uas
+    transl_idx ~scopes e.exp_loc e.exp_env ba uas
   | Texp_list_comprehension comp ->
       let loc = of_location ~scopes e.exp_loc in
       Transl_list_comprehension.comprehension
@@ -2239,9 +2240,14 @@ and transl_idx ~scopes loc env ba uas =
     begin match uas with
     | [] -> index
     | Uaccess_unboxed_field (_, lbl) :: _ ->
-      let lbl_layout l = layout env l.lbl_loc l.lbl_sort l.lbl_arg in
-      let layouts = Array.to_list (Array.map lbl_layout lbl.lbl_all) in
-      Lprim (Pidx_deepen (uas_path, layouts), [index], loc)
+      let base_sort =
+        Jkind.Sort.Const.Product
+          (Array.to_list (Array.map (fun lbl -> lbl.lbl_sort) lbl.lbl_all))
+      in
+      let base_layout = layout env lbl.lbl_loc base_sort lbl.lbl_res in
+      let el = mixed_block_element_of_layout base_layout in
+      (* [uas_path] is a path into [el] *)
+      Lprim (Pidx_deepen (uas_path, el), [index], (of_location ~scopes loc))
     end
   | Baccess_field (id, lbl) ->
     check_record_field_sort id.loc lbl.lbl_sort;
@@ -2255,16 +2261,23 @@ and transl_idx ~scopes loc env ba uas =
               Misc.fatal_error "Texp_idx: non-singleton unboxed record field \
                 in non-mixed boxed record")
         uas;
-      Lprim (Pidx_field lbl.lbl_pos, [], loc)
+      Lprim (Pidx_field lbl.lbl_pos, [], (of_location ~scopes loc))
     | Record_inlined _ | Record_unboxed ->
       Misc.fatal_error "Texp_idx: unexpected unboxed/inlined record"
     | Record_mixed shape ->
-      let shape =
-        Lambda.transl_mixed_product_shape
-          ~get_value_kind:(fun _ -> Lambda.generic_value) shape
+      let el =
+        Product
+          (Lambda.transl_mixed_product_shape
+             ~get_value_kind:(fun _ -> Lambda.generic_value) shape)
       in
       let path = lbl.lbl_pos :: uas_path in
-      Lprim (Pidx_mixed_field (path, shape), [], loc)
+      (* Conservative check to make sure the gap never overflows.
+         See Note [Representation of block indices]. *)
+      let cts = Mixed_block_bytes_wrt_path.count el path in
+      if Option.is_none
+          (Mixed_block_bytes_wrt_path.offset_and_gap cts) then
+        raise (Error (loc, Block_index_gap_overflow_possible));
+      Lprim (Pidx_mixed_field (path, el), [], (of_location ~scopes loc))
     end
   | Baccess_array _ ->
     Misc.fatal_error "Texp_idx: array unimplemented (type error expected)"
@@ -2556,7 +2569,12 @@ let report_error ppf = function
       fprintf ppf
         "Array comprehensions are not yet supported for arrays of unboxed \
          products."
-
+  | Block_index_gap_overflow_possible ->
+      (* This error message describes a more conservative rule than we actually
+         enforce, see [Lambda.Mixed_block_bytes_wrt_path] *)
+      fprintf ppf
+        "Block indices into records that contain both values and non-values,@ \
+         and occupy over 2^16 bytes, cannot be created."
 let () =
   Location.register_error_of_exn
     (function

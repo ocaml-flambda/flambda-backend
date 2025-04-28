@@ -1378,78 +1378,6 @@ let opaque layout arg ~middle_end_only : H.expr_primitive list =
 
 let simple_i64 x = H.Simple (Simple.const (Reg_width_const.naked_int64 x))
 
-module Mixed_block_byte_counts = struct
-  type t =
-    { value : int;
-      flat : int
-    }
-
-  let zero = { value = 0; flat = 0 }
-
-  let add { value; flat } { value = value'; flat = flat' } =
-    { value = value + value'; flat = flat + flat' }
-
-  let rec count (el : _ L.mixed_block_element) : t =
-    match el with
-    | Value _ -> { value = 8; flat = 0 }
-    | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Word ->
-      { value = 0; flat = 8 }
-    | Vec128 -> { value = 0; flat = 16 }
-    | Product layouts ->
-      Array.fold_left (fun cts l -> add cts (count l)) zero layouts
-
-  let has_value_and_flat { value; flat } = value > 0 && flat > 0
-end
-
-module Mixed_block_byte_counts_wrt_subelement = struct
-  type t =
-    { here : Mixed_block_byte_counts.t;
-      left : Mixed_block_byte_counts.t;
-      right : Mixed_block_byte_counts.t
-    }
-
-  let zero =
-    { here = Mixed_block_byte_counts.zero;
-      left = Mixed_block_byte_counts.zero;
-      right = Mixed_block_byte_counts.zero
-    }
-
-  let add { here; left; right } { here = here'; left = left'; right = right' } =
-    { here = Mixed_block_byte_counts.add here here';
-      left = Mixed_block_byte_counts.add left left';
-      right = Mixed_block_byte_counts.add right right'
-    }
-
-  let rec count (el : _ L.mixed_block_element) path =
-    match path with
-    | [] -> { zero with here = Mixed_block_byte_counts.count el }
-    | i :: path_rest -> (
-      match el with
-      | Product els ->
-        let _, totals =
-          Array.fold_left
-            (fun (j, totals) el ->
-              ( j + 1,
-                add totals
-                  (if j = i
-                  then count el path_rest
-                  else if j < i
-                  then { zero with left = Mixed_block_byte_counts.count el }
-                  else { zero with right = Mixed_block_byte_counts.count el }) ))
-            (0, zero) els
-        in
-        totals
-      | Value _ | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Word
-      | Vec128 ->
-        Misc.fatal_error "Lambda_to_flambda_primitives: bad mixed block path")
-
-  let all { here; left; right } =
-    Mixed_block_byte_counts.
-      { value = here.value + left.value + right.value;
-        flat = here.flat + left.flat + right.flat
-      }
-end
-
 (* Given an index that points to data of some layout, produce the list of
    offsets needed to access each element *)
 (* CR rtjoa: there is a bit of duplicated logic here, in that it's being both
@@ -1459,8 +1387,8 @@ end
 let idx_access_offsets layout idx =
   let kinds = convert_layout_to_offset_access_kinds layout in
   let el = L.mixed_block_element_of_layout layout in
-  let cts = Mixed_block_byte_counts.count el in
-  if Mixed_block_byte_counts.has_value_and_flat cts
+  let cts = L.Mixed_block_bytes.count el in
+  if L.Mixed_block_bytes.has_value_and_flat cts
   then
     let mask = Int64.of_int ((1 lsl 48) - 1) in
     let values_start =
@@ -1589,40 +1517,24 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pidx_field pos, [] ->
     let idx_raw_value = Int64.mul (Int64.of_int pos) 8L in
     [Simple (Simple.const (Reg_width_const.naked_int64 idx_raw_value))]
-  | Pidx_mixed_field (field_path, shape), [] ->
-    let cts =
-      Mixed_block_byte_counts_wrt_subelement.count (L.Product shape) field_path
+  | Pidx_mixed_field (field_path, el), [] ->
+    let open L.Mixed_block_bytes_wrt_path in
+    let { offset_bytes; gap_bytes } =
+      match offset_and_gap (count el field_path) with
+      | Some { offset_bytes; gap_bytes } -> { offset_bytes; gap_bytes }
+      | None -> Misc.fatal_error "Pidxmixedfield: illegal gap"
     in
-    (* If an index points to a layout that's all values or all flats, then all
-       64 bits are the offset, and there's no gap *)
-    let gap_bytes =
-      if Mixed_block_byte_counts.has_value_and_flat cts.here
-      then cts.left.flat + cts.right.value
-      else 0
-    in
-    let offset_bytes =
-      if cts.here.value > 0
-      then cts.left.value
-      else cts.left.value + cts.left.flat + cts.right.value
-    in
-    if gap_bytes < 0 then Misc.fatal_error "Pidxmixedfield: negative gap";
-    if gap_bytes >= 1 lsl 16
-    then
-      (* CR rtjoa: add an error message during type checking to prevent this *)
-      (* this is possible... but I will be suprised if it happens *)
-      Misc.fatal_error "Pidxmixedfield: gap more than 16 bits";
     let idx_raw_value =
       Int64.add
         (Int64.shift_left (Int64.of_int gap_bytes) 48)
         (Int64.of_int offset_bytes)
     in
     [Simple (Simple.const (Reg_width_const.naked_int64 idx_raw_value))]
-  | Pidx_deepen (field_path, layouts), [[index]] ->
-    let el = L.mixed_block_element_of_layout (L.Punboxed_product layouts) in
-    let cts = Mixed_block_byte_counts_wrt_subelement.count el field_path in
+  | Pidx_deepen (field_path, el), [[index]] ->
+    let cts = L.Mixed_block_bytes_wrt_path.count el field_path in
     let outer_has_value_and_flat =
-      Mixed_block_byte_counts_wrt_subelement.all cts
-      |> Mixed_block_byte_counts.has_value_and_flat
+      L.Mixed_block_bytes_wrt_path.all cts
+      |> L.Mixed_block_bytes.has_value_and_flat
     in
     if outer_has_value_and_flat
     then
