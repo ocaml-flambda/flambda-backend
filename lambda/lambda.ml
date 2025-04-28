@@ -1452,6 +1452,7 @@ module Mixed_block_bytes = struct
     match el with
     | Value _ -> { value = 8; flat = 0 }
     | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Word ->
+      (* In a record, [float32]s and [bits32]s aren't packed tightly *)
       { value = 0; flat = 8 }
     | Vec128 -> { value = 0; flat = 16 }
     | Product layouts ->

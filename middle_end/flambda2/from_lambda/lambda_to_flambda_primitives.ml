@@ -1378,20 +1378,22 @@ let opaque layout arg ~middle_end_only : H.expr_primitive list =
 
 let simple_i64 x = H.Simple (Simple.const (Reg_width_const.naked_int64 x))
 
+let rec leaves (el : _ L.mixed_block_element) : _ L.mixed_block_element list =
+  match el with
+  | Product els -> List.concat_map leaves (Array.to_list els)
+  | Value _ | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Word
+  | Vec128 ->
+    [el]
+
 (* Given an index that points to data of some layout, produce the list of
    offsets needed to access each element *)
-(* CR rtjoa: there is a bit of duplicated logic here, in that it's being both
-   counted and converted to offset access kinds, which have a separate counting
-   mechanism. maybe instead fold left over the layout and use the counting
-   mechanism in this file? *)
 let idx_access_offsets layout idx =
-  let kinds = convert_layout_to_offset_access_kinds layout in
   let el = L.mixed_block_element_of_layout layout in
   let cts = L.Mixed_block_bytes.count el in
   if L.Mixed_block_bytes.has_value_and_flat cts
   then
-    let mask = Int64.of_int ((1 lsl 48) - 1) in
-    let values_start =
+    let offset =
+      let mask = Int64.of_int ((1 lsl 48) - 1) in
       H.Binary (Int_arith (Naked_int64, And), idx, simple_i64 mask)
     in
     let gap =
@@ -1402,44 +1404,28 @@ let idx_access_offsets layout idx =
       in
       H.Binary (Int_shift (Naked_int64, Lsr), idx, shifter)
     in
-    let value_offset ~value_bytes_to_left =
-      H.Binary
-        ( Int_arith (Naked_int64, Add),
-          Prim values_start,
-          simple_i64 (Int64.of_int value_bytes_to_left) )
+    let f (to_left : L.Mixed_block_bytes.t) (el : unit L.mixed_block_element) =
+      let add x y = H.Binary (Int_arith (Naked_int64, Add), Prim x, y) in
+      let offset_from_offset : H.simple_or_prim =
+        match el with
+        | Product _ -> assert false
+        (* Values are (values to left) beyond the offset *)
+        | Value _ -> simple_i64 (Int64.of_int to_left.value)
+        (* Flats are gap + (all values) + (flats to left) beyond the offset *)
+        | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Word | Vec128 ->
+          Prim (add gap (simple_i64 (Int64.of_int (cts.value + to_left.flat))))
+      in
+      let prim = add offset offset_from_offset in
+      L.Mixed_block_bytes.add to_left (L.Mixed_block_bytes.count el), prim
     in
-    let flat_offset ~flat_bytes_to_left =
-      H.Binary
-        ( Int_arith (Naked_int64, Add),
-          Prim
-            (H.Binary (Int_arith (Naked_int64, Add), Prim values_start, Prim gap)),
-          simple_i64 (Int64.of_int (cts.value + flat_bytes_to_left)) )
-    in
-    let _, prims =
-      List.fold_left_map
-        (fun (value_bytes_to_left, flat_bytes_to_left) kind ->
-          let prim =
-            if P.Offset_access_kind.is_value kind
-            then value_offset ~value_bytes_to_left
-            else flat_offset ~flat_bytes_to_left
-          in
-          let size_in_bytes =
-            P.Offset_access_kind.record_element_size_in_bytes kind
-          in
-          let acc =
-            if P.Offset_access_kind.is_value kind
-            then value_bytes_to_left + size_in_bytes, flat_bytes_to_left
-            else value_bytes_to_left, flat_bytes_to_left + size_in_bytes
-          in
-          acc, prim)
-        (0, 0) kinds
-    in
-    kinds, prims
+    snd (List.fold_left_map f L.Mixed_block_bytes.zero (leaves el))
   else
-    ( kinds,
-      List.init (List.length kinds) (fun i ->
-          let summand = Simple.const_int_of_kind K.naked_int64 (i * 8) in
-          H.Binary (Int_arith (Naked_int64, Add), idx, Simple summand)) )
+    let f (to_left : L.Mixed_block_bytes.t) (el : unit L.mixed_block_element) =
+      let summand = simple_i64 (Int64.of_int (to_left.value + to_left.flat)) in
+      let prim = H.Binary (Int_arith (Naked_int64, Add), idx, summand) in
+      L.Mixed_block_bytes.add to_left (L.Mixed_block_bytes.count el), prim
+    in
+    snd (List.fold_left_map f L.Mixed_block_bytes.zero (leaves el))
 
 (* Primitive conversion *)
 let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
@@ -2655,7 +2641,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let kind = standard_int_or_float_of_peek_or_poke layout in
     [Binary (Poke kind, ptr, new_value)]
   | Pget_idx layout, [[ptr]; [idx]] ->
-    let kinds, offsets = idx_access_offsets layout idx in
+    let offsets = idx_access_offsets layout idx in
+    let kinds = convert_layout_to_offset_access_kinds layout in
     let reads =
       List.map2
         (fun kind offset -> H.Binary (Read_offset kind, ptr, Prim offset))
@@ -2663,7 +2650,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     in
     [H.maybe_create_unboxed_product reads]
   | Pset_idx layout, [[ptr]; [idx]; new_values] ->
-    let kinds, offsets = idx_access_offsets layout idx in
+    let offsets = idx_access_offsets layout idx in
+    let kinds = convert_layout_to_offset_access_kinds layout in
     let map3 f xs ys zs =
       List.map2 (fun x (y, z) -> f x y z) xs (List.combine ys zs)
     in
