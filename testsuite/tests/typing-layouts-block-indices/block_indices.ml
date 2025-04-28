@@ -60,7 +60,7 @@ let () =
   Printf.printf "%f\n" x;
   write_idx_mut r (.f) 2.0;
   Printf.printf "%f\n" r.f;
-  ()
+  print_newline ()
 
 type float_record = { f' : float; mutable f : float }
 
@@ -71,7 +71,7 @@ let () =
   Printf.printf "%f\n" (box_float x);
   write_idx_mut r (.f) #2.0;
   Printf.printf "%f\n" r.f;
-  ()
+  print_newline ()
 
 type mixed_record = { i : int; mutable u : float#; s : string }
 
@@ -82,7 +82,7 @@ let () =
   Printf.printf "%f\n" (box_float x);
   write_idx_mut r (.u) #2.0;
   Printf.printf "%f\n" (box_float r.u);
-  ()
+  print_newline ()
 
 type mixed_float32_record = { s : string; mutable f : float32# }
 
@@ -93,7 +93,7 @@ let () =
   Printf.printf "%f\n" (Float_u.to_float (Float32_u.to_float x));
   write_idx_mut r (.f) #2.0s;
   Printf.printf "%f\n" (Float_u.to_float (Float32_u.to_float r.f));
-  ()
+  print_newline ()
 
 type nested_record = { f : float#; mutable r : r# }
 
@@ -104,7 +104,7 @@ let () =
   Printf.printf "%f\n" x;
   write_idx_mut r (.r.#f) 2.0;
   Printf.printf "%f\n" r.r.#f;
-  ()
+  print_newline ()
 
 type mixed_float_record = { mutable f : float; mutable u : float# }
 
@@ -115,7 +115,7 @@ let () =
   Printf.printf "%f\n" (box_float x);
   write_idx_mut r (.f) #2.0;
   Printf.printf "%f\n" r.f;
-  ()
+  print_newline ()
 
 let () =
   print_endline "Mixed float record (float# field)";
@@ -124,7 +124,7 @@ let () =
   Printf.printf "%f\n" (box_float x);
   write_idx_mut r (.u) #2.0;
   Printf.printf "%f\n" (box_float r.u);
-  ()
+  print_newline ()
 
 type mixed_int32_record = { j : int32#; mutable i : int32# }
 
@@ -135,7 +135,7 @@ let () =
   Printf.printf "%d\n" (Int32_u.to_int x);
   write_idx_mut r (.i) #2l;
   Printf.printf "%d\n" (Int32_u.to_int r.i);
-  ()
+  print_newline ()
 
 type mixed_int64_record = { j : int64#; mutable i : int64# }
 
@@ -146,7 +146,7 @@ let () =
   Printf.printf "%d\n" (Int64_u.to_int x);
   write_idx_mut r (.i) #2L;
   Printf.printf "%d\n" (Int64_u.to_int r.i);
-  ()
+  print_newline ()
 
 type mixed_nativeint_record = { j : nativeint#; mutable i : nativeint# }
 
@@ -157,7 +157,7 @@ let () =
   Printf.printf "%d\n" (Nativeint_u.to_int x);
   write_idx_mut r (.i) #2n;
   Printf.printf "%d\n" (Nativeint_u.to_int r.i);
-  ()
+  print_newline ()
 
 (***************************************)
 (* Nested product update and deepening *)
@@ -175,7 +175,8 @@ let print_t_b t =
     bs
 
 let () =
-  print_endline "Nested product update and deepening";
+  print_endline
+    "Nested product update and deepen mixed product to mixed product";
   let t = { b = #{ i = #1L; a = #{ s = "a"; i = #2L }; s = "b" }; s = "c" } in
   print_t_b t;
   let idx = (.b) in
@@ -185,4 +186,46 @@ let () =
   let deeper_idx = (.idx_mut(idx).#a) in
   write_idx_mut t deeper_idx #{ s = "aaa"; i = #200L };
   print_t_b t;
+  print_newline ();
   ()
+
+type is = #{ i : int; j : int }
+type fs = #{ f : float#; g : float#; }
+type inner = #{ fs : fs; is : is }
+type outer = { mutable inner : inner; s : string }
+
+let print_outer prefix { inner = #{ fs = #{ f; g }; is = #{ i; j } }; s } =
+  Printf.printf "%s{ { f = %f; g = %f }; { i = %d; j = %d } } %s\n"
+    prefix (Float_u.to_float f) (Float_u.to_float g) i j s
+
+let () =
+  print_endline "Deepen mixed product to values";
+  let r =
+    { inner = #{ fs = #{ f = #1.0; g = #11.0 }; is = #{ i = 1; j = 11 } }
+    ; s = "foo" }
+  in
+  print_outer "initial: " r;
+  let idx_is = (.idx_mut((.inner)).#is) in
+  let #{ i; j } = read_idx_mut r idx_is in
+  Printf.printf "will incr: %d %d\n" i j;
+  write_idx_mut r (.idx_mut((.inner)).#is) #{ i = 2; j = 22 };
+  print_outer "" r;
+  print_endline "\nDeepen mixed product to flats (continues above)";
+  let idx_fs = (.idx_mut((.inner)).#fs) in
+  let #{ f; g } = read_idx_mut r idx_fs in
+  Printf.printf "will incr: %f %f\n" (Float_u.to_float f) (Float_u.to_float g);
+  write_idx_mut r (.idx_mut((.inner)).#fs) #{ f = #2.0; g = #22.0 };
+  print_outer "" r;
+  print_endline "\nDeepen values to values (continues above)";
+  let idx_j = (.idx_mut(idx_is).#j) in
+  let j = read_idx_mut r idx_j in
+  Printf.printf "will incr: %d\n" j;
+  write_idx_mut r (.idx_mut(idx_is).#j) 33;
+  print_outer "" r;
+  print_endline "\nDeepen flats to flats (continues above)";
+  let idx_g = (.idx_mut(idx_fs).#g) in
+  let g = read_idx_mut r idx_g in
+  Printf.printf "will incr: %f\n" (Float_u.to_float g);
+  write_idx_mut r (.idx_mut(idx_fs).#g) #33.0;
+  print_outer "" r;
+  print_newline ()
