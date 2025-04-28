@@ -165,6 +165,7 @@ end
 module Tree = Patricia_tree.Make (T)
 module Set = Tree.Set
 module Map = Tree.Map
+module Lmap = Lmap.Make (T)
 
 let export t = find_data t
 

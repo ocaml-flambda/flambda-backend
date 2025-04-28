@@ -5,8 +5,8 @@
  (language c)
  (names stubs)
  (flags
-   (:standard
-     (:include flags.sexp)))
+  (:standard
+   (:include flags.sexp)))
  (include_dirs "../../../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
 
 (rule

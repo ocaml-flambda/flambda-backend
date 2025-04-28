@@ -21,7 +21,7 @@ type 'a aliased = Aliased of 'a @@ aliased [@@unboxed]
 
 let () =
   (* [Capsule.create] creates a new capsule with an unique key. *)
-  let packed : Capsule.Key.packed @@ unique = Capsule.create () in
+  let packed : Capsule.Key.packed @ unique = Capsule.create () in
   let (P k) = packed in
   (* [Capsule.Key.access] *)
   let Aliased x, k =
@@ -84,7 +84,7 @@ let () =
   (* We can still access the data through the password. *)
   let s =
     Capsule.Data.Local.extract p
-      (fun x -> (x.contents : string @@ portable)) x
+      (fun x -> (x.contents : string @ portable)) x
   in
   assert (s = "Local value")
 ;;

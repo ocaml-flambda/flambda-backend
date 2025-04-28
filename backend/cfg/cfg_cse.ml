@@ -15,7 +15,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 module DLL = Flambda_backend_utils.Doubly_linked_list
@@ -270,7 +270,7 @@ end = struct
     { instruction_id }
 
   let get_and_incr_instruction_id state =
-    InstructionId.get_next state.instruction_id
+    InstructionId.get_and_incr state.instruction_id
 end
 
 let insert_single_move :
@@ -298,7 +298,7 @@ let insert_move :
   | 0 -> ()
   | 1 -> insert_single_move state srcs.(0) dsts.(0) cell
   | _ ->
-    let tmps = Reg.createv_like srcs in
+    let tmps = Reg.createv_with_typs srcs in
     let insert_single_move src dst = insert_single_move state src dst cell in
     Array.iter2 tmps dsts ~f:insert_single_move;
     Array.iter2 srcs tmps ~f:insert_single_move
@@ -337,8 +337,14 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
 
   let is_cheap_operation : Operation.t -> bool = function
     | Const_int _ -> true
-    | _ -> false
-    [@@warning "-4"]
+    | Move | Spill | Reload | Const_float32 _ | Const_float _ | Const_symbol _
+    | Const_vec128 _ | Opaque | Stackoffset _ | Load _ | Store _ | Alloc _
+    | Poll | Intop _
+    | Intop_imm (_, _)
+    | Intop_atomic _ | Floatop _ | Csel _ | Static_cast _ | Reinterpret_cast _
+    | Specific _ | Name_for_debugger _ | Probe_is_enabled _ | Begin_region
+    | End_region | Dls_get ->
+      false
 
   let kill_loads (n : numbering) : numbering = remove_mutable_load_numbering n
 
@@ -347,7 +353,7 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
    fun state n cell ->
     let i = DLL.value cell in
     match i.desc with
-    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> n
+    | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ -> n
     | Op (Move | Spill | Reload) ->
       (* For moves, we associate the same value number to the result reg as to
          the argument reg. *)
@@ -369,7 +375,17 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
       let n1 = kill_addr_regs (kill_loads n) in
       let n2 = set_unknown_regs n1 i.res in
       n2
-    | Op op -> (
+    | Op
+        (( Const_int _ | Begin_region | End_region | Dls_get | Const_float32 _
+         | Const_float _ | Const_symbol _ | Const_vec128 _ | Stackoffset _
+         | Load _
+         | Store (_, _, _)
+         | Intop _
+         | Intop_imm (_, _)
+         | Intop_atomic _
+         | Floatop (_, _)
+         | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+         | Specific _ | Name_for_debugger _ ) as op) -> (
       match class_of_operation op with
       | (Op_pure | Op_load _) as op_class -> (
         let n1, varg = valnum_regs n i.arg in
@@ -412,7 +428,6 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
         let n2 = set_unknown_regs n1 i.res in
         let n3 = kill_loads n2 in
         n3)
-   [@@warning "-4"]
 
   let cse_body :
       State.t -> numbering -> Cfg.basic Cfg.instruction DLL.t -> numbering =

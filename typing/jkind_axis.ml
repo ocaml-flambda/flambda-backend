@@ -153,6 +153,8 @@ module Axis = struct
       Pack (Modal (Monadic Contention));
       Pack (Modal (Comonadic Portability));
       Pack (Modal (Comonadic Yielding));
+      Pack (Modal (Comonadic Statefulness));
+      Pack (Modal (Monadic Visibility));
       Pack (Nonmodal Externality);
       Pack (Nonmodal Nullability) ]
 
@@ -168,6 +170,8 @@ module Axis = struct
     | Modal (Comonadic Portability) -> true
     | Modal (Monadic Contention) -> true
     | Modal (Comonadic Yielding) -> true
+    | Modal (Comonadic Statefulness) -> true
+    | Modal (Monadic Visibility) -> true
     | Nonmodal Externality -> true
     | Nonmodal Nullability -> false
 end
@@ -188,8 +192,10 @@ module Axis_set = struct
     | Modal (Comonadic Portability) -> 3
     | Modal (Monadic Contention) -> 4
     | Modal (Comonadic Yielding) -> 5
-    | Nonmodal Externality -> 6
-    | Nonmodal Nullability -> 7
+    | Modal (Comonadic Statefulness) -> 6
+    | Modal (Monadic Visibility) -> 7
+    | Nonmodal Externality -> 8
+    | Nonmodal Nullability -> 9
 
   let[@inline] axis_mask ax = 1 lsl axis_index ax
 
@@ -215,6 +221,8 @@ module Axis_set = struct
     |> set_axis (Modal (Comonadic Portability))
     |> set_axis (Modal (Monadic Contention))
     |> set_axis (Modal (Comonadic Yielding))
+    |> set_axis (Modal (Comonadic Statefulness))
+    |> set_axis (Modal (Monadic Visibility))
     |> set_axis (Nonmodal Externality)
     |> set_axis (Nonmodal Nullability)
 

@@ -18,11 +18,15 @@
 (** Interface to be satisfied by target-specific code, for common subexpression
     elimination. *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
+
 (** Classification of operations *)
 
 type op_class =
   | Op_pure  (** pure arithmetic, produce one or several result *)
-  | Op_load of Simple_operation.mutable_flag  (** memory load *)
+  | Op_load of Operation.mutable_flag  (** memory load *)
   | Op_store of bool  (** memory store, false = init, true = assign *)
   | Op_other  (** anything else that does not allocate nor store in memory *)
 

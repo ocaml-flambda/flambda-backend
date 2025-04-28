@@ -23,7 +23,7 @@
  * SOFTWARE.                                                                      *
  *                                                                                *
  **********************************************************************************)
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 
@@ -40,5 +40,5 @@ let rec defines_label (i : Linear.instruction) =
   | Ladjust_stack_offset _ -> defines_label i.next
   | Lprologue | Lop _ | Lcall_op _ | Lreloadretaddr | Lreturn | Lbranch _
   | Lcondbranch _ | Lcondbranch3 _ | Lswitch _ | Lentertrap | Lpushtrap _
-  | Lpoptrap | Lraise _ | Lstackcheck _ ->
+  | Lpoptrap _ | Lraise _ | Lstackcheck _ ->
     false

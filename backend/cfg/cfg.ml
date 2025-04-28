@@ -23,7 +23,7 @@
  * SOFTWARE.                                                                      *
  *                                                                                *
  **********************************************************************************)
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 
@@ -43,7 +43,6 @@ type basic_block =
     mutable exn : Label.t option;
     mutable can_raise : bool;
     mutable is_trap_handler : bool;
-    mutable dead : bool;
     mutable cold : bool
   }
 
@@ -187,18 +186,6 @@ let add_block_exn t block =
       Label.format block.start;
   Label.Tbl.add t.blocks block.start block
 
-let remove_block_exn t label =
-  match Label.Tbl.find t.blocks label with
-  | exception Not_found ->
-    Misc.fatal_errorf "Cfg.remove_block_exn: block %a not found" Label.format
-      label
-  | _ -> Label.Tbl.remove t.blocks label
-
-let remove_blocks t labels_to_remove =
-  Label.Tbl.filter_map_inplace
-    (fun l b -> if Label.Set.mem l labels_to_remove then None else Some b)
-    t.blocks
-
 let get_block t label = Label.Tbl.find_opt t.blocks label
 
 let get_block_exn t label =
@@ -227,6 +214,27 @@ let fun_name t = t.fun_name
 let entry_label t = t.entry_label
 
 let iter_blocks t ~f = Label.Tbl.iter f t.blocks
+
+let iter_blocks_dfs : t -> f:(Label.t -> basic_block -> unit) -> unit =
+ fun cfg ~f ->
+  let marked = ref Label.Set.empty in
+  let rec iter (label : Label.t) : unit =
+    if not (Label.Set.mem label !marked)
+    then (
+      marked := Label.Set.add label !marked;
+      let block = get_block_exn cfg label in
+      f label block;
+      Label.Set.iter
+        (fun succ_label -> iter succ_label)
+        (successor_labels ~normal:true ~exn:true block))
+  in
+  iter cfg.entry_label;
+  (* note: some block may not have been seen since we currently cannot remove
+     all non-reachable blocks. *)
+  if Label.Set.cardinal !marked <> Label.Tbl.length cfg.blocks
+  then
+    iter_blocks cfg ~f:(fun label block ->
+        if not (Label.Set.mem label !marked) then f label block)
 
 let fold_blocks t ~f ~init = Label.Tbl.fold f t.blocks init
 
@@ -262,7 +270,8 @@ let dump_basic ppf (basic : basic) =
   | Reloadretaddr -> fprintf ppf "Reloadretaddr"
   | Pushtrap { lbl_handler } ->
     fprintf ppf "Pushtrap handler=%a" Label.format lbl_handler
-  | Poptrap -> fprintf ppf "Poptrap"
+  | Poptrap { lbl_handler } ->
+    fprintf ppf "Poptrap handler=%a" Label.format lbl_handler
   | Prologue -> fprintf ppf "Prologue"
   | Stack_check { max_frame_size_bytes } ->
     fprintf ppf "Stack_check size=%d" max_frame_size_bytes
@@ -449,7 +458,7 @@ let is_pure_basic : basic -> bool = function
        wouldn't be. Saying it's not pure doesn't decrease the generated code
        quality and is future-proof.*)
     false
-  | Pushtrap _ | Poptrap ->
+  | Pushtrap _ | Poptrap _ ->
     (* Those instructions modify the trap stack which actually modifies the
        stack pointer. *)
     false
@@ -464,15 +473,8 @@ let is_pure_basic : basic -> bool = function
     false
 
 let same_location (r1 : Reg.t) (r2 : Reg.t) =
-  Reg.same_loc r1 r2
-  &&
-  match r1.loc with
-  | Unknown -> Misc.fatal_errorf "Cfg got unknown register location."
-  | Reg _ -> Proc.register_class r1 = Proc.register_class r2
-  | Stack _ ->
-    Stack_class.equal
-      (Stack_class.of_machtype r1.typ)
-      (Stack_class.of_machtype r2.typ)
+  Reg.same_loc_fatal_on_unknown
+    ~fatal_message:"Cfg got unknown register location." r1 r2
 
 let is_noop_move instr =
   match instr.desc with
@@ -491,7 +493,7 @@ let is_noop_move instr =
       | Intop_imm _ | Intop_atomic _ | Floatop _ | Opaque | Reinterpret_cast _
       | Static_cast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
       | Begin_region | End_region | Dls_get | Poll | Alloc _ )
-  | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
+  | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
     false
 
 let set_stack_offset (instr : _ instruction) stack_offset =
@@ -500,6 +502,14 @@ let set_stack_offset (instr : _ instruction) stack_offset =
     Misc.fatal_errorf "Cfg.set_stack_offset: expected non-negative got %d"
       stack_offset;
   instr.stack_offset <- stack_offset
+
+let set_stack_offset_for_block (block : basic_block) stack_offset =
+  if stack_offset < 0
+  then
+    Misc.fatal_errorf
+      "Cfg.set_stack_offset_for_block: expected non-negative got %d"
+      stack_offset;
+  block.stack_offset <- stack_offset
 
 let set_live (instr : _ instruction) live = instr.live <- live
 
@@ -533,7 +543,9 @@ let instr_id = InstructionId.make_sequence ()
 
 let reset_instr_id () = InstructionId.reset instr_id
 
-let next_instr_id () = InstructionId.get_next instr_id
+let next_instr_id () = InstructionId.get_and_incr instr_id
+
+let invalid_stack_offset = -1
 
 let make_instr desc arg res dbg =
   { desc;
@@ -542,7 +554,7 @@ let make_instr desc arg res dbg =
     dbg;
     fdo = Fdo_info.none;
     live = Reg.Set.empty;
-    stack_offset = -1;
+    stack_offset = invalid_stack_offset;
     id = next_instr_id ();
     irc_work_list = Unknown_list;
     ls_order = 0;
@@ -560,13 +572,65 @@ let make_empty_block ?label terminator : basic_block =
     body = DLL.make_empty ();
     terminator;
     predecessors = Label.Set.empty;
-    stack_offset = -1;
+    stack_offset = invalid_stack_offset;
     exn = None;
     can_raise = false;
     is_trap_handler = false;
-    dead = false;
     cold = false
   }
+
+let is_poll (instr : basic instruction) =
+  match instr.desc with
+  | Op Poll -> true
+  | Reloadretaddr | Prologue | Pushtrap _ | Poptrap _ | Stack_check _
+  | Op
+      ( Alloc _ | Move | Spill | Reload | Opaque | Begin_region | End_region
+      | Dls_get | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+      | Const_vec128 _ | Stackoffset _ | Load _
+      | Store (_, _, _)
+      | Intop _
+      | Intop_imm (_, _)
+      | Intop_atomic _
+      | Floatop (_, _)
+      | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+      | Specific _ | Name_for_debugger _ ) ->
+    false
+
+let is_alloc (instr : basic instruction) =
+  match instr.desc with
+  | Op (Alloc _) -> true
+  | Reloadretaddr | Prologue | Pushtrap _ | Poptrap _ | Stack_check _
+  | Op
+      ( Poll | Move | Spill | Reload | Opaque | Begin_region | End_region
+      | Dls_get | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+      | Const_vec128 _ | Stackoffset _ | Load _
+      | Store (_, _, _)
+      | Intop _
+      | Intop_imm (_, _)
+      | Intop_atomic _
+      | Floatop (_, _)
+      | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+      | Specific _ | Name_for_debugger _ ) ->
+    false
+
+let is_end_region (b : basic) =
+  match b with
+  | Op End_region -> true
+  | Reloadretaddr | Prologue | Pushtrap _ | Poptrap _ | Stack_check _
+  | Op
+      ( Alloc _ | Poll | Move | Spill | Reload | Opaque | Begin_region | Dls_get
+      | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+      | Const_vec128 _ | Stackoffset _ | Load _
+      | Store (_, _, _)
+      | Intop _
+      | Intop_imm (_, _)
+      | Intop_atomic _
+      | Floatop (_, _)
+      | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+      | Specific _ | Name_for_debugger _ ) ->
+    false
+
+let is_alloc_or_poll instr = is_alloc instr || is_poll instr
 
 let basic_block_contains_calls block =
   block.is_trap_handler
@@ -588,10 +652,7 @@ let basic_block_contains_calls block =
      | Call _ -> true
      | Prim { op = External _; _ } -> true
      | Prim { op = Probe _; _ } -> true)
-  || DLL.exists block.body ~f:(fun (instr : basic instruction) ->
-         match[@ocaml.warning "-4"] instr.desc with
-         | Op (Alloc _ | Poll) -> true
-         | _ -> false)
+  || DLL.exists block.body ~f:is_alloc_or_poll
 
 let max_instr_id t =
   (* CR-someday xclerc for xclerc: factor out with similar function in
@@ -614,3 +675,106 @@ let equal_irc_work_list left right =
     true
   | (Unknown_list | Coalesced | Constrained | Frozen | Work_list | Active), _ ->
     false
+
+let remove_trap_instructions t removed_trap_handlers =
+  (* Remove Lpushtrap and Lpoptrap instructions that refer to dead labels and
+     update stack_offsets of affected instructions and blocks. [stack_offset] is
+     in bytes throughout this function. *)
+  let visited = ref Label.Set.empty in
+  let update_instruction (i : _ instruction) ~stack_offset =
+    if not (Int.equal i.stack_offset stack_offset)
+    then set_stack_offset i stack_offset
+  in
+  let rec update_basic cursor ~stack_offset =
+    let update_basic_next r ~stack_offset =
+      match r with
+      | Error `End_of_list -> stack_offset
+      | Ok () -> update_basic cursor ~stack_offset
+    in
+    let basic = DLL.Cursor.value cursor in
+    update_instruction basic ~stack_offset;
+    match basic.desc with
+    | Pushtrap { lbl_handler } ->
+      if Label.Set.mem lbl_handler removed_trap_handlers
+      then update_basic_next (DLL.Cursor.delete_and_next cursor) ~stack_offset
+      else (
+        update_block lbl_handler ~stack_offset;
+        update_basic_next (DLL.Cursor.next cursor)
+          ~stack_offset:(stack_offset + Proc.trap_size_in_bytes))
+    | Poptrap { lbl_handler } ->
+      if Label.Set.mem lbl_handler removed_trap_handlers
+      then update_basic_next (DLL.Cursor.delete_and_next cursor) ~stack_offset
+      else
+        update_basic_next (DLL.Cursor.next cursor)
+          ~stack_offset:(stack_offset - Proc.trap_size_in_bytes)
+    | Op (Stackoffset n) ->
+      update_basic_next (DLL.Cursor.next cursor) ~stack_offset:(stack_offset + n)
+    | Op
+        ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_float32 _
+        | Const_symbol _ | Const_vec128 _ | Load _ | Store _ | Intop _
+        | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Static_cast _
+        | Reinterpret_cast _ | Probe_is_enabled _ | Opaque | Begin_region
+        | End_region | Specific _ | Name_for_debugger _ | Dls_get | Poll
+        | Alloc _ )
+    | Reloadretaddr | Prologue | Stack_check _ ->
+      update_basic_next (DLL.Cursor.next cursor) ~stack_offset
+  and update_body r ~stack_offset =
+    match r with
+    | Error `Empty -> stack_offset
+    | Ok cursor -> update_basic cursor ~stack_offset
+  and update_terminator terminator ~stack_offset =
+    (match terminator.desc with
+    | Tailcall_self _ -> assert (Int.equal stack_offset 0)
+    | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
+    | Int_test _ | Switch _ | Return | Raise _ | Tailcall_func _
+    | Call_no_return _ | Call _ | Prim _ ->
+      ());
+    update_instruction terminator ~stack_offset
+  and update_block label ~stack_offset =
+    let block = get_block_exn t label in
+    if Label.Set.mem label !visited
+    then assert (block.stack_offset = stack_offset)
+    else (
+      visited := Label.Set.add label !visited;
+      if not (Int.equal block.stack_offset stack_offset)
+      then set_stack_offset_for_block block stack_offset;
+      let stack_offset =
+        update_body (DLL.create_hd_cursor block.body) ~stack_offset
+      in
+      update_terminator block.terminator ~stack_offset;
+      Label.Set.iter
+        (update_block ~stack_offset)
+        (successor_labels ~normal:true ~exn:false block)
+      (* Stack offset is not propagated across exceptional edges, because an
+         exception that is raised "folds" everything on the stack up to the top
+         of the currnt trap stack, and the amount can be different in different
+         blocks. *))
+  in
+  if not (Label.Set.is_empty removed_trap_handlers)
+  then
+    (* CR-someday gyorsh: avoid iterating over all the instructions to just
+       remove a few pushtrap/poptraps. *)
+    (* update all blocks reachable from entry *)
+    update_block t.entry_label ~stack_offset:0
+
+let remove_blocks t labels_to_remove =
+  let removed_labels = ref Label.Set.empty in
+  let removed_trap_handlers = ref Label.Set.empty in
+  Label.Tbl.filter_map_inplace
+    (fun l b ->
+      if Label.Set.mem l labels_to_remove
+      then (
+        assert (Label.Set.is_empty b.predecessors);
+        assert (Label.Set.is_empty (successor_labels b ~normal:true ~exn:false));
+        if b.is_trap_handler
+        then removed_trap_handlers := Label.Set.add l !removed_trap_handlers;
+        removed_labels := Label.Set.add l !removed_labels;
+        None)
+      else Some b)
+    t.blocks;
+  let labels_not_found = Label.Set.diff labels_to_remove !removed_labels in
+  if not (Label.Set.is_empty labels_not_found)
+  then
+    Misc.fatal_errorf "Cfg.remove_blocks: not found blocks %a" Label.Set.print
+      labels_not_found;
+  remove_trap_instructions t !removed_trap_handlers

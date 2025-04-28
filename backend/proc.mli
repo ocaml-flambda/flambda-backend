@@ -13,69 +13,72 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 (* Processor descriptions *)
 
 (* Instruction selection *)
-val word_addressed: bool
+val word_addressed : bool
 
-(* Registers available for register allocation *)
-val num_register_classes: int
-val register_class: Reg.t -> int
-val num_available_registers: int array
-val first_available_register: int array
-val register_name: Cmm.machtype_component -> int -> string
-val phys_reg: Cmm.machtype_component -> int -> Reg.t
-val gc_regs_offset : Reg.t -> int
+val phys_reg : Cmm.machtype_component -> int -> Reg.t
+
 val precolored_regs : unit -> Reg.Set.t
 
-(* If two registers have compatible types then we allow moves between them.
-   Note that we never allow moves between different register classes or
-   stack slot classes, so the following must hold:
-   if [machtypes_are_compatible r1 r2] = true then
-   [register_class r1] = [register_class r2]
-   and [stack_class r1.typ] = [stack_class r2.typ]. *)
+(* If two registers have compatible types then we allow moves between them. Note
+   that we never allow moves between different register classes or stack slot
+   classes, so the following must hold: if [machtypes_are_compatible r1 r2] =
+   true then [register_class r1] = [register_class r2] and [stack_class r1.typ]
+   = [stack_class r2.typ]. *)
 val types_are_compatible : Reg.t -> Reg.t -> bool
 
 (* Calling conventions *)
-val loc_arguments: Cmm.machtype -> Reg.t array * int
-val loc_results_call: Cmm.machtype -> Reg.t array * int
-val loc_parameters: Cmm.machtype -> Reg.t array
-val loc_results_return: Cmm.machtype -> Reg.t array
+val loc_arguments : Cmm.machtype -> Reg.t array * int
+
+val loc_results_call : Cmm.machtype -> Reg.t array * int
+
+val loc_parameters : Cmm.machtype -> Reg.t array
+
+val loc_results_return : Cmm.machtype -> Reg.t array
+
 (* For argument number [n] split across multiple registers, the target-specific
    implementation of [loc_external_arguments] must return [regs] such that
    [regs.(n).(0)] is to hold the part of the value at the lowest address. *)
-val loc_external_arguments: Cmm.exttype list -> Reg.t array array * int
-val loc_external_results: Cmm.machtype -> Reg.t array
-val loc_exn_bucket: Reg.t
+val loc_external_arguments : Cmm.exttype list -> Reg.t array array * int
 
-(* The maximum number of arguments of an OCaml to OCaml function call for
-   which it is guaranteed there will be no arguments passed on the stack.
-   (Above this limit, tail call optimization may be disabled.)
-   N.B. The values for this parameter in the backends currently assume
-   that no unboxed floats are passed using the OCaml calling conventions.
-*)
+val loc_external_results : Cmm.machtype -> Reg.t array
+
+val loc_exn_bucket : Reg.t
+
+(* The maximum number of arguments of an OCaml to OCaml function call for which
+   it is guaranteed there will be no arguments passed on the stack. (Above this
+   limit, tail call optimization may be disabled.) N.B. The values for this
+   parameter in the backends currently assume that no unboxed floats are passed
+   using the OCaml calling conventions. *)
 val max_arguments_for_tailcalls : int
 
-
 (* Registers destroyed by operations *)
-val destroyed_at_raise: Reg.t array
+val destroyed_at_raise : Reg.t array
+
 val destroyed_at_reloadretaddr : Reg.t array
+
 val destroyed_at_pushtrap : Reg.t array
+
 val destroyed_at_basic : Cfg_intf.S.basic -> Reg.t array
+
 val destroyed_at_terminator : Cfg_intf.S.terminator -> Reg.t array
-val is_destruction_point : more_destruction_points:bool -> Cfg_intf.S.terminator -> bool
+
+val is_destruction_point :
+  more_destruction_points:bool -> Cfg_intf.S.terminator -> bool
 
 (* Info for laying out the stack frame *)
 
-val initial_stack_offset : num_stack_slots:int Stack_class.Tbl.t
-  -> contains_calls:bool -> int
+val initial_stack_offset :
+  num_stack_slots:int Stack_class.Tbl.t -> contains_calls:bool -> int
 
 val trap_frame_size_in_bytes : int
 
 val frame_required :
-  fun_contains_calls:bool ->
-  fun_num_stack_slots:int Stack_class.Tbl.t ->
-  bool
+  fun_contains_calls:bool -> fun_num_stack_slots:int Stack_class.Tbl.t -> bool
 
 val frame_size :
   stack_offset:int ->
@@ -97,15 +100,7 @@ val slot_offset :
 
 (* Function prologues *)
 val prologue_required :
-  fun_contains_calls : bool ->
-  fun_num_stack_slots : int Stack_class.Tbl.t ->
-  bool
-
-(** For a given register class, the DWARF register numbering for that class.
-    Given an allocated register with location [Reg n] and class [reg_class], the
-    returned array contains the corresponding DWARF register number at index
-    [n - first_available_register.(reg_class)]. *)
-val dwarf_register_numbers : reg_class:int -> int array
+  fun_contains_calls:bool -> fun_num_stack_slots:int Stack_class.Tbl.t -> bool
 
 (** The DWARF register number corresponding to the stack pointer. *)
 val stack_ptr_dwarf_register_number : int
@@ -114,10 +109,7 @@ val stack_ptr_dwarf_register_number : int
 val domainstate_ptr_dwarf_register_number : int
 
 (* Calling the assembler *)
-val assemble_file: string -> string -> int
-
-(* Called before translating a fundecl. *)
-val init : unit -> unit
+val assemble_file : string -> string -> int
 
 (** [operation_supported op] returns true when [op]
     can be implemented directly with a hardware instruction.

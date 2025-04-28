@@ -1,8 +1,7 @@
 (** Interpret mode syntax as mode annotation, where axes can be left unspecified *)
 val transl_mode_annots : Parsetree.modes -> Mode.Alloc.Const.Option.t
 
-val untransl_mode_annots :
-  loc:Location.t -> Mode.Alloc.Const.Option.t -> Parsetree.modes
+val untransl_mode_annots : Mode.Alloc.Const.Option.t -> Parsetree.modes
 
 (** Interpret mode syntax as alloc mode (on arrow types), where axes are set to
     legacy if unspecified *)
@@ -38,6 +37,8 @@ module Transled_modifiers : sig
       portability : Mode.Portability.Const.t Location.loc option;
       contention : Mode.Contention.Const.t Location.loc option;
       yielding : Mode.Yielding.Const.t Location.loc option;
+      statefulness : Mode.Statefulness.Const.t Location.loc option;
+      visibility : Mode.Visibility.Const.t Location.loc option;
       externality : Jkind_axis.Externality.t Location.loc option;
       nullability : Jkind_axis.Nullability.t Location.loc option
     }

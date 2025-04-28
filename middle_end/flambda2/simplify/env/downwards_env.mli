@@ -99,9 +99,10 @@ val define_name_if_undefined : t -> Bound_name.t -> Flambda_kind.t -> t
 
 val add_equation_on_name : t -> Name.t -> Flambda2_types.t -> t
 
-val define_parameters : t -> params:Bound_parameters.t -> t
+val define_parameters : extra:bool -> t -> params:Bound_parameters.t -> t
 
 val add_parameters :
+  extra:bool ->
   ?name_mode:Name_mode.t ->
   t ->
   Bound_parameters.t ->
@@ -109,6 +110,7 @@ val add_parameters :
   t
 
 val add_parameters_with_unknown_types :
+  extra:bool ->
   ?alloc_modes:Alloc_mode.For_types.t list ->
   ?name_mode:Name_mode.t ->
   t ->

@@ -213,7 +213,7 @@ Error: The layout of type "a" is value
          because of the definition of b at line 2, characters 0-30.
 |}]
 
-type a : value mod global aliased many contended portable external_ unyielding
+type a : value mod global aliased many immutable stateless external_ unyielding
 type b : value mod local unique once contended nonportable internal = a
 [%%expect{|
 type a : immediate
@@ -273,8 +273,8 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 |}]
 
 type a : immediate
-type b : value mod global aliased many contended portable unyielding external_ = a
-type c : value mod global aliased many contended portable unyielding external_
+type b : value mod global aliased many immutable stateless unyielding external_ = a
+type c : value mod global aliased many immutable stateless unyielding external_
 type d : immediate = c
 [%%expect{|
 type a : immediate
@@ -284,8 +284,8 @@ type d = c
 |}]
 
 type a : immediate64
-type b : value mod global aliased many contended portable unyielding external64 = a
-type c : value mod global aliased many contended portable unyielding external64
+type b : value mod global aliased many immutable stateless unyielding external64 = a
+type c : value mod global aliased many immutable stateless unyielding external64
 type d : immediate64 = c
 [%%expect{|
 type a : immediate64
@@ -295,8 +295,8 @@ type d = c
 |}]
 
 type a : float64 = float#
-type b : float64 mod global aliased many contended portable external_ = a
-type c : float64 mod global aliased many contended portable external_
+type b : float64 mod global aliased many immutable stateless external_ = a
+type c : float64 mod global aliased many immutable stateless external_
 type d : float64 = c
 [%%expect{|
 type a = float#
@@ -306,8 +306,8 @@ type d = c
 |}]
 
 type a : float32 = float32#
-type b : float32 mod global aliased many contended portable external_ = a
-type c : float32 mod global aliased many contended portable external_
+type b : float32 mod global aliased many immutable stateless external_ = a
+type c : float32 mod global aliased many immutable stateless external_
 type d : float32 = c
 [%%expect{|
 type a = float32#
@@ -352,68 +352,68 @@ type d = c
 (****************************************)
 (* Test 4: Appropriate types mode cross *)
 
-type t : any mod global aliased many contended portable external_ = int
+type t : any mod global aliased many immutable stateless external_ = int
 [%%expect{|
 type t = int
 |}]
 
-type t : any mod global aliased many contended portable external_ = float#
+type t : any mod global aliased many immutable stateless external_ = float#
 [%%expect{|
 type t = float#
 |}]
 
-type t : any mod global aliased many contended portable external_ = float32#
+type t : any mod global aliased many immutable stateless external_ = float32#
 [%%expect{|
 type t = float32#
 |}]
 
-type t : any mod global aliased many contended portable external_ = int64#
+type t : any mod global aliased many immutable stateless external_ = int64#
 [%%expect{|
 type t = int64#
 |}]
 
-type t : any mod global aliased many contended portable external_ = int32#
+type t : any mod global aliased many immutable stateless external_ = int32#
 [%%expect{|
 type t = int32#
 |}]
 
-type t : any mod global aliased many contended portable external_ = nativeint#
+type t : any mod global aliased many immutable stateless external_ = nativeint#
 [%%expect{|
 type t = nativeint#
 |}]
 
-type t : any mod global aliased many contended portable external_ = int8x16#
+type t : any mod global aliased many immutable stateless external_ = int8x16#
 [%%expect{|
 type t = int8x16#
 |}]
 
-type t : any mod global aliased many contended portable external_ = int16x8#
+type t : any mod global aliased many immutable stateless external_ = int16x8#
 [%%expect{|
 type t = int16x8#
 |}]
 
-type t : any mod global aliased many contended portable external_ = int32x4#
+type t : any mod global aliased many immutable stateless external_ = int32x4#
 [%%expect{|
 type t = int32x4#
 |}]
 
-type t : any mod global aliased many contended portable external_ = int64x2#
+type t : any mod global aliased many immutable stateless external_ = int64x2#
 [%%expect{|
 type t = int64x2#
 |}]
 
-type t : any mod global aliased many contended portable external_ = float32x4#
+type t : any mod global aliased many immutable stateless external_ = float32x4#
 [%%expect{|
 type t = float32x4#
 |}]
 
-type t : any mod global aliased many contended portable external_ = float64x2#
+type t : any mod global aliased many immutable stateless external_ = float64x2#
 [%%expect{|
 type t = float64x2#
 |}]
 
 type indirect_int = int
-type t : any mod global aliased many contended portable external_ = indirect_int
+type t : any mod global aliased many immutable stateless external_ = indirect_int
 [%%expect{|
 type indirect_int = int
 type t = indirect_int
@@ -1157,7 +1157,7 @@ Error: The kind of type "t" is value
 type 'a t : value mod global portable contended many aliased unyielding =
   { x : 'a @@ global portable contended many aliased } [@@unboxed]
 [%%expect {|
-type 'a t = { global_ x : 'a @@ many portable aliased contended; } [@@unboxed]
+type 'a t = { x : 'a @@ global many portable aliased contended; } [@@unboxed]
 |}]
 (* CR layouts v2.8: this could be accepted, if we infer ('a : value mod
    unyielding). We do not currently do this, because we finish inference of the
@@ -1173,12 +1173,12 @@ type 'a t = { global_ x : 'a @@ many portable aliased contended; } [@@unboxed]
    [layout_of], we'll be able to give a better jkind to [@@unboxed] types, and
    this will likely improve. *)
 
-type 'a t : value mod global portable contended many aliased unyielding =
-  Foo of 'a @@ global portable contended many aliased [@@unboxed]
+type 'a t : value mod global immutable stateless many aliased unyielding =
+  Foo of 'a @@ global immutable stateless many aliased [@@unboxed]
 [%%expect {|
-Lines 1-2, characters 0-65:
-1 | type 'a t : value mod global portable contended many aliased unyielding =
-2 |   Foo of 'a @@ global portable contended many aliased [@@unboxed]
+Lines 1-2, characters 0-66:
+1 | type 'a t : value mod global immutable stateless many aliased unyielding =
+2 |   Foo of 'a @@ global immutable stateless many aliased [@@unboxed]
 Error: The kind of type "t" is value
          because it instantiates an unannotated type parameter of t,
          chosen to have kind value.
@@ -1271,7 +1271,7 @@ Error: The kind of type "t" is immutable_data with 'a @@ unyielding
 type ('a : value mod aliased) t = ('a : value mod global)
 type ('a : immediate) t = ('a : value)
 type ('a : value) t = ('a : immediate)
-type ('a : value mod external_ portable many unyielding) t = ('a : value mod contended global aliased)
+type ('a : value mod external_ stateless many unyielding) t = ('a : value mod immutable global aliased)
 type ('a : value) t = ('a : any)
 type ('a : value) t = ('a : value)
 type ('a : bits32 mod aliased) t = ('a : any mod global)
@@ -1335,7 +1335,7 @@ type _ t =
   | K : (_ : value mod global) t
 
 let f (type a : value) (x : a t) =
-  let y : a @@ local = assert false in
+  let y : a @ local = assert false in
   match x with
   | K -> y
 

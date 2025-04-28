@@ -15,10 +15,21 @@
 
 (* Pretty-printing of linearized machine code *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 open Format
 open Linear
 
-val call_operation : ?print_reg:(formatter -> Reg.t -> unit) -> formatter -> Linear.call_operation -> Reg.t array -> unit
-val instr': ?print_reg:(formatter -> Reg.t -> unit) -> formatter -> instruction -> unit
-val instr: formatter -> instruction -> unit
-val fundecl: formatter -> fundecl -> unit
+val call_operation :
+  ?print_reg:(formatter -> Reg.t -> unit) ->
+  formatter ->
+  Linear.call_operation ->
+  Reg.t array ->
+  unit
+
+val instr' :
+  ?print_reg:(formatter -> Reg.t -> unit) -> formatter -> instruction -> unit
+
+val instr : formatter -> instruction -> unit
+
+val fundecl : formatter -> fundecl -> unit

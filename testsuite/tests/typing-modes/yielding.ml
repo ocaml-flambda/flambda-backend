@@ -3,11 +3,11 @@
 *)
 
 (* CR dkalinichenko: allow [yielding] at toplevel? *)
-let my_effect : unit -> unit @@ yielding = print_endline "Hello, world!"
+let my_effect : (unit -> unit) @ yielding = print_endline "Hello, world!"
 [%%expect{|
-Line 1, characters 4-72:
-1 | let my_effect : unit -> unit @@ yielding = print_endline "Hello, world!"
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 4-73:
+1 | let my_effect : (unit -> unit) @ yielding = print_endline "Hello, world!"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value is "yielding" but expected to be "unyielding".
 |}]
 
@@ -45,7 +45,7 @@ let run_unyielding : (string -> unit) @ local unyielding -> unit = fun f -> f "a
 let () = with_effect (fun k -> run_unyielding k)
 
 [%%expect{|
-val run_unyielding : local_ (string -> unit) @ unyielding -> unit = <fun>
+val run_unyielding : (string -> unit) @ local unyielding -> unit = <fun>
 Line 3, characters 46-47:
 3 | let () = with_effect (fun k -> run_unyielding k)
                                                   ^
@@ -87,7 +87,7 @@ let with_global_effect : ((string -> unit) @ yielding -> 'a) -> 'a =
 
 [%%expect{|
 type 'a t1 = Mk1 of global_ 'a
-type 'a t2 = Mk2 of global_ 'a @@ yielding
+type 'a t2 = Mk2 of 'a @@ global yielding
 type 'a t3 = Mk3 of 'a @@ unyielding
 type 'a t4 = Mk4 of 'a
 val with_global_effect : ((string -> unit) @ yielding -> 'a) -> 'a = <fun>
@@ -152,7 +152,7 @@ let _ = requires_unyielding (stack_ (Some "local string"))
 let _ = with_global_effect (fun k -> requires_unyielding k)
 
 [%%expect{|
-external requires_unyielding : local_ 'a @ unyielding -> unit = "%ignore"
+external requires_unyielding : 'a @ local unyielding -> unit = "%ignore"
 - : unit = ()
 - : unit = ()
 Line 7, characters 57-58:
@@ -166,7 +166,7 @@ external returns_unyielding : 'a -> 'a @ local unyielding = "%identity"
 let _ = requires_unyielding (returns_unyielding "some string")
 
 [%%expect{|
-external returns_unyielding : 'a -> local_ 'a @ unyielding = "%identity"
+external returns_unyielding : 'a -> 'a @ local unyielding = "%identity"
 - : unit = ()
 |}]
 
@@ -184,7 +184,7 @@ external id : ('a [@local_opt]) -> ('a [@local_opt]) = "%identity"
 val f1 : 'a -> 'a = <fun>
 val f2 : local_ 'a -> local_ 'a = <fun>
 val f3 : 'a @ yielding -> 'a @ yielding = <fun>
-val f4 : local_ 'a @ unyielding -> local_ 'a = <fun>
+val f4 : 'a @ local unyielding -> local_ 'a = <fun>
 |}]
 
 (* Test [instance_prim] + mixed mode annots. *)
@@ -192,7 +192,7 @@ external requires_unyielding : 'a @ local unyielding -> (unit [@local_opt]) = "%
 
 let f1 x = requires_unyielding x
 [%%expect{|
-external requires_unyielding : local_ 'a @ unyielding -> (unit [@local_opt])
+external requires_unyielding : 'a @ local unyielding -> (unit [@local_opt])
   = "%ignore"
 val f1 : 'a -> unit = <fun>
 |}]
@@ -216,7 +216,7 @@ Error: This value is "yielding" but expected to be "unyielding".
 
 let f4 (x @ local unyielding) = exclave_ requires_unyielding x
 [%%expect{|
-val f4 : local_ 'a @ unyielding -> local_ unit = <fun>
+val f4 : 'a @ local unyielding -> local_ unit = <fun>
 |}]
 
 (* [@local_opt] overrides annotations. *)
@@ -224,7 +224,7 @@ external overridden: ('a[@local_opt]) @ local unyielding -> unit = "%ignore"
 
 let succeeds (x @ local) = overridden x
 [%%expect{|
-external overridden : local_ ('a [@local_opt]) @ unyielding -> unit
+external overridden : ('a [@local_opt]) @ local unyielding -> unit
   = "%ignore"
 val succeeds : local_ 'a -> unit = <fun>
 |}]

@@ -36,6 +36,8 @@ let from_map equations =
 
 let to_map ({ equations } : t) = equations
 
+let has_equation name ({ equations } : t) = Name.Map.mem name equations
+
 let one_equation name ty =
   More_type_creators.check_equation name ty;
   TG.Env_extension.create ~equations:(Name.Map.singleton name ty)
@@ -55,6 +57,11 @@ let add_or_replace_equation ({ equations } : t) name ty =
 let replace_equation ({ equations } : t) name ty =
   TG.Env_extension.create
     ~equations:(Name.Map.add (* replace *) name ty equations)
+
+let disjoint_union ({ equations = equations1 } : t)
+    ({ equations = equations2 } : t) =
+  TG.Env_extension.create
+    ~equations:(Name.Map.disjoint_union equations1 equations2)
 
 let ids_for_export = TG.Env_extension.ids_for_export
 

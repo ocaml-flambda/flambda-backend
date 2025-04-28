@@ -18,6 +18,8 @@ val use_ocamlcfg : bool ref
 val dump_cfg : bool ref
 val cfg_invariants : bool ref
 val regalloc : string ref
+val default_regalloc_linscan_threshold : int
+val regalloc_linscan_threshold : int ref
 val regalloc_params : string list ref
 val regalloc_validate : bool ref
 
@@ -30,6 +32,8 @@ val cfg_peephole_optimize: bool ref
 
 val cfg_stack_checks : bool ref
 val cfg_stack_checks_threshold : int ref
+
+val cfg_eliminate_dead_trap_handlers : bool ref
 
 val reorder_blocks_random : int option ref
 val basic_block_sections : bool ref
@@ -81,6 +85,7 @@ val long_frames_threshold : int ref
 val caml_apply_inline_fast_path : bool ref
 
 type function_result_types = Never | Functors_only | All_functions
+type join_algorithm = Binary | N_way | Checked
 type opt_level = Oclassic | O2 | O3
 type 'a or_default = Set of 'a | Default
 
@@ -107,6 +112,7 @@ module Flambda2 : sig
     val backend_cse_at_toplevel : bool
     val cse_depth : int
     val join_depth : int
+    val join_algorithm : join_algorithm
     val function_result_types : function_result_types
     val enable_reaper : bool
     val unicode : bool
@@ -123,6 +129,7 @@ module Flambda2 : sig
     backend_cse_at_toplevel : bool;
     cse_depth : int;
     join_depth : int;
+    join_algorithm : join_algorithm;
     function_result_types : function_result_types;
     enable_reaper : bool;
     unicode : bool;
@@ -139,6 +146,7 @@ module Flambda2 : sig
   val backend_cse_at_toplevel : bool or_default ref
   val cse_depth : int or_default ref
   val join_depth : int or_default ref
+  val join_algorithm : join_algorithm or_default ref
   val enable_reaper : bool or_default ref
   val unicode : bool or_default ref
   val kind_checks : bool or_default ref

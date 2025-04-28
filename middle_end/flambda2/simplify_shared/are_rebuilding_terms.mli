@@ -19,10 +19,14 @@
 
 type t
 
-val of_bool : bool -> t
+val print : Format.formatter -> t -> unit
+
+(* CR gbury: the terms/names used for creating values and for inspecting them
+   would make more sens if they were swapped. *)
+val are_rebuilding : t
+
+val are_not_rebuilding : t
+
+val do_rebuild_terms : t -> bool
 
 val do_not_rebuild_terms : t -> bool
-
-val are_rebuilding : t -> bool
-
-val print : Format.formatter -> t -> unit

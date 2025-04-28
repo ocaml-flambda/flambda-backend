@@ -23,6 +23,8 @@
  * DEALINGS IN THE SOFTWARE.                                                  *
  ******************************************************************************)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 module DLL = Flambda_backend_utils.Doubly_linked_list
 module Int = Numbers.Int
 module V = Backend_var
@@ -30,7 +32,7 @@ module VP = Backend_var.With_provenance
 
 type trap_stack_info =
   | Unreachable
-  | Reachable of Simple_operation.trap_stack
+  | Reachable of Operation.trap_stack
 
 type static_handler =
   { regs : Reg.t array list;
@@ -42,8 +44,7 @@ type environment =
   { vars :
       (Reg.t array * V.Provenance.t option * Asttypes.mutable_flag) V.Map.t;
     static_exceptions : static_handler Int.Map.t;
-    trap_stack : Simple_operation.trap_stack;
-    regs_for_exception_extra_args : Reg.t array Int.Map.t;
+    trap_stack : Operation.trap_stack;
     tailrec_label : Label.t
   }
 
@@ -68,30 +69,19 @@ val env_find : V.Map.key -> environment -> Reg.t array
 val env_find_mut :
   V.Map.key -> environment -> Reg.t array * Backend_var.Provenance.t option
 
-val env_add_regs_for_exception_extra_args :
-  Int.Map.key -> Reg.t array -> environment -> environment
-
 val env_find_regs_for_exception_extra_args :
-  Int.Map.key -> environment -> Reg.t array
+  Cmm.trywith_shared_label -> environment -> Reg.t array list
 
 val env_find_static_exception : Int.Map.key -> environment -> static_handler
 
-val env_enter_trywith : environment -> Int.Map.key -> Label.t -> environment
+val env_set_trap_stack : environment -> Operation.trap_stack -> environment
 
-val env_set_trap_stack :
-  environment -> Simple_operation.trap_stack -> environment
-
-val combine_traps :
-  Simple_operation.trap_stack ->
-  Cmm.trap_action list ->
-  Simple_operation.trap_stack
-
-val print_traps : Format.formatter -> Simple_operation.trap_stack -> unit
+val print_traps : Format.formatter -> Operation.trap_stack -> unit
 
 val set_traps :
-  int ->
+  Lambda.static_label ->
   trap_stack_info ref ->
-  Simple_operation.trap_stack ->
+  Operation.trap_stack ->
   Cmm.trap_action list ->
   unit
 
@@ -101,7 +91,7 @@ val trap_stack_is_empty : environment -> bool
 
 val pop_all_traps : environment -> Cmm.trap_action list
 
-val select_mutable_flag : Asttypes.mutable_flag -> Simple_operation.mutable_flag
+val select_mutable_flag : Asttypes.mutable_flag -> Operation.mutable_flag
 
 val oper_result_type : Cmm.operation -> Cmm.machtype
 
@@ -111,10 +101,7 @@ val size_machtype : Cmx_format.machtype_component array -> int
 
 val size_expr : environment -> Cmm.expression -> int
 
-val swap_intcomp :
-  Simple_operation.integer_comparison -> Simple_operation.integer_comparison
-
-val name_regs : VP.t -> Reg.t array -> unit
+val swap_intcomp : Operation.integer_comparison -> Operation.integer_comparison
 
 val current_function_name : string ref
 
@@ -174,9 +161,13 @@ module Or_never_returns : sig
   type 'a t =
     | Ok of 'a
     | Never_returns
-end
 
-val debug : bool
+  module Syntax : sig
+    val ( let* ) : 'a t -> ('a -> 'b t) -> 'b t
+
+    val ( let** ) : 'a t -> ('a -> unit) -> unit
+  end
+end
 
 val float_test_of_float_comparison :
   Cmm.float_width ->
@@ -194,37 +185,9 @@ val int_test_of_integer_comparison :
   Cfg.int_test
 
 val terminator_of_test :
-  Simple_operation.test ->
-  label_false:Label.t ->
-  label_true:Label.t ->
-  Cfg.terminator
-
-val invalid_stack_offset : int
+  Operation.test -> label_false:Label.t -> label_true:Label.t -> Cfg.terminator
 
 module Stack_offset_and_exn : sig
-  type handler_stack = Label.t list
-
-  val compute_stack_offset : stack_offset:int -> traps:'a list -> int
-
-  val check_and_set_stack_offset :
-    'a Cfg.instruction -> stack_offset:int -> traps:handler_stack -> unit
-
-  val process_terminator :
-    stack_offset:int ->
-    traps:handler_stack ->
-    Cfg.terminator Cfg.instruction ->
-    int * handler_stack
-
-  val process_basic :
-    Cfg.t ->
-    stack_offset:int ->
-    traps:handler_stack ->
-    Cfg.basic Cfg.instruction ->
-    int * handler_stack
-
-  val update_block :
-    Cfg.t -> Label.t -> stack_offset:int -> traps:handler_stack -> unit
-
   val update_cfg : Cfg.t -> unit
 end
 
@@ -249,10 +212,6 @@ val make_const_vec128 : Cmm.vec128_bits -> Operation.t
 val make_const_symbol : Cmm.symbol -> Operation.t
 
 val make_opaque : unit -> Operation.t
-
-val regs_for : Cmm.machtype -> Reg.t array
-
-val basic_op : Operation.t -> Cfg.basic_or_terminator
 
 val insert_debug :
   environment ->

@@ -12,7 +12,8 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-[@@@ocaml.warning "+4"]
+
+[@@@ocaml.warning "+a-40-41-42"]
 
 (* Description of the AMD64 processor *)
 
@@ -21,7 +22,6 @@ open! Int_replace_polymorphic_compare
 open Misc
 open Arch
 open Cmm
-open Reg
 
 let fp = Config.with_frame_pointers
 
@@ -77,35 +77,7 @@ let win64 = Arch.win64
      stub saves them into the GC regs block).
 *)
 
-let int_reg_name =
-  match Config.ccomp_type with
-  | "msvc" ->
-      [| "rax"; "rbx"; "rdi"; "rsi"; "rdx"; "rcx"; "r8"; "r9";
-         "r12"; "r13"; "r10"; "r11"; "rbp" |]
-  | _ ->
-      [| "%rax"; "%rbx"; "%rdi"; "%rsi"; "%rdx"; "%rcx"; "%r8"; "%r9";
-         "%r12"; "%r13"; "%r10"; "%r11"; "%rbp" |]
-
-let float_reg_name =
-  match Config.ccomp_type with
-  | "msvc" ->
-      [| "xmm0"; "xmm1"; "xmm2"; "xmm3"; "xmm4"; "xmm5"; "xmm6"; "xmm7";
-         "xmm8"; "xmm9"; "xmm10"; "xmm11";
-         "xmm12"; "xmm13"; "xmm14"; "xmm15" |]
-  | _ ->
-      [| "%xmm0"; "%xmm1"; "%xmm2"; "%xmm3"; "%xmm4"; "%xmm5"; "%xmm6"; "%xmm7";
-         "%xmm8"; "%xmm9"; "%xmm10"; "%xmm11";
-         "%xmm12"; "%xmm13"; "%xmm14"; "%xmm15" |]
-
-let num_register_classes = 2
-
-let register_class r =
-  match r.typ with
-  | Val | Int | Addr -> 0
-  | Float | Float32 | Vec128 | Valx2 -> 1
-
-
-let types_are_compatible left right =
+let types_are_compatible (left : Reg.t)  (right : Reg.t) =
   match left.typ, right.typ with
   | (Int | Val | Addr), (Int | Val | Addr)
   | Float, Float
@@ -114,39 +86,20 @@ let types_are_compatible left right =
     true
   | (Int | Val | Addr | Float | Float32 | Vec128 | Valx2), _ -> false
 
-let num_available_registers = [| 13; 16 |]
-
-let first_available_register = [| 0; 100 |]
-
-let register_name ty r =
-  (* If the ID doesn't match the type, the array access will raise. *)
-  match (ty : machtype_component) with
-  | Int | Addr | Val ->
-    int_reg_name.(r - first_available_register.(0))
-  | Float | Float32 | Vec128 | Valx2 ->
-    float_reg_name.(r - first_available_register.(1))
-
 (* Representation of hard registers by pseudo-registers *)
 
 let hard_int_reg =
   let v = Array.make 13 Reg.dummy in
-  for i = 0 to 12 do v.(i) <- Reg.at_location Int (Reg i) done;
+  for i = 0 to 12 do v.(i) <- Reg.create_at_location Int (Reg i) done;
   v
 
 let hard_float_reg =
   let v = Array.make 16 Reg.dummy in
-  for i = 0 to 15 do v.(i) <- Reg.at_location Float (Reg (100 + i)) done;
+  for i = 0 to 15 do v.(i) <- Reg.create_at_location Float (Reg (100 + i)) done;
   v
 
-let hard_vec128_reg =
-  let v = Array.make 16 Reg.dummy in
-  for i = 0 to 15 do v.(i) <- Reg.at_location Vec128 (Reg (100 + i)) done;
-  v
-
-let hard_float32_reg =
-  let v = Array.make 16 Reg.dummy in
-  for i = 0 to 15 do v.(i) <- Reg.at_location Float32 (Reg (100 + i)) done;
-  v
+let hard_vec128_reg = Array.map (fun r -> {r with Reg.typ = Vec128}) hard_float_reg
+let hard_float32_reg = Array.map (fun r -> {r with Reg.typ = Float32}) hard_float_reg
 
 let all_phys_regs =
   Array.concat [hard_int_reg; hard_float_reg; hard_float32_reg; hard_vec128_reg]
@@ -157,39 +110,6 @@ let phys_reg ty n =
   | Float -> hard_float_reg.(n - 100)
   | Float32 -> hard_float32_reg.(n - 100)
   | Vec128 | Valx2 -> hard_vec128_reg.(n - 100)
-
-let gc_regs_offset reg =
-  (* Given register [r], return the offset (the number of [value] slots,
-     not their size in bytes) of the register from the
-     [gc_regs] pointer during GC at runtime. Keep in sync with [amd64.S]. *)
-  let r =
-    match reg.loc with
-    | Reg r -> r
-    | Stack _ | Unknown ->
-      Misc.fatal_errorf "Unexpected register location for %d" reg.stamp
-  in
-  let reg_class = register_class reg in
-  let index = (r - first_available_register.(reg_class)) in
-  match reg_class with
-  | 0 -> index
-  | 1 ->
-    let slot_size_in_vals = 2 in
-    assert (Arch.size_vec128 / Arch.size_int = slot_size_in_vals);
-    if Config.runtime5
-    then
-      (* xmm slots are above regular slots based at [gc_regs_bucket] *)
-      let num_regular_slots =
-        (* rbp is always spilled even without frame pointers *)
-        13
-      in
-      num_regular_slots + (index * slot_size_in_vals)
-    else
-      (* xmm slots are below [gc_regs] pointer *)
-      let num_xmm_slots = 16 in
-      let offset = Int.neg (num_xmm_slots * slot_size_in_vals) in
-      offset + (index * slot_size_in_vals)
-  | _ -> assert false
-
 
 let rax = phys_reg Int 0
 let rdi = phys_reg Int 2
@@ -206,11 +126,9 @@ let destroy_xmm n =
 let destroyed_by_plt_stub =
   if not X86_proc.use_plt then [| |] else [| r10; r11 |]
 
-let num_destroyed_by_plt_stub = Array.length destroyed_by_plt_stub
-
 let destroyed_by_plt_stub_set = Reg.set_of_array destroyed_by_plt_stub
 
-let stack_slot slot ty = Reg.at_location ty (Stack slot)
+let stack_slot slot ty = Reg.create_at_location ty (Stack slot)
 
 (* Instruction selection *)
 
@@ -276,11 +194,11 @@ let calling_conventions
   (* CR mslater: (SIMD) will need to be 32/64 if vec256/512 are used. *)
   (loc, Misc.align (max 0 !ofs) 16)  (* keep stack 16-aligned *)
 
-let incoming ofs =
+let incoming ofs : Reg.stack_location =
   if ofs >= 0
   then Incoming ofs
   else Domainstate (ofs + size_domainstate_args)
-let outgoing ofs =
+let outgoing ofs : Reg.stack_location =
   if ofs >= 0
   then Outgoing ofs
   else Domainstate (ofs + size_domainstate_args)
@@ -430,20 +348,6 @@ let loc_external_arguments ty_args =
 
 let loc_exn_bucket = rax
 
-(** See "System V Application Binary Interface, AMD64 Architecture Processor
-    Supplement" (www.x86-64.org/documentation/abi.pdf) page 57, fig. 3.36. *)
-let int_dwarf_reg_numbers =
-  [| 0; 3; 5; 4; 1; 2; 8; 9; 12; 13; 10; 11; 6 |]
-
-let float_dwarf_reg_numbers =
-  [| 17; 18; 19; 20; 21; 22; 23; 24; 25; 26; 27; 28; 29; 30; 31; 32 |]
-
-let dwarf_register_numbers ~reg_class =
-  match reg_class with
-  | 0 -> int_dwarf_reg_numbers
-  | 1 -> float_dwarf_reg_numbers
-  | _ -> Misc.fatal_errorf "Bad register class %d" reg_class
-
 let stack_ptr_dwarf_register_number = 7
 let domainstate_ptr_dwarf_register_number = 14
 
@@ -475,7 +379,7 @@ let destroyed_at_c_call_unix =
 
 let destroyed_at_c_call =
   (* C calling conventions preserve rbx, but it is clobbered
-     by the code sequence used for C calls in emit.mlp, so it
+     by the code sequence used for C calls in emit.ml, so it
      is marked as destroyed. *)
   if win64 then destroyed_at_c_call_win64 else destroyed_at_c_call_unix
 
@@ -520,23 +424,30 @@ let destroyed_at_single_float64_store =
     (destroy_xmm 15)
 ;;
 
-let has_pushtrap traps =
-  List.exists (function Cmm.Push _ -> true | Pop _ -> false) traps
+let destroyed_by_simd_instr (instr : Simd.instr) =
+  match instr.res with
+  | First_arg -> [||]
+  | Res { loc; _ } ->
+    match Simd.loc_is_pinned loc with
+    | Some RAX -> [|rax|]
+    | Some RCX -> [|rcx|]
+    | Some RDX -> [|rdx|]
+    | Some XMM0 -> destroy_xmm 0
+    | None -> [||]
 
-let destroyed_by_simd_op (register_behavior : Simd_proc.register_behavior) =
-  match register_behavior with
-  | R_RM_rax_rdx_to_xmm0
-  | R_RM_to_xmm0 -> destroy_xmm 0
-  | R_RM_rax_rdx_to_rcx
-  | R_RM_to_rcx -> [| rcx |]
-  | R_to_fst
-  | R_to_R
-  | R_to_RM
-  | RM_to_R
-  | R_R_to_fst
-  | R_RM_to_fst
-  | R_RM_to_R
-  | R_RM_xmm0_to_fst -> [||]
+let destroyed_by_simd_op (op : Simd.operation) =
+  match op.instr with
+  | Instruction instr -> destroyed_by_simd_instr instr
+  | Sequence seq ->
+    destroyed_by_simd_instr seq.instr
+    |> Array.append
+      (match seq.id with
+       | Sqrtss | Sqrtsd | Roundss | Roundsd | Pcompare_string _ -> [||])
+
+let destroyed_by_simd_mem_op (instr : Simd.Mem.operation) =
+  match instr with
+  | SSE Add_f32 | SSE Sub_f32 | SSE Mul_f32 | SSE Div_f32
+  | SSE2 Add_f64 | SSE2 Sub_f64 | SSE2 Mul_f64 | SSE2 Div_f64 -> [||]
 
 let destroyed_at_raise = all_phys_regs
 
@@ -572,10 +483,11 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Op Poll -> destroyed_at_alloc_or_poll
   | Op (Alloc _) ->
     destroyed_at_alloc_or_poll
+  | Op (Specific Ipackf32) -> [||]
   | Op (Specific (Isimd op)) ->
-    destroyed_by_simd_op (Simd_proc.register_behavior op)
+    destroyed_by_simd_op op
   | Op (Specific (Isimd_mem (op,_))) ->
-    destroyed_by_simd_op (Simd_proc.Mem.register_behavior op)
+    destroyed_by_simd_mem_op op
   | Op (Move | Spill | Reload
        | Const_int _ | Const_float _ | Const_float32 _ | Const_symbol _
        | Const_vec128 _
@@ -596,7 +508,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
                   | Isextend32 | Izextend32 | Ipause
                   | Ilfence | Isfence | Imfence)
        | Name_for_debugger _ | Dls_get)
-  | Poptrap | Prologue ->
+  | Poptrap _ | Prologue ->
     if fp then [| rbp |] else [||]
   | Stack_check _ ->
     assert false (* the instruction is added after register allocation *)
@@ -680,7 +592,7 @@ type slot_offset =
 
 let slot_offset loc ~stack_class ~stack_offset ~fun_contains_calls
       ~fun_num_stack_slots =
-  match loc with
+  match ( loc : Reg.stack_location) with
   | Incoming n ->
       Bytes_relative_to_stack_pointer (
         frame_size ~stack_offset ~contains_calls:fun_contains_calls
@@ -699,12 +611,6 @@ let slot_offset loc ~stack_class ~stack_offset ~fun_contains_calls
 
 let assemble_file infile outfile =
   X86_proc.assemble_file infile outfile
-
-let init () =
-  if fp then begin
-    num_available_registers.(0) <- 12
-  end else
-    num_available_registers.(0) <- 13
 
 (* Precolored_regs is not always the same as [all_phys_regs], as some physical registers
    may not be allocatable (e.g. rbp when frame pointers are enabled). *)

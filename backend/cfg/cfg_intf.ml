@@ -27,7 +27,9 @@
 (** Control flow graph structure types that are shared between the internal
     (mutable) and external (immutable) views of [Cfg]. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
+
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 
 module S = struct
   type func_call_operation =
@@ -92,13 +94,13 @@ module S = struct
 
   type 'a instruction =
     { desc : 'a;
+      id : InstructionId.t;
       mutable arg : Reg.t array;
       mutable res : Reg.t array;
       mutable dbg : Debuginfo.t;
       mutable fdo : Fdo_info.t;
       mutable live : Reg.Set.t;
       mutable stack_offset : int;
-      id : InstructionId.t;
       mutable irc_work_list : irc_work_list;
       mutable ls_order : int;
       mutable available_before : Reg_availability_set.t option;
@@ -114,7 +116,7 @@ module S = struct
             special hidden register. It can use standard registers for that
             purpose. They are defined in [Proc.destroyed_at_reloadretaddr]. *)
     | Pushtrap of { lbl_handler : Label.t }
-    | Poptrap
+    | Poptrap of { lbl_handler : Label.t }
     | Prologue
     | Stack_check of { max_frame_size_bytes : int }
 

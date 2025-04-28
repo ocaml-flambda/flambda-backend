@@ -34,7 +34,8 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
   let dacc = C.dacc_inside_functions context in
   let alloc_modes = Code_metadata.param_modes code_metadata in
   let denv =
-    DE.add_parameters_with_unknown_types ~alloc_modes (DA.denv dacc) params
+    DE.add_parameters_with_unknown_types ~extra:false ~alloc_modes
+      (DA.denv dacc) params
     |> DE.set_inlining_arguments inlining_arguments
     |> DE.set_inlining_history_tracker
          (Inlining_history.Tracker.inside_function absolute_history)
@@ -478,10 +479,10 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     let are_rebuilding = DA.are_rebuilding_terms dacc_after_body in
     match new_code with
     | None ->
-      assert (not (Are_rebuilding_terms.are_rebuilding are_rebuilding));
+      assert (Are_rebuilding_terms.do_not_rebuild_terms are_rebuilding);
       Not_rebuilding
     | Some new_code ->
-      assert (Are_rebuilding_terms.are_rebuilding are_rebuilding);
+      assert (Are_rebuilding_terms.do_rebuild_terms are_rebuilding);
       Rebuilding new_code
   in
   { code_id; code = Some (code, code_const); outer_dacc; should_resimplify }

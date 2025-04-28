@@ -12,7 +12,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-[@@@ocaml.warning "+4"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 
@@ -179,6 +179,7 @@ type specific_operation =
   | Isfence                            (* store fence *)
   | Imfence                            (* memory fence *)
   | Ipause                             (* hint for spin-wait loops *)
+  | Ipackf32                           (* UNPCKLPS on registers; see Cpackf32 *)
   | Isimd of Simd.operation            (* SIMD instruction set operations *)
   | Isimd_mem of Simd.Mem.operation * addressing_mode
                                        (* SIMD instruction set operations
@@ -301,6 +302,8 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "mfence"
   | Irdpmc ->
       fprintf ppf "rdpmc %a" printreg arg.(0)
+  | Ipackf32 ->
+      fprintf ppf "packf32 %a %a" printreg arg.(0) printreg arg.(1)
   | Isimd simd ->
       Simd.print_operation printreg simd ppf arg
   | Isimd_mem (simd, addr) ->
@@ -309,7 +312,7 @@ let print_specific_operation printreg op ppf arg =
       fprintf ppf "pause"
   | Icldemote _ ->
       fprintf ppf "cldemote %a" printreg arg.(0)
-  | Iprefetch { is_write; locality; } ->
+  | Iprefetch { is_write; locality; _ } ->
       fprintf ppf "prefetch is_write=%b prefetch_temporal_locality_hint=%s %a"
         is_write (string_of_prefetch_temporal_locality_hint locality)
         printreg arg.(0)
@@ -330,14 +333,16 @@ let operation_is_pure = function
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
   | Icldemote _ | Iprefetch _ -> false
-  | Isimd op -> Simd.is_pure op
-  | Isimd_mem (op, _addr) -> Simd.Mem.is_pure op
+  | Ipackf32 -> true
+  | Isimd op -> Simd.is_pure_operation op
+  | Isimd_mem (op, _addr) -> Simd.Mem.is_pure_operation op
 
 (* Keep in sync with [Vectorize_specific] *)
 let operation_allocates = function
   | Ilea _ | Ibswap _ | Isextend32 | Izextend32
   | Ifloatarithmem _
-  | Irdtsc | Irdpmc | Ipause | Isimd _ | Isimd_mem _
+  | Irdtsc | Irdpmc | Ipause | Ipackf32
+  | Isimd _ | Isimd_mem _
   | Ilfence | Isfence | Imfence
   | Istore_int (_, _, _) | Ioffset_loc (_, _)
   | Icldemote _ | Iprefetch _ -> false
@@ -419,7 +424,10 @@ let equal_specific_operation left right =
     true
   | Imfence, Imfence ->
     true
-  | Ipause, Ipause -> true
+  | Ipause, Ipause ->
+    true
+  | Ipackf32, Ipackf32 ->
+    true
   | Icldemote x, Icldemote x' -> equal_addressing_mode x x'
   | Iprefetch { is_write = left_is_write; locality = left_locality; addr = left_addr; },
     Iprefetch { is_write = right_is_write; locality = right_locality; addr = right_addr; } ->
@@ -432,7 +440,7 @@ let equal_specific_operation left right =
     Simd.Mem.equal_operation l r && equal_addressing_mode al ar
   | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ |
      Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence |
-     Ipause | Isimd _ | Isimd_mem _ | Icldemote _ | Iprefetch _), _ ->
+     Ipause | Ipackf32 | Isimd _ | Isimd_mem _ | Icldemote _ | Iprefetch _), _ ->
     false
 
 (* addressing mode functions *)
@@ -528,7 +536,10 @@ let isomorphic_specific_operation op1 op2 =
     true
   | Imfence, Imfence ->
     true
-  | Ipause, Ipause -> true
+  | Ipause, Ipause ->
+    true
+  | Ipackf32, Ipackf32 ->
+    true
   | Icldemote x, Icldemote x' -> equal_addressing_mode_without_displ x x'
   | Iprefetch { is_write = left_is_write; locality = left_locality; addr = left_addr; },
     Iprefetch { is_write = right_is_write; locality = right_locality; addr = right_addr; } ->
@@ -541,5 +552,5 @@ let isomorphic_specific_operation op1 op2 =
     Simd.Mem.equal_operation l r && equal_addressing_mode_without_displ al ar
   | (Ilea _ | Istore_int _ | Ioffset_loc _ | Ifloatarithmem _ | Ibswap _ |
      Isextend32 | Izextend32 | Irdtsc | Irdpmc | Ilfence | Isfence | Imfence |
-     Ipause | Isimd _ | Isimd_mem _ | Icldemote _ | Iprefetch _), _ ->
+     Ipause | Ipackf32 | Isimd _ | Isimd_mem _ | Icldemote _ | Iprefetch _), _ ->
     false

@@ -17,7 +17,7 @@
 
 open! Int_replace_polymorphic_compare
 
-[@@@ocaml.warning "+a-4-9-40-41-42"]
+[@@@ocaml.warning "+a-4-40-41-42"]
 
 open Arch
 open Proc
@@ -131,7 +131,8 @@ let pseudoregs_for_operation op arg res =
   match (op : Operation.t) with
   (* Two-address binary operations: arg.(0) and res.(0) must be the same *)
   | Intop (Iadd | Isub | Imul | Iand | Ior | Ixor)
-  | Floatop ((Float32 | Float64), (Iaddf | Isubf | Imulf | Idivf)) ->
+  | Floatop ((Float32 | Float64), (Iaddf | Isubf | Imulf | Idivf))
+  | Specific Ipackf32 ->
     [| res.(0); arg.(1) |], res
   | Intop_atomic { op = Compare_set; size = _; addr = _ } ->
     (* first arg must be rax *)
@@ -192,14 +193,9 @@ let pseudoregs_for_operation op arg res =
        edx (high) and eax (low). Make it simple and force the argument in rcx,
        and rax and rdx clobbered *)
     [| rcx |], res
-  | Specific (Isimd op) ->
-    Simd_selection.pseudoregs_for_operation
-      (Simd_proc.register_behavior op)
-      arg res
+  | Specific (Isimd op) -> Simd_selection.pseudoregs_for_operation op arg res
   | Specific (Isimd_mem (op, _addr)) ->
-    Simd_selection.pseudoregs_for_operation
-      (Simd_proc.Mem.register_behavior op)
-      arg res
+    Simd_selection.pseudoregs_for_mem_operation op arg res
   | Csel _ ->
     (* last arg must be the same as res.(0) *)
     let len = Array.length arg in
@@ -224,7 +220,7 @@ let pseudoregs_for_operation op arg res =
   | End_region | Poll | Dls_get ->
     raise Use_default_exn
 
-let is_immediate (op : Simple_operation.integer_operation) n :
+let is_immediate (op : Operation.integer_operation) n :
     Cfg_selectgen_target_intf.is_immediate_result =
   match op with
   | Iadd | Isub | Imul | Iand | Ior | Ixor | Icomp _ ->
@@ -237,7 +233,7 @@ let is_immediate_test _cmp n : Cfg_selectgen_target_intf.is_immediate_result =
 let is_simple_expr (expr : Cmm.expression) :
     Cfg_selectgen_target_intf.is_simple_expr_result =
   match expr with
-  | Cop (Cextcall { func = fn }, args, _) when List.mem fn inline_ops ->
+  | Cop (Cextcall { func = fn; _ }, args, _) when List.mem fn inline_ops ->
     (* inlined ops are simple if their arguments are *)
     Simple_if_all_expressions_are args
   | _ -> Use_default
@@ -245,7 +241,7 @@ let is_simple_expr (expr : Cmm.expression) :
 let effects_of (expr : Cmm.expression) :
     Cfg_selectgen_target_intf.effects_of_result =
   match expr with
-  | Cop (Cextcall { func = fn }, args, _) when List.mem fn inline_ops ->
+  | Cop (Cextcall { func = fn; _ }, args, _) when List.mem fn inline_ops ->
     Effects_of_all_expressions args
   | _ -> Use_default
 
@@ -286,11 +282,10 @@ let select_store ~is_assign addr (exp : Cmm.expression) :
   | Ctuple _
   | Cop (_, _, _)
   | Csequence (_, _)
-  | Cifthenelse (_, _, _, _, _, _, _)
-  | Cswitch (_, _, _, _, _)
-  | Ccatch (_, _, _, _)
-  | Cexit (_, _, _)
-  | Ctrywith (_, _, _, _, _, _, _) ->
+  | Cifthenelse (_, _, _, _, _, _)
+  | Cswitch (_, _, _, _)
+  | Ccatch (_, _, _)
+  | Cexit (_, _, _) ->
     Use_default
 
 let is_store_out_of_range _chunk ~byte_offset:_ :
@@ -303,9 +298,8 @@ let insert_move_extcall_arg _exttype _src _dst :
 
 (* Recognize float arithmetic with mem *)
 
-let select_floatarith commutative width
-    (regular_op : Simple_operation.float_operation) mem_op args :
-    Cfg_selectgen_target_intf.select_operation_result =
+let select_floatarith commutative width (regular_op : Operation.float_operation)
+    mem_op args : Cfg_selectgen_target_intf.select_operation_result =
   let open Cmm in
   match width, args with
   | Float64, [arg1; Cop (Cload { memory_chunk = Double as chunk; _ }, [loc2], _)]
@@ -333,8 +327,8 @@ let select_floatarith commutative width
 
 let select_operation
     ~(generic_select_condition :
-       Cmm.expression -> Simple_operation.test * Cmm.expression)
-    (op : Cmm.operation) (args : Cmm.expression list) dbg ~label_after:_ :
+       Cmm.expression -> Operation.test * Cmm.expression) (op : Cmm.operation)
+    (args : Cmm.expression list) dbg ~label_after:_ :
     Cfg_selectgen_target_intf.select_operation_result =
   match op with
   (* Recognize the LEA instruction *)
@@ -353,7 +347,7 @@ let select_operation
        a float stack slot, the resulting UNPCKLPS instruction would enforce the
        validity of loading it as a 128-bit memory location, even though it only
        loads 64 bits. *)
-    Rewritten (specific (Isimd (SSE Interleave_low_32_regs)), args)
+    Rewritten (specific Ipackf32, args)
   (* Special cases overriding C implementations (regardless of [@@builtin]). *)
   | Cextcall { func = "sqrt" as func; _ }
   (* x86 intrinsics ([@@builtin]) *)

@@ -121,7 +121,7 @@ and continuation_handler =
 and continuation_handlers_t0 =
   (Bound_parameters.t, continuation_handlers) Name_abstraction.t
 
-and continuation_handlers = continuation_handler Continuation.Map.t
+and continuation_handlers = continuation_handler Continuation.Lmap.t
 
 and function_params_and_body_base =
   { expr : expr;
@@ -284,12 +284,13 @@ and apply_renaming_continuation_handlers t renaming =
     t renaming ~apply_renaming_to_term:apply_renaming_continuations_handlers_t0
 
 and apply_renaming_continuations_handlers_t0 t renaming =
-  Continuation.Map.fold
-    (fun k handler result ->
-      let k = Renaming.apply_continuation renaming k in
-      let handler = apply_renaming_continuation_handler handler renaming in
-      Continuation.Map.add k handler result)
-    t Continuation.Map.empty
+  Continuation.Lmap.of_list
+  @@ List.map
+       (fun (k, handler) ->
+         let k = Renaming.apply_continuation renaming k in
+         let handler = apply_renaming_continuation_handler handler renaming in
+         k, handler)
+       (Continuation.Lmap.bindings t)
 
 and apply_renaming_function_params_and_body_base { expr; free_names } renaming =
   let expr = apply_renaming expr renaming in
@@ -350,7 +351,7 @@ and ids_for_export_continuation_handlers t =
     t ~ids_for_export_of_term:ids_for_export_continuation_handlers_t0
 
 and ids_for_export_continuation_handlers_t0 t =
-  Continuation.Map.fold
+  Continuation.Lmap.fold
     (fun k handler ids ->
       Ids_for_export.union ids
         (Ids_for_export.add_continuation
@@ -653,7 +654,7 @@ and print_let_cont_expr ppf t =
                 invariant_params,
                 handler,
                 Or_unknown.Unknown ))
-            (Continuation.Map.bindings handlers)
+            (Continuation.Lmap.bindings handlers)
         in
         new_let_conts @ let_conts, body
       in
@@ -974,10 +975,10 @@ module Continuation_handlers = struct
 
   let to_map t = t
 
-  let domain t = Continuation.Map.keys t
+  let domain t = Continuation.Lmap.keys t
 
   let contains_exn_handler t =
-    Continuation.Map.exists
+    Continuation.Lmap.exists
       (fun _cont handler -> Continuation_handler.is_exn_handler handler)
       t
 end
@@ -1199,7 +1200,7 @@ end
 
 module Recursive_let_cont_handlers = struct
   module T0 = struct
-    type t = continuation_handler Continuation.Map.t
+    type t = continuation_handler Continuation.Lmap.t
 
     let apply_renaming = apply_renaming_continuations_handlers_t0
 
@@ -1224,7 +1225,7 @@ module Recursive_let_cont_handlers = struct
   let create ~body ~invariant_params handlers =
     let bound = Continuation_handlers.domain handlers in
     let handlers0 = T1.create ~body (A0.create invariant_params handlers) in
-    let conts = Bound_continuations.create (Continuation.Set.elements bound) in
+    let conts = Bound_continuations.create bound in
     A1.create conts handlers0
 
   let pattern_match t ~f =

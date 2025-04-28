@@ -41,7 +41,7 @@ type t =
     variables_defined_at_toplevel : Variable.Set.t;
     cse : CSE.t;
     comparison_results : Comparison_result.t Variable.Map.t;
-    do_not_rebuild_terms : bool;
+    are_rebuilding_terms : Are_rebuilding_terms.t;
     closure_info : Closure_info.t;
     get_imported_code : unit -> Exported_code.t;
     all_code : Code.t Code_id.Map.t;
@@ -71,7 +71,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
                 inlining_state; propagating_float_consts;
                 at_unit_toplevel; unit_toplevel_exn_continuation;
                 variables_defined_at_toplevel; cse; comparison_results;
-                do_not_rebuild_terms; closure_info;
+                are_rebuilding_terms; closure_info;
                 unit_toplevel_return_continuation; all_code;
                 get_imported_code = _; inlining_history_tracker = _;
                 loopify_state; defined_variables_by_scope;
@@ -90,7 +90,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
       @[<hov 1>(variables_defined_at_toplevel@ %a)@]@ \
       @[<hov 1>(cse@ @[<hov 1>%a@])@]@ \
       @[<hov 1>(comparison_results@ @[<hov 1>%a@])@]@ \
-      @[<hov 1>(do_not_rebuild_terms@ %b)@]@ \
+      @[<hov 1>(are_rebuilding_terms@ %a)@]@ \
       @[<hov 1>(closure_info@ %a)@]@ \
       @[<hov 1>(all_code@ %a)@]@ \
       @[<hov 1>(loopify_state@ %a)@]@ \
@@ -109,16 +109,16 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
     Variable.Set.print variables_defined_at_toplevel
     CSE.print cse
     (Variable.Map.print Comparison_result.print) comparison_results
-    do_not_rebuild_terms
+    Are_rebuilding_terms.print are_rebuilding_terms
     Closure_info.print closure_info
     (Code_id.Map.print Code.print) all_code
     Loopify_state.print loopify_state
     (Format.pp_print_list ~pp_sep:Format.pp_print_space Lifted_cont_params.print) defined_variables_by_scope
     cost_of_lifting_continuations_out_of_current_one
 
-let define_variable t var kind =
+let define_variable0 ~extra t var kind =
   let defined_variables_by_scope =
-    if Variable.Set.mem (Bound_var.var var) t.lifted
+    if extra || Variable.Set.mem (Bound_var.var var) t.lifted
     then t.defined_variables_by_scope
     else
       match t.defined_variables_by_scope with
@@ -146,6 +146,9 @@ let define_variable t var kind =
     defined_variables_by_scope
   }
 
+let define_variable t var kind =
+  (define_variable0 [@inlined hint]) ~extra:false t var kind
+
 let create ~round ~(resolver : resolver)
     ~(get_imported_names : get_imported_names)
     ~(get_imported_code : get_imported_code) ~propagating_float_consts
@@ -165,7 +168,7 @@ let create ~round ~(resolver : resolver)
       variables_defined_at_toplevel = Variable.Set.empty;
       cse = CSE.empty;
       comparison_results = Variable.Map.empty;
-      do_not_rebuild_terms = false;
+      are_rebuilding_terms = Are_rebuilding_terms.are_rebuilding;
       closure_info = Closure_info.not_in_a_closure;
       all_code = Code_id.Map.empty;
       get_imported_code;
@@ -242,7 +245,7 @@ let enter_set_of_closures
       variables_defined_at_toplevel;
       cse = _;
       comparison_results = _;
-      do_not_rebuild_terms;
+      are_rebuilding_terms;
       closure_info = _;
       get_imported_code;
       all_code;
@@ -264,7 +267,7 @@ let enter_set_of_closures
     variables_defined_at_toplevel;
     cse = CSE.empty;
     comparison_results = Variable.Map.empty;
-    do_not_rebuild_terms;
+    are_rebuilding_terms;
     closure_info = Closure_info.in_a_set_of_closures;
     get_imported_code;
     all_code;
@@ -290,11 +293,14 @@ let define_name t name kind =
         kind)
     ~symbol:(fun [@inline] sym -> (define_symbol [@inlined hint]) t sym kind)
 
-let add_variable t var ty =
-  let t = (define_variable [@inlined hint]) t var (T.kind ty) in
+let add_variable0 ~extra t var ty =
+  let t = (define_variable0 [@inlined hint]) ~extra t var (T.kind ty) in
   { t with
     typing_env = TE.add_equation t.typing_env (Name.var (Bound_var.var var)) ty
   }
+
+let add_variable t var ty =
+  (add_variable0 [@inlined hint]) ~extra:false t var ty
 
 let add_symbol t sym ty =
   let t = (define_symbol [@inlined hint]) t sym (T.kind ty) in
@@ -339,15 +345,16 @@ let add_equation_on_name t name ty =
   let typing_env = TE.add_equation t.typing_env name ty in
   { t with typing_env }
 
-let define_parameters t ~params =
+let define_parameters ~extra t ~params =
   List.fold_left
     (fun t param ->
       let var = Bound_var.create (BP.var param) Name_mode.normal in
-      define_variable t var (K.With_subkind.kind (BP.kind param)))
+      define_variable0 ~extra t var (K.With_subkind.kind (BP.kind param)))
     t
     (Bound_parameters.to_list params)
 
-let add_parameters ?(name_mode = Name_mode.normal) t params ~param_types =
+let add_parameters ~extra ?(name_mode = Name_mode.normal) t params ~param_types
+    =
   let params' = params in
   let params = Bound_parameters.to_list params in
   if List.compare_lengths params param_types <> 0
@@ -360,10 +367,10 @@ let add_parameters ?(name_mode = Name_mode.normal) t params ~param_types =
   List.fold_left2
     (fun t param param_type ->
       let var = Bound_var.create (BP.var param) name_mode in
-      add_variable t var param_type)
+      add_variable0 ~extra t var param_type)
     t params param_types
 
-let add_parameters_with_unknown_types ?alloc_modes ?name_mode t params =
+let add_parameters_with_unknown_types ~extra ?alloc_modes ?name_mode t params =
   let params' = params in
   let params = Bound_parameters.to_list params in
   let alloc_modes =
@@ -380,7 +387,7 @@ let add_parameters_with_unknown_types ?alloc_modes ?name_mode t params =
     ListLabels.map2 params alloc_modes ~f:(fun param alloc_mode ->
         T.unknown_with_subkind ~alloc_mode (BP.kind param))
   in
-  add_parameters ?name_mode t params' ~param_types
+  add_parameters ~extra ?name_mode t params' ~param_types
 
 let mark_parameters_as_toplevel t params =
   let variables_defined_at_toplevel =
@@ -473,14 +480,17 @@ let find_comparison_result t var =
 let with_cse t cse = { t with cse }
 
 let set_do_not_rebuild_terms_and_disable_inlining t =
-  { t with do_not_rebuild_terms = true; can_inline = false }
+  { t with
+    are_rebuilding_terms = Are_rebuilding_terms.are_not_rebuilding;
+    can_inline = false
+  }
 
 let disable_inlining t = { t with can_inline = false }
 
-let set_rebuild_terms t = { t with do_not_rebuild_terms = false }
+let set_rebuild_terms t =
+  { t with are_rebuilding_terms = Are_rebuilding_terms.are_rebuilding }
 
-let are_rebuilding_terms t =
-  Are_rebuilding_terms.of_bool (not t.do_not_rebuild_terms)
+let are_rebuilding_terms t = t.are_rebuilding_terms
 
 let enter_closure code_id ~return_continuation ~exn_continuation ~my_closure t =
   { t with
@@ -558,7 +568,7 @@ let generate_phantom_lets t =
   && Flambda_features.Expert.phantom_lets ()
   (* It would be a waste of time generating phantom lets when not rebuilding
      terms, since they have no effect on cost metrics. *)
-  && Are_rebuilding_terms.are_rebuilding (are_rebuilding_terms t)
+  && Are_rebuilding_terms.do_rebuild_terms (are_rebuilding_terms t)
 
 let loopify_state t = t.loopify_state
 
@@ -630,7 +640,7 @@ let denv_for_lifted_continuation ~denv_for_join ~denv =
     propagating_float_consts = denv.propagating_float_consts;
     unit_toplevel_return_continuation = denv.unit_toplevel_return_continuation;
     unit_toplevel_exn_continuation = denv.unit_toplevel_exn_continuation;
-    do_not_rebuild_terms = denv.do_not_rebuild_terms;
+    are_rebuilding_terms = denv.are_rebuilding_terms;
     closure_info = denv.closure_info;
     get_imported_code = denv.get_imported_code;
     loopify_state = denv.loopify_state

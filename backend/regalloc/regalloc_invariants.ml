@@ -21,7 +21,7 @@ let precondition : Cfg_with_layout.t -> unit =
       | Static_cast _ | Probe_is_enabled _ | Opaque | Begin_region | End_region
       | Specific _ | Name_for_debugger _ | Dls_get | Poll | Alloc _ ->
         ())
-    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> ()
+    | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ -> ()
   in
   let register_must_not_be_on_stack (id : InstructionId.t) (reg : Reg.t) : unit
       =
@@ -42,37 +42,16 @@ let precondition : Cfg_with_layout.t -> unit =
       : unit =
     ArrayLabels.iter regs ~f:(register_must_not_be_on_stack id)
   in
-  (* CR xclerc for xclerc: the check below should not be in this function, since
-     it is IRC-specific *)
-  let register_must_be_on_unknown_list (id : InstructionId.t) (reg : Reg.t) :
-      unit =
-    match reg.Reg.irc_work_list with
-    | Unknown_list -> ()
-    | Precolored -> ()
-    | Initial | Simplify | Freeze | Spill | Spilled | Coalesced | Colored
-    | Select_stack ->
-      fatal "instruction %a has a register (%a) already in a work list (%S)"
-        InstructionId.format id Printreg.reg reg
-        (Reg.string_of_irc_work_list reg.Reg.irc_work_list)
-  in
-  let register_must_be_on_unknown_list (id : InstructionId.t)
-      (regs : Reg.t array) : unit =
-    ArrayLabels.iter regs ~f:(register_must_be_on_unknown_list id)
-  in
   Cfg_with_layout.iter_instructions cfg_with_layout
     ~instruction:(fun instr ->
       let id = instr.id in
       desc_is_neither_spill_or_reload id instr.desc;
       registers_must_not_be_on_stack id instr.arg;
-      registers_must_not_be_on_stack id instr.res;
-      register_must_be_on_unknown_list id instr.arg;
-      register_must_be_on_unknown_list id instr.res)
+      registers_must_not_be_on_stack id instr.res)
     ~terminator:(fun term ->
       let id = term.id in
       registers_must_not_be_on_stack id term.arg;
-      registers_must_not_be_on_stack id term.res;
-      register_must_be_on_unknown_list id term.arg;
-      register_must_be_on_unknown_list id term.res);
+      registers_must_not_be_on_stack id term.res);
   let fun_num_stack_slots =
     (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
   in
@@ -109,7 +88,7 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
     (* CR xclerc for xclerc: what about cross-compilation? *)
     | "amd64" | "arm64" -> (
       let num_locals = num_stack_locals arg + num_stack_locals res in
-      match[@ocaml.warning "-4"] desc with
+      match desc with
       | Op (Spill | Reload) ->
         (* CR xclerc for xclerc: should check arg/res according to spill/reload,
            rather than the total number. *)
@@ -117,7 +96,19 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
         then
           fatal "instruction %a is a move and refers to %d spilling slots"
             InstructionId.format id num_locals
-      | _ -> ())
+      | Reloadretaddr | Prologue | Pushtrap _ | Poptrap _ | Stack_check _
+      | Op
+          ( Move | Opaque | Begin_region | End_region | Dls_get | Poll
+          | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+          | Const_vec128 _ | Stackoffset _ | Load _
+          | Store (_, _, _)
+          | Intop _
+          | Intop_imm (_, _)
+          | Intop_atomic _
+          | Floatop (_, _)
+          | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+          | Specific _ | Name_for_debugger _ | Alloc _ ) ->
+        ())
     | arch -> fatal "unsupported architecture %S" arch
   in
   let register_classes_must_be_consistent (id : InstructionId.t) (reg : Reg.t) :

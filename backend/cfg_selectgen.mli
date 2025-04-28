@@ -27,9 +27,13 @@
 
 (** Instruction selection, parameterised over the target machine. *)
 
-module Make (Target : Cfg_selectgen_target_intf.S) : sig
+[@@@ocaml.warning "+a-40-41-42"]
+
+module Make (_ : Cfg_selectgen_target_intf.S) : sig
   val emit_fundecl :
     future_funcnames:Misc.Stdlib.String.Set.t ->
     Cmm.fundecl ->
     Cfg_with_layout.t
+
+  val is_immediate : Operation.integer_operation -> int -> bool
 end

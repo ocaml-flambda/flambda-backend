@@ -1146,7 +1146,7 @@ module Let_cont_with_acc = struct
     in
     let expr = Let_cont.create_recursive ~invariant_params handlers ~body in
     let acc =
-      Continuation.Map.fold
+      Continuation.Lmap.fold
         (fun cont _ acc -> Acc.remove_continuation_from_free_names cont acc)
         handlers acc
     in
@@ -1166,9 +1166,9 @@ module Let_cont_with_acc = struct
           ( Name_occurrences.union free_names handler_free_names,
             Cost_metrics.( + ) costs cost_metrics_of_handler,
             acc,
-            Continuation.Map.add cont handler handlers ))
+            Continuation.Lmap.add cont handler handlers ))
         handlers
-        (Name_occurrences.empty, Cost_metrics.zero, acc, Continuation.Map.empty)
+        (Name_occurrences.empty, Cost_metrics.zero, acc, Continuation.Lmap.empty)
     in
     let body_free_names, acc, body = Acc.eval_branch_free_names acc ~f:body in
     let acc =

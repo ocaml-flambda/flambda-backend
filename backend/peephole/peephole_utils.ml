@@ -1,15 +1,10 @@
 module DLL = Flambda_backend_utils.Doubly_linked_list
 open! Int_replace_polymorphic_compare
 
-(* CR-someday gtulba-lecu: make sure that this comparison is correct and
-   sufficent. Take into consideration using Proc.regs_are_volatile in the
-   future. As we only support amd64 and Proc.regs_are_volatile is always false
-   in amd64 this is not necessary for now. See backend/cfg/cfg_deadcode.ml for
-   more details.*)
 let are_equal_regs (reg1 : Reg.t) (reg2 : Reg.t) =
   Reg.same_loc reg1 reg2 && Cmm.equal_machtype_component reg1.typ reg2.typ
 
-(* CR-soon gtulba-lecu: Delete this when imeplementing auto-generated rules. *)
+(* CR-soon gtulba-lecu: Delete this when implementing auto-generated rules. *)
 let go_back_const = 1
 
 let rec prev_at_most steps cell =
@@ -32,19 +27,48 @@ let get_cells cell size =
   assert (size > 0);
   get_cells' (DLL.next cell) (size - 1) [cell]
 
-let is_bitwise_op (op : Simple_operation.integer_operation) =
-  match op with Iand | Ior | Ixor | Ilsl | Ilsr | Iasr -> true | _ -> false
-  [@@ocaml.warning "-4"]
+(* CR-soon gyorsh: This functor is also instantiated in
+   [Asmgen.compile_fundecl]. Find a shared place to put it, instead of
+   instantiating twice. May require restructuring the backend to avoid
+   dependency cycles. *)
+module Cfg_selection = Cfg_selectgen.Make (Cfg_selection)
 
-let bitwise_shift_assert (imm1 : int) (imm2 : int) =
-  if imm1 < 0 || imm1 > Sys.int_size || imm2 < 0 || imm2 > Sys.int_size
-  then assert false
-  [@@inline]
+let is_immediate_for_intop op n = Cfg_selection.is_immediate op n
 
-(* CR-someday gtulba-lecu: This is architecture specific and should be moved in
-   a different part of the compiler that is specific to the amd64 architecture.
-   This is fine for now as we only support amd64. *)
-let amd64_imm32_within_bounds imm1 imm2 op =
-  let imm = op imm1 imm2 in
-  Int32.to_int Int32.min_int <= imm && imm <= Int32.to_int Int32.max_int
-  [@@inline]
+let assert_within_range integer_operation imm =
+  if not (is_immediate_for_intop integer_operation imm)
+  then
+    Misc.fatal_errorf "Peephole: unexpected immediate %d for operation %s" imm
+      (Operation.string_of_integer_operation integer_operation)
+
+let[@inline] op_immediates integer_operation imm1 imm2 no_overflow op =
+  (* [no_overflow imm1 imm2] operation may assume that each of the immediates on
+     its own is within bounds. *)
+  assert_within_range integer_operation imm1;
+  assert_within_range integer_operation imm2;
+  let res = op imm1 imm2 in
+  if no_overflow imm1 imm2 && is_immediate_for_intop integer_operation res
+  then Some (integer_operation, res)
+  else None
+
+let add_immediates integer_operation imm1 imm2 =
+  op_immediates integer_operation imm1 imm2 Misc.no_overflow_add ( + )
+
+let sub_immediates integer_operation imm1 imm2 =
+  op_immediates integer_operation imm1 imm2 Misc.no_overflow_sub ( - )
+
+let mul_immediates integer_operation imm1 imm2 =
+  op_immediates integer_operation imm1 imm2 Misc.no_overflow_mul ( * )
+
+let never_overflow _ _ = true
+
+let bitwise_immediates integer_operation imm1 imm2 op =
+  (* Bitwise operations on immediates within range cannot produce immediates
+     outside of range. Bitwise operations do not need overflow check. *)
+  match op_immediates integer_operation imm1 imm2 never_overflow op with
+  | None ->
+    Misc.fatal_errorf
+      "Peephole: cannot rewrite immediates for %s: combining %d %d = %d"
+      (Operation.string_of_integer_operation integer_operation)
+      imm1 imm2 (op imm1 imm2)
+  | Some _ as res -> res

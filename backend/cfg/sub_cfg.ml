@@ -19,8 +19,9 @@
    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE. *)
+[@@@ocaml.warning "+a-40-41-42"]
 
-open! Int_replace_polymorphic_compare
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
 type t =
@@ -115,16 +116,14 @@ let update_exit_terminator ?arg sub_cfg desc =
          arg = Option.value arg ~default:sub_cfg.exit.terminator.arg
        }
 
-let mark_as_trap_handler sub_cfg ~exn_label =
-  sub_cfg.entry.start <- exn_label;
-  sub_cfg.entry.is_trap_handler <- true
+let mark_as_trap_handler sub_cfg = sub_cfg.entry.is_trap_handler <- true
 
 let dump sub_cfg =
   let liveness = InstructionId.Tbl.create 32 in
   DLL.iter sub_cfg.layout ~f:(fun (block : Cfg.basic_block) ->
       Format.eprintf "Block %a@." Label.print block.start;
-      Regalloc_irc_utils.log_body_and_terminator ~indent:0 block.body
-        block.terminator liveness)
+      Regalloc_irc_utils.log_body_and_terminator block.body block.terminator
+        liveness)
 
 (* note: `dump` is for debugging, and thus not always in use. *)
 let (_ : t -> unit) = dump

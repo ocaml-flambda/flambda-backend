@@ -1,10 +1,11 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 open! Regalloc_ls_utils
+module DLL = Flambda_backend_utils.Doubly_linked_list
 
 type t
 
-val for_fatal : t -> Interval.t list * ClassIntervals.t array
+val for_fatal : t -> Interval.t DLL.t * ClassIntervals.t Reg_class.Tbl.t
 
 val make : stack_slots:Regalloc_stack_slots.t -> last_used:InstructionId.t -> t
 
@@ -16,9 +17,9 @@ val fold_intervals : t -> f:('a -> Interval.t -> 'a) -> init:'a -> 'a
 
 val release_expired_intervals : t -> pos:int -> unit
 
-val active : t -> reg_class:int -> ClassIntervals.t
+val active : t -> reg_class:Reg_class.t -> ClassIntervals.t
 
-val active_classes : t -> ClassIntervals.t array
+val active_classes : t -> ClassIntervals.t Reg_class.Tbl.t
 
 val stack_slots : t -> Regalloc_stack_slots.t
 

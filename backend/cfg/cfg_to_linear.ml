@@ -23,7 +23,7 @@
  * SOFTWARE.                                                                      *
  *                                                                                *
  **********************************************************************************)
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 module CL = Cfg_with_layout
@@ -301,13 +301,13 @@ let linearize_terminator cfg_with_layout (func : string) start
                 in
                 let comp =
                   match is_signed with
-                  | true -> Simple_operation.Isigned cond
-                  | false -> Simple_operation.Iunsigned cond
+                  | true -> Operation.Isigned cond
+                  | false -> Operation.Iunsigned cond
                 in
                 let test =
                   match imm with
-                  | None -> Simple_operation.Iinttest comp
-                  | Some n -> Simple_operation.Iinttest_imm (comp, n)
+                  | None -> Operation.Iinttest comp
+                  | Some n -> Operation.Iinttest_imm (comp, n)
                 in
                 L.Lcondbranch (test, lbl) :: acc)
               cond_successor_labels init,
@@ -339,12 +339,7 @@ let need_starting_label (cfg_with_layout : CL.t) (block : Cfg.basic_block)
       | Never -> Misc.fatal_error "Cannot linearize terminator: Never"
       | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
       | Call _ | Prim _ ->
-        (* If the label came from the original [Linear] code, preserve it for
-           checking that the conversion from [Linear] to [Cfg] and back is the
-           identity; and for various assertions in reorder. *)
-        let new_labels = CL.new_labels cfg_with_layout in
-        CL.preserve_orig_labels cfg_with_layout
-        && not (Label.Set.mem block.start new_labels)
+        false
       | Return | Raise _ | Tailcall_func _ | Tailcall_self _ | Call_no_return _
         ->
         assert false)
@@ -462,10 +457,7 @@ let print_assembly (blocks : Cfg.basic_block list) =
     (fun (block : Cfg.basic_block) ->
       Label.Tbl.add cfg.blocks block.start block)
     blocks;
-  let cl =
-    Cfg_with_layout.create cfg ~layout ~new_labels:Label.Set.empty
-      ~preserve_orig_labels:true
-  in
+  let cl = Cfg_with_layout.create cfg ~layout in
   let fundecl = run cl in
   X86_proc.reset_asm_code ();
   Emit.fundecl fundecl;

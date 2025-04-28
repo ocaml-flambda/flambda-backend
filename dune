@@ -45,6 +45,8 @@
 
 (copy_files# "backend/%{env:ARCH=amd64}/*.ml{,i}")
 
+(copy_files# tools/simdgen/*.ml{,i})
+
 (copy_files# backend/cfg/*.ml{,i})
 
 (copy_files# backend/debug/*.ml{,i})
@@ -124,6 +126,7 @@
   mode_intf)
  (modules
   ;; UTILS
+  arrayset
   config
   build_path_prefix_map
   misc
@@ -134,6 +137,7 @@
   debug
   profile
   profile_counters_functions
+  priority_queue
   terminfo
   ccomp
   warnings
@@ -462,12 +466,14 @@
   proc
   simd
   simd_selection
-  simd_reload
   simd_proc
-  simple_operation
+  amd64_simd_defs
+  amd64_simd_instrs
   stack_check
   sub_cfg
   reg
+  reg_class
+  reg_class_utils
   relocation_entry
   relocation_table
   section_table
@@ -490,6 +496,7 @@
   ;; backend/cfg
   cfg
   cfg_available_regs
+  cfg_edge
   cfg_intf
   cfg_to_linear
   cfg_with_layout
@@ -505,11 +512,7 @@
   cfg_cse_target_intf
   cfg_stack_checks
   cfg_polling
-  eliminate_dead_code
-  disconnect_block
-  eliminate_dead_blocks
-  eliminate_fallthrough_blocks
-  merge_straightline_blocks
+  cfg_simplify
   extra_debug
   label
   linear_utils
@@ -534,6 +537,7 @@
   regalloc_split_utils
   regalloc_stack_operands
   regalloc_stack_slots
+  regalloc_substitution
   regalloc_utils
   regalloc_validate
   ;; file_formats/

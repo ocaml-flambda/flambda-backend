@@ -15,6 +15,8 @@
 
 [@@@ocaml.warning "+a-4-9-40-41-42-44-45"]
 
+(* CR-soon xclerc for xclerc: try to add open!
+   Int_replace_polymorphic_compare *)
 module V = Backend_var
 module VP = Backend_var.With_provenance
 open Cmm
@@ -347,7 +349,7 @@ let rec map_tail1 e ~f =
   | Csequence (e1, e2) -> Csequence (e1, map_tail1 e2 ~f)
   | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
   | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ | Ctuple _ | Cop _
-  | Cifthenelse _ | Cexit _ | Ccatch _ | Ctrywith _ | Cswitch _ ->
+  | Cifthenelse _ | Cexit _ | Ccatch _ | Cswitch _ ->
     f e
 
 let map_tail2 x y ~f = map_tail1 y ~f:(fun y -> map_tail1 x ~f:(fun x -> f x y))
@@ -888,8 +890,7 @@ let make_safe_divmod operator ~if_divisor_is_negative_one
                 Cop (operator, [c1; c2], dbg),
                 dbg,
                 if_divisor_is_negative_one ~dividend:c1 ~dbg,
-                dbg,
-                Any )))
+                dbg )))
 
 let is_power_of_2_or_zero n = Nativeint.logand n (Nativeint.pred n) = 0n
 
@@ -915,8 +916,7 @@ let div_int ?dividend_cannot_be_min_int c1 c2 dbg =
           Cconst_int (1, dbg),
           dbg,
           Cconst_int (0, dbg),
-          dbg,
-          Any )
+          dbg )
     else if is_power_of_2_or_zero divisor
     then
       (* [divisor] must be positive be here since we already handled zero and
@@ -996,8 +996,7 @@ let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
               Cconst_int (0, dbg),
               dbg,
               c1,
-              dbg,
-              Any ))
+              dbg ))
     else if is_power_of_2_or_zero n
     then
       (* [divisor] must be positive be here since we already handled zero and
@@ -1053,7 +1052,7 @@ let box_float32 dbg mode exp =
       dbg )
 
 let unbox_float32 dbg =
-  map_tail ~kind:Any (function
+  map_tail (function
     | Cop (Calloc _, [Cconst_natint (hdr, _); Cconst_symbol (sym, _); c], _)
       when (Nativeint.equal hdr boxedfloat32_header
            || Nativeint.equal hdr boxedfloat32_local_header)
@@ -1077,7 +1076,7 @@ let box_float dbg m c =
   Cop (Calloc (m, Alloc_block_kind_float), [alloc_float_header m dbg; c], dbg)
 
 let unbox_float dbg =
-  map_tail ~kind:Any (function
+  map_tail (function
     | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
       when Nativeint.equal hdr float_header
            || Nativeint.equal hdr float_local_header ->
@@ -1099,7 +1098,7 @@ let box_vec128 dbg m c =
 let unbox_vec128 dbg =
   (* Boxed vectors are not 16-byte aligned by the GC, so we must use an
      unaligned load. *)
-  map_tail ~kind:Any (function
+  map_tail (function
     | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
       when Nativeint.equal hdr boxedvec128_header
            || Nativeint.equal hdr boxedvec128_local_header ->
@@ -2275,7 +2274,7 @@ let unbox_int dbg bi =
         [Cop (Cadda, [arg; Cconst_int (size_addr, dbg)], dbg)],
         dbg )
   in
-  map_tail ~kind:Any (function
+  map_tail (function
     | Cop
         ( Calloc _,
           [hdr; ops; Cop (Clsl, [contents; Cconst_int (32, _)], _dbg')],
@@ -2624,7 +2623,7 @@ let opaque e dbg = Cop (Copaque, [e], dbg)
 
 (* Build an actual switch (ie jump table) *)
 
-let make_switch arg cases actions dbg kind =
+let make_switch arg cases actions dbg =
   let extract_uconstant = function
     (* Constant integers loaded from a table should end in 1, so that Cload
        never produces untagged integers *)
@@ -2672,7 +2671,7 @@ let make_switch arg cases actions dbg kind =
       dbg
   in
   match Misc.Stdlib.Array.all_somes (Array.map extract_uconstant actions) with
-  | None -> Cswitch (arg, cases, actions, dbg, kind)
+  | None -> Cswitch (arg, cases, actions, dbg)
   | Some const_actions -> (
     match extract_affine ~cases ~const_actions with
     | Some (offset, slope) -> make_affine_computation ~offset ~slope arg dbg
@@ -2699,9 +2698,11 @@ module SArgBlocks = struct
 
   type act = expression
 
-  type loc = Debuginfo.t
+  (* The module [SArgBlocks] must conform to the signature `Switch.S`. Since we
+     do not need a layout, we pick unit as the layout. *)
+  type layout = unit
 
-  type layout = kind_for_unboxing
+  type loc = Debuginfo.t
 
   (* CR mshinwell: GPR#2294 will fix the Debuginfo here *)
 
@@ -2719,23 +2720,17 @@ module SArgBlocks = struct
 
   let arg_as_test arg = arg
 
-  let make_if value_kind cond ifso ifnot =
+  let make_if () cond ifso ifnot =
     Cifthenelse
-      ( cond,
-        Debuginfo.none,
-        ifso,
-        Debuginfo.none,
-        ifnot,
-        Debuginfo.none,
-        value_kind )
+      (cond, Debuginfo.none, ifso, Debuginfo.none, ifnot, Debuginfo.none)
 
-  let make_switch dbg value_kind arg cases actions =
+  let make_switch dbg () arg cases actions =
     let actions = Array.map (fun expr -> expr, dbg) actions in
-    make_switch arg cases actions dbg value_kind
+    make_switch arg cases actions dbg
 
   let bind arg body = bind "switcher" arg body
 
-  let make_catch kind handler =
+  let make_catch () handler =
     match handler with
     | Cexit (Lbl i, [], []) -> i, fun e -> e
     | _ -> (
@@ -2748,7 +2743,7 @@ module SArgBlocks = struct
         fun body ->
           match body with
           | Cexit (j, _, _) -> if Lbl i = j then handler else body
-          | _ -> ccatch (i, [], body, handler, dbg, kind, false) ))
+          | _ -> ccatch (i, [], body, handler, dbg, false) ))
 
   let make_exit i = Cexit (Lbl i, [], [])
 end
@@ -2780,7 +2775,7 @@ end)
 
 module SwitcherBlocks = Switch.Make (SArgBlocks)
 
-let transl_switch_clambda loc value_kind arg index cases =
+let transl_switch_clambda loc arg index cases =
   let store = StoreExpForSwitch.mk_store () in
   let index = Array.map (fun j -> store.Switch.act_store j cases.(j)) index in
   let n_index = Array.length index in
@@ -2803,7 +2798,7 @@ let transl_switch_clambda loc value_kind arg index cases =
   | [_] -> cases.(0)
   | inters ->
     bind "switcher" arg (fun a ->
-        SwitcherBlocks.zyva loc value_kind
+        SwitcherBlocks.zyva loc ()
           (0, n_index - 1)
           a (Array.of_list inters) store)
 
@@ -2858,8 +2853,7 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
                     dbg ),
                 dbg,
                 really_call_caml_apply clos args,
-                dbg,
-                Any )))
+                dbg )))
   else really_call_caml_apply clos args
 
 (* CR mshinwell: These will be filled in by later pull requests. *)
@@ -2876,8 +2870,7 @@ let maybe_reset_current_region ~dbg ~body_tail ~body_nontail old_region =
          ( VP.create res,
            body_nontail,
            Csequence (Cop (Cendregion, [old_region], dbg ()), Cvar res) )),
-      dbg (),
-      Any )
+      dbg () )
 
 let apply_or_call_caml_apply result arity mut clos args pos mode dbg =
   match args with
@@ -3001,8 +2994,7 @@ let cache_public_method meths tag cache dbg =
         Cexit (Lbl found_cont, [Cvar check_li], []),
         dbg,
         Cexit (Lbl loop_cont, [Cvar check_li; Cvar check_hi], []),
-        dbg,
-        Any )
+        dbg )
   in
   let dichotomy_expr =
     Clet
@@ -3034,8 +3026,7 @@ let cache_public_method meths tag cache dbg =
             dbg,
             (* tag >= a.(mi) : interval is now [ mi; hi ] *)
             Cexit (Lbl check_cont, [Cvar mi; Cvar hi], []),
-            dbg,
-            Any ) )
+            dbg ) )
   in
   let loop_body =
     ccatch
@@ -3044,7 +3035,6 @@ let cache_public_method meths tag cache dbg =
         dichotomy_expr,
         check_expr,
         dbg,
-        Any,
         false )
   in
   let li_vp = VP.create li in
@@ -3059,11 +3049,9 @@ let cache_public_method meths tag cache dbg =
           Cexit
             ( Lbl loop_cont,
               [cconst_int 3; Cop (mk_load_mut Word_int, [meths], dbg)],
-              [] ),
-          Any ),
+              [] ) ),
       found_expr,
       dbg,
-      Any,
       false )
 
 let placeholder_fun_dbg ~human_name:_ = Debuginfo.none
@@ -3155,8 +3143,7 @@ let apply_function_body arity result (mode : Cmx_format.alloc_mode) =
               dbg () ),
           dbg (),
           code,
-          dbg (),
-          Any ) )
+          dbg () ) )
 
 let send_function (arity, result, mode) =
   let dbg = placeholder_dbg in
@@ -3194,8 +3181,7 @@ let send_function (arity, result, mode) =
                     cache_public_method (Cvar meths) tag cache (dbg ()),
                     dbg (),
                     cached_pos,
-                    dbg (),
-                    Any ),
+                    dbg () ),
                 Cop
                   ( mk_load_mut Word_val,
                     [ Cop
@@ -3888,8 +3874,7 @@ let entry_point namelist =
           Cexit (Lbl raise_num, [], []),
           dbg,
           Ctuple [],
-          dbg,
-          Any )
+          dbg )
     in
     let cont = Lambda.next_raise_count () in
     let id = Backend_var.create_local "*id*" in
@@ -3906,11 +3891,9 @@ let entry_point namelist =
                   ),
                 dbg,
                 false ) ],
-            Cexit (Lbl cont, [cconst_int 0], []),
-            Any ),
+            Cexit (Lbl cont, [cconst_int 0], []) ),
         Ctuple [],
         dbg,
-        Any,
         false )
   in
   let fun_name = global_symbol "caml_program" in
@@ -4040,8 +4023,7 @@ let letin v ~defining_expr ~body =
     defining_expr
   | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
   | Cconst_symbol _ | Cconst_vec128 _ | Clet _ | Cphantom_let _ | Ctuple _
-  | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _
-  | Ctrywith _ ->
+  | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ ->
     Clet (v, defining_expr, body)
 
 let sequence x y =
@@ -4051,10 +4033,17 @@ let sequence x y =
   | _, _ -> Csequence (x, y)
 
 let ite ~dbg ~then_dbg ~then_ ~else_dbg ~else_ cond =
-  Cifthenelse (cond, then_dbg, then_, else_dbg, else_, dbg, Any)
+  Cifthenelse (cond, then_dbg, then_, else_dbg, else_, dbg)
 
 let trywith ~dbg ~body ~exn_var ~extra_args ~handler_cont ~handler () =
-  Ctrywith (body, handler_cont, exn_var, extra_args, handler, dbg, Any)
+  Ccatch
+    ( Exn_handler,
+      [ ( handler_cont,
+          (exn_var, typ_val) :: extra_args,
+          handler,
+          dbg,
+          false (* is_cold *) ) ],
+      body )
 
 type static_handler =
   int
@@ -4071,8 +4060,8 @@ let trap_return arg trap_actions =
   Cmm.Cexit (Cmm.Return_lbl, [arg], trap_actions)
 
 let create_ccatch ~rec_flag ~handlers ~body =
-  let rec_flag = if rec_flag then Cmm.Recursive else Cmm.Nonrecursive in
-  Cmm.Ccatch (rec_flag, handlers, body, Any)
+  let rec_flag = if rec_flag then Cmm.Recursive else Cmm.Normal in
+  Cmm.Ccatch (rec_flag, handlers, body)
 
 let unary op ~dbg x = Cop (op, [x], dbg)
 
@@ -4372,7 +4361,7 @@ let cmm_arith_size (e : Cmm.expression) =
     Some 0
   | Cop _ -> Some (cmm_arith_size0 e)
   | Clet _ | Cphantom_let _ | Ctuple _ | Csequence _ | Cifthenelse _ | Cswitch _
-  | Ccatch _ | Cexit _ | Ctrywith _ ->
+  | Ccatch _ | Cexit _ ->
     None
 
 (* Atomics *)

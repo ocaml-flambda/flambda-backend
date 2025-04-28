@@ -12,6 +12,8 @@
   * Fabrice LE FESSANT (INRIA/OCamlPro)
 *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 open X86_ast
 module String = Misc.Stdlib.String
 

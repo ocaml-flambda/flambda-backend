@@ -423,7 +423,7 @@ let exp_extra sub (extra, loc, attrs) sexp =
         Pexp_newtype (label_loc, jkind, sexp)
     | Texp_stack -> Pexp_stack sexp
     | Texp_mode modes ->
-        Pexp_constraint (sexp, None, Typemode.untransl_mode_annots ~loc modes)
+        Pexp_constraint (sexp, None, Typemode.untransl_mode_annots modes)
   in
   Exp.mk ~loc ~attrs desc
 

@@ -18,7 +18,7 @@
 
 open! Int_replace_polymorphic_compare
 
-[@@@ocaml.warning "+a-4-9-40-41-42"]
+[@@@ocaml.warning "+a-4-40-41-42"]
 
 open Cmm
 module DLL = Flambda_backend_utils.Doubly_linked_list
@@ -30,11 +30,18 @@ module Or_never_returns = struct
   type 'a t =
     | Ok of 'a
     | Never_returns
+
+  module Syntax = struct
+    let ( let* ) x f =
+      match x with Never_returns -> Never_returns | Ok x -> f x
+
+    let ( let** ) x f = match x with Never_returns -> () | Ok x -> f x
+  end
 end
 
 type trap_stack_info =
   | Unreachable
-  | Reachable of Simple_operation.trap_stack
+  | Reachable of Operation.trap_stack
 
 type static_handler =
   { regs : Reg.t array list;
@@ -49,10 +56,7 @@ type environment =
     static_exceptions : static_handler Int.Map.t;
         (** Which registers must be populated when jumping to the given
         handler. *)
-    trap_stack : Simple_operation.trap_stack;
-    regs_for_exception_extra_args : Reg.t array Int.Map.t;
-        (** For each exception handler, any registers that are to be used to hold
-            extra arguments. *)
+    trap_stack : Operation.trap_stack;
     tailrec_label : Label.t
   }
 
@@ -78,39 +82,34 @@ let env_find_mut id env =
     Misc.fatal_errorf "Selectgen.env_find_mut: %a is not mutable" V.print id);
   regs, provenance
 
-let env_add_regs_for_exception_extra_args id extra_args env =
-  { env with
-    regs_for_exception_extra_args =
-      Int.Map.add id extra_args env.regs_for_exception_extra_args
-  }
-
 let env_find_regs_for_exception_extra_args id env =
-  try Int.Map.find id env.regs_for_exception_extra_args
-  with Not_found ->
+  match Int.Map.find id env.static_exceptions with
+  | { regs = _exn :: extra_args; _ } -> extra_args
+  | { regs = []; _ } ->
+    Misc.fatal_errorf "Exception handler for continuation %d has no parameters"
+      id
+  | exception Not_found ->
     Misc.fatal_errorf
       "Could not find exception extra args registers for continuation %d" id
 
-let env_find_static_exception id env = Int.Map.find id env.static_exceptions
-
-let env_enter_trywith env id label =
-  let env, _ = env_add_static_exception id [] env label in
-  env
+let env_find_static_exception id env =
+  try Int.Map.find id env.static_exceptions
+  with Not_found -> Misc.fatal_errorf "Not found static exception id=%d" id
 
 let env_set_trap_stack env trap_stack = { env with trap_stack }
 
 let rec combine_traps trap_stack = function
   | [] -> trap_stack
-  | Push t :: l ->
-    combine_traps (Simple_operation.Specific_trap (t, trap_stack)) l
+  | Push t :: l -> combine_traps (Operation.Specific_trap (t, trap_stack)) l
   | Pop _ :: l -> (
-    match (trap_stack : Simple_operation.trap_stack) with
+    match (trap_stack : Operation.trap_stack) with
     | Uncaught -> Misc.fatal_error "Trying to pop a trap from an empty stack"
     | Specific_trap (_, ts) -> combine_traps ts l)
 
 let print_traps ppf traps =
   let rec print_traps ppf = function
-    | Simple_operation.Uncaught -> Format.fprintf ppf "T"
-    | Simple_operation.Specific_trap (lbl, ts) ->
+    | Operation.Uncaught -> Format.fprintf ppf "T"
+    | Operation.Specific_trap (lbl, ts) ->
       Format.fprintf ppf "%d::%a" lbl print_traps ts
   in
   Format.fprintf ppf "(%a)" print_traps traps
@@ -122,7 +121,7 @@ let set_traps nfail traps_ref base_traps exit_traps =
     (* Format.eprintf "Traps for %d set to %a@." nfail print_traps traps; *)
     traps_ref := Reachable traps
   | Reachable prev_traps ->
-    if Stdlib.( <> ) prev_traps traps
+    if not (Operation.equal_trap_stack prev_traps traps)
     then
       Misc.fatal_errorf
         "Mismatching trap stacks for continuation %d@.Previous traps: %a@.New \
@@ -145,8 +144,8 @@ let trap_stack_is_empty env =
 
 let pop_all_traps env =
   let rec pop_all acc = function
-    | Simple_operation.Uncaught -> acc
-    | Simple_operation.Specific_trap (lbl, t) -> pop_all (Pop lbl :: acc) t
+    | Operation.Uncaught -> acc
+    | Operation.Specific_trap (lbl, t) -> pop_all (Pop lbl :: acc) t
   in
   pop_all [] env.trap_stack
 
@@ -154,12 +153,11 @@ let env_create ~tailrec_label =
   { vars = V.Map.empty;
     static_exceptions = Int.Map.empty;
     trap_stack = Uncaught;
-    regs_for_exception_extra_args = Int.Map.empty;
     tailrec_label
   }
 
-let select_mutable_flag : Asttypes.mutable_flag -> Simple_operation.mutable_flag
-    = function
+let select_mutable_flag : Asttypes.mutable_flag -> Operation.mutable_flag =
+  function
   | Immutable -> Immutable
   | Mutable -> Mutable
 
@@ -167,8 +165,8 @@ let select_mutable_flag : Asttypes.mutable_flag -> Simple_operation.mutable_flag
 
 let oper_result_type = function
   | Capply (ty, _) -> ty
-  | Cextcall { ty; ty_args = _; alloc = _; func = _ } -> ty
-  | Cload { memory_chunk } -> (
+  | Cextcall { ty; ty_args = _; alloc = _; func = _; _ } -> ty
+  | Cload { memory_chunk; _ } -> (
     match memory_chunk with
     | Word_val -> typ_val
     | Single { reg = Float64 } | Double -> typ_float
@@ -289,21 +287,8 @@ let size_expr env exp =
 (* Swap the two arguments of an integer comparison *)
 
 let swap_intcomp = function
-  | Simple_operation.Isigned cmp ->
-    Simple_operation.Isigned (swap_integer_comparison cmp)
-  | Simple_operation.Iunsigned cmp ->
-    Simple_operation.Iunsigned (swap_integer_comparison cmp)
-
-(* Naming of registers *)
-
-let name_regs id rv =
-  let id = VP.var id in
-  if Array.length rv = 1
-  then rv.(0).Reg.raw_name <- Reg.Raw_name.create_from_var id
-  else
-    for i = 0 to Array.length rv - 1 do
-      rv.(i).Reg.raw_name <- Reg.Raw_name.create_from_var id
-    done
+  | Operation.Isigned cmp -> Operation.Isigned (swap_integer_comparison cmp)
+  | Operation.Iunsigned cmp -> Operation.Iunsigned (swap_integer_comparison cmp)
 
 (* Name of function being compiled *)
 let current_function_name = ref ""
@@ -397,8 +382,6 @@ let select_effects (e : Cmm.effects) : Effect.t =
 let select_coeffects (e : Cmm.coeffects) : Coeffect.t =
   match e with No_coeffects -> None | Has_coeffects -> Arbitrary
 
-let debug = false
-
 let float_test_of_float_comparison :
     Cmm.float_width ->
     Cmm.float_comparison ->
@@ -441,7 +424,7 @@ let int_test_of_integer_comparison :
   { lt; eq; gt; is_signed; imm }
 
 let terminator_of_test :
-    Simple_operation.test ->
+    Operation.test ->
     label_false:Label.t ->
     label_true:Label.t ->
     Cfg.terminator =
@@ -449,8 +432,8 @@ let terminator_of_test :
   let int_test comparison immediate =
     let signed, comparison =
       match comparison with
-      | Simple_operation.Isigned comparison -> true, comparison
-      | Simple_operation.Iunsigned comparison -> false, comparison
+      | Operation.Isigned comparison -> true, comparison
+      | Operation.Iunsigned comparison -> false, comparison
     in
     int_test_of_integer_comparison comparison ~signed ~immediate ~label_false
       ~label_true
@@ -467,8 +450,6 @@ let terminator_of_test :
   | Ioddtest -> Parity_test { ifso = label_false; ifnot = label_true }
   | Ieventest -> Parity_test { ifso = label_true; ifnot = label_false }
 
-let invalid_stack_offset = -1
-
 module Stack_offset_and_exn = struct
   (* This module relies on the field `can_raise` of basic blocks but does not
      rely on this field of individual Cfg instructions. This may need to be
@@ -476,13 +457,15 @@ module Stack_offset_and_exn = struct
      pushtrap/poptrap operations. *)
   type handler_stack = Label.t list
 
+  let fun_name = ref ""
+
   let compute_stack_offset ~stack_offset ~traps =
     stack_offset + (Proc.trap_size_in_bytes * List.length traps)
 
   let check_and_set_stack_offset :
       'a Cfg.instruction -> stack_offset:int -> traps:handler_stack -> unit =
    fun instr ~stack_offset ~traps ->
-    assert (instr.stack_offset = invalid_stack_offset);
+    assert (instr.stack_offset = Cfg.invalid_stack_offset);
     Cfg.set_stack_offset instr (compute_stack_offset ~stack_offset ~traps)
 
   let process_terminator :
@@ -516,14 +499,22 @@ module Stack_offset_and_exn = struct
     | Pushtrap { lbl_handler } ->
       update_block cfg lbl_handler ~stack_offset ~traps;
       stack_offset, lbl_handler :: traps
-    | Poptrap -> (
+    | Poptrap { lbl_handler } -> (
       match traps with
       | [] ->
         Misc.fatal_errorf
           "Cfgize.Stack_offset_and_exn.process_basic: trying to pop from an \
            empty stack (id=%a)"
           InstructionId.format instr.id
-      | _ :: traps -> stack_offset, traps)
+      | top_trap :: traps ->
+        (* CR-soon gyorsh: investigate why this check sometimes fails. *)
+        if false && not (Label.equal lbl_handler top_trap)
+        then
+          Misc.fatal_errorf
+            "Cfgize.Stack_offset_and_exn.process_basic: poptrap label %a does \
+             not match top of trap stack %a (stack_offset = %d) in CFG of %s\n"
+            Label.print lbl_handler Label.print top_trap stack_offset !fun_name;
+        stack_offset, traps)
     | Op (Stackoffset n) -> stack_offset + n, traps
     | Op
         ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_float32 _
@@ -548,12 +539,10 @@ module Stack_offset_and_exn = struct
    fun cfg label ~stack_offset ~traps ->
     let block = Cfg.get_block_exn cfg label in
     let was_invalid =
-      if block.stack_offset = invalid_stack_offset
+      if block.stack_offset = Cfg.invalid_stack_offset
       then true
       else (
-        if debug
-        then
-          assert (block.stack_offset = compute_stack_offset ~stack_offset ~traps);
+        assert (block.stack_offset = compute_stack_offset ~stack_offset ~traps);
         false)
     in
     if was_invalid
@@ -581,10 +570,8 @@ module Stack_offset_and_exn = struct
 
   let update_cfg : Cfg.t -> unit =
    fun cfg ->
-    update_block cfg cfg.entry_label ~stack_offset:0 ~traps:[];
-    Cfg.iter_blocks cfg ~f:(fun _ block ->
-        if block.stack_offset = invalid_stack_offset then block.dead <- true;
-        assert (not (block.is_trap_handler && block.dead)))
+    fun_name := cfg.fun_name;
+    update_block cfg cfg.entry_label ~stack_offset:0 ~traps:[]
 end
 
 let make_stack_offset stack_ofs = Cfg.Op (Stackoffset stack_ofs)
@@ -606,11 +593,6 @@ let make_const_vec128 x = Operation.Const_vec128 x
 let make_const_symbol x = Operation.Const_symbol x
 
 let make_opaque () = Operation.Opaque
-(* Return an array of fresh registers of the given type. Normally implemented as
-   Reg.createv, but some ports (e.g. Arm) can override this definition to store
-   float values in pairs of integer registers. *)
-
-let regs_for tys = Reg.createv tys
 
 let insert_debug (_env : environment) sub_cfg basic dbg arg res =
   Sub_cfg.add_instruction sub_cfg basic arg res dbg
@@ -636,7 +618,10 @@ let insert_op_debug' (_env : environment) sub_cfg op dbg rs rd =
   rd
 
 let insert_move env sub_cfg src dst =
-  if src.Reg.stamp <> dst.Reg.stamp
+  (* This should never be called on regs with incompatible [typ]s, but the
+     zero-alloc checker may unconditionally assume the result of
+     caml_flambda2_invalid is typ_int. *)
+  if not (Reg.same src dst)
   then insert env sub_cfg (Op Move) [| src |] [| dst |]
 
 let insert_moves env sub_cfg src dst =

@@ -20,6 +20,8 @@
    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
    SOFTWARE. *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 (** A "sub" CFG is the counterpart of an instruction list in the original Mach
     selection pass.
 
@@ -72,6 +74,6 @@ val update_exit_terminator : ?arg:Reg.t array -> t -> Cfg.terminator -> unit
 
 val start_label : t -> Label.t
 
-val mark_as_trap_handler : t -> exn_label:Label.t -> unit
+val mark_as_trap_handler : t -> unit
 
 val dump : t -> unit

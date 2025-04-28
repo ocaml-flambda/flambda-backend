@@ -555,18 +555,6 @@ let scalar_type_of_standard_int_or_float :
 
 let unary_int_arith_primitive _env dbg kind op arg =
   match (op : P.unary_int_arith_op) with
-  | Neg -> (
-    match integral_of_standard_int kind with
-    | Tagged src ->
-      C.Scalar_type.Tagged_integer.conjugate ~dbg ~outer:src
-        ~inner:C.Scalar_type.Tagged_integer.immediate
-        ~f:(fun x -> C.negint x dbg)
-        arg
-    | Untagged src ->
-      let bits = C.Scalar_type.Integer.bit_width src in
-      C.Scalar_type.Integer.conjugate arg ~outer:src
-        ~inner:C.Scalar_type.Integer.nativeint ~dbg ~f:(fun arg ->
-          C.neg_int (C.low_bits ~bits arg ~dbg) dbg))
   | Swap_byte_endianness -> (
     match (kind : K.Standard_int.t) with
     | Tagged_immediate ->

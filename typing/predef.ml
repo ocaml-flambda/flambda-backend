@@ -411,7 +411,7 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind:Jkind.Const.Builtin.immediate
   |> add_type ident_char ~jkind:Jkind.Const.Builtin.immediate
   |> add_type ident_exn ~kind:Type_open ~jkind:Jkind.Const.Builtin.value
-  |> add_type ident_extension_constructor ~jkind:Jkind.Const.Builtin.value
+  |> add_type ident_extension_constructor ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type ident_float ~jkind:Jkind.Const.Builtin.immutable_data
       ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_float
   |> add_type ident_floatarray ~jkind:Jkind.Const.Builtin.mutable_data

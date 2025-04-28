@@ -10,8 +10,14 @@ val fatal : ('a, Format.formatter, unit, 'b) format4 -> 'a
 
 val find_param_value : string -> string option
 
+val debug : bool
+
 val bool_of_param :
   ?guard:bool * string -> ?default:bool -> string -> bool Lazy.t
+
+val invariants : bool Lazy.t
+
+val verbose : bool Lazy.t
 
 val validator_debug : bool Lazy.t
 
@@ -20,13 +26,14 @@ val block_temporaries : bool Lazy.t
 type liveness = Cfg_with_infos.liveness
 
 type log_function =
-  { log :
-      'a.
-      indent:int -> ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a;
+  { indent : unit -> unit;
+    dedent : unit -> unit;
+    reset_indentation : unit -> unit;
+    log : 'a. ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a;
     enabled : bool
   }
 
-val make_log_function : verbose:bool -> label:string -> log_function
+val make_log_function : label:string -> log_function
 
 module Instruction : sig
   type id = InstructionId.t
@@ -62,7 +69,6 @@ val make_log_body_and_terminator :
   log_function ->
   instr_prefix:(Cfg.basic Cfg.instruction -> string) ->
   term_prefix:(Cfg.terminator Cfg.instruction -> string) ->
-  indent:int ->
   Cfg.basic_instruction_list ->
   Cfg.terminator Cfg.instruction ->
   liveness ->
@@ -72,7 +78,6 @@ val make_log_cfg_with_infos :
   log_function ->
   instr_prefix:(Cfg.basic Cfg.instruction -> string) ->
   term_prefix:(Cfg.terminator Cfg.instruction -> string) ->
-  indent:int ->
   Cfg_with_infos.t ->
   unit
 
@@ -97,44 +102,31 @@ val same_reg_class : Reg.t -> Reg.t -> bool
 
 val same_stack_class : Reg.t -> Reg.t -> bool
 
-val make_temporary :
-  same_class_and_base_name_as:Reg.t -> name_prefix:string -> Reg.t
-
 val simplify_cfg : Cfg_with_layout.t -> Cfg_with_layout.t
 
 val save_cfg : string -> Cfg_with_layout.t -> unit
-
-module Substitution : sig
-  type t = Reg.t Reg.Tbl.t
-
-  val apply_reg : t -> Reg.t -> Reg.t
-
-  val apply_array_in_place : t -> Reg.t array -> unit
-
-  val apply_array : t -> Reg.t array -> Reg.t array
-
-  val apply_set : t -> Reg.Set.t -> Reg.Set.t
-
-  val apply_instruction_in_place : t -> _ Cfg.instruction -> unit
-
-  val apply_block_in_place : t -> Cfg.basic_block -> unit
-
-  type map = t Label.Tbl.t
-
-  val for_label : map -> Label.t -> t
-
-  val apply_cfg_in_place : map -> Cfg.t -> unit
-end
 
 val remove_prologue_if_not_required : Cfg_with_layout.t -> unit
 
 val update_live_fields : Cfg_with_layout.t -> liveness -> unit
 
-(* The spill cost is currently the number of occurrences of the register. If
-   [flat] is true, the same weight is given to all uses; if [flat] is false, the
-   information about loops is computed and used to give more weight to uses
-   inside (nested) loops. *)
-val update_spill_cost : Cfg_with_infos.t -> flat:bool -> unit -> unit
+module SpillCosts : sig
+  type t
+
+  val empty : unit -> t
+
+  val iter : t -> f:(Reg.t -> int -> unit) -> unit
+
+  val for_reg : t -> Reg.t -> int
+
+  val add_to_reg : t -> Reg.t -> int -> unit
+
+  (* The spill cost is currently the number of occurrences of the register. If
+     [flat] is true, the same weight is given to all uses; if [flat] is false,
+     the information about loops is computed and used to give more weight to
+     uses inside (nested) loops. *)
+  val compute : Cfg_with_infos.t -> flat:bool -> unit -> t
+end
 
 val check_length : string -> 'a array -> int -> unit
 
@@ -151,7 +143,7 @@ val equal_stack_operands_rewrite :
   stack_operands_rewrite -> stack_operands_rewrite -> bool
 
 (* Substitution/map from registers to their spilled counterparts. *)
-type spilled_map = Substitution.t
+type spilled_map = Regalloc_substitution.t
 
 val is_spilled : spilled_map -> Reg.t -> bool
 
@@ -161,17 +153,6 @@ val may_use_stack_operands_array : spilled_map -> Reg.t array -> unit
 
 val may_use_stack_operands_everywhere :
   spilled_map -> 'a Cfg.instruction -> stack_operands_rewrite
-
-(* Insert specified instructions along all outgoing edges from the block
-   [after]; if [before] it not [None], the insertion is restricted to edges
-   having [before] as their destination. *)
-val insert_block :
-  Cfg_with_layout.t ->
-  Cfg.basic_instruction_list ->
-  after:Cfg.basic_block ->
-  before:Cfg.basic_block option ->
-  next_instruction_id:(unit -> InstructionId.t) ->
-  Cfg.basic_block list
 
 val occurs_array : Reg.t array -> Reg.t -> bool
 

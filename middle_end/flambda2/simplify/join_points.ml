@@ -65,7 +65,7 @@ let introduce_extra_params_for_join denv use_envs_with_ids
     denv, use_tenvs_with_ids
   else
     let extra_params = EPA.extra_params extra_params_and_args in
-    let denv = DE.define_parameters denv ~params:extra_params in
+    let denv = DE.define_parameters ~extra:true denv ~params:extra_params in
     let use_envs_with_ids =
       List.filter_map
         (introduce_extra_params_in_use_env extra_params_and_args)
@@ -119,9 +119,7 @@ let join ?cut_after denv params ~consts_lifted_during_body ~use_envs_with_ids
     match cse_join_result with
     | None -> handler_env
     | Some cse_join_result ->
-      Name.Map.fold
-        (fun name ty handler_env -> TE.add_equation handler_env name ty)
-        cse_join_result.extra_equations handler_env
+      TE.add_env_extension handler_env cse_join_result.env_extension
   in
   let denv =
     let denv = DE.with_typing_env denv handler_env in
@@ -187,7 +185,9 @@ let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
           add_equations_on_params typing_env ~is_recursive ~params ~param_types
         in
         let use_env =
-          let use_env = DE.define_parameters (U.env_at_use use) ~params in
+          let use_env =
+            DE.define_parameters ~extra:false (U.env_at_use use) ~params
+          in
           DE.map_typing_env use_env ~f:add_or_meet_param_type
         in
         use_env, U.id use, U.use_kind use)
@@ -268,15 +268,17 @@ let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
       then
         (* No need to add equations, as they will be computed from the use
            environments *)
-        let denv = DE.define_parameters denv ~params in
+        let denv = DE.define_parameters denv ~extra:false ~params in
         Profile.record_call ~accumulate:true "join" (fun () ->
             join ?cut_after denv params ~consts_lifted_during_body
               ~use_envs_with_ids ~lifted_cont_extra_params_and_args)
       else
         (* Define parameters with basic equations from the subkinds *)
-        let denv = DE.add_parameters_with_unknown_types denv params in
         let denv =
-          DE.add_parameters_with_unknown_types denv
+          DE.add_parameters_with_unknown_types denv ~extra:false params
+        in
+        let denv =
+          DE.add_parameters_with_unknown_types denv ~extra:true
             (EPA.extra_params lifted_cont_extra_params_and_args)
         in
         denv, lifted_cont_extra_params_and_args
