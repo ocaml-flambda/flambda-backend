@@ -502,7 +502,6 @@ let rec convert_layout_to_flambda_kind_with_subkinds (layout : L.layout) :
   | Punboxed_product layouts ->
     List.concat_map convert_layout_to_flambda_kind_with_subkinds layouts
   | Ptop | Pbottom ->
-    (* CR rtjoa: see if we can hit this with an [any] layout or something *)
     Misc.fatal_error
       "Lambda_to_flambda_primitives.convert_layout_to_offset_access_kinds"
 

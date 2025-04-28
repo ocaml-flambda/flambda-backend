@@ -133,6 +133,46 @@ Line 127, characters 13-14:
 Error: Block indices do not support [@@unboxed] records.
 |}]
 
+(* Disambiguation errors *)
+type t = { t : int }
+type s = { s : int }
+type a_t = { a : t# }
+type a_s = { a : s# }
+[%%expect{|
+type t = { t : int; }
+type s = { s : int; }
+type a_t = { a : t#; }
+type a_s = { a : s#; }
+|}]
+
+(* Disambiguation error when typing block access *)
+let f c =
+  if c then
+    (.t)
+  else
+    (.s)
+[%%expect{|
+Line 153, characters 6-7:
+153 |     (.s)
+            ^
+Error: This block index is expected to have base type "t"
+       There is no field "s" within type "t"
+|}]
+
+(* Disambiguation error when typing unboxed access *)
+let f c =
+  if c then
+    (.a.#t)
+  else
+    (.a.#s)
+[%%expect{|
+Line 165, characters 9-10:
+165 |     (.a.#t)
+               ^
+Error: This unboxed access is expected to have base type "s#"
+       There is no unboxed record field "t" within type "s#"
+|}]
+
 (************)
 (* Variance *)
 
@@ -168,8 +208,8 @@ let idx_iarray_n x = (.:n(x))
 let idx_imm x = (.idx_imm(x))
 let idx_mut x = (.idx_mut(x))
 [%%expect{|
-Line 160, characters 21-22:
-160 | let idx_array x = (.(x))
+Line 200, characters 21-22:
+200 | let idx_array x = (.(x))
                            ^
 Error: Block indices into arrays are not yet supported.
 |}]
@@ -178,8 +218,8 @@ type r = { a : string }
 let a () = (.(5).#contents.#a)
 [%%expect{|
 type r = { a : string; }
-Line 178, characters 14-15:
-178 | let a () = (.(5).#contents.#a)
+Line 218, characters 14-15:
+218 | let a () = (.(5).#contents.#a)
                     ^
 Error: Block indices into arrays are not yet supported.
 |}]
@@ -188,8 +228,8 @@ type t = { mutable a : string; b : int }
 let a () = (.(5).#a)
 [%%expect{|
 type t = { mutable a : string; b : int; }
-Line 188, characters 14-15:
-188 | let a () = (.(5).#a)
+Line 228, characters 14-15:
+228 | let a () = (.(5).#a)
                     ^
 Error: Block indices into arrays are not yet supported.
 |}]
@@ -198,16 +238,16 @@ type t1 = { mutable a : string; b : int }
 let b () = (.:(5).#a)
 [%%expect{|
 type t1 = { mutable a : string; b : int; }
-Line 198, characters 15-16:
-198 | let b () = (.:(5).#a)
+Line 238, characters 15-16:
+238 | let b () = (.:(5).#a)
                      ^
 Error: Block indices into arrays are not yet supported.
 |}]
 
 let bad_index_type = (.("test"))
 [%%expect{|
-Line 207, characters 24-30:
-207 | let bad_index_type = (.("test"))
+Line 247, characters 24-30:
+247 | let bad_index_type = (.("test"))
                               ^^^^^^
 Error: This expression has type "string" but an expression was expected of type
          "int"
@@ -296,8 +336,8 @@ val f : bool -> ('a r, int) idx_imm = <fun>
 type u = #{ x : int; }
 type 'a r = { u : u; }
 type 'a r2 = { u : u; }
-Line 289, characters 6-7:
-289 |     (.u.#x)
+Line 329, characters 6-7:
+329 |     (.u.#x)
             ^
 Warning 18 [not-principal]: this type-based field disambiguation is not principal.
 

@@ -5700,9 +5700,8 @@ and type_expect_
         Env.lookup_all_labels ~record_form:Unboxed_product ~loc:lid.loc
           Projection lid.txt env
       in
-      (* CR rtjoa: probably wrong message *)
       let label =
-        wrap_disambiguate "This expression is an idx with base"
+        wrap_disambiguate "This unboxed access is expected to have base"
           (mk_expected el_ty)
           (label_disambiguate Unboxed_product Projection lid env
               expected_record_type)
