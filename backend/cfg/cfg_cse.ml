@@ -258,16 +258,14 @@ let debug = false
 module State : sig
   type t
 
-  val make : last_used:InstructionId.t -> t
+  val make : InstructionId.sequence -> t
 
   val get_and_incr_instruction_id : t -> InstructionId.t
 end = struct
   (* CR-soon xclerc for xclerc: factor out with the state of GI, IRC, LS. *)
   type t = { instruction_id : InstructionId.sequence }
 
-  let make ~last_used =
-    let instruction_id = InstructionId.make_sequence ~last_used () in
-    { instruction_id }
+  let make instruction_id = { instruction_id }
 
   let get_and_incr_instruction_id state =
     InstructionId.get_and_incr state.instruction_id
@@ -521,8 +519,7 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
     let cfg = Cfg_with_layout.cfg cfg_with_layout in
     (if not (List.mem ~set:cfg.fun_codegen_options Cfg.No_CSE)
     then
-      let cfg_infos = Regalloc_utils.collect_cfg_infos cfg_with_layout in
-      let state = State.make ~last_used:cfg_infos.max_instruction_id in
+      let state = State.make cfg.instruction_id in
       cse_blocks state cfg);
     cfg_with_layout
 end

@@ -279,7 +279,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
       cfg_with_infos
   in
   let spilling_because_unused = Reg.Set.diff cfg_infos.res cfg_infos.arg in
-  let state = State.make ~stack_slots ~last_used:cfg_infos.max_instruction_id in
+  let state = State.make ~stack_slots in
   (match Reg.Set.elements spilling_because_unused with
   | [] -> ()
   | _ :: _ as spilled_nodes ->

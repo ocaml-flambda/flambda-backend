@@ -44,9 +44,7 @@ let is_nontail_call : Cfg.terminator -> bool =
 
 (* Returns the stack check info, and the max of seen instruction ids. *)
 let block_preproc_stack_check_result :
-    Cfg.basic_block ->
-    frame_size:int ->
-    Emitaux.preproc_stack_check_result * InstructionId.t =
+    Cfg.basic_block -> frame_size:int -> Emitaux.preproc_stack_check_result =
  fun block ~frame_size ->
   let contains_nontail_calls =
     (* XCR mshinwell: move to a method in Cfg somewhere?
@@ -55,20 +53,17 @@ let block_preproc_stack_check_result :
        think the predicate is generic enough to be moved to `Cfg`. *)
     is_nontail_call block.terminator.desc
   in
-  let max_frame_size, max_instr_id =
-    DLL.fold_left block.body
-      ~init:(block.terminator.stack_offset, block.terminator.id)
-      ~f:(fun (max_stack_frame, max_instr_id) (instr : _ Cfg.instruction) ->
-        ( Int.max max_stack_frame instr.stack_offset,
-          InstructionId.max max_instr_id instr.id ))
+  let max_frame_size =
+    DLL.fold_left block.body ~init:block.terminator.stack_offset
+      ~f:(fun max_stack_frame (instr : _ Cfg.instruction) ->
+        Int.max max_stack_frame instr.stack_offset)
   in
   let max_frame_size = max_frame_size + frame_size in
-  { max_frame_size; contains_nontail_calls }, max_instr_id
+  { max_frame_size; contains_nontail_calls }
 
 type cfg_info =
   { max_frame_size : int;
-    blocks_needing_stack_checks : Label.Set.t;
-    max_instr_id : InstructionId.t
+    blocks_needing_stack_checks : Label.Set.t
   }
 
 let build_cfg_info : Cfg.t -> cfg_info =
@@ -78,18 +73,11 @@ let build_cfg_info : Cfg.t -> cfg_info =
       ~contains_calls:cfg.fun_contains_calls
   in
   let init =
-    { max_frame_size = 0;
-      blocks_needing_stack_checks = Label.Set.empty;
-      max_instr_id = InstructionId.none
-    }
+    { max_frame_size = 0; blocks_needing_stack_checks = Label.Set.empty }
   in
   Cfg.fold_blocks cfg ~init
-    ~f:(fun
-         label
-         block
-         { max_frame_size; blocks_needing_stack_checks; max_instr_id }
-       ->
-      let preproc_stack_check_result, max_instr_id_block =
+    ~f:(fun label block { max_frame_size; blocks_needing_stack_checks } ->
+      let preproc_stack_check_result =
         block_preproc_stack_check_result block ~frame_size
       in
       let block_needs_stack_checks =
@@ -105,8 +93,7 @@ let build_cfg_info : Cfg.t -> cfg_info =
         then Label.Set.add label blocks_needing_stack_checks
         else blocks_needing_stack_checks
       in
-      let max_instr_id = InstructionId.max max_instr_id max_instr_id_block in
-      { max_frame_size; blocks_needing_stack_checks; max_instr_id })
+      { max_frame_size; blocks_needing_stack_checks })
 
 (* Populates `num_checks` with the number of blocks needing a stack check in the
    subtree whose root is the associated label, and returns that value. *)
@@ -170,8 +157,7 @@ let rec find_stack_check_block :
        num_checks_tree"
       to_cover
 
-let insert_instruction (cfg : Cfg.t) (label : Label.t) ~max_frame_size
-    ~max_instr_id =
+let insert_instruction (cfg : Cfg.t) (label : Label.t) ~max_frame_size =
   let block = Cfg.get_block_exn cfg label in
   let stack_offset = Cfg.first_instruction_stack_offset block in
   let check : Cfg.basic Cfg.instruction =
@@ -183,8 +169,7 @@ let insert_instruction (cfg : Cfg.t) (label : Label.t) ~max_frame_size
 
        xclerc: (keeping the comment, and the explicit values below until all of
        that is implemented.) *)
-    let seq = InstructionId.make_sequence ~last_used:max_instr_id () in
-    let id = InstructionId.get_and_incr seq in
+    let id = InstructionId.get_and_incr cfg.instruction_id in
     Cfg.make_instruction ()
       ~desc:(Cfg.Stack_check { max_frame_size_bytes = max_frame_size })
       ~stack_offset ~id ~available_before:None ~available_across:None
@@ -192,7 +177,7 @@ let insert_instruction (cfg : Cfg.t) (label : Label.t) ~max_frame_size
   DLL.add_begin block.body check
 
 let insert_stack_checks (cfg : Cfg.t) ~max_frame_size
-    ~blocks_needing_stack_checks ~max_instr_id =
+    ~blocks_needing_stack_checks =
   (* CR-soon xclerc for xclerc: use the dominators and loop infos from
      Cfg_with_infos (at least on some paths). *)
   let doms = Cfg_dominators.build cfg in
@@ -207,7 +192,7 @@ let insert_stack_checks (cfg : Cfg.t) ~max_frame_size
   | 0 -> ()
   | to_cover ->
     let label = find_stack_check_block tree ~to_cover ~num_checks ~loop_infos in
-    insert_instruction cfg label ~max_frame_size ~max_instr_id
+    insert_instruction cfg label ~max_frame_size
 
 (* CR-someday xclerc for xclerc: we may want to duplicate the check in some
    cases, rather than simply pushing it down. *)
@@ -218,7 +203,7 @@ let cfg (cfg_with_layout : Cfg_with_layout.t) =
     let cfg = Cfg_with_layout.cfg cfg_with_layout in
     (if not Config.no_stack_checks
     then
-      let { max_frame_size; blocks_needing_stack_checks; max_instr_id } =
+      let { max_frame_size; blocks_needing_stack_checks } =
         build_cfg_info cfg
       in
       if not (Label.Set.is_empty blocks_needing_stack_checks)
@@ -227,7 +212,5 @@ let cfg (cfg_with_layout : Cfg_with_layout.t) =
            < !Flambda_backend_flags.cfg_stack_checks_threshold
         then
           insert_stack_checks cfg ~max_frame_size ~blocks_needing_stack_checks
-            ~max_instr_id
-        else
-          insert_instruction cfg cfg.entry_label ~max_frame_size ~max_instr_id);
+        else insert_instruction cfg cfg.entry_label ~max_frame_size);
     cfg_with_layout

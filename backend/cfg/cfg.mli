@@ -100,7 +100,8 @@ type t =
         (** Precomputed during selection and poll insertion. *)
     fun_num_stack_slots : int Stack_class.Tbl.t;
         (** Precomputed at register allocation time *)
-    fun_poll : Lambda.poll_attribute (* Whether to insert polling points. *)
+    fun_poll : Lambda.poll_attribute; (* Whether to insert polling points. *)
+    instruction_id : InstructionId.sequence (* Next instruction id. *)
   }
 
 val create :
@@ -111,6 +112,7 @@ val create :
   fun_contains_calls:bool ->
   fun_num_stack_slots:int Stack_class.Tbl.t ->
   fun_poll:Lambda.poll_attribute ->
+  instruction_id:InstructionId.sequence ->
   t
 
 val fun_name : t -> string
@@ -234,6 +236,8 @@ val make_instr :
   'a -> Reg.t array -> Reg.t array -> Debuginfo.t -> 'a instruction
 
 (** These IDs are also used by [make_instr] *)
+val instr_id : InstructionId.sequence
+
 val next_instr_id : unit -> InstructionId.t
 
 val reset_instr_id : unit -> unit
@@ -242,9 +246,6 @@ val make_empty_block : ?label:Label.t -> terminator instruction -> basic_block
 
 (** "Contains calls" in the traditional sense as used in upstream [Selectgen]. *)
 val basic_block_contains_calls : basic_block -> bool
-
-(* [max_instr_id cfg] returns the maximum instruction identifier in [cfg]. *)
-val max_instr_id : t -> InstructionId.t
 
 val equal_irc_work_list : irc_work_list -> irc_work_list -> bool
 

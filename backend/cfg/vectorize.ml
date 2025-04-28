@@ -31,7 +31,6 @@ module State : sig
 end = struct
   type t =
     { ppf_dump : Format.formatter;
-      instruction_id : InstructionId.sequence;
       cfg_with_infos : Cfg_with_infos.t Lazy.t;
       cfg_with_layout : Cfg_with_layout.t
     }
@@ -42,15 +41,14 @@ end = struct
 
   let fun_dbg t = (Cfg_with_layout.cfg t.cfg_with_layout).fun_dbg
 
-  let next_available_instruction t = InstructionId.get_and_incr t.instruction_id
+  let next_available_instruction t =
+    InstructionId.get_and_incr
+      (Cfg_with_layout.cfg t.cfg_with_layout).instruction_id
 
   let create ppf_dump cl =
     (* CR-someday tip: the function may someday take a cfg_with_infos instead of
        creating a new one *)
-    let cfg = Cfg_with_layout.cfg cl in
     { ppf_dump;
-      instruction_id =
-        InstructionId.make_sequence ~last_used:(Cfg.max_instr_id cfg) ();
       cfg_with_layout = cl;
       cfg_with_infos = lazy (Cfg_with_infos.make cl)
     }

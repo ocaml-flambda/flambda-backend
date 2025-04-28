@@ -177,9 +177,7 @@ let rec combine : instr_id:InstructionId.sequence -> cell option -> unit =
 let run : Cfg_with_layout.t -> Cfg_with_layout.t =
  fun cfg_with_layout ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  let instr_id =
-    InstructionId.make_sequence ~last_used:(Cfg.max_instr_id cfg) ()
-  in
+  let instr_id = cfg.instruction_id in
   Cfg.iter_blocks cfg ~f:(fun _label block ->
       combine ~instr_id (DLL.hd_cell block.body));
   cfg_with_layout

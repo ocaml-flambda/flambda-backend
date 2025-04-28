@@ -1485,6 +1485,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
           (Cfg.of_cmm_codegen_option f.Cmm.fun_codegen_options)
         ~fun_dbg:f.Cmm.fun_dbg ~fun_contains_calls:true
         ~fun_num_stack_slots:(Stack_class.Tbl.make 0) ~fun_poll:f.Cmm.fun_poll
+        ~instruction_id:Cfg.instr_id
     in
     let layout = DLL.make_empty () in
     let entry_block =

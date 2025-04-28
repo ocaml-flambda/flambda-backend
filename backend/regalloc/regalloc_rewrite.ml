@@ -9,8 +9,6 @@ module type State = sig
   type t
 
   val stack_slots : t -> Regalloc_stack_slots.t
-
-  val get_and_incr_instruction_id : t -> InstructionId.t
 end
 
 module type Utils = sig
@@ -211,11 +209,11 @@ let rewrite_gen :
           let from, to_ =
             match move_dir with Load -> spilled, temp | Store -> temp, spilled
           in
-          let new_instr =
-            Move.make_instr move
-              ~id:(State.get_and_incr_instruction_id state)
-              ~copy:instr ~from ~to_
+          let id =
+            InstructionId.get_and_incr
+              (Cfg_with_infos.cfg cfg_with_infos).instruction_id
           in
+          let new_instr = Move.make_instr move ~id ~copy:instr ~from ~to_ in
           match direction with
           | Load_before_cell cell -> DLL.insert_before cell new_instr
           | Store_after_cell cell -> DLL.insert_after cell new_instr
@@ -300,7 +298,8 @@ let rewrite_gen :
                 (Cfg_with_infos.cfg_with_layout cfg_with_infos)
                 new_instrs ~after:block ~before:None
                 ~next_instruction_id:(fun () ->
-                  State.get_and_incr_instruction_id state)
+                  InstructionId.get_and_incr
+                    (Cfg_with_infos.cfg cfg_with_infos).instruction_id)
             in
             block_insertion := true);
       if !block_rewritten && should_coalesce_temp_spills_and_reloads
@@ -370,33 +369,27 @@ let prelude :
   then (
     Utils.log "precondition";
     Regalloc_invariants.precondition cfg_with_layout);
-  let cfg_infos = collect_cfg_infos cfg_with_layout in
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   (* We identify critical edges, and pre-emptively insert block so that the
      register allocator will not have to change the shape of the CFG. *)
   let critical_edges = compute_critical_edges cfg in
-  let cfg_infos =
-    if Cfg_edge.Set.is_empty critical_edges
-    then cfg_infos
-    else
-      let instruction_id =
-        InstructionId.make_sequence ~last_used:cfg_infos.max_instruction_id ()
-      in
-      Cfg_edge.Set.iter
-        (fun { Cfg_edge.src; dst } ->
-          let (_inserted_blocks : Cfg.basic_block list) =
-            Cfg_with_layout.insert_block cfg_with_layout (DLL.make_empty ())
-              ~after:(Cfg.get_block_exn cfg src)
-              ~before:(Some (Cfg.get_block_exn cfg dst))
-              ~next_instruction_id:(fun () ->
-                InstructionId.get_and_incr instruction_id)
-          in
-          ())
-        critical_edges;
-      Cfg_with_infos.invalidate_liveness cfg_with_infos;
-      Cfg_with_infos.invalidate_dominators_and_loop_infos cfg_with_infos;
-      { cfg_infos with max_instruction_id = InstructionId.get instruction_id }
-  in
+  if not (Cfg_edge.Set.is_empty critical_edges)
+  then (
+    let instruction_id = (Cfg_with_infos.cfg cfg_with_infos).instruction_id in
+    Cfg_edge.Set.iter
+      (fun { Cfg_edge.src; dst } ->
+        let (_inserted_blocks : Cfg.basic_block list) =
+          Cfg_with_layout.insert_block cfg_with_layout (DLL.make_empty ())
+            ~after:(Cfg.get_block_exn cfg src)
+            ~before:(Some (Cfg.get_block_exn cfg dst))
+            ~next_instruction_id:(fun () ->
+              InstructionId.get_and_incr instruction_id)
+        in
+        ())
+      critical_edges;
+    Cfg_with_infos.invalidate_liveness cfg_with_infos;
+    Cfg_with_infos.invalidate_dominators_and_loop_infos cfg_with_infos);
+  let cfg_infos = collect_cfg_infos cfg_with_layout in
   let num_temporaries =
     (* note: this should probably be `Reg.Set.cardinal (Reg.Set.union
        cfg_infos.arg cfg_infos.res)` but the following experimentally produces
@@ -411,7 +404,7 @@ let prelude :
   then
     let stack_slots =
       Profile.record ~accumulate:true "split"
-        (fun () -> Regalloc_split.split_live_ranges cfg_with_infos cfg_infos)
+        (fun () -> Regalloc_split.split_live_ranges cfg_with_infos)
         ()
     in
     let cfg_infos = collect_cfg_infos cfg_with_layout in
