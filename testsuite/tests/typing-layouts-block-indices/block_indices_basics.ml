@@ -133,6 +133,27 @@ Line 127, characters 13-14:
 Error: Block indices do not support [@@unboxed] records.
 |}]
 
+(************)
+(* Variance *)
+
+let coerce_imm (idx : (_, [ `A ]) idx_imm) =
+  (idx :> (_, [ `A | `B ]) idx_imm)
+[%%expect{|
+val coerce_imm : ('a, [ `A ]) idx_imm -> ('a, [ `A | `B ]) idx_imm = <fun>
+|}]
+
+let coerce_mut_bad (idx : (_, [ `A ]) idx_mut) =
+  (idx :> (_, [ `A | `B ]) idx_mut)
+[%%expect{|
+Line 2, characters 3-6:
+2 |   (idx :> (_, [ `A | `B ]) idx_mut)
+       ^^^
+Error: This expression cannot be coerced to type ""('a, [ `A | `B ]) idx_mut"";
+       it has type "('a, [ `A ]) idx_mut" but is here used with type
+         "('a, [ `A | `B ]) idx_mut"
+       The first variant type does not allow tag(s) "`B"
+|}]
+
 (**********)
 (* Arrays *)
 
@@ -147,8 +168,8 @@ let idx_iarray_n x = (.:n(x))
 let idx_imm x = (.idx_imm(x))
 let idx_mut x = (.idx_mut(x))
 [%%expect{|
-Line 139, characters 21-22:
-139 | let idx_array x = (.(x))
+Line 160, characters 21-22:
+160 | let idx_array x = (.(x))
                            ^
 Error: Block indices into arrays are not yet supported.
 |}]
@@ -157,8 +178,8 @@ type r = { a : string }
 let a () = (.(5).#contents.#a)
 [%%expect{|
 type r = { a : string; }
-Line 157, characters 14-15:
-157 | let a () = (.(5).#contents.#a)
+Line 178, characters 14-15:
+178 | let a () = (.(5).#contents.#a)
                     ^
 Error: Block indices into arrays are not yet supported.
 |}]
@@ -167,8 +188,8 @@ type t = { mutable a : string; b : int }
 let a () = (.(5).#a)
 [%%expect{|
 type t = { mutable a : string; b : int; }
-Line 167, characters 14-15:
-167 | let a () = (.(5).#a)
+Line 188, characters 14-15:
+188 | let a () = (.(5).#a)
                     ^
 Error: Block indices into arrays are not yet supported.
 |}]
@@ -177,16 +198,16 @@ type t1 = { mutable a : string; b : int }
 let b () = (.:(5).#a)
 [%%expect{|
 type t1 = { mutable a : string; b : int; }
-Line 177, characters 15-16:
-177 | let b () = (.:(5).#a)
+Line 198, characters 15-16:
+198 | let b () = (.:(5).#a)
                      ^
 Error: Block indices into arrays are not yet supported.
 |}]
 
 let bad_index_type = (.("test"))
 [%%expect{|
-Line 186, characters 24-30:
-186 | let bad_index_type = (.("test"))
+Line 207, characters 24-30:
+207 | let bad_index_type = (.("test"))
                               ^^^^^^
 Error: This expression has type "string" but an expression was expected of type
          "int"
@@ -275,8 +296,8 @@ val f : bool -> ('a r, int) idx_imm = <fun>
 type u = #{ x : int; }
 type 'a r = { u : u; }
 type 'a r2 = { u : u; }
-Line 268, characters 6-7:
-268 |     (.u.#x)
+Line 289, characters 6-7:
+289 |     (.u.#x)
             ^
 Warning 18 [not-principal]: this type-based field disambiguation is not principal.
 
