@@ -1022,9 +1022,7 @@ let binary_primitive env dbg f x y =
     |> C.return_unit dbg
   | Read_offset kind ->
     let addr = C.add_int x y dbg in
-    let memory_chunk =
-      P.Offset_access_kind.to_kind_with_subkind kind |> C.memory_chunk_of_kind
-    in
+    let memory_chunk = C.memory_chunk_of_kind kind in
     (* CR layouts v8: [Mutable] is conservative, we could add a separate
        primitive that uses [Immutable] and is only called with [idx_imm]s *)
     C.load ~dbg memory_chunk Mutable ~addr
@@ -1039,9 +1037,7 @@ let ternary_primitive _env dbg f x y z =
     bigarray_store ~dbg kind ~bigarray:x ~index:y ~new_value:z
   | Write_offset kind ->
     let addr = C.add_int x y dbg in
-    let memory_chunk =
-      P.Offset_access_kind.to_kind_with_subkind kind |> C.memory_chunk_of_kind
-    in
+    let memory_chunk = C.memory_chunk_of_kind kind in
     C.store ~dbg memory_chunk Assignment ~addr ~new_value:z |> C.return_unit dbg
   | Atomic_compare_and_set block_access_kind ->
     C.atomic_compare_and_set ~dbg

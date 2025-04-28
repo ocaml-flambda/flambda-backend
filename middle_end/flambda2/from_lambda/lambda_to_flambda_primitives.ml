@@ -486,21 +486,21 @@ let convert_array_kind_to_duplicate_array_kind (kind : L.array_kind) :
 let convert_field_read_semantics (sem : L.field_read_semantics) : Mutability.t =
   match sem with Reads_agree -> Immutable | Reads_vary -> Mutable
 
-let rec convert_layout_to_offset_access_kinds (layout : L.layout) :
-    P.Offset_access_kind.t list =
+let rec convert_layout_to_flambda_kind_with_subkinds (layout : L.layout) :
+    Flambda_kind.With_subkind.t list =
   match layout with
   | Pvalue value_kind -> (
     match convert_block_access_field_kind_from_value_kind value_kind with
-    | Any_value -> [Values]
-    | Immediate -> [Immediates])
-  | Punboxed_float Unboxed_float64 -> [Naked_floats]
-  | Punboxed_float Unboxed_float32 -> [Naked_float32s]
-  | Punboxed_int Unboxed_int32 -> [Naked_int32s]
-  | Punboxed_int Unboxed_int64 -> [Naked_int64s]
-  | Punboxed_int Unboxed_nativeint -> [Naked_nativeints]
-  | Punboxed_vector Unboxed_vec128 -> [Naked_vec128s]
+    | Any_value -> [K.With_subkind.any_value]
+    | Immediate -> [K.With_subkind.naked_immediate])
+  | Punboxed_float Unboxed_float64 -> [K.With_subkind.naked_float]
+  | Punboxed_float Unboxed_float32 -> [K.With_subkind.naked_float32]
+  | Punboxed_int Unboxed_int32 -> [K.With_subkind.naked_int32]
+  | Punboxed_int Unboxed_int64 -> [K.With_subkind.naked_int64]
+  | Punboxed_int Unboxed_nativeint -> [K.With_subkind.naked_nativeint]
+  | Punboxed_vector Unboxed_vec128 -> [K.With_subkind.naked_vec128]
   | Punboxed_product layouts ->
-    List.concat_map convert_layout_to_offset_access_kinds layouts
+    List.concat_map convert_layout_to_flambda_kind_with_subkinds layouts
   | Ptop | Pbottom ->
     (* CR rtjoa: see if we can hit this with an [any] layout or something *)
     Misc.fatal_error
@@ -2642,7 +2642,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [Binary (Poke kind, ptr, new_value)]
   | Pget_idx layout, [[ptr]; [idx]] ->
     let offsets = idx_access_offsets layout idx in
-    let kinds = convert_layout_to_offset_access_kinds layout in
+    let kinds = convert_layout_to_flambda_kind_with_subkinds layout in
     let reads =
       List.map2
         (fun kind offset -> H.Binary (Read_offset kind, ptr, Prim offset))
@@ -2651,7 +2651,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [H.maybe_create_unboxed_product reads]
   | Pset_idx layout, [[ptr]; [idx]; new_values] ->
     let offsets = idx_access_offsets layout idx in
-    let kinds = convert_layout_to_offset_access_kinds layout in
+    let kinds = convert_layout_to_flambda_kind_with_subkinds layout in
     let map3 f xs ys zs =
       List.map2 (fun x (y, z) -> f x y z) xs (List.combine ys zs)
     in

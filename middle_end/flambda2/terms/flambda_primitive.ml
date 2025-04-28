@@ -574,40 +574,6 @@ module Block_access_kind = struct
     | _, Values _ -> 1
 end
 
-module Offset_access_kind = struct
-  type t =
-    | Immediates
-    | Values
-    | Naked_floats
-    | Naked_float32s
-    | Naked_int32s
-    | Naked_int64s
-    | Naked_nativeints
-    | Naked_vec128s
-
-  let print ppf t =
-    match t with
-    | Immediates -> Format.pp_print_string ppf "Immediates"
-    | Naked_floats -> Format.pp_print_string ppf "Naked_floats"
-    | Naked_float32s -> Format.pp_print_string ppf "Naked_float32s"
-    | Values -> Format.pp_print_string ppf "Values"
-    | Naked_int32s -> Format.pp_print_string ppf "Naked_int32s"
-    | Naked_int64s -> Format.pp_print_string ppf "Naked_int64s"
-    | Naked_nativeints -> Format.pp_print_string ppf "Naked_nativeints"
-    | Naked_vec128s -> Format.pp_print_string ppf "Naked_vec128s"
-
-  let to_kind_with_subkind t =
-    match t with
-    | Naked_floats -> Flambda_kind.With_subkind.naked_float
-    | Naked_float32s -> Flambda_kind.With_subkind.naked_float32
-    | Naked_int32s -> Flambda_kind.With_subkind.naked_int32
-    | Naked_int64s -> Flambda_kind.With_subkind.naked_int64
-    | Naked_nativeints -> Flambda_kind.With_subkind.naked_nativeint
-    | Naked_vec128s -> Flambda_kind.With_subkind.naked_vec128
-    | Immediates -> Flambda_kind.With_subkind.tagged_immediate
-    | Values -> Flambda_kind.With_subkind.any_value
-end
-
 type string_or_bytes =
   | String
   | Bytes
@@ -1692,7 +1658,7 @@ type binary_primitive =
   | Atomic_exchange of Block_access_field_kind.t
   | Atomic_int_arith of binary_int_atomic_op
   | Poke of Flambda_kind.Standard_int_or_float.t
-  | Read_offset of Offset_access_kind.t
+  | Read_offset of Flambda_kind.With_subkind.t
 
 let binary_primitive_eligible_for_cse p =
   match p with
@@ -1844,7 +1810,7 @@ let print_binary_primitive ppf p =
     fprintf ppf "@[(Poke@ %a)@]"
       Flambda_kind.Standard_int_or_float.print_lowercase kind
   | Read_offset kind ->
-    fprintf ppf "@[(Read_offset@ %a)@]" Offset_access_kind.print kind
+    fprintf ppf "@[(Read_offset@ %a)@]" Flambda_kind.With_subkind.print kind
 
 let args_kind_of_binary_primitive p =
   match p with
@@ -1897,16 +1863,7 @@ let result_kind_of_binary_primitive p : result_kind =
   | Atomic_set _ -> Unit
   | Atomic_int_arith (Add | Sub | And | Or | Xor) -> Unit
   | Poke _ -> Unit
-  | Read_offset kind -> (
-    match kind with
-    | Immediates -> Singleton K.naked_immediate
-    | Values -> Singleton K.value
-    | Naked_floats -> Singleton K.naked_float
-    | Naked_float32s -> Singleton K.naked_float32
-    | Naked_int32s -> Singleton K.naked_int32
-    | Naked_int64s -> Singleton K.naked_int64
-    | Naked_nativeints -> Singleton K.naked_nativeint
-    | Naked_vec128s -> Singleton K.naked_vec128)
+  | Read_offset kind -> Singleton (K.With_subkind.kind kind)
 
 let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
   match p with
@@ -1982,7 +1939,7 @@ type ternary_primitive =
   | Array_set of Array_kind.t * Array_set_kind.t
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
-  | Write_offset of Offset_access_kind.t
+  | Write_offset of Flambda_kind.With_subkind.t
   | Atomic_compare_and_set of Block_access_field_kind.t
   | Atomic_compare_exchange of
       { atomic_kind : Block_access_field_kind.t;
@@ -2056,7 +2013,8 @@ let print_ternary_primitive ppf p =
       "@[(Bigarray_set (num_dimensions@ %d)@ (kind@ %a)@ (layout@ %a))@]"
       num_dimensions Bigarray_kind.print kind Bigarray_layout.print layout
   | Write_offset kind ->
-    Format.fprintf ppf "@[(Write_offset@ %a)@]" Offset_access_kind.print kind
+    Format.fprintf ppf "@[(Write_offset@ %a)@]" Flambda_kind.With_subkind.print
+      kind
   | Atomic_compare_and_set block_access_field_kind ->
     Format.fprintf ppf "@[(Atomic_compare_and_set@ %a)@]"
       Block_access_field_kind.print block_access_field_kind
@@ -2096,20 +2054,7 @@ let args_kind_of_ternary_primitive p =
     bigarray_kind, bigarray_index_kind, Bigarray_kind.element_kind kind
   | Atomic_compare_and_set _ | Atomic_compare_exchange _ ->
     K.value, K.value, K.value
-  | Write_offset kind ->
-    (* CR rtjoa: should we have just used flambda kind from the start? *)
-    let k =
-      match kind with
-      | Immediates -> K.naked_immediate
-      | Values -> K.value
-      | Naked_floats -> K.naked_float
-      | Naked_float32s -> K.naked_float32
-      | Naked_int32s -> K.naked_int32
-      | Naked_int64s -> K.naked_int64
-      | Naked_nativeints -> K.naked_nativeint
-      | Naked_vec128s -> K.naked_vec128
-    in
-    K.value, K.naked_int64, k
+  | Write_offset kind -> K.value, K.naked_int64, K.With_subkind.kind kind
 
 let result_kind_of_ternary_primitive p : result_kind =
   match p with
