@@ -70,6 +70,8 @@ module Test_data = struct
   let opaque_g = g "Opaque" ~hid:[i]
 
   let print_g = g "Print" ~hid:[i; conv]
+
+  let print_g_opaque = g "Print" ~hid:[i] ~vis:[conv, opaque_g]
 end
 
 module Subst_tests = struct
@@ -99,6 +101,7 @@ module Subst_tests = struct
     case y_g [i, unit_g];
     case print_g [i, unit_g];
     case print_g [i, option_g; conv, opaque_g];
+    case print_g_opaque [i, unit_g];
     ()
 end
 

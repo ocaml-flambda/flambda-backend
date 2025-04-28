@@ -152,8 +152,7 @@ end = struct
 
   let create_no_args head = create_exn head []
 
-  let of_parameter_name param =
-    create_no_args (param |> Parameter_name.to_string)
+  let of_parameter_name param = create_no_args param
 
   let unsafe_create_unchecked head args = { head; args }
 
@@ -161,7 +160,7 @@ end = struct
     (* Only safe for use as a lookup key, since it might actually not be a
        parameter name *)
     match t with
-    | { head; args = [] } -> Some (head |> Parameter_name.of_string)
+    | { head; args = [] } -> Some head
     | _ -> None
 
   let find_in_parameter_map t map =
@@ -259,8 +258,7 @@ end = struct
     let hash = Hashtbl.hash
   end)
 
-  let of_parameter_name param =
-    { head = Parameter_name.to_string param; hidden_args = []; visible_args = [] }
+  let of_parameter_name param = { head = param; hidden_args = []; visible_args = [] }
 
   let create head visible_args ~hidden_args =
     let hidden_args =
@@ -304,7 +302,7 @@ type subst = t Subst.t
 let find_in_parameter_map t map =
   match t with
   | { head; visible_args = []; hidden_args = []; } ->
-    Parameter_name.Map.find_opt (head |> Parameter_name.of_string) map
+    Parameter_name.Map.find_opt head map
   | _ -> None
 
 let rec subst0 (t : t) (s : subst) ~changed =

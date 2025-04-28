@@ -13,6 +13,7 @@ Print{Conv}{I}
   { (Conv Opaque{I}) (I Option{I}) }
   =
   Print[Conv:Opaque{I}][I:Option{I}]
+Print[Conv:Opaque{I}]{I} { (I Unit) } = Print[Conv:Opaque[I:Unit]][I:Unit]
 
 Tests of check:
 
