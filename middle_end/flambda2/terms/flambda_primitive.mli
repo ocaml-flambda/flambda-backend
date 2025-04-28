@@ -521,7 +521,7 @@ type binary_primitive =
   | Atomic_exchange of Block_access_field_kind.t
   | Atomic_int_arith of binary_int_atomic_op
   | Poke of Flambda_kind.Standard_int_or_float.t
-  | Read_offset of Flambda_kind.With_subkind.t
+  | Read_offset of Flambda_kind.With_subkind.t * Asttypes.mutable_flag
 
 (** Primitives taking exactly three arguments. *)
 type ternary_primitive =

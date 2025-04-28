@@ -2640,12 +2640,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Ppoke layout, [[ptr]; [new_value]] ->
     let kind = standard_int_or_float_of_peek_or_poke layout in
     [Binary (Poke kind, ptr, new_value)]
-  | Pget_idx layout, [[ptr]; [idx]] ->
+  | Pget_idx (layout, mut), [[ptr]; [idx]] ->
     let offsets = idx_access_offsets layout idx in
     let kinds = convert_layout_to_flambda_kind_with_subkinds layout in
     let reads =
       List.map2
-        (fun kind offset -> H.Binary (Read_offset kind, ptr, Prim offset))
+        (fun kind offset ->
+          H.Binary (Read_offset (kind, mut), ptr, Prim offset))
         kinds offsets
     in
     [H.maybe_create_unboxed_product reads]

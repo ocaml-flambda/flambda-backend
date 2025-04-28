@@ -1020,12 +1020,10 @@ let binary_primitive env dbg f x y =
     in
     C.store ~dbg memory_chunk Assignment ~addr:x ~new_value:y
     |> C.return_unit dbg
-  | Read_offset kind ->
+  | Read_offset (kind, mut) ->
     let addr = C.add_int x y dbg in
     let memory_chunk = C.memory_chunk_of_kind kind in
-    (* CR layouts v8: [Mutable] is conservative, we could add a separate
-       primitive that uses [Immutable] and is only called with [idx_imm]s *)
-    C.load ~dbg memory_chunk Mutable ~addr
+    C.load ~dbg memory_chunk mut ~addr
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with

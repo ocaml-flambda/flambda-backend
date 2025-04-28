@@ -1658,7 +1658,7 @@ type binary_primitive =
   | Atomic_exchange of Block_access_field_kind.t
   | Atomic_int_arith of binary_int_atomic_op
   | Poke of Flambda_kind.Standard_int_or_float.t
-  | Read_offset of Flambda_kind.With_subkind.t
+  | Read_offset of Flambda_kind.With_subkind.t * Asttypes.mutable_flag
 
 let binary_primitive_eligible_for_cse p =
   match p with
@@ -1757,7 +1757,9 @@ let compare_binary_primitive p1 p2 =
   | Atomic_int_arith op1, Atomic_int_arith op2 -> Stdlib.compare op1 op2
   | Poke kind1, Poke kind2 ->
     Flambda_kind.Standard_int_or_float.compare kind1 kind2
-  | Read_offset kind1, Read_offset kind2 -> Array_load_kind.compare kind1 kind2
+  | Read_offset (kind1, mut1), Read_offset (kind2, mut2) ->
+    let c = Array_load_kind.compare kind1 kind2 in
+    if c <> 0 then c else Stdlib.compare mut1 mut2
   | ( ( Block_set _ | Array_load _ | String_or_bigstring_load _
       | Bigarray_load _ | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _
       | Float_arith _ | Float_comp _ | Bigarray_get_alignment _
@@ -1809,8 +1811,9 @@ let print_binary_primitive ppf p =
   | Poke kind ->
     fprintf ppf "@[(Poke@ %a)@]"
       Flambda_kind.Standard_int_or_float.print_lowercase kind
-  | Read_offset kind ->
-    fprintf ppf "@[(Read_offset@ %a)@]" Flambda_kind.With_subkind.print kind
+  | Read_offset (kind, mut) ->
+    fprintf ppf "@[(Read_offset@ %a %s)@]" Flambda_kind.With_subkind.print kind
+      (match mut with Immutable -> "Immutable" | Mutable -> "Mutable")
 
 let args_kind_of_binary_primitive p =
   match p with
@@ -1863,7 +1866,7 @@ let result_kind_of_binary_primitive p : result_kind =
   | Atomic_set _ -> Unit
   | Atomic_int_arith (Add | Sub | And | Or | Xor) -> Unit
   | Poke _ -> Unit
-  | Read_offset kind -> Singleton (K.With_subkind.kind kind)
+  | Read_offset (kind, _) -> Singleton (K.With_subkind.kind kind)
 
 let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
   match p with

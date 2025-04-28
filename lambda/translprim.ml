@@ -935,8 +935,12 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive(Preinterpret_tagged_int63_as_unboxed_int64, 1)
     | "%reinterpret_unboxed_int64_as_tagged_int63" ->
       Primitive(Preinterpret_unboxed_int64_as_tagged_int63, 1)
+    | "%unsafe_read_idx_imm" ->
+      (* Only safe if the index is truly immutable *)
+      Primitive(Pget_idx (layout, Immutable), 2)
     | "%unsafe_read_idx" ->
-      Primitive(Pget_idx layout, 2)
+      (* [Mutable] is the more conservative version *)
+      Primitive(Pget_idx (layout, Mutable), 2)
     | "%unsafe_write_idx" ->
       let layout = List.nth arg_layouts 2 in
       Primitive(Pset_idx layout, 3)

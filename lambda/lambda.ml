@@ -354,7 +354,7 @@ type primitive =
   | Pdls_get
   (* Poll for runtime actions *)
   | Ppoll
-  | Pget_idx of layout
+  | Pget_idx of (layout * Asttypes.mutable_flag)
   | Pset_idx of layout
 
 and extern_repr =
@@ -2549,7 +2549,7 @@ let primitive_result_layout (p : primitive) =
       | Ppp_unboxed_nativeint -> layout_unboxed_nativeint
     )
   | Ppoke _ -> layout_unit
-  | Pget_idx layout -> layout
+  | Pget_idx (layout, _) -> layout
   | Pset_idx _ -> layout_unit
 
 let compute_expr_layout free_vars_kind lam =

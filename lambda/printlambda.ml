@@ -932,8 +932,11 @@ let primitive ppf = function
   | Ppoke layout ->
       fprintf ppf "(poke@ %a)"
         peek_or_poke layout
-  | Pget_idx layout ->
-      fprintf ppf "(read_offset@ %a)"
+  | Pget_idx (layout, Mutable) ->
+      fprintf ppf "(get_idx@ %a)"
+        (layout' false) layout
+  | Pget_idx (layout, Immutable) ->
+      fprintf ppf "(get_idx_imm@ %a)"
         (layout' false) layout
   | Pset_idx layout ->
       fprintf ppf "(write_offset@ %a)"
