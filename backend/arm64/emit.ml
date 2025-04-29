@@ -1160,7 +1160,7 @@ let assembly_code_for_allocation i ~local ~n ~far ~dbginfo =
       emit_subimm reg_alloc_ptr reg_alloc_ptr n;
       DSL.ins I.CMP [| DSL.emit_reg reg_alloc_ptr; DSL.emit_reg reg_tmp1 |];
       (if not far
-      then DSL.ins (I.B_cond LO) [| DSL.emit_label lbl_call_gc |]
+      then DSL.ins (I.B_cond LS) [| DSL.emit_label lbl_call_gc |]
       else
         let lbl = L.create Text in
         DSL.ins (I.B_cond HI) [| DSL.emit_label lbl |];
@@ -1201,7 +1201,7 @@ let assembly_code_for_poll i ~far ~return_label =
   then (
     match return_label with
     | None ->
-      DSL.ins (I.B_cond LO) [| DSL.emit_label lbl_call_gc |];
+      DSL.ins (I.B_cond LS) [| DSL.emit_label lbl_call_gc |];
       D.define_label lbl_after_poll
     | Some return_label ->
       DSL.ins (I.B_cond HI) [| DSL.emit_label return_label |];
@@ -1214,7 +1214,7 @@ let assembly_code_for_poll i ~far ~return_label =
       D.define_label lbl_after_poll
     | Some return_label ->
       let lbl = L.create Text in
-      DSL.ins (I.B_cond LO) [| DSL.emit_label lbl |];
+      DSL.ins (I.B_cond LS) [| DSL.emit_label lbl |];
       DSL.ins I.B [| DSL.emit_label return_label |];
       DSL.labeled_ins lbl I.B [| DSL.emit_label lbl_call_gc |]);
   call_gc_sites
