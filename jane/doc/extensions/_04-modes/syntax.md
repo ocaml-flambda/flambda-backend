@@ -262,9 +262,24 @@ specify a mode along the contention axis, the expression behaves as if it contai
 `contended`. This rule still allows you to write e.g. `t @ immutable uncontended`
 if that's what you want; most users will never want this, though.
 
-Though this description centers on `immutable` and `contended`, other implications
-exist, all to lower users' annotation burden. The implications apply both to
-mode expressions and to modality expressions, and are specified by this table:
+Once we've done this for modes, it would be odd if we didn't also do this
+for modalities. For example, `local` implies `yielding`. Now consider
+```ocaml
+type 'a glob = { g : 'a @@ global }
+let unglob (r : 'a glob @ local) : 'a = r.g
+```
+Because of the mode implication, `r` has mode `local yielding`. The written
+`global` modality means that `r.g` will have mode `global` (corresponding to
+the unwritten legacy `global` on the return type of `'a`). But without a
+`unyielding` modality, then `r.g` will have mode `yielding`, which is not
+compatible with a return expecting the legacy `unyielding`. We thus extend
+implications to include modalities, such that `global` implies `unyielding`,
+thus getting `unglob` to type-check (because now `r.g` will be `unyielding`).
+
+Other implications
+exist, all to lower users' annotation burden, all applying both to modes
+and modalities, according to this table:
+
 
 +---------------+--------------+
 | this          | implies this |
