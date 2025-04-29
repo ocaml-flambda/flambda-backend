@@ -119,19 +119,19 @@ Error: Signature mismatch:
 
 module Module_type_of_monadic = struct
     module M = struct
-        let x : string ref @ uncontended = ref "hello"
+        let x @ uncontended = ref "hello"
     end
     module M' : module type of M = M
     (* for monadic axes, we try to push to the id = join_with_min. The original
     modality is pushed to floor. *)
     module M' : module type of M = struct
-        let x : string ref @ contended = ref "hello"
+        let x  @ contended = ref "hello"
     end
 end
 [%%expect{|
 Lines 8-10, characters 35-7:
  8 | ...................................struct
- 9 |         let x : string ref @ contended = ref "hello"
+ 9 |         let x  @ contended = ref "hello"
 10 |     end
 Error: Signature mismatch:
        Modules do not match:
@@ -143,19 +143,34 @@ Error: Signature mismatch:
        is not included in
          val x : string ref @@ stateless
        The second is uncontended and the first is contended.
+|}, Principal{|
+Lines 8-10, characters 35-7:
+ 8 | ...................................struct
+ 9 |         let x  @ contended = ref "hello"
+10 |     end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val x : string ref @@ contended end
+       is not included in
+         sig val x : string ref end
+       Values do not match:
+         val x : string ref @@ contended
+       is not included in
+         val x : string ref
+       The second is uncontended and the first is contended.
 |}]
 
 module Module_type_nested = struct
     module M = struct
         let x @ portable = fun t -> t
         module N = struct
-            let y : string ref @ uncontended = ref "hello"
+            let y @ uncontended = ref "hello"
         end
     end
     module M' : module type of M = struct
         let x @ portable = fun t -> t
         module N = struct
-            let y : string ref @ contended = ref "hello"
+            let y @ contended = ref "hello"
         end
     end
 end
@@ -164,7 +179,7 @@ Lines 8-13, characters 35-7:
  8 | ...................................struct
  9 |         let x @ portable = fun t -> t
 10 |         module N = struct
-11 |             let y : string ref @ contended = ref "hello"
+11 |             let y @ contended = ref "hello"
 12 |         end
 13 |     end
 Error: Signature mismatch:
@@ -188,6 +203,36 @@ Error: Signature mismatch:
          val y : string ref @@ contended
        is not included in
          val y : string ref @@ stateless
+       The second is uncontended and the first is contended.
+|}, Principal{|
+Lines 8-13, characters 35-7:
+ 8 | ...................................struct
+ 9 |         let x @ portable = fun t -> t
+10 |         module N = struct
+11 |             let y @ contended = ref "hello"
+12 |         end
+13 |     end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           val x : 'a -> 'a @@ stateless
+           module N : sig val y : string ref @@ contended end
+         end
+       is not included in
+         sig
+           val x : 'a -> 'a @@ stateless
+           module N : sig val y : string ref end
+         end
+       In module "N":
+       Modules do not match:
+         sig val y : string ref @@ contended end
+       is not included in
+         sig val y : string ref end
+       In module "N":
+       Values do not match:
+         val y : string ref @@ contended
+       is not included in
+         val y : string ref
        The second is uncontended and the first is contended.
 |}]
 
