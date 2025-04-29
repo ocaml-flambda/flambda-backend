@@ -189,7 +189,7 @@ AS_IF([test x"$enable_runtime5" = xyes],
       [runtime_suffix=4])
 
 AC_ARG_ENABLE([stack_checks],
-  [AS_HELP_STRING([--enable-stack_checks],
+  [AS_HELP_STRING([--enable-stack-checks],
     [Enable stack checks])])
 
 ## Output variables
@@ -361,6 +361,7 @@ AC_SUBST([compute_deps])
 AC_SUBST([intel_jcc_bug_cflags])
 AC_SUBST([stack_allocation])
 AC_SUBST([poll_insertion])
+AC_SUBST([multidomain])
 AC_SUBST([dune])
 AC_SUBST([ocaml_bindir])
 AC_SUBST([ocaml_libdir])
@@ -699,6 +700,10 @@ AC_ARG_ENABLE([stack-allocation],
 
 AC_ARG_ENABLE([poll-insertion],
   [AS_HELP_STRING([--enable-poll-insertion],
+    [enable insertion of poll points])])
+
+AC_ARG_ENABLE([multidomain],
+  [AS_HELP_STRING([--enable-multidomain],
     [enable insertion of poll points])])
 
 AC_ARG_WITH([flexdll],
@@ -2834,6 +2839,15 @@ AS_IF([test x"$enable_poll_insertion" = "xyes"],
   [AC_DEFINE([POLL_INSERTION])
    poll_insertion=true],
   [poll_insertion=false])
+
+AS_IF([test x"$enable_multidomain" = "xno"],
+  [multidomain=false],
+  [AS_IF([test x"$enable_stack_checks" = "xyes" &&
+          test x"$enable_poll_insertion" = "xyes"],
+    [AC_DEFINE([MULTIDOMAIN])
+     multidomain=true],
+    [AC_MSG_ERROR([Creating multiple domains is only supported when stack checks \
+and poll insertion are enabled.])])])
 
 oc_cflags="$common_cflags $internal_cflags"
 oc_cppflags="$common_cppflags $internal_cppflags"

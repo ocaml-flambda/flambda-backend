@@ -20,6 +20,18 @@ jobs:
             config: --enable-middle-end=flambda2 --enable-runtime5
             os: ubuntu-latest
 
+          - name: flambda2_stack_checks
+            config: --enable-middle-end=flambda2 --enable-runtime5 --enable-stack-checks
+            os: ubuntu-latest
+
+          - name: flambda2_poll_insertion
+            config: --enable-middle-end=flambda2 --enable-runtime5 --enable-poll-insertion
+            os: ubuntu-latest
+
+          - name: flambda2_multidomain
+            config: --enable-middle-end=flambda2 --enable-runtime5 --enable-stack-checks --enable-poll-insertion --enable-multidomain
+            os: ubuntu-latest
+
           - name: flambda2_dev
             config: --enable-middle-end=flambda2 --enable-dev
             os: ubuntu-latest
