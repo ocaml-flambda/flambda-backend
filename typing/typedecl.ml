@@ -1131,7 +1131,7 @@ let record_gets_unboxed_version = function
     Array.for_all
       (fun (kind : mixed_block_element) ->
          match kind with
-         | Value | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> true
+         | Value | Float64 | Float32 | Bits8 | Bits16 | Bits32 | Bits64 | Vec128 | Word -> true
          | Float_boxed -> false)
       shape
 let gets_unboxed_version decl =
@@ -1634,6 +1634,8 @@ module Element_repr = struct
   type unboxed_element =
     | Float64
     | Float32
+    | Bits8
+    | Bits16
     | Bits32
     | Bits64
     | Vec128
@@ -1682,6 +1684,8 @@ module Element_repr = struct
       | Float64, _ -> Unboxed_element Float64
       | Float32, _ -> Unboxed_element Float32
       | Word, _ -> Unboxed_element Word
+      | Bits8, _ -> Unboxed_element Bits8
+      | Bits16, _ -> Unboxed_element Bits16
       | Bits32, _ -> Unboxed_element Bits32
       | Bits64, _ -> Unboxed_element Bits64
       | Vec128, _ -> Unboxed_element Vec128
@@ -1690,6 +1694,8 @@ module Element_repr = struct
   let unboxed_to_flat : unboxed_element -> mixed_block_element = function
     | Float64 -> Float64
     | Float32 -> Float32
+    | Bits8 -> Bits8
+    | Bits16 -> Bits16
     | Bits32 -> Bits32
     | Bits64 -> Bits64
     | Vec128 -> Vec128
@@ -1832,7 +1838,8 @@ let rec update_decl_jkind env dpath decl =
            | Float_element -> repr_summary.floats <- true
            | Imm_element -> repr_summary.imms <- true
            | Unboxed_element Float64 -> repr_summary.float64s <- true
-           | Unboxed_element (Float32 | Bits32 | Bits64 | Vec128 | Word) ->
+           | Unboxed_element (Float32 | Bits8 | Bits16 | Bits32 | Bits64
+                             | Vec128 | Word) ->
                repr_summary.non_float64_unboxed_fields <- true
            | Value_element -> repr_summary.values <- true
            | Element_without_runtime_component _ -> ())
@@ -3329,12 +3336,16 @@ let native_repr_of_type env kind ty sort_or_poly =
     Some (Unboxed_float Boxed_float64)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float32 ->
     Some (Unboxed_float Boxed_float32)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int8 ->
+    Some (Unboxed_integer Unboxed_int8)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int16 ->
+    Some (Unboxed_integer Unboxed_int16)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int32 ->
-    Some (Unboxed_integer Boxed_int32)
+    Some (Unboxed_integer Unboxed_int32)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int64 ->
-    Some (Unboxed_integer Boxed_int64)
+    Some (Unboxed_integer Unboxed_int64)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_nativeint ->
-    Some (Unboxed_integer Boxed_nativeint)
+    Some (Unboxed_integer Unboxed_nativeint)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int8x16 ->
     Some (Unboxed_vector Boxed_vec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int16x8 ->
@@ -4498,8 +4509,10 @@ let report_error ppf = function
         Style.inline_code "int64"
         Style.inline_code "nativeint"
   | Cannot_unbox_or_untag_type Untagged ->
-      fprintf ppf "@[Don't know how to untag this type. Only %a@ \
-                   and other immediate types can be untagged.@]"
+      fprintf ppf "@[Don't know how to untag this type. Only %a, %a, %a, \
+                   and@ other immediate types can be untagged.@]"
+        Style.inline_code "int8"
+        Style.inline_code "int16"
         Style.inline_code "int"
   | Deep_unbox_or_untag_attribute kind ->
       fprintf ppf

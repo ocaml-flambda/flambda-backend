@@ -61,6 +61,10 @@ module T0 = struct
 
   let of_targetint = Targetint_32_64.to_int64
 
+  let of_int8 i = Int64.of_int (Numeric_types.Int8.to_int i)
+
+  let of_int16 i = Int64.of_int (Numeric_types.Int16.to_int i)
+
   let max t1 t2 = if Int64.compare t1 t2 < 0 then t2 else t1
 
   let min t1 t2 = if Int64.compare t1 t2 < 0 then t1 else t2

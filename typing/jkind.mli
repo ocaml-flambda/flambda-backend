@@ -310,6 +310,18 @@ module Const : sig
     (** The jkind of unboxed 32-bit native-sized integers with mode crossing. *)
     val kind_of_unboxed_nativeint : t
 
+    (** The jkind of unboxed 8-bit integers with no mode crossing. *)
+    val bits8 : t
+
+    (** The jkind of unboxed 8-bit integers with mode crossing. *)
+    val kind_of_unboxed_int8 : t
+
+    (** The jkind of unboxed 16-bit integers with no mode crossing. *)
+    val bits16 : t
+
+    (** The jkind of unboxed 16-bit integers with mode crossing. *)
+    val kind_of_unboxed_int16 : t
+
     (** The jkind of unboxed 32-bit integers with no mode crossing. *)
     val bits32 : t
 

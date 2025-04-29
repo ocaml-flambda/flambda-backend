@@ -151,7 +151,7 @@
 
 (executable
  (name merge_archives)
- (modes native)
+ (modes native byte)
  (modules merge_archives)
  ; FIXME Fix warning 27
  (flags

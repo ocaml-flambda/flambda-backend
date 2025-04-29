@@ -118,6 +118,12 @@ module Update_kind : sig
 
   val tagged_immediates : t
 
+  (** Assumes each field is a word; the byte offset is [index * size_addr]. *)
+  val naked_int8_fields : t
+
+  (** Assumes each field is a word; the byte offset is [index * size_addr]. *)
+  val naked_int16_fields : t
+
   (** Tightly packed; the byte offset is [index * 4].  ([index] is as for
       [make_update], below.) *)
   val naked_int32s : t

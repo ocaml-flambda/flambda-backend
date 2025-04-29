@@ -177,8 +177,8 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
               match RWC.descr cst with
               | Tagged_immediate _ | Null -> ()
               | Naked_immediate _ | Naked_float32 _ | Naked_float _
-              | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
-              | Naked_vec128 _ ->
+              | Naked_int8 _ | Naked_int16 _ | Naked_int32 _ | Naked_int64 _
+              | Naked_nativeint _ | Naked_vec128 _ ->
                 Misc.fatal_errorf
                   "Unboxed constants are not allowed inside of Const_block: %a"
                   Printlambda.structured_constant const);
@@ -213,7 +213,8 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
       |> Mixed_block_shape.reorder_array shape
       |> Array.mapi (fun i c ->
              match Mixed_block_shape.get_reordered shape i with
-             | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
+             | Value _ | Float64 | Float32 | Bits8 | Bits16 | Bits32 | Bits64
+             | Vec128 | Word ->
                c
              | Float_boxed _ -> unbox_float_constant c)
       |> Array.to_list
@@ -497,6 +498,16 @@ let rec unarize_const_sort_for_extern_repr (sort : Jkind.Sort.Const.t) =
           arg_transformer = None;
           return_transformer = None
         } ]
+    | Bits8 ->
+      [ { kind = K.naked_int8;
+          arg_transformer = None;
+          return_transformer = None
+        } ]
+    | Bits16 ->
+      [ { kind = K.naked_int16;
+          arg_transformer = None;
+          return_transformer = None
+        } ]
     | Bits32 ->
       [ { kind = K.naked_int32;
           arg_transformer = None;
@@ -535,17 +546,31 @@ let unarize_extern_repr alloc_mode (extern_repr : Lambda.extern_repr) =
         arg_transformer = Some (P.Unbox_number Naked_float32);
         return_transformer = Some (P.Box_number (Naked_float32, alloc_mode))
       } ]
-  | Unboxed_integer Boxed_nativeint ->
+  | Unboxed_integer Unboxed_int8 ->
+    [ { kind = K.naked_int8;
+        arg_transformer =
+          Some (P.Num_conv { src = Tagged_immediate; dst = Naked_int8 });
+        return_transformer =
+          Some (P.Num_conv { src = Naked_int8; dst = Tagged_immediate })
+      } ]
+  | Unboxed_integer Unboxed_int16 ->
+    [ { kind = K.naked_int16;
+        arg_transformer =
+          Some (P.Num_conv { src = Tagged_immediate; dst = Naked_int16 });
+        return_transformer =
+          Some (P.Num_conv { src = Naked_int16; dst = Tagged_immediate })
+      } ]
+  | Unboxed_integer Unboxed_nativeint ->
     [ { kind = K.naked_nativeint;
         arg_transformer = Some (P.Unbox_number Naked_nativeint);
         return_transformer = Some (P.Box_number (Naked_nativeint, alloc_mode))
       } ]
-  | Unboxed_integer Boxed_int32 ->
+  | Unboxed_integer Unboxed_int32 ->
     [ { kind = K.naked_int32;
         arg_transformer = Some (P.Unbox_number Naked_int32);
         return_transformer = Some (P.Box_number (Naked_int32, alloc_mode))
       } ]
-  | Unboxed_integer Boxed_int64 ->
+  | Unboxed_integer Unboxed_int64 ->
     [ { kind = K.naked_int64;
         arg_transformer = Some (P.Unbox_number Naked_int64);
         return_transformer = Some (P.Box_number (Naked_int64, alloc_mode))
@@ -704,13 +729,13 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     match prim_native_name with
     | "caml_int64_float_of_bits_unboxed" ->
       unboxed_int64_to_and_from_unboxed_float
-        ~src_kind:(Unboxed_integer Boxed_int64)
+        ~src_kind:(Unboxed_integer Unboxed_int64)
         ~dst_kind:(Unboxed_float Boxed_float64)
         ~op:Unboxed_int64_as_unboxed_float64
     | "caml_int64_bits_of_float_unboxed" ->
       unboxed_int64_to_and_from_unboxed_float
         ~src_kind:(Unboxed_float Boxed_float64)
-        ~dst_kind:(Unboxed_integer Boxed_int64)
+        ~dst_kind:(Unboxed_integer Unboxed_int64)
         ~op:Unboxed_float64_as_unboxed_int64
     | _ ->
       let callee = Simple.symbol call_symbol in
@@ -1046,15 +1071,15 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pbox_float (_, _)
       | Punbox_vector _
       | Pbox_vector (_, _)
-      | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
-      | Punboxed_product_field _ | Parray_element_size_in_bytes _
-      | Pget_header _ | Prunstack | Pperform | Presume | Preperform
-      | Patomic_exchange _ | Patomic_compare_exchange _ | Patomic_compare_set _
-      | Patomic_fetch_add | Patomic_add | Patomic_sub | Patomic_land
-      | Patomic_lor | Patomic_lxor | Pdls_get | Ppoll | Patomic_load _
-      | Patomic_set _ | Preinterpret_tagged_int63_as_unboxed_int64
-      | Preinterpret_unboxed_int64_as_tagged_int63 | Ppeek _ | Ppoke _
-      | Pmakelazyblock _ ->
+      | Pmakelazyblock _ | Puntag_int _ | Ptag_int _ | Punbox_int _ | Pbox_int _
+      | Pmake_unboxed_product _ | Punboxed_product_field _
+      | Parray_element_size_in_bytes _ | Pget_header _ | Prunstack | Pperform
+      | Presume | Preperform | Patomic_exchange _ | Patomic_compare_exchange _
+      | Patomic_compare_set _ | Patomic_fetch_add | Patomic_add | Patomic_sub
+      | Patomic_land | Patomic_lor | Patomic_lxor | Pdls_get | Ppoll
+      | Patomic_load _ | Patomic_set _
+      | Preinterpret_tagged_int63_as_unboxed_int64
+      | Preinterpret_unboxed_int64_as_tagged_int63 | Ppeek _ | Ppoke _ ->
         (* Inconsistent with outer match *)
         assert false
     in
@@ -1302,7 +1327,8 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
                           | Naked_float f -> Or_variable.Const f
                           | Tagged_immediate _ | Naked_immediate _
                           | Naked_float32 _ | Naked_int32 _ | Naked_int64 _
-                          | Naked_nativeint _ | Naked_vec128 _ | Null ->
+                          | Naked_int8 _ | Naked_int16 _ | Naked_nativeint _
+                          | Naked_vec128 _ | Null ->
                             Misc.fatal_errorf
                               "Binding of %a to %a contains the constant %a \
                                inside a float record, whereas only naked \

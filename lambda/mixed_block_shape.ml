@@ -49,7 +49,8 @@ let of_mixed_block_elements (original_shape : 'a shape) : 'a t =
     let is_value =
       match elem with
       | Value _ -> true
-      | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
+      | Float_boxed _ | Float64 | Float32 | Bits8 | Bits16 | Bits32 | Bits64
+      | Vec128 | Word ->
         false
     in
     if is_value
@@ -106,8 +107,8 @@ let reordered_shape_unit t =
     (fun (elt : _ Lambda.mixed_block_element) : _ Lambda.mixed_block_element ->
       match elt with
       | Float_boxed _ -> Float_boxed ()
-      | (Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) as elem
-        ->
+      | ( Value _ | Float64 | Float32 | Bits8 | Bits16 | Bits32 | Bits64
+        | Vec128 | Word ) as elem ->
         elem)
     t.reordered_shape
 

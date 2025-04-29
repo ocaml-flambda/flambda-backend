@@ -6113,7 +6113,7 @@ and type_expect_
           | Record_mixed mixed -> begin
               match mixed.(label.lbl_num) with
               | Float_boxed -> true
-              | Float64 | Float32 | Value | Bits32 | Bits64 | Vec128 | Word ->
+              | Float64 | Float32 | Value | Bits8 | Bits16 | Bits32 | Bits64 | Vec128 | Word ->
                 false
             end
           | _ -> false
