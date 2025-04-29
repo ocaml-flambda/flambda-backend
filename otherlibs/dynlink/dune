@@ -62,6 +62,8 @@
  (name dynlink_compilerlibs)
  (wrapped true)
  (modes byte native)
+ (libraries compiler_ppx_base)
+ (preprocess (action (run ppx-base %{input-file})))
  (flags
   (:standard
    -strict-sequence

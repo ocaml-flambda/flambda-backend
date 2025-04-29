@@ -50,11 +50,12 @@
 
 (library
  (name flambda_backend_utils)
+ (preprocess (action (run ppx-base %{input-file})))
  ; FIXME Fix warning 27
  (flags (:standard -w -27))
  (ocamlopt_flags
   (:standard -O3))
- (libraries ocamlcommon)
+ (libraries ocamlcommon compiler_ppx_base)
  (modules doubly_linked_list file_sections lru))
 
 (install

@@ -1,0 +1,5 @@
+profile=janestreet
+# Please make a pull request to change this file.
+# Each directory that enables ocamlformat sets its own options, so here we just
+# disable it by default.
+disable=false

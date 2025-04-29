@@ -26,6 +26,7 @@
  ; This should be generated from the stdlib modules files
  (action (run %{ocaml_where}/../../bin/ocamlrun 
               -I ../../middle_end/flambda2/numbers/floats
+              -I ../../external/ppx_base
               %{exe:../expunge.bc} %{dep:../topstart.bc} %{targets}
                     stdlib__Arg
                     stdlib__Array

@@ -111,9 +111,11 @@
      (progn
       (echo "module MenhirLib = CamlinternalMenhirLib")
       (run cat %{input-file})))
-    parser)))
+    parser)
+    ((action (run ppx-base %{input-file})) misc primitive)
+    ))
  (library_flags -linkall)
- (libraries flambda2_floats)
+ (libraries flambda2_floats compiler_ppx_base)
  (modules_without_implementation
   annot
   value_rec_types

@@ -1,0 +1,24 @@
+(library
+  (name    compiler_ppx_base)
+  (wrapped false)
+  (ocamlopt_flags (:standard -O3))
+  (foreign_stubs
+    (language c)
+    (names    hash_stubs)
+    (flags (
+      (:include %{project_root}/oc_cflags.sexp)
+      (:include %{project_root}/sharedlib_cflags.sexp)
+      (:include %{project_root}/oc_cppflags.sexp))))
+  (foreign_stubs
+    (language c)
+    (names    internalhash_stubs)
+    (flags (
+      (:include %{project_root}/oc_cflags.sexp)
+      (:include %{project_root}/sharedlib_cflags.sexp)
+      (:include %{project_root}/oc_cppflags.sexp)))))
+
+(install
+  (files (
+    dllcompiler_ppx_base_stubs.so as stublibs/dllcompiler_ppx_base_stubs.so))
+  (section lib)
+  (package ocaml))
