@@ -2,6 +2,7 @@
  include stdlib_alpha;
  flags = "-extension-universe alpha -alert -unsafe_multidomain";
  runtime5;
+ multidomain;
  { bytecode; }
  { native; }
 *)

@@ -2,6 +2,7 @@
  flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
  ocamlopt_flags += " -O3 ";
  runtime5;
+ multidomain;
  { bytecode; }
  { native; }
 *)

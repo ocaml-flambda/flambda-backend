@@ -2,6 +2,7 @@
  flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
  ocamlrunparam += ",d=129";
  runtime5;
+ multidomain;
  { native; }
 *)
 

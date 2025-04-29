@@ -4,6 +4,7 @@
  include unix;
  hasunix;
  runtime5;
+ multidomain;
  {
    bytecode;
  }{

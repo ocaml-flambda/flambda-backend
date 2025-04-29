@@ -3,6 +3,7 @@
  modules = "stubs.c";
  no-tsan;
  runtime5;
+ multidomain;
  { bytecode; }
  { native; }
 *)

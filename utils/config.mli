@@ -300,6 +300,10 @@ val runtime5 : bool
 val no_stack_checks : bool
 (** [true] if stack checks are disabled; used only if [runtime5] is [true]. *)
 
+val multidomain : bool
+(** Whether creating multiple domains is allowed.
+    Requires stack checks and poll insertion. *)
+
 val tsan : bool
 (** Whether ThreadSanitizer instrumentation is enabled *)
 
