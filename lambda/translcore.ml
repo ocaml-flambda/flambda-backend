@@ -2235,10 +2235,10 @@ and transl_idx ~scopes loc env ba uas =
       uas
   in
   begin match ba with
-  | Baccess_block (_, index) ->
-    let index = transl_exp ~scopes Jkind.Sort.Const.for_idx index in
+  | Baccess_block (_, idx) ->
+    let idx = transl_exp ~scopes Jkind.Sort.Const.for_idx idx in
     begin match uas with
-    | [] -> index
+    | [] -> idx
     | Uaccess_unboxed_field (_, lbl) :: _ ->
       let base_sort =
         Jkind.Sort.Const.Product
@@ -2247,7 +2247,7 @@ and transl_idx ~scopes loc env ba uas =
       let base_layout = layout env lbl.lbl_loc base_sort lbl.lbl_res in
       let el = mixed_block_element_of_layout base_layout in
       (* [uas_path] is a path into [el] *)
-      Lprim (Pidx_deepen (uas_path, el), [index], (of_location ~scopes loc))
+      Lprim (Pidx_deepen (uas_path, el), [idx], (of_location ~scopes loc))
     end
   | Baccess_field (id, lbl) ->
     check_record_field_sort id.loc lbl.lbl_sort;
@@ -2279,8 +2279,22 @@ and transl_idx ~scopes loc env ba uas =
         raise (Error (loc, Block_index_gap_overflow_possible));
       Lprim (Pidx_mixed_field (path, el), [], (of_location ~scopes loc))
     end
-  | Baccess_array _ ->
-    Misc.fatal_error "Texp_idx: array unimplemented (type error expected)"
+  | Baccess_array (_, index_kind, index, el_ty, el_sort) ->
+    let index_sort, index_kind = match index_kind with
+      | Index_int ->
+        Jkind.Sort.Const.value, Ptagged_int_index
+      | Index_unboxed_int64 ->
+        Jkind.Sort.Const.bits64, Punboxed_int_index Unboxed_int64
+      | Index_unboxed_int32 ->
+        Jkind.Sort.Const.bits32, Punboxed_int_index Unboxed_int32
+      | Index_unboxed_nativeint ->
+        Jkind.Sort.Const.word, Punboxed_int_index Unboxed_nativeint
+    in
+    let index = transl_exp ~scopes index_sort index in
+    let el_sort = Jkind.Sort.default_for_transl_and_get el_sort in
+    let el_layout = layout env loc el_sort el_ty in
+    Lprim (Pidx_array (index_kind, el_layout, uas_path), [index],
+           (of_location ~scopes loc))
   end
 
 and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =

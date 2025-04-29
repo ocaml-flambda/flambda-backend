@@ -358,8 +358,8 @@ and add_block_access bv = function
   | Baccess_field fld -> add bv fld
   | Baccess_array (_, _, index) ->
     add_expr bv index
-  | Baccess_block (_, index) ->
-    add_expr bv index
+  | Baccess_block (_, idx) ->
+    add_expr bv idx
 
 and add_unboxed_access bv = function
   | Uaccess_unboxed_field fld -> add bv fld

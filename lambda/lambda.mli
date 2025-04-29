@@ -151,6 +151,7 @@ type primitive =
   (* Block indices *)
   | Pidx_field of int
   | Pidx_mixed_field of int list * unit mixed_block_element
+  | Pidx_array of array_index_kind * layout * int list
   | Pidx_deepen of int list * unit mixed_block_element
   (* Context switches *)
   | Prunstack

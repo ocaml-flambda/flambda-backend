@@ -451,11 +451,11 @@ let value_binding sub vb =
 let block_access sub : block_access -> Parsetree.block_access = function
   | Baccess_field (lid, _) ->
     Baccess_field (map_loc sub lid)
-  | Baccess_array (mut, ik, index) ->
+  | Baccess_array (mut, ik, index, _, _) ->
     let index = sub.expr sub index in
     Baccess_array (mut, ik, index)
-  | Baccess_block (mut, index) ->
-    Baccess_block (mut, sub.expr sub index)
+  | Baccess_block (mut, idx) ->
+    Baccess_block (mut, sub.expr sub idx)
 
 let unboxed_access sub : unboxed_access -> Parsetree.unboxed_access = function
   | Uaccess_unboxed_field (lid, _) ->

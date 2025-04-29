@@ -158,8 +158,8 @@ let preserve_tailcall_for_prim = function
   | Psetfield_computed _ | Pfloatfield _ | Psetfloatfield _ | Pduprecord _
   | Pufloatfield _ | Psetufloatfield _ | Pmixedfield _ | Psetmixedfield _
   | Pmake_unboxed_product _ | Punboxed_product_field _
-  | Parray_element_size_in_bytes _ | Pidx_field _ | Pidx_mixed_field _
-  | Pidx_deepen _
+  | Parray_element_size_in_bytes _
+  | Pidx_field _ | Pidx_mixed_field _ | Pidx_array _ | Pidx_deepen _
   | Pccall _ | Praise _ | Pnot | Pnegint | Paddint | Psubint | Pmulint
   | Pdivint _ | Pmodint _ | Pandint | Porint | Pxorint | Plslint | Plsrint
   | Pasrint | Pintcomp _ | Poffsetint _ | Poffsetref _ | Pintoffloat _
@@ -754,6 +754,7 @@ let comp_primitive stack_info p sz args =
   | Pmakefloatblock _
   | Pmakeufloatblock _
   | Pmakemixedblock _
+  | Pidx_array _
   | Pidx_deepen _
   | Pmakelazyblock _
   | Pprobe_is_enabled _
@@ -1167,6 +1168,19 @@ and comp_expr stack_info env exp sz cont =
   | Lprim(Pfloatfield (n, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz (Kgetfloatfield n :: cont)
+  | Lprim(Pidx_array (ik, _, path), [index], loc) ->
+      let index_as_int = match ik with
+        | Ptagged_int_index -> index
+        | Punboxed_int_index _ ->
+          Misc.fatal_error "CR rtjoa unimplemented non int array index"
+      in
+      let path =
+        index_as_int ::
+        List.map (fun x -> Lconst (Const_base (Const_int x))) path
+      in
+      let cont = add_pseudo_event loc !compunit_name cont in
+      comp_args stack_info env path sz
+        (Kmakeblock (List.length path, 0) :: cont)
   | Lprim(Pidx_deepen (path, _), [path_prefix], loc) ->
     (* In bytecode, an index is a block storing a series of positions; deepening
        an index "appends" to the end (by making a new block) *)

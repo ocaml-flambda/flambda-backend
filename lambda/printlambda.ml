@@ -585,6 +585,10 @@ let primitive ppf = function
       fprintf ppf "idx_mixed_field %a %a"
         (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_int) path
         (mixed_block_element (fun _ppf () -> ())) el
+  | Pidx_array (ik, layout, path) ->
+      fprintf ppf "idx_array %a %a %a"
+        array_index_kind ik (layout' false) layout
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_int) path
   | Pidx_deepen (path, el) ->
       fprintf ppf "idx_deepen %a %a"
         (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_int) path
@@ -969,6 +973,7 @@ let name_of_primitive = function
   | Punboxed_product_field _ -> "Punboxed_product_field"
   | Pidx_field _ -> "Pidx_field"
   | Pidx_mixed_field _ -> "Pidx_mixed_field"
+  | Pidx_array _ -> "Pidx_array"
   | Pidx_deepen _ -> "Pidx_deepen"
   | Parray_element_size_in_bytes _ -> "Parray_element_size_in_bytes"
   | Pccall _ -> "Pccall"

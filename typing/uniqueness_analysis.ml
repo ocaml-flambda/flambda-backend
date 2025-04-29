@@ -2299,10 +2299,9 @@ let rec check_uniqueness_exp ~overwrite (ienv : Ienv.t) exp : UF.t =
   | Texp_idx (ba, uas) ->
     let block_access = function
       | Baccess_field _ -> UF.unused
-      | Baccess_array (_, _, index) ->
+      | Baccess_array (_, _, index, _, _) ->
         check_uniqueness_exp ~overwrite:None ienv index
-      | Baccess_block (_, index) ->
-        check_uniqueness_exp ~overwrite:None ienv index
+      | Baccess_block (_, idx) -> check_uniqueness_exp ~overwrite:None ienv idx
     in
     let unboxed_access = function Uaccess_unboxed_field _ -> UF.unused in
     UF.pars (block_access ba :: List.map unboxed_access uas)

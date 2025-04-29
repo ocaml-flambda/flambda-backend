@@ -980,9 +980,7 @@ let rec choice ctx t =
     | Psequand | Psequor
     | Ppoll
     | Ppeek _ | Ppoke _
-    | Pidx_field _
-    | Pidx_mixed_field _
-    | Pidx_deepen _
+    | Pidx_field _ | Pidx_mixed_field _ | Pidx_deepen _ | Pidx_array _
     | Pget_idx _ | Pset_idx _ ->
         let primargs = traverse_list ctx primargs in
         Choice.lambda (Lprim (prim, primargs, loc))

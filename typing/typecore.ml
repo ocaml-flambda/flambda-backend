@@ -4151,8 +4151,8 @@ let rec is_nonexpansive exp =
   | Texp_idx (ba, uas) ->
       let block_access = function
         | Baccess_field _ -> true
-        | Baccess_array (_, _, index) -> is_nonexpansive index
-        | Baccess_block (_, index) -> is_nonexpansive index
+        | Baccess_array (_, _, index, _, _) -> is_nonexpansive index
+        | Baccess_block (_, idx) -> is_nonexpansive idx
       in
       let unboxed_access = function
         | Uaccess_unboxed_field _ -> true
@@ -5654,7 +5654,8 @@ and type_expect_
          separability mode.
          - Require that [el_ty] is [non_float].
          - Return the ignored [type_block_access_result] below. *)
-      let el_ty = newvar (Jkind.of_new_sort ~why:Idx_element) in
+      let el_jkind, el_sort = Jkind.of_new_sort_var ~why:Idx_element in
+      let el_ty = newvar el_jkind in
       let base_ty =
         match mut with
         | Immutable -> Predef.type_iarray el_ty
@@ -5669,20 +5670,22 @@ and type_expect_
       in
       let index =
         type_expect env mode_legacy index (mk_expected index_type_expected) in
-      let ba = Baccess_array (mut, index_kind, index) in
-      ignore ({ ba; base_ty; el_ty });
-      raise (Error (index.exp_loc, env, Block_access_array_unsupported))
-    | Baccess_block (mut, index) ->
+      let ba = Baccess_array (mut, index_kind, index, el_ty, el_sort) in
+      if Language_extension.is_at_least Layouts Language_extension.Alpha then
+        { ba; base_ty; el_ty }
+      else
+        raise (Error (index.exp_loc, env, Block_access_array_unsupported))
+    | Baccess_block (mut, idx) ->
       let base_ty = newvar (Jkind.Builtin.value ~why:Idx_base) in
       let el_ty = newvar (Jkind.of_new_sort ~why:Idx_element) in
-      let index_type_expected =
+      let idx_type_expected =
         match mut with
         | Immutable -> Predef.type_idx_imm base_ty el_ty
         | Mutable -> Predef.type_idx_mut base_ty el_ty
       in
-      let index =
-        type_expect env mode_legacy index (mk_expected index_type_expected) in
-      let ba = Baccess_block (mut, index) in
+      let idx =
+        type_expect env mode_legacy idx (mk_expected idx_type_expected) in
+      let ba = Baccess_block (mut, idx) in
       { ba; base_ty; el_ty }
   in
   let type_unboxed_access el_ty ua =
@@ -6283,10 +6286,10 @@ and type_expect_
     let ty =
       match ba with
       | Baccess_field (_, { lbl_mut = Immutable; _ })
-      | Baccess_array (Immutable, _, _) | Baccess_block (Immutable, _) ->
+      | Baccess_array (Immutable, _, _, _, _) | Baccess_block (Immutable, _) ->
         Predef.type_idx_imm base_ty el_ty
       | Baccess_field (_, { lbl_mut = Mutable _; _ })
-      | Baccess_array (Mutable, _, _) | Baccess_block (Mutable, _) ->
+      | Baccess_array (Mutable, _, _, _, _) | Baccess_block (Mutable, _) ->
         Predef.type_idx_mut base_ty el_ty
     in
     with_explanation (fun () ->

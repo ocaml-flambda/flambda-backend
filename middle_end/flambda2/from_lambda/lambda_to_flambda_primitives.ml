@@ -1515,7 +1515,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         (Int64.of_int offset_bytes)
     in
     [Simple (Simple.const (Reg_width_const.naked_int64 idx_raw_value))]
-  | Pidx_deepen (field_path, el), [[index]] ->
+  | Pidx_array (_ik, _layout, _path), [[_index]] ->
+    Misc.fatal_error "CR rtjoa: unimplemented Pidx array native"
+  | Pidx_deepen (field_path, el), [[idx]] ->
     let cts = L.Mixed_block_bytes_wrt_path.count el field_path in
     let outer_has_value_and_flat =
       L.Mixed_block_bytes_wrt_path.all cts
@@ -1535,13 +1537,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
                48)
             (Int64.of_int cts.left.value)
         in
-        [Binary (Int_arith (Naked_int64, Add), index, simple_i64 to_add)]
+        [Binary (Int_arith (Naked_int64, Add), idx, simple_i64 to_add)]
       | true, false ->
         (* Deepening from a mixed product to all values. *)
         (* gap = 0; offset += (values before) *)
         let mask = Int64.of_int ((1 lsl 48) - 1) in
         let gap_removed =
-          H.Binary (Int_arith (Naked_int64, And), index, simple_i64 mask)
+          H.Binary (Int_arith (Naked_int64, And), idx, simple_i64 mask)
         in
         [ Binary
             ( Int_arith (Naked_int64, Add),
@@ -1552,14 +1554,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         (* offset += gap + (values before) + (values after) + (flats before) *)
         let mask = Int64.of_int ((1 lsl 48) - 1) in
         let offset =
-          H.Binary (Int_arith (Naked_int64, And), index, simple_i64 mask)
+          H.Binary (Int_arith (Naked_int64, And), idx, simple_i64 mask)
         in
         let shifter =
           H.Simple
             (Simple.const
                (Reg_width_const.naked_immediate (Targetint_31_63.of_int 48)))
         in
-        let gap = H.Binary (Int_shift (Naked_int64, Lsr), index, shifter) in
+        let gap = H.Binary (Int_shift (Naked_int64, Lsr), idx, shifter) in
         let to_add =
           Int64.of_int (cts.left.value + cts.right.value + cts.left.flat)
         in
@@ -1575,7 +1577,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
          can't be a gap. *)
       (* increase offset by (values before) + (flats before) *)
       let to_add = Int64.of_int (cts.left.value + cts.left.flat) in
-      [Binary (Int_arith (Naked_int64, Add), index, simple_i64 to_add)]
+      [Binary (Int_arith (Naked_int64, Add), idx, simple_i64 to_add)]
   | Pmakefloatblock (mutability, mode), _ ->
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -2694,7 +2696,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pufloatfield _ | Patomic_load _ | Pmixedfield _
       | Preinterpret_unboxed_int64_as_tagged_int63
       | Preinterpret_tagged_int63_as_unboxed_int64
-      | Parray_element_size_in_bytes _ | Pidx_deepen _ | Ppeek _
+      | Parray_element_size_in_bytes _ | Pidx_array _ | Pidx_deepen _ | Ppeek _
       | Pmakelazyblock _ ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf

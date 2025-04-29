@@ -476,10 +476,10 @@ and block_access i ppf = function
       line i ppf "Baccess_array %a %a\n"
         fmt_mutable_flag mut fmt_index_kind index_kind;
       expression i ppf index
-  | Baccess_block (mut, index) ->
+  | Baccess_block (mut, idx) ->
       line i ppf "Baccess_block %a\n"
         fmt_mutable_flag mut;
-      expression i ppf index
+      expression i ppf idx
 
 and unboxed_access i ppf = function
   | Uaccess_unboxed_field lid ->
