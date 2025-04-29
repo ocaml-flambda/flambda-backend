@@ -490,19 +490,23 @@ let cse t = t.cse
 
 let comparison_results t = t.comparison_results
 
-let add_cse t prim ~bound_to =
-  let scope = get_continuation_scope t in
-  let cse = CSE.add t.cse prim ~bound_to scope in
-  let comparison_results =
-    let prim = Flambda_primitive.Eligible_for_cse.to_primitive prim in
-    match
-      ( Comparison_result.create ~prim ~comparison_results:t.comparison_results,
-        Simple.must_be_var bound_to )
-    with
-    | None, _ | _, None -> t.comparison_results
-    | Some comp, Some (var, _) -> Variable.Map.add var comp t.comparison_results
-  in
-  { t with cse; comparison_results }
+let add_cse t prim ~bound_to ~name_mode =
+  if not (Name_mode.is_normal name_mode)
+  then t
+  else
+    let scope = get_continuation_scope t in
+    let cse = CSE.add t.cse prim ~bound_to scope in
+    let comparison_results =
+      let prim = Flambda_primitive.Eligible_for_cse.to_primitive prim in
+      match
+        ( Comparison_result.create ~prim ~comparison_results:t.comparison_results,
+          Simple.must_be_var bound_to )
+      with
+      | None, _ | _, None -> t.comparison_results
+      | Some comp, Some (var, _) ->
+        Variable.Map.add var comp t.comparison_results
+    in
+    { t with cse; comparison_results }
 
 let find_cse t prim = CSE.find t.cse prim
 

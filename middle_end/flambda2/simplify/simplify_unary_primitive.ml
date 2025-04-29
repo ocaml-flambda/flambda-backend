@@ -145,7 +145,8 @@ let simplify_unbox_number (boxable_number_kind : K.Boxable_number.t) dacc
                   ( Box_number
                       (boxable_number_kind, Alloc_mode.For_allocations.heap),
                     Simple.var result_var' )))
-            ~bound_to:arg)
+            ~bound_to:arg
+            ~name_mode:(Bound_var.name_mode result_var))
   in
   SPR.with_dacc result dacc
 
@@ -164,7 +165,8 @@ let simplify_untag_immediate dacc ~original_term ~arg ~arg_ty:boxed_number_ty
         DE.add_cse denv
           (P.Eligible_for_cse.create_exn
              (Unary (Tag_immediate, Simple.var result_var')))
-          ~bound_to:arg)
+          ~bound_to:arg
+          ~name_mode:(Bound_var.name_mode result_var))
   in
   SPR.with_dacc result dacc
 
@@ -718,11 +720,13 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
           Named.create_prim (Unary (Unbox_number boxable_number, arg)) dbg
         in
         let bind_contents =
-          { Expr_builder.let_bound =
-              Bound_pattern.singleton (Bound_var.create contents_var NM.normal);
-            simplified_defining_expr = Simplified_named.create contents_expr;
-            original_defining_expr = None
-          }
+          Expr_builder.Keep_binding
+            { let_bound =
+                Bound_pattern.singleton
+                  (Bound_var.create contents_var NM.normal);
+              simplified_defining_expr = Simplified_named.create contents_expr;
+              original_defining_expr = None
+            }
         in
         let contents_simple = Simple.var contents_var in
         let dacc =
@@ -873,7 +877,8 @@ let[@inline always] simplify_immutable_block_load0
           | Some prim ->
             let dacc =
               DA.map_denv dacc ~f:(fun denv ->
-                  DE.add_cse denv prim ~bound_to:block)
+                  DE.add_cse denv prim ~bound_to:block
+                    ~name_mode:(Bound_var.name_mode result_var))
             in
             SPR.with_dacc result dacc))))
 
