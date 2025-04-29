@@ -453,8 +453,9 @@ let expr sub x =
   let map_block_access sub = function
     | Baccess_field (lid, ld) ->
       Baccess_field (map_loc sub lid, ld)
-    | Baccess_array (mut, index_kind, index, el_ty, el_sort) ->
-      Baccess_array (mut, index_kind, sub.expr sub index, el_ty, el_sort)
+    | Baccess_array { mut; index_kind; index; base_ty; elt_ty; elt_sort } ->
+      let index = sub.expr sub index in
+      Baccess_array { mut; index_kind; index; base_ty; elt_ty; elt_sort }
     | Baccess_block (mut, idx) ->
       Baccess_block (mut, sub.expr sub idx)
   in

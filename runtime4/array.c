@@ -896,22 +896,27 @@ CAMLprim value caml_idx_unsafe_read_bytecode(value base, value idx)
 {
   CAMLparam2 (base, idx);
   CAMLassert (Tag_val(idx) == 0);
-  value res = base;
+  value res;
   mlsize_t depth = Wosize_val(idx);
+#ifdef FLAT_FLOAT_ARRAY
+  if (Tag_val(base) == Double_array_tag) {
+    CAMLassert (depth == 1);
+    intnat pos = Long_val(Field(idx, 0));
+    double d = Double_flat_field(base, pos);
+#define Setup_for_gc
+#define Restore_after_gc
+  Alloc_small(res, Double_wosize, Double_tag);
+#undef Setup_for_gc
+#undef Restore_after_gc
+    Store_double_val(res, d);
+    CAMLreturn (res);
+  }
+#endif
+  res = base;
   for (mlsize_t i = 0; i < depth; i++) {
     intnat pos = Long_val(Field(idx, i));
-#ifdef FLAT_FLOAT_ARRAY
-      if (Tag_val(base) == Double_array_tag) {
-        double d = Double_flat_field(res, pos);
-        Store_double_val(res, d);
-      } else {
-        res = Field(res, pos);
-      }
-#else
-      res = Field(res, pos);
-#endif
+    res = Field(res, pos);
   }
-
   CAMLreturn (res);
 }
 
@@ -922,10 +927,8 @@ CAMLprim value caml_idx_unsafe_write_bytecode(value base, value idx, value v)
   mlsize_t depth = Wosize_val(idx);
 #ifdef FLAT_FLOAT_ARRAY
   if (Tag_val(base) == Double_array_tag) {
-    intnat pos = 0;
-    for (mlsize_t i = 0; i < depth; i++) {
-      pos += Long_val(Field(idx, i));
-    }
+    CAMLassert (depth == 1);
+    intnat pos = Long_val(Field(idx, 0));
     double d = Double_val (v);
     Store_double_flat_field(base, pos, d);
     CAMLreturn (Val_unit);

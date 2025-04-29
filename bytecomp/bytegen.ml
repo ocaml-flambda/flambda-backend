@@ -1168,10 +1168,22 @@ and comp_expr stack_info env exp sz cont =
   | Lprim(Pfloatfield (n, _, _), args, loc) ->
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz (Kgetfloatfield n :: cont)
-  | Lprim(Pidx_array (ik, _, path), [index], loc) ->
+  | Lprim(Pidx_array (_, ik, _, path), [index], loc) ->
+      (* let cont =
+       *   match ik with
+       *   | Ptagged_int_index -> cont
+       *   | Punboxed_int_index Unboxed_int64 ->
+       *     Kccall ("caml_int64_to_int", 1) :: cont
+       *   | Punboxed_int_index Unboxed_int32 ->
+       *     Kccall ("caml_int32_to_int", 1) :: cont
+       *   | Punboxed_int_index Unboxed_nativeint ->
+       *     Kccall ("caml_nativeint_to_int", 1) :: cont
+       * in *)
       let index_as_int = match ik with
         | Ptagged_int_index -> index
-        | Punboxed_int_index _ ->
+        | Punboxed_int_index Unboxed_int64
+        | Punboxed_int_index Unboxed_int32
+        | Punboxed_int_index Unboxed_nativeint ->
           Misc.fatal_error "CR rtjoa unimplemented non int array index"
       in
       let path =

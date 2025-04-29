@@ -2299,7 +2299,14 @@ let rec check_uniqueness_exp ~overwrite (ienv : Ienv.t) exp : UF.t =
   | Texp_idx (ba, uas) ->
     let block_access = function
       | Baccess_field _ -> UF.unused
-      | Baccess_array (_, _, index, _, _) ->
+      | Baccess_array
+          { mut = _;
+            index_kind = _;
+            index;
+            base_ty = _;
+            elt_ty = _;
+            elt_sort = _
+          } ->
         check_uniqueness_exp ~overwrite:None ienv index
       | Baccess_block (_, idx) -> check_uniqueness_exp ~overwrite:None ienv idx
     in

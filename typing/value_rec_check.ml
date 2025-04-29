@@ -724,7 +724,13 @@ let rec expression : Typedtree.expression -> term_judg =
     | Texp_idx (ba, uas) ->
       let block_access = function
         | Baccess_field _ -> empty
-        | Baccess_array (_, _, index, _, _) ->
+        | Baccess_array
+            { mut = _
+            ; index_kind = _
+            ; index
+            ; base_ty = _
+            ; elt_ty = _
+            ; elt_sort = _ } ->
           expression index << Dereference
         | Baccess_block (_, idx) ->
           expression idx << Dereference

@@ -4151,7 +4151,14 @@ let rec is_nonexpansive exp =
   | Texp_idx (ba, uas) ->
       let block_access = function
         | Baccess_field _ -> true
-        | Baccess_array (_, _, index, _, _) -> is_nonexpansive index
+        | Baccess_array
+            { mut = _
+            ; index_kind = _
+            ; index
+            ; base_ty = _
+            ; elt_ty = _
+            ; elt_sort = _ } ->
+          is_nonexpansive index
         | Baccess_block (_, idx) -> is_nonexpansive idx
       in
       let unboxed_access = function
@@ -5654,12 +5661,12 @@ and type_expect_
          separability mode.
          - Require that [el_ty] is [non_float].
          - Return the ignored [type_block_access_result] below. *)
-      let el_jkind, el_sort = Jkind.of_new_sort_var ~why:Idx_element in
-      let el_ty = newvar el_jkind in
+      let elt_jkind, elt_sort = Jkind.of_new_sort_var ~why:Idx_element in
+      let elt_ty = newvar elt_jkind in
       let base_ty =
         match mut with
-        | Immutable -> Predef.type_iarray el_ty
-        | Mutable -> Predef.type_array el_ty
+        | Immutable -> Predef.type_iarray elt_ty
+        | Mutable -> Predef.type_array elt_ty
       in
       let index_type_expected =
         match index_kind with
@@ -5670,9 +5677,11 @@ and type_expect_
       in
       let index =
         type_expect env mode_legacy index (mk_expected index_type_expected) in
-      let ba = Baccess_array (mut, index_kind, index, el_ty, el_sort) in
+      let ba =
+        Baccess_array { mut; index_kind; index; base_ty; elt_ty; elt_sort }
+      in
       if Language_extension.is_at_least Layouts Language_extension.Alpha then
-        { ba; base_ty; el_ty }
+        { ba; base_ty; el_ty = elt_ty }
       else
         raise (Error (index.exp_loc, env, Block_access_array_unsupported))
     | Baccess_block (mut, idx) ->
@@ -6286,10 +6295,10 @@ and type_expect_
     let ty =
       match ba with
       | Baccess_field (_, { lbl_mut = Immutable; _ })
-      | Baccess_array (Immutable, _, _, _, _) | Baccess_block (Immutable, _) ->
+      | Baccess_array { mut = Immutable; _ } | Baccess_block (Immutable, _) ->
         Predef.type_idx_imm base_ty el_ty
       | Baccess_field (_, { lbl_mut = Mutable _; _ })
-      | Baccess_array (Mutable, _, _, _, _) | Baccess_block (Mutable, _) ->
+      | Baccess_array { mut = Mutable; _ } | Baccess_block (Mutable, _) ->
         Predef.type_idx_mut base_ty el_ty
     in
     with_explanation (fun () ->

@@ -2279,7 +2279,7 @@ and transl_idx ~scopes loc env ba uas =
         raise (Error (loc, Block_index_gap_overflow_possible));
       Lprim (Pidx_mixed_field (path, el), [], (of_location ~scopes loc))
     end
-  | Baccess_array (_, index_kind, index, el_ty, el_sort) ->
+  | Baccess_array { mut = _; index_kind; index; base_ty; elt_ty; elt_sort } ->
     let index_sort, index_kind = match index_kind with
       | Index_int ->
         Jkind.Sort.Const.value, Ptagged_int_index
@@ -2291,9 +2291,13 @@ and transl_idx ~scopes loc env ba uas =
         Jkind.Sort.Const.word, Punboxed_int_index Unboxed_nativeint
     in
     let index = transl_exp ~scopes index_sort index in
-    let el_sort = Jkind.Sort.default_for_transl_and_get el_sort in
-    let el_layout = layout env loc el_sort el_ty in
-    Lprim (Pidx_array (index_kind, el_layout, uas_path), [index],
+    let elt_sort = Jkind.Sort.default_for_transl_and_get elt_sort in
+    let array_kind =
+      array_type_kind ~elt_sort:(Some elt_sort) env loc base_ty
+    in
+    let elt_layout = layout env loc elt_sort elt_ty in
+    let mbe = mixed_block_element_of_layout elt_layout in
+    Lprim (Pidx_array (array_kind, index_kind, mbe, uas_path), [index],
            (of_location ~scopes loc))
   end
 

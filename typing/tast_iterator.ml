@@ -335,7 +335,10 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
   in
   let iter_block_access sub = function
     | Baccess_field (lid, _) -> iter_loc sub lid
-    | Baccess_array (_, _, index, _, _) -> sub.expr sub index
+    | Baccess_array
+      { mut = _; index_kind = _; index; base_ty = _; elt_ty = _; elt_sort = _
+      } ->
+      sub.expr sub index
     | Baccess_block (_, idx) -> sub.expr sub idx
   in
   let iter_unboxed_access sub = function

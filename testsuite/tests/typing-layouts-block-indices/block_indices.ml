@@ -22,15 +22,6 @@
  } {
    flags = "-extension layouts_alpha -O3";
    native;
- }{
-   flags = "-extension layouts_beta";
-   native;
- }{
-   flags = "-extension layouts_beta -Oclassic";
-   native;
- }{
-   flags = "-extension layouts_beta -O3";
-   native;
  }
 *)
 
@@ -39,14 +30,18 @@ open Stdlib_upstream_compatible
 
 let _fail_when_no_extensions () = (.contents)
 
-external box_int64 : int64# -> int64 = "%box_int64"
-(* external box_float : float# -> float = "%box_float" *)
-
-let box_float = Float_u.to_float
-
 external[@layout_poly] read_idx_imm : 'a ('b : any). 'a -> ('a, 'b) idx_imm -> 'b = "%unsafe_read_idx"
 external[@layout_poly] read_idx_mut : 'a ('b : any). 'a -> ('a, 'b) idx_mut -> 'b = "%unsafe_read_idx"
 external[@layout_poly] write_idx_mut : 'a ('b : any). 'a -> ('a, 'b) idx_mut -> 'b -> unit = "%unsafe_write_idx"
+external[@layout_poly] makearray_dynamic :
+  ('a : any_non_null). len:int -> init:('a [@local_opt]) -> ('a array [@local_opt]) =
+  "%makearray_dynamic"
+external[@layout_poly] get :
+  ('a : any_non_null) . ('a array[@local_opt]) -> (int[@local_opt]) -> 'a =
+  "%array_safe_get"
+external[@layout_poly] set :
+  ('a : any_non_null) . ('a array[@local_opt]) -> (int[@local_opt]) -> 'a -> unit =
+  "%array_safe_set"
 
 (*******************************************************)
 (* Reads and writes for various record representations *)
@@ -68,7 +63,7 @@ let () =
   print_endline "Float record";
   let r = { f' = -100.0; f = 1.0 } in
   let x = read_idx_mut r (.f) in
-  Printf.printf "%f\n" (box_float x);
+  Printf.printf "%f\n" (Float_u.to_float x);
   write_idx_mut r (.f) #2.0;
   Printf.printf "%f\n" r.f;
   print_newline ()
@@ -79,9 +74,9 @@ let () =
   print_endline "Mixed block record";
   let r = { i = -100; u = #1.0; s = "foo" } in
   let x = read_idx_mut r (.u) in
-  Printf.printf "%f\n" (box_float x);
+  Printf.printf "%f\n" (Float_u.to_float x);
   write_idx_mut r (.u) #2.0;
-  Printf.printf "%f\n" (box_float r.u);
+  Printf.printf "%f\n" (Float_u.to_float r.u);
   print_newline ()
 
 type mixed_float32_record = { s : string; mutable f : float32# }
@@ -112,7 +107,7 @@ let () =
   print_endline "Mixed float record (float field)";
   let r = { f = 1.0; u = -#100.0 } in
   let x = read_idx_mut r (.f) in
-  Printf.printf "%f\n" (box_float x);
+  Printf.printf "%f\n" (Float_u.to_float x);
   write_idx_mut r (.f) #2.0;
   Printf.printf "%f\n" r.f;
   print_newline ()
@@ -121,9 +116,9 @@ let () =
   print_endline "Mixed float record (float# field)";
   let r = { f = -100.0; u = #1.0 } in
   let x = read_idx_mut r (.u) in
-  Printf.printf "%f\n" (box_float x);
+  Printf.printf "%f\n" (Float_u.to_float x);
   write_idx_mut r (.u) #2.0;
-  Printf.printf "%f\n" (box_float r.u);
+  Printf.printf "%f\n" (Float_u.to_float r.u);
   print_newline ()
 
 type mixed_int32_record = { j : int32#; mutable i : int32# }
@@ -169,9 +164,9 @@ type c = { mutable b : b#; s : string }
 let print_t_b t =
   let #{ i = bi; a = #{ s; i }; s = bs } = read_idx_mut t (.b) in
   Printf.printf "{ %s { %s %s } %s }\n"
-    (Int64.to_string (box_int64 bi))
+    (Int.to_string (Int64_u.to_int bi))
     s
-    (Int64.to_string (box_int64 i))
+    (Int.to_string (Int64_u.to_int i))
     bs
 
 let () =
@@ -229,3 +224,29 @@ let () =
   write_idx_mut r (.idx_mut(idx_fs).#g) #33.0;
   print_outer "" r;
   print_newline ()
+
+(* let () =
+ *   print_endline "string array";
+ *   let a = makearray_dynamic ~len:10 ~init:#0.s in
+ *   for i = 0 to 9 do
+ *     set a i (Float32_u.of_float (Float_u.of_int i))
+ *   done;
+ *   for i = 0 to 9 do
+ *     let idx : (_, float32#) idx_mut = (.(i)) in
+ *     let x = read_idx_mut a idx in
+ *     Printf.printf "%f\n" (Float_u.to_float (Float32_u.to_float x))
+ *   done;
+ *   print_endline "" *)
+
+let () =
+  print_endline "float32# array";
+  let a = makearray_dynamic ~len:10 ~init:#0.s in
+  for i = 0 to 9 do
+    set a i (Float32_u.of_float (Float_u.of_int i))
+  done;
+  for i = 0 to 9 do
+    let idx : (_, float32#) idx_mut = (.(i)) in
+    let x = read_idx_mut a idx in
+    Printf.printf "%f\n" (Float_u.to_float (Float32_u.to_float x))
+  done;
+  print_endline ""

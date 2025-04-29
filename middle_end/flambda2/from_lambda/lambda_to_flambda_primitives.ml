@@ -1375,6 +1375,22 @@ let opaque layout arg ~middle_end_only : H.expr_primitive list =
       Unary (Opaque_identity { middle_end_only; kind }, arg_component))
     arg kinds
 
+let array_element_size_in_bytes (array_kind : L.array_kind) =
+  match array_kind with
+  | Pgenarray | Paddrarray | Pintarray | Pfloatarray -> 8
+  | Punboxedfloatarray Unboxed_float32 ->
+    (* float32# arrays are packed *)
+    4
+  | Punboxedfloatarray Unboxed_float64 -> 8
+  | Punboxedintarray Unboxed_int32 ->
+    (* int32# arrays are packed *)
+    4
+  | Punboxedintarray (Unboxed_int64 | Unboxed_nativeint) -> 8
+  | Punboxedvectorarray Unboxed_vec128 -> 16
+  | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+    (* All elements of unboxed product arrays are currently 8 bytes wide. *)
+    L.count_initializers_array_kind array_kind * 8
+
 let simple_i64 x = H.Simple (Simple.const (Reg_width_const.naked_int64 x))
 
 let rec leaves (el : _ L.mixed_block_element) : _ L.mixed_block_element list =
@@ -1482,22 +1498,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Parray_element_size_in_bytes array_kind, [_witness] ->
     (* This is implemented as a unary primitive, but from our point of view it's
        actually nullary. *)
-    let num_bytes =
-      match array_kind with
-      | Pgenarray | Paddrarray | Pintarray | Pfloatarray -> 8
-      | Punboxedfloatarray Unboxed_float32 ->
-        (* float32# arrays are packed *)
-        4
-      | Punboxedfloatarray Unboxed_float64 -> 8
-      | Punboxedintarray Unboxed_int32 ->
-        (* int32# arrays are packed *)
-        4
-      | Punboxedintarray (Unboxed_int64 | Unboxed_nativeint) -> 8
-      | Punboxedvectorarray Unboxed_vec128 -> 16
-      | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
-        (* All elements of unboxed product arrays are currently 8 bytes wide. *)
-        L.count_initializers_array_kind array_kind * 8
-    in
+    let num_bytes = array_element_size_in_bytes array_kind in
     [Simple (Simple.const_int (Targetint_31_63.of_int num_bytes))]
   | Pidx_field pos, [] ->
     let idx_raw_value = Int64.mul (Int64.of_int pos) 8L in
@@ -1515,8 +1516,50 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         (Int64.of_int offset_bytes)
     in
     [Simple (Simple.const (Reg_width_const.naked_int64 idx_raw_value))]
-  | Pidx_array (_ik, _layout, _path), [[_index]] ->
-    Misc.fatal_error "CR rtjoa: unimplemented Pidx array native"
+  | Pidx_array (ak, ik, mbe, path), [[index]] ->
+    let index_as_int64 =
+      let conv_from src =
+        H.Prim (Unary (Num_conv { src; dst = Naked_int64 }, index))
+      in
+      match ik with
+      | Ptagged_int_index -> conv_from Tagged_immediate
+      | Punboxed_int_index Unboxed_int64 -> index
+      | Punboxed_int_index Unboxed_int32 -> conv_from Naked_int32
+      | Punboxed_int_index Unboxed_nativeint -> conv_from Naked_nativeint
+    in
+    let index_as_bytes =
+      let el_size = array_element_size_in_bytes ak in
+      H.Prim
+        (Binary
+           ( Int_arith (Naked_int64, Mul),
+             index_as_int64,
+             simple_i64 (Int64.of_int el_size) ))
+    in
+    let offset_after_index =
+      match L.Mixed_block_bytes_wrt_path.(offset_and_gap (count mbe path)) with
+      | Some { offset_bytes; gap_bytes = 0 } -> offset_bytes
+      | Some _ ->
+        Misc.fatal_error
+          "non-zero gap should only be possible for striped arrays, which are \
+           not yet supported"
+      | None -> Misc.fatal_error "Pidxarray: illegal gap"
+    in
+    let custom_word_offset =
+      match ak with
+      | Pgenarray | Paddrarray | Pintarray | Pfloatarray
+      | Punboxedfloatarray Unboxed_float64
+      | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+        0
+      | Punboxedfloatarray Unboxed_float32
+      | Punboxedintarray (Unboxed_int64 | Unboxed_int32 | Unboxed_nativeint)
+      | Punboxedvectorarray Unboxed_vec128 ->
+        8
+    in
+    [ Binary
+        ( Int_arith (Naked_int64, Add),
+          index_as_bytes,
+          simple_i64 (Int64.of_int (offset_after_index + custom_word_offset)) )
+    ]
   | Pidx_deepen (field_path, el), [[idx]] ->
     let cts = L.Mixed_block_bytes_wrt_path.count el field_path in
     let outer_has_value_and_flat =

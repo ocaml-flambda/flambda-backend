@@ -1177,10 +1177,11 @@ and longident_x_pattern : 'a. _ -> _ -> _ * 'a * _ -> _ =
 and block_access i ppf = function
   | Baccess_field (li, _) ->
       line i ppf "Baccess_field %a\n" fmt_longident li
-  | Baccess_array (mut, index_kind, index, _el_ty, el_sort) ->
+  | Baccess_array
+        { mut; index_kind; index; base_ty = _; elt_ty = _; elt_sort } ->
       line i ppf "Baccess_array %a %a %a\n"
         fmt_mutable_flag mut fmt_index_kind index_kind
-        Jkind.Sort.format el_sort;
+        Jkind.Sort.format elt_sort;
       expression i ppf index
   | Baccess_block (mut, index) ->
       line i ppf "Baccess_block %a\n"
