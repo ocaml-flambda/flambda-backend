@@ -1,6 +1,6 @@
 ---
 layout: documentation-page
-collectionName: Unboxed Types
+collectionName: Unboxed types
 title: Or null
 ---
 

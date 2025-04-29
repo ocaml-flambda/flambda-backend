@@ -1,6 +1,6 @@
 ---
 layout: documentation-page
-collectionName: Miscellaneous Extensions
+collectionName: Miscellaneous extensions
 title: Labeled tuples
 ---
 

@@ -1,8 +1,17 @@
 ---
 layout: documentation-page
-collectionName: Unboxed Types
+collectionName: Unboxed types
 title: Intro
 ---
+
+The "unboxed types" extension provides users with additional control over the
+way their data is represented in memory and registers. These new types have
+different {\em layouts}, which is part of their [kind](../kinds/intro), to
+distinguish them from normal OCaml types.
+
+This page gives a comprehensive overview of the extension.  Unboxed types are
+still in active development, with new features being added frequently, and the
+documentation here is kept up to date.
 
 # Layouts
 
@@ -100,10 +109,10 @@ let f5 x = (x : (_ : immediate))
 let f6: type (a: bits32). a -> a = fun x -> x
 ```
 
-The full syntax can be found in the documentation for kinds.  The complete
-annotation design is not yet implemented and the syntax should be read with
-`kind ::= layout-name` for now. It also provides reasoning around some design
-decisions and contains additional examples.
+The full syntax can be found in the [documentation for kinds](../kinds/syntax).
+The complete annotation design is not yet implemented and the syntax should be
+read with `kind ::= layout-name` for now. It also provides reasoning around some
+design decisions and contains additional examples.
 
 
 ## Layouts in module inclusion

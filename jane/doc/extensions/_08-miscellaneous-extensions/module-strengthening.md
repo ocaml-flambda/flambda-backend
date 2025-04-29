@@ -1,6 +1,6 @@
 ---
 layout: documentation-page
-collectionName: Miscellaneous Extensions
+collectionName: Miscellaneous extensions
 title: Module strengthening
 ---
 
@@ -27,4 +27,4 @@ as above and this is, in fact, the only way to write it without `-extension
 module_strengthening`. The new extension allows this type to be written as `S
 with M`.
 
-The main motivation for this work are compiler performance improvements.
+The main motivation for this work is compiler performance improvements.

@@ -1,6 +1,6 @@
 ---
 layout: documentation-page
-collectionName: Stack Allocation
+collectionName: Stack allocation
 title: Pitfalls
 ---
 # Some Pitfalls of Stack Allocations

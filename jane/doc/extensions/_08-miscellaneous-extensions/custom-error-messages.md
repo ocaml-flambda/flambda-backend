@@ -1,6 +1,6 @@
 ---
 layout: documentation-page
-collectionName: Miscellaneous Extensions
+collectionName: Miscellaneous extensions
 title: Custom error messages
 ---
 

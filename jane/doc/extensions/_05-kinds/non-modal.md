@@ -1,7 +1,7 @@
 ---
 layout: documentation-page
 collectionName: Kinds
-title: Non modal bounds
+title: Non-modal bounds
 ---
 
 # Non-modal bounds

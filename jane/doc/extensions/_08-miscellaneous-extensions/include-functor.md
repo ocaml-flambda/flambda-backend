@@ -1,3 +1,9 @@
+---
+layout: documentation-page
+collectionName: Miscellaneous extensions
+title: Include functor
+---
+
 # The `include functor` extension
 
 The `include functor` extension eliminates a common source of boilerplate when
