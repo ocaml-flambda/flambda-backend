@@ -33,7 +33,7 @@ val instance:
 val to_bytecode :
   Compile_common.info ->
   Typedtree.implementation ->
-  as_arg_for:Global_module.Name.t option ->
+  as_arg_for:Global_module.Parameter_name.t option ->
   Instruct.instruction list * Compilation_unit.Set.t *
     Lambda.main_module_block_format *
     Lambda.arg_descr option

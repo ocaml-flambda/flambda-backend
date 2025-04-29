@@ -87,11 +87,11 @@ let print_global_name_binding global =
 let print_line name =
   printf "\t%s\n" name
 
-let print_global_line glob =
-  printf "\t%a\n" Global_module.Name.output glob
-
 let print_global_as_name_line glob =
   printf "\t%a\n" Global_module.Name.output (Global_module.to_name glob)
+
+let print_parameter_name_line name =
+  printf "\t%a\n" Global_module.Parameter_name.output name
 
 let print_name_line cu =
   printf "\t%a\n" print_cu_without_prefix cu
@@ -114,7 +114,8 @@ let print_required_global id =
 
 let print_arg_descr arg_descr =
   let ({ arg_param; arg_block_idx = _ } : Lambda.arg_descr) = arg_descr in
-  printf "Parameter implemented: %a\n" Global_module.Name.output arg_param
+  printf "Parameter implemented: %a\n"
+    Global_module.Parameter_name.output arg_param
 
 let print_cmo_infos cu =
   printf "Unit name: %a\n" Compilation_unit.output cu.cu_name;
@@ -160,12 +161,12 @@ let print_cmi_infos name crcs kind params global_name_bindings =
     in
     printf "Is parameter: %s\n" (if is_param then "YES" else "no");
     print_string "Parameters:\n";
-    List.iter print_global_as_name_line params;
+    List.iter print_parameter_name_line params;
     begin
       match kind with
       | Normal { cmi_arg_for = Some arg_for; _ } ->
         printf "Argument for parameter:\n";
-        print_global_line arg_for
+        print_parameter_name_line arg_for
       | Normal _ | Parameter ->
         ()
     end;

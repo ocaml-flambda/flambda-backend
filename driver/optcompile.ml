@@ -133,10 +133,7 @@ let implementation_aux unix ~(flambda2 : flambda2) ~start_from
       let typed = structure, coercion, argument_coercion in
       let as_arg_for =
         !Clflags.as_argument_for
-        |> Option.map (fun param ->
-          (* Currently, parameters don't have parameters, so we assume the argument
-             list is empty *)
-          Global_module.Name.create_no_args param)
+        |> Option.map Global_module.Parameter_name.of_string
       in
       if not (Config.flambda || Config.flambda2) then Clflags.set_oclassic ();
       compile_from_typed info typed ~unix ~transl_style ~pipeline ~as_arg_for

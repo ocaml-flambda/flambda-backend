@@ -63,15 +63,15 @@ type error =
       compilation_unit : CU.t;
       filename : Misc.filepath;
     }
-  | Missing_argument of { param : Global_module.Name.t }
+  | Missing_argument of { param : Global_module.Parameter_name.t }
   | No_such_parameter of {
       base_unit : CU.t;
-      available_params : Global_module.Name.t list;
-      param : Global_module.Name.t;
+      available_params : Global_module.Parameter_name.t list;
+      param : Global_module.Parameter_name.t;
       arg : Global_module.Name.t
     }
   | Repeated_parameter of {
-      param : Global_module.Name.t;
+      param : Global_module.Parameter_name.t;
       arg1 : CU.t;
       arg2 : CU.t;
     }
