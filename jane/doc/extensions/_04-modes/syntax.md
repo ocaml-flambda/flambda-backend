@@ -12,7 +12,6 @@ A mode expression is a space-delimited list of modes.
 mode ::= locality | uniqueness | linearity | portability | contention
        | yield | statefulness | visibility
 
-(* these are the modal axes: *)
 locality ::= `global` | `local`
 uniqueness ::= `unique` | `aliased`
 linearity ::= `many` | `once`
@@ -132,6 +131,14 @@ parser.
 (expression : ty @ modes)
 ```
 We don't support `(expression @ modes)` because `@` is already parsed as a binary operator.
+
+However, you can write `(expression : _ @ modes)` if you do not want to constrain the type.
+
+## Modules
+Support for modules with modes is being worked on and not ready for wide adoption.
+More documentation will come
+as it becomes ready.
+
 However, you can write `(expression : _ @ modes)` if you do not want to constrain the type.
 
 ## Modules
