@@ -39,6 +39,24 @@ module type Lattice = sig
   val print : Format.formatter -> t -> unit
 end
 
+module type Lattice_product = sig
+  include Lattice
+
+  type 'a axis
+
+  val min_axis : 'a axis -> 'a
+
+  val max_axis : 'a axis -> 'a
+
+  val min_with : 'a axis -> 'a -> t
+
+  val max_with : 'a axis -> 'a -> t
+
+  val le_axis : 'a axis -> 'a -> 'a -> bool
+
+  val print_axis : 'a axis -> Format.formatter -> 'a -> unit
+end
+
 type equate_step =
   | Left_le_right
   | Right_le_left
@@ -93,6 +111,35 @@ module type Common = sig
   val print : ?verbose:bool -> unit -> Format.formatter -> ('l * 'r) t -> unit
 
   val of_const : Const.t -> ('l * 'r) t
+
+  val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
+
+  val subtract : Const.t -> ('l * 'r) t -> ('l * disallowed) t
+
+  val join_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
+
+  val meet_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
+
+  val zap_to_ceil : ('l * allowed) t -> Const.t
+
+  val zap_to_floor : (allowed * 'r) t -> Const.t
+end
+
+module type Common_axis = sig
+  module Const : Lattice
+
+  include
+    Common with module Const := Const and type error = Const.t Solver.error
+end
+
+module type Common_product = sig
+  type 'a axis
+
+  module Const : Lattice_product with type 'a axis = 'a axis
+
+  type error = Error : 'a axis * 'a Solver.error -> error
+
+  include Common with type error := error and module Const := Const
 end
 
 module type S = sig
@@ -124,21 +171,14 @@ module type S = sig
       include Lattice with type t := t
     end
 
-    type error = Const.t Solver.error
-
     include
-      Common
+      Common_axis
         with module Const := Const
-         and type error := error
          and type 'd t = (Const.t, 'd pos) mode
 
     val global : lr
 
     val local : lr
-
-    val zap_to_floor : (allowed * 'r) t -> Const.t
-
-    val zap_to_ceil : ('l * allowed) t -> Const.t
 
     module Guts : sig
       (** This module exposes some functions that allow callers to inspect modes
@@ -167,12 +207,9 @@ module type S = sig
       include Lattice with type t := t
     end
 
-    type error = Const.t Solver.error
-
     include
-      Common
+      Common_axis
         with module Const := Const
-         and type error := error
          and type 'd t = (Const.t, 'd pos) mode
 
     val global : lr
@@ -191,12 +228,9 @@ module type S = sig
       include Lattice with type t := t
     end
 
-    type error = Const.t Solver.error
-
     include
-      Common
+      Common_axis
         with module Const := Const
-         and type error := error
          and type 'd t = (Const.t, 'd pos) mode
 
     val many : lr
@@ -213,12 +247,9 @@ module type S = sig
       include Lattice with type t := t
     end
 
-    type error = Const.t Solver.error
-
     include
-      Common
+      Common_axis
         with module Const := Const
-         and type error := error
          and type 'd t = (Const.t, 'd pos) mode
   end
 
@@ -233,19 +264,14 @@ module type S = sig
 
     module Const_op : Lattice with type t = Const.t
 
-    type error = Const.t Solver.error
-
     include
-      Common
+      Common_axis
         with module Const := Const
-         and type error := error
          and type 'd t = (Const.t, 'd neg) mode
 
     val aliased : lr
 
     val unique : lr
-
-    val zap_to_ceil : ('l * allowed) t -> Const.t
   end
 
   module Contention : sig
@@ -260,12 +286,9 @@ module type S = sig
 
     module Const_op : Lattice with type t = Const.t
 
-    type error = Const.t Solver.error
-
     include
-      Common
+      Common_axis
         with module Const := Const
-         and type error := error
          and type 'd t = (Const.t, 'd neg) mode
   end
 
@@ -278,12 +301,9 @@ module type S = sig
       include Lattice with type t := t
     end
 
-    type error = Const.t Solver.error
-
     include
-      Common
+      Common_axis
         with module Const := Const
-         and type error := error
          and type 'd t = (Const.t, 'd pos) mode
 
     val yielding : lr
@@ -301,12 +321,9 @@ module type S = sig
       include Lattice with type t := t
     end
 
-    type error = Const.t Solver.error
-
     include
-      Common
+      Common_axis
         with module Const := Const
-         and type error := error
          and type 'd t = (Const.t, 'd pos) mode
 
     val stateless : lr
@@ -328,12 +345,9 @@ module type S = sig
 
     module Const_op : Lattice with type t = Const.t
 
-    type error = Const.t Solver.error
-
     include
-      Common
+      Common_axis
         with module Const := Const
-         and type error := error
          and type 'd t = (Const.t, 'd neg) mode
 
     val immutable : lr
@@ -379,40 +393,18 @@ module type S = sig
     module Areality : Common
 
     module Monadic : sig
-      module Const : sig
-        include Lattice with type t = monadic
+      include
+        Common_product
+          with type Const.t = monadic
+           and type 'a axis := (monadic, 'a) Axis.t
 
-        val max_axis : (t, 'a) Axis.t -> 'a
-
-        val min_axis : (t, 'a) Axis.t -> 'a
-      end
-
-      module Const_op : Lattice with type t = monadic
-
-      include Common with module Const := Const
-
-      val join_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
+      module Const_op : Lattice with type t = Const.t
     end
 
-    module Comonadic : sig
-      module Const : sig
-        include Lattice with type t = Areality.Const.t comonadic_with
-
-        val eq : t -> t -> bool
-
-        val print_axis : (t, 'a) Axis.t -> Format.formatter -> 'a -> unit
-
-        val max_axis : (t, 'a) Axis.t -> 'a
-
-        val min_axis : (t, 'a) Axis.t -> 'a
-      end
-
-      type error = Error : (Const.t, 'a) Axis.t * 'a Solver.error -> error
-
-      include Common with type error := error and module Const := Const
-
-      val meet_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
-    end
+    module Comonadic :
+      Common_product
+        with type Const.t = Areality.Const.t comonadic_with
+         and type 'a axis := (Areality.Const.t comonadic_with, 'a) Axis.t
 
     module Axis : sig
       (** Represents a mode axis in this product whose constant is ['a], and whose
@@ -427,10 +419,6 @@ module type S = sig
 
       val all : packed list
     end
-
-    (** Gets the normal lattice for comonadic axes and the "op"ped lattice for
-        monadic ones. *)
-    val lattice_of_axis : ('a, _, _) Axis.t -> (module Lattice with type t = 'a)
 
     type ('a, 'b, 'c, 'd, 'e, 'f, 'g, 'h) modes =
       { areality : 'a;
@@ -456,6 +444,11 @@ module type S = sig
               Statefulness.Const.t,
               Visibility.Const.t )
             modes
+
+      (** Gets the normal lattice for comonadic axes and the "op"ped lattice for
+        monadic ones. *)
+      val lattice_of_axis :
+        ('a, _, _) Axis.t -> (module Lattice with type t = 'a)
 
       module Option : sig
         type some = t
@@ -536,17 +529,7 @@ module type S = sig
 
     val zap_to_legacy : lr -> Const.t
 
-    val zap_to_ceil : ('l * allowed) t -> Const.t
-
     val comonadic_to_monadic : ('l * 'r) Comonadic.t -> ('r * 'l) Monadic.t
-
-    val meet_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
-
-    val join_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
-
-    val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
-
-    val subtract : Const.t -> ('l * 'r) t -> ('l * disallowed) t
 
     (* The following two are about the scenario where we partially apply a
        function [A -> B -> C] to [A] and get back [B -> C]. The mode of the

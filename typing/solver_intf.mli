@@ -292,8 +292,7 @@ module type S = sig
   module Magic_equal (X : Equal) :
     Equal with type ('a, 'b, 'c) t = ('a, 'b, 'c) X.t
 
-  (** Solver that supports polarized lattices; needed because some morphisms
-      are antitone  *)
+  (** Solver that supports lattices with monotone morphisms between them. *)
   module Solver_mono (C : Lattices_mono) :
     Solver_mono
       with type ('a, 'b, 'd) morph := ('a, 'b, 'd) C.morph

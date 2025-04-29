@@ -1753,6 +1753,14 @@ module Comonadic_gen (Obj : Obj) = struct
 
   let of_const : type l r. const -> (l * r) t = fun a -> Solver.of_const obj a
 
+  let meet_const c m = Solver.apply obj (Meet_with c) m
+
+  let join_const c m = Solver.apply obj (Join_with c) m
+
+  let imply c m = Solver.apply obj (Imply c) (Solver.disallow_left m)
+
+  let subtract c m = Solver.apply obj (Subtract c) (Solver.disallow_right m)
+
   module Guts = struct
     let get_floor m = Solver.get_floor obj m
 
@@ -1826,6 +1834,14 @@ module Monadic_gen (Obj : Obj) = struct
   let zap_to_floor m = with_log (Solver.zap_to_ceil obj m)
 
   let of_const : type l r. const -> (l * r) t = fun a -> Solver.of_const obj a
+
+  let meet_const c m = Solver.apply Obj.obj (Join_with c) m
+
+  let join_const c m = Solver.apply Obj.obj (Meet_with c) m
+
+  let imply c m = Solver.apply obj (Subtract c) (Solver.disallow_right m)
+
+  let subtract c m = Solver.apply obj (Imply c) (Solver.disallow_left m)
 
   module Guts = struct
     let _get_floor m = Solver.get_ceil obj m
@@ -2057,6 +2073,20 @@ module type Areality = sig
   val zap_to_legacy : (Const.t, allowed * 'r) Solver.mode -> Const.t
 end
 
+module BiHeyting_Product (L : BiHeyting) = struct
+  include L
+
+  type 'a axis = (t, 'a) Axis.t
+
+  let min_with ax c = Axis.update ax c min
+
+  let max_with ax c = Axis.update ax c max
+
+  let min_axis ax = Axis.proj ax min
+
+  let max_axis ax = Axis.proj ax max
+end
+
 module Comonadic_with (Areality : Areality) = struct
   module Obj = struct
     type const = Areality.Const.t C.comonadic_with
@@ -2075,27 +2105,15 @@ module Comonadic_with (Areality : Areality) = struct
   let proj_obj ax = C.proj_obj ax Obj.obj
 
   module Const = struct
-    include C.Comonadic_with (Areality.Const)
-
-    let eq a b = le a b && le b a
-
-    let le_axis ax a b =
-      let obj = proj_obj ax in
-      C.le obj a b
-
-    let min_axis ax =
-      let obj = proj_obj ax in
-      C.min obj
-
-    let max_axis ax =
-      let obj = proj_obj ax in
-      C.max obj
-
-    let max_with ax c = Axis.update ax c (C.max Obj.obj)
+    include BiHeyting_Product (C.Comonadic_with (Areality.Const))
 
     let print_axis ax ppf a =
       let obj = proj_obj ax in
       C.print obj ppf a
+
+    let le_axis ax a b =
+      let obj = proj_obj ax in
+      C.le obj a b
 
     let lattice_of_axis (type a) (axis : (t, a) Axis.t) :
         (module Lattice with type t = a) =
@@ -2109,19 +2127,15 @@ module Comonadic_with (Areality : Areality) = struct
 
   let proj ax m = Solver.apply (proj_obj ax) (Proj (Obj.obj, ax)) m
 
-  let meet_const c m = Solver.apply Obj.obj (Meet_with c) m
-
-  let join_const c m = Solver.apply Obj.obj (Join_with c) m
-
   let min_with ax m =
     Solver.apply Obj.obj (Min_with ax) (Solver.disallow_right m)
 
   let max_with ax m =
     Solver.apply Obj.obj (Max_with ax) (Solver.disallow_left m)
 
-  let join_with ax c m = join_const (C.min_with Obj.obj ax c) m
+  let join_with ax c m = join_const (Const.min_with ax c) m
 
-  let meet_with ax c m = meet_const (C.max_with Obj.obj ax c) m
+  let meet_with ax c m = meet_const (Const.max_with ax c) m
 
   let zap_to_legacy m : Const.t =
     let areality = proj Areality m |> Areality.zap_to_legacy in
@@ -2133,10 +2147,6 @@ module Comonadic_with (Areality : Areality) = struct
     let global = Areality.Const.(equal areality legacy) in
     let yielding = proj Yielding m |> Yielding.zap_to_legacy ~global in
     { areality; linearity; portability; yielding; statefulness }
-
-  let imply c m = Solver.apply Obj.obj (Imply c) (Solver.disallow_left m)
-
-  let subtract c m = Solver.apply Obj.obj (Subtract c) (Solver.disallow_right m)
 
   let legacy = of_const Const.legacy
 
@@ -2219,20 +2229,11 @@ module Monadic = struct
   let proj_obj ax = C.proj_obj ax Obj.obj
 
   module Const = struct
-    include C.Monadic
+    include BiHeyting_Product (C.Monadic)
 
-    (* CR zqian: The flipping logic leaking to here is bad. Refactoring needed. *)
-
-    (* Monadic fragment is flipped, so are the following definitions. *)
-    let min_with ax c = Axis.update ax c (C.max Obj.obj)
-
-    let min_axis ax =
+    let print_axis ax ppf a =
       let obj = proj_obj ax in
-      C.max obj
-
-    let max_axis ax =
-      let obj = proj_obj ax in
-      C.min obj
+      C.print obj ppf a
 
     let le_axis ax a b =
       let obj = proj_obj ax in
@@ -2252,23 +2253,15 @@ module Monadic = struct
 
   (* The monadic fragment is inverted. *)
 
-  let meet_const c m = Solver.apply Obj.obj (Join_with c) m
-
-  let join_const c m = Solver.apply Obj.obj (Meet_with c) m
-
   let max_with ax m =
     Solver.apply Obj.obj (Min_with ax) (Solver.disallow_right m)
 
   let min_with ax m =
     Solver.apply Obj.obj (Max_with ax) (Solver.disallow_left m)
 
-  let join_with ax c m = join_const (C.max_with Obj.obj ax c) m
+  let join_with ax c m = join_const (Const.min_with ax c) m
 
-  let meet_with ax c m = meet_const (C.min_with Obj.obj ax c) m
-
-  let imply c m = Solver.apply Obj.obj (Subtract c) (Solver.disallow_right m)
-
-  let subtract c m = Solver.apply Obj.obj (Imply c) (Solver.disallow_left m)
+  let meet_with ax c m = meet_const (Const.max_with ax c) m
 
   let zap_to_legacy m : Const.t =
     let uniqueness = proj Uniqueness m |> Uniqueness.zap_to_legacy in
@@ -2363,12 +2356,6 @@ module Value_with (Areality : Areality) = struct
         P (Comonadic Statefulness);
         P (Monadic Visibility) ]
   end
-
-  let lattice_of_axis (type a d0 d1) (axis : (a, d0, d1) Axis.t) :
-      (module Lattice with type t = a) =
-    match axis with
-    | Comonadic ax -> Comonadic.Const.lattice_of_axis ax
-    | Monadic ax -> Monadic.Const.lattice_of_axis ax
 
   let proj_obj : type a d0 d1. (a, d0, d1) Axis.t -> a C.obj = function
     | Monadic ax -> Monadic.proj_obj ax
@@ -2480,6 +2467,12 @@ module Value_with (Areality : Areality) = struct
       let monadic = Monadic.join m0.monadic m1.monadic in
       let comonadic = Comonadic.join m0.comonadic m1.comonadic in
       merge { monadic; comonadic }
+
+    let lattice_of_axis (type a d0 d1) (axis : (a, d0, d1) Axis.t) :
+        (module Lattice with type t = a) =
+      match axis with
+      | Comonadic ax -> Comonadic.lattice_of_axis ax
+      | Monadic ax -> Monadic.lattice_of_axis ax
 
     module Option = struct
       type some = t
@@ -2854,6 +2847,11 @@ module Value_with (Areality : Areality) = struct
   let zap_to_ceil { comonadic; monadic } =
     let monadic = Monadic.zap_to_ceil monadic in
     let comonadic = Comonadic.zap_to_ceil comonadic in
+    merge { monadic; comonadic }
+
+  let zap_to_floor { comonadic; monadic } =
+    let monadic = Monadic.zap_to_floor monadic in
+    let comonadic = Comonadic.zap_to_floor comonadic in
     merge { monadic; comonadic }
 
   let zap_to_legacy { comonadic; monadic } =
