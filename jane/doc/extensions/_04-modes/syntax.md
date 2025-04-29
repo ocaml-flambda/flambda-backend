@@ -5,13 +5,24 @@ title: Syntax
 ---
 
 # Modes and modalities
-Currently a mode expression is a space-delimited list of modes.
+
+A mode expression is a space-delimited list of modes.
 
 ```
-mode := local | global | unique | shared | many | once | portable | nonportable
-      | contended | noncontended | ..
+mode ::= locality | uniqueness | linearity | portability | contention
+       | yield | statefulness | visibility
 
-modes := separated_nonempty_list(SPACE, mode)
+locality ::= `global` | `local`
+uniqueness ::= `unique` | `aliased`
+linearity ::= `many` | `once`
+portability ::= `portable` | `nonportable`
+contention ::= `uncontended` | `shared` | `contended`
+yield ::= `yielding` | `unyielding`
+statefulness ::= `stateless` | `observing` | `stateful`
+visibility ::= `read_write` | `read` | `immutable`
+
+modes ::= mode
+      |  mode modes
 ```
 
 For example:
@@ -24,18 +35,18 @@ Modes are in a dedicated namespace separated from variable names or type names,
 which means you can continue to use `local` or `unique` as variable or type
 names.
 
-Currently a modality expression is a space-delimited list of modalities.
+Similarly, a modality expression is a space-delimited list of modalities.
+As of this writing, a modality is just a mode, though it is conceivable we will
+have modalities other than modes in the future.
 
 ```
-modality := local | global | ..
-modalities := separated_nonempty_list(SPACE, modality)
+modalities ::= modes
 ```
-Similarly, modalities are in a dedicated namespace.
 
-# Where can they appear
+# Where modes can appear
 
 To write a mode expression in program, it has to be prefixed by an `@` symbol.
-Similarly, a modality expression has to be prefixed by an `@@` symbol. They can
+It can
 appear in several places in a program as described below.
 
 ## Arrow types
@@ -57,10 +68,12 @@ following example, `modes` annotates `b -> c`.
 a -> (b -> c) @ modes
 ```
 
-## Function parameter
-The rule of thumb is: wherever a type constraint `x : ty` is allowed, a similar
-mode constraint `x @ modes` or type-and-mode constraint `x : ty @ modes` will be
-allowed.
+## Function parameters
+
+The rule of thumb is: wherever a type constraint `x : ty` is allowed in a
+function parameter, a similar mode constraint `x @ modes` or type-and-mode constraint `x :
+ty @ modes` is allowed.
+
 ```ocaml
 let foo ?(x : int @ modes = default) = ..
 let foo ?x:((a, b) : int @ modes = default)
@@ -68,6 +81,7 @@ let foo ~(x : int @ modes) = ..
 let foo ~x:((a, b) : int @ modes) = ..
 let foo ((a, b) : int @ modes) = ..
 ```
+
 Patterns that are not directly function parameters can’t have modes. For
 example, the following is not allowed, because `x @ local` is not a function
 parameter (but the first component of one).
@@ -100,40 +114,90 @@ You can also specify the mode of the function body:
 ```ocaml
 let foo x y @ modes = ..
 let foo x y : ty @ modes = ..
-fun foo x y @ modes -> ..
+fun x y @ modes -> ..
 ```
-We don't support `fun foo x y : ty @ modes -> 42` due to a limitation in the
+We don't support `fun x y : ty @ modes -> 42` due to a limitation in the
 parser.
 
 ## Expressions
 ```ocaml
-(expression : ty @ local)
+(expression : ty @ modes)
 ```
 We don't support `(expression @ modes)` because `@` is already parsed as a binary operator.
+However, you can write `(expression : _ @ modes)` if you do not want to constrain the type.
+
+## Modules
+Support for modules with modes is being worked on and not ready for wide adoption.
+More documentation will come
+as it becomes ready.
+
+# Where modalities can appear
+
+Similar to a mode expression, a modality expression has to be prefixed by an `@@` symbol,
+in one of several places in the syntax.
 
 ## Record fields
-Record fields can have modalities, for example:
+Record fields can have modalities:
 ```ocaml
 type r = {x : string @@ modalities}
 type r = {x : string @ modes -> string @ modes @@ modalities}
 ```
 
+## Constructor fields
+Constructor fields can have modalities:
+```ocaml
+type v =
+  | K1 of string @@ modalities
+  | K2 of string @@ modalities * int array
+  | K3 of string @@ modalities * int array @@ modalities
+  | K4 of (int -> int) @@ modalities   (* parentheses around functions are required even without modalities *)
+  | K5 : string @@ modalities -> v
+  | K6 : string @@ modalities * int array @@ modalities -> v
+  | K7 of { x : string @@ modalities; y : string @@ modalities }
+  | K8 : { x : string @@ modalities; y : string @@ modalities } -> v
+```
+
 ## Signature items
-Signature items such as values can have modalities; for example:
+A `val` signature item can have modalities:
 ```ocaml
 val foo : string @@ modalities
 val bar : string @ modes -> string @ modes @@ modalities
 ```
 
-A signature can have default modalities that each item can override; for example:
+Similarly, so can an `external` signature item:
+```ocaml
+external id : 'a -> 'a @@ modalities = "%identity"
+```
+
+A signature can have default modalities that each item can override:
 ```ocaml
 sig @@ portable
 val foo : string (* have portable modality *)
 val bar : string -> string @@ nonportable (* not have portable modality *)
 end
 ```
+These default modalities must be the first item in the signature.
+
+An .mli file is like a signature, but we do not write the `sig` and the
+`end`. Accordingly, you may put `@@ modalities` as the first item in an .mli
+file.
+
+<!-- CR reisenberg for zqian: There are other signature items that can have
+modalities, according to the parser:
+  include S @@ modalities
+  module (M @@ modalities) : module_type   (* but this does not work with [rec] *)
+  module M : module_type @@ modalities  (* this form *does* work with [rec] *)
+  module (M @@ modalities) = M2
+  module M = M2 @@ modalities
+I don't exactly know what these mean, so I have not documented them.
+-->
+
+## Kinds
+Modality expressions can appear in [kinds](../kinds/intro), documented with the
+kind syntax.
 
 ## Modules
-Support for modules with modes is being worked on and not ready for adoption.
-For the few use sites, the syntax should be self-explanatory. More documentation will come
+Support for modules with modes is being worked on and not ready for wide adoption.
+More documentation will come
 as it becomes ready.
+
