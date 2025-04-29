@@ -128,11 +128,11 @@ val continuations_including_in_trap_actions : t -> Continuation.Set.t
 
 val function_slots_in_normal_projections : t -> Function_slot.Set.t
 
-val all_function_slots : t -> Function_slot.Set.t
+val all_function_slots_at_normal_mode : t -> Function_slot.Set.t
 
 val value_slots_in_normal_projections : t -> Value_slot.Set.t
 
-val all_value_slots : t -> Value_slot.Set.t
+val all_value_slots_at_normal_mode : t -> Value_slot.Set.t
 
 val symbols : t -> Symbol.Set.t
 

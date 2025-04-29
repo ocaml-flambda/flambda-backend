@@ -73,7 +73,7 @@ let try_cse dacc dbg ~original_prim ~min_name_mode ~result_var : cse_result =
           let bound_to = Simple.var result_var' in
           let dacc =
             DA.map_denv dacc ~f:(fun denv ->
-                DE.add_cse denv eligible_prim ~bound_to)
+                DE.add_cse denv eligible_prim ~bound_to ~name_mode:min_name_mode)
           in
           DA.merge_debuginfo_rewrite dacc ~bound_to dbg
       in

@@ -74,7 +74,8 @@ let simplify_make_block ~original_prim ~(block_kind : P.Block_kind.t)
         | Some prim ->
           DA.map_denv dacc ~f:(fun denv ->
               DE.add_cse denv prim
-                ~bound_to:(Simple.var (Bound_var.var result_var))))
+                ~bound_to:(Simple.var (Bound_var.var result_var))
+                ~name_mode:(Bound_var.name_mode result_var)))
     in
     SPR.create original_term ~try_reify:true dacc
 
