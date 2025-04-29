@@ -704,7 +704,7 @@ AC_ARG_ENABLE([poll-insertion],
 
 AC_ARG_ENABLE([multidomain],
   [AS_HELP_STRING([--enable-multidomain],
-    [enable insertion of poll points])])
+    [allow the creation of multiple domains])])
 
 AC_ARG_WITH([flexdll],
   [AS_HELP_STRING([--with-flexdll],
@@ -2840,10 +2840,10 @@ AS_IF([test x"$enable_poll_insertion" = "xyes"],
    poll_insertion=true],
   [poll_insertion=false])
 
-AS_IF([$multidomain],
-  [AS_IF([$runtime5 &&
-        test x"$enable_stack_checks" = "xyes" &&
-        test x"$enable_poll_insertion" = "xyes"],
+AS_IF([test x"$enable_multidomain" = "xyes"],
+  [AS_IF([test x"$enable_runtime5" = "xyes" &&
+          test x"$enable_stack_checks" = "xyes" &&
+          test x"$enable_poll_insertion" = "xyes"],
     [AC_DEFINE([MULTIDOMAIN]), enable_multidomain=true],
     [AC_MSG_ERROR([Creating multiple domains is only supported on runtime5 with \
 stack checks and poll insertion enabled.])])], [])
