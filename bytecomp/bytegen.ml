@@ -1169,30 +1169,29 @@ and comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz (Kgetfloatfield n :: cont)
   | Lprim(Pidx_array (_, ik, _, path), [index], loc) ->
-      (* let cont =
-       *   match ik with
-       *   | Ptagged_int_index -> cont
-       *   | Punboxed_int_index Unboxed_int64 ->
-       *     Kccall ("caml_int64_to_int", 1) :: cont
-       *   | Punboxed_int_index Unboxed_int32 ->
-       *     Kccall ("caml_int32_to_int", 1) :: cont
-       *   | Punboxed_int_index Unboxed_nativeint ->
-       *     Kccall ("caml_nativeint_to_int", 1) :: cont
-       * in *)
-      let index_as_int = match ik with
-        | Ptagged_int_index -> index
-        | Punboxed_int_index Unboxed_int64
-        | Punboxed_int_index Unboxed_int32
-        | Punboxed_int_index Unboxed_nativeint ->
-          Misc.fatal_error "CR rtjoa unimplemented non int array index"
-      in
-      let path =
-        index_as_int ::
-        List.map (fun x -> Lconst (Const_base (Const_int x))) path
-      in
+      (* Push path onto the stack in reverse order, then load index into acc,
+         convert index to int, the make block
+      *)
       let cont = add_pseudo_event loc !compunit_name cont in
-      comp_args stack_info env path sz
-        (Kmakeblock (List.length path, 0) :: cont)
+      let instrs =
+        List.fold_right (fun x instrs ->
+          Kconst (Const_base (Const_int x)) :: Kpush :: instrs)
+          path
+          []
+      in
+      let convert_index = match ik with
+        | Ptagged_int_index -> []
+        | Punboxed_int_index Unboxed_int64 ->
+          [Kccall ("caml_int64_to_int", 1)]
+        | Punboxed_int_index Unboxed_int32 ->
+          [Kccall ("caml_int32_to_int", 1)]
+        | Punboxed_int_index Unboxed_nativeint ->
+          [Kccall ("caml_nativeint_to_int", 1)]
+      in
+      let path_len = List.length path in
+      instrs
+        @ (comp_expr stack_info env index (sz + path_len)
+            (convert_index @ Kmakeblock (path_len + 1, 0) :: cont))
   | Lprim(Pidx_deepen (path, _), [path_prefix], loc) ->
     (* In bytecode, an index is a block storing a series of positions; deepening
        an index "appends" to the end (by making a new block) *)

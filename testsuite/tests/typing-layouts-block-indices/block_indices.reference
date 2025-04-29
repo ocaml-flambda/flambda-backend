@@ -72,3 +72,20 @@ float32# array
 8.000000
 9.000000
 
+reads of various index types from string array
+3
+3
+3
+3
+reads of various index types from int product array
+3 3 33 33
+3 3 33 33
+3 3 33 33
+3 3 33 33
+
+reads of various index types from float# product array
+3.000000 3.000000 33.000000 33.000000
+3.000000 3.000000 33.000000 33.000000
+3.000000 3.000000 33.000000 33.000000
+3.000000 3.000000 33.000000 33.000000
+
