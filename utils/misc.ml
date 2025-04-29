@@ -108,6 +108,11 @@ let rec last = function
   | _ :: tl -> last tl
 
 module Stdlib = struct
+  (* polymorphic equality and comparison are used by ppx_compare *)
+
+  external (=) : 'a -> 'a -> bool = "%equal"
+  external (==) : 'a -> 'a -> bool = "%eq"
+
   module List = struct
     include List
 

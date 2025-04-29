@@ -112,6 +112,11 @@ val create_hashtable: int -> ('a * 'b) list -> ('a, 'b) Hashtbl.t
 
 module Stdlib : sig
 
+  (** polymorphic equality and comparison are used by ppx_compare *)
+
+  external (=) : 'a -> 'a -> bool = "%equal"
+  external (==) : 'a -> 'a -> bool = "%eq"
+
 (** {2 Extensions to the List module} *)
   module List : sig
     type 'a t = 'a list

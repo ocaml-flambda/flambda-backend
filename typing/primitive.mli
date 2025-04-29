@@ -15,13 +15,19 @@
 
 (* Description of primitive functions *)
 
-type unboxed_integer =  Unboxed_int64 | Unboxed_nativeint | Unboxed_int32
+type unboxed_integer = Unboxed_int64 | Unboxed_nativeint | Unboxed_int32
+[@@deriving compare, enumerate, equal]
 type unboxed_float = Unboxed_float64 | Unboxed_float32
+[@@deriving compare, enumerate, equal]
 type unboxed_vector = Unboxed_vec128
+[@@deriving compare, enumerate, equal]
 
 type boxed_integer = Boxed_int64 | Boxed_nativeint | Boxed_int32
+[@@deriving compare, enumerate, equal]
 type boxed_float = Boxed_float64 | Boxed_float32
+[@@deriving compare, enumerate, equal]
 type boxed_vector = Boxed_vec128
+[@@deriving compare, enumerate, equal]
 
 (* Representation of arguments/result for the native code version
    of a primitive *)
@@ -32,10 +38,13 @@ type native_repr =
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
   | Untagged_immediate
+[@@deriving equal]
 
 (* See [middle_end/semantics_of_primitives.mli] *)
 type effects = No_effects | Only_generative_effects | Arbitrary_effects
+[@@deriving compare, enumerate, equal]
 type coeffects = No_coeffects | Has_coeffects
+[@@deriving compare, enumerate, equal]
 
 type mode =
   | Prim_local
@@ -103,19 +112,6 @@ val byte_name: 'a description_gen -> string
 val unboxed_float : boxed_float -> unboxed_float
 val unboxed_integer : boxed_integer -> unboxed_integer
 val unboxed_vector : boxed_vector -> unboxed_vector
-val equal_unboxed_integer : unboxed_integer -> unboxed_integer -> bool
-val equal_unboxed_float : unboxed_float -> unboxed_float -> bool
-val equal_unboxed_vector : unboxed_vector -> unboxed_vector -> bool
-val compare_unboxed_float : unboxed_float -> unboxed_float -> int
-val compare_unboxed_vector : unboxed_vector -> unboxed_vector -> int
-val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
-val equal_boxed_float : boxed_float -> boxed_float -> bool
-val equal_boxed_vector : boxed_vector -> boxed_vector -> bool
-val compare_boxed_float : boxed_float -> boxed_float -> int
-val compare_boxed_vector : boxed_vector -> boxed_vector -> int
-val equal_native_repr : native_repr -> native_repr -> bool
-val equal_effects : effects -> effects -> bool
-val equal_coeffects : coeffects -> coeffects -> bool
 
 (** [native_name_is_externa] returns [true] iff the [native_name] for the
     given primitive identifies that the primitive is not implemented in the

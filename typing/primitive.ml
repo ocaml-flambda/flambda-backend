@@ -20,13 +20,19 @@ open Parsetree
 
 module String = Misc.Stdlib.String
 
-type unboxed_integer =  Unboxed_int64 | Unboxed_nativeint | Unboxed_int32
+type unboxed_integer = Unboxed_int64 | Unboxed_nativeint | Unboxed_int32
+[@@deriving compare, enumerate, equal]
 type unboxed_float = Unboxed_float64 | Unboxed_float32
+[@@deriving compare, enumerate, equal]
 type unboxed_vector = Unboxed_vec128
+[@@deriving compare, enumerate, equal]
 
 type boxed_integer = Boxed_int64 | Boxed_nativeint | Boxed_int32
+[@@deriving compare, enumerate, equal]
 type boxed_float = Boxed_float64 | Boxed_float32
+[@@deriving compare, enumerate, equal]
 type boxed_vector = Boxed_vec128
+[@@deriving compare, enumerate, equal]
 
 type native_repr =
   | Repr_poly
@@ -35,9 +41,12 @@ type native_repr =
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of boxed_integer
   | Untagged_immediate
+[@@deriving equal]
 
 type effects = No_effects | Only_generative_effects | Arbitrary_effects
+[@@deriving compare, enumerate, equal]
 type coeffects = No_coeffects | Has_coeffects
+[@@deriving compare, enumerate, equal]
 
 type mode =
   | Prim_local
