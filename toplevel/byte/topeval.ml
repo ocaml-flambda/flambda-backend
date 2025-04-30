@@ -70,7 +70,9 @@ let load_lambda ppf lam =
   if !Clflags.dump_rawlambda then fprintf ppf "%a@." Printlambda.lambda lam;
   let slam = Simplif.simplify_lambda lam in
   if !Clflags.dump_lambda then fprintf ppf "%a@." Printlambda.lambda slam;
-  let instrs, can_free = Bytegen.compile_phrase slam in
+  let blam = Blambda_of_lambda.blambda_of_lambda slam in
+  if !Clflags.dump_blambda then fprintf ppf "%a@." Printblambda.blambda blam;
+  let instrs, can_free = Bytegen.compile_phrase blam in
   if !Clflags.dump_instr then
     fprintf ppf "%a@."
     Printinstr.instrlist instrs;

@@ -16,7 +16,6 @@
 (* Pretty-print lists of instructions *)
 
 open Format
-open Lambda
 open Instruct
 
 let instruction ppf = function
@@ -44,7 +43,7 @@ let instruction ppf = function
   | Ksetglobal cu -> fprintf ppf "\tsetglobal %a" Compilation_unit.print cu
   | Kgetpredef id -> fprintf ppf "\tgetpredef %a" Ident.print id
   | Kconst cst ->
-      fprintf ppf "@[<10>\tconst@ %a@]" Printlambda.structured_constant cst
+      fprintf ppf "@[<10>\tconst@ %a@]" Printblambda.structured_constant cst
   | Kmakeblock(n, m) ->
       fprintf ppf "\tmakeblock %i, %i" n m
   | Kmake_faux_mixedblock(n, m) ->
@@ -90,12 +89,14 @@ let instruction ppf = function
   | Klslint -> fprintf ppf "\tlslint"
   | Klsrint -> fprintf ppf "\tlsrint"
   | Kasrint -> fprintf ppf "\tasrint"
-  | Kintcomp Ceq -> fprintf ppf "\teqint"
-  | Kintcomp Cne -> fprintf ppf "\tneqint"
-  | Kintcomp Clt -> fprintf ppf "\tltint"
-  | Kintcomp Cgt -> fprintf ppf "\tgtint"
-  | Kintcomp Cle -> fprintf ppf "\tleint"
-  | Kintcomp Cge -> fprintf ppf "\tgeint"
+  | Kintcomp Eq -> fprintf ppf "\teqint"
+  | Kintcomp Neq -> fprintf ppf "\tneqint"
+  | Kintcomp Ltint -> fprintf ppf "\tltint"
+  | Kintcomp Gtint -> fprintf ppf "\tgtint"
+  | Kintcomp Leint -> fprintf ppf "\tleint"
+  | Kintcomp Geint -> fprintf ppf "\tgeint"
+  | Kintcomp Ultint -> fprintf ppf "\tultint"
+  | Kintcomp Ugeint -> fprintf ppf "\tugeint"
   | Koffsetint n -> fprintf ppf "\toffsetint %i" n
   | Koffsetref n -> fprintf ppf "\toffsetref %i" n
   | Kisint -> fprintf ppf "\tisint"
