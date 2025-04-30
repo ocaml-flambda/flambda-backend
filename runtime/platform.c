@@ -400,9 +400,9 @@ uintnat caml_mem_round_up_mapping_size(uintnat size)
 
 #define Is_page_aligned(size) ((size & (caml_plat_pagesize - 1)) == 0)
 
-void* caml_mem_map(uintnat size, int reserve_only, const char* name)
+void* caml_mem_map(uintnat size, uintnat flags, const char* name)
 {
-  void* mem = caml_plat_mem_map(size, reserve_only, name);
+  void* mem = caml_plat_mem_map(size, flags, name);
 
   if (mem == 0) {
     CAML_GC_MESSAGE(ADDRSPACE,

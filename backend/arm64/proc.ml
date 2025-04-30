@@ -46,52 +46,6 @@ let word_addressed = false
     d16 - d31             general purpose (caller-save)
 *)
 
-let int_reg_name =
-  [| "x0";  "x1";  "x2";  "x3";  "x4";  "x5";  "x6";  "x7";  (* 0 - 7 *)
-     "x8";  "x9";  "x10"; "x11"; "x12"; "x13"; "x14"; "x15"; (* 8 - 15 *)
-     "x19"; "x20"; "x21"; "x22"; "x23"; "x24"; "x25";        (* 16 - 22 *)
-     "x26"; "x27"; "x28";                                    (* 23 - 25 *)
-     "x16"; "x17" |]                                         (* 26 - 27 *)
-
-let float_reg_name =
-  [| "d0";  "d1";  "d2";  "d3";  "d4";  "d5";  "d6";  "d7";
-     "d8";  "d9";  "d10"; "d11"; "d12"; "d13"; "d14"; "d15";
-     "d16"; "d17"; "d18"; "d19"; "d20"; "d21"; "d22"; "d23";
-     "d24"; "d25"; "d26"; "d27"; "d28"; "d29"; "d30"; "d31" |]
-
-let float32_reg_name =
-  [| "s0";  "s1";  "s2";  "s3";  "s4";  "s5";  "s6";  "s7";
-     "s8";  "s9";  "s10"; "s11"; "s12"; "s13"; "s14"; "s15";
-     "s16"; "s17"; "s18"; "s19"; "s20"; "s21"; "s22"; "s23";
-     "s24"; "s25"; "s26"; "s27"; "s28"; "s29"; "s30"; "s31" |]
-
-let vec128_reg_name =
-  [| "q0";  "q1";  "q2";  "q3";  "q4";  "q5";  "q6";  "q7";
-     "q8";  "q9";  "q10"; "q11"; "q12"; "q13"; "q14"; "q15";
-     "q16"; "q17"; "q18"; "q19"; "q20"; "q21"; "q22"; "q23";
-     "q24"; "q25"; "q26"; "q27"; "q28"; "q29"; "q30"; "q31" |]
-
-let num_register_classes = 2
-
-let register_class_of_machtype_component typ =
-  match (typ : Cmm.machtype_component) with
-  | Val | Int | Addr  -> 0
-  | Float | Float32 -> 1
-  | Vec128 -> 1
-  | Valx2 -> 1
-
-let register_class r =
-  register_class_of_machtype_component r.typ
-
-let num_stack_slot_classes = 3
-
-let stack_slot_class typ =
-  match (typ : Cmm.machtype_component) with
-  | Val | Int | Addr  -> 0
-  | Float | Float32 -> 1
-  | Vec128 -> 2
-  | Valx2 -> 2
-
 let types_are_compatible left right =
   match left.typ, right.typ with
   | (Int | Val | Addr), (Int | Val | Addr)
@@ -101,47 +55,23 @@ let types_are_compatible left right =
   | Valx2,Valx2 -> true
   | (Int | Val | Addr | Float | Float32 | Vec128 | Valx2), _ -> false
 
-let stack_class_tag c =
-  match c with
-  | 0 -> "i"
-  | 1 -> "f"
-  | 2 -> "x"
-  | c -> Misc.fatal_errorf "Unspecified stack slot class %d" c
-
-let num_available_registers =
-  [| 23; 32 |] (* first 23 int regs allocatable; all float regs allocatable *)
-
-let first_available_register =
-  [| 0; 100 |]
-
-let register_name ty r =
-  match (ty : Cmm.machtype_component) with
-  | Val | Int | Addr ->
-    int_reg_name.(r - first_available_register.(0))
-  | Float ->
-    float_reg_name.(r - first_available_register.(1))
-  | Float32 ->
-    float32_reg_name.(r - first_available_register.(1))
-  | Vec128 | Valx2 ->
-    vec128_reg_name.(r - first_available_register.(1))
-
-
 (* Representation of hard registers by pseudo-registers *)
 
-
-let hard_reg_gen typ n =
-  let reg_class = register_class_of_machtype_component typ in
-  let first = first_available_register.(reg_class) in
+let hard_reg_gen typ =
+  let reg_class = Reg_class.of_machtype typ in
+  let first = Reg_class.first_available_register reg_class in
+  let n = Reg_class.num_registers reg_class in
   let v = Array.make n Reg.dummy in
   for i = 0 to n - 1 do
-    v.(i) <- Reg.at_location typ (Reg(first + i))
+    v.(i) <- Reg.create_at_location typ (Reg(first + i))
   done;
-v
+  v
 
-let hard_int_reg = hard_reg_gen Int (Array.length int_reg_name)
-let hard_float_reg = hard_reg_gen Float (Array.length float_reg_name)
-let hard_float32_reg = hard_reg_gen Float32 (Array.length float32_reg_name)
-let hard_vec128_reg = hard_reg_gen Vec128 (Array.length vec128_reg_name)
+let hard_int_reg = hard_reg_gen Int
+let hard_float_reg = hard_reg_gen Float
+
+let hard_vec128_reg = Array.map (fun r -> {r with typ = Vec128}) hard_float_reg
+let hard_float32_reg = Array.map (fun r -> {r with typ = Float32}) hard_float_reg
 
 let all_phys_regs =
   Array.concat [hard_int_reg; hard_float_reg; hard_float32_reg; hard_vec128_reg; ]
@@ -156,14 +86,10 @@ let phys_reg ty n =
   | Float -> hard_float_reg.(n - 100)
   | Float32 -> hard_float32_reg.(n - 100)
   | Vec128 | Valx2 -> hard_vec128_reg.(n - 100)
-
-let gc_regs_offset _ =
-    fatal_error "arm64: gc_reg_offset unreachable"
-
 let reg_x8 = phys_reg Int 8
 
 let stack_slot slot ty =
-  Reg.at_location ty (Stack slot)
+  Reg.create_at_location ty (Stack slot)
 
 (* Calling conventions *)
 
@@ -301,29 +227,6 @@ let loc_external_results res =
 
 let loc_exn_bucket = phys_reg Int 0
 
-(* See "DWARF for the ARM 64-bit architecture (AArch64)" available from
-   developer.arm.com. *)
-
-let int_dwarf_reg_numbers =
-  [| 0; 1; 2; 3; 4; 5; 6; 7;
-     8; 9; 10; 11; 12; 13; 14; 15;
-     19; 20; 21; 22; 23; 24;
-     25; 26; 27; 28; 16; 17;
-  |]
-
-let float_dwarf_reg_numbers =
-  [| 64; 65; 66; 67; 68; 69; 70; 71;
-     72; 73; 74; 75; 76; 77; 78; 79;
-     80; 81; 82; 83; 84; 85; 86; 87;
-     88; 89; 90; 91; 92; 93; 94; 95;
-  |]
-
-let dwarf_register_numbers ~reg_class =
-  match reg_class with
-  | 0 -> int_dwarf_reg_numbers
-  | 1 -> float_dwarf_reg_numbers
-  | _ -> Misc.fatal_errorf "Bad register class %d" reg_class
-
 let stack_ptr_dwarf_register_number = 31
 
 let domainstate_ptr_dwarf_register_number = 28
@@ -404,7 +307,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
         | Intop _ | Intop_imm _ | Intop_atomic _
         | Name_for_debugger _ | Probe_is_enabled _ | Opaque
         | Begin_region | End_region | Dls_get)
-  | Poptrap | Prologue
+  | Poptrap _ | Prologue
     -> [||]
   | Stack_check _ -> assert false (* not supported *)
 
@@ -416,8 +319,7 @@ let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =
     all_phys_regs
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-  | Tailcall_func _ | Prim {op = Probe _; _}
-  | Specific_can_raise _ ->
+  | Tailcall_func _ | Prim {op = Probe _; _} ->
     [||]
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; _ }
   | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs; _ }; _} ->
@@ -435,8 +337,7 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
     true
   | Always _ | Parity_test _ | Truth_test _ | Float_test _
   | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-  | Tailcall_func _ | Prim {op = Probe _; _}
-  | Specific_can_raise _ ->
+  | Tailcall_func _ | Prim {op = Probe _; _} ->
     false
   | Call_no_return { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs = _; _}
   | Prim {op  = External { func_symbol = _; alloc; ty_res = _; ty_args = _; stack_ofs = _; _}; _} ->
@@ -448,9 +349,7 @@ let is_destruction_point ~(more_destruction_points : bool) (terminator : Cfg_int
 (* Layout of the stack *)
 
 let initial_stack_offset ~num_stack_slots ~contains_calls =
-  (8 * num_stack_slots.(0))
-  + (8 * num_stack_slots.(1))
-  + (16 * num_stack_slots.(2))
+  Stack_class.Tbl.total_size_in_bytes num_stack_slots
   + if contains_calls then 8 else 0
 
 let trap_frame_size_in_bytes = 16
@@ -462,9 +361,7 @@ let frame_size ~stack_offset ~contains_calls ~num_stack_slots =
   Misc.align sz 16
 
 let frame_required ~fun_contains_calls ~fun_num_stack_slots =
-  fun_contains_calls
-    || fun_num_stack_slots.(0) > 0
-     || fun_num_stack_slots.(1) > 0
+  fun_contains_calls || Stack_class.Tbl.exists fun_num_stack_slots ~f:(fun _stack_class num -> num > 0)
 
 let prologue_required ~fun_contains_calls ~fun_num_stack_slots =
   frame_required ~fun_contains_calls ~fun_num_stack_slots
@@ -487,13 +384,7 @@ let slot_offset (loc : Reg.stack_location) ~stack_class ~stack_offset
   | Local n ->
       let offset =
         stack_offset +
-        (* Preserves original ordering: int below float. *)
-        (match stack_class with
-        | 2 -> n * 16
-        | 0 -> fun_num_stack_slots.(2) * 16 + n * 8
-        | 1 -> fun_num_stack_slots.(2) * 16 +
-               fun_num_stack_slots.(0) * 8 + n * 8
-        | _ -> Misc.fatal_errorf "Unknown stack class %d" stack_class)
+        Stack_class.Tbl.offset_in_bytes fun_num_stack_slots ~stack_class ~slot:n
       in
       Bytes_relative_to_stack_pointer offset
   | Outgoing n ->
@@ -509,9 +400,6 @@ let assemble_file infile outfile =
   Ccomp.command (Config.asm ^ " " ^
                  (String.concat " " (Misc.debug_prefix_map_flags ())) ^
                  " -o " ^ Filename.quote outfile ^ " " ^ Filename.quote infile)
-
-
-let init () = ()
 
 let operation_supported : Cmm.operation -> bool = function
   | Cprefetch _ | Catomic _ -> false

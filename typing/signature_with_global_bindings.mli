@@ -51,4 +51,4 @@ val read_from_cmi : Cmi_format.cmi_infos_lazy -> t
     Note that the argument values themselves won't be returned in the new list
     of bound globals, since it's assumed that they are already accounted for in
     the environment. *)
-val subst : t -> (Global_module.Name.t * Global_module.t) list -> t
+val subst : t -> (Global_module.Parameter_name.t * Global_module.t) list -> t

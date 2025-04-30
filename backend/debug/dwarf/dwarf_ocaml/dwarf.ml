@@ -24,7 +24,7 @@ module L = Linear
 
 type t =
   { state : DS.t;
-    asm_directives : (module Asm_directives.S);
+    asm_directives : Asm_directives_dwarf.t;
     get_file_id : string -> int;
     mutable emitted : bool;
     mutable emitted_delayed : bool

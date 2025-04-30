@@ -1,3 +1,6 @@
+[@@@ocaml.warning "+a-40-41-42"]
+
+open! Int_replace_polymorphic_compare [@@warning "-66"]
 module String = Misc.Stdlib.String
 
 type t = { mutable zero_alloc : int String.Map.t }

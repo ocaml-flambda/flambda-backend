@@ -2,23 +2,40 @@
 
 open Regalloc_utils
 
-val irc_debug : bool
+val indent : unit -> unit
 
-val irc_verbose : bool Lazy.t
+val dedent : unit -> unit
 
-val irc_invariants : bool Lazy.t
+val reset_indentation : unit -> unit
 
-val log :
-  indent:int -> ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
+val log : ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
 
 val log_body_and_terminator :
-  indent:int ->
   Cfg.basic_instruction_list ->
   Cfg.terminator Cfg.instruction ->
   liveness ->
   unit
 
-val log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit
+val log_cfg_with_infos : Cfg_with_infos.t -> unit
+
+module WorkList : sig
+  (* CR xclerc for xclerc: double check all constructors are actually used. *)
+  type t =
+    | Unknown_list
+    | Precolored
+    | Initial
+    | Simplify
+    | Freeze
+    | Spill
+    | Spilled
+    | Coalesced
+    | Colored
+    | Select_stack
+
+  val equal : t -> t -> bool
+
+  val to_string : t -> string
+end
 
 module Color : sig
   type t = int
@@ -68,8 +85,6 @@ val all_precolored_regs : unit -> Reg.Set.t
 
 val k : Reg.t -> int
 
-val update_register_locations : unit -> unit
-
 module Spilling_heuristics : sig
   type t =
     | Set_choose
@@ -81,38 +96,4 @@ module Spilling_heuristics : sig
   val to_string : t -> string
 
   val value : t Lazy.t
-end
-
-module ArraySet : sig
-  module type S = sig
-    type e
-
-    type t
-
-    val make : original_capacity:int -> t
-
-    val clear : t -> unit
-
-    val is_empty : t -> bool
-
-    val choose_and_remove : t -> e option
-
-    val add : t -> e -> unit
-
-    val remove : t -> e -> unit
-
-    val iter : t -> f:(e -> unit) -> unit
-
-    val fold : t -> f:('a -> e -> 'a) -> init:'a -> 'a
-
-    val to_list : t -> e list
-  end
-
-  module type OrderedTypeWithDummy = sig
-    include Set.OrderedType
-
-    val dummy : t (* note: does not 0-compare to any "interesting" value *)
-  end
-
-  module Make (T : OrderedTypeWithDummy) : S with type e = T.t
 end

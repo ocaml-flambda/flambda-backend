@@ -15,21 +15,40 @@
 
 (* Common functions for emitting assembly code *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 val output_channel : out_channel ref
+
+val femit_string : out_channel -> string -> unit
 
 val emit_string : string -> unit
 
+val femit_int : out_channel -> int -> unit
+
 val emit_int : int -> unit
+
+val femit_nativeint : out_channel -> nativeint -> unit
 
 val emit_nativeint : nativeint -> unit
 
+val femit_int32 : out_channel -> int32 -> unit
+
 val emit_int32 : int32 -> unit
+
+val femit_symbol : out_channel -> string -> unit
 
 val emit_symbol : string -> unit
 
+(* CR sspies: use types to distinguish the two string versions *)
+val symbol_to_string : string -> string
+
 val emit_printf : ('a, out_channel, unit) format -> 'a
 
+val femit_char : out_channel -> char -> unit
+
 val emit_char : char -> unit
+
+val femit_string_literal : out_channel -> string -> unit
 
 val emit_string_literal : string -> unit
 
@@ -46,6 +65,8 @@ val emit_float32_directive : string -> int32 -> unit
 val reset : unit -> unit
 
 val reset_debug_info : unit -> unit
+
+val femit_debug_info : ?discriminator:int -> out_channel -> Debuginfo.t -> unit
 
 val emit_debug_info : ?discriminator:int -> Debuginfo.t -> unit
 
@@ -138,7 +159,6 @@ module Dwarf_helpers : sig
   val init : disable_dwarf:bool -> sourcefile:string option -> unit
 
   val begin_dwarf :
-    build_asm_directives:(unit -> (module Asm_targets.Asm_directives_intf.S)) ->
     code_begin:string ->
     code_end:string ->
     file_emitter:(file_num:int -> file_name:string -> unit) ->

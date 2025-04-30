@@ -37,19 +37,19 @@ type t =
 type t = Foo : 'a -> t
 |}]
 
-let foo (t : t @@ nonportable) = use_portable t
+let foo (t : t @ nonportable) = use_portable t
 [%%expect {|
-Line 1, characters 46-47:
-1 | let foo (t : t @@ nonportable) = use_portable t
-                                                  ^
+Line 1, characters 45-46:
+1 | let foo (t : t @ nonportable) = use_portable t
+                                                 ^
 Error: This value is "nonportable" but expected to be "portable".
 |}]
 
-let foo (t : t @@ aliased) = use_unique t
+let foo (t : t @ aliased) = use_unique t
 [%%expect {|
-Line 1, characters 40-41:
-1 | let foo (t : t @@ aliased) = use_unique t
-                                            ^
+Line 1, characters 39-40:
+1 | let foo (t : t @ aliased) = use_unique t
+                                           ^
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
@@ -60,20 +60,20 @@ type t =
 type t = Foo : ('a : immutable_data). 'a -> t
 |}]
 
-let foo (t : t @@ contended) = use_uncontended t
+let foo (t : t @ contended) = use_uncontended t
 (* CR layouts v2.8: fix this *)
 [%%expect {|
-Line 1, characters 47-48:
-1 | let foo (t : t @@ contended) = use_uncontended t
-                                                   ^
+Line 1, characters 46-47:
+1 | let foo (t : t @ contended) = use_uncontended t
+                                                  ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
-let foo (t : t @@ local) = use_global t [@nontail]
+let foo (t : t @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 38-39:
-1 | let foo (t : t @@ local) = use_global t [@nontail]
-                                          ^
+Line 1, characters 37-38:
+1 | let foo (t : t @ local) = use_global t [@nontail]
+                                         ^
 Error: This value escapes its region.
 |}]
 
@@ -84,19 +84,19 @@ type 'a t =
 type 'a t = Foo : 'a -> 'a t
 |}]
 
-let foo (t : int t @@ once) = use_many t
+let foo (t : int t @ once) = use_many t
 (* CR layouts v2.8: fix this *)
 [%%expect {|
-Line 1, characters 39-40:
-1 | let foo (t : int t @@ once) = use_many t
-                                           ^
+Line 1, characters 38-39:
+1 | let foo (t : int t @ once) = use_many t
+                                          ^
 Error: This value is "once" but expected to be "many".
 |}]
 
-let foo (t : t @@ aliased) = use_unique t
+let foo (t : t @ aliased) = use_unique t
 [%%expect {|
 Line 1, characters 13-14:
-1 | let foo (t : t @@ aliased) = use_unique t
+1 | let foo (t : t @ aliased) = use_unique t
                  ^
 Error: The type constructor "t" expects 1 argument(s),
        but is here applied to 0 argument(s)
@@ -116,7 +116,7 @@ end
 type (_ : any, _ : any) eq =
   Refl : ('a : any). ('a, 'a) eq
 
-let use_portable (_ : _ @@ portable) = ()
+let use_portable (_ : _ @ portable) = ()
 
 module F (X : S) = struct
   type t3 : value mod portable with X.t1
@@ -131,7 +131,7 @@ end
 module M1 = F(Arg1)
 
 let f (witness : (M1.t3, M1.t4) eq)
-      (t3 : M1.t3 @@ nonportable) (t4 : M1.t4 @@ nonportable) =
+      (t3 : M1.t3 @ nonportable) (t4 : M1.t4 @ nonportable) =
   match witness with
   | Refl ->
     use_portable t3;

@@ -44,6 +44,18 @@ let cmm_invariants ppf fd_cmm =
       print_fundecl fd_cmm;
   fd_cmm
 
+let cfg_invariants ppf cfg =
+  let print_fundecl ppf c =
+    if !Flambda_backend_flags.dump_cfg
+    then Cfg_with_layout.dump ppf c ~msg:"*** Cfg invariant check failed"
+    else Format.fprintf ppf "%s" (Cfg_with_layout.cfg c).fun_name
+  in
+  if !Flambda_backend_flags.cfg_invariants && Cfg_invariants.run ppf cfg
+  then
+    Misc.fatal_errorf "Cfg invariants failed on following fundecl:@.%a@."
+      print_fundecl cfg;
+  cfg
+
 let pass_dump_linear_if ppf flag message phrase =
   if !flag then fprintf ppf "*** %s@.%a@." message Printlinear.fundecl phrase;
   phrase
@@ -144,8 +156,15 @@ let write_ir prefix =
 
 let should_emit () = not (should_stop_after Compiler_pass.Linearization)
 
-let should_use_linscan fun_codegen_options =
-  !use_linscan || List.mem Cmm.Use_linscan_regalloc fun_codegen_options
+(* note: `should_use_linscan` relies on the state of the `Reg` module, as the
+   list of temporaries is retrieved to be compared to the threshold. *)
+let should_use_linscan fd =
+  !use_linscan
+  || List.mem Cmm.Use_linscan_regalloc fd.fun_codegen_options
+  || List.compare_length_with
+       (Reg.all_relocatable_regs ())
+       !Flambda_backend_flags.regalloc_linscan_threshold
+     > 0
 
 let if_emit_do f x = if should_emit () then f x else ()
 
@@ -276,27 +295,29 @@ type register_allocator =
   | IRC
   | LS
 
-let default_allocator = IRC
-
 let register_allocator fd : register_allocator =
   match String.lowercase_ascii !Flambda_backend_flags.regalloc with
-  | "cfg" -> if should_use_linscan fd.fun_codegen_options then LS else IRC
+  | "" | "cfg" -> if should_use_linscan fd then LS else IRC
   | "gi" -> GI
   | "irc" -> IRC
   | "ls" -> LS
-  | "" -> default_allocator
   | other -> Misc.fatal_errorf "unknown register allocator (%S)" other
 
 let available_regs ~stack_slots ~f x =
   (* Skip DWARF variable range generation for complicated functions to avoid
      high compilation speed penalties *)
-  let total_num_stack_slots = Array.fold_left ( + ) 0 (stack_slots x) in
+  let fun_num_stack_slots = stack_slots x in
+  let total_num_stack_slots =
+    Stack_class.Tbl.fold fun_num_stack_slots ~init:0
+      ~f:(fun _stack_class num acc -> acc + num)
+  in
   if total_num_stack_slots > !Dwarf_flags.dwarf_max_function_complexity
   then x
   else f x
 
 let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
   let register_allocator = register_allocator fd_cmm in
+  let module CSE = Cfg_cse.Cse_generic (CSE) in
   let cfg_with_infos =
     cfg_with_layout
     ++ (fun cfg_with_layout ->
@@ -337,8 +358,10 @@ let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
           ~f:Cfg_available_regs.run)
   ++ cfg_with_layout_profile ~accumulate:true "cfg_validate_description"
        (Regalloc_validate.run cfg_description)
+  ++ Profile.record ~accumulate:true "cfg_invariants" (cfg_invariants ppf_dump)
   ++ cfg_with_layout_profile ~accumulate:true "cfg_simplify"
        Regalloc_utils.simplify_cfg
+  ++ Profile.record ~accumulate:true "cfg_invariants" (cfg_invariants ppf_dump)
   (* CR-someday gtulbalecu: The peephole optimizations must not affect liveness,
      otherwise we would have to recompute it here. Recomputing it here breaks
      the CI because the liveness_analysis algorithm does not work properly after
@@ -352,17 +375,19 @@ let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
   ++ cfg_with_layout_profile ~accumulate:true "save_cfg" save_cfg
   ++ cfg_with_layout_profile ~accumulate:true "cfg_reorder_blocks"
        (reorder_blocks_random ppf_dump)
+  ++ Profile.record ~accumulate:true "cfg_invariants" (cfg_invariants ppf_dump)
   ++ Profile.record ~accumulate:true "cfg_to_linear" Cfg_to_linear.run
 
 let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
-  Proc.init ();
-  Reg.reset ();
+  let module Cfg_selection = Cfg_selectgen.Make (Cfg_selection) in
+  Reg.clear_relocatable_regs ();
   fd_cmm
   ++ Profile.record ~accumulate:true "cmm_invariants" (cmm_invariants ppf_dump)
   ++ (fun (fd_cmm : Cmm.fundecl) ->
-       Cfg_selection.fundecl ~future_funcnames:funcnames fd_cmm
+       Cfg_selection.emit_fundecl ~future_funcnames:funcnames fd_cmm
        ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
             "After selection")
+  ++ Profile.record ~accumulate:true "cfg_invariants" (cfg_invariants ppf_dump)
   ++ Profile.record ~accumulate:true "regalloc" (fun cfg_with_layout ->
          cfg_with_layout
          ++ Profile.record ~accumulate:true "cfg" (fun cfg_with_layout ->
@@ -460,7 +485,7 @@ let compile_unit ~output_prefix ~asm_filename ~keep_asm ~obj_filename
                  afterwards. *)
               Typemod.reset ~preserve_persistent_env:true;
               Emitaux.reset ();
-              Reg.reset ());
+              Reg.clear_relocatable_regs ());
         let assemble_result =
           Profile.record "assemble"
             (Proc.assemble_file asm_filename)

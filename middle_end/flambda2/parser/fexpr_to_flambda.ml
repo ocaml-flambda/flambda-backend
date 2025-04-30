@@ -696,7 +696,7 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
       Flambda.Let_cont.create_non_recursive name handler ~body
         ~free_names_of_body:Unknown
     | Recursive ->
-      let handlers = Continuation.Map.singleton name handler in
+      let handlers = Continuation.Lmap.singleton name handler in
       Flambda.Let_cont.create_recursive ~invariant_params:Bound_parameters.empty
         handlers ~body)
   | Let_cont _ -> failwith "TODO andwhere"

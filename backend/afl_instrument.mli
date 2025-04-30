@@ -11,6 +11,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+[@@@ocaml.warning "+a-40-41-42"]
 
 (** Instrumentation for afl-fuzz. *)
 

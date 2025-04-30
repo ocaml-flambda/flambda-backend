@@ -340,10 +340,10 @@ module Continuation_handlers : sig
   type t
 
   (** Obtain the mapping from continuation to handler. *)
-  val to_map : t -> Continuation_handler.t Continuation.Map.t
+  val to_map : t -> Continuation_handler.t Continuation.Lmap.t
 
   (** The domain of [to_map t]. *)
-  val domain : t -> Continuation.Set.t
+  val domain : t -> Continuation.t list
 
   (** Whether any of the continuations are exception handlers. *)
   val contains_exn_handler : t -> bool
@@ -402,7 +402,7 @@ module Let_cont_expr : sig
   (** Create a definition of a set of possibly-recursive continuations. *)
   val create_recursive :
     invariant_params:Bound_parameters.t ->
-    Continuation_handler.t Continuation.Map.t ->
+    Continuation_handler.t Continuation.Lmap.t ->
     body:expr ->
     expr
 end

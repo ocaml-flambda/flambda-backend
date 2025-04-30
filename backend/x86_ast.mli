@@ -15,6 +15,8 @@
 
 (** Structured representation of Intel assembly language (32 and 64 bit). *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 type condition =
   | L | GE     (* signed comparisons: less/greater *)
   | LE | G
@@ -108,193 +110,6 @@ type arg =
   | Mem of addr
   | Mem64_RIP of data_type * string * int
 
-type sse_instruction =
-  | MINSS of arg * arg
-  | MAXSS of arg * arg
-  | CMPPS of float_condition * arg * arg
-  | SHUFPS of arg * arg * arg
-  | ADDPS of arg * arg
-  | SUBPS of arg * arg
-  | MULPS of arg * arg
-  | DIVPS of arg * arg
-  | MAXPS of arg * arg
-  | MINPS of arg * arg
-  | RCPPS of arg * arg
-  | SQRTPS of arg * arg
-  | RSQRTPS of arg * arg
-  | MOVHLPS of arg * arg
-  | MOVLHPS of arg * arg
-  | UNPCKHPS of arg * arg
-  | UNPCKLPS of arg * arg
-  | MOVMSKPS of arg * arg
-
-type sse2_instruction =
-  | PADDB of arg * arg
-  | PADDW of arg * arg
-  | PADDD of arg * arg
-  | PADDQ of arg * arg
-  | ADDPD of arg * arg
-  | PADDSB of arg * arg
-  | PADDSW of arg * arg
-  | PADDUSB of arg * arg
-  | PADDUSW of arg * arg
-  | PSUBB of arg * arg
-  | PSUBW of arg * arg
-  | PSUBD of arg * arg
-  | PSUBQ of arg * arg
-  | SUBPD of arg * arg
-  | PSUBSB of arg * arg
-  | PSUBSW of arg * arg
-  | PSUBUSB of arg * arg
-  | PSUBUSW of arg * arg
-  | PMAXUB of arg * arg
-  | PMAXSW of arg * arg
-  | MAXPD of arg * arg
-  | PMINUB of arg * arg
-  | PMINSW of arg * arg
-  | MINPD of arg * arg
-  | MULPD of arg * arg
-  | DIVPD of arg * arg
-  | SQRTPD of arg * arg
-  | PAND of arg * arg
-  | PANDNOT of arg * arg
-  | POR of arg * arg
-  | PXOR of arg * arg
-  | PMOVMSKB of arg * arg
-  | MOVMSKPD of arg * arg
-  | PSLLDQ of arg * arg
-  | PSRLDQ of arg * arg
-  | PCMPEQB of arg * arg
-  | PCMPEQW of arg * arg
-  | PCMPEQD of arg * arg
-  | PCMPGTB of arg * arg
-  | PCMPGTW of arg * arg
-  | PCMPGTD of arg * arg
-  | CMPPD of float_condition * arg * arg
-  | CVTDQ2PD of arg * arg
-  | CVTDQ2PS of arg * arg
-  | CVTPD2DQ of arg * arg
-  | CVTPD2PS of arg * arg
-  | CVTPS2DQ of arg * arg
-  | CVTPS2PD of arg * arg
-  | PSLLW of arg * arg
-  | PSLLD of arg * arg
-  | PSLLQ of arg * arg
-  | PSRLW of arg * arg
-  | PSRLD of arg * arg
-  | PSRLQ of arg * arg
-  | PSRAW of arg * arg
-  | PSRAD of arg * arg
-  | PSLLWI of arg * arg
-  | PSLLDI of arg * arg
-  | PSLLQI of arg * arg
-  | PSRLWI of arg * arg
-  | PSRLDI of arg * arg
-  | PSRLQI of arg * arg
-  | PSRAWI of arg * arg
-  | PSRADI of arg * arg
-  | SHUFPD of arg * arg * arg
-  | PSHUFHW of arg * arg * arg
-  | PSHUFLW of arg * arg * arg
-  | PUNPCKHBW of arg * arg
-  | PUNPCKHWD of arg * arg
-  | PUNPCKHQDQ of arg * arg
-  | PUNPCKLBW of arg * arg
-  | PUNPCKLWD of arg * arg
-  | PUNPCKLQDQ of arg * arg
-  | PAVGB of arg * arg
-  | PAVGW of arg * arg
-  | PSADBW of arg * arg
-  | PACKSSWB of arg * arg
-  | PACKSSDW of arg * arg
-  | PACKUSWB of arg * arg
-  | PACKUSDW of arg * arg
-  | PMULHW of arg * arg
-  | PMULHUW of arg * arg
-  | PMULLW of arg * arg
-  | PMADDWD of arg * arg
-
-type sse3_instruction =
-  | ADDSUBPS of arg * arg
-  | ADDSUBPD of arg * arg
-  | HADDPS of arg * arg
-  | HADDPD of arg * arg
-  | HSUBPS of arg * arg
-  | HSUBPD of arg * arg
-  | MOVDDUP of arg * arg
-  | MOVSHDUP of arg * arg
-  | MOVSLDUP of arg * arg
-
-type ssse3_instruction =
-  | PABSB of arg * arg
-  | PABSW of arg * arg
-  | PABSD of arg * arg
-  | PHADDW of arg * arg
-  | PHADDD of arg * arg
-  | PHADDSW of arg * arg
-  | PHSUBW of arg * arg
-  | PHSUBD of arg * arg
-  | PHSUBSW of arg * arg
-  | PSIGNB of arg * arg
-  | PSIGNW of arg * arg
-  | PSIGND of arg * arg
-  | PSHUFB of arg * arg
-  | PALIGNR of arg * arg * arg
-  | PMADDUBSW of arg * arg
-
-type sse41_instruction =
-  | PBLENDW of arg * arg * arg
-  | BLENDPS of arg * arg * arg
-  | BLENDPD of arg * arg * arg
-  | PBLENDVB of arg * arg
-  | BLENDVPS of arg * arg
-  | BLENDVPD of arg * arg
-  | PCMPEQQ of arg * arg
-  | PMOVSXBW of arg * arg
-  | PMOVSXBD of arg * arg
-  | PMOVSXBQ of arg * arg
-  | PMOVSXWD of arg * arg
-  | PMOVSXWQ of arg * arg
-  | PMOVSXDQ of arg * arg
-  | PMOVZXBW of arg * arg
-  | PMOVZXBD of arg * arg
-  | PMOVZXBQ of arg * arg
-  | PMOVZXWD of arg * arg
-  | PMOVZXWQ of arg * arg
-  | PMOVZXDQ of arg * arg
-  | DPPS of arg * arg * arg
-  | DPPD of arg * arg * arg
-  | PEXTRB of arg * arg * arg
-  | PEXTRW of arg * arg * arg
-  | PEXTRD of arg * arg * arg
-  | PEXTRQ of arg * arg * arg
-  | PINSRB of arg * arg * arg
-  | PINSRW of arg * arg * arg
-  | PINSRD of arg * arg * arg
-  | PINSRQ of arg * arg * arg
-  | PMAXSB of arg * arg
-  | PMAXSD of arg * arg
-  | PMAXUW of arg * arg
-  | PMAXUD of arg * arg
-  | PMINSB of arg * arg
-  | PMINSD of arg * arg
-  | PMINUW of arg * arg
-  | PMINUD of arg * arg
-  | ROUNDPD of rounding * arg * arg
-  | ROUNDPS of rounding * arg * arg
-  | ROUNDSS of rounding * arg * arg
-  | MPSADBW of arg * arg * arg
-  | PHMINPOSUW of arg * arg
-  | PMULLD of arg * arg
-
-type sse42_instruction =
-  | PCMPGTQ of arg * arg
-  | PCMPESTRI of arg * arg * arg
-  | PCMPESTRM of arg * arg * arg
-  | PCMPISTRI of arg * arg * arg
-  | PCMPISTRM of arg * arg * arg
-  | CRC32 of arg * arg
-
 type instruction =
   | ADD of arg * arg
   | ADDSD of arg * arg
@@ -311,8 +126,6 @@ type instruction =
   | CMPSD of float_condition * arg * arg
   | COMISD of arg * arg
   | CQO
-  | CVTSD2SI of arg * arg
-  | CVTSS2SI of arg * arg
   | CVTSD2SS of arg * arg
   | CVTSI2SS of arg * arg
   | CVTSS2SD of arg * arg
@@ -337,8 +150,6 @@ type instruction =
   | LOCK_OR of arg * arg
   | LOCK_XOR of arg * arg
   | LEAVE
-  | MAXSD of arg * arg
-  | MINSD of arg * arg
   | MOV of arg * arg
   | MOVAPD of arg * arg
   | MOVUPD of arg * arg
@@ -365,12 +176,10 @@ type instruction =
   | SFENCE
   | MFENCE
   | RET
-  | ROUNDSD of rounding * arg * arg
   | SAL of arg * arg
   | SAR of arg * arg
   | SET of condition * arg
   | SHR of arg * arg
-  | SQRTSD of arg * arg
   | SUB of arg * arg
   | SUBSD of arg * arg
   | TEST of arg * arg
@@ -384,21 +193,12 @@ type instruction =
   | DIVSS of arg * arg
   | COMISS of arg * arg
   | UCOMISS of arg * arg
-  | SQRTSS of arg * arg
   | XORPS of arg * arg
   | ANDPS of arg * arg
   | CMPSS of float_condition * arg * arg
-  | SSE of sse_instruction
-  | SSE2 of sse2_instruction
-  | SSE3 of sse3_instruction
-  | SSSE3 of ssse3_instruction
-  | SSE41 of sse41_instruction
-  | SSE42 of sse42_instruction
-  | PCLMULQDQ of arg * arg * arg
-  | PEXT of arg * arg * arg
-  | PDEP of arg * arg * arg
   | TZCNT of arg * arg
   | LZCNT of arg * arg
+  | SIMD of Amd64_simd_instrs.instr * arg array
 
 (* ELF specific *)
 type reloc_type =
@@ -417,20 +217,24 @@ type asm_line =
   | Align of bool * int
   | Byte of constant
   | Bytes of string
+  (** directive for an 8-bit constant *)
   | Comment of string
   | Global of string
   | Protected of string
   | Hidden of string
   | Weak of string
   | Long of constant
+  (** directive for a 32-bit constant *)
   | NewLabel of string * data_type
   | NewLine
   | Quad of constant
+  (** directive for a 64-bit constant *)
   | Section of string list * string option * string list * bool
   | Sleb128 of constant
   | Space of int
   | Uleb128 of constant
   | Word of constant
+  (** directive for a 16-bit constant *)
 
   (* masm only (the gas emitter will fail on them) *)
   | External of string * data_type
@@ -445,6 +249,7 @@ type asm_line =
   | Cfi_restore_state
   | Cfi_def_cfa_register of string
   | Cfi_def_cfa_offset of int
+  | Cfi_offset of int * int
   | File of int * string (* (file_num, file_name) *)
   | Indirect_symbol of string
   | Loc of { file_num:int; line:int; col:int; discriminator: int option }
@@ -454,7 +259,5 @@ type asm_line =
   | Type of string * string
   | Reloc of reloc
 
-  (* MacOS only *)
-  | Direct_assignment of string * constant
 
 type asm_program = asm_line list

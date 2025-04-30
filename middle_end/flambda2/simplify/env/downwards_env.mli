@@ -73,7 +73,11 @@ val get_continuation_scope : t -> Scope.t
 
 val typing_env : t -> Flambda2_types.Typing_env.t
 
+val define_continuations : t -> Continuation.t list -> t
+
 val define_variable : t -> Bound_var.t -> Flambda_kind.t -> t
+
+val define_extra_variable : t -> Bound_var.t -> Flambda_kind.t -> t
 
 val add_name : t -> Bound_name.t -> Flambda2_types.t -> t
 
@@ -99,9 +103,10 @@ val define_name_if_undefined : t -> Bound_name.t -> Flambda_kind.t -> t
 
 val add_equation_on_name : t -> Name.t -> Flambda2_types.t -> t
 
-val define_parameters : t -> params:Bound_parameters.t -> t
+val define_parameters : extra:bool -> t -> params:Bound_parameters.t -> t
 
 val add_parameters :
+  extra:bool ->
   ?name_mode:Name_mode.t ->
   t ->
   Bound_parameters.t ->
@@ -109,6 +114,7 @@ val add_parameters :
   t
 
 val add_parameters_with_unknown_types :
+  extra:bool ->
   ?alloc_modes:Alloc_mode.For_types.t list ->
   ?name_mode:Name_mode.t ->
   t ->
@@ -209,5 +215,11 @@ val variables_defined_in_current_continuation : t -> Lifted_cont_params.t
 val cost_of_lifting_continuations_out_of_current_one : t -> int
 
 val add_lifting_cost : int -> t -> t
+
+val must_inline : t -> bool
+
+val replay_history : t -> Replay_history.t
+
+val with_replay_history : (Replay_history.t * bool) option -> t -> t
 
 val denv_for_lifted_continuation : denv_for_join:t -> denv:t -> t

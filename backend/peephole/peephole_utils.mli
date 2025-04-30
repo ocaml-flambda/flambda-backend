@@ -13,8 +13,33 @@ val get_cells :
   int ->
   Cfg.basic Cfg.instruction DLL.cell list
 
-val is_bitwise_op : Simple_operation.integer_operation -> bool
+(** The following functions check for overflow and ranges of immediates w.r.t. the
+    operation and optionally rewrite the operation.  *)
+val add_immediates :
+  Operation.integer_operation ->
+  int ->
+  int ->
+  (Operation.integer_operation * int) option
 
-val bitwise_shift_assert : int -> int -> unit
+val sub_immediates :
+  Operation.integer_operation ->
+  int ->
+  int ->
+  (Operation.integer_operation * int) option
 
-val amd64_imm32_within_bounds : int -> int -> (int -> int -> int) -> bool
+val mul_immediates :
+  Operation.integer_operation ->
+  int ->
+  int ->
+  (Operation.integer_operation * int) option
+
+val bitwise_immediates :
+  Operation.integer_operation ->
+  int ->
+  int ->
+  (int -> int -> int) ->
+  (Operation.integer_operation * int) option
+
+val assert_within_range : Operation.integer_operation -> int -> unit
+
+val is_immediate_for_intop : Operation.integer_operation -> int -> bool

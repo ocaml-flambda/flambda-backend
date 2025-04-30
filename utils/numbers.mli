@@ -123,3 +123,9 @@ end
 
 
 module Float : Identifiable.S with type t = float
+
+module Int64 : sig
+
+  val to_int32_exn: int64 -> int32
+
+end

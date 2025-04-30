@@ -72,113 +72,68 @@ let remove_useless_mov (cell : Cfg.basic Cfg.instruction DLL.cell) =
 
 (** Logical condition for simplifying the following case:
   {|
-    <op 1> const1, r
-    <op 2> const2, r
+    <op1> const1, r
+    <op2> const2, r
   |}
 
   to:
   {|
-    <op 1> (const1 <op 2> const2), r
+    <op1> (const1 <op2> const2), r
   |}
 
-   Where <op 1> and <op 2> can be any two binary operators that are associative and commutative
-   and const1 and const2 are immediate values. *)
+    where
+    const1 and const2 are immediate values, and
+    <op1> and <op2> are associative binary operators such
+    that either <op1> is the same as <op2>, or <op1> is the inverse of <op2>,
+    or there exists const3 such that <op1 const1> can be expressed as <op2 const3>
+    or <op2 const2> can be expressed as <op1 const3> *)
 
 let are_compatible op1 op2 imm1 imm2 :
-    (Simple_operation.integer_operation * int) option =
+    (Operation.integer_operation * int) option =
   match
-    ( (op1 : Simple_operation.integer_operation),
-      (op2 : Simple_operation.integer_operation) )
+    (op1 : Operation.integer_operation), (op2 : Operation.integer_operation)
   with
-  (* Folding two bitwise operations such as (AND, OR, XOR) should never produce
-     an overflow so we assert this conditon. *)
-  | Iand, Iand ->
-    assert (U.amd64_imm32_within_bounds imm1 imm2 ( land ));
-    Some (Iand, imm1 land imm2)
-  | Ior, Ior ->
-    assert (U.amd64_imm32_within_bounds imm1 imm2 ( lor ));
-    Some (Ior, imm1 lor imm2)
-  | Ixor, Ixor ->
-    assert (U.amd64_imm32_within_bounds imm1 imm2 ( lxor ));
-    Some (Ixor, imm1 lxor imm2)
+  | Iand, Iand -> U.bitwise_immediates op1 imm1 imm2 ( land )
+  | Ior, Ior -> U.bitwise_immediates op1 imm1 imm2 ( lor )
+  | Ixor, Ixor -> U.bitwise_immediates op1 imm1 imm2 ( lxor )
   (* For the following three cases we have the issue that in some situations,
      one or both immediate values could be out of bounds, but the result might
      be within bounds (e.g. imm1 = -4 and imm2 = 65, their sum being 61). This
      should not happen at all since the immediate values should always be within
      the bounds [0, Sys.int_size]. *)
-  | Ilsl, Ilsl ->
-    if Misc.no_overflow_add imm1 imm2 && imm1 + imm2 <= Sys.int_size
-    then (
-      U.bitwise_shift_assert imm1 imm2;
-      Some (Ilsl, imm1 + imm2))
-    else None
-  | Ilsr, Ilsr ->
-    if Misc.no_overflow_add imm1 imm2 && imm1 + imm2 <= Sys.int_size
-    then (
-      U.bitwise_shift_assert imm1 imm2;
-      Some (Ilsr, imm1 + imm2))
-    else None
-  | Iasr, Iasr ->
-    if Misc.no_overflow_add imm1 imm2 && imm1 + imm2 <= Sys.int_size
-    then (
-      U.bitwise_shift_assert imm1 imm2;
-      Some (Iasr, imm1 + imm2))
-    else None
-  (* for the amd64 instruction set the `ADD` `SUB` `MUL` opperations take at
-     most an imm32 as the second argument, so we need to check for overflows on
-     32-bit signed ints. *)
-  (* CR-someday gtulba-lecu: This condition is architecture specific and should
-     either live in amd64 specific code or this module should contain
-     information about the architecture target. *)
-  | Iadd, Iadd ->
-    if Misc.no_overflow_add imm1 imm2
-       && U.amd64_imm32_within_bounds imm1 imm2 ( + )
-    then Some (Iadd, imm1 + imm2)
-    else None
+  | Ilsl, Ilsl | Ilsr, Ilsr | Iasr, Iasr | Iadd, Iadd ->
+    U.add_immediates op1 imm1 imm2
   | Iadd, Isub ->
+    (* The following transformation changes the order of operations on [r] and
+       therefore might change the overflow behavior: if [r+c1] overflows, but
+       r-[c2-c1] does not overflow. This is fine, other compiler transformations
+       may also do it. The code below only ensures that immediates that the
+       compiler emits do not overflow. *)
     if imm1 >= imm2
-    then
-      if Misc.no_overflow_sub imm1 imm2
-         && U.amd64_imm32_within_bounds imm1 imm2 ( - )
-      then Some (Iadd, imm1 - imm2)
-      else None
-    else if Misc.no_overflow_sub imm2 imm1
-            && U.amd64_imm32_within_bounds imm2 imm1 ( - )
-    then Some (Isub, imm2 - imm1)
-    else None
-  | Isub, Isub ->
-    if Misc.no_overflow_add imm1 imm2
-       && U.amd64_imm32_within_bounds imm1 imm2 ( + )
-    then Some (Isub, imm1 + imm2)
-    else None
+    then U.sub_immediates Iadd imm1 imm2
+    else U.sub_immediates Isub imm2 imm1
+  | Isub, Isub (* r - (imm1 + imm2 *) -> U.add_immediates Isub imm1 imm2
   | Isub, Iadd ->
     if imm1 >= imm2
-    then
-      if Misc.no_overflow_sub imm1 imm2
-         && U.amd64_imm32_within_bounds imm1 imm2 ( - )
-      then Some (Isub, imm1 - imm2)
-      else None
-    else if Misc.no_overflow_sub imm2 imm1
-            && U.amd64_imm32_within_bounds imm2 imm1 ( - )
-    then Some (Iadd, imm2 - imm1)
-    else None
+    then U.sub_immediates Isub imm1 imm2
+    else U.sub_immediates Iadd imm2 imm1
   | Ilsl, Imul ->
-    if imm1 >= 0 && imm1 < 31
-       && Misc.no_overflow_mul (1 lsl imm1) imm2
-       && U.amd64_imm32_within_bounds (1 lsl imm1) imm2 ( * )
-    then Some (Imul, (1 lsl imm1) * imm2)
+    (* [imm1] is guaranteed to be within bounds for [Ilsl], but [1 lsl imm1] may
+       not be within bounds for [Imul]. *)
+    U.assert_within_range Ilsl imm1;
+    let imm1 = 1 lsl imm1 in
+    if U.is_immediate_for_intop Imul imm1
+    then U.mul_immediates Imul imm1 imm2
     else None
   | Imul, Ilsl ->
-    if imm2 >= 0 && imm2 < 31
-       && Misc.no_overflow_mul imm1 (1 lsl imm2)
-       && U.amd64_imm32_within_bounds imm1 (1 lsl imm2) ( * )
-    then Some (Imul, imm1 * (1 lsl imm2))
+    (* [imm2] is guaranteed to be within bounds for [Ilsl], but [1 lsl imm2] may
+       not be within bounds for [Imul]. *)
+    U.assert_within_range Ilsl imm2;
+    let imm2 = 1 lsl imm2 in
+    if U.is_immediate_for_intop Imul imm2
+    then U.mul_immediates Imul imm1 imm2
     else None
-  | Imul, Imul ->
-    if Misc.no_overflow_mul imm1 imm2
-       && U.amd64_imm32_within_bounds imm1 imm2 ( * )
-    then Some (Imul, imm1 * imm2)
-    else None
+  | Imul, Imul -> U.mul_immediates op1 imm1 imm2
   (* CR-soon gtulba-lecu: check this last case | Imod, Imod -> if imm1 mod imm2
      = 0 then Some (Imod, imm2) else None
 
@@ -200,11 +155,8 @@ let fold_intop_imm (cell : Cfg.basic Cfg.instruction DLL.cell) =
     let snd_val = DLL.value snd in
     (* The following check does the following: 1. Ensures that both instructions
        use the same source register; 2. Ensures that both instructions output
-       the result to the source register, this is redundant for amd64 since
-       there are no instructions that invalidate this condition. *)
-    (* CR-someday gtulba-lecu: This condition is architecture specific and
-       should either live in amd64 specific code or this module should contain
-       information about the architecture target. *)
+       the result to the source register. This is currently redundant for amd64
+       since there are no instructions that invalidate this condition. *)
     if Array.length fst_val.arg = 1
        && Array.length snd_val.arg = 1
        && Array.length fst_val.res = 1
@@ -236,9 +188,10 @@ let fold_intop_imm (cell : Cfg.basic Cfg.instruction DLL.cell) =
   | _ -> None
 
 let apply cell =
-  match remove_overwritten_mov cell with
-  | None -> (
-    match remove_useless_mov cell with
-    | None -> ( match fold_intop_imm cell with None -> None | res -> res)
-    | res -> res)
-  | res -> res
+  let[@inline always] if_none_do f o =
+    match o with Some _ -> o | None -> f cell
+  in
+  None
+  |> if_none_do remove_overwritten_mov
+  |> if_none_do remove_useless_mov
+  |> if_none_do fold_intop_imm

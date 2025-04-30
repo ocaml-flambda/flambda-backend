@@ -74,7 +74,7 @@ end = struct
   let a_is_int : (a, int) eq = Eq
 end
 
-let f (x : M.t @@ nonportable) : M.t @@ portable =
+let f (x : M.t @ nonportable) : M.t @ portable =
   match M.a_is_int with
   | Eq -> x
 [%%expect {|

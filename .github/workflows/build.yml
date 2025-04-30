@@ -58,14 +58,14 @@ jobs:
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5 --enable-poll-insertion --enable-flambda-invariants
             os: ubuntu-latest
             build_ocamlparam: ''
-            ocamlparam: '_,O3=1,flambda2-expert-cont-lifting-budget=200'
+            ocamlparam: '_,O3=1,flambda2-expert-cont-lifting-budget=200,flambda2-join-algorithm=n-way'
 
           - name: flambda2_o3_advanced_meet_frame_pointers_runtime5_debug
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-runtime5
             os: ubuntu-latest
             build_ocamlparam: ''
             use_runtime: d
-            ocamlparam: '_,O3=1,flambda2-expert-cont-lifting-budget=200'
+            ocamlparam: '_,O3=1,flambda2-expert-cont-lifting-budget=200,cfg-invariants=1,cfg-eliminate-dead-trap-handlers=1,flambda2-join-algorithm=n-way'
 
           - name: flambda2_frame_pointers_oclassic_polling
             config: --enable-middle-end=flambda2 --enable-frame-pointers --enable-poll-insertion --enable-flambda-invariants
@@ -157,15 +157,15 @@ jobs:
           - name: gi
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
-            build_ocamlparam: '_,w=-46,regalloc=gi,cfg-cse-optimize=1'
-            ocamlparam: '_,w=-46,regalloc=gi,cfg-cse-optimize=1'
+            build_ocamlparam: '_,w=-46,regalloc=gi'
+            ocamlparam: '_,w=-46,regalloc=gi'
             check_arch: true
 
-          - name: cfg-selection
+          - name: cfg-invariants
             config: --enable-middle-end=flambda2
             os: ubuntu-latest
-            build_ocamlparam: '_,w=-46,regalloc=cfg,cfg-cse-optimize=1,cfg-selection=1,cfg-zero-alloc-checker=1'
-            ocamlparam: '_,w=-46,regalloc=cfg,cfg-cse-optimize=1,cfg-selection=1,cfg-zero-alloc-checker=1'
+            build_ocamlparam: '_,w=-46,regalloc=cfg,cfg-invariants=1,cfg-eliminate-dead-trap-handlers=1'
+            ocamlparam: '_,w=-46,regalloc=cfg,cfg-invariants=1,cfg-eliminate-dead-trap-handlers=1'
             check_arch: true
 
           - name: vectorizer
@@ -205,7 +205,7 @@ jobs:
       id: cache
       with:
         path: ${{ github.workspace }}/ocaml-414/_install
-        key: ${{ matrix.os }}-cache-ocaml-414-dune-3152-menhir-20231231
+        key: ${{ matrix.os }}-cache-ocaml-414-patched-dune-3152-menhir-20231231
 
     - name: Checkout OCaml 4.14
       uses: actions/checkout@master
@@ -219,6 +219,7 @@ jobs:
       if: steps.cache.outputs.cache-hit != 'true'
       working-directory: ocaml-414
       run: |
+        patch -p1 < $GITHUB_WORKSPACE/flambda_backend/arm64-issue-debug-upstream.patch
         ./configure --prefix=$GITHUB_WORKSPACE/ocaml-414/_install
         make -j $J world.opt
         make install

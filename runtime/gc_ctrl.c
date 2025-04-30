@@ -566,7 +566,7 @@ CAMLprim value caml_runtime_parameters (value unit)
   char *no_tweaks = "";
   /* keep in sync with runtime4 and with parse_ocamlrunparam */
   value res = caml_alloc_sprintf
-    ("b=%d,c="F_Z",d="F_Z",e="F_Z",i="F_Z",l="F_Z
+    ("b=%d,c="F_Z",d="F_Z",e="F_Z",H="F_Z",i="F_Z",l="F_Z
      ",m="F_Z",M="F_Z",n="F_Z",o="F_Z",O="F_Z
      ",p="F_Z",s="F_Z",t="F_Z",v="F_Z",V="F_Z
      ",W="F_Z"%s",
@@ -576,7 +576,7 @@ CAMLprim value caml_runtime_parameters (value unit)
        /* d */ caml_params->max_domains,
        /* e */ caml_params->runtime_events_log_wsize,
        /* h is runtime 4 init heap size */
-       /* H is runtime 4 huge pages */
+       /* H */ caml_params->use_hugetlb_pages,
        /* i */ caml_major_heap_increment,
        /* l */ caml_max_stack_wsize,
        /* m */ caml_custom_minor_ratio,

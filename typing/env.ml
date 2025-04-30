@@ -810,7 +810,7 @@ type error =
   | Missing_module of Location.t * Path.t * Path.t
   | Illegal_value_name of Location.t * string
   | Lookup_error of Location.t * t * lookup_error
-  | Incomplete_instantiation of { unset_param : Global_module.Name.t }
+  | Incomplete_instantiation of { unset_param : Global_module.Parameter_name.t }
 
 exception Error of error
 
@@ -4578,6 +4578,9 @@ let report_lookup_error _loc env ppf = function
         | Error (Linearity, _) -> "once", "is many"
         | Error (Portability, _) -> "nonportable", "is portable"
         | Error (Yielding, _) -> "yielding", "may not yield"
+        | Error (Statefulness, {left; right}) ->
+          asprintf "%a" Mode.Statefulness.Const.print left,
+          asprintf "is %a" Mode.Statefulness.Const.print right
       in
       let s, hint =
         match context with
@@ -4642,7 +4645,7 @@ let report_error ppf = function
   | Incomplete_instantiation { unset_param } ->
       fprintf ppf "@[<hov>Not enough instance arguments: the parameter@ %a@ is \
                    required.@]"
-        Global_module.Name.print unset_param
+        Global_module.Parameter_name.print unset_param
 
 let () =
   Location.register_error_of_exn

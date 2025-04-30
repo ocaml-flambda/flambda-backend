@@ -691,7 +691,8 @@ type let_kind = Strict | Alias | StrictOpt
       (If e is a simple expression, e.g. a variable or constant,
        we may still substitute e'[x/e].)
     Alias: e is pure, we can substitute e'[x/e] if x has 0 or 1 occurrences
-      in e'
+      in e', and these occurrences are definitely in the same region as
+      the binding (not inside a lambda nor an exclave)
     StrictOpt: e does not have side-effects, but depend on the store;
       we can discard e if x does not appear in e'
  *)
@@ -937,7 +938,8 @@ type program =
    parameterised, this information (in particular [arg_block_idx]) describes
    instances rather than the base CU gs. *)
 type arg_descr =
-  { arg_param: Global_module.Name.t;    (* The parameter implemented (the [P] in
+  { arg_param: Global_module.Parameter_name.t;
+                                        (* The parameter implemented (the [P] in
                                            [-as-argument-for P]) *)
     arg_block_idx: int; }               (* The index within the main module
                                            block of the _argument block_. If

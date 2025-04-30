@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 module List = ListLabels
@@ -39,7 +39,7 @@ let rec find_next_allocation : cell option -> allocation option =
         | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _ | Opaque
         | Begin_region | End_region | Specific _ | Name_for_debugger _ | Dls_get
         | Poll )
-    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
+    | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
       find_next_allocation (DLL.next cell))
 
 (* [find_compatible_allocations cell ~curr_mode ~curr_size] returns the
@@ -80,7 +80,7 @@ let find_compatible_allocations :
         | Local -> return ()
         | Heap -> loop allocations (DLL.next cell) ~curr_mode ~curr_size)
       | Op Poll -> return ()
-      | Reloadretaddr | Poptrap | Prologue | Pushtrap _ | Stack_check _ ->
+      | Reloadretaddr | Poptrap _ | Prologue | Pushtrap _ | Stack_check _ ->
         (* CR-soon xclerc for xclerc: is it too conservative? (note: only the
            `Pushtrap` case may be too conservative) *)
         { allocations = List.rev allocations; next_cell = Some cell }
@@ -145,8 +145,7 @@ let rec combine : instr_id:InstructionId.sequence -> cell option -> unit =
             DLL.set_value other_allocation.cell
               { other_allocation_instr with
                 desc =
-                  Cfg.Op
-                    (Intop_imm (Simple_operation.Iadd, -other_allocation.bytes));
+                  Cfg.Op (Intop_imm (Operation.Iadd, -other_allocation.bytes));
                 arg = [| prev_res0 |]
               };
             ( size + other_allocation.bytes,
@@ -168,11 +167,10 @@ let rec combine : instr_id:InstructionId.sequence -> cell option -> unit =
       DLL.insert_after cell
         { first_allocation_instr with
           desc =
-            Cfg.Op
-              (Intop_imm (Simple_operation.Iadd, total_size_of_other_allocations));
+            Cfg.Op (Intop_imm (Operation.Iadd, total_size_of_other_allocations));
           arg = [| first_allocation_res0 |];
           res = [| first_allocation_res0 |];
-          id = InstructionId.get_next instr_id
+          id = InstructionId.get_and_incr instr_id
         });
     combine ~instr_id compatible_allocs.next_cell
 

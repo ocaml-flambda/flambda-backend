@@ -97,6 +97,7 @@ static void init_startup_params(void)
   params.init_max_stack_wsz = Max_stack_def;
   params.max_domains = Max_domains_def;
   params.runtime_events_log_wsize = Default_runtime_events_log_wsize;
+  params.use_hugetlb_pages = 0;
 
 #ifdef DEBUG
   // Silenced in flambda-backend to make it easier to run tests that
@@ -172,7 +173,7 @@ static void parse_ocamlrunparam(char_os* opt)
       case 'd': scanmult (opt, &params.max_domains); break;
       case 'e': scanmult (opt, &params.runtime_events_log_wsize); break;
       case 'h': break; /* init heap size in runtime 4 */
-      case 'H': break; /* use huge pages in runtime 4 */
+      case 'H': scanmult (opt, &params.use_hugetlb_pages); break;
       case 'i': scanmult (opt, &params.init_major_heap_increment); break;
       case 'l': scanmult (opt, &params.init_max_stack_wsz); break;
       case 'm': scanmult (opt, &params.init_custom_minor_ratio); break;

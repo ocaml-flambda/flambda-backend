@@ -15,37 +15,13 @@ let precondition : Cfg_with_layout.t -> unit =
       | Move -> ()
       | Spill -> fatal "instruction %a is a spill" InstructionId.format id
       | Reload -> fatal "instruction %a is a reload" InstructionId.format id
-      | Const_int _ -> ()
-      | Const_float32 _ -> ()
-      | Const_float _ -> ()
-      | Const_symbol _ -> ()
-      | Const_vec128 _ -> ()
-      | Stackoffset _ -> ()
-      | Load _ -> ()
-      | Store _ -> ()
-      | Intop _ -> ()
-      | Intop_imm _ -> ()
-      | Intop_atomic _ -> ()
-      | Floatop _ -> ()
-      | Csel _ -> ()
-      | Reinterpret_cast _ -> ()
-      | Static_cast _ -> ()
-      | Probe_is_enabled _ -> ()
-      | Opaque -> ()
-      | Begin_region -> ()
-      | End_region -> ()
-      | Specific op ->
-        if Arch.operation_can_raise op
-        then
-          fatal
-            "architecture specific instruction %a that can raise but isn't a \
-             terminator"
-            InstructionId.format id
-      | Name_for_debugger _ -> ()
-      | Dls_get -> ()
-      | Poll -> ()
-      | Alloc _ -> ())
-    | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ -> ()
+      | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+      | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _
+      | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Reinterpret_cast _
+      | Static_cast _ | Probe_is_enabled _ | Opaque | Begin_region | End_region
+      | Specific _ | Name_for_debugger _ | Dls_get | Poll | Alloc _ ->
+        ())
+    | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ -> ()
   in
   let register_must_not_be_on_stack (id : InstructionId.t) (reg : Reg.t) : unit
       =
@@ -66,43 +42,24 @@ let precondition : Cfg_with_layout.t -> unit =
       : unit =
     ArrayLabels.iter regs ~f:(register_must_not_be_on_stack id)
   in
-  (* CR xclerc for xclerc: the check below should not be in this function, since
-     it is IRC-specific *)
-  let register_must_be_on_unknown_list (id : InstructionId.t) (reg : Reg.t) :
-      unit =
-    match reg.Reg.irc_work_list with
-    | Unknown_list -> ()
-    | Precolored -> ()
-    | Initial | Simplify | Freeze | Spill | Spilled | Coalesced | Colored
-    | Select_stack ->
-      fatal "instruction %a has a register (%a) already in a work list (%S)"
-        InstructionId.format id Printreg.reg reg
-        (Reg.string_of_irc_work_list reg.Reg.irc_work_list)
-  in
-  let register_must_be_on_unknown_list (id : InstructionId.t)
-      (regs : Reg.t array) : unit =
-    ArrayLabels.iter regs ~f:(register_must_be_on_unknown_list id)
-  in
   Cfg_with_layout.iter_instructions cfg_with_layout
     ~instruction:(fun instr ->
       let id = instr.id in
       desc_is_neither_spill_or_reload id instr.desc;
       registers_must_not_be_on_stack id instr.arg;
-      registers_must_not_be_on_stack id instr.res;
-      register_must_be_on_unknown_list id instr.arg;
-      register_must_be_on_unknown_list id instr.res)
+      registers_must_not_be_on_stack id instr.res)
     ~terminator:(fun term ->
       let id = term.id in
       registers_must_not_be_on_stack id term.arg;
-      registers_must_not_be_on_stack id term.res;
-      register_must_be_on_unknown_list id term.arg;
-      register_must_be_on_unknown_list id term.res);
+      registers_must_not_be_on_stack id term.res);
   let fun_num_stack_slots =
     (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
   in
-  Array.iteri fun_num_stack_slots ~f:(fun stack_class num_slots ->
+  Stack_class.Tbl.iter fun_num_stack_slots ~f:(fun stack_class num_slots ->
       if num_slots <> 0
-      then fatal "stack slot class %d has %d slots(s)" stack_class num_slots)
+      then
+        fatal "stack slot class %a has %d slots(s)" Stack_class.print
+          stack_class num_slots)
 
 let postcondition_layout : Cfg_with_layout.t -> unit =
  fun cfg_with_layout ->
@@ -131,7 +88,7 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
     (* CR xclerc for xclerc: what about cross-compilation? *)
     | "amd64" | "arm64" -> (
       let num_locals = num_stack_locals arg + num_stack_locals res in
-      match[@ocaml.warning "-4"] desc with
+      match desc with
       | Op (Spill | Reload) ->
         (* CR xclerc for xclerc: should check arg/res according to spill/reload,
            rather than the total number. *)
@@ -139,7 +96,19 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
         then
           fatal "instruction %a is a move and refers to %d spilling slots"
             InstructionId.format id num_locals
-      | _ -> ())
+      | Reloadretaddr | Prologue | Pushtrap _ | Poptrap _ | Stack_check _
+      | Op
+          ( Move | Opaque | Begin_region | End_region | Dls_get | Poll
+          | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+          | Const_vec128 _ | Stackoffset _ | Load _
+          | Store (_, _, _)
+          | Intop _
+          | Intop_imm (_, _)
+          | Intop_atomic _
+          | Floatop (_, _)
+          | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+          | Specific _ | Name_for_debugger _ | Alloc _ ) ->
+        ())
     | arch -> fatal "unsupported architecture %S" arch
   in
   let register_classes_must_be_consistent (id : InstructionId.t) (reg : Reg.t) :
@@ -161,9 +130,7 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
     ArrayLabels.iter regs ~f:(register_classes_must_be_consistent id)
   in
   let module Int = Numbers.Int in
-  let used_stack_slots =
-    Array.init Proc.num_stack_slot_classes ~f:(fun _ -> Int.Set.empty)
-  in
+  let used_stack_slots = Stack_class.Tbl.init ~f:(fun _ -> Int.Set.empty) in
   let record_stack_slot_use (reg : Reg.t) : unit =
     match reg.loc with
     | Unknown -> ()
@@ -171,9 +138,9 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
     | Stack stack_loc -> (
       match stack_loc with
       | Local index ->
-        let stack_class = Proc.stack_slot_class reg.typ in
-        used_stack_slots.(stack_class)
-          <- Int.Set.add index used_stack_slots.(stack_class)
+        let stack_class = Stack_class.of_machtype reg.typ in
+        Stack_class.Tbl.update used_stack_slots stack_class ~f:(fun curr ->
+            Int.Set.add index curr)
       | Incoming _ -> ()
       | Outgoing _ -> ()
       | Domainstate _ -> ())
@@ -205,7 +172,7 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
   let fun_num_stack_slots =
     (Cfg_with_layout.cfg cfg_with_layout).fun_num_stack_slots
   in
-  Array.iteri fun_num_stack_slots ~f:(fun stack_class num_slots ->
+  Stack_class.Tbl.iter fun_num_stack_slots ~f:(fun stack_class num_slots ->
       let available_slots =
         Seq.ints 0 |> Seq.take num_slots |> Int.Set.of_seq
       in
@@ -213,20 +180,17 @@ let postcondition_layout : Cfg_with_layout.t -> unit =
         set |> Int.Set.elements |> List.map ~f:string_of_int
         |> String.concat ", "
       in
-      let invalid =
-        Int.Set.diff used_stack_slots.(stack_class) available_slots
-      in
+      let used_slots = Stack_class.Tbl.find used_stack_slots stack_class in
+      let invalid = Int.Set.diff used_slots available_slots in
       if not (Int.Set.is_empty invalid)
       then
-        fatal "stack slot class %d uses the following invalid slots: %s"
-          stack_class (string_of_set invalid);
-      let unused =
-        Int.Set.diff available_slots used_stack_slots.(stack_class)
-      in
+        fatal "stack slot class %a uses the following invalid slots: %s"
+          Stack_class.print stack_class (string_of_set invalid);
+      let unused = Int.Set.diff available_slots used_slots in
       if not (Int.Set.is_empty unused)
       then
-        fatal "stack slot class %d has the following unused slots: %s"
-          stack_class (string_of_set unused))
+        fatal "stack slot class %a has the following unused slots: %s"
+          Stack_class.print stack_class (string_of_set unused))
 
 let postcondition_liveness : Cfg_with_infos.t -> unit =
  fun cfg_with_infos ->

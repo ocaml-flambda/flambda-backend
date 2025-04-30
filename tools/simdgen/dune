@@ -1,0 +1,35 @@
+;**************************************************************************
+;*                                                                        *
+;*                                 OCaml                                  *
+;*                                                                        *
+;*                        Max Slater, Jane Street                         *
+;*                                                                        *
+;*   Copyright 2025 Jane Street Group LLC                                 *
+;*                                                                        *
+;*   All rights reserved.  This file is distributed under the terms of    *
+;*   the GNU Lesser General Public License version 2.1, with the          *
+;*   special exception on linking described in the file LICENSE.          *
+;*                                                                        *
+;**************************************************************************
+
+(executable
+ (name simdgen)
+ (modes native)
+ (modules simdgen amd64_simd_defs))
+
+(rule
+ (target amd64_simd_instrs.ml)
+ (deps simdgen.exe amd64/amd64.csv)
+ (mode promote)
+ (action
+  (with-stdout-to
+   amd64_simd_instrs.ml
+   (run ./simdgen.exe amd64))))
+
+(rule
+ (enabled_if
+  (and
+   (= %{env:ARCH=amd64} "amd64")))
+ (target simd_proc.ml)
+ (action
+  (system "touch simd_proc.ml")))

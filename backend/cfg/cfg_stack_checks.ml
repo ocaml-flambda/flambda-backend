@@ -26,7 +26,7 @@
  * DEALINGS IN THE SOFTWARE.                                                  *
  ******************************************************************************)
 
-[@@@ocaml.warning "+4"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare
 module DLL = Flambda_backend_utils.Doubly_linked_list
@@ -40,11 +40,6 @@ let is_nontail_call : Cfg.terminator -> bool =
   | Call_no_return _ | Call _ -> true
   | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
   | Switch _ | Return | Raise _ | Tailcall_self _ | Tailcall_func _ | Prim _ ->
-    false
-  | Specific_can_raise _ ->
-    (* Specific operations cannot raise, and hence cannot call OCaml functions;
-       for the purpose of this check it is thus fine to return `false` even
-       though a specific operation may call some C code. *)
     false
 
 (* Returns the stack check info, and the max of seen instruction ids. *)
@@ -189,7 +184,7 @@ let insert_instruction (cfg : Cfg.t) (label : Label.t) ~max_frame_size
        xclerc: (keeping the comment, and the explicit values below until all of
        that is implemented.) *)
     let seq = InstructionId.make_sequence ~last_used:max_instr_id () in
-    let id = InstructionId.get_next seq in
+    let id = InstructionId.get_and_incr seq in
     Cfg.make_instruction ()
       ~desc:(Cfg.Stack_check { max_frame_size_bytes = max_frame_size })
       ~stack_offset ~id ~available_before:None ~available_across:None

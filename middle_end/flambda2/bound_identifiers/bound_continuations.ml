@@ -50,6 +50,9 @@ let ids_for_export t =
 
 let rename t = List.map Continuation.rename t
 
+let is_renamed_version_of t t' =
+  Misc.Stdlib.List.equal Continuation.is_renamed_version_of t t'
+
 let renaming t1 ~guaranteed_fresh:t2 =
   try List.fold_left2 Renaming.add_continuation Renaming.empty t1 t2
   with Invalid_argument _ ->

@@ -42,6 +42,11 @@ type dwarf_section =
 
 type t =
   | DWARF of dwarf_section
+  | Data
+  | Read_only_data
+  | Eight_byte_literals
+  | Sixteen_byte_literals
+  | Jump_tables
   | Text
 
 val to_string : t -> string
@@ -68,3 +73,8 @@ val print : Format.formatter -> t -> unit
 val compare : t -> t -> int
 
 val equal : t -> t -> bool
+
+(** Whether the section holds code. *)
+val section_is_text : t -> bool
+
+val all_sections_in_order : unit -> t list

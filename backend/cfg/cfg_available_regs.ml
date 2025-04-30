@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 module DLL = Flambda_backend_utils.Doubly_linked_list
@@ -150,8 +150,6 @@ module Transfer = struct
     let made_unavailable_1 =
       let regs_clobbered = Array.append (destroyed_at instr.desc) instr.res in
       RD.Set.made_unavailable_by_clobber avail_before ~regs_clobbered
-        ~register_class:Proc.register_class ~stack_class:(fun r ->
-          Proc.stack_slot_class r.typ)
     in
     (* Second: the cases of (a) allocations, (b) other polling points, (c) OCaml
        to OCaml function calls and (d) end-region operations. In these cases,
@@ -270,8 +268,7 @@ module Transfer = struct
             then RD.Set.empty
             else
               RD.Set.made_unavailable_by_clobber avail_before
-                ~regs_clobbered:instr.res ~register_class:Proc.register_class
-                ~stack_class:(fun r -> Proc.stack_slot_class r.typ)
+                ~regs_clobbered:instr.res
           in
           let results =
             Array.map2
@@ -309,11 +306,8 @@ module Transfer = struct
             | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _ | Opaque
             | Begin_region | End_region | Specific _ | Dls_get | Poll | Alloc _
               )
-        | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
-          let is_op_end_region = function[@ocaml.warning "-4"]
-            | Cfg.(Op End_region) -> true
-            | _ -> false
-          in
+        | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
+          let is_op_end_region = Cfg.is_end_region in
           common ~avail_before ~destroyed_at:Proc.destroyed_at_basic
             ~is_interesting_constructor:is_op_end_region
             ~is_end_region:is_op_end_region instr)
@@ -338,8 +332,8 @@ module Transfer = struct
           (* CR xclerc for xclerc: TODO *)
           None, unreachable
         | Always _ | Parity_test _ | Truth_test _ | Float_test _ | Int_test _
-        | Switch _ | Call _ | Prim _ | Specific_can_raise _ | Return | Raise _
-        | Tailcall_func _ | Call_no_return _ ->
+        | Switch _ | Call _ | Prim _ | Return | Raise _ | Tailcall_func _
+        | Call_no_return _ ->
           common ~avail_before ~destroyed_at:Proc.destroyed_at_terminator
             ~is_interesting_constructor:
               Cfg.(
@@ -348,7 +342,7 @@ module Transfer = struct
                 | Call _ | Prim { op = Probe _; label_after = _ } -> true
                 | Always _ | Parity_test _ | Truth_test _ | Float_test _
                 | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-                | Tailcall_func _ | Call_no_return _ | Specific_can_raise _
+                | Tailcall_func _ | Call_no_return _
                 | Prim { op = External _; label_after = _ } ->
                   false)
             ~is_end_region:(fun _ -> false)
@@ -376,14 +370,30 @@ end
 
 module Analysis = Cfg_dataflow.Forward (Domain) (Transfer)
 
+let get_name_for_debugger_regs (b : Cfg.basic) =
+  match b with
+  | Op (Name_for_debugger { regs; _ }) -> Some regs
+  | Reloadretaddr | Prologue | Pushtrap _ | Poptrap _ | Stack_check _
+  | Op
+      ( Move | Spill | Reload | Opaque | Begin_region | End_region | Dls_get
+      | Poll | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+      | Const_vec128 _ | Stackoffset _ | Load _
+      | Store (_, _, _)
+      | Intop _
+      | Intop_imm (_, _)
+      | Intop_atomic _
+      | Floatop (_, _)
+      | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+      | Specific _ | Alloc _ ) ->
+    None
+
 let compute_all_regs_that_might_be_named : Cfg.t -> Reg.Set.t =
  fun cfg ->
   Cfg.fold_blocks cfg ~init:Reg.Set.empty ~f:(fun _label block acc ->
       DLL.fold_left block.body ~init:acc ~f:(fun acc instr ->
-          match[@ocaml.warning "-4"] instr.Cfg.desc with
-          | Cfg.(Op (Name_for_debugger { regs; _ })) ->
-            Reg.add_set_array acc regs
-          | _ -> acc))
+          match get_name_for_debugger_regs instr.Cfg.desc with
+          | Some regs -> Reg.add_set_array acc regs
+          | None -> acc))
 
 let run : Cfg_with_layout.t -> Cfg_with_layout.t =
  fun cfg_with_layout ->

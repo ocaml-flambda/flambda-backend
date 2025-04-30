@@ -56,6 +56,7 @@ struct caml_params {
   uintnat cleanup_on_exit;
   uintnat event_trace;
   uintnat max_domains;
+  uintnat use_hugetlb_pages;
 };
 
 extern const struct caml_params* const caml_params;

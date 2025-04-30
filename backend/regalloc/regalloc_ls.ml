@@ -7,21 +7,7 @@ module State = Regalloc_ls_state
 
 let snapshot_for_fatal = ref None
 
-module Utils = struct
-  include Regalloc_ls_utils
-
-  let debug = ls_debug
-
-  let invariants = ls_invariants
-
-  let log = log
-
-  let log_body_and_terminator = log_body_and_terminator
-
-  let is_spilled reg = reg.Reg.spill
-
-  let set_spilled _reg = ()
-end
+module Utils = Regalloc_ls_utils
 
 let rewrite :
     State.t ->
@@ -43,7 +29,8 @@ let rewrite :
 (* Equivalent to [build_intervals] in "backend/interval.ml". *)
 let build_intervals : State.t -> Cfg_with_infos.t -> unit =
  fun state cfg_with_infos ->
-  log ~indent:1 "build_intervals";
+  indent ();
+  log "build_intervals";
   let cfg_with_layout = Cfg_with_infos.cfg_with_layout cfg_with_infos in
   let liveness = Cfg_with_infos.liveness cfg_with_infos in
   let past_ranges : Interval.t Reg.Tbl.t = Reg.Tbl.create 123 in
@@ -105,12 +92,16 @@ let build_intervals : State.t -> Cfg_with_infos.t -> unit =
          present at the end of every "block". *)
       incr pos);
   Reg.Tbl.iter (fun reg (range : Range.t) -> add_range reg range) current_ranges;
-  if ls_debug && Lazy.force ls_verbose
+  if debug && Lazy.force verbose
   then
-    iter_cfg_dfs (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun block ->
-        log ~indent:2 "(block %a)" Label.format block.start;
-        log_body_and_terminator ~indent:2 block.body block.terminator liveness);
-  State.update_intervals state past_ranges
+    Cfg.iter_blocks_dfs (Cfg_with_layout.cfg cfg_with_layout)
+      ~f:(fun _label block ->
+        indent ();
+        log "(block %a)" Label.format block.start;
+        log_body_and_terminator block.body block.terminator liveness;
+        dedent ());
+  State.update_intervals state past_ranges;
+  dedent ()
 
 type spilling_reg =
   | Spilling of Reg.t
@@ -118,8 +109,9 @@ type spilling_reg =
 
 let allocate_stack_slot : Reg.t -> spilling_reg =
  fun reg ->
-  log ~indent:3 "spilling register %a" Printreg.reg reg;
-  reg.spill <- true;
+  indent ();
+  log "spilling register %a" Printreg.reg reg;
+  dedent ();
   Spilling reg
 
 exception No_free_register
@@ -127,29 +119,32 @@ exception No_free_register
 let allocate_free_register : State.t -> Interval.t -> spilling_reg =
  fun state interval ->
   let reg = interval.reg in
-  match reg.loc, reg.spill with
-  | Unknown, true -> allocate_stack_slot reg
-  | Unknown, _ -> (
-    let reg_class = Proc.register_class reg in
+  match reg.loc with
+  | Unknown -> (
+    let reg_class = Reg_class.of_machtype reg.typ in
     let intervals = State.active state ~reg_class in
-    let first_available = Proc.first_available_register.(reg_class) in
-    match Proc.num_available_registers.(reg_class) with
-    | 0 -> fatal "register class %d has no available registers" reg_class
+    let first_available = Reg_class.first_available_register reg_class in
+    match Reg_class.num_available_registers reg_class with
+    | 0 ->
+      fatal "register class %a has no available registers" Reg_class.print
+        reg_class
     | num_available_registers ->
       let available = Array.make num_available_registers true in
       let num_still_available = ref num_available_registers in
-      let set_not_available r =
+      let set_not_available (r : int) : unit =
         let idx = r - first_available in
         if available.(idx) then decr num_still_available;
         available.(idx) <- false;
         if !num_still_available = 0 then raise No_free_register
       in
-      List.iter intervals.active ~f:(fun (interval : Interval.t) ->
-          match interval.reg.loc with
-          | Reg r ->
-            if r - first_available < num_available_registers
-            then set_not_available r
-          | Stack _ | Unknown -> ());
+      let set_not_available_if_valid_phys_reg (interval : Interval.t) : unit =
+        match interval.reg.loc with
+        | Reg r ->
+          if r - first_available < num_available_registers
+          then set_not_available r
+        | Stack _ | Unknown -> ()
+      in
+      DLL.iter intervals.active_dll ~f:set_not_available_if_valid_phys_reg;
       let remove_bound_overlapping (itv : Interval.t) : unit =
         match itv.reg.loc with
         | Reg r ->
@@ -159,50 +154,53 @@ let allocate_free_register : State.t -> Interval.t -> spilling_reg =
           then set_not_available r
         | Stack _ | Unknown -> ()
       in
-      List.iter intervals.inactive ~f:remove_bound_overlapping;
-      List.iter intervals.fixed ~f:remove_bound_overlapping;
+      DLL.iter intervals.inactive_dll ~f:remove_bound_overlapping;
+      DLL.iter intervals.fixed_dll ~f:remove_bound_overlapping;
       let rec assign idx =
         if idx >= num_available_registers
         then Misc.fatal_error "No_free_register should have been raised earlier"
         else if available.(idx)
         then (
           reg.loc <- Reg (first_available + idx);
-          reg.spill <- false;
-          intervals.active
-            <- Interval.List.insert_sorted intervals.active interval;
-          if ls_debug
-          then log ~indent:3 "assigning %d to register %a" idx Printreg.reg reg;
+          Interval.DLL.insert_sorted intervals.active_dll interval;
+          if debug
+          then (
+            indent ();
+            log "assigning %d to register %a" idx Printreg.reg reg;
+            dedent ());
           Not_spilling)
         else assign (succ idx)
       in
       assign 0)
-  | (Reg _ | Stack _), _ -> Not_spilling
+  | Reg _ | Stack _ -> Not_spilling
 
 let allocate_blocked_register : State.t -> Interval.t -> spilling_reg =
  fun state interval ->
   let reg = interval.reg in
-  let reg_class = Proc.register_class reg in
+  let reg_class = Reg_class.of_machtype reg.typ in
   let intervals = State.active state ~reg_class in
-  match intervals.active with
-  | hd :: tl ->
+  match DLL.hd_cell intervals.active_dll with
+  | Some hd_cell ->
+    let hd = DLL.value hd_cell in
     let chk r =
       assert (same_reg_class r.Interval.reg hd.Interval.reg);
       Reg.same_loc r.Interval.reg hd.Interval.reg && Interval.overlap r interval
     in
     if hd.end_ > interval.end_
        && not
-            (List.exists ~f:chk intervals.fixed
-            || List.exists ~f:chk intervals.inactive)
+            (DLL.exists ~f:chk intervals.fixed_dll
+            || DLL.exists ~f:chk intervals.inactive_dll)
     then (
       (match hd.reg.loc with Reg _ -> () | Stack _ | Unknown -> assert false);
       interval.reg.loc <- hd.reg.loc;
-      intervals.active <- Interval.List.insert_sorted tl interval;
+      DLL.delete_curr hd_cell;
+      Interval.DLL.insert_sorted intervals.active_dll interval;
       allocate_stack_slot hd.reg)
     else allocate_stack_slot reg
-  | [] -> allocate_stack_slot reg
+  | None -> allocate_stack_slot reg
 
 let reg_reinit () =
-  List.iter (Reg.all_registers ()) ~f:(fun (reg : Reg.t) ->
+  List.iter (Reg.all_relocatable_regs ()) ~f:(fun (reg : Reg.t) ->
       match reg.loc with Reg _ -> reg.loc <- Unknown | Unknown | Stack _ -> ())
 
 (* CR xclerc for xclerc: could probably be lower; the compiler distribution
@@ -215,21 +213,26 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
   then
     fatal "register allocation was not succesful after %d rounds (%s)"
       max_rounds (Cfg_with_infos.cfg cfg_with_infos).fun_name;
-  if ls_debug then log ~indent:0 "main, round #%d" round;
+  if debug
+  then (
+    log "main, round #%d" round;
+    indent ());
   reg_reinit ();
   build_intervals state cfg_with_infos;
   State.invariant_intervals state cfg_with_infos;
   State.invariant_active state;
-  if ls_debug then snapshot_for_fatal := Some (State.for_fatal state);
-  if ls_debug then log ~indent:1 "iterating over intervals";
+  if debug then snapshot_for_fatal := Some (State.for_fatal state);
+  if debug
+  then (
+    log "iterating over intervals";
+    indent ());
   let spilled =
     State.fold_intervals state ~init:Reg.Set.empty
       ~f:(fun acc (interval : Interval.t) ->
         (* Equivalent to [walk_interval] in "backend/linscan.ml".*)
         let pos = interval.begin_ land lnot 1 in
-        if ls_debug
-        then
-          log_interval ~indent:2 ~kind:(Printf.sprintf "<pos=%d>" pos) interval;
+        if debug
+        then log_interval ~kind:(Printf.sprintf "<pos=%d>" pos) interval;
         State.release_expired_intervals state ~pos;
         let spilled =
           match allocate_free_register state interval with
@@ -242,6 +245,10 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
         | Not_spilling -> acc
         | Spilling reg -> Reg.Set.add reg acc)
   in
+  if debug
+  then (
+    dedent ();
+    dedent ());
   if not (Reg.Set.is_empty spilled)
   then (
     rewrite state cfg_with_infos ~spilled_nodes:(Reg.Set.elements spilled)
@@ -250,6 +257,7 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
 
 let run : Cfg_with_infos.t -> Cfg_with_infos.t =
  fun cfg_with_infos ->
+  if debug then reset_indentation ();
   let cfg_with_layout = Cfg_with_infos.cfg_with_layout cfg_with_infos in
   let cfg_infos, stack_slots =
     Regalloc_rewrite.prelude
@@ -259,10 +267,11 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
           (fun (intervals, active) ->
             Format.eprintf "Regalloc_ls.run (on_fatal):";
             Format.eprintf "\n\nactives:\n";
-            Array.iteri active ~f:(fun i a ->
-                Format.eprintf "class %d:\n %a\n" i ClassIntervals.print a);
+            Reg_class.Tbl.iter active ~f:(fun reg_class a ->
+                Format.eprintf "class %a:\n %a\n" Reg_class.print reg_class
+                  ClassIntervals.print a);
             Format.eprintf "\n\nintervals:\n";
-            List.iter intervals ~f:(fun i ->
+            DLL.iter intervals ~f:(fun i ->
                 Format.eprintf "- %a\n" Interval.print i);
             Format.eprintf "\n%!")
           !snapshot_for_fatal;
@@ -274,7 +283,6 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
   (match Reg.Set.elements spilling_because_unused with
   | [] -> ()
   | _ :: _ as spilled_nodes ->
-    List.iter spilled_nodes ~f:(fun reg -> reg.Reg.spill <- true);
     rewrite state cfg_with_infos ~spilled_nodes ~block_temporaries:false;
     Cfg_with_infos.invalidate_liveness cfg_with_infos);
   main ~round:1 state cfg_with_infos;
@@ -283,12 +291,14 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
     (module Utils)
     state
     ~f:(fun () ->
-      if ls_debug && Lazy.force ls_verbose
-      then
+      if debug && Lazy.force verbose
+      then (
         let liveness = Cfg_with_infos.liveness cfg_with_infos in
-        iter_cfg_dfs (Cfg_with_layout.cfg cfg_with_layout) ~f:(fun block ->
-            log ~indent:2 "(block %a)" Label.format block.start;
-            log_body_and_terminator ~indent:2 block.body block.terminator
-              liveness))
+        indent ();
+        Cfg.iter_blocks_dfs (Cfg_with_layout.cfg cfg_with_layout)
+          ~f:(fun _label block ->
+            log "(block %a)" Label.format block.start;
+            log_body_and_terminator block.body block.terminator liveness);
+        dedent ()))
     cfg_with_infos;
   cfg_with_infos

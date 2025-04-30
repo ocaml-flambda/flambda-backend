@@ -24,6 +24,8 @@ val create_with_same_name_as_ident : ?user_visible:unit -> Ident.t -> t
     the current unit, not the unit of the variable passed in. *)
 val rename : ?append:string -> t -> t
 
+val is_renamed_version_of : t -> t -> bool
+
 val unique_name : t -> string
 
 val raw_name : t -> string

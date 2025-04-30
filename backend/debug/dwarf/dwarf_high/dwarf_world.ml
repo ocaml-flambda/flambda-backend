@@ -15,13 +15,13 @@
 open! Int_replace_polymorphic_compare
 open Asm_targets
 open Dwarf_low
+module A = Asm_directives_new
 
 let emit0_delayed ~asm_directives:_ = ()
 
 let emit0 ~asm_directives ~compilation_unit_proto_die
     ~compilation_unit_header_label ~debug_loc_table ~debug_ranges_table
     ~address_table ~location_list_table =
-  let module A = (val asm_directives : Asm_directives.S) in
   (* CR-soon mshinwell: the [compilation_unit_die] member of the record returned
      from [Assign_abbrevs.run] is now unused *)
   let assigned_abbrevs =

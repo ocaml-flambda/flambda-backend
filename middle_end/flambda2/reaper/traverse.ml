@@ -390,7 +390,7 @@ and traverse_let_cont_non_recursive denv acc cont ~body handler =
 and traverse_let_cont_recursive denv acc ~invariant_params ~body handlers =
   let invariant_params_vars = Bound_parameters.vars invariant_params in
   let handlers =
-    Continuation.Map.map
+    Continuation.Lmap.map
       (fun cont_handler ->
         Continuation_handler.pattern_match cont_handler
           ~f:(fun bound_parameters ~handler ->
@@ -398,7 +398,7 @@ and traverse_let_cont_recursive denv acc ~invariant_params ~body handlers =
       (Continuation_handlers.to_map handlers)
   in
   let conts =
-    Continuation.Map.fold
+    Continuation.Lmap.fold
       (fun cont (_, bp, _) conts ->
         let params = invariant_params_vars @ Bound_parameters.vars bp in
         Acc.continuation_info acc cont { params; is_exn_handler = false };
@@ -409,13 +409,13 @@ and traverse_let_cont_recursive denv acc ~invariant_params ~body handlers =
   Bound_parameters.iter
     (fun bp -> Acc.bound_parameter_kind bp acc)
     invariant_params;
-  Continuation.Map.iter
+  Continuation.Lmap.iter
     (fun _ (_, bp, _) ->
       Bound_parameters.iter (fun bp -> Acc.bound_parameter_kind bp acc) bp)
     handlers;
   let handlers =
-    Continuation.Map.fold
-      (fun cont (cont_handler, bound_parameters, handler) handlers ->
+    Continuation.Lmap.map
+      (fun (cont_handler, bound_parameters, handler) ->
         let is_exn_handler = Continuation_handler.is_exn_handler cont_handler in
         let is_cold = Continuation_handler.is_cold cont_handler in
         let expr =
@@ -424,8 +424,8 @@ and traverse_let_cont_recursive denv acc ~invariant_params ~body handlers =
             acc handler
         in
         let handler = { bound_parameters; expr; is_exn_handler; is_cold } in
-        Continuation.Map.add cont handler handlers)
-      handlers Continuation.Map.empty
+        handler)
+      handlers
   in
   let denv =
     { parent = Let_cont_rec { invariant_params; handlers; parent = denv.parent };

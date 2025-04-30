@@ -54,6 +54,14 @@ Caml_inline void cpu_relax(void) {
 }
 
 
+/* Atomic read-modify-write instructions, with full fences */
+
+Caml_inline uintnat atomic_fetch_add_verify_ge0(atomic_uintnat* p, uintnat v) {
+  uintnat result = atomic_fetch_add(p,v);
+  CAMLassert ((intnat)result > 0);
+  return result;
+}
+
 /* If we're using glibc, use a custom condition variable implementation to
    avoid this bug: https://sourceware.org/bugzilla/show_bug.cgi?id=25847
 
@@ -300,7 +308,7 @@ typedef uintnat barrier_status;
    the last arrival. */
 Caml_inline barrier_status caml_plat_barrier_arrive(caml_plat_barrier* barrier)
 {
-  return caml_atomic_counter_incr(&barrier->arrived);
+  return 1 + atomic_fetch_add(&barrier->arrived, 1);
 }
 
 /* -- Single-sense --
@@ -432,7 +440,8 @@ uintnat caml_mem_round_up_mapping_size(uintnat size);
    caml_plat_pagesize. The size given to caml_mem_unmap and caml_mem_decommit
    must match the size given to caml_mem_map/caml_mem_commit for mem.
 */
-void* caml_mem_map(uintnat size, int reserve_only, const char* name);
+enum { CAML_MAP_RESERVE_ONLY = 1 << 0, CAML_MAP_NO_HUGETLB = 1 << 1 };
+void* caml_mem_map(uintnat size, uintnat flags, const char* name);
 void* caml_mem_commit(void* mem, uintnat size, const char* name);
 void caml_mem_decommit(void* mem, uintnat size, const char* name);
 void caml_mem_unmap(void* mem, uintnat size);

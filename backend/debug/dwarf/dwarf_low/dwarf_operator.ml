@@ -740,7 +740,7 @@ module Size = Make (struct
 end)
 
 module Emit = Make (struct
-  type param = (module Asm_directives.S)
+  type param = Asm_directives_dwarf.t
 
   type result = unit
 

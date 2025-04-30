@@ -73,10 +73,10 @@ Error: This value escapes its region.
 
 (* mutable defaults to mutable(legacy = nonportable), so currently we can't construct a
    portable record (ignoring mode-crossing). *)
-let foo (s @ portable) = ({s} : _ @@ portable)
+let foo (s @ portable) = ({s} : _ @ portable)
 [%%expect{|
 Line 1, characters 26-29:
-1 | let foo (s @ portable) = ({s} : _ @@ portable)
+1 | let foo (s @ portable) = ({s} : _ @ portable)
                               ^^^
 Error: This value is "nonportable" but expected to be "portable".
 |}]
@@ -90,15 +90,15 @@ let foo r (s @ aliased) = r.s <- s
 val foo : 'a r -> 'a -> unit = <fun>
 |}]
 
-let foo (s @ aliased) = ({s} : _ @@ unique)
+let foo (s @ aliased) = ({s} : _ @ unique)
 [%%expect{|
 val foo : 'a -> 'a r = <fun>
 |}]
 
-let foo (r @ unique) = (r.s : _ @@ unique)
+let foo (r @ unique) = (r.s : _ @ unique)
 [%%expect{|
 Line 1, characters 24-27:
-1 | let foo (r @ unique) = (r.s : _ @@ unique)
+1 | let foo (r @ unique) = (r.s : _ @ unique)
                             ^^^
 Error: This value is "aliased" but expected to be "unique".
 |}]
@@ -126,7 +126,7 @@ Error: Signature mismatch:
          "mutable s : string;"
        is not the same as:
          "mutable s : string;"
-       The first is global_ and the second is not.
+       The first is global and the second is not.
 |}]
 
 module M : sig
@@ -152,7 +152,7 @@ Error: Signature mismatch:
          "mutable s : string;"
        is not the same as:
          "mutable s : string;"
-       The second is global_ and the first is not.
+       The second is global and the first is not.
 |}]
 
 type r =
@@ -195,7 +195,7 @@ let r @ portable =
 val r : r = {f = <fun>; g = <fun>}
 |}]
 
-let r : int array @@ portable = [| 42; 24 |]
+let r : int array @ portable = [| 42; 24 |]
 [%%expect{|
 val r : int array = [|42; 24|]
 |}]
@@ -206,7 +206,7 @@ type 'a r =
   { f : string -> string;
     mutable a : 'a
   }
-let r : int r @@ portable =
+let r : int r @ portable =
   { f = (fun x -> x);
     a = 42 }
 [%%expect{|

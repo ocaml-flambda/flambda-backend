@@ -287,18 +287,76 @@ module type S = sig
         with module Const := Const
          and type error := error
          and type 'd t = (Const.t, 'd) mode_comonadic
+
+    val yielding : lr
+
+    val unyielding : lr
+  end
+
+  module Statefulness : sig
+    module Const : sig
+      type t =
+        | Stateless
+        | Observing
+        | Stateful
+
+      include Lattice with type t := t
+    end
+
+    type error = Const.t Solver.error
+
+    include
+      Common
+        with module Const := Const
+         and type error := error
+         and type 'd t = (Const.t, 'd) mode_comonadic
+
+    val stateless : lr
+
+    val observing : lr
+
+    val stateful : lr
+  end
+
+  module Visibility : sig
+    module Const : sig
+      type t =
+        | Immutable
+        | Read
+        | Read_write
+
+      include Lattice with type t := t
+    end
+
+    module Const_op : Lattice with type t = Const.t
+
+    type error = Const.t Solver.error
+
+    include
+      Common
+        with module Const := Const
+         and type error := error
+         and type 'd t = (Const.t, 'd) mode_monadic
+
+    val immutable : lr
+
+    val read : lr
+
+    val read_write : lr
   end
 
   type 'a comonadic_with =
     { areality : 'a;
       linearity : Linearity.Const.t;
       portability : Portability.Const.t;
-      yielding : Yielding.Const.t
+      yielding : Yielding.Const.t;
+      statefulness : Statefulness.Const.t
     }
 
   type monadic =
     { uniqueness : Uniqueness.Const.t;
-      contention : Contention.Const.t
+      contention : Contention.Const.t;
+      visibility : Visibility.Const.t
     }
 
   module Axis : sig
@@ -309,8 +367,10 @@ module type S = sig
       | Linearity : ('areality comonadic_with, Linearity.Const.t) t
       | Portability : ('areality comonadic_with, Portability.Const.t) t
       | Yielding : ('areality comonadic_with, Yielding.Const.t) t
+      | Statefulness : ('areality comonadic_with, Statefulness.Const.t) t
       | Uniqueness : (monadic, Uniqueness.Const.t) t
       | Contention : (monadic, Contention.Const.t) t
+      | Visibility : (monadic, Visibility.Const.t) t
 
     val print : Format.formatter -> ('p, 'r) t -> unit
 
@@ -376,13 +436,15 @@ module type S = sig
 
     val all_axes : ('l * 'r) axis_packed list
 
-    type ('a, 'b, 'c, 'd, 'e, 'f) modes =
+    type ('a, 'b, 'c, 'd, 'e, 'f, 'g, 'h) modes =
       { areality : 'a;
         linearity : 'b;
         uniqueness : 'c;
         portability : 'd;
         contention : 'e;
-        yielding : 'f
+        yielding : 'f;
+        statefulness : 'g;
+        visibility : 'h
       }
 
     module Const : sig
@@ -394,7 +456,9 @@ module type S = sig
               Uniqueness.Const.t,
               Portability.Const.t,
               Contention.Const.t,
-              Yielding.Const.t )
+              Yielding.Const.t,
+              Statefulness.Const.t,
+              Visibility.Const.t )
             modes
 
       module Option : sig
@@ -406,7 +470,9 @@ module type S = sig
             Uniqueness.Const.t option,
             Portability.Const.t option,
             Contention.Const.t option,
-            Yielding.Const.t option )
+            Yielding.Const.t option,
+            Statefulness.Const.t option,
+            Visibility.Const.t option )
           modes
 
         val none : t
@@ -471,9 +537,9 @@ module type S = sig
 
     val meet_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
 
-    val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
-
     val join_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
+
+    val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
     val subtract : Const.t -> ('l * 'r) t -> ('l * disallowed) t
 

@@ -663,7 +663,10 @@ module type S =
   sig
     module N : sig module I = Int end
     module P :
-      sig module I : sig type t = int val compare : 'a -> 'a -> int end end
+      sig
+        module I :
+          sig type t = int val compare : 'a -> 'a -> int @@ portable end
+      end
     module Q :
       sig type wrap' = wrap = W of (Set.Make(Int).t, Set.Make(N.I).t) eq end
   end

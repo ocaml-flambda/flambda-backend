@@ -70,7 +70,7 @@ module Vars = struct
         match insn.desc with
         | Lop (Stackoffset delta) -> t.stack_offset + delta
         | Lpushtrap _ -> t.stack_offset + Proc.trap_frame_size_in_bytes
-        | Lpoptrap -> t.stack_offset - Proc.trap_frame_size_in_bytes
+        | Lpoptrap _ -> t.stack_offset - Proc.trap_frame_size_in_bytes
         | Ladjust_stack_offset { delta_bytes } -> t.stack_offset + delta_bytes
         | Lend | Lprologue | Lop _ | Lcall_op _ | Lreloadretaddr | Lreturn
         | Llabel _ | Lbranch _ | Lcondbranch _ | Lcondbranch3 _ | Lswitch _
@@ -120,7 +120,7 @@ module Vars = struct
           in
           let slot_offset =
             Proc.slot_offset loc
-              ~stack_class:(Proc.stack_slot_class reg.typ)
+              ~stack_class:(Stack_class.of_machtype reg.typ)
               ~stack_offset ~fun_contains_calls ~fun_num_stack_slots
           in
           let offset : Stack_reg_offset.t =

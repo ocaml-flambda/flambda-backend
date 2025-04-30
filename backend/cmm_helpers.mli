@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 open Cmm
 
 val arch_bits : int
@@ -496,12 +498,7 @@ val setfield_computed :
 
 (** [transl_switch_clambda loc kind arg index cases] *)
 val transl_switch_clambda :
-  Debuginfo.t ->
-  Cmm.kind_for_unboxing ->
-  expression ->
-  int array ->
-  expression array ->
-  expression
+  Debuginfo.t -> expression -> int array -> expression array -> expression
 
 (** Method call : [send kind met obj args dbg]
 

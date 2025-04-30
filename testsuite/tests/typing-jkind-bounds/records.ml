@@ -136,6 +136,8 @@ Error: The kind of type "t" is mutable_data with 'a @@ many unyielding
        The first mode-crosses less than the second along:
          contention: mod uncontended ≰ mod contended
          portability: mod portable with 'a ≰ mod portable
+         statefulness: mod stateless with 'a ≰ mod stateless
+         visibility: mod read_write ≰ mod immutable
 |}]
 
 type t : immutable_data = { x : int ref }
@@ -154,7 +156,7 @@ type t : immutable_data = { x : unit -> unit }
 Line 1, characters 0-46:
 1 | type t : immutable_data = { x : unit -> unit }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value mod contended
+Error: The kind of type "t" is value mod immutable
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of immutable_data
          because of the annotation on the declaration of the type t.
@@ -187,7 +189,7 @@ type t : mutable_data = { x : unit -> unit }
 Line 1, characters 0-44:
 1 | type t : mutable_data = { x : unit -> unit }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value mod contended
+Error: The kind of type "t" is value mod immutable
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of mutable_data
          because of the annotation on the declaration of the type t.
@@ -275,6 +277,7 @@ Error: The kind of type "t" is mutable_data with 'a @@ many unyielding
 
        The first mode-crosses less than the second along:
          contention: mod uncontended ≰ mod contended with 'a
+         visibility: mod read_write ≰ mod immutable with 'a
 |}]
 
 type 'a t : immutable_data with 'a = { x : 'a -> 'a }
@@ -282,7 +285,7 @@ type 'a t : immutable_data with 'a = { x : 'a -> 'a }
 Line 1, characters 0-53:
 1 | type 'a t : immutable_data with 'a = { x : 'a -> 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is value mod contended
+Error: The kind of type "t" is value mod immutable
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of immutable_data with 'a
          because of the annotation on the declaration of the type t.
@@ -325,7 +328,7 @@ Error: The kind of type "t" is immutable_data with 'a
 (**** Test 3: Record values cross when appropriate ****)
 
 type t = { x : int }
-let foo (t : t @@ nonportable contended once) =
+let foo (t : t @ nonportable contended once) =
   use_portable t;
   use_uncontended t;
   use_many t
@@ -334,24 +337,24 @@ type t = { x : int; }
 val foo : t @ once contended -> unit = <fun>
 |}]
 
-let foo (t : t @@ local) = use_global t [@nontail]
+let foo (t : t @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 38-39:
-1 | let foo (t : t @@ local) = use_global t [@nontail]
-                                          ^
+Line 1, characters 37-38:
+1 | let foo (t : t @ local) = use_global t [@nontail]
+                                         ^
 Error: This value escapes its region.
 |}]
 
-let foo (t : t @@ aliased) = use_unique t
+let foo (t : t @ aliased) = use_unique t
 [%%expect {|
-Line 1, characters 40-41:
-1 | let foo (t : t @@ aliased) = use_unique t
-                                            ^
+Line 1, characters 39-40:
+1 | let foo (t : t @ aliased) = use_unique t
+                                           ^
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
 type t = { mutable x : int }
-let foo (t : t @@ nonportable once) =
+let foo (t : t @ nonportable once) =
   use_portable t;
   use_many t
 [%%expect {|
@@ -359,32 +362,32 @@ type t = { mutable x : int; }
 val foo : t @ once -> unit = <fun>
 |}]
 
-let foo (t : t @@ local) = use_global t [@nontail]
+let foo (t : t @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 38-39:
-1 | let foo (t : t @@ local) = use_global t [@nontail]
-                                          ^
+Line 1, characters 37-38:
+1 | let foo (t : t @ local) = use_global t [@nontail]
+                                         ^
 Error: This value escapes its region.
 |}]
 
-let foo (t : t @@ aliased) = use_unique t
+let foo (t : t @ aliased) = use_unique t
 [%%expect {|
-Line 1, characters 40-41:
-1 | let foo (t : t @@ aliased) = use_unique t
-                                            ^
+Line 1, characters 39-40:
+1 | let foo (t : t @ aliased) = use_unique t
+                                           ^
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
-let foo (t : t @@ contended) = use_uncontended t
+let foo (t : t @ contended) = use_uncontended t
 [%%expect {|
-Line 1, characters 47-48:
-1 | let foo (t : t @@ contended) = use_uncontended t
-                                                   ^
+Line 1, characters 46-47:
+1 | let foo (t : t @ contended) = use_uncontended t
+                                                  ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 type 'a t = { x : 'a }
-let foo (t : int t @@ nonportable contended once) =
+let foo (t : int t @ nonportable contended once) =
   use_portable t;
   use_uncontended t;
   use_many t
@@ -393,67 +396,67 @@ type 'a t = { x : 'a; }
 val foo : int t @ once contended -> unit = <fun>
 |}]
 
-let foo (t : int t @@ local) = use_global t [@nontail]
+let foo (t : int t @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 42-43:
-1 | let foo (t : int t @@ local) = use_global t [@nontail]
-                                              ^
+Line 1, characters 41-42:
+1 | let foo (t : int t @ local) = use_global t [@nontail]
+                                             ^
 Error: This value escapes its region.
 |}]
 
-let foo (t : int t @@ aliased) = use_unique t
+let foo (t : int t @ aliased) = use_unique t
 [%%expect {|
-Line 1, characters 44-45:
-1 | let foo (t : int t @@ aliased) = use_unique t
-                                                ^
+Line 1, characters 43-44:
+1 | let foo (t : int t @ aliased) = use_unique t
+                                               ^
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
 type 'a t = { x : 'a }
 
-let foo (t : _ t @@ nonportable) = use_portable t
+let foo (t : _ t @ nonportable) = use_portable t
 [%%expect {|
 type 'a t = { x : 'a; }
-Line 3, characters 48-49:
-3 | let foo (t : _ t @@ nonportable) = use_portable t
-                                                    ^
+Line 3, characters 47-48:
+3 | let foo (t : _ t @ nonportable) = use_portable t
+                                                   ^
 Error: This value is "nonportable" but expected to be "portable".
 |}]
 
-let foo (t : _ t @@ contended) = use_uncontended t
+let foo (t : _ t @ contended) = use_uncontended t
 [%%expect {|
-Line 1, characters 49-50:
-1 | let foo (t : _ t @@ contended) = use_uncontended t
-                                                     ^
+Line 1, characters 48-49:
+1 | let foo (t : _ t @ contended) = use_uncontended t
+                                                    ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
-let foo (t : _ t @@ once) = use_many t
+let foo (t : _ t @ once) = use_many t
 [%%expect {|
-Line 1, characters 37-38:
-1 | let foo (t : _ t @@ once) = use_many t
-                                         ^
+Line 1, characters 36-37:
+1 | let foo (t : _ t @ once) = use_many t
+                                        ^
 Error: This value is "once" but expected to be "many".
 |}]
 
-let foo (t : _ t @@ local) = use_global t [@nontail]
+let foo (t : _ t @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 40-41:
-1 | let foo (t : _ t @@ local) = use_global t [@nontail]
-                                            ^
+Line 1, characters 39-40:
+1 | let foo (t : _ t @ local) = use_global t [@nontail]
+                                           ^
 Error: This value escapes its region.
 |}]
 
-let foo (t : _ t @@ aliased) = use_unique t
+let foo (t : _ t @ aliased) = use_unique t
 [%%expect {|
-Line 1, characters 42-43:
-1 | let foo (t : _ t @@ aliased) = use_unique t
-                                              ^
+Line 1, characters 41-42:
+1 | let foo (t : _ t @ aliased) = use_unique t
+                                             ^
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
 type 'a t = { x : 'a }
-let foo (t : ('a : immutable_data) t @@ nonportable contended once) =
+let foo (t : ('a : immutable_data) t @ nonportable contended once) =
   use_portable t;
   use_uncontended t;
   use_many t
@@ -469,24 +472,24 @@ Line 3, characters 15-16:
 Error: This value is "once" but expected to be "many".
 |}]
 
-let foo (t : ('a : immutable_data) t @@ local) = use_global t [@nontail]
+let foo (t : ('a : immutable_data) t @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 60-61:
-1 | let foo (t : ('a : immutable_data) t @@ local) = use_global t [@nontail]
-                                                                ^
+Line 1, characters 59-60:
+1 | let foo (t : ('a : immutable_data) t @ local) = use_global t [@nontail]
+                                                               ^
 Error: This value escapes its region.
 |}]
 
-let foo (t : ('a : immutable_data) t @@ aliased) = use_unique t
+let foo (t : ('a : immutable_data) t @ aliased) = use_unique t
 [%%expect {|
-Line 1, characters 62-63:
-1 | let foo (t : ('a : immutable_data) t @@ aliased) = use_unique t
-                                                                  ^
+Line 1, characters 61-62:
+1 | let foo (t : ('a : immutable_data) t @ aliased) = use_unique t
+                                                                 ^
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
 type ('a : immutable_data) t = { x : 'a }
-let foo (t : _ t @@ nonportable contended once) =
+let foo (t : _ t @ nonportable contended once) =
   use_portable t;
   use_uncontended t;
   use_many t
@@ -502,34 +505,34 @@ Line 3, characters 15-16:
 Error: This value is "once" but expected to be "many".
 |}]
 
-let foo (t : _ t @@ local) = use_global t [@nontail]
+let foo (t : _ t @ local) = use_global t [@nontail]
 [%%expect {|
-Line 1, characters 40-41:
-1 | let foo (t : _ t @@ local) = use_global t [@nontail]
-                                            ^
+Line 1, characters 39-40:
+1 | let foo (t : _ t @ local) = use_global t [@nontail]
+                                           ^
 Error: This value escapes its region.
 |}]
 
-let foo (t : _ t @@ aliased) = use_unique t
+let foo (t : _ t @ aliased) = use_unique t
 [%%expect {|
-Line 1, characters 42-43:
-1 | let foo (t : _ t @@ aliased) = use_unique t
-                                              ^
+Line 1, characters 41-42:
+1 | let foo (t : _ t @ aliased) = use_unique t
+                                             ^
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
 type 'a t = { x : 'a }
-let foo (t : (unit -> unit) t @@ contended) = use_uncontended t
+let foo (t : (unit -> unit) t @ contended) = use_uncontended t
 [%%expect {|
 type 'a t = { x : 'a; }
 val foo : (unit -> unit) t @ contended -> unit = <fun>
 |}]
 
-let foo (t : (unit -> unit) t @@ nonportable) = use_portable t
+let foo (t : (unit -> unit) t @ nonportable) = use_portable t
 [%%expect {|
-Line 1, characters 61-62:
-1 | let foo (t : (unit -> unit) t @@ nonportable) = use_portable t
-                                                                 ^
+Line 1, characters 60-61:
+1 | let foo (t : (unit -> unit) t @ nonportable) = use_portable t
+                                                                ^
 Error: This value is "nonportable" but expected to be "portable".
 |}]
 
@@ -622,7 +625,7 @@ Line 1, characters 24-28:
                             ^^^^
 Error: This expression has type "(unit -> unit) t"
        but an expression was expected of type "('a : value mod portable)"
-       The kind of (unit -> unit) t is value mod contended
+       The kind of (unit -> unit) t is value mod immutable
          because of the definition of t at line 1, characters 0-22.
        But the kind of (unit -> unit) t must be a subkind of
          value mod portable
@@ -647,7 +650,7 @@ Line 1, characters 24-28:
                             ^^^^
 Error: This expression has type "(unit -> unit) t"
        but an expression was expected of type "('a : value mod external_)"
-       The kind of (unit -> unit) t is value mod contended
+       The kind of (unit -> unit) t is value mod immutable
          because of the definition of t at line 1, characters 0-22.
        But the kind of (unit -> unit) t must be a subkind of
          value mod external_
@@ -742,7 +745,7 @@ Line 1, characters 14-30:
                   ^^^^^^^^^^^^^^^^
 Error: This type "(unit -> unit) t" should be an instance of type
          "('a : value mod portable)"
-       The kind of (unit -> unit) t is value mod contended
+       The kind of (unit -> unit) t is value mod immutable
          because of the definition of t at line 1, characters 0-22.
        But the kind of (unit -> unit) t must be a subkind of
          value mod portable

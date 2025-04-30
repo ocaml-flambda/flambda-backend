@@ -370,7 +370,7 @@ end
 module M : sig type 'a t : immutable_data with 'a @@ portable end
 |}]
 
-type t : immutable_data with int ref @@ contended
+type t : immutable_data with int ref @@ immutable
 
 module type S = sig
   type t : immutable_data

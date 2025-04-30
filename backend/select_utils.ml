@@ -18,34 +18,46 @@
 
 open! Int_replace_polymorphic_compare
 
-[@@@ocaml.warning "+a-4-9-40-41-42"]
+[@@@ocaml.warning "+a-4-40-41-42"]
 
 open Cmm
+module DLL = Flambda_backend_utils.Doubly_linked_list
 module Int = Numbers.Int
 module V = Backend_var
 module VP = Backend_var.With_provenance
 
+module Or_never_returns = struct
+  type 'a t =
+    | Ok of 'a
+    | Never_returns
+
+  module Syntax = struct
+    let ( let* ) x f =
+      match x with Never_returns -> Never_returns | Ok x -> f x
+
+    let ( let** ) x f = match x with Never_returns -> () | Ok x -> f x
+  end
+end
+
 type trap_stack_info =
   | Unreachable
-  | Reachable of Simple_operation.trap_stack
+  | Reachable of Operation.trap_stack
 
-type 'a static_handler =
+type static_handler =
   { regs : Reg.t array list;
     traps_ref : trap_stack_info ref;
-    extra : 'a
+    label : Label.t
   }
 
-type 'a environment =
+type environment =
   { vars :
       (Reg.t array * Backend_var.Provenance.t option * Asttypes.mutable_flag)
       V.Map.t;
-    static_exceptions : 'a static_handler Int.Map.t;
+    static_exceptions : static_handler Int.Map.t;
         (** Which registers must be populated when jumping to the given
         handler. *)
-    trap_stack : Simple_operation.trap_stack;
-    regs_for_exception_extra_args : Reg.t array Int.Map.t
-        (** For each exception handler, any registers that are to be used to hold
-            extra arguments. *)
+    trap_stack : Operation.trap_stack;
+    tailrec_label : Label.t
   }
 
 let env_add ?(mut = Asttypes.Immutable) var regs env =
@@ -53,9 +65,9 @@ let env_add ?(mut = Asttypes.Immutable) var regs env =
   let var = VP.var var in
   { env with vars = V.Map.add var (regs, provenance, mut) env.vars }
 
-let env_add_static_exception id v env extra =
+let env_add_static_exception id v env label =
   let r = ref Unreachable in
-  let s : _ static_handler = { regs = v; traps_ref = r; extra } in
+  let s : static_handler = { regs = v; traps_ref = r; label } in
   { env with static_exceptions = Int.Map.add id s env.static_exceptions }, r
 
 let env_find id env =
@@ -70,41 +82,34 @@ let env_find_mut id env =
     Misc.fatal_errorf "Selectgen.env_find_mut: %a is not mutable" V.print id);
   regs, provenance
 
-let env_add_regs_for_exception_extra_args id extra_args env =
-  { env with
-    regs_for_exception_extra_args =
-      Int.Map.add id extra_args env.regs_for_exception_extra_args
-  }
-
 let env_find_regs_for_exception_extra_args id env =
-  try Int.Map.find id env.regs_for_exception_extra_args
-  with Not_found ->
+  match Int.Map.find id env.static_exceptions with
+  | { regs = _exn :: extra_args; _ } -> extra_args
+  | { regs = []; _ } ->
+    Misc.fatal_errorf "Exception handler for continuation %d has no parameters"
+      id
+  | exception Not_found ->
     Misc.fatal_errorf
       "Could not find exception extra args registers for continuation %d" id
 
-let _env_find_with_provenance id env = V.Map.find id env.vars
-
-let env_find_static_exception id env = Int.Map.find id env.static_exceptions
-
-let env_enter_trywith env id extra =
-  let env, _ = env_add_static_exception id [] env extra in
-  env
+let env_find_static_exception id env =
+  try Int.Map.find id env.static_exceptions
+  with Not_found -> Misc.fatal_errorf "Not found static exception id=%d" id
 
 let env_set_trap_stack env trap_stack = { env with trap_stack }
 
 let rec combine_traps trap_stack = function
   | [] -> trap_stack
-  | Push t :: l ->
-    combine_traps (Simple_operation.Specific_trap (t, trap_stack)) l
+  | Push t :: l -> combine_traps (Operation.Specific_trap (t, trap_stack)) l
   | Pop _ :: l -> (
-    match (trap_stack : Simple_operation.trap_stack) with
+    match (trap_stack : Operation.trap_stack) with
     | Uncaught -> Misc.fatal_error "Trying to pop a trap from an empty stack"
     | Specific_trap (_, ts) -> combine_traps ts l)
 
 let print_traps ppf traps =
   let rec print_traps ppf = function
-    | Simple_operation.Uncaught -> Format.fprintf ppf "T"
-    | Simple_operation.Specific_trap (lbl, ts) ->
+    | Operation.Uncaught -> Format.fprintf ppf "T"
+    | Operation.Specific_trap (lbl, ts) ->
       Format.fprintf ppf "%d::%a" lbl print_traps ts
   in
   Format.fprintf ppf "(%a)" print_traps traps
@@ -116,7 +121,7 @@ let set_traps nfail traps_ref base_traps exit_traps =
     (* Format.eprintf "Traps for %d set to %a@." nfail print_traps traps; *)
     traps_ref := Reachable traps
   | Reachable prev_traps ->
-    if Stdlib.( <> ) prev_traps traps
+    if not (Operation.equal_trap_stack prev_traps traps)
     then
       Misc.fatal_errorf
         "Mismatching trap stacks for continuation %d@.Previous traps: %a@.New \
@@ -139,20 +144,20 @@ let trap_stack_is_empty env =
 
 let pop_all_traps env =
   let rec pop_all acc = function
-    | Simple_operation.Uncaught -> acc
-    | Simple_operation.Specific_trap (lbl, t) -> pop_all (Pop lbl :: acc) t
+    | Operation.Uncaught -> acc
+    | Operation.Specific_trap (lbl, t) -> pop_all (Pop lbl :: acc) t
   in
-  pop_all [] env.trap_stack
+  pop_all [] env.trap_stack |> List.rev
 
-let env_empty =
+let env_create ~tailrec_label =
   { vars = V.Map.empty;
     static_exceptions = Int.Map.empty;
     trap_stack = Uncaught;
-    regs_for_exception_extra_args = Int.Map.empty
+    tailrec_label
   }
 
-let select_mutable_flag : Asttypes.mutable_flag -> Simple_operation.mutable_flag
-    = function
+let select_mutable_flag : Asttypes.mutable_flag -> Operation.mutable_flag =
+  function
   | Immutable -> Immutable
   | Mutable -> Mutable
 
@@ -160,8 +165,8 @@ let select_mutable_flag : Asttypes.mutable_flag -> Simple_operation.mutable_flag
 
 let oper_result_type = function
   | Capply (ty, _) -> ty
-  | Cextcall { ty; ty_args = _; alloc = _; func = _ } -> ty
-  | Cload { memory_chunk } -> (
+  | Cextcall { ty; ty_args = _; alloc = _; func = _; _ } -> ty
+  | Cload { memory_chunk; _ } -> (
     match memory_chunk with
     | Word_val -> typ_val
     | Single { reg = Float64 } | Double -> typ_float
@@ -251,7 +256,7 @@ let size_machtype mty =
   done;
   !size
 
-let size_expr (env : _ environment) exp =
+let size_expr env exp =
   let rec size localenv = function
     | Cconst_int _ | Cconst_natint _ -> Arch.size_int
     | Cconst_symbol _ -> Arch.size_addr
@@ -282,29 +287,8 @@ let size_expr (env : _ environment) exp =
 (* Swap the two arguments of an integer comparison *)
 
 let swap_intcomp = function
-  | Simple_operation.Isigned cmp ->
-    Simple_operation.Isigned (swap_integer_comparison cmp)
-  | Simple_operation.Iunsigned cmp ->
-    Simple_operation.Iunsigned (swap_integer_comparison cmp)
-
-(* Naming of registers *)
-
-let all_regs_anonymous rv =
-  try
-    for i = 0 to Array.length rv - 1 do
-      if not (Reg.anonymous rv.(i)) then raise Exit
-    done;
-    true
-  with Exit -> false
-
-let name_regs id rv =
-  let id = VP.var id in
-  if Array.length rv = 1
-  then rv.(0).Reg.raw_name <- Reg.Raw_name.create_from_var id
-  else
-    for i = 0 to Array.length rv - 1 do
-      rv.(i).Reg.raw_name <- Reg.Raw_name.create_from_var id
-    done
+  | Operation.Isigned cmp -> Operation.Isigned (swap_integer_comparison cmp)
+  | Operation.Iunsigned cmp -> Operation.Iunsigned (swap_integer_comparison cmp)
 
 (* Name of function being compiled *)
 let current_function_name = ref ""
@@ -398,695 +382,342 @@ let select_effects (e : Cmm.effects) : Effect.t =
 let select_coeffects (e : Cmm.coeffects) : Coeffect.t =
   match e with No_coeffects -> None | Has_coeffects -> Arbitrary
 
-class virtual ['env, 'op, 'instr] common_selector =
-  object (self : 'self)
-    method virtual is_store : 'op -> bool
+let float_test_of_float_comparison :
+    Cmm.float_width ->
+    Cmm.float_comparison ->
+    label_false:Label.t ->
+    label_true:Label.t ->
+    Cfg.float_test =
+ fun width comparison ~label_false ~label_true ->
+  let lt, eq, gt, uo =
+    match comparison with
+    | CFeq -> label_false, label_true, label_false, label_false
+    | CFneq -> label_true, label_false, label_true, label_true
+    | CFlt -> label_true, label_false, label_false, label_false
+    | CFnlt -> label_false, label_true, label_true, label_true
+    | CFgt -> label_false, label_false, label_true, label_false
+    | CFngt -> label_true, label_true, label_false, label_true
+    | CFle -> label_true, label_true, label_false, label_false
+    | CFnle -> label_false, label_false, label_true, label_true
+    | CFge -> label_false, label_true, label_true, label_false
+    | CFnge -> label_true, label_false, label_false, label_true
+  in
+  { width; lt; eq; gt; uo }
 
-    method virtual lift_op : 'op -> 'instr
+let int_test_of_integer_comparison :
+    Cmm.integer_comparison ->
+    signed:bool ->
+    immediate:int option ->
+    label_false:Label.t ->
+    label_true:Label.t ->
+    Cfg.int_test =
+ fun comparison ~signed:is_signed ~immediate:imm ~label_false ~label_true ->
+  let lt, eq, gt =
+    match comparison with
+    | Ceq -> label_false, label_true, label_false
+    | Cne -> label_true, label_false, label_true
+    | Clt -> label_true, label_false, label_false
+    | Cgt -> label_false, label_false, label_true
+    | Cle -> label_true, label_true, label_false
+    | Cge -> label_false, label_true, label_true
+  in
+  { lt; eq; gt; is_signed; imm }
 
-    method virtual make_store
-        : Cmm.memory_chunk -> Arch.addressing_mode -> bool -> 'instr
+let terminator_of_test :
+    Operation.test ->
+    label_false:Label.t ->
+    label_true:Label.t ->
+    Cfg.terminator =
+ fun test ~label_false ~label_true ->
+  let int_test comparison immediate =
+    let signed, comparison =
+      match comparison with
+      | Operation.Isigned comparison -> true, comparison
+      | Operation.Iunsigned comparison -> false, comparison
+    in
+    int_test_of_integer_comparison comparison ~signed ~immediate ~label_false
+      ~label_true
+  in
+  match test with
+  | Itruetest -> Truth_test { ifso = label_true; ifnot = label_false }
+  | Ifalsetest -> Truth_test { ifso = label_false; ifnot = label_true }
+  | Iinttest comparison -> Int_test (int_test comparison None)
+  | Iinttest_imm (comparison, value) ->
+    Int_test (int_test comparison (Some value))
+  | Ifloattest (w, comparison) ->
+    Float_test
+      (float_test_of_float_comparison w comparison ~label_false ~label_true)
+  | Ioddtest -> Parity_test { ifso = label_false; ifnot = label_true }
+  | Ieventest -> Parity_test { ifso = label_true; ifnot = label_false }
 
-    method virtual make_stack_offset : int -> 'instr
+module Stack_offset_and_exn = struct
+  (* This module relies on the field `can_raise` of basic blocks but does not
+     rely on this field of individual Cfg instructions. This may need to be
+     revisited when we remove dead trap handlers and the associated
+     pushtrap/poptrap operations. *)
+  type handler_stack = Label.t list
 
-    method virtual make_name_for_debugger
-        : ident:V.t ->
-          which_parameter:int option ->
-          provenance:V.Provenance.t option ->
-          is_assignment:bool ->
-          regs:Reg.t array ->
-          'instr
+  let fun_name = ref ""
 
-    method virtual make_const_int : nativeint -> 'op
+  let compute_stack_offset ~stack_offset ~traps =
+    stack_offset + (Proc.trap_size_in_bytes * List.length traps)
 
-    method virtual make_const_float32 : int32 -> 'op
+  let check_and_set_stack_offset :
+      'a Cfg.instruction -> stack_offset:int -> traps:handler_stack -> unit =
+   fun instr ~stack_offset ~traps ->
+    assert (instr.stack_offset = Cfg.invalid_stack_offset);
+    Cfg.set_stack_offset instr (compute_stack_offset ~stack_offset ~traps)
 
-    method virtual make_const_float : int64 -> 'op
+  let process_terminator :
+      stack_offset:int ->
+      traps:handler_stack ->
+      Cfg.terminator Cfg.instruction ->
+      int * handler_stack =
+   fun ~stack_offset ~traps term ->
+    check_and_set_stack_offset term ~stack_offset ~traps;
+    match term.desc with
+    | Tailcall_self _
+      when stack_offset <> 0 || List.compare_length_with traps 0 <> 0 ->
+      Misc.fatal_errorf
+        "Cfgize.Stack_offset_and_exn.process_terminator: unexpected handler on \
+         self tailcall (id=%a)"
+        InstructionId.format term.id
+    | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
+    | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
+    | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ ->
+      stack_offset, traps
 
-    method virtual make_const_vec128 : vec128_bits -> 'op
+  let rec process_basic :
+      Cfg.t ->
+      stack_offset:int ->
+      traps:handler_stack ->
+      Cfg.basic Cfg.instruction ->
+      int * handler_stack =
+   fun cfg ~stack_offset ~traps instr ->
+    check_and_set_stack_offset instr ~stack_offset ~traps;
+    match instr.desc with
+    | Pushtrap { lbl_handler } ->
+      update_block cfg lbl_handler ~stack_offset ~traps;
+      stack_offset, lbl_handler :: traps
+    | Poptrap { lbl_handler } -> (
+      match traps with
+      | [] ->
+        Misc.fatal_errorf
+          "Cfgize.Stack_offset_and_exn.process_basic: trying to pop from an \
+           empty stack (id=%a)"
+          InstructionId.format instr.id
+      | top_trap :: traps ->
+        (* CR-soon gyorsh: investigate why this check sometimes fails. *)
+        if not (Label.equal lbl_handler top_trap)
+        then
+          Misc.fatal_errorf
+            "Cfgize.Stack_offset_and_exn.process_basic: poptrap label %a does \
+             not match top of trap stack %a (stack_offset = %d) in CFG of %s\n"
+            Label.print lbl_handler Label.print top_trap stack_offset !fun_name;
+        stack_offset, traps)
+    | Op (Stackoffset n) -> stack_offset + n, traps
+    | Op
+        ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_float32 _
+        | Const_symbol _ | Const_vec128 _ | Load _ | Store _ | Intop _
+        | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Static_cast _
+        | Reinterpret_cast _ | Probe_is_enabled _ | Opaque | Begin_region
+        | End_region | Specific _ | Name_for_debugger _ | Dls_get | Poll
+        | Alloc _ )
+    | Reloadretaddr | Prologue ->
+      stack_offset, traps
+    | Stack_check _ ->
+      Misc.fatal_error
+        "Cfgize.Stack_offset_and_exn.process_basic: unexpected stack check"
 
-    method virtual make_const_symbol : symbol -> 'op
+  (* The argument [stack_offset] has a different meaning from the field
+     [stack_offset] of Cfg's basic_blocks and instructions. The argument
+     [stack_offset] refers to the offset derived from Istackoffset operations
+     only, whereas the field also includes the trap stack depth in bytes. Both
+     are non-negative. See [compute_stack_offset]. *)
+  and update_block :
+      Cfg.t -> Label.t -> stack_offset:int -> traps:handler_stack -> unit =
+   fun cfg label ~stack_offset ~traps ->
+    let block = Cfg.get_block_exn cfg label in
+    let was_invalid =
+      if block.stack_offset = Cfg.invalid_stack_offset
+      then true
+      else (
+        assert (block.stack_offset = compute_stack_offset ~stack_offset ~traps);
+        false)
+    in
+    if was_invalid
+    then (
+      block.stack_offset <- compute_stack_offset ~stack_offset ~traps;
+      let stack_offset, traps =
+        DLL.fold_left block.body ~init:(stack_offset, traps)
+          ~f:(fun (stack_offset, traps) instr ->
+            process_basic cfg ~stack_offset ~traps instr)
+      in
+      let stack_offset, traps =
+        process_terminator ~stack_offset ~traps block.terminator
+      in
+      (* non-exceptional successors *)
+      Label.Set.iter
+        (update_block cfg ~stack_offset ~traps)
+        (Cfg.successor_labels ~normal:true ~exn:false block);
+      (* exceptional successor *)
+      if block.can_raise
+      then (
+        assert (Option.is_none block.exn);
+        match traps with
+        | [] -> ()
+        | handler_label :: _ -> block.exn <- Some handler_label))
 
-    method virtual make_opaque : unit -> 'op
+  let update_cfg : Cfg.t -> unit =
+   fun cfg ->
+    fun_name := cfg.fun_name;
+    update_block cfg cfg.entry_label ~stack_offset:0 ~traps:[]
+end
 
-    (* A syntactic criterion used in addition to judgements about (co)effects as
-       to whether the evaluation of a given expression may be deferred by
-       [emit_parts]. This criterion is a property of the instruction selection
-       algorithm in this file rather than a property of the Cmm language. *)
-    method is_simple_expr =
-      function
-      | Cconst_int _ -> true
-      | Cconst_natint _ -> true
-      | Cconst_float32 _ -> true
-      | Cconst_float _ -> true
-      | Cconst_symbol _ -> true
-      | Cconst_vec128 _ -> true
-      | Cvar _ -> true
-      | Ctuple el -> List.for_all self#is_simple_expr el
-      | Clet (_id, arg, body) ->
-        self#is_simple_expr arg && self#is_simple_expr body
-      | Cphantom_let (_var, _defining_expr, body) -> self#is_simple_expr body
-      | Csequence (e1, e2) -> self#is_simple_expr e1 && self#is_simple_expr e2
-      | Cop (op, args, _) -> (
-        match op with
-        (* Cextcall with neither effects nor coeffects is simple if its
-           arguments are *)
-        | Cextcall { effects = No_effects; coeffects = No_coeffects } ->
-          List.for_all self#is_simple_expr args
-          (* The following may have side effects *)
-        | Capply _ | Cextcall _ | Calloc _ | Cstore _ | Craise _ | Catomic _
-        | Cprobe _ | Cprobe_is_enabled _ | Copaque | Cpoll ->
-          false
-        | Cprefetch _ | Cbeginregion | Cendregion ->
-          false
-          (* avoid reordering *)
-          (* The remaining operations are simple if their args are *)
-        | Cload _ | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi | Cand
-        | Cor | Cxor | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _
-        | Cnegf _ | Cclz _ | Cctz _ | Cpopcnt | Cbswap _ | Ccsel _ | Cabsf _
-        | Caddf _ | Csubf _ | Cmulf _ | Cdivf _ | Cpackf32 | Creinterpret_cast _
-        | Cstatic_cast _ | Ctuple_field _ | Ccmpf _ | Cdls_get ->
-          List.for_all self#is_simple_expr args)
-      | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ -> false
+let make_stack_offset stack_ofs = Cfg.Op (Stackoffset stack_ofs)
 
-    (* Analyses the effects and coeffects of an expression. This is used across
-       a whole list of expressions with a view to determining which expressions
-       may have their evaluation deferred. The result of this function, modulo
-       target-specific judgements if the [effects_of] method is overridden, is a
-       property of the Cmm language rather than anything particular about the
-       instruction selection algorithm in this file.
+let make_name_for_debugger ~ident ~which_parameter ~provenance ~is_assignment
+    ~regs =
+  Cfg.Op
+    (Operation.Name_for_debugger
+       { ident; which_parameter; provenance; is_assignment; regs })
 
-       In the case of e.g. an OCaml function call, the arguments whose
-       evaluation cannot be deferred (cf. [emit_parts], below) are computed in
-       right-to-left order first with their results going into temporaries, then
-       the block is allocated, then the remaining arguments are evaluated before
-       being combined with the temporaries. *)
-    method effects_of exp =
-      let module EC = Effect_and_coeffect in
-      match exp with
-      | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
-      | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ ->
-        EC.none
-      | Ctuple el -> EC.join_list_map el self#effects_of
-      | Clet (_id, arg, body) ->
-        EC.join (self#effects_of arg) (self#effects_of body)
-      | Cphantom_let (_var, _defining_expr, body) -> self#effects_of body
-      | Csequence (e1, e2) -> EC.join (self#effects_of e1) (self#effects_of e2)
-      | Cifthenelse (cond, _ifso_dbg, ifso, _ifnot_dbg, ifnot, _dbg, _kind) ->
-        EC.join (self#effects_of cond)
-          (EC.join (self#effects_of ifso) (self#effects_of ifnot))
-      | Cop (op, args, _) ->
-        let from_op =
-          match op with
-          | Cextcall { effects = e; coeffects = ce } ->
-            EC.create (select_effects e) (select_coeffects ce)
-          | Capply _ | Cprobe _ | Copaque | Cpoll -> EC.arbitrary
-          | Calloc (Heap, _) -> EC.none
-          | Calloc (Local, _) -> EC.coeffect_only Coeffect.Arbitrary
-          | Cstore _ -> EC.effect_only Effect.Arbitrary
-          | Cbeginregion | Cendregion -> EC.arbitrary
-          | Cprefetch _ -> EC.arbitrary
-          | Catomic _ -> EC.arbitrary
-          | Craise _ -> EC.effect_only Effect.Raise
-          | Cload { mutability = Asttypes.Immutable } -> EC.none
-          | Cload { mutability = Asttypes.Mutable } | Cdls_get ->
-            EC.coeffect_only Coeffect.Read_mutable
-          | Cprobe_is_enabled _ -> EC.coeffect_only Coeffect.Arbitrary
-          | Ctuple_field _ | Caddi | Csubi | Cmuli | Cmulhi _ | Cdivi | Cmodi
-          | Cand | Cor | Cxor | Cbswap _ | Ccsel _ | Cclz _ | Cctz _ | Cpopcnt
-          | Clsl | Clsr | Casr | Ccmpi _ | Caddv | Cadda | Ccmpa _ | Cnegf _
-          | Cabsf _ | Caddf _ | Csubf _ | Cmulf _ | Cdivf _ | Cpackf32
-          | Creinterpret_cast _ | Cstatic_cast _ | Ccmpf _ ->
-            EC.none
+let make_const_int x = Operation.Const_int x
+
+let make_const_float32 x = Operation.Const_float32 x
+
+let make_const_float x = Operation.Const_float x
+
+let make_const_vec128 x = Operation.Const_vec128 x
+
+let make_const_symbol x = Operation.Const_symbol x
+
+let make_opaque () = Operation.Opaque
+
+let insert_debug (_env : environment) sub_cfg basic dbg arg res =
+  Sub_cfg.add_instruction sub_cfg basic arg res dbg
+
+let insert_op_debug_returning_id (_env : environment) sub_cfg op dbg arg res =
+  let instr = Cfg.make_instr (Cfg.Op op) arg res dbg in
+  Sub_cfg.add_instruction' sub_cfg instr;
+  instr.id
+
+let insert (_env : environment) sub_cfg basic arg res =
+  (* CR mshinwell: fix debuginfo *)
+  Sub_cfg.add_instruction sub_cfg basic arg res Debuginfo.none
+
+let insert' (_env : environment) sub_cfg term arg res =
+  (* CR mshinwell: fix debuginfo *)
+  Sub_cfg.set_terminator sub_cfg term arg res Debuginfo.none
+
+let insert_debug' (_env : environment) sub_cfg basic dbg arg res =
+  Sub_cfg.set_terminator sub_cfg basic arg res dbg
+
+let insert_op_debug' (_env : environment) sub_cfg op dbg rs rd =
+  Sub_cfg.set_terminator sub_cfg op rs rd dbg;
+  rd
+
+let insert_move env sub_cfg src dst =
+  (* This should never be called on regs with incompatible [typ]s, but the
+     zero-alloc checker may unconditionally assume the result of
+     caml_flambda2_invalid is typ_int. *)
+  if not (Reg.same src dst)
+  then insert env sub_cfg (Op Move) [| src |] [| dst |]
+
+let insert_moves env sub_cfg src dst =
+  for i = 0 to min (Array.length src) (Array.length dst) - 1 do
+    insert_move env sub_cfg src.(i) dst.(i)
+  done
+
+(* Insert moves and stack offsets for function arguments and results *)
+
+let insert_move_args env sub_cfg arg loc stacksize =
+  if stacksize <> 0
+  then insert env sub_cfg (make_stack_offset stacksize) [||] [||];
+  insert_moves env sub_cfg arg loc
+
+let insert_move_results env sub_cfg loc res stacksize =
+  insert_moves env sub_cfg loc res;
+  if stacksize <> 0
+  then insert env sub_cfg (make_stack_offset (-stacksize)) [||] [||]
+
+let maybe_emit_naming_op env sub_cfg ~bound_name regs =
+  match bound_name with
+  | None -> ()
+  | Some bound_name ->
+    let provenance = Backend_var.With_provenance.provenance bound_name in
+    if Option.is_some provenance
+    then
+      let bound_name = Backend_var.With_provenance.var bound_name in
+      let naming_op =
+        Operation.Name_for_debugger
+          { ident = bound_name;
+            provenance;
+            which_parameter = None;
+            is_assignment = false;
+            regs
+          }
+      in
+      insert_debug env sub_cfg (Cfg.Op naming_op) Debuginfo.none [||] [||]
+
+let join env (opt_r1 : _ Or_never_returns.t) sub_cfg1
+    (opt_r2 : _ Or_never_returns.t) sub_cfg2 ~bound_name : _ Or_never_returns.t
+    =
+  let maybe_emit_naming_op sub_cfg =
+    maybe_emit_naming_op env sub_cfg ~bound_name
+  in
+  match opt_r1, opt_r2 with
+  | Never_returns, _ -> opt_r2
+  | _, Never_returns -> opt_r1
+  | Ok r1, Ok r2 ->
+    let l1 = Array.length r1 in
+    assert (l1 = Array.length r2);
+    let r = Array.make l1 Reg.dummy in
+    for i = 0 to l1 - 1 do
+      let typ = Cmm.lub_component r1.(i).Reg.typ r2.(i).Reg.typ in
+      r.(i) <- Reg.create typ;
+      insert_move env sub_cfg1 r1.(i) r.(i);
+      maybe_emit_naming_op sub_cfg1 [| r.(i) |];
+      insert_move env sub_cfg2 r2.(i) r.(i);
+      maybe_emit_naming_op sub_cfg2 [| r.(i) |]
+    done;
+    Ok r
+
+let join_array env rs ~bound_name : _ Or_never_returns.t =
+  let maybe_emit_naming_op sub_cfg =
+    maybe_emit_naming_op env sub_cfg ~bound_name
+  in
+  let some_res = ref Or_never_returns.Never_returns in
+  for i = 0 to Array.length rs - 1 do
+    let r, _ = rs.(i) in
+    match (r : _ Or_never_returns.t) with
+    | Never_returns -> ()
+    | Ok r -> (
+      match !some_res with
+      | Never_returns ->
+        some_res := Or_never_returns.Ok (r, Array.map (fun r -> r.Reg.typ) r)
+      | Ok (r', types) ->
+        let types =
+          Array.map2 (fun r typ -> Cmm.lub_component r.Reg.typ typ) r types
         in
-        EC.join from_op (EC.join_list_map args self#effects_of)
-      | Cswitch _ | Ccatch _ | Cexit _ | Ctrywith _ -> EC.arbitrary
+        some_res := Or_never_returns.Ok (r', types))
+  done;
+  match !some_res with
+  | Never_returns -> Never_returns
+  | Ok (template, types) ->
+    let size_res = Array.length template in
+    let res = Array.make size_res Reg.dummy in
+    for i = 0 to size_res - 1 do
+      res.(i) <- Reg.create types.(i)
+    done;
+    for i = 0 to Array.length rs - 1 do
+      let r, sub_cfg = rs.(i) in
+      match (r : _ Or_never_returns.t) with
+      | Never_returns -> ()
+      | Ok r ->
+        insert_moves env sub_cfg r res;
+        maybe_emit_naming_op sub_cfg res
+    done;
+    Ok res
 
-    (* Says whether an integer constant is a suitable immediate argument for the
-       given integer operation *)
-
-    method is_immediate (op : Simple_operation.integer_operation) n =
-      match op with
-      | Ilsl | Ilsr | Iasr -> n >= 0 && n < Arch.size_int * 8
-      | _ -> false
-
-    (* Says whether an integer constant is a suitable immediate argument for the
-       given integer test *)
-
-    method virtual is_immediate_test
-        : Simple_operation.integer_comparison -> int -> bool
-
-    (* Selection of addressing modes *)
-
-    method virtual select_addressing
-        : Cmm.memory_chunk ->
-          Cmm.expression ->
-          Arch.addressing_mode * Cmm.expression
-
-    method virtual select_store
-        : bool -> Arch.addressing_mode -> Cmm.expression -> 'op * Cmm.expression
-
-    (* Instruction selection for conditionals *)
-
-    method select_condition (arg : Cmm.expression)
-        : Simple_operation.test * Cmm.expression =
-      match arg with
-      | Cop (Ccmpi cmp, [arg1; Cconst_int (n, _)], _)
-        when self#is_immediate_test (Isigned cmp) n ->
-        Iinttest_imm (Isigned cmp, n), arg1
-      | Cop (Ccmpi cmp, [Cconst_int (n, _); arg2], _)
-        when self#is_immediate_test (Isigned (swap_integer_comparison cmp)) n ->
-        Iinttest_imm (Isigned (swap_integer_comparison cmp), n), arg2
-      | Cop (Ccmpi cmp, args, _) -> Iinttest (Isigned cmp), Ctuple args
-      | Cop (Ccmpa cmp, [arg1; Cconst_int (n, _)], _)
-        when self#is_immediate_test (Iunsigned cmp) n ->
-        Iinttest_imm (Iunsigned cmp, n), arg1
-      | Cop (Ccmpa cmp, [Cconst_int (n, _); arg2], _)
-        when self#is_immediate_test (Iunsigned (swap_integer_comparison cmp)) n
-        ->
-        Iinttest_imm (Iunsigned (swap_integer_comparison cmp), n), arg2
-      | Cop (Ccmpa cmp, args, _) -> Iinttest (Iunsigned cmp), Ctuple args
-      | Cop (Ccmpf (width, cmp), args, _) ->
-        Ifloattest (width, cmp), Ctuple args
-      | Cop (Cand, [arg1; Cconst_int (1, _)], _) -> Ioddtest, arg1
-      | _ -> Itruetest, arg
-
-    (* Return an array of fresh registers of the given type. Normally
-       implemented as Reg.createv, but some ports (e.g. Arm) can override this
-       definition to store float values in pairs of integer registers. *)
-
-    method regs_for tys = Reg.createv tys
-
-    method virtual insert_debug
-        : 'env environment ->
-          'instr ->
-          Debuginfo.t ->
-          Reg.t array ->
-          Reg.t array ->
-          unit
-
-    method virtual insert
-        : 'env environment -> 'instr -> Reg.t array -> Reg.t array -> unit
-
-    method virtual insert_move : 'env environment -> Reg.t -> Reg.t -> unit
-
-    method insert_moves env src dst =
-      for i = 0 to min (Array.length src) (Array.length dst) - 1 do
-        self#insert_move env src.(i) dst.(i)
-      done
-
-    (* Insert moves and stack offsets for function arguments and results *)
-
-    method insert_move_args env arg loc stacksize =
-      if stacksize <> 0
-      then self#insert env (self#make_stack_offset stacksize) [||] [||];
-      self#insert_moves env arg loc
-
-    method insert_move_results env loc res stacksize =
-      self#insert_moves env loc res;
-      if stacksize <> 0
-      then self#insert env (self#make_stack_offset (-stacksize)) [||] [||]
-
-    (* Add an Iop opcode. Can be overridden by processor description to insert
-       moves before and after the operation, i.e. for two-address instructions,
-       or instructions using dedicated registers. *)
-
-    method insert_op_debug env op dbg rs rd =
-      self#insert_debug env (self#lift_op op) dbg rs rd;
-      rd
-
-    method insert_op env op rs rd =
-      self#insert_op_debug env op Debuginfo.none rs rd
-
-    method virtual emit_expr
-        : 'env environment ->
-          Cmm.expression ->
-          bound_name:VP.t option ->
-          Reg.t array option
-
-    method private bind_let (env : 'env environment) v r1 =
-      let env =
-        if all_regs_anonymous r1
-        then (
-          name_regs v r1;
-          env_add v r1 env)
-        else
-          let rv = Reg.createv_like r1 in
-          name_regs v rv;
-          self#insert_moves env r1 rv;
-          env_add v rv env
-      in
-      let provenance = VP.provenance v in
-      (if Option.is_some provenance
-      then
-        let naming_op =
-          self#make_name_for_debugger ~ident:(VP.var v) ~which_parameter:None
-            ~provenance ~is_assignment:false ~regs:r1
-        in
-        self#insert_debug env naming_op Debuginfo.none [||] [||]);
-      env
-
-    method private bind_let_mut (env : 'env environment) v k r1 =
-      let rv = self#regs_for k in
-      name_regs v rv;
-      self#insert_moves env r1 rv;
-      let provenance = VP.provenance v in
-      (if Option.is_some provenance
-      then
-        let naming_op =
-          self#make_name_for_debugger ~ident:(VP.var v) ~which_parameter:None
-            ~provenance:(VP.provenance v) ~is_assignment:false ~regs:r1
-        in
-        self#insert_debug env naming_op Debuginfo.none [||] [||]);
-      env_add ~mut:Mutable v rv env
-
-    (* The following two functions, [emit_parts] and [emit_parts_list], force
-       right-to-left evaluation order as required by the Flambda [Un_anf] pass
-       (and to be consistent with the bytecode compiler). *)
-
-    method private emit_parts (env : 'env environment) ~effects_after exp =
-      let module EC = Effect_and_coeffect in
-      let may_defer_evaluation =
-        let ec = self#effects_of exp in
-        match EC.effect ec with
-        | Effect.Arbitrary | Effect.Raise ->
-          (* Preserve the ordering of effectful expressions by evaluating them
-             early (in the correct order) and assigning their results to
-             temporaries. We can avoid this in just one case: if we know that
-             every [exp'] in the original expression list (cf.
-             [emit_parts_list]) to be evaluated after [exp] cannot possibly
-             affect the result of [exp] or depend on the result of [exp], then
-             [exp] may be deferred. (Checking purity here is not enough: we need
-             to check copurity too to avoid e.g. moving mutable reads earlier
-             than the raising of an exception.) *)
-          EC.pure_and_copure effects_after
-        | Effect.None -> (
-          match EC.coeffect ec with
-          | Coeffect.None ->
-            (* Pure expressions may be moved. *)
-            true
-          | Coeffect.Read_mutable -> (
-            (* Read-mutable expressions may only be deferred if evaluation of
-               every [exp'] (for [exp'] as in the comment above) has no effects
-               "worse" (in the sense of the ordering in [Effect.t]) than raising
-               an exception. *)
-            match EC.effect effects_after with
-            | Effect.None | Effect.Raise -> true
-            | Effect.Arbitrary -> false)
-          | Coeffect.Arbitrary -> (
-            (* Arbitrary expressions may only be deferred if evaluation of every
-               [exp'] (for [exp'] as in the comment above) has no effects. *)
-            match EC.effect effects_after with
-            | Effect.None -> true
-            | Effect.(Arbitrary | Raise) -> false))
-      in
-      (* Even though some expressions may look like they can be deferred from
-         the (co)effect analysis, it may be forbidden to move them. *)
-      if may_defer_evaluation && self#is_simple_expr exp
-      then Some (exp, env)
-      else
-        match self#emit_expr env exp ~bound_name:None with
-        | None -> None
-        | Some r ->
-          if Array.length r = 0
-          then Some (Ctuple [], env)
-          else
-            (* The normal case *)
-            let id = V.create_local "bind" in
-            if all_regs_anonymous r
-            then
-              (* r is an anonymous, unshared register; use it directly *)
-              Some (Cvar id, env_add (VP.create id) r env)
-            else
-              (* Introduce a fresh temp to hold the result *)
-              let tmp = Reg.createv_like r in
-              self#insert_moves env r tmp;
-              Some (Cvar id, env_add (VP.create id) tmp env)
-
-    method private emit_parts_list (env : 'env environment) exp_list =
-      let module EC = Effect_and_coeffect in
-      let exp_list_right_to_left, _effect =
-        (* Annotate each expression with the (co)effects that happen after it
-           when the original expression list is evaluated from right to left.
-           The resulting expression list has the rightmost expression first. *)
-        List.fold_left
-          (fun (exp_list, effects_after) exp ->
-            let exp_effect = self#effects_of exp in
-            (exp, effects_after) :: exp_list, EC.join exp_effect effects_after)
-          ([], EC.none) exp_list
-      in
-      List.fold_left
-        (fun results_and_env (exp, effects_after) ->
-          match results_and_env with
-          | None -> None
-          | Some (result, env) -> (
-            match self#emit_parts env exp ~effects_after with
-            | None -> None
-            | Some (exp_result, env) -> Some (exp_result :: result, env)))
-        (Some ([], env))
-        exp_list_right_to_left
-
-    method private emit_tuple_not_flattened env exp_list =
-      let rec emit_list = function
-        | [] -> []
-        | exp :: rem -> (
-          (* Again, force right-to-left evaluation *)
-          let loc_rem = emit_list rem in
-          match self#emit_expr env exp ~bound_name:None with
-          | None -> assert false (* should have been caught in emit_parts *)
-          | Some loc_exp -> loc_exp :: loc_rem)
-      in
-      emit_list exp_list
-
-    method private emit_tuple env exp_list =
-      Array.concat (self#emit_tuple_not_flattened env exp_list)
-
-    method emit_extcall_args env ty_args args =
-      let args = self#emit_tuple_not_flattened env args in
-      let ty_args =
-        match ty_args with
-        | [] -> List.map (fun _ -> XInt) args
-        | _ :: _ -> ty_args
-      in
-      let locs, stack_ofs = Proc.loc_external_arguments ty_args in
-      let ty_args = Array.of_list ty_args in
-      if stack_ofs <> 0
-      then self#insert env (self#make_stack_offset stack_ofs) [||] [||];
-      List.iteri
-        (fun i arg -> self#insert_move_extcall_arg env ty_args.(i) arg locs.(i))
-        args;
-      Array.concat (Array.to_list locs), stack_ofs
-
-    method insert_move_extcall_arg env _ty_arg src dst =
-      (* The default implementation is one or two ordinary moves. (Two in the
-         case of an int64 argument on a 32-bit platform.) It can be overridden
-         to use special move instructions, for example a "32-bit move"
-         instruction for int32 arguments. *)
-      self#insert_moves env src dst
-
-    method emit_stores env dbg data regs_addr =
-      let a =
-        ref (Arch.offset_addressing Arch.identity_addressing (-Arch.size_int))
-      in
-      List.iter
-        (fun e ->
-          let op, arg = self#select_store false !a e in
-          match self#emit_expr env arg ~bound_name:None with
-          | None -> assert false
-          | Some regs -> (
-            match self#is_store op with
-            | true ->
-              for i = 0 to Array.length regs - 1 do
-                let r = regs.(i) in
-                let kind =
-                  match r.Reg.typ with
-                  | Float -> Double
-                  | Float32 -> Single { reg = Float32 }
-                  | Vec128 ->
-                    (* 128-bit memory operations are default unaligned. Aligned
-                       (big)array operations are handled separately via cmm. *)
-                    Onetwentyeight_unaligned
-                  | Val | Addr | Int -> Word_val
-                  | Valx2 ->
-                    Misc.fatal_error "Unexpected machtype_component Valx2"
-                in
-                self#insert_debug env
-                  (self#make_store kind !a false)
-                  dbg
-                  (Array.append [| r |] regs_addr)
-                  [||];
-                a := Arch.offset_addressing !a (size_component r.Reg.typ)
-              done
-            | false ->
-              self#insert_debug env (self#lift_op op) dbg
-                (Array.append regs regs_addr)
-                [||];
-              a := Arch.offset_addressing !a (size_expr env e)))
-        data
-
-    (* Emit an expression.
-
-       [bound_name] is the name that will be bound to the result of evaluating
-       the expression, if such exists. This is used for emitting debugging info.
-
-       Returns: - [None] if the expression does not finish normally (e.g.
-       raises) - [Some rs] if the expression yields a result in registers
-       [rs] *)
-    method emit_expr (env : 'env environment) exp ~bound_name =
-      self#emit_expr_aux env exp ~bound_name
-
-    (* Emit an expression which may end some regions early.
-
-       Returns: - [None] if the expression does not finish normally (e.g.
-       raises) - [Some (rs, unclosed)] if the expression yields a result in
-       [rs], having left [unclosed] (a suffix of env.regions) regions open *)
-    method emit_expr_aux (env : 'env environment) exp ~bound_name
-        : Reg.t array option =
-      (* Normal case of returning a value: no regions are closed *)
-      let ret res = Some res in
-      match exp with
-      | Cconst_int (n, _dbg) ->
-        let r = self#regs_for typ_int in
-        ret
-          (self#insert_op env (self#make_const_int (Nativeint.of_int n)) [||] r)
-      | Cconst_natint (n, _dbg) ->
-        let r = self#regs_for typ_int in
-        ret (self#insert_op env (self#make_const_int n) [||] r)
-      | Cconst_float32 (n, _dbg) ->
-        let r = self#regs_for typ_float32 in
-        ret
-          (self#insert_op env
-             (self#make_const_float32 (Int32.bits_of_float n))
-             [||] r)
-      | Cconst_float (n, _dbg) ->
-        let r = self#regs_for typ_float in
-        ret
-          (self#insert_op env
-             (self#make_const_float (Int64.bits_of_float n))
-             [||] r)
-      | Cconst_vec128 (bits, _dbg) ->
-        let r = self#regs_for typ_vec128 in
-        ret (self#insert_op env (self#make_const_vec128 bits) [||] r)
-      | Cconst_symbol (n, _dbg) ->
-        (* Cconst_symbol _ evaluates to a statically-allocated address, so its
-           value fits in a typ_int register and is never changed by the GC.
-
-           Some Cconst_symbols point to statically-allocated blocks, some of
-           which may point to heap values. However, any such blocks will be
-           registered in the compilation unit's global roots structure, so
-           adding this register to the frame table would be redundant *)
-        let r = self#regs_for typ_int in
-        ret (self#insert_op env (self#make_const_symbol n) [||] r)
-      | Cvar v -> (
-        try ret (env_find v env)
-        with Not_found ->
-          Misc.fatal_error
-            ("Selection.emit_expr: unbound var " ^ V.unique_name v))
-      | Clet (v, e1, e2) -> (
-        match self#emit_expr env e1 ~bound_name:(Some v) with
-        | None -> None
-        | Some r1 -> self#emit_expr_aux (self#bind_let env v r1) e2 ~bound_name)
-      | Cphantom_let (_var, _defining_expr, body) ->
-        self#emit_expr_aux env body ~bound_name
-      | Ctuple [] -> ret [||]
-      | Ctuple exp_list -> (
-        match self#emit_parts_list env exp_list with
-        | None -> None
-        | Some (simple_list, ext_env) ->
-          ret (self#emit_tuple ext_env simple_list))
-      | Cop (Craise k, args, dbg) -> self#emit_expr_aux_raise env k args dbg
-      | Cop (Copaque, args, dbg) -> (
-        match self#emit_parts_list env args with
-        | None -> None
-        | Some (simple_args, env) ->
-          let rs = self#emit_tuple env simple_args in
-          ret (self#insert_op_debug env (self#make_opaque ()) dbg rs rs))
-      | Cop (Ctuple_field (field, fields_layout), [arg], _dbg) -> (
-        match self#emit_expr env arg ~bound_name:None with
-        | None -> None
-        | Some loc_exp ->
-          let flat_size a =
-            Array.fold_left (fun acc t -> acc + Array.length t) 0 a
-          in
-          assert (Array.length loc_exp = flat_size fields_layout);
-          let before = Array.sub fields_layout 0 field in
-          let size_before = flat_size before in
-          let field_slice =
-            Array.sub loc_exp size_before (Array.length fields_layout.(field))
-          in
-          ret field_slice)
-      | Cop (op, args, dbg) -> self#emit_expr_aux_op env bound_name op args dbg
-      | Csequence (e1, e2) -> (
-        match self#emit_expr env e1 ~bound_name:None with
-        | None -> None
-        | Some _ -> self#emit_expr_aux env e2 ~bound_name)
-      | Cifthenelse (econd, ifso_dbg, eif, ifnot_dbg, eelse, dbg, value_kind) ->
-        self#emit_expr_aux_ifthenelse env bound_name econd ifso_dbg eif
-          ifnot_dbg eelse dbg value_kind
-      | Cswitch (esel, index, ecases, dbg, value_kind) ->
-        self#emit_expr_aux_switch env bound_name esel index ecases dbg
-          value_kind
-      | Ccatch (_, [], e1, _) -> self#emit_expr_aux env e1 ~bound_name
-      | Ccatch (rec_flag, handlers, body, value_kind) ->
-        self#emit_expr_aux_catch env bound_name rec_flag handlers body
-          value_kind
-      | Cexit (lbl, args, traps) -> self#emit_expr_aux_exit env lbl args traps
-      | Ctrywith (e1, exn_cont, v, extra_args, e2, dbg, value_kind) ->
-        self#emit_expr_aux_trywith env bound_name e1 exn_cont v ~extra_args e2
-          dbg value_kind
-
-    method virtual emit_expr_aux_raise
-        : 'env environment ->
-          Lambda.raise_kind ->
-          expression list ->
-          Debuginfo.t ->
-          Reg.t array option
-
-    method virtual emit_expr_aux_op
-        : 'env environment ->
-          VP.t option ->
-          operation ->
-          expression list ->
-          Debuginfo.t ->
-          Reg.t array option
-
-    method virtual emit_expr_aux_ifthenelse
-        : 'env environment ->
-          VP.t option ->
-          expression ->
-          Debuginfo.t ->
-          expression ->
-          Debuginfo.t ->
-          expression ->
-          Debuginfo.t ->
-          kind_for_unboxing ->
-          Reg.t array option
-
-    method virtual emit_expr_aux_switch
-        : 'env environment ->
-          VP.t option ->
-          expression ->
-          int array ->
-          (expression * Debuginfo.t) array ->
-          Debuginfo.t ->
-          kind_for_unboxing ->
-          Reg.t array option
-
-    method virtual emit_expr_aux_catch
-        : 'env environment ->
-          VP.t option ->
-          rec_flag ->
-          (Lambda.static_label
-          * (VP.t * machtype) list
-          * expression
-          * Debuginfo.t
-          * bool)
-          list ->
-          expression ->
-          kind_for_unboxing ->
-          Reg.t array option
-
-    method virtual emit_expr_aux_exit
-        : 'env environment ->
-          exit_label ->
-          expression list ->
-          trap_action list ->
-          Reg.t array option
-
-    method virtual emit_expr_aux_trywith
-        : 'env environment ->
-          VP.t option ->
-          expression ->
-          trywith_shared_label ->
-          VP.t ->
-          extra_args:(VP.t * machtype) list ->
-          expression ->
-          Debuginfo.t ->
-          kind_for_unboxing ->
-          Reg.t array option
-
-    (* Emit an expression in tail position of a function, closing all regions in
-       [env.regions] *)
-    method emit_tail (env : 'env environment) exp =
-      match exp with
-      | Clet (v, e1, e2) -> (
-        match self#emit_expr env e1 ~bound_name:None with
-        | None -> ()
-        | Some r1 -> self#emit_tail (self#bind_let env v r1) e2)
-      | Cphantom_let (_var, _defining_expr, body) -> self#emit_tail env body
-      | Cop ((Capply (ty, Rc_normal) as op), args, dbg) ->
-        self#emit_tail_apply env ty op args dbg
-      | Csequence (e1, e2) -> (
-        match self#emit_expr env e1 ~bound_name:None with
-        | None -> ()
-        | Some _ -> self#emit_tail env e2)
-      | Cifthenelse (econd, ifso_dbg, eif, ifnot_dbg, eelse, dbg, value_kind) ->
-        self#emit_tail_ifthenelse env econd ifso_dbg eif ifnot_dbg eelse dbg
-          value_kind
-      | Cswitch (esel, index, ecases, dbg, value_kind) ->
-        self#emit_tail_switch env esel index ecases dbg value_kind
-      | Ccatch (_, [], e1, _) -> self#emit_tail env e1
-      | Ccatch (rec_flag, handlers, e1, value_kind) ->
-        self#emit_tail_catch env rec_flag handlers e1 value_kind
-      | Ctrywith (e1, exn_cont, v, extra_args, e2, dbg, value_kind) ->
-        self#emit_tail_trywith env e1 exn_cont v ~extra_args e2 dbg value_kind
-      | Cop _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _
-      | Cconst_float _ | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ | Ctuple _
-      | Cexit _ ->
-        self#emit_return env exp (pop_all_traps env)
-
-    method virtual emit_tail_apply
-        : 'env environment ->
-          machtype ->
-          operation ->
-          expression list ->
-          Debuginfo.t ->
-          unit
-
-    method virtual emit_tail_ifthenelse
-        : 'env environment ->
-          expression ->
-          Debuginfo.t ->
-          expression ->
-          Debuginfo.t ->
-          expression ->
-          Debuginfo.t ->
-          kind_for_unboxing ->
-          unit
-
-    method virtual emit_tail_switch
-        : 'env environment ->
-          expression ->
-          int array ->
-          (expression * Debuginfo.t) array ->
-          Debuginfo.t ->
-          kind_for_unboxing ->
-          unit
-
-    method virtual emit_tail_catch
-        : 'env environment ->
-          rec_flag ->
-          (Lambda.static_label
-          * (VP.t * machtype) list
-          * expression
-          * Debuginfo.t
-          * bool)
-          list ->
-          expression ->
-          kind_for_unboxing ->
-          unit
-
-    method virtual emit_tail_trywith
-        : 'env environment ->
-          expression ->
-          trywith_shared_label ->
-          VP.t ->
-          extra_args:(VP.t * machtype) list ->
-          expression ->
-          Debuginfo.t ->
-          kind_for_unboxing ->
-          unit
-
-    method virtual emit_return
-        : 'env environment -> expression -> trap_action list -> unit
-  end
+let basic_op op : Cfg.basic_or_terminator = Basic (Op op)

@@ -13,7 +13,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 (* Common functions for emitting assembly code *)
+
+open! Int_replace_polymorphic_compare
 
 type error =
   | Stack_frame_too_large of int
@@ -24,46 +28,69 @@ exception Error of error
 
 let output_channel = ref stdout
 
-let emit_string s = output_string !output_channel s
+let femit_string out s = output_string out s
 
-let emit_int n = output_string !output_channel (Int.to_string n)
+let emit_string s = femit_string !output_channel s
 
-let emit_char c = output_char !output_channel c
+let femit_int out n = output_string out (Int.to_string n)
 
-let emit_nativeint n = output_string !output_channel (Nativeint.to_string n)
+let emit_int n = femit_int !output_channel n
+
+let femit_char out c = output_char out c
+
+let emit_char c = femit_char !output_channel c
+
+let femit_nativeint out n = output_string out (Nativeint.to_string n)
+
+let emit_nativeint n = femit_nativeint !output_channel n
 
 let emit_printf fmt = Printf.fprintf !output_channel fmt
 
-let emit_int32 n = emit_printf "0x%lx" n
+let femit_int32 out n = Printf.fprintf out "0x%lx" n
 
-let emit_symbol s =
+let emit_int32 n = femit_int32 !output_channel n
+
+let pp_symbol fmt s =
   for i = 0 to String.length s - 1 do
     let c = s.[i] in
     match c with
     | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' | '.' ->
-      output_char !output_channel c
-    | _ -> Printf.fprintf !output_channel "$%02x" (Char.code c)
+      Format.pp_print_char fmt c
+    | _ -> Format.fprintf fmt "$%02x" (Char.code c)
   done
 
-let emit_string_literal s =
+let symbol_to_string s = Format.asprintf "%a" pp_symbol s
+
+let femit_symbol out s = output_string out (symbol_to_string s)
+
+let emit_symbol s = femit_symbol !output_channel s
+
+let femit_string_literal out s =
+  let between x low high =
+    Char.compare x low >= 0 && Char.compare x high <= 0
+  in
   let last_was_escape = ref false in
-  emit_string "\"";
+  femit_string out "\"";
   for i = 0 to String.length s - 1 do
     let c = s.[i] in
-    if c >= '0' && c <= '9'
+    if between c '0' '9'
     then
       if !last_was_escape
-      then Printf.fprintf !output_channel "\\%o" (Char.code c)
-      else output_char !output_channel c
-    else if c >= ' ' && c <= '~' && c <> '"' (* '"' *) && c <> '\\'
+      then Printf.fprintf out "\\%o" (Char.code c)
+      else output_char out c
+    else if between c ' ' '~'
+            && (not (Char.equal c '"' (* '"' *)))
+            && not (Char.equal c '\\')
     then (
-      output_char !output_channel c;
+      output_char out c;
       last_was_escape := false)
     else (
-      Printf.fprintf !output_channel "\\%o" (Char.code c);
+      Printf.fprintf out "\\%o" (Char.code c);
       last_was_escape := true)
   done;
   emit_string "\""
+
+let emit_string_literal s = femit_string_literal !output_channel s
 
 let emit_string_directive directive s =
   let l = String.length s in
@@ -203,7 +230,7 @@ let emit_frames a =
     type t = bool * Debuginfo.Dbg.t
 
     let equal ((rs1 : bool), dbg1) (rs2, dbg2) =
-      rs1 = rs2 && Debuginfo.Dbg.compare dbg1 dbg2 = 0
+      Bool.equal rs1 rs2 && Debuginfo.Dbg.compare dbg1 dbg2 = 0
 
     let hash (rs, dbg) = Hashtbl.hash (rs, Debuginfo.Dbg.hash dbg)
   end) in
@@ -344,8 +371,8 @@ let emit_frames a =
       in
       let info =
         if is_fully_packable
-        then fully_pack_info rs d (rest <> [])
-        else partially_pack_info rs d (rest <> [])
+        then fully_pack_info rs d (not (Misc.Stdlib.List.is_empty rest))
+        else partially_pack_info rs d (not (Misc.Stdlib.List.is_empty rest))
       in
       let loc =
         if is_fully_packable
@@ -380,7 +407,7 @@ let emit_frames a =
 
 let isprefix s1 s2 =
   String.length s1 <= String.length s2
-  && String.sub s2 0 (String.length s1) = s1
+  && String.equal (String.sub s2 0 (String.length s1)) s1
 
 let is_generic_function name =
   List.exists
@@ -464,7 +491,8 @@ let emit_debug_info_gen ?discriminator dbg file_emitter loc_emitter =
     | [] -> ()
     | { Debuginfo.dinfo_line = line;
         dinfo_char_start = col;
-        dinfo_file = file_name
+        dinfo_file = file_name;
+        _
       }
       :: _ ->
       if line > 0
@@ -473,27 +501,35 @@ let emit_debug_info_gen ?discriminator dbg file_emitter loc_emitter =
         let file_num = get_file_num ~file_emitter file_name in
         loc_emitter ~file_num ~line ~col ?discriminator ()
 
-let emit_debug_info ?discriminator dbg =
+let femit_debug_info ?discriminator out dbg =
   ignore discriminator;
   emit_debug_info_gen dbg
     (fun ~file_num ~file_name ->
-      emit_string "\t.file\t";
-      emit_int file_num;
-      emit_char '\t';
-      emit_string_literal file_name;
-      emit_char '\n')
-    (fun ~file_num ~line ~col:_ ?discriminator () ->
-      emit_string "\t.loc\t";
-      emit_int file_num;
-      emit_char '\t';
-      emit_int line;
-      emit_char '\t';
+      femit_string out "\t.file\t";
+      femit_int out file_num;
+      femit_char out '\t';
+      femit_string_literal out file_name;
+      femit_char out '\n')
+    (fun ~file_num ~line ~col ?discriminator () ->
+      femit_string out "\t.loc\t";
+      femit_int out file_num;
+      femit_char out '\t';
+      femit_int out line;
+      femit_char out '\t';
+      (* PR#7726: Location.none uses column -1, breaks LLVM assembler *)
+      (* If we don't set the optional column field, debug_line program gets the
+         column value from the previous .loc directive. *)
+      if col >= 0 then femit_int out col else femit_int out 0;
       (match discriminator with
       | None -> ()
       | Some k ->
-        emit_string "discriminator ";
-        emit_int k);
-      emit_char '\n')
+        femit_char out '\t';
+        femit_string out "discriminator ";
+        femit_int out k);
+      femit_char out '\n')
+
+let emit_debug_info ?discriminator dbg =
+  femit_debug_info ~discriminator !output_channel dbg
 
 let reset () =
   reset_debug_info ();
@@ -510,7 +546,7 @@ let reduce_heap_size ~reset =
     then float !Flambda_backend_flags.heap_reduction_threshold
     else Float.infinity
   in
-  if major_words > heap_reduction_threshold
+  if Float.compare major_words heap_reduction_threshold > 0
   then
     Profile.record_call "compact" (fun () ->
         reset ();
@@ -521,17 +557,15 @@ module Dwarf_helpers = struct
 
   let sourcefile_for_dwarf = ref None
 
-  let begin_dwarf ~build_asm_directives ~code_begin ~code_end ~file_emitter =
+  let begin_dwarf ~code_begin ~code_end ~file_emitter =
     match !sourcefile_for_dwarf with
     | None -> ()
     | Some sourcefile ->
-      let asm_directives = build_asm_directives () in
-      let (module Asm_directives : Asm_targets.Asm_directives_intf.S) =
-        asm_directives
+      let asm_directives =
+        Asm_targets.Asm_directives_dwarf.build_asm_directives ()
       in
-      Asm_targets.Asm_label.initialize ~new_label:(fun () ->
-          Cmm.new_label () |> Label.to_int);
-      Asm_directives.initialize ();
+      let get_file_num = get_file_num ~file_emitter in
+      Asm_targets.Asm_directives_new.debug_header ~get_file_num;
       let unit_name =
         (* CR lmaurer: This doesn't actually need to be an [Ident.t] *)
         Symbol.for_current_unit () |> Symbol.linkage_name
@@ -542,8 +576,7 @@ module Dwarf_helpers = struct
       dwarf
         := Some
              (Dwarf.create ~sourcefile ~unit_name ~asm_directives
-                ~get_file_id:(get_file_num ~file_emitter)
-                ~code_begin ~code_end)
+                ~get_file_id:get_file_num ~code_begin ~code_end)
 
   let reset_dwarf () =
     dwarf := None;
@@ -563,7 +596,7 @@ module Dwarf_helpers = struct
         Target_system.derived_system () )
     with
     | true, (X86_64 | AArch64), _ -> sourcefile_for_dwarf := sourcefile
-    | true, _, _ | false, _, _ -> ()
+    | true, (IA32 | ARM | POWER | Z | Riscv), _ | false, _, _ -> ()
 
   let emit_dwarf () =
     Option.iter
@@ -613,14 +646,26 @@ let preproc_stack_check ~fun_body ~frame_size ~trap_size =
     | Lpushtrap _ ->
       let s = fs + trap_size in
       loop i.next s (max s max_fs) nontail_flag
-    | Lpoptrap -> loop i.next (fs - trap_size) max_fs nontail_flag
+    | Lpoptrap _ -> loop i.next (fs - trap_size) max_fs nontail_flag
     | Lop (Stackoffset n) ->
       let s = fs + n in
       loop i.next s (max s max_fs) nontail_flag
     | Lcall_op (Lcall_ind | Lcall_imm _) -> loop i.next fs max_fs true
-    | Lprologue | Lop _ | Lcall_op _ | Lreloadretaddr | Lreturn | Llabel _
-    | Lbranch _ | Lcondbranch _ | Lcondbranch3 _ | Lswitch _ | Lentertrap
-    | Lraise _ ->
+    | Lprologue
+    | Lop
+        ( Move | Spill | Reload | Opaque | Begin_region | End_region | Dls_get
+        | Poll | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
+        | Const_vec128 _ | Load _
+        | Store (_, _, _)
+        | Intop _
+        | Intop_imm (_, _)
+        | Intop_atomic _
+        | Floatop (_, _)
+        | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+        | Specific _ | Name_for_debugger _ | Alloc _ )
+    | Lcall_op (Ltailcall_ind | Ltailcall_imm _ | Lextcall _ | Lprobe _)
+    | Lreloadretaddr | Lreturn | Llabel _ | Lbranch _ | Lcondbranch _
+    | Lcondbranch3 _ | Lswitch _ | Lentertrap | Lraise _ ->
       loop i.next fs max_fs nontail_flag
     | Lstackcheck _ ->
       (* should not be already present *)

@@ -27,6 +27,7 @@ module Axis_pair = struct
   type 'm t =
     | Modal_axis_pair : ('m, 'a, 'd) Mode.Alloc.axis * 'a -> modal t
     | Any_axis_pair : 'a Axis.t * 'a -> maybe_nonmodal t
+    | Everything_but_nullability : maybe_nonmodal t
 
   let of_string s =
     let open Mode in
@@ -62,6 +63,20 @@ module Axis_pair = struct
       Any_axis_pair (Modal (Comonadic Yielding), Yielding.Const.Yielding)
     | "unyielding" ->
       Any_axis_pair (Modal (Comonadic Yielding), Yielding.Const.Unyielding)
+    | "stateless" ->
+      Any_axis_pair
+        (Modal (Comonadic Statefulness), Statefulness.Const.Stateless)
+    | "observing" ->
+      Any_axis_pair
+        (Modal (Comonadic Statefulness), Statefulness.Const.Observing)
+    | "stateful" ->
+      Any_axis_pair (Modal (Comonadic Statefulness), Statefulness.Const.Stateful)
+    | "immutable" ->
+      Any_axis_pair (Modal (Monadic Visibility), Visibility.Const.Immutable)
+    | "read" -> Any_axis_pair (Modal (Monadic Visibility), Visibility.Const.Read)
+    | "read_write" ->
+      Any_axis_pair (Modal (Monadic Visibility), Visibility.Const.Read_write)
+    | "everything" -> Everything_but_nullability
     | _ -> raise Not_found
 end
 
@@ -73,8 +88,9 @@ let transl_annot (type m) ~(annot_type : m annot_type) ~required_mode_maturity
     required_mode_maturity;
   let pair : m Axis_pair.t =
     match Axis_pair.of_string annot.txt, annot_type with
-    | Any_axis_pair (Nonmodal _, _), (Mode | Modality) | (exception Not_found)
-      ->
+    | Any_axis_pair (Nonmodal _, _), (Mode | Modality)
+    | Everything_but_nullability, (Mode | Modality)
+    | (exception Not_found) ->
       raise (Error (annot.loc, Unrecognized_modifier (annot_type, annot.txt)))
     | Any_axis_pair (Modal axis, mode), Mode -> Modal_axis_pair (axis, mode)
     | Any_axis_pair (Modal axis, mode), Modality -> Modal_axis_pair (axis, mode)
@@ -92,6 +108,8 @@ module Transled_modifiers = struct
       portability : Mode.Portability.Const.t Location.loc option;
       contention : Mode.Contention.Const.t Location.loc option;
       yielding : Mode.Yielding.Const.t Location.loc option;
+      statefulness : Mode.Statefulness.Const.t Location.loc option;
+      visibility : Mode.Visibility.Const.t Location.loc option;
       externality : Jkind_axis.Externality.t Location.loc option;
       nullability : Jkind_axis.Nullability.t Location.loc option
     }
@@ -103,6 +121,8 @@ module Transled_modifiers = struct
       portability = None;
       contention = None;
       yielding = None;
+      statefulness = None;
+      visibility = None;
       externality = None;
       nullability = None
     }
@@ -115,6 +135,8 @@ module Transled_modifiers = struct
     | Modal (Comonadic Portability) -> t.portability
     | Modal (Monadic Contention) -> t.contention
     | Modal (Comonadic Yielding) -> t.yielding
+    | Modal (Comonadic Statefulness) -> t.statefulness
+    | Modal (Monadic Visibility) -> t.visibility
     | Nonmodal Externality -> t.externality
     | Nonmodal Nullability -> t.nullability
 
@@ -127,33 +149,117 @@ module Transled_modifiers = struct
     | Modal (Comonadic Portability) -> { t with portability = value }
     | Modal (Monadic Contention) -> { t with contention = value }
     | Modal (Comonadic Yielding) -> { t with yielding = value }
+    | Modal (Comonadic Statefulness) -> { t with statefulness = value }
+    | Modal (Monadic Visibility) -> { t with visibility = value }
     | Nonmodal Externality -> { t with externality = value }
     | Nonmodal Nullability -> { t with nullability = value }
 end
 
 let transl_modifier_annots annots =
   let step modifiers_so_far annot =
-    let { txt = Any_axis_pair (type a) ((axis, mode) : a Axis.t * a); loc } =
+    match
       transl_annot ~annot_type:Modifier ~required_mode_maturity:None
       @@ unpack_mode_annot annot
-    in
-    let (module A) = Axis.get axis in
-    let is_top = A.le A.max mode in
-    if is_top
-    then
-      (* CR layouts v2.8: This warning is disabled for now because transl_type_decl
-         results in 3 calls to transl_annots per user-written annotation. This results
-         in the warning being reported 3 times. *)
-      (* Location.prerr_warning new_raw.loc (Warnings.Mod_by_top new_raw.txt) *)
-      ();
-    let is_dup =
-      Option.is_some (Transled_modifiers.get ~axis modifiers_so_far)
-    in
-    if is_dup then raise (Error (annot.loc, Duplicated_axis axis));
-    Transled_modifiers.set ~axis modifiers_so_far (Some { txt = mode; loc })
+    with
+    | { txt = Any_axis_pair (type a) ((axis, mode) : a Axis.t * a); loc } ->
+      let (module A) = Axis.get axis in
+      let is_top = A.le A.max mode in
+      if is_top
+      then
+        (* CR layouts v2.8: This warning is disabled for now because transl_type_decl
+           results in 3 calls to transl_annots per user-written annotation. This results
+           in the warning being reported 3 times. *)
+        (* Location.prerr_warning new_raw.loc (Warnings.Mod_by_top new_raw.txt) *)
+        ();
+      let is_dup =
+        Option.is_some (Transled_modifiers.get ~axis modifiers_so_far)
+      in
+      if is_dup then raise (Error (annot.loc, Duplicated_axis axis));
+      Transled_modifiers.set ~axis modifiers_so_far (Some { txt = mode; loc })
+    | { txt = Everything_but_nullability; loc } ->
+      Transled_modifiers.
+        { locality = Some { txt = Locality.Const.min; loc };
+          linearity = Some { txt = Linearity.Const.min; loc };
+          uniqueness = Some { txt = Uniqueness.Const_op.min; loc };
+          portability = Some { txt = Portability.Const.min; loc };
+          contention = Some { txt = Contention.Const_op.min; loc };
+          yielding = Some { txt = Yielding.Const.min; loc };
+          externality = Some { txt = Externality.min; loc };
+          statefulness = Some { txt = Statefulness.Const.min; loc };
+          visibility = Some { txt = Visibility.Const_op.min; loc };
+          nullability =
+            Transled_modifiers.get ~axis:(Nonmodal Nullability) modifiers_so_far
+        }
   in
   let empty_modifiers = Transled_modifiers.empty in
-  List.fold_left step empty_modifiers annots
+  let modifiers = List.fold_left step empty_modifiers annots in
+  (* Since [yielding] is the default mode in presence of [local],
+     the [global] modifier must also apply [unyielding] unless specified. *)
+  let modifiers =
+    match
+      ( Transled_modifiers.get ~axis:(Modal (Comonadic Yielding)) modifiers,
+        Transled_modifiers.get ~axis:(Modal (Comonadic Areality)) modifiers )
+    with
+    | None, Some { txt = Locality.Const.Global; _ } ->
+      Transled_modifiers.set ~axis:(Modal (Comonadic Yielding)) modifiers
+        (Some { txt = Yielding.Const.Unyielding; loc = Location.none })
+    | _, _ -> modifiers
+  in
+  (* Likewise, [immutable] => [contended], [read] => [shared]. *)
+  let modifiers =
+    match
+      ( Transled_modifiers.get ~axis:(Modal (Monadic Contention)) modifiers,
+        Transled_modifiers.get ~axis:(Modal (Monadic Visibility)) modifiers )
+    with
+    | None, Some { txt = Visibility.Const.Immutable; _ } ->
+      Transled_modifiers.set ~axis:(Modal (Monadic Contention)) modifiers
+        (Some { txt = Contention.Const.Contended; loc = Location.none })
+    | None, Some { txt = Visibility.Const.Read; _ } ->
+      Transled_modifiers.set ~axis:(Modal (Monadic Contention)) modifiers
+        (Some { txt = Contention.Const.Shared; loc = Location.none })
+    | _, _ -> modifiers
+  in
+  (* Likewise, [stateless] => [portable]. *)
+  let modifiers =
+    match
+      ( Transled_modifiers.get ~axis:(Modal (Comonadic Portability)) modifiers,
+        Transled_modifiers.get ~axis:(Modal (Comonadic Statefulness)) modifiers
+      )
+    with
+    | None, Some { txt = Statefulness.Const.Stateless; _ } ->
+      Transled_modifiers.set ~axis:(Modal (Comonadic Portability)) modifiers
+        (Some { txt = Portability.Const.Portable; loc = Location.none })
+    | _, _ -> modifiers
+  in
+  modifiers
+
+let default_mode_annots (annots : Alloc.Const.Option.t) =
+  (* [yielding] has a different default depending on whether [areality]
+     is [global] or [local]. *)
+  let yielding =
+    match annots.yielding, annots.areality with
+    | (Some _ as y), _ | y, None -> y
+    | None, Some Locality.Const.Global -> Some Yielding.Const.Unyielding
+    | None, Some Locality.Const.Local -> Some Yielding.Const.Yielding
+  in
+  (* Likewise for [contention]. *)
+  let contention =
+    match annots.contention, annots.visibility with
+    | (Some _ as c), _ | c, None -> c
+    | None, Some Visibility.Const.Immutable -> Some Contention.Const.Contended
+    | None, Some Visibility.Const.Read -> Some Contention.Const.Shared
+    | None, Some Visibility.Const.Read_write ->
+      Some Contention.Const.Uncontended
+  in
+  (* Likewise for [portability]. *)
+  let portability =
+    match annots.portability, annots.statefulness with
+    | (Some _ as p), _ | p, None -> p
+    | None, Some Statefulness.Const.Stateless -> Some Portability.Const.Portable
+    | None, Some Statefulness.Const.(Observing | Stateful) ->
+      Some Portability.Const.Nonportable
+  in
+  { annots with yielding; contention; portability }
 
 let transl_mode_annots annots : Alloc.Const.Option.t =
   let step modifiers_so_far annot =
@@ -172,33 +278,72 @@ let transl_mode_annots annots : Alloc.Const.Option.t =
   in
   let empty_modifiers = Transled_modifiers.empty in
   let modes = List.fold_left step empty_modifiers annots in
-  { areality = Option.map get_txt modes.locality;
-    linearity = Option.map get_txt modes.linearity;
-    uniqueness = Option.map get_txt modes.uniqueness;
-    portability = Option.map get_txt modes.portability;
-    contention = Option.map get_txt modes.contention;
-    yielding = Option.map get_txt modes.yielding
-  }
+  default_mode_annots
+    { areality = Option.map get_txt modes.locality;
+      linearity = Option.map get_txt modes.linearity;
+      uniqueness = Option.map get_txt modes.uniqueness;
+      portability = Option.map get_txt modes.portability;
+      contention = Option.map get_txt modes.contention;
+      yielding = Option.map get_txt modes.yielding;
+      statefulness = Option.map get_txt modes.statefulness;
+      visibility = Option.map get_txt modes.visibility
+    }
 
-let untransl_mode_annots ~loc (modes : Mode.Alloc.Const.Option.t) =
+let untransl_mode_annots (modes : Mode.Alloc.Const.Option.t) =
   let print_to_string_opt print a = Option.map (Format.asprintf "%a" print) a in
+  (* Untranslate [areality] and [yielding]. *)
   let areality = print_to_string_opt Mode.Locality.Const.print modes.areality in
+  let yielding =
+    (* Since [yielding] has non-standard defaults, we special-case
+       whether we want to print it here. *)
+    match modes.yielding, modes.areality with
+    | Some Yielding.Const.Yielding, Some Locality.Const.Local
+    | Some Yielding.Const.Unyielding, Some Locality.Const.Global ->
+      None
+    | _, _ -> print_to_string_opt Mode.Yielding.Const.print modes.yielding
+  in
+  (* Untranslate [visibility] and [contention]. *)
+  let visibility =
+    print_to_string_opt Mode.Visibility.Const.print modes.visibility
+  in
+  let contention =
+    match modes.visibility, modes.contention with
+    | Some Visibility.Const.Immutable, Some Contention.Const.Contended
+    | Some Visibility.Const.Read, Some Contention.Const.Shared
+    | Some Visibility.Const.Read_write, Some Contention.Const.Uncontended ->
+      None
+    | _, _ -> print_to_string_opt Mode.Contention.Const.print modes.contention
+  in
+  (* Untranslate [statefulness] and [portability]. *)
+  let statefulness =
+    print_to_string_opt Mode.Statefulness.Const.print modes.statefulness
+  in
+  let portability =
+    match modes.statefulness, modes.portability with
+    | Some Statefulness.Const.Stateless, Some Portability.Const.Portable
+    | ( Some Statefulness.Const.(Observing | Stateful),
+        Some Portability.Const.Nonportable ) ->
+      None
+    | _, _ -> print_to_string_opt Mode.Portability.Const.print modes.portability
+  in
+  (* Untranslate remaining modes. *)
   let uniqueness =
     print_to_string_opt Mode.Uniqueness.Const.print modes.uniqueness
   in
   let linearity =
     print_to_string_opt Mode.Linearity.Const.print modes.linearity
   in
-  let portability =
-    print_to_string_opt Mode.Portability.Const.print modes.portability
-  in
-  let contention =
-    print_to_string_opt Mode.Contention.Const.print modes.contention
-  in
-  let yielding = print_to_string_opt Mode.Yielding.Const.print modes.yielding in
   List.filter_map
-    (fun x -> Option.map (fun s -> { txt = Parsetree.Mode s; loc }) x)
-    [areality; uniqueness; linearity; portability; contention; yielding]
+    (fun x ->
+      Option.map (fun s -> { txt = Parsetree.Mode s; loc = Location.none }) x)
+    [ areality;
+      uniqueness;
+      linearity;
+      portability;
+      contention;
+      yielding;
+      statefulness;
+      visibility ]
 
 let transl_modality ~maturity { txt = Parsetree.Modality modality; loc } =
   let axis_pair =
@@ -219,6 +364,10 @@ let transl_modality ~maturity { txt = Parsetree.Modality modality; loc } =
     Modality.Atom (Monadic Contention, Join_with mode)
   | Modal_axis_pair (Comonadic Yielding, mode) ->
     Modality.Atom (Comonadic Yielding, Meet_with mode)
+  | Modal_axis_pair (Comonadic Statefulness, mode) ->
+    Modality.Atom (Comonadic Statefulness, Meet_with mode)
+  | Modal_axis_pair (Monadic Visibility, mode) ->
+    Modality.Atom (Monadic Visibility, Join_with mode)
 
 let untransl_modality (a : Modality.t) : Parsetree.modality loc =
   let s =
@@ -241,6 +390,17 @@ let untransl_modality (a : Modality.t) : Parsetree.modality loc =
     | Atom (Comonadic Yielding, Meet_with Yielding.Const.Yielding) -> "yielding"
     | Atom (Comonadic Yielding, Meet_with Yielding.Const.Unyielding) ->
       "unyielding"
+    | Atom (Comonadic Statefulness, Meet_with Statefulness.Const.Stateless) ->
+      "stateless"
+    | Atom (Comonadic Statefulness, Meet_with Statefulness.Const.Observing) ->
+      "observing"
+    | Atom (Comonadic Statefulness, Meet_with Statefulness.Const.Stateful) ->
+      "stateful"
+    | Atom (Monadic Visibility, Join_with Visibility.Const.Immutable) ->
+      "immutable"
+    | Atom (Monadic Visibility, Join_with Visibility.Const.Read) -> "read"
+    | Atom (Monadic Visibility, Join_with Visibility.Const.Read_write) ->
+      "read_write"
     | _ -> failwith "BUG: impossible modality atom"
   in
   { txt = Modality s; loc = Location.none }
@@ -256,11 +416,13 @@ let mutable_implied_modalities (mut : Types.mutability) attrs =
     [ Atom (Comonadic Areality, Meet_with Regionality.Const.legacy);
       Atom (Comonadic Linearity, Meet_with Linearity.Const.legacy);
       Atom (Comonadic Portability, Meet_with Portability.Const.legacy);
-      Atom (Comonadic Yielding, Meet_with Yielding.Const.legacy) ]
+      Atom (Comonadic Yielding, Meet_with Yielding.Const.legacy);
+      Atom (Comonadic Statefulness, Meet_with Statefulness.Const.legacy) ]
   in
   let monadic : Modality.t list =
     [ Atom (Monadic Uniqueness, Join_with Uniqueness.Const.legacy);
-      Atom (Monadic Contention, Join_with Contention.Const.legacy) ]
+      Atom (Monadic Contention, Join_with Contention.Const.legacy);
+      Atom (Monadic Visibility, Join_with Visibility.Const.legacy) ]
   in
   match mut with
   | Immutable -> []
@@ -269,9 +431,85 @@ let mutable_implied_modalities (mut : Types.mutability) attrs =
     then monadic
     else monadic @ comonadic
 
+(* Since [yielding] is the default mode in presence of [local],
+   the [global] modality must also apply [unyielding] unless specified.
+
+   Similarly for [visibility]/[contention] and [statefulness]/[portability]. *)
+let default_modalities (modalities : Modality.t list) =
+  let areality =
+    List.find_map
+      (function
+        | Modality.Atom (Comonadic Areality, Meet_with a) ->
+          Some (a : Regionality.Const.t)
+        | _ -> None)
+      modalities
+  in
+  let yielding =
+    List.find_map
+      (function
+        | Modality.Atom (Comonadic Yielding, Meet_with y) ->
+          Some (y : Yielding.Const.t)
+        | _ -> None)
+      modalities
+  in
+  let visibility =
+    List.find_map
+      (function
+        | Modality.Atom (Monadic Visibility, Join_with a) ->
+          Some (a : Visibility.Const.t)
+        | _ -> None)
+      modalities
+  in
+  let statefulness =
+    List.find_map
+      (function
+        | Modality.Atom (Comonadic Statefulness, Meet_with s) ->
+          Some (s : Statefulness.Const.t)
+        | _ -> None)
+      modalities
+  in
+  let contention =
+    List.find_map
+      (function
+        | Modality.Atom (Monadic Contention, Join_with c) ->
+          Some (c : Contention.Const.t)
+        | _ -> None)
+      modalities
+  in
+  let portability =
+    List.find_map
+      (function
+        | Modality.Atom (Comonadic Portability, Meet_with p) ->
+          Some (p : Portability.Const.t)
+        | _ -> None)
+      modalities
+  in
+  (* Build the list of extra modalities *)
+  let extra =
+    (match areality, yielding with
+    | Some Global, None ->
+      [Modality.Atom (Comonadic Yielding, Meet_with Yielding.Const.Unyielding)]
+    | _, _ -> [])
+    @ (match visibility, contention with
+      | Some Visibility.Const.Immutable, None ->
+        [ Modality.Atom
+            (Monadic Contention, Join_with Contention.Const.Contended) ]
+      | Some Visibility.Const.Read, None ->
+        [Modality.Atom (Monadic Contention, Join_with Contention.Const.Shared)]
+      | _, _ -> [])
+    @
+    match statefulness, portability with
+    | Some Statefulness.Const.Stateless, None ->
+      [ Modality.Atom
+          (Comonadic Portability, Meet_with Portability.Const.Portable) ]
+    | _, _ -> []
+  in
+  modalities @ extra
+
 let transl_modalities ~maturity mut attrs modalities =
   let mut_modalities = mutable_implied_modalities mut attrs in
   let modalities = List.map (transl_modality ~maturity) modalities in
+  let modalities = default_modalities modalities in
   (* mut_modalities is applied before explicit modalities *)
   Modality.Value.Const.id
   |> List.fold_right
@@ -285,9 +523,91 @@ let transl_modalities ~maturity mut attrs modalities =
        (fun atom m -> Modality.Value.Const.compose ~then_:atom m)
        modalities
 
+let untransl_yielding l =
+  let areality =
+    List.find_map
+      (function
+        | Modality.Atom (Comonadic Areality, Meet_with a) ->
+          Some (a : Regionality.Const.t)
+        | _ -> None)
+      l
+  in
+  let yielding =
+    List.find_map
+      (function
+        | Modality.Atom (Comonadic Yielding, Meet_with y) ->
+          Some (y : Yielding.Const.t)
+        | _ -> None)
+      l
+  in
+  match areality, yielding with
+  | Some Global, Some Unyielding | Some Local, Some Yielding -> None
+  | _, Some yld -> Some (Modality.Atom (Comonadic Yielding, Meet_with yld))
+  | _, None -> None
+
+let untransl_contention l =
+  let visibility =
+    List.find_map
+      (function
+        | Modality.Atom (Monadic Visibility, Join_with a) ->
+          Some (a : Visibility.Const.t)
+        | _ -> None)
+      l
+  in
+  let contention =
+    List.find_map
+      (function
+        | Modality.Atom (Monadic Contention, Join_with c) ->
+          Some (c : Contention.Const.t)
+        | _ -> None)
+      l
+  in
+  match visibility, contention with
+  | Some Visibility.Const.Immutable, Some Contention.Const.Contended
+  | Some Visibility.Const.Read, Some Contention.Const.Shared
+  | Some Visibility.Const.Read_write, Some Contention.Const.Uncontended ->
+    None
+  | _, Some cnt -> Some (Modality.Atom (Monadic Contention, Join_with cnt))
+  | _, None -> None
+
+let untransl_portability l =
+  let statefulness =
+    List.find_map
+      (function
+        | Modality.Atom (Comonadic Statefulness, Meet_with s) ->
+          Some (s : Statefulness.Const.t)
+        | _ -> None)
+      l
+  in
+  let portability =
+    List.find_map
+      (function
+        | Modality.Atom (Comonadic Portability, Meet_with p) ->
+          Some (p : Portability.Const.t)
+        | _ -> None)
+      l
+  in
+  match statefulness, portability with
+  | Some Statefulness.Const.Stateless, Some Portability.Const.Portable
+  | ( Some Statefulness.Const.(Observing | Stateful),
+      Some Portability.Const.Nonportable ) ->
+    None
+  | _, Some port -> Some (Modality.Atom (Comonadic Portability, Meet_with port))
+  | _, None -> None
+
 let untransl_modalities mut attrs t =
   let l = Modality.Value.Const.to_list t in
-  let l = List.filter (fun a -> not @@ Modality.is_id a) l in
+  let l =
+    (* [filter_map] instead of [filter] + [append] to preserve order. *)
+    List.filter_map
+      (function
+        | Modality.Atom (Comonadic Yielding, _) -> untransl_yielding l
+        | Modality.Atom (Monadic Contention, _) -> untransl_contention l
+        | Modality.Atom (Comonadic Portability, _) -> untransl_portability l
+        | a when Modality.is_id a -> None
+        | a -> Some a)
+      l
+  in
   let mut_modalities = mutable_implied_modalities mut attrs in
   (* polymorphic equality suffices for now. *)
   let l = List.filter (fun x -> not @@ List.mem x mut_modalities) l in

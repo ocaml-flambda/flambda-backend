@@ -23,7 +23,7 @@ Error: The kind of type "t" is mutable_data
 (* On the other hand, if we set the attribute, we shouldn't get an error. *)
 type t : value mod contended = { mutable contents : string }
 [@@unsafe_allow_any_mode_crossing]
-let f (x : t @@ contended) = use_uncontended x
+let f (x : t @ contended) = use_uncontended x
 [%%expect{|
 type t : value mod contended = { mutable contents : string; }
 [@@unsafe_allow_any_mode_crossing]
@@ -69,7 +69,7 @@ end = struct
   type t : value mod contended = { mutable contents : string }
   [@@unsafe_allow_any_mode_crossing]
 
-  let f (x : t @@ contended) = use_uncontended x
+  let f (x : t @ contended) = use_uncontended x
 end
 [%%expect{|
 module M : sig type t : value mod contended end
@@ -104,7 +104,7 @@ end = struct
   type t : value mod contended = { mutable contents : string }
   [@@unsafe_allow_any_mode_crossing]
 
-  let f (x : t @@ contended) = use_uncontended x
+  let f (x : t @ contended) = use_uncontended x
 end
 module M2 : sig
   type t : value mod contended = M1.t = { mutable contents : string }
@@ -113,7 +113,7 @@ end = struct
   type t : value mod contended = M1.t = { mutable contents : string }
   [@@unsafe_allow_any_mode_crossing]
 
-  let f (x : t @@ contended) = use_uncontended x
+  let f (x : t @ contended) = use_uncontended x
 end
 [%%expect{|
 module M1 :
@@ -136,7 +136,7 @@ end = struct
   type t  : value mod contended = { mutable contents : string }
   [@@unsafe_allow_any_mode_crossing]
 
-  let f (x : t @@ contended) = use_uncontended x
+  let f (x : t @ contended) = use_uncontended x
 end
 [%%expect{|
 module Private :
@@ -170,9 +170,9 @@ end = struct
     | Mut of { mutable contents : string }
   [@@unsafe_allow_any_mode_crossing]
 
-  let f1 (x : t1 @@ contended) = use_uncontended x
-  let f2 (x : t2 @@ contended) = use_uncontended x
-  let f3 (x : t3 @@ contended) = use_uncontended x
+  let f1 (x : t1 @ contended) = use_uncontended x
+  let f2 (x : t2 @ contended) = use_uncontended x
+  let f3 (x : t3 @ contended) = use_uncontended x
 end
 [%%expect{|
 module M :
@@ -313,7 +313,7 @@ module B = struct
   let a t = t.a
 end
 [%%expect{|
-module A : sig type t : mutable_data mod global external_ end
+module A : sig type t : value mod global many portable external_ end
 module B :
   sig
     type t : value mod contended portable = { a : A.t; }
@@ -333,16 +333,16 @@ type 'a t : immutable_data with 'a = P : ('a, 'k) imm -> 'a t
 [@@unsafe_allow_any_mode_crossing]
 |}]
 
-let f (x : int t @@ contended) = use_uncontended x
+let f (x : int t @ contended) = use_uncontended x
 [%%expect{|
 val f : int t @ contended -> int t = <fun>
 |}]
 
-let bad (x : int ref t @@ contended) = use_uncontended x
+let bad (x : int ref t @ contended) = use_uncontended x
 [%%expect{|
-Line 1, characters 55-56:
-1 | let bad (x : int ref t @@ contended) = use_uncontended x
-                                                           ^
+Line 1, characters 54-55:
+1 | let bad (x : int ref t @ contended) = use_uncontended x
+                                                          ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
@@ -363,16 +363,16 @@ module B :
   end
 |}]
 
-let f (x : int B.t_reexported @@ contended) = use_uncontended x
+let f (x : int B.t_reexported @ contended) = use_uncontended x
 [%%expect{|
 val f : int B.t_reexported @ contended -> int B.t_reexported = <fun>
 |}]
 
-let bad (x : int ref B.t_reexported @@ contended) = use_uncontended x
+let bad (x : int ref B.t_reexported @ contended) = use_uncontended x
 [%%expect{|
-Line 1, characters 68-69:
-1 | let bad (x : int ref B.t_reexported @@ contended) = use_uncontended x
-                                                                        ^
+Line 1, characters 67-68:
+1 | let bad (x : int ref B.t_reexported @ contended) = use_uncontended x
+                                                                       ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
@@ -385,8 +385,10 @@ Lines 1-2, characters 0-34:
 Error: This variant or record definition does not match that of type "'a t"
        They have different unsafe mode crossing behavior:
        Both specify [@@unsafe_allow_any_mode_crossing], but their bounds are not equal
-         the original has: mod many portable unyielding contended with 'a
-         but this has: mod many portable unyielding contended
+         the original has: mod many portable unyielding stateless contended
+         immutable with 'a
+         but this has: mod many portable unyielding stateless contended
+         immutable
 |}]
 
 type ('a, 'b) arity_2 : immutable_data with 'b = { x : 'a }
@@ -404,8 +406,10 @@ Error: This variant or record definition does not match that of type
          "('a, 'b) arity_2"
        They have different unsafe mode crossing behavior:
        Both specify [@@unsafe_allow_any_mode_crossing], but their bounds are not equal
-         the original has: mod many portable unyielding contended with 'b
-         but this has: mod many portable unyielding contended with 'a
+         the original has: mod many portable unyielding stateless contended
+         immutable with 'b
+         but this has: mod many portable unyielding stateless contended
+         immutable with 'a
 |}]
 
 (* mcomp *)

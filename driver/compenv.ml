@@ -500,10 +500,10 @@ let read_one_param ppf position name v =
         name
     end
 
-
 let read_OCAMLPARAM ppf position =
   try
     let s = Sys.getenv "OCAMLPARAM" in
+    Warnings.parsed_ocamlparam := s;
     if s <> "" then
       let (before, after) =
         try

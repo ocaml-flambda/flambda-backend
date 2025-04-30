@@ -23,7 +23,7 @@
  * SOFTWARE.                                                                      *
  *                                                                                *
  **********************************************************************************)
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 val verbose : bool ref
 
@@ -54,16 +54,12 @@ type basic_block =
     mutable is_trap_handler : bool;
         (** Is this block a trap handler (i.e. is it an exn successor of another
             block) or not? *)
-    mutable dead : bool;
-        (** This block must be unreachable from function entry. This field is
-            set during cfg construction (if trap stacks are unresolved) and used
-            during dead block elimination for checking. *)
     mutable cold : bool
         (* CR-someday gyorsh: The current implementation allows multiple
            pushtraps in each block means that different trap stacks are
            associated with the block at different points. At most one
-           instruction in each block can raise, and always the last one. After
-           we split the blocks based on Pushtrap/Poptrap, each block will have a
+           instruction in each block can raise, and always the last one. If we
+           split the blocks based on Pushtrap/Poptrap, each block will have a
            unique trap stack associated with it. [exns] will not be needed, as
            the exn-successor will be uniquely determined by can_raise + top of
            trap stack. *)
@@ -102,7 +98,7 @@ type t =
         (** This label must be the first in all layouts of this cfg. *)
     fun_contains_calls : bool;
         (** Precomputed during selection and poll insertion. *)
-    fun_num_stack_slots : int array;
+    fun_num_stack_slots : int Stack_class.Tbl.t;
         (** Precomputed at register allocation time *)
     fun_poll : Lambda.poll_attribute (* Whether to insert polling points. *)
   }
@@ -113,7 +109,7 @@ val create :
   fun_codegen_options:codegen_option list ->
   fun_dbg:Debuginfo.t ->
   fun_contains_calls:bool ->
-  fun_num_stack_slots:int array ->
+  fun_num_stack_slots:int Stack_class.Tbl.t ->
   fun_poll:Lambda.poll_attribute ->
   t
 
@@ -143,13 +139,13 @@ val mem_block : t -> Label.t -> bool
 
 val add_block_exn : t -> basic_block -> unit
 
-val remove_block_exn : t -> Label.t -> unit
-
 val remove_blocks : t -> Label.Set.t -> unit
 
 val get_block : t -> Label.t -> basic_block option
 
 val get_block_exn : t -> Label.t -> basic_block
+
+val iter_blocks_dfs : t -> f:(Label.t -> basic_block -> unit) -> unit
 
 val iter_blocks : t -> f:(Label.t -> basic_block -> unit) -> unit
 
@@ -201,7 +197,15 @@ val is_pure_basic : basic -> bool
 
 val is_noop_move : basic instruction -> bool
 
+val is_alloc : basic instruction -> bool
+
+val is_poll : basic instruction -> bool
+
+val is_end_region : basic -> bool
+
 val set_stack_offset : 'a instruction -> int -> unit
+
+val set_live : 'a instruction -> Reg.Set.t -> unit
 
 val string_of_irc_work_list : irc_work_list -> string
 
@@ -243,3 +247,5 @@ val basic_block_contains_calls : basic_block -> bool
 val max_instr_id : t -> InstructionId.t
 
 val equal_irc_work_list : irc_work_list -> irc_work_list -> bool
+
+val invalid_stack_offset : int

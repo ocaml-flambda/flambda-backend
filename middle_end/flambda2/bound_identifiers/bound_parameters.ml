@@ -60,6 +60,9 @@ let var_set t = Variable.Set.of_list (vars t)
 
 let rename t = List.map (fun t -> BP.rename t) t
 
+let is_renamed_version_of t t' =
+  Misc.Stdlib.List.equal BP.is_renamed_version_of t t'
+
 let arity t =
   List.map
     (fun t -> Flambda_arity.Component_for_creation.Singleton (BP.kind t))

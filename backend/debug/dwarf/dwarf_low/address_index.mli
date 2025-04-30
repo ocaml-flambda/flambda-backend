@@ -28,7 +28,6 @@ include Identifiable.S with type t := t
 
 val size : t -> Dwarf_int.t
 
-val emit :
-  asm_directives:(module Asm_directives.S) -> ?comment:string -> t -> unit
+val emit : asm_directives:Asm_directives_dwarf.t -> ?comment:string -> t -> unit
 
 module Pair : Identifiable.S with type t = t * t

@@ -22,6 +22,8 @@ type exported
 
 include Container_types.S with type t := t
 
+module Lmap : Lmap.S with type key := t
+
 module Sort : sig
   type t =
     | Normal_or_exn
@@ -35,6 +37,8 @@ end
 val create : ?sort:Sort.t -> ?name:string -> unit -> t
 
 val rename : t -> t
+
+val is_renamed_version_of : t -> t -> bool
 
 val name : t -> string
 

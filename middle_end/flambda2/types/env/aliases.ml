@@ -729,30 +729,30 @@ let choose_canonical_element_to_be_demoted ~binding_time_resolver
 
 type add_result =
   { t : t;
-    canonical_element : Simple.t;
-    alias_of_demoted_element : Simple.t
+    demoted_name : Name.t;
+    canonical_element : Simple.t
   }
 
 let invariant_add_result ~binding_time_resolver ~binding_times_and_modes
-    ~original_t { canonical_element; alias_of_demoted_element; t } =
+    ~original_t { demoted_name; canonical_element; t } =
   if Flambda_features.check_invariants ()
   then (
     invariant ~binding_time_resolver ~binding_times_and_modes t;
     if not
          (defined_earlier ~binding_time_resolver ~binding_times_and_modes
-            canonical_element ~than:alias_of_demoted_element)
+            canonical_element ~than:(Simple.name demoted_name))
     then
       Misc.fatal_errorf
         "Canonical element %a should be defined earlier than %a after alias \
          addition.@ Original alias tracker:@ %a@ Resulting alias tracker:@ %a"
-        Simple.print canonical_element Simple.print alias_of_demoted_element
-        print original_t print t;
-    match canonical t alias_of_demoted_element with
+        Simple.print canonical_element Name.print demoted_name print original_t
+        print t;
+    match canonical t (Simple.name demoted_name) with
     | Is_canonical ->
       Misc.fatal_errorf
         "Alias %a must not be must not be canonical anymore.@ Original alias \
          tracker:@ %a@ Resulting alias tracker:@ %a"
-        Simple.print alias_of_demoted_element print original_t print t
+        Name.print demoted_name print original_t print t
     | Alias_of_canonical _ -> ())
 
 let add_alias ~binding_time_resolver ~binding_times_and_modes t
@@ -789,10 +789,9 @@ let add_alias ~binding_time_resolver ~binding_times_and_modes t
   in
   t, which_element
 
-let add ~binding_time_resolver ~binding_times_and_modes t
+let add0 ~binding_time_resolver ~binding_times_and_modes t
     ~canonical_element1:element1_with_coercion
     ~canonical_element2:element2_with_coercion =
-  let original_t = t in
   (* element1_with_coercion <--[c1]-- element1
    * +
    * element2_with_coercion <--[c2]-- element2
@@ -814,26 +813,35 @@ let add ~binding_time_resolver ~binding_times_and_modes t
     then
       Misc.fatal_errorf "Cannot alias an element to itself: %a" Simple.print
         canonical_element1;
+  add_alias ~binding_time_resolver ~binding_times_and_modes t
+    ~canonical_element1 ~coercion_from_canonical_element2_to_canonical_element1
+    ~canonical_element2
+
+let add ~binding_time_resolver ~binding_times_and_modes t ~canonical_element1
+    ~canonical_element2 =
   let open Or_bottom.Let_syntax in
+  let original_t = t in
   let<+ t, which_element =
-    add_alias ~binding_time_resolver ~binding_times_and_modes t
-      ~canonical_element1
-      ~coercion_from_canonical_element2_to_canonical_element1
+    add0 ~binding_time_resolver ~binding_times_and_modes t ~canonical_element1
       ~canonical_element2
   in
   let canonical_element, alias_of_demoted_element =
     match which_element with
-    | Demote_canonical_element1 ->
-      element2_with_coercion, element1_with_coercion
-    | Demote_canonical_element2 ->
-      element1_with_coercion, element2_with_coercion
+    | Demote_canonical_element1 -> canonical_element2, canonical_element1
+    | Demote_canonical_element2 -> canonical_element1, canonical_element2
   in
-  let add_result = { t; canonical_element; alias_of_demoted_element } in
-  if Flambda_features.check_invariants ()
-  then
-    invariant_add_result ~binding_time_resolver ~binding_times_and_modes
-      ~original_t add_result;
-  add_result
+  Simple.pattern_match alias_of_demoted_element
+    ~const:(fun _ -> Misc.fatal_error "Cannot demote a constant")
+    ~name:(fun name ~coercion ->
+      let canonical_element =
+        Simple.apply_coercion_exn canonical_element (Coercion.inverse coercion)
+      in
+      let add_result = { t; canonical_element; demoted_name = name } in
+      if Flambda_features.check_invariants ()
+      then
+        invariant_add_result ~binding_time_resolver ~binding_times_and_modes
+          ~original_t add_result;
+      add_result)
 
 (* CR-someday mshinwell: For the moment we allow relations between canonical
    elements that are actually incomparable under the name mode ordering, and
@@ -1036,11 +1044,16 @@ let add_alias_set ~binding_time_resolver ~binding_times_and_modes t name aliases
     then t, canonical_element1
     else
       match
-        add ~binding_time_resolver ~binding_times_and_modes t
+        add0 ~binding_time_resolver ~binding_times_and_modes t
           ~canonical_element1 ~canonical_element2:elt
       with
       | Bottom -> Misc.fatal_error "Discovered Bottom during alias join"
-      | Ok { t; canonical_element; alias_of_demoted_element = _ } ->
+      | Ok (t, which_element) ->
+        let canonical_element =
+          match which_element with
+          | Demote_canonical_element1 -> elt
+          | Demote_canonical_element2 -> canonical_element1
+        in
         t, canonical_element
   in
   let ({ const; names } : Alias_set.t) = aliases in
