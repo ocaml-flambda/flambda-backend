@@ -2259,7 +2259,7 @@ let for_unboxed_record lbls =
   in
   Builtin.product ~why:Unboxed_record tys_modalities layouts
 
-let for_boxed_variant cstrs =
+let for_boxed_variant ~decl_params ~type_apply ~free_vars cstrs =
   let open Types in
   if List.for_all
        (fun cstr ->
@@ -2278,32 +2278,169 @@ let for_boxed_variant cstrs =
           | Cstr_record lbls -> has_mutable_label lbls)
         cstrs
     in
-    let has_gadt_constructor =
-      List.exists
-        (fun cstr -> match cstr.cd_res with None -> false | Some _ -> true)
-        cstrs
+    let base =
+      (if is_mutable then Builtin.mutable_data else Builtin.immutable_data)
+        ~why:Boxed_variant
+      |> mark_best
     in
-    if has_gadt_constructor
-       (* CR layouts v2.8: This is sad, but I don't know how to account for
-          existentials in the with_bounds. See doc named "Existential
-          with_bounds". *)
-    then Builtin.value ~why:Boxed_variant
-    else
-      let base =
-        (if is_mutable then Builtin.mutable_data else Builtin.immutable_data)
-          ~why:Boxed_variant
-        |> mark_best
-      in
-      let add_cstr_args cstr jkind =
+    (* Note [With-bounds for GADTs]
+       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+       Inferring with-bounds for gadts goes like so:
+
+       1. Loop over the constructors. If a constructor is not a variant constructor, just
+       add its fields and their modalities as with-bounds, then skip step 2
+
+       2. For GADT constructors, call [Ctype.apply] (passed in as [type_apply]) to
+       substitute the arguments on the return types of gadts with the arguments to the
+       type declaration (except in the case of return type arguments which are not bare
+       type variables, see 2b). For example, in the following type declaration:
+
+       {[
+         type 'a t = A : 'b option -> 'b t
+       ]}
+
+       we turn the ['b option] field into ['a option], by substituting ['b] |-> ['a].
+
+       There are a few ways this is slightly subtle ([2a]-[2c]):
+
+       2a. For repeated types on arguments, eg in the following type:
+
+       {[
+         type ('x, 'y) t = A : 'a -> ('a, 'a) t
+       ]}
+
+       we take only the *first* time we see an argument, treating that as an index, and
+       omit all other possible instantiations. That means that in the above type, we'll
+       substitute ['x] for both instances of ['a] and infer a kind of [immutable_data with
+       'x]. This is sound, but somewhat restrictive; in a perfect world, we'd infer a kind
+       of [immutable_data with ('x OR 'y)], but that goes beyond what with-bounds can
+       describe (which, if we implemented it, would introduce a disjunction in type
+       inference, requiring backtracking). At some point in the future, we should at least
+       change the subsumption algorithm to accept either [immutable_data with 'x] or
+       [immutable_data with 'y] (* CR layouts v2.8: do that *)
+
+       2b. If a type appears in an argument as something other than a direct TVar, eg in
+       the following type:
+
+       {[
+         type 'a t : A : 'a -> 'a option t
+       ]}
+
+       we treat it as if it was existential (see [2c]); we consider these variables -
+       those which are either existential (not mentioned at all in the result type of the
+       constructor) or only mentioned under another type expression in the result type of
+       a constructor "orphaned" type variables.
+
+       2c. We replace all "orphaned" type variables (see the last paragraph of 2a, above)
+       with a [Tof_kind] representing the kind of those existential type variables. Since
+       those have best kinds, they'll just get normalized away during normalization,
+       except in the case that they show up as an argument to a type constructor
+       representing an abstract type - in which case, they still end up in the (fully
+       normalized) with-bounds. For example, the following type:
+
+       {[
+         type t : A : ('a : value mod portable). 'a abstract -> t
+       ]}
+
+       has kind:
+
+       {[
+         immutable_data with (type : value mod portable) abstract
+       ]}
+    *)
+    let add_with_bounds_for_cstr jkind cstr =
+      let cstr_arg_tys, cstr_arg_modalities =
         match cstr.cd_args with
         | Cstr_tuple args ->
-          List.fold_right
-            (fun arg ->
-              add_with_bounds ~modality:arg.ca_modalities ~type_expr:arg.ca_type)
-            args jkind
-        | Cstr_record lbls -> add_labels_as_with_bounds lbls jkind
+          List.fold_left
+            (fun (tys, ms) arg -> arg.ca_type :: tys, arg.ca_modalities :: ms)
+            ([], []) args
+        | Cstr_record lbls ->
+          List.fold_left
+            (fun (tys, ms) lbl -> lbl.ld_type :: tys, lbl.ld_modalities :: ms)
+            ([], []) lbls
       in
-      List.fold_right add_cstr_args cstrs base
+      let cstr_arg_tys =
+        match cstr.cd_res with
+        | None -> cstr_arg_tys
+        | Some res ->
+          let res_args =
+            match Types.get_desc res with
+            | Tconstr (_, args, _) -> args
+            | _ -> Misc.fatal_error "cd_res must be Tconstr"
+          in
+          let arg_vars =
+            match cstr.cd_args with
+            | Cstr_tuple tl ->
+              Seq.concat_map
+                (fun ca -> free_vars ca.ca_type |> List.to_seq)
+                (List.to_seq tl)
+            | Cstr_record lbls ->
+              Seq.concat_map
+                (fun lbl -> free_vars lbl.ld_type |> List.to_seq)
+                (List.to_seq lbls)
+          in
+          (* Gather "orphaned" type vars (existentials, plus type vars which are only
+             bound because they're under another type expression) for the constructor.
+
+             See step 2b and 2c from Note [With-bounds for GADTs] *)
+          let orphaned_type_vars =
+            let res_arg_set =
+              res_args |> List.to_seq
+              |> Seq.map Types.Transient_expr.repr
+              |> Btype.TypeSet.of_seq
+            in
+            Btype.TypeSet.diff
+              (arg_vars
+              |> Seq.map Types.Transient_expr.repr
+              |> Btype.TypeSet.of_seq)
+              res_arg_set
+            |> Btype.TypeSet.to_seq
+            |> Seq.map Types.Transient_expr.type_expr
+            |> List.of_seq
+          in
+          let tof_kinds =
+            List.map
+              (fun ty ->
+                match get_desc ty with
+                | Tvar { jkind; _ } -> Btype.newgenty (Tof_kind jkind)
+                | _ ->
+                  Misc.fatal_error "orphanes_type_vars must contain only Tvar")
+              orphaned_type_vars
+          in
+          let args, params, _seen =
+            List.fold_left2
+              (fun (ret_args, params, seen) arg param ->
+                if Btype.TypeSet.mem arg seen
+                then
+                  (* We've already seen this type parameter, so don't add it again.
+                     See Step 2a from Note [With-bounds for GADTs] *)
+                  ret_args, params, seen
+                else
+                  match Types.get_desc arg with
+                  | Tvar _ ->
+                    (* Only add types which are direct variables. Note that types
+                       which aren't variables might themselves /contain/ variables; if
+                       those variables don't show up on another parameter, they're
+                       treated as orphaned. See step 2b from Note [With-bounds for
+                       GADTs] *)
+                    arg :: ret_args, param :: params, Btype.TypeSet.add arg seen
+                  | _ -> ret_args, params, seen)
+              (orphaned_type_vars, tof_kinds, Btype.TypeSet.empty)
+              res_args decl_params
+          in
+          if Misc.Stdlib.List.is_empty params
+          then cstr_arg_tys
+          else List.map (fun ty -> type_apply args ty params) cstr_arg_tys
+      in
+      List.fold_left2
+        (fun jkind type_expr modality ->
+          add_with_bounds ~modality ~type_expr jkind)
+        jkind cstr_arg_tys cstr_arg_modalities
+    in
+    (* This left fold is step 1 from Note [With-bounds for GADTs] *)
+    List.fold_left add_with_bounds_for_cstr base cstrs
 
 let for_boxed_tuple elts =
   List.fold_right

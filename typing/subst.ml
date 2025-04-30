@@ -474,7 +474,7 @@ let rec typexp copy_scope s ty =
               let more' =
                 match mored with
                   Tsubst (ty, None) -> ty
-                | Tconstr _ | Tnil -> typexp copy_scope s more
+                | Tconstr _ | Tnil | Tof_kind _ -> typexp copy_scope s more
                 | Tunivar _ | Tvar _ ->
                     if should_duplicate_vars then newpersty mored
                     else if dup && is_Tvar more then newgenty mored

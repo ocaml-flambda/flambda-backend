@@ -1297,7 +1297,7 @@ let rec copy ?partial ?keep_names copy_scope ty =
                   Tsubst (ty, None) -> ty
                   (* TODO: is this case possible?
                      possibly an interaction with (copy more) below? *)
-                | Tconstr _ | Tnil ->
+                | Tconstr _ | Tnil | Tof_kind _ ->
                     copy more
                 | Tvar _ | Tunivar _ ->
                     if keep then more else newty mored
@@ -2334,7 +2334,11 @@ let rec estimate_type_jkind ~expand_component env ty =
        down a test case that cares. *)
     Jkind.round_up ~jkind_of_type |>
     Jkind.disallow_right
-  | Tof_kind jkind -> Jkind.disallow_right jkind
+  | Tof_kind jkind  ->
+    jkind
+    |> Jkind.disallow_right
+    (* [Tof_kind] stands in for an existential type, which always have best kinds *)
+    |> Jkind.mark_best
   | Tpackage _ -> Jkind.Builtin.value ~why:First_class_module
 
 and close_open_jkind ~expand_component ~is_open env jkind =
