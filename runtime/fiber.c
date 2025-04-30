@@ -79,7 +79,7 @@ uintnat caml_get_init_stack_wsize (int context)
   }
 #else
   switch(context) {
-  case STACK_SIZE_MAIN:  
+  case STACK_SIZE_MAIN:
   case STACK_SIZE_THREAD: init_stack_wsize = Wsize_bsize(Stack_init_bsize); break;
   case STACK_SIZE_FIBER:  init_stack_wsize = Wsize_bsize(Stack_threshold * 2); break;
   default: caml_fatal_error("caml_get_init_stack_wsize: invalid context");
@@ -624,13 +624,9 @@ void caml_maybe_expand_stack (void)
     + 8 + Stack_padding_word;
 
   if (stack_available < stack_needed) {
-#ifdef STACK_GUARD_PAGES
-    caml_raise_stack_overflow();
-#else
     if (!caml_try_realloc_stack (stack_needed)) {
       caml_raise_stack_overflow();
     }
-#endif
   }
 
   if (Caml_state->gc_regs_buckets == NULL) {
@@ -805,9 +801,9 @@ void caml_rewrite_exception_stack(struct stack_info *old_stack,
 
 int caml_try_realloc_stack(asize_t required_space)
 {
-#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+#if defined(USE_MMAP_MAP_STACK) || defined(STACK_GUARD_PAGES)
   (void) required_space;
-  abort();
+  return 0;
 #else
   struct stack_info *old_stack, *new_stack;
   asize_t wsize;
