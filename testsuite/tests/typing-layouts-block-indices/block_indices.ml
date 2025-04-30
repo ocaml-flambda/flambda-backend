@@ -30,11 +30,21 @@ open Stdlib_upstream_compatible
 
 let _fail_when_no_extensions () = (.contents)
 
-external[@layout_poly] read_idx_imm : 'a ('b : any). 'a -> ('a, 'b) idx_imm -> 'b = "%unsafe_read_idx"
-external[@layout_poly] read_idx_mut : 'a ('b : any). 'a -> ('a, 'b) idx_mut -> 'b = "%unsafe_read_idx"
-external[@layout_poly] write_idx_mut : 'a ('b : any). 'a -> ('a, 'b) idx_mut -> 'b -> unit = "%unsafe_write_idx"
+external[@layout_poly] read_idx_imm :
+  'a ('b : any). ('a [@local_opt]) -> ('a, 'b) idx_imm -> ('b [@local_opt]) =
+  "%unsafe_read_idx_imm"
+external[@layout_poly] read_idx_mut :
+  'a ('b : any). ('a [@local_opt]) -> ('a, 'b) idx_mut -> ('b [@local_opt]) =
+  "%unsafe_read_idx"
+external[@layout_poly] write_idx_mut :
+  'a ('b : any).
+    ('a [@local_opt]) -> ('a, 'b) idx_mut -> ('b [@local_opt]) -> unit =
+  "%unsafe_write_idx"
 external[@layout_poly] makearray_dynamic :
-  ('a : any_non_null). len:int -> init:('a [@local_opt]) -> ('a array [@local_opt]) =
+  ('a : any_non_null). int -> ('a [@local_opt]) -> ('a array [@local_opt]) =
+  "%makearray_dynamic"
+external[@layout_poly] makearray_dynamic_local :
+  ('a : any_non_null) . int -> 'a -> 'a array @ local =
   "%makearray_dynamic"
 external[@layout_poly] get :
   ('a : any_non_null) . ('a array[@local_opt]) -> (int[@local_opt]) -> 'a =
@@ -226,8 +236,8 @@ let () =
   print_newline ()
 
 let () =
-  print_endline "float32# array";
-  let a = makearray_dynamic ~len:10 ~init:#0.s in
+  print_endline "Reading from a float32# array";
+  let a = makearray_dynamic 10 #0.s in
   for i = 0 to 9 do
     set a i (Float32_u.of_float (Float_u.of_int i))
   done;
@@ -236,10 +246,18 @@ let () =
     let x = read_idx_mut a idx in
     Printf.printf "%f\n" (Float_u.to_float (Float32_u.to_float x))
   done;
-  print_endline ""
+  print_endline "\nWriting to a float32# array";
+  for i = 0 to 9 do
+    let idx : (_, float32#) idx_mut = (.(i)) in
+    write_idx_mut a idx (Float32_u.of_float (Float_u.of_int (i + 10)))
+  done;
+  for i = 0 to 9 do
+    Printf.printf "%f\n" (Float_u.to_float (Float32_u.to_float (get a i)))
+  done;
+  print_newline ()
 
 let () =
-  print_endline "reads of various index types from string array";
+  print_endline "Reads of all index types from string array";
   let a = Array.init 10 (fun x -> Int.to_string x) in
   let s = read_idx_mut a (.(3)) in
   print_endline s;
@@ -249,13 +267,13 @@ let () =
   print_endline s;
   let s = read_idx_mut a (.n(#3n)) in
   print_endline s;
-  ()
+  print_newline ()
 
 type ii = #{ i : int; j : int }
 
 let () =
-  print_endline "reads of various index types from int product array";
-  let a = makearray_dynamic ~len:10 ~init:#{ i = 0; j = 0 } in
+  print_endline "Reads of all index types from int product array";
+  let a = makearray_dynamic 10 #{ i = 0; j = 0 } in
   for i = 0 to 9 do
     set a i #{ i = i; j = i * 11 }
   done;
@@ -280,8 +298,41 @@ let () =
 type ff = #{ i : float#; j : float# }
 
 let () =
-  print_endline "reads of various index types from float# product array";
-  let a = makearray_dynamic ~len:10 ~init:#{ i = #0.; j = #0. } in
+  print_endline "Reads of all index types from a float# product array";
+  let a = makearray_dynamic 10 #{ i = #0.; j = #0. } in
+  for i = 0 to 9 do
+    let f = Float_u.of_int i in
+    set a i #{ i = f; j = Float_u.mul f #11. }
+  done;
+  let #{ i; j } = read_idx_mut a (.(3)) in
+  let i2 = read_idx_mut a (.(3).#i) in
+  let j2 = read_idx_mut a (.(3).#j) in
+  Printf.printf "%f %f %f %f\n"
+    (Float_u.to_float i) (Float_u.to_float i2)
+    (Float_u.to_float j) (Float_u.to_float j2);
+  let #{ i; j } = read_idx_mut a (.L(#3L)) in
+  let i2 = read_idx_mut a (.L(#3L).#i) in
+  let j2 = read_idx_mut a (.L(#3L).#j) in
+  Printf.printf "%f %f %f %f\n"
+    (Float_u.to_float i) (Float_u.to_float i2)
+    (Float_u.to_float j) (Float_u.to_float j2);
+  let #{ i; j } = read_idx_mut a (.l(#3l)) in
+  let i2 = read_idx_mut a (.l(#3l).#i) in
+  let j2 = read_idx_mut a (.l(#3l).#j) in
+  Printf.printf "%f %f %f %f\n"
+    (Float_u.to_float i) (Float_u.to_float i2)
+    (Float_u.to_float j) (Float_u.to_float j2);
+  let #{ i; j } = read_idx_mut a (.n(#3n)) in
+  let i2 = read_idx_mut a (.n(#3n).#i) in
+  let j2 = read_idx_mut a (.n(#3n).#j) in
+  Printf.printf "%f %f %f %f\n"
+    (Float_u.to_float i) (Float_u.to_float i2)
+    (Float_u.to_float j) (Float_u.to_float j2);
+  print_newline ()
+
+let () =
+  print_endline "Reads of all index types from a float# product array";
+  let a = makearray_dynamic_local 10 #{ i = #0.; j = #0. } in
   for i = 0 to 9 do
     let f = Float_u.of_int i in
     set a i #{ i = f; j = Float_u.mul f #11. }

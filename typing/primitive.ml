@@ -694,6 +694,12 @@ let prim_has_valid_reprs ~loc prim =
         is (Same_as_ocaml_repr C.bits64);
         any
       ]
+    | "%unsafe_read_idx_imm" ->
+      check [
+        is (Same_as_ocaml_repr C.value);
+        is (Same_as_ocaml_repr C.bits64);
+        any
+      ]
     | "%unsafe_write_idx" ->
       check [
         is (Same_as_ocaml_repr C.value);

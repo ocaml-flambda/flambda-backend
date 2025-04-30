@@ -60,7 +60,7 @@ Deepen flats to flats (continues above)
 will incr: 22.000000
 { { f = 2.000000; g = 33.000000 }; { i = 2; j = 33 } } foo
 
-float32# array
+Reading from a float32# array
 0.000000
 1.000000
 2.000000
@@ -72,18 +72,37 @@ float32# array
 8.000000
 9.000000
 
-reads of various index types from string array
+Writing to a float32# array
+10.000000
+11.000000
+12.000000
+13.000000
+14.000000
+15.000000
+16.000000
+17.000000
+18.000000
+19.000000
+
+Reads of all index types from string array
 3
 3
 3
 3
-reads of various index types from int product array
+
+Reads of all index types from int product array
 3 3 33 33
 3 3 33 33
 3 3 33 33
 3 3 33 33
 
-reads of various index types from float# product array
+Reads of all index types from a float# product array
+3.000000 3.000000 33.000000 33.000000
+3.000000 3.000000 33.000000 33.000000
+3.000000 3.000000 33.000000 33.000000
+3.000000 3.000000 33.000000 33.000000
+
+Reads of all index types from a float# product array
 3.000000 3.000000 33.000000 33.000000
 3.000000 3.000000 33.000000 33.000000
 3.000000 3.000000 33.000000 33.000000
