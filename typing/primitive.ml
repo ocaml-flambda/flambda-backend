@@ -688,19 +688,19 @@ let prim_has_valid_reprs ~loc prim =
     | "%peek" | "%poke" ->
       (* Arities and layouts of these primitives are checked in [Translprim] *)
       fun _ -> Success
-    | "%unsafe_read_idx" ->
+    | "%unsafe_get_idx" ->
       check [
         is (Same_as_ocaml_repr C.value);
         is (Same_as_ocaml_repr C.bits64);
         any
       ]
-    | "%unsafe_read_idx_imm" ->
+    | "%unsafe_get_idx_imm" ->
       check [
         is (Same_as_ocaml_repr C.value);
         is (Same_as_ocaml_repr C.bits64);
         any
       ]
-    | "%unsafe_write_idx" ->
+    | "%unsafe_set_idx" ->
       check [
         is (Same_as_ocaml_repr C.value);
         is (Same_as_ocaml_repr C.bits64);

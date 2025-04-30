@@ -737,9 +737,9 @@ let comp_primitive stack_info p sz args =
     Misc.fatal_error "Pmakearray_dynamic Uninitialized should have been \
       translated to Pmakearray_dynamic Initialized earlier on"
   | Pget_idx _ ->
-    Kccall("caml_idx_unsafe_read_bytecode", 2)
+    Kccall("caml_unsafe_get_idx_bytecode", 2)
   | Pset_idx _ ->
-    Kccall("caml_idx_unsafe_write_bytecode", 3)
+    Kccall("caml_unsafe_set_idx_bytecode", 3)
   (* The cases below are handled in [comp_expr] before the [comp_primitive] call
      (in the order in which they appear below),
      so they should never be reached in this function. *)
@@ -1199,7 +1199,7 @@ and comp_expr stack_info env exp sz cont =
     let path_suffix = Lconst (Const_block (0, path_consts)) in
     let cont = add_pseudo_event loc !compunit_name cont in
     comp_args stack_info env [path_prefix; path_suffix] sz
-      (Kccall ("caml_idx_deepen_bytecode", 2) :: cont)
+      (Kccall ("caml_deepen_idx_bytecode", 2) :: cont)
   | Lprim(p, args, _) ->
       let nargs = List.length args - 1 in
       comp_args stack_info env args sz

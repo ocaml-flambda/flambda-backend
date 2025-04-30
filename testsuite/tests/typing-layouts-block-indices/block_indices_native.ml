@@ -9,8 +9,8 @@
  native;
 *)
 
-external[@layout_poly] read_idx_mut : 'a ('b : any). 'a -> ('a, 'b) idx_mut -> 'b = "%unsafe_read_idx"
-external[@layout_poly] write_idx_mut : 'a ('b : any). 'a -> ('a, 'b) idx_mut -> 'b -> unit = "%unsafe_write_idx"
+external[@layout_poly] get_idx_mut : 'a ('b : any). 'a -> ('a, 'b) idx_mut -> 'b = "%unsafe_get_idx"
+external[@layout_poly] set_idx_mut : 'a ('b : any). 'a -> ('a, 'b) idx_mut -> 'b -> unit = "%unsafe_set_idx"
 
 external box_int64x2 : int64x2# -> int64x2 = "%box_vec128"
 external unbox_int64x2 : int64x2 -> int64x2# = "%unbox_vec128"
@@ -33,8 +33,8 @@ let () =
   let v_2_22 = interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 22L) in
   let v_3_33 = interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 33L) in
   let r = { j = v_3_33; i = v_1_11 } in
-  let x = read_idx_mut r (.i) in
+  let x = get_idx_mut r (.i) in
   Printf.printf "%s\n" (int64x2_to_string (box_int64x2 x));
-  write_idx_mut r (.i) v_2_22;
+  set_idx_mut r (.i) v_2_22;
   Printf.printf "%s\n" (int64x2_to_string (box_int64x2 r.i));
   ()

@@ -890,9 +890,10 @@ CAMLprim value caml_array_blit(value a1, value ofs1, value a2, value ofs2,
   return Val_unit;
 }
 
+/* CR rtjoa: copy to and test runtime 5 */
 /* In bytecode, an index is represented as a block containing a list of field
    positions */
-CAMLprim value caml_idx_unsafe_read_bytecode(value base, value idx)
+CAMLprim value caml_unsafe_get_idx_bytecode(value base, value idx)
 {
   CAMLparam2 (base, idx);
   CAMLassert (Tag_val(idx) == 0);
@@ -920,7 +921,7 @@ CAMLprim value caml_idx_unsafe_read_bytecode(value base, value idx)
   CAMLreturn (res);
 }
 
-CAMLprim value caml_idx_unsafe_write_bytecode(value base, value idx, value v)
+CAMLprim value caml_unsafe_set_idx_bytecode(value base, value idx, value v)
 {
   CAMLparam3 (base, idx, v);
   CAMLassert (Tag_val(idx) == 0);
@@ -944,7 +945,7 @@ CAMLprim value caml_idx_unsafe_write_bytecode(value base, value idx, value v)
 }
 
 /* Concatenates idx_prefix and idx_suffix */
-CAMLprim value caml_idx_deepen_bytecode(value idx_prefix, value idx_suffix) {
+CAMLprim value caml_deepen_idx_bytecode(value idx_prefix, value idx_suffix) {
   mlsize_t prefix_depth = Wosize_val(idx_prefix);
   mlsize_t suffix_depth = Wosize_val(idx_suffix);
 
