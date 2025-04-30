@@ -214,7 +214,8 @@ let is_renamed_version_of t t' =
   && Bound_parameters.is_renamed_version_of t.params t'.params
   && Variable.is_renamed_version_of t.my_closure t'.my_closure
   && Option.equal Variable.is_renamed_version_of t.my_region t'.my_region
-  && Option.equal Variable.is_renamed_version_of t.my_ghost_region t'.my_ghost_region
+  && Option.equal Variable.is_renamed_version_of t.my_ghost_region
+       t'.my_ghost_region
   && Variable.is_renamed_version_of t.my_depth t'.my_depth
 
 let renaming

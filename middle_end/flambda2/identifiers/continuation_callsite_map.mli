@@ -13,21 +13,20 @@
 (*                                                                        *)
 (**************************************************************************)
 
-type 'a t = 'a Apply_cont_rewrite_id.Map.t Continuation.Map.t
 (** This type represents maps from continuations to (maps from) rewrite ids
     to values. *)
+type 'a t = 'a Apply_cont_rewrite_id.Map.t Continuation.Map.t
 
-val print : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
 (** Print function. *)
+val print : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
 
-val empty : 'a t
 (** The empty map *)
+val empty : 'a t
 
-val find : Continuation.t -> Apply_cont_rewrite_id.t -> 'a t -> 'a
 (** Find the value bound to a pair of a continuation and rewrite id.
     @raise Not_found if the continuation *and* rewrite ids are not bound. *)
+val find : Continuation.t -> Apply_cont_rewrite_id.t -> 'a t -> 'a
 
-val add : Continuation.t -> Apply_cont_rewrite_id.t -> 'a -> 'a t -> 'a t
 (** Add a binding to the callsite map.
     @raise Misc.Fatal_error if there is a pre-existing binding for the keys. *)
-
+val add : Continuation.t -> Apply_cont_rewrite_id.t -> 'a -> 'a t -> 'a t
