@@ -37,6 +37,10 @@ let with_name_mode t name_mode = { t with name_mode }
 
 let rename t = with_var t (Variable.rename t.var)
 
+let is_renamed_version_of t t' =
+  Name_mode.equal t.name_mode t'.name_mode
+  && Variable.is_renamed_version_of t.var t'.var
+
 let apply_renaming t renaming =
   with_var t (Renaming.apply_variable renaming t.var)
 

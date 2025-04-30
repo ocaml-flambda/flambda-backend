@@ -24,6 +24,10 @@ let rename ?append t =
   let user_visible = if user_visible t then Some () else None in
   create ?user_visible name
 
+let is_renamed_version_of t t' =
+  (* We only keep track of variables renamed with an empty {append} parameter *)
+  String.equal (name t) (name t')
+
 let raw_name = name
 
 let unique_name t = name t ^ string_of_int (name_stamp t)

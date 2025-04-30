@@ -39,6 +39,7 @@ type t =
         threshold : float
       }
   | Attribute_always
+  | Replay_history_says_must_inline
   | Begin_unrolling of int
   | Continue_unrolling
   | Definition_says_inline of { was_inline_always : bool }
@@ -67,6 +68,8 @@ let [@ocamlformat "disable"] print ppf t =
     Format.fprintf ppf "Never_inlined_attribute"
   | Attribute_always ->
     Format.fprintf ppf "Attribute_always"
+  | Replay_history_says_must_inline ->
+    Format.fprintf ppf "Replay_history_says_must_inline"
   | Definition_says_inline { was_inline_always } ->
     Format.fprintf ppf
       "@[<hov 1>(Definition_says_inline@ \
@@ -139,6 +142,8 @@ let can_inline (t : t) : can_inline =
   | Speculatively_inline _ ->
     Inline { unroll_to = None; was_inline_always = false }
   | Attribute_always -> Inline { unroll_to = None; was_inline_always = true }
+  | Replay_history_says_must_inline ->
+    Inline { unroll_to = None; was_inline_always = false }
 
 let report_reason fmt t =
   match (t : t) with
@@ -164,6 +169,14 @@ let report_reason fmt t =
     Format.fprintf fmt "the@ call@ has@ an@ attribute@ forbidding@ inlining"
   | Attribute_always ->
     Format.fprintf fmt "the@ call@ has@ an@ [@@inline always]@ attribute"
+  | Replay_history_says_must_inline ->
+    (* CR gbury: We could decide not to include in the inlining report inlining
+       decisions that were made during replays (e.G. continuation
+       specialization), or alternatively to store the initial inlining decision
+       so that we can report it each time. *)
+    Format.fprintf fmt
+      "the@ call@ was@ inlined@ during@ the@ first@ pass@ on@ the@ current@ \
+       continuation@ handler"
   | Begin_unrolling n ->
     Format.fprintf fmt "the@ call@ has@ an@ [@@unroll %d]@ attribute" n
   | Continue_unrolling ->

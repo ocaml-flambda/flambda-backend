@@ -183,16 +183,28 @@ let get_rec_info dacc ~function_type =
 
 let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
     Call_site_inlining_decision_type.t =
+  let must_inline = DE.must_inline (DA.denv dacc) in
+  let fail_if_must_inline () =
+    if must_inline
+    then
+      Misc.fatal_errorf
+        "Deciding not to inline an [Apply], but the replay_history says we \
+         should inline"
+  in
   let rec_info = get_rec_info dacc ~function_type in
   let inlined = Apply.inlined apply in
   match inlined with
-  | Never_inlined -> Never_inlined_attribute
+  | Never_inlined ->
+    fail_if_must_inline ();
+    Never_inlined_attribute
   | Default_inlined | Unroll _ | Always_inlined _ | Hint_inlined -> (
     let code_or_metadata =
       DE.find_code_exn (DA.denv dacc) (FT.code_id function_type)
     in
     if not (Code_or_metadata.code_present code_or_metadata)
-    then Missing_code
+    then (
+      fail_if_must_inline ();
+      Missing_code)
     else
       (* The unrolling process is rather subtle, but it boils down to two steps:
 
@@ -212,7 +224,9 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
         Simplify_rec_info_expr.known_remaining_unrolling_depth dacc rec_info
       in
       match unrolling_depth with
-      | Some 0 -> Unrolling_depth_exceeded
+      | Some 0 ->
+        fail_if_must_inline ();
+        Unrolling_depth_exceeded
       | Some _ -> Continue_unrolling
       | None -> (
         (* lmaurer: This seems semantically dodgy: If we really think of a free
@@ -234,7 +248,9 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
             (Code_or_metadata.code_metadata code_or_metadata)
         in
         if Inlining_state.is_depth_exceeded apply_inlining_state
-        then Max_inlining_depth_exceeded
+        then (
+          fail_if_must_inline ();
+          Max_inlining_depth_exceeded)
         else
           let policy =
             match inlined with
@@ -259,7 +275,11 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
             in
             if Simplify_rec_info_expr.depth_may_exceed dacc rec_info
                  max_rec_depth
-            then Recursion_depth_exceeded
+            then (
+              fail_if_must_inline ();
+              Recursion_depth_exceeded)
+            else if must_inline
+            then Replay_history_says_must_inline
             else
               might_inline dacc ~apply ~code_or_metadata ~function_type
                 ~simplify_expr ~return_arity
@@ -270,5 +290,7 @@ let make_decision dacc ~simplify_expr ~function_type ~apply ~return_arity :
                  [Inlining_transforms] for how [unroll_to] is ultimately
                  handled. *)
               Begin_unrolling unroll_to
-            else Unrolling_depth_exceeded
+            else (
+              fail_if_must_inline ();
+              Unrolling_depth_exceeded)
           | `Always -> Attribute_always))
