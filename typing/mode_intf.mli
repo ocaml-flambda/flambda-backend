@@ -414,21 +414,23 @@ module type S = sig
       val meet_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
     end
 
-    (** Represents a mode axis in this product whose constant is ['a], and whose
-    allowance is ['d1] given the product's allowance ['d0]. *)
-    type ('a, 'd0, 'd1) axis =
-      | Monadic : (Monadic.Const.t, 'a) Axis.t -> ('a, 'd, 'd neg) axis
-      | Comonadic : (Comonadic.Const.t, 'a) Axis.t -> ('a, 'd, 'd pos) axis
+    module Axis : sig
+      (** Represents a mode axis in this product whose constant is ['a], and whose
+      allowance is ['d1] given the product's allowance ['d0]. *)
+      type ('a, 'd0, 'd1) t =
+        | Monadic : (Monadic.Const.t, 'a) Axis.t -> ('a, 'd, 'd neg) t
+        | Comonadic : (Comonadic.Const.t, 'a) Axis.t -> ('a, 'd, 'd pos) t
 
-    type axis_packed = P : (_, _, _) axis -> axis_packed
+      type packed = P : (_, _, _) t -> packed
 
-    val print_axis : Format.formatter -> ('a, _, _) axis -> unit
+      val print : Format.formatter -> ('a, _, _) t -> unit
+
+      val all : packed list
+    end
 
     (** Gets the normal lattice for comonadic axes and the "op"ped lattice for
         monadic ones. *)
-    val lattice_of_axis : ('a, _, _) axis -> (module Lattice with type t = 'a)
-
-    val all_axes : axis_packed list
+    val lattice_of_axis : ('a, _, _) Axis.t -> (module Lattice with type t = 'a)
 
     type ('a, 'b, 'c, 'd, 'e, 'f, 'g, 'h) modes =
       { areality : 'a;
@@ -476,9 +478,9 @@ module type S = sig
         val print : Format.formatter -> t -> unit
       end
 
-      val is_max : ('a, _, _) axis -> 'a -> bool
+      val is_max : ('a, _, _) Axis.t -> 'a -> bool
 
-      val is_min : ('a, _, _) axis -> 'a -> bool
+      val is_min : ('a, _, _) Axis.t -> 'a -> bool
 
       val split : t -> (Monadic.Const.t, Comonadic.Const.t) monadic_comonadic
 
@@ -495,10 +497,10 @@ module type S = sig
       val partial_apply : t -> t
 
       (** Prints a constant on any axis. *)
-      val print_axis : ('a, _, _) axis -> Format.formatter -> 'a -> unit
+      val print_axis : ('a, _, _) Axis.t -> Format.formatter -> 'a -> unit
     end
 
-    type error = Error : ('a, _, _) axis * 'a Solver.error -> error
+    type error = Error : ('a, _, _) Axis.t * 'a Solver.error -> error
 
     type 'd t = ('d Monadic.t, 'd Comonadic.t) monadic_comonadic
 
@@ -514,23 +516,23 @@ module type S = sig
     end
 
     val proj :
-      ('a, 'l0 * 'r0, 'l1 * 'r1) axis -> ('l0 * 'r0) t -> ('a, 'l1 * 'r1) mode
+      ('a, 'l0 * 'r0, 'l1 * 'r1) Axis.t -> ('l0 * 'r0) t -> ('a, 'l1 * 'r1) mode
 
     val max_with :
-      ('a, 'l0 * 'r0, 'l1 * 'r1) axis ->
+      ('a, 'l0 * 'r0, 'l1 * 'r1) Axis.t ->
       ('a, 'l1 * 'r1) mode ->
       (disallowed * 'r0) t
 
     val min_with :
-      ('a, 'l0 * 'r0, 'l1 * 'r1) axis ->
+      ('a, 'l0 * 'r0, 'l1 * 'r1) Axis.t ->
       ('a, 'l1 * 'r1) mode ->
       ('l0 * disallowed) t
 
     val meet_with :
-      ('a, 'l0 * 'r0, 'l1 * 'r1) axis -> 'a -> ('l0 * 'r0) t -> ('l0 * 'r0) t
+      ('a, 'l0 * 'r0, 'l1 * 'r1) Axis.t -> 'a -> ('l0 * 'r0) t -> ('l0 * 'r0) t
 
     val join_with :
-      ('a, 'l0 * 'r0, 'l1 * 'r1) axis -> 'a -> ('l0 * 'r0) t -> ('l0 * 'r0) t
+      ('a, 'l0 * 'r0, 'l1 * 'r1) Axis.t -> 'a -> ('l0 * 'r0) t -> ('l0 * 'r0) t
 
     val zap_to_legacy : lr -> Const.t
 
@@ -572,7 +574,7 @@ module type S = sig
     val alloc_as_value : Alloc.Const.t -> Value.Const.t
 
     module Axis : sig
-      val alloc_as_value : Alloc.axis_packed -> Value.axis_packed
+      val alloc_as_value : Alloc.Axis.packed -> Value.Axis.packed
     end
 
     val locality_as_regionality : Locality.Const.t -> Regionality.Const.t
@@ -609,7 +611,7 @@ module type S = sig
           in which case it's the identity modality. *)
 
     (** An atom modality is a [raw] accompanied by the axis it acts on. *)
-    type t = Atom : ('a, _, _) Value.axis * 'a raw -> t
+    type t = Atom : ('a, _, _) Value.Axis.t * 'a raw -> t
 
     (** Test if the given modality is the identity modality. *)
     val is_id : t -> bool
@@ -624,7 +626,7 @@ module type S = sig
       type atom := t
 
       type error =
-        | Error : ('a, _, _) Value.axis * 'a raw Solver.error -> error
+        | Error : ('a, _, _) Value.Axis.t * 'a raw Solver.error -> error
 
       type nonrec equate_error = equate_step * error
 
@@ -674,7 +676,7 @@ module type S = sig
         val of_list : atom list -> t
 
         (** Project out the [atom] for the given axis in the given modality. *)
-        val proj : ('a, _, _) Value.axis -> t -> atom
+        val proj : ('a, _, _) Value.Axis.t -> t -> atom
 
         (** [equate t0 t1] checks that [t0 = t1].
             Definition: [t0 = t1] iff [t0 <= t1] and [t1 <= t0]. *)

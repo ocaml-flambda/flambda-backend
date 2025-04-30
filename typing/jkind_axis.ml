@@ -177,7 +177,7 @@ module Axis = struct
   end
 
   type 'a t =
-    | Modal : ('a, _, _) Mode.Alloc.axis -> 'a t
+    | Modal : ('a, _, _) Mode.Alloc.Axis.t -> 'a t
     | Nonmodal : 'a Nonmodal.t -> 'a t
 
   type packed = Pack : 'a t -> packed [@@unboxed]
@@ -216,7 +216,7 @@ module Axis = struct
       Pack (Nonmodal Separability) ]
 
   let name (type a) : a t -> string = function
-    | Modal axis -> Format.asprintf "%a" Mode.Alloc.print_axis axis
+    | Modal axis -> Format.asprintf "%a" Mode.Alloc.Axis.print axis
     | Nonmodal Externality -> "externality"
     | Nonmodal Nullability -> "nullability"
     | Nonmodal Separability -> "separability"
