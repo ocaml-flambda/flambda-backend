@@ -1393,13 +1393,6 @@ let array_element_size_in_bytes (array_kind : L.array_kind) =
 
 let simple_i64 x = H.Simple (Simple.const (Reg_width_const.naked_int64 x))
 
-let rec leaves (el : _ L.mixed_block_element) : _ L.mixed_block_element list =
-  match el with
-  | Product els -> List.concat_map leaves (Array.to_list els)
-  | Value _ | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Word
-  | Vec128 ->
-    [el]
-
 (* Given an index that points to data of some layout, produce the list of
    offsets needed to access each element *)
 let idx_access_offsets layout idx =
@@ -1433,14 +1426,18 @@ let idx_access_offsets layout idx =
       let prim = add offset offset_from_offset in
       L.Mixed_block_bytes.add to_left (L.Mixed_block_bytes.count el), prim
     in
-    snd (List.fold_left_map f L.Mixed_block_bytes.zero (leaves el))
+    snd
+      (List.fold_left_map f L.Mixed_block_bytes.zero
+         (L.mixed_block_element_leaves el))
   else
     let f (to_left : L.Mixed_block_bytes.t) (el : unit L.mixed_block_element) =
       let summand = simple_i64 (Int64.of_int (to_left.value + to_left.flat)) in
       let prim = H.Binary (Int_arith (Naked_int64, Add), idx, summand) in
       L.Mixed_block_bytes.add to_left (L.Mixed_block_bytes.count el), prim
     in
-    snd (List.fold_left_map f L.Mixed_block_bytes.zero (leaves el))
+    snd
+      (List.fold_left_map f L.Mixed_block_bytes.zero
+         (L.mixed_block_element_leaves el))
 
 (* Primitive conversion *)
 let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
@@ -1540,8 +1537,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Some { offset_bytes; gap_bytes = 0 } -> offset_bytes
       | Some _ ->
         Misc.fatal_error
-          "non-zero gap should only be possible for striped arrays, which are \
-           not yet supported"
+          "Pidxarray: non-zero gap should be prevented by [will_be_reordered] \
+           check in translcore"
       | None -> Misc.fatal_error "Pidxarray: illegal gap"
     in
     let custom_word_offset =

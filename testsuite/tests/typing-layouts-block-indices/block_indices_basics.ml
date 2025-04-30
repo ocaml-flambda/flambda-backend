@@ -1,8 +1,9 @@
 (* TEST
- flags = "-extension layouts_beta";
+ flags = "-extension layouts_alpha";
  expect;
 *)
 
+(* CR rtjoa: this is only alpha because arrays don't check nonfloat *)
 
 (*********************************)
 (* Basic typechecking of indices *)
@@ -99,9 +100,9 @@ type pt = { x : int }
 let f () = (.x.#x)
 [%%expect{|
 type pt = { x : int; }
-Line 99, characters 16-17:
-99 | let f () = (.x.#x)
-                     ^
+Line 100, characters 16-17:
+100 | let f () = (.x.#x)
+                      ^
 Error: The index preceding this unboxed access has element type "int",
        which is not an unboxed record with field "x".
 |}]
@@ -127,8 +128,8 @@ type t = { i : int } [@@unboxed]
 let f () = (.i)
 [%%expect{|
 type t = { i : int; } [@@unboxed]
-Line 127, characters 13-14:
-127 | let f () = (.i)
+Line 128, characters 13-14:
+128 | let f () = (.i)
                    ^
 Error: Block indices do not support [@@unboxed] records.
 |}]
@@ -152,8 +153,8 @@ let f c =
   else
     (.s)
 [%%expect{|
-Line 153, characters 6-7:
-153 |     (.s)
+Line 154, characters 6-7:
+154 |     (.s)
             ^
 Error: This block index is expected to have base type "t"
        There is no field "s" within type "t"
@@ -166,8 +167,8 @@ let f c =
   else
     (.a.#s)
 [%%expect{|
-Line 165, characters 9-10:
-165 |     (.a.#t)
+Line 166, characters 9-10:
+166 |     (.a.#t)
                ^
 Error: This unboxed access is expected to have base type "s#"
        There is no unboxed record field "t" within type "s#"
@@ -208,46 +209,46 @@ let idx_iarray_n x = (.:n(x))
 let idx_imm x = (.idx_imm(x))
 let idx_mut x = (.idx_mut(x))
 [%%expect{|
-Line 200, characters 21-22:
-200 | let idx_array x = (.(x))
-                           ^
-Error: Block indices into arrays are not yet supported.
+val idx_array : int -> ('a array, 'a) idx_mut = <fun>
+val idx_array_L : int64# -> ('a array, 'a) idx_mut = <fun>
+val idx_array_l : int32# -> ('a array, 'a) idx_mut = <fun>
+val idx_array_n : nativeint# -> ('a array, 'a) idx_mut = <fun>
+val idx_iarray : int -> ('a iarray, 'a) idx_imm = <fun>
+val idx_iarray_L : int64# -> ('a iarray, 'a) idx_imm = <fun>
+val idx_iarray_l : int32# -> ('a iarray, 'a) idx_imm = <fun>
+val idx_iarray_n : nativeint# -> ('a iarray, 'a) idx_imm = <fun>
+val idx_imm : ('a, 'b) idx_imm -> ('a, 'b) idx_imm = <fun>
+val idx_mut : ('a, 'b) idx_mut -> ('a, 'b) idx_mut = <fun>
 |}]
 
 type r = { a : string }
 let a () = (.(5).#contents.#a)
 [%%expect{|
 type r = { a : string; }
-Line 218, characters 14-15:
-218 | let a () = (.(5).#contents.#a)
-                    ^
-Error: Block indices into arrays are not yet supported.
+val a : unit -> (r# ref# array, string) idx_mut = <fun>
 |}]
 
 type t = { mutable a : string; b : int }
 let a () = (.(5).#a)
 [%%expect{|
 type t = { mutable a : string; b : int; }
-Line 228, characters 14-15:
-228 | let a () = (.(5).#a)
-                    ^
-Error: Block indices into arrays are not yet supported.
+val a : unit -> (t# array, string) idx_mut = <fun>
 |}]
 
 type t1 = { mutable a : string; b : int }
 let b () = (.:(5).#a)
 [%%expect{|
 type t1 = { mutable a : string; b : int; }
-Line 238, characters 15-16:
-238 | let b () = (.:(5).#a)
-                     ^
-Error: Block indices into arrays are not yet supported.
+Line 2, characters 11-21:
+2 | let b () = (.:(5).#a)
+               ^^^^^^^^^^
+Error: Immutable arrays of unboxed products are not yet supported.
 |}]
 
 let bad_index_type = (.("test"))
 [%%expect{|
-Line 247, characters 24-30:
-247 | let bad_index_type = (.("test"))
+Line 248, characters 24-30:
+248 | let bad_index_type = (.("test"))
                               ^^^^^^
 Error: This expression has type "string" but an expression was expected of type
          "int"
@@ -305,6 +306,41 @@ Error: Block indices into records that contain both values and non-values,
 |}]
 
 (*************************************************************)
+(* Array element not reordering when it would be in a record *)
+
+(* CR layouts v8: these should be allowed once we reorder array elements *)
+
+type r = #{ a : int64#; b : int }
+let bad_idx () = (.(0).#a)
+[%%expect{|
+type r = #{ a : int64#; b : int; }
+Line 2, characters 17-26:
+2 | let bad_idx () = (.(0).#a)
+                     ^^^^^^^^^
+Error: Block indices into arrays whose element layout contains a
+       non-value before a value are not yet supported.
+|}]
+
+type r = { ii : #( int * int64#) ; i : int }
+let bad_idx () = (.(0).#ii)
+[%%expect{|
+type r = { ii : #(int * int64#); i : int; }
+Line 2, characters 17-27:
+2 | let bad_idx () = (.(0).#ii)
+                     ^^^^^^^^^^
+Error: Block indices into arrays whose element layout contains a
+       non-value before a value are not yet supported.
+|}]
+
+(* Note that this does work, though, as no reordering is needed *)
+type r = #{ a : int; b : int64# }
+let idx_into_r_array () = (.(0).#a)
+[%%expect{|
+type r = #{ a : int; b : int64#; }
+val idx_into_r_array : unit -> (r array, int) idx_mut = <fun>
+|}]
+
+(*************************************************************)
 (* Block indices into block index accesses (aka "deepening") *)
 
 let idx_imm x = (.idx_imm(x))
@@ -336,8 +372,8 @@ val f : bool -> ('a r, int) idx_imm = <fun>
 type u = #{ x : int; }
 type 'a r = { u : u; }
 type 'a r2 = { u : u; }
-Line 329, characters 6-7:
-329 |     (.u.#x)
+Line 365, characters 6-7:
+365 |     (.u.#x)
             ^
 Warning 18 [not-principal]: this type-based field disambiguation is not principal.
 

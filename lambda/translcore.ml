@@ -37,6 +37,7 @@ type error =
   | Unboxed_vector_in_array_comprehension
   | Unboxed_product_in_array_comprehension
   | Block_index_gap_overflow_possible
+  | Element_would_be_reordered_in_record
 
 exception Error of Location.t * error
 
@@ -2271,7 +2272,7 @@ and transl_idx ~scopes loc env ba uas =
              ~get_value_kind:(fun _ -> Lambda.generic_value) shape)
       in
       let path = lbl.lbl_pos :: uas_path in
-      (* Conservative check to make sure the gap never overflows.
+      (* Check to make sure the gap never overflows.
          See Note [Representation of block indices]. *)
       let cts = Mixed_block_bytes_wrt_path.count el path in
       if Option.is_none
@@ -2297,6 +2298,11 @@ and transl_idx ~scopes loc env ba uas =
     in
     let elt_layout = layout env loc elt_sort elt_ty in
     let mbe = mixed_block_element_of_layout elt_layout in
+    (* CR layouts v8: remove this restriction once we stable sort (within) array
+       elements to place values before non-values, which will likely be done to
+       support striped arrays *)
+    if will_be_reordered mbe then
+      raise (Error (loc, Element_would_be_reordered_in_record));
     Lprim (Pidx_array (array_kind, index_kind, mbe, uas_path), [index],
            (of_location ~scopes loc))
   end
@@ -2593,6 +2599,10 @@ let report_error ppf = function
       fprintf ppf
         "Block indices into records that contain both values and non-values,@ \
          and occupy over 2^16 bytes, cannot be created."
+  | Element_would_be_reordered_in_record ->
+      fprintf ppf
+        "Block indices into arrays whose element layout contains a@ \
+         non-value before a value are not yet supported."
 let () =
   Location.register_error_of_exn
     (function

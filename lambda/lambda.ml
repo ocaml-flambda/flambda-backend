@@ -2385,6 +2385,30 @@ let rec mixed_block_element_of_layout (layout : layout) :
   | Punboxed_int Unboxed_nativeint -> Word
   | Punboxed_vector Unboxed_vec128 -> Vec128
 
+let rec mixed_block_element_leaves (el : _ mixed_block_element)
+  : _ mixed_block_element list =
+  match el with
+  | Product els ->
+    List.concat_map mixed_block_element_leaves (Array.to_list els)
+  | Value _ | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Word
+  | Vec128 ->
+    [el]
+
+type will_be_reordered_acc = { seen_flat : bool; last_value_after_flat : bool }
+let will_be_reordered (mbe : _ mixed_block_element) =
+  let acc =
+    List.fold_left
+      (fun acc el ->
+        match el with
+        | Product _ -> assert false
+        | Value _ -> { acc with last_value_after_flat = acc.seen_flat }
+        | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Word | Vec128 ->
+          { acc with seen_flat = true })
+      { seen_flat = false; last_value_after_flat = false }
+      (mixed_block_element_leaves mbe)
+  in
+  acc.last_value_after_flat
+
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;
   match p with

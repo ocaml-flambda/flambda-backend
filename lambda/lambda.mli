@@ -1236,6 +1236,12 @@ val structured_constant_layout : structured_constant -> layout
 
 val mixed_block_element_of_layout : layout -> unit mixed_block_element
 
+val mixed_block_element_leaves
+  : 'a mixed_block_element -> 'a mixed_block_element list
+
+(** Whether these exists a non-value before a value *)
+val will_be_reordered : _ mixed_block_element -> bool
+
 val primitive_result_layout : primitive -> layout
 
 val array_ref_kind_result_layout: array_ref_kind -> layout
