@@ -220,7 +220,8 @@ let create_let uacc (bound_vars : Bound_pattern.t) (defining_expr : Named.t)
         free_names_of_let
     in
     let uacc =
-      if Are_rebuilding_terms.do_not_rebuild_terms (UA.are_rebuilding_terms uacc)
+      if Are_rebuilding_terms.do_not_rebuild_terms
+           (UA.are_rebuilding_terms uacc)
       then uacc
       else add_set_of_closures_offsets ~is_phantom defining_expr uacc
     in
