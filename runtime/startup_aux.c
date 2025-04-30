@@ -49,16 +49,16 @@ extern void caml_win32_unregister_overflow_detection (void);
 static struct caml_params params;
 const struct caml_params* const caml_params = &params;
 
-static int get_pthreads_stack_size_in_bytes(void)
+static size_t get_pthreads_stack_size_in_bytes(void)
 {
   pthread_attr_t attr;
   size_t res =
     // default value, retrieved from a recent system (May 2024)
-    8388608;
+    8 * 1024 * 1024;
   if (pthread_attr_init(&attr) == 0) {
     pthread_attr_getstacksize(&attr, &res);
+    pthread_attr_destroy(&attr);
   }
-  pthread_attr_destroy(&attr);
   return res;
 }
 
