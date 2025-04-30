@@ -944,7 +944,7 @@ let primitive ppf = function
       fprintf ppf "(get_idx_imm@ %a)"
         (layout' false) layout
   | Pset_idx layout ->
-      fprintf ppf "(write_offset@ %a)"
+      fprintf ppf "(set_idx@ %a)"
         (layout' false) layout
 
 let name_of_primitive = function

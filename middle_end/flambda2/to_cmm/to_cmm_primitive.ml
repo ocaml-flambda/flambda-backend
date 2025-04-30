@@ -1036,7 +1036,12 @@ let ternary_primitive _env dbg f x y z =
   | Write_offset kind ->
     let addr = C.add_int x y dbg in
     let memory_chunk = C.memory_chunk_of_kind kind in
-    C.store ~dbg memory_chunk Assignment ~addr ~new_value:z |> C.return_unit dbg
+    let store =
+      if KS.must_be_gc_scannable kind
+      then C.caml_modify ~dbg addr z
+      else C.store ~dbg memory_chunk Assignment ~addr ~new_value:z
+    in
+    C.return_unit dbg store
   | Atomic_compare_and_set block_access_kind ->
     C.atomic_compare_and_set ~dbg
       (imm_or_ptr block_access_kind)

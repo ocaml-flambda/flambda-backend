@@ -1455,7 +1455,7 @@ let unboxed_float_array_ref (mutability : Asttypes.mutable_flag) ~block:arr
 let float_array_ref mode arr ofs dbg =
   box_float dbg mode (unboxed_mutable_float_array_ref arr ofs dbg)
 
-let addr_array_set_heap arr ofs newval dbg =
+let caml_modify ~dbg addr newval =
   Cop
     ( Cextcall
         { func = "caml_modify";
@@ -1467,10 +1467,10 @@ let addr_array_set_heap arr ofs newval dbg =
           coeffects = Has_coeffects;
           ty_args = []
         },
-      [array_indexing log2_size_addr arr ofs dbg; newval],
+      [addr; newval],
       dbg )
 
-let addr_array_set_local arr ofs newval dbg =
+let caml_modify_local ~dbg addr i newval =
   Cop
     ( Cextcall
         { func = "caml_modify_local";
@@ -1482,8 +1482,14 @@ let addr_array_set_local arr ofs newval dbg =
           coeffects = Has_coeffects;
           ty_args = []
         },
-      [arr; untag_int ofs dbg; newval],
+      [addr; i; newval],
       dbg )
+
+let addr_array_set_heap arr ofs newval dbg =
+  caml_modify (array_indexing log2_size_addr arr ofs dbg) newval ~dbg
+
+let addr_array_set_local arr ofs newval dbg =
+  caml_modify_local arr (untag_int ofs dbg) newval ~dbg
 
 let addr_array_set (mode : Lambda.modify_mode) arr ofs newval dbg =
   match mode with
@@ -3636,35 +3642,9 @@ let assignment_kind (ptr : Lambda.immediate_or_pointer)
 let setfield n ptr init arg1 arg2 dbg =
   match assignment_kind ptr init with
   | Caml_modify ->
-    return_unit dbg
-      (Cop
-         ( Cextcall
-             { func = "caml_modify";
-               ty = typ_void;
-               alloc = false;
-               builtin = false;
-               returns = true;
-               effects = Arbitrary_effects;
-               coeffects = Has_coeffects;
-               ty_args = []
-             },
-           [field_address arg1 n dbg; arg2],
-           dbg ))
+    return_unit dbg (caml_modify (field_address arg1 n dbg) arg2 ~dbg)
   | Caml_modify_local ->
-    return_unit dbg
-      (Cop
-         ( Cextcall
-             { func = "caml_modify_local";
-               ty = typ_void;
-               alloc = false;
-               builtin = false;
-               returns = true;
-               effects = Arbitrary_effects;
-               coeffects = Has_coeffects;
-               ty_args = []
-             },
-           [arg1; Cconst_int (n, dbg); arg2],
-           dbg ))
+    return_unit dbg (caml_modify_local arg1 (Cconst_int (n, dbg)) arg2 ~dbg)
   | Caml_initialize ->
     return_unit dbg
       (Cop
