@@ -142,6 +142,10 @@ though it is conceivable we will have modalities other than modes in the future.
 modalities ::= modes
 ```
 
+<!-- CR reisenberg: This should be moved to a page about the semantics
+of modalities, instead of here in the syntax page. But we don't have
+such a page now, so it's here for the time being. -->
+
 Modalities are used to describe the relationship between a container and an
 element in that container; for example, if you have a record field `x` with
 a `portable` modality, then `r.x` is `portable` even if `r` is `nonportable`.
@@ -218,16 +222,6 @@ These default modalities must be the first item in the signature.
 An .mli file is like a signature, but we do not write the `sig` and the
 `end`. Accordingly, you may put `@@ modalities` as the first item in an .mli
 file.
-
-<!-- CR reisenberg for zqian: There are other signature items that can have
-modalities, according to the parser:
-  include S @@ modalities
-  module (M @@ modalities) : module_type   (* but this does not work with [rec] *)
-  module M : module_type @@ modalities  (* this form *does* work with [rec] *)
-  module (M @@ modalities) = M2
-  module M = M2 @@ modalities
-I don't exactly know what these mean, so I have not documented them.
--->
 
 ## Kinds
 Modality expressions can appear in [kinds](../kinds/intro), documented with the
