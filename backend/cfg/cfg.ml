@@ -87,11 +87,12 @@ type t =
     fun_contains_calls : bool;
     (* CR-someday gyorsh: compute locally. *)
     fun_num_stack_slots : int Stack_class.Tbl.t;
-    fun_poll : Lambda.poll_attribute
+    fun_poll : Lambda.poll_attribute;
+    next_instruction_id : InstructionId.sequence
   }
 
 let create ~fun_name ~fun_args ~fun_codegen_options ~fun_dbg ~fun_contains_calls
-    ~fun_num_stack_slots ~fun_poll =
+    ~fun_num_stack_slots ~fun_poll ~next_instruction_id =
   { fun_name;
     fun_args;
     fun_codegen_options;
@@ -102,7 +103,8 @@ let create ~fun_name ~fun_args ~fun_codegen_options ~fun_dbg ~fun_contains_calls
     blocks = Label.Tbl.create 31;
     fun_contains_calls;
     fun_num_stack_slots;
-    fun_poll
+    fun_poll;
+    next_instruction_id
   }
 
 let mem_block t label = Label.Tbl.mem t.blocks label
@@ -539,30 +541,7 @@ let make_instruction ~desc ?(arg = [||]) ?(res = [||]) ?(dbg = Debuginfo.none)
     available_across
   }
 
-let instr_id = InstructionId.make_sequence ()
-
-let reset_instr_id () = InstructionId.reset instr_id
-
-let next_instr_id () = InstructionId.get_and_incr instr_id
-
 let invalid_stack_offset = -1
-
-let make_instr desc arg res dbg =
-  { desc;
-    arg;
-    res;
-    dbg;
-    fdo = Fdo_info.none;
-    live = Reg.Set.empty;
-    stack_offset = invalid_stack_offset;
-    id = next_instr_id ();
-    irc_work_list = Unknown_list;
-    ls_order = 0;
-    (* CR mshinwell/xclerc: should this be [None]? *)
-    available_before =
-      Some (Reg_availability_set.Ok Reg_with_debug_info.Set.empty);
-    available_across = None
-  }
 
 let make_empty_block ?label terminator : basic_block =
   let start =
@@ -653,16 +632,6 @@ let basic_block_contains_calls block =
      | Prim { op = External _; _ } -> true
      | Prim { op = Probe _; _ } -> true)
   || DLL.exists block.body ~f:is_alloc_or_poll
-
-let max_instr_id t =
-  (* CR-someday xclerc for xclerc: factor out with similar function in
-     regalloc/. *)
-  fold_blocks t ~init:InstructionId.none ~f:(fun _label block max_id ->
-      let max_id =
-        DLL.fold_left block.body ~init:max_id ~f:(fun max_id instr ->
-            InstructionId.max max_id instr.id)
-      in
-      InstructionId.max max_id block.terminator.id)
 
 let equal_irc_work_list left right =
   match left, right with

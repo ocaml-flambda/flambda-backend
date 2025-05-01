@@ -598,7 +598,7 @@ let insert_debug (_env : environment) sub_cfg basic dbg arg res =
   Sub_cfg.add_instruction sub_cfg basic arg res dbg
 
 let insert_op_debug_returning_id (_env : environment) sub_cfg op dbg arg res =
-  let instr = Cfg.make_instr (Cfg.Op op) arg res dbg in
+  let instr = Sub_cfg.make_instr (Cfg.Op op) arg res dbg in
   Sub_cfg.add_instruction' sub_cfg instr;
   instr.id
 
