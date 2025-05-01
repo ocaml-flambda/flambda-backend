@@ -1318,6 +1318,7 @@ module Ast = struct
     | PatOr of pattern * pattern
     | PatConstraint of pattern * core_type
     | PatLazy of pattern
+    | PatAnyModule
     | PatUnpack of Var.Module.t
     | PatException of pattern
 
@@ -1520,9 +1521,10 @@ module Ast = struct
     | PatOr (pat1, pat2) ->
       Format.fprintf fmt "%a@ |@ %a" (print_pat env) pat1 (print_pat env) pat2
     | PatConstraint (pat, ty) ->
-      Format.fprintf fmt "%a@ :@ %a" (print_pat env) pat (print_core_type env)
+      Format.fprintf fmt "(%a@ :@ %a)" (print_pat env) pat (print_core_type env)
         ty
     | PatLazy pat -> Format.fprintf fmt "lazy@ (%a)" (print_pat env) pat
+    | PatAnyModule -> Format.fprintf fmt "module _"
     | PatUnpack v -> Format.fprintf fmt "module %a" (Var.Module.print env) v
     | PatException pat ->
       Format.fprintf fmt "(exception %a)" (print_pat env) pat
@@ -1607,7 +1609,7 @@ module Ast = struct
     | Oinherit ty ->
       Format.fprintf fmt "<inherit %a TODO>" (print_core_type env) ty
     | Otag (name, ty) ->
-      Format.fprintf fmt "%a : %a" Name.print name (print_core_type env) ty
+      Format.fprintf fmt "%a@ :@ %a" Name.print name (print_core_type env) ty
 
   and print_module_exp env fmt = function
     | ModuleIdent ident -> print_raw_ident_module env fmt ident
@@ -1713,7 +1715,7 @@ module Ast = struct
       Format.fprintf fmt "@ (type %a)" (Var.Type_var.print env) ty
 
   and print_record env fmt (fields, exp_opt) =
-    Format.fprintf fmt "{@[";
+    Format.fprintf fmt "{@ @[";
     (match exp_opt with
     | None -> ()
     | Some exp -> Format.fprintf fmt "%a@ with@ " (print_exp env) exp);
@@ -1726,10 +1728,11 @@ module Ast = struct
 
   and print_exp env fmt exp =
     match exp.desc with
-    | Ident id -> print_raw_ident_value env fmt id
+    | Ident id ->
+      print_raw_ident_value env fmt id
     | Constant c -> print_const fmt c
     | Apply (exp, args) ->
-      Format.fprintf fmt "%a@[" (print_exp env) exp;
+      Format.fprintf fmt "%a@[<hov>" (print_exp env) exp;
       List.iter
         (fun (arg_lab, exp) ->
           Format.fprintf fmt "@ %a@[%a@]" print_arg_lab arg_lab
@@ -1759,7 +1762,7 @@ module Ast = struct
       List.iter
         (fun vb -> Format.fprintf fmt "@[and@ @[%a@ @]@]" (print_vb env) vb)
         vbs;
-      Format.fprintf fmt "@]@[in@ @[%a@]@]" (print_exp env) body
+      Format.fprintf fmt "@]in@ @[%a@]" (print_exp env) body
     | Let_op ([], _, _) ->
       failwith "Cannot create empty let-expressions. This should not happen."
     | Let_op (binders, defs, case) ->
@@ -1800,7 +1803,7 @@ module Ast = struct
         Format.fprintf fmt "`%s@ %a" s (print_exp_with_parens env) exp)
     | Record (fields, exp_opt) -> print_record env fmt (fields, exp_opt)
     | Field (exp, field) ->
-      Format.fprintf fmt "%a@ %a"
+      Format.fprintf fmt "%a.%a"
         (print_exp_with_parens env)
         exp (print_field env) field
     | Array entries -> print_array (print_exp_with_parens env) fmt entries
@@ -2149,6 +2152,8 @@ module Pat = struct
     let+ p = t in
     Ast.PatLazy p
 
+  let any_module = return Ast.PatAnyModule
+
   let unpack v =
     let+ v = bound_module_var v in
     Ast.PatUnpack v
@@ -2405,6 +2410,27 @@ module Function = struct
         in
         mk (Ast.Pparam_val (lab, e, pat) :: params) constraint_ body)
 
+  let param_module_nonbinding lab loc pat fn =
+    let+ pat = pat
+    and+ ({params; constraint_; body} : Ast.function_) = fn in
+    let pat =
+      With_bound_vars.value_nonbinding ~extra:(Binding_error.unexpected_at_loc loc) pat
+    in
+    mk (Ast.Pparam_val (lab, None, pat) :: params) constraint_ body
+
+  let param_module lab loc name rest =
+    With_free_vars.module_binding loc name (fun var ->
+      let pat, fn = rest var in
+      let+ ({ params; constraint_; body } : Ast.function_) = fn
+      and+ pat = pat in
+      let pat =
+        With_bound_vars.value
+          ~extra:(Binding_error.unexpected_at_loc loc)
+          ~missing:Binding_error.missing pat
+          [Var.Module.generic var]
+      in
+      mk (Ast.Pparam_val (lab, None, pat) :: params) constraint_ body)
+
   let newtype loc name f =
     With_free_vars.type_var_binding loc name (fun typ ->
         let+ ({ params; constraint_; body } : Ast.function_) = f typ in
@@ -2635,15 +2661,6 @@ module Exp = struct
   let send exp meth =
     let+ exp = exp in
     mk (Ast.Send (exp, meth)) []
-
-  let constraint_ exp constr =
-    let+ exp = exp and+ constr = constr in
-    let desc =
-      match constr with
-      | Ast.Constraint typ -> Ast.ConstraintExp (exp, typ)
-      | Ast.Coerce (typ1, typ2) -> Ast.CoerceExp (exp, typ1, typ2)
-    in
-    mk desc []
 
   let assert_ exp =
     let+ exp = exp in

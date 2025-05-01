@@ -5,14 +5,24 @@ open Typedtree
 open Types
 open Debuginfo.Scoped_location
 open Longident
-module Var_env = Map.Make (String)
 
-type fv_env = lambda Var_env.t
+type fv_env = (Ident.t, lambda) Hashtbl.t  (* maps identifiers to lambda *)
+
+(* maps names of poly type variables to lambda *)
+type ptv_env = (string, Ident.t * lambda) Hashtbl.t
 
 type var_env =
   { env_vals : fv_env;
     env_tys : fv_env;
-    env_mod : fv_env
+    env_mod : fv_env;
+    env_poly : ptv_env;
+  }
+
+let vars_env =
+  {env_vals = Hashtbl.create 64;
+   env_tys = Hashtbl.create 64;
+   env_mod = Hashtbl.create 64;
+   env_poly = Hashtbl.create 64;
   }
 
 let rec print_path = function
@@ -21,42 +31,40 @@ let rec print_path = function
   | Path.Papply (p1, p2) -> print_path p1 ^ "(" ^ print_path p2 ^ ")"
   | Path.Pextra_ty (p, _) -> print_path p ^ "[extra]"
 
-let with_new_value var_env name val_ =
-  { var_env with env_vals = Var_env.add name val_ var_env.env_vals }
+let with_new_value name val_ = Hashtbl.add vars_env.env_vals name val_
+let with_new_type name ty = Hashtbl.add vars_env.env_tys name ty
+let with_new_module name mod_ = Hashtbl.add vars_env.env_mod name mod_
 
-let with_new_type var_env name ty =
-  { var_env with env_vals = Var_env.add name ty var_env.env_tys }
+let with_new_idents_values =
+  List.iter (fun id -> with_new_value id (Lvar id))
 
-let with_new_module var_env name mod_ =
-  { var_env with env_mod = Var_env.add name mod_ var_env.env_mod }
+let with_new_idents_types =
+  List.iter (fun id -> with_new_type id (Lvar id))
 
-let with_new_values var_env name_vals =
-  List.fold_left
-    (fun var_env (name, val_) -> with_new_value var_env name val_)
-    var_env name_vals
+let with_new_idents_modules =
+  List.iter (fun id -> with_new_module id (Lvar id))
 
-let with_new_modules var_env name_mods =
-  List.fold_left
-    (fun var_env (name, mod_) -> with_new_module var_env name mod_)
-    var_env name_mods
+let without_value name = Hashtbl.remove vars_env.env_vals name
+let without_type name = Hashtbl.remove vars_env.env_tys name
+let without_module name = Hashtbl.remove vars_env.env_mod name
 
-let with_new_idents_values var_env idents =
-  List.fold_left
-    (fun var_env id -> with_new_value var_env (Ident.name id) (Lvar id))
-    var_env idents
+let without_idents_values = List.iter without_value
+let without_idents_types = List.iter without_type
+let without_idents_modules = List.iter without_module
 
-let with_new_idents_types var_env idents =
-  List.fold_left
-    (fun var_env id -> with_new_type var_env (Ident.name id) (Lvar id))
-    var_env idents
+let with_poly_type name =
+  let id = Ident.create_local name in
+  Hashtbl.add vars_env.env_poly name (id, Lvar id)
 
-let with_new_idents_modules var_env idents =
-  List.fold_left
-    (fun var_env id -> with_new_module var_env (Ident.name id) (Lvar id))
-    var_env idents
+let without_poly_type name = Hashtbl.remove vars_env.env_poly name
+let with_new_idents_poly = List.iter with_poly_type
+let without_idents_poly = List.iter without_poly_type
 
-let new_env =
-  { env_vals = Var_env.empty; env_tys = Var_env.empty; env_mod = Var_env.empty }
+let ident_for_poly_name name =
+  let (ident, _) = Hashtbl.find vars_env.env_poly name in ident
+
+let lambda_for_poly_name name =
+  let (_, lam) = Hashtbl.find vars_env.env_poly name in lam
 
 let camlinternalQuote =
   lazy
@@ -385,6 +393,8 @@ module Pat = struct
 
   let lazy_ = combinator "Pat" "lazy_" 1
 
+  let any_module = combinator "Pat" "any_module" 0
+
   let unpack = combinator "Pat" "unpack" 1
 
   let exception_ = combinator "Pat" "exception_" 1
@@ -410,6 +420,10 @@ module Function = struct
   let cases = combinator "Function" "cases" 2
 
   let param = combinator "Function" "param" 5
+
+  let param_module_nonbinding = combinator "Function" "param_module_nonbinding" 4
+
+  let param_module = combinator "Function" "param_module" 4
 
   let newtype = combinator "Function" "newtype" 3
 end
@@ -667,9 +681,9 @@ let quote_arg_label loc = function
       "No support for any types of labels other than Labelled, Nolabel and \
        Optional"
 
-let rec module_for_path var_env loc = function
+let rec module_for_path loc = function
   | Path.Pident id -> (
-      match Var_env.find_opt (Ident.name id) var_env.env_mod with
+      match Hashtbl.find_opt vars_env.env_mod id with
       | Some m -> apply loc Identifier.Module.var [m; quote_loc loc]
       | None ->
         if Ident.is_global id
@@ -677,23 +691,22 @@ let rec module_for_path var_env loc = function
           apply loc Identifier.Module.compilation_unit [string loc (Ident.name id)]
         else raise Exit)
   | Path.Pdot (p, s) ->
-    apply loc Identifier.Module.dot [module_for_path var_env loc p; string loc s]
+    apply loc Identifier.Module.dot [module_for_path loc p; string loc s]
   | _ -> raise Exit
 
-let module_type_for_path var_env loc = function
+let module_type_for_path loc = function
   | Path.Pident id -> apply loc Module_type.of_string [string loc (Ident.name id)]
   | Path.Pdot (p, s) ->
     apply loc Module_type.ident
-      [apply loc Identifier.Module_type.dot [module_for_path var_env loc p; string loc s]]
+      [apply loc Identifier.Module_type.dot [module_for_path loc p; string loc s]]
   | _ -> raise Exit
 
-let type_for_path var_env loc = function
+let type_for_path loc =
+  function
   | Path.Pident id -> (
-    match Var_env.find_opt (Ident.name id) var_env.env_tys with
+      match Hashtbl.find_opt vars_env.env_tys id with
     | Some t -> apply loc Identifier.Type.var [t; quote_loc loc]
     | None ->
-      if Ident.is_global id
-      then
         match Ident.name id with
         | "int" -> Lazy.force Identifier.Type.int
         | "char" -> Lazy.force Identifier.Type.char
@@ -727,43 +740,34 @@ let type_for_path var_env loc = function
         | "int64x2" -> Lazy.force Identifier.Type.int64x2
         | "float32x4" -> Lazy.force Identifier.Type.float32x4
         | "float62x2" -> Lazy.force Identifier.Type.float64x2
-        | name -> fatal_error ("Unknown type: " ^ name)
-      else raise Exit)
+        | _ -> raise Exit)
   | Path.Pdot (p, s) ->
-    apply loc Identifier.Type.dot [module_for_path var_env loc p; string loc s]
+    apply loc Identifier.Type.dot [module_for_path loc p; string loc s]
   | _ -> raise Exit
 
-let value_for_path var_env loc = function
-  | Path.Pident id ->
-    if Ident.is_global id
-    then
-      apply loc Identifier.Value.dot
-        [ apply loc Identifier.Module.compilation_unit [string loc ""];
-          string loc (Ident.name id) ]
-    else raise Exit
+let value_for_path loc = function
   | Path.Pdot (p, s) ->
-    apply loc Identifier.Value.dot [module_for_path var_env loc p; string loc s]
+    apply loc Identifier.Value.dot [module_for_path loc p; string loc s]
   | _ -> raise Exit
 
-let value_for_path_opt var_env loc p =
-  match value_for_path var_env loc p with
+let value_for_path_opt loc p =
+  match value_for_path loc p with
   | res -> Some res
   | exception Exit -> None
 
-let quote_value_ident_path var_env loc path =
-  match value_for_path_opt var_env loc path with
+let quote_value_ident_path loc path =
+  match value_for_path_opt loc path with
   | Some ident_val -> ident_val
   | None -> (
       match path with
       | Pident id ->
-        if Var_env.mem (Ident.name id) var_env.env_vals
+        if Hashtbl.mem vars_env.env_vals id
         then apply loc Identifier.Value.var [Lvar id; quote_loc loc]
         else fatal_error ("Cannot quote free variable " ^ Ident.name id)
       | _ -> fatal_error ("No global path for identifier " ^ print_path path))
 
-let quote_value_ident_path_as_exp var_env loc path =
-  apply loc Exp.ident [quote_value_ident_path var_env loc path]
-
+let quote_value_ident_path_as_exp loc path =
+  apply loc Exp.ident [quote_value_ident_path loc path]
 
 let type_path env ty =
   let desc =
@@ -789,7 +793,7 @@ let create_list_param_binding idents body =
   in
   func [list_arg] fun_body
 
-let quote_record_field env var_env loc lbl_desc =
+let quote_record_field env loc lbl_desc =
   match type_path env lbl_desc.lbl_res with
   | None -> fatal_error "No global path for record field"
   | Some (Path.Pident _) ->
@@ -797,10 +801,10 @@ let quote_record_field env var_env loc lbl_desc =
   | Some (Path.Pdot (p, _)) ->
     apply loc Field.ident
       [apply loc Identifier.Field.dot
-         [module_for_path var_env loc p; string loc lbl_desc.lbl_name]]
+         [module_for_path loc p; string loc lbl_desc.lbl_name]]
   | _ -> fatal_error "Unsupported constructor type detected."
 
-let quote_constructor env var_env loc constr =
+let quote_constructor env loc constr =
   match type_path env constr.cstr_res with
   | None -> fatal_error "No global path for constructor"
   | Some (Path.Pident _) -> (
@@ -828,16 +832,16 @@ let quote_constructor env var_env loc constr =
   | Some (Path.Pdot (p, _)) ->
     apply loc Constructor.ident
       [apply loc Identifier.Constructor.dot
-         [module_for_path var_env loc p; string loc constr.cstr_name]]
+         [module_for_path loc p; string loc constr.cstr_name]]
   | _ -> fatal_error "Unsupported constructor type detected."
 
-let quote_ext_constructor var_env loc = function
+let quote_ext_constructor loc = function
   | Path.Pident id ->
     apply loc Constructor.of_string [string loc (Ident.name id)]
   | Path.Pdot (p, s) ->
     apply loc Constructor.ident
       [apply loc Identifier.Constructor.dot
-         [module_for_path var_env loc p; string loc s]]
+         [module_for_path loc p; string loc s]]
   | _ -> fatal_error "Unsupported constructor type detected."
 
 let rec quote_fragment_of_lid loc = function
@@ -862,57 +866,113 @@ let quote_nonopt loc (lbl : string option) =
 let is_module pat =
   List.mem Tpat_unpack (List.map (fun (extra, _, _) -> extra) pat.pat_extra)
 
-let rec with_new_idents_pat pat var_env =
+let rec with_new_idents_pat pat =
   match pat.pat_desc with
-  | Tpat_any -> var_env
+  | Tpat_any -> ()
   | Tpat_var (id, _, _, _) ->
     if is_module pat then
-      with_new_module var_env (Ident.name id) (Lambda.Lvar id)
+      with_new_idents_modules [id]
     else
-      with_new_value var_env (Ident.name id) (Lambda.Lvar id)
+      with_new_idents_values [id]
   | Tpat_alias (pat, id, _, _, _) ->
-    let with_alias = with_new_value var_env (Ident.name id) (Lambda.Lvar id) in
-    with_new_idents_pat pat with_alias
-  | Tpat_constant const -> var_env
+    with_new_idents_values [id];
+    with_new_idents_pat pat
+  | Tpat_constant const -> ()
   | Tpat_tuple args ->
-    List.fold_left
-      (fun var_env (_, pat) -> with_new_idents_pat pat var_env)
-      var_env args
+    List.iter
+      (fun (_, pat) -> with_new_idents_pat pat)
+      args
   | Tpat_construct (_, _, args, _) ->
-    List.fold_left
-      (fun var_env pat -> with_new_idents_pat pat var_env)
-      var_env args
+    List.iter
+      (fun pat -> with_new_idents_pat pat)
+      args
   | Tpat_variant (_, argo, _) -> (
       match argo with
-      | None -> var_env
-      | Some pat -> with_new_idents_pat pat var_env)
+      | None -> ()
+      | Some pat -> with_new_idents_pat pat)
   | Tpat_record (lbl_pats, _) ->
-    List.fold_left
-      (fun var_env (_, _, pat) -> with_new_idents_pat pat var_env)
-      var_env lbl_pats
+    List.iter
+      (fun (_, _, pat) -> with_new_idents_pat pat)
+      lbl_pats
   | Tpat_array (_, _, pats) ->
-    List.fold_left
-      (fun var_env pat -> with_new_idents_pat pat var_env)
-      var_env pats
+    List.iter
+      (fun pat -> with_new_idents_pat pat)
+      pats
   | Tpat_or (pat1, pat2, _) ->
-    with_new_idents_pat pat1 (with_new_idents_pat pat2 var_env)
+    with_new_idents_pat pat1;
+    with_new_idents_pat pat2
   | Tpat_unboxed_tuple args ->
-    List.fold_left
-      (fun var_env (_, pat, _) -> with_new_idents_pat pat var_env)
-      var_env args
+    List.iter
+      (fun (_, pat, _) -> with_new_idents_pat pat)
+      args
   | Tpat_record_unboxed_product (lbl_pats, _) ->
-    List.fold_left
-      (fun var_env (_, _, pat) -> with_new_idents_pat pat var_env)
-      var_env lbl_pats
-  | Tpat_lazy pat -> with_new_idents_pat pat var_env
+    List.iter
+      (fun (_, _, pat) -> with_new_idents_pat pat)
+      lbl_pats
+  | Tpat_lazy pat -> with_new_idents_pat pat
 
-let with_new_param var_env fp =
+let rec without_idents_pat pat =
+  match pat.pat_desc with
+  | Tpat_any -> ()
+  | Tpat_var (id, _, _, _) ->
+    if is_module pat then
+      without_idents_modules [id]
+    else
+      without_idents_values [id]
+  | Tpat_alias (pat, id, _, _, _) ->
+    without_idents_values [id];
+    without_idents_pat pat
+  | Tpat_constant const -> ()
+  | Tpat_tuple args ->
+    List.iter
+      (fun (_, pat) -> without_idents_pat pat)
+      args
+  | Tpat_construct (_, _, args, _) ->
+    List.iter
+      (fun pat -> without_idents_pat pat)
+      args
+  | Tpat_variant (_, argo, _) -> (
+      match argo with
+      | None -> ()
+      | Some pat -> without_idents_pat pat)
+  | Tpat_record (lbl_pats, _) ->
+    List.iter
+      (fun (_, _, pat) -> without_idents_pat pat)
+      lbl_pats
+  | Tpat_array (_, _, pats) ->
+    List.iter
+      (fun pat -> without_idents_pat pat)
+      pats
+  | Tpat_or (pat1, pat2, _) ->
+    without_idents_pat pat1;
+    without_idents_pat pat2
+  | Tpat_unboxed_tuple args ->
+    List.iter
+      (fun (_, pat, _) -> without_idents_pat pat)
+      args
+  | Tpat_record_unboxed_product (lbl_pats, _) ->
+    List.iter
+      (fun (_, _, pat) -> without_idents_pat pat)
+      lbl_pats
+  | Tpat_lazy pat -> without_idents_pat pat
+
+let with_new_param fp =
   let pat_of_param =
     match fp.fp_kind with
     | Tparam_pat pat -> pat
     | Tparam_optional_default (pat, _, _) -> pat
   in
-  with_new_idents_pat pat_of_param var_env
+  with_new_idents_pat pat_of_param;
+  List.iter (fun (id, _, _, _) -> with_new_idents_types [id]) fp.fp_newtypes
+
+let without_param fp =
+  let pat_of_param =
+    match fp.fp_kind with
+    | Tparam_pat pat -> pat
+    | Tparam_optional_default (pat, _, _) -> pat
+  in
+  without_idents_pat pat_of_param;
+  List.iter (fun (id, _, _, _) -> without_idents_types [id]) fp.fp_newtypes
 
 type case_binding =
   | Non_binding of lambda * lambda
@@ -928,36 +988,40 @@ let rec quote_module_path loc = function
     apply loc Identifier.Module.dot [quote_module_path loc p; string loc s]
   | _ -> fatal_error "No support for Papply in quoting modules"
 
-let rec quote_computation_pattern var_env p =
+let rec quote_computation_pattern p =
   let loc = p.pat_loc in
   match p.pat_desc with
-  | Tpat_value pat -> quote_value_pattern var_env (pat :> value general_pattern)
+  | Tpat_value pat -> quote_value_pattern (pat :> value general_pattern)
   | Tpat_exception pat ->
-    apply loc Pat.exception_ [quote_value_pattern var_env pat]
+    apply loc Pat.exception_ [quote_value_pattern pat]
   | Tpat_or (pat1, pat2, _) ->
-    let pat1 = quote_computation_pattern var_env pat1 in
-    let pat2 = quote_computation_pattern var_env pat2 in
+    let pat1 = quote_computation_pattern pat1 in
+    let pat2 = quote_computation_pattern pat2 in
     apply loc Pat.exception_ [pat1; pat2]
 
-and quote_pat_extra var_env loc pat extra =
+and quote_pat_extra loc pat_lam extra =
   let (extra, _, _) = extra in
   match extra with
   | Tpat_constraint ty ->
-    apply loc Pat.constraint_ [pat; quote_core_type var_env ty]
-  | Tpat_unpack ->
-    apply loc Pat.unpack [pat]
-  | Tpat_type _ -> pat (* TODO: consider adding support for #tconst *)
+    apply loc Pat.constraint_ [pat_lam; quote_core_type ty]
+  | Tpat_unpack -> pat_lam (* handled elsewhere *)
+  | Tpat_type _ -> pat_lam (* TODO: consider adding support for #tconst *)
   | Tpat_open _ -> fatal_error "No support for open patterns."
 
-and quote_value_pattern var_env p =
-  let env = p.pat_env in
-  let loc = p.pat_loc in
+and quote_value_pattern p =
+  let env = p.pat_env
+  and loc = p.pat_loc in
   let pat_quoted =
     match p.pat_desc with
-    | Tpat_any -> Lazy.force Pat.any
-    | Tpat_var (id, _, _, _) -> apply loc Pat.var [Lvar id]
+    | Tpat_any ->
+      if is_module p then Lazy.force Pat.any_module else Lazy.force Pat.any
+    | Tpat_var (id, _, _, _) ->
+      if is_module p then
+        apply loc Pat.unpack [Lvar id]
+      else
+        apply loc Pat.var [Lvar id]
     | Tpat_alias (pat, id, _, _, _) ->
-      let pat = quote_value_pattern var_env pat in
+      let pat = quote_value_pattern pat in
       apply loc Pat.alias [pat; Lvar id]
     | Tpat_constant const ->
       let const = quote_constant loc const in
@@ -966,17 +1030,17 @@ and quote_value_pattern var_env p =
       let pats =
         List.map
           (fun (lbl, p) ->
-             pair (quote_nonopt loc lbl, quote_value_pattern var_env p))
+             pair (quote_nonopt loc lbl, quote_value_pattern p))
           pats
       in
       apply loc Pat.tuple [mk_list pats]
     | Tpat_construct (lid, constr, args, _) ->
-      let constr = quote_constructor env var_env lid.loc constr in
+      let constr = quote_constructor env lid.loc constr in
       let args =
         match args with
         | [] -> None
         | _ :: _ ->
-          let args = List.map (quote_value_pattern var_env) args in
+          let args = List.map (quote_value_pattern) args in
           let with_labels =
             List.map
               (fun a -> pair (Lazy.force Label.Nonoptional.no_label, a))
@@ -988,16 +1052,16 @@ and quote_value_pattern var_env p =
       apply loc Pat.construct [constr; option args]
     | Tpat_variant (variant, argo, _) ->
       let variant = quote_variant loc variant in
-      let argo = Option.map (quote_value_pattern var_env) argo in
+      let argo = Option.map (quote_value_pattern) argo in
       apply loc Pat.variant [variant; option argo]
     | Tpat_record (lbl_pats, closed) ->
       let lbl_pats =
         List.map
           (fun (lid, lbl_desc, pat) ->
              let lbl =
-               quote_record_field env var_env Asttypes.(lid.loc) lbl_desc
+               quote_record_field env Asttypes.(lid.loc) lbl_desc
              in
-             let pat = quote_value_pattern var_env pat in
+             let pat = quote_value_pattern pat in
              pair (lbl, pat))
           lbl_pats
       in
@@ -1006,17 +1070,17 @@ and quote_value_pattern var_env p =
       in
       apply loc Pat.record [mk_list lbl_pats; closed]
     | Tpat_array (_, _, pats) ->
-      let pats = List.map (quote_value_pattern var_env) pats in
+      let pats = List.map (quote_value_pattern) pats in
       apply loc Pat.array [mk_list pats]
     | Tpat_or (pat1, pat2, _) ->
-      let pat1 = quote_value_pattern var_env pat1 in
-      let pat2 = quote_value_pattern var_env pat2 in
+      let pat1 = quote_value_pattern pat1 in
+      let pat2 = quote_value_pattern pat2 in
       apply loc Pat.or_ [pat1; pat2]
     | Tpat_unboxed_tuple pats ->
       let pats =
         List.map
           (fun (lbl, p, _) ->
-             pair (quote_nonopt loc lbl, quote_value_pattern var_env p))
+             pair (quote_nonopt loc lbl, quote_value_pattern p))
           pats
       in
       apply loc Pat.unboxed_tuple [mk_list pats]
@@ -1025,9 +1089,9 @@ and quote_value_pattern var_env p =
         List.map
           (fun (lid, lbl_desc, pat) ->
              let lbl =
-               quote_record_field env var_env Asttypes.(lid.loc) lbl_desc
+               quote_record_field env Asttypes.(lid.loc) lbl_desc
              in
-             let pat = quote_value_pattern var_env pat in
+             let pat = quote_value_pattern pat in
              pair (lbl, pat))
           lbl_pats
       in
@@ -1036,30 +1100,34 @@ and quote_value_pattern var_env p =
       in
       apply loc Pat.unboxed_record [mk_list lbl_pats; closed]
     | Tpat_lazy pat ->
-      let pat = quote_value_pattern var_env pat in
+      let pat = quote_value_pattern pat in
       apply loc Pat.lazy_ [pat]
   in
   List.fold_right
-    (fun extra p -> quote_pat_extra var_env loc p extra)
+    (fun extra p -> quote_pat_extra loc p extra)
     p.pat_extra
     pat_quoted
 
-and quote_core_type var_env ty =
+and quote_core_type ty =
   let loc = ty.ctyp_loc in
   match ty.ctyp_desc with
-  | Ttyp_var (id, _) ->
-    let id = Option.map (fun s -> Var_env.find s var_env.env_tys) id in
+  | Ttyp_var (name, _) ->
+    let id =
+      Option.map
+        (fun n -> let (_, ty) = Hashtbl.find vars_env.env_poly n in ty)
+        name
+    in
     apply loc Type.var [option id]
   | Ttyp_arrow (arg_lab, ty1, ty2) ->
     let lab = quote_arg_label loc arg_lab
-    and ty1 = quote_core_type var_env ty1
-    and ty2 = quote_core_type var_env ty2 in
+    and ty1 = quote_core_type ty1
+    and ty2 = quote_core_type ty2 in
     apply loc Type.arrow [lab; ty1; ty2]
   | Ttyp_tuple ts ->
     let tups =
       List.map
         (fun (s_opt, ty) ->
-          pair (quote_nonopt loc s_opt, quote_core_type var_env ty))
+          pair (quote_nonopt loc s_opt, quote_core_type ty))
         ts
     in
     apply loc Type.tuple [mk_list tups]
@@ -1067,13 +1135,13 @@ and quote_core_type var_env ty =
     let tups =
       List.map
         (fun (s_opt, ty) ->
-          pair (quote_nonopt loc s_opt, quote_core_type var_env ty))
+          pair (quote_nonopt loc s_opt, quote_core_type ty))
         ts
     in
     apply loc Type.unboxed_tuple [mk_list tups]
   | Ttyp_constr (path, _, tys) ->
-    let ident = type_for_path var_env loc path
-    and tys = List.map (quote_core_type var_env) tys in
+    let ident = type_for_path loc path
+    and tys = List.map (quote_core_type) tys in
     apply loc Type.constr [ident; mk_list tys]
   | Ttyp_object (fields, flag) -> fatal_error "Still not implemented."
   | Ttyp_class (path, lident, tys) -> fatal_error "Still not implemented."
@@ -1085,7 +1153,7 @@ and quote_core_type var_env ty =
           match rf.rf_desc with
           | Tinherit ty ->
             apply rf.rf_loc Variant_type.Row_field.inherit_
-              [quote_core_type var_env ty]
+              [quote_core_type ty]
           | Ttag (tag, b, tys) ->
             let variant =
               apply tag.loc Variant.of_string [string tag.loc tag.txt]
@@ -1093,7 +1161,7 @@ and quote_core_type var_env ty =
             apply rf.rf_loc Variant_type.Row_field.tag
               [ variant;
                 quote_bool b;
-                mk_list (List.map (quote_core_type var_env) tys) ])
+                mk_list (List.map quote_core_type tys) ])
         row_fields
     and variant_form =
       match closed_flag, labels with
@@ -1105,47 +1173,53 @@ and quote_core_type var_env ty =
     in
     apply loc Variant_type.of_row_fields_list [mk_list row_fields; variant_form]
   | Ttyp_poly (tvs, ty) ->
-    let names =
-      List.map (fun (name, _) -> apply loc Name.mk [string loc name]) tvs
-    and ids = List.map (fun (name, _) -> Ident.create_local name) tvs in
-    let new_var_env = with_new_idents_types var_env ids in
-    let body = create_list_param_binding ids (quote_core_type new_var_env ty) in
-    apply loc Type.poly [quote_loc loc; mk_list names; body]
+    let names = List.map (fun (name, _) -> name) tvs in
+    let names_lam = List.map (fun name -> apply loc Name.mk [string loc name]) names in
+    with_new_idents_poly names;
+    let body =
+      create_list_param_binding
+        (List.map ident_for_poly_name names)
+        (quote_core_type ty)
+    in
+    without_idents_poly names;
+    apply loc Type.poly [quote_loc loc; mk_list names_lam; body]
   | Ttyp_package package ->
     let {pack_path; pack_fields; pack_type; pack_txt} = package in
-    let mod_type = module_type_for_path var_env loc pack_path
+    let mod_type = module_type_for_path loc pack_path
     and with_types =
       List.map
         (fun (lid, ty) ->
-           pair (quote_fragment_of_lid Asttypes.(lid.loc) lid.txt, quote_core_type var_env ty))
+           pair (quote_fragment_of_lid Asttypes.(lid.loc) lid.txt,
+                 quote_core_type ty))
         pack_fields
     in
     apply loc Type.package [mod_type; mk_list with_types]
   | Ttyp_open (path, lident, ty) -> fatal_error "Still not implemented."
   | Ttyp_call_pos -> fatal_error "Still not implemented."
 
-let rec case_binding var_env transl stage case =
+let rec case_binding transl stage case =
   let pat = case.c_lhs in
   match case.c_guard with
   | None -> (
     let binding_with_computation_pat () =
       match pat_bound_idents pat with
       | [] ->
-        let pat = quote_computation_pattern var_env pat in
-        let exp = quote_expression var_env transl stage case.c_rhs in
+        let pat = quote_computation_pattern pat in
+        let exp = quote_expression transl stage case.c_rhs in
         Non_binding (pat, exp)
       | ids -> (
         let names =
           List.map (fun id -> string pat.pat_loc (Ident.name id)) ids
         in
-        let new_var_env = with_new_idents_values var_env ids in
-        let pat = quote_computation_pattern var_env pat
-        and exp = quote_expression new_var_env transl stage case.c_rhs
+        let pat = quote_computation_pattern pat in
+        with_new_idents_values ids;
+        let exp = quote_expression transl stage case.c_rhs
         and pat_id = Ident.create_local "pattern"
         and exp_id = Ident.create_local "expression" in
         let body =
           bind pat_id pat (bind exp_id exp (pair (Lvar pat_id, Lvar exp_id)))
         in
+        let res =
         match case.c_rhs.exp_desc with
         | Texp_unreachable ->
           Refutation
@@ -1158,25 +1232,31 @@ let rec case_binding var_env transl stage case =
             ( mk_list names,
               mk_list [],
               create_list_param_binding ids (create_list_param_binding [] body)
-            ))
+            )
+        in
+        without_idents_values ids;
+        res
+      )
     in
     match pat.pat_desc with
     | Tpat_value pat -> (
       match (pat :> value general_pattern).pat_desc with
       | Tpat_var (id, name, _, _) ->
-        let new_var_env = with_new_idents_values var_env [id] in
+        with_new_idents_values [id];
         let name = quote_name name
-        and exp = quote_expression new_var_env transl stage case.c_rhs in
-        Simple (name, func [id] exp)
+        and exp = quote_expression transl stage case.c_rhs in
+        let res = Simple (name, func [id] exp) in
+        without_idents_values [id];
+        res
       | _ -> binding_with_computation_pat ())
     | _ -> binding_with_computation_pat ())
   | Some guard ->
     let ids = pat_bound_idents case.c_lhs in
     let names = List.map (fun id -> string pat.pat_loc (Ident.name id)) ids in
-    let pat = quote_computation_pattern var_env case.c_lhs in
-    let new_var_env = with_new_idents_values var_env ids in
-    let exp = quote_expression new_var_env transl stage case.c_rhs in
-    let guard = quote_expression new_var_env transl stage guard in
+    let pat = quote_computation_pattern case.c_lhs in
+    with_new_idents_values ids;
+    let exp = quote_expression transl stage case.c_rhs in
+    let guard = quote_expression transl stage guard in
     let pat_id = Ident.create_local "pattern"
     and guard_id = Ident.create_local "guard"
     and exp_id = Ident.create_local "expression" in
@@ -1185,13 +1265,17 @@ let rec case_binding var_env transl stage case =
         (bind guard_id guard
            (bind exp_id exp (triple (Lvar pat_id, Lvar guard_id, Lvar exp_id))))
     in
+    let res =
     Guarded
       ( mk_list names,
         mk_list [],
         create_list_param_binding ids (create_list_param_binding [] body) )
+    in
+    without_idents_values ids;
+    res
 
-and case_value_pattern_binding var_env transl stage case =
-  case_binding var_env transl stage
+and case_value_pattern_binding transl stage case =
+  case_binding transl stage
     { case with c_lhs = as_computation_pattern case.c_lhs }
 
 and quote_case_binding loc cb =
@@ -1205,16 +1289,16 @@ and quote_case_binding loc cb =
   | Refutation (names_vals, names_mods, body) ->
     apply loc Case.refutation [quote_loc loc; names_vals; names_mods; body]
 
-and quote_case var_env transl stage loc case =
-  quote_case_binding loc (case_binding var_env transl stage case)
+and quote_case transl stage loc case =
+  quote_case_binding loc (case_binding transl stage case)
 
-and quote_value_pattern_case var_env transl stage loc case =
-  quote_case_binding loc (case_value_pattern_binding var_env transl stage case)
+and quote_value_pattern_case transl stage loc case =
+  quote_case_binding loc (case_value_pattern_binding transl stage case)
 
 and quote_newtype loc ident sloc rest =
   apply loc Function.newtype [quote_loc loc; quote_name sloc; func [ident] rest]
 
-and fun_param_binding var_env transl stage loc param frest =
+and fun_param_binding transl stage loc param frest =
   let with_newtypes =
     List.fold_right
       (fun (ident, sloc, _, _) rest -> quote_newtype loc ident sloc rest)
@@ -1224,79 +1308,105 @@ and fun_param_binding var_env transl stage loc param frest =
     match param.fp_kind with
     | Tparam_pat pat -> pat, None
     | Tparam_optional_default (pat, exp, _) ->
-      pat, Some (quote_expression var_env transl stage exp)
+      pat, Some (quote_expression transl stage exp)
   in
   let idents = pat_bound_idents pat in
   let names =
     List.map (fun s -> apply loc Name.mk [string loc (Ident.name s)]) idents
   in
-  let fun_rem =
-    create_list_param_binding idents
-      (pair (quote_value_pattern var_env pat, with_newtypes))
-  in
-  apply loc Function.param
-    [ quote_arg_label loc param.fp_arg_label;
-      option opt_exp;
-      quote_loc loc;
-      mk_list names;
-      fun_rem ]
+  if is_module pat then
+    match names with
+    | [] ->
+      apply loc Function.param_module_nonbinding
+        [quote_arg_label loc param.fp_arg_label;
+         quote_loc loc;
+         quote_value_pattern pat;
+         with_newtypes]
+    | [name] ->
+      let fun_rem =
+        func idents (pair (quote_value_pattern pat, with_newtypes))
+      in
+      apply loc Function.param_module
+        [quote_arg_label loc param.fp_arg_label; quote_loc loc; name; fun_rem]
+    | _ -> fatal_error "Expected only one module variable in parameter binding."
+  else
+    let fun_rem =
+      create_list_param_binding idents
+        (pair (quote_value_pattern pat, with_newtypes))
+    in
+    apply loc Function.param
+      [ quote_arg_label loc param.fp_arg_label;
+        option opt_exp;
+        quote_loc loc;
+        mk_list names;
+        fun_rem ]
 
-and quote_function var_env transl stage loc fn =
+and quote_function transl stage loc fn extras =
   match fn with
   | Texp_function fn ->
-    let body_env = List.fold_left with_new_param var_env fn.params in
+    List.iter with_new_param fn.params;
     let fn_body =
       match fn.body with
       | Tfunction_body exp ->
         apply loc Function.body
-          [quote_expression body_env transl stage exp; none]
+          [quote_expression transl stage exp; none]
       | Tfunction_cases cases ->
         apply loc Function.cases
           [ mk_list
               (List.map
                  (fun fc ->
                    quote_case_binding fc.c_lhs.pat_loc
-                     (case_value_pattern_binding
-                        (with_new_idents_pat fc.c_lhs body_env)
-                        transl stage fc))
+                     (case_value_pattern_binding transl stage fc))
                  cases.fc_cases);
             none ]
     in
+    let fn_def =
+      List.fold_right
+        (fun_param_binding transl stage loc)
+        fn.params fn_body
+    in
+    List.iter without_param fn.params;
     List.fold_right
-      (fun_param_binding body_env transl stage loc)
-      fn.params fn_body
+      (fun (extra, loc, _) fn ->
+         match extra with
+         | Texp_newtype (id, sloc, _, _) ->
+           apply loc Function.newtype
+             [quote_loc sloc.loc; string loc sloc.txt; func [id] fn]
+         | _ -> fn)
+      extras
+      fn_def
   | _ -> fatal_error "Unexpected usage of quote_function."
 
-and quote_module_exp var_env transl stage loc mod_exp =
+and quote_module_exp transl stage loc mod_exp =
   match mod_exp.mod_desc with
   | Tmod_ident (path, _) ->
     let m = quote_module_path loc path in
     apply loc Module.ident [m]
   | Tmod_apply (funct, arg, _) ->
-    let transl_funct = quote_module_exp var_env transl stage loc funct in
-    let transl_arg = quote_module_exp var_env transl stage loc arg in
+    let transl_funct = quote_module_exp transl stage loc funct in
+    let transl_arg = quote_module_exp transl stage loc arg in
     apply loc Module.apply [transl_funct; transl_arg]
   | Tmod_apply_unit funct ->
-    let transl_funct = quote_module_exp var_env transl stage loc funct in
+    let transl_funct = quote_module_exp transl stage loc funct in
     apply loc Module.apply_unit [transl_funct]
   | Tmod_constraint (mod_exp, _, _, _) ->
-    quote_module_exp var_env transl stage loc mod_exp
+    quote_module_exp transl stage loc mod_exp
   | Tmod_structure _ | Tmod_functor _ ->
     fatal_error "Cannot quote struct..end blocks"
   | Tmod_unpack _ -> fatal_error "No support for unpacking first-class modules"
 
-and quote_comprehension var_env transl stage loc { comp_body; comp_clauses } =
+and quote_comprehension transl stage loc { comp_body; comp_clauses } =
   let add_clause body = function
     | Texp_comp_when exp ->
-      let exp = quote_expression var_env transl stage exp in
+      let exp = quote_expression transl stage exp in
       apply loc Comprehension.when_clause [body; exp]
     | Texp_comp_for clause_bindings ->
       List.fold_left
         (fun body clb ->
           match clb.comp_cb_iterator with
           | Texp_comp_range rcd ->
-            let start = quote_expression var_env transl stage rcd.start
-            and stop = quote_expression var_env transl stage rcd.stop
+            let start = quote_expression transl stage rcd.start
+            and stop = quote_expression transl stage rcd.stop
             and direction =
               match rcd.direction with Upto -> true | Downto -> false
             in
@@ -1307,57 +1417,63 @@ and quote_comprehension var_env transl stage loc { comp_body; comp_clauses } =
                 stop;
                 quote_bool direction ]
           | Texp_comp_in { pattern; sequence } ->
-            let exp = quote_expression var_env transl stage sequence in
+            let exp = quote_expression transl stage sequence in
             apply loc Comprehension.for_in
-              [quote_loc loc; quote_value_pattern var_env pattern; exp])
+              [quote_loc loc; quote_value_pattern pattern; exp])
         body clause_bindings
   in
   let body =
     apply loc Comprehension.body
-      [quote_expression var_env transl stage comp_body]
+      [quote_expression transl stage comp_body]
   in
   List.fold_left (fun body clause -> add_clause body clause) body comp_clauses
 
-and quote_expression_extra var_env _ _ extra lambda =
+and quote_expression_extra _ _ extra lambda =
   let extra, loc, _ = extra in
   match extra with
-  | Texp_newtype (id, sloc, _, _) -> quote_newtype loc id sloc lambda
+  | Texp_newtype _ -> lambda
+  (* Texp_newtype only relevant for functions, handled elsewhere *)
   | Texp_constraint ty ->
     let constr_ =
-      apply loc Type_constraint.constraint_ [quote_core_type var_env ty]
+      apply loc Type_constraint.constraint_ [quote_core_type ty]
     in
     apply loc Exp.constraint_ [lambda; constr_]
   | Texp_coerce (ty_opt, ty) ->
     let coerce =
       apply loc Type_constraint.coercion
-        [ option (Option.map (quote_core_type var_env) ty_opt);
-          quote_core_type var_env ty ]
+        [ option (Option.map (quote_core_type) ty_opt);
+          quote_core_type ty ]
     in
     apply loc Exp.constraint_ [lambda; coerce]
   | Texp_stack -> apply loc Exp.stack [lambda]
   | Texp_poly ty_opt -> fatal_error "No support for Texp_poly yet"
   | Texp_mode alloc_opt -> fatal_error "No support for modes yet"
 
-and update_env_with_extra var_env extra =
+and update_env_with_extra extra =
   let extra, loc, _ = extra in
   match extra with
-  | Texp_newtype (id, _, _, _) -> with_new_type var_env (Ident.name id) (Lvar id)
-  | Texp_constraint _ | Texp_coerce _ | Texp_stack _ -> var_env
+  | Texp_newtype (id, _, _, _) ->
+    with_new_idents_types [id]
+  | Texp_constraint _ | Texp_coerce _ | Texp_stack _ -> ()
   | Texp_poly ty_opt -> fatal_error "No support for Texp_poly yet"
   | Texp_mode _ -> fatal_error "No support for modes yet"
 
-and quote_expression var_env transl stage e =
+and update_env_without_extra extra =
+  let extra, loc, _ = extra in
+  match extra with
+  | Texp_newtype (id, _, _, _) ->
+    without_idents_types [id]
+  | Texp_constraint _ | Texp_coerce _ | Texp_stack _ -> ()
+  | Texp_poly ty_opt -> fatal_error "No support for Texp_poly yet"
+  | Texp_mode _ -> fatal_error "No support for modes yet"
+
+and quote_expression transl stage e =
   let env = e.exp_env in
   let loc = e.exp_loc in
-  let var_env =
-    List.fold_left
-      (fun var_env extra -> update_env_with_extra var_env extra)
-      var_env
-      e.exp_extra
-  in
+  List.iter update_env_with_extra e.exp_extra;
   let body =
     match e.exp_desc with
-    | Texp_ident (path, _, _, _, _) -> quote_value_ident_path_as_exp var_env loc path
+    | Texp_ident (path, _, _, _, _) -> quote_value_ident_path_as_exp loc path
     | Texp_constant const ->
       let const = quote_constant loc const in
       apply loc Exp.constant [const]
@@ -1373,28 +1489,30 @@ and quote_expression var_env transl stage e =
             vbs
         in
         let idents, defs = List.split names_defs in
+        with_new_idents_values idents;
         let names_lam =
           List.map
             (fun s -> apply loc Name.mk [string loc (Ident.name s)])
             idents
-        and body_env = with_new_idents_values var_env idents in
-        let defs_lam = List.map (quote_expression body_env transl stage) defs in
+        in
+        let defs_lam = List.map (quote_expression transl stage) defs in
         let frest =
           create_list_param_binding idents
             (pair
-               (mk_list defs_lam, quote_expression body_env transl stage exp))
+               (mk_list defs_lam, quote_expression transl stage exp))
         in
+        without_idents_values idents;
         apply loc Exp.let_rec_simple [quote_loc loc; mk_list names_lam; frest]
       | Nonrecursive ->
-        let body_env, val_l, mod_l, pats, defs =
+        let val_l, mod_l, pats, defs =
           List.fold_left
-            (fun (body_env, val_l, mod_loc, pats, defs) vb ->
+            (fun (val_l, mod_loc, pats, defs) vb ->
               let pat = vb.vb_pat in
               let idents = pat_bound_idents pat in
-              let def = quote_expression var_env transl stage vb.vb_expr
-              and body_env = with_new_idents_values body_env idents in
-              body_env, idents @ val_l, [], pat :: pats, def :: defs)
-            (var_env, [], [], [], []) (List.rev vbs)
+              let def = quote_expression transl stage vb.vb_expr in
+              with_new_idents_values idents;
+              idents @ val_l, [], pat :: pats, def :: defs)
+            ([], [], [], []) (List.rev vbs)
         in
         let def_pat =
           apply loc Pat.tuple
@@ -1403,7 +1521,7 @@ and quote_expression var_env transl stage e =
                    (fun pat ->
                      pair
                        ( Lazy.force Label.Nonoptional.no_label,
-                         quote_value_pattern var_env pat ))
+                         quote_value_pattern pat ))
                    pats) ]
         in
         let names_lam =
@@ -1413,17 +1531,18 @@ and quote_expression var_env transl stage e =
         and frest =
           create_list_param_binding val_l
             (create_list_param_binding []
-               (pair (def_pat, quote_expression body_env transl stage exp)))
+               (pair (def_pat, quote_expression transl stage exp)))
         in
+        List.iter (fun vb -> without_idents_values (pat_bound_idents vb.vb_pat)) vbs;
         apply loc Exp.let_
           [quote_loc loc; mk_list names_lam; nil; mk_list defs; frest])
     | Texp_function fun_spec ->
       let fn =
-        quote_function var_env transl stage loc (Texp_function fun_spec)
+        quote_function transl stage loc (Texp_function fun_spec) e.exp_extra
       in
       apply loc Exp.function_ [fn]
     | Texp_apply (fn, args, _, _, _) ->
-      let fn = quote_expression var_env transl stage fn in
+      let fn = quote_expression transl stage fn in
       let args =
         List.filter
           (fun (_, exp) -> match exp with Omitted _ -> false | _ -> true)
@@ -1436,19 +1555,19 @@ and quote_expression var_env transl stage e =
             | Omitted _ -> assert false
             | Arg (exp, _) ->
               let lbl = quote_arg_label loc lbl in
-              let exp = quote_expression var_env transl stage exp in
+              let exp = quote_expression transl stage exp in
               pair (lbl, exp))
           args
       in
       apply loc Exp.apply [fn; mk_list args]
     | Texp_match (exp, _, cases, _) ->
-      let exp = quote_expression var_env transl stage exp in
-      let cases = List.map (quote_case var_env transl stage loc) cases in
+      let exp = quote_expression transl stage exp in
+      let cases = List.map (quote_case transl stage loc) cases in
       apply loc Exp.match_ [exp; mk_list cases]
     | Texp_try (exp, cases) ->
-      let exp = quote_expression var_env transl stage exp
+      let exp = quote_expression transl stage exp
       and cases =
-        List.map (quote_value_pattern_case var_env transl stage loc) cases
+        List.map (quote_value_pattern_case transl stage loc) cases
       in
       apply loc Exp.try_ [exp; mk_list cases]
     | Texp_tuple (exps, _) ->
@@ -1456,18 +1575,18 @@ and quote_expression var_env transl stage e =
         List.map
           (fun (lab, exp) ->
             pair
-              (string_option loc lab, quote_expression var_env transl stage exp))
+              (string_option loc lab, quote_expression transl stage exp))
           exps
       in
       apply loc Exp.tuple [mk_list exps]
     | Texp_construct (lid, constr, args, _) ->
-      let constr = quote_constructor env var_env lid.loc constr in
+      let constr = quote_constructor env lid.loc constr in
       let args =
         match args with
         | [] -> None
-        | [arg] -> Some (quote_expression var_env transl stage arg)
+        | [arg] -> Some (quote_expression transl stage arg)
         | _ :: _ ->
-          let args = List.map (quote_expression var_env transl stage) args in
+          let args = List.map (quote_expression transl stage) args in
           let with_labels =
             List.map
               (fun a -> pair (Lazy.force Label.Nonoptional.no_label, a))
@@ -1481,7 +1600,7 @@ and quote_expression var_env transl stage e =
       let variant = quote_variant loc variant
       and argo =
         Option.map
-          (fun (arg, _) -> quote_expression var_env transl stage arg)
+          (fun (arg, _) -> quote_expression transl stage arg)
           argo
       in
       apply loc Exp.variant [variant; option argo]
@@ -1489,10 +1608,10 @@ and quote_expression var_env transl stage e =
       let lbl_exps =
         Array.map
           (fun (lbl, def) ->
-            let lbl = quote_record_field env var_env loc lbl in
+            let lbl = quote_record_field env loc lbl in
             let exp =
               match def with
-              | Overridden (_, exp) -> quote_expression var_env transl stage exp
+              | Overridden (_, exp) -> quote_expression transl stage exp
               | Kept _ ->
                 fatal_error "No support for record update syntax in quotations"
             in
@@ -1501,101 +1620,100 @@ and quote_expression var_env transl stage e =
       in
       let base =
         Option.map
-          (fun (e, _) -> quote_expression var_env transl stage e)
+          (fun (e, _) -> quote_expression transl stage e)
           record.extended_expression
       in
       apply loc Exp.record [mk_list (Array.to_list lbl_exps); option base]
     | Texp_field (rcd, lid, lbl, _, _) ->
-      let rcd = quote_expression var_env transl stage rcd in
-      let lbl = quote_record_field env var_env lid.loc lbl in
+      let rcd = quote_expression transl stage rcd in
+      let lbl = quote_record_field env lid.loc lbl in
       apply loc Exp.field [rcd; lbl]
     | Texp_setfield (rcd, _, lid, lbl, exp) ->
-      let rcd = quote_expression var_env transl stage rcd in
-      let lbl = quote_record_field env var_env lid.loc lbl in
-      let exp = quote_expression var_env transl stage exp in
+      let rcd = quote_expression transl stage rcd in
+      let lbl = quote_record_field env lid.loc lbl in
+      let exp = quote_expression transl stage exp in
       apply loc Exp.setfield [rcd; lbl; exp]
     | Texp_array (_, _, exps, _) ->
-      let exps = List.map (quote_expression var_env transl stage) exps in
+      let exps = List.map (quote_expression transl stage) exps in
       apply loc Exp.array [mk_list exps]
     | Texp_ifthenelse (cond, then_, else_) ->
-      let cond = quote_expression var_env transl stage cond in
-      let then_ = quote_expression var_env transl stage then_ in
-      let else_ = Option.map (quote_expression var_env transl stage) else_ in
+      let cond = quote_expression transl stage cond in
+      let then_ = quote_expression transl stage then_ in
+      let else_ = Option.map (quote_expression transl stage) else_ in
       apply loc Exp.ifthenelse [cond; then_; option else_]
     | Texp_sequence (exp1, _, exp2) ->
-      let exp1 = quote_expression var_env transl stage exp1 in
-      let exp2 = quote_expression var_env transl stage exp2 in
+      let exp1 = quote_expression transl stage exp1 in
+      let exp2 = quote_expression transl stage exp2 in
       apply loc Exp.sequence [exp1; exp2]
     | Texp_while wh ->
-      let cond = quote_expression var_env transl stage wh.wh_cond in
-      let body = quote_expression var_env transl stage wh.wh_body in
+      let cond = quote_expression transl stage wh.wh_cond in
+      let body = quote_expression transl stage wh.wh_body in
       apply loc Exp.while_ [cond; body]
     | Texp_for floop ->
-      let low = quote_expression var_env transl stage floop.for_from
-      and high = quote_expression var_env transl stage floop.for_to
+      let low = quote_expression transl stage floop.for_from
+      and high = quote_expression transl stage floop.for_to
       and dir =
         match floop.for_dir with
         | Asttypes.Upto -> true_
         | Asttypes.Downto -> false_
-      and body_env =
-        with_new_value var_env (Ident.name floop.for_id) (Lvar floop.for_id)
       and name = quote_name (mkloc (Ident.name floop.for_id) loc) in
-      let body = quote_expression body_env transl stage floop.for_body in
+      with_new_idents_values [floop.for_id];
+      let body = quote_expression transl stage floop.for_body in
+      without_idents_values [floop.for_id];
       apply loc Exp.for_simple
         [quote_loc loc; name; low; high; dir; func [floop.for_id] body]
     | Texp_send (obj, meth, _) ->
-      let obj = quote_expression var_env transl stage obj in
+      let obj = quote_expression transl stage obj in
       let meth = quote_method loc meth in
       apply loc Exp.send [obj; meth]
     | Texp_open (open_decl, exp) ->
       fatal_error "No support for opening modules yet."
     | Texp_letmodule (ident, _, _, mod_exp, body) -> (
-      let mod_exp = quote_module_exp var_env transl stage loc mod_exp in
+      let mod_exp = quote_module_exp transl stage loc mod_exp in
       match ident with
       | None ->
         apply loc Exp.letmodule_nonbinding
-          [mod_exp; quote_expression var_env transl stage body]
+          [mod_exp; quote_expression transl stage body]
       | Some ident ->
-        let name = quote_name (mkloc (Ident.name ident) loc)
-        and body_env =
-          with_new_module var_env (Ident.name ident) (Lvar ident)
-        in
-        let body = quote_expression body_env transl stage body in
+        let name = quote_name (mkloc (Ident.name ident) loc) in
+        with_new_idents_modules [ident];
+        let body = quote_expression transl stage body in
+        without_idents_modules [ident];
         apply loc Exp.letmodule [quote_loc loc; name; mod_exp; func [ident] body]
       )
     | Texp_assert (exp, _) ->
-      let exp = quote_expression var_env transl stage exp in
+      let exp = quote_expression transl stage exp in
       apply loc Exp.assert_ [exp]
     | Texp_lazy exp ->
-      let exp = quote_expression var_env transl stage exp in
+      let exp = quote_expression transl stage exp in
       apply loc Exp.lazy_ [exp]
     | Texp_quotation exp ->
-      let exp = quote_expression var_env transl (stage + 1) exp in
+      let exp = quote_expression transl (stage + 1) exp in
       apply loc Exp.quote [exp]
     | Texp_antiquotation exp ->
       if stage > 0 then
-        let exp = quote_expression var_env transl stage exp in
+        let exp = quote_expression transl stage exp in
         apply loc Exp.antiquote [exp]
       else
         apply loc Exp.splice [transl exp]
     | Texp_new (path, _, _, _) ->
-      apply loc Exp.new_ [quote_value_ident_path var_env loc path]
+      apply loc Exp.new_ [quote_value_ident_path loc path]
     | Texp_pack m ->
-      apply loc Exp.pack [quote_module_exp var_env transl stage loc m]
+      apply loc Exp.pack [quote_module_exp transl stage loc m]
     | Texp_unreachable -> Lazy.force Exp.unreachable
     | Texp_src_pos -> Lazy.force Exp.src_pos
     | Texp_exclave e ->
-      apply loc Exp.exclave [quote_expression var_env transl stage e]
+      apply loc Exp.exclave [quote_expression transl stage e]
     | Texp_extension_constructor (lid, path) ->
       apply loc Exp.extension_constructor
-        [quote_loc lid.loc; quote_ext_constructor var_env loc path]
+        [quote_loc lid.loc; quote_ext_constructor loc path]
     | Texp_unboxed_tuple ts ->
       let tups =
         List.map
           (fun (lab_opt, exp, _) ->
             pair
               ( quote_nonopt loc lab_opt,
-                quote_expression var_env transl stage exp ))
+                quote_expression transl stage exp ))
           ts
       in
       apply loc Exp.unboxed_tuple [mk_list tups]
@@ -1603,10 +1721,10 @@ and quote_expression var_env transl stage e =
       let lbl_exps =
         Array.map
           (fun (lbl, def) ->
-            let lbl = quote_record_field env var_env loc lbl in
+            let lbl = quote_record_field env loc lbl in
             let exp =
               match def with
-              | Overridden (_, exp) -> quote_expression var_env transl stage exp
+              | Overridden (_, exp) -> quote_expression transl stage exp
               | Kept _ ->
                 fatal_error "No support for record update syntax in quotations."
             in
@@ -1615,39 +1733,39 @@ and quote_expression var_env transl stage e =
       in
       let base =
         Option.map
-          (fun (e, _) -> quote_expression var_env transl stage e)
+          (fun (e, _) -> quote_expression transl stage e)
           record.extended_expression
       in
       apply loc Exp.unboxed_record_product
         [mk_list (Array.to_list lbl_exps); option base]
     | Texp_unboxed_field (rcd, _, lid, lbl, _) ->
-      let rcd = quote_expression var_env transl stage rcd in
-      let lbl = quote_record_field env var_env lid.loc lbl in
+      let rcd = quote_expression transl stage rcd in
+      let lbl = quote_record_field env lid.loc lbl in
       apply loc Exp.unboxed_field [rcd; lbl]
     | Texp_letexception (ext_const, exp) ->
-      let exp = quote_expression var_env transl stage exp in
+      let exp = quote_expression transl stage exp in
       apply loc Exp.let_exception [quote_name ext_const.ext_name; exp]
     | Texp_letop rcd ->
       let let_l =
-        quote_value_ident_path var_env rcd.let_.bop_loc rcd.let_.bop_op_path
+        quote_value_ident_path rcd.let_.bop_loc rcd.let_.bop_op_path
       and ands_l =
         List.map
           (fun bop ->
-            quote_value_ident_path var_env bop.bop_loc bop.bop_op_path)
+            quote_value_ident_path bop.bop_loc bop.bop_op_path)
           rcd.ands
       and defs =
-        quote_expression var_env transl stage rcd.let_.bop_exp
+        quote_expression transl stage rcd.let_.bop_exp
         :: List.map
-             (fun d -> quote_expression var_env transl stage d.bop_exp)
+             (fun d -> quote_expression transl stage d.bop_exp)
              rcd.ands
-      and body = quote_value_pattern_case var_env transl stage loc rcd.body in
+      and body = quote_value_pattern_case transl stage loc rcd.body in
       apply loc Exp.let_op [mk_list (let_l :: ands_l); mk_list defs; body]
     | Texp_list_comprehension compr ->
       apply loc Exp.list_comprehension
-        [quote_comprehension var_env transl stage loc compr]
+        [quote_comprehension transl stage loc compr]
     | Texp_array_comprehension (_, _, compr) ->
       apply loc Exp.array_comprehension
-        [quote_comprehension var_env transl stage loc compr]
+        [quote_comprehension transl stage loc compr]
     | Texp_overwrite _ -> fatal_error "Not implemented yet"
     | Texp_hole _ -> fatal_error "No support for typed holes inside quotations."
     | Texp_instvar _ | Texp_setinstvar _ | Texp_override _ ->
@@ -1656,8 +1774,19 @@ and quote_expression var_env transl stage e =
     | Texp_probe _ | Texp_probe_is_enabled _ ->
       fatal_error "Cannot quote probing constructs."
   in
-  List.fold_right (quote_expression_extra var_env transl stage) e.exp_extra body
+  List.iter update_env_without_extra e.exp_extra;
+  List.fold_right (quote_expression_extra transl stage) e.exp_extra body
 
 let transl_quote transl exp loc =
-  let expr = quote_expression new_env transl 0 exp in
+  let v = Hashtbl.length vars_env.env_vals
+  and m = Hashtbl.length vars_env.env_mod
+  and t = Hashtbl.length vars_env.env_tys
+  in
+  let expr = quote_expression transl 0 exp in
+  Hashtbl.iter
+    (fun x y -> Format.printf "%s: %a\n" (Ident.name x) Printlambda.lambda y)
+    vars_env.env_tys;
+  assert (v = Hashtbl.length vars_env.env_vals);
+  assert (m = Hashtbl.length vars_env.env_mod);
+  assert (t = Hashtbl.length vars_env.env_tys);
   apply loc Code.of_exp [expr; quote_loc loc]

@@ -387,6 +387,8 @@ module Pat : sig
 
   val lazy_ : t -> t
 
+  val any_module : t
+
   val unpack : Var.Module.t -> t
 
   val exception_ : t -> t
@@ -444,6 +446,15 @@ and Function : sig
     Loc.t ->
     Name.t list ->
     (Var.Value.t list -> Pat.t * t) ->
+    t
+
+  val param_module_nonbinding : Label.t -> Loc.t -> Pat.t -> t -> t
+
+  val param_module :
+    Label.t ->
+    Loc.t ->
+    Name.t ->
+    (Var.Module.t -> Pat.t * t) ->
     t
 
   val newtype : Loc.t -> Name.t -> (Var.Type_var.t -> t) -> t

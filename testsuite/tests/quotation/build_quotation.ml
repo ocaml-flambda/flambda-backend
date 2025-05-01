@@ -237,33 +237,33 @@ fun x d -> match x with | Some (y) -> y | None -> d]
 fun l -> Stdlib.List.map (fun x -> Stdlib.( * ) 2 x) l]
 |}];;
 
-(* [%quote fun (type a) (f : a -> a) (x : a) -> f (f x)];;
- * [%%expect {|
- * Uncaught exception: Stdlib.Exit
- *
- * |}];;
- *
- * [%quote fun x (type a) (f : a -> a * a) (g : int -> a) -> f (g x)];;
- * [%%expect {|
- * Uncaught exception: Stdlib.Exit
- *
- * |}];;
- *
- * [%quote fun (f : 'a. 'a -> 'a) -> f f];;
- * [%%expect {|
- * Uncaught exception: Not_found
- *
- * |}];; *)
+[%quote fun (type a) (f : a -> a) (x : a) -> f (f x)];;
+[%%expect {|
+- : (('_a -> '_a) -> '_a -> '_a) code = [%quote
+fun (type a) (f : a -> a) (x : a) -> f (f x)]
+|}];;
+
+[%quote fun x (type a) (f : a -> a * a) (g : int -> a) -> f (g x)];;
+[%%expect {|
+- : (int -> ('_a -> '_a * '_a) -> (int -> '_a) -> '_a * '_a) code = [%quote
+fun x (type a) (f : a -> (a) * (a)) (g : int -> a) -> f (g x)]
+|}];;
+
+[%quote fun (f : 'a. 'a -> 'a) -> f f];;
+[%%expect {|
+- : (('a. 'a -> 'a) -> '_weak30 -> '_weak30) code = [%quote
+fun (f : 'a . a -> a) -> f f]
+|}];;
 
 [%quote fun x -> fun x -> fun x -> 42];;
 [%%expect {|
-- : ('_weak30 -> '_weak31 -> '_weak32 -> int) code = [%quote
+- : ('_weak31 -> '_weak32 -> '_weak33 -> int) code = [%quote
 fun x -> fun x__1 -> fun x__2 -> 42]
 |}];;
 
 [%quote fun x -> fun x -> fun x__1 -> 42];;
 [%%expect {|
-- : ('_weak33 -> '_weak34 -> '_weak35 -> int) code = [%quote
+- : ('_weak34 -> '_weak35 -> '_weak36 -> int) code = [%quote
 fun x -> fun x__1 -> fun x__2 -> 42]
 |}];;
 
@@ -346,8 +346,7 @@ match (::) (1, ((::) (2, ((::) (3, []))))) with | (::) (x, xs) -> xs]
 [%%expect {|
 - : int option code = [%quote
 let (let+) = (fun x f -> Stdlib.Option.map f x) in
-                                                (let+) a = Some 42
-                                                in Stdlib.( * ) a 2]
+(let+) a = Some 42 in Stdlib.( * ) a 2]
 |}];;
 
 [%quote
@@ -359,16 +358,15 @@ let (let+) = (fun x f -> Stdlib.Option.map f x) in
 [%%expect {|
 - : int list code = [%quote
 let (let*) = (fun x f -> Stdlib.List.map f x) and
-                                              (and*) = Stdlib.List.combine
-in
+                                              (and*) = Stdlib.List.combine in
 (let*) a = (::) (1, ((::) (2, ((::) (3, [])))))
 (and*) b = (::) (10, ((::) (20, ((::) (30, []))))) in Stdlib.( + ) a b]
 |}];;
 
 [%quote fun (f: int -> int) (x: int) -> f x]
 [%%expect {|
-Uncaught exception: Stdlib.Exit
-
+- : ((int -> int) -> int -> int) code = [%quote
+fun (f : int -> int) (x : int) -> f x]
 |}];;
 
 [%quote let module M = Set.Make(Int) in M.singleton 100 |> M.elements];;
@@ -392,9 +390,8 @@ let module M = Stdlib.Set.Make(Stdlib.Int) in M.elements (M.singleton 100)]
 [%%expect {|
 - : int code = [%quote
 let x = (Stdlib.ref 0) in
-                       for i = 0 to 10 do
-                       (Stdlib.( := ) x (Stdlib.( + ) (Stdlib.( ! ) x) i))
-                       done; Stdlib.( ! ) x]
+for i = 0 to 10 do (Stdlib.( := ) x (Stdlib.( + ) (Stdlib.( ! ) x) i)) done;
+Stdlib.( ! ) x]
 |}];;
 
 [%quote
@@ -407,9 +404,8 @@ let x = (Stdlib.ref 0) in
 [%%expect {|
 - : int code = [%quote
 let x = (Stdlib.ref 0) in
-                       for i = 10 downto 0 do
-                       (Stdlib.( := ) x (Stdlib.( + ) (Stdlib.( ! ) x) i))
-                       done; Stdlib.( ! ) x]
+for i = 10 downto 0 do (Stdlib.( := ) x (Stdlib.( + ) (Stdlib.( ! ) x) i))
+done; Stdlib.( ! ) x]
 |}];;
 
 [%quote while true do () done];;
@@ -428,18 +424,10 @@ let x = (Stdlib.ref 0) in
 [%%expect {|
 - : int code = [%quote
 let f = (Stdlib.ref 1) and i = (Stdlib.ref 5) in
-                                              while
-                                              Stdlib.( > ) (Stdlib.( ! ) i) 0
-                                              do
-                                              (Stdlib.( := ) f
-                                                            (Stdlib.( * )
-                                                              (Stdlib.( ! ) i)
-                                                             (Stdlib.( ! ) f));
-                                               Stdlib.( := ) i
-                                                            (Stdlib.( - )
-                                                              (Stdlib.( ! ) i)
-                                                             1))
-                                              done; Stdlib.( ! ) f]
+while Stdlib.( > ) (Stdlib.( ! ) i) 0 do
+(Stdlib.( := ) f (Stdlib.( * ) (Stdlib.( ! ) i) (Stdlib.( ! ) f));
+ Stdlib.( := ) i (Stdlib.( - ) (Stdlib.( ! ) i) 1))
+done; Stdlib.( ! ) f]
 |}];;
 
 [%quote assert true];;
@@ -494,7 +482,7 @@ type rcd = { x : int; y : string; }
 
 [%quote {x = 42; y = "foo"}];;
 [%%expect {|
-- : rcd code = [%quote {x = 42; y = "foo"; }]
+- : rcd code = [%quote { x = 42; y = "foo"; }]
 |}];;
 
 type rcd_u = #{xu: int; yu: string};;
@@ -504,12 +492,12 @@ type rcd_u = #{ xu : int; yu : string; }
 
 [%quote fun () -> #{xu = 42; yu = "foo"}];;
 [%%expect {|
-- : (unit -> rcd_u) code = [%quote fun () -> {xu = 42; yu = "foo"; }]
+- : (unit -> rcd_u) code = [%quote fun () -> { xu = 42; yu = "foo"; }]
 |}];;
 
 [%quote fun r -> r.x];;
 [%%expect {|
-- : (rcd -> int) code = [%quote fun r -> r x]
+- : (rcd -> int) code = [%quote fun r -> r.x]
 |}];;
 
 [%quote fun {x; y} -> x];;
@@ -590,7 +578,7 @@ Stdlib.raise (Undefined_recursive_module ("M", 42, 100))]
 
 [%quote let module M = Option in M.map];;
 [%%expect {|
-- : (('_weak36 -> '_weak37) -> '_weak36 option -> '_weak37 option) code =
+- : (('_weak37 -> '_weak38) -> '_weak37 option -> '_weak38 option) code =
 [%quote let module M = Stdlib.Option in M.map]
 |}];;
 
@@ -599,7 +587,6 @@ Stdlib.raise (Undefined_recursive_module ("M", 42, 100))]
 - : (bool option -> bool) code = [%quote
 let module M = Stdlib.Option in function | None -> false | Some (x) -> x]
 |}];;
-
 
 [%quote fun () -> exclave_ Some 42];;
 [%%expect {|
@@ -624,24 +611,31 @@ module type S =
   sig type t type t2 val a : t val b : t -> int -> t val c : t -> int end
 |}];;
 
-(* [%quote fun (module M : S) x -> M.c (M.b M.a x)];;
- * [%%expect {|
- * Uncaught exception: Stdlib.Exit
- *
- * |}];;
- *
- * [%quote fun (module M : S with type t = string) x -> M.c (M.b M.a x)];;
- * [%%expect {|
- * Uncaught exception: Stdlib.Exit
- *
- * |}];;
- *
- * [%quote fun (module M : S with type t = string and type t2 = int) x -> M.c (M.b M.a x)];;
- * [%%expect {|
- * Uncaught exception: Stdlib.Exit
- *
- * |}];; *)
+[%quote fun (module _ : S) x -> 42];;
+[%%expect {|
+- : ((module S) -> '_weak39 -> int) code = [%quote
+fun (module _ : S) x -> 42]
+|}];;
 
+[%quote fun (module M : S) x -> M.c (M.b M.a x)];;
+[%%expect {|
+- : ((module S) -> int -> int) code = [%quote
+fun (module M : S) x -> M.c (M.b M.a x)]
+|}];;
+
+[%quote fun (module M : S with type t = string) x -> M.c (M.b M.a x)];;
+[%%expect {|
+- : ((module S with type t = string) -> int -> int) code = [%quote
+fun (module M : S with type t = string) x -> M.c (M.b M.a x)]
+|}];;
+
+[%quote fun (module M : S with type t = string and type t2 = int) x -> M.c (M.b M.a x)];;
+[%%expect {|
+- : ((module S with type t = string and type t2 = int) -> int -> int) code =
+[%quote
+fun (module M : S with type t = string and type t2 = int) x ->
+M.c (M.b M.a x)]
+|}];;
 
 [%quote let module M (N : S) = struct type t = N.t let x = N.a end in ()];;
 [%%expect {|
@@ -664,6 +658,11 @@ Uncaught exception: Misc.Fatal_error
 
 |}];;
 
+let x = [%quote 123] in [%quote !#(x)];;
+[%%expect {|
+- : int code = [%quote 123]
+|}];;
+
 [%quote let o = object method f = 1 end in o#f];;
 [%%expect {|
 >> Fatal error: Cannot quote object construction.
@@ -671,16 +670,14 @@ Uncaught exception: Misc.Fatal_error
 
 |}];;
 
-let x = 123 in [%quote x];;
+[%quote fun x -> !#[%quote x]];;
 [%%expect {|
->> Fatal error: Cannot quote free variable x
-Uncaught exception: Misc.Fatal_error
-
+- : ('_weak40 -> '_weak40) code = [%quote fun x -> x]
 |}];;
 
-let x = [%quote 123] in [%quote !#(x)];;
+[%quote !#[%quote 42]];;
 [%%expect {|
-- : int code = [%quote 123]
+- : int code = [%quote 42]
 |}];;
 
 [%quote !#[%quote "foo"]];;
@@ -688,10 +685,15 @@ let x = [%quote 123] in [%quote !#(x)];;
 - : string code = [%quote "foo"]
 |}];;
 
-(* [%quote fun x -> !#x];;
- * [%%expect {|
- * - : ('_weak39 code -> '_weak39) code = [%quote fun x -> !#x]
- * |}];; *)
+[%quote fun x -> !#((fun y -> [%quote !#y + !#y]) [%quote x])];;
+[%%expect {|
+- : (int -> int) code = [%quote fun x -> Stdlib.( + ) x x]
+|}];;
+
+[%quote !#((fun y -> [%quote !#y + !#y]) [%quote 2])];;
+[%%expect {|
+- : int code = [%quote Stdlib.( + ) 2 2]
+|}];;
 
 [%quote [%quote !#[%quote 123]]];;
 [%%expect {|
@@ -705,6 +707,6 @@ let x = [%quote "foo"] and y = [%quote "bar"] in [%quote !#x ^ !#y];;
 
 [%quote fun x -> [%quote [%quote !#x]]];;
 [%%expect {|
-- : ('_weak38 code -> '_weak38 code code) code = [%quote
+- : ('_weak41 code -> '_weak41 code code) code = [%quote
 fun x -> [%quote [%quote !#x]]]
 |}];;
