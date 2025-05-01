@@ -8,6 +8,12 @@
 (rule
  (alias   runtest)
  (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
+ (deps test_flambda2_invalid.ml)
+ (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dzero-alloc -dump-into-file -O3 -warn-error +a)))
+
+(rule
+ (alias   runtest)
+ (enabled_if (and (= %{context_name} "main") (= %{architecture} "amd64")) )
  (deps t5.ml test_assume.ml)
  (action (run %{bin:ocamlopt.opt} %{deps} -g -c -zero-alloc-check default -dcse -dzero-alloc -dump-into-file -O3 -warn-error +a)))
 
