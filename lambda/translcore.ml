@@ -2229,6 +2229,9 @@ and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
        for the offset.
    - In the bytecode compiler, the field positions are stored as tagged integers
      in single block with tag 0.
+
+   For a visualization of the native representation of block indices, and the
+   implementation of deepening, see CR rtjoa add vis
 *)
 and transl_idx ~scopes loc env ba uas =
   let uas_path =
@@ -2274,9 +2277,9 @@ and transl_idx ~scopes loc env ba uas =
       let path = lbl.lbl_pos :: uas_path in
       (* Check to make sure the gap never overflows.
          See Note [Representation of block indices]. *)
-      let cts = Mixed_block_bytes_wrt_path.count el path in
+      let cts = Mixed_product_bytes_wrt_path.count el path in
       if Option.is_none
-          (Mixed_block_bytes_wrt_path.offset_and_gap cts) then
+          (Mixed_product_bytes_wrt_path.offset_and_gap cts) then
         raise (Error (loc, Block_index_gap_overflow_possible));
       Lprim (Pidx_mixed_field (path, el), [], (of_location ~scopes loc))
     end
@@ -2595,7 +2598,7 @@ let report_error ppf = function
          products."
   | Block_index_gap_overflow_possible ->
       (* This error message describes a more conservative rule than we actually
-         enforce, see [Lambda.Mixed_block_bytes_wrt_path] *)
+         enforce, see [Lambda.Mixed_product_bytes_wrt_path] *)
       fprintf ppf
         "Block indices into records that contain both values and non-values,@ \
          and occupy over 2^16 bytes, cannot be created."

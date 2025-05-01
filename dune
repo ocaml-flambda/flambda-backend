@@ -247,6 +247,8 @@
   lambda
   matching
   mixed_block_shape
+  mixed_product_bytes
+  mixed_product_bytes_wrt_path
   printlambda
   runtimedef
   runtimetags

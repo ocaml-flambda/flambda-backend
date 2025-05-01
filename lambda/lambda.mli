@@ -1080,45 +1080,6 @@ val transl_mixed_product_shape_for_read :
   -> Types.mixed_product_shape
   -> mixed_block_shape_with_locality_mode
 
-module Mixed_block_bytes : sig
-  type t = { value : int; flat : int }
-
-  val zero : t
-
-  val add : t -> t -> t
-
-  val count : _ mixed_block_element -> t
-
-  val has_value_and_flat : t -> bool
-end
-
-module Mixed_block_bytes_wrt_path : sig
-  type t =
-    { here : Mixed_block_bytes.t;
-      left : Mixed_block_bytes.t;
-      right : Mixed_block_bytes.t
-    }
-  val zero : t
-
-  val add : t -> t -> t
-
-  val count : _ mixed_block_element -> int list -> t
-  (** Given an outer mixed block element, and a path into that as a list of
-      positions, count value/flat bytes before, at, and after that subelement *)
-
-  val all : t -> Mixed_block_bytes.t
-
-  type offset_and_gap_bytes = { offset_bytes : int; gap_bytes : int }
-
-  val offset_and_gap : t -> offset_and_gap_bytes option
-  (** Compute the offset and gap in bytes for an index to [here]. Returns [None]
-      if the index could lead an "illegal" gap of 2^16 or greater bytes, which
-      is the case if either:
-      - An index to [here] would have an illegal gap.
-      - Conservatively, whether an index to [here] could be deepened to have an
-        illegal gap. *)
-end
-
 val make_sequence: ('a -> lambda) -> 'a list -> lambda
 
 val subst:

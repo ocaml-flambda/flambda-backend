@@ -1393,12 +1393,14 @@ let array_element_size_in_bytes (array_kind : L.array_kind) =
 
 let simple_i64 x = H.Simple (Simple.const (Reg_width_const.naked_int64 x))
 
+let conv_bc = Mixed_product_bytes.Byte_count.on_64_bit_arch
+
 (* Given an index that points to data of some layout, produce the list of
    offsets needed to access each element *)
 let idx_access_offsets layout idx =
   let el = L.mixed_block_element_of_layout layout in
-  let cts = L.Mixed_block_bytes.count el in
-  if L.Mixed_block_bytes.has_value_and_flat cts
+  let cts = Mixed_product_bytes.count el in
+  if Mixed_product_bytes.has_value_and_flat cts
   then
     let offset =
       let mask = Int64.of_int ((1 lsl 48) - 1) in
@@ -1412,31 +1414,36 @@ let idx_access_offsets layout idx =
       in
       H.Binary (Int_shift (Naked_int64, Lsr), idx, shifter)
     in
-    let f (to_left : L.Mixed_block_bytes.t) (el : unit L.mixed_block_element) =
+    let f (to_left : Mixed_product_bytes.t) (el : unit L.mixed_block_element) =
       let add x y = H.Binary (Int_arith (Naked_int64, Add), Prim x, y) in
       let offset_from_offset : H.simple_or_prim =
         match el with
         | Product _ -> assert false
         (* Values are (values to left) beyond the offset *)
-        | Value _ -> simple_i64 (Int64.of_int to_left.value)
+        | Value _ -> simple_i64 (Int64.of_int (conv_bc to_left.value))
         (* Flats are gap + (all values) + (flats to left) beyond the offset *)
         | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Word | Vec128 ->
-          Prim (add gap (simple_i64 (Int64.of_int (cts.value + to_left.flat))))
+          Prim
+            (add gap
+               (simple_i64
+                  (Int64.of_int (conv_bc cts.value + conv_bc to_left.flat))))
       in
       let prim = add offset offset_from_offset in
-      L.Mixed_block_bytes.add to_left (L.Mixed_block_bytes.count el), prim
+      Mixed_product_bytes.add to_left (Mixed_product_bytes.count el), prim
     in
     snd
-      (List.fold_left_map f L.Mixed_block_bytes.zero
+      (List.fold_left_map f Mixed_product_bytes.zero
          (L.mixed_block_element_leaves el))
   else
-    let f (to_left : L.Mixed_block_bytes.t) (el : unit L.mixed_block_element) =
-      let summand = simple_i64 (Int64.of_int (to_left.value + to_left.flat)) in
+    let f (to_left : Mixed_product_bytes.t) (el : unit L.mixed_block_element) =
+      let summand =
+        simple_i64 (Int64.of_int (conv_bc to_left.value + conv_bc to_left.flat))
+      in
       let prim = H.Binary (Int_arith (Naked_int64, Add), idx, summand) in
-      L.Mixed_block_bytes.add to_left (L.Mixed_block_bytes.count el), prim
+      Mixed_product_bytes.add to_left (Mixed_product_bytes.count el), prim
     in
     snd
-      (List.fold_left_map f L.Mixed_block_bytes.zero
+      (List.fold_left_map f Mixed_product_bytes.zero
          (L.mixed_block_element_leaves el))
 
 (* Primitive conversion *)
@@ -1501,7 +1508,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let idx_raw_value = Int64.mul (Int64.of_int pos) 8L in
     [Simple (Simple.const (Reg_width_const.naked_int64 idx_raw_value))]
   | Pidx_mixed_field (field_path, el), [] ->
-    let open L.Mixed_block_bytes_wrt_path in
+    let open Mixed_product_bytes_wrt_path in
     let { offset_bytes; gap_bytes } =
       match offset_and_gap (count el field_path) with
       | Some { offset_bytes; gap_bytes } -> { offset_bytes; gap_bytes }
@@ -1509,8 +1516,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     in
     let idx_raw_value =
       Int64.add
-        (Int64.shift_left (Int64.of_int gap_bytes) 48)
-        (Int64.of_int offset_bytes)
+        (Int64.shift_left (Int64.of_int (conv_bc gap_bytes)) 48)
+        (Int64.of_int (conv_bc offset_bytes))
     in
     [Simple (Simple.const (Reg_width_const.naked_int64 idx_raw_value))]
   | Pidx_array (ak, ik, mbe, path), [[index]] ->
@@ -1533,12 +1540,14 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
              simple_i64 (Int64.of_int el_size) ))
     in
     let offset_after_index =
-      match L.Mixed_block_bytes_wrt_path.(offset_and_gap (count mbe path)) with
-      | Some { offset_bytes; gap_bytes = 0 } -> offset_bytes
-      | Some _ ->
-        Misc.fatal_error
-          "Pidxarray: non-zero gap should be prevented by [will_be_reordered] \
-           check in translcore"
+      match Mixed_product_bytes_wrt_path.(offset_and_gap (count mbe path)) with
+      | Some { offset_bytes; gap_bytes } ->
+        if Mixed_product_bytes.Byte_count.is_zero gap_bytes
+        then offset_bytes
+        else
+          Misc.fatal_error
+            "Pidxarray: non-zero gap should be prevented by \
+             [will_be_reordered] check in translcore"
       | None -> Misc.fatal_error "Pidxarray: illegal gap"
     in
     let custom_word_offset =
@@ -1555,69 +1564,83 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ Binary
         ( Int_arith (Naked_int64, Add),
           index_as_bytes,
-          simple_i64 (Int64.of_int (offset_after_index + custom_word_offset)) )
+          simple_i64
+            (Int64.of_int (conv_bc offset_after_index + custom_word_offset)) )
     ]
-  | Pidx_deepen (field_path, el), [[idx]] ->
-    let cts = L.Mixed_block_bytes_wrt_path.count el field_path in
-    let outer_has_value_and_flat =
-      L.Mixed_block_bytes_wrt_path.all cts
-      |> L.Mixed_block_bytes.has_value_and_flat
+  | Pidx_deepen (field_path, el), [[idx]] -> (
+    (* See Note [Representation of block indices] in [lambda/translcore.ml]. For
+       a visualization of how the offset and gap change in each case, see
+       deepening *)
+    let cts = Mixed_product_bytes_wrt_path.count el field_path in
+    let deepening_type =
+      let outer_has_value_and_flat =
+        Mixed_product_bytes_wrt_path.all cts
+        |> Mixed_product_bytes.has_value_and_flat
+      in
+      if outer_has_value_and_flat
+      then
+        match
+          Mixed_product_bytes.Byte_count.(
+            is_zero cts.here.value, is_zero cts.here.flat)
+        with
+        | false, false -> `Mixed_product_to_mixed_product
+        | false, true -> `Mixed_product_to_all_values
+        | true, false -> `Mixed_product_to_all_flats
+        | true, true -> assert false
+      else `All_values_or_flats
     in
-    if outer_has_value_and_flat
-    then
-      match cts.here.value > 0, cts.here.flat > 0 with
-      | true, true ->
-        (* Deepening from a mixed product to a mixed product, e.g. move index to
-           a #(i64#, #(string, i32#), string) to the inner product *)
-        (* offset += (values before); gap += (values after) + (flats before) *)
-        let to_add =
-          Int64.add
-            (Int64.shift_left
-               (Int64.of_int (cts.right.value + cts.left.flat))
-               48)
-            (Int64.of_int cts.left.value)
-        in
-        [Binary (Int_arith (Naked_int64, Add), idx, simple_i64 to_add)]
-      | true, false ->
-        (* Deepening from a mixed product to all values. *)
-        (* gap = 0; offset += (values before) *)
-        let mask = Int64.of_int ((1 lsl 48) - 1) in
-        let gap_removed =
-          H.Binary (Int_arith (Naked_int64, And), idx, simple_i64 mask)
-        in
-        [ Binary
-            ( Int_arith (Naked_int64, Add),
-              H.Prim gap_removed,
-              simple_i64 (Int64.of_int cts.left.value) ) ]
-      | false, true ->
-        (* Deepening from a mixed product to all flat. *)
-        (* offset += gap + (values before) + (values after) + (flats before) *)
-        let mask = Int64.of_int ((1 lsl 48) - 1) in
-        let offset =
-          H.Binary (Int_arith (Naked_int64, And), idx, simple_i64 mask)
-        in
-        let shifter =
-          H.Simple
-            (Simple.const
-               (Reg_width_const.naked_immediate (Targetint_31_63.of_int 48)))
-        in
-        let gap = H.Binary (Int_shift (Naked_int64, Lsr), idx, shifter) in
-        let to_add =
-          Int64.of_int (cts.left.value + cts.right.value + cts.left.flat)
-        in
-        [ Binary
-            ( Int_arith (Naked_int64, Add),
-              H.Prim
-                (Binary (Int_arith (Naked_int64, Add), H.Prim offset, H.Prim gap)),
-              simple_i64 to_add ) ]
-      | false, false -> assert false
-    else
-      (* The initial index is to a layout that's all values or all flats,
-         meaning all of its 64 bits correspond to the offset, because there
-         can't be a gap. *)
-      (* increase offset by (values before) + (flats before) *)
-      let to_add = Int64.of_int (cts.left.value + cts.left.flat) in
+    match deepening_type with
+    | `All_values_or_flats ->
+      (* The initial index isn't mixed, so all 64 of its bits are an offset *)
+      (* increase this offset by left value + left flats *)
+      let to_add =
+        Int64.of_int (conv_bc cts.left.value + conv_bc cts.left.flat)
+      in
       [Binary (Int_arith (Naked_int64, Add), idx, simple_i64 to_add)]
+    | `Mixed_product_to_mixed_product ->
+      (* E.g. move index to a #(i64#, #(string, i32#), string) to the inner
+         product *)
+      (* offset += left value; gap += right value + left flat *)
+      let to_add =
+        Int64.add
+          (Int64.shift_left
+             (Int64.of_int (conv_bc cts.right.value + conv_bc cts.left.flat))
+             48)
+          (Int64.of_int (conv_bc cts.left.value))
+      in
+      [Binary (Int_arith (Naked_int64, Add), idx, simple_i64 to_add)]
+    | `Mixed_product_to_all_values ->
+      (* gap = 0; offset += left value *)
+      let mask = Int64.of_int ((1 lsl 48) - 1) in
+      let gap_removed =
+        H.Binary (Int_arith (Naked_int64, And), idx, simple_i64 mask)
+      in
+      [ Binary
+          ( Int_arith (Naked_int64, Add),
+            H.Prim gap_removed,
+            simple_i64 (Int64.of_int (conv_bc cts.left.value)) ) ]
+    | `Mixed_product_to_all_flats ->
+      (* offset += gap + left value + right value + left flat; gap = 0 *)
+      let mask = Int64.of_int ((1 lsl 48) - 1) in
+      let offset =
+        H.Binary (Int_arith (Naked_int64, And), idx, simple_i64 mask)
+      in
+      let shifter =
+        H.Simple
+          (Simple.const
+             (Reg_width_const.naked_immediate (Targetint_31_63.of_int 48)))
+      in
+      let gap = H.Binary (Int_shift (Naked_int64, Lsr), idx, shifter) in
+      let to_add =
+        Int64.of_int
+          (conv_bc cts.left.value + conv_bc cts.right.value
+         + conv_bc cts.left.flat)
+      in
+      [ Binary
+          ( Int_arith (Naked_int64, Add),
+            H.Prim
+              (Binary (Int_arith (Naked_int64, Add), H.Prim offset, H.Prim gap)),
+            simple_i64 to_add ) ])
   | Pmakefloatblock (mutability, mode), _ ->
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
