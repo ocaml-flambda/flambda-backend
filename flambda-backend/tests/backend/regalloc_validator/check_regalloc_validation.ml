@@ -94,7 +94,7 @@ module Cfg_desc = struct
         ~fun_codegen_options:[]
          ~fun_contains_calls
         ~fun_num_stack_slots:(Stack_class.Tbl.make 0)
-        ~fun_poll:Lambda.Default_poll ~instruction_id:(InstructionId.make_sequence ())
+        ~fun_poll:Lambda.Default_poll ~next_instruction_id:(InstructionId.make_sequence ())
     in
     List.iter
       (fun (block : Block.t) ->
