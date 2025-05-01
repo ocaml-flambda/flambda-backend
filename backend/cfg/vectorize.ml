@@ -43,7 +43,7 @@ end = struct
 
   let next_available_instruction t =
     InstructionId.get_and_incr
-      (Cfg_with_layout.cfg t.cfg_with_layout).instruction_id
+      (Cfg_with_layout.cfg t.cfg_with_layout).next_instruction_id
 
   let create ppf_dump cl =
     (* CR-someday tip: the function may someday take a cfg_with_infos instead of

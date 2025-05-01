@@ -436,30 +436,3 @@ let run cfg_with_layout =
     fun_prologue_required;
     fun_section_name
   }
-
-let layout_of_block_list : Cfg.basic_block list -> Cfg_with_layout.layout =
- fun blocks ->
-  let res = DLL.make_empty () in
-  List.iter (fun block -> DLL.add_end res block.Cfg.start) blocks;
-  res
-
-(** debug print block as assembly *)
-let print_assembly (blocks : Cfg.basic_block list) =
-  (* create a fake cfg just for printing these blocks *)
-  let layout = layout_of_block_list blocks in
-  let fun_name = "_fun_start_" in
-  let cfg =
-    Cfg.create ~fun_name ~fun_args:[||] ~fun_codegen_options:[]
-      ~fun_dbg:Debuginfo.none ~fun_contains_calls:true
-      ~fun_num_stack_slots:(Stack_class.Tbl.make 0) ~fun_poll:Default_poll
-      ~instruction_id:(InstructionId.make_sequence ())
-  in
-  List.iter
-    (fun (block : Cfg.basic_block) ->
-      Label.Tbl.add cfg.blocks block.start block)
-    blocks;
-  let cl = Cfg_with_layout.create cfg ~layout in
-  let fundecl = run cl in
-  X86_proc.reset_asm_code ();
-  Emit.fundecl fundecl;
-  X86_proc.generate_code (Some (X86_gas.generate_asm !Emitaux.output_channel))

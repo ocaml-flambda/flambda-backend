@@ -303,7 +303,9 @@ let instr_cfg_with_layout :
     bool =
  fun cfg_with_layout ~safe_map ~back_edges ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  let next_instruction_id () = InstructionId.get_and_incr cfg.instruction_id in
+  let next_instruction_id () =
+    InstructionId.get_and_incr cfg.next_instruction_id
+  in
   Cfg_edge.Set.fold
     (fun { Cfg_edge.src; dst } added_poll ->
       let needs_poll =

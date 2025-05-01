@@ -274,7 +274,7 @@ let insert_spills :
     (fun label (_, live_at_destruction_point) ->
       if debug then log "block %a" Label.format label;
       let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
-      let instr_id = (Cfg_with_infos.cfg cfg_with_infos).instruction_id in
+      let instr_id = (Cfg_with_infos.cfg cfg_with_infos).next_instruction_id in
       let block_subst = Substitution.for_label substs label in
       insert_spills_in_block state ~instr_id ~block_subst ~stack_subst block
         (DLL.last_cell block.body) live_at_destruction_point)
@@ -339,7 +339,7 @@ let insert_reloads :
     (fun label live_at_definition_point ->
       if debug then log "block %a" Label.format label;
       let block = Cfg_with_infos.get_block_exn cfg_with_infos label in
-      let instr_id = (Cfg_with_infos.cfg cfg_with_infos).instruction_id in
+      let instr_id = (Cfg_with_infos.cfg cfg_with_infos).next_instruction_id in
       let block_subst = Substitution.for_label substs label in
       insert_reloads_in_block state ~instr_id ~block_subst ~stack_subst block
         (DLL.hd_cell block.body) live_at_definition_point)
@@ -397,7 +397,9 @@ let insert_phi_moves : State.t -> Cfg_with_infos.t -> Substitution.map -> bool =
           let predecessor_block =
             Cfg_with_infos.get_block_exn cfg_with_infos predecessor_label
           in
-          let instr_id = (Cfg_with_infos.cfg cfg_with_infos).instruction_id in
+          let instr_id =
+            (Cfg_with_infos.cfg cfg_with_infos).next_instruction_id
+          in
           match predecessor_block.terminator.desc with
           | Return | Raise _ | Tailcall_func _ | Call_no_return _ | Never ->
             assert false

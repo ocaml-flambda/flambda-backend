@@ -519,7 +519,7 @@ module Cse_generic (Target : Cfg_cse_target_intf.S) = struct
     let cfg = Cfg_with_layout.cfg cfg_with_layout in
     (if not (List.mem ~set:cfg.fun_codegen_options Cfg.No_CSE)
     then
-      let state = State.make cfg.instruction_id in
+      let state = State.make cfg.next_instruction_id in
       cse_blocks state cfg);
     cfg_with_layout
 end

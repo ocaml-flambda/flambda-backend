@@ -169,7 +169,7 @@ let insert_instruction (cfg : Cfg.t) (label : Label.t) ~max_frame_size =
 
        xclerc: (keeping the comment, and the explicit values below until all of
        that is implemented.) *)
-    let id = InstructionId.get_and_incr cfg.instruction_id in
+    let id = InstructionId.get_and_incr cfg.next_instruction_id in
     Cfg.make_instruction ()
       ~desc:(Cfg.Stack_check { max_frame_size_bytes = max_frame_size })
       ~stack_offset ~id ~available_before:None ~available_across:None

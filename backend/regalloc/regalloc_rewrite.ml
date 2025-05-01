@@ -211,7 +211,7 @@ let rewrite_gen :
           in
           let id =
             InstructionId.get_and_incr
-              (Cfg_with_infos.cfg cfg_with_infos).instruction_id
+              (Cfg_with_infos.cfg cfg_with_infos).next_instruction_id
           in
           let new_instr = Move.make_instr move ~id ~copy:instr ~from ~to_ in
           match direction with
@@ -299,7 +299,7 @@ let rewrite_gen :
                 new_instrs ~after:block ~before:None
                 ~next_instruction_id:(fun () ->
                   InstructionId.get_and_incr
-                    (Cfg_with_infos.cfg cfg_with_infos).instruction_id)
+                    (Cfg_with_infos.cfg cfg_with_infos).next_instruction_id)
             in
             block_insertion := true);
       if !block_rewritten && should_coalesce_temp_spills_and_reloads
@@ -375,15 +375,17 @@ let prelude :
   let critical_edges = compute_critical_edges cfg in
   if not (Cfg_edge.Set.is_empty critical_edges)
   then (
-    let instruction_id = (Cfg_with_infos.cfg cfg_with_infos).instruction_id in
+    let next_instruction_id () =
+      InstructionId.get_and_incr
+        (Cfg_with_infos.cfg cfg_with_infos).next_instruction_id
+    in
     Cfg_edge.Set.iter
       (fun { Cfg_edge.src; dst } ->
         let (_inserted_blocks : Cfg.basic_block list) =
           Cfg_with_layout.insert_block cfg_with_layout (DLL.make_empty ())
             ~after:(Cfg.get_block_exn cfg src)
             ~before:(Some (Cfg.get_block_exn cfg dst))
-            ~next_instruction_id:(fun () ->
-              InstructionId.get_and_incr instruction_id)
+            ~next_instruction_id
         in
         ())
       critical_edges;

@@ -83,6 +83,9 @@ type codegen_option =
 
 val of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list
 
+(* CR-someday xclerc: we should probably make `t` abstract and make each and
+   every modifiction through accessors; that would help enforce invariants. *)
+
 (** Control Flow Graph of a function. *)
 type t =
   { blocks : basic_block Label.Tbl.t;  (** Map from labels to blocks *)
@@ -101,7 +104,7 @@ type t =
     fun_num_stack_slots : int Stack_class.Tbl.t;
         (** Precomputed at register allocation time *)
     fun_poll : Lambda.poll_attribute; (* Whether to insert polling points. *)
-    instruction_id : InstructionId.sequence (* Next instruction id. *)
+    next_instruction_id : InstructionId.sequence (* Next instruction id. *)
   }
 
 val create :
@@ -112,7 +115,7 @@ val create :
   fun_contains_calls:bool ->
   fun_num_stack_slots:int Stack_class.Tbl.t ->
   fun_poll:Lambda.poll_attribute ->
-  instruction_id:InstructionId.sequence ->
+  next_instruction_id:InstructionId.sequence ->
   t
 
 val fun_name : t -> string
@@ -230,17 +233,6 @@ val make_instruction :
   ?available_across:Reg_availability_set.t option ->
   unit ->
   'a instruction
-
-(* CR mshinwell: consolidate with [make_instruction] and tidy up ID interface *)
-val make_instr :
-  'a -> Reg.t array -> Reg.t array -> Debuginfo.t -> 'a instruction
-
-(** These IDs are also used by [make_instr] *)
-val instr_id : InstructionId.sequence
-
-val next_instr_id : unit -> InstructionId.t
-
-val reset_instr_id : unit -> unit
 
 val make_empty_block : ?label:Label.t -> terminator instruction -> basic_block
 

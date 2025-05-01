@@ -88,11 +88,11 @@ type t =
     (* CR-someday gyorsh: compute locally. *)
     fun_num_stack_slots : int Stack_class.Tbl.t;
     fun_poll : Lambda.poll_attribute;
-    instruction_id : InstructionId.sequence
+    next_instruction_id : InstructionId.sequence
   }
 
 let create ~fun_name ~fun_args ~fun_codegen_options ~fun_dbg ~fun_contains_calls
-    ~fun_num_stack_slots ~fun_poll ~instruction_id =
+    ~fun_num_stack_slots ~fun_poll ~next_instruction_id =
   { fun_name;
     fun_args;
     fun_codegen_options;
@@ -104,7 +104,7 @@ let create ~fun_name ~fun_args ~fun_codegen_options ~fun_dbg ~fun_contains_calls
     fun_contains_calls;
     fun_num_stack_slots;
     fun_poll;
-    instruction_id
+    next_instruction_id
   }
 
 let mem_block t label = Label.Tbl.mem t.blocks label
@@ -541,31 +541,7 @@ let make_instruction ~desc ?(arg = [||]) ?(res = [||]) ?(dbg = Debuginfo.none)
     available_across
   }
 
-(* CR-soon xclerc for xclerc: move this state to selection. *)
-let instr_id = InstructionId.make_sequence ()
-
-let reset_instr_id () = InstructionId.reset instr_id
-
-let next_instr_id () = InstructionId.get_and_incr instr_id
-
 let invalid_stack_offset = -1
-
-let make_instr desc arg res dbg =
-  { desc;
-    arg;
-    res;
-    dbg;
-    fdo = Fdo_info.none;
-    live = Reg.Set.empty;
-    stack_offset = invalid_stack_offset;
-    id = next_instr_id ();
-    irc_work_list = Unknown_list;
-    ls_order = 0;
-    (* CR mshinwell/xclerc: should this be [None]? *)
-    available_before =
-      Some (Reg_availability_set.Ok Reg_with_debug_info.Set.empty);
-    available_across = None
-  }
 
 let make_empty_block ?label terminator : basic_block =
   let start =
