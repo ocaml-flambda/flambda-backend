@@ -1425,6 +1425,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     SU.current_function_is_check_enabled
       := Zero_alloc_checker.is_check_enabled f.Cmm.fun_codegen_options
            f.Cmm.fun_name.sym_name f.Cmm.fun_dbg;
+    Sub_cfg.reset_instr_id ();
     let num_regs_per_arg = Array.make (List.length f.Cmm.fun_args) 0 in
     let rargs =
       List.mapi

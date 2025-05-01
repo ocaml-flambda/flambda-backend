@@ -25,8 +25,6 @@
 (** These IDs are also used by [make_instr] *)
 val instr_id : InstructionId.sequence
 
-val next_instr_id : unit -> InstructionId.t
-
 val reset_instr_id : unit -> unit
 
 (* CR mshinwell: consolidate with [Cfg.make_instruction] and tidy up ID
