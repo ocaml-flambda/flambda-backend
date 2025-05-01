@@ -15,10 +15,10 @@
    include stdlib_upstream_compatible;
    ocamlopt.opt;
    arguments = "native";
-   output = "${test_source_directory}/generated_makearray_dynamic_test.ml.corrected";
+   output = "${test_source_directory}/generated_test.ml.corrected";
    run;
-   output = "${test_source_directory}/generated_makearray_dynamic_test.ml.corrected";
-   reference = "${test_source_directory}/generated_makearray_dynamic_test.ml";
+   output = "${test_source_directory}/generated_test.ml.corrected";
+   reference = "${test_source_directory}/generated_test.ml";
    check-program-output;
  }
 *)
