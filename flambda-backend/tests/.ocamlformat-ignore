@@ -1,0 +1,16 @@
+; the following files use unboxed or local syntax that is not supported on opam
+backend/vectorizer/test_int64_unboxed.ml
+backend/vectorizer/test_float_unboxed.ml
+backend/vectorizer/test_int32_unboxed.ml
+backend/vectorizer/test_float32_unboxed.ml
+simd/*_u.ml
+simd/unbox_types.ml
+simd/arrays.ml
+small_numbers/float32_u_lib.ml
+backend/zero_alloc_checker/fail27.ml
+intrinsics/select_float.ml
+backend/zero_alloc_checker/test_remove_inferred_assume.ml
+backend/zero_alloc_checker/test_remove_inferred_assume_workaround.ml
+backend/zero_alloc_checker/test_flambda2_invalid.ml
+backend/address_sanitizer/address_sanitizer.ml
+backend/caml_apply_split_max_arity/stack.ml
