@@ -175,6 +175,11 @@ jobs:
             ocamlparam: '_,w=-46,regalloc=cfg,vectorize=1'
             check_arch: true
 
+          - name: address_sanitizer
+            config: --enable-middle-end=flambda2 --enable-address-sanitizer
+            os: ubuntu-latest
+            cc: clang
+
     env:
       J: "3"
       run_testsuite: "true"
@@ -189,6 +194,10 @@ jobs:
     - name: Install AFL (for Linux workers)
       if: matrix.os == 'ubuntu-latest'
       run: sudo apt-get install afl++
+
+    - name: Install clang
+      if: matrix.os == 'ubuntu-latest' && matrix.cc == 'clang'
+      run: sudo apt-get install clang
 
     - name: Install AFL (for macOS workers)
       # The "afl-fuzz" package is deprecated (2023-10) and can no longer be installed
@@ -279,6 +288,9 @@ jobs:
     - name: Configure Flambda backend
       working-directory: flambda_backend
       run: |
+        if [[ -n "${{matrix.cc}}" ]]; then
+          export CC="${{matrix.cc}}"
+        fi
         autoconf
         ./configure \
           --prefix=$GITHUB_WORKSPACE/_install \
