@@ -594,13 +594,13 @@ end
 
 module Float_arrays = struct
 
-  external interleave_low_32 : float32x4 -> float32x4 -> float32x4 = "caml_vec128_unreachable" "caml_sse_vec128_interleave_low_32"
+  external interleave_low_32 : float32x4 -> float32x4 -> float32x4 = "caml_vec128_unreachable" "caml_simd_vec128_interleave_low_32"
     [@@noalloc] [@@unboxed] [@@builtin]
 
-  external interleave_low_64s : float32x4 -> float32x4 -> float32x4 = "caml_vec128_unreachable" "caml_sse2_vec128_interleave_low_64"
+  external interleave_low_64s : float32x4 -> float32x4 -> float32x4 = "caml_vec128_unreachable" "caml_simd_vec128_interleave_low_64"
     [@@noalloc] [@@unboxed] [@@builtin]
 
-  external interleave_low_64 : float64x2 -> float64x2 -> float64x2 = "caml_vec128_unreachable" "caml_sse2_vec128_interleave_low_64"
+  external interleave_low_64 : float64x2 -> float64x2 -> float64x2 = "caml_vec128_unreachable" "caml_simd_vec128_interleave_low_64"
     [@@noalloc] [@@unboxed] [@@builtin]
 
   external low_of64 : float -> float64x2 = "caml_vec128_unreachable" "caml_float64x2_low_of_float"

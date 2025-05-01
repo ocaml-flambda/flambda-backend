@@ -364,6 +364,9 @@ BUILTIN(caml_int_popcnt_tagged_to_untagged);
 BUILTIN(caml_int_clz_untagged_to_untagged);
 BUILTIN(caml_int_clz_tagged_to_untagged);
 
+BUILTIN(caml_simd_vec128_interleave_low_32)
+BUILTIN(caml_simd_vec128_interleave_low_64)
+
 #include <float.h>
 #include <math.h>
 
