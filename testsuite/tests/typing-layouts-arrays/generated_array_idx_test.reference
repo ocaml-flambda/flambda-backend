@@ -1,5 +1,3 @@
 test_makearray_dynamic
 test_makearray_dynamic_local
-test_makearray_dynamic_uninit
-test_makearray_dynamic_uninit_local
 All tests passed.

@@ -1,5 +1,5 @@
 # Please make a pull request to change this file.
-disable=false
+disable=true
 # There is an .ocamlformat-enable file in this directory.
 # Keep the remainder of this file in sync with other .ocamlformat files in this repo.
 assignment-operator=begin-line

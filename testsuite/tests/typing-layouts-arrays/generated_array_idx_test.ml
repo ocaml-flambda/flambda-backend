@@ -380,7 +380,6 @@ let () =
   mark_test_run 63;
   let test = not (eq #(1., #(1., 1.), #(1., #(1., 1., 1.))) #(2., #(2., 2.), #(2., #(2., 2., 2.)))) in
   if not test then failwithf "test 63 failed";
-  (* Check always-GC-ignored types *)
   ()
 ;;
 
@@ -417,13 +416,6 @@ let test_makearray_dynamic size =
     if not test then failwithf "test 66 failed %d %d" size i;
   done;
   Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 67;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 67 failed %d %d" size i;
-  done;
-  Gc.compact ();
 
   (**************)
   (*   float#   *)
@@ -438,30 +430,23 @@ let test_makearray_dynamic size =
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 68;
+    mark_test_run 67;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 68 failed %d %d" size i;
+    if not test then failwithf "test 67 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 69;
+    mark_test_run 68;
     let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 69 failed %d %d" size i;
+    if not test then failwithf "test 68 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
   for i = 0 to size - 1 do
-    mark_test_run 70;
+    mark_test_run 69;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 70 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 71;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 71 failed %d %d" size i;
+    if not test then failwithf "test 69 failed %d %d" size i;
   done;
   Gc.compact ();
 
@@ -478,30 +463,23 @@ let test_makearray_dynamic size =
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 72;
+    mark_test_run 70;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 72 failed %d %d" size i;
+    if not test then failwithf "test 70 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 73;
+    mark_test_run 71;
     let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 73 failed %d %d" size i;
+    if not test then failwithf "test 71 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
   for i = 0 to size - 1 do
-    mark_test_run 74;
+    mark_test_run 72;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 74 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 75;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 75 failed %d %d" size i;
+    if not test then failwithf "test 72 failed %d %d" size i;
   done;
   Gc.compact ();
 
@@ -512,6 +490,39 @@ let test_makearray_dynamic size =
   let mk_value i = Int64_u.of_int i in
   (* 1. Create an array of size [size] *)
   let a : int64# array = makearray_dynamic size #0L in
+  (* 3. Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 73;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 73 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 74;
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
+    if not test then failwithf "test 74 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 75;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 75 failed %d %d" size i;
+  done;
+  Gc.compact ();
+
+  (******************)
+  (*   nativeint#   *)
+  (******************)
+  let eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  let mk_value i = Nativeint_u.of_int i in
+  (* 1. Create an array of size [size] *)
+  let a : nativeint# array = makearray_dynamic size #0n in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -537,53 +548,6 @@ let test_makearray_dynamic size =
     if not test then failwithf "test 78 failed %d %d" size i;
   done;
   Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 79;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 79 failed %d %d" size i;
-  done;
-  Gc.compact ();
-
-  (******************)
-  (*   nativeint#   *)
-  (******************)
-  let eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
-  let mk_value i = Nativeint_u.of_int i in
-  (* 1. Create an array of size [size] *)
-  let a : nativeint# array = makearray_dynamic size #0n in
-  (* 3. Fill [a] with distinct values using block indices *)
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 80;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 80 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 81;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 81 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  for i = 0 to size - 1 do
-    mark_test_run 82;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 82 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 83;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 83 failed %d %d" size i;
-  done;
-  Gc.compact ();
 
   (***********)
   (*   ur1   *)
@@ -598,30 +562,23 @@ let test_makearray_dynamic size =
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 84;
+    mark_test_run 79;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 84 failed %d %d" size i;
+    if not test then failwithf "test 79 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 85;
+    mark_test_run 80;
     let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 85 failed %d %d" size i;
+    if not test then failwithf "test 80 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
   for i = 0 to size - 1 do
-    mark_test_run 86;
+    mark_test_run 81;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 86 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 87;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 87 failed %d %d" size i;
+    if not test then failwithf "test 81 failed %d %d" size i;
   done;
   Gc.compact ();
 
@@ -632,6 +589,72 @@ let test_makearray_dynamic size =
   let mk_value i = (#{ a = Int64_u.of_int i } : ur3) in
   (* 1. Create an array of size [size] *)
   let a : ur3 array = makearray_dynamic size (#{ a = #0L } : ur3) in
+  (* 3. Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 82;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 82 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 83;
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
+    if not test then failwithf "test 83 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 84;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 84 failed %d %d" size i;
+  done;
+  Gc.compact ();
+
+  (***********)
+  (*   ur4   *)
+  (***********)
+  let eq = (fun (#{ a = a1; b = b1 } : ur4) (#{ a = a2; b = b2 } : ur4) -> (fun (#{ a = a1; b = b1 } : ur2) (#{ a = a2; b = b2 } : ur2) -> (fun a b -> Int.equal a b) a1 a2 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1 b2) a1 a2 && (fun (#{ a = a1 } : ur3) (#{ a = a2 } : ur3) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2) b1 b2) in
+  let mk_value i = (#{ a = (#{ a = i; b = Int64_u.of_int i } : ur2); b = (#{ a = Int64_u.of_int i } : ur3) } : ur4) in
+  (* 1. Create an array of size [size] *)
+  let a : ur4 array = makearray_dynamic size (#{ a = (#{ a = 0; b = #0L } : ur2); b = (#{ a = #0L } : ur3) } : ur4) in
+  (* 3. Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 85;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 85 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 86;
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
+    if not test then failwithf "test 86 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 87;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 87 failed %d %d" size i;
+  done;
+  Gc.compact ();
+
+  (***************)
+  (*   float32   *)
+  (***************)
+  let eq = (fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b)) in
+  let mk_value i = Float32.of_int i in
+  (* 1. Create an array of size [size] *)
+  let a : float32 array = makearray_dynamic size 0.s in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -657,93 +680,6 @@ let test_makearray_dynamic size =
     if not test then failwithf "test 90 failed %d %d" size i;
   done;
   Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 91;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 91 failed %d %d" size i;
-  done;
-  Gc.compact ();
-
-  (***********)
-  (*   ur4   *)
-  (***********)
-  let eq = (fun (#{ a = a1; b = b1 } : ur4) (#{ a = a2; b = b2 } : ur4) -> (fun (#{ a = a1; b = b1 } : ur2) (#{ a = a2; b = b2 } : ur2) -> (fun a b -> Int.equal a b) a1 a2 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1 b2) a1 a2 && (fun (#{ a = a1 } : ur3) (#{ a = a2 } : ur3) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2) b1 b2) in
-  let mk_value i = (#{ a = (#{ a = i; b = Int64_u.of_int i } : ur2); b = (#{ a = Int64_u.of_int i } : ur3) } : ur4) in
-  (* 1. Create an array of size [size] *)
-  let a : ur4 array = makearray_dynamic size (#{ a = (#{ a = 0; b = #0L } : ur2); b = (#{ a = #0L } : ur3) } : ur4) in
-  (* 3. Fill [a] with distinct values using block indices *)
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 92;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 92 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 93;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 93 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  for i = 0 to size - 1 do
-    mark_test_run 94;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 94 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 95;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 95 failed %d %d" size i;
-  done;
-  Gc.compact ();
-
-  (***************)
-  (*   float32   *)
-  (***************)
-  let eq = (fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b)) in
-  let mk_value i = Float32.of_int i in
-  (* 1. Create an array of size [size] *)
-  let a : float32 array = makearray_dynamic size 0.s in
-  (* 3. Fill [a] with distinct values using block indices *)
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 96;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 96 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 97;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 97 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  for i = 0 to size - 1 do
-    mark_test_run 98;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 98 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 99;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 99 failed %d %d" size i;
-  done;
-  Gc.compact ();
 
   (*************)
   (*   int32   *)
@@ -752,6 +688,105 @@ let test_makearray_dynamic size =
   let mk_value i = Int32.of_int i in
   (* 1. Create an array of size [size] *)
   let a : int32 array = makearray_dynamic size 0l in
+  (* 3. Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 91;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 91 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 92;
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
+    if not test then failwithf "test 92 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 93;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 93 failed %d %d" size i;
+  done;
+  Gc.compact ();
+
+  (*************)
+  (*   int64   *)
+  (*************)
+  let eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
+  let mk_value i = Int64.of_int i in
+  (* 1. Create an array of size [size] *)
+  let a : int64 array = makearray_dynamic size 0L in
+  (* 3. Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 94;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 94 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 95;
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
+    if not test then failwithf "test 95 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 96;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 96 failed %d %d" size i;
+  done;
+  Gc.compact ();
+
+  (*****************)
+  (*   nativeint   *)
+  (*****************)
+  let eq = (fun a b -> Nativeint.equal (globalize a) (globalize b)) in
+  let mk_value i = Nativeint.of_int i in
+  (* 1. Create an array of size [size] *)
+  let a : nativeint array = makearray_dynamic size 0n in
+  (* 3. Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 97;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 97 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 98;
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
+    if not test then failwithf "test 98 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 99;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 99 failed %d %d" size i;
+  done;
+  Gc.compact ();
+
+  (***********)
+  (*   int   *)
+  (***********)
+  let eq = (fun a b -> Int.equal a b) in
+  let mk_value i = i in
+  (* 1. Create an array of size [size] *)
+  let a : int array = makearray_dynamic size 0 in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -777,87 +812,99 @@ let test_makearray_dynamic size =
     if not test then failwithf "test 102 failed %d %d" size i;
   done;
   Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
+
+  (*************)
+  (*   enum3   *)
+  (*************)
+  let eq = (fun a b -> match a, b with A3_0, A3_0 | A3_1, A3_1 | A3_2, A3_2 -> true | _ -> false) in
+  let mk_value i = (match Int.rem i 3 with 0 -> A3_0 | 1 -> A3_1 | 2 -> A3_2 | _ -> assert false) in
+  (* 1. Create an array of size [size] *)
+  let a : enum3 array = makearray_dynamic size A3_0 in
+  (* 3. Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
   for i = 0 to size - 1 do
     mark_test_run 103;
     let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 103 failed %d %d" size i;
   done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 104;
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
+    if not test then failwithf "test 104 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 105;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 105 failed %d %d" size i;
+  done;
   Gc.compact ();
 
-  (*************)
-  (*   int64   *)
-  (*************)
-  let eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
-  let mk_value i = Int64.of_int i in
+  (***********************************)
+  (*   #(float# * int32# * int64#)   *)
+  (***********************************)
+  let eq = (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a0 b0 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a1 b1 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a2 b2) in
+  let mk_value i = #(Float_u.of_int i, Int32_u.of_int i, Int64_u.of_int i) in
   (* 1. Create an array of size [size] *)
-  let a : int64 array = makearray_dynamic size 0L in
+  let a : #(float# * int32# * int64#) array = makearray_dynamic size #(#0., #0l, #0L) in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
   Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 104;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 104 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 105;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 105 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
   for i = 0 to size - 1 do
     mark_test_run 106;
     let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 106 failed %d %d" size i;
   done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
+  (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
     mark_test_run 107;
-    let test = eq (get a i) (mk_value i) in
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
     if not test then failwithf "test 107 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 108;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 108 failed %d %d" size i;
   done;
   Gc.compact ();
 
-  (*****************)
-  (*   nativeint   *)
-  (*****************)
-  let eq = (fun a b -> Nativeint.equal (globalize a) (globalize b)) in
-  let mk_value i = Nativeint.of_int i in
+  (*********************************************************************************************)
+  (*   #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)   *)
+  (*********************************************************************************************)
+  let eq = (fun #(a0, a1, a2, a3, a4) #(b0, b1, b2, b3, b4) -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 b1) a1 b1 && (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a2 b2 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a0 b0 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1 b1) a1 b1) a3 b3 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a4 b4) in
+  let mk_value i = #(Float_u.of_int i, #(Int64_u.of_int i, Int64_u.of_int i), Float32_u.of_int i, #(Int32_u.of_int i, #(Float32_u.of_int i, Float_u.of_int i)), Int64_u.of_int i) in
   (* 1. Create an array of size [size] *)
-  let a : nativeint array = makearray_dynamic size 0n in
+  let a : #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) array = makearray_dynamic size #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 108;
+    mark_test_run 109;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 108 failed %d %d" size i;
+    if not test then failwithf "test 109 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 109;
+    mark_test_run 110;
     let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 109 failed %d %d" size i;
+    if not test then failwithf "test 110 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
-  for i = 0 to size - 1 do
-    mark_test_run 110;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 110 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 111;
     let test = eq (get a i) (mk_value i) in
@@ -865,13 +912,13 @@ let test_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   int   *)
-  (***********)
-  let eq = (fun a b -> Int.equal a b) in
-  let mk_value i = i in
+  (***********************)
+  (*   #(int64# * ur1)   *)
+  (***********************)
+  let eq = (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) a1 b1) in
+  let mk_value i = #(Int64_u.of_int i, (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1)) in
   (* 1. Create an array of size [size] *)
-  let a : int array = makearray_dynamic size 0 in
+  let a : #(int64# * ur1) array = makearray_dynamic size #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -897,87 +944,99 @@ let test_makearray_dynamic size =
     if not test then failwithf "test 114 failed %d %d" size i;
   done;
   Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
+
+  (**********************)
+  (*   #(int * int64)   *)
+  (**********************)
+  let eq = (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int.equal a b) a0 b0 && (fun a b -> Int64.equal (globalize a) (globalize b)) a1 b1) in
+  let mk_value i = #(i, Int64.of_int i) in
+  (* 1. Create an array of size [size] *)
+  let a : #(int * int64) array = makearray_dynamic size #(0, 0L) in
+  (* 3. Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
   for i = 0 to size - 1 do
     mark_test_run 115;
     let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 115 failed %d %d" size i;
   done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 116;
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
+    if not test then failwithf "test 116 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 117;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 117 failed %d %d" size i;
+  done;
   Gc.compact ();
 
-  (*************)
-  (*   enum3   *)
-  (*************)
-  let eq = (fun a b -> match a, b with A3_0, A3_0 | A3_1, A3_1 | A3_2, A3_2 -> true | _ -> false) in
-  let mk_value i = (match Int.rem i 3 with 0 -> A3_0 | 1 -> A3_1 | 2 -> A3_2 | _ -> assert false) in
+  (**********************************************************)
+  (*   #(int64 option * int32 * #(int32 * float) * float)   *)
+  (**********************************************************)
+  let eq = (fun #(a0, a1, a2, a3) #(b0, b1, b2, b3) -> (fun a b -> match a, b with None,None -> true | Some a,Some b -> (fun a b -> Int64.equal (globalize a) (globalize b)) a b|_->false) a0 b0 && (fun a b -> Int32.equal (globalize a) (globalize b)) a1 b1 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int32.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Float.equal (globalize a) (globalize b)) a1 b1) a2 b2 && (fun a b -> Float.equal (globalize a) (globalize b)) a3 b3) in
+  let mk_value i = #((if i == 0 then None else Some (Int64.of_int i)), Int32.of_int i, #(Int32.of_int i, Float.of_int i), Float.of_int i) in
   (* 1. Create an array of size [size] *)
-  let a : enum3 array = makearray_dynamic size A3_0 in
+  let a : #(int64 option * int32 * #(int32 * float) * float) array = makearray_dynamic size #(None, 0l, #(0l, 0.), 0.) in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
   Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 116;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 116 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 117;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 117 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
   for i = 0 to size - 1 do
     mark_test_run 118;
     let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 118 failed %d %d" size i;
   done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
+  (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
     mark_test_run 119;
-    let test = eq (get a i) (mk_value i) in
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
     if not test then failwithf "test 119 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 120;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 120 failed %d %d" size i;
   done;
   Gc.compact ();
 
-  (***********************************)
-  (*   #(float# * int32# * int64#)   *)
-  (***********************************)
-  let eq = (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a0 b0 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a1 b1 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a2 b2) in
-  let mk_value i = #(Float_u.of_int i, Int32_u.of_int i, Int64_u.of_int i) in
+  (********************************)
+  (*   #(float * float * float)   *)
+  (********************************)
+  let eq = (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Float.equal (globalize a) (globalize b)) a1 b1 && (fun a b -> Float.equal (globalize a) (globalize b)) a2 b2) in
+  let mk_value i = #(Float.of_int i, Float.of_int i, Float.of_int i) in
   (* 1. Create an array of size [size] *)
-  let a : #(float# * int32# * int64#) array = makearray_dynamic size #(#0., #0l, #0L) in
+  let a : #(float * float * float) array = makearray_dynamic size #(0., 0., 0.) in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 120;
+    mark_test_run 121;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 120 failed %d %d" size i;
+    if not test then failwithf "test 121 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 121;
+    mark_test_run 122;
     let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 121 failed %d %d" size i;
+    if not test then failwithf "test 122 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
-  for i = 0 to size - 1 do
-    mark_test_run 122;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 122 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 123;
     let test = eq (get a i) (mk_value i) in
@@ -985,13 +1044,13 @@ let test_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (*********************************************************************************************)
-  (*   #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)   *)
-  (*********************************************************************************************)
-  let eq = (fun #(a0, a1, a2, a3, a4) #(b0, b1, b2, b3, b4) -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 b1) a1 b1 && (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a2 b2 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a0 b0 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1 b1) a1 b1) a3 b3 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a4 b4) in
-  let mk_value i = #(Float_u.of_int i, #(Int64_u.of_int i, Int64_u.of_int i), Float32_u.of_int i, #(Int32_u.of_int i, #(Float32_u.of_int i, Float_u.of_int i)), Int64_u.of_int i) in
+  (*************************************************************************)
+  (*   #(float * #(float * float) * #(float * #(float * float * float)))   *)
+  (*************************************************************************)
+  let eq = (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Float.equal (globalize a) (globalize b)) a1 b1) a1 b1 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Float.equal (globalize a) (globalize b)) a1 b1 && (fun a b -> Float.equal (globalize a) (globalize b)) a2 b2) a1 b1) a2 b2) in
+  let mk_value i = #(Float.of_int i, #(Float.of_int i, Float.of_int i), #(Float.of_int i, #(Float.of_int i, Float.of_int i, Float.of_int i))) in
   (* 1. Create an array of size [size] *)
-  let a : #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) array = makearray_dynamic size #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) in
+  let a : #(float * #(float * float) * #(float * #(float * float * float))) array = makearray_dynamic size #(0., #(0., 0.), #(0., #(0., 0., 0.))) in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1017,87 +1076,102 @@ let test_makearray_dynamic size =
     if not test then failwithf "test 126 failed %d %d" size i;
   done;
   Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
+
+  ()
+
+let test_makearray_dynamic_local size =
+  (****************)
+  (*   float32#   *)
+  (****************)
+  let eq = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) in
+  let mk_value i = Float32_u.of_int i in
+  (* 1. Create an array of size [size] *)
+  let a : float32# array = makearray_dynamic_local size #0.s in
+  (* 3. Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
   for i = 0 to size - 1 do
     mark_test_run 127;
     let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 127 failed %d %d" size i;
   done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 128;
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
+    if not test then failwithf "test 128 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 129;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 129 failed %d %d" size i;
+  done;
   Gc.compact ();
 
-  (***********************)
-  (*   #(int64# * ur1)   *)
-  (***********************)
-  let eq = (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) a1 b1) in
-  let mk_value i = #(Int64_u.of_int i, (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1)) in
+  (**************)
+  (*   float#   *)
+  (**************)
+  let eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let mk_value i = Float_u.of_int i in
   (* 1. Create an array of size [size] *)
-  let a : #(int64# * ur1) array = makearray_dynamic size #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
+  let a : float# array = makearray_dynamic_local size #0. in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
   Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 128;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 128 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 129;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 129 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
   for i = 0 to size - 1 do
     mark_test_run 130;
     let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 130 failed %d %d" size i;
   done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
+  (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
     mark_test_run 131;
-    let test = eq (get a i) (mk_value i) in
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
     if not test then failwithf "test 131 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 132;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 132 failed %d %d" size i;
   done;
   Gc.compact ();
 
-  (**********************)
-  (*   #(int * int64)   *)
-  (**********************)
-  let eq = (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int.equal a b) a0 b0 && (fun a b -> Int64.equal (globalize a) (globalize b)) a1 b1) in
-  let mk_value i = #(i, Int64.of_int i) in
+  (**************)
+  (*   int32#   *)
+  (**************)
+  let eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let mk_value i = Int32_u.of_int i in
   (* 1. Create an array of size [size] *)
-  let a : #(int * int64) array = makearray_dynamic size #(0, 0L) in
+  let a : int32# array = makearray_dynamic_local size #0l in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 132;
+    mark_test_run 133;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 132 failed %d %d" size i;
+    if not test then failwithf "test 133 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 133;
+    mark_test_run 134;
     let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 133 failed %d %d" size i;
+    if not test then failwithf "test 134 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
-  for i = 0 to size - 1 do
-    mark_test_run 134;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 134 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 135;
     let test = eq (get a i) (mk_value i) in
@@ -1105,13 +1179,13 @@ let test_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (**********************************************************)
-  (*   #(int64 option * int32 * #(int32 * float) * float)   *)
-  (**********************************************************)
-  let eq = (fun #(a0, a1, a2, a3) #(b0, b1, b2, b3) -> (fun a b -> match a, b with None,None -> true | Some a,Some b -> (fun a b -> Int64.equal (globalize a) (globalize b)) a b|_->false) a0 b0 && (fun a b -> Int32.equal (globalize a) (globalize b)) a1 b1 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int32.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Float.equal (globalize a) (globalize b)) a1 b1) a2 b2 && (fun a b -> Float.equal (globalize a) (globalize b)) a3 b3) in
-  let mk_value i = #((if i == 0 then None else Some (Int64.of_int i)), Int32.of_int i, #(Int32.of_int i, Float.of_int i), Float.of_int i) in
+  (**************)
+  (*   int64#   *)
+  (**************)
+  let eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
+  let mk_value i = Int64_u.of_int i in
   (* 1. Create an array of size [size] *)
-  let a : #(int64 option * int32 * #(int32 * float) * float) array = makearray_dynamic size #(None, 0l, #(0l, 0.), 0.) in
+  let a : int64# array = makearray_dynamic_local size #0L in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1137,87 +1211,99 @@ let test_makearray_dynamic size =
     if not test then failwithf "test 138 failed %d %d" size i;
   done;
   Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
+
+  (******************)
+  (*   nativeint#   *)
+  (******************)
+  let eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  let mk_value i = Nativeint_u.of_int i in
+  (* 1. Create an array of size [size] *)
+  let a : nativeint# array = makearray_dynamic_local size #0n in
+  (* 3. Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
   for i = 0 to size - 1 do
     mark_test_run 139;
     let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 139 failed %d %d" size i;
   done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 140;
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
+    if not test then failwithf "test 140 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 141;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 141 failed %d %d" size i;
+  done;
   Gc.compact ();
 
-  (********************************)
-  (*   #(float * float * float)   *)
-  (********************************)
-  let eq = (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Float.equal (globalize a) (globalize b)) a1 b1 && (fun a b -> Float.equal (globalize a) (globalize b)) a2 b2) in
-  let mk_value i = #(Float.of_int i, Float.of_int i, Float.of_int i) in
+  (***********)
+  (*   ur1   *)
+  (***********)
+  let eq = (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) in
+  let mk_value i = (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1) in
   (* 1. Create an array of size [size] *)
-  let a : #(float * float * float) array = makearray_dynamic size #(0., 0., 0.) in
+  let a : ur1 array = makearray_dynamic_local size (#{ a = #0L; b = #0. } : ur1) in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
   Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 140;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 140 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 141;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 141 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
   for i = 0 to size - 1 do
     mark_test_run 142;
     let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 142 failed %d %d" size i;
   done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
+  (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
     mark_test_run 143;
-    let test = eq (get a i) (mk_value i) in
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
     if not test then failwithf "test 143 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 144;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 144 failed %d %d" size i;
   done;
   Gc.compact ();
 
-  (*************************************************************************)
-  (*   #(float * #(float * float) * #(float * #(float * float * float)))   *)
-  (*************************************************************************)
-  let eq = (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Float.equal (globalize a) (globalize b)) a1 b1) a1 b1 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Float.equal (globalize a) (globalize b)) a1 b1 && (fun a b -> Float.equal (globalize a) (globalize b)) a2 b2) a1 b1) a2 b2) in
-  let mk_value i = #(Float.of_int i, #(Float.of_int i, Float.of_int i), #(Float.of_int i, #(Float.of_int i, Float.of_int i, Float.of_int i))) in
+  (***********)
+  (*   ur3   *)
+  (***********)
+  let eq = (fun (#{ a = a1 } : ur3) (#{ a = a2 } : ur3) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2) in
+  let mk_value i = (#{ a = Int64_u.of_int i } : ur3) in
   (* 1. Create an array of size [size] *)
-  let a : #(float * #(float * float) * #(float * #(float * float * float))) array = makearray_dynamic size #(0., #(0., 0.), #(0., #(0., 0., 0.))) in
+  let a : ur3 array = makearray_dynamic_local size (#{ a = #0L } : ur3) in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 144;
+    mark_test_run 145;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 144 failed %d %d" size i;
+    if not test then failwithf "test 145 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 145;
+    mark_test_run 146;
     let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 145 failed %d %d" size i;
+    if not test then failwithf "test 146 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
-  for i = 0 to size - 1 do
-    mark_test_run 146;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 146 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 147;
     let test = eq (get a i) (mk_value i) in
@@ -1225,16 +1311,13 @@ let test_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  ()
-
-let test_makearray_dynamic_local size =
-  (****************)
-  (*   float32#   *)
-  (****************)
-  let eq = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) in
-  let mk_value i = Float32_u.of_int i in
+  (***********)
+  (*   ur4   *)
+  (***********)
+  let eq = (fun (#{ a = a1; b = b1 } : ur4) (#{ a = a2; b = b2 } : ur4) -> (fun (#{ a = a1; b = b1 } : ur2) (#{ a = a2; b = b2 } : ur2) -> (fun a b -> Int.equal a b) a1 a2 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1 b2) a1 a2 && (fun (#{ a = a1 } : ur3) (#{ a = a2 } : ur3) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2) b1 b2) in
+  let mk_value i = (#{ a = (#{ a = i; b = Int64_u.of_int i } : ur2); b = (#{ a = Int64_u.of_int i } : ur3) } : ur4) in
   (* 1. Create an array of size [size] *)
-  let a : float32# array = makearray_dynamic_local size #0.s in
+  let a : ur4 array = makearray_dynamic_local size (#{ a = (#{ a = 0; b = #0L } : ur2); b = (#{ a = #0L } : ur3) } : ur4) in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1260,87 +1343,99 @@ let test_makearray_dynamic_local size =
     if not test then failwithf "test 150 failed %d %d" size i;
   done;
   Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
+
+  (***************)
+  (*   float32   *)
+  (***************)
+  let eq = (fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b)) in
+  let mk_value i = Float32.of_int i in
+  (* 1. Create an array of size [size] *)
+  let a : float32 array = makearray_dynamic_local size 0.s in
+  (* 3. Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
   for i = 0 to size - 1 do
     mark_test_run 151;
     let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 151 failed %d %d" size i;
   done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 152;
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
+    if not test then failwithf "test 152 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 153;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 153 failed %d %d" size i;
+  done;
   Gc.compact ();
 
-  (**************)
-  (*   float#   *)
-  (**************)
-  let eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let mk_value i = Float_u.of_int i in
+  (*************)
+  (*   int32   *)
+  (*************)
+  let eq = (fun a b -> Int32.equal (globalize a) (globalize b)) in
+  let mk_value i = Int32.of_int i in
   (* 1. Create an array of size [size] *)
-  let a : float# array = makearray_dynamic_local size #0. in
+  let a : int32 array = makearray_dynamic_local size 0l in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
   Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 152;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 152 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 153;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 153 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
   for i = 0 to size - 1 do
     mark_test_run 154;
     let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 154 failed %d %d" size i;
   done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
+  (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
     mark_test_run 155;
-    let test = eq (get a i) (mk_value i) in
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
     if not test then failwithf "test 155 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 156;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 156 failed %d %d" size i;
   done;
   Gc.compact ();
 
-  (**************)
-  (*   int32#   *)
-  (**************)
-  let eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let mk_value i = Int32_u.of_int i in
+  (*************)
+  (*   int64   *)
+  (*************)
+  let eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
+  let mk_value i = Int64.of_int i in
   (* 1. Create an array of size [size] *)
-  let a : int32# array = makearray_dynamic_local size #0l in
+  let a : int64 array = makearray_dynamic_local size 0L in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 156;
+    mark_test_run 157;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 156 failed %d %d" size i;
+    if not test then failwithf "test 157 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 157;
+    mark_test_run 158;
     let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 157 failed %d %d" size i;
+    if not test then failwithf "test 158 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
-  for i = 0 to size - 1 do
-    mark_test_run 158;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 158 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 159;
     let test = eq (get a i) (mk_value i) in
@@ -1348,13 +1443,13 @@ let test_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (**************)
-  (*   int64#   *)
-  (**************)
-  let eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
-  let mk_value i = Int64_u.of_int i in
+  (*****************)
+  (*   nativeint   *)
+  (*****************)
+  let eq = (fun a b -> Nativeint.equal (globalize a) (globalize b)) in
+  let mk_value i = Nativeint.of_int i in
   (* 1. Create an array of size [size] *)
-  let a : int64# array = makearray_dynamic_local size #0L in
+  let a : nativeint array = makearray_dynamic_local size 0n in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1380,87 +1475,99 @@ let test_makearray_dynamic_local size =
     if not test then failwithf "test 162 failed %d %d" size i;
   done;
   Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
+
+  (***********)
+  (*   int   *)
+  (***********)
+  let eq = (fun a b -> Int.equal a b) in
+  let mk_value i = i in
+  (* 1. Create an array of size [size] *)
+  let a : int array = makearray_dynamic_local size 0 in
+  (* 3. Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
   for i = 0 to size - 1 do
     mark_test_run 163;
     let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 163 failed %d %d" size i;
   done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 164;
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
+    if not test then failwithf "test 164 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 165;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 165 failed %d %d" size i;
+  done;
   Gc.compact ();
 
-  (******************)
-  (*   nativeint#   *)
-  (******************)
-  let eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
-  let mk_value i = Nativeint_u.of_int i in
+  (*************)
+  (*   enum3   *)
+  (*************)
+  let eq = (fun a b -> match a, b with A3_0, A3_0 | A3_1, A3_1 | A3_2, A3_2 -> true | _ -> false) in
+  let mk_value i = (match Int.rem i 3 with 0 -> A3_0 | 1 -> A3_1 | 2 -> A3_2 | _ -> assert false) in
   (* 1. Create an array of size [size] *)
-  let a : nativeint# array = makearray_dynamic_local size #0n in
+  let a : enum3 array = makearray_dynamic_local size A3_0 in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
   Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 164;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 164 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 165;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 165 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
   for i = 0 to size - 1 do
     mark_test_run 166;
     let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 166 failed %d %d" size i;
   done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
+  (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
     mark_test_run 167;
-    let test = eq (get a i) (mk_value i) in
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
     if not test then failwithf "test 167 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 168;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 168 failed %d %d" size i;
   done;
   Gc.compact ();
 
-  (***********)
-  (*   ur1   *)
-  (***********)
-  let eq = (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) in
-  let mk_value i = (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1) in
+  (***********************************)
+  (*   #(float# * int32# * int64#)   *)
+  (***********************************)
+  let eq = (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a0 b0 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a1 b1 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a2 b2) in
+  let mk_value i = #(Float_u.of_int i, Int32_u.of_int i, Int64_u.of_int i) in
   (* 1. Create an array of size [size] *)
-  let a : ur1 array = makearray_dynamic_local size (#{ a = #0L; b = #0. } : ur1) in
+  let a : #(float# * int32# * int64#) array = makearray_dynamic_local size #(#0., #0l, #0L) in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 168;
+    mark_test_run 169;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 168 failed %d %d" size i;
+    if not test then failwithf "test 169 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 169;
+    mark_test_run 170;
     let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 169 failed %d %d" size i;
+    if not test then failwithf "test 170 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
-  for i = 0 to size - 1 do
-    mark_test_run 170;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 170 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 171;
     let test = eq (get a i) (mk_value i) in
@@ -1468,13 +1575,13 @@ let test_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   ur3   *)
-  (***********)
-  let eq = (fun (#{ a = a1 } : ur3) (#{ a = a2 } : ur3) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2) in
-  let mk_value i = (#{ a = Int64_u.of_int i } : ur3) in
+  (*********************************************************************************************)
+  (*   #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)   *)
+  (*********************************************************************************************)
+  let eq = (fun #(a0, a1, a2, a3, a4) #(b0, b1, b2, b3, b4) -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 b1) a1 b1 && (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a2 b2 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a0 b0 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1 b1) a1 b1) a3 b3 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a4 b4) in
+  let mk_value i = #(Float_u.of_int i, #(Int64_u.of_int i, Int64_u.of_int i), Float32_u.of_int i, #(Int32_u.of_int i, #(Float32_u.of_int i, Float_u.of_int i)), Int64_u.of_int i) in
   (* 1. Create an array of size [size] *)
-  let a : ur3 array = makearray_dynamic_local size (#{ a = #0L } : ur3) in
+  let a : #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) array = makearray_dynamic_local size #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1500,87 +1607,99 @@ let test_makearray_dynamic_local size =
     if not test then failwithf "test 174 failed %d %d" size i;
   done;
   Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
+
+  (***********************)
+  (*   #(int64# * ur1)   *)
+  (***********************)
+  let eq = (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) a1 b1) in
+  let mk_value i = #(Int64_u.of_int i, (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1)) in
+  (* 1. Create an array of size [size] *)
+  let a : #(int64# * ur1) array = makearray_dynamic_local size #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
+  (* 3. Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
   for i = 0 to size - 1 do
     mark_test_run 175;
     let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 175 failed %d %d" size i;
   done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 176;
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
+    if not test then failwithf "test 176 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 177;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 177 failed %d %d" size i;
+  done;
   Gc.compact ();
 
-  (***********)
-  (*   ur4   *)
-  (***********)
-  let eq = (fun (#{ a = a1; b = b1 } : ur4) (#{ a = a2; b = b2 } : ur4) -> (fun (#{ a = a1; b = b1 } : ur2) (#{ a = a2; b = b2 } : ur2) -> (fun a b -> Int.equal a b) a1 a2 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1 b2) a1 a2 && (fun (#{ a = a1 } : ur3) (#{ a = a2 } : ur3) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2) b1 b2) in
-  let mk_value i = (#{ a = (#{ a = i; b = Int64_u.of_int i } : ur2); b = (#{ a = Int64_u.of_int i } : ur3) } : ur4) in
+  (**********************)
+  (*   #(int * int64)   *)
+  (**********************)
+  let eq = (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int.equal a b) a0 b0 && (fun a b -> Int64.equal (globalize a) (globalize b)) a1 b1) in
+  let mk_value i = #(i, Int64.of_int i) in
   (* 1. Create an array of size [size] *)
-  let a : ur4 array = makearray_dynamic_local size (#{ a = (#{ a = 0; b = #0L } : ur2); b = (#{ a = #0L } : ur3) } : ur4) in
+  let a : #(int * int64) array = makearray_dynamic_local size #(0, 0L) in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
   Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 176;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 176 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 177;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 177 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
   for i = 0 to size - 1 do
     mark_test_run 178;
     let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 178 failed %d %d" size i;
   done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
+  (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
     mark_test_run 179;
-    let test = eq (get a i) (mk_value i) in
+    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
     if not test then failwithf "test 179 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    set_idx_mut a (.(i)) (mk_value i);
+  done;
+  for i = 0 to size - 1 do
+    mark_test_run 180;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 180 failed %d %d" size i;
   done;
   Gc.compact ();
 
-  (***************)
-  (*   float32   *)
-  (***************)
-  let eq = (fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b)) in
-  let mk_value i = Float32.of_int i in
+  (**********************************************************)
+  (*   #(int64 option * int32 * #(int32 * float) * float)   *)
+  (**********************************************************)
+  let eq = (fun #(a0, a1, a2, a3) #(b0, b1, b2, b3) -> (fun a b -> match a, b with None,None -> true | Some a,Some b -> (fun a b -> Int64.equal (globalize a) (globalize b)) a b|_->false) a0 b0 && (fun a b -> Int32.equal (globalize a) (globalize b)) a1 b1 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int32.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Float.equal (globalize a) (globalize b)) a1 b1) a2 b2 && (fun a b -> Float.equal (globalize a) (globalize b)) a3 b3) in
+  let mk_value i = #((if i == 0 then None else Some (Int64.of_int i)), Int32.of_int i, #(Int32.of_int i, Float.of_int i), Float.of_int i) in
   (* 1. Create an array of size [size] *)
-  let a : float32 array = makearray_dynamic_local size 0.s in
+  let a : #(int64 option * int32 * #(int32 * float) * float) array = makearray_dynamic_local size #(None, 0l, #(0l, 0.), 0.) in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 180;
+    mark_test_run 181;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 180 failed %d %d" size i;
+    if not test then failwithf "test 181 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 181;
+    mark_test_run 182;
     let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 181 failed %d %d" size i;
+    if not test then failwithf "test 182 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
-  for i = 0 to size - 1 do
-    mark_test_run 182;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 182 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
   for i = 0 to size - 1 do
     mark_test_run 183;
     let test = eq (get a i) (mk_value i) in
@@ -1588,13 +1707,13 @@ let test_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (*************)
-  (*   int32   *)
-  (*************)
-  let eq = (fun a b -> Int32.equal (globalize a) (globalize b)) in
-  let mk_value i = Int32.of_int i in
+  (********************************)
+  (*   #(float * float * float)   *)
+  (********************************)
+  let eq = (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Float.equal (globalize a) (globalize b)) a1 b1 && (fun a b -> Float.equal (globalize a) (globalize b)) a2 b2) in
+  let mk_value i = #(Float.of_int i, Float.of_int i, Float.of_int i) in
   (* 1. Create an array of size [size] *)
-  let a : int32 array = makearray_dynamic_local size 0l in
+  let a : #(float * float * float) array = makearray_dynamic_local size #(0., 0., 0.) in
   (* 3. Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1620,413 +1739,6 @@ let test_makearray_dynamic_local size =
     if not test then failwithf "test 186 failed %d %d" size i;
   done;
   Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 187;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 187 failed %d %d" size i;
-  done;
-  Gc.compact ();
-
-  (*************)
-  (*   int64   *)
-  (*************)
-  let eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
-  let mk_value i = Int64.of_int i in
-  (* 1. Create an array of size [size] *)
-  let a : int64 array = makearray_dynamic_local size 0L in
-  (* 3. Fill [a] with distinct values using block indices *)
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 188;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 188 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 189;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 189 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  for i = 0 to size - 1 do
-    mark_test_run 190;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 190 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 191;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 191 failed %d %d" size i;
-  done;
-  Gc.compact ();
-
-  (*****************)
-  (*   nativeint   *)
-  (*****************)
-  let eq = (fun a b -> Nativeint.equal (globalize a) (globalize b)) in
-  let mk_value i = Nativeint.of_int i in
-  (* 1. Create an array of size [size] *)
-  let a : nativeint array = makearray_dynamic_local size 0n in
-  (* 3. Fill [a] with distinct values using block indices *)
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 192;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 192 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 193;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 193 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  for i = 0 to size - 1 do
-    mark_test_run 194;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 194 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 195;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 195 failed %d %d" size i;
-  done;
-  Gc.compact ();
-
-  (***********)
-  (*   int   *)
-  (***********)
-  let eq = (fun a b -> Int.equal a b) in
-  let mk_value i = i in
-  (* 1. Create an array of size [size] *)
-  let a : int array = makearray_dynamic_local size 0 in
-  (* 3. Fill [a] with distinct values using block indices *)
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 196;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 196 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 197;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 197 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  for i = 0 to size - 1 do
-    mark_test_run 198;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 198 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 199;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 199 failed %d %d" size i;
-  done;
-  Gc.compact ();
-
-  (*************)
-  (*   enum3   *)
-  (*************)
-  let eq = (fun a b -> match a, b with A3_0, A3_0 | A3_1, A3_1 | A3_2, A3_2 -> true | _ -> false) in
-  let mk_value i = (match Int.rem i 3 with 0 -> A3_0 | 1 -> A3_1 | 2 -> A3_2 | _ -> assert false) in
-  (* 1. Create an array of size [size] *)
-  let a : enum3 array = makearray_dynamic_local size A3_0 in
-  (* 3. Fill [a] with distinct values using block indices *)
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 200;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 200 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 201;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 201 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  for i = 0 to size - 1 do
-    mark_test_run 202;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 202 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 203;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 203 failed %d %d" size i;
-  done;
-  Gc.compact ();
-
-  (***********************************)
-  (*   #(float# * int32# * int64#)   *)
-  (***********************************)
-  let eq = (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a0 b0 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a1 b1 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a2 b2) in
-  let mk_value i = #(Float_u.of_int i, Int32_u.of_int i, Int64_u.of_int i) in
-  (* 1. Create an array of size [size] *)
-  let a : #(float# * int32# * int64#) array = makearray_dynamic_local size #(#0., #0l, #0L) in
-  (* 3. Fill [a] with distinct values using block indices *)
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 204;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 204 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 205;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 205 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  for i = 0 to size - 1 do
-    mark_test_run 206;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 206 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 207;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 207 failed %d %d" size i;
-  done;
-  Gc.compact ();
-
-  (*********************************************************************************************)
-  (*   #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#)   *)
-  (*********************************************************************************************)
-  let eq = (fun #(a0, a1, a2, a3, a4) #(b0, b1, b2, b3, b4) -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 b1) a1 b1 && (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a2 b2 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a0 b0 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a0 b0 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1 b1) a1 b1) a3 b3 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a4 b4) in
-  let mk_value i = #(Float_u.of_int i, #(Int64_u.of_int i, Int64_u.of_int i), Float32_u.of_int i, #(Int32_u.of_int i, #(Float32_u.of_int i, Float_u.of_int i)), Int64_u.of_int i) in
-  (* 1. Create an array of size [size] *)
-  let a : #(float# * #(int64# * int64#) * float32# * #(int32# * #(float32# * float#)) * int64#) array = makearray_dynamic_local size #(#0., #(#0L, #0L), #0.s, #(#0l, #(#0.s, #0.)), #0L) in
-  (* 3. Fill [a] with distinct values using block indices *)
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 208;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 208 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 209;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 209 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  for i = 0 to size - 1 do
-    mark_test_run 210;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 210 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 211;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 211 failed %d %d" size i;
-  done;
-  Gc.compact ();
-
-  (***********************)
-  (*   #(int64# * ur1)   *)
-  (***********************)
-  let eq = (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a0 b0 && (fun (#{ a = a1; b = b1 } : ur1) (#{ a = a2; b = b2 } : ur1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1 a2 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1 b2) a1 b1) in
-  let mk_value i = #(Int64_u.of_int i, (#{ a = Int64_u.of_int i; b = Float_u.of_int i } : ur1)) in
-  (* 1. Create an array of size [size] *)
-  let a : #(int64# * ur1) array = makearray_dynamic_local size #(#0L, (#{ a = #0L; b = #0. } : ur1)) in
-  (* 3. Fill [a] with distinct values using block indices *)
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 212;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 212 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 213;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 213 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  for i = 0 to size - 1 do
-    mark_test_run 214;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 214 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 215;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 215 failed %d %d" size i;
-  done;
-  Gc.compact ();
-
-  (**********************)
-  (*   #(int * int64)   *)
-  (**********************)
-  let eq = (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int.equal a b) a0 b0 && (fun a b -> Int64.equal (globalize a) (globalize b)) a1 b1) in
-  let mk_value i = #(i, Int64.of_int i) in
-  (* 1. Create an array of size [size] *)
-  let a : #(int * int64) array = makearray_dynamic_local size #(0, 0L) in
-  (* 3. Fill [a] with distinct values using block indices *)
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 216;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 216 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 217;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 217 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  for i = 0 to size - 1 do
-    mark_test_run 218;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 218 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 219;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 219 failed %d %d" size i;
-  done;
-  Gc.compact ();
-
-  (**********************************************************)
-  (*   #(int64 option * int32 * #(int32 * float) * float)   *)
-  (**********************************************************)
-  let eq = (fun #(a0, a1, a2, a3) #(b0, b1, b2, b3) -> (fun a b -> match a, b with None,None -> true | Some a,Some b -> (fun a b -> Int64.equal (globalize a) (globalize b)) a b|_->false) a0 b0 && (fun a b -> Int32.equal (globalize a) (globalize b)) a1 b1 && (fun #(a0, a1) #(b0, b1) -> (fun a b -> Int32.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Float.equal (globalize a) (globalize b)) a1 b1) a2 b2 && (fun a b -> Float.equal (globalize a) (globalize b)) a3 b3) in
-  let mk_value i = #((if i == 0 then None else Some (Int64.of_int i)), Int32.of_int i, #(Int32.of_int i, Float.of_int i), Float.of_int i) in
-  (* 1. Create an array of size [size] *)
-  let a : #(int64 option * int32 * #(int32 * float) * float) array = makearray_dynamic_local size #(None, 0l, #(0l, 0.), 0.) in
-  (* 3. Fill [a] with distinct values using block indices *)
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 220;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 220 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 221;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 221 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  for i = 0 to size - 1 do
-    mark_test_run 222;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 222 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 223;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 223 failed %d %d" size i;
-  done;
-  Gc.compact ();
-
-  (********************************)
-  (*   #(float * float * float)   *)
-  (********************************)
-  let eq = (fun #(a0, a1, a2) #(b0, b1, b2) -> (fun a b -> Float.equal (globalize a) (globalize b)) a0 b0 && (fun a b -> Float.equal (globalize a) (globalize b)) a1 b1 && (fun a b -> Float.equal (globalize a) (globalize b)) a2 b2) in
-  let mk_value i = #(Float.of_int i, Float.of_int i, Float.of_int i) in
-  (* 1. Create an array of size [size] *)
-  let a : #(float * float * float) array = makearray_dynamic_local size #(0., 0., 0.) in
-  (* 3. Fill [a] with distinct values using block indices *)
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 224;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 224 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 225;
-    let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 225 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    set_idx_mut a (.(i)) (mk_value i);
-  done;
-  for i = 0 to size - 1 do
-    mark_test_run 226;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 226 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 227;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 227 failed %d %d" size i;
-  done;
-  Gc.compact ();
 
   (*************************************************************************)
   (*   #(float * #(float * float) * #(float * #(float * float * float)))   *)
@@ -2041,39 +1753,26 @@ let test_makearray_dynamic_local size =
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 228;
+    mark_test_run 187;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 228 failed %d %d" size i;
+    if not test then failwithf "test 187 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 229;
+    mark_test_run 188;
     let test = eq (get_idx_mut a (.(i))) (mk_value i) in
-    if not test then failwithf "test 229 failed %d %d" size i;
+    if not test then failwithf "test 188 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
   done;
   for i = 0 to size - 1 do
-    mark_test_run 230;
+    mark_test_run 189;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 230 failed %d %d" size i;
-  done;
-  Gc.compact ();
-  (* 6. Array contents were unaffected by setting bad indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 231;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 231 failed %d %d" size i;
+    if not test then failwithf "test 189 failed %d %d" size i;
   done;
   Gc.compact ();
 
-  ()
-
-let test_makearray_dynamic_uninit size =
-  ()
-
-let test_makearray_dynamic_uninit_local size =
   ()
 
 (* Main tests *)
@@ -2082,14 +1781,10 @@ let () =
   iter sizes ~f:test_makearray_dynamic;
   print_endline "test_makearray_dynamic_local";
   iter sizes ~f:test_makearray_dynamic_local;
-  print_endline "test_makearray_dynamic_uninit";
-  iter sizes ~f:test_makearray_dynamic_uninit;
-  print_endline "test_makearray_dynamic_uninit_local";
-  iter sizes ~f:test_makearray_dynamic_uninit_local;
   ()
 ;;
 
-for i = 1 to 231 do
+for i = 1 to 189 do
   if not (List.mem i !tests_run) then failwithf "test %d not run" i
 done;;
 let () = Printf.printf "All tests passed.%!\n";;
