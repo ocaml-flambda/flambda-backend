@@ -26,6 +26,10 @@ Mixed float record (float# field)
 1.000000
 2.000000
 
+Nested ufloat record
+1.000000
+2.000000
+
 Mixed block record (int32# field)
 1
 2

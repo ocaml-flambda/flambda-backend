@@ -56,7 +56,7 @@ external[@layout_poly] set :
 (*******************************************************)
 (* Reads and writes for various record representations *)
 
-type r = { s : string; mutable f : float }
+type boxed_record = { s : string; mutable f : float }
 
 let () =
   print_endline "Boxed record";
@@ -100,7 +100,7 @@ let () =
   Printf.printf "%f\n" (Float_u.to_float (Float32_u.to_float r.f));
   print_newline ()
 
-type nested_record = { f : float#; mutable r : r# }
+type nested_record = { f : float#; mutable r : boxed_record# }
 
 let () =
   print_endline "Nested mixed block record";
@@ -129,6 +129,21 @@ let () =
   Printf.printf "%f\n" (Float_u.to_float x);
   set_idx_mut r (.u) #2.0;
   Printf.printf "%f\n" (Float_u.to_float r.u);
+  print_newline ()
+
+type floatu_floatu = #{ f1: float#; f2 : float# }
+type fufu_fufu = { r1 : floatu_floatu; mutable r2 : floatu_floatu }
+
+let () =
+  print_endline "Nested ufloat record";
+  let rr = {
+    r1 = #{ f1 = -#100.0; f2 = -#100.0 };
+    r2 = #{ f1 = #100.0;  f2 = #1.0 }
+  } in
+  let x = get_idx_mut rr (.r2.#f2) in
+  Printf.printf "%f\n" (Float_u.to_float x);
+  set_idx_mut rr (.r2.#f2) #2.0;
+  Printf.printf "%f\n" (Float_u.to_float rr.r2.#f2);
   print_newline ()
 
 type mixed_int32_record = { j : int32#; mutable i : int32# }

@@ -890,9 +890,9 @@ CAMLprim value caml_array_blit(value a1, value ofs1, value a2, value ofs2,
   return Val_unit;
 }
 
-/* CR rtjoa: copy to and test runtime 5 */
 /* In bytecode, an index is represented as a block containing a list of field
-   positions */
+   positions. See Note [Representation of block indices] in
+   [lambda/translcore.ml] */
 CAMLprim value caml_unsafe_get_idx_bytecode(value base, value idx)
 {
   CAMLparam2 (base, idx);
@@ -906,7 +906,7 @@ CAMLprim value caml_unsafe_get_idx_bytecode(value base, value idx)
     double d = Double_flat_field(base, pos);
 #define Setup_for_gc
 #define Restore_after_gc
-  Alloc_small(res, Double_wosize, Double_tag);
+    Alloc_small(res, Double_wosize, Double_tag);
 #undef Setup_for_gc
 #undef Restore_after_gc
     Store_double_val(res, d);
