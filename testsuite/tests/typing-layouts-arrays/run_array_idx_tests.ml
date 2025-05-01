@@ -5,7 +5,7 @@
     it just updates the generated test program (which is separately
     run by the test harness).
   *)
-
+   (* CR rtjoa: why not bytecode? *)
  {
    setup-ocamlopt.opt-build-env;
    stack-allocation;
@@ -15,10 +15,10 @@
    include stdlib_upstream_compatible;
    ocamlopt.opt;
    arguments = "native";
-   output = "${test_source_directory}/generated_makearray_dynamic_test.ml.corrected";
+   output = "${test_source_directory}/generated_array_idx_test.ml.corrected";
    run;
-   output = "${test_source_directory}/generated_makearray_dynamic_test.ml.corrected";
-   reference = "${test_source_directory}/generated_makearray_dynamic_test.ml";
+   output = "${test_source_directory}/generated_array_idx_test.ml.corrected";
+   reference = "${test_source_directory}/generated_array_idx_test.ml";
    check-program-output;
  }
 *)

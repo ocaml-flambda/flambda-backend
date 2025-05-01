@@ -1169,11 +1169,16 @@ and comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       comp_args stack_info env args sz (Kgetfloatfield n :: cont)
   | Lprim(Pidx_array (_, ik, _, path), [index], loc) ->
-      (* Push path onto the stack in reverse order, then load index into acc,
-         convert index to int, the make block
+      (* Make a block containing [ to_int index ] ++ path.
+           1. Push path onto the stack in reverse order
+           2. Load index into acc
+           3. Convert acc to int
+           4. Make block
+         Also see Note [Representation of block indices] in
+         [lambda/translcore.ml].
       *)
       let cont = add_pseudo_event loc !compunit_name cont in
-      let instrs =
+      let push_path =
         List.fold_right (fun x instrs ->
           Kconst (Const_base (Const_int x)) :: Kpush :: instrs)
           path
@@ -1189,7 +1194,7 @@ and comp_expr stack_info env exp sz cont =
           [Kccall ("caml_nativeint_to_int", 1)]
       in
       let path_len = List.length path in
-      instrs
+      push_path
         @ (comp_expr stack_info env index (sz + path_len)
             (convert_index @ Kmakeblock (path_len + 1, 0) :: cont))
   | Lprim(Pidx_deepen (path, _), [path_prefix], loc) ->

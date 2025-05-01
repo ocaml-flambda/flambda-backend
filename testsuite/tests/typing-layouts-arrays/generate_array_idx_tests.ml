@@ -1,4 +1,4 @@
-(* This file is used in [run_makearray_dynamic_tests.ml]. *)
+(* This file is used in [run_array_idx_tests.ml]. *)
 open Stdlib_upstream_compatible
 open Stdlib_stable
 module List = ListLabels
@@ -276,13 +276,17 @@ end = struct
 end
 
 let ty_ur1 = Ty.(unboxed_record "ur1" ["a", int64_u; "b", float_u])
-let ty_ur2 = Ty.(unboxed_record "ur2" ["a", int64_u; "b", int])
+let ty_ur2 = Ty.(unboxed_record "ur2" ["a", int; "b", int64_u])
 let ty_ur3 = Ty.(unboxed_record "ur3" ["a", int64_u])
-let ty_ur4 = Ty.(unboxed_record "ur4" ["a", ty_ur1; "b", ty_ur3])
+let ty_ur4 = Ty.(unboxed_record "ur4" ["a", ty_ur2; "b", ty_ur3])
 
 (* Types the GC always ignores, which can be used with %makearray_dynamic_uninit *)
 let always_ignored_types = Ty.([
+])
+
+let types = always_ignored_types @ Ty.([
   float32_u; float_u; int32_u; int64_u; nativeint_u; ty_ur1; ty_ur3; ty_ur4;
+  float32; int32; int64; nativeint; int; enum 3; (* ty_ur2; *)
   unboxed_tuple [float_u; int32_u; int64_u];
   unboxed_tuple [
     float_u;
@@ -292,35 +296,19 @@ let always_ignored_types = Ty.([
     int64_u;
   ];
   unboxed_tuple [int64_u; ty_ur1];
-])
-
-let types = always_ignored_types @ Ty.([
-  float32; (* float; *) int32; int64; nativeint; int; enum 3; (* ty_ur2; *)
-  (* unboxed_tuple [int; int64]; *)
-  (* unboxed_tuple [
+  unboxed_tuple [int; int64];
+  unboxed_tuple [
     option int64;
-    unboxed_tuple [int; int32; float];
+    int32;
+    unboxed_tuple [int32; float];
     float;
-    unboxed_tuple [float32; option (tuple [nativeint; nativeint])];
-    int32
-    ]; *)
+  ];
   unboxed_tuple [float; float; float];
   unboxed_tuple [
     float;
     unboxed_tuple [float; float];
     unboxed_tuple [float; unboxed_tuple [float; float; float]]
   ];
-  (*
-  unboxed_tuple [float_u; int; int64_u];
-  unboxed_tuple [
-    float_u;
-    unboxed_tuple [int; int64_u];
-    float32_u;
-    unboxed_tuple [int32_u; unboxed_tuple [float32_u; float_u]];
-    int;
-  ];
-  unboxed_tuple [ty_ur2; ty_ur1];
-  *)
 ])
 
 let preamble = {|
@@ -328,14 +316,6 @@ open Stdlib_upstream_compatible
 open Stdlib_stable
 module List = ListLabels
 module String = StringLabels
-
-external[@layout_poly] makearray_dynamic_uninit_local :
-  ('a : any_non_null) . int -> 'a array @ local =
-  "%makearray_dynamic_uninit"
-
-external[@layout_poly] makearray_dynamic_uninit :
-  ('a : any_non_null) . int -> 'a array =
-  "%makearray_dynamic_uninit"
 
 external[@layout_poly] makearray_dynamic_local :
   ('a : any_non_null) . int -> 'a -> 'a array @ local =
