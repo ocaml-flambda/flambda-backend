@@ -490,7 +490,7 @@ let transl_labels (type rep) ~(record_form : rep record_form) ~new_var_jkind
               | Unboxed_product -> raise(Error(loc, Unboxed_mutable_label))
          in
          let modalities =
-          Typemode.transl_modalities ~maturity:Stable mut attrs modalities
+          Typemode.transl_modalities ~maturity:Stable mut modalities
          in
          let arg = Ast_helper.Typ.force_poly arg in
          let cty = transl_simple_type ~new_var_jkind env ?univars ~closed Mode.Alloc.Const.legacy arg in
@@ -531,8 +531,7 @@ let transl_types_gf ~new_var_jkind env loc univars closed cal kloc =
         Mode.Alloc.Const.legacy arg.pca_type
     in
     let gf =
-      Typemode.transl_modalities ~maturity:Stable Immutable []
-        arg.pca_modalities
+      Typemode.transl_modalities ~maturity:Stable Immutable arg.pca_modalities
     in
     {ca_modalities = gf; ca_type = cty; ca_loc = arg.pca_loc}
   in
@@ -3656,8 +3655,7 @@ let transl_value_decl env loc ~sig_modalities valdecl =
   let modalities =
     match valdecl.pval_modalities with
     | [] -> sig_modalities
-    | l -> Typemode.transl_modalities ~maturity:Stable Immutable
-        valdecl.pval_attributes l
+    | l -> Typemode.transl_modalities ~maturity:Stable Immutable l
   in
   let modalities = Mode.Modality.Value.of_const modalities in
   (* CR layouts v5: relax this to check for representability. *)

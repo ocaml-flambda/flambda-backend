@@ -1062,7 +1062,7 @@ let apply_pmd_modalities env sig_modalities pmd_modalities mty =
     match pmd_modalities with
     | [] -> sig_modalities
     | _ :: _ ->
-      Typemode.transl_modalities ~maturity:Stable Immutable [] pmd_modalities
+      Typemode.transl_modalities ~maturity:Stable Immutable pmd_modalities
   in
   (*
   Workaround for pmd_modalities
@@ -1268,7 +1268,7 @@ and approx_sig_items env ssg=
                 | [] -> sg
                 | _ ->
                   let modalities =
-                    Typemode.transl_modalities ~maturity:Stable Immutable [] moda
+                    Typemode.transl_modalities ~maturity:Stable Immutable moda
                   in
                   let recursive =
                     not @@ Builtin_attributes.has_attribute "no_recursive_modalities" attrs
@@ -1770,7 +1770,7 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
   let names = Signature_names.create () in
 
   let sig_modalities =
-      Typemode.transl_modalities ~maturity:Stable Immutable [] psg_modalities
+      Typemode.transl_modalities ~maturity:Stable Immutable psg_modalities
   in
 
   let transl_include ~loc env sig_acc sincl modalities =
@@ -1796,7 +1796,7 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
       match modalities with
       | [] -> sig_modalities
       | _ ->
-        Typemode.transl_modalities ~maturity:Stable Immutable [] modalities
+        Typemode.transl_modalities ~maturity:Stable Immutable modalities
     in
     let sg =
       if not @@ Mode.Modality.Value.Const.is_id modalities then

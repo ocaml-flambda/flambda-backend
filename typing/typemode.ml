@@ -407,11 +407,10 @@ let untransl_modality (a : Modality.t) : Parsetree.modality loc =
 
 (* For now, mutable implies legacy modalities for both comonadic axes and
    monadic axes. In the future, implications on the comonadic axes will be
-   removed (and can be experimented currently with using
-   @no_mutable_implied_modalities). The implications on the monadic axes will
-   stay. *)
+   removed. The implications on the monadic axes will stay. Implied modalities
+   can be overriden. *)
 (* CR zqian: decouple mutable and comonadic modalities *)
-let mutable_implied_modalities (mut : Types.mutability) attrs =
+let mutable_implied_modalities (mut : Types.mutability) =
   let comonadic : Modality.t list =
     [ Atom (Comonadic Areality, Meet_with Regionality.Const.legacy);
       Atom (Comonadic Linearity, Meet_with Linearity.Const.legacy);
@@ -424,15 +423,10 @@ let mutable_implied_modalities (mut : Types.mutability) attrs =
       Atom (Monadic Contention, Join_with Contention.Const.legacy);
       Atom (Monadic Visibility, Join_with Visibility.Const.legacy) ]
   in
-  match mut with
-  | Immutable -> []
-  | Mutable _ ->
-    if Builtin_attributes.has_no_mutable_implied_modalities attrs
-    then monadic
-    else monadic @ comonadic
+  match mut with Immutable -> [] | Mutable _ -> monadic @ comonadic
 
-let mutable_implied_modalities (mut : Types.mutability) attrs =
-  let l = mutable_implied_modalities mut attrs in
+let mutable_implied_modalities (mut : Types.mutability) =
+  let l = mutable_implied_modalities mut in
   List.fold_left
     (fun t (Modality.Atom (ax, a)) -> Modality.Value.Const.set ax a t)
     Modality.Value.Const.id l
@@ -466,8 +460,8 @@ let implied_modalities (Atom (ax, a) : Modality.t) : Modality.t list =
     [Atom (Comonadic Portability, Meet_with b)]
   | _ -> []
 
-let transl_modalities ~maturity mut attrs modalities =
-  let mut_modalities = mutable_implied_modalities mut attrs in
+let transl_modalities ~maturity mut modalities =
+  let mut_modalities = mutable_implied_modalities mut in
   let modalities = List.map (transl_modality ~maturity) modalities in
   (* axes listed in the order of implication. *)
   let modalities =
@@ -489,8 +483,8 @@ let transl_modalities ~maturity mut attrs modalities =
         m (implied_modalities t))
     mut_modalities modalities
 
-let untransl_modalities mut attrs t =
-  let mut_modalities = mutable_implied_modalities mut attrs in
+let untransl_modalities mut t =
+  let mut_modalities = mutable_implied_modalities mut in
   let l = Modality.Value.Const.diff mut_modalities t in
   let implied = List.concat_map implied_modalities l in
   l

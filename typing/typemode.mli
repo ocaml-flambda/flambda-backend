@@ -14,7 +14,6 @@ val transl_alloc_mode : Parsetree.modes -> Mode.Alloc.Const.t
 val transl_modalities :
   maturity:Language_extension.maturity ->
   Types.mutability ->
-  Parsetree.attributes ->
   Parsetree.modalities ->
   Mode.Modality.Value.Const.t
 
@@ -24,10 +23,7 @@ val untransl_modality : Mode.Modality.t -> Parsetree.modality Location.loc
     attributes on the field and remove mutable-implied modalities accordingly.
     *)
 val untransl_modalities :
-  Types.mutability ->
-  Parsetree.attributes ->
-  Mode.Modality.Value.Const.t ->
-  Parsetree.modalities
+  Types.mutability -> Mode.Modality.Value.Const.t -> Parsetree.modalities
 
 module Transled_modifiers : sig
   type t =

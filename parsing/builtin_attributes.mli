@@ -212,7 +212,6 @@ val parse_standard_implementation_attributes : Parsetree.attribute -> unit
 val curry_attr_name : string
 val curry_attr : Location.t -> Parsetree.attribute
 
-val has_no_mutable_implied_modalities: Parsetree.attributes -> bool
 val has_local_opt: Parsetree.attributes -> bool
 val has_layout_poly: Parsetree.attributes -> bool
 val has_curry: Parsetree.attributes -> bool

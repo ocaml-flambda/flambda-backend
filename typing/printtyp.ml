@@ -1419,14 +1419,14 @@ let tree_of_modality_old (t: Parsetree.modality loc) =
   | Modality "global" -> Some (Ogf_legacy Ogf_global)
   | _ -> None
 
-let tree_of_modalities mut attrs t =
-  let t = Typemode.untransl_modalities mut attrs t in
+let tree_of_modalities mut t =
+  let t = Typemode.untransl_modalities mut t in
   match all_or_none tree_of_modality_old t with
   | Some l -> l
   | None -> List.map tree_of_modality_new t
 
-let tree_of_modalities_new mut attrs t =
-  let l = Typemode.untransl_modalities mut attrs t in
+let tree_of_modalities_new mut t =
+  let l = Typemode.untransl_modalities mut t in
   List.map (fun ({txt = Parsetree.Modality s; _}) -> s) l
 
 (** [tree_of_mode m l] finds the outcome node in [l] that corresponds to [m].
@@ -1643,7 +1643,7 @@ and tree_of_labeled_typlist mode tyl =
 
 and tree_of_typ_gf {ca_type=ty; ca_modalities=gf; _} =
   (tree_of_typexp Type Alloc.Const.legacy ty,
-   tree_of_modalities Immutable [] gf)
+   tree_of_modalities Immutable gf)
 
 (** We are on the RHS of an arrow type, where [ty] is the return type, and [m]
     is the return mode. This function decides the printed modes on [ty].
@@ -1842,9 +1842,7 @@ let tree_of_label l =
         mut
     | Immutable -> Om_immutable
   in
-  let ld_modalities =
-    tree_of_modalities l.ld_mutable l.ld_attributes l.ld_modalities
-  in
+  let ld_modalities = tree_of_modalities l.ld_mutable l.ld_modalities in
   (Ident.name l.ld_id, mut, tree_of_typexp Type l.ld_type, ld_modalities)
 
 let tree_of_constructor_arguments = function
@@ -2266,7 +2264,7 @@ let tree_of_value_description id decl =
     { oval_name = id;
       oval_type = Otyp_poly(qtvs, ty);
       oval_modalities =
-        tree_of_modalities_new Immutable decl.val_attributes moda;
+        tree_of_modalities_new Immutable moda;
       oval_prims = [];
       oval_attributes = attrs
     }

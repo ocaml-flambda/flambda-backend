@@ -637,7 +637,6 @@ val set_outcometree_of_type : (Types.type_expr -> Outcometree.out_type) -> unit
 
 val set_outcometree_of_modalities_new :
   (Types.mutability ->
-  Parsetree.attributes ->
   Mode.Modality.Value.Const.t ->
   Outcometree.out_mode_new list) ->
   unit

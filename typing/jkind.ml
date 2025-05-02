@@ -1209,7 +1209,7 @@ let outcometree_of_type = ref (fun _ -> assert false)
 
 let set_outcometree_of_type p = outcometree_of_type := p
 
-let outcometree_of_modalities_new = ref (fun _ _ _ -> assert false)
+let outcometree_of_modalities_new = ref (fun _ _ -> assert false)
 
 let set_outcometree_of_modalities_new p = outcometree_of_modalities_new := p
 
@@ -1638,7 +1638,7 @@ module Const = struct
             in
             ( !outcometree_of_type type_expr,
               !outcometree_of_modalities_new
-                Types.Immutable []
+                Types.Immutable
                 (modality_to_ignore_axes axes_ignored_by_modalities) ))
           (With_bounds.to_list actual.with_bounds)
       in
@@ -1819,7 +1819,7 @@ module Const = struct
       | Left_jkind (transl_type, _) ->
         let type_ = transl_type type_ in
         let modality =
-          Typemode.transl_modalities ~maturity:Stable Immutable [] modalities
+          Typemode.transl_modalities ~maturity:Stable Immutable modalities
         in
         { layout = base.layout;
           mod_bounds = base.mod_bounds;
