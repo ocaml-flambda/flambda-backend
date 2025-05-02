@@ -2234,9 +2234,14 @@ and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
    implementation of deepening, see CR rtjoa add vis
 *)
 and transl_idx ~scopes loc env ba uas =
+  let pos_of_lbl lbl =
+    if Int.equal (Array.length lbl.lbl_all) 1 then
+      In_singleton
+    else
+      In_product lbl.lbl_pos
+  in
   let uas_path =
-    List.map (function Uaccess_unboxed_field (_, lbl) -> lbl.lbl_pos)
-      uas
+    List.map (function Uaccess_unboxed_field (_, lbl) -> pos_of_lbl lbl) uas
   in
   begin match ba with
   | Baccess_block (_, idx) ->
@@ -2244,14 +2249,18 @@ and transl_idx ~scopes loc env ba uas =
     begin match uas with
     | [] -> idx
     | Uaccess_unboxed_field (_, lbl) :: _ ->
+      (* CR rtjoa: no product if one *)
       let base_sort =
-        Jkind.Sort.Const.Product
-          (Array.to_list (Array.map (fun lbl -> lbl.lbl_sort) lbl.lbl_all))
+        if Int.equal (Array.length lbl.lbl_all) 1 then
+          lbl.lbl_sort
+        else
+          Jkind.Sort.Const.Product
+            (Array.to_list (Array.map (fun lbl -> lbl.lbl_sort) lbl.lbl_all))
       in
       let base_layout = layout env lbl.lbl_loc base_sort lbl.lbl_res in
-      let el = mixed_block_element_of_layout base_layout in
-      (* [uas_path] is a path into [el] *)
-      Lprim (Pidx_deepen (uas_path, el), [idx], (of_location ~scopes loc))
+      let mbe = mixed_block_element_of_layout base_layout in
+      (* [uas_path] is a path into [mbe] *)
+      Lprim (Pidx_deepen (mbe, uas_path), [idx], (of_location ~scopes loc))
     end
   | Baccess_field (id, lbl) ->
     check_record_field_sort id.loc lbl.lbl_sort;
@@ -2265,23 +2274,29 @@ and transl_idx ~scopes loc env ba uas =
               Misc.fatal_error "Texp_idx: non-singleton unboxed record field \
                 in non-mixed boxed record")
         uas;
-      Lprim (Pidx_field lbl.lbl_pos, [], (of_location ~scopes loc))
+      Lprim (Pidx_field (pos_of_lbl lbl), [], (of_location ~scopes loc))
     | Record_inlined _ | Record_unboxed ->
       Misc.fatal_error "Texp_idx: unexpected unboxed/inlined record"
     | Record_mixed shape ->
-      let el =
-        Product
-          (Lambda.transl_mixed_product_shape
-             ~get_value_kind:(fun _ -> Lambda.generic_value) shape)
+      let shape =
+        Lambda.transl_mixed_product_shape
+          ~get_value_kind:(fun _ -> Lambda.generic_value) shape
       in
-      let path = lbl.lbl_pos :: uas_path in
+      let el =
+        (* preserve the invariant that products have at least two elements *)
+        if Int.equal (Array.length lbl.lbl_all) 1 then
+          shape.(0)
+        else
+          Product shape
+      in
       (* Check to make sure the gap never overflows.
          See Note [Representation of block indices]. *)
+      let path = pos_of_lbl lbl :: uas_path in
       let cts = Mixed_product_bytes_wrt_path.count el path in
       if Option.is_none
           (Mixed_product_bytes_wrt_path.offset_and_gap cts) then
         raise (Error (loc, Block_index_gap_overflow_possible));
-      Lprim (Pidx_mixed_field (path, el), [], (of_location ~scopes loc))
+      Lprim (Pidx_mixed_field (el, path), [], (of_location ~scopes loc))
     end
   | Baccess_array { mut = _; index_kind; index; base_ty; elt_ty; elt_sort } ->
     let index_sort, index_kind = match index_kind with

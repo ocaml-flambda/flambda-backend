@@ -1398,8 +1398,8 @@ let conv_bc = Mixed_product_bytes.Byte_count.on_64_bit_arch
 (* Given an index that points to data of some layout, produce the list of
    offsets needed to access each element *)
 let idx_access_offsets layout idx =
-  let el = L.mixed_block_element_of_layout layout in
-  let cts = Mixed_product_bytes.count el in
+  let mbe = L.mixed_block_element_of_layout layout in
+  let cts = Mixed_product_bytes.count mbe in
   if Mixed_product_bytes.has_value_and_flat cts
   then
     let offset =
@@ -1414,10 +1414,10 @@ let idx_access_offsets layout idx =
       in
       H.Binary (Int_shift (Naked_int64, Lsr), idx, shifter)
     in
-    let f (to_left : Mixed_product_bytes.t) (el : unit L.mixed_block_element) =
+    let f (to_left : Mixed_product_bytes.t) (mbe : unit L.mixed_block_element) =
       let add x y = H.Binary (Int_arith (Naked_int64, Add), Prim x, y) in
       let offset_from_offset : H.simple_or_prim =
-        match el with
+        match mbe with
         | Product _ -> assert false
         (* Values are (values to left) beyond the offset *)
         | Value _ -> simple_i64 (Int64.of_int (conv_bc to_left.value))
@@ -1429,22 +1429,22 @@ let idx_access_offsets layout idx =
                   (Int64.of_int (conv_bc cts.value + conv_bc to_left.flat))))
       in
       let prim = add offset offset_from_offset in
-      Mixed_product_bytes.add to_left (Mixed_product_bytes.count el), prim
+      Mixed_product_bytes.add to_left (Mixed_product_bytes.count mbe), prim
     in
     snd
       (List.fold_left_map f Mixed_product_bytes.zero
-         (L.mixed_block_element_leaves el))
+         (L.mixed_block_element_leaves mbe))
   else
-    let f (to_left : Mixed_product_bytes.t) (el : unit L.mixed_block_element) =
+    let f (to_left : Mixed_product_bytes.t) (mbe : unit L.mixed_block_element) =
       let summand =
         simple_i64 (Int64.of_int (conv_bc to_left.value + conv_bc to_left.flat))
       in
       let prim = H.Binary (Int_arith (Naked_int64, Add), idx, summand) in
-      Mixed_product_bytes.add to_left (Mixed_product_bytes.count el), prim
+      Mixed_product_bytes.add to_left (Mixed_product_bytes.count mbe), prim
     in
     snd
       (List.fold_left_map f Mixed_product_bytes.zero
-         (L.mixed_block_element_leaves el))
+         (L.mixed_block_element_leaves mbe))
 
 (* Primitive conversion *)
 let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
@@ -1505,12 +1505,16 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let num_bytes = array_element_size_in_bytes array_kind in
     [Simple (Simple.const_int (Targetint_31_63.of_int num_bytes))]
   | Pidx_field pos, [] ->
-    let idx_raw_value = Int64.mul (Int64.of_int pos) 8L in
+    let idx_raw_value =
+      match pos with
+      | In_singleton -> 0L
+      | In_product pos -> Int64.mul (Int64.of_int pos) 8L
+    in
     [Simple (Simple.const (Reg_width_const.naked_int64 idx_raw_value))]
-  | Pidx_mixed_field (field_path, el), [] ->
+  | Pidx_mixed_field (mbe, field_path), [] ->
     let open Mixed_product_bytes_wrt_path in
     let { offset_bytes; gap_bytes } =
-      match offset_and_gap (count el field_path) with
+      match offset_and_gap (count mbe field_path) with
       | Some { offset_bytes; gap_bytes } -> { offset_bytes; gap_bytes }
       | None -> Misc.fatal_error "Pidxmixedfield: illegal gap"
     in
@@ -1567,11 +1571,11 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           simple_i64
             (Int64.of_int (conv_bc offset_after_index + custom_word_offset)) )
     ]
-  | Pidx_deepen (field_path, el), [[idx]] -> (
+  | Pidx_deepen (mbe, field_path), [[idx]] -> (
     (* See Note [Representation of block indices] in [lambda/translcore.ml]. For
        a visualization of how the offset and gap change in each case, see
        deepening *)
-    let cts = Mixed_product_bytes_wrt_path.count el field_path in
+    let cts = Mixed_product_bytes_wrt_path.count mbe field_path in
     let deepening_type =
       let outer_has_value_and_flat =
         Mixed_product_bytes_wrt_path.all cts

@@ -407,6 +407,10 @@ let indexing_primitive (index_kind : Lambda.array_index_kind) prefix =
   in
   prefix ^ suffix
 
+let int_of_pos = function
+  | In_singleton -> 0
+  | In_product i -> i
+
 let comp_primitive stack_info p sz args =
   check_stack stack_info sz;
   match p with
@@ -423,9 +427,10 @@ let comp_primitive stack_info p sz args =
   | Parray_element_size_in_bytes _array_kind ->
       Kconst (Const_base (Const_int (Sys.word_size / 8)))
   | Pidx_field pos ->
-      Kconst (Const_block (0, [Const_base (Const_int pos)]))
-  | Pidx_mixed_field (path, _) ->
-      let path_consts = List.map (fun x -> Const_base (Const_int x)) path in
+      Kconst (Const_block (0, [Const_base (Const_int (int_of_pos pos))]))
+  | Pidx_mixed_field (_, path) ->
+      let path_consts =
+        List.map (fun x -> Const_base (Const_int (int_of_pos x))) path in
       Kconst (Const_block (0, path_consts))
   | Pfield_computed _sem -> Kgetvectitem
   | Psetfield(n, _ptr, _init) -> Ksetfield n
@@ -1180,7 +1185,7 @@ and comp_expr stack_info env exp sz cont =
       let cont = add_pseudo_event loc !compunit_name cont in
       let push_path =
         List.fold_right (fun x instrs ->
-          Kconst (Const_base (Const_int x)) :: Kpush :: instrs)
+          Kconst (Const_base (Const_int (int_of_pos x))) :: Kpush :: instrs)
           path
           []
       in
@@ -1197,10 +1202,11 @@ and comp_expr stack_info env exp sz cont =
       push_path
         @ (comp_expr stack_info env index (sz + path_len)
             (convert_index @ Kmakeblock (path_len + 1, 0) :: cont))
-  | Lprim(Pidx_deepen (path, _), [path_prefix], loc) ->
+  | Lprim(Pidx_deepen (_, path), [path_prefix], loc) ->
     (* In bytecode, an index is a block storing a series of positions; deepening
        an index "appends" to the end (by making a new block) *)
-    let path_consts = List.map (fun x -> Const_base (Const_int x)) path in
+    let path_consts =
+      List.map (fun x -> Const_base (Const_int (int_of_pos x))) path in
     let path_suffix = Lconst (Const_block (0, path_consts)) in
     let cont = add_pseudo_event loc !compunit_name cont in
     comp_args stack_info env [path_prefix; path_suffix] sz

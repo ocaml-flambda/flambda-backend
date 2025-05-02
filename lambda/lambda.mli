@@ -108,6 +108,8 @@ type lazy_block_tag =
   | Lazy_tag
   | Forward_tag
 
+type pos = In_singleton | In_product of int
+
 (* CR layouts v5: When we add more blocks of non-scannable values, consider
    whether some of the primitives specific to ufloat records
    ([Pmakeufloatblock], [Pufloatfield], and [Psetufloatfield]) can/should be
@@ -149,11 +151,11 @@ type primitive =
       (* the [layout list] is the layout of the whole product *)
   | Parray_element_size_in_bytes of array_kind
   (* Block indices *)
-  | Pidx_field of int
-  | Pidx_mixed_field of int list * unit mixed_block_element
+  | Pidx_field of pos
+  | Pidx_mixed_field of unit mixed_block_element * pos list
   | Pidx_array of
-      array_kind * array_index_kind * unit mixed_block_element * int list
-  | Pidx_deepen of int list * unit mixed_block_element
+      array_kind * array_index_kind * unit mixed_block_element * pos list
+  | Pidx_deepen of unit mixed_block_element * pos list
   (* Context switches *)
   | Prunstack
   | Pperform
