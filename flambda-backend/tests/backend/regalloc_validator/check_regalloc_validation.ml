@@ -93,7 +93,8 @@ module Cfg_desc = struct
       Cfg.create ~fun_name:"foo" ~fun_args:(Array.copy fun_args)
         ~fun_dbg:Debuginfo.none ~fun_codegen_options:[] ~fun_contains_calls
         ~fun_num_stack_slots:(Stack_class.Tbl.make 0)
-        ~fun_poll:Lambda.Default_poll ~next_instruction_id:(InstructionId.make_sequence ())
+        ~fun_poll:Lambda.Default_poll
+        ~next_instruction_id:(InstructionId.make_sequence ())
     in
     List.iter
       (fun (block : Block.t) ->
