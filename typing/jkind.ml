@@ -399,7 +399,7 @@ let relevant_axes_of_modality ~relevant_for_nullability ~modality =
       | Modal axis ->
         let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
         let modality = Mode.Modality.Value.Const.proj axis modality in
-        not (Mode.Modality.is_constant modality)
+        not (Mode.Modality.is_constant (Atom (axis, modality)))
       (* The kind-inference.md document (in the repo) discusses both constant
          modalities and identity modalities. Of course, reality has modalities
          (such as [shared]) that are neither constants nor identities. Here, we
@@ -1602,7 +1602,7 @@ module Const = struct
         (fun acc (Axis.Pack axis) ->
           match axis with
           | Modal axis ->
-            let then_ : Modality.t =
+            let t : Modality.t =
               let (P axis) = Mode.Const.Axis.alloc_as_value (P axis) in
               match axis with
               | Monadic monadic ->
@@ -1613,7 +1613,8 @@ module Const = struct
                   ( axis,
                     Meet_with (Mode.Value.Comonadic.Const.min_axis comonadic) )
             in
-            Modality.Value.Const.compose acc ~then_
+            let (Atom (axis, a)) = t in
+            Modality.Value.Const.set axis a acc
           | Nonmodal _ ->
             (* TODO: don't know how to print *)
             acc)

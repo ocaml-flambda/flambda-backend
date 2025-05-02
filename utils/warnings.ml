@@ -131,6 +131,10 @@ type t =
   | Unboxing_impossible                     (* 210 *)
   | Mod_by_top of string                    (* 211 *)
   (* 212 taken *)
+  | Modal_axis_specified_twice of
+    { axis : string;
+      overriden_by : string;
+    } (* 213 *)
 
 (* If you remove a warning, leave a hole in the numbering.  NEVER change
    the numbers of existing warnings.
@@ -220,6 +224,7 @@ let number = function
   | Unchecked_zero_alloc_attribute -> 199
   | Unboxing_impossible -> 210
   | Mod_by_top _ -> 211
+  | Modal_axis_specified_twice _ -> 213
 ;;
 (* DO NOT REMOVE the ;; above: it is used by
    the testsuite/ests/warnings/mnemonics.mll test to determine where
@@ -1256,6 +1261,10 @@ let message = function
         "%s is the top-most modifier.\n\
          Modifying by a top element is a no-op."
         modifier
+  | Modal_axis_specified_twice {axis; overriden_by} ->
+    Printf.sprintf
+      "This %s is overriden by %s later."
+      axis overriden_by
 ;;
 
 let nerrors = ref 0

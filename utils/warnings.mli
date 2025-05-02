@@ -136,6 +136,10 @@ type t =
   | Unchecked_zero_alloc_attribute          (* 199 *)
   | Unboxing_impossible                     (* 210 *)
   | Mod_by_top of string                    (* 211 *)
+  | Modal_axis_specified_twice of {
+      axis : string;
+      overriden_by : string;
+    }                                       (* 213 *)
 
 type alert = {kind:string; message:string; def:loc; use:loc}
 

@@ -87,7 +87,7 @@ let with_global_effect : ((string -> unit) @ yielding -> 'a) -> 'a =
 
 [%%expect{|
 type 'a t1 = Mk1 of global_ 'a
-type 'a t2 = Mk2 of 'a @@ global yielding
+type 'a t2 = Mk2 of global_ 'a
 type 'a t3 = Mk3 of 'a @@ unyielding
 type 'a t4 = Mk4 of 'a
 val with_global_effect : ((string -> unit) @ yielding -> 'a) -> 'a = <fun>

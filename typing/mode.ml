@@ -913,13 +913,13 @@ module Lattices_mono = struct
   module Axis = struct
     type ('t, 'r) t =
       | Areality : ('a comonadic_with, 'a) t
-      | Linearity : ('areality comonadic_with, Linearity.t) t
-      | Portability : ('areality comonadic_with, Portability.t) t
       | Yielding : ('areality comonadic_with, Yielding.t) t
+      | Linearity : ('areality comonadic_with, Linearity.t) t
       | Statefulness : ('areality comonadic_with, Statefulness.t) t
+      | Portability : ('areality comonadic_with, Portability.t) t
       | Uniqueness : (Monadic_op.t, Uniqueness_op.t) t
-      | Contention : (Monadic_op.t, Contention_op.t) t
       | Visibility : (Monadic_op.t, Visibility_op.t) t
+      | Contention : (Monadic_op.t, Contention_op.t) t
 
     let print : type p r. _ -> (p, r) t -> unit =
      fun ppf -> function
@@ -960,7 +960,7 @@ module Lattices_mono = struct
       | Contention -> t.contention
       | Visibility -> t.visibility
 
-    let update : type p r. (p, r) t -> r -> p -> p =
+    let set : type p r. (p, r) t -> r -> p -> p =
      fun ax r t ->
       match ax with
       | Areality -> { t with areality = r }
@@ -1319,9 +1319,9 @@ module Lattices_mono = struct
     | Visibility.Read -> Statefulness.Observing
     | Visibility.Read_write -> Statefulness.Stateful
 
-  let min_with dst ax a = Axis.update ax a (min dst)
+  let min_with dst ax a = Axis.set ax a (min dst)
 
-  let max_with dst ax a = Axis.update ax a (max dst)
+  let max_with dst ax a = Axis.set ax a (max dst)
 
   let monadic_to_comonadic_min :
       type a. a comonadic_with obj -> Monadic_op.t -> a comonadic_with =
@@ -2078,9 +2078,9 @@ module BiHeyting_Product (L : BiHeyting) = struct
 
   type 'a axis = (t, 'a) Axis.t
 
-  let min_with ax c = Axis.update ax c min
+  let min_with ax c = Axis.set ax c min
 
-  let max_with ax c = Axis.update ax c max
+  let max_with ax c = Axis.set ax c max
 
   let min_axis ax = Axis.proj ax min
 
@@ -2349,10 +2349,11 @@ module Value_with (Areality : Areality) = struct
 
     let all =
       [ P (Comonadic Areality);
-        P (Monadic Uniqueness);
         P (Comonadic Linearity);
-        P (Monadic Contention);
+        P (Monadic Uniqueness);
         P (Comonadic Portability);
+        P (Monadic Contention);
+        P (Comonadic Yielding);
         P (Comonadic Statefulness);
         P (Monadic Visibility) ]
   end
@@ -3023,13 +3024,6 @@ module Modality = struct
             Error
               (Error (ax, { left = Join_with left; right = Join_with right }))
 
-      let compose : type a. a axis -> a raw -> t -> t =
-       fun ax a t ->
-        match a, t with
-        | Join_with c0, Join_const c ->
-          Join_const (Mode.Const.join (Mode.Const.min_with ax c0) c)
-        | Meet_with _, Join_const _ -> assert false
-
       let concat ~then_ t =
         match then_, t with
         | Join_const c0, Join_const c1 -> Join_const (Mode.Const.join c0 c1)
@@ -3037,17 +3031,12 @@ module Modality = struct
       let apply : type l r. t -> (l * r) Mode.t -> (l * r) Mode.t =
        fun t x -> match t with Join_const c -> Mode.join_const c x
 
-      let to_list = function
-        | Join_const c ->
-          [ (let ax : _ Axis.t = Uniqueness in
-             Atom (Monadic ax, Join_with (Axis.proj ax c)));
-            (let ax : _ Axis.t = Contention in
-             Atom (Monadic ax, Join_with (Axis.proj ax c)));
-            (let ax : _ Axis.t = Visibility in
-             Atom (Monadic ax, Join_with (Axis.proj ax c))) ]
+      let proj ax (Join_const c) = Join_with (Axis.proj ax c)
 
-      let proj ax = function
-        | Join_const c -> Atom (Monadic ax, Join_with (Axis.proj ax c))
+      let set ax a (Join_const c) =
+        match a with
+        | Join_with a -> Join_const (Axis.set ax a c)
+        | Meet_with _ -> assert false
 
       let print ppf = function
         | Join_const c -> Format.fprintf ppf "join_const(%a)" Mode.Const.print c
@@ -3178,13 +3167,6 @@ module Modality = struct
             Error
               (Error (ax, { left = Meet_with left; right = Meet_with right }))
 
-      let compose : type a. a axis -> a raw -> t -> t =
-       fun ax a t ->
-        match a, t with
-        | Meet_with c0, Meet_const c ->
-          Meet_const (Mode.Const.meet (Mode.Const.max_with ax c0) c)
-        | Join_with _, Meet_const _ -> assert false
-
       let concat ~then_ t =
         match then_, t with
         | Meet_const c0, Meet_const c1 -> Meet_const (Mode.Const.meet c0 c1)
@@ -3192,21 +3174,12 @@ module Modality = struct
       let apply : type l r. t -> (l * r) Mode.t -> (l * r) Mode.t =
        fun t x -> match t with Meet_const c -> Mode.meet_const c x
 
-      let to_list = function
-        | Meet_const c ->
-          [ (let ax : _ Axis.t = Areality in
-             Atom (Comonadic ax, Meet_with (Axis.proj ax c)));
-            (let ax : _ Axis.t = Linearity in
-             Atom (Comonadic ax, Meet_with (Axis.proj ax c)));
-            (let ax : _ Axis.t = Portability in
-             Atom (Comonadic ax, Meet_with (Axis.proj ax c)));
-            (let ax : _ Axis.t = Yielding in
-             Atom (Comonadic ax, Meet_with (Axis.proj ax c)));
-            (let ax : _ Axis.t = Statefulness in
-             Atom (Comonadic ax, Meet_with (Axis.proj ax c))) ]
+      let proj ax (Meet_const c) = Meet_with (Axis.proj ax c)
 
-      let proj ax = function
-        | Meet_const c -> Atom (Comonadic ax, Meet_with (Axis.proj ax c))
+      let set ax a (Meet_const c) =
+        match a with
+        | Meet_with a -> Meet_const (Axis.set ax a c)
+        | Join_with _ -> assert false
 
       let print ppf = function
         | Meet_const c -> Format.fprintf ppf "meet_const(%a)" Mode.Const.print c
@@ -3342,32 +3315,34 @@ module Modality = struct
         let comonadic = Comonadic.apply t.comonadic comonadic in
         { monadic; comonadic }
 
-      let compose ~then_:(Atom (ax, a)) t =
-        match ax with
-        | Monadic ax ->
-          let monadic = Monadic.compose ax a t.monadic in
-          { t with monadic }
-        | Comonadic ax ->
-          let comonadic = Comonadic.compose ax a t.comonadic in
-          { t with comonadic }
-
       let concat ~then_ t =
         let monadic = Monadic.concat ~then_:then_.monadic t.monadic in
         let comonadic = Comonadic.concat ~then_:then_.comonadic t.comonadic in
         { monadic; comonadic }
-
-      let of_list = List.fold_left (fun m atom -> compose m ~then_:atom) id
-
-      let singleton a = compose ~then_:a id
-
-      let to_list { monadic; comonadic } =
-        Comonadic.to_list comonadic @ Monadic.to_list monadic
 
       let proj (type a d0 d1) (ax : (a, d0, d1) Value.Axis.t)
           { monadic; comonadic } =
         match ax with
         | Monadic ax -> Monadic.proj ax monadic
         | Comonadic ax -> Comonadic.proj ax comonadic
+
+      let set (type a d0 d1) (ax : (a, d0, d1) Value.Axis.t) (a : a raw)
+          { monadic; comonadic } =
+        match ax with
+        | Monadic ax ->
+          let monadic = Monadic.set ax a monadic in
+          { monadic; comonadic }
+        | Comonadic ax ->
+          let comonadic = Comonadic.set ax a comonadic in
+          { monadic; comonadic }
+
+      let diff t0 t1 =
+        List.filter_map
+          (fun (Value.Axis.P ax) ->
+            let a0 = proj ax t0 in
+            let a1 = proj ax t1 in
+            if a0 = a1 then None else Some (Atom (ax, a1)))
+          Value.Axis.all
 
       let print ppf { monadic; comonadic } =
         Format.fprintf ppf "%a;%a" Monadic.print monadic Comonadic.print
@@ -3589,8 +3564,12 @@ module Crossing = struct
       | Modality.Atom (ax, Meet_with c) -> C.print (Value.proj_obj ax) ppf c
     in
     let l =
-      t |> Modality.Value.Const.to_list
-      |> List.filter (fun t -> not @@ Modality.is_id t)
+      List.filter_map
+        (fun (Value.Axis.P ax) ->
+          let a = Modality.Value.Const.proj ax t in
+          let a = Modality.Atom (ax, a) in
+          if Modality.is_id a then None else Some a)
+        Value.Axis.all
     in
     Format.(pp_print_list ~pp_sep:pp_print_space print_atom ppf l)
 end

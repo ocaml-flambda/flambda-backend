@@ -373,16 +373,18 @@ module type S = sig
 
   module Axis : sig
     (** ('p, 'r) t represents a projection from a product of type ['p] to an
-    element of type ['r]. *)
+    element of type ['r].
+
+    NB: must listed in the order of axis implication. See [typemode.ml]. *)
     type ('p, 'r) t =
       | Areality : ('a comonadic_with, 'a) t
-      | Linearity : ('areality comonadic_with, Linearity.Const.t) t
-      | Portability : ('areality comonadic_with, Portability.Const.t) t
       | Yielding : ('areality comonadic_with, Yielding.Const.t) t
+      | Linearity : ('areality comonadic_with, Linearity.Const.t) t
       | Statefulness : ('areality comonadic_with, Statefulness.Const.t) t
+      | Portability : ('areality comonadic_with, Portability.Const.t) t
       | Uniqueness : (monadic, Uniqueness.Const.t) t
-      | Contention : (monadic, Contention.Const.t) t
       | Visibility : (monadic, Visibility.Const.t) t
+      | Contention : (monadic, Contention.Const.t) t
 
     val print : Format.formatter -> ('p, 'r) t -> unit
 
@@ -640,26 +642,18 @@ module type S = sig
         (** Apply a modality on mode. *)
         val apply : t -> ('l * 'r) Value.t -> ('l * 'r) Value.t
 
-        (** [compose ~then_ t] returns the modality that is [then_] after [t]. *)
-        val compose : then_:atom -> t -> t
-
         (** [concat ~then t] returns the modality that is [then_] after [t]. *)
         val concat : then_:t -> t -> t
 
-        (** [singleton m] returns the modality containing only [m]. *)
-        val singleton : atom -> t
+        (** [set ax a t] overwrite the [ax] axis of [t] to be [a]. *)
+        val set : ('a, _, _) Value.Axis.t -> 'a raw -> t -> t
 
-        (** Returns the list of [atom] in the given modality. The list is
-            commutative. Post-condition: each axis is represented in the
-            output list exactly once. *)
-        val to_list : t -> atom list
+        (** Project out the [raw] for the given axis in the given modality. *)
+        val proj : ('a, _, _) Value.Axis.t -> t -> 'a raw
 
-        (** Builds up a modality from a list of [atom], by composing each atom with
-            identity. The modalities are applied left to right. *)
-        val of_list : atom list -> t
-
-        (** Project out the [atom] for the given axis in the given modality. *)
-        val proj : ('a, _, _) Value.Axis.t -> t -> atom
+        (** [diff t0 t1] returns a list of atoms in [t1] that are different than
+        [t0]. *)
+        val diff : t -> t -> atom list
 
         (** [equate t0 t1] checks that [t0 = t1].
             Definition: [t0 = t1] iff [t0 <= t1] and [t1 <= t0]. *)
