@@ -16,6 +16,54 @@ Line 2, characters 31-32:
 Error: This value escapes its region.
 |}]
 
+(* you can override those implied modalities *)
+type r = {mutable s : string @@ local}
+let foo (local_ s) = exclave_ {s}
+[%%expect{|
+type r = { mutable s : string @@ local; }
+val foo : local_ string -> local_ r = <fun>
+|}]
+
+type r = {mutable s : string @@ global}
+[%%expect{|
+type r = { mutable s : string; }
+|}]
+
+type r = {mutable s : string @@ global yielding}
+[%%expect{|
+type r = { mutable s : string @@ yielding; }
+|}]
+
+type r = {mutable s : string @@ yielding global}
+[%%expect{|
+type r = { mutable s : string @@ yielding; }
+|}]
+
+type r = {mutable s : string @@ yielding}
+[%%expect{|
+type r = { mutable s : string @@ yielding; }
+|}]
+
+type r = {mutable s : string @@ local yielding}
+[%%expect{|
+type r = { mutable s : string @@ local; }
+|}]
+
+type r = {mutable s : string @@ yielding local}
+[%%expect{|
+type r = { mutable s : string @@ local; }
+|}]
+
+type r = {mutable s : string @@ local unyielding}
+[%%expect{|
+type r = { mutable s : string @@ local; }
+|}]
+
+type r = {mutable s : string @@ unyielding local}
+[%%expect{|
+type r = { mutable s : string @@ local; }
+|}]
+
 (* [@no_mutable_implied_modalities] disables those implied modalities on the
    comonadic axes, and allows us to test [mutable] alone *)
 

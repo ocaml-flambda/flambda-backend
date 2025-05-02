@@ -1157,7 +1157,7 @@ Error: The kind of type "t" is value
 type 'a t : value mod global portable contended many aliased unyielding =
   { x : 'a @@ global portable contended many aliased } [@@unboxed]
 [%%expect {|
-type 'a t = { x : 'a @@ global many portable aliased contended; } [@@unboxed]
+type 'a t = { x : 'a @@ global many aliased portable contended; } [@@unboxed]
 |}]
 (* CR layouts v2.8: this could be accepted, if we infer ('a : value mod
    unyielding). We do not currently do this, because we finish inference of the

@@ -42,8 +42,7 @@ module type S = sig
       portable nonportable
 end
 [%%expect{|
-module type S =
-  sig val x : string @@ global many portable aliased contended end
+module type S = sig val x : string @@ many aliased contended end
 |}]
 
 (* values' comonadic axes must be lower than the module *)
