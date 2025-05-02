@@ -774,10 +774,19 @@ let function_slots_in_normal_projections t =
       then Function_slot.Set.add function_slot acc
       else acc)
 
-let all_function_slots t =
-  Function_slot.Set.union
-    (For_function_slots.keys t.function_slots_in_projections)
-    (For_function_slots.keys t.function_slots_in_declarations)
+let all_function_slots_at_normal_mode t =
+  let from_projections =
+    For_function_slots.fold_with_mode t.function_slots_in_projections
+      ~init:Function_slot.Set.empty ~f:(fun acc function_slot name_mode ->
+        if Name_mode.is_normal name_mode
+        then Function_slot.Set.add function_slot acc
+        else acc)
+  in
+  For_function_slots.fold_with_mode t.function_slots_in_declarations
+    ~init:from_projections ~f:(fun acc function_slot name_mode ->
+      if Name_mode.is_normal name_mode
+      then Function_slot.Set.add function_slot acc
+      else acc)
 
 let value_slots_in_normal_projections t =
   For_value_slots.fold_with_mode t.value_slots_in_projections
@@ -786,10 +795,19 @@ let value_slots_in_normal_projections t =
       then Value_slot.Set.add value_slot acc
       else acc)
 
-let all_value_slots t =
-  Value_slot.Set.union
-    (For_value_slots.keys t.value_slots_in_projections)
-    (For_value_slots.keys t.value_slots_in_declarations)
+let all_value_slots_at_normal_mode t =
+  let from_projections =
+    For_value_slots.fold_with_mode t.value_slots_in_projections
+      ~init:Value_slot.Set.empty ~f:(fun acc value_slot name_mode ->
+        if Name_mode.is_normal name_mode
+        then Value_slot.Set.add value_slot acc
+        else acc)
+  in
+  For_value_slots.fold_with_mode t.value_slots_in_declarations
+    ~init:from_projections ~f:(fun acc value_slot name_mode ->
+      if Name_mode.is_normal name_mode
+      then Value_slot.Set.add value_slot acc
+      else acc)
 
 let variables t = For_names.keys t.names |> Name.set_to_var_set
 
