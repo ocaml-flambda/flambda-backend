@@ -4250,12 +4250,14 @@ let indirect_call ~dbg ty pos alloc_mode f args_type args =
   might_split_call_caml_apply ty args_type Asttypes.Mutable f args pos
     alloc_mode dbg
 
-let indirect_full_call ~dbg ty pos alloc_mode f args_type = function
+let indirect_full_call ~dbg ty pos alloc_mode f args_type args =
+  match args_type with
   (* the single-argument case is already optimized by indirect_call *)
-  | [_] as args -> indirect_call ~dbg ty pos alloc_mode f args_type args
-  | args ->
+  | [_] -> indirect_call ~dbg ty pos alloc_mode f args_type args
+  | [] -> assert false
+  | _ :: _ :: _ ->
     (* Use a variable to avoid duplicating the cmm code of the closure [f]. *)
-    let v = Backend_var.create_local "*closure*" in
+    let v = Backend_var.create_local "*closure*" in 
     let v' = Backend_var.With_provenance.create v in
     (* get the function's code pointer *)
     let fun_ptr =
