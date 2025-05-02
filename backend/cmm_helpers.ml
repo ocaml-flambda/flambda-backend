@@ -408,10 +408,17 @@ let add_int_addr c1 c2 dbg = Cop (Cadda, [c1; c2], dbg)
 
 let add_int_ptr ~ptr_out_of_heap c1 c2 dbg =
   (* The [add_int_addr] case is only used for string access, and it seems
-     unlikely that the optimizations done for [add_int] will apply.
+     unlikely that the more complicated optimizations done for [add_int] will
+     apply.
 
      For out-of-heap accesses, we use [add_int], thus allowing more CSE. *)
-  if ptr_out_of_heap then add_int c1 c2 dbg else add_int_addr c1 c2 dbg
+  if ptr_out_of_heap
+  then add_int c1 c2 dbg
+  else
+    match c1, c2 with
+    | Cconst_int (0, _), c | c, Cconst_int (0, _) -> c
+    | Cconst_natint (0n, _), c | c, Cconst_natint (0n, _) -> c
+    | _, _ -> add_int_addr c1 c2 dbg
 
 let neg_int c dbg = sub_int (Cconst_int (0, dbg)) c dbg
 
@@ -2332,7 +2339,7 @@ let unaligned_load_16 ~ptr_out_of_heap ptr idx dbg =
     let v2 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [ add_int_addr
+          [ add_int_ptr ~ptr_out_of_heap
               (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
               (cconst_int 1) dbg ],
           dbg )
@@ -2361,7 +2368,7 @@ let unaligned_set_16 ~ptr_out_of_heap ptr idx newval dbg =
             dbg ),
         Cop
           ( Cstore (Byte_unsigned, Assignment),
-            [ add_int_addr
+            [ add_int_ptr ~ptr_out_of_heap
                 (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
                 (cconst_int 1) dbg;
               b2 ],
@@ -2385,7 +2392,7 @@ let unaligned_load_32 ~ptr_out_of_heap ptr idx dbg =
     let v2 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [ add_int_addr
+          [ add_int_ptr ~ptr_out_of_heap
               (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
               (cconst_int 1) dbg ],
           dbg )
@@ -2393,7 +2400,7 @@ let unaligned_load_32 ~ptr_out_of_heap ptr idx dbg =
     let v3 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [ add_int_addr
+          [ add_int_ptr ~ptr_out_of_heap
               (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
               (cconst_int 2) dbg ],
           dbg )
@@ -2401,7 +2408,7 @@ let unaligned_load_32 ~ptr_out_of_heap ptr idx dbg =
     let v4 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [ add_int_addr
+          [ add_int_ptr ~ptr_out_of_heap
               (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
               (cconst_int 3) dbg ],
           dbg )
@@ -2450,7 +2457,7 @@ let unaligned_set_32 ~ptr_out_of_heap ptr idx newval dbg =
                 dbg ),
             Cop
               ( Cstore (Byte_unsigned, Assignment),
-                [ add_int_addr
+                [ add_int_ptr ~ptr_out_of_heap
                     (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
                     (cconst_int 1) dbg;
                   b2 ],
@@ -2458,14 +2465,14 @@ let unaligned_set_32 ~ptr_out_of_heap ptr idx newval dbg =
         Csequence
           ( Cop
               ( Cstore (Byte_unsigned, Assignment),
-                [ add_int_addr
+                [ add_int_ptr ~ptr_out_of_heap
                     (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
                     (cconst_int 2) dbg;
                   b3 ],
                 dbg ),
             Cop
               ( Cstore (Byte_unsigned, Assignment),
-                [ add_int_addr
+                [ add_int_ptr ~ptr_out_of_heap
                     (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
                     (cconst_int 3) dbg;
                   b4 ],
@@ -2486,7 +2493,7 @@ let unaligned_load_64 ~ptr_out_of_heap ptr idx dbg =
     let v2 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [ add_int_addr
+          [ add_int_ptr ~ptr_out_of_heap
               (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
               (cconst_int 1) dbg ],
           dbg )
@@ -2494,7 +2501,7 @@ let unaligned_load_64 ~ptr_out_of_heap ptr idx dbg =
     let v3 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [ add_int_addr
+          [ add_int_ptr ~ptr_out_of_heap
               (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
               (cconst_int 2) dbg ],
           dbg )
@@ -2502,7 +2509,7 @@ let unaligned_load_64 ~ptr_out_of_heap ptr idx dbg =
     let v4 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [ add_int_addr
+          [ add_int_ptr ~ptr_out_of_heap
               (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
               (cconst_int 3) dbg ],
           dbg )
@@ -2510,7 +2517,7 @@ let unaligned_load_64 ~ptr_out_of_heap ptr idx dbg =
     let v5 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [ add_int_addr
+          [ add_int_ptr ~ptr_out_of_heap
               (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
               (cconst_int 4) dbg ],
           dbg )
@@ -2518,7 +2525,7 @@ let unaligned_load_64 ~ptr_out_of_heap ptr idx dbg =
     let v6 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [ add_int_addr
+          [ add_int_ptr ~ptr_out_of_heap
               (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
               (cconst_int 5) dbg ],
           dbg )
@@ -2526,7 +2533,7 @@ let unaligned_load_64 ~ptr_out_of_heap ptr idx dbg =
     let v7 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [ add_int_addr
+          [ add_int_ptr ~ptr_out_of_heap
               (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
               (cconst_int 6) dbg ],
           dbg )
@@ -2534,7 +2541,7 @@ let unaligned_load_64 ~ptr_out_of_heap ptr idx dbg =
     let v8 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [ add_int_addr
+          [ add_int_ptr ~ptr_out_of_heap
               (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
               (cconst_int 7) dbg ],
           dbg )
@@ -2633,7 +2640,7 @@ let unaligned_set_64 ~ptr_out_of_heap ptr idx newval dbg =
                     dbg ),
                 Cop
                   ( Cstore (Byte_unsigned, Assignment),
-                    [ add_int_addr
+                    [ add_int_ptr ~ptr_out_of_heap
                         (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
                         (cconst_int 1) dbg;
                       b2 ],
@@ -2641,14 +2648,14 @@ let unaligned_set_64 ~ptr_out_of_heap ptr idx newval dbg =
             Csequence
               ( Cop
                   ( Cstore (Byte_unsigned, Assignment),
-                    [ add_int_addr
+                    [ add_int_ptr ~ptr_out_of_heap
                         (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
                         (cconst_int 2) dbg;
                       b3 ],
                     dbg ),
                 Cop
                   ( Cstore (Byte_unsigned, Assignment),
-                    [ add_int_addr
+                    [ add_int_ptr ~ptr_out_of_heap
                         (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
                         (cconst_int 3) dbg;
                       b4 ],
@@ -2657,14 +2664,14 @@ let unaligned_set_64 ~ptr_out_of_heap ptr idx newval dbg =
           ( Csequence
               ( Cop
                   ( Cstore (Byte_unsigned, Assignment),
-                    [ add_int_addr
+                    [ add_int_ptr ~ptr_out_of_heap
                         (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
                         (cconst_int 4) dbg;
                       b5 ],
                     dbg ),
                 Cop
                   ( Cstore (Byte_unsigned, Assignment),
-                    [ add_int_addr
+                    [ add_int_ptr ~ptr_out_of_heap
                         (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
                         (cconst_int 5) dbg;
                       b6 ],
@@ -2672,14 +2679,14 @@ let unaligned_set_64 ~ptr_out_of_heap ptr idx newval dbg =
             Csequence
               ( Cop
                   ( Cstore (Byte_unsigned, Assignment),
-                    [ add_int_addr
+                    [ add_int_ptr ~ptr_out_of_heap
                         (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
                         (cconst_int 6) dbg;
                       b7 ],
                     dbg ),
                 Cop
                   ( Cstore (Byte_unsigned, Assignment),
-                    [ add_int_addr
+                    [ add_int_ptr ~ptr_out_of_heap
                         (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
                         (cconst_int 7) dbg;
                       b8 ],
