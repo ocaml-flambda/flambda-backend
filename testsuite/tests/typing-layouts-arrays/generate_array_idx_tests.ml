@@ -10,6 +10,8 @@ let sprintf = Printf.sprintf
 
 (* See [test_makearray_dynamic] for the main testing steps! *)
 
+module IntMap = Map.Make (Int)
+
 module Ty : sig
   (** A type in the generated code *)
   type t
@@ -23,7 +25,7 @@ module Ty : sig
 
   (** The number of subvalues of this type, e.g. [int option * #(float * float)]
       has three. *)
-  val num_subvalues : t -> int
+  val num_subvals : t -> int
 
   (** Code that dynamically implements [value_code], creating a value from an
        integer seed bound to "i".
@@ -35,6 +37,8 @@ module Ty : sig
        We should be able generate this code:
        "let eq : $ty_code @ local -> $ty_code @ local -> bool = $eq" *)
   val eq : t -> string
+
+  val unboxed_paths_by_depth : t -> string list list IntMap.t
 
   (* Generate typedecls for user-defined nominal types that have been created *)
   val decls_code : unit -> string list
@@ -82,7 +86,7 @@ end = struct
     | Non_product of
         { ty_code : string;
           value_code : int -> string;
-          mk_value_code : string;
+          mk_value_body_code : int -> string;
           eq : string
         }
 
@@ -103,24 +107,83 @@ end = struct
       assemble_unboxed_tuple ~sep:" * " (List.map ts ~f:ty_code)
     | Non_product { ty_code; _ } -> ty_code
 
+  let rec num_subvals t =
+    match t with
+    | Unboxed_record { name = _; fields } ->
+      List.fold_left fields ~f:(fun acc (_, t) -> acc + num_subvals t) ~init:0
+    | Unboxed_tuple ts ->
+      List.fold_left ts ~f:(fun acc t -> acc + num_subvals t) ~init:0
+    | Non_product { eq = _; _ } -> 1
+
+  let rec reversed_unboxed_paths t acc cur_path =
+    match t with
+    | Unboxed_record { name = _; fields } ->
+      List.fold_left ~init:acc fields ~f:(fun acc (s, t) ->
+          let cur_path = s :: cur_path in
+          let acc = cur_path :: acc in
+          reversed_unboxed_paths t acc cur_path)
+    | Unboxed_tuple _ -> acc
+    | Non_product _ -> acc
+
+  let unboxed_paths_by_depth t =
+    List.fold_left
+      (reversed_unboxed_paths t [] [])
+      ~f:(fun acc rev_path ->
+        let depth = List.length rev_path in
+        let path = List.rev rev_path in
+        let paths =
+          match IntMap.find_opt depth acc with
+          | Some paths -> path :: paths
+          | None -> [path]
+        in
+        IntMap.add depth paths acc)
+      ~init:IntMap.empty
+
   let rec value_code t i =
     match t with
     | Unboxed_record { name; fields } ->
-      assemble_unboxed_record_expr name fields
-        (List.map fields ~f:(fun (_, t) -> value_code t i))
+      let _, xs =
+        List.fold_left_map fields
+          ~f:(fun acc (_, t) ->
+            let x = value_code t acc in
+            acc + num_subvals t, x)
+          ~init:i
+      in
+      assemble_unboxed_record_expr name fields xs
     | Unboxed_tuple ts ->
-      assemble_unboxed_tuple ~sep:", "
-        (List.map ts ~f:(fun t -> value_code t i))
+      let _, xs =
+        List.fold_left_map ts
+          ~f:(fun acc t ->
+            let x = value_code t acc in
+            acc + num_subvals t, x)
+          ~init:i
+      in
+      assemble_unboxed_tuple ~sep:", " xs
     | Non_product { value_code; _ } -> value_code i
 
-  let rec mk_value_code t : string =
+  let rec mk_value_body_code t i =
     match t with
     | Unboxed_record { name; fields } ->
-      assemble_unboxed_record_expr name fields
-        (List.map fields ~f:(fun (_, t) -> mk_value_code t))
+      let _, xs =
+        List.fold_left_map fields
+          ~f:(fun acc (_, t) ->
+            let x = mk_value_body_code t acc in
+            acc + num_subvals t, x)
+          ~init:i
+      in
+      assemble_unboxed_record_expr name fields xs
     | Unboxed_tuple ts ->
-      assemble_unboxed_tuple ~sep:", " (List.map ts ~f:mk_value_code)
-    | Non_product { mk_value_code; _ } -> mk_value_code
+      let _, xs =
+        List.fold_left_map ts
+          ~f:(fun acc t ->
+            let x = mk_value_body_code t acc in
+            acc + num_subvals t, x)
+          ~init:i
+      in
+      assemble_unboxed_tuple ~sep:", " xs
+    | Non_product { mk_value_body_code; _ } -> mk_value_body_code i
+
+  let mk_value_code t = mk_value_body_code t 0
 
   let rec eq = function
     | Unboxed_record { name; fields } ->
@@ -144,14 +207,6 @@ end = struct
       in
       sprintf "(fun %s %s -> %s)" (pat "a") (pat "b") body
     | Non_product { eq; _ } -> eq
-
-  let rec num_subvalues t =
-    match t with
-    | Unboxed_record { name = _; fields } ->
-      List.fold_left fields ~f:(fun acc (_, t) -> acc + num_subvalues t) ~init:0
-    | Unboxed_tuple ts ->
-      List.fold_left ts ~f:(fun acc t -> acc + num_subvalues t) ~init:0
-    | Non_product { eq = _; _ } -> 1
 
   (* If (name, decl) is in this list, we'll generate "type $name = $decl" *)
   let decls : (string * string) list ref = ref []
@@ -185,19 +240,20 @@ end = struct
       in
       sprintf "(fun a b -> match a, b with %s -> true | _ -> false)" eq_pat
     in
-    let mk_value_code =
+    let mk_value_body_code i =
       let brs =
         List.init ~len:size ~f:(fun i -> sprintf "%d -> %s" i (ith_ctor i))
         @ ["_ -> assert false"]
       in
-      sprintf "(match Int.rem i %d with %s)" size (String.concat ~sep:" | " brs)
+      sprintf "(match Int.rem (i + %d) %d with %s)" i size
+        (String.concat ~sep:" | " brs)
     in
     let name = sprintf "enum%d" size in
     add_decl ~name ~def;
     Non_product
       { ty_code = name;
         value_code = (fun i -> ith_ctor (Int.rem i size));
-        mk_value_code;
+        mk_value_body_code;
         eq
       }
 
@@ -205,9 +261,11 @@ end = struct
     Non_product
       { ty_code = ty_code t ^ " option";
         value_code =
-          (fun i -> if i == 0 then "None" else "Some " ^ value_code t i);
-        mk_value_code =
-          "(if i == 0 then None else Some (" ^ mk_value_code t ^ "))";
+          (fun i -> if Int.equal i 0 then "None" else "Some " ^ value_code t i);
+        mk_value_body_code =
+          (fun i ->
+            sprintf "(if (i + %d) == 0 then None else Some (%s))" i
+              (mk_value_body_code t i));
         eq =
           "(fun a b -> match a, b with None,None -> true | Some a,Some b -> "
           ^ eq t ^ " a b|_->false)"
@@ -218,8 +276,8 @@ end = struct
   let int =
     Non_product
       { ty_code = "int";
-        value_code = Int.to_string;
-        mk_value_code = "i";
+        value_code = (fun i -> Int.to_string i);
+        mk_value_body_code = (fun i -> sprintf "i + %d" i);
         eq = "(fun a b -> Int.equal a b)"
       }
 
@@ -227,7 +285,7 @@ end = struct
     Non_product
       { ty_code = "float";
         value_code = (fun i -> Int.to_string i ^ ".");
-        mk_value_code = "Float.of_int i";
+        mk_value_body_code = (fun i -> sprintf "Float.of_int (i + %d)" i);
         eq = "(fun a b -> Float.equal (globalize a) (globalize b))"
       }
 
@@ -235,7 +293,7 @@ end = struct
     Non_product
       { ty_code = "float#";
         value_code = (fun i -> "#" ^ Int.to_string i ^ ".");
-        mk_value_code = "Float_u.of_int i";
+        mk_value_body_code = (fun i -> sprintf "Float_u.of_int (i + %d)" i);
         eq = "(fun a b -> Float_u.(equal (add #0. a) (add #0. b)))"
       }
 
@@ -243,7 +301,7 @@ end = struct
     Non_product
       { ty_code = "float32";
         value_code = (fun i -> Int.to_string i ^ ".s");
-        mk_value_code = "Float32.of_int i";
+        mk_value_body_code = (fun i -> sprintf "Float32.of_int (i + %d)" i);
         eq =
           "(fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b))"
       }
@@ -252,7 +310,7 @@ end = struct
     Non_product
       { ty_code = "float32#";
         value_code = (fun i -> "#" ^ Int.to_string i ^ ".s");
-        mk_value_code = "Float32_u.of_int i";
+        mk_value_body_code = (fun i -> sprintf "Float32_u.of_int (i + %d)" i);
         eq = "(fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b)))"
       }
 
@@ -260,7 +318,7 @@ end = struct
     Non_product
       { ty_code = "int32";
         value_code = (fun i -> Int.to_string i ^ "l");
-        mk_value_code = "Int32.of_int i";
+        mk_value_body_code = (fun i -> sprintf "Int32.of_int (i + %d)" i);
         eq = "(fun a b -> Int32.equal (globalize a) (globalize b))"
       }
 
@@ -268,7 +326,7 @@ end = struct
     Non_product
       { ty_code = "int32#";
         value_code = (fun i -> "#" ^ Int.to_string i ^ "l");
-        mk_value_code = "Int32_u.of_int i";
+        mk_value_body_code = (fun i -> sprintf "Int32_u.of_int (i + %d)" i);
         eq = "(fun a b -> Int32_u.(equal (add #0l a) (add #0l b)))"
       }
 
@@ -276,7 +334,7 @@ end = struct
     Non_product
       { ty_code = "int64";
         value_code = (fun i -> Int.to_string i ^ "L");
-        mk_value_code = "Int64.of_int i";
+        mk_value_body_code = (fun i -> sprintf "Int64.of_int (i + %d)" i);
         eq = "(fun a b -> Int64.equal (globalize a) (globalize b))"
       }
 
@@ -284,7 +342,7 @@ end = struct
     Non_product
       { ty_code = "int64#";
         value_code = (fun i -> "#" ^ Int.to_string i ^ "L");
-        mk_value_code = "Int64_u.of_int i";
+        mk_value_body_code = (fun i -> sprintf "Int64_u.of_int (i + %d)" i);
         eq = "(fun a b -> Int64_u.(equal (add #0L a) (add #0L b)))"
       }
 
@@ -292,7 +350,7 @@ end = struct
     Non_product
       { ty_code = "nativeint";
         value_code = (fun i -> Int.to_string i ^ "n");
-        mk_value_code = "Nativeint.of_int i";
+        mk_value_body_code = (fun i -> sprintf "Nativeint.of_int (i + %d)" i);
         eq = "(fun a b -> Nativeint.equal (globalize a) (globalize b))"
       }
 
@@ -300,7 +358,7 @@ end = struct
     Non_product
       { ty_code = "nativeint#";
         value_code = (fun i -> "#" ^ Int.to_string i ^ "n");
-        mk_value_code = "Nativeint_u.of_int i";
+        mk_value_body_code = (fun i -> sprintf "Nativeint_u.of_int (i + %d)" i);
         eq = "(fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b)))"
       }
 end
@@ -348,6 +406,9 @@ let types =
 
 let preamble =
   {|
+
+[@@@ocaml.warning "-23"]
+
 open Stdlib_upstream_compatible
 open Stdlib_stable
 
@@ -554,10 +615,42 @@ let test_makearray_dynamic ~local ty =
   line "(* Also read back those values with block indices *)";
   for_i_below_size ~debug_exprs (fun ~debug_exprs ->
       seq_assert ~debug_exprs "eq (get_idx_mut a (.(i))) (mk_value i)");
+  let unboxed_paths_by_depth = Ty.unboxed_paths_by_depth ty in
   for_i_below_size ~debug_exprs (fun ~debug_exprs ->
-      line "set_idx_mut a (.(i)) (mk_value i);");
-  for_i_below_size ~debug_exprs (fun ~debug_exprs ->
-      seq_assert ~debug_exprs "eq (get a i) (mk_value i)");
+      IntMap.iter
+        (fun depth unboxed_paths ->
+          (* If r has structure #{ x = #{ y = #{ z } } } then our update is #{ r
+             with x = #{ r.#x with y = #{ r.#x.#y with z = next_el.#x.#y.#z } }
+             } *)
+          line "(* Paths of depth %d *)" depth;
+          line "let el = get a i in";
+          line "let next_el = mk_value (i + 100 * %d) in" depth;
+          let up_concat l =
+            String.concat (List.map l ~f:(fun s -> ".#" ^ s)) ~sep:""
+          in
+          let rev_up_concat l = up_concat (List.rev l) in
+          List.iter unboxed_paths ~f:(fun unboxed_path ->
+              line "(* %s *)" (up_concat unboxed_path);
+              let rec f rev_path new_val =
+                match rev_path with
+                | [] -> new_val
+                | s :: rest ->
+                  let new_val =
+                    sprintf "#{ el%s with %s = %s }" (rev_up_concat rest) s
+                      new_val
+                  in
+                  f rest new_val
+              in
+              let new_val = sprintf "next_el%s" (up_concat unboxed_path) in
+              line "let el = %s in" (f (List.rev unboxed_path) new_val);
+              line "set_idx_mut a ((.(i)%s) : (%s array, _) idx_mut) next_el%s;"
+                (up_concat unboxed_path) (Ty.ty_code ty)
+                (up_concat unboxed_path);
+              seq_assert ~debug_exprs "eq (get_idx_mut a (.(i))) el";
+              ());
+          seq_assert ~debug_exprs "eq (get_idx_mut a (.(i))) (mk_value i)")
+        unboxed_paths_by_depth;
+      line "()");
   line "Gc.compact ();";
   print_endline ""
 
