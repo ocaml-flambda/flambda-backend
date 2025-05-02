@@ -262,18 +262,8 @@ install_for_test: _install
           _runtest/testsuite/lib/
 	cp $(main_build)/testsuite/lib/.testing.objs/native/testing.cm* \
           _runtest/testsuite/lib/
-	 # replace backend-specific testsuite/tests/asmcomp with their new versions
-	rm _runtest/testsuite/tests/asmcomp/*
-	cp -a flambda-backend/testsuite/tests/asmcomp/* _runtest/testsuite/tests/asmcomp/
-	 # replace backend-specific testsuite/tests/asmgen with their new versions
-	rm _runtest/testsuite/tests/asmgen/*
-	cp -a flambda-backend/testsuite/tests/asmgen/* _runtest/testsuite/tests/asmgen/
-	 # replace backend-specific testsuite/tests/unboxed-primitive-args with their new versions
-	rm _runtest/testsuite/tests/unboxed-primitive-args/*
-	cp -a flambda-backend/testsuite/tests/unboxed-primitive-args/* _runtest/testsuite/tests/unboxed-primitive-args/
-	 # add extension library tests that are not supported by the upstream compiler
-	rm _runtest/testsuite/tests/lib-extensions/*
-	cp -a flambda-backend/testsuite/tests/lib-extensions/* _runtest/testsuite/tests/lib-extensions
+	 # replace backend-specific testsuite/tests with their new versions
+	cp -a flambda-backend/testsuite/tests/* _runtest/testsuite/tests/
 
 	cp $(ocamldir)/Makefile.* _runtest/
 
