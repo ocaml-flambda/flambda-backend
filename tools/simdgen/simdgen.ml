@@ -12,7 +12,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* Parses [amd64.csv] and outputs [X86_simd_defs.instr] definitions.
+(* Parses [amd64.csv] and outputs [Amd64_simd_defs.instr] definitions.
 
    [amd64.csv] was retrieved from https://github.com/GregoryComer/x86-csv
    (commit c638bbbaa17f0c81abaa7e84a968335c985542fa) and manually modified.
