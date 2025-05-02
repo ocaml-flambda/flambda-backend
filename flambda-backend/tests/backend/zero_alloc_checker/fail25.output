@@ -1,35 +1,35 @@
-File "fail25.ml", line 39, characters 5-15:
+File "fail25.ml", line 41, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Fail25.g (camlFail25.g_HIDE_STAMP).
 
-File "fail25.ml", line 41, characters 8-11:
+File "fail25.ml", line 42, characters 39-42:
 Error: called function may allocate (direct call camlFail25.g_HIDE_STAMP)
 
-File "fail25.ml", line 45, characters 5-15:
+File "fail25.ml", line 46, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Fail25.foo (camlFail25.foo_HIDE_STAMP).
 
-File "fail25.ml", line 46, characters 2-11:
+File "fail25.ml", line 46, characters 29-40:
 Error: called function may allocate (direct tailcall camlFail25.bar_HIDE_STAMP)
 
-File "fail25.ml", line 47, characters 5-15:
+File "fail25.ml", line 48, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Fail25.bar (camlFail25.bar_HIDE_STAMP).
 
-File "fail25.ml", line 48, characters 2-11:
+File "fail25.ml", line 48, characters 25-36:
 Error: called function may allocate (direct tailcall camlFail25.foo_HIDE_STAMP)
 
 File "fail25.ml", line 50, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Fail25.f1 (camlFail25.f1_HIDE_STAMP).
 
-File "fail25.ml", line 52, characters 2-12:
+File "fail25.ml", line 50, characters 70-80:
 Error: called function may allocate (direct tailcall camlFail25.f2_HIDE_STAMP)
 
-File "fail25.ml", line 53, characters 5-15:
+File "fail25.ml", line 52, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Fail25.f2 (camlFail25.f2_HIDE_STAMP).
 
-File "fail25.ml", line 54, characters 2-12:
+File "fail25.ml", line 52, characters 24-34:
 Error: called function may allocate (direct tailcall camlFail25.f1_HIDE_STAMP)
 
-File "fail25.ml", line 57, characters 5-15:
+File "fail25.ml", line 56, characters 5-15:
 Error: Annotation check for zero_alloc failed on function Fail25.outer (camlFail25.outer_HIDE_STAMP).
 
-File "fail25.ml", line 63, characters 2-13:
+File "fail25.ml", line 60, characters 2-15:
 Error: called function may allocate (direct tailcall camlFail25.inner_HIDE_STAMP)

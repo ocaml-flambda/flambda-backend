@@ -1,1 +1,1 @@
-let[@inline always] test4 n = (n, n+1)
+let[@inline always] test4 n = n, n + 1
