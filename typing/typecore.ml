@@ -5668,6 +5668,12 @@ and type_expect_
         | Immutable -> Predef.type_iarray elt_ty
         | Mutable -> Predef.type_array elt_ty
       in
+      (* CR rtjoa: this update disambiguation warnings and make sure this union
+         moral *)
+      begin
+        try ignore (unify env base_ty expected_base_ty)
+        with Unify _ -> ()
+      end;
       let index_type_expected =
         match index_kind with
         | Index_int -> Predef.type_int

@@ -67,6 +67,12 @@ type 'a r2 = { u : u2; }
 val f : unit -> ('a r, int) idx_imm = <fun>
 |}]
 
+(* Array type disambiguates the unboxed access *)
+let f () : (u array, _) idx_mut = (.(0).#x)
+[%%expect{|
+val f : unit -> (u array, int) idx_mut = <fun>
+|}]
+
 (* Unboxed access disambiguates the next unboxed access *)
 type wrap_r = { r : int r# }
 let f () = (.r.#u.#x)
@@ -100,8 +106,8 @@ type pt = { x : int }
 let f () = (.x.#x)
 [%%expect{|
 type pt = { x : int; }
-Line 100, characters 16-17:
-100 | let f () = (.x.#x)
+Line 106, characters 16-17:
+106 | let f () = (.x.#x)
                       ^
 Error: The index preceding this unboxed access has element type "int",
        which is not an unboxed record with field "x".
@@ -128,8 +134,8 @@ type t = { i : int } [@@unboxed]
 let f () = (.i)
 [%%expect{|
 type t = { i : int; } [@@unboxed]
-Line 128, characters 13-14:
-128 | let f () = (.i)
+Line 134, characters 13-14:
+134 | let f () = (.i)
                    ^
 Error: Block indices do not support [@@unboxed] records.
 |}]
@@ -153,8 +159,8 @@ let f c =
   else
     (.s)
 [%%expect{|
-Line 154, characters 6-7:
-154 |     (.s)
+Line 160, characters 6-7:
+160 |     (.s)
             ^
 Error: This block index is expected to have base type "t"
        There is no field "s" within type "t"
@@ -167,8 +173,8 @@ let f c =
   else
     (.a.#s)
 [%%expect{|
-Line 166, characters 9-10:
-166 |     (.a.#t)
+Line 172, characters 9-10:
+172 |     (.a.#t)
                ^
 Error: This unboxed access is expected to have base type "s#"
        There is no unboxed record field "t" within type "s#"
@@ -247,8 +253,8 @@ Error: Immutable arrays of unboxed products are not yet supported.
 
 let bad_index_type = (.("test"))
 [%%expect{|
-Line 248, characters 24-30:
-248 | let bad_index_type = (.("test"))
+Line 254, characters 24-30:
+254 | let bad_index_type = (.("test"))
                               ^^^^^^
 Error: This expression has type "string" but an expression was expected of type
          "int"
@@ -372,8 +378,8 @@ val f : bool -> ('a r, int) idx_imm = <fun>
 type u = #{ x : int; }
 type 'a r = { u : u; }
 type 'a r2 = { u : u; }
-Line 365, characters 6-7:
-365 |     (.u.#x)
+Line 371, characters 6-7:
+371 |     (.u.#x)
             ^
 Warning 18 [not-principal]: this type-based field disambiguation is not principal.
 
