@@ -2339,6 +2339,8 @@ let unaligned_load_16 ~ptr_out_of_heap ptr idx dbg =
     let v2 =
       Cop
         ( mk_load_mut Byte_unsigned,
+          (* CR mshinwell/gbury: Refactor this to compute [idx + 1] using
+             [add_int], then use [add_int_ptr] on that. *)
           [ add_int_ptr ~ptr_out_of_heap
               (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
               (cconst_int 1) dbg ],
