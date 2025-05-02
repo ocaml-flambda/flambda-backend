@@ -40,13 +40,13 @@ module Ty : sig
 
   val unboxed_paths_by_depth : t -> string list list IntMap.t
 
-  (* Generate typedecls for user-defined nominal types that have been created *)
+  (** Generate typedecls for user-defined nominal types that have been created *)
   val decls_code : unit -> string list
 
-  (* Takes the record name and (label_name, label_type) pairs *)
+  (** Takes the record name and (label_name, label_type) pairs *)
   val unboxed_record : string -> (string * t) list -> t
 
-  (* [enum 3] represents [type enum3 = A3_0 | A3_1 | A3_2]. *)
+  (** [enum 3] represents [type enum3 = A3_0 | A3_1 | A3_2]. *)
   val enum : int -> t
 
   (* Structural and built-in types *)
@@ -77,6 +77,11 @@ module Ty : sig
 
   val nativeint_u : t
 end = struct
+  type kind =
+    | Addr
+    | Immediate
+    | Non_value
+
   type t =
     | Unboxed_record of
         { name : string;
@@ -87,7 +92,8 @@ end = struct
         { ty_code : string;
           value_code : int -> string;
           mk_value_body_code : int -> string;
-          eq : string
+          eq : string;
+          kind : kind
         }
 
   let assemble_unboxed_record colon_or_eq fields vals =
@@ -121,7 +127,8 @@ end = struct
       List.fold_left ~init:acc fields ~f:(fun acc (s, t) ->
           let cur_path = s :: cur_path in
           let acc = cur_path :: acc in
-          reversed_unboxed_paths t acc cur_path)
+          reversed_unboxed_paths t acc cur_path
+      )
     | Unboxed_tuple _ -> acc
     | Non_product _ -> acc
 
@@ -136,7 +143,8 @@ end = struct
           | Some paths -> path :: paths
           | None -> [path]
         in
-        IntMap.add depth paths acc)
+        IntMap.add depth paths acc
+      )
       ~init:IntMap.empty
 
   let rec value_code t i =
@@ -146,7 +154,8 @@ end = struct
         List.fold_left_map fields
           ~f:(fun acc (_, t) ->
             let x = value_code t acc in
-            acc + num_subvals t, x)
+            acc + num_subvals t, x
+          )
           ~init:i
       in
       assemble_unboxed_record_expr name fields xs
@@ -155,7 +164,8 @@ end = struct
         List.fold_left_map ts
           ~f:(fun acc t ->
             let x = value_code t acc in
-            acc + num_subvals t, x)
+            acc + num_subvals t, x
+          )
           ~init:i
       in
       assemble_unboxed_tuple ~sep:", " xs
@@ -168,7 +178,8 @@ end = struct
         List.fold_left_map fields
           ~f:(fun acc (_, t) ->
             let x = mk_value_body_code t acc in
-            acc + num_subvals t, x)
+            acc + num_subvals t, x
+          )
           ~init:i
       in
       assemble_unboxed_record_expr name fields xs
@@ -177,7 +188,8 @@ end = struct
         List.fold_left_map ts
           ~f:(fun acc t ->
             let x = mk_value_body_code t acc in
-            acc + num_subvals t, x)
+            acc + num_subvals t, x
+          )
           ~init:i
       in
       assemble_unboxed_tuple ~sep:", " xs
@@ -214,7 +226,8 @@ end = struct
   let decls_code () =
     (* [!decls] is only reversed for aesthetic reasons. *)
     List.mapi (List.rev !decls) ~f:(fun i (name, def) ->
-        (if i == 0 then "type " else "and ") ^ name ^ " = " ^ def)
+        (if i == 0 then "type " else "and ") ^ name ^ " = " ^ def
+    )
 
   let add_decl ~name ~def =
     match List.assoc_opt name !decls with
@@ -254,7 +267,8 @@ end = struct
       { ty_code = name;
         value_code = (fun i -> ith_ctor (Int.rem i size));
         mk_value_body_code;
-        eq
+        eq;
+        kind = Immediate
       }
 
   let option t =
@@ -265,10 +279,12 @@ end = struct
         mk_value_body_code =
           (fun i ->
             sprintf "(if (i + %d) == 0 then None else Some (%s))" i
-              (mk_value_body_code t i));
+              (mk_value_body_code t i)
+          );
         eq =
           "(fun a b -> match a, b with None,None -> true | Some a,Some b -> "
-          ^ eq t ^ " a b|_->false)"
+          ^ eq t ^ " a b|_->false)";
+        kind = Addr
       }
 
   let unboxed_tuple ts = Unboxed_tuple ts
@@ -278,7 +294,8 @@ end = struct
       { ty_code = "int";
         value_code = (fun i -> Int.to_string i);
         mk_value_body_code = (fun i -> sprintf "i + %d" i);
-        eq = "(fun a b -> Int.equal a b)"
+        eq = "(fun a b -> Int.equal a b)";
+        kind = Immediate
       }
 
   let float =
@@ -286,7 +303,8 @@ end = struct
       { ty_code = "float";
         value_code = (fun i -> Int.to_string i ^ ".");
         mk_value_body_code = (fun i -> sprintf "Float.of_int (i + %d)" i);
-        eq = "(fun a b -> Float.equal (globalize a) (globalize b))"
+        eq = "(fun a b -> Float.equal (globalize a) (globalize b))";
+        kind = Addr
       }
 
   let float_u =
@@ -294,7 +312,8 @@ end = struct
       { ty_code = "float#";
         value_code = (fun i -> "#" ^ Int.to_string i ^ ".");
         mk_value_body_code = (fun i -> sprintf "Float_u.of_int (i + %d)" i);
-        eq = "(fun a b -> Float_u.(equal (add #0. a) (add #0. b)))"
+        eq = "(fun a b -> Float_u.(equal (add #0. a) (add #0. b)))";
+        kind = Non_value
       }
 
   let float32 =
@@ -303,7 +322,8 @@ end = struct
         value_code = (fun i -> Int.to_string i ^ ".s");
         mk_value_body_code = (fun i -> sprintf "Float32.of_int (i + %d)" i);
         eq =
-          "(fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b))"
+          "(fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b))";
+        kind = Addr
       }
 
   let float32_u =
@@ -311,7 +331,8 @@ end = struct
       { ty_code = "float32#";
         value_code = (fun i -> "#" ^ Int.to_string i ^ ".s");
         mk_value_body_code = (fun i -> sprintf "Float32_u.of_int (i + %d)" i);
-        eq = "(fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b)))"
+        eq = "(fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b)))";
+        kind = Non_value
       }
 
   let int32 =
@@ -319,7 +340,8 @@ end = struct
       { ty_code = "int32";
         value_code = (fun i -> Int.to_string i ^ "l");
         mk_value_body_code = (fun i -> sprintf "Int32.of_int (i + %d)" i);
-        eq = "(fun a b -> Int32.equal (globalize a) (globalize b))"
+        eq = "(fun a b -> Int32.equal (globalize a) (globalize b))";
+        kind = Addr
       }
 
   let int32_u =
@@ -327,7 +349,8 @@ end = struct
       { ty_code = "int32#";
         value_code = (fun i -> "#" ^ Int.to_string i ^ "l");
         mk_value_body_code = (fun i -> sprintf "Int32_u.of_int (i + %d)" i);
-        eq = "(fun a b -> Int32_u.(equal (add #0l a) (add #0l b)))"
+        eq = "(fun a b -> Int32_u.(equal (add #0l a) (add #0l b)))";
+        kind = Non_value
       }
 
   let int64 =
@@ -335,7 +358,8 @@ end = struct
       { ty_code = "int64";
         value_code = (fun i -> Int.to_string i ^ "L");
         mk_value_body_code = (fun i -> sprintf "Int64.of_int (i + %d)" i);
-        eq = "(fun a b -> Int64.equal (globalize a) (globalize b))"
+        eq = "(fun a b -> Int64.equal (globalize a) (globalize b))";
+        kind = Addr
       }
 
   let int64_u =
@@ -343,7 +367,8 @@ end = struct
       { ty_code = "int64#";
         value_code = (fun i -> "#" ^ Int.to_string i ^ "L");
         mk_value_body_code = (fun i -> sprintf "Int64_u.of_int (i + %d)" i);
-        eq = "(fun a b -> Int64_u.(equal (add #0L a) (add #0L b)))"
+        eq = "(fun a b -> Int64_u.(equal (add #0L a) (add #0L b)))";
+        kind = Non_value
       }
 
   let nativeint =
@@ -351,7 +376,8 @@ end = struct
       { ty_code = "nativeint";
         value_code = (fun i -> Int.to_string i ^ "n");
         mk_value_body_code = (fun i -> sprintf "Nativeint.of_int (i + %d)" i);
-        eq = "(fun a b -> Nativeint.equal (globalize a) (globalize b))"
+        eq = "(fun a b -> Nativeint.equal (globalize a) (globalize b))";
+        kind = Addr
       }
 
   let nativeint_u =
@@ -359,7 +385,8 @@ end = struct
       { ty_code = "nativeint#";
         value_code = (fun i -> "#" ^ Int.to_string i ^ "n");
         mk_value_body_code = (fun i -> sprintf "Nativeint_u.of_int (i + %d)" i);
-        eq = "(fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b)))"
+        eq = "(fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b)))";
+        kind = Non_value
       }
 end
 
@@ -394,7 +421,8 @@ let types =
           unboxed_tuple [int64_u; int64_u];
           float32_u;
           unboxed_tuple [int32_u; unboxed_tuple [float32_u; float_u]];
-          int64_u ];
+          int64_u
+        ];
       unboxed_tuple [int64_u; ty_ur1];
       unboxed_tuple [int; int64];
       unboxed_tuple [option int64; int32; unboxed_tuple [int32; float]; float];
@@ -402,7 +430,9 @@ let types =
       unboxed_tuple
         [ float;
           unboxed_tuple [float; float];
-          unboxed_tuple [float; unboxed_tuple [float; float; float]] ] ]
+          unboxed_tuple [float; unboxed_tuple [float; float; float]]
+        ]
+    ]
 
 let preamble =
   {|
@@ -530,7 +560,8 @@ let line fmt =
     (fun s ->
       let indent = Seq.init (!indent * 2) (fun _ -> ' ') |> String.of_seq in
       print_endline (indent ^ s);
-      flush stdout)
+      flush stdout
+    )
     fmt
 
 let print_in_test s =
@@ -575,7 +606,8 @@ let for_ var ~from ~to_ ~debug_exprs f =
   line "for %s = %s to %s do" var from to_;
   with_indent (fun () ->
       let debug_exprs = { expr = var; format_s = "%d" } :: debug_exprs in
-      f ~debug_exprs);
+      f ~debug_exprs
+  );
   line "done;"
 
 let for_i_below_size = for_ "i" ~from:"0" ~to_:"size - 1"
@@ -585,7 +617,8 @@ let iter l var ~debug_exprs f =
   line "iter (%s) ~f:(fun %s ->" l var;
   with_indent (fun () ->
       let debug_exprs = { expr = var; format_s = "%d" } :: debug_exprs in
-      f ~debug_exprs);
+      f ~debug_exprs
+  );
   line ") [@nontail];"
 
 let section s =
@@ -608,13 +641,16 @@ let test_makearray_dynamic ~local ty =
     (Ty.value_code ty 0);
   line "(* 3. Fill [a] with distinct values using block indices *)";
   for_i_below_size ~debug_exprs (fun ~debug_exprs ->
-      line "set_idx_mut a (.(i)) (mk_value i);");
+      line "set_idx_mut a (.(i)) (mk_value i);"
+  );
   line "Gc.compact ();";
   for_i_below_size ~debug_exprs (fun ~debug_exprs ->
-      seq_assert ~debug_exprs "eq (get a i) (mk_value i)");
+      seq_assert ~debug_exprs "eq (get a i) (mk_value i)"
+  );
   line "(* Also read back those values with block indices *)";
   for_i_below_size ~debug_exprs (fun ~debug_exprs ->
-      seq_assert ~debug_exprs "eq (get_idx_mut a (.(i))) (mk_value i)");
+      seq_assert ~debug_exprs "eq (get_idx_mut a (.(i))) (mk_value i)"
+  );
   let unboxed_paths_by_depth = Ty.unboxed_paths_by_depth ty in
   for_i_below_size ~debug_exprs (fun ~debug_exprs ->
       IntMap.iter
@@ -644,12 +680,14 @@ let test_makearray_dynamic ~local ty =
               let new_val = sprintf "next_el%s" (up_concat unboxed_path) in
               line "let el = %s in" (f (List.rev unboxed_path) new_val);
               line "set_idx_mut a ((.(i)%s) : (%s array, _) idx_mut) next_el%s;"
-                (up_concat unboxed_path) (Ty.ty_code ty)
-                (up_concat unboxed_path);
+                (up_concat unboxed_path) (Ty.ty_code ty) (up_concat unboxed_path);
               seq_assert ~debug_exprs "eq (get_idx_mut a (.(i))) el";
-              ()))
+              ()
+          )
+        )
         unboxed_paths_by_depth;
-      line "()");
+      line "()"
+  );
   line "Gc.compact ();";
   print_endline ""
 
@@ -658,7 +696,8 @@ let toplevel_unit_block f =
   line "let () =";
   with_indent (fun () ->
       f ();
-      line "()");
+      line "()"
+  );
   line ";;";
   line ""
 
@@ -669,14 +708,16 @@ let main ~bytecode =
  include stdlib_upstream_compatible;|};
   if bytecode
   then (
-    line {| bytecode;|};
-    line {| flags = "-extension layouts_alpha";|})
+    line {| flags = "-extension layouts_alpha";|};
+    line {| bytecode;|}
+  )
   else (
     line {| modules = "stubs.c";|};
     line {| flags = "-extension simd_beta -extension layouts_alpha";|};
     line {| flambda2;|};
     line {| stack-allocation;|};
-    line {| native;|});
+    line {| native;|}
+  );
   line {|*)|};
   line "(** This is code generated by [generate_array_idx_tests.ml]. *)";
   line "";
@@ -688,7 +729,8 @@ let main ~bytecode =
       let open Ty in
       line "(* Check types and constants *)";
       List.iter types ~f:(fun ty ->
-          line "let _ : %s = %s in" (Ty.ty_code ty) (Ty.value_code ty 0));
+          line "let _ : %s = %s in" (Ty.ty_code ty) (Ty.value_code ty 0)
+      );
       line "(* Check equality and mk_value functions *)";
       List.iter types ~f:(fun ty ->
           line "let eq : %s @ local -> %s @ local -> bool = %s in"
@@ -699,23 +741,30 @@ let main ~bytecode =
           seq_assert ~debug_exprs
             (sprintf "eq %s %s" (Ty.value_code ty 1) (Ty.value_code ty 1));
           seq_assert ~debug_exprs
-            (sprintf "not (eq %s %s)" (Ty.value_code ty 1) (Ty.value_code ty 2))));
+            (sprintf "not (eq %s %s)" (Ty.value_code ty 1) (Ty.value_code ty 2))
+      )
+  );
   List.iter [false; true] ~f:(fun local ->
       line "let test_%s size =" (makearray_dynamic_fn ~local);
       with_indent (fun () ->
           List.iter types ~f:(test_makearray_dynamic ~local);
-          line "()");
-      line "");
+          line "()"
+      );
+      line ""
+  );
   line "(* Main tests *)";
   toplevel_unit_block (fun () ->
       List.iter [false; true] ~f:(fun local ->
           let test_fn = "test_" ^ makearray_dynamic_fn ~local in
           seq_print_in_test test_fn;
-          line "iter sizes ~f:%s;" test_fn));
+          line "iter sizes ~f:%s;" test_fn
+      )
+  );
   line "for i = 1 to %d do" !test_id;
   with_indent (fun () ->
       line
-        {|if not (List.mem i !tests_run) then failwithf "test %%d not run" i|});
+        {|if not (List.mem i !tests_run) then failwithf "test %%d not run" i|}
+  );
   line "done;;";
   print_in_test "All tests passed."
 
@@ -723,7 +772,7 @@ let () =
   let bytecode =
     match Sys.argv with
     | [| _; "native" |] -> false
-    | [| _; "byte" |] -> true
-    | _ -> failwith (sprintf "Usage %s <byte|native>" Sys.argv.(0))
+    | [| _; "bytecode" |] -> true
+    | _ -> failwith (sprintf "Usage %s <bytecode|native>" Sys.argv.(0))
   in
   main ~bytecode
