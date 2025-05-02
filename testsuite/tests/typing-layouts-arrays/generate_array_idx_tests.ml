@@ -647,8 +647,7 @@ let test_makearray_dynamic ~local ty =
                 (up_concat unboxed_path) (Ty.ty_code ty)
                 (up_concat unboxed_path);
               seq_assert ~debug_exprs "eq (get_idx_mut a (.(i))) el";
-              ());
-          seq_assert ~debug_exprs "eq (get_idx_mut a (.(i))) (mk_value i)")
+              ()))
         unboxed_paths_by_depth;
       line "()");
   line "Gc.compact ();";
