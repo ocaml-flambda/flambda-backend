@@ -1008,6 +1008,9 @@ let binary_primitive env dbg f x y =
     in
     C.store ~dbg memory_chunk Assignment ~addr:x ~new_value:y
     |> C.return_unit dbg
+  | Read_offset _kind ->
+    (* CR rtjoa: do we need to look at the kind? *)
+    C.unaligned_load_64 x y dbg
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
@@ -1017,6 +1020,10 @@ let ternary_primitive _env dbg f x y z =
     bytes_or_bigstring_set ~dbg kind width ~bytes:x ~index:y ~new_value:z
   | Bigarray_set (_dimensions, kind, _layout) ->
     bigarray_store ~dbg kind ~bigarray:x ~index:y ~new_value:z
+  | Write_offset _kind ->
+    (* CR rtjoa: do we need to look at the kind to determine whether to call
+       caml_modify? *)
+    C.unaligned_set_64 x y z dbg
   | Atomic_compare_and_set block_access_kind ->
     C.atomic_compare_and_set ~dbg
       (imm_or_ptr block_access_kind)

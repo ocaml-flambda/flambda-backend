@@ -67,83 +67,23 @@ let simplify_bigarray_set ~num_dimensions:_ _bigarray_kind _bigarray_layout dacc
     ~result_var =
   SPR.create_unit dacc ~result_var ~original_term
 
-let simplify_atomic_compare_and_set_or_exchange_args
-    (args_kind : P.Block_access_field_kind.t) dacc ~comparison_value_ty
-    ~new_value_ty : P.Block_access_field_kind.t =
-  match args_kind with
-  | Immediate ->
-    (* No further specialization can be done *)
-    Immediate
-  | Any_value ->
-    (* Unlike (for example) a normal write to a block, these primitives can be
-       specialized based on the observed types of the arguments. (In the case of
-       compare-exchange information can also be propagated based on the result
-       type; see below.)
+let simplify_atomic_compare_and_set ~original_prim dacc ~original_term _dbg
+    ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~arg3:_ ~arg3_ty:_ ~result_var =
+  SPR.create_unknown dacc ~result_var
+    (P.result_kind' original_prim)
+    ~original_term
 
-       For example for [Atomic_compare_and_set], observe that if both the second
-       and third arguments (value with which to compare, and new value,
-       respectively) are immediate, then there is no need to generate a GC
-       barrier -- not only because the new value is immediate, but crucially
-       also because the old value cannot be a pointer if the operation is to
-       perform a write. *)
-    let is_immediate ty =
-      match T.prove_is_a_tagged_immediate (DA.typing_env dacc) ty with
-      | Proved () -> true
-      | Unknown -> false
-    in
-    if is_immediate comparison_value_ty && is_immediate new_value_ty
-    then Immediate
-    else Any_value
+let simplify_atomic_compare_exchange ~original_prim dacc ~original_term _dbg
+    ~arg1:_ ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~arg3:_ ~arg3_ty:_ ~result_var =
+  SPR.create_unknown dacc ~result_var
+    (P.result_kind' original_prim)
+    ~original_term
 
-let simplify_atomic_compare_and_set (args_kind : P.Block_access_field_kind.t)
-    ~original_prim:_ dacc ~original_term:_ dbg ~arg1:atomic ~arg1_ty:_
-    ~arg2:comparison_value ~arg2_ty:comparison_value_ty ~arg3:new_value
-    ~arg3_ty:new_value_ty ~result_var =
-  let args_kind =
-    simplify_atomic_compare_and_set_or_exchange_args args_kind dacc
-      ~comparison_value_ty ~new_value_ty
-  in
-  let new_term =
-    Named.create_prim
-      (Ternary
-         (Atomic_compare_and_set args_kind, atomic, comparison_value, new_value))
-      dbg
-  in
-  let dacc = DA.add_variable dacc result_var T.any_tagged_bool in
-  SPR.create new_term ~try_reify:false dacc
-
-let simplify_atomic_compare_exchange
-    ~(atomic_kind : P.Block_access_field_kind.t)
-    ~(args_kind : P.Block_access_field_kind.t) ~original_prim:_ dacc
-    ~original_term:_ dbg ~arg1:atomic ~arg1_ty:_ ~arg2:comparison_value
-    ~arg2_ty:comparison_value_ty ~arg3:new_value ~arg3_ty:new_value_ty
-    ~result_var =
-  (* This primitive can have its arguments specialised as for compare-and-set
-     (see above). However we can also propagate information about its result
-     type. Since this relates to all possible values that the atomic can hold,
-     we have to use the information provided by the frontend.
-
-     Recall that the compare-exchange returns the old value. *)
-  let args_kind =
-    simplify_atomic_compare_and_set_or_exchange_args args_kind dacc
-      ~comparison_value_ty ~new_value_ty
-  in
-  let new_term =
-    Named.create_prim
-      (Ternary
-         ( Atomic_compare_exchange { atomic_kind; args_kind },
-           atomic,
-           comparison_value,
-           new_value ))
-      dbg
-  in
-  let result_var_ty =
-    match atomic_kind (* N.B. not [args_kind] *) with
-    | Immediate -> T.any_tagged_immediate
-    | Any_value -> T.any_value
-  in
-  let dacc = DA.add_variable dacc result_var result_var_ty in
-  SPR.create new_term ~try_reify:false dacc
+let simplify_write_offset ~original_prim dacc ~original_term _dbg ~arg1:_
+    ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~arg3:_ ~arg3_ty:_ ~result_var =
+  SPR.create_unknown dacc ~result_var
+    (P.result_kind' original_prim)
+    ~original_term
 
 let simplify_ternary_primitive dacc original_prim (prim : P.ternary_primitive)
     ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~arg3 ~arg3_ty dbg ~result_var =
@@ -155,10 +95,10 @@ let simplify_ternary_primitive dacc original_prim (prim : P.ternary_primitive)
       simplify_bytes_or_bigstring_set bytes_like_value string_accessor_width
     | Bigarray_set (num_dimensions, bigarray_kind, bigarray_layout) ->
       simplify_bigarray_set ~num_dimensions bigarray_kind bigarray_layout
-    | Atomic_compare_and_set access_kind ->
-      simplify_atomic_compare_and_set access_kind ~original_prim
-    | Atomic_compare_exchange { atomic_kind; args_kind } ->
-      simplify_atomic_compare_exchange ~atomic_kind ~args_kind ~original_prim
+    | Atomic_compare_and_set _ -> simplify_atomic_compare_and_set ~original_prim
+    | Atomic_compare_exchange _ ->
+      simplify_atomic_compare_exchange ~original_prim
+    | Write_offset _ -> simplify_write_offset ~original_prim
   in
   simplifier dacc ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~arg3
     ~arg3_ty ~result_var

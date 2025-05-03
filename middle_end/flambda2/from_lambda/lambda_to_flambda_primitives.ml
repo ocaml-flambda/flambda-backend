@@ -486,6 +486,23 @@ let convert_array_kind_to_duplicate_array_kind (kind : L.array_kind) :
 let convert_field_read_semantics (sem : L.field_read_semantics) : Mutability.t =
   match sem with Reads_agree -> Immutable | Reads_vary -> Mutable
 
+let rec convert_layout_to_offset_access_kinds (layout : L.layout) :
+    P.Offset_access_kind.t list =
+  match layout with
+  | Ptop -> assert false
+  | Pvalue _ ->
+    (* CR rtjoa: consider immediates *)
+    [Values]
+  | Punboxed_float Unboxed_float64 -> [Naked_floats]
+  | Punboxed_float Unboxed_float32 -> [Naked_float32s]
+  | Punboxed_int Unboxed_int32 -> [Naked_int32s]
+  | Punboxed_int Unboxed_int64 -> [Naked_int64s]
+  | Punboxed_int Unboxed_nativeint -> [Naked_nativeints]
+  | Punboxed_vector Unboxed_vec128 -> [Naked_vec128s]
+  | Pbottom -> assert false
+  | Punboxed_product layouts ->
+    List.concat_map convert_layout_to_offset_access_kinds layouts
+
 let bigarray_dim_bound b dimension =
   H.Prim (Unary (Bigarray_length { dimension }, b))
 
@@ -2459,6 +2476,30 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Ppoke layout, [[ptr]; [new_value]] ->
     let kind = standard_int_or_float_of_peek_or_poke layout in
     [Binary (Poke kind, ptr, new_value)]
+  | Pread_offset layout, [[ptr]; [start_i]] ->
+    (* CR rtjoa: the below assumes that each kind in an unboxed product is 8
+       bytes apart. we shouldn't bake this in *)
+    let f i kind =
+      let summand = Simple.const_int_of_kind K.naked_int64 (i * 8) in
+      let offset =
+        H.Binary (Int_arith (Naked_int64, Add), start_i, Simple summand)
+      in
+      H.Binary (Read_offset kind, ptr, Prim offset)
+    in
+    let kinds = convert_layout_to_offset_access_kinds layout in
+    [H.maybe_create_unboxed_product (List.mapi f kinds)]
+  | Pwrite_offset layout, [[ptr]; [start_i]; new_values] ->
+    (* CR rtjoa: the below assumes that each kind in an unboxed product is 8
+       bytes apart. we shouldn't bake this in *)
+    let f i (layout, new_value) =
+      let summand = Simple.const_int_of_kind K.naked_int64 (i * 8) in
+      let offset =
+        H.Binary (Int_arith (Naked_int64, Add), start_i, Simple summand)
+      in
+      H.Ternary (Write_offset layout, ptr, Prim offset, new_value)
+    in
+    let kinds = convert_layout_to_offset_access_kinds layout in
+    [H.Sequence (List.mapi f (List.combine kinds new_values))]
   | ( ( Pdivbint { is_safe = Unsafe; size = _; mode = _ }
       | Pmodbint { is_safe = Unsafe; size = _; mode = _ }
       | Psetglobal _ | Praise _ | Pccall _ ),
@@ -2535,7 +2576,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             _ )
       | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
       | Patomic_exchange _ | Patomic_set _ | Patomic_fetch_add | Patomic_add
-      | Patomic_sub | Patomic_land | Patomic_lor | Patomic_lxor | Ppoke _ ),
+      | Patomic_sub | Patomic_land | Patomic_lor | Patomic_lxor | Ppoke _
+      | Pread_offset _ ),
       ( []
       | [_]
       | _ :: _ :: _ :: _
@@ -2565,7 +2607,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
       | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
       | Punboxed_nativeint_array_set_128 _ | Patomic_compare_set _
-      | Patomic_compare_exchange _ ),
+      | Patomic_compare_exchange _ | Pwrite_offset _ ),
       ( []
       | [_]
       | [_; _]
