@@ -122,7 +122,8 @@ type rewrite_switch_arm_result = private
   | Apply_cont of Apply_cont.t
   | New_wrapper of new_let_cont
 
-val no_rewrite_apply_cont : Apply_cont.t -> rewrite_apply_cont_result
+val no_rewrite_apply_cont :
+  Upwards_env.t -> Apply_cont.t -> rewrite_apply_cont_result
 
 val rewrite_apply_cont :
   Upwards_acc.t ->
