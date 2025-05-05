@@ -982,7 +982,7 @@ CAMLprim value caml_unsafe_set_idx_bytecode(value base, value idx, value v)
     intnat pos = Long_val(Field(idx, i));
     dst = &Field(*dst, pos);
   }
-  *dst = v;
+  caml_modify(dst, v);
   CAMLreturn (Val_unit);
 }
 

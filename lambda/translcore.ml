@@ -2236,12 +2236,12 @@ and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
 and transl_idx ~scopes loc env ba uas =
   let pos_of_lbl lbl =
     if Int.equal (Array.length lbl.lbl_all) 1 then
-      In_singleton
+      None
     else
-      In_product lbl.lbl_pos
+      Some (In_product lbl.lbl_pos)
   in
   let uas_path =
-    List.map (function Uaccess_unboxed_field (_, lbl) -> pos_of_lbl lbl) uas
+    List.filter_map (function Uaccess_unboxed_field (_, lbl) -> pos_of_lbl lbl) uas
   in
   begin match ba with
   | Baccess_block (_, idx) ->
@@ -2274,7 +2274,7 @@ and transl_idx ~scopes loc env ba uas =
               Misc.fatal_error "Texp_idx: non-singleton unboxed record field \
                 in non-mixed boxed record")
         uas;
-      Lprim (Pidx_field (pos_of_lbl lbl), [], (of_location ~scopes loc))
+      Lprim (Pidx_field (In_product lbl.lbl_pos), [], (of_location ~scopes loc))
     | Record_inlined _ | Record_unboxed ->
       Misc.fatal_error "Texp_idx: unexpected unboxed/inlined record"
     | Record_mixed shape ->
@@ -2291,7 +2291,7 @@ and transl_idx ~scopes loc env ba uas =
       in
       (* Check to make sure the gap never overflows.
          See Note [Representation of block indices]. *)
-      let path = pos_of_lbl lbl :: uas_path in
+      let path = In_product lbl.lbl_pos :: uas_path in
       let cts = Mixed_product_bytes_wrt_path.count el path in
       if Option.is_none
           (Mixed_product_bytes_wrt_path.offset_and_gap cts) then

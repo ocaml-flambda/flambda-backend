@@ -1184,10 +1184,10 @@ and comp_expr stack_info env exp sz cont =
       *)
       let cont = add_pseudo_event loc !compunit_name cont in
       let push_path =
-        List.fold_right (fun x instrs ->
-          Kconst (Const_base (Const_int (int_of_pos x))) :: Kpush :: instrs)
-          path
+        List.fold_left (fun instrs pos ->
+          Kconst (Const_base (Const_int (int_of_pos pos))) :: Kpush :: instrs)
           []
+          path
       in
       let convert_index = match ik with
         | Ptagged_int_index -> []
