@@ -2880,12 +2880,12 @@ let maybe_reset_current_region ~dbg ~body_tail ~body_nontail old_region =
       Any )
 
 let apply_or_call_caml_apply result arity mut clos args pos mode dbg =
-  match args with
-  | [arg] ->
+  match arity with
+  | [_] ->
     bind "fun" clos (fun clos ->
         Cop
           ( Capply (Extended_machtype.to_machtype result, pos),
-            [get_field_codepointer mut clos 0 dbg; arg; clos],
+            (get_field_codepointer mut clos 0 dbg :: args @ [clos]),
             dbg ))
   | _ -> call_caml_apply result arity mut clos args pos mode dbg
 

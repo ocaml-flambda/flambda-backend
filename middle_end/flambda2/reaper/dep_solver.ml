@@ -824,6 +824,72 @@ let datalog_rules =
        used_pred indirect_call_witness;
        cannot_change_closure_calling_convention set_of_closures ]
      ==> cannot_change_calling_convention code_id);
+    (* CR ncourant: we're preventing changing the calling convention of
+       functions called with indirect_unknown_arity. This could be improved
+       later, but will require wrappers for over- and partial applications, as
+       well as untupling. *)
+    (* CR ncourant: this is currently wrong for functions which take no
+       arguments and return no values! Fixing this would require making the
+       distinction Direct/Indirect for code_of_closure, which wouldn't be a bad
+       thing to do but is not done yet. *)
+    (let$ [ set_of_closures;
+            usage;
+            relation;
+            _v;
+            coderel;
+            call_witness;
+            code_id_of_witness;
+            codeid ] =
+       [ "set_of_closures";
+         "usage";
+         "relation";
+         "_v";
+         "coderel";
+         "call_witness";
+         "code_id_of_witness";
+         "codeid" ]
+     in
+     [ usages_rel set_of_closures usage;
+       rev_accessor_rel usage relation _v;
+       filter_field
+         (fun (f : Field.t) ->
+           match[@ocaml.warning "-4"] f with
+           | Apply (Indirect_code_pointer, _) -> true
+           | _ -> false)
+         relation;
+       constructor_rel set_of_closures coderel call_witness;
+       filter_field is_code_field coderel;
+       constructor_rel call_witness code_id_of_witness codeid ]
+     ==> cannot_change_calling_convention codeid);
+    (let$ [ set_of_closures;
+            usage;
+            relation;
+            _v;
+            coderel;
+            call_witness;
+            code_id_of_witness;
+            codeid ] =
+       [ "set_of_closures";
+         "usage";
+         "relation";
+         "_v";
+         "coderel";
+         "call_witness";
+         "code_id_of_witness";
+         "codeid" ]
+     in
+     [ usages_rel set_of_closures usage;
+       rev_coaccessor_rel usage relation _v;
+       filter
+         (fun [f] ->
+           match[@ocaml.warning "-4"] CoField.decode f with
+           | Param (Indirect_code_pointer, _) -> true
+           | _ -> false)
+         [relation];
+       constructor_rel set_of_closures coderel call_witness;
+       filter_field is_code_field coderel;
+       constructor_rel call_witness code_id_of_witness codeid ]
+     ==> cannot_change_calling_convention codeid);
     (* (let$ [set_of_closures; coderel; indirect_call_witness; indirect1;
        indirect2] = [ "set_of_closures"; "coderel"; "indirect_call_witness";
        "indirect1"; "indirect2" ] in [ rev_accessor_rel set_of_closures coderel
@@ -1269,11 +1335,10 @@ let fixpoint (graph : Global_flow_graph.graph) =
       (Code_id_or_name.Map.print pp_changed_representation)
       !changed_representation;
   { db;
-    unboxed_fields = !unboxed;
-    changed_representation =
-      !changed_representation
-      (* unboxed_fields = Code_id_or_name.Map.empty ; changed_representation =
-         Code_id_or_name.Map.empty *)
+    (* unboxed_fields = !unboxed; changed_representation =
+       !changed_representation *)
+    unboxed_fields = Code_id_or_name.Map.empty;
+    changed_representation = Code_id_or_name.Map.empty
   }
 
 let print_color { db; unboxed_fields; changed_representation } v =

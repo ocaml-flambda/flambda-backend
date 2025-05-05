@@ -277,7 +277,7 @@ let rewrite_set_of_closures env kinds ~(bound : Name.t list)
               let code_metadata = env.get_code_metadata code_id in
               Deleted
                 { function_slot_size =
-                    3 (* Code_metadata.function_slot_size code_metadata *);
+                    Code_metadata.function_slot_size code_metadata;
                   dbg = Code_metadata.dbg code_metadata
                 }
         in
@@ -711,8 +711,10 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (env : env)
               else Call_kind.indirect_function_call_known_arity alloc_mode
             in
             called c alloc_mode call_kind false)
-        | Function { function_call = Indirect_unknown_arity; alloc_mode } ->
-          called (Option.get (Apply.callee apply)) alloc_mode call_kind true
+        | Function { function_call = Indirect_unknown_arity; alloc_mode = _ } ->
+          (* called (Option.get (Apply.callee apply)) alloc_mode call_kind
+             true *)
+          None, call_kind, false
         | Function { function_call = Indirect_known_arity; alloc_mode } ->
           called (Option.get (Apply.callee apply)) alloc_mode call_kind false
         | _ -> None, call_kind, false
@@ -721,9 +723,8 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (env : env)
         match code_id_actually_called with
         | None -> Not_changing_calling_convention
         | Some code_id -> (
-          Format.eprintf "CODE ID %a: %a@."
-            (Format.pp_print_option Simple.print)
-            (Apply.callee apply) Code_id.print code_id;
+          (* Format.eprintf "CODE ID %a: %a@." (Format.pp_print_option
+             Simple.print) (Apply.callee apply) Code_id.print code_id; *)
           match Code_id.Map.find_opt code_id env.code_deps with
           | None -> Not_changing_calling_convention
           | Some _ ->
@@ -915,17 +916,31 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (env : env)
           | None -> assert false
           | Some p -> p
         in
-        let args =
-          get_args_with_kinds kinds env params_decisions (Apply.args apply)
+        let params_decisions =
+          Flambda_arity.group_by_parameter (Apply.args_arity apply)
+            params_decisions
         in
-        let args = args @ args_from_unboxed_callee in
+        let args =
+          Flambda_arity.group_by_parameter (Apply.args_arity apply)
+            (Apply.args apply)
+        in
+        let args =
+          List.map2 (get_args_with_kinds kinds env) params_decisions args
+        in
+        let args =
+          match args with
+          | [] -> assert false
+          | first :: rest -> (args_from_unboxed_callee @ first) :: rest
+        in
         let args_arity =
-          let components =
-            List.map
-              (fun (_, k) -> Flambda_arity.Component_for_creation.Singleton k)
-              args
+          let components_for args =
+            Flambda_arity.Component_for_creation.Unboxed_product
+              (List.map
+                 (fun (_, k) ->
+                   Flambda_arity.Component_for_creation.Singleton k)
+                 args)
           in
-          Flambda_arity.create [Unboxed_product components]
+          Flambda_arity.create (List.map components_for args)
         in
         let return_decisions =
           Code_id.Map.find code_id env.function_return_decision
@@ -933,7 +948,7 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (env : env)
         let return_arity =
           Flambda_arity.unarize_t (get_arity return_decisions)
         in
-        let args = List.map fst args in
+        let args = List.map fst (List.flatten args) in
         let make_apply ~continuation =
           Apply.create ~callee ~continuation exn_continuation ~args ~args_arity
             ~return_arity ~call_kind:new_call_kind (Apply.dbg apply)
@@ -1027,46 +1042,57 @@ and rebuild_function_params_and_body (kinds : Flambda_kind.t Name.Map.t)
         params_decision
         (Bound_parameters.to_list params)
     in
-    let params = Bound_parameters.create (get_parameters params_decision) in
+    let params_decision =
+      Flambda_arity.group_by_parameter
+        (Code_metadata.params_arity code_metadata)
+        params_decision
+    in
+    let params = List.map (fun p -> get_parameters p) params_decision in
     let params_from_closure, code_metadata =
       match
         (* TODO move that in the decisions There should be a single record field
            with all the decisions for return params and closure *)
         Dep_solver.get_unboxed_fields env.uses (Code_id_or_name.var my_closure)
       with
-      | None -> Bound_parameters.empty, code_metadata
+      | None -> [], code_metadata
       | Some fields ->
         ( fold_unboxed_with_kind
             (fun kind v acc ->
               Bound_parameter.create v (Flambda_kind.With_subkind.anything kind)
               :: acc)
-            fields []
-          |> Bound_parameters.create,
+            fields [],
           Code_metadata.with_is_my_closure_used false code_metadata )
     in
-    let params = Bound_parameters.append params params_from_closure in
+    let params =
+      match params with
+      | [] -> assert false
+      | first :: rest -> (params_from_closure @ first) :: rest
+    in
     let params_arity =
-      let components =
-        List.map
-          (fun bp ->
-            Flambda_arity.Component_for_creation.Singleton
-              (Bound_parameter.kind bp))
-          (Bound_parameters.to_list params)
+      let components_for params =
+        Flambda_arity.Component_for_creation.Unboxed_product
+          (List.map
+             (fun bp ->
+               Flambda_arity.Component_for_creation.Singleton
+                 (Bound_parameter.kind bp))
+             params)
       in
-      Flambda_arity.create [Unboxed_product components]
+      Flambda_arity.create (List.map components_for params)
     in
     let code_metadata =
       Code_metadata.with_is_tupled false
         (Code_metadata.with_params_arity params_arity code_metadata)
     in
+    (* XXX never called indirectly *)
     let body = rebuild_body () in
     (* Format.eprintf "REBUILD %a FREE %a@." Code_id.print code_id
        Name_occurrences.print body.free_names; *)
     (* assert (List.exists Fun.id (Continuation.Map.find return_continuation
        env.cont_params_to_keep)); *)
     ( Function_params_and_body.create ~return_continuation ~exn_continuation
-        params ~body:body.expr ~free_names_of_body:(Known body.free_names)
-        ~my_closure ~my_region ~my_ghost_region ~my_depth,
+        (Bound_parameters.create (List.flatten params))
+        ~body:body.expr ~free_names_of_body:(Known body.free_names) ~my_closure
+        ~my_region ~my_ghost_region ~my_depth,
       code_metadata )
 
 and bind_fields fields arg_fields hole =

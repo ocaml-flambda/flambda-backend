@@ -725,12 +725,12 @@ end = struct
     if Compilation_unit.is_current
          (Function_slot.get_compilation_unit function_slot)
     then (
-      let size = ignore (get_code_metadata, code_id); 3 (*
+      let size =
         match code_id with
         | Deleted { function_slot_size; _ } -> function_slot_size
         | Code_id code_id ->
           let code_metadata = get_code_metadata code_id in
-          Code_metadata.function_slot_size code_metadata *)
+          Code_metadata.function_slot_size code_metadata
       in
       let s = create_slot ~size (Function_slot function_slot) Unassigned in
       add_function_slot state function_slot s;
