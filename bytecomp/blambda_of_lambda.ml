@@ -46,7 +46,7 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
     { params = List.map (fun (p : Lambda.lparam) -> p.name) params;
       body = comp_expr body ~tailcall:Blambda.Tailcall;
       loc;
-      free_variables_of_body = Lambda.free_variables (Lfunction lfunction)
+      free_variables = Lambda.free_variables (Lfunction lfunction)
     }
   in
   let comp_rec_binding ({ id; def } : Lambda.rec_binding) : Blambda.rec_binding
@@ -106,20 +106,6 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
   | Lsequence (exp1, exp2) -> Sequence (comp_arg exp1, comp_expr exp2 ~tailcall)
   | Lwhile { wh_cond; wh_body } ->
     While { cond = comp_arg wh_cond; body = comp_arg wh_body }
-    (* let loop_start = { static_label = L.next_raise_count () } in
-     * let goto_start = Blambda.Staticraise (loop_start, []) in
-     * Staticcatch
-     *   { id = loop_start;
-     *     recursive = true;
-     *     args = [];
-     *     body = goto_start;
-     *     handler =
-     *       Ifthenelse
-     *         { cond = comp_arg wh_cond;
-     *           ifnot = Const (Const_base (Const_int 0));
-     *           ifso = Sequence (comp_arg wh_body, goto_start)
-     *         }
-     *   } *)
   | Lfor { for_id; for_from; for_to; for_dir; for_body } ->
     For
       { id = for_id;
@@ -128,36 +114,6 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
         dir = for_dir;
         body = comp_arg for_body
       }
-    (* let (start_cond : Lambda.integer_comparison), increment =
-     *   match for_dir with Upto -> L.Clt, 1 | Downto -> L.Cgt, -1
-     * in
-     * let bind name arg f =
-     *   match comp_arg arg with
-     *   | Const _ as const -> f const
-     *   | arg ->
-     *     let id = Ident.create_local name in
-     *     Let { id; arg; body = f (Var id) }
-     * in
-     * Let
-     *   { id = for_id;
-     *     arg = comp_arg for_from;
-     *     body =
-     *       bind "for_to" for_to (fun for_to ->
-     *           Ifthenelse
-     *             { cond = Prim (Intcomp start_cond, [Var for_id; for_to]);
-     *               ifnot = Const (Const_base (Const_int 0));
-     *               ifso =
-     *                 While
-     *                   { cond =
-     *                       Sequence
-     *                         ( comp_arg for_body,
-     *                           Prim (Intcomp Cne, [Var for_id; for_to]) );
-     *                     body =
-     *                       Assign
-     *                         (for_id, Prim (Offsetint increment, [Var for_id]))
-     *                   }
-     *             })
-     *   } *)
   | Lswitch
       ( arg,
         { sw_numconsts; sw_consts; sw_numblocks; sw_blocks; sw_failaction },

@@ -220,7 +220,7 @@ let rec blambda ppf = function
 and rec_binding ppf { id; def } =
   fprintf ppf "@[<2>%a@ =@ %a@]" Ident.print id bfunction def
 
-and bfunction ppf { params; body; loc = _; free_variables_of_body = _ } =
+and bfunction ppf { params; body; loc = _; free_variables = _ } =
   fprintf ppf "@[<2>(fun@ @[%a@]@ ->@ %a)@]"
     (pp_print_list ~pp_sep:pp_print_space Ident.print)
     params blambda body

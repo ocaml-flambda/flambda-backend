@@ -457,11 +457,11 @@ and comp_expr stack_info env exp sz cont =
       Kpush_retaddr lbl
       :: comp_args stack_info env args' (sz + 3)
            (getmethod :: Kapply nargs :: cont1)
-  | Function { params; body; loc; free_variables_of_body } ->
+  | Function { params; body; loc; free_variables } ->
     (* assume kind = Curried *)
     let cont = add_pseudo_event loc !compunit_name cont in
     let lbl = new_label () in
-    let fv = Ident.Set.elements free_variables_of_body in
+    let fv = Ident.Set.elements free_variables in
     let entries = closure_entries Single_non_recursive fv in
     let to_compile = { params; body; label = lbl; entries; rec_pos = 0 } in
     Stack.push to_compile functions_to_compile;

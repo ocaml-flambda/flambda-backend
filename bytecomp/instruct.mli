@@ -151,7 +151,6 @@ type instruction =
   | Koffsetint of int
   | Koffsetref of int
   | Kisint
-  | Kisout
   | Kgetmethod
   | Kgetpubmet of int
   | Kgetdynmet

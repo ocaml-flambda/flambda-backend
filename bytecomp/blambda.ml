@@ -112,7 +112,7 @@ and bfunction =
   { params : Ident.t list;
     body : blambda;
     loc : Debuginfo.Scoped_location.t;
-    free_variables_of_body : Ident.Set.t
+    free_variables : Ident.Set.t
         (** if we ever intended to do optimizations/transformations on blambda, this would
             be better as a function than a field *)
   }
@@ -168,15 +168,12 @@ and blambda =
         args : blambda list;
         tailcall : tailcall
       }
-  | Event of blambda * Lambda.lambda_event
-  | Pseudo_event of blambda * Debuginfo.Scoped_location.t
   | Context_switch of context_switch * tailcall * blambda list
   | Ifthenelse of
       { cond : blambda;
         ifso : blambda;
         ifnot : blambda
       }
-  (* CR jvanburen: we could somewhat easily get rid of for loops and/or while loops *)
   | While of
       { cond : blambda;
         body : blambda
@@ -190,3 +187,8 @@ and blambda =
       }
   | Sequand of blambda * blambda
   | Sequor of blambda * blambda
+  | Event of blambda * Lambda.lambda_event
+  | Pseudo_event of blambda * Debuginfo.Scoped_location.t
+      (** Having [Event] and [Pseudo_event] make effective pattern-matching on blambda
+          hard. However, blambda is only meant to go immediately before the code
+          generator, so it shouldn't really be matched on anyway. *)
