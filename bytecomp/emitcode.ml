@@ -330,7 +330,6 @@ let emit_instr = function
   | Koffsetint n -> out opOFFSETINT; out_int n
   | Koffsetref n -> out opOFFSETREF; out_int n
   | Kisint -> out opISINT
-  | Kisout -> out opULTINT
   | Kgetmethod -> out opGETMETHOD
   | Kgetpubmet tag -> out opGETPUBMET; out_int tag; out_int 0
   | Kgetdynmet -> out opGETDYNMET
@@ -365,13 +364,13 @@ let rec emit = function
         out_label lbl ;
         emit rem
 (* same for range tests *)
-  | Kpush::Kconst k::Kisout::Kbranchif lbl::rem
+  | Kpush::Kconst k::Kintcomp Ultint::Kbranchif lbl::rem
       when is_immed_const k ->
         out opBULTINT ;
         out_const k ;
         out_label lbl ;
         emit rem
-  | Kpush::Kconst k::Kisout::Kbranchifnot lbl::rem
+  | Kpush::Kconst k::Kintcomp Ultint::Kbranchifnot lbl::rem
       when is_immed_const k ->
         out opBUGEINT ;
         out_const k ;

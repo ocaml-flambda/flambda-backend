@@ -100,7 +100,6 @@ let instruction ppf = function
   | Koffsetint n -> fprintf ppf "\toffsetint %i" n
   | Koffsetref n -> fprintf ppf "\toffsetref %i" n
   | Kisint -> fprintf ppf "\tisint"
-  | Kisout -> fprintf ppf "\tisout"
   | Kgetmethod -> fprintf ppf "\tgetmethod"
   | Kgetpubmet n -> fprintf ppf "\tgetpubmet %i" n
   | Kgetdynmet -> fprintf ppf "\tgetdynmet"
