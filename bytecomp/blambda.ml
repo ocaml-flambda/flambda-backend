@@ -12,10 +12,24 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(* [structured_constant] needs to match the cmo file format *)
+(** [blambda] is designed to be a lambda-like expression language where every primitive is
+    also a bytecode primitive. This allows us to separate the bytecode backend into two
+    stages:
+
+    First, Lambda -> Blambda: Preserves the expression structure, but compiles all complex
+    primitives down to ones with corresponding bytecode instructions. This will become
+    more important as we continue to add more primitives to Lambda which have no
+    corresponding bytecode instruction.
+
+    Second, Blambda -> Instructions: Only has to deal with linearizing the Lambda-like
+    control flow. The comparatively fragile stack size maintenance and stack index
+    computations can remain in their own module which doesn't need to be modified every
+    time we change Lambda.
+*)
 
 type constant = Lambda.constant
 
+(** [structured_constant] needs to match the cmo file format *)
 type structured_constant = Lambda.structured_constant =
   | Const_base of constant
   | Const_block of int * structured_constant list
