@@ -17,10 +17,6 @@ open Format
 
 let structured_constant = Printlambda.structured_constant
 
-let tailcall ppf = function
-  | Tailcall -> pp_print_string ppf "tailcall"
-  | Nontail -> pp_print_string ppf "nontail"
-
 let comparison ppf = function
   | Eq -> pp_print_string ppf "eq"
   | Neq -> pp_print_string ppf "neq"
@@ -85,8 +81,10 @@ let location ppf (loc : Debuginfo.Scoped_location.t) =
 let rec blambda ppf = function
   | Var id -> Ident.print ppf id
   | Const cst -> structured_constant ppf cst
-  | Apply { func; args; tailcall = t } ->
-    fprintf ppf "@[<2>(apply %a@ %a %a)@]" tailcall t blambda func
+  | Apply { func; args; nontail } ->
+    fprintf ppf "@[<2>(apply%s@ %a %a)@]"
+      (if nontail then " nontail" else "")
+      blambda func
       (pp_print_list ~pp_sep:pp_print_space blambda)
       args
   | Assign (id, expr) ->
@@ -182,9 +180,11 @@ let rec blambda ppf = function
       for_from
       (match for_dir with Upto -> "to" | Downto -> "downto")
       blambda for_to blambda for_body
-  | Send { method_kind; met; obj; args; tailcall = t } ->
+  | Send { method_kind; met; obj; args; nontail } ->
     let name = match method_kind with Self -> "sendself" | Public -> "send" in
-    fprintf ppf "@[<2>(%s%a@ met=%a@ %a)@]" name tailcall t blambda met
+    fprintf ppf "@[<2>(%s%s@ met=%a@ %a)@]" name
+      (if nontail then " nontail" else "")
+      blambda met
       (pp_print_list ~pp_sep:pp_print_space blambda)
       (obj :: args)
   | Event (expr, ev) ->
@@ -203,7 +203,7 @@ let rec blambda ppf = function
     if not !Clflags.locations
     then blambda ppf expr
     else fprintf ppf "@[<2>(pseudo %a@ %a)@]" location loc blambda expr
-  | Context_switch (op, tc, args) ->
+  | Context_switch (op, args) ->
     let op =
       match op with
       | Perform -> "perform"
@@ -211,7 +211,7 @@ let rec blambda ppf = function
       | Runstack -> "runstack"
       | Resume -> "resume"
     in
-    fprintf ppf "@[<2>(%s %a@ %a)@]" op tailcall tc
+    fprintf ppf "@[<2>(%s@ %a)@]" op
       (pp_print_list ~pp_sep:pp_print_space blambda)
       args
   | Sequand (x, y) -> fprintf ppf "@[<2>(&&@ %a@ %a)@]" blambda x blambda y

@@ -320,7 +320,11 @@ let comp_primitive stack_info p sz args =
    cont = list of instructions to execute afterwards
    Result = list of instructions that evaluate exp, then perform cont. *)
 
-let is_tailcall = function Tailcall -> true | Nontail -> false
+let rec is_tailcall = function
+  | Kreturn _ :: _ -> true
+  | Klabel _ :: c -> is_tailcall c
+  | Kpop _ :: c -> is_tailcall c
+  | _ -> false
 
 (* CR dkalinichenko: this error happens because we run tests
    under [flambda_backend/tests] with the boot compiler instead of the
@@ -378,9 +382,9 @@ and comp_expr stack_info env exp sz cont =
     if is_boot_compiler ()
     then translate_float32s_or_nulls stack_info env cst sz cont
     else add_const cst cont
-  | Apply { func; args; tailcall } ->
+  | Apply { func; args; nontail } ->
     let nargs = List.length args in
-    if is_tailcall tailcall
+    if (not nontail) && is_tailcall cont
     then
       comp_args stack_info env args sz
         (Kpush
@@ -399,7 +403,7 @@ and comp_expr stack_info env exp sz cont =
            :: comp_expr stack_info env func
                 (sz + 3 + nargs)
                 (Kapply nargs :: cont1))
-  | Send { method_kind; met; obj; args; tailcall } ->
+  | Send { method_kind; met; obj; args; nontail } ->
     let obj_and_args = obj :: args in
     let nargs = List.length obj_and_args in
     let getmethod, args' =
@@ -410,7 +414,7 @@ and comp_expr stack_info env exp sz cont =
         | Const (Const_base (Const_int n)) -> Kgetpubmet n, obj_and_args
         | _ -> Kgetdynmet, met :: obj_and_args)
     in
-    if is_tailcall tailcall
+    if is_tailcall cont && not nontail
     then
       comp_args stack_info env args' sz
         (getmethod :: Kappterm (nargs, sz + nargs) :: discard_dead_code cont)
@@ -509,10 +513,10 @@ and comp_expr stack_info env exp sz cont =
     *)
     comp_args stack_info env args sz
       (Kmake_faux_mixedblock (total_len, tag) :: cont)
-  | Context_switch (Resume, tailcall, args) ->
+  | Context_switch (Resume, args) ->
     let nargs = List.length args - 1 in
     assert (nargs = 3);
-    if is_tailcall tailcall
+    if is_tailcall cont
     then (
       (* Resumeterm itself only pushes 2 words, but perform adds another *)
       check_stack stack_info 3;
@@ -522,10 +526,10 @@ and comp_expr stack_info env exp sz cont =
       (* Resume itself only pushes 2 words, but perform adds another *)
       check_stack stack_info (sz + nargs + 3);
       comp_args stack_info env args sz (Kresume :: cont))
-  | Context_switch (Runstack, tailcall, args) ->
+  | Context_switch (Runstack, args) ->
     let nargs = List.length args in
     assert (nargs = 3);
-    if is_tailcall tailcall
+    if is_tailcall cont
     then (
       (* Resumeterm itself only pushes 2 words, but perform adds another *)
       check_stack stack_info 3;
@@ -537,16 +541,16 @@ and comp_expr stack_info env exp sz cont =
       check_stack stack_info (sz + nargs + 3);
       Kconst Lambda.const_unit :: Kpush
       :: comp_args stack_info env args (sz + 1) (Kresume :: cont))
-  | Context_switch (Reperform, tailcall, args) ->
+  | Context_switch (Reperform, args) ->
     let nargs = List.length args - 1 in
     assert (nargs = 2);
     check_stack stack_info (sz + 3);
-    if is_tailcall tailcall
+    if is_tailcall cont
     then
       comp_args stack_info env args sz
         (Kreperformterm (sz + nargs) :: discard_dead_code cont)
     else fatal_error "Reperform used in non-tail position"
-  | Context_switch (Perform, (Tailcall | Nontail), args) ->
+  | Context_switch (Perform, args) ->
     let nargs = List.length args - 1 in
     comp_args stack_info env args sz
       (check_stack stack_info (sz + nargs - 1 + 4);
@@ -720,10 +724,11 @@ and comp_expr stack_info env exp sz cont =
     | Lev_after ty ->
       let preserve_tailcall =
         match lam with
-        | Apply { tailcall; _ } | Send { tailcall; _ } -> is_tailcall tailcall
-        | _ -> false
+        | Apply { nontail; _ } | Send { nontail; _ } -> not nontail
+        | Prim _ -> false
+        | _ -> true
       in
-      if preserve_tailcall
+      if preserve_tailcall && is_tailcall cont
       then (* don't destroy tail call opt *)
         comp_expr stack_info env lam sz cont
       else

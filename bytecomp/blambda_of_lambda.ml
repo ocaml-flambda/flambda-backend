@@ -38,13 +38,12 @@ let comp_integer_comparison : Lambda.integer_comparison -> comparison = function
   | Cle -> Leint
   | Cge -> Geint
 
-let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
-    Blambda.blambda =
+let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
   let comp_fun ({ params; body; loc = _ } as lfunction : Lambda.lfunction) :
       Blambda.bfunction =
     (* assume kind = Curried *)
     { params = List.map (fun (p : Lambda.lparam) -> p.name) params;
-      body = comp_expr body ~tailcall:Blambda.Tailcall;
+      body = comp_expr body;
       free_variables = Lambda.free_variables (Lfunction lfunction)
     }
   in
@@ -52,7 +51,7 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
       =
     { id; def = comp_fun def }
   in
-  let[@inline] comp_arg arg = comp_expr arg ~tailcall:Blambda.Nontail in
+  let[@inline] comp_arg arg = comp_expr arg in
   match (exp : Lambda.lambda) with
   | Lvar id | Lmutvar id -> Var id
   | Lconst cst -> Const cst
@@ -60,7 +59,7 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
     Apply
       { func = comp_arg ap_func;
         args = List.map comp_arg ap_args;
-        tailcall = (if is_nontail ap_region_close then Nontail else tailcall)
+        nontail = is_nontail ap_region_close
       }
   | Lsend (kind, met, obj, args, rc, _, _, _) ->
     Send
@@ -72,15 +71,15 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
         met = comp_arg met;
         obj = comp_arg obj;
         args = List.map comp_arg args;
-        tailcall = (if is_nontail rc then Nontail else tailcall)
+        nontail = is_nontail rc
       }
   | Lfunction f -> Pseudo_event (Function (comp_fun f), f.loc)
   | Llet (_, _k, id, arg, body) | Lmutlet (_k, id, arg, body) ->
-    Let { id; arg = comp_arg arg; body = comp_expr body ~tailcall }
+    Let { id; arg = comp_arg arg; body = comp_expr body }
   | Lletrec (decl, body) ->
     Letrec
       { decls = List.map comp_rec_binding decl;
-        body = comp_expr body ~tailcall;
+        body = comp_expr body;
         free_variables_of_decls =
           Lambda.free_variables (Lletrec (decl, Lambda.lambda_unit))
       }
@@ -89,20 +88,16 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
       { body = comp_arg body;
         id = static_label;
         args = List.map fst args;
-        handler = comp_expr handler ~tailcall
+        handler = comp_expr handler
       }
   | Lstaticraise (static_label, args) ->
     Staticraise (static_label, List.map comp_arg args)
   | Ltrywith (body, param, handler, _kind) ->
-    Trywith
-      { body = comp_arg body; param; handler = comp_expr handler ~tailcall }
+    Trywith { body = comp_arg body; param; handler = comp_expr handler }
   | Lifthenelse (cond, ifso, ifnot, _kind) ->
     Ifthenelse
-      { cond = comp_arg cond;
-        ifso = comp_expr ifso ~tailcall;
-        ifnot = comp_expr ifnot ~tailcall
-      }
-  | Lsequence (exp1, exp2) -> Sequence (comp_arg exp1, comp_expr exp2 ~tailcall)
+      { cond = comp_arg cond; ifso = comp_expr ifso; ifnot = comp_expr ifnot }
+  | Lsequence (exp1, exp2) -> Sequence (comp_arg exp1, comp_expr exp2)
   | Lwhile { wh_cond; wh_body } ->
     While { cond = comp_arg wh_cond; body = comp_arg wh_body }
   | Lfor { for_id; for_from; for_to; for_dir; for_body } ->
@@ -142,22 +137,19 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
     let arg = comp_arg arg in
     let const_cases = compile_cases sw_consts ~size:sw_numconsts in
     let block_cases = compile_cases sw_blocks ~size:sw_numblocks in
-    let cases = Array.map (comp_expr ~tailcall) (store.act_get ()) in
+    let cases = Array.map comp_expr (store.act_get ()) in
     Switch { arg; const_cases; block_cases; cases }
   | Lstringswitch (arg, sw, d, loc, kind) ->
-    comp_expr (Matching.expand_stringswitch loc kind arg sw d) ~tailcall
+    comp_expr (Matching.expand_stringswitch loc kind arg sw d)
   | Lassign (id, expr) -> Assign (id, comp_arg expr)
-  | Levent (lam, lev) -> Event (comp_expr lam ~tailcall, lev)
-  | Lifused (_, exp) | Lregion (exp, _) | Lexclave exp ->
-    comp_expr exp ~tailcall
+  | Levent (lam, lev) -> Event (comp_expr lam, lev)
+  | Lifused (_, exp) | Lregion (exp, _) | Lexclave exp -> comp_expr exp
   | Lprim
       ( Pduparray (kind, mutability),
         [Lprim (Pmakearray (kind', _, m), args, _)],
         loc ) ->
     assert (kind = kind');
-    comp_expr
-      (Lambda.Lprim (Pmakearray (kind, mutability, m), args, loc))
-      ~tailcall
+    comp_expr (Lambda.Lprim (Pmakearray (kind, mutability, m), args, loc))
   | Lprim (primitive, args, loc) -> (
     let simd_is_not_supported () =
       Misc.fatal_error "SIMD is not supported in bytecode mode."
@@ -173,7 +165,7 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
       | _ -> wrong_arity ~expected:arity
     in
     let context_switch c ~arity =
-      Blambda.Context_switch (c, tailcall, check_arity ~arity)
+      Blambda.Context_switch (c, check_arity ~arity)
     in
     let pseudo_event t = Blambda.Pseudo_event (t, loc) in
     let variadic primitive = Blambda.Prim (primitive, List.map comp_arg args) in
@@ -211,7 +203,7 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
       match args with
       | [arg] ->
         (* in bytecode we only deal with boxed+tagged floats and ints *)
-        comp_expr arg ~tailcall
+        comp_expr arg
       | [] | _ :: _ :: _ -> wrong_arity ~expected:1)
     | Pignore -> (
       match args with
@@ -222,11 +214,11 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
     | Pnot -> unary Boolnot
     | Psequand -> (
       match args with
-      | [x; y] -> Sequand (comp_arg x, comp_expr y ~tailcall)
+      | [x; y] -> Sequand (comp_arg x, comp_expr y)
       | _ -> wrong_arity ~expected:2)
     | Psequor -> (
       match args with
-      | [x; y] -> Sequor (comp_arg x, comp_expr y ~tailcall)
+      | [x; y] -> Sequor (comp_arg x, comp_expr y)
       | _ -> wrong_arity ~expected:2)
     | Praise k -> unary (Raise k)
     | Paddint -> (
@@ -287,10 +279,7 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
             Prim (Ccall "caml_make_array", [block])))
     | Presume -> context_switch Resume ~arity:4
     | Prunstack -> context_switch Runstack ~arity:3
-    | Preperform -> (
-      match tailcall with
-      | Nontail -> Misc.fatal_error "Reperform used in non-tail position"
-      | Tailcall -> context_switch Reperform ~arity:3)
+    | Preperform -> context_switch Reperform ~arity:3
     | Pmakearray_dynamic (kind, locality, Uninitialized) -> (
       (* Use a dummy initializer to implement the "uninitialized" primitive *)
       let init : Lambda.lambda =
@@ -340,15 +329,12 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
                [len; init],
                loc )
             : Lambda.lambda)
-          ~tailcall
       | _ -> wrong_arity ~expected:1)
     | Pduparray (kind, mutability) -> (
       match args with
       | [Lprim (Pmakearray (kind', _, m), args, _)] ->
         assert (kind = kind');
-        comp_expr
-          (Lambda.Lprim (Pmakearray (kind, mutability, m), args, loc))
-          ~tailcall
+        comp_expr (Lambda.Lprim (Pmakearray (kind, mutability, m), args, loc))
       | _ -> unary (Ccall "caml_obj_dup"))
     | Pfloatcomp (Boxed_float64, cmp)
     | Punboxed_float_comp (Unboxed_float64, cmp) -> (
@@ -404,7 +390,7 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
         let element_size : Lambda.lambda =
           Lprim (Plsrint, [word_size; Lconst (Const_base (Const_int 3))], loc)
         in
-        comp_expr (Lambda.Lsequence (arg, element_size)) ~tailcall
+        comp_expr (Lambda.Lsequence (arg, element_size))
       | [] | _ :: _ :: _ -> wrong_arity ~expected:1)
     | Pfield_computed _sem -> binary Getvectitem
     | Psetfield (n, _ptr, _init) -> binary (Setfield n)
@@ -593,7 +579,7 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
       | Boxed_int64, Boxed_nativeint -> unary (Ccall "caml_int64_to_nativeint")
       | (Boxed_int32 | Boxed_int64 | Boxed_nativeint), _ -> (
         match args with
-        | [arg] -> comp_expr arg ~tailcall
+        | [arg] -> comp_expr arg
         | [] | _ :: _ :: _ -> wrong_arity ~expected:1))
     | Pnegbint (bi, _) -> unary (comp_bint_primitive bi "neg")
     | Paddbint (bi, _) -> binary (comp_bint_primitive bi "add")
@@ -727,4 +713,4 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
     | Pmakelazyblock Forward_tag ->
       pseudo_event (variadic (Makeblock { tag = Obj.forward_tag })))
 
-let blambda_of_lambda x = comp_expr x ~tailcall:Nontail
+let blambda_of_lambda x = comp_expr x

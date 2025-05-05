@@ -53,10 +53,6 @@ type static_label = Lambda.static_label
 
 type event = Lambda.lambda_event
 
-type tailcall =
-  | Tailcall
-  | Nontail
-
 type context_switch =
   | Perform
   | Reperform
@@ -136,7 +132,7 @@ and blambda =
   | Apply of
       { func : blambda;
         args : blambda list;
-        tailcall : tailcall
+        nontail : bool
       }
   | Function of bfunction
   | Let of
@@ -179,9 +175,9 @@ and blambda =
         met : blambda;
         obj : blambda;
         args : blambda list;
-        tailcall : tailcall
+        nontail : bool
       }
-  | Context_switch of context_switch * tailcall * blambda list
+  | Context_switch of context_switch * blambda list
   | Ifthenelse of
       { cond : blambda;
         ifso : blambda;
