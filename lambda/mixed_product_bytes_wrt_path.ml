@@ -45,8 +45,7 @@ let add { here; left; right } { here = here'; left = left'; right = right' } =
 let rec count (el : _ Lambda.mixed_block_element) path =
   match path with
   | [] -> { zero with here = MPB.count el }
-  | Lambda.In_singleton :: path_rest -> count el path_rest
-  | Lambda.In_product i :: path_rest -> (
+  | i :: path_rest -> (
     match el with
     | Product els ->
       let _, totals =

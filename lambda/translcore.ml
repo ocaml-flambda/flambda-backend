@@ -2234,15 +2234,11 @@ and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
    implementation of deepening, see CR rtjoa add vis
 *)
 and transl_idx ~scopes loc env ba uas =
-  let pos_of_lbl lbl =
-    if Int.equal (Array.length lbl.lbl_all) 1 then
-      None
-    else
-      Some (In_product lbl.lbl_pos)
+  let ua_to_pos (Uaccess_unboxed_field (_, lbl)) =
+    (* erase singleton unboxed products before lambda *)
+    if Array.length lbl.lbl_all == 1 then None else Some lbl.lbl_pos
   in
-  let uas_path =
-    List.filter_map (function Uaccess_unboxed_field (_, lbl) -> pos_of_lbl lbl) uas
-  in
+  let uas_path = List.filter_map ua_to_pos uas in
   begin match ba with
   | Baccess_block (_, idx) ->
     let idx = transl_exp ~scopes Jkind.Sort.Const.for_idx idx in
@@ -2274,7 +2270,7 @@ and transl_idx ~scopes loc env ba uas =
               Misc.fatal_error "Texp_idx: non-singleton unboxed record field \
                 in non-mixed boxed record")
         uas;
-      Lprim (Pidx_field (In_product lbl.lbl_pos), [], (of_location ~scopes loc))
+      Lprim (Pidx_field lbl.lbl_pos, [], (of_location ~scopes loc))
     | Record_inlined _ | Record_unboxed ->
       Misc.fatal_error "Texp_idx: unexpected unboxed/inlined record"
     | Record_mixed shape ->
@@ -2291,7 +2287,7 @@ and transl_idx ~scopes loc env ba uas =
       in
       (* Check to make sure the gap never overflows.
          See Note [Representation of block indices]. *)
-      let path = In_product lbl.lbl_pos :: uas_path in
+      let path = lbl.lbl_pos :: uas_path in
       let cts = Mixed_product_bytes_wrt_path.count el path in
       if Option.is_none
           (Mixed_product_bytes_wrt_path.offset_and_gap cts) then

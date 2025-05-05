@@ -436,17 +436,6 @@ let peek_or_poke ppf (pp : peek_or_poke) =
   | Ppp_unboxed_int64 -> fprintf ppf "unboxed_int64"
   | Ppp_unboxed_nativeint -> fprintf ppf "unboxed_nativeint"
 
-let pp_print_pos ppf pos =
-  match pos with
-  | In_singleton ->
-    fprintf ppf "singleton"
-  | In_product i ->
-    fprintf ppf "%i" i
-
-let pp_print_pos_path ppf l =
-  pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_pos ppf
-    l
-
 let primitive ppf = function
   | Pbytes_to_string -> fprintf ppf "bytes_to_string"
   | Pbytes_of_string -> fprintf ppf "bytes_of_string"
@@ -591,20 +580,23 @@ let primitive ppf = function
   | Parray_element_size_in_bytes ak ->
       fprintf ppf "array_element_size_in_bytes (%s)" (array_kind ak)
   | Pidx_field pos ->
-      fprintf ppf "idx_field %a" pp_print_pos pos
+      fprintf ppf "idx_field %d" pos
   | Pidx_mixed_field (mbe, path) ->
       fprintf ppf "idx_mixed_field %a %a"
         (mixed_block_element (fun _ppf () -> ())) mbe
-        pp_print_pos_path path
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_int)
+          path
   | Pidx_array (ak, ik, mbe, path) ->
       fprintf ppf "idx_array %s %a %a %a"
         (array_kind ak) array_index_kind ik
         (mixed_block_element (fun _ppf () -> ())) mbe
-        pp_print_pos_path path
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_int)
+          path
   | Pidx_deepen (mbe, path) ->
       fprintf ppf "idx_deepen %a %a"
         (mixed_block_element (fun _ppf () -> ())) mbe
-        pp_print_pos_path path
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_int)
+          path
   | Pccall p -> fprintf ppf "%s" p.prim_name
   | Praise k -> fprintf ppf "%s" (Lambda.raise_kind k)
   | Psequand -> fprintf ppf "&&"

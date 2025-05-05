@@ -48,7 +48,7 @@ val add : t -> t -> t
 (** Given an outer mixed block element, and a path into that as a list of
     positions, count value/flat bytes to the left, at, and to the right that
     subelement *)
-val count : _ Lambda.mixed_block_element -> Lambda.pos list -> t
+val count : _ Lambda.mixed_block_element -> int list -> t
 
 val all : t -> Mixed_product_bytes.t
 

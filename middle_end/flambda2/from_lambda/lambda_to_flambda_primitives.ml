@@ -1505,11 +1505,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let num_bytes = array_element_size_in_bytes array_kind in
     [Simple (Simple.const_int (Targetint_31_63.of_int num_bytes))]
   | Pidx_field pos, [] ->
-    let idx_raw_value =
-      match pos with
-      | In_singleton -> 0L
-      | In_product pos -> Int64.mul (Int64.of_int pos) 8L
-    in
+    let idx_raw_value = Int64.mul (Int64.of_int pos) 8L in
     [Simple (Simple.const (Reg_width_const.naked_int64 idx_raw_value))]
   | Pidx_mixed_field (mbe, field_path), [] ->
     let open Mixed_product_bytes_wrt_path in
