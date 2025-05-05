@@ -1335,10 +1335,11 @@ let fixpoint (graph : Global_flow_graph.graph) =
       (Code_id_or_name.Map.print pp_changed_representation)
       !changed_representation;
   { db;
-    (* unboxed_fields = !unboxed; changed_representation =
-       !changed_representation *)
-    unboxed_fields = Code_id_or_name.Map.empty;
-    changed_representation = Code_id_or_name.Map.empty
+    unboxed_fields = !unboxed;
+    changed_representation =
+      !changed_representation
+      (* unboxed_fields = Code_id_or_name.Map.empty; changed_representation =
+         Code_id_or_name.Map.empty *)
   }
 
 let print_color { db; unboxed_fields; changed_representation } v =
