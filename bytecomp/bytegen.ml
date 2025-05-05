@@ -435,15 +435,16 @@ and comp_expr stack_info env exp sz cont =
            :: comp_expr stack_info env func
                 (sz + 3 + nargs)
                 (Kapply nargs :: cont1))
-  | Send { self; met; obj_and_args; tailcall } ->
+  | Send { method_kind; met; obj; args; tailcall } ->
+    let obj_and_args = obj :: args in
     let nargs = List.length obj_and_args in
     let getmethod, args' =
-      if self
-      then Kgetmethod, met :: obj_and_args
-      else
+      match method_kind with
+      | Self -> Kgetmethod, met :: obj_and_args
+      | Public -> (
         match met with
         | Const (Const_base (Const_int n)) -> Kgetpubmet n, obj_and_args
-        | _ -> Kgetdynmet, met :: obj_and_args
+        | _ -> Kgetdynmet, met :: obj_and_args)
     in
     if is_tailcall tailcall
     then
@@ -456,11 +457,11 @@ and comp_expr stack_info env exp sz cont =
       Kpush_retaddr lbl
       :: comp_args stack_info env args' (sz + 3)
            (getmethod :: Kapply nargs :: cont1)
-  | Function { params; body; loc; free_variables } ->
+  | Function { params; body; loc; free_variables_of_body } ->
     (* assume kind = Curried *)
     let cont = add_pseudo_event loc !compunit_name cont in
     let lbl = new_label () in
-    let fv = Ident.Set.elements free_variables in
+    let fv = Ident.Set.elements free_variables_of_body in
     let entries = closure_entries Single_non_recursive fv in
     let to_compile = { params; body; label = lbl; entries; rec_pos = 0 } in
     Stack.push to_compile functions_to_compile;
@@ -474,9 +475,9 @@ and comp_expr stack_info env exp sz cont =
       :: comp_expr stack_info
            (add_var id (sz + 1) env)
            body (sz + 1) (add_pop 1 cont))
-  | Letrec { decls = decl; body; free_variables } ->
+  | Letrec { decls = decl; body; free_variables_of_decls } ->
     let ndecl = List.length decl in
-    let fv = Ident.Set.elements free_variables in
+    let fv = Ident.Set.elements free_variables_of_decls in
     let rec_idents = List.map (fun { id } -> id) decl in
     let entries = closure_entries (Multiple_recursive rec_idents) fv in
     let rec comp_fun pos = function
@@ -691,7 +692,7 @@ and comp_expr stack_info env exp sz cont =
                 (Kacc 1 :: Kpush :: Koffsetint offset :: Kassign 2 :: Kacc 1
                :: Kintcomp Neq :: Kbranchif lbl_loop :: Klabel lbl_exit
                 :: add_const_unit (add_pop 2 cont))))
-  | Switch { arg; int_cases; tag_cases; cases = acts } ->
+  | Switch { arg; const_cases; block_cases; cases = acts } ->
     let branch, cont1 = make_branch cont in
     let c = ref (discard_dead_code cont1) in
     (* label actions *)
@@ -704,8 +705,8 @@ and comp_expr stack_info env exp sz cont =
       c := discard_dead_code c1
     done;
     (* Build label vectors *)
-    let lbl_blocks = Array.map (Array.get lbls) tag_cases in
-    let lbl_consts = Array.map (Array.get lbls) int_cases in
+    let lbl_blocks = Array.map (Array.get lbls) block_cases in
+    let lbl_consts = Array.map (Array.get lbls) const_cases in
     comp_expr stack_info env arg sz (Kswitch (lbl_consts, lbl_blocks) :: !c)
   | Assign (id, expr) -> (
     try
@@ -766,7 +767,7 @@ and comp_expr stack_info env exp sz cont =
         let info =
           match lam with
           | Apply { args; _ } -> Event_return (List.length args)
-          | Send { obj_and_args; _ } -> Event_return (List.length obj_and_args)
+          | Send { obj; args; _ } -> Event_return (List.length (obj :: args))
           | Prim (_, args) -> Event_return (List.length args)
           | _ -> Event_other
         in

@@ -43,11 +43,10 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
   let comp_fun ({ params; body; loc } as lfunction : Lambda.lfunction) :
       Blambda.bfunction =
     (* assume kind = Curried *)
-    let free_variables = Lambda.free_variables (Lfunction lfunction) in
     { params = List.map (fun (p : Lambda.lparam) -> p.name) params;
       body = comp_expr body ~tailcall:Blambda.Tailcall;
       loc;
-      free_variables
+      free_variables_of_body = Lambda.free_variables (Lfunction lfunction)
     }
   in
   let comp_rec_binding ({ id; def } : Lambda.rec_binding) : Blambda.rec_binding
@@ -65,11 +64,15 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
         tailcall = (if is_nontail ap_region_close then Nontail else tailcall)
       }
   | Lsend (kind, met, obj, args, rc, _, _, _) ->
-    assert (kind <> (Cached : Lambda.meth_kind));
     Send
-      { self = kind = (Self : Lambda.meth_kind);
+      { method_kind =
+          (match (kind : Lambda.meth_kind) with
+          | Self -> Self
+          | Public -> Public
+          | Cached -> assert false);
         met = comp_arg met;
-        obj_and_args = comp_arg obj :: List.map comp_arg args;
+        obj = comp_arg obj;
+        args = List.map comp_arg args;
         tailcall = (if is_nontail rc then Nontail else tailcall)
       }
   | Lfunction f -> Pseudo_event (Function (comp_fun f), f.loc)
@@ -79,7 +82,7 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
     Letrec
       { decls = List.map comp_rec_binding decl;
         body = comp_expr body ~tailcall;
-        free_variables =
+        free_variables_of_decls =
           Lambda.free_variables (Lletrec (decl, Lambda.lambda_unit))
       }
   | Lstaticcatch (body, (static_label, args), handler, _, _) ->
@@ -87,8 +90,7 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
       { body = comp_arg body;
         id = static_label;
         args = List.map fst args;
-        handler = comp_expr handler ~tailcall;
-        recursive = false
+        handler = comp_expr handler ~tailcall
       }
   | Lstaticraise (static_label, args) ->
     Staticraise (static_label, List.map comp_arg args)
@@ -183,10 +185,10 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
     in
     (* Compile and label actions *)
     let arg = comp_arg arg in
-    let int_cases = compile_cases sw_consts ~size:sw_numconsts in
-    let tag_cases = compile_cases sw_blocks ~size:sw_numblocks in
+    let const_cases = compile_cases sw_consts ~size:sw_numconsts in
+    let block_cases = compile_cases sw_blocks ~size:sw_numblocks in
     let cases = Array.map (comp_expr ~tailcall) (store.act_get ()) in
-    Switch { arg; int_cases; tag_cases; cases }
+    Switch { arg; const_cases; block_cases; cases }
   | Lstringswitch (arg, sw, d, loc, kind) ->
     comp_expr (Matching.expand_stringswitch loc kind arg sw d) ~tailcall
   | Lassign (id, expr) -> Assign (id, comp_arg expr)
@@ -206,7 +208,7 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
       Misc.fatal_error "SIMD is not supported in bytecode mode."
     in
     let wrong_arity ~expected =
-      Misc.fatal_errorf "Blambda_of_lambda.comp_primitive: %a takes %d %s"
+      Misc.fatal_errorf "Blambda_of_lambda: %a takes exactly %d %s"
         Printlambda.primitive primitive expected
         (if expected = 1 then "argument" else "arguments")
     in
@@ -352,8 +354,7 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
         | Punboxedintarray Unboxed_int64 -> Lconst (Const_base (Const_int64 0L))
         | Punboxedintarray Unboxed_nativeint ->
           Lconst (Const_base (Const_nativeint 0n))
-        | Punboxedvectorarray _ ->
-          Misc.fatal_error "SIMD is not supported in bytecode mode."
+        | Punboxedvectorarray _ -> simd_is_not_supported ()
         | Pgcignorableproductarray ignorables ->
           let rec convert_ignorable
               (ign : Lambda.ignorable_product_element_kind) : Lambda.lambda =
@@ -608,7 +609,7 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
     | Parraysets (Punboxedvectorarray_set _, _)
     | Parrayrefu (Punboxedvectorarray_ref _, _, _)
     | Parraysetu (Punboxedvectorarray_set _, _) ->
-      Misc.fatal_error "SIMD is not supported in bytecode mode."
+      simd_is_not_supported ()
     | Pctconst c ->
       let const_name =
         match c with
@@ -722,7 +723,7 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
     | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
     | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
     | Punboxed_nativeint_array_set_128 _ | Pbox_vector _ | Punbox_vector _ ->
-      Misc.fatal_error "SIMD is not supported in bytecode mode."
+      simd_is_not_supported ()
     | Preinterpret_tagged_int63_as_unboxed_int64 ->
       if Target_system.is_64_bit ()
       then unary (Ccall "caml_reinterpret_tagged_int63_as_unboxed_int64")
@@ -748,8 +749,7 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
          the short term, as it's unlikely to cause issues - see the internal arrays
          epic for out plan to deal with it. *)
       match kind with
-      | Punboxedvectorarray _ ->
-        Misc.fatal_error "SIMD is not supported in bytecode mode."
+      | Punboxedvectorarray _ -> simd_is_not_supported ()
       | Pgenarray | Pintarray | Paddrarray | Punboxedintarray _ | Pfloatarray
       | Punboxedfloatarray _ | Pgcscannableproductarray _
       | Pgcignorableproductarray _ -> (
@@ -758,8 +758,7 @@ let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
         | Alloc_local -> binary (Ccall "caml_make_local_vect")))
     | Parrayblit { src_mutability = _; dst_array_set_kind } ->
       (match dst_array_set_kind with
-      | Punboxedvectorarray_set _ ->
-        Misc.fatal_error "SIMD is not supported in bytecode mode."
+      | Punboxedvectorarray_set _ -> simd_is_not_supported ()
       | Pgenarray_set _ | Pintarray_set | Paddrarray_set _
       | Punboxedintarray_set _ | Pfloatarray_set | Punboxedfloatarray_set _
       | Pgcscannableproductarray_set _ | Pgcignorableproductarray_set _ ->

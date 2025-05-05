@@ -104,7 +104,7 @@ let rec blambda ppf = function
       (pp_print_list ~pp_sep:pp_print_space (fun ppf (id, arg) ->
            fprintf ppf "@[<2>%a =@ %a@]" Ident.print id blambda arg))
       bindings blambda expr
-  | Letrec { decls; body; free_variables = _ } ->
+  | Letrec { decls; body; free_variables_of_decls = _ } ->
     fprintf ppf "@[<2>(letrec@ @[%a@]@ in@ %a)@]"
       (pp_print_list ~pp_sep:pp_print_space rec_binding)
       decls blambda body
@@ -112,9 +112,9 @@ let rec blambda ppf = function
     fprintf ppf "@[<2>(%%%a@ %a)@]" primitive p
       (pp_print_list ~pp_sep:pp_print_space blambda)
       args
-  | Switch { arg; int_cases; tag_cases; cases } ->
-    let int_cases = Array.to_list int_cases in
-    let tag_cases = Array.to_list tag_cases in
+  | Switch { arg; const_cases; block_cases; cases } ->
+    let const_cases = Array.to_list const_cases in
+    let block_cases = Array.to_list block_cases in
     let cases = Array.to_list cases in
     let matching_cases cases i =
       ListLabels.mapi cases ~f:(fun n j -> n, j)
@@ -140,8 +140,8 @@ let rec blambda ppf = function
         let formatters =
           List.filter_map
             (fun f -> f i)
-            [ labels ~name:"int" ~cases:int_cases;
-              labels ~name:"tag" ~cases:tag_cases ]
+            [ labels ~name:"const" ~cases:const_cases;
+              labels ~name:"block" ~cases:block_cases ]
         in
         pp_print_list ~pp_sep:pp_print_cut (fun ppf f -> f ppf) ppf formatters
       in
@@ -182,11 +182,11 @@ let rec blambda ppf = function
       for_from
       (match for_dir with Upto -> "to" | Downto -> "downto")
       blambda for_to blambda for_body
-  | Send { self; met; obj_and_args; tailcall = t } ->
-    let name = if self then "sendself" else "send" in
+  | Send { method_kind; met; obj; args; tailcall = t } ->
+    let name = match method_kind with Self -> "sendself" | Public -> "send" in
     fprintf ppf "@[<2>(%s%a@ met=%a@ %a)@]" name tailcall t blambda met
       (pp_print_list ~pp_sep:pp_print_space blambda)
-      obj_and_args
+      (obj :: args)
   | Event (expr, ev) ->
     if not !Clflags.locations
     then blambda ppf expr
@@ -220,7 +220,7 @@ let rec blambda ppf = function
 and rec_binding ppf { id; def } =
   fprintf ppf "@[<2>%a@ =@ %a@]" Ident.print id bfunction def
 
-and bfunction ppf { params; body; loc = _; free_variables = _ } =
+and bfunction ppf { params; body; loc = _; free_variables_of_body = _ } =
   fprintf ppf "@[<2>(fun@ @[%a@]@ ->@ %a)@]"
     (pp_print_list ~pp_sep:pp_print_space Ident.print)
     params blambda body

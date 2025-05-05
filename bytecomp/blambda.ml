@@ -59,6 +59,10 @@ type comparison = Instruct.comparison =
   | Ultint
   | Ugeint
 
+type method_kind =
+  | Self
+  | Public
+
 type primitive =
   | Getglobal of Compilation_unit.t
   | Getpredef of Ident.t
@@ -108,7 +112,9 @@ and bfunction =
   { params : Ident.t list;
     body : blambda;
     loc : Debuginfo.Scoped_location.t;
-    free_variables : Ident.Set.t
+    free_variables_of_body : Ident.Set.t
+        (** if we ever intended to do optimizations/transformations on blambda, this would
+            be better as a function than a field *)
   }
 
 and blambda =
@@ -127,15 +133,17 @@ and blambda =
       }
   | Letrec of
       { decls : rec_binding list;
-        body : blambda;
-        free_variables : Ident.Set.t
+        free_variables_of_decls : Ident.Set.t;
+            (** if we ever intended to do optimizations/transformations on blambda, this
+                would be better as a function than a field *)
+        body : blambda
       }
   | Prim of primitive * blambda list
   | Switch of
       { arg : blambda;
-        int_cases : int array;
+        const_cases : int array;
             (** indexes into {!cases}, indexed by the value of the immediate *)
-        tag_cases : int array;
+        block_cases : int array;
             (** indexes into {!cases}, indexed by the the block tag *)
         cases : blambda array
       }
@@ -144,8 +152,7 @@ and blambda =
       { id : static_label;
         body : blambda;
         args : Ident.t list;
-        handler : blambda;
-        recursive : bool
+        handler : blambda
       }
   | Trywith of
       { body : blambda;
@@ -155,9 +162,10 @@ and blambda =
   | Sequence of blambda * blambda
   | Assign of Ident.t * blambda
   | Send of
-      { self : bool;
+      { method_kind : method_kind;
         met : blambda;
-        obj_and_args : blambda list;
+        obj : blambda;
+        args : blambda list;
         tailcall : tailcall
       }
   | Event of blambda * Lambda.lambda_event

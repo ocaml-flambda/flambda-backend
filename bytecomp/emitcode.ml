@@ -214,7 +214,7 @@ and emit_branch_comp = function
 | Gtint -> out opBGTINT   | Geint -> out opBGEINT
 | Ultint -> out opBULTINT | Ugeint -> out opBUGEINT
 
-let negate_integer_comparison = function
+let negate_comparison = function
   | Eq -> Neq
   | Neq -> Eq
   | Ltint -> Geint
@@ -360,7 +360,7 @@ let rec emit = function
         emit rem
   | Kpush::Kconst k::Kintcomp c::Kbranchifnot lbl::rem
       when is_immed_const k ->
-        emit_branch_comp (negate_integer_comparison c) ;
+        emit_branch_comp (negate_comparison c) ;
         out_const k ;
         out_label lbl ;
         emit rem
