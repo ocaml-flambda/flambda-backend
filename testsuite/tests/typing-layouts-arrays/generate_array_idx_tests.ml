@@ -414,7 +414,7 @@ let array_element_types =
       nativeint;
       int;
       enum 3;
-      (* ty_ur2; *)
+      ty_ur2;
       unboxed_tuple [float_u; int32_u; int64_u];
       unboxed_tuple
         [ float_u;
@@ -576,6 +576,8 @@ let mark_test_run test_id =
 
 let sizes = [ 0; 1; 2; 30; 31; 32 ]
 
+let indices_in_deepening_tests = [0; 1; 2; 100_000]
+
 |}
 
 let indent = ref 0
@@ -736,13 +738,13 @@ let test_array_idx_deepening ty =
   IntMap.iter
     (fun depth unboxed_paths ->
       List.iter unboxed_paths ~f:(fun unboxed_path ->
-          line "iter [0; 1; 2; 100_000] ~f:(fun i ->";
+          line "iter indices_in_deepening_tests ~f:(fun i ->";
           with_indent (fun () ->
               line "let unboxed_path : (%s, _) idx_mut = (.(i)%s) in" ty_array_s
                 (up_concat unboxed_path);
               for prefix_len = 0 to depth do
                 let prefix, suffix = take_n unboxed_path prefix_len in
-                line "let shallow  : (%s, _) idx_mut = (.(i)%s) in" ty_array_s
+                line "let shallow : (%s, _) idx_mut = (.(i)%s) in" ty_array_s
                   (up_concat prefix);
                 line "let deepened = (.idx_mut(shallow)%s) in" (up_concat suffix);
                 seq_assert ~debug_exprs
