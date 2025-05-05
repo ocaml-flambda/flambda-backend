@@ -73,6 +73,7 @@ type method_kind =
   | Self
   | Public
 
+(** primitives that correspond to bytecode instructions that don't affect control flow *)
 type primitive =
   | Getglobal of Compilation_unit.t
   | Getpredef of Ident.t
