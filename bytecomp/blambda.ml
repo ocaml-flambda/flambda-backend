@@ -111,7 +111,6 @@ and rec_binding =
 and bfunction =
   { params : Ident.t list;
     body : blambda;
-    loc : Debuginfo.Scoped_location.t;
     free_variables : Ident.Set.t
         (** if we ever intended to do optimizations/transformations on blambda, this would
             be better as a function than a field *)

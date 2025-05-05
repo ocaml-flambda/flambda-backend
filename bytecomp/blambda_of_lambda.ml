@@ -40,12 +40,11 @@ let comp_integer_comparison : Lambda.integer_comparison -> comparison = function
 
 let rec comp_expr (exp : Lambda.lambda) ~(tailcall : Blambda.tailcall) :
     Blambda.blambda =
-  let comp_fun ({ params; body; loc } as lfunction : Lambda.lfunction) :
+  let comp_fun ({ params; body; loc = _ } as lfunction : Lambda.lfunction) :
       Blambda.bfunction =
     (* assume kind = Curried *)
     { params = List.map (fun (p : Lambda.lparam) -> p.name) params;
       body = comp_expr body ~tailcall:Blambda.Tailcall;
-      loc;
       free_variables = Lambda.free_variables (Lfunction lfunction)
     }
   in

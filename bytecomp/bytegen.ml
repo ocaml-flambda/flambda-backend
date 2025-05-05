@@ -212,42 +212,6 @@ let add_event ev = function
   | Kevent ev' :: cont -> weaken_event (merge_events ev ev') cont
   | cont -> weaken_event ev cont
 
-(* Pseudo events are ignored by the debugger. They are only used for
-   generating backtraces.
-
-   We prefer adding this event here rather than in lambda generation
-   1) there are many different situations where a Pmakeblock can
-      be generated
-   2) we prefer inserting a pseudo event rather than an event after
-      to prevent the debugger to stop at every single allocation. *)
-let add_pseudo_event loc modname c =
-  if !Clflags.debug
-  then
-    let ev_defname = string_of_scoped_location ~include_zero_alloc:false loc in
-    let ev =
-      { ev_pos = 0;
-        (* patched in emitcode *)
-        ev_module = Compilation_unit.full_path_as_string modname;
-        ev_loc = to_location loc;
-        ev_defname;
-        ev_kind = Event_pseudo;
-        ev_info = Event_other;
-        (* Dummy *)
-        ev_typenv = Env.Env_empty;
-        (* Dummy *)
-        ev_typsubst = Subst.identity;
-        (* Dummy *)
-        ev_compenv = empty_env;
-        (* Dummy *)
-        ev_stacksize = 0;
-        (* Dummy *)
-        ev_repr = Event_none
-      }
-      (* Dummy *)
-    in
-    add_event ev c
-  else c
-
 (**** Compilation of a lambda expression ****)
 
 type stack_info =
@@ -457,9 +421,8 @@ and comp_expr stack_info env exp sz cont =
       Kpush_retaddr lbl
       :: comp_args stack_info env args' (sz + 3)
            (getmethod :: Kapply nargs :: cont1)
-  | Function { params; body; loc; free_variables } ->
+  | Function { params; body; free_variables } ->
     (* assume kind = Curried *)
-    let cont = add_pseudo_event loc !compunit_name cont in
     let lbl = new_label () in
     let fv = Ident.Set.elements free_variables in
     let entries = closure_entries Single_non_recursive fv in
@@ -775,7 +738,45 @@ and comp_expr stack_info env exp sz cont =
         let cont1 = add_event ev cont in
         comp_expr stack_info env lam sz cont1)
   | Pseudo_event (expr, loc) ->
-    comp_expr stack_info env expr sz (add_pseudo_event loc !compunit_name cont)
+    (* Pseudo events are ignored by the debugger. They are only used for
+       generating backtraces.
+
+       We prefer adding this event here rather than in lambda generation
+       1) there are many different situations where a Pmakeblock can
+          be generated
+       2) we prefer inserting a pseudo event rather than an event after
+          to prevent the debugger to stop at every single allocation. *)
+    let cont =
+      if !Clflags.debug
+      then
+        let ev_defname =
+          string_of_scoped_location ~include_zero_alloc:false loc
+        in
+        let ev =
+          { ev_pos = 0;
+            (* patched in emitcode *)
+            ev_module = Compilation_unit.full_path_as_string !compunit_name;
+            ev_loc = to_location loc;
+            ev_defname;
+            ev_kind = Event_pseudo;
+            ev_info = Event_other;
+            (* Dummy *)
+            ev_typenv = Env.Env_empty;
+            (* Dummy *)
+            ev_typsubst = Subst.identity;
+            (* Dummy *)
+            ev_compenv = empty_env;
+            (* Dummy *)
+            ev_stacksize = 0;
+            (* Dummy *)
+            ev_repr = Event_none
+          }
+          (* Dummy *)
+        in
+        add_event ev cont
+      else cont
+    in
+    comp_expr stack_info env expr sz cont
 
 (* Compile a list of arguments [e1; ...; eN] to a primitive operation.
    The values of eN ... e2 are pushed on the stack, e2 at top of stack,
