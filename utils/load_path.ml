@@ -28,7 +28,7 @@ module Dir : sig
   val hidden : t -> bool
 
   val create : hidden:bool -> string -> t
-  val create_libloc : hidden:bool -> libloc:string -> string -> t
+  val create_libloc : hidden:bool -> libloc_file:string -> t
 
   val find : t -> string -> string option
   val find_normalized : t -> string -> string option
@@ -94,18 +94,17 @@ end = struct
         loop [])
       ~always:(fun () -> close_in ic)
 
-  let create_libloc ~hidden ~libloc libname =
-    let libloc_lib_path = Filename.concat libloc libname in
-    let files = read_libloc_file (Filename.concat libloc_lib_path "cmi-cmx") in
+  let create_libloc ~hidden ~libloc_file =
+    let files = read_libloc_file libloc_file in
     let files = List.map (fun { basename; path } ->
       let path = if Filename.is_relative path then
-        (* Paths are relative to parent directory of libloc directory *)
-        Filename.concat (Filename.dirname libloc) path
+        (* Paths are relative to parent directory of libloc file *)
+        Filename.concat (Filename.dirname libloc_file) path
       else
         path
       in
       { basename; path }) files in
-    { path = libloc_lib_path; files; hidden }
+    { path = libloc_file; files; hidden }
 end
 
 type visibility = Visible | Hidden
@@ -216,10 +215,12 @@ let init ~auto_include ~visible ~hidden =
   reset ();
   visible_dirs := List.rev_map (Dir.create ~hidden:false) visible;
   hidden_dirs := List.rev_map (Dir.create ~hidden:true) hidden;
-  List.iter (fun (libloc : Clflags.Libloc.t) ->
-    visible_dirs := Misc.rev_map_end (fun lib -> Dir.create_libloc ~hidden:false ~libloc:libloc.path lib) libloc.libs !visible_dirs;
-    hidden_dirs := Misc.rev_map_end (fun lib -> Dir.create_libloc ~hidden:true ~libloc:libloc.path lib) libloc.hidden_libs !hidden_dirs
+  List.iter (fun libloc ->
+    visible_dirs := Dir.create_libloc ~hidden:false ~libloc_file:libloc :: !visible_dirs;
   ) !Clflags.libloc;
+  List.iter (fun libloc_hidden ->
+    hidden_dirs := Dir.create_libloc ~hidden:true ~libloc_file:libloc_hidden :: !hidden_dirs;
+  ) !Clflags.libloc_hidden;
   List.iter Path_cache.prepend_add !hidden_dirs;
   List.iter Path_cache.prepend_add !visible_dirs;
   auto_include_callback := auto_include
