@@ -1,3 +1,3 @@
-test_makearray_dynamic
-test_makearray_dynamic_local
+test_array_idx_with_makearray_dynamic
+test_array_idx_with_makearray_dynamic_local
 All tests passed.

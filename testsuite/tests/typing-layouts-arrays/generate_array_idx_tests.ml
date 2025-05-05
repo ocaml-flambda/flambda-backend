@@ -8,7 +8,7 @@ let failwithf fmt = Printf.ksprintf failwith fmt
 
 let sprintf = Printf.sprintf
 
-(* See [test_makearray_dynamic] for the main testing steps! *)
+(* See [test_array_idx_get_and_set] for the main testing steps! *)
 
 module IntMap = Map.Make (Int)
 
@@ -398,7 +398,7 @@ let ty_ur3 = Ty.(unboxed_record "ur3" ["a", int64_u])
 
 let ty_ur4 = Ty.(unboxed_record "ur4" ["a", ty_ur2; "b", ty_ur3])
 
-let types =
+let array_element_types =
   Ty.
     [ float32_u;
       float_u;
@@ -433,6 +433,36 @@ let types =
           unboxed_tuple [float; unboxed_tuple [float; float; float]]
         ]
     ]
+
+type tree =
+  | Branch of tree list
+  | Leaf
+
+let rec enumerate_forests num_nodes : tree list list =
+  assert (num_nodes > 0);
+  let possible_first_tree_num_nodes =
+    List.init ~len:num_nodes ~f:(fun x -> x + 1)
+  in
+  List.concat_map possible_first_tree_num_nodes ~f:(fun first_tree_num_nodes ->
+      List.concat_map (enumerate_trees first_tree_num_nodes)
+        ~f:(fun first_tree ->
+          let rest_num_nodes = num_nodes - first_tree_num_nodes in
+          assert (rest_num_nodes >= 0);
+          if Int.equal rest_num_nodes 0
+          then [[first_tree]]
+          else
+            List.map (enumerate_forests rest_num_nodes) ~f:(fun rest_trees ->
+                first_tree :: rest_trees
+            )
+      )
+  )
+
+and enumerate_trees num_nodes : tree list =
+  assert (num_nodes >= 1);
+  if Int.equal num_nodes 1
+  then [Leaf]
+  else
+    List.map (enumerate_forests (num_nodes - 1)) ~f:(fun forest -> Branch forest)
 
 let preamble =
   {|
@@ -627,12 +657,10 @@ let section s =
   line "(* %s *)" s;
   line "(**%s**)" s_as_stars
 
-(* Test steps *)
-let test_makearray_dynamic ~local ty =
+let test_array_idx_get_and_set ~local ty =
   let makearray_dynamic = makearray_dynamic_fn ~local in
   let debug_exprs = [{ expr = "size"; format_s = "%d" }] in
   let ty_array_s = Ty.ty_code ty ^ " array" in
-  (* seq_print_in_test ty.Ty.ty_code; *)
   section ("  " ^ Ty.ty_code ty ^ "  ");
   line "let eq = %s in" (Ty.eq ty);
   line "let mk_value i = %s in" (Ty.mk_value_code ty);
@@ -689,7 +717,44 @@ let test_makearray_dynamic ~local ty =
       line "()"
   );
   line "Gc.compact ();";
-  print_endline ""
+  print_newline ()
+
+(* Splits a list into the first N and the remaining elements *)
+let take_n l n =
+  List.mapi l ~f:(fun i x -> i, x)
+  |> List.partition_map ~f:(fun (i, x) -> if i < n then Left x else Right x)
+
+let test_array_idx_deepening ty =
+  (* Include the empty unboxed path to test the "identity" deepening *)
+  let unboxed_paths_by_depth =
+    Ty.unboxed_paths_by_depth ty |> IntMap.add 0 [[]]
+  in
+  let debug_exprs = [] in
+  let ty_array_s = Ty.ty_code ty ^ " array" in
+  section ("  " ^ Ty.ty_code ty ^ "  ");
+  let up_concat l = String.concat (List.map l ~f:(fun s -> ".#" ^ s)) ~sep:"" in
+  IntMap.iter
+    (fun depth unboxed_paths ->
+      List.iter unboxed_paths ~f:(fun unboxed_path ->
+          line "iter [0; 1; 2; 100_000] ~f:(fun i ->";
+          with_indent (fun () ->
+              line "let unboxed_path : (%s, _) idx_mut = (.(i)%s) in" ty_array_s
+                (up_concat unboxed_path);
+              for prefix_len = 0 to depth do
+                let prefix, suffix = take_n unboxed_path prefix_len in
+                line "let shallow  : (%s, _) idx_mut = (.(i)%s) in" ty_array_s
+                  (up_concat prefix);
+                line "let deepened = (.idx_mut(shallow)%s) in" (up_concat suffix);
+                seq_assert ~debug_exprs
+                  "Idx_repr.equal (Idx_repr.of_idx_mut unboxed_path) \
+                   (Idx_repr.of_idx_mut deepened)"
+              done
+          );
+          line ");"
+      )
+    )
+    unboxed_paths_by_depth;
+  print_newline ()
 
 let toplevel_unit_block f =
   assert (Int.equal !indent 0);
@@ -728,11 +793,11 @@ let main ~bytecode =
   toplevel_unit_block (fun () ->
       let open Ty in
       line "(* Check types and constants *)";
-      List.iter types ~f:(fun ty ->
+      List.iter array_element_types ~f:(fun ty ->
           line "let _ : %s = %s in" (Ty.ty_code ty) (Ty.value_code ty 0)
       );
       line "(* Check equality and mk_value functions *)";
-      List.iter types ~f:(fun ty ->
+      List.iter array_element_types ~f:(fun ty ->
           line "let eq : %s @ local -> %s @ local -> bool = %s in"
             (Ty.ty_code ty) (Ty.ty_code ty) (Ty.eq ty);
           line "let mk_value i = %s in" (Ty.mk_value_code ty);
@@ -745,17 +810,23 @@ let main ~bytecode =
       )
   );
   List.iter [false; true] ~f:(fun local ->
-      line "let test_%s size =" (makearray_dynamic_fn ~local);
+      line "let test_array_idx_with_%s size =" (makearray_dynamic_fn ~local);
       with_indent (fun () ->
-          List.iter types ~f:(test_makearray_dynamic ~local);
+          List.iter array_element_types ~f:(test_array_idx_get_and_set ~local);
           line "()"
       );
       line ""
   );
-  line "(* Main tests *)";
+  line "(* Test array idx deepening *)";
+  line "let () =";
+  with_indent (fun () ->
+      List.iter array_element_types ~f:test_array_idx_deepening;
+      line "()"
+  );
+  line "(* *)";
   toplevel_unit_block (fun () ->
       List.iter [false; true] ~f:(fun local ->
-          let test_fn = "test_" ^ makearray_dynamic_fn ~local in
+          let test_fn = "test_array_idx_with_" ^ makearray_dynamic_fn ~local in
           seq_print_in_test test_fn;
           line "iter sizes ~f:%s;" test_fn
       )
