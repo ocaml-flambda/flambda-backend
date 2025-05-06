@@ -124,7 +124,7 @@ and bfunction =
     body : blambda;
     free_variables : Ident.Set.t
         (** if we ever intended to do optimizations/transformations on blambda, this would
-            be better as a function than a field *)
+        be better as a function than a field *)
   }
 
 and blambda =
@@ -145,7 +145,7 @@ and blambda =
       { decls : rec_binding list;
         free_variables_of_decls : Ident.Set.t;
             (** if we ever intended to do optimizations/transformations on blambda, this
-                would be better as a function than a field *)
+            would be better as a function than a field *)
         body : blambda
       }
   | Prim of primitive * blambda list
@@ -199,6 +199,18 @@ and blambda =
   | Sequor of blambda * blambda
   | Event of blambda * Lambda.lambda_event
   | Pseudo_event of blambda * Debuginfo.Scoped_location.t
-      (** Having [Event] and [Pseudo_event] make effective pattern-matching on blambda
+      (** Pseudo events are ignored by the debugger. They are only used for generating
+          backtraces.
+
+          We prefer adding this event here rather than in lambda generation because:
+          + There are many different situations where a Pmakeblock can be generated.
+          + We prefer inserting a pseudo event rather than an event after to prevent the
+          debugger to stop at every single allocation.
+
+          Having [Event] and/or [Pseudo_event] make effective pattern-matching on blambda
           hard. However, blambda is only meant to go immediately before the code
-          generator, so it shouldn't really be matched on anyway. *)
+          generator, so it shouldn't really be matched on anyway.
+
+          In the future, we could simplify things a bit and use a new [Lev_pseudo_after]
+          event kind in the [Event] constructor instead of Pseudo_event, to generate
+          during lambda to blambda conversion if [!Clflags.debug] is [true]. *)

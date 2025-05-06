@@ -743,14 +743,6 @@ and comp_expr stack_info env exp sz cont =
         let cont1 = add_event ev cont in
         comp_expr stack_info env lam sz cont1)
   | Pseudo_event (expr, loc) ->
-    (* Pseudo events are ignored by the debugger. They are only used for
-       generating backtraces.
-
-       We prefer adding this event here rather than in lambda generation
-       1) there are many different situations where a Pmakeblock can
-          be generated
-       2) we prefer inserting a pseudo event rather than an event after
-          to prevent the debugger to stop at every single allocation. *)
     let cont =
       if !Clflags.debug
       then
