@@ -2222,13 +2222,16 @@ and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
 
    In-memory representation:
    - In the native compiler, the offset and gap are packed into
-     a single [bits64]. There are two subcases
+     a single [bits64]. There are two subcases:
      * The index is to product containing both values and non-values. In this
        case, the offset is the lower 48 bits and the gap is the upper 16 bits.
      * The index is to all values/non-values. In this case, all 64 bits are used
        for the offset.
    - In the bytecode compiler, the field positions are stored as tagged integers
      in single block with tag 0.
+     * Unboxed record fields in the index into singleton unboxed records are
+       _not_ included in the list of positions, as singleton unboxed records are
+       erased during translation to lambda.
 
    For a visualization of the native representation of block indices, and the
    implementation of deepening, see CR rtjoa add vis
