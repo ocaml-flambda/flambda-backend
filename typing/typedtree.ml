@@ -476,12 +476,17 @@ and class_field_desc =
   | Tcf_initializer of expression
   | Tcf_attribute of attribute
 
+and held_locks = Env.locks * Longident.t * Location.t
+
+and mode_with_locks = Mode.Value.l * held_locks option
+
 (* Value expressions for the module language *)
 
 and module_expr =
   { mod_desc: module_expr_desc;
     mod_loc: Location.t;
     mod_type: Types.module_type;
+    mod_mode : mode_with_locks;
     mod_env: Env.t;
     mod_attributes: attribute list;
    }
@@ -626,6 +631,7 @@ and module_declaration =
      md_uid: Uid.t;
      md_presence: module_presence;
      md_type: module_type;
+     md_modalities: Mode.Modality.Value.t;
      md_attributes: attribute list;
      md_loc: Location.t;
     }
@@ -1347,3 +1353,9 @@ let loc_of_decl ~uid =
   | Module_substitution msd -> msd.ms_name
   | Class cd -> cd.ci_id_name
   | Class_type ctd -> ctd.ci_id_name
+
+let min_mode_with_locks = (Mode.Value.(disallow_right legacy), None)
+
+let mode_without_locks_exn = function
+  | (_, Some _) -> assert false
+  | (m, None) -> m

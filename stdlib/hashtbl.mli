@@ -421,7 +421,7 @@ module type S =
   end
 (** The output signature of the functor {!Make}. *)
 
-module Make (H : HashedType) : S with type key = H.t
+module (Make @ nonportable) (H : HashedType) : S with type key = H.t
 (** Functor building an implementation of the hashtable structure.
     The functor [Hashtbl.Make] returns a structure containing
     a type [key] of keys and a type ['a t] of hash tables
@@ -504,7 +504,7 @@ module type SeededS =
 (** The output signature of the functor {!MakeSeeded}.
     @since 4.00 *)
 
-module MakeSeeded (H : SeededHashedType) : SeededS with type key = H.t
+module (MakeSeeded @ nonportable) (H : SeededHashedType) : SeededS with type key = H.t
 (** Functor building an implementation of the hashtable structure.
     The functor [Hashtbl.MakeSeeded] returns a structure containing
     a type [key] of keys and a type ['a t] of hash tables

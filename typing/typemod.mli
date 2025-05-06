@@ -32,8 +32,8 @@ val type_module:
         Env.t -> Parsetree.module_expr -> Typedtree.module_expr * Shape.t
 val type_structure:
   Env.t -> Parsetree.structure ->
-  Typedtree.structure * Types.signature * Signature_names.t * Shape.t *
-  Env.t
+  Typedtree.structure * Types.signature * Mode.Value.lr * Signature_names.t *
+  Shape.t * Env.t
 val type_toplevel_phrase:
   Env.t -> Types.signature -> Parsetree.structure ->
   Typedtree.structure * Types.signature * Signature_names.t * Shape.t *
@@ -110,6 +110,17 @@ type functor_dependency_error =
     Functor_applied
   | Functor_included
 
+(** Modules that are required to be legacy mode *)
+type legacy_module =
+  | Compilation_unit
+  | Toplevel
+  | Functor_body
+
+(** Places where modes annotations are not supported *)
+type unsupported_modal_module =
+  | Functor_param
+  | Functor_res
+
 type error =
     Cannot_apply of module_type
   | Not_included of Includemod.explanation
@@ -164,7 +175,9 @@ type error =
     }
   | Duplicate_parameter_name of Global_module.Name.t
   | Submode_failed of Mode.Value.error
-  | Modal_module_not_supported
+  | Value_weaker_than_module of Mode.Value.error
+  | Unsupported_modal_module of unsupported_modal_module
+  | Legacy_module of legacy_module * Mode.Value.error
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error

@@ -32,12 +32,19 @@ type mark =
 
 module Error: sig
 
+  type ('elt, 'explanation) mdiff = {
+    got:'elt;
+    expected:'elt;
+    modes:Includecore.mmodes;
+    symptom:'explanation
+  }
   type ('elt,'explanation) diff = {
     got:'elt;
     expected:'elt;
     symptom:'explanation
   }
   type 'elt core_diff =('elt,unit) diff
+  type 'elt core_mdiff =('elt,unit) mdiff
 
   type functor_arg_descr =
     | Anonymous
@@ -47,9 +54,13 @@ module Error: sig
      (** For backward compatibility's sake, an empty struct can be implicitly
          converted to an unit module. *)
 
+  type class_declaration_symptom =
+    | Class_type of Ctype.class_match_failure list
+    | Class_mode of Mode.Value.error
+
   type core_sigitem_symptom =
     | Value_descriptions of
-        (Types.value_description, Includecore.value_mismatch) diff
+        (Types.value_description, Includecore.value_mismatch) mdiff
     | Type_declarations of
         (Types.type_declaration, Includecore.type_mismatch) diff
     | Extension_constructors of
@@ -58,7 +69,8 @@ module Error: sig
     | Class_type_declarations of
         (Types.class_type_declaration, Ctype.class_match_failure list) diff
     | Class_declarations of
-        (Types.class_declaration, Ctype.class_match_failure list) diff
+        (Types.class_declaration, class_declaration_symptom) mdiff
+    | Modalities of Mode.Modality.Value.error
 
   type core_module_type_symptom =
     | Not_an_alias
@@ -73,9 +85,10 @@ module Error: sig
     | Functor of functor_symptom
     | Invalid_module_alias of Path.t
     | After_alias_expansion of module_type_diff
+    | Mode of Mode.Value.error
 
 
-  and module_type_diff = (Types.module_type, module_type_symptom) diff
+  and module_type_diff = (Types.module_type, module_type_symptom) mdiff
 
   and functor_symptom =
     | Params of functor_params_diff
@@ -152,6 +165,20 @@ val is_runtime_component: Types.signature_item -> bool
 
 type modes = Includecore.mmodes
 
+(** The modes used for compilation unit inclusion check *)
+val modes_unit : modes
+
+(** The modes used for top-level inclusion check, where top-level is similiar to
+  a structure *)
+val modes_toplevel : modes
+
+(** Takes the mode of functor argument, returns the [modes] suitable for
+  modal inclusion check against the parameter. *)
+val modes_functor_param : Typedtree.mode_with_locks -> modes
+
+(** The modes used for functor result inclusion check *)
+val modes_functor_res : modes
+
 (* Typechecking *)
 
 val modtypes:
@@ -166,10 +193,10 @@ val strengthened_module_decl:
   loc:Location.t -> aliasable:bool -> Env.t -> mark:mark -> mmodes:modes ->
   module_declaration -> Path.t -> module_declaration -> module_coercion
 
-val check_modtype_inclusion :
+val check_functor_application :
   loc:Location.t -> Env.t -> Types.module_type -> Path.t -> Types.module_type ->
   explanation option
-(** [check_modtype_inclusion ~loc env mty1 path1 mty2] checks that the
+(** [check_functor_application ~loc env mty1 path1 mty2] checks that the
     functor application F(M) is well typed, where mty2 is the type of
     the argument of F and path1/mty1 is the path/unstrenghened type of M. *)
 
@@ -213,7 +240,8 @@ exception Apply_error of {
     env : Env.t ;
     app_name : application_name ;
     mty_f : module_type ;
-    args : (Error.functor_arg_descr * Types.module_type)  list ;
+    args : (Error.functor_arg_descr * Types.module_type *
+      Typedtree.mode_with_locks)  list ;
   }
 
 val expand_module_alias: strengthen:bool -> Env.t -> Path.t -> Types.module_type
@@ -234,7 +262,8 @@ end
 
 module Functor_app_diff: sig
   module Defs: sig
-    type left = Error.functor_arg_descr * Types.module_type
+    type left = Error.functor_arg_descr * Types.module_type *
+      Typedtree.mode_with_locks
     type right = Types.functor_parameter
     type eq = Typedtree.module_coercion
     type diff = (Error.functor_arg_descr, unit) Error.functor_param_symptom
@@ -243,6 +272,7 @@ module Functor_app_diff: sig
   val diff:
     Env.t ->
     f:Types.module_type ->
-    args:(Error.functor_arg_descr * Types.module_type) list ->
+    args:(Error.functor_arg_descr * Types.module_type *
+      Typedtree.mode_with_locks) list ->
     Diffing.Define(Defs).patch
 end
