@@ -1980,6 +1980,7 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
         in
         sig_item, [], newenv
     | Psig_recmodule sdecls ->
+        (* None of the modules have modes specified, since we're in a signature *)
         let sdecls = List.map (fun sdecl -> (sdecl, None)) sdecls in
         let (tdecls, newenv) =
           transl_recmodule_modtypes env ~sig_modalities sdecls in

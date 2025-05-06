@@ -209,13 +209,13 @@ Lines 4-6, characters 23-5:
 6 |   end
 Error: Signature mismatch:
        Modules do not match:
-         sig val x : string ref @@ contended end /* at uncontended */
+         sig val x : string ref @@ contended end @ uncontended
        is not included in
-         sig val x : string ref end /* at uncontended */
+         sig val x : string ref end @ uncontended
        Values do not match:
-         val x : string ref @@ contended /* at uncontended */
+         val x : string ref @@ contended @ uncontended
        is not included in
-         val x : string ref /* at uncontended */
+         val x : string ref @ uncontended
        The first is "contended" but the second is "uncontended".
 |}]
 
@@ -242,7 +242,7 @@ module Inclusion_weakens_comonadic = struct
   end
   let _ = portable_use M.x
 end
-(* [M] is infered to be [portable] in order to type check *)
+(* [M] is inferred to be [portable] in order to type check *)
 [%%expect{|
 module Inclusion_weakens_comonadic :
   sig module M : sig val x : 'a -> 'a end end
@@ -352,15 +352,15 @@ Error: Signature mismatch:
          sig
            val x : 'a -> 'a
            external length : string -> int = "%string_length"
-         end /* at nonportable */
+         end @ nonportable
        is not included in
          sig
            external length : string -> int @@ portable = "%string_length"
-         end /* at nonportable */
+         end @ nonportable
        Values do not match:
-         external length : string -> int = "%string_length" /* at nonportable */
+         external length : string -> int = "%string_length" @ nonportable
        is not included in
-         external length : string -> int @@ portable = "%string_length" /* at nonportable */
+         external length : string -> int @@ portable = "%string_length" @ nonportable
        The first is "nonportable" but the second is "portable".
 |}]
 
@@ -470,23 +470,23 @@ Error: Signature mismatch:
            module Plain : sig val f : int -> int end
            module type S_plain =
              sig module M : sig val f : int -> int end end
-         end /* at nonportable */
+         end @ nonportable
        is not included in
          sig
            module Plain : sig val f : int -> int @@ portable end
            module type S_plain =
              sig module M : sig val f : int -> int @@ portable end end
-         end /* at nonportable */
+         end @ nonportable
        In module "Plain":
        Modules do not match:
-         sig val f : int -> int end /* at nonportable */
+         sig val f : int -> int end @ nonportable
        is not included in
-         sig val f : int -> int @@ portable end /* at nonportable */
+         sig val f : int -> int @@ portable end @ nonportable
        In module "Plain":
        Values do not match:
-         val f : int -> int /* at nonportable */
+         val f : int -> int @ nonportable
        is not included in
-         val f : int -> int @@ portable /* at nonportable */
+         val f : int -> int @@ portable @ nonportable
        The first is "nonportable" but the second is "portable".
 |}]
 
@@ -565,16 +565,16 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val t : [> `Foo ] end /* at nonportable */
+         sig val t : [> `Foo ] end @ nonportable
        is not included in
          sig
            val t : [ `Bar of 'a -> 'a | `Baz of string ref | `Foo ] @@
              portable
-         end /* at nonportable */
+         end @ nonportable
        Values do not match:
-         val t : [> `Foo ] /* at nonportable */
+         val t : [> `Foo ] @ nonportable
        is not included in
-         val t : [ `Bar of 'a -> 'a | `Baz of string ref | `Foo ] @@ portable /* at nonportable */
+         val t : [ `Bar of 'a -> 'a | `Baz of string ref | `Foo ] @@ portable @ nonportable
        The first is "nonportable" but the second is "portable".
 |}]
 
@@ -666,13 +666,6 @@ module type F = functor (M':sig val foo : 'a -> 'a end) -> sig
     module M'' : sig val foo : 'a -> 'a end
     module type S'' = S with module M := M''
   end
-
-  module Eq : sig
-    module type S' = S with module M = M'
-
-    module M'' : sig val foo : 'a -> 'a end
-    module type S'' = S with module M := M''
-  end
 end
 
 [%%expect{|
@@ -689,6 +682,30 @@ Error: In this "with" constraint, the new definition of "M"
        Modalities on foo do not match:
        The second is global_ and the first is not.
 |}]
+
+module type F = functor (M':sig val foo : 'a -> 'a end) -> sig
+  module Eq : sig
+    module type S' = S with module M = M'
+
+    module M'' : sig val foo : 'a -> 'a end
+    module type S'' = S with module M := M''
+  end
+end
+
+[%%expect{|
+Line 3, characters 21-41:
+3 |     module type S' = S with module M = M'
+                         ^^^^^^^^^^^^^^^^^^^^
+Error: In this "with" constraint, the new definition of "M"
+       does not match its original definition in the constrained signature:
+       Modules do not match:
+         sig val foo : 'a -> 'a end
+       is not included in
+         sig val foo : 'a -> 'a @@ global many end
+       Modalities on foo do not match:
+       The second is global_ and the first is not.
+|}]
+
 
 (* strenghtening inclusion check doesn't look at module modes, since we don't
 know the mode of the LHS. *)
@@ -1100,7 +1117,7 @@ val bar : unit -> unit = <fun>
   inside would be better *)
 module M_Func_portable : Func_portable = M
 
-(* closing over a portable module is fine. The resulted module is contended
+(* closing over a portable module is fine. The resulting module is contended
 because the function is portable *)
 let (bar @ portable) () =
   let k = (module M_Func_portable : Func_portable) in
@@ -1274,13 +1291,13 @@ Lines 8-10, characters 21-3:
 10 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a end /* at nonportable */
+         sig val f : 'a -> 'a end @ nonportable
        is not included in
-         sig val f : 'a -> 'a @@ portable end /* at nonportable */
+         sig val f : 'a -> 'a @@ portable end @ nonportable
        Values do not match:
-         val f : 'a -> 'a /* at nonportable */
+         val f : 'a -> 'a @ nonportable
        is not included in
-         val f : 'a -> 'a @@ portable /* at nonportable */
+         val f : 'a -> 'a @@ portable @ nonportable
        The first is "nonportable" but the second is "portable".
 |}]
 
@@ -1301,16 +1318,17 @@ Lines 3-5, characters 18-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig val f : 'a -> 'a end /* at nonportable */
+         sig val f : 'a -> 'a end @ nonportable
        is not included in
-         sig val f : 'a -> 'a end /* at portable */
+         sig val f : 'a -> 'a end @ portable
        Values do not match:
-         val f : 'a -> 'a /* at nonportable */
+         val f : 'a -> 'a @ nonportable
        is not included in
-         val f : 'a -> 'a /* at portable */
+         val f : 'a -> 'a @ portable
        The first is "nonportable" but the second is "portable".
 |}]
 
+(* nested signature *)
 module M : sig
   module type S = sig module N : sig end @@ portable end
 end = struct
@@ -1362,9 +1380,9 @@ Line 2, characters 12-13:
                 ^
 Error: Signature mismatch:
        Modules do not match:
-         sig class foo : object  end end /* at nonportable */
+         sig class foo : object  end end @ nonportable
        is not included in
-         sig class foo : object  end end /* at portable */
+         sig class foo : object  end end @ portable
        Class declarations foo do not match:
        First is "nonportable" but second is "portable".
 |}]

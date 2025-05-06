@@ -468,7 +468,7 @@ external[@layout_poly] opaque_identity : ('a : any). 'a -> 'a = "%opaque"
     @since 4.03
 *)
 
-module Immediate64 : sig
+module (Immediate64 @ nonportable) : sig
   (** This module allows to define a type [t] with the [immediate64]
       attribute. This attribute means that the type is immediate on 64
       bit architectures. On other architectures, it might or might not
@@ -491,7 +491,7 @@ module Immediate64 : sig
       | Non_immediate : Non_immediate.t repr
     val repr : t repr
   end
-end @@ nonportable
+end
 
 (** Submodule containing non-backwards-compatible functions which enforce thread safety
     via modes. *)

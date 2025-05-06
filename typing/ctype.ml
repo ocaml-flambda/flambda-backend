@@ -5002,6 +5002,9 @@ let relevant_pairs pairs v =
 
 (** The mode crossing of the memory block of a structure. *)
 let mode_crossing_structure_memaddr =
+  (* CR-someday lmaurer: This is hard to read or maintain. We should have a
+     constructor for [Mode.Crossing.t] that takes a simple [Cross] or
+     [Don't_cross] for each axis. *)
   Mode.Crossing.of_bounds
   { monadic = {
       uniqueness = Unique;

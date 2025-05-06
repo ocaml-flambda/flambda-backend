@@ -39,7 +39,7 @@ open! Stdlib
 
 [@@@ocaml.nolabels]
 
-module Hashtbl : sig @@ portable
+module (Hashtbl @ nonportable) : sig @@ portable
   (** Hash tables and hash functions.
 
      Hash tables are hashed association tables, with in-place modification.
@@ -685,9 +685,9 @@ module Hashtbl : sig @@ portable
 
   *)
 
-end @@ nonportable
+end
 
-module Map : sig
+module (Map @ nonportable) : sig
   (** Association tables over ordered types.
 
      This module implements applicative association tables, also known as
@@ -1049,9 +1049,9 @@ module Map : sig
   (** Like {!Make}, but takes a portable [compare] function to
       portable [Map] operations. *)
 
-end @@ nonportable
+end
 
-module Set : sig
+module (Set @ nonportable) : sig
   (** Sets over ordered types.
 
      This module implements the set data structure, given a total ordering
@@ -1368,4 +1368,4 @@ module Set : sig
   (** Like {!Make}, but takes a portable [compare] function to
       portable [Set] operations. *)
 
-end @@ nonportable
+end

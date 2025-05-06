@@ -53,37 +53,38 @@ type mmodes =
   | All
   | Specific of Mode.Value.l * Mode.Value.r * close_over_coercion option
 
-let child_modes id ?modalities  = function
-  | All ->
-      begin match modalities with
-      | None -> Ok All
-      | Some (moda0, moda1) ->
-        match Mode.Modality.Value.sub moda0 moda1 with
-        | Ok () -> Ok All
-        | Error e -> Error e
-      end
+let child_close_over_coercion_opt id c =
+  match c with
+  | None -> None
+  | Some (locks, lid, loc) -> Some (locks, Longident.Ldot (lid, id), loc)
+
+let child_modes id = function
+  | All -> All
   | Specific (m0, m1, c) ->
-    let c =
-      match c with
-      | None -> None
-      | Some (locks, lid, loc) -> Some (locks, Longident.Ldot (lid, id), loc)
-    in
-    match modalities with
-    | Some (moda0, moda1) ->
-        begin match Mode.Modality.Value.to_const_opt moda1 with
-        | None ->
-            (* [wrap_constraint_with_shape] invokes inclusion check with
-               identical modes and inferred modalities, which we workaround *)
-            assert (moda0 == moda1);
-            Mode.Value.submode_exn m0 m1;
-            (* For children, we only check modality inclusion *)
-            Ok All
-        | Some moda1 ->
-          let m0 = Mode.Modality.Value.apply moda0 m0 in
-          let m1 = Mode.Modality.Value.(Const.apply moda1 m1) in
-          Ok (Specific (m0, m1, c))
-        end
-    | None -> Ok (Specific(m0, m1, c))
+    let c = child_close_over_coercion_opt id c in
+    Specific (m0, m1, c)
+
+let child_modes_with_modalities id ~modalities:(moda0, moda1) = function
+  | All ->
+    begin match Mode.Modality.Value.sub moda0 moda1 with
+      | Ok () -> Ok All
+      | Error e -> Error e
+    end
+  | Specific (m0, m1, c) ->
+    let c = child_close_over_coercion_opt id c in
+    begin match Mode.Modality.Value.to_const_opt moda1 with
+    | None ->
+      (* [wrap_constraint_with_shape] invokes inclusion check with
+          identical modes and inferred modalities, which we workaround *)
+      assert (moda0 == moda1);
+      Mode.Value.submode_exn m0 m1;
+      (* For children, we only check modality inclusion *)
+      Ok All
+    | Some moda1 ->
+      let m0 = Mode.Modality.Value.apply moda0 m0 in
+      let m1 = Mode.Modality.Value.Const.apply moda1 m1 in
+      Ok (Specific (m0, m1, c))
+    end
 
 let check_modes env ?(crossing = Crossing.top) ~item ?typ = function
   | All -> Ok ()
@@ -159,7 +160,7 @@ let value_descriptions ~loc env name
   let crossing = Ctype.crossing_of_ty env vd2.val_type in
   let modalities = vd1.val_modalities, vd2.val_modalities in
   let modes =
-    match child_modes name ~modalities mmodes with
+    match child_modes_with_modalities name ~modalities mmodes with
     | Ok modes -> modes
     | Error e -> raise (Dont_match (Modality e))
   in
@@ -402,7 +403,7 @@ let report_value_mismatch first second env ppf err =
   | Mode e ->
       let got = first ^ " is" in
       let expected = second ^ " is" in
-    report_mode_sub_error got expected ppf e
+      report_mode_sub_error got expected ppf e
 
 let report_type_inequality env ppf err =
   Printtyp.report_equality_error ppf Type_scheme env err

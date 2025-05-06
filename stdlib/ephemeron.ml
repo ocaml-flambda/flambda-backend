@@ -756,7 +756,7 @@ module K1 = struct
       let check_key = check_key
     end)
 
-  module Make (H: Hashtbl.HashedType): (S with type key = H.t) =
+  module Make(H: Hashtbl.HashedType): (S with type key = H.t) =
   struct
     include MakeSeeded(struct
         type t = H.t

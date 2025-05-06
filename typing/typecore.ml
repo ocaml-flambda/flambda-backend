@@ -480,6 +480,11 @@ let mode_default mode =
 
 let mode_legacy = mode_default Value.legacy
 
+let mode_default_opt mode_opt =
+  match mode_opt with
+  | None -> mode_legacy
+  | Some mode -> mode_default mode
+
 let as_single_mode {mode; tuple_modes; _} =
   match tuple_modes with
   | Some l -> Value.meet (mode :: l)
@@ -1282,7 +1287,6 @@ let add_module_variables env module_variables =
       in
       let mode = Typedtree.mode_without_locks_exn modl.mod_mode in
       Env.add_module_declaration ~shape:md_shape ~check:true mv_id pres md
-        (* the [locks] is always empty, but typecore doesn't need to know *)
         ~mode env
     end
   ) env module_variables_as_list
@@ -11050,20 +11054,12 @@ let check_partial ?lev a b c cases =
 (* drop unnecessary arguments from the external API
    and check for uniqueness *)
 let type_expect env ?mode e ty =
-  let expected_mode =
-    match mode with
-    | None -> mode_legacy
-    | Some m -> mode_default m
-  in
+  let expected_mode = mode_default_opt mode in
   let exp = type_expect env expected_mode e ty in
   maybe_check_uniqueness_exp exp; exp
 
 let type_exp env ?mode e =
-  let expected_mode =
-    match mode with
-    | None -> mode_legacy
-    | Some m -> mode_default m
-  in
+  let expected_mode = mode_default_opt mode in
   let exp = type_exp env expected_mode e in
   maybe_check_uniqueness_exp exp; exp
 

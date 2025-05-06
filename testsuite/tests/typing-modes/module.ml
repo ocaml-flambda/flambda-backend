@@ -270,8 +270,8 @@ let _ =
 Line 4, characters 19-23:
 4 |     let module _ = F(M) in
                        ^^^^
-Error: Modules do not match: sig end /* at local */ is not included in
-       Empty /* at global */
+Error: Modules do not match: sig end @ local is not included in
+       Empty @ global
      First is "local" but second is "global".
 |}]
 
@@ -292,8 +292,8 @@ Error: This application of the functor "F" is ill-typed.
          functor (X : Empty) (Y : Empty) -> ...
        1. Module M matches the expected module type Empty
        2. Modules do not match:
-            N : sig end /* at local */
+            N : sig end @ local
           is not included in
-            Empty /* at global */
+            Empty @ global
           First is "local" but second is "global".
 |}]

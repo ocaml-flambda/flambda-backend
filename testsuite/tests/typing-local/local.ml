@@ -618,7 +618,7 @@ val no_leak_id : unit = ()
 module type S = sig val s : string end
 
 (* Currently we can't stack-allocate modules, but it's fine to take modules as
-  local parameters. *)
+   local parameters. *)
 
 let bar (local_ (m : (module S))) =
   let (module _) = m in
@@ -629,7 +629,7 @@ val bar : local_ (module S) -> unit = <fun>
 |}]
 
 (* While it's sound to let modules cross locality (since they are always heap
-allocated), we choose not to expose this for future compatibility. *)
+   allocated), we choose not to expose this for future compatibility. *)
 let bar (local_ (m : (module S))) =
   let (module M) = m in
   M.s

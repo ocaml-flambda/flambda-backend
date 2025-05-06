@@ -19,6 +19,9 @@ open Misc
 open Typedtree
 open Types
 
+let map_error = Result.map_error
+open Misc.Stdlib.Monad.Result.Syntax
+
 type pos =
   | Module of Ident.t
   | Modtype of Ident.t
@@ -169,7 +172,7 @@ let modes_functor_param mod_mode =
   let mode, close_over_coercion = mod_mode in
   Specific (
     mode,
-    Mode.Value.disallow_left m,
+    m |> Mode.Value.disallow_left,
     close_over_coercion
   )
 
@@ -179,8 +182,8 @@ let modes_functor_param_legacy =
 let modes_functor_res =
   let m = Types.functor_res_mode |> Mode.alloc_as_value in
   Specific (
-    Mode.Value.disallow_right m,
-    Mode.Value.disallow_left m,
+    m |> Mode.Value.disallow_right,
+    m |> Mode.Value.disallow_left,
     None
   )
 
@@ -235,9 +238,7 @@ let class_type_declarations ~loc env subst decl1 decl2 =
       Error Error.(Core(Class_type_declarations(diff decl1 decl2 reason)))
 
 let class_declarations env subst id ~mmodes decl1 decl2 =
-  let modes =
-    Includecore.child_modes (Ident.name id) mmodes |> Result.get_ok
-  in
+  let modes = Includecore.child_modes (Ident.name id) mmodes in
   match Includecore.check_modes env ~item:Class modes with
   | Error e ->
       Error Error.(Core(Class_declarations(mdiff decl1 decl2 mmodes (Class_mode e))))
@@ -612,24 +613,24 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
         end
     end
   | (Mty_signature sig1, Mty_signature sig2) ->
-      begin match Includecore.check_modes env ~item:Module
-        ~crossing:Ctype.mode_crossing_structure_memaddr modes with
-      | Error e -> Error (Error.Mode e)
-      | Ok () ->
+      let* () =
+        Includecore.check_modes env ~item:Module
+          ~crossing:Ctype.mode_crossing_structure_memaddr modes
+        |> map_error (fun e -> Error.Mode e)
+      in
       begin match
         signatures ~in_eq ~loc env ~mark subst ~modes sig1 sig2 orig_shape
       with
       | Ok _ as ok -> ok
       | Error e -> Error (Error.Signature e)
       end
-      end
 
   | Mty_functor (param1, res1), Mty_functor (param2, res2) ->
-      begin match
+      let* () =
         Includecore.check_modes env ~item:Module
-        ~crossing:Ctype.mode_crossing_functor modes with
-      | Error e -> Error (Error.Mode e)
-      | Ok () ->
+          ~crossing:Ctype.mode_crossing_functor modes
+        |> map_error (fun e -> Error.Mode e)
+      in
       let cc_arg, env, subst =
         functor_param ~in_eq ~loc env ~mark:(negate_mark mark)
           subst param1 param2
@@ -689,7 +690,6 @@ and try_modtypes ~in_eq ~loc env ~mark subst ~modes mty1 mty2 orig_shape =
           Error Error.(Functor (Params d))
       | Ok _, Error res ->
           Error Error.(Functor (Result res))
-      end
       end
 
   | _ ->
@@ -994,12 +994,13 @@ and module_declarations  ~in_eq ~loc env ~mark  subst id1 ~mmodes md1 md2 orig_s
     Env.mark_module_used md1.md_uid;
   let modalities = md1.md_modalities, md2.md_modalities in
   let id = Ident.name id1 in
-  match Includecore.child_modes id ~modalities mmodes with
-  | Error e -> Error Error.(Core (Modalities e))
-  | Ok modes ->
-      Result.map_error (fun x -> Error.Module_type x)
-        (strengthened_modtypes  ~in_eq ~loc ~aliasable:true env ~mark subst ~modes
-          md1.md_type p1 md2.md_type orig_shape)
+  let* modes =
+    Includecore.child_modes_with_modalities id ~modalities mmodes
+    |> map_error (fun e -> Error.(Core (Modalities e)))
+  in
+  strengthened_modtypes  ~in_eq ~loc ~aliasable:true env ~mark subst ~modes
+    md1.md_type p1 md2.md_type orig_shape
+  |> map_error (fun x -> Error.Module_type x)
 
 (* Inclusion between module type specifications *)
 

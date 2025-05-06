@@ -148,11 +148,16 @@ type mmodes =
     ergonomics in [Typecore.type_ident] wrt projections out of modules.
   *)
 
+(** Gives the modes suitable for the inclusion check of a child item, where
+    there is no modality between the parent and the child. Takes the modes
+    suitable for the parent item. *)
+val child_modes: string -> mmodes -> mmodes
+
 (** Gives the modes suitable for the inclusion check of a child item. Takes the
     modes suitable for the parent item, and the modality between the parent and
     the child. *)
-val child_modes: string ->
-  ?modalities:(Mode.Modality.Value.t * Mode.Modality.Value.t) ->
+val child_modes_with_modalities:
+  string -> modalities:(Mode.Modality.Value.t * Mode.Modality.Value.t) ->
   mmodes -> (mmodes, Mode.Modality.Value.error) Result.t
 
 (** Claim the current item is included by the RHS and its mode checked. *)
