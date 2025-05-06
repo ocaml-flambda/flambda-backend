@@ -5,23 +5,23 @@ type t1 =
     mutable d1 : float
   }
 
-let[@inline never] [@local never] [@specialize never] add_mutable_record
+let[@opaque] [@specialize never] add_mutable_record
     (a : t1) (b : t1) (c : t1) : t1 =
   c.d0 <- Float.add a.d0 b.d0;
   c.d1 <- Float.add a.d1 b.d1;
   c
 
-let[@inline never] [@local never] [@specialize never] copy_mutable_record
+let[@opaque] [@specialize never] copy_mutable_record
     (a : t1) (b : t1) : t1 =
   b.d0 <- a.d0;
   b.d1 <- a.d1;
   b
 
-let[@inline never] [@local never] [@specialize never] add_mutable_record_fresh
+let[@opaque] [@specialize never] add_mutable_record_fresh
     (a : t1) (b : t1) : t1 =
   { d0 = Float.add a.d0 b.d0; d1 = Float.add a.d1 b.d1 }
 
-let[@inline never] [@local never] [@specialize never] copy_mutable_record_fresh
+let[@opaque] [@specialize never] copy_mutable_record_fresh
     (a : t1) : t1 =
   { d0 = a.d0; d1 = a.d1 }
 
@@ -32,7 +32,7 @@ type t4 =
     mutable d3 : float
   }
 
-let[@inline never] [@local never] [@specialize never] add_mutable_record_t4
+let[@opaque] [@specialize never] add_mutable_record_t4
     (a : t1) (b : t1) (c : t4) : t4 =
   c.d0 <- Float.add a.d0 b.d0;
   c.d1 <- Float.add a.d1 b.d1;
@@ -40,11 +40,11 @@ let[@inline never] [@local never] [@specialize never] add_mutable_record_t4
   c.d3 <- Float.add a.d1 b.d1;
   c
 
-let[@inline never] [@local never] [@specialize never] copy_mutable_record_t4
+let[@opaque] [@specialize never] copy_mutable_record_t4
     (a : t1) (b : t1) : t4 =
   { d0 = a.d0; d1 = a.d1; d2 = b.d0; d3 = b.d1 }
 
-let[@inline never] [@local never] [@specialize never] dup_mutable_record_t4
+let[@opaque] [@specialize never] dup_mutable_record_t4
     (a : t1) : t4 =
   { d0 = a.d0; d1 = a.d1; d2 = a.d0; d3 = a.d1 }
 
