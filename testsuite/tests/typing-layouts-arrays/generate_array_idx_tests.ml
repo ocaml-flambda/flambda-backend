@@ -398,41 +398,55 @@ let ty_ur3 = Ty.(unboxed_record "ur3" ["a", int64_u])
 
 let ty_ur4 = Ty.(unboxed_record "ur4" ["a", ty_ur2; "b", ty_ur3])
 
+let non_product_types = Ty.[string; int; int64; float32_u; float]
+
+let non_product_types =
+  favorite_scalar_types
+  @ Ty.
+      [ float_u;
+        int32_u;
+        int64_u;
+        nativeint_u;
+        float32;
+        int32;
+        nativeint;
+        int;
+        enum 3
+      ]
+
+
+let product_types =
+  let trees = enumerate_trees 4 in
+  List.fold_left trees ~init:[] ~f:(fun acc tree ->
+
+  )
+
+
 let array_element_types =
-  Ty.
-    [ float32_u;
-      float_u;
-      int32_u;
-      int64_u;
-      nativeint_u;
-      ty_ur1;
-      ty_ur3;
-      ty_ur4;
-      float32;
-      int32;
-      int64;
-      nativeint;
-      int;
-      enum 3;
-      ty_ur2;
-      unboxed_tuple [float_u; int32_u; int64_u];
-      unboxed_tuple
-        [ float_u;
-          unboxed_tuple [int64_u; int64_u];
-          float32_u;
-          unboxed_tuple [int32_u; unboxed_tuple [float32_u; float_u]];
-          int64_u
-        ];
-      unboxed_tuple [int64_u; ty_ur1];
-      unboxed_tuple [int; int64];
-      unboxed_tuple [option int64; int32; unboxed_tuple [int32; float]; float];
-      unboxed_tuple [float; float; float];
-      unboxed_tuple
-        [ float;
-          unboxed_tuple [float; float];
-          unboxed_tuple [float; unboxed_tuple [float; float; float]]
-        ]
-    ]
+  non_product_types
+  @ Ty.
+      [ ty_ur1;
+        ty_ur3;
+        ty_ur4;
+        ty_ur2;
+        unboxed_tuple [float_u; int32_u; int64_u];
+        unboxed_tuple
+          [ float_u;
+            unboxed_tuple [int64_u; int64_u];
+            float32_u;
+            unboxed_tuple [int32_u; unboxed_tuple [float32_u; float_u]];
+            int64_u
+          ];
+        unboxed_tuple [int64_u; ty_ur1];
+        unboxed_tuple [int; int64];
+        unboxed_tuple [option int64; int32; unboxed_tuple [int32; float]; float];
+        unboxed_tuple [float; float; float];
+        unboxed_tuple
+          [ float;
+            unboxed_tuple [float; float];
+            unboxed_tuple [float; unboxed_tuple [float; float; float]]
+          ]
+      ]
 
 type tree =
   | Branch of tree list
