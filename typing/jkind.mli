@@ -588,9 +588,14 @@ val get_nullability :
   Jkind_axis.Nullability.t
 
 (** Computes a jkind that is the same as the input but with an updated maximum
-    mode for the externality axis *)
+    mode for the nullability axis *)
 val set_nullability_upper_bound :
   Types.jkind_r -> Jkind_axis.Nullability.t -> Types.jkind_r
+
+(** Computes a jkind that is the same as the input but with an updated maximum
+    mode for the separability axis *)
+val set_separability_upper_bound :
+  Types.jkind_r -> Jkind_axis.Separability.t -> Types.jkind_r
 
 (** Sets the layout in a jkind. *)
 val set_layout : 'd Types.jkind -> Sort.t Layout.t -> 'd Types.jkind
