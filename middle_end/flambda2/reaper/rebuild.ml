@@ -703,14 +703,20 @@ let rec rebuild_expr (kinds : Flambda_kind.t Name.Map.t) (env : env)
         match[@ocaml.warning "-4"] call_kind with
         | Function { function_call = Direct code_id; alloc_mode } -> (
           match Apply.callee apply with
-          | None -> Some code_id, call_kind, false
-          | Some c ->
+          | Some c
+            when Simple.pattern_match'
+                   ~var:(fun _ ~coercion:_ -> true)
+                   ~const:(fun _ -> true)
+                   ~symbol:(fun s ~coercion:_ ->
+                     Compilation_unit.is_current (Symbol.compilation_unit s))
+                   c ->
             let call_kind =
               if Dep_solver.has_use env.uses (Code_id_or_name.code_id code_id)
               then call_kind
               else Call_kind.indirect_function_call_known_arity alloc_mode
             in
-            called c alloc_mode call_kind false)
+            called c alloc_mode call_kind false
+          | None | Some _ -> Some code_id, call_kind, false)
         | Function { function_call = Indirect_unknown_arity; alloc_mode = _ } ->
           (* called (Option.get (Apply.callee apply)) alloc_mode call_kind
              true *)

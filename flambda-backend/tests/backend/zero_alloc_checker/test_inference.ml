@@ -90,7 +90,7 @@ let f_strict_opt_fail x =
 module type S = functor () -> sig val[@zero_alloc] f : 'a -> 'a option end
 
 module F () = struct
-  let f x = Some x
+  let[@opaque] f x = Some x
 end
 
 module _ : S = F
