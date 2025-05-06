@@ -6,7 +6,7 @@ title: Intro
 
 The "unboxed types" extension provides users with additional control over the
 way their data is represented in memory and registers. These new types have
-different {\em layouts}, which is part of their [kind](../kinds/intro), to
+different **layouts**, which is part of their [kind](../kinds/intro), to
 distinguish them from normal OCaml types.
 
 This page gives a comprehensive overview of the extension.  Unboxed types are

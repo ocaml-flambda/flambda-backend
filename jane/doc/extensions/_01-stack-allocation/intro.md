@@ -35,7 +35,7 @@ let x2 = stack_ { foo; bar } in
 
 However, for this to be safe, stack-allocated values must not be used after
 their stack frame is freed. This is ensured by the type-checker as follows.
-A stack frames is represented as a _region_ at compile time, and each
+A stack frame is represented as a _region_ at compile time, and each
 stack-allocated value lives in the surrounding region (usually a function body).
 Stack-allocated values are not allowed to escape their region. If they do,
 you'll see error messages:
@@ -108,7 +108,7 @@ Part of the contract of `uses_callback` is that it expects `f` not to
 capture its argument: unexpected results could ensue if `f` stored a
 reference to this table somewhere, and it was later used and modified
 after it was added to the global registry. Using `local_`
-annotations allows this constraint to be made explicit and checked at
+annotations allow this constraint to be made explicit and checked at
 compile time, by giving `uses_callback` the signature:
 
 ```ocaml
