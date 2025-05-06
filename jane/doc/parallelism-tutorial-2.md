@@ -17,7 +17,7 @@ $ let (P key) = Capsule.create ()
 val key : $k Capsule.Key.t
 ```
 
-Keys have an interesting type: the parameter `$k` represents a brand-new type that's specific to this key.[^existential]
+Keys have an interesting type: the parameter `$k` represents a brand-new type that's specific to this key.
 We will use this particular `'k` to identify different pieces of our capsule, allowing them to be used in concert.
 Hence, we'll refer to our capsule as capsule `'k`.
 
@@ -47,7 +47,7 @@ let lock (par : Parallel.t) =
   in ()
 ```
 
-But we're getting ahead of ourselves&mdash;we first need to create some mutable state that lives in capsule ``k`.
+But we're getting ahead of ourselves&mdash;we first need to create some mutable state that lives in capsule `'k`.
 Let's encapsulate a fresh `int ref`:
 
 ```ocaml
@@ -57,7 +57,7 @@ val ref : (int ref, '_weak1) Capsule.Data.t
 ```
 
 The resulting type has a weak parameter, indicating that `ref` lives in some particular capsule, but we don't yet know exactly which one.
-When we use `ref` in conjunction with `mutex`, the compiler will learn that this parameter is specifically ``k`.
+When we use `ref` in conjunction with `mutex`, the compiler will learn that this parameter is specifically `'k`.
 
 The type `Capsule.Data.t` also crosses portability and contention, so we can share `ref` across portable functions without it becoming contended.
 However, we still need to enforce that only one function can manipulate the contents of `ref` at a time, so to access `ref`, we must lock the mutex.
@@ -77,7 +77,7 @@ let lock (par : Parallel.t) =
 ```
 
 Let's unpack exactly what's going on here.
-First, `with_lock` locks the mutex, assuring that we have exclusive access to capsule ``k`.
+First, `with_lock` locks the mutex, assuring that we have exclusive access to capsule `'k`.
 Second, we receive the associated capsule's `password`, which has type `'k Capsule.Password.t`.
 Finally, we use the password to call `iter`, which provides uncontended access to our mutable reference.
 
@@ -107,5 +107,3 @@ In the following sections, we'll explore two uses of capsules to protect a large
 <!-- keys and uniqueness -->
 
 <!-- image blur with parallel arrays -->
-
-[existential]: Also known as an existential type.
