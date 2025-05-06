@@ -90,6 +90,11 @@ val or_int : expression -> expression -> Debuginfo.t -> expression
 
 val xor_int : expression -> expression -> Debuginfo.t -> expression
 
+(** Similar to [add_int] but produces a result with machtype [Addr] iff
+  [ptr_out_of_heap] is [false]. *)
+val add_int_ptr :
+  ptr_out_of_heap:bool -> expression -> expression -> Debuginfo.t -> expression
+
 (** Integer tagging. [tag_int x = (x lsl 1) + 1] *)
 val tag_int : expression -> Debuginfo.t -> expression
 
@@ -407,35 +412,71 @@ val unbox_int :
 val make_unsigned_int :
   Primitive.unboxed_integer -> expression -> Debuginfo.t -> expression
 
-val unaligned_load_16 : expression -> expression -> Debuginfo.t -> expression
+val unaligned_load_16 :
+  ptr_out_of_heap:bool -> expression -> expression -> Debuginfo.t -> expression
 
 val unaligned_set_16 :
-  expression -> expression -> expression -> Debuginfo.t -> expression
+  ptr_out_of_heap:bool ->
+  expression ->
+  expression ->
+  expression ->
+  Debuginfo.t ->
+  expression
 
-val unaligned_load_32 : expression -> expression -> Debuginfo.t -> expression
+val unaligned_load_32 :
+  ptr_out_of_heap:bool -> expression -> expression -> Debuginfo.t -> expression
 
 val unaligned_set_32 :
-  expression -> expression -> expression -> Debuginfo.t -> expression
+  ptr_out_of_heap:bool ->
+  expression ->
+  expression ->
+  expression ->
+  Debuginfo.t ->
+  expression
 
-val unaligned_load_f32 : expression -> expression -> Debuginfo.t -> expression
+val unaligned_load_f32 :
+  ptr_out_of_heap:bool -> expression -> expression -> Debuginfo.t -> expression
 
 val unaligned_set_f32 :
-  expression -> expression -> expression -> Debuginfo.t -> expression
+  ptr_out_of_heap:bool ->
+  expression ->
+  expression ->
+  expression ->
+  Debuginfo.t ->
+  expression
 
-val unaligned_load_64 : expression -> expression -> Debuginfo.t -> expression
+val unaligned_load_64 :
+  ptr_out_of_heap:bool -> expression -> expression -> Debuginfo.t -> expression
 
 val unaligned_set_64 :
-  expression -> expression -> expression -> Debuginfo.t -> expression
+  ptr_out_of_heap:bool ->
+  expression ->
+  expression ->
+  expression ->
+  Debuginfo.t ->
+  expression
 
-val unaligned_load_128 : expression -> expression -> Debuginfo.t -> expression
+val unaligned_load_128 :
+  ptr_out_of_heap:bool -> expression -> expression -> Debuginfo.t -> expression
 
 val unaligned_set_128 :
-  expression -> expression -> expression -> Debuginfo.t -> expression
+  ptr_out_of_heap:bool ->
+  expression ->
+  expression ->
+  expression ->
+  Debuginfo.t ->
+  expression
 
-val aligned_load_128 : expression -> expression -> Debuginfo.t -> expression
+val aligned_load_128 :
+  ptr_out_of_heap:bool -> expression -> expression -> Debuginfo.t -> expression
 
 val aligned_set_128 :
-  expression -> expression -> expression -> Debuginfo.t -> expression
+  ptr_out_of_heap:bool ->
+  expression ->
+  expression ->
+  expression ->
+  Debuginfo.t ->
+  expression
 
 (** Primitives *)
 

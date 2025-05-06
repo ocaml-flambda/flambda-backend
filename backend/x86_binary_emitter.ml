@@ -867,7 +867,7 @@ let emit_MOV b dst src =
       assert false
 
 let emit_vex3 buf ~rexr ~rexx ~rexb ~vex_m ~vex_w ~vex_v ~vex_l ~vex_p =
-  buf_int8 buf 0xC4;
+  buf_int8 buf 0xC4; (* We only emit 3-byte VEX instructions. *)
   buf_int8 buf (((lnot rexr) lsl 7) lor
                 ((lnot rexx) lsl 6) lor
                 ((lnot rexb) lsl 5) lor
@@ -971,7 +971,6 @@ let emit_simd b (instr : Amd64_simd_instrs.instr) args =
     emit_legacy_prefix prefix;
     emit_mod_rm_reg b (mk_rex rex) (legacy_escape escape) rm reg
   | Reg, Vex { vex_m; vex_w; vex_l; vex_p } ->
-    buf_int8 b 0xC4; (* We only emit 3-byte VEX instructions. *)
     let rm, vex_v, reg = rm_vexv_reg () in
     emit_vex_rm_reg b [instr.enc.opcode] rm reg
       ~vex_m:(vex_map vex_m) ~vex_w ~vex_v ~vex_l ~vex_p:(vex_prefix vex_p)

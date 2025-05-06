@@ -137,23 +137,18 @@ let first_instruction_id (block : Cfg.basic_block) : InstructionId.t =
 
 type cfg_infos =
   { arg : Reg.Set.t;
-    res : Reg.Set.t;
-    max_instruction_id : InstructionId.t
+    res : Reg.Set.t
   }
 
 let collect_cfg_infos : Cfg_with_layout.t -> cfg_infos =
  fun cfg_with_layout ->
   let arg = ref Reg.Set.empty in
   let res = ref Reg.Set.empty in
-  let max_id = ref InstructionId.none in
   let add_registers (set : Reg.Set.t ref) (regs : Reg.t array) : unit =
     ArrayLabels.iter regs ~f:(fun reg ->
         match reg.Reg.loc with
         | Unknown -> set := Reg.Set.add reg !set
         | Reg _ | Stack _ -> ())
-  in
-  let update_max_id (instr : _ Cfg.instruction) : unit =
-    max_id := InstructionId.max !max_id instr.id
   in
   Cfg_with_layout.iter_instructions
     cfg_with_layout (* CR xclerc for xclerc: use fold *)
@@ -162,16 +157,14 @@ let collect_cfg_infos : Cfg_with_layout.t -> cfg_infos =
       add_registers arg instr.arg;
       add_registers res instr.res;
       instr.arg <- Array.copy instr.arg;
-      instr.res <- Array.copy instr.res;
-      update_max_id instr)
+      instr.res <- Array.copy instr.res)
     ~terminator:(fun term ->
       term.irc_work_list <- Cfg.Unknown_list;
       add_registers arg term.arg;
       add_registers res term.res;
       term.arg <- Array.copy term.arg;
-      term.res <- Array.copy term.res;
-      update_max_id term);
-  { arg = !arg; res = !res; max_instruction_id = !max_id }
+      term.res <- Array.copy term.res);
+  { arg = !arg; res = !res }
 
 let log_instruction_suffix (instr : _ Cfg.instruction) (liveness : liveness) :
     unit =

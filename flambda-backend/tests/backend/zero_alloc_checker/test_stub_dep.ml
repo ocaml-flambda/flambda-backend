@@ -1,1 +1,1 @@
-let(* [@zero_alloc ignore] *) f ~x ~y = (x, y) (* allocates *)
+let (* [@zero_alloc ignore] *) f ~x ~y = x, y (* allocates *)

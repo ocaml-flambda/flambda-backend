@@ -1,32 +1,32 @@
-File "fail29.ml", line 1, characters 8-19:
+File "fail29.ml", line 1, characters 8-18:
 Error: Annotation check for zero_alloc failed on function Fail29.foo (camlFail29.foo_HIDE_STAMP).
 
-File "fail29.ml", line 1, characters 14-19:
+File "fail29.ml", line 1, characters 14-18:
 Error: allocation of 24 bytes
 
-File "fail29.ml", line 3, characters 8-19:
+File "fail29.ml", line 3, characters 8-20:
 Error: Annotation check for zero_alloc failed on function Fail29.bar (camlFail29.bar_HIDE_STAMP).
 
-File "fail29.ml", line 3, characters 14-19:
+File "fail29.ml", line 3, characters 14-20:
 Error: allocation of 24 bytes
 
-File "fail29.ml", line 3, characters 17-19:
+File "fail29.ml", line 3, characters 18-20:
 Error: allocation of 24 bytes
 
-File "fail29.ml", lines 5-11, characters 10-15:
+File "fail29.ml", lines 5-10, characters 10-15:
 Error: Annotation check for zero_alloc failed on function Fail29.outer (camlFail29.outer_HIDE_STAMP).
 
-File "fail29.ml", line 11, characters 2-15:
+File "fail29.ml", line 10, characters 2-15:
 Error: called function may allocate (direct tailcall camlFail29.inner_HIDE_STAMP)
 
-File "fail29.ml", line 19, characters 5-15:
+File "fail29.ml", line 16, characters 5-15:
 Error: Annotation check for zero_alloc strict failed on function Fail29.check_me_strict (camlFail29.check_me_strict_HIDE_STAMP).
 
-File "fail29.ml", line 21, characters 22-60:
+File "fail29.ml", line 17, characters 38-76:
 Error: called function may allocate on a path to exceptional return (indirect call)
 
-File "fail29.ml", line 21, characters 13-61:
+File "fail29.ml", line 17, characters 29-77:
 Error: allocation of 24 bytes on a path to exceptional return
 
-File "fail29.ml", line 21, characters 22-60:
-Error: called function may allocate on a path to exceptional return (direct call camlCamlinternalFormat.make_printf_HIDE_STAMP) (fail29.ml:21,22--60;printf.ml:48,18--43;printf.ml:46,2--31)
+File "fail29.ml", line 17, characters 38-76:
+Error: called function may allocate on a path to exceptional return (direct call camlCamlinternalFormat.make_printf_HIDE_STAMP) (fail29.ml:17,38--76;printf.ml:48,18--43;printf.ml:46,2--31)

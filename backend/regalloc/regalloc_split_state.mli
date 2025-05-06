@@ -25,7 +25,7 @@ val log_renaming_info : t -> unit
      (this set contains the original name of the registers which need
       a phi, i.e. if we need to insert `x = phi(x', x'')` then the set
       contains `x`). *)
-val make : Cfg_with_infos.t -> last_used:InstructionId.t -> t
+val make : Cfg_with_infos.t -> t
 
 val destructions_at_end : t -> destructions_at_end
 
@@ -34,5 +34,3 @@ val definitions_at_beginning : t -> definitions_at_beginning
 val phi_at_beginning : t -> phi_at_beginning
 
 val stack_slots : t -> Regalloc_stack_slots.t
-
-val get_and_incr_instruction_id : t -> InstructionId.t

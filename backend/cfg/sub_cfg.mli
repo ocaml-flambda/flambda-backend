@@ -22,6 +22,16 @@
 
 [@@@ocaml.warning "+a-40-41-42"]
 
+(** These IDs are also used by [make_instr] *)
+val instr_id : InstructionId.sequence
+
+val reset_instr_id : unit -> unit
+
+(* CR mshinwell: consolidate with [Cfg.make_instruction] and tidy up ID
+   interface *)
+val make_instr :
+  'a -> Reg.t array -> Reg.t array -> Debuginfo.t -> 'a Cfg.instruction
+
 (** A "sub" CFG is the counterpart of an instruction list in the original Mach
     selection pass.
 

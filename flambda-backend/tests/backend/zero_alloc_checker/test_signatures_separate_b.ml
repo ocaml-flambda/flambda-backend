@@ -4,8 +4,7 @@
    This is part of a test of separate compilation. This file uses the library
    [test_signatures_separate_a.ml]. The dune rules ensure we only build a [cmi]
    file for that module - no executable artifacts are constructed, so we are
-   only using its signature.
-*)
+   only using its signature. *)
 
 module A = Test_signatures_separate_a
 
@@ -35,22 +34,17 @@ let[@zero_alloc strict] f_tuple_no_assume_is_not_za_strict x =
    However, we can also use these assumptions even to prove normal non-opt
    zero_alloc facts, when compiling this module with -zero-alloc-check all. This
    is basically a bug, but because the whole build is compiled with one
-   -zero-alloc-check X setting, we're not too worried about it.  These tests
+   -zero-alloc-check X setting, we're not too worried about it. These tests
    document the current behavior, but it would be OK if we changed things so
    that the ones without "opt" fail always, instead of only when compiling
-   without `-zero-alloc-check all`.
-*)
-let[@zero_alloc opt] f_id_opt_is_za_opt x =
-  A.f_id_opt x
+   without `-zero-alloc-check all`. *)
+let[@zero_alloc opt] f_id_opt_is_za_opt x = A.f_id_opt x
 
-let[@zero_alloc] f_id_opt_is_za_iff_all x =
-  A.f_id_opt x
+let[@zero_alloc] f_id_opt_is_za_iff_all x = A.f_id_opt x
 
-let[@zero_alloc strict opt] f_id_opt_is_not_za_strict_opt x =
-  A.f_id_opt x
+let[@zero_alloc strict opt] f_id_opt_is_not_za_strict_opt x = A.f_id_opt x
 
-let[@zero_alloc strict] f_id_opt_is_not_za_strict x =
-  A.f_id_opt x
+let[@zero_alloc strict] f_id_opt_is_not_za_strict x = A.f_id_opt x
 
 let[@zero_alloc strict opt] f_id_strict_opt_is_za_strict_opt x =
   A.f_id_strict_opt x
@@ -85,4 +79,4 @@ let[@zero_alloc] f_arity_two_sig_is_not_za_three_args x y z =
    signature only says this function is zero_alloc, not zero_alloc strict, so we
    can see the user-written assumption is taking priority). *)
 let[@zero_alloc strict] f_id_override_signature x =
-  (A.f_id[@zero_alloc assume strict]) x
+  (A.f_id [@zero_alloc assume strict]) x

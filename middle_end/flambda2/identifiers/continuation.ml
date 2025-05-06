@@ -133,6 +133,11 @@ let rename t =
   let { Data.name; sort; name_stamp = _; compilation_unit = _ } = find_data t in
   create ~sort ~name ()
 
+let is_renamed_version_of t t' =
+  let data = find_data t in
+  let data' = find_data t' in
+  Sort.equal data.sort data'.sort && String.equal data.name data'.name
+
 let name t = (find_data t).name
 
 let name_stamp t = (find_data t).name_stamp

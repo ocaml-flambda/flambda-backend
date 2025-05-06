@@ -341,23 +341,28 @@ let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
     ++ Cfg_with_infos.make
     ++ cfg_with_infos_profile ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
   in
-  let cfg_description =
-    Regalloc_validate.Description.create
-      (Cfg_with_infos.cfg_with_layout cfg_with_infos)
-  in
   cfg_with_infos
-  ++ (match register_allocator with
-     | GI -> cfg_with_infos_profile ~accumulate:true "cfg_gi" Regalloc_gi.run
-     | IRC -> cfg_with_infos_profile ~accumulate:true "cfg_irc" Regalloc_irc.run
-     | LS -> cfg_with_infos_profile ~accumulate:true "cfg_ls" Regalloc_ls.run)
-  ++ Cfg_with_infos.cfg_with_layout
+  ++ Profile.record ~accumulate:true "regalloc" (fun cfg_with_infos ->
+         let cfg_description =
+           Regalloc_validate.Description.create
+             (Cfg_with_infos.cfg_with_layout cfg_with_infos)
+         in
+         cfg_with_infos
+         ++ (match register_allocator with
+            | GI ->
+              cfg_with_infos_profile ~accumulate:true "cfg_gi" Regalloc_gi.run
+            | IRC ->
+              cfg_with_infos_profile ~accumulate:true "cfg_irc" Regalloc_irc.run
+            | LS ->
+              cfg_with_infos_profile ~accumulate:true "cfg_ls" Regalloc_ls.run)
+         ++ Cfg_with_infos.cfg_with_layout
+         ++ cfg_with_layout_profile ~accumulate:true "cfg_validate_description"
+              (Regalloc_validate.run cfg_description))
   ++ Profile.record ~accumulate:true "cfg_available_regs"
        (available_regs
           ~stack_slots:(fun x ->
             (Cfg_with_layout.cfg x).Cfg.fun_num_stack_slots)
           ~f:Cfg_available_regs.run)
-  ++ cfg_with_layout_profile ~accumulate:true "cfg_validate_description"
-       (Regalloc_validate.run cfg_description)
   ++ Profile.record ~accumulate:true "cfg_invariants" (cfg_invariants ppf_dump)
   ++ cfg_with_layout_profile ~accumulate:true "cfg_simplify"
        Regalloc_utils.simplify_cfg
@@ -388,10 +393,8 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
        ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
             "After selection")
   ++ Profile.record ~accumulate:true "cfg_invariants" (cfg_invariants ppf_dump)
-  ++ Profile.record ~accumulate:true "regalloc" (fun cfg_with_layout ->
-         cfg_with_layout
-         ++ Profile.record ~accumulate:true "cfg" (fun cfg_with_layout ->
-                compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout))
+  ++ Profile.record ~accumulate:true "cfg" (fun cfg_with_layout ->
+         compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout)
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
   ++ Profile.record ~accumulate:true "save_linear" save_linear

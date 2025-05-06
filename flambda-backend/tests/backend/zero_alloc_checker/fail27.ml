@@ -3,7 +3,7 @@ let foo x y = (x,y)
 let bar x y = [x;y]
 
 let outer x =
-  (** [inner] function should also show in the error message. *)
+  (* [inner] function should also show in the error message. *)
   let[@inline never][@local never][@specialize never] inner x =
     if x > 0 then (x,x)
     else raise (Failure "boo")

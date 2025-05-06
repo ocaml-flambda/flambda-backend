@@ -3562,11 +3562,9 @@ let type_module_type_of env smod =
   let mty = Mtype.scrape_for_type_of ~remove_aliases env tmty.mod_type in
   (* PR#5036: must not contain non-generalized type variables *)
   check_nongen_modtype env smod.pmod_loc mty;
-  (* for [module type of], we zap to identity modality for best legacy
-  compatibility *)
   let mty =
     remove_modality_and_zero_alloc_variables_mty env
-      ~zap_modality:Mode.Modality.Value.zap_to_id mty
+      ~zap_modality:Mode.Modality.Value.zap_to_floor mty
   in
   tmty, mty
 

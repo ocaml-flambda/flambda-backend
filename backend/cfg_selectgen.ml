@@ -450,7 +450,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     Sub_cfg.add_instruction sub_cfg basic arg res dbg
 
   let insert_op_debug_returning_id _env sub_cfg op dbg arg res =
-    let instr = Cfg.make_instr (Cfg.Op op) arg res dbg in
+    let instr = Sub_cfg.make_instr (Cfg.Op op) arg res dbg in
     Sub_cfg.add_instruction' sub_cfg instr;
     instr.id
 
@@ -1425,6 +1425,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     SU.current_function_is_check_enabled
       := Zero_alloc_checker.is_check_enabled f.Cmm.fun_codegen_options
            f.Cmm.fun_name.sym_name f.Cmm.fun_dbg;
+    Sub_cfg.reset_instr_id ();
     let num_regs_per_arg = Array.make (List.length f.Cmm.fun_args) 0 in
     let rargs =
       List.mapi
@@ -1485,19 +1486,20 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
           (Cfg.of_cmm_codegen_option f.Cmm.fun_codegen_options)
         ~fun_dbg:f.Cmm.fun_dbg ~fun_contains_calls:true
         ~fun_num_stack_slots:(Stack_class.Tbl.make 0) ~fun_poll:f.Cmm.fun_poll
+        ~next_instruction_id:Sub_cfg.instr_id
     in
     let layout = DLL.make_empty () in
     let entry_block =
       Cfg.make_empty_block ~label:(Cfg.entry_label cfg)
-        (Cfg.make_instr (Cfg.Always tailrec_label) [||] [||] Debuginfo.none)
+        (Sub_cfg.make_instr (Cfg.Always tailrec_label) [||] [||] Debuginfo.none)
     in
     DLL.add_begin entry_block.body
-      (Cfg.make_instr Cfg.Prologue [||] [||] Debuginfo.none);
+      (Sub_cfg.make_instr Cfg.Prologue [||] [||] Debuginfo.none);
     Cfg.add_block_exn cfg entry_block;
     DLL.add_end layout entry_block.start;
     let tailrec_block =
       Cfg.make_empty_block ~label:tailrec_label
-        (Cfg.make_instr
+        (Sub_cfg.make_instr
            (Cfg.Always (Sub_cfg.start_label body))
            [||] [||] Debuginfo.none)
     in
@@ -1528,7 +1530,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
           if Cfg.is_return_terminator block.terminator.desc
           then
             DLL.add_end block.body
-              (Cfg.make_instr Cfg.Reloadretaddr [||] [||] Debuginfo.none);
+              (Sub_cfg.make_instr Cfg.Reloadretaddr [||] [||] Debuginfo.none);
           Cfg.add_block_exn cfg block;
           DLL.add_end layout block.start)
         else assert (DLL.is_empty block.body));
