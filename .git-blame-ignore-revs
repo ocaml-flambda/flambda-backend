@@ -6,3 +6,6 @@
 
 # Reformat to cope with .ocamlformat change
 9777982cfb3733cd21896797b0b21980f5473462
+
+# Reformat bytegen/bytecomp.ml (#3953)
+be6e477ef3177e765c665752df7bf16ae1865ed9
