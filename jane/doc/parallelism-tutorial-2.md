@@ -77,9 +77,9 @@ let lock (par : Parallel.t) =
 ```
 
 Let's unpack exactly what's going on here.
-First, `with_lock` locks the mutex, assuring that we have exclusive access to capsule `'k`.
-Second, we receive the associated capsule's `password`, which has type `'k Capsule.Password.t`.
-Finally, we use the password to call `iter`, which provides uncontended access to our mutable reference.
+- First, `with_lock` locks the mutex, assuring that we have exclusive access to capsule `'k`.
+- Second, we receive the associated capsule's `password`, which has type `'k Capsule.Password.t`.
+- Finally, we use the password to call `iter`, which provides uncontended access to our mutable reference.
 
 This example could also be implemented with an `int Atomic.t`, but capsules are a much more flexible abstraction.
 For example, we're not forced to use a mutex, or even a lock at all&mdash;using uniqueness, we can manipulate a capsule via its key.
