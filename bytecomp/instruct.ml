@@ -13,7 +13,19 @@
 (*                                                                        *)
 (**************************************************************************)
 
-open Lambda
+type structured_constant = Lambda.structured_constant
+
+type raise_kind = Lambda.raise_kind
+
+type comparison =
+  | Eq
+  | Neq
+  | Ltint
+  | Gtint
+  | Leint
+  | Geint
+  | Ultint
+  | Ugeint
 
 type closure_entry = Debug_event.closure_entry =
   | Free_variable of int
@@ -107,11 +119,10 @@ type instruction =
   | Kccall of string * int
   | Knegint | Kaddint | Ksubint | Kmulint | Kdivint | Kmodint
   | Kandint | Korint | Kxorint | Klslint | Klsrint | Kasrint
-  | Kintcomp of integer_comparison
+  | Kintcomp of comparison
   | Koffsetint of int
   | Koffsetref of int
   | Kisint
-  | Kisout
   | Kgetmethod
   | Kgetpubmet of int
   | Kgetdynmet
