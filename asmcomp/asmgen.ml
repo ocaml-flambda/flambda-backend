@@ -356,13 +356,13 @@ let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
             | LS ->
               cfg_with_infos_profile ~accumulate:true "cfg_ls" Regalloc_ls.run)
          ++ Cfg_with_infos.cfg_with_layout
-         ++ Profile.record ~accumulate:true "cfg_available_regs"
-              (available_regs
-                 ~stack_slots:(fun x ->
-                   (Cfg_with_layout.cfg x).Cfg.fun_num_stack_slots)
-                 ~f:Cfg_available_regs.run)
          ++ cfg_with_layout_profile ~accumulate:true "cfg_validate_description"
               (Regalloc_validate.run cfg_description))
+  ++ Profile.record ~accumulate:true "cfg_available_regs"
+       (available_regs
+          ~stack_slots:(fun x ->
+            (Cfg_with_layout.cfg x).Cfg.fun_num_stack_slots)
+          ~f:Cfg_available_regs.run)
   ++ Profile.record ~accumulate:true "cfg_invariants" (cfg_invariants ppf_dump)
   ++ cfg_with_layout_profile ~accumulate:true "cfg_simplify"
        Regalloc_utils.simplify_cfg
