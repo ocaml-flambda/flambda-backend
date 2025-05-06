@@ -920,7 +920,8 @@ LBL(caml_start_program):
         movq    Caml_state(async_exn_handler), %r10
         movq    %r10, Cstack_async_exn_handler(%rsp)
         movq    %rsp, Caml_state(c_stack)
-    /* Load the OCaml stack. */
+    /* Load the OCaml stack.
+       Stack space used here must be accounted for in caml_maybe_expand_stack */
         movq    Caml_state(current_stack), %r11
         movq    Stack_sp(%r11), %r10
 #if Stack_padding_word

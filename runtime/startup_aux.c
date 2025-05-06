@@ -35,7 +35,9 @@
 #include "caml/signals.h"
 #include "caml/gc_ctrl.h"
 #include "caml/fiber.h"
+#include "caml/platform.h"
 
+#include <pthread.h>
 #include <sys/resource.h>
 
 #ifdef _WIN32
@@ -47,11 +49,26 @@ extern void caml_win32_unregister_overflow_detection (void);
 static struct caml_params params;
 const struct caml_params* const caml_params = &params;
 
+static size_t get_pthreads_stack_size_in_bytes(void)
+{
+  pthread_attr_t attr;
+  size_t res =
+    // default value, retrieved from a recent system (May 2024)
+    8 * 1024 * 1024;
+  if (pthread_attr_init(&attr) == 0) {
+    pthread_attr_getstacksize(&attr, &res);
+    pthread_attr_destroy(&attr);
+  }
+  return res;
+}
+
 static void init_startup_params(void)
 {
 #ifndef NATIVE_CODE
   char_os * cds_file;
 #endif
+
+  // Initial stack sizes only apply in native code with stack checks disabled.
 
   struct rlimit rlimit;
   if (getrlimit(RLIMIT_STACK, &rlimit)) {
@@ -67,6 +84,9 @@ static void init_startup_params(void)
   if (caml_init_main_stack_wsz > Max_stack_def) {
     caml_init_main_stack_wsz = Max_stack_def;
   }
+
+  caml_init_thread_stack_wsz = Wsize_bsize(get_pthreads_stack_size_in_bytes());
+  caml_init_fiber_stack_wsz = caml_init_thread_stack_wsz;
 
   params.init_percent_free = Percent_free_def;
   params.init_max_percent_free = Max_percent_free_def;
