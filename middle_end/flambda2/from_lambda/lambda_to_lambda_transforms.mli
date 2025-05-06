@@ -28,6 +28,7 @@ val rec_catch_for_for_loop :
   Lambda_to_flambda_env.t ->
   Lambda.scoped_location ->
   Ident.t ->
+  Lambda.debug_uid ->
   Lambda.lambda ->
   Lambda.lambda ->
   Asttypes.direction_flag ->

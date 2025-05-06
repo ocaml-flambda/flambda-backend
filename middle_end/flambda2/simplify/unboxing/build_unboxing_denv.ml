@@ -25,8 +25,9 @@ let add_equation_on_var denv var shape =
   | Bottom ->
     Misc.fatal_errorf "Meet failed whereas prove and meet previously succeeded"
 
-let denv_of_number_decision naked_kind shape param_var naked_var denv : DE.t =
-  let naked_name = VB.create naked_var Name_mode.normal in
+let denv_of_number_decision naked_kind shape param_var param_var_debug_uid
+    naked_var denv : DE.t =
+  let naked_name = VB.create naked_var param_var_debug_uid Name_mode.normal in
   let denv = DE.define_variable denv naked_name naked_kind in
   add_equation_on_var denv param_var shape
 
@@ -36,8 +37,10 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
   | Unbox (Unique_tag_and_size { tag; shape; fields }) ->
     let denv =
       Misc.Stdlib.List.fold_lefti
-        (fun index denv ({ epa = { param = var; _ }; _ } : U.field_decision) ->
-          let v = VB.create var Name_mode.normal in
+        (fun index denv
+             ({ epa = { param = var; param_debug_uid; _ }; _ } :
+               U.field_decision) ->
+          let v = VB.create var param_debug_uid Name_mode.normal in
           DE.define_variable denv v (K.Block_shape.element_kind shape index))
         denv fields
     in
@@ -59,8 +62,10 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
   | Unbox (Closure_single_entry { function_slot; vars_within_closure }) ->
     let denv =
       Value_slot.Map.fold
-        (fun _ ({ epa = { param = var; _ }; kind; _ } : U.field_decision) denv ->
-          let v = VB.create var Name_mode.normal in
+        (fun _
+             ({ epa = { param = var; param_debug_uid; _ }; kind; _ } :
+               U.field_decision) denv ->
+          let v = VB.create var param_debug_uid Name_mode.normal in
           DE.define_variable denv v (K.With_subkind.kind kind))
         vars_within_closure denv
     in
@@ -81,7 +86,7 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
       vars_within_closure denv
   | Unbox (Variant { tag; const_ctors; fields_by_tag }) ->
     (* Adapt the denv for the tag *)
-    let tag_v = VB.create tag.param Name_mode.normal in
+    let tag_v = VB.create tag.param tag.param_debug_uid Name_mode.normal in
     let denv = DE.define_variable denv tag_v K.naked_immediate in
     let denv =
       DE.map_typing_env denv ~f:(fun tenv ->
@@ -97,7 +102,9 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
       match const_ctors with
       | Zero -> denv
       | At_least_one { is_int; _ } ->
-        let is_int_v = VB.create is_int.param Name_mode.normal in
+        let is_int_v =
+          VB.create is_int.param is_int.param_debug_uid Name_mode.normal
+        in
         let denv = DE.define_variable denv is_int_v K.naked_immediate in
         let denv =
           DE.map_typing_env denv ~f:(fun tenv ->
@@ -119,7 +126,9 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
       | At_least_one { ctor = Do_not_unbox _; _ } ->
         denv, T.unknown K.naked_immediate
       | At_least_one { ctor = Unbox (Number (Naked_immediate, ctor_epa)); _ } ->
-        let v = VB.create ctor_epa.param Name_mode.normal in
+        let v =
+          VB.create ctor_epa.param ctor_epa.param_debug_uid Name_mode.normal
+        in
         let denv = DE.define_variable denv v K.naked_immediate in
         let ty =
           T.alias_type_of K.naked_immediate (Simple.var ctor_epa.param)
@@ -143,8 +152,10 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
       Tag.Scannable.Map.fold
         (fun _ (shape, block_fields) denv ->
           Misc.Stdlib.List.fold_lefti
-            (fun index denv ({ epa = { param = var; _ }; _ } : U.field_decision) ->
-              let v = VB.create var Name_mode.normal in
+            (fun index denv
+                 ({ epa = { param = var; param_debug_uid; _ }; _ } :
+                   U.field_decision) ->
+              let v = VB.create var param_debug_uid Name_mode.normal in
               DE.define_variable denv v (K.Block_shape.element_kind shape index))
             denv block_fields)
         fields_by_tag denv
@@ -173,39 +184,61 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
             denv_of_decision denv ~param_var:field.epa.param field.decision)
           denv block_fields)
       fields_by_tag denv
-  | Unbox (Number (Naked_immediate, { param = naked_immediate; args = _ })) ->
+  | Unbox
+      (Number
+        (Naked_immediate, { param = naked_immediate; param_debug_uid; args = _ }))
+    ->
     let shape = T.tagged_immediate_alias_to ~naked_immediate in
-    denv_of_number_decision K.naked_immediate shape param_var naked_immediate
-      denv
-  | Unbox (Number (Naked_float32, { param = naked_float32; args = _ })) ->
+    denv_of_number_decision K.naked_immediate shape param_var param_debug_uid
+      naked_immediate denv
+  | Unbox
+      (Number
+        (Naked_float32, { param = naked_float32; param_debug_uid; args = _ }))
+    ->
     let shape =
       T.boxed_float32_alias_to ~naked_float32 (Alloc_mode.For_types.unknown ())
     in
-    denv_of_number_decision K.naked_float32 shape param_var naked_float32 denv
-  | Unbox (Number (Naked_float, { param = naked_float; args = _ })) ->
+    denv_of_number_decision K.naked_float32 shape param_var param_debug_uid
+      naked_float32 denv
+  | Unbox
+      (Number (Naked_float, { param = naked_float; param_debug_uid; args = _ }))
+    ->
     let shape =
       T.boxed_float_alias_to ~naked_float (Alloc_mode.For_types.unknown ())
     in
-    denv_of_number_decision K.naked_float shape param_var naked_float denv
-  | Unbox (Number (Naked_int32, { param = naked_int32; args = _ })) ->
+    denv_of_number_decision K.naked_float shape param_var param_debug_uid
+      naked_float denv
+  | Unbox
+      (Number (Naked_int32, { param = naked_int32; param_debug_uid; args = _ }))
+    ->
     let shape =
       T.boxed_int32_alias_to ~naked_int32 (Alloc_mode.For_types.unknown ())
     in
-    denv_of_number_decision K.naked_int32 shape param_var naked_int32 denv
-  | Unbox (Number (Naked_int64, { param = naked_int64; args = _ })) ->
+    denv_of_number_decision K.naked_int32 shape param_var param_debug_uid
+      naked_int32 denv
+  | Unbox
+      (Number (Naked_int64, { param = naked_int64; param_debug_uid; args = _ }))
+    ->
     let shape =
       T.boxed_int64_alias_to ~naked_int64 (Alloc_mode.For_types.unknown ())
     in
-    denv_of_number_decision K.naked_int64 shape param_var naked_int64 denv
-  | Unbox (Number (Naked_nativeint, { param = naked_nativeint; args = _ })) ->
+    denv_of_number_decision K.naked_int64 shape param_var param_debug_uid
+      naked_int64 denv
+  | Unbox
+      (Number
+        (Naked_nativeint, { param = naked_nativeint; param_debug_uid; args = _ }))
+    ->
     let shape =
       T.boxed_nativeint_alias_to ~naked_nativeint
         (Alloc_mode.For_types.unknown ())
     in
-    denv_of_number_decision K.naked_nativeint shape param_var naked_nativeint
-      denv
-  | Unbox (Number (Naked_vec128, { param = naked_vec128; args = _ })) ->
+    denv_of_number_decision K.naked_nativeint shape param_var param_debug_uid
+      naked_nativeint denv
+  | Unbox
+      (Number
+        (Naked_vec128, { param = naked_vec128; param_debug_uid; args = _ })) ->
     let shape =
       T.boxed_vec128_alias_to ~naked_vec128 (Alloc_mode.For_types.unknown ())
     in
-    denv_of_number_decision K.naked_vec128 shape param_var naked_vec128 denv
+    denv_of_number_decision K.naked_vec128 shape param_var param_debug_uid
+      naked_vec128 denv

@@ -31,6 +31,7 @@ val simplify_lambda: lambda -> lambda
 
 val split_default_wrapper
    : id:Ident.t
+  -> debug_uid: debug_uid
   -> kind:function_kind
   -> params:Lambda.lparam list
   -> return:Lambda.layout

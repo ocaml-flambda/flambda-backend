@@ -1664,13 +1664,14 @@ let lambda_of_prim prim_name prim loc args arg_exps =
       Lprim(Praise kind, [arg], loc)
   | Raise_with_backtrace, [exn; bt] ->
       let vexn = Ident.create_local "exn" in
+      let vexn_duid = Lambda.debug_uid_none in
       let raise_arg =
         match arg_exps with
         | None -> Lvar vexn
         | Some [exn_exp; _] -> event_after loc exn_exp (Lvar vexn)
         | Some _ -> assert false
       in
-      Llet(Strict, Lambda.layout_block, vexn, exn,
+      Llet(Strict, Lambda.layout_block, vexn, vexn_duid, exn,
            Lsequence(Lprim(Pccall caml_restore_raw_backtrace,
                            [Lvar vexn; bt],
                            loc),
@@ -1810,6 +1811,9 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
           let arg_mode = to_locality arg in
           let params, return = make_params ret_ty repr_args repr_res in
           { name = Ident.create_local "prim";
+            debug_uid = Lambda.debug_uid_none;
+            (* The eta expansion is not actually visible at the source level,
+               so we do not generate a fresh [debug_uid] here. *)
             layout = arg_layout;
             attributes = Lambda.default_param_attribute;
             mode = arg_mode }

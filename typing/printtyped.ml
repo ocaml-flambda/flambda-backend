@@ -418,7 +418,8 @@ and function_body i ppf (body : function_body) =
       expression (i+1) ppf e
   | Tfunction_cases
       { fc_cases; fc_loc; fc_exp_extra; fc_attributes; fc_arg_mode;
-        fc_arg_sort; fc_param = _; fc_partial; fc_env = _; fc_ret_type = _ }
+        fc_arg_sort; fc_param = _; fc_param_debug_uid = _;
+        fc_partial; fc_env = _; fc_ret_type = _ }
     ->
       line i ppf "Tfunction_cases%a %a\n"
         fmt_partiality fc_partial

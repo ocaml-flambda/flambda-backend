@@ -25,7 +25,7 @@ module Expr_with_acc = Closure_conversion_aux.Expr_with_acc
 val close_let :
   Acc.t ->
   Env.t ->
-  (Ident.t * Flambda_kind.With_subkind.t) list ->
+  (Ident.t * Flambda_debug_uid.t * Flambda_kind.With_subkind.t) list ->
   IR.user_visible ->
   IR.named ->
   body:(Acc.t -> Env.t -> Expr_with_acc.t) ->
@@ -44,7 +44,12 @@ val close_let_cont :
   Env.t ->
   name:Continuation.t ->
   is_exn_handler:bool ->
-  params:(Ident.t * IR.user_visible * Flambda_kind.With_subkind.t) list ->
+  params:
+    (Ident.t
+    * Flambda_debug_uid.t
+    * IR.user_visible
+    * Flambda_kind.With_subkind.t)
+    list ->
   recursive:Asttypes.rec_flag ->
   handler:(Acc.t -> Env.t -> Expr_with_acc.t) ->
   body:(Acc.t -> Env.t -> Expr_with_acc.t) ->

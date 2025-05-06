@@ -343,6 +343,8 @@ module Inlining = struct
       ~free_names_of_body ~exn_continuation ~return_continuation
       ~apply_exn_continuation ~apply_return_continuation ~apply_depth ~apply_dbg
       =
+    let my_depth_duid = Flambda_debug_uid.none in
+    let my_closure_duid = Flambda_debug_uid.none in
     let rec_info =
       match apply_depth with
       | None -> Rec_info_expr.initial
@@ -351,15 +353,17 @@ module Inlining = struct
     let bind_params ~params ~args ~body:(acc, body) =
       let acc = Acc.with_free_names free_names_of_body acc in
       List.fold_left2
-        (fun (acc, body) param arg ->
+        (fun (acc, body) (param, param_duid) arg ->
           Let_with_acc.create acc
-            (Bound_pattern.singleton (VB.create param Name_mode.normal))
+            (Bound_pattern.singleton
+               (VB.create param param_duid Name_mode.normal))
             (Named.create_simple arg) ~body)
         (acc, body) params args
     in
     let bind_depth ~my_depth ~rec_info ~body:(acc, body) =
       Let_with_acc.create acc
-        (Bound_pattern.singleton (VB.create my_depth Name_mode.normal))
+        (Bound_pattern.singleton
+           (VB.create my_depth my_depth_duid Name_mode.normal))
         (Named.create_rec_info rec_info)
         ~body
     in
@@ -373,17 +377,20 @@ module Inlining = struct
     in
     let acc, body =
       Inlining_helpers.make_inlined_body ~callee ~called_code_id
-        ~region_inlined_into ~params ~args ~my_closure ~my_region
-        ~my_ghost_region ~my_depth ~rec_info ~body:(acc, body) ~exn_continuation
-        ~return_continuation ~apply_exn_continuation ~apply_return_continuation
-        ~bind_params ~bind_depth ~apply_renaming
+        ~region_inlined_into ~params ~args
+        ~my_closure:(my_closure, my_closure_duid)
+        ~my_region ~my_ghost_region ~my_depth ~rec_info ~body:(acc, body)
+        ~exn_continuation ~return_continuation ~apply_exn_continuation
+        ~apply_return_continuation ~bind_params ~bind_depth ~apply_renaming
     in
     let inlined_debuginfo =
       Inlined_debuginfo.create ~called_code_id ~apply_dbg
     in
+    let inlined_dbg_var = Variable.create "inlined_dbg" in
+    let inlined_dbg_var_duid = Flambda_debug_uid.none in
     Let_with_acc.create acc
       (Bound_pattern.singleton
-         (VB.create (Variable.create "inlined_dbg") Name_mode.normal))
+         (VB.create inlined_dbg_var inlined_dbg_var_duid Name_mode.normal))
       (Named.create_prim
          (Nullary (Enter_inlined_apply { dbg = inlined_debuginfo }))
          Debuginfo.none)
@@ -446,7 +453,7 @@ module Inlining = struct
         let make_inlined_body =
           make_inlined_body ~callee ~called_code_id:(Code.code_id code)
             ~region_inlined_into
-            ~params:(Bound_parameters.vars params)
+            ~params:(Bound_parameters.vars_and_uids params)
             ~args ~my_closure ~my_region ~my_ghost_region ~my_depth ~body
             ~free_names_of_body ~exn_continuation ~return_continuation
             ~apply_depth ~apply_dbg
@@ -583,12 +590,18 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
       "close_c_call: C call primitive %s can't be layout polymorphic." prim_name;
   let env, let_bound_vars =
     List.fold_left_map
-      (fun env (id, kind) -> Env.add_var_like env id Not_user_visible kind)
+      (fun env (id, id_duid, kind) ->
+        let env, let_bound_var =
+          Env.add_var_like env id Not_user_visible kind
+        in
+        env, (let_bound_var, id_duid))
+        (* CR sspies: Alternatively, we could drop the debugging uid here,
+           because these variables are not user visible. *)
       env let_bound_ids_with_kinds
   in
   let cost_metrics_of_body, free_names_of_body, acc, body =
     Acc.measure_cost_metrics acc ~f:(fun acc ->
-        k acc (List.map Named.create_var let_bound_vars))
+        k acc (List.map (fun (v, _) -> Named.create_var v) let_bound_vars))
   in
   let alloc_mode_app =
     match Lambda.locality_mode_of_primitive_description prim_desc with
@@ -640,7 +653,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
     | Apply_cont apply_cont
       when Simple.List.equal
              (Apply_cont_expr.args apply_cont)
-             (Simple.vars let_bound_vars)
+             (Simple.vars (List.map fst let_bound_vars))
            && Option.is_none (Apply_cont_expr.trap_action apply_cont)
            && not need_return_transformer ->
       Apply_cont_expr.continuation apply_cont, false
@@ -681,7 +694,10 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
           match args with
           | [arg] ->
             let result = Variable.create "reinterpreted" in
-            let result' = Bound_var.create result Name_mode.normal in
+            let result_duid = Flambda_debug_uid.none in
+            let result' =
+              Bound_var.create result result_duid Name_mode.normal
+            in
             let bindable = Bound_pattern.singleton result' in
             let prim = P.Unary (Reinterpret_64_bit_word op, arg) in
             let acc, return_result =
@@ -733,7 +749,10 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
         | Some named ->
           fun args acc ->
             let unboxed_arg = Variable.create "unboxed" in
-            let unboxed_arg' = VB.create unboxed_arg Name_mode.normal in
+            let unboxed_arg_duid = Flambda_debug_uid.none in
+            let unboxed_arg' =
+              VB.create unboxed_arg unboxed_arg_duid Name_mode.normal
+            in
             let acc, body = call (Simple.var unboxed_arg :: args) acc in
             let named = Named.create_prim (Unary (named, arg)) dbg in
             Let_with_acc.create acc
@@ -744,8 +763,8 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
   let wrap_c_call acc ~handler_params ~code_after_call c_call =
     let params =
       List.map2
-        (fun ret_value { kind; _ } ->
-          BP.create ret_value (K.With_subkind.anything kind))
+        (fun (ret_value, ret_value_duid) { kind; _ } ->
+          BP.create ret_value (K.With_subkind.anything kind) ret_value_duid)
         handler_params unarized_results
       |> Bound_parameters.create
     in
@@ -762,18 +781,21 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
   let box_unboxed_returns () =
     let let_bound_vars' =
       List.map
-        (fun let_bound_var -> VB.create let_bound_var Name_mode.normal)
+        (fun (let_bound_var, let_bound_var_duid) ->
+          VB.create let_bound_var let_bound_var_duid Name_mode.normal)
         let_bound_vars
     in
     let handler_params =
       List.map
-        (fun let_bound_var -> Variable.rename let_bound_var)
+        (fun (let_bound_var, let_bound_var_duid) ->
+          Variable.rename let_bound_var, let_bound_var_duid)
         let_bound_vars
     in
     let body acc =
       let acc, body = keep_body acc in
       List.fold_left2
-        (fun (acc, body) unarized_param (handler_param, let_bound_var') ->
+        (fun (acc, body) unarized_param
+             ((handler_param, _handler_param_duid), let_bound_var') ->
           let named =
             let handler_param = Simple.var handler_param in
             match unarized_param.return_transformer with
@@ -809,7 +831,7 @@ let close_c_call acc env ~loc ~let_bound_ids_with_kinds
 let close_exn_continuation acc env (exn_continuation : IR.exn_continuation) =
   let acc, extra_args =
     List.fold_left_map
-      (fun acc (simple, kind) ->
+      (fun acc (simple, _uid, kind) ->
         let acc, simple = find_simple acc env simple in
         acc, (simple, kind))
       acc exn_continuation.extra_args
@@ -850,24 +872,31 @@ let close_effect_primitive acc env ~dbg exn_continuation
   (* CR mshinwell: share with close_c_call, above *)
   let _env, let_bound_vars =
     List.fold_left_map
-      (fun env (id, kind) -> Env.add_var_like env id Not_user_visible kind)
+      (fun env (id, id_duid, kind) ->
+        let env, let_bound_var =
+          Env.add_var_like env id Not_user_visible kind
+        in
+        env, (let_bound_var, id_duid))
+        (* CR sspies: Alternatively, we could drop the debugging uid here,
+           because these variables are not user visible. *)
       env let_bound_ids_with_kinds
   in
-  let let_bound_var =
+  let let_bound_var, let_bound_var_duid =
     match let_bound_vars with
-    | [let_bound_var] -> let_bound_var
+    | [(let_bound_var, let_bound_var_duid)] -> let_bound_var, let_bound_var_duid
     | [] | _ :: _ :: _ ->
       Misc.fatal_errorf
         "close_effect_primitive: expected singleton return for primitive %a, \
          but got: [%a]"
         Printlambda.primitive prim
         (Format.pp_print_list ~pp_sep:Format.pp_print_space Variable.print)
-        let_bound_vars
+        (List.map fst let_bound_vars)
   in
   let continuation = Continuation.create () in
   let return_kind = Flambda_kind.With_subkind.any_value in
   let params =
-    [BP.create let_bound_var return_kind] |> Bound_parameters.create
+    [BP.create let_bound_var return_kind let_bound_var_duid]
+    |> Bound_parameters.create
   in
   let close call_kind =
     let apply acc =
@@ -887,7 +916,7 @@ let close_effect_primitive acc env ~dbg exn_continuation
       ~handler:(fun acc ->
         let cost_metrics_of_body, free_names_of_body, acc, code_after_call =
           Acc.measure_cost_metrics acc ~f:(fun acc ->
-              k acc (List.map Named.create_var let_bound_vars))
+              k acc (List.map (fun (v, _) -> Named.create_var v) let_bound_vars))
         in
         let acc =
           Acc.with_cost_metrics
@@ -1202,7 +1231,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
   let rec cont ids_with_kinds env acc (defining_exprs : Named.t list) =
     match ids_with_kinds, defining_exprs with
     | [], [] -> body acc env
-    | (id, kind) :: ids_with_kinds, defining_expr :: defining_exprs -> (
+    | (id, uid, kind) :: ids_with_kinds, defining_expr :: defining_exprs -> (
       let body_env, var = Env.add_var_like env id user_visible kind in
       let body acc env = cont ids_with_kinds env acc defining_exprs in
       match defining_expr with
@@ -1235,7 +1264,7 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
               prim Flambda_kind.print result_kind
         | Simple _ | Static_consts _ | Set_of_closures _ | Rec_info _ -> ());
         let bound_pattern =
-          Bound_pattern.singleton (VB.create var Name_mode.normal)
+          Bound_pattern.singleton (VB.create var uid Name_mode.normal)
         in
         let bind acc env =
           (* CR pchambart: Not tail ! The body function is the recursion *)
@@ -1458,7 +1487,9 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
         Continuation.print name);
   let handler_env, env_params = Env.add_vars_like env params in
   let handler_params =
-    List.map2 (fun param (_, _, kind) -> BP.create param kind) env_params params
+    List.map2
+      (fun param (_, uid, _, kind) -> BP.create param kind uid)
+      env_params params
     |> Bound_parameters.create
   in
   let handler acc =
@@ -1467,7 +1498,8 @@ let close_let_cont acc env ~name ~is_exn_handler ~params
       | None -> handler_env
       | Some args ->
         List.fold_left2
-          (fun env arg_approx (param, (param_id, _, kind)) ->
+          (fun env arg_approx (param, (param_id, _param_uid, _, kind)) ->
+            (* CR tnowak: not sure, should we ignore the param_uid here? *)
             let env = Env.add_var_approximation env param arg_approx in
             match (arg_approx : Env.value_approximation) with
             | Value_symbol s | Closure_approximation { symbol = Some s; _ } ->
@@ -1622,7 +1654,10 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
     Expr_with_acc.t =
   let scrutinee = find_simple_from_id env scrutinee in
   let untagged_scrutinee = Variable.create "untagged" in
-  let untagged_scrutinee' = VB.create untagged_scrutinee Name_mode.normal in
+  let untagged_scrutinee_duid = Flambda_debug_uid.none in
+  let untagged_scrutinee' =
+    VB.create untagged_scrutinee untagged_scrutinee_duid Name_mode.normal
+  in
   let known_const_scrutinee =
     match find_value_approximation_through_symbol acc env scrutinee with
     | Value_approximation.Value_const c -> Reg_width_const.is_tagged_immediate c
@@ -1661,7 +1696,10 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
         condition_dbg
     in
     let comparison_result = Variable.create "eq" in
-    let comparison_result' = VB.create comparison_result Name_mode.normal in
+    let comparison_result_duid = Flambda_debug_uid.none in
+    let comparison_result' =
+      VB.create comparison_result comparison_result_duid Name_mode.normal
+    in
     let acc, default_action =
       let acc, args = find_simples acc env default_args in
       let trap_action = close_trap_action_opt default_trap_action in
@@ -1736,20 +1774,28 @@ let close_switch acc env ~condition_dbg scrutinee (sw : IR.switch) :
 
 let variables_for_unboxing boxed_variable_name (k : Function_decl.unboxing_kind)
     =
+  (* CR sspies: This function currently picks [.none] for all the debugging uids
+     of the unboxed variables. Should we put in more effort to propagate the
+     correct debugging uids here? How would the type change from boxed to
+     unboxed affect this function? That is, do all these variables even have the
+     same debugging uids as their original counter parts? *)
   match k with
   | Fields_of_block_with_tag_zero kinds ->
     List.mapi
       (fun i kind ->
         ( Variable.create (boxed_variable_name ^ "_field_" ^ Int.to_string i),
+          Flambda_debug_uid.none,
           kind ))
       kinds
   | Unboxed_number bn ->
     [ ( Variable.create (boxed_variable_name ^ "_unboxed"),
+        Flambda_debug_uid.none,
         Flambda_kind.With_subkind.naked_of_boxable_number bn ) ]
   | Unboxed_float_record num_fields ->
     List.init num_fields (fun i ->
         ( Variable.create
             (boxed_variable_name ^ "_floatfield_" ^ Int.to_string i),
+          Flambda_debug_uid.none,
           Flambda_kind.With_subkind.naked_float ))
 
 let unboxing_primitive (k : Function_decl.unboxing_kind) boxed_variable i =
@@ -1802,6 +1848,7 @@ let compute_body_of_unboxed_function acc my_region my_closure
     ~unarized_params:params params_arity ~unarized_param_modes:param_modes
     function_slot compute_body return return_continuation unboxed_params
     unboxed_return unboxed_function_slot =
+  let my_closure_duid = Flambda_debug_uid.none in
   let rec box_params params params_arity param_modes params_unboxing body =
     match params, params_arity, param_modes, params_unboxing with
     | [], [], [], [] -> [], [], [], body
@@ -1828,19 +1875,26 @@ let compute_body_of_unboxed_function acc my_region my_closure
             Alloc_mode.For_allocations.from_lambda ~current_region:my_region
               (Alloc_mode.For_types.to_lambda param_mode)
           in
+          let _, param_duid = BP.var_and_uid param in
           Let_with_acc.create acc
             (Bound_pattern.singleton
-               (Bound_var.create (Bound_parameter.var param) Name_mode.normal))
+               (Bound_var.create
+                  (Bound_parameter.var param)
+                  param_duid Name_mode.normal))
+            (* CR sspies: Is this debugging uid correct? *)
             (Named.create_prim
-               (boxing_primitive k alloc_mode (List.map fst vars_with_kinds))
+               (boxing_primitive k alloc_mode
+                  (List.map (fun (var, _, _) -> var) vars_with_kinds))
                Debuginfo.none)
             ~body
         in
         ( List.map
-            (fun (var, kind) -> Bound_parameter.create var kind)
+            (fun (var, var_duid, kind) ->
+              Bound_parameter.create var kind var_duid)
             vars_with_kinds
           @ main_code_params,
-          List.map snd vars_with_kinds @ main_code_params_arity,
+          List.map (fun (_, _, kind) -> kind) vars_with_kinds
+          @ main_code_params_arity,
           (* CR ncourant: is this correct in the presence of records with global
              fields? *)
           List.map (fun _ -> param_mode) vars_with_kinds @ main_code_param_modes,
@@ -1874,6 +1928,7 @@ let compute_body_of_unboxed_function acc my_region my_closure
         Continuation.create ~sort:Return ~name:"unboxed_return" ()
       in
       let boxed_variable = Variable.create "boxed_result" in
+      let boxed_variable_duid = Flambda_debug_uid.none in
       let return =
         match Flambda_arity.unarized_components return with
         | [return] -> return
@@ -1883,22 +1938,25 @@ let compute_body_of_unboxed_function acc my_region my_closure
              unboxed return@."
       in
       let handler_params =
-        Bound_parameters.create [Bound_parameter.create boxed_variable return]
+        Bound_parameters.create
+          [Bound_parameter.create boxed_variable return boxed_variable_duid]
       in
       let handler acc =
         let acc, apply_cont =
           Apply_cont_with_acc.create acc unboxed_return_continuation
             ~args:
-              (List.map (fun (var, _kind) -> Simple.var var) vars_with_kinds)
+              (List.map
+                 (fun (var, _duid, _kind) -> Simple.var var)
+                 vars_with_kinds)
             ~dbg:Debuginfo.none
         in
         let acc, apply_cont = Expr_with_acc.create_apply_cont acc apply_cont in
         let (acc, expr), _ =
           List.fold_left
-            (fun ((acc, expr), i) (var, _kind) ->
+            (fun ((acc, expr), i) (var, var_duid, _kind) ->
               ( Let_with_acc.create acc
                   (Bound_pattern.singleton
-                     (Bound_var.create var Name_mode.normal))
+                     (Bound_var.create var var_duid Name_mode.normal))
                   (Named.create_prim
                      (unboxing_primitive k boxed_variable i)
                      Debuginfo.none)
@@ -1916,13 +1974,15 @@ let compute_body_of_unboxed_function acc my_region my_closure
       ( acc,
         unboxed_body,
         Flambda_arity.create_singletons
-          (List.map (fun (_, kind) -> kind) vars_with_kinds),
+          (List.map (fun (_, _, kind) -> kind) vars_with_kinds),
         unboxed_return_continuation )
   in
   let my_unboxed_closure = Variable.create "my_unboxed_closure" in
   let acc, unboxed_body =
     Let_with_acc.create acc
-      (Bound_pattern.singleton (Bound_var.create my_closure Name_mode.normal))
+      (Bound_pattern.singleton
+         (Bound_var.create my_closure my_closure_duid Name_mode.normal))
+      (* CR sspies: Should this be [my_unboxed_closure]? *)
       (Named.create_prim
          (Flambda_primitive.Unary
             ( Project_function_slot
@@ -1957,6 +2017,9 @@ let make_unboxed_function_wrapper acc function_slot ~unarized_params:params
   let main_function_slot = unboxed_function_slot in
   let main_name = Function_slot.name unboxed_function_slot in
   let main_closure = Variable.create main_name in
+  let main_closure_duid = Flambda_debug_uid.none in
+  (* CR sspies: Should we have a debug uid available here? How would it interact
+     with unboxed types? *)
   let return_continuation = Continuation.create () in
   let exn_continuation = Continuation.create () in
   let my_closure = Variable.create "my_closure" in
@@ -1992,7 +2055,7 @@ let make_unboxed_function_wrapper acc function_slot ~unarized_params:params
           let body, free_names_of_body = body_wrapper body free_names_of_body in
           let body, free_names_of_body, _ =
             List.fold_left
-              (fun (body, free_names_of_body, i) (var, _kind) ->
+              (fun (body, free_names_of_body, i) (var, var_duid, _kind) ->
                 let named =
                   Named.create_prim
                     (unboxing_primitive k (Bound_parameter.var param) i)
@@ -2001,7 +2064,7 @@ let make_unboxed_function_wrapper acc function_slot ~unarized_params:params
                 ( Expr.create_let
                     (Let_expr.create
                        (Bound_pattern.singleton
-                          (Bound_var.create var Name_mode.normal))
+                          (Bound_var.create var var_duid Name_mode.normal))
                        named ~body
                        ~free_names_of_body:(Known free_names_of_body)),
                   Name_occurrences.union (Named.free_names named)
@@ -2012,8 +2075,10 @@ let make_unboxed_function_wrapper acc function_slot ~unarized_params:params
           in
           body, free_names_of_body
         in
-        ( List.map (fun (var, _kind) -> Simple.var var) vars_with_kinds @ args,
-          List.map (fun (_var, kind) -> kind) vars_with_kinds @ args_arity,
+        ( List.map (fun (var, _duid, _kind) -> Simple.var var) vars_with_kinds
+          @ args,
+          List.map (fun (_var, _duid, kind) -> kind) vars_with_kinds
+          @ args_arity,
           new_wrapper ))
   in
   let args, args_arity, body_wrapper =
@@ -2055,7 +2120,7 @@ let make_unboxed_function_wrapper acc function_slot ~unarized_params:params
       Expr.create_let
         (Let_expr.create
            (Bound_pattern.singleton
-              (Bound_var.create main_closure Name_mode.normal))
+              (Bound_var.create main_closure main_closure_duid Name_mode.normal))
            projection
            ~body:(Expr.create_apply main_application)
            ~free_names_of_body:(Known (Apply_expr.free_names main_application)))
@@ -2078,11 +2143,13 @@ let make_unboxed_function_wrapper acc function_slot ~unarized_params:params
           (List.map
              (fun kind ->
                let var = Variable.create "unboxed_return" in
-               Bound_parameter.create var kind)
+               let var_duid = Flambda_debug_uid.none in
+               Bound_parameter.create var kind var_duid)
              (Flambda_arity.unarized_components result_arity_main_code))
       in
       let handler, free_names_of_handler =
         let boxed_return = Variable.create "boxed_return" in
+        let boxed_return_duid = Flambda_debug_uid.none in
         let return_apply_cont =
           Apply_cont.create return_continuation
             ~args:[Simple.var boxed_return]
@@ -2096,7 +2163,8 @@ let make_unboxed_function_wrapper acc function_slot ~unarized_params:params
         ( Expr.create_let
             (Let_expr.create
                (Bound_pattern.singleton
-                  (Bound_var.create boxed_return Name_mode.normal))
+                  (Bound_var.create boxed_return boxed_return_duid
+                     Name_mode.normal))
                box_result_named
                ~body:(Expr.create_apply_cont return_apply_cont)
                ~free_names_of_body:
@@ -2236,6 +2304,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
   let function_slot = Function_decl.function_slot decl in
   let my_depth = Variable.create "my_depth" in
   let next_depth = Variable.create "next_depth" in
+  let next_depth_duid = Flambda_debug_uid.none in
   let our_let_rec_ident = Function_decl.let_rec_ident decl in
   let is_curried =
     match Function_decl.kind decl with Curried _ -> true | Tupled -> false
@@ -2373,7 +2442,7 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
     List.map
       (fun (p : Function_decl.param) ->
         let var = fst (Env.find_var closure_env p.name) in
-        BP.create var p.kind)
+        BP.create var p.kind p.debug_uid)
       unarized_params
     |> Bound_parameters.create
   in
@@ -2406,7 +2475,9 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
           let move : Flambda_primitive.unary_primitive =
             Project_function_slot { move_from = function_slot; move_to }
           in
-          let var = VB.create var Name_mode.normal in
+          let var = VB.create var Flambda_debug_uid.none Name_mode.normal in
+          (* CR sspies: Should we put in more effort to propagate a debugging
+             uid to here? *)
           let named =
             Named.create_prim (Unary (move, my_closure')) Debuginfo.none
           in
@@ -2416,7 +2487,9 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
     let acc, body =
       Variable.Map.fold
         (fun var value_slot (acc, body) ->
-          let var = VB.create var Name_mode.normal in
+          let var = VB.create var Flambda_debug_uid.none Name_mode.normal in
+          (* CR sspies: Should we put in more effort to propagate a debugging
+             uid to here? *)
           let named =
             Named.create_prim
               (Unary
@@ -2430,7 +2503,8 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
     in
     let next_depth_expr = Rec_info_expr.succ (Rec_info_expr.var my_depth) in
     let bound =
-      Bound_pattern.singleton (Bound_var.create next_depth Name_mode.normal)
+      Bound_pattern.singleton
+        (Bound_var.create next_depth next_depth_duid Name_mode.normal)
     in
     Let_with_acc.create acc bound (Named.create_rec_info next_depth_expr) ~body
   in
@@ -2847,8 +2921,11 @@ let close_let_rec acc env ~function_declarations
     List.fold_left
       (fun (fun_vars_map, ident_map) decl ->
         let ident = Function_decl.let_rec_ident decl in
+        let ident_duid = Function_decl.let_rec_debug_uid decl in
         let fun_var =
-          VB.create (fst (Env.find_var env ident)) Name_mode.normal
+          VB.create (fst (Env.find_var env ident)) ident_duid Name_mode.normal
+          (* CR sspies: Does it make sense here to take the debugging uid of the
+             function? *)
         in
         let function_slot = Function_decl.function_slot decl in
         ( Function_slot.Map.add function_slot fun_var fun_vars_map,
@@ -2911,7 +2988,9 @@ let close_let_rec acc env ~function_declarations
       Function_slot.Set.fold
         (fun function_slot fun_vars_map ->
           let fun_var =
-            VB.create (Variable.create "generated") Name_mode.normal
+            VB.create
+              (Variable.create "generated")
+              Flambda_debug_uid.none Name_mode.normal
           in
           Function_slot.Map.add function_slot fun_var fun_vars_map)
         generated_closures fun_vars_map
@@ -2943,6 +3022,9 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   (* In case of partial application, creates a wrapping function from scratch to
      allow inlining and lifting *)
   let wrapper_id = Ident.create_local ("partial_" ^ Ident.name apply.func) in
+  let wrapper_id_duid = Flambda_debug_uid.none in
+  (* CR sspies: Should we try harder to get a debug uid here? Seems this
+     variable is not user visible. *)
   let function_slot =
     Function_slot.create
       (Compilation_unit.get_current_exn ())
@@ -2974,6 +3056,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
     List.mapi
       (fun n (kind, mode) : Function_decl.param ->
         { name = Ident.create_local ("param" ^ string_of_int (num_provided + n));
+          debug_uid = Flambda_debug_uid.none;
           kind;
           attributes = Lambda.default_param_attribute;
           mode = Alloc_mode.For_types.to_lambda mode
@@ -3057,7 +3140,8 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
            (Debuginfo.from_location apply.loc)) )
   else
     let function_declarations =
-      [ Function_decl.create ~let_rec_ident:(Some wrapper_id) ~function_slot
+      [ Function_decl.create ~let_rec_ident:(Some wrapper_id)
+          ~let_rec_uid:wrapper_id_duid ~function_slot
           ~kind:
             (Lambda.Curried
                { nlocal =
@@ -3087,6 +3171,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
     ~remaining_arity ~result_mode =
   let wrapper_cont = Continuation.create () in
   let returned_func = Variable.create "func" in
+  let returned_func_duid = Flambda_debug_uid.none in
   (* See comments in [Simplify_common.split_direct_over_application] about this
      code for handling local allocations. *)
   let apply_return_continuation =
@@ -3149,7 +3234,9 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
       let over_application_results =
         List.mapi
           (fun i kind ->
-            BP.create (Variable.create ("result" ^ string_of_int i)) kind)
+            let result_var = Variable.create ("result" ^ string_of_int i) in
+            let result_var_duid = Flambda_debug_uid.none in
+            BP.create result_var kind result_var_duid)
           (Flambda_arity.unarized_components apply.return_arity)
       in
       let handler acc =
@@ -3164,7 +3251,8 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
         let acc, body =
           Let_with_acc.create acc
             (Bound_pattern.singleton
-               (Bound_var.create (Variable.create "unit") Name_mode.normal))
+               (Bound_var.create (Variable.create "unit") Flambda_debug_uid.none
+                  Name_mode.normal))
             (Named.create_prim
                (Unary (End_region { ghost = true }, Simple.var ghost_region))
                apply_dbg)
@@ -3172,7 +3260,8 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
         in
         Let_with_acc.create acc
           (Bound_pattern.singleton
-             (Bound_var.create (Variable.create "unit") Name_mode.normal))
+             (Bound_var.create (Variable.create "unit") Flambda_debug_uid.none
+                Name_mode.normal))
           (Named.create_prim
              (Unary (End_region { ghost = false }, Simple.var region))
              apply_dbg)
@@ -3190,7 +3279,7 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
   let acc, both_applications =
     Let_cont_with_acc.build_non_recursive acc wrapper_cont
       ~handler_params:
-        ([BP.create returned_func K.With_subkind.any_value]
+        ([BP.create returned_func K.With_subkind.any_value returned_func_duid]
         |> Bound_parameters.create)
       ~handler:perform_over_application ~body ~is_exn_handler:false
       ~is_cold:false
@@ -3198,17 +3287,20 @@ let wrap_over_application acc env full_call (apply : IR.apply) ~remaining
   match needs_region with
   | None -> acc, both_applications
   | Some (region, ghost_region, _) ->
+    let region_duid = Flambda_debug_uid.none in
+    let ghost_region_duid = Flambda_debug_uid.none in
     let acc, body =
       Let_with_acc.create acc
         (Bound_pattern.singleton
-           (Bound_var.create ghost_region Name_mode.normal))
+           (Bound_var.create ghost_region ghost_region_duid Name_mode.normal))
         (Named.create_prim
            (Variadic (Begin_region { ghost = true }, []))
            apply_dbg)
         ~body:both_applications
     in
     Let_with_acc.create acc
-      (Bound_pattern.singleton (Bound_var.create region Name_mode.normal))
+      (Bound_pattern.singleton
+         (Bound_var.create region region_duid Name_mode.normal))
       (Named.create_prim
          (Variadic (Begin_region { ghost = false }, []))
          apply_dbg)
@@ -3473,6 +3565,7 @@ let bind_code_and_sets_of_closures all_code sets_of_closures acc body =
 let wrap_final_module_block acc env ~program ~prog_return_cont
     ~module_block_size_in_words ~return_cont ~module_symbol =
   let module_block_var = Variable.create "module_block" in
+  let module_block_var_duid = Flambda_debug_uid.none in
   let module_block_tag = Tag.Scannable.zero in
   let load_fields_body acc =
     let env =
@@ -3489,13 +3582,13 @@ let wrap_final_module_block acc env ~program ~prog_return_cont
     let field_vars =
       List.init module_block_size_in_words (fun pos ->
           let pos_str = string_of_int pos in
-          pos, Variable.create ("field_" ^ pos_str))
+          pos, Variable.create ("field_" ^ pos_str), Flambda_debug_uid.none)
     in
     let acc, body =
       let static_const : Static_const.t =
         let field_vars =
           List.map
-            (fun (_, var) ->
+            (fun (_, var, _) ->
               Simple.With_debuginfo.create (Simple.var var) Debuginfo.none)
             field_vars
         in
@@ -3530,8 +3623,8 @@ let wrap_final_module_block acc env ~program ~prog_return_cont
         }
     in
     List.fold_left
-      (fun (acc, body) (pos, var) ->
-        let var = VB.create var Name_mode.normal in
+      (fun (acc, body) (pos, var, var_duid) ->
+        let var = VB.create var var_duid Name_mode.normal in
         let pat = Bound_pattern.singleton var in
         let pos = Targetint_31_63.of_int pos in
         let block = module_block_simple in
@@ -3552,7 +3645,7 @@ let wrap_final_module_block acc env ~program ~prog_return_cont
       (acc, body) (List.rev field_vars)
   in
   let load_fields_handler_param =
-    [BP.create module_block_var K.With_subkind.any_value]
+    [BP.create module_block_var K.With_subkind.any_value module_block_var_duid]
     |> Bound_parameters.create
   in
   (* This binds the return continuation that is free (or, at least, not bound)

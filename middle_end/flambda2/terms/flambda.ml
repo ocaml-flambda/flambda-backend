@@ -585,6 +585,7 @@ and print_function_params_and_body ppf t =
     let my_closure =
       Bound_parameter.create my_closure
         (K.With_subkind.create K.value Anything Non_nullable)
+        Flambda_debug_uid.none
     in
     fprintf ppf
       "@[<hov 1>(%t@<1>\u{03bb}%t@[<hov \

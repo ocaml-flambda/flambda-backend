@@ -40,13 +40,14 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
     |> DE.set_inlining_history_tracker
          (Inlining_history.Tracker.inside_function absolute_history)
   in
+  let my_closure_duid = Flambda_debug_uid.none in
   let denv =
     match function_slot_opt with
     | None ->
       (* This happens in the stub case, where we are only simplifying code, not
          a set of closures. *)
       DE.add_variable denv
-        (Bound_var.create my_closure NM.normal)
+        (Bound_var.create my_closure my_closure_duid NM.normal)
         (T.unknown K.value)
     | Some function_slot -> (
       match
@@ -62,25 +63,32 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
       | name ->
         let name = Bound_name.name name in
         DE.add_variable denv
-          (Bound_var.create my_closure NM.normal)
+          (Bound_var.create my_closure my_closure_duid NM.normal)
           (T.alias_type_of K.value (Simple.name name)))
   in
   let denv =
     match my_region with
     | None -> denv
     | Some my_region ->
-      let my_region = Bound_var.create my_region Name_mode.normal in
+      let my_region_duid = Flambda_debug_uid.none in
+      let my_region =
+        Bound_var.create my_region my_region_duid Name_mode.normal
+      in
       DE.add_variable denv my_region (T.unknown K.region)
   in
   let denv =
     match my_ghost_region with
     | None -> denv
     | Some my_ghost_region ->
-      let my_ghost_region = Bound_var.create my_ghost_region Name_mode.normal in
+      let my_ghost_region_duid = Flambda_debug_uid.none in
+      let my_ghost_region =
+        Bound_var.create my_ghost_region my_ghost_region_duid Name_mode.normal
+      in
       DE.add_variable denv my_ghost_region (T.unknown K.region)
   in
+  let my_depth_duid = Flambda_debug_uid.none in
   let denv =
-    let my_depth = Bound_var.create my_depth Name_mode.normal in
+    let my_depth = Bound_var.create my_depth my_depth_duid Name_mode.normal in
     DE.add_variable denv my_depth (T.unknown K.rec_info)
   in
   let denv =
@@ -184,24 +192,30 @@ let simplify_function_body context ~outer_dacc function_slot_opt
     Misc.fatal_errorf "Did not expect lifted constants in [dacc]:@ %a" DA.print
       dacc;
   assert (not (DE.at_unit_toplevel (DA.denv dacc)));
+  let my_region_duid = Flambda_debug_uid.none in
+  let my_ghost_region_duid = Flambda_debug_uid.none in
   let region_params =
-    let region_param region =
+    let region_param region region_debug_duid =
       match region with
       | None -> []
       | Some region ->
-        [Bound_parameter.create region Flambda_kind.With_subkind.region]
+        [ Bound_parameter.create region Flambda_kind.With_subkind.region
+            region_debug_duid ]
     in
-    region_param my_region @ region_param my_ghost_region
+    region_param my_region my_region_duid
+    @ region_param my_ghost_region my_ghost_region_duid
   in
+  let my_closure_duid = Flambda_debug_uid.none in
+  let my_depth_duid = Flambda_debug_uid.none in
   match
     C.simplify_function_body context dacc body ~return_continuation
       ~exn_continuation ~return_arity:(Code.result_arity code)
       ~implicit_params:
         (Bound_parameters.create
            ([ Bound_parameter.create my_closure
-                Flambda_kind.With_subkind.any_value;
+                Flambda_kind.With_subkind.any_value my_closure_duid;
               Bound_parameter.create my_depth Flambda_kind.With_subkind.rec_info
-            ]
+                my_depth_duid ]
            @ region_params))
       ~loopify_state ~params
   with
@@ -373,9 +387,9 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
   let return_cont_params =
     List.mapi
       (fun i kind_with_subkind ->
-        BP.create
-          (Variable.create ("result" ^ string_of_int i))
-          kind_with_subkind)
+        let result_var = Variable.create ("result" ^ string_of_int i) in
+        let result_var_duid = Flambda_debug_uid.none in
+        BP.create result_var kind_with_subkind result_var_duid)
       (Flambda_arity.unarized_components result_arity)
     |> Bound_parameters.create
   in

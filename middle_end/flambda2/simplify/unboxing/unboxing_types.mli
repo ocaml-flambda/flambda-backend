@@ -31,10 +31,14 @@ type do_not_unbox_reason =
 module Extra_param_and_args : sig
   type t = private
     { param : Variable.t;
+      param_debug_uid : Flambda_debug_uid.t;
+      (* CR sspies: This is [Flambda_debug_uid.none] at all the creation points
+         that I found. I still added the field, because that is non-obvious at
+         the usage points of the these extra params. *)
       args : EPA.Extra_arg.t Apply_cont_rewrite_id.Map.t
     }
 
-  val create : name:string -> t
+  val create : name:string -> debug_uid:Flambda_debug_uid.t -> t
 
   val update_param_args : t -> Apply_cont_rewrite_id.t -> EPA.Extra_arg.t -> t
 end

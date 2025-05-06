@@ -714,12 +714,14 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
            earlier in the event that it already exists later, but this is
            probably fine: this operation isn't that common. *)
         let contents_var = Variable.create "obj_dup_contents" in
+        let contents_var_duid = Flambda_debug_uid.none in
         let contents_expr =
           Named.create_prim (Unary (Unbox_number boxable_number, arg)) dbg
         in
         let bind_contents =
           { Expr_builder.let_bound =
-              Bound_pattern.singleton (Bound_var.create contents_var NM.normal);
+              Bound_pattern.singleton
+                (Bound_var.create contents_var contents_var_duid NM.normal);
             simplified_defining_expr = Simplified_named.create contents_expr;
             original_defining_expr = None
           }
@@ -727,7 +729,7 @@ let simplify_obj_dup dbg dacc ~original_term ~arg ~arg_ty ~result_var =
         let contents_simple = Simple.var contents_var in
         let dacc =
           DA.add_variable dacc
-            (Bound_var.create contents_var NM.normal)
+            (Bound_var.create contents_var contents_var_duid NM.normal)
             contents_ty
         in
         ( [bind_contents],

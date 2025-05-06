@@ -875,8 +875,9 @@ and comp_expr stack_info env exp sz cont =
       Stack.push to_compile functions_to_compile;
       comp_args stack_info env (List.map (fun n -> Lvar n) fv) sz
         (Kclosure(lbl, List.length fv) :: cont)
-  | Llet(_, _k, id, arg, body)
-  | Lmutlet(_k, id, arg, body) ->
+  | Llet(_, _k, id, _duid, arg, body)
+  | Lmutlet(_k, id, _duid, arg, body) ->
+      (* We are intentionally dropping the [debug_uid] identifiers here. *)
       comp_expr stack_info env arg sz
         (Kpush :: comp_expr stack_info (add_var id (sz+1) env) body (sz+1)
           (add_pop 1 cont))
@@ -1158,7 +1159,7 @@ and comp_expr stack_info env exp sz cont =
       comp_args stack_info env args sz
         (comp_primitive stack_info p (sz + nargs - 1) args :: cont)
   | Lstaticcatch (body, (i, vars) , handler, _, _) ->
-      let vars = List.map fst vars in
+      let vars = List.map fst3 vars in
       let nvars = List.length vars in
       let branch1, cont1 = make_branch cont in
       let r =
@@ -1202,7 +1203,8 @@ and comp_expr stack_info env exp sz cont =
           comp_expr stack_info env arg sz cont
       | _ -> comp_exit_args stack_info env args sz size cont
       end
-  | Ltrywith(body, id, handler, _kind) ->
+  | Ltrywith(body, id, _duid, handler, _kind) ->
+      (* We are intentionally dropping the [debug_uid] identifiers here. *)
       let (branch1, cont1) = make_branch cont in
       let lbl_handler = new_label() in
       let body_cont =

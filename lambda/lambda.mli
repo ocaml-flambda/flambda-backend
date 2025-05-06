@@ -736,8 +736,27 @@ type parameter_attribute = {
   unbox_param: bool;
 }
 
+type debug_uid = Shape.Uid.t
+(** The [debug_uid] values track typed-tree level identifiers that are then
+    passed down to the lower level IRs and eventually emitted into dwarf output.
+    WARNING: Unlike the name sugggests, these identifiers are not always unique.
+    Instead, in many cases, we use [debug_uid_none] below, and multiple variables
+    at the level of Lambda or below can use the same [debug_uid]. *)
+(* CR sspies: This comment is currently not accurate, since we do not yet
+  emit these ids into dwarf code. *)
+(* CR sspies: The point of the name [debug_uid] is to preserve the connection
+   to the underlying [Shape.Uid.t]. It could lead to confusion around the fact
+   that these identifiers are not actually unique. *)
+
+val debug_uid_none : debug_uid
+(** [debug_uid_none] should be used for those identifiers that are not
+    user visible (i.e., that are created internally in the compiler and do not
+    mean anything to users writing OCaml code).   *)
+
+
 type lparam = {
   name : Ident.t;
+  debug_uid : debug_uid;
   layout : layout;
   attributes : parameter_attribute;
   mode : locality_mode
@@ -755,8 +774,8 @@ type lambda =
   | Lconst of structured_constant
   | Lapply of lambda_apply
   | Lfunction of lfunction
-  | Llet of let_kind * layout * Ident.t * lambda * lambda
-  | Lmutlet of layout * Ident.t * lambda * lambda
+  | Llet of let_kind * layout * Ident.t * debug_uid * lambda * lambda
+  | Lmutlet of layout * Ident.t * debug_uid * lambda * lambda
   | Lletrec of rec_binding list * lambda
   | Lprim of primitive * lambda list * scoped_location
   | Lswitch of lambda * lambda_switch * scoped_location * layout
@@ -778,9 +797,11 @@ type lambda =
      it means that we consider the top region at the point of the [Lstaticcatch] to not be
      considered open inside the handler. *)
   | Lstaticcatch of
-      lambda * (static_label * (Ident.t * layout) list) * lambda
+      lambda * (static_label * (Ident.t * debug_uid * layout) list) * lambda
       * pop_region * layout
-  | Ltrywith of lambda * Ident.t * lambda * layout
+  | Ltrywith of lambda * Ident.t * debug_uid * lambda * layout
+  (* CR sspies: What is the identifier in a [Ltrywith]. Should it get a debug
+     id? *)
 (* Lifthenelse (e, t, f, layout) evaluates t if e evaluates to 0, and evaluates f if
    e evaluates to any other value; layout must be the layout of [t] and [f] *)
   | Lifthenelse of lambda * lambda * lambda * layout
@@ -799,6 +820,7 @@ type lambda =
 
 and rec_binding = {
   id : Ident.t;
+  debug_uid : debug_uid;
   def : lfunction;
   (* Generic recursive bindings have been removed from Lambda in 5.2.
      [Value_rec_compiler.compile_letrec] deals with transforming generic
@@ -825,6 +847,7 @@ and lambda_while =
 
 and lambda_for =
   { for_id : Ident.t;
+    for_debug_uid : debug_uid;
     for_loc : scoped_location;
     for_from : lambda;
     for_to : lambda;
@@ -1113,7 +1136,7 @@ val shallow_map  :
   (** Rewrite each immediate sub-term with the function. *)
 
 val bind_with_layout:
-  let_kind -> (Ident.t * layout) -> lambda -> lambda -> lambda
+  let_kind -> (Ident.t * debug_uid * layout) -> lambda -> lambda -> lambda
 
 val negate_integer_comparison : integer_comparison -> integer_comparison
 val swap_integer_comparison : integer_comparison -> integer_comparison

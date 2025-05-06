@@ -256,11 +256,15 @@ let extra_params_for_continuation_param_aliases cont uacc rewrite_ids =
           (fun _id -> EPA.Extra_arg.Already_in_scope (Simple.var var))
           rewrite_ids
       in
+      let var_duid = Flambda_debug_uid.none in
+      (* CR sspies: [extra_params] sounds generated and not user visible. If
+         this is wrong, we should bother to propagate the right
+         [Flambda_debug_uid.t] values here. *)
       let var_kind =
         Flambda_kind.With_subkind.anything (Variable.Map.find var aliases_kind)
       in
       EPA.add
-        ~extra_param:(Bound_parameter.create var var_kind)
+        ~extra_param:(Bound_parameter.create var var_kind var_duid)
         ~extra_args epa ~invalids:Apply_cont_rewrite_id.Set.empty)
     required_extra_args.extra_args_for_aliases EPA.empty
 
@@ -501,8 +505,13 @@ let add_lets_around_handler cont at_unit_toplevel uacc handler =
   let handler, uacc =
     Variable.Map.fold
       (fun var bound_to (handler, uacc) ->
+        let var_duid = Flambda_debug_uid.none in
+        (* CR sspies: This seems very generic. Are these ever user visible? If
+           so, we should propagate their [Flambda_debug_uid.t] values to this
+           point. *)
         let bound_pattern =
-          Bound_pattern.singleton (Bound_var.create var Name_mode.normal)
+          Bound_pattern.singleton
+            (Bound_var.create var var_duid Name_mode.normal)
         in
         let named = Named.create_simple (Simple.var bound_to) in
         let handler, uacc =
@@ -538,9 +547,9 @@ let add_phantom_params_bindings uacc handler new_phantom_params =
   let new_phantom_param_bindings_outermost_first =
     List.map
       (fun param ->
-        let var = BP.var param in
+        let param_var, param_uid = BP.var_and_uid param in
         let kind = K.With_subkind.kind (BP.kind param) in
-        let var = Bound_var.create var Name_mode.phantom in
+        let var = Bound_var.create param_var param_uid Name_mode.phantom in
         let let_bound = Bound_pattern.singleton var in
         let prim = Flambda_primitive.(Nullary (Optimised_out kind)) in
         let named = Named.create_prim prim Debuginfo.none in

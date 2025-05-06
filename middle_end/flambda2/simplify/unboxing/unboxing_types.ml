@@ -31,18 +31,22 @@ type do_not_unbox_reason =
 module Extra_param_and_args = struct
   type t =
     { param : Variable.t;
+      param_debug_uid : Flambda_debug_uid.t;
       args : EPA.Extra_arg.t Apply_cont_rewrite_id.Map.t
     }
 
-  let create ~name =
-    { param = Variable.create name; args = Apply_cont_rewrite_id.Map.empty }
+  let create ~name ~debug_uid =
+    { param = Variable.create name;
+      param_debug_uid = debug_uid;
+      args = Apply_cont_rewrite_id.Map.empty
+    }
 
   let update_param_args t rewrite_id extra_arg =
     assert (not (Apply_cont_rewrite_id.Map.mem rewrite_id t.args));
     let args = Apply_cont_rewrite_id.Map.add rewrite_id extra_arg t.args in
     { t with args }
 
-  let [@ocamlformat "disable"] print fmt { param; args = _; } =
+  let [@ocamlformat "disable"] print fmt { param; param_debug_uid = _; args = _; } =
     Format.fprintf fmt "@[<hv 1>(\
       @[<hov>(param %a)@]@ \
       @[<v 2>(args@ <...>)@]\
