@@ -1,143 +1,351 @@
 (* This file is used in [run_array_idx_tests.ml]. *)
-open Stdlib_upstream_compatible
-open Stdlib_stable
-module List = ListLabels
+(* open Stdlib_upstream_compatible
+open Stdlib_stable *)
+module List : sig
+  include module type of ListLabels
+  val fold_left_mapi : f:('a -> int -> 'b -> 'a * 'c) -> init:'a -> 'b list -> 'a * 'c list
+  val fold_lefti : f:('a -> int -> 'b -> 'a) -> init:'a -> 'b list -> 'a
+end = struct
+  include ListLabels
+  let enumerate l = List.mapi (fun i x -> (i, x)) l
+  let fold_left_mapi ~f ~init l =
+    enumerate l |>
+    List.fold_left_map (fun acc (i, x) -> f acc i x) init
+  let fold_lefti ~f ~init l =
+    enumerate l |>
+    List.fold_left (fun acc (i, x) -> f acc i x) init
+end
 module String = StringLabels
-
-let failwithf fmt = Printf.ksprintf failwith fmt
 
 let sprintf = Printf.sprintf
 
 (* See [test_array_idx_get_and_set] for the main testing steps! *)
 
-module IntMap = Map.Make (Int)
+module Int_map = Map.Make (Int)
 
-module Ty : sig
-  (** A type in the generated code *)
+module Type_kind = struct
+  type value_kind = Addr | Immediate
+  type t = Product of t list | Value of value_kind | Non_value
+end
+
+module Boxing = struct
+  type t = Boxed | Unboxed
+end
+
+module Gen_type = struct
+  type 'a t =
+    | Record of
+        { name : 'a;
+          fields : ('a * 'a t) list;
+          boxing : Boxing.t
+        }
+    | Tuple of 'a t list * Boxing.t
+    | Option of 'a t
+    | Int
+    | Int64
+    | Int64_u
+    | Int32
+    | Int32_u
+    | Nativeint
+    | Nativeint_u
+    | Float
+    | Float_u
+    | Float32
+    | Float32_u
+    | String
+end
+
+module Type_structure = struct
+  type t = unit Gen_type.t
+  let compare : t -> t -> int = Stdlib.compare
+end
+
+module Type = struct
+  type t = string Gen_type.t
+  let compare : t -> t -> int = Stdlib.compare
+end
+
+module Type_structure_map = Map.Make (Type_structure)
+
+let assemble_record colon_or_eq (boxing : Boxing.t) fields vals =
+  let hash = match boxing with
+    | Boxed -> "#"
+    | Unboxed -> ""
+  in
+  let labeled_fields =
+    List.map2 fields vals ~f:(fun (s, _) x -> s ^ " " ^ colon_or_eq ^ " " ^ x)
+  in
+  hash ^ "{ " ^ String.concat ~sep:"; " labeled_fields ^ " }"
+
+module Type_naming : sig
   type t
-
-  (** Code for this type expression (e.g. "int option * float") *)
-  val ty_code : t -> string
-
-  (** Given some integer seed, generate code for a value of this type.
-       E.g. passing 3 gives "(Some 3, 4.)" for [int option * float]. *)
-  val value_code : t -> int -> string
-
-  (** The number of subvalues of this type, e.g. [int option * #(float * float)]
-      has three. *)
-  val num_subvals : t -> int
-
-  (** Code that dynamically implements [value_code], creating a value from an
-       integer seed bound to "i".
-       We should be able to generate this code:
-       "let mk_value (i : int) : $ty_code = $mk_value_code" *)
-  val mk_value_code : t -> string
-
-  (** A function that implements equality in the generated code.
-       We should be able generate this code:
-       "let eq : $ty_code @ local -> $ty_code @ local -> bool = $eq" *)
-  val eq : t -> string
-
-  val unboxed_paths_by_depth : t -> string list list IntMap.t
-
-  (** Generate typedecls for user-defined nominal types that have been created *)
-  val decls_code : unit -> string list
-
-  (** Takes the record name and (label_name, label_type) pairs *)
-  val unboxed_record : string -> (string * t) list -> t
-
-  (** [enum 3] represents [type enum3 = A3_0 | A3_1 | A3_2]. *)
-  val enum : int -> t
-
-  (* Structural and built-in types *)
-
-  val option : t -> t
-
-  val unboxed_tuple : t list -> t
-
-  val int : t
-
-  val float : t
-
-  val float_u : t
-
-  val float32 : t
-
-  val float32_u : t
-
-  val int32 : t
-
-  val int32_u : t
-
-  val int64 : t
-
-  val int64_u : t
-
-  val nativeint : t
-
-  val nativeint_u : t
+  val empty : t
+  val add_names : t -> Type_structure.t -> t * Type.t
+  val decls_code : t -> string
 end = struct
-  type kind =
-    | Addr
-    | Immediate
-    | Non_value
+  type t = { next_id : int ; cache : Type.t Type_structure_map.t }
 
-  type t =
-    | Unboxed_record of
-        { name : string;
-          fields : (string * t) list
-        }
-    | Unboxed_tuple of t list
-    | Non_product of
-        { ty_code : string;
-          value_code : int -> string;
-          mk_value_body_code : int -> string;
-          eq : string;
-          kind : kind
-        }
+  let empty = { next_id = 0; cache = Type_structure_map.empty }
 
-  let assemble_unboxed_record colon_or_eq fields vals =
-    let labeled_fields =
-      List.map2 fields vals ~f:(fun (s, _) x -> s ^ " " ^ colon_or_eq ^ " " ^ x)
+  let rec add_names t (ty_structure : Type_structure.t) : t * Type.t  =
+    match Type_structure_map.find_opt ty_structure t.cache with
+    | Some ty -> t, ty
+    | None ->
+      let t, (ty : Type.t) =
+        match ty_structure with
+        | Record { name = (); fields; boxing } ->
+          let id = t.next_id in
+          let t = { t with next_id = id + 1 } in
+          let name = sprintf "t%d" id in
+          let t, fields =
+            List.fold_left_mapi ~init:t fields ~f:(fun t i ((), ty) ->
+              let t, ty = add_names t ty in
+              let field_name = sprintf "%c%d"
+                (Char.unsafe_chr (Char.code 'a' + i))
+                id
+              in
+              t, (field_name, ty)
+              )
+          in
+          t, Record { name; fields; boxing }
+        | Tuple (tys, boxing) ->
+          let t, tys = List.fold_left_mapi ~init:t tys ~f:(fun t i ty ->
+            let t, ty = add_names t ty in
+            t, ty
+          ) in
+          t, Tuple (tys, boxing)
+        | Option ty ->
+          let t, ty = add_names t ty in
+          t, Option ty
+        | Int64 -> t, Int64
+        | Int64_u -> t, Int64_u
+        | Int32 -> t, Int32
+        | Int32_u -> t, Int32_u
+        | Nativeint -> t, Nativeint
+        | Nativeint_u -> t, Nativeint_u
+        | Float -> t, Float
+        | Float_u -> t, Float_u
+        | Float32 -> t, Float32
+        | Float32_u -> t, Float32_u
+      in
+      { t with cache = Type_structure_map.add ty_structure ty t.cache }, ty
+
+  let decls_code t =
+    let decls = 
+      Type_structure_map.fold (fun (ty_structure : Type_structure.t) (ty : Type.t) acc ->
+        let type_definition = match ty with
+          | Record { name; fields; boxing } ->
+            let labels, tys = List.split fields in
+            assemble_record "=" boxing labels (List.map tys ~f:ty_code)
+          | _ -> assert false
+        in
+        acc ^ sprintf "%s = %s\n" (ty_code ty_structure) type_definition
+      ) [] t.cache
     in
-    "#{ " ^ String.concat ~sep:"; " labeled_fields ^ " }"
+    let kws = List.init ~len:(List.length decls) ~f:(fun i -> if i = 0 then "type" else "and") in
+    let combined = List.map2 kws decls ~f:(fun kw decl -> sprintf "%s %s" kw decl) in
+    String.concat ~sep:"\n" combined
+end
 
-  let assemble_unboxed_record_expr name fields vals =
-    "(" ^ assemble_unboxed_record "=" fields vals ^ " : " ^ name ^ ")"
+(* The number of subvalues of this type, e.g. [int option * #(float * float)]
+    has three. *)
+let num_subvals (t : _ Gen_type.t) : int =
+  match t with
+  | Record { fields; _ } ->
+    List.fold_left fields ~f:(fun acc (_, t) -> acc + num_subvals t) ~init:0
+  | Option t -> num_subvals t
+  | Int | Int64 | Int64_u | Int32 | Int32_u | Nativeint | Nativeint_u | Float
+  | Float_u | Float32 | Float32_u | String -> 1
 
-  let assemble_unboxed_tuple ~sep xs = sprintf "#(%s)" (String.concat ~sep xs)
+let assemble_tuple ~sep boxing xs =
+  let hash = match boxing with
+    | Boxed -> "#"
+    | Unboxed -> ""
+  in
+  sprintf "%s(%s)" hash (String.concat ~sep xs)
 
-  let rec ty_code = function
-    | Unboxed_record { name; fields } -> name
-    | Unboxed_tuple ts ->
-      assemble_unboxed_tuple ~sep:" * " (List.map ts ~f:ty_code)
-    | Non_product { ty_code; _ } -> ty_code
+(* Code for this type expression (e.g. "int option * float") *)
+let rec ty_code (t : Type.t) : string =
+  match t with
+  | Record { name; _ } -> name
+  | Tuple (tys, boxing) -> assemble_tuple ~sep:" * " boxing (List.map tys ~f:ty_code)
+  | Option t -> ty_code t ^ " option"
+  | Int -> "int"
+  | Int64 -> "int64"
+  | Int64_u -> "int64#"
+  | Int32 -> "int32"
+  | Int32_u -> "int32#"
+  | Nativeint -> "nativeint"
+  | Nativeint_u -> "nativeint#"
+  | Float -> "float"
+  | Float_u -> "float#"
+  | Float32 -> "float32"
+  | Float32_u -> "float32#"
+  | String -> "string"
 
-  let rec num_subvals t =
-    match t with
-    | Unboxed_record { name = _; fields } ->
-      List.fold_left fields ~f:(fun acc (_, t) -> acc + num_subvals t) ~init:0
-    | Unboxed_tuple ts ->
-      List.fold_left ts ~f:(fun acc t -> acc + num_subvals t) ~init:0
-    | Non_product { eq = _; _ } -> 1
+let assemble_record_expr boxing name fields vals =
+  "(" ^ assemble_record "=" boxing fields vals ^ " : " ^ hash ^ name ^ ")"
 
-  let rec reversed_unboxed_paths t acc cur_path =
-    match t with
-    | Unboxed_record { name = _; fields } ->
-      List.fold_left ~init:acc fields ~f:(fun acc (s, t) ->
-          let cur_path = s :: cur_path in
-          let acc = cur_path :: acc in
-          reversed_unboxed_paths t acc cur_path
+(* Given some integer seed, generate code for a value of this type.
+   E.g. passing 3 gives "(Some 3, 4.)" for [int option * float]. *)
+let rec value_code (t : Type.t) (i : int) : string =
+  match t with
+  | Record { name; fields; boxing } ->
+    let _, xs =
+      List.fold_left_map fields ~init:i ~f:(fun acc (_, t) ->
+        let x = value_code t acc in
+        acc + num_subvals t, x
       )
-    | Unboxed_tuple _ -> acc
-    | Non_product _ -> acc
+      ~init:i
+    in
+    assemble_record_expr boxing name fields xs
+  | Tuple (tys, boxing) ->
+    let _, xs =
+      List.fold_left_map tys ~init:i ~f:(fun acc t ->
+        let x = value_code t acc in
+        acc + num_subvals t, x
+      )
+      ~init:i
+    in
+    assemble_tuple ~sep:", " boxing xs
+  | Option t ->
+    if Int.equal i 0 then "None" else "Some " ^ value_code t i
+  | Int64 -> Int.to_string i ^ "L"
+  | Int64_u -> "#" ^ Int.to_string i ^ "L"
+  | Int32 -> Int.to_string i ^ "l"
+  | Int32_u -> "#" ^ Int.to_string i ^ "l"
+  | Nativeint -> Int.to_string i ^ "n"
+  | Nativeint_u -> "#" ^ Int.to_string i ^ "n"
+  | Float -> Int.to_string i ^ "."
+  | Float_u -> "#" ^ Int.to_string i ^ "."
+  | Float32 -> Int.to_string i ^ ".s"
+  | Float32_u -> "#" ^ Int.to_string i ^ ".s"
+  | String -> "\"" ^ Int.to_string i ^ "\""
 
-  let unboxed_paths_by_depth t =
-    List.fold_left
-      (reversed_unboxed_paths t [] [])
-      ~f:(fun acc rev_path ->
-        let depth = List.length rev_path in
-        let path = List.rev rev_path in
+let rec mk_value_body_code t i =
+  match t with
+  | Record { name; fields; boxing } ->
+    let _, xs =
+      List.fold_left_map fields ~init:i ~f:(fun acc (_, t) ->
+        let x = mk_value_body_code t acc in
+        acc + num_subvals t, x
+      )
+      ~init:i
+    in
+    assemble_record_expr boxing name fields xs
+  | Tuple (tys, boxing) ->
+    let _, xs =
+      List.fold_left_map tys ~init:i ~f:(fun acc t ->
+        let x = mk_value_body_code t acc in
+        acc + num_subvals t, x
+      )
+      ~init:i
+    in
+    assemble_tuple ~sep:", " boxing xs
+  | Option t ->
+    sprintf "(if (i + %d) == 0 then None else Some (%s))" i
+      (mk_value_body_code t i)
+  | Int64 -> sprintf "Int64.of_int (i + %d)" i
+  | Int64_u -> sprintf "Int64_u.of_int (i + %d)" i
+  | Int32 -> sprintf "Int32.of_int (i + %d)" i
+  | Int32_u -> sprintf "Int32_u.of_int (i + %d)" i
+  | Nativeint -> sprintf "Nativeint.of_int (i + %d)" i
+  | Nativeint_u -> sprintf "Nativeint_u.of_int (i + %d)" i
+  | Float -> sprintf "Float.of_int (i + %d)" i
+  | Float_u -> sprintf "Float_u.of_int (i + %d)" i
+  | Float32 -> sprintf "Float32.of_int (i + %d)" i
+  | Float32_u -> sprintf "Float32_u.of_int (i + %d)" i
+  | String -> sprintf "String.of_int (i + %d)" i
+
+(* Code that dynamically implements [value_code], creating a value from an
+     integer seed bound to "i".
+     We should be able to generate this code:
+     "let mk_value (i : int) : $ty_code = $mk_value_code" *)
+let mk_value_code (t : Type.t) : string =
+  mk_value_body_code t 0
+
+(* A function that implements equality in the generated code.
+   We should be able generate this code:
+   "let eq : $ty_code @ local -> $ty_code @ local -> bool = $eq" *)
+let rec eq_code (t : Type.t) : string =
+  match t with
+  | Record { name; fields; boxing } ->
+    let body =
+      List.map fields ~f:(fun (s, t) -> sprintf "%s %s1 %s2" (eq_code t) s s)
+      |> String.concat ~sep:" && "
+    in
+    let pat i =
+      assemble_record_expr boxing name fields
+        (List.map fields ~f:(fun (s, _) -> s ^ Int.to_string i))
+    in
+    sprintf "(fun %s %s -> %s)" (pat 1) (pat 2) body
+  | Tuple (tys, boxing) ->
+    let pat s =
+      assemble_tuple ~sep:", " boxing
+        (List.mapi tys ~f:(fun i _ -> s ^ Int.to_string i))
+    in
+    let body =
+      List.mapi tys ~f:(fun i t -> sprintf "%s a%d b%d" (eq_code t) i i)
+      |> String.concat ~sep:" && "
+    in
+    sprintf "(fun %s %s -> %s)" (pat "a") (pat "b") body
+  | Option t ->
+    sprintf "(fun a b -> match a, b with None,None -> true | Some a,Some b -> %s a b|_->false)"
+      (eq_code t)
+  | Int ->
+    sprintf "(fun a b -> Int.equal a b)"
+  | Int64 ->
+    sprintf "(fun a b -> Int64.equal a b)"
+  | Int64_u ->
+    sprintf "(fun a b -> Int64_u.equal a b)"
+  | Int32 ->
+    sprintf "(fun a b -> Int32.equal a b)"
+  | Int32_u ->
+    sprintf "(fun a b -> Int32_u.equal a b)"
+  | Nativeint ->
+    sprintf "(fun a b -> Nativeint.equal a b)"
+  | Nativeint_u ->
+    sprintf "(fun a b -> Nativeint_u.equal a b)"
+  | Float ->
+    sprintf "(fun a b -> Float.equal a b)"
+  | Float_u ->
+    sprintf "(fun a b -> Float_u.equal a b)"
+  | Float32 ->
+    sprintf "(fun a b -> Float32.equal a b)"
+  | String ->
+    sprintf "(fun a b -> String.equal a b)"
+
+let rec kind_of (t : Gen_type.t) : Type_kind.t =
+  match t with
+  | Record { boxing = Unboxed; fields; _ } ->
+    if List.length fields = 1 then
+      kind_of (List.hd_exn fields |> snd)
+    else
+      Product (List.map fields ~f:(fun (_, t) -> kind_of t))
+  | Record { boxing = Boxed; _ } -> Addr
+  | Tuple (_, Boxed) -> Addr
+  | Tuple (tys, Unboxed) -> Product (List.map tys ~f:kind_of)
+  | Option t -> Addr
+  | Int -> Immediate
+  | Int64 | Int64_u | Int32 | Int32_u | Nativeint | Nativeint_u | Float
+  | Float_u | Float32 | Float32_u | String -> Non_value
+
+let rec reverse_unboxed_paths ty acc cur_path =
+  match ty with
+  | Record { name = _; fields; boxing = Unboxed } ->
+    List.fold_left fields ~init:acc ~f:(fun acc (s, t) ->
+      let cur_path = s :: cur_path in
+      let acc = cur_path :: acc in
+      reverse_unboxed_paths t acc cur_path
+    )
+  | _ -> acc
+
+let unboxed_paths_by_depth ty : string list list IntMap.t =
+  List.fold_left
+    (reverse_unboxed_paths ty [] [])
+    ~f:(fun acc rev_path ->
+      let depth = List.length rev_path in
+      let path = List.rev rev_path in
         let paths =
           match IntMap.find_opt depth acc with
           | Some paths -> path :: paths
@@ -147,312 +355,11 @@ end = struct
       )
       ~init:IntMap.empty
 
-  let rec value_code t i =
-    match t with
-    | Unboxed_record { name; fields } ->
-      let _, xs =
-        List.fold_left_map fields
-          ~f:(fun acc (_, t) ->
-            let x = value_code t acc in
-            acc + num_subvals t, x
-          )
-          ~init:i
-      in
-      assemble_unboxed_record_expr name fields xs
-    | Unboxed_tuple ts ->
-      let _, xs =
-        List.fold_left_map ts
-          ~f:(fun acc t ->
-            let x = value_code t acc in
-            acc + num_subvals t, x
-          )
-          ~init:i
-      in
-      assemble_unboxed_tuple ~sep:", " xs
-    | Non_product { value_code; _ } -> value_code i
+type 'a tree =
+  | Branch of 'a tree list
+  | Leaf of 'a
 
-  let rec mk_value_body_code t i =
-    match t with
-    | Unboxed_record { name; fields } ->
-      let _, xs =
-        List.fold_left_map fields
-          ~f:(fun acc (_, t) ->
-            let x = mk_value_body_code t acc in
-            acc + num_subvals t, x
-          )
-          ~init:i
-      in
-      assemble_unboxed_record_expr name fields xs
-    | Unboxed_tuple ts ->
-      let _, xs =
-        List.fold_left_map ts
-          ~f:(fun acc t ->
-            let x = mk_value_body_code t acc in
-            acc + num_subvals t, x
-          )
-          ~init:i
-      in
-      assemble_unboxed_tuple ~sep:", " xs
-    | Non_product { mk_value_body_code; _ } -> mk_value_body_code i
-
-  let mk_value_code t = mk_value_body_code t 0
-
-  let rec eq = function
-    | Unboxed_record { name; fields } ->
-      let body =
-        List.map fields ~f:(fun (s, t) -> sprintf "%s %s1 %s2" (eq t) s s)
-        |> String.concat ~sep:" && "
-      in
-      let pat i =
-        assemble_unboxed_record_expr name fields
-          (List.map fields ~f:(fun (s, _) -> s ^ Int.to_string i))
-      in
-      sprintf "(fun %s %s -> %s)" (pat 1) (pat 2) body
-    | Unboxed_tuple ts ->
-      let pat s =
-        assemble_unboxed_tuple ~sep:", "
-          (List.mapi ts ~f:(fun i _ -> s ^ Int.to_string i))
-      in
-      let body =
-        List.mapi ts ~f:(fun i t -> sprintf "%s a%d b%d" (eq t) i i)
-        |> String.concat ~sep:" && "
-      in
-      sprintf "(fun %s %s -> %s)" (pat "a") (pat "b") body
-    | Non_product { eq; _ } -> eq
-
-  (* If (name, decl) is in this list, we'll generate "type $name = $decl" *)
-  let decls : (string * string) list ref = ref []
-
-  let decls_code () =
-    (* [!decls] is only reversed for aesthetic reasons. *)
-    List.mapi (List.rev !decls) ~f:(fun i (name, def) ->
-        (if i == 0 then "type " else "and ") ^ name ^ " = " ^ def
-    )
-
-  let add_decl ~name ~def =
-    match List.assoc_opt name !decls with
-    | Some def' ->
-      if not (String.equal def def')
-      then
-        failwithf "%s has conflicting definitions:\n  %s\nand\n  %s" name def'
-          def
-    | None -> decls := (name, def) :: !decls
-
-  let unboxed_record name fields =
-    let xs = List.map ~f:(fun (_, t) -> ty_code t) fields in
-    add_decl ~name ~def:(assemble_unboxed_record ":" fields xs);
-    Unboxed_record { name; fields }
-
-  let enum size =
-    let ith_ctor i = sprintf "A%d_%d" size i in
-    let def = List.init ~len:size ~f:ith_ctor |> String.concat ~sep:" | " in
-    let eq =
-      let eq_pat =
-        List.init ~len:size ~f:(fun i -> ith_ctor i ^ ", " ^ ith_ctor i)
-        |> String.concat ~sep:" | "
-      in
-      sprintf "(fun a b -> match a, b with %s -> true | _ -> false)" eq_pat
-    in
-    let mk_value_body_code i =
-      let brs =
-        List.init ~len:size ~f:(fun i -> sprintf "%d -> %s" i (ith_ctor i))
-        @ ["_ -> assert false"]
-      in
-      sprintf "(match Int.rem (i + %d) %d with %s)" i size
-        (String.concat ~sep:" | " brs)
-    in
-    let name = sprintf "enum%d" size in
-    add_decl ~name ~def;
-    Non_product
-      { ty_code = name;
-        value_code = (fun i -> ith_ctor (Int.rem i size));
-        mk_value_body_code;
-        eq;
-        kind = Immediate
-      }
-
-  let option t =
-    Non_product
-      { ty_code = ty_code t ^ " option";
-        value_code =
-          (fun i -> if Int.equal i 0 then "None" else "Some " ^ value_code t i);
-        mk_value_body_code =
-          (fun i ->
-            sprintf "(if (i + %d) == 0 then None else Some (%s))" i
-              (mk_value_body_code t i)
-          );
-        eq =
-          "(fun a b -> match a, b with None,None -> true | Some a,Some b -> "
-          ^ eq t ^ " a b|_->false)";
-        kind = Addr
-      }
-
-  let unboxed_tuple ts = Unboxed_tuple ts
-
-  let int =
-    Non_product
-      { ty_code = "int";
-        value_code = (fun i -> Int.to_string i);
-        mk_value_body_code = (fun i -> sprintf "i + %d" i);
-        eq = "(fun a b -> Int.equal a b)";
-        kind = Immediate
-      }
-
-  let float =
-    Non_product
-      { ty_code = "float";
-        value_code = (fun i -> Int.to_string i ^ ".");
-        mk_value_body_code = (fun i -> sprintf "Float.of_int (i + %d)" i);
-        eq = "(fun a b -> Float.equal (globalize a) (globalize b))";
-        kind = Addr
-      }
-
-  let float_u =
-    Non_product
-      { ty_code = "float#";
-        value_code = (fun i -> "#" ^ Int.to_string i ^ ".");
-        mk_value_body_code = (fun i -> sprintf "Float_u.of_int (i + %d)" i);
-        eq = "(fun a b -> Float_u.(equal (add #0. a) (add #0. b)))";
-        kind = Non_value
-      }
-
-  let float32 =
-    Non_product
-      { ty_code = "float32";
-        value_code = (fun i -> Int.to_string i ^ ".s");
-        mk_value_body_code = (fun i -> sprintf "Float32.of_int (i + %d)" i);
-        eq =
-          "(fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b))";
-        kind = Addr
-      }
-
-  let float32_u =
-    Non_product
-      { ty_code = "float32#";
-        value_code = (fun i -> "#" ^ Int.to_string i ^ ".s");
-        mk_value_body_code = (fun i -> sprintf "Float32_u.of_int (i + %d)" i);
-        eq = "(fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b)))";
-        kind = Non_value
-      }
-
-  let int32 =
-    Non_product
-      { ty_code = "int32";
-        value_code = (fun i -> Int.to_string i ^ "l");
-        mk_value_body_code = (fun i -> sprintf "Int32.of_int (i + %d)" i);
-        eq = "(fun a b -> Int32.equal (globalize a) (globalize b))";
-        kind = Addr
-      }
-
-  let int32_u =
-    Non_product
-      { ty_code = "int32#";
-        value_code = (fun i -> "#" ^ Int.to_string i ^ "l");
-        mk_value_body_code = (fun i -> sprintf "Int32_u.of_int (i + %d)" i);
-        eq = "(fun a b -> Int32_u.(equal (add #0l a) (add #0l b)))";
-        kind = Non_value
-      }
-
-  let int64 =
-    Non_product
-      { ty_code = "int64";
-        value_code = (fun i -> Int.to_string i ^ "L");
-        mk_value_body_code = (fun i -> sprintf "Int64.of_int (i + %d)" i);
-        eq = "(fun a b -> Int64.equal (globalize a) (globalize b))";
-        kind = Addr
-      }
-
-  let int64_u =
-    Non_product
-      { ty_code = "int64#";
-        value_code = (fun i -> "#" ^ Int.to_string i ^ "L");
-        mk_value_body_code = (fun i -> sprintf "Int64_u.of_int (i + %d)" i);
-        eq = "(fun a b -> Int64_u.(equal (add #0L a) (add #0L b)))";
-        kind = Non_value
-      }
-
-  let nativeint =
-    Non_product
-      { ty_code = "nativeint";
-        value_code = (fun i -> Int.to_string i ^ "n");
-        mk_value_body_code = (fun i -> sprintf "Nativeint.of_int (i + %d)" i);
-        eq = "(fun a b -> Nativeint.equal (globalize a) (globalize b))";
-        kind = Addr
-      }
-
-  let nativeint_u =
-    Non_product
-      { ty_code = "nativeint#";
-        value_code = (fun i -> "#" ^ Int.to_string i ^ "n");
-        mk_value_body_code = (fun i -> sprintf "Nativeint_u.of_int (i + %d)" i);
-        eq = "(fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b)))";
-        kind = Non_value
-      }
-end
-
-let ty_ur1 = Ty.(unboxed_record "ur1" ["a", int64_u; "b", float_u])
-
-let ty_ur2 = Ty.(unboxed_record "ur2" ["a", int; "b", int64_u])
-
-let ty_ur3 = Ty.(unboxed_record "ur3" ["a", int64_u])
-
-let ty_ur4 = Ty.(unboxed_record "ur4" ["a", ty_ur2; "b", ty_ur3])
-
-let non_product_types = Ty.[string; int; int64; float32_u; float]
-
-let non_product_types =
-  favorite_scalar_types
-  @ Ty.
-      [ float_u;
-        int32_u;
-        int64_u;
-        nativeint_u;
-        float32;
-        int32;
-        nativeint;
-        int;
-        enum 3
-      ]
-
-
-let product_types =
-  let trees = enumerate_trees 4 in
-  List.fold_left trees ~init:[] ~f:(fun acc tree ->
-
-  )
-
-
-let array_element_types =
-  non_product_types
-  @ Ty.
-      [ ty_ur1;
-        ty_ur3;
-        ty_ur4;
-        ty_ur2;
-        unboxed_tuple [float_u; int32_u; int64_u];
-        unboxed_tuple
-          [ float_u;
-            unboxed_tuple [int64_u; int64_u];
-            float32_u;
-            unboxed_tuple [int32_u; unboxed_tuple [float32_u; float_u]];
-            int64_u
-          ];
-        unboxed_tuple [int64_u; ty_ur1];
-        unboxed_tuple [int; int64];
-        unboxed_tuple [option int64; int32; unboxed_tuple [int32; float]; float];
-        unboxed_tuple [float; float; float];
-        unboxed_tuple
-          [ float;
-            unboxed_tuple [float; float];
-            unboxed_tuple [float; unboxed_tuple [float; float; float]]
-          ]
-      ]
-
-type tree =
-  | Branch of tree list
-  | Leaf
-
-let rec enumerate_forests num_nodes : tree list list =
+let rec enumerate_forests num_nodes : unit tree list list =
   assert (num_nodes > 0);
   let possible_first_tree_num_nodes =
     List.init ~len:num_nodes ~f:(fun x -> x + 1)
@@ -471,12 +378,83 @@ let rec enumerate_forests num_nodes : tree list list =
       )
   )
 
-and enumerate_trees num_nodes : tree list =
+and enumerate_trees num_nodes : unit tree list =
   assert (num_nodes >= 1);
   if Int.equal num_nodes 1
   then [Leaf]
   else
     List.map (enumerate_forests (num_nodes - 1)) ~f:(fun forest -> Branch forest)
+
+let rec enumerate_tys_for_tree (tree : unit tree) (leaf_tys : Type_structure.t list) : Type_structure.t tree list =
+  assert false
+
+let enumerate_ty_trees_up_to_size leaf_tys : Type_structure.t tree list =
+  assert false
+
+let ty_tree_to_nested_record (tree : Type_structure.t tree) : Type_structure.t =
+  assert false
+
+let ty_tree_to_array_element (tree : Type_structure.t tree) : Type_structure.t option =
+  assert false
+
+let failwithf fmt = Printf.ksprintf failwith fmt
+
+(* Type structures *)
+let ty_ur1 : Type_structure.t = Record { name = (); fields = [(), Int64_u; (), Float_u]; boxing = Unboxed }
+
+let ty_ur2 : Type_structure.t = Record { name = (); fields = [(), Int; (), Int64_u]; boxing = Unboxed }
+
+let ty_ur3 : Type_structure.t = Record { name = (); fields = [(), Int64_u]; boxing = Unboxed }
+
+let ty_ur4 : Type_structure.t = Record { name = (); fields = [(), ty_ur2; (), ty_ur3]; boxing = Unboxed }
+
+let favorite_non_product_types = [String; Int; Int64; Float32_u; Float]
+
+let non_product_types =
+  favorite_scalar_types
+  @ [ Float_u;
+        Int32_u;
+        Int64_u;
+        Nativeint_u;
+        Float32;
+        Int32;
+        Nativeint;
+        Int
+      ]
+
+let array_element_types =
+  non_product_types
+  @ [ ty_ur1;
+        ty_ur3;
+        ty_ur4;
+        ty_ur2;
+        Tuple ([Float_u; Int32_u; Int64_u], Unboxed);
+        Tuple
+          ([ Float_u;
+            Tuple ([Int64_u; Int64_u], Unboxed);
+            Float32_u;
+            Tuple ([Int32_u; Tuple ([Float32_u; Float_u], Unboxed)], Unboxed);
+            Int64_u
+          ], Unboxed);
+        Tuple
+          ([ Int64_u; ty_ur1 ], Unboxed);
+        Tuple
+          ([ Int; Int64 ], Unboxed);
+        Tuple
+          ([ Option Int64; Int32; Tuple ([Int32; Float], Unboxed); Float ], Unboxed);
+        Tuple
+          ([ Float; Float; Float ], Unboxed);
+        Tuple
+          ([ Float;
+            Tuple ([Float; Float], Unboxed);
+            Tuple ([Float; Tuple ([Float; Float; Float], Unboxed)], Unboxed);
+          ], Unboxed);
+      ]
+
+let (naming : Type_naming.t), (array_element_types : Type.t list) =
+  List.fold_left_map array_element_types ~init:Type_naming.empty ~f:(fun naming ty ->
+    Type_naming.add_names naming ty
+  )
 
 let preamble =
   {|
