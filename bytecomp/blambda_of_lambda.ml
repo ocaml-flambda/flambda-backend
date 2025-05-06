@@ -219,8 +219,6 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
       match args with
       | [arg; Lconst (Const_base (Const_int n))] when is_immed n ->
         Prim (Offsetint n, [comp_arg arg])
-      | [Lconst (Const_base (Const_int n)); arg] when is_immed n ->
-        Prim (Offsetint n, [comp_arg arg])
       | _ -> binary Addint)
     | Psubint -> (
       match args with
