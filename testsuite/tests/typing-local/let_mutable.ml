@@ -105,7 +105,7 @@ Line 5, characters 9-26:
 Error: This value escapes its region.
 |}]
 
-let foo4_4 y = (* Can't sneak localk out of non-local while cond region *)
+let foo4_4 y = (* Can't sneak local out of non-local while cond region *)
   let mutable x = y in
   while x <- (local_ (x + 1)); x <= 100 do
     x <- x + x
@@ -117,6 +117,39 @@ Line 3, characters 13-29:
                  ^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
+
+let foo4_5 y =
+  let mutable x = [] in
+  for i = 1 to y do
+    for j = 1 to y do exclave_
+      x <- local_ ((i*j) :: x)
+    done
+  done;
+  x
+;;
+[%%expect{|
+Line 5, characters 11-30:
+5 |       x <- local_ ((i*j) :: x)
+               ^^^^^^^^^^^^^^^^^^^
+Error: This value escapes its region.
+|}]
+
+let foo4_6 y =
+  let mutable x = [] in
+  for i = 1 to y do exclave_
+    for j = 1 to y do
+      x <- local_ ((i*j) :: x)
+    done
+  done;
+  x
+;;
+[%%expect{|
+Line 5, characters 11-30:
+5 |       x <- local_ ((i*j) :: x)
+               ^^^^^^^^^^^^^^^^^^^
+Error: This value escapes its region.
+|}]
+
 
 (* Test 5: Allowed interactions with locals. *)
 let foo5_1 y =  (* Assignment of local allowed in same scope *)
@@ -231,4 +264,27 @@ let f_11 () =
 let () = assert (f_11 () = (10,20))
 [%%expect{|
 val f_11 : unit -> int * int = <fun>
+|}]
+
+(* Test 12: like Test 11, but with a constructor *)
+type t_12 = Foo_12 of int
+
+let y_12 =
+  let mutable x = 42 in
+  let y = Foo_12 x in
+    x <- 84; y
+;;
+[%%expect{|
+type t_12 = Foo_12 of int
+val y_12 : t_12 = Foo_12 42
+|}]
+
+(* Test 13: disallow modes? *)
+let u_13 y = let x @ unique = y in x;;
+
+let f_13 y z = let mutable x @ unique = y in
+  x <- z;
+  u_13 x
+;;
+[%%expect{|
 |}]
