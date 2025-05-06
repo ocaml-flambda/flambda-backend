@@ -36,7 +36,7 @@ float64x2#
 The types ending with `#` are unboxed: they are passed between functions in XMM
 registers, stored in structures as flat data, and may be stored in flat arrays.
 The operations provided by `Ocaml_simd_sse` operate on unboxed vectors.  For
-more detail on unboxed types, see the [docs](../unboxed-types/intro).
+more detail on unboxed types, see the [docs](../_02-unboxed-types/intro).
 
 The types without `#` are boxed: when passed to a non-inlined function, they
 will be copied to a heap allocated (abstract) block.  Boxed vectors are not

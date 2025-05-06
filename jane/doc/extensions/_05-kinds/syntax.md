@@ -461,7 +461,7 @@ field_type ::= typexpr [ @@ modalities ]
 ```
 
 Please see other OxCaml documentation for details on the syntax for
-[`modality`](../modes/syntax);
+[`modality`](../_04-modes/syntax);
 [typexpr](https://ocaml.org/manual/latest/types.html) is defined in the OCaml
 manual.
 
