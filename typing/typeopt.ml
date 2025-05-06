@@ -244,7 +244,11 @@ let array_kind_of_elt ~elt_sort env loc ty =
       Pgcscannableproductarray (scannable_product_array_kind loc sorts)
   in
   match classify ~classify_product env loc ty elt_sort with
-  | Any -> if Config.flat_float_array then Pgenarray else Paddrarray
+  | Any ->
+    if Config.flat_float_array
+      && not (Ctype.check_type_separability env ty Non_float)
+    then Pgenarray
+    else Paddrarray
   | Float -> if Config.flat_float_array then Pfloatarray else Paddrarray
   | Addr | Lazy -> Paddrarray
   | Int -> Pintarray
