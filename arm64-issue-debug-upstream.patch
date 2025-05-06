@@ -1,67 +1,239 @@
-diff --git a/driver/compenv.ml b/driver/compenv.ml
-index 8b1c4e5559..3e7de2533d 100644
---- a/driver/compenv.ml
-+++ b/driver/compenv.ml
-@@ -489,6 +489,7 @@ let read_one_param ppf position name v =
- let read_OCAMLPARAM ppf position =
-   try
-     let s = Sys.getenv "OCAMLPARAM" in
-+    Warnings.parsed_ocamlparam := s;
-     if s <> "" then
-       let (before, after) =
-         try
-diff --git a/utils/warnings.ml b/utils/warnings.ml
-index 895ef2be07..dc7a23b6c9 100644
---- a/utils/warnings.ml
-+++ b/utils/warnings.ml
-@@ -459,7 +459,10 @@ let name_to_number =
+diff --git a/asmcomp/cmm_helpers.ml b/asmcomp/cmm_helpers.ml
+index 7ad42ceaea..0cb43b7ecd 100644
+--- a/asmcomp/cmm_helpers.ml
++++ b/asmcomp/cmm_helpers.ml
+@@ -137,6 +137,8 @@ let rec add_const c n dbg =
+ let incr_int c dbg = add_const c 1 dbg
+ let decr_int c dbg = add_const c (-1) dbg
  
- (* Must be the max number returned by the [number] function. *)
- 
--let letter = function
-+let parsed_ocamlparam = ref "<not-set>"
++let add_int_addr c1 c2 dbg = Cop (Cadda, [c1; c2], dbg)
 +
-+(* CR-soon xclerc for xclerc: remove the `for_debug` parameter... *)
-+let letter for_debug = function
-   | 'a' ->
-      let rec loop i = if i = 0 then [] else i :: loop (i - 1) in
-      loop last_warning_number
-@@ -488,7 +491,9 @@ let letter = function
-   | 'x' -> [14; 15; 16; 17; 18; 19; 20; 21; 22; 23; 24; 30]
-   | 'y' -> [26]
-   | 'z' -> [27]
--  | _ -> assert false
-+  | chr ->
-+     let ocamlparam_from_env = match Sys.getenv_opt "OCAMLPARAM" with None -> "-" | Some  value -> value in
-+     Misc.fatal_errorf "Warnings.letter %C (for_debug=%S, ocamlparam_from_env=%S ocamlparam_from_compenv=%S)" chr for_debug ocamlparam_from_env !parsed_ocamlparam
- ;;
+ let rec add_int c1 c2 dbg =
+   match (c1, c2) with
+   | (Cconst_int (n, _), c) | (c, Cconst_int (n, _)) ->
+@@ -1103,12 +1105,12 @@ let make_unsigned_int bi arg dbg =
  
- type state =
-@@ -745,7 +750,7 @@ let parse_opt error active errflag s =
-           | None -> if c = lc then Clear else Set
-           | Some m -> m
-         in
--        List.iter (action modifier) (letter lc)
-+        List.iter (action modifier) (letter s lc)
-     | Num(n1,n2,modifier) ->
-         for n = n1 to Int.min n2 last_warning_number do action modifier n done
-   in
-@@ -1131,7 +1136,7 @@ let help_warnings () =
-   print_endline "  A all warnings";
-   for i = Char.code 'b' to Char.code 'z' do
-     let c = Char.chr i in
--    match letter c with
-+    match letter "<help-warnings>" c with
-     | [] -> ()
-     | [n] ->
-         Printf.printf "  %c Alias for warning %i.\n" (Char.uppercase_ascii c) n
-diff --git a/utils/warnings.mli b/utils/warnings.mli
-index 3d9ea91f38..70d17a9181 100644
---- a/utils/warnings.mli
-+++ b/utils/warnings.mli
-@@ -161,3 +161,5 @@ type description =
-     description : string; }
+ let unaligned_load_16 ptr idx dbg =
+   if Arch.allow_unaligned_access
+-  then Cop(Cload (Sixteen_unsigned, Mutable), [add_int ptr idx dbg], dbg)
++  then Cop(Cload (Sixteen_unsigned, Mutable), [add_int_addr ptr idx dbg], dbg)
+   else
+     let cconst_int i = Cconst_int (i, dbg) in
+-    let v1 = Cop(Cload (Byte_unsigned, Mutable), [add_int ptr idx dbg], dbg) in
++    let v1 = Cop(Cload (Byte_unsigned, Mutable), [add_int_addr ptr idx dbg], dbg) in
+     let v2 = Cop(Cload (Byte_unsigned, Mutable),
+-                 [add_int (add_int ptr idx dbg) (cconst_int 1) dbg], dbg) in
++                 [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 1) dbg], dbg) in
+     let b1, b2 = if Arch.big_endian then v1, v2 else v2, v1 in
+     Cop(Cor, [lsl_int b1 (cconst_int 8) dbg; b2], dbg)
  
- val descriptions : description list
-+
-+val parsed_ocamlparam : string ref
+@@ -1116,7 +1118,7 @@ let unaligned_set_16 ptr idx newval dbg =
+   if Arch.allow_unaligned_access
+   then
+     Cop(Cstore (Sixteen_unsigned, Assignment),
+-      [add_int ptr idx dbg; newval], dbg)
++      [add_int_addr ptr idx dbg; newval], dbg)
+   else
+     let cconst_int i = Cconst_int (i, dbg) in
+     let v1 =
+@@ -1126,24 +1128,24 @@ let unaligned_set_16 ptr idx newval dbg =
+     let v2 = Cop(Cand, [newval; cconst_int 0xFF], dbg) in
+     let b1, b2 = if Arch.big_endian then v1, v2 else v2, v1 in
+     Csequence(
+-        Cop(Cstore (Byte_unsigned, Assignment), [add_int ptr idx dbg; b1], dbg),
++        Cop(Cstore (Byte_unsigned, Assignment), [add_int_addr ptr idx dbg; b1], dbg),
+         Cop(Cstore (Byte_unsigned, Assignment),
+-            [add_int (add_int ptr idx dbg) (cconst_int 1) dbg; b2], dbg))
++            [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 1) dbg; b2], dbg))
+ 
+ let unaligned_load_32 ptr idx dbg =
+   if Arch.allow_unaligned_access
+-  then Cop(Cload (Thirtytwo_unsigned, Mutable), [add_int ptr idx dbg], dbg)
++  then Cop(Cload (Thirtytwo_unsigned, Mutable), [add_int_addr ptr idx dbg], dbg)
+   else
+     let cconst_int i = Cconst_int (i, dbg) in
+-    let v1 = Cop(Cload (Byte_unsigned, Mutable), [add_int ptr idx dbg], dbg) in
++    let v1 = Cop(Cload (Byte_unsigned, Mutable), [add_int_addr ptr idx dbg], dbg) in
+     let v2 = Cop(Cload (Byte_unsigned, Mutable),
+-                 [add_int (add_int ptr idx dbg) (cconst_int 1) dbg], dbg)
++                 [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 1) dbg], dbg)
+     in
+     let v3 = Cop(Cload (Byte_unsigned, Mutable),
+-                 [add_int (add_int ptr idx dbg) (cconst_int 2) dbg], dbg)
++                 [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 2) dbg], dbg)
+     in
+     let v4 = Cop(Cload (Byte_unsigned, Mutable),
+-                 [add_int (add_int ptr idx dbg) (cconst_int 3) dbg], dbg)
++                 [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 3) dbg], dbg)
+     in
+     let b1, b2, b3, b4 =
+       if Arch.big_endian
+@@ -1158,7 +1160,7 @@ let unaligned_load_32 ptr idx dbg =
+ let unaligned_set_32 ptr idx newval dbg =
+   if Arch.allow_unaligned_access
+   then
+-    Cop(Cstore (Thirtytwo_unsigned, Assignment), [add_int ptr idx dbg; newval],
++    Cop(Cstore (Thirtytwo_unsigned, Assignment), [add_int_addr ptr idx dbg; newval],
+       dbg)
+   else
+     let cconst_int i = Cconst_int (i, dbg) in
+@@ -1179,39 +1181,39 @@ let unaligned_set_32 ptr idx newval dbg =
+     Csequence(
+         Csequence(
+             Cop(Cstore (Byte_unsigned, Assignment),
+-                [add_int ptr idx dbg; b1], dbg),
++                [add_int_addr ptr idx dbg; b1], dbg),
+             Cop(Cstore (Byte_unsigned, Assignment),
+-                [add_int (add_int ptr idx dbg) (cconst_int 1) dbg; b2],
++                [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 1) dbg; b2],
+                 dbg)),
+         Csequence(
+             Cop(Cstore (Byte_unsigned, Assignment),
+-                [add_int (add_int ptr idx dbg) (cconst_int 2) dbg; b3],
++                [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 2) dbg; b3],
+                 dbg),
+             Cop(Cstore (Byte_unsigned, Assignment),
+-                [add_int (add_int ptr idx dbg) (cconst_int 3) dbg; b4],
++                [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 3) dbg; b4],
+                 dbg)))
+ 
+ let unaligned_load_64 ptr idx dbg =
+   assert(size_int = 8);
+   if Arch.allow_unaligned_access
+-  then Cop(Cload (Word_int, Mutable), [add_int ptr idx dbg], dbg)
++  then Cop(Cload (Word_int, Mutable), [add_int_addr ptr idx dbg], dbg)
+   else
+     let cconst_int i = Cconst_int (i, dbg) in
+-    let v1 = Cop(Cload (Byte_unsigned, Mutable), [add_int ptr idx dbg], dbg) in
++    let v1 = Cop(Cload (Byte_unsigned, Mutable), [add_int_addr ptr idx dbg], dbg) in
+     let v2 = Cop(Cload (Byte_unsigned, Mutable),
+-                 [add_int (add_int ptr idx dbg) (cconst_int 1) dbg], dbg) in
++                 [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 1) dbg], dbg) in
+     let v3 = Cop(Cload (Byte_unsigned, Mutable),
+-                 [add_int (add_int ptr idx dbg) (cconst_int 2) dbg], dbg) in
++                 [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 2) dbg], dbg) in
+     let v4 = Cop(Cload (Byte_unsigned, Mutable),
+-                 [add_int (add_int ptr idx dbg) (cconst_int 3) dbg], dbg) in
++                 [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 3) dbg], dbg) in
+     let v5 = Cop(Cload (Byte_unsigned, Mutable),
+-                 [add_int (add_int ptr idx dbg) (cconst_int 4) dbg], dbg) in
++                 [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 4) dbg], dbg) in
+     let v6 = Cop(Cload (Byte_unsigned, Mutable),
+-                 [add_int (add_int ptr idx dbg) (cconst_int 5) dbg], dbg) in
++                 [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 5) dbg], dbg) in
+     let v7 = Cop(Cload (Byte_unsigned, Mutable),
+-                 [add_int (add_int ptr idx dbg) (cconst_int 6) dbg], dbg) in
++                 [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 6) dbg], dbg) in
+     let v8 = Cop(Cload (Byte_unsigned, Mutable),
+-                 [add_int (add_int ptr idx dbg) (cconst_int 7) dbg], dbg) in
++                 [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 7) dbg], dbg) in
+     let b1, b2, b3, b4, b5, b6, b7, b8 =
+       if Arch.big_endian
+       then v1, v2, v3, v4, v5, v6, v7, v8
+@@ -1233,7 +1235,7 @@ let unaligned_load_64 ptr idx dbg =
+ let unaligned_set_64 ptr idx newval dbg =
+   assert(size_int = 8);
+   if Arch.allow_unaligned_access
+-  then Cop(Cstore (Word_int, Assignment), [add_int ptr idx dbg; newval], dbg)
++  then Cop(Cstore (Word_int, Assignment), [add_int_addr ptr idx dbg; newval], dbg)
+   else
+     let cconst_int i = Cconst_int (i, dbg) in
+     let v1 =
+@@ -1273,32 +1275,32 @@ let unaligned_set_64 ptr idx newval dbg =
+         Csequence(
+             Csequence(
+                 Cop(Cstore (Byte_unsigned, Assignment),
+-                    [add_int ptr idx dbg; b1],
++                    [add_int_addr ptr idx dbg; b1],
+                     dbg),
+                 Cop(Cstore (Byte_unsigned, Assignment),
+-                    [add_int (add_int ptr idx dbg) (cconst_int 1) dbg; b2],
++                    [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 1) dbg; b2],
+                     dbg)),
+             Csequence(
+                 Cop(Cstore (Byte_unsigned, Assignment),
+-                    [add_int (add_int ptr idx dbg) (cconst_int 2) dbg; b3],
++                    [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 2) dbg; b3],
+                     dbg),
+                 Cop(Cstore (Byte_unsigned, Assignment),
+-                    [add_int (add_int ptr idx dbg) (cconst_int 3) dbg; b4],
++                    [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 3) dbg; b4],
+                     dbg))),
+         Csequence(
+             Csequence(
+                 Cop(Cstore (Byte_unsigned, Assignment),
+-                    [add_int (add_int ptr idx dbg) (cconst_int 4) dbg; b5],
++                    [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 4) dbg; b5],
+                     dbg),
+                 Cop(Cstore (Byte_unsigned, Assignment),
+-                    [add_int (add_int ptr idx dbg) (cconst_int 5) dbg; b6],
++                    [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 5) dbg; b6],
+                     dbg)),
+             Csequence(
+                 Cop(Cstore (Byte_unsigned, Assignment),
+-                    [add_int (add_int ptr idx dbg) (cconst_int 6) dbg; b7],
++                    [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 6) dbg; b7],
+                     dbg),
+                 Cop(Cstore (Byte_unsigned, Assignment),
+-                    [add_int (add_int ptr idx dbg) (cconst_int 7) dbg; b8],
++                    [add_int_addr (add_int_addr ptr idx dbg) (cconst_int 7) dbg; b8],
+                     dbg))))
+ 
+ let max_or_zero a dbg =
+@@ -2279,7 +2281,7 @@ let int_comp_caml cmp arg1 arg2 dbg =
+ 
+ let stringref_unsafe arg1 arg2 dbg =
+   tag_int(Cop(Cload (Byte_unsigned, Mutable),
+-              [add_int arg1 (untag_int arg2 dbg) dbg],
++              [add_int_addr arg1 (untag_int arg2 dbg) dbg],
+               dbg)) dbg
+ 
+ let stringref_safe arg1 arg2 dbg =
+@@ -2289,7 +2291,7 @@ let stringref_safe arg1 arg2 dbg =
+         Csequence(
+           make_checkbound dbg [string_length str dbg; idx],
+           Cop(Cload (Byte_unsigned, Mutable),
+-            [add_int str idx dbg], dbg))))) dbg
++            [add_int_addr str idx dbg], dbg))))) dbg
+ 
+ let string_load size unsafe arg1 arg2 dbg =
+   box_sized size dbg
+@@ -2397,7 +2399,7 @@ let setfield_computed ptr init arg1 arg2 arg3 dbg =
+ 
+ let bytesset_unsafe arg1 arg2 arg3 dbg =
+       return_unit dbg (Cop(Cstore (Byte_unsigned, Assignment),
+-                      [add_int arg1 (untag_int arg2 dbg) dbg;
++                      [add_int_addr arg1 (untag_int arg2 dbg) dbg;
+                        ignore_high_bit_int (untag_int arg3 dbg)], dbg))
+ 
+ let bytesset_safe arg1 arg2 arg3 dbg =
+@@ -2408,7 +2410,7 @@ let bytesset_safe arg1 arg2 arg3 dbg =
+         Csequence(
+           make_checkbound dbg [string_length str dbg; idx],
+           Cop(Cstore (Byte_unsigned, Assignment),
+-              [add_int str idx dbg; newval],
++              [add_int_addr str idx dbg; newval],
+               dbg))))))
+ 
+ let arrayset_unsafe kind arg1 arg2 arg3 dbg =
+diff --git a/runtime/startup_nat.c b/runtime/startup_nat.c
+index b75732596a..0b8f93449b 100644
+--- a/runtime/startup_nat.c
++++ b/runtime/startup_nat.c
+@@ -113,12 +113,14 @@ value caml_startup_common(char_os **argv, int pooling)
+   caml_init_domain();
+   /* Determine options */
+ #ifdef DEBUG
+-  caml_verb_gc = 0x3F;
++  /* Silenced for flambda-backend builds to avoid excessively large CI logs */
++  /* caml_verb_gc = 0x3F; */
+ #endif
+   caml_parse_ocamlrunparam();
+   CAML_EVENTLOG_INIT();
+ #ifdef DEBUG
+-  caml_gc_message (-1, "### OCaml runtime: debug mode ###\n");
++  /* Silenced for flambda-backend builds to avoid excessively large CI logs */
++  /* caml_gc_message (-1, "### OCaml runtime: debug mode ###\n"); */
+ #endif
+   if (caml_cleanup_on_exit)
+     pooling = 1;
