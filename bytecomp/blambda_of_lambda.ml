@@ -144,12 +144,6 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
   | Lassign (id, expr) -> Assign (id, comp_arg expr)
   | Levent (lam, lev) -> Event (comp_expr lam, lev)
   | Lifused (_, exp) | Lregion (exp, _) | Lexclave exp -> comp_expr exp
-  | Lprim
-      ( Pduparray (kind, mutability),
-        [Lprim (Pmakearray (kind', _, m), args, _)],
-        loc ) ->
-    assert (kind = kind');
-    comp_expr (Lambda.Lprim (Pmakearray (kind, mutability, m), args, loc))
   | Lprim (primitive, args, loc) -> (
     let simd_is_not_supported () =
       Misc.fatal_error "SIMD is not supported in bytecode mode."
