@@ -86,6 +86,7 @@ let phys_reg ty n =
   | Float -> hard_float_reg.(n - 100)
   | Float32 -> hard_float32_reg.(n - 100)
   | Vec128 | Valx2 -> hard_vec128_reg.(n - 100)
+
 let reg_x8 = phys_reg Int 8
 
 let stack_slot slot ty =
@@ -296,6 +297,13 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
     -> [||]
   | Op (Static_cast
           (V128_of_scalar _|Scalar_of_v128 _))
+  | Op (Intop Ipopcnt) ->
+      if !Arch.feat_cssc then
+        [||]
+      else
+        destroy_neon_reg7
+  | Op (Intop (Iadd  | Isub | Imul | Idiv|Imod|Iand|Ior|Ixor|Ilsl
+              |Ilsr|Iasr|Imulh _|Iclz _|Ictz _|Icomp _))
   | Op (Specific _
         | Move | Spill | Reload
         | Floatop _
@@ -304,7 +312,7 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
         | Const_float32 _ | Const_float _
         | Const_symbol _ | Const_vec128 _
         | Stackoffset _
-        | Intop _ | Intop_imm _ | Intop_atomic _
+        | Intop_imm _ | Intop_atomic _
         | Name_for_debugger _ | Probe_is_enabled _ | Opaque
         | Begin_region | End_region | Dls_get)
   | Poptrap _ | Prologue
