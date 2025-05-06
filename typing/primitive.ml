@@ -26,6 +26,7 @@ type unboxed_integer =
   | Unboxed_int32
   | Unboxed_int16
   | Unboxed_int8
+  | Unboxed_int
 
 type unboxed_float = Unboxed_float64 | Unboxed_float32
 type unboxed_vector = Unboxed_vec128
@@ -40,7 +41,6 @@ type native_repr =
   | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of unboxed_integer
-  | Untagged_immediate
 
 type effects = No_effects | Only_generative_effects | Arbitrary_effects
 type coeffects = No_coeffects | Has_coeffects
@@ -85,8 +85,7 @@ let check_ocaml_value = function
   | _, Repr_poly -> Bad_layout
   | _, Unboxed_float _
   | _, Unboxed_vector _
-  | _, Unboxed_integer _
-  | _, Untagged_immediate -> Bad_attribute
+  | _, Unboxed_integer _ -> Bad_attribute
 
 let is_builtin_prim_name name = String.length name > 0 && name.[0] = '%'
 
@@ -258,10 +257,10 @@ let print p osig_val_decl =
   let is_unboxed = function
     | _, Same_as_ocaml_repr (Base Value)
     | _, Repr_poly
-    | _, Untagged_immediate -> false
+    | _, Unboxed_integer (Unboxed_int | Unboxed_int8 | Unboxed_int16) -> false
     | _, Unboxed_float _
     | _, Unboxed_vector _
-    | _, Unboxed_integer _ -> true
+    | _, Unboxed_integer (Unboxed_int64 | Unboxed_int32 | Unboxed_nativeint) -> true
     | _, Same_as_ocaml_repr _ ->
       (* We require [@unboxed] for non-value types in upstream-compatible code,
          but treat it as optional otherwise. We thus print the [@unboxed]
@@ -270,11 +269,13 @@ let print p osig_val_decl =
       Language_extension.erasable_extensions_only ()
   in
   let is_untagged = function
-    | _, Untagged_immediate -> true
+    | _, Unboxed_integer (Unboxed_int8 | Unboxed_int16) ->
+      Language_extension.erasable_extensions_only ()
+    | _, Unboxed_integer (Unboxed_int) -> true
     | _, Same_as_ocaml_repr _
     | _, Unboxed_float _
     | _, Unboxed_vector _
-    | _, Unboxed_integer _
+    | _, Unboxed_integer (Unboxed_int64 | Unboxed_int32 | Unboxed_nativeint)
     | _, Repr_poly -> false
   in
   let all_unboxed = for_all is_unboxed in
@@ -314,8 +315,10 @@ let print p osig_val_decl =
      | Repr_poly -> []
      | Unboxed_float _
      | Unboxed_vector _
-     | Unboxed_integer _ -> if all_unboxed then [] else [oattr_unboxed]
-     | Untagged_immediate -> if all_untagged then [] else [oattr_untagged]
+     | Unboxed_integer (Unboxed_int32 | Unboxed_int64 | Unboxed_nativeint)
+       -> if all_unboxed then [] else [oattr_unboxed]
+     | Unboxed_integer (Unboxed_int | Unboxed_int8 | Unboxed_int16)
+       -> if all_untagged then [] else [oattr_untagged]
      | Same_as_ocaml_repr _->
       if all_unboxed || not (is_unboxed (m, repr))
       then []
@@ -354,7 +357,7 @@ let unboxed_vector = function
    comparison at no performance loss. We still match on the variants to prove here that
    they are all constant constructors. *)
 let equal_unboxed_integer
-      ((Unboxed_int8 | Unboxed_int16 | Unboxed_int32 | Unboxed_nativeint
+      ((Unboxed_int | Unboxed_int8 | Unboxed_int16 | Unboxed_int32 | Unboxed_nativeint
        | Unboxed_int64) as i1) i2
   =
   i1 = i2
@@ -386,31 +389,27 @@ let equal_native_repr nr1 nr2 =
   match nr1, nr2 with
   | Repr_poly, Repr_poly -> true
   | Repr_poly, (Unboxed_float _ | Unboxed_integer _
-               | Untagged_immediate | Unboxed_vector _ | Same_as_ocaml_repr _)
+               | Unboxed_vector _ | Same_as_ocaml_repr _)
   | (Unboxed_float _ | Unboxed_integer _
-    | Untagged_immediate | Unboxed_vector _ | Same_as_ocaml_repr _), Repr_poly
+    | Unboxed_vector _ | Same_as_ocaml_repr _), Repr_poly
     -> false
   | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 ->
     Jkind_types.Sort.Const.equal s1 s2
   | Same_as_ocaml_repr _,
-    (Unboxed_float _ | Unboxed_integer _ | Untagged_immediate |
+    (Unboxed_float _ | Unboxed_integer _ |
      Unboxed_vector _) -> false
   | Unboxed_float f1, Unboxed_float f2 -> equal_boxed_float f1 f2
   | Unboxed_float _,
-    (Same_as_ocaml_repr _ | Unboxed_integer _ | Untagged_immediate |
+    (Same_as_ocaml_repr _ | Unboxed_integer _ |
      Unboxed_vector _) -> false
   | Unboxed_vector vi1, Unboxed_vector vi2 ->
     equal_unboxed_vector_size (unboxed_vector vi1) (unboxed_vector vi2)
   | Unboxed_vector _,
-    (Same_as_ocaml_repr _ | Unboxed_float _ | Untagged_immediate |
+    (Same_as_ocaml_repr _ | Unboxed_float _ |
      Unboxed_integer _) -> false
   | Unboxed_integer bi1, Unboxed_integer bi2 -> equal_unboxed_integer bi1 bi2
   | Unboxed_integer _,
-    (Same_as_ocaml_repr _ | Unboxed_float _ | Untagged_immediate |
-     Unboxed_vector _) -> false
-  | Untagged_immediate, Untagged_immediate -> true
-  | Untagged_immediate,
-    (Same_as_ocaml_repr _ | Unboxed_float _ | Unboxed_integer _ |
+    (Same_as_ocaml_repr _ | Unboxed_float _ |
      Unboxed_vector _) -> false
 
 let equal_effects ef1 ef2 =
@@ -450,14 +449,13 @@ module Repr_check = struct
 
   let value_or_unboxed_or_untagged = function
     | Same_as_ocaml_repr (Base Value)
-    | Unboxed_float _ | Unboxed_integer _ | Unboxed_vector _
-    | Untagged_immediate -> true
+    | Unboxed_float _ | Unboxed_integer _ | Unboxed_vector _ -> true
     | Same_as_ocaml_repr _ | Repr_poly -> false
 
   let is_not_product = function
     | Same_as_ocaml_repr (Base _)
     | Unboxed_float _ | Unboxed_integer _ | Unboxed_vector _
-    | Untagged_immediate | Repr_poly -> true
+    | Repr_poly -> true
     | Same_as_ocaml_repr (Product _) -> false
 
   let check checks prim =
@@ -490,6 +488,7 @@ module Repr_check = struct
       (List.init (arity+1) (fun _ -> is_not_product))
       prim
 end
+
 
 (* Note: [any] here is not the same as jkind [any]. It means we allow any
    [native_repr] for the corresponding argument or return.  It's [Typedecl]'s
@@ -774,6 +773,11 @@ let prim_has_valid_reprs ~loc prim =
         match String.Map.find_opt name stringlike_indexing_primitives with
         | Some reprs -> exactly reprs
         | None ->
+          let module I = Scalar.Intrinsic in
+          match I.With_percent_prefix.of_string name with
+          | intrinsic ->
+            exactly (List.map (fun sort -> Same_as_ocaml_repr sort) (I.sort intrinsic))
+          | exception Not_found ->
             if is_builtin_prim_name name then no_non_value_repr
               (* These can probably support non-value reprs if the need arises:
                  {|

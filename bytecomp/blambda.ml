@@ -32,6 +32,7 @@ type constant = Lambda.constant
 (** [structured_constant] needs to match the cmo file format *)
 type structured_constant = Lambda.structured_constant =
   | Const_base of constant
+  | Const_naked_immediate of int * Scalar.Integral.Taggable.Width.t
   | Const_block of int * structured_constant list
   | Const_mixed_block of
       int * Lambda.mixed_block_shape * structured_constant list

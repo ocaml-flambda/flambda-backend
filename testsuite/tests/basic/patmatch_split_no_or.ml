@@ -81,12 +81,12 @@ let f = function
        param/34[(consts ()) (non_consts ([0: *, [int], [int]]))] : int
        (let (*match*/35 =a (field_imm 0 param/34))
          (catch
-           (if (== *match*/35 A/29) (if (field_imm 1 param/34) 1 (exit 8))
+           (if (%eq *match*/35 A/29) (if (field_imm 1 param/34) 1 (exit 8))
              (exit 8))
           with (8)
            (if (field_imm 1 param/34)
-             (if (== (field_imm 0 *match*/35) B/30) 2
-               (if (== (field_imm 0 *match*/35) C/31) 3 4))
+             (if (%eq (field_imm 0 *match*/35) B/30) 2
+               (if (%eq (field_imm 0 *match*/35) C/31) 3 4))
              (if (field_imm 2 param/34) 12 11))))))
   (apply (field_imm 1 (global Toploop!)) "f" f/32))
 val f : t * bool * bool -> int = <fun>

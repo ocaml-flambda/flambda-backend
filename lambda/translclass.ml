@@ -97,7 +97,7 @@ let lfield v i =
 let transl_label l = share (Const_immstring l)
 
 let transl_meth_list lst =
-  if lst = [] then Lconst (const_int 0) else
+  if lst = [] then Lconst const_unit else
   share (Const_block
             (0, List.map (fun lab -> Const_immstring lab) lst))
 
@@ -439,7 +439,7 @@ let rec build_class_init ~scopes cla cstr super inh_init cl_init msubst top cl =
            Llet (Strict, layout_array Pgenarray, inh,
                  mkappl(oo_prim "inherits", narrow_args @
                         [path_lam;
-                         Lconst(const_int (if top then 1 else 0))],
+                         (lconst_int int (if top then 1 else 0))],
                        layout_array Pgenarray),
                  Llet(StrictOpt, layout_t, obj_init, lfield inh 0, cl_init)))
       | _ ->
@@ -627,7 +627,7 @@ let rec builtin_meths self env env2 body =
     | Lprim(Parrayrefu _, [Lvar s; Lvar n], _) when List.mem s self ->
         "var", [Lvar n]
     | Lprim(Pfield(n, _, _), [Lvar e], _) when Ident.same e env ->
-        "env", [Lvar env2; Lconst(const_int n)]
+        "env", [Lvar env2; (lconst_int int n)]
     | Lsend(Self, met, Lvar s, [], _, _, _, _) when List.mem s self ->
         "meth", [met]
     | _ -> raise Not_found
@@ -698,7 +698,7 @@ module M = struct
     | "send_env"   -> SendEnv
     | "send_meth"  -> SendMeth
     | _ -> assert false
-    in Lconst(const_int (Obj.magic tag)) :: args
+    in (lconst_int int (Obj.magic tag)) :: args
 end
 open M
 

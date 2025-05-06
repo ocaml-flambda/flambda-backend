@@ -14,10 +14,7 @@ Line 2, characters 11-15:
                ^^^^
 Error: Unknown layout valu
 type t = float#
-Line 2, characters 9-13:
-2 | type t = int#;;
-             ^^^^
-Error: The type "int" has no unboxed version.
+type t = int#
 type t = Float.t#
 type ('a : any, 'b : any, 'c : any) t
 type ('a : float64) s1 = ('a, int, bool) t

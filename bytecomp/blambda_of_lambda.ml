@@ -14,6 +14,11 @@
 
 open Blambda
 
+type tagged_integer = Scalar.Integral.Taggable.Width.t
+(* We represent small integers as sign-extended immediates in bytecode. Additionally,
+   all boxable integers are boxed, there are no naked integers, and there are no local
+   allocations. *)
+
 let is_nontail : Lambda.region_close -> bool = function
   | Rc_nontail -> true
   | Rc_normal | Rc_close_at_apply -> false
@@ -28,7 +33,21 @@ module Storer = Switch.Store (struct
   let make_key = Lambda.make_key
 end)
 
+let const_int x = Const (Const_base (Const_int x))
+
+let unit = Const Lambda.const_unit
+
+let boolnot x = Prim (Boolnot, [x])
+
+let kccallf f fmt = Printf.ksprintf (fun name -> f (Ccall name)) fmt
+
+let ccallf fmt = kccallf Fun.id fmt
+
 let is_immed n = Instruct.immed_min <= n && n <= Instruct.immed_max
+
+let is_const = function
+  | Const (Const_base (Const_int i)) -> is_immed i
+  | _ -> false
 
 let comp_integer_comparison : Lambda.integer_comparison -> comparison = function
   | Ceq -> Eq
@@ -37,6 +56,141 @@ let comp_integer_comparison : Lambda.integer_comparison -> comparison = function
   | Cgt -> Gtint
   | Cle -> Leint
   | Cge -> Geint
+
+let simd_is_not_supported () =
+  Misc.fatal_error "SIMD is not supported in bytecode mode."
+
+let caml_sys_const name =
+  let const_name =
+    (* clearly [Lambda.compile_time_constant] is a bad name as in bytecode mode it's a
+       runtime constant *)
+    match (name : Lambda.compile_time_constant) with
+    | Big_endian -> "big_endian"
+    | Word_size -> "word_size"
+    | Int_size -> "int_size"
+    | Max_wosize -> "max_wosize"
+    | Ostype_unix -> "ostype_unix"
+    | Ostype_win32 -> "ostype_win32"
+    | Ostype_cygwin -> "ostype_cygwin"
+    | Backend_type -> "backend_type"
+    | Runtime5 -> "runtime5"
+  in
+  ccallf "caml_sys_const_%s" const_name
+
+let sign_extend width exp =
+  let go ~bits =
+    let unused_bits = Sys.int_size - bits in
+    match exp with
+    | Const (Const_base (Const_int n))
+      when is_immed ((n lsl unused_bits) asr unused_bits) ->
+      Const (Const_base (Const_int ((n lsl unused_bits) asr unused_bits)))
+    | exp ->
+      let width = const_int bits in
+      let int_size = Prim (caml_sys_const Int_size, [unit]) in
+      let unused_bits = Prim (Subint, [int_size; width]) in
+      Prim (Asrint, [Prim (Lslint, [exp; unused_bits]); unused_bits])
+  in
+  match (width : tagged_integer) with
+  | Int -> exp
+  | Int8 -> go ~bits:8
+  | Int16 -> go ~bits:16
+
+let zero_extend width exp =
+  let go ~bits =
+    let mask = (1 lsl bits) - 1 in
+    match exp with
+    | Const (Const_base (Const_int n)) when is_immed (n land mask) ->
+      Const (Const_base (Const_int (n land mask)))
+    | exp -> Prim (Andint, [exp; const_int mask])
+  in
+  match (width : tagged_integer) with
+  | Int -> exp
+  | Int8 -> go ~bits:8
+  | Int16 -> go ~bits:16
+
+let static_cast ~src ~dst x =
+  let open struct
+    type boxed =
+      | Int32
+      | Nativeint
+      | Int64
+      | Float
+      | Float32
+
+    type builtin =
+      | Boxed of boxed
+      | Int
+
+    type value =
+      | Boxed of boxed
+      | Tagged of tagged_integer
+
+    let value : Scalar.any_locality_mode Scalar.Width.t -> value = function
+      | Integral (Taggable tagged) -> Tagged tagged
+      | Integral (Boxable (Int32 Any_locality_mode)) -> Boxed Int32
+      | Integral (Boxable (Nativeint Any_locality_mode)) -> Boxed Nativeint
+      | Integral (Boxable (Int64 Any_locality_mode)) -> Boxed Int64
+      | Floating (Float64 Any_locality_mode) -> Boxed Float
+      | Floating (Float32 Any_locality_mode) -> Boxed Float32
+
+    let name : builtin -> string = function
+      | Int -> "int"
+      | Boxed Int32 -> "int32"
+      | Boxed Nativeint -> "nativeint"
+      | Boxed Int64 -> "int64"
+      | Boxed Float -> "float"
+      | Boxed Float32 -> "float32"
+  end in
+  let rec builtin x ~src ~dst =
+    match (src : builtin), (dst : builtin) with
+    | Boxed Int32, Boxed Int32
+    | Boxed Int64, Boxed Int64
+    | Boxed Nativeint, Boxed Nativeint
+    | Boxed Float, Boxed Float
+    | Boxed Float32, Boxed Float32
+    | Int, Int ->
+      (* the identity function *)
+      x
+    | Boxed Float32, Boxed (Int64 | Nativeint | Int32)
+    | Boxed (Int64 | Nativeint | Int32), Boxed Float32 ->
+      (* there are no builtins to convert directly, so we go indirectly via
+         float *)
+      x
+      |> builtin ~src ~dst:(Boxed Float : builtin)
+      |> builtin ~src:(Boxed Float : builtin) ~dst
+    | Boxed Int64, (Int | Boxed (Int32 | Nativeint | Float))
+    | Boxed Nativeint, (Int | Boxed (Int32 | Float))
+    | Boxed Int32, (Int | Boxed Float) ->
+      (* these happen to break from the more favored naming rule of
+         caml_dst_of_src *)
+      Prim (ccallf "caml_%s_to_%s" (name src) (name dst), [x])
+    | Boxed (Float | Float32), Int
+    | (Int | Boxed (Float | Int32 | Nativeint)), Boxed Int64
+    | (Int | Boxed (Float | Int32)), Boxed Nativeint
+    | (Int | Boxed Float), Boxed Int32
+    | (Int | Boxed Float), Boxed Float32
+    | (Int | Boxed Float32), Boxed Float ->
+      Prim (ccallf "caml_%s_of_%s" (name dst) (name src), [x])
+  in
+  match value src, value dst with
+  | Boxed src, Boxed dst -> builtin x ~src:(Boxed src) ~dst:(Boxed dst)
+  | Tagged (Int | Int16 | Int8), Boxed dst ->
+    (* we don't need to sign-extend in this case because tagged small integers
+       are always represented sign-extended in bytecode *)
+    builtin x ~src:Int ~dst:(Boxed dst)
+  | Boxed src, Tagged dst ->
+    builtin x ~src:(Boxed src) ~dst:Int |> sign_extend dst
+  | Tagged Int8, Tagged (Int8 | Int16 | Int)
+  | Tagged Int16, Tagged (Int16 | Int)
+  | Tagged Int, Tagged Int ->
+    (* we don't need to sign-extend in this case because tagged small integers
+       are always represented sign-extended in bytecode *)
+    x
+  | Tagged Int, Tagged ((Int16 | Int8) as dst)
+  | Tagged Int16, Tagged (Int8 as dst) ->
+    (* we need to sign-extend here because these values are stored in full-width
+       immediates *)
+    sign_extend dst x
 
 let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
   let comp_fun ({ params; body; loc = _ } as lfunction : Lambda.lfunction) :
@@ -51,14 +205,13 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
       =
     { id; def = comp_fun def }
   in
-  let[@inline] comp_arg arg = comp_expr arg in
   match (exp : Lambda.lambda) with
   | Lvar id | Lmutvar id -> Var id
   | Lconst cst -> Const cst
   | Lapply { ap_func; ap_args; ap_region_close } ->
     Apply
-      { func = comp_arg ap_func;
-        args = List.map comp_arg ap_args;
+      { func = comp_expr ap_func;
+        args = List.map comp_expr ap_args;
         nontail = is_nontail ap_region_close
       }
   | Lsend (kind, met, obj, args, rc, _, _, _) ->
@@ -68,14 +221,14 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
           | Self -> Self
           | Public -> Public
           | Cached -> assert false);
-        met = comp_arg met;
-        obj = comp_arg obj;
-        args = List.map comp_arg args;
+        met = comp_expr met;
+        obj = comp_expr obj;
+        args = List.map comp_expr args;
         nontail = is_nontail rc
       }
   | Lfunction f -> Pseudo_event (Function (comp_fun f), f.loc)
   | Llet (_, _k, id, arg, body) | Lmutlet (_k, id, arg, body) ->
-    Let { id; arg = comp_arg arg; body = comp_expr body }
+    Let { id; arg = comp_expr arg; body = comp_expr body }
   | Lletrec (decl, body) ->
     Letrec
       { decls = List.map comp_rec_binding decl;
@@ -85,28 +238,28 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
       }
   | Lstaticcatch (body, (static_label, args), handler, _, _) ->
     Staticcatch
-      { body = comp_arg body;
+      { body = comp_expr body;
         id = static_label;
         args = List.map fst args;
         handler = comp_expr handler
       }
   | Lstaticraise (static_label, args) ->
-    Staticraise (static_label, List.map comp_arg args)
+    Staticraise (static_label, List.map comp_expr args)
   | Ltrywith (body, param, handler, _kind) ->
-    Trywith { body = comp_arg body; param; handler = comp_expr handler }
+    Trywith { body = comp_expr body; param; handler = comp_expr handler }
   | Lifthenelse (cond, ifso, ifnot, _kind) ->
     Ifthenelse
-      { cond = comp_arg cond; ifso = comp_expr ifso; ifnot = comp_expr ifnot }
-  | Lsequence (exp1, exp2) -> Sequence (comp_arg exp1, comp_expr exp2)
+      { cond = comp_expr cond; ifso = comp_expr ifso; ifnot = comp_expr ifnot }
+  | Lsequence (exp1, exp2) -> Sequence (comp_expr exp1, comp_expr exp2)
   | Lwhile { wh_cond; wh_body } ->
-    While { cond = comp_arg wh_cond; body = comp_arg wh_body }
+    While { cond = comp_expr wh_cond; body = comp_expr wh_body }
   | Lfor { for_id; for_from; for_to; for_dir; for_body } ->
     For
       { id = for_id;
-        from = comp_arg for_from;
-        to_ = comp_arg for_to;
+        from = comp_expr for_from;
+        to_ = comp_expr for_to;
         dir = for_dir;
-        body = comp_arg for_body
+        body = comp_expr for_body
       }
   | Lswitch
       ( arg,
@@ -134,20 +287,17 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
       dst
     in
     (* Compile and label actions *)
-    let arg = comp_arg arg in
+    let arg = comp_expr arg in
     let const_cases = compile_cases sw_consts ~size:sw_numconsts in
     let block_cases = compile_cases sw_blocks ~size:sw_numblocks in
     let cases = Array.map comp_expr (store.act_get ()) in
     Switch { arg; const_cases; block_cases; cases }
   | Lstringswitch (arg, sw, d, loc, kind) ->
     comp_expr (Matching.expand_stringswitch loc kind arg sw d)
-  | Lassign (id, expr) -> Assign (id, comp_arg expr)
+  | Lassign (id, expr) -> Assign (id, comp_expr expr)
   | Levent (lam, lev) -> Event (comp_expr lam, lev)
   | Lifused (_, exp) | Lregion (exp, _) | Lexclave exp -> comp_expr exp
   | Lprim (primitive, args, loc) -> (
-    let simd_is_not_supported () =
-      Misc.fatal_error "SIMD is not supported in bytecode mode."
-    in
     let wrong_arity ~expected =
       Misc.fatal_errorf "Blambda_of_lambda: %a takes exactly %d %s"
         Printlambda.primitive primitive expected
@@ -155,35 +305,27 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
     in
     let check_arity ~arity =
       match List.compare_length_with args arity with
-      | 0 -> List.map comp_arg args
+      | 0 -> List.map comp_expr args
       | _ -> wrong_arity ~expected:arity
     in
     let context_switch c ~arity =
       Blambda.Context_switch (c, check_arity ~arity)
     in
     let pseudo_event t = Blambda.Pseudo_event (t, loc) in
-    let variadic primitive = Blambda.Prim (primitive, List.map comp_arg args) in
+    let variadic primitive =
+      Blambda.Prim (primitive, List.map comp_expr args)
+    in
     let n_ary primitive ~arity = Blambda.Prim (primitive, check_arity ~arity) in
     let nullary = n_ary ~arity:0 in
     let unary = n_ary ~arity:1 in
     let binary = n_ary ~arity:2 in
     let ternary = n_ary ~arity:3 in
-    let boolnot arg = Blambda.Prim (Boolnot, [arg]) in
-    let comp_bint_primitive bi suff : Blambda.primitive =
-      let pref =
-        match (bi : Primitive.boxed_integer) with
-        | Boxed_nativeint -> "caml_nativeint_"
-        | Boxed_int32 -> "caml_int32_"
-        | Boxed_int64 -> "caml_int64_"
-      in
-      Ccall (pref ^ suff)
-    in
     let indexing_primitive (index_kind : Lambda.array_index_kind) prefix :
         Blambda.primitive =
       let suffix =
         match index_kind with
-        | Ptagged_int_index | Punboxed_int_index (Unboxed_int16 | Unboxed_int8)
-          ->
+        | Ptagged_int_index
+        | Punboxed_int_index (Unboxed_int16 | Unboxed_int8 | Unboxed_int) ->
           ""
         | Punboxed_int_index Unboxed_int64 -> "_indexed_by_int64"
         | Punboxed_int_index Unboxed_int32 -> "_indexed_by_int32"
@@ -191,56 +333,33 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
       in
       Ccall (prefix ^ suffix)
     in
-    match primitive with
-    | Popaque _ | Pobj_magic _
-    | Pbox_float ((Boxed_float64 | Boxed_float32), _)
-    | Punbox_float (Boxed_float64 | Boxed_float32)
-    | Pbox_int _ | Punbox_int _ | Ptag_int _ | Puntag_int _ -> (
+    match (primitive : Lambda.primitive) with
+    | Pphys_equal cmp -> (
+      match check_arity ~arity:2 with
+      | [] | [_] | _ :: _ :: _ :: _ -> assert false
+      | [x; y] ->
+        let prim = match cmp with Eq -> Intcomp Eq | Noteq -> Intcomp Neq in
+        if is_const y && not (is_const x)
+        then Prim (prim, [y; x])
+        else Prim (prim, [x; y]))
+    | Popaque _ | Pobj_magic _ -> (
       match args with
-      | [arg] ->
-        (* in bytecode we only deal with boxed+tagged floats and ints *)
-        comp_expr arg
+      | [arg] -> comp_expr arg
       | [] | _ :: _ :: _ -> wrong_arity ~expected:1)
     | Pignore -> (
       match args with
-      | [arg] -> Sequence (comp_arg arg, Const (Const_base (Const_int 0)))
+      | [arg] -> Sequence (comp_expr arg, Const (Const_base (Const_int 0)))
       | [] | _ :: _ :: _ -> wrong_arity ~expected:1)
     | Pnot -> unary Boolnot
     | Psequand -> (
       match args with
-      | [x; y] -> Sequand (comp_arg x, comp_expr y)
+      | [x; y] -> Sequand (comp_expr x, comp_expr y)
       | _ -> wrong_arity ~expected:2)
     | Psequor -> (
       match args with
-      | [x; y] -> Sequor (comp_arg x, comp_expr y)
+      | [x; y] -> Sequor (comp_expr x, comp_expr y)
       | _ -> wrong_arity ~expected:2)
     | Praise k -> unary (Raise k)
-    | Paddint -> (
-      match args with
-      | [arg; Lconst (Const_base (Const_int n))] when is_immed n ->
-        Prim (Offsetint n, [comp_arg arg])
-      | _ -> binary Addint)
-    | Psubint -> (
-      match args with
-      | [arg; Lconst (Const_base (Const_int n))] when is_immed (-n) ->
-        Prim (Offsetint (-n), [comp_arg arg])
-      | _ -> binary Subint)
-    | Pmulint -> binary Mulint
-    | Pdivint (Safe | Unsafe) -> binary Divint
-    | Pmodint (Safe | Unsafe) -> binary Modint
-    | Pandint -> binary Andint
-    | Porint -> binary Orint
-    | Pxorint -> binary Xorint
-    | Plslint -> binary Lslint
-    | Plsrint -> binary Lsrint
-    | Pasrint -> binary Asrint
-    | Pnegint -> unary Negint
-    | Poffsetint n ->
-      if is_immed n
-      then unary (Offsetint n)
-      else
-        Blambda.Prim
-          (Addint, check_arity ~arity:1 @ [Const (Lambda.const_int n)])
     | Pmakefloatblock _ | Pmakeufloatblock _ ->
       (* In bytecode, float# is boxed, so we can treat these two primitives the
          same. *)
@@ -285,7 +404,7 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
             "Array kind %s should have been ruled out by the frontend for \
              %%makearray_dynamic_uninit"
             (Printlambda.array_kind kind)
-        | Punboxedintarray (Unboxed_int8 | Unboxed_int16) ->
+        | Punboxedintarray (Unboxed_int8 | Unboxed_int16 | Unboxed_int) ->
           Misc.unboxed_small_int_arrays_are_not_implemented ()
         | Punboxedfloatarray Unboxed_float32 ->
           Lconst (Const_base (Const_float32 "0.0"))
@@ -301,7 +420,8 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
               (ign : Lambda.ignorable_product_element_kind) : Lambda.lambda =
             match ign with
             | Pint_ignorable -> Lconst (Const_base (Const_int 0))
-            | Punboxedint_ignorable (Unboxed_int8 | Unboxed_int16) ->
+            | Punboxedint_ignorable (Unboxed_int8 | Unboxed_int16 | Unboxed_int)
+              ->
               Misc.unboxed_small_int_arrays_are_not_implemented ()
             | Punboxedfloat_ignorable Unboxed_float32 ->
               Lconst (Const_base (Const_float32 "0.0"))
@@ -335,61 +455,24 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
         assert (kind = kind');
         comp_expr (Lambda.Lprim (Pmakearray (kind, mutability, m), args, loc))
       | _ -> unary (Ccall "caml_obj_dup"))
-    | Pfloatcomp (Boxed_float64, cmp)
-    | Punboxed_float_comp (Unboxed_float64, cmp) -> (
-      match cmp with
-      | CFeq -> binary (Ccall "caml_eq_float")
-      | CFneq -> binary (Ccall "caml_neq_float")
-      | CFlt -> binary (Ccall "caml_lt_float")
-      | CFnlt -> binary (Ccall "caml_lt_float") |> boolnot
-      | CFgt -> binary (Ccall "caml_gt_float")
-      | CFngt -> binary (Ccall "caml_gt_float") |> boolnot
-      | CFle -> binary (Ccall "caml_le_float")
-      | CFnle -> binary (Ccall "caml_le_float") |> boolnot
-      | CFge -> binary (Ccall "caml_ge_float")
-      | CFnge -> binary (Ccall "caml_ge_float") |> boolnot)
-    | Pfloatcomp (Boxed_float32, cmp)
-    | Punboxed_float_comp (Unboxed_float32, cmp) -> (
-      match cmp with
-      | CFeq -> binary (Ccall "caml_eq_float32")
-      | CFneq -> binary (Ccall "caml_neq_float32")
-      | CFlt -> binary (Ccall "caml_lt_float32")
-      | CFnlt -> binary (Ccall "caml_lt_float32") |> boolnot
-      | CFgt -> binary (Ccall "caml_gt_float32")
-      | CFngt -> binary (Ccall "caml_gt_float32") |> boolnot
-      | CFle -> binary (Ccall "caml_le_float32")
-      | CFnle -> binary (Ccall "caml_le_float32") |> boolnot
-      | CFge -> binary (Ccall "caml_ge_float32")
-      | CFnge -> binary (Ccall "caml_ge_float32") |> boolnot)
     | Pmakeblock (tag, _mut, _, _) ->
       pseudo_event (variadic (Makeblock { tag }))
     | Pmake_unboxed_product _ -> pseudo_event (variadic (Makeblock { tag = 0 }))
     | Pgetglobal cu -> nullary (Getglobal cu)
     | Psetglobal cu -> unary (Setglobal cu)
     | Pgetpredef id -> nullary (Getpredef id)
-    | Pintcomp cmp -> (
-      (* put constant first for enabling further optimization (cf. emitcode.ml)  *)
-      match args with
-      | [arg1; (Lconst _ as arg2)] ->
-        let cmp = Lambda.swap_integer_comparison cmp in
-        Prim
-          (Intcomp (comp_integer_comparison cmp), [comp_arg arg2; comp_arg arg1])
-      | _ -> binary (Intcomp (comp_integer_comparison cmp)))
-    | Pcompare_ints -> binary (Ccall "caml_int_compare")
-    | Pcompare_floats Boxed_float64 -> binary (Ccall "caml_float_compare")
-    | Pcompare_floats Boxed_float32 -> binary (Ccall "caml_float32_compare")
-    | Pcompare_bints bi -> binary (comp_bint_primitive bi "compare")
     | Pfield (n, _, _) | Punboxed_product_field (n, _) -> unary (Getfield n)
     | Parray_element_size_in_bytes _array_kind -> (
       match args with
       | [arg] ->
-        let word_size : Lambda.lambda =
-          Lprim (Pctconst Word_size, [Lambda.lambda_unit], loc)
+        let word_size =
+          comp_expr
+            (Lambda.Lprim (Pctconst Word_size, [Lambda.lambda_unit], loc))
         in
-        let element_size : Lambda.lambda =
-          Lprim (Plsrint, [word_size; Lconst (Const_base (Const_int 3))], loc)
+        let element_size =
+          Prim (Lsrint, [word_size; Const (Const_base (Const_int 3))])
         in
-        comp_expr (Lambda.Lsequence (arg, element_size))
+        Sequence (comp_expr arg, element_size)
       | [] | _ :: _ :: _ -> wrong_arity ~expected:1)
     | Pfield_computed _sem -> binary Getvectitem
     | Psetfield (n, _ptr, _init) -> binary (Setfield n)
@@ -414,24 +497,6 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
     | Pccall p -> n_ary (Ccall p.prim_name) ~arity:p.prim_arity
     | Pperform -> context_switch Perform ~arity:1
     | Poffsetref n -> unary (Offsetref n)
-    | Pfloatoffloat32 _ -> unary (Ccall "caml_float_of_float32")
-    | Pfloat32offloat _ -> unary (Ccall "caml_float32_of_float")
-    | Pintoffloat Boxed_float64 -> unary (Ccall "caml_int_of_float")
-    | Pfloatofint (Boxed_float64, _) -> unary (Ccall "caml_float_of_int")
-    | Pnegfloat (Boxed_float64, _) -> unary (Ccall "caml_neg_float")
-    | Pabsfloat (Boxed_float64, _) -> unary (Ccall "caml_abs_float")
-    | Paddfloat (Boxed_float64, _) -> binary (Ccall "caml_add_float")
-    | Psubfloat (Boxed_float64, _) -> binary (Ccall "caml_sub_float")
-    | Pmulfloat (Boxed_float64, _) -> binary (Ccall "caml_mul_float")
-    | Pdivfloat (Boxed_float64, _) -> binary (Ccall "caml_div_float")
-    | Pintoffloat Boxed_float32 -> unary (Ccall "caml_int_of_float32")
-    | Pfloatofint (Boxed_float32, _) -> unary (Ccall "caml_float32_of_int")
-    | Pnegfloat (Boxed_float32, _) -> unary (Ccall "caml_neg_float32")
-    | Pabsfloat (Boxed_float32, _) -> unary (Ccall "caml_abs_float32")
-    | Paddfloat (Boxed_float32, _) -> binary (Ccall "caml_add_float32")
-    | Psubfloat (Boxed_float32, _) -> binary (Ccall "caml_sub_float32")
-    | Pmulfloat (Boxed_float32, _) -> binary (Ccall "caml_mul_float32")
-    | Pdivfloat (Boxed_float32, _) -> binary (Ccall "caml_div_float32")
     | Pstringlength -> unary (Ccall "caml_ml_string_length")
     | Pbyteslength -> unary (Ccall "caml_ml_bytes_length")
     | Pstringrefs -> binary (Ccall "caml_string_get")
@@ -550,60 +615,9 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
     | Parrayrefu (Punboxedvectorarray_ref _, _, _)
     | Parraysetu (Punboxedvectorarray_set _, _) ->
       simd_is_not_supported ()
-    | Pctconst c ->
-      let const_name =
-        match c with
-        | Big_endian -> "big_endian"
-        | Word_size -> "word_size"
-        | Int_size -> "int_size"
-        | Max_wosize -> "max_wosize"
-        | Ostype_unix -> "ostype_unix"
-        | Ostype_win32 -> "ostype_win32"
-        | Ostype_cygwin -> "ostype_cygwin"
-        | Backend_type -> "backend_type"
-        | Runtime5 -> "runtime5"
-      in
-      unary (Ccall (Printf.sprintf "caml_sys_const_%s" const_name))
+    | Pctconst c -> unary (caml_sys_const c)
     | Pisint _ -> unary Isint
     | Pisout -> binary (Intcomp Ultint)
-    | Pbintofint (bi, _) -> unary (comp_bint_primitive bi "of_int")
-    | Pintofbint bi -> unary (comp_bint_primitive bi "to_int")
-    | Pcvtbint (src, dst, _) -> (
-      match src, dst with
-      | Boxed_int32, Boxed_nativeint -> unary (Ccall "caml_nativeint_of_int32")
-      | Boxed_nativeint, Boxed_int32 -> unary (Ccall "caml_nativeint_to_int32")
-      | Boxed_int32, Boxed_int64 -> unary (Ccall "caml_int64_of_int32")
-      | Boxed_int64, Boxed_int32 -> unary (Ccall "caml_int64_to_int32")
-      | Boxed_nativeint, Boxed_int64 -> unary (Ccall "caml_int64_of_nativeint")
-      | Boxed_int64, Boxed_nativeint -> unary (Ccall "caml_int64_to_nativeint")
-      | (Boxed_int32 | Boxed_int64 | Boxed_nativeint), _ -> (
-        match args with
-        | [arg] -> comp_expr arg
-        | [] | _ :: _ :: _ -> wrong_arity ~expected:1))
-    | Pnegbint (bi, _) -> unary (comp_bint_primitive bi "neg")
-    | Paddbint (bi, _) -> binary (comp_bint_primitive bi "add")
-    | Psubbint (bi, _) -> binary (comp_bint_primitive bi "sub")
-    | Pmulbint (bi, _) -> binary (comp_bint_primitive bi "mul")
-    | Pdivbint { size = bi } -> binary (comp_bint_primitive bi "div")
-    | Pmodbint { size = bi } -> binary (comp_bint_primitive bi "mod")
-    | Pandbint (bi, _) -> binary (comp_bint_primitive bi "and")
-    | Porbint (bi, _) -> binary (comp_bint_primitive bi "or")
-    | Pxorbint (bi, _) -> binary (comp_bint_primitive bi "xor")
-    | Plslbint (bi, _) -> binary (comp_bint_primitive bi "shift_left")
-    | Plsrbint (bi, _) -> binary (comp_bint_primitive bi "shift_right_unsigned")
-    | Pasrbint (bi, _) -> binary (comp_bint_primitive bi "shift_right")
-    | Pbintcomp (_, Ceq) | Punboxed_int_comp (_, Ceq) ->
-      binary (Ccall "caml_equal")
-    | Pbintcomp (_, Cne) | Punboxed_int_comp (_, Cne) ->
-      binary (Ccall "caml_notequal")
-    | Pbintcomp (_, Clt) | Punboxed_int_comp (_, Clt) ->
-      binary (Ccall "caml_lessthan")
-    | Pbintcomp (_, Cgt) | Punboxed_int_comp (_, Cgt) ->
-      binary (Ccall "caml_greaterthan")
-    | Pbintcomp (_, Cle) | Punboxed_int_comp (_, Cle) ->
-      binary (Ccall "caml_lessequal")
-    | Pbintcomp (_, Cge) | Punboxed_int_comp (_, Cge) ->
-      binary (Ccall "caml_greaterequal")
     | Pbigarrayref (_, n, Pbigarray_float32_t, _) ->
       n_ary (Ccall ("caml_ba_float32_get_" ^ Int.to_string n)) ~arity:(n + 1)
     | Pbigarrayset (_, n, Pbigarray_float32_t, _) ->
@@ -629,8 +643,6 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
       ternary (indexing_primitive index_kind "caml_ba_uint8_setf32")
     | Pbigstring_set_64 { unsafe = _; index_kind } ->
       ternary (indexing_primitive index_kind "caml_ba_uint8_set64")
-    | Pbswap16 -> unary (Ccall "caml_bswap16")
-    | Pbbswap (bi, _) -> unary (comp_bint_primitive bi "bswap")
     | Pint_as_pointer _ -> unary (Ccall "caml_int_as_pointer")
     | Pbytes_to_string -> unary (Ccall "caml_string_of_bytes")
     | Pbytes_of_string -> unary (Ccall "caml_bytes_of_string")
@@ -710,6 +722,164 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
     | Pmakelazyblock Lazy_tag ->
       pseudo_event (variadic (Makeblock { tag = Config.lazy_tag }))
     | Pmakelazyblock Forward_tag ->
-      pseudo_event (variadic (Makeblock { tag = Obj.forward_tag })))
+      pseudo_event (variadic (Makeblock { tag = Obj.forward_tag }))
+    | Pscalar (Unary unary) -> (
+      match args with
+      | [x] -> comp_unary_scalar_intrinsic unary (comp_expr x)
+      | [] | _ :: _ :: _ -> wrong_arity ~expected:1)
+    | Pscalar (Binary binary) -> (
+      match args with
+      | [x; y] ->
+        comp_binary_scalar_intrinsic binary (comp_expr x) (comp_expr y)
+      | [] | [_] | _ :: _ :: _ -> wrong_arity ~expected:2))
+
+and comp_binary_scalar_intrinsic op x y =
+  let prim prim = Prim (prim, [x; y]) in
+  let ccall fmt = kccallf prim fmt in
+  match (op : _ Scalar.Intrinsic.Binary.t) with
+  | Integral (size, op) -> (
+    match Scalar.Integral.width size with
+    | Taggable taggable -> (
+      match op with
+      | Add ->
+        (match y with
+        | Const (Const_base (Const_int y)) when is_immed y ->
+          Prim (Offsetint y, [x])
+        | _ -> prim Addint)
+        |> sign_extend taggable
+      | Sub ->
+        (match y with
+        | Const (Const_base (Const_int y)) when is_immed (-y) ->
+          Prim (Offsetint (-y), [x])
+        | _ -> prim Subint)
+        |> sign_extend taggable
+      | Mul -> prim Mulint |> sign_extend taggable
+      | Div (Safe | Unsafe) -> prim Divint |> sign_extend taggable
+      | Mod (Safe | Unsafe) -> prim Modint |> sign_extend taggable
+      | And -> prim Andint
+      | Or -> prim Orint
+      | Xor -> prim Xorint)
+    | Boxable
+        (( Int32 Any_locality_mode
+         | Nativeint Any_locality_mode
+         | Int64 Any_locality_mode ) as size) -> (
+      let size = Scalar.Integral.Boxable.Width.to_string size in
+      let c suffix = ccall "caml_%s_%s" size suffix in
+      match op with
+      | Add -> c "add"
+      | Sub -> c "sub"
+      | Mul -> c "mul"
+      | Div (Safe | Unsafe) -> c "div"
+      | Mod (Safe | Unsafe) -> c "mod"
+      | And -> c "and"
+      | Or -> c "or"
+      | Xor -> c "xor"))
+  | Floating (size, ((Add | Sub | Mul | Div) as op)) ->
+    let op = Scalar.Intrinsic.Binary.Float_op.to_string op in
+    let size = Scalar.Floating.Width.to_string (Scalar.Floating.width size) in
+    ccall "caml_%s_%s" op size
+  | Shift (size, op, Int) -> (
+    match Scalar.Integral.width size with
+    | Taggable taggable -> (
+      match op with
+      | Asr -> prim Asrint
+      | Lsl -> sign_extend taggable (prim Lslint)
+      | Lsr -> sign_extend taggable (Prim (Lsrint, [zero_extend taggable x; y]))
+      )
+    | Boxable
+        (( Int32 Any_locality_mode
+         | Nativeint Any_locality_mode
+         | Int64 Any_locality_mode ) as size) -> (
+      let size = Scalar.Integral.Boxable.Width.to_string size in
+      match op with
+      | Lsl -> ccall "caml_%s_shift_left" size
+      | Lsr -> ccall "caml_%s_shift_right_unsigned" size
+      | Asr -> ccall "caml_%s_shift_right" size))
+  | Icmp (size, cmp) -> (
+    match Scalar.Integral.width size with
+    | Taggable (Int | Int8 | Int16) ->
+      if is_const y && not (is_const x)
+      then
+        Prim
+          ( Intcomp
+              (comp_integer_comparison (Scalar.Integer_comparison.swap cmp)),
+            [y; x] )
+      else prim (Intcomp (comp_integer_comparison cmp))
+    | Boxable
+        ( Int32 Any_locality_mode
+        | Nativeint Any_locality_mode
+        | Int64 Any_locality_mode ) -> (
+      match cmp with
+      | Ceq -> prim (Ccall "caml_equal")
+      | Cne -> prim (Ccall "caml_notequal")
+      | Clt -> prim (Ccall "caml_lessthan")
+      | Cle -> prim (Ccall "caml_lessequal")
+      | Cgt -> prim (Ccall "caml_greaterthan")
+      | Cge -> prim (Ccall "caml_greaterequal")))
+  | Fcmp (size, cmp) -> (
+    match Scalar.Floating.width size with
+    | (Float64 Any_locality_mode | Float32 Any_locality_mode) as size -> (
+      let size = Scalar.Floating.Width.to_string size in
+      let c name = ccall "caml_%s_%s" name size in
+      match cmp with
+      | CFeq -> c "eq"
+      | CFneq -> c "neq"
+      | CFlt -> c "lt"
+      | CFnlt -> c "lt" |> boolnot
+      | CFgt -> c "gt"
+      | CFngt -> c "gt" |> boolnot
+      | CFle -> c "le"
+      | CFnle -> c "le" |> boolnot
+      | CFge -> c "ge"
+      | CFnge -> c "ge" |> boolnot))
+  | Three_way_compare size -> (
+    match Scalar.width size with
+    | Integral (Taggable (Int | Int8 | Int16)) -> ccall "caml_int_compare"
+    | ( Integral
+          (Boxable
+            ( Int32 Any_locality_mode
+            | Nativeint Any_locality_mode
+            | Int64 Any_locality_mode ))
+      | Floating (Float64 Any_locality_mode | Float32 Any_locality_mode) ) as
+      size ->
+      ccall "caml_%s_compare" (Scalar.Width.to_string size))
+
+and comp_unary_scalar_intrinsic op x =
+  let prim prim = Prim (prim, [x]) in
+  let ccall fmt = kccallf prim fmt in
+  match (op : _ Scalar.Intrinsic.Unary.t) with
+  | Integral (size, op) -> (
+    let comp_offset n =
+      comp_binary_scalar_intrinsic
+        (Scalar.Intrinsic.Binary.Integral (size, Add))
+        x
+        (Const (Lambda.const_int size n))
+    in
+    match op with
+    | Succ -> comp_offset 1
+    | Pred -> comp_offset (-1)
+    | Neg -> (
+      match Scalar.Integral.width size with
+      | Boxable
+          (( Int32 Any_locality_mode
+           | Nativeint Any_locality_mode
+           | Int64 Any_locality_mode ) as size) ->
+        ccall "caml_%s_neg" (Scalar.Integral.Boxable.Width.to_string size)
+      | Taggable taggable -> sign_extend taggable (prim Negint))
+    | Bswap -> (
+      match Scalar.Integral.width size with
+      | Taggable Int8 -> x
+      | Taggable ((Int16 | Int) as bswap16) ->
+        sign_extend bswap16 (ccall "caml_bswap16")
+      | Boxable boxed ->
+        ccall "caml_%s_bswap" (Scalar.Integral.Boxable.Width.to_string boxed)))
+  | Floating (size, ((Abs | Neg) as op)) -> (
+    match Scalar.Floating.width size with
+    | (Float32 Any_locality_mode | Float64 Any_locality_mode) as size ->
+      ccall "caml_%s_%s"
+        (Scalar.Intrinsic.Unary.Float_op.to_string op)
+        (Scalar.Floating.Width.to_string size))
+  | Static_cast { src; dst } ->
+    static_cast x ~src:(Scalar.width src) ~dst:(Scalar.width dst)
 
 let blambda_of_lambda x = comp_expr x

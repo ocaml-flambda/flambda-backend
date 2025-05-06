@@ -17,6 +17,8 @@
 
 open Asttypes
 
+module Scalar = Scalar
+
 type constant = Typedtree.constant
 
 (* Overriding Asttypes.mutable_flag *)
@@ -66,10 +68,6 @@ type initialization_or_assignment =
      No checks are done to preserve GC invariants.  *)
   | Root_initialization
 
-type is_safe =
-  | Safe
-  | Unsafe
-
 type field_read_semantics =
   | Reads_agree
   | Reads_vary
@@ -103,6 +101,12 @@ type region_close =
     but it does not mean that it's a tail call of that function. (It's not a
     tail call because the outer region needs to end there.)
 *)
+
+type any_locality_mode = Scalar.any_locality_mode = Any_locality_mode
+
+module Phys_equal : sig
+  type t = Eq | Noteq
+end
 
 type lazy_block_tag =
   | Lazy_tag
@@ -159,31 +163,13 @@ type primitive =
   | Praise of raise_kind
   (* Boolean operations *)
   | Psequand | Psequor | Pnot
-  (* Integer operations *)
-  | Pnegint | Paddint | Psubint | Pmulint
-  | Pdivint of is_safe | Pmodint of is_safe
-  | Pandint | Porint | Pxorint
-  | Plslint | Plsrint | Pasrint
-  | Pintcomp of integer_comparison
-  (* Comparisons that return int (not bool like above) for ordering *)
-  | Pcompare_ints
-  | Pcompare_floats of boxed_float
-  | Pcompare_bints of boxed_integer
-  | Poffsetint of int
+  | Pphys_equal of Phys_equal.t
+  (** Unlike in the language specification, the compiler defines physical equality
+     as referential equality on all values, including immediates and immutable
+     blocks. *)
+  (* Scalar operations *)
+  | Pscalar of locality_mode Scalar.Intrinsic.t
   | Poffsetref of int
-  (* Float operations *)
-  | Pfloatoffloat32 of locality_mode
-  | Pfloat32offloat of locality_mode
-  | Pintoffloat of boxed_float
-  | Pfloatofint of boxed_float * locality_mode
-  | Pnegfloat of boxed_float * locality_mode
-  | Pabsfloat of boxed_float * locality_mode
-  | Paddfloat of boxed_float * locality_mode
-  | Psubfloat of boxed_float * locality_mode
-  | Pmulfloat of boxed_float * locality_mode
-  | Pdivfloat of boxed_float * locality_mode
-  | Pfloatcomp of boxed_float * float_comparison
-  | Punboxed_float_comp of unboxed_float * float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
@@ -215,25 +201,6 @@ type primitive =
   | Pisnull
   (* Test if the (integer) argument is outside an interval *)
   | Pisout
-  (* Operations on boxed integers (Nativeint.t, Int32.t, Int64.t) *)
-  | Pbintofint of boxed_integer * locality_mode
-  | Pintofbint of boxed_integer
-  | Pcvtbint of boxed_integer (*source*) * boxed_integer (*destination*)
-                * locality_mode
-  | Pnegbint of boxed_integer * locality_mode
-  | Paddbint of boxed_integer * locality_mode
-  | Psubbint of boxed_integer * locality_mode
-  | Pmulbint of boxed_integer * locality_mode
-  | Pdivbint of { size : boxed_integer; is_safe : is_safe; mode: locality_mode }
-  | Pmodbint of { size : boxed_integer; is_safe : is_safe; mode: locality_mode }
-  | Pandbint of boxed_integer * locality_mode
-  | Porbint of boxed_integer * locality_mode
-  | Pxorbint of boxed_integer * locality_mode
-  | Plslbint of boxed_integer * locality_mode
-  | Plsrbint of boxed_integer * locality_mode
-  | Pasrbint of boxed_integer * locality_mode
-  | Pbintcomp of boxed_integer * integer_comparison
-  | Punboxed_int_comp of unboxed_integer * integer_comparison
   (* Operations on Bigarrays: (unsafe, #dimensions, kind, layout) *)
   | Pbigarrayref of bool * int * bigarray_kind * bigarray_layout
   | Pbigarrayset of bool * int * bigarray_kind * bigarray_layout
@@ -308,9 +275,6 @@ type primitive =
   | Punboxed_nativeint_array_set_128 of { unsafe : bool; boxed : bool }
   (* Compile time constants *)
   | Pctconst of compile_time_constant
-  (* byte swap *)
-  | Pbswap16
-  | Pbbswap of boxed_integer * locality_mode
   (* Integer to external pointer *)
   | Pint_as_pointer of locality_mode
   (* Atomic operations *)
@@ -332,12 +296,6 @@ type primitive =
   (* Primitives for [Obj] *)
   | Pobj_dup
   | Pobj_magic of layout
-  | Punbox_float of boxed_float
-  | Pbox_float of boxed_float * locality_mode
-  | Puntag_int of unboxed_integer
-  | Ptag_int of unboxed_integer
-  | Punbox_int of boxed_integer
-  | Pbox_int of boxed_integer * locality_mode
   | Punbox_vector of boxed_vector
   | Pbox_vector of boxed_vector * locality_mode
   | Preinterpret_unboxed_int64_as_tagged_int63
@@ -377,14 +335,13 @@ and extern_repr =
   | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of unboxed_integer
-  | Untagged_int
 
 and external_call_description = extern_repr Primitive.description_gen
 
-and integer_comparison =
+and integer_comparison = Scalar.Integer_comparison.t =
     Ceq | Cne | Clt | Cgt | Cle | Cge
 
-and float_comparison =
+and float_comparison = Scalar.Float_comparison.t =
     CFeq | CFneq | CFlt | CFnlt | CFgt | CFngt | CFle | CFnle | CFge | CFnge
 
 and array_kind =
@@ -395,6 +352,7 @@ and array_kind =
   | Pgcscannableproductarray of scannable_product_element_kind list
   | Pgcignorableproductarray of ignorable_product_element_kind list
   (* Invariant: the product element kind lists have length >= 2 *)
+
 
 (** When accessing a flat float array, we need to know the mode which we should
     box the resulting float at. *)
@@ -514,6 +472,8 @@ and unboxed_integer = Primitive.unboxed_integer =
   | Unboxed_int32
   | Unboxed_int16
   | Unboxed_int8
+  | Unboxed_int
+
 
 and unboxed_vector = Primitive.unboxed_vector =
   | Unboxed_vec128
@@ -529,7 +489,6 @@ and boxed_integer = Primitive.boxed_integer =
 
 and boxed_vector = Primitive.boxed_vector =
   | Boxed_vec128
-
 and peek_or_poke =
   | Ppp_tagged_immediate
   | Ppp_unboxed_float32
@@ -586,6 +545,8 @@ val layout_of_extern_repr : extern_repr -> layout
 
 type structured_constant =
     Const_base of constant
+  | Const_naked_immediate of int * Scalar.Integral.Taggable.Width.t
+  (** this is a stopgap until naked immediate values exist in [constant] *)
   | Const_block of int * structured_constant list
   | Const_mixed_block of int * mixed_block_shape * structured_constant list
   | Const_float_array of string list
@@ -965,7 +926,8 @@ type arg_descr =
 val make_key: lambda -> lambda option
 
 val const_unit: structured_constant
-val const_int : int -> structured_constant
+val const_int : _ Scalar.Integral.t -> int -> structured_constant
+val lconst_int : _ Scalar.Integral.t -> int -> lambda
 val lambda_unit: lambda
 
 val of_bool : bool -> lambda
@@ -1123,12 +1085,6 @@ val shallow_map  :
 val bind_with_layout:
   let_kind -> (Ident.t * layout) -> lambda -> lambda -> lambda
 
-val negate_integer_comparison : integer_comparison -> integer_comparison
-val swap_integer_comparison : integer_comparison -> integer_comparison
-
-val negate_float_comparison : float_comparison -> float_comparison
-val swap_float_comparison : float_comparison -> float_comparison
-
 val default_function_attribute : function_attribute
 val default_stub_attribute : function_attribute
 val default_param_attribute : parameter_attribute
@@ -1232,3 +1188,33 @@ val primitive_can_raise : primitive -> bool
 val count_initializers_array_kind : array_kind -> int
 val ignorable_product_element_kind_involves_int :
   ignorable_product_element_kind -> bool
+
+(** construction helpers *)
+
+val int : _ Scalar.Integral.t
+
+(** See the comment on the [Pphys_equal] primitive.
+    This can be applied to any arguments of kind [value]. *)
+val phys_equal : lambda -> lambda -> loc:scoped_location -> lambda
+
+type 'a unop := 'a -> lambda -> loc:scoped_location -> lambda
+val succ : locality_mode Scalar.Integral.t unop
+val pred : locality_mode Scalar.Integral.t unop
+
+type 'a binop := 'a -> lambda -> lambda -> loc:scoped_location -> lambda
+val add : locality_mode Scalar.Integral.t binop
+val sub : locality_mode Scalar.Integral.t binop
+val and_ : locality_mode Scalar.Integral.t binop
+
+(** This is ONLY for comparing scalar integral values.
+
+    It may NOT be applied to arbitrary arguments of kind value, even if they
+    are both known to be immediates. Use [phys_equal] for that. *)
+val icmp : integer_comparison -> any_locality_mode Scalar.Integral.t binop
+
+val static_cast
+  : src:any_locality_mode Scalar.t
+  -> dst:locality_mode Scalar.t
+  -> lambda
+  -> loc:scoped_location
+  -> lambda
