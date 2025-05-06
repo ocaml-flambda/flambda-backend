@@ -1458,6 +1458,11 @@ module Invalid = struct
     | Apply_cont_of_unreachable_continuation of Continuation.t
     | Defining_expr_of_let of Bound_pattern.t * Named.t
     | Closure_type_was_invalid of Apply_expr.t
+    | Direct_application_parameter_kind_mismatch of
+        { params_arity : [`Complex] Flambda_arity.t;
+          args_arity : [`Complex] Flambda_arity.t;
+          apply : Apply_expr.t
+        }
     | Application_argument_kind_mismatch of
         [`Unarized] Flambda_arity.t * Apply_expr.t
     | Application_result_kind_mismatch of
@@ -1489,6 +1494,13 @@ module Invalid = struct
       Format.asprintf
         "@[<hov 1>(Closure_type_was_invalid@ @[<hov 1>(apply_expr@ %a)@])@]"
         Apply_expr.print apply_expr
+    | Direct_application_parameter_kind_mismatch
+        { params_arity; args_arity; apply } ->
+      Format.asprintf
+        "@[<hov 1>(Direct_application_parameter_kind_mismatch@ @[<hov \
+         1>(params_arity %a)@ (args_arity@ %a)@ (apply_expr@ %a)@])@]"
+        Flambda_arity.print params_arity Flambda_arity.print args_arity
+        Apply_expr.print apply
     | Application_argument_kind_mismatch (args_arity, apply_expr) ->
       Format.asprintf
         "@[<hov 1>(Application_argument_kind_mismatch@ @[<hov 1>(args_arity@ \

@@ -776,6 +776,28 @@ let replace_apply_by_invalid dacc ~down_to_up reason =
       let uacc = UA.notify_removed ~operation:Removed_operations.call uacc in
       EB.rebuild_invalid uacc reason ~after_rebuild)
 
+let arity_mismatch ~(params_arity : [`Complex] Flambda_arity.t)
+    ~(args_arity : [`Complex] Flambda_arity.t) =
+  (* This checks the shortest of the two arities against the prefix of the same
+     size of the other. *)
+  let rec has_mismatch params args =
+    match params, args with
+    | [], _ | _, [] -> false
+    | param :: params, arg :: args ->
+      let c = List.compare_lengths param arg in
+      if c = 0
+      then
+        List.exists2
+          (fun param_component arg_component ->
+            not (K.equal (KS.kind param_component) (KS.kind arg_component)))
+          param arg
+        || has_mismatch params args
+      else true
+  in
+  let params = Flambda_arity.unarize_per_parameter params_arity in
+  let args = Flambda_arity.unarize_per_parameter args_arity in
+  has_mismatch params args
+
 let simplify_direct_function_call ~simplify_expr dacc apply
     ~callee's_code_id_from_type ~callee's_code_id_from_call_kind
     ~callee's_function_slot ~result_arity ~result_types ~recursive
@@ -821,10 +843,24 @@ let simplify_direct_function_call ~simplify_expr dacc apply
 
        - Indirect calls adopt the calling convention consisting of a single
        tuple argument, irrespective of what [Code.params_arity] says. *)
+    let args_arity = Apply.args_arity apply in
     if must_be_detupled
     then
       simplify_direct_tuple_application ~simplify_expr dacc apply
         ~apply_alloc_mode ~callee's_code_id ~callee's_code_metadata ~down_to_up
+    else if arity_mismatch ~params_arity ~args_arity
+    then
+      if Flambda_features.kind_checks ()
+      then
+        Misc.fatal_errorf
+          "Mismatched arities for arguments to direct OCaml function call@ \
+           (expected %a, found %a):@ %a"
+          Flambda_arity.print params_arity Flambda_arity.print args_arity
+          Apply.print apply
+      else
+        replace_apply_by_invalid dacc ~down_to_up
+          (Direct_application_parameter_kind_mismatch
+             { params_arity; args_arity; apply })
     else
       let args_arity = Apply.args_arity apply in
       let provided_num_args = Flambda_arity.num_params args_arity in
