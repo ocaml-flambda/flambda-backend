@@ -59,7 +59,7 @@ val ref : (int ref, '_weak1) Capsule.Data.t
 The resulting type has a weak parameter, indicating that `ref` lives in some particular capsule, but we don't yet know exactly which one.
 When we use `ref` in conjunction with `mutex`, the compiler will learn that this parameter is specifically `'k`.
 
-The type `Capsule.Data.t` also crosses portability and contention, so we can share `ref` across portable functions without it becoming contended.
+The type `Capsule.Data.t` also crosses portability and contention, so we can share `ref` across portable functions without it becoming `contended`.
 However, we still need to enforce that only one function can manipulate the contents of `ref` at a time, so to access `ref`, we must lock the mutex.
 
 ```ocaml
