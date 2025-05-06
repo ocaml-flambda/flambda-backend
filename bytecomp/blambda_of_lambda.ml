@@ -236,8 +236,12 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
     | Pasrint -> binary Asrint
     | Pnegint -> unary Negint
     | Poffsetint n ->
-      assert (is_immed n);
-      unary (Offsetint n)
+      if is_immed n
+      then unary (Offsetint n)
+      else (
+        check_arity ~arity:1;
+        Blambda.Prim
+          (Addint, List.map comp_arg args @ [Const (Lambda.const_int n)]))
     | Pmakefloatblock _ | Pmakeufloatblock _ ->
       (* In bytecode, float# is boxed, so we can treat these two primitives the
          same. *)
