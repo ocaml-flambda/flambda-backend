@@ -169,8 +169,8 @@ let createk k code_id ~newer_version_of ~params_arity ~param_modes
     ()
   | true, (Always_inline | Unroll _) ->
     Misc.fatal_error "Stubs may not be annotated as [Always_inline] or [Unroll]");
-  if first_complex_local_param < 0
-     || first_complex_local_param > Flambda_arity.num_params params_arity
+  if Flambda_arity.num_params params_arity > 1 (* XXX fixme *) && (first_complex_local_param < 0
+     || first_complex_local_param > Flambda_arity.num_params params_arity)
   then
     Misc.fatal_errorf
       "Illegal first_complex_local_param=%d for params arity: %a"
@@ -220,6 +220,12 @@ let with_newer_version_of newer_version_of t = { t with newer_version_of }
 let with_cost_metrics cost_metrics t = { t with cost_metrics }
 
 let with_is_my_closure_used is_my_closure_used t = { t with is_my_closure_used }
+
+let with_params_arity params_arity t = { t with params_arity }
+
+let with_result_arity result_arity t = { t with result_arity }
+
+let with_is_tupled is_tupled t = { t with is_tupled }
 
 module Option = struct
   include Option

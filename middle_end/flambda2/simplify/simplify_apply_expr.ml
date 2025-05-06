@@ -417,15 +417,14 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   in
   let applied_unarized_args, _ =
     Misc.Stdlib.List.map2_prefix
-      (fun arg kind -> arg, kind)
+      (fun arg kind -> arg, K.With_subkind.kind kind)
       args
       (Flambda_arity.unarize param_arity)
   in
   let wrapper_var = Variable.create "partial_app" in
   let compilation_unit = Compilation_unit.get_current_exn () in
   let wrapper_function_slot =
-    Function_slot.create compilation_unit ~name:"partial_app_closure"
-      K.With_subkind.any_value
+    Function_slot.create compilation_unit ~name:"partial_app_closure" K.value
   in
   (* The allocation mode of the closure is directly determined by the alloc_mode
      of the application. We check here that it is consistent with
@@ -456,7 +455,9 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   let expr, dacc =
     match new_closure_alloc_mode_and_first_complex_local_param with
     | Bottom ->
-      Expr.create_invalid (Partial_application_mode_mismatch apply), dacc
+      ( Expr.create_invalid
+          (Partial_application_mode_mismatch (apply, callee's_code_metadata)),
+        dacc )
     | Ok (new_closure_alloc_mode, first_complex_local_param) ->
       (match closure_alloc_mode_from_type with
       | Heap_or_local -> ()
@@ -517,7 +518,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
               then Symbol symbol
               else
                 let var = Variable.create "symbol" in
-                if not (K.equal (K.With_subkind.kind kind) K.value)
+                if not (K.equal kind K.value)
                 then
                   Misc.fatal_errorf
                     "Simple %a which is a symbol should be of kind Value"
@@ -529,8 +530,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         let applied_callee =
           match Apply.callee apply with
           | None -> None
-          | Some callee ->
-            Some (applied_value (callee, K.With_subkind.any_value))
+          | Some callee -> Some (applied_value (callee, K.value))
         in
         let applied_unarized_args =
           List.map applied_value applied_unarized_args
@@ -564,6 +564,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         in
         let call_kind =
           Call_kind.direct_function_call callee's_code_id apply_alloc_mode
+          (* Call_kind.indirect_function_call_known_arity apply_alloc_mode *)
         in
         let body, cost_metrics_of_body, free_names =
           (* [free_names] is going to be the free names of the whole resulting
@@ -863,7 +864,8 @@ let simplify_direct_function_call ~simplify_expr dacc apply
       else if provided_num_args > num_params
       then (
         (* See comment above. *)
-        if not (Flambda_arity.is_one_param_of_kind_value result_arity)
+        if Flambda_features.kind_checks ()
+           && not (Flambda_arity.is_one_param_of_kind_value result_arity)
         then
           Misc.fatal_errorf
             "Non-singleton-value return arity for overapplied OCaml function:@ \
@@ -875,9 +877,10 @@ let simplify_direct_function_call ~simplify_expr dacc apply
       else if provided_num_args > 0 && provided_num_args < num_params
       then (
         (* See comment above. *)
-        if not
-             (Flambda_arity.is_one_param_of_kind_value
-                result_arity_of_application)
+        if Flambda_features.kind_checks ()
+           && not
+                (Flambda_arity.is_one_param_of_kind_value
+                   result_arity_of_application)
         then
           Misc.fatal_errorf
             "Non-singleton-value return arity for partially-applied OCaml \

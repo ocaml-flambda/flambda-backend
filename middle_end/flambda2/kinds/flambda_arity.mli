@@ -98,6 +98,8 @@ val fresh_idents_unarized :
 (** The length of the list returned by [unarize]. *)
 val cardinal_unarized : _ t -> int
 
+val group_by_parameter : [`Complex] t -> 'a list -> 'a list list
+
 (** Take a list of Lambda layouts, one per parameter, and form the
     corresponding arity. *)
 val from_lambda_list : Lambda.layout list -> [`Complex] t

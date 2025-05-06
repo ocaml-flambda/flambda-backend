@@ -151,7 +151,7 @@ end = struct
       let kind = Value_slot.kind value_slot in
       if (not
             (Flambda_kind.equal
-               (Flambda_kind.With_subkind.kind kind)
+               kind
                Flambda_kind.value))
          && is_scanned
       then
@@ -162,7 +162,7 @@ end = struct
       let env, res, fields, chunk_acc, updates =
         match contents with
         | `Expr field ->
-          let chunk = C.memory_chunk_of_kind kind in
+          let chunk = C.memory_chunk_of_kind (KS.anything kind) in
           let chunk_acc =
             rev_append_chunks ~for_static_sets [chunk] chunk_acc
           in
@@ -179,13 +179,9 @@ end = struct
               } ->
             let update_kind =
               let module UK = C.Update_kind in
-              match KS.kind kind with
+              match kind with
               | Value ->
-                if KS.Non_null_value_subkind.equal
-                     (KS.non_null_value_subkind kind)
-                     Tagged_immediate
-                then UK.tagged_immediates
-                else UK.pointers
+                UK.pointers
               | Naked_number Naked_immediate
               | Naked_number Naked_int64
               | Naked_number Naked_nativeint ->
@@ -198,7 +194,7 @@ end = struct
               | Naked_number Naked_float32 -> UK.naked_float32_fields
               | Region | Rec_info ->
                 Misc.fatal_errorf "Unexpected value slot kind for %a: %a"
-                  Value_slot.print value_slot KS.print kind
+                  Value_slot.print value_slot Flambda_kind.print kind
             in
             let env, res, updates =
               C.make_update env res dbg update_kind
@@ -247,7 +243,7 @@ end = struct
         (* We build here the **reverse** list of fields for the function slot *)
         match closure_code_pointers with
         | Full_application_only ->
-          if size <> 2
+          if size <> 2 && size <> 3
           then
             Misc.fatal_errorf
               "fill_slot: Function slot %a is of size %d, but it is used to \
@@ -257,10 +253,21 @@ end = struct
           let acc =
             P.int ~dbg closure_info :: P.term_of_symbol ~dbg code_symbol :: acc
           in
-          ( acc,
-            rev_append_chunks ~for_static_sets
-              [Cmm.Word_int; Cmm.Word_int]
-              chunk_acc,
+          let acc =
+            if size = 3
+            then P.int ~dbg 0n (* P.term_of_symbol ~dbg code_symbol *) :: acc
+            else acc
+          in
+          let chunk_acc = 
+            if size = 3 then 
+              rev_append_chunks ~for_static_sets
+            [Cmm.Word_int; Cmm.Word_int; Cmm.Word_int]
+            chunk_acc
+else             rev_append_chunks ~for_static_sets
+[Cmm.Word_int; Cmm.Word_int]
+chunk_acc in
+            ( acc,
+            chunk_acc,
             Backend_var.Set.empty,
             slot_offset + size,
             env,
@@ -621,6 +628,7 @@ let let_static_set_of_closures0 env res closure_symbols
   let block =
     match l with
     | _ :: _ ->
+      (* Format.eprintf "XXX %d %d@." length (List.length l); *)
       let header = C.cint (C.black_closure_header length) in
       header :: l
     | [] ->

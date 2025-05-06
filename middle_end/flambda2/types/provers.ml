@@ -937,7 +937,7 @@ let meet_project_value_slot_simple_value ~min_name_mode value_slot env
             examining the row-like structure directly. *)
          not
            (Flambda_kind.equal (TG.kind ty)
-              (Value_slot.kind value_slot |> Flambda_kind.With_subkind.kind))
+              (Value_slot.kind value_slot))
       then Invalid
       else
         match TG.get_alias_exn ty with

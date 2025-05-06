@@ -1353,7 +1353,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
         Function_slot.create
           (Compilation_unit.get_current_exn ())
           ~name:(Ident.name fid ^ "_unboxed")
-          Flambda_kind.With_subkind.any_value
+          Flambda_kind.value
       in
       let unboxed_return =
         if attr.unbox_return then unboxing_kind return else None
@@ -1424,7 +1424,7 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
   let function_slot =
     Function_slot.create
       (Compilation_unit.get_current_exn ())
-      ~name:(Ident.name fid) Flambda_kind.With_subkind.any_value
+      ~name:(Ident.name fid) Flambda_kind.value
   in
   let unboxed_products = ref Ident.Map.empty in
   let params =

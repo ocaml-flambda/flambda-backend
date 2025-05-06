@@ -245,20 +245,32 @@ module Datalog = struct
 
   let deduce = Schedule.deduce
 
+  type equality = Equality : 'k Term.t * 'k Term.t -> equality
+
+  type filter = Filter : ('k Constant.hlist -> bool) * 'k Term.hlist -> filter
+
   type hypothesis =
     [ `Atom of atom
-    | `Not_atom of atom ]
+    | `Not_atom of atom
+    | `Not_equal of equality
+    | `Filter of filter ]
 
   let atom id args = `Atom (Atom (id, args))
 
   let not (`Atom atom) = `Not_atom atom
+
+  let not_equal x y = `Not_equal (Equality (x, y))
+
+  let filter f args = `Filter (Filter (f, args))
 
   let where predicates f =
     List.fold_left
       (fun f predicate ->
         match predicate with
         | `Atom (Atom (id, args)) -> where_atom id args f
-        | `Not_atom (Atom (id, args)) -> unless_atom id args f)
+        | `Not_atom (Atom (id, args)) -> unless_atom id args f
+        | `Not_equal (Equality (t1, t2)) -> unless_eq t1 t2 f
+        | `Filter (Filter (p, args)) -> Datalog.filter p args f)
       f predicates
 
   module Cursor = struct

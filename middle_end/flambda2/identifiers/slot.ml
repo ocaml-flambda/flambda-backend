@@ -20,7 +20,7 @@ module type S = sig
   module Lmap : Lmap.S with type key = t
 
   val create :
-    Compilation_unit.t -> name:string -> Flambda_kind.With_subkind.t -> t
+    Compilation_unit.t -> name:string -> Flambda_kind.t -> t
 
   val get_compilation_unit : t -> Compilation_unit.t
 
@@ -32,7 +32,7 @@ module type S = sig
 
   val name : t -> string
 
-  val kind : t -> Flambda_kind.With_subkind.t
+  val kind : t -> Flambda_kind.t
 
   val rename : t -> t
 end
@@ -45,7 +45,7 @@ end) : S = struct
       name : string;
       name_stamp : int;
           (** [name_stamp]s are unique within any given compilation unit. *)
-      kind : Flambda_kind.With_subkind.t
+      kind : Flambda_kind.t
     }
 
   module Self = Container_types.Make (struct
@@ -83,7 +83,7 @@ end) : S = struct
       else
         Format.fprintf ppf "%a.%s/%d" Compilation_unit.print t.compilation_unit
           t.name t.name_stamp;
-      Format.fprintf ppf " @<1>\u{2237} %a" Flambda_kind.With_subkind.print
+      Format.fprintf ppf " @<1>\u{2237} %a" Flambda_kind.print
         t.kind;
       Format.fprintf ppf ")%t@]" Flambda_colours.pop
   end)

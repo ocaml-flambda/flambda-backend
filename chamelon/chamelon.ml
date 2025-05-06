@@ -59,6 +59,7 @@ let all_minimizers =
       Inlinenever.minimizer;
       Reducedef.minimizer;
       Reduceexpr.minimizer;
+      Reduceexpr.minimizer_dummy1;
       (* Reduceexpr_typesafe.minimizer; *)
       Remdef.minimizer;
       Removeattributes.minimizer;
@@ -78,6 +79,7 @@ let default_iteration =
   [
     "delete-lines";
     "reduce-expr";
+    "reduce-expr-2";
     "remove-dead-code";
     "inline-never";
     "remove-unit";
