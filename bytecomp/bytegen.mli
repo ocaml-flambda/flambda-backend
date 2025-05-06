@@ -18,8 +18,9 @@
 open Lambda
 open Instruct
 
-val compile_implementation: Compilation_unit.t -> lambda -> instruction list
-val compile_phrase: lambda -> instruction list * bool
+val compile_implementation : Compilation_unit.t -> lambda -> instruction list
 
-val merge_events:
+val compile_phrase : lambda -> instruction list * bool
+
+val merge_events :
   Instruct.debug_event -> Instruct.debug_event -> Instruct.debug_event
