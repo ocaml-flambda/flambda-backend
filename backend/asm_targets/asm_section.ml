@@ -195,7 +195,7 @@ let details t ~first_occurrence =
     | Read_only_data, _, (MinGW_32 | Win32) -> data ()
     | Read_only_data, _, (MinGW_64 | Cygwin) -> [".rdata"], Some "dr", []
     | Read_only_data, _, _ -> rodata ()
-    | Stapsdt_base, _, (GNU | Solaris | Linux | Generic_BSD | BeOS) ->
+    | Stapsdt_base, _, Linux ->
       [".stapsdt.base"], Some "aG", ["\"progbits\""; ".stapsdt.base"; "comdat"]
     | Stapsdt_base, _, _ ->
       Misc.fatal_error "stapsdt not supported on platforms other than Linux."
