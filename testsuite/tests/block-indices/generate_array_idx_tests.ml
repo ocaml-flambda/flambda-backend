@@ -436,7 +436,7 @@ and enumerate_tys_for_forest (forest : unit tree list)
     )
 
 let enumerate_ty_trees_up_to_size leaf_tys size : Type_structure.t tree list =
-  let sizes = List.init ~f:(fun i -> i + 1) size in
+  let sizes = List.init ~f:(fun i -> i + 1) ~len:size in
   let trees = List.concat_map sizes ~f:(fun size -> enumerate_trees size) in
   List.concat_map trees ~f:(fun tree ->
     enumerate_tys_for_tree tree leaf_tys)
@@ -449,24 +449,32 @@ let rec ty_tree_to_unboxed_record (tree : Type_structure.t tree) :
     let fields = List.map trees ~f:(fun tree -> (), ty_tree_to_unboxed_record tree) in
     Record { name = (); fields; boxing = Unboxed }
 
-let ty_tree_to_nested_record (tree : Type_structure.t tree) : Type_structure.t =
+let ty_tree_to_nested_record (tree : Type_structure.t tree) : Type_structure.t option =
   match tree with
-  | Leaf _ -> invalid_arg "expected branch"
+  | Leaf _ -> None
   | Branch trees ->
     let fields = List.map trees ~f:(fun tree -> (), ty_tree_to_unboxed_record tree) in
-    Record { name = (); fields; boxing = Boxed }
+    Some (Record { name = (); fields; boxing = Boxed })
 
-let rec all_scannable (ty : _ Gen_type.t) =
-  match ty with
-  | Record {
+let rec all_scannable (kind : Type_kind.t) =
+  match kind with
+  | Value _ -> true
+  | Non_value -> false
+  | Product kinds -> List.for_all kinds ~f:all_scannable
+
+let rec all_ignorable (kind : Type_kind.t) =
+  match kind with
+  | Value Immediate | Non_value -> true
+  | Value Addr -> false
+  | Product kinds -> List.for_all kinds ~f:all_ignorable
 
 let ty_tree_to_array_element (tree : Type_structure.t tree) : Type_structure.t option =
   let ty = ty_tree_to_unboxed_record tree in
-  if all_scannable ty || all_ignorable ty then
+  let kind = kind_of ty in
+  if all_scannable kind || all_ignorable kind then
     Some ty
   else
     None
-
 
 let failwithf fmt = Printf.ksprintf failwith fmt
 
@@ -484,14 +492,25 @@ let ty_ur4 : Type_structure.t =
   Record { name = (); fields = [(), ty_ur2; (), ty_ur3]; boxing = Unboxed }
 
 let favorite_non_product_types : _ Gen_type.t list =
-  [(* String; *) Int; Int64; Float32_u (* Float *)]
+  [ String; Int; Int64; Float32_u; Float]
 
 let non_product_types : _ Gen_type.t list =
   favorite_non_product_types
   @ [Float_u; Int32_u; Int64_u; Nativeint_u; Float32; Int32; Nativeint; Int]
 
+let interesting_type_trees : Type_structure.t tree list =
+  enumerate_ty_trees_up_to_size favorite_non_product_types 4 @
+  enumerate_ty_trees_up_to_size non_product_types 3
+
+let interesting_array_element_types =
+  List.filter_map interesting_type_trees ~f:ty_tree_to_array_element
+
+let interesting_nested_records =
+  List.filter_map interesting_type_trees ~f:ty_tree_to_nested_record
+
 let array_element_types =
-  non_product_types
+  interesting_array_element_types
+  (* non_product_types
   @ [ ty_ur1;
       ty_ur3;
       ty_ur4;
@@ -518,7 +537,7 @@ let array_element_types =
           ],
           Unboxed
         )
-    ]
+    ] *)
 
 let (naming : Type_naming.t), (array_element_types : Type.t list) =
   List.fold_left_map array_element_types ~init:Type_naming.empty
