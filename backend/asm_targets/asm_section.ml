@@ -195,11 +195,13 @@ let details t ~first_occurrence =
     | Read_only_data, _, (MinGW_32 | Win32) -> data ()
     | Read_only_data, _, (MinGW_64 | Cygwin) -> [".rdata"], Some "dr", []
     | Read_only_data, _, _ -> rodata ()
-    (* CR sspies: Is this one really possible on all systems? *)
-    | Stapsdt_base, _, _ ->
+    | Stapsdt_base, _, (GNU | Solaris | Linux | Generic_BSD | BeOS) ->
       [".stapsdt.base"], Some "aG", ["\"progbits\""; ".stapsdt.base"; "comdat"]
+    | Stapsdt_base, _, _ ->
+      Misc.fatal_error "stapsdt not supported on platforms other than Linux."
     | Stapsdt_note, _, MacOS_like ->
       ["__DATA"; "__note_stapsdt"], None, ["regular"]
+      (* NOTE: This is section is currently not tested. *)
     | Stapsdt_note, _, (GNU | Solaris | Linux | Generic_BSD | BeOS) ->
       [".note.stapsdt"], Some "?", ["\"note\""]
     | Stapsdt_note, _, _ ->
