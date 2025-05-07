@@ -110,7 +110,11 @@ let add t =
   x + y
 [%%expect{|
 type t = { is : #(int * int); }
-val add : t# -> int = <fun>
+Line 4, characters 19-21:
+4 |   let #(x, y) = t.#is in
+                       ^^
+Error: Unbound unboxed record field "is"
+Hint: There is a boxed record field with this name.
 |}]
 
 (* An unboxed record is not an allocation, but a regular record is *)
