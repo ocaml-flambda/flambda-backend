@@ -572,8 +572,6 @@ G(caml_system__code_begin):
         movupd       (15*16 + 13*8)(%r15),%xmm15;      \
         movq    Caml_state(young_ptr), %r15
 
-// CR mshinwell: the below probably needs fixing for SIMD
-
 /* Save non-callee saved registers that may be in use to a free gc_regs
    bucket, except for %xmm8 to %xmm15 as they are not used to pass
    arguments and return values in the System V amd64 ABI.
@@ -597,14 +595,14 @@ G(caml_system__code_begin):
         movq    %r9,          7*8(%r15);               \
         movq    %r10,        10*8(%r15);               \
              /* %r11 is at   11*8(%r15); */            \
-        movsd   %xmm0,   (0+13)*8(%r15);               \
-        movsd   %xmm1,   (1+13)*8(%r15);               \
-        movsd   %xmm2,   (2+13)*8(%r15);               \
-        movsd   %xmm3,   (3+13)*8(%r15);               \
-        movsd   %xmm4,   (4+13)*8(%r15);               \
-        movsd   %xmm5,   (5+13)*8(%r15);               \
-        movsd   %xmm6,   (6+13)*8(%r15);               \
-        movsd   %xmm7,   (7+13)*8(%r15);
+        movupd  %xmm0,   (0*16 + 13*8)(%r15);          \
+        movupd  %xmm1,   (1*16 + 13*8)(%r15);          \
+        movupd  %xmm2,   (2*16 + 13*8)(%r15);          \
+        movupd  %xmm3,   (3*16 + 13*8)(%r15);          \
+        movupd  %xmm4,   (4*16 + 13*8)(%r15);          \
+        movupd  %xmm5,   (5*16 + 13*8)(%r15);          \
+        movupd  %xmm6,   (6*16 + 13*8)(%r15);          \
+        movupd  %xmm7,   (7*16 + 13*8)(%r15);
 #else
 #define TSAN_SAVE_CALLER_REGS
 #endif
@@ -627,14 +625,14 @@ G(caml_system__code_begin):
         movq          7*8(%r15),%r9;                   \
         movq         10*8(%r15),%r10;                  \
         movq         11*8(%r15),%r11;                  \
-        movsd    (0+13)*8(%r15),%xmm0;                 \
-        movsd    (1+13)*8(%r15),%xmm1;                 \
-        movsd    (2+13)*8(%r15),%xmm2;                 \
-        movsd    (3+13)*8(%r15),%xmm3;                 \
-        movsd    (4+13)*8(%r15),%xmm4;                 \
-        movsd    (5+13)*8(%r15),%xmm5;                 \
-        movsd    (6+13)*8(%r15),%xmm6;                 \
-        movsd    (7+13)*8(%r15),%xmm7;                 \
+        movupd    (0*16 + 13*8)(%r15),%xmm0;           \
+        movupd    (1*16 + 13*8)(%r15),%xmm1;           \
+        movupd    (2*16 + 13*8)(%r15),%xmm2;           \
+        movupd    (3*16 + 13*8)(%r15),%xmm3;           \
+        movupd    (4*16 + 13*8)(%r15),%xmm4;           \
+        movupd    (5*16 + 13*8)(%r15),%xmm5;           \
+        movupd    (6*16 + 13*8)(%r15),%xmm6;           \
+        movupd    (7*16 + 13*8)(%r15),%xmm7;           \
         movq    Caml_state(young_ptr), %r15
 #else
 #define TSAN_RESTORE_CALLER_REGS
@@ -782,7 +780,7 @@ ENDFUNCTION(G(caml_call_local_realloc))
 1:      movq    $-1, Caml_state(young_limit);   \
         ret
 
-#define Make_c_call(name, align_stack, unalign_stack) \
+#define Make_c_call(name, align_stack, restore_stack) \
         CFI_SIGNAL_FRAME; \
         ENTER_FUNCTION; \
         TSAN_SAVE_CALLER_REGS; \
@@ -799,7 +797,7 @@ LBL(name): \
 /* Call the function (address in %rax) */ \
         align_stack; \
         C_call  (*%rax); \
-        unalign_stack; \
+        restore_stack; \
 /* Prepare for return to OCaml */ \
         movq    Caml_state(young_ptr), %r15; \
 /* Load ocaml stack and restore global variables */ \

@@ -1636,12 +1636,8 @@ let emit_instr ~first ~fallthrough i =
           add_used_symbol func.sym_name;
           emit_jump func)
   | Lcall_op (Lextcall { func; alloc; stack_ofs; ty_args; _ }) ->
-    let has_vec256 =
-      List.exists (fun x -> Cmm.equal_exttype x XVec256) ty_args
-    in
-    let has_vec512 =
-      List.exists (fun x -> Cmm.equal_exttype x XVec512) ty_args
-    in
+    let has_vec256 = List.exists (Cmm.equal_exttype XVec256) ty_args in
+    let has_vec512 = List.exists (Cmm.equal_exttype XVec512) ty_args in
     add_used_symbol func;
     if Config.runtime5 && stack_ofs > 0
     then (
@@ -1673,36 +1669,45 @@ let emit_instr ~first ~fallthrough i =
            via a regular call, and restores r15 itself, thus avoiding the code
            size increase. *)
         I.mov (domain_field Domainstate.Domain_young_ptr) r15)
-    else if Config.runtime5
-    then (
-      I.mov rsp rbx;
-      cfi_remember_state ();
-      cfi_def_cfa_register "rbx";
-      (* NB: gdb has asserts on contiguous stacks that mean it will not unwind
-         through this unless we were to tag this calling frame with
-         cfi_signal_frame in it's definition. *)
-      I.mov (domain_field Domainstate.Domain_c_stack) rsp;
-      if has_vec512
-      then I.and_ (Imm (-64L)) rsp
-      else if has_vec256
-      then I.and_ (Imm (-32L)) rsp;
-      emit_call (Cmm.global_symbol func);
-      I.mov rbx rsp;
-      cfi_restore_state ())
-    else (
-      if has_vec256 || has_vec512
+    else
+      let align_stack = has_vec256 || has_vec512 in
+      (* rt5: switch to C stack *)
+      if Config.runtime5
+      then (
+        I.mov rsp rbx;
+        cfi_remember_state ();
+        cfi_def_cfa_register "rbx";
+        (* NB: gdb has asserts on contiguous stacks that mean it will not unwind
+           through this unless we were to tag this calling frame with
+           cfi_signal_frame in it's definition. *)
+        I.mov (domain_field Domainstate.Domain_c_stack) rsp);
+      (* Dynamic alignment; save rsp *)
+      if align_stack
       then (
         I.push rbp;
-        I.mov rsp rbp);
+        cfi_adjust_cfa_offset 8;
+        I.mov rsp rbp;
+        cfi_remember_state ();
+        cfi_def_cfa_register "rbp");
+      (* Dynamically align rsp *)
       if has_vec512
       then I.and_ (Imm (-64L)) rsp
       else if has_vec256
       then I.and_ (Imm (-32L)) rsp;
+      (* Call function *)
       emit_call (Cmm.global_symbol func);
-      if has_vec256 || has_vec512
+      (* Dynamic alignment; restore rsp *)
+      if align_stack
       then (
         I.mov rbp rsp;
-        I.pop rbp))
+        cfi_restore_state ();
+        I.pop rbp;
+        cfi_adjust_cfa_offset (-8));
+      (* rt5: switch to OCaml stack *)
+      if Config.runtime5
+      then (
+        I.mov rbx rsp;
+        cfi_restore_state ())
   | Lop (Stackoffset n) -> emit_stack_offset n
   | Lop (Load { memory_chunk; addressing_mode; _ }) -> (
     let[@inline always] load ~dest data_type instruction =
