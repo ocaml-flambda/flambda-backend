@@ -1086,10 +1086,9 @@ and rebuild_function_params_and_body (kinds : Flambda_kind.t Name.Map.t)
       Flambda_arity.create (List.map components_for params)
     in
     let code_metadata =
-      Code_metadata.with_is_tupled false
+      Code_metadata.with_never_called_indirectly true
         (Code_metadata.with_params_arity params_arity code_metadata)
     in
-    (* XXX never called indirectly *)
     let body = rebuild_body () in
     (* Format.eprintf "REBUILD %a FREE %a@." Code_id.print code_id
        Name_occurrences.print body.free_names; *)

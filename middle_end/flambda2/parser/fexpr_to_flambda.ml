@@ -562,8 +562,7 @@ let set_of_closures env fun_decls value_slots alloc =
   let value_slots : Simple.t Value_slot.Map.t =
     let convert ({ var; value } : Fexpr.one_value_slot) =
       (* CR mshinwell: support non-value kinds *)
-      ( fresh_or_existing_value_slot env var Flambda_kind.value,
-        simple env value )
+      fresh_or_existing_value_slot env var Flambda_kind.value, simple env value
     in
     List.map convert value_slots |> Value_slot.Map.of_list
   in
@@ -966,7 +965,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
             ~cost_metrics (* CR poechsel: grab inlining arguments from fexpr. *)
             ~inlining_arguments:(Inlining_arguments.create ~round:0)
             ~poll_attribute:Default ~dbg:Debuginfo.none ~is_tupled
-            ~is_my_closure_used ~inlining_decision:Never_inline_attribute
+            ~is_my_closure_used ~never_called_indirectly:false
+            ~inlining_decision:Never_inline_attribute
             ~absolute_history:
               (Inlining_history.Absolute.empty
                  (Compilation_unit.get_current_exn ()))

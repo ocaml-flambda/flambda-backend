@@ -2167,8 +2167,9 @@ let make_unboxed_function_wrapper acc function_slot ~unarized_params:params
       ~is_a_functor:(Function_decl.is_a_functor decl)
       ~is_opaque:false ~recursive ~newer_version_of:None ~cost_metrics
       ~inlining_arguments:(Inlining_arguments.create ~round:0)
-      ~dbg ~is_tupled ~is_my_closure_used:true ~inlining_decision
-      ~absolute_history ~relative_history ~loopify:Never_loopify
+      ~dbg ~is_tupled ~is_my_closure_used:true ~never_called_indirectly:false
+      ~inlining_decision ~absolute_history ~relative_history
+      ~loopify:Never_loopify
   in
   let main_approx =
     let code = Code_or_metadata.create main_code in
@@ -2560,7 +2561,8 @@ let close_one_function acc ~code_id ~external_env ~by_function_slot
       ~dbg ~is_tupled:main_code_is_tupled
       ~is_my_closure_used:
         (Function_params_and_body.is_my_closure_used params_and_body)
-      ~inlining_decision ~absolute_history ~relative_history ~loopify
+      ~never_called_indirectly:false ~inlining_decision ~absolute_history
+      ~relative_history ~loopify
   in
   let function_code_ids = (function_slot, code_id) :: function_code_ids in
   let code, by_function_slot, function_code_ids, acc =
@@ -2627,7 +2629,10 @@ let close_functions acc external_env ~current_region function_declarations =
             | None -> Ident.name id
             | Some var -> Variable.name var
           in
-          Ident.Map.add id (Value_slot.create compilation_unit ~name (Flambda_kind.With_subkind.kind kind)) map)
+          Ident.Map.add id
+            (Value_slot.create compilation_unit ~name
+               (Flambda_kind.With_subkind.kind kind))
+            map)
       (Function_decls.all_free_idents function_declarations)
       Ident.Map.empty
   in
@@ -2704,7 +2709,7 @@ let close_functions acc external_env ~current_region function_declarations =
             ~newer_version_of:None ~cost_metrics
             ~inlining_arguments:(Inlining_arguments.create ~round:0)
             ~dbg ~is_tupled ~is_my_closure_used:true
-            ~inlining_decision:Recursive
+            ~never_called_indirectly:false ~inlining_decision:Recursive
             ~absolute_history:(Inlining_history.Absolute.empty compilation_unit)
             ~relative_history:Inlining_history.Relative.empty
             ~loopify:Never_loopify
@@ -2777,7 +2782,8 @@ let close_functions acc external_env ~current_region function_declarations =
         if not (K.equal kind (K.With_subkind.kind kind'))
         then
           Misc.fatal_errorf "Value slot kinds %a and %a don't match for slot %a"
-            K.print kind K.print (K.With_subkind.kind kind')
+            K.print kind K.print
+            (K.With_subkind.kind kind')
             Value_slot.print value_slot;
         (* We're sure [external_simple] is a variable since
            [value_slot_from_idents] has already filtered constants and symbols

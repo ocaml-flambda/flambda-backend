@@ -149,11 +149,7 @@ end = struct
     | Value_slot { value_slot; is_scanned; size } ->
       let simple = Value_slot.Map.find value_slot value_slots in
       let kind = Value_slot.kind value_slot in
-      if (not
-            (Flambda_kind.equal
-               kind
-               Flambda_kind.value))
-         && is_scanned
+      if (not (Flambda_kind.equal kind Flambda_kind.value)) && is_scanned
       then
         Misc.fatal_errorf
           "Value slot %a not of kind Value (%a) but is visible by GC"
@@ -180,8 +176,7 @@ end = struct
             let update_kind =
               let module UK = C.Update_kind in
               match kind with
-              | Value ->
-                UK.pointers
+              | Value -> UK.pointers
               | Naked_number Naked_immediate
               | Naked_number Naked_int64
               | Naked_number Naked_nativeint ->
@@ -243,7 +238,7 @@ end = struct
         (* We build here the **reverse** list of fields for the function slot *)
         match closure_code_pointers with
         | Full_application_only ->
-          if size <> 2 && size <> 3
+          if size <> 2
           then
             Misc.fatal_errorf
               "fill_slot: Function slot %a is of size %d, but it is used to \
@@ -253,21 +248,10 @@ end = struct
           let acc =
             P.int ~dbg closure_info :: P.term_of_symbol ~dbg code_symbol :: acc
           in
-          let acc =
-            if size = 3
-            then P.int ~dbg 0n (* P.term_of_symbol ~dbg code_symbol *) :: acc
-            else acc
-          in
-          let chunk_acc = 
-            if size = 3 then 
-              rev_append_chunks ~for_static_sets
-            [Cmm.Word_int; Cmm.Word_int; Cmm.Word_int]
-            chunk_acc
-else             rev_append_chunks ~for_static_sets
-[Cmm.Word_int; Cmm.Word_int]
-chunk_acc in
-            ( acc,
-            chunk_acc,
+          ( acc,
+            rev_append_chunks ~for_static_sets
+              [Cmm.Word_int; Cmm.Word_int]
+              chunk_acc,
             Backend_var.Set.empty,
             slot_offset + size,
             env,
@@ -282,12 +266,17 @@ chunk_acc in
                store code ID %a which is classified as \
                Full_and_partial_application (so the expected size is 3)"
               Function_slot.print function_slot size Code_id.print code_id;
+          let curry_code_pointer =
+            if Code_metadata.never_called_indirectly
+                 (Env.get_code_metadata env code_id)
+            then (* CR gbury: fail here instead *) P.int ~dbg 0n
+            else
+              P.term_of_symbol ~dbg
+                (C.curry_function_sym kind params_ty result_ty)
+          in
           let acc =
             P.term_of_symbol ~dbg code_symbol
-            :: P.int ~dbg closure_info
-            :: P.term_of_symbol ~dbg
-                 (C.curry_function_sym kind params_ty result_ty)
-            :: acc
+            :: P.int ~dbg closure_info :: curry_code_pointer :: acc
           in
           ( acc,
             rev_append_chunks ~for_static_sets
