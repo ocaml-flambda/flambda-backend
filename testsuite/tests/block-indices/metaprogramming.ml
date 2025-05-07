@@ -75,7 +75,7 @@ module Layout = struct
       | Value _ -> { acc with last_value_after_flat = acc.seen_flat }
       | Bits64 | Bits32 | Vec128 | Word -> { acc with seen_flat = true }
       | Product ts ->
-        List.fold_left ts ~init:acc ~f:(fun acc kind -> aux kind acc)
+        List.fold_left ts ~init:acc ~f:(fun acc layout -> aux layout acc)
     in
     (aux t { seen_flat = false; last_value_after_flat = false })
       .last_value_after_flat
@@ -166,11 +166,11 @@ module Type_structure = struct
 
   let compare : t -> t -> int = Stdlib.compare
 
-  let rec kind t : Layout.t =
+  let rec layout t : Layout.t =
     match t with
-    | Record ([t], Unboxed) -> kind t
-    | Record (ts, Unboxed) -> Product (List.map ts ~f:kind)
-    | Tuple (ts, Unboxed) -> Product (List.map ts ~f:kind)
+    | Record ([t], Unboxed) -> layout t
+    | Record (ts, Unboxed) -> Product (List.map ts ~f:layout)
+    | Tuple (ts, Unboxed) -> Product (List.map ts ~f:layout)
     | Record (_, Boxed)
     | Tuple (_, Boxed)
     | Option _ | String | Int64 | Nativeint | Float32 | Int32 ->
@@ -195,17 +195,17 @@ module Type_structure = struct
 
   let array_element (tree : t Tree.t) : t option =
     let ty = nested_unboxed_record tree in
-    let ty_kind = kind ty in
-    if ty_kind = Value Float
+    let ty_layout = layout ty in
+    if ty_layout = Value Float
     then None
     else
       (* CR layouts v8: all of these restrictions will eventually be lifted *)
       let supported_in_arrays =
-        (Layout.all_scannable ty_kind || Layout.all_ignorable ty_kind)
-        && not (Layout.contains_unboxed_vector ty_kind)
+        (Layout.all_scannable ty_layout || Layout.all_ignorable ty_layout)
+        && not (Layout.contains_unboxed_vector ty_layout)
       in
       let supported_by_block_indices =
-        not (Layout.reordered_in_block ty_kind)
+        not (Layout.reordered_in_block ty_layout)
       in
       if supported_in_arrays && supported_by_block_indices
       then Some ty

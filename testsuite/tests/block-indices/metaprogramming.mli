@@ -1,4 +1,4 @@
-(* String-munging metaprogramming used for test generation *)
+(** String-munging metaprogramming used for test generation *)
 
 module Tree : sig
   type 'a t =
@@ -62,7 +62,7 @@ module Type_structure : sig
 
   val compare : t -> t -> int
 
-  val kind : t -> Layout.t
+  val layout : t -> Layout.t
 
   (** [None] if the tree is a [Leaf] (thus will always produce a boxed record *)
   val boxed_record_containing_unboxed_records : t Tree.t -> t option
