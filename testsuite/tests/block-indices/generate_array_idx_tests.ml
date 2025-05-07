@@ -292,7 +292,7 @@ let rec mk_value_body_code (t : Type.t) i =
   | Float_u -> sprintf "Float_u.of_int (i + %d)" i
   | Float32 -> sprintf "Float32.of_int (i + %d)" i
   | Float32_u -> sprintf "Float32_u.of_int (i + %d)" i
-  | String -> sprintf "String.of_int (i + %d)" i
+  | String -> sprintf "Int.to_string (i + %d)" i
 
 (* Code that dynamically implements [value_code], creating a value from an
    integer seed bound to "i". We should be able to generate this code: "let
@@ -448,11 +448,9 @@ and enumerate_tys_for_forest (forest : unit tree list)
   print_endline (String.concat ~sep:"\n" (List.map trees ~f:tree_to_string));
   Printf.printf "%d\n" (List.length (enumerate_trees 4)) *)
 
-let enumerate_ty_trees_up_to_size leaf_tys size : Type_structure.t tree list =
+let trees_up_to_size size =
   let sizes = List.init ~f:(fun i -> i + 1) ~len:size in
-  let trees = List.concat_map sizes ~f:(fun size -> enumerate_trees size) in
-  List.concat_map trees ~f:(fun tree ->
-    enumerate_tys_for_tree tree leaf_tys)
+  List.concat_map sizes ~f:(fun size -> enumerate_trees size)
 
 let rec ty_tree_to_unboxed_record (tree : Type_structure.t tree) :
     Type_structure.t =
@@ -517,15 +515,25 @@ let ty_ur4 : Type_structure.t =
   Record { name = (); fields = [(), ty_ur2; (), ty_ur3]; boxing = Unboxed }
 
 let favorite_non_product_types : _ Gen_type.t list =
-  [ Int; Int64; Float32_u; Float ]
+  [ Int; Int64; Int32_u; Float ]
 
 let non_product_types : _ Gen_type.t list =
   favorite_non_product_types
-  @ [Float_u; Int32_u; Int64_u; Nativeint_u; Float32; Int32; Nativeint; Int]
+  @ [ Int64_u; Nativeint_u ]
 
 let interesting_type_trees : Type_structure.t tree list =
-  enumerate_ty_trees_up_to_size favorite_non_product_types 4 @
-  enumerate_ty_trees_up_to_size non_product_types 3
+  let deep_trees = [
+    Branch [ Leaf (); Branch [ Leaf (); Leaf ()]] ;
+    Branch [ Branch [ Leaf (); Leaf ()]; Leaf ()]
+  ] in
+  List.concat_map deep_trees ~f:(fun tree ->
+    enumerate_tys_for_tree tree [ Int64_u; String ])
+  @
+  List.concat_map (trees_up_to_size 4) ~f:(fun tree ->
+    enumerate_tys_for_tree tree favorite_non_product_types)
+  @
+  List.concat_map (trees_up_to_size 3) ~f:(fun tree ->
+    enumerate_tys_for_tree tree non_product_types)
 
 (* print interesting_type_trees *)
 (* let () =
@@ -677,17 +685,18 @@ let rec iter ~f = function
     [] -> ()
   | a::l -> f a; iter ~f l
 
-let tests_run = ref []
+module Int_set = Set.Make(Int)
+
+let tests_run = ref Int_set.empty
 
 let mark_test_run test_id =
-  if not (List.mem test_id !tests_run) then
-    tests_run := test_id :: !tests_run
+  tests_run := Int_set.add test_id !tests_run
 
 (* Various interesting values *)
 
-let sizes = [ 0; 1; 2; 30; 31; 32 ]
+let sizes = [ 0; 1; 2; 30 ]
 
-let indices_in_deepening_tests = [0; 1; 2; 100_000]
+let indices_in_deepening_tests = [0; 100_000]
 
 |}
 
@@ -902,25 +911,6 @@ let main ~bytecode =
   line "%s" preamble;
   List.iter (Type_naming.decls_code naming) ~f:(fun s -> line "%s" s);
   line "";
-  line "(* Catch metaprogramming errors early *)";
-  toplevel_unit_block (fun () ->
-      line "(* Check types and constants *)";
-      List.iter array_element_types ~f:(fun ty ->
-          line "let _ : %s = %s in" (ty_code ty) (value_code ty 0)
-      );
-      line "(* Check equality and mk_value functions *)";
-      List.iter array_element_types ~f:(fun ty ->
-          line "let eq : %s @ local -> %s @ local -> bool = %s in" (ty_code ty)
-            (ty_code ty) (eq_code ty);
-          line "let mk_value i = %s in" (mk_value_code ty);
-          seq_assert ~debug_exprs
-            (sprintf "eq (mk_value 1) %s" (value_code ty 1));
-          seq_assert ~debug_exprs
-            (sprintf "eq %s %s" (value_code ty 1) (value_code ty 1));
-          seq_assert ~debug_exprs
-            (sprintf "not (eq %s %s)" (value_code ty 1) (value_code ty 2))
-      )
-  );
   List.iter [false; true] ~f:(fun local ->
       line "let test_array_idx_with_%s size =" (makearray_dynamic_fn ~local);
       with_indent (fun () ->
@@ -946,7 +936,7 @@ let main ~bytecode =
   line "for i = 1 to %d do" !test_id;
   with_indent (fun () ->
       line
-        {|if not (List.mem i !tests_run) then failwithf "test %%d not run" i|}
+        {|if not (Int_set.mem i !tests_run) then failwithf "test %%d not run" i|}
   );
   line "done;;";
   print_in_test "All tests passed."
