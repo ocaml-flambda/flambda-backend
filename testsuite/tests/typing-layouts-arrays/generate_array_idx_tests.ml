@@ -300,7 +300,7 @@ let mk_value_code (t : Type.t) : string = mk_value_body_code t 0
 
 (* A function that implements equality in the generated code. We should be able
    generate this code: "let eq : $ty_code @ local -> $ty_code @ local -> bool =
-   $eq" *)
+   $eq_code" *)
 let rec eq_code (t : Type.t) : string =
   match t with
   | Record { name; fields; boxing } ->
@@ -417,17 +417,56 @@ and enumerate_trees num_nodes : unit tree list =
 
 let rec enumerate_tys_for_tree (tree : unit tree)
     (leaf_tys : Type_structure.t list) : Type_structure.t tree list =
-  assert false
+  match tree with
+  | Leaf () -> List.map leaf_tys ~f:(fun ty -> Leaf ty)
+  | Branch forest ->
+    List.map (enumerate_tys_for_forest forest leaf_tys) ~f:(fun forest ->
+        Branch forest
+    )
 
-let enumerate_ty_trees_up_to_size leaf_tys : Type_structure.t tree list =
-  assert false
+and enumerate_tys_for_forest (forest : unit tree list)
+    (leaf_tys : Type_structure.t list) : Type_structure.t tree list list =
+  match forest with
+  | [] -> []
+  | tree :: forest ->
+    let trees = enumerate_tys_for_tree tree leaf_tys in
+    let forests = enumerate_tys_for_forest forest leaf_tys in
+    List.concat_map trees ~f:(fun tree ->
+        List.map forests ~f:(fun forest -> tree :: forest)
+    )
+
+let enumerate_ty_trees_up_to_size leaf_tys size : Type_structure.t tree list =
+  let sizes = List.init ~f:(fun i -> i + 1) size in
+  let trees = List.concat_map sizes ~f:(fun size -> enumerate_trees size) in
+  List.concat_map trees ~f:(fun tree ->
+    enumerate_tys_for_tree tree leaf_tys)
+
+let rec ty_tree_to_unboxed_record (tree : Type_structure.t tree) :
+    Type_structure.t =
+  match tree with
+  | Leaf ty -> ty
+  | Branch trees ->
+    let fields = List.map trees ~f:(fun tree -> (), ty_tree_to_unboxed_record tree) in
+    Record { name = (); fields; boxing = Unboxed }
 
 let ty_tree_to_nested_record (tree : Type_structure.t tree) : Type_structure.t =
-  assert false
+  match tree with
+  | Leaf _ -> invalid_arg "expected branch"
+  | Branch trees ->
+    let fields = List.map trees ~f:(fun tree -> (), ty_tree_to_unboxed_record tree) in
+    Record { name = (); fields; boxing = Boxed }
 
-let ty_tree_to_array_element (tree : Type_structure.t tree) :
-    Type_structure.t option =
-  assert false
+let rec all_scannable (ty : _ Gen_type.t) =
+  match ty with
+  | Record {
+
+let ty_tree_to_array_element (tree : Type_structure.t tree) : Type_structure.t option =
+  let ty = ty_tree_to_unboxed_record tree in
+  if all_scannable ty || all_ignorable ty then
+    Some ty
+  else
+    None
+
 
 let failwithf fmt = Printf.ksprintf failwith fmt
 
