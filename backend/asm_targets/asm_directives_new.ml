@@ -934,11 +934,11 @@ let between_labels_16_bit ?comment:_ ~upper:_ ~lower:_ () =
 
 let between_labels_32_bit ?comment:_comment ~upper ~lower () =
   let expr = const_sub (const_label upper) (const_label lower) in
-  (* CR sspies: Unlike in most of the other distance computation functions in this file,
-     we do not force an assembly time constant in this function. This is to follow the
-     existing/previous implementation of the x86 backend. In the future, we should
-     investigate whether it would be more appropriate to force an assembly time constant.
-  *)
+  (* CR sspies: Unlike in most of the other distance computation functions in
+     this file, we do not force an assembly time constant in this function. This
+     is to follow the existing/previous implementation of the x86 backend. In
+     the future, we should investigate whether it would be more appropriate to
+     force an assembly time constant. *)
   const expr Thirty_two
 
 let between_labels_64_bit ?comment:_ ~upper:_ ~lower:_ () =
