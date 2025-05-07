@@ -1131,7 +1131,8 @@ let record_gets_unboxed_version = function
       (fun (kind : mixed_block_element) ->
          match kind with
          | Value | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> true
-         | Float_boxed -> false)
+         | Float_boxed -> false
+         | Product _ -> false)
       shape
 let gets_unboxed_version decl =
   (* This must be kept in sync with the match in [derive_unboxed_version] *)
