@@ -1,6 +1,7 @@
 (* TEST
  include stdlib_alpha;
  runtime5;
+ multidomain;
  { bytecode; }
  { native; }
 *)

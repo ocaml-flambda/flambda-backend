@@ -1,11 +1,11 @@
-File "unsafe_alert.ml", line 7, characters 8-20:
-7 | let _ = Domain.spawn (fun () -> ())
+File "unsafe_alert.ml", line 8, characters 8-20:
+8 | let _ = Domain.spawn (fun () -> ())
             ^^^^^^^^^^^^
 Alert unsafe_multidomain: Stdlib.Domain.spawn
 Use [Domain.Safe.spawn].
 
-File "unsafe_alert.ml", line 7, characters 8-20:
-7 | let _ = Domain.spawn (fun () -> ())
+File "unsafe_alert.ml", line 8, characters 8-20:
+8 | let _ = Domain.spawn (fun () -> ())
             ^^^^^^^^^^^^
 Alert unsafe_parallelism: Stdlib.Domain.spawn
 This function is unsafe and should not be used in production code.
