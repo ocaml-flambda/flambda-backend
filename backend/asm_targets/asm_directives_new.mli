@@ -158,8 +158,16 @@ val cfi_def_cfa_register : reg:string -> unit
     supported on all platforms. *)
 val mark_stack_non_executable : unit -> unit
 
-(** Leave as much space as is required to achieve the given alignment. *)
-val align : data_section:bool -> bytes:int -> unit
+type align_padding =
+  | Nop
+  | Zero
+
+(** Leave as much space as is required to achieve the given alignment. On x86 in the
+    binary emitter, it is important what the space is filled with: in the text section,
+    one would typically fill it with [nop] instructions and in the data section, one
+    would typically fill it with zeros. This is controlled by the parameter
+    [fill_x86_bin_emitter]. *)
+val align : fill_x86_bin_emitter:align_padding -> bytes:int -> unit
 
 (** Emit a directive giving the displacement between the given symbol and
     the current position.  This should only be used to state sizes of
@@ -388,9 +396,9 @@ module Directive : sig
         { bytes : int;
               (** The number of bytes to align to. This will be taken log2 by the emitter on
           Arm and macOS platforms.*)
-          data_section : bool
-              (** The data_section flag controls whether the binary emitter emits NOP instructions
-          or null bytes. *)
+          fill_x86_bin_emitter : align_padding
+              (** The [fill_x86_bin_emitter] flag controls whether the x86 binary emitter
+                  emits NOP instructions or null bytes. *)
         }
     | Bytes of
         { str : string;

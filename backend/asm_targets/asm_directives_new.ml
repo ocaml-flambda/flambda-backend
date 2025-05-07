@@ -60,6 +60,10 @@ type symbol_type =
   | Function
   | Object
 
+type align_padding =
+  | Nop
+  | Zero
+
 (* CR sspies: We should use the "STT" forms when they are supported as they are
    unambiguous across platforms (cf.
    https://sourceware.org/binutils/docs/as/Type.html). *)
@@ -152,7 +156,7 @@ module Directive = struct
   type t =
     | Align of
         { bytes : int;
-          data_section : bool
+          fill_x86_bin_emitter : align_padding
         }
     | Bytes of
         { str : string;
@@ -291,9 +295,10 @@ module Directive = struct
         | Some comment -> Printf.sprintf "\t/* %s */" comment
     in
     match t with
-    | Align { bytes = n; data_section = _ } ->
-      (* The data_section is only relevant for the binary emitter. On GAS, we
-         can ignore it and just use [.align] in both cases. *)
+    | Align { bytes = n; fill_x86_bin_emitter = _ } ->
+      (* The flag [fill_x86_bin_emitter] is only relevant for the binary
+         emitter. On GAS, we can ignore it and just use [.align] in both
+         cases. *)
       (* Some assemblers interpret the integer n as a 2^n alignment and others
          as a number of bytes. *)
       let n =
@@ -415,9 +420,9 @@ module Directive = struct
         | Some comment -> Printf.sprintf "\t; %s" comment
     in
     match t with
-    | Align { bytes; data_section = _ } ->
-      (* The data_section is only relevant for the binary emitter. On MASM, we
-         can ignore it. *)
+    | Align { bytes; fill_x86_bin_emitter = _ } ->
+      (* The flag [fill_x86_bin_emitter] is only relevant for the x86 binary
+         emitter. On MASM, we can ignore it. *)
       bprintf buf "\tALIGN\t%d" bytes
     | Bytes { str; comment } ->
       buf_bytes_directive buf ~directive:"BYTE" str;
@@ -532,7 +537,8 @@ let emit_non_masm (d : Directive.t) =
 
 let section ~names ~flags ~args = emit (Section { names; flags; args })
 
-let align ~data_section ~bytes = emit (Align { bytes; data_section })
+let align ~fill_x86_bin_emitter ~bytes =
+  emit (Align { bytes; fill_x86_bin_emitter })
 
 let should_generate_cfi () =
   (* We generate CFI info even if we're not generating any other debugging
