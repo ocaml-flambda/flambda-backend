@@ -534,6 +534,8 @@ let interesting_type_trees : Type_structure.t tree list =
   @
   List.concat_map (trees_up_to_size 3) ~f:(fun tree ->
     enumerate_tys_for_tree tree non_product_types)
+  @
+  [ Branch [ Branch [ Leaf Int; Leaf Int64_u ]; Branch [ Leaf Int64_u; Leaf Float_u ] ] ]
 
 (* print interesting_type_trees *)
 (* let () =
