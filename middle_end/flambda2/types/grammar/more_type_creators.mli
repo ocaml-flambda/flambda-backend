@@ -41,6 +41,12 @@ val these_naked_nativeints : Targetint_32_64.Set.t -> Type_grammar.t
 val these_naked_vec128s :
   Vector_types.Vec128.Bit_pattern.Set.t -> Type_grammar.t
 
+val these_naked_vec256s :
+  Vector_types.Vec256.Bit_pattern.Set.t -> Type_grammar.t
+
+val these_naked_vec512s :
+  Vector_types.Vec512.Bit_pattern.Set.t -> Type_grammar.t
+
 val any_tagged_immediate : Type_grammar.t
 
 val these_tagged_immediates0 : Targetint_31_63.Set.t -> Type_grammar.t
@@ -70,6 +76,12 @@ val this_boxed_nativeint :
 
 val this_boxed_vec128 :
   Vector_types.Vec128.Bit_pattern.t -> Alloc_mode.For_types.t -> Type_grammar.t
+
+val this_boxed_vec256 :
+  Vector_types.Vec256.Bit_pattern.t -> Alloc_mode.For_types.t -> Type_grammar.t
+
+val this_boxed_vec512 :
+  Vector_types.Vec512.Bit_pattern.t -> Alloc_mode.For_types.t -> Type_grammar.t
 
 val these_boxed_float32s :
   Numeric_types.Float32_by_bit_pattern.Set.t ->

@@ -37,14 +37,40 @@ typedef __m128d simd_float64x2_t;
 typedef __m128i simd_int128_t;
 typedef __m128i simd_int64x2_t;
 
-#define Vec128_val(v)  _mm_loadu_ps((const float*)Bp_val(v))
-#define Vec128_vald(v) _mm_loadu_pd((const double*)Bp_val(v))
-#define Vec128_vali(v) _mm_loadu_si128((const __m128i*)Bp_val(v))
-#define Store_vec128_val(v,x)  _mm_storeu_ps((float*)Bp_val(v), x)
-#define Store_vec128_vald(v,x) _mm_storeu_pd((double*)Bp_val(v), x)
-#define Store_vec128_vali(v,x) _mm_storeu_si128((__m128i*)Bp_val(v), x)
+#define Vec128_val(v) _mm_loadu_ps((const float *)Bp_val(v))
+#define Vec128_vald(v) _mm_loadu_pd((const double *)Bp_val(v))
+#define Vec128_vali(v) _mm_loadu_si128((const __m128i *)Bp_val(v))
+#define Store_vec128_val(v, x) _mm_storeu_ps((float *)Bp_val(v), x)
+#define Store_vec128_vald(v, x) _mm_storeu_pd((double *)Bp_val(v), x)
+#define Store_vec128_vali(v, x) _mm_storeu_si128((__m128i *)Bp_val(v), x)
 
-#else /* ARCH_SSE2 */
+CAMLextern value caml_copy_vec128(simd_float32x4_t);
+CAMLextern value caml_copy_vec128i(simd_int128_t);
+CAMLextern value caml_copy_vec128d(simd_float64x2_t);
+
+#endif /* ARCH_SSE2 */
+
+#ifdef ARCH_AVX
+#include <immintrin.h>
+
+typedef __m256 simd_poly256_t;
+typedef __m256 simd_float32x8_t;
+typedef __m256d simd_float64x4_t;
+typedef __m256i simd_int256_t;
+typedef __m256i simd_int64x4_t;
+
+#define Vec256_val(v) _mm256_loadu_ps((const float *)Bp_val(v))
+#define Vec256_vald(v) _mm256_loadu_pd((const double *)Bp_val(v))
+#define Vec256_vali(v) _mm256_loadu_si256((const __m256i *)Bp_val(v))
+#define Store_vec256_val(v, x) _mm256_storeu_ps((float *)Bp_val(v), x)
+#define Store_vec256_vald(v, x) _mm256_storeu_pd((double *)Bp_val(v), x)
+#define Store_vec256_vali(v, x) _mm256_storeu_si256((__m256i *)Bp_val(v), x)
+
+CAMLextern value caml_copy_vec256(simd_float32x8_t);
+CAMLextern value caml_copy_vec256i(simd_int256_t);
+CAMLextern value caml_copy_vec256d(simd_float64x4_t);
+
+#endif /* ARCH_AVX */
 
 #ifdef __ARM_NEON
 #include <arm_neon.h>
@@ -56,20 +82,17 @@ typedef float64x2_t simd_float64x2_t;
 typedef poly128_t simd_int128_t;
 typedef int64x2_t simd_int64x2_t;
 
-#define Vec128_val(v)  vld1q_f32((const float*)Bp_val(v))
-#define Vec128_vald(v) vld1q_f64((const double*)Bp_val(v))
-#define Vec128_vali(v) vldrq_p128((const simd_int128_t*)Bp_val(v))
-#define Store_vec128_val(v,x)  vst1q_f32((float*)Bp_val(v), x)
-#define Store_vec128_vald(v,x) vst1q_f64((double*)Bp_val(v), x)
-#define Store_vec128_vali(v,x) vstrq_p128((simd_int128_t*)Bp_val(v), x)
-
-#else /* __ARM_NEON */
-#error "Target not supported"
-#endif /* __ARM_NEON */
-#endif /* ARCH_SSE2 */
+#define Vec128_val(v) vld1q_f32((const float *)Bp_val(v))
+#define Vec128_vald(v) vld1q_f64((const double *)Bp_val(v))
+#define Vec128_vali(v) vldrq_p128((const simd_int128_t *)Bp_val(v))
+#define Store_vec128_val(v, x) vst1q_f32((float *)Bp_val(v), x)
+#define Store_vec128_vald(v, x) vst1q_f64((double *)Bp_val(v), x)
+#define Store_vec128_vali(v, x) vstrq_p128((simd_int128_t *)Bp_val(v), x)
 
 CAMLextern value caml_copy_vec128(simd_float32x4_t);
 CAMLextern value caml_copy_vec128i(simd_int128_t);
 CAMLextern value caml_copy_vec128d(simd_float64x2_t);
+
+#endif /* __ARM_NEON */
 
 #endif /* CAML_SIMD_H */

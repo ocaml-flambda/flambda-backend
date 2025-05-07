@@ -149,7 +149,8 @@ let extra_args_for_const_ctor_of_variant
             ( Unique_tag_and_size _ | Variant _ | Closure_single_entry _
             | Number
                 ( ( Naked_float | Naked_float32 | Naked_int32 | Naked_int64
-                  | Naked_nativeint | Naked_vec128 ),
+                  | Naked_nativeint | Naked_vec128 | Naked_vec256 | Naked_vec512
+                    ),
                   _ ) );
         is_int = _
       } ->
@@ -270,6 +271,12 @@ and compute_extra_args_for_one_decision_and_use_aux ~(pass : U.pass) rewrite_id
       rewrite_id ~typing_env_at_use arg_being_unboxed
   | Unbox (Number (Naked_vec128, epa)) ->
     compute_extra_arg_for_number Naked_vec128 Unboxers.Vec128.unboxer epa
+      rewrite_id ~typing_env_at_use arg_being_unboxed
+  | Unbox (Number (Naked_vec256, epa)) ->
+    compute_extra_arg_for_number Naked_vec256 Unboxers.Vec256.unboxer epa
+      rewrite_id ~typing_env_at_use arg_being_unboxed
+  | Unbox (Number (Naked_vec512, epa)) ->
+    compute_extra_arg_for_number Naked_vec512 Unboxers.Vec512.unboxer epa
       rewrite_id ~typing_env_at_use arg_being_unboxed
 
 and compute_extra_args_for_block ~pass rewrite_id ~typing_env_at_use
@@ -483,7 +490,8 @@ let add_extra_params_and_args extra_params_and_args ~invalids decision =
                   ( Unique_tag_and_size _ | Variant _ | Closure_single_entry _
                   | Number
                       ( ( Naked_float32 | Naked_float | Naked_int32
-                        | Naked_int64 | Naked_vec128 | Naked_nativeint ),
+                        | Naked_int64 | Naked_vec128 | Naked_vec256
+                        | Naked_vec512 | Naked_nativeint ),
                         _ ) );
               is_int = _
             } ->

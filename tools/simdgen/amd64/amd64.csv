@@ -114,7 +114,7 @@ AAS,3F,,NA,NA,NA,NA
 "ANDN r64a, r64b, r/m64",VEX.NDS.LZ.0F38.W1 F2 /r,BMI1,ModRM:reg (w),VEX.vvvv (r),ModRM:r/m (r),NA
 "ANDNPD xmm1, xmm2/m128",66 0F 55 /r,SSE2,"ModRM:reg (r, w)",ModRM:r/m (r),NA,NA
 "VANDNPD xmm1, xmm2, xmm3/m128",VEX.NDS.128.66.0F 55 /r,AVX,ModRM:reg (w),VEX.vvvv,ModRM:r/m (r),NA
-"VANDNPD ymm1, ymm2, ymm3/m256",VEX.NDS.256.66.0F 55/r,AVX,ModRM:reg (w),VEX.vvvv,ModRM:r/m (r),NA
+"VANDNPD ymm1, ymm2, ymm3/m256",VEX.NDS.256.66.0F 55 /r,AVX,ModRM:reg (w),VEX.vvvv,ModRM:r/m (r),NA
 "VANDNPD xmm1 {k1}{z}, xmm2, xmm3/m128/m64bcst",EVEX.NDS.128.66.0F.W1 55 /r,AVX512VL AVX512DQ,ModRM:reg (w),EVEX.vvvv,ModRM:r/m (r),NA
 "VANDNPD ymm1 {k1}{z}, ymm2, ymm3/m256/m64bcst",EVEX.NDS.256.66.0F.W1 55 /r,AVX512VL AVX512DQ,ModRM:reg (w),EVEX.vvvv,ModRM:r/m (r),NA
 "VANDNPD zmm1 {k1}{z}, zmm2, zmm3/m512/m64bcst",EVEX.NDS.512.66.0F.W1 55 /r,AVX512DQ,ModRM:reg (w),EVEX.vvvv,ModRM:r/m (r),NA

@@ -73,3 +73,7 @@ module Int64 : Number_S
 module Nativeint : Number_S
 
 module Vec128 : Number_S
+
+module Vec256 : Number_S
+
+module Vec512 : Number_S

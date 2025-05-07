@@ -46,6 +46,8 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     | Cconst_float _ -> true
     | Cconst_symbol _ -> true
     | Cconst_vec128 _ -> true
+    | Cconst_vec256 _ -> true
+    | Cconst_vec512 _ -> true
     | Cvar _ -> true
     | Ctuple el -> List.for_all is_simple_expr el
     | Clet (_id, arg, body) -> is_simple_expr arg && is_simple_expr body
@@ -94,7 +96,8 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     let module EC = SU.Effect_and_coeffect in
     match exp with
     | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
-    | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ ->
+    | Cconst_symbol _ | Cconst_vec128 _ | Cconst_vec256 _ | Cconst_vec512 _
+    | Cvar _ ->
       EC.none
     | Ctuple el -> EC.join_list_map el effects_of
     | Clet (_id, arg, body) -> EC.join (effects_of arg) (effects_of body)
@@ -640,10 +643,11 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
               match r.Reg.typ with
               | Float -> Double
               | Float32 -> Single { reg = Float32 }
-              | Vec128 ->
-                (* 128-bit memory operations are unaligned by default. Aligned
-                   (big)array operations are handled separately via cmm. *)
-                Onetwentyeight_unaligned
+              (* SIMD memory operations are unaligned by default. Aligned
+                 bigarray operations are handled separately via cmm. *)
+              | Vec128 -> Onetwentyeight_unaligned
+              | Vec256 -> Twofiftysix_unaligned
+              | Vec512 -> Fivetwelve_unaligned
               | Val | Addr | Int -> Word_val
               | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
             in
@@ -727,6 +731,12 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     | Cconst_vec128 (bits, _dbg) ->
       let r = Reg.createv Cmm.typ_vec128 in
       Ok (insert_op env sub_cfg (SU.make_const_vec128 bits) [||] r)
+    | Cconst_vec256 (bits, _dbg) ->
+      let r = Reg.createv Cmm.typ_vec256 in
+      Ok (insert_op env sub_cfg (Operation.Const_vec256 bits) [||] r)
+    | Cconst_vec512 (bits, _dbg) ->
+      let r = Reg.createv Cmm.typ_vec512 in
+      Ok (insert_op env sub_cfg (Operation.Const_vec512 bits) [||] r)
     | Cconst_symbol (n, _dbg) ->
       (* Cconst_symbol _ evaluates to a statically-allocated address, so its
          value fits in a typ_int register and is never changed by the GC.
@@ -811,7 +821,8 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
     | Ccatch (rec_flag, handlers, e1) ->
       emit_tail_catch env sub_cfg rec_flag handlers e1
     | Cop _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
-    | Cconst_symbol _ | Cconst_vec128 _ | Cvar _ | Ctuple _ | Cexit _ ->
+    | Cconst_symbol _ | Cconst_vec128 _ | Cconst_vec256 _ | Cconst_vec512 _
+    | Cvar _ | Ctuple _ | Cexit _ ->
       emit_return env sub_cfg exp (SU.pop_all_traps env)
 
   and emit_expr_raise (env : SU.environment) sub_cfg k
@@ -1162,7 +1173,7 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
             match reg.Reg.typ with
             | Addr -> assert false
             | Valx2 -> Misc.fatal_error "Unexpected machtype_component Valx2"
-            | Val | Int | Float | Vec128 | Float32 -> ())
+            | Val | Int | Float | Vec128 | Vec256 | Vec512 | Float32 -> ())
           src;
         SU.insert_moves env sub_cfg src tmp_regs;
         SU.insert_moves env sub_cfg tmp_regs (Array.concat handler.regs);

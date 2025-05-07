@@ -31,11 +31,19 @@ module Extension : sig
              to Haswell, i.e. they do not cause an illegal instruction fault.
              That means code using LZCNT/TZCNT will silently produce wrong results. *)
     | BMI2
+    | AVX
+    | AVX2
+    | AVX512F
 
   val name : t -> string
 
   val enabled : t -> bool
   val available : unit -> t list
+
+  val allow_vec256 : unit -> bool
+  val allow_vec512 : unit -> bool
+  val require_vec256 : unit -> unit
+  val require_vec512 : unit -> unit
 end
 
 val trap_notes : bool ref
@@ -115,6 +123,10 @@ val size_int : int
 val size_float : int
 
 val size_vec128 : int
+
+val size_vec256 : int
+
+val size_vec512 : int
 
 val allow_unaligned_access : bool
 

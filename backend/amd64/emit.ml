@@ -134,12 +134,22 @@ let _label s = D.label ~typ:QWORD s
 let int_reg_name : X86_ast.reg64 array =
   [| RAX; RBX; RDI; RSI; RDX; RCX; R8; R9; R12; R13; R10; R11; RBP |]
 
-let float_reg_name = Array.init 16 (fun i -> X86_ast.XMM i)
+let xmm_reg_name = Array.init 16 (fun i -> X86_ast.XMM i)
+
+let ymm_reg_name = Array.init 16 (fun i -> X86_ast.YMM i)
+
+let zmm_reg_name = Array.init 16 (fun i -> X86_ast.ZMM i)
 
 let register_name typ r : X86_ast.arg =
   match (typ : Cmm.machtype_component) with
   | Int | Val | Addr -> Reg64 int_reg_name.(r)
-  | Float | Float32 | Vec128 | Valx2 -> Regf float_reg_name.(r - 100)
+  | Float | Float32 | Vec128 | Valx2 -> Regf xmm_reg_name.(r - 100)
+  | Vec256 ->
+    Arch.Extension.require_vec256 ();
+    Regf ymm_reg_name.(r - 100)
+  | Vec512 ->
+    Arch.Extension.require_vec512 ();
+    Regf zmm_reg_name.(r - 100)
 
 let phys_rax = phys_reg Int 0
 
@@ -369,6 +379,12 @@ let x86_data_type_for_stack_slot : Cmm.machtype_component -> X86_ast.data_type =
   function
   | Float -> REAL8
   | Vec128 -> VEC128
+  | Vec256 ->
+    Arch.Extension.require_vec256 ();
+    VEC256
+  | Vec512 ->
+    Arch.Extension.require_vec512 ();
+    VEC512
   | Valx2 -> VEC128
   | Int | Addr | Val -> QWORD
   | Float32 -> REAL4
@@ -464,7 +480,7 @@ let record_frame_label live dbg =
         Misc.fatal_errorf "bad GC root %a" Printreg.reg r
       | { typ = Val | Valx2; loc = Unknown; _ } as r ->
         Misc.fatal_errorf "Unknown location %a" Printreg.reg r
-      | { typ = Int | Float | Float32 | Vec128; _ } -> ())
+      | { typ = Int | Float | Float32 | Vec128 | Vec256 | Vec512; _ } -> ())
     live;
   record_frame_descr ~label:lbl ~frame_size:(frame_size ())
     ~live_offset:!live_offset dbg;
@@ -819,6 +835,10 @@ let emit_float_constant f lbl =
 
 let vec128_constants = ref ([] : (Cmm.vec128_bits * label) list)
 
+let vec256_constants = ref ([] : (Cmm.vec256_bits * label) list)
+
+let vec512_constants = ref ([] : (Cmm.vec512_bits * label) list)
+
 let add_vec128_constant bits =
   try List.assoc bits !vec128_constants
   with Not_found ->
@@ -826,11 +846,48 @@ let add_vec128_constant bits =
     vec128_constants := (bits, lbl) :: !vec128_constants;
     lbl
 
-let emit_vec128_constant ({ high; low } : Cmm.vec128_bits) lbl =
+let add_vec256_constant bits =
+  try List.assoc bits !vec256_constants
+  with Not_found ->
+    let lbl = Cmm.new_label () in
+    vec256_constants := (bits, lbl) :: !vec256_constants;
+    lbl
+
+let add_vec512_constant bits =
+  try List.assoc bits !vec512_constants
+  with Not_found ->
+    let lbl = Cmm.new_label () in
+    vec512_constants := (bits, lbl) :: !vec512_constants;
+    lbl
+
+let emit_vec128_constant ({ word0; word1 } : Cmm.vec128_bits) lbl =
   (* SIMD vectors respect little-endian byte order *)
   _label (emit_label lbl);
-  D.qword (Const low);
-  D.qword (Const high)
+  D.qword (Const word0);
+  D.qword (Const word1)
+
+let emit_vec256_constant ({ word0; word1; word2; word3 } : Cmm.vec256_bits) lbl
+    =
+  (* SIMD vectors respect little-endian byte order *)
+  _label (emit_label lbl);
+  D.qword (Const word0);
+  D.qword (Const word1);
+  D.qword (Const word2);
+  D.qword (Const word3)
+
+let emit_vec512_constant
+    ({ word0; word1; word2; word3; word4; word5; word6; word7 } :
+      Cmm.vec512_bits) lbl =
+  (* SIMD vectors respect little-endian byte order *)
+  _label (emit_label lbl);
+  D.qword (Const word0);
+  D.qword (Const word1);
+  D.qword (Const word2);
+  D.qword (Const word3);
+  D.qword (Const word4);
+  D.qword (Const word5);
+  D.qword (Const word6);
+  D.qword (Const word7)
 
 let global_maybe_protected sym =
   D.global sym;
@@ -858,6 +915,7 @@ let emit_global_label s =
   emit_global_label_for_symbol lbl
 
 let move (src : Reg.t) (dst : Reg.t) =
+  let open Amd64_simd_instrs in
   let distinct = not (Reg.same_loc src dst) in
   match src.typ, src.loc, dst.typ, dst.loc with
   | _, Stack _, _, Stack _ ->
@@ -865,11 +923,18 @@ let move (src : Reg.t) (dst : Reg.t) =
       src Printreg.reg dst
   | Float, Reg _, Float, Reg _
   | Float32, Reg _, Float32, Reg _
-  | ( (Vec128 | Valx2),
-      (Reg _ | Stack _),
-      (Vec128 | Valx2),
-      (Reg _ | Stack _ (* Vec128 stack slots are always aligned. *)) ) ->
+  | (Vec128 | Valx2), (Reg _ | Stack _), (Vec128 | Valx2), (Reg _ | Stack _) ->
+    (* Vec128 stack slots are always aligned. *)
     if distinct then I.movapd (reg src) (reg dst)
+  | Vec256, Reg _, Vec256, (Reg _ | Stack _) ->
+    (* CR-soon mslater: align vec256/512 stack slots *)
+    if distinct then I.simd vmovupd_Y_Ym256 [| reg dst; reg src |]
+  | Vec256, Stack _, Vec256, Reg _ ->
+    (* CR-soon mslater: align vec256/512 stack slots *)
+    if distinct then I.simd vmovupd_Ym256_Y [| reg dst; reg src |]
+  | Vec512, _, Vec512, _ ->
+    (* CR-soon mslater: avx512 *)
+    Misc.fatal_error "avx512 instructions not yet implemented"
   | Float, (Reg _ | Stack _), Float, (Reg _ | Stack _) ->
     if distinct then I.movsd (reg src) (reg dst)
   | Float32, (Reg _ | Stack _), Float32, (Reg _ | Stack _) ->
@@ -882,7 +947,7 @@ let move (src : Reg.t) (dst : Reg.t) =
     Misc.fatal_errorf
       "Illegal move with an unknown register location (%a to %a)\n" Printreg.reg
       src Printreg.reg dst
-  | ( (Float | Float32 | Vec128 | Int | Val | Addr | Valx2),
+  | ( (Float | Float32 | Vec128 | Vec256 | Vec512 | Int | Val | Addr | Valx2),
       (Reg _ | Stack _),
       _,
       _ ) ->
@@ -899,7 +964,7 @@ let stack_to_stack_move (src : Reg.t) (dst : Reg.t) =
       (* Not calling move because r15 is not in int_reg_name. *)
       I.mov (reg src) r15;
       I.mov r15 (reg dst)
-    | Float | Addr | Vec128 | Valx2 | Float32 ->
+    | Float | Addr | Vec128 | Vec256 | Vec512 | Valx2 | Float32 ->
       Misc.fatal_errorf
         "Unexpected register type for stack to stack move: from %a to %a\n"
         Printreg.reg src Printreg.reg dst
@@ -1075,6 +1140,8 @@ end = struct
       | I32
       | I64
       | I128
+      | I256
+      | I512
 
     let of_memory_chunk : Cmm.memory_chunk -> t = function
       | Byte_unsigned | Byte_signed -> I8
@@ -1082,12 +1149,16 @@ end = struct
       | Thirtytwo_unsigned | Thirtytwo_signed | Single _ -> I32
       | Word_int | Word_val | Double -> I64
       | Onetwentyeight_unaligned | Onetwentyeight_aligned -> I128
+      | Twofiftysix_unaligned | Twofiftysix_aligned -> I256
+      | Fivetwelve_unaligned | Fivetwelve_aligned -> I512
 
     external to_bytes_log2 : t -> int = "%identity"
 
     let to_bytes t = 1 lsl to_bytes_log2 t
 
-    let is_small = function I8 | I16 | I32 -> true | I64 | I128 -> false
+    let is_small = function
+      | I8 | I16 | I32 -> true
+      | I64 | I128 | I256 | I512 -> false
   end
 
   let mov_address src dest =
@@ -1450,6 +1521,7 @@ let emit_simd_instr_with_memory_arg (simd : Simd.Mem.operation) i addr =
 
 (* Emit an instruction *)
 let emit_instr ~first ~fallthrough i =
+  let open Amd64_simd_instrs in
   emit_debug_info_linear i;
   match i.desc with
   | Lend -> ()
@@ -1512,13 +1584,36 @@ let emit_instr ~first ~fallthrough i =
     | _ ->
       let lbl = add_float_constant f in
       I.movsd (mem64_rip REAL8 (emit_label lbl)) (res i 0))
-  | Lop (Const_vec128 { high; low }) -> (
-    match high, low with
+  | Lop (Const_vec128 { word0; word1 }) -> (
+    match word0, word1 with
     | 0x0000_0000_0000_0000L, 0x0000_0000_0000_0000L ->
       I.xorpd (res i 0) (res i 0)
     | _ ->
-      let lbl = add_vec128_constant { high; low } in
+      let lbl = add_vec128_constant { word0; word1 } in
       I.movapd (mem64_rip VEC128 (emit_label lbl)) (res i 0))
+  | Lop (Const_vec256 { word0; word1; word2; word3 }) -> (
+    match
+      List.for_all (fun w -> Int64.equal w 0L) [word0; word1; word2; word3]
+    with
+    | true -> I.xorpd (res i 0) (res i 0)
+    | false ->
+      let lbl = add_vec256_constant { word0; word1; word2; word3 } in
+      I.movapd (mem64_rip VEC256 (emit_label lbl)) (res i 0))
+  | Lop
+      (Const_vec512 { word0; word1; word2; word3; word4; word5; word6; word7 })
+    -> (
+    match
+      List.for_all
+        (fun w -> Int64.equal w 0L)
+        [word0; word1; word2; word3; word4; word5; word6; word7]
+    with
+    | true -> I.xorpd (res i 0) (res i 0)
+    | false ->
+      let lbl =
+        add_vec512_constant
+          { word0; word1; word2; word3; word4; word5; word6; word7 }
+      in
+      I.movapd (mem64_rip VEC512 (emit_label lbl)) (res i 0))
   | Lop (Const_symbol s) ->
     add_used_symbol s.sym_name;
     load_symbol_addr s (res i 0)
@@ -1596,6 +1691,15 @@ let emit_instr ~first ~fallthrough i =
     | Thirtytwo_signed -> load ~dest:(res i 0) DWORD I.movsxd
     | Onetwentyeight_unaligned -> load ~dest:(res i 0) VEC128 I.movupd
     | Onetwentyeight_aligned -> load ~dest:(res i 0) VEC128 I.movapd
+    | Twofiftysix_unaligned ->
+      load ~dest:(res i 0) VEC256 (fun dst src ->
+          I.simd vmovupd_Y_Ym256 [| dst; src |])
+    | Twofiftysix_aligned ->
+      load ~dest:(res i 0) VEC256 (fun dst src ->
+          I.simd vmovapd_Y_Ym256 [| dst; src |])
+    | Fivetwelve_unaligned | Fivetwelve_aligned ->
+      (* CR-soon mslater: avx512 *)
+      Misc.fatal_error "avx512 instructions not yet implemented"
     | Single { reg = Float64 } -> load ~dest:(res i 0) REAL4 I.cvtss2sd
     | Single { reg = Float32 } -> load ~dest:(res i 0) REAL4 I.movss
     | Double -> load ~dest:(res i 0) REAL8 I.movsd)
@@ -1617,6 +1721,13 @@ let emit_instr ~first ~fallthrough i =
     | Thirtytwo_signed | Thirtytwo_unsigned -> store DWORD arg32 I.mov
     | Onetwentyeight_unaligned -> store VEC128 arg I.movupd
     | Onetwentyeight_aligned -> store VEC128 arg I.movapd
+    | Twofiftysix_unaligned ->
+      store VEC256 arg (fun dst src -> I.simd vmovupd_Ym256_Y [| dst; src |])
+    | Twofiftysix_aligned ->
+      store VEC256 arg (fun dst src -> I.simd vmovapd_Ym256_Y [| dst; src |])
+    | Fivetwelve_unaligned | Fivetwelve_aligned ->
+      (* CR-soon mslater: avx512 *)
+      Misc.fatal_error "avx512 instructions not yet implemented"
     | Single { reg = Float64 } ->
       let src = arg i 0 in
       I.cvtsd2ss src xmm15;
@@ -2132,9 +2243,23 @@ let emit_item : Cmm.data_item -> unit = function
   | Csingle f -> D.long (Const (Int64.of_int32 (Int32.bits_of_float f)))
   | Cdouble f -> D.qword (Const (Int64.bits_of_float f))
   (* SIMD vectors respect little-endian byte order *)
-  | Cvec128 { high; low } ->
-    D.qword (Const low);
-    D.qword (Const high)
+  | Cvec128 { word0; word1 } ->
+    D.qword (Const word0);
+    D.qword (Const word1)
+  | Cvec256 { word0; word1; word2; word3 } ->
+    D.qword (Const word0);
+    D.qword (Const word1);
+    D.qword (Const word2);
+    D.qword (Const word3)
+  | Cvec512 { word0; word1; word2; word3; word4; word5; word6; word7 } ->
+    D.qword (Const word0);
+    D.qword (Const word1);
+    D.qword (Const word2);
+    D.qword (Const word3);
+    D.qword (Const word4);
+    D.qword (Const word5);
+    D.qword (Const word6);
+    D.qword (Const word7)
   | Csymbol_address s ->
     add_used_symbol s.sym_name;
     D.qword (ConstLabel (emit_cmm_symbol s))
@@ -2293,7 +2418,9 @@ let size_of_regs regs =
       | Float | Float32 ->
         (* Float32 slots still take up a full word *)
         acc + size_float
-      | Vec128 | Valx2 -> acc + size_vec128)
+      | Vec128 | Valx2 -> acc + size_vec128
+      | Vec256 -> acc + size_vec256
+      | Vec512 -> acc + size_vec512)
     regs 0
 
 let stack_locations ~offset regs =
@@ -2309,6 +2436,8 @@ let stack_locations ~offset regs =
             (* Float32 slots still take up a full word *)
             size_float
           | Vec128 | Valx2 -> size_vec128
+          | Vec256 -> size_vec256
+          | Vec512 -> size_vec512
         in
         next, make_stack_loc n r ~offset :: offsets)
       regs (0, [])
@@ -2409,7 +2538,7 @@ let emit_probe_handler_wrapper p =
         | Stack (Outgoing k) -> (
           match r.typ with
           | Val -> k :: acc
-          | Int | Float | Vec128 | Float32 -> acc
+          | Int | Float | Vec128 | Vec256 | Vec512 | Float32 -> acc
           | Valx2 -> k :: (k + Arch.size_addr) :: acc
           | Addr -> Misc.fatal_errorf "bad GC root %a" Printreg.reg r)
         | Stack (Incoming _ | Reg.Local _ | Domainstate _) | Reg _ | Unknown ->
@@ -2598,6 +2727,28 @@ let end_assembly () =
       D.section [".rodata.cst16"] (Some "aM") ["@progbits"; "16"]);
     D.align ~data:true 16;
     List.iter (fun (cst, lbl) -> emit_vec128_constant cst lbl) !vec128_constants);
+  if not (Misc.Stdlib.List.is_empty !vec256_constants)
+  then (
+    (match system with
+    | S_macosx -> D.section ["__TEXT"; "__literal32"] None ["32byte_literals"]
+    | S_mingw64 | S_cygwin -> D.section [".rdata"] (Some "dr") []
+    | S_win64 -> D.data ()
+    | S_linux | S_gnu | S_solaris | S_win32 | S_linux_elf | S_bsd_elf | S_beos
+    | S_mingw | S_freebsd | S_netbsd | S_openbsd | S_unknown ->
+      D.section [".rodata.cst32"] (Some "aM") ["@progbits"; "32"]);
+    D.align ~data:true 32;
+    List.iter (fun (cst, lbl) -> emit_vec256_constant cst lbl) !vec256_constants);
+  if not (Misc.Stdlib.List.is_empty !vec512_constants)
+  then (
+    (match system with
+    | S_macosx -> D.section ["__TEXT"; "__literal64"] None ["64byte_literals"]
+    | S_mingw64 | S_cygwin -> D.section [".rdata"] (Some "dr") []
+    | S_win64 -> D.data ()
+    | S_linux | S_gnu | S_solaris | S_win32 | S_linux_elf | S_bsd_elf | S_beos
+    | S_mingw | S_freebsd | S_netbsd | S_openbsd | S_unknown ->
+      D.section [".rodata.cst64"] (Some "aM") ["@progbits"; "64"]);
+    D.align ~data:true 64;
+    List.iter (fun (cst, lbl) -> emit_vec512_constant cst lbl) !vec512_constants);
   (* Emit probe handler wrappers *)
   List.iter emit_probe_handler_wrapper !probes;
   emit_named_text_section (Cmm_helpers.make_symbol "jump_tables");

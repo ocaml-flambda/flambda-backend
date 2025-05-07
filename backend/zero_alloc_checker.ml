@@ -1640,6 +1640,8 @@ end = struct
       | Alloc_block_kind_float -> pp "float"
       | Alloc_block_kind_float32 -> pp "float32"
       | Alloc_block_kind_vec128 -> pp "vec128"
+      | Alloc_block_kind_vec256 -> pp "vec256"
+      | Alloc_block_kind_vec512 -> pp "vec512"
       | Alloc_block_kind_boxed_int bi ->
         pp
           (match bi with
@@ -1651,6 +1653,8 @@ end = struct
       | Alloc_block_kind_int32_u_array -> pp "unboxed_int32_array"
       | Alloc_block_kind_int64_u_array -> pp "unboxed_int64_array"
       | Alloc_block_kind_vec128_u_array -> pp "unboxed_vec128_array"
+      | Alloc_block_kind_vec256_u_array -> pp "unboxed_vec256_array"
+      | Alloc_block_kind_vec512_u_array -> pp "unboxed_vec512_array"
     in
     let pp_alloc_dbginfo_item (item : Cmm.alloc_dbginfo_item) =
       let pp_alloc ppf =
@@ -2475,7 +2479,8 @@ end = struct
       let operation t ~next (op : Operation.t) dbg =
         match op with
         | Move | Spill | Reload | Const_int _ | Const_float32 _ | Const_float _
-        | Const_symbol _ | Const_vec128 _ | Load _ | Floatop _
+        | Const_symbol _ | Const_vec128 _ | Const_vec256 _ | Const_vec512 _
+        | Load _ | Floatop _
         | Intop_imm
             ( ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
               | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ ),

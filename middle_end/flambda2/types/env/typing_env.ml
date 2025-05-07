@@ -1384,8 +1384,8 @@ end = struct
         | Ok (No_alias { is_null = Not_null; non_null = Ok head }) -> (
           match head with
           | Mutable_block _ | Boxed_float _ | Boxed_float32 _ | Boxed_int32 _
-          | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | String _
-          | Array _ ->
+          | Boxed_int64 _ | Boxed_vec128 _ | Boxed_vec256 _ | Boxed_vec512 _
+          | Boxed_nativeint _ | String _ | Array _ ->
             Value_unknown
           | Closures { by_function_slot; alloc_mode = _ } -> (
             let approx_of_closures_entry ~exact function_slot closures_entry :
@@ -1451,8 +1451,8 @@ end = struct
               | Some (_, Float_record, _, _, _) -> Value_unknown
             else Value_unknown))
       | Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
-      | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _
-      | Region _ ->
+      | Naked_int64 _ | Naked_vec128 _ | Naked_vec256 _ | Naked_vec512 _
+      | Naked_nativeint _ | Rec_info _ | Region _ ->
         assert false
     in
     let symbol_ty, _binding_time_and_mode =

@@ -891,6 +891,8 @@ end = struct
           (* flambda2 only supports 64-bit targets for now, so naked numbers can
              only be of size 1 *)
           | Naked_number Naked_vec128 -> 2, true
+          | Naked_number Naked_vec256 -> 4, true
+          | Naked_number Naked_vec512 -> 8, true
           | Value -> (
             match[@ocaml.warning "-4"]
               Flambda_kind.With_subkind.non_null_value_subkind kind

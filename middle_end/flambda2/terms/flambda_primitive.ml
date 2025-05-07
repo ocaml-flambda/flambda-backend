@@ -126,6 +126,8 @@ module Array_kind = struct
     | Naked_int64s
     | Naked_nativeints
     | Naked_vec128s
+    | Naked_vec256s
+    | Naked_vec512s
     | Unboxed_product of t list
 
   let rec print ppf t =
@@ -138,6 +140,8 @@ module Array_kind = struct
     | Naked_int64s -> Format.pp_print_string ppf "Naked_int64s"
     | Naked_nativeints -> Format.pp_print_string ppf "Naked_nativeints"
     | Naked_vec128s -> Format.pp_print_string ppf "Naked_vec128s"
+    | Naked_vec256s -> Format.pp_print_string ppf "Naked_vec256s"
+    | Naked_vec512s -> Format.pp_print_string ppf "Naked_vec512s"
     | Unboxed_product fields ->
       Format.fprintf ppf "@[<hov 1>(Unboxed_product@ @[<hov 1>(%a)@])@]"
         (Format.pp_print_list ~pp_sep:Format.pp_print_space print)
@@ -155,6 +159,8 @@ module Array_kind = struct
     | Naked_int64s -> [K.With_subkind.naked_int64]
     | Naked_nativeints -> [K.With_subkind.naked_nativeint]
     | Naked_vec128s -> [K.With_subkind.naked_vec128]
+    | Naked_vec256s -> [K.With_subkind.naked_vec256]
+    | Naked_vec512s -> [K.With_subkind.naked_vec512]
     | Unboxed_product kinds -> List.concat_map element_kinds kinds
 
   let element_kinds_for_primitive t =
@@ -176,13 +182,14 @@ module Array_kind = struct
     match t with
     | Immediates | Values | Naked_floats | Unboxed_product _ -> false
     | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
-    | Naked_vec128s ->
+    | Naked_vec128s | Naked_vec256s | Naked_vec512s ->
       true
 
   let rec width_in_scalars t =
     match t with
     | Immediates | Values | Naked_floats | Naked_float32s | Naked_int32s
-    | Naked_int64s | Naked_nativeints | Naked_vec128s ->
+    | Naked_int64s | Naked_nativeints | Naked_vec128s | Naked_vec256s
+    | Naked_vec512s ->
       1
     | Unboxed_product kinds ->
       List.fold_left
@@ -200,6 +207,8 @@ module Array_load_kind = struct
     | Naked_int64s
     | Naked_nativeints
     | Naked_vec128s
+    | Naked_vec256s
+    | Naked_vec512s
 
   let print ppf t =
     match t with
@@ -211,6 +220,8 @@ module Array_load_kind = struct
     | Naked_int64s -> Format.pp_print_string ppf "Naked_int64s"
     | Naked_nativeints -> Format.pp_print_string ppf "Naked_nativeints"
     | Naked_vec128s -> Format.pp_print_string ppf "Naked_vec128s"
+    | Naked_vec256s -> Format.pp_print_string ppf "Naked_vec256s"
+    | Naked_vec512s -> Format.pp_print_string ppf "Naked_vec512s"
 
   let compare = Stdlib.compare
 
@@ -224,6 +235,8 @@ module Array_load_kind = struct
     | Naked_int64s -> Flambda_kind.With_subkind.naked_int64
     | Naked_nativeints -> Flambda_kind.With_subkind.naked_nativeint
     | Naked_vec128s -> Flambda_kind.With_subkind.naked_vec128
+    | Naked_vec256s -> Flambda_kind.With_subkind.naked_vec256
+    | Naked_vec512s -> Flambda_kind.With_subkind.naked_vec512
 end
 
 module Array_set_kind = struct
@@ -236,6 +249,8 @@ module Array_set_kind = struct
     | Naked_int64s
     | Naked_nativeints
     | Naked_vec128s
+    | Naked_vec256s
+    | Naked_vec512s
 
   let print ppf t =
     match t with
@@ -249,6 +264,8 @@ module Array_set_kind = struct
     | Naked_int64s -> Format.pp_print_string ppf "Naked_int64s"
     | Naked_nativeints -> Format.pp_print_string ppf "Naked_nativeints"
     | Naked_vec128s -> Format.pp_print_string ppf "Naked_vec128s"
+    | Naked_vec256s -> Format.pp_print_string ppf "Naked_vec256s"
+    | Naked_vec512s -> Format.pp_print_string ppf "Naked_vec512s"
 
   let compare = Stdlib.compare
 
@@ -262,6 +279,8 @@ module Array_set_kind = struct
     | Naked_int64s -> Flambda_kind.With_subkind.naked_int64
     | Naked_nativeints -> Flambda_kind.With_subkind.naked_nativeint
     | Naked_vec128s -> Flambda_kind.With_subkind.naked_vec128
+    | Naked_vec256s -> Flambda_kind.With_subkind.naked_vec256
+    | Naked_vec512s -> Flambda_kind.With_subkind.naked_vec512
 end
 
 module Array_kind_for_length = struct
@@ -342,6 +361,8 @@ module Duplicate_array_kind = struct
     | Naked_int64s of { length : Targetint_31_63.t option }
     | Naked_nativeints of { length : Targetint_31_63.t option }
     | Naked_vec128s of { length : Targetint_31_63.t option }
+    | Naked_vec256s of { length : Targetint_31_63.t option }
+    | Naked_vec512s of { length : Targetint_31_63.t option }
 
   let [@ocamlformat "disable"] print ppf t =
     match t with
@@ -383,6 +404,18 @@ module Duplicate_array_kind = struct
           @[<hov 1>(length@ %a)@]\
           )@]"
         (Misc.Stdlib.Option.print Targetint_31_63.print) length
+    | Naked_vec256s { length; } ->
+      Format.fprintf ppf
+        "@[<hov 1>(Naked_vec256s@ \
+          @[<hov 1>(length@ %a)@]\
+          )@]"
+        (Misc.Stdlib.Option.print Targetint_31_63.print) length
+    | Naked_vec512s { length; } ->
+      Format.fprintf ppf
+        "@[<hov 1>(Naked_vec512s@ \
+          @[<hov 1>(length@ %a)@]\
+          )@]"
+        (Misc.Stdlib.Option.print Targetint_31_63.print) length
 
   let compare t1 t2 =
     match t1, t2 with
@@ -401,6 +434,10 @@ module Duplicate_array_kind = struct
       Option.compare Targetint_31_63.compare length1 length2
     | Naked_vec128s { length = length1 }, Naked_vec128s { length = length2 } ->
       Option.compare Targetint_31_63.compare length1 length2
+    | Naked_vec256s { length = length1 }, Naked_vec256s { length = length2 } ->
+      Option.compare Targetint_31_63.compare length1 length2
+    | Naked_vec512s { length = length1 }, Naked_vec512s { length = length2 } ->
+      Option.compare Targetint_31_63.compare length1 length2
     | Immediates, _ -> -1
     | _, Immediates -> 1
     | Values, _ -> -1
@@ -415,6 +452,10 @@ module Duplicate_array_kind = struct
     | _, Naked_int64s _ -> 1
     | Naked_vec128s _, _ -> -1
     | _, Naked_vec128s _ -> 1
+    | Naked_vec256s _, _ -> -1
+    | _, Naked_vec256s _ -> 1
+    | Naked_vec512s _, _ -> -1
+    | _, Naked_vec512s _ -> 1
 end
 
 module Block_access_field_kind = struct
@@ -601,7 +642,8 @@ let reading_from_an_array (array_kind : Array_kind.t)
   let effects : Effects.t =
     match array_kind with
     | Immediates | Values | Naked_floats | Naked_float32s | Naked_int32s
-    | Naked_int64s | Naked_nativeints | Naked_vec128s | Unboxed_product _ ->
+    | Naked_int64s | Naked_nativeints | Naked_vec128s | Naked_vec256s
+    | Naked_vec512s | Unboxed_product _ ->
       No_effects
   in
   let coeffects =
