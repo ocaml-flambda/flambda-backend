@@ -453,7 +453,7 @@ module Type = struct
       sprintf
         "(fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b))"
     | String -> sprintf "(fun a b -> String.equal (globalize a) (globalize b))"
-    | Int64x2_u -> sprintf "int64x2_u_equal"
+    | Int64x2_u -> sprintf "Metaprogramming_lib__.int64x2_u_equal"
 
   let rec reverse_unboxed_paths (ty : t) acc cur_path =
     match ty with
@@ -569,3 +569,29 @@ module Type_naming = struct
     List.sort decls ~cmp:(fun (i, _) (j, _) -> Int.compare i j)
     |> List.map ~f:snd
 end
+
+let preamble ~bytecode =
+  {|module Metaprogramming_lib__ = struct
+|}
+  ^ ( if bytecode
+    then
+      {|  let int64x2_u_equal (_ : int64x2#) (_ : int64x2#) = failwith "should not be called from bytecode"
+|}
+    else
+      {|  external box_int64x2 : int64x2# -> int64x2 = "%box_vec128"
+  external unbox_int64x2 : int64x2 -> int64x2# = "%unbox_vec128"
+  external interleave_low_64 : int64x2# -> int64x2# -> int64x2# = "caml_vec128_unreachable" "caml_simd_vec128_interleave_low_64" [@@unboxed] [@@builtin]
+  external interleave_high_64 : int64x2# -> int64x2# -> int64x2# = "caml_vec128_unreachable" "caml_simd_vec128_interleave_high_64" [@@unboxed] [@@builtin]
+  external int64x2_of_int64 : int64 -> int64x2# = "caml_vec128_unreachable" "caml_int64x2_low_of_int64" [@@unboxed] [@@builtin]
+  external int64_of_int64x2 : int64x2# -> int64 = "caml_vec128_unreachable" "caml_int64x2_low_to_int64" [@@unboxed] [@@builtin]
+
+  let int64x2_u_equal i1 i2 =
+      let a1 = int64_of_int64x2 i1 in
+      let b1 = int64_of_int64x2 (interleave_high_64 i1 i1) in
+      let a2 = int64_of_int64x2 i2 in
+      let b2 = int64_of_int64x2 (interleave_high_64 i2 i2) in
+      Int64.equal a1 a2 && Int64.equal b1 b2
+|}
+    )
+  ^ {|end
+|}

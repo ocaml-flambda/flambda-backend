@@ -1,4 +1,7 @@
-(** String-munging metaprogramming used for test generation *)
+(** String metaprogramming used for test generation *)
+
+(** Code assumed to be included by generated code *)
+val preamble : bytecode:bool -> string
 
 module Tree : sig
   type 'a t =
