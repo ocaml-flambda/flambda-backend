@@ -298,6 +298,8 @@ let emit_cmm_symbol (s : Cmm.symbol) =
   (* This label is special in that it is not of the form "Lnumber". Instead, we
      take the symbol, encode it, and turn the resulting string into a label. The
      label will still be prefixed by ".L"/"L" when emitting. *)
+  (* CR sspies: Extend the new directives code to support local symbols properly (as
+    opposed to requiring chaining the label and symbol code).*)
   | Local -> `Label (L.create_string_unchecked Text (S.encode sym))
 
 let emit_cmm_symbol_str (s : Cmm.symbol) =
@@ -343,6 +345,7 @@ let emit_named_text_section ?(suffix = "") func_name =
          currently does not supported named text sections. In the rest of this
          file, we pretend the section is called Text rather than the function
          specific text section. *)
+      (* CR sspies: Add proper support for named text sections. *)
       ND.unsafe_set_internal_section_ref Text)
   else ND.text ()
 
@@ -868,6 +871,7 @@ let global_maybe_protected (sym : S.t) =
          inlining. *)
       ND.protected sym
 
+(* CR sspies: The naming of these functions is confusing. *)
 let emit_global_label_for_symbol ~section lbl =
   add_def_symbol lbl;
   let lbl = S.create lbl in
@@ -2129,6 +2133,8 @@ let fundecl fundecl =
   else global_maybe_protected fundecl_sym;
   (* Even if the function name is Local, still emit an actual linker symbol for
      it. This provides symbols for perf, gdb, and similar tools *)
+  (* CR sspies: The following two directives should be abstracted into a single function
+    in the directives module. *)
   ND.define_symbol_label ~section:Text fundecl_sym;
   ND.define_label (L.create_string_unchecked Text (S.encode fundecl_sym));
   emit_debug_info fundecl.fun_dbg;
@@ -2163,6 +2169,7 @@ let emit_item : Cmm.data_item -> unit = function
     | Global ->
       global_maybe_protected sym;
       add_def_symbol s.sym_name;
+      (* CR sspies: Figure out why we emit two labels for the function.*)
       ND.define_symbol_label ~section:Data sym;
       ND.define_label (L.create_string_unchecked Data (S.encode sym)))
   | Cint8 n -> ND.int8 (Numbers.Int8.of_int_exn n)
@@ -2230,6 +2237,7 @@ let begin_assembly unix =
   if is_win64 system
   then (
     (* These symbols are emitted without additional encoding.*)
+    (* CR sspies: Pre-define these symbols in [Asm_symbol]. *)
     ND.extrn (S.create ~already_encoded:true "caml_call_gc");
     ND.extrn (S.create ~already_encoded:true "caml_c_call");
     ND.extrn (S.create ~already_encoded:true "caml_allocN");
@@ -2604,6 +2612,8 @@ let emit_trap_notes () =
     ND.int64 0L
   in
   let emit_desc () =
+    (* CR sspies: This symbol could be pre-defined in [Asm_symbol].
+       We could then avoid exposing the `already_encoded` flag. *)
     ND.symbol (S.create ~already_encoded:true "_.stapsdt.base");
     emit_labels (L.Set.elements traps.enter_traps);
     emit_labels traps.push_traps;
@@ -2671,8 +2681,6 @@ let end_assembly () =
         (fun lbl ofs ->
           let lbl = label_to_asm_label ~section:Text lbl in
           let ofs = Targetint.of_int32 ofs in
-          (* CR sspies: On x86 macOS, this changes the name of the variables,
-             but should be semantically equivalent. *)
           ND.between_this_and_label_offset_32bit_expr ~upper:lbl
             ~offset_upper:ofs);
       efa_def_label =
