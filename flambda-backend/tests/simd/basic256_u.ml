@@ -261,7 +261,7 @@ let () =
 ;;
 
 (* Pass mixed floats/vectors to an external *)
-(* external vectors_and_floats :
+external vectors_and_floats :
   int64x4 -> float -> int64x4 -> float -> int64x4 -> float -> int64x4 -> float ->
   float -> int64x4 -> int64x4 -> float -> float -> int64x4
   = "" "vectors_and_floats256" [@@noalloc] [@@unboxed]
@@ -275,8 +275,8 @@ let () =
   let v5 = int64x4_of_int64s 21L 22L 23L 24L in
   let v = vectors_and_floats v0 25. v1 26. v2 27. v3 28. 29. v4 v5 30. 31. in
   check v 177L 189L 201L 213L
-;; *)
-(*
+;;
+
 (* Pass mixed ints/floats/vectors to an external *)
 external vectors_and_floats_and_ints :
   int64x4 -> float -> int64x4 -> int64 -> int64x4 -> float -> int64x4 -> int64 ->
@@ -345,4 +345,4 @@ let () =
   let v5 = int64x4_of_int64s 21L 22L 23L 24L in
   let v = vectors_and_floats_and_ints v0 25. v1 26L v2 27. v3 28L 29L v4 v5 30. 31. in
   check v 177L 189L 201L 213L
-;; *)
+;;
