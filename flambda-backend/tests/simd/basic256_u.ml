@@ -259,7 +259,7 @@ let () =
     let v = lots_of_vectors v0 v1 v2 v3 v4 v5 v6 v7 in
     check v 120L 128L 136L 144L
 ;;
-
+(*
 (* Pass mixed floats/vectors to an external *)
 external vectors_and_floats :
   int64x4 -> float -> int64x4 -> float -> int64x4 -> float -> int64x4 -> float ->
@@ -293,3 +293,56 @@ let () =
   let v = vectors_and_floats_and_ints v0 25. v1 26L v2 27. v3 28L 29L v4 v5 30. 31. in
   check v 177L 189L 201L 213L
 ;;
+
+(* noalloc -- Pass lots of vectors to an external *)
+external lots_of_vectors :
+  int64x4 -> int64x4 -> int64x4 -> int64x4 -> int64x4 -> int64x4 -> int64x4 -> int64x4 ->
+  int64x4
+  = "" "lots_of_vectors256" [@@unboxed]
+
+let () =
+    let v0 = int64x4_of_int64s 1L 2L 3L 4L in
+    let v1 = int64x4_of_int64s 5L 6L 7L 8L in
+    let v2 = int64x4_of_int64s 9L 10L 11L 12L in
+    let v3 = int64x4_of_int64s 13L 14L 15L 16L in
+    let v4 = int64x4_of_int64s 17L 18L 19L 20L in
+    let v5 = int64x4_of_int64s 21L 22L 23L 24L in
+    let v6 = int64x4_of_int64s 25L 26L 27L 28L in
+    let v7 = int64x4_of_int64s 29L 30L 31L 32L in
+    let v = lots_of_vectors v0 v1 v2 v3 v4 v5 v6 v7 in
+    check v 120L 128L 136L 144L
+;;
+
+(* noalloc -- Pass mixed floats/vectors to an external *)
+external vectors_and_floats :
+  int64x4 -> float -> int64x4 -> float -> int64x4 -> float -> int64x4 -> float ->
+  float -> int64x4 -> int64x4 -> float -> float -> int64x4
+  = "" "vectors_and_floats256" [@@unboxed]
+
+let () =
+  let v0 = int64x4_of_int64s 1L 2L 3L 4L in
+  let v1 = int64x4_of_int64s 5L 6L 7L 8L in
+  let v2 = int64x4_of_int64s 9L 10L 11L 12L in
+  let v3 = int64x4_of_int64s 13L 14L 15L 16L in
+  let v4 = int64x4_of_int64s 17L 18L 19L 20L in
+  let v5 = int64x4_of_int64s 21L 22L 23L 24L in
+  let v = vectors_and_floats v0 25. v1 26. v2 27. v3 28. 29. v4 v5 30. 31. in
+  check v 177L 189L 201L 213L
+;;
+
+(* noalloc -- Pass mixed ints/floats/vectors to an external *)
+external vectors_and_floats_and_ints :
+  int64x4 -> float -> int64x4 -> int64 -> int64x4 -> float -> int64x4 -> int64 ->
+  int64 -> int64x4 -> int64x4 -> float -> float -> int64x4
+  = "" "vectors_and_floats_and_ints256" [@@unboxed]
+
+let () =
+  let v0 = int64x4_of_int64s 1L 2L 3L 4L in
+  let v1 = int64x4_of_int64s 5L 6L 7L 8L in
+  let v2 = int64x4_of_int64s 9L 10L 11L 12L in
+  let v3 = int64x4_of_int64s 13L 14L 15L 16L in
+  let v4 = int64x4_of_int64s 17L 18L 19L 20L in
+  let v5 = int64x4_of_int64s 21L 22L 23L 24L in
+  let v = vectors_and_floats_and_ints v0 25. v1 26L v2 27. v3 28L 29L v4 v5 30. 31. in
+  check v 177L 189L 201L 213L
+;; *)

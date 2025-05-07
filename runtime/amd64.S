@@ -782,102 +782,153 @@ ENDFUNCTION(G(caml_call_local_realloc))
 1:      movq    $-1, Caml_state(young_limit);   \
         ret
 
+#define Make_c_call(name, align_stack, unalign_stack) \
+        CFI_SIGNAL_FRAME; \
+        ENTER_FUNCTION; \
+        TSAN_SAVE_CALLER_REGS; \
+        TSAN_ENTER_FUNCTION(0); \
+        TSAN_RESTORE_CALLER_REGS; \
+LBL(name): \
+/* Arguments: \
+        C arguments         : %rdi, %rsi, %rdx, %rcx, %r8, and %r9 \
+        C function          : %rax */ \
+/* Switch from OCaml to C */ \
+        SWITCH_OCAML_TO_C; \
+/* Make the alloc ptr available to the C code */ \
+        movq    %r15, Caml_state(young_ptr); \
+/* Call the function (address in %rax) */ \
+        align_stack; \
+        C_call  (*%rax); \
+        unalign_stack; \
+/* Prepare for return to OCaml */ \
+        movq    Caml_state(young_ptr), %r15; \
+/* Load ocaml stack and restore global variables */ \
+        SWITCH_C_TO_OCAML; \
+#ifdef WITH_THREAD_SANITIZER \
+/* Save non-callee-saved registers %rax and %xmm0 before C call */ \
+        pushq   %rax; CFI_ADJUST(8); \
+        subq    $16, %rsp; CFI_ADJUST(16); \
+        movupd   %xmm0, (%rsp); \
+        TSAN_EXIT_FUNCTION; \
+        movupd  (%rsp), %xmm0; \
+        addq    $16, %rsp; CFI_ADJUST(-16); \
+        popq    %rax; CFI_ADJUST(-8); \
+#endif \
+        LEAVE_FUNCTION; \
+/* Return to OCaml caller */ \
+        RET_FROM_C_CALL;
+
+#define PUSH_FRAME64 pushq %rbp; CFI_ADJUST(8); movq %rsp, %rbp; CFI_DEF_CFA_REGISTER(DW_REG_rbp); andq $-64, %rsp;
+#define PUSH_FRAME32 pushq %rbp; CFI_ADJUST(8); movq %rsp, %rbp; CFI_DEF_CFA_REGISTER(DW_REG_rbp); andq $-32, %rsp;
+#define POP_FRAME    movq %rbp, %rsp; CFI_DEF_CFA_REGISTER(DW_REG_rsp); popq %rbp; CFI_ADJUST(-8);
+
 FUNCTION(G(caml_c_call))
 CFI_STARTPROC
-        CFI_SIGNAL_FRAME
-        ENTER_FUNCTION
-        TSAN_SAVE_CALLER_REGS
-        TSAN_ENTER_FUNCTION(0)
-        TSAN_RESTORE_CALLER_REGS
-LBL(caml_c_call):
-    /* Arguments:
-        C arguments         : %rdi, %rsi, %rdx, %rcx, %r8, and %r9
-        C function          : %rax */
-    /* Switch from OCaml to C */
-        SWITCH_OCAML_TO_C
-    /* Make the alloc ptr available to the C code */
-        movq    %r15, Caml_state(young_ptr)
-    /* Call the function (address in %rax) */
-        C_call  (*%rax)
-    /* Prepare for return to OCaml */
-        movq    Caml_state(young_ptr), %r15
-    /* Load ocaml stack and restore global variables */
-        SWITCH_C_TO_OCAML
-#ifdef WITH_THREAD_SANITIZER
-    /* Save non-callee-saved registers %rax and %xmm0 before C call */
-        pushq   %rax; CFI_ADJUST(8);
-        subq    $16, %rsp; CFI_ADJUST(16);
-        movupd   %xmm0, (%rsp)
-        TSAN_EXIT_FUNCTION
-        movupd  (%rsp), %xmm0
-        addq    $16, %rsp; CFI_ADJUST(-16);
-        popq    %rax; CFI_ADJUST(-8);
-#endif
-        LEAVE_FUNCTION
-    /* Return to OCaml caller */
-        RET_FROM_C_CALL
+Make_c_call(caml_c_call,,)
 CFI_ENDPROC
 ENDFUNCTION(G(caml_c_call))
 
+FUNCTION(G(caml_c_call_align_32))
+CFI_STARTPROC
+Make_c_call(caml_c_call_align_32,PUSH_FRAME32,POP_FRAME)
+CFI_ENDPROC
+ENDFUNCTION(G(caml_c_call_align_32))
+
+FUNCTION(G(caml_c_call_align_64))
+CFI_STARTPROC
+Make_c_call(caml_c_call_align_64,PUSH_FRAME64,POP_FRAME)
+CFI_ENDPROC
+ENDFUNCTION(G(caml_c_call_align_64))
+
+#define Make_c_call_copy_stack_args(name, ...) \
+/* To correctly maintain frame pointers during stack reallocation, \
+   the runtime assumes that the caml_c_call stub does not push \
+   anything to the stack before the first frame pointer on the C stack. \
+   To guarantee this when stack arguments are used, the actual pushing \
+   of arguments is done by this separate function */ \
+    /* Set up a frame pointer even without WITH_FRAME_POINTERS, \
+       which we use to pop an unknown number of arguments later */ \
+        pushq   %rbp; CFI_ADJUST(8); \
+        movq    %rsp, %rbp; \
+        CFI_DEF_CFA_REGISTER(DW_REG_rbp); \
+    /* Copy arguments from OCaml to C stack */ \
+LBL(name##_0): \
+        subq    $8, %r12; \
+        cmpq    %r13,%r12; \
+        jb      LBL(name##_1); \
+        push    (%r12); \
+        jmp     LBL(name##_0); \
+LBL(name##_1): \
+        __VA_ARGS__; \
+#if defined(SYS_mingw64) || defined (SYS_cygwin) \
+    /* Allocate the shadow store on Windows (the c_stack_link store was used \
+       in calling caml_c_call_copy_stack_args) */ \
+        subq    $32, %rsp; \
+#endif \
+    /* Call the function (address in %rax) */ \
+        C_call  (*%rax); \
+    /* Pop arguments back off the stack */ \
+        movq    %rbp, %rsp; \
+        CFI_DEF_CFA_REGISTER(DW_REG_rsp); \
+        popq    %rbp; CFI_ADJUST(-8); \
+        ret;
+
+FUNCTION(G(caml_c_call_copy_stack_args))
+CFI_STARTPROC
+Make_c_call_copy_stack_args(caml_c_call_copy_stack_args)
+CFI_ENDPROC
+ENDFUNCTION(G(caml_c_call_copy_stack_args))
+
+FUNCTION(G(caml_c_call_copy_stack_args_align_32))
+CFI_STARTPROC
+Make_c_call_copy_stack_args(caml_c_call_copy_stack_args_align_32, andq $-32, %rsp)
+CFI_ENDPROC
+ENDFUNCTION(G(caml_c_call_copy_stack_args_align_32))
+
+FUNCTION(G(caml_c_call_copy_stack_args_align_64))
+CFI_STARTPROC
+Make_c_call_copy_stack_args(caml_c_call_copy_stack_args_align_64, andq $-64, %rsp)
+CFI_ENDPROC
+ENDFUNCTION(G(caml_c_call_copy_stack_args_align_64))
+
+#define Make_c_call_stack_args(alignment) \
+        CFI_SIGNAL_FRAME; \
+        ENTER_FUNCTION; \
+    /* Arguments: \
+        C arguments         : %rdi, %rsi, %rdx, %rcx, %r8, and %r9 \
+        C function          : %rax \
+        C stack args        : begin=%r13 end=%r12 */ \
+    /* Switch from OCaml to C */ \
+        SWITCH_OCAML_TO_C; \
+    /* Make the alloc ptr available to the C code */ \
+        movq    %r15, Caml_state(young_ptr); \
+    /* Copy the arguments and call */ \
+        C_call  (GCALL(caml_c_call_copy_stack_args##alignment)); \
+    /* Prepare for return to OCaml */ \
+        movq    Caml_state(young_ptr), %r15; \
+    /* Load ocaml stack and restore global variables */ \
+        SWITCH_C_TO_OCAML; \
+    /* Return to OCaml caller */ \
+        LEAVE_FUNCTION; \
+        RET_FROM_C_CALL;
+
 FUNCTION(G(caml_c_call_stack_args))
 CFI_STARTPROC
-        CFI_SIGNAL_FRAME
-        ENTER_FUNCTION
-    /* Arguments:
-        C arguments         : %rdi, %rsi, %rdx, %rcx, %r8, and %r9
-        C function          : %rax
-        C stack args        : begin=%r13 end=%r12 */
-    /* Switch from OCaml to C */
-        SWITCH_OCAML_TO_C
-    /* Make the alloc ptr available to the C code */
-        movq    %r15, Caml_state(young_ptr)
-    /* Copy the arguments and call */
-        C_call  (GCALL(caml_c_call_copy_stack_args))
-    /* Prepare for return to OCaml */
-        movq    Caml_state(young_ptr), %r15
-    /* Load ocaml stack and restore global variables */
-        SWITCH_C_TO_OCAML
-    /* Return to OCaml caller */
-        LEAVE_FUNCTION
-        RET_FROM_C_CALL
+Make_c_call_stack_args()
 CFI_ENDPROC
 ENDFUNCTION(G(caml_c_call_stack_args))
 
-/* To correctly maintain frame pointers during stack reallocation,
-   the runtime assumes that the caml_c_call stub does not push
-   anything to the stack before the first frame pointer on the C stack.
-   To guarantee this when stack arguments are used, the actual pushing
-   of arguments is done by this separate function */
-FUNCTION(G(caml_c_call_copy_stack_args))
+FUNCTION(G(caml_c_call_stack_args_align_32))
 CFI_STARTPROC
-    /* Set up a frame pointer even without WITH_FRAME_POINTERS,
-       which we use to pop an unknown number of arguments later */
-        pushq   %rbp; CFI_ADJUST(8)
-        movq    %rsp, %rbp
-        CFI_DEF_CFA_REGISTER(DW_REG_rbp)
-    /* Copy arguments from OCaml to C stack */
-        andq    $-64, %rsp
-LBL(105):
-        subq    $8, %r12
-        cmpq    %r13,%r12
-        jb      LBL(106)
-        push    (%r12)
-        jmp     LBL(105)
-LBL(106):
-#if defined(SYS_mingw64) || defined (SYS_cygwin)
-    /* Allocate the shadow store on Windows (the c_stack_link store was used
-       in calling caml_c_call_copy_stack_args) */
-        subq    $32, %rsp
-#endif
-    /* Call the function (address in %rax) */
-        C_call  (*%rax)
-    /* Pop arguments back off the stack */
-        movq    %rbp, %rsp
-        CFI_DEF_CFA_REGISTER(DW_REG_rsp)
-        popq    %rbp; CFI_ADJUST(-8)
-        ret
+Make_c_call_stack_args(_align_32)
 CFI_ENDPROC
-ENDFUNCTION(G(caml_c_call_copy_stack_args))
+ENDFUNCTION(G(caml_c_call_stack_args_align_32))
+
+FUNCTION(G(caml_c_call_stack_args_align_64))
+CFI_STARTPROC
+Make_c_call_stack_args(_align_64)
+CFI_ENDPROC
+ENDFUNCTION(G(caml_c_call_stack_args_align_64))
 
 /******************************************************************************/
 /* Start the OCaml program */

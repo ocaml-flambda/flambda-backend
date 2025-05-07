@@ -1635,19 +1635,33 @@ let emit_instr ~first ~fallthrough i =
       output_epilogue (fun () ->
           add_used_symbol func.sym_name;
           emit_jump func)
-  | Lcall_op (Lextcall { func; alloc; stack_ofs; _ }) ->
+  | Lcall_op (Lextcall { func; alloc; stack_ofs; ty_args; _ }) ->
+    let has_vec256 =
+      List.exists (fun x -> Cmm.equal_exttype x XVec256) ty_args
+    in
+    let has_vec512 =
+      List.exists (fun x -> Cmm.equal_exttype x XVec512) ty_args
+    in
     add_used_symbol func;
     if Config.runtime5 && stack_ofs > 0
     then (
       I.mov rsp r13;
       I.lea (mem64 QWORD stack_ofs RSP) r12;
       load_symbol_addr (Cmm.global_symbol func) rax;
-      emit_call (Cmm.global_symbol "caml_c_call_stack_args");
+      if has_vec512
+      then emit_call (Cmm.global_symbol "caml_c_call_stack_args_align_64")
+      else if has_vec256
+      then emit_call (Cmm.global_symbol "caml_c_call_stack_args_align_32")
+      else emit_call (Cmm.global_symbol "caml_c_call_stack_args");
       record_frame i.live (Dbg_other i.dbg))
     else if alloc
     then (
       load_symbol_addr (Cmm.global_symbol func) rax;
-      emit_call (Cmm.global_symbol "caml_c_call");
+      if has_vec512
+      then emit_call (Cmm.global_symbol "caml_c_call_align_64")
+      else if has_vec256
+      then emit_call (Cmm.global_symbol "caml_c_call_align_32")
+      else emit_call (Cmm.global_symbol "caml_c_call");
       record_frame i.live (Dbg_other i.dbg);
       if (not Config.runtime5) && not (is_win64 system)
       then
@@ -1659,21 +1673,36 @@ let emit_instr ~first ~fallthrough i =
            via a regular call, and restores r15 itself, thus avoiding the code
            size increase. *)
         I.mov (domain_field Domainstate.Domain_young_ptr) r15)
-    else (
-      if Config.runtime5
-      then (
-        I.mov rsp rbx;
-        cfi_remember_state ();
-        cfi_def_cfa_register "rbx";
-        (* NB: gdb has asserts on contiguous stacks that mean it will not unwind
-           through this unless we were to tag this calling frame with
-           cfi_signal_frame in it's definition. *)
-        I.mov (domain_field Domainstate.Domain_c_stack) rsp);
+    else if Config.runtime5
+    then (
+      I.mov rsp rbx;
+      cfi_remember_state ();
+      cfi_def_cfa_register "rbx";
+      (* NB: gdb has asserts on contiguous stacks that mean it will not unwind
+         through this unless we were to tag this calling frame with
+         cfi_signal_frame in it's definition. *)
+      I.mov (domain_field Domainstate.Domain_c_stack) rsp;
+      if has_vec512
+      then I.and_ (Imm (-64L)) rsp
+      else if has_vec256
+      then I.and_ (Imm (-32L)) rsp;
       emit_call (Cmm.global_symbol func);
-      if Config.runtime5
+      I.mov rbx rsp;
+      cfi_restore_state ())
+    else (
+      if has_vec256 || has_vec512
       then (
-        I.mov rbx rsp;
-        cfi_restore_state ()))
+        I.push rbp;
+        I.mov rsp rbp);
+      if has_vec512
+      then I.and_ (Imm (-64L)) rsp
+      else if has_vec256
+      then I.and_ (Imm (-32L)) rsp;
+      emit_call (Cmm.global_symbol func);
+      if has_vec256 || has_vec512
+      then (
+        I.mov rbp rsp;
+        I.pop rbp))
   | Lop (Stackoffset n) -> emit_stack_offset n
   | Lop (Load { memory_chunk; addressing_mode; _ }) -> (
     let[@inline always] load ~dest data_type instruction =
