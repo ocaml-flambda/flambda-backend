@@ -1,5 +1,17 @@
 (* String-munging metaprogramming used for test generation *)
 
+module Tree : sig
+  type 'a t =
+    | Branch of 'a t list  (** invariant: nonempty *)
+    | Leaf of 'a
+
+  val enumerate_shapes : max_num_nodes:int -> unit t list
+
+  val enumerate : shape:unit t -> leaves:'a list -> 'a t list
+
+  val to_string : ('a -> string) -> 'a t -> string
+end
+
 module Boxing : sig
   type t =
     | Boxed
@@ -27,16 +39,13 @@ module Layout : sig
   val reordered_in_block : t -> bool
 end
 
-(* CR rtjoa: split *)
-module Gen_type : sig
-  type 'a t =
-    | Record of
-        { name : 'a;
-          fields : ('a * 'a t) list;
-          boxing : Boxing.t
-        }
-    | Tuple of 'a t list * Boxing.t
-    | Option of 'a t
+module Type_structure : sig
+  (** Treats all types as structural. Names are added via [Type_naming]. *)
+
+  type t =
+    | Record of t list * Boxing.t
+    | Tuple of t list * Boxing.t
+    | Option of t
     | Int
     | Int64
     | Int64_u
@@ -50,22 +59,6 @@ module Gen_type : sig
     | Float32_u
     | String
     | Int64x2_u
-end
-
-module Tree : sig
-  type 'a t =
-    | Branch of 'a t list  (** invariant: nonempty *)
-    | Leaf of 'a
-
-  val enumerate_shapes : max_num_nodes:int -> unit t list
-
-  val enumerate : shape:unit t -> leaves:'a list -> 'a t list
-
-  val to_string : ('a -> string) -> 'a t -> string
-end
-
-module Type_structure : sig
-  type t = unit Gen_type.t
 
   val compare : t -> t -> int
 
@@ -82,7 +75,27 @@ module Type_structure : sig
 end
 
 module Type : sig
-  type t = string Gen_type.t
+  type t =
+    | Record of
+        { name : string;
+          fields : (string * t) list;
+          boxing : Boxing.t
+        }
+    | Tuple of t list * Boxing.t
+    | Option of t
+    | Int
+    | Int64
+    | Int64_u
+    | Int32
+    | Int32_u
+    | Nativeint
+    | Nativeint_u
+    | Float
+    | Float_u
+    | Float32
+    | Float32_u
+    | String
+    | Int64x2_u
 
   val compare : t -> t -> int
 

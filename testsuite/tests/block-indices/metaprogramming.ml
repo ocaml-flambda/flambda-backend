@@ -145,15 +145,11 @@ module Tree = struct
       sprintf "(%s)" (String.concat ~sep:"" (List.map forest ~f:(to_string f)))
 end
 
-module Gen_type = struct
-  type 'a t =
-    | Record of
-        { name : 'a;
-          fields : ('a * 'a t) list;
-          boxing : Boxing.t
-        }
-    | Tuple of 'a t list * Boxing.t
-    | Option of 'a t
+module Type_structure = struct
+  type t =
+    | Record of t list * Boxing.t
+    | Tuple of t list * Boxing.t
+    | Option of t
     | Int
     | Int64
     | Int64_u
@@ -167,24 +163,18 @@ module Gen_type = struct
     | Float32_u
     | String
     | Int64x2_u
-end
-
-module Type_structure = struct
-  type t = unit Gen_type.t
 
   let compare : t -> t -> int = Stdlib.compare
 
-  let rec kind (t : _ Gen_type.t) : Layout.t =
+  let rec kind t : Layout.t =
     match t with
-    | Record { boxing = Unboxed; fields; _ } ->
-      if List.length fields = 1
-      then kind (List.hd fields |> snd)
-      else Product (List.map fields ~f:(fun (_, t) -> kind t))
-    | Record { boxing = Boxed; _ }
+    | Record ([t], Unboxed) -> kind t
+    | Record (ts, Unboxed) -> Product (List.map ts ~f:kind)
+    | Tuple (ts, Unboxed) -> Product (List.map ts ~f:kind)
+    | Record (_, Boxed)
     | Tuple (_, Boxed)
     | Option _ | String | Int64 | Nativeint | Float32 | Int32 ->
       Value Addr_non_float
-    | Tuple (tys, Unboxed) -> Product (List.map tys ~f:kind)
     | Int -> Value Immediate
     | Float -> Value Float
     | Int64_u | Float_u -> Bits64
@@ -194,21 +184,14 @@ module Type_structure = struct
 
   let rec nested_unboxed_record (tree : t Tree.t) : t =
     match tree with
-    | Leaf ty -> ty
-    | Branch trees ->
-      let fields =
-        List.map trees ~f:(fun tree -> (), nested_unboxed_record tree)
-      in
-      Record { name = (); fields; boxing = Unboxed }
+    | Leaf t -> t
+    | Branch trees -> Record (List.map trees ~f:nested_unboxed_record, Unboxed)
 
   let rec boxed_record_containing_unboxed_records (tree : t Tree.t) : t option =
     match tree with
     | Leaf _ -> None
     | Branch trees ->
-      let fields =
-        List.map trees ~f:(fun tree -> (), nested_unboxed_record tree)
-      in
-      Some (Record { name = (); fields; boxing = Boxed })
+      Some (Record (List.map trees ~f:nested_unboxed_record, Boxed))
 
   let array_element (tree : t Tree.t) : t option =
     let ty = nested_unboxed_record tree in
@@ -230,11 +213,9 @@ module Type_structure = struct
 
   let rec to_string (t : t) : string =
     match t with
-    | Record { boxing; fields; name = () } ->
+    | Record (ts, boxing) ->
       sprintf "%s{ %s }" (Boxing.to_string boxing)
-        (List.map fields ~f:(fun ((), t) -> to_string t)
-        |> String.concat ~sep:"; "
-        )
+        (List.map ts ~f:to_string |> String.concat ~sep:"; ")
     | Tuple (ts, boxing) ->
       sprintf "%s(%s)" (Boxing.to_string boxing)
         (List.map ts ~f:to_string |> String.concat ~sep:", ")
@@ -269,15 +250,35 @@ let assemble_tuple ~sep (boxing : Boxing.t) xs =
   sprintf "%s(%s)" hash (String.concat ~sep xs)
 
 module Type = struct
-  type t = string Gen_type.t
+  type t =
+    | Record of
+        { name : string;
+          fields : (string * t) list;
+          boxing : Boxing.t
+        }
+    | Tuple of t list * Boxing.t
+    | Option of t
+    | Int
+    | Int64
+    | Int64_u
+    | Int32
+    | Int32_u
+    | Nativeint
+    | Nativeint_u
+    | Float
+    | Float_u
+    | Float32
+    | Float32_u
+    | String
+    | Int64x2_u
 
   let compare : t -> t -> int = Stdlib.compare
 
   let rec structure (t : t) : Type_structure.t =
     match t with
     | Record { fields; boxing; _ } ->
-      let fields = List.map fields ~f:(fun (_, t) -> (), structure t) in
-      Record { fields; boxing; name = () }
+      let ts = List.map fields ~f:(fun (_, t) -> structure t) in
+      Record (ts, boxing)
     | Tuple (ts, boxing) ->
       let ts = List.map ts ~f:structure in
       Tuple (ts, boxing)
@@ -316,7 +317,7 @@ module Type = struct
     | String -> "string"
     | Int64x2_u -> "int64x2#"
 
-  let rec num_subvals (t : _ Gen_type.t) : int =
+  let rec num_subvals t : int =
     match t with
     | Record { fields; _ } ->
       List.fold_left fields ~f:(fun acc (_, t) -> acc + num_subvals t) ~init:0
@@ -496,8 +497,7 @@ module Type_naming = struct
     | Some (_, ty) -> t, ty
     | None -> (
       match ty_structure with
-      | Record { name = (); fields; boxing } ->
-        let tys = List.map ~f:snd fields in
+      | Record (tys, boxing) ->
         let t, tys =
           List.fold_left_mapi ~init:t tys ~f:(fun t i ty ->
               let t, ty = add_names t ty in

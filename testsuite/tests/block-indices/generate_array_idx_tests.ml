@@ -13,13 +13,13 @@ let sprintf = Printf.sprintf
 let failwithf fmt = Printf.ksprintf failwith fmt
 
 let interesting_type_trees : Type_structure.t Tree.t list =
-  (* There are possible type trees, exponential in the size of the tree and the
-     number of types we consider.
+  (* There are many possible type trees, exponential in the size of the tree and
+     the number of types we consider.
 
      Here, we strike a balance by combining e.g. a collection of trees with
      many/complex shapes but few types and a collection of trees with a few
      shapes but many types. And so on. *)
-  let open Gen_type in
+  let open Type_structure in
   let deep_trees : unit Tree.t list =
     [ Branch [Leaf (); Branch [Leaf (); Leaf ()]];
       Branch [Branch [Leaf (); Leaf ()]; Leaf ()]
@@ -50,19 +50,6 @@ let array_element_types : Type_structure.t list =
 let nested_record_types : Type_structure.t list =
   List.filter_map interesting_type_trees
     ~f:Type_structure.boxed_record_containing_unboxed_records
-
-(* let () =
- *   List.iter array_element_types ~f:(fun ty ->
- *       Printf.printf "%s\n" (Type_structure.to_string ty)
- *   );
- *   List.iter nested_record_types ~f:(fun ty ->
- *       Printf.printf "%s\n" (Type_structure.to_string ty)
- *   );
- *   Printf.printf "%d\n"
- *     (Type_structure.compare
- *        (List.hd array_element_types)
- *        (List.hd nested_record_types)
- *     ) *)
 
 let naming = Type_naming.empty
 
