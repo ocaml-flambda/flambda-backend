@@ -151,12 +151,12 @@ let label_to_asm_label (l : label) ~(section : Asm_targets.Asm_section.t) : L.t
     =
   L.create_int section (Label.to_int l)
 
-(* X86 operands for jumping to the respective label. [emit_asm_label_arg] can be used with
-   [L.t] labels and [emit_label_arg] with Linear [label] arguments. *)
+(* X86 operands for jumping to the respective label. [emit_asm_label_arg] can be
+   used with [L.t] labels and [emit_label_arg] with Linear [label] arguments. *)
 let emit_asm_label_arg lbl = sym (L.encode lbl)
 
-let emit_label_arg ~section lbl_str = sym (L.encode (label_to_asm_label ~section lbl_str))
-
+let emit_label_arg ~section lbl_str =
+  sym (L.encode (label_to_asm_label ~section lbl_str))
 
 (* Override proc.ml *)
 
@@ -305,8 +305,8 @@ let emit_cmm_symbol (s : Cmm.symbol) =
   (* This label is special in that it is not of the form "Lnumber". Instead, we
      take the symbol, encode it, and turn the resulting string into a label. The
      label will still be prefixed by ".L"/"L" when emitting. *)
-  (* CR sspies: Extend the new directives code to support local symbols properly (as
-    opposed to requiring chaining the label and symbol code).*)
+  (* CR sspies: Extend the new directives code to support local symbols properly
+     (as opposed to requiring chaining the label and symbol code).*)
   | Local -> `Label (L.create_string_unchecked Text (S.encode sym))
 
 let emit_cmm_symbol_str (s : Cmm.symbol) =
@@ -2128,8 +2128,8 @@ let fundecl fundecl =
   else global_maybe_protected fundecl_sym;
   (* Even if the function name is Local, still emit an actual linker symbol for
      it. This provides symbols for perf, gdb, and similar tools *)
-  (* CR sspies: The following two directives should be abstracted into a single function
-    in the directives module. *)
+  (* CR sspies: The following two directives should be abstracted into a single
+     function in the directives module. *)
   ND.define_symbol_label ~section:Text fundecl_sym;
   ND.define_label (L.create_string_unchecked Text (S.encode fundecl_sym));
   emit_debug_info fundecl.fun_dbg;
@@ -2607,8 +2607,8 @@ let emit_trap_notes () =
     ND.int64 0L
   in
   let emit_desc () =
-    (* CR sspies: This symbol could be pre-defined in [Asm_symbol].
-       We could then avoid exposing the `already_encoded` flag. *)
+    (* CR sspies: This symbol could be pre-defined in [Asm_symbol]. We could
+       then avoid exposing the `already_encoded` flag. *)
     ND.symbol (S.create ~already_encoded:true "_.stapsdt.base");
     emit_labels (L.Set.elements traps.enter_traps);
     emit_labels traps.push_traps;
