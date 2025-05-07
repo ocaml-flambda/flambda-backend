@@ -108,7 +108,7 @@ Part of the contract of `uses_callback` is that it expects `f` not to
 capture its argument: unexpected results could ensue if `f` stored a
 reference to this table somewhere, and it was later used and modified
 after it was added to the global registry. Using `local_`
-annotations allow this constraint to be made explicit and checked at
+annotations allows this constraint to be made explicit and checked at
 compile time, by giving `uses_callback` the signature:
 
 ```ocaml

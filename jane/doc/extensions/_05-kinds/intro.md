@@ -6,7 +6,7 @@ title: Intro
 
 # The kind system
 
-OxCaml includes a system of _kinds_, which classifies types. Roughly, the kind
+OxCaml includes a system of _kinds_, which classify types. Roughly, the kind
 system adds an extra level to the type system: terms are classified by types,
 and types are classified by kinds. This page provides an overview of the kind
 system, but several other pages flesh out the details:
