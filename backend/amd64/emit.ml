@@ -77,11 +77,12 @@ let to_x86_directive (dir : ND.Directive.t) : X86_ast.asm_line list =
     else []
   in
   match dir with
-  | Align { bytes; data_section } ->
-    [X86_ast.Align (data_section, bytes)]
-    (* The data field is currently ignored by GAS and MASM, but used in the
-       binary emitter. The bytes field is only converted to the final value when
-       printing. *)
+  | Align { bytes; fill_x86_bin_emitter } ->
+    let data = match fill_x86_bin_emitter with Zero -> true | Nop -> false in
+    [X86_ast.Align (data, bytes)]
+    (* The [fill_x86_bin_emitter] field is currently ignored by GAS and MASM,
+       but used in the binary emitter. The bytes field is only converted to the
+       final value when printing. *)
   | Bytes { str; comment } -> comment_lines comment @ [X86_ast.Bytes str]
   | Comment s -> comment_lines (Some s)
   | Const { constant; comment } ->
@@ -269,7 +270,7 @@ let emit_imp_table ~section () =
   in
   ND.data ();
   ND.comment "relocation table start";
-  ND.align ~data_section:true ~bytes:8;
+  ND.align ~fill_x86_bin_emitter:Zero ~bytes:8;
   Hashtbl.iter f imp_table;
   ND.comment "relocation table end"
 
@@ -384,7 +385,7 @@ let emit_Llabel fallthrough lbl section_name =
         ND.cfi_startproc ())
     | None -> ());
   if (not fallthrough) && !fastcode_flag
-  then ND.align ~data_section:false ~bytes:4;
+  then ND.align ~fill_x86_bin_emitter:Nop ~bytes:4;
   ND.define_label lbl
 
 (* Output a pseudo-register *)
@@ -652,7 +653,7 @@ let emit_jump_table t =
   done
 
 let emit_jump_tables () =
-  ND.align ~data_section:true ~bytes:4;
+  ND.align ~fill_x86_bin_emitter:Zero ~bytes:4;
   List.iter emit_jump_table !jump_tables;
   jump_tables := []
 
@@ -2117,7 +2118,7 @@ let fundecl fundecl =
   current_basic_block_section
     := Option.value fundecl.fun_section_name ~default:"";
   emit_function_or_basic_block_section_name ();
-  ND.align ~data_section:false ~bytes:16;
+  ND.align ~fill_x86_bin_emitter:Nop ~bytes:16;
   add_def_symbol fundecl.fun_name;
   let fundecl_sym = S.create fundecl.fun_name in
   if is_macosx system
@@ -2204,11 +2205,11 @@ let emit_item : Cmm.data_item -> unit = function
       ND.label_plus_offset l ~offset_in_bytes:(Targetint.of_int_exn o))
   | Cstring s -> ND.string s
   | Cskip n -> ND.space ~bytes:n
-  | Calign n -> ND.align ~data_section:true ~bytes:n
+  | Calign n -> ND.align ~fill_x86_bin_emitter:Zero ~bytes:n
 
 let data l =
   ND.data ();
-  ND.align ~data_section:true ~bytes:8;
+  ND.align ~fill_x86_bin_emitter:Zero ~bytes:8;
   List.iter emit_item l
 
 (* Beginning / end of an assembly file *)
@@ -2257,12 +2258,12 @@ let begin_assembly unix =
   then (
     (* from amd64.S; could emit these constants on demand *)
     ND.switch_to_section Sixteen_byte_literals;
-    ND.align ~data_section:true ~bytes:16;
+    ND.align ~fill_x86_bin_emitter:Zero ~bytes:16;
     ND.define_symbol_label ~section:Sixteen_byte_literals
       (S.create "caml_negf_mask");
     ND.int64 0x8000000000000000L;
     ND.int64 0L;
-    ND.align ~data_section:true ~bytes:16;
+    ND.align ~fill_x86_bin_emitter:Zero ~bytes:16;
     ND.define_symbol_label ~section:Sixteen_byte_literals
       (S.create "caml_absf_mask");
     ND.int64 0x7FFFFFFFFFFFFFFFL;
@@ -2271,7 +2272,7 @@ let begin_assembly unix =
       (S.create "caml_negf32_mask");
     ND.int64 0x80000000L;
     ND.int64 0L;
-    ND.align ~data_section:true ~bytes:16;
+    ND.align ~fill_x86_bin_emitter:Zero ~bytes:16;
     ND.define_symbol_label ~section:Sixteen_byte_literals
       (S.create "caml_absf32_mask");
     ND.int64 0xFFFFFFFF7FFFFFFFL;
@@ -2405,7 +2406,7 @@ let emit_probe_handler_wrapper p =
   (* Emit function entry code *)
   ND.comment (Printf.sprintf "probe %s %s" probe_name handler_code_sym);
   emit_named_text_section (S.encode wrap_label);
-  ND.align ~data_section:false ~bytes:16;
+  ND.align ~fill_x86_bin_emitter:Nop ~bytes:16;
   ND.define_symbol_label ~section:Text wrap_label;
   ND.cfi_startproc ();
   if fp
@@ -2508,7 +2509,7 @@ let emit_stapsdt_base_section () =
       1L (* 1 byte; alternative would be . - _.stapsdt.base *))
 
 let emit_elf_note ~section ~owner ~typ ~emit_desc =
-  ND.align ~data_section:true ~bytes:4;
+  ND.align ~fill_x86_bin_emitter:Zero ~bytes:4;
   let a = L.create section in
   let b = L.create section in
   let c = L.create section in
@@ -2519,11 +2520,11 @@ let emit_elf_note ~section ~owner ~typ ~emit_desc =
   ND.define_label a;
   ND.string (owner ^ "\000");
   ND.define_label b;
-  ND.align ~data_section:true ~bytes:4;
+  ND.align ~fill_x86_bin_emitter:Zero ~bytes:4;
   ND.define_label c;
   emit_desc ();
   ND.define_label d;
-  ND.align ~data_section:true ~bytes:4
+  ND.align ~fill_x86_bin_emitter:Zero ~bytes:4
 
 let emit_probe_notes0 () =
   ND.switch_to_section Stapsdt_note;
@@ -2583,7 +2584,7 @@ let emit_probe_notes0 () =
     emit_stapsdt_base_section ();
     ND.switch_to_section Probes
   | true -> ND.switch_to_section Probes);
-  ND.align ~data_section:true ~bytes:2;
+  ND.align ~fill_x86_bin_emitter:Zero ~bytes:2;
   String.Map.iter
     (fun _ (label, enabled_at_init) ->
       (* Unresolved weak symbols have a zero value regardless of the following
@@ -2640,12 +2641,12 @@ let end_assembly () =
   if not (Misc.Stdlib.List.is_empty !float_constants)
   then (
     ND.switch_to_section Eight_byte_literals;
-    ND.align ~data_section:true ~bytes:8;
+    ND.align ~fill_x86_bin_emitter:Zero ~bytes:8;
     List.iter (fun (cst, lbl) -> emit_float_constant cst lbl) !float_constants);
   if not (Misc.Stdlib.List.is_empty !vec128_constants)
   then (
     ND.switch_to_section Sixteen_byte_literals;
-    ND.align ~data_section:true ~bytes:16;
+    ND.align ~fill_x86_bin_emitter:Zero ~bytes:16;
     List.iter (fun (cst, lbl) -> emit_vec128_constant cst lbl) !vec128_constants);
   (* Emit probe handler wrappers *)
   List.iter emit_probe_handler_wrapper !probes;
@@ -2663,7 +2664,12 @@ let end_assembly () =
   emit_global_label ~section:Data "data_end";
   ND.int64 0L;
   ND.text ();
-  ND.align ~data_section:true ~bytes:8;
+  (* We align to 8 bytes before the frame table. Perhaps somewhat
+     counterintuitively, we use [~fill_x86_bin_emitter:Zero] even though we are
+     now in the text section. The reason is that the additional padding will
+     never be executed, so there is no need to pad it with nops in the X86
+     binary emitter. *)
+  ND.align ~fill_x86_bin_emitter:Zero ~bytes:8;
   (* PR#7591 *)
   emit_global_label ~section:Text "frametable";
   (* CR sspies: Share the [emit_frames] code with the Arm backend. *)
@@ -2680,7 +2686,7 @@ let end_assembly () =
       efa_16 = (fun n -> ND.int16 (Numbers.Int16.of_int_exn n));
       efa_32 = (fun n -> ND.int32 n);
       efa_word = (fun n -> ND.targetint (Targetint.of_int_exn n));
-      efa_align = (fun n -> ND.align ~data_section:true ~bytes:n);
+      efa_align = (fun n -> ND.align ~fill_x86_bin_emitter:Zero ~bytes:n);
       efa_label_rel =
         (fun lbl ofs ->
           let lbl = label_to_asm_label ~section:Text lbl in
