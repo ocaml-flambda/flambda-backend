@@ -928,10 +928,10 @@ let move (src : Reg.t) (dst : Reg.t) =
     if distinct then I.movapd (reg src) (reg dst)
   | Vec256, Reg _, Vec256, (Reg _ | Stack _) ->
     (* CR-soon mslater: align vec256/512 stack slots *)
-    if distinct then I.simd vmovupd_Y_Ym256 [| reg dst; reg src |]
+    if distinct then I.simd vmovupd_Ym256_Y [| reg src; reg dst |]
   | Vec256, Stack _, Vec256, Reg _ ->
     (* CR-soon mslater: align vec256/512 stack slots *)
-    if distinct then I.simd vmovupd_Ym256_Y [| reg dst; reg src |]
+    if distinct then I.simd vmovupd_Y_Ym256 [| reg src; reg dst |]
   | Vec512, _, Vec512, _ ->
     (* CR-soon mslater: avx512 *)
     Misc.fatal_error "avx512 instructions not yet implemented"

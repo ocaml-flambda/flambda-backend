@@ -175,7 +175,6 @@ let calling_conventions
       ~last_float
       ~make_stack
       ~first_stack
-      ~align_for_c_call
       arg =
   let loc = Array.make (Array.length arg) Reg.dummy in
   let int = ref first_int in
@@ -244,9 +243,8 @@ let calling_conventions
           ofs := !ofs + size_float
         end
   done;
-  if align_for_c_call && !used_vec512 then (loc, Misc.align (max 0 !ofs) 64)
-  else if align_for_c_call && !used_vec256 then (loc, Misc.align (max 0 !ofs) 32)
-  else (loc, Misc.align (max 0 !ofs) 16)
+  (* When passing 256/512-bit vectors to an external, the runtime will align the stack. *)
+  (loc, Misc.align (max 0 !ofs) 16)
 
 let incoming ofs : Reg.stack_location =
   if ofs >= 0
@@ -267,7 +265,6 @@ let loc_arguments arg =
       ~last_float:109
       ~make_stack:outgoing
       ~first_stack:(- size_domainstate_args)
-      ~align_for_c_call:false
       arg
 
 let loc_parameters arg =
@@ -280,7 +277,6 @@ let loc_parameters arg =
       ~last_float:109
       ~make_stack:incoming
       ~first_stack:(- size_domainstate_args)
-      ~align_for_c_call:false
       arg
   in
   loc
@@ -294,7 +290,6 @@ let loc_results_call res =
     ~last_float:109
     ~make_stack:outgoing
     ~first_stack:(- size_domainstate_args)
-    ~align_for_c_call:false
     res
 let loc_results_return res =
   let (loc, _ofs) =
@@ -306,7 +301,6 @@ let loc_results_return res =
       ~last_float:109
       ~make_stack:incoming
       ~first_stack:(- size_domainstate_args)
-      ~align_for_c_call:false
       res
   in loc
 
@@ -337,7 +331,6 @@ let loc_external_results res =
       ~last_float:101
       ~make_stack:not_supported
       ~first_stack:0
-      ~align_for_c_call:false
       res
   in loc
 
@@ -350,7 +343,6 @@ let unix_loc_external_arguments arg =
     ~last_float:107
     ~make_stack:outgoing
     ~first_stack:0
-    ~align_for_c_call:true
     arg
 
 let win64_int_external_arguments =
