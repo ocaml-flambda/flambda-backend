@@ -151,6 +151,13 @@ let label_to_asm_label (l : label) ~(section : Asm_targets.Asm_section.t) : L.t
     =
   L.create_int section (Label.to_int l)
 
+(* X86 operands for jumping to the respective label. [emit_asm_label_arg] can be used with
+   [L.t] labels and [emit_label_arg] with Linear [label] arguments. *)
+let emit_asm_label_arg lbl = sym (L.encode lbl)
+
+let emit_label_arg ~section lbl_str = sym (L.encode (label_to_asm_label ~section lbl_str))
+
+
 (* Override proc.ml *)
 
 let int_reg_name : X86_ast.reg64 array =
@@ -515,7 +522,7 @@ let emit_call_gc gc =
   emit_debug_info gc.gc_dbg;
   emit_call call_gc_local_sym;
   ND.define_label gc.gc_frame;
-  I.jmp (sym (L.encode gc.gc_return_lbl))
+  I.jmp (emit_asm_label_arg gc.gc_return_lbl)
 
 (* Record calls to local stack reallocation *)
 
@@ -531,7 +538,7 @@ let emit_local_realloc lr =
   ND.define_label lr.lr_lbl;
   emit_debug_info lr.lr_dbg;
   emit_call (Cmm.global_symbol "caml_call_local_realloc");
-  I.jmp (sym (L.encode lr.lr_return_lbl))
+  I.jmp (emit_asm_label_arg lr.lr_return_lbl)
 
 (* Record calls to caml_ml_array_bound_error and caml_ml_array_align_error. In
    -g mode we maintain one call per bound check site. Without -g, we can share a
@@ -608,7 +615,7 @@ let emit_stack_realloc () =
       emit_call (Cmm.global_symbol "caml_call_realloc_stack");
       I.add (int 8) rsp;
       ND.cfi_adjust_cfa_offset ~bytes:(-8);
-      I.jmp (sym (L.encode sc_return)))
+      I.jmp (emit_asm_label_arg sc_return))
     !stack_realloc
 
 let emit_stack_check ~size_in_bytes ~save_registers =
@@ -620,7 +627,7 @@ let emit_stack_check ~size_in_bytes ~save_registers =
   I.lea (mem64 NONE (-(size_in_bytes + threshold_offset)) RSP) r10;
   I.cmp (domain_field Domainstate.Domain_current_stack) r10;
   if save_registers then I.pop r10;
-  I.jb (sym (L.encode overflow));
+  I.jb (emit_asm_label_arg overflow);
   ND.define_label ret;
   stack_realloc
     := { sc_label = overflow;
@@ -735,7 +742,7 @@ let emit_float_test (width : Cmm.float_width) (cmp : Cmm.float_comparison) i
   | CFeq ->
     let next = L.create Text in
     ucomi (arg i 1) (arg i 0);
-    I.jp (sym (L.encode next));
+    I.jp (emit_asm_label_arg next);
     (* skip if unordered *)
     taken E;
     (* branch taken if x=y *)
@@ -1213,12 +1220,12 @@ end = struct
       if not (Memory_chunk_size.is_small memory_chunk_size)
       then (
         I.cmp (int 0) shadow_address;
-        I.je (sym (L.encode asan_check_succeded_label))
+        I.je (emit_asm_label_arg asan_check_succeded_label)
         (* There is no slow-path check for word-sized and larger accesses *))
       else (
         I.movzx shadow_address r11;
         I.test (Reg8L R11) (Reg8L R11);
-        I.je (sym (L.encode asan_check_succeded_label));
+        I.je (emit_asm_label_arg asan_check_succeded_label);
         (* Begin the [SlowPathCheck]. Place [last_accessed_byte] in [r10]. ```
            last_accessed_byte = (address & 7) + kAccessSize - 1; ``` *)
         I.mov rdi r10;
@@ -1233,7 +1240,7 @@ end = struct
         in
         (* [ return (last_accessed_byte >= shadow_value) ] *)
         I.cmp (Reg8L R11) (Reg8L R10);
-        I.jl (sym (L.encode asan_check_succeded_label)))
+        I.jl (emit_asm_label_arg asan_check_succeded_label))
     in
     (* [ ReportError(address, kAccessSize, kIsWrite); ] *)
     let () =
@@ -1559,10 +1566,7 @@ let emit_instr ~first ~fallthrough i =
       match !tailrec_entry_point with
       | None -> Misc.fatal_error "jump to missing tailrec entry point"
       | Some tailrec_entry_point ->
-        let tailrec_entry_point =
-          label_to_asm_label ~section:Text tailrec_entry_point
-        in
-        I.jmp (sym (L.encode tailrec_entry_point))
+        I.jmp (emit_label_arg ~section:Text tailrec_entry_point)
     else
       output_epilogue (fun () ->
           add_used_symbol func.sym_name;
@@ -1670,7 +1674,7 @@ let emit_instr ~first ~fallthrough i =
       I.cmp (domain_field Domainstate.Domain_young_limit) r15;
       let lbl_call_gc = L.create Text in
       let lbl_frame = record_frame_label i.live (Dbg_alloc dbginfo) in
-      I.jb (sym (L.encode lbl_call_gc));
+      I.jb (emit_asm_label_arg lbl_call_gc);
       let lbl_after_alloc = L.create Text in
       ND.define_label lbl_after_alloc;
       I.lea (mem64 NONE 8 R15) (res i 0);
@@ -1699,7 +1703,7 @@ let emit_instr ~first ~fallthrough i =
     I.mov r (domain_field Domainstate.Domain_local_sp);
     I.cmp (domain_field Domainstate.Domain_local_limit) r;
     let lbl_call = L.create Text in
-    I.j L (sym (L.encode lbl_call));
+    I.j L (emit_asm_label_arg lbl_call);
     let lbl_after_alloc = L.create Text in
     ND.define_label lbl_after_alloc;
     I.add (domain_field Domainstate.Domain_local_top) r;
@@ -1712,7 +1716,7 @@ let emit_instr ~first ~fallthrough i =
     let gc_call_label = L.create Text in
     let lbl_after_poll = L.create Text in
     let lbl_frame = record_frame_label i.live (Dbg_alloc []) in
-    I.jbe (sym (L.encode gc_call_label));
+    I.jbe (emit_asm_label_arg gc_call_label);
     call_gc_sites
       := { gc_lbl = gc_call_label;
            gc_return_lbl = lbl_after_poll;
@@ -1823,9 +1827,9 @@ let emit_instr ~first ~fallthrough i =
       let lbl_z = L.create Text in
       let lbl_nz = L.create Text in
       I.bsr (arg i 0) (res i 0);
-      I.je (sym (L.encode lbl_z));
+      I.je (emit_asm_label_arg lbl_z);
       I.xor (int 63) (res i 0);
-      I.jmp (sym (L.encode lbl_nz));
+      I.jmp (emit_asm_label_arg lbl_nz);
       ND.define_label lbl_z;
       I.mov (int 64) (res i 0);
       ND.define_label lbl_nz
@@ -1840,7 +1844,7 @@ let emit_instr ~first ~fallthrough i =
     else
       let lbl_nz = L.create Text in
       I.bsf (arg i 0) (res i 0);
-      I.jne (sym (L.encode lbl_nz));
+      I.jne (emit_asm_label_arg lbl_nz);
       I.mov (int 64) (res i 0);
       ND.define_label lbl_nz
   | Lop (Intop Ipopcnt) ->
@@ -1973,29 +1977,20 @@ let emit_instr ~first ~fallthrough i =
   | Llabel { label = lbl; section_name } ->
     let lbl = label_to_asm_label ~section:Text lbl in
     emit_Llabel fallthrough lbl section_name
-  | Lbranch lbl ->
-    let lbl = label_to_asm_label ~section:Text lbl in
-    I.jmp (sym (L.encode lbl))
+  | Lbranch lbl -> I.jmp (emit_label_arg ~section:Text lbl)
   | Lcondbranch (tst, lbl) ->
-    let lbl = label_to_asm_label ~section:Text lbl in
-    emit_test i tst ~taken:(fun c -> I.j c (sym (L.encode lbl)))
+    emit_test i tst ~taken:(fun c -> I.j c (emit_label_arg ~section:Text lbl))
   | Lcondbranch3 (lbl0, lbl1, lbl2) -> (
     I.cmp (int 1) (arg i 0);
     (match lbl0 with
     | None -> ()
-    | Some lbl ->
-      let lbl = label_to_asm_label ~section:Text lbl in
-      I.jb (sym (L.encode lbl)));
+    | Some lbl -> I.jb (emit_label_arg ~section:Text lbl));
     (match lbl1 with
     | None -> ()
-    | Some lbl ->
-      let lbl = label_to_asm_label ~section:Text lbl in
-      I.je (sym (L.encode lbl)));
+    | Some lbl -> I.je (emit_label_arg ~section:Text lbl));
     match lbl2 with
     | None -> ()
-    | Some lbl ->
-      let lbl = label_to_asm_label ~section:Text lbl in
-      I.ja (sym (L.encode lbl)))
+    | Some lbl -> I.ja (emit_label_arg ~section:Text lbl))
   | Lswitch jumptbl ->
     let lbl = L.create Text in
     (* rax and rdx are clobbered by the Lswitch, meaning that no variable that
@@ -2027,7 +2022,7 @@ let emit_instr ~first ~fallthrough i =
     let load_label_addr s arg =
       if !Clflags.pic_code
       then I.lea (mem64_rip NONE (L.encode s)) arg
-      else I.mov (sym (L.encode s)) arg
+      else I.mov (emit_asm_label_arg s) arg
     in
     load_label_addr lbl_handler r11;
     I.push r11;
