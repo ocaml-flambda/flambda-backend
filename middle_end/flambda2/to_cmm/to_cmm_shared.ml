@@ -60,6 +60,8 @@ let exttype_of_kind (k : Flambda_kind.t) : Cmm.exttype =
     | Thirty_two -> XInt32
     | Sixty_four -> XInt64)
   | Naked_number Naked_vec128 -> XVec128
+  | Naked_number Naked_vec256 -> XVec256
+  | Naked_number Naked_vec512 -> XVec512
   | Region -> Misc.fatal_error "[Region] kind not expected here"
   | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
 
@@ -69,14 +71,17 @@ let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
     match Flambda_kind.With_subkind.non_null_value_subkind kind with
     | Tagged_immediate -> Cmm.typ_int
     | Anything | Boxed_float32 | Boxed_float | Boxed_int32 | Boxed_int64
-    | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
-    | Immediate_array | Unboxed_float32_array | Unboxed_int32_array
-    | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
+    | Boxed_nativeint | Boxed_vec128 | Boxed_vec256 | Boxed_vec512 | Variant _
+    | Float_block _ | Float_array | Immediate_array | Unboxed_float32_array
+    | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array
+    | Unboxed_vec128_array | Unboxed_vec256_array | Unboxed_vec512_array
     | Value_array | Generic_array | Unboxed_product_array ->
       Cmm.typ_val)
   | Naked_number Naked_float -> Cmm.typ_float
   | Naked_number Naked_float32 -> Cmm.typ_float32
   | Naked_number Naked_vec128 -> Cmm.typ_vec128
+  | Naked_number Naked_vec256 -> Cmm.typ_vec256
+  | Naked_number Naked_vec512 -> Cmm.typ_vec512
   | Naked_number (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
     ->
     Cmm.typ_int
@@ -89,14 +94,17 @@ let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
     match Flambda_kind.With_subkind.non_null_value_subkind kind with
     | Tagged_immediate -> Extended_machtype.typ_tagged_int
     | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
-    | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
-    | Immediate_array | Unboxed_float32_array | Unboxed_int32_array
-    | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
+    | Boxed_nativeint | Boxed_vec128 | Boxed_vec256 | Boxed_vec512 | Variant _
+    | Float_block _ | Float_array | Immediate_array | Unboxed_float32_array
+    | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array
+    | Unboxed_vec128_array | Unboxed_vec256_array | Unboxed_vec512_array
     | Value_array | Generic_array | Unboxed_product_array ->
       Extended_machtype.typ_val)
   | Naked_number Naked_float -> Extended_machtype.typ_float
   | Naked_number Naked_float32 -> Extended_machtype.typ_float32
   | Naked_number Naked_vec128 -> Extended_machtype.typ_vec128
+  | Naked_number Naked_vec256 -> Extended_machtype.typ_vec256
+  | Naked_number Naked_vec512 -> Extended_machtype.typ_vec512
   | Naked_number (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
     ->
     Extended_machtype.typ_any_int
@@ -110,9 +118,10 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     match Flambda_kind.With_subkind.non_null_value_subkind kind with
     | Tagged_immediate -> Word_int
     | Anything | Boxed_float | Boxed_float32 | Boxed_int32 | Boxed_int64
-    | Boxed_nativeint | Boxed_vec128 | Variant _ | Float_block _ | Float_array
-    | Immediate_array | Unboxed_float32_array | Unboxed_int32_array
-    | Unboxed_int64_array | Unboxed_nativeint_array | Unboxed_vec128_array
+    | Boxed_nativeint | Boxed_vec128 | Boxed_vec256 | Boxed_vec512 | Variant _
+    | Float_block _ | Float_array | Immediate_array | Unboxed_float32_array
+    | Unboxed_int32_array | Unboxed_int64_array | Unboxed_nativeint_array
+    | Unboxed_vec128_array | Unboxed_vec256_array | Unboxed_vec512_array
     | Value_array | Generic_array | Unboxed_product_array ->
       Word_val)
   | Naked_number (Naked_int64 | Naked_nativeint | Naked_immediate) -> Word_int
@@ -121,10 +130,11 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
     Thirtytwo_signed
   | Naked_number Naked_float -> Double
   | Naked_number Naked_float32 -> Single { reg = Float32 }
-  | Naked_number Naked_vec128 ->
-    (* 128-bit memory operations are default unaligned. Aligned (big)array
-       operations are handled separately via cmm. *)
-    Onetwentyeight_unaligned
+  (* SIMD memory operations are default unaligned. Aligned bigarray operations
+     are handled separately via cmm. *)
+  | Naked_number Naked_vec128 -> Onetwentyeight_unaligned
+  | Naked_number Naked_vec256 -> Twofiftysix_unaligned
+  | Naked_number Naked_vec512 -> Fivetwelve_unaligned
   | Region | Rec_info ->
     Misc.fatal_errorf "Bad kind %a for [memory_chunk_of_kind]"
       Flambda_kind.With_subkind.print kind
@@ -182,10 +192,28 @@ let const ~dbg cst =
   | Naked_int32 i -> int32 ~dbg i
   | Naked_int64 i -> int64 ~dbg i
   | Naked_vec128 i ->
-    let { Vector_types.Vec128.Bit_pattern.high; low } =
+    let { Vector_types.Vec128.Bit_pattern.word0; word1 } =
       Vector_types.Vec128.Bit_pattern.to_bits i
     in
-    vec128 ~dbg { high; low }
+    vec128 ~dbg { word0; word1 }
+  | Naked_vec256 i ->
+    let { Vector_types.Vec256.Bit_pattern.word0; word1; word2; word3 } =
+      Vector_types.Vec256.Bit_pattern.to_bits i
+    in
+    vec256 ~dbg { word0; word1; word2; word3 }
+  | Naked_vec512 i ->
+    let { Vector_types.Vec512.Bit_pattern.word0;
+          word1;
+          word2;
+          word3;
+          word4;
+          word5;
+          word6;
+          word7
+        } =
+      Vector_types.Vec512.Bit_pattern.to_bits i
+    in
+    vec512 ~dbg { word0; word1; word2; word3; word4; word5; word6; word7 }
   | Naked_nativeint t -> targetint ~dbg t
   | Null -> targetint ~dbg Targetint_32_64.zero
 
@@ -234,10 +262,28 @@ let const_static cst : Cmm.data_item list =
     [cint (Int64.to_nativeint i)]
   | Naked_nativeint t -> [cint (nativeint_of_targetint t)]
   | Naked_vec128 v ->
-    let { Vector_types.Vec128.Bit_pattern.high; low } =
+    let { Vector_types.Vec128.Bit_pattern.word0; word1 } =
       Vector_types.Vec128.Bit_pattern.to_bits v
     in
-    [cvec128 { high; low }]
+    [cvec128 { word0; word1 }]
+  | Naked_vec256 v ->
+    let { Vector_types.Vec256.Bit_pattern.word0; word1; word2; word3 } =
+      Vector_types.Vec256.Bit_pattern.to_bits v
+    in
+    [cvec256 { word0; word1; word2; word3 }]
+  | Naked_vec512 v ->
+    let { Vector_types.Vec512.Bit_pattern.word0;
+          word1;
+          word2;
+          word3;
+          word4;
+          word5;
+          word6;
+          word7
+        } =
+      Vector_types.Vec512.Bit_pattern.to_bits v
+    in
+    [cvec512 { word0; word1; word2; word3; word4; word5; word6; word7 }]
   | Null -> [cint 0n]
 
 let simple_static res s =
@@ -316,6 +362,8 @@ module Update_kind = struct
     | Naked_float
     | Naked_float32
     | Naked_vec128
+    | Naked_vec256
+    | Naked_vec512
 
   (* The [stride] is the number of bytes by which an [index] supplied to
      [make_update], below, needs to be multiplied to get the byte offset into
@@ -338,6 +386,8 @@ module Update_kind = struct
     | Naked_float32 ->
       1
     | Naked_vec128 -> 2
+    | Naked_vec256 -> 4
+    | Naked_vec512 -> 8
 
   let pointers = { kind = Pointer; stride = Arch.size_addr }
 
@@ -353,11 +403,19 @@ module Update_kind = struct
 
   let naked_vec128s = { kind = Naked_vec128; stride = 16 }
 
+  let naked_vec256s = { kind = Naked_vec256; stride = 32 }
+
+  let naked_vec512s = { kind = Naked_vec512; stride = 64 }
+
   let naked_int32_fields = { kind = Naked_int32; stride = Arch.size_addr }
 
   let naked_float32_fields = { kind = Naked_float32; stride = Arch.size_addr }
 
   let naked_vec128_fields = { kind = Naked_vec128; stride = Arch.size_addr }
+
+  let naked_vec256_fields = { kind = Naked_vec256; stride = Arch.size_addr }
+
+  let naked_vec512_fields = { kind = Naked_vec512; stride = Arch.size_addr }
 end
 
 let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var
@@ -378,7 +436,7 @@ let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var
           (* See [caml_initialize]; we can avoid this function in this case. *)
           None
         | Naked_int32 | Naked_int64 | Naked_float | Naked_float32 | Naked_vec128
-          ->
+        | Naked_vec256 | Naked_vec512 ->
           (* The GC never sees these fields, so we can avoid using
              [caml_initialize]. This is important as it significantly reduces
              the complexity of the statically-allocated inconstant unboxed int32
@@ -409,6 +467,8 @@ let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var
              build reproducibility. *)
           Single { reg = Float32 }
         | Naked_vec128 -> Onetwentyeight_unaligned
+        | Naked_vec256 -> Twofiftysix_unaligned
+        | Naked_vec512 -> Fivetwelve_unaligned
       in
       let addr = strided_field_address symbol ~stride ~index dbg in
       store ~dbg memory_chunk Initialization ~addr ~new_value:cmm

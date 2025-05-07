@@ -760,6 +760,8 @@ and mixed_block_element =
   | Bits32
   | Bits64
   | Vec128
+  | Vec256
+  | Vec512
   | Word
 
 and mixed_product_shape = mixed_block_element array
