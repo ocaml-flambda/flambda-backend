@@ -2126,8 +2126,17 @@ let fundecl fundecl =
   then (* PR#4690 *)
     ND.private_extern fundecl_sym
   else global_maybe_protected fundecl_sym;
-  (* Even if the function name is Local, still emit an actual linker symbol for
-     it. This provides symbols for perf, gdb, and similar tools *)
+  (*= Even if the function name is Local, still emit an actual linker symbol for
+      it. This provides symbols for perf, gdb, and similar tools.
+
+      This means that, for example, the function [let g (x: int) = x] will be
+      emitted as follows on GAS-like systems (and with slightly different label
+      names on macOS):
+
+      camlFile__g_0_1_code:
+      .LcamlFile__g_0_1_code:
+         ...
+  *)
   (* CR sspies: The following two directives should be abstracted into a single
      function in the directives module. *)
   ND.define_symbol_label ~section:Text fundecl_sym;
@@ -2164,7 +2173,10 @@ let emit_item : Cmm.data_item -> unit = function
     | Global ->
       global_maybe_protected sym;
       add_def_symbol s.sym_name;
-      (* CR sspies: Figure out why we emit two labels for the function.*)
+      (* Following the same convention as for function symbols above, we emit both a label
+         and a linker symbol for [sym]. *)
+      (* CR sspies: The following two directives should be abstracted into a single
+         function in the directives module. *)
       ND.define_symbol_label ~section:Data sym;
       ND.define_label (L.create_string_unchecked Data (S.encode sym)))
   | Cint8 n -> ND.int8 (Numbers.Int8.of_int_exn n)
