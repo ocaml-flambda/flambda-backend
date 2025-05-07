@@ -6,7 +6,7 @@ module Boxing : sig
     | Unboxed
 end
 
-module Kind : sig
+module Layout : sig
   type value_kind =
     | Addr_non_float
     | Immediate
@@ -15,7 +15,10 @@ module Kind : sig
   type t =
     | Product of t list
     | Value of value_kind
-    | Non_value
+    | Bits32
+    | Bits64
+    | Vec128
+    | Word
 
   val all_scannable : t -> bool
 
@@ -46,6 +49,7 @@ module Gen_type : sig
     | Float32
     | Float32_u
     | String
+    | Int64x2_u
 end
 
 module Tree : sig
@@ -65,7 +69,7 @@ module Type_structure : sig
 
   val compare : t -> t -> int
 
-  val kind : t -> Kind.t
+  val kind : t -> Layout.t
 
   (** [None] if the tree is a [Leaf] (thus will always produce a boxed record *)
   val boxed_record_containing_unboxed_records : t Tree.t -> t option
@@ -82,6 +86,8 @@ module Type : sig
 
   val compare : t -> t -> int
 
+  val structure : t -> Type_structure.t
+
   (** Code for this type expression (e.g. "int option * float") *)
   val code : t -> string
 
@@ -89,8 +95,9 @@ module Type : sig
       passing [3] gives [#(3, 4., "5")] for [#(option * float * string)]. *)
   val value_code : t -> int -> string
 
-  (** The number of subvalues of this type, e.g. [int option * #(float * float)]
-      has three. *)
+  (** The number of subvalues of this type, which we only use to generate
+      non-overlapping values with [value_code]. E.g. [int option * #(float *
+      float)] has three. We consider an [int64x2#] to have two. *)
   val num_subvals : t -> int
 
   (** Code that dynamically implements [value_code], creating a value from an

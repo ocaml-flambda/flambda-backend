@@ -13,6 +13,12 @@ let sprintf = Printf.sprintf
 let failwithf fmt = Printf.ksprintf failwith fmt
 
 let interesting_type_trees : Type_structure.t Tree.t list =
+  (* There are possible type trees, exponential in the size of the tree and the
+     number of types we consider.
+
+     Here, we strike a balance by combining e.g. a collection of trees with
+     many/complex shapes but few types and a collection of trees with a few
+     shapes but many types. And so on. *)
   let open Gen_type in
   let deep_trees : unit Tree.t list =
     [ Branch [Leaf (); Branch [Leaf (); Leaf ()]];
@@ -23,14 +29,19 @@ let interesting_type_trees : Type_structure.t Tree.t list =
       Tree.enumerate ~shape ~leaves:[Int64_u; String]
   )
   @ List.concat_map (Tree.enumerate_shapes ~max_num_nodes:4) ~f:(fun shape ->
-        Tree.enumerate ~shape ~leaves:[Int; Int64; Int32_u; Float]
+        Tree.enumerate ~shape ~leaves:[Int; Int64; Int32_u; Float; Int64x2_u]
     )
   @ List.concat_map (Tree.enumerate_shapes ~max_num_nodes:3) ~f:(fun shape ->
         Tree.enumerate ~shape
           ~leaves:[Int; Int64; Int32_u; Float; Int64_u; Nativeint_u]
     )
   @ [ Branch
-        [Branch [Leaf Int; Leaf Int64_u]; Branch [Leaf Int64_u; Leaf Float_u]]
+        [Branch [Leaf Int; Leaf Int64_u]; Branch [Leaf Int64_u; Leaf Float_u]];
+      (* An int64x2 that would be reordered to the gap of a "sibling" record *)
+      Branch
+        [Branch [Leaf Int64x2_u; Leaf String]; Branch [Leaf Int64; Leaf Float_u]];
+      (* An int64x2 that would be reordered to the gap of an inner record *)
+      Branch [Leaf Int64x2_u; Branch [Leaf String; Leaf Float_u]]
     ]
 
 let array_element_types : Type_structure.t list =
@@ -101,6 +112,22 @@ external[@layout_poly] set_idx_mut :
   'a ('b : any).
     ('a [@local_opt]) -> ('a, 'b) idx_mut -> ('b [@local_opt]) -> unit =
   "%unsafe_set_idx"
+
+
+external box_int64x2 : int64x2# -> int64x2 = "%box_vec128"
+external unbox_int64x2 : int64x2 -> int64x2# = "%unbox_vec128"
+external interleave_low_64 : int64x2# -> int64x2# -> int64x2# = "" "caml_simd_vec128_interleave_low_64" [@@unboxed] [@@builtin]
+external interleave_high_64 : int64x2# -> int64x2# -> int64x2# = "" "caml_simd_vec128_interleave_high_64" [@@unboxed] [@@builtin]
+external int64x2_of_int64 : int64 -> int64x2# = "" "caml_int64x2_low_of_int64" [@@unboxed] [@@builtin]
+external int64_of_int64x2 : int64x2# -> int64 = "" "caml_int64x2_low_to_int64" [@@unboxed] [@@builtin]
+
+
+let int64x2_u_equal i1 i2 =
+    let a1 = int64_of_int64x2 i1 in
+    let b1 = int64_of_int64x2 (interleave_high_64 i1 i1) in
+    let a2 = int64_of_int64x2 i2 in
+    let b2 = int64_of_int64x2 (interleave_high_64 i2 i2) in
+    Int64.equal a1 a2 && Int64.equal b1 b2
 
 module Idx_repr : sig
   type t
@@ -261,11 +288,22 @@ let section s =
   line "(* %s *)" s;
   line "(**%s**)" s_as_stars
 
+let type_section (ty : Type.t) =
+  let header =
+    match ty with
+    | Record _ ->
+      (* show the structure of nominal types to reduce definition-chasing *)
+      sprintf "%s = %s" (Type.code ty)
+        (Type_structure.to_string (Type.structure ty))
+    | _ -> Type.code ty
+  in
+  section ("  " ^ header ^ "  ")
+
 let test_array_idx_get_and_set ~local ty =
   let makearray_dynamic = makearray_dynamic_fn ~local in
   let debug_exprs = [{ expr = "size"; format_s = "%d" }] in
   let ty_array_s = Type.code ty ^ " array" in
-  section ("  " ^ Type.code ty ^ "  ");
+  type_section ty;
   line "let eq = %s in" (Type.eq_code ty);
   line "let mk_value i = %s in" (Type.mk_value_body_code ty);
   line "(* 1. Create an array of size [size] *)";
@@ -286,34 +324,36 @@ let test_array_idx_get_and_set ~local ty =
   for_i_below_size ~debug_exprs (fun ~debug_exprs ->
       List.iter (Type.unboxed_paths_by_depth ty)
         ~f:(fun (depth, unboxed_paths) ->
-          (* If r has structure #{ x = #{ y = #{ z } } } then our update is #{ r
-             with x = #{ r.#x with y = #{ r.#x.#y with z = next_el.#x.#y.#z } }
-             } *)
           line "(* Paths of depth %d *)" depth;
           line "let el = get a i in";
           line "let next_el = mk_value (i + 100 * %d) in" depth;
           let up_concat l =
             String.concat (List.map l ~f:(fun s -> ".#" ^ s)) ~sep:""
           in
-          let rev_up_concat l = up_concat (List.rev l) in
           List.iter unboxed_paths ~f:(fun unboxed_path ->
               line "(* %s *)" (up_concat unboxed_path);
-              let rec f rev_path new_val =
-                match rev_path with
-                | [] -> new_val
-                | s :: rest ->
-                  let new_val =
-                    sprintf "#{ el%s with %s = %s }" (rev_up_concat rest) s
-                      new_val
-                  in
-                  f rest new_val
+              let reference_update =
+                (* To perform our reference update (without block indices) to
+                   [el.x.y.z], we generate [#{ el with x = #{ el.#x with y = #{
+                   el.#x.#y with z = next_el.#x.#y.#z } } }] *)
+                let rec f rev_path new_val =
+                  match rev_path with
+                  | [] -> new_val
+                  | s :: rest ->
+                    let new_val =
+                      sprintf "#{ el%s with %s = %s }"
+                        (up_concat (List.rev rest))
+                        s new_val
+                    in
+                    f rest new_val
+                in
+                f (List.rev unboxed_path)
+                  (sprintf "next_el%s" (up_concat unboxed_path))
               in
-              let new_val = sprintf "next_el%s" (up_concat unboxed_path) in
-              line "let el = %s in" (f (List.rev unboxed_path) new_val);
+              line "let el = %s in" reference_update;
               line "set_idx_mut a ((.(i)%s) : (%s array, _) idx_mut) next_el%s;"
                 (up_concat unboxed_path) (Type.code ty) (up_concat unboxed_path);
-              seq_assert ~debug_exprs "eq (get_idx_mut a (.(i))) el";
-              ()
+              seq_assert ~debug_exprs "eq (get_idx_mut a (.(i))) el"
           )
       );
       line "()"
@@ -331,7 +371,7 @@ let test_array_idx_deepening ty =
   let unboxed_paths_by_depth = (0, [[]]) :: Type.unboxed_paths_by_depth ty in
   let debug_exprs = [] in
   let ty_array_s = Type.code ty ^ " array" in
-  section ("  " ^ Type.code ty ^ "  ");
+  type_section ty;
   let up_concat l = String.concat (List.map l ~f:(fun s -> ".#" ^ s)) ~sep:"" in
   List.iter unboxed_paths_by_depth ~f:(fun (depth, unboxed_paths) ->
       List.iter unboxed_paths ~f:(fun unboxed_path ->

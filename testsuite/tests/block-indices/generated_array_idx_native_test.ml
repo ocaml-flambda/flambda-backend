@@ -45,6 +45,22 @@ external[@layout_poly] set_idx_mut :
     ('a [@local_opt]) -> ('a, 'b) idx_mut -> ('b [@local_opt]) -> unit =
   "%unsafe_set_idx"
 
+
+external box_int64x2 : int64x2# -> int64x2 = "%box_vec128"
+external unbox_int64x2 : int64x2 -> int64x2# = "%unbox_vec128"
+external interleave_low_64 : int64x2# -> int64x2# -> int64x2# = "" "caml_simd_vec128_interleave_low_64" [@@unboxed] [@@builtin]
+external interleave_high_64 : int64x2# -> int64x2# -> int64x2# = "" "caml_simd_vec128_interleave_high_64" [@@unboxed] [@@builtin]
+external int64x2_of_int64 : int64 -> int64x2# = "" "caml_int64x2_low_of_int64" [@@unboxed] [@@builtin]
+external int64_of_int64x2 : int64x2# -> int64 = "" "caml_int64x2_low_to_int64" [@@unboxed] [@@builtin]
+
+
+let int64x2_u_equal i1 i2 =
+    let a1 = int64_of_int64x2 i1 in
+    let b1 = int64_of_int64x2 (interleave_high_64 i1 i1) in
+    let a2 = int64_of_int64x2 i2 in
+    let b2 = int64_of_int64x2 (interleave_high_64 i2 i2) in
+    Int64.equal a1 a2 && Int64.equal b1 b2
+
 module Idx_repr : sig
   type t
   val of_idx_imm : 'a ('b : any). ('a, 'b) idx_imm -> t
@@ -229,200 +245,316 @@ type t101 = #{ a101 : t90 }
 type t102 = #{ a102 : t91 }
 type t103 = #{ a103 : int64#; b103 : float# }
 type t104 = #{ a104 : t92; b104 : t103 }
-type t105 = { a105 : int64#; b105 : t0 }
+type t105 = { mutable a105 : int64#; mutable b105 : t0 }
 type t106 = #{ a106 : int64#; b106 : string }
-type t107 = { a107 : int64#; b107 : t106 }
+type t107 = { mutable a107 : int64#; mutable b107 : t106 }
 type t108 = #{ a108 : string; b108 : int64# }
-type t109 = { a109 : int64#; b109 : t108 }
-type t110 = { a110 : int64#; b110 : t2 }
-type t111 = { a111 : string; b111 : t0 }
-type t112 = { a112 : string; b112 : t106 }
-type t113 = { a113 : string; b113 : t108 }
-type t114 = { a114 : string; b114 : t2 }
-type t115 = { a115 : t0; b115 : int64# }
-type t116 = { a116 : t0; b116 : string }
-type t117 = { a117 : t106; b117 : int64# }
-type t118 = { a118 : t106; b118 : string }
-type t119 = { a119 : t108; b119 : int64# }
-type t120 = { a120 : t108; b120 : string }
-type t121 = { a121 : t2; b121 : int64# }
-type t122 = { a122 : t2; b122 : string }
-type t123 = { a123 : int }
-type t124 = { a124 : int64 }
-type t125 = { a125 : int32# }
-type t126 = { a126 : float }
-type t127 = { a127 : int; b127 : int }
-type t128 = { a128 : int; b128 : int64 }
-type t129 = { a129 : int; b129 : int32# }
-type t130 = { a130 : int; b130 : float }
-type t131 = { a131 : int64; b131 : int }
-type t132 = { a132 : int64; b132 : int64 }
-type t133 = { a133 : int64; b133 : int32# }
-type t134 = { a134 : int64; b134 : float }
-type t135 = { a135 : int32#; b135 : int }
-type t136 = { a136 : int32#; b136 : int64 }
-type t137 = { a137 : int32#; b137 : int32# }
-type t138 = { a138 : int32#; b138 : float }
-type t139 = { a139 : float; b139 : int }
-type t140 = { a140 : float; b140 : int64 }
-type t141 = { a141 : float; b141 : int32# }
-type t142 = { a142 : float; b142 : float }
-type t143 = { a143 : t6 }
-type t144 = { a144 : t7 }
-type t145 = { a145 : t8 }
-type t146 = { a146 : t56 }
-type t147 = { a147 : int; b147 : int; c147 : int }
-type t148 = { a148 : int; b148 : int; c148 : int64 }
-type t149 = { a149 : int; b149 : int; c149 : int32# }
-type t150 = { a150 : int; b150 : int; c150 : float }
-type t151 = { a151 : int; b151 : int64; c151 : int }
-type t152 = { a152 : int; b152 : int64; c152 : int64 }
-type t153 = { a153 : int; b153 : int64; c153 : int32# }
-type t154 = { a154 : int; b154 : int64; c154 : float }
-type t155 = { a155 : int; b155 : int32#; c155 : int }
-type t156 = { a156 : int; b156 : int32#; c156 : int64 }
-type t157 = { a157 : int; b157 : int32#; c157 : int32# }
-type t158 = { a158 : int; b158 : int32#; c158 : float }
-type t159 = { a159 : int; b159 : float; c159 : int }
-type t160 = { a160 : int; b160 : float; c160 : int64 }
-type t161 = { a161 : int; b161 : float; c161 : int32# }
-type t162 = { a162 : int; b162 : float; c162 : float }
-type t163 = { a163 : int64; b163 : int; c163 : int }
-type t164 = { a164 : int64; b164 : int; c164 : int64 }
-type t165 = { a165 : int64; b165 : int; c165 : int32# }
-type t166 = { a166 : int64; b166 : int; c166 : float }
-type t167 = { a167 : int64; b167 : int64; c167 : int }
-type t168 = { a168 : int64; b168 : int64; c168 : int64 }
-type t169 = { a169 : int64; b169 : int64; c169 : int32# }
-type t170 = { a170 : int64; b170 : int64; c170 : float }
-type t171 = { a171 : int64; b171 : int32#; c171 : int }
-type t172 = { a172 : int64; b172 : int32#; c172 : int64 }
-type t173 = { a173 : int64; b173 : int32#; c173 : int32# }
-type t174 = { a174 : int64; b174 : int32#; c174 : float }
-type t175 = { a175 : int64; b175 : float; c175 : int }
-type t176 = { a176 : int64; b176 : float; c176 : int64 }
-type t177 = { a177 : int64; b177 : float; c177 : int32# }
-type t178 = { a178 : int64; b178 : float; c178 : float }
-type t179 = { a179 : int32#; b179 : int; c179 : int }
-type t180 = { a180 : int32#; b180 : int; c180 : int64 }
-type t181 = { a181 : int32#; b181 : int; c181 : int32# }
-type t182 = { a182 : int32#; b182 : int; c182 : float }
-type t183 = { a183 : int32#; b183 : int64; c183 : int }
-type t184 = { a184 : int32#; b184 : int64; c184 : int64 }
-type t185 = { a185 : int32#; b185 : int64; c185 : int32# }
-type t186 = { a186 : int32#; b186 : int64; c186 : float }
-type t187 = { a187 : int32#; b187 : int32#; c187 : int }
-type t188 = { a188 : int32#; b188 : int32#; c188 : int64 }
-type t189 = { a189 : int32#; b189 : int32#; c189 : int32# }
-type t190 = { a190 : int32#; b190 : int32#; c190 : float }
-type t191 = { a191 : int32#; b191 : float; c191 : int }
-type t192 = { a192 : int32#; b192 : float; c192 : int64 }
-type t193 = { a193 : int32#; b193 : float; c193 : int32# }
-type t194 = { a194 : int32#; b194 : float; c194 : float }
-type t195 = { a195 : float; b195 : int; c195 : int }
-type t196 = { a196 : float; b196 : int; c196 : int64 }
-type t197 = { a197 : float; b197 : int; c197 : int32# }
-type t198 = { a198 : float; b198 : int; c198 : float }
-type t199 = { a199 : float; b199 : int64; c199 : int }
-type t200 = { a200 : float; b200 : int64; c200 : int64 }
-type t201 = { a201 : float; b201 : int64; c201 : int32# }
-type t202 = { a202 : float; b202 : int64; c202 : float }
-type t203 = { a203 : float; b203 : int32#; c203 : int }
-type t204 = { a204 : float; b204 : int32#; c204 : int64 }
-type t205 = { a205 : float; b205 : int32#; c205 : int32# }
-type t206 = { a206 : float; b206 : int32#; c206 : float }
-type t207 = { a207 : float; b207 : float; c207 : int }
-type t208 = { a208 : float; b208 : float; c208 : int64 }
-type t209 = { a209 : float; b209 : float; c209 : int32# }
-type t210 = { a210 : float; b210 : float; c210 : float }
-type t211 = { a211 : int; b211 : t6 }
-type t212 = { a212 : int; b212 : t7 }
-type t213 = { a213 : int; b213 : t8 }
-type t214 = { a214 : int; b214 : t56 }
-type t215 = { a215 : int64; b215 : t6 }
-type t216 = { a216 : int64; b216 : t7 }
-type t217 = { a217 : int64; b217 : t8 }
-type t218 = { a218 : int64; b218 : t56 }
-type t219 = { a219 : int32#; b219 : t6 }
-type t220 = { a220 : int32#; b220 : t7 }
-type t221 = { a221 : int32#; b221 : t8 }
-type t222 = { a222 : int32#; b222 : t56 }
-type t223 = { a223 : float; b223 : t6 }
-type t224 = { a224 : float; b224 : t7 }
-type t225 = { a225 : float; b225 : t8 }
-type t226 = { a226 : float; b226 : t56 }
-type t227 = { a227 : t6; b227 : int }
-type t228 = { a228 : t6; b228 : int64 }
-type t229 = { a229 : t6; b229 : int32# }
-type t230 = { a230 : t6; b230 : float }
-type t231 = { a231 : t7; b231 : int }
-type t232 = { a232 : t7; b232 : int64 }
-type t233 = { a233 : t7; b233 : int32# }
-type t234 = { a234 : t7; b234 : float }
-type t235 = { a235 : t8; b235 : int }
-type t236 = { a236 : t8; b236 : int64 }
-type t237 = { a237 : t8; b237 : int32# }
-type t238 = { a238 : t8; b238 : float }
-type t239 = { a239 : t56; b239 : int }
-type t240 = { a240 : t56; b240 : int64 }
-type t241 = { a241 : t56; b241 : int32# }
-type t242 = { a242 : t56; b242 : float }
-type t243 = { a243 : t9 }
-type t244 = { a244 : t10 }
-type t245 = { a245 : t11 }
-type t246 = { a246 : t12 }
-type t247 = { a247 : t13 }
-type t248 = { a248 : t14 }
-type t249 = #{ a249 : int64; b249 : int32# }
-type t250 = { a250 : t249 }
-type t251 = { a251 : t15 }
-type t252 = #{ a252 : int32#; b252 : int }
-type t253 = { a253 : t252 }
-type t254 = #{ a254 : int32#; b254 : int64 }
-type t255 = { a255 : t254 }
-type t256 = { a256 : t16 }
-type t257 = #{ a257 : int32#; b257 : float }
-type t258 = { a258 : t257 }
-type t259 = { a259 : t17 }
-type t260 = { a260 : t18 }
-type t261 = #{ a261 : float; b261 : int32# }
-type t262 = { a262 : t261 }
-type t263 = { a263 : t19 }
-type t264 = { a264 : t20 }
-type t265 = { a265 : t21 }
-type t266 = { a266 : t22 }
-type t267 = #{ a267 : t56 }
-type t268 = { a268 : t267 }
-type t269 = { a269 : int64# }
-type t270 = { a270 : nativeint# }
-type t271 = { a271 : int; b271 : int64# }
-type t272 = { a272 : int; b272 : nativeint# }
-type t273 = { a273 : int64; b273 : int64# }
-type t274 = { a274 : int64; b274 : nativeint# }
-type t275 = { a275 : int32#; b275 : int64# }
-type t276 = { a276 : int32#; b276 : nativeint# }
-type t277 = { a277 : float; b277 : int64# }
-type t278 = { a278 : float; b278 : nativeint# }
-type t279 = { a279 : int64#; b279 : int }
-type t280 = { a280 : int64#; b280 : int64 }
-type t281 = { a281 : int64#; b281 : int32# }
-type t282 = { a282 : int64#; b282 : float }
-type t283 = { a283 : int64#; b283 : int64# }
-type t284 = { a284 : int64#; b284 : nativeint# }
-type t285 = { a285 : nativeint#; b285 : int }
-type t286 = { a286 : nativeint#; b286 : int64 }
-type t287 = { a287 : nativeint#; b287 : int32# }
-type t288 = { a288 : nativeint#; b288 : float }
-type t289 = { a289 : nativeint#; b289 : int64# }
-type t290 = { a290 : nativeint#; b290 : nativeint# }
-type t291 = { a291 : t90 }
-type t292 = { a292 : t91 }
-type t293 = { a293 : t92; b293 : t103 }
+type t109 = { mutable a109 : int64#; mutable b109 : t108 }
+type t110 = { mutable a110 : int64#; mutable b110 : t2 }
+type t111 = { mutable a111 : string; mutable b111 : t0 }
+type t112 = { mutable a112 : string; mutable b112 : t106 }
+type t113 = { mutable a113 : string; mutable b113 : t108 }
+type t114 = { mutable a114 : string; mutable b114 : t2 }
+type t115 = { mutable a115 : t0; mutable b115 : int64# }
+type t116 = { mutable a116 : t0; mutable b116 : string }
+type t117 = { mutable a117 : t106; mutable b117 : int64# }
+type t118 = { mutable a118 : t106; mutable b118 : string }
+type t119 = { mutable a119 : t108; mutable b119 : int64# }
+type t120 = { mutable a120 : t108; mutable b120 : string }
+type t121 = { mutable a121 : t2; mutable b121 : int64# }
+type t122 = { mutable a122 : t2; mutable b122 : string }
+type t123 = { mutable a123 : int }
+type t124 = { mutable a124 : int64 }
+type t125 = { mutable a125 : int32# }
+type t126 = { mutable a126 : float }
+type t127 = { mutable a127 : int64x2# }
+type t128 = { mutable a128 : int; mutable b128 : int }
+type t129 = { mutable a129 : int; mutable b129 : int64 }
+type t130 = { mutable a130 : int; mutable b130 : int32# }
+type t131 = { mutable a131 : int; mutable b131 : float }
+type t132 = { mutable a132 : int; mutable b132 : int64x2# }
+type t133 = { mutable a133 : int64; mutable b133 : int }
+type t134 = { mutable a134 : int64; mutable b134 : int64 }
+type t135 = { mutable a135 : int64; mutable b135 : int32# }
+type t136 = { mutable a136 : int64; mutable b136 : float }
+type t137 = { mutable a137 : int64; mutable b137 : int64x2# }
+type t138 = { mutable a138 : int32#; mutable b138 : int }
+type t139 = { mutable a139 : int32#; mutable b139 : int64 }
+type t140 = { mutable a140 : int32#; mutable b140 : int32# }
+type t141 = { mutable a141 : int32#; mutable b141 : float }
+type t142 = { mutable a142 : int32#; mutable b142 : int64x2# }
+type t143 = { mutable a143 : float; mutable b143 : int }
+type t144 = { mutable a144 : float; mutable b144 : int64 }
+type t145 = { mutable a145 : float; mutable b145 : int32# }
+type t146 = { mutable a146 : float; mutable b146 : float }
+type t147 = { mutable a147 : float; mutable b147 : int64x2# }
+type t148 = { mutable a148 : int64x2#; mutable b148 : int }
+type t149 = { mutable a149 : int64x2#; mutable b149 : int64 }
+type t150 = { mutable a150 : int64x2#; mutable b150 : int32# }
+type t151 = { mutable a151 : int64x2#; mutable b151 : float }
+type t152 = { mutable a152 : int64x2#; mutable b152 : int64x2# }
+type t153 = { mutable a153 : t6 }
+type t154 = { mutable a154 : t7 }
+type t155 = { mutable a155 : t8 }
+type t156 = { mutable a156 : t56 }
+type t157 = #{ a157 : int64x2# }
+type t158 = { mutable a158 : t157 }
+type t159 = { mutable a159 : int; mutable b159 : int; mutable c159 : int }
+type t160 = { mutable a160 : int; mutable b160 : int; mutable c160 : int64 }
+type t161 = { mutable a161 : int; mutable b161 : int; mutable c161 : int32# }
+type t162 = { mutable a162 : int; mutable b162 : int; mutable c162 : float }
+type t163 = { mutable a163 : int; mutable b163 : int; mutable c163 : int64x2# }
+type t164 = { mutable a164 : int; mutable b164 : int64; mutable c164 : int }
+type t165 = { mutable a165 : int; mutable b165 : int64; mutable c165 : int64 }
+type t166 = { mutable a166 : int; mutable b166 : int64; mutable c166 : int32# }
+type t167 = { mutable a167 : int; mutable b167 : int64; mutable c167 : float }
+type t168 = { mutable a168 : int; mutable b168 : int64; mutable c168 : int64x2# }
+type t169 = { mutable a169 : int; mutable b169 : int32#; mutable c169 : int }
+type t170 = { mutable a170 : int; mutable b170 : int32#; mutable c170 : int64 }
+type t171 = { mutable a171 : int; mutable b171 : int32#; mutable c171 : int32# }
+type t172 = { mutable a172 : int; mutable b172 : int32#; mutable c172 : float }
+type t173 = { mutable a173 : int; mutable b173 : int32#; mutable c173 : int64x2# }
+type t174 = { mutable a174 : int; mutable b174 : float; mutable c174 : int }
+type t175 = { mutable a175 : int; mutable b175 : float; mutable c175 : int64 }
+type t176 = { mutable a176 : int; mutable b176 : float; mutable c176 : int32# }
+type t177 = { mutable a177 : int; mutable b177 : float; mutable c177 : float }
+type t178 = { mutable a178 : int; mutable b178 : float; mutable c178 : int64x2# }
+type t179 = { mutable a179 : int; mutable b179 : int64x2#; mutable c179 : int }
+type t180 = { mutable a180 : int; mutable b180 : int64x2#; mutable c180 : int64 }
+type t181 = { mutable a181 : int; mutable b181 : int64x2#; mutable c181 : int32# }
+type t182 = { mutable a182 : int; mutable b182 : int64x2#; mutable c182 : float }
+type t183 = { mutable a183 : int; mutable b183 : int64x2#; mutable c183 : int64x2# }
+type t184 = { mutable a184 : int64; mutable b184 : int; mutable c184 : int }
+type t185 = { mutable a185 : int64; mutable b185 : int; mutable c185 : int64 }
+type t186 = { mutable a186 : int64; mutable b186 : int; mutable c186 : int32# }
+type t187 = { mutable a187 : int64; mutable b187 : int; mutable c187 : float }
+type t188 = { mutable a188 : int64; mutable b188 : int; mutable c188 : int64x2# }
+type t189 = { mutable a189 : int64; mutable b189 : int64; mutable c189 : int }
+type t190 = { mutable a190 : int64; mutable b190 : int64; mutable c190 : int64 }
+type t191 = { mutable a191 : int64; mutable b191 : int64; mutable c191 : int32# }
+type t192 = { mutable a192 : int64; mutable b192 : int64; mutable c192 : float }
+type t193 = { mutable a193 : int64; mutable b193 : int64; mutable c193 : int64x2# }
+type t194 = { mutable a194 : int64; mutable b194 : int32#; mutable c194 : int }
+type t195 = { mutable a195 : int64; mutable b195 : int32#; mutable c195 : int64 }
+type t196 = { mutable a196 : int64; mutable b196 : int32#; mutable c196 : int32# }
+type t197 = { mutable a197 : int64; mutable b197 : int32#; mutable c197 : float }
+type t198 = { mutable a198 : int64; mutable b198 : int32#; mutable c198 : int64x2# }
+type t199 = { mutable a199 : int64; mutable b199 : float; mutable c199 : int }
+type t200 = { mutable a200 : int64; mutable b200 : float; mutable c200 : int64 }
+type t201 = { mutable a201 : int64; mutable b201 : float; mutable c201 : int32# }
+type t202 = { mutable a202 : int64; mutable b202 : float; mutable c202 : float }
+type t203 = { mutable a203 : int64; mutable b203 : float; mutable c203 : int64x2# }
+type t204 = { mutable a204 : int64; mutable b204 : int64x2#; mutable c204 : int }
+type t205 = { mutable a205 : int64; mutable b205 : int64x2#; mutable c205 : int64 }
+type t206 = { mutable a206 : int64; mutable b206 : int64x2#; mutable c206 : int32# }
+type t207 = { mutable a207 : int64; mutable b207 : int64x2#; mutable c207 : float }
+type t208 = { mutable a208 : int64; mutable b208 : int64x2#; mutable c208 : int64x2# }
+type t209 = { mutable a209 : int32#; mutable b209 : int; mutable c209 : int }
+type t210 = { mutable a210 : int32#; mutable b210 : int; mutable c210 : int64 }
+type t211 = { mutable a211 : int32#; mutable b211 : int; mutable c211 : int32# }
+type t212 = { mutable a212 : int32#; mutable b212 : int; mutable c212 : float }
+type t213 = { mutable a213 : int32#; mutable b213 : int; mutable c213 : int64x2# }
+type t214 = { mutable a214 : int32#; mutable b214 : int64; mutable c214 : int }
+type t215 = { mutable a215 : int32#; mutable b215 : int64; mutable c215 : int64 }
+type t216 = { mutable a216 : int32#; mutable b216 : int64; mutable c216 : int32# }
+type t217 = { mutable a217 : int32#; mutable b217 : int64; mutable c217 : float }
+type t218 = { mutable a218 : int32#; mutable b218 : int64; mutable c218 : int64x2# }
+type t219 = { mutable a219 : int32#; mutable b219 : int32#; mutable c219 : int }
+type t220 = { mutable a220 : int32#; mutable b220 : int32#; mutable c220 : int64 }
+type t221 = { mutable a221 : int32#; mutable b221 : int32#; mutable c221 : int32# }
+type t222 = { mutable a222 : int32#; mutable b222 : int32#; mutable c222 : float }
+type t223 = { mutable a223 : int32#; mutable b223 : int32#; mutable c223 : int64x2# }
+type t224 = { mutable a224 : int32#; mutable b224 : float; mutable c224 : int }
+type t225 = { mutable a225 : int32#; mutable b225 : float; mutable c225 : int64 }
+type t226 = { mutable a226 : int32#; mutable b226 : float; mutable c226 : int32# }
+type t227 = { mutable a227 : int32#; mutable b227 : float; mutable c227 : float }
+type t228 = { mutable a228 : int32#; mutable b228 : float; mutable c228 : int64x2# }
+type t229 = { mutable a229 : int32#; mutable b229 : int64x2#; mutable c229 : int }
+type t230 = { mutable a230 : int32#; mutable b230 : int64x2#; mutable c230 : int64 }
+type t231 = { mutable a231 : int32#; mutable b231 : int64x2#; mutable c231 : int32# }
+type t232 = { mutable a232 : int32#; mutable b232 : int64x2#; mutable c232 : float }
+type t233 = { mutable a233 : int32#; mutable b233 : int64x2#; mutable c233 : int64x2# }
+type t234 = { mutable a234 : float; mutable b234 : int; mutable c234 : int }
+type t235 = { mutable a235 : float; mutable b235 : int; mutable c235 : int64 }
+type t236 = { mutable a236 : float; mutable b236 : int; mutable c236 : int32# }
+type t237 = { mutable a237 : float; mutable b237 : int; mutable c237 : float }
+type t238 = { mutable a238 : float; mutable b238 : int; mutable c238 : int64x2# }
+type t239 = { mutable a239 : float; mutable b239 : int64; mutable c239 : int }
+type t240 = { mutable a240 : float; mutable b240 : int64; mutable c240 : int64 }
+type t241 = { mutable a241 : float; mutable b241 : int64; mutable c241 : int32# }
+type t242 = { mutable a242 : float; mutable b242 : int64; mutable c242 : float }
+type t243 = { mutable a243 : float; mutable b243 : int64; mutable c243 : int64x2# }
+type t244 = { mutable a244 : float; mutable b244 : int32#; mutable c244 : int }
+type t245 = { mutable a245 : float; mutable b245 : int32#; mutable c245 : int64 }
+type t246 = { mutable a246 : float; mutable b246 : int32#; mutable c246 : int32# }
+type t247 = { mutable a247 : float; mutable b247 : int32#; mutable c247 : float }
+type t248 = { mutable a248 : float; mutable b248 : int32#; mutable c248 : int64x2# }
+type t249 = { mutable a249 : float; mutable b249 : float; mutable c249 : int }
+type t250 = { mutable a250 : float; mutable b250 : float; mutable c250 : int64 }
+type t251 = { mutable a251 : float; mutable b251 : float; mutable c251 : int32# }
+type t252 = { mutable a252 : float; mutable b252 : float; mutable c252 : float }
+type t253 = { mutable a253 : float; mutable b253 : float; mutable c253 : int64x2# }
+type t254 = { mutable a254 : float; mutable b254 : int64x2#; mutable c254 : int }
+type t255 = { mutable a255 : float; mutable b255 : int64x2#; mutable c255 : int64 }
+type t256 = { mutable a256 : float; mutable b256 : int64x2#; mutable c256 : int32# }
+type t257 = { mutable a257 : float; mutable b257 : int64x2#; mutable c257 : float }
+type t258 = { mutable a258 : float; mutable b258 : int64x2#; mutable c258 : int64x2# }
+type t259 = { mutable a259 : int64x2#; mutable b259 : int; mutable c259 : int }
+type t260 = { mutable a260 : int64x2#; mutable b260 : int; mutable c260 : int64 }
+type t261 = { mutable a261 : int64x2#; mutable b261 : int; mutable c261 : int32# }
+type t262 = { mutable a262 : int64x2#; mutable b262 : int; mutable c262 : float }
+type t263 = { mutable a263 : int64x2#; mutable b263 : int; mutable c263 : int64x2# }
+type t264 = { mutable a264 : int64x2#; mutable b264 : int64; mutable c264 : int }
+type t265 = { mutable a265 : int64x2#; mutable b265 : int64; mutable c265 : int64 }
+type t266 = { mutable a266 : int64x2#; mutable b266 : int64; mutable c266 : int32# }
+type t267 = { mutable a267 : int64x2#; mutable b267 : int64; mutable c267 : float }
+type t268 = { mutable a268 : int64x2#; mutable b268 : int64; mutable c268 : int64x2# }
+type t269 = { mutable a269 : int64x2#; mutable b269 : int32#; mutable c269 : int }
+type t270 = { mutable a270 : int64x2#; mutable b270 : int32#; mutable c270 : int64 }
+type t271 = { mutable a271 : int64x2#; mutable b271 : int32#; mutable c271 : int32# }
+type t272 = { mutable a272 : int64x2#; mutable b272 : int32#; mutable c272 : float }
+type t273 = { mutable a273 : int64x2#; mutable b273 : int32#; mutable c273 : int64x2# }
+type t274 = { mutable a274 : int64x2#; mutable b274 : float; mutable c274 : int }
+type t275 = { mutable a275 : int64x2#; mutable b275 : float; mutable c275 : int64 }
+type t276 = { mutable a276 : int64x2#; mutable b276 : float; mutable c276 : int32# }
+type t277 = { mutable a277 : int64x2#; mutable b277 : float; mutable c277 : float }
+type t278 = { mutable a278 : int64x2#; mutable b278 : float; mutable c278 : int64x2# }
+type t279 = { mutable a279 : int64x2#; mutable b279 : int64x2#; mutable c279 : int }
+type t280 = { mutable a280 : int64x2#; mutable b280 : int64x2#; mutable c280 : int64 }
+type t281 = { mutable a281 : int64x2#; mutable b281 : int64x2#; mutable c281 : int32# }
+type t282 = { mutable a282 : int64x2#; mutable b282 : int64x2#; mutable c282 : float }
+type t283 = { mutable a283 : int64x2#; mutable b283 : int64x2#; mutable c283 : int64x2# }
+type t284 = { mutable a284 : int; mutable b284 : t6 }
+type t285 = { mutable a285 : int; mutable b285 : t7 }
+type t286 = { mutable a286 : int; mutable b286 : t8 }
+type t287 = { mutable a287 : int; mutable b287 : t56 }
+type t288 = { mutable a288 : int; mutable b288 : t157 }
+type t289 = { mutable a289 : int64; mutable b289 : t6 }
+type t290 = { mutable a290 : int64; mutable b290 : t7 }
+type t291 = { mutable a291 : int64; mutable b291 : t8 }
+type t292 = { mutable a292 : int64; mutable b292 : t56 }
+type t293 = { mutable a293 : int64; mutable b293 : t157 }
+type t294 = { mutable a294 : int32#; mutable b294 : t6 }
+type t295 = { mutable a295 : int32#; mutable b295 : t7 }
+type t296 = { mutable a296 : int32#; mutable b296 : t8 }
+type t297 = { mutable a297 : int32#; mutable b297 : t56 }
+type t298 = { mutable a298 : int32#; mutable b298 : t157 }
+type t299 = { mutable a299 : float; mutable b299 : t6 }
+type t300 = { mutable a300 : float; mutable b300 : t7 }
+type t301 = { mutable a301 : float; mutable b301 : t8 }
+type t302 = { mutable a302 : float; mutable b302 : t56 }
+type t303 = { mutable a303 : float; mutable b303 : t157 }
+type t304 = { mutable a304 : int64x2#; mutable b304 : t6 }
+type t305 = { mutable a305 : int64x2#; mutable b305 : t7 }
+type t306 = { mutable a306 : int64x2#; mutable b306 : t8 }
+type t307 = { mutable a307 : int64x2#; mutable b307 : t56 }
+type t308 = { mutable a308 : int64x2#; mutable b308 : t157 }
+type t309 = { mutable a309 : t6; mutable b309 : int }
+type t310 = { mutable a310 : t6; mutable b310 : int64 }
+type t311 = { mutable a311 : t6; mutable b311 : int32# }
+type t312 = { mutable a312 : t6; mutable b312 : float }
+type t313 = { mutable a313 : t6; mutable b313 : int64x2# }
+type t314 = { mutable a314 : t7; mutable b314 : int }
+type t315 = { mutable a315 : t7; mutable b315 : int64 }
+type t316 = { mutable a316 : t7; mutable b316 : int32# }
+type t317 = { mutable a317 : t7; mutable b317 : float }
+type t318 = { mutable a318 : t7; mutable b318 : int64x2# }
+type t319 = { mutable a319 : t8; mutable b319 : int }
+type t320 = { mutable a320 : t8; mutable b320 : int64 }
+type t321 = { mutable a321 : t8; mutable b321 : int32# }
+type t322 = { mutable a322 : t8; mutable b322 : float }
+type t323 = { mutable a323 : t8; mutable b323 : int64x2# }
+type t324 = { mutable a324 : t56; mutable b324 : int }
+type t325 = { mutable a325 : t56; mutable b325 : int64 }
+type t326 = { mutable a326 : t56; mutable b326 : int32# }
+type t327 = { mutable a327 : t56; mutable b327 : float }
+type t328 = { mutable a328 : t56; mutable b328 : int64x2# }
+type t329 = { mutable a329 : t157; mutable b329 : int }
+type t330 = { mutable a330 : t157; mutable b330 : int64 }
+type t331 = { mutable a331 : t157; mutable b331 : int32# }
+type t332 = { mutable a332 : t157; mutable b332 : float }
+type t333 = { mutable a333 : t157; mutable b333 : int64x2# }
+type t334 = { mutable a334 : t9 }
+type t335 = { mutable a335 : t10 }
+type t336 = { mutable a336 : t11 }
+type t337 = { mutable a337 : t12 }
+type t338 = #{ a338 : int; b338 : int64x2# }
+type t339 = { mutable a339 : t338 }
+type t340 = { mutable a340 : t13 }
+type t341 = { mutable a341 : t14 }
+type t342 = #{ a342 : int64; b342 : int32# }
+type t343 = { mutable a343 : t342 }
+type t344 = { mutable a344 : t15 }
+type t345 = #{ a345 : int64; b345 : int64x2# }
+type t346 = { mutable a346 : t345 }
+type t347 = #{ a347 : int32#; b347 : int }
+type t348 = { mutable a348 : t347 }
+type t349 = #{ a349 : int32#; b349 : int64 }
+type t350 = { mutable a350 : t349 }
+type t351 = { mutable a351 : t16 }
+type t352 = #{ a352 : int32#; b352 : float }
+type t353 = { mutable a353 : t352 }
+type t354 = #{ a354 : int32#; b354 : int64x2# }
+type t355 = { mutable a355 : t354 }
+type t356 = { mutable a356 : t17 }
+type t357 = { mutable a357 : t18 }
+type t358 = #{ a358 : float; b358 : int32# }
+type t359 = { mutable a359 : t358 }
+type t360 = { mutable a360 : t19 }
+type t361 = #{ a361 : float; b361 : int64x2# }
+type t362 = { mutable a362 : t361 }
+type t363 = #{ a363 : int64x2#; b363 : int }
+type t364 = { mutable a364 : t363 }
+type t365 = #{ a365 : int64x2#; b365 : int64 }
+type t366 = { mutable a366 : t365 }
+type t367 = #{ a367 : int64x2#; b367 : int32# }
+type t368 = { mutable a368 : t367 }
+type t369 = #{ a369 : int64x2#; b369 : float }
+type t370 = { mutable a370 : t369 }
+type t371 = #{ a371 : int64x2#; b371 : int64x2# }
+type t372 = { mutable a372 : t371 }
+type t373 = { mutable a373 : t20 }
+type t374 = { mutable a374 : t21 }
+type t375 = { mutable a375 : t22 }
+type t376 = #{ a376 : t56 }
+type t377 = { mutable a377 : t376 }
+type t378 = #{ a378 : t157 }
+type t379 = { mutable a379 : t378 }
+type t380 = { mutable a380 : int64# }
+type t381 = { mutable a381 : nativeint# }
+type t382 = { mutable a382 : int; mutable b382 : int64# }
+type t383 = { mutable a383 : int; mutable b383 : nativeint# }
+type t384 = { mutable a384 : int64; mutable b384 : int64# }
+type t385 = { mutable a385 : int64; mutable b385 : nativeint# }
+type t386 = { mutable a386 : int32#; mutable b386 : int64# }
+type t387 = { mutable a387 : int32#; mutable b387 : nativeint# }
+type t388 = { mutable a388 : float; mutable b388 : int64# }
+type t389 = { mutable a389 : float; mutable b389 : nativeint# }
+type t390 = { mutable a390 : int64#; mutable b390 : int }
+type t391 = { mutable a391 : int64#; mutable b391 : int64 }
+type t392 = { mutable a392 : int64#; mutable b392 : int32# }
+type t393 = { mutable a393 : int64#; mutable b393 : float }
+type t394 = { mutable a394 : int64#; mutable b394 : int64# }
+type t395 = { mutable a395 : int64#; mutable b395 : nativeint# }
+type t396 = { mutable a396 : nativeint#; mutable b396 : int }
+type t397 = { mutable a397 : nativeint#; mutable b397 : int64 }
+type t398 = { mutable a398 : nativeint#; mutable b398 : int32# }
+type t399 = { mutable a399 : nativeint#; mutable b399 : float }
+type t400 = { mutable a400 : nativeint#; mutable b400 : int64# }
+type t401 = { mutable a401 : nativeint#; mutable b401 : nativeint# }
+type t402 = { mutable a402 : t90 }
+type t403 = { mutable a403 : t91 }
+type t404 = { mutable a404 : t92; mutable b404 : t103 }
+type t405 = #{ a405 : int64x2#; b405 : string }
+type t406 = #{ a406 : int64; b406 : float# }
+type t407 = { mutable a407 : t405; mutable b407 : t406 }
+type t408 = #{ a408 : string; b408 : float# }
+type t409 = { mutable a409 : int64x2#; mutable b409 : t408 }
 
 let test_array_idx_with_makearray_dynamic size =
-  (**********)
-  (*   t1   *)
-  (**********)
+  (*********************************************)
+  (*   t1 = #{ int64#; #{ int64#; int64# } }   *)
+  (*********************************************)
   let eq = (fun (#{ a1 = a11; b1 = b11 } : t1) (#{ a1 = a12; b1 = b12 } : t1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a11 a12 && (fun (#{ a0 = a01; b0 = b01 } : t0) (#{ a0 = a02; b0 = b02 } : t0) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a01 a02 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b01 b02) b11 b12) in
   let mk_value i = (#{ a1 = Int64_u.of_int (i + 0); b1 = (#{ a0 = Int64_u.of_int (i + 1); b0 = Int64_u.of_int (i + 2) } : t0) } : t1) in
   (* 1. Create an array of size [size] *)
@@ -478,9 +610,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t3   *)
-  (**********)
+  (*********************************************)
+  (*   t3 = #{ string; #{ string; string } }   *)
+  (*********************************************)
   let eq = (fun (#{ a3 = a31; b3 = b31 } : t3) (#{ a3 = a32; b3 = b32 } : t3) -> (fun a b -> String.equal (globalize a) (globalize b)) a31 a32 && (fun (#{ a2 = a21; b2 = b21 } : t2) (#{ a2 = a22; b2 = b22 } : t2) -> (fun a b -> String.equal (globalize a) (globalize b)) a21 a22 && (fun a b -> String.equal (globalize a) (globalize b)) b21 b22) b31 b32) in
   let mk_value i = (#{ a3 = Int.to_string (i + 0); b3 = (#{ a2 = Int.to_string (i + 1); b2 = Int.to_string (i + 2) } : t2) } : t3) in
   (* 1. Create an array of size [size] *)
@@ -536,9 +668,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t4   *)
-  (**********)
+  (*********************************************)
+  (*   t4 = #{ #{ int64#; int64# }; int64# }   *)
+  (*********************************************)
   let eq = (fun (#{ a4 = a41; b4 = b41 } : t4) (#{ a4 = a42; b4 = b42 } : t4) -> (fun (#{ a0 = a01; b0 = b01 } : t0) (#{ a0 = a02; b0 = b02 } : t0) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a01 a02 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b01 b02) a41 a42 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b41 b42) in
   let mk_value i = (#{ a4 = (#{ a0 = Int64_u.of_int (i + 0); b0 = Int64_u.of_int (i + 1) } : t0); b4 = Int64_u.of_int (i + 2) } : t4) in
   (* 1. Create an array of size [size] *)
@@ -594,9 +726,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t5   *)
-  (**********)
+  (*********************************************)
+  (*   t5 = #{ #{ string; string }; string }   *)
+  (*********************************************)
   let eq = (fun (#{ a5 = a51; b5 = b51 } : t5) (#{ a5 = a52; b5 = b52 } : t5) -> (fun (#{ a2 = a21; b2 = b21 } : t2) (#{ a2 = a22; b2 = b22 } : t2) -> (fun a b -> String.equal (globalize a) (globalize b)) a21 a22 && (fun a b -> String.equal (globalize a) (globalize b)) b21 b22) a51 a52 && (fun a b -> String.equal (globalize a) (globalize b)) b51 b52) in
   let mk_value i = (#{ a5 = (#{ a2 = Int.to_string (i + 0); b2 = Int.to_string (i + 1) } : t2); b5 = Int.to_string (i + 2) } : t5) in
   (* 1. Create an array of size [size] *)
@@ -736,9 +868,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t6   *)
-  (**********)
+  (*********************)
+  (*   t6 = #{ int }   *)
+  (*********************)
   let eq = (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) in
   let mk_value i = (#{ a6 = (i + 0) } : t6) in
   (* 1. Create an array of size [size] *)
@@ -773,9 +905,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t7   *)
-  (**********)
+  (***********************)
+  (*   t7 = #{ int64 }   *)
+  (***********************)
   let eq = (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) in
   let mk_value i = (#{ a7 = Int64.of_int (i + 0) } : t7) in
   (* 1. Create an array of size [size] *)
@@ -810,9 +942,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t8   *)
-  (**********)
+  (************************)
+  (*   t8 = #{ int32# }   *)
+  (************************)
   let eq = (fun (#{ a8 = a81 } : t8) (#{ a8 = a82 } : t8) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a81 a82) in
   let mk_value i = (#{ a8 = Int32_u.of_int (i + 0) } : t8) in
   (* 1. Create an array of size [size] *)
@@ -847,9 +979,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t9   *)
-  (**********)
+  (**************************)
+  (*   t9 = #{ int; int }   *)
+  (**************************)
   let eq = (fun (#{ a9 = a91; b9 = b91 } : t9) (#{ a9 = a92; b9 = b92 } : t9) -> (fun a b -> Int.equal a b) a91 a92 && (fun a b -> Int.equal a b) b91 b92) in
   let mk_value i = (#{ a9 = (i + 0); b9 = (i + 1) } : t9) in
   (* 1. Create an array of size [size] *)
@@ -890,9 +1022,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t10   *)
-  (***********)
+  (*****************************)
+  (*   t10 = #{ int; int64 }   *)
+  (*****************************)
   let eq = (fun (#{ a10 = a101; b10 = b101 } : t10) (#{ a10 = a102; b10 = b102 } : t10) -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Int64.equal (globalize a) (globalize b)) b101 b102) in
   let mk_value i = (#{ a10 = (i + 0); b10 = Int64.of_int (i + 1) } : t10) in
   (* 1. Create an array of size [size] *)
@@ -933,9 +1065,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t11   *)
-  (***********)
+  (******************************)
+  (*   t11 = #{ int; int32# }   *)
+  (******************************)
   let eq = (fun (#{ a11 = a111; b11 = b111 } : t11) (#{ a11 = a112; b11 = b112 } : t11) -> (fun a b -> Int.equal a b) a111 a112 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b111 b112) in
   let mk_value i = (#{ a11 = (i + 0); b11 = Int32_u.of_int (i + 1) } : t11) in
   (* 1. Create an array of size [size] *)
@@ -976,9 +1108,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t12   *)
-  (***********)
+  (*****************************)
+  (*   t12 = #{ int; float }   *)
+  (*****************************)
   let eq = (fun (#{ a12 = a121; b12 = b121 } : t12) (#{ a12 = a122; b12 = b122 } : t12) -> (fun a b -> Int.equal a b) a121 a122 && (fun a b -> Float.equal (globalize a) (globalize b)) b121 b122) in
   let mk_value i = (#{ a12 = (i + 0); b12 = Float.of_int (i + 1) } : t12) in
   (* 1. Create an array of size [size] *)
@@ -1019,9 +1151,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t13   *)
-  (***********)
+  (*****************************)
+  (*   t13 = #{ int64; int }   *)
+  (*****************************)
   let eq = (fun (#{ a13 = a131; b13 = b131 } : t13) (#{ a13 = a132; b13 = b132 } : t13) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a131 a132 && (fun a b -> Int.equal a b) b131 b132) in
   let mk_value i = (#{ a13 = Int64.of_int (i + 0); b13 = (i + 1) } : t13) in
   (* 1. Create an array of size [size] *)
@@ -1062,9 +1194,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t14   *)
-  (***********)
+  (*******************************)
+  (*   t14 = #{ int64; int64 }   *)
+  (*******************************)
   let eq = (fun (#{ a14 = a141; b14 = b141 } : t14) (#{ a14 = a142; b14 = b142 } : t14) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a141 a142 && (fun a b -> Int64.equal (globalize a) (globalize b)) b141 b142) in
   let mk_value i = (#{ a14 = Int64.of_int (i + 0); b14 = Int64.of_int (i + 1) } : t14) in
   (* 1. Create an array of size [size] *)
@@ -1105,9 +1237,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t15   *)
-  (***********)
+  (*******************************)
+  (*   t15 = #{ int64; float }   *)
+  (*******************************)
   let eq = (fun (#{ a15 = a151; b15 = b151 } : t15) (#{ a15 = a152; b15 = b152 } : t15) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a151 a152 && (fun a b -> Float.equal (globalize a) (globalize b)) b151 b152) in
   let mk_value i = (#{ a15 = Int64.of_int (i + 0); b15 = Float.of_int (i + 1) } : t15) in
   (* 1. Create an array of size [size] *)
@@ -1148,9 +1280,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t16   *)
-  (***********)
+  (*********************************)
+  (*   t16 = #{ int32#; int32# }   *)
+  (*********************************)
   let eq = (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a161 a162 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b161 b162) in
   let mk_value i = (#{ a16 = Int32_u.of_int (i + 0); b16 = Int32_u.of_int (i + 1) } : t16) in
   (* 1. Create an array of size [size] *)
@@ -1191,9 +1323,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t17   *)
-  (***********)
+  (*****************************)
+  (*   t17 = #{ float; int }   *)
+  (*****************************)
   let eq = (fun (#{ a17 = a171; b17 = b171 } : t17) (#{ a17 = a172; b17 = b172 } : t17) -> (fun a b -> Float.equal (globalize a) (globalize b)) a171 a172 && (fun a b -> Int.equal a b) b171 b172) in
   let mk_value i = (#{ a17 = Float.of_int (i + 0); b17 = (i + 1) } : t17) in
   (* 1. Create an array of size [size] *)
@@ -1234,9 +1366,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t18   *)
-  (***********)
+  (*******************************)
+  (*   t18 = #{ float; int64 }   *)
+  (*******************************)
   let eq = (fun (#{ a18 = a181; b18 = b181 } : t18) (#{ a18 = a182; b18 = b182 } : t18) -> (fun a b -> Float.equal (globalize a) (globalize b)) a181 a182 && (fun a b -> Int64.equal (globalize a) (globalize b)) b181 b182) in
   let mk_value i = (#{ a18 = Float.of_int (i + 0); b18 = Int64.of_int (i + 1) } : t18) in
   (* 1. Create an array of size [size] *)
@@ -1277,9 +1409,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t19   *)
-  (***********)
+  (*******************************)
+  (*   t19 = #{ float; float }   *)
+  (*******************************)
   let eq = (fun (#{ a19 = a191; b19 = b191 } : t19) (#{ a19 = a192; b19 = b192 } : t19) -> (fun a b -> Float.equal (globalize a) (globalize b)) a191 a192 && (fun a b -> Float.equal (globalize a) (globalize b)) b191 b192) in
   let mk_value i = (#{ a19 = Float.of_int (i + 0); b19 = Float.of_int (i + 1) } : t19) in
   (* 1. Create an array of size [size] *)
@@ -1320,9 +1452,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t20   *)
-  (***********)
+  (***************************)
+  (*   t20 = #{ #{ int } }   *)
+  (***************************)
   let eq = (fun (#{ a20 = a201 } : t20) (#{ a20 = a202 } : t20) -> (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) a201 a202) in
   let mk_value i = (#{ a20 = (#{ a6 = (i + 0) } : t6) } : t20) in
   (* 1. Create an array of size [size] *)
@@ -1366,9 +1498,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t21   *)
-  (***********)
+  (*****************************)
+  (*   t21 = #{ #{ int64 } }   *)
+  (*****************************)
   let eq = (fun (#{ a21 = a211 } : t21) (#{ a21 = a212 } : t21) -> (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) a211 a212) in
   let mk_value i = (#{ a21 = (#{ a7 = Int64.of_int (i + 0) } : t7) } : t21) in
   (* 1. Create an array of size [size] *)
@@ -1412,9 +1544,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t22   *)
-  (***********)
+  (******************************)
+  (*   t22 = #{ #{ int32# } }   *)
+  (******************************)
   let eq = (fun (#{ a22 = a221 } : t22) (#{ a22 = a222 } : t22) -> (fun (#{ a8 = a81 } : t8) (#{ a8 = a82 } : t8) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a81 a82) a221 a222) in
   let mk_value i = (#{ a22 = (#{ a8 = Int32_u.of_int (i + 0) } : t8) } : t22) in
   (* 1. Create an array of size [size] *)
@@ -1458,9 +1590,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t23   *)
-  (***********)
+  (********************************)
+  (*   t23 = #{ int; int; int }   *)
+  (********************************)
   let eq = (fun (#{ a23 = a231; b23 = b231; c23 = c231 } : t23) (#{ a23 = a232; b23 = b232; c23 = c232 } : t23) -> (fun a b -> Int.equal a b) a231 a232 && (fun a b -> Int.equal a b) b231 b232 && (fun a b -> Int.equal a b) c231 c232) in
   let mk_value i = (#{ a23 = (i + 0); b23 = (i + 1); c23 = (i + 2) } : t23) in
   (* 1. Create an array of size [size] *)
@@ -1507,9 +1639,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t24   *)
-  (***********)
+  (**********************************)
+  (*   t24 = #{ int; int; int64 }   *)
+  (**********************************)
   let eq = (fun (#{ a24 = a241; b24 = b241; c24 = c241 } : t24) (#{ a24 = a242; b24 = b242; c24 = c242 } : t24) -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Int.equal a b) b241 b242 && (fun a b -> Int64.equal (globalize a) (globalize b)) c241 c242) in
   let mk_value i = (#{ a24 = (i + 0); b24 = (i + 1); c24 = Int64.of_int (i + 2) } : t24) in
   (* 1. Create an array of size [size] *)
@@ -1556,9 +1688,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t25   *)
-  (***********)
+  (***********************************)
+  (*   t25 = #{ int; int; int32# }   *)
+  (***********************************)
   let eq = (fun (#{ a25 = a251; b25 = b251; c25 = c251 } : t25) (#{ a25 = a252; b25 = b252; c25 = c252 } : t25) -> (fun a b -> Int.equal a b) a251 a252 && (fun a b -> Int.equal a b) b251 b252 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c251 c252) in
   let mk_value i = (#{ a25 = (i + 0); b25 = (i + 1); c25 = Int32_u.of_int (i + 2) } : t25) in
   (* 1. Create an array of size [size] *)
@@ -1605,9 +1737,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t26   *)
-  (***********)
+  (**********************************)
+  (*   t26 = #{ int; int; float }   *)
+  (**********************************)
   let eq = (fun (#{ a26 = a261; b26 = b261; c26 = c261 } : t26) (#{ a26 = a262; b26 = b262; c26 = c262 } : t26) -> (fun a b -> Int.equal a b) a261 a262 && (fun a b -> Int.equal a b) b261 b262 && (fun a b -> Float.equal (globalize a) (globalize b)) c261 c262) in
   let mk_value i = (#{ a26 = (i + 0); b26 = (i + 1); c26 = Float.of_int (i + 2) } : t26) in
   (* 1. Create an array of size [size] *)
@@ -1654,9 +1786,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t27   *)
-  (***********)
+  (**********************************)
+  (*   t27 = #{ int; int64; int }   *)
+  (**********************************)
   let eq = (fun (#{ a27 = a271; b27 = b271; c27 = c271 } : t27) (#{ a27 = a272; b27 = b272; c27 = c272 } : t27) -> (fun a b -> Int.equal a b) a271 a272 && (fun a b -> Int64.equal (globalize a) (globalize b)) b271 b272 && (fun a b -> Int.equal a b) c271 c272) in
   let mk_value i = (#{ a27 = (i + 0); b27 = Int64.of_int (i + 1); c27 = (i + 2) } : t27) in
   (* 1. Create an array of size [size] *)
@@ -1703,9 +1835,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t28   *)
-  (***********)
+  (************************************)
+  (*   t28 = #{ int; int64; int64 }   *)
+  (************************************)
   let eq = (fun (#{ a28 = a281; b28 = b281; c28 = c281 } : t28) (#{ a28 = a282; b28 = b282; c28 = c282 } : t28) -> (fun a b -> Int.equal a b) a281 a282 && (fun a b -> Int64.equal (globalize a) (globalize b)) b281 b282 && (fun a b -> Int64.equal (globalize a) (globalize b)) c281 c282) in
   let mk_value i = (#{ a28 = (i + 0); b28 = Int64.of_int (i + 1); c28 = Int64.of_int (i + 2) } : t28) in
   (* 1. Create an array of size [size] *)
@@ -1752,9 +1884,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t29   *)
-  (***********)
+  (************************************)
+  (*   t29 = #{ int; int64; float }   *)
+  (************************************)
   let eq = (fun (#{ a29 = a291; b29 = b291; c29 = c291 } : t29) (#{ a29 = a292; b29 = b292; c29 = c292 } : t29) -> (fun a b -> Int.equal a b) a291 a292 && (fun a b -> Int64.equal (globalize a) (globalize b)) b291 b292 && (fun a b -> Float.equal (globalize a) (globalize b)) c291 c292) in
   let mk_value i = (#{ a29 = (i + 0); b29 = Int64.of_int (i + 1); c29 = Float.of_int (i + 2) } : t29) in
   (* 1. Create an array of size [size] *)
@@ -1801,9 +1933,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t30   *)
-  (***********)
+  (**************************************)
+  (*   t30 = #{ int; int32#; int32# }   *)
+  (**************************************)
   let eq = (fun (#{ a30 = a301; b30 = b301; c30 = c301 } : t30) (#{ a30 = a302; b30 = b302; c30 = c302 } : t30) -> (fun a b -> Int.equal a b) a301 a302 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b301 b302 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c301 c302) in
   let mk_value i = (#{ a30 = (i + 0); b30 = Int32_u.of_int (i + 1); c30 = Int32_u.of_int (i + 2) } : t30) in
   (* 1. Create an array of size [size] *)
@@ -1850,9 +1982,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t31   *)
-  (***********)
+  (**********************************)
+  (*   t31 = #{ int; float; int }   *)
+  (**********************************)
   let eq = (fun (#{ a31 = a311; b31 = b311; c31 = c311 } : t31) (#{ a31 = a312; b31 = b312; c31 = c312 } : t31) -> (fun a b -> Int.equal a b) a311 a312 && (fun a b -> Float.equal (globalize a) (globalize b)) b311 b312 && (fun a b -> Int.equal a b) c311 c312) in
   let mk_value i = (#{ a31 = (i + 0); b31 = Float.of_int (i + 1); c31 = (i + 2) } : t31) in
   (* 1. Create an array of size [size] *)
@@ -1899,9 +2031,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t32   *)
-  (***********)
+  (************************************)
+  (*   t32 = #{ int; float; int64 }   *)
+  (************************************)
   let eq = (fun (#{ a32 = a321; b32 = b321; c32 = c321 } : t32) (#{ a32 = a322; b32 = b322; c32 = c322 } : t32) -> (fun a b -> Int.equal a b) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322 && (fun a b -> Int64.equal (globalize a) (globalize b)) c321 c322) in
   let mk_value i = (#{ a32 = (i + 0); b32 = Float.of_int (i + 1); c32 = Int64.of_int (i + 2) } : t32) in
   (* 1. Create an array of size [size] *)
@@ -1948,9 +2080,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t33   *)
-  (***********)
+  (************************************)
+  (*   t33 = #{ int; float; float }   *)
+  (************************************)
   let eq = (fun (#{ a33 = a331; b33 = b331; c33 = c331 } : t33) (#{ a33 = a332; b33 = b332; c33 = c332 } : t33) -> (fun a b -> Int.equal a b) a331 a332 && (fun a b -> Float.equal (globalize a) (globalize b)) b331 b332 && (fun a b -> Float.equal (globalize a) (globalize b)) c331 c332) in
   let mk_value i = (#{ a33 = (i + 0); b33 = Float.of_int (i + 1); c33 = Float.of_int (i + 2) } : t33) in
   (* 1. Create an array of size [size] *)
@@ -1997,9 +2129,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t34   *)
-  (***********)
+  (**********************************)
+  (*   t34 = #{ int64; int; int }   *)
+  (**********************************)
   let eq = (fun (#{ a34 = a341; b34 = b341; c34 = c341 } : t34) (#{ a34 = a342; b34 = b342; c34 = c342 } : t34) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a341 a342 && (fun a b -> Int.equal a b) b341 b342 && (fun a b -> Int.equal a b) c341 c342) in
   let mk_value i = (#{ a34 = Int64.of_int (i + 0); b34 = (i + 1); c34 = (i + 2) } : t34) in
   (* 1. Create an array of size [size] *)
@@ -2046,9 +2178,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t35   *)
-  (***********)
+  (************************************)
+  (*   t35 = #{ int64; int; int64 }   *)
+  (************************************)
   let eq = (fun (#{ a35 = a351; b35 = b351; c35 = c351 } : t35) (#{ a35 = a352; b35 = b352; c35 = c352 } : t35) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a351 a352 && (fun a b -> Int.equal a b) b351 b352 && (fun a b -> Int64.equal (globalize a) (globalize b)) c351 c352) in
   let mk_value i = (#{ a35 = Int64.of_int (i + 0); b35 = (i + 1); c35 = Int64.of_int (i + 2) } : t35) in
   (* 1. Create an array of size [size] *)
@@ -2095,9 +2227,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t36   *)
-  (***********)
+  (************************************)
+  (*   t36 = #{ int64; int; float }   *)
+  (************************************)
   let eq = (fun (#{ a36 = a361; b36 = b361; c36 = c361 } : t36) (#{ a36 = a362; b36 = b362; c36 = c362 } : t36) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362 && (fun a b -> Float.equal (globalize a) (globalize b)) c361 c362) in
   let mk_value i = (#{ a36 = Int64.of_int (i + 0); b36 = (i + 1); c36 = Float.of_int (i + 2) } : t36) in
   (* 1. Create an array of size [size] *)
@@ -2144,9 +2276,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t37   *)
-  (***********)
+  (************************************)
+  (*   t37 = #{ int64; int64; int }   *)
+  (************************************)
   let eq = (fun (#{ a37 = a371; b37 = b371; c37 = c371 } : t37) (#{ a37 = a372; b37 = b372; c37 = c372 } : t37) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a371 a372 && (fun a b -> Int64.equal (globalize a) (globalize b)) b371 b372 && (fun a b -> Int.equal a b) c371 c372) in
   let mk_value i = (#{ a37 = Int64.of_int (i + 0); b37 = Int64.of_int (i + 1); c37 = (i + 2) } : t37) in
   (* 1. Create an array of size [size] *)
@@ -2193,9 +2325,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t38   *)
-  (***********)
+  (**************************************)
+  (*   t38 = #{ int64; int64; int64 }   *)
+  (**************************************)
   let eq = (fun (#{ a38 = a381; b38 = b381; c38 = c381 } : t38) (#{ a38 = a382; b38 = b382; c38 = c382 } : t38) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Int64.equal (globalize a) (globalize b)) b381 b382 && (fun a b -> Int64.equal (globalize a) (globalize b)) c381 c382) in
   let mk_value i = (#{ a38 = Int64.of_int (i + 0); b38 = Int64.of_int (i + 1); c38 = Int64.of_int (i + 2) } : t38) in
   (* 1. Create an array of size [size] *)
@@ -2242,9 +2374,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t39   *)
-  (***********)
+  (**************************************)
+  (*   t39 = #{ int64; int64; float }   *)
+  (**************************************)
   let eq = (fun (#{ a39 = a391; b39 = b391; c39 = c391 } : t39) (#{ a39 = a392; b39 = b392; c39 = c392 } : t39) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Int64.equal (globalize a) (globalize b)) b391 b392 && (fun a b -> Float.equal (globalize a) (globalize b)) c391 c392) in
   let mk_value i = (#{ a39 = Int64.of_int (i + 0); b39 = Int64.of_int (i + 1); c39 = Float.of_int (i + 2) } : t39) in
   (* 1. Create an array of size [size] *)
@@ -2291,9 +2423,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t40   *)
-  (***********)
+  (************************************)
+  (*   t40 = #{ int64; float; int }   *)
+  (************************************)
   let eq = (fun (#{ a40 = a401; b40 = b401; c40 = c401 } : t40) (#{ a40 = a402; b40 = b402; c40 = c402 } : t40) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a401 a402 && (fun a b -> Float.equal (globalize a) (globalize b)) b401 b402 && (fun a b -> Int.equal a b) c401 c402) in
   let mk_value i = (#{ a40 = Int64.of_int (i + 0); b40 = Float.of_int (i + 1); c40 = (i + 2) } : t40) in
   (* 1. Create an array of size [size] *)
@@ -2340,9 +2472,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t41   *)
-  (***********)
+  (**************************************)
+  (*   t41 = #{ int64; float; int64 }   *)
+  (**************************************)
   let eq = (fun (#{ a41 = a411; b41 = b411; c41 = c411 } : t41) (#{ a41 = a412; b41 = b412; c41 = c412 } : t41) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a411 a412 && (fun a b -> Float.equal (globalize a) (globalize b)) b411 b412 && (fun a b -> Int64.equal (globalize a) (globalize b)) c411 c412) in
   let mk_value i = (#{ a41 = Int64.of_int (i + 0); b41 = Float.of_int (i + 1); c41 = Int64.of_int (i + 2) } : t41) in
   (* 1. Create an array of size [size] *)
@@ -2389,9 +2521,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t42   *)
-  (***********)
+  (**************************************)
+  (*   t42 = #{ int64; float; float }   *)
+  (**************************************)
   let eq = (fun (#{ a42 = a421; b42 = b421; c42 = c421 } : t42) (#{ a42 = a422; b42 = b422; c42 = c422 } : t42) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a421 a422 && (fun a b -> Float.equal (globalize a) (globalize b)) b421 b422 && (fun a b -> Float.equal (globalize a) (globalize b)) c421 c422) in
   let mk_value i = (#{ a42 = Int64.of_int (i + 0); b42 = Float.of_int (i + 1); c42 = Float.of_int (i + 2) } : t42) in
   (* 1. Create an array of size [size] *)
@@ -2438,9 +2570,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t43   *)
-  (***********)
+  (*****************************************)
+  (*   t43 = #{ int32#; int32#; int32# }   *)
+  (*****************************************)
   let eq = (fun (#{ a43 = a431; b43 = b431; c43 = c431 } : t43) (#{ a43 = a432; b43 = b432; c43 = c432 } : t43) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a431 a432 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b431 b432 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c431 c432) in
   let mk_value i = (#{ a43 = Int32_u.of_int (i + 0); b43 = Int32_u.of_int (i + 1); c43 = Int32_u.of_int (i + 2) } : t43) in
   (* 1. Create an array of size [size] *)
@@ -2487,9 +2619,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t44   *)
-  (***********)
+  (**********************************)
+  (*   t44 = #{ float; int; int }   *)
+  (**********************************)
   let eq = (fun (#{ a44 = a441; b44 = b441; c44 = c441 } : t44) (#{ a44 = a442; b44 = b442; c44 = c442 } : t44) -> (fun a b -> Float.equal (globalize a) (globalize b)) a441 a442 && (fun a b -> Int.equal a b) b441 b442 && (fun a b -> Int.equal a b) c441 c442) in
   let mk_value i = (#{ a44 = Float.of_int (i + 0); b44 = (i + 1); c44 = (i + 2) } : t44) in
   (* 1. Create an array of size [size] *)
@@ -2536,9 +2668,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t45   *)
-  (***********)
+  (************************************)
+  (*   t45 = #{ float; int; int64 }   *)
+  (************************************)
   let eq = (fun (#{ a45 = a451; b45 = b451; c45 = c451 } : t45) (#{ a45 = a452; b45 = b452; c45 = c452 } : t45) -> (fun a b -> Float.equal (globalize a) (globalize b)) a451 a452 && (fun a b -> Int.equal a b) b451 b452 && (fun a b -> Int64.equal (globalize a) (globalize b)) c451 c452) in
   let mk_value i = (#{ a45 = Float.of_int (i + 0); b45 = (i + 1); c45 = Int64.of_int (i + 2) } : t45) in
   (* 1. Create an array of size [size] *)
@@ -2585,9 +2717,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t46   *)
-  (***********)
+  (************************************)
+  (*   t46 = #{ float; int; float }   *)
+  (************************************)
   let eq = (fun (#{ a46 = a461; b46 = b461; c46 = c461 } : t46) (#{ a46 = a462; b46 = b462; c46 = c462 } : t46) -> (fun a b -> Float.equal (globalize a) (globalize b)) a461 a462 && (fun a b -> Int.equal a b) b461 b462 && (fun a b -> Float.equal (globalize a) (globalize b)) c461 c462) in
   let mk_value i = (#{ a46 = Float.of_int (i + 0); b46 = (i + 1); c46 = Float.of_int (i + 2) } : t46) in
   (* 1. Create an array of size [size] *)
@@ -2634,9 +2766,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t47   *)
-  (***********)
+  (************************************)
+  (*   t47 = #{ float; int64; int }   *)
+  (************************************)
   let eq = (fun (#{ a47 = a471; b47 = b471; c47 = c471 } : t47) (#{ a47 = a472; b47 = b472; c47 = c472 } : t47) -> (fun a b -> Float.equal (globalize a) (globalize b)) a471 a472 && (fun a b -> Int64.equal (globalize a) (globalize b)) b471 b472 && (fun a b -> Int.equal a b) c471 c472) in
   let mk_value i = (#{ a47 = Float.of_int (i + 0); b47 = Int64.of_int (i + 1); c47 = (i + 2) } : t47) in
   (* 1. Create an array of size [size] *)
@@ -2683,9 +2815,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t48   *)
-  (***********)
+  (**************************************)
+  (*   t48 = #{ float; int64; int64 }   *)
+  (**************************************)
   let eq = (fun (#{ a48 = a481; b48 = b481; c48 = c481 } : t48) (#{ a48 = a482; b48 = b482; c48 = c482 } : t48) -> (fun a b -> Float.equal (globalize a) (globalize b)) a481 a482 && (fun a b -> Int64.equal (globalize a) (globalize b)) b481 b482 && (fun a b -> Int64.equal (globalize a) (globalize b)) c481 c482) in
   let mk_value i = (#{ a48 = Float.of_int (i + 0); b48 = Int64.of_int (i + 1); c48 = Int64.of_int (i + 2) } : t48) in
   (* 1. Create an array of size [size] *)
@@ -2732,9 +2864,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t49   *)
-  (***********)
+  (**************************************)
+  (*   t49 = #{ float; int64; float }   *)
+  (**************************************)
   let eq = (fun (#{ a49 = a491; b49 = b491; c49 = c491 } : t49) (#{ a49 = a492; b49 = b492; c49 = c492 } : t49) -> (fun a b -> Float.equal (globalize a) (globalize b)) a491 a492 && (fun a b -> Int64.equal (globalize a) (globalize b)) b491 b492 && (fun a b -> Float.equal (globalize a) (globalize b)) c491 c492) in
   let mk_value i = (#{ a49 = Float.of_int (i + 0); b49 = Int64.of_int (i + 1); c49 = Float.of_int (i + 2) } : t49) in
   (* 1. Create an array of size [size] *)
@@ -2781,9 +2913,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t50   *)
-  (***********)
+  (************************************)
+  (*   t50 = #{ float; float; int }   *)
+  (************************************)
   let eq = (fun (#{ a50 = a501; b50 = b501; c50 = c501 } : t50) (#{ a50 = a502; b50 = b502; c50 = c502 } : t50) -> (fun a b -> Float.equal (globalize a) (globalize b)) a501 a502 && (fun a b -> Float.equal (globalize a) (globalize b)) b501 b502 && (fun a b -> Int.equal a b) c501 c502) in
   let mk_value i = (#{ a50 = Float.of_int (i + 0); b50 = Float.of_int (i + 1); c50 = (i + 2) } : t50) in
   (* 1. Create an array of size [size] *)
@@ -2830,9 +2962,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t51   *)
-  (***********)
+  (**************************************)
+  (*   t51 = #{ float; float; int64 }   *)
+  (**************************************)
   let eq = (fun (#{ a51 = a511; b51 = b511; c51 = c511 } : t51) (#{ a51 = a512; b51 = b512; c51 = c512 } : t51) -> (fun a b -> Float.equal (globalize a) (globalize b)) a511 a512 && (fun a b -> Float.equal (globalize a) (globalize b)) b511 b512 && (fun a b -> Int64.equal (globalize a) (globalize b)) c511 c512) in
   let mk_value i = (#{ a51 = Float.of_int (i + 0); b51 = Float.of_int (i + 1); c51 = Int64.of_int (i + 2) } : t51) in
   (* 1. Create an array of size [size] *)
@@ -2879,9 +3011,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t52   *)
-  (***********)
+  (**************************************)
+  (*   t52 = #{ float; float; float }   *)
+  (**************************************)
   let eq = (fun (#{ a52 = a521; b52 = b521; c52 = c521 } : t52) (#{ a52 = a522; b52 = b522; c52 = c522 } : t52) -> (fun a b -> Float.equal (globalize a) (globalize b)) a521 a522 && (fun a b -> Float.equal (globalize a) (globalize b)) b521 b522 && (fun a b -> Float.equal (globalize a) (globalize b)) c521 c522) in
   let mk_value i = (#{ a52 = Float.of_int (i + 0); b52 = Float.of_int (i + 1); c52 = Float.of_int (i + 2) } : t52) in
   (* 1. Create an array of size [size] *)
@@ -2928,9 +3060,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t53   *)
-  (***********)
+  (********************************)
+  (*   t53 = #{ int; #{ int } }   *)
+  (********************************)
   let eq = (fun (#{ a53 = a531; b53 = b531 } : t53) (#{ a53 = a532; b53 = b532 } : t53) -> (fun a b -> Int.equal a b) a531 a532 && (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) b531 b532) in
   let mk_value i = (#{ a53 = (i + 0); b53 = (#{ a6 = (i + 1) } : t6) } : t53) in
   (* 1. Create an array of size [size] *)
@@ -2980,9 +3112,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t54   *)
-  (***********)
+  (**********************************)
+  (*   t54 = #{ int; #{ int64 } }   *)
+  (**********************************)
   let eq = (fun (#{ a54 = a541; b54 = b541 } : t54) (#{ a54 = a542; b54 = b542 } : t54) -> (fun a b -> Int.equal a b) a541 a542 && (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) b541 b542) in
   let mk_value i = (#{ a54 = (i + 0); b54 = (#{ a7 = Int64.of_int (i + 1) } : t7) } : t54) in
   (* 1. Create an array of size [size] *)
@@ -3032,9 +3164,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t55   *)
-  (***********)
+  (***********************************)
+  (*   t55 = #{ int; #{ int32# } }   *)
+  (***********************************)
   let eq = (fun (#{ a55 = a551; b55 = b551 } : t55) (#{ a55 = a552; b55 = b552 } : t55) -> (fun a b -> Int.equal a b) a551 a552 && (fun (#{ a8 = a81 } : t8) (#{ a8 = a82 } : t8) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a81 a82) b551 b552) in
   let mk_value i = (#{ a55 = (i + 0); b55 = (#{ a8 = Int32_u.of_int (i + 1) } : t8) } : t55) in
   (* 1. Create an array of size [size] *)
@@ -3084,9 +3216,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t57   *)
-  (***********)
+  (**********************************)
+  (*   t57 = #{ int; #{ float } }   *)
+  (**********************************)
   let eq = (fun (#{ a57 = a571; b57 = b571 } : t57) (#{ a57 = a572; b57 = b572 } : t57) -> (fun a b -> Int.equal a b) a571 a572 && (fun (#{ a56 = a561 } : t56) (#{ a56 = a562 } : t56) -> (fun a b -> Float.equal (globalize a) (globalize b)) a561 a562) b571 b572) in
   let mk_value i = (#{ a57 = (i + 0); b57 = (#{ a56 = Float.of_int (i + 1) } : t56) } : t57) in
   (* 1. Create an array of size [size] *)
@@ -3136,9 +3268,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t58   *)
-  (***********)
+  (**********************************)
+  (*   t58 = #{ int64; #{ int } }   *)
+  (**********************************)
   let eq = (fun (#{ a58 = a581; b58 = b581 } : t58) (#{ a58 = a582; b58 = b582 } : t58) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a581 a582 && (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) b581 b582) in
   let mk_value i = (#{ a58 = Int64.of_int (i + 0); b58 = (#{ a6 = (i + 1) } : t6) } : t58) in
   (* 1. Create an array of size [size] *)
@@ -3188,9 +3320,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t59   *)
-  (***********)
+  (************************************)
+  (*   t59 = #{ int64; #{ int64 } }   *)
+  (************************************)
   let eq = (fun (#{ a59 = a591; b59 = b591 } : t59) (#{ a59 = a592; b59 = b592 } : t59) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a591 a592 && (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) b591 b592) in
   let mk_value i = (#{ a59 = Int64.of_int (i + 0); b59 = (#{ a7 = Int64.of_int (i + 1) } : t7) } : t59) in
   (* 1. Create an array of size [size] *)
@@ -3240,9 +3372,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t60   *)
-  (***********)
+  (************************************)
+  (*   t60 = #{ int64; #{ float } }   *)
+  (************************************)
   let eq = (fun (#{ a60 = a601; b60 = b601 } : t60) (#{ a60 = a602; b60 = b602 } : t60) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a601 a602 && (fun (#{ a56 = a561 } : t56) (#{ a56 = a562 } : t56) -> (fun a b -> Float.equal (globalize a) (globalize b)) a561 a562) b601 b602) in
   let mk_value i = (#{ a60 = Int64.of_int (i + 0); b60 = (#{ a56 = Float.of_int (i + 1) } : t56) } : t60) in
   (* 1. Create an array of size [size] *)
@@ -3292,9 +3424,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t61   *)
-  (***********)
+  (**************************************)
+  (*   t61 = #{ int32#; #{ int32# } }   *)
+  (**************************************)
   let eq = (fun (#{ a61 = a611; b61 = b611 } : t61) (#{ a61 = a612; b61 = b612 } : t61) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a611 a612 && (fun (#{ a8 = a81 } : t8) (#{ a8 = a82 } : t8) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a81 a82) b611 b612) in
   let mk_value i = (#{ a61 = Int32_u.of_int (i + 0); b61 = (#{ a8 = Int32_u.of_int (i + 1) } : t8) } : t61) in
   (* 1. Create an array of size [size] *)
@@ -3344,9 +3476,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t62   *)
-  (***********)
+  (**********************************)
+  (*   t62 = #{ float; #{ int } }   *)
+  (**********************************)
   let eq = (fun (#{ a62 = a621; b62 = b621 } : t62) (#{ a62 = a622; b62 = b622 } : t62) -> (fun a b -> Float.equal (globalize a) (globalize b)) a621 a622 && (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) b621 b622) in
   let mk_value i = (#{ a62 = Float.of_int (i + 0); b62 = (#{ a6 = (i + 1) } : t6) } : t62) in
   (* 1. Create an array of size [size] *)
@@ -3396,9 +3528,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t63   *)
-  (***********)
+  (************************************)
+  (*   t63 = #{ float; #{ int64 } }   *)
+  (************************************)
   let eq = (fun (#{ a63 = a631; b63 = b631 } : t63) (#{ a63 = a632; b63 = b632 } : t63) -> (fun a b -> Float.equal (globalize a) (globalize b)) a631 a632 && (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) b631 b632) in
   let mk_value i = (#{ a63 = Float.of_int (i + 0); b63 = (#{ a7 = Int64.of_int (i + 1) } : t7) } : t63) in
   (* 1. Create an array of size [size] *)
@@ -3448,9 +3580,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t64   *)
-  (***********)
+  (************************************)
+  (*   t64 = #{ float; #{ float } }   *)
+  (************************************)
   let eq = (fun (#{ a64 = a641; b64 = b641 } : t64) (#{ a64 = a642; b64 = b642 } : t64) -> (fun a b -> Float.equal (globalize a) (globalize b)) a641 a642 && (fun (#{ a56 = a561 } : t56) (#{ a56 = a562 } : t56) -> (fun a b -> Float.equal (globalize a) (globalize b)) a561 a562) b641 b642) in
   let mk_value i = (#{ a64 = Float.of_int (i + 0); b64 = (#{ a56 = Float.of_int (i + 1) } : t56) } : t64) in
   (* 1. Create an array of size [size] *)
@@ -3500,9 +3632,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t65   *)
-  (***********)
+  (********************************)
+  (*   t65 = #{ #{ int }; int }   *)
+  (********************************)
   let eq = (fun (#{ a65 = a651; b65 = b651 } : t65) (#{ a65 = a652; b65 = b652 } : t65) -> (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) a651 a652 && (fun a b -> Int.equal a b) b651 b652) in
   let mk_value i = (#{ a65 = (#{ a6 = (i + 0) } : t6); b65 = (i + 1) } : t65) in
   (* 1. Create an array of size [size] *)
@@ -3552,9 +3684,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t66   *)
-  (***********)
+  (**********************************)
+  (*   t66 = #{ #{ int }; int64 }   *)
+  (**********************************)
   let eq = (fun (#{ a66 = a661; b66 = b661 } : t66) (#{ a66 = a662; b66 = b662 } : t66) -> (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) a661 a662 && (fun a b -> Int64.equal (globalize a) (globalize b)) b661 b662) in
   let mk_value i = (#{ a66 = (#{ a6 = (i + 0) } : t6); b66 = Int64.of_int (i + 1) } : t66) in
   (* 1. Create an array of size [size] *)
@@ -3604,9 +3736,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t67   *)
-  (***********)
+  (***********************************)
+  (*   t67 = #{ #{ int }; int32# }   *)
+  (***********************************)
   let eq = (fun (#{ a67 = a671; b67 = b671 } : t67) (#{ a67 = a672; b67 = b672 } : t67) -> (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) a671 a672 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b671 b672) in
   let mk_value i = (#{ a67 = (#{ a6 = (i + 0) } : t6); b67 = Int32_u.of_int (i + 1) } : t67) in
   (* 1. Create an array of size [size] *)
@@ -3656,9 +3788,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t68   *)
-  (***********)
+  (**********************************)
+  (*   t68 = #{ #{ int }; float }   *)
+  (**********************************)
   let eq = (fun (#{ a68 = a681; b68 = b681 } : t68) (#{ a68 = a682; b68 = b682 } : t68) -> (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) a681 a682 && (fun a b -> Float.equal (globalize a) (globalize b)) b681 b682) in
   let mk_value i = (#{ a68 = (#{ a6 = (i + 0) } : t6); b68 = Float.of_int (i + 1) } : t68) in
   (* 1. Create an array of size [size] *)
@@ -3708,9 +3840,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t69   *)
-  (***********)
+  (**********************************)
+  (*   t69 = #{ #{ int64 }; int }   *)
+  (**********************************)
   let eq = (fun (#{ a69 = a691; b69 = b691 } : t69) (#{ a69 = a692; b69 = b692 } : t69) -> (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) a691 a692 && (fun a b -> Int.equal a b) b691 b692) in
   let mk_value i = (#{ a69 = (#{ a7 = Int64.of_int (i + 0) } : t7); b69 = (i + 1) } : t69) in
   (* 1. Create an array of size [size] *)
@@ -3760,9 +3892,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t70   *)
-  (***********)
+  (************************************)
+  (*   t70 = #{ #{ int64 }; int64 }   *)
+  (************************************)
   let eq = (fun (#{ a70 = a701; b70 = b701 } : t70) (#{ a70 = a702; b70 = b702 } : t70) -> (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) a701 a702 && (fun a b -> Int64.equal (globalize a) (globalize b)) b701 b702) in
   let mk_value i = (#{ a70 = (#{ a7 = Int64.of_int (i + 0) } : t7); b70 = Int64.of_int (i + 1) } : t70) in
   (* 1. Create an array of size [size] *)
@@ -3812,9 +3944,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t71   *)
-  (***********)
+  (************************************)
+  (*   t71 = #{ #{ int64 }; float }   *)
+  (************************************)
   let eq = (fun (#{ a71 = a711; b71 = b711 } : t71) (#{ a71 = a712; b71 = b712 } : t71) -> (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) a711 a712 && (fun a b -> Float.equal (globalize a) (globalize b)) b711 b712) in
   let mk_value i = (#{ a71 = (#{ a7 = Int64.of_int (i + 0) } : t7); b71 = Float.of_int (i + 1) } : t71) in
   (* 1. Create an array of size [size] *)
@@ -3864,9 +3996,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t72   *)
-  (***********)
+  (**************************************)
+  (*   t72 = #{ #{ int32# }; int32# }   *)
+  (**************************************)
   let eq = (fun (#{ a72 = a721; b72 = b721 } : t72) (#{ a72 = a722; b72 = b722 } : t72) -> (fun (#{ a8 = a81 } : t8) (#{ a8 = a82 } : t8) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a81 a82) a721 a722 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b721 b722) in
   let mk_value i = (#{ a72 = (#{ a8 = Int32_u.of_int (i + 0) } : t8); b72 = Int32_u.of_int (i + 1) } : t72) in
   (* 1. Create an array of size [size] *)
@@ -3916,9 +4048,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t73   *)
-  (***********)
+  (**********************************)
+  (*   t73 = #{ #{ float }; int }   *)
+  (**********************************)
   let eq = (fun (#{ a73 = a731; b73 = b731 } : t73) (#{ a73 = a732; b73 = b732 } : t73) -> (fun (#{ a56 = a561 } : t56) (#{ a56 = a562 } : t56) -> (fun a b -> Float.equal (globalize a) (globalize b)) a561 a562) a731 a732 && (fun a b -> Int.equal a b) b731 b732) in
   let mk_value i = (#{ a73 = (#{ a56 = Float.of_int (i + 0) } : t56); b73 = (i + 1) } : t73) in
   (* 1. Create an array of size [size] *)
@@ -3968,9 +4100,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t74   *)
-  (***********)
+  (************************************)
+  (*   t74 = #{ #{ float }; int64 }   *)
+  (************************************)
   let eq = (fun (#{ a74 = a741; b74 = b741 } : t74) (#{ a74 = a742; b74 = b742 } : t74) -> (fun (#{ a56 = a561 } : t56) (#{ a56 = a562 } : t56) -> (fun a b -> Float.equal (globalize a) (globalize b)) a561 a562) a741 a742 && (fun a b -> Int64.equal (globalize a) (globalize b)) b741 b742) in
   let mk_value i = (#{ a74 = (#{ a56 = Float.of_int (i + 0) } : t56); b74 = Int64.of_int (i + 1) } : t74) in
   (* 1. Create an array of size [size] *)
@@ -4020,9 +4152,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t75   *)
-  (***********)
+  (************************************)
+  (*   t75 = #{ #{ float }; float }   *)
+  (************************************)
   let eq = (fun (#{ a75 = a751; b75 = b751 } : t75) (#{ a75 = a752; b75 = b752 } : t75) -> (fun (#{ a56 = a561 } : t56) (#{ a56 = a562 } : t56) -> (fun a b -> Float.equal (globalize a) (globalize b)) a561 a562) a751 a752 && (fun a b -> Float.equal (globalize a) (globalize b)) b751 b752) in
   let mk_value i = (#{ a75 = (#{ a56 = Float.of_int (i + 0) } : t56); b75 = Float.of_int (i + 1) } : t75) in
   (* 1. Create an array of size [size] *)
@@ -4072,9 +4204,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t76   *)
-  (***********)
+  (********************************)
+  (*   t76 = #{ #{ int; int } }   *)
+  (********************************)
   let eq = (fun (#{ a76 = a761 } : t76) (#{ a76 = a762 } : t76) -> (fun (#{ a9 = a91; b9 = b91 } : t9) (#{ a9 = a92; b9 = b92 } : t9) -> (fun a b -> Int.equal a b) a91 a92 && (fun a b -> Int.equal a b) b91 b92) a761 a762) in
   let mk_value i = (#{ a76 = (#{ a9 = (i + 0); b9 = (i + 1) } : t9) } : t76) in
   (* 1. Create an array of size [size] *)
@@ -4124,9 +4256,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t77   *)
-  (***********)
+  (**********************************)
+  (*   t77 = #{ #{ int; int64 } }   *)
+  (**********************************)
   let eq = (fun (#{ a77 = a771 } : t77) (#{ a77 = a772 } : t77) -> (fun (#{ a10 = a101; b10 = b101 } : t10) (#{ a10 = a102; b10 = b102 } : t10) -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Int64.equal (globalize a) (globalize b)) b101 b102) a771 a772) in
   let mk_value i = (#{ a77 = (#{ a10 = (i + 0); b10 = Int64.of_int (i + 1) } : t10) } : t77) in
   (* 1. Create an array of size [size] *)
@@ -4176,9 +4308,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t78   *)
-  (***********)
+  (***********************************)
+  (*   t78 = #{ #{ int; int32# } }   *)
+  (***********************************)
   let eq = (fun (#{ a78 = a781 } : t78) (#{ a78 = a782 } : t78) -> (fun (#{ a11 = a111; b11 = b111 } : t11) (#{ a11 = a112; b11 = b112 } : t11) -> (fun a b -> Int.equal a b) a111 a112 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b111 b112) a781 a782) in
   let mk_value i = (#{ a78 = (#{ a11 = (i + 0); b11 = Int32_u.of_int (i + 1) } : t11) } : t78) in
   (* 1. Create an array of size [size] *)
@@ -4228,9 +4360,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t79   *)
-  (***********)
+  (**********************************)
+  (*   t79 = #{ #{ int; float } }   *)
+  (**********************************)
   let eq = (fun (#{ a79 = a791 } : t79) (#{ a79 = a792 } : t79) -> (fun (#{ a12 = a121; b12 = b121 } : t12) (#{ a12 = a122; b12 = b122 } : t12) -> (fun a b -> Int.equal a b) a121 a122 && (fun a b -> Float.equal (globalize a) (globalize b)) b121 b122) a791 a792) in
   let mk_value i = (#{ a79 = (#{ a12 = (i + 0); b12 = Float.of_int (i + 1) } : t12) } : t79) in
   (* 1. Create an array of size [size] *)
@@ -4280,9 +4412,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t80   *)
-  (***********)
+  (**********************************)
+  (*   t80 = #{ #{ int64; int } }   *)
+  (**********************************)
   let eq = (fun (#{ a80 = a801 } : t80) (#{ a80 = a802 } : t80) -> (fun (#{ a13 = a131; b13 = b131 } : t13) (#{ a13 = a132; b13 = b132 } : t13) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a131 a132 && (fun a b -> Int.equal a b) b131 b132) a801 a802) in
   let mk_value i = (#{ a80 = (#{ a13 = Int64.of_int (i + 0); b13 = (i + 1) } : t13) } : t80) in
   (* 1. Create an array of size [size] *)
@@ -4332,9 +4464,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t81   *)
-  (***********)
+  (************************************)
+  (*   t81 = #{ #{ int64; int64 } }   *)
+  (************************************)
   let eq = (fun (#{ a81 = a811 } : t81) (#{ a81 = a812 } : t81) -> (fun (#{ a14 = a141; b14 = b141 } : t14) (#{ a14 = a142; b14 = b142 } : t14) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a141 a142 && (fun a b -> Int64.equal (globalize a) (globalize b)) b141 b142) a811 a812) in
   let mk_value i = (#{ a81 = (#{ a14 = Int64.of_int (i + 0); b14 = Int64.of_int (i + 1) } : t14) } : t81) in
   (* 1. Create an array of size [size] *)
@@ -4384,9 +4516,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t82   *)
-  (***********)
+  (************************************)
+  (*   t82 = #{ #{ int64; float } }   *)
+  (************************************)
   let eq = (fun (#{ a82 = a821 } : t82) (#{ a82 = a822 } : t82) -> (fun (#{ a15 = a151; b15 = b151 } : t15) (#{ a15 = a152; b15 = b152 } : t15) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a151 a152 && (fun a b -> Float.equal (globalize a) (globalize b)) b151 b152) a821 a822) in
   let mk_value i = (#{ a82 = (#{ a15 = Int64.of_int (i + 0); b15 = Float.of_int (i + 1) } : t15) } : t82) in
   (* 1. Create an array of size [size] *)
@@ -4436,9 +4568,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t83   *)
-  (***********)
+  (**************************************)
+  (*   t83 = #{ #{ int32#; int32# } }   *)
+  (**************************************)
   let eq = (fun (#{ a83 = a831 } : t83) (#{ a83 = a832 } : t83) -> (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a161 a162 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b161 b162) a831 a832) in
   let mk_value i = (#{ a83 = (#{ a16 = Int32_u.of_int (i + 0); b16 = Int32_u.of_int (i + 1) } : t16) } : t83) in
   (* 1. Create an array of size [size] *)
@@ -4488,9 +4620,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t84   *)
-  (***********)
+  (**********************************)
+  (*   t84 = #{ #{ float; int } }   *)
+  (**********************************)
   let eq = (fun (#{ a84 = a841 } : t84) (#{ a84 = a842 } : t84) -> (fun (#{ a17 = a171; b17 = b171 } : t17) (#{ a17 = a172; b17 = b172 } : t17) -> (fun a b -> Float.equal (globalize a) (globalize b)) a171 a172 && (fun a b -> Int.equal a b) b171 b172) a841 a842) in
   let mk_value i = (#{ a84 = (#{ a17 = Float.of_int (i + 0); b17 = (i + 1) } : t17) } : t84) in
   (* 1. Create an array of size [size] *)
@@ -4540,9 +4672,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t85   *)
-  (***********)
+  (************************************)
+  (*   t85 = #{ #{ float; int64 } }   *)
+  (************************************)
   let eq = (fun (#{ a85 = a851 } : t85) (#{ a85 = a852 } : t85) -> (fun (#{ a18 = a181; b18 = b181 } : t18) (#{ a18 = a182; b18 = b182 } : t18) -> (fun a b -> Float.equal (globalize a) (globalize b)) a181 a182 && (fun a b -> Int64.equal (globalize a) (globalize b)) b181 b182) a851 a852) in
   let mk_value i = (#{ a85 = (#{ a18 = Float.of_int (i + 0); b18 = Int64.of_int (i + 1) } : t18) } : t85) in
   (* 1. Create an array of size [size] *)
@@ -4592,9 +4724,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t86   *)
-  (***********)
+  (************************************)
+  (*   t86 = #{ #{ float; float } }   *)
+  (************************************)
   let eq = (fun (#{ a86 = a861 } : t86) (#{ a86 = a862 } : t86) -> (fun (#{ a19 = a191; b19 = b191 } : t19) (#{ a19 = a192; b19 = b192 } : t19) -> (fun a b -> Float.equal (globalize a) (globalize b)) a191 a192 && (fun a b -> Float.equal (globalize a) (globalize b)) b191 b192) a861 a862) in
   let mk_value i = (#{ a86 = (#{ a19 = Float.of_int (i + 0); b19 = Float.of_int (i + 1) } : t19) } : t86) in
   (* 1. Create an array of size [size] *)
@@ -4644,9 +4776,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t87   *)
-  (***********)
+  (********************************)
+  (*   t87 = #{ #{ #{ int } } }   *)
+  (********************************)
   let eq = (fun (#{ a87 = a871 } : t87) (#{ a87 = a872 } : t87) -> (fun (#{ a20 = a201 } : t20) (#{ a20 = a202 } : t20) -> (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) a201 a202) a871 a872) in
   let mk_value i = (#{ a87 = (#{ a20 = (#{ a6 = (i + 0) } : t6) } : t20) } : t87) in
   (* 1. Create an array of size [size] *)
@@ -4699,9 +4831,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t88   *)
-  (***********)
+  (**********************************)
+  (*   t88 = #{ #{ #{ int64 } } }   *)
+  (**********************************)
   let eq = (fun (#{ a88 = a881 } : t88) (#{ a88 = a882 } : t88) -> (fun (#{ a21 = a211 } : t21) (#{ a21 = a212 } : t21) -> (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) a211 a212) a881 a882) in
   let mk_value i = (#{ a88 = (#{ a21 = (#{ a7 = Int64.of_int (i + 0) } : t7) } : t21) } : t88) in
   (* 1. Create an array of size [size] *)
@@ -4754,9 +4886,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t89   *)
-  (***********)
+  (***********************************)
+  (*   t89 = #{ #{ #{ int32# } } }   *)
+  (***********************************)
   let eq = (fun (#{ a89 = a891 } : t89) (#{ a89 = a892 } : t89) -> (fun (#{ a22 = a221 } : t22) (#{ a22 = a222 } : t22) -> (fun (#{ a8 = a81 } : t8) (#{ a8 = a82 } : t8) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a81 a82) a221 a222) a891 a892) in
   let mk_value i = (#{ a89 = (#{ a22 = (#{ a8 = Int32_u.of_int (i + 0) } : t8) } : t22) } : t89) in
   (* 1. Create an array of size [size] *)
@@ -4949,9 +5081,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t6   *)
-  (**********)
+  (*********************)
+  (*   t6 = #{ int }   *)
+  (*********************)
   let eq = (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) in
   let mk_value i = (#{ a6 = (i + 0) } : t6) in
   (* 1. Create an array of size [size] *)
@@ -4986,9 +5118,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t7   *)
-  (**********)
+  (***********************)
+  (*   t7 = #{ int64 }   *)
+  (***********************)
   let eq = (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) in
   let mk_value i = (#{ a7 = Int64.of_int (i + 0) } : t7) in
   (* 1. Create an array of size [size] *)
@@ -5023,9 +5155,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t8   *)
-  (**********)
+  (************************)
+  (*   t8 = #{ int32# }   *)
+  (************************)
   let eq = (fun (#{ a8 = a81 } : t8) (#{ a8 = a82 } : t8) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a81 a82) in
   let mk_value i = (#{ a8 = Int32_u.of_int (i + 0) } : t8) in
   (* 1. Create an array of size [size] *)
@@ -5060,9 +5192,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t90   *)
-  (***********)
+  (*************************)
+  (*   t90 = #{ int64# }   *)
+  (*************************)
   let eq = (fun (#{ a90 = a901 } : t90) (#{ a90 = a902 } : t90) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a901 a902) in
   let mk_value i = (#{ a90 = Int64_u.of_int (i + 0) } : t90) in
   (* 1. Create an array of size [size] *)
@@ -5097,9 +5229,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t91   *)
-  (***********)
+  (*****************************)
+  (*   t91 = #{ nativeint# }   *)
+  (*****************************)
   let eq = (fun (#{ a91 = a911 } : t91) (#{ a91 = a912 } : t91) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a911 a912) in
   let mk_value i = (#{ a91 = Nativeint_u.of_int (i + 0) } : t91) in
   (* 1. Create an array of size [size] *)
@@ -5134,9 +5266,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t9   *)
-  (**********)
+  (**************************)
+  (*   t9 = #{ int; int }   *)
+  (**************************)
   let eq = (fun (#{ a9 = a91; b9 = b91 } : t9) (#{ a9 = a92; b9 = b92 } : t9) -> (fun a b -> Int.equal a b) a91 a92 && (fun a b -> Int.equal a b) b91 b92) in
   let mk_value i = (#{ a9 = (i + 0); b9 = (i + 1) } : t9) in
   (* 1. Create an array of size [size] *)
@@ -5177,9 +5309,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t10   *)
-  (***********)
+  (*****************************)
+  (*   t10 = #{ int; int64 }   *)
+  (*****************************)
   let eq = (fun (#{ a10 = a101; b10 = b101 } : t10) (#{ a10 = a102; b10 = b102 } : t10) -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Int64.equal (globalize a) (globalize b)) b101 b102) in
   let mk_value i = (#{ a10 = (i + 0); b10 = Int64.of_int (i + 1) } : t10) in
   (* 1. Create an array of size [size] *)
@@ -5220,9 +5352,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t11   *)
-  (***********)
+  (******************************)
+  (*   t11 = #{ int; int32# }   *)
+  (******************************)
   let eq = (fun (#{ a11 = a111; b11 = b111 } : t11) (#{ a11 = a112; b11 = b112 } : t11) -> (fun a b -> Int.equal a b) a111 a112 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b111 b112) in
   let mk_value i = (#{ a11 = (i + 0); b11 = Int32_u.of_int (i + 1) } : t11) in
   (* 1. Create an array of size [size] *)
@@ -5263,9 +5395,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t12   *)
-  (***********)
+  (*****************************)
+  (*   t12 = #{ int; float }   *)
+  (*****************************)
   let eq = (fun (#{ a12 = a121; b12 = b121 } : t12) (#{ a12 = a122; b12 = b122 } : t12) -> (fun a b -> Int.equal a b) a121 a122 && (fun a b -> Float.equal (globalize a) (globalize b)) b121 b122) in
   let mk_value i = (#{ a12 = (i + 0); b12 = Float.of_int (i + 1) } : t12) in
   (* 1. Create an array of size [size] *)
@@ -5306,9 +5438,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t92   *)
-  (***********)
+  (******************************)
+  (*   t92 = #{ int; int64# }   *)
+  (******************************)
   let eq = (fun (#{ a92 = a921; b92 = b921 } : t92) (#{ a92 = a922; b92 = b922 } : t92) -> (fun a b -> Int.equal a b) a921 a922 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b921 b922) in
   let mk_value i = (#{ a92 = (i + 0); b92 = Int64_u.of_int (i + 1) } : t92) in
   (* 1. Create an array of size [size] *)
@@ -5349,9 +5481,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t93   *)
-  (***********)
+  (**********************************)
+  (*   t93 = #{ int; nativeint# }   *)
+  (**********************************)
   let eq = (fun (#{ a93 = a931; b93 = b931 } : t93) (#{ a93 = a932; b93 = b932 } : t93) -> (fun a b -> Int.equal a b) a931 a932 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b931 b932) in
   let mk_value i = (#{ a93 = (i + 0); b93 = Nativeint_u.of_int (i + 1) } : t93) in
   (* 1. Create an array of size [size] *)
@@ -5392,9 +5524,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t13   *)
-  (***********)
+  (*****************************)
+  (*   t13 = #{ int64; int }   *)
+  (*****************************)
   let eq = (fun (#{ a13 = a131; b13 = b131 } : t13) (#{ a13 = a132; b13 = b132 } : t13) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a131 a132 && (fun a b -> Int.equal a b) b131 b132) in
   let mk_value i = (#{ a13 = Int64.of_int (i + 0); b13 = (i + 1) } : t13) in
   (* 1. Create an array of size [size] *)
@@ -5435,9 +5567,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t14   *)
-  (***********)
+  (*******************************)
+  (*   t14 = #{ int64; int64 }   *)
+  (*******************************)
   let eq = (fun (#{ a14 = a141; b14 = b141 } : t14) (#{ a14 = a142; b14 = b142 } : t14) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a141 a142 && (fun a b -> Int64.equal (globalize a) (globalize b)) b141 b142) in
   let mk_value i = (#{ a14 = Int64.of_int (i + 0); b14 = Int64.of_int (i + 1) } : t14) in
   (* 1. Create an array of size [size] *)
@@ -5478,9 +5610,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t15   *)
-  (***********)
+  (*******************************)
+  (*   t15 = #{ int64; float }   *)
+  (*******************************)
   let eq = (fun (#{ a15 = a151; b15 = b151 } : t15) (#{ a15 = a152; b15 = b152 } : t15) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a151 a152 && (fun a b -> Float.equal (globalize a) (globalize b)) b151 b152) in
   let mk_value i = (#{ a15 = Int64.of_int (i + 0); b15 = Float.of_int (i + 1) } : t15) in
   (* 1. Create an array of size [size] *)
@@ -5521,9 +5653,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t16   *)
-  (***********)
+  (*********************************)
+  (*   t16 = #{ int32#; int32# }   *)
+  (*********************************)
   let eq = (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a161 a162 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b161 b162) in
   let mk_value i = (#{ a16 = Int32_u.of_int (i + 0); b16 = Int32_u.of_int (i + 1) } : t16) in
   (* 1. Create an array of size [size] *)
@@ -5564,9 +5696,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t94   *)
-  (***********)
+  (*********************************)
+  (*   t94 = #{ int32#; int64# }   *)
+  (*********************************)
   let eq = (fun (#{ a94 = a941; b94 = b941 } : t94) (#{ a94 = a942; b94 = b942 } : t94) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a941 a942 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b941 b942) in
   let mk_value i = (#{ a94 = Int32_u.of_int (i + 0); b94 = Int64_u.of_int (i + 1) } : t94) in
   (* 1. Create an array of size [size] *)
@@ -5607,9 +5739,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t95   *)
-  (***********)
+  (*************************************)
+  (*   t95 = #{ int32#; nativeint# }   *)
+  (*************************************)
   let eq = (fun (#{ a95 = a951; b95 = b951 } : t95) (#{ a95 = a952; b95 = b952 } : t95) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a951 a952 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b951 b952) in
   let mk_value i = (#{ a95 = Int32_u.of_int (i + 0); b95 = Nativeint_u.of_int (i + 1) } : t95) in
   (* 1. Create an array of size [size] *)
@@ -5650,9 +5782,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t17   *)
-  (***********)
+  (*****************************)
+  (*   t17 = #{ float; int }   *)
+  (*****************************)
   let eq = (fun (#{ a17 = a171; b17 = b171 } : t17) (#{ a17 = a172; b17 = b172 } : t17) -> (fun a b -> Float.equal (globalize a) (globalize b)) a171 a172 && (fun a b -> Int.equal a b) b171 b172) in
   let mk_value i = (#{ a17 = Float.of_int (i + 0); b17 = (i + 1) } : t17) in
   (* 1. Create an array of size [size] *)
@@ -5693,9 +5825,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t18   *)
-  (***********)
+  (*******************************)
+  (*   t18 = #{ float; int64 }   *)
+  (*******************************)
   let eq = (fun (#{ a18 = a181; b18 = b181 } : t18) (#{ a18 = a182; b18 = b182 } : t18) -> (fun a b -> Float.equal (globalize a) (globalize b)) a181 a182 && (fun a b -> Int64.equal (globalize a) (globalize b)) b181 b182) in
   let mk_value i = (#{ a18 = Float.of_int (i + 0); b18 = Int64.of_int (i + 1) } : t18) in
   (* 1. Create an array of size [size] *)
@@ -5736,9 +5868,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t19   *)
-  (***********)
+  (*******************************)
+  (*   t19 = #{ float; float }   *)
+  (*******************************)
   let eq = (fun (#{ a19 = a191; b19 = b191 } : t19) (#{ a19 = a192; b19 = b192 } : t19) -> (fun a b -> Float.equal (globalize a) (globalize b)) a191 a192 && (fun a b -> Float.equal (globalize a) (globalize b)) b191 b192) in
   let mk_value i = (#{ a19 = Float.of_int (i + 0); b19 = Float.of_int (i + 1) } : t19) in
   (* 1. Create an array of size [size] *)
@@ -5779,9 +5911,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t96   *)
-  (***********)
+  (*********************************)
+  (*   t96 = #{ int64#; int32# }   *)
+  (*********************************)
   let eq = (fun (#{ a96 = a961; b96 = b961 } : t96) (#{ a96 = a962; b96 = b962 } : t96) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a961 a962 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b961 b962) in
   let mk_value i = (#{ a96 = Int64_u.of_int (i + 0); b96 = Int32_u.of_int (i + 1) } : t96) in
   (* 1. Create an array of size [size] *)
@@ -5822,9 +5954,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t0   *)
-  (**********)
+  (********************************)
+  (*   t0 = #{ int64#; int64# }   *)
+  (********************************)
   let eq = (fun (#{ a0 = a01; b0 = b01 } : t0) (#{ a0 = a02; b0 = b02 } : t0) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a01 a02 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b01 b02) in
   let mk_value i = (#{ a0 = Int64_u.of_int (i + 0); b0 = Int64_u.of_int (i + 1) } : t0) in
   (* 1. Create an array of size [size] *)
@@ -5865,9 +5997,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t97   *)
-  (***********)
+  (*************************************)
+  (*   t97 = #{ int64#; nativeint# }   *)
+  (*************************************)
   let eq = (fun (#{ a97 = a971; b97 = b971 } : t97) (#{ a97 = a972; b97 = b972 } : t97) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a971 a972 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b971 b972) in
   let mk_value i = (#{ a97 = Int64_u.of_int (i + 0); b97 = Nativeint_u.of_int (i + 1) } : t97) in
   (* 1. Create an array of size [size] *)
@@ -5908,9 +6040,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t98   *)
-  (***********)
+  (*************************************)
+  (*   t98 = #{ nativeint#; int32# }   *)
+  (*************************************)
   let eq = (fun (#{ a98 = a981; b98 = b981 } : t98) (#{ a98 = a982; b98 = b982 } : t98) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a981 a982 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b981 b982) in
   let mk_value i = (#{ a98 = Nativeint_u.of_int (i + 0); b98 = Int32_u.of_int (i + 1) } : t98) in
   (* 1. Create an array of size [size] *)
@@ -5951,9 +6083,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t99   *)
-  (***********)
+  (*************************************)
+  (*   t99 = #{ nativeint#; int64# }   *)
+  (*************************************)
   let eq = (fun (#{ a99 = a991; b99 = b991 } : t99) (#{ a99 = a992; b99 = b992 } : t99) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a991 a992 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b991 b992) in
   let mk_value i = (#{ a99 = Nativeint_u.of_int (i + 0); b99 = Int64_u.of_int (i + 1) } : t99) in
   (* 1. Create an array of size [size] *)
@@ -5994,9 +6126,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (************)
-  (*   t100   *)
-  (************)
+  (******************************************)
+  (*   t100 = #{ nativeint#; nativeint# }   *)
+  (******************************************)
   let eq = (fun (#{ a100 = a1001; b100 = b1001 } : t100) (#{ a100 = a1002; b100 = b1002 } : t100) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a1001 a1002 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b1001 b1002) in
   let mk_value i = (#{ a100 = Nativeint_u.of_int (i + 0); b100 = Nativeint_u.of_int (i + 1) } : t100) in
   (* 1. Create an array of size [size] *)
@@ -6037,9 +6169,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t20   *)
-  (***********)
+  (***************************)
+  (*   t20 = #{ #{ int } }   *)
+  (***************************)
   let eq = (fun (#{ a20 = a201 } : t20) (#{ a20 = a202 } : t20) -> (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) a201 a202) in
   let mk_value i = (#{ a20 = (#{ a6 = (i + 0) } : t6) } : t20) in
   (* 1. Create an array of size [size] *)
@@ -6083,9 +6215,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t21   *)
-  (***********)
+  (*****************************)
+  (*   t21 = #{ #{ int64 } }   *)
+  (*****************************)
   let eq = (fun (#{ a21 = a211 } : t21) (#{ a21 = a212 } : t21) -> (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) a211 a212) in
   let mk_value i = (#{ a21 = (#{ a7 = Int64.of_int (i + 0) } : t7) } : t21) in
   (* 1. Create an array of size [size] *)
@@ -6129,9 +6261,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t22   *)
-  (***********)
+  (******************************)
+  (*   t22 = #{ #{ int32# } }   *)
+  (******************************)
   let eq = (fun (#{ a22 = a221 } : t22) (#{ a22 = a222 } : t22) -> (fun (#{ a8 = a81 } : t8) (#{ a8 = a82 } : t8) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a81 a82) a221 a222) in
   let mk_value i = (#{ a22 = (#{ a8 = Int32_u.of_int (i + 0) } : t8) } : t22) in
   (* 1. Create an array of size [size] *)
@@ -6175,9 +6307,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (************)
-  (*   t101   *)
-  (************)
+  (*******************************)
+  (*   t101 = #{ #{ int64# } }   *)
+  (*******************************)
   let eq = (fun (#{ a101 = a1011 } : t101) (#{ a101 = a1012 } : t101) -> (fun (#{ a90 = a901 } : t90) (#{ a90 = a902 } : t90) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a901 a902) a1011 a1012) in
   let mk_value i = (#{ a101 = (#{ a90 = Int64_u.of_int (i + 0) } : t90) } : t101) in
   (* 1. Create an array of size [size] *)
@@ -6221,9 +6353,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (************)
-  (*   t102   *)
-  (************)
+  (***********************************)
+  (*   t102 = #{ #{ nativeint# } }   *)
+  (***********************************)
   let eq = (fun (#{ a102 = a1021 } : t102) (#{ a102 = a1022 } : t102) -> (fun (#{ a91 = a911 } : t91) (#{ a91 = a912 } : t91) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a911 a912) a1021 a1022) in
   let mk_value i = (#{ a102 = (#{ a91 = Nativeint_u.of_int (i + 0) } : t91) } : t102) in
   (* 1. Create an array of size [size] *)
@@ -6267,9 +6399,9 @@ let test_array_idx_with_makearray_dynamic size =
   done;
   Gc.compact ();
 
-  (************)
-  (*   t104   *)
-  (************)
+  (*********************************************************)
+  (*   t104 = #{ #{ int; int64# }; #{ int64#; float# } }   *)
+  (*********************************************************)
   let eq = (fun (#{ a104 = a1041; b104 = b1041 } : t104) (#{ a104 = a1042; b104 = b1042 } : t104) -> (fun (#{ a92 = a921; b92 = b921 } : t92) (#{ a92 = a922; b92 = b922 } : t92) -> (fun a b -> Int.equal a b) a921 a922 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b921 b922) a1041 a1042 && (fun (#{ a103 = a1031; b103 = b1031 } : t103) (#{ a103 = a1032; b103 = b1032 } : t103) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1031 a1032 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1031 b1032) b1041 b1042) in
   let mk_value i = (#{ a104 = (#{ a92 = (i + 0); b92 = Int64_u.of_int (i + 1) } : t92); b104 = (#{ a103 = Int64_u.of_int (i + 2); b103 = Float_u.of_int (i + 3) } : t103) } : t104) in
   (* 1. Create an array of size [size] *)
@@ -6340,9 +6472,9 @@ let test_array_idx_with_makearray_dynamic size =
   ()
 
 let test_array_idx_with_makearray_dynamic_local size =
-  (**********)
-  (*   t1   *)
-  (**********)
+  (*********************************************)
+  (*   t1 = #{ int64#; #{ int64#; int64# } }   *)
+  (*********************************************)
   let eq = (fun (#{ a1 = a11; b1 = b11 } : t1) (#{ a1 = a12; b1 = b12 } : t1) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a11 a12 && (fun (#{ a0 = a01; b0 = b01 } : t0) (#{ a0 = a02; b0 = b02 } : t0) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a01 a02 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b01 b02) b11 b12) in
   let mk_value i = (#{ a1 = Int64_u.of_int (i + 0); b1 = (#{ a0 = Int64_u.of_int (i + 1); b0 = Int64_u.of_int (i + 2) } : t0) } : t1) in
   (* 1. Create an array of size [size] *)
@@ -6398,9 +6530,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t3   *)
-  (**********)
+  (*********************************************)
+  (*   t3 = #{ string; #{ string; string } }   *)
+  (*********************************************)
   let eq = (fun (#{ a3 = a31; b3 = b31 } : t3) (#{ a3 = a32; b3 = b32 } : t3) -> (fun a b -> String.equal (globalize a) (globalize b)) a31 a32 && (fun (#{ a2 = a21; b2 = b21 } : t2) (#{ a2 = a22; b2 = b22 } : t2) -> (fun a b -> String.equal (globalize a) (globalize b)) a21 a22 && (fun a b -> String.equal (globalize a) (globalize b)) b21 b22) b31 b32) in
   let mk_value i = (#{ a3 = Int.to_string (i + 0); b3 = (#{ a2 = Int.to_string (i + 1); b2 = Int.to_string (i + 2) } : t2) } : t3) in
   (* 1. Create an array of size [size] *)
@@ -6456,9 +6588,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t4   *)
-  (**********)
+  (*********************************************)
+  (*   t4 = #{ #{ int64#; int64# }; int64# }   *)
+  (*********************************************)
   let eq = (fun (#{ a4 = a41; b4 = b41 } : t4) (#{ a4 = a42; b4 = b42 } : t4) -> (fun (#{ a0 = a01; b0 = b01 } : t0) (#{ a0 = a02; b0 = b02 } : t0) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a01 a02 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b01 b02) a41 a42 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b41 b42) in
   let mk_value i = (#{ a4 = (#{ a0 = Int64_u.of_int (i + 0); b0 = Int64_u.of_int (i + 1) } : t0); b4 = Int64_u.of_int (i + 2) } : t4) in
   (* 1. Create an array of size [size] *)
@@ -6514,9 +6646,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t5   *)
-  (**********)
+  (*********************************************)
+  (*   t5 = #{ #{ string; string }; string }   *)
+  (*********************************************)
   let eq = (fun (#{ a5 = a51; b5 = b51 } : t5) (#{ a5 = a52; b5 = b52 } : t5) -> (fun (#{ a2 = a21; b2 = b21 } : t2) (#{ a2 = a22; b2 = b22 } : t2) -> (fun a b -> String.equal (globalize a) (globalize b)) a21 a22 && (fun a b -> String.equal (globalize a) (globalize b)) b21 b22) a51 a52 && (fun a b -> String.equal (globalize a) (globalize b)) b51 b52) in
   let mk_value i = (#{ a5 = (#{ a2 = Int.to_string (i + 0); b2 = Int.to_string (i + 1) } : t2); b5 = Int.to_string (i + 2) } : t5) in
   (* 1. Create an array of size [size] *)
@@ -6656,9 +6788,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t6   *)
-  (**********)
+  (*********************)
+  (*   t6 = #{ int }   *)
+  (*********************)
   let eq = (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) in
   let mk_value i = (#{ a6 = (i + 0) } : t6) in
   (* 1. Create an array of size [size] *)
@@ -6693,9 +6825,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t7   *)
-  (**********)
+  (***********************)
+  (*   t7 = #{ int64 }   *)
+  (***********************)
   let eq = (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) in
   let mk_value i = (#{ a7 = Int64.of_int (i + 0) } : t7) in
   (* 1. Create an array of size [size] *)
@@ -6730,9 +6862,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t8   *)
-  (**********)
+  (************************)
+  (*   t8 = #{ int32# }   *)
+  (************************)
   let eq = (fun (#{ a8 = a81 } : t8) (#{ a8 = a82 } : t8) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a81 a82) in
   let mk_value i = (#{ a8 = Int32_u.of_int (i + 0) } : t8) in
   (* 1. Create an array of size [size] *)
@@ -6767,9 +6899,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t9   *)
-  (**********)
+  (**************************)
+  (*   t9 = #{ int; int }   *)
+  (**************************)
   let eq = (fun (#{ a9 = a91; b9 = b91 } : t9) (#{ a9 = a92; b9 = b92 } : t9) -> (fun a b -> Int.equal a b) a91 a92 && (fun a b -> Int.equal a b) b91 b92) in
   let mk_value i = (#{ a9 = (i + 0); b9 = (i + 1) } : t9) in
   (* 1. Create an array of size [size] *)
@@ -6810,9 +6942,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t10   *)
-  (***********)
+  (*****************************)
+  (*   t10 = #{ int; int64 }   *)
+  (*****************************)
   let eq = (fun (#{ a10 = a101; b10 = b101 } : t10) (#{ a10 = a102; b10 = b102 } : t10) -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Int64.equal (globalize a) (globalize b)) b101 b102) in
   let mk_value i = (#{ a10 = (i + 0); b10 = Int64.of_int (i + 1) } : t10) in
   (* 1. Create an array of size [size] *)
@@ -6853,9 +6985,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t11   *)
-  (***********)
+  (******************************)
+  (*   t11 = #{ int; int32# }   *)
+  (******************************)
   let eq = (fun (#{ a11 = a111; b11 = b111 } : t11) (#{ a11 = a112; b11 = b112 } : t11) -> (fun a b -> Int.equal a b) a111 a112 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b111 b112) in
   let mk_value i = (#{ a11 = (i + 0); b11 = Int32_u.of_int (i + 1) } : t11) in
   (* 1. Create an array of size [size] *)
@@ -6896,9 +7028,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t12   *)
-  (***********)
+  (*****************************)
+  (*   t12 = #{ int; float }   *)
+  (*****************************)
   let eq = (fun (#{ a12 = a121; b12 = b121 } : t12) (#{ a12 = a122; b12 = b122 } : t12) -> (fun a b -> Int.equal a b) a121 a122 && (fun a b -> Float.equal (globalize a) (globalize b)) b121 b122) in
   let mk_value i = (#{ a12 = (i + 0); b12 = Float.of_int (i + 1) } : t12) in
   (* 1. Create an array of size [size] *)
@@ -6939,9 +7071,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t13   *)
-  (***********)
+  (*****************************)
+  (*   t13 = #{ int64; int }   *)
+  (*****************************)
   let eq = (fun (#{ a13 = a131; b13 = b131 } : t13) (#{ a13 = a132; b13 = b132 } : t13) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a131 a132 && (fun a b -> Int.equal a b) b131 b132) in
   let mk_value i = (#{ a13 = Int64.of_int (i + 0); b13 = (i + 1) } : t13) in
   (* 1. Create an array of size [size] *)
@@ -6982,9 +7114,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t14   *)
-  (***********)
+  (*******************************)
+  (*   t14 = #{ int64; int64 }   *)
+  (*******************************)
   let eq = (fun (#{ a14 = a141; b14 = b141 } : t14) (#{ a14 = a142; b14 = b142 } : t14) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a141 a142 && (fun a b -> Int64.equal (globalize a) (globalize b)) b141 b142) in
   let mk_value i = (#{ a14 = Int64.of_int (i + 0); b14 = Int64.of_int (i + 1) } : t14) in
   (* 1. Create an array of size [size] *)
@@ -7025,9 +7157,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t15   *)
-  (***********)
+  (*******************************)
+  (*   t15 = #{ int64; float }   *)
+  (*******************************)
   let eq = (fun (#{ a15 = a151; b15 = b151 } : t15) (#{ a15 = a152; b15 = b152 } : t15) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a151 a152 && (fun a b -> Float.equal (globalize a) (globalize b)) b151 b152) in
   let mk_value i = (#{ a15 = Int64.of_int (i + 0); b15 = Float.of_int (i + 1) } : t15) in
   (* 1. Create an array of size [size] *)
@@ -7068,9 +7200,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t16   *)
-  (***********)
+  (*********************************)
+  (*   t16 = #{ int32#; int32# }   *)
+  (*********************************)
   let eq = (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a161 a162 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b161 b162) in
   let mk_value i = (#{ a16 = Int32_u.of_int (i + 0); b16 = Int32_u.of_int (i + 1) } : t16) in
   (* 1. Create an array of size [size] *)
@@ -7111,9 +7243,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t17   *)
-  (***********)
+  (*****************************)
+  (*   t17 = #{ float; int }   *)
+  (*****************************)
   let eq = (fun (#{ a17 = a171; b17 = b171 } : t17) (#{ a17 = a172; b17 = b172 } : t17) -> (fun a b -> Float.equal (globalize a) (globalize b)) a171 a172 && (fun a b -> Int.equal a b) b171 b172) in
   let mk_value i = (#{ a17 = Float.of_int (i + 0); b17 = (i + 1) } : t17) in
   (* 1. Create an array of size [size] *)
@@ -7154,9 +7286,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t18   *)
-  (***********)
+  (*******************************)
+  (*   t18 = #{ float; int64 }   *)
+  (*******************************)
   let eq = (fun (#{ a18 = a181; b18 = b181 } : t18) (#{ a18 = a182; b18 = b182 } : t18) -> (fun a b -> Float.equal (globalize a) (globalize b)) a181 a182 && (fun a b -> Int64.equal (globalize a) (globalize b)) b181 b182) in
   let mk_value i = (#{ a18 = Float.of_int (i + 0); b18 = Int64.of_int (i + 1) } : t18) in
   (* 1. Create an array of size [size] *)
@@ -7197,9 +7329,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t19   *)
-  (***********)
+  (*******************************)
+  (*   t19 = #{ float; float }   *)
+  (*******************************)
   let eq = (fun (#{ a19 = a191; b19 = b191 } : t19) (#{ a19 = a192; b19 = b192 } : t19) -> (fun a b -> Float.equal (globalize a) (globalize b)) a191 a192 && (fun a b -> Float.equal (globalize a) (globalize b)) b191 b192) in
   let mk_value i = (#{ a19 = Float.of_int (i + 0); b19 = Float.of_int (i + 1) } : t19) in
   (* 1. Create an array of size [size] *)
@@ -7240,9 +7372,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t20   *)
-  (***********)
+  (***************************)
+  (*   t20 = #{ #{ int } }   *)
+  (***************************)
   let eq = (fun (#{ a20 = a201 } : t20) (#{ a20 = a202 } : t20) -> (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) a201 a202) in
   let mk_value i = (#{ a20 = (#{ a6 = (i + 0) } : t6) } : t20) in
   (* 1. Create an array of size [size] *)
@@ -7286,9 +7418,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t21   *)
-  (***********)
+  (*****************************)
+  (*   t21 = #{ #{ int64 } }   *)
+  (*****************************)
   let eq = (fun (#{ a21 = a211 } : t21) (#{ a21 = a212 } : t21) -> (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) a211 a212) in
   let mk_value i = (#{ a21 = (#{ a7 = Int64.of_int (i + 0) } : t7) } : t21) in
   (* 1. Create an array of size [size] *)
@@ -7332,9 +7464,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t22   *)
-  (***********)
+  (******************************)
+  (*   t22 = #{ #{ int32# } }   *)
+  (******************************)
   let eq = (fun (#{ a22 = a221 } : t22) (#{ a22 = a222 } : t22) -> (fun (#{ a8 = a81 } : t8) (#{ a8 = a82 } : t8) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a81 a82) a221 a222) in
   let mk_value i = (#{ a22 = (#{ a8 = Int32_u.of_int (i + 0) } : t8) } : t22) in
   (* 1. Create an array of size [size] *)
@@ -7378,9 +7510,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t23   *)
-  (***********)
+  (********************************)
+  (*   t23 = #{ int; int; int }   *)
+  (********************************)
   let eq = (fun (#{ a23 = a231; b23 = b231; c23 = c231 } : t23) (#{ a23 = a232; b23 = b232; c23 = c232 } : t23) -> (fun a b -> Int.equal a b) a231 a232 && (fun a b -> Int.equal a b) b231 b232 && (fun a b -> Int.equal a b) c231 c232) in
   let mk_value i = (#{ a23 = (i + 0); b23 = (i + 1); c23 = (i + 2) } : t23) in
   (* 1. Create an array of size [size] *)
@@ -7427,9 +7559,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t24   *)
-  (***********)
+  (**********************************)
+  (*   t24 = #{ int; int; int64 }   *)
+  (**********************************)
   let eq = (fun (#{ a24 = a241; b24 = b241; c24 = c241 } : t24) (#{ a24 = a242; b24 = b242; c24 = c242 } : t24) -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Int.equal a b) b241 b242 && (fun a b -> Int64.equal (globalize a) (globalize b)) c241 c242) in
   let mk_value i = (#{ a24 = (i + 0); b24 = (i + 1); c24 = Int64.of_int (i + 2) } : t24) in
   (* 1. Create an array of size [size] *)
@@ -7476,9 +7608,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t25   *)
-  (***********)
+  (***********************************)
+  (*   t25 = #{ int; int; int32# }   *)
+  (***********************************)
   let eq = (fun (#{ a25 = a251; b25 = b251; c25 = c251 } : t25) (#{ a25 = a252; b25 = b252; c25 = c252 } : t25) -> (fun a b -> Int.equal a b) a251 a252 && (fun a b -> Int.equal a b) b251 b252 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c251 c252) in
   let mk_value i = (#{ a25 = (i + 0); b25 = (i + 1); c25 = Int32_u.of_int (i + 2) } : t25) in
   (* 1. Create an array of size [size] *)
@@ -7525,9 +7657,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t26   *)
-  (***********)
+  (**********************************)
+  (*   t26 = #{ int; int; float }   *)
+  (**********************************)
   let eq = (fun (#{ a26 = a261; b26 = b261; c26 = c261 } : t26) (#{ a26 = a262; b26 = b262; c26 = c262 } : t26) -> (fun a b -> Int.equal a b) a261 a262 && (fun a b -> Int.equal a b) b261 b262 && (fun a b -> Float.equal (globalize a) (globalize b)) c261 c262) in
   let mk_value i = (#{ a26 = (i + 0); b26 = (i + 1); c26 = Float.of_int (i + 2) } : t26) in
   (* 1. Create an array of size [size] *)
@@ -7574,9 +7706,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t27   *)
-  (***********)
+  (**********************************)
+  (*   t27 = #{ int; int64; int }   *)
+  (**********************************)
   let eq = (fun (#{ a27 = a271; b27 = b271; c27 = c271 } : t27) (#{ a27 = a272; b27 = b272; c27 = c272 } : t27) -> (fun a b -> Int.equal a b) a271 a272 && (fun a b -> Int64.equal (globalize a) (globalize b)) b271 b272 && (fun a b -> Int.equal a b) c271 c272) in
   let mk_value i = (#{ a27 = (i + 0); b27 = Int64.of_int (i + 1); c27 = (i + 2) } : t27) in
   (* 1. Create an array of size [size] *)
@@ -7623,9 +7755,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t28   *)
-  (***********)
+  (************************************)
+  (*   t28 = #{ int; int64; int64 }   *)
+  (************************************)
   let eq = (fun (#{ a28 = a281; b28 = b281; c28 = c281 } : t28) (#{ a28 = a282; b28 = b282; c28 = c282 } : t28) -> (fun a b -> Int.equal a b) a281 a282 && (fun a b -> Int64.equal (globalize a) (globalize b)) b281 b282 && (fun a b -> Int64.equal (globalize a) (globalize b)) c281 c282) in
   let mk_value i = (#{ a28 = (i + 0); b28 = Int64.of_int (i + 1); c28 = Int64.of_int (i + 2) } : t28) in
   (* 1. Create an array of size [size] *)
@@ -7672,9 +7804,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t29   *)
-  (***********)
+  (************************************)
+  (*   t29 = #{ int; int64; float }   *)
+  (************************************)
   let eq = (fun (#{ a29 = a291; b29 = b291; c29 = c291 } : t29) (#{ a29 = a292; b29 = b292; c29 = c292 } : t29) -> (fun a b -> Int.equal a b) a291 a292 && (fun a b -> Int64.equal (globalize a) (globalize b)) b291 b292 && (fun a b -> Float.equal (globalize a) (globalize b)) c291 c292) in
   let mk_value i = (#{ a29 = (i + 0); b29 = Int64.of_int (i + 1); c29 = Float.of_int (i + 2) } : t29) in
   (* 1. Create an array of size [size] *)
@@ -7721,9 +7853,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t30   *)
-  (***********)
+  (**************************************)
+  (*   t30 = #{ int; int32#; int32# }   *)
+  (**************************************)
   let eq = (fun (#{ a30 = a301; b30 = b301; c30 = c301 } : t30) (#{ a30 = a302; b30 = b302; c30 = c302 } : t30) -> (fun a b -> Int.equal a b) a301 a302 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b301 b302 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c301 c302) in
   let mk_value i = (#{ a30 = (i + 0); b30 = Int32_u.of_int (i + 1); c30 = Int32_u.of_int (i + 2) } : t30) in
   (* 1. Create an array of size [size] *)
@@ -7770,9 +7902,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t31   *)
-  (***********)
+  (**********************************)
+  (*   t31 = #{ int; float; int }   *)
+  (**********************************)
   let eq = (fun (#{ a31 = a311; b31 = b311; c31 = c311 } : t31) (#{ a31 = a312; b31 = b312; c31 = c312 } : t31) -> (fun a b -> Int.equal a b) a311 a312 && (fun a b -> Float.equal (globalize a) (globalize b)) b311 b312 && (fun a b -> Int.equal a b) c311 c312) in
   let mk_value i = (#{ a31 = (i + 0); b31 = Float.of_int (i + 1); c31 = (i + 2) } : t31) in
   (* 1. Create an array of size [size] *)
@@ -7819,9 +7951,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t32   *)
-  (***********)
+  (************************************)
+  (*   t32 = #{ int; float; int64 }   *)
+  (************************************)
   let eq = (fun (#{ a32 = a321; b32 = b321; c32 = c321 } : t32) (#{ a32 = a322; b32 = b322; c32 = c322 } : t32) -> (fun a b -> Int.equal a b) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322 && (fun a b -> Int64.equal (globalize a) (globalize b)) c321 c322) in
   let mk_value i = (#{ a32 = (i + 0); b32 = Float.of_int (i + 1); c32 = Int64.of_int (i + 2) } : t32) in
   (* 1. Create an array of size [size] *)
@@ -7868,9 +8000,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t33   *)
-  (***********)
+  (************************************)
+  (*   t33 = #{ int; float; float }   *)
+  (************************************)
   let eq = (fun (#{ a33 = a331; b33 = b331; c33 = c331 } : t33) (#{ a33 = a332; b33 = b332; c33 = c332 } : t33) -> (fun a b -> Int.equal a b) a331 a332 && (fun a b -> Float.equal (globalize a) (globalize b)) b331 b332 && (fun a b -> Float.equal (globalize a) (globalize b)) c331 c332) in
   let mk_value i = (#{ a33 = (i + 0); b33 = Float.of_int (i + 1); c33 = Float.of_int (i + 2) } : t33) in
   (* 1. Create an array of size [size] *)
@@ -7917,9 +8049,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t34   *)
-  (***********)
+  (**********************************)
+  (*   t34 = #{ int64; int; int }   *)
+  (**********************************)
   let eq = (fun (#{ a34 = a341; b34 = b341; c34 = c341 } : t34) (#{ a34 = a342; b34 = b342; c34 = c342 } : t34) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a341 a342 && (fun a b -> Int.equal a b) b341 b342 && (fun a b -> Int.equal a b) c341 c342) in
   let mk_value i = (#{ a34 = Int64.of_int (i + 0); b34 = (i + 1); c34 = (i + 2) } : t34) in
   (* 1. Create an array of size [size] *)
@@ -7966,9 +8098,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t35   *)
-  (***********)
+  (************************************)
+  (*   t35 = #{ int64; int; int64 }   *)
+  (************************************)
   let eq = (fun (#{ a35 = a351; b35 = b351; c35 = c351 } : t35) (#{ a35 = a352; b35 = b352; c35 = c352 } : t35) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a351 a352 && (fun a b -> Int.equal a b) b351 b352 && (fun a b -> Int64.equal (globalize a) (globalize b)) c351 c352) in
   let mk_value i = (#{ a35 = Int64.of_int (i + 0); b35 = (i + 1); c35 = Int64.of_int (i + 2) } : t35) in
   (* 1. Create an array of size [size] *)
@@ -8015,9 +8147,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t36   *)
-  (***********)
+  (************************************)
+  (*   t36 = #{ int64; int; float }   *)
+  (************************************)
   let eq = (fun (#{ a36 = a361; b36 = b361; c36 = c361 } : t36) (#{ a36 = a362; b36 = b362; c36 = c362 } : t36) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362 && (fun a b -> Float.equal (globalize a) (globalize b)) c361 c362) in
   let mk_value i = (#{ a36 = Int64.of_int (i + 0); b36 = (i + 1); c36 = Float.of_int (i + 2) } : t36) in
   (* 1. Create an array of size [size] *)
@@ -8064,9 +8196,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t37   *)
-  (***********)
+  (************************************)
+  (*   t37 = #{ int64; int64; int }   *)
+  (************************************)
   let eq = (fun (#{ a37 = a371; b37 = b371; c37 = c371 } : t37) (#{ a37 = a372; b37 = b372; c37 = c372 } : t37) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a371 a372 && (fun a b -> Int64.equal (globalize a) (globalize b)) b371 b372 && (fun a b -> Int.equal a b) c371 c372) in
   let mk_value i = (#{ a37 = Int64.of_int (i + 0); b37 = Int64.of_int (i + 1); c37 = (i + 2) } : t37) in
   (* 1. Create an array of size [size] *)
@@ -8113,9 +8245,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t38   *)
-  (***********)
+  (**************************************)
+  (*   t38 = #{ int64; int64; int64 }   *)
+  (**************************************)
   let eq = (fun (#{ a38 = a381; b38 = b381; c38 = c381 } : t38) (#{ a38 = a382; b38 = b382; c38 = c382 } : t38) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Int64.equal (globalize a) (globalize b)) b381 b382 && (fun a b -> Int64.equal (globalize a) (globalize b)) c381 c382) in
   let mk_value i = (#{ a38 = Int64.of_int (i + 0); b38 = Int64.of_int (i + 1); c38 = Int64.of_int (i + 2) } : t38) in
   (* 1. Create an array of size [size] *)
@@ -8162,9 +8294,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t39   *)
-  (***********)
+  (**************************************)
+  (*   t39 = #{ int64; int64; float }   *)
+  (**************************************)
   let eq = (fun (#{ a39 = a391; b39 = b391; c39 = c391 } : t39) (#{ a39 = a392; b39 = b392; c39 = c392 } : t39) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Int64.equal (globalize a) (globalize b)) b391 b392 && (fun a b -> Float.equal (globalize a) (globalize b)) c391 c392) in
   let mk_value i = (#{ a39 = Int64.of_int (i + 0); b39 = Int64.of_int (i + 1); c39 = Float.of_int (i + 2) } : t39) in
   (* 1. Create an array of size [size] *)
@@ -8211,9 +8343,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t40   *)
-  (***********)
+  (************************************)
+  (*   t40 = #{ int64; float; int }   *)
+  (************************************)
   let eq = (fun (#{ a40 = a401; b40 = b401; c40 = c401 } : t40) (#{ a40 = a402; b40 = b402; c40 = c402 } : t40) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a401 a402 && (fun a b -> Float.equal (globalize a) (globalize b)) b401 b402 && (fun a b -> Int.equal a b) c401 c402) in
   let mk_value i = (#{ a40 = Int64.of_int (i + 0); b40 = Float.of_int (i + 1); c40 = (i + 2) } : t40) in
   (* 1. Create an array of size [size] *)
@@ -8260,9 +8392,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t41   *)
-  (***********)
+  (**************************************)
+  (*   t41 = #{ int64; float; int64 }   *)
+  (**************************************)
   let eq = (fun (#{ a41 = a411; b41 = b411; c41 = c411 } : t41) (#{ a41 = a412; b41 = b412; c41 = c412 } : t41) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a411 a412 && (fun a b -> Float.equal (globalize a) (globalize b)) b411 b412 && (fun a b -> Int64.equal (globalize a) (globalize b)) c411 c412) in
   let mk_value i = (#{ a41 = Int64.of_int (i + 0); b41 = Float.of_int (i + 1); c41 = Int64.of_int (i + 2) } : t41) in
   (* 1. Create an array of size [size] *)
@@ -8309,9 +8441,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t42   *)
-  (***********)
+  (**************************************)
+  (*   t42 = #{ int64; float; float }   *)
+  (**************************************)
   let eq = (fun (#{ a42 = a421; b42 = b421; c42 = c421 } : t42) (#{ a42 = a422; b42 = b422; c42 = c422 } : t42) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a421 a422 && (fun a b -> Float.equal (globalize a) (globalize b)) b421 b422 && (fun a b -> Float.equal (globalize a) (globalize b)) c421 c422) in
   let mk_value i = (#{ a42 = Int64.of_int (i + 0); b42 = Float.of_int (i + 1); c42 = Float.of_int (i + 2) } : t42) in
   (* 1. Create an array of size [size] *)
@@ -8358,9 +8490,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t43   *)
-  (***********)
+  (*****************************************)
+  (*   t43 = #{ int32#; int32#; int32# }   *)
+  (*****************************************)
   let eq = (fun (#{ a43 = a431; b43 = b431; c43 = c431 } : t43) (#{ a43 = a432; b43 = b432; c43 = c432 } : t43) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a431 a432 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b431 b432 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c431 c432) in
   let mk_value i = (#{ a43 = Int32_u.of_int (i + 0); b43 = Int32_u.of_int (i + 1); c43 = Int32_u.of_int (i + 2) } : t43) in
   (* 1. Create an array of size [size] *)
@@ -8407,9 +8539,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t44   *)
-  (***********)
+  (**********************************)
+  (*   t44 = #{ float; int; int }   *)
+  (**********************************)
   let eq = (fun (#{ a44 = a441; b44 = b441; c44 = c441 } : t44) (#{ a44 = a442; b44 = b442; c44 = c442 } : t44) -> (fun a b -> Float.equal (globalize a) (globalize b)) a441 a442 && (fun a b -> Int.equal a b) b441 b442 && (fun a b -> Int.equal a b) c441 c442) in
   let mk_value i = (#{ a44 = Float.of_int (i + 0); b44 = (i + 1); c44 = (i + 2) } : t44) in
   (* 1. Create an array of size [size] *)
@@ -8456,9 +8588,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t45   *)
-  (***********)
+  (************************************)
+  (*   t45 = #{ float; int; int64 }   *)
+  (************************************)
   let eq = (fun (#{ a45 = a451; b45 = b451; c45 = c451 } : t45) (#{ a45 = a452; b45 = b452; c45 = c452 } : t45) -> (fun a b -> Float.equal (globalize a) (globalize b)) a451 a452 && (fun a b -> Int.equal a b) b451 b452 && (fun a b -> Int64.equal (globalize a) (globalize b)) c451 c452) in
   let mk_value i = (#{ a45 = Float.of_int (i + 0); b45 = (i + 1); c45 = Int64.of_int (i + 2) } : t45) in
   (* 1. Create an array of size [size] *)
@@ -8505,9 +8637,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t46   *)
-  (***********)
+  (************************************)
+  (*   t46 = #{ float; int; float }   *)
+  (************************************)
   let eq = (fun (#{ a46 = a461; b46 = b461; c46 = c461 } : t46) (#{ a46 = a462; b46 = b462; c46 = c462 } : t46) -> (fun a b -> Float.equal (globalize a) (globalize b)) a461 a462 && (fun a b -> Int.equal a b) b461 b462 && (fun a b -> Float.equal (globalize a) (globalize b)) c461 c462) in
   let mk_value i = (#{ a46 = Float.of_int (i + 0); b46 = (i + 1); c46 = Float.of_int (i + 2) } : t46) in
   (* 1. Create an array of size [size] *)
@@ -8554,9 +8686,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t47   *)
-  (***********)
+  (************************************)
+  (*   t47 = #{ float; int64; int }   *)
+  (************************************)
   let eq = (fun (#{ a47 = a471; b47 = b471; c47 = c471 } : t47) (#{ a47 = a472; b47 = b472; c47 = c472 } : t47) -> (fun a b -> Float.equal (globalize a) (globalize b)) a471 a472 && (fun a b -> Int64.equal (globalize a) (globalize b)) b471 b472 && (fun a b -> Int.equal a b) c471 c472) in
   let mk_value i = (#{ a47 = Float.of_int (i + 0); b47 = Int64.of_int (i + 1); c47 = (i + 2) } : t47) in
   (* 1. Create an array of size [size] *)
@@ -8603,9 +8735,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t48   *)
-  (***********)
+  (**************************************)
+  (*   t48 = #{ float; int64; int64 }   *)
+  (**************************************)
   let eq = (fun (#{ a48 = a481; b48 = b481; c48 = c481 } : t48) (#{ a48 = a482; b48 = b482; c48 = c482 } : t48) -> (fun a b -> Float.equal (globalize a) (globalize b)) a481 a482 && (fun a b -> Int64.equal (globalize a) (globalize b)) b481 b482 && (fun a b -> Int64.equal (globalize a) (globalize b)) c481 c482) in
   let mk_value i = (#{ a48 = Float.of_int (i + 0); b48 = Int64.of_int (i + 1); c48 = Int64.of_int (i + 2) } : t48) in
   (* 1. Create an array of size [size] *)
@@ -8652,9 +8784,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t49   *)
-  (***********)
+  (**************************************)
+  (*   t49 = #{ float; int64; float }   *)
+  (**************************************)
   let eq = (fun (#{ a49 = a491; b49 = b491; c49 = c491 } : t49) (#{ a49 = a492; b49 = b492; c49 = c492 } : t49) -> (fun a b -> Float.equal (globalize a) (globalize b)) a491 a492 && (fun a b -> Int64.equal (globalize a) (globalize b)) b491 b492 && (fun a b -> Float.equal (globalize a) (globalize b)) c491 c492) in
   let mk_value i = (#{ a49 = Float.of_int (i + 0); b49 = Int64.of_int (i + 1); c49 = Float.of_int (i + 2) } : t49) in
   (* 1. Create an array of size [size] *)
@@ -8701,9 +8833,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t50   *)
-  (***********)
+  (************************************)
+  (*   t50 = #{ float; float; int }   *)
+  (************************************)
   let eq = (fun (#{ a50 = a501; b50 = b501; c50 = c501 } : t50) (#{ a50 = a502; b50 = b502; c50 = c502 } : t50) -> (fun a b -> Float.equal (globalize a) (globalize b)) a501 a502 && (fun a b -> Float.equal (globalize a) (globalize b)) b501 b502 && (fun a b -> Int.equal a b) c501 c502) in
   let mk_value i = (#{ a50 = Float.of_int (i + 0); b50 = Float.of_int (i + 1); c50 = (i + 2) } : t50) in
   (* 1. Create an array of size [size] *)
@@ -8750,9 +8882,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t51   *)
-  (***********)
+  (**************************************)
+  (*   t51 = #{ float; float; int64 }   *)
+  (**************************************)
   let eq = (fun (#{ a51 = a511; b51 = b511; c51 = c511 } : t51) (#{ a51 = a512; b51 = b512; c51 = c512 } : t51) -> (fun a b -> Float.equal (globalize a) (globalize b)) a511 a512 && (fun a b -> Float.equal (globalize a) (globalize b)) b511 b512 && (fun a b -> Int64.equal (globalize a) (globalize b)) c511 c512) in
   let mk_value i = (#{ a51 = Float.of_int (i + 0); b51 = Float.of_int (i + 1); c51 = Int64.of_int (i + 2) } : t51) in
   (* 1. Create an array of size [size] *)
@@ -8799,9 +8931,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t52   *)
-  (***********)
+  (**************************************)
+  (*   t52 = #{ float; float; float }   *)
+  (**************************************)
   let eq = (fun (#{ a52 = a521; b52 = b521; c52 = c521 } : t52) (#{ a52 = a522; b52 = b522; c52 = c522 } : t52) -> (fun a b -> Float.equal (globalize a) (globalize b)) a521 a522 && (fun a b -> Float.equal (globalize a) (globalize b)) b521 b522 && (fun a b -> Float.equal (globalize a) (globalize b)) c521 c522) in
   let mk_value i = (#{ a52 = Float.of_int (i + 0); b52 = Float.of_int (i + 1); c52 = Float.of_int (i + 2) } : t52) in
   (* 1. Create an array of size [size] *)
@@ -8848,9 +8980,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t53   *)
-  (***********)
+  (********************************)
+  (*   t53 = #{ int; #{ int } }   *)
+  (********************************)
   let eq = (fun (#{ a53 = a531; b53 = b531 } : t53) (#{ a53 = a532; b53 = b532 } : t53) -> (fun a b -> Int.equal a b) a531 a532 && (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) b531 b532) in
   let mk_value i = (#{ a53 = (i + 0); b53 = (#{ a6 = (i + 1) } : t6) } : t53) in
   (* 1. Create an array of size [size] *)
@@ -8900,9 +9032,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t54   *)
-  (***********)
+  (**********************************)
+  (*   t54 = #{ int; #{ int64 } }   *)
+  (**********************************)
   let eq = (fun (#{ a54 = a541; b54 = b541 } : t54) (#{ a54 = a542; b54 = b542 } : t54) -> (fun a b -> Int.equal a b) a541 a542 && (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) b541 b542) in
   let mk_value i = (#{ a54 = (i + 0); b54 = (#{ a7 = Int64.of_int (i + 1) } : t7) } : t54) in
   (* 1. Create an array of size [size] *)
@@ -8952,9 +9084,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t55   *)
-  (***********)
+  (***********************************)
+  (*   t55 = #{ int; #{ int32# } }   *)
+  (***********************************)
   let eq = (fun (#{ a55 = a551; b55 = b551 } : t55) (#{ a55 = a552; b55 = b552 } : t55) -> (fun a b -> Int.equal a b) a551 a552 && (fun (#{ a8 = a81 } : t8) (#{ a8 = a82 } : t8) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a81 a82) b551 b552) in
   let mk_value i = (#{ a55 = (i + 0); b55 = (#{ a8 = Int32_u.of_int (i + 1) } : t8) } : t55) in
   (* 1. Create an array of size [size] *)
@@ -9004,9 +9136,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t57   *)
-  (***********)
+  (**********************************)
+  (*   t57 = #{ int; #{ float } }   *)
+  (**********************************)
   let eq = (fun (#{ a57 = a571; b57 = b571 } : t57) (#{ a57 = a572; b57 = b572 } : t57) -> (fun a b -> Int.equal a b) a571 a572 && (fun (#{ a56 = a561 } : t56) (#{ a56 = a562 } : t56) -> (fun a b -> Float.equal (globalize a) (globalize b)) a561 a562) b571 b572) in
   let mk_value i = (#{ a57 = (i + 0); b57 = (#{ a56 = Float.of_int (i + 1) } : t56) } : t57) in
   (* 1. Create an array of size [size] *)
@@ -9056,9 +9188,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t58   *)
-  (***********)
+  (**********************************)
+  (*   t58 = #{ int64; #{ int } }   *)
+  (**********************************)
   let eq = (fun (#{ a58 = a581; b58 = b581 } : t58) (#{ a58 = a582; b58 = b582 } : t58) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a581 a582 && (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) b581 b582) in
   let mk_value i = (#{ a58 = Int64.of_int (i + 0); b58 = (#{ a6 = (i + 1) } : t6) } : t58) in
   (* 1. Create an array of size [size] *)
@@ -9108,9 +9240,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t59   *)
-  (***********)
+  (************************************)
+  (*   t59 = #{ int64; #{ int64 } }   *)
+  (************************************)
   let eq = (fun (#{ a59 = a591; b59 = b591 } : t59) (#{ a59 = a592; b59 = b592 } : t59) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a591 a592 && (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) b591 b592) in
   let mk_value i = (#{ a59 = Int64.of_int (i + 0); b59 = (#{ a7 = Int64.of_int (i + 1) } : t7) } : t59) in
   (* 1. Create an array of size [size] *)
@@ -9160,9 +9292,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t60   *)
-  (***********)
+  (************************************)
+  (*   t60 = #{ int64; #{ float } }   *)
+  (************************************)
   let eq = (fun (#{ a60 = a601; b60 = b601 } : t60) (#{ a60 = a602; b60 = b602 } : t60) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a601 a602 && (fun (#{ a56 = a561 } : t56) (#{ a56 = a562 } : t56) -> (fun a b -> Float.equal (globalize a) (globalize b)) a561 a562) b601 b602) in
   let mk_value i = (#{ a60 = Int64.of_int (i + 0); b60 = (#{ a56 = Float.of_int (i + 1) } : t56) } : t60) in
   (* 1. Create an array of size [size] *)
@@ -9212,9 +9344,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t61   *)
-  (***********)
+  (**************************************)
+  (*   t61 = #{ int32#; #{ int32# } }   *)
+  (**************************************)
   let eq = (fun (#{ a61 = a611; b61 = b611 } : t61) (#{ a61 = a612; b61 = b612 } : t61) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a611 a612 && (fun (#{ a8 = a81 } : t8) (#{ a8 = a82 } : t8) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a81 a82) b611 b612) in
   let mk_value i = (#{ a61 = Int32_u.of_int (i + 0); b61 = (#{ a8 = Int32_u.of_int (i + 1) } : t8) } : t61) in
   (* 1. Create an array of size [size] *)
@@ -9264,9 +9396,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t62   *)
-  (***********)
+  (**********************************)
+  (*   t62 = #{ float; #{ int } }   *)
+  (**********************************)
   let eq = (fun (#{ a62 = a621; b62 = b621 } : t62) (#{ a62 = a622; b62 = b622 } : t62) -> (fun a b -> Float.equal (globalize a) (globalize b)) a621 a622 && (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) b621 b622) in
   let mk_value i = (#{ a62 = Float.of_int (i + 0); b62 = (#{ a6 = (i + 1) } : t6) } : t62) in
   (* 1. Create an array of size [size] *)
@@ -9316,9 +9448,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t63   *)
-  (***********)
+  (************************************)
+  (*   t63 = #{ float; #{ int64 } }   *)
+  (************************************)
   let eq = (fun (#{ a63 = a631; b63 = b631 } : t63) (#{ a63 = a632; b63 = b632 } : t63) -> (fun a b -> Float.equal (globalize a) (globalize b)) a631 a632 && (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) b631 b632) in
   let mk_value i = (#{ a63 = Float.of_int (i + 0); b63 = (#{ a7 = Int64.of_int (i + 1) } : t7) } : t63) in
   (* 1. Create an array of size [size] *)
@@ -9368,9 +9500,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t64   *)
-  (***********)
+  (************************************)
+  (*   t64 = #{ float; #{ float } }   *)
+  (************************************)
   let eq = (fun (#{ a64 = a641; b64 = b641 } : t64) (#{ a64 = a642; b64 = b642 } : t64) -> (fun a b -> Float.equal (globalize a) (globalize b)) a641 a642 && (fun (#{ a56 = a561 } : t56) (#{ a56 = a562 } : t56) -> (fun a b -> Float.equal (globalize a) (globalize b)) a561 a562) b641 b642) in
   let mk_value i = (#{ a64 = Float.of_int (i + 0); b64 = (#{ a56 = Float.of_int (i + 1) } : t56) } : t64) in
   (* 1. Create an array of size [size] *)
@@ -9420,9 +9552,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t65   *)
-  (***********)
+  (********************************)
+  (*   t65 = #{ #{ int }; int }   *)
+  (********************************)
   let eq = (fun (#{ a65 = a651; b65 = b651 } : t65) (#{ a65 = a652; b65 = b652 } : t65) -> (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) a651 a652 && (fun a b -> Int.equal a b) b651 b652) in
   let mk_value i = (#{ a65 = (#{ a6 = (i + 0) } : t6); b65 = (i + 1) } : t65) in
   (* 1. Create an array of size [size] *)
@@ -9472,9 +9604,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t66   *)
-  (***********)
+  (**********************************)
+  (*   t66 = #{ #{ int }; int64 }   *)
+  (**********************************)
   let eq = (fun (#{ a66 = a661; b66 = b661 } : t66) (#{ a66 = a662; b66 = b662 } : t66) -> (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) a661 a662 && (fun a b -> Int64.equal (globalize a) (globalize b)) b661 b662) in
   let mk_value i = (#{ a66 = (#{ a6 = (i + 0) } : t6); b66 = Int64.of_int (i + 1) } : t66) in
   (* 1. Create an array of size [size] *)
@@ -9524,9 +9656,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t67   *)
-  (***********)
+  (***********************************)
+  (*   t67 = #{ #{ int }; int32# }   *)
+  (***********************************)
   let eq = (fun (#{ a67 = a671; b67 = b671 } : t67) (#{ a67 = a672; b67 = b672 } : t67) -> (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) a671 a672 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b671 b672) in
   let mk_value i = (#{ a67 = (#{ a6 = (i + 0) } : t6); b67 = Int32_u.of_int (i + 1) } : t67) in
   (* 1. Create an array of size [size] *)
@@ -9576,9 +9708,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t68   *)
-  (***********)
+  (**********************************)
+  (*   t68 = #{ #{ int }; float }   *)
+  (**********************************)
   let eq = (fun (#{ a68 = a681; b68 = b681 } : t68) (#{ a68 = a682; b68 = b682 } : t68) -> (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) a681 a682 && (fun a b -> Float.equal (globalize a) (globalize b)) b681 b682) in
   let mk_value i = (#{ a68 = (#{ a6 = (i + 0) } : t6); b68 = Float.of_int (i + 1) } : t68) in
   (* 1. Create an array of size [size] *)
@@ -9628,9 +9760,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t69   *)
-  (***********)
+  (**********************************)
+  (*   t69 = #{ #{ int64 }; int }   *)
+  (**********************************)
   let eq = (fun (#{ a69 = a691; b69 = b691 } : t69) (#{ a69 = a692; b69 = b692 } : t69) -> (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) a691 a692 && (fun a b -> Int.equal a b) b691 b692) in
   let mk_value i = (#{ a69 = (#{ a7 = Int64.of_int (i + 0) } : t7); b69 = (i + 1) } : t69) in
   (* 1. Create an array of size [size] *)
@@ -9680,9 +9812,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t70   *)
-  (***********)
+  (************************************)
+  (*   t70 = #{ #{ int64 }; int64 }   *)
+  (************************************)
   let eq = (fun (#{ a70 = a701; b70 = b701 } : t70) (#{ a70 = a702; b70 = b702 } : t70) -> (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) a701 a702 && (fun a b -> Int64.equal (globalize a) (globalize b)) b701 b702) in
   let mk_value i = (#{ a70 = (#{ a7 = Int64.of_int (i + 0) } : t7); b70 = Int64.of_int (i + 1) } : t70) in
   (* 1. Create an array of size [size] *)
@@ -9732,9 +9864,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t71   *)
-  (***********)
+  (************************************)
+  (*   t71 = #{ #{ int64 }; float }   *)
+  (************************************)
   let eq = (fun (#{ a71 = a711; b71 = b711 } : t71) (#{ a71 = a712; b71 = b712 } : t71) -> (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) a711 a712 && (fun a b -> Float.equal (globalize a) (globalize b)) b711 b712) in
   let mk_value i = (#{ a71 = (#{ a7 = Int64.of_int (i + 0) } : t7); b71 = Float.of_int (i + 1) } : t71) in
   (* 1. Create an array of size [size] *)
@@ -9784,9 +9916,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t72   *)
-  (***********)
+  (**************************************)
+  (*   t72 = #{ #{ int32# }; int32# }   *)
+  (**************************************)
   let eq = (fun (#{ a72 = a721; b72 = b721 } : t72) (#{ a72 = a722; b72 = b722 } : t72) -> (fun (#{ a8 = a81 } : t8) (#{ a8 = a82 } : t8) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a81 a82) a721 a722 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b721 b722) in
   let mk_value i = (#{ a72 = (#{ a8 = Int32_u.of_int (i + 0) } : t8); b72 = Int32_u.of_int (i + 1) } : t72) in
   (* 1. Create an array of size [size] *)
@@ -9836,9 +9968,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t73   *)
-  (***********)
+  (**********************************)
+  (*   t73 = #{ #{ float }; int }   *)
+  (**********************************)
   let eq = (fun (#{ a73 = a731; b73 = b731 } : t73) (#{ a73 = a732; b73 = b732 } : t73) -> (fun (#{ a56 = a561 } : t56) (#{ a56 = a562 } : t56) -> (fun a b -> Float.equal (globalize a) (globalize b)) a561 a562) a731 a732 && (fun a b -> Int.equal a b) b731 b732) in
   let mk_value i = (#{ a73 = (#{ a56 = Float.of_int (i + 0) } : t56); b73 = (i + 1) } : t73) in
   (* 1. Create an array of size [size] *)
@@ -9888,9 +10020,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t74   *)
-  (***********)
+  (************************************)
+  (*   t74 = #{ #{ float }; int64 }   *)
+  (************************************)
   let eq = (fun (#{ a74 = a741; b74 = b741 } : t74) (#{ a74 = a742; b74 = b742 } : t74) -> (fun (#{ a56 = a561 } : t56) (#{ a56 = a562 } : t56) -> (fun a b -> Float.equal (globalize a) (globalize b)) a561 a562) a741 a742 && (fun a b -> Int64.equal (globalize a) (globalize b)) b741 b742) in
   let mk_value i = (#{ a74 = (#{ a56 = Float.of_int (i + 0) } : t56); b74 = Int64.of_int (i + 1) } : t74) in
   (* 1. Create an array of size [size] *)
@@ -9940,9 +10072,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t75   *)
-  (***********)
+  (************************************)
+  (*   t75 = #{ #{ float }; float }   *)
+  (************************************)
   let eq = (fun (#{ a75 = a751; b75 = b751 } : t75) (#{ a75 = a752; b75 = b752 } : t75) -> (fun (#{ a56 = a561 } : t56) (#{ a56 = a562 } : t56) -> (fun a b -> Float.equal (globalize a) (globalize b)) a561 a562) a751 a752 && (fun a b -> Float.equal (globalize a) (globalize b)) b751 b752) in
   let mk_value i = (#{ a75 = (#{ a56 = Float.of_int (i + 0) } : t56); b75 = Float.of_int (i + 1) } : t75) in
   (* 1. Create an array of size [size] *)
@@ -9992,9 +10124,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t76   *)
-  (***********)
+  (********************************)
+  (*   t76 = #{ #{ int; int } }   *)
+  (********************************)
   let eq = (fun (#{ a76 = a761 } : t76) (#{ a76 = a762 } : t76) -> (fun (#{ a9 = a91; b9 = b91 } : t9) (#{ a9 = a92; b9 = b92 } : t9) -> (fun a b -> Int.equal a b) a91 a92 && (fun a b -> Int.equal a b) b91 b92) a761 a762) in
   let mk_value i = (#{ a76 = (#{ a9 = (i + 0); b9 = (i + 1) } : t9) } : t76) in
   (* 1. Create an array of size [size] *)
@@ -10044,9 +10176,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t77   *)
-  (***********)
+  (**********************************)
+  (*   t77 = #{ #{ int; int64 } }   *)
+  (**********************************)
   let eq = (fun (#{ a77 = a771 } : t77) (#{ a77 = a772 } : t77) -> (fun (#{ a10 = a101; b10 = b101 } : t10) (#{ a10 = a102; b10 = b102 } : t10) -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Int64.equal (globalize a) (globalize b)) b101 b102) a771 a772) in
   let mk_value i = (#{ a77 = (#{ a10 = (i + 0); b10 = Int64.of_int (i + 1) } : t10) } : t77) in
   (* 1. Create an array of size [size] *)
@@ -10096,9 +10228,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t78   *)
-  (***********)
+  (***********************************)
+  (*   t78 = #{ #{ int; int32# } }   *)
+  (***********************************)
   let eq = (fun (#{ a78 = a781 } : t78) (#{ a78 = a782 } : t78) -> (fun (#{ a11 = a111; b11 = b111 } : t11) (#{ a11 = a112; b11 = b112 } : t11) -> (fun a b -> Int.equal a b) a111 a112 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b111 b112) a781 a782) in
   let mk_value i = (#{ a78 = (#{ a11 = (i + 0); b11 = Int32_u.of_int (i + 1) } : t11) } : t78) in
   (* 1. Create an array of size [size] *)
@@ -10148,9 +10280,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t79   *)
-  (***********)
+  (**********************************)
+  (*   t79 = #{ #{ int; float } }   *)
+  (**********************************)
   let eq = (fun (#{ a79 = a791 } : t79) (#{ a79 = a792 } : t79) -> (fun (#{ a12 = a121; b12 = b121 } : t12) (#{ a12 = a122; b12 = b122 } : t12) -> (fun a b -> Int.equal a b) a121 a122 && (fun a b -> Float.equal (globalize a) (globalize b)) b121 b122) a791 a792) in
   let mk_value i = (#{ a79 = (#{ a12 = (i + 0); b12 = Float.of_int (i + 1) } : t12) } : t79) in
   (* 1. Create an array of size [size] *)
@@ -10200,9 +10332,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t80   *)
-  (***********)
+  (**********************************)
+  (*   t80 = #{ #{ int64; int } }   *)
+  (**********************************)
   let eq = (fun (#{ a80 = a801 } : t80) (#{ a80 = a802 } : t80) -> (fun (#{ a13 = a131; b13 = b131 } : t13) (#{ a13 = a132; b13 = b132 } : t13) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a131 a132 && (fun a b -> Int.equal a b) b131 b132) a801 a802) in
   let mk_value i = (#{ a80 = (#{ a13 = Int64.of_int (i + 0); b13 = (i + 1) } : t13) } : t80) in
   (* 1. Create an array of size [size] *)
@@ -10252,9 +10384,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t81   *)
-  (***********)
+  (************************************)
+  (*   t81 = #{ #{ int64; int64 } }   *)
+  (************************************)
   let eq = (fun (#{ a81 = a811 } : t81) (#{ a81 = a812 } : t81) -> (fun (#{ a14 = a141; b14 = b141 } : t14) (#{ a14 = a142; b14 = b142 } : t14) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a141 a142 && (fun a b -> Int64.equal (globalize a) (globalize b)) b141 b142) a811 a812) in
   let mk_value i = (#{ a81 = (#{ a14 = Int64.of_int (i + 0); b14 = Int64.of_int (i + 1) } : t14) } : t81) in
   (* 1. Create an array of size [size] *)
@@ -10304,9 +10436,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t82   *)
-  (***********)
+  (************************************)
+  (*   t82 = #{ #{ int64; float } }   *)
+  (************************************)
   let eq = (fun (#{ a82 = a821 } : t82) (#{ a82 = a822 } : t82) -> (fun (#{ a15 = a151; b15 = b151 } : t15) (#{ a15 = a152; b15 = b152 } : t15) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a151 a152 && (fun a b -> Float.equal (globalize a) (globalize b)) b151 b152) a821 a822) in
   let mk_value i = (#{ a82 = (#{ a15 = Int64.of_int (i + 0); b15 = Float.of_int (i + 1) } : t15) } : t82) in
   (* 1. Create an array of size [size] *)
@@ -10356,9 +10488,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t83   *)
-  (***********)
+  (**************************************)
+  (*   t83 = #{ #{ int32#; int32# } }   *)
+  (**************************************)
   let eq = (fun (#{ a83 = a831 } : t83) (#{ a83 = a832 } : t83) -> (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a161 a162 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b161 b162) a831 a832) in
   let mk_value i = (#{ a83 = (#{ a16 = Int32_u.of_int (i + 0); b16 = Int32_u.of_int (i + 1) } : t16) } : t83) in
   (* 1. Create an array of size [size] *)
@@ -10408,9 +10540,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t84   *)
-  (***********)
+  (**********************************)
+  (*   t84 = #{ #{ float; int } }   *)
+  (**********************************)
   let eq = (fun (#{ a84 = a841 } : t84) (#{ a84 = a842 } : t84) -> (fun (#{ a17 = a171; b17 = b171 } : t17) (#{ a17 = a172; b17 = b172 } : t17) -> (fun a b -> Float.equal (globalize a) (globalize b)) a171 a172 && (fun a b -> Int.equal a b) b171 b172) a841 a842) in
   let mk_value i = (#{ a84 = (#{ a17 = Float.of_int (i + 0); b17 = (i + 1) } : t17) } : t84) in
   (* 1. Create an array of size [size] *)
@@ -10460,9 +10592,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t85   *)
-  (***********)
+  (************************************)
+  (*   t85 = #{ #{ float; int64 } }   *)
+  (************************************)
   let eq = (fun (#{ a85 = a851 } : t85) (#{ a85 = a852 } : t85) -> (fun (#{ a18 = a181; b18 = b181 } : t18) (#{ a18 = a182; b18 = b182 } : t18) -> (fun a b -> Float.equal (globalize a) (globalize b)) a181 a182 && (fun a b -> Int64.equal (globalize a) (globalize b)) b181 b182) a851 a852) in
   let mk_value i = (#{ a85 = (#{ a18 = Float.of_int (i + 0); b18 = Int64.of_int (i + 1) } : t18) } : t85) in
   (* 1. Create an array of size [size] *)
@@ -10512,9 +10644,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t86   *)
-  (***********)
+  (************************************)
+  (*   t86 = #{ #{ float; float } }   *)
+  (************************************)
   let eq = (fun (#{ a86 = a861 } : t86) (#{ a86 = a862 } : t86) -> (fun (#{ a19 = a191; b19 = b191 } : t19) (#{ a19 = a192; b19 = b192 } : t19) -> (fun a b -> Float.equal (globalize a) (globalize b)) a191 a192 && (fun a b -> Float.equal (globalize a) (globalize b)) b191 b192) a861 a862) in
   let mk_value i = (#{ a86 = (#{ a19 = Float.of_int (i + 0); b19 = Float.of_int (i + 1) } : t19) } : t86) in
   (* 1. Create an array of size [size] *)
@@ -10564,9 +10696,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t87   *)
-  (***********)
+  (********************************)
+  (*   t87 = #{ #{ #{ int } } }   *)
+  (********************************)
   let eq = (fun (#{ a87 = a871 } : t87) (#{ a87 = a872 } : t87) -> (fun (#{ a20 = a201 } : t20) (#{ a20 = a202 } : t20) -> (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) a201 a202) a871 a872) in
   let mk_value i = (#{ a87 = (#{ a20 = (#{ a6 = (i + 0) } : t6) } : t20) } : t87) in
   (* 1. Create an array of size [size] *)
@@ -10619,9 +10751,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t88   *)
-  (***********)
+  (**********************************)
+  (*   t88 = #{ #{ #{ int64 } } }   *)
+  (**********************************)
   let eq = (fun (#{ a88 = a881 } : t88) (#{ a88 = a882 } : t88) -> (fun (#{ a21 = a211 } : t21) (#{ a21 = a212 } : t21) -> (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) a211 a212) a881 a882) in
   let mk_value i = (#{ a88 = (#{ a21 = (#{ a7 = Int64.of_int (i + 0) } : t7) } : t21) } : t88) in
   (* 1. Create an array of size [size] *)
@@ -10674,9 +10806,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t89   *)
-  (***********)
+  (***********************************)
+  (*   t89 = #{ #{ #{ int32# } } }   *)
+  (***********************************)
   let eq = (fun (#{ a89 = a891 } : t89) (#{ a89 = a892 } : t89) -> (fun (#{ a22 = a221 } : t22) (#{ a22 = a222 } : t22) -> (fun (#{ a8 = a81 } : t8) (#{ a8 = a82 } : t8) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a81 a82) a221 a222) a891 a892) in
   let mk_value i = (#{ a89 = (#{ a22 = (#{ a8 = Int32_u.of_int (i + 0) } : t8) } : t22) } : t89) in
   (* 1. Create an array of size [size] *)
@@ -10869,9 +11001,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t6   *)
-  (**********)
+  (*********************)
+  (*   t6 = #{ int }   *)
+  (*********************)
   let eq = (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) in
   let mk_value i = (#{ a6 = (i + 0) } : t6) in
   (* 1. Create an array of size [size] *)
@@ -10906,9 +11038,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t7   *)
-  (**********)
+  (***********************)
+  (*   t7 = #{ int64 }   *)
+  (***********************)
   let eq = (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) in
   let mk_value i = (#{ a7 = Int64.of_int (i + 0) } : t7) in
   (* 1. Create an array of size [size] *)
@@ -10943,9 +11075,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t8   *)
-  (**********)
+  (************************)
+  (*   t8 = #{ int32# }   *)
+  (************************)
   let eq = (fun (#{ a8 = a81 } : t8) (#{ a8 = a82 } : t8) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a81 a82) in
   let mk_value i = (#{ a8 = Int32_u.of_int (i + 0) } : t8) in
   (* 1. Create an array of size [size] *)
@@ -10980,9 +11112,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t90   *)
-  (***********)
+  (*************************)
+  (*   t90 = #{ int64# }   *)
+  (*************************)
   let eq = (fun (#{ a90 = a901 } : t90) (#{ a90 = a902 } : t90) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a901 a902) in
   let mk_value i = (#{ a90 = Int64_u.of_int (i + 0) } : t90) in
   (* 1. Create an array of size [size] *)
@@ -11017,9 +11149,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t91   *)
-  (***********)
+  (*****************************)
+  (*   t91 = #{ nativeint# }   *)
+  (*****************************)
   let eq = (fun (#{ a91 = a911 } : t91) (#{ a91 = a912 } : t91) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a911 a912) in
   let mk_value i = (#{ a91 = Nativeint_u.of_int (i + 0) } : t91) in
   (* 1. Create an array of size [size] *)
@@ -11054,9 +11186,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t9   *)
-  (**********)
+  (**************************)
+  (*   t9 = #{ int; int }   *)
+  (**************************)
   let eq = (fun (#{ a9 = a91; b9 = b91 } : t9) (#{ a9 = a92; b9 = b92 } : t9) -> (fun a b -> Int.equal a b) a91 a92 && (fun a b -> Int.equal a b) b91 b92) in
   let mk_value i = (#{ a9 = (i + 0); b9 = (i + 1) } : t9) in
   (* 1. Create an array of size [size] *)
@@ -11097,9 +11229,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t10   *)
-  (***********)
+  (*****************************)
+  (*   t10 = #{ int; int64 }   *)
+  (*****************************)
   let eq = (fun (#{ a10 = a101; b10 = b101 } : t10) (#{ a10 = a102; b10 = b102 } : t10) -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Int64.equal (globalize a) (globalize b)) b101 b102) in
   let mk_value i = (#{ a10 = (i + 0); b10 = Int64.of_int (i + 1) } : t10) in
   (* 1. Create an array of size [size] *)
@@ -11140,9 +11272,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t11   *)
-  (***********)
+  (******************************)
+  (*   t11 = #{ int; int32# }   *)
+  (******************************)
   let eq = (fun (#{ a11 = a111; b11 = b111 } : t11) (#{ a11 = a112; b11 = b112 } : t11) -> (fun a b -> Int.equal a b) a111 a112 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b111 b112) in
   let mk_value i = (#{ a11 = (i + 0); b11 = Int32_u.of_int (i + 1) } : t11) in
   (* 1. Create an array of size [size] *)
@@ -11183,9 +11315,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t12   *)
-  (***********)
+  (*****************************)
+  (*   t12 = #{ int; float }   *)
+  (*****************************)
   let eq = (fun (#{ a12 = a121; b12 = b121 } : t12) (#{ a12 = a122; b12 = b122 } : t12) -> (fun a b -> Int.equal a b) a121 a122 && (fun a b -> Float.equal (globalize a) (globalize b)) b121 b122) in
   let mk_value i = (#{ a12 = (i + 0); b12 = Float.of_int (i + 1) } : t12) in
   (* 1. Create an array of size [size] *)
@@ -11226,9 +11358,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t92   *)
-  (***********)
+  (******************************)
+  (*   t92 = #{ int; int64# }   *)
+  (******************************)
   let eq = (fun (#{ a92 = a921; b92 = b921 } : t92) (#{ a92 = a922; b92 = b922 } : t92) -> (fun a b -> Int.equal a b) a921 a922 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b921 b922) in
   let mk_value i = (#{ a92 = (i + 0); b92 = Int64_u.of_int (i + 1) } : t92) in
   (* 1. Create an array of size [size] *)
@@ -11269,9 +11401,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t93   *)
-  (***********)
+  (**********************************)
+  (*   t93 = #{ int; nativeint# }   *)
+  (**********************************)
   let eq = (fun (#{ a93 = a931; b93 = b931 } : t93) (#{ a93 = a932; b93 = b932 } : t93) -> (fun a b -> Int.equal a b) a931 a932 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b931 b932) in
   let mk_value i = (#{ a93 = (i + 0); b93 = Nativeint_u.of_int (i + 1) } : t93) in
   (* 1. Create an array of size [size] *)
@@ -11312,9 +11444,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t13   *)
-  (***********)
+  (*****************************)
+  (*   t13 = #{ int64; int }   *)
+  (*****************************)
   let eq = (fun (#{ a13 = a131; b13 = b131 } : t13) (#{ a13 = a132; b13 = b132 } : t13) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a131 a132 && (fun a b -> Int.equal a b) b131 b132) in
   let mk_value i = (#{ a13 = Int64.of_int (i + 0); b13 = (i + 1) } : t13) in
   (* 1. Create an array of size [size] *)
@@ -11355,9 +11487,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t14   *)
-  (***********)
+  (*******************************)
+  (*   t14 = #{ int64; int64 }   *)
+  (*******************************)
   let eq = (fun (#{ a14 = a141; b14 = b141 } : t14) (#{ a14 = a142; b14 = b142 } : t14) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a141 a142 && (fun a b -> Int64.equal (globalize a) (globalize b)) b141 b142) in
   let mk_value i = (#{ a14 = Int64.of_int (i + 0); b14 = Int64.of_int (i + 1) } : t14) in
   (* 1. Create an array of size [size] *)
@@ -11398,9 +11530,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t15   *)
-  (***********)
+  (*******************************)
+  (*   t15 = #{ int64; float }   *)
+  (*******************************)
   let eq = (fun (#{ a15 = a151; b15 = b151 } : t15) (#{ a15 = a152; b15 = b152 } : t15) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a151 a152 && (fun a b -> Float.equal (globalize a) (globalize b)) b151 b152) in
   let mk_value i = (#{ a15 = Int64.of_int (i + 0); b15 = Float.of_int (i + 1) } : t15) in
   (* 1. Create an array of size [size] *)
@@ -11441,9 +11573,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t16   *)
-  (***********)
+  (*********************************)
+  (*   t16 = #{ int32#; int32# }   *)
+  (*********************************)
   let eq = (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a161 a162 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b161 b162) in
   let mk_value i = (#{ a16 = Int32_u.of_int (i + 0); b16 = Int32_u.of_int (i + 1) } : t16) in
   (* 1. Create an array of size [size] *)
@@ -11484,9 +11616,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t94   *)
-  (***********)
+  (*********************************)
+  (*   t94 = #{ int32#; int64# }   *)
+  (*********************************)
   let eq = (fun (#{ a94 = a941; b94 = b941 } : t94) (#{ a94 = a942; b94 = b942 } : t94) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a941 a942 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b941 b942) in
   let mk_value i = (#{ a94 = Int32_u.of_int (i + 0); b94 = Int64_u.of_int (i + 1) } : t94) in
   (* 1. Create an array of size [size] *)
@@ -11527,9 +11659,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t95   *)
-  (***********)
+  (*************************************)
+  (*   t95 = #{ int32#; nativeint# }   *)
+  (*************************************)
   let eq = (fun (#{ a95 = a951; b95 = b951 } : t95) (#{ a95 = a952; b95 = b952 } : t95) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a951 a952 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b951 b952) in
   let mk_value i = (#{ a95 = Int32_u.of_int (i + 0); b95 = Nativeint_u.of_int (i + 1) } : t95) in
   (* 1. Create an array of size [size] *)
@@ -11570,9 +11702,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t17   *)
-  (***********)
+  (*****************************)
+  (*   t17 = #{ float; int }   *)
+  (*****************************)
   let eq = (fun (#{ a17 = a171; b17 = b171 } : t17) (#{ a17 = a172; b17 = b172 } : t17) -> (fun a b -> Float.equal (globalize a) (globalize b)) a171 a172 && (fun a b -> Int.equal a b) b171 b172) in
   let mk_value i = (#{ a17 = Float.of_int (i + 0); b17 = (i + 1) } : t17) in
   (* 1. Create an array of size [size] *)
@@ -11613,9 +11745,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t18   *)
-  (***********)
+  (*******************************)
+  (*   t18 = #{ float; int64 }   *)
+  (*******************************)
   let eq = (fun (#{ a18 = a181; b18 = b181 } : t18) (#{ a18 = a182; b18 = b182 } : t18) -> (fun a b -> Float.equal (globalize a) (globalize b)) a181 a182 && (fun a b -> Int64.equal (globalize a) (globalize b)) b181 b182) in
   let mk_value i = (#{ a18 = Float.of_int (i + 0); b18 = Int64.of_int (i + 1) } : t18) in
   (* 1. Create an array of size [size] *)
@@ -11656,9 +11788,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t19   *)
-  (***********)
+  (*******************************)
+  (*   t19 = #{ float; float }   *)
+  (*******************************)
   let eq = (fun (#{ a19 = a191; b19 = b191 } : t19) (#{ a19 = a192; b19 = b192 } : t19) -> (fun a b -> Float.equal (globalize a) (globalize b)) a191 a192 && (fun a b -> Float.equal (globalize a) (globalize b)) b191 b192) in
   let mk_value i = (#{ a19 = Float.of_int (i + 0); b19 = Float.of_int (i + 1) } : t19) in
   (* 1. Create an array of size [size] *)
@@ -11699,9 +11831,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t96   *)
-  (***********)
+  (*********************************)
+  (*   t96 = #{ int64#; int32# }   *)
+  (*********************************)
   let eq = (fun (#{ a96 = a961; b96 = b961 } : t96) (#{ a96 = a962; b96 = b962 } : t96) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a961 a962 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b961 b962) in
   let mk_value i = (#{ a96 = Int64_u.of_int (i + 0); b96 = Int32_u.of_int (i + 1) } : t96) in
   (* 1. Create an array of size [size] *)
@@ -11742,9 +11874,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (**********)
-  (*   t0   *)
-  (**********)
+  (********************************)
+  (*   t0 = #{ int64#; int64# }   *)
+  (********************************)
   let eq = (fun (#{ a0 = a01; b0 = b01 } : t0) (#{ a0 = a02; b0 = b02 } : t0) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a01 a02 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b01 b02) in
   let mk_value i = (#{ a0 = Int64_u.of_int (i + 0); b0 = Int64_u.of_int (i + 1) } : t0) in
   (* 1. Create an array of size [size] *)
@@ -11785,9 +11917,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t97   *)
-  (***********)
+  (*************************************)
+  (*   t97 = #{ int64#; nativeint# }   *)
+  (*************************************)
   let eq = (fun (#{ a97 = a971; b97 = b971 } : t97) (#{ a97 = a972; b97 = b972 } : t97) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a971 a972 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b971 b972) in
   let mk_value i = (#{ a97 = Int64_u.of_int (i + 0); b97 = Nativeint_u.of_int (i + 1) } : t97) in
   (* 1. Create an array of size [size] *)
@@ -11828,9 +11960,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t98   *)
-  (***********)
+  (*************************************)
+  (*   t98 = #{ nativeint#; int32# }   *)
+  (*************************************)
   let eq = (fun (#{ a98 = a981; b98 = b981 } : t98) (#{ a98 = a982; b98 = b982 } : t98) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a981 a982 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b981 b982) in
   let mk_value i = (#{ a98 = Nativeint_u.of_int (i + 0); b98 = Int32_u.of_int (i + 1) } : t98) in
   (* 1. Create an array of size [size] *)
@@ -11871,9 +12003,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t99   *)
-  (***********)
+  (*************************************)
+  (*   t99 = #{ nativeint#; int64# }   *)
+  (*************************************)
   let eq = (fun (#{ a99 = a991; b99 = b991 } : t99) (#{ a99 = a992; b99 = b992 } : t99) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a991 a992 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b991 b992) in
   let mk_value i = (#{ a99 = Nativeint_u.of_int (i + 0); b99 = Int64_u.of_int (i + 1) } : t99) in
   (* 1. Create an array of size [size] *)
@@ -11914,9 +12046,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (************)
-  (*   t100   *)
-  (************)
+  (******************************************)
+  (*   t100 = #{ nativeint#; nativeint# }   *)
+  (******************************************)
   let eq = (fun (#{ a100 = a1001; b100 = b1001 } : t100) (#{ a100 = a1002; b100 = b1002 } : t100) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a1001 a1002 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b1001 b1002) in
   let mk_value i = (#{ a100 = Nativeint_u.of_int (i + 0); b100 = Nativeint_u.of_int (i + 1) } : t100) in
   (* 1. Create an array of size [size] *)
@@ -11957,9 +12089,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t20   *)
-  (***********)
+  (***************************)
+  (*   t20 = #{ #{ int } }   *)
+  (***************************)
   let eq = (fun (#{ a20 = a201 } : t20) (#{ a20 = a202 } : t20) -> (fun (#{ a6 = a61 } : t6) (#{ a6 = a62 } : t6) -> (fun a b -> Int.equal a b) a61 a62) a201 a202) in
   let mk_value i = (#{ a20 = (#{ a6 = (i + 0) } : t6) } : t20) in
   (* 1. Create an array of size [size] *)
@@ -12003,9 +12135,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t21   *)
-  (***********)
+  (*****************************)
+  (*   t21 = #{ #{ int64 } }   *)
+  (*****************************)
   let eq = (fun (#{ a21 = a211 } : t21) (#{ a21 = a212 } : t21) -> (fun (#{ a7 = a71 } : t7) (#{ a7 = a72 } : t7) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a71 a72) a211 a212) in
   let mk_value i = (#{ a21 = (#{ a7 = Int64.of_int (i + 0) } : t7) } : t21) in
   (* 1. Create an array of size [size] *)
@@ -12049,9 +12181,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (***********)
-  (*   t22   *)
-  (***********)
+  (******************************)
+  (*   t22 = #{ #{ int32# } }   *)
+  (******************************)
   let eq = (fun (#{ a22 = a221 } : t22) (#{ a22 = a222 } : t22) -> (fun (#{ a8 = a81 } : t8) (#{ a8 = a82 } : t8) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a81 a82) a221 a222) in
   let mk_value i = (#{ a22 = (#{ a8 = Int32_u.of_int (i + 0) } : t8) } : t22) in
   (* 1. Create an array of size [size] *)
@@ -12095,9 +12227,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (************)
-  (*   t101   *)
-  (************)
+  (*******************************)
+  (*   t101 = #{ #{ int64# } }   *)
+  (*******************************)
   let eq = (fun (#{ a101 = a1011 } : t101) (#{ a101 = a1012 } : t101) -> (fun (#{ a90 = a901 } : t90) (#{ a90 = a902 } : t90) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a901 a902) a1011 a1012) in
   let mk_value i = (#{ a101 = (#{ a90 = Int64_u.of_int (i + 0) } : t90) } : t101) in
   (* 1. Create an array of size [size] *)
@@ -12141,9 +12273,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (************)
-  (*   t102   *)
-  (************)
+  (***********************************)
+  (*   t102 = #{ #{ nativeint# } }   *)
+  (***********************************)
   let eq = (fun (#{ a102 = a1021 } : t102) (#{ a102 = a1022 } : t102) -> (fun (#{ a91 = a911 } : t91) (#{ a91 = a912 } : t91) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a911 a912) a1021 a1022) in
   let mk_value i = (#{ a102 = (#{ a91 = Nativeint_u.of_int (i + 0) } : t91) } : t102) in
   (* 1. Create an array of size [size] *)
@@ -12187,9 +12319,9 @@ let test_array_idx_with_makearray_dynamic_local size =
   done;
   Gc.compact ();
 
-  (************)
-  (*   t104   *)
-  (************)
+  (*********************************************************)
+  (*   t104 = #{ #{ int; int64# }; #{ int64#; float# } }   *)
+  (*********************************************************)
   let eq = (fun (#{ a104 = a1041; b104 = b1041 } : t104) (#{ a104 = a1042; b104 = b1042 } : t104) -> (fun (#{ a92 = a921; b92 = b921 } : t92) (#{ a92 = a922; b92 = b922 } : t92) -> (fun a b -> Int.equal a b) a921 a922 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b921 b922) a1041 a1042 && (fun (#{ a103 = a1031; b103 = b1031 } : t103) (#{ a103 = a1032; b103 = b1032 } : t103) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1031 a1032 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1031 b1032) b1041 b1042) in
   let mk_value i = (#{ a104 = (#{ a92 = (i + 0); b92 = Int64_u.of_int (i + 1) } : t92); b104 = (#{ a103 = Int64_u.of_int (i + 2); b103 = Float_u.of_int (i + 3) } : t103) } : t104) in
   (* 1. Create an array of size [size] *)
@@ -12261,9 +12393,9 @@ let test_array_idx_with_makearray_dynamic_local size =
 
 (* Test array idx deepening *)
 let () =
-  (**********)
-  (*   t1   *)
-  (**********)
+  (*********************************************)
+  (*   t1 = #{ int64#; #{ int64#; int64# } }   *)
+  (*********************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t1 array, _) idx_mut = (.(i)) in
     let shallow : (t1 array, _) idx_mut = (.(i)) in
@@ -12335,9 +12467,9 @@ let () =
     if not test then failwithf "test 1135 failed";
   );
 
-  (**********)
-  (*   t3   *)
-  (**********)
+  (*********************************************)
+  (*   t3 = #{ string; #{ string; string } }   *)
+  (*********************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t3 array, _) idx_mut = (.(i)) in
     let shallow : (t3 array, _) idx_mut = (.(i)) in
@@ -12409,9 +12541,9 @@ let () =
     if not test then failwithf "test 1146 failed";
   );
 
-  (**********)
-  (*   t4   *)
-  (**********)
+  (*********************************************)
+  (*   t4 = #{ #{ int64#; int64# }; int64# }   *)
+  (*********************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t4 array, _) idx_mut = (.(i)) in
     let shallow : (t4 array, _) idx_mut = (.(i)) in
@@ -12483,9 +12615,9 @@ let () =
     if not test then failwithf "test 1157 failed";
   );
 
-  (**********)
-  (*   t5   *)
-  (**********)
+  (*********************************************)
+  (*   t5 = #{ #{ string; string }; string }   *)
+  (*********************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t5 array, _) idx_mut = (.(i)) in
     let shallow : (t5 array, _) idx_mut = (.(i)) in
@@ -12593,9 +12725,9 @@ let () =
     if not test then failwithf "test 1171 failed";
   );
 
-  (**********)
-  (*   t6   *)
-  (**********)
+  (*********************)
+  (*   t6 = #{ int }   *)
+  (*********************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t6 array, _) idx_mut = (.(i)) in
     let shallow : (t6 array, _) idx_mut = (.(i)) in
@@ -12618,9 +12750,9 @@ let () =
     if not test then failwithf "test 1174 failed";
   );
 
-  (**********)
-  (*   t7   *)
-  (**********)
+  (***********************)
+  (*   t7 = #{ int64 }   *)
+  (***********************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t7 array, _) idx_mut = (.(i)) in
     let shallow : (t7 array, _) idx_mut = (.(i)) in
@@ -12643,9 +12775,9 @@ let () =
     if not test then failwithf "test 1177 failed";
   );
 
-  (**********)
-  (*   t8   *)
-  (**********)
+  (************************)
+  (*   t8 = #{ int32# }   *)
+  (************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t8 array, _) idx_mut = (.(i)) in
     let shallow : (t8 array, _) idx_mut = (.(i)) in
@@ -12668,9 +12800,9 @@ let () =
     if not test then failwithf "test 1180 failed";
   );
 
-  (**********)
-  (*   t9   *)
-  (**********)
+  (**************************)
+  (*   t9 = #{ int; int }   *)
+  (**************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t9 array, _) idx_mut = (.(i)) in
     let shallow : (t9 array, _) idx_mut = (.(i)) in
@@ -12706,9 +12838,9 @@ let () =
     if not test then failwithf "test 1185 failed";
   );
 
-  (***********)
-  (*   t10   *)
-  (***********)
+  (*****************************)
+  (*   t10 = #{ int; int64 }   *)
+  (*****************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t10 array, _) idx_mut = (.(i)) in
     let shallow : (t10 array, _) idx_mut = (.(i)) in
@@ -12744,9 +12876,9 @@ let () =
     if not test then failwithf "test 1190 failed";
   );
 
-  (***********)
-  (*   t11   *)
-  (***********)
+  (******************************)
+  (*   t11 = #{ int; int32# }   *)
+  (******************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t11 array, _) idx_mut = (.(i)) in
     let shallow : (t11 array, _) idx_mut = (.(i)) in
@@ -12782,9 +12914,9 @@ let () =
     if not test then failwithf "test 1195 failed";
   );
 
-  (***********)
-  (*   t12   *)
-  (***********)
+  (*****************************)
+  (*   t12 = #{ int; float }   *)
+  (*****************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t12 array, _) idx_mut = (.(i)) in
     let shallow : (t12 array, _) idx_mut = (.(i)) in
@@ -12820,9 +12952,9 @@ let () =
     if not test then failwithf "test 1200 failed";
   );
 
-  (***********)
-  (*   t13   *)
-  (***********)
+  (*****************************)
+  (*   t13 = #{ int64; int }   *)
+  (*****************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t13 array, _) idx_mut = (.(i)) in
     let shallow : (t13 array, _) idx_mut = (.(i)) in
@@ -12858,9 +12990,9 @@ let () =
     if not test then failwithf "test 1205 failed";
   );
 
-  (***********)
-  (*   t14   *)
-  (***********)
+  (*******************************)
+  (*   t14 = #{ int64; int64 }   *)
+  (*******************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t14 array, _) idx_mut = (.(i)) in
     let shallow : (t14 array, _) idx_mut = (.(i)) in
@@ -12896,9 +13028,9 @@ let () =
     if not test then failwithf "test 1210 failed";
   );
 
-  (***********)
-  (*   t15   *)
-  (***********)
+  (*******************************)
+  (*   t15 = #{ int64; float }   *)
+  (*******************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t15 array, _) idx_mut = (.(i)) in
     let shallow : (t15 array, _) idx_mut = (.(i)) in
@@ -12934,9 +13066,9 @@ let () =
     if not test then failwithf "test 1215 failed";
   );
 
-  (***********)
-  (*   t16   *)
-  (***********)
+  (*********************************)
+  (*   t16 = #{ int32#; int32# }   *)
+  (*********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t16 array, _) idx_mut = (.(i)) in
     let shallow : (t16 array, _) idx_mut = (.(i)) in
@@ -12972,9 +13104,9 @@ let () =
     if not test then failwithf "test 1220 failed";
   );
 
-  (***********)
-  (*   t17   *)
-  (***********)
+  (*****************************)
+  (*   t17 = #{ float; int }   *)
+  (*****************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t17 array, _) idx_mut = (.(i)) in
     let shallow : (t17 array, _) idx_mut = (.(i)) in
@@ -13010,9 +13142,9 @@ let () =
     if not test then failwithf "test 1225 failed";
   );
 
-  (***********)
-  (*   t18   *)
-  (***********)
+  (*******************************)
+  (*   t18 = #{ float; int64 }   *)
+  (*******************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t18 array, _) idx_mut = (.(i)) in
     let shallow : (t18 array, _) idx_mut = (.(i)) in
@@ -13048,9 +13180,9 @@ let () =
     if not test then failwithf "test 1230 failed";
   );
 
-  (***********)
-  (*   t19   *)
-  (***********)
+  (*******************************)
+  (*   t19 = #{ float; float }   *)
+  (*******************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t19 array, _) idx_mut = (.(i)) in
     let shallow : (t19 array, _) idx_mut = (.(i)) in
@@ -13086,9 +13218,9 @@ let () =
     if not test then failwithf "test 1235 failed";
   );
 
-  (***********)
-  (*   t20   *)
-  (***********)
+  (***************************)
+  (*   t20 = #{ #{ int } }   *)
+  (***************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t20 array, _) idx_mut = (.(i)) in
     let shallow : (t20 array, _) idx_mut = (.(i)) in
@@ -13129,9 +13261,9 @@ let () =
     if not test then failwithf "test 1241 failed";
   );
 
-  (***********)
-  (*   t21   *)
-  (***********)
+  (*****************************)
+  (*   t21 = #{ #{ int64 } }   *)
+  (*****************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t21 array, _) idx_mut = (.(i)) in
     let shallow : (t21 array, _) idx_mut = (.(i)) in
@@ -13172,9 +13304,9 @@ let () =
     if not test then failwithf "test 1247 failed";
   );
 
-  (***********)
-  (*   t22   *)
-  (***********)
+  (******************************)
+  (*   t22 = #{ #{ int32# } }   *)
+  (******************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t22 array, _) idx_mut = (.(i)) in
     let shallow : (t22 array, _) idx_mut = (.(i)) in
@@ -13215,9 +13347,9 @@ let () =
     if not test then failwithf "test 1253 failed";
   );
 
-  (***********)
-  (*   t23   *)
-  (***********)
+  (********************************)
+  (*   t23 = #{ int; int; int }   *)
+  (********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t23 array, _) idx_mut = (.(i)) in
     let shallow : (t23 array, _) idx_mut = (.(i)) in
@@ -13266,9 +13398,9 @@ let () =
     if not test then failwithf "test 1260 failed";
   );
 
-  (***********)
-  (*   t24   *)
-  (***********)
+  (**********************************)
+  (*   t24 = #{ int; int; int64 }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t24 array, _) idx_mut = (.(i)) in
     let shallow : (t24 array, _) idx_mut = (.(i)) in
@@ -13317,9 +13449,9 @@ let () =
     if not test then failwithf "test 1267 failed";
   );
 
-  (***********)
-  (*   t25   *)
-  (***********)
+  (***********************************)
+  (*   t25 = #{ int; int; int32# }   *)
+  (***********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t25 array, _) idx_mut = (.(i)) in
     let shallow : (t25 array, _) idx_mut = (.(i)) in
@@ -13368,9 +13500,9 @@ let () =
     if not test then failwithf "test 1274 failed";
   );
 
-  (***********)
-  (*   t26   *)
-  (***********)
+  (**********************************)
+  (*   t26 = #{ int; int; float }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t26 array, _) idx_mut = (.(i)) in
     let shallow : (t26 array, _) idx_mut = (.(i)) in
@@ -13419,9 +13551,9 @@ let () =
     if not test then failwithf "test 1281 failed";
   );
 
-  (***********)
-  (*   t27   *)
-  (***********)
+  (**********************************)
+  (*   t27 = #{ int; int64; int }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t27 array, _) idx_mut = (.(i)) in
     let shallow : (t27 array, _) idx_mut = (.(i)) in
@@ -13470,9 +13602,9 @@ let () =
     if not test then failwithf "test 1288 failed";
   );
 
-  (***********)
-  (*   t28   *)
-  (***********)
+  (************************************)
+  (*   t28 = #{ int; int64; int64 }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t28 array, _) idx_mut = (.(i)) in
     let shallow : (t28 array, _) idx_mut = (.(i)) in
@@ -13521,9 +13653,9 @@ let () =
     if not test then failwithf "test 1295 failed";
   );
 
-  (***********)
-  (*   t29   *)
-  (***********)
+  (************************************)
+  (*   t29 = #{ int; int64; float }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t29 array, _) idx_mut = (.(i)) in
     let shallow : (t29 array, _) idx_mut = (.(i)) in
@@ -13572,9 +13704,9 @@ let () =
     if not test then failwithf "test 1302 failed";
   );
 
-  (***********)
-  (*   t30   *)
-  (***********)
+  (**************************************)
+  (*   t30 = #{ int; int32#; int32# }   *)
+  (**************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t30 array, _) idx_mut = (.(i)) in
     let shallow : (t30 array, _) idx_mut = (.(i)) in
@@ -13623,9 +13755,9 @@ let () =
     if not test then failwithf "test 1309 failed";
   );
 
-  (***********)
-  (*   t31   *)
-  (***********)
+  (**********************************)
+  (*   t31 = #{ int; float; int }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t31 array, _) idx_mut = (.(i)) in
     let shallow : (t31 array, _) idx_mut = (.(i)) in
@@ -13674,9 +13806,9 @@ let () =
     if not test then failwithf "test 1316 failed";
   );
 
-  (***********)
-  (*   t32   *)
-  (***********)
+  (************************************)
+  (*   t32 = #{ int; float; int64 }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t32 array, _) idx_mut = (.(i)) in
     let shallow : (t32 array, _) idx_mut = (.(i)) in
@@ -13725,9 +13857,9 @@ let () =
     if not test then failwithf "test 1323 failed";
   );
 
-  (***********)
-  (*   t33   *)
-  (***********)
+  (************************************)
+  (*   t33 = #{ int; float; float }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t33 array, _) idx_mut = (.(i)) in
     let shallow : (t33 array, _) idx_mut = (.(i)) in
@@ -13776,9 +13908,9 @@ let () =
     if not test then failwithf "test 1330 failed";
   );
 
-  (***********)
-  (*   t34   *)
-  (***********)
+  (**********************************)
+  (*   t34 = #{ int64; int; int }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t34 array, _) idx_mut = (.(i)) in
     let shallow : (t34 array, _) idx_mut = (.(i)) in
@@ -13827,9 +13959,9 @@ let () =
     if not test then failwithf "test 1337 failed";
   );
 
-  (***********)
-  (*   t35   *)
-  (***********)
+  (************************************)
+  (*   t35 = #{ int64; int; int64 }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t35 array, _) idx_mut = (.(i)) in
     let shallow : (t35 array, _) idx_mut = (.(i)) in
@@ -13878,9 +14010,9 @@ let () =
     if not test then failwithf "test 1344 failed";
   );
 
-  (***********)
-  (*   t36   *)
-  (***********)
+  (************************************)
+  (*   t36 = #{ int64; int; float }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t36 array, _) idx_mut = (.(i)) in
     let shallow : (t36 array, _) idx_mut = (.(i)) in
@@ -13929,9 +14061,9 @@ let () =
     if not test then failwithf "test 1351 failed";
   );
 
-  (***********)
-  (*   t37   *)
-  (***********)
+  (************************************)
+  (*   t37 = #{ int64; int64; int }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t37 array, _) idx_mut = (.(i)) in
     let shallow : (t37 array, _) idx_mut = (.(i)) in
@@ -13980,9 +14112,9 @@ let () =
     if not test then failwithf "test 1358 failed";
   );
 
-  (***********)
-  (*   t38   *)
-  (***********)
+  (**************************************)
+  (*   t38 = #{ int64; int64; int64 }   *)
+  (**************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t38 array, _) idx_mut = (.(i)) in
     let shallow : (t38 array, _) idx_mut = (.(i)) in
@@ -14031,9 +14163,9 @@ let () =
     if not test then failwithf "test 1365 failed";
   );
 
-  (***********)
-  (*   t39   *)
-  (***********)
+  (**************************************)
+  (*   t39 = #{ int64; int64; float }   *)
+  (**************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t39 array, _) idx_mut = (.(i)) in
     let shallow : (t39 array, _) idx_mut = (.(i)) in
@@ -14082,9 +14214,9 @@ let () =
     if not test then failwithf "test 1372 failed";
   );
 
-  (***********)
-  (*   t40   *)
-  (***********)
+  (************************************)
+  (*   t40 = #{ int64; float; int }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t40 array, _) idx_mut = (.(i)) in
     let shallow : (t40 array, _) idx_mut = (.(i)) in
@@ -14133,9 +14265,9 @@ let () =
     if not test then failwithf "test 1379 failed";
   );
 
-  (***********)
-  (*   t41   *)
-  (***********)
+  (**************************************)
+  (*   t41 = #{ int64; float; int64 }   *)
+  (**************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t41 array, _) idx_mut = (.(i)) in
     let shallow : (t41 array, _) idx_mut = (.(i)) in
@@ -14184,9 +14316,9 @@ let () =
     if not test then failwithf "test 1386 failed";
   );
 
-  (***********)
-  (*   t42   *)
-  (***********)
+  (**************************************)
+  (*   t42 = #{ int64; float; float }   *)
+  (**************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t42 array, _) idx_mut = (.(i)) in
     let shallow : (t42 array, _) idx_mut = (.(i)) in
@@ -14235,9 +14367,9 @@ let () =
     if not test then failwithf "test 1393 failed";
   );
 
-  (***********)
-  (*   t43   *)
-  (***********)
+  (*****************************************)
+  (*   t43 = #{ int32#; int32#; int32# }   *)
+  (*****************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t43 array, _) idx_mut = (.(i)) in
     let shallow : (t43 array, _) idx_mut = (.(i)) in
@@ -14286,9 +14418,9 @@ let () =
     if not test then failwithf "test 1400 failed";
   );
 
-  (***********)
-  (*   t44   *)
-  (***********)
+  (**********************************)
+  (*   t44 = #{ float; int; int }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t44 array, _) idx_mut = (.(i)) in
     let shallow : (t44 array, _) idx_mut = (.(i)) in
@@ -14337,9 +14469,9 @@ let () =
     if not test then failwithf "test 1407 failed";
   );
 
-  (***********)
-  (*   t45   *)
-  (***********)
+  (************************************)
+  (*   t45 = #{ float; int; int64 }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t45 array, _) idx_mut = (.(i)) in
     let shallow : (t45 array, _) idx_mut = (.(i)) in
@@ -14388,9 +14520,9 @@ let () =
     if not test then failwithf "test 1414 failed";
   );
 
-  (***********)
-  (*   t46   *)
-  (***********)
+  (************************************)
+  (*   t46 = #{ float; int; float }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t46 array, _) idx_mut = (.(i)) in
     let shallow : (t46 array, _) idx_mut = (.(i)) in
@@ -14439,9 +14571,9 @@ let () =
     if not test then failwithf "test 1421 failed";
   );
 
-  (***********)
-  (*   t47   *)
-  (***********)
+  (************************************)
+  (*   t47 = #{ float; int64; int }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t47 array, _) idx_mut = (.(i)) in
     let shallow : (t47 array, _) idx_mut = (.(i)) in
@@ -14490,9 +14622,9 @@ let () =
     if not test then failwithf "test 1428 failed";
   );
 
-  (***********)
-  (*   t48   *)
-  (***********)
+  (**************************************)
+  (*   t48 = #{ float; int64; int64 }   *)
+  (**************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t48 array, _) idx_mut = (.(i)) in
     let shallow : (t48 array, _) idx_mut = (.(i)) in
@@ -14541,9 +14673,9 @@ let () =
     if not test then failwithf "test 1435 failed";
   );
 
-  (***********)
-  (*   t49   *)
-  (***********)
+  (**************************************)
+  (*   t49 = #{ float; int64; float }   *)
+  (**************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t49 array, _) idx_mut = (.(i)) in
     let shallow : (t49 array, _) idx_mut = (.(i)) in
@@ -14592,9 +14724,9 @@ let () =
     if not test then failwithf "test 1442 failed";
   );
 
-  (***********)
-  (*   t50   *)
-  (***********)
+  (************************************)
+  (*   t50 = #{ float; float; int }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t50 array, _) idx_mut = (.(i)) in
     let shallow : (t50 array, _) idx_mut = (.(i)) in
@@ -14643,9 +14775,9 @@ let () =
     if not test then failwithf "test 1449 failed";
   );
 
-  (***********)
-  (*   t51   *)
-  (***********)
+  (**************************************)
+  (*   t51 = #{ float; float; int64 }   *)
+  (**************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t51 array, _) idx_mut = (.(i)) in
     let shallow : (t51 array, _) idx_mut = (.(i)) in
@@ -14694,9 +14826,9 @@ let () =
     if not test then failwithf "test 1456 failed";
   );
 
-  (***********)
-  (*   t52   *)
-  (***********)
+  (**************************************)
+  (*   t52 = #{ float; float; float }   *)
+  (**************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t52 array, _) idx_mut = (.(i)) in
     let shallow : (t52 array, _) idx_mut = (.(i)) in
@@ -14745,9 +14877,9 @@ let () =
     if not test then failwithf "test 1463 failed";
   );
 
-  (***********)
-  (*   t53   *)
-  (***********)
+  (********************************)
+  (*   t53 = #{ int; #{ int } }   *)
+  (********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t53 array, _) idx_mut = (.(i)) in
     let shallow : (t53 array, _) idx_mut = (.(i)) in
@@ -14801,9 +14933,9 @@ let () =
     if not test then failwithf "test 1471 failed";
   );
 
-  (***********)
-  (*   t54   *)
-  (***********)
+  (**********************************)
+  (*   t54 = #{ int; #{ int64 } }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t54 array, _) idx_mut = (.(i)) in
     let shallow : (t54 array, _) idx_mut = (.(i)) in
@@ -14857,9 +14989,9 @@ let () =
     if not test then failwithf "test 1479 failed";
   );
 
-  (***********)
-  (*   t55   *)
-  (***********)
+  (***********************************)
+  (*   t55 = #{ int; #{ int32# } }   *)
+  (***********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t55 array, _) idx_mut = (.(i)) in
     let shallow : (t55 array, _) idx_mut = (.(i)) in
@@ -14913,9 +15045,9 @@ let () =
     if not test then failwithf "test 1487 failed";
   );
 
-  (***********)
-  (*   t57   *)
-  (***********)
+  (**********************************)
+  (*   t57 = #{ int; #{ float } }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t57 array, _) idx_mut = (.(i)) in
     let shallow : (t57 array, _) idx_mut = (.(i)) in
@@ -14969,9 +15101,9 @@ let () =
     if not test then failwithf "test 1495 failed";
   );
 
-  (***********)
-  (*   t58   *)
-  (***********)
+  (**********************************)
+  (*   t58 = #{ int64; #{ int } }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t58 array, _) idx_mut = (.(i)) in
     let shallow : (t58 array, _) idx_mut = (.(i)) in
@@ -15025,9 +15157,9 @@ let () =
     if not test then failwithf "test 1503 failed";
   );
 
-  (***********)
-  (*   t59   *)
-  (***********)
+  (************************************)
+  (*   t59 = #{ int64; #{ int64 } }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t59 array, _) idx_mut = (.(i)) in
     let shallow : (t59 array, _) idx_mut = (.(i)) in
@@ -15081,9 +15213,9 @@ let () =
     if not test then failwithf "test 1511 failed";
   );
 
-  (***********)
-  (*   t60   *)
-  (***********)
+  (************************************)
+  (*   t60 = #{ int64; #{ float } }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t60 array, _) idx_mut = (.(i)) in
     let shallow : (t60 array, _) idx_mut = (.(i)) in
@@ -15137,9 +15269,9 @@ let () =
     if not test then failwithf "test 1519 failed";
   );
 
-  (***********)
-  (*   t61   *)
-  (***********)
+  (**************************************)
+  (*   t61 = #{ int32#; #{ int32# } }   *)
+  (**************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t61 array, _) idx_mut = (.(i)) in
     let shallow : (t61 array, _) idx_mut = (.(i)) in
@@ -15193,9 +15325,9 @@ let () =
     if not test then failwithf "test 1527 failed";
   );
 
-  (***********)
-  (*   t62   *)
-  (***********)
+  (**********************************)
+  (*   t62 = #{ float; #{ int } }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t62 array, _) idx_mut = (.(i)) in
     let shallow : (t62 array, _) idx_mut = (.(i)) in
@@ -15249,9 +15381,9 @@ let () =
     if not test then failwithf "test 1535 failed";
   );
 
-  (***********)
-  (*   t63   *)
-  (***********)
+  (************************************)
+  (*   t63 = #{ float; #{ int64 } }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t63 array, _) idx_mut = (.(i)) in
     let shallow : (t63 array, _) idx_mut = (.(i)) in
@@ -15305,9 +15437,9 @@ let () =
     if not test then failwithf "test 1543 failed";
   );
 
-  (***********)
-  (*   t64   *)
-  (***********)
+  (************************************)
+  (*   t64 = #{ float; #{ float } }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t64 array, _) idx_mut = (.(i)) in
     let shallow : (t64 array, _) idx_mut = (.(i)) in
@@ -15361,9 +15493,9 @@ let () =
     if not test then failwithf "test 1551 failed";
   );
 
-  (***********)
-  (*   t65   *)
-  (***********)
+  (********************************)
+  (*   t65 = #{ #{ int }; int }   *)
+  (********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t65 array, _) idx_mut = (.(i)) in
     let shallow : (t65 array, _) idx_mut = (.(i)) in
@@ -15417,9 +15549,9 @@ let () =
     if not test then failwithf "test 1559 failed";
   );
 
-  (***********)
-  (*   t66   *)
-  (***********)
+  (**********************************)
+  (*   t66 = #{ #{ int }; int64 }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t66 array, _) idx_mut = (.(i)) in
     let shallow : (t66 array, _) idx_mut = (.(i)) in
@@ -15473,9 +15605,9 @@ let () =
     if not test then failwithf "test 1567 failed";
   );
 
-  (***********)
-  (*   t67   *)
-  (***********)
+  (***********************************)
+  (*   t67 = #{ #{ int }; int32# }   *)
+  (***********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t67 array, _) idx_mut = (.(i)) in
     let shallow : (t67 array, _) idx_mut = (.(i)) in
@@ -15529,9 +15661,9 @@ let () =
     if not test then failwithf "test 1575 failed";
   );
 
-  (***********)
-  (*   t68   *)
-  (***********)
+  (**********************************)
+  (*   t68 = #{ #{ int }; float }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t68 array, _) idx_mut = (.(i)) in
     let shallow : (t68 array, _) idx_mut = (.(i)) in
@@ -15585,9 +15717,9 @@ let () =
     if not test then failwithf "test 1583 failed";
   );
 
-  (***********)
-  (*   t69   *)
-  (***********)
+  (**********************************)
+  (*   t69 = #{ #{ int64 }; int }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t69 array, _) idx_mut = (.(i)) in
     let shallow : (t69 array, _) idx_mut = (.(i)) in
@@ -15641,9 +15773,9 @@ let () =
     if not test then failwithf "test 1591 failed";
   );
 
-  (***********)
-  (*   t70   *)
-  (***********)
+  (************************************)
+  (*   t70 = #{ #{ int64 }; int64 }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t70 array, _) idx_mut = (.(i)) in
     let shallow : (t70 array, _) idx_mut = (.(i)) in
@@ -15697,9 +15829,9 @@ let () =
     if not test then failwithf "test 1599 failed";
   );
 
-  (***********)
-  (*   t71   *)
-  (***********)
+  (************************************)
+  (*   t71 = #{ #{ int64 }; float }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t71 array, _) idx_mut = (.(i)) in
     let shallow : (t71 array, _) idx_mut = (.(i)) in
@@ -15753,9 +15885,9 @@ let () =
     if not test then failwithf "test 1607 failed";
   );
 
-  (***********)
-  (*   t72   *)
-  (***********)
+  (**************************************)
+  (*   t72 = #{ #{ int32# }; int32# }   *)
+  (**************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t72 array, _) idx_mut = (.(i)) in
     let shallow : (t72 array, _) idx_mut = (.(i)) in
@@ -15809,9 +15941,9 @@ let () =
     if not test then failwithf "test 1615 failed";
   );
 
-  (***********)
-  (*   t73   *)
-  (***********)
+  (**********************************)
+  (*   t73 = #{ #{ float }; int }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t73 array, _) idx_mut = (.(i)) in
     let shallow : (t73 array, _) idx_mut = (.(i)) in
@@ -15865,9 +15997,9 @@ let () =
     if not test then failwithf "test 1623 failed";
   );
 
-  (***********)
-  (*   t74   *)
-  (***********)
+  (************************************)
+  (*   t74 = #{ #{ float }; int64 }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t74 array, _) idx_mut = (.(i)) in
     let shallow : (t74 array, _) idx_mut = (.(i)) in
@@ -15921,9 +16053,9 @@ let () =
     if not test then failwithf "test 1631 failed";
   );
 
-  (***********)
-  (*   t75   *)
-  (***********)
+  (************************************)
+  (*   t75 = #{ #{ float }; float }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t75 array, _) idx_mut = (.(i)) in
     let shallow : (t75 array, _) idx_mut = (.(i)) in
@@ -15977,9 +16109,9 @@ let () =
     if not test then failwithf "test 1639 failed";
   );
 
-  (***********)
-  (*   t76   *)
-  (***********)
+  (********************************)
+  (*   t76 = #{ #{ int; int } }   *)
+  (********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t76 array, _) idx_mut = (.(i)) in
     let shallow : (t76 array, _) idx_mut = (.(i)) in
@@ -16038,9 +16170,9 @@ let () =
     if not test then failwithf "test 1648 failed";
   );
 
-  (***********)
-  (*   t77   *)
-  (***********)
+  (**********************************)
+  (*   t77 = #{ #{ int; int64 } }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t77 array, _) idx_mut = (.(i)) in
     let shallow : (t77 array, _) idx_mut = (.(i)) in
@@ -16099,9 +16231,9 @@ let () =
     if not test then failwithf "test 1657 failed";
   );
 
-  (***********)
-  (*   t78   *)
-  (***********)
+  (***********************************)
+  (*   t78 = #{ #{ int; int32# } }   *)
+  (***********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t78 array, _) idx_mut = (.(i)) in
     let shallow : (t78 array, _) idx_mut = (.(i)) in
@@ -16160,9 +16292,9 @@ let () =
     if not test then failwithf "test 1666 failed";
   );
 
-  (***********)
-  (*   t79   *)
-  (***********)
+  (**********************************)
+  (*   t79 = #{ #{ int; float } }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t79 array, _) idx_mut = (.(i)) in
     let shallow : (t79 array, _) idx_mut = (.(i)) in
@@ -16221,9 +16353,9 @@ let () =
     if not test then failwithf "test 1675 failed";
   );
 
-  (***********)
-  (*   t80   *)
-  (***********)
+  (**********************************)
+  (*   t80 = #{ #{ int64; int } }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t80 array, _) idx_mut = (.(i)) in
     let shallow : (t80 array, _) idx_mut = (.(i)) in
@@ -16282,9 +16414,9 @@ let () =
     if not test then failwithf "test 1684 failed";
   );
 
-  (***********)
-  (*   t81   *)
-  (***********)
+  (************************************)
+  (*   t81 = #{ #{ int64; int64 } }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t81 array, _) idx_mut = (.(i)) in
     let shallow : (t81 array, _) idx_mut = (.(i)) in
@@ -16343,9 +16475,9 @@ let () =
     if not test then failwithf "test 1693 failed";
   );
 
-  (***********)
-  (*   t82   *)
-  (***********)
+  (************************************)
+  (*   t82 = #{ #{ int64; float } }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t82 array, _) idx_mut = (.(i)) in
     let shallow : (t82 array, _) idx_mut = (.(i)) in
@@ -16404,9 +16536,9 @@ let () =
     if not test then failwithf "test 1702 failed";
   );
 
-  (***********)
-  (*   t83   *)
-  (***********)
+  (**************************************)
+  (*   t83 = #{ #{ int32#; int32# } }   *)
+  (**************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t83 array, _) idx_mut = (.(i)) in
     let shallow : (t83 array, _) idx_mut = (.(i)) in
@@ -16465,9 +16597,9 @@ let () =
     if not test then failwithf "test 1711 failed";
   );
 
-  (***********)
-  (*   t84   *)
-  (***********)
+  (**********************************)
+  (*   t84 = #{ #{ float; int } }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t84 array, _) idx_mut = (.(i)) in
     let shallow : (t84 array, _) idx_mut = (.(i)) in
@@ -16526,9 +16658,9 @@ let () =
     if not test then failwithf "test 1720 failed";
   );
 
-  (***********)
-  (*   t85   *)
-  (***********)
+  (************************************)
+  (*   t85 = #{ #{ float; int64 } }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t85 array, _) idx_mut = (.(i)) in
     let shallow : (t85 array, _) idx_mut = (.(i)) in
@@ -16587,9 +16719,9 @@ let () =
     if not test then failwithf "test 1729 failed";
   );
 
-  (***********)
-  (*   t86   *)
-  (***********)
+  (************************************)
+  (*   t86 = #{ #{ float; float } }   *)
+  (************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t86 array, _) idx_mut = (.(i)) in
     let shallow : (t86 array, _) idx_mut = (.(i)) in
@@ -16648,9 +16780,9 @@ let () =
     if not test then failwithf "test 1738 failed";
   );
 
-  (***********)
-  (*   t87   *)
-  (***********)
+  (********************************)
+  (*   t87 = #{ #{ #{ int } } }   *)
+  (********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t87 array, _) idx_mut = (.(i)) in
     let shallow : (t87 array, _) idx_mut = (.(i)) in
@@ -16714,9 +16846,9 @@ let () =
     if not test then failwithf "test 1748 failed";
   );
 
-  (***********)
-  (*   t88   *)
-  (***********)
+  (**********************************)
+  (*   t88 = #{ #{ #{ int64 } } }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t88 array, _) idx_mut = (.(i)) in
     let shallow : (t88 array, _) idx_mut = (.(i)) in
@@ -16780,9 +16912,9 @@ let () =
     if not test then failwithf "test 1758 failed";
   );
 
-  (***********)
-  (*   t89   *)
-  (***********)
+  (***********************************)
+  (*   t89 = #{ #{ #{ int32# } } }   *)
+  (***********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t89 array, _) idx_mut = (.(i)) in
     let shallow : (t89 array, _) idx_mut = (.(i)) in
@@ -16906,9 +17038,9 @@ let () =
     if not test then failwithf "test 1773 failed";
   );
 
-  (**********)
-  (*   t6   *)
-  (**********)
+  (*********************)
+  (*   t6 = #{ int }   *)
+  (*********************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t6 array, _) idx_mut = (.(i)) in
     let shallow : (t6 array, _) idx_mut = (.(i)) in
@@ -16931,9 +17063,9 @@ let () =
     if not test then failwithf "test 1776 failed";
   );
 
-  (**********)
-  (*   t7   *)
-  (**********)
+  (***********************)
+  (*   t7 = #{ int64 }   *)
+  (***********************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t7 array, _) idx_mut = (.(i)) in
     let shallow : (t7 array, _) idx_mut = (.(i)) in
@@ -16956,9 +17088,9 @@ let () =
     if not test then failwithf "test 1779 failed";
   );
 
-  (**********)
-  (*   t8   *)
-  (**********)
+  (************************)
+  (*   t8 = #{ int32# }   *)
+  (************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t8 array, _) idx_mut = (.(i)) in
     let shallow : (t8 array, _) idx_mut = (.(i)) in
@@ -16981,9 +17113,9 @@ let () =
     if not test then failwithf "test 1782 failed";
   );
 
-  (***********)
-  (*   t90   *)
-  (***********)
+  (*************************)
+  (*   t90 = #{ int64# }   *)
+  (*************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t90 array, _) idx_mut = (.(i)) in
     let shallow : (t90 array, _) idx_mut = (.(i)) in
@@ -17006,9 +17138,9 @@ let () =
     if not test then failwithf "test 1785 failed";
   );
 
-  (***********)
-  (*   t91   *)
-  (***********)
+  (*****************************)
+  (*   t91 = #{ nativeint# }   *)
+  (*****************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t91 array, _) idx_mut = (.(i)) in
     let shallow : (t91 array, _) idx_mut = (.(i)) in
@@ -17031,9 +17163,9 @@ let () =
     if not test then failwithf "test 1788 failed";
   );
 
-  (**********)
-  (*   t9   *)
-  (**********)
+  (**************************)
+  (*   t9 = #{ int; int }   *)
+  (**************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t9 array, _) idx_mut = (.(i)) in
     let shallow : (t9 array, _) idx_mut = (.(i)) in
@@ -17069,9 +17201,9 @@ let () =
     if not test then failwithf "test 1793 failed";
   );
 
-  (***********)
-  (*   t10   *)
-  (***********)
+  (*****************************)
+  (*   t10 = #{ int; int64 }   *)
+  (*****************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t10 array, _) idx_mut = (.(i)) in
     let shallow : (t10 array, _) idx_mut = (.(i)) in
@@ -17107,9 +17239,9 @@ let () =
     if not test then failwithf "test 1798 failed";
   );
 
-  (***********)
-  (*   t11   *)
-  (***********)
+  (******************************)
+  (*   t11 = #{ int; int32# }   *)
+  (******************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t11 array, _) idx_mut = (.(i)) in
     let shallow : (t11 array, _) idx_mut = (.(i)) in
@@ -17145,9 +17277,9 @@ let () =
     if not test then failwithf "test 1803 failed";
   );
 
-  (***********)
-  (*   t12   *)
-  (***********)
+  (*****************************)
+  (*   t12 = #{ int; float }   *)
+  (*****************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t12 array, _) idx_mut = (.(i)) in
     let shallow : (t12 array, _) idx_mut = (.(i)) in
@@ -17183,9 +17315,9 @@ let () =
     if not test then failwithf "test 1808 failed";
   );
 
-  (***********)
-  (*   t92   *)
-  (***********)
+  (******************************)
+  (*   t92 = #{ int; int64# }   *)
+  (******************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t92 array, _) idx_mut = (.(i)) in
     let shallow : (t92 array, _) idx_mut = (.(i)) in
@@ -17221,9 +17353,9 @@ let () =
     if not test then failwithf "test 1813 failed";
   );
 
-  (***********)
-  (*   t93   *)
-  (***********)
+  (**********************************)
+  (*   t93 = #{ int; nativeint# }   *)
+  (**********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t93 array, _) idx_mut = (.(i)) in
     let shallow : (t93 array, _) idx_mut = (.(i)) in
@@ -17259,9 +17391,9 @@ let () =
     if not test then failwithf "test 1818 failed";
   );
 
-  (***********)
-  (*   t13   *)
-  (***********)
+  (*****************************)
+  (*   t13 = #{ int64; int }   *)
+  (*****************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t13 array, _) idx_mut = (.(i)) in
     let shallow : (t13 array, _) idx_mut = (.(i)) in
@@ -17297,9 +17429,9 @@ let () =
     if not test then failwithf "test 1823 failed";
   );
 
-  (***********)
-  (*   t14   *)
-  (***********)
+  (*******************************)
+  (*   t14 = #{ int64; int64 }   *)
+  (*******************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t14 array, _) idx_mut = (.(i)) in
     let shallow : (t14 array, _) idx_mut = (.(i)) in
@@ -17335,9 +17467,9 @@ let () =
     if not test then failwithf "test 1828 failed";
   );
 
-  (***********)
-  (*   t15   *)
-  (***********)
+  (*******************************)
+  (*   t15 = #{ int64; float }   *)
+  (*******************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t15 array, _) idx_mut = (.(i)) in
     let shallow : (t15 array, _) idx_mut = (.(i)) in
@@ -17373,9 +17505,9 @@ let () =
     if not test then failwithf "test 1833 failed";
   );
 
-  (***********)
-  (*   t16   *)
-  (***********)
+  (*********************************)
+  (*   t16 = #{ int32#; int32# }   *)
+  (*********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t16 array, _) idx_mut = (.(i)) in
     let shallow : (t16 array, _) idx_mut = (.(i)) in
@@ -17411,9 +17543,9 @@ let () =
     if not test then failwithf "test 1838 failed";
   );
 
-  (***********)
-  (*   t94   *)
-  (***********)
+  (*********************************)
+  (*   t94 = #{ int32#; int64# }   *)
+  (*********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t94 array, _) idx_mut = (.(i)) in
     let shallow : (t94 array, _) idx_mut = (.(i)) in
@@ -17449,9 +17581,9 @@ let () =
     if not test then failwithf "test 1843 failed";
   );
 
-  (***********)
-  (*   t95   *)
-  (***********)
+  (*************************************)
+  (*   t95 = #{ int32#; nativeint# }   *)
+  (*************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t95 array, _) idx_mut = (.(i)) in
     let shallow : (t95 array, _) idx_mut = (.(i)) in
@@ -17487,9 +17619,9 @@ let () =
     if not test then failwithf "test 1848 failed";
   );
 
-  (***********)
-  (*   t17   *)
-  (***********)
+  (*****************************)
+  (*   t17 = #{ float; int }   *)
+  (*****************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t17 array, _) idx_mut = (.(i)) in
     let shallow : (t17 array, _) idx_mut = (.(i)) in
@@ -17525,9 +17657,9 @@ let () =
     if not test then failwithf "test 1853 failed";
   );
 
-  (***********)
-  (*   t18   *)
-  (***********)
+  (*******************************)
+  (*   t18 = #{ float; int64 }   *)
+  (*******************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t18 array, _) idx_mut = (.(i)) in
     let shallow : (t18 array, _) idx_mut = (.(i)) in
@@ -17563,9 +17695,9 @@ let () =
     if not test then failwithf "test 1858 failed";
   );
 
-  (***********)
-  (*   t19   *)
-  (***********)
+  (*******************************)
+  (*   t19 = #{ float; float }   *)
+  (*******************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t19 array, _) idx_mut = (.(i)) in
     let shallow : (t19 array, _) idx_mut = (.(i)) in
@@ -17601,9 +17733,9 @@ let () =
     if not test then failwithf "test 1863 failed";
   );
 
-  (***********)
-  (*   t96   *)
-  (***********)
+  (*********************************)
+  (*   t96 = #{ int64#; int32# }   *)
+  (*********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t96 array, _) idx_mut = (.(i)) in
     let shallow : (t96 array, _) idx_mut = (.(i)) in
@@ -17639,9 +17771,9 @@ let () =
     if not test then failwithf "test 1868 failed";
   );
 
-  (**********)
-  (*   t0   *)
-  (**********)
+  (********************************)
+  (*   t0 = #{ int64#; int64# }   *)
+  (********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t0 array, _) idx_mut = (.(i)) in
     let shallow : (t0 array, _) idx_mut = (.(i)) in
@@ -17677,9 +17809,9 @@ let () =
     if not test then failwithf "test 1873 failed";
   );
 
-  (***********)
-  (*   t97   *)
-  (***********)
+  (*************************************)
+  (*   t97 = #{ int64#; nativeint# }   *)
+  (*************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t97 array, _) idx_mut = (.(i)) in
     let shallow : (t97 array, _) idx_mut = (.(i)) in
@@ -17715,9 +17847,9 @@ let () =
     if not test then failwithf "test 1878 failed";
   );
 
-  (***********)
-  (*   t98   *)
-  (***********)
+  (*************************************)
+  (*   t98 = #{ nativeint#; int32# }   *)
+  (*************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t98 array, _) idx_mut = (.(i)) in
     let shallow : (t98 array, _) idx_mut = (.(i)) in
@@ -17753,9 +17885,9 @@ let () =
     if not test then failwithf "test 1883 failed";
   );
 
-  (***********)
-  (*   t99   *)
-  (***********)
+  (*************************************)
+  (*   t99 = #{ nativeint#; int64# }   *)
+  (*************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t99 array, _) idx_mut = (.(i)) in
     let shallow : (t99 array, _) idx_mut = (.(i)) in
@@ -17791,9 +17923,9 @@ let () =
     if not test then failwithf "test 1888 failed";
   );
 
-  (************)
-  (*   t100   *)
-  (************)
+  (******************************************)
+  (*   t100 = #{ nativeint#; nativeint# }   *)
+  (******************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t100 array, _) idx_mut = (.(i)) in
     let shallow : (t100 array, _) idx_mut = (.(i)) in
@@ -17829,9 +17961,9 @@ let () =
     if not test then failwithf "test 1893 failed";
   );
 
-  (***********)
-  (*   t20   *)
-  (***********)
+  (***************************)
+  (*   t20 = #{ #{ int } }   *)
+  (***************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t20 array, _) idx_mut = (.(i)) in
     let shallow : (t20 array, _) idx_mut = (.(i)) in
@@ -17872,9 +18004,9 @@ let () =
     if not test then failwithf "test 1899 failed";
   );
 
-  (***********)
-  (*   t21   *)
-  (***********)
+  (*****************************)
+  (*   t21 = #{ #{ int64 } }   *)
+  (*****************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t21 array, _) idx_mut = (.(i)) in
     let shallow : (t21 array, _) idx_mut = (.(i)) in
@@ -17915,9 +18047,9 @@ let () =
     if not test then failwithf "test 1905 failed";
   );
 
-  (***********)
-  (*   t22   *)
-  (***********)
+  (******************************)
+  (*   t22 = #{ #{ int32# } }   *)
+  (******************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t22 array, _) idx_mut = (.(i)) in
     let shallow : (t22 array, _) idx_mut = (.(i)) in
@@ -17958,9 +18090,9 @@ let () =
     if not test then failwithf "test 1911 failed";
   );
 
-  (************)
-  (*   t101   *)
-  (************)
+  (*******************************)
+  (*   t101 = #{ #{ int64# } }   *)
+  (*******************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t101 array, _) idx_mut = (.(i)) in
     let shallow : (t101 array, _) idx_mut = (.(i)) in
@@ -18001,9 +18133,9 @@ let () =
     if not test then failwithf "test 1917 failed";
   );
 
-  (************)
-  (*   t102   *)
-  (************)
+  (***********************************)
+  (*   t102 = #{ #{ nativeint# } }   *)
+  (***********************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t102 array, _) idx_mut = (.(i)) in
     let shallow : (t102 array, _) idx_mut = (.(i)) in
@@ -18044,9 +18176,9 @@ let () =
     if not test then failwithf "test 1923 failed";
   );
 
-  (************)
-  (*   t104   *)
-  (************)
+  (*********************************************************)
+  (*   t104 = #{ #{ int; int64# }; #{ int64#; float# } }   *)
+  (*********************************************************)
   iter indices_in_deepening_tests ~f:(fun i ->
     let unboxed_path : (t104 array, _) idx_mut = (.(i)) in
     let shallow : (t104 array, _) idx_mut = (.(i)) in

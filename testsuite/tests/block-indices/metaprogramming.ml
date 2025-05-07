@@ -32,7 +32,7 @@ module Boxing = struct
   let to_string = function Boxed -> "" | Unboxed -> "#"
 end
 
-module Kind = struct
+module Layout = struct
   type value_kind =
     | Addr_non_float
     | Immediate
@@ -41,19 +41,28 @@ module Kind = struct
   type t =
     | Product of t list
     | Value of value_kind
-    | Non_value
+    | Bits32
+    | Bits64
+    | Vec128
+    | Word
 
   let rec all_scannable t =
     match t with
     | Value _ -> true
-    | Non_value -> false
+    | Bits32 | Bits64 | Vec128 | Word -> false
     | Product ts -> List.for_all ts ~f:all_scannable
 
   let rec all_ignorable t =
     match t with
-    | Value Immediate | Non_value -> true
+    | Value Immediate | Bits64 | Bits32 | Vec128 | Word -> true
     | Value Addr_non_float | Value Float -> false
     | Product ts -> List.for_all ts ~f:all_ignorable
+
+  let rec contains_unboxed_vector t =
+    match t with
+    | Value _ | Bits64 | Bits32 | Word -> false
+    | Vec128 -> true
+    | Product ts -> List.exists ts ~f:contains_unboxed_vector
 
   type acc =
     { seen_flat : bool;
@@ -64,7 +73,7 @@ module Kind = struct
     let rec aux t acc =
       match t with
       | Value _ -> { acc with last_value_after_flat = acc.seen_flat }
-      | Non_value -> { acc with seen_flat = true }
+      | Bits64 | Bits32 | Vec128 | Word -> { acc with seen_flat = true }
       | Product ts ->
         List.fold_left ts ~init:acc ~f:(fun acc kind -> aux kind acc)
     in
@@ -157,6 +166,7 @@ module Gen_type = struct
     | Float32
     | Float32_u
     | String
+    | Int64x2_u
 end
 
 module Type_structure = struct
@@ -164,7 +174,7 @@ module Type_structure = struct
 
   let compare : t -> t -> int = Stdlib.compare
 
-  let rec kind (t : _ Gen_type.t) : Kind.t =
+  let rec kind (t : _ Gen_type.t) : Layout.t =
     match t with
     | Record { boxing = Unboxed; fields; _ } ->
       if List.length fields = 1
@@ -177,7 +187,10 @@ module Type_structure = struct
     | Tuple (tys, Unboxed) -> Product (List.map tys ~f:kind)
     | Int -> Value Immediate
     | Float -> Value Float
-    | Int64_u | Int32_u | Nativeint_u | Float_u | Float32_u -> Non_value
+    | Int64_u | Float_u -> Bits64
+    | Int32_u | Float32_u -> Bits32
+    | Nativeint_u -> Word
+    | Int64x2_u -> Vec128
 
   let rec nested_unboxed_record (tree : t Tree.t) : t =
     match tree with
@@ -203,12 +216,15 @@ module Type_structure = struct
     if ty_kind = Value Float
     then None
     else
-      (* CR layouts v8: both of these restrictions will eventually be lifted *)
-      let supported_by_makearray_dynamic =
-        Kind.all_scannable ty_kind || Kind.all_ignorable ty_kind
+      (* CR layouts v8: all of these restrictions will eventually be lifted *)
+      let supported_in_arrays =
+        (Layout.all_scannable ty_kind || Layout.all_ignorable ty_kind)
+        && not (Layout.contains_unboxed_vector ty_kind)
       in
-      let supported_by_block_indices = not (Kind.reordered_in_block ty_kind) in
-      if supported_by_makearray_dynamic && supported_by_block_indices
+      let supported_by_block_indices =
+        not (Layout.reordered_in_block ty_kind)
+      in
+      if supported_in_arrays && supported_by_block_indices
       then Some ty
       else None
 
@@ -235,17 +251,18 @@ module Type_structure = struct
     | Nativeint_u -> "nativeint#"
     | Float_u -> "float#"
     | Float32_u -> "float32#"
+    | Int64x2_u -> "int64x2#"
 end
 
-let assemble_record colon_or_eq (boxing : Boxing.t) fields vals =
+let assemble_record colon_or_eq (boxing : Boxing.t) labels vals =
   let hash = match boxing with Boxed -> "" | Unboxed -> "#" in
-  let labeled_fields =
-    List.map2 fields vals ~f:(fun (s, _) x -> s ^ " " ^ colon_or_eq ^ " " ^ x)
+  let fields =
+    List.map2 labels vals ~f:(fun s x -> s ^ " " ^ colon_or_eq ^ " " ^ x)
   in
-  hash ^ "{ " ^ String.concat ~sep:"; " labeled_fields ^ " }"
+  hash ^ "{ " ^ String.concat ~sep:"; " fields ^ " }"
 
-let assemble_record_expr boxing name fields vals =
-  "(" ^ assemble_record "=" boxing fields vals ^ " : " ^ name ^ ")"
+let assemble_record_expr boxing name labels vals =
+  "(" ^ assemble_record "=" boxing labels vals ^ " : " ^ name ^ ")"
 
 let assemble_tuple ~sep (boxing : Boxing.t) xs =
   let hash = match boxing with Boxed -> "" | Unboxed -> "#" in
@@ -255,6 +272,29 @@ module Type = struct
   type t = string Gen_type.t
 
   let compare : t -> t -> int = Stdlib.compare
+
+  let rec structure (t : t) : Type_structure.t =
+    match t with
+    | Record { fields; boxing; _ } ->
+      let fields = List.map fields ~f:(fun (_, t) -> (), structure t) in
+      Record { fields; boxing; name = () }
+    | Tuple (ts, boxing) ->
+      let ts = List.map ts ~f:structure in
+      Tuple (ts, boxing)
+    | Option t -> Option (structure t)
+    | Int -> Int
+    | Int64 -> Int64
+    | Int64_u -> Int64_u
+    | Int32 -> Int32
+    | Int32_u -> Int32_u
+    | Nativeint -> Nativeint
+    | Nativeint_u -> Nativeint_u
+    | Float -> Float
+    | Float_u -> Float_u
+    | Float32 -> Float32
+    | Float32_u -> Float32_u
+    | String -> String
+    | Int64x2_u -> Int64x2_u
 
   let rec code (t : t) =
     match t with
@@ -274,6 +314,7 @@ module Type = struct
     | Float32 -> "float32"
     | Float32_u -> "float32#"
     | String -> "string"
+    | Int64x2_u -> "int64x2#"
 
   let rec num_subvals (t : _ Gen_type.t) : int =
     match t with
@@ -285,6 +326,7 @@ module Type = struct
     | Int | Int64 | Int64_u | Int32 | Int32_u | Nativeint | Nativeint_u | Float
     | Float_u | Float32 | Float32_u | String ->
       1
+    | Int64x2_u -> 2
 
   let rec value_code (t : t) (i : int) : string =
     match t with
@@ -295,7 +337,8 @@ module Type = struct
             acc + num_subvals t, x
         )
       in
-      assemble_record_expr boxing name fields xs
+      let labels = List.map ~f:fst fields in
+      assemble_record_expr boxing name labels xs
     | Tuple (tys, boxing) ->
       let _, xs =
         List.fold_left_map tys ~init:i ~f:(fun acc t ->
@@ -317,6 +360,10 @@ module Type = struct
     | Float32 -> Int.to_string i ^ ".s"
     | Float32_u -> "#" ^ Int.to_string i ^ ".s"
     | String -> "\"" ^ Int.to_string i ^ "\""
+    | Int64x2_u ->
+      sprintf
+        "(interleave_low_64 (int64x2_of_int64 %dL) (int64x2_of_int64 %dL))" i
+        (i + 1)
 
   let rec mk_value_body_code (t : t) i =
     match t with
@@ -327,7 +374,8 @@ module Type = struct
             acc + num_subvals t, x
         )
       in
-      assemble_record_expr boxing name fields xs
+      let labels = List.map ~f:fst fields in
+      assemble_record_expr boxing name labels xs
     | Tuple (tys, boxing) ->
       let _, xs =
         List.fold_left_map tys ~init:i ~f:(fun acc t ->
@@ -351,6 +399,11 @@ module Type = struct
     | Float32 -> sprintf "Float32.of_int (i + %d)" i
     | Float32_u -> sprintf "Float32_u.of_int (i + %d)" i
     | String -> sprintf "Int.to_string (i + %d)" i
+    | Int64x2_u ->
+      sprintf
+        "(interleave_low_64 (int64x2_of_int64 (Int64.of_int (i + %d))) \
+         (int64x2_of_int64 (Int64.of_int (i + %d))))"
+        i (i + 1)
 
   let mk_value_body_code (t : t) : string = mk_value_body_code t 0
 
@@ -361,8 +414,9 @@ module Type = struct
         List.map fields ~f:(fun (s, t) -> sprintf "%s %s1 %s2" (eq_code t) s s)
         |> String.concat ~sep:" && "
       in
+      let labels = List.map ~f:fst fields in
       let pat i =
-        assemble_record_expr boxing name fields
+        assemble_record_expr boxing name labels
           (List.map fields ~f:(fun (s, _) -> s ^ Int.to_string i))
       in
       sprintf "(fun %s %s -> %s)" (pat 1) (pat 2) body
@@ -398,6 +452,7 @@ module Type = struct
       sprintf
         "(fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b))"
     | String -> sprintf "(fun a b -> String.equal (globalize a) (globalize b))"
+    | Int64x2_u -> sprintf "int64x2_u_equal"
 
   let rec reverse_unboxed_paths (ty : t) acc cur_path =
     match ty with
@@ -486,6 +541,7 @@ module Type_naming = struct
       | Float32_u -> t, Float32_u
       | Int -> t, Int
       | String -> t, String
+      | Int64x2_u -> t, Int64x2_u
     )
 
   let decls_code t =
@@ -495,8 +551,13 @@ module Type_naming = struct
           let type_definition =
             match ty with
             | Record { name; fields; boxing } ->
-              let tys = List.map ~f:snd fields in
-              assemble_record ":" boxing fields (List.map tys ~f:Type.code)
+              let labels, tys = List.split fields in
+              let labels =
+                match boxing with
+                | Unboxed -> labels
+                | Boxed -> List.map labels ~f:(fun s -> "mutable " ^ s)
+              in
+              assemble_record ":" boxing labels (List.map tys ~f:Type.code)
             | _ -> assert false
           in
           let type_name = Type.code ty in
