@@ -1971,7 +1971,10 @@ type nested_record_unboxed
     & (bits64 & value & value)
   = nested_record#
 [%%expect{|
-type nested_record_unboxed = nested_record#
+Line 5, characters 4-18:
+5 |   = nested_record#
+        ^^^^^^^^^^^^^^
+Error: The type "nested_record" has no unboxed version.
 |}]
 
 (**************************************************************)
@@ -2038,10 +2041,10 @@ type ('a : float64 & (float64 & (value & bits64 & value)) & bits64, 'b)
   = ('a, 'b) nested_record#
   constraint 'b = unboxed_record
 [%%expect{|
-type ('a : float64 & (float64 & (value & bits64 & value)) & bits64, 'b)
-     nested_record_unboxed =
-    ('a, 'b) nested_record#
-  constraint 'b = unboxed_record
+Line 11, characters 13-27:
+11 |   = ('a, 'b) nested_record#
+                  ^^^^^^^^^^^^^^
+Error: The type "nested_record" has no unboxed version.
 |}]
 
 (**********************************************************************)
@@ -2076,7 +2079,7 @@ Lines 1-6, characters 0-30:
 4 |     c : #(int64# * #(float# * (bool -> bool) * 'b ));
 5 |     d : char }
 6 |   constraint 'b = int * string
-Error: The kind of type "record" is value mod contended with 'a
+Error: The kind of type "record" is value mod immutable with 'a
          because it's a boxed record type.
        But the kind of type "record" must be a subkind of value mod portable
          because of the annotation on the declaration of the type record.
@@ -2118,22 +2121,10 @@ type thirty_two_values = {
   c : eight_values;
   d : eight_values;
 }
-type r_254 = {
-  a : thirty_two_values#;
-  b : thirty_two_values#;
-  c : thirty_two_values#;
-  d : thirty_two_values#;
-  e : thirty_two_values#;
-  f : thirty_two_values#;
-  g : thirty_two_values#;
-  h : #(eight_values * eight_values * eight_values);
-  f249 : string;
-  f250 : string;
-  f251 : string;
-  f252 : string;
-  f253 : string;
-  f254 : string;
-}
+Line 6, characters 8-26:
+6 |   { a : thirty_two_values#;
+            ^^^^^^^^^^^^^^^^^^
+Error: The type "thirty_two_values" has no unboxed version.
 |}]
 
 type r_255 =
@@ -2155,16 +2146,8 @@ type r_255 =
   }
 
 [%%expect{|
-Lines 1-17, characters 0-3:
- 1 | type r_255 =
- 2 |   { a : thirty_two_values#;
- 3 |     b : thirty_two_values#;
- 4 |     c : thirty_two_values#;
- 5 |     d : thirty_two_values#;
-...
-14 |     f253 : string;
-15 |     f254 : string;
-16 |     f255 : string;
-17 |   }
-Error: Mixed records may contain at most 254 value fields prior to the flat suffix, but this one contains 255.
+Line 2, characters 8-26:
+2 |   { a : thirty_two_values#;
+            ^^^^^^^^^^^^^^^^^^
+Error: The type "thirty_two_values" has no unboxed version.
 |}]
