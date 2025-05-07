@@ -467,7 +467,7 @@ module Directive = struct
     | Hidden _ -> unsupported "Hidden"
     | Weak _ -> unsupported "Weak"
     | External s -> bprintf buf "\tEXTRN\t%s: NEAR" s
-    (* The only supported "type" on EXTRN declarations i NEAR. *)
+    (* The only supported "type" on EXTRN declarations is NEAR. *)
     | Reloc _ -> unsupported "Reloc"
 
   let print b t =
@@ -517,7 +517,7 @@ let const_with_offset const (offset : int64) =
   if Int64.equal offset 0L
   then const
   else if Int64.compare offset 0L < 0
-  then Add (const, Signed_int (Int64.neg offset))
+  then Sub (const, Signed_int (Int64.neg offset))
   else Add (const, Signed_int offset)
 
 let emit_ref = ref None
@@ -934,8 +934,11 @@ let between_labels_16_bit ?comment:_ ~upper:_ ~lower:_ () =
 
 let between_labels_32_bit ?comment:_comment ~upper ~lower () =
   let expr = const_sub (const_label upper) (const_label lower) in
-  (* CR sspies: Following the x86 implementation, we *do not* force an assembly
-     time constant here. *)
+  (* CR sspies: Unlike in most of the other distance computation functions in this file,
+     we do not force an assembly time constant in this function. This is to follow the
+     existing/previous implementation of the x86 backend. In the future, we should
+     investigate whether it would be more appropriate to force an assembly time constant.
+  *)
   const expr Thirty_two
 
 let between_labels_64_bit ?comment:_ ~upper:_ ~lower:_ () =
