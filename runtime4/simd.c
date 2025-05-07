@@ -27,31 +27,14 @@
 #define Max_unboxed_vec128_array_wosize    (Max_custom_array_wosize / 2)
 #define Max_unboxed_vec256_array_wosize    (Max_custom_array_wosize / 4)
 
+#define Words_per_vec128 2
+#define Words_per_vec256 4
+
 // Defined in array.c
 CAMLextern int caml_unboxed_array_no_polymorphic_compare(value v1, value v2);
 CAMLextern intnat caml_unboxed_array_no_polymorphic_hash(value v);
 CAMLextern void caml_unboxed_array_serialize(value v, uintnat* bsize_32, uintnat* bsize_64);
 CAMLextern uintnat caml_unboxed_array_deserialize(void* dst);
-
-#if defined(ARCH_SSE2) || defined(__ARM_NEON)
-
-CAMLexport value caml_copy_vec128(simd_float32x4_t v) {
-    value res = caml_alloc_small(2, Abstract_tag);
-    Store_vec128_val(res, v);
-    return res;
-}
-
-CAMLexport value caml_copy_vec128i(simd_int128_t v) {
-    value res = caml_alloc_small(2, Abstract_tag);
-    Store_vec128_vali(res, v);
-    return res;
-}
-
-CAMLexport value caml_copy_vec128d(simd_float64x2_t v) {
-    value res = caml_alloc_small(2, Abstract_tag);
-    Store_vec128_vald(res, v);
-    return res;
-}
 
 CAMLexport struct custom_operations caml_unboxed_vec128_array_ops = {
   "_unboxed_vec128_array",
@@ -69,9 +52,9 @@ CAMLprim value caml_unboxed_vec128_vect_blit(value a1, value ofs1, value a2,
     /* See memory model [MM] notes in memory.c */
     atomic_thread_fence(memory_order_acquire);
     // Need to skip the custom_operations field
-    memmove((simd_poly128_t *)((uintnat *)a2 + 1) + Long_val(ofs2),
-            (simd_poly128_t *)((uintnat *)a1 + 1) + Long_val(ofs1),
-            Long_val(n) * sizeof(simd_poly128_t));
+    memmove(((uintnat *)a2 + 1) + Long_val(ofs2) * Words_per_vec128,
+            ((uintnat *)a1 + 1) + Long_val(ofs1) * Words_per_vec128,
+            Long_val(n) * sizeof(uintnat) * Words_per_vec128);
     return Val_unit;
 }
 
@@ -84,7 +67,7 @@ static value caml_make_unboxed_vec128_vect0(value len, int local)
     caml_invalid_argument("Array.make");
 
   /* [num_fields] does not include the custom operations field. */
-  mlsize_t num_fields = num_elements * 2;
+  mlsize_t num_fields = num_elements * Words_per_vec128;
 
   if (local)
     return caml_alloc_custom_local(&caml_unboxed_vec128_array_ops,
@@ -108,48 +91,6 @@ CAMLprim value caml_make_unboxed_vec128_vect_bytecode(value len) {
   caml_failwith("128-bit SIMD is not supported on this platform.");
 }
 
-#else
-
-CAMLprim value caml_unboxed_vec128_vect_blit(value a1, value ofs1, value a2,
-                                             value ofs2, value n) {
-  caml_failwith("128-bit SIMD is not supported on this platform.");
-}
-
-CAMLprim value caml_make_unboxed_vec128_vect(value len) {
-  caml_failwith("128-bit SIMD is not supported on this platform.");
-}
-
-CAMLprim value caml_make_local_unboxed_vec128_vect(value len) {
-  caml_failwith("128-bit SIMD is not supported on this platform.");
-}
-
-CAMLprim value caml_make_unboxed_vec128_vect_bytecode(value len) {
-  caml_failwith("128-bit SIMD is not supported on this platform.");
-}
-
-#endif // defined(ARCH_SSE2) || defined(__ARM_NEON)
-
-// CR mslater: need to compile this with -mavx
-#if defined(ARCH_AVX)
-
-CAMLexport value caml_copy_vec256(simd_float32x8_t v) {
-    value res = caml_alloc_small(4, Abstract_tag);
-    Store_vec256_val(res, v);
-    return res;
-}
-
-CAMLexport value caml_copy_vec256i(simd_int256_t v) {
-    value res = caml_alloc_small(4, Abstract_tag);
-    Store_vec256_vali(res, v);
-    return res;
-}
-
-CAMLexport value caml_copy_vec256d(simd_float64x4_t v) {
-    value res = caml_alloc_small(4, Abstract_tag);
-    Store_vec256_vald(res, v);
-    return res;
-}
-
 CAMLexport struct custom_operations caml_unboxed_vec256_array_ops = {
   "_unboxed_vec256_array",
   custom_finalize_default,
@@ -166,9 +107,9 @@ CAMLprim value caml_unboxed_vec256_vect_blit(value a1, value ofs1, value a2,
     /* See memory model [MM] notes in memory.c */
     atomic_thread_fence(memory_order_acquire);
     // Need to skip the custom_operations field
-    memmove((simd_poly256_t *)((uintnat *)a2 + 1) + Long_val(ofs2),
-            (simd_poly256_t *)((uintnat *)a1 + 1) + Long_val(ofs1),
-            Long_val(n) * sizeof(simd_poly256_t));
+    memmove(((uintnat *)a2 + 1) + Long_val(ofs2) * Words_per_vec256,
+            ((uintnat *)a1 + 1) + Long_val(ofs1) * Words_per_vec256,
+            Long_val(n) * sizeof(uintnat) * Words_per_vec256);
     return Val_unit;
 }
 
@@ -181,7 +122,7 @@ static value caml_make_unboxed_vec256_vect0(value len, int local)
     caml_invalid_argument("Array.make");
 
   /* [num_fields] does not include the custom operations field. */
-  mlsize_t num_fields = num_elements * 4;
+  mlsize_t num_fields = num_elements * Words_per_vec256;
 
   if (local)
     return caml_alloc_custom_local(&caml_unboxed_vec256_array_ops,
@@ -204,25 +145,3 @@ CAMLprim value caml_make_local_unboxed_vec256_vect(value len)
 CAMLprim value caml_make_unboxed_vec256_vect_bytecode(value len) {
   caml_failwith("256-bit SIMD is not supported on this platform.");
 }
-
-#else
-
-CAMLprim value caml_unboxed_vec256_vect_blit(value a1, value ofs1, value a2,
-                                             value ofs2, value n) {
-  caml_failwith("256-bit SIMD is not supported on this platform.");
-}
-
-CAMLprim value caml_make_unboxed_vec256_vect(value len) {
-  caml_failwith("256-bit SIMD is not supported on this platform.");
-}
-
-CAMLprim value caml_make_local_unboxed_vec256_vect(value len) {
-  caml_failwith("256-bit SIMD is not supported on this platform.");
-}
-
-CAMLprim value caml_make_unboxed_vec256_vect_bytecode(value len) {
-  caml_failwith("256-bit SIMD is not supported on this platform.");
-}
-
-#endif // defined(ARCH_AVX)
-

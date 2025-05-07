@@ -856,6 +856,7 @@ CFI_STARTPROC
         movq    %rsp, %rbp
         CFI_DEF_CFA_REGISTER(DW_REG_rbp)
     /* Copy arguments from OCaml to C stack */
+        andq    $-64, %rsp
 LBL(105):
         subq    $8, %r12
         cmpq    %r13,%r12

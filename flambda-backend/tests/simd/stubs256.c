@@ -6,13 +6,6 @@
 #include <immintrin.h>
 #include <assert.h>
 
-CAMLweakdef value caml_copy_vec256i(simd_int256_t v)
-{
-    value res = caml_alloc_small(4, Abstract_tag);
-    Store_vec256_vali(res, v);
-    return res;
-}
-
 int64_t vec256_first_int64(__m256i v)
 {
     return _mm256_extract_epi64(v, 3);
