@@ -573,7 +573,7 @@ G(caml_system__code_begin):
         movq    Caml_state(young_ptr), %r15
 
 /* Save non-callee saved registers that may be in use to a free gc_regs
-   bucket, except for %xmm8 to %xmm15 as they are not used to pass
+   bucket, except for %rbp and %xmm8-%xmm15 as they are not used to pass
    arguments and return values in the System V amd64 ABI.
    Returns: bucket in %r15. Clobbers %r11 (after saving it) */
 #ifdef WITH_THREAD_SANITIZER
