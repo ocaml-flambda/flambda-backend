@@ -62,9 +62,9 @@ val cmi_file : string option ref
 val compile_only : bool ref
 val output_name : string option ref
 val include_dirs : string list ref
-val libloc : string list ref
-val libloc_hidden : string list ref
 val hidden_include_dirs : string list ref
+val include_paths_files : string list ref
+val hidden_include_paths_files : string list ref
 val no_std_include : bool ref
 val no_cwd : bool ref
 val print_types : bool ref

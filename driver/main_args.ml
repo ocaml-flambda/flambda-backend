@@ -165,23 +165,18 @@ let mk_H f =
   "<dir>  Add <dir> to the list of \"hidden\" include directories\n\
  \     (Like -I, but the program can not directly reference these dependencies)"
 
-let mk_libloc f =
-  "-libloc", Arg.String f, "<file>  Add .libloc directory configuration.\n\
-  \    .libloc directory is alternative (to -I and -H flags) way of telling\n\
-  \    compiler where to find files. Each `.libloc` directory should have a\n\
-  \    structure of `.libloc/<lib>/cmi-cmx`, where `<lib>` is a library name\n\
-  \    and `cmi-cmx` is a file where each line is of format `<filename> <path>`\n\
-  \    telling compiler that <filename> for library <lib> is accessible\n\
-  \    at <path>. If <path> is relative, then it is relative to a parent directory\n\
-  \    of a `.libloc` directory.\n\
-  \    <libs> and <hidden_libs> are comma-separated lists of libraries, to let\n\
-  \    compiler know which libraries should be accessible via this `.libloc`\n\
-  \    directory. Difference between <libs> and <hidden_libs> is the same as\n\
-  \    the difference between -I and -H flags"
+let mk_I_paths f =
+  "-I-paths", Arg.String f, "<file>  Read list of paths that compiler can reference from\n\
+  \    a given file. This option is alternative to -I flag, but lists available files\n\
+  \    directly instead of adding the whole directory to the search path.\n\
+  \    Each line of <file> describes one file available to compiler and should be of\n\
+  \    format '<filename> <path>', which tells compiler that <filename> is available at\n\
+  \    <path>. If <path> is relative, then it is relative to a parent directory\n\
+  \    of <file>."
 
-let mk_libloc_hidden f =
-  "-libloc-hidden", Arg.String f, "<file>  Same as -libloc, but adds directory to the\n\
-  \    list of \"hidden\" directories (see -H for more details)"
+let mk_H_paths f =
+  "-H-paths", Arg.String f, "<file>  Same as -I-paths, but adds given paths to the list\n\
+  \    of \"hidden\" files (see -H for more details)"
 
 let mk_impl f =
   "-impl", Arg.String f, "<file>  Compile <file> as a .ml file"
@@ -915,8 +910,8 @@ module type Common_options = sig
   val _alert : string -> unit
   val _I : string -> unit
   val _H : string -> unit
-  val _libloc : string -> unit
-  val _libloc_hidden : string -> unit
+  val _I_paths : string -> unit
+  val _H_paths : string -> unit
   val _labels : unit -> unit
   val _alias_deps : unit -> unit
   val _no_alias_deps : unit -> unit
@@ -1212,8 +1207,8 @@ struct
     mk_i F._i;
     mk_I F._I;
     mk_H F._H;
-    mk_libloc F._libloc;
-    mk_libloc_hidden F._libloc_hidden;
+    mk_I_paths F._I_paths;
+    mk_H_paths F._H_paths;
     mk_impl F._impl;
     mk_instantiate_byt F._instantiate;
     mk_intf F._intf;
@@ -1324,8 +1319,8 @@ struct
     mk_alert F._alert;
     mk_I F._I;
     mk_H F._H;
-    mk_libloc F._libloc;
-    mk_libloc_hidden F._libloc_hidden;
+    mk_I_paths F._I_paths;
+    mk_H_paths F._H_paths;
     mk_init F._init;
     mk_labels F._labels;
     mk_alias_deps F._alias_deps;
@@ -1443,8 +1438,8 @@ struct
     mk_i F._i;
     mk_I F._I;
     mk_H F._H;
-    mk_libloc F._libloc;
-    mk_libloc_hidden F._libloc_hidden;
+    mk_I_paths F._I_paths;
+    mk_H_paths F._H_paths;
     mk_impl F._impl;
     mk_inline F._inline;
     mk_inline_toplevel F._inline_toplevel;
@@ -1587,8 +1582,8 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_compact F._compact;
     mk_I F._I;
     mk_H F._H;
-    mk_libloc F._libloc;
-    mk_libloc_hidden F._libloc_hidden;
+    mk_I_paths F._I_paths;
+    mk_H_paths F._H_paths;
     mk_init F._init;
     mk_inline F._inline;
     mk_inline_toplevel F._inline_toplevel;
@@ -1696,8 +1691,8 @@ struct
     mk_alert F._alert;
     mk_I F._I;
     mk_H F._H;
-    mk_libloc F._libloc;
-    mk_libloc_hidden F._libloc_hidden;
+    mk_I_paths F._I_paths;
+    mk_H_paths F._H_paths;
     mk_impl F._impl;
     mk_intf F._intf;
     mk_intf_suffix F._intf_suffix;
@@ -1850,8 +1845,8 @@ module Default = struct
     include Common
     let _I dir = include_dirs := dir :: (!include_dirs)
     let _H dir = hidden_include_dirs := dir :: (!hidden_include_dirs)
-    let _libloc file = libloc := file :: !libloc
-    let _libloc_hidden file = libloc_hidden := file :: !libloc_hidden
+    let _I_paths file = include_paths_files := file :: !include_paths_files
+    let _H_paths file = hidden_include_paths_files := file :: !hidden_include_paths_files
     let _color = Misc.set_or_ignore color_reader.parse color
     let _dlambda = set dump_lambda
     let _dletreclambda = set dump_letreclambda
@@ -2110,8 +2105,8 @@ module Default = struct
          Odoc_global.hidden_include_dirs :=
            (s :: (!Odoc_global.hidden_include_dirs))
       *) ()
-    let _libloc(_:string) = ()
-    let _libloc_hidden(_:string) = ()
+    let _I_paths(_:string) = ()
+    let _H_paths(_:string) = ()
     let _impl (_:string) =
       (* placeholder:
          Odoc_global.files := ((!Odoc_global.files) @ [Odoc_global.Impl_file s])
