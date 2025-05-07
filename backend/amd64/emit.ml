@@ -2173,10 +2173,10 @@ let emit_item : Cmm.data_item -> unit = function
     | Global ->
       global_maybe_protected sym;
       add_def_symbol s.sym_name;
-      (* Following the same convention as for function symbols above, we emit both a label
-         and a linker symbol for [sym]. *)
-      (* CR sspies: The following two directives should be abstracted into a single
-         function in the directives module. *)
+      (* Following the same convention as for function symbols above, we emit
+         both a label and a linker symbol for [sym]. *)
+      (* CR sspies: The following two directives should be abstracted into a
+         single function in the directives module. *)
       ND.define_symbol_label ~section:Data sym;
       ND.define_label (L.create_string_unchecked Data (S.encode sym)))
   | Cint8 n -> ND.int8 (Numbers.Int8.of_int_exn n)
