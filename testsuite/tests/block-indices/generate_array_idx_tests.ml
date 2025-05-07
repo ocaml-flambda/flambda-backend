@@ -34,6 +34,7 @@ module Type_kind = struct
   type value_kind =
     | Addr
     | Immediate
+    | Float
 
   type t =
     | Product of t list
@@ -343,7 +344,7 @@ let rec eq_code (t : Type.t) : string =
     sprintf "(fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b)))"
   | Float32 ->
     sprintf "(fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b))"
-  | String -> sprintf "(fun a b -> String.equal a b)"
+  | String -> sprintf "(fun a b -> String.equal (globalize a) (globalize b))"
 
 let rec kind_of (t : _ Gen_type.t) : Type_kind.t =
   match t with
@@ -356,8 +357,9 @@ let rec kind_of (t : _ Gen_type.t) : Type_kind.t =
   | Tuple (tys, Unboxed) -> Product (List.map tys ~f:kind_of)
   | Option t -> Value Addr
   | Int -> Value Immediate
-  | Int64 | Int64_u | Int32 | Int32_u | Nativeint | Nativeint_u | Float
-  | Float_u | Float32 | Float32_u | String ->
+  | Float -> Value Float
+  | String | Int64 | Nativeint | Float32 | Int32 -> Value Addr
+  | Int64_u | Int32_u | Nativeint_u | Float_u | Float32_u ->
     Non_value
 
 let rec reverse_unboxed_paths (ty : Type.t) acc cur_path =
@@ -427,13 +429,24 @@ let rec enumerate_tys_for_tree (tree : unit tree)
 and enumerate_tys_for_forest (forest : unit tree list)
     (leaf_tys : Type_structure.t list) : Type_structure.t tree list list =
   match forest with
-  | [] -> []
+  | [] -> [[]]
   | tree :: forest ->
     let trees = enumerate_tys_for_tree tree leaf_tys in
     let forests = enumerate_tys_for_forest forest leaf_tys in
     List.concat_map trees ~f:(fun tree ->
         List.map forests ~f:(fun forest -> tree :: forest)
     )
+
+  let rec tree_to_string tree =
+    match tree with
+    | Leaf () -> "()"
+    | Branch forest ->
+      sprintf "(%s)" (String.concat ~sep:"" (List.map forest ~f:tree_to_string))
+
+(* let () =
+  let trees = enumerate_trees 4 in
+  print_endline (String.concat ~sep:"\n" (List.map trees ~f:tree_to_string));
+  Printf.printf "%d\n" (List.length (enumerate_trees 4)) *)
 
 let enumerate_ty_trees_up_to_size leaf_tys size : Type_structure.t tree list =
   let sizes = List.init ~f:(fun i -> i + 1) ~len:size in
@@ -465,13 +478,25 @@ let rec all_scannable (kind : Type_kind.t) =
 let rec all_ignorable (kind : Type_kind.t) =
   match kind with
   | Value Immediate | Non_value -> true
-  | Value Addr -> false
+  | Value Addr | Value Float -> false
   | Product kinds -> List.for_all kinds ~f:all_ignorable
+
+type will_be_reordered_acc = { seen_flat : bool; last_value_after_flat : bool }
+let will_be_reordered kind =
+  let rec aux (kind : Type_kind.t) acc =
+    match kind with
+    | Value _ -> { acc with last_value_after_flat = acc.seen_flat }
+    | Non_value -> { acc with seen_flat = true }
+    | Product kinds -> List.fold_left kinds ~init:acc ~f:(fun acc kind -> aux kind acc)
+  in
+  (aux kind { seen_flat = false; last_value_after_flat = false }).last_value_after_flat
 
 let ty_tree_to_array_element (tree : Type_structure.t tree) : Type_structure.t option =
   let ty = ty_tree_to_unboxed_record tree in
   let kind = kind_of ty in
-  if all_scannable kind || all_ignorable kind then
+  if kind = Value Float then None else
+  (* CR layouts v8: once striped arrays are supported, remove the below filter *)
+  if not (will_be_reordered kind) && (all_scannable kind || all_ignorable kind) then
     Some ty
   else
     None
@@ -492,7 +517,7 @@ let ty_ur4 : Type_structure.t =
   Record { name = (); fields = [(), ty_ur2; (), ty_ur3]; boxing = Unboxed }
 
 let favorite_non_product_types : _ Gen_type.t list =
-  [ String; Int; Int64; Float32_u; Float]
+  [ Int; Int64; Float32_u; Float ]
 
 let non_product_types : _ Gen_type.t list =
   favorite_non_product_types
@@ -501,6 +526,12 @@ let non_product_types : _ Gen_type.t list =
 let interesting_type_trees : Type_structure.t tree list =
   enumerate_ty_trees_up_to_size favorite_non_product_types 4 @
   enumerate_ty_trees_up_to_size non_product_types 3
+
+(* print interesting_type_trees *)
+(* let () =
+  List.iter interesting_type_trees ~f:(fun tree ->
+    print_endline (Type_structure.to_string tree)
+  ); *)
 
 let interesting_array_element_types =
   List.filter_map interesting_type_trees ~f:ty_tree_to_array_element
