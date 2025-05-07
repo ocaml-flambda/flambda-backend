@@ -1692,10 +1692,10 @@ let emit_instr ~first ~fallthrough i =
     | Onetwentyeight_unaligned -> load ~dest:(res i 0) VEC128 I.movupd
     | Onetwentyeight_aligned -> load ~dest:(res i 0) VEC128 I.movapd
     | Twofiftysix_unaligned ->
-      load ~dest:(res i 0) VEC256 (fun dst src ->
+      load ~dest:(res i 0) VEC256 (fun src dst ->
           I.simd vmovupd_Y_Ym256 [| src; dst |])
     | Twofiftysix_aligned ->
-      load ~dest:(res i 0) VEC256 (fun dst src ->
+      load ~dest:(res i 0) VEC256 (fun src dst ->
           I.simd vmovupd_Y_Ym256 [| src; dst |])
     | Fivetwelve_unaligned | Fivetwelve_aligned ->
       (* CR-soon mslater: avx512 *)
@@ -1722,9 +1722,9 @@ let emit_instr ~first ~fallthrough i =
     | Onetwentyeight_unaligned -> store VEC128 arg I.movupd
     | Onetwentyeight_aligned -> store VEC128 arg I.movapd
     | Twofiftysix_unaligned ->
-      store VEC256 arg (fun dst src -> I.simd vmovupd_Ym256_Y [| src; dst |])
+      store VEC256 arg (fun src dst -> I.simd vmovupd_Ym256_Y [| src; dst |])
     | Twofiftysix_aligned ->
-      store VEC256 arg (fun dst src -> I.simd vmovupd_Ym256_Y [| src; dst |])
+      store VEC256 arg (fun src dst -> I.simd vmovupd_Ym256_Y [| src; dst |])
     | Fivetwelve_unaligned | Fivetwelve_aligned ->
       (* CR-soon mslater: avx512 *)
       Misc.fatal_error "avx512 instructions not yet implemented"
