@@ -47,8 +47,9 @@ module Layout : sig
   type t =
     | Product of t list
     | Value of value_kind
-    | Bits32
+    | Float64
     | Bits64
+    | Bits32
     | Vec128
     | Word
 
@@ -57,6 +58,8 @@ module Layout : sig
   val all_ignorable : t -> bool
 
   val reordered_in_block : t -> bool
+
+  val contains_vec128 : t -> bool
 end
 
 module Type_structure : sig
@@ -84,12 +87,28 @@ module Type_structure : sig
 
   val layout : t -> Layout.t
 
+  (** This differs from composing [layout] and [Layout.contains_vec128] because
+     this function considers the fields of boxed values *)
+  val contains_vec128 : t -> bool
+
   (** [None] if the tree is a [Leaf] (thus will always produce a boxed record *)
   val boxed_record_containing_unboxed_records : t Tree.t -> t option
+
+  val is_flat_float_record : t -> bool
 
   (** [None] if block indices to arrays of [nested_unboxed_record t] are not
       supported *)
   val array_element : t Tree.t -> t option
+
+  val to_string : t -> string
+end
+
+module Path : sig
+  type access =
+    | Field of string
+    | Unboxed_field of string
+
+  type t = access list
 
   val to_string : t -> string
 end
@@ -116,6 +135,8 @@ module Type : sig
     | Float32_u
     | String
     | Int64x2_u
+
+  val follow_path : t -> Path.t -> t
 
   val compare : t -> t -> int
 
@@ -146,9 +167,9 @@ module Type : sig
       record with the structure:
       [#{ a : #{ b : int; c : int } }]
       produces:
-      [(1, [["a"]]); (2, [["a"; "b"]; ["a"; "c"]])]
+      [(0, [<empty path>]), (1, [.#a]]); (2, [[.#a.#b]; [.#a.#c]])]
   *)
-  val unboxed_paths_by_depth : t -> (int * string list list) list
+  val unboxed_paths_by_depth : t -> (int * Path.t list) list
 end
 
 module Type_naming : sig

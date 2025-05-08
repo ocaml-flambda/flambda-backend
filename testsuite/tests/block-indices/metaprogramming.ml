@@ -41,28 +41,29 @@ module Layout = struct
   type t =
     | Product of t list
     | Value of value_kind
-    | Bits32
+    | Float64
     | Bits64
+    | Bits32
     | Vec128
     | Word
 
   let rec all_scannable t =
     match t with
     | Value _ -> true
-    | Bits32 | Bits64 | Vec128 | Word -> false
+    | Bits32 | Bits64 | Float64 | Vec128 | Word -> false
     | Product ts -> List.for_all ts ~f:all_scannable
 
   let rec all_ignorable t =
     match t with
-    | Value Immediate | Bits64 | Bits32 | Vec128 | Word -> true
+    | Value Immediate | Float64 | Bits64 | Bits32 | Vec128 | Word -> true
     | Value Addr_non_float | Value Float -> false
     | Product ts -> List.for_all ts ~f:all_ignorable
 
-  let rec contains_unboxed_vector t =
+  let rec contains_vec128 t =
     match t with
-    | Value _ | Bits64 | Bits32 | Word -> false
+    | Value _ | Float64 | Bits64 | Bits32 | Word -> false
     | Vec128 -> true
-    | Product ts -> List.exists ts ~f:contains_unboxed_vector
+    | Product ts -> List.exists ts ~f:contains_vec128
 
   type acc =
     { seen_flat : bool;
@@ -73,7 +74,8 @@ module Layout = struct
     let rec aux t acc =
       match t with
       | Value _ -> { acc with last_value_after_flat = acc.seen_flat }
-      | Bits64 | Bits32 | Vec128 | Word -> { acc with seen_flat = true }
+      | Float64 | Bits64 | Bits32 | Vec128 | Word ->
+        { acc with seen_flat = true }
       | Product ts ->
         List.fold_left ts ~init:acc ~f:(fun acc layout -> aux layout acc)
     in
@@ -228,8 +230,8 @@ module Type_structure = struct
   let rec layout t : Layout.t =
     match t with
     | Record ([t], Unboxed) -> layout t
-    | Record (ts, Unboxed) -> Product (List.map ts ~f:layout)
-    | Tuple (ts, Unboxed) -> Product (List.map ts ~f:layout)
+    | Record (ts, Unboxed) | Tuple (ts, Unboxed) ->
+      Product (List.map ts ~f:layout)
     | Record (_, Boxed)
     | Tuple (_, Boxed)
     | Option _ | String | Int64 | Nativeint | Float32 | Int32 ->
@@ -240,6 +242,21 @@ module Type_structure = struct
     | Int32_u | Float32_u -> Bits32
     | Nativeint_u -> Word
     | Int64x2_u -> Vec128
+
+  let is_flat_float_record t =
+    match t with
+    | Record (ts, Boxed) ->
+      List.for_all ts ~f:(fun t -> layout t = Float64 || layout t = Value Float)
+    | _ -> false
+
+  let rec contains_vec128 t =
+    match t with
+    | Record (ts, _) | Tuple (ts, _) -> List.exists ts ~f:contains_vec128
+    | Option t -> contains_vec128 t
+    | String | Int64 | Nativeint | Float32 | Int32 | Int | Float | Int64_u
+    | Float_u | Int32_u | Float32_u | Nativeint_u ->
+      false
+    | Int64x2_u -> true
 
   let rec nested_unboxed_record (tree : t Tree.t) : t =
     match tree with
@@ -261,7 +278,7 @@ module Type_structure = struct
       (* CR layouts v8: all of these restrictions will eventually be lifted *)
       let supported_in_arrays =
         (Layout.all_scannable ty_layout || Layout.all_ignorable ty_layout)
-        && not (Layout.contains_unboxed_vector ty_layout)
+        && not (Layout.contains_vec128 ty_layout)
       in
       let supported_by_block_indices =
         not (Layout.reordered_in_block ty_layout)
@@ -308,6 +325,22 @@ let assemble_tuple ~sep (boxing : Boxing.t) xs =
   let hash = match boxing with Boxed -> "" | Unboxed -> "#" in
   sprintf "%s(%s)" hash (String.concat ~sep xs)
 
+module Path = struct
+  type access =
+    | Field of string
+    | Unboxed_field of string
+
+  type t = access list
+
+  let to_string t =
+    String.concat ~sep:""
+      (List.map t ~f:(function
+        | Field s -> "." ^ s
+        | Unboxed_field s -> ".#" ^ s
+        )
+        )
+end
+
 module Type = struct
   type t =
     | Record of
@@ -330,6 +363,17 @@ module Type = struct
     | Float32_u
     | String
     | Int64x2_u
+
+  let rec follow_path t (path : Path.t) =
+    match path with
+    | [] -> t
+    | access :: rest -> (
+      match access, t with
+      | Field lbl, Record { name = _; fields; boxing = Boxed }
+      | Unboxed_field lbl, Record { name = _; fields; boxing = Unboxed } ->
+        follow_path (List.assoc lbl fields) rest
+      | _ -> invalid_arg "bad path"
+    )
 
   let compare : t -> t -> int = Stdlib.compare
 
@@ -512,13 +556,13 @@ module Type = struct
       sprintf
         "(fun a b -> Float.equal (Float32.to_float a) (Float32.to_float b))"
     | String -> sprintf "(fun a b -> String.equal (globalize a) (globalize b))"
-    | Int64x2_u -> sprintf "Metaprogramming_lib__.int64x2_u_equal"
+    | Int64x2_u -> sprintf "int64x2_u_equal"
 
   let rec reverse_unboxed_paths (ty : t) acc cur_path =
     match ty with
     | Record { name = _; fields; boxing = Unboxed } ->
       List.fold_left fields ~init:acc ~f:(fun acc (s, t) ->
-          let cur_path = s :: cur_path in
+          let cur_path = Path.Unboxed_field s :: cur_path in
           let acc = cur_path :: acc in
           reverse_unboxed_paths t acc cur_path
       )
@@ -526,7 +570,7 @@ module Type = struct
 
   let unboxed_paths_by_depth ty =
     List.fold_left
-      (reverse_unboxed_paths ty [] [])
+      (reverse_unboxed_paths ty [[] (* empty path *)] [])
       ~f:(fun acc rev_path ->
         let depth = List.length rev_path in
         let path = List.rev rev_path in
@@ -630,27 +674,25 @@ module Type_naming = struct
 end
 
 let preamble ~bytecode =
-  {|module Metaprogramming_lib__ = struct
+  {|external globalize : local_ 'a -> 'a = "%obj_dup";;
 |}
-  ^ ( if bytecode
-    then
-      {|  let int64x2_u_equal (_ : int64x2#) (_ : int64x2#) = failwith "should not be called from bytecode"
+  ^
+  if bytecode
+  then
+    {|let int64x2_u_equal (_ : int64x2#) (_ : int64x2#) = failwith "should not be called from bytecode"
 |}
-    else
-      {|  external box_int64x2 : int64x2# -> int64x2 = "%box_vec128"
-  external unbox_int64x2 : int64x2 -> int64x2# = "%unbox_vec128"
-  external interleave_low_64 : int64x2# -> int64x2# -> int64x2# = "caml_vec128_unreachable" "caml_simd_vec128_interleave_low_64" [@@unboxed] [@@builtin]
-  external interleave_high_64 : int64x2# -> int64x2# -> int64x2# = "caml_vec128_unreachable" "caml_simd_vec128_interleave_high_64" [@@unboxed] [@@builtin]
-  external int64x2_of_int64 : int64 -> int64x2# = "caml_vec128_unreachable" "caml_int64x2_low_of_int64" [@@unboxed] [@@builtin]
-  external int64_of_int64x2 : int64x2# -> int64 = "caml_vec128_unreachable" "caml_int64x2_low_to_int64" [@@unboxed] [@@builtin]
+  else
+    {|external box_int64x2 : int64x2# -> int64x2 = "%box_vec128"
+external unbox_int64x2 : int64x2 -> int64x2# = "%unbox_vec128"
+external interleave_low_64 : int64x2# -> int64x2# -> int64x2# = "caml_vec128_unreachable" "caml_simd_vec128_interleave_low_64" [@@unboxed] [@@builtin]
+external interleave_high_64 : int64x2# -> int64x2# -> int64x2# = "caml_vec128_unreachable" "caml_simd_vec128_interleave_high_64" [@@unboxed] [@@builtin]
+external int64x2_of_int64 : int64 -> int64x2# = "caml_vec128_unreachable" "caml_int64x2_low_of_int64" [@@unboxed] [@@builtin]
+external int64_of_int64x2 : int64x2# -> int64 = "caml_vec128_unreachable" "caml_int64x2_low_to_int64" [@@unboxed] [@@builtin]
 
-  let int64x2_u_equal i1 i2 =
-      let a1 = int64_of_int64x2 i1 in
-      let b1 = int64_of_int64x2 (interleave_high_64 i1 i1) in
-      let a2 = int64_of_int64x2 i2 in
-      let b2 = int64_of_int64x2 (interleave_high_64 i2 i2) in
-      Int64.equal a1 a2 && Int64.equal b1 b2
-|}
-    )
-  ^ {|end
+let int64x2_u_equal i1 i2 =
+    let a1 = int64_of_int64x2 i1 in
+    let b1 = int64_of_int64x2 (interleave_high_64 i1 i1) in
+    let a2 = int64_of_int64x2 i2 in
+    let b2 = int64_of_int64x2 (interleave_high_64 i2 i2) in
+    Int64.equal a1 a2 && Int64.equal b1 b2
 |}

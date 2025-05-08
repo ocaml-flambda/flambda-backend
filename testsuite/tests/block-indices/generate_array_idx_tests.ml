@@ -71,25 +71,6 @@ let interesting_type_trees : Type_structure.t Tree.t list =
  *   List.iter shapes ~f:print_endline;
  *   exit 0 *)
 
-let array_element_types : Type_structure.t list =
-  List.filter_map interesting_type_trees ~f:Type_structure.array_element
-
-let nested_record_types : Type_structure.t list =
-  List.filter_map interesting_type_trees
-    ~f:Type_structure.boxed_record_containing_unboxed_records
-
-let naming = Type_naming.empty
-
-let (naming : Type_naming.t), (array_element_types : Type.t list) =
-  List.fold_left_map array_element_types ~init:naming ~f:(fun naming ty ->
-      Type_naming.add_names naming ty
-  )
-
-let (naming : Type_naming.t), (nested_record_types : Type.t list) =
-  List.fold_left_map nested_record_types ~init:naming ~f:(fun naming ty ->
-      Type_naming.add_names naming ty
-  )
-
 let preamble =
   {|open Stdlib_upstream_compatible
 open Stdlib_stable
@@ -180,8 +161,6 @@ end = struct
 end
 
 let failwithf fmt = Printf.ksprintf failwith fmt
-
-external globalize : local_ 'a -> 'a = "%obj_dup";;
 
 (* Redefine iter to infer locality *)
 let rec iter ~f = function
@@ -300,10 +279,10 @@ let test_array_idx_get_and_set ~local ty =
   type_section ty;
   line "let eq = %s in" (Type.eq_code ty);
   line "let mk_value i = %s in" (Type.mk_value_body_code ty);
-  line "(* 1. Create an array of size [size] *)";
+  line "(* Create an array of size [size] *)";
   line "let a : %s = %s size %s in" ty_array_s makearray_dynamic
     (Type.value_code ty 0);
-  line "(* 3. Fill [a] with distinct values using block indices *)";
+  line "(* Fill [a] with distinct values using block indices *)";
   for_i_below_size ~debug_exprs (fun ~debug_exprs ->
       line "set_idx_mut a (.(i)) (mk_value i);"
   );
@@ -321,32 +300,33 @@ let test_array_idx_get_and_set ~local ty =
           line "(* Paths of depth %d *)" depth;
           line "let el = get a i in";
           line "let next_el = mk_value (i + 100 * %d) in" depth;
-          let up_concat l =
-            String.concat (List.map l ~f:(fun s -> ".#" ^ s)) ~sep:""
-          in
           List.iter unboxed_paths ~f:(fun unboxed_path ->
-              line "(* %s *)" (up_concat unboxed_path);
+              line "(* %s *)" (Path.to_string unboxed_path);
               let reference_update =
                 (* To perform our reference update (without block indices) to
-                   [el.x.y.z], we generate [#{ el with x = #{ el.#x with y = #{
-                   el.#x.#y with z = next_el.#x.#y.#z } } }] *)
-                let rec f rev_path new_val =
+                   [el.#x.#y.#z], we generate [#{ el with x = #{ el.#x with y =
+                   #{ el.#x.#y with z = next_el.#x.#y.#z } } }] *)
+                let rec f (rev_path : Path.t) new_val =
                   match rev_path with
                   | [] -> new_val
-                  | s :: rest ->
+                  | Field _ :: _ -> assert false
+                  | Unboxed_field s :: rest ->
                     let new_val =
                       sprintf "#{ el%s with %s = %s }"
-                        (up_concat (List.rev rest))
+                        (Path.to_string (List.rev rest))
                         s new_val
                     in
                     f rest new_val
                 in
                 f (List.rev unboxed_path)
-                  (sprintf "next_el%s" (up_concat unboxed_path))
+                  (sprintf "next_el%s" (Path.to_string unboxed_path))
               in
               line "let el = %s in" reference_update;
               line "set_idx_mut a ((.(i)%s) : (%s array, _) idx_mut) next_el%s;"
-                (up_concat unboxed_path) (Type.code ty) (up_concat unboxed_path);
+                (Path.to_string unboxed_path)
+                (Type.code ty)
+                (Path.to_string unboxed_path);
+              (* CR rtjoa: need anothe assert here *)
               seq_assert ~debug_exprs "eq (get_idx_mut a (.(i))) el"
           )
       );
@@ -366,18 +346,18 @@ let test_array_idx_deepening ty =
   let debug_exprs = [] in
   let ty_array_s = Type.code ty ^ " array" in
   type_section ty;
-  let up_concat l = String.concat (List.map l ~f:(fun s -> ".#" ^ s)) ~sep:"" in
   List.iter unboxed_paths_by_depth ~f:(fun (depth, unboxed_paths) ->
       List.iter unboxed_paths ~f:(fun unboxed_path ->
           line "iter indices_in_deepening_tests ~f:(fun i ->";
           with_indent (fun () ->
               line "let unboxed_path : (%s, _) idx_mut = (.(i)%s) in" ty_array_s
-                (up_concat unboxed_path);
+                (Path.to_string unboxed_path);
               for prefix_len = 0 to depth do
                 let prefix, suffix = take_n unboxed_path prefix_len in
                 line "let shallow : (%s, _) idx_mut = (.(i)%s) in" ty_array_s
-                  (up_concat prefix);
-                line "let deepened = (.idx_mut(shallow)%s) in" (up_concat suffix);
+                  (Path.to_string prefix);
+                line "let deepened = (.idx_mut(shallow)%s) in"
+                  (Path.to_string suffix);
                 seq_assert ~debug_exprs
                   "Idx_repr.equal (Idx_repr.of_idx_mut unboxed_path) \
                    (Idx_repr.of_idx_mut deepened)"
@@ -387,6 +367,107 @@ let test_array_idx_deepening ty =
       )
   );
   print_newline ()
+
+let test_record_idx_get_and_set ty ~local =
+  type_section ty;
+  line "let eq = %s in" (Type.eq_code ty);
+  let fields =
+    match ty with
+    | Record { name = _; fields; boxing = Boxed } -> fields
+    | _ -> invalid_arg "expected boxed record"
+  in
+  let debug_exprs = [] in
+  List.iter fields ~f:(fun (lbl, fld_t) ->
+      line "let r = %s in" (Type.value_code ty 0);
+      List.iter (Type.unboxed_paths_by_depth fld_t)
+        ~f:(fun (depth, unboxed_paths) ->
+          line "(* Paths of depth %d *)" depth;
+          line "let next_r = %s in" (Type.value_code ty (100 * depth));
+          List.iter unboxed_paths ~f:(fun unboxed_path ->
+              line "(* .%s%s *)" lbl (Path.to_string unboxed_path);
+              let full_path = Path.Field lbl :: unboxed_path in
+              let flattened_float =
+                Type_structure.is_flat_float_record (Type.structure ty)
+                && Type_structure.layout
+                     (Type.structure (Type.follow_path ty full_path))
+                   = Value Float
+              in
+              let sub_ty =
+                if flattened_float
+                then (
+                  line "(* ff *)";
+                  Type.Float_u
+                )
+                else Type.follow_path ty full_path
+              in
+              line "let sub_eq = %s in" (Type.eq_code sub_ty);
+              let reference_update =
+                (* To perform our reference update (without block indices) to
+                   [el.x.#y.#z], we generate [{ el with x = #{ el.#x with y = #{
+                   el.x.#y with z = next_el.x.#y.#z } } }] *)
+                let rec f (rev_path : Path.t) new_val =
+                  match rev_path with
+                  | [] -> new_val
+                  | Field _ :: _ -> assert false
+                  | Unboxed_field s :: rest ->
+                    let new_val =
+                      sprintf "#{ r.%s%s with %s = %s }" lbl
+                        (Path.to_string (List.rev rest))
+                        s new_val
+                    in
+                    f rest new_val
+                in
+                let new_field =
+                  f (List.rev unboxed_path)
+                    (sprintf "next_r.%s%s" lbl (Path.to_string unboxed_path))
+                in
+                sprintf "{ r with %s = %s }" lbl new_field
+              in
+              line "let expected = %s in" reference_update;
+              let idx =
+                sprintf "((.%s%s) : (%s, _) idx_mut)" lbl
+                  (Path.to_string unboxed_path)
+                  (Type.code ty)
+              in
+              let next_r_sub_element_flat =
+                if flattened_float
+                then
+                  (* next_r at some path must be a float(#) or nested singleton
+                     unboxed records to one *)
+                  let ty' = ty in
+                  let rec path_to_float (ty : Type.t) =
+                    match ty with
+                    | Float | Float_u -> []
+                    | Record
+                        { fields = [(lbl, ty)]; boxing = Unboxed; name = _ } ->
+                      Path.Unboxed_field lbl :: path_to_float ty
+                    | Tuple (_, Unboxed) -> failwith "unimplemented"
+                    | _ ->
+                      failwith
+                        (sprintf "ty %s; %s; subty %s; stuck at %s"
+                           (Type.code ty') (Path.to_string full_path)
+                           (Type.code (Type.follow_path ty' full_path))
+                           (Type.code ty)
+                        )
+                  in
+                  sprintf "(Float_u.of_float next_r%s%s)"
+                    (Path.to_string full_path)
+                    (Path.to_string
+                       (path_to_float (Type.follow_path ty full_path))
+                    )
+                else sprintf "next_r%s" (Path.to_string full_path)
+              in
+              line "set_idx_mut r %s %s;" idx next_r_sub_element_flat;
+              seq_assert ~debug_exprs "eq r expected";
+              seq_assert ~debug_exprs
+                (sprintf "sub_eq (get_idx_mut r %s) %s" idx
+                   next_r_sub_element_flat
+                )
+          )
+      )
+  )
+
+let test_record_idx_deepening ty = type_section ty
 
 let toplevel_unit_block f =
   assert (Int.equal !indent 0);
@@ -399,6 +480,31 @@ let toplevel_unit_block f =
   line ""
 
 let main ~bytecode =
+  let filter_types types =
+    if bytecode
+    then List.filter types ~f:(fun ty -> not (Type_structure.contains_vec128 ty))
+    else types
+  in
+  let array_element_types : Type_structure.t list =
+    List.filter_map interesting_type_trees ~f:Type_structure.array_element
+    |> filter_types
+  in
+  let nested_record_types : Type_structure.t list =
+    List.filter_map interesting_type_trees
+      ~f:Type_structure.boxed_record_containing_unboxed_records
+    |> filter_types
+  in
+  let naming = Type_naming.empty in
+  let (naming : Type_naming.t), (array_element_types : Type.t list) =
+    List.fold_left_map array_element_types ~init:naming ~f:(fun naming ty ->
+        Type_naming.add_names naming ty
+    )
+  in
+  let (naming : Type_naming.t), (nested_record_types : Type.t list) =
+    List.fold_left_map nested_record_types ~init:naming ~f:(fun naming ty ->
+        Type_naming.add_names naming ty
+    )
+  in
   line {|(* TEST
  include stdlib_stable;
  include stdlib_upstream_compatible;|};
@@ -436,7 +542,28 @@ let main ~bytecode =
       List.iter array_element_types ~f:test_array_idx_deepening;
       line "()"
   );
-  line "(* *)";
+  print_newline ();
+  line "(* Test record idx get and set *)";
+  line "let () =";
+  with_indent (fun () ->
+      List.iter nested_record_types ~f:(test_record_idx_get_and_set ~local:false);
+      line "()"
+  );
+  print_newline ();
+  line "(* Test record idx get and set (local) *)";
+  line "let () =";
+  with_indent (fun () ->
+      List.iter nested_record_types ~f:(test_record_idx_get_and_set ~local:true);
+      line "()"
+  );
+  print_newline ();
+  line "(* Test record idx deepening *)";
+  line "let () =";
+  with_indent (fun () ->
+      List.iter nested_record_types ~f:test_record_idx_deepening;
+      line "()"
+  );
+  print_newline ();
   toplevel_unit_block (fun () ->
       List.iter [false; true] ~f:(fun local ->
           let test_fn = "test_array_idx_with_" ^ makearray_dynamic_fn ~local in
