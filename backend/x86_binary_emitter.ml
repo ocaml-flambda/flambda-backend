@@ -1705,17 +1705,18 @@ let assemble_line b loc ins =
         match eval_const b (Buffer.length b.buf) cst with
         | Rint n -> (get_symbol b lbl).sy_size <- Some (Int64.to_int n)
         | _ -> assert false)
-    | Directive (D.Align { data_section=data; bytes = n}) -> (
+    | Directive (D.Align { fill_x86_bin_emitter=data; bytes = n}) -> (
         (* TODO: Buffer.length = 0 => set section align *)
         let pos = Buffer.length b.buf in
         let current = pos mod n in
         if current > 0 then
           let n = n - current in
-          if data then
+          match data with
+          | Asm_targets.Asm_directives_new.Zero ->
             for _ = 1 to n do
               buf_int8 b 0x00
             done
-          else
+          | Asm_targets.Asm_directives_new.Nop ->
             match n with
             | 0 -> ()
             | 1 -> buf_int8 b 0x90
