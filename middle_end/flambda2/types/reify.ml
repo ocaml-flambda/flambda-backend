@@ -16,6 +16,8 @@
 
 module Float32 = Numeric_types.Float32_by_bit_pattern
 module Float = Numeric_types.Float_by_bit_pattern
+module Int8 = Numeric_types.Int8
+module Int16 = Numeric_types.Int16
 module Int32 = Numeric_types.Int32
 module Int64 = Numeric_types.Int64
 module TE = Typing_env
@@ -438,6 +440,14 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
       match Float.Set.get_singleton (fs :> Float.Set.t) with
       | None -> try_canonical_simple ()
       | Some f -> Simple (Simple.const (Reg_width_const.naked_float f)))
+    | Naked_int8 (Ok ns) -> (
+      match Int8.Set.get_singleton (ns :> Int8.Set.t) with
+      | None -> try_canonical_simple ()
+      | Some n -> Simple (Simple.const (Reg_width_const.naked_int8 n)))
+    | Naked_int16 (Ok ns) -> (
+      match Int16.Set.get_singleton (ns :> Int16.Set.t) with
+      | None -> try_canonical_simple ()
+      | Some n -> Simple (Simple.const (Reg_width_const.naked_int16 n)))
     | Naked_int32 (Ok ns) -> (
       match Int32.Set.get_singleton (ns :> Int32.Set.t) with
       | None -> try_canonical_simple ()
@@ -621,7 +631,8 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
               ~try_canonical_simple
           | Naked_number Naked_vec128 ->
             Lift_array_of_naked_vec128s.lift env ~fields ~try_canonical_simple
-          | Naked_number Naked_immediate | Region | Rec_info ->
+          | Naked_number (Naked_immediate | Naked_int8 | Naked_int16)
+          | Region | Rec_info ->
             Misc.fatal_errorf
               "Unexpected kind %a in immutable array case when reifying type:@ \
                %a@ in env:@ %a"
@@ -630,6 +641,8 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
     | Naked_immediate Bottom
     | Naked_float32 Bottom
     | Naked_float Bottom
+    | Naked_int8 Bottom
+    | Naked_int16 Bottom
     | Naked_int32 Bottom
     | Naked_int64 Bottom
     | Naked_nativeint Bottom
@@ -642,6 +655,8 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
     | Naked_immediate Unknown
     | Naked_float32 Unknown
     | Naked_float Unknown
+    | Naked_int8 Unknown
+    | Naked_int16 Unknown
     | Naked_int32 Unknown
     | Naked_int64 Unknown
     | Naked_vec128 Unknown

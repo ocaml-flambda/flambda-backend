@@ -196,6 +196,8 @@ end = struct
                  a 64-bit slot, and wish to initialize the whole. *)
               | Naked_number Naked_int32 -> UK.naked_int32_fields
               | Naked_number Naked_float32 -> UK.naked_float32_fields
+              | Naked_number Naked_int16 -> UK.naked_int16_fields
+              | Naked_number Naked_int8 -> UK.naked_int8_fields
               | Region | Rec_info ->
                 Misc.fatal_errorf "Unexpected value slot kind for %a: %a"
                   Value_slot.print value_slot KS.print kind

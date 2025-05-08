@@ -428,6 +428,8 @@ let makearray_dynamic env (lambda_array_kind : L.array_kind)
          (Thirty_two
             { zero_init = Lconst (Const_base (Const_unboxed_int32 0l)) })
          ~init
+  | Punboxedintarray (Unboxed_int8 | Unboxed_int16) ->
+    Misc.unboxed_small_int_arrays_are_not_implemented ()
   | Punboxedintarray Unboxed_int64 ->
     makearray_dynamic_singleton_uninitialized "unboxed_int64" ~length mode loc
     |> initialize_array env loc ~length (Punboxedintarray_set Unboxed_int64)

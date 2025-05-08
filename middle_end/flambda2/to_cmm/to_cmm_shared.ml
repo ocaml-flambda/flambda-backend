@@ -55,6 +55,8 @@ let exttype_of_kind (k : Flambda_kind.t) : Cmm.exttype =
   | Naked_number Naked_float32 -> XFloat32
   | Naked_number Naked_int64 -> XInt64
   | Naked_number Naked_int32 -> XInt32
+  | Naked_number Naked_int16 -> XInt16
+  | Naked_number Naked_int8 -> XInt8
   | Naked_number (Naked_immediate | Naked_nativeint) -> (
     match Targetint_32_64.num_bits with
     | Thirty_two -> XInt32
@@ -77,8 +79,9 @@ let machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   | Naked_number Naked_float -> Cmm.typ_float
   | Naked_number Naked_float32 -> Cmm.typ_float32
   | Naked_number Naked_vec128 -> Cmm.typ_vec128
-  | Naked_number (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
-    ->
+  | Naked_number
+      ( Naked_immediate | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64
+      | Naked_nativeint ) ->
     Cmm.typ_int
   | Region -> Cmm.typ_int
   | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
@@ -97,8 +100,9 @@ let extended_machtype_of_kind (kind : Flambda_kind.With_subkind.t) =
   | Naked_number Naked_float -> Extended_machtype.typ_float
   | Naked_number Naked_float32 -> Extended_machtype.typ_float32
   | Naked_number Naked_vec128 -> Extended_machtype.typ_vec128
-  | Naked_number (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint)
-    ->
+  | Naked_number
+      ( Naked_immediate | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64
+      | Naked_nativeint ) ->
     Extended_machtype.typ_any_int
   | Region -> Misc.fatal_error "[Region] kind not expected here"
   | Rec_info -> Misc.fatal_error "[Rec_info] kind not expected here"
@@ -119,6 +123,8 @@ let memory_chunk_of_kind (kind : Flambda_kind.With_subkind.t) : Cmm.memory_chunk
   | Naked_number Naked_int32 ->
     (* This only reads and writes 32 bits, but will sign extend upon reading. *)
     Thirtytwo_signed
+  | Naked_number Naked_int16 -> Sixteen_signed
+  | Naked_number Naked_int8 -> Byte_signed
   | Naked_number Naked_float -> Double
   | Naked_number Naked_float32 -> Single { reg = Float32 }
   | Naked_number Naked_vec128 ->
@@ -179,6 +185,8 @@ let const ~dbg cst =
   | Naked_float32 f ->
     float32 ~dbg (Numeric_types.Float32_by_bit_pattern.to_float f)
   | Naked_float f -> float ~dbg (Numeric_types.Float_by_bit_pattern.to_float f)
+  | Naked_int8 i -> int32 ~dbg (Int32.of_int (Numeric_types.Int8.to_int i))
+  | Naked_int16 i -> int32 ~dbg (Int32.of_int (Numeric_types.Int16.to_int i))
   | Naked_int32 i -> int32 ~dbg i
   | Naked_int64 i -> int64 ~dbg i
   | Naked_vec128 i ->
@@ -229,6 +237,12 @@ let const_static cst : Cmm.data_item list =
     (* Just in case of future big endian support, this is also written
        explicitly in two halves. *)
     [cint32 i; cint32 0l]
+  | Naked_int16 i ->
+    (* In keeping with Naked_float32, this is padded to 8 bytes, but it's not
+       obvious to me why we are doing this instead of requiring alignment on
+       other values that need it. *)
+    [Cint16 (Numeric_types.Int16.to_int i); Cskip 6]
+  | Naked_int8 i -> [Cint8 (Numeric_types.Int8.to_int i); Cskip 7]
   | Naked_int64 i ->
     (* We don't use To_cmm for 32-bit targets, so nativeint is 64 bits. *)
     [cint (Int64.to_nativeint i)]
@@ -311,6 +325,8 @@ module Update_kind = struct
   type kind =
     | Pointer
     | Immediate
+    | Naked_int8
+    | Naked_int16
     | Naked_int32
     | Naked_int64
     | Naked_float
@@ -334,8 +350,8 @@ module Update_kind = struct
 
   let field_size_in_words t =
     match t.kind with
-    | Pointer | Immediate | Naked_int32 | Naked_int64 | Naked_float
-    | Naked_float32 ->
+    | Pointer | Immediate | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64
+    | Naked_float | Naked_float32 ->
       1
     | Naked_vec128 -> 2
 
@@ -352,6 +368,10 @@ module Update_kind = struct
   let naked_float32s = { kind = Naked_float32; stride = 4 }
 
   let naked_vec128s = { kind = Naked_vec128; stride = 16 }
+
+  let naked_int8_fields = { kind = Naked_int8; stride = Arch.size_addr }
+
+  let naked_int16_fields = { kind = Naked_int16; stride = Arch.size_addr }
 
   let naked_int32_fields = { kind = Naked_int32; stride = Arch.size_addr }
 
@@ -377,8 +397,8 @@ let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var
         | Immediate ->
           (* See [caml_initialize]; we can avoid this function in this case. *)
           None
-        | Naked_int32 | Naked_int64 | Naked_float | Naked_float32 | Naked_vec128
-          ->
+        | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_float
+        | Naked_float32 | Naked_vec128 ->
           (* The GC never sees these fields, so we can avoid using
              [caml_initialize]. This is important as it significantly reduces
              the complexity of the statically-allocated inconstant unboxed int32
@@ -394,6 +414,11 @@ let make_update env res dbg ({ kind; stride } : Update_kind.t) ~symbol var
         match kind with
         | Pointer -> Word_val
         | Immediate -> Word_int
+        | Naked_int8 | Naked_int16 ->
+          (* CR layouts v5.1: we only support small integers in being
+             sign-extended in word fields *)
+          assert (stride = Arch.size_addr);
+          Word_int
         | Naked_int32 ->
           (* Cmm expressions representing int32 values are always sign extended.
              By using [Word_int] in the "fields" cases (see [Update_kind],

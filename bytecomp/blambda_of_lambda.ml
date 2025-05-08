@@ -182,7 +182,9 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
         Blambda.primitive =
       let suffix =
         match index_kind with
-        | Ptagged_int_index -> ""
+        | Ptagged_int_index | Punboxed_int_index (Unboxed_int16 | Unboxed_int8)
+          ->
+          ""
         | Punboxed_int_index Unboxed_int64 -> "_indexed_by_int64"
         | Punboxed_int_index Unboxed_int32 -> "_indexed_by_int32"
         | Punboxed_int_index Unboxed_nativeint -> "_indexed_by_nativeint"
@@ -193,7 +195,7 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
     | Popaque _ | Pobj_magic _
     | Pbox_float ((Boxed_float64 | Boxed_float32), _)
     | Punbox_float (Boxed_float64 | Boxed_float32)
-    | Pbox_int _ | Punbox_int _ -> (
+    | Pbox_int _ | Punbox_int _ | Ptag_int _ | Puntag_int _ -> (
       match args with
       | [arg] ->
         (* in bytecode we only deal with boxed+tagged floats and ints *)
@@ -201,9 +203,7 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
       | [] | _ :: _ :: _ -> wrong_arity ~expected:1)
     | Pignore -> (
       match args with
-      | [arg] ->
-        (* in bytecode we only deal with boxed+tagged floats and ints *)
-        Sequence (comp_arg arg, Const (Const_base (Const_int 0)))
+      | [arg] -> Sequence (comp_arg arg, Const (Const_base (Const_int 0)))
       | [] | _ :: _ :: _ -> wrong_arity ~expected:1)
     | Pnot -> unary Boolnot
     | Psequand -> (
@@ -285,6 +285,8 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
             "Array kind %s should have been ruled out by the frontend for \
              %%makearray_dynamic_uninit"
             (Printlambda.array_kind kind)
+        | Punboxedintarray (Unboxed_int8 | Unboxed_int16) ->
+          Misc.unboxed_small_int_arrays_are_not_implemented ()
         | Punboxedfloatarray Unboxed_float32 ->
           Lconst (Const_base (Const_float32 "0.0"))
         | Punboxedfloatarray Unboxed_float64 ->
@@ -299,6 +301,8 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
               (ign : Lambda.ignorable_product_element_kind) : Lambda.lambda =
             match ign with
             | Pint_ignorable -> Lconst (Const_base (Const_int 0))
+            | Punboxedint_ignorable (Unboxed_int8 | Unboxed_int16) ->
+              Misc.unboxed_small_int_arrays_are_not_implemented ()
             | Punboxedfloat_ignorable Unboxed_float32 ->
               Lconst (Const_base (Const_float32 "0.0"))
             | Punboxedfloat_ignorable Unboxed_float64 ->
