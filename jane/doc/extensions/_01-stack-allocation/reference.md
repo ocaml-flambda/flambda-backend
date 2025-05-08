@@ -799,7 +799,7 @@ let f : int -> int -> int = stack_ fun a b -> a + b + !counter in
 
 Both define a closure which accepts two integers and returns an integer. The
 closure must be local, since it refers to the local value `counter`. In the
-former definition, the type of the function appears under the `stack_` keyword,
+former definition, the type of the function appears under the `local_` keyword,
 and as described above is interpreted as:
 
 ```ocaml
