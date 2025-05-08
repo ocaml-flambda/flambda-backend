@@ -40,7 +40,8 @@ module Transled_modifiers : sig
       statefulness : Mode.Statefulness.Const.t Location.loc option;
       visibility : Mode.Visibility.Const.t Location.loc option;
       externality : Jkind_axis.Externality.t Location.loc option;
-      nullability : Jkind_axis.Nullability.t Location.loc option
+      nullability : Jkind_axis.Nullability.t Location.loc option;
+      separability : Jkind_axis.Separability.t Location.loc option
     }
 
   val empty : t

@@ -76,6 +76,12 @@ module Axis_pair = struct
     | "read" -> Any_axis_pair (Modal (Monadic Visibility), Visibility.Const.Read)
     | "read_write" ->
       Any_axis_pair (Modal (Monadic Visibility), Visibility.Const.Read_write)
+    | "non_separable" ->
+      Any_axis_pair (Nonmodal Separability, Separability.Non_separable)
+    | "separable" ->
+      Any_axis_pair (Nonmodal Separability, Separability.Separable)
+    | "non_float" ->
+      Any_axis_pair (Nonmodal Separability, Separability.Non_float)
     | "everything" -> Everything_but_nullability
     | _ -> raise Not_found
 end
@@ -111,7 +117,8 @@ module Transled_modifiers = struct
       statefulness : Mode.Statefulness.Const.t Location.loc option;
       visibility : Mode.Visibility.Const.t Location.loc option;
       externality : Jkind_axis.Externality.t Location.loc option;
-      nullability : Jkind_axis.Nullability.t Location.loc option
+      nullability : Jkind_axis.Nullability.t Location.loc option;
+      separability : Jkind_axis.Separability.t Location.loc option
     }
 
   let empty =
@@ -124,7 +131,8 @@ module Transled_modifiers = struct
       statefulness = None;
       visibility = None;
       externality = None;
-      nullability = None
+      nullability = None;
+      separability = None
     }
 
   let get (type a) ~(axis : a Axis.t) (t : t) : a Location.loc option =
@@ -139,6 +147,7 @@ module Transled_modifiers = struct
     | Modal (Monadic Visibility) -> t.visibility
     | Nonmodal Externality -> t.externality
     | Nonmodal Nullability -> t.nullability
+    | Nonmodal Separability -> t.separability
 
   let set (type a) ~(axis : a Axis.t) (t : t) (value : a Location.loc option) :
       t =
@@ -153,6 +162,7 @@ module Transled_modifiers = struct
     | Modal (Monadic Visibility) -> { t with visibility = value }
     | Nonmodal Externality -> { t with externality = value }
     | Nonmodal Nullability -> { t with nullability = value }
+    | Nonmodal Separability -> { t with separability = value }
 end
 
 let transl_modifier_annots annots =
@@ -188,7 +198,10 @@ let transl_modifier_annots annots =
           statefulness = Some { txt = Statefulness.Const.min; loc };
           visibility = Some { txt = Visibility.Const_op.min; loc };
           nullability =
-            Transled_modifiers.get ~axis:(Nonmodal Nullability) modifiers_so_far
+            Transled_modifiers.get ~axis:(Nonmodal Nullability) modifiers_so_far;
+          separability =
+            Transled_modifiers.get ~axis:(Nonmodal Separability)
+              modifiers_so_far
         }
   in
   let empty_modifiers = Transled_modifiers.empty in
