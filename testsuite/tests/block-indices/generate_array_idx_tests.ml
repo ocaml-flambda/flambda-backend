@@ -297,37 +297,42 @@ let test_array_idx_get_and_set ~local ty =
   for_i_below_size ~debug_exprs (fun ~debug_exprs ->
       List.iter (Type.unboxed_paths_by_depth ty)
         ~f:(fun (depth, unboxed_paths) ->
-          line "(* Paths of depth %d *)" depth;
-          line "let el = get a i in";
-          line "let next_el = mk_value (i + 100 * %d) in" depth;
-          List.iter unboxed_paths ~f:(fun unboxed_path ->
-              line "(* %s *)" (Path.to_string unboxed_path);
-              let reference_update =
-                (* To perform our reference update (without block indices) to
-                   [el.#x.#y.#z], we generate [#{ el with x = #{ el.#x with y =
-                   #{ el.#x.#y with z = next_el.#x.#y.#z } } }] *)
-                let rec f (rev_path : Path.t) new_val =
-                  match rev_path with
-                  | [] -> new_val
-                  | Field _ :: _ -> assert false
-                  | Unboxed_field s :: rest ->
-                    let new_val =
-                      sprintf "#{ el%s with %s = %s }"
-                        (Path.to_string (List.rev rest))
-                        s new_val
-                    in
-                    f rest new_val
+          if depth = 0
+          then ()
+          else (
+            line "(* Paths of depth %d *)" depth;
+            line "let el = get a i in";
+            line "let next_el = mk_value (i + 100 * %d) in" depth;
+            List.iter unboxed_paths ~f:(fun unboxed_path ->
+                line "(* %s *)" (Path.to_string unboxed_path);
+                let reference_update =
+                  (* To perform our reference update (without block indices) to
+                     [el.#x.#y.#z], we generate [#{ el with x = #{ el.#x with y
+                     = #{ el.#x.#y with z = next_el.#x.#y.#z } } }] *)
+                  let rec f (rev_path : Path.t) new_val =
+                    match rev_path with
+                    | [] -> new_val
+                    | Field _ :: _ -> assert false
+                    | Unboxed_field s :: rest ->
+                      let new_val =
+                        sprintf "#{ el%s with %s = %s }"
+                          (Path.to_string (List.rev rest))
+                          s new_val
+                      in
+                      f rest new_val
+                  in
+                  f (List.rev unboxed_path)
+                    (sprintf "next_el%s" (Path.to_string unboxed_path))
                 in
-                f (List.rev unboxed_path)
-                  (sprintf "next_el%s" (Path.to_string unboxed_path))
-              in
-              line "let el = %s in" reference_update;
-              line "set_idx_mut a ((.(i)%s) : (%s array, _) idx_mut) next_el%s;"
-                (Path.to_string unboxed_path)
-                (Type.code ty)
-                (Path.to_string unboxed_path);
-              (* CR rtjoa: need anothe assert here *)
-              seq_assert ~debug_exprs "eq (get_idx_mut a (.(i))) el"
+                line "let el = %s in" reference_update;
+                line
+                  "set_idx_mut a ((.(i)%s) : (%s array, _) idx_mut) next_el%s;"
+                  (Path.to_string unboxed_path)
+                  (Type.code ty)
+                  (Path.to_string unboxed_path);
+                (* CR rtjoa: need anothe assert here *)
+                seq_assert ~debug_exprs "eq (get_idx_mut a (.(i))) el"
+            )
           )
       );
       line "()"
@@ -341,8 +346,7 @@ let take_n l n =
   |> List.partition_map ~f:(fun (i, x) -> if i < n then Left x else Right x)
 
 let test_array_idx_deepening ty =
-  (* Include the empty unboxed path to test the "identity" deepening *)
-  let unboxed_paths_by_depth = (0, [[]]) :: Type.unboxed_paths_by_depth ty in
+  let unboxed_paths_by_depth = Type.unboxed_paths_by_depth ty in
   let debug_exprs = [] in
   let ty_array_s = Type.code ty ^ " array" in
   type_section ty;
@@ -382,7 +386,7 @@ let test_record_idx_get_and_set ty ~local =
       List.iter (Type.unboxed_paths_by_depth fld_t)
         ~f:(fun (depth, unboxed_paths) ->
           line "(* Paths of depth %d *)" depth;
-          line "let next_r = %s in" (Type.value_code ty (100 * depth));
+          line "let next_r = %s in" (Type.value_code ty (100 * (depth + 1)));
           List.iter unboxed_paths ~f:(fun unboxed_path ->
               line "(* .%s%s *)" lbl (Path.to_string unboxed_path);
               let full_path = Path.Field lbl :: unboxed_path in
