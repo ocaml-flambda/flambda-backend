@@ -1,4 +1,4 @@
-let $camlTests6__first_const25 = Block 0 () in
+let $camlTests6__first_const23 = Block 0 () in
 let code rec size(24)
       f_0 (x : imm tagged)
         my_closure my_region my_ghost_region my_depth

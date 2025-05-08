@@ -454,6 +454,8 @@ val tagged_immediate_alias_to : naked_immediate:Variable.t -> t
 
 val tag_immediate : t -> t
 
+val untag_immediate : t -> t
+
 val any_block : t
 
 (** The type of an immutable block with a known tag, size and field types. *)

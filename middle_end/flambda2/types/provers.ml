@@ -298,6 +298,15 @@ let meet_equals_single_tagged_immediate env t : _ meet_shortcut =
   | Need_meet -> Need_meet
   | Invalid -> Invalid
 
+let meet_single_naked_immediate env t : _ meet_shortcut =
+  match meet_naked_immediates env t with
+  | Known_result imms -> (
+    match Targetint_31_63.Set.get_singleton imms with
+    | Some imm -> Known_result imm
+    | None -> Need_meet)
+  | Need_meet -> Need_meet
+  | Invalid -> Invalid
+
 type _ meet_naked_number_kind =
   | Float32 : Float32.Set.t meet_naked_number_kind
   | Float : Float.Set.t meet_naked_number_kind

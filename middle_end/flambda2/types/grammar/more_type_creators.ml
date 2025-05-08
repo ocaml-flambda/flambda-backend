@@ -448,50 +448,50 @@ let rec unknown_with_subkind ?(alloc_mode = Alloc_mode.For_types.unknown ())
         Ok
           (mutable_array_non_null
              ~element_kind:(Ok Flambda_kind.With_subkind.naked_float)
-             ~length:any_tagged_immediate alloc_mode)
+             ~length:TG.any_naked_immediate alloc_mode)
       | Unboxed_float32_array ->
         Ok
           (mutable_array_non_null
              ~element_kind:(Ok Flambda_kind.With_subkind.naked_float32)
-             ~length:any_tagged_immediate alloc_mode)
+             ~length:TG.any_naked_immediate alloc_mode)
       | Unboxed_int32_array ->
         Ok
           (mutable_array_non_null
              ~element_kind:(Ok Flambda_kind.With_subkind.naked_int32)
-             ~length:any_tagged_immediate alloc_mode)
+             ~length:TG.any_naked_immediate alloc_mode)
       | Unboxed_int64_array ->
         Ok
           (mutable_array_non_null
              ~element_kind:(Ok Flambda_kind.With_subkind.naked_int64)
-             ~length:any_tagged_immediate alloc_mode)
+             ~length:TG.any_naked_immediate alloc_mode)
       | Unboxed_nativeint_array ->
         Ok
           (mutable_array_non_null
              ~element_kind:(Ok Flambda_kind.With_subkind.naked_nativeint)
-             ~length:any_tagged_immediate alloc_mode)
+             ~length:TG.any_naked_immediate alloc_mode)
       | Unboxed_vec128_array ->
         Ok
           (mutable_array_non_null
              ~element_kind:(Ok Flambda_kind.With_subkind.naked_vec128)
-             ~length:any_tagged_immediate alloc_mode)
+             ~length:TG.any_naked_immediate alloc_mode)
       | Unboxed_product_array ->
         Ok
           (mutable_array_non_null ~element_kind:Unknown
-             ~length:any_tagged_immediate alloc_mode)
+             ~length:TG.any_naked_immediate alloc_mode)
       | Immediate_array ->
         Ok
           (mutable_array_non_null
              ~element_kind:(Ok Flambda_kind.With_subkind.tagged_immediate)
-             ~length:any_tagged_immediate alloc_mode)
+             ~length:TG.any_naked_immediate alloc_mode)
       | Value_array ->
         Ok
           (mutable_array_non_null
              ~element_kind:(Ok Flambda_kind.With_subkind.any_value)
-             ~length:any_tagged_immediate alloc_mode)
+             ~length:TG.any_naked_immediate alloc_mode)
       | Generic_array ->
         Ok
           (mutable_array_non_null ~element_kind:Unknown
-             ~length:any_tagged_immediate alloc_mode)
+             ~length:TG.any_naked_immediate alloc_mode)
     in
     let is_null : TG.is_null =
       match Flambda_kind.With_subkind.nullable kind with

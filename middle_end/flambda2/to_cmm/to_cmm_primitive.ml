@@ -67,7 +67,7 @@ let box_number ~dbg kind alloc_mode arg =
     let primitive_kind = K.Boxable_number.primitive_kind kind in
     C.box_int_gen dbg primitive_kind alloc_mode arg
 
-(* Block creation and access. For these functions, [index] is a tagged
+(* Block creation and access. For these functions, [index] is an untagged
    integer. *)
 
 (* Blocks of size 0 (i.e. with an empty list of fields) must have a black
@@ -138,11 +138,11 @@ let block_load ~dbg (kind : P.Block_access_kind.t) (mutability : Mutability.t)
   let mutability = Mutability.to_asttypes mutability in
   let field = Targetint_31_63.to_int field in
   let get_field_computed immediate_or_pointer =
-    let index = C.int_const dbg field in
+    let index = C.int ~dbg field in
     C.get_field_computed immediate_or_pointer mutability ~block ~index dbg
   in
   let get_field_unboxed memory_chunk ~offset_in_words =
-    let index_in_words = C.int_const dbg offset_in_words in
+    let index_in_words = C.int ~dbg offset_in_words in
     C.get_field_unboxed ~dbg memory_chunk mutability block ~index_in_words
   in
   match kind with
@@ -165,7 +165,7 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
     (let init_or_assign = P.Init_or_assign.to_lambda init in
      let field = Targetint_31_63.to_int field in
      let setfield_computed is_ptr =
-       let index = C.int_const dbg field in
+       let index = C.int ~dbg field in
        C.setfield_computed is_ptr init_or_assign block index new_value dbg
      in
      match kind with
@@ -176,7 +176,7 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
      | Values { field_kind = Immediate; _ } ->
        setfield_computed Immediate
      | Naked_floats _ ->
-       let index = C.int_const dbg field in
+       let index = C.int ~dbg field in
        C.float_array_set block index new_value dbg
      | Mixed { field_kind = Flat_suffix field_kind; shape; _ } ->
        let index_in_words =
@@ -185,10 +185,10 @@ let block_set ~dbg (kind : P.Block_access_kind.t) (init : P.Init_or_assign.t)
        C.set_field_unboxed ~dbg
          (memory_chunk_of_flat_suffix_element field_kind)
          block
-         ~index_in_words:(C.int_const dbg index_in_words)
+         ~index_in_words:(C.int ~dbg index_in_words)
          new_value)
 
-(* Array creation and access. For these functions, [index] is a tagged
+(* Array creation and access. For these functions, [index] is an untagged
    integer. *)
 
 let make_non_scannable_unboxed_product_array ~dbg kind mode args =
@@ -252,7 +252,7 @@ let array_length ~dbg arr (kind : P.Array_kind.t) =
        arrays of unboxed products are not packed in any way (e.g. int32#
        elements occupy 64 bits). *)
     assert (C.wordsize_shift = C.numfloat_shift);
-    C.addr_array_length arr dbg
+    C.get_size arr dbg
   | Naked_float32s -> C.unboxed_float32_array_length arr dbg
   | Naked_int32s -> C.unboxed_int32_array_length arr dbg
   | Naked_int64s | Naked_nativeints ->
@@ -262,9 +262,7 @@ let array_length ~dbg arr (kind : P.Array_kind.t) =
   | Naked_vec128s -> C.unboxed_vec128_array_length arr dbg
 
 let array_load_128 ~dbg ~element_width_log2 ~has_custom_ops arr index =
-  let index =
-    C.lsl_int (C.untag_int index dbg) (Cconst_int (element_width_log2, dbg)) dbg
-  in
+  let index = C.lsl_int index (Cconst_int (element_width_log2, dbg)) dbg in
   let index =
     (* Skip custom_ops pointer *)
     if has_custom_ops
@@ -274,9 +272,7 @@ let array_load_128 ~dbg ~element_width_log2 ~has_custom_ops arr index =
   C.unaligned_load_128 arr index dbg
 
 let array_set_128 ~dbg ~element_width_log2 ~has_custom_ops arr index new_value =
-  let index =
-    C.lsl_int (C.untag_int index dbg) (Cconst_int (element_width_log2, dbg)) dbg
-  in
+  let index = C.lsl_int index (Cconst_int (element_width_log2, dbg)) dbg in
   let index =
     (* Skip custom_ops pointer *)
     if has_custom_ops
@@ -440,8 +436,8 @@ let array_set ~dbg array_kind set_kind ~arr ~index ~new_value =
   array_set0 ~dbg array_kind set_kind ~arr ~index ~new_value
   |> C.return_unit dbg
 
-(* Bigarrays. For these functions, [index] is a tagged integer, representing the
-   desired position in the bigarray in units of the [elt_size] (so not
+(* Bigarrays. For these functions, [index] is an untagged integer, representing
+   the desired position in the bigarray in units of the [elt_size] (so not
    necessarily in bytes, words, etc). *)
 
 let bigarray_load_or_store ~dbg kind ~bigarray ~index f =
