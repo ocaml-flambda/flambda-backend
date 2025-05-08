@@ -476,8 +476,11 @@ and expression_desc =
          *)
   | Pexp_send of expression * label loc  (** [E # m] *)
   | Pexp_new of Longident.t loc  (** [new M.c] *)
-    (* jra: should this be renamed? Both mutable vars and instance vars use this syntax *)
-  | Pexp_setinstvar of label loc * expression  (** [x <- 2] *)
+  | Pexp_setvar of label loc * expression
+      (** [x <- 2]
+
+           Represents both setting an instance variable
+           and setting a mutable variable. *)
   | Pexp_override of (label loc * expression) list
       (** [{< x1 = E1; ...; xn = En >}] *)
   | Pexp_letmodule of string option loc * module_expr * expression

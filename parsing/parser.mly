@@ -707,7 +707,8 @@ let expr_of_let_bindings ~loc lbs body =
           ?value_constraint:lb.lb_constraint  lb.lb_pattern lb.lb_expression)
       lbs.lbs_bindings
   in
-    mkexp_attrs ~loc (Pexp_let(lbs.lbs_mutable, lbs.lbs_rec, List.rev bindings, body))
+    mkexp_attrs ~loc
+      (Pexp_let(lbs.lbs_mutable, lbs.lbs_rec, List.rev bindings, body))
       (lbs.lbs_extension, [])
 
 let class_of_let_bindings ~loc lbs body =
@@ -2812,7 +2813,7 @@ fun_expr:
       { mkexp_cons ~loc:$sloc $loc($2)
           (ghexp ~loc:$sloc (Pexp_tuple[None, $1;None, $3])) }
   | mkrhs(label) LESSMINUS expr
-      { mkexp ~loc:$sloc (Pexp_setinstvar($1, $3)) }
+      { mkexp ~loc:$sloc (Pexp_setvar($1, $3)) }
   | simple_expr DOT mkrhs(label_longident) LESSMINUS expr
       { mkexp ~loc:$sloc (Pexp_setfield($1, $3, $5)) }
   | indexop_expr(DOT, seq_expr, LESSMINUS v=expr {Some v})

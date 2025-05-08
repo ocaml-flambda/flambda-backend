@@ -618,7 +618,7 @@ and expression i ppf x =
   | Texp_setinstvar (_, s, _, e) ->
       line i ppf "Texp_setinstvar %a\n" fmt_path s;
       expression i ppf e;
-  | Texp_setmutvar (lid, e) ->
+  | Texp_setmutvar (lid, _, e) ->
       line i ppf "Texp_setmutvar %a\n" fmt_ident lid.txt;
       expression i ppf e;
   | Texp_override (_, l) ->

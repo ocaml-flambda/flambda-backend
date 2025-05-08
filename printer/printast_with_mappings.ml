@@ -422,8 +422,8 @@ and expression i ppf x =
       line i ppf "Pexp_send \"%s\"\n" s.txt;
       expression i ppf e;
   | Pexp_new (li) -> line i ppf "Pexp_new %a\n" fmt_longident_loc li;
-  | Pexp_setinstvar (s, e) ->
-      line i ppf "Pexp_setinstvar %a\n" fmt_string_loc s;
+  | Pexp_setvar (s, e) ->
+      line i ppf "Pexp_setvar %a\n" fmt_string_loc s;
       expression i ppf e;
   | Pexp_override (l) ->
       line i ppf "Pexp_override\n";

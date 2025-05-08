@@ -641,11 +641,11 @@ let expression sub exp =
       Pexp_ident ({loc = sub.location sub id.loc;
                    txt = lident_of_path (Pident id.txt)})
     | Texp_setinstvar (_, _path, lid, exp) ->
-        Pexp_setinstvar (map_loc sub lid, sub.expr sub exp)
-    | Texp_setmutvar(lid, exp) ->
+        Pexp_setvar (map_loc sub lid, sub.expr sub exp)
+    | Texp_setmutvar(lid, _sort, exp) ->
         let lid = {loc = sub.location sub lid.loc;
                    txt = Ident.name lid.txt} in
-        Pexp_setinstvar (lid, sub.expr sub exp)
+        Pexp_setvar (lid, sub.expr sub exp)
     | Texp_override (_, list) ->
         Pexp_override (List.map (fun (_path, lid, exp) ->
               (map_loc sub lid, sub.expr sub exp)

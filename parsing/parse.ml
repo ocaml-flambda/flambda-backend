@@ -180,10 +180,12 @@ let prepare_error err =
         "Syntax error: Unexpected in module instance"
   | Let_mutable_not_allowed_at_structure_level loc ->
       Location.errorf ~loc
-        "Syntax error: Mutable let bindings are not allowed at the structure level"
+        "Syntax error: Mutable let bindings are not allowed \
+         at the structure level"
   | Let_mutable_not_allowed_in_class_definition loc ->
       Location.errorf ~loc
-        "Syntax error: Mutable let bindings are not allowed inside class definitions"
+        "Syntax error: Mutable let bindings are not allowed \
+         inside class definitions"
 
 let () =
   Location.register_error_of_exn

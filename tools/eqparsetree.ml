@@ -735,7 +735,7 @@ and eq_expression_desc :
       (eq_expression (a0, b0)) && (eq_string (a1, b1))
   | (Pexp_new a0, Pexp_new b0) ->
       Asttypes.eq_loc Longident.eq_t (a0, b0)
-  | (Pexp_setinstvar (a0, a1), Pexp_setinstvar (b0, b1)) ->
+  | (Pexp_setvar (a0, a1), Pexp_setvar (b0, b1)) ->
       (Asttypes.eq_loc eq_string (a0, b0)) &&
         (eq_expression (a1, b1))
   | (Pexp_override a0, Pexp_override b0) ->

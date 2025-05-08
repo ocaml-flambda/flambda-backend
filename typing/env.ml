@@ -3300,7 +3300,11 @@ let walk_locks ~errors ~loc ~env ~item ~lid mode ty locks =
 let lookup_ident_value ~errors ~use ~loc name env =
   match IdTbl.find_name_and_locks wrap_value ~mark:use name env.values with
   | Ok (_, locks, Val_bound {vda_description={val_kind=Val_mut}})
-    when List.exists (function Closure_lock _ | Escape_lock _ -> true | _ -> false) locks ->
+         (* jra: move when clause to separate function *)
+         (* jra: expand _ -> false *)
+    when List.exists
+         (function Closure_lock _ | Escape_lock _ -> true | _ -> false)
+         locks ->
       may_lookup_error errors loc env (Mutable_value_used_in_closure name)
   | Ok (path, locks, Val_bound vda) ->
       use_value ~use ~loc path vda;
@@ -4046,20 +4050,25 @@ let lookup_settable_variable ?(use=true) ~loc name env =
       match desc.val_kind, path with
       | Val_ivar(mut, cl_num), _ ->
           use_value ~use ~loc path vda;
-          Instance_variable (path, mut, cl_num, Subst.Lazy.force_type_expr desc.val_type)
+          Instance_variable
+            (path, mut, cl_num, Subst.Lazy.force_type_expr desc.val_type)
       | Val_mut, Pident id ->
-          let rec mode_of_locks mode = function (* jra: surely this is incorrect *)
+          let rec mode_of_locks mode = function
+          (* jra: surely this is incorrect *)
           | [] -> mode
           | Closure_lock _ :: _ | Escape_lock _ :: _ ->
             lookup_error loc env (Mutable_value_used_in_closure (Ident.name id))
           | Region_lock :: locks ->
             mode_of_locks
-              (Mode.Value.max_with (Comonadic Areality) Mode.Regionality.global) locks
+              (Mode.Value.max_with (Comonadic Areality) Mode.Regionality.global)
+              locks
           | Exclave_lock :: locks  ->
             mode_of_locks (Mode.Value.disallow_left Mode.Value.max) locks
           | _ :: locks -> mode_of_locks mode locks
           in
-          let mode = mode_of_locks (Mode.Value.disallow_left Mode.Value.max) locks in
+          let mode =
+            mode_of_locks (Mode.Value.disallow_left Mode.Value.max) locks
+          in
           use_value ~use ~loc path vda;
           Mutable_variable (id, mode, Subst.Lazy.force_type_expr desc.val_type)
       | Val_mut, _ -> assert false
@@ -4531,7 +4540,8 @@ let report_lookup_error _loc env ppf = function
         (Style.as_inline_code !print_longident) lid;
       spellcheck ppf extract_cltypes env lid
   | Unbound_settable_variable s ->
-      fprintf ppf "Unbound instance variable or mutable variable %a" Style.inline_code s;
+      fprintf ppf "Unbound instance variable or mutable variable %a"
+        Style.inline_code s;
       spellcheck_name ppf extract_settable_variables env s
   | Not_a_settable_variable s ->
       fprintf ppf "The value %a is not an instance variable or mutable variable"

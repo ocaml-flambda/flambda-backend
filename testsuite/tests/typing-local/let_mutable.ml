@@ -1,5 +1,6 @@
 (* TEST
    flags = "-extension let_mutable";
+   include stdlib_upstream_compatible;
    expect; *)
 
 (* Test 1: basic usage in a for loop *)
@@ -279,12 +280,83 @@ type t_12 = Foo_12 of int
 val y_12 : t_12 = Foo_12 42
 |}]
 
-(* Test 13: disallow modes? *)
-let u_13 y = let x @ unique = y in x;;
+(* Test 13: modes? *)
+let reset_ref (x @ unique) = x := 0;;
 
-let f_13 y z = let mutable x @ unique = y in
-  x <- z;
-  u_13 x
+let x_13 =
+  let y = ref 3 in
+  let mutable x @ unique = { contents = 1 } in
+  x <- y;
+  reset_ref x;
+  !y
 ;;
 [%%expect{|
+|}]
+
+(* Test 14: mutable functions *)
+let x_14 =
+  let mutable f = fun x -> 2*x in
+  let y = f 1 in
+  f <- (fun x -> 3*x);
+  let z = f 10 in
+  y + z
+;;
+[%%expect{|
+val x_14 : int = 32
+|}]
+
+(* Test 15: mutable unboxed floats *)
+let r_15 =
+  let open Stdlib_upstream_compatible.Float_u in
+  let mutable r = #1.0 in
+  for i = 1 to 10 do
+    r <- div r #2.0
+  done;
+  to_float r
+;;
+[%%expect{|
+val r_15 : float = 0.0009765625
+|}]
+
+(* Test 16: mutable variables must be representable *)
+type t_16 : any;;
+let f_16 () = let mutable x = (assert false : t_16) in ();;
+[%%expect{|
+type t_16 : any
+Line 2, characters 30-51:
+2 | let f_16 () = let mutable x = (assert false : t_16) in ();;
+                                  ^^^^^^^^^^^^^^^^^^^^^
+Error: This expression has type "t_16" but an expression was expected of type
+         "('a : '_representable_layout_1)"
+       The layout of t_16 is any
+         because of the definition of t_16 at line 1, characters 0-15.
+       But the layout of t_16 must be representable
+         because it's the type of a variable bound by a `let`.
+|}, Principal{|
+type t_16 : any
+Line 2, characters 26-27:
+2 | let f_16 () = let mutable x = (assert false : t_16) in ();;
+                              ^
+Error: This pattern matches values of type "t_16"
+       but a pattern was expected which matches values of type
+         "('a : '_representable_layout_1)"
+       The layout of t_16 is any
+         because of the definition of t_16 at line 1, characters 0-15.
+       But the layout of t_16 must be representable
+         because it's the type of a variable bound by a `let`.
+|}]
+
+(* Test 17: mutable variables can't change type *)
+let x_17 =
+  let mutable x = 3.0 in
+  x <- 3;
+  x
+;;
+[%%expect{|
+Line 3, characters 7-8:
+3 |   x <- 3;
+           ^
+Error: This expression has type "int" but an expression was expected of type
+         "float"
+  Hint: Did you mean "3."?
 |}]

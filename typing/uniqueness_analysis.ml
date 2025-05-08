@@ -2340,7 +2340,7 @@ let rec check_uniqueness_exp ~overwrite (ienv : Ienv.t) exp : UF.t =
   | Texp_instvar _ -> UF.unused
   | Texp_mutvar _ -> UF.unused
   | Texp_setinstvar (_, _, _, e) -> check_uniqueness_exp ~overwrite:None ienv e
-  | Texp_setmutvar (_, e) -> check_uniqueness_exp ~overwrite:None ienv e
+  | Texp_setmutvar (_, _, e) -> check_uniqueness_exp ~overwrite:None ienv e
   | Texp_override (_, ls) ->
     UF.pars
       (List.map

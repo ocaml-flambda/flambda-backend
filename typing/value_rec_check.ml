@@ -901,7 +901,7 @@ let rec expression : Typedtree.expression -> term_judg =
         path pth << Dereference;
         expression e << Dereference;
       ]
-    | Texp_setmutvar (_id,e) ->
+    | Texp_setmutvar (_id,_sort,e) ->
       (*
         G |- e: m[Dereference]
         ----------------------

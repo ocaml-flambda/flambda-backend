@@ -508,7 +508,7 @@ module E = struct
       sub.modes sub m
     | Pexp_send (e, _s) -> sub.expr sub e
     | Pexp_new lid -> iter_loc sub lid
-    | Pexp_setinstvar (s, e) ->
+    | Pexp_setvar (s, e) ->
         iter_loc sub s; sub.expr sub e
     | Pexp_override sel ->
         List.iter (iter_tuple (iter_loc sub) (sub.expr sub)) sel

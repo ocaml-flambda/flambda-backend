@@ -423,7 +423,7 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
   | Texp_setinstvar (_, _, s, exp) ->
       iter_loc sub s;
       sub.expr sub exp
-  | Texp_setmutvar (id, exp) ->
+  | Texp_setmutvar (id, _, exp) ->
       iter_loc sub id;
       sub.expr sub exp
   | Texp_override (_, list) ->

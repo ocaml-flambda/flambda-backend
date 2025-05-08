@@ -579,8 +579,8 @@ let expr sub x =
           map_loc sub id,
           sub.expr sub exp
         )
-    | Texp_setmutvar (id, exp) ->
-        Texp_setmutvar (map_loc sub id, sub.expr sub exp)
+    | Texp_setmutvar (id, sort, exp) ->
+        Texp_setmutvar (map_loc sub id, sort, sub.expr sub exp)
     | Texp_override (path, list) ->
         Texp_override (
           path,

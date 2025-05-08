@@ -445,7 +445,7 @@ module Vars = Misc.Stdlib.String.Map
 
 type value_kind =
     Val_reg                             (* Regular value *)
-  | Val_mut                             (* Mutable value (let mutable x = ...) *)
+  | Val_mut                             (* Mutable value (let mutable x = ..) *)
   | Val_prim of Primitive.description   (* Primitive *)
   | Val_ivar of mutable_flag * string   (* Instance variable (mutable ?) *)
   | Val_self of

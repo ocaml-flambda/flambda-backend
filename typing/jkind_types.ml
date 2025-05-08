@@ -138,8 +138,6 @@ module Sort = struct
 
     let for_instance_var = value
 
-    let for_mutable_var = value
-
     let for_class_arg = value
 
     let for_method = value

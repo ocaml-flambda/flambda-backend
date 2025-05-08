@@ -1157,7 +1157,7 @@ type pattern_variable =
     pv_id: Ident.t;
     pv_uid: Uid.t;
     pv_mode: Value.l;
-    (* jra: I don't fully understand the difference between mutable_flag and mutability *)
+    (* jra: use mutability *)
     pv_mutable: mutable_flag;
     pv_type: type_expr;
     pv_loc: Location.t;
@@ -1263,7 +1263,6 @@ let iter_pattern_variables_type_mut ~f_immut ~f_mut pvs =
 
 let add_pattern_variables ?check ?check_as env pv =
   List.fold_right
-    (* jra: should this be modified? *)
     (fun {pv_id; pv_mode; pv_type; pv_loc; pv_as_var;
           pv_mutable; pv_attributes; pv_uid} env ->
        let check = if pv_as_var then check_as else check in
@@ -1975,8 +1974,8 @@ let type_for_loop_index ~loc ~env ~param =
             let pv_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
             let pv =
               { pv_id; pv_uid; pv_mode=Value.disallow_right pv_mode;
-                pv_mutable=Immutable; pv_type; pv_loc; pv_as_var; pv_attributes }
-              (* jra: is this right? See add_pattern_variables# *)
+                pv_mutable=Immutable; pv_type; pv_loc; pv_as_var;
+                pv_attributes }
             in
             (pv_id, pv_uid), add_pattern_variables ~check ~check_as:check env [pv])
 
@@ -1997,12 +1996,12 @@ let type_comprehension_for_range_iterator_index ~loc ~env ~param tps =
             pv_loc
             name
             pv_mode
-            Immutable (* jr: is this right? *)
+            Immutable
             pv_type
             pv_attributes)
 
-let value_bindings_mutability (mutable_flag : mutable_flag) env ?restriction vbs =
-  match vbs, mutable_flag with
+let value_bindings_mutability (mf : mutable_flag) env ?restriction vbs =
+  match vbs, mf with
   | vb :: vbs, Mutable -> begin
       let loc = vb.pvb_pat.ppat_loc in
       (* If mutable attribute is present, check:
@@ -2652,7 +2651,8 @@ let rec type_pat
       alloc_mode:expected_pat_mode -> mutable_flag:_ ->
       penv: Pattern_env.t -> Parsetree.pattern -> type_expr ->
       k general_pattern
-  = fun tps category ~no_existentials ~alloc_mode ~mutable_flag ~penv sp expected_ty ->
+  = fun tps category ~no_existentials ~alloc_mode ~mutable_flag ~penv sp
+      expected_ty ->
   Builtin_attributes.warning_scope sp.ppat_attributes
     (fun () ->
        type_pat_aux tps category ~no_existentials
@@ -2856,7 +2856,8 @@ and type_pat_aux
         cross_left !!penv expected_ty alloc_mode.mode
       in
       let id, uid =
-        enter_variable tps loc name alloc_mode mutable_flag ty sp.ppat_attributes
+        enter_variable tps loc name alloc_mode mutable_flag ty
+          sp.ppat_attributes
       in
       rvp {
         pat_desc = Tpat_var (id, name, uid, alloc_mode);
@@ -2898,8 +2899,8 @@ and type_pat_aux
       let ty_var, mode = solve_Ppat_alias ~mode:alloc_mode.mode !!penv q in
       let mode = cross_left !!penv expected_ty mode in
       let id, uid =
-        enter_variable ~is_as_variable:true tps name.loc name mode mutable_flag ty_var
-          sp.ppat_attributes
+        enter_variable ~is_as_variable:true tps name.loc name mode mutable_flag
+          ty_var sp.ppat_attributes
       in
       rvp { pat_desc = Tpat_alias(q, id, name, uid, mode, ty_var);
             pat_loc = loc; pat_extra=[];
@@ -4789,8 +4790,9 @@ let check_partial_application ~statement exp =
                 check e; List.iter (fun {c_rhs; _} -> check c_rhs) cases
             | Texp_ifthenelse (_, e1, Some e2) ->
                 check e1; check e2
-            | Texp_let (_, _, e) | Texp_letmutable(_, e) | Texp_sequence (_, _, e)
-            | Texp_open (_, e) | Texp_letexception (_, e) | Texp_letmodule (_, _, _, _, e)
+            | Texp_let (_, _, e) | Texp_letmutable(_, e)
+            | Texp_sequence (_, _, e) | Texp_open (_, e)
+            | Texp_letexception (_, e) | Texp_letmodule (_, _, _, _, e)
             | Texp_exclave e ->
                 check e
             | Texp_apply _ | Texp_send _ | Texp_new _ | Texp_letop _ ->
@@ -5844,8 +5846,8 @@ and type_expect_
             else Modules_rejected
           in
           let (pat_exp_list, new_env) =
-            type_let existential_context env mutable_flag rec_flag spat_sexp_list
-              allow_modules
+            type_let existential_context env mutable_flag rec_flag
+              spat_sexp_list allow_modules
           in
           let body =
             type_expect
@@ -6480,13 +6482,14 @@ and type_expect_
               exp_attributes = sexp.pexp_attributes;
               exp_env = env }
         end
-  | Pexp_setinstvar (lab, snewval) ->
+  | Pexp_setvar (lab, snewval) ->
       let desc =
         match Env.lookup_settable_variable ~loc lab.txt env with
         | Instance_variable (path,Mutable,cl_num,ty) ->
             let newval =
               type_expect env
-                (mode_default (Mode.Value.max_with (Comonadic Areality) Mode.Regionality.global))
+                (mode_default (Mode.Value.max_with (Comonadic Areality)
+                  Mode.Regionality.global))
                 snewval (mk_expected (instance ty))
             in
             let (path_self, _) =
@@ -6501,7 +6504,19 @@ and type_expect_
                 snewval (mk_expected (instance ty))
             in
             let lid = {txt = id; loc} in
-            Texp_setmutvar(lid, newval)
+            let sort =
+              match
+                Ctype.type_sort ~why:Jkind.History.Mutable_var_assignment
+                  ~fixed:false env newval.exp_type
+              with
+              | Ok sort -> sort
+              | Error _ ->
+                (* unreachable since [x <- e] was already type-checked,
+                   so [e] is representable *)
+                fatal_error "Typecore.type_exp_: \
+                  non-representable mutable variable assignment"
+            in
+            Texp_setmutvar(lid, sort, newval)
       in
       rue {
         exp_desc = desc;
@@ -9326,9 +9341,8 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
           if maybe_expansive exp then lower_contravariant env pat.pat_type)
         mode_pat_typ_list exp_list;
       iter_pattern_variables_type_mut
-        (* CR-someday let_mutable: jkind should be sort *)
         ~f_immut:generalize
-        ~f_mut:(unify_var env (newvar (Jkind.Builtin.value ~why:Mutable_value)))
+        ~f_mut:(unify_var env (newvar (Jkind.Builtin.any ~why:Mutable_value)))
         pvs;
       (* update pattern variable jkind reasons *)
       List.iter
@@ -10136,7 +10150,8 @@ let type_binding env mutable_flag rec_flag ?force_toplevel spat_sexp_list =
 
 let type_let existential_ctx env mutable_flag rec_flag spat_sexp_list =
   let (pat_exp_list, new_env) =
-    type_let existential_ctx env mutable_flag rec_flag spat_sexp_list Modules_rejected
+    type_let existential_ctx env mutable_flag rec_flag spat_sexp_list
+      Modules_rejected
   in
   maybe_check_uniqueness_value_bindings pat_exp_list;
   (pat_exp_list, new_env)

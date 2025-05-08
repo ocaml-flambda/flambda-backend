@@ -1079,7 +1079,7 @@ and expression ctxt f x =
           (list (expression (under_semi ctxt)) ~sep:";@;") lst
     | Pexp_new (li) ->
         pp f "@[<hov2>new@ %a@]" longident_loc li;
-    | Pexp_setinstvar (s, e) ->
+    | Pexp_setvar (s, e) ->
         pp f "@[<hov2>%a@ <-@ %a@]" ident_of_name s.txt (expression ctxt) e
     | Pexp_override l -> (* FIXME *)
         let string_x_expression f (s, e) =

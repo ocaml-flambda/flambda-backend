@@ -279,7 +279,7 @@ and expression_desc =
   | Texp_instvar of Path.t * Path.t * string loc
   | Texp_mutvar of Ident.t loc
   | Texp_setinstvar of Path.t * Path.t * string loc * expression
-  | Texp_setmutvar of Ident.t loc * expression
+  | Texp_setmutvar of Ident.t loc * Jkind.sort * expression
   | Texp_override of Path.t * (Ident.t * string loc * expression) list
   | Texp_letmodule of
       Ident.t option * string option loc * Types.module_presence * module_expr *
