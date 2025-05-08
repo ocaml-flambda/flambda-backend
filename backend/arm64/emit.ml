@@ -613,9 +613,7 @@ let instr_for_int_operation = function
   | Ilsl -> I.LSL
   | Ilsr -> I.LSR
   | Iasr -> I.ASR
-  | Iclz { arg_is_non_zero = _ } -> I.CLZ
-  | Ipopcnt -> I.CNT
-  | Ictz _ | Icomp _ | Imod | Imulh _ -> assert false
+  | Iclz _ | Ictz _ | Ipopcnt | Icomp _ | Imod | Imulh _ -> assert false
 
 (* Decompose an integer constant into four 16-bit shifted fragments. Omit the
    fragments that are equal to "default" (16 zeros or 16 ones). *)
@@ -998,11 +996,12 @@ module BR = Branch_relaxation.Make (struct
     | Lop (Intop Imod) -> 2
     | Lop (Intop (Imulh _)) -> 1
     | Lop (Intop (Iclz _)) -> 1
-    | Lop (Intop (Ictz _)) -> 2
+    | Lop (Intop (Ictz _)) -> if !Arch.feat_cssc then 1 else 2
+    | Lop (Intop Ipopcnt) -> if !Arch.feat_cssc then 1 else 4
     | Lop
         (Intop
-          ( Iadd | Isub | Imul | Idiv | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-          | Ipopcnt )) ->
+          (Iadd | Isub | Imul | Idiv | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr))
+      ->
       1
     | Lop
         (Intop_imm
@@ -1675,18 +1674,30 @@ let emit_instr i =
          DSL.emit_reg i.arg.(0);
          DSL.emit_reg i.arg.(1)
       |]
+  | Lop (Intop Ipopcnt) ->
+    if !Arch.feat_cssc
+    then DSL.ins I.CNT [| DSL.emit_reg i.res.(0); DSL.emit_reg i.arg.(0) |]
+    else
+      let tmp = 7 in
+      let tmp_v8b = Arm64_ast.DSL.reg_v8b tmp in
+      DSL.ins I.FMOV [| Arm64_ast.DSL.reg_d tmp; DSL.emit_reg i.arg.(0) |];
+      DSL.ins I.CNT [| tmp_v8b; tmp_v8b |];
+      DSL.ins I.ADDV [| Arm64_ast.DSL.reg_b tmp; tmp_v8b |];
+      DSL.ins I.FMOV [| DSL.emit_reg i.res.(0); Arm64_ast.DSL.reg_s tmp |]
   | Lop (Intop (Ictz _)) ->
-    (* emit_printf "ctz Rd, Rn" is optionally supported from Armv8.7, but rbit
-       and clz are supported in all ARMv8 CPUs. *)
-    DSL.ins I.RBIT [| DSL.emit_reg i.res.(0); DSL.emit_reg i.arg.(0) |];
-    DSL.ins I.CLZ [| DSL.emit_reg i.res.(0); DSL.emit_reg i.res.(0) |]
-  | Lop (Intop (Iclz _ as op)) ->
-    let instr = instr_for_int_operation op in
-    DSL.ins instr [| DSL.emit_reg i.res.(0); DSL.emit_reg i.arg.(0) |]
+    (* [ctz Rd, Rn] is optionally supported from Armv8.7, but rbit and clz are
+       supported in all ARMv8 CPUs. *)
+    if !Arch.feat_cssc
+    then DSL.ins I.CTZ [| DSL.emit_reg i.res.(0); DSL.emit_reg i.arg.(0) |]
+    else (
+      DSL.ins I.RBIT [| DSL.emit_reg i.res.(0); DSL.emit_reg i.arg.(0) |];
+      DSL.ins I.CLZ [| DSL.emit_reg i.res.(0); DSL.emit_reg i.res.(0) |])
+  | Lop (Intop (Iclz _)) ->
+    DSL.ins I.CLZ [| DSL.emit_reg i.res.(0); DSL.emit_reg i.arg.(0) |]
   | Lop
       (Intop
-        (( Iadd | Isub | Imul | Idiv | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr
-         | Ipopcnt ) as op)) ->
+        ((Iadd | Isub | Imul | Idiv | Iand | Ior | Ixor | Ilsl | Ilsr | Iasr) as
+        op)) ->
     let instr = instr_for_int_operation op in
     DSL.ins instr
       [| DSL.emit_reg i.res.(0);
