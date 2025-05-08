@@ -16,33 +16,60 @@ let interesting_type_trees : Type_structure.t Tree.t list =
   (* There are many possible type trees, exponential in the size of the tree and
      the number of types we consider.
 
-     Here, we strike a balance by combining e.g. a collection of trees with
+     We balance these factors by combining e.g. a collection of trees with
      many/complex shapes but few types and a collection of trees with a few
      shapes but many types. And so on. *)
   let open Type_structure in
-  let deep_trees : unit Tree.t list =
-    [ Branch [Leaf (); Branch [Leaf (); Leaf ()]];
-      Branch [Branch [Leaf (); Leaf ()]; Leaf ()]
-    ]
-  in
-  List.concat_map deep_trees ~f:(fun shape ->
-      Tree.enumerate ~shape ~leaves:[Int64_u; String]
-  )
-  @ List.concat_map (Tree.enumerate_shapes ~max_num_nodes:4) ~f:(fun shape ->
-        Tree.enumerate ~shape ~leaves:[Int; Int64; Int32_u; Float; Int64x2_u]
+  List.concat_map
+    [[Int; Float]; [Int; Int32_u]; [Int; Int64x2_u]]
+    ~f:(fun leaves ->
+      List.concat_map
+        (Tree.enumerate_shapes' ~max_leaves_and_singleton_branches:3)
+        ~f:(fun shape -> Tree.enumerate ~shape ~leaves
+      )
     )
-  @ List.concat_map (Tree.enumerate_shapes ~max_num_nodes:3) ~f:(fun shape ->
+  @ List.concat_map
+      (Tree.enumerate_shapes' ~max_leaves_and_singleton_branches:2)
+      ~f:(fun shape ->
         Tree.enumerate ~shape
           ~leaves:[Int; Int64; Int32_u; Float; Int64_u; Nativeint_u]
     )
-  @ [ Branch
-        [Branch [Leaf Int; Leaf Int64_u]; Branch [Leaf Int64_u; Leaf Float_u]];
+  @ (* Some particular interesting trees *)
+  [ Branch
+      (* Mixed then all flat *)
+      [Branch [Leaf Int64; Leaf Int64_u]; Branch [Leaf Int64_u; Leaf Float_u]];
+    Branch
+      (* Mixed then all values *)
+      [Branch [Leaf Int64_u; Leaf Int64]; Branch [Leaf Int64; Leaf Int64]];
+    Branch
+      (* All values then mixed *)
+      [Branch [Leaf Int64; Leaf String]; Branch [Leaf Int64_u; Leaf String]];
+    Branch
+      (* All flats then mixed *)
+      [Branch [Leaf Float32_u; Leaf Int64_u]; Branch [Leaf String; Leaf Int64_u]];
+    Branch
+      (* Mixed then mixed *)
+      [Branch [Leaf Int64_u; Leaf Int64]; Branch [Leaf Float32_u; Leaf Float]];
+    Branch
       (* An int64x2 that would be reordered to the gap of a "sibling" record *)
-      Branch
-        [Branch [Leaf Int64x2_u; Leaf String]; Branch [Leaf Int64; Leaf Float_u]];
+      [Branch [Leaf Int64x2_u; Leaf String]; Branch [Leaf Int64; Leaf Float_u]];
+    Branch
       (* An int64x2 that would be reordered to the gap of an inner record *)
-      Branch [Leaf Int64x2_u; Branch [Leaf String; Leaf Float_u]]
-    ]
+      [Leaf Int64x2_u; Branch [Leaf String; Leaf Float_u]]
+  ]
+  |> List.sort_uniq ~cmp:(Tree.compare Type_structure.compare)
+
+(* let () =
+ *   let max_num_nodes = 4 in
+ *   Printf.printf "%d\n" max_num_nodes;
+ *   let shapes =
+ *     List.map (Tree.enumerate_shapes ~max_num_nodes) ~f:(fun shape ->
+ *         Tree.to_string (fun () -> "*") shape
+ *     )
+ *     |> List.sort ~cmp:String.compare
+ *   in
+ *   List.iter shapes ~f:print_endline;
+ *   exit 0 *)
 
 let array_element_types : Type_structure.t list =
   List.filter_map interesting_type_trees ~f:Type_structure.array_element

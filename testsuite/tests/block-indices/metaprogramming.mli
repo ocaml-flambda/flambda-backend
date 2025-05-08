@@ -8,11 +8,28 @@ module Tree : sig
     | Branch of 'a t list  (** invariant: nonempty *)
     | Leaf of 'a
 
+  (** Counts both leaves and branches as a node *)
   val enumerate_shapes : max_num_nodes:int -> unit t list
+
+  (** Counts both leaves and branches-with-one-child as a node.
+
+      [enumerate_shapes' ~max_nodes_and_singleton_branches:n] is similar to
+      [enumerate_shapes ~max_num_nodes:(n + 1)] for small [n], but has
+      subjectively more interesting tree shapes.
+
+      For example, let [es4] = [enumerate_shapes ~max_num_nodes:4]
+      and let [es'3] = [enumerate_shapes' ~max_leaves_and_singleton_branches:3].
+      - Both contain the trees [L (L) (LL) (LLL) ((L)) ((L)L) (L(L)) ((LL))].
+      - Only [es4] contains [(((L)))].
+      - Only [es'3] contains [((LL)L) (L(LL))].
+  *)
+  val enumerate_shapes' : max_leaves_and_singleton_branches:int -> unit t list
 
   val enumerate : shape:unit t -> leaves:'a list -> 'a t list
 
   val to_string : ('a -> string) -> 'a t -> string
+
+  val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
 end
 
 module Boxing : sig

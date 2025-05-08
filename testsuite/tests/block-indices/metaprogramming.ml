@@ -86,40 +86,99 @@ module Tree = struct
     | Branch of 'a t list
     | Leaf of 'a
 
-  let rec enumerate_forest_shapes num_nodes : unit t list list =
-    assert (num_nodes > 0);
-    let possible_first_tree_num_nodes =
-      List.init ~len:num_nodes ~f:(fun x -> x + 1)
-    in
-    List.concat_map possible_first_tree_num_nodes
-      ~f:(fun first_tree_num_nodes ->
-        List.concat_map (enumerate_shapes ~num_nodes:first_tree_num_nodes)
-          ~f:(fun first_tree ->
-            let rest_num_nodes = num_nodes - first_tree_num_nodes in
-            assert (rest_num_nodes >= 0);
-            if Int.equal rest_num_nodes 0
-            then [[first_tree]]
-            else
-              List.map (enumerate_forest_shapes rest_num_nodes)
-                ~f:(fun rest_trees -> first_tree :: rest_trees
-              )
+  module By_leaves_and_singleton_branches = struct
+    let rec enumerate_forest_shapes ~cost ~min_num_trees : unit t list list =
+      assert (cost >= min_num_trees);
+      if Int.equal cost 0
+      then [[]]
+      else
+        let possible_first_tree_cost =
+          (* Two upper bounds on number of nodes for the first tree: *)
+          (* [cost - min_num_trees + 1], because after generating the first
+             tree, we need (min_num_trees - 1) left over to generate the rest *)
+          (* [cost] *)
+          List.init
+            ~len:(Int.min (cost - min_num_trees + 1) cost)
+            ~f:(fun x -> x + 1)
+        in
+        List.concat_map possible_first_tree_cost ~f:(fun first_tree_cost ->
+            List.concat_map (enumerate_shapes ~cost:first_tree_cost)
+              ~f:(fun first_tree ->
+                assert (cost - first_tree_cost >= min_num_trees - 1);
+                let cost = cost - first_tree_cost in
+                let min_num_trees = Int.max 0 (min_num_trees - 1) in
+                assert (cost >= min_num_trees);
+                List.map (enumerate_forest_shapes ~cost ~min_num_trees)
+                  ~f:(fun rest_trees -> first_tree :: rest_trees
+                )
+            )
         )
-    )
 
-  and enumerate_shapes ~num_nodes : unit t list =
-    assert (num_nodes >= 1);
-    if Int.equal num_nodes 1
-    then [Leaf ()]
-    else
-      List.map
-        (enumerate_forest_shapes (num_nodes - 1))
-        ~f:(fun forest -> Branch forest)
+    and enumerate_shapes ~cost : unit t list =
+      assert (cost >= 1);
+      if Int.equal cost 1
+      then [Leaf ()]
+      else
+        (* a branch costs 1 node only if it has a single child *)
+        List.map
+          (enumerate_shapes ~cost:(cost - 1))
+          ~f:(fun shape -> Branch [shape])
+        @ List.map (enumerate_forest_shapes ~cost ~min_num_trees:2)
+            ~f:(fun forest -> Branch forest
+          )
+  end
+
+  module By_num_nodes = struct
+    let rec enumerate_forest_shapes num_nodes : unit t list list =
+      assert (num_nodes > 0);
+      let possible_first_tree_num_nodes =
+        List.init ~len:num_nodes ~f:(fun x -> x + 1)
+      in
+      List.concat_map possible_first_tree_num_nodes
+        ~f:(fun first_tree_num_nodes ->
+          List.concat_map (enumerate_shapes ~num_nodes:first_tree_num_nodes)
+            ~f:(fun first_tree ->
+              let rest_num_nodes = num_nodes - first_tree_num_nodes in
+              assert (rest_num_nodes >= 0);
+              if Int.equal rest_num_nodes 0
+              then [[first_tree]]
+              else
+                List.map (enumerate_forest_shapes rest_num_nodes)
+                  ~f:(fun rest_trees -> first_tree :: rest_trees
+                )
+          )
+      )
+
+    and enumerate_shapes ~num_nodes : unit t list =
+      assert (num_nodes >= 1);
+      if Int.equal num_nodes 1
+      then [Leaf ()]
+      else
+        List.map
+          (enumerate_forest_shapes (num_nodes - 1))
+          ~f:(fun forest -> Branch forest)
+  end
 
   let enumerate_shapes ~max_num_nodes =
     let num_nodes_list = List.init ~f:(fun i -> i + 1) ~len:max_num_nodes in
     List.concat_map num_nodes_list ~f:(fun num_nodes ->
-        enumerate_shapes ~num_nodes
+        By_num_nodes.enumerate_shapes ~num_nodes
     )
+
+  let enumerate_shapes' ~max_leaves_and_singleton_branches =
+    let costs =
+      List.init ~f:(fun i -> i + 1) ~len:max_leaves_and_singleton_branches
+    in
+    List.concat_map costs ~f:(fun cost ->
+        By_leaves_and_singleton_branches.enumerate_shapes ~cost
+    )
+
+  let rec compare f t1 t2 =
+    match t1, t2 with
+    | Leaf _, Branch _ -> -1
+    | Branch _, Leaf _ -> 1
+    | Leaf x1, Leaf x2 -> f x1 x2
+    | Branch l1, Branch l2 -> List.compare ~cmp:(compare f) l1 l2
 
   let rec enumerate ~(shape : unit t) ~(leaves : 'a list) : 'a t list =
     match shape with
