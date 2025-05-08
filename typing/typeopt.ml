@@ -243,6 +243,10 @@ let array_kind_of_elt ~elt_sort env loc ty =
     else
       Pgcscannableproductarray (scannable_product_array_kind loc sorts)
   in
+  (* CR dkalinichenko: layout, externality and separability should be
+     sufficient to determine the array kind, with no calls to [classify]
+     needed. But I'm leaving it here for now to make sure all existing
+     optimizations still work. *)
   match classify ~classify_product env loc ty elt_sort with
   | Any ->
     if Config.flat_float_array
