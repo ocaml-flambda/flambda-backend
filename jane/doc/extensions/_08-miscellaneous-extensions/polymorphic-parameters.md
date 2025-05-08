@@ -47,8 +47,8 @@ Error: This expression has type int field
 The issue is that you need to apply `f` to both a `string field` and
 an `int field`: you need it to be *polymorphic*.
 
-There are existing ways to work around this issue -- polymorphic
-record fields, first-class modules and polymorphic methods -- but they
+There are existing ways to work around this issue &mdash; polymorphic
+record fields, first-class modules and polymorphic methods &mdash; but they
 all require defining a fresh type to contain `f`. These work-arounds
 require additional code at each call site to wrap `f` in the associated
 type.

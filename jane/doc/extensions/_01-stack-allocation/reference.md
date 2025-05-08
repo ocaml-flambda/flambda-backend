@@ -70,7 +70,7 @@ and leaving that stack frame resets the stack pointer to that value.
 
 ## Regions
 
-Every stack allocation takes places inside a stack frame and is freed when the
+Every stack allocation takes place inside a stack frame and is freed when the
 stack frame is freed. For this to be safe, stack-allocated values cannot be used
 after their stack frame is freed. This property is guaranteed at
 compile-time by the type checker as follows.

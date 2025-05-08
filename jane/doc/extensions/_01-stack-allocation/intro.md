@@ -35,7 +35,7 @@ let x2 = stack_ { foo; bar } in
 
 However, for this to be safe, stack-allocated values must not be used after
 their stack frame is freed. This is ensured by the type-checker as follows.
-A stack frames is represented as a _region_ at compile time, and each
+A stack frame is represented as a _region_ at compile time, and each
 stack-allocated value lives in the surrounding region (usually a function body).
 Stack-allocated values are not allowed to escape their region. If they do,
 you'll see error messages:
