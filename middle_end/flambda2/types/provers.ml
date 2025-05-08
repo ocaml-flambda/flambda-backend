@@ -153,6 +153,25 @@ let prove_is_int env t =
 let meet_is_int_variant_only env t =
   gen_value_to_meet (prove_is_int_generic_value ~variant_only:true) env t
 
+let prove_is_immediate_generic_value env t =
+  match expand_head env t with
+  | Value Unknown -> Unknown
+  | Value Bottom -> Invalid
+  | Value (Ok { is_null = Maybe_null; non_null = Bottom }) -> Proved true
+  | Value (Ok { is_null = Not_null; non_null = Bottom }) -> Invalid
+  | Value (Ok { is_null = Maybe_null | Not_null; non_null = Unknown }) ->
+    Unknown
+  | Value (Ok { is_null; non_null = Ok head }) -> (
+    match prove_is_int_generic_value ~variant_only:false env head, is_null with
+    | Proved true, (Maybe_null | Not_null) -> Proved true
+    | (Proved false | Unknown), Maybe_null | Unknown, Not_null -> Unknown
+    | Proved false, Not_null -> Proved false
+    | Invalid, _ -> Invalid (* Ought to be impossible. *))
+  | _ -> wrong_kind "Value" t Invalid
+
+let prove_is_immediate env t =
+  as_property (prove_is_immediate_generic_value env t)
+
 (* Note: this function returns a generic proof because we want to propagate the
    Invalid cases to prove_naked_immediates_generic, but it's not suitable for
    implementing [meet_get_tag] because it doesn't ignore the immediates part of
