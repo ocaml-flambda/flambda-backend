@@ -95,7 +95,7 @@ let record_form_to_wrong_kind_sort
   | Unboxed_product -> Record_unboxed_product
 
 type type_block_access_result =
-  { ba : block_access; base_ty: type_expr; el_ty: type_expr }
+  { ba : block_access; base_ty: type_expr; el_ty: type_expr; flat_float : bool }
 
 type contains_gadt =
   | Contains_gadt
@@ -5639,23 +5639,26 @@ and type_expect_
       let mut = is_mutable label.lbl_mut in
       if mut then Env.mark_label_used Mutation label.lbl_uid;
       let ba = Baccess_field (lid, label) in
-      let el_ty =
+      let flat_float  =
+        (* whether we change the final el ty to [float#]. we don't set [el_ty]
+           to [float#] here because it could be a singleton unboxed record
+           containing a float, and thus be followed by an unboxed access *)
         match label.lbl_repres with
-        | Record_boxed _ -> ty_arg
+        | Record_boxed _ -> false
         | Record_mixed mixed ->
           begin match mixed.(label.lbl_num) with
-          | Float_boxed -> Predef.type_unboxed_float
+          | Float_boxed -> true
           | Float64 | Float32 | Value | Bits32 | Bits64 | Vec128 | Word
-          | Product _ -> ty_arg
+          | Product _ -> false
           end
-        | Record_float -> Predef.type_unboxed_float
-        | Record_ufloat -> ty_arg (* equivalent to [float#] *)
+        | Record_float -> true
+        | Record_ufloat -> false
         | Record_unboxed ->
           raise (Error (lid.loc, env, Block_access_record_unboxed))
         | Record_inlined _ ->
           Misc.fatal_error "Typecore.type_block_access: inlined record"
       in
-      { ba; base_ty = ty_res; el_ty}
+      { ba; base_ty = ty_res; el_ty = ty_arg; flat_float }
     | Baccess_array (mut, index_kind, index) ->
       (* CR layouts v8: Support indices into arrays once we have the
          separability mode.
@@ -5687,7 +5690,7 @@ and type_expect_
         Baccess_array { mut; index_kind; index; base_ty; elt_ty; elt_sort }
       in
       if Language_extension.is_at_least Layouts Language_extension.Alpha then
-        { ba; base_ty; el_ty = elt_ty }
+        { ba; base_ty; el_ty = elt_ty; flat_float = false }
       else
         raise (Error (index.exp_loc, env, Block_access_array_unsupported))
     | Baccess_block (mut, idx) ->
@@ -5701,7 +5704,7 @@ and type_expect_
       let idx =
         type_expect env mode_legacy idx (mk_expected idx_type_expected) in
       let ba = Baccess_block (mut, idx) in
-      { ba; base_ty; el_ty }
+      { ba; base_ty; el_ty; flat_float = false }
   in
   let type_unboxed_access el_ty ua =
     match ua with
@@ -6294,10 +6297,11 @@ and type_expect_
     in
     let expected_base_ty = expected_base_ty ty_expected in
     let principal = is_principal ty_expected in
-    let { ba; base_ty; el_ty } =
+    let { ba; base_ty; el_ty; flat_float } =
       type_block_access expected_base_ty principal ba
     in
     let el_ty, uas = List.fold_left_map type_unboxed_access el_ty uas in
+    let el_ty = if flat_float then Predef.type_unboxed_float else el_ty in
     let ty =
       match ba with
       | Baccess_field (_, { lbl_mut = Immutable; _ })

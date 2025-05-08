@@ -99,6 +99,64 @@ Error: This expression has type "('a t# t, 'a) idx_imm"
        Type "'a t#" is not compatible with type "y#"
 |}]
 
+(*****************)
+(* Float records *)
+
+(* Indicies to flattened float always have element type [float#] *)
+type t = { f : float }
+let f () = (.f)
+[%%expect{|
+type t = { f : float; }
+val f : unit -> (t, float#) idx_imm = <fun>
+|}]
+
+(* Unboxed float record *)
+type t = { fu : float# }
+let fu () = (.fu)
+[%%expect{|
+type t = { fu : float#; }
+val fu : unit -> (t, float#) idx_imm = <fun>
+|}]
+
+type t_float64 : float64
+type t = { t_float64 : t_float64 }
+let t_float64 () = (.t_float64)
+[%%expect{|
+type t_float64 : float64
+type t = { t_float64 : t_float64; }
+val t_float64 : unit -> (t, t_float64) idx_imm = <fun>
+|}]
+
+(* Singleton unboxed records containing floats can appear in float records *)
+type fr = #{ f : float }
+type t = { f : float; fr : fr  }
+let fr () = (.fr)
+let fr_f () = (.fr.#f)
+[%%expect{|
+type fr = #{ f : float; }
+type t = { f : float; fr : fr; }
+val fr : unit -> (t, float#) idx_imm = <fun>
+val fr_f : unit -> (t, float#) idx_imm = <fun>
+|}]
+
+(* Mixed float record *)
+type t_float64 : float64
+type t = { f : float; t_float64 : t_float64; fu : float#; fr : fr  }
+let f () = (.f)
+let fu () = (.fu)
+let t_float64 () = (.t_float64)
+let fr () = (.fr)
+let fr_f () = (.fr.#f)
+[%%expect{|
+type t_float64 : float64
+type t = { f : float; t_float64 : t_float64; fu : float#; fr : fr; }
+val f : unit -> (t, float#) idx_imm = <fun>
+val fu : unit -> (t, float#) idx_imm = <fun>
+val t_float64 : unit -> (t, t_float64) idx_imm = <fun>
+val fr : unit -> (t, float#) idx_imm = <fun>
+val fr_f : unit -> (t, float#) idx_imm = <fun>
+|}]
+
 (***************)
 (* Type errors *)
 
@@ -106,8 +164,8 @@ type pt = { x : int }
 let f () = (.x.#x)
 [%%expect{|
 type pt = { x : int; }
-Line 106, characters 16-17:
-106 | let f () = (.x.#x)
+Line 164, characters 16-17:
+164 | let f () = (.x.#x)
                       ^
 Error: The index preceding this unboxed access has element type "int",
        which is not an unboxed record with field "x".
@@ -134,8 +192,8 @@ type t = { i : int } [@@unboxed]
 let f () = (.i)
 [%%expect{|
 type t = { i : int; } [@@unboxed]
-Line 134, characters 13-14:
-134 | let f () = (.i)
+Line 192, characters 13-14:
+192 | let f () = (.i)
                    ^
 Error: Block indices do not support [@@unboxed] records.
 |}]
@@ -159,8 +217,8 @@ let f c =
   else
     (.s)
 [%%expect{|
-Line 160, characters 6-7:
-160 |     (.s)
+Line 218, characters 6-7:
+218 |     (.s)
             ^
 Error: This block index is expected to have base type "t"
        There is no field "s" within type "t"
@@ -173,8 +231,8 @@ let f c =
   else
     (.a.#s)
 [%%expect{|
-Line 172, characters 9-10:
-172 |     (.a.#t)
+Line 230, characters 9-10:
+230 |     (.a.#t)
                ^
 Error: This unboxed access is expected to have base type "s#"
        There is no unboxed record field "t" within type "s#"
@@ -253,8 +311,8 @@ Error: Immutable arrays of unboxed products are not yet supported.
 
 let bad_index_type = (.("test"))
 [%%expect{|
-Line 254, characters 24-30:
-254 | let bad_index_type = (.("test"))
+Line 312, characters 24-30:
+312 | let bad_index_type = (.("test"))
                               ^^^^^^
 Error: This expression has type "string" but an expression was expected of type
          "int"
@@ -378,8 +436,8 @@ val f : bool -> ('a r, int) idx_imm = <fun>
 type u = #{ x : int; }
 type 'a r = { u : u; }
 type 'a r2 = { u : u; }
-Line 371, characters 6-7:
-371 |     (.u.#x)
+Line 429, characters 6-7:
+429 |     (.u.#x)
             ^
 Warning 18 [not-principal]: this type-based field disambiguation is not principal.
 
