@@ -238,7 +238,7 @@ let print_instr b = function
         instr.mnemonic (Array.length args))
 
 let print_line b i =
-  match[@warning "-4"] i with
+  match i with
   | Ins i -> print_instr b i
   | Directive d -> Asm_targets.Asm_directives_new.Directive.print b d
 

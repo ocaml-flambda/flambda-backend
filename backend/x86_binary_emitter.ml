@@ -1645,7 +1645,7 @@ let assemble_instr b loc = function
   | SIMD (instr, args) -> emit_simd b instr args
 
 
-let constant b cst (width: D.Constant_with_width.width_in_bytes) =
+let[@warning "+4"] constant b cst (width: D.Constant_with_width.width_in_bytes) =
   let open D.Constant_with_width in
   match cst, width with
   | C.Signed_int n, Eight -> buf_int8L b n
@@ -1656,16 +1656,16 @@ let constant b cst (width: D.Constant_with_width.width_in_bytes) =
   | C.Unsigned_int n, Sixteen -> buf_int16L b (Numbers.Uint64.to_int64 n)
   | C.Unsigned_int n, Thirty_two -> buf_int32L b (Numbers.Uint64.to_int64 n)
   | C.Unsigned_int n, Sixty_four -> buf_int64L b (Numbers.Uint64.to_int64 n)
-  | _, Eight ->
+  | (C.This | C.Named_thing _ | C.Add _ | C.Sub _), Eight ->
     record_local_reloc b (RelocConstant (cst, B8));
     buf_int8L b 0L
-  | _, Sixteen ->
+  | (C.This | C.Named_thing _ | C.Add _ | C.Sub _), Sixteen ->
     record_local_reloc b (RelocConstant (cst, B16));
     buf_int16L b 0L
-  | _, Thirty_two ->
+  | (C.This | C.Named_thing _ | C.Add _ | C.Sub _), Thirty_two ->
     record_local_reloc b (RelocConstant (cst, B32));
     buf_int32L b 0L
-  | _, Sixty_four ->
+  | (C.This | C.Named_thing _ | C.Add _ | C.Sub _), Sixty_four ->
     record_local_reloc b (RelocConstant (cst, B64));
     buf_int64L b 0L
 
@@ -1742,7 +1742,6 @@ let assemble_line b loc ins =
           buf_int8 b 0
         done
     | Directive (D.Hidden _) | Directive D.New_line -> ()
-    (* CR sspies: This requires some testing. *)
     | Directive (D.Reloc { name = D.R_X86_64_PLT32;
               expr = C.Sub (C.Named_thing wrap_label, C.Signed_int 4L);
               offset = C.Sub (C.This, C.Signed_int 4L);
