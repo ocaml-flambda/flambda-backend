@@ -48,7 +48,12 @@ val add : t -> t -> t
 (** Given an outer mixed block element, and a path into that as a list of
     positions, count value/flat bytes to the left, at, and to the right that
     subelement *)
-val count : _ Lambda.mixed_block_element -> int list -> t
+val count : unit Lambda.mixed_block_element -> int list -> t
+
+(** Similar to the above, except for a [mixed_block_shape] (which corresponds to
+    a boxed record, while a [unit mixed_block_element] corresponds to an unboxed
+    record (within an array or boxed record). *)
+val count_shape : Lambda.mixed_block_shape -> int -> int list -> t
 
 val all : t -> Mixed_product_bytes.t
 

@@ -581,9 +581,10 @@ let primitive ppf = function
       fprintf ppf "array_element_size_in_bytes (%s)" (array_kind ak)
   | Pidx_field pos ->
       fprintf ppf "idx_field %d" pos
-  | Pidx_mixed_field (mbe, path) ->
-      fprintf ppf "idx_mixed_field %a %a"
-        (mixed_block_element (fun _ppf () -> ())) mbe
+  | Pidx_mixed_field (shape, pos, path) ->
+      fprintf ppf "idx_mixed_field %a %a %a"
+        (mixed_block_shape (fun _ _ -> ())) shape
+        pp_print_int pos
         (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_int)
           path
   | Pidx_array (ak, ik, mbe, path) ->

@@ -47,23 +47,25 @@ let rec count (el : _ Lambda.mixed_block_element) path =
   | [] -> { zero with here = MPB.count el }
   | i :: path_rest -> (
     match el with
-    | Product els ->
-      let _, totals =
-        Array.fold_left
-          (fun (j, totals) el ->
-            ( j + 1,
-              add totals
-                (if j = i
-                then count el path_rest
-                else if j < i
-                then { zero with left = MPB.count el }
-                else { zero with right = MPB.count el }) ))
-          (0, zero) els
-      in
-      totals
+    | Product shape -> count_shape shape i path_rest
     | Value _ | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Word
     | Vec128 ->
       Misc.fatal_error "Mixed_product_bytes_wrt_path: bad mixed block path")
+
+and count_shape (shape : Lambda.mixed_block_shape) pos path =
+  let _, totals =
+    Array.fold_left
+      (fun (i, totals) el ->
+        ( i + 1,
+          add totals
+            (if i = pos
+            then count el path
+            else if i < pos
+            then { zero with left = MPB.count el }
+            else { zero with right = MPB.count el }) ))
+      (0, zero) shape
+  in
+  totals
 
 let all { here; left; right } =
   let value = MPB.Byte_count.(add (add here.value left.value) right.value) in

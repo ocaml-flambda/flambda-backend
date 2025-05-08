@@ -150,7 +150,9 @@ type primitive =
   | Parray_element_size_in_bytes of array_kind
   (* Block indices *)
   | Pidx_field of int
-  | Pidx_mixed_field of unit mixed_block_element * int list
+  | Pidx_mixed_field of mixed_block_shape * int * int list
+    (** The lone int is the index into the mixed_block_shape, the int list is the
+        path into that mixed_block_element *)
   | Pidx_array of
       array_kind * array_index_kind * unit mixed_block_element * int list
   | Pidx_deepen of unit mixed_block_element * int list

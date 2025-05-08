@@ -424,9 +424,9 @@ let comp_primitive stack_info p sz args =
       Kconst (Const_base (Const_int (Sys.word_size / 8)))
   | Pidx_field pos ->
       Kconst (Const_block (0, [Const_base (Const_int pos)]))
-  | Pidx_mixed_field (_, path) ->
+  | Pidx_mixed_field (_, pos, path) ->
       let path_consts =
-        List.map (fun x -> Const_base (Const_int x)) path in
+        List.map (fun x -> Const_base (Const_int x)) (pos :: path) in
       Kconst (Const_block (0, path_consts))
   | Pfield_computed _sem -> Kgetvectitem
   | Psetfield(n, _ptr, _init) -> Ksetfield n

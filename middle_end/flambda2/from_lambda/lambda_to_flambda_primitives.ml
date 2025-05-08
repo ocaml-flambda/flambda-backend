@@ -1507,10 +1507,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pidx_field pos, [] ->
     let idx_raw_value = Int64.mul (Int64.of_int pos) 8L in
     [Simple (Simple.const (Reg_width_const.naked_int64 idx_raw_value))]
-  | Pidx_mixed_field (mbe, field_path), [] ->
+  | Pidx_mixed_field (shape, pos, path), [] ->
     let open Mixed_product_bytes_wrt_path in
     let { offset_bytes; gap_bytes } =
-      match offset_and_gap (count mbe field_path) with
+      match offset_and_gap (count_shape shape pos path) with
       | Some { offset_bytes; gap_bytes } -> { offset_bytes; gap_bytes }
       | None -> Misc.fatal_error "Pidxmixedfield: illegal gap"
     in

@@ -2281,21 +2281,15 @@ and transl_idx ~scopes loc env ba uas =
         Lambda.transl_mixed_product_shape
           ~get_value_kind:(fun _ -> Lambda.generic_value) shape
       in
-      let el =
-        (* preserve the invariant that products have at least two elements *)
-        if Int.equal (Array.length lbl.lbl_all) 1 then
-          shape.(0)
-        else
-          Product shape
-      in
       (* Check to make sure the gap never overflows.
          See Note [Representation of block indices]. *)
-      let path = lbl.lbl_pos :: uas_path in
-      let cts = Mixed_product_bytes_wrt_path.count el path in
+      let cts =
+        Mixed_product_bytes_wrt_path.count_shape shape lbl.lbl_pos uas_path in
       if Option.is_none
           (Mixed_product_bytes_wrt_path.offset_and_gap cts) then
         raise (Error (loc, Block_index_gap_overflow_possible));
-      Lprim (Pidx_mixed_field (el, path), [], (of_location ~scopes loc))
+      Lprim (Pidx_mixed_field (shape, lbl.lbl_pos, uas_path), [],
+             (of_location ~scopes loc))
     end
   | Baccess_array { mut = _; index_kind; index; base_ty; elt_ty; elt_sort } ->
     let index_sort, index_kind = match index_kind with
