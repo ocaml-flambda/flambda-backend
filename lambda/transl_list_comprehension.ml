@@ -149,6 +149,8 @@ type translated_iterator =
         (** The name given to the values we're iterating over; needs to be a fresh
       name for [for]-[in] iterators in case the user specifies a complex
       pattern. *)
+    element_debug_uid : Lambda.debug_uid;
+        (** The [debug_uid] of the element identifier. *)
     element_kind : layout;
         (** The [layout] of the values we're iterating over. *)
     add_bindings : lambda -> lambda
@@ -164,34 +166,40 @@ type translated_iterator =
     containing the body of the iteration; that body function can't be filled in
     until the rest of the translations have been done. *)
 let iterator ~transl_exp ~scopes = function
-  | Texp_comp_range { ident; pattern = _; start; stop; direction } ->
+  | Texp_comp_range
+      { ident; ident_debug_uid; pattern = _; start; stop; direction } ->
     (* We have to let-bind [start] and [stop] so that they're evaluated in the
        correct (i.e., left-to-right) order *)
-    let transl_bound var bound =
-      Let_binding.make (Immutable Strict) layout_int var
+    let transl_bound var debug_uid bound =
+      Let_binding.make (Immutable Strict) layout_int var debug_uid
         (transl_exp ~scopes Jkind.Sort.Const.for_predef_value bound)
     in
-    let start = transl_bound "start" start in
-    let stop = transl_bound "stop" stop in
+    let start = transl_bound "start" Lambda.debug_uid_none start in
+    let stop = transl_bound "stop" Lambda.debug_uid_none stop in
     { builder =
         (match direction with
         | Upto -> rev_dlist_concat_iterate_up
         | Downto -> rev_dlist_concat_iterate_down);
       arg_lets = [start; stop];
       element = ident;
+      element_debug_uid = ident_debug_uid;
       element_kind = layout_int;
       add_bindings = Fun.id
     }
   | Texp_comp_in { pattern; sequence } ->
     let iter_list =
       Let_binding.make (Immutable Strict) layout_any_value "iter_list"
+        Lambda.debug_uid_none
         (transl_exp ~scopes Jkind.Sort.Const.for_predef_value sequence)
     in
-    (* Create a fresh variable to use as the function argument *)
+    (* Create a fresh variable to use as the function argument. The debug uid is
+       [ident_debug_uid], because the variable is not visible to users. *)
     let element = Ident.create_local "element" in
+    let element_debug_uid = Lambda.debug_uid_none in
     { builder = rev_dlist_concat_map;
       arg_lets = [iter_list];
       element;
+      element_debug_uid;
       element_kind =
         Typeopt.layout pattern.pat_env pattern.pat_loc
           Jkind.Sort.Const.for_list_element pattern.pat_type;
@@ -226,10 +234,17 @@ let binding ~transl_exp ~scopes { comp_cb_iterator; comp_cb_attributes = _ } =
 let rec translate_bindings ~transl_exp ~scopes ~loc ~inner_body ~accumulator =
   function
   | cur_binding :: bindings ->
-    let { builder; arg_lets; element; element_kind; add_bindings } =
+    let { builder;
+          arg_lets;
+          element;
+          element_debug_uid;
+          element_kind;
+          add_bindings
+        } =
       binding ~transl_exp ~scopes cur_binding
     in
     let inner_acc = Ident.create_local "accumulator" in
+    let inner_acc_duid = Lambda.debug_uid_none in
     let body_arg_lets, body =
       translate_bindings ~transl_exp ~scopes ~loc ~inner_body
         ~accumulator:(Lvar inner_acc) bindings
@@ -241,12 +256,14 @@ let rec translate_bindings ~transl_exp ~scopes ~loc ~inner_body ~accumulator =
              local, [nlocal] has to be equal to the number of parameters *)
         ~params:
           [ { name = element;
+              debug_uid = element_debug_uid;
               layout = element_kind;
               attributes = Lambda.default_param_attribute;
               (* CR ncourant: check *)
               mode = alloc_heap
             };
             { name = inner_acc;
+              debug_uid = inner_acc_duid;
               layout = layout_any_value;
               attributes = Lambda.default_param_attribute;
               mode = alloc_local

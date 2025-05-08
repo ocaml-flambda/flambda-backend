@@ -127,12 +127,12 @@ let compute_static_size lam =
     | Lconst _ -> Constant
     | Lapply _ -> dynamic_size lam
     | Lfunction lfun -> Function lfun
-    | Llet (_, _, id, def, body) ->
+    | Llet (_, _, id, _, def, body) ->
       let env =
         Ident.Map.add id (Lazy_backtrack.create { lambda = def; env }) env
       in
       compute_expression_size env body
-    | Lmutlet(_, _, _, body) ->
+    | Lmutlet(_, _, _, _, body) ->
       compute_expression_size env body
     | Lletrec (bindings, body) ->
       let env =
@@ -159,7 +159,7 @@ let compute_static_size lam =
       compute_and_join_sizes_switch env [cases; fail_case]
     | Lstaticraise _ -> Unreachable
     | Lstaticcatch (body, _, handler, _, _)
-    | Ltrywith (body, _, handler, _) ->
+    | Ltrywith (body, _, _, handler, _) ->
       compute_and_join_sizes env [body; handler]
     | Lifthenelse (_cond, ifso, ifnot, _) ->
       compute_and_join_sizes env [ifso; ifnot]
@@ -502,6 +502,8 @@ let lifted_block_read_sem : Lambda.field_read_semantics = Reads_agree
 
 let no_loc = Debuginfo.Scoped_location.Loc_unknown
 
+(* CR sspies: The function [split_static_function] seems to replace a function,
+   so copying over debug_ids inside should be fine. *)
 let rec split_static_function lfun block_var local_idents lam :
   Lambda.lambda split_result =
   match lam with
@@ -573,16 +575,16 @@ let rec split_static_function lfun block_var local_idents lam :
              no_loc)
     in
     Reachable (lifted, block)
-  | Llet (lkind, vkind, var, def, body) ->
+  | Llet (lkind, vkind, var, debug_uid, def, body) ->
     let+ body =
       split_static_function lfun block_var (Ident.Set.add var local_idents) body
     in
-    Llet (lkind, vkind, var, def, body)
-  | Lmutlet (vkind, var, def, body) ->
+    Llet (lkind, vkind, var, debug_uid, def, body)
+  | Lmutlet (vkind, var, debug_uid, def, body) ->
     let+ body =
       split_static_function lfun block_var (Ident.Set.add var local_idents) body
     in
-    Lmutlet (vkind, var, def, body)
+    Lmutlet (vkind, var, debug_uid, def, body)
   | Lletrec (bindings, body) ->
     let local_idents =
       List.fold_left (fun ids { id } -> Ident.Set.add id ids)
@@ -637,7 +639,7 @@ let rec split_static_function lfun block_var local_idents lam :
     let body_res = split_static_function lfun block_var local_idents body in
     let handler_res =
       let local_idents =
-        List.fold_left (fun vars (var, _) -> Ident.Set.add var vars)
+        List.fold_left (fun vars (var, _, _) -> Ident.Set.add var vars)
           local_idents params
       in
       split_static_function lfun block_var local_idents handler
@@ -653,7 +655,7 @@ let rec split_static_function lfun block_var local_idents lam :
         Printlambda.lfunction lfun
         Printlambda.lambda lam
     end
-  | Ltrywith (body, exn_var, handler, layout) ->
+  | Ltrywith (body, exn_var, debug_uid, handler, layout) ->
     let body_res = split_static_function lfun block_var local_idents body in
     let handler_res =
       split_static_function lfun block_var
@@ -662,9 +664,9 @@ let rec split_static_function lfun block_var local_idents lam :
     begin match body_res, handler_res with
     | Unreachable, Unreachable -> Unreachable
     | Reachable (lfun, body), Unreachable ->
-      Reachable (lfun, Ltrywith (body, exn_var, handler, layout))
+      Reachable (lfun, Ltrywith (body, exn_var, debug_uid, handler, layout))
     | Unreachable, Reachable (lfun, handler) ->
-      Reachable (lfun, Ltrywith (body, exn_var, handler, layout))
+      Reachable (lfun, Ltrywith (body, exn_var, debug_uid, handler, layout))
     | Reachable _, Reachable _ ->
       Misc.fatal_errorf "letrec: multiple functions:@ lfun=%a@ lam=%a"
         Printlambda.lfunction lfun
@@ -820,9 +822,9 @@ and rebuild_arms :
  *)
 
 type rec_bindings =
-  { static : (Ident.t * block_size * Lambda.lambda) list;
-    functions : (Ident.t * Lambda.lfunction) list;
-    dynamic : (Ident.t * Lambda.lambda) list;
+  { static : (Ident.t * Lambda.debug_uid * block_size * Lambda.lambda) list;
+    functions : (Ident.t * Lambda.debug_uid * Lambda.lfunction) list;
+    dynamic : (Ident.t * Lambda.debug_uid * Lambda.lambda) list;
   }
 
 let empty_bindings =
@@ -851,21 +853,21 @@ let update_prim =
 let compile_letrec input_bindings body =
   if !Clflags.dump_letreclambda then (
     Format.eprintf "Value_rec_compiler input bindings:\n";
-    List.iter (fun (id, _, def) ->
+    List.iter (fun (id, _, _, def) ->
         Format.eprintf "  %a = %a\n%!" Ident.print id Printlambda.lambda def)
       input_bindings;
     Format.eprintf "Value_rec_compiler body:@ %a\n%!" Printlambda.lambda body
   );
   let subst_for_constants =
-    List.fold_left (fun subst (id, _, _) ->
+    List.fold_left (fun subst (id, _, _, _) ->
         Ident.Map.add id Lambda.dummy_constant subst)
       Ident.Map.empty input_bindings
   in
   let all_bindings_rev =
-    List.fold_left (fun rev_bindings (id, rkind, def) ->
+    List.fold_left (fun rev_bindings (id, duid, rkind, def) ->
         match (rkind : Value_rec_types.recursive_binding_kind) with
         | Dynamic ->
-          { rev_bindings with dynamic = (id, def) :: rev_bindings.dynamic }
+          { rev_bindings with dynamic = (id, duid, def) :: rev_bindings.dynamic }
         | Static ->
           let size = compute_static_size def in
           begin match size with
@@ -877,15 +879,15 @@ let compile_letrec input_bindings body =
             let def =
               Lambda.subst (fun _ _ env -> env) subst_for_constants def
             in
-            { rev_bindings with dynamic = (id, def) :: rev_bindings.dynamic }
+            { rev_bindings with dynamic = (id, duid, def) :: rev_bindings.dynamic }
           | Block size ->
             { rev_bindings with
-              static = (id, size, def) :: rev_bindings.static }
+              static = (id, duid, size, def) :: rev_bindings.static }
           | Function lfun ->
             begin match def with
             | Lfunction lfun ->
               { rev_bindings with
-                functions = (id, lfun) :: rev_bindings.functions
+                functions = (id, duid, lfun) :: rev_bindings.functions
               }
             | _ ->
               let ctx_id = Ident.create_local "letrec_function_context" in
@@ -897,10 +899,12 @@ let compile_letrec input_bindings body =
                   "letrec: no function for binding:@ def=%a@ lfun=%a"
                   Printlambda.lambda def Printlambda.lfunction lfun
               | Reachable ({ lfun; free_vars_block_size }, lam) ->
-                let functions = (id, lfun) :: rev_bindings.functions in
+                let functions = (id, duid, lfun) :: rev_bindings.functions in
                 let static =
-                  (ctx_id, Regular_block free_vars_block_size, lam) ::
+                  (ctx_id, duid, Regular_block free_vars_block_size, lam) ::
                   rev_bindings.static
+                (* CR sspies: We are explicitly duplicating a debug_id here.
+                   Does that make sense? Seems to be the same source variable. *)
                 in
                 { rev_bindings with functions; static }
               end
@@ -909,7 +913,7 @@ let compile_letrec input_bindings body =
       empty_bindings input_bindings
   in
   let body_with_patches =
-    List.fold_left (fun body (id, _size, lam) ->
+    List.fold_left (fun body (id, _, _size, lam) ->
         let update =
           Lprim (Pccall update_prim, [Lvar id; lam], no_loc)
         in
@@ -921,19 +925,19 @@ let compile_letrec input_bindings body =
     | [] -> body_with_patches
     | bindings_rev ->
       let function_bindings =
-        List.rev_map (fun (id, lfun) ->
-            { id; def = lfun })
+        List.rev_map (fun (id, debug_uid, lfun) ->
+            { id; debug_uid; def = lfun })
           bindings_rev
       in
       Lletrec (function_bindings, body_with_patches)
   in
   let body_with_dynamic_values =
-    List.fold_left (fun body (id, lam) ->
-        Llet(Strict, Lambda.layout_letrec, id, lam, body))
+    List.fold_left (fun body (id, duid, lam) ->
+        Llet(Strict, Lambda.layout_letrec, id, duid, lam, body))
       body_with_functions all_bindings_rev.dynamic
   in
   let body_with_pre_allocations =
-    List.fold_left (fun body (id, size, _lam) ->
+    List.fold_left (fun body (id, duid, size, _lam) ->
         let alloc_prim, const_args =
           match size with
           | Regular_block size -> alloc_prim, [size]
@@ -950,7 +954,7 @@ let compile_letrec input_bindings body =
                  List.map (fun n -> Lconst (Lambda.const_int n)) const_args,
                  no_loc)
         in
-        Llet(Strict, Lambda.layout_letrec, id, alloc, body))
+        Llet(Strict, Lambda.layout_letrec, id, duid, alloc, body))
       body_with_dynamic_values all_bindings_rev.static
   in
   body_with_pre_allocations

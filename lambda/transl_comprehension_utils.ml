@@ -11,21 +11,29 @@ module Let_binding = struct
     { let_kind : Let_kind.t;
       layout : layout;
       id : Ident.t;
+      debug_uid : debug_uid;
       init : lambda;
       var : lambda
     }
 
-  let make (let_kind : Let_kind.t) layout name init =
+  (* CR sspies: The [debug_uid] is Lambda.debug_uid_none at all call sites.
+     It appears we only use this function for internal variables. (The
+     definition does not really currently suggest that.) As an alternative,
+     we could remove the debug_uid from the record [t] and always choose
+     [Lambda.debug_uid_none] in the [let_one] function. In that case, it might
+     be worth renaming the function to suggest that this is only used for
+     internal variables. *)
+  let make (let_kind : Let_kind.t) layout name debug_uid init =
     let id = Ident.create_local name in
     let var =
       match let_kind with Mutable -> Lmutvar id | Immutable _ -> Lvar id
     in
-    { let_kind; layout; id; init; var }
+    { let_kind; layout; id; debug_uid; init; var }
 
-  let let_one { let_kind; layout; id; init } body =
+  let let_one { let_kind; layout; id; debug_uid; init } body =
     match let_kind with
-    | Immutable let_kind -> Llet (let_kind, layout, id, init, body)
-    | Mutable -> Lmutlet (layout, id, init, body)
+    | Immutable let_kind -> Llet (let_kind, layout, id, debug_uid, init, body)
+    | Mutable -> Lmutlet (layout, id, debug_uid, init, body)
 
   let let_all = List.fold_right let_one
 end

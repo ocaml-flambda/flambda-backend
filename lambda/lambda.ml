@@ -802,8 +802,12 @@ type parameter_attribute = {
   unbox_param: bool;
 }
 
+type debug_uid = Shape.Uid.t
+let debug_uid_none = Shape.Uid.internal_not_actually_unique
+
 type lparam = {
   name : Ident.t;
+  debug_uid : debug_uid;
   layout : layout;
   attributes : parameter_attribute;
   mode : locality_mode
@@ -819,8 +823,8 @@ type lambda =
   | Lconst of structured_constant
   | Lapply of lambda_apply
   | Lfunction of lfunction
-  | Llet of let_kind * layout * Ident.t * lambda * lambda
-  | Lmutlet of layout * Ident.t * lambda * lambda
+  | Llet of let_kind * layout * Ident.t * debug_uid * lambda * lambda
+  | Lmutlet of layout * Ident.t * debug_uid * lambda * lambda
   | Lletrec of rec_binding list * lambda
   | Lprim of primitive * lambda list * scoped_location
   | Lswitch of lambda * lambda_switch * scoped_location * layout
@@ -828,9 +832,9 @@ type lambda =
       lambda * (string * lambda) list * lambda option * scoped_location * layout
   | Lstaticraise of static_label * lambda list
   | Lstaticcatch of
-      lambda * (static_label * (Ident.t * layout) list) * lambda
+      lambda * (static_label * (Ident.t * debug_uid * layout) list) * lambda
       * pop_region * layout
-  | Ltrywith of lambda * Ident.t * lambda * layout
+  | Ltrywith of lambda * Ident.t * debug_uid * lambda * layout
   | Lifthenelse of lambda * lambda * lambda * layout
   | Lsequence of lambda * lambda
   | Lwhile of lambda_while
@@ -846,6 +850,7 @@ type lambda =
 
 and rec_binding = {
   id : Ident.t;
+  debug_uid : debug_uid;
   def : lfunction;
 }
 
@@ -867,6 +872,7 @@ and lambda_while =
 
 and lambda_for =
   { for_id : Ident.t;
+    for_debug_uid : debug_uid;
     for_loc : scoped_location;
     for_from : lambda;
     for_to : lambda;
@@ -1092,20 +1098,20 @@ let make_key e =
         Lapply {ap with ap_func = tr_rec env ap.ap_func;
                         ap_args = tr_recs env ap.ap_args;
                         ap_loc = Loc_unknown}
-    | Llet (Alias,_k,x,ex,e) -> (* Ignore aliases -> substitute *)
+    | Llet (Alias,_k,x,_x_duid,ex,e) -> (* Ignore aliases -> substitute *)
         let ex = tr_rec env ex in
         tr_rec (Ident.add x ex env) e
-    | Llet ((Strict | StrictOpt),_k,x,ex,Lvar v) when Ident.same v x ->
+    | Llet ((Strict | StrictOpt),_k,x,_x_duid,ex,Lvar v) when Ident.same v x ->
         tr_rec env ex
-    | Llet (str,k,x,ex,e) ->
+    | Llet (str,k,x,x_duid,ex,e) ->
      (* Because of side effects, keep other lets with normalized names *)
         let ex = tr_rec env ex in
         let y = make_key x in
-        Llet (str,k,y,ex,tr_rec (Ident.add x (Lvar y) env) e)
-    | Lmutlet (k,x,ex,e) ->
+        Llet (str,k,y,x_duid,ex,tr_rec (Ident.add x (Lvar y) env) e)
+    | Lmutlet (k,x,x_duid,ex,e) ->
         let ex = tr_rec env ex in
         let y = make_key x in
-        Lmutlet (k,y,ex,tr_rec (Ident.add x (Lmutvar y) env) e)
+        Lmutlet (k,y,x_duid,ex,tr_rec (Ident.add x (Lmutvar y) env) e)
     | Lprim (p,es,_) ->
         Lprim (p,tr_recs env es, Loc_unknown)
     | Lswitch (e,sw,loc,kind) ->
@@ -1120,8 +1126,8 @@ let make_key e =
         Lstaticraise (i,tr_recs env es)
     | Lstaticcatch (e1,xs,e2, r, kind) ->
         Lstaticcatch (tr_rec env e1,xs,tr_rec env e2, r, kind)
-    | Ltrywith (e1,x,e2,kind) ->
-        Ltrywith (tr_rec env e1,x,tr_rec env e2,kind)
+    | Ltrywith (e1,x,x_duid,e2,kind) ->
+        Ltrywith (tr_rec env e1,x,x_duid,tr_rec env e2,kind)
     | Lifthenelse (cond,ifso,ifnot,kind) ->
         Lifthenelse (tr_rec env cond,tr_rec env ifso,tr_rec env ifnot,kind)
     | Lsequence (e1,e2) ->
@@ -1163,7 +1169,8 @@ let name_lambda strict arg layout fn =
     Lvar id -> fn id
   | _ ->
       let id = Ident.create_local "let" in
-      Llet(strict, layout, id, arg, fn id)
+      let id_debug_uid = debug_uid_none in
+      Llet(strict, layout, id, id_debug_uid, arg, fn id)
 
 let name_lambda_list args fn =
   let rec name_list names = function
@@ -1172,7 +1179,8 @@ let name_lambda_list args fn =
       name_list (arg :: names) rem
   | (arg, layout) :: rem ->
       let id = Ident.create_local "let" in
-      Llet(Strict, layout, id, arg, name_list (Lvar id :: names) rem) in
+      let id_debug_uid = debug_uid_none in
+      Llet(Strict, layout, id, id_debug_uid, arg, name_list (Lvar id :: names) rem) in
   name_list [] args
 
 
@@ -1188,8 +1196,8 @@ let shallow_iter ~tail ~non_tail:f = function
       f fn; List.iter f args
   | Lfunction{body} ->
       f body
-  | Llet(_, _k, _id, arg, body)
-  | Lmutlet(_k, _id, arg, body) ->
+  | Llet(_, _k, _id, _duid, arg, body)
+  | Lmutlet(_k, _id, _duid, arg, body) ->
       f arg; tail body
   | Lletrec(decl, body) ->
       tail body;
@@ -1213,7 +1221,7 @@ let shallow_iter ~tail ~non_tail:f = function
       List.iter f args
   | Lstaticcatch(e1, _, e2, _, _kind) ->
       tail e1; tail e2
-  | Ltrywith(e1, _, e2,_) ->
+  | Ltrywith(e1, _, _, e2,_) ->
       f e1; tail e2
   | Lifthenelse(e1, e2, e3,_) ->
       f e1; tail e2; tail e3
@@ -1248,8 +1256,8 @@ let rec free_variables = function
   | Lfunction{body; params} ->
       Ident.Set.diff (free_variables body)
         (Ident.Set.of_list (List.map (fun p -> p.name) params))
-  | Llet(_, _k, id, arg, body)
-  | Lmutlet(_k, id, arg, body) ->
+  | Llet(_, _k, id, _duid, arg, body)
+  | Lmutlet(_k, id, _duid, arg, body) ->
       Ident.Set.union
         (free_variables arg)
         (Ident.Set.remove id (free_variables body))
@@ -1288,9 +1296,9 @@ let rec free_variables = function
       Ident.Set.union
         (Ident.Set.diff
            (free_variables handler)
-           (Ident.Set.of_list (List.map fst params)))
+           (Ident.Set.of_list (List.map fst3 params)))
         (free_variables body)
-  | Ltrywith(body, param, handler, _) ->
+  | Ltrywith(body, param, _duid, handler, _) ->
       Ident.Set.union
         (Ident.Set.remove
            param
@@ -1340,15 +1348,15 @@ let staticfail = Lstaticraise (0,[])
 
 let rec is_guarded = function
   | Lifthenelse(_cond, _body, Lstaticraise (0,[]),_) -> true
-  | Llet(_str, _k, _id, _lam, body) -> is_guarded body
+  | Llet(_str, _k, _id, _duid, _lam, body) -> is_guarded body
   | Levent(lam, _ev) -> is_guarded lam
   | _ -> false
 
 let rec patch_guarded patch = function
   | Lifthenelse (cond, body, Lstaticraise (0,[]), kind) ->
       Lifthenelse (cond, body, patch, kind)
-  | Llet(str, k, id, lam, body) ->
-      Llet (str, k, id, lam, patch_guarded patch body)
+  | Llet(str, k, id, duid, lam, body) ->
+      Llet (str, k, id, duid, lam, patch_guarded patch body)
   | Levent(lam, ev) ->
       Levent (patch_guarded patch lam, ev)
   | _ -> fatal_error "Lambda.patch_guarded"
@@ -1445,26 +1453,29 @@ let build_substs update_env ?(freshen_bound_variables = false) s =
      [l] with all the bound variables of the input term in the current
      scope, mapped to either themselves or freshened versions of
      themselves when [freshen_bound_variables] is set. *)
-  let bind id l =
+  let bind id duid l =
     let id' = if not freshen_bound_variables then id else Ident.rename id in
-    id', Ident.Map.add id id' l
+    (* CR sspies: If [freshen_bound_variables] is set, this code duplicates
+    the debug uids. [freshen_bound_variables] is currently only set by
+    [duplicate] below, which is called from [tmc.ml]. *)
+    id', duid, Ident.Map.add id id' l
   in
   let bind_many ids l =
-    List.fold_right (fun (id, rhs) (ids', l) ->
-        let id', l = bind id l in
-        ((id', rhs) :: ids' , l)
+    List.fold_right (fun (id, duid, rhs) (ids', l) ->
+        let id', duid', l = bind id duid l in
+        ((id', duid', rhs) :: ids' , l)
       ) ids ([], l)
   in
   let bind_params params l =
-    List.fold_right (fun p (params', l) ->
-        let name', l = bind p.name l in
-        ({ p with name = name' } :: params' , l)
+    List.fold_right (fun (p: lparam) (params', l) ->
+        let name', duid', l = bind p.name p.debug_uid l in
+        ({ p with name = name'; debug_uid = duid' } :: params' , l)
       ) params ([], l)
   in
   let bind_rec ids l =
-    List.fold_right (fun rb (ids', l) ->
-        let id', l = bind rb.id l in
-        ({ rb with id = id' } :: ids' , l)
+    List.fold_right (fun (rb: rec_binding) (ids', l) ->
+        let id', duid', l = bind rb.id rb.debug_uid l in
+        ({ rb with id = id'; debug_uid = duid' } :: ids' , l)
       ) ids ([], l)
   in
   let rec subst s l lam =
@@ -1492,12 +1503,12 @@ let build_substs update_env ?(freshen_bound_variables = false) s =
                       ap_args = subst_list s l ap.ap_args}
     | Lfunction lf ->
         Lfunction (subst_lfun s l lf)
-    | Llet(str, k, id, arg, body) ->
-        let id, l' = bind id l in
-        Llet(str, k, id, subst s l arg, subst s l' body)
-    | Lmutlet(k, id, arg, body) ->
-        let id, l' = bind id l in
-        Lmutlet(k, id, subst s l arg, subst s l' body)
+    | Llet(str, k, id, duid, arg, body) ->
+        let id, duid, l' = bind id duid l in
+        Llet(str, k, id, duid, subst s l arg, subst s l' body)
+    | Lmutlet(k, id, duid, arg, body) ->
+        let id, duid, l' = bind id duid l in
+        Lmutlet(k, id, duid, subst s l arg, subst s l' body)
     | Lletrec(decl, body) ->
         let decl, l' = bind_rec decl l in
         Lletrec(List.map (subst_decl s l') decl, subst s l' body)
@@ -1519,17 +1530,18 @@ let build_substs update_env ?(freshen_bound_variables = false) s =
         let params, l' = bind_many params l in
         Lstaticcatch(subst s l body, (id, params),
                      subst s l' handler, r, kind)
-    | Ltrywith(body, exn, handler,kind) ->
-        let exn, l' = bind exn l in
-        Ltrywith(subst s l body, exn, subst s l' handler,kind)
+    | Ltrywith(body, exn, duid, handler,kind) ->
+        let exn, duid, l' = bind exn duid l in
+        Ltrywith(subst s l body, exn, duid, subst s l' handler,kind)
     | Lifthenelse(e1, e2, e3,kind) ->
         Lifthenelse(subst s l e1, subst s l e2, subst s l e3,kind)
     | Lsequence(e1, e2) -> Lsequence(subst s l e1, subst s l e2)
     | Lwhile lw -> Lwhile { wh_cond = subst s l lw.wh_cond;
                             wh_body = subst s l lw.wh_body}
     | Lfor lf ->
-        let for_id, l' = bind lf.for_id l in
+        let for_id, for_duid, l' = bind lf.for_id lf.for_debug_uid l in
         Lfor {lf with for_id;
+                      for_debug_uid = for_duid;
                       for_from = subst s l lf.for_from;
                       for_to = subst s l lf.for_to;
                       for_body = subst s l' lf.for_body}
@@ -1640,10 +1652,10 @@ let shallow_map ~tail ~non_tail:f = function
       }
   | Lfunction lfun ->
       Lfunction (map_lfunction f lfun)
-  | Llet (str, layout, v, e1, e2) ->
-      Llet (str, layout, v, f e1, tail e2)
-  | Lmutlet (layout, v, e1, e2) ->
-      Lmutlet (layout, v, f e1, tail e2)
+  | Llet (str, layout, v, v_duid, e1, e2) ->
+      Llet (str, layout, v, v_duid, f e1, tail e2)
+  | Lmutlet (layout, v, v_duid, e1, e2) ->
+      Lmutlet (layout, v, v_duid, f e1, tail e2)
   | Lletrec (idel, e2) ->
       Lletrec
         (List.map (fun rb ->
@@ -1674,8 +1686,8 @@ let shallow_map ~tail ~non_tail:f = function
       Lstaticraise (i, List.map f args)
   | Lstaticcatch (body, id, handler, r, layout) ->
       Lstaticcatch (tail body, id, tail handler, r, layout)
-  | Ltrywith (e1, v, e2, layout) ->
-      Ltrywith (f e1, v, tail e2, layout)
+  | Ltrywith (e1, v, duid, e2, layout) ->
+      Ltrywith (f e1, v, duid, tail e2, layout)
   | Lifthenelse (e1, e2, e3, layout) ->
       Lifthenelse (f e1, tail e2, tail e3, layout)
   | Lsequence (e1, e2) ->
@@ -1706,10 +1718,12 @@ let map f =
 
 (* To let-bind expressions to variables *)
 
-let bind_with_layout str (var, layout) exp body =
+let bind_with_layout str (var, duid, layout) exp body =
   match exp with
     Lvar var' when Ident.same var var' -> body
-  | _ -> Llet(str, layout, var, exp, body)
+    (* CR sspies: This implicitly assumes that they have the same debug uid,
+       which is probably correct.*)
+  | _ -> Llet(str, layout, var, duid, exp, body)
 
 let negate_integer_comparison = function
   | Ceq -> Cne
@@ -2421,7 +2435,7 @@ let compute_expr_layout free_vars_kind lam =
     | Lfunction _ -> layout_function
     | Lapply { ap_result_layout; _ } -> ap_result_layout
     | Lsend (_, _, _, _, _, _, _, layout) -> layout
-    | Llet(_, kind, id, _, body) | Lmutlet(kind, id, _, body) ->
+    | Llet(_, kind, id, _duid, _, body) | Lmutlet(kind, id, _duid, _, body) ->
       compute_expr_layout (Ident.Map.add id kind kinds) body
     | Lletrec(defs, body) ->
       let kinds =
@@ -2432,7 +2446,7 @@ let compute_expr_layout free_vars_kind lam =
     | Lprim(p, _, _) ->
       primitive_result_layout p
     | Lswitch(_, _, _, kind) | Lstringswitch(_, _, _, _, kind)
-    | Lstaticcatch(_, _, _, _, kind) | Ltrywith(_, _, _, kind)
+    | Lstaticcatch(_, _, _, _, kind) | Ltrywith(_, _, _, _, kind)
     | Lifthenelse(_, _, _, kind) | Lregion (_, kind) ->
       kind
     | Lstaticraise (_, _) ->
@@ -2555,8 +2569,8 @@ let rec try_to_find_location lam =
   | Lsend (_, _, _, _, _, _, loc, _)
   | Levent (_, { lev_loc = loc; _ }) ->
     loc
-  | Llet (_, _, _, lam, _)
-  | Lmutlet (_, _, lam, _)
+  | Llet (_, _, _, _, lam, _)
+  | Lmutlet (_, _, _, lam, _)
   | Lifthenelse (lam, _, _, _)
   | Lstaticcatch (lam, _, _, _, _)
   | Lstaticraise (_, lam :: _)
@@ -2566,7 +2580,7 @@ let rec try_to_find_location lam =
   | Lifused (_, lam)
   | Lregion (lam, _)
   | Lexclave lam
-  | Ltrywith (lam, _, _, _) ->
+  | Ltrywith (lam, _, _, _, _) ->
     try_to_find_location lam
   | Lvar _ | Lmutvar _ | Lconst _ | Lletrec _ | Lstaticraise (_, []) ->
     Debuginfo.Scoped_location.Loc_unknown

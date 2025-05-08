@@ -181,9 +181,9 @@ let expand_record_unboxed_product_head h =
       { h with pat_desc = Record_unboxed_product (Array.to_list lbl_all) }
   | _ -> h
 
-let bind_alias p id ~arg ~arg_sort ~action =
+let bind_alias p id duid ~arg ~arg_sort ~action =
   let k = Typeopt.layout p.pat_env p.pat_loc arg_sort p.pat_type in
-  bind_with_layout Alias (id, k) arg action
+  bind_with_layout Alias (id, duid, k) arg action
 
 let head_loc ~scopes head =
   Scoped_location.of_location ~scopes head.pat_loc
@@ -269,10 +269,10 @@ end = struct
       | `Any -> stop p `Any
       | `Var (id, s, uid, mode) ->
         continue p (`Alias (Patterns.omega, id, s, uid, mode, p.pat_type))
-      | `Alias (p, id, _, _, _, _) ->
+      | `Alias (p, id, _, duid, _, _) ->
           aux
             ( (General.view p, patl),
-              bind_alias p id ~arg ~arg_sort ~action )
+              bind_alias p id duid ~arg ~arg_sort ~action )
       | `Record ([], _) as view -> stop p view
       | `Record (lbls, closed) ->
           let full_view = `Record (all_record_args lbls, closed) in
@@ -309,7 +309,7 @@ module Simple : sig
     arg_sort:Jkind.Sort.Const.t ->
     Half_simple.pattern ->
     mk_action:(vars:Ident.t list -> lambda) ->
-    patbound_action_vars:Ident.t list ->
+    patbound_action_vars:(Ident.t * Lambda.debug_uid) list ->
     (pattern * lambda) list
 end = struct
   include Patterns.Simple
@@ -403,7 +403,7 @@ end = struct
                 let fresh_pat = alpha renaming_env { p with pat_desc = view } in
                 let fresh_action = mk_action ~vars:(List.rev action_vars) in
                 (fresh_pat, fresh_action)
-            | pat_id :: rem_vars ->
+            | (pat_id, pat_duid) :: rem_vars ->
               if not (List.mem pat_id aliases) then begin
                 let fresh_id = Ident.rename pat_id in
                 let action_vars = fresh_id :: action_vars in
@@ -422,7 +422,7 @@ end = struct
                   let pat, action =
                     fresh_clause (Some id) action_vars renaming_env rem_vars
                   in
-                  pat, bind_alias pat id ~arg ~arg_sort ~action
+                  pat, bind_alias pat id pat_duid ~arg ~arg_sort ~action
               end
           in
           fresh_clause None [] [] patbound_action_vars :: rem
@@ -1022,7 +1022,7 @@ type 'row pattern_matching = {
 type handler = {
   provenance : matrix;
   exit : int;
-  vars : (Ident.t * Lambda.layout) list;
+  vars : (Ident.t * Lambda.debug_uid * Lambda.layout) list;
   pm : initial_clause pattern_matching
 }
 
@@ -1158,7 +1158,7 @@ let make_catch kind d k =
 (* Introduce a catch, if worth it, delayed version *)
 let rec as_simple_exit = function
   | Lstaticraise (i, []) -> Some i
-  | Llet (Alias, _k, _, _, e) -> as_simple_exit e
+  | Llet (Alias, _k, _, _, _, e) -> as_simple_exit e
   | _ -> None
 
 let make_catch_delayed kind handler =
@@ -1701,8 +1701,9 @@ and precompile_or ~arg ~arg_sort (cls : Simple.clause list) ors args def k =
                  that are used in the orpm actions *)
               Typedtree.pat_bound_idents_full arg_sort orp
               |> List.filter (fun (id, _, _, _, _) -> Ident.Set.mem id pm_fv)
-              |> List.map (fun (id, _, ty, _, id_sort) ->
-                     (id, Typeopt.layout orp.pat_env orp.pat_loc id_sort ty))
+              |> List.map (fun (id, _, ty, uid, id_sort) ->
+                  (* CR sspies: Can this uid be used for debugging? *)
+                  (id, uid, Typeopt.layout orp.pat_env orp.pat_loc id_sort ty))
             in
             let or_num = next_raise_count () in
             let new_patl = Patterns.omega_list patl in
@@ -1712,7 +1713,8 @@ and precompile_or ~arg ~arg_sort (cls : Simple.clause list) ors args def k =
             let new_cases =
               Simple.explode_or_pat ~arg ~arg_sort p
                 ~mk_action:mk_new_action
-                ~patbound_action_vars:(List.map fst patbound_action_vars)
+                ~patbound_action_vars:
+                 (List.map (fun (id, duid, _) -> id, duid) patbound_action_vars)
               |> List.map (fun (p, act) -> ((p, new_patl), act)) in
             let handler =
               { provenance = [ [ orp ] ];
@@ -2115,8 +2117,10 @@ let lazy_forward_field = Lambda.Pfield (0, Pointer, Reads_vary)
 
 let inline_lazy_force_cond arg pos loc =
   let idarg = Ident.create_local "lzarg" in
+  let idarg_duid = Lambda.debug_uid_none in
   let varg = Lvar idarg in
   let tag = Ident.create_local "tag" in
+  let tag_duid = Lambda.debug_uid_none in
   let test_tag t =
     Lprim(Pintcomp Ceq, [Lvar tag; Lconst(Const_base(Const_int t))], loc)
   in
@@ -2124,11 +2128,13 @@ let inline_lazy_force_cond arg pos loc =
     ( Strict,
       Lambda.layout_lazy,
       idarg,
+      idarg_duid,
       arg,
       Llet
         ( Alias,
           Lambda.layout_int,
           tag,
+          tag_duid,
           Lprim (Pccall prim_obj_tag, [ varg ], loc),
           Lifthenelse
             ( (* if (tag == Obj.forward_tag) then varg.(0) else ... *)
@@ -2149,11 +2155,13 @@ let inline_lazy_force_cond arg pos loc =
 
 let inline_lazy_force_switch arg pos loc =
   let idarg = Ident.create_local "lzarg" in
+  let idarg_duid = Lambda.debug_uid_none in
   let varg = Lvar idarg in
   Llet
     ( Strict,
       Lambda.layout_lazy,
       idarg,
+      idarg_duid,
       arg,
       Lifthenelse
         ( Lprim (Pisint { variant_only = false }, [ varg ], loc),
@@ -2515,7 +2523,8 @@ let bind_sw arg layout k =
   | Lvar _ -> k arg
   | _ ->
       let id = Ident.create_local "switch" in
-      Llet (Strict, layout, id, arg, k (Lvar id))
+      let id_duid = Lambda.debug_uid_none in
+      Llet (Strict, layout, id, id_duid, arg, k (Lvar id))
 
 (* Sequential equality tests *)
 
@@ -2722,15 +2731,19 @@ module SArg = struct
     | _ -> Lprim (Poffsetint n, [ arg ], Loc_unknown)
 
   let bind arg body =
-    let newvar, newarg =
+    let newvar, newvar_duid, newarg =
       match arg with
-      | Lvar v -> (v, arg)
+      | Lvar v -> (v, Lambda.debug_uid_none, arg)
+        (* CR sspies: This seems like the kind of place where we could have
+           a debug uid. Is there a way to get it here? *)
       | _ ->
           let newvar = Ident.create_local "switcher" in
-          (newvar, Lvar newvar)
+          let newvar_duid = Lambda.debug_uid_none in
+          (newvar, newvar_duid, Lvar newvar)
     in
     (* [switch.ml] will only call bind with an integer argument *)
-    bind_with_layout Alias (newvar, Lambda.layout_int) arg (body newarg)
+    bind_with_layout Alias
+                     (newvar, newvar_duid, Lambda.layout_int) arg (body newarg)
 
   let make_const i = Lconst (Const_base (Const_int i))
 
@@ -3263,6 +3276,7 @@ let combine_constructor value_kind loc arg pat_env pat_barrier cstr partial ctx 
           | [] -> default
           | _ ->
               let tag = Ident.create_local "tag" in
+              let tag_duid = Lambda.debug_uid_none in
               let tests =
                 List.fold_right
                   (fun (path, act) rem ->
@@ -3274,7 +3288,7 @@ let combine_constructor value_kind loc arg pat_env pat_barrier cstr partial ctx 
               let ubr = Translmode.transl_unique_barrier pat_barrier in
               let sem = add_barrier_to_read ubr Reads_agree in
               let str = add_barrier_to_let_kind ubr Alias in
-              Llet (str, Lambda.layout_block, tag,
+              Llet (str, Lambda.layout_block, tag, tag_duid,
                     Lprim (Pfield (0, Pointer, sem), [ arg ], loc),
                     tests)
         in
@@ -3406,12 +3420,14 @@ let call_switcher_variant_constant kind loc fail arg int_lambda_list =
 
 let call_switcher_variant_constr value_kind loc fail arg pat_barrier int_lambda_list =
   let v = Ident.create_local "variant" in
+  let v_duid = Lambda.debug_uid_none in
   let ubr = Translmode.transl_unique_barrier pat_barrier in
   let str = add_barrier_to_let_kind ubr Alias in
   Llet
     ( str,
       Lambda.layout_int,
       v,
+      v_duid,
       Lprim (nonconstant_variant_field ubr 0, [ arg ], loc),
       call_switcher value_kind loc fail (Lvar v) min_int max_int int_lambda_list )
 
@@ -3491,10 +3507,12 @@ let combine_array value_kind loc arg kind partial ctx def (len_lambda_list, tota
   let fail, local_jumps = mk_failaction_neg partial ctx def in
   let lambda1 =
     let newvar = Ident.create_local "len" in
+    let newvar_duid = Lambda.debug_uid_none in
     let switch =
       call_switcher value_kind loc fail (Lvar newvar) 0 max_int len_lambda_list
     in
-    bind_with_layout Alias (newvar, Lambda.layout_int) (Lprim (Parraylength kind, [ arg ], loc)) switch
+    bind_with_layout Alias (newvar, newvar_duid, Lambda.layout_int)
+      (Lprim (Parraylength kind, [ arg ], loc)) switch
   in
   (lambda1, Jumps.union local_jumps total1)
 
@@ -3512,8 +3530,8 @@ let rec event_branch repr lam =
             lev_repr = repr;
             lev_env = ev.lev_env
           } )
-  | Llet (str, k, id, lam, body), _ ->
-      Llet (str, k, id, lam, event_branch repr body)
+  | Llet (str, k, id, duid, lam, body), _ ->
+      Llet (str, k, id, duid, lam, event_branch repr body)
   | Lstaticraise _, _ -> lam
   | _, Some _ ->
       fatal_errorf "Matching.event_branch: %a" Printlambda.lambda lam
@@ -3614,11 +3632,13 @@ let rec approx_present v = function
   | Lstaticraise (_, args) ->
       List.exists (fun lam -> approx_present v lam) args
   | Lprim (_, args, _) -> List.exists (fun lam -> approx_present v lam) args
-  | Llet (Alias, _k, _, l1, l2) -> approx_present v l1 || approx_present v l2
+  | Llet (Alias, _k, _duid, _, l1, l2) ->
+    approx_present v l1 || approx_present v l2
   | Lvar vv -> Ident.same v vv
   | _ -> true
 
-let rec lower_bind v arg_layout arg lam =
+(* CR sspies: I'm unsure about the [debug_uid] handling in this function. *)
+let rec lower_bind v v_duid arg_layout arg lam =
   match lam with
   | Lifthenelse (cond, ifso, ifnot, kind) -> (
       let pcond = approx_present v cond
@@ -3627,33 +3647,35 @@ let rec lower_bind v arg_layout arg lam =
       match (pcond, pso, pnot) with
       | false, false, false -> lam
       | false, true, false ->
-          Lifthenelse (cond, lower_bind v arg_layout arg ifso, ifnot, kind)
+        Lifthenelse (cond, lower_bind v v_duid arg_layout arg ifso, ifnot, kind)
       | false, false, true ->
-          Lifthenelse (cond, ifso, lower_bind v arg_layout arg ifnot, kind)
-      | _, _, _ -> bind_with_layout Alias (v, arg_layout) arg lam
+        Lifthenelse (cond, ifso, lower_bind v v_duid arg_layout arg ifnot, kind)
+      | _, _, _ -> bind_with_layout Alias (v, v_duid, arg_layout) arg lam
     )
   | Lswitch (ls, ({ sw_consts = [ (i, act) ]; sw_blocks = [] } as sw), loc,
              kind)
     when not (approx_present v ls) ->
-      Lswitch (ls, { sw with sw_consts = [ (i, lower_bind v arg_layout arg act) ] },
+      Lswitch (ls, { sw with sw_consts =
+                             [ (i, lower_bind v v_duid arg_layout arg act) ] },
                loc, kind)
   | Lswitch (ls, ({ sw_consts = []; sw_blocks = [ (i, act) ] } as sw),
              loc, kind)
     when not (approx_present v ls) ->
-      Lswitch (ls, { sw with sw_blocks = [ (i, lower_bind v arg_layout arg act) ] },
+      Lswitch (ls, { sw with sw_blocks =
+                             [ (i, lower_bind v v_duid arg_layout arg act) ] },
                loc, kind)
-  | Llet (Alias, k, vv, lv, l) ->
+  | Llet (Alias, k, vv, vv_duid, lv, l) ->
       if approx_present v lv then
-        bind_with_layout Alias (v, arg_layout) arg lam
+        bind_with_layout Alias (v, v_duid, arg_layout) arg lam
       else
-        Llet (Alias, k, vv, lv, lower_bind v arg_layout arg l)
-  | _ -> bind_with_layout Alias (v, arg_layout) arg lam
+        Llet (Alias, k, vv, vv_duid, lv, lower_bind v v_duid arg_layout arg l)
+  | _ -> bind_with_layout Alias (v, v_duid, arg_layout) arg lam
 
-let bind_check str v arg_layout arg lam =
+let bind_check str v v_duid arg_layout arg lam =
   match (str, arg) with
-  | _, Lvar _ -> bind_with_layout str (v, arg_layout) arg lam
-  | Alias, _ -> lower_bind v arg_layout arg lam
-  | _, _ -> bind_with_layout str (v, arg_layout) arg lam
+  | _, Lvar _ -> bind_with_layout str (v, v_duid, arg_layout) arg lam
+  | Alias, _ -> lower_bind v v_duid arg_layout arg lam
+  | _, _ -> bind_with_layout str (v, v_duid, arg_layout) arg lam
 
 let comp_exit ctx m =
   match Default_environment.pop m.default with
@@ -3715,10 +3737,13 @@ let rec name_pattern default = function
 
 let arg_to_var arg cls =
   match arg with
-  | Lvar v -> (v, arg)
+  | Lvar v -> (v, Lambda.debug_uid_none, arg)
+  (* CR sspies: This seems like a place where we could be able to actually
+     get a debug uid. *)
   | _ ->
       let v = name_pattern "*match*" cls in
-      (v, Lvar v)
+      let v_duid = Lambda.debug_uid_none in
+      (v, v_duid, Lvar v)
 
 (*
   The main compilation function.
@@ -3757,7 +3782,7 @@ and compile_match_nonempty ~scopes value_kind repr partial ctx
   match m with
   | { cases = []; args = [] } -> comp_exit ctx m
   | { args = (arg, str, arg_sort, layout) :: argl } ->
-      let v, newarg = arg_to_var arg m.cases in
+      let v, v_duid, newarg = arg_to_var arg m.cases in
       let args = (newarg, Alias, arg_sort, layout) :: argl in
       let cases =
         List.map (half_simplify_nonempty ~arg:newarg ~arg_sort)
@@ -3767,7 +3792,8 @@ and compile_match_nonempty ~scopes value_kind repr partial ctx
       let first_match, rem =
         split_and_precompile_half_simplified ~arg:newarg ~arg_sort m
       in
-      combine_handlers ~scopes value_kind repr partial ctx (v, str, layout, arg) first_match rem
+      combine_handlers ~scopes value_kind repr partial ctx
+                       (v, v_duid, str, layout, arg) first_match rem
   | _ -> assert false
 
 and compile_match_simplified ~scopes value_kind  repr partial ctx
@@ -3775,15 +3801,18 @@ and compile_match_simplified ~scopes value_kind  repr partial ctx
   match m with
   | { cases = []; args = [] } -> comp_exit ctx m
   | { args = ((Lvar v as arg), str, sort, layout) :: argl } ->
+      let v_duid = Lambda.debug_uid_none in
+      (* CR sspies: Is this the expression in [match e with ...] or one of the cases?
+         Seems like the kind of place where we could potentially get a debug uid. *)
       let args = (arg, Alias, sort, layout) :: argl in
       let m = { m with args } in
       let first_match, rem = split_and_precompile_simplified m in
-      combine_handlers value_kind ~scopes repr partial ctx (v, str, layout, arg)
-        first_match rem
+      combine_handlers value_kind ~scopes repr partial ctx
+        (v, v_duid, str, layout, arg) first_match rem
   | _ -> assert false
 
-and combine_handlers ~scopes value_kind repr partial ctx (v, str, arg_layout, arg)
-    first_match rem =
+and combine_handlers ~scopes value_kind repr partial ctx
+    (v, v_duid, str, arg_layout, arg) first_match rem =
   let lam, total =
     comp_match_handlers value_kind
       (( if dbg then
@@ -3794,7 +3823,7 @@ and combine_handlers ~scopes value_kind repr partial ctx (v, str, arg_layout, ar
          repr)
       partial ctx first_match rem
   in
-  (bind_check str v arg_layout arg lam, total)
+  (bind_check str v v_duid arg_layout arg lam, total)
 
 (* verbose version of do_compile_matching, for debug *)
 and do_compile_matching_pr ~scopes value_kind repr partial ctx x =
@@ -4153,14 +4182,17 @@ let simple_for_let ~scopes ~arg_sort ~return_layout loc param pat body =
 *)
 
 let rec map_return f = function
-  | Llet (str, k, id, l1, l2) -> Llet (str, k, id, l1, map_return f l2)
-  | Lmutlet (k, id, l1, l2) -> Lmutlet (k, id, l1, map_return f l2)
+  | Llet (str, k, id, duid, l1, l2) ->
+    Llet (str, k, id, duid, l1, map_return f l2)
+  | Lmutlet (k, id, duid, l1, l2) ->
+    Lmutlet (k, id, duid, l1, map_return f l2)
   | Lletrec (l1, l2) -> Lletrec (l1, map_return f l2)
   | Lifthenelse (lcond, lthen, lelse, k) ->
       Lifthenelse (lcond, map_return f lthen, map_return f lelse, k)
   | Lsequence (l1, l2) -> Lsequence (l1, map_return f l2)
   | Levent (l, ev) -> Levent (map_return f l, ev)
-  | Ltrywith (l1, id, l2, k) -> Ltrywith (map_return f l1, id, map_return f l2, k)
+  | Ltrywith (l1, id, duid, l2, k) ->
+    Ltrywith (map_return f l1, id, duid, map_return f l2, k)
   | Lstaticcatch (l1, b, l2, r, k) ->
       Lstaticcatch (map_return f l1, b, map_return f l2, r, k)
   | Lswitch (s, sw, loc, k) ->
@@ -4251,8 +4283,9 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
       (* This eliminates a useless variable (and stack slot in bytecode)
          for "let _ = ...". See #6865. *)
       Lsequence (param, body)
-  | Tpat_var (id, _, _, _)
-  | Tpat_alias ({ pat_desc = Tpat_any }, id, _, _, _, _) ->
+  | Tpat_var (id, _, duid, _)
+  | Tpat_alias ({ pat_desc = Tpat_any }, id, _, duid, _, _) ->
+    (* CR sspies: Can these [Uid.t] values be used for debug information? *)
       (* Fast path, and keep track of simple bindings to unboxable numbers.
 
          Note: the (Tpat_alias (Tpat_any, id)) case needs to be
@@ -4261,15 +4294,16 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
          non-polymorphic Ppat_constraint case in type_pat_aux.
       *)
       let k = Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type in
-      Llet (Strict, k, id, param, body)
+      Llet (Strict, k, id, duid, param, body)
   | _ ->
       let opt = ref false in
       let nraise = next_raise_count () in
       let catch_ids = pat_bound_idents_full arg_sort pat in
       let ids_with_kinds =
         List.map
-          (fun (id, _, typ, _, sort) ->
-             (id, Typeopt.layout pat.pat_env pat.pat_loc sort typ))
+          (fun (id, _, typ, uid, sort) ->
+             (* CR sspies: Can this uid be used for debug information? *)
+             (id, uid, Typeopt.layout pat.pat_env pat.pat_loc sort typ))
           catch_ids
       in
       let ids = List.map (fun (id, _, _, _, _) -> id) catch_ids in
@@ -4408,10 +4442,13 @@ let do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list pa
     let (idl_with_layouts, args) =
       List.map (function
         | Lvar id as lid, sort, layout ->
-          (id, layout), (lid, Alias, sort, layout)
+          (id, Lambda.debug_uid_none, layout), (lid, Alias, sort, layout)
+        (* CR sspies: This seems like a place where we should be able to actually
+           get a debug uid. The variable is used for a smart let binding below. *)
         | _, sort, layout ->
           let id = Ident.create_local "*match*" in
-          (id, layout), (Lvar id, Alias, sort, layout))
+          let id_uid = Lambda.debug_uid_none in
+          (id, id_uid, layout), (Lvar id, Alias, sort, layout))
         paraml
       |> List.split
     in
@@ -4433,18 +4470,22 @@ let do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list pa
 
 let param_to_var (param, sort, layout) =
   match param with
-  | Lvar v -> (v, sort, layout, None)
-  | _ -> (Ident.create_local "*match*", sort, layout, Some param)
+  | Lvar v -> (v, Lambda.debug_uid_none, sort, layout, None)
+  (* CR sspies: Another one of these places that looks like
+     we could get a debug uid here. *)
+  | _ -> (Ident.create_local "*match*",
+          Lambda.debug_uid_none, sort, layout, Some param)
 
-let bind_opt (v, _, layout, eo) k =
+let bind_opt (v, v_duid, _, layout, eo) k =
   match eo with
   | None -> k
-  | Some e -> Lambda.bind_with_layout Strict (v, layout) e k
+  | Some e ->
+    Lambda.bind_with_layout Strict (v, v_duid, layout) e k
 
 let for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list partial =
   let v_paraml = List.map param_to_var paraml in
   let paraml =
-    List.map (fun (v, sort, layout, _) -> (Lvar v, sort, layout)) v_paraml
+    List.map (fun (v, _, sort, layout, _) -> (Lvar v, sort, layout)) v_paraml
   in
   List.fold_right bind_opt v_paraml
     (do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list
