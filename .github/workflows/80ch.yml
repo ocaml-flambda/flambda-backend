@@ -1,0 +1,23 @@
+name: 80ch
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+
+    steps:
+    - name: Checkout the Flambda backend repo
+      uses: actions/checkout@master
+
+    - name: Checkout the parent branch
+      run: git fetch origin HEAD --deepen 1
+
+    - name: Check for new >80 character lines
+      run: bash .github/workflows/80ch.sh
