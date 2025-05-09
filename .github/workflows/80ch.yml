@@ -20,4 +20,5 @@ jobs:
       run: git fetch origin HEAD --deepen 1
 
     - name: Check for new >80 character lines
+      working-directory: flambda_backend
       run: bash .github/workflows/80ch.sh
