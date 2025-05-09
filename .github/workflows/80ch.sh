@@ -21,8 +21,8 @@
 
 set -u
 
-git fetch origin main --deepen 1 # Needed to have a local copy of origin/main
-                                 # For this script to work
+git fetch origin main --deepen 1 -q # Needed to have a local copy of origin/main
+                                    # for this script to work
 
 feature_base="$(git merge-base origin/main HEAD)"
                             # N.b.: main is always considered the parent feature
@@ -77,8 +77,7 @@ do
 
     # Workflow commands for GitHub Actions
     printf \
-      '::warning file=%s,line=%s::Line is over 80 characters long:%%0A%s\n' \
-      "$changed_file" "$number" "$line"                       #   ^^^^
-                                                              # Encoded newline
+      '::warning file=%s,line=%s::Line is over 80 characters long: %s\n' \
+      "$changed_file" "$number" "$line"
   done
 done
