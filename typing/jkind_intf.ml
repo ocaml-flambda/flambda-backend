@@ -208,6 +208,7 @@ module History = struct
     | Layout_poly_in_external
     | Unboxed_tuple_element
     | Peek_or_poke
+    | Mutable_var_assignment
 
   (* For sort variables that are in the "legacy" position
      on the jkind lattice, defaulting exactly to [value]. *)
@@ -322,6 +323,7 @@ module History = struct
     | Wildcard
     | Unification_var
     | Array_type_argument
+    | Mutable_value
 
   type product_creation_reason =
     | Unboxed_tuple

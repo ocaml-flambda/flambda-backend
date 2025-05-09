@@ -12,7 +12,7 @@
             structure_item (shortcut_ext_attr.ml[10,179+2]..[30,721+31])
               Pstr_eval
               expression (shortcut_ext_attr.ml[10,179+2]..[30,721+31])
-                Pexp_let Nonrec
+                Pexp_let Immutable Nonrec
                 [
                   <def>
                       attribute "foo"

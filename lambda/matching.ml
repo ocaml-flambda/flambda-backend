@@ -4245,7 +4245,7 @@ let assign_pat ~scopes body_layout opt nraise catch_ids loc pat pat_sort lam =
   in
   List.fold_left push_sublet exit rev_sublets
 
-let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
+let for_let ~scopes ~arg_sort ~return_layout loc param mutable_flag pat body =
   match pat.pat_desc with
   | Tpat_any ->
       (* This eliminates a useless variable (and stack slot in bytecode)
@@ -4261,7 +4261,10 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
          non-polymorphic Ppat_constraint case in type_pat_aux.
       *)
       let k = Typeopt.layout pat.pat_env pat.pat_loc arg_sort pat.pat_type in
-      Llet (Strict, k, id, param, body)
+      begin match mutable_flag with
+      | Asttypes.Mutable -> Lmutlet (k, id, param, body)
+      | Asttypes.Immutable -> Llet (Strict, k, id, param, body)
+      end
   | _ ->
       let opt = ref false in
       let nraise = next_raise_count () in
@@ -4480,7 +4483,7 @@ let for_optional_arg_default
             Loc_unknown))
   in
   for_let ~scopes ~arg_sort:default_arg_sort ~return_layout
-    loc supplied_or_default pat body
+    loc supplied_or_default Immutable pat body
 
 (* Error report *)
 (* CR layouts v5: This file didn't use to have the report_error infrastructure -

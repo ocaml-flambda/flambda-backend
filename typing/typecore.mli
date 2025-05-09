@@ -65,6 +65,7 @@ type pattern_variable =
     pv_id: Ident.t;
     pv_uid: Uid.t;
     pv_mode: Mode.Value.l;
+    pv_mutable: mutable_flag;
     pv_type: type_expr;
     pv_loc: Location.t;
     pv_as_var: bool;
@@ -112,18 +113,22 @@ type existential_restriction =
   | In_class_def (** or in [class c = let ... in ...] *)
   | In_self_pattern (** or in self pattern *)
 
+type mutable_restriction =
+  | In_group
+  | In_rec
+
 type module_patterns_restriction =
   | Modules_allowed of { scope: int }
   | Modules_rejected
   | Modules_ignored
 
 val type_binding:
-        Env.t -> rec_flag ->
+        Env.t -> mutable_flag -> rec_flag ->
           ?force_toplevel:bool ->
           Parsetree.value_binding list ->
           Typedtree.value_binding list * Env.t
 val type_let:
-        existential_restriction -> Env.t -> rec_flag ->
+        existential_restriction -> Env.t -> mutable_flag -> rec_flag ->
           Parsetree.value_binding list ->
           Typedtree.value_binding list * Env.t
 val type_expression:
@@ -161,6 +166,10 @@ val generalizable: int -> type_expr -> bool
 val generalize_structure_exp: Typedtree.expression -> unit
 val reset_delayed_checks: unit -> unit
 val force_delayed_checks: unit -> unit
+
+val value_bindings_mutability :
+  mutable_flag -> Env.t -> ?restriction:mutable_restriction ->
+  Parsetree.value_binding list -> unit
 
 val reset_allocations: unit -> unit
 val optimise_allocations: unit -> unit
@@ -267,6 +276,7 @@ type error =
   | Cannot_infer_signature
   | Not_a_packed_module of type_expr
   | Unexpected_existential of existential_restriction * string
+  | Unexpected_mutable of mutable_restriction
   | Invalid_interval
   | Invalid_for_loop_index
   | Invalid_comprehension_for_range_iterator_index
@@ -289,6 +299,7 @@ type error =
   | Float32_literal of string
   | Illegal_letrec_pat
   | Illegal_letrec_expr
+  | Illegal_mutable_pat
   | Illegal_class_expr
   | Letop_type_clash of string * Errortrace.unification_error
   | Andop_type_clash of string * Errortrace.unification_error

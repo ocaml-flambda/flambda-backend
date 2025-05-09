@@ -238,15 +238,17 @@ let iter_on_occurrences
             modifs
       | Texp_extension_constructor (lid, path) ->
           f ~namespace:Extension_constructor exp_env path lid
-      | Texp_constant _ | Texp_let _ | Texp_function _ | Texp_apply _
-      | Texp_match _ | Texp_try _ | Texp_tuple _ | Texp_unboxed_tuple _
-      | Texp_variant _ | Texp_array _
+      | Texp_constant _ | Texp_let _ | Texp_letmutable _ | Texp_function _
+      | Texp_apply _ | Texp_match _ | Texp_try _ | Texp_tuple _
+      | Texp_unboxed_tuple _ | Texp_variant _ | Texp_array _
       | Texp_ifthenelse _ | Texp_sequence _ | Texp_while _ | Texp_for _
       | Texp_send _
       | Texp_letmodule _ | Texp_letexception _ | Texp_assert _ | Texp_lazy _
       | Texp_object _ | Texp_pack _ | Texp_letop _ | Texp_unreachable
       | Texp_list_comprehension _ | Texp_array_comprehension _ | Texp_probe _
       | Texp_probe_is_enabled _ | Texp_exclave _
+      (* CR-someday let_mutable: maybe iterate on mutvar? *)
+      | Texp_mutvar _ | Texp_setmutvar _
       | Texp_open _ | Texp_src_pos | Texp_overwrite _ | Texp_hole _ -> ());
       default_iterator.expr sub e);
 
