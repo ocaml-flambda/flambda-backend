@@ -127,3 +127,8 @@ val add_coaccessor_dep :
 
 val add_coconstructor_dep :
   graph -> base:Code_id_or_name.t -> CoField.t -> from:Code_id_or_name.t -> unit
+
+val print_iter_edges :
+  print_edge:(Code_id_or_name.t * Code_id_or_name.t * string -> unit) ->
+  graph ->
+  unit

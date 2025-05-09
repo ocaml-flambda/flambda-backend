@@ -887,7 +887,7 @@ let run ~get_code_metadata (unit : Flambda_unit.t) =
   let code_deps = Acc.code_deps acc in
   let () =
     let debug_print = Flambda_features.dump_reaper () in
-    if false && debug_print then Dot.print_dep (code_deps, deps)
+    if false && debug_print then Dot.print_dep deps
   in
   { holed;
     deps;

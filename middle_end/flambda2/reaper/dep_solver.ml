@@ -605,11 +605,11 @@ let has_use, field_used =
       || exists_with_parameters used_field_top_query [x; field] db
       || exists_with_parameters used_field_query [x; field] db )
 
+let any_source_query =
+  mk_exists_query ["X"] [] (fun [x] [] -> [any_source_pred x])
+
 let has_source =
   let open! Global_flow_graph in
-  let any_source_query =
-    mk_exists_query ["X"] [] (fun [x] [] -> [any_source_pred x])
-  in
   let has_source_query =
     mk_exists_query ["X"] ["Y"] (fun [x] [y] -> [sources_rel x y])
   in
@@ -1343,15 +1343,28 @@ let fixpoint (graph : Global_flow_graph.graph) =
   }
 
 let print_color { db; unboxed_fields; changed_representation } v =
-  if Code_id_or_name.Map.mem v unboxed_fields
-  then "#dd2233"
-  else if Code_id_or_name.Map.mem v changed_representation
-  then "#2255ff"
-  else if exists_with_parameters used_pred_query [v] db
-  then "#a7a7a7"
-  else if has_use db v
-  then "#f1c40f"
-  else "white"
+  let red =
+    if Code_id_or_name.Map.mem v unboxed_fields
+    then "22"
+    else if Code_id_or_name.Map.mem v changed_representation
+    then "88"
+    else "ff"
+  in
+  let green =
+    if exists_with_parameters used_pred_query [v] db
+    then "22"
+    else if has_use db v
+    then "88"
+    else "ff"
+  in
+  let blue =
+    if exists_with_parameters any_source_query [v] db
+    then "22"
+    else if has_source db v
+    then "88"
+    else "ff"
+  in
+  "#" ^ red ^ green ^ blue
 
 let get_unboxed_fields uses cn =
   Code_id_or_name.Map.find_opt cn uses.unboxed_fields

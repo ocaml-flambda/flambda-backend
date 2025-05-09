@@ -240,6 +240,34 @@ type graph =
     mutable used_pred : Used_pred.t
   }
 
+let print_iter_edges ~print_edge graph =
+  let iter_inner color target m =
+    Code_id_or_name.Map.iter
+      (fun source () -> print_edge (source, target, color))
+      m
+  in
+  let iter_nn color m = Code_id_or_name.Map.iter (iter_inner color) m in
+  let iter_nfn color m =
+    Code_id_or_name.Map.iter
+      (fun target m -> FieldC.Map.iter (fun _ m -> iter_inner color target m) m)
+      m
+  in
+  let iter_ncn color m =
+    Code_id_or_name.Map.iter
+      (fun target m ->
+        CoFieldC.Map.iter (fun _ m -> iter_inner color target m) m)
+      m
+  in
+  iter_nn "black" graph.alias_rel;
+  iter_nn "red" graph.use_rel;
+  iter_nfn "green" graph.accessor_rel;
+  iter_nfn "blue" graph.constructor_rel;
+  iter_ncn "darkgreen" graph.coaccessor_rel;
+  iter_ncn "darkblue" graph.coconstructor_rel;
+  Code_id_or_name.Map.iter
+    (fun _if_defined m -> iter_nn "purple" m)
+    graph.propagate_rel
+
 let alias_rel = Alias_rel.create ~name:"alias"
 
 let use_rel = Use_rel.create ~name:"use"
