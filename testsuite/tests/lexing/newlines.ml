@@ -7,6 +7,8 @@ let check ~kind ~input ~result =
       kind input result
 ;;
 
+(* Long comments in the testsuite/tests directory will not trigger 80ch because of expects *)
+
 check ~kind:"string literal" ~input:"
 " ~result:"\n";
 check ~kind:"quoted string literal" ~input:{|

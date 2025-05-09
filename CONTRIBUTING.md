@@ -56,6 +56,9 @@ https://help.github.com/articles/allowing-changes-to-a-pull-request-branch-creat
 significantly delay the inclusion of an otherwise perfectly ok
 contribution.
 
+Only ml, mli, and mly files are subject to 80ch
+https://help.github.com/articles/allowing-changes-to-a-pull-request-branch-created-from-a-fork/
+
 ### Maintainers
 
 The current list of maintainers is as follows:
