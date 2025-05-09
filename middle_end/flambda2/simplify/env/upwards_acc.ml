@@ -179,3 +179,5 @@ let mutable_unboxing_result t = t.flow_result.mutable_unboxing_result
 let set_resimplify t = { t with resimplify = true }
 
 let resimplify t = t.resimplify
+
+let specialization_map t = DA.specialization_map (creation_dacc t)

@@ -109,6 +109,7 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
   |> DA.with_shareable_constants ~shareable_constants
   |> DA.with_slot_offsets ~slot_offsets
   |> DA.reset_continuation_lifting_budget
+  |> DA.reset_continuation_specialization_budget
 
 let extract_accumulators_from_function outer_dacc ~dacc_after_body
     ~uacc_after_upwards_traversal =
@@ -345,6 +346,8 @@ type simplify_function_result =
 
 let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     ~closure_bound_names_inside_function =
+  if match Sys.getenv_opt "FOO" with Some _ -> true | _ -> false
+  then Format.eprintf "@\n___ FUNCTION %a ___@\n@." Code_id.print code_id;
   let denv_prior_to_sets = C.dacc_prior_to_sets context |> DA.denv in
   let inlining_arguments_from_denv =
     denv_prior_to_sets |> DE.inlining_arguments
@@ -797,6 +800,12 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
     Simplified_named.create_with_known_free_names ~find_code_characteristics
       (Named.create_set_of_closures set_of_closures)
       ~free_names:(Named.free_names named)
+  in
+  let dacc =
+    DA.map_denv dacc
+      ~f:
+        (DE.map_specialization_cost
+           ~f:(Specialization_cost.add_set_of_closures set_of_closures))
   in
   Simplify_named_result.create dacc
     [ { Expr_builder.let_bound = bound_vars;
