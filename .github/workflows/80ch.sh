@@ -21,9 +21,9 @@
 
 set -xu
 
-git fetch origin main
+git fetch origin main --depth 1
 
-git merge-base origin/main HEAD
+git log --graph --decorate --oneline --limit 100
 
 feature_base="HEAD^1" # GitHub automatically makes us a merge commit (HEAD),
                       # so our feature base is just the first parent (HEAD^1)
