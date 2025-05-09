@@ -21,7 +21,7 @@
 
 set -xu
 
-git fetch origin main --depth 1
+git fetch origin main --deepen 1
 
 git log --graph --decorate --oneline -n 100
 
