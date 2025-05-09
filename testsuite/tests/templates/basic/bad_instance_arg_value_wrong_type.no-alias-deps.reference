@@ -1,0 +1,4 @@
+File "bad_instance_arg_value_wrong_type.ml", line 2, characters 2-70:
+2 |   Category_utils(Category)(List_monoid) [@jane.non_erasable.instances]
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Warning 49 [no-cmi-file]: no valid cmi file was found in path for module Category_utils. List_monoid implements Monoid, not Category
