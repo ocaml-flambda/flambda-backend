@@ -19,11 +19,10 @@
 #          annoying, 80ch.sh never fails, but instead emits warnings, and only
 #          checks a subset of all files (See SKIP FILES).
 
-set -xu
+set -u
 
-git fetch origin main --depth 2
-
-git log --graph --decorate --oneline -n 100
+git fetch origin main --deepen 1 # Needed to have a local copy of origin/main
+                                 # For this script to work
 
 feature_base="$(git merge-base origin/main HEAD)"
                             # N.b.: main is always considered the parent feature
