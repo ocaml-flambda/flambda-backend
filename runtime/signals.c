@@ -588,7 +588,10 @@ CAMLexport int caml_rev_convert_signal_number(int signo)
   return signo;
 }
 
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
+static size_t max_size_t(size_t a, size_t b)
+{
+  return (a > b) ? a : b;
+}
 
 void * caml_init_signal_stack(size_t* signal_stack_size)
 {
@@ -597,15 +600,23 @@ void * caml_init_signal_stack(size_t* signal_stack_size)
   stk.ss_flags = 0;
 
 #ifdef __linux__
-  /* On some systems, e.g. when AMX has been enabled, the dynamic value of
-     MINSIGSTKSZ might be larger than SIGSTKSZ and/or any compile-time
-     MINSIGSTKSZ.  The "4 * " scaling factor matches current glibc
-     behaviour for determining SIGSTKSZ. */
-  stk.ss_size = MAX(SIGSTKSZ, 4 * MAX(MINSIGSTKSZ, getauxval(AT_MINSIGSTKSZ)));
+  /* On some systems, e.g. when AMX has been enabled on certain glibc versions,
+     the dynamic value of MINSIGSTKSZ might be larger than SIGSTKSZ and/or any
+     compile-time MINSIGSTKSZ.  As such we compute our own SIGSTKSZ.  The
+     "4 * " scaling factor matches current glibc behaviour.
+
+     If the values the system has provided look sensible, however, we
+     trust SIGSTKSZ. */
+  size_t at_minsigstksz = getauxval(AT_MINSIGSTKSZ);
+
+  if (at_minsigstksz <= MINSIGSTKSZ && MINSIGSTKSZ <= SIGSTKSZ)
+    stk.ss_size = SIGSTKSZ;
+  else
+    stk.ss_size = max_size_t(
+      SIGSTKSZ, 4 * max_size_t(MINSIGSTKSZ, at_minsigstksz));
 #else
-  /* In this case one would hope that MINSIGSTKSZ <= SIGSTKSZ, but never
-     say never. */
-  stk.ss_size = MAX(SIGSTKSZ, MINSIGSTKSZ);
+  /* Preserve existing runtime5 behaviour for now. */
+  stk.ss_size = SIGSTKSZ;
 #endif
 
   /* The memory used for the alternate signal stack must not free'd before
