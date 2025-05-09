@@ -310,19 +310,21 @@ Error: The type constructor "t#" expects 1 argument(s),
 type t = int
 and bad = t#
 [%%expect{|
-Line 2, characters 0-12:
-2 | and bad = t#
-    ^^^^^^^^^^^^
-Error: The type "t" has no unboxed version.
+type t = int
+and bad = t#
 |}]
 
 type t = int
 and bad = t# * t#
 [%%expect{|
-Line 2, characters 0-17:
-2 | and bad = t# * t#
-    ^^^^^^^^^^^^^^^^^
-Error: The type "t" has no unboxed version.
+Line 1, characters 0-12:
+1 | type t = int
+    ^^^^^^^^^^^^
+Error:
+       The layout of t# is word
+         because it is the unboxed version of the primitive type int.
+       But the layout of t# must be a sublayout of value
+         because it's the type of a tuple element.
 |}]
 
 type bad_a = X of bad_b#
@@ -340,10 +342,7 @@ type bad = a#
 [%%expect{|
 type a = b
 and b = int
-Line 3, characters 11-13:
-3 | type bad = a#
-               ^^
-Error: The type "a" has no unboxed version.
+type bad = a#
 |}]
 
 (* Recursive modules *)
@@ -374,10 +373,8 @@ end = struct
   type t = int
 end
 [%%expect{|
-Line 2, characters 11-18:
-2 |   type t = Bad2.t#
-               ^^^^^^^
-Error: The type "Bad2.t" has no unboxed version.
+module rec Bad1 : sig type t = Bad2.t# end
+and Bad2 : sig type t = int end
 |}]
 
 module rec Bad1 : sig
@@ -729,10 +726,21 @@ module type Bad = sig
   type t = float#
 end with type t := int#
 [%%expect{|
-Line 3, characters 19-23:
+Lines 1-3, characters 18-23:
+1 | ..................sig
+2 |   type t = float#
 3 | end with type t := int#
-                       ^^^^
-Error: The type "int" has no unboxed version.
+Error: In this "with" constraint, the new definition of "t"
+       does not match its original definition in the constrained signature:
+       Type declarations do not match:
+         type t = int#
+       is not included in
+         type t = float#
+       The type "int#" is not equal to the type "float/1#" = "float/2#"
+       Line 1, characters 0-20:
+         Definition of type "float/1"
+       File "_none_", line 1:
+         Definition of type "float/2"
 |}]
 
 (* Test subst when a decl's type_unboxed_version over-approximately [None]
@@ -884,10 +892,11 @@ module Bad (M : S) = struct
 end
 [%%expect{|
 module type S = sig module type x = sig type t = int end module M : x end
-Line 7, characters 11-17:
+Line 7, characters 35-36:
 7 |   let id : M.M.t# -> r# = fun x -> x
-               ^^^^^^
-Error: The type "M.M.t" has no unboxed version.
+                                       ^
+Error: This expression has type "M.M.t#" = "int#"
+       but an expression was expected of type "r#"
 |}]
 
 (* Destructive substition *)
@@ -919,10 +928,7 @@ module Bad (M : S) = struct
 end
 [%%expect{|
 module type S = sig module M : sig type t = int end end
-Line 7, characters 11-17:
-7 |   type u = M.M.t#
-               ^^^^^^
-Error: The type "M.M.t" has no unboxed version.
+module Bad : functor (M : S) -> sig type u = M.M.t# end
 |}]
 
 (***********************)
@@ -976,10 +982,9 @@ end
 [%%expect{|
 module type S = sig type t end
 type m = (module S with type t = int)
-Line 5, characters 11-15:
-5 |   type u = M.t#
-               ^^^^
-Error: The type "M.t" has no unboxed version.
+module Bad :
+  functor (X : sig val x : m end) ->
+    sig module M : sig type t = int end type u = M.t# end
 |}]
 
 (******************************)

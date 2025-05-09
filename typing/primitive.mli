@@ -21,6 +21,9 @@ type unboxed_integer =
   | Unboxed_int32
   | Unboxed_int16
   | Unboxed_int8
+  | Unboxed_int
+  (** We don't have an [int#] type (at least not yet), but for consistency, it's important
+      that we have unboxed types corresponding to all of our integral types *)
 
 type unboxed_float = Unboxed_float64 | Unboxed_float32
 type unboxed_vector = Unboxed_vec128
@@ -29,15 +32,18 @@ type boxed_integer = Boxed_int64 | Boxed_nativeint | Boxed_int32
 type boxed_float = Boxed_float64 | Boxed_float32
 type boxed_vector = Boxed_vec128
 
-(* Representation of arguments/result for the native code version
-   of a primitive *)
+(** Representation of arguments/result for the native code version
+    of a primitive.
+
+    Untagged integers (such as [int[@untagged]]) are represented as
+    [Unboxed_integer Unboxed_int]
+*)
 type native_repr =
   | Repr_poly
   | Same_as_ocaml_repr of Jkind_types.Sort.Const.t
   | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
   | Unboxed_integer of unboxed_integer
-  | Untagged_immediate
 
 (* See [middle_end/semantics_of_primitives.mli] *)
 type effects = No_effects | Only_generative_effects | Arbitrary_effects

@@ -927,6 +927,9 @@ end)
 module Binary_float_comp = Binary_arith_like (Float_ops_for_binary_comp)
 module Binary_float32_comp = Binary_arith_like (Float32_ops_for_binary_comp)
 
+(* Unlike in the language specification, the compiler defines physical equality
+   as referential equality on all values, including immediates and immutable
+   blocks. *)
 let simplify_phys_equal (op : P.equality_comparison) dacc ~original_term _dbg
     ~arg1:_ ~arg1_ty ~arg2:_ ~arg2_ty ~result_var =
   (* This primitive is only used for arguments of kind [Value]. *)

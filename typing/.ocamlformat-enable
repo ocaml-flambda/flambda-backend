@@ -17,3 +17,6 @@ jkind_axis.mli
 jkind_axis.ml
 allowance.mli
 allowance.ml
+scalar.ml
+scalar.mli
+

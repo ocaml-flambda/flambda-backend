@@ -2,11 +2,8 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                         The OCaml programmers                          *)
 (*                 Jacob Van Buren, Jane Street, New York                 *)
 (*                                                                        *)
-(*   Copyright 2018 Institut National de Recherche en Informatique et     *)
-(*     en Automatique.                                                    *)
 (*   Copyright 2024 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
@@ -17,121 +14,117 @@
 
 (** Signed 8-bit integer values.
 
-    These integers are {8} bits wide and use two's complement
-    representation. All operations are taken modulo
-    2{^8}. They do not fail on overflow. *)
+    These integers are {8} bits wide and use two's complement representation.
+    All operations are taken modulo 2{^8}. They do not fail on overflow. *)
 
 (** {1:ints 8-bit Integers} *)
+
+(* CR layouts v5: add back all the thunked constants in this module when we
+   support unboxed integers in structures. *)
 
 (** The type for 8-bit integer values. *)
 type t = int8#
 
-(* CR layouts v5: add back all the thunked constants in this module when we
-   support [bits8]s in structures. *)
-
-(** Tag a [int8#] *)
-external to_int8 : int8# -> int8 = "%tag_int8" [@@warning "-187"]
-
-(** Untag a tagged [int8] *)
-external of_int8 : int8 -> int8# = "%untag_int8" [@@warning "-187"]
-
-(** [size] is the number of bits in an integer (i.e., 8). *)
+(** The number of bits in an integer of type {!int8#}. *)
 val size : int
 
-(** [zero] is the integer [0]. *)
+(** The 8-bit integer 0. *)
 val zero : unit -> int8#
 
-(** [one] is the integer [1]. *)
+(** The 8-bit integer 1. *)
 val one : unit -> int8#
 
-(** [minus_one] is the integer [-1]. *)
+(** The 8-bit integer -1. *)
 val minus_one : unit -> int8#
 
-(** [neg x] is [~-x]. *)
-val neg : int8# -> int8#
+(** Unary negation. *)
+external neg : int8# -> int8# = "%int8#_neg"
 
-(** [add x y] is the addition [x + y]. *)
-val add : int8# -> int8# -> int8#
+(** Addition. *)
+external add : int8# -> int8# -> int8# = "%int8#_add"
 
-(** [sub x y] is the subtraction [x - y]. *)
-val sub : int8# -> int8# -> int8#
+(** Subtraction. *)
+external sub : int8# -> int8# -> int8# = "%int8#_sub"
 
-(** [mul x y] is the multiplication [x * y]. *)
-val mul : int8# -> int8# -> int8#
+(** Multiplication. *)
+external mul : int8# -> int8# -> int8# = "%int8#_mul"
 
-(** [div x y] is the division [x / y]. See {!Stdlib.( / )} for details. *)
-val div : int8# -> int8# -> int8#
+(** Integer division. This division rounds the real quotient of
+    its arguments towards zero, as specified for {!Stdlib.(/)}.
+    @raise Division_by_zero if the second argument is zero. *)
+external div : int8# -> int8# -> int8# = "%int8#_div"
 
 (** Same as {!div}, except that arguments and result are interpreted as {e
     unsigned} integers. *)
-val unsigned_div : t -> t -> t
+val unsigned_div : int8# -> int8# -> int8#
 
-(** [rem x y] is the remainder [x mod y]. See {!Stdlib.( mod )} for details. *)
-val rem : int8# -> int8# -> int8#
+(** Integer remainder. If [y] is not zero, [rem x y = sub x (mul (div x y)
+    y)]. If [y] is zero, [rem x y] raises [Division_by_zero]. *)
+external rem : int8# -> int8# -> int8# = "%int8#_mod"
 
 (** Same as {!rem}, except that arguments and result are interpreted as {e
     unsigned} integers. *)
-val unsigned_rem : t -> t -> t
+val unsigned_rem : int8# -> int8# -> int8#
 
 (** [succ x] is [add x 1]. *)
-val succ : int8# -> int8#
+external succ : int8# -> int8# = "%int8#_succ"
 
 (** [pred x] is [sub x 1]. *)
-val pred : int8# -> int8#
+external pred : int8# -> int8# = "%int8#_pred"
 
-(** [abs x] is the absolute value of [x]. That is [x] if [x] is positive
-    and [neg x] if [x] is negative. {b Warning.} This may be negative if
-    the argument is {!min_int}. *)
+(** [abs x] is the absolute value of [x]. That is [x] if [x] is positive and
+    [neg x] if [x] is negative. {b Warning.} This may be negative if the
+    argument is {!min_int}. *)
 val abs : int8# -> int8#
 
 (** [max_int] is the greatest representable integer,
-    [2{^[8 - 1]} - 1]. *)
+    [2{^[size - 1]} - 1]. *)
 val max_int : unit -> int8#
 
 (** [min_int] is the smallest representable integer,
-    [-2{^[8 - 1]}]. *)
+    [-2{^[size - 1]}]. *)
 val min_int : unit -> int8#
 
-(** [logand x y] is the bitwise logical and of [x] and [y]. *)
-val logand : int8# -> int8# -> int8#
+(** Bitwise logical and. *)
+external logand : int8# -> int8# -> int8# = "%int8#_and"
 
-(** [logor x y] is the bitwise logical or of [x] and [y]. *)
-val logor : int8# -> int8# -> int8#
+(** Bitwise logical or. *)
+external logor : int8# -> int8# -> int8# = "%int8#_or"
 
-(** [logxor x y] is the bitwise logical exclusive or of [x] and [y]. *)
-val logxor : int8# -> int8# -> int8#
+(** Bitwise logical exclusive or. *)
+external logxor : int8# -> int8# -> int8# = "%int8#_xor"
 
-(** [lognot x] is the bitwise logical negation of [x]. *)
+(** Bitwise logical negation. *)
 val lognot : int8# -> int8#
 
 (** [shift_left x n] shifts [x] to the left by [n] bits. The result
-    is unspecified if [n < 0] or [n > ]{!8}. *)
-val shift_left : int8# -> int -> int8#
+    is unspecified if [n < 0] or [n >= ]{!size}. *)
+external shift_left : int8# -> int -> int8# = "%int8#_lsl"
 
 (** [shift_right x n] shifts [x] to the right by [n] bits. This is an
     arithmetic shift: the sign bit of [x] is replicated and inserted
     in the vacated bits. The result is unspecified if [n < 0] or
-    [n > ]{!8}. *)
-val shift_right : int8# -> int -> int8#
+    [n >=]{!size}. *)
+external shift_right : int8# -> int -> int8# = "%int8#_asr"
 
 (** [shift_right x n] shifts [x] to the right by [n] bits. This is a
     logical shift: zeroes are inserted in the vacated bits regardless
     of the sign of [x]. The result is unspecified if [n < 0] or
-    [n > ]{!8}. *)
-val shift_right_logical : int8# -> int -> int8#
+    [n >=]{!size}. *)
+external shift_right_logical : int8# -> int -> int8# = "%int8#_lsr"
 
 (** {1:preds Predicates and comparisons} *)
 
 (** [equal x y] is [true] if and only if [x = y]. *)
-val equal : int8# -> int8# -> bool
+external equal : int8# -> int8# -> bool = "%int8#_equal"
 
 (** [compare x y] is {!Stdlib.compare}[ x y] but more efficient. *)
-val compare : int8# -> int8# -> int
+external compare : int8# -> int8# -> int = "%int8#_compare"
 
 (** Same as {!compare}, except that arguments are interpreted as {e unsigned} integers. *)
-val unsigned_compare : t -> t -> int
+val unsigned_compare : int8# -> int8# -> int
 
-(** Return the smaller of the two arguments. *)
+(** Return the lesser of the two arguments. *)
 val min : int8# -> int8# -> int8#
 
 (** Return the greater of the two arguments. *)
@@ -140,18 +133,37 @@ val max : int8# -> int8# -> int8#
 (** {1:convert Converting} *)
 
 (** [to_int x] is [x] as an {!int}. *)
-val to_int : int8# -> int
+external to_int : int8# -> int = "%int_of_int8#"
 
-(** [of_int x] represents [x] as an 8-bit integer. *)
-val of_int : int -> int8#
+(** [of_int x] truncates the representation of [x] to fit in {!int8#}. *)
+external of_int : int -> int8# = "%int8#_of_int"
+
+(** untag a tagged int8 *)
+external of_int8 : int8 -> int8# = "%int8#_of_int8"
+
+(** tag a naked int8 *)
+external to_int8 : int8# -> int8 = "%int8_of_int8#"
+
+(** Same as {!to_int}, but interprets the argument as an {e unsigned} integer. *)
+val unsigned_to_int : int8# -> int
 
 (** [to_float x] is [x] as a floating point number. *)
-val to_float : int8# -> float
+external to_float : int8# -> float = "%float_of_int8#"
 
 (** [of_float x] truncates [x] to an integer. The result is
     unspecified if the argument is [nan] or falls outside the range of
     representable integers. *)
-val of_float : float -> int8#
+external of_float : float -> int8# = "%int8#_of_float"
 
 (** [to_string x] is the written representation of [x] in decimal. *)
 val to_string : int8# -> string
+
+(** A seeded hash function for ints, with the same output value as
+    {!Hashtbl.seeded_hash}. This function allows this module to be passed as
+    argument to the functor {!Hashtbl.MakeSeeded}. *)
+val seeded_hash : int -> int8# -> int
+
+(** An unseeded hash function for ints, with the same output value as
+    {!Hashtbl.hash}. This function allows this module to be passed as argument
+    to the functor {!Hashtbl.Make}. *)
+val hash : int8# -> int

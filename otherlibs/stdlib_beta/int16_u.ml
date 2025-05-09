@@ -12,94 +12,98 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.flambda_o3]
+
 open! Stdlib
 
 type t = int16#
 
-[@@@ocaml.flambda_o3]
+let size = 16
 
-(** Tag a [int16#] *)
-external to_int16 : int16# -> int16 = "%tag_int16" [@@warning "-187"]
+external of_int16 : int16 -> int16# = "%int16#_of_int16"
 
-(** Untag a tagged [int16] *)
-external of_int16 : int16 -> int16# = "%untag_int16" [@@warning "-187"]
+external to_int16 : int16# -> int16 = "%int16_of_int16#"
 
-let size = Int16.size
+external of_int : int -> int16# = "%int16#_of_int"
 
-let[@inline always] zero () = of_int16 Int16.zero
+external to_int : int16# -> int = "%int_of_int16#"
 
-let[@inline always] one () = of_int16 Int16.one
+external ( < ) : int16# -> int16# -> bool = "%int16#_lessthan"
 
-let[@inline always] minus_one () = of_int16 Int16.minus_one
+let zero () = of_int 0
 
-let[@inline always] max_int () = of_int16 Int16.max_int
+let one () = of_int 1
 
-let[@inline always] min_int () = of_int16 Int16.min_int
+let minus_one () = of_int (-1)
 
-let[@inline always] neg x = of_int16 (Int16.neg (to_int16 x))
+external neg : int16# -> int16# = "%int16#_neg"
 
-let[@inline always] add x y = of_int16 (Int16.add (to_int16 x) (to_int16 y))
+external add : int16# -> int16# -> int16# = "%int16#_add"
 
-let[@inline always] sub x y = of_int16 (Int16.sub (to_int16 x) (to_int16 y))
+external sub : int16# -> int16# -> int16# = "%int16#_sub"
 
-let[@inline always] mul x y = of_int16 (Int16.mul (to_int16 x) (to_int16 y))
+external mul : int16# -> int16# -> int16# = "%int16#_mul"
 
-let[@inline always] div x y = of_int16 (Int16.div (to_int16 x) (to_int16 y))
+external div : int16# -> int16# -> int16# = "%int16#_div"
 
-let[@inline always] rem x y = of_int16 (Int16.rem (to_int16 x) (to_int16 y))
+external rem : int16# -> int16# -> int16# = "%int16#_mod"
 
-let[@inline always] succ x = of_int16 (Int16.succ (to_int16 x))
+external succ : int16# -> int16# = "%int16#_succ"
 
-let[@inline always] pred x = of_int16 (Int16.pred (to_int16 x))
+external pred : int16# -> int16# = "%int16#_pred"
 
-let[@inline always] abs x = of_int16 (Int16.abs (to_int16 x))
+external logand : int16# -> int16# -> int16# = "%int16#_and"
 
-let[@inline always] logand x y = of_int16 (Int16.logand (to_int16 x) (to_int16 y))
+external logor : int16# -> int16# -> int16# = "%int16#_or"
 
-let[@inline always] logor x y = of_int16 (Int16.logor (to_int16 x) (to_int16 y))
+external logxor : int16# -> int16# -> int16# = "%int16#_xor"
 
-let[@inline always] logxor x y = of_int16 (Int16.logxor (to_int16 x) (to_int16 y))
+let[@inline] lognot x = logxor x (minus_one ())
 
-let[@inline always] lognot x = of_int16 (Int16.lognot (to_int16 x))
+external shift_left : int16# -> int -> int16# = "%int16#_lsl"
 
-let[@inline always] shift_left x y = of_int16 (Int16.shift_left (to_int16 x) y)
+external shift_right : int16# -> int -> int16# = "%int16#_asr"
 
-let[@inline always] shift_right x y = of_int16 (Int16.shift_right (to_int16 x) y)
+external shift_right_logical : int16# -> int -> int16# = "%int16#_lsr"
 
-let[@inline always] shift_right_logical x y = of_int16 (Int16.shift_right_logical (to_int16 x) y)
+let[@inline] abs x = if x < zero () then neg x else x
 
-let[@inline always] equal x y = Int16.equal (to_int16 x) (to_int16 y)
+external equal : int16# -> int16# -> bool = "%int16#_equal"
 
-let[@inline always] compare x y = Int16.compare (to_int16 x) (to_int16 y)
+external compare : int16# -> int16# -> int = "%int16#_compare"
 
-let[@inline always] min x y = of_int16 (Int16.min (to_int16 x) (to_int16 y))
+let[@inline] min x y = if x < y then x else y
 
-let[@inline always] max x y = of_int16 (Int16.max (to_int16 x) (to_int16 y))
+let[@inline] max x y = if x < y then y else x
 
-let[@inline always] of_float f = of_int16 (Int16.of_float f)
+external of_float : float -> int16# = "%int16#_of_float"
 
-let[@inline always] to_float t = Int16.to_float (to_int16 t)
+external to_float : int16# -> float = "%float_of_int16#"
 
-let[@inline always] to_string t = Int16.to_string (to_int16 t)
+let[@inline] to_string t = Int.to_string (to_int t)
 
-let[@inline always] to_int t = Int16.to_int (to_int16 t)
+let max_int () = shift_right_logical (minus_one ()) 1
 
-let[@inline always] of_int i = of_int16 (Int16.of_int i)
+let min_int () = succ (max_int ())
 
-let[@inline available] unsigned_compare n m =
-  compare (sub n (min_int ())) (sub m (min_int ()))
+let[@inline] unsigned_to_int t = to_int t land ((1 lsl size) - 1)
 
-let[@inline] unsigned_lt n m = unsigned_compare n m < 0
+let[@inline] unsigned_compare n m = compare (sub n (min_int ())) (sub m (min_int ()))
+
+let[@inline] unsigned_lt n m = sub n (min_int ()) < sub m (min_int ())
 
 (* Unsigned division from signed division of the same bitness. See Warren Jr.,
    Henry S. (2013). Hacker's Delight (2 ed.), Sec 9-3. *)
-let[@inline available] unsigned_div n d =
-  if compare d (zero ()) < 0
+let[@inline] unsigned_div n d =
+  if d < zero ()
   then if unsigned_lt n d then zero () else one ()
   else
     let q = shift_left (div (shift_right_logical n 1) d) 1 in
     let r = sub n (mul q d) in
     if unsigned_lt r d then q else succ q
 
-let[@inline available] unsigned_rem n d =
-  sub n (mul ((unsigned_div [@inlined]) n d) d)
+let[@inline] unsigned_rem n d = sub n (mul (unsigned_div n d) d)
+
+let seeded_hash seed x = Stdlib.Hashtbl.seeded_hash seed (to_int x)
+
+let hash x = Stdlib.Hashtbl.hash (to_int x)

@@ -866,6 +866,8 @@ let rec choice ctx t =
         Lprim (Popaque layout, [l1], loc)
 
     (* in common cases we just return *)
+    | Pphys_equal _
+    | Pscalar _
     | Pbytes_to_string | Pbytes_of_string
     | Parray_to_iarray | Parray_of_iarray
     | Pgetglobal _ | Psetglobal _ | Pgetpredef _
@@ -877,24 +879,13 @@ let rec choice ctx t =
     | Pccall _
     | Praise _
     | Pnot
-    | Pnegint | Paddint | Psubint | Pmulint | Pdivint _ | Pmodint _
-    | Pandint | Porint | Pxorint
-    | Plslint | Plsrint | Pasrint
-    | Pintcomp _ | Punboxed_int_comp _
-    | Poffsetint _ | Poffsetref _
-    | Pintoffloat _ | Pfloatofint (_, _)
-    | Pfloatoffloat32 _ | Pfloat32offloat _
-    | Pnegfloat (_, _) | Pabsfloat (_, _)
-    | Paddfloat (_, _) | Psubfloat (_, _)
-    | Pmulfloat (_, _) | Pdivfloat (_, _)
-    | Pfloatcomp (_, _) | Punboxed_float_comp (_, _)
+    | Poffsetref _
     | Pstringlength | Pstringrefu  | Pstringrefs
     | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
     | Parraylength _ | Parrayrefu _ | Parraysetu _ | Parrayrefs _ | Parraysets _
     | Parrayblit _
     | Pisint _ | Pisnull | Pisout
     | Pignore
-    | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
     | Preinterpret_tagged_int63_as_unboxed_int64
     | Preinterpret_unboxed_int64_as_tagged_int63
 
@@ -906,9 +897,6 @@ let rec choice ctx t =
     | Patomic_compare_set _ | Patomic_fetch_add
     | Patomic_add | Patomic_sub | Patomic_land
     | Patomic_lor | Patomic_lxor | Patomic_load _ | Patomic_set _
-    | Punbox_float _ | Pbox_float (_, _)
-    | Punbox_int _ | Pbox_int _
-    | Puntag_int _ | Ptag_int _
     | Punbox_vector _ | Pbox_vector (_, _)
 
     (* it doesn't seem worth it to support lazy blocks for tmc *)
@@ -937,12 +925,6 @@ let rec choice ctx t =
 
     (* operations returning boxed values could be considered
        constructions someday *)
-    | Pbintofint _ | Pintofbint _
-    | Pcvtbint _
-    | Pnegbint _
-    | Paddbint _ | Psubbint _ | Pmulbint _ | Pdivbint _ | Pmodbint _
-    | Pandbint _ | Porbint _ | Pxorbint _ | Plslbint _ | Plsrbint _ | Pasrbint _
-    | Pbintcomp _
 
     (* more common cases... *)
     | Pbigarrayref _ | Pbigarrayset _
@@ -975,8 +957,6 @@ let rec choice ctx t =
     | Punboxed_nativeint_array_set_128 _
     | Pget_header _
     | Pctconst _
-    | Pbswap16
-    | Pbbswap _
     | Pint_as_pointer _
     | Psequand | Psequor
     | Ppoll

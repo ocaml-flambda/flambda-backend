@@ -12,94 +12,98 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.flambda_o3]
+
 open! Stdlib
 
 type t = int8#
 
-[@@@ocaml.flambda_o3]
+let size = 8
 
-(** Tag a [int8#] *)
-external to_int8 : int8# -> int8 = "%tag_int8" [@@warning "-187"]
+external of_int8 : int8 -> int8# = "%int8#_of_int8"
 
-(** Untag a tagged [int8] *)
-external of_int8 : int8 -> int8# = "%untag_int8" [@@warning "-187"]
+external to_int8 : int8# -> int8 = "%int8_of_int8#"
 
-let size = Int8.size
+external of_int : int -> int8# = "%int8#_of_int"
 
-let[@inline always] zero () = of_int8 Int8.zero
+external to_int : int8# -> int = "%int_of_int8#"
 
-let[@inline always] one () = of_int8 Int8.one
+external ( < ) : int8# -> int8# -> bool = "%int8#_lessthan"
 
-let[@inline always] minus_one () = of_int8 Int8.minus_one
+let zero () = of_int 0
 
-let[@inline always] max_int () = of_int8 Int8.max_int
+let one () = of_int 1
 
-let[@inline always] min_int () = of_int8 Int8.min_int
+let minus_one () = of_int (-1)
 
-let[@inline always] neg x = of_int8 (Int8.neg (to_int8 x))
+external neg : int8# -> int8# = "%int8#_neg"
 
-let[@inline always] add x y = of_int8 (Int8.add (to_int8 x) (to_int8 y))
+external add : int8# -> int8# -> int8# = "%int8#_add"
 
-let[@inline always] sub x y = of_int8 (Int8.sub (to_int8 x) (to_int8 y))
+external sub : int8# -> int8# -> int8# = "%int8#_sub"
 
-let[@inline always] mul x y = of_int8 (Int8.mul (to_int8 x) (to_int8 y))
+external mul : int8# -> int8# -> int8# = "%int8#_mul"
 
-let[@inline always] div x y = of_int8 (Int8.div (to_int8 x) (to_int8 y))
+external div : int8# -> int8# -> int8# = "%int8#_div"
 
-let[@inline always] rem x y = of_int8 (Int8.rem (to_int8 x) (to_int8 y))
+external rem : int8# -> int8# -> int8# = "%int8#_mod"
 
-let[@inline always] succ x = of_int8 (Int8.succ (to_int8 x))
+external succ : int8# -> int8# = "%int8#_succ"
 
-let[@inline always] pred x = of_int8 (Int8.pred (to_int8 x))
+external pred : int8# -> int8# = "%int8#_pred"
 
-let[@inline always] abs x = of_int8 (Int8.abs (to_int8 x))
+external logand : int8# -> int8# -> int8# = "%int8#_and"
 
-let[@inline always] logand x y = of_int8 (Int8.logand (to_int8 x) (to_int8 y))
+external logor : int8# -> int8# -> int8# = "%int8#_or"
 
-let[@inline always] logor x y = of_int8 (Int8.logor (to_int8 x) (to_int8 y))
+external logxor : int8# -> int8# -> int8# = "%int8#_xor"
 
-let[@inline always] logxor x y = of_int8 (Int8.logxor (to_int8 x) (to_int8 y))
+let[@inline] lognot x = logxor x (minus_one ())
 
-let[@inline always] lognot x = of_int8 (Int8.lognot (to_int8 x))
+external shift_left : int8# -> int -> int8# = "%int8#_lsl"
 
-let[@inline always] shift_left x y = of_int8 (Int8.shift_left (to_int8 x) y)
+external shift_right : int8# -> int -> int8# = "%int8#_asr"
 
-let[@inline always] shift_right x y = of_int8 (Int8.shift_right (to_int8 x) y)
+external shift_right_logical : int8# -> int -> int8# = "%int8#_lsr"
 
-let[@inline always] shift_right_logical x y = of_int8 (Int8.shift_right_logical (to_int8 x) y)
+let[@inline] abs x = if x < zero () then neg x else x
 
-let[@inline always] equal x y = Int8.equal (to_int8 x) (to_int8 y)
+external equal : int8# -> int8# -> bool = "%int8#_equal"
 
-let[@inline always] compare x y = Int8.compare (to_int8 x) (to_int8 y)
+external compare : int8# -> int8# -> int = "%int8#_compare"
 
-let[@inline always] min x y = of_int8 (Int8.min (to_int8 x) (to_int8 y))
+let[@inline] min x y = if x < y then x else y
 
-let[@inline always] max x y = of_int8 (Int8.max (to_int8 x) (to_int8 y))
+let[@inline] max x y = if x < y then y else x
 
-let[@inline always] of_float f = of_int8 (Int8.of_float f)
+external of_float : float -> int8# = "%int8#_of_float"
 
-let[@inline always] to_float t = Int8.to_float (to_int8 t)
+external to_float : int8# -> float = "%float_of_int8#"
 
-let[@inline always] to_string t = Int8.to_string (to_int8 t)
+let[@inline] to_string t = Int.to_string (to_int t)
 
-let[@inline always] to_int t = Int8.to_int (to_int8 t)
+let max_int () = shift_right_logical (minus_one ()) 1
 
-let[@inline always] of_int i = of_int8 (Int8.of_int i)
+let min_int () = succ (max_int ())
 
-let[@inline available] unsigned_compare n m =
-  compare (sub n (min_int ())) (sub m (min_int ()))
+let[@inline] unsigned_to_int t = to_int t land ((1 lsl size) - 1)
 
-let[@inline] unsigned_lt n m = unsigned_compare n m < 0
+let[@inline] unsigned_compare n m = compare (sub n (min_int ())) (sub m (min_int ()))
+
+let[@inline] unsigned_lt n m = sub n (min_int ()) < sub m (min_int ())
 
 (* Unsigned division from signed division of the same bitness. See Warren Jr.,
    Henry S. (2013). Hacker's Delight (2 ed.), Sec 9-3. *)
-let[@inline available] unsigned_div n d =
-  if compare d (zero ()) < 0
+let[@inline] unsigned_div n d =
+  if d < zero ()
   then if unsigned_lt n d then zero () else one ()
   else
     let q = shift_left (div (shift_right_logical n 1) d) 1 in
     let r = sub n (mul q d) in
     if unsigned_lt r d then q else succ q
 
-let[@inline available] unsigned_rem n d =
-  sub n (mul ((unsigned_div [@inlined]) n d) d)
+let[@inline] unsigned_rem n d = sub n (mul (unsigned_div n d) d)
+
+let seeded_hash seed x = Stdlib.Hashtbl.seeded_hash seed (to_int x)
+
+let hash x = Stdlib.Hashtbl.hash (to_int x)
