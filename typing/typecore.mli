@@ -168,8 +168,8 @@ val optimise_allocations: unit -> unit
 val has_poly_constraint : Parsetree.pattern -> bool
 
 
-val name_pattern : string -> Typedtree.pattern list -> Ident.t
-val name_cases : string -> Typedtree.value Typedtree.case list -> Ident.t
+val name_pattern : string -> Typedtree.pattern list -> Ident.t * Uid.t
+val name_cases : string -> Typedtree.value Typedtree.case list -> Ident.t * Uid.t
 
 (* Why are we calling [submode]? This tells us why. *)
 type submode_reason =

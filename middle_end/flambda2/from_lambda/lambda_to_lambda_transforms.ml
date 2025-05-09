@@ -37,6 +37,7 @@ let rec_catch_for_while_loop env cond body =
   let cont = L.next_raise_count () in
   let env = Env.mark_as_recursive_static_catch env cont in
   let cond_result = Ident.create_local "while_cond_result" in
+  let cond_result_duid = Lambda.debug_uid_none in
   let lam : L.lambda =
     Lstaticcatch
       ( Lstaticraise (cont, []),
@@ -45,6 +46,7 @@ let rec_catch_for_while_loop env cond body =
           ( Strict,
             L.layout_int,
             cond_result,
+            cond_result_duid,
             cond,
             Lifthenelse
               ( Lvar cond_result,
@@ -56,12 +58,14 @@ let rec_catch_for_while_loop env cond body =
   in
   env, lam
 
-let rec_catch_for_for_loop env loc ident start stop
+let rec_catch_for_for_loop env loc ident duid start stop
     (dir : Asttypes.direction_flag) body =
   let cont = L.next_raise_count () in
   let env = Env.mark_as_recursive_static_catch env cont in
   let start_ident = Ident.create_local "for_start" in
+  let start_ident_duid = Lambda.debug_uid_none in
   let stop_ident = Ident.create_local "for_stop" in
+  let stop_ident_duid = Lambda.debug_uid_none in
   let first_test : L.lambda =
     match dir with
     | Upto -> Lprim (Pintcomp Cle, [L.Lvar start_ident; L.Lvar stop_ident], loc)
@@ -85,17 +89,19 @@ let rec_catch_for_for_loop env loc ident start stop
       ( Strict,
         L.layout_int,
         start_ident,
+        start_ident_duid,
         start,
         Llet
           ( Strict,
             L.layout_int,
             stop_ident,
+            stop_ident_duid,
             stop,
             Lifthenelse
               ( first_test,
                 Lstaticcatch
                   ( Lstaticraise (cont, [L.Lvar start_ident]),
-                    (cont, [ident, L.layout_int]),
+                    (cont, [ident, duid, L.layout_int]),
                     Lsequence
                       ( body,
                         Lifthenelse
@@ -117,6 +123,7 @@ type initialize_array_element_width =
 let initialize_array0 env loc ~length array_set_kind width ~(init : L.lambda)
     creation_expr =
   let array = Ident.create_local "array" in
+  let array_duid = Lambda.debug_uid_none in
   (* If the element size is 32-bit, zero-initialize the last 64-bit word, to
      ensure reproducibility. *)
   (* CR mshinwell: why does e.g. caml_make_unboxed_int32_vect not do this? *)
@@ -150,7 +157,8 @@ let initialize_array0 env loc ~length array_set_kind width ~(init : L.lambda)
   in
   let env, initialize =
     let index = Ident.create_local "index" in
-    rec_catch_for_for_loop env loc index
+    let index_duid = Lambda.debug_uid_none in
+    rec_catch_for_for_loop env loc index index_duid
       (Lconst (L.const_int 0))
       (L.Lprim (Psubint, [length; Lconst (L.const_int 1)], loc))
       Upto
@@ -164,6 +172,7 @@ let initialize_array0 env loc ~length array_set_kind width ~(init : L.lambda)
       ( Strict,
         Pvalue { raw_kind = Pgenval; nullable = Non_nullable },
         array,
+        array_duid,
         creation_expr,
         Lsequence
           (maybe_zero_init_last_field, Lsequence (initialize, Lvar array)) )
@@ -296,6 +305,7 @@ let makearray_dynamic_scannable_unboxed_product0
       "Cannot compile Pmakearray_dynamic at unboxed product layouts without \
        stack allocation enabled";
   let args_array = Ident.create_local "args_array" in
+  let args_array_duid = Lambda.debug_uid_none in
   let array_layout = L.layout_array lambda_array_kind in
   let is_local =
     L.of_bool (match mode with Alloc_heap -> false | Alloc_local -> true)
@@ -312,6 +322,7 @@ let makearray_dynamic_scannable_unboxed_product0
       ( Strict,
         array_layout,
         args_array,
+        args_array_duid,
         Lprim
           ( Pmakearray (lambda_array_kind, Immutable, L.alloc_local),
             [init] (* will be unarized when this term is CPS converted *),
@@ -482,10 +493,15 @@ let arrayblit_expanded env ~(src_mutability : L.mutable_flag)
     let id = Ident.create_local in
     let bind = L.bind_with_layout in
     let src = id "src" in
+    let src_duid = Lambda.debug_uid_none in
     let src_start_pos = id "src_start_pos" in
+    let src_start_pos_duid = Lambda.debug_uid_none in
     let dst = id "dst" in
+    let dst_duid = Lambda.debug_uid_none in
     let dst_start_pos = id "dst_start_pos" in
+    let dst_start_pos_duid = Lambda.debug_uid_none in
     let length = id "length" in
+    let length_duid = Lambda.debug_uid_none in
     (* CR mshinwell: support indexing by other types apart from [int] *)
     let src_end_pos_exclusive =
       L.Lprim (Paddint, [Lvar src_start_pos; Lvar length], loc)
@@ -499,17 +515,20 @@ let arrayblit_expanded env ~(src_mutability : L.mutable_flag)
     let dst_start_pos_minus_src_start_pos_var =
       Ident.create_local "dst_start_pos_minus_src_start_pos"
     in
+    let dst_start_pos_minus_src_start_pos_var_duid = Lambda.debug_uid_none in
     let must_copy_backwards =
       L.Lprim (Pintcomp Cgt, [Lvar dst_start_pos; Lvar src_start_pos], loc)
     in
     let make_loop env (direction : Asttypes.direction_flag) =
       let src_index = Ident.create_local "index" in
+      let src_index_duid = Lambda.debug_uid_none in
       let start_pos, end_pos =
         match direction with
         | Upto -> L.Lvar src_start_pos, src_end_pos_inclusive
         | Downto -> src_end_pos_inclusive, L.Lvar src_start_pos
       in
-      rec_catch_for_for_loop env loc src_index start_pos end_pos direction
+      rec_catch_for_for_loop env loc src_index src_index_duid start_pos end_pos
+        direction
         (Lprim
            ( Parraysetu (dst_array_set_kind, Ptagged_int_index),
              [ Lvar dst;
@@ -540,13 +559,19 @@ let arrayblit_expanded env ~(src_mutability : L.mutable_flag)
     in
     let expr =
       (* Preserve right-to-left evaluation order. *)
-      bind Strict (length, L.layout_int) length_expr
-      @@ bind Strict (dst_start_pos, L.layout_int) dst_start_pos_expr
-      @@ bind Strict (dst, L.layout_any_value) dst_expr
-      @@ bind Strict (src_start_pos, L.layout_int) src_start_pos_expr
-      @@ bind Strict (src, L.layout_any_value) src_expr
+      bind Strict (length, length_duid, L.layout_int) length_expr
       @@ bind Strict
-           (dst_start_pos_minus_src_start_pos_var, L.layout_int)
+           (dst_start_pos, dst_start_pos_duid, L.layout_int)
+           dst_start_pos_expr
+      @@ bind Strict (dst, dst_duid, L.layout_any_value) dst_expr
+      @@ bind Strict
+           (src_start_pos, src_start_pos_duid, L.layout_int)
+           src_start_pos_expr
+      @@ bind Strict (src, src_duid, L.layout_any_value) src_expr
+      @@ bind Strict
+           ( dst_start_pos_minus_src_start_pos_var,
+             dst_start_pos_minus_src_start_pos_var_duid,
+             L.layout_int )
            dst_start_pos_minus_src_start_pos body
     in
     env, Transformed expr
@@ -587,33 +612,41 @@ let transform_primitive0 env (prim : L.primitive) args loc =
   match prim, args with
   | Psequor, [arg1; arg2] ->
     let const_true = Ident.create_local "const_true" in
+    let const_true_duid = Lambda.debug_uid_none in
     let cond = Ident.create_local "cond_sequor" in
+    let cond_duid = Lambda.debug_uid_none in
     Transformed
       (L.Llet
          ( Strict,
            L.layout_int,
            const_true,
+           const_true_duid,
            Lconst (Const_base (Const_int 1)),
            L.Llet
              ( Strict,
                L.layout_int,
                cond,
+               cond_duid,
                arg1,
                switch_for_if_then_else ~cond:(L.Lvar cond)
                  ~ifso:(L.Lvar const_true) ~ifnot:arg2 ~kind:L.layout_int ) ))
   | Psequand, [arg1; arg2] ->
     let const_false = Ident.create_local "const_false" in
+    let const_false_duid = Lambda.debug_uid_none in
     let cond = Ident.create_local "cond_sequand" in
+    let cond_duid = Lambda.debug_uid_none in
     Transformed
       (L.Llet
          ( Strict,
            L.layout_int,
            const_false,
+           const_false_duid,
            Lconst (Const_base (Const_int 0)),
            L.Llet
              ( Strict,
                L.layout_int,
                cond,
+               cond_duid,
                arg1,
                switch_for_if_then_else ~cond:(L.Lvar cond) ~ifso:arg2
                  ~ifnot:(L.Lvar const_false) ~kind:L.layout_int ) ))
