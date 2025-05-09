@@ -22,6 +22,10 @@ type right_only = disallowed * allowed
 
 type both = allowed * allowed
 
+type 'a pos = 'b * 'c constraint 'a = 'b * 'c
+
+type 'a neg = 'c * 'b constraint 'a = 'b * 'c
+
 module type Allow_disallow = sig
   type ('a, 'b, 'd) sided constraint 'd = 'l * 'r
 

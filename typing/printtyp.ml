@@ -1833,7 +1833,8 @@ let tree_of_label l =
     match l.ld_mutable with
     | Mutable m ->
         let mut =
-          if Alloc.Comonadic.Const.eq m Alloc.Comonadic.Const.legacy then
+          let open Alloc.Comonadic.Const in
+          if Misc.Le_result.equal ~le m Alloc.Comonadic.Const.legacy then
             Om_mutable None
           else
             Om_mutable (Some "<non-legacy>")
