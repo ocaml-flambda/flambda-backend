@@ -199,7 +199,8 @@ type emit_frame_actions =
   { efa_code_label : Label.t -> unit;
     efa_data_label : Label.t -> unit;
     efa_8 : int -> unit;
-    efa_16 : int -> unit;
+    efa_i16 : int -> unit;
+    efa_u16 : int -> unit;
     efa_32 : int32 -> unit;
     efa_word : int -> unit;
     efa_align : int -> unit;
@@ -252,12 +253,13 @@ let emit_frames a =
        below. *)
     if fd.fd_long
     then (
-      a.efa_16 Flambda_backend_flags.max_long_frames_threshold;
+      a.efa_u16 Flambda_backend_flags.max_long_frames_threshold;
       a.efa_align 4);
-    let emit_16_or_32 = if fd.fd_long then emit_32 else a.efa_16 in
-    emit_16_or_32 (fd.fd_frame_size + flags);
-    emit_16_or_32 (List.length fd.fd_live_offset);
-    List.iter emit_16_or_32 fd.fd_live_offset;
+    let emit_signed_16_or_32 = if fd.fd_long then emit_32 else a.efa_i16 in
+    (* CR sspies: We should also split the case for 32-bit integers now. *)
+    emit_signed_16_or_32 (fd.fd_frame_size + flags);
+    emit_signed_16_or_32 (List.length fd.fd_live_offset);
+    List.iter emit_signed_16_or_32 fd.fd_live_offset;
     (match fd.fd_debuginfo with
     | _ when flags = 0 -> ()
     | Dbg_other dbg ->
@@ -295,8 +297,8 @@ let emit_frames a =
   in
   let emit_defname (_filename, defname, loc) (file_lbl, lbl) =
     let emit_loc (start_chr, end_chr, end_offset) =
-      a.efa_16 start_chr;
-      a.efa_16 end_chr;
+      a.efa_u16 start_chr;
+      a.efa_u16 end_chr;
       a.efa_32 (Int32.of_int end_offset)
     in
     (* These must be 32-bit aligned, both because they contain a 32-bit value,

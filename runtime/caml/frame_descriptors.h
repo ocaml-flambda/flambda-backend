@@ -65,6 +65,8 @@ typedef struct {
   uint16_t frame_data; /* frame size and various flags */
   uint16_t num_live;
   uint16_t live_ofs[1 /* num_live */];
+  /* CR sspies: This is no longer correct. Due to recent changes in the compiler, the
+     offsets can now also be negative. */
   /*
     If frame_has_allocs(), alloc lengths follow:
         uint8_t num_allocs;

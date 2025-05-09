@@ -101,7 +101,8 @@ type emit_frame_actions =
   { efa_code_label : Label.t -> unit;
     efa_data_label : Label.t -> unit;
     efa_8 : int -> unit;
-    efa_16 : int -> unit;
+    efa_i16 : int -> unit;  (** signed 16-bit integers *)
+    efa_u16 : int -> unit;  (** unsigned 16-bit integers *)
     efa_32 : int32 -> unit;
     efa_word : int -> unit;
     efa_align : int -> unit;

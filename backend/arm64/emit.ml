@@ -2220,7 +2220,8 @@ let end_assembly () =
           D.type_label ~ty:Object lbl;
           D.label lbl);
       efa_8 = (fun n -> D.uint8 (Numbers.Uint8.of_nonnegative_int_exn n));
-      efa_16 = (fun n -> D.uint16 (Numbers.Uint16.of_nonnegative_int_exn n));
+      efa_i16 = (fun n -> D.int16 (Numbers.Int16.of_int_exn n));
+      efa_u16 = (fun n -> D.uint16 (Numbers.Uint16.of_nonnegative_int_exn n));
       (* CR sspies: for some reason, we can get negative numbers here *)
       efa_32 = (fun n -> D.int32 n);
       efa_word = (fun n -> D.targetint (Targetint.of_int_exn n));
