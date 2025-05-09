@@ -48,10 +48,6 @@ type t =
   | Sixteen_byte_literals
   | Jump_tables
   | Text
-  | Stapsdt_base
-  | Stapsdt_note
-  | Probes
-  | Note_ocaml_eh
 
 val to_string : t -> string
 
