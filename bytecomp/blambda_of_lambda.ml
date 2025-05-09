@@ -395,7 +395,7 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
     | Pfloatfield (n, _, _) | Pufloatfield (n, _) ->
       pseudo_event (unary (Getfloatfield n))
     | Psetfloatfield (n, _) | Psetufloatfield (n, _) -> binary (Setfloatfield n)
-    | Pmixedfield (n, _, _) ->
+    | Pmixedfield ([n], _, _) ->
       (* CR layouts: This will need reworking if we ever want bytecode
          to unbox fields that are written with unboxed types in the source
          language. *)
@@ -403,9 +403,11 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
          aren't stored flat like they are in native code.
       *)
       unary (Getfield n)
-    | Psetmixedfield (n, _, _) ->
+    | Pmixedfield (_, _, _) -> assert false
+    | Psetmixedfield ([n], _, _) ->
       (* See the comment in the [Pmixedfield] case. *)
       binary (Setfield n)
+    | Psetmixedfield (_, _, _) -> assert false
     | Pduprecord _ -> unary (Ccall "caml_obj_dup")
     | Pccall p -> n_ary (Ccall p.prim_name) ~arity:p.prim_arity
     | Pperform -> context_switch Perform ~arity:1

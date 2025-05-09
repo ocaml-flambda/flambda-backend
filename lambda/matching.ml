@@ -1944,7 +1944,7 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
                     constructor field")
               shape
           in
-          Pmixedfield (pos, shape, sem)
+          Pmixedfield ([pos], shape, sem)
     in
     let layout = Typeopt.layout_of_sort head.pat_loc sort in
     (Lprim (prim, [ arg ], loc), binding_kind, sort, layout)
@@ -2368,7 +2368,7 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
                   alloc_heap)
                 shape
             in
-            Lprim (Pmixedfield (lbl.lbl_pos, shape, sem), [ arg ], loc),
+            Lprim (Pmixedfield ([lbl.lbl_pos], shape, sem), [ arg ], loc),
             lbl.lbl_sort, lbl_layout
         | Record_inlined (_, _, Variant_with_null) -> assert false
       in

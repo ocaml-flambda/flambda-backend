@@ -402,6 +402,33 @@ module Stdlib = struct
         let a = Array.make (1 + List.length tl) (f hd) in
         List.iteri (fun i x -> Array.unsafe_set a (i+1) (f x)) tl;
         a
+
+    let concat_arrays : 'a array array -> 'a array = fun arrays ->
+      (* CR-soon xclerc for xclerc: should we simply use the following?
+        `arrays |> Array.to_list |> Array.concat` *)
+      let total_len = ref 0 in
+      let init = ref None in
+      for i = 0 to pred (Array.length arrays) do
+        let array = Array.unsafe_get arrays i in
+        let len = Array.length array in
+        total_len := !total_len + len;
+        if len > 0 then init := Some (Array.unsafe_get array 0)
+      done;
+      match !total_len, !init with
+      | 0, None -> [||]
+      | 0, Some _ -> fatal_error "broken invariant"
+      | _, None -> fatal_error "broken invariant"
+      | _, Some init ->
+        let dst = Array.make !total_len init in
+        let dst_pos = ref 0 in
+        for i = 0 to pred (Array.length arrays) do
+          let array = Array.unsafe_get arrays i in
+          let len = Array.length array in
+          (* CR-soon xclerc for xclerc: use unsafe_blit? *)
+          ArrayLabels.blit ~src:array ~src_pos:0 ~dst ~dst_pos:!dst_pos ~len;
+          dst_pos := !dst_pos + len
+        done;
+        dst
   end
 
   module String = struct
