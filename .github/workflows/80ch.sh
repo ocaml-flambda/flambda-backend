@@ -21,8 +21,7 @@
 
 set -u
 
-git log --all --graph --decorate --oneline -n 1000
-
+git fetch origin main
 
 feature_base="$(git merge-base origin/main HEAD)"
                             # N.b.: main is always considered the parent feature
