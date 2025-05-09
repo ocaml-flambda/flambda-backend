@@ -40,8 +40,8 @@ type 'addr array_contents =
   | Gc_ignored of gc_ignorable unboxed_product
 
 type 'addr constructor_field =
-  | Addr of 'addr
-  | Naked of gc_ignorable
+  | Addr_field of 'addr
+  | Naked_field of gc_ignorable
 
 type 'addr non_constant_constructor =
   { tag : int;
@@ -81,8 +81,22 @@ let tag = function
   | Array (Gc_ignored _) | Boxed _ -> Some Obj.custom_tag
   | Other -> None
 
+type integer_width =
+  | Taggable of taggable_integer
+  | Boxable of boxable_integer
+
+type integral =
+  | Value_int of integer_width
+  | Naked_int of integer_width
+
 type primitive =
-  | Array_ref of
-      { array : unit array_contents;
-        index : integral
+  | Get of
+      { block : unit block;
+        index : integral;
+        unsafe : bool
+      }
+  | Set of
+      { block : unit block;
+        indexes : integral;
+        unsafe : bool
       }
