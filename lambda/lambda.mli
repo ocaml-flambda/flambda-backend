@@ -22,6 +22,9 @@ module Scalar = Scalar
 type boxed_float = Scalar.any_locality_mode Scalar.Floating.Width.t
 type boxed_integer = Scalar.any_locality_mode Scalar.Integral.Boxable.Width.t
 
+type vector_width = Primitive.vector_width =
+  | Vec128
+
 type constant = Typedtree.constant
 
 (* Overriding Asttypes.mutable_flag *)
