@@ -2688,11 +2688,7 @@ let end_assembly () =
           let l = label_to_asm_label ~section:Data l in
           ND.label l);
       efa_8 = (fun n -> ND.uint8 (Numbers.Uint8.of_nonnegative_int_exn n));
-      efa_16 =
-        (fun n ->
-          if n > 0x7fff (* 2^15 - 1 = 32767, the max signed 16-bit int *)
-          then ND.uint16 (Numbers.Uint16.of_nonnegative_int_exn n)
-          else ND.int16 (Numbers.Int16.of_int_exn n));
+      efa_16 = (fun n -> ND.uint16 (Numbers.Uint16.of_nonnegative_int_exn n));
       efa_32 = (fun n -> ND.int32 n);
       efa_word = (fun n -> ND.targetint (Targetint.of_int_exn n));
       efa_align = (fun n -> ND.align ~fill_x86_bin_emitter:Zero ~bytes:n);
