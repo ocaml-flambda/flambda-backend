@@ -1241,9 +1241,11 @@ static void* domain_thread_func(void* v)
   struct domain_ml_values *ml_values = p->ml_values;
 
 #ifndef _WIN32
-  void * signal_stack = caml_init_signal_stack();
+  errno = 0;
+  size_t signal_stack_size = 0;
+  void * signal_stack = caml_init_signal_stack(&signal_stack_size);
   if (signal_stack == NULL) {
-    caml_fatal_error("Failed to create domain: signal stack");
+    caml_fatal_error("Failed to create domain: signal stack (errno %d)", errno);
   }
 #endif
 
@@ -1303,7 +1305,7 @@ static void* domain_thread_func(void* v)
     free_domain_ml_values(ml_values);
   }
 #ifndef _WIN32
-  caml_free_signal_stack(signal_stack);
+  caml_free_signal_stack(signal_stack, signal_stack_size);
 #endif
   return 0;
 }
