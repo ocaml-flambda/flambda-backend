@@ -21,8 +21,8 @@
 
 set -ux
 
-feature_base="$(git merge-base main HEAD)" # N.b.: main is always considered the
-                                           # parent feature
+feature_base="$(git merge-base origin/main HEAD)"
+                            # N.b.: main is always considered the parent feature
 
 # Iterate through all files changed since this branch forked off of main.
 #
