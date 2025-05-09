@@ -19,7 +19,7 @@
 #          annoying, 80ch.sh never fails, but instead emits warnings, and only
 #          checks a subset of all files (See SKIP FILES).
 
-set -u
+set -ux
 
 feature_base="$(git merge-base main HEAD)" # N.b.: main is always considered the
                                            # parent feature
