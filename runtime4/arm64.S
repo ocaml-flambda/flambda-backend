@@ -165,10 +165,11 @@ L(caml_call_gc):
         str     TMP, Caml_state(bottom_of_stack)
     /* Set up stack space, saving return address and frame pointer */
     /* (2 regs RA/GP, 24 allocatable int regs)*8 + (24 caller-save float regs)*16 */
-        CFI_OFFSET(29, -592)
-        CFI_OFFSET(30, -584)
-        stp     x29, x30, [sp, -592]!
-        CFI_ADJUST(592)
+	sub	sp, sp, #592
+	CFI_ADJUST(592)
+	CFI_OFFSET(29, 0)
+        CFI_OFFSET(30, -8)
+        stp     x29, x30, [sp]
         add     x29, sp, #0
     /* Save allocatable integer registers on the stack, in the order
        given in proc.ml */
@@ -235,7 +236,8 @@ L(caml_call_gc):
     /* Reload new allocation pointer */
         ldr     ALLOC_PTR, Caml_state(young_ptr)
     /* Free stack space and return to caller */
-        ldp     x29, x30, [sp], 592
+        ldp     x29, x30, [sp]
+	add     sp, sp, #592
         ret
         CFI_ENDPROC
         END_FUNCTION(caml_call_gc)
@@ -286,10 +288,11 @@ L(caml_call_local_realloc):
     /* Set up stack space, saving return address and frame pointer */
     /* Store return address and frame pointer */
     /* (2 RA/GP, 24 allocatable int regs)*8 + (24 caller-saved float regs)*16 */
-        CFI_OFFSET(29,-592)
-        CFI_OFFSET(30,-584)
-        stp     x29, x30, [sp,-592]! /* pre-indexing stp */
-        CFI_ADJUST(592)
+        sub	sp, sp, #592
+	CFI_ADJUST(592)
+	CFI_OFFSET(29,0)
+        CFI_OFFSET(30,-8)
+	stp     x29, x30, [sp]
         add     x29, sp, #0
 
     /* Save allocatable integer registers on the stack, using order in proc.ml */
@@ -360,7 +363,8 @@ L(caml_call_local_realloc):
         ldr     ALLOC_PTR, Caml_state(young_ptr)
 
     /* Free stack space and return to caller */
-        ldp     x29, x30, [sp], 592
+        ldp     x29, x30, [sp]
+	add	sp, sp, #592
         ret
         CFI_ENDPROC
         END_FUNCTION(caml_call_local_realloc)
