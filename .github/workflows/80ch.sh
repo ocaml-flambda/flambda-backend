@@ -52,8 +52,8 @@ do
 
   # Bash doesn't allow for comments on multiline commands, so excuse the
   # workaround of putting a groups of argument in a variable
-  f='--old-line-format= --unchanged-line-format= --new-line-format="%dn:%L"'
-  #  |^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ |^^^^^^^^^^^^^^^^^^^^^^^^
+  f='--old-line-format= --unchanged-line-format= --new-line-format=%dn:%L'
+  #  |^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ |^^^^^^^^^^^^^^^^^^^^^^^
   #  Don't print deleted or unchanged lines      Show added lines (%L),
   #                                              prepended with the line number
   #                                              (%dn) and a colon
