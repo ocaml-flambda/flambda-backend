@@ -181,10 +181,7 @@ module Closure_field = struct
 
   let unboxer function_slot value_slot =
     { var_name = "closure_field_at_use";
-      poison_const =
-        Const.of_int_of_kind
-          (Flambda_kind.With_subkind.kind (Value_slot.kind value_slot))
-          0;
+      poison_const = Const.of_int_of_kind (Value_slot.kind value_slot) 0;
       unboxing_prim =
         (fun closure -> unboxing_prim function_slot ~closure value_slot);
       prove_simple =

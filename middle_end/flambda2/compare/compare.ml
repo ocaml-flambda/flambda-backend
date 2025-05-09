@@ -775,7 +775,7 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
   let ok = ref true in
   let () =
     let compare (kind1, value1, _var1) (kind2, value2, _var2) =
-      let c = Flambda_kind.With_subkind.compare kind1 kind2 in
+      let c = Flambda_kind.compare kind1 kind2 in
       if c = 0 then Simple.compare value1 value2 else c
     in
     iter2_merged (value_slots_by_value set1) (value_slots_by_value set2)
