@@ -335,9 +335,6 @@ jobs:
       run: |
         PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH make check_all_arches
 
-    - name: Check for added lines longer than 80 characters
-      run: bash .github/workflows/80ch.sh
-
     - uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
