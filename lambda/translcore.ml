@@ -2248,7 +2248,7 @@ and transl_idx ~scopes loc env ba uas =
     begin match uas with
     | [] -> idx
     | Uaccess_unboxed_field (_, lbl) :: _ ->
-      (* CR rtjoa: no product if one *)
+      (* Preserve the invariant that products have at least two elements *)
       let base_sort =
         if Int.equal (Array.length lbl.lbl_all) 1 then
           lbl.lbl_sort
