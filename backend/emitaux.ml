@@ -209,6 +209,27 @@ type emit_frame_actions =
   }
 
 let emit_frames a =
+  let emit_i16 n =
+    if n < -0x8000 || n > 0x7FFF
+    then
+      Misc.fatal_errorf
+        "attempting to emit signed 16-bit integer %d out of range" n
+    else a.efa_16 n
+  in
+  let emit_u16 n =
+    if n < 0 || n > 0xFFFF
+    then
+      Misc.fatal_errorf
+        "attempting to emit unsigned 16-bit integer %d out of range" n
+    else a.efa_16 n
+  in
+  let emit_i32 n =
+    if n < -0x8000_0000 || n > 0x7FFF_FFFF
+    then
+      Misc.fatal_errorf
+        "attempting to emit signed 32-bit integer %d out of range" n
+    else a.efa_32 (Int32.of_int n)
+  in
   let filenames = Hashtbl.create 7 in
   let label_filename name =
     try Hashtbl.find filenames name
@@ -244,7 +265,6 @@ let emit_frames a =
       Label_table.add debuginfos key lbl;
       lbl
   in
-  let emit_32 n = n |> Int32.of_int |> a.efa_32 in
   let emit_frame fd =
     let flags = get_flags fd.fd_debuginfo in
     a.efa_label_rel fd.fd_lbl 0l;
@@ -252,12 +272,12 @@ let emit_frames a =
        below. *)
     if fd.fd_long
     then (
-      a.efa_16 Flambda_backend_flags.max_long_frames_threshold;
+      emit_i16 Flambda_backend_flags.max_long_frames_threshold;
       a.efa_align 4);
-    let emit_16_or_32 = if fd.fd_long then emit_32 else a.efa_16 in
-    emit_16_or_32 (fd.fd_frame_size + flags);
-    emit_16_or_32 (List.length fd.fd_live_offset);
-    List.iter emit_16_or_32 fd.fd_live_offset;
+    let emit_signed_16_or_32 = if fd.fd_long then emit_i32 else emit_i16 in
+    emit_signed_16_or_32 (fd.fd_frame_size + flags);
+    emit_signed_16_or_32 (List.length fd.fd_live_offset);
+    List.iter emit_signed_16_or_32 fd.fd_live_offset;
     (match fd.fd_debuginfo with
     | _ when flags = 0 -> ()
     | Dbg_other dbg ->
@@ -284,7 +304,7 @@ let emit_frames a =
         List.iter
           (fun Cmm.{ alloc_dbg; _ } ->
             if is_none_dbg alloc_dbg
-            then a.efa_32 Int32.zero
+            then emit_i32 0
             else a.efa_label_rel (label_debuginfos false alloc_dbg) Int32.zero)
           dbg));
     a.efa_align Arch.size_addr
@@ -295,9 +315,9 @@ let emit_frames a =
   in
   let emit_defname (_filename, defname, loc) (file_lbl, lbl) =
     let emit_loc (start_chr, end_chr, end_offset) =
-      a.efa_16 start_chr;
-      a.efa_16 end_chr;
-      a.efa_32 (Int32.of_int end_offset)
+      emit_u16 start_chr;
+      emit_u16 end_chr;
+      emit_i32 end_offset
     in
     (* These must be 32-bit aligned, both because they contain a 32-bit value,
        and because emit_debuginfo assumes the low 2 bits of their addresses are
@@ -389,7 +409,7 @@ let emit_frames a =
       a.efa_label_rel
         (label_defname d.dinfo_file defname loc)
         (Int64.to_int32 info);
-      a.efa_32 (Int64.to_int32 (Int64.shift_right info 32));
+      emit_i32 (Int32.to_int (Int64.to_int32 (Int64.shift_right info 32)));
       match rest with [] -> () | d :: rest -> emit false d rest
     in
     match rdbg with [] -> assert false | d :: rest -> emit rs d rest
