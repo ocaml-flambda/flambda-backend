@@ -220,6 +220,8 @@ let rec core_type i ppf x =
   | Ptyp_open (mod_ident, t) ->
       line i ppf "Ptyp_open \"%a\"\n" fmt_longident_loc mod_ident;
       core_type i ppf t
+  | Ptyp_of_kind jkind ->
+    line i ppf "Ptyp_of_kind %a\n" (jkind_annotation (i + 1)) jkind
   | Ptyp_extension (s, arg) ->
       line i ppf "Ptyp_extension \"%s\"\n" s.txt;
       payload i ppf arg

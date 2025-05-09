@@ -234,6 +234,15 @@ and type_desc =
   | Tpackage of Path.t * (Longident.t * type_expr) list
   (** Type of a first-class module (a.k.a package). *)
 
+  | Tof_kind of jkind_lr
+  (** [Tof_kind jkind] ==> [(type : jkind)]
+
+      The "canonical" type of a particular kind.
+
+      These types are uninhabited, and any appearing in translation will cause an error.
+      They are only used to represent the kinds of existentially-quantified types
+      mentioned in with-bounds. *)
+
 (** This is used in the Typedtree. It is distinct from
     {{!Asttypes.arg_label}[arg_label]} because Position argument labels are
     discovered through typechecking. *)

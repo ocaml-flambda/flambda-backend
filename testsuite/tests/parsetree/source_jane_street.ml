@@ -1252,6 +1252,22 @@ type 'a contended : immutable_data with 'a @@ contended
 type 'a contended_with_int : immutable_data with 'a @@ contended
 |}]
 
+(* Parsing implemented, but kind-checking not yet implemented *)
+type 'a abstract
+type existential_abstract : immutable_data with (type : value mod portable) abstract =
+  | Mk : ('a : value mod portable) abstract -> existential_abstract
+[%%expect{|
+type 'a abstract
+Lines 2-3, characters 0-67:
+2 | type existential_abstract : immutable_data with (type : value mod portable) abstract =
+3 |   | Mk : ('a : value mod portable) abstract -> existential_abstract
+Error: The kind of type "existential_abstract" is value
+         because it's a boxed variant type.
+       But the kind of type "existential_abstract" must be a subkind of
+         immutable_data with (type : value mod portable) abstract
+         because of the annotation on the declaration of the type existential_abstract.
+|}]
+
 (* not yet supported *)
 module _ : sig
   type 'a gel : kind_of_ 'a mod global

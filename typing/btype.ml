@@ -260,7 +260,10 @@ let fold_row f init row =
       (row_fields row)
   in
   match get_desc (row_more row) with
-  | Tvar _ | Tunivar _ | Tsubst _ | Tconstr _ | Tnil ->
+  | Tvar _ | Tunivar _ | Tsubst _ | Tconstr _ | Tnil
+    (* Tof_kind can appear in [row_more] in case the row's row variable was existentially
+       quantified in a GADT *)
+  | Tof_kind _ ->
     begin match
       Option.map (fun (_,l) -> List.fold_left f result l) (row_name row)
     with
@@ -300,6 +303,7 @@ let fold_type_expr f init ty =
     List.fold_left f result tyl
   | Tpackage (_, fl)  ->
     List.fold_left (fun result (_n, ty) -> f result ty) init fl
+  | Tof_kind _ -> init
 
 let iter_type_expr f ty =
   fold_type_expr (fun () v -> f v) () ty
@@ -481,6 +485,7 @@ let rec copy_type_desc ?(keep_names=false) f = function
       let tyl = List.map f tyl in
       Tpoly (f ty, tyl)
   | Tpackage (p, fl)  -> Tpackage (p, List.map (fun (n, ty) -> (n, f ty)) fl)
+  | Tof_kind jk -> Tof_kind jk
 
 (* Utilities for copying *)
 

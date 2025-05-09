@@ -4724,6 +4724,8 @@ atomic_type:
       { mktyp ~loc:$sloc (Ptyp_var (name, Some jkind)) }
   | LPAREN UNDERSCORE COLON jkind=jkind_annotation RPAREN
       { mktyp ~loc:$sloc (Ptyp_any (Some jkind)) }
+  | LPAREN TYPE COLON jkind=jkind_annotation RPAREN
+      { mktyp ~loc:$loc (Ptyp_of_kind jkind) }
 
 
 (* This is the syntax of the actual type parameters in an application of
