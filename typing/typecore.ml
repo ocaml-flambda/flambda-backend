@@ -94,6 +94,11 @@ let record_form_to_wrong_kind_sort
   | Legacy -> Record
   | Unboxed_product -> Record_unboxed_product
 
+(* This is a very long comment which should fail the 80 character check on Github *)
+
+(* This is a line which is not as long *)
+
+
 type contains_gadt =
   | Contains_gadt
   | No_gadt
@@ -134,6 +139,7 @@ type unsupported_stack_allocation =
   | Object
   | List_comprehension
   | Array_comprehension
+(* This is a line which is not as long *)
 
 let print_unsupported_stack_allocation ppf = function
   | Lazy -> Format.fprintf ppf "lazy expressions"
@@ -141,6 +147,10 @@ let print_unsupported_stack_allocation ppf = function
   | Object -> Format.fprintf ppf "objects"
   | List_comprehension -> Format.fprintf ppf "list comprehensions"
   | Array_comprehension -> Format.fprintf ppf "array comprehensions"
+
+(* This is also very long comment which should fail the 80 character check on Github *)
+
+(* This is also very long comment which has some symbols a,b:=:: =,                     *)
 
 type error =
   | Constructor_arity_mismatch of Longident.t * int * int
