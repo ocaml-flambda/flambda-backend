@@ -41,8 +41,6 @@ page](../unboxed-types/index)) or the modal axes (which are documented on the
 [modes page](../modes/intro)), but does explain how those components appear in
 kinds, including how the modal bounds are affected by the with-bounds.
 
-CR ccasinghino: add links to modes documentation after moving it here.
-
 CR reisenberg: Where should/do we document mode crossing? There is some text
 in proposals/unboxed-types/kinds.md that might be useful.
 
