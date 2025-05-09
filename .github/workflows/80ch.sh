@@ -19,9 +19,10 @@
 #          annoying, 80ch.sh never fails, but instead emits warnings, and only
 #          checks a subset of all files (See SKIP FILES).
 
-set -u
+set -xu
 
 git fetch origin main
+git log --all --graph --decorate --oneline -n 1000
 
 feature_base="HEAD^1" # GitHub automatically makes us a merge commit (HEAD),
                       # so our feature base is just the first parent (HEAD^1)
