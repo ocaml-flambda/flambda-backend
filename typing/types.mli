@@ -523,6 +523,24 @@ val create_row:
   name:(Path.t * type_expr list) option -> row_desc
 
 val row_fields: row_desc -> (label * row_field) list
+
+(** [row_more] returns a [type_expr] with one of the following [type_desc]s:
+
+    * [Tvar]: This is a standard row variable; it would occur in e.g. [val f :
+    [> `A | `B] -> int]. When/if we learn more about a polymorphic variant, this
+    variable might get unified with one of the other [type_desc]s listed here,
+    or a [Tvariant] that represents a new set of constructors to add to the row.
+
+    * [Tunivar]: This is a universally quantified row variable; it would occur
+    in e.g. [type t = { f : 'a. ([> `A | `B ] as 'a) -> int }].
+
+    * [Tconstr]: This is always an abstract [#row] type created by a [private]
+    row type, as in [type t = private [> `A | `B]]. (After a substitution, this
+    type might have a manifest; expanding the type will yield either a
+    [Tvariant] or another [type_desc] listed here.
+
+    * [Tnil]: Used to denote a closed polymorphic variant.
+*)
 val row_more: row_desc -> type_expr
 val row_closed: row_desc -> bool
 val row_fixed: row_desc -> fixed_explanation option
