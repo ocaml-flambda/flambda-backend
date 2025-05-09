@@ -19,9 +19,10 @@
 #          annoying, 80ch.sh never fails, but instead emits warnings, and only
 #          checks a subset of all files (See SKIP FILES).
 
-set -u
+set -xu
 
 git fetch origin main
+git log --all --graph --decorate --oneline -n 1000
 
 feature_base="$(git merge-base origin/main HEAD)"
                             # N.b.: main is always considered the parent feature
