@@ -21,7 +21,7 @@
 
 set -u
 
-git fetch origin main --deepen 1 -q # Needed to have a local copy of origin/main
+git fetch origin main --deepen 1 -q # Need to have a local copy of origin/main
                                     # for this script to work
 
 feature_base="$(git merge-base origin/main HEAD)"
@@ -75,9 +75,10 @@ do
     line="${long_line#*:}"    # These parameter expansions split
     number="${long_line%%:*}" # on the first colon
 
-    # Workflow commands for GitHub Actions
-    printf \
-      '::warning file=%s,line=%s::Line is over 80 characters long: %s\n' \
-      "$changed_file" "$number" "$line"
+    # Warning workflow command for GitHub Actions
+    printf '::warning file=%s,line=%s,title=%s::%s\n' \
+      "$changed_file" "$number" \
+      'Line is longer than 80 characters' \
+      'Consider rewrapping this line'
   done
 done
