@@ -23,7 +23,7 @@ set -xu
 
 git fetch origin main --depth 1
 
-git log --graph --decorate --oneline --limit 100
+git log --graph --decorate --oneline -n 100
 
 feature_base="$(git merge-base origin/main HEAD)"
                             # N.b.: main is always considered the parent feature
