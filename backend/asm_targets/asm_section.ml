@@ -119,7 +119,8 @@ let section_is_text = function
 type section_details =
   { names : string list;
     flags : string option;
-    args : string list
+    args : string list;
+    is_delayed : bool
   }
 
 let details t ~first_occurrence =
@@ -210,10 +211,13 @@ let details t ~first_occurrence =
     | Probes, _, _ -> [".probes"], Some "wa", ["\"progbits\""]
     | Note_ocaml_eh, _, _ -> [".note.ocaml_eh"], Some "?", ["\"note\""]
   in
-  { names; flags; args }
+  let is_delayed = is_delayed t in
+  { names; flags; args; is_delayed }
 
 let to_string t =
-  let { names; flags = _; args = _ } = details t ~first_occurrence:true in
+  let { names; flags = _; args = _; is_delayed = _ } =
+    details t ~first_occurrence:true
+  in
   String.concat " " names
 
 let all_sections_in_order () =

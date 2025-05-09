@@ -37,7 +37,11 @@ val switch_to_section :
     command.  This function is only intended to be used for target-specific
     sections. *)
 val switch_to_section_raw :
-  names:string list -> flags:string option -> args:string list -> unit
+  names:string list ->
+  flags:string option ->
+  args:string list ->
+  is_delayed:bool ->
+  unit
 
 (** Abbreviation for [switch_to_section Text]. *)
 val text : unit -> unit
@@ -439,7 +443,8 @@ module Directive : sig
     | Section of
         { names : string list;
           flags : string option;
-          args : string list
+          args : string list;
+          is_delayed : bool
         }
     | Size of string * Constant.t
     | Sleb128 of
