@@ -73,15 +73,20 @@ module Component_for_creation = struct
   let rec from_lambda (layout : Lambda.layout) =
     match layout with
     | Pvalue vk -> Singleton (KS.from_lambda_value_kind vk)
-    | Punboxed_float Unboxed_float64 -> Singleton KS.naked_float
-    | Punboxed_float Unboxed_float32 -> Singleton KS.naked_float32
-    | Punboxed_int Unboxed_int8 -> Singleton KS.naked_int8
-    | Punboxed_int Unboxed_int16 -> Singleton KS.naked_int16
-    | Punboxed_int Unboxed_int32 -> Singleton KS.naked_int32
-    | Punboxed_int Unboxed_int64 -> Singleton KS.naked_int64
-    | Punboxed_int Unboxed_int -> Singleton KS.naked_immediate
-    | Punboxed_int Unboxed_nativeint -> Singleton KS.naked_nativeint
-    | Punboxed_vector Unboxed_vec128 -> Singleton KS.naked_vec128
+    | Punboxed_scalar (Floating (Float64 Any_locality_mode)) ->
+      Singleton KS.naked_float
+    | Punboxed_scalar (Floating (Float32 Any_locality_mode)) ->
+      Singleton KS.naked_float32
+    | Punboxed_scalar (Integral (Taggable Int8)) -> Singleton KS.naked_int8
+    | Punboxed_scalar (Integral (Taggable Int16)) -> Singleton KS.naked_int16
+    | Punboxed_scalar (Integral (Boxable (Int32 Any_locality_mode))) ->
+      Singleton KS.naked_int32
+    | Punboxed_scalar (Integral (Boxable (Int64 Any_locality_mode))) ->
+      Singleton KS.naked_int64
+    | Punboxed_scalar (Integral (Taggable Int)) -> Singleton KS.naked_immediate
+    | Punboxed_scalar (Integral (Boxable (Nativeint Any_locality_mode))) ->
+      Singleton KS.naked_nativeint
+    | Punboxed_vector Vec128 -> Singleton KS.naked_vec128
     | Punboxed_product layouts -> Unboxed_product (List.map from_lambda layouts)
     | Ptop | Pbottom ->
       Misc.fatal_errorf

@@ -19,40 +19,19 @@ open Primitive
 open Types
 open Lambda
 
-let primitive_unboxed_integer : Primitive.unboxed_integer -> string = function
-  | Unboxed_int8 -> "unboxed_int8"
-  | Unboxed_int16 -> "unboxed_int16"
-  | Unboxed_int -> "unboxed_int"
-  | Unboxed_nativeint -> "unboxed_nativeint"
-  | Unboxed_int32 -> "unboxed_int32"
-  | Unboxed_int64 -> "unboxed_int64"
+let unboxed_integer i  = "unboxed_" ^ Scalar.Integral.Width.to_string i
 
-let unboxed_integer : Lambda.unboxed_integer -> string = function
-  | Unboxed_int8 -> "unboxed_int8"
-  | Unboxed_int16 -> "unboxed_int16"
-  | Unboxed_int -> "unboxed_int"
-  | Unboxed_nativeint -> "unboxed_nativeint"
-  | Unboxed_int32 -> "unboxed_int32"
-  | Unboxed_int64 -> "unboxed_int64"
-
-let unboxed_float = function
-  | Unboxed_float64 -> "unboxed_float"
-  | Unboxed_float32 -> "unboxed_float32"
+let unboxed_float f = "unboxed_" ^ Scalar.Floating.Width.to_string f
 
 let unboxed_vector = function
-  | Unboxed_vec128 -> "unboxed_vec128"
+  | Primitive.Vec128 -> "unboxed_vec128"
 
-let boxed_integer = function
-  | Boxed_nativeint -> "nativeint"
-  | Boxed_int32 -> "int32"
-  | Boxed_int64 -> "int64"
+let boxed_integer = Scalar.Integral.Boxable.Width.to_string
 
-let boxed_float = function
-  | Boxed_float64 -> "float"
-  | Boxed_float32 -> "float32"
+let boxed_float = Scalar.Floating.Width.to_string
 
 let boxed_vector = function
-  | Boxed_vec128 -> "vec128"
+  | Primitive.Vec128 -> "vec128"
 
 let rec scannable_product_element_kinds kinds =
   "[" ^ String.concat "; " (List.map scannable_product_element_kind kinds) ^ "]"
@@ -77,7 +56,7 @@ let array_kind = function
   | Pintarray -> "int"
   | Pfloatarray -> "float"
   | Punboxedfloatarray f -> unboxed_float f
-  | Punboxedintarray i -> primitive_unboxed_integer i
+  | Punboxedintarray i -> unboxed_integer i
   | Punboxedvectorarray v -> unboxed_vector v
   | Pgcscannableproductarray kinds ->
     "scannableproduct " ^ scannable_product_element_kinds kinds

@@ -15,35 +15,26 @@
 
 (* Description of primitive functions *)
 
-type unboxed_integer =
-  | Unboxed_int64
-  | Unboxed_nativeint
-  | Unboxed_int32
-  | Unboxed_int16
-  | Unboxed_int8
-  | Unboxed_int
-  (** We don't have an [int#] type (at least not yet), but for consistency, it's important
-      that we have unboxed types corresponding to all of our integral types *)
+type boxed_integer = Scalar.any_locality_mode Scalar.Integral.Boxable.t
+type integer_width = Scalar.any_locality_mode Scalar.Integral.Width.t
+type float_width = Scalar.any_locality_mode Scalar.Floating.Width.t
+type scalar_width = Scalar.any_locality_mode Scalar.Width.t
+type vector_width = Vec128
 
-type unboxed_float = Unboxed_float64 | Unboxed_float32
-type unboxed_vector = Unboxed_vec128
-
-type boxed_integer = Boxed_int64 | Boxed_nativeint | Boxed_int32
-type boxed_float = Boxed_float64 | Boxed_float32
-type boxed_vector = Boxed_vec128
+type width =
+  | Scalar of scalar_width
+  | Vector of vector_width
 
 (** Representation of arguments/result for the native code version
     of a primitive.
 
     Untagged integers (such as [int[@untagged]]) are represented as
-    [Unboxed_integer Unboxed_int]
+    [Naked (Scalar (Unboxed_integer Unboxed_int))]
 *)
 type native_repr =
   | Repr_poly
   | Same_as_ocaml_repr of Jkind_types.Sort.Const.t
-  | Unboxed_float of boxed_float
-  | Unboxed_vector of boxed_vector
-  | Unboxed_integer of unboxed_integer
+  | Naked of width
 
 (* See [middle_end/semantics_of_primitives.mli] *)
 type effects = No_effects | Only_generative_effects | Arbitrary_effects
@@ -112,19 +103,8 @@ val native_name: 'a description_gen -> string
 val byte_name: 'a description_gen -> string
 
 
-val unboxed_float : boxed_float -> unboxed_float
-val unboxed_integer : boxed_integer -> unboxed_integer
-val unboxed_vector : boxed_vector -> unboxed_vector
-val equal_unboxed_integer : unboxed_integer -> unboxed_integer -> bool
-val equal_unboxed_float : unboxed_float -> unboxed_float -> bool
-val equal_unboxed_vector : unboxed_vector -> unboxed_vector -> bool
-val compare_unboxed_float : unboxed_float -> unboxed_float -> int
-val compare_unboxed_vector : unboxed_vector -> unboxed_vector -> int
-val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
-val equal_boxed_float : boxed_float -> boxed_float -> bool
-val equal_boxed_vector : boxed_vector -> boxed_vector -> bool
-val compare_boxed_float : boxed_float -> boxed_float -> int
-val compare_boxed_vector : boxed_vector -> boxed_vector -> int
+val equal_vector_width : vector_width -> vector_width -> bool
+val equal_width : width -> width -> bool
 val equal_native_repr : native_repr -> native_repr -> bool
 val equal_effects : effects -> effects -> bool
 val equal_coeffects : coeffects -> coeffects -> bool

@@ -56,13 +56,13 @@ let of_element_kind t =
 let of_lambda array_kind =
   match (array_kind : Lambda.array_kind) with
   | Pgenarray | Paddrarray | Pintarray | Pfloatarray
-  | Punboxedfloatarray Unboxed_float64 ->
+  | Punboxedfloatarray (Float64 Any_locality_mode) ->
     Values_or_immediates_or_naked_floats
-  | Punboxedfloatarray Unboxed_float32 -> Naked_float32s
-  | Punboxedintarray (Unboxed_int8 | Unboxed_int16 | Unboxed_int) ->
+  | Punboxedfloatarray (Float32 Any_locality_mode) -> Naked_float32s
+  | Punboxedintarray (Taggable _) ->
     Misc.unboxed_small_int_arrays_are_not_implemented ()
-  | Punboxedintarray Unboxed_int32 -> Naked_int32s
-  | Punboxedintarray Unboxed_int64 -> Naked_int64s
-  | Punboxedintarray Unboxed_nativeint -> Naked_nativeints
-  | Punboxedvectorarray Unboxed_vec128 -> Naked_vec128s
+  | Punboxedintarray (Boxable (Int32 Any_locality_mode)) -> Naked_int32s
+  | Punboxedintarray (Boxable (Int64 Any_locality_mode)) -> Naked_int64s
+  | Punboxedintarray (Boxable (Nativeint Any_locality_mode)) -> Naked_nativeints
+  | Punboxedvectorarray Vec128 -> Naked_vec128s
   | Pgcscannableproductarray _ | Pgcignorableproductarray _ -> Unboxed_products

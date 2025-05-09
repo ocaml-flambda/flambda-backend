@@ -118,7 +118,7 @@ module Maybe_naked = struct
 
     val to_string : any_locality_mode t -> string
 
-    val naked_sort : any_locality_mode t -> Jkind_types.Sort.Const.t
+    val naked_sort : any_locality_mode t -> Jkind_types.Sort.base
   end) =
   struct
     type nonrec 'a t = ('a M.t, any_locality_mode M.t) t
@@ -141,7 +141,7 @@ module Maybe_naked = struct
     let all = List.concat_map (fun m -> [Value m; Naked m]) M.all
 
     let sort = function
-      | Value (_ : any_locality_mode M.t) -> Jkind_types.Sort.Const.value
+      | Value (_ : any_locality_mode M.t) -> Jkind_types.Sort.Value
       | Naked t -> M.naked_sort t
   end
 end
@@ -156,15 +156,26 @@ module Integral = struct
 
       let all = [Int8; Int16; Int]
 
+      let bits = function Int8 -> 8 | Int16 -> 16 | Int -> Targetint.size - 1
+
       let to_string = function
         | Int8 -> "int8"
         | Int16 -> "int16"
         | Int -> "int"
 
       let naked_sort = function
-        | Int8 -> Jkind_types.Sort.Const.bits8
-        | Int16 -> Jkind_types.Sort.Const.bits16
-        | Int -> Jkind_types.Sort.Const.word
+        | Int8 -> Jkind_types.Sort.Bits8
+        | Int16 -> Jkind_types.Sort.Bits16
+        | Int -> Jkind_types.Sort.Word
+
+      let equal t1 t2 =
+        match t1, t2 with
+        | Int8, Int8 -> true
+        | Int8, _ -> false
+        | Int16, Int16 -> true
+        | Int16, _ -> false
+        | Int, Int -> true
+        | Int, _ -> false
     end
 
     include Maybe_naked.Make1 (struct
@@ -183,10 +194,24 @@ module Integral = struct
         | Nativeint of 'mode
         | Int64 of 'mode
 
+      let bits = function
+        | Int32 Any_locality_mode -> 32
+        | Nativeint Any_locality_mode -> Targetint.size
+        | Int64 Any_locality_mode -> 64
+
       let all =
         [ Int32 Any_locality_mode;
           Nativeint Any_locality_mode;
           Int64 Any_locality_mode ]
+
+      let equal t1 t2 =
+        match t1, t2 with
+        | Int32 Any_locality_mode, Int32 Any_locality_mode -> true
+        | Int32 Any_locality_mode, _ -> false
+        | Nativeint Any_locality_mode, Nativeint Any_locality_mode -> true
+        | Nativeint Any_locality_mode, _ -> false
+        | Int64 Any_locality_mode, Int64 Any_locality_mode -> true
+        | Int64 Any_locality_mode, _ -> false
 
       let map t ~f =
         match t with
@@ -200,9 +225,9 @@ module Integral = struct
         | Int64 Any_locality_mode -> "int64"
 
       let naked_sort = function
-        | Int32 Any_locality_mode -> Jkind_types.Sort.Const.bits32
-        | Int64 Any_locality_mode -> Jkind_types.Sort.Const.bits64
-        | Nativeint Any_locality_mode -> Jkind_types.Sort.Const.word
+        | Int32 Any_locality_mode -> Jkind_types.Sort.Bits32
+        | Int64 Any_locality_mode -> Jkind_types.Sort.Bits64
+        | Nativeint Any_locality_mode -> Jkind_types.Sort.Word
     end
 
     include Maybe_naked.Make1 (Width)
@@ -217,6 +242,17 @@ module Integral = struct
       List.concat
         [ List.map (fun t -> Taggable t) Taggable.Width.all;
           List.map (fun t -> Boxable t) Boxable.Width.all ]
+
+    let equal x y =
+      match x, y with
+      | Taggable t1, Taggable t2 -> Taggable.Width.equal t1 t2
+      | Taggable _, _ -> false
+      | Boxable b1, Boxable b2 -> Boxable.Width.equal b1 b2
+      | Boxable _, _ -> false
+
+    let bits = function
+      | Taggable t -> Taggable.Width.bits t
+      | Boxable b -> Boxable.Width.bits b
 
     let map t ~f =
       match t with
@@ -279,6 +315,17 @@ module Floating = struct
 
     let all = [Float32 Any_locality_mode; Float64 Any_locality_mode]
 
+    let bits = function
+      | Float32 Any_locality_mode -> 32
+      | Float64 Any_locality_mode -> 64
+
+    let equal t1 t2 =
+      match t1, t2 with
+      | Float32 Any_locality_mode, Float32 Any_locality_mode -> true
+      | Float32 Any_locality_mode, _ -> false
+      | Float64 Any_locality_mode, Float64 Any_locality_mode -> true
+      | Float64 Any_locality_mode, _ -> false
+
     let map t ~f =
       match t with
       | Float32 mode -> Float32 (f mode)
@@ -289,8 +336,8 @@ module Floating = struct
       | Float64 Any_locality_mode -> "float"
 
     let naked_sort = function
-      | Float32 Any_locality_mode -> Jkind_types.Sort.Const.float32
-      | Float64 Any_locality_mode -> Jkind_types.Sort.Const.float64
+      | Float32 Any_locality_mode -> Jkind_types.Sort.Float32
+      | Float64 Any_locality_mode -> Jkind_types.Sort.Float64
 
     let float32 = Float32 Any_locality_mode
 
@@ -317,6 +364,17 @@ module Width = struct
     List.concat
       [ List.map (fun t -> Floating t) Floating.Width.all;
         List.map (fun t -> Integral t) Integral.Width.all ]
+
+  let bits = function
+    | Floating f -> Floating.Width.bits f
+    | Integral i -> Integral.Width.bits i
+
+  let equal x y =
+    match x, y with
+    | Floating f1, Floating f2 -> Floating.Width.equal f1 f2
+    | Floating _, _ -> false
+    | Integral i1, Integral i2 -> Integral.Width.equal i1 i2
+    | Integral _, _ -> false
 
   let map t ~f =
     match t with
@@ -590,19 +648,19 @@ module Intrinsic = struct
         sort, sort, sort
       | Shift (width, (Lsl | Lsr | Asr), Int) ->
         let sort = Integral.sort width in
-        sort, Jkind_types.Sort.Const.value, sort
+        sort, Jkind_types.Sort.Value, sort
       | Floating (width, (Add | Sub | Mul | Div)) ->
         let sort = Floating.sort width in
         sort, sort, sort
       | Icmp (width, (_ : Integer_comparison.t)) ->
         let sort = Integral.sort width in
-        sort, sort, Jkind_types.Sort.Const.value
+        sort, sort, Jkind_types.Sort.Value
       | Fcmp (width, (_ : Float_comparison.t)) ->
         let sort = Floating.sort width in
-        sort, sort, Jkind_types.Sort.Const.value
+        sort, sort, Jkind_types.Sort.Value
       | Three_way_compare width ->
         let sort = sort width in
-        sort, sort, Jkind_types.Sort.Const.value
+        sort, sort, Jkind_types.Sort.Value
 
     let to_string t =
       let make size name = String.concat "_" [to_string size; name] in

@@ -19,6 +19,9 @@ open Asttypes
 
 module Scalar = Scalar
 
+type boxed_float = Scalar.any_locality_mode Scalar.Floating.Width.t
+type boxed_integer = Scalar.any_locality_mode Scalar.Integral.Boxable.Width.t
+
 type constant = Typedtree.constant
 
 (* Overriding Asttypes.mutable_flag *)
@@ -296,8 +299,8 @@ type primitive =
   (* Primitives for [Obj] *)
   | Pobj_dup
   | Pobj_magic of layout
-  | Punbox_vector of boxed_vector
-  | Pbox_vector of boxed_vector * locality_mode
+  | Punbox_vector of Primitive.vector_width
+  | Pbox_vector of Primitive.vector_width * locality_mode
   | Preinterpret_unboxed_int64_as_tagged_int63
   | Preinterpret_tagged_int63_as_unboxed_int64
     (** At present [Preinterpret_unboxed_int64_as_tagged_int63] and
@@ -332,9 +335,7 @@ type primitive =
     compiled away. *)
 and extern_repr =
   | Same_as_ocaml_repr of Jkind.Sort.Const.t
-  | Unboxed_float of boxed_float
-  | Unboxed_vector of boxed_vector
-  | Unboxed_integer of unboxed_integer
+  | Naked of Primitive.width
 
 and external_call_description = extern_repr Primitive.description_gen
 
@@ -346,9 +347,9 @@ and float_comparison = Scalar.Float_comparison.t =
 
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
-  | Punboxedfloatarray of unboxed_float
-  | Punboxedintarray of unboxed_integer
-  | Punboxedvectorarray of unboxed_vector
+  | Punboxedfloatarray of Primitive.float_width
+  | Punboxedintarray of Primitive.integer_width
+  | Punboxedvectorarray of Primitive.vector_width
   | Pgcscannableproductarray of scannable_product_element_kind list
   | Pgcignorableproductarray of ignorable_product_element_kind list
   (* Invariant: the product element kind lists have length >= 2 *)
@@ -361,9 +362,9 @@ and array_ref_kind =
   | Paddrarray_ref
   | Pintarray_ref
   | Pfloatarray_ref of locality_mode
-  | Punboxedfloatarray_ref of unboxed_float
-  | Punboxedintarray_ref of unboxed_integer
-  | Punboxedvectorarray_ref of unboxed_vector
+  | Punboxedfloatarray_ref of Primitive.float_width
+  | Punboxedintarray_ref of Primitive.integer_width
+  | Punboxedvectorarray_ref of Primitive.vector_width
   | Pgcscannableproductarray_ref of scannable_product_element_kind list
   | Pgcignorableproductarray_ref of ignorable_product_element_kind list
   (* Invariant: the product element kind lists have length >= 2 *)
@@ -375,9 +376,9 @@ and array_set_kind =
   | Paddrarray_set of modify_mode
   | Pintarray_set
   | Pfloatarray_set
-  | Punboxedfloatarray_set of unboxed_float
-  | Punboxedintarray_set of unboxed_integer
-  | Punboxedvectorarray_set of unboxed_vector
+  | Punboxedfloatarray_set of Primitive.float_width
+  | Punboxedintarray_set of Primitive.integer_width
+  | Punboxedvectorarray_set of Primitive.vector_width
   | Pgcscannableproductarray_set of
       modify_mode * scannable_product_element_kind list
   | Pgcignorableproductarray_set of ignorable_product_element_kind list
@@ -385,8 +386,8 @@ and array_set_kind =
 
 and ignorable_product_element_kind =
   | Pint_ignorable
-  | Punboxedfloat_ignorable of unboxed_float
-  | Punboxedint_ignorable of unboxed_integer
+  | Punboxedfloat_ignorable of Primitive.float_width
+  | Punboxedint_ignorable of Primitive.integer_width
   | Pproduct_ignorable of ignorable_product_element_kind list
   (* Invariant: the product element kind list has length >= 2 *)
 
@@ -398,7 +399,7 @@ and scannable_product_element_kind =
 
 and array_index_kind =
   | Ptagged_int_index
-  | Punboxed_int_index of unboxed_integer
+  | Punboxed_int_index of Primitive.integer_width
 
 (** [Nullable] value kinds allow the special Null value in addition to the
     values of its underlying type. [Non_nullable] only allows values of the
@@ -415,8 +416,7 @@ and value_kind =
 and value_kind_non_null =
   | Pgenval
   | Pintval
-  | Pboxedfloatval of boxed_float
-  | Pboxedintval of boxed_integer
+  | Pscalarval of Primitive.scalar_width
   | Pvariant of {
       consts : int list;
       non_consts : (int * constructor_shape) list;
@@ -425,16 +425,15 @@ and value_kind_non_null =
           expected to be significant. *)
     }
   | Parrayval of array_kind
-  | Pboxedvectorval of boxed_vector
+  | Pboxedvectorval of Primitive.vector_width
 
 (* Because we check for and error on void in the translation to lambda, we don't
    need a constructor for it here. *)
 and layout =
   | Ptop
   | Pvalue of value_kind
-  | Punboxed_float of unboxed_float
-  | Punboxed_int of unboxed_integer
-  | Punboxed_vector of unboxed_vector
+  | Punboxed_scalar of Primitive.scalar_width
+  | Punboxed_vector of Primitive.vector_width
   | Punboxed_product of layout list
   | Pbottom
 
@@ -462,33 +461,7 @@ and constructor_shape =
   | Constructor_uniform of value_kind list
   | Constructor_mixed of mixed_block_shape
 
-and unboxed_float = Primitive.unboxed_float =
-  | Unboxed_float64
-  | Unboxed_float32
-
-and unboxed_integer = Primitive.unboxed_integer =
-  | Unboxed_int64
-  | Unboxed_nativeint
-  | Unboxed_int32
-  | Unboxed_int16
-  | Unboxed_int8
-  | Unboxed_int
-
-
-and unboxed_vector = Primitive.unboxed_vector =
-  | Unboxed_vec128
-
-and boxed_float = Primitive.boxed_float =
-  | Boxed_float64
-  | Boxed_float32
-
-and boxed_integer = Primitive.boxed_integer =
-  | Boxed_int64
-  | Boxed_nativeint
-  | Boxed_int32
-
-and boxed_vector = Primitive.boxed_vector =
-  | Boxed_vec128
+(* CR jvanburen: use [scalar_width] *)
 and peek_or_poke =
   | Ppp_tagged_immediate
   | Ppp_unboxed_float32
@@ -526,7 +499,7 @@ val equal_layout : layout -> layout -> bool
 
 val compatible_layout : layout -> layout -> bool
 
-val print_boxed_vector : Format.formatter -> boxed_vector -> unit
+val print_vector_width  : Format.formatter -> Primitive.vector_width -> unit
 
 val equal_ignorable_product_element_kind :
   ignorable_product_element_kind -> ignorable_product_element_kind -> bool
@@ -536,7 +509,7 @@ val must_be_value : layout -> value_kind
 val generic_value : value_kind
 
 (* This is the layout of ocaml values used as arguments to or returned from
-   primitives for this [extern_repr].  So the legacy [Unboxed_float] - which is
+   primitives for this [extern_repr].  So the legacy [Primitive.Float_width] - which is
    a float that is unboxed before being passed to a C function - is mapped to
    [layout_any_value], while [Same_as_ocaml_repr Float64] is mapped to
    [layout_unboxed_float].
@@ -945,10 +918,7 @@ val layout_module : layout
 val layout_functor : layout
 val layout_module_field : layout
 val layout_string : layout
-val layout_boxed_float : boxed_float -> layout
-val layout_unboxed_float : unboxed_float -> layout
-val layout_boxed_int : boxed_integer -> layout
-val layout_boxed_vector : boxed_vector -> layout
+val layout_scalar : Scalar.any_locality_mode Scalar.t -> layout
 (* A layout that is Pgenval because it is the field of a tuple *)
 val layout_tuple_element : layout
 (* A layout that is Pgenval because it is the arg of a polymorphic variant *)

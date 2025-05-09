@@ -34,6 +34,8 @@
     primitives.
 *)
 
+type sort := Jkind_types.Sort.base
+
 type any_locality_mode = Any_locality_mode
 
 module Integer_comparison : sig
@@ -93,7 +95,7 @@ module type S := sig
 
   val to_string : any_locality_mode t -> string
 
-  val sort : any_locality_mode t -> Jkind_types.Sort.Const.t
+  val sort : any_locality_mode t -> sort
 end
 
 module type Integral_width_constants := sig
@@ -157,6 +159,10 @@ module Integral : sig
         | Int
 
       val to_string : t -> string
+
+      val equal : t -> t -> bool
+
+      val bits : t -> int
     end
 
     include S with type 'a width := Width.t
@@ -172,6 +178,10 @@ module Integral : sig
       val map : 'a t -> f:('a -> 'b) -> 'b t
 
       val to_string : any_locality_mode t -> string
+
+      val equal : any_locality_mode t -> any_locality_mode t -> bool
+
+      val bits : any_locality_mode t -> int
     end
 
     include S with type 'a width := 'a Width.t
@@ -183,6 +193,12 @@ module Integral : sig
       | Boxable of 'mode Boxable.Width.t
 
     val map : 'a t -> f:('a -> 'b) -> 'b t
+
+    val equal : any_locality_mode t -> any_locality_mode t -> bool
+
+    val bits : any_locality_mode t -> int
+
+    val to_string : any_locality_mode t -> string
 
     include Integral_width_constants with type 'a t := 'a t
   end
@@ -200,6 +216,10 @@ module Floating : sig
 
     val map : 'a t -> f:('a -> 'b) -> 'b t
 
+    val equal : any_locality_mode t -> any_locality_mode t -> bool
+
+    val bits : any_locality_mode t -> int
+
     val to_string : any_locality_mode t -> string
 
     include Float_width_constants with type 'a t := 'a t
@@ -216,6 +236,10 @@ module Width : sig
     | Integral of 'mode Integral.Width.t
 
   val map : 'a t -> f:('a -> 'b) -> 'b t
+
+  val equal : any_locality_mode t -> any_locality_mode t -> bool
+
+  val bits : any_locality_mode t -> int
 
   val to_string : any_locality_mode t -> string
 
@@ -273,8 +297,7 @@ module Intrinsic : sig
 
     val info : 'a t -> 'a info
 
-    val sort :
-      any_locality_mode t -> Jkind_types.Sort.Const.t * Jkind_types.Sort.Const.t
+    val sort : any_locality_mode t -> sort * sort
   end
 
   module Binary : sig
@@ -334,11 +357,7 @@ module Intrinsic : sig
 
     val info : 'a t -> 'a info
 
-    val sort :
-      any_locality_mode t ->
-      Jkind_types.Sort.Const.t
-      * Jkind_types.Sort.Const.t
-      * Jkind_types.Sort.Const.t
+    val sort : any_locality_mode t -> sort * sort * sort
   end
 
   type 'mode t =
@@ -347,7 +366,7 @@ module Intrinsic : sig
 
   val map : 'a t -> f:('a -> 'b) -> 'b t
 
-  val sort : any_locality_mode t -> Jkind_types.Sort.Const.t list
+  val sort : any_locality_mode t -> sort list
 
   val arity : _ t -> int
 

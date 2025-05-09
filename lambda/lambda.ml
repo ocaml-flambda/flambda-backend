@@ -16,6 +16,11 @@
 open Misc
 open Asttypes
 
+type scalar_width = Primitive.scalar_width
+type vector_width = Primitive.vector_width = Vec128
+type boxed_float = Scalar.any_locality_mode Scalar.Floating.Width.t
+type boxed_integer = Scalar.any_locality_mode Scalar.Integral.Boxable.Width.t
+
 type constant = Typedtree.constant
 
 type mutable_flag = Immutable | Immutable_unique | Mutable
@@ -296,8 +301,8 @@ type primitive =
   (* Primitives for [Obj] *)
   | Pobj_dup
   | Pobj_magic of layout
-  | Punbox_vector of boxed_vector
-  | Pbox_vector of boxed_vector * locality_mode
+  | Punbox_vector of Primitive.vector_width
+  | Pbox_vector of Primitive.vector_width * locality_mode
   | Preinterpret_unboxed_int64_as_tagged_int63
   | Preinterpret_tagged_int63_as_unboxed_int64
   (* Jane Street extensions *)
@@ -314,9 +319,7 @@ type primitive =
 
 and extern_repr =
   | Same_as_ocaml_repr of Jkind.Sort.Const.t
-  | Unboxed_float of boxed_float
-  | Unboxed_vector of boxed_vector
-  | Unboxed_integer of unboxed_integer
+  | Naked of Primitive.width
 
 and external_call_description = extern_repr Primitive.description_gen
 and integer_comparison = Scalar.Integer_comparison.t =
@@ -337,22 +340,19 @@ and value_kind =
 
 and value_kind_non_null =
   | Pgenval
-  | Pintval
-  | Pboxedfloatval of boxed_float
-  | Pboxedintval of boxed_integer
+  | Pscalarval of Primitive.scalar_width
   | Pvariant of {
       consts : int list;
       non_consts : (int * constructor_shape) list;
     }
   | Parrayval of array_kind
-  | Pboxedvectorval of boxed_vector
+  | Pboxedvectorval of Primitive.vector_width
 
 and layout =
   | Ptop
   | Pvalue of value_kind
-  | Punboxed_float of unboxed_float
-  | Punboxed_int of unboxed_integer
-  | Punboxed_vector of unboxed_vector
+  | Punboxed_scalar of Primitive.scalar_width
+  | Punboxed_vector of Primitive.vector_width
   | Punboxed_product of layout list
   | Pbottom
 
@@ -382,9 +382,9 @@ and constructor_shape =
 
 and array_kind =
     Pgenarray | Paddrarray | Pintarray | Pfloatarray
-  | Punboxedfloatarray of unboxed_float
-  | Punboxedintarray of unboxed_integer
-  | Punboxedvectorarray of unboxed_vector
+  | Punboxedfloatarray of Primitive.float_width
+  | Punboxedintarray of Primitive.integer_width
+  | Punboxedvectorarray of Primitive.vector_width
   | Pgcscannableproductarray of scannable_product_element_kind list
   | Pgcignorableproductarray of ignorable_product_element_kind list
 
@@ -394,9 +394,9 @@ and array_ref_kind =
   | Paddrarray_ref
   | Pintarray_ref
   | Pfloatarray_ref of locality_mode
-  | Punboxedfloatarray_ref of unboxed_float
-  | Punboxedintarray_ref of unboxed_integer
-  | Punboxedvectorarray_ref of unboxed_vector
+  | Punboxedfloatarray_ref of Primitive.float_width
+  | Punboxedintarray_ref of Primitive.integer_width
+  | Punboxedvectorarray_ref of Primitive.vector_width
   | Pgcscannableproductarray_ref of scannable_product_element_kind list
   | Pgcignorableproductarray_ref of ignorable_product_element_kind list
 
@@ -405,17 +405,16 @@ and array_set_kind =
   | Paddrarray_set of modify_mode
   | Pintarray_set
   | Pfloatarray_set
-  | Punboxedfloatarray_set of unboxed_float
-  | Punboxedintarray_set of unboxed_integer
-  | Punboxedvectorarray_set of unboxed_vector
+  | Punboxedfloatarray_set of Primitive.float_width
+  | Punboxedintarray_set of Primitive.integer_width
+  | Punboxedvectorarray_set of Primitive.vector_width
   | Pgcscannableproductarray_set of
       modify_mode * scannable_product_element_kind list
   | Pgcignorableproductarray_set of ignorable_product_element_kind list
 
 and ignorable_product_element_kind =
   | Pint_ignorable
-  | Punboxedfloat_ignorable of unboxed_float
-  | Punboxedint_ignorable of unboxed_integer
+  | Punboxedscalar_ignorable of Primitive.float_width
   | Pproduct_ignorable of ignorable_product_element_kind list
 
 and scannable_product_element_kind =
@@ -425,34 +424,7 @@ and scannable_product_element_kind =
 
 and array_index_kind =
   | Ptagged_int_index
-  | Punboxed_int_index of unboxed_integer
-
-and unboxed_float = Primitive.unboxed_float =
-  | Unboxed_float64
-  | Unboxed_float32
-
-and unboxed_integer = Primitive.unboxed_integer =
-  | Unboxed_int64
-  | Unboxed_nativeint
-  | Unboxed_int32
-  | Unboxed_int16
-  | Unboxed_int8
-  | Unboxed_int
-
-and unboxed_vector = Primitive.unboxed_vector =
-  | Unboxed_vec128
-
-and boxed_float = Primitive.boxed_float =
-  | Boxed_float64
-  | Boxed_float32
-
-and boxed_integer = Primitive.boxed_integer =
-  | Boxed_int64
-  | Boxed_nativeint
-  | Boxed_int32
-
-and boxed_vector = Primitive.boxed_vector =
-  | Boxed_vec128
+  | Punboxed_int_index of Primitive.integer_width
 
 and peek_or_poke =
   | Ppp_tagged_immediate
@@ -490,9 +462,9 @@ let generic_value =
     nullable = Nullable;
   }
 
-let print_boxed_vector ppf t =
+let print_vector_width ppf (t : Primitive.vector_width) =
   match t with
-  | Boxed_vec128 -> Format.pp_print_string ppf "Vec128"
+  | Vec128 -> Format.pp_print_string ppf "Vec128"
 
 let equal_nullable x y =
   match x, y with
@@ -504,9 +476,8 @@ let equal_nullable x y =
 let rec equal_value_kind_non_null x y =
   match x, y with
   | Pgenval, Pgenval -> true
-  | Pboxedfloatval f1, Pboxedfloatval f2 -> Primitive.equal_boxed_float f1 f2
-  | Pboxedintval bi1, Pboxedintval bi2 -> Primitive.equal_boxed_integer bi1 bi2
-  | Pboxedvectorval v1, Pboxedvectorval v2 -> Primitive.equal_boxed_vector v1 v2
+  | Pscalarval f1, Pscalarval f2 -> Scalar.Width.equal f1 f2
+  | Pboxedvectorval v1, Pboxedvectorval v2 -> Primitive.equal_vector_width v1 v2
   | Pintval, Pintval -> true
   | Parrayval elt_kind1, Parrayval elt_kind2 -> elt_kind1 = elt_kind2
   | Pvariant { consts = consts1; non_consts = non_consts1; },
@@ -571,15 +542,14 @@ let rec compatible_layout x y =
   | Pbottom, _
   | _, Pbottom -> true
   | Pvalue _, Pvalue _ -> true
-  | Punboxed_float f1, Punboxed_float f2 -> Primitive.equal_unboxed_float f1 f2
-  | Punboxed_int bi1, Punboxed_int bi2 -> Primitive.equal_unboxed_integer bi1 bi2
-  | Punboxed_vector bi1, Punboxed_vector bi2 -> Primitive.equal_unboxed_vector bi1 bi2
+  | Punboxed_scalar f1, Punboxed_scalar f2 -> Scalar.Width.equal f1 f2
+  | Punboxed_vector bi1, Punboxed_vector bi2 -> Primitive.equal_vector_width bi1 bi2
   | Punboxed_product layouts1, Punboxed_product layouts2 ->
       List.compare_lengths layouts1 layouts2 = 0
       && List.for_all2 compatible_layout layouts1 layouts2
   | Ptop, Ptop -> true
   | Ptop, _ | _, Ptop -> false
-  | (Pvalue _ | Punboxed_float _ | Punboxed_int _ | Punboxed_vector _ |
+  | (Pvalue _ | Punboxed_scalar _ | Punboxed_vector _ |
      Punboxed_product _), _ ->
       false
 
@@ -587,9 +557,9 @@ let rec equal_ignorable_product_element_kind k1 k2 =
   match k1, k2 with
   | Pint_ignorable, Pint_ignorable -> true
   | Punboxedfloat_ignorable f1, Punboxedfloat_ignorable f2 ->
-    Primitive.equal_unboxed_float f1 f2
+    Scalar.Floating.Width.equal f1 f2
   | Punboxedint_ignorable i1, Punboxedint_ignorable i2 ->
-    Primitive.equal_unboxed_integer i1 i2
+    Scalar.Integral.Width.equal i1 i2
   | Pproduct_ignorable p1, Pproduct_ignorable p2 ->
     List.equal equal_ignorable_product_element_kind p1 p2
   | ( Pint_ignorable | Punboxedfloat_ignorable _
@@ -999,15 +969,20 @@ let layout_module = non_null_value Pgenval
 let layout_module_field = nullable_value Pgenval
 let layout_functor = non_null_value Pgenval
 let layout_boxed_float f = non_null_value (Pboxedfloatval f)
+let layout_boxed_float f = non_null_value (Pboxedfloatval f)
 let layout_unboxed_float f = Punboxed_float f
-let layout_unboxed_nativeint = Punboxed_int Unboxed_nativeint
-let layout_unboxed_int64 = Punboxed_int Unboxed_int64
-let layout_unboxed_int32 = Punboxed_int Unboxed_int32
-let layout_unboxed_int16 = Punboxed_int Unboxed_int16
-let layout_unboxed_int8 = Punboxed_int Unboxed_int8
+let layout_scalar = function
+  | Naked scalar -> Punboxed_scalar scalar
+  | Value (Integral (Taggable (Int8 | Int16 | Int))) -> layout_int
+  | Value (Integral (Boxable boxed)) -> layout_boxed_int boxed
+
+
+let layout_unboxed_nativeint = Punboxed_int Scalar.Integral.Width.nativeint
+let layout_unboxed_int64 = Punboxed_int Scalar.Integral.Width.int64
+let layout_unboxed_int32 = Punboxed_int Scalar.Integral.Width.int32
+let layout_unboxed_int16 = Punboxed_int Scalar.Integral.Width.int16
+let layout_unboxed_int8 = Punboxed_int Scalar.Integral.Width.int8
 let layout_string = non_null_value Pgenval
-let layout_unboxed_int ubi = Punboxed_int ubi
-let layout_boxed_int bi = non_null_value (Pboxedintval bi)
 let layout_unboxed_vector v = Punboxed_vector v
 let layout_boxed_vector v =  non_null_value (Pboxedvectorval v)
 
@@ -2076,25 +2051,20 @@ let primitive_can_raise prim =
 let constant_layout: constant -> layout = function
   | Const_int _ | Const_char _ -> non_null_value Pintval
   | Const_string _ -> non_null_value Pgenval
-  | Const_int32 _ -> non_null_value (Pboxedintval Boxed_int32)
-  | Const_int64 _ -> non_null_value (Pboxedintval Boxed_int64)
-  | Const_nativeint _ -> non_null_value (Pboxedintval Boxed_nativeint)
-  | Const_unboxed_int32 _ -> Punboxed_int Unboxed_int32
-  | Const_unboxed_int64 _ -> Punboxed_int Unboxed_int64
-  | Const_unboxed_nativeint _ -> Punboxed_int Unboxed_nativeint
-  | Const_float _ -> non_null_value (Pboxedfloatval Boxed_float64)
-  | Const_float32 _ -> non_null_value (Pboxedfloatval Boxed_float32)
-  | Const_unboxed_float _ -> Punboxed_float Unboxed_float64
-  | Const_unboxed_float32 _ -> Punboxed_float Unboxed_float32
+  | Const_int32 _ -> non_null_value (Pboxedintval (Int32 Any_locality_mode))
+  | Const_int64 _ -> non_null_value (Pboxedintval (Int64 Any_locality_mode))
+  | Const_nativeint _ -> non_null_value (Pboxedintval (Nativeint Any_locality_mode))
+  | Const_unboxed_int32 _ -> Punboxed_int Scalar.Integral.Width.int32
+  | Const_unboxed_int64 _ -> Punboxed_int Scalar.Integral.Width.int64
+  | Const_unboxed_nativeint _ -> Punboxed_int Scalar.Integral.Width.nativeint
+  | Const_float _ -> non_null_value (Pboxedfloatval (Float64 Any_locality_mode))
+  | Const_float32 _ -> non_null_value (Pboxedfloatval (Float32 Any_locality_mode))
+  | Const_unboxed_float _ -> Punboxed_float (Float64 Any_locality_mode)
+  | Const_unboxed_float32 _ -> Punboxed_float (Float32 Any_locality_mode)
 
 let structured_constant_layout = function
   | Const_base const -> constant_layout const
-  | Const_naked_immediate ((_ : int), Int8) ->
-    Punboxed_int Unboxed_int8
-  | Const_naked_immediate ((_ : int), Int16) ->
-    Punboxed_int Unboxed_int16
-  | Const_naked_immediate ((_ : int), Int) ->
-    Punboxed_int Unboxed_int
+  | Const_naked_immediate ((_ : int), width) -> Punboxed_int (Taggable width)
   | Const_mixed_block _ | Const_block _ | Const_immstring _ ->
     non_null_value Pgenval
   | Const_float_array _ | Const_float_block _ ->
@@ -2104,25 +2074,23 @@ let structured_constant_layout = function
 let rec layout_of_const_sort (c : Jkind.Sort.Const.t) : layout =
   match c with
   | Base Value -> layout_any_value
-  | Base Float64 -> layout_unboxed_float Unboxed_float64
-  | Base Float32 -> layout_unboxed_float Unboxed_float32
+  | Base Float64 -> layout_unboxed_float (Float64 Any_locality_mode)
+  | Base Float32 -> layout_unboxed_float (Float32 Any_locality_mode)
   | Base Word -> layout_unboxed_nativeint
   | Base Bits8 -> layout_unboxed_int8
   | Base Bits16 -> layout_unboxed_int16
   | Base Bits32 -> layout_unboxed_int32
   | Base Bits64 -> layout_unboxed_int64
-  | Base Vec128 -> layout_unboxed_vector Unboxed_vec128
+  | Base Vec128 -> layout_unboxed_vector Vec128
   | Base Void -> assert false
   | Product sorts ->
     layout_unboxed_product (List.map layout_of_const_sort sorts)
 
 let layout_of_extern_repr : extern_repr -> _ = function
-  | Unboxed_vector v -> layout_boxed_vector v
-  | Unboxed_float bf -> layout_boxed_float bf
-  | Unboxed_integer (Unboxed_int | Unboxed_int8 | Unboxed_int16) ->  layout_int
-  | Unboxed_integer (Unboxed_int64) -> layout_boxed_int Boxed_int64
-  | Unboxed_integer (Unboxed_int32) -> layout_boxed_int Boxed_int32
-  | Unboxed_integer (Unboxed_nativeint) -> layout_boxed_int Boxed_nativeint
+  | Naked (Vector v) -> layout_boxed_vector v
+  | Naked (Scalar (Integral (Taggable _))) -> layout_int
+  | Naked (Scalar (Integral (Boxable boxed))) -> layout_boxed_int boxed
+  | Naked (Scalar (Floating float)) -> layout_boxed_float float
   | Same_as_ocaml_repr s -> layout_of_const_sort s
 
 let rec layout_of_scannable_kinds kinds =
@@ -2144,7 +2112,7 @@ and layout_of_ignorable_kind = function
 
 let array_ref_kind_result_layout = function
   | Pintarray_ref -> layout_int
-  | Pfloatarray_ref _ -> layout_boxed_float Boxed_float64
+  | Pfloatarray_ref _ -> layout_boxed_float Scalar.Floating.Width.float
   | Punboxedfloatarray_ref bf -> layout_unboxed_float bf
   | Pgenarray_ref _ | Paddrarray_ref -> layout_value_field
   | Punboxedintarray_ref i -> layout_unboxed_int i
@@ -2155,15 +2123,15 @@ let array_ref_kind_result_layout = function
 let layout_of_mixed_block_element (elt : _ mixed_block_element) =
   match elt with
   | Value value_kind -> Pvalue value_kind
-  | Float_boxed _ -> layout_boxed_float Boxed_float64
-  | Float64 -> layout_unboxed_float Unboxed_float64
-  | Float32 -> layout_unboxed_float Unboxed_float32
+  | Float_boxed _ -> layout_boxed_float Scalar.Floating.Width.float
+  | Float64 -> layout_unboxed_float Scalar.Floating.Width.float
+  | Float32 -> layout_unboxed_float Scalar.Floating.Width.float32
   | Bits8 -> layout_unboxed_int8
   | Bits16 -> layout_unboxed_int16
   | Bits32 -> layout_unboxed_int32
   | Bits64 -> layout_unboxed_int64
   | Word -> layout_unboxed_nativeint
-  | Vec128 -> layout_unboxed_vector Unboxed_vec128
+  | Vec128 -> layout_unboxed_vector Vec128
 
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;
@@ -2173,12 +2141,9 @@ let primitive_result_layout (p : primitive) =
     let result = Scalar.ignore_locality (Scalar.Intrinsic.info op).result in
     (match result with
      | Value (Integral (Taggable (Int8 | Int16 | Int)))  -> layout_int
-     | Value (Integral (Boxable (Int32 Any_locality_mode))) -> layout_boxed_int Boxed_int32
-     | Value (Integral (Boxable (Int64 Any_locality_mode))) -> layout_boxed_int Boxed_int64
-     | Value (Integral (Boxable (Nativeint Any_locality_mode))) -> layout_boxed_int Boxed_nativeint
-     | Value (Floating (Float64 Any_locality_mode)) -> layout_boxed_float Boxed_float64
-     | Value (Floating (Float32 Any_locality_mode)) -> layout_boxed_float Boxed_float32
-     | Naked (Integral (Taggable Int8)) -> layout_unboxed_int8
+     | Value (Integral (Boxable boxed)) -> layout_boxed_int boxed
+     | Value (Floating float) -> layout_boxed_float float
+     | Naked (Integral width) -> Punboxed_int width
      | Naked (Integral (Taggable Int16)) -> layout_unboxed_int16
      | Naked (Integral (Taggable Int)) -> layout_unboxed_int Unboxed_int
      | Naked (Integral (Boxable (Int32 Any_locality_mode))) -> layout_unboxed_int32
@@ -2211,7 +2176,7 @@ let primitive_result_layout (p : primitive) =
   | Pfloatfield _ -> layout_boxed_float Boxed_float64
   | Pufloatfield _ -> Punboxed_float Unboxed_float64
   | Pbox_vector (v, _) -> layout_boxed_vector v
-  | Punbox_vector v -> layout_unboxed_vector (Primitive.unboxed_vector v)
+  | Punbox_vector v -> layout_unboxed_vector (Primitive.Primitive.vector_width v)
   | Pmixedfield (i, shape, _) -> layout_of_mixed_block_element shape.(i)
   | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_extern_repr repr_res
   | Praise _ -> layout_bottom

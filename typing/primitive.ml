@@ -20,27 +20,20 @@ open Parsetree
 
 module String = Misc.Stdlib.String
 
-type unboxed_integer =
-  | Unboxed_int64
-  | Unboxed_nativeint
-  | Unboxed_int32
-  | Unboxed_int16
-  | Unboxed_int8
-  | Unboxed_int
+type boxed_integer = Scalar.any_locality_mode Scalar.Integral.Boxable.t
+type integer_width = Scalar.any_locality_mode Scalar.Integral.Width.t
+type float_width = Scalar.any_locality_mode Scalar.Floating.Width.t
+type scalar_width = Scalar.any_locality_mode Scalar.Width.t
+type vector_width = Vec128
 
-type unboxed_float = Unboxed_float64 | Unboxed_float32
-type unboxed_vector = Unboxed_vec128
-
-type boxed_integer = Boxed_int64 | Boxed_nativeint | Boxed_int32
-type boxed_float = Boxed_float64 | Boxed_float32
-type boxed_vector = Boxed_vec128
+type width =
+  | Scalar of scalar_width
+  | Vector of vector_width
 
 type native_repr =
   | Repr_poly
   | Same_as_ocaml_repr of Jkind_types.Sort.Const.t
-  | Unboxed_float of boxed_float
-  | Unboxed_vector of boxed_vector
-  | Unboxed_integer of unboxed_integer
+  | Naked of width
 
 type effects = No_effects | Only_generative_effects | Arbitrary_effects
 type coeffects = No_coeffects | Has_coeffects
@@ -83,9 +76,7 @@ let check_ocaml_value = function
   | _, Same_as_ocaml_repr (Base Value) -> Ok_value
   | _, Same_as_ocaml_repr _
   | _, Repr_poly -> Bad_layout
-  | _, Unboxed_float _
-  | _, Unboxed_vector _
-  | _, Unboxed_integer _ -> Bad_attribute
+  | _, Naked _ -> Bad_attribute
 
 let is_builtin_prim_name name = String.length name > 0 && name.[0] = '%'
 
@@ -200,8 +191,8 @@ let parse_declaration valdecl ~native_repr_args ~native_repr_res ~is_layout_poly
                   Inconsistent_noalloc_attributes_for_effects));
   let native_repr_args, native_repr_res =
     if old_style_float then
-      (make_prim_repr_args arity (Prim_global, Unboxed_float Boxed_float64),
-       (Prim_global, Unboxed_float Boxed_float64))
+      (make_prim_repr_args arity (Prim_global, Naked (Scalar Scalar.Width.float)),
+       (Prim_global, Naked (Scalar Scalar.Width.float)))
     else
       (native_repr_args, native_repr_res)
   in
@@ -257,10 +248,8 @@ let print p osig_val_decl =
   let is_unboxed = function
     | _, Same_as_ocaml_repr (Base Value)
     | _, Repr_poly
-    | _, Unboxed_integer (Unboxed_int | Unboxed_int8 | Unboxed_int16) -> false
-    | _, Unboxed_float _
-    | _, Unboxed_vector _
-    | _, Unboxed_integer (Unboxed_int64 | Unboxed_int32 | Unboxed_nativeint) -> true
+    | _, Naked (Scalar (Integral (Taggable _))) -> false
+    | _, Naked (Vector Vec128 | Scalar (Floating _ | Integral (Boxable _))) -> true
     | _, Same_as_ocaml_repr _ ->
       (* We require [@unboxed] for non-value types in upstream-compatible code,
          but treat it as optional otherwise. We thus print the [@unboxed]
@@ -269,13 +258,10 @@ let print p osig_val_decl =
       Language_extension.erasable_extensions_only ()
   in
   let is_untagged = function
-    | _, Unboxed_integer (Unboxed_int8 | Unboxed_int16) ->
-      Language_extension.erasable_extensions_only ()
-    | _, Unboxed_integer (Unboxed_int) -> true
+    | _, Naked (Scalar (Integral (Taggable _))) -> true
     | _, Same_as_ocaml_repr _
-    | _, Unboxed_float _
-    | _, Unboxed_vector _
-    | _, Unboxed_integer (Unboxed_int64 | Unboxed_int32 | Unboxed_nativeint)
+    | _, Naked (Scalar (Floating _ | Integral (Boxable _)))
+    | _, Naked (Vector _)
     | _, Repr_poly -> false
   in
   let all_unboxed = for_all is_unboxed in
@@ -313,11 +299,10 @@ let print p osig_val_decl =
     (match repr with
      | Same_as_ocaml_repr (Base Value)
      | Repr_poly -> []
-     | Unboxed_float _
-     | Unboxed_vector _
-     | Unboxed_integer (Unboxed_int32 | Unboxed_int64 | Unboxed_nativeint)
+     | Naked (Vector Vec128)
+     | Naked (Scalar (Floating _ | Integral (Boxable _)))
        -> if all_unboxed then [] else [oattr_unboxed]
-     | Unboxed_integer (Unboxed_int | Unboxed_int8 | Unboxed_int16)
+     | Naked (Scalar (Integral (Taggable _)))
        -> if all_untagged then [] else [oattr_untagged]
      | Same_as_ocaml_repr _->
       if all_unboxed || not (is_unboxed (m, repr))
@@ -341,76 +326,26 @@ let native_name p =
 let byte_name p =
   p.prim_name
 
-let unboxed_integer = function
-  | Boxed_int32 -> Unboxed_int32
-  | Boxed_nativeint -> Unboxed_nativeint
-  | Boxed_int64 -> Unboxed_int64
-
-let unboxed_float = function
-  | Boxed_float32 -> Unboxed_float32
-  | Boxed_float64 -> Unboxed_float64
-
-let unboxed_vector = function
-  | Boxed_vec128 -> Unboxed_vec128
-
-(* Since these are just constant constructors, we can just use polymorphic equality and
-   comparison at no performance loss. We still match on the variants to prove here that
-   they are all constant constructors. *)
-let equal_unboxed_integer
-      ((Unboxed_int | Unboxed_int8 | Unboxed_int16 | Unboxed_int32 | Unboxed_nativeint
-       | Unboxed_int64) as i1) i2
-  =
-  i1 = i2
-let equal_unboxed_float
-      ((Unboxed_float32 | Unboxed_float64) as f1) f2 = f1 = f2
-let compare_unboxed_float
-      ((Unboxed_float32 | Unboxed_float64) as f1) f2 = Stdlib.compare f1 f2
-let equal_unboxed_vector ((Unboxed_vec128) as v1) v2 = v1 = v2
-let compare_unboxed_vector ((Unboxed_vec128) as v1) v2 = Stdlib.compare v1 v2
-
-let equal_boxed_integer bi1 bi2 =
-  equal_unboxed_integer (unboxed_integer bi1) (unboxed_integer bi2)
-let equal_boxed_float bf1 bf2 =
-  equal_unboxed_float (unboxed_float bf1) (unboxed_float bf2)
-let equal_boxed_vector bv1 bv2 =
-  equal_unboxed_vector (unboxed_vector bv1) (unboxed_vector bv2)
-let compare_boxed_float bf1 bf2 =
-  compare_unboxed_float (unboxed_float bf1) (unboxed_float bf2)
-let compare_boxed_vector bv1 bv2 =
-  compare_unboxed_vector (unboxed_vector bv1) (unboxed_vector bv2)
-
-let equal_unboxed_vector_size v1 v2 =
-  (* For the purposes of layouts/native representations,
-     all 128-bit vector types are equal. *)
+let equal_vector_width v1 v2 =
   match v1, v2 with
-  | Unboxed_vec128, Unboxed_vec128 -> true
+  | Vec128, Vec128 -> true
+
+let equal_width w1 w2 =
+  match w1, w2 with
+  | Scalar s1, Scalar s2 -> Scalar.Width.equal s1 s2
+  | Scalar _, _ -> false
+  | Vector v1, Vector v2 -> equal_vector_width v1 v2
+  | Vector _, _ -> false
 
 let equal_native_repr nr1 nr2 =
   match nr1, nr2 with
   | Repr_poly, Repr_poly -> true
-  | Repr_poly, (Unboxed_float _ | Unboxed_integer _
-               | Unboxed_vector _ | Same_as_ocaml_repr _)
-  | (Unboxed_float _ | Unboxed_integer _
-    | Unboxed_vector _ | Same_as_ocaml_repr _), Repr_poly
-    -> false
+  | Repr_poly, _ -> false
   | Same_as_ocaml_repr s1, Same_as_ocaml_repr s2 ->
     Jkind_types.Sort.Const.equal s1 s2
-  | Same_as_ocaml_repr _,
-    (Unboxed_float _ | Unboxed_integer _ |
-     Unboxed_vector _) -> false
-  | Unboxed_float f1, Unboxed_float f2 -> equal_boxed_float f1 f2
-  | Unboxed_float _,
-    (Same_as_ocaml_repr _ | Unboxed_integer _ |
-     Unboxed_vector _) -> false
-  | Unboxed_vector vi1, Unboxed_vector vi2 ->
-    equal_unboxed_vector_size (unboxed_vector vi1) (unboxed_vector vi2)
-  | Unboxed_vector _,
-    (Same_as_ocaml_repr _ | Unboxed_float _ |
-     Unboxed_integer _) -> false
-  | Unboxed_integer bi1, Unboxed_integer bi2 -> equal_unboxed_integer bi1 bi2
-  | Unboxed_integer _,
-    (Same_as_ocaml_repr _ | Unboxed_float _ |
-     Unboxed_vector _) -> false
+  | Same_as_ocaml_repr _, _ -> false
+  | Naked n1, Naked n2 -> equal_width n1 n2
+  | Naked _, _ -> false
 
 let equal_effects ef1 ef2 =
   match ef1, ef2 with
@@ -449,12 +384,12 @@ module Repr_check = struct
 
   let value_or_unboxed_or_untagged = function
     | Same_as_ocaml_repr (Base Value)
-    | Unboxed_float _ | Unboxed_integer _ | Unboxed_vector _ -> true
+    | Naked _ -> true
     | Same_as_ocaml_repr _ | Repr_poly -> false
 
   let is_not_product = function
     | Same_as_ocaml_repr (Base _)
-    | Unboxed_float _ | Unboxed_integer _ | Unboxed_vector _
+    | Naked _
     | Repr_poly -> true
     | Same_as_ocaml_repr (Product _) -> false
 
@@ -776,7 +711,7 @@ let prim_has_valid_reprs ~loc prim =
           let module I = Scalar.Intrinsic in
           match I.With_percent_prefix.of_string name with
           | intrinsic ->
-            exactly (List.map (fun sort -> Same_as_ocaml_repr sort) (I.sort intrinsic))
+            exactly (List.map (fun sort -> Same_as_ocaml_repr (Base sort)) (I.sort intrinsic))
           | exception Not_found ->
             if is_builtin_prim_name name then no_non_value_repr
               (* These can probably support non-value reprs if the need arises:

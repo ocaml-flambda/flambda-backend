@@ -2319,7 +2319,7 @@ let unbox_int dbg bi =
     | cmm -> default cmm)
 
 let make_unsigned_int bi arg dbg =
-  if bi = Primitive.Unboxed_int32 then zero_extend ~bits:32 arg ~dbg else arg
+  zero_extend ~bits:(Scalar.Integral.Width.bits bi) arg ~dbg
 
 let unaligned_load_16 ~ptr_out_of_heap ptr idx dbg =
   if Arch.allow_unaligned_access
