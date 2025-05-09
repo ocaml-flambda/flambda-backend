@@ -198,10 +198,11 @@ type.
 
 **Summary:** Type parameters without annotations are assumed to have a layout
 other than `any` and assumed to be `non_null`; beyond that, inference chooses
-the best possible kind. You can use a kind annotation to make a type parameter
-of layout `any` or with `maybe_null`, but inference is still performed.
+the best possible kind. If a type parameter is written with a kind annotation
+(at its definition site or any occurrence), that kind sets the kind of the type
+parameter; no further inference is performed.
 
-**Details:** We use inference to determine the kind of a type parameter.
+**Details:** We generally use inference to determine the kind of a type parameter.
 
 The best kind for a
 type parameter is the highest in the subkinding lattice: this allows for a type
@@ -243,12 +244,37 @@ inclusion) would not be safe: it would allow us to smuggle, say, a `float64`
 type where only `value`s are expected.
 
 Accordingly, all type parameters are assumed to have a layout other than `any`
-and also bounded by `non_null` -- unless you write a kind annotation saying
-otherwise (like `type ('a : any) array`). However, even if you write a kind
-annotation, we still perform inference. For example, if you write `type ('a :
-any) t = K of 'a t_port`, then we'll infer `'a : value mod portable`. The
-annotation is not ignored, but instead causes the initial assumed kind of `'a`
-to be `any`, allowing that kind to be lowered by usages of `'a`.
+and are also bounded by `non_null` -- unless you write a kind annotation saying
+otherwise (like `type ('a : any) array`). 
+
+If you write a kind annotation, that kind is definitive. For example, we may
+write
+
+```ocaml
+type ('a : any) my_array = 'a array
+(* or, equivalently *)
+type 'a my_array = ('a : any) array
+```
+
+and the type parameter to `my_array` will be allowed to range over all kinds.
+In the case where there is a kind annotation, we do not perform further inference;
+this will sometimes lead to rejecting programs that we could otherwise infer.
+For example:
+
+```ocaml
+type ('a : immediate) requires_immediate
+type 'b t1 = 'b requires_immediate
+type ('c : value) t2 = 'c requires_immediate
+type 'd t3 = ('d : value) requires_immediate
+```
+
+Type `requires_immediate` is there just to set up the example; it is accepted.
+Type `t1` is also accepted: there is no kind annotation, and so we infer
+`'b : immediate`. However, `t2` and `t3` are both rejected: the kind annotation
+`: value` sets the definitive kind for `'c` and `'d` respectively, and so
+we do not then infer these kinds to be `immediate`, as required. (A kind
+annotation on one variable does not affect our ability to do inference on other
+variables.)
 
 If type inference ends and we still do not know what layout should be used for
 the parameter (this can happen only without an annotation), we infer the
@@ -320,11 +346,21 @@ to change the kind.
 A unifiable type variable has its kind inferred based on how it is used,
 inferring the topmost kind consistent with its usage, with some exceptions:
 
-* In a `val` or `external` declaration, we infer a layout other than `any`, and
-we infer only kinds with `mod non_null`. To avoid these restrictions, use a
-rigid type variable (with an explicit binding) instead. This exception is to
-allow, for example, `val id : 'a -> 'a` to infer `'a : value`, necessary for
-backward compatibility.
+* In `val` and `external` declarations:
+
+    * We infer a layout other than `any`, and we infer only kinds with `mod
+    non_null`. This exception is to allow, for example, `val id : 'a -> 'a` to
+    infer `'a : value`, necessary for backward compatibility.
+
+    * If a variable appears in a kind annotation, it is as if the variable were
+    bound rigidly, before a `.`. This means that cases like `val f : ('a :
+    value) -> (string as 'a)` will be rejected, because of the kind
+    annotation. On the other hand, this extra rule allows us to write `val
+    id_or_null : ('a : value_or_null) -> 'a` and keep `'a` with kind
+    `value_or_null`: without this rule, the "always infer `mod non_null`" rule
+    just above would apply, and this declaration for `id_or_null` would be
+    interpreted identically to `val id_or_null : ('a : value). 'a -> 'a`, which
+    is likely not what the user wants.
 
 * In a `class` or `class type` declaration, all type variables have kind
 `value`.
@@ -333,75 +369,6 @@ backward compatibility.
 the definition, in usage sites of the bound variable. This is similar to the way
 the value restriction works via weak polymorphism. The bounds are _not_
 determined afterwards.
-
-## Examples around rigid vs unification variables
-
-For an abstract type declaration
-like `type t : value mod portable`, the kind annotation will be used as the
-exact kind of the type `t`.
-
-However, for a type declaration that describes what the type is (that is, has at
-least one `=`), the kind annotation is just a check. For example, consider this
-type declaration:
-
-```ocaml
-type t : value = (int -> int) option
-```
-
-This declaration is allowed because `(int -> int) option` does have the kind
-`value` (due to subkinding).  But the type system treats `t` and `(int -> int)
-option` as completely equal types, and therefore still knows the more precise
-kind `value mod contended immutable non_float non_null` for `t` despite the
-annotation.
-
-On the other hand, the following declaration is rejected because the kind of
-`(int -> int) option` is not less than or equal to `value mod portable`:
-
-```ocaml
-type t : value mod portable = (int -> int) option
-```
-
-There is a similar subtlety around unifiable type variables in `val`
-declarations. Consider
-
-```ocaml
-val id : 'a -> 'a
-```
-
-The type checker assumes a default of `'a : value` here. If you want to change
-that, you should write
-
-```ocaml
-val id : ('a : any). 'a -> 'a
-```
-
-Here, we have annotated the binding site of `'a` to say that it should have kind
-`any`.  (The type `('a : any). 'a -> 'a` is a perfectly good type, and a
-function of that type can be called on values of any type of any kind. However,
-you will be unable to define a function of that type, because the compiler will
-not know what register will hold the argument.) In contrast, writing
-
-```ocaml
-val id : ('a : any) -> 'a
-```
-
-does not do what you might think: it constrains a *usage site* of `'a`, stating
-that `'a` must have a subkind of `any` -- but of course `value` *is* a subkind
-of `any`, so the default behavior of choosing `value` is unaffected. That is,
-the type `('a : any) -> 'a` is the same as just writing `'a -> 'a`.
-
-Contrast further with
-
-```ocaml
-val id : ('a : float64) -> 'a
-```
-
-Here, we'll choose `'a` to have kind `float64`. This annotation works because
-`float64` is not a superkind of `value`; the default kind does not apply.
-
-The bottom line here: if you want to set the kind of a type variable, do it at a
-binding site like `val f : ('a : <<here>>). ...` or `let f : ('a :
-<<here>>). ...`.
 
 ## Syntax reference
 
