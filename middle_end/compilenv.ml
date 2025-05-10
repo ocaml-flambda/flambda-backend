@@ -68,7 +68,7 @@ let current_unit =
 let reset compilation_unit =
   Infos_table.clear global_infos_table;
   Zero_alloc_info.reset cached_zero_alloc_info;
-  CU.set_current (Some compilation_unit);
+  CU.set_current (Some (compilation_unit, Impl));
   current_unit.ui_unit <- compilation_unit;
   current_unit.ui_defines <- [compilation_unit];
   current_unit.ui_arg_descr <- None;

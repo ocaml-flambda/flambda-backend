@@ -9,7 +9,7 @@ let _ =
     let modname1 =
       Parse_flambda.make_compilation_unit ~filename:file1 ~extension:".fl" ()
     in
-    Compilation_unit.set_current (Some modname1);
+    Compilation_unit.set_current (Some (modname1, Impl));
     Format.printf "%a@."
       (Compare.Comparison.print Flambda_unit.print)
       (Compare.flambda_units unit1 unit2)

@@ -188,5 +188,5 @@ let _ =
     let linkage_name = Compilation_unit.Name.of_string "camlTest" in
     Compilation_unit.create Compilation_unit.Prefix.empty linkage_name
   in
-  Compilation_unit.set_current (Some comp_unit);
+  Compilation_unit.set_current (Some (comp_unit, Impl));
   test_double_recursion ()

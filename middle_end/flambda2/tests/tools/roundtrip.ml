@@ -30,7 +30,7 @@ let () =
     in
     (* Need to get this right or the conversion will complain about binding
        non-local symbols *)
-    Compilation_unit.set_current (Some modname);
+    Compilation_unit.set_current (Some (modname, Impl));
     let unit =
       match Parse_flambda.parse file with
       | Ok unit -> unit

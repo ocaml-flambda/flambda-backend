@@ -28,11 +28,11 @@ type compilation_unit_or_inferred =
   | Exactly of Compilation_unit.t
   | Inferred_from_output_prefix
 
-let with_info ~native ~tool_name ~source_file ~output_prefix
+let with_info ~native ~tool_name ~source_file ~kind ~output_prefix
       ~compilation_unit ~dump_ext k =
   Compmisc.init_path ();
   Compmisc.init_parameters ();
-  let target = Unit_info.make ~source_file output_prefix in
+  let target = Unit_info.make ~source_file output_prefix  in
   let compilation_unit =
     match compilation_unit with
     | Exactly compilation_unit -> compilation_unit
@@ -42,8 +42,8 @@ let with_info ~native ~tool_name ~source_file ~output_prefix
         Compilation_unit.create for_pack_prefix
           (module_name |> Compilation_unit.Name.of_string)
   in
-  Compilation_unit.set_current (Some compilation_unit);
-  Env.set_unit_name (Some compilation_unit);
+  Compilation_unit.set_current (Some (compilation_unit, kind));
+  Env.set_unit_name (Some (compilation_unit, kind));
   let env = Compmisc.initial_env() in
   let dump_file = String.concat "." [output_prefix; dump_ext] in
   Compmisc.with_ppf_dump ~file_prefix:dump_file (fun ppf_dump ->
@@ -85,7 +85,7 @@ let typecheck_intf info ast =
         Format.(fprintf std_formatter) "%a@."
           (Printtyp.printed_signature (Unit_info.source_file info.target))
           sg);
-  ignore (Includemod.signatures info.env ~mark:Mark_both
+  ignore (Includemod.signatures info.env ~mark:true
     ~modes:(Legacy None) sg sg);
   Typecore.force_delayed_checks ();
   Builtin_attributes.warn_unused ();
