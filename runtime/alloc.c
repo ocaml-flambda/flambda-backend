@@ -49,13 +49,13 @@ CAMLexport value caml_alloc_with_reserved (mlsize_t wosize, tag_t tag,
       Caml_check_caml_state();
       Alloc_small_with_reserved (result, wosize, tag, Alloc_small_enter_GC,
                                  reserved);
-      if (tag < No_scan_tag){
+      if (Scannable_tag(tag)) {
         for (i = 0; i < scannable_wosize; i++) Field (result, i) = Val_unit;
       }
     }
   } else {
     result = caml_alloc_shr_reserved (wosize, tag, reserved);
-    if (tag < No_scan_tag) {
+    if (Scannable_tag(tag)) {
       for (i = 0; i < scannable_wosize; i++) Field (result, i) = Val_unit;
     }
     result = caml_check_urgent_gc (result);
@@ -83,7 +83,7 @@ value caml_alloc_shr_reserved_check_gc (mlsize_t wosize, tag_t tag,
   CAMLassert (tag != Infix_tag);
   caml_check_urgent_gc (Val_unit);
   value result = caml_alloc_shr_reserved (wosize, tag, reserved);
-  if (tag < No_scan_tag) {
+  if (Scannable_tag(tag)) {
     mlsize_t scannable_wosize = Scannable_wosize_val(result);
     for (mlsize_t i = 0; i < scannable_wosize; i++) {
       Field (result, i) = Val_unit;
@@ -426,7 +426,7 @@ CAMLprim value caml_update_dummy(value dummy, value newval)
       Store_double_flat_field (dummy, i, Double_flat_field (newval, i));
     }
   } else {
-    CAMLassert (tag < No_scan_tag);
+    CAMLassert (Scannable_tag(tag));
     CAMLassert (Tag_val(dummy) != Infix_tag);
     CAMLassert (Reserved_val(dummy) == Reserved_val(newval));
     Unsafe_store_tag_val(dummy, tag);
