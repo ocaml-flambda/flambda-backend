@@ -41,6 +41,7 @@ val strings_of_paths: namespace -> Path.t list -> string list
     (** Print a list of paths, using the same naming context to
         avoid name collisions *)
 
+val raw_row_desc : formatter -> row_desc -> unit
 val raw_type_expr: formatter -> type_expr -> unit
 val raw_field : formatter -> row_field -> unit
 val string_of_label: Types.arg_label -> string
