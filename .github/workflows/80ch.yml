@@ -15,9 +15,9 @@ jobs:
     steps:
     - name: Checkout the Flambda backend repo
       uses: actions/checkout@master
-      with:
-        path: 'flambda_backend'
+
+    - name: Checkout the parent branch
+      run: git fetch origin HEAD --deepen 1
 
     - name: Check for new >80 character lines
-      working-directory: flambda_backend
       run: bash .github/workflows/80ch.sh

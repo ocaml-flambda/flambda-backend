@@ -21,12 +21,11 @@
 
 set -u
 
-git fetch origin main --deepen 1 -q # Need to have a local copy of origin/main
-                                    # for this script to work
+feature_base="HEAD^1" # GitHub automatically makes us a merge commit (HEAD),
+                      # so our feature base is just the first parent (HEAD^1)
+                      # of this merge commit
 
-feature_base="$(git merge-base origin/main HEAD)"
-                            # N.b.: main is always considered the parent feature
-
+find_diff() {
 # Iterate through all files changed since this branch forked off of main.
 #
 #  Separate file names with NULLs. This is      Read the next token
@@ -82,3 +81,8 @@ do
       'Consider rewrapping this line'
   done
 done
+}
+
+output="$(find_diff)"
+printf '%s' "$output"
+[[ -z "$output" ]]
