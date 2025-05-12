@@ -1,7 +1,7 @@
 (* TEST
- readonly_files = "metaprogramming.mli metaprogramming.ml generate_array_idx_tests.ml";
+ readonly_files = "metaprogramming.mli metaprogramming.ml test_generation.ml";
  (* Generate the bytecode/native code versions of
-    [generate_array_idx_tests.ml]. This doesn't actually run the test;
+    [test_generation.ml]. This doesn't actually run the test;
     it just updates the generated test program (which is separately
     run by the test harness).
   *)
