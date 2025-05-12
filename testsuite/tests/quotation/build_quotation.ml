@@ -95,7 +95,7 @@
 [%quote if true then `A 10 else `B ("foo", 42)];;
 [%%expect {|
 - : [> `A of int | `B of string * int ] code = [%quote
-if true then `A 10 else `B ("foo", 42)]
+if true then  `A 10  else  `B ("foo", 42)]
 |}];;
 
 [%quote function | `A x -> x | `B (_, foo) -> foo];;
@@ -357,8 +357,8 @@ let (let+) = (fun x f -> Stdlib.Option.map f x) in
 ];;
 [%%expect {|
 - : int list code = [%quote
-let (let*) = (fun x f -> Stdlib.List.map f x) and
-                                              (and*) = Stdlib.List.combine in
+let (let*) = (fun x f -> Stdlib.List.map f x)
+and (and*) = Stdlib.List.combine in
 (let*) a = (::) (1, ((::) (2, ((::) (3, [])))))
 (and*) b = (::) (10, ((::) (20, ((::) (30, []))))) in Stdlib.( + ) a b]
 |}];;

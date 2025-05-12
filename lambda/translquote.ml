@@ -63,9 +63,6 @@ let without_idents_poly = List.iter without_poly_type
 let ident_for_poly_name name =
   let (ident, _) = Hashtbl.find vars_env.env_poly name in ident
 
-let lambda_for_poly_name name =
-  let (_, lam) = Hashtbl.find vars_env.env_poly name in lam
-
 let camlinternalQuote =
   lazy
     (match
@@ -339,11 +336,11 @@ module Type = struct
 
   let package = combinator "Type" "package" 2
 
-  let object_ = combinator "Type" "object_" 2
+  let _object_ = combinator "Type" "object_" 2
 
-  let class_ = combinator "Type" "class_" 2
+  let _class_ = combinator "Type" "class_" 2
 
-  let call_pos = combinator "Type" "call_pos" 0
+  let _call_pos = combinator "Type" "call_pos" 0
 end
 
 module Variant = struct
@@ -443,7 +440,7 @@ module Comprehension = struct
 
   let for_range = combinator "Comprehension" "for_range" 6
 
-  let for_in = combinator "Comprehension" "for_in" 4
+  let _for_in = combinator "Comprehension" "for_in" 4
 end
 
 module Type_constraint = struct
@@ -539,11 +536,11 @@ module Exp = struct
 end
 
 module Code = struct
-  let to_exp = combinator "Code" "to_exp" 1
+  let _to_exp = combinator "Code" "to_exp" 1
 
   let of_exp = combinator "Code" "of_exp" 2
 
-  let of_exp_with_type_vars = combinator "Code" "of_exp_with_type_vars" 3
+  let _of_exp_with_type_vars = combinator "Code" "of_exp_with_type_vars" 3
 end
 
 let use comb = Lazy.force comb
@@ -760,11 +757,12 @@ let quote_value_ident_path loc path =
   | Some ident_val -> ident_val
   | None -> (
       match path with
-      | Pident id ->
+      | Path.Pident id ->
         if Hashtbl.mem vars_env.env_vals id
         then apply loc Identifier.Value.var [Lvar id; quote_loc loc]
         else fatal_error ("Cannot quote free variable " ^ Ident.name id)
-      | _ -> fatal_error ("No global path for identifier " ^ print_path path))
+      | Path.Pdot _ | Path.Papply _ | Path.Pextra_ty _  ->
+        fatal_error ("No global path for identifier " ^ print_path path))
 
 let quote_value_ident_path_as_exp loc path =
   apply loc Exp.ident [quote_value_ident_path loc path]
@@ -850,12 +848,6 @@ let rec quote_fragment_of_lid loc = function
     apply loc Fragment.dot [quote_fragment_of_lid loc p; string loc s]
   | _ -> fatal_error "Unsupported fragment type detected."
 
-let rec quote_fragment loc = function
-  | Path.Pident id -> apply loc Fragment.name [string loc (Ident.name id)]
-  | Path.Pdot (p, s) ->
-    apply loc Fragment.dot [quote_fragment loc p; string loc s]
-  | _ -> fatal_error "Unsupported fragment type detected."
-
 let quote_variant loc name = apply loc Variant.of_string [string loc name]
 
 let quote_nonopt loc (lbl : string option) =
@@ -877,7 +869,7 @@ let rec with_new_idents_pat pat =
   | Tpat_alias (pat, id, _, _, _) ->
     with_new_idents_values [id];
     with_new_idents_pat pat
-  | Tpat_constant const -> ()
+  | Tpat_constant _ -> ()
   | Tpat_tuple args ->
     List.iter
       (fun (_, pat) -> with_new_idents_pat pat)
@@ -922,7 +914,7 @@ let rec without_idents_pat pat =
   | Tpat_alias (pat, id, _, _, _) ->
     without_idents_values [id];
     without_idents_pat pat
-  | Tpat_constant const -> ()
+  | Tpat_constant _ -> ()
   | Tpat_tuple args ->
     List.iter
       (fun (_, pat) -> without_idents_pat pat)
@@ -1143,9 +1135,16 @@ and quote_core_type ty =
     let ident = type_for_path loc path
     and tys = List.map (quote_core_type) tys in
     apply loc Type.constr [ident; mk_list tys]
-  | Ttyp_object (fields, flag) -> fatal_error "Still not implemented."
-  | Ttyp_class (path, lident, tys) -> fatal_error "Still not implemented."
-  | Ttyp_alias (ty, alias_opt, _) -> fatal_error "Still not implemented."
+  | Ttyp_object (_, _) -> fatal_error "Still not implemented."
+  | Ttyp_class (_, _, _) -> fatal_error "Still not implemented."
+  | Ttyp_alias (ty, alias_opt, _) ->
+    let ty = quote_core_type ty
+    and alias_opt = match alias_opt with
+      | None -> None
+      | Some {txt; loc} -> Some (string loc txt)
+    in
+    let alias_opt = option alias_opt in
+    apply loc Type.alias [ty; alias_opt]
   | Ttyp_variant (row_fields, closed_flag, labels) ->
     let row_fields =
       List.map
@@ -1171,7 +1170,8 @@ and quote_core_type ty =
         apply loc Variant_type.Variant_form.closed
           [mk_list (List.map (string loc) labs)]
     in
-    apply loc Variant_type.of_row_fields_list [mk_list row_fields; variant_form]
+    apply loc Type.variant
+      [apply loc Variant_type.of_row_fields_list [mk_list row_fields; variant_form]]
   | Ttyp_poly (tvs, ty) ->
     let names = List.map (fun (name, _) -> name) tvs in
     let names_lam = List.map (fun name -> apply loc Name.mk [string loc name]) names in
@@ -1184,7 +1184,7 @@ and quote_core_type ty =
     without_idents_poly names;
     apply loc Type.poly [quote_loc loc; mk_list names_lam; body]
   | Ttyp_package package ->
-    let {pack_path; pack_fields; pack_type; pack_txt} = package in
+    let {pack_path; pack_fields; pack_type = _; pack_txt = _} = package in
     let mod_type = module_type_for_path loc pack_path
     and with_types =
       List.map
@@ -1194,7 +1194,7 @@ and quote_core_type ty =
         pack_fields
     in
     apply loc Type.package [mod_type; mk_list with_types]
-  | Ttyp_open (path, lident, ty) -> fatal_error "Still not implemented."
+  | Ttyp_open _ -> fatal_error "Still not implemented."
   | Ttyp_call_pos -> fatal_error "Still not implemented."
 
 let rec case_binding transl stage case =
@@ -1410,16 +1410,15 @@ and quote_comprehension transl stage loc { comp_body; comp_clauses } =
             and direction =
               match rcd.direction with Upto -> true | Downto -> false
             in
+            let body_fn = func [rcd.ident] body in
             apply loc Comprehension.for_range
               [ quote_loc loc;
                 quote_name (mkloc (Ident.name rcd.ident) loc);
                 start;
                 stop;
-                quote_bool direction ]
-          | Texp_comp_in { pattern; sequence } ->
-            let exp = quote_expression transl stage sequence in
-            apply loc Comprehension.for_in
-              [quote_loc loc; quote_value_pattern pattern; exp])
+                quote_bool direction;
+                body_fn ]
+          | Texp_comp_in _ -> none)
         body clause_bindings
   in
   let body =
@@ -1446,25 +1445,25 @@ and quote_expression_extra _ _ extra lambda =
     in
     apply loc Exp.constraint_ [lambda; coerce]
   | Texp_stack -> apply loc Exp.stack [lambda]
-  | Texp_poly ty_opt -> fatal_error "No support for Texp_poly yet"
-  | Texp_mode alloc_opt -> fatal_error "No support for modes yet"
+  | Texp_poly _ -> fatal_error "No support for Texp_poly yet"
+  | Texp_mode _ -> fatal_error "No support for modes yet"
 
 and update_env_with_extra extra =
-  let extra, loc, _ = extra in
+  let extra, _, _ = extra in
   match extra with
   | Texp_newtype (id, _, _, _) ->
     with_new_idents_types [id]
-  | Texp_constraint _ | Texp_coerce _ | Texp_stack _ -> ()
-  | Texp_poly ty_opt -> fatal_error "No support for Texp_poly yet"
+  | Texp_constraint _ | Texp_coerce _ | Texp_stack -> ()
+  | Texp_poly _ -> fatal_error "No support for Texp_poly yet"
   | Texp_mode _ -> fatal_error "No support for modes yet"
 
 and update_env_without_extra extra =
-  let extra, loc, _ = extra in
+  let extra, _, _ = extra in
   match extra with
   | Texp_newtype (id, _, _, _) ->
     without_idents_types [id]
-  | Texp_constraint _ | Texp_coerce _ | Texp_stack _ -> ()
-  | Texp_poly ty_opt -> fatal_error "No support for Texp_poly yet"
+  | Texp_constraint _ | Texp_coerce _ | Texp_stack -> ()
+  | Texp_poly _ -> fatal_error "No support for Texp_poly yet"
   | Texp_mode _ -> fatal_error "No support for modes yet"
 
 and quote_expression transl stage e =
@@ -1504,9 +1503,9 @@ and quote_expression transl stage e =
         without_idents_values idents;
         apply loc Exp.let_rec_simple [quote_loc loc; mk_list names_lam; frest]
       | Nonrecursive ->
-        let val_l, mod_l, pats, defs =
+        let val_l, _, pats, defs =
           List.fold_left
-            (fun (val_l, mod_loc, pats, defs) vb ->
+            (fun (val_l, _, pats, defs) vb ->
               let pat = vb.vb_pat in
               let idents = pat_bound_idents pat in
               let def = quote_expression transl stage vb.vb_expr in
@@ -1666,7 +1665,7 @@ and quote_expression transl stage e =
       let obj = quote_expression transl stage obj in
       let meth = quote_method loc meth in
       apply loc Exp.send [obj; meth]
-    | Texp_open (open_decl, exp) ->
+    | Texp_open _ ->
       fatal_error "No support for opening modules yet."
     | Texp_letmodule (ident, _, _, mod_exp, body) -> (
       let mod_exp = quote_module_exp transl stage loc mod_exp in

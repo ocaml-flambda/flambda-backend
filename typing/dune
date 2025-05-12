@@ -1,0 +1,5 @@
+(rule
+ (action
+   (progn
+     (copy ../stdlib/camlinternalQuote.ml camlinternalQuote_bootstrap.ml)
+     (copy ../stdlib/camlinternalQuote.mli camlinternalQuote_bootstrap.mli))))

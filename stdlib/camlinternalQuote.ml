@@ -56,10 +56,6 @@ module Level : sig
       the attached location. *)
   val with_fresh : Loc.t -> (t -> 'a) -> 'a
 
-  (** [check t] is [true] if the point on the call stack associated with
-      [t] is still present, otherwise it is [false]. *)
-  val check : t -> bool
-
   (** [compare] is a total order on levels. *)
   val compare : t -> t -> int
 
@@ -68,26 +64,24 @@ module Level : sig
 end = struct
   type t =
     { stamp : Stamp.t;
-      mutable valid : bool;
+      mutable _valid : bool;
       loc : Loc.t
     }
 
   let fresh loc =
     let stamp = Stamp.fresh () in
-    let valid = true in
-    { stamp; valid; loc }
+    let _valid = true in
+    { stamp; _valid; loc }
 
   let with_fresh loc f =
     let level = fresh loc in
     try
       let r = f level in
-      level.valid <- false;
+      level._valid <- false;
       r
     with e ->
-      level.valid <- false;
+      level._valid <- false;
       raise e
-
-  let check t = t.valid
 
   let compare t1 t2 = Stamp.compare t1.stamp t2.stamp
 
@@ -201,12 +195,6 @@ module Var : sig
         bound at [lv] whose name is [n]. *)
     val generate : Level.t -> Name.t -> t
 
-    (** [generic t] is [t] as a generic variable *)
-    val generic : t -> var
-
-    (** [generic_list t] is [t] as a list of generic variables *)
-    val generic_list : t list -> var list
-
     (** [name t] is the name of [t]. *)
     val name : t -> Name.t
 
@@ -226,9 +214,6 @@ module Var : sig
     (** [generic t] is [t] as a generic variable *)
     val generic : t -> var
 
-    (** [generic t] is [t] as a list of generic variables *)
-    val generic_list : t list -> var list
-
     (** [name t] is the name of [t]. *)
     val name : t -> Name.t
 
@@ -240,15 +225,8 @@ module Var : sig
   (** [name t] is the name of [t]. *)
   val name : t -> Name.t
 
-  (** [level t] is the level of [t]. *)
-  val level : t -> Level.t
-
   (** [loc t] is [Level.loc (level t)]. *)
   val loc : t -> Loc.t
-
-  (** [valid t] is [true] if [t]'s binding is still open, and [false] otherwise. Once [t]'s binding has
-      been closed there is no valid way to use [t]. *)
-  val valid : t -> bool
 
   module Set : sig
     (** [t] is the type of sets of variables. *)
@@ -277,10 +255,6 @@ module Var : sig
     (** [iter f t] runs [f] on every variable in [t]. *)
     val iter : (var -> unit) -> t -> unit
 
-    (** [choose t] is [None] if [t] is equal to [empty] and [Some v],
-        where [v] is an element of [t], otherwise. *)
-    val choose : t -> var option
-
     (** [differences ~left_only ~right_only t1 t2] runs [left_only] on every element of [t1]
         that is not an element of [t2] and [right_only] on every element of [t2] that is
         not an element of [t1]. *)
@@ -298,10 +272,6 @@ module Var : sig
     (** [singleton v data] is the map containing just a binding of [v] to [data]. *)
     val singleton : var -> 'a -> 'a t
 
-    (** [add v data t] is the map containing the same bindings as [t]
-        plus a binding of [v] to [data]. *)
-    val add : var -> 'a -> 'a t -> 'a t
-
     (** [union ~join t1 t2] is the union of [t1] and [t2]. [join] is run on all
         the variables that are in both [t1] and [t2]. *)
     val union : (var -> 'a -> 'a -> 'a) -> 'a t -> 'a t -> 'a t
@@ -312,10 +282,6 @@ module Var : sig
 
     (** [iter f t] runs [f] on every variable in [t]. *)
     val iter : (var -> 'a -> unit) -> 'a t -> unit
-
-    (** [choose t] is [None] if [t] is equal to [empty] and [Some (v, data)],
-        where [v] is bound to [data] in [t], otherwise. *)
-    val choose : 'a t -> (var * 'a) option
   end
 end = struct
   type t =
@@ -358,9 +324,6 @@ end = struct
           | Some v1, Some _ -> Some v1)
         t1 t2
 
-    let choose t =
-      match Stamp_map.choose_opt t with None -> None | Some (_, v) -> Some v
-
     let iter f t = Stamp_map.iter (fun _ v -> f v) t
 
     let differences ~left_only ~right_only t1 t2 =
@@ -397,16 +360,6 @@ end = struct
     let singleton v data =
       Level_map.singleton v.level (Var_map.singleton v data)
 
-    let add v data t =
-      let update prev =
-        let prev =
-          match prev with None -> Var_map.empty | Some prev -> prev
-        in
-        let next = Var_map.add v data prev in
-        Some next
-      in
-      Level_map.update v.level update t
-
     let remove_level = Level_map.remove
 
     let union combine t1 t2 =
@@ -422,14 +375,6 @@ end = struct
           Some m)
         t1 t2
 
-    let rec choose t =
-      match Level_map.choose_opt t with
-      | None -> None
-      | Some (l, m) -> (
-        match Var_map.choose_opt m with
-        | None -> choose (Level_map.remove l t)
-        | Some _ as res -> res)
-
     let iter f t =
       Level_map.iter (fun _ m -> Var_map.iter (fun v data -> f v data) m) t
   end
@@ -441,10 +386,6 @@ end = struct
   let name t = t.name
 
   let loc t = Level.loc t.level
-
-  let level t = t.level
-
-  let valid t = Level.check t.level
 
   let print_var_env stamp_env name_env fmt var =
     match Hashtbl.find_opt stamp_env var.stamp with
@@ -500,10 +441,6 @@ end = struct
 
     let generate = generate
 
-    let generic t = t
-
-    let generic_list = List.map generic
-
     let name = name
 
     let print env fmt t =
@@ -519,8 +456,6 @@ end = struct
 
     let generic t = t
 
-    let generic_list = List.map generic
-
     let name = name
 
     let print env fmt t =
@@ -533,14 +468,8 @@ module With_bound_vars : sig
       are bound by the ['a]. *)
   type 'a t
 
-  (** [mk vars x] is [x] paired with [vars]. *)
-  val mk : Var.Set.t -> 'a -> 'a t
-
   (** [return x] is [mk Var.Set.empty x]. *)
   val return : 'a -> 'a t
-
-  (** [var v] is [mk (Var.Set.singleton v) v]. *)
-  val var : Var.t -> Var.t t
 
   (** [value_var v] is [mk (Var.Set.singleton (Var.Value.generic v)) v]. *)
   val value_var : Var.Value.t -> Var.Value.t t
@@ -605,8 +534,6 @@ end = struct
   let mk vars v = { vars; v }
 
   let return v = mk Var.Set.empty v
-
-  let var v = mk (Var.Set.singleton v) v
 
   let value_var v = mk (Var.Set.singleton (Var.Value.generic v)) v
 
@@ -681,10 +608,6 @@ module With_free_vars : sig
       None] if [tm] is [None]. *)
   val optional : 'a t option -> 'a option t
 
-  (** [check ~invalid t] runs [invalid] on any variables paired with [t]
-      that are not valid. *)
-  val check : invalid:(Var.t -> Loc.t -> unit) -> 'a t -> unit
-
   (** [value ~free t] is the value of [t]. [t] is expected to have no
       free variables. [free] is run on any variables paired with [t]. *)
   val value : free:(Var.t -> Loc.t -> unit) -> 'a t -> 'a
@@ -704,17 +627,6 @@ module With_free_vars : sig
       a single free type variable named [name]. [t] is represented as a function
       from this type variable to the term itself. *)
   val type_var_binding : Loc.t -> Name.t -> (Var.Type_var.t -> 'a t) -> 'a t
-
-  (** [type_var_bindings loc names t] is the value of [t]. [t] is expected to
-      have free type variables whose names are given by [names]. [t] is
-      represented as a function from these type variables to the term itself. *)
-  val type_var_bindings :
-    Loc.t -> Name.t list -> (Var.Type_var.t list -> 'a t) -> 'a t
-
-  (** [type_binding loc names t] is the value of [t]. [t] is expected to have
-      a single free type constructor variable named [name]. [t] is represented
-      as a function from this type constructor variable to the term itself. *)
-  val type_binding : Loc.t -> Name.t -> (Var.Type_constr.t -> 'a t) -> 'a t
 
   (** [type_bindings loc names t] is the value of [t]. [t] is expected to have
       free type constructor variables whose names are given by [names]. [t] is
@@ -773,11 +685,6 @@ end = struct
 
   let optional = function None -> return None | Some t -> map Option.some t
 
-  let check ~invalid { vars; _ } =
-    Var.Map.iter
-      (fun var loc -> if not (Var.valid var) then invalid var loc)
-      vars
-
   let value ~free t =
     Var.Map.iter free t.vars;
     t.v
@@ -785,13 +692,6 @@ end = struct
   let value_binding loc name f =
     Level.with_fresh loc (fun level ->
         let fresh_var = Var.Value.generate level name in
-        let { vars; v } = f fresh_var in
-        let vars = Var.Map.remove_level level vars in
-        { vars; v })
-
-  let type_binding loc name f =
-    Level.with_fresh loc (fun level ->
-        let fresh_var = Var.Type_constr.generate level name in
         let { vars; v } = f fresh_var in
         let vars = Var.Map.remove_level level vars in
         { vars; v })
@@ -809,15 +709,6 @@ end = struct
     Level.with_fresh loc (fun level ->
         let fresh_var = Var.Type_var.generate level name in
         let { vars; v } = f fresh_var in
-        let vars = Var.Map.remove_level level vars in
-        { vars; v })
-
-  let type_var_bindings loc names f =
-    Level.with_fresh loc (fun level ->
-        let fresh_vars =
-          List.map (fun name -> Var.Type_var.generate level name) names
-        in
-        let { vars; v } = f fresh_vars in
         let vars = Var.Map.remove_level level vars in
         { vars; v })
 
@@ -975,7 +866,7 @@ let rec free_vars_module = function
   | MVar (v, loc) -> Var.Map.singleton (Var.Module.generic v) loc
 
 let free_vars_value = function
-  | VDot (d, s) -> free_vars_module d
+  | VDot (d, _) -> free_vars_module d
   | VVar (v, loc) -> Var.Map.singleton (Var.Value.generic v) loc
 
 let free_vars_type = function
@@ -983,25 +874,19 @@ let free_vars_type = function
   | TVar (v, loc) -> Var.Map.singleton (Var.Type_constr.generic v) loc
   | TBuiltin _ -> Var.Map.empty
 
-let free_vars_module_type = function MtDot (t, _) -> free_vars_module t
+let _free_vars_module_type = function MtDot (t, _) -> free_vars_module t
 
 let free_vars_constructor = function
   | CDot (t, _) -> free_vars_module t
-  | CBuiltin s -> Var.Map.empty
+  | CBuiltin _ -> Var.Map.empty
 
-let free_vars_field = function FDot (t, _) -> free_vars_module t
+let _free_vars_field = function FDot (t, _) -> free_vars_module t
 
 module Identifier = struct
   module Module = struct
-    type raw = raw_ident_module_t
-
     type t = raw_ident_module_t With_free_vars.t
 
     let ( let+ ) m f = With_free_vars.map f m
-
-    let ( and+ ) = With_free_vars.both
-
-    let return = With_free_vars.return
 
     let mk t = With_free_vars.mk (free_vars_module t) t
 
@@ -1015,15 +900,9 @@ module Identifier = struct
   end
 
   module Value = struct
-    type raw = raw_ident_value_t
-
     type t = raw_ident_value_t With_free_vars.t
 
     let ( let+ ) m f = With_free_vars.map f m
-
-    let ( and+ ) = With_free_vars.both
-
-    let return = With_free_vars.return
 
     let mk t = With_free_vars.mk (free_vars_value t) t
 
@@ -1035,15 +914,9 @@ module Identifier = struct
   end
 
   module Type = struct
-    type raw = raw_ident_type_t
-
     type t = raw_ident_type_t With_free_vars.t
 
     let ( let+ ) m f = With_free_vars.map f m
-
-    let ( and+ ) = With_free_vars.both
-
-    let return = With_free_vars.return
 
     let mk t = With_free_vars.mk (free_vars_type t) t
 
@@ -1118,8 +991,6 @@ module Identifier = struct
 
 
   module Module_type = struct
-    type raw = raw_ident_module_type_t
-
     type t = raw_ident_module_type_t With_free_vars.t
 
     let ( let+ ) m f = With_free_vars.map f m
@@ -1130,8 +1001,6 @@ module Identifier = struct
   end
 
   module Constructor = struct
-    type raw = raw_ident_constructor_t
-
     type t = raw_ident_constructor_t With_free_vars.t
 
     let ( let+ ) m f = With_free_vars.map f m
@@ -1232,10 +1101,6 @@ module Ast = struct
     | Upto
     | Downto
 
-  type override_flag =
-    | Override
-    | Fresh
-
   type record_flag =
     | OpenRec
     | ClosedRec
@@ -1322,7 +1187,7 @@ module Ast = struct
     | PatUnpack of Var.Module.t
     | PatException of pattern
 
-  type expression_attribute =
+  type _expression_attribute =
     | Inline
     | Inlined
     | Specialise
@@ -1337,7 +1202,7 @@ module Ast = struct
 
   type expression =
     { desc : expression_desc;
-      attributes : expression_attribute list
+      _attributes : _expression_attribute list
     }
 
   and expression_desc =
@@ -1382,7 +1247,6 @@ module Ast = struct
     | Array_comprehension of comprehension
     | Quote of expression
     | Antiquote of expression
-    | Probe
 
   and case =
     { lhs : pattern;
@@ -1442,6 +1306,12 @@ module Ast = struct
 
   let print_tuple printer fmt entries =
     print_tuple_like "," "(" ")" (print_label_tup printer) fmt entries
+
+  let print_obj_closed fmt closed_flag =
+    Format.fprintf fmt "%s"
+      (match closed_flag with
+           | OOpen -> ".."
+           | OClosed -> "")
 
   let rec print_vb env fmt ({ pat; expr } : value_binding) =
     Format.fprintf fmt "%a@ =@ @[%a@]" (print_pat env) pat
@@ -1512,8 +1382,8 @@ module Ast = struct
       Format.fprintf fmt "#{@[";
       List.iter
         (fun (field, pat) ->
-          Format.fprintf fmt "%a=%a;@ " (print_field env) field (print_pat env)
-            pat)
+           Format.fprintf fmt "@[%a@ =@ %a;@]@ "
+             (print_field env) field (print_pat env) pat)
         entries;
       if rec_flag = OpenRec then Format.fprintf fmt "_";
       Format.fprintf fmt "@]}"
@@ -1525,15 +1395,18 @@ module Ast = struct
         ty
     | PatLazy pat -> Format.fprintf fmt "lazy@ (%a)" (print_pat env) pat
     | PatAnyModule -> Format.fprintf fmt "module _"
-    | PatUnpack v -> Format.fprintf fmt "module %a" (Var.Module.print env) v
+    | PatUnpack v -> Format.fprintf fmt "module@ %a" (Var.Module.print env) v
     | PatException pat ->
-      Format.fprintf fmt "(exception %a)" (print_pat env) pat
+      Format.fprintf fmt "(exception@ %a)" (print_pat env) pat
 
   and print_type_constraint env fmt = function
     | Constraint ty ->
       Format.fprintf fmt "%@ :@ @[%a@]" (print_core_type env) ty
-    | Coerce (opt_ty, ty) ->
+    | Coerce (None, ty) ->
       Format.fprintf fmt "%@ :>@ @[%a@]" (print_core_type env) ty
+    | Coerce (Some ty_constr, ty) ->
+      Format.fprintf fmt "%@ :@ @[%a@]@ :>@ @[%a@]"
+        (print_core_type env) ty_constr (print_core_type env) ty
 
   and print_exp_with_parens env fmt exp =
     match exp.desc with
@@ -1562,7 +1435,7 @@ module Ast = struct
     if with_or then Format.fprintf fmt "@ |@ ";
     match rf with
     | Vinherit ty -> print_core_type env fmt ty
-    | Vtag (variant, false, []) ->
+    | Vtag (_, false, []) ->
       () (* fatal_error "Invalid polymorphic variant type" *)
     | Vtag (variant, true, []) -> Format.fprintf fmt "%a" Variant.print variant
     | Vtag (variant, true, tys) ->
@@ -1584,15 +1457,6 @@ module Ast = struct
     | Name s -> Name.print fmt s
     | Dot (frag, s) ->
       Format.fprintf fmt "%a.%a" print_fragment frag Name.print s
-
-  and print_module_with_clause env is_first fmt (frag, ty) =
-    if is_first
-    then
-      Format.fprintf fmt "@ with@ type@ %a@ =@ %a" print_fragment frag
-        (print_core_type env) ty
-    else
-      Format.fprintf fmt "@ and@ type@ %a@ =@ %a" print_fragment frag
-        (print_core_type env) ty
 
   and print_core_type_with_arrow env fmt ty =
     match ty with
@@ -1662,9 +1526,14 @@ module Ast = struct
     | TypeConstr (ident, ty :: tys) ->
       print_tuple_like "(" ")" "," (print_core_type env) fmt (ty :: tys);
       Format.fprintf fmt "@ %a" (print_raw_ident_type env) ident
-    | TypeObject ([], closed_flag) -> Format.fprintf fmt "< >"
+    | TypeObject ([], closed_flag) ->
+      Format.fprintf fmt "< %a >" print_obj_closed closed_flag
     | TypeObject (f :: fs, closed_flag) ->
-      print_tuple_like "< " " >" "," (print_object_field env) fmt (f :: fs)
+      Format.fprintf fmt "<@ @[";
+      print_tuple_like "" "" ","
+        (print_object_field env) fmt (f :: fs);
+      print_obj_closed fmt closed_flag;
+      Format.fprintf fmt "@]@ >"
     | TypeClass (name, []) -> Name.print fmt name
     | TypeClass (name, [ty]) ->
       Format.fprintf fmt "[%a]@ %a" (print_core_type env) ty Name.print name
@@ -1678,7 +1547,7 @@ module Ast = struct
       (match variant_form with
       | VFixed -> Format.fprintf fmt "[ "
       | VOpen -> Format.fprintf fmt "[> "
-      | VClosed sl -> Format.fprintf fmt "[< ");
+      | VClosed _ -> Format.fprintf fmt "[< ");
       print_row_field env false fmt rf;
       List.iter (print_row_field env true fmt) row_fields;
       Format.fprintf fmt " ]"
@@ -1709,8 +1578,11 @@ module Ast = struct
 
   (* TODO: incorrect !! -- add logic for (let+) *)
   and print_param env fmt = function
-    | Pparam_val (arg_lab, exp_opt, pat) ->
+    | Pparam_val (arg_lab, None, pat) ->
       Format.fprintf fmt "@ %a%a" print_arg_lab arg_lab (print_pat env) pat
+    | Pparam_val (arg_lab, Some exp, pat) ->
+      Format.fprintf fmt "@ %a%a=(@[%a@])"
+        print_arg_lab arg_lab (print_pat env) pat (print_exp env) exp
     | Pparam_newtype ty ->
       Format.fprintf fmt "@ (type %a)" (Var.Type_var.print env) ty
 
@@ -1758,9 +1630,9 @@ module Ast = struct
       let prefix =
         match rec_flag with Nonrecursive -> "let" | Recursive -> "let@ rec"
       in
-      Format.fprintf fmt "@[@[%s@ @[%a@ @]@]" prefix (print_vb env) vb;
+      Format.fprintf fmt "@[@[%s@ @[%a@]@]@ " prefix (print_vb env) vb;
       List.iter
-        (fun vb -> Format.fprintf fmt "@[and@ @[%a@ @]@]" (print_vb env) vb)
+        (fun vb -> Format.fprintf fmt "@[and@ %a@]@ " (print_vb env) vb)
         vbs;
       Format.fprintf fmt "@]in@ @[%a@]" (print_exp env) body
     | Let_op ([], _, _) ->
@@ -1809,21 +1681,21 @@ module Ast = struct
     | Array entries -> print_array (print_exp_with_parens env) fmt entries
     | Tuple entries -> print_tuple (print_exp_with_parens env) fmt entries
     | Ifthenelse (cond, then_, else_) -> (
-      Format.fprintf fmt "if@ %a@ then@ %a"
+        Format.fprintf fmt "if@ %a@ then@ @;@[%a@]"
         (print_exp_with_parens env)
         cond (print_exp env) then_;
       match else_ with
-      | Some else_ -> Format.fprintf fmt "@ else@ %a" (print_exp env) else_
+      | Some else_ -> Format.fprintf fmt "@ @;else@ @;@[%a@]" (print_exp env) else_
       | None -> ())
     | Sequence (exp1, exp2) ->
-      Format.fprintf fmt "%a;@ %a" (print_exp env) exp1 (print_exp env) exp2
+      Format.fprintf fmt "%a;@ @,%a" (print_exp env) exp1 (print_exp env) exp2
     | While (cond, body) ->
-      Format.fprintf fmt "while@ %a@ do@ %a@ done" (print_exp env) cond
+      Format.fprintf fmt "while@ %a@ do@ @,@[<2>%a@]@ @,done" (print_exp env) cond
         (print_exp_with_parens env)
         body
     | For (it, start, stop, dir, body) ->
       let dir = match dir with Upto -> "to" | Downto -> "downto" in
-      Format.fprintf fmt "for@ %a@ =@ %a@ %s@ %a@ do@ %a@ done" (print_pat env)
+      Format.fprintf fmt "for@ %a@ =@ %a@ %s@ %a@ do@ @,@[<2>%a@]@ @,done" (print_pat env)
         it (print_exp env) start dir (print_exp env) stop
         (print_exp_with_parens env)
         body
@@ -1845,7 +1717,6 @@ module Ast = struct
       Format.fprintf fmt "match@ @[%a@]@ with@[" (print_exp env) exp;
       List.iter (print_case env fmt) cases;
       Format.fprintf fmt "@]"
-    | Probe -> Format.fprintf fmt "[%%probe]"
     | Try (try_, with_) -> (
       Format.fprintf fmt "try@ @[%a@]" (print_exp env) try_;
       match with_ with
@@ -1969,15 +1840,6 @@ module Binding_error = struct
     let msg =
       Format.asprintf "Missing binding for the identifier %s at %a"
         (Var.name var) Loc.print (Var.loc var)
-    in
-    failwith msg
-
-  let unbound_var loc var use : unit =
-    let msg =
-      Format.asprintf
-        "The quotation built at %a has unbound variables: variable %s used at \
-         %a is not bound."
-        Loc.print loc (Var.name var) Loc.print use
     in
     failwith msg
 
@@ -2201,10 +2063,6 @@ module Variant_type = struct
   end
 
   type t = Ast.row_field list With_free_vars.t * Ast.variant_form
-
-  let ( let+ ) m f = With_free_vars.map f m
-
-  let ( and+ ) = With_free_vars.both
 
   let of_row_fields_list row_fields variant_form =
     With_free_vars.all row_fields, Variant_form.to_ast_variant_form variant_form
@@ -2474,7 +2332,7 @@ end
 module Code = struct
   type code_rep =
     { exp : Ast.expression;
-      loc : Loc.t
+      _loc : Loc.t
     }
 
   type t = code_rep With_free_vars.t
@@ -2485,13 +2343,13 @@ module Code = struct
     let+ {exp; _} = code
     in exp
 
-  let of_exp exp loc =
+  let of_exp exp _loc =
     let+ exp = exp in
-    { exp; loc }
+    { exp; _loc }
 
-  let of_exp_with_type_vars loc names body =
-    let+ exp = With_free_vars.type_bindings loc names body in
-    { exp; loc }
+  let of_exp_with_type_vars _loc names body =
+    let+ exp = With_free_vars.type_bindings _loc names body in
+    { exp; _loc }
 
   module Closed = struct
     type exp = t
@@ -2526,7 +2384,7 @@ module Exp = struct
 
   let mk_vb pat expr : Ast.value_binding = { pat; expr }
 
-  let mk desc attributes : Ast.expression = { desc; attributes }
+  let mk desc _attributes : Ast.expression = { desc; _attributes }
 
   let ident id =
     let+ id = id in
@@ -2762,8 +2620,8 @@ module Exp = struct
     let+ exp = exp in
     mk (Antiquote exp) []
 
-  let splice (code : Code.t) =
-    let+ code = code in code.exp
+  let splice code =
+    let+ exp = Code.to_exp code in exp
 
   let print fmt exp =
     let ast = With_free_vars.value ~free:(fun _ _ -> ()) exp in
