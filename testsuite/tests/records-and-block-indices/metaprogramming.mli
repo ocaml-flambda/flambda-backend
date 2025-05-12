@@ -48,6 +48,7 @@ module Layout : sig
     | Product of t list
     | Value of value_kind
     | Float64
+    | Float32
     | Bits64
     | Bits32
     | Vec128
@@ -101,6 +102,9 @@ module Type_structure : sig
   val array_element : t Tree.t -> t option
 
   val to_string : t -> string
+
+  (** Size in words, as in [Obj.size] *)
+  val size : t -> bytecode:bool -> int
 end
 
 module Path : sig

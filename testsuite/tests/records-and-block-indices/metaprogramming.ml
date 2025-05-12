@@ -42,6 +42,7 @@ module Layout = struct
     | Product of t list
     | Value of value_kind
     | Float64
+    | Float32
     | Bits64
     | Bits32
     | Vec128
@@ -50,18 +51,19 @@ module Layout = struct
   let rec all_scannable t =
     match t with
     | Value _ -> true
-    | Bits32 | Bits64 | Float64 | Vec128 | Word -> false
+    | Bits32 | Bits64 | Float64 | Float32 | Vec128 | Word -> false
     | Product ts -> List.for_all ts ~f:all_scannable
 
   let rec all_ignorable t =
     match t with
-    | Value Immediate | Float64 | Bits64 | Bits32 | Vec128 | Word -> true
+    | Value Immediate | Float64 | Float32 | Bits64 | Bits32 | Vec128 | Word ->
+      true
     | Value Addr_non_float | Value Float -> false
     | Product ts -> List.for_all ts ~f:all_ignorable
 
   let rec contains_vec128 t =
     match t with
-    | Value _ | Float64 | Bits64 | Bits32 | Word -> false
+    | Value _ | Float64 | Float32 | Bits64 | Bits32 | Word -> false
     | Vec128 -> true
     | Product ts -> List.exists ts ~f:contains_vec128
 
@@ -74,7 +76,7 @@ module Layout = struct
     let rec aux t acc =
       match t with
       | Value _ -> { acc with last_value_after_flat = acc.seen_flat }
-      | Float64 | Bits64 | Bits32 | Vec128 | Word ->
+      | Float64 | Float32 | Bits64 | Bits32 | Vec128 | Word ->
         { acc with seen_flat = true }
       | Product ts ->
         List.fold_left ts ~init:acc ~f:(fun acc layout -> aux layout acc)
@@ -238,8 +240,10 @@ module Type_structure = struct
       Value Addr_non_float
     | Int -> Value Immediate
     | Float -> Value Float
-    | Int64_u | Float_u -> Bits64
-    | Int32_u | Float32_u -> Bits32
+    | Int64_u -> Bits64
+    | Int32_u -> Bits32
+    | Float32_u -> Float32
+    | Float_u -> Float64
     | Nativeint_u -> Word
     | Int64x2_u -> Vec128
 
@@ -309,6 +313,26 @@ module Type_structure = struct
     | Float_u -> "float#"
     | Float32_u -> "float32#"
     | Int64x2_u -> "int64x2#"
+
+  let size (t : t) ~bytecode =
+    let rec layout_size_in_block (layout : Layout.t) =
+      match layout with
+      | Value _ | Float64 | Float32 | Bits64 | Bits32 | Word -> 1
+      | Vec128 -> 2
+      | Product layouts ->
+        List.fold_left
+          ~f:(fun acc l -> acc + layout_size_in_block l)
+          ~init:0 layouts
+    in
+    match t with
+    | Record (ts, Boxed) ->
+      if bytecode
+      then List.length ts
+      else
+        List.fold_left ts ~init:0 ~f:(fun acc t ->
+            acc + layout_size_in_block (layout t)
+        )
+    | _ -> failwith "unimplemented"
 end
 
 let assemble_record colon_or_eq (boxing : Boxing.t) labels vals =

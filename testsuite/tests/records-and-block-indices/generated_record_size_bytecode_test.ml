@@ -256,358 +256,822 @@ type t133 = #{ a133 : string; b133 : int64# }
 type t134 = { mutable a134 : t132; mutable b134 : t133 }
 
 let () =
+  let r = ({ a0 = 0 } : t0) in
+  mark_test_run 1;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 1 failed";
   (********************)
   (*   t0 = { int }   *)
   (********************)
+  let r = ({ a1 = 0; b1 = 1 } : t1) in
+  mark_test_run 2;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 2 failed";
   (*************************)
   (*   t1 = { int; int }   *)
   (*************************)
+  let r = ({ a2 = 0; b2 = 1; c2 = 2 } : t2) in
+  mark_test_run 3;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 3 failed";
   (******************************)
   (*   t2 = { int; int; int }   *)
   (******************************)
+  let r = ({ a3 = 0; b3 = 1; c3 = #2l } : t3) in
+  mark_test_run 4;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 4 failed";
   (*********************************)
   (*   t3 = { int; int; int32# }   *)
   (*********************************)
+  let r = ({ a4 = 0; b4 = 1; c4 = 2. } : t4) in
+  mark_test_run 5;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 5 failed";
   (********************************)
   (*   t4 = { int; int; float }   *)
   (********************************)
+  let r = ({ a5 = 0; b5 = 1L } : t5) in
+  mark_test_run 6;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 6 failed";
   (***************************)
   (*   t5 = { int; int64 }   *)
   (***************************)
+  let r = ({ a6 = 0; b6 = #1L } : t6) in
+  mark_test_run 7;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 7 failed";
   (****************************)
   (*   t6 = { int; int64# }   *)
   (****************************)
+  let r = ({ a7 = 0; b7 = #1l } : t7) in
+  mark_test_run 8;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 8 failed";
   (****************************)
   (*   t7 = { int; int32# }   *)
   (****************************)
+  let r = ({ a8 = 0; b8 = #1l; c8 = 2 } : t8) in
+  mark_test_run 9;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 9 failed";
   (*********************************)
   (*   t8 = { int; int32#; int }   *)
   (*********************************)
+  let r = ({ a9 = 0; b9 = #1l; c9 = #2l } : t9) in
+  mark_test_run 10;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 10 failed";
   (************************************)
   (*   t9 = { int; int32#; int32# }   *)
   (************************************)
+  let r = ({ a10 = 0; b10 = #1n } : t10) in
+  mark_test_run 11;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 11 failed";
   (*********************************)
   (*   t10 = { int; nativeint# }   *)
   (*********************************)
+  let r = ({ a11 = 0; b11 = 1. } : t11) in
+  mark_test_run 12;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 12 failed";
   (****************************)
   (*   t11 = { int; float }   *)
   (****************************)
+  let r = ({ a12 = 0; b12 = 1.; c12 = 2 } : t12) in
+  mark_test_run 13;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 13 failed";
   (*********************************)
   (*   t12 = { int; float; int }   *)
   (*********************************)
+  let r = ({ a13 = 0; b13 = 1.; c13 = 2. } : t13) in
+  mark_test_run 14;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 14 failed";
   (***********************************)
   (*   t13 = { int; float; float }   *)
   (***********************************)
+  let r = ({ a15 = 0; b15 = (#{ a14 = 1 } : t14) } : t15) in
+  mark_test_run 15;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 15 failed";
   (*******************************)
   (*   t15 = { int; #{ int } }   *)
   (*******************************)
+  let r = ({ a17 = 0; b17 = (#{ a16 = 1; b16 = 2 } : t16) } : t17) in
+  mark_test_run 16;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 16 failed";
   (************************************)
   (*   t17 = { int; #{ int; int } }   *)
   (************************************)
+  let r = ({ a19 = 0; b19 = (#{ a18 = 1; b18 = #2l } : t18) } : t19) in
+  mark_test_run 17;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 17 failed";
   (***************************************)
   (*   t19 = { int; #{ int; int32# } }   *)
   (***************************************)
+  let r = ({ a21 = 0; b21 = (#{ a20 = 1; b20 = 2. } : t20) } : t21) in
+  mark_test_run 18;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 18 failed";
   (**************************************)
   (*   t21 = { int; #{ int; float } }   *)
   (**************************************)
+  let r = ({ a23 = 0; b23 = (#{ a22 = #1l } : t22) } : t23) in
+  mark_test_run 19;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 19 failed";
   (**********************************)
   (*   t23 = { int; #{ int32# } }   *)
   (**********************************)
+  let r = ({ a25 = 0; b25 = (#{ a24 = #1l; b24 = 2 } : t24) } : t25) in
+  mark_test_run 20;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 20 failed";
   (***************************************)
   (*   t25 = { int; #{ int32#; int } }   *)
   (***************************************)
+  let r = ({ a27 = 0; b27 = (#{ a26 = #1l; b26 = #2l } : t26) } : t27) in
+  mark_test_run 21;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 21 failed";
   (******************************************)
   (*   t27 = { int; #{ int32#; int32# } }   *)
   (******************************************)
+  let r = ({ a29 = 0; b29 = (#{ a28 = 1. } : t28) } : t29) in
+  mark_test_run 22;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 22 failed";
   (*********************************)
   (*   t29 = { int; #{ float } }   *)
   (*********************************)
+  let r = ({ a31 = 0; b31 = (#{ a30 = 1.; b30 = 2 } : t30) } : t31) in
+  mark_test_run 23;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 23 failed";
   (**************************************)
   (*   t31 = { int; #{ float; int } }   *)
   (**************************************)
+  let r = ({ a33 = 0; b33 = (#{ a32 = 1.; b32 = 2. } : t32) } : t33) in
+  mark_test_run 24;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 24 failed";
   (****************************************)
   (*   t33 = { int; #{ float; float } }   *)
   (****************************************)
+  let r = ({ a34 = 0L } : t34) in
+  mark_test_run 25;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 25 failed";
   (***********************)
   (*   t34 = { int64 }   *)
   (***********************)
+  let r = ({ a35 = 0L; b35 = 1 } : t35) in
+  mark_test_run 26;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 26 failed";
   (****************************)
   (*   t35 = { int64; int }   *)
   (****************************)
+  let r = ({ a36 = 0L; b36 = 1L } : t36) in
+  mark_test_run 27;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 27 failed";
   (******************************)
   (*   t36 = { int64; int64 }   *)
   (******************************)
+  let r = ({ a37 = 0L; b37 = #1L } : t37) in
+  mark_test_run 28;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 28 failed";
   (*******************************)
   (*   t37 = { int64; int64# }   *)
   (*******************************)
+  let r = ({ a38 = 0L; b38 = #1l } : t38) in
+  mark_test_run 29;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 29 failed";
   (*******************************)
   (*   t38 = { int64; int32# }   *)
   (*******************************)
+  let r = ({ a39 = 0L; b39 = #1n } : t39) in
+  mark_test_run 30;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 30 failed";
   (***********************************)
   (*   t39 = { int64; nativeint# }   *)
   (***********************************)
+  let r = ({ a40 = 0L; b40 = 1. } : t40) in
+  mark_test_run 31;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 31 failed";
   (******************************)
   (*   t40 = { int64; float }   *)
   (******************************)
+  let r = ({ a41 = #0L } : t41) in
+  mark_test_run 32;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 32 failed";
   (************************)
   (*   t41 = { int64# }   *)
   (************************)
+  let r = ({ a42 = #0L; b42 = 1 } : t42) in
+  mark_test_run 33;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 33 failed";
   (*****************************)
   (*   t42 = { int64#; int }   *)
   (*****************************)
+  let r = ({ a43 = #0L; b43 = 1L } : t43) in
+  mark_test_run 34;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 34 failed";
   (*******************************)
   (*   t43 = { int64#; int64 }   *)
   (*******************************)
+  let r = ({ a44 = #0L; b44 = #1L } : t44) in
+  mark_test_run 35;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 35 failed";
   (********************************)
   (*   t44 = { int64#; int64# }   *)
   (********************************)
+  let r = ({ a45 = #0L; b45 = #1l } : t45) in
+  mark_test_run 36;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 36 failed";
   (********************************)
   (*   t45 = { int64#; int32# }   *)
   (********************************)
+  let r = ({ a46 = #0L; b46 = #1n } : t46) in
+  mark_test_run 37;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 37 failed";
   (************************************)
   (*   t46 = { int64#; nativeint# }   *)
   (************************************)
+  let r = ({ a47 = #0L; b47 = 1. } : t47) in
+  mark_test_run 38;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 38 failed";
   (*******************************)
   (*   t47 = { int64#; float }   *)
   (*******************************)
+  let r = ({ a48 = #0l } : t48) in
+  mark_test_run 39;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 39 failed";
   (************************)
   (*   t48 = { int32# }   *)
   (************************)
+  let r = ({ a49 = #0l; b49 = 1 } : t49) in
+  mark_test_run 40;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 40 failed";
   (*****************************)
   (*   t49 = { int32#; int }   *)
   (*****************************)
+  let r = ({ a50 = #0l; b50 = 1; c50 = 2 } : t50) in
+  mark_test_run 41;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 41 failed";
   (**********************************)
   (*   t50 = { int32#; int; int }   *)
   (**********************************)
+  let r = ({ a51 = #0l; b51 = 1; c51 = #2l } : t51) in
+  mark_test_run 42;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 42 failed";
   (*************************************)
   (*   t51 = { int32#; int; int32# }   *)
   (*************************************)
+  let r = ({ a52 = #0l; b52 = 1L } : t52) in
+  mark_test_run 43;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 43 failed";
   (*******************************)
   (*   t52 = { int32#; int64 }   *)
   (*******************************)
+  let r = ({ a53 = #0l; b53 = #1L } : t53) in
+  mark_test_run 44;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 44 failed";
   (********************************)
   (*   t53 = { int32#; int64# }   *)
   (********************************)
+  let r = ({ a54 = #0l; b54 = #1l } : t54) in
+  mark_test_run 45;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 45 failed";
   (********************************)
   (*   t54 = { int32#; int32# }   *)
   (********************************)
+  let r = ({ a55 = #0l; b55 = #1l; c55 = 2 } : t55) in
+  mark_test_run 46;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 46 failed";
   (*************************************)
   (*   t55 = { int32#; int32#; int }   *)
   (*************************************)
+  let r = ({ a56 = #0l; b56 = #1l; c56 = #2l } : t56) in
+  mark_test_run 47;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 47 failed";
   (****************************************)
   (*   t56 = { int32#; int32#; int32# }   *)
   (****************************************)
+  let r = ({ a57 = #0l; b57 = #1n } : t57) in
+  mark_test_run 48;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 48 failed";
   (************************************)
   (*   t57 = { int32#; nativeint# }   *)
   (************************************)
+  let r = ({ a58 = #0l; b58 = 1. } : t58) in
+  mark_test_run 49;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 49 failed";
   (*******************************)
   (*   t58 = { int32#; float }   *)
   (*******************************)
+  let r = ({ a59 = #0l; b59 = (#{ a14 = 1 } : t14) } : t59) in
+  mark_test_run 50;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 50 failed";
   (**********************************)
   (*   t59 = { int32#; #{ int } }   *)
   (**********************************)
+  let r = ({ a60 = #0l; b60 = (#{ a16 = 1; b16 = 2 } : t16) } : t60) in
+  mark_test_run 51;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 51 failed";
   (***************************************)
   (*   t60 = { int32#; #{ int; int } }   *)
   (***************************************)
+  let r = ({ a61 = #0l; b61 = (#{ a18 = 1; b18 = #2l } : t18) } : t61) in
+  mark_test_run 52;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 52 failed";
   (******************************************)
   (*   t61 = { int32#; #{ int; int32# } }   *)
   (******************************************)
+  let r = ({ a62 = #0l; b62 = (#{ a22 = #1l } : t22) } : t62) in
+  mark_test_run 53;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 53 failed";
   (*************************************)
   (*   t62 = { int32#; #{ int32# } }   *)
   (*************************************)
+  let r = ({ a63 = #0l; b63 = (#{ a24 = #1l; b24 = 2 } : t24) } : t63) in
+  mark_test_run 54;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 54 failed";
   (******************************************)
   (*   t63 = { int32#; #{ int32#; int } }   *)
   (******************************************)
+  let r = ({ a64 = #0l; b64 = (#{ a26 = #1l; b26 = #2l } : t26) } : t64) in
+  mark_test_run 55;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 55 failed";
   (*********************************************)
   (*   t64 = { int32#; #{ int32#; int32# } }   *)
   (*********************************************)
+  let r = ({ a65 = #0n } : t65) in
+  mark_test_run 56;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 56 failed";
   (****************************)
   (*   t65 = { nativeint# }   *)
   (****************************)
+  let r = ({ a66 = #0n; b66 = 1 } : t66) in
+  mark_test_run 57;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 57 failed";
   (*********************************)
   (*   t66 = { nativeint#; int }   *)
   (*********************************)
+  let r = ({ a67 = #0n; b67 = 1L } : t67) in
+  mark_test_run 58;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 58 failed";
   (***********************************)
   (*   t67 = { nativeint#; int64 }   *)
   (***********************************)
+  let r = ({ a68 = #0n; b68 = #1L } : t68) in
+  mark_test_run 59;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 59 failed";
   (************************************)
   (*   t68 = { nativeint#; int64# }   *)
   (************************************)
+  let r = ({ a69 = #0n; b69 = #1l } : t69) in
+  mark_test_run 60;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 60 failed";
   (************************************)
   (*   t69 = { nativeint#; int32# }   *)
   (************************************)
+  let r = ({ a70 = #0n; b70 = #1n } : t70) in
+  mark_test_run 61;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 61 failed";
   (****************************************)
   (*   t70 = { nativeint#; nativeint# }   *)
   (****************************************)
+  let r = ({ a71 = #0n; b71 = 1. } : t71) in
+  mark_test_run 62;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 62 failed";
   (***********************************)
   (*   t71 = { nativeint#; float }   *)
   (***********************************)
+  let r = ({ a72 = 0. } : t72) in
+  mark_test_run 63;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 63 failed";
   (***********************)
   (*   t72 = { float }   *)
   (***********************)
+  let r = ({ a73 = 0.; b73 = 1 } : t73) in
+  mark_test_run 64;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 64 failed";
   (****************************)
   (*   t73 = { float; int }   *)
   (****************************)
+  let r = ({ a74 = 0.; b74 = 1; c74 = 2 } : t74) in
+  mark_test_run 65;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 65 failed";
   (*********************************)
   (*   t74 = { float; int; int }   *)
   (*********************************)
+  let r = ({ a75 = 0.; b75 = 1; c75 = 2. } : t75) in
+  mark_test_run 66;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 66 failed";
   (***********************************)
   (*   t75 = { float; int; float }   *)
   (***********************************)
+  let r = ({ a76 = 0.; b76 = 1L } : t76) in
+  mark_test_run 67;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 67 failed";
   (******************************)
   (*   t76 = { float; int64 }   *)
   (******************************)
+  let r = ({ a77 = 0.; b77 = #1L } : t77) in
+  mark_test_run 68;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 68 failed";
   (*******************************)
   (*   t77 = { float; int64# }   *)
   (*******************************)
+  let r = ({ a78 = 0.; b78 = #1l } : t78) in
+  mark_test_run 69;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 69 failed";
   (*******************************)
   (*   t78 = { float; int32# }   *)
   (*******************************)
+  let r = ({ a79 = 0.; b79 = #1n } : t79) in
+  mark_test_run 70;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 70 failed";
   (***********************************)
   (*   t79 = { float; nativeint# }   *)
   (***********************************)
+  let r = ({ a80 = 0.; b80 = 1. } : t80) in
+  mark_test_run 71;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 71 failed";
   (******************************)
   (*   t80 = { float; float }   *)
   (******************************)
+  let r = ({ a81 = 0.; b81 = 1.; c81 = 2 } : t81) in
+  mark_test_run 72;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 72 failed";
   (***********************************)
   (*   t81 = { float; float; int }   *)
   (***********************************)
+  let r = ({ a82 = 0.; b82 = 1.; c82 = 2. } : t82) in
+  mark_test_run 73;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 73 failed";
   (*************************************)
   (*   t82 = { float; float; float }   *)
   (*************************************)
+  let r = ({ a83 = 0.; b83 = (#{ a14 = 1 } : t14) } : t83) in
+  mark_test_run 74;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 74 failed";
   (*********************************)
   (*   t83 = { float; #{ int } }   *)
   (*********************************)
+  let r = ({ a84 = 0.; b84 = (#{ a16 = 1; b16 = 2 } : t16) } : t84) in
+  mark_test_run 75;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 75 failed";
   (**************************************)
   (*   t84 = { float; #{ int; int } }   *)
   (**************************************)
+  let r = ({ a85 = 0.; b85 = (#{ a20 = 1; b20 = 2. } : t20) } : t85) in
+  mark_test_run 76;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 76 failed";
   (****************************************)
   (*   t85 = { float; #{ int; float } }   *)
   (****************************************)
+  let r = ({ a86 = 0.; b86 = (#{ a28 = 1. } : t28) } : t86) in
+  mark_test_run 77;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 77 failed";
   (***********************************)
   (*   t86 = { float; #{ float } }   *)
   (***********************************)
+  let r = ({ a87 = 0.; b87 = (#{ a30 = 1.; b30 = 2 } : t30) } : t87) in
+  mark_test_run 78;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 78 failed";
   (****************************************)
   (*   t87 = { float; #{ float; int } }   *)
   (****************************************)
+  let r = ({ a88 = 0.; b88 = (#{ a32 = 1.; b32 = 2. } : t32) } : t88) in
+  mark_test_run 79;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 79 failed";
   (******************************************)
   (*   t88 = { float; #{ float; float } }   *)
   (******************************************)
+  let r = ({ a89 = (#{ a14 = 0 } : t14) } : t89) in
+  mark_test_run 80;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 80 failed";
   (**************************)
   (*   t89 = { #{ int } }   *)
   (**************************)
+  let r = ({ a90 = (#{ a14 = 0 } : t14); b90 = 1 } : t90) in
+  mark_test_run 81;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 81 failed";
   (*******************************)
   (*   t90 = { #{ int }; int }   *)
   (*******************************)
+  let r = ({ a91 = (#{ a14 = 0 } : t14); b91 = #1l } : t91) in
+  mark_test_run 82;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 82 failed";
   (**********************************)
   (*   t91 = { #{ int }; int32# }   *)
   (**********************************)
+  let r = ({ a92 = (#{ a14 = 0 } : t14); b92 = 1. } : t92) in
+  mark_test_run 83;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 83 failed";
   (*********************************)
   (*   t92 = { #{ int }; float }   *)
   (*********************************)
+  let r = ({ a93 = (#{ a16 = 0; b16 = 1 } : t16) } : t93) in
+  mark_test_run 84;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 84 failed";
   (*******************************)
   (*   t93 = { #{ int; int } }   *)
   (*******************************)
+  let r = ({ a94 = (#{ a16 = 0; b16 = 1 } : t16); b94 = 2 } : t94) in
+  mark_test_run 85;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 85 failed";
   (************************************)
   (*   t94 = { #{ int; int }; int }   *)
   (************************************)
+  let r = ({ a95 = (#{ a16 = 0; b16 = 1 } : t16); b95 = #2l } : t95) in
+  mark_test_run 86;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 86 failed";
   (***************************************)
   (*   t95 = { #{ int; int }; int32# }   *)
   (***************************************)
+  let r = ({ a96 = (#{ a16 = 0; b16 = 1 } : t16); b96 = 2. } : t96) in
+  mark_test_run 87;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 87 failed";
   (**************************************)
   (*   t96 = { #{ int; int }; float }   *)
   (**************************************)
+  let r = ({ a97 = (#{ a18 = 0; b18 = #1l } : t18) } : t97) in
+  mark_test_run 88;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 88 failed";
   (**********************************)
   (*   t97 = { #{ int; int32# } }   *)
   (**********************************)
+  let r = ({ a98 = (#{ a18 = 0; b18 = #1l } : t18); b98 = 2 } : t98) in
+  mark_test_run 89;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 89 failed";
   (***************************************)
   (*   t98 = { #{ int; int32# }; int }   *)
   (***************************************)
+  let r = ({ a99 = (#{ a18 = 0; b18 = #1l } : t18); b99 = #2l } : t99) in
+  mark_test_run 90;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 90 failed";
   (******************************************)
   (*   t99 = { #{ int; int32# }; int32# }   *)
   (******************************************)
+  let r = ({ a100 = (#{ a20 = 0; b20 = 1. } : t20) } : t100) in
+  mark_test_run 91;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 91 failed";
   (**********************************)
   (*   t100 = { #{ int; float } }   *)
   (**********************************)
+  let r = ({ a101 = (#{ a20 = 0; b20 = 1. } : t20); b101 = 2 } : t101) in
+  mark_test_run 92;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 92 failed";
   (***************************************)
   (*   t101 = { #{ int; float }; int }   *)
   (***************************************)
+  let r = ({ a102 = (#{ a20 = 0; b20 = 1. } : t20); b102 = 2. } : t102) in
+  mark_test_run 93;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 93 failed";
   (*****************************************)
   (*   t102 = { #{ int; float }; float }   *)
   (*****************************************)
+  let r = ({ a105 = (#{ a103 = 0L; b103 = #1L } : t103); b105 = (#{ a104 = #2L; b104 = #3. } : t104) } : t105) in
+  mark_test_run 94;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 94 failed";
   (**********************************************************)
   (*   t105 = { #{ int64; int64# }; #{ int64#; float# } }   *)
   (**********************************************************)
+  let r = ({ a108 = (#{ a106 = 0L; b106 = "1" } : t106); b108 = (#{ a107 = #2L; b107 = "3" } : t107) } : t108) in
+  mark_test_run 95;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 95 failed";
   (**********************************************************)
   (*   t108 = { #{ int64; string }; #{ int64#; string } }   *)
   (**********************************************************)
+  let r = ({ a111 = (#{ a109 = #0L; b109 = 1L } : t109); b111 = (#{ a110 = 2L; b110 = 3L } : t110) } : t111) in
+  mark_test_run 96;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 96 failed";
   (********************************************************)
   (*   t111 = { #{ int64#; int64 }; #{ int64; int64 } }   *)
   (********************************************************)
+  let r = ({ a113 = (#{ a109 = #0L; b109 = 1L } : t109); b113 = (#{ a112 = #2.s; b112 = 3. } : t112) } : t113) in
+  mark_test_run 97;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 97 failed";
   (***********************************************************)
   (*   t113 = { #{ int64#; int64 }; #{ float32#; float } }   *)
   (***********************************************************)
+  let r = ({ a114 = (#{ a22 = #0l } : t22) } : t114) in
+  mark_test_run 98;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 98 failed";
   (******************************)
   (*   t114 = { #{ int32# } }   *)
   (******************************)
+  let r = ({ a115 = (#{ a22 = #0l } : t22); b115 = 1 } : t115) in
+  mark_test_run 99;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 99 failed";
   (***********************************)
   (*   t115 = { #{ int32# }; int }   *)
   (***********************************)
+  let r = ({ a116 = (#{ a22 = #0l } : t22); b116 = #1l } : t116) in
+  mark_test_run 100;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 100 failed";
   (**************************************)
   (*   t116 = { #{ int32# }; int32# }   *)
   (**************************************)
+  let r = ({ a117 = (#{ a24 = #0l; b24 = 1 } : t24) } : t117) in
+  mark_test_run 101;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 101 failed";
   (***********************************)
   (*   t117 = { #{ int32#; int } }   *)
   (***********************************)
+  let r = ({ a118 = (#{ a24 = #0l; b24 = 1 } : t24); b118 = 2 } : t118) in
+  mark_test_run 102;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 102 failed";
   (****************************************)
   (*   t118 = { #{ int32#; int }; int }   *)
   (****************************************)
+  let r = ({ a119 = (#{ a24 = #0l; b24 = 1 } : t24); b119 = #2l } : t119) in
+  mark_test_run 103;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 103 failed";
   (*******************************************)
   (*   t119 = { #{ int32#; int }; int32# }   *)
   (*******************************************)
+  let r = ({ a120 = (#{ a26 = #0l; b26 = #1l } : t26) } : t120) in
+  mark_test_run 104;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 104 failed";
   (**************************************)
   (*   t120 = { #{ int32#; int32# } }   *)
   (**************************************)
+  let r = ({ a121 = (#{ a26 = #0l; b26 = #1l } : t26); b121 = 2 } : t121) in
+  mark_test_run 105;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 105 failed";
   (*******************************************)
   (*   t121 = { #{ int32#; int32# }; int }   *)
   (*******************************************)
+  let r = ({ a122 = (#{ a26 = #0l; b26 = #1l } : t26); b122 = #2l } : t122) in
+  mark_test_run 106;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 106 failed";
   (**********************************************)
   (*   t122 = { #{ int32#; int32# }; int32# }   *)
   (**********************************************)
+  let r = ({ a123 = (#{ a28 = 0. } : t28) } : t123) in
+  mark_test_run 107;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 107 failed";
   (*****************************)
   (*   t123 = { #{ float } }   *)
   (*****************************)
+  let r = ({ a124 = (#{ a28 = 0. } : t28); b124 = 1 } : t124) in
+  mark_test_run 108;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 108 failed";
   (**********************************)
   (*   t124 = { #{ float }; int }   *)
   (**********************************)
+  let r = ({ a125 = (#{ a28 = 0. } : t28); b125 = 1. } : t125) in
+  mark_test_run 109;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 109 failed";
   (************************************)
   (*   t125 = { #{ float }; float }   *)
   (************************************)
+  let r = ({ a126 = (#{ a30 = 0.; b30 = 1 } : t30) } : t126) in
+  mark_test_run 110;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 110 failed";
   (**********************************)
   (*   t126 = { #{ float; int } }   *)
   (**********************************)
+  let r = ({ a127 = (#{ a30 = 0.; b30 = 1 } : t30); b127 = 2 } : t127) in
+  mark_test_run 111;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 111 failed";
   (***************************************)
   (*   t127 = { #{ float; int }; int }   *)
   (***************************************)
+  let r = ({ a128 = (#{ a30 = 0.; b30 = 1 } : t30); b128 = 2. } : t128) in
+  mark_test_run 112;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 112 failed";
   (*****************************************)
   (*   t128 = { #{ float; int }; float }   *)
   (*****************************************)
+  let r = ({ a129 = (#{ a32 = 0.; b32 = 1. } : t32) } : t129) in
+  mark_test_run 113;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 113 failed";
   (************************************)
   (*   t129 = { #{ float; float } }   *)
   (************************************)
+  let r = ({ a130 = (#{ a32 = 0.; b32 = 1. } : t32); b130 = 2 } : t130) in
+  mark_test_run 114;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 114 failed";
   (*****************************************)
   (*   t130 = { #{ float; float }; int }   *)
   (*****************************************)
+  let r = ({ a131 = (#{ a32 = 0.; b32 = 1. } : t32); b131 = 2. } : t131) in
+  mark_test_run 115;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 115 failed";
   (*******************************************)
   (*   t131 = { #{ float; float }; float }   *)
   (*******************************************)
+  let r = ({ a134 = (#{ a132 = #0.s; b132 = #1L } : t132); b134 = (#{ a133 = "2"; b133 = #3L } : t133) } : t134) in
+  mark_test_run 116;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 116 failed";
   (*************************************************************)
   (*   t134 = { #{ float32#; int64# }; #{ string; int64# } }   *)
   (*************************************************************)
   ()
 ;;
 
-for i = 1 to 0 do
+for i = 1 to 116 do
   if not (Int_set.mem i !tests_run) then failwithf "test %d not run" i
 done;;
 let () = Printf.printf "All tests passed.%!\n";;
