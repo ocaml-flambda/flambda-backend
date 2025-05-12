@@ -739,6 +739,10 @@ let mk_not dbg cmm =
           dbg ))
   | Cconst_int (3, _) -> Cconst_int (1, dbg)
   | Cconst_int (1, _) -> Cconst_int (3, dbg)
+  | Cop (Cxor, [Cconst_int (2, _); c], _) ->
+    (* Avoid generating [2 xor (2 xor c)] (peephole optimiser chokes on
+       arm64) *)
+    c
   | c ->
     (* 1 -> 3, 3 -> 1 *)
     Cop (Cxor, [Cconst_int (2, dbg); c], dbg)
