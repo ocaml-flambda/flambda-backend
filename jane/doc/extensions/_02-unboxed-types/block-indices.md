@@ -8,7 +8,7 @@ title: Block indices
 
 Consider the following type:
 
-```
+```ocaml
 type a = #{ s : string; i : int64# }
 type b = #{ i : int64#; a : a; s : string }
 type c = { mutable b : b; s : string }
@@ -34,18 +34,7 @@ values and non-values of the pointed-to payload, both in bytes. In the
 bytecode compiler, block indices are represented as a sequence of field
 positions.
 
-```
-Idx in [c]    Native repr.      Bytecode repr.
----------------------------------------------
-`(.b)`        offset 0, gap 8   { 0 }
-`(.s)`        offset 16, gap 0  { 1 }
-`(.b.#i)`     offset 24, gap 0  { 0; 0 }
-`(.b.#a)`     offset 0, gap 24  { 0; 1 }
-`(.b.#s)`     offset 8, gap 0   { 0; 2 }
-`(.b.#a.#s)`  offset 0, gap 0   { 0; 1; 0 }
-`(.b.#a.#i)`  offset 32, gap 0  { 0; 1; 1 }
-```
-| Idx in [c] | Native repr. | Bytecode repr. |
+| Idx in `c` | Native repr. | Bytecode repr. |
 |------------|--------------|----------------|
 | `(.b)` | offset 0, gap 8 | { 0 } |
 | `(.s)` | offset 16, gap 0 | { 1 } |
