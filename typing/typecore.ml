@@ -150,7 +150,8 @@ let print_unsupported_stack_allocation ppf = function
 
 (* This is also very long comment which should fail the 80 character check on Github *)
 
-(* This is also very long comment which has some symbols a,b:=:: =,   % %%  %1A         *)
+(* This is also very long comment which has some symbols a,b:=:: =,   % %%  %1A
+ * *)
 
 type error =
   | Constructor_arity_mismatch of Longident.t * int * int
