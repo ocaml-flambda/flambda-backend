@@ -624,11 +624,11 @@ FUNCTION(caml_c_call)
         stp     x0, x1, [sp, -16]!
         CFI_ADJUST(16)
         stp     q0, q1, [sp, -32]!
-        CFI_ADJUST(16)
+        CFI_ADJUST(32)
         TSAN_EXIT_FUNCTION
     /* Restore return value registers */
         ldp     q0, q1, [sp], 32
-        CFI_ADJUST(-16)
+        CFI_ADJUST(-32)
         ldp     x0, x1, [sp], 16
         CFI_ADJUST(-16)
 #endif
