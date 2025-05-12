@@ -381,8 +381,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a0] *)
     let el = #{ el with a0 = next_el.#a0 } in
     set_idx_mut a ((.(i).#a0) : (t0 array, _) idx_mut) next_el.#a0;
@@ -418,8 +420,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a1] *)
     let el = #{ el with a1 = next_el.#a1 } in
     set_idx_mut a ((.(i).#a1) : (t1 array, _) idx_mut) next_el.#a1;
@@ -461,8 +465,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a2] *)
     let el = #{ el with a2 = next_el.#a2 } in
     set_idx_mut a ((.(i).#a2) : (t2 array, _) idx_mut) next_el.#a2;
@@ -510,8 +516,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a3] *)
     let el = #{ el with a3 = next_el.#a3 } in
     set_idx_mut a ((.(i).#a3) : (t3 array, _) idx_mut) next_el.#a3;
@@ -559,8 +567,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a4] *)
     let el = #{ el with a4 = next_el.#a4 } in
     set_idx_mut a ((.(i).#a4) : (t4 array, _) idx_mut) next_el.#a4;
@@ -608,8 +618,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a5] *)
     let el = #{ el with a5 = next_el.#a5 } in
     set_idx_mut a ((.(i).#a5) : (t5 array, _) idx_mut) next_el.#a5;
@@ -651,8 +663,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a6] *)
     let el = #{ el with a6 = next_el.#a6 } in
     set_idx_mut a ((.(i).#a6) : (t6 array, _) idx_mut) next_el.#a6;
@@ -694,8 +708,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a7] *)
     let el = #{ el with a7 = next_el.#a7 } in
     set_idx_mut a ((.(i).#a7) : (t7 array, _) idx_mut) next_el.#a7;
@@ -737,8 +753,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a8] *)
     let el = #{ el with a8 = next_el.#a8 } in
     set_idx_mut a ((.(i).#a8) : (t8 array, _) idx_mut) next_el.#a8;
@@ -786,8 +804,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a9] *)
     let el = #{ el with a9 = next_el.#a9 } in
     set_idx_mut a ((.(i).#a9) : (t9 array, _) idx_mut) next_el.#a9;
@@ -829,8 +849,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a10] *)
     let el = #{ el with a10 = next_el.#a10 } in
     set_idx_mut a ((.(i).#a10) : (t10 array, _) idx_mut) next_el.#a10;
@@ -872,8 +894,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a11] *)
     let el = #{ el with a11 = next_el.#a11 } in
     set_idx_mut a ((.(i).#a11) : (t11 array, _) idx_mut) next_el.#a11;
@@ -921,8 +945,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a12] *)
     let el = #{ el with a12 = next_el.#a12 } in
     set_idx_mut a ((.(i).#a12) : (t12 array, _) idx_mut) next_el.#a12;
@@ -970,8 +996,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a13] *)
     let el = #{ el with a13 = next_el.#a13 } in
     set_idx_mut a ((.(i).#a13) : (t13 array, _) idx_mut) next_el.#a13;
@@ -985,8 +1013,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 71 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#b13.#a0] *)
     let el = #{ el with b13 = #{ el.#b13 with a0 = next_el.#b13.#a0 } } in
     set_idx_mut a ((.(i).#b13.#a0) : (t13 array, _) idx_mut) next_el.#b13.#a0;
@@ -1022,8 +1052,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a14] *)
     let el = #{ el with a14 = next_el.#a14 } in
     set_idx_mut a ((.(i).#a14) : (t14 array, _) idx_mut) next_el.#a14;
@@ -1037,8 +1069,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 76 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#b14.#a1] *)
     let el = #{ el with b14 = #{ el.#b14 with a1 = next_el.#b14.#a1 } } in
     set_idx_mut a ((.(i).#b14.#a1) : (t14 array, _) idx_mut) next_el.#b14.#a1;
@@ -1080,8 +1114,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a15] *)
     let el = #{ el with a15 = next_el.#a15 } in
     set_idx_mut a ((.(i).#a15) : (t15 array, _) idx_mut) next_el.#a15;
@@ -1095,8 +1131,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 82 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#b15.#a7] *)
     let el = #{ el with b15 = #{ el.#b15 with a7 = next_el.#b15.#a7 } } in
     set_idx_mut a ((.(i).#b15.#a7) : (t15 array, _) idx_mut) next_el.#b15.#a7;
@@ -1138,8 +1176,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a16] *)
     let el = #{ el with a16 = next_el.#a16 } in
     set_idx_mut a ((.(i).#a16) : (t16 array, _) idx_mut) next_el.#a16;
@@ -1153,8 +1193,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 88 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#b16.#a10] *)
     let el = #{ el with b16 = #{ el.#b16 with a10 = next_el.#b16.#a10 } } in
     set_idx_mut a ((.(i).#b16.#a10) : (t16 array, _) idx_mut) next_el.#b16.#a10;
@@ -1196,8 +1238,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a18] *)
     let el = #{ el with a18 = next_el.#a18 } in
     set_idx_mut a ((.(i).#a18) : (t18 array, _) idx_mut) next_el.#a18;
@@ -1211,8 +1255,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 94 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#b18.#a17] *)
     let el = #{ el with b18 = #{ el.#b18 with a17 = next_el.#b18.#a17 } } in
     set_idx_mut a ((.(i).#b18.#a17) : (t18 array, _) idx_mut) next_el.#b18.#a17;
@@ -1248,8 +1294,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a20] *)
     let el = #{ el with a20 = next_el.#a20 } in
     set_idx_mut a ((.(i).#a20) : (t20 array, _) idx_mut) next_el.#a20;
@@ -1263,8 +1311,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 99 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#b20.#a19] *)
     let el = #{ el with b20 = #{ el.#b20 with a19 = next_el.#b20.#a19 } } in
     set_idx_mut a ((.(i).#b20.#a19) : (t20 array, _) idx_mut) next_el.#b20.#a19;
@@ -1306,8 +1356,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a22] *)
     let el = #{ el with a22 = next_el.#a22 } in
     set_idx_mut a ((.(i).#a22) : (t22 array, _) idx_mut) next_el.#a22;
@@ -1321,8 +1373,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 105 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#b22.#a21] *)
     let el = #{ el with b22 = #{ el.#b22 with a21 = next_el.#b22.#a21 } } in
     set_idx_mut a ((.(i).#b22.#a21) : (t22 array, _) idx_mut) next_el.#b22.#a21;
@@ -1358,8 +1412,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a24] *)
     let el = #{ el with a24 = next_el.#a24 } in
     set_idx_mut a ((.(i).#a24) : (t24 array, _) idx_mut) next_el.#a24;
@@ -1373,8 +1429,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 110 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#b24.#a23] *)
     let el = #{ el with b24 = #{ el.#b24 with a23 = next_el.#b24.#a23 } } in
     set_idx_mut a ((.(i).#b24.#a23) : (t24 array, _) idx_mut) next_el.#b24.#a23;
@@ -1416,8 +1474,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a26] *)
     let el = #{ el with a26 = next_el.#a26 } in
     set_idx_mut a ((.(i).#a26) : (t26 array, _) idx_mut) next_el.#a26;
@@ -1431,8 +1491,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 116 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#b26.#a25] *)
     let el = #{ el with b26 = #{ el.#b26 with a25 = next_el.#b26.#a25 } } in
     set_idx_mut a ((.(i).#b26.#a25) : (t26 array, _) idx_mut) next_el.#b26.#a25;
@@ -1474,8 +1536,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a27] *)
     let el = #{ el with a27 = next_el.#a27 } in
     set_idx_mut a ((.(i).#a27) : (t27 array, _) idx_mut) next_el.#a27;
@@ -1511,8 +1575,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a28] *)
     let el = #{ el with a28 = next_el.#a28 } in
     set_idx_mut a ((.(i).#a28) : (t28 array, _) idx_mut) next_el.#a28;
@@ -1554,8 +1620,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a29] *)
     let el = #{ el with a29 = next_el.#a29 } in
     set_idx_mut a ((.(i).#a29) : (t29 array, _) idx_mut) next_el.#a29;
@@ -1597,8 +1665,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a30] *)
     let el = #{ el with a30 = next_el.#a30 } in
     set_idx_mut a ((.(i).#a30) : (t30 array, _) idx_mut) next_el.#a30;
@@ -1640,8 +1710,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a31] *)
     let el = #{ el with a31 = next_el.#a31 } in
     set_idx_mut a ((.(i).#a31) : (t31 array, _) idx_mut) next_el.#a31;
@@ -1677,8 +1749,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a32] *)
     let el = #{ el with a32 = next_el.#a32 } in
     set_idx_mut a ((.(i).#a32) : (t32 array, _) idx_mut) next_el.#a32;
@@ -1720,8 +1794,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a33] *)
     let el = #{ el with a33 = next_el.#a33 } in
     set_idx_mut a ((.(i).#a33) : (t33 array, _) idx_mut) next_el.#a33;
@@ -1763,8 +1839,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a34] *)
     let el = #{ el with a34 = next_el.#a34 } in
     set_idx_mut a ((.(i).#a34) : (t34 array, _) idx_mut) next_el.#a34;
@@ -1806,8 +1884,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a17] *)
     let el = #{ el with a17 = next_el.#a17 } in
     set_idx_mut a ((.(i).#a17) : (t17 array, _) idx_mut) next_el.#a17;
@@ -1843,8 +1923,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a35] *)
     let el = #{ el with a35 = next_el.#a35 } in
     set_idx_mut a ((.(i).#a35) : (t35 array, _) idx_mut) next_el.#a35;
@@ -1886,8 +1968,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a19] *)
     let el = #{ el with a19 = next_el.#a19 } in
     set_idx_mut a ((.(i).#a19) : (t19 array, _) idx_mut) next_el.#a19;
@@ -1929,8 +2013,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a36] *)
     let el = #{ el with a36 = next_el.#a36 } in
     set_idx_mut a ((.(i).#a36) : (t36 array, _) idx_mut) next_el.#a36;
@@ -1978,8 +2064,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a37] *)
     let el = #{ el with a37 = next_el.#a37 } in
     set_idx_mut a ((.(i).#a37) : (t37 array, _) idx_mut) next_el.#a37;
@@ -2021,8 +2109,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a38] *)
     let el = #{ el with a38 = next_el.#a38 } in
     set_idx_mut a ((.(i).#a38) : (t38 array, _) idx_mut) next_el.#a38;
@@ -2036,8 +2126,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 172 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#b38.#a17] *)
     let el = #{ el with b38 = #{ el.#b38 with a17 = next_el.#b38.#a17 } } in
     set_idx_mut a ((.(i).#b38.#a17) : (t38 array, _) idx_mut) next_el.#b38.#a17;
@@ -2073,8 +2165,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a39] *)
     let el = #{ el with a39 = next_el.#a39 } in
     set_idx_mut a ((.(i).#a39) : (t39 array, _) idx_mut) next_el.#a39;
@@ -2088,8 +2182,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 177 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#b39.#a19] *)
     let el = #{ el with b39 = #{ el.#b39 with a19 = next_el.#b39.#a19 } } in
     set_idx_mut a ((.(i).#b39.#a19) : (t39 array, _) idx_mut) next_el.#b39.#a19;
@@ -2131,8 +2227,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a40] *)
     let el = #{ el with a40 = next_el.#a40 } in
     set_idx_mut a ((.(i).#a40) : (t40 array, _) idx_mut) next_el.#a40;
@@ -2168,8 +2266,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a41] *)
     let el = #{ el with a41 = next_el.#a41 } in
     set_idx_mut a ((.(i).#a41) : (t41 array, _) idx_mut) next_el.#a41;
@@ -2211,8 +2311,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a42] *)
     let el = #{ el with a42 = next_el.#a42 } in
     set_idx_mut a ((.(i).#a42) : (t42 array, _) idx_mut) next_el.#a42;
@@ -2254,8 +2356,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a43] *)
     let el = #{ el with a43 = next_el.#a43 } in
     set_idx_mut a ((.(i).#a43) : (t43 array, _) idx_mut) next_el.#a43;
@@ -2297,8 +2401,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a23] *)
     let el = #{ el with a23 = next_el.#a23 } in
     set_idx_mut a ((.(i).#a23) : (t23 array, _) idx_mut) next_el.#a23;
@@ -2340,8 +2446,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a44] *)
     let el = #{ el with a44 = next_el.#a44 } in
     set_idx_mut a ((.(i).#a44) : (t44 array, _) idx_mut) next_el.#a44;
@@ -2389,8 +2497,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a45] *)
     let el = #{ el with a45 = next_el.#a45 } in
     set_idx_mut a ((.(i).#a45) : (t45 array, _) idx_mut) next_el.#a45;
@@ -2438,8 +2548,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a46] *)
     let el = #{ el with a46 = next_el.#a46 } in
     set_idx_mut a ((.(i).#a46) : (t46 array, _) idx_mut) next_el.#a46;
@@ -2481,8 +2593,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a25] *)
     let el = #{ el with a25 = next_el.#a25 } in
     set_idx_mut a ((.(i).#a25) : (t25 array, _) idx_mut) next_el.#a25;
@@ -2524,8 +2638,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a47] *)
     let el = #{ el with a47 = next_el.#a47 } in
     set_idx_mut a ((.(i).#a47) : (t47 array, _) idx_mut) next_el.#a47;
@@ -2573,8 +2689,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a48] *)
     let el = #{ el with a48 = next_el.#a48 } in
     set_idx_mut a ((.(i).#a48) : (t48 array, _) idx_mut) next_el.#a48;
@@ -2622,8 +2740,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a49] *)
     let el = #{ el with a49 = next_el.#a49 } in
     set_idx_mut a ((.(i).#a49) : (t49 array, _) idx_mut) next_el.#a49;
@@ -2637,8 +2757,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 230 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#b49.#a0] *)
     let el = #{ el with b49 = #{ el.#b49 with a0 = next_el.#b49.#a0 } } in
     set_idx_mut a ((.(i).#b49.#a0) : (t49 array, _) idx_mut) next_el.#b49.#a0;
@@ -2674,8 +2796,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a50] *)
     let el = #{ el with a50 = next_el.#a50 } in
     set_idx_mut a ((.(i).#a50) : (t50 array, _) idx_mut) next_el.#a50;
@@ -2689,8 +2813,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 235 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#b50.#a1] *)
     let el = #{ el with b50 = #{ el.#b50 with a1 = next_el.#b50.#a1 } } in
     set_idx_mut a ((.(i).#b50.#a1) : (t50 array, _) idx_mut) next_el.#b50.#a1;
@@ -2732,8 +2858,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a51] *)
     let el = #{ el with a51 = next_el.#a51 } in
     set_idx_mut a ((.(i).#a51) : (t51 array, _) idx_mut) next_el.#a51;
@@ -2747,8 +2875,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 241 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#b51.#a10] *)
     let el = #{ el with b51 = #{ el.#b51 with a10 = next_el.#b51.#a10 } } in
     set_idx_mut a ((.(i).#b51.#a10) : (t51 array, _) idx_mut) next_el.#b51.#a10;
@@ -2790,8 +2920,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a52] *)
     let el = #{ el with a52 = next_el.#a52 } in
     set_idx_mut a ((.(i).#a52) : (t52 array, _) idx_mut) next_el.#a52;
@@ -2805,8 +2937,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 247 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#b52.#a21] *)
     let el = #{ el with b52 = #{ el.#b52 with a21 = next_el.#b52.#a21 } } in
     set_idx_mut a ((.(i).#b52.#a21) : (t52 array, _) idx_mut) next_el.#b52.#a21;
@@ -2842,8 +2976,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a53] *)
     let el = #{ el with a53 = next_el.#a53 } in
     set_idx_mut a ((.(i).#a53) : (t53 array, _) idx_mut) next_el.#a53;
@@ -2857,8 +2993,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 252 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#b53.#a23] *)
     let el = #{ el with b53 = #{ el.#b53 with a23 = next_el.#b53.#a23 } } in
     set_idx_mut a ((.(i).#b53.#a23) : (t53 array, _) idx_mut) next_el.#b53.#a23;
@@ -2900,8 +3038,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a54] *)
     let el = #{ el with a54 = next_el.#a54 } in
     set_idx_mut a ((.(i).#a54) : (t54 array, _) idx_mut) next_el.#a54;
@@ -2915,8 +3055,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 258 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#b54.#a25] *)
     let el = #{ el with b54 = #{ el.#b54 with a25 = next_el.#b54.#a25 } } in
     set_idx_mut a ((.(i).#b54.#a25) : (t54 array, _) idx_mut) next_el.#b54.#a25;
@@ -2958,8 +3100,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a55] *)
     let el = #{ el with a55 = next_el.#a55 } in
     set_idx_mut a ((.(i).#a55) : (t55 array, _) idx_mut) next_el.#a55;
@@ -2967,8 +3111,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 263 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a55.#a0] *)
     let el = #{ el with a55 = #{ el.#a55 with a0 = next_el.#a55.#a0 } } in
     set_idx_mut a ((.(i).#a55.#a0) : (t55 array, _) idx_mut) next_el.#a55.#a0;
@@ -3004,8 +3150,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a56] *)
     let el = #{ el with a56 = next_el.#a56 } in
     set_idx_mut a ((.(i).#a56) : (t56 array, _) idx_mut) next_el.#a56;
@@ -3019,8 +3167,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 268 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a56.#a0] *)
     let el = #{ el with a56 = #{ el.#a56 with a0 = next_el.#a56.#a0 } } in
     set_idx_mut a ((.(i).#a56.#a0) : (t56 array, _) idx_mut) next_el.#a56.#a0;
@@ -3056,8 +3206,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a57] *)
     let el = #{ el with a57 = next_el.#a57 } in
     set_idx_mut a ((.(i).#a57) : (t57 array, _) idx_mut) next_el.#a57;
@@ -3071,8 +3223,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 273 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a57.#a0] *)
     let el = #{ el with a57 = #{ el.#a57 with a0 = next_el.#a57.#a0 } } in
     set_idx_mut a ((.(i).#a57.#a0) : (t57 array, _) idx_mut) next_el.#a57.#a0;
@@ -3108,8 +3262,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a58] *)
     let el = #{ el with a58 = next_el.#a58 } in
     set_idx_mut a ((.(i).#a58) : (t58 array, _) idx_mut) next_el.#a58;
@@ -3123,8 +3279,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 278 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a58.#a0] *)
     let el = #{ el with a58 = #{ el.#a58 with a0 = next_el.#a58.#a0 } } in
     set_idx_mut a ((.(i).#a58.#a0) : (t58 array, _) idx_mut) next_el.#a58.#a0;
@@ -3160,8 +3318,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a59] *)
     let el = #{ el with a59 = next_el.#a59 } in
     set_idx_mut a ((.(i).#a59) : (t59 array, _) idx_mut) next_el.#a59;
@@ -3169,8 +3329,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 282 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a59.#a1] *)
     let el = #{ el with a59 = #{ el.#a59 with a1 = next_el.#a59.#a1 } } in
     set_idx_mut a ((.(i).#a59.#a1) : (t59 array, _) idx_mut) next_el.#a59.#a1;
@@ -3212,8 +3374,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a60] *)
     let el = #{ el with a60 = next_el.#a60 } in
     set_idx_mut a ((.(i).#a60) : (t60 array, _) idx_mut) next_el.#a60;
@@ -3227,8 +3391,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 288 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a60.#a1] *)
     let el = #{ el with a60 = #{ el.#a60 with a1 = next_el.#a60.#a1 } } in
     set_idx_mut a ((.(i).#a60.#a1) : (t60 array, _) idx_mut) next_el.#a60.#a1;
@@ -3270,8 +3436,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a61] *)
     let el = #{ el with a61 = next_el.#a61 } in
     set_idx_mut a ((.(i).#a61) : (t61 array, _) idx_mut) next_el.#a61;
@@ -3285,8 +3453,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 294 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a61.#a1] *)
     let el = #{ el with a61 = #{ el.#a61 with a1 = next_el.#a61.#a1 } } in
     set_idx_mut a ((.(i).#a61.#a1) : (t61 array, _) idx_mut) next_el.#a61.#a1;
@@ -3328,8 +3498,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a62] *)
     let el = #{ el with a62 = next_el.#a62 } in
     set_idx_mut a ((.(i).#a62) : (t62 array, _) idx_mut) next_el.#a62;
@@ -3343,8 +3515,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 300 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a62.#a1] *)
     let el = #{ el with a62 = #{ el.#a62 with a1 = next_el.#a62.#a1 } } in
     set_idx_mut a ((.(i).#a62.#a1) : (t62 array, _) idx_mut) next_el.#a62.#a1;
@@ -3386,8 +3560,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a63] *)
     let el = #{ el with a63 = next_el.#a63 } in
     set_idx_mut a ((.(i).#a63) : (t63 array, _) idx_mut) next_el.#a63;
@@ -3395,8 +3571,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 305 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a63.#a7] *)
     let el = #{ el with a63 = #{ el.#a63 with a7 = next_el.#a63.#a7 } } in
     set_idx_mut a ((.(i).#a63.#a7) : (t63 array, _) idx_mut) next_el.#a63.#a7;
@@ -3438,8 +3616,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a64] *)
     let el = #{ el with a64 = next_el.#a64 } in
     set_idx_mut a ((.(i).#a64) : (t64 array, _) idx_mut) next_el.#a64;
@@ -3453,8 +3633,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 311 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a64.#a7] *)
     let el = #{ el with a64 = #{ el.#a64 with a7 = next_el.#a64.#a7 } } in
     set_idx_mut a ((.(i).#a64.#a7) : (t64 array, _) idx_mut) next_el.#a64.#a7;
@@ -3496,8 +3678,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a65] *)
     let el = #{ el with a65 = next_el.#a65 } in
     set_idx_mut a ((.(i).#a65) : (t65 array, _) idx_mut) next_el.#a65;
@@ -3505,8 +3689,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 316 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a65.#a10] *)
     let el = #{ el with a65 = #{ el.#a65 with a10 = next_el.#a65.#a10 } } in
     set_idx_mut a ((.(i).#a65.#a10) : (t65 array, _) idx_mut) next_el.#a65.#a10;
@@ -3548,8 +3734,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a66] *)
     let el = #{ el with a66 = next_el.#a66 } in
     set_idx_mut a ((.(i).#a66) : (t66 array, _) idx_mut) next_el.#a66;
@@ -3563,8 +3751,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 322 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a66.#a10] *)
     let el = #{ el with a66 = #{ el.#a66 with a10 = next_el.#a66.#a10 } } in
     set_idx_mut a ((.(i).#a66.#a10) : (t66 array, _) idx_mut) next_el.#a66.#a10;
@@ -3606,8 +3796,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a67] *)
     let el = #{ el with a67 = next_el.#a67 } in
     set_idx_mut a ((.(i).#a67) : (t67 array, _) idx_mut) next_el.#a67;
@@ -3621,8 +3813,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 328 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a67.#a10] *)
     let el = #{ el with a67 = #{ el.#a67 with a10 = next_el.#a67.#a10 } } in
     set_idx_mut a ((.(i).#a67.#a10) : (t67 array, _) idx_mut) next_el.#a67.#a10;
@@ -3664,8 +3858,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a68] *)
     let el = #{ el with a68 = next_el.#a68 } in
     set_idx_mut a ((.(i).#a68) : (t68 array, _) idx_mut) next_el.#a68;
@@ -3673,8 +3869,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 333 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a68.#a17] *)
     let el = #{ el with a68 = #{ el.#a68 with a17 = next_el.#a68.#a17 } } in
     set_idx_mut a ((.(i).#a68.#a17) : (t68 array, _) idx_mut) next_el.#a68.#a17;
@@ -3710,8 +3908,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a69] *)
     let el = #{ el with a69 = next_el.#a69 } in
     set_idx_mut a ((.(i).#a69) : (t69 array, _) idx_mut) next_el.#a69;
@@ -3725,8 +3925,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 338 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a69.#a17] *)
     let el = #{ el with a69 = #{ el.#a69 with a17 = next_el.#a69.#a17 } } in
     set_idx_mut a ((.(i).#a69.#a17) : (t69 array, _) idx_mut) next_el.#a69.#a17;
@@ -3762,8 +3964,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a70] *)
     let el = #{ el with a70 = next_el.#a70 } in
     set_idx_mut a ((.(i).#a70) : (t70 array, _) idx_mut) next_el.#a70;
@@ -3771,8 +3975,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 342 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a70.#a19] *)
     let el = #{ el with a70 = #{ el.#a70 with a19 = next_el.#a70.#a19 } } in
     set_idx_mut a ((.(i).#a70.#a19) : (t70 array, _) idx_mut) next_el.#a70.#a19;
@@ -3814,8 +4020,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a71] *)
     let el = #{ el with a71 = next_el.#a71 } in
     set_idx_mut a ((.(i).#a71) : (t71 array, _) idx_mut) next_el.#a71;
@@ -3829,8 +4037,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 348 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a71.#a19] *)
     let el = #{ el with a71 = #{ el.#a71 with a19 = next_el.#a71.#a19 } } in
     set_idx_mut a ((.(i).#a71.#a19) : (t71 array, _) idx_mut) next_el.#a71.#a19;
@@ -3872,8 +4082,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a72] *)
     let el = #{ el with a72 = next_el.#a72 } in
     set_idx_mut a ((.(i).#a72) : (t72 array, _) idx_mut) next_el.#a72;
@@ -3887,8 +4099,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 354 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a72.#a21] *)
     let el = #{ el with a72 = #{ el.#a72 with a21 = next_el.#a72.#a21 } } in
     set_idx_mut a ((.(i).#a72.#a21) : (t72 array, _) idx_mut) next_el.#a72.#a21;
@@ -3924,8 +4138,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a73] *)
     let el = #{ el with a73 = next_el.#a73 } in
     set_idx_mut a ((.(i).#a73) : (t73 array, _) idx_mut) next_el.#a73;
@@ -3939,8 +4155,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 359 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a73.#a21] *)
     let el = #{ el with a73 = #{ el.#a73 with a21 = next_el.#a73.#a21 } } in
     set_idx_mut a ((.(i).#a73.#a21) : (t73 array, _) idx_mut) next_el.#a73.#a21;
@@ -3976,8 +4194,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a74] *)
     let el = #{ el with a74 = next_el.#a74 } in
     set_idx_mut a ((.(i).#a74) : (t74 array, _) idx_mut) next_el.#a74;
@@ -3985,8 +4205,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 363 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a74.#a23] *)
     let el = #{ el with a74 = #{ el.#a74 with a23 = next_el.#a74.#a23 } } in
     set_idx_mut a ((.(i).#a74.#a23) : (t74 array, _) idx_mut) next_el.#a74.#a23;
@@ -4028,8 +4250,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a75] *)
     let el = #{ el with a75 = next_el.#a75 } in
     set_idx_mut a ((.(i).#a75) : (t75 array, _) idx_mut) next_el.#a75;
@@ -4043,8 +4267,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 369 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a75.#a23] *)
     let el = #{ el with a75 = #{ el.#a75 with a23 = next_el.#a75.#a23 } } in
     set_idx_mut a ((.(i).#a75.#a23) : (t75 array, _) idx_mut) next_el.#a75.#a23;
@@ -4086,8 +4312,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a76] *)
     let el = #{ el with a76 = next_el.#a76 } in
     set_idx_mut a ((.(i).#a76) : (t76 array, _) idx_mut) next_el.#a76;
@@ -4101,8 +4329,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 375 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a76.#a23] *)
     let el = #{ el with a76 = #{ el.#a76 with a23 = next_el.#a76.#a23 } } in
     set_idx_mut a ((.(i).#a76.#a23) : (t76 array, _) idx_mut) next_el.#a76.#a23;
@@ -4144,8 +4374,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a77] *)
     let el = #{ el with a77 = next_el.#a77 } in
     set_idx_mut a ((.(i).#a77) : (t77 array, _) idx_mut) next_el.#a77;
@@ -4153,8 +4385,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 380 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a77.#a25] *)
     let el = #{ el with a77 = #{ el.#a77 with a25 = next_el.#a77.#a25 } } in
     set_idx_mut a ((.(i).#a77.#a25) : (t77 array, _) idx_mut) next_el.#a77.#a25;
@@ -4196,8 +4430,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a78] *)
     let el = #{ el with a78 = next_el.#a78 } in
     set_idx_mut a ((.(i).#a78) : (t78 array, _) idx_mut) next_el.#a78;
@@ -4211,8 +4447,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 386 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a78.#a25] *)
     let el = #{ el with a78 = #{ el.#a78 with a25 = next_el.#a78.#a25 } } in
     set_idx_mut a ((.(i).#a78.#a25) : (t78 array, _) idx_mut) next_el.#a78.#a25;
@@ -4254,8 +4492,10 @@ let test size =
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a79] *)
     let el = #{ el with a79 = next_el.#a79 } in
     set_idx_mut a ((.(i).#a79) : (t79 array, _) idx_mut) next_el.#a79;
@@ -4269,8 +4509,10 @@ let test size =
     let test = eq (get_idx_mut a (.(i))) el in
     if not test then failwithf "test 392 failed %d %d" size i;
     (* Paths of depth 2 *)
-    let el = get a i in
     let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
     (* Path: [.#a79.#a25] *)
     let el = #{ el with a79 = #{ el.#a79 with a25 = next_el.#a79.#a25 } } in
     set_idx_mut a ((.(i).#a79.#a25) : (t79 array, _) idx_mut) next_el.#a79.#a25;

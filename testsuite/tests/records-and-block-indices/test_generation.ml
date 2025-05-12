@@ -287,8 +287,13 @@ let test_array_idx_access ~local ty =
           then ()
           else (
             line "(* Paths of depth %d *)" depth;
-            line "let el = get a i in";
             line "let next_el = mk_value (i + 100 * %d) in" depth;
+            line
+              "(* We update [a.(i)] to become [next_el] by setting all paths \
+               of depth %d *)"
+              depth;
+            line "(* [el] is the reference value, updated with [with] *)";
+            line "let el = get a i in";
             List.iter unboxed_paths ~f:(fun unboxed_path ->
                 line "(* Path: [%s] *)" (Path.to_string unboxed_path);
                 let reference_update =
