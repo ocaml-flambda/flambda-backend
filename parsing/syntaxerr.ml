@@ -35,6 +35,7 @@ type error =
   | Removed_string_set of Location.t
   | Missing_unboxed_literal_suffix of Location.t
   | Malformed_instance_identifier of Location.t
+  | Block_access_bad_paren of Location.t
 
 exception Error of error
 exception Escape_error
@@ -51,6 +52,7 @@ let location_of_error = function
   | Removed_string_set l -> l
   | Missing_unboxed_literal_suffix l -> l
   | Malformed_instance_identifier l -> l
+  | Block_access_bad_paren l -> l
 
 
 let ill_formed_ast loc s =

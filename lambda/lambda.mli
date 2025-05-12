@@ -148,6 +148,14 @@ type primitive =
   | Punboxed_product_field of int * (layout list)
       (* the [layout list] is the layout of the whole product *)
   | Parray_element_size_in_bytes of array_kind
+  (* Block indices *)
+  | Pidx_field of int
+  | Pidx_mixed_field of mixed_block_shape * int * int list
+    (** The lone int is the index into the mixed_block_shape, the int list is the
+        path into that mixed_block_element *)
+  | Pidx_array of
+      array_kind * array_index_kind * unit mixed_block_element * int list
+  | Pidx_deepen of unit mixed_block_element * int list
   (* Context switches *)
   | Prunstack
   | Pperform
@@ -367,6 +375,8 @@ type primitive =
      handlers, finalizers, memprof callbacks, etc, as well as GCs and
      GC slices, so should not be moved or optimised away. *)
   | Ppoll
+  | Pget_idx of (layout * Asttypes.mutable_flag)
+  | Pset_idx of layout
 
 (** This is the same as [Primitive.native_repr] but with [Repr_poly]
     compiled away. *)
@@ -1188,6 +1198,14 @@ val mod_field: ?read_semantics: field_read_semantics -> int -> primitive
 val mod_setfield: int -> primitive
 
 val structured_constant_layout : structured_constant -> layout
+
+val mixed_block_element_of_layout : layout -> unit mixed_block_element
+
+val mixed_block_element_leaves
+  : 'a mixed_block_element -> 'a mixed_block_element list
+
+(** Whether these exists a non-value before a value *)
+val will_be_reordered : _ mixed_block_element -> bool
 
 val primitive_result_layout : primitive -> layout
 

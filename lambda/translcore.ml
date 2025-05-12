@@ -36,6 +36,8 @@ type error =
   | Void_sort of type_expr
   | Unboxed_vector_in_array_comprehension
   | Unboxed_product_in_array_comprehension
+  | Block_index_gap_overflow_possible
+  | Element_would_be_reordered_in_record
 
 exception Error of Location.t * error
 
@@ -841,6 +843,8 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       with Not_constant ->
         makearray lambda_arr_mut
       end
+  | Texp_idx (ba, uas) ->
+    transl_idx ~scopes e.exp_loc e.exp_env ba uas
   | Texp_list_comprehension comp ->
       let loc = of_location ~scopes e.exp_loc in
       Transl_list_comprehension.comprehension
@@ -2179,6 +2183,89 @@ and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
       let exp = transl_exp ~scopes init_expr_sort init_expr in
       Llet(Strict, layout, init_id, exp, lam)
 
+(* See [jane/doc/extensions/_02-unboxed-types/block-indices.md] *)
+and transl_idx ~scopes loc env ba uas =  (*  *)
+  let ua_to_pos (Uaccess_unboxed_field (_, lbl)) =
+    (* erase singleton unboxed products before lambda *)
+    if Array.length lbl.lbl_all == 1 then None else Some lbl.lbl_pos
+  in
+  let uas_path = List.filter_map ua_to_pos uas in
+  begin match ba with
+  | Baccess_block (_, idx) ->
+    let idx = transl_exp ~scopes Jkind.Sort.Const.for_idx idx in
+    begin match uas with
+    | [] -> idx
+    | Uaccess_unboxed_field (_, lbl) :: _ ->
+      (* Preserve the invariant that products have at least two elements *)
+      let base_sort =
+        if Int.equal (Array.length lbl.lbl_all) 1 then
+          lbl.lbl_sort
+        else
+          Jkind.Sort.Const.Product
+            (Array.to_list (Array.map (fun lbl -> lbl.lbl_sort) lbl.lbl_all))
+      in
+      let base_layout = layout env lbl.lbl_loc base_sort lbl.lbl_res in
+      let mbe = mixed_block_element_of_layout base_layout in
+      (* [uas_path] is a path into [mbe] *)
+      Lprim (Pidx_deepen (mbe, uas_path), [idx], (of_location ~scopes loc))
+    end
+  | Baccess_field (id, lbl) ->
+    check_record_field_sort id.loc lbl.lbl_sort;
+    begin match lbl.lbl_repres with
+    | Record_boxed _
+    | Record_float | Record_ufloat ->
+      (* Assert that all unboxed fields are of singleton records *)
+      List.iter
+        (fun (Uaccess_unboxed_field (_, l)) ->
+            if Array.length l.lbl_all <> 1 then
+              Misc.fatal_error "Texp_idx: non-singleton unboxed record field \
+                in non-mixed boxed record")
+        uas;
+      Lprim (Pidx_field lbl.lbl_pos, [], (of_location ~scopes loc))
+    | Record_inlined _ | Record_unboxed ->
+      Misc.fatal_error "Texp_idx: unexpected unboxed/inlined record"
+    | Record_mixed shape ->
+      let shape =
+        Lambda.transl_mixed_product_shape
+          ~get_value_kind:(fun _ -> Lambda.generic_value) shape
+      in
+      (* Check to make sure the gap never overflows.
+         See [jane/doc/extensions/_02-unboxed-types/block-indices.md]. *)
+      let cts =
+        Mixed_product_bytes_wrt_path.count_shape shape lbl.lbl_pos uas_path in
+      if Option.is_none
+          (Mixed_product_bytes_wrt_path.offset_and_gap cts) then
+        raise (Error (loc, Block_index_gap_overflow_possible));
+      Lprim (Pidx_mixed_field (shape, lbl.lbl_pos, uas_path), [],
+             (of_location ~scopes loc))
+    end
+  | Baccess_array { mut = _; index_kind; index; base_ty; elt_ty; elt_sort } ->
+    let index_sort, index_kind = match index_kind with
+      | Index_int ->
+        Jkind.Sort.Const.value, Ptagged_int_index
+      | Index_unboxed_int64 ->
+        Jkind.Sort.Const.bits64, Punboxed_int_index Unboxed_int64
+      | Index_unboxed_int32 ->
+        Jkind.Sort.Const.bits32, Punboxed_int_index Unboxed_int32
+      | Index_unboxed_nativeint ->
+        Jkind.Sort.Const.word, Punboxed_int_index Unboxed_nativeint
+    in
+    let index = transl_exp ~scopes index_sort index in
+    let elt_sort = Jkind.Sort.default_for_transl_and_get elt_sort in
+    let array_kind =
+      array_type_kind ~elt_sort:(Some elt_sort) env loc base_ty
+    in
+    let elt_layout = layout env loc elt_sort elt_ty in
+    let mbe = mixed_block_element_of_layout elt_layout in
+    (* CR layouts v8: remove this restriction once we stable sort (within) array
+       elements to place values before non-values, which will likely be done to
+       support striped arrays *)
+    if will_be_reordered mbe then
+      raise (Error (loc, Element_would_be_reordered_in_record));
+    Lprim (Pidx_array (array_kind, index_kind, mbe, uas_path), [index],
+           (of_location ~scopes loc))
+  end
+
 and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
   let return_layout = layout_exp return_sort e in
   let rewrite_case (val_cases, exn_cases, static_handlers as acc)
@@ -2465,7 +2552,16 @@ let report_error ppf = function
       fprintf ppf
         "Array comprehensions are not yet supported for arrays of unboxed \
          products."
-
+  | Block_index_gap_overflow_possible ->
+      (* This error message describes a more conservative rule than we actually
+         enforce, see [Lambda.Mixed_product_bytes_wrt_path] *)
+      fprintf ppf
+        "Block indices into records that contain both values and non-values,@ \
+         and occupy over 2^16 bytes, cannot be created."
+  | Element_would_be_reordered_in_record ->
+      fprintf ppf
+        "Block indices into arrays whose element layout contains a@ \
+         non-value before a value are not yet supported."
 let () =
   Location.register_error_of_exn
     (function
