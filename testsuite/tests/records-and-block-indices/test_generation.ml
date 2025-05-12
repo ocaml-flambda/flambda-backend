@@ -343,12 +343,14 @@ let test_array_idx_deepening ty =
   type_section ty;
   List.iter unboxed_paths_by_depth ~f:(fun (depth, unboxed_paths) ->
       List.iter unboxed_paths ~f:(fun unboxed_path ->
+          line "(* Deepening to (.(i)%s) *)" (Path.to_string unboxed_path);
           line "iter indices_in_deepening_tests ~f:(fun i ->";
           with_indent (fun () ->
               line "let unboxed_path : (%s, _) idx_mut = (.(i)%s) in" ty_array_s
                 (Path.to_string unboxed_path);
               for prefix_len = 0 to depth do
                 let prefix, suffix = take_n unboxed_path prefix_len in
+                line "(* from (.(i)%s) *)" (Path.to_string prefix);
                 line "let shallow : (%s, _) idx_mut = (.(i)%s) in" ty_array_s
                   (Path.to_string prefix);
                 line "let deepened = (.idx_mut(shallow)%s) in"
@@ -463,8 +465,57 @@ let test_record_idx_access ty ~local =
   )
 
 let test_record_idx_deepening ty =
-  (* CR rtjoa: implement *)
-  type_section ty
+  type_section ty;
+  let fields =
+    match ty with
+    | Record { name = _; fields; boxing = Boxed } -> fields
+    | _ -> invalid_arg "expected boxed record"
+  in
+  List.iter fields ~f:(fun (lbl, fld_t) ->
+      List.iter (Type.unboxed_paths_by_depth fld_t)
+        ~f:(fun (depth, unboxed_paths) ->
+          List.iter unboxed_paths ~f:(fun unboxed_path ->
+              let full_path = Path.Field lbl :: unboxed_path in
+              line "(* Deepening to (%s) *)" (Path.to_string full_path);
+              line "let idx : (%s, _) idx_mut = (%s) in" (Type.code ty)
+                (Path.to_string full_path);
+              line "iter indices_in_deepening_tests ~f:(fun i ->";
+              with_indent (fun () ->
+                  let debug_exprs = [{ expr = "i"; format_s = "%d" }] in
+                  for prefix_len = 0 to depth do
+                    let prefix, suffix = take_n unboxed_path prefix_len in
+                    let prefix = Path.Field lbl :: prefix in
+                    let from_flattened_float =
+                      Type_structure.is_flat_float_record (Type.structure ty)
+                      && Type_structure.layout
+                           (Type.structure (Type.follow_path ty prefix))
+                         = Value Float
+                    in
+                    if (not from_flattened_float) || suffix = []
+                    then (
+                      line "(* from (%s) *)" (Path.to_string prefix);
+                      line "let shallow : (%s, _) idx_mut = (%s) in"
+                        (Type.code ty) (Path.to_string prefix);
+                      line "let deepened = (.idx_mut(shallow)%s) in"
+                        (Path.to_string suffix);
+                      seq_assert ~debug_exprs
+                        "Idx_repr.equal (Idx_repr.of_idx_mut idx) \
+                         (Idx_repr.of_idx_mut deepened)"
+                    )
+                    else (
+                      line
+                        "(* Note: can't deepen (%s) because it's a path to a \
+                         flattened"
+                        (Path.to_string prefix);
+                      line "   float, making its element type [float#] *)"
+                    )
+                  done
+              );
+              line ");"
+          )
+      )
+  );
+  print_newline ()
 
 let test_record_size ty ~bytecode =
   type_section ty;
