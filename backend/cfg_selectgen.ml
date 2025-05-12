@@ -654,31 +654,28 @@ module Make (Target : Cfg_selectgen_target_intf.S) = struct
               | Maybe_out_of_range ->
                 Target.is_store_out_of_range chunk ~byte_offset:!byte_offset
             in
-            let _ =
-              match is_out_of_range with
-              | Within_range -> ()
-              | Out_of_range ->
-                (* Use a temporary to store the address [!base +
-                   !byte_offset]. *)
-                let tmp = Reg.createv Cmm.typ_int in
-                (* CR-someday xclerc: Now that this code in the "generic" part,
-                   it is maybe a bit unexpected to assume there is no better
-                   sequence to emit x += k. That being said, it is a corner
-                   case. *)
-                insert_debug env sub_cfg
-                  (Op (SU.make_const_int (Nativeint.of_int !byte_offset)))
-                  dbg [||] tmp;
-                (* The new base is a pointer into the middle of an ocaml
-                   value. *)
-                assert (!byte_offset > 0);
-                let new_base = Reg.createv Cmm.typ_addr in
-                insert_debug env sub_cfg (Op (Operation.Intop Iadd)) dbg
-                  (Array.append !base tmp) new_base;
-                (* Use the temporary as the new base address. *)
-                base := new_base;
-                byte_offset := 0;
-                addressing_mode := Arch.identity_addressing
+            let reset_addressing () =
+              (* Use a temporary to store the address [!base + !byte_offset]. *)
+              let tmp = Reg.createv Cmm.typ_int in
+              (* CR-someday xclerc: Now that this code in the "generic" part, it
+                 is maybe a bit unexpected to assume there is no better sequence
+                 to emit x += k. That being said, it is a corner case. *)
+              insert_debug env sub_cfg
+                (Op (SU.make_const_int (Nativeint.of_int !byte_offset)))
+                dbg [||] tmp;
+              (* The new base is a pointer into the middle of an ocaml value. *)
+              assert (!byte_offset > 0);
+              let new_base = Reg.createv Cmm.typ_addr in
+              insert_debug env sub_cfg (Op (Operation.Intop Iadd)) dbg
+                (Array.append !base tmp) new_base;
+              (* Use the temporary as the new base address. *)
+              base := new_base;
+              byte_offset := 0;
+              addressing_mode := Arch.identity_addressing
             in
+            (match is_out_of_range with
+            | Within_range -> ()
+            | Out_of_range -> reset_addressing ());
             insert_debug env sub_cfg
               (Op (Store (chunk, !addressing_mode, false)))
               dbg
