@@ -40,7 +40,7 @@ git diff --name-only "$feature_base" -z | while read -d $'\0' -r changed_file
 do
   # SKIP FILES
 
-  # Only check regular files that currently exists
+  # Only check regular files that currently exist
   [[ -f "$changed_file" ]] || continue
 
   # Only check ml, mli, and mly files for long lines
@@ -51,7 +51,7 @@ do
   [[ "$changed_file" == testsuite/tests/* ]] && continue
 
   # Bash doesn't allow for comments on multiline commands, so excuse the
-  # workaround of putting a groups of argument in a variable
+  # workaround of putting groups of argument in a variable
   f='--old-line-format= --unchanged-line-format= --new-line-format=%dn:%L'
   #  |^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ |^^^^^^^^^^^^^^^^^^^^^^^
   #  Don't print deleted or unchanged lines      Show added lines (%L),
