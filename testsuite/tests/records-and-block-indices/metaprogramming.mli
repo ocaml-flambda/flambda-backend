@@ -142,6 +142,8 @@ module Type : sig
 
   val follow_path : t -> Path.t -> t
 
+  val num_subvals_left_of_path : t -> Path.t -> int
+
   val compare : t -> t -> int
 
   val structure : t -> Type_structure.t

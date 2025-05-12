@@ -259,10 +259,10 @@ let () =
   (********************)
   (*   t0 = { int }   *)
   (********************)
-  let eq = (fun ({ a0 = a01 } : t0) ({ a0 = a02 } : t0) -> (fun a b -> Int.equal a b) a01 a02) in
-  let r = ({ a0 = 0 } : t0) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a0 = 100 } : t0) in
+  let eq = (fun { a0 = a01 } { a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) in
+  let r = { a0 = 0 } in
+  (* Paths of depth 1 *)
+  let next_r = { a0 = 100 } in
   (* .a0 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a0 = next_r.a0 } in
@@ -276,10 +276,10 @@ let () =
   (*************************)
   (*   t1 = { int; int }   *)
   (*************************)
-  let eq = (fun ({ a1 = a11; b1 = b11 } : t1) ({ a1 = a12; b1 = b12 } : t1) -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) in
-  let r = ({ a1 = 0; b1 = 1 } : t1) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a1 = 100; b1 = 101 } : t1) in
+  let eq = (fun { a1 = a11; b1 = b11 } { a1 = a12; b1 = b12 } -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) in
+  let r = { a1 = 0; b1 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a1 = 100; b1 = 101 } in
   (* .a1 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a1 = next_r.a1 } in
@@ -290,9 +290,9 @@ let () =
   mark_test_run 4;
   let test = sub_eq (get_idx_mut r ((.a1) : (t1, _) idx_mut)) next_r.a1 in
   if not test then failwithf "test 4 failed";
-  let r = ({ a1 = 0; b1 = 1 } : t1) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a1 = 100; b1 = 101 } : t1) in
+  let r = { a1 = 0; b1 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a1 = 100; b1 = 101 } in
   (* .b1 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b1 = next_r.b1 } in
@@ -306,10 +306,10 @@ let () =
   (******************************)
   (*   t2 = { int; int; int }   *)
   (******************************)
-  let eq = (fun ({ a2 = a21; b2 = b21; c2 = c21 } : t2) ({ a2 = a22; b2 = b22; c2 = c22 } : t2) -> (fun a b -> Int.equal a b) a21 a22 && (fun a b -> Int.equal a b) b21 b22 && (fun a b -> Int.equal a b) c21 c22) in
-  let r = ({ a2 = 0; b2 = 1; c2 = 2 } : t2) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a2 = 100; b2 = 101; c2 = 102 } : t2) in
+  let eq = (fun { a2 = a21; b2 = b21; c2 = c21 } { a2 = a22; b2 = b22; c2 = c22 } -> (fun a b -> Int.equal a b) a21 a22 && (fun a b -> Int.equal a b) b21 b22 && (fun a b -> Int.equal a b) c21 c22) in
+  let r = { a2 = 0; b2 = 1; c2 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a2 = 100; b2 = 101; c2 = 102 } in
   (* .a2 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a2 = next_r.a2 } in
@@ -320,9 +320,9 @@ let () =
   mark_test_run 8;
   let test = sub_eq (get_idx_mut r ((.a2) : (t2, _) idx_mut)) next_r.a2 in
   if not test then failwithf "test 8 failed";
-  let r = ({ a2 = 0; b2 = 1; c2 = 2 } : t2) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a2 = 100; b2 = 101; c2 = 102 } : t2) in
+  let r = { a2 = 0; b2 = 1; c2 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a2 = 100; b2 = 101; c2 = 102 } in
   (* .b2 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b2 = next_r.b2 } in
@@ -333,9 +333,9 @@ let () =
   mark_test_run 10;
   let test = sub_eq (get_idx_mut r ((.b2) : (t2, _) idx_mut)) next_r.b2 in
   if not test then failwithf "test 10 failed";
-  let r = ({ a2 = 0; b2 = 1; c2 = 2 } : t2) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a2 = 100; b2 = 101; c2 = 102 } : t2) in
+  let r = { a2 = 0; b2 = 1; c2 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a2 = 100; b2 = 101; c2 = 102 } in
   (* .c2 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with c2 = next_r.c2 } in
@@ -349,10 +349,10 @@ let () =
   (*********************************)
   (*   t3 = { int; int; int32# }   *)
   (*********************************)
-  let eq = (fun ({ a3 = a31; b3 = b31; c3 = c31 } : t3) ({ a3 = a32; b3 = b32; c3 = c32 } : t3) -> (fun a b -> Int.equal a b) a31 a32 && (fun a b -> Int.equal a b) b31 b32 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c31 c32) in
-  let r = ({ a3 = 0; b3 = 1; c3 = #2l } : t3) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a3 = 100; b3 = 101; c3 = #102l } : t3) in
+  let eq = (fun { a3 = a31; b3 = b31; c3 = c31 } { a3 = a32; b3 = b32; c3 = c32 } -> (fun a b -> Int.equal a b) a31 a32 && (fun a b -> Int.equal a b) b31 b32 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c31 c32) in
+  let r = { a3 = 0; b3 = 1; c3 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a3 = 100; b3 = 101; c3 = #102l } in
   (* .a3 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a3 = next_r.a3 } in
@@ -363,9 +363,9 @@ let () =
   mark_test_run 14;
   let test = sub_eq (get_idx_mut r ((.a3) : (t3, _) idx_mut)) next_r.a3 in
   if not test then failwithf "test 14 failed";
-  let r = ({ a3 = 0; b3 = 1; c3 = #2l } : t3) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a3 = 100; b3 = 101; c3 = #102l } : t3) in
+  let r = { a3 = 0; b3 = 1; c3 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a3 = 100; b3 = 101; c3 = #102l } in
   (* .b3 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b3 = next_r.b3 } in
@@ -376,9 +376,9 @@ let () =
   mark_test_run 16;
   let test = sub_eq (get_idx_mut r ((.b3) : (t3, _) idx_mut)) next_r.b3 in
   if not test then failwithf "test 16 failed";
-  let r = ({ a3 = 0; b3 = 1; c3 = #2l } : t3) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a3 = 100; b3 = 101; c3 = #102l } : t3) in
+  let r = { a3 = 0; b3 = 1; c3 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a3 = 100; b3 = 101; c3 = #102l } in
   (* .c3 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with c3 = next_r.c3 } in
@@ -392,10 +392,10 @@ let () =
   (********************************)
   (*   t4 = { int; int; float }   *)
   (********************************)
-  let eq = (fun ({ a4 = a41; b4 = b41; c4 = c41 } : t4) ({ a4 = a42; b4 = b42; c4 = c42 } : t4) -> (fun a b -> Int.equal a b) a41 a42 && (fun a b -> Int.equal a b) b41 b42 && (fun a b -> Float.equal (globalize a) (globalize b)) c41 c42) in
-  let r = ({ a4 = 0; b4 = 1; c4 = 2. } : t4) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a4 = 100; b4 = 101; c4 = 102. } : t4) in
+  let eq = (fun { a4 = a41; b4 = b41; c4 = c41 } { a4 = a42; b4 = b42; c4 = c42 } -> (fun a b -> Int.equal a b) a41 a42 && (fun a b -> Int.equal a b) b41 b42 && (fun a b -> Float.equal (globalize a) (globalize b)) c41 c42) in
+  let r = { a4 = 0; b4 = 1; c4 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a4 = 100; b4 = 101; c4 = 102. } in
   (* .a4 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a4 = next_r.a4 } in
@@ -406,9 +406,9 @@ let () =
   mark_test_run 20;
   let test = sub_eq (get_idx_mut r ((.a4) : (t4, _) idx_mut)) next_r.a4 in
   if not test then failwithf "test 20 failed";
-  let r = ({ a4 = 0; b4 = 1; c4 = 2. } : t4) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a4 = 100; b4 = 101; c4 = 102. } : t4) in
+  let r = { a4 = 0; b4 = 1; c4 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a4 = 100; b4 = 101; c4 = 102. } in
   (* .b4 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b4 = next_r.b4 } in
@@ -419,9 +419,9 @@ let () =
   mark_test_run 22;
   let test = sub_eq (get_idx_mut r ((.b4) : (t4, _) idx_mut)) next_r.b4 in
   if not test then failwithf "test 22 failed";
-  let r = ({ a4 = 0; b4 = 1; c4 = 2. } : t4) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a4 = 100; b4 = 101; c4 = 102. } : t4) in
+  let r = { a4 = 0; b4 = 1; c4 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a4 = 100; b4 = 101; c4 = 102. } in
   (* .c4 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with c4 = next_r.c4 } in
@@ -435,10 +435,10 @@ let () =
   (***************************)
   (*   t5 = { int; int64 }   *)
   (***************************)
-  let eq = (fun ({ a5 = a51; b5 = b51 } : t5) ({ a5 = a52; b5 = b52 } : t5) -> (fun a b -> Int.equal a b) a51 a52 && (fun a b -> Int64.equal (globalize a) (globalize b)) b51 b52) in
-  let r = ({ a5 = 0; b5 = 1L } : t5) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a5 = 100; b5 = 101L } : t5) in
+  let eq = (fun { a5 = a51; b5 = b51 } { a5 = a52; b5 = b52 } -> (fun a b -> Int.equal a b) a51 a52 && (fun a b -> Int64.equal (globalize a) (globalize b)) b51 b52) in
+  let r = { a5 = 0; b5 = 1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a5 = 100; b5 = 101L } in
   (* .a5 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a5 = next_r.a5 } in
@@ -449,9 +449,9 @@ let () =
   mark_test_run 26;
   let test = sub_eq (get_idx_mut r ((.a5) : (t5, _) idx_mut)) next_r.a5 in
   if not test then failwithf "test 26 failed";
-  let r = ({ a5 = 0; b5 = 1L } : t5) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a5 = 100; b5 = 101L } : t5) in
+  let r = { a5 = 0; b5 = 1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a5 = 100; b5 = 101L } in
   (* .b5 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with b5 = next_r.b5 } in
@@ -465,10 +465,10 @@ let () =
   (****************************)
   (*   t6 = { int; int64# }   *)
   (****************************)
-  let eq = (fun ({ a6 = a61; b6 = b61 } : t6) ({ a6 = a62; b6 = b62 } : t6) -> (fun a b -> Int.equal a b) a61 a62 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b61 b62) in
-  let r = ({ a6 = 0; b6 = #1L } : t6) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a6 = 100; b6 = #101L } : t6) in
+  let eq = (fun { a6 = a61; b6 = b61 } { a6 = a62; b6 = b62 } -> (fun a b -> Int.equal a b) a61 a62 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b61 b62) in
+  let r = { a6 = 0; b6 = #1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a6 = 100; b6 = #101L } in
   (* .a6 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a6 = next_r.a6 } in
@@ -479,9 +479,9 @@ let () =
   mark_test_run 30;
   let test = sub_eq (get_idx_mut r ((.a6) : (t6, _) idx_mut)) next_r.a6 in
   if not test then failwithf "test 30 failed";
-  let r = ({ a6 = 0; b6 = #1L } : t6) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a6 = 100; b6 = #101L } : t6) in
+  let r = { a6 = 0; b6 = #1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a6 = 100; b6 = #101L } in
   (* .b6 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with b6 = next_r.b6 } in
@@ -495,10 +495,10 @@ let () =
   (****************************)
   (*   t7 = { int; int32# }   *)
   (****************************)
-  let eq = (fun ({ a7 = a71; b7 = b71 } : t7) ({ a7 = a72; b7 = b72 } : t7) -> (fun a b -> Int.equal a b) a71 a72 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b71 b72) in
-  let r = ({ a7 = 0; b7 = #1l } : t7) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a7 = 100; b7 = #101l } : t7) in
+  let eq = (fun { a7 = a71; b7 = b71 } { a7 = a72; b7 = b72 } -> (fun a b -> Int.equal a b) a71 a72 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b71 b72) in
+  let r = { a7 = 0; b7 = #1l } in
+  (* Paths of depth 1 *)
+  let next_r = { a7 = 100; b7 = #101l } in
   (* .a7 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a7 = next_r.a7 } in
@@ -509,9 +509,9 @@ let () =
   mark_test_run 34;
   let test = sub_eq (get_idx_mut r ((.a7) : (t7, _) idx_mut)) next_r.a7 in
   if not test then failwithf "test 34 failed";
-  let r = ({ a7 = 0; b7 = #1l } : t7) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a7 = 100; b7 = #101l } : t7) in
+  let r = { a7 = 0; b7 = #1l } in
+  (* Paths of depth 1 *)
+  let next_r = { a7 = 100; b7 = #101l } in
   (* .b7 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b7 = next_r.b7 } in
@@ -525,10 +525,10 @@ let () =
   (*********************************)
   (*   t8 = { int; int32#; int }   *)
   (*********************************)
-  let eq = (fun ({ a8 = a81; b8 = b81; c8 = c81 } : t8) ({ a8 = a82; b8 = b82; c8 = c82 } : t8) -> (fun a b -> Int.equal a b) a81 a82 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b81 b82 && (fun a b -> Int.equal a b) c81 c82) in
-  let r = ({ a8 = 0; b8 = #1l; c8 = 2 } : t8) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a8 = 100; b8 = #101l; c8 = 102 } : t8) in
+  let eq = (fun { a8 = a81; b8 = b81; c8 = c81 } { a8 = a82; b8 = b82; c8 = c82 } -> (fun a b -> Int.equal a b) a81 a82 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b81 b82 && (fun a b -> Int.equal a b) c81 c82) in
+  let r = { a8 = 0; b8 = #1l; c8 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a8 = 100; b8 = #101l; c8 = 102 } in
   (* .a8 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a8 = next_r.a8 } in
@@ -539,9 +539,9 @@ let () =
   mark_test_run 38;
   let test = sub_eq (get_idx_mut r ((.a8) : (t8, _) idx_mut)) next_r.a8 in
   if not test then failwithf "test 38 failed";
-  let r = ({ a8 = 0; b8 = #1l; c8 = 2 } : t8) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a8 = 100; b8 = #101l; c8 = 102 } : t8) in
+  let r = { a8 = 0; b8 = #1l; c8 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a8 = 100; b8 = #101l; c8 = 102 } in
   (* .b8 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b8 = next_r.b8 } in
@@ -552,9 +552,9 @@ let () =
   mark_test_run 40;
   let test = sub_eq (get_idx_mut r ((.b8) : (t8, _) idx_mut)) next_r.b8 in
   if not test then failwithf "test 40 failed";
-  let r = ({ a8 = 0; b8 = #1l; c8 = 2 } : t8) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a8 = 100; b8 = #101l; c8 = 102 } : t8) in
+  let r = { a8 = 0; b8 = #1l; c8 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a8 = 100; b8 = #101l; c8 = 102 } in
   (* .c8 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with c8 = next_r.c8 } in
@@ -568,10 +568,10 @@ let () =
   (************************************)
   (*   t9 = { int; int32#; int32# }   *)
   (************************************)
-  let eq = (fun ({ a9 = a91; b9 = b91; c9 = c91 } : t9) ({ a9 = a92; b9 = b92; c9 = c92 } : t9) -> (fun a b -> Int.equal a b) a91 a92 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b91 b92 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c91 c92) in
-  let r = ({ a9 = 0; b9 = #1l; c9 = #2l } : t9) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a9 = 100; b9 = #101l; c9 = #102l } : t9) in
+  let eq = (fun { a9 = a91; b9 = b91; c9 = c91 } { a9 = a92; b9 = b92; c9 = c92 } -> (fun a b -> Int.equal a b) a91 a92 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b91 b92 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c91 c92) in
+  let r = { a9 = 0; b9 = #1l; c9 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a9 = 100; b9 = #101l; c9 = #102l } in
   (* .a9 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a9 = next_r.a9 } in
@@ -582,9 +582,9 @@ let () =
   mark_test_run 44;
   let test = sub_eq (get_idx_mut r ((.a9) : (t9, _) idx_mut)) next_r.a9 in
   if not test then failwithf "test 44 failed";
-  let r = ({ a9 = 0; b9 = #1l; c9 = #2l } : t9) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a9 = 100; b9 = #101l; c9 = #102l } : t9) in
+  let r = { a9 = 0; b9 = #1l; c9 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a9 = 100; b9 = #101l; c9 = #102l } in
   (* .b9 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b9 = next_r.b9 } in
@@ -595,9 +595,9 @@ let () =
   mark_test_run 46;
   let test = sub_eq (get_idx_mut r ((.b9) : (t9, _) idx_mut)) next_r.b9 in
   if not test then failwithf "test 46 failed";
-  let r = ({ a9 = 0; b9 = #1l; c9 = #2l } : t9) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a9 = 100; b9 = #101l; c9 = #102l } : t9) in
+  let r = { a9 = 0; b9 = #1l; c9 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a9 = 100; b9 = #101l; c9 = #102l } in
   (* .c9 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with c9 = next_r.c9 } in
@@ -611,10 +611,10 @@ let () =
   (*********************************)
   (*   t10 = { int; nativeint# }   *)
   (*********************************)
-  let eq = (fun ({ a10 = a101; b10 = b101 } : t10) ({ a10 = a102; b10 = b102 } : t10) -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b101 b102) in
-  let r = ({ a10 = 0; b10 = #1n } : t10) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a10 = 100; b10 = #101n } : t10) in
+  let eq = (fun { a10 = a101; b10 = b101 } { a10 = a102; b10 = b102 } -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b101 b102) in
+  let r = { a10 = 0; b10 = #1n } in
+  (* Paths of depth 1 *)
+  let next_r = { a10 = 100; b10 = #101n } in
   (* .a10 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a10 = next_r.a10 } in
@@ -625,9 +625,9 @@ let () =
   mark_test_run 50;
   let test = sub_eq (get_idx_mut r ((.a10) : (t10, _) idx_mut)) next_r.a10 in
   if not test then failwithf "test 50 failed";
-  let r = ({ a10 = 0; b10 = #1n } : t10) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a10 = 100; b10 = #101n } : t10) in
+  let r = { a10 = 0; b10 = #1n } in
+  (* Paths of depth 1 *)
+  let next_r = { a10 = 100; b10 = #101n } in
   (* .b10 *)
   let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with b10 = next_r.b10 } in
@@ -641,10 +641,10 @@ let () =
   (****************************)
   (*   t11 = { int; float }   *)
   (****************************)
-  let eq = (fun ({ a11 = a111; b11 = b111 } : t11) ({ a11 = a112; b11 = b112 } : t11) -> (fun a b -> Int.equal a b) a111 a112 && (fun a b -> Float.equal (globalize a) (globalize b)) b111 b112) in
-  let r = ({ a11 = 0; b11 = 1. } : t11) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a11 = 100; b11 = 101. } : t11) in
+  let eq = (fun { a11 = a111; b11 = b111 } { a11 = a112; b11 = b112 } -> (fun a b -> Int.equal a b) a111 a112 && (fun a b -> Float.equal (globalize a) (globalize b)) b111 b112) in
+  let r = { a11 = 0; b11 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a11 = 100; b11 = 101. } in
   (* .a11 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a11 = next_r.a11 } in
@@ -655,9 +655,9 @@ let () =
   mark_test_run 54;
   let test = sub_eq (get_idx_mut r ((.a11) : (t11, _) idx_mut)) next_r.a11 in
   if not test then failwithf "test 54 failed";
-  let r = ({ a11 = 0; b11 = 1. } : t11) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a11 = 100; b11 = 101. } : t11) in
+  let r = { a11 = 0; b11 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a11 = 100; b11 = 101. } in
   (* .b11 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b11 = next_r.b11 } in
@@ -671,10 +671,10 @@ let () =
   (*********************************)
   (*   t12 = { int; float; int }   *)
   (*********************************)
-  let eq = (fun ({ a12 = a121; b12 = b121; c12 = c121 } : t12) ({ a12 = a122; b12 = b122; c12 = c122 } : t12) -> (fun a b -> Int.equal a b) a121 a122 && (fun a b -> Float.equal (globalize a) (globalize b)) b121 b122 && (fun a b -> Int.equal a b) c121 c122) in
-  let r = ({ a12 = 0; b12 = 1.; c12 = 2 } : t12) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a12 = 100; b12 = 101.; c12 = 102 } : t12) in
+  let eq = (fun { a12 = a121; b12 = b121; c12 = c121 } { a12 = a122; b12 = b122; c12 = c122 } -> (fun a b -> Int.equal a b) a121 a122 && (fun a b -> Float.equal (globalize a) (globalize b)) b121 b122 && (fun a b -> Int.equal a b) c121 c122) in
+  let r = { a12 = 0; b12 = 1.; c12 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a12 = 100; b12 = 101.; c12 = 102 } in
   (* .a12 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a12 = next_r.a12 } in
@@ -685,9 +685,9 @@ let () =
   mark_test_run 58;
   let test = sub_eq (get_idx_mut r ((.a12) : (t12, _) idx_mut)) next_r.a12 in
   if not test then failwithf "test 58 failed";
-  let r = ({ a12 = 0; b12 = 1.; c12 = 2 } : t12) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a12 = 100; b12 = 101.; c12 = 102 } : t12) in
+  let r = { a12 = 0; b12 = 1.; c12 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a12 = 100; b12 = 101.; c12 = 102 } in
   (* .b12 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b12 = next_r.b12 } in
@@ -698,9 +698,9 @@ let () =
   mark_test_run 60;
   let test = sub_eq (get_idx_mut r ((.b12) : (t12, _) idx_mut)) next_r.b12 in
   if not test then failwithf "test 60 failed";
-  let r = ({ a12 = 0; b12 = 1.; c12 = 2 } : t12) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a12 = 100; b12 = 101.; c12 = 102 } : t12) in
+  let r = { a12 = 0; b12 = 1.; c12 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a12 = 100; b12 = 101.; c12 = 102 } in
   (* .c12 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with c12 = next_r.c12 } in
@@ -714,10 +714,10 @@ let () =
   (***********************************)
   (*   t13 = { int; float; float }   *)
   (***********************************)
-  let eq = (fun ({ a13 = a131; b13 = b131; c13 = c131 } : t13) ({ a13 = a132; b13 = b132; c13 = c132 } : t13) -> (fun a b -> Int.equal a b) a131 a132 && (fun a b -> Float.equal (globalize a) (globalize b)) b131 b132 && (fun a b -> Float.equal (globalize a) (globalize b)) c131 c132) in
-  let r = ({ a13 = 0; b13 = 1.; c13 = 2. } : t13) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a13 = 100; b13 = 101.; c13 = 102. } : t13) in
+  let eq = (fun { a13 = a131; b13 = b131; c13 = c131 } { a13 = a132; b13 = b132; c13 = c132 } -> (fun a b -> Int.equal a b) a131 a132 && (fun a b -> Float.equal (globalize a) (globalize b)) b131 b132 && (fun a b -> Float.equal (globalize a) (globalize b)) c131 c132) in
+  let r = { a13 = 0; b13 = 1.; c13 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a13 = 100; b13 = 101.; c13 = 102. } in
   (* .a13 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a13 = next_r.a13 } in
@@ -728,9 +728,9 @@ let () =
   mark_test_run 64;
   let test = sub_eq (get_idx_mut r ((.a13) : (t13, _) idx_mut)) next_r.a13 in
   if not test then failwithf "test 64 failed";
-  let r = ({ a13 = 0; b13 = 1.; c13 = 2. } : t13) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a13 = 100; b13 = 101.; c13 = 102. } : t13) in
+  let r = { a13 = 0; b13 = 1.; c13 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a13 = 100; b13 = 101.; c13 = 102. } in
   (* .b13 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b13 = next_r.b13 } in
@@ -741,9 +741,9 @@ let () =
   mark_test_run 66;
   let test = sub_eq (get_idx_mut r ((.b13) : (t13, _) idx_mut)) next_r.b13 in
   if not test then failwithf "test 66 failed";
-  let r = ({ a13 = 0; b13 = 1.; c13 = 2. } : t13) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a13 = 100; b13 = 101.; c13 = 102. } : t13) in
+  let r = { a13 = 0; b13 = 1.; c13 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a13 = 100; b13 = 101.; c13 = 102. } in
   (* .c13 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with c13 = next_r.c13 } in
@@ -757,10 +757,10 @@ let () =
   (*******************************)
   (*   t15 = { int; #{ int } }   *)
   (*******************************)
-  let eq = (fun ({ a15 = a151; b15 = b151 } : t15) ({ a15 = a152; b15 = b152 } : t15) -> (fun a b -> Int.equal a b) a151 a152 && (fun (#{ a14 = a141 } : t14) (#{ a14 = a142 } : t14) -> (fun a b -> Int.equal a b) a141 a142) b151 b152) in
-  let r = ({ a15 = 0; b15 = (#{ a14 = 1 } : t14) } : t15) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a15 = 100; b15 = (#{ a14 = 101 } : t14) } : t15) in
+  let eq = (fun { a15 = a151; b15 = b151 } { a15 = a152; b15 = b152 } -> (fun a b -> Int.equal a b) a151 a152 && (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) b151 b152) in
+  let r = { a15 = 0; b15 = #{ a14 = 1 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a15 = 100; b15 = #{ a14 = 101 } } in
   (* .a15 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a15 = next_r.a15 } in
@@ -771,11 +771,11 @@ let () =
   mark_test_run 70;
   let test = sub_eq (get_idx_mut r ((.a15) : (t15, _) idx_mut)) next_r.a15 in
   if not test then failwithf "test 70 failed";
-  let r = ({ a15 = 0; b15 = (#{ a14 = 1 } : t14) } : t15) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a15 = 100; b15 = (#{ a14 = 101 } : t14) } : t15) in
+  let r = { a15 = 0; b15 = #{ a14 = 1 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a15 = 100; b15 = #{ a14 = 101 } } in
   (* .b15 *)
-  let sub_eq = (fun (#{ a14 = a141 } : t14) (#{ a14 = a142 } : t14) -> (fun a b -> Int.equal a b) a141 a142) in
+  let sub_eq = (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) in
   let expected = { r with b15 = next_r.b15 } in
   set_idx_mut r ((.b15) : (t15, _) idx_mut) next_r.b15;
   mark_test_run 71;
@@ -784,8 +784,8 @@ let () =
   mark_test_run 72;
   let test = sub_eq (get_idx_mut r ((.b15) : (t15, _) idx_mut)) next_r.b15 in
   if not test then failwithf "test 72 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a15 = 200; b15 = (#{ a14 = 201 } : t14) } : t15) in
+  (* Paths of depth 2 *)
+  let next_r = { a15 = 200; b15 = #{ a14 = 201 } } in
   (* .b15.#a14 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b15 = #{ r.b15 with a14 = next_r.b15.#a14 } } in
@@ -799,10 +799,10 @@ let () =
   (************************************)
   (*   t17 = { int; #{ int; int } }   *)
   (************************************)
-  let eq = (fun ({ a17 = a171; b17 = b171 } : t17) ({ a17 = a172; b17 = b172 } : t17) -> (fun a b -> Int.equal a b) a171 a172 && (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) b171 b172) in
-  let r = ({ a17 = 0; b17 = (#{ a16 = 1; b16 = 2 } : t16) } : t17) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a17 = 100; b17 = (#{ a16 = 101; b16 = 102 } : t16) } : t17) in
+  let eq = (fun { a17 = a171; b17 = b171 } { a17 = a172; b17 = b172 } -> (fun a b -> Int.equal a b) a171 a172 && (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) b171 b172) in
+  let r = { a17 = 0; b17 = #{ a16 = 1; b16 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a17 = 100; b17 = #{ a16 = 101; b16 = 102 } } in
   (* .a17 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a17 = next_r.a17 } in
@@ -813,11 +813,11 @@ let () =
   mark_test_run 76;
   let test = sub_eq (get_idx_mut r ((.a17) : (t17, _) idx_mut)) next_r.a17 in
   if not test then failwithf "test 76 failed";
-  let r = ({ a17 = 0; b17 = (#{ a16 = 1; b16 = 2 } : t16) } : t17) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a17 = 100; b17 = (#{ a16 = 101; b16 = 102 } : t16) } : t17) in
+  let r = { a17 = 0; b17 = #{ a16 = 1; b16 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a17 = 100; b17 = #{ a16 = 101; b16 = 102 } } in
   (* .b17 *)
-  let sub_eq = (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) in
+  let sub_eq = (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) in
   let expected = { r with b17 = next_r.b17 } in
   set_idx_mut r ((.b17) : (t17, _) idx_mut) next_r.b17;
   mark_test_run 77;
@@ -826,8 +826,8 @@ let () =
   mark_test_run 78;
   let test = sub_eq (get_idx_mut r ((.b17) : (t17, _) idx_mut)) next_r.b17 in
   if not test then failwithf "test 78 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a17 = 200; b17 = (#{ a16 = 201; b16 = 202 } : t16) } : t17) in
+  (* Paths of depth 2 *)
+  let next_r = { a17 = 200; b17 = #{ a16 = 201; b16 = 202 } } in
   (* .b17.#a16 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b17 = #{ r.b17 with a16 = next_r.b17.#a16 } } in
@@ -851,10 +851,10 @@ let () =
   (***************************************)
   (*   t19 = { int; #{ int; int32# } }   *)
   (***************************************)
-  let eq = (fun ({ a19 = a191; b19 = b191 } : t19) ({ a19 = a192; b19 = b192 } : t19) -> (fun a b -> Int.equal a b) a191 a192 && (fun (#{ a18 = a181; b18 = b181 } : t18) (#{ a18 = a182; b18 = b182 } : t18) -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) b191 b192) in
-  let r = ({ a19 = 0; b19 = (#{ a18 = 1; b18 = #2l } : t18) } : t19) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a19 = 100; b19 = (#{ a18 = 101; b18 = #102l } : t18) } : t19) in
+  let eq = (fun { a19 = a191; b19 = b191 } { a19 = a192; b19 = b192 } -> (fun a b -> Int.equal a b) a191 a192 && (fun #{ a18 = a181; b18 = b181 } #{ a18 = a182; b18 = b182 } -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) b191 b192) in
+  let r = { a19 = 0; b19 = #{ a18 = 1; b18 = #2l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a19 = 100; b19 = #{ a18 = 101; b18 = #102l } } in
   (* .a19 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a19 = next_r.a19 } in
@@ -865,11 +865,11 @@ let () =
   mark_test_run 84;
   let test = sub_eq (get_idx_mut r ((.a19) : (t19, _) idx_mut)) next_r.a19 in
   if not test then failwithf "test 84 failed";
-  let r = ({ a19 = 0; b19 = (#{ a18 = 1; b18 = #2l } : t18) } : t19) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a19 = 100; b19 = (#{ a18 = 101; b18 = #102l } : t18) } : t19) in
+  let r = { a19 = 0; b19 = #{ a18 = 1; b18 = #2l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a19 = 100; b19 = #{ a18 = 101; b18 = #102l } } in
   (* .b19 *)
-  let sub_eq = (fun (#{ a18 = a181; b18 = b181 } : t18) (#{ a18 = a182; b18 = b182 } : t18) -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) in
+  let sub_eq = (fun #{ a18 = a181; b18 = b181 } #{ a18 = a182; b18 = b182 } -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) in
   let expected = { r with b19 = next_r.b19 } in
   set_idx_mut r ((.b19) : (t19, _) idx_mut) next_r.b19;
   mark_test_run 85;
@@ -878,8 +878,8 @@ let () =
   mark_test_run 86;
   let test = sub_eq (get_idx_mut r ((.b19) : (t19, _) idx_mut)) next_r.b19 in
   if not test then failwithf "test 86 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a19 = 200; b19 = (#{ a18 = 201; b18 = #202l } : t18) } : t19) in
+  (* Paths of depth 2 *)
+  let next_r = { a19 = 200; b19 = #{ a18 = 201; b18 = #202l } } in
   (* .b19.#a18 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b19 = #{ r.b19 with a18 = next_r.b19.#a18 } } in
@@ -903,10 +903,10 @@ let () =
   (**************************************)
   (*   t21 = { int; #{ int; float } }   *)
   (**************************************)
-  let eq = (fun ({ a21 = a211; b21 = b211 } : t21) ({ a21 = a212; b21 = b212 } : t21) -> (fun a b -> Int.equal a b) a211 a212 && (fun (#{ a20 = a201; b20 = b201 } : t20) (#{ a20 = a202; b20 = b202 } : t20) -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) b211 b212) in
-  let r = ({ a21 = 0; b21 = (#{ a20 = 1; b20 = 2. } : t20) } : t21) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a21 = 100; b21 = (#{ a20 = 101; b20 = 102. } : t20) } : t21) in
+  let eq = (fun { a21 = a211; b21 = b211 } { a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) b211 b212) in
+  let r = { a21 = 0; b21 = #{ a20 = 1; b20 = 2. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a21 = 100; b21 = #{ a20 = 101; b20 = 102. } } in
   (* .a21 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a21 = next_r.a21 } in
@@ -917,11 +917,11 @@ let () =
   mark_test_run 92;
   let test = sub_eq (get_idx_mut r ((.a21) : (t21, _) idx_mut)) next_r.a21 in
   if not test then failwithf "test 92 failed";
-  let r = ({ a21 = 0; b21 = (#{ a20 = 1; b20 = 2. } : t20) } : t21) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a21 = 100; b21 = (#{ a20 = 101; b20 = 102. } : t20) } : t21) in
+  let r = { a21 = 0; b21 = #{ a20 = 1; b20 = 2. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a21 = 100; b21 = #{ a20 = 101; b20 = 102. } } in
   (* .b21 *)
-  let sub_eq = (fun (#{ a20 = a201; b20 = b201 } : t20) (#{ a20 = a202; b20 = b202 } : t20) -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) in
+  let sub_eq = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) in
   let expected = { r with b21 = next_r.b21 } in
   set_idx_mut r ((.b21) : (t21, _) idx_mut) next_r.b21;
   mark_test_run 93;
@@ -930,8 +930,8 @@ let () =
   mark_test_run 94;
   let test = sub_eq (get_idx_mut r ((.b21) : (t21, _) idx_mut)) next_r.b21 in
   if not test then failwithf "test 94 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a21 = 200; b21 = (#{ a20 = 201; b20 = 202. } : t20) } : t21) in
+  (* Paths of depth 2 *)
+  let next_r = { a21 = 200; b21 = #{ a20 = 201; b20 = 202. } } in
   (* .b21.#a20 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b21 = #{ r.b21 with a20 = next_r.b21.#a20 } } in
@@ -955,10 +955,10 @@ let () =
   (**********************************)
   (*   t23 = { int; #{ int32# } }   *)
   (**********************************)
-  let eq = (fun ({ a23 = a231; b23 = b231 } : t23) ({ a23 = a232; b23 = b232 } : t23) -> (fun a b -> Int.equal a b) a231 a232 && (fun (#{ a22 = a221 } : t22) (#{ a22 = a222 } : t22) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) b231 b232) in
-  let r = ({ a23 = 0; b23 = (#{ a22 = #1l } : t22) } : t23) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a23 = 100; b23 = (#{ a22 = #101l } : t22) } : t23) in
+  let eq = (fun { a23 = a231; b23 = b231 } { a23 = a232; b23 = b232 } -> (fun a b -> Int.equal a b) a231 a232 && (fun #{ a22 = a221 } #{ a22 = a222 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) b231 b232) in
+  let r = { a23 = 0; b23 = #{ a22 = #1l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a23 = 100; b23 = #{ a22 = #101l } } in
   (* .a23 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a23 = next_r.a23 } in
@@ -969,11 +969,11 @@ let () =
   mark_test_run 100;
   let test = sub_eq (get_idx_mut r ((.a23) : (t23, _) idx_mut)) next_r.a23 in
   if not test then failwithf "test 100 failed";
-  let r = ({ a23 = 0; b23 = (#{ a22 = #1l } : t22) } : t23) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a23 = 100; b23 = (#{ a22 = #101l } : t22) } : t23) in
+  let r = { a23 = 0; b23 = #{ a22 = #1l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a23 = 100; b23 = #{ a22 = #101l } } in
   (* .b23 *)
-  let sub_eq = (fun (#{ a22 = a221 } : t22) (#{ a22 = a222 } : t22) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) in
+  let sub_eq = (fun #{ a22 = a221 } #{ a22 = a222 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) in
   let expected = { r with b23 = next_r.b23 } in
   set_idx_mut r ((.b23) : (t23, _) idx_mut) next_r.b23;
   mark_test_run 101;
@@ -982,8 +982,8 @@ let () =
   mark_test_run 102;
   let test = sub_eq (get_idx_mut r ((.b23) : (t23, _) idx_mut)) next_r.b23 in
   if not test then failwithf "test 102 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a23 = 200; b23 = (#{ a22 = #201l } : t22) } : t23) in
+  (* Paths of depth 2 *)
+  let next_r = { a23 = 200; b23 = #{ a22 = #201l } } in
   (* .b23.#a22 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b23 = #{ r.b23 with a22 = next_r.b23.#a22 } } in
@@ -997,10 +997,10 @@ let () =
   (***************************************)
   (*   t25 = { int; #{ int32#; int } }   *)
   (***************************************)
-  let eq = (fun ({ a25 = a251; b25 = b251 } : t25) ({ a25 = a252; b25 = b252 } : t25) -> (fun a b -> Int.equal a b) a251 a252 && (fun (#{ a24 = a241; b24 = b241 } : t24) (#{ a24 = a242; b24 = b242 } : t24) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) b251 b252) in
-  let r = ({ a25 = 0; b25 = (#{ a24 = #1l; b24 = 2 } : t24) } : t25) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a25 = 100; b25 = (#{ a24 = #101l; b24 = 102 } : t24) } : t25) in
+  let eq = (fun { a25 = a251; b25 = b251 } { a25 = a252; b25 = b252 } -> (fun a b -> Int.equal a b) a251 a252 && (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) b251 b252) in
+  let r = { a25 = 0; b25 = #{ a24 = #1l; b24 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a25 = 100; b25 = #{ a24 = #101l; b24 = 102 } } in
   (* .a25 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a25 = next_r.a25 } in
@@ -1011,11 +1011,11 @@ let () =
   mark_test_run 106;
   let test = sub_eq (get_idx_mut r ((.a25) : (t25, _) idx_mut)) next_r.a25 in
   if not test then failwithf "test 106 failed";
-  let r = ({ a25 = 0; b25 = (#{ a24 = #1l; b24 = 2 } : t24) } : t25) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a25 = 100; b25 = (#{ a24 = #101l; b24 = 102 } : t24) } : t25) in
+  let r = { a25 = 0; b25 = #{ a24 = #1l; b24 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a25 = 100; b25 = #{ a24 = #101l; b24 = 102 } } in
   (* .b25 *)
-  let sub_eq = (fun (#{ a24 = a241; b24 = b241 } : t24) (#{ a24 = a242; b24 = b242 } : t24) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) in
+  let sub_eq = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) in
   let expected = { r with b25 = next_r.b25 } in
   set_idx_mut r ((.b25) : (t25, _) idx_mut) next_r.b25;
   mark_test_run 107;
@@ -1024,8 +1024,8 @@ let () =
   mark_test_run 108;
   let test = sub_eq (get_idx_mut r ((.b25) : (t25, _) idx_mut)) next_r.b25 in
   if not test then failwithf "test 108 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a25 = 200; b25 = (#{ a24 = #201l; b24 = 202 } : t24) } : t25) in
+  (* Paths of depth 2 *)
+  let next_r = { a25 = 200; b25 = #{ a24 = #201l; b24 = 202 } } in
   (* .b25.#a24 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b25 = #{ r.b25 with a24 = next_r.b25.#a24 } } in
@@ -1049,10 +1049,10 @@ let () =
   (******************************************)
   (*   t27 = { int; #{ int32#; int32# } }   *)
   (******************************************)
-  let eq = (fun ({ a27 = a271; b27 = b271 } : t27) ({ a27 = a272; b27 = b272 } : t27) -> (fun a b -> Int.equal a b) a271 a272 && (fun (#{ a26 = a261; b26 = b261 } : t26) (#{ a26 = a262; b26 = b262 } : t26) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) b271 b272) in
-  let r = ({ a27 = 0; b27 = (#{ a26 = #1l; b26 = #2l } : t26) } : t27) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a27 = 100; b27 = (#{ a26 = #101l; b26 = #102l } : t26) } : t27) in
+  let eq = (fun { a27 = a271; b27 = b271 } { a27 = a272; b27 = b272 } -> (fun a b -> Int.equal a b) a271 a272 && (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) b271 b272) in
+  let r = { a27 = 0; b27 = #{ a26 = #1l; b26 = #2l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a27 = 100; b27 = #{ a26 = #101l; b26 = #102l } } in
   (* .a27 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a27 = next_r.a27 } in
@@ -1063,11 +1063,11 @@ let () =
   mark_test_run 114;
   let test = sub_eq (get_idx_mut r ((.a27) : (t27, _) idx_mut)) next_r.a27 in
   if not test then failwithf "test 114 failed";
-  let r = ({ a27 = 0; b27 = (#{ a26 = #1l; b26 = #2l } : t26) } : t27) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a27 = 100; b27 = (#{ a26 = #101l; b26 = #102l } : t26) } : t27) in
+  let r = { a27 = 0; b27 = #{ a26 = #1l; b26 = #2l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a27 = 100; b27 = #{ a26 = #101l; b26 = #102l } } in
   (* .b27 *)
-  let sub_eq = (fun (#{ a26 = a261; b26 = b261 } : t26) (#{ a26 = a262; b26 = b262 } : t26) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) in
+  let sub_eq = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) in
   let expected = { r with b27 = next_r.b27 } in
   set_idx_mut r ((.b27) : (t27, _) idx_mut) next_r.b27;
   mark_test_run 115;
@@ -1076,8 +1076,8 @@ let () =
   mark_test_run 116;
   let test = sub_eq (get_idx_mut r ((.b27) : (t27, _) idx_mut)) next_r.b27 in
   if not test then failwithf "test 116 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a27 = 200; b27 = (#{ a26 = #201l; b26 = #202l } : t26) } : t27) in
+  (* Paths of depth 2 *)
+  let next_r = { a27 = 200; b27 = #{ a26 = #201l; b26 = #202l } } in
   (* .b27.#a26 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b27 = #{ r.b27 with a26 = next_r.b27.#a26 } } in
@@ -1101,10 +1101,10 @@ let () =
   (*********************************)
   (*   t29 = { int; #{ float } }   *)
   (*********************************)
-  let eq = (fun ({ a29 = a291; b29 = b291 } : t29) ({ a29 = a292; b29 = b292 } : t29) -> (fun a b -> Int.equal a b) a291 a292 && (fun (#{ a28 = a281 } : t28) (#{ a28 = a282 } : t28) -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) b291 b292) in
-  let r = ({ a29 = 0; b29 = (#{ a28 = 1. } : t28) } : t29) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a29 = 100; b29 = (#{ a28 = 101. } : t28) } : t29) in
+  let eq = (fun { a29 = a291; b29 = b291 } { a29 = a292; b29 = b292 } -> (fun a b -> Int.equal a b) a291 a292 && (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) b291 b292) in
+  let r = { a29 = 0; b29 = #{ a28 = 1. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a29 = 100; b29 = #{ a28 = 101. } } in
   (* .a29 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a29 = next_r.a29 } in
@@ -1115,11 +1115,11 @@ let () =
   mark_test_run 122;
   let test = sub_eq (get_idx_mut r ((.a29) : (t29, _) idx_mut)) next_r.a29 in
   if not test then failwithf "test 122 failed";
-  let r = ({ a29 = 0; b29 = (#{ a28 = 1. } : t28) } : t29) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a29 = 100; b29 = (#{ a28 = 101. } : t28) } : t29) in
+  let r = { a29 = 0; b29 = #{ a28 = 1. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a29 = 100; b29 = #{ a28 = 101. } } in
   (* .b29 *)
-  let sub_eq = (fun (#{ a28 = a281 } : t28) (#{ a28 = a282 } : t28) -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) in
+  let sub_eq = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) in
   let expected = { r with b29 = next_r.b29 } in
   set_idx_mut r ((.b29) : (t29, _) idx_mut) next_r.b29;
   mark_test_run 123;
@@ -1128,8 +1128,8 @@ let () =
   mark_test_run 124;
   let test = sub_eq (get_idx_mut r ((.b29) : (t29, _) idx_mut)) next_r.b29 in
   if not test then failwithf "test 124 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a29 = 200; b29 = (#{ a28 = 201. } : t28) } : t29) in
+  (* Paths of depth 2 *)
+  let next_r = { a29 = 200; b29 = #{ a28 = 201. } } in
   (* .b29.#a28 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b29 = #{ r.b29 with a28 = next_r.b29.#a28 } } in
@@ -1143,10 +1143,10 @@ let () =
   (**************************************)
   (*   t31 = { int; #{ float; int } }   *)
   (**************************************)
-  let eq = (fun ({ a31 = a311; b31 = b311 } : t31) ({ a31 = a312; b31 = b312 } : t31) -> (fun a b -> Int.equal a b) a311 a312 && (fun (#{ a30 = a301; b30 = b301 } : t30) (#{ a30 = a302; b30 = b302 } : t30) -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) b311 b312) in
-  let r = ({ a31 = 0; b31 = (#{ a30 = 1.; b30 = 2 } : t30) } : t31) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a31 = 100; b31 = (#{ a30 = 101.; b30 = 102 } : t30) } : t31) in
+  let eq = (fun { a31 = a311; b31 = b311 } { a31 = a312; b31 = b312 } -> (fun a b -> Int.equal a b) a311 a312 && (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) b311 b312) in
+  let r = { a31 = 0; b31 = #{ a30 = 1.; b30 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a31 = 100; b31 = #{ a30 = 101.; b30 = 102 } } in
   (* .a31 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a31 = next_r.a31 } in
@@ -1157,11 +1157,11 @@ let () =
   mark_test_run 128;
   let test = sub_eq (get_idx_mut r ((.a31) : (t31, _) idx_mut)) next_r.a31 in
   if not test then failwithf "test 128 failed";
-  let r = ({ a31 = 0; b31 = (#{ a30 = 1.; b30 = 2 } : t30) } : t31) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a31 = 100; b31 = (#{ a30 = 101.; b30 = 102 } : t30) } : t31) in
+  let r = { a31 = 0; b31 = #{ a30 = 1.; b30 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a31 = 100; b31 = #{ a30 = 101.; b30 = 102 } } in
   (* .b31 *)
-  let sub_eq = (fun (#{ a30 = a301; b30 = b301 } : t30) (#{ a30 = a302; b30 = b302 } : t30) -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) in
+  let sub_eq = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) in
   let expected = { r with b31 = next_r.b31 } in
   set_idx_mut r ((.b31) : (t31, _) idx_mut) next_r.b31;
   mark_test_run 129;
@@ -1170,8 +1170,8 @@ let () =
   mark_test_run 130;
   let test = sub_eq (get_idx_mut r ((.b31) : (t31, _) idx_mut)) next_r.b31 in
   if not test then failwithf "test 130 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a31 = 200; b31 = (#{ a30 = 201.; b30 = 202 } : t30) } : t31) in
+  (* Paths of depth 2 *)
+  let next_r = { a31 = 200; b31 = #{ a30 = 201.; b30 = 202 } } in
   (* .b31.#a30 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b31 = #{ r.b31 with a30 = next_r.b31.#a30 } } in
@@ -1195,10 +1195,10 @@ let () =
   (****************************************)
   (*   t33 = { int; #{ float; float } }   *)
   (****************************************)
-  let eq = (fun ({ a33 = a331; b33 = b331 } : t33) ({ a33 = a332; b33 = b332 } : t33) -> (fun a b -> Int.equal a b) a331 a332 && (fun (#{ a32 = a321; b32 = b321 } : t32) (#{ a32 = a322; b32 = b322 } : t32) -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) b331 b332) in
-  let r = ({ a33 = 0; b33 = (#{ a32 = 1.; b32 = 2. } : t32) } : t33) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a33 = 100; b33 = (#{ a32 = 101.; b32 = 102. } : t32) } : t33) in
+  let eq = (fun { a33 = a331; b33 = b331 } { a33 = a332; b33 = b332 } -> (fun a b -> Int.equal a b) a331 a332 && (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) b331 b332) in
+  let r = { a33 = 0; b33 = #{ a32 = 1.; b32 = 2. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a33 = 100; b33 = #{ a32 = 101.; b32 = 102. } } in
   (* .a33 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a33 = next_r.a33 } in
@@ -1209,11 +1209,11 @@ let () =
   mark_test_run 136;
   let test = sub_eq (get_idx_mut r ((.a33) : (t33, _) idx_mut)) next_r.a33 in
   if not test then failwithf "test 136 failed";
-  let r = ({ a33 = 0; b33 = (#{ a32 = 1.; b32 = 2. } : t32) } : t33) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a33 = 100; b33 = (#{ a32 = 101.; b32 = 102. } : t32) } : t33) in
+  let r = { a33 = 0; b33 = #{ a32 = 1.; b32 = 2. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a33 = 100; b33 = #{ a32 = 101.; b32 = 102. } } in
   (* .b33 *)
-  let sub_eq = (fun (#{ a32 = a321; b32 = b321 } : t32) (#{ a32 = a322; b32 = b322 } : t32) -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) in
+  let sub_eq = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) in
   let expected = { r with b33 = next_r.b33 } in
   set_idx_mut r ((.b33) : (t33, _) idx_mut) next_r.b33;
   mark_test_run 137;
@@ -1222,8 +1222,8 @@ let () =
   mark_test_run 138;
   let test = sub_eq (get_idx_mut r ((.b33) : (t33, _) idx_mut)) next_r.b33 in
   if not test then failwithf "test 138 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a33 = 200; b33 = (#{ a32 = 201.; b32 = 202. } : t32) } : t33) in
+  (* Paths of depth 2 *)
+  let next_r = { a33 = 200; b33 = #{ a32 = 201.; b32 = 202. } } in
   (* .b33.#a32 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b33 = #{ r.b33 with a32 = next_r.b33.#a32 } } in
@@ -1247,10 +1247,10 @@ let () =
   (***********************)
   (*   t34 = { int64 }   *)
   (***********************)
-  let eq = (fun ({ a34 = a341 } : t34) ({ a34 = a342 } : t34) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a341 a342) in
-  let r = ({ a34 = 0L } : t34) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a34 = 100L } : t34) in
+  let eq = (fun { a34 = a341 } { a34 = a342 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a341 a342) in
+  let r = { a34 = 0L } in
+  (* Paths of depth 1 *)
+  let next_r = { a34 = 100L } in
   (* .a34 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with a34 = next_r.a34 } in
@@ -1264,10 +1264,10 @@ let () =
   (****************************)
   (*   t35 = { int64; int }   *)
   (****************************)
-  let eq = (fun ({ a35 = a351; b35 = b351 } : t35) ({ a35 = a352; b35 = b352 } : t35) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a351 a352 && (fun a b -> Int.equal a b) b351 b352) in
-  let r = ({ a35 = 0L; b35 = 1 } : t35) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a35 = 100L; b35 = 101 } : t35) in
+  let eq = (fun { a35 = a351; b35 = b351 } { a35 = a352; b35 = b352 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a351 a352 && (fun a b -> Int.equal a b) b351 b352) in
+  let r = { a35 = 0L; b35 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a35 = 100L; b35 = 101 } in
   (* .a35 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with a35 = next_r.a35 } in
@@ -1278,9 +1278,9 @@ let () =
   mark_test_run 146;
   let test = sub_eq (get_idx_mut r ((.a35) : (t35, _) idx_mut)) next_r.a35 in
   if not test then failwithf "test 146 failed";
-  let r = ({ a35 = 0L; b35 = 1 } : t35) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a35 = 100L; b35 = 101 } : t35) in
+  let r = { a35 = 0L; b35 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a35 = 100L; b35 = 101 } in
   (* .b35 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b35 = next_r.b35 } in
@@ -1294,10 +1294,10 @@ let () =
   (******************************)
   (*   t36 = { int64; int64 }   *)
   (******************************)
-  let eq = (fun ({ a36 = a361; b36 = b361 } : t36) ({ a36 = a362; b36 = b362 } : t36) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int64.equal (globalize a) (globalize b)) b361 b362) in
-  let r = ({ a36 = 0L; b36 = 1L } : t36) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a36 = 100L; b36 = 101L } : t36) in
+  let eq = (fun { a36 = a361; b36 = b361 } { a36 = a362; b36 = b362 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int64.equal (globalize a) (globalize b)) b361 b362) in
+  let r = { a36 = 0L; b36 = 1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a36 = 100L; b36 = 101L } in
   (* .a36 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with a36 = next_r.a36 } in
@@ -1308,9 +1308,9 @@ let () =
   mark_test_run 150;
   let test = sub_eq (get_idx_mut r ((.a36) : (t36, _) idx_mut)) next_r.a36 in
   if not test then failwithf "test 150 failed";
-  let r = ({ a36 = 0L; b36 = 1L } : t36) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a36 = 100L; b36 = 101L } : t36) in
+  let r = { a36 = 0L; b36 = 1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a36 = 100L; b36 = 101L } in
   (* .b36 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with b36 = next_r.b36 } in
@@ -1324,10 +1324,10 @@ let () =
   (*******************************)
   (*   t37 = { int64; int64# }   *)
   (*******************************)
-  let eq = (fun ({ a37 = a371; b37 = b371 } : t37) ({ a37 = a372; b37 = b372 } : t37) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a371 a372 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b371 b372) in
-  let r = ({ a37 = 0L; b37 = #1L } : t37) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a37 = 100L; b37 = #101L } : t37) in
+  let eq = (fun { a37 = a371; b37 = b371 } { a37 = a372; b37 = b372 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a371 a372 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b371 b372) in
+  let r = { a37 = 0L; b37 = #1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a37 = 100L; b37 = #101L } in
   (* .a37 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with a37 = next_r.a37 } in
@@ -1338,9 +1338,9 @@ let () =
   mark_test_run 154;
   let test = sub_eq (get_idx_mut r ((.a37) : (t37, _) idx_mut)) next_r.a37 in
   if not test then failwithf "test 154 failed";
-  let r = ({ a37 = 0L; b37 = #1L } : t37) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a37 = 100L; b37 = #101L } : t37) in
+  let r = { a37 = 0L; b37 = #1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a37 = 100L; b37 = #101L } in
   (* .b37 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with b37 = next_r.b37 } in
@@ -1354,10 +1354,10 @@ let () =
   (*******************************)
   (*   t38 = { int64; int32# }   *)
   (*******************************)
-  let eq = (fun ({ a38 = a381; b38 = b381 } : t38) ({ a38 = a382; b38 = b382 } : t38) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b381 b382) in
-  let r = ({ a38 = 0L; b38 = #1l } : t38) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a38 = 100L; b38 = #101l } : t38) in
+  let eq = (fun { a38 = a381; b38 = b381 } { a38 = a382; b38 = b382 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b381 b382) in
+  let r = { a38 = 0L; b38 = #1l } in
+  (* Paths of depth 1 *)
+  let next_r = { a38 = 100L; b38 = #101l } in
   (* .a38 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with a38 = next_r.a38 } in
@@ -1368,9 +1368,9 @@ let () =
   mark_test_run 158;
   let test = sub_eq (get_idx_mut r ((.a38) : (t38, _) idx_mut)) next_r.a38 in
   if not test then failwithf "test 158 failed";
-  let r = ({ a38 = 0L; b38 = #1l } : t38) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a38 = 100L; b38 = #101l } : t38) in
+  let r = { a38 = 0L; b38 = #1l } in
+  (* Paths of depth 1 *)
+  let next_r = { a38 = 100L; b38 = #101l } in
   (* .b38 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b38 = next_r.b38 } in
@@ -1384,10 +1384,10 @@ let () =
   (***********************************)
   (*   t39 = { int64; nativeint# }   *)
   (***********************************)
-  let eq = (fun ({ a39 = a391; b39 = b391 } : t39) ({ a39 = a392; b39 = b392 } : t39) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b391 b392) in
-  let r = ({ a39 = 0L; b39 = #1n } : t39) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a39 = 100L; b39 = #101n } : t39) in
+  let eq = (fun { a39 = a391; b39 = b391 } { a39 = a392; b39 = b392 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b391 b392) in
+  let r = { a39 = 0L; b39 = #1n } in
+  (* Paths of depth 1 *)
+  let next_r = { a39 = 100L; b39 = #101n } in
   (* .a39 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with a39 = next_r.a39 } in
@@ -1398,9 +1398,9 @@ let () =
   mark_test_run 162;
   let test = sub_eq (get_idx_mut r ((.a39) : (t39, _) idx_mut)) next_r.a39 in
   if not test then failwithf "test 162 failed";
-  let r = ({ a39 = 0L; b39 = #1n } : t39) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a39 = 100L; b39 = #101n } : t39) in
+  let r = { a39 = 0L; b39 = #1n } in
+  (* Paths of depth 1 *)
+  let next_r = { a39 = 100L; b39 = #101n } in
   (* .b39 *)
   let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with b39 = next_r.b39 } in
@@ -1414,10 +1414,10 @@ let () =
   (******************************)
   (*   t40 = { int64; float }   *)
   (******************************)
-  let eq = (fun ({ a40 = a401; b40 = b401 } : t40) ({ a40 = a402; b40 = b402 } : t40) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a401 a402 && (fun a b -> Float.equal (globalize a) (globalize b)) b401 b402) in
-  let r = ({ a40 = 0L; b40 = 1. } : t40) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a40 = 100L; b40 = 101. } : t40) in
+  let eq = (fun { a40 = a401; b40 = b401 } { a40 = a402; b40 = b402 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a401 a402 && (fun a b -> Float.equal (globalize a) (globalize b)) b401 b402) in
+  let r = { a40 = 0L; b40 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a40 = 100L; b40 = 101. } in
   (* .a40 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with a40 = next_r.a40 } in
@@ -1428,9 +1428,9 @@ let () =
   mark_test_run 166;
   let test = sub_eq (get_idx_mut r ((.a40) : (t40, _) idx_mut)) next_r.a40 in
   if not test then failwithf "test 166 failed";
-  let r = ({ a40 = 0L; b40 = 1. } : t40) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a40 = 100L; b40 = 101. } : t40) in
+  let r = { a40 = 0L; b40 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a40 = 100L; b40 = 101. } in
   (* .b40 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b40 = next_r.b40 } in
@@ -1444,10 +1444,10 @@ let () =
   (************************)
   (*   t41 = { int64# }   *)
   (************************)
-  let eq = (fun ({ a41 = a411 } : t41) ({ a41 = a412 } : t41) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a411 a412) in
-  let r = ({ a41 = #0L } : t41) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a41 = #100L } : t41) in
+  let eq = (fun { a41 = a411 } { a41 = a412 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a411 a412) in
+  let r = { a41 = #0L } in
+  (* Paths of depth 1 *)
+  let next_r = { a41 = #100L } in
   (* .a41 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with a41 = next_r.a41 } in
@@ -1461,10 +1461,10 @@ let () =
   (*****************************)
   (*   t42 = { int64#; int }   *)
   (*****************************)
-  let eq = (fun ({ a42 = a421; b42 = b421 } : t42) ({ a42 = a422; b42 = b422 } : t42) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a421 a422 && (fun a b -> Int.equal a b) b421 b422) in
-  let r = ({ a42 = #0L; b42 = 1 } : t42) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a42 = #100L; b42 = 101 } : t42) in
+  let eq = (fun { a42 = a421; b42 = b421 } { a42 = a422; b42 = b422 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a421 a422 && (fun a b -> Int.equal a b) b421 b422) in
+  let r = { a42 = #0L; b42 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a42 = #100L; b42 = 101 } in
   (* .a42 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with a42 = next_r.a42 } in
@@ -1475,9 +1475,9 @@ let () =
   mark_test_run 172;
   let test = sub_eq (get_idx_mut r ((.a42) : (t42, _) idx_mut)) next_r.a42 in
   if not test then failwithf "test 172 failed";
-  let r = ({ a42 = #0L; b42 = 1 } : t42) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a42 = #100L; b42 = 101 } : t42) in
+  let r = { a42 = #0L; b42 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a42 = #100L; b42 = 101 } in
   (* .b42 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b42 = next_r.b42 } in
@@ -1491,10 +1491,10 @@ let () =
   (*******************************)
   (*   t43 = { int64#; int64 }   *)
   (*******************************)
-  let eq = (fun ({ a43 = a431; b43 = b431 } : t43) ({ a43 = a432; b43 = b432 } : t43) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a431 a432 && (fun a b -> Int64.equal (globalize a) (globalize b)) b431 b432) in
-  let r = ({ a43 = #0L; b43 = 1L } : t43) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a43 = #100L; b43 = 101L } : t43) in
+  let eq = (fun { a43 = a431; b43 = b431 } { a43 = a432; b43 = b432 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a431 a432 && (fun a b -> Int64.equal (globalize a) (globalize b)) b431 b432) in
+  let r = { a43 = #0L; b43 = 1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a43 = #100L; b43 = 101L } in
   (* .a43 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with a43 = next_r.a43 } in
@@ -1505,9 +1505,9 @@ let () =
   mark_test_run 176;
   let test = sub_eq (get_idx_mut r ((.a43) : (t43, _) idx_mut)) next_r.a43 in
   if not test then failwithf "test 176 failed";
-  let r = ({ a43 = #0L; b43 = 1L } : t43) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a43 = #100L; b43 = 101L } : t43) in
+  let r = { a43 = #0L; b43 = 1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a43 = #100L; b43 = 101L } in
   (* .b43 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with b43 = next_r.b43 } in
@@ -1521,10 +1521,10 @@ let () =
   (********************************)
   (*   t44 = { int64#; int64# }   *)
   (********************************)
-  let eq = (fun ({ a44 = a441; b44 = b441 } : t44) ({ a44 = a442; b44 = b442 } : t44) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a441 a442 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b441 b442) in
-  let r = ({ a44 = #0L; b44 = #1L } : t44) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a44 = #100L; b44 = #101L } : t44) in
+  let eq = (fun { a44 = a441; b44 = b441 } { a44 = a442; b44 = b442 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a441 a442 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b441 b442) in
+  let r = { a44 = #0L; b44 = #1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a44 = #100L; b44 = #101L } in
   (* .a44 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with a44 = next_r.a44 } in
@@ -1535,9 +1535,9 @@ let () =
   mark_test_run 180;
   let test = sub_eq (get_idx_mut r ((.a44) : (t44, _) idx_mut)) next_r.a44 in
   if not test then failwithf "test 180 failed";
-  let r = ({ a44 = #0L; b44 = #1L } : t44) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a44 = #100L; b44 = #101L } : t44) in
+  let r = { a44 = #0L; b44 = #1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a44 = #100L; b44 = #101L } in
   (* .b44 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with b44 = next_r.b44 } in
@@ -1551,10 +1551,10 @@ let () =
   (********************************)
   (*   t45 = { int64#; int32# }   *)
   (********************************)
-  let eq = (fun ({ a45 = a451; b45 = b451 } : t45) ({ a45 = a452; b45 = b452 } : t45) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a451 a452 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b451 b452) in
-  let r = ({ a45 = #0L; b45 = #1l } : t45) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a45 = #100L; b45 = #101l } : t45) in
+  let eq = (fun { a45 = a451; b45 = b451 } { a45 = a452; b45 = b452 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a451 a452 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b451 b452) in
+  let r = { a45 = #0L; b45 = #1l } in
+  (* Paths of depth 1 *)
+  let next_r = { a45 = #100L; b45 = #101l } in
   (* .a45 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with a45 = next_r.a45 } in
@@ -1565,9 +1565,9 @@ let () =
   mark_test_run 184;
   let test = sub_eq (get_idx_mut r ((.a45) : (t45, _) idx_mut)) next_r.a45 in
   if not test then failwithf "test 184 failed";
-  let r = ({ a45 = #0L; b45 = #1l } : t45) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a45 = #100L; b45 = #101l } : t45) in
+  let r = { a45 = #0L; b45 = #1l } in
+  (* Paths of depth 1 *)
+  let next_r = { a45 = #100L; b45 = #101l } in
   (* .b45 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b45 = next_r.b45 } in
@@ -1581,10 +1581,10 @@ let () =
   (************************************)
   (*   t46 = { int64#; nativeint# }   *)
   (************************************)
-  let eq = (fun ({ a46 = a461; b46 = b461 } : t46) ({ a46 = a462; b46 = b462 } : t46) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a461 a462 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b461 b462) in
-  let r = ({ a46 = #0L; b46 = #1n } : t46) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a46 = #100L; b46 = #101n } : t46) in
+  let eq = (fun { a46 = a461; b46 = b461 } { a46 = a462; b46 = b462 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a461 a462 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b461 b462) in
+  let r = { a46 = #0L; b46 = #1n } in
+  (* Paths of depth 1 *)
+  let next_r = { a46 = #100L; b46 = #101n } in
   (* .a46 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with a46 = next_r.a46 } in
@@ -1595,9 +1595,9 @@ let () =
   mark_test_run 188;
   let test = sub_eq (get_idx_mut r ((.a46) : (t46, _) idx_mut)) next_r.a46 in
   if not test then failwithf "test 188 failed";
-  let r = ({ a46 = #0L; b46 = #1n } : t46) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a46 = #100L; b46 = #101n } : t46) in
+  let r = { a46 = #0L; b46 = #1n } in
+  (* Paths of depth 1 *)
+  let next_r = { a46 = #100L; b46 = #101n } in
   (* .b46 *)
   let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with b46 = next_r.b46 } in
@@ -1611,10 +1611,10 @@ let () =
   (*******************************)
   (*   t47 = { int64#; float }   *)
   (*******************************)
-  let eq = (fun ({ a47 = a471; b47 = b471 } : t47) ({ a47 = a472; b47 = b472 } : t47) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a471 a472 && (fun a b -> Float.equal (globalize a) (globalize b)) b471 b472) in
-  let r = ({ a47 = #0L; b47 = 1. } : t47) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a47 = #100L; b47 = 101. } : t47) in
+  let eq = (fun { a47 = a471; b47 = b471 } { a47 = a472; b47 = b472 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a471 a472 && (fun a b -> Float.equal (globalize a) (globalize b)) b471 b472) in
+  let r = { a47 = #0L; b47 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a47 = #100L; b47 = 101. } in
   (* .a47 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with a47 = next_r.a47 } in
@@ -1625,9 +1625,9 @@ let () =
   mark_test_run 192;
   let test = sub_eq (get_idx_mut r ((.a47) : (t47, _) idx_mut)) next_r.a47 in
   if not test then failwithf "test 192 failed";
-  let r = ({ a47 = #0L; b47 = 1. } : t47) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a47 = #100L; b47 = 101. } : t47) in
+  let r = { a47 = #0L; b47 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a47 = #100L; b47 = 101. } in
   (* .b47 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b47 = next_r.b47 } in
@@ -1641,10 +1641,10 @@ let () =
   (************************)
   (*   t48 = { int32# }   *)
   (************************)
-  let eq = (fun ({ a48 = a481 } : t48) ({ a48 = a482 } : t48) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a481 a482) in
-  let r = ({ a48 = #0l } : t48) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a48 = #100l } : t48) in
+  let eq = (fun { a48 = a481 } { a48 = a482 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a481 a482) in
+  let r = { a48 = #0l } in
+  (* Paths of depth 1 *)
+  let next_r = { a48 = #100l } in
   (* .a48 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a48 = next_r.a48 } in
@@ -1658,10 +1658,10 @@ let () =
   (*****************************)
   (*   t49 = { int32#; int }   *)
   (*****************************)
-  let eq = (fun ({ a49 = a491; b49 = b491 } : t49) ({ a49 = a492; b49 = b492 } : t49) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a491 a492 && (fun a b -> Int.equal a b) b491 b492) in
-  let r = ({ a49 = #0l; b49 = 1 } : t49) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a49 = #100l; b49 = 101 } : t49) in
+  let eq = (fun { a49 = a491; b49 = b491 } { a49 = a492; b49 = b492 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a491 a492 && (fun a b -> Int.equal a b) b491 b492) in
+  let r = { a49 = #0l; b49 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a49 = #100l; b49 = 101 } in
   (* .a49 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a49 = next_r.a49 } in
@@ -1672,9 +1672,9 @@ let () =
   mark_test_run 198;
   let test = sub_eq (get_idx_mut r ((.a49) : (t49, _) idx_mut)) next_r.a49 in
   if not test then failwithf "test 198 failed";
-  let r = ({ a49 = #0l; b49 = 1 } : t49) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a49 = #100l; b49 = 101 } : t49) in
+  let r = { a49 = #0l; b49 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a49 = #100l; b49 = 101 } in
   (* .b49 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b49 = next_r.b49 } in
@@ -1688,10 +1688,10 @@ let () =
   (**********************************)
   (*   t50 = { int32#; int; int }   *)
   (**********************************)
-  let eq = (fun ({ a50 = a501; b50 = b501; c50 = c501 } : t50) ({ a50 = a502; b50 = b502; c50 = c502 } : t50) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a501 a502 && (fun a b -> Int.equal a b) b501 b502 && (fun a b -> Int.equal a b) c501 c502) in
-  let r = ({ a50 = #0l; b50 = 1; c50 = 2 } : t50) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a50 = #100l; b50 = 101; c50 = 102 } : t50) in
+  let eq = (fun { a50 = a501; b50 = b501; c50 = c501 } { a50 = a502; b50 = b502; c50 = c502 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a501 a502 && (fun a b -> Int.equal a b) b501 b502 && (fun a b -> Int.equal a b) c501 c502) in
+  let r = { a50 = #0l; b50 = 1; c50 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a50 = #100l; b50 = 101; c50 = 102 } in
   (* .a50 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a50 = next_r.a50 } in
@@ -1702,9 +1702,9 @@ let () =
   mark_test_run 202;
   let test = sub_eq (get_idx_mut r ((.a50) : (t50, _) idx_mut)) next_r.a50 in
   if not test then failwithf "test 202 failed";
-  let r = ({ a50 = #0l; b50 = 1; c50 = 2 } : t50) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a50 = #100l; b50 = 101; c50 = 102 } : t50) in
+  let r = { a50 = #0l; b50 = 1; c50 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a50 = #100l; b50 = 101; c50 = 102 } in
   (* .b50 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b50 = next_r.b50 } in
@@ -1715,9 +1715,9 @@ let () =
   mark_test_run 204;
   let test = sub_eq (get_idx_mut r ((.b50) : (t50, _) idx_mut)) next_r.b50 in
   if not test then failwithf "test 204 failed";
-  let r = ({ a50 = #0l; b50 = 1; c50 = 2 } : t50) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a50 = #100l; b50 = 101; c50 = 102 } : t50) in
+  let r = { a50 = #0l; b50 = 1; c50 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a50 = #100l; b50 = 101; c50 = 102 } in
   (* .c50 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with c50 = next_r.c50 } in
@@ -1731,10 +1731,10 @@ let () =
   (*************************************)
   (*   t51 = { int32#; int; int32# }   *)
   (*************************************)
-  let eq = (fun ({ a51 = a511; b51 = b511; c51 = c511 } : t51) ({ a51 = a512; b51 = b512; c51 = c512 } : t51) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a511 a512 && (fun a b -> Int.equal a b) b511 b512 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c511 c512) in
-  let r = ({ a51 = #0l; b51 = 1; c51 = #2l } : t51) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a51 = #100l; b51 = 101; c51 = #102l } : t51) in
+  let eq = (fun { a51 = a511; b51 = b511; c51 = c511 } { a51 = a512; b51 = b512; c51 = c512 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a511 a512 && (fun a b -> Int.equal a b) b511 b512 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c511 c512) in
+  let r = { a51 = #0l; b51 = 1; c51 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a51 = #100l; b51 = 101; c51 = #102l } in
   (* .a51 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a51 = next_r.a51 } in
@@ -1745,9 +1745,9 @@ let () =
   mark_test_run 208;
   let test = sub_eq (get_idx_mut r ((.a51) : (t51, _) idx_mut)) next_r.a51 in
   if not test then failwithf "test 208 failed";
-  let r = ({ a51 = #0l; b51 = 1; c51 = #2l } : t51) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a51 = #100l; b51 = 101; c51 = #102l } : t51) in
+  let r = { a51 = #0l; b51 = 1; c51 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a51 = #100l; b51 = 101; c51 = #102l } in
   (* .b51 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b51 = next_r.b51 } in
@@ -1758,9 +1758,9 @@ let () =
   mark_test_run 210;
   let test = sub_eq (get_idx_mut r ((.b51) : (t51, _) idx_mut)) next_r.b51 in
   if not test then failwithf "test 210 failed";
-  let r = ({ a51 = #0l; b51 = 1; c51 = #2l } : t51) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a51 = #100l; b51 = 101; c51 = #102l } : t51) in
+  let r = { a51 = #0l; b51 = 1; c51 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a51 = #100l; b51 = 101; c51 = #102l } in
   (* .c51 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with c51 = next_r.c51 } in
@@ -1774,10 +1774,10 @@ let () =
   (*******************************)
   (*   t52 = { int32#; int64 }   *)
   (*******************************)
-  let eq = (fun ({ a52 = a521; b52 = b521 } : t52) ({ a52 = a522; b52 = b522 } : t52) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a521 a522 && (fun a b -> Int64.equal (globalize a) (globalize b)) b521 b522) in
-  let r = ({ a52 = #0l; b52 = 1L } : t52) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a52 = #100l; b52 = 101L } : t52) in
+  let eq = (fun { a52 = a521; b52 = b521 } { a52 = a522; b52 = b522 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a521 a522 && (fun a b -> Int64.equal (globalize a) (globalize b)) b521 b522) in
+  let r = { a52 = #0l; b52 = 1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a52 = #100l; b52 = 101L } in
   (* .a52 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a52 = next_r.a52 } in
@@ -1788,9 +1788,9 @@ let () =
   mark_test_run 214;
   let test = sub_eq (get_idx_mut r ((.a52) : (t52, _) idx_mut)) next_r.a52 in
   if not test then failwithf "test 214 failed";
-  let r = ({ a52 = #0l; b52 = 1L } : t52) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a52 = #100l; b52 = 101L } : t52) in
+  let r = { a52 = #0l; b52 = 1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a52 = #100l; b52 = 101L } in
   (* .b52 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with b52 = next_r.b52 } in
@@ -1804,10 +1804,10 @@ let () =
   (********************************)
   (*   t53 = { int32#; int64# }   *)
   (********************************)
-  let eq = (fun ({ a53 = a531; b53 = b531 } : t53) ({ a53 = a532; b53 = b532 } : t53) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a531 a532 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b531 b532) in
-  let r = ({ a53 = #0l; b53 = #1L } : t53) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a53 = #100l; b53 = #101L } : t53) in
+  let eq = (fun { a53 = a531; b53 = b531 } { a53 = a532; b53 = b532 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a531 a532 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b531 b532) in
+  let r = { a53 = #0l; b53 = #1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a53 = #100l; b53 = #101L } in
   (* .a53 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a53 = next_r.a53 } in
@@ -1818,9 +1818,9 @@ let () =
   mark_test_run 218;
   let test = sub_eq (get_idx_mut r ((.a53) : (t53, _) idx_mut)) next_r.a53 in
   if not test then failwithf "test 218 failed";
-  let r = ({ a53 = #0l; b53 = #1L } : t53) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a53 = #100l; b53 = #101L } : t53) in
+  let r = { a53 = #0l; b53 = #1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a53 = #100l; b53 = #101L } in
   (* .b53 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with b53 = next_r.b53 } in
@@ -1834,10 +1834,10 @@ let () =
   (********************************)
   (*   t54 = { int32#; int32# }   *)
   (********************************)
-  let eq = (fun ({ a54 = a541; b54 = b541 } : t54) ({ a54 = a542; b54 = b542 } : t54) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a541 a542 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b541 b542) in
-  let r = ({ a54 = #0l; b54 = #1l } : t54) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a54 = #100l; b54 = #101l } : t54) in
+  let eq = (fun { a54 = a541; b54 = b541 } { a54 = a542; b54 = b542 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a541 a542 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b541 b542) in
+  let r = { a54 = #0l; b54 = #1l } in
+  (* Paths of depth 1 *)
+  let next_r = { a54 = #100l; b54 = #101l } in
   (* .a54 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a54 = next_r.a54 } in
@@ -1848,9 +1848,9 @@ let () =
   mark_test_run 222;
   let test = sub_eq (get_idx_mut r ((.a54) : (t54, _) idx_mut)) next_r.a54 in
   if not test then failwithf "test 222 failed";
-  let r = ({ a54 = #0l; b54 = #1l } : t54) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a54 = #100l; b54 = #101l } : t54) in
+  let r = { a54 = #0l; b54 = #1l } in
+  (* Paths of depth 1 *)
+  let next_r = { a54 = #100l; b54 = #101l } in
   (* .b54 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b54 = next_r.b54 } in
@@ -1864,10 +1864,10 @@ let () =
   (*************************************)
   (*   t55 = { int32#; int32#; int }   *)
   (*************************************)
-  let eq = (fun ({ a55 = a551; b55 = b551; c55 = c551 } : t55) ({ a55 = a552; b55 = b552; c55 = c552 } : t55) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a551 a552 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b551 b552 && (fun a b -> Int.equal a b) c551 c552) in
-  let r = ({ a55 = #0l; b55 = #1l; c55 = 2 } : t55) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a55 = #100l; b55 = #101l; c55 = 102 } : t55) in
+  let eq = (fun { a55 = a551; b55 = b551; c55 = c551 } { a55 = a552; b55 = b552; c55 = c552 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a551 a552 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b551 b552 && (fun a b -> Int.equal a b) c551 c552) in
+  let r = { a55 = #0l; b55 = #1l; c55 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a55 = #100l; b55 = #101l; c55 = 102 } in
   (* .a55 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a55 = next_r.a55 } in
@@ -1878,9 +1878,9 @@ let () =
   mark_test_run 226;
   let test = sub_eq (get_idx_mut r ((.a55) : (t55, _) idx_mut)) next_r.a55 in
   if not test then failwithf "test 226 failed";
-  let r = ({ a55 = #0l; b55 = #1l; c55 = 2 } : t55) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a55 = #100l; b55 = #101l; c55 = 102 } : t55) in
+  let r = { a55 = #0l; b55 = #1l; c55 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a55 = #100l; b55 = #101l; c55 = 102 } in
   (* .b55 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b55 = next_r.b55 } in
@@ -1891,9 +1891,9 @@ let () =
   mark_test_run 228;
   let test = sub_eq (get_idx_mut r ((.b55) : (t55, _) idx_mut)) next_r.b55 in
   if not test then failwithf "test 228 failed";
-  let r = ({ a55 = #0l; b55 = #1l; c55 = 2 } : t55) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a55 = #100l; b55 = #101l; c55 = 102 } : t55) in
+  let r = { a55 = #0l; b55 = #1l; c55 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a55 = #100l; b55 = #101l; c55 = 102 } in
   (* .c55 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with c55 = next_r.c55 } in
@@ -1907,10 +1907,10 @@ let () =
   (****************************************)
   (*   t56 = { int32#; int32#; int32# }   *)
   (****************************************)
-  let eq = (fun ({ a56 = a561; b56 = b561; c56 = c561 } : t56) ({ a56 = a562; b56 = b562; c56 = c562 } : t56) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a561 a562 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b561 b562 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c561 c562) in
-  let r = ({ a56 = #0l; b56 = #1l; c56 = #2l } : t56) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a56 = #100l; b56 = #101l; c56 = #102l } : t56) in
+  let eq = (fun { a56 = a561; b56 = b561; c56 = c561 } { a56 = a562; b56 = b562; c56 = c562 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a561 a562 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b561 b562 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c561 c562) in
+  let r = { a56 = #0l; b56 = #1l; c56 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a56 = #100l; b56 = #101l; c56 = #102l } in
   (* .a56 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a56 = next_r.a56 } in
@@ -1921,9 +1921,9 @@ let () =
   mark_test_run 232;
   let test = sub_eq (get_idx_mut r ((.a56) : (t56, _) idx_mut)) next_r.a56 in
   if not test then failwithf "test 232 failed";
-  let r = ({ a56 = #0l; b56 = #1l; c56 = #2l } : t56) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a56 = #100l; b56 = #101l; c56 = #102l } : t56) in
+  let r = { a56 = #0l; b56 = #1l; c56 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a56 = #100l; b56 = #101l; c56 = #102l } in
   (* .b56 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b56 = next_r.b56 } in
@@ -1934,9 +1934,9 @@ let () =
   mark_test_run 234;
   let test = sub_eq (get_idx_mut r ((.b56) : (t56, _) idx_mut)) next_r.b56 in
   if not test then failwithf "test 234 failed";
-  let r = ({ a56 = #0l; b56 = #1l; c56 = #2l } : t56) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a56 = #100l; b56 = #101l; c56 = #102l } : t56) in
+  let r = { a56 = #0l; b56 = #1l; c56 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a56 = #100l; b56 = #101l; c56 = #102l } in
   (* .c56 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with c56 = next_r.c56 } in
@@ -1950,10 +1950,10 @@ let () =
   (************************************)
   (*   t57 = { int32#; nativeint# }   *)
   (************************************)
-  let eq = (fun ({ a57 = a571; b57 = b571 } : t57) ({ a57 = a572; b57 = b572 } : t57) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a571 a572 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b571 b572) in
-  let r = ({ a57 = #0l; b57 = #1n } : t57) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a57 = #100l; b57 = #101n } : t57) in
+  let eq = (fun { a57 = a571; b57 = b571 } { a57 = a572; b57 = b572 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a571 a572 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b571 b572) in
+  let r = { a57 = #0l; b57 = #1n } in
+  (* Paths of depth 1 *)
+  let next_r = { a57 = #100l; b57 = #101n } in
   (* .a57 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a57 = next_r.a57 } in
@@ -1964,9 +1964,9 @@ let () =
   mark_test_run 238;
   let test = sub_eq (get_idx_mut r ((.a57) : (t57, _) idx_mut)) next_r.a57 in
   if not test then failwithf "test 238 failed";
-  let r = ({ a57 = #0l; b57 = #1n } : t57) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a57 = #100l; b57 = #101n } : t57) in
+  let r = { a57 = #0l; b57 = #1n } in
+  (* Paths of depth 1 *)
+  let next_r = { a57 = #100l; b57 = #101n } in
   (* .b57 *)
   let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with b57 = next_r.b57 } in
@@ -1980,10 +1980,10 @@ let () =
   (*******************************)
   (*   t58 = { int32#; float }   *)
   (*******************************)
-  let eq = (fun ({ a58 = a581; b58 = b581 } : t58) ({ a58 = a582; b58 = b582 } : t58) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a581 a582 && (fun a b -> Float.equal (globalize a) (globalize b)) b581 b582) in
-  let r = ({ a58 = #0l; b58 = 1. } : t58) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a58 = #100l; b58 = 101. } : t58) in
+  let eq = (fun { a58 = a581; b58 = b581 } { a58 = a582; b58 = b582 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a581 a582 && (fun a b -> Float.equal (globalize a) (globalize b)) b581 b582) in
+  let r = { a58 = #0l; b58 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a58 = #100l; b58 = 101. } in
   (* .a58 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a58 = next_r.a58 } in
@@ -1994,9 +1994,9 @@ let () =
   mark_test_run 242;
   let test = sub_eq (get_idx_mut r ((.a58) : (t58, _) idx_mut)) next_r.a58 in
   if not test then failwithf "test 242 failed";
-  let r = ({ a58 = #0l; b58 = 1. } : t58) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a58 = #100l; b58 = 101. } : t58) in
+  let r = { a58 = #0l; b58 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a58 = #100l; b58 = 101. } in
   (* .b58 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b58 = next_r.b58 } in
@@ -2010,10 +2010,10 @@ let () =
   (**********************************)
   (*   t59 = { int32#; #{ int } }   *)
   (**********************************)
-  let eq = (fun ({ a59 = a591; b59 = b591 } : t59) ({ a59 = a592; b59 = b592 } : t59) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a591 a592 && (fun (#{ a14 = a141 } : t14) (#{ a14 = a142 } : t14) -> (fun a b -> Int.equal a b) a141 a142) b591 b592) in
-  let r = ({ a59 = #0l; b59 = (#{ a14 = 1 } : t14) } : t59) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a59 = #100l; b59 = (#{ a14 = 101 } : t14) } : t59) in
+  let eq = (fun { a59 = a591; b59 = b591 } { a59 = a592; b59 = b592 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a591 a592 && (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) b591 b592) in
+  let r = { a59 = #0l; b59 = #{ a14 = 1 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a59 = #100l; b59 = #{ a14 = 101 } } in
   (* .a59 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a59 = next_r.a59 } in
@@ -2024,11 +2024,11 @@ let () =
   mark_test_run 246;
   let test = sub_eq (get_idx_mut r ((.a59) : (t59, _) idx_mut)) next_r.a59 in
   if not test then failwithf "test 246 failed";
-  let r = ({ a59 = #0l; b59 = (#{ a14 = 1 } : t14) } : t59) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a59 = #100l; b59 = (#{ a14 = 101 } : t14) } : t59) in
+  let r = { a59 = #0l; b59 = #{ a14 = 1 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a59 = #100l; b59 = #{ a14 = 101 } } in
   (* .b59 *)
-  let sub_eq = (fun (#{ a14 = a141 } : t14) (#{ a14 = a142 } : t14) -> (fun a b -> Int.equal a b) a141 a142) in
+  let sub_eq = (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) in
   let expected = { r with b59 = next_r.b59 } in
   set_idx_mut r ((.b59) : (t59, _) idx_mut) next_r.b59;
   mark_test_run 247;
@@ -2037,8 +2037,8 @@ let () =
   mark_test_run 248;
   let test = sub_eq (get_idx_mut r ((.b59) : (t59, _) idx_mut)) next_r.b59 in
   if not test then failwithf "test 248 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a59 = #200l; b59 = (#{ a14 = 201 } : t14) } : t59) in
+  (* Paths of depth 2 *)
+  let next_r = { a59 = #200l; b59 = #{ a14 = 201 } } in
   (* .b59.#a14 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b59 = #{ r.b59 with a14 = next_r.b59.#a14 } } in
@@ -2052,10 +2052,10 @@ let () =
   (***************************************)
   (*   t60 = { int32#; #{ int; int } }   *)
   (***************************************)
-  let eq = (fun ({ a60 = a601; b60 = b601 } : t60) ({ a60 = a602; b60 = b602 } : t60) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a601 a602 && (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) b601 b602) in
-  let r = ({ a60 = #0l; b60 = (#{ a16 = 1; b16 = 2 } : t16) } : t60) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a60 = #100l; b60 = (#{ a16 = 101; b16 = 102 } : t16) } : t60) in
+  let eq = (fun { a60 = a601; b60 = b601 } { a60 = a602; b60 = b602 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a601 a602 && (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) b601 b602) in
+  let r = { a60 = #0l; b60 = #{ a16 = 1; b16 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a60 = #100l; b60 = #{ a16 = 101; b16 = 102 } } in
   (* .a60 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a60 = next_r.a60 } in
@@ -2066,11 +2066,11 @@ let () =
   mark_test_run 252;
   let test = sub_eq (get_idx_mut r ((.a60) : (t60, _) idx_mut)) next_r.a60 in
   if not test then failwithf "test 252 failed";
-  let r = ({ a60 = #0l; b60 = (#{ a16 = 1; b16 = 2 } : t16) } : t60) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a60 = #100l; b60 = (#{ a16 = 101; b16 = 102 } : t16) } : t60) in
+  let r = { a60 = #0l; b60 = #{ a16 = 1; b16 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a60 = #100l; b60 = #{ a16 = 101; b16 = 102 } } in
   (* .b60 *)
-  let sub_eq = (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) in
+  let sub_eq = (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) in
   let expected = { r with b60 = next_r.b60 } in
   set_idx_mut r ((.b60) : (t60, _) idx_mut) next_r.b60;
   mark_test_run 253;
@@ -2079,8 +2079,8 @@ let () =
   mark_test_run 254;
   let test = sub_eq (get_idx_mut r ((.b60) : (t60, _) idx_mut)) next_r.b60 in
   if not test then failwithf "test 254 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a60 = #200l; b60 = (#{ a16 = 201; b16 = 202 } : t16) } : t60) in
+  (* Paths of depth 2 *)
+  let next_r = { a60 = #200l; b60 = #{ a16 = 201; b16 = 202 } } in
   (* .b60.#a16 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b60 = #{ r.b60 with a16 = next_r.b60.#a16 } } in
@@ -2104,10 +2104,10 @@ let () =
   (******************************************)
   (*   t61 = { int32#; #{ int; int32# } }   *)
   (******************************************)
-  let eq = (fun ({ a61 = a611; b61 = b611 } : t61) ({ a61 = a612; b61 = b612 } : t61) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a611 a612 && (fun (#{ a18 = a181; b18 = b181 } : t18) (#{ a18 = a182; b18 = b182 } : t18) -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) b611 b612) in
-  let r = ({ a61 = #0l; b61 = (#{ a18 = 1; b18 = #2l } : t18) } : t61) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a61 = #100l; b61 = (#{ a18 = 101; b18 = #102l } : t18) } : t61) in
+  let eq = (fun { a61 = a611; b61 = b611 } { a61 = a612; b61 = b612 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a611 a612 && (fun #{ a18 = a181; b18 = b181 } #{ a18 = a182; b18 = b182 } -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) b611 b612) in
+  let r = { a61 = #0l; b61 = #{ a18 = 1; b18 = #2l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a61 = #100l; b61 = #{ a18 = 101; b18 = #102l } } in
   (* .a61 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a61 = next_r.a61 } in
@@ -2118,11 +2118,11 @@ let () =
   mark_test_run 260;
   let test = sub_eq (get_idx_mut r ((.a61) : (t61, _) idx_mut)) next_r.a61 in
   if not test then failwithf "test 260 failed";
-  let r = ({ a61 = #0l; b61 = (#{ a18 = 1; b18 = #2l } : t18) } : t61) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a61 = #100l; b61 = (#{ a18 = 101; b18 = #102l } : t18) } : t61) in
+  let r = { a61 = #0l; b61 = #{ a18 = 1; b18 = #2l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a61 = #100l; b61 = #{ a18 = 101; b18 = #102l } } in
   (* .b61 *)
-  let sub_eq = (fun (#{ a18 = a181; b18 = b181 } : t18) (#{ a18 = a182; b18 = b182 } : t18) -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) in
+  let sub_eq = (fun #{ a18 = a181; b18 = b181 } #{ a18 = a182; b18 = b182 } -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) in
   let expected = { r with b61 = next_r.b61 } in
   set_idx_mut r ((.b61) : (t61, _) idx_mut) next_r.b61;
   mark_test_run 261;
@@ -2131,8 +2131,8 @@ let () =
   mark_test_run 262;
   let test = sub_eq (get_idx_mut r ((.b61) : (t61, _) idx_mut)) next_r.b61 in
   if not test then failwithf "test 262 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a61 = #200l; b61 = (#{ a18 = 201; b18 = #202l } : t18) } : t61) in
+  (* Paths of depth 2 *)
+  let next_r = { a61 = #200l; b61 = #{ a18 = 201; b18 = #202l } } in
   (* .b61.#a18 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b61 = #{ r.b61 with a18 = next_r.b61.#a18 } } in
@@ -2156,10 +2156,10 @@ let () =
   (*************************************)
   (*   t62 = { int32#; #{ int32# } }   *)
   (*************************************)
-  let eq = (fun ({ a62 = a621; b62 = b621 } : t62) ({ a62 = a622; b62 = b622 } : t62) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a621 a622 && (fun (#{ a22 = a221 } : t22) (#{ a22 = a222 } : t22) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) b621 b622) in
-  let r = ({ a62 = #0l; b62 = (#{ a22 = #1l } : t22) } : t62) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a62 = #100l; b62 = (#{ a22 = #101l } : t22) } : t62) in
+  let eq = (fun { a62 = a621; b62 = b621 } { a62 = a622; b62 = b622 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a621 a622 && (fun #{ a22 = a221 } #{ a22 = a222 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) b621 b622) in
+  let r = { a62 = #0l; b62 = #{ a22 = #1l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a62 = #100l; b62 = #{ a22 = #101l } } in
   (* .a62 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a62 = next_r.a62 } in
@@ -2170,11 +2170,11 @@ let () =
   mark_test_run 268;
   let test = sub_eq (get_idx_mut r ((.a62) : (t62, _) idx_mut)) next_r.a62 in
   if not test then failwithf "test 268 failed";
-  let r = ({ a62 = #0l; b62 = (#{ a22 = #1l } : t22) } : t62) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a62 = #100l; b62 = (#{ a22 = #101l } : t22) } : t62) in
+  let r = { a62 = #0l; b62 = #{ a22 = #1l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a62 = #100l; b62 = #{ a22 = #101l } } in
   (* .b62 *)
-  let sub_eq = (fun (#{ a22 = a221 } : t22) (#{ a22 = a222 } : t22) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) in
+  let sub_eq = (fun #{ a22 = a221 } #{ a22 = a222 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) in
   let expected = { r with b62 = next_r.b62 } in
   set_idx_mut r ((.b62) : (t62, _) idx_mut) next_r.b62;
   mark_test_run 269;
@@ -2183,8 +2183,8 @@ let () =
   mark_test_run 270;
   let test = sub_eq (get_idx_mut r ((.b62) : (t62, _) idx_mut)) next_r.b62 in
   if not test then failwithf "test 270 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a62 = #200l; b62 = (#{ a22 = #201l } : t22) } : t62) in
+  (* Paths of depth 2 *)
+  let next_r = { a62 = #200l; b62 = #{ a22 = #201l } } in
   (* .b62.#a22 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b62 = #{ r.b62 with a22 = next_r.b62.#a22 } } in
@@ -2198,10 +2198,10 @@ let () =
   (******************************************)
   (*   t63 = { int32#; #{ int32#; int } }   *)
   (******************************************)
-  let eq = (fun ({ a63 = a631; b63 = b631 } : t63) ({ a63 = a632; b63 = b632 } : t63) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a631 a632 && (fun (#{ a24 = a241; b24 = b241 } : t24) (#{ a24 = a242; b24 = b242 } : t24) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) b631 b632) in
-  let r = ({ a63 = #0l; b63 = (#{ a24 = #1l; b24 = 2 } : t24) } : t63) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a63 = #100l; b63 = (#{ a24 = #101l; b24 = 102 } : t24) } : t63) in
+  let eq = (fun { a63 = a631; b63 = b631 } { a63 = a632; b63 = b632 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a631 a632 && (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) b631 b632) in
+  let r = { a63 = #0l; b63 = #{ a24 = #1l; b24 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a63 = #100l; b63 = #{ a24 = #101l; b24 = 102 } } in
   (* .a63 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a63 = next_r.a63 } in
@@ -2212,11 +2212,11 @@ let () =
   mark_test_run 274;
   let test = sub_eq (get_idx_mut r ((.a63) : (t63, _) idx_mut)) next_r.a63 in
   if not test then failwithf "test 274 failed";
-  let r = ({ a63 = #0l; b63 = (#{ a24 = #1l; b24 = 2 } : t24) } : t63) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a63 = #100l; b63 = (#{ a24 = #101l; b24 = 102 } : t24) } : t63) in
+  let r = { a63 = #0l; b63 = #{ a24 = #1l; b24 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a63 = #100l; b63 = #{ a24 = #101l; b24 = 102 } } in
   (* .b63 *)
-  let sub_eq = (fun (#{ a24 = a241; b24 = b241 } : t24) (#{ a24 = a242; b24 = b242 } : t24) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) in
+  let sub_eq = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) in
   let expected = { r with b63 = next_r.b63 } in
   set_idx_mut r ((.b63) : (t63, _) idx_mut) next_r.b63;
   mark_test_run 275;
@@ -2225,8 +2225,8 @@ let () =
   mark_test_run 276;
   let test = sub_eq (get_idx_mut r ((.b63) : (t63, _) idx_mut)) next_r.b63 in
   if not test then failwithf "test 276 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a63 = #200l; b63 = (#{ a24 = #201l; b24 = 202 } : t24) } : t63) in
+  (* Paths of depth 2 *)
+  let next_r = { a63 = #200l; b63 = #{ a24 = #201l; b24 = 202 } } in
   (* .b63.#a24 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b63 = #{ r.b63 with a24 = next_r.b63.#a24 } } in
@@ -2250,10 +2250,10 @@ let () =
   (*********************************************)
   (*   t64 = { int32#; #{ int32#; int32# } }   *)
   (*********************************************)
-  let eq = (fun ({ a64 = a641; b64 = b641 } : t64) ({ a64 = a642; b64 = b642 } : t64) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a641 a642 && (fun (#{ a26 = a261; b26 = b261 } : t26) (#{ a26 = a262; b26 = b262 } : t26) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) b641 b642) in
-  let r = ({ a64 = #0l; b64 = (#{ a26 = #1l; b26 = #2l } : t26) } : t64) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a64 = #100l; b64 = (#{ a26 = #101l; b26 = #102l } : t26) } : t64) in
+  let eq = (fun { a64 = a641; b64 = b641 } { a64 = a642; b64 = b642 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a641 a642 && (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) b641 b642) in
+  let r = { a64 = #0l; b64 = #{ a26 = #1l; b26 = #2l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a64 = #100l; b64 = #{ a26 = #101l; b26 = #102l } } in
   (* .a64 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a64 = next_r.a64 } in
@@ -2264,11 +2264,11 @@ let () =
   mark_test_run 282;
   let test = sub_eq (get_idx_mut r ((.a64) : (t64, _) idx_mut)) next_r.a64 in
   if not test then failwithf "test 282 failed";
-  let r = ({ a64 = #0l; b64 = (#{ a26 = #1l; b26 = #2l } : t26) } : t64) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a64 = #100l; b64 = (#{ a26 = #101l; b26 = #102l } : t26) } : t64) in
+  let r = { a64 = #0l; b64 = #{ a26 = #1l; b26 = #2l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a64 = #100l; b64 = #{ a26 = #101l; b26 = #102l } } in
   (* .b64 *)
-  let sub_eq = (fun (#{ a26 = a261; b26 = b261 } : t26) (#{ a26 = a262; b26 = b262 } : t26) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) in
+  let sub_eq = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) in
   let expected = { r with b64 = next_r.b64 } in
   set_idx_mut r ((.b64) : (t64, _) idx_mut) next_r.b64;
   mark_test_run 283;
@@ -2277,8 +2277,8 @@ let () =
   mark_test_run 284;
   let test = sub_eq (get_idx_mut r ((.b64) : (t64, _) idx_mut)) next_r.b64 in
   if not test then failwithf "test 284 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a64 = #200l; b64 = (#{ a26 = #201l; b26 = #202l } : t26) } : t64) in
+  (* Paths of depth 2 *)
+  let next_r = { a64 = #200l; b64 = #{ a26 = #201l; b26 = #202l } } in
   (* .b64.#a26 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b64 = #{ r.b64 with a26 = next_r.b64.#a26 } } in
@@ -2302,10 +2302,10 @@ let () =
   (****************************)
   (*   t65 = { nativeint# }   *)
   (****************************)
-  let eq = (fun ({ a65 = a651 } : t65) ({ a65 = a652 } : t65) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a651 a652) in
-  let r = ({ a65 = #0n } : t65) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a65 = #100n } : t65) in
+  let eq = (fun { a65 = a651 } { a65 = a652 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a651 a652) in
+  let r = { a65 = #0n } in
+  (* Paths of depth 1 *)
+  let next_r = { a65 = #100n } in
   (* .a65 *)
   let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with a65 = next_r.a65 } in
@@ -2319,10 +2319,10 @@ let () =
   (*********************************)
   (*   t66 = { nativeint#; int }   *)
   (*********************************)
-  let eq = (fun ({ a66 = a661; b66 = b661 } : t66) ({ a66 = a662; b66 = b662 } : t66) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a661 a662 && (fun a b -> Int.equal a b) b661 b662) in
-  let r = ({ a66 = #0n; b66 = 1 } : t66) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a66 = #100n; b66 = 101 } : t66) in
+  let eq = (fun { a66 = a661; b66 = b661 } { a66 = a662; b66 = b662 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a661 a662 && (fun a b -> Int.equal a b) b661 b662) in
+  let r = { a66 = #0n; b66 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a66 = #100n; b66 = 101 } in
   (* .a66 *)
   let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with a66 = next_r.a66 } in
@@ -2333,9 +2333,9 @@ let () =
   mark_test_run 292;
   let test = sub_eq (get_idx_mut r ((.a66) : (t66, _) idx_mut)) next_r.a66 in
   if not test then failwithf "test 292 failed";
-  let r = ({ a66 = #0n; b66 = 1 } : t66) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a66 = #100n; b66 = 101 } : t66) in
+  let r = { a66 = #0n; b66 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a66 = #100n; b66 = 101 } in
   (* .b66 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b66 = next_r.b66 } in
@@ -2349,10 +2349,10 @@ let () =
   (***********************************)
   (*   t67 = { nativeint#; int64 }   *)
   (***********************************)
-  let eq = (fun ({ a67 = a671; b67 = b671 } : t67) ({ a67 = a672; b67 = b672 } : t67) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a671 a672 && (fun a b -> Int64.equal (globalize a) (globalize b)) b671 b672) in
-  let r = ({ a67 = #0n; b67 = 1L } : t67) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a67 = #100n; b67 = 101L } : t67) in
+  let eq = (fun { a67 = a671; b67 = b671 } { a67 = a672; b67 = b672 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a671 a672 && (fun a b -> Int64.equal (globalize a) (globalize b)) b671 b672) in
+  let r = { a67 = #0n; b67 = 1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a67 = #100n; b67 = 101L } in
   (* .a67 *)
   let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with a67 = next_r.a67 } in
@@ -2363,9 +2363,9 @@ let () =
   mark_test_run 296;
   let test = sub_eq (get_idx_mut r ((.a67) : (t67, _) idx_mut)) next_r.a67 in
   if not test then failwithf "test 296 failed";
-  let r = ({ a67 = #0n; b67 = 1L } : t67) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a67 = #100n; b67 = 101L } : t67) in
+  let r = { a67 = #0n; b67 = 1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a67 = #100n; b67 = 101L } in
   (* .b67 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with b67 = next_r.b67 } in
@@ -2379,10 +2379,10 @@ let () =
   (************************************)
   (*   t68 = { nativeint#; int64# }   *)
   (************************************)
-  let eq = (fun ({ a68 = a681; b68 = b681 } : t68) ({ a68 = a682; b68 = b682 } : t68) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a681 a682 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b681 b682) in
-  let r = ({ a68 = #0n; b68 = #1L } : t68) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a68 = #100n; b68 = #101L } : t68) in
+  let eq = (fun { a68 = a681; b68 = b681 } { a68 = a682; b68 = b682 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a681 a682 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b681 b682) in
+  let r = { a68 = #0n; b68 = #1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a68 = #100n; b68 = #101L } in
   (* .a68 *)
   let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with a68 = next_r.a68 } in
@@ -2393,9 +2393,9 @@ let () =
   mark_test_run 300;
   let test = sub_eq (get_idx_mut r ((.a68) : (t68, _) idx_mut)) next_r.a68 in
   if not test then failwithf "test 300 failed";
-  let r = ({ a68 = #0n; b68 = #1L } : t68) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a68 = #100n; b68 = #101L } : t68) in
+  let r = { a68 = #0n; b68 = #1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a68 = #100n; b68 = #101L } in
   (* .b68 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with b68 = next_r.b68 } in
@@ -2409,10 +2409,10 @@ let () =
   (************************************)
   (*   t69 = { nativeint#; int32# }   *)
   (************************************)
-  let eq = (fun ({ a69 = a691; b69 = b691 } : t69) ({ a69 = a692; b69 = b692 } : t69) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a691 a692 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b691 b692) in
-  let r = ({ a69 = #0n; b69 = #1l } : t69) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a69 = #100n; b69 = #101l } : t69) in
+  let eq = (fun { a69 = a691; b69 = b691 } { a69 = a692; b69 = b692 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a691 a692 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b691 b692) in
+  let r = { a69 = #0n; b69 = #1l } in
+  (* Paths of depth 1 *)
+  let next_r = { a69 = #100n; b69 = #101l } in
   (* .a69 *)
   let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with a69 = next_r.a69 } in
@@ -2423,9 +2423,9 @@ let () =
   mark_test_run 304;
   let test = sub_eq (get_idx_mut r ((.a69) : (t69, _) idx_mut)) next_r.a69 in
   if not test then failwithf "test 304 failed";
-  let r = ({ a69 = #0n; b69 = #1l } : t69) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a69 = #100n; b69 = #101l } : t69) in
+  let r = { a69 = #0n; b69 = #1l } in
+  (* Paths of depth 1 *)
+  let next_r = { a69 = #100n; b69 = #101l } in
   (* .b69 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b69 = next_r.b69 } in
@@ -2439,10 +2439,10 @@ let () =
   (****************************************)
   (*   t70 = { nativeint#; nativeint# }   *)
   (****************************************)
-  let eq = (fun ({ a70 = a701; b70 = b701 } : t70) ({ a70 = a702; b70 = b702 } : t70) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a701 a702 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b701 b702) in
-  let r = ({ a70 = #0n; b70 = #1n } : t70) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a70 = #100n; b70 = #101n } : t70) in
+  let eq = (fun { a70 = a701; b70 = b701 } { a70 = a702; b70 = b702 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a701 a702 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b701 b702) in
+  let r = { a70 = #0n; b70 = #1n } in
+  (* Paths of depth 1 *)
+  let next_r = { a70 = #100n; b70 = #101n } in
   (* .a70 *)
   let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with a70 = next_r.a70 } in
@@ -2453,9 +2453,9 @@ let () =
   mark_test_run 308;
   let test = sub_eq (get_idx_mut r ((.a70) : (t70, _) idx_mut)) next_r.a70 in
   if not test then failwithf "test 308 failed";
-  let r = ({ a70 = #0n; b70 = #1n } : t70) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a70 = #100n; b70 = #101n } : t70) in
+  let r = { a70 = #0n; b70 = #1n } in
+  (* Paths of depth 1 *)
+  let next_r = { a70 = #100n; b70 = #101n } in
   (* .b70 *)
   let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with b70 = next_r.b70 } in
@@ -2469,10 +2469,10 @@ let () =
   (***********************************)
   (*   t71 = { nativeint#; float }   *)
   (***********************************)
-  let eq = (fun ({ a71 = a711; b71 = b711 } : t71) ({ a71 = a712; b71 = b712 } : t71) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a711 a712 && (fun a b -> Float.equal (globalize a) (globalize b)) b711 b712) in
-  let r = ({ a71 = #0n; b71 = 1. } : t71) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a71 = #100n; b71 = 101. } : t71) in
+  let eq = (fun { a71 = a711; b71 = b711 } { a71 = a712; b71 = b712 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a711 a712 && (fun a b -> Float.equal (globalize a) (globalize b)) b711 b712) in
+  let r = { a71 = #0n; b71 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a71 = #100n; b71 = 101. } in
   (* .a71 *)
   let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with a71 = next_r.a71 } in
@@ -2483,9 +2483,9 @@ let () =
   mark_test_run 312;
   let test = sub_eq (get_idx_mut r ((.a71) : (t71, _) idx_mut)) next_r.a71 in
   if not test then failwithf "test 312 failed";
-  let r = ({ a71 = #0n; b71 = 1. } : t71) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a71 = #100n; b71 = 101. } : t71) in
+  let r = { a71 = #0n; b71 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a71 = #100n; b71 = 101. } in
   (* .b71 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b71 = next_r.b71 } in
@@ -2499,10 +2499,10 @@ let () =
   (***********************)
   (*   t72 = { float }   *)
   (***********************)
-  let eq = (fun ({ a72 = a721 } : t72) ({ a72 = a722 } : t72) -> (fun a b -> Float.equal (globalize a) (globalize b)) a721 a722) in
-  let r = ({ a72 = 0. } : t72) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a72 = 100. } : t72) in
+  let eq = (fun { a72 = a721 } { a72 = a722 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a721 a722) in
+  let r = { a72 = 0. } in
+  (* Paths of depth 1 *)
+  let next_r = { a72 = 100. } in
   (* .a72 *)
   (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
@@ -2517,10 +2517,10 @@ let () =
   (****************************)
   (*   t73 = { float; int }   *)
   (****************************)
-  let eq = (fun ({ a73 = a731; b73 = b731 } : t73) ({ a73 = a732; b73 = b732 } : t73) -> (fun a b -> Float.equal (globalize a) (globalize b)) a731 a732 && (fun a b -> Int.equal a b) b731 b732) in
-  let r = ({ a73 = 0.; b73 = 1 } : t73) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a73 = 100.; b73 = 101 } : t73) in
+  let eq = (fun { a73 = a731; b73 = b731 } { a73 = a732; b73 = b732 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a731 a732 && (fun a b -> Int.equal a b) b731 b732) in
+  let r = { a73 = 0.; b73 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a73 = 100.; b73 = 101 } in
   (* .a73 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a73 = next_r.a73 } in
@@ -2531,9 +2531,9 @@ let () =
   mark_test_run 318;
   let test = sub_eq (get_idx_mut r ((.a73) : (t73, _) idx_mut)) next_r.a73 in
   if not test then failwithf "test 318 failed";
-  let r = ({ a73 = 0.; b73 = 1 } : t73) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a73 = 100.; b73 = 101 } : t73) in
+  let r = { a73 = 0.; b73 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a73 = 100.; b73 = 101 } in
   (* .b73 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b73 = next_r.b73 } in
@@ -2547,10 +2547,10 @@ let () =
   (*********************************)
   (*   t74 = { float; int; int }   *)
   (*********************************)
-  let eq = (fun ({ a74 = a741; b74 = b741; c74 = c741 } : t74) ({ a74 = a742; b74 = b742; c74 = c742 } : t74) -> (fun a b -> Float.equal (globalize a) (globalize b)) a741 a742 && (fun a b -> Int.equal a b) b741 b742 && (fun a b -> Int.equal a b) c741 c742) in
-  let r = ({ a74 = 0.; b74 = 1; c74 = 2 } : t74) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a74 = 100.; b74 = 101; c74 = 102 } : t74) in
+  let eq = (fun { a74 = a741; b74 = b741; c74 = c741 } { a74 = a742; b74 = b742; c74 = c742 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a741 a742 && (fun a b -> Int.equal a b) b741 b742 && (fun a b -> Int.equal a b) c741 c742) in
+  let r = { a74 = 0.; b74 = 1; c74 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a74 = 100.; b74 = 101; c74 = 102 } in
   (* .a74 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a74 = next_r.a74 } in
@@ -2561,9 +2561,9 @@ let () =
   mark_test_run 322;
   let test = sub_eq (get_idx_mut r ((.a74) : (t74, _) idx_mut)) next_r.a74 in
   if not test then failwithf "test 322 failed";
-  let r = ({ a74 = 0.; b74 = 1; c74 = 2 } : t74) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a74 = 100.; b74 = 101; c74 = 102 } : t74) in
+  let r = { a74 = 0.; b74 = 1; c74 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a74 = 100.; b74 = 101; c74 = 102 } in
   (* .b74 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b74 = next_r.b74 } in
@@ -2574,9 +2574,9 @@ let () =
   mark_test_run 324;
   let test = sub_eq (get_idx_mut r ((.b74) : (t74, _) idx_mut)) next_r.b74 in
   if not test then failwithf "test 324 failed";
-  let r = ({ a74 = 0.; b74 = 1; c74 = 2 } : t74) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a74 = 100.; b74 = 101; c74 = 102 } : t74) in
+  let r = { a74 = 0.; b74 = 1; c74 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a74 = 100.; b74 = 101; c74 = 102 } in
   (* .c74 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with c74 = next_r.c74 } in
@@ -2590,10 +2590,10 @@ let () =
   (***********************************)
   (*   t75 = { float; int; float }   *)
   (***********************************)
-  let eq = (fun ({ a75 = a751; b75 = b751; c75 = c751 } : t75) ({ a75 = a752; b75 = b752; c75 = c752 } : t75) -> (fun a b -> Float.equal (globalize a) (globalize b)) a751 a752 && (fun a b -> Int.equal a b) b751 b752 && (fun a b -> Float.equal (globalize a) (globalize b)) c751 c752) in
-  let r = ({ a75 = 0.; b75 = 1; c75 = 2. } : t75) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a75 = 100.; b75 = 101; c75 = 102. } : t75) in
+  let eq = (fun { a75 = a751; b75 = b751; c75 = c751 } { a75 = a752; b75 = b752; c75 = c752 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a751 a752 && (fun a b -> Int.equal a b) b751 b752 && (fun a b -> Float.equal (globalize a) (globalize b)) c751 c752) in
+  let r = { a75 = 0.; b75 = 1; c75 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a75 = 100.; b75 = 101; c75 = 102. } in
   (* .a75 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a75 = next_r.a75 } in
@@ -2604,9 +2604,9 @@ let () =
   mark_test_run 328;
   let test = sub_eq (get_idx_mut r ((.a75) : (t75, _) idx_mut)) next_r.a75 in
   if not test then failwithf "test 328 failed";
-  let r = ({ a75 = 0.; b75 = 1; c75 = 2. } : t75) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a75 = 100.; b75 = 101; c75 = 102. } : t75) in
+  let r = { a75 = 0.; b75 = 1; c75 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a75 = 100.; b75 = 101; c75 = 102. } in
   (* .b75 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b75 = next_r.b75 } in
@@ -2617,9 +2617,9 @@ let () =
   mark_test_run 330;
   let test = sub_eq (get_idx_mut r ((.b75) : (t75, _) idx_mut)) next_r.b75 in
   if not test then failwithf "test 330 failed";
-  let r = ({ a75 = 0.; b75 = 1; c75 = 2. } : t75) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a75 = 100.; b75 = 101; c75 = 102. } : t75) in
+  let r = { a75 = 0.; b75 = 1; c75 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a75 = 100.; b75 = 101; c75 = 102. } in
   (* .c75 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with c75 = next_r.c75 } in
@@ -2633,10 +2633,10 @@ let () =
   (******************************)
   (*   t76 = { float; int64 }   *)
   (******************************)
-  let eq = (fun ({ a76 = a761; b76 = b761 } : t76) ({ a76 = a762; b76 = b762 } : t76) -> (fun a b -> Float.equal (globalize a) (globalize b)) a761 a762 && (fun a b -> Int64.equal (globalize a) (globalize b)) b761 b762) in
-  let r = ({ a76 = 0.; b76 = 1L } : t76) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a76 = 100.; b76 = 101L } : t76) in
+  let eq = (fun { a76 = a761; b76 = b761 } { a76 = a762; b76 = b762 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a761 a762 && (fun a b -> Int64.equal (globalize a) (globalize b)) b761 b762) in
+  let r = { a76 = 0.; b76 = 1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a76 = 100.; b76 = 101L } in
   (* .a76 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a76 = next_r.a76 } in
@@ -2647,9 +2647,9 @@ let () =
   mark_test_run 334;
   let test = sub_eq (get_idx_mut r ((.a76) : (t76, _) idx_mut)) next_r.a76 in
   if not test then failwithf "test 334 failed";
-  let r = ({ a76 = 0.; b76 = 1L } : t76) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a76 = 100.; b76 = 101L } : t76) in
+  let r = { a76 = 0.; b76 = 1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a76 = 100.; b76 = 101L } in
   (* .b76 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with b76 = next_r.b76 } in
@@ -2663,10 +2663,10 @@ let () =
   (*******************************)
   (*   t77 = { float; int64# }   *)
   (*******************************)
-  let eq = (fun ({ a77 = a771; b77 = b771 } : t77) ({ a77 = a772; b77 = b772 } : t77) -> (fun a b -> Float.equal (globalize a) (globalize b)) a771 a772 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b771 b772) in
-  let r = ({ a77 = 0.; b77 = #1L } : t77) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a77 = 100.; b77 = #101L } : t77) in
+  let eq = (fun { a77 = a771; b77 = b771 } { a77 = a772; b77 = b772 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a771 a772 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b771 b772) in
+  let r = { a77 = 0.; b77 = #1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a77 = 100.; b77 = #101L } in
   (* .a77 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a77 = next_r.a77 } in
@@ -2677,9 +2677,9 @@ let () =
   mark_test_run 338;
   let test = sub_eq (get_idx_mut r ((.a77) : (t77, _) idx_mut)) next_r.a77 in
   if not test then failwithf "test 338 failed";
-  let r = ({ a77 = 0.; b77 = #1L } : t77) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a77 = 100.; b77 = #101L } : t77) in
+  let r = { a77 = 0.; b77 = #1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a77 = 100.; b77 = #101L } in
   (* .b77 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with b77 = next_r.b77 } in
@@ -2693,10 +2693,10 @@ let () =
   (*******************************)
   (*   t78 = { float; int32# }   *)
   (*******************************)
-  let eq = (fun ({ a78 = a781; b78 = b781 } : t78) ({ a78 = a782; b78 = b782 } : t78) -> (fun a b -> Float.equal (globalize a) (globalize b)) a781 a782 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b781 b782) in
-  let r = ({ a78 = 0.; b78 = #1l } : t78) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a78 = 100.; b78 = #101l } : t78) in
+  let eq = (fun { a78 = a781; b78 = b781 } { a78 = a782; b78 = b782 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a781 a782 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b781 b782) in
+  let r = { a78 = 0.; b78 = #1l } in
+  (* Paths of depth 1 *)
+  let next_r = { a78 = 100.; b78 = #101l } in
   (* .a78 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a78 = next_r.a78 } in
@@ -2707,9 +2707,9 @@ let () =
   mark_test_run 342;
   let test = sub_eq (get_idx_mut r ((.a78) : (t78, _) idx_mut)) next_r.a78 in
   if not test then failwithf "test 342 failed";
-  let r = ({ a78 = 0.; b78 = #1l } : t78) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a78 = 100.; b78 = #101l } : t78) in
+  let r = { a78 = 0.; b78 = #1l } in
+  (* Paths of depth 1 *)
+  let next_r = { a78 = 100.; b78 = #101l } in
   (* .b78 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b78 = next_r.b78 } in
@@ -2723,10 +2723,10 @@ let () =
   (***********************************)
   (*   t79 = { float; nativeint# }   *)
   (***********************************)
-  let eq = (fun ({ a79 = a791; b79 = b791 } : t79) ({ a79 = a792; b79 = b792 } : t79) -> (fun a b -> Float.equal (globalize a) (globalize b)) a791 a792 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b791 b792) in
-  let r = ({ a79 = 0.; b79 = #1n } : t79) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a79 = 100.; b79 = #101n } : t79) in
+  let eq = (fun { a79 = a791; b79 = b791 } { a79 = a792; b79 = b792 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a791 a792 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b791 b792) in
+  let r = { a79 = 0.; b79 = #1n } in
+  (* Paths of depth 1 *)
+  let next_r = { a79 = 100.; b79 = #101n } in
   (* .a79 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a79 = next_r.a79 } in
@@ -2737,9 +2737,9 @@ let () =
   mark_test_run 346;
   let test = sub_eq (get_idx_mut r ((.a79) : (t79, _) idx_mut)) next_r.a79 in
   if not test then failwithf "test 346 failed";
-  let r = ({ a79 = 0.; b79 = #1n } : t79) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a79 = 100.; b79 = #101n } : t79) in
+  let r = { a79 = 0.; b79 = #1n } in
+  (* Paths of depth 1 *)
+  let next_r = { a79 = 100.; b79 = #101n } in
   (* .b79 *)
   let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with b79 = next_r.b79 } in
@@ -2753,10 +2753,10 @@ let () =
   (******************************)
   (*   t80 = { float; float }   *)
   (******************************)
-  let eq = (fun ({ a80 = a801; b80 = b801 } : t80) ({ a80 = a802; b80 = b802 } : t80) -> (fun a b -> Float.equal (globalize a) (globalize b)) a801 a802 && (fun a b -> Float.equal (globalize a) (globalize b)) b801 b802) in
-  let r = ({ a80 = 0.; b80 = 1. } : t80) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a80 = 100.; b80 = 101. } : t80) in
+  let eq = (fun { a80 = a801; b80 = b801 } { a80 = a802; b80 = b802 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a801 a802 && (fun a b -> Float.equal (globalize a) (globalize b)) b801 b802) in
+  let r = { a80 = 0.; b80 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a80 = 100.; b80 = 101. } in
   (* .a80 *)
   (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
@@ -2768,9 +2768,9 @@ let () =
   mark_test_run 350;
   let test = sub_eq (get_idx_mut r ((.a80) : (t80, _) idx_mut)) (Float_u.of_float next_r.a80) in
   if not test then failwithf "test 350 failed";
-  let r = ({ a80 = 0.; b80 = 1. } : t80) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a80 = 100.; b80 = 101. } : t80) in
+  let r = { a80 = 0.; b80 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a80 = 100.; b80 = 101. } in
   (* .b80 *)
   (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
@@ -2785,10 +2785,10 @@ let () =
   (***********************************)
   (*   t81 = { float; float; int }   *)
   (***********************************)
-  let eq = (fun ({ a81 = a811; b81 = b811; c81 = c811 } : t81) ({ a81 = a812; b81 = b812; c81 = c812 } : t81) -> (fun a b -> Float.equal (globalize a) (globalize b)) a811 a812 && (fun a b -> Float.equal (globalize a) (globalize b)) b811 b812 && (fun a b -> Int.equal a b) c811 c812) in
-  let r = ({ a81 = 0.; b81 = 1.; c81 = 2 } : t81) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a81 = 100.; b81 = 101.; c81 = 102 } : t81) in
+  let eq = (fun { a81 = a811; b81 = b811; c81 = c811 } { a81 = a812; b81 = b812; c81 = c812 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a811 a812 && (fun a b -> Float.equal (globalize a) (globalize b)) b811 b812 && (fun a b -> Int.equal a b) c811 c812) in
+  let r = { a81 = 0.; b81 = 1.; c81 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a81 = 100.; b81 = 101.; c81 = 102 } in
   (* .a81 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a81 = next_r.a81 } in
@@ -2799,9 +2799,9 @@ let () =
   mark_test_run 354;
   let test = sub_eq (get_idx_mut r ((.a81) : (t81, _) idx_mut)) next_r.a81 in
   if not test then failwithf "test 354 failed";
-  let r = ({ a81 = 0.; b81 = 1.; c81 = 2 } : t81) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a81 = 100.; b81 = 101.; c81 = 102 } : t81) in
+  let r = { a81 = 0.; b81 = 1.; c81 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a81 = 100.; b81 = 101.; c81 = 102 } in
   (* .b81 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b81 = next_r.b81 } in
@@ -2812,9 +2812,9 @@ let () =
   mark_test_run 356;
   let test = sub_eq (get_idx_mut r ((.b81) : (t81, _) idx_mut)) next_r.b81 in
   if not test then failwithf "test 356 failed";
-  let r = ({ a81 = 0.; b81 = 1.; c81 = 2 } : t81) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a81 = 100.; b81 = 101.; c81 = 102 } : t81) in
+  let r = { a81 = 0.; b81 = 1.; c81 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a81 = 100.; b81 = 101.; c81 = 102 } in
   (* .c81 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with c81 = next_r.c81 } in
@@ -2828,10 +2828,10 @@ let () =
   (*************************************)
   (*   t82 = { float; float; float }   *)
   (*************************************)
-  let eq = (fun ({ a82 = a821; b82 = b821; c82 = c821 } : t82) ({ a82 = a822; b82 = b822; c82 = c822 } : t82) -> (fun a b -> Float.equal (globalize a) (globalize b)) a821 a822 && (fun a b -> Float.equal (globalize a) (globalize b)) b821 b822 && (fun a b -> Float.equal (globalize a) (globalize b)) c821 c822) in
-  let r = ({ a82 = 0.; b82 = 1.; c82 = 2. } : t82) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a82 = 100.; b82 = 101.; c82 = 102. } : t82) in
+  let eq = (fun { a82 = a821; b82 = b821; c82 = c821 } { a82 = a822; b82 = b822; c82 = c822 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a821 a822 && (fun a b -> Float.equal (globalize a) (globalize b)) b821 b822 && (fun a b -> Float.equal (globalize a) (globalize b)) c821 c822) in
+  let r = { a82 = 0.; b82 = 1.; c82 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a82 = 100.; b82 = 101.; c82 = 102. } in
   (* .a82 *)
   (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
@@ -2843,9 +2843,9 @@ let () =
   mark_test_run 360;
   let test = sub_eq (get_idx_mut r ((.a82) : (t82, _) idx_mut)) (Float_u.of_float next_r.a82) in
   if not test then failwithf "test 360 failed";
-  let r = ({ a82 = 0.; b82 = 1.; c82 = 2. } : t82) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a82 = 100.; b82 = 101.; c82 = 102. } : t82) in
+  let r = { a82 = 0.; b82 = 1.; c82 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a82 = 100.; b82 = 101.; c82 = 102. } in
   (* .b82 *)
   (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
@@ -2857,9 +2857,9 @@ let () =
   mark_test_run 362;
   let test = sub_eq (get_idx_mut r ((.b82) : (t82, _) idx_mut)) (Float_u.of_float next_r.b82) in
   if not test then failwithf "test 362 failed";
-  let r = ({ a82 = 0.; b82 = 1.; c82 = 2. } : t82) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a82 = 100.; b82 = 101.; c82 = 102. } : t82) in
+  let r = { a82 = 0.; b82 = 1.; c82 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a82 = 100.; b82 = 101.; c82 = 102. } in
   (* .c82 *)
   (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
@@ -2874,10 +2874,10 @@ let () =
   (*********************************)
   (*   t83 = { float; #{ int } }   *)
   (*********************************)
-  let eq = (fun ({ a83 = a831; b83 = b831 } : t83) ({ a83 = a832; b83 = b832 } : t83) -> (fun a b -> Float.equal (globalize a) (globalize b)) a831 a832 && (fun (#{ a14 = a141 } : t14) (#{ a14 = a142 } : t14) -> (fun a b -> Int.equal a b) a141 a142) b831 b832) in
-  let r = ({ a83 = 0.; b83 = (#{ a14 = 1 } : t14) } : t83) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a83 = 100.; b83 = (#{ a14 = 101 } : t14) } : t83) in
+  let eq = (fun { a83 = a831; b83 = b831 } { a83 = a832; b83 = b832 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a831 a832 && (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) b831 b832) in
+  let r = { a83 = 0.; b83 = #{ a14 = 1 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a83 = 100.; b83 = #{ a14 = 101 } } in
   (* .a83 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a83 = next_r.a83 } in
@@ -2888,11 +2888,11 @@ let () =
   mark_test_run 366;
   let test = sub_eq (get_idx_mut r ((.a83) : (t83, _) idx_mut)) next_r.a83 in
   if not test then failwithf "test 366 failed";
-  let r = ({ a83 = 0.; b83 = (#{ a14 = 1 } : t14) } : t83) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a83 = 100.; b83 = (#{ a14 = 101 } : t14) } : t83) in
+  let r = { a83 = 0.; b83 = #{ a14 = 1 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a83 = 100.; b83 = #{ a14 = 101 } } in
   (* .b83 *)
-  let sub_eq = (fun (#{ a14 = a141 } : t14) (#{ a14 = a142 } : t14) -> (fun a b -> Int.equal a b) a141 a142) in
+  let sub_eq = (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) in
   let expected = { r with b83 = next_r.b83 } in
   set_idx_mut r ((.b83) : (t83, _) idx_mut) next_r.b83;
   mark_test_run 367;
@@ -2901,8 +2901,8 @@ let () =
   mark_test_run 368;
   let test = sub_eq (get_idx_mut r ((.b83) : (t83, _) idx_mut)) next_r.b83 in
   if not test then failwithf "test 368 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a83 = 200.; b83 = (#{ a14 = 201 } : t14) } : t83) in
+  (* Paths of depth 2 *)
+  let next_r = { a83 = 200.; b83 = #{ a14 = 201 } } in
   (* .b83.#a14 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b83 = #{ r.b83 with a14 = next_r.b83.#a14 } } in
@@ -2916,10 +2916,10 @@ let () =
   (**************************************)
   (*   t84 = { float; #{ int; int } }   *)
   (**************************************)
-  let eq = (fun ({ a84 = a841; b84 = b841 } : t84) ({ a84 = a842; b84 = b842 } : t84) -> (fun a b -> Float.equal (globalize a) (globalize b)) a841 a842 && (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) b841 b842) in
-  let r = ({ a84 = 0.; b84 = (#{ a16 = 1; b16 = 2 } : t16) } : t84) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a84 = 100.; b84 = (#{ a16 = 101; b16 = 102 } : t16) } : t84) in
+  let eq = (fun { a84 = a841; b84 = b841 } { a84 = a842; b84 = b842 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a841 a842 && (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) b841 b842) in
+  let r = { a84 = 0.; b84 = #{ a16 = 1; b16 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a84 = 100.; b84 = #{ a16 = 101; b16 = 102 } } in
   (* .a84 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a84 = next_r.a84 } in
@@ -2930,11 +2930,11 @@ let () =
   mark_test_run 372;
   let test = sub_eq (get_idx_mut r ((.a84) : (t84, _) idx_mut)) next_r.a84 in
   if not test then failwithf "test 372 failed";
-  let r = ({ a84 = 0.; b84 = (#{ a16 = 1; b16 = 2 } : t16) } : t84) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a84 = 100.; b84 = (#{ a16 = 101; b16 = 102 } : t16) } : t84) in
+  let r = { a84 = 0.; b84 = #{ a16 = 1; b16 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a84 = 100.; b84 = #{ a16 = 101; b16 = 102 } } in
   (* .b84 *)
-  let sub_eq = (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) in
+  let sub_eq = (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) in
   let expected = { r with b84 = next_r.b84 } in
   set_idx_mut r ((.b84) : (t84, _) idx_mut) next_r.b84;
   mark_test_run 373;
@@ -2943,8 +2943,8 @@ let () =
   mark_test_run 374;
   let test = sub_eq (get_idx_mut r ((.b84) : (t84, _) idx_mut)) next_r.b84 in
   if not test then failwithf "test 374 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a84 = 200.; b84 = (#{ a16 = 201; b16 = 202 } : t16) } : t84) in
+  (* Paths of depth 2 *)
+  let next_r = { a84 = 200.; b84 = #{ a16 = 201; b16 = 202 } } in
   (* .b84.#a16 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b84 = #{ r.b84 with a16 = next_r.b84.#a16 } } in
@@ -2968,10 +2968,10 @@ let () =
   (****************************************)
   (*   t85 = { float; #{ int; float } }   *)
   (****************************************)
-  let eq = (fun ({ a85 = a851; b85 = b851 } : t85) ({ a85 = a852; b85 = b852 } : t85) -> (fun a b -> Float.equal (globalize a) (globalize b)) a851 a852 && (fun (#{ a20 = a201; b20 = b201 } : t20) (#{ a20 = a202; b20 = b202 } : t20) -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) b851 b852) in
-  let r = ({ a85 = 0.; b85 = (#{ a20 = 1; b20 = 2. } : t20) } : t85) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a85 = 100.; b85 = (#{ a20 = 101; b20 = 102. } : t20) } : t85) in
+  let eq = (fun { a85 = a851; b85 = b851 } { a85 = a852; b85 = b852 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a851 a852 && (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) b851 b852) in
+  let r = { a85 = 0.; b85 = #{ a20 = 1; b20 = 2. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a85 = 100.; b85 = #{ a20 = 101; b20 = 102. } } in
   (* .a85 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a85 = next_r.a85 } in
@@ -2982,11 +2982,11 @@ let () =
   mark_test_run 380;
   let test = sub_eq (get_idx_mut r ((.a85) : (t85, _) idx_mut)) next_r.a85 in
   if not test then failwithf "test 380 failed";
-  let r = ({ a85 = 0.; b85 = (#{ a20 = 1; b20 = 2. } : t20) } : t85) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a85 = 100.; b85 = (#{ a20 = 101; b20 = 102. } : t20) } : t85) in
+  let r = { a85 = 0.; b85 = #{ a20 = 1; b20 = 2. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a85 = 100.; b85 = #{ a20 = 101; b20 = 102. } } in
   (* .b85 *)
-  let sub_eq = (fun (#{ a20 = a201; b20 = b201 } : t20) (#{ a20 = a202; b20 = b202 } : t20) -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) in
+  let sub_eq = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) in
   let expected = { r with b85 = next_r.b85 } in
   set_idx_mut r ((.b85) : (t85, _) idx_mut) next_r.b85;
   mark_test_run 381;
@@ -2995,8 +2995,8 @@ let () =
   mark_test_run 382;
   let test = sub_eq (get_idx_mut r ((.b85) : (t85, _) idx_mut)) next_r.b85 in
   if not test then failwithf "test 382 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a85 = 200.; b85 = (#{ a20 = 201; b20 = 202. } : t20) } : t85) in
+  (* Paths of depth 2 *)
+  let next_r = { a85 = 200.; b85 = #{ a20 = 201; b20 = 202. } } in
   (* .b85.#a20 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b85 = #{ r.b85 with a20 = next_r.b85.#a20 } } in
@@ -3020,10 +3020,10 @@ let () =
   (***********************************)
   (*   t86 = { float; #{ float } }   *)
   (***********************************)
-  let eq = (fun ({ a86 = a861; b86 = b861 } : t86) ({ a86 = a862; b86 = b862 } : t86) -> (fun a b -> Float.equal (globalize a) (globalize b)) a861 a862 && (fun (#{ a28 = a281 } : t28) (#{ a28 = a282 } : t28) -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) b861 b862) in
-  let r = ({ a86 = 0.; b86 = (#{ a28 = 1. } : t28) } : t86) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a86 = 100.; b86 = (#{ a28 = 101. } : t28) } : t86) in
+  let eq = (fun { a86 = a861; b86 = b861 } { a86 = a862; b86 = b862 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a861 a862 && (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) b861 b862) in
+  let r = { a86 = 0.; b86 = #{ a28 = 1. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a86 = 100.; b86 = #{ a28 = 101. } } in
   (* .a86 *)
   (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
@@ -3035,9 +3035,9 @@ let () =
   mark_test_run 388;
   let test = sub_eq (get_idx_mut r ((.a86) : (t86, _) idx_mut)) (Float_u.of_float next_r.a86) in
   if not test then failwithf "test 388 failed";
-  let r = ({ a86 = 0.; b86 = (#{ a28 = 1. } : t28) } : t86) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a86 = 100.; b86 = (#{ a28 = 101. } : t28) } : t86) in
+  let r = { a86 = 0.; b86 = #{ a28 = 1. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a86 = 100.; b86 = #{ a28 = 101. } } in
   (* .b86 *)
   (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
@@ -3049,8 +3049,8 @@ let () =
   mark_test_run 390;
   let test = sub_eq (get_idx_mut r ((.b86) : (t86, _) idx_mut)) (Float_u.of_float next_r.b86.#a28) in
   if not test then failwithf "test 390 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a86 = 200.; b86 = (#{ a28 = 201. } : t28) } : t86) in
+  (* Paths of depth 2 *)
+  let next_r = { a86 = 200.; b86 = #{ a28 = 201. } } in
   (* .b86.#a28 *)
   (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
@@ -3065,10 +3065,10 @@ let () =
   (****************************************)
   (*   t87 = { float; #{ float; int } }   *)
   (****************************************)
-  let eq = (fun ({ a87 = a871; b87 = b871 } : t87) ({ a87 = a872; b87 = b872 } : t87) -> (fun a b -> Float.equal (globalize a) (globalize b)) a871 a872 && (fun (#{ a30 = a301; b30 = b301 } : t30) (#{ a30 = a302; b30 = b302 } : t30) -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) b871 b872) in
-  let r = ({ a87 = 0.; b87 = (#{ a30 = 1.; b30 = 2 } : t30) } : t87) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a87 = 100.; b87 = (#{ a30 = 101.; b30 = 102 } : t30) } : t87) in
+  let eq = (fun { a87 = a871; b87 = b871 } { a87 = a872; b87 = b872 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a871 a872 && (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) b871 b872) in
+  let r = { a87 = 0.; b87 = #{ a30 = 1.; b30 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a87 = 100.; b87 = #{ a30 = 101.; b30 = 102 } } in
   (* .a87 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a87 = next_r.a87 } in
@@ -3079,11 +3079,11 @@ let () =
   mark_test_run 394;
   let test = sub_eq (get_idx_mut r ((.a87) : (t87, _) idx_mut)) next_r.a87 in
   if not test then failwithf "test 394 failed";
-  let r = ({ a87 = 0.; b87 = (#{ a30 = 1.; b30 = 2 } : t30) } : t87) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a87 = 100.; b87 = (#{ a30 = 101.; b30 = 102 } : t30) } : t87) in
+  let r = { a87 = 0.; b87 = #{ a30 = 1.; b30 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a87 = 100.; b87 = #{ a30 = 101.; b30 = 102 } } in
   (* .b87 *)
-  let sub_eq = (fun (#{ a30 = a301; b30 = b301 } : t30) (#{ a30 = a302; b30 = b302 } : t30) -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) in
+  let sub_eq = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) in
   let expected = { r with b87 = next_r.b87 } in
   set_idx_mut r ((.b87) : (t87, _) idx_mut) next_r.b87;
   mark_test_run 395;
@@ -3092,8 +3092,8 @@ let () =
   mark_test_run 396;
   let test = sub_eq (get_idx_mut r ((.b87) : (t87, _) idx_mut)) next_r.b87 in
   if not test then failwithf "test 396 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a87 = 200.; b87 = (#{ a30 = 201.; b30 = 202 } : t30) } : t87) in
+  (* Paths of depth 2 *)
+  let next_r = { a87 = 200.; b87 = #{ a30 = 201.; b30 = 202 } } in
   (* .b87.#a30 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b87 = #{ r.b87 with a30 = next_r.b87.#a30 } } in
@@ -3117,10 +3117,10 @@ let () =
   (******************************************)
   (*   t88 = { float; #{ float; float } }   *)
   (******************************************)
-  let eq = (fun ({ a88 = a881; b88 = b881 } : t88) ({ a88 = a882; b88 = b882 } : t88) -> (fun a b -> Float.equal (globalize a) (globalize b)) a881 a882 && (fun (#{ a32 = a321; b32 = b321 } : t32) (#{ a32 = a322; b32 = b322 } : t32) -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) b881 b882) in
-  let r = ({ a88 = 0.; b88 = (#{ a32 = 1.; b32 = 2. } : t32) } : t88) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a88 = 100.; b88 = (#{ a32 = 101.; b32 = 102. } : t32) } : t88) in
+  let eq = (fun { a88 = a881; b88 = b881 } { a88 = a882; b88 = b882 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a881 a882 && (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) b881 b882) in
+  let r = { a88 = 0.; b88 = #{ a32 = 1.; b32 = 2. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a88 = 100.; b88 = #{ a32 = 101.; b32 = 102. } } in
   (* .a88 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a88 = next_r.a88 } in
@@ -3131,11 +3131,11 @@ let () =
   mark_test_run 402;
   let test = sub_eq (get_idx_mut r ((.a88) : (t88, _) idx_mut)) next_r.a88 in
   if not test then failwithf "test 402 failed";
-  let r = ({ a88 = 0.; b88 = (#{ a32 = 1.; b32 = 2. } : t32) } : t88) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a88 = 100.; b88 = (#{ a32 = 101.; b32 = 102. } : t32) } : t88) in
+  let r = { a88 = 0.; b88 = #{ a32 = 1.; b32 = 2. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a88 = 100.; b88 = #{ a32 = 101.; b32 = 102. } } in
   (* .b88 *)
-  let sub_eq = (fun (#{ a32 = a321; b32 = b321 } : t32) (#{ a32 = a322; b32 = b322 } : t32) -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) in
+  let sub_eq = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) in
   let expected = { r with b88 = next_r.b88 } in
   set_idx_mut r ((.b88) : (t88, _) idx_mut) next_r.b88;
   mark_test_run 403;
@@ -3144,8 +3144,8 @@ let () =
   mark_test_run 404;
   let test = sub_eq (get_idx_mut r ((.b88) : (t88, _) idx_mut)) next_r.b88 in
   if not test then failwithf "test 404 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a88 = 200.; b88 = (#{ a32 = 201.; b32 = 202. } : t32) } : t88) in
+  (* Paths of depth 2 *)
+  let next_r = { a88 = 200.; b88 = #{ a32 = 201.; b32 = 202. } } in
   (* .b88.#a32 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b88 = #{ r.b88 with a32 = next_r.b88.#a32 } } in
@@ -3169,12 +3169,12 @@ let () =
   (**************************)
   (*   t89 = { #{ int } }   *)
   (**************************)
-  let eq = (fun ({ a89 = a891 } : t89) ({ a89 = a892 } : t89) -> (fun (#{ a14 = a141 } : t14) (#{ a14 = a142 } : t14) -> (fun a b -> Int.equal a b) a141 a142) a891 a892) in
-  let r = ({ a89 = (#{ a14 = 0 } : t14) } : t89) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a89 = (#{ a14 = 100 } : t14) } : t89) in
+  let eq = (fun { a89 = a891 } { a89 = a892 } -> (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) a891 a892) in
+  let r = { a89 = #{ a14 = 0 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a89 = #{ a14 = 100 } } in
   (* .a89 *)
-  let sub_eq = (fun (#{ a14 = a141 } : t14) (#{ a14 = a142 } : t14) -> (fun a b -> Int.equal a b) a141 a142) in
+  let sub_eq = (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) in
   let expected = { r with a89 = next_r.a89 } in
   set_idx_mut r ((.a89) : (t89, _) idx_mut) next_r.a89;
   mark_test_run 409;
@@ -3183,8 +3183,8 @@ let () =
   mark_test_run 410;
   let test = sub_eq (get_idx_mut r ((.a89) : (t89, _) idx_mut)) next_r.a89 in
   if not test then failwithf "test 410 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a89 = (#{ a14 = 200 } : t14) } : t89) in
+  (* Paths of depth 2 *)
+  let next_r = { a89 = #{ a14 = 200 } } in
   (* .a89.#a14 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a89 = #{ r.a89 with a14 = next_r.a89.#a14 } } in
@@ -3198,12 +3198,12 @@ let () =
   (*******************************)
   (*   t90 = { #{ int }; int }   *)
   (*******************************)
-  let eq = (fun ({ a90 = a901; b90 = b901 } : t90) ({ a90 = a902; b90 = b902 } : t90) -> (fun (#{ a14 = a141 } : t14) (#{ a14 = a142 } : t14) -> (fun a b -> Int.equal a b) a141 a142) a901 a902 && (fun a b -> Int.equal a b) b901 b902) in
-  let r = ({ a90 = (#{ a14 = 0 } : t14); b90 = 1 } : t90) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a90 = (#{ a14 = 100 } : t14); b90 = 101 } : t90) in
+  let eq = (fun { a90 = a901; b90 = b901 } { a90 = a902; b90 = b902 } -> (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) a901 a902 && (fun a b -> Int.equal a b) b901 b902) in
+  let r = { a90 = #{ a14 = 0 }; b90 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a90 = #{ a14 = 100 }; b90 = 101 } in
   (* .a90 *)
-  let sub_eq = (fun (#{ a14 = a141 } : t14) (#{ a14 = a142 } : t14) -> (fun a b -> Int.equal a b) a141 a142) in
+  let sub_eq = (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) in
   let expected = { r with a90 = next_r.a90 } in
   set_idx_mut r ((.a90) : (t90, _) idx_mut) next_r.a90;
   mark_test_run 413;
@@ -3212,8 +3212,8 @@ let () =
   mark_test_run 414;
   let test = sub_eq (get_idx_mut r ((.a90) : (t90, _) idx_mut)) next_r.a90 in
   if not test then failwithf "test 414 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a90 = (#{ a14 = 200 } : t14); b90 = 201 } : t90) in
+  (* Paths of depth 2 *)
+  let next_r = { a90 = #{ a14 = 200 }; b90 = 201 } in
   (* .a90.#a14 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a90 = #{ r.a90 with a14 = next_r.a90.#a14 } } in
@@ -3224,9 +3224,9 @@ let () =
   mark_test_run 416;
   let test = sub_eq (get_idx_mut r ((.a90.#a14) : (t90, _) idx_mut)) next_r.a90.#a14 in
   if not test then failwithf "test 416 failed";
-  let r = ({ a90 = (#{ a14 = 0 } : t14); b90 = 1 } : t90) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a90 = (#{ a14 = 100 } : t14); b90 = 101 } : t90) in
+  let r = { a90 = #{ a14 = 0 }; b90 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a90 = #{ a14 = 100 }; b90 = 101 } in
   (* .b90 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b90 = next_r.b90 } in
@@ -3240,12 +3240,12 @@ let () =
   (**********************************)
   (*   t91 = { #{ int }; int32# }   *)
   (**********************************)
-  let eq = (fun ({ a91 = a911; b91 = b911 } : t91) ({ a91 = a912; b91 = b912 } : t91) -> (fun (#{ a14 = a141 } : t14) (#{ a14 = a142 } : t14) -> (fun a b -> Int.equal a b) a141 a142) a911 a912 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b911 b912) in
-  let r = ({ a91 = (#{ a14 = 0 } : t14); b91 = #1l } : t91) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a91 = (#{ a14 = 100 } : t14); b91 = #101l } : t91) in
+  let eq = (fun { a91 = a911; b91 = b911 } { a91 = a912; b91 = b912 } -> (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) a911 a912 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b911 b912) in
+  let r = { a91 = #{ a14 = 0 }; b91 = #1l } in
+  (* Paths of depth 1 *)
+  let next_r = { a91 = #{ a14 = 100 }; b91 = #101l } in
   (* .a91 *)
-  let sub_eq = (fun (#{ a14 = a141 } : t14) (#{ a14 = a142 } : t14) -> (fun a b -> Int.equal a b) a141 a142) in
+  let sub_eq = (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) in
   let expected = { r with a91 = next_r.a91 } in
   set_idx_mut r ((.a91) : (t91, _) idx_mut) next_r.a91;
   mark_test_run 419;
@@ -3254,8 +3254,8 @@ let () =
   mark_test_run 420;
   let test = sub_eq (get_idx_mut r ((.a91) : (t91, _) idx_mut)) next_r.a91 in
   if not test then failwithf "test 420 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a91 = (#{ a14 = 200 } : t14); b91 = #201l } : t91) in
+  (* Paths of depth 2 *)
+  let next_r = { a91 = #{ a14 = 200 }; b91 = #201l } in
   (* .a91.#a14 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a91 = #{ r.a91 with a14 = next_r.a91.#a14 } } in
@@ -3266,9 +3266,9 @@ let () =
   mark_test_run 422;
   let test = sub_eq (get_idx_mut r ((.a91.#a14) : (t91, _) idx_mut)) next_r.a91.#a14 in
   if not test then failwithf "test 422 failed";
-  let r = ({ a91 = (#{ a14 = 0 } : t14); b91 = #1l } : t91) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a91 = (#{ a14 = 100 } : t14); b91 = #101l } : t91) in
+  let r = { a91 = #{ a14 = 0 }; b91 = #1l } in
+  (* Paths of depth 1 *)
+  let next_r = { a91 = #{ a14 = 100 }; b91 = #101l } in
   (* .b91 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b91 = next_r.b91 } in
@@ -3282,12 +3282,12 @@ let () =
   (*********************************)
   (*   t92 = { #{ int }; float }   *)
   (*********************************)
-  let eq = (fun ({ a92 = a921; b92 = b921 } : t92) ({ a92 = a922; b92 = b922 } : t92) -> (fun (#{ a14 = a141 } : t14) (#{ a14 = a142 } : t14) -> (fun a b -> Int.equal a b) a141 a142) a921 a922 && (fun a b -> Float.equal (globalize a) (globalize b)) b921 b922) in
-  let r = ({ a92 = (#{ a14 = 0 } : t14); b92 = 1. } : t92) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a92 = (#{ a14 = 100 } : t14); b92 = 101. } : t92) in
+  let eq = (fun { a92 = a921; b92 = b921 } { a92 = a922; b92 = b922 } -> (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) a921 a922 && (fun a b -> Float.equal (globalize a) (globalize b)) b921 b922) in
+  let r = { a92 = #{ a14 = 0 }; b92 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a92 = #{ a14 = 100 }; b92 = 101. } in
   (* .a92 *)
-  let sub_eq = (fun (#{ a14 = a141 } : t14) (#{ a14 = a142 } : t14) -> (fun a b -> Int.equal a b) a141 a142) in
+  let sub_eq = (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) in
   let expected = { r with a92 = next_r.a92 } in
   set_idx_mut r ((.a92) : (t92, _) idx_mut) next_r.a92;
   mark_test_run 425;
@@ -3296,8 +3296,8 @@ let () =
   mark_test_run 426;
   let test = sub_eq (get_idx_mut r ((.a92) : (t92, _) idx_mut)) next_r.a92 in
   if not test then failwithf "test 426 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a92 = (#{ a14 = 200 } : t14); b92 = 201. } : t92) in
+  (* Paths of depth 2 *)
+  let next_r = { a92 = #{ a14 = 200 }; b92 = 201. } in
   (* .a92.#a14 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a92 = #{ r.a92 with a14 = next_r.a92.#a14 } } in
@@ -3308,9 +3308,9 @@ let () =
   mark_test_run 428;
   let test = sub_eq (get_idx_mut r ((.a92.#a14) : (t92, _) idx_mut)) next_r.a92.#a14 in
   if not test then failwithf "test 428 failed";
-  let r = ({ a92 = (#{ a14 = 0 } : t14); b92 = 1. } : t92) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a92 = (#{ a14 = 100 } : t14); b92 = 101. } : t92) in
+  let r = { a92 = #{ a14 = 0 }; b92 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a92 = #{ a14 = 100 }; b92 = 101. } in
   (* .b92 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b92 = next_r.b92 } in
@@ -3324,12 +3324,12 @@ let () =
   (*******************************)
   (*   t93 = { #{ int; int } }   *)
   (*******************************)
-  let eq = (fun ({ a93 = a931 } : t93) ({ a93 = a932 } : t93) -> (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) a931 a932) in
-  let r = ({ a93 = (#{ a16 = 0; b16 = 1 } : t16) } : t93) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a93 = (#{ a16 = 100; b16 = 101 } : t16) } : t93) in
+  let eq = (fun { a93 = a931 } { a93 = a932 } -> (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) a931 a932) in
+  let r = { a93 = #{ a16 = 0; b16 = 1 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a93 = #{ a16 = 100; b16 = 101 } } in
   (* .a93 *)
-  let sub_eq = (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) in
+  let sub_eq = (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) in
   let expected = { r with a93 = next_r.a93 } in
   set_idx_mut r ((.a93) : (t93, _) idx_mut) next_r.a93;
   mark_test_run 431;
@@ -3338,8 +3338,8 @@ let () =
   mark_test_run 432;
   let test = sub_eq (get_idx_mut r ((.a93) : (t93, _) idx_mut)) next_r.a93 in
   if not test then failwithf "test 432 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a93 = (#{ a16 = 200; b16 = 201 } : t16) } : t93) in
+  (* Paths of depth 2 *)
+  let next_r = { a93 = #{ a16 = 200; b16 = 201 } } in
   (* .a93.#a16 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a93 = #{ r.a93 with a16 = next_r.a93.#a16 } } in
@@ -3363,12 +3363,12 @@ let () =
   (************************************)
   (*   t94 = { #{ int; int }; int }   *)
   (************************************)
-  let eq = (fun ({ a94 = a941; b94 = b941 } : t94) ({ a94 = a942; b94 = b942 } : t94) -> (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) a941 a942 && (fun a b -> Int.equal a b) b941 b942) in
-  let r = ({ a94 = (#{ a16 = 0; b16 = 1 } : t16); b94 = 2 } : t94) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a94 = (#{ a16 = 100; b16 = 101 } : t16); b94 = 102 } : t94) in
+  let eq = (fun { a94 = a941; b94 = b941 } { a94 = a942; b94 = b942 } -> (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) a941 a942 && (fun a b -> Int.equal a b) b941 b942) in
+  let r = { a94 = #{ a16 = 0; b16 = 1 }; b94 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a94 = #{ a16 = 100; b16 = 101 }; b94 = 102 } in
   (* .a94 *)
-  let sub_eq = (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) in
+  let sub_eq = (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) in
   let expected = { r with a94 = next_r.a94 } in
   set_idx_mut r ((.a94) : (t94, _) idx_mut) next_r.a94;
   mark_test_run 437;
@@ -3377,8 +3377,8 @@ let () =
   mark_test_run 438;
   let test = sub_eq (get_idx_mut r ((.a94) : (t94, _) idx_mut)) next_r.a94 in
   if not test then failwithf "test 438 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a94 = (#{ a16 = 200; b16 = 201 } : t16); b94 = 202 } : t94) in
+  (* Paths of depth 2 *)
+  let next_r = { a94 = #{ a16 = 200; b16 = 201 }; b94 = 202 } in
   (* .a94.#a16 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a94 = #{ r.a94 with a16 = next_r.a94.#a16 } } in
@@ -3399,9 +3399,9 @@ let () =
   mark_test_run 442;
   let test = sub_eq (get_idx_mut r ((.a94.#b16) : (t94, _) idx_mut)) next_r.a94.#b16 in
   if not test then failwithf "test 442 failed";
-  let r = ({ a94 = (#{ a16 = 0; b16 = 1 } : t16); b94 = 2 } : t94) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a94 = (#{ a16 = 100; b16 = 101 } : t16); b94 = 102 } : t94) in
+  let r = { a94 = #{ a16 = 0; b16 = 1 }; b94 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a94 = #{ a16 = 100; b16 = 101 }; b94 = 102 } in
   (* .b94 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b94 = next_r.b94 } in
@@ -3415,12 +3415,12 @@ let () =
   (***************************************)
   (*   t95 = { #{ int; int }; int32# }   *)
   (***************************************)
-  let eq = (fun ({ a95 = a951; b95 = b951 } : t95) ({ a95 = a952; b95 = b952 } : t95) -> (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) a951 a952 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b951 b952) in
-  let r = ({ a95 = (#{ a16 = 0; b16 = 1 } : t16); b95 = #2l } : t95) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a95 = (#{ a16 = 100; b16 = 101 } : t16); b95 = #102l } : t95) in
+  let eq = (fun { a95 = a951; b95 = b951 } { a95 = a952; b95 = b952 } -> (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) a951 a952 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b951 b952) in
+  let r = { a95 = #{ a16 = 0; b16 = 1 }; b95 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a95 = #{ a16 = 100; b16 = 101 }; b95 = #102l } in
   (* .a95 *)
-  let sub_eq = (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) in
+  let sub_eq = (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) in
   let expected = { r with a95 = next_r.a95 } in
   set_idx_mut r ((.a95) : (t95, _) idx_mut) next_r.a95;
   mark_test_run 445;
@@ -3429,8 +3429,8 @@ let () =
   mark_test_run 446;
   let test = sub_eq (get_idx_mut r ((.a95) : (t95, _) idx_mut)) next_r.a95 in
   if not test then failwithf "test 446 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a95 = (#{ a16 = 200; b16 = 201 } : t16); b95 = #202l } : t95) in
+  (* Paths of depth 2 *)
+  let next_r = { a95 = #{ a16 = 200; b16 = 201 }; b95 = #202l } in
   (* .a95.#a16 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a95 = #{ r.a95 with a16 = next_r.a95.#a16 } } in
@@ -3451,9 +3451,9 @@ let () =
   mark_test_run 450;
   let test = sub_eq (get_idx_mut r ((.a95.#b16) : (t95, _) idx_mut)) next_r.a95.#b16 in
   if not test then failwithf "test 450 failed";
-  let r = ({ a95 = (#{ a16 = 0; b16 = 1 } : t16); b95 = #2l } : t95) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a95 = (#{ a16 = 100; b16 = 101 } : t16); b95 = #102l } : t95) in
+  let r = { a95 = #{ a16 = 0; b16 = 1 }; b95 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a95 = #{ a16 = 100; b16 = 101 }; b95 = #102l } in
   (* .b95 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b95 = next_r.b95 } in
@@ -3467,12 +3467,12 @@ let () =
   (**************************************)
   (*   t96 = { #{ int; int }; float }   *)
   (**************************************)
-  let eq = (fun ({ a96 = a961; b96 = b961 } : t96) ({ a96 = a962; b96 = b962 } : t96) -> (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) a961 a962 && (fun a b -> Float.equal (globalize a) (globalize b)) b961 b962) in
-  let r = ({ a96 = (#{ a16 = 0; b16 = 1 } : t16); b96 = 2. } : t96) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a96 = (#{ a16 = 100; b16 = 101 } : t16); b96 = 102. } : t96) in
+  let eq = (fun { a96 = a961; b96 = b961 } { a96 = a962; b96 = b962 } -> (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) a961 a962 && (fun a b -> Float.equal (globalize a) (globalize b)) b961 b962) in
+  let r = { a96 = #{ a16 = 0; b16 = 1 }; b96 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a96 = #{ a16 = 100; b16 = 101 }; b96 = 102. } in
   (* .a96 *)
-  let sub_eq = (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) in
+  let sub_eq = (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) in
   let expected = { r with a96 = next_r.a96 } in
   set_idx_mut r ((.a96) : (t96, _) idx_mut) next_r.a96;
   mark_test_run 453;
@@ -3481,8 +3481,8 @@ let () =
   mark_test_run 454;
   let test = sub_eq (get_idx_mut r ((.a96) : (t96, _) idx_mut)) next_r.a96 in
   if not test then failwithf "test 454 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a96 = (#{ a16 = 200; b16 = 201 } : t16); b96 = 202. } : t96) in
+  (* Paths of depth 2 *)
+  let next_r = { a96 = #{ a16 = 200; b16 = 201 }; b96 = 202. } in
   (* .a96.#a16 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a96 = #{ r.a96 with a16 = next_r.a96.#a16 } } in
@@ -3503,9 +3503,9 @@ let () =
   mark_test_run 458;
   let test = sub_eq (get_idx_mut r ((.a96.#b16) : (t96, _) idx_mut)) next_r.a96.#b16 in
   if not test then failwithf "test 458 failed";
-  let r = ({ a96 = (#{ a16 = 0; b16 = 1 } : t16); b96 = 2. } : t96) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a96 = (#{ a16 = 100; b16 = 101 } : t16); b96 = 102. } : t96) in
+  let r = { a96 = #{ a16 = 0; b16 = 1 }; b96 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a96 = #{ a16 = 100; b16 = 101 }; b96 = 102. } in
   (* .b96 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b96 = next_r.b96 } in
@@ -3519,12 +3519,12 @@ let () =
   (**********************************)
   (*   t97 = { #{ int; int32# } }   *)
   (**********************************)
-  let eq = (fun ({ a97 = a971 } : t97) ({ a97 = a972 } : t97) -> (fun (#{ a18 = a181; b18 = b181 } : t18) (#{ a18 = a182; b18 = b182 } : t18) -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) a971 a972) in
-  let r = ({ a97 = (#{ a18 = 0; b18 = #1l } : t18) } : t97) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a97 = (#{ a18 = 100; b18 = #101l } : t18) } : t97) in
+  let eq = (fun { a97 = a971 } { a97 = a972 } -> (fun #{ a18 = a181; b18 = b181 } #{ a18 = a182; b18 = b182 } -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) a971 a972) in
+  let r = { a97 = #{ a18 = 0; b18 = #1l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a97 = #{ a18 = 100; b18 = #101l } } in
   (* .a97 *)
-  let sub_eq = (fun (#{ a18 = a181; b18 = b181 } : t18) (#{ a18 = a182; b18 = b182 } : t18) -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) in
+  let sub_eq = (fun #{ a18 = a181; b18 = b181 } #{ a18 = a182; b18 = b182 } -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) in
   let expected = { r with a97 = next_r.a97 } in
   set_idx_mut r ((.a97) : (t97, _) idx_mut) next_r.a97;
   mark_test_run 461;
@@ -3533,8 +3533,8 @@ let () =
   mark_test_run 462;
   let test = sub_eq (get_idx_mut r ((.a97) : (t97, _) idx_mut)) next_r.a97 in
   if not test then failwithf "test 462 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a97 = (#{ a18 = 200; b18 = #201l } : t18) } : t97) in
+  (* Paths of depth 2 *)
+  let next_r = { a97 = #{ a18 = 200; b18 = #201l } } in
   (* .a97.#a18 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a97 = #{ r.a97 with a18 = next_r.a97.#a18 } } in
@@ -3558,12 +3558,12 @@ let () =
   (***************************************)
   (*   t98 = { #{ int; int32# }; int }   *)
   (***************************************)
-  let eq = (fun ({ a98 = a981; b98 = b981 } : t98) ({ a98 = a982; b98 = b982 } : t98) -> (fun (#{ a18 = a181; b18 = b181 } : t18) (#{ a18 = a182; b18 = b182 } : t18) -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) a981 a982 && (fun a b -> Int.equal a b) b981 b982) in
-  let r = ({ a98 = (#{ a18 = 0; b18 = #1l } : t18); b98 = 2 } : t98) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a98 = (#{ a18 = 100; b18 = #101l } : t18); b98 = 102 } : t98) in
+  let eq = (fun { a98 = a981; b98 = b981 } { a98 = a982; b98 = b982 } -> (fun #{ a18 = a181; b18 = b181 } #{ a18 = a182; b18 = b182 } -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) a981 a982 && (fun a b -> Int.equal a b) b981 b982) in
+  let r = { a98 = #{ a18 = 0; b18 = #1l }; b98 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a98 = #{ a18 = 100; b18 = #101l }; b98 = 102 } in
   (* .a98 *)
-  let sub_eq = (fun (#{ a18 = a181; b18 = b181 } : t18) (#{ a18 = a182; b18 = b182 } : t18) -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) in
+  let sub_eq = (fun #{ a18 = a181; b18 = b181 } #{ a18 = a182; b18 = b182 } -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) in
   let expected = { r with a98 = next_r.a98 } in
   set_idx_mut r ((.a98) : (t98, _) idx_mut) next_r.a98;
   mark_test_run 467;
@@ -3572,8 +3572,8 @@ let () =
   mark_test_run 468;
   let test = sub_eq (get_idx_mut r ((.a98) : (t98, _) idx_mut)) next_r.a98 in
   if not test then failwithf "test 468 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a98 = (#{ a18 = 200; b18 = #201l } : t18); b98 = 202 } : t98) in
+  (* Paths of depth 2 *)
+  let next_r = { a98 = #{ a18 = 200; b18 = #201l }; b98 = 202 } in
   (* .a98.#a18 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a98 = #{ r.a98 with a18 = next_r.a98.#a18 } } in
@@ -3594,9 +3594,9 @@ let () =
   mark_test_run 472;
   let test = sub_eq (get_idx_mut r ((.a98.#b18) : (t98, _) idx_mut)) next_r.a98.#b18 in
   if not test then failwithf "test 472 failed";
-  let r = ({ a98 = (#{ a18 = 0; b18 = #1l } : t18); b98 = 2 } : t98) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a98 = (#{ a18 = 100; b18 = #101l } : t18); b98 = 102 } : t98) in
+  let r = { a98 = #{ a18 = 0; b18 = #1l }; b98 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a98 = #{ a18 = 100; b18 = #101l }; b98 = 102 } in
   (* .b98 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b98 = next_r.b98 } in
@@ -3610,12 +3610,12 @@ let () =
   (******************************************)
   (*   t99 = { #{ int; int32# }; int32# }   *)
   (******************************************)
-  let eq = (fun ({ a99 = a991; b99 = b991 } : t99) ({ a99 = a992; b99 = b992 } : t99) -> (fun (#{ a18 = a181; b18 = b181 } : t18) (#{ a18 = a182; b18 = b182 } : t18) -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) a991 a992 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b991 b992) in
-  let r = ({ a99 = (#{ a18 = 0; b18 = #1l } : t18); b99 = #2l } : t99) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a99 = (#{ a18 = 100; b18 = #101l } : t18); b99 = #102l } : t99) in
+  let eq = (fun { a99 = a991; b99 = b991 } { a99 = a992; b99 = b992 } -> (fun #{ a18 = a181; b18 = b181 } #{ a18 = a182; b18 = b182 } -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) a991 a992 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b991 b992) in
+  let r = { a99 = #{ a18 = 0; b18 = #1l }; b99 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a99 = #{ a18 = 100; b18 = #101l }; b99 = #102l } in
   (* .a99 *)
-  let sub_eq = (fun (#{ a18 = a181; b18 = b181 } : t18) (#{ a18 = a182; b18 = b182 } : t18) -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) in
+  let sub_eq = (fun #{ a18 = a181; b18 = b181 } #{ a18 = a182; b18 = b182 } -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) in
   let expected = { r with a99 = next_r.a99 } in
   set_idx_mut r ((.a99) : (t99, _) idx_mut) next_r.a99;
   mark_test_run 475;
@@ -3624,8 +3624,8 @@ let () =
   mark_test_run 476;
   let test = sub_eq (get_idx_mut r ((.a99) : (t99, _) idx_mut)) next_r.a99 in
   if not test then failwithf "test 476 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a99 = (#{ a18 = 200; b18 = #201l } : t18); b99 = #202l } : t99) in
+  (* Paths of depth 2 *)
+  let next_r = { a99 = #{ a18 = 200; b18 = #201l }; b99 = #202l } in
   (* .a99.#a18 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a99 = #{ r.a99 with a18 = next_r.a99.#a18 } } in
@@ -3646,9 +3646,9 @@ let () =
   mark_test_run 480;
   let test = sub_eq (get_idx_mut r ((.a99.#b18) : (t99, _) idx_mut)) next_r.a99.#b18 in
   if not test then failwithf "test 480 failed";
-  let r = ({ a99 = (#{ a18 = 0; b18 = #1l } : t18); b99 = #2l } : t99) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a99 = (#{ a18 = 100; b18 = #101l } : t18); b99 = #102l } : t99) in
+  let r = { a99 = #{ a18 = 0; b18 = #1l }; b99 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a99 = #{ a18 = 100; b18 = #101l }; b99 = #102l } in
   (* .b99 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b99 = next_r.b99 } in
@@ -3662,12 +3662,12 @@ let () =
   (**********************************)
   (*   t100 = { #{ int; float } }   *)
   (**********************************)
-  let eq = (fun ({ a100 = a1001 } : t100) ({ a100 = a1002 } : t100) -> (fun (#{ a20 = a201; b20 = b201 } : t20) (#{ a20 = a202; b20 = b202 } : t20) -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) a1001 a1002) in
-  let r = ({ a100 = (#{ a20 = 0; b20 = 1. } : t20) } : t100) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a100 = (#{ a20 = 100; b20 = 101. } : t20) } : t100) in
+  let eq = (fun { a100 = a1001 } { a100 = a1002 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) a1001 a1002) in
+  let r = { a100 = #{ a20 = 0; b20 = 1. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a100 = #{ a20 = 100; b20 = 101. } } in
   (* .a100 *)
-  let sub_eq = (fun (#{ a20 = a201; b20 = b201 } : t20) (#{ a20 = a202; b20 = b202 } : t20) -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) in
+  let sub_eq = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) in
   let expected = { r with a100 = next_r.a100 } in
   set_idx_mut r ((.a100) : (t100, _) idx_mut) next_r.a100;
   mark_test_run 483;
@@ -3676,8 +3676,8 @@ let () =
   mark_test_run 484;
   let test = sub_eq (get_idx_mut r ((.a100) : (t100, _) idx_mut)) next_r.a100 in
   if not test then failwithf "test 484 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a100 = (#{ a20 = 200; b20 = 201. } : t20) } : t100) in
+  (* Paths of depth 2 *)
+  let next_r = { a100 = #{ a20 = 200; b20 = 201. } } in
   (* .a100.#a20 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a100 = #{ r.a100 with a20 = next_r.a100.#a20 } } in
@@ -3701,12 +3701,12 @@ let () =
   (***************************************)
   (*   t101 = { #{ int; float }; int }   *)
   (***************************************)
-  let eq = (fun ({ a101 = a1011; b101 = b1011 } : t101) ({ a101 = a1012; b101 = b1012 } : t101) -> (fun (#{ a20 = a201; b20 = b201 } : t20) (#{ a20 = a202; b20 = b202 } : t20) -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) a1011 a1012 && (fun a b -> Int.equal a b) b1011 b1012) in
-  let r = ({ a101 = (#{ a20 = 0; b20 = 1. } : t20); b101 = 2 } : t101) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a101 = (#{ a20 = 100; b20 = 101. } : t20); b101 = 102 } : t101) in
+  let eq = (fun { a101 = a1011; b101 = b1011 } { a101 = a1012; b101 = b1012 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) a1011 a1012 && (fun a b -> Int.equal a b) b1011 b1012) in
+  let r = { a101 = #{ a20 = 0; b20 = 1. }; b101 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a101 = #{ a20 = 100; b20 = 101. }; b101 = 102 } in
   (* .a101 *)
-  let sub_eq = (fun (#{ a20 = a201; b20 = b201 } : t20) (#{ a20 = a202; b20 = b202 } : t20) -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) in
+  let sub_eq = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) in
   let expected = { r with a101 = next_r.a101 } in
   set_idx_mut r ((.a101) : (t101, _) idx_mut) next_r.a101;
   mark_test_run 489;
@@ -3715,8 +3715,8 @@ let () =
   mark_test_run 490;
   let test = sub_eq (get_idx_mut r ((.a101) : (t101, _) idx_mut)) next_r.a101 in
   if not test then failwithf "test 490 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a101 = (#{ a20 = 200; b20 = 201. } : t20); b101 = 202 } : t101) in
+  (* Paths of depth 2 *)
+  let next_r = { a101 = #{ a20 = 200; b20 = 201. }; b101 = 202 } in
   (* .a101.#a20 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a101 = #{ r.a101 with a20 = next_r.a101.#a20 } } in
@@ -3737,9 +3737,9 @@ let () =
   mark_test_run 494;
   let test = sub_eq (get_idx_mut r ((.a101.#b20) : (t101, _) idx_mut)) next_r.a101.#b20 in
   if not test then failwithf "test 494 failed";
-  let r = ({ a101 = (#{ a20 = 0; b20 = 1. } : t20); b101 = 2 } : t101) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a101 = (#{ a20 = 100; b20 = 101. } : t20); b101 = 102 } : t101) in
+  let r = { a101 = #{ a20 = 0; b20 = 1. }; b101 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a101 = #{ a20 = 100; b20 = 101. }; b101 = 102 } in
   (* .b101 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b101 = next_r.b101 } in
@@ -3753,12 +3753,12 @@ let () =
   (*****************************************)
   (*   t102 = { #{ int; float }; float }   *)
   (*****************************************)
-  let eq = (fun ({ a102 = a1021; b102 = b1021 } : t102) ({ a102 = a1022; b102 = b1022 } : t102) -> (fun (#{ a20 = a201; b20 = b201 } : t20) (#{ a20 = a202; b20 = b202 } : t20) -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) a1021 a1022 && (fun a b -> Float.equal (globalize a) (globalize b)) b1021 b1022) in
-  let r = ({ a102 = (#{ a20 = 0; b20 = 1. } : t20); b102 = 2. } : t102) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a102 = (#{ a20 = 100; b20 = 101. } : t20); b102 = 102. } : t102) in
+  let eq = (fun { a102 = a1021; b102 = b1021 } { a102 = a1022; b102 = b1022 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) a1021 a1022 && (fun a b -> Float.equal (globalize a) (globalize b)) b1021 b1022) in
+  let r = { a102 = #{ a20 = 0; b20 = 1. }; b102 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a102 = #{ a20 = 100; b20 = 101. }; b102 = 102. } in
   (* .a102 *)
-  let sub_eq = (fun (#{ a20 = a201; b20 = b201 } : t20) (#{ a20 = a202; b20 = b202 } : t20) -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) in
+  let sub_eq = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) in
   let expected = { r with a102 = next_r.a102 } in
   set_idx_mut r ((.a102) : (t102, _) idx_mut) next_r.a102;
   mark_test_run 497;
@@ -3767,8 +3767,8 @@ let () =
   mark_test_run 498;
   let test = sub_eq (get_idx_mut r ((.a102) : (t102, _) idx_mut)) next_r.a102 in
   if not test then failwithf "test 498 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a102 = (#{ a20 = 200; b20 = 201. } : t20); b102 = 202. } : t102) in
+  (* Paths of depth 2 *)
+  let next_r = { a102 = #{ a20 = 200; b20 = 201. }; b102 = 202. } in
   (* .a102.#a20 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a102 = #{ r.a102 with a20 = next_r.a102.#a20 } } in
@@ -3789,9 +3789,9 @@ let () =
   mark_test_run 502;
   let test = sub_eq (get_idx_mut r ((.a102.#b20) : (t102, _) idx_mut)) next_r.a102.#b20 in
   if not test then failwithf "test 502 failed";
-  let r = ({ a102 = (#{ a20 = 0; b20 = 1. } : t20); b102 = 2. } : t102) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a102 = (#{ a20 = 100; b20 = 101. } : t20); b102 = 102. } : t102) in
+  let r = { a102 = #{ a20 = 0; b20 = 1. }; b102 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a102 = #{ a20 = 100; b20 = 101. }; b102 = 102. } in
   (* .b102 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b102 = next_r.b102 } in
@@ -3805,12 +3805,12 @@ let () =
   (**********************************************************)
   (*   t105 = { #{ int64; int64# }; #{ int64#; float# } }   *)
   (**********************************************************)
-  let eq = (fun ({ a105 = a1051; b105 = b1051 } : t105) ({ a105 = a1052; b105 = b1052 } : t105) -> (fun (#{ a103 = a1031; b103 = b1031 } : t103) (#{ a103 = a1032; b103 = b1032 } : t103) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1031 a1032 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1031 b1032) a1051 a1052 && (fun (#{ a104 = a1041; b104 = b1041 } : t104) (#{ a104 = a1042; b104 = b1042 } : t104) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1041 a1042 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1041 b1042) b1051 b1052) in
-  let r = ({ a105 = (#{ a103 = 0L; b103 = #1L } : t103); b105 = (#{ a104 = #2L; b104 = #3. } : t104) } : t105) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a105 = (#{ a103 = 100L; b103 = #101L } : t103); b105 = (#{ a104 = #102L; b104 = #103. } : t104) } : t105) in
+  let eq = (fun { a105 = a1051; b105 = b1051 } { a105 = a1052; b105 = b1052 } -> (fun #{ a103 = a1031; b103 = b1031 } #{ a103 = a1032; b103 = b1032 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1031 a1032 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1031 b1032) a1051 a1052 && (fun #{ a104 = a1041; b104 = b1041 } #{ a104 = a1042; b104 = b1042 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1041 a1042 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1041 b1042) b1051 b1052) in
+  let r = { a105 = #{ a103 = 0L; b103 = #1L }; b105 = #{ a104 = #2L; b104 = #3. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a105 = #{ a103 = 100L; b103 = #101L }; b105 = #{ a104 = #102L; b104 = #103. } } in
   (* .a105 *)
-  let sub_eq = (fun (#{ a103 = a1031; b103 = b1031 } : t103) (#{ a103 = a1032; b103 = b1032 } : t103) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1031 a1032 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1031 b1032) in
+  let sub_eq = (fun #{ a103 = a1031; b103 = b1031 } #{ a103 = a1032; b103 = b1032 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1031 a1032 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1031 b1032) in
   let expected = { r with a105 = next_r.a105 } in
   set_idx_mut r ((.a105) : (t105, _) idx_mut) next_r.a105;
   mark_test_run 505;
@@ -3819,8 +3819,8 @@ let () =
   mark_test_run 506;
   let test = sub_eq (get_idx_mut r ((.a105) : (t105, _) idx_mut)) next_r.a105 in
   if not test then failwithf "test 506 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a105 = (#{ a103 = 200L; b103 = #201L } : t103); b105 = (#{ a104 = #202L; b104 = #203. } : t104) } : t105) in
+  (* Paths of depth 2 *)
+  let next_r = { a105 = #{ a103 = 200L; b103 = #201L }; b105 = #{ a104 = #202L; b104 = #203. } } in
   (* .a105.#a103 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with a105 = #{ r.a105 with a103 = next_r.a105.#a103 } } in
@@ -3841,11 +3841,11 @@ let () =
   mark_test_run 510;
   let test = sub_eq (get_idx_mut r ((.a105.#b103) : (t105, _) idx_mut)) next_r.a105.#b103 in
   if not test then failwithf "test 510 failed";
-  let r = ({ a105 = (#{ a103 = 0L; b103 = #1L } : t103); b105 = (#{ a104 = #2L; b104 = #3. } : t104) } : t105) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a105 = (#{ a103 = 100L; b103 = #101L } : t103); b105 = (#{ a104 = #102L; b104 = #103. } : t104) } : t105) in
+  let r = { a105 = #{ a103 = 0L; b103 = #1L }; b105 = #{ a104 = #2L; b104 = #3. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a105 = #{ a103 = 100L; b103 = #101L }; b105 = #{ a104 = #102L; b104 = #103. } } in
   (* .b105 *)
-  let sub_eq = (fun (#{ a104 = a1041; b104 = b1041 } : t104) (#{ a104 = a1042; b104 = b1042 } : t104) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1041 a1042 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1041 b1042) in
+  let sub_eq = (fun #{ a104 = a1041; b104 = b1041 } #{ a104 = a1042; b104 = b1042 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1041 a1042 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1041 b1042) in
   let expected = { r with b105 = next_r.b105 } in
   set_idx_mut r ((.b105) : (t105, _) idx_mut) next_r.b105;
   mark_test_run 511;
@@ -3854,8 +3854,8 @@ let () =
   mark_test_run 512;
   let test = sub_eq (get_idx_mut r ((.b105) : (t105, _) idx_mut)) next_r.b105 in
   if not test then failwithf "test 512 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a105 = (#{ a103 = 200L; b103 = #201L } : t103); b105 = (#{ a104 = #202L; b104 = #203. } : t104) } : t105) in
+  (* Paths of depth 2 *)
+  let next_r = { a105 = #{ a103 = 200L; b103 = #201L }; b105 = #{ a104 = #202L; b104 = #203. } } in
   (* .b105.#a104 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with b105 = #{ r.b105 with a104 = next_r.b105.#a104 } } in
@@ -3879,12 +3879,12 @@ let () =
   (**********************************************************)
   (*   t108 = { #{ int64; string }; #{ int64#; string } }   *)
   (**********************************************************)
-  let eq = (fun ({ a108 = a1081; b108 = b1081 } : t108) ({ a108 = a1082; b108 = b1082 } : t108) -> (fun (#{ a106 = a1061; b106 = b1061 } : t106) (#{ a106 = a1062; b106 = b1062 } : t106) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1061 a1062 && (fun a b -> String.equal (globalize a) (globalize b)) b1061 b1062) a1081 a1082 && (fun (#{ a107 = a1071; b107 = b1071 } : t107) (#{ a107 = a1072; b107 = b1072 } : t107) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1071 a1072 && (fun a b -> String.equal (globalize a) (globalize b)) b1071 b1072) b1081 b1082) in
-  let r = ({ a108 = (#{ a106 = 0L; b106 = "1" } : t106); b108 = (#{ a107 = #2L; b107 = "3" } : t107) } : t108) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a108 = (#{ a106 = 100L; b106 = "101" } : t106); b108 = (#{ a107 = #102L; b107 = "103" } : t107) } : t108) in
+  let eq = (fun { a108 = a1081; b108 = b1081 } { a108 = a1082; b108 = b1082 } -> (fun #{ a106 = a1061; b106 = b1061 } #{ a106 = a1062; b106 = b1062 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1061 a1062 && (fun a b -> String.equal (globalize a) (globalize b)) b1061 b1062) a1081 a1082 && (fun #{ a107 = a1071; b107 = b1071 } #{ a107 = a1072; b107 = b1072 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1071 a1072 && (fun a b -> String.equal (globalize a) (globalize b)) b1071 b1072) b1081 b1082) in
+  let r = { a108 = #{ a106 = 0L; b106 = "1" }; b108 = #{ a107 = #2L; b107 = "3" } } in
+  (* Paths of depth 1 *)
+  let next_r = { a108 = #{ a106 = 100L; b106 = "101" }; b108 = #{ a107 = #102L; b107 = "103" } } in
   (* .a108 *)
-  let sub_eq = (fun (#{ a106 = a1061; b106 = b1061 } : t106) (#{ a106 = a1062; b106 = b1062 } : t106) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1061 a1062 && (fun a b -> String.equal (globalize a) (globalize b)) b1061 b1062) in
+  let sub_eq = (fun #{ a106 = a1061; b106 = b1061 } #{ a106 = a1062; b106 = b1062 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1061 a1062 && (fun a b -> String.equal (globalize a) (globalize b)) b1061 b1062) in
   let expected = { r with a108 = next_r.a108 } in
   set_idx_mut r ((.a108) : (t108, _) idx_mut) next_r.a108;
   mark_test_run 517;
@@ -3893,8 +3893,8 @@ let () =
   mark_test_run 518;
   let test = sub_eq (get_idx_mut r ((.a108) : (t108, _) idx_mut)) next_r.a108 in
   if not test then failwithf "test 518 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a108 = (#{ a106 = 200L; b106 = "201" } : t106); b108 = (#{ a107 = #202L; b107 = "203" } : t107) } : t108) in
+  (* Paths of depth 2 *)
+  let next_r = { a108 = #{ a106 = 200L; b106 = "201" }; b108 = #{ a107 = #202L; b107 = "203" } } in
   (* .a108.#a106 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with a108 = #{ r.a108 with a106 = next_r.a108.#a106 } } in
@@ -3915,11 +3915,11 @@ let () =
   mark_test_run 522;
   let test = sub_eq (get_idx_mut r ((.a108.#b106) : (t108, _) idx_mut)) next_r.a108.#b106 in
   if not test then failwithf "test 522 failed";
-  let r = ({ a108 = (#{ a106 = 0L; b106 = "1" } : t106); b108 = (#{ a107 = #2L; b107 = "3" } : t107) } : t108) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a108 = (#{ a106 = 100L; b106 = "101" } : t106); b108 = (#{ a107 = #102L; b107 = "103" } : t107) } : t108) in
+  let r = { a108 = #{ a106 = 0L; b106 = "1" }; b108 = #{ a107 = #2L; b107 = "3" } } in
+  (* Paths of depth 1 *)
+  let next_r = { a108 = #{ a106 = 100L; b106 = "101" }; b108 = #{ a107 = #102L; b107 = "103" } } in
   (* .b108 *)
-  let sub_eq = (fun (#{ a107 = a1071; b107 = b1071 } : t107) (#{ a107 = a1072; b107 = b1072 } : t107) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1071 a1072 && (fun a b -> String.equal (globalize a) (globalize b)) b1071 b1072) in
+  let sub_eq = (fun #{ a107 = a1071; b107 = b1071 } #{ a107 = a1072; b107 = b1072 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1071 a1072 && (fun a b -> String.equal (globalize a) (globalize b)) b1071 b1072) in
   let expected = { r with b108 = next_r.b108 } in
   set_idx_mut r ((.b108) : (t108, _) idx_mut) next_r.b108;
   mark_test_run 523;
@@ -3928,8 +3928,8 @@ let () =
   mark_test_run 524;
   let test = sub_eq (get_idx_mut r ((.b108) : (t108, _) idx_mut)) next_r.b108 in
   if not test then failwithf "test 524 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a108 = (#{ a106 = 200L; b106 = "201" } : t106); b108 = (#{ a107 = #202L; b107 = "203" } : t107) } : t108) in
+  (* Paths of depth 2 *)
+  let next_r = { a108 = #{ a106 = 200L; b106 = "201" }; b108 = #{ a107 = #202L; b107 = "203" } } in
   (* .b108.#a107 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with b108 = #{ r.b108 with a107 = next_r.b108.#a107 } } in
@@ -3953,12 +3953,12 @@ let () =
   (********************************************************)
   (*   t111 = { #{ int64#; int64 }; #{ int64; int64 } }   *)
   (********************************************************)
-  let eq = (fun ({ a111 = a1111; b111 = b1111 } : t111) ({ a111 = a1112; b111 = b1112 } : t111) -> (fun (#{ a109 = a1091; b109 = b1091 } : t109) (#{ a109 = a1092; b109 = b1092 } : t109) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1091 a1092 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1091 b1092) a1111 a1112 && (fun (#{ a110 = a1101; b110 = b1101 } : t110) (#{ a110 = a1102; b110 = b1102 } : t110) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1101 a1102 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1101 b1102) b1111 b1112) in
-  let r = ({ a111 = (#{ a109 = #0L; b109 = 1L } : t109); b111 = (#{ a110 = 2L; b110 = 3L } : t110) } : t111) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a111 = (#{ a109 = #100L; b109 = 101L } : t109); b111 = (#{ a110 = 102L; b110 = 103L } : t110) } : t111) in
+  let eq = (fun { a111 = a1111; b111 = b1111 } { a111 = a1112; b111 = b1112 } -> (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1091 a1092 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1091 b1092) a1111 a1112 && (fun #{ a110 = a1101; b110 = b1101 } #{ a110 = a1102; b110 = b1102 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1101 a1102 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1101 b1102) b1111 b1112) in
+  let r = { a111 = #{ a109 = #0L; b109 = 1L }; b111 = #{ a110 = 2L; b110 = 3L } } in
+  (* Paths of depth 1 *)
+  let next_r = { a111 = #{ a109 = #100L; b109 = 101L }; b111 = #{ a110 = 102L; b110 = 103L } } in
   (* .a111 *)
-  let sub_eq = (fun (#{ a109 = a1091; b109 = b1091 } : t109) (#{ a109 = a1092; b109 = b1092 } : t109) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1091 a1092 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1091 b1092) in
+  let sub_eq = (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1091 a1092 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1091 b1092) in
   let expected = { r with a111 = next_r.a111 } in
   set_idx_mut r ((.a111) : (t111, _) idx_mut) next_r.a111;
   mark_test_run 529;
@@ -3967,8 +3967,8 @@ let () =
   mark_test_run 530;
   let test = sub_eq (get_idx_mut r ((.a111) : (t111, _) idx_mut)) next_r.a111 in
   if not test then failwithf "test 530 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a111 = (#{ a109 = #200L; b109 = 201L } : t109); b111 = (#{ a110 = 202L; b110 = 203L } : t110) } : t111) in
+  (* Paths of depth 2 *)
+  let next_r = { a111 = #{ a109 = #200L; b109 = 201L }; b111 = #{ a110 = 202L; b110 = 203L } } in
   (* .a111.#a109 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with a111 = #{ r.a111 with a109 = next_r.a111.#a109 } } in
@@ -3989,11 +3989,11 @@ let () =
   mark_test_run 534;
   let test = sub_eq (get_idx_mut r ((.a111.#b109) : (t111, _) idx_mut)) next_r.a111.#b109 in
   if not test then failwithf "test 534 failed";
-  let r = ({ a111 = (#{ a109 = #0L; b109 = 1L } : t109); b111 = (#{ a110 = 2L; b110 = 3L } : t110) } : t111) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a111 = (#{ a109 = #100L; b109 = 101L } : t109); b111 = (#{ a110 = 102L; b110 = 103L } : t110) } : t111) in
+  let r = { a111 = #{ a109 = #0L; b109 = 1L }; b111 = #{ a110 = 2L; b110 = 3L } } in
+  (* Paths of depth 1 *)
+  let next_r = { a111 = #{ a109 = #100L; b109 = 101L }; b111 = #{ a110 = 102L; b110 = 103L } } in
   (* .b111 *)
-  let sub_eq = (fun (#{ a110 = a1101; b110 = b1101 } : t110) (#{ a110 = a1102; b110 = b1102 } : t110) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1101 a1102 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1101 b1102) in
+  let sub_eq = (fun #{ a110 = a1101; b110 = b1101 } #{ a110 = a1102; b110 = b1102 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1101 a1102 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1101 b1102) in
   let expected = { r with b111 = next_r.b111 } in
   set_idx_mut r ((.b111) : (t111, _) idx_mut) next_r.b111;
   mark_test_run 535;
@@ -4002,8 +4002,8 @@ let () =
   mark_test_run 536;
   let test = sub_eq (get_idx_mut r ((.b111) : (t111, _) idx_mut)) next_r.b111 in
   if not test then failwithf "test 536 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a111 = (#{ a109 = #200L; b109 = 201L } : t109); b111 = (#{ a110 = 202L; b110 = 203L } : t110) } : t111) in
+  (* Paths of depth 2 *)
+  let next_r = { a111 = #{ a109 = #200L; b109 = 201L }; b111 = #{ a110 = 202L; b110 = 203L } } in
   (* .b111.#a110 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with b111 = #{ r.b111 with a110 = next_r.b111.#a110 } } in
@@ -4027,12 +4027,12 @@ let () =
   (***********************************************************)
   (*   t113 = { #{ int64#; int64 }; #{ float32#; float } }   *)
   (***********************************************************)
-  let eq = (fun ({ a113 = a1131; b113 = b1131 } : t113) ({ a113 = a1132; b113 = b1132 } : t113) -> (fun (#{ a109 = a1091; b109 = b1091 } : t109) (#{ a109 = a1092; b109 = b1092 } : t109) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1091 a1092 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1091 b1092) a1131 a1132 && (fun (#{ a112 = a1121; b112 = b1121 } : t112) (#{ a112 = a1122; b112 = b1122 } : t112) -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1121 a1122 && (fun a b -> Float.equal (globalize a) (globalize b)) b1121 b1122) b1131 b1132) in
-  let r = ({ a113 = (#{ a109 = #0L; b109 = 1L } : t109); b113 = (#{ a112 = #2.s; b112 = 3. } : t112) } : t113) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a113 = (#{ a109 = #100L; b109 = 101L } : t109); b113 = (#{ a112 = #102.s; b112 = 103. } : t112) } : t113) in
+  let eq = (fun { a113 = a1131; b113 = b1131 } { a113 = a1132; b113 = b1132 } -> (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1091 a1092 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1091 b1092) a1131 a1132 && (fun #{ a112 = a1121; b112 = b1121 } #{ a112 = a1122; b112 = b1122 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1121 a1122 && (fun a b -> Float.equal (globalize a) (globalize b)) b1121 b1122) b1131 b1132) in
+  let r = { a113 = #{ a109 = #0L; b109 = 1L }; b113 = #{ a112 = #2.s; b112 = 3. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a113 = #{ a109 = #100L; b109 = 101L }; b113 = #{ a112 = #102.s; b112 = 103. } } in
   (* .a113 *)
-  let sub_eq = (fun (#{ a109 = a1091; b109 = b1091 } : t109) (#{ a109 = a1092; b109 = b1092 } : t109) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1091 a1092 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1091 b1092) in
+  let sub_eq = (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1091 a1092 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1091 b1092) in
   let expected = { r with a113 = next_r.a113 } in
   set_idx_mut r ((.a113) : (t113, _) idx_mut) next_r.a113;
   mark_test_run 541;
@@ -4041,8 +4041,8 @@ let () =
   mark_test_run 542;
   let test = sub_eq (get_idx_mut r ((.a113) : (t113, _) idx_mut)) next_r.a113 in
   if not test then failwithf "test 542 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a113 = (#{ a109 = #200L; b109 = 201L } : t109); b113 = (#{ a112 = #202.s; b112 = 203. } : t112) } : t113) in
+  (* Paths of depth 2 *)
+  let next_r = { a113 = #{ a109 = #200L; b109 = 201L }; b113 = #{ a112 = #202.s; b112 = 203. } } in
   (* .a113.#a109 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with a113 = #{ r.a113 with a109 = next_r.a113.#a109 } } in
@@ -4063,11 +4063,11 @@ let () =
   mark_test_run 546;
   let test = sub_eq (get_idx_mut r ((.a113.#b109) : (t113, _) idx_mut)) next_r.a113.#b109 in
   if not test then failwithf "test 546 failed";
-  let r = ({ a113 = (#{ a109 = #0L; b109 = 1L } : t109); b113 = (#{ a112 = #2.s; b112 = 3. } : t112) } : t113) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a113 = (#{ a109 = #100L; b109 = 101L } : t109); b113 = (#{ a112 = #102.s; b112 = 103. } : t112) } : t113) in
+  let r = { a113 = #{ a109 = #0L; b109 = 1L }; b113 = #{ a112 = #2.s; b112 = 3. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a113 = #{ a109 = #100L; b109 = 101L }; b113 = #{ a112 = #102.s; b112 = 103. } } in
   (* .b113 *)
-  let sub_eq = (fun (#{ a112 = a1121; b112 = b1121 } : t112) (#{ a112 = a1122; b112 = b1122 } : t112) -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1121 a1122 && (fun a b -> Float.equal (globalize a) (globalize b)) b1121 b1122) in
+  let sub_eq = (fun #{ a112 = a1121; b112 = b1121 } #{ a112 = a1122; b112 = b1122 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1121 a1122 && (fun a b -> Float.equal (globalize a) (globalize b)) b1121 b1122) in
   let expected = { r with b113 = next_r.b113 } in
   set_idx_mut r ((.b113) : (t113, _) idx_mut) next_r.b113;
   mark_test_run 547;
@@ -4076,8 +4076,8 @@ let () =
   mark_test_run 548;
   let test = sub_eq (get_idx_mut r ((.b113) : (t113, _) idx_mut)) next_r.b113 in
   if not test then failwithf "test 548 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a113 = (#{ a109 = #200L; b109 = 201L } : t109); b113 = (#{ a112 = #202.s; b112 = 203. } : t112) } : t113) in
+  (* Paths of depth 2 *)
+  let next_r = { a113 = #{ a109 = #200L; b109 = 201L }; b113 = #{ a112 = #202.s; b112 = 203. } } in
   (* .b113.#a112 *)
   let sub_eq = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) in
   let expected = { r with b113 = #{ r.b113 with a112 = next_r.b113.#a112 } } in
@@ -4101,12 +4101,12 @@ let () =
   (******************************)
   (*   t114 = { #{ int32# } }   *)
   (******************************)
-  let eq = (fun ({ a114 = a1141 } : t114) ({ a114 = a1142 } : t114) -> (fun (#{ a22 = a221 } : t22) (#{ a22 = a222 } : t22) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) a1141 a1142) in
-  let r = ({ a114 = (#{ a22 = #0l } : t22) } : t114) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a114 = (#{ a22 = #100l } : t22) } : t114) in
+  let eq = (fun { a114 = a1141 } { a114 = a1142 } -> (fun #{ a22 = a221 } #{ a22 = a222 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) a1141 a1142) in
+  let r = { a114 = #{ a22 = #0l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a114 = #{ a22 = #100l } } in
   (* .a114 *)
-  let sub_eq = (fun (#{ a22 = a221 } : t22) (#{ a22 = a222 } : t22) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) in
+  let sub_eq = (fun #{ a22 = a221 } #{ a22 = a222 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) in
   let expected = { r with a114 = next_r.a114 } in
   set_idx_mut r ((.a114) : (t114, _) idx_mut) next_r.a114;
   mark_test_run 553;
@@ -4115,8 +4115,8 @@ let () =
   mark_test_run 554;
   let test = sub_eq (get_idx_mut r ((.a114) : (t114, _) idx_mut)) next_r.a114 in
   if not test then failwithf "test 554 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a114 = (#{ a22 = #200l } : t22) } : t114) in
+  (* Paths of depth 2 *)
+  let next_r = { a114 = #{ a22 = #200l } } in
   (* .a114.#a22 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a114 = #{ r.a114 with a22 = next_r.a114.#a22 } } in
@@ -4130,12 +4130,12 @@ let () =
   (***********************************)
   (*   t115 = { #{ int32# }; int }   *)
   (***********************************)
-  let eq = (fun ({ a115 = a1151; b115 = b1151 } : t115) ({ a115 = a1152; b115 = b1152 } : t115) -> (fun (#{ a22 = a221 } : t22) (#{ a22 = a222 } : t22) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) a1151 a1152 && (fun a b -> Int.equal a b) b1151 b1152) in
-  let r = ({ a115 = (#{ a22 = #0l } : t22); b115 = 1 } : t115) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a115 = (#{ a22 = #100l } : t22); b115 = 101 } : t115) in
+  let eq = (fun { a115 = a1151; b115 = b1151 } { a115 = a1152; b115 = b1152 } -> (fun #{ a22 = a221 } #{ a22 = a222 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) a1151 a1152 && (fun a b -> Int.equal a b) b1151 b1152) in
+  let r = { a115 = #{ a22 = #0l }; b115 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a115 = #{ a22 = #100l }; b115 = 101 } in
   (* .a115 *)
-  let sub_eq = (fun (#{ a22 = a221 } : t22) (#{ a22 = a222 } : t22) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) in
+  let sub_eq = (fun #{ a22 = a221 } #{ a22 = a222 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) in
   let expected = { r with a115 = next_r.a115 } in
   set_idx_mut r ((.a115) : (t115, _) idx_mut) next_r.a115;
   mark_test_run 557;
@@ -4144,8 +4144,8 @@ let () =
   mark_test_run 558;
   let test = sub_eq (get_idx_mut r ((.a115) : (t115, _) idx_mut)) next_r.a115 in
   if not test then failwithf "test 558 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a115 = (#{ a22 = #200l } : t22); b115 = 201 } : t115) in
+  (* Paths of depth 2 *)
+  let next_r = { a115 = #{ a22 = #200l }; b115 = 201 } in
   (* .a115.#a22 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a115 = #{ r.a115 with a22 = next_r.a115.#a22 } } in
@@ -4156,9 +4156,9 @@ let () =
   mark_test_run 560;
   let test = sub_eq (get_idx_mut r ((.a115.#a22) : (t115, _) idx_mut)) next_r.a115.#a22 in
   if not test then failwithf "test 560 failed";
-  let r = ({ a115 = (#{ a22 = #0l } : t22); b115 = 1 } : t115) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a115 = (#{ a22 = #100l } : t22); b115 = 101 } : t115) in
+  let r = { a115 = #{ a22 = #0l }; b115 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a115 = #{ a22 = #100l }; b115 = 101 } in
   (* .b115 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b115 = next_r.b115 } in
@@ -4172,12 +4172,12 @@ let () =
   (**************************************)
   (*   t116 = { #{ int32# }; int32# }   *)
   (**************************************)
-  let eq = (fun ({ a116 = a1161; b116 = b1161 } : t116) ({ a116 = a1162; b116 = b1162 } : t116) -> (fun (#{ a22 = a221 } : t22) (#{ a22 = a222 } : t22) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) a1161 a1162 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1161 b1162) in
-  let r = ({ a116 = (#{ a22 = #0l } : t22); b116 = #1l } : t116) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a116 = (#{ a22 = #100l } : t22); b116 = #101l } : t116) in
+  let eq = (fun { a116 = a1161; b116 = b1161 } { a116 = a1162; b116 = b1162 } -> (fun #{ a22 = a221 } #{ a22 = a222 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) a1161 a1162 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1161 b1162) in
+  let r = { a116 = #{ a22 = #0l }; b116 = #1l } in
+  (* Paths of depth 1 *)
+  let next_r = { a116 = #{ a22 = #100l }; b116 = #101l } in
   (* .a116 *)
-  let sub_eq = (fun (#{ a22 = a221 } : t22) (#{ a22 = a222 } : t22) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) in
+  let sub_eq = (fun #{ a22 = a221 } #{ a22 = a222 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) in
   let expected = { r with a116 = next_r.a116 } in
   set_idx_mut r ((.a116) : (t116, _) idx_mut) next_r.a116;
   mark_test_run 563;
@@ -4186,8 +4186,8 @@ let () =
   mark_test_run 564;
   let test = sub_eq (get_idx_mut r ((.a116) : (t116, _) idx_mut)) next_r.a116 in
   if not test then failwithf "test 564 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a116 = (#{ a22 = #200l } : t22); b116 = #201l } : t116) in
+  (* Paths of depth 2 *)
+  let next_r = { a116 = #{ a22 = #200l }; b116 = #201l } in
   (* .a116.#a22 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a116 = #{ r.a116 with a22 = next_r.a116.#a22 } } in
@@ -4198,9 +4198,9 @@ let () =
   mark_test_run 566;
   let test = sub_eq (get_idx_mut r ((.a116.#a22) : (t116, _) idx_mut)) next_r.a116.#a22 in
   if not test then failwithf "test 566 failed";
-  let r = ({ a116 = (#{ a22 = #0l } : t22); b116 = #1l } : t116) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a116 = (#{ a22 = #100l } : t22); b116 = #101l } : t116) in
+  let r = { a116 = #{ a22 = #0l }; b116 = #1l } in
+  (* Paths of depth 1 *)
+  let next_r = { a116 = #{ a22 = #100l }; b116 = #101l } in
   (* .b116 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b116 = next_r.b116 } in
@@ -4214,12 +4214,12 @@ let () =
   (***********************************)
   (*   t117 = { #{ int32#; int } }   *)
   (***********************************)
-  let eq = (fun ({ a117 = a1171 } : t117) ({ a117 = a1172 } : t117) -> (fun (#{ a24 = a241; b24 = b241 } : t24) (#{ a24 = a242; b24 = b242 } : t24) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) a1171 a1172) in
-  let r = ({ a117 = (#{ a24 = #0l; b24 = 1 } : t24) } : t117) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a117 = (#{ a24 = #100l; b24 = 101 } : t24) } : t117) in
+  let eq = (fun { a117 = a1171 } { a117 = a1172 } -> (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) a1171 a1172) in
+  let r = { a117 = #{ a24 = #0l; b24 = 1 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a117 = #{ a24 = #100l; b24 = 101 } } in
   (* .a117 *)
-  let sub_eq = (fun (#{ a24 = a241; b24 = b241 } : t24) (#{ a24 = a242; b24 = b242 } : t24) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) in
+  let sub_eq = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) in
   let expected = { r with a117 = next_r.a117 } in
   set_idx_mut r ((.a117) : (t117, _) idx_mut) next_r.a117;
   mark_test_run 569;
@@ -4228,8 +4228,8 @@ let () =
   mark_test_run 570;
   let test = sub_eq (get_idx_mut r ((.a117) : (t117, _) idx_mut)) next_r.a117 in
   if not test then failwithf "test 570 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a117 = (#{ a24 = #200l; b24 = 201 } : t24) } : t117) in
+  (* Paths of depth 2 *)
+  let next_r = { a117 = #{ a24 = #200l; b24 = 201 } } in
   (* .a117.#a24 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a117 = #{ r.a117 with a24 = next_r.a117.#a24 } } in
@@ -4253,12 +4253,12 @@ let () =
   (****************************************)
   (*   t118 = { #{ int32#; int }; int }   *)
   (****************************************)
-  let eq = (fun ({ a118 = a1181; b118 = b1181 } : t118) ({ a118 = a1182; b118 = b1182 } : t118) -> (fun (#{ a24 = a241; b24 = b241 } : t24) (#{ a24 = a242; b24 = b242 } : t24) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) a1181 a1182 && (fun a b -> Int.equal a b) b1181 b1182) in
-  let r = ({ a118 = (#{ a24 = #0l; b24 = 1 } : t24); b118 = 2 } : t118) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a118 = (#{ a24 = #100l; b24 = 101 } : t24); b118 = 102 } : t118) in
+  let eq = (fun { a118 = a1181; b118 = b1181 } { a118 = a1182; b118 = b1182 } -> (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) a1181 a1182 && (fun a b -> Int.equal a b) b1181 b1182) in
+  let r = { a118 = #{ a24 = #0l; b24 = 1 }; b118 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a118 = #{ a24 = #100l; b24 = 101 }; b118 = 102 } in
   (* .a118 *)
-  let sub_eq = (fun (#{ a24 = a241; b24 = b241 } : t24) (#{ a24 = a242; b24 = b242 } : t24) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) in
+  let sub_eq = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) in
   let expected = { r with a118 = next_r.a118 } in
   set_idx_mut r ((.a118) : (t118, _) idx_mut) next_r.a118;
   mark_test_run 575;
@@ -4267,8 +4267,8 @@ let () =
   mark_test_run 576;
   let test = sub_eq (get_idx_mut r ((.a118) : (t118, _) idx_mut)) next_r.a118 in
   if not test then failwithf "test 576 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a118 = (#{ a24 = #200l; b24 = 201 } : t24); b118 = 202 } : t118) in
+  (* Paths of depth 2 *)
+  let next_r = { a118 = #{ a24 = #200l; b24 = 201 }; b118 = 202 } in
   (* .a118.#a24 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a118 = #{ r.a118 with a24 = next_r.a118.#a24 } } in
@@ -4289,9 +4289,9 @@ let () =
   mark_test_run 580;
   let test = sub_eq (get_idx_mut r ((.a118.#b24) : (t118, _) idx_mut)) next_r.a118.#b24 in
   if not test then failwithf "test 580 failed";
-  let r = ({ a118 = (#{ a24 = #0l; b24 = 1 } : t24); b118 = 2 } : t118) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a118 = (#{ a24 = #100l; b24 = 101 } : t24); b118 = 102 } : t118) in
+  let r = { a118 = #{ a24 = #0l; b24 = 1 }; b118 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a118 = #{ a24 = #100l; b24 = 101 }; b118 = 102 } in
   (* .b118 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b118 = next_r.b118 } in
@@ -4305,12 +4305,12 @@ let () =
   (*******************************************)
   (*   t119 = { #{ int32#; int }; int32# }   *)
   (*******************************************)
-  let eq = (fun ({ a119 = a1191; b119 = b1191 } : t119) ({ a119 = a1192; b119 = b1192 } : t119) -> (fun (#{ a24 = a241; b24 = b241 } : t24) (#{ a24 = a242; b24 = b242 } : t24) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) a1191 a1192 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1191 b1192) in
-  let r = ({ a119 = (#{ a24 = #0l; b24 = 1 } : t24); b119 = #2l } : t119) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a119 = (#{ a24 = #100l; b24 = 101 } : t24); b119 = #102l } : t119) in
+  let eq = (fun { a119 = a1191; b119 = b1191 } { a119 = a1192; b119 = b1192 } -> (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) a1191 a1192 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1191 b1192) in
+  let r = { a119 = #{ a24 = #0l; b24 = 1 }; b119 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a119 = #{ a24 = #100l; b24 = 101 }; b119 = #102l } in
   (* .a119 *)
-  let sub_eq = (fun (#{ a24 = a241; b24 = b241 } : t24) (#{ a24 = a242; b24 = b242 } : t24) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) in
+  let sub_eq = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) in
   let expected = { r with a119 = next_r.a119 } in
   set_idx_mut r ((.a119) : (t119, _) idx_mut) next_r.a119;
   mark_test_run 583;
@@ -4319,8 +4319,8 @@ let () =
   mark_test_run 584;
   let test = sub_eq (get_idx_mut r ((.a119) : (t119, _) idx_mut)) next_r.a119 in
   if not test then failwithf "test 584 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a119 = (#{ a24 = #200l; b24 = 201 } : t24); b119 = #202l } : t119) in
+  (* Paths of depth 2 *)
+  let next_r = { a119 = #{ a24 = #200l; b24 = 201 }; b119 = #202l } in
   (* .a119.#a24 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a119 = #{ r.a119 with a24 = next_r.a119.#a24 } } in
@@ -4341,9 +4341,9 @@ let () =
   mark_test_run 588;
   let test = sub_eq (get_idx_mut r ((.a119.#b24) : (t119, _) idx_mut)) next_r.a119.#b24 in
   if not test then failwithf "test 588 failed";
-  let r = ({ a119 = (#{ a24 = #0l; b24 = 1 } : t24); b119 = #2l } : t119) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a119 = (#{ a24 = #100l; b24 = 101 } : t24); b119 = #102l } : t119) in
+  let r = { a119 = #{ a24 = #0l; b24 = 1 }; b119 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a119 = #{ a24 = #100l; b24 = 101 }; b119 = #102l } in
   (* .b119 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b119 = next_r.b119 } in
@@ -4357,12 +4357,12 @@ let () =
   (**************************************)
   (*   t120 = { #{ int32#; int32# } }   *)
   (**************************************)
-  let eq = (fun ({ a120 = a1201 } : t120) ({ a120 = a1202 } : t120) -> (fun (#{ a26 = a261; b26 = b261 } : t26) (#{ a26 = a262; b26 = b262 } : t26) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) a1201 a1202) in
-  let r = ({ a120 = (#{ a26 = #0l; b26 = #1l } : t26) } : t120) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a120 = (#{ a26 = #100l; b26 = #101l } : t26) } : t120) in
+  let eq = (fun { a120 = a1201 } { a120 = a1202 } -> (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) a1201 a1202) in
+  let r = { a120 = #{ a26 = #0l; b26 = #1l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a120 = #{ a26 = #100l; b26 = #101l } } in
   (* .a120 *)
-  let sub_eq = (fun (#{ a26 = a261; b26 = b261 } : t26) (#{ a26 = a262; b26 = b262 } : t26) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) in
+  let sub_eq = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) in
   let expected = { r with a120 = next_r.a120 } in
   set_idx_mut r ((.a120) : (t120, _) idx_mut) next_r.a120;
   mark_test_run 591;
@@ -4371,8 +4371,8 @@ let () =
   mark_test_run 592;
   let test = sub_eq (get_idx_mut r ((.a120) : (t120, _) idx_mut)) next_r.a120 in
   if not test then failwithf "test 592 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a120 = (#{ a26 = #200l; b26 = #201l } : t26) } : t120) in
+  (* Paths of depth 2 *)
+  let next_r = { a120 = #{ a26 = #200l; b26 = #201l } } in
   (* .a120.#a26 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a120 = #{ r.a120 with a26 = next_r.a120.#a26 } } in
@@ -4396,12 +4396,12 @@ let () =
   (*******************************************)
   (*   t121 = { #{ int32#; int32# }; int }   *)
   (*******************************************)
-  let eq = (fun ({ a121 = a1211; b121 = b1211 } : t121) ({ a121 = a1212; b121 = b1212 } : t121) -> (fun (#{ a26 = a261; b26 = b261 } : t26) (#{ a26 = a262; b26 = b262 } : t26) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) a1211 a1212 && (fun a b -> Int.equal a b) b1211 b1212) in
-  let r = ({ a121 = (#{ a26 = #0l; b26 = #1l } : t26); b121 = 2 } : t121) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a121 = (#{ a26 = #100l; b26 = #101l } : t26); b121 = 102 } : t121) in
+  let eq = (fun { a121 = a1211; b121 = b1211 } { a121 = a1212; b121 = b1212 } -> (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) a1211 a1212 && (fun a b -> Int.equal a b) b1211 b1212) in
+  let r = { a121 = #{ a26 = #0l; b26 = #1l }; b121 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a121 = #{ a26 = #100l; b26 = #101l }; b121 = 102 } in
   (* .a121 *)
-  let sub_eq = (fun (#{ a26 = a261; b26 = b261 } : t26) (#{ a26 = a262; b26 = b262 } : t26) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) in
+  let sub_eq = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) in
   let expected = { r with a121 = next_r.a121 } in
   set_idx_mut r ((.a121) : (t121, _) idx_mut) next_r.a121;
   mark_test_run 597;
@@ -4410,8 +4410,8 @@ let () =
   mark_test_run 598;
   let test = sub_eq (get_idx_mut r ((.a121) : (t121, _) idx_mut)) next_r.a121 in
   if not test then failwithf "test 598 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a121 = (#{ a26 = #200l; b26 = #201l } : t26); b121 = 202 } : t121) in
+  (* Paths of depth 2 *)
+  let next_r = { a121 = #{ a26 = #200l; b26 = #201l }; b121 = 202 } in
   (* .a121.#a26 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a121 = #{ r.a121 with a26 = next_r.a121.#a26 } } in
@@ -4432,9 +4432,9 @@ let () =
   mark_test_run 602;
   let test = sub_eq (get_idx_mut r ((.a121.#b26) : (t121, _) idx_mut)) next_r.a121.#b26 in
   if not test then failwithf "test 602 failed";
-  let r = ({ a121 = (#{ a26 = #0l; b26 = #1l } : t26); b121 = 2 } : t121) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a121 = (#{ a26 = #100l; b26 = #101l } : t26); b121 = 102 } : t121) in
+  let r = { a121 = #{ a26 = #0l; b26 = #1l }; b121 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a121 = #{ a26 = #100l; b26 = #101l }; b121 = 102 } in
   (* .b121 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b121 = next_r.b121 } in
@@ -4448,12 +4448,12 @@ let () =
   (**********************************************)
   (*   t122 = { #{ int32#; int32# }; int32# }   *)
   (**********************************************)
-  let eq = (fun ({ a122 = a1221; b122 = b1221 } : t122) ({ a122 = a1222; b122 = b1222 } : t122) -> (fun (#{ a26 = a261; b26 = b261 } : t26) (#{ a26 = a262; b26 = b262 } : t26) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) a1221 a1222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1221 b1222) in
-  let r = ({ a122 = (#{ a26 = #0l; b26 = #1l } : t26); b122 = #2l } : t122) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a122 = (#{ a26 = #100l; b26 = #101l } : t26); b122 = #102l } : t122) in
+  let eq = (fun { a122 = a1221; b122 = b1221 } { a122 = a1222; b122 = b1222 } -> (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) a1221 a1222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1221 b1222) in
+  let r = { a122 = #{ a26 = #0l; b26 = #1l }; b122 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a122 = #{ a26 = #100l; b26 = #101l }; b122 = #102l } in
   (* .a122 *)
-  let sub_eq = (fun (#{ a26 = a261; b26 = b261 } : t26) (#{ a26 = a262; b26 = b262 } : t26) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) in
+  let sub_eq = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) in
   let expected = { r with a122 = next_r.a122 } in
   set_idx_mut r ((.a122) : (t122, _) idx_mut) next_r.a122;
   mark_test_run 605;
@@ -4462,8 +4462,8 @@ let () =
   mark_test_run 606;
   let test = sub_eq (get_idx_mut r ((.a122) : (t122, _) idx_mut)) next_r.a122 in
   if not test then failwithf "test 606 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a122 = (#{ a26 = #200l; b26 = #201l } : t26); b122 = #202l } : t122) in
+  (* Paths of depth 2 *)
+  let next_r = { a122 = #{ a26 = #200l; b26 = #201l }; b122 = #202l } in
   (* .a122.#a26 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a122 = #{ r.a122 with a26 = next_r.a122.#a26 } } in
@@ -4484,9 +4484,9 @@ let () =
   mark_test_run 610;
   let test = sub_eq (get_idx_mut r ((.a122.#b26) : (t122, _) idx_mut)) next_r.a122.#b26 in
   if not test then failwithf "test 610 failed";
-  let r = ({ a122 = (#{ a26 = #0l; b26 = #1l } : t26); b122 = #2l } : t122) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a122 = (#{ a26 = #100l; b26 = #101l } : t26); b122 = #102l } : t122) in
+  let r = { a122 = #{ a26 = #0l; b26 = #1l }; b122 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a122 = #{ a26 = #100l; b26 = #101l }; b122 = #102l } in
   (* .b122 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b122 = next_r.b122 } in
@@ -4500,10 +4500,10 @@ let () =
   (*****************************)
   (*   t123 = { #{ float } }   *)
   (*****************************)
-  let eq = (fun ({ a123 = a1231 } : t123) ({ a123 = a1232 } : t123) -> (fun (#{ a28 = a281 } : t28) (#{ a28 = a282 } : t28) -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) a1231 a1232) in
-  let r = ({ a123 = (#{ a28 = 0. } : t28) } : t123) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a123 = (#{ a28 = 100. } : t28) } : t123) in
+  let eq = (fun { a123 = a1231 } { a123 = a1232 } -> (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) a1231 a1232) in
+  let r = { a123 = #{ a28 = 0. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a123 = #{ a28 = 100. } } in
   (* .a123 *)
   (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
@@ -4515,8 +4515,8 @@ let () =
   mark_test_run 614;
   let test = sub_eq (get_idx_mut r ((.a123) : (t123, _) idx_mut)) (Float_u.of_float next_r.a123.#a28) in
   if not test then failwithf "test 614 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a123 = (#{ a28 = 200. } : t28) } : t123) in
+  (* Paths of depth 2 *)
+  let next_r = { a123 = #{ a28 = 200. } } in
   (* .a123.#a28 *)
   (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
@@ -4531,12 +4531,12 @@ let () =
   (**********************************)
   (*   t124 = { #{ float }; int }   *)
   (**********************************)
-  let eq = (fun ({ a124 = a1241; b124 = b1241 } : t124) ({ a124 = a1242; b124 = b1242 } : t124) -> (fun (#{ a28 = a281 } : t28) (#{ a28 = a282 } : t28) -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) a1241 a1242 && (fun a b -> Int.equal a b) b1241 b1242) in
-  let r = ({ a124 = (#{ a28 = 0. } : t28); b124 = 1 } : t124) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a124 = (#{ a28 = 100. } : t28); b124 = 101 } : t124) in
+  let eq = (fun { a124 = a1241; b124 = b1241 } { a124 = a1242; b124 = b1242 } -> (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) a1241 a1242 && (fun a b -> Int.equal a b) b1241 b1242) in
+  let r = { a124 = #{ a28 = 0. }; b124 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a124 = #{ a28 = 100. }; b124 = 101 } in
   (* .a124 *)
-  let sub_eq = (fun (#{ a28 = a281 } : t28) (#{ a28 = a282 } : t28) -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) in
+  let sub_eq = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) in
   let expected = { r with a124 = next_r.a124 } in
   set_idx_mut r ((.a124) : (t124, _) idx_mut) next_r.a124;
   mark_test_run 617;
@@ -4545,8 +4545,8 @@ let () =
   mark_test_run 618;
   let test = sub_eq (get_idx_mut r ((.a124) : (t124, _) idx_mut)) next_r.a124 in
   if not test then failwithf "test 618 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a124 = (#{ a28 = 200. } : t28); b124 = 201 } : t124) in
+  (* Paths of depth 2 *)
+  let next_r = { a124 = #{ a28 = 200. }; b124 = 201 } in
   (* .a124.#a28 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a124 = #{ r.a124 with a28 = next_r.a124.#a28 } } in
@@ -4557,9 +4557,9 @@ let () =
   mark_test_run 620;
   let test = sub_eq (get_idx_mut r ((.a124.#a28) : (t124, _) idx_mut)) next_r.a124.#a28 in
   if not test then failwithf "test 620 failed";
-  let r = ({ a124 = (#{ a28 = 0. } : t28); b124 = 1 } : t124) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a124 = (#{ a28 = 100. } : t28); b124 = 101 } : t124) in
+  let r = { a124 = #{ a28 = 0. }; b124 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a124 = #{ a28 = 100. }; b124 = 101 } in
   (* .b124 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b124 = next_r.b124 } in
@@ -4573,10 +4573,10 @@ let () =
   (************************************)
   (*   t125 = { #{ float }; float }   *)
   (************************************)
-  let eq = (fun ({ a125 = a1251; b125 = b1251 } : t125) ({ a125 = a1252; b125 = b1252 } : t125) -> (fun (#{ a28 = a281 } : t28) (#{ a28 = a282 } : t28) -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) a1251 a1252 && (fun a b -> Float.equal (globalize a) (globalize b)) b1251 b1252) in
-  let r = ({ a125 = (#{ a28 = 0. } : t28); b125 = 1. } : t125) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a125 = (#{ a28 = 100. } : t28); b125 = 101. } : t125) in
+  let eq = (fun { a125 = a1251; b125 = b1251 } { a125 = a1252; b125 = b1252 } -> (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) a1251 a1252 && (fun a b -> Float.equal (globalize a) (globalize b)) b1251 b1252) in
+  let r = { a125 = #{ a28 = 0. }; b125 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a125 = #{ a28 = 100. }; b125 = 101. } in
   (* .a125 *)
   (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
@@ -4588,8 +4588,8 @@ let () =
   mark_test_run 624;
   let test = sub_eq (get_idx_mut r ((.a125) : (t125, _) idx_mut)) (Float_u.of_float next_r.a125.#a28) in
   if not test then failwithf "test 624 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a125 = (#{ a28 = 200. } : t28); b125 = 201. } : t125) in
+  (* Paths of depth 2 *)
+  let next_r = { a125 = #{ a28 = 200. }; b125 = 201. } in
   (* .a125.#a28 *)
   (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
@@ -4601,9 +4601,9 @@ let () =
   mark_test_run 626;
   let test = sub_eq (get_idx_mut r ((.a125.#a28) : (t125, _) idx_mut)) (Float_u.of_float next_r.a125.#a28) in
   if not test then failwithf "test 626 failed";
-  let r = ({ a125 = (#{ a28 = 0. } : t28); b125 = 1. } : t125) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a125 = (#{ a28 = 100. } : t28); b125 = 101. } : t125) in
+  let r = { a125 = #{ a28 = 0. }; b125 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a125 = #{ a28 = 100. }; b125 = 101. } in
   (* .b125 *)
   (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
@@ -4618,12 +4618,12 @@ let () =
   (**********************************)
   (*   t126 = { #{ float; int } }   *)
   (**********************************)
-  let eq = (fun ({ a126 = a1261 } : t126) ({ a126 = a1262 } : t126) -> (fun (#{ a30 = a301; b30 = b301 } : t30) (#{ a30 = a302; b30 = b302 } : t30) -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) a1261 a1262) in
-  let r = ({ a126 = (#{ a30 = 0.; b30 = 1 } : t30) } : t126) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a126 = (#{ a30 = 100.; b30 = 101 } : t30) } : t126) in
+  let eq = (fun { a126 = a1261 } { a126 = a1262 } -> (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) a1261 a1262) in
+  let r = { a126 = #{ a30 = 0.; b30 = 1 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a126 = #{ a30 = 100.; b30 = 101 } } in
   (* .a126 *)
-  let sub_eq = (fun (#{ a30 = a301; b30 = b301 } : t30) (#{ a30 = a302; b30 = b302 } : t30) -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) in
+  let sub_eq = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) in
   let expected = { r with a126 = next_r.a126 } in
   set_idx_mut r ((.a126) : (t126, _) idx_mut) next_r.a126;
   mark_test_run 629;
@@ -4632,8 +4632,8 @@ let () =
   mark_test_run 630;
   let test = sub_eq (get_idx_mut r ((.a126) : (t126, _) idx_mut)) next_r.a126 in
   if not test then failwithf "test 630 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a126 = (#{ a30 = 200.; b30 = 201 } : t30) } : t126) in
+  (* Paths of depth 2 *)
+  let next_r = { a126 = #{ a30 = 200.; b30 = 201 } } in
   (* .a126.#a30 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a126 = #{ r.a126 with a30 = next_r.a126.#a30 } } in
@@ -4657,12 +4657,12 @@ let () =
   (***************************************)
   (*   t127 = { #{ float; int }; int }   *)
   (***************************************)
-  let eq = (fun ({ a127 = a1271; b127 = b1271 } : t127) ({ a127 = a1272; b127 = b1272 } : t127) -> (fun (#{ a30 = a301; b30 = b301 } : t30) (#{ a30 = a302; b30 = b302 } : t30) -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) a1271 a1272 && (fun a b -> Int.equal a b) b1271 b1272) in
-  let r = ({ a127 = (#{ a30 = 0.; b30 = 1 } : t30); b127 = 2 } : t127) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a127 = (#{ a30 = 100.; b30 = 101 } : t30); b127 = 102 } : t127) in
+  let eq = (fun { a127 = a1271; b127 = b1271 } { a127 = a1272; b127 = b1272 } -> (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) a1271 a1272 && (fun a b -> Int.equal a b) b1271 b1272) in
+  let r = { a127 = #{ a30 = 0.; b30 = 1 }; b127 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a127 = #{ a30 = 100.; b30 = 101 }; b127 = 102 } in
   (* .a127 *)
-  let sub_eq = (fun (#{ a30 = a301; b30 = b301 } : t30) (#{ a30 = a302; b30 = b302 } : t30) -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) in
+  let sub_eq = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) in
   let expected = { r with a127 = next_r.a127 } in
   set_idx_mut r ((.a127) : (t127, _) idx_mut) next_r.a127;
   mark_test_run 635;
@@ -4671,8 +4671,8 @@ let () =
   mark_test_run 636;
   let test = sub_eq (get_idx_mut r ((.a127) : (t127, _) idx_mut)) next_r.a127 in
   if not test then failwithf "test 636 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a127 = (#{ a30 = 200.; b30 = 201 } : t30); b127 = 202 } : t127) in
+  (* Paths of depth 2 *)
+  let next_r = { a127 = #{ a30 = 200.; b30 = 201 }; b127 = 202 } in
   (* .a127.#a30 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a127 = #{ r.a127 with a30 = next_r.a127.#a30 } } in
@@ -4693,9 +4693,9 @@ let () =
   mark_test_run 640;
   let test = sub_eq (get_idx_mut r ((.a127.#b30) : (t127, _) idx_mut)) next_r.a127.#b30 in
   if not test then failwithf "test 640 failed";
-  let r = ({ a127 = (#{ a30 = 0.; b30 = 1 } : t30); b127 = 2 } : t127) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a127 = (#{ a30 = 100.; b30 = 101 } : t30); b127 = 102 } : t127) in
+  let r = { a127 = #{ a30 = 0.; b30 = 1 }; b127 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a127 = #{ a30 = 100.; b30 = 101 }; b127 = 102 } in
   (* .b127 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b127 = next_r.b127 } in
@@ -4709,12 +4709,12 @@ let () =
   (*****************************************)
   (*   t128 = { #{ float; int }; float }   *)
   (*****************************************)
-  let eq = (fun ({ a128 = a1281; b128 = b1281 } : t128) ({ a128 = a1282; b128 = b1282 } : t128) -> (fun (#{ a30 = a301; b30 = b301 } : t30) (#{ a30 = a302; b30 = b302 } : t30) -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) a1281 a1282 && (fun a b -> Float.equal (globalize a) (globalize b)) b1281 b1282) in
-  let r = ({ a128 = (#{ a30 = 0.; b30 = 1 } : t30); b128 = 2. } : t128) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a128 = (#{ a30 = 100.; b30 = 101 } : t30); b128 = 102. } : t128) in
+  let eq = (fun { a128 = a1281; b128 = b1281 } { a128 = a1282; b128 = b1282 } -> (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) a1281 a1282 && (fun a b -> Float.equal (globalize a) (globalize b)) b1281 b1282) in
+  let r = { a128 = #{ a30 = 0.; b30 = 1 }; b128 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a128 = #{ a30 = 100.; b30 = 101 }; b128 = 102. } in
   (* .a128 *)
-  let sub_eq = (fun (#{ a30 = a301; b30 = b301 } : t30) (#{ a30 = a302; b30 = b302 } : t30) -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) in
+  let sub_eq = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) in
   let expected = { r with a128 = next_r.a128 } in
   set_idx_mut r ((.a128) : (t128, _) idx_mut) next_r.a128;
   mark_test_run 643;
@@ -4723,8 +4723,8 @@ let () =
   mark_test_run 644;
   let test = sub_eq (get_idx_mut r ((.a128) : (t128, _) idx_mut)) next_r.a128 in
   if not test then failwithf "test 644 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a128 = (#{ a30 = 200.; b30 = 201 } : t30); b128 = 202. } : t128) in
+  (* Paths of depth 2 *)
+  let next_r = { a128 = #{ a30 = 200.; b30 = 201 }; b128 = 202. } in
   (* .a128.#a30 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a128 = #{ r.a128 with a30 = next_r.a128.#a30 } } in
@@ -4745,9 +4745,9 @@ let () =
   mark_test_run 648;
   let test = sub_eq (get_idx_mut r ((.a128.#b30) : (t128, _) idx_mut)) next_r.a128.#b30 in
   if not test then failwithf "test 648 failed";
-  let r = ({ a128 = (#{ a30 = 0.; b30 = 1 } : t30); b128 = 2. } : t128) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a128 = (#{ a30 = 100.; b30 = 101 } : t30); b128 = 102. } : t128) in
+  let r = { a128 = #{ a30 = 0.; b30 = 1 }; b128 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a128 = #{ a30 = 100.; b30 = 101 }; b128 = 102. } in
   (* .b128 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b128 = next_r.b128 } in
@@ -4761,12 +4761,12 @@ let () =
   (************************************)
   (*   t129 = { #{ float; float } }   *)
   (************************************)
-  let eq = (fun ({ a129 = a1291 } : t129) ({ a129 = a1292 } : t129) -> (fun (#{ a32 = a321; b32 = b321 } : t32) (#{ a32 = a322; b32 = b322 } : t32) -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) a1291 a1292) in
-  let r = ({ a129 = (#{ a32 = 0.; b32 = 1. } : t32) } : t129) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a129 = (#{ a32 = 100.; b32 = 101. } : t32) } : t129) in
+  let eq = (fun { a129 = a1291 } { a129 = a1292 } -> (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) a1291 a1292) in
+  let r = { a129 = #{ a32 = 0.; b32 = 1. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a129 = #{ a32 = 100.; b32 = 101. } } in
   (* .a129 *)
-  let sub_eq = (fun (#{ a32 = a321; b32 = b321 } : t32) (#{ a32 = a322; b32 = b322 } : t32) -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) in
+  let sub_eq = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) in
   let expected = { r with a129 = next_r.a129 } in
   set_idx_mut r ((.a129) : (t129, _) idx_mut) next_r.a129;
   mark_test_run 651;
@@ -4775,8 +4775,8 @@ let () =
   mark_test_run 652;
   let test = sub_eq (get_idx_mut r ((.a129) : (t129, _) idx_mut)) next_r.a129 in
   if not test then failwithf "test 652 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a129 = (#{ a32 = 200.; b32 = 201. } : t32) } : t129) in
+  (* Paths of depth 2 *)
+  let next_r = { a129 = #{ a32 = 200.; b32 = 201. } } in
   (* .a129.#a32 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a129 = #{ r.a129 with a32 = next_r.a129.#a32 } } in
@@ -4800,12 +4800,12 @@ let () =
   (*****************************************)
   (*   t130 = { #{ float; float }; int }   *)
   (*****************************************)
-  let eq = (fun ({ a130 = a1301; b130 = b1301 } : t130) ({ a130 = a1302; b130 = b1302 } : t130) -> (fun (#{ a32 = a321; b32 = b321 } : t32) (#{ a32 = a322; b32 = b322 } : t32) -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) a1301 a1302 && (fun a b -> Int.equal a b) b1301 b1302) in
-  let r = ({ a130 = (#{ a32 = 0.; b32 = 1. } : t32); b130 = 2 } : t130) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a130 = (#{ a32 = 100.; b32 = 101. } : t32); b130 = 102 } : t130) in
+  let eq = (fun { a130 = a1301; b130 = b1301 } { a130 = a1302; b130 = b1302 } -> (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) a1301 a1302 && (fun a b -> Int.equal a b) b1301 b1302) in
+  let r = { a130 = #{ a32 = 0.; b32 = 1. }; b130 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a130 = #{ a32 = 100.; b32 = 101. }; b130 = 102 } in
   (* .a130 *)
-  let sub_eq = (fun (#{ a32 = a321; b32 = b321 } : t32) (#{ a32 = a322; b32 = b322 } : t32) -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) in
+  let sub_eq = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) in
   let expected = { r with a130 = next_r.a130 } in
   set_idx_mut r ((.a130) : (t130, _) idx_mut) next_r.a130;
   mark_test_run 657;
@@ -4814,8 +4814,8 @@ let () =
   mark_test_run 658;
   let test = sub_eq (get_idx_mut r ((.a130) : (t130, _) idx_mut)) next_r.a130 in
   if not test then failwithf "test 658 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a130 = (#{ a32 = 200.; b32 = 201. } : t32); b130 = 202 } : t130) in
+  (* Paths of depth 2 *)
+  let next_r = { a130 = #{ a32 = 200.; b32 = 201. }; b130 = 202 } in
   (* .a130.#a32 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a130 = #{ r.a130 with a32 = next_r.a130.#a32 } } in
@@ -4836,9 +4836,9 @@ let () =
   mark_test_run 662;
   let test = sub_eq (get_idx_mut r ((.a130.#b32) : (t130, _) idx_mut)) next_r.a130.#b32 in
   if not test then failwithf "test 662 failed";
-  let r = ({ a130 = (#{ a32 = 0.; b32 = 1. } : t32); b130 = 2 } : t130) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a130 = (#{ a32 = 100.; b32 = 101. } : t32); b130 = 102 } : t130) in
+  let r = { a130 = #{ a32 = 0.; b32 = 1. }; b130 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a130 = #{ a32 = 100.; b32 = 101. }; b130 = 102 } in
   (* .b130 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b130 = next_r.b130 } in
@@ -4852,12 +4852,12 @@ let () =
   (*******************************************)
   (*   t131 = { #{ float; float }; float }   *)
   (*******************************************)
-  let eq = (fun ({ a131 = a1311; b131 = b1311 } : t131) ({ a131 = a1312; b131 = b1312 } : t131) -> (fun (#{ a32 = a321; b32 = b321 } : t32) (#{ a32 = a322; b32 = b322 } : t32) -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) a1311 a1312 && (fun a b -> Float.equal (globalize a) (globalize b)) b1311 b1312) in
-  let r = ({ a131 = (#{ a32 = 0.; b32 = 1. } : t32); b131 = 2. } : t131) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a131 = (#{ a32 = 100.; b32 = 101. } : t32); b131 = 102. } : t131) in
+  let eq = (fun { a131 = a1311; b131 = b1311 } { a131 = a1312; b131 = b1312 } -> (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) a1311 a1312 && (fun a b -> Float.equal (globalize a) (globalize b)) b1311 b1312) in
+  let r = { a131 = #{ a32 = 0.; b32 = 1. }; b131 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a131 = #{ a32 = 100.; b32 = 101. }; b131 = 102. } in
   (* .a131 *)
-  let sub_eq = (fun (#{ a32 = a321; b32 = b321 } : t32) (#{ a32 = a322; b32 = b322 } : t32) -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) in
+  let sub_eq = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) in
   let expected = { r with a131 = next_r.a131 } in
   set_idx_mut r ((.a131) : (t131, _) idx_mut) next_r.a131;
   mark_test_run 665;
@@ -4866,8 +4866,8 @@ let () =
   mark_test_run 666;
   let test = sub_eq (get_idx_mut r ((.a131) : (t131, _) idx_mut)) next_r.a131 in
   if not test then failwithf "test 666 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a131 = (#{ a32 = 200.; b32 = 201. } : t32); b131 = 202. } : t131) in
+  (* Paths of depth 2 *)
+  let next_r = { a131 = #{ a32 = 200.; b32 = 201. }; b131 = 202. } in
   (* .a131.#a32 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a131 = #{ r.a131 with a32 = next_r.a131.#a32 } } in
@@ -4888,9 +4888,9 @@ let () =
   mark_test_run 670;
   let test = sub_eq (get_idx_mut r ((.a131.#b32) : (t131, _) idx_mut)) next_r.a131.#b32 in
   if not test then failwithf "test 670 failed";
-  let r = ({ a131 = (#{ a32 = 0.; b32 = 1. } : t32); b131 = 2. } : t131) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a131 = (#{ a32 = 100.; b32 = 101. } : t32); b131 = 102. } : t131) in
+  let r = { a131 = #{ a32 = 0.; b32 = 1. }; b131 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a131 = #{ a32 = 100.; b32 = 101. }; b131 = 102. } in
   (* .b131 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b131 = next_r.b131 } in
@@ -4904,12 +4904,12 @@ let () =
   (*************************************************************)
   (*   t134 = { #{ float32#; int64# }; #{ string; int64# } }   *)
   (*************************************************************)
-  let eq = (fun ({ a134 = a1341; b134 = b1341 } : t134) ({ a134 = a1342; b134 = b1342 } : t134) -> (fun (#{ a132 = a1321; b132 = b1321 } : t132) (#{ a132 = a1322; b132 = b1322 } : t132) -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1321 a1322 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1321 b1322) a1341 a1342 && (fun (#{ a133 = a1331; b133 = b1331 } : t133) (#{ a133 = a1332; b133 = b1332 } : t133) -> (fun a b -> String.equal (globalize a) (globalize b)) a1331 a1332 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1331 b1332) b1341 b1342) in
-  let r = ({ a134 = (#{ a132 = #0.s; b132 = #1L } : t132); b134 = (#{ a133 = "2"; b133 = #3L } : t133) } : t134) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a134 = (#{ a132 = #100.s; b132 = #101L } : t132); b134 = (#{ a133 = "102"; b133 = #103L } : t133) } : t134) in
+  let eq = (fun { a134 = a1341; b134 = b1341 } { a134 = a1342; b134 = b1342 } -> (fun #{ a132 = a1321; b132 = b1321 } #{ a132 = a1322; b132 = b1322 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1321 a1322 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1321 b1322) a1341 a1342 && (fun #{ a133 = a1331; b133 = b1331 } #{ a133 = a1332; b133 = b1332 } -> (fun a b -> String.equal (globalize a) (globalize b)) a1331 a1332 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1331 b1332) b1341 b1342) in
+  let r = { a134 = #{ a132 = #0.s; b132 = #1L }; b134 = #{ a133 = "2"; b133 = #3L } } in
+  (* Paths of depth 1 *)
+  let next_r = { a134 = #{ a132 = #100.s; b132 = #101L }; b134 = #{ a133 = "102"; b133 = #103L } } in
   (* .a134 *)
-  let sub_eq = (fun (#{ a132 = a1321; b132 = b1321 } : t132) (#{ a132 = a1322; b132 = b1322 } : t132) -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1321 a1322 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1321 b1322) in
+  let sub_eq = (fun #{ a132 = a1321; b132 = b1321 } #{ a132 = a1322; b132 = b1322 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1321 a1322 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1321 b1322) in
   let expected = { r with a134 = next_r.a134 } in
   set_idx_mut r ((.a134) : (t134, _) idx_mut) next_r.a134;
   mark_test_run 673;
@@ -4918,8 +4918,8 @@ let () =
   mark_test_run 674;
   let test = sub_eq (get_idx_mut r ((.a134) : (t134, _) idx_mut)) next_r.a134 in
   if not test then failwithf "test 674 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a134 = (#{ a132 = #200.s; b132 = #201L } : t132); b134 = (#{ a133 = "202"; b133 = #203L } : t133) } : t134) in
+  (* Paths of depth 2 *)
+  let next_r = { a134 = #{ a132 = #200.s; b132 = #201L }; b134 = #{ a133 = "202"; b133 = #203L } } in
   (* .a134.#a132 *)
   let sub_eq = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) in
   let expected = { r with a134 = #{ r.a134 with a132 = next_r.a134.#a132 } } in
@@ -4940,11 +4940,11 @@ let () =
   mark_test_run 678;
   let test = sub_eq (get_idx_mut r ((.a134.#b132) : (t134, _) idx_mut)) next_r.a134.#b132 in
   if not test then failwithf "test 678 failed";
-  let r = ({ a134 = (#{ a132 = #0.s; b132 = #1L } : t132); b134 = (#{ a133 = "2"; b133 = #3L } : t133) } : t134) in
-  (* Paths of depth 0 *)
-  let next_r = ({ a134 = (#{ a132 = #100.s; b132 = #101L } : t132); b134 = (#{ a133 = "102"; b133 = #103L } : t133) } : t134) in
+  let r = { a134 = #{ a132 = #0.s; b132 = #1L }; b134 = #{ a133 = "2"; b133 = #3L } } in
+  (* Paths of depth 1 *)
+  let next_r = { a134 = #{ a132 = #100.s; b132 = #101L }; b134 = #{ a133 = "102"; b133 = #103L } } in
   (* .b134 *)
-  let sub_eq = (fun (#{ a133 = a1331; b133 = b1331 } : t133) (#{ a133 = a1332; b133 = b1332 } : t133) -> (fun a b -> String.equal (globalize a) (globalize b)) a1331 a1332 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1331 b1332) in
+  let sub_eq = (fun #{ a133 = a1331; b133 = b1331 } #{ a133 = a1332; b133 = b1332 } -> (fun a b -> String.equal (globalize a) (globalize b)) a1331 a1332 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1331 b1332) in
   let expected = { r with b134 = next_r.b134 } in
   set_idx_mut r ((.b134) : (t134, _) idx_mut) next_r.b134;
   mark_test_run 679;
@@ -4953,8 +4953,8 @@ let () =
   mark_test_run 680;
   let test = sub_eq (get_idx_mut r ((.b134) : (t134, _) idx_mut)) next_r.b134 in
   if not test then failwithf "test 680 failed";
-  (* Paths of depth 1 *)
-  let next_r = ({ a134 = (#{ a132 = #200.s; b132 = #201L } : t132); b134 = (#{ a133 = "202"; b133 = #203L } : t133) } : t134) in
+  (* Paths of depth 2 *)
+  let next_r = { a134 = #{ a132 = #200.s; b132 = #201L }; b134 = #{ a133 = "202"; b133 = #203L } } in
   (* .b134.#a133 *)
   let sub_eq = (fun a b -> String.equal (globalize a) (globalize b)) in
   let expected = { r with b134 = #{ r.b134 with a133 = next_r.b134.#a133 } } in

@@ -263,7 +263,7 @@ let test_array_idx_access ~local ty =
   let debug_exprs = [{ expr = "size"; format_s = "%d" }] in
   let ty_array_s = Type.code ty ^ " array" in
   type_section ty;
-  line "let eq = %s in" (Type.eq_code ty);
+  line "leqet eq = %s in" (Type.eq_code ty);
   line "let mk_value i = %s in" (Type.mk_value_body_code ty);
   line "(* Create an array of size [size] *)";
   line "let a : %s = %s size %s in" ty_array_s makearray_dynamic
@@ -371,7 +371,7 @@ let test_record_idx_access ty ~local =
       line "let r = %s in" (Type.value_code ty 0);
       List.iter (Type.unboxed_paths_by_depth fld_t)
         ~f:(fun (depth, unboxed_paths) ->
-          line "(* Paths of depth %d *)" depth;
+          line "(* Paths of depth %d *)" (depth + 1);
           line "let next_r = %s in" (Type.value_code ty (100 * (depth + 1)));
           List.iter unboxed_paths ~f:(fun unboxed_path ->
               line "(* .%s%s *)" lbl (Path.to_string unboxed_path);
@@ -462,19 +462,128 @@ let test_record_idx_deepening ty =
   type_section ty
 
 let test_record_size ty ~bytecode =
+  type_section ty;
   line "let r = %s in" (Type.value_code ty 0);
   let expected_size = Type_structure.size (Type.structure ty) ~bytecode in
   seq_assert ~debug_exprs:[]
-    (sprintf "Int.equal (Obj.size (Obj.repr r)) %d" expected_size);
-  type_section ty
+    (sprintf "Int.equal (Obj.size (Obj.repr r)) %d" expected_size)
 
 let test_record_access ty ~local =
-  (* CR rtjoa: implement *)
-  type_section ty
-
-let test_record_matching ty ~local =
-  (* CR rtjoa: implement *)
-  type_section ty
+  type_section ty;
+  let stack_if_local = if local then "stack_ " else "" in
+  line "let r = %s%s in" stack_if_local (Type.value_code ty 0);
+  line "(* 1. Test field get *)";
+  let fields =
+    match ty with
+    | Record { name = _; fields; boxing = Boxed } -> fields
+    | _ -> invalid_arg "expected boxed record"
+  in
+  List.iter fields ~f:(fun (lbl, fld_t) ->
+      List.iter (Type.unboxed_paths_by_depth fld_t)
+        ~f:(fun (depth, unboxed_paths) ->
+          line "(* Paths of depth %d *)" (depth + 1);
+          List.iter unboxed_paths ~f:(fun unboxed_path ->
+              line "(* .%s%s *)" lbl (Path.to_string unboxed_path);
+              let full_path = Path.Field lbl :: unboxed_path in
+              let sub_ty = Type.follow_path ty full_path in
+              line "let actual = r%s in" (Path.to_string full_path);
+              line "let expected = %s in"
+                (Type.value_code sub_ty
+                   (Type.num_subvals_left_of_path ty full_path)
+                );
+              seq_assert ~debug_exprs:[]
+                (sprintf "%s actual expected" (Type.eq_code sub_ty))
+          )
+      )
+  );
+  line "Gc.compact ();";
+  line "(* 2. Test field set *)";
+  line "(* Change [r] to [next_r] one field at a time *)";
+  line "let eq = %s in" (Type.eq_code ty);
+  (* CR layouts v7.1: test "fine-grained" record sets once we support those *)
+  line "let next_r = %s%s in" stack_if_local (Type.value_code ty 100);
+  line "let r_expected = %s%s in" stack_if_local (Type.value_code ty 0);
+  List.iter fields ~f:(fun (lbl, fld_t) ->
+      line "(* .%s *)" lbl;
+      line "r.%s <- next_r.%s;" lbl lbl;
+      line "let r_expected = { r_expected with %s = next_r.%s } in" lbl lbl;
+      seq_assert ~debug_exprs:[] "eq r r_expected";
+      line "Gc.compact ();"
+  );
+  line "(* 3. Test deep matching *)";
+  let rec mk_deep_record_el_pat (ty : Type.t) : string option =
+    match ty with
+    | Record { fields; boxing = Unboxed } ->
+      let field_pats =
+        List.map fields ~f:(fun (s, fld_ty) ->
+            match mk_deep_record_el_pat fld_ty with
+            | Some pat -> pat
+            | None -> s
+        )
+      in
+      Some (sprintf "#{ %s }" (String.concat ~sep:"; " field_pats))
+    | _ -> None
+  in
+  (* Make a pattern for a nested record that binds a variable for each field
+     name (which are guaranteed to be distinct by [Metaprogramming.Type_naming].
+     If deep, then also binds fields of contained unboxed records. *)
+  let rec mk_record_pat (ty : Type.t) ~deep =
+    match ty with
+    | Record { fields; boxing = Boxed } ->
+      let field_pats =
+        List.map fields ~f:(fun (s, fld_ty) ->
+            if deep
+            then
+              match mk_deep_record_el_pat fld_ty with
+              | Some pat -> sprintf "%s = %s" s pat
+              | None -> s
+            else s
+        )
+      in
+      sprintf "{ %s }" (String.concat ~sep:"; " field_pats)
+    | _ -> invalid_arg "expected boxed record"
+  in
+  let pat = mk_record_pat ty ~deep:true in
+  line "let %s = r in" pat;
+  List.iter fields ~f:(fun (lbl, fld_ty) ->
+      List.iter (Type.unboxed_paths_by_depth fld_ty)
+        ~f:(fun (depth, unboxed_paths) ->
+          List.iter unboxed_paths ~f:(fun unboxed_path ->
+              let full_path = Path.Field lbl :: unboxed_path in
+              let sub_ty = Type.follow_path ty full_path in
+              (* [sub_ty] must be terminal for it to be bound*)
+              if Option.is_none (mk_deep_record_el_pat sub_ty)
+              then (
+                let last_lbl =
+                  match List.hd (List.rev full_path) with
+                  | Path.Field lbl | Path.Unboxed_field lbl -> lbl
+                in
+                let sub_ty = Type.follow_path ty full_path in
+                line "let expected_%s = %s in" last_lbl
+                  (Type.value_code sub_ty
+                     (Type.num_subvals_left_of_path ty full_path + 100)
+                  );
+                seq_assert ~debug_exprs:[]
+                  (sprintf "%s expected_%s %s" (Type.eq_code sub_ty) last_lbl
+                     last_lbl
+                  )
+              )
+          )
+      )
+  );
+  line "Gc.compact ();";
+  line "(* 4. Test shallow matching *)";
+  let pat = mk_record_pat ty ~deep:false in
+  line "let %s = r in" pat;
+  List.iter fields ~f:(fun (lbl, fld_ty) ->
+      line "let expected_%s = %s in" lbl
+        (Type.value_code fld_ty
+           (Type.num_subvals_left_of_path ty [Path.Field lbl] + 100)
+        );
+      seq_assert ~debug_exprs:[]
+        (sprintf "%s expected_%s %s" (Type.eq_code fld_ty) lbl lbl)
+  );
+  print_newline ()
 
 let toplevel_unit_block f =
   assert (Int.equal !indent 0);
@@ -493,7 +602,6 @@ type test =
   | Record_idx_deepening
   | Record_size
   | Record_access of { local : bool }
-  | Record_matching of { local : bool }
 
 let main test ~bytecode =
   let types =
@@ -501,7 +609,7 @@ let main test ~bytecode =
     | Array_idx_access _ | Array_idx_deepening ->
       List.filter_map interesting_type_trees ~f:Type_structure.array_element
     | Record_idx_access _ | Record_idx_deepening | Record_size _
-    | Record_access _ | Record_matching _ ->
+    | Record_access _ ->
       List.filter_map interesting_type_trees
         ~f:Type_structure.boxed_record_containing_unboxed_records
   in
@@ -568,9 +676,6 @@ let main test ~bytecode =
       toplevel_unit_block (fun () ->
           List.iter types ~f:(test_record_access ~local)
       )
-    | Record_matching { local } ->
-      ignore local;
-      assert false
   end;
   line "for i = 1 to %d do" !test_id;
   with_indent (fun () ->
@@ -589,9 +694,7 @@ let tests =
     "record_idx_deepening", Record_idx_deepening;
     "record_size", Record_size;
     "record_access", Record_access { local = false };
-    "record_access_local", Record_access { local = true };
-    "record_matching", Record_matching { local = false };
-    "record_matching_local", Record_matching { local = true }
+    "record_access_local", Record_access { local = true }
   ]
 
 let () =

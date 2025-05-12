@@ -204,7 +204,7 @@ let test size =
   (***********)
   (*   int   *)
   (***********)
-  let eq = (fun a b -> Int.equal a b) in
+  leqet eq = (fun a b -> Int.equal a b) in
   let mk_value i = (i + 0) in
   (* Create an array of size [size] *)
   let a : int array = makearray_dynamic size 0 in
@@ -232,7 +232,7 @@ let test size =
   (*************)
   (*   int64   *)
   (*************)
-  let eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
+  leqet eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let mk_value i = Int64.of_int (i + 0) in
   (* Create an array of size [size] *)
   let a : int64 array = makearray_dynamic size 0L in
@@ -260,7 +260,7 @@ let test size =
   (**************)
   (*   int64#   *)
   (**************)
-  let eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
+  leqet eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let mk_value i = Int64_u.of_int (i + 0) in
   (* Create an array of size [size] *)
   let a : int64# array = makearray_dynamic size #0L in
@@ -288,7 +288,7 @@ let test size =
   (**************)
   (*   int32#   *)
   (**************)
-  let eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  leqet eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let mk_value i = Int32_u.of_int (i + 0) in
   (* Create an array of size [size] *)
   let a : int32# array = makearray_dynamic size #0l in
@@ -316,7 +316,7 @@ let test size =
   (******************)
   (*   nativeint#   *)
   (******************)
-  let eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  leqet eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let mk_value i = Nativeint_u.of_int (i + 0) in
   (* Create an array of size [size] *)
   let a : nativeint# array = makearray_dynamic size #0n in
@@ -344,10 +344,10 @@ let test size =
   (*********************)
   (*   t0 = #{ int }   *)
   (*********************)
-  let eq = (fun (#{ a0 = a01 } : t0) (#{ a0 = a02 } : t0) -> (fun a b -> Int.equal a b) a01 a02) in
-  let mk_value i = (#{ a0 = (i + 0) } : t0) in
+  leqet eq = (fun #{ a0 = a01 } #{ a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) in
+  let mk_value i = #{ a0 = (i + 0) } in
   (* Create an array of size [size] *)
-  let a : t0 array = makearray_dynamic size (#{ a0 = 0 } : t0) in
+  let a : t0 array = makearray_dynamic size #{ a0 = 0 } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -381,10 +381,10 @@ let test size =
   (**************************)
   (*   t1 = #{ int; int }   *)
   (**************************)
-  let eq = (fun (#{ a1 = a11; b1 = b11 } : t1) (#{ a1 = a12; b1 = b12 } : t1) -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) in
-  let mk_value i = (#{ a1 = (i + 0); b1 = (i + 1) } : t1) in
+  leqet eq = (fun #{ a1 = a11; b1 = b11 } #{ a1 = a12; b1 = b12 } -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) in
+  let mk_value i = #{ a1 = (i + 0); b1 = (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t1 array = makearray_dynamic size (#{ a1 = 0; b1 = 1 } : t1) in
+  let a : t1 array = makearray_dynamic size #{ a1 = 0; b1 = 1 } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -424,10 +424,10 @@ let test size =
   (*******************************)
   (*   t2 = #{ int; int; int }   *)
   (*******************************)
-  let eq = (fun (#{ a2 = a21; b2 = b21; c2 = c21 } : t2) (#{ a2 = a22; b2 = b22; c2 = c22 } : t2) -> (fun a b -> Int.equal a b) a21 a22 && (fun a b -> Int.equal a b) b21 b22 && (fun a b -> Int.equal a b) c21 c22) in
-  let mk_value i = (#{ a2 = (i + 0); b2 = (i + 1); c2 = (i + 2) } : t2) in
+  leqet eq = (fun #{ a2 = a21; b2 = b21; c2 = c21 } #{ a2 = a22; b2 = b22; c2 = c22 } -> (fun a b -> Int.equal a b) a21 a22 && (fun a b -> Int.equal a b) b21 b22 && (fun a b -> Int.equal a b) c21 c22) in
+  let mk_value i = #{ a2 = (i + 0); b2 = (i + 1); c2 = (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t2 array = makearray_dynamic size (#{ a2 = 0; b2 = 1; c2 = 2 } : t2) in
+  let a : t2 array = makearray_dynamic size #{ a2 = 0; b2 = 1; c2 = 2 } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -473,10 +473,10 @@ let test size =
   (**********************************)
   (*   t3 = #{ int; int; int32# }   *)
   (**********************************)
-  let eq = (fun (#{ a3 = a31; b3 = b31; c3 = c31 } : t3) (#{ a3 = a32; b3 = b32; c3 = c32 } : t3) -> (fun a b -> Int.equal a b) a31 a32 && (fun a b -> Int.equal a b) b31 b32 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c31 c32) in
-  let mk_value i = (#{ a3 = (i + 0); b3 = (i + 1); c3 = Int32_u.of_int (i + 2) } : t3) in
+  leqet eq = (fun #{ a3 = a31; b3 = b31; c3 = c31 } #{ a3 = a32; b3 = b32; c3 = c32 } -> (fun a b -> Int.equal a b) a31 a32 && (fun a b -> Int.equal a b) b31 b32 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c31 c32) in
+  let mk_value i = #{ a3 = (i + 0); b3 = (i + 1); c3 = Int32_u.of_int (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t3 array = makearray_dynamic size (#{ a3 = 0; b3 = 1; c3 = #2l } : t3) in
+  let a : t3 array = makearray_dynamic size #{ a3 = 0; b3 = 1; c3 = #2l } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -522,10 +522,10 @@ let test size =
   (*********************************)
   (*   t4 = #{ int; int; float }   *)
   (*********************************)
-  let eq = (fun (#{ a4 = a41; b4 = b41; c4 = c41 } : t4) (#{ a4 = a42; b4 = b42; c4 = c42 } : t4) -> (fun a b -> Int.equal a b) a41 a42 && (fun a b -> Int.equal a b) b41 b42 && (fun a b -> Float.equal (globalize a) (globalize b)) c41 c42) in
-  let mk_value i = (#{ a4 = (i + 0); b4 = (i + 1); c4 = Float.of_int (i + 2) } : t4) in
+  leqet eq = (fun #{ a4 = a41; b4 = b41; c4 = c41 } #{ a4 = a42; b4 = b42; c4 = c42 } -> (fun a b -> Int.equal a b) a41 a42 && (fun a b -> Int.equal a b) b41 b42 && (fun a b -> Float.equal (globalize a) (globalize b)) c41 c42) in
+  let mk_value i = #{ a4 = (i + 0); b4 = (i + 1); c4 = Float.of_int (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t4 array = makearray_dynamic size (#{ a4 = 0; b4 = 1; c4 = 2. } : t4) in
+  let a : t4 array = makearray_dynamic size #{ a4 = 0; b4 = 1; c4 = 2. } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -571,10 +571,10 @@ let test size =
   (****************************)
   (*   t5 = #{ int; int64 }   *)
   (****************************)
-  let eq = (fun (#{ a5 = a51; b5 = b51 } : t5) (#{ a5 = a52; b5 = b52 } : t5) -> (fun a b -> Int.equal a b) a51 a52 && (fun a b -> Int64.equal (globalize a) (globalize b)) b51 b52) in
-  let mk_value i = (#{ a5 = (i + 0); b5 = Int64.of_int (i + 1) } : t5) in
+  leqet eq = (fun #{ a5 = a51; b5 = b51 } #{ a5 = a52; b5 = b52 } -> (fun a b -> Int.equal a b) a51 a52 && (fun a b -> Int64.equal (globalize a) (globalize b)) b51 b52) in
+  let mk_value i = #{ a5 = (i + 0); b5 = Int64.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t5 array = makearray_dynamic size (#{ a5 = 0; b5 = 1L } : t5) in
+  let a : t5 array = makearray_dynamic size #{ a5 = 0; b5 = 1L } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -614,10 +614,10 @@ let test size =
   (*****************************)
   (*   t6 = #{ int; int64# }   *)
   (*****************************)
-  let eq = (fun (#{ a6 = a61; b6 = b61 } : t6) (#{ a6 = a62; b6 = b62 } : t6) -> (fun a b -> Int.equal a b) a61 a62 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b61 b62) in
-  let mk_value i = (#{ a6 = (i + 0); b6 = Int64_u.of_int (i + 1) } : t6) in
+  leqet eq = (fun #{ a6 = a61; b6 = b61 } #{ a6 = a62; b6 = b62 } -> (fun a b -> Int.equal a b) a61 a62 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b61 b62) in
+  let mk_value i = #{ a6 = (i + 0); b6 = Int64_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t6 array = makearray_dynamic size (#{ a6 = 0; b6 = #1L } : t6) in
+  let a : t6 array = makearray_dynamic size #{ a6 = 0; b6 = #1L } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -657,10 +657,10 @@ let test size =
   (*****************************)
   (*   t7 = #{ int; int32# }   *)
   (*****************************)
-  let eq = (fun (#{ a7 = a71; b7 = b71 } : t7) (#{ a7 = a72; b7 = b72 } : t7) -> (fun a b -> Int.equal a b) a71 a72 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b71 b72) in
-  let mk_value i = (#{ a7 = (i + 0); b7 = Int32_u.of_int (i + 1) } : t7) in
+  leqet eq = (fun #{ a7 = a71; b7 = b71 } #{ a7 = a72; b7 = b72 } -> (fun a b -> Int.equal a b) a71 a72 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b71 b72) in
+  let mk_value i = #{ a7 = (i + 0); b7 = Int32_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t7 array = makearray_dynamic size (#{ a7 = 0; b7 = #1l } : t7) in
+  let a : t7 array = makearray_dynamic size #{ a7 = 0; b7 = #1l } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -700,10 +700,10 @@ let test size =
   (*************************************)
   (*   t8 = #{ int; int32#; int32# }   *)
   (*************************************)
-  let eq = (fun (#{ a8 = a81; b8 = b81; c8 = c81 } : t8) (#{ a8 = a82; b8 = b82; c8 = c82 } : t8) -> (fun a b -> Int.equal a b) a81 a82 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b81 b82 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c81 c82) in
-  let mk_value i = (#{ a8 = (i + 0); b8 = Int32_u.of_int (i + 1); c8 = Int32_u.of_int (i + 2) } : t8) in
+  leqet eq = (fun #{ a8 = a81; b8 = b81; c8 = c81 } #{ a8 = a82; b8 = b82; c8 = c82 } -> (fun a b -> Int.equal a b) a81 a82 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b81 b82 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c81 c82) in
+  let mk_value i = #{ a8 = (i + 0); b8 = Int32_u.of_int (i + 1); c8 = Int32_u.of_int (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t8 array = makearray_dynamic size (#{ a8 = 0; b8 = #1l; c8 = #2l } : t8) in
+  let a : t8 array = makearray_dynamic size #{ a8 = 0; b8 = #1l; c8 = #2l } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -749,10 +749,10 @@ let test size =
   (*********************************)
   (*   t9 = #{ int; nativeint# }   *)
   (*********************************)
-  let eq = (fun (#{ a9 = a91; b9 = b91 } : t9) (#{ a9 = a92; b9 = b92 } : t9) -> (fun a b -> Int.equal a b) a91 a92 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b91 b92) in
-  let mk_value i = (#{ a9 = (i + 0); b9 = Nativeint_u.of_int (i + 1) } : t9) in
+  leqet eq = (fun #{ a9 = a91; b9 = b91 } #{ a9 = a92; b9 = b92 } -> (fun a b -> Int.equal a b) a91 a92 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b91 b92) in
+  let mk_value i = #{ a9 = (i + 0); b9 = Nativeint_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t9 array = makearray_dynamic size (#{ a9 = 0; b9 = #1n } : t9) in
+  let a : t9 array = makearray_dynamic size #{ a9 = 0; b9 = #1n } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -792,10 +792,10 @@ let test size =
   (*****************************)
   (*   t10 = #{ int; float }   *)
   (*****************************)
-  let eq = (fun (#{ a10 = a101; b10 = b101 } : t10) (#{ a10 = a102; b10 = b102 } : t10) -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Float.equal (globalize a) (globalize b)) b101 b102) in
-  let mk_value i = (#{ a10 = (i + 0); b10 = Float.of_int (i + 1) } : t10) in
+  leqet eq = (fun #{ a10 = a101; b10 = b101 } #{ a10 = a102; b10 = b102 } -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Float.equal (globalize a) (globalize b)) b101 b102) in
+  let mk_value i = #{ a10 = (i + 0); b10 = Float.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t10 array = makearray_dynamic size (#{ a10 = 0; b10 = 1. } : t10) in
+  let a : t10 array = makearray_dynamic size #{ a10 = 0; b10 = 1. } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -835,10 +835,10 @@ let test size =
   (**********************************)
   (*   t11 = #{ int; float; int }   *)
   (**********************************)
-  let eq = (fun (#{ a11 = a111; b11 = b111; c11 = c111 } : t11) (#{ a11 = a112; b11 = b112; c11 = c112 } : t11) -> (fun a b -> Int.equal a b) a111 a112 && (fun a b -> Float.equal (globalize a) (globalize b)) b111 b112 && (fun a b -> Int.equal a b) c111 c112) in
-  let mk_value i = (#{ a11 = (i + 0); b11 = Float.of_int (i + 1); c11 = (i + 2) } : t11) in
+  leqet eq = (fun #{ a11 = a111; b11 = b111; c11 = c111 } #{ a11 = a112; b11 = b112; c11 = c112 } -> (fun a b -> Int.equal a b) a111 a112 && (fun a b -> Float.equal (globalize a) (globalize b)) b111 b112 && (fun a b -> Int.equal a b) c111 c112) in
+  let mk_value i = #{ a11 = (i + 0); b11 = Float.of_int (i + 1); c11 = (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t11 array = makearray_dynamic size (#{ a11 = 0; b11 = 1.; c11 = 2 } : t11) in
+  let a : t11 array = makearray_dynamic size #{ a11 = 0; b11 = 1.; c11 = 2 } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -884,10 +884,10 @@ let test size =
   (************************************)
   (*   t12 = #{ int; float; float }   *)
   (************************************)
-  let eq = (fun (#{ a12 = a121; b12 = b121; c12 = c121 } : t12) (#{ a12 = a122; b12 = b122; c12 = c122 } : t12) -> (fun a b -> Int.equal a b) a121 a122 && (fun a b -> Float.equal (globalize a) (globalize b)) b121 b122 && (fun a b -> Float.equal (globalize a) (globalize b)) c121 c122) in
-  let mk_value i = (#{ a12 = (i + 0); b12 = Float.of_int (i + 1); c12 = Float.of_int (i + 2) } : t12) in
+  leqet eq = (fun #{ a12 = a121; b12 = b121; c12 = c121 } #{ a12 = a122; b12 = b122; c12 = c122 } -> (fun a b -> Int.equal a b) a121 a122 && (fun a b -> Float.equal (globalize a) (globalize b)) b121 b122 && (fun a b -> Float.equal (globalize a) (globalize b)) c121 c122) in
+  let mk_value i = #{ a12 = (i + 0); b12 = Float.of_int (i + 1); c12 = Float.of_int (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t12 array = makearray_dynamic size (#{ a12 = 0; b12 = 1.; c12 = 2. } : t12) in
+  let a : t12 array = makearray_dynamic size #{ a12 = 0; b12 = 1.; c12 = 2. } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -933,10 +933,10 @@ let test size =
   (********************************)
   (*   t13 = #{ int; #{ int } }   *)
   (********************************)
-  let eq = (fun (#{ a13 = a131; b13 = b131 } : t13) (#{ a13 = a132; b13 = b132 } : t13) -> (fun a b -> Int.equal a b) a131 a132 && (fun (#{ a0 = a01 } : t0) (#{ a0 = a02 } : t0) -> (fun a b -> Int.equal a b) a01 a02) b131 b132) in
-  let mk_value i = (#{ a13 = (i + 0); b13 = (#{ a0 = (i + 1) } : t0) } : t13) in
+  leqet eq = (fun #{ a13 = a131; b13 = b131 } #{ a13 = a132; b13 = b132 } -> (fun a b -> Int.equal a b) a131 a132 && (fun #{ a0 = a01 } #{ a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) b131 b132) in
+  let mk_value i = #{ a13 = (i + 0); b13 = #{ a0 = (i + 1) } } in
   (* Create an array of size [size] *)
-  let a : t13 array = makearray_dynamic size (#{ a13 = 0; b13 = (#{ a0 = 1 } : t0) } : t13) in
+  let a : t13 array = makearray_dynamic size #{ a13 = 0; b13 = #{ a0 = 1 } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -985,10 +985,10 @@ let test size =
   (*************************************)
   (*   t14 = #{ int; #{ int; int } }   *)
   (*************************************)
-  let eq = (fun (#{ a14 = a141; b14 = b141 } : t14) (#{ a14 = a142; b14 = b142 } : t14) -> (fun a b -> Int.equal a b) a141 a142 && (fun (#{ a1 = a11; b1 = b11 } : t1) (#{ a1 = a12; b1 = b12 } : t1) -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) b141 b142) in
-  let mk_value i = (#{ a14 = (i + 0); b14 = (#{ a1 = (i + 1); b1 = (i + 2) } : t1) } : t14) in
+  leqet eq = (fun #{ a14 = a141; b14 = b141 } #{ a14 = a142; b14 = b142 } -> (fun a b -> Int.equal a b) a141 a142 && (fun #{ a1 = a11; b1 = b11 } #{ a1 = a12; b1 = b12 } -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) b141 b142) in
+  let mk_value i = #{ a14 = (i + 0); b14 = #{ a1 = (i + 1); b1 = (i + 2) } } in
   (* Create an array of size [size] *)
-  let a : t14 array = makearray_dynamic size (#{ a14 = 0; b14 = (#{ a1 = 1; b1 = 2 } : t1) } : t14) in
+  let a : t14 array = makearray_dynamic size #{ a14 = 0; b14 = #{ a1 = 1; b1 = 2 } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1043,10 +1043,10 @@ let test size =
   (****************************************)
   (*   t15 = #{ int; #{ int; int32# } }   *)
   (****************************************)
-  let eq = (fun (#{ a15 = a151; b15 = b151 } : t15) (#{ a15 = a152; b15 = b152 } : t15) -> (fun a b -> Int.equal a b) a151 a152 && (fun (#{ a7 = a71; b7 = b71 } : t7) (#{ a7 = a72; b7 = b72 } : t7) -> (fun a b -> Int.equal a b) a71 a72 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b71 b72) b151 b152) in
-  let mk_value i = (#{ a15 = (i + 0); b15 = (#{ a7 = (i + 1); b7 = Int32_u.of_int (i + 2) } : t7) } : t15) in
+  leqet eq = (fun #{ a15 = a151; b15 = b151 } #{ a15 = a152; b15 = b152 } -> (fun a b -> Int.equal a b) a151 a152 && (fun #{ a7 = a71; b7 = b71 } #{ a7 = a72; b7 = b72 } -> (fun a b -> Int.equal a b) a71 a72 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b71 b72) b151 b152) in
+  let mk_value i = #{ a15 = (i + 0); b15 = #{ a7 = (i + 1); b7 = Int32_u.of_int (i + 2) } } in
   (* Create an array of size [size] *)
-  let a : t15 array = makearray_dynamic size (#{ a15 = 0; b15 = (#{ a7 = 1; b7 = #2l } : t7) } : t15) in
+  let a : t15 array = makearray_dynamic size #{ a15 = 0; b15 = #{ a7 = 1; b7 = #2l } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1101,10 +1101,10 @@ let test size =
   (***************************************)
   (*   t16 = #{ int; #{ int; float } }   *)
   (***************************************)
-  let eq = (fun (#{ a16 = a161; b16 = b161 } : t16) (#{ a16 = a162; b16 = b162 } : t16) -> (fun a b -> Int.equal a b) a161 a162 && (fun (#{ a10 = a101; b10 = b101 } : t10) (#{ a10 = a102; b10 = b102 } : t10) -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Float.equal (globalize a) (globalize b)) b101 b102) b161 b162) in
-  let mk_value i = (#{ a16 = (i + 0); b16 = (#{ a10 = (i + 1); b10 = Float.of_int (i + 2) } : t10) } : t16) in
+  leqet eq = (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun #{ a10 = a101; b10 = b101 } #{ a10 = a102; b10 = b102 } -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Float.equal (globalize a) (globalize b)) b101 b102) b161 b162) in
+  let mk_value i = #{ a16 = (i + 0); b16 = #{ a10 = (i + 1); b10 = Float.of_int (i + 2) } } in
   (* Create an array of size [size] *)
-  let a : t16 array = makearray_dynamic size (#{ a16 = 0; b16 = (#{ a10 = 1; b10 = 2. } : t10) } : t16) in
+  let a : t16 array = makearray_dynamic size #{ a16 = 0; b16 = #{ a10 = 1; b10 = 2. } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1159,10 +1159,10 @@ let test size =
   (***********************************)
   (*   t18 = #{ int; #{ int32# } }   *)
   (***********************************)
-  let eq = (fun (#{ a18 = a181; b18 = b181 } : t18) (#{ a18 = a182; b18 = b182 } : t18) -> (fun a b -> Int.equal a b) a181 a182 && (fun (#{ a17 = a171 } : t17) (#{ a17 = a172 } : t17) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a171 a172) b181 b182) in
-  let mk_value i = (#{ a18 = (i + 0); b18 = (#{ a17 = Int32_u.of_int (i + 1) } : t17) } : t18) in
+  leqet eq = (fun #{ a18 = a181; b18 = b181 } #{ a18 = a182; b18 = b182 } -> (fun a b -> Int.equal a b) a181 a182 && (fun #{ a17 = a171 } #{ a17 = a172 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a171 a172) b181 b182) in
+  let mk_value i = #{ a18 = (i + 0); b18 = #{ a17 = Int32_u.of_int (i + 1) } } in
   (* Create an array of size [size] *)
-  let a : t18 array = makearray_dynamic size (#{ a18 = 0; b18 = (#{ a17 = #1l } : t17) } : t18) in
+  let a : t18 array = makearray_dynamic size #{ a18 = 0; b18 = #{ a17 = #1l } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1211,10 +1211,10 @@ let test size =
   (*******************************************)
   (*   t20 = #{ int; #{ int32#; int32# } }   *)
   (*******************************************)
-  let eq = (fun (#{ a20 = a201; b20 = b201 } : t20) (#{ a20 = a202; b20 = b202 } : t20) -> (fun a b -> Int.equal a b) a201 a202 && (fun (#{ a19 = a191; b19 = b191 } : t19) (#{ a19 = a192; b19 = b192 } : t19) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a191 a192 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b191 b192) b201 b202) in
-  let mk_value i = (#{ a20 = (i + 0); b20 = (#{ a19 = Int32_u.of_int (i + 1); b19 = Int32_u.of_int (i + 2) } : t19) } : t20) in
+  leqet eq = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun #{ a19 = a191; b19 = b191 } #{ a19 = a192; b19 = b192 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a191 a192 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b191 b192) b201 b202) in
+  let mk_value i = #{ a20 = (i + 0); b20 = #{ a19 = Int32_u.of_int (i + 1); b19 = Int32_u.of_int (i + 2) } } in
   (* Create an array of size [size] *)
-  let a : t20 array = makearray_dynamic size (#{ a20 = 0; b20 = (#{ a19 = #1l; b19 = #2l } : t19) } : t20) in
+  let a : t20 array = makearray_dynamic size #{ a20 = 0; b20 = #{ a19 = #1l; b19 = #2l } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1269,10 +1269,10 @@ let test size =
   (**********************************)
   (*   t22 = #{ int; #{ float } }   *)
   (**********************************)
-  let eq = (fun (#{ a22 = a221; b22 = b221 } : t22) (#{ a22 = a222; b22 = b222 } : t22) -> (fun a b -> Int.equal a b) a221 a222 && (fun (#{ a21 = a211 } : t21) (#{ a21 = a212 } : t21) -> (fun a b -> Float.equal (globalize a) (globalize b)) a211 a212) b221 b222) in
-  let mk_value i = (#{ a22 = (i + 0); b22 = (#{ a21 = Float.of_int (i + 1) } : t21) } : t22) in
+  leqet eq = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun #{ a21 = a211 } #{ a21 = a212 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a211 a212) b221 b222) in
+  let mk_value i = #{ a22 = (i + 0); b22 = #{ a21 = Float.of_int (i + 1) } } in
   (* Create an array of size [size] *)
-  let a : t22 array = makearray_dynamic size (#{ a22 = 0; b22 = (#{ a21 = 1. } : t21) } : t22) in
+  let a : t22 array = makearray_dynamic size #{ a22 = 0; b22 = #{ a21 = 1. } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1321,10 +1321,10 @@ let test size =
   (***************************************)
   (*   t24 = #{ int; #{ float; int } }   *)
   (***************************************)
-  let eq = (fun (#{ a24 = a241; b24 = b241 } : t24) (#{ a24 = a242; b24 = b242 } : t24) -> (fun a b -> Int.equal a b) a241 a242 && (fun (#{ a23 = a231; b23 = b231 } : t23) (#{ a23 = a232; b23 = b232 } : t23) -> (fun a b -> Float.equal (globalize a) (globalize b)) a231 a232 && (fun a b -> Int.equal a b) b231 b232) b241 b242) in
-  let mk_value i = (#{ a24 = (i + 0); b24 = (#{ a23 = Float.of_int (i + 1); b23 = (i + 2) } : t23) } : t24) in
+  leqet eq = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun #{ a23 = a231; b23 = b231 } #{ a23 = a232; b23 = b232 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a231 a232 && (fun a b -> Int.equal a b) b231 b232) b241 b242) in
+  let mk_value i = #{ a24 = (i + 0); b24 = #{ a23 = Float.of_int (i + 1); b23 = (i + 2) } } in
   (* Create an array of size [size] *)
-  let a : t24 array = makearray_dynamic size (#{ a24 = 0; b24 = (#{ a23 = 1.; b23 = 2 } : t23) } : t24) in
+  let a : t24 array = makearray_dynamic size #{ a24 = 0; b24 = #{ a23 = 1.; b23 = 2 } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1379,10 +1379,10 @@ let test size =
   (*****************************************)
   (*   t26 = #{ int; #{ float; float } }   *)
   (*****************************************)
-  let eq = (fun (#{ a26 = a261; b26 = b261 } : t26) (#{ a26 = a262; b26 = b262 } : t26) -> (fun a b -> Int.equal a b) a261 a262 && (fun (#{ a25 = a251; b25 = b251 } : t25) (#{ a25 = a252; b25 = b252 } : t25) -> (fun a b -> Float.equal (globalize a) (globalize b)) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) b261 b262) in
-  let mk_value i = (#{ a26 = (i + 0); b26 = (#{ a25 = Float.of_int (i + 1); b25 = Float.of_int (i + 2) } : t25) } : t26) in
+  leqet eq = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && (fun #{ a25 = a251; b25 = b251 } #{ a25 = a252; b25 = b252 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) b261 b262) in
+  let mk_value i = #{ a26 = (i + 0); b26 = #{ a25 = Float.of_int (i + 1); b25 = Float.of_int (i + 2) } } in
   (* Create an array of size [size] *)
-  let a : t26 array = makearray_dynamic size (#{ a26 = 0; b26 = (#{ a25 = 1.; b25 = 2. } : t25) } : t26) in
+  let a : t26 array = makearray_dynamic size #{ a26 = 0; b26 = #{ a25 = 1.; b25 = 2. } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1437,10 +1437,10 @@ let test size =
   (************************)
   (*   t27 = #{ int64 }   *)
   (************************)
-  let eq = (fun (#{ a27 = a271 } : t27) (#{ a27 = a272 } : t27) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a271 a272) in
-  let mk_value i = (#{ a27 = Int64.of_int (i + 0) } : t27) in
+  leqet eq = (fun #{ a27 = a271 } #{ a27 = a272 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a271 a272) in
+  let mk_value i = #{ a27 = Int64.of_int (i + 0) } in
   (* Create an array of size [size] *)
-  let a : t27 array = makearray_dynamic size (#{ a27 = 0L } : t27) in
+  let a : t27 array = makearray_dynamic size #{ a27 = 0L } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1474,10 +1474,10 @@ let test size =
   (*****************************)
   (*   t28 = #{ int64; int }   *)
   (*****************************)
-  let eq = (fun (#{ a28 = a281; b28 = b281 } : t28) (#{ a28 = a282; b28 = b282 } : t28) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a281 a282 && (fun a b -> Int.equal a b) b281 b282) in
-  let mk_value i = (#{ a28 = Int64.of_int (i + 0); b28 = (i + 1) } : t28) in
+  leqet eq = (fun #{ a28 = a281; b28 = b281 } #{ a28 = a282; b28 = b282 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a281 a282 && (fun a b -> Int.equal a b) b281 b282) in
+  let mk_value i = #{ a28 = Int64.of_int (i + 0); b28 = (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t28 array = makearray_dynamic size (#{ a28 = 0L; b28 = 1 } : t28) in
+  let a : t28 array = makearray_dynamic size #{ a28 = 0L; b28 = 1 } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1517,10 +1517,10 @@ let test size =
   (*******************************)
   (*   t29 = #{ int64; int64 }   *)
   (*******************************)
-  let eq = (fun (#{ a29 = a291; b29 = b291 } : t29) (#{ a29 = a292; b29 = b292 } : t29) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a291 a292 && (fun a b -> Int64.equal (globalize a) (globalize b)) b291 b292) in
-  let mk_value i = (#{ a29 = Int64.of_int (i + 0); b29 = Int64.of_int (i + 1) } : t29) in
+  leqet eq = (fun #{ a29 = a291; b29 = b291 } #{ a29 = a292; b29 = b292 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a291 a292 && (fun a b -> Int64.equal (globalize a) (globalize b)) b291 b292) in
+  let mk_value i = #{ a29 = Int64.of_int (i + 0); b29 = Int64.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t29 array = makearray_dynamic size (#{ a29 = 0L; b29 = 1L } : t29) in
+  let a : t29 array = makearray_dynamic size #{ a29 = 0L; b29 = 1L } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1560,10 +1560,10 @@ let test size =
   (*******************************)
   (*   t30 = #{ int64; float }   *)
   (*******************************)
-  let eq = (fun (#{ a30 = a301; b30 = b301 } : t30) (#{ a30 = a302; b30 = b302 } : t30) -> (fun a b -> Int64.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Float.equal (globalize a) (globalize b)) b301 b302) in
-  let mk_value i = (#{ a30 = Int64.of_int (i + 0); b30 = Float.of_int (i + 1) } : t30) in
+  leqet eq = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Float.equal (globalize a) (globalize b)) b301 b302) in
+  let mk_value i = #{ a30 = Int64.of_int (i + 0); b30 = Float.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t30 array = makearray_dynamic size (#{ a30 = 0L; b30 = 1. } : t30) in
+  let a : t30 array = makearray_dynamic size #{ a30 = 0L; b30 = 1. } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1603,10 +1603,10 @@ let test size =
   (*************************)
   (*   t31 = #{ int64# }   *)
   (*************************)
-  let eq = (fun (#{ a31 = a311 } : t31) (#{ a31 = a312 } : t31) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a311 a312) in
-  let mk_value i = (#{ a31 = Int64_u.of_int (i + 0) } : t31) in
+  leqet eq = (fun #{ a31 = a311 } #{ a31 = a312 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a311 a312) in
+  let mk_value i = #{ a31 = Int64_u.of_int (i + 0) } in
   (* Create an array of size [size] *)
-  let a : t31 array = makearray_dynamic size (#{ a31 = #0L } : t31) in
+  let a : t31 array = makearray_dynamic size #{ a31 = #0L } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1640,10 +1640,10 @@ let test size =
   (*********************************)
   (*   t32 = #{ int64#; int64# }   *)
   (*********************************)
-  let eq = (fun (#{ a32 = a321; b32 = b321 } : t32) (#{ a32 = a322; b32 = b322 } : t32) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a321 a322 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b321 b322) in
-  let mk_value i = (#{ a32 = Int64_u.of_int (i + 0); b32 = Int64_u.of_int (i + 1) } : t32) in
+  leqet eq = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a321 a322 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b321 b322) in
+  let mk_value i = #{ a32 = Int64_u.of_int (i + 0); b32 = Int64_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t32 array = makearray_dynamic size (#{ a32 = #0L; b32 = #1L } : t32) in
+  let a : t32 array = makearray_dynamic size #{ a32 = #0L; b32 = #1L } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1683,10 +1683,10 @@ let test size =
   (*********************************)
   (*   t33 = #{ int64#; int32# }   *)
   (*********************************)
-  let eq = (fun (#{ a33 = a331; b33 = b331 } : t33) (#{ a33 = a332; b33 = b332 } : t33) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a331 a332 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b331 b332) in
-  let mk_value i = (#{ a33 = Int64_u.of_int (i + 0); b33 = Int32_u.of_int (i + 1) } : t33) in
+  leqet eq = (fun #{ a33 = a331; b33 = b331 } #{ a33 = a332; b33 = b332 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a331 a332 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b331 b332) in
+  let mk_value i = #{ a33 = Int64_u.of_int (i + 0); b33 = Int32_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t33 array = makearray_dynamic size (#{ a33 = #0L; b33 = #1l } : t33) in
+  let a : t33 array = makearray_dynamic size #{ a33 = #0L; b33 = #1l } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1726,10 +1726,10 @@ let test size =
   (*************************************)
   (*   t34 = #{ int64#; nativeint# }   *)
   (*************************************)
-  let eq = (fun (#{ a34 = a341; b34 = b341 } : t34) (#{ a34 = a342; b34 = b342 } : t34) -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a341 a342 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b341 b342) in
-  let mk_value i = (#{ a34 = Int64_u.of_int (i + 0); b34 = Nativeint_u.of_int (i + 1) } : t34) in
+  leqet eq = (fun #{ a34 = a341; b34 = b341 } #{ a34 = a342; b34 = b342 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a341 a342 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b341 b342) in
+  let mk_value i = #{ a34 = Int64_u.of_int (i + 0); b34 = Nativeint_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t34 array = makearray_dynamic size (#{ a34 = #0L; b34 = #1n } : t34) in
+  let a : t34 array = makearray_dynamic size #{ a34 = #0L; b34 = #1n } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1769,10 +1769,10 @@ let test size =
   (*************************)
   (*   t17 = #{ int32# }   *)
   (*************************)
-  let eq = (fun (#{ a17 = a171 } : t17) (#{ a17 = a172 } : t17) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a171 a172) in
-  let mk_value i = (#{ a17 = Int32_u.of_int (i + 0) } : t17) in
+  leqet eq = (fun #{ a17 = a171 } #{ a17 = a172 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a171 a172) in
+  let mk_value i = #{ a17 = Int32_u.of_int (i + 0) } in
   (* Create an array of size [size] *)
-  let a : t17 array = makearray_dynamic size (#{ a17 = #0l } : t17) in
+  let a : t17 array = makearray_dynamic size #{ a17 = #0l } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1806,10 +1806,10 @@ let test size =
   (*********************************)
   (*   t35 = #{ int32#; int64# }   *)
   (*********************************)
-  let eq = (fun (#{ a35 = a351; b35 = b351 } : t35) (#{ a35 = a352; b35 = b352 } : t35) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a351 a352 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b351 b352) in
-  let mk_value i = (#{ a35 = Int32_u.of_int (i + 0); b35 = Int64_u.of_int (i + 1) } : t35) in
+  leqet eq = (fun #{ a35 = a351; b35 = b351 } #{ a35 = a352; b35 = b352 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a351 a352 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b351 b352) in
+  let mk_value i = #{ a35 = Int32_u.of_int (i + 0); b35 = Int64_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t35 array = makearray_dynamic size (#{ a35 = #0l; b35 = #1L } : t35) in
+  let a : t35 array = makearray_dynamic size #{ a35 = #0l; b35 = #1L } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1849,10 +1849,10 @@ let test size =
   (*********************************)
   (*   t19 = #{ int32#; int32# }   *)
   (*********************************)
-  let eq = (fun (#{ a19 = a191; b19 = b191 } : t19) (#{ a19 = a192; b19 = b192 } : t19) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a191 a192 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b191 b192) in
-  let mk_value i = (#{ a19 = Int32_u.of_int (i + 0); b19 = Int32_u.of_int (i + 1) } : t19) in
+  leqet eq = (fun #{ a19 = a191; b19 = b191 } #{ a19 = a192; b19 = b192 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a191 a192 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b191 b192) in
+  let mk_value i = #{ a19 = Int32_u.of_int (i + 0); b19 = Int32_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t19 array = makearray_dynamic size (#{ a19 = #0l; b19 = #1l } : t19) in
+  let a : t19 array = makearray_dynamic size #{ a19 = #0l; b19 = #1l } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1892,10 +1892,10 @@ let test size =
   (*****************************************)
   (*   t36 = #{ int32#; int32#; int32# }   *)
   (*****************************************)
-  let eq = (fun (#{ a36 = a361; b36 = b361; c36 = c361 } : t36) (#{ a36 = a362; b36 = b362; c36 = c362 } : t36) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a361 a362 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b361 b362 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c361 c362) in
-  let mk_value i = (#{ a36 = Int32_u.of_int (i + 0); b36 = Int32_u.of_int (i + 1); c36 = Int32_u.of_int (i + 2) } : t36) in
+  leqet eq = (fun #{ a36 = a361; b36 = b361; c36 = c361 } #{ a36 = a362; b36 = b362; c36 = c362 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a361 a362 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b361 b362 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c361 c362) in
+  let mk_value i = #{ a36 = Int32_u.of_int (i + 0); b36 = Int32_u.of_int (i + 1); c36 = Int32_u.of_int (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t36 array = makearray_dynamic size (#{ a36 = #0l; b36 = #1l; c36 = #2l } : t36) in
+  let a : t36 array = makearray_dynamic size #{ a36 = #0l; b36 = #1l; c36 = #2l } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1941,10 +1941,10 @@ let test size =
   (*************************************)
   (*   t37 = #{ int32#; nativeint# }   *)
   (*************************************)
-  let eq = (fun (#{ a37 = a371; b37 = b371 } : t37) (#{ a37 = a372; b37 = b372 } : t37) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a371 a372 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b371 b372) in
-  let mk_value i = (#{ a37 = Int32_u.of_int (i + 0); b37 = Nativeint_u.of_int (i + 1) } : t37) in
+  leqet eq = (fun #{ a37 = a371; b37 = b371 } #{ a37 = a372; b37 = b372 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a371 a372 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b371 b372) in
+  let mk_value i = #{ a37 = Int32_u.of_int (i + 0); b37 = Nativeint_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t37 array = makearray_dynamic size (#{ a37 = #0l; b37 = #1n } : t37) in
+  let a : t37 array = makearray_dynamic size #{ a37 = #0l; b37 = #1n } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -1984,10 +1984,10 @@ let test size =
   (**************************************)
   (*   t38 = #{ int32#; #{ int32# } }   *)
   (**************************************)
-  let eq = (fun (#{ a38 = a381; b38 = b381 } : t38) (#{ a38 = a382; b38 = b382 } : t38) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a381 a382 && (fun (#{ a17 = a171 } : t17) (#{ a17 = a172 } : t17) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a171 a172) b381 b382) in
-  let mk_value i = (#{ a38 = Int32_u.of_int (i + 0); b38 = (#{ a17 = Int32_u.of_int (i + 1) } : t17) } : t38) in
+  leqet eq = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a381 a382 && (fun #{ a17 = a171 } #{ a17 = a172 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a171 a172) b381 b382) in
+  let mk_value i = #{ a38 = Int32_u.of_int (i + 0); b38 = #{ a17 = Int32_u.of_int (i + 1) } } in
   (* Create an array of size [size] *)
-  let a : t38 array = makearray_dynamic size (#{ a38 = #0l; b38 = (#{ a17 = #1l } : t17) } : t38) in
+  let a : t38 array = makearray_dynamic size #{ a38 = #0l; b38 = #{ a17 = #1l } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2036,10 +2036,10 @@ let test size =
   (**********************************************)
   (*   t39 = #{ int32#; #{ int32#; int32# } }   *)
   (**********************************************)
-  let eq = (fun (#{ a39 = a391; b39 = b391 } : t39) (#{ a39 = a392; b39 = b392 } : t39) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a391 a392 && (fun (#{ a19 = a191; b19 = b191 } : t19) (#{ a19 = a192; b19 = b192 } : t19) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a191 a192 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b191 b192) b391 b392) in
-  let mk_value i = (#{ a39 = Int32_u.of_int (i + 0); b39 = (#{ a19 = Int32_u.of_int (i + 1); b19 = Int32_u.of_int (i + 2) } : t19) } : t39) in
+  leqet eq = (fun #{ a39 = a391; b39 = b391 } #{ a39 = a392; b39 = b392 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a391 a392 && (fun #{ a19 = a191; b19 = b191 } #{ a19 = a192; b19 = b192 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a191 a192 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b191 b192) b391 b392) in
+  let mk_value i = #{ a39 = Int32_u.of_int (i + 0); b39 = #{ a19 = Int32_u.of_int (i + 1); b19 = Int32_u.of_int (i + 2) } } in
   (* Create an array of size [size] *)
-  let a : t39 array = makearray_dynamic size (#{ a39 = #0l; b39 = (#{ a19 = #1l; b19 = #2l } : t19) } : t39) in
+  let a : t39 array = makearray_dynamic size #{ a39 = #0l; b39 = #{ a19 = #1l; b19 = #2l } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2094,10 +2094,10 @@ let test size =
   (*****************************)
   (*   t40 = #{ nativeint# }   *)
   (*****************************)
-  let eq = (fun (#{ a40 = a401 } : t40) (#{ a40 = a402 } : t40) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a401 a402) in
-  let mk_value i = (#{ a40 = Nativeint_u.of_int (i + 0) } : t40) in
+  leqet eq = (fun #{ a40 = a401 } #{ a40 = a402 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a401 a402) in
+  let mk_value i = #{ a40 = Nativeint_u.of_int (i + 0) } in
   (* Create an array of size [size] *)
-  let a : t40 array = makearray_dynamic size (#{ a40 = #0n } : t40) in
+  let a : t40 array = makearray_dynamic size #{ a40 = #0n } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2131,10 +2131,10 @@ let test size =
   (*************************************)
   (*   t41 = #{ nativeint#; int64# }   *)
   (*************************************)
-  let eq = (fun (#{ a41 = a411; b41 = b411 } : t41) (#{ a41 = a412; b41 = b412 } : t41) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a411 a412 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b411 b412) in
-  let mk_value i = (#{ a41 = Nativeint_u.of_int (i + 0); b41 = Int64_u.of_int (i + 1) } : t41) in
+  leqet eq = (fun #{ a41 = a411; b41 = b411 } #{ a41 = a412; b41 = b412 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a411 a412 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b411 b412) in
+  let mk_value i = #{ a41 = Nativeint_u.of_int (i + 0); b41 = Int64_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t41 array = makearray_dynamic size (#{ a41 = #0n; b41 = #1L } : t41) in
+  let a : t41 array = makearray_dynamic size #{ a41 = #0n; b41 = #1L } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2174,10 +2174,10 @@ let test size =
   (*************************************)
   (*   t42 = #{ nativeint#; int32# }   *)
   (*************************************)
-  let eq = (fun (#{ a42 = a421; b42 = b421 } : t42) (#{ a42 = a422; b42 = b422 } : t42) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a421 a422 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b421 b422) in
-  let mk_value i = (#{ a42 = Nativeint_u.of_int (i + 0); b42 = Int32_u.of_int (i + 1) } : t42) in
+  leqet eq = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a421 a422 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b421 b422) in
+  let mk_value i = #{ a42 = Nativeint_u.of_int (i + 0); b42 = Int32_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t42 array = makearray_dynamic size (#{ a42 = #0n; b42 = #1l } : t42) in
+  let a : t42 array = makearray_dynamic size #{ a42 = #0n; b42 = #1l } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2217,10 +2217,10 @@ let test size =
   (*****************************************)
   (*   t43 = #{ nativeint#; nativeint# }   *)
   (*****************************************)
-  let eq = (fun (#{ a43 = a431; b43 = b431 } : t43) (#{ a43 = a432; b43 = b432 } : t43) -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a431 a432 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b431 b432) in
-  let mk_value i = (#{ a43 = Nativeint_u.of_int (i + 0); b43 = Nativeint_u.of_int (i + 1) } : t43) in
+  leqet eq = (fun #{ a43 = a431; b43 = b431 } #{ a43 = a432; b43 = b432 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a431 a432 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b431 b432) in
+  let mk_value i = #{ a43 = Nativeint_u.of_int (i + 0); b43 = Nativeint_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t43 array = makearray_dynamic size (#{ a43 = #0n; b43 = #1n } : t43) in
+  let a : t43 array = makearray_dynamic size #{ a43 = #0n; b43 = #1n } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2260,10 +2260,10 @@ let test size =
   (*****************************)
   (*   t23 = #{ float; int }   *)
   (*****************************)
-  let eq = (fun (#{ a23 = a231; b23 = b231 } : t23) (#{ a23 = a232; b23 = b232 } : t23) -> (fun a b -> Float.equal (globalize a) (globalize b)) a231 a232 && (fun a b -> Int.equal a b) b231 b232) in
-  let mk_value i = (#{ a23 = Float.of_int (i + 0); b23 = (i + 1) } : t23) in
+  leqet eq = (fun #{ a23 = a231; b23 = b231 } #{ a23 = a232; b23 = b232 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a231 a232 && (fun a b -> Int.equal a b) b231 b232) in
+  let mk_value i = #{ a23 = Float.of_int (i + 0); b23 = (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t23 array = makearray_dynamic size (#{ a23 = 0.; b23 = 1 } : t23) in
+  let a : t23 array = makearray_dynamic size #{ a23 = 0.; b23 = 1 } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2303,10 +2303,10 @@ let test size =
   (**********************************)
   (*   t44 = #{ float; int; int }   *)
   (**********************************)
-  let eq = (fun (#{ a44 = a441; b44 = b441; c44 = c441 } : t44) (#{ a44 = a442; b44 = b442; c44 = c442 } : t44) -> (fun a b -> Float.equal (globalize a) (globalize b)) a441 a442 && (fun a b -> Int.equal a b) b441 b442 && (fun a b -> Int.equal a b) c441 c442) in
-  let mk_value i = (#{ a44 = Float.of_int (i + 0); b44 = (i + 1); c44 = (i + 2) } : t44) in
+  leqet eq = (fun #{ a44 = a441; b44 = b441; c44 = c441 } #{ a44 = a442; b44 = b442; c44 = c442 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a441 a442 && (fun a b -> Int.equal a b) b441 b442 && (fun a b -> Int.equal a b) c441 c442) in
+  let mk_value i = #{ a44 = Float.of_int (i + 0); b44 = (i + 1); c44 = (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t44 array = makearray_dynamic size (#{ a44 = 0.; b44 = 1; c44 = 2 } : t44) in
+  let a : t44 array = makearray_dynamic size #{ a44 = 0.; b44 = 1; c44 = 2 } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2352,10 +2352,10 @@ let test size =
   (************************************)
   (*   t45 = #{ float; int; float }   *)
   (************************************)
-  let eq = (fun (#{ a45 = a451; b45 = b451; c45 = c451 } : t45) (#{ a45 = a452; b45 = b452; c45 = c452 } : t45) -> (fun a b -> Float.equal (globalize a) (globalize b)) a451 a452 && (fun a b -> Int.equal a b) b451 b452 && (fun a b -> Float.equal (globalize a) (globalize b)) c451 c452) in
-  let mk_value i = (#{ a45 = Float.of_int (i + 0); b45 = (i + 1); c45 = Float.of_int (i + 2) } : t45) in
+  leqet eq = (fun #{ a45 = a451; b45 = b451; c45 = c451 } #{ a45 = a452; b45 = b452; c45 = c452 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a451 a452 && (fun a b -> Int.equal a b) b451 b452 && (fun a b -> Float.equal (globalize a) (globalize b)) c451 c452) in
+  let mk_value i = #{ a45 = Float.of_int (i + 0); b45 = (i + 1); c45 = Float.of_int (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t45 array = makearray_dynamic size (#{ a45 = 0.; b45 = 1; c45 = 2. } : t45) in
+  let a : t45 array = makearray_dynamic size #{ a45 = 0.; b45 = 1; c45 = 2. } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2401,10 +2401,10 @@ let test size =
   (*******************************)
   (*   t46 = #{ float; int64 }   *)
   (*******************************)
-  let eq = (fun (#{ a46 = a461; b46 = b461 } : t46) (#{ a46 = a462; b46 = b462 } : t46) -> (fun a b -> Float.equal (globalize a) (globalize b)) a461 a462 && (fun a b -> Int64.equal (globalize a) (globalize b)) b461 b462) in
-  let mk_value i = (#{ a46 = Float.of_int (i + 0); b46 = Int64.of_int (i + 1) } : t46) in
+  leqet eq = (fun #{ a46 = a461; b46 = b461 } #{ a46 = a462; b46 = b462 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a461 a462 && (fun a b -> Int64.equal (globalize a) (globalize b)) b461 b462) in
+  let mk_value i = #{ a46 = Float.of_int (i + 0); b46 = Int64.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t46 array = makearray_dynamic size (#{ a46 = 0.; b46 = 1L } : t46) in
+  let a : t46 array = makearray_dynamic size #{ a46 = 0.; b46 = 1L } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2444,10 +2444,10 @@ let test size =
   (*******************************)
   (*   t25 = #{ float; float }   *)
   (*******************************)
-  let eq = (fun (#{ a25 = a251; b25 = b251 } : t25) (#{ a25 = a252; b25 = b252 } : t25) -> (fun a b -> Float.equal (globalize a) (globalize b)) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) in
-  let mk_value i = (#{ a25 = Float.of_int (i + 0); b25 = Float.of_int (i + 1) } : t25) in
+  leqet eq = (fun #{ a25 = a251; b25 = b251 } #{ a25 = a252; b25 = b252 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) in
+  let mk_value i = #{ a25 = Float.of_int (i + 0); b25 = Float.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t25 array = makearray_dynamic size (#{ a25 = 0.; b25 = 1. } : t25) in
+  let a : t25 array = makearray_dynamic size #{ a25 = 0.; b25 = 1. } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2487,10 +2487,10 @@ let test size =
   (************************************)
   (*   t47 = #{ float; float; int }   *)
   (************************************)
-  let eq = (fun (#{ a47 = a471; b47 = b471; c47 = c471 } : t47) (#{ a47 = a472; b47 = b472; c47 = c472 } : t47) -> (fun a b -> Float.equal (globalize a) (globalize b)) a471 a472 && (fun a b -> Float.equal (globalize a) (globalize b)) b471 b472 && (fun a b -> Int.equal a b) c471 c472) in
-  let mk_value i = (#{ a47 = Float.of_int (i + 0); b47 = Float.of_int (i + 1); c47 = (i + 2) } : t47) in
+  leqet eq = (fun #{ a47 = a471; b47 = b471; c47 = c471 } #{ a47 = a472; b47 = b472; c47 = c472 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a471 a472 && (fun a b -> Float.equal (globalize a) (globalize b)) b471 b472 && (fun a b -> Int.equal a b) c471 c472) in
+  let mk_value i = #{ a47 = Float.of_int (i + 0); b47 = Float.of_int (i + 1); c47 = (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t47 array = makearray_dynamic size (#{ a47 = 0.; b47 = 1.; c47 = 2 } : t47) in
+  let a : t47 array = makearray_dynamic size #{ a47 = 0.; b47 = 1.; c47 = 2 } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2536,10 +2536,10 @@ let test size =
   (**************************************)
   (*   t48 = #{ float; float; float }   *)
   (**************************************)
-  let eq = (fun (#{ a48 = a481; b48 = b481; c48 = c481 } : t48) (#{ a48 = a482; b48 = b482; c48 = c482 } : t48) -> (fun a b -> Float.equal (globalize a) (globalize b)) a481 a482 && (fun a b -> Float.equal (globalize a) (globalize b)) b481 b482 && (fun a b -> Float.equal (globalize a) (globalize b)) c481 c482) in
-  let mk_value i = (#{ a48 = Float.of_int (i + 0); b48 = Float.of_int (i + 1); c48 = Float.of_int (i + 2) } : t48) in
+  leqet eq = (fun #{ a48 = a481; b48 = b481; c48 = c481 } #{ a48 = a482; b48 = b482; c48 = c482 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a481 a482 && (fun a b -> Float.equal (globalize a) (globalize b)) b481 b482 && (fun a b -> Float.equal (globalize a) (globalize b)) c481 c482) in
+  let mk_value i = #{ a48 = Float.of_int (i + 0); b48 = Float.of_int (i + 1); c48 = Float.of_int (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t48 array = makearray_dynamic size (#{ a48 = 0.; b48 = 1.; c48 = 2. } : t48) in
+  let a : t48 array = makearray_dynamic size #{ a48 = 0.; b48 = 1.; c48 = 2. } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2585,10 +2585,10 @@ let test size =
   (**********************************)
   (*   t49 = #{ float; #{ int } }   *)
   (**********************************)
-  let eq = (fun (#{ a49 = a491; b49 = b491 } : t49) (#{ a49 = a492; b49 = b492 } : t49) -> (fun a b -> Float.equal (globalize a) (globalize b)) a491 a492 && (fun (#{ a0 = a01 } : t0) (#{ a0 = a02 } : t0) -> (fun a b -> Int.equal a b) a01 a02) b491 b492) in
-  let mk_value i = (#{ a49 = Float.of_int (i + 0); b49 = (#{ a0 = (i + 1) } : t0) } : t49) in
+  leqet eq = (fun #{ a49 = a491; b49 = b491 } #{ a49 = a492; b49 = b492 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a491 a492 && (fun #{ a0 = a01 } #{ a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) b491 b492) in
+  let mk_value i = #{ a49 = Float.of_int (i + 0); b49 = #{ a0 = (i + 1) } } in
   (* Create an array of size [size] *)
-  let a : t49 array = makearray_dynamic size (#{ a49 = 0.; b49 = (#{ a0 = 1 } : t0) } : t49) in
+  let a : t49 array = makearray_dynamic size #{ a49 = 0.; b49 = #{ a0 = 1 } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2637,10 +2637,10 @@ let test size =
   (***************************************)
   (*   t50 = #{ float; #{ int; int } }   *)
   (***************************************)
-  let eq = (fun (#{ a50 = a501; b50 = b501 } : t50) (#{ a50 = a502; b50 = b502 } : t50) -> (fun a b -> Float.equal (globalize a) (globalize b)) a501 a502 && (fun (#{ a1 = a11; b1 = b11 } : t1) (#{ a1 = a12; b1 = b12 } : t1) -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) b501 b502) in
-  let mk_value i = (#{ a50 = Float.of_int (i + 0); b50 = (#{ a1 = (i + 1); b1 = (i + 2) } : t1) } : t50) in
+  leqet eq = (fun #{ a50 = a501; b50 = b501 } #{ a50 = a502; b50 = b502 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a501 a502 && (fun #{ a1 = a11; b1 = b11 } #{ a1 = a12; b1 = b12 } -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) b501 b502) in
+  let mk_value i = #{ a50 = Float.of_int (i + 0); b50 = #{ a1 = (i + 1); b1 = (i + 2) } } in
   (* Create an array of size [size] *)
-  let a : t50 array = makearray_dynamic size (#{ a50 = 0.; b50 = (#{ a1 = 1; b1 = 2 } : t1) } : t50) in
+  let a : t50 array = makearray_dynamic size #{ a50 = 0.; b50 = #{ a1 = 1; b1 = 2 } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2695,10 +2695,10 @@ let test size =
   (*****************************************)
   (*   t51 = #{ float; #{ int; float } }   *)
   (*****************************************)
-  let eq = (fun (#{ a51 = a511; b51 = b511 } : t51) (#{ a51 = a512; b51 = b512 } : t51) -> (fun a b -> Float.equal (globalize a) (globalize b)) a511 a512 && (fun (#{ a10 = a101; b10 = b101 } : t10) (#{ a10 = a102; b10 = b102 } : t10) -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Float.equal (globalize a) (globalize b)) b101 b102) b511 b512) in
-  let mk_value i = (#{ a51 = Float.of_int (i + 0); b51 = (#{ a10 = (i + 1); b10 = Float.of_int (i + 2) } : t10) } : t51) in
+  leqet eq = (fun #{ a51 = a511; b51 = b511 } #{ a51 = a512; b51 = b512 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a511 a512 && (fun #{ a10 = a101; b10 = b101 } #{ a10 = a102; b10 = b102 } -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Float.equal (globalize a) (globalize b)) b101 b102) b511 b512) in
+  let mk_value i = #{ a51 = Float.of_int (i + 0); b51 = #{ a10 = (i + 1); b10 = Float.of_int (i + 2) } } in
   (* Create an array of size [size] *)
-  let a : t51 array = makearray_dynamic size (#{ a51 = 0.; b51 = (#{ a10 = 1; b10 = 2. } : t10) } : t51) in
+  let a : t51 array = makearray_dynamic size #{ a51 = 0.; b51 = #{ a10 = 1; b10 = 2. } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2753,10 +2753,10 @@ let test size =
   (************************************)
   (*   t52 = #{ float; #{ float } }   *)
   (************************************)
-  let eq = (fun (#{ a52 = a521; b52 = b521 } : t52) (#{ a52 = a522; b52 = b522 } : t52) -> (fun a b -> Float.equal (globalize a) (globalize b)) a521 a522 && (fun (#{ a21 = a211 } : t21) (#{ a21 = a212 } : t21) -> (fun a b -> Float.equal (globalize a) (globalize b)) a211 a212) b521 b522) in
-  let mk_value i = (#{ a52 = Float.of_int (i + 0); b52 = (#{ a21 = Float.of_int (i + 1) } : t21) } : t52) in
+  leqet eq = (fun #{ a52 = a521; b52 = b521 } #{ a52 = a522; b52 = b522 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a521 a522 && (fun #{ a21 = a211 } #{ a21 = a212 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a211 a212) b521 b522) in
+  let mk_value i = #{ a52 = Float.of_int (i + 0); b52 = #{ a21 = Float.of_int (i + 1) } } in
   (* Create an array of size [size] *)
-  let a : t52 array = makearray_dynamic size (#{ a52 = 0.; b52 = (#{ a21 = 1. } : t21) } : t52) in
+  let a : t52 array = makearray_dynamic size #{ a52 = 0.; b52 = #{ a21 = 1. } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2805,10 +2805,10 @@ let test size =
   (*****************************************)
   (*   t53 = #{ float; #{ float; int } }   *)
   (*****************************************)
-  let eq = (fun (#{ a53 = a531; b53 = b531 } : t53) (#{ a53 = a532; b53 = b532 } : t53) -> (fun a b -> Float.equal (globalize a) (globalize b)) a531 a532 && (fun (#{ a23 = a231; b23 = b231 } : t23) (#{ a23 = a232; b23 = b232 } : t23) -> (fun a b -> Float.equal (globalize a) (globalize b)) a231 a232 && (fun a b -> Int.equal a b) b231 b232) b531 b532) in
-  let mk_value i = (#{ a53 = Float.of_int (i + 0); b53 = (#{ a23 = Float.of_int (i + 1); b23 = (i + 2) } : t23) } : t53) in
+  leqet eq = (fun #{ a53 = a531; b53 = b531 } #{ a53 = a532; b53 = b532 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a531 a532 && (fun #{ a23 = a231; b23 = b231 } #{ a23 = a232; b23 = b232 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a231 a232 && (fun a b -> Int.equal a b) b231 b232) b531 b532) in
+  let mk_value i = #{ a53 = Float.of_int (i + 0); b53 = #{ a23 = Float.of_int (i + 1); b23 = (i + 2) } } in
   (* Create an array of size [size] *)
-  let a : t53 array = makearray_dynamic size (#{ a53 = 0.; b53 = (#{ a23 = 1.; b23 = 2 } : t23) } : t53) in
+  let a : t53 array = makearray_dynamic size #{ a53 = 0.; b53 = #{ a23 = 1.; b23 = 2 } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2863,10 +2863,10 @@ let test size =
   (*******************************************)
   (*   t54 = #{ float; #{ float; float } }   *)
   (*******************************************)
-  let eq = (fun (#{ a54 = a541; b54 = b541 } : t54) (#{ a54 = a542; b54 = b542 } : t54) -> (fun a b -> Float.equal (globalize a) (globalize b)) a541 a542 && (fun (#{ a25 = a251; b25 = b251 } : t25) (#{ a25 = a252; b25 = b252 } : t25) -> (fun a b -> Float.equal (globalize a) (globalize b)) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) b541 b542) in
-  let mk_value i = (#{ a54 = Float.of_int (i + 0); b54 = (#{ a25 = Float.of_int (i + 1); b25 = Float.of_int (i + 2) } : t25) } : t54) in
+  leqet eq = (fun #{ a54 = a541; b54 = b541 } #{ a54 = a542; b54 = b542 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a541 a542 && (fun #{ a25 = a251; b25 = b251 } #{ a25 = a252; b25 = b252 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) b541 b542) in
+  let mk_value i = #{ a54 = Float.of_int (i + 0); b54 = #{ a25 = Float.of_int (i + 1); b25 = Float.of_int (i + 2) } } in
   (* Create an array of size [size] *)
-  let a : t54 array = makearray_dynamic size (#{ a54 = 0.; b54 = (#{ a25 = 1.; b25 = 2. } : t25) } : t54) in
+  let a : t54 array = makearray_dynamic size #{ a54 = 0.; b54 = #{ a25 = 1.; b25 = 2. } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2921,10 +2921,10 @@ let test size =
   (***************************)
   (*   t55 = #{ #{ int } }   *)
   (***************************)
-  let eq = (fun (#{ a55 = a551 } : t55) (#{ a55 = a552 } : t55) -> (fun (#{ a0 = a01 } : t0) (#{ a0 = a02 } : t0) -> (fun a b -> Int.equal a b) a01 a02) a551 a552) in
-  let mk_value i = (#{ a55 = (#{ a0 = (i + 0) } : t0) } : t55) in
+  leqet eq = (fun #{ a55 = a551 } #{ a55 = a552 } -> (fun #{ a0 = a01 } #{ a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) a551 a552) in
+  let mk_value i = #{ a55 = #{ a0 = (i + 0) } } in
   (* Create an array of size [size] *)
-  let a : t55 array = makearray_dynamic size (#{ a55 = (#{ a0 = 0 } : t0) } : t55) in
+  let a : t55 array = makearray_dynamic size #{ a55 = #{ a0 = 0 } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -2967,10 +2967,10 @@ let test size =
   (********************************)
   (*   t56 = #{ #{ int }; int }   *)
   (********************************)
-  let eq = (fun (#{ a56 = a561; b56 = b561 } : t56) (#{ a56 = a562; b56 = b562 } : t56) -> (fun (#{ a0 = a01 } : t0) (#{ a0 = a02 } : t0) -> (fun a b -> Int.equal a b) a01 a02) a561 a562 && (fun a b -> Int.equal a b) b561 b562) in
-  let mk_value i = (#{ a56 = (#{ a0 = (i + 0) } : t0); b56 = (i + 1) } : t56) in
+  leqet eq = (fun #{ a56 = a561; b56 = b561 } #{ a56 = a562; b56 = b562 } -> (fun #{ a0 = a01 } #{ a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) a561 a562 && (fun a b -> Int.equal a b) b561 b562) in
+  let mk_value i = #{ a56 = #{ a0 = (i + 0) }; b56 = (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t56 array = makearray_dynamic size (#{ a56 = (#{ a0 = 0 } : t0); b56 = 1 } : t56) in
+  let a : t56 array = makearray_dynamic size #{ a56 = #{ a0 = 0 }; b56 = 1 } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3019,10 +3019,10 @@ let test size =
   (***********************************)
   (*   t57 = #{ #{ int }; int32# }   *)
   (***********************************)
-  let eq = (fun (#{ a57 = a571; b57 = b571 } : t57) (#{ a57 = a572; b57 = b572 } : t57) -> (fun (#{ a0 = a01 } : t0) (#{ a0 = a02 } : t0) -> (fun a b -> Int.equal a b) a01 a02) a571 a572 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b571 b572) in
-  let mk_value i = (#{ a57 = (#{ a0 = (i + 0) } : t0); b57 = Int32_u.of_int (i + 1) } : t57) in
+  leqet eq = (fun #{ a57 = a571; b57 = b571 } #{ a57 = a572; b57 = b572 } -> (fun #{ a0 = a01 } #{ a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) a571 a572 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b571 b572) in
+  let mk_value i = #{ a57 = #{ a0 = (i + 0) }; b57 = Int32_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t57 array = makearray_dynamic size (#{ a57 = (#{ a0 = 0 } : t0); b57 = #1l } : t57) in
+  let a : t57 array = makearray_dynamic size #{ a57 = #{ a0 = 0 }; b57 = #1l } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3071,10 +3071,10 @@ let test size =
   (**********************************)
   (*   t58 = #{ #{ int }; float }   *)
   (**********************************)
-  let eq = (fun (#{ a58 = a581; b58 = b581 } : t58) (#{ a58 = a582; b58 = b582 } : t58) -> (fun (#{ a0 = a01 } : t0) (#{ a0 = a02 } : t0) -> (fun a b -> Int.equal a b) a01 a02) a581 a582 && (fun a b -> Float.equal (globalize a) (globalize b)) b581 b582) in
-  let mk_value i = (#{ a58 = (#{ a0 = (i + 0) } : t0); b58 = Float.of_int (i + 1) } : t58) in
+  leqet eq = (fun #{ a58 = a581; b58 = b581 } #{ a58 = a582; b58 = b582 } -> (fun #{ a0 = a01 } #{ a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) a581 a582 && (fun a b -> Float.equal (globalize a) (globalize b)) b581 b582) in
+  let mk_value i = #{ a58 = #{ a0 = (i + 0) }; b58 = Float.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t58 array = makearray_dynamic size (#{ a58 = (#{ a0 = 0 } : t0); b58 = 1. } : t58) in
+  let a : t58 array = makearray_dynamic size #{ a58 = #{ a0 = 0 }; b58 = 1. } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3123,10 +3123,10 @@ let test size =
   (********************************)
   (*   t59 = #{ #{ int; int } }   *)
   (********************************)
-  let eq = (fun (#{ a59 = a591 } : t59) (#{ a59 = a592 } : t59) -> (fun (#{ a1 = a11; b1 = b11 } : t1) (#{ a1 = a12; b1 = b12 } : t1) -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) a591 a592) in
-  let mk_value i = (#{ a59 = (#{ a1 = (i + 0); b1 = (i + 1) } : t1) } : t59) in
+  leqet eq = (fun #{ a59 = a591 } #{ a59 = a592 } -> (fun #{ a1 = a11; b1 = b11 } #{ a1 = a12; b1 = b12 } -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) a591 a592) in
+  let mk_value i = #{ a59 = #{ a1 = (i + 0); b1 = (i + 1) } } in
   (* Create an array of size [size] *)
-  let a : t59 array = makearray_dynamic size (#{ a59 = (#{ a1 = 0; b1 = 1 } : t1) } : t59) in
+  let a : t59 array = makearray_dynamic size #{ a59 = #{ a1 = 0; b1 = 1 } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3175,10 +3175,10 @@ let test size =
   (*************************************)
   (*   t60 = #{ #{ int; int }; int }   *)
   (*************************************)
-  let eq = (fun (#{ a60 = a601; b60 = b601 } : t60) (#{ a60 = a602; b60 = b602 } : t60) -> (fun (#{ a1 = a11; b1 = b11 } : t1) (#{ a1 = a12; b1 = b12 } : t1) -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) a601 a602 && (fun a b -> Int.equal a b) b601 b602) in
-  let mk_value i = (#{ a60 = (#{ a1 = (i + 0); b1 = (i + 1) } : t1); b60 = (i + 2) } : t60) in
+  leqet eq = (fun #{ a60 = a601; b60 = b601 } #{ a60 = a602; b60 = b602 } -> (fun #{ a1 = a11; b1 = b11 } #{ a1 = a12; b1 = b12 } -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) a601 a602 && (fun a b -> Int.equal a b) b601 b602) in
+  let mk_value i = #{ a60 = #{ a1 = (i + 0); b1 = (i + 1) }; b60 = (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t60 array = makearray_dynamic size (#{ a60 = (#{ a1 = 0; b1 = 1 } : t1); b60 = 2 } : t60) in
+  let a : t60 array = makearray_dynamic size #{ a60 = #{ a1 = 0; b1 = 1 }; b60 = 2 } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3233,10 +3233,10 @@ let test size =
   (****************************************)
   (*   t61 = #{ #{ int; int }; int32# }   *)
   (****************************************)
-  let eq = (fun (#{ a61 = a611; b61 = b611 } : t61) (#{ a61 = a612; b61 = b612 } : t61) -> (fun (#{ a1 = a11; b1 = b11 } : t1) (#{ a1 = a12; b1 = b12 } : t1) -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) a611 a612 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b611 b612) in
-  let mk_value i = (#{ a61 = (#{ a1 = (i + 0); b1 = (i + 1) } : t1); b61 = Int32_u.of_int (i + 2) } : t61) in
+  leqet eq = (fun #{ a61 = a611; b61 = b611 } #{ a61 = a612; b61 = b612 } -> (fun #{ a1 = a11; b1 = b11 } #{ a1 = a12; b1 = b12 } -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) a611 a612 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b611 b612) in
+  let mk_value i = #{ a61 = #{ a1 = (i + 0); b1 = (i + 1) }; b61 = Int32_u.of_int (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t61 array = makearray_dynamic size (#{ a61 = (#{ a1 = 0; b1 = 1 } : t1); b61 = #2l } : t61) in
+  let a : t61 array = makearray_dynamic size #{ a61 = #{ a1 = 0; b1 = 1 }; b61 = #2l } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3291,10 +3291,10 @@ let test size =
   (***************************************)
   (*   t62 = #{ #{ int; int }; float }   *)
   (***************************************)
-  let eq = (fun (#{ a62 = a621; b62 = b621 } : t62) (#{ a62 = a622; b62 = b622 } : t62) -> (fun (#{ a1 = a11; b1 = b11 } : t1) (#{ a1 = a12; b1 = b12 } : t1) -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) a621 a622 && (fun a b -> Float.equal (globalize a) (globalize b)) b621 b622) in
-  let mk_value i = (#{ a62 = (#{ a1 = (i + 0); b1 = (i + 1) } : t1); b62 = Float.of_int (i + 2) } : t62) in
+  leqet eq = (fun #{ a62 = a621; b62 = b621 } #{ a62 = a622; b62 = b622 } -> (fun #{ a1 = a11; b1 = b11 } #{ a1 = a12; b1 = b12 } -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) a621 a622 && (fun a b -> Float.equal (globalize a) (globalize b)) b621 b622) in
+  let mk_value i = #{ a62 = #{ a1 = (i + 0); b1 = (i + 1) }; b62 = Float.of_int (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t62 array = makearray_dynamic size (#{ a62 = (#{ a1 = 0; b1 = 1 } : t1); b62 = 2. } : t62) in
+  let a : t62 array = makearray_dynamic size #{ a62 = #{ a1 = 0; b1 = 1 }; b62 = 2. } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3349,10 +3349,10 @@ let test size =
   (***********************************)
   (*   t63 = #{ #{ int; int32# } }   *)
   (***********************************)
-  let eq = (fun (#{ a63 = a631 } : t63) (#{ a63 = a632 } : t63) -> (fun (#{ a7 = a71; b7 = b71 } : t7) (#{ a7 = a72; b7 = b72 } : t7) -> (fun a b -> Int.equal a b) a71 a72 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b71 b72) a631 a632) in
-  let mk_value i = (#{ a63 = (#{ a7 = (i + 0); b7 = Int32_u.of_int (i + 1) } : t7) } : t63) in
+  leqet eq = (fun #{ a63 = a631 } #{ a63 = a632 } -> (fun #{ a7 = a71; b7 = b71 } #{ a7 = a72; b7 = b72 } -> (fun a b -> Int.equal a b) a71 a72 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b71 b72) a631 a632) in
+  let mk_value i = #{ a63 = #{ a7 = (i + 0); b7 = Int32_u.of_int (i + 1) } } in
   (* Create an array of size [size] *)
-  let a : t63 array = makearray_dynamic size (#{ a63 = (#{ a7 = 0; b7 = #1l } : t7) } : t63) in
+  let a : t63 array = makearray_dynamic size #{ a63 = #{ a7 = 0; b7 = #1l } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3401,10 +3401,10 @@ let test size =
   (*******************************************)
   (*   t64 = #{ #{ int; int32# }; int32# }   *)
   (*******************************************)
-  let eq = (fun (#{ a64 = a641; b64 = b641 } : t64) (#{ a64 = a642; b64 = b642 } : t64) -> (fun (#{ a7 = a71; b7 = b71 } : t7) (#{ a7 = a72; b7 = b72 } : t7) -> (fun a b -> Int.equal a b) a71 a72 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b71 b72) a641 a642 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b641 b642) in
-  let mk_value i = (#{ a64 = (#{ a7 = (i + 0); b7 = Int32_u.of_int (i + 1) } : t7); b64 = Int32_u.of_int (i + 2) } : t64) in
+  leqet eq = (fun #{ a64 = a641; b64 = b641 } #{ a64 = a642; b64 = b642 } -> (fun #{ a7 = a71; b7 = b71 } #{ a7 = a72; b7 = b72 } -> (fun a b -> Int.equal a b) a71 a72 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b71 b72) a641 a642 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b641 b642) in
+  let mk_value i = #{ a64 = #{ a7 = (i + 0); b7 = Int32_u.of_int (i + 1) }; b64 = Int32_u.of_int (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t64 array = makearray_dynamic size (#{ a64 = (#{ a7 = 0; b7 = #1l } : t7); b64 = #2l } : t64) in
+  let a : t64 array = makearray_dynamic size #{ a64 = #{ a7 = 0; b7 = #1l }; b64 = #2l } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3459,10 +3459,10 @@ let test size =
   (**********************************)
   (*   t65 = #{ #{ int; float } }   *)
   (**********************************)
-  let eq = (fun (#{ a65 = a651 } : t65) (#{ a65 = a652 } : t65) -> (fun (#{ a10 = a101; b10 = b101 } : t10) (#{ a10 = a102; b10 = b102 } : t10) -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Float.equal (globalize a) (globalize b)) b101 b102) a651 a652) in
-  let mk_value i = (#{ a65 = (#{ a10 = (i + 0); b10 = Float.of_int (i + 1) } : t10) } : t65) in
+  leqet eq = (fun #{ a65 = a651 } #{ a65 = a652 } -> (fun #{ a10 = a101; b10 = b101 } #{ a10 = a102; b10 = b102 } -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Float.equal (globalize a) (globalize b)) b101 b102) a651 a652) in
+  let mk_value i = #{ a65 = #{ a10 = (i + 0); b10 = Float.of_int (i + 1) } } in
   (* Create an array of size [size] *)
-  let a : t65 array = makearray_dynamic size (#{ a65 = (#{ a10 = 0; b10 = 1. } : t10) } : t65) in
+  let a : t65 array = makearray_dynamic size #{ a65 = #{ a10 = 0; b10 = 1. } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3511,10 +3511,10 @@ let test size =
   (***************************************)
   (*   t66 = #{ #{ int; float }; int }   *)
   (***************************************)
-  let eq = (fun (#{ a66 = a661; b66 = b661 } : t66) (#{ a66 = a662; b66 = b662 } : t66) -> (fun (#{ a10 = a101; b10 = b101 } : t10) (#{ a10 = a102; b10 = b102 } : t10) -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Float.equal (globalize a) (globalize b)) b101 b102) a661 a662 && (fun a b -> Int.equal a b) b661 b662) in
-  let mk_value i = (#{ a66 = (#{ a10 = (i + 0); b10 = Float.of_int (i + 1) } : t10); b66 = (i + 2) } : t66) in
+  leqet eq = (fun #{ a66 = a661; b66 = b661 } #{ a66 = a662; b66 = b662 } -> (fun #{ a10 = a101; b10 = b101 } #{ a10 = a102; b10 = b102 } -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Float.equal (globalize a) (globalize b)) b101 b102) a661 a662 && (fun a b -> Int.equal a b) b661 b662) in
+  let mk_value i = #{ a66 = #{ a10 = (i + 0); b10 = Float.of_int (i + 1) }; b66 = (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t66 array = makearray_dynamic size (#{ a66 = (#{ a10 = 0; b10 = 1. } : t10); b66 = 2 } : t66) in
+  let a : t66 array = makearray_dynamic size #{ a66 = #{ a10 = 0; b10 = 1. }; b66 = 2 } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3569,10 +3569,10 @@ let test size =
   (*****************************************)
   (*   t67 = #{ #{ int; float }; float }   *)
   (*****************************************)
-  let eq = (fun (#{ a67 = a671; b67 = b671 } : t67) (#{ a67 = a672; b67 = b672 } : t67) -> (fun (#{ a10 = a101; b10 = b101 } : t10) (#{ a10 = a102; b10 = b102 } : t10) -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Float.equal (globalize a) (globalize b)) b101 b102) a671 a672 && (fun a b -> Float.equal (globalize a) (globalize b)) b671 b672) in
-  let mk_value i = (#{ a67 = (#{ a10 = (i + 0); b10 = Float.of_int (i + 1) } : t10); b67 = Float.of_int (i + 2) } : t67) in
+  leqet eq = (fun #{ a67 = a671; b67 = b671 } #{ a67 = a672; b67 = b672 } -> (fun #{ a10 = a101; b10 = b101 } #{ a10 = a102; b10 = b102 } -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Float.equal (globalize a) (globalize b)) b101 b102) a671 a672 && (fun a b -> Float.equal (globalize a) (globalize b)) b671 b672) in
+  let mk_value i = #{ a67 = #{ a10 = (i + 0); b10 = Float.of_int (i + 1) }; b67 = Float.of_int (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t67 array = makearray_dynamic size (#{ a67 = (#{ a10 = 0; b10 = 1. } : t10); b67 = 2. } : t67) in
+  let a : t67 array = makearray_dynamic size #{ a67 = #{ a10 = 0; b10 = 1. }; b67 = 2. } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3627,10 +3627,10 @@ let test size =
   (******************************)
   (*   t68 = #{ #{ int32# } }   *)
   (******************************)
-  let eq = (fun (#{ a68 = a681 } : t68) (#{ a68 = a682 } : t68) -> (fun (#{ a17 = a171 } : t17) (#{ a17 = a172 } : t17) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a171 a172) a681 a682) in
-  let mk_value i = (#{ a68 = (#{ a17 = Int32_u.of_int (i + 0) } : t17) } : t68) in
+  leqet eq = (fun #{ a68 = a681 } #{ a68 = a682 } -> (fun #{ a17 = a171 } #{ a17 = a172 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a171 a172) a681 a682) in
+  let mk_value i = #{ a68 = #{ a17 = Int32_u.of_int (i + 0) } } in
   (* Create an array of size [size] *)
-  let a : t68 array = makearray_dynamic size (#{ a68 = (#{ a17 = #0l } : t17) } : t68) in
+  let a : t68 array = makearray_dynamic size #{ a68 = #{ a17 = #0l } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3673,10 +3673,10 @@ let test size =
   (**************************************)
   (*   t69 = #{ #{ int32# }; int32# }   *)
   (**************************************)
-  let eq = (fun (#{ a69 = a691; b69 = b691 } : t69) (#{ a69 = a692; b69 = b692 } : t69) -> (fun (#{ a17 = a171 } : t17) (#{ a17 = a172 } : t17) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a171 a172) a691 a692 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b691 b692) in
-  let mk_value i = (#{ a69 = (#{ a17 = Int32_u.of_int (i + 0) } : t17); b69 = Int32_u.of_int (i + 1) } : t69) in
+  leqet eq = (fun #{ a69 = a691; b69 = b691 } #{ a69 = a692; b69 = b692 } -> (fun #{ a17 = a171 } #{ a17 = a172 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a171 a172) a691 a692 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b691 b692) in
+  let mk_value i = #{ a69 = #{ a17 = Int32_u.of_int (i + 0) }; b69 = Int32_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t69 array = makearray_dynamic size (#{ a69 = (#{ a17 = #0l } : t17); b69 = #1l } : t69) in
+  let a : t69 array = makearray_dynamic size #{ a69 = #{ a17 = #0l }; b69 = #1l } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3725,10 +3725,10 @@ let test size =
   (**************************************)
   (*   t70 = #{ #{ int32#; int32# } }   *)
   (**************************************)
-  let eq = (fun (#{ a70 = a701 } : t70) (#{ a70 = a702 } : t70) -> (fun (#{ a19 = a191; b19 = b191 } : t19) (#{ a19 = a192; b19 = b192 } : t19) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a191 a192 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b191 b192) a701 a702) in
-  let mk_value i = (#{ a70 = (#{ a19 = Int32_u.of_int (i + 0); b19 = Int32_u.of_int (i + 1) } : t19) } : t70) in
+  leqet eq = (fun #{ a70 = a701 } #{ a70 = a702 } -> (fun #{ a19 = a191; b19 = b191 } #{ a19 = a192; b19 = b192 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a191 a192 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b191 b192) a701 a702) in
+  let mk_value i = #{ a70 = #{ a19 = Int32_u.of_int (i + 0); b19 = Int32_u.of_int (i + 1) } } in
   (* Create an array of size [size] *)
-  let a : t70 array = makearray_dynamic size (#{ a70 = (#{ a19 = #0l; b19 = #1l } : t19) } : t70) in
+  let a : t70 array = makearray_dynamic size #{ a70 = #{ a19 = #0l; b19 = #1l } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3777,10 +3777,10 @@ let test size =
   (**********************************************)
   (*   t71 = #{ #{ int32#; int32# }; int32# }   *)
   (**********************************************)
-  let eq = (fun (#{ a71 = a711; b71 = b711 } : t71) (#{ a71 = a712; b71 = b712 } : t71) -> (fun (#{ a19 = a191; b19 = b191 } : t19) (#{ a19 = a192; b19 = b192 } : t19) -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a191 a192 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b191 b192) a711 a712 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b711 b712) in
-  let mk_value i = (#{ a71 = (#{ a19 = Int32_u.of_int (i + 0); b19 = Int32_u.of_int (i + 1) } : t19); b71 = Int32_u.of_int (i + 2) } : t71) in
+  leqet eq = (fun #{ a71 = a711; b71 = b711 } #{ a71 = a712; b71 = b712 } -> (fun #{ a19 = a191; b19 = b191 } #{ a19 = a192; b19 = b192 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a191 a192 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b191 b192) a711 a712 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b711 b712) in
+  let mk_value i = #{ a71 = #{ a19 = Int32_u.of_int (i + 0); b19 = Int32_u.of_int (i + 1) }; b71 = Int32_u.of_int (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t71 array = makearray_dynamic size (#{ a71 = (#{ a19 = #0l; b19 = #1l } : t19); b71 = #2l } : t71) in
+  let a : t71 array = makearray_dynamic size #{ a71 = #{ a19 = #0l; b19 = #1l }; b71 = #2l } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3835,10 +3835,10 @@ let test size =
   (**********************************)
   (*   t72 = #{ #{ float }; int }   *)
   (**********************************)
-  let eq = (fun (#{ a72 = a721; b72 = b721 } : t72) (#{ a72 = a722; b72 = b722 } : t72) -> (fun (#{ a21 = a211 } : t21) (#{ a21 = a212 } : t21) -> (fun a b -> Float.equal (globalize a) (globalize b)) a211 a212) a721 a722 && (fun a b -> Int.equal a b) b721 b722) in
-  let mk_value i = (#{ a72 = (#{ a21 = Float.of_int (i + 0) } : t21); b72 = (i + 1) } : t72) in
+  leqet eq = (fun #{ a72 = a721; b72 = b721 } #{ a72 = a722; b72 = b722 } -> (fun #{ a21 = a211 } #{ a21 = a212 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a211 a212) a721 a722 && (fun a b -> Int.equal a b) b721 b722) in
+  let mk_value i = #{ a72 = #{ a21 = Float.of_int (i + 0) }; b72 = (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t72 array = makearray_dynamic size (#{ a72 = (#{ a21 = 0. } : t21); b72 = 1 } : t72) in
+  let a : t72 array = makearray_dynamic size #{ a72 = #{ a21 = 0. }; b72 = 1 } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3887,10 +3887,10 @@ let test size =
   (************************************)
   (*   t73 = #{ #{ float }; float }   *)
   (************************************)
-  let eq = (fun (#{ a73 = a731; b73 = b731 } : t73) (#{ a73 = a732; b73 = b732 } : t73) -> (fun (#{ a21 = a211 } : t21) (#{ a21 = a212 } : t21) -> (fun a b -> Float.equal (globalize a) (globalize b)) a211 a212) a731 a732 && (fun a b -> Float.equal (globalize a) (globalize b)) b731 b732) in
-  let mk_value i = (#{ a73 = (#{ a21 = Float.of_int (i + 0) } : t21); b73 = Float.of_int (i + 1) } : t73) in
+  leqet eq = (fun #{ a73 = a731; b73 = b731 } #{ a73 = a732; b73 = b732 } -> (fun #{ a21 = a211 } #{ a21 = a212 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a211 a212) a731 a732 && (fun a b -> Float.equal (globalize a) (globalize b)) b731 b732) in
+  let mk_value i = #{ a73 = #{ a21 = Float.of_int (i + 0) }; b73 = Float.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t73 array = makearray_dynamic size (#{ a73 = (#{ a21 = 0. } : t21); b73 = 1. } : t73) in
+  let a : t73 array = makearray_dynamic size #{ a73 = #{ a21 = 0. }; b73 = 1. } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3939,10 +3939,10 @@ let test size =
   (**********************************)
   (*   t74 = #{ #{ float; int } }   *)
   (**********************************)
-  let eq = (fun (#{ a74 = a741 } : t74) (#{ a74 = a742 } : t74) -> (fun (#{ a23 = a231; b23 = b231 } : t23) (#{ a23 = a232; b23 = b232 } : t23) -> (fun a b -> Float.equal (globalize a) (globalize b)) a231 a232 && (fun a b -> Int.equal a b) b231 b232) a741 a742) in
-  let mk_value i = (#{ a74 = (#{ a23 = Float.of_int (i + 0); b23 = (i + 1) } : t23) } : t74) in
+  leqet eq = (fun #{ a74 = a741 } #{ a74 = a742 } -> (fun #{ a23 = a231; b23 = b231 } #{ a23 = a232; b23 = b232 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a231 a232 && (fun a b -> Int.equal a b) b231 b232) a741 a742) in
+  let mk_value i = #{ a74 = #{ a23 = Float.of_int (i + 0); b23 = (i + 1) } } in
   (* Create an array of size [size] *)
-  let a : t74 array = makearray_dynamic size (#{ a74 = (#{ a23 = 0.; b23 = 1 } : t23) } : t74) in
+  let a : t74 array = makearray_dynamic size #{ a74 = #{ a23 = 0.; b23 = 1 } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -3991,10 +3991,10 @@ let test size =
   (***************************************)
   (*   t75 = #{ #{ float; int }; int }   *)
   (***************************************)
-  let eq = (fun (#{ a75 = a751; b75 = b751 } : t75) (#{ a75 = a752; b75 = b752 } : t75) -> (fun (#{ a23 = a231; b23 = b231 } : t23) (#{ a23 = a232; b23 = b232 } : t23) -> (fun a b -> Float.equal (globalize a) (globalize b)) a231 a232 && (fun a b -> Int.equal a b) b231 b232) a751 a752 && (fun a b -> Int.equal a b) b751 b752) in
-  let mk_value i = (#{ a75 = (#{ a23 = Float.of_int (i + 0); b23 = (i + 1) } : t23); b75 = (i + 2) } : t75) in
+  leqet eq = (fun #{ a75 = a751; b75 = b751 } #{ a75 = a752; b75 = b752 } -> (fun #{ a23 = a231; b23 = b231 } #{ a23 = a232; b23 = b232 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a231 a232 && (fun a b -> Int.equal a b) b231 b232) a751 a752 && (fun a b -> Int.equal a b) b751 b752) in
+  let mk_value i = #{ a75 = #{ a23 = Float.of_int (i + 0); b23 = (i + 1) }; b75 = (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t75 array = makearray_dynamic size (#{ a75 = (#{ a23 = 0.; b23 = 1 } : t23); b75 = 2 } : t75) in
+  let a : t75 array = makearray_dynamic size #{ a75 = #{ a23 = 0.; b23 = 1 }; b75 = 2 } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -4049,10 +4049,10 @@ let test size =
   (*****************************************)
   (*   t76 = #{ #{ float; int }; float }   *)
   (*****************************************)
-  let eq = (fun (#{ a76 = a761; b76 = b761 } : t76) (#{ a76 = a762; b76 = b762 } : t76) -> (fun (#{ a23 = a231; b23 = b231 } : t23) (#{ a23 = a232; b23 = b232 } : t23) -> (fun a b -> Float.equal (globalize a) (globalize b)) a231 a232 && (fun a b -> Int.equal a b) b231 b232) a761 a762 && (fun a b -> Float.equal (globalize a) (globalize b)) b761 b762) in
-  let mk_value i = (#{ a76 = (#{ a23 = Float.of_int (i + 0); b23 = (i + 1) } : t23); b76 = Float.of_int (i + 2) } : t76) in
+  leqet eq = (fun #{ a76 = a761; b76 = b761 } #{ a76 = a762; b76 = b762 } -> (fun #{ a23 = a231; b23 = b231 } #{ a23 = a232; b23 = b232 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a231 a232 && (fun a b -> Int.equal a b) b231 b232) a761 a762 && (fun a b -> Float.equal (globalize a) (globalize b)) b761 b762) in
+  let mk_value i = #{ a76 = #{ a23 = Float.of_int (i + 0); b23 = (i + 1) }; b76 = Float.of_int (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t76 array = makearray_dynamic size (#{ a76 = (#{ a23 = 0.; b23 = 1 } : t23); b76 = 2. } : t76) in
+  let a : t76 array = makearray_dynamic size #{ a76 = #{ a23 = 0.; b23 = 1 }; b76 = 2. } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -4107,10 +4107,10 @@ let test size =
   (************************************)
   (*   t77 = #{ #{ float; float } }   *)
   (************************************)
-  let eq = (fun (#{ a77 = a771 } : t77) (#{ a77 = a772 } : t77) -> (fun (#{ a25 = a251; b25 = b251 } : t25) (#{ a25 = a252; b25 = b252 } : t25) -> (fun a b -> Float.equal (globalize a) (globalize b)) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) a771 a772) in
-  let mk_value i = (#{ a77 = (#{ a25 = Float.of_int (i + 0); b25 = Float.of_int (i + 1) } : t25) } : t77) in
+  leqet eq = (fun #{ a77 = a771 } #{ a77 = a772 } -> (fun #{ a25 = a251; b25 = b251 } #{ a25 = a252; b25 = b252 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) a771 a772) in
+  let mk_value i = #{ a77 = #{ a25 = Float.of_int (i + 0); b25 = Float.of_int (i + 1) } } in
   (* Create an array of size [size] *)
-  let a : t77 array = makearray_dynamic size (#{ a77 = (#{ a25 = 0.; b25 = 1. } : t25) } : t77) in
+  let a : t77 array = makearray_dynamic size #{ a77 = #{ a25 = 0.; b25 = 1. } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -4159,10 +4159,10 @@ let test size =
   (*****************************************)
   (*   t78 = #{ #{ float; float }; int }   *)
   (*****************************************)
-  let eq = (fun (#{ a78 = a781; b78 = b781 } : t78) (#{ a78 = a782; b78 = b782 } : t78) -> (fun (#{ a25 = a251; b25 = b251 } : t25) (#{ a25 = a252; b25 = b252 } : t25) -> (fun a b -> Float.equal (globalize a) (globalize b)) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) a781 a782 && (fun a b -> Int.equal a b) b781 b782) in
-  let mk_value i = (#{ a78 = (#{ a25 = Float.of_int (i + 0); b25 = Float.of_int (i + 1) } : t25); b78 = (i + 2) } : t78) in
+  leqet eq = (fun #{ a78 = a781; b78 = b781 } #{ a78 = a782; b78 = b782 } -> (fun #{ a25 = a251; b25 = b251 } #{ a25 = a252; b25 = b252 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) a781 a782 && (fun a b -> Int.equal a b) b781 b782) in
+  let mk_value i = #{ a78 = #{ a25 = Float.of_int (i + 0); b25 = Float.of_int (i + 1) }; b78 = (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t78 array = makearray_dynamic size (#{ a78 = (#{ a25 = 0.; b25 = 1. } : t25); b78 = 2 } : t78) in
+  let a : t78 array = makearray_dynamic size #{ a78 = #{ a25 = 0.; b25 = 1. }; b78 = 2 } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);
@@ -4217,10 +4217,10 @@ let test size =
   (*******************************************)
   (*   t79 = #{ #{ float; float }; float }   *)
   (*******************************************)
-  let eq = (fun (#{ a79 = a791; b79 = b791 } : t79) (#{ a79 = a792; b79 = b792 } : t79) -> (fun (#{ a25 = a251; b25 = b251 } : t25) (#{ a25 = a252; b25 = b252 } : t25) -> (fun a b -> Float.equal (globalize a) (globalize b)) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) a791 a792 && (fun a b -> Float.equal (globalize a) (globalize b)) b791 b792) in
-  let mk_value i = (#{ a79 = (#{ a25 = Float.of_int (i + 0); b25 = Float.of_int (i + 1) } : t25); b79 = Float.of_int (i + 2) } : t79) in
+  leqet eq = (fun #{ a79 = a791; b79 = b791 } #{ a79 = a792; b79 = b792 } -> (fun #{ a25 = a251; b25 = b251 } #{ a25 = a252; b25 = b252 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) a791 a792 && (fun a b -> Float.equal (globalize a) (globalize b)) b791 b792) in
+  let mk_value i = #{ a79 = #{ a25 = Float.of_int (i + 0); b25 = Float.of_int (i + 1) }; b79 = Float.of_int (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t79 array = makearray_dynamic size (#{ a79 = (#{ a25 = 0.; b25 = 1. } : t25); b79 = 2. } : t79) in
+  let a : t79 array = makearray_dynamic size #{ a79 = #{ a25 = 0.; b25 = 1. }; b79 = 2. } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     set_idx_mut a (.(i)) (mk_value i);

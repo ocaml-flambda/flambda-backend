@@ -343,7 +343,10 @@ let assemble_record colon_or_eq (boxing : Boxing.t) labels vals =
   hash ^ "{ " ^ String.concat ~sep:"; " fields ^ " }"
 
 let assemble_record_expr boxing name labels vals =
-  "(" ^ assemble_record "=" boxing labels vals ^ " : " ^ name ^ ")"
+  (* used to need to type-annotate, but now we generate unique field names *)
+  (* "(" ^ *)
+  assemble_record "=" boxing labels vals
+(* ^ " : " ^ name ^ ")" *)
 
 let assemble_tuple ~sep (boxing : Boxing.t) xs =
   let hash = match boxing with Boxed -> "" | Unboxed -> "#" in
@@ -455,6 +458,31 @@ module Type = struct
     | Float_u | Float32 | Float32_u | String ->
       1
     | Int64x2_u -> 2
+
+  let rec num_subvals_left_of_path t (path : Path.t) =
+    match path with
+    | [] -> 0
+    | access :: rest -> (
+      match access, t with
+      | Field lbl, Record { name = _; fields; boxing = Boxed }
+      | Unboxed_field lbl, Record { name = _; fields; boxing = Unboxed } ->
+        let seen = ref false in
+        let acc =
+          List.fold_left fields ~init:0 ~f:(fun acc (s, t) ->
+              if !seen
+              then acc
+              else if String.equal s lbl
+              then begin
+                seen := true;
+                acc + num_subvals_left_of_path t rest
+              end
+              else acc + num_subvals t
+          )
+        in
+        assert !seen;
+        acc
+      | _ -> invalid_arg "bad path"
+    )
 
   let rec value_code (t : t) (i : int) : string =
     match t with
