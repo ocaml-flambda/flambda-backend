@@ -19,7 +19,9 @@
 #          annoying, 80ch.sh never fails, but instead emits warnings, and only
 #          checks a subset of all files (See SKIP FILES).
 
-set -u
+set -xu
+
+git log --oneline --decorate
 
 git fetch origin main --deepen 1 # Needed to have a local copy of origin/main
                                  # For this script to work
