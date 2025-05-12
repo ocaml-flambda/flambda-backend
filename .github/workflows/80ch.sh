@@ -85,4 +85,4 @@ done
 
 output="$(find_diff)"
 printf '%s' "$output"
-[[ -z "$output" ]]
+[[ -z "$output" ]] # if there is output, exit 1
