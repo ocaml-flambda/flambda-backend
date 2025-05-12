@@ -158,6 +158,12 @@ type primitive =
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * layout list
   | Parray_element_size_in_bytes of array_kind
+  (* Block indices *)
+  | Pidx_field of int
+  | Pidx_mixed_field of mixed_block_shape * int * int list
+  | Pidx_array of
+      array_kind * array_index_kind * unit mixed_block_element * int list
+  | Pidx_deepen of unit mixed_block_element * int list
   (* Context switches *)
   | Prunstack
   | Pperform
@@ -350,6 +356,8 @@ type primitive =
   | Pdls_get
   (* Poll for runtime actions *)
   | Ppoll
+  | Pget_idx of (layout * Asttypes.mutable_flag)
+  | Pset_idx of layout
 
 and extern_repr =
   | Same_as_ocaml_repr of Jkind.Sort.Const.t
@@ -2003,7 +2011,13 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pdls_get
   | Preinterpret_unboxed_int64_as_tagged_int63
   | Parray_element_size_in_bytes _
-  | Ppeek _ | Ppoke _ -> None
+  | Pidx_field _
+  | Pidx_mixed_field _
+  | Pidx_array _
+  | Pidx_deepen _
+  | Pget_idx _ | Pset_idx _
+  | Ppeek _ | Ppoke _ ->
+    None
   | Preinterpret_tagged_int63_as_unboxed_int64 ->
     if !Clflags.native_code then None
     else
@@ -2171,7 +2185,10 @@ let primitive_can_raise prim =
   | Prunstack | Pperform | Presume | Preperform -> true (* XXX! *)
   | Pdls_get | Ppoll | Preinterpret_tagged_int63_as_unboxed_int64
   | Preinterpret_unboxed_int64_as_tagged_int63
-  | Parray_element_size_in_bytes _ | Ppeek _ | Ppoke _ ->
+  | Parray_element_size_in_bytes _
+  | Pidx_field _ | Pidx_mixed_field _ | Pidx_array _ | Pidx_deepen _
+  | Pget_idx _ | Pset_idx _
+  | Ppeek _ | Ppoke _ ->
     false
 
 let constant_layout: constant -> layout = function
@@ -2257,6 +2274,44 @@ let rec layout_of_mixed_block_element : 'a. 'a mixed_block_element -> layout =
     Punboxed_product
       (Array.to_list (Array.map layout_of_mixed_block_element shape))
 
+let rec mixed_block_element_of_layout (layout : layout) :
+    unit mixed_block_element =
+  match layout with
+  | Punboxed_product layouts ->
+    Product (List.map mixed_block_element_of_layout layouts |> Array.of_list)
+  | Ptop | Pbottom -> Misc.fatal_error "Pidxdeepen"
+  | Pvalue value_kind -> Value value_kind
+  | Punboxed_float Unboxed_float64 -> Float64
+  | Punboxed_float Unboxed_float32 -> Float32
+  | Punboxed_int Unboxed_int64 -> Bits64
+  | Punboxed_int Unboxed_int32 -> Bits32
+  | Punboxed_int Unboxed_nativeint -> Word
+  | Punboxed_vector Unboxed_vec128 -> Vec128
+
+let rec mixed_block_element_leaves (el : _ mixed_block_element)
+  : _ mixed_block_element list =
+  match el with
+  | Product els ->
+    List.concat_map mixed_block_element_leaves (Array.to_list els)
+  | Value _ | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Word
+  | Vec128 ->
+    [el]
+
+type will_be_reordered_acc = { seen_flat : bool; last_value_after_flat : bool }
+let will_be_reordered (mbe : _ mixed_block_element) =
+  let acc =
+    List.fold_left
+      (fun acc el ->
+        match el with
+        | Product _ -> assert false
+        | Value _ -> { acc with last_value_after_flat = acc.seen_flat }
+        | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Word | Vec128 ->
+          { acc with seen_flat = true })
+      { seen_flat = false; last_value_after_flat = false }
+      (mixed_block_element_leaves mbe)
+  in
+  acc.last_value_after_flat
+
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;
   match p with
@@ -2282,6 +2337,8 @@ let primitive_result_layout (p : primitive) =
   | Punboxed_product_field (field, layouts) -> (Array.of_list layouts).(field)
   | Pmake_unboxed_product layouts -> layout_unboxed_product layouts
   | Parray_element_size_in_bytes _ -> layout_int
+  | Pidx_field _ | Pidx_mixed_field _ | Pidx_array _ | Pidx_deepen _ ->
+    Punboxed_int Unboxed_int64
   | Pfloatfield _ -> layout_boxed_float Boxed_float64
   | Pfloatoffloat32 _ -> layout_boxed_float Boxed_float64
   | Pfloat32offloat _ -> layout_boxed_float Boxed_float32
@@ -2423,6 +2480,8 @@ let primitive_result_layout (p : primitive) =
       | Ppp_unboxed_nativeint -> layout_unboxed_nativeint
     )
   | Ppoke _ -> layout_unit
+  | Pget_idx (layout, _) -> layout
+  | Pset_idx _ -> layout_unit
 
 let compute_expr_layout free_vars_kind lam =
   let rec compute_expr_layout kinds = function

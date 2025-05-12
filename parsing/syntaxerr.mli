@@ -40,6 +40,7 @@ type error =
   | Removed_string_set of Location.t
   | Missing_unboxed_literal_suffix of Location.t
   | Malformed_instance_identifier of Location.t
+  | Block_access_bad_paren of Location.t
 
 exception Error of error
 exception Escape_error
