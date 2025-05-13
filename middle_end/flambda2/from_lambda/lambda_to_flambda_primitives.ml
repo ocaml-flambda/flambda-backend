@@ -2040,7 +2040,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           block,
           value ) ]
   | ( Psetmixedfield (field_path, shape, initialization_or_assignment),
-      [[block]; [value]] ) ->
+      [[block]; values] ) ->
     let shape =
       Mixed_block_shape.of_mixed_block_elements shape
         ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
@@ -2052,42 +2052,55 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let new_indexes =
       Mixed_block_shape.lookup_path_producing_new_indexes shape field_path
     in
-    List.map
-      (fun new_index : H.expr_primitive ->
-        let imm = Targetint_31_63.of_int new_index in
-        check_non_negative_imm imm "Psetmixedfield";
-        let block_access : P.Block_access_kind.t =
-          Mixed
-            { field_kind =
-                (match flattened_reordered_shape.(new_index) with
-                | Value value_kind ->
-                  Value_prefix
-                    (convert_block_access_field_kind_from_value_kind value_kind)
-                | (Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) as
-                  mixed_block_element ->
-                  Flat_suffix
-                    (K.Flat_suffix_element.from_singleton_mixed_block_element
-                       mixed_block_element)
-                | Float_boxed _ -> Flat_suffix K.Flat_suffix_element.naked_float);
-              shape = kind_shape;
-              tag = Unknown;
-              size = Unknown
-            }
-        in
-        let init_or_assign =
-          convert_init_or_assign initialization_or_assignment
-        in
-        let value : H.simple_or_prim =
-          match flattened_reordered_shape.(new_index) with
-          | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
-            value
-          | Float_boxed _ -> unbox_float value
-        in
-        Binary
-          ( Block_set { kind = block_access; init = init_or_assign; field = imm },
-            block,
-            value ))
-      new_indexes
+    let num_indices = List.length new_indexes in
+    let num_values = List.length values in
+    if num_indices <> num_values
+    then
+      Misc.fatal_errorf
+        "inconsistent Psetmixedfield: %d indices and %d values %a" num_indices
+        num_values;
+    let exprs =
+      List.map2
+        (fun new_index value : H.expr_primitive ->
+          let imm = Targetint_31_63.of_int new_index in
+          check_non_negative_imm imm "Psetmixedfield";
+          let block_access : P.Block_access_kind.t =
+            Mixed
+              { field_kind =
+                  (match flattened_reordered_shape.(new_index) with
+                  | Value value_kind ->
+                    Value_prefix
+                      (convert_block_access_field_kind_from_value_kind
+                         value_kind)
+                  | (Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) as
+                    mixed_block_element ->
+                    Flat_suffix
+                      (K.Flat_suffix_element.from_singleton_mixed_block_element
+                         mixed_block_element)
+                  | Float_boxed _ ->
+                    Flat_suffix K.Flat_suffix_element.naked_float);
+                shape = kind_shape;
+                tag = Unknown;
+                size = Unknown
+              }
+          in
+          let init_or_assign =
+            convert_init_or_assign initialization_or_assignment
+          in
+          let value : H.simple_or_prim =
+            match flattened_reordered_shape.(new_index) with
+            | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
+              value
+            | Float_boxed _ -> unbox_float value
+          in
+          Binary
+            ( Block_set
+                { kind = block_access; init = init_or_assign; field = imm },
+              block,
+              value ))
+        new_indexes values
+    in
+    if List.length num_values = 1 then exprs else [H.Sequence exprs]
   | Pdivint Unsafe, [[arg1]; [arg2]] ->
     [Binary (Int_arith (I.Tagged_immediate, Div), arg1, arg2)]
   | Pdivint Safe, [[arg1]; [arg2]] ->
