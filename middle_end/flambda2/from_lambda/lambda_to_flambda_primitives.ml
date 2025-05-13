@@ -2099,7 +2099,9 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
               value ))
         new_indexes values
     in
-    if num_values = 1 then exprs else [H.Sequence exprs]
+    (* CR mshinwell: should these be set in reverse order, to match the
+       evaluation order? *)
+    [H.Sequence exprs]
   | Pdivint Unsafe, [[arg1]; [arg2]] ->
     [Binary (Int_arith (I.Tagged_immediate, Div), arg1, arg2)]
   | Pdivint Safe, [[arg1]; [arg2]] ->
