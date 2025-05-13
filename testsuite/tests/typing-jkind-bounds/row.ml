@@ -217,3 +217,62 @@ Error: This alias is bound to type "[< `Foo of int ]"
          value mod portable
          because of the annotation on the universal variable 'a.
 |}]
+
+(* Recursive polymorphic variants. *)
+type trec1 : immutable_data = [ `A of string | `B of 'a ] as 'a
+[%%expect{|
+type trec1 = [ `A of string | `B of 'a ] as 'a
+|}]
+
+type trec2 : immutable_data = [ `A | `B of 'a list ] as 'a
+[%%expect{|
+type trec2 = [ `A | `B of 'a list ] as 'a
+|}]
+
+type trec_fails : immutable_data = [ `C | `D of 'a * unit -> 'a ] as 'a
+
+[%%expect{|
+Line 1, characters 0-71:
+1 | type trec_fails : immutable_data = [ `C | `D of 'a * unit -> 'a ] as 'a
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "[ `C | `D of 'a * unit -> 'a ] as 'a" is
+         value mod immutable
+         because it's a polymorphic variant type.
+       But the kind of type "[ `C | `D of 'a * unit -> 'a ] as 'a" must be a subkind of
+         immutable_data
+         because of the definition of trec_fails at line 1, characters 0-71.
+|}]
+
+type trec_succeeds : value mod immutable = [ `C | `D of 'a * unit -> 'a ] as 'a
+
+[%%expect{|
+type trec_succeeds = [ `C | `D of 'a * unit -> 'a ] as 'a
+|}]
+
+type trec_rec_fails : immutable_data =
+  [ `X of 'b | `Y of [ `Z of ('a -> 'b) | `W of 'a | `Loop of 'b ] as 'b ] as 'a
+
+[%%expect{|
+Lines 1-2, characters 0-80:
+1 | type trec_rec_fails : immutable_data =
+2 |   [ `X of 'b | `Y of [ `Z of ('a -> 'b) | `W of 'a | `Loop of 'b ] as 'b ] as 'a
+Error: The kind of type "[ `X of
+                            [ `Loop of 'b | `W of 'a | `Z of 'a -> 'b ] as 'b
+                        | `Y of 'b ] as 'a" is value mod immutable
+         because it's a polymorphic variant type.
+       But the kind of type "[ `X of
+                                [ `Loop of 'b | `W of 'a | `Z of 'a -> 'b ]
+                                as 'b
+                            | `Y of 'b ] as 'a" must be a subkind of
+         immutable_data
+         because of the definition of trec_rec_fails at lines 1-2, characters 0-80.
+|}]
+
+type trec_rec_succeeds : value mod immutable =
+  [ `X of 'b | `Y of [ `Z of ('a -> 'b) | `W of 'a | `Loop of 'b ] as 'b ] as 'a
+
+[%%expect{|
+type trec_rec_succeeds =
+    [ `X of [ `Loop of 'b | `W of 'a | `Z of 'a -> 'b ] as 'b | `Y of 'b ]
+    as 'a
+|}]
