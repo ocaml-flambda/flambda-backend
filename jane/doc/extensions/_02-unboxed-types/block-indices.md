@@ -4,6 +4,33 @@ collectionName: Unboxed types
 title: Block indices
 ---
 
+# Block indices
+
+This document describes the language feature and implementation for explicit
+_indices_ into a block. Before reading this document, you may wish to read up
+through the [layouts](../intro#layouts) section of the main document.
+
+```ocaml
+type pt = { x : int; y : int }
+type line = { p : pt#; q : pt# } (* flatly contains four ints *)
+
+let i : (line, int) idx_imm = (.q.#y) (* an index to the second y-coord of a line *)
+let get_coord (line : line) (i : (line, int) idx_imm) : int = get_idx_imm line i
+```
+
+If 
+
+```ocaml
+let first_x : (pt# array, int) mut_idx = &.(0).#x
+let inc_coord (pts : 'a) (i : ('a, int) mut_idx) = pts.<i> <- pts.<i> + 1
+```
+
+
+# Overview
+
+A block index is an opaque, explicit index to an element
+
+
 # Representation of block indices
 
 Consider the following type:
