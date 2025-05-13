@@ -346,8 +346,6 @@ type simplify_function_result =
 
 let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     ~closure_bound_names_inside_function =
-  if match Sys.getenv_opt "FOO" with Some _ -> true | _ -> false
-  then Format.eprintf "@\n___ FUNCTION %a ___@\n@." Code_id.print code_id;
   let denv_prior_to_sets = C.dacc_prior_to_sets context |> DA.denv in
   let inlining_arguments_from_denv =
     denv_prior_to_sets |> DE.inlining_arguments

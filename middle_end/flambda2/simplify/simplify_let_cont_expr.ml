@@ -200,8 +200,6 @@ let extra_params_and_args_for_lifting callee_lifted_params uses =
   List.fold_left
     (fun epa one_use ->
       let id = One_continuation_use.id one_use in
-      if debug ()
-      then Format.eprintf "&&& USE %a@." Apply_cont_rewrite_id.print id;
       let env_at_use = One_continuation_use.env_at_use one_use in
       let caller_stack_lifted_params =
         DE.defined_variables_by_scope env_at_use
@@ -281,11 +279,6 @@ let decide_param_usage_non_recursive ~free_names ~required_names
       "The alias analysis marked the param %a@ as removed, but the free_names \
        indicate it is actually used:@ \n\
        free_names = %a" BP.print param NO.print free_names;
-  if debug ()
-  then
-    if is_used
-    then Format.eprintf "USED: %a@." BP.print param
-    else Format.eprintf "UNUSED: %a@." BP.print param;
   if is_used then Used else Unused
 
 let decide_param_usage_recursive ~required_names ~invariant_set ~removed_aliased
@@ -622,11 +615,6 @@ let remove_params params free_names =
 let rebuild_single_non_recursive_handler ~at_unit_toplevel
     ~is_single_inlinable_use ~original_invariant_params cont
     (handler_to_rebuild : handler_to_rebuild) uacc k =
-  if debug ()
-     && Are_rebuilding_terms.do_rebuild_terms (UA.are_rebuilding_terms uacc)
-  then
-    Format.eprintf "=== REBUILD HANDLER %a ===@\nLCS: %a@." Continuation.print
-      cont LCS.print (UA.lifted_constants uacc);
   (* Clear existing name occurrences & cost metrics *)
   let uacc = UA.clear_name_occurrences (UA.clear_cost_metrics uacc) in
   let { is_exn_handler;
@@ -650,10 +638,6 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel
       let handler, uacc, free_names, cost_metrics =
         add_lets_around_handler cont at_unit_toplevel uacc handler
       in
-      if debug ()
-      then
-        Format.eprintf "EPA: %a@\nfree_names_handler: %a@." EPA.print
-          extra_params_and_args NO.print free_names;
       let extra_params_and_args =
         EPA.concat ~inner:extra_params_and_args
           ~outer:
@@ -989,19 +973,6 @@ let create_handler_to_rebuild
       @ arg_types_by_use_id_for_lifting data.lifted_params
           (Continuation_uses.get_uses uses)
     in
-    if debug ()
-    then
-      Format.eprintf
-        "... CREATE HANDLER TO REBUILD %a ...@\n\
-         params: %a@\n\
-         decisions: %a@\n\
-         uses: %a@." Continuation.print cont Bound_parameters.print
-        handler.params Unbox_continuation_params.Decisions.print
-        handler.unbox_decisions
-        (Format.pp_print_list
-           (Apply_cont_rewrite_id.Map.print
-              Continuation_uses.print_arg_type_at_use))
-        arg_types_by_use_id;
     Unbox_continuation_params.compute_extra_params_and_args
       handler.unbox_decisions ~arg_types_by_use_id handler.extra_params_and_args
   in
@@ -1090,11 +1061,6 @@ let rec compute_specialized_continuation ~replay ~simplify_expr ~original_cont
        the call to {prepare_dacc_for_handlers} as that function can sometimes
        set some of these values for the generic case. *)
     let dacc = DA.with_are_lifting_conts dacc Are_lifting_conts.no_lifting in
-    if debug ()
-    then
-      Format.eprintf "~~~ SPECIALIZING %a@\nreplay: %a@." Continuation.print
-        cont Replay_history.print
-        (DE.replay_history (DA.denv dacc));
     simplify_handler ~simplify_expr ~is_recursive ~is_exn_handler ~params cont
       dacc original.handler ~invariant_params:Bound_parameters.empty
       (fun dacc rebuild_handler cont_uses_env_in_handler ->
@@ -1170,10 +1136,6 @@ and specialize_continuation_if_needed ~simplify_expr dacc
         (* only a single use, the continuation is already specialized *)
         k dacc data
       | uses ->
-        if debug ()
-        then
-          Format.eprintf "!!! SPECIALIZATION %a !!!@]@\n@." Continuation.print
-            cont;
         (* We need to save a few values from the dacc, because the
            specialization can reset the dacc to the one after the traversal of
            the body. For most values in the dacc, this is not a problem since
@@ -1190,10 +1152,6 @@ and specialize_continuation_if_needed ~simplify_expr dacc
           let always_inline = true in
           let denv = DA.denv dacc in
           let replay_history = DE.replay_history denv in
-          if debug ()
-          then
-            Format.eprintf "--- SPEC %a@\nreplay: %a@\n@." Continuation.print
-              cont Replay_history.print replay_history;
           Some (replay_history, always_inline)
         in
         (* Use the dacc after the body to ignore any lifted constants or other
@@ -1231,11 +1189,6 @@ and after_downwards_traversal_of_body_and_handlers ~simplify_expr ~denv_for_join
     down_to_up_for_lifted_continuations ~simplify_expr ~denv_for_join
       lifted_conts ~down_to_up
   in
-  if debug ()
-  then
-    Format.eprintf "vvv BEFORE SPEC@\nCUE: %a@\nLCS: %a@\n@." CUE.print
-      data.cont_uses_env LCS.print
-      (DA.get_lifted_constants dacc);
   specialize_continuation_if_needed ~simplify_expr dacc data
     (fun dacc (data : after_downwards_traversal_of_body_and_handlers_data) ->
       (* Here, we want to actually rebuild the let-cont, so we need to call the
@@ -1265,11 +1218,6 @@ and after_downwards_traversal_of_body_and_handlers ~simplify_expr ~denv_for_join
         DA.add_to_lifted_constant_accumulator dacc
           data.after_downwards_traversal_of_body.prior_lifted_constants
       in
-      if debug ()
-      then
-        Format.eprintf "vvv AFTER SPEC@\nCUE: %a@\nLCS: %a@\n@." CUE.print
-          data.cont_uses_env LCS.print
-          (DA.get_lifted_constants dacc);
       (* We need to reset the [dacc.cont_uses_env] for the rest of the
          traversal. Here, [data.cont_uses_env] contains the total CUE for the
          body + handler, so we only need to remove the continuations that we
@@ -1324,10 +1272,6 @@ and prepare_dacc_for_handlers dacc ~replay ~env_at_fork ~params ~is_recursive
     Bound_parameters.append params
       (Lifted_cont_params.bound_parameters lifted_params)
   in
-  if debug ()
-  then
-    Format.eprintf "*** BEFORE JOIN ***@\nparams: %a@\nreplay: %a@."
-      Bound_parameters.print params pp_replay replay;
   let join_result =
     (* We add to the continuation uses (and therefore to the handler env) the
        params added by the eventual lifting of continuations. *)
@@ -1505,10 +1449,6 @@ and simplify_recursive_handlers ~down_to_up ~data ~rebuild_body ~dacc_after_body
     match Continuation.Set.min_elt_opt reachable_handlers_to_simplify with
     | None ->
       (* all remaining_handlers are unreachable *)
-      (* let cont_uses_env = Continuation.Set.fold (fun cont cont_uses_env ->
-         CUE.remove cont_uses_env cont) simplified_handlers_set
-         cont_uses_env_so_far in let dacc = DA.with_continuation_uses_env dacc
-         ~cont_uses_env in *)
       let data : after_downwards_traversal_of_body_and_handlers_data =
         { rebuild_body;
           dacc_after_body;
@@ -1602,10 +1542,6 @@ and simplify_handlers ~simplify_expr ~down_to_up ~denv_for_join ~rebuild_body
           (Are_lifting_conts.think_about_lifting_out_of ~is_exn_handler cont
              uses)
       in
-      if debug ()
-      then
-        Format.eprintf "^^^ CUE BODY %a@\n%a@\n@." Continuation.print cont
-          CUE.print body_continuation_uses_env;
       let at_unit_toplevel =
         (* We try to show that [handler] postdominates [body] (which is done by
            showing that [body] can only return through [cont]) and that if
@@ -1653,10 +1589,6 @@ and simplify_handlers ~simplify_expr ~down_to_up ~denv_for_join ~rebuild_body
               extra_params_and_args
             }
           in
-          (* let dacc = (* Update the dacc with the new cont_uses_env, which
-             removes the uses of [cont] since it leaves scope. *) let
-             cont_uses_env = CUE.remove cont_uses_env_so_far cont in
-             DA.with_continuation_uses_env dacc ~cont_uses_env in *)
           let dacc =
             DA.with_are_lifting_conts dacc previous_are_lifting_conts
           in
@@ -1666,7 +1598,6 @@ and simplify_handlers ~simplify_expr ~down_to_up ~denv_for_join ~rebuild_body
               cont_uses_env_after_body = body_continuation_uses_env;
               after_downwards_traversal_of_body = data;
               cont_uses_env = cont_uses_env_so_far;
-              (* CUE.remove cont_uses_env_so_far cont; *)
               lifted_params;
               invariant_params = Bound_parameters.empty;
               invariant_extra_params_and_args = EPA.empty;
@@ -1750,9 +1681,6 @@ and after_downwards_traversal_of_body ~simplify_expr ~down_to_up
     let handlers =
       Original_handlers.add_params_to_lift data.handlers params_to_lift
     in
-    if debug ()
-    then
-      Format.eprintf "/// LIFTING:@\n%a@\n@." Original_handlers.print handlers;
     let dacc = DA.add_lifted_continuation data.denv_for_join handlers dacc in
     (* Restore lifted constants in dacc *)
     let dacc =
@@ -1760,10 +1688,6 @@ and after_downwards_traversal_of_body ~simplify_expr ~down_to_up
     in
     down_to_up dacc ~rebuild:rebuild_body
   | Not_lifting | Analyzing _ ->
-    if debug ()
-    then
-      Format.eprintf "... SIMPLIFY@\n%a@\n@." Original_handlers.print
-        data.handlers;
     simplify_handlers data dacc ~simplify_expr ~down_to_up ~denv_for_join
       ~rebuild_body
 
@@ -1832,13 +1756,8 @@ let simplify_let_cont0 ~(simplify_expr : _ Simplify_common.expr_simplifier) dacc
   in
   (* During specialization, we must take care of correctly handling let-bound
      continuations that have been lifted during the first downwards pass, and
-     whhose handlers must be replaced on subsequent passes, so that they can
+     whose handlers must be replaced on subsequent passes, so that they can
      refer to the lifted ones. *)
-  if debug ()
-  then
-    Format.eprintf "--- LET_CONT0@\n%a@\n%a@\n@." Replay_history.print
-      (DE.replay_history denv_for_body)
-      Original_handlers.print data.handlers;
   let handlers =
     match
       Replay_history.replay_continuation_mapping
@@ -1848,11 +1767,6 @@ let simplify_let_cont0 ~(simplify_expr : _ Simplify_common.expr_simplifier) dacc
     | Replayed continuation_mapping -> (
       match data.handlers with
       | Non_recursive non_rec_handler ->
-        if debug ()
-        then
-          Format.eprintf "+++ LIFTED ? %a@\nreplay: %a@\n@." Continuation.print
-            non_rec_handler.cont Replay_history.print
-            (DE.replay_history denv_for_body);
         let lifted_cont =
           Continuation.Map.find non_rec_handler.cont continuation_mapping
         in
@@ -1867,10 +1781,6 @@ let simplify_let_cont0 ~(simplify_expr : _ Simplify_common.expr_simplifier) dacc
           in
           Flambda.Expr.create_apply_cont apply_cont
         in
-        if debug ()
-        then
-          Format.eprintf "*** LIFTED %a:@\n%a@\n@." Continuation.print
-            non_rec_handler.cont Flambda.Expr.print new_handler;
         let new_non_rec_handler =
           Non_recursive_handler.with_handler new_handler non_rec_handler
         in
@@ -1879,7 +1789,6 @@ let simplify_let_cont0 ~(simplify_expr : _ Simplify_common.expr_simplifier) dacc
         (* TODO: handle these *)
         assert false)
   in
-  (* *)
   let dacc = DA.with_denv dacc denv_for_body in
   let body = data.body in
   let data : after_downwards_traversal_of_body_data =
