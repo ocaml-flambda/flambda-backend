@@ -86,6 +86,10 @@ struct caml_context {
 };
 
 /* Structure of frame descriptors */
+/* Warning: The live offsets of frame descriptors are declared as unsigned integers below.
+   However, on runtime 4, they can also be negative, so values above 0x7f...ff should be
+   interpreted as negative.  */
+
 typedef struct {
   int32_t retaddr_rel;
   unsigned short frame_size;

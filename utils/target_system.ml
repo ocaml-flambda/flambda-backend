@@ -177,7 +177,7 @@ let is_macos () =
   | MASM | GAS_like -> false
   | MacOS -> true
 
-  let is_gas () =
-    match assembler () with
-    | MASM | MacOS -> false
-    | GAS_like -> true
+let is_gas () =
+  match assembler () with
+  | MASM | MacOS -> false
+  | GAS_like -> true

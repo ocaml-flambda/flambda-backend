@@ -100,9 +100,12 @@ val record_frame_descr :
 type emit_frame_actions =
   { efa_code_label : Label.t -> unit;
     efa_data_label : Label.t -> unit;
-    efa_8 : int -> unit;
-    efa_16 : int -> unit;
-    efa_32 : int32 -> unit;
+    efa_i8 : Numbers.Int8.t -> unit;
+    efa_i16 : Numbers.Int16.t -> unit;
+    efa_i32 : Int32.t -> unit;
+    efa_u8 : Numbers.Uint8.t -> unit;
+    efa_u16 : Numbers.Uint16.t -> unit;
+    efa_u32 : Numbers.Uint32.t -> unit;
     efa_word : int -> unit;
     efa_align : int -> unit;
     efa_label_rel : Label.t -> int32 -> unit;

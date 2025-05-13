@@ -69,6 +69,8 @@ let create_string section label =
   assert (not (contains_escapable_char label));
   { section; label = String label }
 
+let create_string_unchecked section label = { section; label = String label }
+
 let label_prefix =
   match Target_system.assembler () with MacOS -> "L" | MASM | GAS_like -> ".L"
 
@@ -138,6 +140,7 @@ let for_dwarf_section (dwarf_section : Asm_section.dwarf_section) =
   | Debug_str -> Lazy.force debug_str_label
   | Debug_line -> Lazy.force debug_line_label
 
+(* CR sspies: Remove the other cases where we never emit a label upfront. *)
 let for_section (section : Asm_section.t) =
   match section with
   | DWARF dwarf_section -> for_dwarf_section dwarf_section
@@ -147,3 +150,7 @@ let for_section (section : Asm_section.t) =
   | Eight_byte_literals -> Lazy.force eight_byte_literals_label
   | Sixteen_byte_literals -> Lazy.force sixteen_byte_literals_label
   | Jump_tables -> Lazy.force jump_tables_label
+  | Stapsdt_base -> Misc.fatal_error "Stapsdt_base has no associated label"
+  | Stapsdt_note -> Misc.fatal_error "Stapsdt_note has no associated label"
+  | Probes -> Misc.fatal_error "Probes has no associated label"
+  | Note_ocaml_eh -> Misc.fatal_error "Note_ocaml_eh has no associated label"

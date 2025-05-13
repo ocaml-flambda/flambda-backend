@@ -52,6 +52,9 @@ val create_int : Asm_section.t -> int -> t
 (** Create a textual label. The supplied name must not require escaping. *)
 val create_string : Asm_section.t -> string -> t
 
+(** Create a textual label. Argument string is not checked, so use with caution. *)
+val create_string_unchecked : Asm_section.t -> string -> t
+
 (** Convert a label to the corresponding textual form, suitable for direct
     emission into an assembly file. This may be useful e.g. when emitting an
     instruction referencing a label. *)
