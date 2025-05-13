@@ -1780,30 +1780,8 @@ module Const = struct
     | Mod (base, modifiers) ->
       let base = of_user_written_annotation_unchecked_level context base in
       (* for each mode, lower the corresponding modal bound to be that mode *)
-      let parsed_modifiers = Typemode.transl_modifier_annots modifiers in
       let mod_bounds =
-        let value_for_axis (type a) ~(axis : a Axis.t) : a =
-          let (module A) = Axis.get axis in
-          let parsed_modifier =
-            Typemode.Transled_modifiers.get ~axis parsed_modifiers
-          in
-          let base_bound = Mod_bounds.get ~axis base.mod_bounds in
-          match parsed_modifier, base_bound with
-          | None, base_modifier -> base_modifier
-          | Some parsed_modifier, base_modifier ->
-            A.meet base_modifier parsed_modifier.txt
-        in
-        Mod_bounds.create
-          ~locality:(value_for_axis ~axis:(Modal (Comonadic Areality)))
-          ~linearity:(value_for_axis ~axis:(Modal (Comonadic Linearity)))
-          ~uniqueness:(value_for_axis ~axis:(Modal (Monadic Uniqueness)))
-          ~portability:(value_for_axis ~axis:(Modal (Comonadic Portability)))
-          ~contention:(value_for_axis ~axis:(Modal (Monadic Contention)))
-          ~yielding:(value_for_axis ~axis:(Modal (Comonadic Yielding)))
-          ~statefulness:(value_for_axis ~axis:(Modal (Comonadic Statefulness)))
-          ~visibility:(value_for_axis ~axis:(Modal (Monadic Visibility)))
-          ~externality:(value_for_axis ~axis:(Nonmodal Externality))
-          ~nullability:(value_for_axis ~axis:(Nonmodal Nullability))
+        Mod_bounds.meet base.mod_bounds (Typemode.transl_mod_bounds modifiers)
       in
       { layout = base.layout; mod_bounds; with_bounds = No_with_bounds }
     | Product ts ->

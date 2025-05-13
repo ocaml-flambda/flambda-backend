@@ -155,8 +155,8 @@ module Transled_modifiers = struct
     | Nonmodal Nullability -> { t with nullability = value }
 end
 
-let transl_modifier_annots annots =
-  let step modifiers_so_far annot =
+let transl_mod_bounds annots =
+  let step bounds_so_far annot =
     match
       transl_annot ~annot_type:Modifier ~required_mode_maturity:None
       @@ unpack_mode_annot annot
@@ -172,10 +172,10 @@ let transl_modifier_annots annots =
         (* Location.prerr_warning new_raw.loc (Warnings.Mod_by_top new_raw.txt) *)
         ();
       let is_dup =
-        Option.is_some (Transled_modifiers.get ~axis modifiers_so_far)
+        Option.is_some (Transled_modifiers.get ~axis bounds_so_far)
       in
       if is_dup then raise (Error (annot.loc, Duplicated_axis axis));
-      Transled_modifiers.set ~axis modifiers_so_far (Some { txt = mode; loc })
+      Transled_modifiers.set ~axis bounds_so_far (Some { txt = mode; loc })
     | { txt = Everything_but_nullability; loc } ->
       Transled_modifiers.
         { locality = Some { txt = Locality.Const.min; loc };
@@ -188,7 +188,7 @@ let transl_modifier_annots annots =
           statefulness = Some { txt = Statefulness.Const.min; loc };
           visibility = Some { txt = Visibility.Const_op.min; loc };
           nullability =
-            Transled_modifiers.get ~axis:(Nonmodal Nullability) modifiers_so_far
+            Transled_modifiers.get ~axis:(Nonmodal Nullability) bounds_so_far
         }
   in
   let empty_modifiers = Transled_modifiers.empty in
@@ -231,7 +231,43 @@ let transl_modifier_annots annots =
         (Some { txt = Portability.Const.Portable; loc = Location.none })
     | _, _ -> modifiers
   in
-  modifiers
+  let open Types.Jkind_mod_bounds in
+  let locality =
+    Option.fold ~some:Location.get_txt ~none:Locality.max modifiers.locality
+  in
+  let linearity =
+    Option.fold ~some:Location.get_txt ~none:Linearity.max modifiers.linearity
+  in
+  let uniqueness =
+    Option.fold ~some:Location.get_txt ~none:Uniqueness.max modifiers.uniqueness
+  in
+  let portability =
+    Option.fold ~some:Location.get_txt ~none:Portability.max
+      modifiers.portability
+  in
+  let contention =
+    Option.fold ~some:Location.get_txt ~none:Contention.max modifiers.contention
+  in
+  let yielding =
+    Option.fold ~some:Location.get_txt ~none:Yielding.max modifiers.yielding
+  in
+  let statefulness =
+    Option.fold ~some:Location.get_txt ~none:Statefulness.max
+      modifiers.statefulness
+  in
+  let visibility =
+    Option.fold ~some:Location.get_txt ~none:Visibility.max modifiers.visibility
+  in
+  let externality =
+    Option.fold ~some:Location.get_txt ~none:Externality.max
+      modifiers.externality
+  in
+  let nullability =
+    Option.fold ~some:Location.get_txt ~none:Nullability.max
+      modifiers.nullability
+  in
+  create ~locality ~linearity ~uniqueness ~portability ~contention ~yielding
+    ~statefulness ~visibility ~externality ~nullability
 
 let default_mode_annots (annots : Alloc.Const.Option.t) =
   (* [yielding] has a different default depending on whether [areality]
