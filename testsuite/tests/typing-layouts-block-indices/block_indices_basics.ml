@@ -13,6 +13,37 @@ type r = { i : int; j : int; }
 type t = (r# array, r#) idx_imm
 |}]
 
+let f () = (.i)
+[%%expect{|
+val f : unit -> (r, int) idx_imm = <fun>
+|}]
+
+let f () = (.(5).#i)
+[%%expect{|
+val f : unit -> (r# array, int) idx_mut = <fun>
+|}]
+
+(* Module-qualified fields *)
+
+module M = struct
+  type u = #{ i : int; j : int }
+  type t = { x : u }
+end
+
+let f () = (.M.x)
+[%%expect{|
+module M : sig type u = #{ i : int; j : int; } type t = { x : u; } end
+val f : unit -> (M.t, M.u) idx_imm = <fun>
+|}]
+
+let f () = (.M.x.#M.i)
+[%%expect{|
+val f : unit -> (M.t, int) idx_imm = <fun>
+|}]
+
+(************************)
+(* Field disambiguation *)
+
 (* Disambiguation of block access field *)
 
 type t1 = { mutable a : string; b : int }
@@ -89,9 +120,9 @@ let bad c = if c then
 [%%expect{|
 type y = { y : int; }
 type 'a t = { a : 'a; }
-Line 88, characters 9-10:
-88 |     (.a.#a)
-              ^
+Line 119, characters 9-10:
+119 |     (.a.#a)
+               ^
 Error: This unboxed access is expected to have base type "y#"
        There is no unboxed record field "a" within type "y#"
 |}]
@@ -161,8 +192,8 @@ type pt = { x : int }
 let f () = (.x.#x)
 [%%expect{|
 type pt = { x : int; }
-Line 161, characters 16-17:
-161 | let f () = (.x.#x)
+Line 192, characters 16-17:
+192 | let f () = (.x.#x)
                       ^
 Error: The index preceding this unboxed access has element type "int",
        which is not an unboxed record with field "x".
@@ -177,8 +208,8 @@ val f : unit -> ('a t# t, 'a) idx_imm = <fun>
 
 let f () : (int t, _) idx_imm = (.t.#t)
 [%%expect{|
-Line 178, characters 37-38:
-178 | let f () : (int t, _) idx_imm = (.t.#t)
+Line 209, characters 37-38:
+209 | let f () : (int t, _) idx_imm = (.t.#t)
                                            ^
 Error: The index preceding this unboxed access has element type "int",
        which is not an unboxed record with field "t".
@@ -188,8 +219,8 @@ type t = { i : int } [@@unboxed]
 let f () = (.i)
 [%%expect{|
 type t = { i : int; } [@@unboxed]
-Line 188, characters 13-14:
-188 | let f () = (.i)
+Line 219, characters 13-14:
+219 | let f () = (.i)
                    ^
 Error: Block indices do not support [@@unboxed] records.
 |}]
@@ -213,8 +244,8 @@ let f c =
   else
     (.s)
 [%%expect{|
-Line 214, characters 6-7:
-214 |     (.s)
+Line 245, characters 6-7:
+245 |     (.s)
             ^
 Error: This block index is expected to have base type "t"
        There is no field "s" within type "t"
@@ -227,8 +258,8 @@ let f c =
   else
     (.a.#s)
 [%%expect{|
-Line 226, characters 9-10:
-226 |     (.a.#t)
+Line 257, characters 9-10:
+257 |     (.a.#t)
                ^
 Error: This unboxed access is expected to have base type "s#"
        There is no unboxed record field "t" within type "s#"
@@ -307,8 +338,8 @@ Error: Immutable arrays of unboxed products are not yet supported.
 
 let bad_index_type = (.("test"))
 [%%expect{|
-Line 308, characters 24-30:
-308 | let bad_index_type = (.("test"))
+Line 339, characters 24-30:
+339 | let bad_index_type = (.("test"))
                               ^^^^^^
 Error: This expression has type "string" but an expression was expected of type
          "int"
@@ -434,8 +465,8 @@ let f c =
 [%%expect{|
 val f : bool -> ('a r, int) idx_imm = <fun>
 |}, Principal{|
-Line 433, characters 6-7:
-433 |     (.u.#x)
+Line 464, characters 6-7:
+464 |     (.u.#x)
             ^
 Warning 18 [not-principal]: this type-based field disambiguation is not principal.
 
