@@ -24,7 +24,7 @@ val print : (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
 val empty : 'a t
 
 (** Find the value bound to a pair of a continuation and rewrite id.
-    @raise Not_found if the continuation *and* rewrite ids are not bound. *)
+    @raise Not_found if either the continuation or rewrite ids are not bound. *)
 val find : Continuation.t -> Apply_cont_rewrite_id.t -> 'a t -> 'a
 
 (** Add a binding to the callsite map.
