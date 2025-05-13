@@ -339,6 +339,7 @@ let pat
 let function_param sub
     { fp_kind;
       fp_param;
+      fp_param_debug_uid;
       fp_arg_label;
       fp_partial;
       fp_curry;
@@ -365,6 +366,7 @@ let function_param sub
   in
   { fp_kind;
     fp_param;
+    fp_param_debug_uid;
     fp_arg_label;
     fp_partial;
     fp_curry;
@@ -389,7 +391,8 @@ let function_body sub body =
   | Tfunction_body body ->
       Tfunction_body (sub.expr sub body)
   | Tfunction_cases
-      { fc_cases; fc_partial; fc_param; fc_loc; fc_exp_extra; fc_attributes;
+      { fc_cases; fc_partial; fc_param; fc_param_debug_uid;
+        fc_loc; fc_exp_extra; fc_attributes;
         fc_arg_mode; fc_arg_sort; fc_env; fc_ret_type; }
     ->
       let fc_loc = sub.location sub fc_loc in
@@ -398,7 +401,8 @@ let function_body sub body =
       let fc_exp_extra = Option.map (extra sub) fc_exp_extra in
       let fc_env = sub.env sub fc_env in
       Tfunction_cases
-        { fc_cases; fc_partial; fc_param; fc_loc; fc_exp_extra; fc_attributes;
+        { fc_cases; fc_partial; fc_param; fc_param_debug_uid;
+          fc_loc; fc_exp_extra; fc_attributes;
           fc_arg_mode; fc_arg_sort; fc_env; fc_ret_type; }
 
 let expr sub x =
@@ -421,10 +425,12 @@ let expr sub x =
                         in
                         let comp_cb_iterator = match comp_cb_iterator with
                           | Texp_comp_range
-                              { ident; pattern; start; stop; direction }
+                              { ident; ident_debug_uid; pattern; start; stop;
+                                direction }
                             ->
                               Texp_comp_range
                                 { ident
+                                ; ident_debug_uid
                                 ; pattern
                                     (* Just mirroring [ident], ignored (see
                                        [Texp_for] *)
@@ -602,11 +608,13 @@ let expr sub x =
         Texp_object (sub.class_structure sub cl, sl)
     | Texp_pack mexpr ->
         Texp_pack (sub.module_expr sub mexpr)
-    | Texp_letop {let_; ands; param; param_sort; body; body_sort; partial} ->
+    | Texp_letop {let_; ands; param; param_debug_uid; param_sort;
+                  body; body_sort; partial} ->
         Texp_letop{
           let_ = sub.binding_op sub let_;
           ands = List.map (sub.binding_op sub) ands;
           param;
+          param_debug_uid;
           param_sort;
           body = sub.case sub body;
           body_sort;

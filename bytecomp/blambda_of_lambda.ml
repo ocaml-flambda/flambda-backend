@@ -74,7 +74,8 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
         nontail = is_nontail rc
       }
   | Lfunction f -> Pseudo_event (Function (comp_fun f), f.loc)
-  | Llet (_, _k, id, arg, body) | Lmutlet (_k, id, arg, body) ->
+  | Llet (_, _k, id, _duid, arg, body) | Lmutlet (_k, id, _duid, arg, body) ->
+    (* We are intentionally dropping the [debug_uid] identifiers here. *)
     Let { id; arg = comp_arg arg; body = comp_expr body }
   | Lletrec (decl, body) ->
     Letrec
@@ -87,12 +88,13 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
     Staticcatch
       { body = comp_arg body;
         id = static_label;
-        args = List.map fst args;
+        args = List.map (fun (id, _, _) -> id) args;
         handler = comp_expr handler
       }
   | Lstaticraise (static_label, args) ->
     Staticraise (static_label, List.map comp_arg args)
-  | Ltrywith (body, param, handler, _kind) ->
+  | Ltrywith (body, param, _param_duid, handler, _kind) ->
+    (* We are intentionally dropping the [debug_uid] identifiers here. *)
     Trywith { body = comp_arg body; param; handler = comp_expr handler }
   | Lifthenelse (cond, ifso, ifnot, _kind) ->
     Ifthenelse

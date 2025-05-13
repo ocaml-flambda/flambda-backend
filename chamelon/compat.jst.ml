@@ -146,6 +146,7 @@ let mkTexp_function ?(id = texp_function_defaults)
                 | Some default ->
                     Tparam_optional_default (pattern, default, id.param_sort));
               fp_param = param;
+              fp_param_debug_uid = Lambda.debug_uid_none;
               fp_partial = partial;
               fp_sort = id.param_sort;
               fp_mode = id.param_mode;
@@ -163,6 +164,7 @@ let mkTexp_function ?(id = texp_function_defaults)
               {
                 fc_cases = cases;
                 fc_param = param;
+                fc_param_debug_uid = Lambda.debug_uid_none;
                 fc_partial = partial;
                 fc_env = id.env;
                 fc_ret_type = id.ret_type;
