@@ -424,7 +424,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   let wrapper_var = Variable.create "partial_app" in
   let compilation_unit = Compilation_unit.get_current_exn () in
   let wrapper_function_slot =
-    Function_slot.create compilation_unit ~name:"partial_app_closure" K.value
+    Function_slot.create compilation_unit ~name:"partial_app_closure"
+      ~is_always_immediate:false K.value
   in
   (* The allocation mode of the closure is directly determined by the alloc_mode
      of the application. We check here that it is consistent with
@@ -506,7 +507,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
                 }
         end in
         let mk_value_slot kind =
-          Value_slot.create compilation_unit ~name:"arg" kind
+          Value_slot.create compilation_unit ~name:"arg"
+            ~is_always_immediate:false kind
         in
         let applied_value (value, kind) =
           Simple.pattern_match' value

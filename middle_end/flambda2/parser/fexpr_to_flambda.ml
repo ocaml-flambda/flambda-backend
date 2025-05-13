@@ -144,7 +144,7 @@ let fresh_function_slot env { Fexpr.txt = name; loc = _ } =
   let c =
     Function_slot.create
       (Compilation_unit.get_current_exn ())
-      ~name Flambda_kind.value
+      ~name ~is_always_immediate:false Flambda_kind.value
   in
   UT.add env.function_slots name c;
   c
@@ -155,7 +155,11 @@ let fresh_or_existing_function_slot env ({ Fexpr.txt = name; loc = _ } as id) =
   | Some function_slot -> function_slot
 
 let fresh_value_slot env { Fexpr.txt = name; loc = _ } kind =
-  let c = Value_slot.create (Compilation_unit.get_current_exn ()) ~name kind in
+  let c =
+    Value_slot.create
+      (Compilation_unit.get_current_exn ())
+      ~name ~is_always_immediate:false kind
+  in
   WT.add env.vars_within_closures name c;
   c
 

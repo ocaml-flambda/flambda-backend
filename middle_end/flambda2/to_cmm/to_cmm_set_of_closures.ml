@@ -158,7 +158,11 @@ end = struct
       let env, res, fields, chunk_acc, updates =
         match contents with
         | `Expr field ->
-          let chunk = C.memory_chunk_of_kind (KS.anything kind) in
+          let chunk =
+            if Value_slot.is_always_immediate value_slot
+            then (Word_int : Cmm.memory_chunk)
+            else C.memory_chunk_of_kind (KS.anything kind)
+          in
           let chunk_acc =
             rev_append_chunks ~for_static_sets [chunk] chunk_acc
           in
@@ -176,7 +180,10 @@ end = struct
             let update_kind =
               let module UK = C.Update_kind in
               match kind with
-              | Value -> UK.pointers
+              | Value ->
+                if Value_slot.is_always_immediate value_slot
+                then UK.tagged_immediates
+                else UK.pointers
               | Naked_number Naked_immediate
               | Naked_number Naked_int64
               | Naked_number Naked_nativeint ->

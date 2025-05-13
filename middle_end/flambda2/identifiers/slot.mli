@@ -19,7 +19,12 @@ module type S = sig
 
   module Lmap : Lmap.S with type key = t
 
-  val create : Compilation_unit.t -> name:string -> Flambda_kind.t -> t
+  val create :
+    Compilation_unit.t ->
+    name:string ->
+    is_always_immediate:bool ->
+    Flambda_kind.t ->
+    t
 
   val get_compilation_unit : t -> Compilation_unit.t
 
@@ -32,6 +37,8 @@ module type S = sig
   val name : t -> string
 
   val kind : t -> Flambda_kind.t
+
+  val is_always_immediate : t -> bool
 
   val rename : t -> t
 end

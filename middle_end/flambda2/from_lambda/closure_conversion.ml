@@ -2627,8 +2627,15 @@ let close_functions acc external_env ~current_region function_declarations =
             | None -> Ident.name id
             | Some var -> Variable.name var
           in
+          let is_always_immediate =
+            match[@ocaml.warning "-4"]
+              Flambda_kind.With_subkind.non_null_value_subkind kind
+            with
+            | Tagged_immediate -> true
+            | _ -> false
+          in
           Ident.Map.add id
-            (Value_slot.create compilation_unit ~name
+            (Value_slot.create compilation_unit ~name ~is_always_immediate
                (Flambda_kind.With_subkind.kind kind))
             map)
       (Function_decls.all_free_idents function_declarations)
@@ -2950,7 +2957,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   let function_slot =
     Function_slot.create
       (Compilation_unit.get_current_exn ())
-      ~name:(Ident.name wrapper_id) K.value
+      ~name:(Ident.name wrapper_id) ~is_always_immediate:false K.value
   in
   let num_provided = Flambda_arity.num_params provided_arity in
   let missing_arity_and_param_modes =
