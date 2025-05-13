@@ -149,6 +149,11 @@ end = struct
     | Value_slot { value_slot; is_scanned; size } ->
       let simple = Value_slot.Map.find value_slot value_slots in
       let kind = Value_slot.kind value_slot in
+      let kind_with_subkind =
+        if Value_slot.is_always_immediate value_slot
+        then KS.tagged_immediate
+        else KS.anything kind
+      in
       if (not (Flambda_kind.equal kind Flambda_kind.value)) && is_scanned
       then
         Misc.fatal_errorf
@@ -158,11 +163,7 @@ end = struct
       let env, res, fields, chunk_acc, updates =
         match contents with
         | `Expr field ->
-          let chunk =
-            if Value_slot.is_always_immediate value_slot
-            then (Word_int : Cmm.memory_chunk)
-            else C.memory_chunk_of_kind (KS.anything kind)
-          in
+          let chunk = C.memory_chunk_of_kind kind_with_subkind in
           let chunk_acc =
             rev_append_chunks ~for_static_sets [chunk] chunk_acc
           in
