@@ -75,7 +75,7 @@ do
     number="${long_line%%:*}" # on the first colon
 
     # Warning workflow command for GitHub Actions
-    printf '::warning file=%s,line=%s,title=%s::%s\n' \
+    printf '::error file=%s,line=%s,title=%s::%s\n' \
       "$changed_file" "$number" \
       'Line is longer than 80 characters' \
       'Consider rewrapping this line'

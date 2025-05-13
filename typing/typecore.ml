@@ -11182,3 +11182,6 @@ let type_argument env e t1 t2 =
 let type_option_some env e t1 t2 =
   let exp = type_option_some env mode_legacy e t1 t2 in
   maybe_check_uniqueness_exp exp; exp
+
+(* This is a very long line which will not pass the 80 character check on GH   *)
+(* This is a very long line which will pass the 80 character check on GH   *)
