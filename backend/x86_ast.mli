@@ -213,51 +213,6 @@ type reloc =
 (* CR gyorsh: use inline record for Section and File constructors. *)
 type asm_line =
   | Ins of instruction
-
-  | Align of bool * int
-  | Byte of constant
-  | Bytes of string
-  (** directive for an 8-bit constant *)
-  | Comment of string
-  | Global of string
-  | Protected of string
-  | Hidden of string
-  | Weak of string
-  | Long of constant
-  (** directive for a 32-bit constant *)
-  | NewLabel of string * data_type
-  | NewLine
-  | Quad of constant
-  (** directive for a 64-bit constant *)
-  | Section of string list * string option * string list * bool
-  | Sleb128 of constant
-  | Space of int
-  | Uleb128 of constant
-  | Word of constant
-  (** directive for a 16-bit constant *)
-
-  (* masm only (the gas emitter will fail on them) *)
-  | External of string * data_type
-  | Mode386
-  | Model of string
-
-  (* gas only (the masm emitter will fail on them) *)
-  | Cfi_adjust_cfa_offset of int
-  | Cfi_endproc
-  | Cfi_startproc
-  | Cfi_remember_state
-  | Cfi_restore_state
-  | Cfi_def_cfa_register of string
-  | Cfi_def_cfa_offset of int
-  | Cfi_offset of int * int
-  | File of int * string (* (file_num, file_name) *)
-  | Indirect_symbol of string
-  | Loc of { file_num:int; line:int; col:int; discriminator: int option }
-  | Private_extern of string
-  | Set of string * constant
-  | Size of string * constant
-  | Type of string * string
-  | Reloc of reloc
-
+  | Directive of Asm_targets.Asm_directives_new.Directive.t
 
 type asm_program = asm_line list
