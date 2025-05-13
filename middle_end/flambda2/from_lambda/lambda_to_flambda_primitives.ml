@@ -2056,9 +2056,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let num_values = List.length values in
     if num_indices <> num_values
     then
-      Misc.fatal_errorf
-        "inconsistent Psetmixedfield: %d indices and %d values %a" num_indices
-        num_values;
+      Misc.fatal_errorf "inconsistent Psetmixedfield: %d indices and %d values"
+        num_indices num_values;
     let exprs =
       List.map2
         (fun new_index value : H.expr_primitive ->
@@ -2100,7 +2099,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
               value ))
         new_indexes values
     in
-    if List.length num_values = 1 then exprs else [H.Sequence exprs]
+    if num_values = 1 then exprs else [H.Sequence exprs]
   | Pdivint Unsafe, [[arg1]; [arg2]] ->
     [Binary (Int_arith (I.Tagged_immediate, Div), arg1, arg2)]
   | Pdivint Safe, [[arg1]; [arg2]] ->
