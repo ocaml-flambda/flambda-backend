@@ -915,6 +915,7 @@ module Layout_and_axes = struct
         type t =
           { tuple_fuel : int;
             constr : (int * type_expr list) Path.Map.t;
+            seen_row_var : Numbers.Int.Set.t;
             fuel_status : Fuel_status.t
           }
 
@@ -928,10 +929,12 @@ module Layout_and_axes = struct
         let starting =
           { tuple_fuel = initial_fuel_per_ty;
             constr = Path.Map.empty;
+            seen_row_var = Numbers.Int.Set.empty;
             fuel_status = Sufficient_fuel
           }
 
-        let rec check ({ tuple_fuel; constr; fuel_status = _ } as t) ty =
+        let rec check
+            ({ tuple_fuel; constr; seen_row_var; fuel_status = _ } as t) ty =
           match Types.get_desc ty with
           | Tpoly (ty, _) -> check t ty
           | Ttuple _ ->
@@ -957,8 +960,18 @@ module Layout_and_axes = struct
                 Continue
                   { t with constr = Path.Map.add p (fuel - 1, args) constr }
               else Stop { t with fuel_status = Ran_out_of_fuel })
+          | Tvariant row -> (
+            let id = get_id (row_more row) in
+            match Numbers.Int.Set.mem id seen_row_var with
+            | false ->
+              Continue
+                { t with seen_row_var = Numbers.Int.Set.add id seen_row_var }
+            | true ->
+              (* For our purposes, row variables are like constructors with no arguments,
+                 so if we saw one already, we don't need to expand it again. *)
+              Skip)
           | Tvar _ | Tarrow _ | Tunboxed_tuple _ | Tobject _ | Tfield _ | Tnil
-          | Tvariant _ | Tunivar _ | Tpackage _ ->
+          | Tunivar _ | Tpackage _ ->
             (* these cases either cannot be infinitely recursive or their jkinds
                do not have with_bounds *)
             (* CR layouts v2.8: Some of these might get with-bounds someday. We
@@ -2311,6 +2324,19 @@ let for_boxed_tuple elts =
       add_with_bounds ~modality:Mode.Modality.Value.Const.id ~type_expr)
     elts
     (Builtin.immutable_data ~why:Tuple |> mark_best)
+
+let for_boxed_row row =
+  (let base = Builtin.immutable_data ~why:Polymorphic_variant in
+   if not (Btype.static_row row)
+   then
+     (* CR layouts v2.8: We can probably do a fair bit better here in most cases *)
+     Builtin.value ~why:Polymorphic_variant
+   else
+     Btype.fold_row
+       (fun jkind type_expr ->
+         add_with_bounds ~modality:Mode.Modality.Value.Const.id ~type_expr jkind)
+       base row)
+  |> mark_best
 
 let for_arrow =
   fresh_jkind
