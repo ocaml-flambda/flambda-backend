@@ -5772,11 +5772,6 @@ and type_expect_
         | Immutable -> Predef.type_iarray elt_ty
         | Mutable -> Predef.type_array elt_ty
       in
-      (* CR rtjoa: this update disambiguation warnings and make sure this union
-         moral *)
-      (* begin
-       *   try unify env base_ty expected_base_ty with Unify _ -> ()
-       * end; *)
       let index_type_expected =
         match index_kind with
         | Index_int -> Predef.type_int
@@ -6408,12 +6403,9 @@ and type_expect_
     let el_ty, uas =
       List.fold_left_map
         (fun el_ty ua ->
-          let el_ty, ua =
-            with_local_level_if_principal
-              ~post:generalize_type_unboxed_access_result
-              (fun () -> type_unboxed_access el_ty ua)
-          in
-          el_ty, ua)
+           with_local_level_if_principal
+             ~post:generalize_type_unboxed_access_result
+             (fun () -> type_unboxed_access el_ty ua))
         el_ty
         uas
     in

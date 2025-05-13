@@ -3,8 +3,6 @@
  expect;
 *)
 
-(* CR rtjoa: this is only alpha because arrays don't check nonfloat *)
-
 (*********************************)
 (* Basic typechecking of indices *)
 
@@ -91,8 +89,8 @@ let bad c = if c then
 [%%expect{|
 type y = { y : int; }
 type 'a t = { a : 'a; }
-Line 90, characters 9-10:
-90 |     (.a.#a)
+Line 88, characters 9-10:
+88 |     (.a.#a)
               ^
 Error: This unboxed access is expected to have base type "y#"
        There is no unboxed record field "a" within type "y#"
@@ -163,8 +161,8 @@ type pt = { x : int }
 let f () = (.x.#x)
 [%%expect{|
 type pt = { x : int; }
-Line 163, characters 16-17:
-163 | let f () = (.x.#x)
+Line 161, characters 16-17:
+161 | let f () = (.x.#x)
                       ^
 Error: The index preceding this unboxed access has element type "int",
        which is not an unboxed record with field "x".
@@ -179,8 +177,8 @@ val f : unit -> ('a t# t, 'a) idx_imm = <fun>
 
 let f () : (int t, _) idx_imm = (.t.#t)
 [%%expect{|
-Line 180, characters 37-38:
-180 | let f () : (int t, _) idx_imm = (.t.#t)
+Line 178, characters 37-38:
+178 | let f () : (int t, _) idx_imm = (.t.#t)
                                            ^
 Error: The index preceding this unboxed access has element type "int",
        which is not an unboxed record with field "t".
@@ -190,8 +188,8 @@ type t = { i : int } [@@unboxed]
 let f () = (.i)
 [%%expect{|
 type t = { i : int; } [@@unboxed]
-Line 190, characters 13-14:
-190 | let f () = (.i)
+Line 188, characters 13-14:
+188 | let f () = (.i)
                    ^
 Error: Block indices do not support [@@unboxed] records.
 |}]
@@ -215,8 +213,8 @@ let f c =
   else
     (.s)
 [%%expect{|
-Line 216, characters 6-7:
-216 |     (.s)
+Line 214, characters 6-7:
+214 |     (.s)
             ^
 Error: This block index is expected to have base type "t"
        There is no field "s" within type "t"
@@ -229,8 +227,8 @@ let f c =
   else
     (.a.#s)
 [%%expect{|
-Line 228, characters 9-10:
-228 |     (.a.#t)
+Line 226, characters 9-10:
+226 |     (.a.#t)
                ^
 Error: This unboxed access is expected to have base type "s#"
        There is no unboxed record field "t" within type "s#"
@@ -309,8 +307,8 @@ Error: Immutable arrays of unboxed products are not yet supported.
 
 let bad_index_type = (.("test"))
 [%%expect{|
-Line 310, characters 24-30:
-310 | let bad_index_type = (.("test"))
+Line 308, characters 24-30:
+308 | let bad_index_type = (.("test"))
                               ^^^^^^
 Error: This expression has type "string" but an expression was expected of type
          "int"
@@ -359,10 +357,12 @@ val f : unit -> (r, string) idx_imm = <fun>
 type hold_r = { s: string; r : r# }
 let bad_idx () = (.r)
 [%%expect{|
-Line 1, characters 31-33:
-1 | type hold_r = { s: string; r : r# }
-                                   ^^
-Error: The type "r" has no unboxed version.
+type hold_r = { s : string; r : r#; }
+Line 2, characters 17-21:
+2 | let bad_idx () = (.r)
+                     ^^^^
+Error: Block indices into records that contain both values and non-values,
+       and occupy over 2^16 bytes, cannot be created.
 |}]
 
 (*************************************************************)
@@ -385,11 +385,11 @@ type r = { ii : #( int * int64#) ; i : int }
 let bad_idx () = (.(0).#ii)
 [%%expect{|
 type r = { ii : #(int * int64#); i : int; }
-Line 385, characters 24-26:
-385 | let bad_idx () = (.(0).#ii)
-                              ^^
-Error: Unbound unboxed record field "ii"
-Hint: There is a boxed record field with this name.
+Line 2, characters 17-27:
+2 | let bad_idx () = (.(0).#ii)
+                     ^^^^^^^^^^
+Error: Block indices into arrays whose element layout contains a
+       non-value before a value are not yet supported.
 |}]
 
 (* Note that this does work, though, as no reordering is needed *)
