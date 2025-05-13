@@ -639,7 +639,7 @@ let simplify_switch0 dacc switch ~down_to_up =
             DE.cost_of_lifting_continuations_out_of_current_one denv
           in
           let is_lifting_allowed_by_budget =
-            lifting_budget >= 0 && lifting_cost <= lifting_budget
+            lifting_budget > 0 && lifting_cost <= lifting_budget
           in
           (* very basic specialization budget *)
           let specialization_budget =
@@ -651,7 +651,7 @@ let simplify_switch0 dacc switch ~down_to_up =
                handler *)
           in
           let is_specialization_allowed_by_budget =
-            specialization_budget >= 0
+            specialization_budget > 0
             && specialization_cost <= specialization_budget
           in
           if (not is_lifting_allowed_by_budget)
@@ -663,14 +663,6 @@ let simplify_switch0 dacc switch ~down_to_up =
                any continuation that occurs in a handler that ends with a switch
                (if the bduget for lifting and specialization allows it), and we
                specialize the continuation that ends with the switch. *)
-            if match Sys.getenv_opt "FOO" with Some _ -> true | _ -> false
-            then
-              Format.eprintf "/// SPEC %a : %d ( %d )@." Continuation.print
-                continuation specialization_cost specialization_budget;
-            if debug ()
-            then
-              Format.eprintf "/// SPEC %a ///@\nswitch: %a@." Continuation.print
-                continuation Switch.print switch;
             let dacc =
               DA.decrease_continuation_lifting_budget dacc lifting_cost
             in
@@ -678,10 +670,6 @@ let simplify_switch0 dacc switch ~down_to_up =
               DA.decrease_continuation_specialization_budget dacc
                 specialization_cost
             in
-            if match Sys.getenv_opt "FOO" with Some _ -> true | _ -> false
-            then
-              Format.eprintf "after budget: %d@."
-                (DA.get_continuation_specialization_budget dacc);
             let dacc =
               DA.with_are_lifting_conts dacc
                 (Are_lifting_conts.lift_continuations_out_of continuation)

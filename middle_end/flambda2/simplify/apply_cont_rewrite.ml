@@ -46,7 +46,7 @@ let print_params_used ppf (params, usage) =
 
 let [@ocamlformat "disable"] print ppf
   { original_params_usage; extra_params_usage; extra_args;
-    original_params; extra_params; } =
+    original_params; extra_params } =
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>(original_params@ (%a))@]@ \
       @[<hov 1>(extra_params@ %a)@]@ \

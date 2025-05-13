@@ -323,13 +323,9 @@ let reset_continuation_specialization_budget t =
 let decrease_continuation_specialization_budget t cost =
   if t.continuation_specialization_budget < 0
   then (
-    if match Sys.getenv_opt "FOO" with Some _ -> true | _ -> false
-    then Format.eprintf "negative budget@.";
     t)
   else
     let budget = max 0 (t.continuation_specialization_budget - cost) in
-    if match Sys.getenv_opt "FOO" with Some _ -> true | _ -> false
-    then Format.eprintf "new budget: %d@." budget;
     with_continuation_specialization_budget t budget
 
 let prepare_for_speculative_inlining dacc =

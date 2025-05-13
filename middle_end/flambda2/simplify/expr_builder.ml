@@ -682,8 +682,6 @@ let no_rewrite_apply_cont apply_cont = Apply_cont apply_cont
 let rewrite_apply_cont0 uacc rewrite ~ctx id apply_cont :
     rewrite_apply_cont_result =
   let args = Apply_cont.args apply_cont in
-  if Flambda_features.debug_flambda2 ()
-  then Format.eprintf "@\nREWRITE: %a@\n@." Apply_cont.print apply_cont;
   match Apply_cont_rewrite.make_rewrite rewrite ~ctx id args with
   | Invalid -> Invalid { message = "" }
   | Ok (extra_lets, args) -> (
