@@ -1268,6 +1268,13 @@ Error: The kind of type "existential_abstract" is value
          because of the annotation on the declaration of the type existential_abstract.
 |}]
 
+type test_printing = (type : value) * (type : value) * (x:(type : value) -> int) -> (type : value)
+[%%expect{|
+type test_printing =
+    (type : value) * (type : value) * (x:(type : value) -> int) -> (type :
+    value)
+|}]
+
 (* not yet supported *)
 module _ : sig
   type 'a gel : kind_of_ 'a mod global

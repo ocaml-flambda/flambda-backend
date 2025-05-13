@@ -242,6 +242,7 @@ and type_desc =
       These types are uninhabited, and any appearing in translation will cause an error.
       They are only used to represent the kinds of existentially-quantified types
       mentioned in with-bounds. *)
+      (* CR reisenberg: add link to test once one exists *)
 
 (** This is used in the Typedtree. It is distinct from
     {{!Asttypes.arg_label}[arg_label]} because Position argument labels are
