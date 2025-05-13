@@ -118,6 +118,8 @@ let sizes = [ 0; 1; 2; 30 ]
 
 let indices_in_deepening_tests = [0; 100_000]
 
+type packed = P : 'a -> packed
+let ref_to_force_heap_allocation : packed ref = ref (P 0)
 
 type t0 = { mutable a0 : int }
 type t1 = { mutable a1 : int; mutable b1 : int }
@@ -260,6 +262,7 @@ let () =
   (*   t0 = { int }   *)
   (********************)
   let r = { a0 = 0 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a0 *)
@@ -274,6 +277,8 @@ let () =
   let eq = (fun { a0 = a01 } { a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) in
   let next_r = { a0 = 100 } in
   let r_expected = { a0 = 0 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a0 *)
   r.a0 <- next_r.a0;
   let r_expected = { r_expected with a0 = next_r.a0 } in
@@ -299,6 +304,7 @@ let () =
   (*   t1 = { int; int }   *)
   (*************************)
   let r = { a1 = 0; b1 = 1 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a1 *)
@@ -320,6 +326,8 @@ let () =
   let eq = (fun { a1 = a11; b1 = b11 } { a1 = a12; b1 = b12 } -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) in
   let next_r = { a1 = 100; b1 = 101 } in
   let r_expected = { a1 = 0; b1 = 1 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a1 *)
   r.a1 <- next_r.a1;
   let r_expected = { r_expected with a1 = next_r.a1 } in
@@ -360,6 +368,7 @@ let () =
   (*   t2 = { int; int; int }   *)
   (******************************)
   let r = { a2 = 0; b2 = 1; c2 = 2 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a2 *)
@@ -388,6 +397,8 @@ let () =
   let eq = (fun { a2 = a21; b2 = b21; c2 = c21 } { a2 = a22; b2 = b22; c2 = c22 } -> (fun a b -> Int.equal a b) a21 a22 && (fun a b -> Int.equal a b) b21 b22 && (fun a b -> Int.equal a b) c21 c22) in
   let next_r = { a2 = 100; b2 = 101; c2 = 102 } in
   let r_expected = { a2 = 0; b2 = 1; c2 = 2 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a2 *)
   r.a2 <- next_r.a2;
   let r_expected = { r_expected with a2 = next_r.a2 } in
@@ -443,6 +454,7 @@ let () =
   (*   t3 = { int; int; int32# }   *)
   (*********************************)
   let r = { a3 = 0; b3 = 1; c3 = #2l } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a3 *)
@@ -471,6 +483,8 @@ let () =
   let eq = (fun { a3 = a31; b3 = b31; c3 = c31 } { a3 = a32; b3 = b32; c3 = c32 } -> (fun a b -> Int.equal a b) a31 a32 && (fun a b -> Int.equal a b) b31 b32 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c31 c32) in
   let next_r = { a3 = 100; b3 = 101; c3 = #102l } in
   let r_expected = { a3 = 0; b3 = 1; c3 = #2l } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a3 *)
   r.a3 <- next_r.a3;
   let r_expected = { r_expected with a3 = next_r.a3 } in
@@ -526,6 +540,7 @@ let () =
   (*   t4 = { int; int; float }   *)
   (********************************)
   let r = { a4 = 0; b4 = 1; c4 = 2. } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a4 *)
@@ -554,6 +569,8 @@ let () =
   let eq = (fun { a4 = a41; b4 = b41; c4 = c41 } { a4 = a42; b4 = b42; c4 = c42 } -> (fun a b -> Int.equal a b) a41 a42 && (fun a b -> Int.equal a b) b41 b42 && (fun a b -> Float.equal (globalize a) (globalize b)) c41 c42) in
   let next_r = { a4 = 100; b4 = 101; c4 = 102. } in
   let r_expected = { a4 = 0; b4 = 1; c4 = 2. } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a4 *)
   r.a4 <- next_r.a4;
   let r_expected = { r_expected with a4 = next_r.a4 } in
@@ -609,6 +626,7 @@ let () =
   (*   t5 = { int; int64 }   *)
   (***************************)
   let r = { a5 = 0; b5 = 1L } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a5 *)
@@ -630,6 +648,8 @@ let () =
   let eq = (fun { a5 = a51; b5 = b51 } { a5 = a52; b5 = b52 } -> (fun a b -> Int.equal a b) a51 a52 && (fun a b -> Int64.equal (globalize a) (globalize b)) b51 b52) in
   let next_r = { a5 = 100; b5 = 101L } in
   let r_expected = { a5 = 0; b5 = 1L } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a5 *)
   r.a5 <- next_r.a5;
   let r_expected = { r_expected with a5 = next_r.a5 } in
@@ -670,6 +690,7 @@ let () =
   (*   t6 = { int; int64# }   *)
   (****************************)
   let r = { a6 = 0; b6 = #1L } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a6 *)
@@ -691,6 +712,8 @@ let () =
   let eq = (fun { a6 = a61; b6 = b61 } { a6 = a62; b6 = b62 } -> (fun a b -> Int.equal a b) a61 a62 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b61 b62) in
   let next_r = { a6 = 100; b6 = #101L } in
   let r_expected = { a6 = 0; b6 = #1L } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a6 *)
   r.a6 <- next_r.a6;
   let r_expected = { r_expected with a6 = next_r.a6 } in
@@ -731,6 +754,7 @@ let () =
   (*   t7 = { int; int32# }   *)
   (****************************)
   let r = { a7 = 0; b7 = #1l } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a7 *)
@@ -752,6 +776,8 @@ let () =
   let eq = (fun { a7 = a71; b7 = b71 } { a7 = a72; b7 = b72 } -> (fun a b -> Int.equal a b) a71 a72 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b71 b72) in
   let next_r = { a7 = 100; b7 = #101l } in
   let r_expected = { a7 = 0; b7 = #1l } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a7 *)
   r.a7 <- next_r.a7;
   let r_expected = { r_expected with a7 = next_r.a7 } in
@@ -792,6 +818,7 @@ let () =
   (*   t8 = { int; int32#; int }   *)
   (*********************************)
   let r = { a8 = 0; b8 = #1l; c8 = 2 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a8 *)
@@ -820,6 +847,8 @@ let () =
   let eq = (fun { a8 = a81; b8 = b81; c8 = c81 } { a8 = a82; b8 = b82; c8 = c82 } -> (fun a b -> Int.equal a b) a81 a82 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b81 b82 && (fun a b -> Int.equal a b) c81 c82) in
   let next_r = { a8 = 100; b8 = #101l; c8 = 102 } in
   let r_expected = { a8 = 0; b8 = #1l; c8 = 2 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a8 *)
   r.a8 <- next_r.a8;
   let r_expected = { r_expected with a8 = next_r.a8 } in
@@ -875,6 +904,7 @@ let () =
   (*   t9 = { int; int32#; int32# }   *)
   (************************************)
   let r = { a9 = 0; b9 = #1l; c9 = #2l } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a9 *)
@@ -903,6 +933,8 @@ let () =
   let eq = (fun { a9 = a91; b9 = b91; c9 = c91 } { a9 = a92; b9 = b92; c9 = c92 } -> (fun a b -> Int.equal a b) a91 a92 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b91 b92 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c91 c92) in
   let next_r = { a9 = 100; b9 = #101l; c9 = #102l } in
   let r_expected = { a9 = 0; b9 = #1l; c9 = #2l } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a9 *)
   r.a9 <- next_r.a9;
   let r_expected = { r_expected with a9 = next_r.a9 } in
@@ -958,6 +990,7 @@ let () =
   (*   t10 = { int; nativeint# }   *)
   (*********************************)
   let r = { a10 = 0; b10 = #1n } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a10 *)
@@ -979,6 +1012,8 @@ let () =
   let eq = (fun { a10 = a101; b10 = b101 } { a10 = a102; b10 = b102 } -> (fun a b -> Int.equal a b) a101 a102 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b101 b102) in
   let next_r = { a10 = 100; b10 = #101n } in
   let r_expected = { a10 = 0; b10 = #1n } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a10 *)
   r.a10 <- next_r.a10;
   let r_expected = { r_expected with a10 = next_r.a10 } in
@@ -1019,6 +1054,7 @@ let () =
   (*   t11 = { int; float }   *)
   (****************************)
   let r = { a11 = 0; b11 = 1. } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a11 *)
@@ -1040,6 +1076,8 @@ let () =
   let eq = (fun { a11 = a111; b11 = b111 } { a11 = a112; b11 = b112 } -> (fun a b -> Int.equal a b) a111 a112 && (fun a b -> Float.equal (globalize a) (globalize b)) b111 b112) in
   let next_r = { a11 = 100; b11 = 101. } in
   let r_expected = { a11 = 0; b11 = 1. } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a11 *)
   r.a11 <- next_r.a11;
   let r_expected = { r_expected with a11 = next_r.a11 } in
@@ -1080,6 +1118,7 @@ let () =
   (*   t12 = { int; float; int }   *)
   (*********************************)
   let r = { a12 = 0; b12 = 1.; c12 = 2 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a12 *)
@@ -1108,6 +1147,8 @@ let () =
   let eq = (fun { a12 = a121; b12 = b121; c12 = c121 } { a12 = a122; b12 = b122; c12 = c122 } -> (fun a b -> Int.equal a b) a121 a122 && (fun a b -> Float.equal (globalize a) (globalize b)) b121 b122 && (fun a b -> Int.equal a b) c121 c122) in
   let next_r = { a12 = 100; b12 = 101.; c12 = 102 } in
   let r_expected = { a12 = 0; b12 = 1.; c12 = 2 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a12 *)
   r.a12 <- next_r.a12;
   let r_expected = { r_expected with a12 = next_r.a12 } in
@@ -1163,6 +1204,7 @@ let () =
   (*   t13 = { int; float; float }   *)
   (***********************************)
   let r = { a13 = 0; b13 = 1.; c13 = 2. } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a13 *)
@@ -1191,6 +1233,8 @@ let () =
   let eq = (fun { a13 = a131; b13 = b131; c13 = c131 } { a13 = a132; b13 = b132; c13 = c132 } -> (fun a b -> Int.equal a b) a131 a132 && (fun a b -> Float.equal (globalize a) (globalize b)) b131 b132 && (fun a b -> Float.equal (globalize a) (globalize b)) c131 c132) in
   let next_r = { a13 = 100; b13 = 101.; c13 = 102. } in
   let r_expected = { a13 = 0; b13 = 1.; c13 = 2. } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a13 *)
   r.a13 <- next_r.a13;
   let r_expected = { r_expected with a13 = next_r.a13 } in
@@ -1246,6 +1290,7 @@ let () =
   (*   t15 = { int; #{ int } }   *)
   (*******************************)
   let r = { a15 = 0; b15 = #{ a14 = 1 } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a15 *)
@@ -1274,6 +1319,8 @@ let () =
   let eq = (fun { a15 = a151; b15 = b151 } { a15 = a152; b15 = b152 } -> (fun a b -> Int.equal a b) a151 a152 && (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) b151 b152) in
   let next_r = { a15 = 100; b15 = #{ a14 = 101 } } in
   let r_expected = { a15 = 0; b15 = #{ a14 = 1 } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a15 *)
   r.a15 <- next_r.a15;
   let r_expected = { r_expected with a15 = next_r.a15 } in
@@ -1314,6 +1361,7 @@ let () =
   (*   t17 = { int; #{ int; int } }   *)
   (************************************)
   let r = { a17 = 0; b17 = #{ a16 = 1; b16 = 2 } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a17 *)
@@ -1348,6 +1396,8 @@ let () =
   let eq = (fun { a17 = a171; b17 = b171 } { a17 = a172; b17 = b172 } -> (fun a b -> Int.equal a b) a171 a172 && (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) b171 b172) in
   let next_r = { a17 = 100; b17 = #{ a16 = 101; b16 = 102 } } in
   let r_expected = { a17 = 0; b17 = #{ a16 = 1; b16 = 2 } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a17 *)
   r.a17 <- next_r.a17;
   let r_expected = { r_expected with a17 = next_r.a17 } in
@@ -1392,6 +1442,7 @@ let () =
   (*   t19 = { int; #{ int; int32# } }   *)
   (***************************************)
   let r = { a19 = 0; b19 = #{ a18 = 1; b18 = #2l } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a19 *)
@@ -1426,6 +1477,8 @@ let () =
   let eq = (fun { a19 = a191; b19 = b191 } { a19 = a192; b19 = b192 } -> (fun a b -> Int.equal a b) a191 a192 && (fun #{ a18 = a181; b18 = b181 } #{ a18 = a182; b18 = b182 } -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) b191 b192) in
   let next_r = { a19 = 100; b19 = #{ a18 = 101; b18 = #102l } } in
   let r_expected = { a19 = 0; b19 = #{ a18 = 1; b18 = #2l } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a19 *)
   r.a19 <- next_r.a19;
   let r_expected = { r_expected with a19 = next_r.a19 } in
@@ -1470,6 +1523,7 @@ let () =
   (*   t21 = { int; #{ int; float } }   *)
   (**************************************)
   let r = { a21 = 0; b21 = #{ a20 = 1; b20 = 2. } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a21 *)
@@ -1504,6 +1558,8 @@ let () =
   let eq = (fun { a21 = a211; b21 = b211 } { a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) b211 b212) in
   let next_r = { a21 = 100; b21 = #{ a20 = 101; b20 = 102. } } in
   let r_expected = { a21 = 0; b21 = #{ a20 = 1; b20 = 2. } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a21 *)
   r.a21 <- next_r.a21;
   let r_expected = { r_expected with a21 = next_r.a21 } in
@@ -1548,6 +1604,7 @@ let () =
   (*   t23 = { int; #{ int32# } }   *)
   (**********************************)
   let r = { a23 = 0; b23 = #{ a22 = #1l } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a23 *)
@@ -1576,6 +1633,8 @@ let () =
   let eq = (fun { a23 = a231; b23 = b231 } { a23 = a232; b23 = b232 } -> (fun a b -> Int.equal a b) a231 a232 && (fun #{ a22 = a221 } #{ a22 = a222 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) b231 b232) in
   let next_r = { a23 = 100; b23 = #{ a22 = #101l } } in
   let r_expected = { a23 = 0; b23 = #{ a22 = #1l } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a23 *)
   r.a23 <- next_r.a23;
   let r_expected = { r_expected with a23 = next_r.a23 } in
@@ -1616,6 +1675,7 @@ let () =
   (*   t25 = { int; #{ int32#; int } }   *)
   (***************************************)
   let r = { a25 = 0; b25 = #{ a24 = #1l; b24 = 2 } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a25 *)
@@ -1650,6 +1710,8 @@ let () =
   let eq = (fun { a25 = a251; b25 = b251 } { a25 = a252; b25 = b252 } -> (fun a b -> Int.equal a b) a251 a252 && (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) b251 b252) in
   let next_r = { a25 = 100; b25 = #{ a24 = #101l; b24 = 102 } } in
   let r_expected = { a25 = 0; b25 = #{ a24 = #1l; b24 = 2 } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a25 *)
   r.a25 <- next_r.a25;
   let r_expected = { r_expected with a25 = next_r.a25 } in
@@ -1694,6 +1756,7 @@ let () =
   (*   t27 = { int; #{ int32#; int32# } }   *)
   (******************************************)
   let r = { a27 = 0; b27 = #{ a26 = #1l; b26 = #2l } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a27 *)
@@ -1728,6 +1791,8 @@ let () =
   let eq = (fun { a27 = a271; b27 = b271 } { a27 = a272; b27 = b272 } -> (fun a b -> Int.equal a b) a271 a272 && (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) b271 b272) in
   let next_r = { a27 = 100; b27 = #{ a26 = #101l; b26 = #102l } } in
   let r_expected = { a27 = 0; b27 = #{ a26 = #1l; b26 = #2l } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a27 *)
   r.a27 <- next_r.a27;
   let r_expected = { r_expected with a27 = next_r.a27 } in
@@ -1772,6 +1837,7 @@ let () =
   (*   t29 = { int; #{ float } }   *)
   (*********************************)
   let r = { a29 = 0; b29 = #{ a28 = 1. } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a29 *)
@@ -1800,6 +1866,8 @@ let () =
   let eq = (fun { a29 = a291; b29 = b291 } { a29 = a292; b29 = b292 } -> (fun a b -> Int.equal a b) a291 a292 && (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) b291 b292) in
   let next_r = { a29 = 100; b29 = #{ a28 = 101. } } in
   let r_expected = { a29 = 0; b29 = #{ a28 = 1. } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a29 *)
   r.a29 <- next_r.a29;
   let r_expected = { r_expected with a29 = next_r.a29 } in
@@ -1840,6 +1908,7 @@ let () =
   (*   t31 = { int; #{ float; int } }   *)
   (**************************************)
   let r = { a31 = 0; b31 = #{ a30 = 1.; b30 = 2 } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a31 *)
@@ -1874,6 +1943,8 @@ let () =
   let eq = (fun { a31 = a311; b31 = b311 } { a31 = a312; b31 = b312 } -> (fun a b -> Int.equal a b) a311 a312 && (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) b311 b312) in
   let next_r = { a31 = 100; b31 = #{ a30 = 101.; b30 = 102 } } in
   let r_expected = { a31 = 0; b31 = #{ a30 = 1.; b30 = 2 } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a31 *)
   r.a31 <- next_r.a31;
   let r_expected = { r_expected with a31 = next_r.a31 } in
@@ -1918,6 +1989,7 @@ let () =
   (*   t33 = { int; #{ float; float } }   *)
   (****************************************)
   let r = { a33 = 0; b33 = #{ a32 = 1.; b32 = 2. } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a33 *)
@@ -1952,6 +2024,8 @@ let () =
   let eq = (fun { a33 = a331; b33 = b331 } { a33 = a332; b33 = b332 } -> (fun a b -> Int.equal a b) a331 a332 && (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) b331 b332) in
   let next_r = { a33 = 100; b33 = #{ a32 = 101.; b32 = 102. } } in
   let r_expected = { a33 = 0; b33 = #{ a32 = 1.; b32 = 2. } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a33 *)
   r.a33 <- next_r.a33;
   let r_expected = { r_expected with a33 = next_r.a33 } in
@@ -1996,6 +2070,7 @@ let () =
   (*   t34 = { int64 }   *)
   (***********************)
   let r = { a34 = 0L } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a34 *)
@@ -2010,6 +2085,8 @@ let () =
   let eq = (fun { a34 = a341 } { a34 = a342 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a341 a342) in
   let next_r = { a34 = 100L } in
   let r_expected = { a34 = 0L } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a34 *)
   r.a34 <- next_r.a34;
   let r_expected = { r_expected with a34 = next_r.a34 } in
@@ -2035,6 +2112,7 @@ let () =
   (*   t35 = { int64; int }   *)
   (****************************)
   let r = { a35 = 0L; b35 = 1 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a35 *)
@@ -2056,6 +2134,8 @@ let () =
   let eq = (fun { a35 = a351; b35 = b351 } { a35 = a352; b35 = b352 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a351 a352 && (fun a b -> Int.equal a b) b351 b352) in
   let next_r = { a35 = 100L; b35 = 101 } in
   let r_expected = { a35 = 0L; b35 = 1 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a35 *)
   r.a35 <- next_r.a35;
   let r_expected = { r_expected with a35 = next_r.a35 } in
@@ -2096,6 +2176,7 @@ let () =
   (*   t36 = { int64; int64 }   *)
   (******************************)
   let r = { a36 = 0L; b36 = 1L } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a36 *)
@@ -2117,6 +2198,8 @@ let () =
   let eq = (fun { a36 = a361; b36 = b361 } { a36 = a362; b36 = b362 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int64.equal (globalize a) (globalize b)) b361 b362) in
   let next_r = { a36 = 100L; b36 = 101L } in
   let r_expected = { a36 = 0L; b36 = 1L } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a36 *)
   r.a36 <- next_r.a36;
   let r_expected = { r_expected with a36 = next_r.a36 } in
@@ -2157,6 +2240,7 @@ let () =
   (*   t37 = { int64; int64# }   *)
   (*******************************)
   let r = { a37 = 0L; b37 = #1L } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a37 *)
@@ -2178,6 +2262,8 @@ let () =
   let eq = (fun { a37 = a371; b37 = b371 } { a37 = a372; b37 = b372 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a371 a372 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b371 b372) in
   let next_r = { a37 = 100L; b37 = #101L } in
   let r_expected = { a37 = 0L; b37 = #1L } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a37 *)
   r.a37 <- next_r.a37;
   let r_expected = { r_expected with a37 = next_r.a37 } in
@@ -2218,6 +2304,7 @@ let () =
   (*   t38 = { int64; int32# }   *)
   (*******************************)
   let r = { a38 = 0L; b38 = #1l } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a38 *)
@@ -2239,6 +2326,8 @@ let () =
   let eq = (fun { a38 = a381; b38 = b381 } { a38 = a382; b38 = b382 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b381 b382) in
   let next_r = { a38 = 100L; b38 = #101l } in
   let r_expected = { a38 = 0L; b38 = #1l } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a38 *)
   r.a38 <- next_r.a38;
   let r_expected = { r_expected with a38 = next_r.a38 } in
@@ -2279,6 +2368,7 @@ let () =
   (*   t39 = { int64; nativeint# }   *)
   (***********************************)
   let r = { a39 = 0L; b39 = #1n } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a39 *)
@@ -2300,6 +2390,8 @@ let () =
   let eq = (fun { a39 = a391; b39 = b391 } { a39 = a392; b39 = b392 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b391 b392) in
   let next_r = { a39 = 100L; b39 = #101n } in
   let r_expected = { a39 = 0L; b39 = #1n } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a39 *)
   r.a39 <- next_r.a39;
   let r_expected = { r_expected with a39 = next_r.a39 } in
@@ -2340,6 +2432,7 @@ let () =
   (*   t40 = { int64; float }   *)
   (******************************)
   let r = { a40 = 0L; b40 = 1. } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a40 *)
@@ -2361,6 +2454,8 @@ let () =
   let eq = (fun { a40 = a401; b40 = b401 } { a40 = a402; b40 = b402 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a401 a402 && (fun a b -> Float.equal (globalize a) (globalize b)) b401 b402) in
   let next_r = { a40 = 100L; b40 = 101. } in
   let r_expected = { a40 = 0L; b40 = 1. } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a40 *)
   r.a40 <- next_r.a40;
   let r_expected = { r_expected with a40 = next_r.a40 } in
@@ -2401,6 +2496,7 @@ let () =
   (*   t41 = { int64# }   *)
   (************************)
   let r = { a41 = #0L } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a41 *)
@@ -2415,6 +2511,8 @@ let () =
   let eq = (fun { a41 = a411 } { a41 = a412 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a411 a412) in
   let next_r = { a41 = #100L } in
   let r_expected = { a41 = #0L } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a41 *)
   r.a41 <- next_r.a41;
   let r_expected = { r_expected with a41 = next_r.a41 } in
@@ -2440,6 +2538,7 @@ let () =
   (*   t42 = { int64#; int }   *)
   (*****************************)
   let r = { a42 = #0L; b42 = 1 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a42 *)
@@ -2461,6 +2560,8 @@ let () =
   let eq = (fun { a42 = a421; b42 = b421 } { a42 = a422; b42 = b422 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a421 a422 && (fun a b -> Int.equal a b) b421 b422) in
   let next_r = { a42 = #100L; b42 = 101 } in
   let r_expected = { a42 = #0L; b42 = 1 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a42 *)
   r.a42 <- next_r.a42;
   let r_expected = { r_expected with a42 = next_r.a42 } in
@@ -2501,6 +2602,7 @@ let () =
   (*   t43 = { int64#; int64 }   *)
   (*******************************)
   let r = { a43 = #0L; b43 = 1L } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a43 *)
@@ -2522,6 +2624,8 @@ let () =
   let eq = (fun { a43 = a431; b43 = b431 } { a43 = a432; b43 = b432 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a431 a432 && (fun a b -> Int64.equal (globalize a) (globalize b)) b431 b432) in
   let next_r = { a43 = #100L; b43 = 101L } in
   let r_expected = { a43 = #0L; b43 = 1L } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a43 *)
   r.a43 <- next_r.a43;
   let r_expected = { r_expected with a43 = next_r.a43 } in
@@ -2562,6 +2666,7 @@ let () =
   (*   t44 = { int64#; int64# }   *)
   (********************************)
   let r = { a44 = #0L; b44 = #1L } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a44 *)
@@ -2583,6 +2688,8 @@ let () =
   let eq = (fun { a44 = a441; b44 = b441 } { a44 = a442; b44 = b442 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a441 a442 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b441 b442) in
   let next_r = { a44 = #100L; b44 = #101L } in
   let r_expected = { a44 = #0L; b44 = #1L } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a44 *)
   r.a44 <- next_r.a44;
   let r_expected = { r_expected with a44 = next_r.a44 } in
@@ -2623,6 +2730,7 @@ let () =
   (*   t45 = { int64#; int32# }   *)
   (********************************)
   let r = { a45 = #0L; b45 = #1l } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a45 *)
@@ -2644,6 +2752,8 @@ let () =
   let eq = (fun { a45 = a451; b45 = b451 } { a45 = a452; b45 = b452 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a451 a452 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b451 b452) in
   let next_r = { a45 = #100L; b45 = #101l } in
   let r_expected = { a45 = #0L; b45 = #1l } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a45 *)
   r.a45 <- next_r.a45;
   let r_expected = { r_expected with a45 = next_r.a45 } in
@@ -2684,6 +2794,7 @@ let () =
   (*   t46 = { int64#; nativeint# }   *)
   (************************************)
   let r = { a46 = #0L; b46 = #1n } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a46 *)
@@ -2705,6 +2816,8 @@ let () =
   let eq = (fun { a46 = a461; b46 = b461 } { a46 = a462; b46 = b462 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a461 a462 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b461 b462) in
   let next_r = { a46 = #100L; b46 = #101n } in
   let r_expected = { a46 = #0L; b46 = #1n } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a46 *)
   r.a46 <- next_r.a46;
   let r_expected = { r_expected with a46 = next_r.a46 } in
@@ -2745,6 +2858,7 @@ let () =
   (*   t47 = { int64#; float }   *)
   (*******************************)
   let r = { a47 = #0L; b47 = 1. } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a47 *)
@@ -2766,6 +2880,8 @@ let () =
   let eq = (fun { a47 = a471; b47 = b471 } { a47 = a472; b47 = b472 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a471 a472 && (fun a b -> Float.equal (globalize a) (globalize b)) b471 b472) in
   let next_r = { a47 = #100L; b47 = 101. } in
   let r_expected = { a47 = #0L; b47 = 1. } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a47 *)
   r.a47 <- next_r.a47;
   let r_expected = { r_expected with a47 = next_r.a47 } in
@@ -2806,6 +2922,7 @@ let () =
   (*   t48 = { int32# }   *)
   (************************)
   let r = { a48 = #0l } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a48 *)
@@ -2820,6 +2937,8 @@ let () =
   let eq = (fun { a48 = a481 } { a48 = a482 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a481 a482) in
   let next_r = { a48 = #100l } in
   let r_expected = { a48 = #0l } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a48 *)
   r.a48 <- next_r.a48;
   let r_expected = { r_expected with a48 = next_r.a48 } in
@@ -2845,6 +2964,7 @@ let () =
   (*   t49 = { int32#; int }   *)
   (*****************************)
   let r = { a49 = #0l; b49 = 1 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a49 *)
@@ -2866,6 +2986,8 @@ let () =
   let eq = (fun { a49 = a491; b49 = b491 } { a49 = a492; b49 = b492 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a491 a492 && (fun a b -> Int.equal a b) b491 b492) in
   let next_r = { a49 = #100l; b49 = 101 } in
   let r_expected = { a49 = #0l; b49 = 1 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a49 *)
   r.a49 <- next_r.a49;
   let r_expected = { r_expected with a49 = next_r.a49 } in
@@ -2906,6 +3028,7 @@ let () =
   (*   t50 = { int32#; int; int }   *)
   (**********************************)
   let r = { a50 = #0l; b50 = 1; c50 = 2 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a50 *)
@@ -2934,6 +3057,8 @@ let () =
   let eq = (fun { a50 = a501; b50 = b501; c50 = c501 } { a50 = a502; b50 = b502; c50 = c502 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a501 a502 && (fun a b -> Int.equal a b) b501 b502 && (fun a b -> Int.equal a b) c501 c502) in
   let next_r = { a50 = #100l; b50 = 101; c50 = 102 } in
   let r_expected = { a50 = #0l; b50 = 1; c50 = 2 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a50 *)
   r.a50 <- next_r.a50;
   let r_expected = { r_expected with a50 = next_r.a50 } in
@@ -2989,6 +3114,7 @@ let () =
   (*   t51 = { int32#; int; int32# }   *)
   (*************************************)
   let r = { a51 = #0l; b51 = 1; c51 = #2l } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a51 *)
@@ -3017,6 +3143,8 @@ let () =
   let eq = (fun { a51 = a511; b51 = b511; c51 = c511 } { a51 = a512; b51 = b512; c51 = c512 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a511 a512 && (fun a b -> Int.equal a b) b511 b512 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c511 c512) in
   let next_r = { a51 = #100l; b51 = 101; c51 = #102l } in
   let r_expected = { a51 = #0l; b51 = 1; c51 = #2l } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a51 *)
   r.a51 <- next_r.a51;
   let r_expected = { r_expected with a51 = next_r.a51 } in
@@ -3072,6 +3200,7 @@ let () =
   (*   t52 = { int32#; int64 }   *)
   (*******************************)
   let r = { a52 = #0l; b52 = 1L } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a52 *)
@@ -3093,6 +3222,8 @@ let () =
   let eq = (fun { a52 = a521; b52 = b521 } { a52 = a522; b52 = b522 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a521 a522 && (fun a b -> Int64.equal (globalize a) (globalize b)) b521 b522) in
   let next_r = { a52 = #100l; b52 = 101L } in
   let r_expected = { a52 = #0l; b52 = 1L } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a52 *)
   r.a52 <- next_r.a52;
   let r_expected = { r_expected with a52 = next_r.a52 } in
@@ -3133,6 +3264,7 @@ let () =
   (*   t53 = { int32#; int64# }   *)
   (********************************)
   let r = { a53 = #0l; b53 = #1L } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a53 *)
@@ -3154,6 +3286,8 @@ let () =
   let eq = (fun { a53 = a531; b53 = b531 } { a53 = a532; b53 = b532 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a531 a532 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b531 b532) in
   let next_r = { a53 = #100l; b53 = #101L } in
   let r_expected = { a53 = #0l; b53 = #1L } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a53 *)
   r.a53 <- next_r.a53;
   let r_expected = { r_expected with a53 = next_r.a53 } in
@@ -3194,6 +3328,7 @@ let () =
   (*   t54 = { int32#; int32# }   *)
   (********************************)
   let r = { a54 = #0l; b54 = #1l } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a54 *)
@@ -3215,6 +3350,8 @@ let () =
   let eq = (fun { a54 = a541; b54 = b541 } { a54 = a542; b54 = b542 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a541 a542 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b541 b542) in
   let next_r = { a54 = #100l; b54 = #101l } in
   let r_expected = { a54 = #0l; b54 = #1l } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a54 *)
   r.a54 <- next_r.a54;
   let r_expected = { r_expected with a54 = next_r.a54 } in
@@ -3255,6 +3392,7 @@ let () =
   (*   t55 = { int32#; int32#; int }   *)
   (*************************************)
   let r = { a55 = #0l; b55 = #1l; c55 = 2 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a55 *)
@@ -3283,6 +3421,8 @@ let () =
   let eq = (fun { a55 = a551; b55 = b551; c55 = c551 } { a55 = a552; b55 = b552; c55 = c552 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a551 a552 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b551 b552 && (fun a b -> Int.equal a b) c551 c552) in
   let next_r = { a55 = #100l; b55 = #101l; c55 = 102 } in
   let r_expected = { a55 = #0l; b55 = #1l; c55 = 2 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a55 *)
   r.a55 <- next_r.a55;
   let r_expected = { r_expected with a55 = next_r.a55 } in
@@ -3338,6 +3478,7 @@ let () =
   (*   t56 = { int32#; int32#; int32# }   *)
   (****************************************)
   let r = { a56 = #0l; b56 = #1l; c56 = #2l } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a56 *)
@@ -3366,6 +3507,8 @@ let () =
   let eq = (fun { a56 = a561; b56 = b561; c56 = c561 } { a56 = a562; b56 = b562; c56 = c562 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a561 a562 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b561 b562 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c561 c562) in
   let next_r = { a56 = #100l; b56 = #101l; c56 = #102l } in
   let r_expected = { a56 = #0l; b56 = #1l; c56 = #2l } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a56 *)
   r.a56 <- next_r.a56;
   let r_expected = { r_expected with a56 = next_r.a56 } in
@@ -3421,6 +3564,7 @@ let () =
   (*   t57 = { int32#; nativeint# }   *)
   (************************************)
   let r = { a57 = #0l; b57 = #1n } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a57 *)
@@ -3442,6 +3586,8 @@ let () =
   let eq = (fun { a57 = a571; b57 = b571 } { a57 = a572; b57 = b572 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a571 a572 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b571 b572) in
   let next_r = { a57 = #100l; b57 = #101n } in
   let r_expected = { a57 = #0l; b57 = #1n } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a57 *)
   r.a57 <- next_r.a57;
   let r_expected = { r_expected with a57 = next_r.a57 } in
@@ -3482,6 +3628,7 @@ let () =
   (*   t58 = { int32#; float }   *)
   (*******************************)
   let r = { a58 = #0l; b58 = 1. } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a58 *)
@@ -3503,6 +3650,8 @@ let () =
   let eq = (fun { a58 = a581; b58 = b581 } { a58 = a582; b58 = b582 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a581 a582 && (fun a b -> Float.equal (globalize a) (globalize b)) b581 b582) in
   let next_r = { a58 = #100l; b58 = 101. } in
   let r_expected = { a58 = #0l; b58 = 1. } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a58 *)
   r.a58 <- next_r.a58;
   let r_expected = { r_expected with a58 = next_r.a58 } in
@@ -3543,6 +3692,7 @@ let () =
   (*   t59 = { int32#; #{ int } }   *)
   (**********************************)
   let r = { a59 = #0l; b59 = #{ a14 = 1 } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a59 *)
@@ -3571,6 +3721,8 @@ let () =
   let eq = (fun { a59 = a591; b59 = b591 } { a59 = a592; b59 = b592 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a591 a592 && (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) b591 b592) in
   let next_r = { a59 = #100l; b59 = #{ a14 = 101 } } in
   let r_expected = { a59 = #0l; b59 = #{ a14 = 1 } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a59 *)
   r.a59 <- next_r.a59;
   let r_expected = { r_expected with a59 = next_r.a59 } in
@@ -3611,6 +3763,7 @@ let () =
   (*   t60 = { int32#; #{ int; int } }   *)
   (***************************************)
   let r = { a60 = #0l; b60 = #{ a16 = 1; b16 = 2 } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a60 *)
@@ -3645,6 +3798,8 @@ let () =
   let eq = (fun { a60 = a601; b60 = b601 } { a60 = a602; b60 = b602 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a601 a602 && (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) b601 b602) in
   let next_r = { a60 = #100l; b60 = #{ a16 = 101; b16 = 102 } } in
   let r_expected = { a60 = #0l; b60 = #{ a16 = 1; b16 = 2 } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a60 *)
   r.a60 <- next_r.a60;
   let r_expected = { r_expected with a60 = next_r.a60 } in
@@ -3689,6 +3844,7 @@ let () =
   (*   t61 = { int32#; #{ int; int32# } }   *)
   (******************************************)
   let r = { a61 = #0l; b61 = #{ a18 = 1; b18 = #2l } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a61 *)
@@ -3723,6 +3879,8 @@ let () =
   let eq = (fun { a61 = a611; b61 = b611 } { a61 = a612; b61 = b612 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a611 a612 && (fun #{ a18 = a181; b18 = b181 } #{ a18 = a182; b18 = b182 } -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) b611 b612) in
   let next_r = { a61 = #100l; b61 = #{ a18 = 101; b18 = #102l } } in
   let r_expected = { a61 = #0l; b61 = #{ a18 = 1; b18 = #2l } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a61 *)
   r.a61 <- next_r.a61;
   let r_expected = { r_expected with a61 = next_r.a61 } in
@@ -3767,6 +3925,7 @@ let () =
   (*   t62 = { int32#; #{ int32# } }   *)
   (*************************************)
   let r = { a62 = #0l; b62 = #{ a22 = #1l } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a62 *)
@@ -3795,6 +3954,8 @@ let () =
   let eq = (fun { a62 = a621; b62 = b621 } { a62 = a622; b62 = b622 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a621 a622 && (fun #{ a22 = a221 } #{ a22 = a222 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) b621 b622) in
   let next_r = { a62 = #100l; b62 = #{ a22 = #101l } } in
   let r_expected = { a62 = #0l; b62 = #{ a22 = #1l } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a62 *)
   r.a62 <- next_r.a62;
   let r_expected = { r_expected with a62 = next_r.a62 } in
@@ -3835,6 +3996,7 @@ let () =
   (*   t63 = { int32#; #{ int32#; int } }   *)
   (******************************************)
   let r = { a63 = #0l; b63 = #{ a24 = #1l; b24 = 2 } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a63 *)
@@ -3869,6 +4031,8 @@ let () =
   let eq = (fun { a63 = a631; b63 = b631 } { a63 = a632; b63 = b632 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a631 a632 && (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) b631 b632) in
   let next_r = { a63 = #100l; b63 = #{ a24 = #101l; b24 = 102 } } in
   let r_expected = { a63 = #0l; b63 = #{ a24 = #1l; b24 = 2 } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a63 *)
   r.a63 <- next_r.a63;
   let r_expected = { r_expected with a63 = next_r.a63 } in
@@ -3913,6 +4077,7 @@ let () =
   (*   t64 = { int32#; #{ int32#; int32# } }   *)
   (*********************************************)
   let r = { a64 = #0l; b64 = #{ a26 = #1l; b26 = #2l } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a64 *)
@@ -3947,6 +4112,8 @@ let () =
   let eq = (fun { a64 = a641; b64 = b641 } { a64 = a642; b64 = b642 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a641 a642 && (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) b641 b642) in
   let next_r = { a64 = #100l; b64 = #{ a26 = #101l; b26 = #102l } } in
   let r_expected = { a64 = #0l; b64 = #{ a26 = #1l; b26 = #2l } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a64 *)
   r.a64 <- next_r.a64;
   let r_expected = { r_expected with a64 = next_r.a64 } in
@@ -3991,6 +4158,7 @@ let () =
   (*   t65 = { nativeint# }   *)
   (****************************)
   let r = { a65 = #0n } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a65 *)
@@ -4005,6 +4173,8 @@ let () =
   let eq = (fun { a65 = a651 } { a65 = a652 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a651 a652) in
   let next_r = { a65 = #100n } in
   let r_expected = { a65 = #0n } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a65 *)
   r.a65 <- next_r.a65;
   let r_expected = { r_expected with a65 = next_r.a65 } in
@@ -4030,6 +4200,7 @@ let () =
   (*   t66 = { nativeint#; int }   *)
   (*********************************)
   let r = { a66 = #0n; b66 = 1 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a66 *)
@@ -4051,6 +4222,8 @@ let () =
   let eq = (fun { a66 = a661; b66 = b661 } { a66 = a662; b66 = b662 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a661 a662 && (fun a b -> Int.equal a b) b661 b662) in
   let next_r = { a66 = #100n; b66 = 101 } in
   let r_expected = { a66 = #0n; b66 = 1 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a66 *)
   r.a66 <- next_r.a66;
   let r_expected = { r_expected with a66 = next_r.a66 } in
@@ -4091,6 +4264,7 @@ let () =
   (*   t67 = { nativeint#; int64 }   *)
   (***********************************)
   let r = { a67 = #0n; b67 = 1L } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a67 *)
@@ -4112,6 +4286,8 @@ let () =
   let eq = (fun { a67 = a671; b67 = b671 } { a67 = a672; b67 = b672 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a671 a672 && (fun a b -> Int64.equal (globalize a) (globalize b)) b671 b672) in
   let next_r = { a67 = #100n; b67 = 101L } in
   let r_expected = { a67 = #0n; b67 = 1L } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a67 *)
   r.a67 <- next_r.a67;
   let r_expected = { r_expected with a67 = next_r.a67 } in
@@ -4152,6 +4328,7 @@ let () =
   (*   t68 = { nativeint#; int64# }   *)
   (************************************)
   let r = { a68 = #0n; b68 = #1L } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a68 *)
@@ -4173,6 +4350,8 @@ let () =
   let eq = (fun { a68 = a681; b68 = b681 } { a68 = a682; b68 = b682 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a681 a682 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b681 b682) in
   let next_r = { a68 = #100n; b68 = #101L } in
   let r_expected = { a68 = #0n; b68 = #1L } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a68 *)
   r.a68 <- next_r.a68;
   let r_expected = { r_expected with a68 = next_r.a68 } in
@@ -4213,6 +4392,7 @@ let () =
   (*   t69 = { nativeint#; int32# }   *)
   (************************************)
   let r = { a69 = #0n; b69 = #1l } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a69 *)
@@ -4234,6 +4414,8 @@ let () =
   let eq = (fun { a69 = a691; b69 = b691 } { a69 = a692; b69 = b692 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a691 a692 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b691 b692) in
   let next_r = { a69 = #100n; b69 = #101l } in
   let r_expected = { a69 = #0n; b69 = #1l } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a69 *)
   r.a69 <- next_r.a69;
   let r_expected = { r_expected with a69 = next_r.a69 } in
@@ -4274,6 +4456,7 @@ let () =
   (*   t70 = { nativeint#; nativeint# }   *)
   (****************************************)
   let r = { a70 = #0n; b70 = #1n } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a70 *)
@@ -4295,6 +4478,8 @@ let () =
   let eq = (fun { a70 = a701; b70 = b701 } { a70 = a702; b70 = b702 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a701 a702 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b701 b702) in
   let next_r = { a70 = #100n; b70 = #101n } in
   let r_expected = { a70 = #0n; b70 = #1n } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a70 *)
   r.a70 <- next_r.a70;
   let r_expected = { r_expected with a70 = next_r.a70 } in
@@ -4335,6 +4520,7 @@ let () =
   (*   t71 = { nativeint#; float }   *)
   (***********************************)
   let r = { a71 = #0n; b71 = 1. } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a71 *)
@@ -4356,6 +4542,8 @@ let () =
   let eq = (fun { a71 = a711; b71 = b711 } { a71 = a712; b71 = b712 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a711 a712 && (fun a b -> Float.equal (globalize a) (globalize b)) b711 b712) in
   let next_r = { a71 = #100n; b71 = 101. } in
   let r_expected = { a71 = #0n; b71 = 1. } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a71 *)
   r.a71 <- next_r.a71;
   let r_expected = { r_expected with a71 = next_r.a71 } in
@@ -4396,6 +4584,7 @@ let () =
   (*   t72 = { float }   *)
   (***********************)
   let r = { a72 = 0. } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a72 *)
@@ -4410,6 +4599,8 @@ let () =
   let eq = (fun { a72 = a721 } { a72 = a722 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a721 a722) in
   let next_r = { a72 = 100. } in
   let r_expected = { a72 = 0. } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a72 *)
   r.a72 <- next_r.a72;
   let r_expected = { r_expected with a72 = next_r.a72 } in
@@ -4435,6 +4626,7 @@ let () =
   (*   t73 = { float; int }   *)
   (****************************)
   let r = { a73 = 0.; b73 = 1 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a73 *)
@@ -4456,6 +4648,8 @@ let () =
   let eq = (fun { a73 = a731; b73 = b731 } { a73 = a732; b73 = b732 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a731 a732 && (fun a b -> Int.equal a b) b731 b732) in
   let next_r = { a73 = 100.; b73 = 101 } in
   let r_expected = { a73 = 0.; b73 = 1 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a73 *)
   r.a73 <- next_r.a73;
   let r_expected = { r_expected with a73 = next_r.a73 } in
@@ -4496,6 +4690,7 @@ let () =
   (*   t74 = { float; int; int }   *)
   (*********************************)
   let r = { a74 = 0.; b74 = 1; c74 = 2 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a74 *)
@@ -4524,6 +4719,8 @@ let () =
   let eq = (fun { a74 = a741; b74 = b741; c74 = c741 } { a74 = a742; b74 = b742; c74 = c742 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a741 a742 && (fun a b -> Int.equal a b) b741 b742 && (fun a b -> Int.equal a b) c741 c742) in
   let next_r = { a74 = 100.; b74 = 101; c74 = 102 } in
   let r_expected = { a74 = 0.; b74 = 1; c74 = 2 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a74 *)
   r.a74 <- next_r.a74;
   let r_expected = { r_expected with a74 = next_r.a74 } in
@@ -4579,6 +4776,7 @@ let () =
   (*   t75 = { float; int; float }   *)
   (***********************************)
   let r = { a75 = 0.; b75 = 1; c75 = 2. } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a75 *)
@@ -4607,6 +4805,8 @@ let () =
   let eq = (fun { a75 = a751; b75 = b751; c75 = c751 } { a75 = a752; b75 = b752; c75 = c752 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a751 a752 && (fun a b -> Int.equal a b) b751 b752 && (fun a b -> Float.equal (globalize a) (globalize b)) c751 c752) in
   let next_r = { a75 = 100.; b75 = 101; c75 = 102. } in
   let r_expected = { a75 = 0.; b75 = 1; c75 = 2. } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a75 *)
   r.a75 <- next_r.a75;
   let r_expected = { r_expected with a75 = next_r.a75 } in
@@ -4662,6 +4862,7 @@ let () =
   (*   t76 = { float; int64 }   *)
   (******************************)
   let r = { a76 = 0.; b76 = 1L } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a76 *)
@@ -4683,6 +4884,8 @@ let () =
   let eq = (fun { a76 = a761; b76 = b761 } { a76 = a762; b76 = b762 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a761 a762 && (fun a b -> Int64.equal (globalize a) (globalize b)) b761 b762) in
   let next_r = { a76 = 100.; b76 = 101L } in
   let r_expected = { a76 = 0.; b76 = 1L } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a76 *)
   r.a76 <- next_r.a76;
   let r_expected = { r_expected with a76 = next_r.a76 } in
@@ -4723,6 +4926,7 @@ let () =
   (*   t77 = { float; int64# }   *)
   (*******************************)
   let r = { a77 = 0.; b77 = #1L } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a77 *)
@@ -4744,6 +4948,8 @@ let () =
   let eq = (fun { a77 = a771; b77 = b771 } { a77 = a772; b77 = b772 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a771 a772 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b771 b772) in
   let next_r = { a77 = 100.; b77 = #101L } in
   let r_expected = { a77 = 0.; b77 = #1L } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a77 *)
   r.a77 <- next_r.a77;
   let r_expected = { r_expected with a77 = next_r.a77 } in
@@ -4784,6 +4990,7 @@ let () =
   (*   t78 = { float; int32# }   *)
   (*******************************)
   let r = { a78 = 0.; b78 = #1l } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a78 *)
@@ -4805,6 +5012,8 @@ let () =
   let eq = (fun { a78 = a781; b78 = b781 } { a78 = a782; b78 = b782 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a781 a782 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b781 b782) in
   let next_r = { a78 = 100.; b78 = #101l } in
   let r_expected = { a78 = 0.; b78 = #1l } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a78 *)
   r.a78 <- next_r.a78;
   let r_expected = { r_expected with a78 = next_r.a78 } in
@@ -4845,6 +5054,7 @@ let () =
   (*   t79 = { float; nativeint# }   *)
   (***********************************)
   let r = { a79 = 0.; b79 = #1n } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a79 *)
@@ -4866,6 +5076,8 @@ let () =
   let eq = (fun { a79 = a791; b79 = b791 } { a79 = a792; b79 = b792 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a791 a792 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b791 b792) in
   let next_r = { a79 = 100.; b79 = #101n } in
   let r_expected = { a79 = 0.; b79 = #1n } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a79 *)
   r.a79 <- next_r.a79;
   let r_expected = { r_expected with a79 = next_r.a79 } in
@@ -4906,6 +5118,7 @@ let () =
   (*   t80 = { float; float }   *)
   (******************************)
   let r = { a80 = 0.; b80 = 1. } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a80 *)
@@ -4927,6 +5140,8 @@ let () =
   let eq = (fun { a80 = a801; b80 = b801 } { a80 = a802; b80 = b802 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a801 a802 && (fun a b -> Float.equal (globalize a) (globalize b)) b801 b802) in
   let next_r = { a80 = 100.; b80 = 101. } in
   let r_expected = { a80 = 0.; b80 = 1. } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a80 *)
   r.a80 <- next_r.a80;
   let r_expected = { r_expected with a80 = next_r.a80 } in
@@ -4967,6 +5182,7 @@ let () =
   (*   t81 = { float; float; int }   *)
   (***********************************)
   let r = { a81 = 0.; b81 = 1.; c81 = 2 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a81 *)
@@ -4995,6 +5211,8 @@ let () =
   let eq = (fun { a81 = a811; b81 = b811; c81 = c811 } { a81 = a812; b81 = b812; c81 = c812 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a811 a812 && (fun a b -> Float.equal (globalize a) (globalize b)) b811 b812 && (fun a b -> Int.equal a b) c811 c812) in
   let next_r = { a81 = 100.; b81 = 101.; c81 = 102 } in
   let r_expected = { a81 = 0.; b81 = 1.; c81 = 2 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a81 *)
   r.a81 <- next_r.a81;
   let r_expected = { r_expected with a81 = next_r.a81 } in
@@ -5050,6 +5268,7 @@ let () =
   (*   t82 = { float; float; float }   *)
   (*************************************)
   let r = { a82 = 0.; b82 = 1.; c82 = 2. } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a82 *)
@@ -5078,6 +5297,8 @@ let () =
   let eq = (fun { a82 = a821; b82 = b821; c82 = c821 } { a82 = a822; b82 = b822; c82 = c822 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a821 a822 && (fun a b -> Float.equal (globalize a) (globalize b)) b821 b822 && (fun a b -> Float.equal (globalize a) (globalize b)) c821 c822) in
   let next_r = { a82 = 100.; b82 = 101.; c82 = 102. } in
   let r_expected = { a82 = 0.; b82 = 1.; c82 = 2. } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a82 *)
   r.a82 <- next_r.a82;
   let r_expected = { r_expected with a82 = next_r.a82 } in
@@ -5133,6 +5354,7 @@ let () =
   (*   t83 = { float; #{ int } }   *)
   (*********************************)
   let r = { a83 = 0.; b83 = #{ a14 = 1 } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a83 *)
@@ -5161,6 +5383,8 @@ let () =
   let eq = (fun { a83 = a831; b83 = b831 } { a83 = a832; b83 = b832 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a831 a832 && (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) b831 b832) in
   let next_r = { a83 = 100.; b83 = #{ a14 = 101 } } in
   let r_expected = { a83 = 0.; b83 = #{ a14 = 1 } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a83 *)
   r.a83 <- next_r.a83;
   let r_expected = { r_expected with a83 = next_r.a83 } in
@@ -5201,6 +5425,7 @@ let () =
   (*   t84 = { float; #{ int; int } }   *)
   (**************************************)
   let r = { a84 = 0.; b84 = #{ a16 = 1; b16 = 2 } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a84 *)
@@ -5235,6 +5460,8 @@ let () =
   let eq = (fun { a84 = a841; b84 = b841 } { a84 = a842; b84 = b842 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a841 a842 && (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) b841 b842) in
   let next_r = { a84 = 100.; b84 = #{ a16 = 101; b16 = 102 } } in
   let r_expected = { a84 = 0.; b84 = #{ a16 = 1; b16 = 2 } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a84 *)
   r.a84 <- next_r.a84;
   let r_expected = { r_expected with a84 = next_r.a84 } in
@@ -5279,6 +5506,7 @@ let () =
   (*   t85 = { float; #{ int; float } }   *)
   (****************************************)
   let r = { a85 = 0.; b85 = #{ a20 = 1; b20 = 2. } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a85 *)
@@ -5313,6 +5541,8 @@ let () =
   let eq = (fun { a85 = a851; b85 = b851 } { a85 = a852; b85 = b852 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a851 a852 && (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) b851 b852) in
   let next_r = { a85 = 100.; b85 = #{ a20 = 101; b20 = 102. } } in
   let r_expected = { a85 = 0.; b85 = #{ a20 = 1; b20 = 2. } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a85 *)
   r.a85 <- next_r.a85;
   let r_expected = { r_expected with a85 = next_r.a85 } in
@@ -5357,6 +5587,7 @@ let () =
   (*   t86 = { float; #{ float } }   *)
   (***********************************)
   let r = { a86 = 0.; b86 = #{ a28 = 1. } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a86 *)
@@ -5385,6 +5616,8 @@ let () =
   let eq = (fun { a86 = a861; b86 = b861 } { a86 = a862; b86 = b862 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a861 a862 && (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) b861 b862) in
   let next_r = { a86 = 100.; b86 = #{ a28 = 101. } } in
   let r_expected = { a86 = 0.; b86 = #{ a28 = 1. } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a86 *)
   r.a86 <- next_r.a86;
   let r_expected = { r_expected with a86 = next_r.a86 } in
@@ -5425,6 +5658,7 @@ let () =
   (*   t87 = { float; #{ float; int } }   *)
   (****************************************)
   let r = { a87 = 0.; b87 = #{ a30 = 1.; b30 = 2 } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a87 *)
@@ -5459,6 +5693,8 @@ let () =
   let eq = (fun { a87 = a871; b87 = b871 } { a87 = a872; b87 = b872 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a871 a872 && (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) b871 b872) in
   let next_r = { a87 = 100.; b87 = #{ a30 = 101.; b30 = 102 } } in
   let r_expected = { a87 = 0.; b87 = #{ a30 = 1.; b30 = 2 } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a87 *)
   r.a87 <- next_r.a87;
   let r_expected = { r_expected with a87 = next_r.a87 } in
@@ -5503,6 +5739,7 @@ let () =
   (*   t88 = { float; #{ float; float } }   *)
   (******************************************)
   let r = { a88 = 0.; b88 = #{ a32 = 1.; b32 = 2. } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a88 *)
@@ -5537,6 +5774,8 @@ let () =
   let eq = (fun { a88 = a881; b88 = b881 } { a88 = a882; b88 = b882 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a881 a882 && (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) b881 b882) in
   let next_r = { a88 = 100.; b88 = #{ a32 = 101.; b32 = 102. } } in
   let r_expected = { a88 = 0.; b88 = #{ a32 = 1.; b32 = 2. } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a88 *)
   r.a88 <- next_r.a88;
   let r_expected = { r_expected with a88 = next_r.a88 } in
@@ -5581,6 +5820,7 @@ let () =
   (*   t89 = { #{ int } }   *)
   (**************************)
   let r = { a89 = #{ a14 = 0 } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a89 *)
@@ -5602,6 +5842,8 @@ let () =
   let eq = (fun { a89 = a891 } { a89 = a892 } -> (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) a891 a892) in
   let next_r = { a89 = #{ a14 = 100 } } in
   let r_expected = { a89 = #{ a14 = 0 } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a89 *)
   r.a89 <- next_r.a89;
   let r_expected = { r_expected with a89 = next_r.a89 } in
@@ -5627,6 +5869,7 @@ let () =
   (*   t90 = { #{ int }; int }   *)
   (*******************************)
   let r = { a90 = #{ a14 = 0 }; b90 = 1 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a90 *)
@@ -5655,6 +5898,8 @@ let () =
   let eq = (fun { a90 = a901; b90 = b901 } { a90 = a902; b90 = b902 } -> (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) a901 a902 && (fun a b -> Int.equal a b) b901 b902) in
   let next_r = { a90 = #{ a14 = 100 }; b90 = 101 } in
   let r_expected = { a90 = #{ a14 = 0 }; b90 = 1 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a90 *)
   r.a90 <- next_r.a90;
   let r_expected = { r_expected with a90 = next_r.a90 } in
@@ -5695,6 +5940,7 @@ let () =
   (*   t91 = { #{ int }; int32# }   *)
   (**********************************)
   let r = { a91 = #{ a14 = 0 }; b91 = #1l } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a91 *)
@@ -5723,6 +5969,8 @@ let () =
   let eq = (fun { a91 = a911; b91 = b911 } { a91 = a912; b91 = b912 } -> (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) a911 a912 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b911 b912) in
   let next_r = { a91 = #{ a14 = 100 }; b91 = #101l } in
   let r_expected = { a91 = #{ a14 = 0 }; b91 = #1l } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a91 *)
   r.a91 <- next_r.a91;
   let r_expected = { r_expected with a91 = next_r.a91 } in
@@ -5763,6 +6011,7 @@ let () =
   (*   t92 = { #{ int }; float }   *)
   (*********************************)
   let r = { a92 = #{ a14 = 0 }; b92 = 1. } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a92 *)
@@ -5791,6 +6040,8 @@ let () =
   let eq = (fun { a92 = a921; b92 = b921 } { a92 = a922; b92 = b922 } -> (fun #{ a14 = a141 } #{ a14 = a142 } -> (fun a b -> Int.equal a b) a141 a142) a921 a922 && (fun a b -> Float.equal (globalize a) (globalize b)) b921 b922) in
   let next_r = { a92 = #{ a14 = 100 }; b92 = 101. } in
   let r_expected = { a92 = #{ a14 = 0 }; b92 = 1. } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a92 *)
   r.a92 <- next_r.a92;
   let r_expected = { r_expected with a92 = next_r.a92 } in
@@ -5831,6 +6082,7 @@ let () =
   (*   t93 = { #{ int; int } }   *)
   (*******************************)
   let r = { a93 = #{ a16 = 0; b16 = 1 } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a93 *)
@@ -5858,6 +6110,8 @@ let () =
   let eq = (fun { a93 = a931 } { a93 = a932 } -> (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) a931 a932) in
   let next_r = { a93 = #{ a16 = 100; b16 = 101 } } in
   let r_expected = { a93 = #{ a16 = 0; b16 = 1 } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a93 *)
   r.a93 <- next_r.a93;
   let r_expected = { r_expected with a93 = next_r.a93 } in
@@ -5887,6 +6141,7 @@ let () =
   (*   t94 = { #{ int; int }; int }   *)
   (************************************)
   let r = { a94 = #{ a16 = 0; b16 = 1 }; b94 = 2 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a94 *)
@@ -5921,6 +6176,8 @@ let () =
   let eq = (fun { a94 = a941; b94 = b941 } { a94 = a942; b94 = b942 } -> (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) a941 a942 && (fun a b -> Int.equal a b) b941 b942) in
   let next_r = { a94 = #{ a16 = 100; b16 = 101 }; b94 = 102 } in
   let r_expected = { a94 = #{ a16 = 0; b16 = 1 }; b94 = 2 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a94 *)
   r.a94 <- next_r.a94;
   let r_expected = { r_expected with a94 = next_r.a94 } in
@@ -5965,6 +6222,7 @@ let () =
   (*   t95 = { #{ int; int }; int32# }   *)
   (***************************************)
   let r = { a95 = #{ a16 = 0; b16 = 1 }; b95 = #2l } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a95 *)
@@ -5999,6 +6257,8 @@ let () =
   let eq = (fun { a95 = a951; b95 = b951 } { a95 = a952; b95 = b952 } -> (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) a951 a952 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b951 b952) in
   let next_r = { a95 = #{ a16 = 100; b16 = 101 }; b95 = #102l } in
   let r_expected = { a95 = #{ a16 = 0; b16 = 1 }; b95 = #2l } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a95 *)
   r.a95 <- next_r.a95;
   let r_expected = { r_expected with a95 = next_r.a95 } in
@@ -6043,6 +6303,7 @@ let () =
   (*   t96 = { #{ int; int }; float }   *)
   (**************************************)
   let r = { a96 = #{ a16 = 0; b16 = 1 }; b96 = 2. } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a96 *)
@@ -6077,6 +6338,8 @@ let () =
   let eq = (fun { a96 = a961; b96 = b961 } { a96 = a962; b96 = b962 } -> (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun a b -> Int.equal a b) b161 b162) a961 a962 && (fun a b -> Float.equal (globalize a) (globalize b)) b961 b962) in
   let next_r = { a96 = #{ a16 = 100; b16 = 101 }; b96 = 102. } in
   let r_expected = { a96 = #{ a16 = 0; b16 = 1 }; b96 = 2. } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a96 *)
   r.a96 <- next_r.a96;
   let r_expected = { r_expected with a96 = next_r.a96 } in
@@ -6121,6 +6384,7 @@ let () =
   (*   t97 = { #{ int; int32# } }   *)
   (**********************************)
   let r = { a97 = #{ a18 = 0; b18 = #1l } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a97 *)
@@ -6148,6 +6412,8 @@ let () =
   let eq = (fun { a97 = a971 } { a97 = a972 } -> (fun #{ a18 = a181; b18 = b181 } #{ a18 = a182; b18 = b182 } -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) a971 a972) in
   let next_r = { a97 = #{ a18 = 100; b18 = #101l } } in
   let r_expected = { a97 = #{ a18 = 0; b18 = #1l } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a97 *)
   r.a97 <- next_r.a97;
   let r_expected = { r_expected with a97 = next_r.a97 } in
@@ -6177,6 +6443,7 @@ let () =
   (*   t98 = { #{ int; int32# }; int }   *)
   (***************************************)
   let r = { a98 = #{ a18 = 0; b18 = #1l }; b98 = 2 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a98 *)
@@ -6211,6 +6478,8 @@ let () =
   let eq = (fun { a98 = a981; b98 = b981 } { a98 = a982; b98 = b982 } -> (fun #{ a18 = a181; b18 = b181 } #{ a18 = a182; b18 = b182 } -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) a981 a982 && (fun a b -> Int.equal a b) b981 b982) in
   let next_r = { a98 = #{ a18 = 100; b18 = #101l }; b98 = 102 } in
   let r_expected = { a98 = #{ a18 = 0; b18 = #1l }; b98 = 2 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a98 *)
   r.a98 <- next_r.a98;
   let r_expected = { r_expected with a98 = next_r.a98 } in
@@ -6255,6 +6524,7 @@ let () =
   (*   t99 = { #{ int; int32# }; int32# }   *)
   (******************************************)
   let r = { a99 = #{ a18 = 0; b18 = #1l }; b99 = #2l } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a99 *)
@@ -6289,6 +6559,8 @@ let () =
   let eq = (fun { a99 = a991; b99 = b991 } { a99 = a992; b99 = b992 } -> (fun #{ a18 = a181; b18 = b181 } #{ a18 = a182; b18 = b182 } -> (fun a b -> Int.equal a b) a181 a182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b181 b182) a991 a992 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b991 b992) in
   let next_r = { a99 = #{ a18 = 100; b18 = #101l }; b99 = #102l } in
   let r_expected = { a99 = #{ a18 = 0; b18 = #1l }; b99 = #2l } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a99 *)
   r.a99 <- next_r.a99;
   let r_expected = { r_expected with a99 = next_r.a99 } in
@@ -6333,6 +6605,7 @@ let () =
   (*   t100 = { #{ int; float } }   *)
   (**********************************)
   let r = { a100 = #{ a20 = 0; b20 = 1. } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a100 *)
@@ -6360,6 +6633,8 @@ let () =
   let eq = (fun { a100 = a1001 } { a100 = a1002 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) a1001 a1002) in
   let next_r = { a100 = #{ a20 = 100; b20 = 101. } } in
   let r_expected = { a100 = #{ a20 = 0; b20 = 1. } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a100 *)
   r.a100 <- next_r.a100;
   let r_expected = { r_expected with a100 = next_r.a100 } in
@@ -6389,6 +6664,7 @@ let () =
   (*   t101 = { #{ int; float }; int }   *)
   (***************************************)
   let r = { a101 = #{ a20 = 0; b20 = 1. }; b101 = 2 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a101 *)
@@ -6423,6 +6699,8 @@ let () =
   let eq = (fun { a101 = a1011; b101 = b1011 } { a101 = a1012; b101 = b1012 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) a1011 a1012 && (fun a b -> Int.equal a b) b1011 b1012) in
   let next_r = { a101 = #{ a20 = 100; b20 = 101. }; b101 = 102 } in
   let r_expected = { a101 = #{ a20 = 0; b20 = 1. }; b101 = 2 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a101 *)
   r.a101 <- next_r.a101;
   let r_expected = { r_expected with a101 = next_r.a101 } in
@@ -6467,6 +6745,7 @@ let () =
   (*   t102 = { #{ int; float }; float }   *)
   (*****************************************)
   let r = { a102 = #{ a20 = 0; b20 = 1. }; b102 = 2. } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a102 *)
@@ -6501,6 +6780,8 @@ let () =
   let eq = (fun { a102 = a1021; b102 = b1021 } { a102 = a1022; b102 = b1022 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Float.equal (globalize a) (globalize b)) b201 b202) a1021 a1022 && (fun a b -> Float.equal (globalize a) (globalize b)) b1021 b1022) in
   let next_r = { a102 = #{ a20 = 100; b20 = 101. }; b102 = 102. } in
   let r_expected = { a102 = #{ a20 = 0; b20 = 1. }; b102 = 2. } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a102 *)
   r.a102 <- next_r.a102;
   let r_expected = { r_expected with a102 = next_r.a102 } in
@@ -6545,6 +6826,7 @@ let () =
   (*   t105 = { #{ int64; int64# }; #{ int64#; float# } }   *)
   (**********************************************************)
   let r = { a105 = #{ a103 = 0L; b103 = #1L }; b105 = #{ a104 = #2L; b104 = #3. } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a105 *)
@@ -6592,6 +6874,8 @@ let () =
   let eq = (fun { a105 = a1051; b105 = b1051 } { a105 = a1052; b105 = b1052 } -> (fun #{ a103 = a1031; b103 = b1031 } #{ a103 = a1032; b103 = b1032 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1031 a1032 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1031 b1032) a1051 a1052 && (fun #{ a104 = a1041; b104 = b1041 } #{ a104 = a1042; b104 = b1042 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1041 a1042 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1041 b1042) b1051 b1052) in
   let next_r = { a105 = #{ a103 = 100L; b103 = #101L }; b105 = #{ a104 = #102L; b104 = #103. } } in
   let r_expected = { a105 = #{ a103 = 0L; b103 = #1L }; b105 = #{ a104 = #2L; b104 = #3. } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a105 *)
   r.a105 <- next_r.a105;
   let r_expected = { r_expected with a105 = next_r.a105 } in
@@ -6640,6 +6924,7 @@ let () =
   (*   t108 = { #{ int64; string }; #{ int64#; string } }   *)
   (**********************************************************)
   let r = { a108 = #{ a106 = 0L; b106 = "1" }; b108 = #{ a107 = #2L; b107 = "3" } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a108 *)
@@ -6687,6 +6972,8 @@ let () =
   let eq = (fun { a108 = a1081; b108 = b1081 } { a108 = a1082; b108 = b1082 } -> (fun #{ a106 = a1061; b106 = b1061 } #{ a106 = a1062; b106 = b1062 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1061 a1062 && (fun a b -> String.equal (globalize a) (globalize b)) b1061 b1062) a1081 a1082 && (fun #{ a107 = a1071; b107 = b1071 } #{ a107 = a1072; b107 = b1072 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1071 a1072 && (fun a b -> String.equal (globalize a) (globalize b)) b1071 b1072) b1081 b1082) in
   let next_r = { a108 = #{ a106 = 100L; b106 = "101" }; b108 = #{ a107 = #102L; b107 = "103" } } in
   let r_expected = { a108 = #{ a106 = 0L; b106 = "1" }; b108 = #{ a107 = #2L; b107 = "3" } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a108 *)
   r.a108 <- next_r.a108;
   let r_expected = { r_expected with a108 = next_r.a108 } in
@@ -6735,6 +7022,7 @@ let () =
   (*   t111 = { #{ int64#; int64 }; #{ int64; int64 } }   *)
   (********************************************************)
   let r = { a111 = #{ a109 = #0L; b109 = 1L }; b111 = #{ a110 = 2L; b110 = 3L } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a111 *)
@@ -6782,6 +7070,8 @@ let () =
   let eq = (fun { a111 = a1111; b111 = b1111 } { a111 = a1112; b111 = b1112 } -> (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1091 a1092 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1091 b1092) a1111 a1112 && (fun #{ a110 = a1101; b110 = b1101 } #{ a110 = a1102; b110 = b1102 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1101 a1102 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1101 b1102) b1111 b1112) in
   let next_r = { a111 = #{ a109 = #100L; b109 = 101L }; b111 = #{ a110 = 102L; b110 = 103L } } in
   let r_expected = { a111 = #{ a109 = #0L; b109 = 1L }; b111 = #{ a110 = 2L; b110 = 3L } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a111 *)
   r.a111 <- next_r.a111;
   let r_expected = { r_expected with a111 = next_r.a111 } in
@@ -6830,6 +7120,7 @@ let () =
   (*   t113 = { #{ int64#; int64 }; #{ float32#; float } }   *)
   (***********************************************************)
   let r = { a113 = #{ a109 = #0L; b109 = 1L }; b113 = #{ a112 = #2.s; b112 = 3. } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a113 *)
@@ -6877,6 +7168,8 @@ let () =
   let eq = (fun { a113 = a1131; b113 = b1131 } { a113 = a1132; b113 = b1132 } -> (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1091 a1092 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1091 b1092) a1131 a1132 && (fun #{ a112 = a1121; b112 = b1121 } #{ a112 = a1122; b112 = b1122 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1121 a1122 && (fun a b -> Float.equal (globalize a) (globalize b)) b1121 b1122) b1131 b1132) in
   let next_r = { a113 = #{ a109 = #100L; b109 = 101L }; b113 = #{ a112 = #102.s; b112 = 103. } } in
   let r_expected = { a113 = #{ a109 = #0L; b109 = 1L }; b113 = #{ a112 = #2.s; b112 = 3. } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a113 *)
   r.a113 <- next_r.a113;
   let r_expected = { r_expected with a113 = next_r.a113 } in
@@ -6925,6 +7218,7 @@ let () =
   (*   t114 = { #{ int32# } }   *)
   (******************************)
   let r = { a114 = #{ a22 = #0l } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a114 *)
@@ -6946,6 +7240,8 @@ let () =
   let eq = (fun { a114 = a1141 } { a114 = a1142 } -> (fun #{ a22 = a221 } #{ a22 = a222 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) a1141 a1142) in
   let next_r = { a114 = #{ a22 = #100l } } in
   let r_expected = { a114 = #{ a22 = #0l } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a114 *)
   r.a114 <- next_r.a114;
   let r_expected = { r_expected with a114 = next_r.a114 } in
@@ -6971,6 +7267,7 @@ let () =
   (*   t115 = { #{ int32# }; int }   *)
   (***********************************)
   let r = { a115 = #{ a22 = #0l }; b115 = 1 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a115 *)
@@ -6999,6 +7296,8 @@ let () =
   let eq = (fun { a115 = a1151; b115 = b1151 } { a115 = a1152; b115 = b1152 } -> (fun #{ a22 = a221 } #{ a22 = a222 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) a1151 a1152 && (fun a b -> Int.equal a b) b1151 b1152) in
   let next_r = { a115 = #{ a22 = #100l }; b115 = 101 } in
   let r_expected = { a115 = #{ a22 = #0l }; b115 = 1 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a115 *)
   r.a115 <- next_r.a115;
   let r_expected = { r_expected with a115 = next_r.a115 } in
@@ -7039,6 +7338,7 @@ let () =
   (*   t116 = { #{ int32# }; int32# }   *)
   (**************************************)
   let r = { a116 = #{ a22 = #0l }; b116 = #1l } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a116 *)
@@ -7067,6 +7367,8 @@ let () =
   let eq = (fun { a116 = a1161; b116 = b1161 } { a116 = a1162; b116 = b1162 } -> (fun #{ a22 = a221 } #{ a22 = a222 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a221 a222) a1161 a1162 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1161 b1162) in
   let next_r = { a116 = #{ a22 = #100l }; b116 = #101l } in
   let r_expected = { a116 = #{ a22 = #0l }; b116 = #1l } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a116 *)
   r.a116 <- next_r.a116;
   let r_expected = { r_expected with a116 = next_r.a116 } in
@@ -7107,6 +7409,7 @@ let () =
   (*   t117 = { #{ int32#; int } }   *)
   (***********************************)
   let r = { a117 = #{ a24 = #0l; b24 = 1 } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a117 *)
@@ -7134,6 +7437,8 @@ let () =
   let eq = (fun { a117 = a1171 } { a117 = a1172 } -> (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) a1171 a1172) in
   let next_r = { a117 = #{ a24 = #100l; b24 = 101 } } in
   let r_expected = { a117 = #{ a24 = #0l; b24 = 1 } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a117 *)
   r.a117 <- next_r.a117;
   let r_expected = { r_expected with a117 = next_r.a117 } in
@@ -7163,6 +7468,7 @@ let () =
   (*   t118 = { #{ int32#; int }; int }   *)
   (****************************************)
   let r = { a118 = #{ a24 = #0l; b24 = 1 }; b118 = 2 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a118 *)
@@ -7197,6 +7503,8 @@ let () =
   let eq = (fun { a118 = a1181; b118 = b1181 } { a118 = a1182; b118 = b1182 } -> (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) a1181 a1182 && (fun a b -> Int.equal a b) b1181 b1182) in
   let next_r = { a118 = #{ a24 = #100l; b24 = 101 }; b118 = 102 } in
   let r_expected = { a118 = #{ a24 = #0l; b24 = 1 }; b118 = 2 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a118 *)
   r.a118 <- next_r.a118;
   let r_expected = { r_expected with a118 = next_r.a118 } in
@@ -7241,6 +7549,7 @@ let () =
   (*   t119 = { #{ int32#; int }; int32# }   *)
   (*******************************************)
   let r = { a119 = #{ a24 = #0l; b24 = 1 }; b119 = #2l } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a119 *)
@@ -7275,6 +7584,8 @@ let () =
   let eq = (fun { a119 = a1191; b119 = b1191 } { a119 = a1192; b119 = b1192 } -> (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int.equal a b) b241 b242) a1191 a1192 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1191 b1192) in
   let next_r = { a119 = #{ a24 = #100l; b24 = 101 }; b119 = #102l } in
   let r_expected = { a119 = #{ a24 = #0l; b24 = 1 }; b119 = #2l } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a119 *)
   r.a119 <- next_r.a119;
   let r_expected = { r_expected with a119 = next_r.a119 } in
@@ -7319,6 +7630,7 @@ let () =
   (*   t120 = { #{ int32#; int32# } }   *)
   (**************************************)
   let r = { a120 = #{ a26 = #0l; b26 = #1l } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a120 *)
@@ -7346,6 +7658,8 @@ let () =
   let eq = (fun { a120 = a1201 } { a120 = a1202 } -> (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) a1201 a1202) in
   let next_r = { a120 = #{ a26 = #100l; b26 = #101l } } in
   let r_expected = { a120 = #{ a26 = #0l; b26 = #1l } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a120 *)
   r.a120 <- next_r.a120;
   let r_expected = { r_expected with a120 = next_r.a120 } in
@@ -7375,6 +7689,7 @@ let () =
   (*   t121 = { #{ int32#; int32# }; int }   *)
   (*******************************************)
   let r = { a121 = #{ a26 = #0l; b26 = #1l }; b121 = 2 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a121 *)
@@ -7409,6 +7724,8 @@ let () =
   let eq = (fun { a121 = a1211; b121 = b1211 } { a121 = a1212; b121 = b1212 } -> (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) a1211 a1212 && (fun a b -> Int.equal a b) b1211 b1212) in
   let next_r = { a121 = #{ a26 = #100l; b26 = #101l }; b121 = 102 } in
   let r_expected = { a121 = #{ a26 = #0l; b26 = #1l }; b121 = 2 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a121 *)
   r.a121 <- next_r.a121;
   let r_expected = { r_expected with a121 = next_r.a121 } in
@@ -7453,6 +7770,7 @@ let () =
   (*   t122 = { #{ int32#; int32# }; int32# }   *)
   (**********************************************)
   let r = { a122 = #{ a26 = #0l; b26 = #1l }; b122 = #2l } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a122 *)
@@ -7487,6 +7805,8 @@ let () =
   let eq = (fun { a122 = a1221; b122 = b1221 } { a122 = a1222; b122 = b1222 } -> (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b261 b262) a1221 a1222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1221 b1222) in
   let next_r = { a122 = #{ a26 = #100l; b26 = #101l }; b122 = #102l } in
   let r_expected = { a122 = #{ a26 = #0l; b26 = #1l }; b122 = #2l } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a122 *)
   r.a122 <- next_r.a122;
   let r_expected = { r_expected with a122 = next_r.a122 } in
@@ -7531,6 +7851,7 @@ let () =
   (*   t123 = { #{ float } }   *)
   (*****************************)
   let r = { a123 = #{ a28 = 0. } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a123 *)
@@ -7552,6 +7873,8 @@ let () =
   let eq = (fun { a123 = a1231 } { a123 = a1232 } -> (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) a1231 a1232) in
   let next_r = { a123 = #{ a28 = 100. } } in
   let r_expected = { a123 = #{ a28 = 0. } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a123 *)
   r.a123 <- next_r.a123;
   let r_expected = { r_expected with a123 = next_r.a123 } in
@@ -7577,6 +7900,7 @@ let () =
   (*   t124 = { #{ float }; int }   *)
   (**********************************)
   let r = { a124 = #{ a28 = 0. }; b124 = 1 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a124 *)
@@ -7605,6 +7929,8 @@ let () =
   let eq = (fun { a124 = a1241; b124 = b1241 } { a124 = a1242; b124 = b1242 } -> (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) a1241 a1242 && (fun a b -> Int.equal a b) b1241 b1242) in
   let next_r = { a124 = #{ a28 = 100. }; b124 = 101 } in
   let r_expected = { a124 = #{ a28 = 0. }; b124 = 1 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a124 *)
   r.a124 <- next_r.a124;
   let r_expected = { r_expected with a124 = next_r.a124 } in
@@ -7645,6 +7971,7 @@ let () =
   (*   t125 = { #{ float }; float }   *)
   (************************************)
   let r = { a125 = #{ a28 = 0. }; b125 = 1. } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a125 *)
@@ -7673,6 +8000,8 @@ let () =
   let eq = (fun { a125 = a1251; b125 = b1251 } { a125 = a1252; b125 = b1252 } -> (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a281 a282) a1251 a1252 && (fun a b -> Float.equal (globalize a) (globalize b)) b1251 b1252) in
   let next_r = { a125 = #{ a28 = 100. }; b125 = 101. } in
   let r_expected = { a125 = #{ a28 = 0. }; b125 = 1. } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a125 *)
   r.a125 <- next_r.a125;
   let r_expected = { r_expected with a125 = next_r.a125 } in
@@ -7713,6 +8042,7 @@ let () =
   (*   t126 = { #{ float; int } }   *)
   (**********************************)
   let r = { a126 = #{ a30 = 0.; b30 = 1 } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a126 *)
@@ -7740,6 +8070,8 @@ let () =
   let eq = (fun { a126 = a1261 } { a126 = a1262 } -> (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) a1261 a1262) in
   let next_r = { a126 = #{ a30 = 100.; b30 = 101 } } in
   let r_expected = { a126 = #{ a30 = 0.; b30 = 1 } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a126 *)
   r.a126 <- next_r.a126;
   let r_expected = { r_expected with a126 = next_r.a126 } in
@@ -7769,6 +8101,7 @@ let () =
   (*   t127 = { #{ float; int }; int }   *)
   (***************************************)
   let r = { a127 = #{ a30 = 0.; b30 = 1 }; b127 = 2 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a127 *)
@@ -7803,6 +8136,8 @@ let () =
   let eq = (fun { a127 = a1271; b127 = b1271 } { a127 = a1272; b127 = b1272 } -> (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) a1271 a1272 && (fun a b -> Int.equal a b) b1271 b1272) in
   let next_r = { a127 = #{ a30 = 100.; b30 = 101 }; b127 = 102 } in
   let r_expected = { a127 = #{ a30 = 0.; b30 = 1 }; b127 = 2 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a127 *)
   r.a127 <- next_r.a127;
   let r_expected = { r_expected with a127 = next_r.a127 } in
@@ -7847,6 +8182,7 @@ let () =
   (*   t128 = { #{ float; int }; float }   *)
   (*****************************************)
   let r = { a128 = #{ a30 = 0.; b30 = 1 }; b128 = 2. } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a128 *)
@@ -7881,6 +8217,8 @@ let () =
   let eq = (fun { a128 = a1281; b128 = b1281 } { a128 = a1282; b128 = b1282 } -> (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a301 a302 && (fun a b -> Int.equal a b) b301 b302) a1281 a1282 && (fun a b -> Float.equal (globalize a) (globalize b)) b1281 b1282) in
   let next_r = { a128 = #{ a30 = 100.; b30 = 101 }; b128 = 102. } in
   let r_expected = { a128 = #{ a30 = 0.; b30 = 1 }; b128 = 2. } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a128 *)
   r.a128 <- next_r.a128;
   let r_expected = { r_expected with a128 = next_r.a128 } in
@@ -7925,6 +8263,7 @@ let () =
   (*   t129 = { #{ float; float } }   *)
   (************************************)
   let r = { a129 = #{ a32 = 0.; b32 = 1. } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a129 *)
@@ -7952,6 +8291,8 @@ let () =
   let eq = (fun { a129 = a1291 } { a129 = a1292 } -> (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) a1291 a1292) in
   let next_r = { a129 = #{ a32 = 100.; b32 = 101. } } in
   let r_expected = { a129 = #{ a32 = 0.; b32 = 1. } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a129 *)
   r.a129 <- next_r.a129;
   let r_expected = { r_expected with a129 = next_r.a129 } in
@@ -7981,6 +8322,7 @@ let () =
   (*   t130 = { #{ float; float }; int }   *)
   (*****************************************)
   let r = { a130 = #{ a32 = 0.; b32 = 1. }; b130 = 2 } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a130 *)
@@ -8015,6 +8357,8 @@ let () =
   let eq = (fun { a130 = a1301; b130 = b1301 } { a130 = a1302; b130 = b1302 } -> (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) a1301 a1302 && (fun a b -> Int.equal a b) b1301 b1302) in
   let next_r = { a130 = #{ a32 = 100.; b32 = 101. }; b130 = 102 } in
   let r_expected = { a130 = #{ a32 = 0.; b32 = 1. }; b130 = 2 } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a130 *)
   r.a130 <- next_r.a130;
   let r_expected = { r_expected with a130 = next_r.a130 } in
@@ -8059,6 +8403,7 @@ let () =
   (*   t131 = { #{ float; float }; float }   *)
   (*******************************************)
   let r = { a131 = #{ a32 = 0.; b32 = 1. }; b131 = 2. } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a131 *)
@@ -8093,6 +8438,8 @@ let () =
   let eq = (fun { a131 = a1311; b131 = b1311 } { a131 = a1312; b131 = b1312 } -> (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a321 a322 && (fun a b -> Float.equal (globalize a) (globalize b)) b321 b322) a1311 a1312 && (fun a b -> Float.equal (globalize a) (globalize b)) b1311 b1312) in
   let next_r = { a131 = #{ a32 = 100.; b32 = 101. }; b131 = 102. } in
   let r_expected = { a131 = #{ a32 = 0.; b32 = 1. }; b131 = 2. } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a131 *)
   r.a131 <- next_r.a131;
   let r_expected = { r_expected with a131 = next_r.a131 } in
@@ -8137,6 +8484,7 @@ let () =
   (*   t134 = { #{ float32#; int64# }; #{ string; int64# } }   *)
   (*************************************************************)
   let r = { a134 = #{ a132 = #0.s; b132 = #1L }; b134 = #{ a133 = "2"; b133 = #3L } } in
+  ref_to_force_heap_allocation := P r;
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a134 *)
@@ -8184,6 +8532,8 @@ let () =
   let eq = (fun { a134 = a1341; b134 = b1341 } { a134 = a1342; b134 = b1342 } -> (fun #{ a132 = a1321; b132 = b1321 } #{ a132 = a1322; b132 = b1322 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1321 a1322 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1321 b1322) a1341 a1342 && (fun #{ a133 = a1331; b133 = b1331 } #{ a133 = a1332; b133 = b1332 } -> (fun a b -> String.equal (globalize a) (globalize b)) a1331 a1332 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1331 b1332) b1341 b1342) in
   let next_r = { a134 = #{ a132 = #100.s; b132 = #101L }; b134 = #{ a133 = "102"; b133 = #103L } } in
   let r_expected = { a134 = #{ a132 = #0.s; b132 = #1L }; b134 = #{ a133 = "2"; b133 = #3L } } in
+  ref_to_force_heap_allocation := P next_r;
+  ref_to_force_heap_allocation := P r_expected;
   (* .a134 *)
   r.a134 <- next_r.a134;
   let r_expected = { r_expected with a134 = next_r.a134 } in

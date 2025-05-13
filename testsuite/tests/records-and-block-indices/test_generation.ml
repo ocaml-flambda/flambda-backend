@@ -166,6 +166,8 @@ let sizes = [ 0; 1; 2; 30 ]
 
 let indices_in_deepening_tests = [0; 100_000]
 
+type packed = P : 'a -> packed
+let ref_to_force_heap_allocation : packed ref = ref (P 0)
 |}
 
 let indent = ref 0
@@ -321,7 +323,6 @@ let test_array_idx_access ~local ty =
                   (Path.to_string unboxed_path)
                   (Type.code ty)
                   (Path.to_string unboxed_path);
-                (* CR rtjoa: need anothe assert here *)
                 seq_assert ~debug_exprs "eq (get_idx_mut a (.(i))) el"
             )
           )
@@ -529,6 +530,7 @@ let test_record_access ty ~local =
   type_section ty;
   let stack_if_local = if local then "stack_ " else "" in
   line "let r = %s%s in" stack_if_local (Type.value_code ty 0);
+  if not local then line "ref_to_force_heap_allocation := P r;";
   line "(* 1. Test field get *)";
   let fields =
     match ty with
@@ -560,6 +562,8 @@ let test_record_access ty ~local =
   (* CR layouts v7.1: test "fine-grained" record sets once we support those *)
   line "let next_r = %s%s in" stack_if_local (Type.value_code ty 100);
   line "let r_expected = %s%s in" stack_if_local (Type.value_code ty 0);
+  if not local then line "ref_to_force_heap_allocation := P next_r;";
+  if not local then line "ref_to_force_heap_allocation := P r_expected;";
   List.iter fields ~f:(fun (lbl, fld_t) ->
       line "(* .%s *)" lbl;
       line "r.%s <- next_r.%s;" lbl lbl;

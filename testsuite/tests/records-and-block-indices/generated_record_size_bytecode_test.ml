@@ -118,6 +118,8 @@ let sizes = [ 0; 1; 2; 30 ]
 
 let indices_in_deepening_tests = [0; 100_000]
 
+type packed = P : 'a -> packed
+let ref_to_force_heap_allocation : packed ref = ref (P 0)
 
 type t0 = { mutable a0 : int }
 type t1 = { mutable a1 : int; mutable b1 : int }
