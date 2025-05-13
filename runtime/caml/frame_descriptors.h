@@ -61,13 +61,6 @@
 #define FRAME_LONG_MARKER 0x7FFF
 
 
-/* CR sspies: The frame descriptions below are no longer accurate with respect to
-   whether the integers in the description are signed or unsigned. Due to recent compiler
-   changes, the live offsets can now be negative. To make the integer ranges explicit,
-   the frame table code in [emit_aux.ml] now contains explicit range checks. The fields
-   below, specifically, for frame_data, number of live offsets, and the live offsets
-   should now be signed.  */
-
 typedef struct {
   int32_t retaddr_rel; /* offset of return address from &retaddr_rel */
   uint16_t frame_data; /* frame size and various flags */
