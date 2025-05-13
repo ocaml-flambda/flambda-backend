@@ -5289,6 +5289,22 @@ let may_lower_contravariant_then_generalize env exp =
   if maybe_expansive exp then lower_contravariant env exp.exp_type;
   generalize exp.exp_type
 
+let generalize_type_block_access_result { ba; base_ty; el_ty; flat_float = _ } =
+  generalize_structure base_ty;
+  generalize_structure el_ty;
+  match ba with
+  | Baccess_field _ -> ()
+  | Baccess_array
+      { mut = _; index; index_kind = _; base_ty; elt_ty; elt_sort = _ } ->
+    generalize_structure base_ty;
+    generalize_structure elt_ty;
+    generalize_structure_exp index
+  | Baccess_block (_, idx) ->
+    generalize_structure_exp idx
+
+let generalize_type_unboxed_access_result (el_ty, Uaccess_unboxed_field _) =
+  generalize_structure el_ty
+
 (* value binding elaboration *)
 
 let vb_exp_constraint {pvb_expr=expr; pvb_pat=pat; pvb_constraint=ct; pvb_modes=modes; _ } =
@@ -5748,10 +5764,7 @@ and type_expect_
       in
       { ba; base_ty = ty_res; el_ty = ty_arg; flat_float }
     | Baccess_array (mut, index_kind, index) ->
-      (* CR layouts v8: Support indices into arrays once we have the
-         separability mode.
-         - Require that [el_ty] is [non_float].
-         - Return the ignored [type_block_access_result] below. *)
+      (* CR rtjoa: require that [el_ty] is [non_float] *)
       let elt_jkind, elt_sort = Jkind.of_new_sort_var ~why:Idx_element in
       let elt_ty = newvar elt_jkind in
       let base_ty =
@@ -5761,10 +5774,9 @@ and type_expect_
       in
       (* CR rtjoa: this update disambiguation warnings and make sure this union
          moral *)
-      begin
-        try ignore (unify env base_ty expected_base_ty)
-        with Unify _ -> ()
-      end;
+      (* begin
+       *   try unify env base_ty expected_base_ty with Unify _ -> ()
+       * end; *)
       let index_type_expected =
         match index_kind with
         | Index_int -> Predef.type_int
@@ -5802,7 +5814,7 @@ and type_expect_
         | Typedecl(p0, p, {type_kind=Type_record_unboxed_product _}) ->
           (* we treat this as principal because [ty_expected] only
               affects disambiguation for the block access *)
-          Some(p0, p, true)
+          Some(p0, p, is_principal el_ty)
         | _ -> None
       in
       let labels =
@@ -6387,9 +6399,24 @@ and type_expect_
     let expected_base_ty = expected_base_ty ty_expected in
     let principal = is_principal ty_expected in
     let { ba; base_ty; el_ty; flat_float } =
-      type_block_access expected_base_ty principal ba
+      with_local_level_if_principal ~post:generalize_type_block_access_result
+        (fun () ->
+           let res = type_block_access expected_base_ty principal ba in
+           (try unify env res.base_ty expected_base_ty with Unify _ -> ());
+           res)
     in
-    let el_ty, uas = List.fold_left_map type_unboxed_access el_ty uas in
+    let el_ty, uas =
+      List.fold_left_map
+        (fun el_ty ua ->
+          let el_ty, ua =
+            with_local_level_if_principal
+              ~post:generalize_type_unboxed_access_result
+              (fun () -> type_unboxed_access el_ty ua)
+          in
+          el_ty, ua)
+        el_ty
+        uas
+    in
     let el_ty = if flat_float then Predef.type_unboxed_float else el_ty in
     let ty =
       match ba with
