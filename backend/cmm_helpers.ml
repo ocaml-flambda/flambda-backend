@@ -298,7 +298,6 @@ let alloc_boxedintnat_header (mode : Cmm.Alloc_mode.t) dbg =
   | Local -> Cconst_natint (boxedintnat_local_header, dbg)
 
 (* Integers *)
-
 let max_repr_int = max_int asr 1
 
 let min_repr_int = min_int asr 1
@@ -698,7 +697,10 @@ let rec mul_int c1 c2 dbg =
 
 let tag_int i dbg =
   match i with
-  | Cconst_int (n, _) -> int_const dbg n
+  | Cop (Clsr, [c; Cconst_int (n, _)], _) when n > 0 && is_defined_shift n ->
+    or_const (lsr_const c (n - 1) dbg) 1n dbg
+  | Cop (Casr, [c; Cconst_int (n, _)], _) when n > 0 && is_defined_shift n ->
+    or_const (asr_const c (n - 1) dbg) 1n dbg
   | c -> incr_int (lsl_const c 1 dbg) dbg
 
 let untag_int i dbg =
@@ -1261,54 +1263,26 @@ let wordsize_shift = 9
 
 let numfloat_shift = 9 + log2_size_float - log2_size_addr
 
-let addr_array_length_shifted hdr dbg = lsr_const hdr wordsize_shift dbg
+(** Produces a pointer to the element of the array [ptr] on the position [ofs]
+   with the given element [log2size] log2 element size (in bytes).
 
-(* Produces a pointer to the element of the array [ptr] on the position [ofs]
-   with the given element [log2size] log2 element size.
-
-   [ofs] is given as a tagged int expression.
+   [ofs] is given as an UNTAGGED int expression.
 
    The optional ?typ argument is the C-- type of the result. By default, it is
    Addr, meaning we are constructing a derived pointer into the heap. If we know
    the pointer is outside the heap (this is the case for bigarray indexing), we
    give type Int instead. *)
-
-let array_indexing ?typ log2size ptr ofs dbg =
-  let add =
-    match typ with
-    | None | Some Addr -> Cadda
-    | Some Int -> Caddi
-    | _ -> assert false
-  in
-  match ofs with
-  | Cconst_int (n, _) ->
-    let i = n asr 1 in
-    if i = 0
-    then ptr
-    else Cop (add, [ptr; Cconst_int (i lsl log2size, dbg)], dbg)
-  | Cop
-      ( (Caddi | Cor),
-        [Cop (Clsl, [c; Cconst_int (1, _)], _); Cconst_int (1, _)],
-        dbg' ) ->
-    Cop (add, [ptr; lsl_const c log2size dbg], dbg')
-  | Cop (Caddi, [c; Cconst_int (n, _)], dbg') when log2size = 0 ->
-    Cop
-      ( add,
-        [Cop (add, [ptr; untag_int c dbg], dbg); Cconst_int (n asr 1, dbg)],
-        dbg' )
-  | Cop (Caddi, [c; Cconst_int (n, _)], _) ->
-    Cop
-      ( add,
-        [ Cop (add, [ptr; lsl_const c (log2size - 1) dbg], dbg);
-          Cconst_int ((n - 1) lsl (log2size - 1), dbg) ],
-        dbg )
-  | _ when log2size = 0 -> Cop (add, [ptr; untag_int ofs dbg], dbg)
+let array_indexing ?(typ = Addr) log2size ptr ofs dbg =
+  match get_const ofs with
+  | Some 0n -> ptr
   | _ ->
-    Cop
-      ( add,
-        [ Cop (add, [ptr; lsl_const ofs (log2size - 1) dbg], dbg);
-          Cconst_int (-1 lsl (log2size - 1), dbg) ],
-        dbg )
+    let add =
+      match (typ : machtype_component) with
+      | Addr -> Cadda
+      | Int -> Caddi
+      | Val | Float | Vec128 | Float32 | Valx2 -> assert false
+    in
+    Cop (add, [ptr; lsl_const ofs log2size dbg], dbg)
 
 (* CR Gbury: this conversion int -> nativeint is potentially unsafe when
    cross-compiling for 64-bit on a 32-bit host *)
@@ -1395,7 +1369,7 @@ let unboxed_packed_array_length arr dbg ~custom_ops_base_symbol
                          dbg)
                       (Cvar custom_ops_index_var) dbg ) ) ))
   in
-  tag_int res dbg
+  res
 
 let unboxed_int32_array_length =
   unboxed_packed_array_length
@@ -1412,7 +1386,7 @@ let unboxed_int64_or_nativeint_array_length arr dbg =
         (* need to subtract so as not to count the custom_operations field *)
         sub_int (get_size arr dbg) (int ~dbg 1) dbg)
   in
-  tag_int res dbg
+  res
 
 let unboxed_vec128_array_length arr dbg =
   let res =
@@ -1420,7 +1394,7 @@ let unboxed_vec128_array_length arr dbg =
         (* need to subtract so as not to count the custom_operations field *)
         sub_int (get_size arr dbg) (int ~dbg 1) dbg)
   in
-  tag_int (lsr_int res (int ~dbg 1) dbg) dbg
+  lsr_int res (int ~dbg 1) dbg
 
 let addr_array_ref arr ofs dbg =
   Cop (mk_load_mut Word_val, [array_indexing log2_size_addr arr ofs dbg], dbg)
@@ -1497,7 +1471,7 @@ let addr_array_set_local arr ofs newval dbg =
           coeffects = Has_coeffects;
           ty_args = []
         },
-      [arr; untag_int ofs dbg; newval],
+      [arr; ofs; newval],
       dbg )
 
 let addr_array_set (mode : Lambda.modify_mode) arr ofs newval dbg =
@@ -1656,10 +1630,8 @@ let unboxed_packed_array_ref arr index dbg ~memory_chunk ~elements_per_word =
           let index =
             (* Need to skip the custom_operations field. We add
                elements_per_word offsets not 1 since the call to
-               [array_indexing], below, is in terms of elements. Then we
-               multiply the offset by 2 since we are manipulating a tagged
-               int. *)
-            add_int index (int ~dbg (elements_per_word * 2)) dbg
+               [array_indexing], below, is in terms of elements. *)
+            add_int index (int ~dbg elements_per_word) dbg
           in
           let log2_size_addr = 2 in
           Cop
@@ -1704,9 +1676,8 @@ let unboxed_int64_or_nativeint_array_ref ~has_custom_ops arr ~array_index dbg =
           let index =
             if has_custom_ops
             then
-              (* Need to skip the custom_operations field. 2 not 1 since we are
-                 manipulating a tagged int. *)
-              add_int index (int ~dbg 2) dbg
+              (* Need to skip the custom_operations field. *)
+              add_int index (int ~dbg 1) dbg
             else index
           in
           int_array_ref arr index dbg))
@@ -1718,7 +1689,7 @@ let unboxed_packed_array_set arr ~index ~new_value dbg ~memory_chunk
           bind "new_value" new_value (fun new_value ->
               let index =
                 (* See comment in [unboxed_packed_array_ref]. *)
-                add_int index (int ~dbg (elements_per_word * 2)) dbg
+                add_int index (int ~dbg elements_per_word) dbg
               in
               let log2_size_addr = 2 in
               Cop
@@ -1743,7 +1714,7 @@ let unboxed_int64_or_nativeint_array_set ~has_custom_ops arr ~index ~new_value
                 if has_custom_ops
                 then
                   (* See comment in [unboxed_int64_or_nativeint_array_ref]. *)
-                  add_int index (int ~dbg 2) dbg
+                  add_int index (int ~dbg 1) dbg
                 else index
               in
               int_array_set arr index new_value dbg)))
@@ -1849,7 +1820,7 @@ let lookup_tag obj tag dbg =
 let lookup_label obj lab dbg =
   bind "lab" lab (fun lab ->
       let table = Cop (mk_load_mut Word_val, [obj], dbg) in
-      addr_array_ref table lab dbg)
+      addr_array_ref table (untag_int lab dbg) dbg)
 
 module Extended_machtype_component = struct
   type t =
@@ -1969,7 +1940,7 @@ let send_function_name arity result (mode : Cmx_format.alloc_mode) =
 
 let call_cached_method obj tag cache pos args args_type result (apos, mode) dbg
     =
-  let cache = array_indexing log2_size_addr cache pos dbg in
+  let cache = array_indexing log2_size_addr cache (untag_int pos dbg) dbg in
   Compilenv.need_send_fun
     (List.map Extended_machtype.change_tagged_int_to_val args_type)
     (Extended_machtype.change_tagged_int_to_val result)
@@ -2052,7 +2023,7 @@ let make_alloc_generic ~block_kind ~mode ~alloc_block_kind dbg tag wordsize args
       | e1 :: el, m1 :: ml ->
         let ofs = memory_chunk_size_in_words_for_mixed_block m1 in
         Csequence
-          ( alloc_generic_set_fn (Cvar id) (int_const dbg idx) e1 m1 dbg,
+          ( alloc_generic_set_fn (Cvar id) (int ~dbg idx) e1 m1 dbg,
             fill_fields (idx + ofs) el ml )
       | _ ->
         Misc.fatal_errorf
@@ -2775,7 +2746,7 @@ let make_switch arg cases actions dbg =
          ( Local,
            Array.to_list (Array.map (fun act -> const_actions.(act)) cases) ));
     let table_sym = { sym_name = table; sym_global = Local } in
-    addr_array_ref (Cconst_symbol (table_sym, dbg)) (tag_int arg dbg) dbg
+    addr_array_ref (Cconst_symbol (table_sym, dbg)) arg dbg
   in
   let make_affine_computation ~offset ~slope arg dbg =
     (* In case the resulting integers are an affine function of the index, we
@@ -3650,10 +3621,6 @@ let raise_prim raise_kind ~extra_args arg dbg =
   else Cop (Craise Lambda.Raise_notrace, arg :: extra_args, dbg)
 
 let negint arg dbg = Cop (Csubi, [Cconst_int (2, dbg); arg], dbg)
-
-let addr_array_length arg dbg =
-  let hdr = get_header_masked arg dbg in
-  Cop (Cor, [addr_array_length_shifted hdr dbg; Cconst_int (1, dbg)], dbg)
 
 (* CR-soon gyorsh: effects and coeffects for primitives are set conservatively
    to Arbitrary_effects and Has_coeffects, resp. Check if this can be improved

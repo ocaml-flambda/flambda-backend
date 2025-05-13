@@ -4,7 +4,7 @@ let $camlTests7__immstring10 = "Sheep" in
 let code f_0 deleted in
 let code foo_1 deleted in
 let code loopify(never) size(16) newer_version_of(f_0)
-      f_0_1 (x : imm tagged, str)
+      f_0_1 (x : imm tagged, str : val)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
