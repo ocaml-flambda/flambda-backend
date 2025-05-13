@@ -1127,13 +1127,16 @@ let record_gets_unboxed_version = function
   | Record_unboxed | Record_inlined _ | Record_float | Record_ufloat -> false
   | Record_boxed _ -> true
   | Record_mixed shape ->
-    Array.for_all
-      (fun (kind : mixed_block_element) ->
-         match kind with
-         | Value | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> true
-         | Float_boxed -> false
-         | Product _ -> false)
-      shape
+    let rec shape_has_float_boxed shape =
+      Array.exists
+        (fun (kind : mixed_block_element) ->
+          match kind with
+          | Value | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> false
+          | Float_boxed -> true
+          | Product shape -> shape_has_float_boxed shape)
+        shape
+    in
+    not (shape_has_float_boxed shape)
 let gets_unboxed_version decl =
   (* This must be kept in sync with the match in [derive_unboxed_version] *)
   match decl.type_kind with
