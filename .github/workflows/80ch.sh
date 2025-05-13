@@ -21,9 +21,6 @@
 
 set -u
 
-git fetch origin main --deepen 1 # Needed to have a local copy of origin/main
-                                 # For this script to work
-
 feature_base="HEAD^1" # GitHub automatically makes us a merge commit (HEAD),
                       # so our feature base is just the first parent (HEAD^1)
                       # of this merge commit
