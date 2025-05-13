@@ -4,6 +4,8 @@ collectionName: Unboxed types
 title: Block indices
 ---
 
+# CR rtjoa: finish documentation (this doc not ready for review)
+
 # Block indices
 
 This document describes the language feature and implementation for explicit
