@@ -164,10 +164,7 @@ type r = { f : float#; si : #(string * int64) }
 type u = r#
 [%%expect{|
 type r = { f : float#; si : #(string * int64); }
-Line 2, characters 9-11:
-2 | type u = r#
-             ^^
-Error: The type "r" has no unboxed version.
+type u = r#
 |}]
 
 (* But not float, mixed float/float#, or [@@unboxed] records *)
