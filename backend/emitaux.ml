@@ -198,9 +198,12 @@ let record_frame_descr ~label ~frame_size ~live_offset debuginfo =
 type emit_frame_actions =
   { efa_code_label : Label.t -> unit;
     efa_data_label : Label.t -> unit;
-    efa_8 : int -> unit;
-    efa_16 : int -> unit;
-    efa_32 : int32 -> unit;
+    efa_i8 : Numbers.Int8.t -> unit;
+    efa_i16 : Numbers.Int16.t -> unit;
+    efa_i32 : Int32.t -> unit;
+    efa_u8 : Numbers.Uint8.t -> unit;
+    efa_u16 : Numbers.Uint16.t -> unit;
+    efa_u32 : Numbers.Uint32.t -> unit;
     efa_word : int -> unit;
     efa_align : int -> unit;
     efa_label_rel : Label.t -> int32 -> unit;
@@ -209,26 +212,40 @@ type emit_frame_actions =
   }
 
 let emit_frames a =
+  let emit_u8 n =
+    if n < 0 || n > 0xFF
+    then
+      Misc.fatal_errorf
+        "attempting to emit unsigned 8-bit integer %d out of range" n
+    else a.efa_u8 (Numbers.Uint8.of_nonnegative_int_exn n)
+  in
   let emit_i16 n =
     if n < -0x8000 || n > 0x7FFF
     then
       Misc.fatal_errorf
         "attempting to emit signed 16-bit integer %d out of range" n
-    else a.efa_16 n
+    else a.efa_i16 (Numbers.Int16.of_int_exn n)
   in
   let emit_u16 n =
     if n < 0 || n > 0xFFFF
     then
       Misc.fatal_errorf
         "attempting to emit unsigned 16-bit integer %d out of range" n
-    else a.efa_16 n
+    else a.efa_u16 (Numbers.Uint16.of_nonnegative_int_exn n)
   in
   let emit_i32 n =
     if n < -0x8000_0000 || n > 0x7FFF_FFFF
     then
       Misc.fatal_errorf
         "attempting to emit signed 32-bit integer %d out of range" n
-    else a.efa_32 (Int32.of_int n)
+    else a.efa_i32 (Int32.of_int n)
+  in
+  let emit_u32 n =
+    if n < 0 || n > 0xFFFF_FFFF
+    then
+      Misc.fatal_errorf
+        "attempting to emit unsigned 32-bit integer %d out of range" n
+    else a.efa_u32 (Numbers.Uint32.of_nonnegative_int_exn n)
   in
   let filenames = Hashtbl.create 7 in
   let label_filename name =
@@ -272,12 +289,21 @@ let emit_frames a =
        below. *)
     if fd.fd_long
     then (
-      emit_i16 Flambda_backend_flags.max_long_frames_threshold;
+      emit_u16 Flambda_backend_flags.max_long_frames_threshold;
       a.efa_align 4);
     let emit_signed_16_or_32 = if fd.fd_long then emit_i32 else emit_i16 in
-    emit_signed_16_or_32 (fd.fd_frame_size + flags);
-    emit_signed_16_or_32 (List.length fd.fd_live_offset);
-    List.iter emit_signed_16_or_32 fd.fd_live_offset;
+    let emit_unsigned_16_or_32 = if fd.fd_long then emit_u32 else emit_u16 in
+    let emit_live_offset n =
+      (* On runtime 4, the live offsets can be negative. As such, we emit them
+         as signed integers (and truncate the upper bound to 0x7f...ff); on
+         runtime 5 they are always unsigned. *)
+      if Config.runtime5
+      then emit_unsigned_16_or_32 n
+      else emit_signed_16_or_32 n
+    in
+    emit_unsigned_16_or_32 (fd.fd_frame_size + flags);
+    emit_unsigned_16_or_32 (List.length fd.fd_live_offset);
+    List.iter emit_live_offset fd.fd_live_offset;
     (match fd.fd_debuginfo with
     | _ when flags = 0 -> ()
     | Dbg_other dbg ->
@@ -288,7 +314,7 @@ let emit_frames a =
       a.efa_label_rel (label_debuginfos true dbg) Int32.zero
     | Dbg_alloc dbg ->
       assert (List.length dbg < 256);
-      a.efa_8 (List.length dbg);
+      emit_u8 (List.length dbg);
       List.iter
         (fun Cmm.{ alloc_words; _ } ->
           (* Possible allocations range between 2 and 257 *)
@@ -296,7 +322,7 @@ let emit_frames a =
             2 <= alloc_words
             && alloc_words - 1 <= Config.max_young_wosize
             && Config.max_young_wosize <= 256);
-          a.efa_8 (alloc_words - 2))
+          emit_u8 (alloc_words - 2))
         dbg;
       if flags = 3
       then (
