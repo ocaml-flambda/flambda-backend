@@ -1056,6 +1056,26 @@ let check_project_mutability ~loc ~env mutability mode =
   if Types.is_mutable mutability then
     submode ~loc ~env mode mode_project_mutable
 
+let check_label_in_block_idx lbl mut loc =
+  let expected1 =
+    mutable_implied_modalities (if mut then Mutable else Immutable) []
+  |>
+  if mut then
+    match
+      (* CR rtjoa: note to self see untransl_modality *)
+      Mode.Modality.Value.Const.equate
+        lbl.lbl_modalities
+        Mode.Modality.Value.Const.of_list ()[
+          Modality.Atom (Comonadic Yielding, Meet_wi)
+          Modality.Atom (Comonadic Yielding, )
+        ]
+    (* allow global many aliased unyielding *)
+
+  else
+    (* allow many aliased unyielding *)
+    ()
+
+
 (* Typing of patterns *)
 
 (* unification inside type_exp and type_expect *)
@@ -5739,8 +5759,9 @@ and type_expect_
           (label_disambiguate Legacy Projection lid env expected_record_type)
           labels
       in
-      let (_, ty_arg, ty_res) = instance_label ~fixed:false label in
       let mut = is_mutable label.lbl_mut in
+      check_label_in_block_idx label mut lid.loc;
+      let (_, ty_arg, ty_res) = instance_label ~fixed:false label in
       if mut then Env.mark_label_used Mutation label.lbl_uid;
       let ba = Baccess_field (lid, label) in
       let flat_float  =
@@ -5801,7 +5822,7 @@ and type_expect_
       let ba = Baccess_block (mut, idx) in
       { ba; base_ty; el_ty; flat_float = false }
   in
-  let type_unboxed_access el_ty ua =
+  let type_unboxed_access el_ty ua mut =
     match ua with
     | Parsetree.Uaccess_unboxed_field lid ->
       let expected_record_type =
@@ -5823,6 +5844,7 @@ and type_expect_
               expected_record_type)
           labels
       in
+      check_label_in_block_idx label mut lid.loc;
       let (_, ty_arg, ty_res) = instance_label ~fixed:false label in
       begin
         (* The previous element ty must be the base ty of this component *)
@@ -6400,23 +6422,28 @@ and type_expect_
            (try unify env res.base_ty expected_base_ty with Unify _ -> ());
            res)
     in
+    let mut =
+      match ba with
+      | Baccess_field (_, { lbl_mut = Immutable; _ })
+      | Baccess_array { mut = Immutable; _ } | Baccess_block (Immutable, _) ->
+        false
+      | Baccess_field (_, { lbl_mut = Mutable _; _ })
+      | Baccess_array { mut = Mutable; _ } | Baccess_block (Mutable, _) ->
+    in
     let el_ty, uas =
       List.fold_left_map
         (fun el_ty ua ->
            with_local_level_if_principal
              ~post:generalize_type_unboxed_access_result
-             (fun () -> type_unboxed_access el_ty ua))
+             (fun () -> type_unboxed_access el_ty ua mut))
         el_ty
         uas
     in
     let el_ty = if flat_float then Predef.type_unboxed_float else el_ty in
     let ty =
-      match ba with
-      | Baccess_field (_, { lbl_mut = Immutable; _ })
-      | Baccess_array { mut = Immutable; _ } | Baccess_block (Immutable, _) ->
+      if mut then
         Predef.type_idx_imm base_ty el_ty
-      | Baccess_field (_, { lbl_mut = Mutable _; _ })
-      | Baccess_array { mut = Mutable; _ } | Baccess_block (Mutable, _) ->
+      else
         Predef.type_idx_mut base_ty el_ty
     in
     with_explanation (fun () ->
