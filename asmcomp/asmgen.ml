@@ -77,6 +77,9 @@ let should_save_before_emit () =
 let should_save_cfg_before_emit () =
   should_save_ir_after Compiler_pass.Simplify_cfg && not !start_from_emit
 
+let should_save_cfg_before_regalloc () =
+  should_save_ir_before Compiler_pass.Register_allocation
+
 let linear_unit_info =
   { Linear_format.unit = Compilation_unit.dummy; items = [] }
 
@@ -84,6 +87,8 @@ let new_cfg_unit_info () =
   { Cfg_format.unit = Compilation_unit.dummy; items = [] }
 
 let cfg_unit_info = new_cfg_unit_info ()
+
+let cfg_before_regalloc_unit_info = new_cfg_unit_info ()
 
 module Compiler_pass_map = Map.Make (Compiler_pass)
 
@@ -96,10 +101,13 @@ let reset () =
   start_from_emit := false;
   Compiler_pass_map.iter
     (fun pass (cfg_unit_info : Cfg_format.cfg_unit_info) ->
-      if should_save_ir_after pass
+      if should_save_ir_after pass || should_save_ir_before pass
       then (
         cfg_unit_info.unit <- Compilation_unit.get_current_or_dummy ();
-        cfg_unit_info.items <- []))
+        cfg_unit_info.items <- [];
+        cfg_before_regalloc_unit_info.unit
+          <- Compilation_unit.get_current_or_dummy ();
+        cfg_before_regalloc_unit_info.items <- []))
     pass_to_cfg;
   if should_save_before_emit ()
   then (
@@ -152,7 +160,15 @@ let write_ir prefix =
   then (
     let filename = Compiler_pass.(to_output_filename Simplify_cfg ~prefix) in
     cfg_unit_info.items <- List.rev cfg_unit_info.items;
-    Cfg_format.save filename cfg_unit_info)
+    Cfg_format.save filename cfg_unit_info);
+  if should_save_cfg_before_regalloc ()
+  then (
+    let filename =
+      Compiler_pass.(to_output_filename Register_allocation ~prefix)
+    in
+    cfg_before_regalloc_unit_info.items
+      <- List.rev cfg_before_regalloc_unit_info.items;
+    Cfg_format.save filename cfg_before_regalloc_unit_info)
 
 let should_emit () = not (should_stop_after Compiler_pass.Linearization)
 
@@ -341,6 +357,15 @@ let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
     ++ Cfg_with_infos.make
     ++ cfg_with_infos_profile ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
   in
+  (if should_save_cfg_before_regalloc ()
+  then
+    let copy : Cfg_with_layout.t =
+      (* CFG are mutable, so make sure what we will save is a snapshot of the
+         current state. *)
+      Marshal.from_string (Marshal.to_string cfg_with_layout []) 0
+    in
+    cfg_before_regalloc_unit_info.items
+      <- Cfg_format.(Cfg copy) :: cfg_before_regalloc_unit_info.items);
   cfg_with_infos
   ++ Profile.record ~accumulate:true "regalloc" (fun cfg_with_infos ->
          let cfg_description =
