@@ -2290,19 +2290,22 @@ let for_boxed_variant ~decl_params ~type_apply ~free_vars cstrs =
 
        Inferring with-bounds for gadts goes like so:
 
-       1. Loop over the constructors. If a constructor is not a variant constructor, just
-       add its fields and their modalities as with-bounds, then skip step 2
+       1. Loop over the constructors. If a constructor is not a variant
+       constructor, just add its fields and their modalities as with-bounds,
+       then skip step 2
 
-       2. For GADT constructors, call [Ctype.apply] (passed in as [type_apply]) to
-       substitute the arguments on the return types of gadts with the arguments to the
-       type declaration (except in the case of return type arguments which are not bare
-       type variables, see 2b). For example, in the following type declaration:
+       2. For GADT constructors, call [Ctype.apply] (passed in as [type_apply])
+       to substitute the arguments on the return types of gadts with the
+       arguments to the type declaration (except in the case of return type
+       arguments which are not bare type variables, see 2b). For example, in the
+       following type declaration:
 
        {[
          type 'a t = A : 'b option -> 'b t
        ]}
 
-       we turn the ['b option] field into ['a option], by substituting ['b] |-> ['a].
+       we turn the ['b option] field into ['a option], by substituting ['b] |->
+       ['a].
 
        There are a few ways this is slightly subtle ([2a]-[2c]):
 
@@ -2312,34 +2315,37 @@ let for_boxed_variant ~decl_params ~type_apply ~free_vars cstrs =
          type ('x, 'y) t = A : 'a -> ('a, 'a) t
        ]}
 
-       we take only the *first* time we see an argument, treating that as an index, and
-       omit all other possible instantiations. That means that in the above type, we'll
-       substitute ['x] for both instances of ['a] and infer a kind of [immutable_data with
-       'x]. This is sound, but somewhat restrictive; in a perfect world, we'd infer a kind
-       of [immutable_data with ('x OR 'y)], but that goes beyond what with-bounds can
-       describe (which, if we implemented it, would introduce a disjunction in type
-       inference, requiring backtracking). At some point in the future, we should at least
-       change the subsumption algorithm to accept either [immutable_data with 'x] or
-       [immutable_data with 'y] (* CR layouts v2.8: do that *)
+       we take only the *first* time we see an argument, treating that as an
+       index, and omit all other possible instantiations. That means that in the
+       above type, we'll substitute ['x] for both instances of ['a] and infer a
+       kind of [immutable_data with 'x]. This is sound, but somewhat
+       restrictive; in a perfect world, we'd infer a kind of [immutable_data
+       with ('x OR 'y)], but that goes beyond what with-bounds can describe
+       (which, if we implemented it, would introduce a disjunction in type
+       inference, requiring backtracking). At some point in the future, we
+       should at least change the subsumption algorithm to accept either
+       [immutable_data with 'x] or [immutable_data with 'y] (* CR layouts v2.8:
+       do that *)
 
-       2b. If a type appears in an argument as something other than a direct TVar, eg in
-       the following type:
+       2b. If a type appears in an argument as something other than a direct
+       TVar, eg in the following type:
 
        {[
          type 'a t = A : 'a -> 'a option t
        ]}
 
-       we treat it as if it was existential (see [2c]); we consider these variables -
-       those which are either existential (not mentioned at all in the result type of the
-       constructor) or only mentioned under another type expression in the result type of
-       a constructor "orphaned" type variables.
+       we treat it as if it was existential (see [2c]); we consider these
+       variables - those which are either existential (not mentioned at all in
+       the result type of the constructor) or only mentioned under another type
+       expression in the result type of a constructor "orphaned" type variables.
 
-       2c. We replace all "orphaned" type variables (see the last paragraph of 2a, above)
-       with a [Tof_kind] representing the kind of those existential type variables. Since
-       those have best kinds, they'll just get normalized away during normalization,
-       except in the case that they show up as an argument to a type constructor
-       representing an abstract type - in which case, they still end up in the (fully
-       normalized) with-bounds. For example, the following type:
+       2c. We replace all "orphaned" type variables (see the last paragraph of
+       2a, above) with a [Tof_kind] representing the kind of those existential
+       type variables. Since those have best kinds, they'll just get normalized
+       away during normalization, except in the case that they show up as an
+       argument to a type constructor representing an abstract type - in which
+       case, they still end up in the (fully normalized) with-bounds. For
+       example, the following type:
 
        {[
          type t : A : ('a : value mod portable). 'a abstract -> t
