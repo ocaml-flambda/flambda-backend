@@ -2344,7 +2344,7 @@ let rec estimate_type_jkind ~expand_component env ty =
        down a test case that cares. *)
     Jkind.round_up ~jkind_of_type |>
     Jkind.disallow_right
-  | Tof_kind jkind  ->
+  | Tof_kind jkind ->
     jkind
     |> Jkind.disallow_right
     (* [Tof_kind] stands in for an existential type, which always have best kinds *)

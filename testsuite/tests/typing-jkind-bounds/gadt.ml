@@ -612,6 +612,10 @@ Line 1, characters 83-84:
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
+(* This would be lovely to accept, but it seems beyond the
+   expressiveness of our design. Specifically, we'd need to have some way
+   of connecting mode-crossing behavior to the choice of [option] in the
+   argument to [exist_row3]. *)
 let foo (x : [`A | `B of int ref] option exist_row3 @ nonportable) = use_portable x
 [%%expect{|
 Line 1, characters 82-83:
