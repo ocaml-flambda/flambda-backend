@@ -411,7 +411,7 @@ let untransl_modality (a : Modality.t) : Parsetree.modality loc =
    @no_mutable_implied_modalities). The implications on the monadic axes will
    stay. *)
 (* CR zqian: decouple mutable and comonadic modalities *)
-let mutable_implied_modalities (mut : Types.mutability) attrs =
+let mutable_implied_modalities mut attrs =
   let comonadic : Modality.t list =
     [ Atom (Comonadic Areality, Meet_with Regionality.Const.legacy);
       Atom (Comonadic Linearity, Meet_with Linearity.Const.legacy);
@@ -424,12 +424,57 @@ let mutable_implied_modalities (mut : Types.mutability) attrs =
       Atom (Monadic Contention, Join_with Contention.Const.legacy);
       Atom (Monadic Visibility, Join_with Visibility.Const.legacy) ]
   in
-  match mut with
-  | Immutable -> []
-  | Mutable _ ->
+  if mut
+  then
     if Builtin_attributes.has_no_mutable_implied_modalities attrs
     then monadic
     else monadic @ comonadic
+  else []
+
+let idx_expected_modalities ~(mut : bool) =
+  (* There are two design constraints on what modalities we allow in an index
+     creation to contain:
+
+      1. The default modalities (id for non-mutable fields, global many aliased
+         unyielding for mutable fields) should work.
+      2. It should also be safe wrt to type signatures given to externals.
+
+     Because these are coupled, this function checks that they are equal.
+
+     external[@layout_poly] get_idx_imm :
+       'a ('b : any). ('a [@local_opt]) -> ('a, 'b) idx_imm -> ('b [@local_opt]) =
+       "%unsafe_get_idx_imm"
+
+     external[@layout_poly] get_idx_mut :
+       'a ('b : any). ('a [@local_opt]) -> ('a, 'b) idx_mut -> ('b [@local_opt]) =
+       "%unsafe_get_idx"
+
+     external[@layout_poly] set_idx_mut :
+       'a ('b : any).
+         'a @ local -> ('a, 'b) idx_mut -> 'b -> unit =
+       "%unsafe_set_idx"
+  *)
+  let expected1 =
+    mutable_implied_modalities mut [] |> Mode.Modality.Value.Const.of_list
+  in
+  let expected2 =
+    if mut
+    then
+      (* If this list is updated, the external bindings in the [Idx_imm] and
+         [Idx_mut] modules in the Stdlib may also have to be updated. *)
+      Mode.Modality.Value.Const.of_list
+        [ Atom (Comonadic Areality, Meet_with Regionality.Const.legacy);
+          Atom (Comonadic Linearity, Meet_with Linearity.Const.legacy);
+          Atom (Comonadic Yielding, Meet_with Yielding.Const.legacy);
+          Atom (Monadic Uniqueness, Join_with Uniqueness.Const.legacy) ]
+    else Mode.Modality.Value.Const.id
+  in
+  match Mode.Modality.Value.Const.equate expected1 expected2 with
+  | Ok () -> expected1
+  | Error _ ->
+    Misc.fatal_error
+      "Typemode.idx_expected_modalities: mismatch with mutable implied \
+       modalities"
 
 (* Since [yielding] is the default mode in presence of [local],
    the [global] modality must also apply [unyielding] unless specified.
@@ -507,7 +552,9 @@ let default_modalities (modalities : Modality.t list) =
   modalities @ extra
 
 let transl_modalities ~maturity mut attrs modalities =
-  let mut_modalities = mutable_implied_modalities mut attrs in
+  let mut_modalities =
+    mutable_implied_modalities (Types.is_mutable mut) attrs
+  in
   let modalities = List.map (transl_modality ~maturity) modalities in
   let modalities = default_modalities modalities in
   (* mut_modalities is applied before explicit modalities *)
@@ -608,7 +655,9 @@ let untransl_modalities mut attrs t =
         | a -> Some a)
       l
   in
-  let mut_modalities = mutable_implied_modalities mut attrs in
+  let mut_modalities =
+    mutable_implied_modalities (Types.is_mutable mut) attrs
+  in
   (* polymorphic equality suffices for now. *)
   let l = List.filter (fun x -> not @@ List.mem x mut_modalities) l in
   List.map untransl_modality l

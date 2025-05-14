@@ -95,7 +95,8 @@ let record_form_to_wrong_kind_sort
   | Unboxed_product -> Record_unboxed_product
 
 type type_block_access_result =
-  { ba : block_access; base_ty: type_expr; el_ty: type_expr; flat_float : bool }
+  { ba : block_access; base_ty: type_expr; el_ty: type_expr; flat_float : bool;
+    modality : Modality.Value.Const.t }
 
 type contains_gadt =
   | Contains_gadt
@@ -262,6 +263,7 @@ type error =
       { prev_el_type : type_expr; ua : Parsetree.unboxed_access }
   | Block_access_record_unboxed
   | Block_access_array_unsupported
+  | Block_index_modality_mismatch of Modality.Value.equate_error
   | Submode_failed of
       Value.error * submode_reason *
       Env.locality_context option *
@@ -1055,26 +1057,6 @@ let mode_force_lazy =
 let check_project_mutability ~loc ~env mutability mode =
   if Types.is_mutable mutability then
     submode ~loc ~env mode mode_project_mutable
-
-let check_label_in_block_idx lbl mut loc =
-  let expected1 =
-    mutable_implied_modalities (if mut then Mutable else Immutable) []
-  |>
-  if mut then
-    match
-      (* CR rtjoa: note to self see untransl_modality *)
-      Mode.Modality.Value.Const.equate
-        lbl.lbl_modalities
-        Mode.Modality.Value.Const.of_list ()[
-          Modality.Atom (Comonadic Yielding, Meet_wi)
-          Modality.Atom (Comonadic Yielding, )
-        ]
-    (* allow global many aliased unyielding *)
-
-  else
-    (* allow many aliased unyielding *)
-    ()
-
 
 (* Typing of patterns *)
 
@@ -5760,7 +5742,6 @@ and type_expect_
           labels
       in
       let mut = is_mutable label.lbl_mut in
-      check_label_in_block_idx label mut lid.loc;
       let (_, ty_arg, ty_res) = instance_label ~fixed:false label in
       if mut then Env.mark_label_used Mutation label.lbl_uid;
       let ba = Baccess_field (lid, label) in
@@ -5783,7 +5764,8 @@ and type_expect_
         | Record_inlined _ ->
           Misc.fatal_error "Typecore.type_block_access: inlined record"
       in
-      { ba; base_ty = ty_res; el_ty = ty_arg; flat_float }
+      let modality = label.lbl_modalities in
+      { ba; base_ty = ty_res; el_ty = ty_arg; flat_float; modality }
     | Baccess_array (mut, index_kind, index) ->
       (* CR rtjoa: require that [el_ty] is [non_float] *)
       let elt_jkind, elt_sort = Jkind.of_new_sort_var ~why:Idx_element in
@@ -5806,7 +5788,9 @@ and type_expect_
         Baccess_array { mut; index_kind; index; base_ty; elt_ty; elt_sort }
       in
       if Language_extension.is_at_least Layouts Language_extension.Alpha then
-        { ba; base_ty; el_ty = elt_ty; flat_float = false }
+        let mut = match mut with Immutable -> false | Mutable -> true in
+        let modality = Typemode.idx_expected_modalities ~mut in
+        { ba; base_ty; el_ty = elt_ty; flat_float = false; modality }
       else
         raise (Error (index.exp_loc, env, Block_access_array_unsupported))
     | Baccess_block (mut, idx) ->
@@ -5820,9 +5804,11 @@ and type_expect_
       let idx =
         type_expect env mode_legacy idx (mk_expected idx_type_expected) in
       let ba = Baccess_block (mut, idx) in
-      { ba; base_ty; el_ty; flat_float = false }
+      let mut = match mut with Immutable -> false | Mutable -> true in
+      let modality = Typemode.idx_expected_modalities ~mut in
+      { ba; base_ty; el_ty; flat_float = false; modality }
   in
-  let type_unboxed_access el_ty ua mut =
+  let type_unboxed_access el_ty ua =
     match ua with
     | Parsetree.Uaccess_unboxed_field lid ->
       let expected_record_type =
@@ -5844,7 +5830,6 @@ and type_expect_
               expected_record_type)
           labels
       in
-      check_label_in_block_idx label mut lid.loc;
       let (_, ty_arg, ty_res) = instance_label ~fixed:false label in
       begin
         (* The previous element ty must be the base ty of this component *)
@@ -5853,7 +5838,7 @@ and type_expect_
           let err = Invalid_unboxed_access { prev_el_type = el_ty; ua } in
           raise (Error (lid.loc, env, err))
       end;
-      ty_arg, Uaccess_unboxed_field (lid, label)
+      (ty_arg, label.lbl_modalities), Uaccess_unboxed_field (lid, label)
   in
   match desc with
   | Pexp_ident lid ->
@@ -6415,7 +6400,7 @@ and type_expect_
     in
     let expected_base_ty = expected_base_ty ty_expected in
     let principal = is_principal ty_expected in
-    let { ba; base_ty; el_ty; flat_float } =
+    let { ba; base_ty; el_ty; flat_float; modality } =
       with_local_level_if_principal ~post:generalize_type_block_access_result
         (fun () ->
            let res = type_block_access expected_base_ty principal ba in
@@ -6429,16 +6414,28 @@ and type_expect_
         false
       | Baccess_field (_, { lbl_mut = Mutable _; _ })
       | Baccess_array { mut = Mutable; _ } | Baccess_block (Mutable, _) ->
+        true
     in
-    let el_ty, uas =
+    let (el_ty, modality), uas =
       List.fold_left_map
-        (fun el_ty ua ->
+        (fun (el_ty, modality) ua ->
            with_local_level_if_principal
-             ~post:generalize_type_unboxed_access_result
-             (fun () -> type_unboxed_access el_ty ua mut))
-        el_ty
+             ~post:(fun ((t,_), ua) -> generalize_type_unboxed_access_result (t,ua))
+             (fun () ->
+                let (el_ty, ua_modality), ua = type_unboxed_access el_ty ua in
+                let modality = Modality.Value.Const.concat modality ~then_:ua_modality in
+                (el_ty, modality), ua
+             ))
+        (el_ty, modality)
         uas
     in
+    let expected_modality = Typemode.idx_expected_modalities ~mut in
+    begin
+      match Modality.Value.Const.equate modality expected_modality with
+      | Ok () -> ()
+      | Error err ->
+        raise (Error(loc, env, Block_index_modality_mismatch err))
+    end;
     let el_ty = if flat_float then Predef.type_unboxed_float else el_ty in
     let ty =
       if mut then
@@ -11225,6 +11222,22 @@ let report_error ~loc env =
   | Block_access_array_unsupported ->
     Location.error ~loc
       "Block indices into arrays are not yet supported."
+  | Block_index_modality_mismatch err ->
+    let _, err = err in
+    let buf = Buffer.create 1000 in
+    let ppf = Format.formatter_of_buffer buf in
+    let Modality.Value.Error(ax, {left; right}) = err in
+    (* CR rtjoa:  *)
+    let print_modality id ppf m =
+      Printtyp.modality ~id:(fun ppf -> Format.pp_print_string ppf id) ppf m
+    in
+    Format.fprintf ppf "actual %a, expected %a."
+      (print_modality "aaa") (Atom (ax, left) : Modality.t)
+      (print_modality "bbb") (Atom (ax, right) : Modality.t);
+    Format.pp_print_flush ppf ();
+    let s = Bytes.to_string (Buffer.to_bytes buf) in
+    Location.error ~loc s
+
   | Submode_failed(fail_reason, submode_reason, locality_context,
       contention_context, visibility_context, shared_context)
      ->

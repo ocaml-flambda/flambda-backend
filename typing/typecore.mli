@@ -303,6 +303,10 @@ type error =
       { prev_el_type : type_expr; ua : Parsetree.unboxed_access }
   | Block_access_record_unboxed
   | Block_access_array_unsupported
+  | Block_index_modality_mismatch of
+      { mut : bool
+      ; expected : Mode.Modality.Value.Const
+      ; actual : Mode.Modality.Value.Const }
   | Submode_failed of
       Mode.Value.error * submode_reason *
       Env.locality_context option *

@@ -29,6 +29,8 @@ val untransl_modalities :
   Mode.Modality.Value.Const.t ->
   Parsetree.modalities
 
+val idx_expected_modalities : mut:bool -> Mode.Modality.Value.Const.t
+
 module Transled_modifiers : sig
   type t =
     { locality : Mode.Locality.Const.t Location.loc option;
