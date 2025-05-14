@@ -506,7 +506,7 @@ val for_boxed_variant :
     Types.type_expr ->
     Types.type_expr list ->
     Types.type_expr) ->
-  free_vars:(Types.type_expr -> Types.type_expr list) ->
+  free_vars:(Types.type_expr list -> Btype.TypeSet.t) ->
   Types.constructor_declaration list ->
   Types.jkind_l
 

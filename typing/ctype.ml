@@ -648,6 +648,16 @@ let free_non_row_variables_of_list tyl =
   List.iter unmark_type tyl;
   tl
 
+let free_variable_set_of_list env tys =
+  let add_one ty jkind _kind acc =
+    match jkind with
+    | None -> (* not a Tvar *) acc
+    | Some _jkind -> TypeSet.add ty acc
+  in
+  let ts = free_vars ~zero:TypeSet.empty ~add_one ~env tys in
+  List.iter unmark_type tys;
+  ts
+
 let exists_free_variable f ty =
   let exception Exists in
   let add_one ty jkind _kind _acc =

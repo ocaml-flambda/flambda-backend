@@ -1958,7 +1958,7 @@ let rec update_decl_jkind env dpath decl =
         Jkind.for_boxed_variant
           ~decl_params:decl.type_params
           ~type_apply:(Ctype.apply env)
-          ~free_vars:(Ctype.free_variables ~env)
+          ~free_vars:(Ctype.free_variable_set_of_list env)
           cstrs
       in
       List.rev cstrs, rep, jkind
