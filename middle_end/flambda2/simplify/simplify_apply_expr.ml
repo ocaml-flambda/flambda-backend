@@ -509,13 +509,13 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         let mk_value_slot kind =
           let is_always_immediate =
             match[@ocaml.warning "-4"]
-              Flambda_kind.With_subkind.non_null_value_subkind kind
+              K.With_subkind.non_null_value_subkind kind
             with
             | Tagged_immediate -> true
             | _ -> false
           in
           Value_slot.create compilation_unit ~name:"arg" ~is_always_immediate
-            (Flambda_kind.With_subkind.kind kind)
+            (K.With_subkind.kind kind)
         in
         let applied_value (value, kind) =
           Simple.pattern_match' value
@@ -525,7 +525,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
               then Symbol symbol
               else
                 let var = Variable.create "symbol" in
-                if not (K.equal (Flambda_kind.With_subkind.kind kind) K.value)
+                if not (K.equal (K.With_subkind.kind kind) K.value)
                 then
                   Misc.fatal_errorf
                     "Simple %a which is a symbol should be of kind Value"
