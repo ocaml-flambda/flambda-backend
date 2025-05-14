@@ -2262,7 +2262,9 @@ let for_unboxed_record lbls =
 let for_boxed_variant ~decl_params ~type_apply ~free_vars cstrs =
   let open Types in
   if List.for_all
-       (fun cstr ->
+       (* CR layouts v12: This code assumes that all voids mode-cross. I
+          think that's probably not what we want. *)
+         (fun cstr ->
          match cstr.cd_args with
          | Cstr_tuple args ->
            List.for_all (fun arg -> Sort.Const.(equal void arg.ca_sort)) args
@@ -2324,7 +2326,7 @@ let for_boxed_variant ~decl_params ~type_apply ~free_vars cstrs =
        the following type:
 
        {[
-         type 'a t : A : 'a -> 'a option t
+         type 'a t = A : 'a -> 'a option t
        ]}
 
        we treat it as if it was existential (see [2c]); we consider these variables -

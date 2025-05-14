@@ -502,6 +502,20 @@ type 'a t constraint 'a = 'b option
 type 'c t2 = K : 'a option t -> 'a option t2
 |}]
 
+type 'a t constraint 'a = 'b option
+type 'c t2 : immediate =
+  | K : 'd t -> 'd t2
+[%%expect{|
+type 'a t constraint 'a = 'b option
+Lines 2-3, characters 0-21:
+2 | type 'c t2 : immediate =
+3 |   | K : 'd t -> 'd t2
+Error: The kind of type "t2" is immutable_data with (type : value) option t
+         because it's a boxed variant type.
+       But the kind of type "t2" must be a subkind of immediate
+         because of the annotation on the declaration of the type t2.
+|}]
+
 (* Existential row variables *)
 
 type exist_row1 = Mk : ([< `A | `B of int ref] as 'a) -> exist_row1
