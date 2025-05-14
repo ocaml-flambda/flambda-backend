@@ -2219,10 +2219,12 @@ let end_assembly () =
           let lbl = label_to_asm_label ~section:Data lbl in
           D.type_label ~ty:Object lbl;
           D.label lbl);
-      efa_8 = (fun n -> D.uint8 (Numbers.Uint8.of_nonnegative_int_exn n));
-      efa_16 = (fun n -> D.uint16 (Numbers.Uint16.of_nonnegative_int_exn n));
-      (* CR sspies: for some reason, we can get negative numbers here *)
-      efa_32 = (fun n -> D.int32 n);
+      efa_i8 = (fun n -> D.int8 n);
+      efa_i16 = (fun n -> D.int16 n);
+      efa_i32 = (fun n -> D.int32 n);
+      efa_u8 = (fun n -> D.uint8 n);
+      efa_u16 = (fun n -> D.uint16 n);
+      efa_u32 = (fun n -> D.uint32 n);
       efa_word = (fun n -> D.targetint (Targetint.of_int_exn n));
       efa_align = (fun n -> D.align ~bytes:n);
       efa_label_rel =
