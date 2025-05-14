@@ -1,6 +1,7 @@
 (* TEST
  flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
  runtime5;
+ multidomain;
  include unix;
  hasunix;
  {

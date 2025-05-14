@@ -3,6 +3,7 @@
  include systhreads;
  hassysthreads;
  runtime5;
+ multidomain;
  {
    bytecode;
  }{
