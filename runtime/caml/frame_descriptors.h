@@ -60,7 +60,6 @@
 #define FRAME_RETURN_TO_C 0xFFFF
 #define FRAME_LONG_MARKER 0x7FFF
 
-
 typedef struct {
   int32_t retaddr_rel; /* offset of return address from &retaddr_rel */
   uint16_t frame_data; /* frame size and various flags */

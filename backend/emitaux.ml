@@ -212,40 +212,39 @@ type emit_frame_actions =
   }
 
 let emit_frames a =
+  (* The emit functions below perform bounds checks for the corresponding ranges
+     via the conversion functions that raise exceptions. [int32] does not have
+     such a function so we perform the check manually here. *)
   let emit_u8 n =
-    if n < 0 || n > 0xFF
-    then
-      Misc.fatal_errorf
-        "attempting to emit unsigned 8-bit integer %d out of range" n
-    else a.efa_u8 (Numbers.Uint8.of_nonnegative_int_exn n)
+    let n = Numbers.Uint8.of_nonnegative_int_exn n in
+    a.efa_u8 n
+  in
+  let[@warning "-26"] emit_i8 n =
+    (* unused, but here for completeness *)
+    let n = Numbers.Int8.of_int_exn n in
+    a.efa_i8 n
   in
   let emit_i16 n =
-    if n < -0x8000 || n > 0x7FFF
-    then
-      Misc.fatal_errorf
-        "attempting to emit signed 16-bit integer %d out of range" n
-    else a.efa_i16 (Numbers.Int16.of_int_exn n)
+    let n = Numbers.Int16.of_int_exn n in
+    a.efa_i16 n
   in
   let emit_u16 n =
-    if n < 0 || n > 0xFFFF
-    then
-      Misc.fatal_errorf
-        "attempting to emit unsigned 16-bit integer %d out of range" n
-    else a.efa_u16 (Numbers.Uint16.of_nonnegative_int_exn n)
+    let n = Numbers.Uint16.of_nonnegative_int_exn n in
+    a.efa_u16 n
   in
   let emit_i32 n =
-    if n < -0x8000_0000 || n > 0x7FFF_FFFF
+    let min_i32 = Int64.neg (Int64.shift_left 1L 31) (* -0x8000_0000 *)
+    and max_i32 = Int64.sub (Int64.shift_left 1L 31) 1L (* 0x7fff_ffff *)
+    and n_64 = Int64.of_int n in
+    if Int64.compare n_64 min_i32 < 0 || Int64.compare n_64 max_i32 > 0
     then
       Misc.fatal_errorf
         "attempting to emit signed 32-bit integer %d out of range" n
     else a.efa_i32 (Int32.of_int n)
   in
   let emit_u32 n =
-    if n < 0 || n > 0xFFFF_FFFF
-    then
-      Misc.fatal_errorf
-        "attempting to emit unsigned 32-bit integer %d out of range" n
-    else a.efa_u32 (Numbers.Uint32.of_nonnegative_int_exn n)
+    let n = Numbers.Uint32.of_nonnegative_int_exn n in
+    a.efa_u32 n
   in
   let filenames = Hashtbl.create 7 in
   let label_filename name =
@@ -435,7 +434,10 @@ let emit_frames a =
       a.efa_label_rel
         (label_defname d.dinfo_file defname loc)
         (Int64.to_int32 info);
-      emit_i32 (Int32.to_int (Int64.to_int32 (Int64.shift_right info 32)));
+      (* We use [efa_i32] directly here instead of [emit_i32] to avoid a
+         round-trip via [int], which would break on 32-bit platforms. The right
+         shift ensures that the integer is in range of [int32]. *)
+      a.efa_i32 (Int64.to_int32 (Int64.shift_right info 32));
       match rest with [] -> () | d :: rest -> emit false d rest
     in
     match rdbg with [] -> assert false | d :: rest -> emit rs d rest
