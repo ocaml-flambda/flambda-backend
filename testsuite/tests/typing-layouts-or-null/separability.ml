@@ -736,3 +736,164 @@ Error: This type "int or_null" should be an instance of type
        But the kind of int or_null must be a subkind of any_non_null
          because it's the type argument to the array type.
 |}]
+
+(* With-kinds and separability. *)
+
+(* Separability is shallow and does not interact with with-kinds. *)
+
+type ('a : value_or_null) record : value mod non_float =
+  { x : 'a; y : int or_null; z : float }
+
+[%%expect{|
+type 'a record = { x : 'a; y : int or_null; z : float; }
+|}]
+
+type ('a : value_or_null) smth : immediate with 'a
+
+type ('a : immediate) bounded
+
+(* CR layouts v2.8: broken mode crossing with [-principal]. *)
+
+type works = int or_null smth bounded
+
+[%%expect{|
+type 'a smth : immediate with 'a
+type ('a : immediate) bounded
+type works = int or_null smth bounded
+|}, Principal{|
+type 'a smth : immediate with 'a
+type ('a : immediate) bounded
+Line 7, characters 13-29:
+7 | type works = int or_null smth bounded
+                 ^^^^^^^^^^^^^^^^
+Error: This type "int or_null smth" should be an instance of type
+         "('a : immediate)"
+       The kind of int or_null smth is immediate with int or_null
+         because of the definition of smth at line 1, characters 0-50.
+       But the kind of int or_null smth must be a subkind of immediate
+         because of the definition of bounded at line 3, characters 0-29.
+|}]
+
+(* Separability and [@@unboxed]. *)
+
+type unbx = { unbx : t_nonsep_val } [@@unboxed]
+
+(* CR layouts v3.4: non-separable unboxed records should be allowed. *)
+
+[%%expect{|
+Line 1, characters 0-47:
+1 | type unbx = { unbx : t_nonsep_val } [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "unbx" is value_or_null mod non_null
+         because of the definition of t_nonsep_val at line 1, characters 0-46.
+       But the kind of type "unbx" must be a subkind of value
+         because it's an [@@unboxed] type,
+         chosen to have kind value.
+|}]
+
+(* CR layouts v3.4: non-separable unboxed variants should be allowed. *)
+
+type ('a : value_or_null mod non_null) unbx' = Unbx of 'a [@@unboxed]
+
+[%%expect{|
+Line 1, characters 0-69:
+1 | type ('a : value_or_null mod non_null) unbx' = Unbx of 'a [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "unbx'" is value_or_null mod non_null
+         because of the annotation on 'a in the declaration of the type unbx'.
+       But the kind of type "unbx'" must be a subkind of value
+         because it's an [@@unboxed] type,
+         chosen to have kind value.
+|}]
+
+(* Separability and unboxed records. *)
+
+(* One-element unboxed records inherit the separability of the element type .*)
+
+type a : value = #{ a : t_nonsep_val }
+
+[%%expect{|
+Line 1, characters 0-38:
+1 | type a : value = #{ a : t_nonsep_val }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "a" is immediate with t_nonsep_val
+         because it is an unboxed record.
+       But the kind of type "a" must be a subkind of value
+         because of the annotation on the declaration of the type a.
+|}]
+
+type a : value_or_null mod non_null = #{ a : t_nonsep_val }
+
+[%%expect{|
+type a = #{ a : t_nonsep_val; }
+|}]
+
+
+type b = #{ a : int; b: t_nonsep_val; c: float# }
+
+type ('b : value & value & float64 mod everything non_float) fails = unit constraint 'b = b
+
+(* CR layouts v3.4: separability of 2+ element unboxed records should always be
+   non-float.
+
+   Also, this error is horrible. *)
+
+[%%expect{|
+type b = #{ a : int; b : t_nonsep_val; c : float#; }
+Line 3, characters 85-91:
+3 | type ('b : value & value & float64 mod everything non_float) fails = unit constraint 'b = b
+                                                                                         ^^^^^^
+Error: The type constraints are not consistent.
+       Type "('b : immediate & immediate & float64 mod everything)"
+       is not compatible with type "b"
+       The kind of b is
+         immediate with t_nonsep_val & immediate with t_nonsep_val
+         & float64 mod everything with t_nonsep_val
+         because of the definition of b at line 1, characters 0-49.
+       But the kind of b must be a subkind of
+         immediate & immediate & float64 mod everything
+         because of the annotation on 'b in the declaration of the type fails.
+|}]
+
+type c = #( float * float or_null * float# )
+
+(* CR layouts v3.4: separability of unboxed tuples should always be
+   non-float.
+
+   Also, this error is horrible. *)
+
+type ('c : value & value & float64 mod everything non_float) fails = unit constraint 'c = c
+
+[%%expect{|
+type c = #(float * float or_null * float#)
+Line 8, characters 85-91:
+8 | type ('c : value & value & float64 mod everything non_float) fails = unit constraint 'c = c
+                                                                                         ^^^^^^
+Error: The type constraints are not consistent.
+       Type "('c : immediate & immediate & float64 mod everything)"
+       is not compatible with type "c" = "#(float * float or_null * float#)"
+       The kind of c is
+         value_or_null mod many unyielding stateless immutable
+         & value_or_null mod many unyielding stateless immutable
+         & float64 mod many unyielding stateless immutable
+         because it is an unboxed tuple.
+       But the kind of c must be a subkind of
+         immediate & immediate & float64 mod everything
+         because of the annotation on 'c in the declaration of the type fails.
+|}, Principal{|
+type c = #(float * float or_null * float#)
+Line 8, characters 85-91:
+8 | type ('c : value & value & float64 mod everything non_float) fails = unit constraint 'c = c
+                                                                                         ^^^^^^
+Error: The type constraints are not consistent.
+       Type "('c : immediate & immediate & float64 mod everything)"
+       is not compatible with type "c" = "#(float * float or_null * float#)"
+       The kind of c is
+         immediate with float with float or_null with float# & immediate
+         with float with float or_null with float# & float64 mod everything
+         with float with float or_null with float#
+         because it is an unboxed tuple.
+       But the kind of c must be a subkind of
+         immediate & immediate & float64 mod everything
+         because of the annotation on 'c in the declaration of the type fails.
+|}]

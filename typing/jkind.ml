@@ -2066,8 +2066,11 @@ module Jkind_desc = struct
     let with_bounds =
       List.fold_right
         (fun (type_expr, modality) bounds ->
-          With_bounds.add_modality ~relevant_for_nullability:`Relevant
-            ~relevant_for_separability:`Irrelevant ~type_expr ~modality bounds)
+          With_bounds.add_modality
+            ~relevant_for_nullability:`Relevant
+              (* CR layouts v3.4: this should be relevant for 1-element unboxed
+                 records, but irrelevant for everything else. *)
+            ~relevant_for_separability:`Relevant ~type_expr ~modality bounds)
         tys_modalities No_with_bounds
     in
     { layout; mod_bounds; with_bounds }
