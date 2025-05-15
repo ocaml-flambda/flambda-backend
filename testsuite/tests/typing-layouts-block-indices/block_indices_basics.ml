@@ -326,20 +326,17 @@ type t = { mutable a : string; b : int; }
 val a : unit -> (t# array, string) idx_mut = <fun>
 |}]
 
-type t1 = { mutable a : string; b : int }
+type t1 = { a : string }
 let b () = (.:(5).#a)
 [%%expect{|
-type t1 = { mutable a : string; b : int; }
-Line 2, characters 11-21:
-2 | let b () = (.:(5).#a)
-               ^^^^^^^^^^
-Error: Immutable arrays of unboxed products are not yet supported.
+type t1 = { a : string; }
+val b : unit -> (t1# iarray, string) idx_imm = <fun>
 |}]
 
 let bad_index_type = (.("test"))
 [%%expect{|
-Line 339, characters 24-30:
-339 | let bad_index_type = (.("test"))
+Line 336, characters 24-30:
+336 | let bad_index_type = (.("test"))
                               ^^^^^^
 Error: This expression has type "string" but an expression was expected of type
          "int"
@@ -441,6 +438,194 @@ val idx_imm : ('a, 'b) idx_imm -> ('a, 'b) idx_imm = <fun>
 val idx_mut : ('a, 'b) idx_mut -> ('a, 'b) idx_mut = <fun>
 |}]
 
+(**************)
+(* Modalities *)
+
+type 'a id = { id : 'a }
+type 'a id = { mutable mut : 'a }
+type 'a global = { global : 'a @@ global }
+type 'a aliased = { aliased : 'a @@ aliased }
+type 'a many = { many : 'a @@ many }
+type 'a unyielding = { unyielding : 'a @@ unyielding }
+type 'a portable = { portable : 'a @@ portable }
+type 'a contended = { contended : 'a @@ contended }
+type 'a mut_none = { mutable mut_none : string [@no_mutable_implied_modalities] }
+type 'a mut_not_global = { mutable mut_not_global : 'a @@ many aliased unyielding [@no_mutable_implied_modalities] }
+type 'a mut_not_many =  { mutable mut_not_many : 'a @@ global aliased unyielding [@no_mutable_implied_modalities] }
+type 'a mut_not_aliased = { mutable mut_not_aliased : 'a @@ global many unyielding [@no_mutable_implied_modalities] }
+type 'a mut_not_unyielding = { mutable mut_not_unyielding : 'a @@ global many aliased [@no_mutable_implied_modalities] }
+[%%expect{|
+type 'a id = { id : 'a; }
+type 'a id = { mutable mut : 'a; }
+type 'a global = { global_ global : 'a; }
+type 'a aliased = { aliased : 'a @@ aliased; }
+type 'a many = { many : 'a @@ many; }
+type 'a unyielding = { unyielding : 'a @@ unyielding; }
+type 'a portable = { portable : 'a @@ portable; }
+type 'a contended = { contended : 'a @@ contended; }
+type 'a mut_none = { mutable mut_none : string; }
+type 'a mut_not_global = { mutable mut_not_global : 'a @@ many unyielding; }
+type 'a mut_not_many = { mutable global_ mut_not_many : 'a; }
+type 'a mut_not_aliased = { mutable mut_not_aliased : 'a @@ global many; }
+type 'a mut_not_unyielding = {
+  mutable mut_not_unyielding : 'a @@ global many;
+}
+|}]
+
+(* Immutable indices with each disallowed modality *)
+let bad () = (.global)
+[%%expect{|
+Line 1, characters 13-22:
+1 | let bad () = (.global)
+                 ^^^^^^^^^
+Error: Block indices do not yet support non-default modalities. In particular,
+       immutable elements must be empty, but this is global.
+|}]
+let bad () = (.aliased)
+[%%expect{|
+Line 1, characters 13-23:
+1 | let bad () = (.aliased)
+                 ^^^^^^^^^^
+Error: Block indices do not yet support non-default modalities. In particular,
+       immutable elements must be aliased, but this is not.
+|}]
+let bad () = (.many)
+[%%expect{|
+Line 1, characters 13-20:
+1 | let bad () = (.many)
+                 ^^^^^^^
+Error: Block indices do not yet support non-default modalities. In particular,
+       immutable elements must be empty, but this is many.
+|}]
+let bad () = (.unyielding)
+[%%expect{|
+Line 1, characters 13-26:
+1 | let bad () = (.unyielding)
+                 ^^^^^^^^^^^^^
+Error: Block indices do not yet support non-default modalities. In particular,
+       immutable elements must be empty, but this is unyielding.
+|}]
+let bad () = (.portable)
+[%%expect{|
+Line 1, characters 13-24:
+1 | let bad () = (.portable)
+                 ^^^^^^^^^^^
+Error: Block indices do not yet support non-default modalities. In particular,
+       immutable elements must be empty, but this is portable.
+|}]
+let bad () = (.contended)
+[%%expect{|
+Line 1, characters 13-25:
+1 | let bad () = (.contended)
+                 ^^^^^^^^^^^^
+Error: Block indices do not yet support non-default modalities. In particular,
+       immutable elements must be contended, but this is not.
+|}]
+
+(* Mutable indices with each disallowed modality *)
+let bad () = (.mut_none)
+[%%expect{|
+Line 1, characters 13-24:
+1 | let bad () = (.mut_none)
+                 ^^^^^^^^^^^
+Error: Block indices do not yet support non-default modalities. In particular,
+       mutable elements must be empty, but this is global.
+|}]
+
+let bad () = (.mut_not_global)
+[%%expect{|
+Line 1, characters 13-30:
+1 | let bad () = (.mut_not_global)
+                 ^^^^^^^^^^^^^^^^^
+Error: Block indices do not yet support non-default modalities. In particular,
+       mutable elements must be empty, but this is global.
+|}]
+
+let bad () = (.mut_not_many)
+[%%expect{|
+Line 1, characters 13-28:
+1 | let bad () = (.mut_not_many)
+                 ^^^^^^^^^^^^^^^
+Error: Block indices do not yet support non-default modalities. In particular,
+       mutable elements must be empty, but this is many.
+|}]
+
+let bad () = (.mut_not_aliased)
+[%%expect{|
+val bad : unit -> ('a mut_not_aliased, 'a) idx_mut = <fun>
+|}]
+
+let bad () = (.mut_not_unyielding)
+[%%expect{|
+val bad : unit -> ('a mut_not_unyielding, 'a) idx_mut = <fun>
+|}]
+
+let bad () = (.mut.#contended)
+[%%expect{|
+Line 1, characters 13-30:
+1 | let bad () = (.mut.#contended)
+                 ^^^^^^^^^^^^^^^^^
+Error: Block indices do not yet support non-default modalities. In particular,
+       mutable elements must be contended, but this is not.
+|}]
+
+let bad () = (.mut.#portable)
+[%%expect{|
+Line 1, characters 13-29:
+1 | let bad () = (.mut.#portable)
+                 ^^^^^^^^^^^^^^^^
+Error: Block indices do not yet support non-default modalities. In particular,
+       mutable elements must be empty, but this is portable.
+|}]
+
+(* After arrays *)
+let bad () = (.(0).#portable)
+[%%expect{|
+Line 1, characters 13-29:
+1 | let bad () = (.(0).#portable)
+                 ^^^^^^^^^^^^^^^^
+Error: Block indices do not yet support non-default modalities. In particular,
+       mutable elements must be empty, but this is portable.
+|}]
+let bad () = (.(0).#mut_not_many)
+[%%expect{|
+val bad : unit -> ('a mut_not_many# array, 'a) idx_mut = <fun>
+|}]
+
+(* After immutable arrays *)
+let bad () = (.:(0).#global)
+[%%expect{|
+Line 1, characters 13-28:
+1 | let bad () = (.:(0).#global)
+                 ^^^^^^^^^^^^^^^
+Error: Block indices do not yet support non-default modalities. In particular,
+       immutable elements must be empty, but this is global.
+|}]
+let bad () = (.:(0).#id.#global.#id)
+[%%expect{|
+Line 1, characters 13-36:
+1 | let bad () = (.:(0).#id.#global.#id)
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+Error: Block indices do not yet support non-default modalities. In particular,
+       immutable elements must be empty, but this is global.
+|}]
+
+(* A few positive examples to show that it's the composition of modalities we
+   check*)
+let ok () = (.contents.#global.#many)
+[%%expect{|
+val ok : unit -> ('a many# global# ref, 'a) idx_mut = <fun>
+|}]
+let ok () = (.(0).#global.#many.#aliased.#unyielding)
+[%%expect{|
+val ok : unit -> ('a unyielding# aliased# many# global# array, 'a) idx_mut =
+  <fun>
+|}]
+let ok () = (.mut.#mut_not_global.#id)
+[%%expect{|
+val ok : unit -> ('a id/2# mut_not_global# id/1, 'a) idx_mut = <fun>
+|}]
+
 (****************)
 (* Principality *)
 
@@ -465,8 +650,8 @@ let f c =
 [%%expect{|
 val f : bool -> ('a r, int) idx_imm = <fun>
 |}, Principal{|
-Line 464, characters 6-7:
-464 |     (.u.#x)
+Line 649, characters 6-7:
+649 |     (.u.#x)
             ^
 Warning 18 [not-principal]: this type-based field disambiguation is not principal.
 

@@ -262,8 +262,8 @@ type error =
   | Invalid_unboxed_access of
       { prev_el_type : type_expr; ua : Parsetree.unboxed_access }
   | Block_access_record_unboxed
-  | Block_access_array_unsupported
-  | Block_index_modality_mismatch of Modality.Value.equate_error
+  | Block_index_modality_mismatch of
+      { mut : bool; err : Modality.Value.equate_error }
   | Submode_failed of
       Value.error * submode_reason *
       Env.locality_context option *
@@ -5787,12 +5787,9 @@ and type_expect_
       let ba =
         Baccess_array { mut; index_kind; index; base_ty; elt_ty; elt_sort }
       in
-      if Language_extension.is_at_least Layouts Language_extension.Alpha then
-        let mut = match mut with Immutable -> false | Mutable -> true in
-        let modality = Typemode.idx_expected_modalities ~mut in
-        { ba; base_ty; el_ty = elt_ty; flat_float = false; modality }
-      else
-        raise (Error (index.exp_loc, env, Block_access_array_unsupported))
+      let mut = match mut with Immutable -> false | Mutable -> true in
+      let modality = Typemode.idx_expected_modalities ~mut in
+      { ba; base_ty; el_ty = elt_ty; flat_float = false; modality }
     | Baccess_block (mut, idx) ->
       let base_ty = newvar (Jkind.Builtin.value ~why:Idx_base) in
       let el_ty = newvar (Jkind.of_new_sort ~why:Idx_element) in
@@ -6434,14 +6431,14 @@ and type_expect_
       match Modality.Value.Const.equate modality expected_modality with
       | Ok () -> ()
       | Error err ->
-        raise (Error(loc, env, Block_index_modality_mismatch err))
+        raise (Error(loc, env, Block_index_modality_mismatch { mut; err }))
     end;
     let el_ty = if flat_float then Predef.type_unboxed_float else el_ty in
     let ty =
       if mut then
-        Predef.type_idx_imm base_ty el_ty
-      else
         Predef.type_idx_mut base_ty el_ty
+      else
+        Predef.type_idx_imm base_ty el_ty
     in
     with_explanation (fun () ->
       unify_exp_types loc env ty (generic_instance ty_expected));
@@ -11219,24 +11216,17 @@ let report_error ~loc env =
   | Block_access_record_unboxed ->
     Location.error ~loc
       "Block indices do not support [@@unboxed] records."
-  | Block_access_array_unsupported ->
-    Location.error ~loc
-      "Block indices into arrays are not yet supported."
-  | Block_index_modality_mismatch err ->
-    let _, err = err in
-    let buf = Buffer.create 1000 in
-    let ppf = Format.formatter_of_buffer buf in
-    let Modality.Value.Error(ax, {left; right}) = err in
-    (* CR rtjoa:  *)
+  | Block_index_modality_mismatch { mut; err } ->
+    let _, Modality.Value.Error(ax, { left; right }) = err in
     let print_modality id ppf m =
       Printtyp.modality ~id:(fun ppf -> Format.pp_print_string ppf id) ppf m
     in
-    Format.fprintf ppf "actual %a, expected %a."
-      (print_modality "aaa") (Atom (ax, left) : Modality.t)
-      (print_modality "bbb") (Atom (ax, right) : Modality.t);
-    Format.pp_print_flush ppf ();
-    let s = Bytes.to_string (Buffer.to_bytes buf) in
-    Location.error ~loc s
+    Location.errorf ~loc
+      "Block indices do not yet support non-default modalities. In \
+       particular,@ %s elements must be %a, but this is %a."
+      (if mut then "mutable" else "immutable")
+      (print_modality "empty") (Atom (ax, left) : Modality.t)
+      (print_modality "not") (Atom (ax, right) : Modality.t);
 
   | Submode_failed(fail_reason, submode_reason, locality_context,
       contention_context, visibility_context, shared_context)
