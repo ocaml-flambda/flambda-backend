@@ -214,6 +214,7 @@ Error: This expression has type "(int -> int) t"
 
        The first mode-crosses less than the second along:
          nullability: mod non_null with int -> int ≰ mod non_null
+         separability: mod non_float with int -> int ≰ mod separable
 |}]
 (* CR layouts v2.8: fix principality *)
 
@@ -243,6 +244,7 @@ Error: This type "(int -> int) t" should be an instance of type
 
        The first mode-crosses less than the second along:
          nullability: mod non_null with int -> int ≰ mod non_null
+         separability: mod non_float with int -> int ≰ mod separable
 |}]
 (* CR layouts v2.8: fix principality *)
 
