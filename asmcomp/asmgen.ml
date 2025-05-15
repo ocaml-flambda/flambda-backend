@@ -359,13 +359,18 @@ let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
   in
   (if should_save_cfg_before_regalloc ()
   then
-    let copy : Cfg_with_layout.t =
-      (* CFG are mutable, so make sure what we will save is a snapshot of the
-         current state. *)
-      Marshal.from_string (Marshal.to_string cfg_with_layout []) 0
-    in
+    (* CFGs and registers are mutable, so make sure what we will save is a
+       snapshot of the current state. *)
+    let copy x = Marshal.from_string (Marshal.to_string x []) 0 in
     cfg_before_regalloc_unit_info.items
-      <- Cfg_format.(Cfg copy) :: cfg_before_regalloc_unit_info.items);
+      <- Cfg_format.(
+           Cfg_before_regalloc
+             { cfg_with_layout = copy cfg_with_layout;
+               cmm_label = Cmm.cur_label ();
+               reg_stamp = Reg.For_testing.get_stamp ();
+               relocatable_regs = copy @@ Reg.all_relocatable_regs ()
+             })
+         :: cfg_before_regalloc_unit_info.items);
   cfg_with_infos
   ++ Profile.record ~accumulate:true "regalloc" (fun cfg_with_infos ->
          let cfg_description =

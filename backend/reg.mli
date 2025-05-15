@@ -115,5 +115,6 @@ val same_loc : t -> t -> bool
 val same_loc_fatal_on_unknown : fatal_message:string -> t -> t -> bool
 
 module For_testing : sig
+  val get_stamp : unit -> int
   val set_state : stamp:int -> relocatable_regs:t list -> unit
 end

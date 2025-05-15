@@ -15,24 +15,15 @@ external time_include_children : bool -> float
 
 let cpu_time () = time_include_children false
 
-let process_function (cfg_with_layout : Cfg_with_layout.t)
-    (register_allocator : register_allocator) =
+let process_function (register_allocator : register_allocator)
+    (cfg_with_layout : Cfg_with_layout.t) (cmm_label : Label.t)
+    (reg_stamp : int) (relocatable_regs : Reg.t list) =
   Printf.eprintf "  processing function %S...\n%!"
     (Cfg_with_layout.cfg cfg_with_layout).fun_name;
-  let add_regs (acc : Reg.Set.t) (instr : _ Cfg.instruction) : Reg.Set.t =
-    let acc = Reg.add_set_array acc instr.arg in
-    let acc = Reg.add_set_array acc instr.res in
-    acc
-  in
-  let all_regs =
-    Cfg_with_layout.fold_instructions cfg_with_layout ~init:Reg.Set.empty
-      ~instruction:add_regs ~terminator:add_regs
-  in
-  let relocatable_regs = Reg.Set.filter Reg.is_unknown all_regs in
-  Printf.eprintf "    %d register(s)...\n%!" (Reg.Set.cardinal relocatable_regs);
-  Reg.For_testing.set_state
-    ~stamp:(succ (Reg.Set.max_elt relocatable_regs).stamp)
-    ~relocatable_regs:(List.of_seq (Reg.Set.to_seq relocatable_regs));
+  Printf.eprintf "    %d register(s)...\n%!" (List.length relocatable_regs);
+  Cmm.reset ();
+  Cmm.set_label cmm_label;
+  Reg.For_testing.set_state ~stamp:reg_stamp ~relocatable_regs;
   let cfg_with_infos = Cfg_with_infos.make cfg_with_layout in
   let start_time = cpu_time () in
   let (_ : Cfg_with_infos.t) =
@@ -51,9 +42,12 @@ let process_file (file : string) (register_allocator : register_allocator) =
   List.iter unit_info.items ~f:(fun (item : Cfg_format.cfg_item_info) ->
       begin
         match item with
+        | Cfg _ -> ()
         | Data _ -> ()
-        | Cfg cfg_with_layout ->
-          process_function cfg_with_layout register_allocator
+        | Cfg_before_regalloc
+            { cfg_with_layout; cmm_label; reg_stamp; relocatable_regs } ->
+          process_function register_allocator cfg_with_layout cmm_label
+            reg_stamp relocatable_regs
       end)
 
 let () =
