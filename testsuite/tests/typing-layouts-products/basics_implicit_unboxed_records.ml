@@ -102,7 +102,6 @@ val s : t# = #{s = "hi"}
 
 (* Accessing inner products *)
 
-(* CR layouts v5: this should work once we allow product record fields *)
 type t = { is: #(int * int) }
 
 let add t =
@@ -110,11 +109,7 @@ let add t =
   x + y
 [%%expect{|
 type t = { is : #(int * int); }
-Line 4, characters 19-21:
-4 |   let #(x, y) = t.#is in
-                       ^^
-Error: Unbound unboxed record field "is"
-Hint: There is a boxed record field with this name.
+val add : t# -> int = <fun>
 |}]
 
 (* An unboxed record is not an allocation, but a regular record is *)
