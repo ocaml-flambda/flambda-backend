@@ -3,7 +3,7 @@
 In part one, we learned how to parallelize a computation using `fork_join` and parallel sequences.
 However, we only had one way to share mutable data structures between `portable` functions: atomics.
 
-Wrapping mutable state in an `Atomic.t` can be reasonable approach, but parallel programs often require other concurrency primitives, such as locks.
+Wrapping mutable state in an `Atomic.t` can be a reasonable approach, but parallel programs often require other concurrency primitives, such as locks.
 This is the purpose of the _Capsule API_, which lets us associate a mutable data structure with a particular lock.
 
 _This tutorial uses the "expert" capsule API, which may be found in `Portable.Capsule.Expert`.
@@ -528,7 +528,7 @@ let filter ~scheduler ~key image =
 ```
 
 The `Capsule.Key.access_shared` function provides us with an `'k Access.t @ shared`, which we can then pass to `Capsule.Data.unwrap_shared` to get our desired `Image.t @ shared`.
-Now, our filter's performance scales fairly close to linearly with additional domains:
+Now, our filter's performance scales close to linearly with additional domains:
 
 Domains | Time (ms)
 --------|------
