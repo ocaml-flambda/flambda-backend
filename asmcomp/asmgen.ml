@@ -142,6 +142,22 @@ let save_cfg f =
   then cfg_unit_info.items <- Cfg_format.(Cfg f) :: cfg_unit_info.items;
   f
 
+let save_cfg_before_regalloc (cfg_with_layout : Cfg_with_layout.t) =
+  if should_save_cfg_before_regalloc ()
+  then
+    (* CFGs and registers are mutable, so make sure what we will save is a
+       snapshot of the current state. *)
+    let copy x = Marshal.from_string (Marshal.to_string x []) 0 in
+    cfg_before_regalloc_unit_info.items
+      <- Cfg_format.(
+           Cfg_before_regalloc
+             { cfg_with_layout = copy cfg_with_layout;
+               cmm_label = Cmm.cur_label ();
+               reg_stamp = Reg.For_testing.get_stamp ();
+               relocatable_regs = copy @@ Reg.all_relocatable_regs ()
+             })
+         :: cfg_before_regalloc_unit_info.items
+
 let write_ir prefix =
   Compiler_pass_map.iter
     (fun pass (cfg_unit_info : Cfg_format.cfg_unit_info) ->
@@ -357,20 +373,7 @@ let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
     ++ Cfg_with_infos.make
     ++ cfg_with_infos_profile ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
   in
-  (if should_save_cfg_before_regalloc ()
-  then
-    (* CFGs and registers are mutable, so make sure what we will save is a
-       snapshot of the current state. *)
-    let copy x = Marshal.from_string (Marshal.to_string x []) 0 in
-    cfg_before_regalloc_unit_info.items
-      <- Cfg_format.(
-           Cfg_before_regalloc
-             { cfg_with_layout = copy cfg_with_layout;
-               cmm_label = Cmm.cur_label ();
-               reg_stamp = Reg.For_testing.get_stamp ();
-               relocatable_regs = copy @@ Reg.all_relocatable_regs ()
-             })
-         :: cfg_before_regalloc_unit_info.items);
+  save_cfg_before_regalloc cfg_with_layout;
   cfg_with_infos
   ++ Profile.record ~accumulate:true "regalloc" (fun cfg_with_infos ->
          let cfg_description =
