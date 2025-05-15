@@ -502,11 +502,11 @@ val get : t @ shared -> int -> int -> float
 ```
 
 Now, how do we obtain a shared reference to the input image?
-The shared mode is closely related to keys: if a unique key indicates that we have exclusive access to a capsule, an _aliased_ key indicates that _nobody_ has exclusive access to the capsule.
-This property is enforced by the uniqueness axis, since unlike with contention, an aliased reference precludes the existence of any unique references.
-Hence, an aliased key can provide shared access to the contents of a capsule.
+The shared mode is closely related to keys: if a `unique` key indicates that we have exclusive access to a capsule, an `aliased` key indicates that _nobody_ has exclusive access to the capsule.
+This property is enforced by the uniqueness axis, since unlike contention, an `aliased` reference precludes the existence of any `unique` references.
+Hence, an `aliased` key can provide `shared` access to the contents of a capsule.
 
-Instead of protecting the input image with a mutex, we can instead use an aliased key.
+Instead of protecting the input image with a mutex, we can instead use an `aliased` key.
 The existence of this key means we can never again write to the input, but that's perfectly fine here.
 
 ```ocaml
@@ -527,8 +527,10 @@ let filter ~scheduler ~key image =
 ;;
 ```
 
-The `Capsule.Key.access_shared` function provides us with an `'k Access.t @ shared`, which we can then pass to `Capsule.Data.unwrap_shared` to get our desired `Image.t @ shared`.
-Now, our filter's performance scales close to linearly with additional domains:
+The function `Capsule.Key.access_shared` takes an `aliased` key and provides us with an `'k Access.t @ shared`.
+We may then pass the access to `Capsule.Data.unwrap_shared` to get our desired `Image.t @ shared`.
+
+Finally, our filter's performance scales close to linearly with additional domains:
 
 Domains | Time (ms)
 --------|------
