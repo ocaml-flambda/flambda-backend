@@ -11130,9 +11130,7 @@ let report_error ~loc env =
       Location.errorf ~loc
         "wildcard \"_\" not expected."
 
-let report_error ~loc env err =
-  Printtyp.wrap_printing_env_error env
-    (fun () -> report_error ~loc env err)
+let report_error ~loc env err = Printtyp.wrap_printing_env_error env (fun () -> report_error ~loc env err)
 
 let () =
   Location.register_error_of_exn
