@@ -197,5 +197,64 @@ they are once.
 See also the [documentation on uniqueness and
 linearity](../../uniqueness/intro/).
 
-<!-- CR ccasinghino: Sections needed for statefulness, visibility, and yielding -->
+## Future modes: Yielding
 
+|----------------|
+| yielding       |
+| `|`            |
+| **unyielding** |
+{: .table }
+
+Yielding is a future axis that tracks whether a function is permitted to perform
+effects that will be handled in its parent stack. See [the OCaml Manual entry
+for effect handlers](https://ocaml.org/manual/5.3/effects.html).
+
+Yielding has different defaults depending on the locality axis: *global* values are
+defaulted to *unyielding*, while *local* values are defaulted to *yielding*.
+More documentation on mode implications is available [here](../_05-kinds/syntax.md).
+
+Yielding is irrelevant for types that do not contain functions, and values of such types
+*mode cross* on the yielding axis; they may be used as unyielding even
+when they are yielding.
+
+# Past modes: Visibility
+
+|----------------|
+| immutable      |
+| `|`            |
+| read           |
+| `|`            |
+| **read_write** |
+{: .table}
+
+Visibility is a past axis that controls access to mutable portions of values.
+It's similar to contention: the typechecker forbids accessing mutable fields of values
+with *immutable* visiblity, and forbids writing to mutable fields of values
+with *read* visibility. Unlike contention, atomic access to mutable parts of *immutable*
+values is still disallowed.
+
+Visibility is irrelevant for types that are deeply immutable. Values of such
+types *mode cross* on the visibility axis; they may be used as read_write even
+when they are immutable.
+
+# Future modes: Statefulness
+
+|--------------|
+| **stateful** |
+| `|`          |
+| observing    |
+| `|`          |
+| stateless    |
+{: .table}
+
+Statefulness is a future axis that tracks whether function reads or writes to some
+mutable state that is not explicitly passed to it in an argument.
+
+*Stateless* functions may not either read or write such state, and *observing*
+functions can only read it. *Stateful* functions have no restrictions.
+Stateless closures capture all values at visibility *immutable*,
+while observing closures capture all values at visibility *read*.
+
+Statefulness is irrelevant for types that do not contain functions, and values of such
+types *mode cross* on the statefulness axis; they may be used as stateless
+even when they are stateful.
