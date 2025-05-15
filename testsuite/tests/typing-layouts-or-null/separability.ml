@@ -618,7 +618,7 @@ type ('a : value mod separable) succeeds = 'a array
 type 'a succeeds = 'a array
 |}]
 
-(* CR layouts v3: Arrays should accept [value_or_null mod separable] elements. *)
+(* CR layouts v3.4: Arrays should accept [value_or_null mod separable] elements. *)
 
 type ('a : value_or_null mod separable) should_succeed = 'a array
 
