@@ -304,7 +304,8 @@ module Jkind_mod_bounds = struct
           separability } =
     Format.fprintf ppf "@[{ locality = %a;@ linearity = %a;@ uniqueness = %a;@ \
       portability = %a;@ contention = %a;@ yielding = %a;@ statefulness = %a;@ \
-      visibility = %a;@ externality = %a;@ nullability = %a;@ separability = %a }@]"
+      visibility = %a;@ externality = %a;@ \
+      nullability = %a;@ separability = %a }@]"
       Locality.print locality
       Linearity.print linearity
       Uniqueness.print uniqueness

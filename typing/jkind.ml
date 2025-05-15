@@ -2336,18 +2336,16 @@ let for_unboxed_record lbls =
   Builtin.product ~why:Unboxed_record tys_modalities layouts
 
 let for_non_float ~(why : History.value_creation_reason) =
+  let mod_bounds =
+    Mod_bounds.create ~locality:Locality.Const.max
+      ~linearity:Linearity.Const.max ~portability:Portability.Const.max
+      ~yielding:Yielding.Const.max ~uniqueness:Uniqueness.Const_op.max
+      ~contention:Contention.Const_op.max ~statefulness:Statefulness.Const.max
+      ~visibility:Visibility.Const_op.max ~externality:Externality.max
+      ~nullability:Nullability.Non_null ~separability:Separability.Non_float
+  in
   fresh_jkind
-    { layout = Sort (Base Value);
-      mod_bounds =
-        Mod_bounds.create ~locality:Locality.Const.max
-          ~linearity:Linearity.Const.max ~portability:Portability.Const.max
-          ~yielding:Yielding.Const.max ~uniqueness:Uniqueness.Const_op.max
-          ~contention:Contention.Const_op.max
-          ~statefulness:Statefulness.Const.max
-          ~visibility:Visibility.Const_op.max ~externality:Externality.max
-          ~nullability:Nullability.Non_null ~separability:Separability.Non_float;
-      with_bounds = No_with_bounds
-    }
+    { layout = Sort (Base Value); mod_bounds; with_bounds = No_with_bounds }
     ~annotation:(mk_annot "non_float_value")
     ~why:(Value_creation why)
 
@@ -2436,18 +2434,16 @@ let for_object =
     ~annotation:None ~why:(Value_creation Object)
 
 let for_float ident =
+  let mod_bounds =
+    Mod_bounds.create ~locality:Locality.Const.max
+      ~linearity:Linearity.Const.min ~portability:Portability.Const.min
+      ~yielding:Yielding.Const.min ~uniqueness:Uniqueness.Const_op.max
+      ~contention:Contention.Const_op.min ~statefulness:Statefulness.Const.min
+      ~visibility:Visibility.Const_op.min ~externality:Externality.max
+      ~nullability:Nullability.Non_null ~separability:Separability.Separable
+  in
   fresh_jkind
-    { layout = Sort (Base Value);
-      mod_bounds =
-        Mod_bounds.create ~locality:Locality.Const.max
-          ~linearity:Linearity.Const.min ~portability:Portability.Const.min
-          ~yielding:Yielding.Const.min ~uniqueness:Uniqueness.Const_op.max
-          ~contention:Contention.Const_op.min
-          ~statefulness:Statefulness.Const.min
-          ~visibility:Visibility.Const_op.min ~externality:Externality.max
-          ~nullability:Nullability.Non_null ~separability:Separability.Separable;
-      with_bounds = No_with_bounds
-    }
+    { layout = Sort (Base Value); mod_bounds; with_bounds = No_with_bounds }
     ~annotation:None ~why:(Primitive ident)
   |> mark_best
 
