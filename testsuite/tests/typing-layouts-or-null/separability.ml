@@ -531,7 +531,7 @@ Error: This type "t_nonsep_val" should be an instance of type "('a : value)"
          because the type argument of or_null has kind value.
 |}]
 
-(* CR layouts: ['a or_null] where 'a is non-float should be non-float. *)
+(* CR layouts v3.4: ['a or_null] where 'a is non-float should be non-float. *)
 
 type ('a : non_float_value) should_succeed = 'a or_null accepts_nonfloat
 
