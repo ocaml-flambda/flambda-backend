@@ -450,7 +450,7 @@ let blur_at image ~x ~y =
       acc := !acc +. Image.get image ~x ~y
     done
   done;
-  !acc /. 121.
+  !acc /. 81.
 ;;
 ```
 
