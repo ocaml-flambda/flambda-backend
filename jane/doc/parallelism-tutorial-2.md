@@ -51,8 +51,8 @@ let increment ~(access : 'k Capsule.Access.t) ref =
 ;;
 ```
 
-Accesses **do not** cross contention, so they cannot be freely shared between portable functions.
-Intuitively, a portable function may run in a different capsule, so it must not be allowed to see capsule `'k`.
+Accesses **do not** cross contention, so they cannot be freely shared between `portable` functions.
+Intuitively, a `portable` function may run in a different capsule, so it must not be allowed to see capsule `'k`.
 This property prohibits data races, as we can see with fork/join:
 
 ```ocaml
@@ -107,9 +107,9 @@ let increment ~(password : 'k Capsule.Password.t @@ local) ref =
 ;;
 ```
 
-Passwords **do** cross contention, so they can be freely shared between portable functions.
-Naively, that would introduce races, but passwords are also always [_local_](https://blog.janestreet.com/oxidizing-ocaml-locality/).
-That means we still can't transfer a password across domains: fork-join requires global functions, which cannot capture a local password.
+Passwords **do** cross contention, so they can be freely shared between `portable` functions.
+Naively, that would introduce races, but passwords are also always [`local`](https://blog.janestreet.com/oxidizing-ocaml-locality/).
+That means we still can't transfer a password across domains: fork-join requires global functions, which cannot capture a `local` password.
 
 <!-- CR-someday mslater: this is actually enforced by the yielding axis; at some
      point we will allow local fork/join and this will be wrong. -->
@@ -167,7 +167,7 @@ let increment_fresh () =
 ```
 
 Like passwords, keys cross contention.
-However, keys need not be local&mdash;to prohibit races, keys rely on _uniqueness_.
+However, keys need not be `local`&mdash;to prohibit races, keys rely on _uniqueness_.
 
 Uniqueness is another mode axis that describes whether there exist multiple references to a value.
 When a value has the `unique` mode, we know it is the only reference to its contents.
@@ -265,7 +265,7 @@ let parallel_mutexes parallel =
 ```
 
 As you might expect, mutexes cross contention and are neither `local` nor `unique`.
-In fact, mutexes have no restrictions at all, so may be freely shared between portable functions, fork/join tasks, and domains.
+In fact, mutexes have no restrictions at all, so may be freely shared between `portable` functions, fork/join tasks, and domains.
 
 ## Sorting
 
@@ -343,7 +343,7 @@ let rec quicksort parallel slice =
 ;;
 ```
 
-There are actually two issues here: slices are local, so we can't close over them in a parallel task, but even if we could, they would become contended, meaning we can't read or write their contents.
+There are actually two issues here: slices are `local`, so we can't close over them in a parallel task, but even if we could, they would become `contended`, meaning we can't read or write their contents.
 Instead, we can use a specialized fork/join for slices:
 
 ```ocaml
@@ -363,8 +363,8 @@ let rec quicksort parallel slice =
 ;;
 ```
 
-The function `Slice.fork_join2` requires an uncontended slice, splits it at an index, and provides the two halves to two parallel tasks at uncontended.
-Since each task can only access a separate portion of the array&mdash;and the slices are local, so don't escape&mdash;this is safe.
+The function `Slice.fork_join2` requires an `uncontended` slice, splits it at an index, and provides the two halves to two parallel tasks at `uncontended`.
+Since each task can only access a separate portion of the array&mdash;and the slices are `local`, so don't escape&mdash;this is safe.
 
 To run our parallel quicksort, we need to get an implementation of parallelism from a scheduler.
 For example, using `Parallel_scheduler_work_stealing`:
@@ -380,7 +380,7 @@ let quicksort ~scheduler ~mutex array =
   ;;
 ```
 
-There's one last problem: capturing an existing array in `schedule` causes it to become contended.
+There's one last problem: capturing an existing array in `schedule` causes it to become `contended`.
 To fix this, we will instead provide an encapsulated array.
 
 ```ocaml
@@ -433,7 +433,7 @@ val set : t -> x:int -> y:int -> float -> unit
 An image is really just an array plus a width and height, but this interface has a couple notable features:
 
 - `value mod portable` indicates that images cross portability. This is safe since an image does not contain functions.
-- `width` and `height` allow a contended image. This is safe since the width and height are immutable properties of the image.
+- `width` and `height` allow a `contended` image. This is safe since the width and height are immutable properties of the image.
 
 To create a blurred copy of an image, we want each pixel in the result to contain the average of a 9x9 box of pixels in the input, centered at this pixel.
 We'll use the following function to compute this average at coordinates `x,y`:
@@ -491,10 +491,10 @@ Domains | Time (ms)
 That's because we've only allowed one domain at a time to access the input image, destroying any opportunity for parallelism.
 
 Fortunately, we know that all domains only _read_ the input image, so it should be safe for them to do so simultaneously.
-However, we can't just allow `Image.get` to read from a contended image&mdash;in general, one other domain could be writing to it.
+However, we can't just allow `Image.get` to read from a `contended` image&mdash;in general, one other domain could be writing to it.
 
-Hence, we need a third mode on the contention axis: _shared_, which falls in between contended and uncontended.
-The shared mode indicates that _all_ references to a value are either shared or contended, so we may read its mutable contents in parallel.
+Hence, we need a third mode on the contention axis: `shared`, which falls in between `contended` and `uncontended`.
+The shared mode indicates that _all_ references to a value are either `shared` or `contended`, so we may read its mutable contents in parallel.
 Let's make `get` allow a shared image:
 
 ```ocaml
