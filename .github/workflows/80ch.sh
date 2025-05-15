@@ -49,8 +49,13 @@ do
   # (a more sophisticated script would instead remove %%expect blocks)
   [[ "$changed_file" == testsuite/tests/* ]] && continue
 
+  # Don't check autoformatted files (there's a bug in `ocamlformat` that
+  # sometimes produces lines over 80 characters)
+  ocamlformat --print-config "$changed_file" 2>&1 \
+  | grep -q disable=false && continue
+
   # Bash doesn't allow for comments on multiline commands, so excuse the
-  # workaround of putting groups of argument in a variable
+  # workaround of putting a group of arguments in a variable
   f='--old-line-format= --unchanged-line-format= --new-line-format=%dn:%L'
   #  |^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ |^^^^^^^^^^^^^^^^^^^^^^^
   #  Don't print deleted or unchanged lines      Show added lines (%L),
