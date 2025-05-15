@@ -406,8 +406,8 @@ void* caml_mem_map(uintnat size, uintnat flags, const char* name)
 
   if (mem == 0) {
     CAML_GC_MESSAGE(ADDRSPACE,
-                    "mmap %" ARCH_INTNAT_PRINTF_FORMAT "d bytes failed",
-                    size);
+                    "mmap %" ARCH_INTNAT_PRINTF_FORMAT "d bytes (%s) failed",
+                    size, name);
     return 0;
   }
 
@@ -443,6 +443,20 @@ void caml_mem_unmap(void* mem, uintnat size)
                   "munmap %" ARCH_INTNAT_PRINTF_FORMAT "d"
                   " bytes at %p\n", size, mem);
   caml_plat_mem_unmap(mem, size);
+}
+
+void caml_mem_name_map(void* mem, size_t length, const char* format, ...)
+{
+  va_list args;
+  char mapping_name[64];
+  va_start(args, format);
+  int n = vsnprintf(mapping_name, sizeof(mapping_name), format, args);
+  va_end(args);
+  CAMLassert(n > 0);
+  CAMLassert(n < sizeof(mapping_name));
+  /* if we successfully made a string, give it to the OS. */
+  if ((n > 0) && (n < sizeof(mapping_name)))
+    caml_plat_mem_name_map(mem, length, mapping_name);
 }
 
 #define Min_sleep_ns       10000 // 10 us
