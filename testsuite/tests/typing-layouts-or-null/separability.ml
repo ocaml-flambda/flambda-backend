@@ -6,6 +6,8 @@
 
 (* Basic subkinding relation. *)
 
+(* CR layouts v3.4: [mod non_separable] doesn't do anything
+   and should raise a warning. *)
 type t_nonsep : any mod non_separable
 type t_sep : any mod separable
 type t_nonfloat : any mod non_float
@@ -605,12 +607,56 @@ type ('a : value mod separable) succeeds = 'a array
 type 'a succeeds = 'a array
 |}]
 
-(* CR layouts v3.4: Arrays should accept [value_or_null mod separable] elements. *)
+(* CR layouts v3.4: Arrays should accept [value_or_null mod separable] elements.
+   This is currently inferred as accepting [non_null] values. *)
 
-type ('a : value_or_null mod separable) should_succeed = 'a array
+type should_succeed = int or_null array
 
 [%%expect{|
-type 'a should_succeed = 'a array
+Line 1, characters 22-33:
+1 | type should_succeed = int or_null array
+                          ^^^^^^^^^^^
+Error: This type "int or_null" should be an instance of type
+         "('a : any_non_null)"
+       The kind of int or_null is immediate_or_null
+         because it is the primitive immediate_or_null type or_null.
+       But the kind of int or_null must be a subkind of any_non_null
+         because it's the type argument to the array type.
+|}, Principal{|
+Line 1, characters 22-33:
+1 | type should_succeed = int or_null array
+                          ^^^^^^^^^^^
+Error: This type "int or_null" should be an instance of type
+         "('a : any_non_null)"
+       The kind of int or_null is immediate_or_null with int
+         because it is the primitive immediate_or_null type or_null.
+       But the kind of int or_null must be a subkind of any_non_null
+         because it's the type argument to the array type.
+|}]
+
+type should_succeed = string or_null array
+
+[%%expect{|
+Line 1, characters 22-36:
+1 | type should_succeed = string or_null array
+                          ^^^^^^^^^^^^^^
+Error: This type "string or_null" should be an instance of type
+         "('a : any_non_null)"
+       The kind of string or_null is
+         value_or_null mod many unyielding stateless immutable
+         because it is the primitive immediate_or_null type or_null.
+       But the kind of string or_null must be a subkind of any_non_null
+         because it's the type argument to the array type.
+|}, Principal{|
+Line 1, characters 22-36:
+1 | type should_succeed = string or_null array
+                          ^^^^^^^^^^^^^^
+Error: This type "string or_null" should be an instance of type
+         "('a : any_non_null)"
+       The kind of string or_null is immediate_or_null with string
+         because it is the primitive immediate_or_null type or_null.
+       But the kind of string or_null must be a subkind of any_non_null
+         because it's the type argument to the array type.
 |}]
 
 (* Arrays should not accept [float or_null]s: *)
