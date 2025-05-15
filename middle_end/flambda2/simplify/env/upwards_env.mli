@@ -35,11 +35,12 @@ val add_non_inlinable_continuation :
 val add_invalid_continuation :
   t -> Continuation.t -> [`Unarized] Flambda_arity.t -> t
 
-val add_continuation_alias :
+val add_continuation_shortcut :
   t ->
   Continuation.t ->
-  [`Unarized] Flambda_arity.t ->
-  alias_for:Continuation.t ->
+  params:Bound_parameters.t ->
+  shortcut_to:Continuation.t ->
+  args:Simple.t list ->
   t
 
 val add_linearly_used_inlinable_continuation :
@@ -58,10 +59,8 @@ val find_continuation : t -> Continuation.t -> Continuation_in_env.t
 
 val mem_continuation : t -> Continuation.t -> bool
 
-val resolve_continuation_aliases : t -> Continuation.t -> Continuation.t
-
-val resolve_exn_continuation_aliases :
-  t -> Exn_continuation.t -> Exn_continuation.t
+val find_continuation_shortcut :
+  t -> Continuation.t -> Continuation_shortcut.t option
 
 val add_apply_cont_rewrite : t -> Continuation.t -> Apply_cont_rewrite.t -> t
 
