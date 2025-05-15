@@ -128,7 +128,17 @@ let mk_save_ir_after ~native f =
                              ~native)
   in
   "-save-ir-after", Arg.Symbol (pass_names, f),
-  " Save intermediate representation after the given compilation pass\
+  " Save intermediate representation after the given compilation pass \
+    (may be specified more than once)."
+
+let mk_save_ir_before ~native f =
+  let pass_names =
+    Clflags.Compiler_pass.(available_pass_names
+                             ~filter:can_save_ir_before
+                             ~native)
+  in
+  "-save-ir-before", Arg.Symbol (pass_names, f),
+  " Save intermediate representation before the given compilation pass \
     (may be specified more than once)."
 
 let mk_dtypes f =
@@ -1146,6 +1156,7 @@ module type Optcomp_options = sig
   val _afl_inst_ratio : int -> unit
   val _function_sections : unit -> unit
   val _save_ir_after : string -> unit
+  val _save_ir_before : string -> unit
   val _probes : unit -> unit
   val _no_probes : unit -> unit
 end;;
@@ -1438,6 +1449,7 @@ struct
     mk_function_sections F._function_sections;
     mk_stop_after ~native:true F._stop_after;
     mk_save_ir_after ~native:true F._save_ir_after;
+    mk_save_ir_before ~native:true F._save_ir_before;
     mk_probes F._probes;
     mk_no_probes F._no_probes;
     mk_i F._i;
@@ -2038,6 +2050,14 @@ module Default = struct
         | None -> () (* this should not occur as we use Arg.Symbol *)
         | Some pass ->
           set_save_ir_after pass true
+
+    let _save_ir_before pass =
+      let module P = Compiler_pass in
+        match P.of_string pass with
+        | None -> () (* this should not occur as we use Arg.Symbol *)
+        | Some pass ->
+          set_save_ir_before pass true
+
     let _thread = set use_threads
     let _verbose = set verbose
     let _version () = Compenv.print_version_string ()
