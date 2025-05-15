@@ -566,7 +566,7 @@ type ('a : non_float_value) succeeds = 'a or_null accepts_nonsep
 type ('a : non_float_value) succeeds = 'a or_null accepts_nonsep
 |}]
 
-(* CR with-kinds: fix error reporting difference. *)
+(* CR layouts v2.8: fix error reporting difference. *)
 (* [float or_null] is not separable: *)
 
 type fails = float or_null accepts_sep
