@@ -66,6 +66,8 @@ uintnat caml_init_main_stack_wsz = 0;   /* -Xmain_stack_size= */
 uintnat caml_init_thread_stack_wsz = 0; /* -Xthread_stack_size= */
 uintnat caml_init_fiber_stack_wsz = 0;  /* -Xfiber_stack_size= */
 
+uintnat caml_nohugepage_stacks = 0;
+
 uintnat caml_get_init_stack_wsize (int context)
 {
   uintnat init_stack_wsize = 0;
@@ -229,6 +231,12 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
   if (stack == NULL) {
     return NULL;
   }
+#ifdef __linux__
+  /* On Linux, (optionally) disable *any* hugepage usage for stacks.
+     (Huge pages are not as beneficial for stacks, because you use the same few
+     kb over and over again, but can have a significant RAM cost) */
+  if (caml_nohugepage_stacks) madvise(stack, len, MADV_NOHUGEPAGE);
+#endif
   // mmap is always expected to return a page-aligned value.
   CAMLassert((uintnat)stack % page_size == 0);
 
