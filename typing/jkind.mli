@@ -273,13 +273,13 @@ module Const : sig
     (** This is the jkind of normal ocaml values *)
     val value : t
 
-    (** Immutable values that don't contain functions and are not floats. *)
+    (** Immutable non-float values that don't contain functions. *)
     val immutable_data : t
 
-    (** Atomically mutable values that don't contain functions and are not floats. *)
+    (** Atomically mutable non-float values that don't contain functions. *)
     val sync_data : t
 
-    (** Mutable values that don't contain functions and are not floats. *)
+    (** Mutable non-float values that don't contain functions. *)
     val mutable_data : t
 
     (** Values of types of this jkind are immediate on 64-bit platforms; on other
