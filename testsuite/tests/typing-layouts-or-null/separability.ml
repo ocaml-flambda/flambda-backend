@@ -514,7 +514,7 @@ type 'a succeds = 'a or_null accepts_nonsep
 type 'a succeds = 'a or_null accepts_nonsep
 |}]
 
-(* CR layouts v3: [or_null] should be able accept non-separable values? *)
+(* CR layouts v3.4: [or_null] should be able accept non-separable values? *)
 
 type t_nonsep_val : value_or_null mod non_null
 type fails = t_nonsep_val or_null
