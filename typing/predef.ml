@@ -408,7 +408,8 @@ let build_initial_env add_type add_extension empty_env =
        ~kind:(variant [ cstr ident_false []; cstr ident_true []])
        ~jkind:Jkind.Const.Builtin.immediate
   |> add_type ident_char ~jkind:Jkind.Const.Builtin.immediate
-  |> add_type ident_exn ~kind:Type_open ~jkind:Jkind.Const.Builtin.non_float_value
+  |> add_type_with_jkind ident_exn ~kind:Type_open
+    ~jkind:(Jkind.for_non_float ~why:(Primitive ident_exn))
   |> add_type ident_extension_constructor ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type_with_jkind ident_float ~jkind:(Jkind.for_float ident_float)
       ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_float
@@ -426,7 +427,7 @@ let build_initial_env add_type add_extension empty_env =
           It might also cross portability, linearity, uniqueness subject to its
           parameter. But I'm also fine not doing that for now (and wait until
           users complains).  *)
-       ~jkind:(fun _ -> Jkind.Builtin.non_float_value ~why:(Primitive ident_lazy_t))
+       ~jkind:(fun _ -> Jkind.for_non_float ~why:(Primitive ident_lazy_t))
   |> add_type1 ident_list
        ~variance:Variance.covariant
        ~separability:Separability.Ind

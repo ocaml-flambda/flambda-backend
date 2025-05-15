@@ -273,9 +273,6 @@ module Const : sig
     (** This is the jkind of normal ocaml values *)
     val value : t
 
-    (** Values that are not floats. *)
-    val non_float_value : t
-
     (** Immutable values that don't contain functions and are not floats. *)
     val immutable_data : t
 
@@ -355,8 +352,6 @@ module Builtin : sig
 
   (** This is the jkind of normal ocaml values *)
   val value : why:History.value_creation_reason -> 'd Types.jkind
-
-  val non_float_value : why:History.value_creation_reason -> 'd Types.jkind
 
   (** This is suitable for records or variants without mutable fields. *)
   val immutable_data : why:History.value_creation_reason -> 'd Types.jkind
@@ -516,6 +511,9 @@ val for_object : Types.jkind_l
 
 (** The jkind of a float. *)
 val for_float : Ident.t -> Types.jkind_l
+
+(** The jkind for values that are not floats. *)
+val for_non_float : why:History.value_creation_reason -> 'd Types.jkind
 
 (******************************)
 (* elimination and defaulting *)

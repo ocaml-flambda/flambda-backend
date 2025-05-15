@@ -1357,13 +1357,6 @@ module Const = struct
         name = "immutable_data"
       }
 
-    let non_float_value =
-      { jkind =
-          mk_jkind (Base Value) ~mode_crossing:false ~nullability:Non_null
-            ~separability:Separability.Non_float;
-        name = "non_float_value"
-      }
-
     let sync_data =
       { jkind =
           { layout = Base Value;
@@ -1575,7 +1568,6 @@ module Const = struct
         value_or_null;
         value_or_null_mod_everything;
         value;
-        non_float_value;
         immutable_data;
         sync_data;
         mutable_data;
@@ -1848,7 +1840,6 @@ module Const = struct
       | "any_non_null" -> Builtin.any_non_null.jkind
       | "value_or_null" -> Builtin.value_or_null.jkind
       | "value" -> Builtin.value.jkind
-      | "non_float_value" -> Builtin.non_float_value.jkind
       | "void" -> Builtin.void.jkind
       | "immediate64" -> Builtin.immediate64.jkind
       | "immediate" -> Builtin.immediate.jkind
@@ -2040,8 +2031,6 @@ module Jkind_desc = struct
 
     let value = of_const Const.Builtin.value.jkind
 
-    let non_float_value = of_const Const.Builtin.non_float_value.jkind
-
     let immutable_data = of_const Const.Builtin.immutable_data.jkind
 
     let sync_data = of_const Const.Builtin.sync_data.jkind
@@ -2139,11 +2128,6 @@ module Builtin = struct
 
   let value ~(why : History.value_creation_reason) =
     fresh_jkind Jkind_desc.Builtin.value ~annotation:(mk_annot "value")
-      ~why:(Value_creation why)
-
-  let non_float_value ~(why : History.value_creation_reason) =
-    fresh_jkind Jkind_desc.Builtin.non_float_value
-      ~annotation:(mk_annot "non_float_value")
       ~why:(Value_creation why)
 
   let immutable_data ~(why : History.value_creation_reason) =
@@ -2335,6 +2319,22 @@ let for_unboxed_record lbls =
   in
   Builtin.product ~why:Unboxed_record tys_modalities layouts
 
+let for_non_float ~(why : History.value_creation_reason) =
+  fresh_jkind
+    { layout = Sort (Base Value);
+      mod_bounds =
+        Mod_bounds.create ~locality:Locality.Const.max
+          ~linearity:Linearity.Const.max ~portability:Portability.Const.max
+          ~yielding:Yielding.Const.max ~uniqueness:Uniqueness.Const_op.max
+          ~contention:Contention.Const_op.max
+          ~statefulness:Statefulness.Const.max
+          ~visibility:Visibility.Const_op.max ~externality:Externality.max
+          ~nullability:Nullability.Non_null ~separability:Separability.Non_float;
+      with_bounds = No_with_bounds
+    }
+    ~annotation:(mk_annot "non_float_value")
+    ~why:(Value_creation why)
+
 let for_boxed_variant cstrs =
   let open Types in
   if List.for_all
@@ -2363,7 +2363,7 @@ let for_boxed_variant cstrs =
        (* CR layouts v2.8: This is sad, but I don't know how to account for
           existentials in the with_bounds. See doc named "Existential
           with_bounds". *)
-    then Builtin.non_float_value ~why:Boxed_variant
+    then for_non_float ~why:Boxed_variant
     else
       let base =
         (if is_mutable then Builtin.mutable_data else Builtin.immutable_data)
