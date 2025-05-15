@@ -2349,8 +2349,7 @@ let for_non_float ~(why : History.value_creation_reason) =
   in
   fresh_jkind
     { layout = Sort (Base Value); mod_bounds; with_bounds = No_with_bounds }
-    ~annotation:(mk_annot "non_float_value")
-    ~why:(Value_creation why)
+    ~annotation:None ~why:(Value_creation why)
 
 let for_boxed_variant cstrs =
   let open Types in

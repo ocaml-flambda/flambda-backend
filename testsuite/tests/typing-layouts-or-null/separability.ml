@@ -774,6 +774,16 @@ Error: This type "int or_null smth" should be an instance of type
          because of the definition of bounded at line 3, characters 0-29.
 |}]
 
+
+type 'a t : value mod non_float with 'a
+type ('a : value mod non_float) req_non_float
+type test = float t req_non_float
+[%%expect{|
+type 'a t : value mod non_float
+type ('a : value mod non_float) req_non_float
+type test = float t req_non_float
+|}]
+
 (* Separability and [@@unboxed]. *)
 
 type unbx = { unbx : t_nonsep_val } [@@unboxed]
