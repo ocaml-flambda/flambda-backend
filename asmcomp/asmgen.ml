@@ -350,31 +350,29 @@ let available_regs ~stack_slots ~f x =
 let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
   let register_allocator = register_allocator fd_cmm in
   let module CSE = Cfg_cse.Cse_generic (CSE) in
-  let cfg_with_infos =
-    cfg_with_layout
-    ++ (fun cfg_with_layout ->
-         match should_vectorize () with
-         | false -> cfg_with_layout
-         | true ->
-           cfg_with_layout
-           ++ cfg_with_layout_profile ~accumulate:true "vectorize"
-                (Vectorize.cfg ppf_dump)
-           ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
-                "After vectorize")
-    ++ cfg_with_layout_profile ~accumulate:true "cfg_polling"
-         (Cfg_polling.instrument_fundecl ~future_funcnames:funcnames)
-    ++ cfg_with_layout_profile ~accumulate:true "cfg_zero_alloc_checker"
-         (Zero_alloc_checker.cfg ~future_funcnames:funcnames ppf_dump)
-    ++ cfg_with_layout_profile ~accumulate:true "cfg_comballoc"
-         Cfg_comballoc.run
-    ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_combine
-    ++ cfg_with_layout_profile ~accumulate:true "cfg_cse" CSE.cfg_with_layout
-    ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_cse
-    ++ Cfg_with_infos.make
-    ++ cfg_with_infos_profile ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
-  in
-  save_cfg_before_regalloc cfg_with_layout;
-  cfg_with_infos
+  cfg_with_layout
+  ++ (fun cfg_with_layout ->
+       match should_vectorize () with
+       | false -> cfg_with_layout
+       | true ->
+         cfg_with_layout
+         ++ cfg_with_layout_profile ~accumulate:true "vectorize"
+              (Vectorize.cfg ppf_dump)
+         ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
+              "After vectorize")
+  ++ cfg_with_layout_profile ~accumulate:true "cfg_polling"
+       (Cfg_polling.instrument_fundecl ~future_funcnames:funcnames)
+  ++ cfg_with_layout_profile ~accumulate:true "cfg_zero_alloc_checker"
+       (Zero_alloc_checker.cfg ~future_funcnames:funcnames ppf_dump)
+  ++ cfg_with_layout_profile ~accumulate:true "cfg_comballoc" Cfg_comballoc.run
+  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_combine
+  ++ cfg_with_layout_profile ~accumulate:true "cfg_cse" CSE.cfg_with_layout
+  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_cse
+  ++ Cfg_with_infos.make
+  ++ cfg_with_infos_profile ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
+  ++ (fun cfg_with_infos ->
+       save_cfg_before_regalloc (Cfg_with_infos.cfg_with_layout cfg_with_infos);
+       cfg_with_infos)
   ++ Profile.record ~accumulate:true "regalloc" (fun cfg_with_infos ->
          let cfg_description =
            Regalloc_validate.Description.create
