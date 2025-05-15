@@ -1438,7 +1438,7 @@ Line 1, characters 41-51:
                                              ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod aliased)"
-       The kind of <  > is value mod global many
+       The kind of <  > is value mod global many non_float
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod aliased
          because of the annotation on the wildcard _ at line 1, characters 19-36.
@@ -1451,7 +1451,7 @@ Line 1, characters 42-52:
                                               ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod portable)"
-       The kind of <  > is value mod global many
+       The kind of <  > is value mod global many non_float
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod portable
          because of the annotation on the wildcard _ at line 1, characters 19-37.
@@ -1464,7 +1464,7 @@ Line 1, characters 43-53:
                                                ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod contended)"
-       The kind of <  > is value mod global many
+       The kind of <  > is value mod global many non_float
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod contended
          because of the annotation on the wildcard _ at line 1, characters 19-38.
@@ -1477,7 +1477,7 @@ Line 1, characters 43-53:
                                                ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod external_)"
-       The kind of <  > is value mod global many
+       The kind of <  > is value mod global many non_float
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod external_
          because of the annotation on the wildcard _ at line 1, characters 19-38.
@@ -1666,8 +1666,8 @@ Error: This expression has type "int t" but an expression was expected of type
 (*********************************)
 (* Test 15: extensible variants *)
 
-(* The best kind an extensible variant can get is [non_float_value] *)
-type extensible : non_float_value = ..
+(* The best kind an extensible variant can get is [value mod non_float] *)
+type extensible : value mod non_float = ..
 [%%expect{|
 type extensible = ..
 |}]
@@ -1676,10 +1676,10 @@ type extensible = ..
 module M : sig
   type t : immediate with extensible
 end = struct
-  type t : non_float_value
+  type t : value mod non_float
 end
 [%%expect{|
-module M : sig type t : non_float_value end
+module M : sig type t : value mod non_float end
 |}]
 
 (*********************************)
@@ -1721,8 +1721,8 @@ Error: This expression has type "int t" but an expression was expected of type
 (*********************************)
 (* Test 17: extensible variants *)
 
-(* The best kind an extensible variant can get is [non_float_value] *)
-type extensible : non_float_value = ..
+(* The best kind an extensible variant can get is [value mod non_float] *)
+type extensible : value mod non_float = ..
 [%%expect{|
 type extensible = ..
 |}]
@@ -1731,8 +1731,8 @@ type extensible = ..
 module M : sig
   type t : immediate with extensible
 end = struct
-  type t : non_float_value
+  type t : value mod non_float
 end
 [%%expect{|
-module M : sig type t : non_float_value end
+module M : sig type t : value mod non_float end
 |}]

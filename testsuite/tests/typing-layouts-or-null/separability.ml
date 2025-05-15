@@ -212,19 +212,6 @@ Error: This type "t_ann" should be an instance of type "('a : any mod non_float)
 
 (* Testing additional non-float jkinds *)
 
-(* [non_float_value] is non-float *)
-type t_nfv : non_float_value
-type succeeds = t_nfv accepts_nonsep
-type succeeds = t_nfv accepts_sep
-type succeeds = t_nfv accepts_nonfloat
-
-[%%expect{|
-type t_nfv : non_float_value
-type succeeds = t_nfv accepts_nonsep
-type succeeds = t_nfv accepts_sep
-type succeeds = t_nfv accepts_nonfloat
-|}]
-
 (* [immutable_data] is non-float *)
 type t_imm : immutable_data
 type succeeds = t_imm accepts_nonsep
@@ -533,12 +520,12 @@ Error: This type "t_nonsep_val" should be an instance of type "('a : value)"
 
 (* CR layouts v3.4: ['a or_null] where 'a is non-float should be non-float. *)
 
-type ('a : non_float_value) should_succeed = 'a or_null accepts_nonfloat
+type ('a : value mod non_float) should_succeed = 'a or_null accepts_nonfloat
 
 [%%expect{|
-Line 1, characters 45-55:
-1 | type ('a : non_float_value) should_succeed = 'a or_null accepts_nonfloat
-                                                 ^^^^^^^^^^
+Line 1, characters 49-59:
+1 | type ('a : value mod non_float) should_succeed = 'a or_null accepts_nonfloat
+                                                     ^^^^^^^^^^
 Error: This type "'a or_null" should be an instance of type
          "('b : any mod non_float)"
        The kind of 'a or_null is immediate_or_null with 'a
@@ -547,11 +534,11 @@ Error: This type "'a or_null" should be an instance of type
          because of the definition of accepts_nonfloat at line 3, characters 0-46.
 |}]
 
-type ('a : non_float_value) should_succeed = 'a or_null accepts_sep
+type ('a : value mod non_float) should_succeed = 'a or_null accepts_sep
 [%%expect{|
-Line 1, characters 45-55:
-1 | type ('a : non_float_value) should_succeed = 'a or_null accepts_sep
-                                                 ^^^^^^^^^^
+Line 1, characters 49-59:
+1 | type ('a : value mod non_float) should_succeed = 'a or_null accepts_sep
+                                                     ^^^^^^^^^^
 Error: This type "'a or_null" should be an instance of type
          "('b : any mod separable)"
        The kind of 'a or_null is immediate_or_null with 'a
@@ -560,10 +547,10 @@ Error: This type "'a or_null" should be an instance of type
          because of the definition of accepts_sep at line 2, characters 0-41.
 |}]
 
-type ('a : non_float_value) succeeds = 'a or_null accepts_nonsep
+type ('a : value mod non_float) succeeds = 'a or_null accepts_nonsep
 
 [%%expect{|
-type ('a : non_float_value) succeeds = 'a or_null accepts_nonsep
+type ('a : value mod non_float) succeeds = 'a or_null accepts_nonsep
 |}]
 
 (* CR layouts v2.8: fix error reporting difference. *)
