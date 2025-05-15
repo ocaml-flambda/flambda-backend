@@ -653,7 +653,7 @@ Error: This type "float or_null" should be an instance of type
          because it's the type argument to the array type.
 |}]
 
-(* CR layouts v3: arrays should accepts non-float [or_null] values. *)
+(* CR layouts v3.4: arrays should accepts non-float [or_null] values. *)
 
 type should_succeed = string or_null array
 
