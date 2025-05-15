@@ -220,19 +220,6 @@ module Axis = struct
     | Nonmodal Externality -> "externality"
     | Nonmodal Nullability -> "nullability"
     | Nonmodal Separability -> "separability"
-
-  let is_modal (type a) : a t -> bool = function
-    | Modal (Comonadic Areality) -> true
-    | Modal (Comonadic Linearity) -> true
-    | Modal (Monadic Uniqueness) -> true
-    | Modal (Comonadic Portability) -> true
-    | Modal (Monadic Contention) -> true
-    | Modal (Comonadic Yielding) -> true
-    | Modal (Comonadic Statefulness) -> true
-    | Modal (Monadic Visibility) -> true
-    | Nonmodal Externality -> true
-    | Nonmodal Nullability -> false
-    | Nonmodal Separability -> false
 end
 
 module Axis_set = struct

@@ -72,10 +72,6 @@ module Axis : sig
   val all : packed list
 
   val name : _ t -> string
-
-  (** Is this a modal axis? Includes externality, because that will one
-      day be modal (it is a deep property). *)
-  val is_modal : _ t -> bool
 end
 
 module Axis_set : sig

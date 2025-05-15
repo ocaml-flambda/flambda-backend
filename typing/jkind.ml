@@ -1351,7 +1351,7 @@ module Const = struct
                 ~statefulness:Statefulness.Const.min
                 ~visibility:Visibility.Const_op.min ~externality:Externality.max
                 ~nullability:Nullability.Non_null
-                ~separability:Jkind_axis.Separability.Non_float;
+                ~separability:Separability.Non_float;
             with_bounds = No_with_bounds
           };
         name = "immutable_data"
@@ -1360,7 +1360,7 @@ module Const = struct
     let non_float_value =
       { jkind =
           mk_jkind (Base Value) ~mode_crossing:false ~nullability:Non_null
-            ~separability:Jkind_axis.Separability.Non_float;
+            ~separability:Separability.Non_float;
         name = "non_float_value"
       }
 
@@ -2024,7 +2024,8 @@ module Jkind_desc = struct
     let layout, sort = Layout.of_new_sort_var () in
     ( { layout;
         mod_bounds =
-          Mod_bounds.set_nullability nullability_upper_bound Mod_bounds.max
+          Mod_bounds.max
+          |> Mod_bounds.set_nullability nullability_upper_bound
           |> Mod_bounds.set_separability separability_upper_bound;
         with_bounds = No_with_bounds
       },
@@ -2413,7 +2414,7 @@ let for_object =
         Mod_bounds.create ~linearity ~locality ~uniqueness ~portability
           ~contention ~yielding ~statefulness ~visibility
           ~externality:Externality.max ~nullability:Non_null
-          ~separability:Separability.Separable;
+          ~separability:Separability.Non_float;
       with_bounds = No_with_bounds
     }
     ~annotation:None ~why:(Value_creation Object)
@@ -2428,8 +2429,7 @@ let for_float ident =
           ~contention:Contention.Const_op.min
           ~statefulness:Statefulness.Const.min
           ~visibility:Visibility.Const_op.min ~externality:Externality.max
-          ~nullability:Nullability.Non_null
-          ~separability:Jkind_axis.Separability.Separable;
+          ~nullability:Nullability.Non_null ~separability:Separability.Separable;
       with_bounds = No_with_bounds
     }
     ~annotation:None ~why:(Primitive ident)
