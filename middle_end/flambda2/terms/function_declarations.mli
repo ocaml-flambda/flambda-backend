@@ -29,7 +29,7 @@ type code_id_in_function_declaration =
       }
   | Code_id of
       { code_id : Code_id.t;
-        never_called_indirectly : bool
+        only_known_arity : bool
       }
 
 val empty : t

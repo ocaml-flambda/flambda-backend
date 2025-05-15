@@ -232,7 +232,7 @@ end = struct
           List.rev_append (P.define_symbol (R.symbol res function_symbol)) acc
       in
       match code_id with
-      | Code_id { code_id; never_called_indirectly } -> (
+      | Code_id { code_id; only_known_arity } -> (
         let code_symbol =
           R.symbol_of_code_id res ~currently_in_inlined_body:false code_id
         in
@@ -277,7 +277,7 @@ end = struct
           let acc =
             P.term_of_symbol ~dbg code_symbol
             :: P.int ~dbg closure_info
-            :: (if never_called_indirectly
+            :: (if only_known_arity
                then P.int ~dbg 0n
                else
                  P.term_of_symbol ~dbg
@@ -564,7 +564,7 @@ let debuginfo_for_set_of_closures env set =
          ->
            match code_id with
            | Deleted { dbg; _ } -> dbg
-           | Code_id { code_id; never_called_indirectly = _ } ->
+           | Code_id { code_id; only_known_arity = _ } ->
              Code_metadata.dbg (Env.get_code_metadata env code_id))
     |> List.sort Debuginfo.compare
   in

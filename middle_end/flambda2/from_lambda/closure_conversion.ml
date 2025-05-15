@@ -2774,7 +2774,7 @@ let close_functions acc external_env ~current_region function_declarations =
     function_code_ids_in_order |> List.rev |> Function_slot.Lmap.of_list
     |> Function_slot.Lmap.map
          (fun code_id : Function_declarations.code_id_in_function_declaration ->
-           Code_id { code_id; never_called_indirectly = false })
+           Code_id { code_id; only_known_arity = false })
   in
   let function_decls = Function_declarations.create funs in
   let value_slots =
