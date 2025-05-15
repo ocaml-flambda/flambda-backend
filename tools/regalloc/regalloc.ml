@@ -15,7 +15,8 @@ external time_include_children : bool -> float
 
 let cpu_time () = time_include_children false
 
-let process_function (register_allocator : register_allocator)
+let[@ocamlformat "disable"] process_function
+    (register_allocator : register_allocator)
     (cfg_with_layout : Cfg_with_layout.t) (cmm_label : Label.t)
     (reg_stamp : int) (relocatable_regs : Reg.t list) =
   Printf.eprintf "  processing function %S...\n%!"
@@ -33,7 +34,8 @@ let process_function (register_allocator : register_allocator)
     | LS -> Regalloc_ls.run cfg_with_infos
   in
   let end_time = cpu_time () in
-  Printf.eprintf "  register allocation took %gs...\n%!" (end_time -. start_time);
+  Printf.eprintf "  register allocation took %gs...\n%!"
+    (end_time -. start_time);
   ()
 
 let process_file (file : string) (register_allocator : register_allocator) =
