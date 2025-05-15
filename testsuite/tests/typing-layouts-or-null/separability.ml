@@ -318,7 +318,7 @@ type succeeds = t_b64 accepts_sep
 type succeeds = t_b64 accepts_nonfloat
 |}]
 
-   (* [word] is non-float *)
+(* [word] is non-float *)
 type t_word : word
 type succeeds = t_word accepts_nonsep
 type succeeds = t_word accepts_sep
