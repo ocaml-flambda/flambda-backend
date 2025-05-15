@@ -257,7 +257,8 @@ let subst_func_decl env
     Function_declarations.code_id_in_function_declaration =
   match code_id with
   | Deleted _ -> code_id
-  | Code_id code_id -> Code_id (subst_code_id env code_id)
+  | Code_id { code_id; never_called_indirectly } ->
+    Code_id { code_id = subst_code_id env code_id; never_called_indirectly }
 
 let subst_func_decls env decls =
   Function_declarations.funs_in_order decls
@@ -724,8 +725,16 @@ let function_decls env
   | ( Deleted { function_slot_size = size1; dbg = _ },
       Deleted { function_slot_size = size2; dbg = _ } ) ->
     if Int.equal size1 size2 then Equivalent else Different { approximant = () }
-  | Code_id code_id1, Code_id code_id2 ->
+  | ( Code_id
+        { code_id = code_id1;
+          never_called_indirectly = never_called_indirectly1
+        },
+      Code_id
+        { code_id = code_id2;
+          never_called_indirectly = never_called_indirectly2
+        } ) ->
     if code_ids env code_id1 code_id2 |> Comparison.is_equivalent
+       && Bool.equal never_called_indirectly1 never_called_indirectly2
     then Equivalent
     else Different { approximant = () }
   | Deleted _, Code_id _ | Code_id _, Deleted _ ->
@@ -800,7 +809,7 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
            ->
              match code_id with
              | Deleted _ -> Right function_slot
-             | Code_id code_id0 ->
+             | Code_id { code_id = code_id0; _ } ->
                Left (subst_code_id env code_id0, (function_slot, code_id)))
     in
     ( Code_id.Map.of_list function_slot_map,
