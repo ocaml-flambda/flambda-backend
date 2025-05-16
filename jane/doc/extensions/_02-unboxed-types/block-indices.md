@@ -32,7 +32,8 @@ let inc_coord (pts : 'a) (i : ('a, int) idx_mut) =
 
 # Overview
 
-A block index is an opaque, explicit index to an element. The language feature includes these types in the predef:
+A block index is an opaque, explicit index to an element. The language feature
+includes these types in the predef:
 
 ```ocaml
 type ('a, 'b : any) idx_imm : bits64
@@ -51,29 +52,11 @@ the position of this int in a `line`:
 { p = #{ x; y }; q = #{ x; y } }
 ```
 
-In fact, in the native compiler, this block index is physically equivalent to
-`#24L`, as `q`'s `y` occurs 24 bytes from the start of the record.
 
-Accordingly, block indices can be used to read and write within blocks, polymorphically in the actual type of the block. This can be done via the functions bound in
-these modules in `Stdlib_beta` (some details elided, e.g. the particular primitives bound by externals):
-```ocaml
-module Idx_imm : sig
-  type ('a, 'b : any) t = ('a, 'b) idx_imm
-
-  external unsafe_get
-    : 'a ('b : any). ('a[@local_opt]) -> ('a, 'b) idx_imm -> ('b[@local_opt])
-end
-
-module Idx_mut : sig
-  type ('a, 'b : any) t = ('a, 'b) idx_mut
-
-  external unsafe_get
-    : 'a ('b : any). ('a[@local_opt]) -> ('a, 'b) idx_mut -> ('b[@local_opt])
-
-  external unsafe_set
-    : 'a ('b : any). 'a @ local -> ('a, 'b) idx_mut -> 'b -> unit
-end
-```
+Accordingly, block indices can be used to read and write within blocks,
+polymorphically in the actual type of the block. This can be done via the
+`Idx_imm.unsafe_get`, `Idx_mut.unsafe_get`, and `Idx_mut.unsafe_set` functions
+in `Stdlib_beta`.
 
 Syntax is added for block index creation, e.g. `(.foo.#bar)`, which consists of
 one "block access" (a record field, array index, iarray index, or another block
@@ -85,18 +68,16 @@ index), then an `idx_mut` is created, and if the block access is immutable
 (immutable record fields, immutable arrays, immutable block indices), then an
 `idx_imm` is created.
 
-### Terminology
+# Edge cases and limitations
 
-
-
-### Block index creation examples
-
-- `(.
-
-# Indices to records and arrays with special representations
-
-- Indices to flat float arrays cannot be taken.
-- An index to a float into a flattened float record has an element type `float#`.
+1. Indices to flat float arrays cannot be taken: the type parameter must be
+   `non_float`.
+2. Indices to `[@@unboxed]` records cannot be taken.
+3. An index to a `float` into a flattened float record has an element type
+   `float#`.
+4. Indices to some records containing both values and non-values, and occupying
+   over 2^16 bytes, cannot be created. See "Representation of block indices for
+   details".
 
 # Representation of block indices
 
