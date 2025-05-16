@@ -6380,18 +6380,13 @@ and type_expect_
   | Pexp_idx (ba, uas) ->
     Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
     (* Compute the expected base type, only to use for disambiguation of the
-      block access *)
+       block access *)
     let expected_base_ty ty_expected =
-      (* CR rtjoa: could this be a tpoly? *)
       match get_desc (expand_head env ty_expected) with
       | Tconstr(p, [arg1; _], _)
         when Path.same p Predef.path_idx_imm
           || Path.same p Predef.path_idx_mut ->
         arg1
-      | Tpoly(t, univars) ->
-        ignore t; ignore univars; assert false
-        (* let _, t = instance_poly ~keep_names:true ~fixed:false univars t in
-         * expected_base_ty t *)
       | _ ->
         newgenvar (Jkind.Builtin.value ~why:Idx_base)
     in
