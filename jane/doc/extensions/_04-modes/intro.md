@@ -29,9 +29,15 @@ tracks whether the operation is allowed to happen to this value in the future.
 This page shows the modes that are currently supported. Each mode belongs to a
 modal *axis* determined by the operation it tracks and whether it is a past or
 future mode. The axes on this page are arranged with the least mode at the
-bottom and the greatest mode at the top. The type system supports *submoding*:
-values may move freely to greater modes (which typically restrict what can be
-done with those values) but not to lesser modes.
+bottom and the greatest mode at the top.
+
+The type system supports *submoding*: values may move freely to greater modes
+(which typically restrict what can be done with those values) but not to lesser
+modes. Additionally, the type system knows that some types don't have
+interesting interactions with some modes. Such types are said to *mode cross* on
+those axes, which means values of these types may freely move in either
+direction on the axis. The sections for each axis below describe which types can
+mode cross on that axis.
 
 Each axis has a *legacy* mode, shown in bold. This is the "default" mode, and is
 chosen to make the modal type system backwards compatible with legacy OCaml
@@ -65,8 +71,8 @@ Locality is irrelevant for types that never cause allocation on the OCaml heap,
 like int. Values of such types *mode cross* on the locality axis; they may be
 used as global even when they are local.
 
-More documentation for locality and stack allocation is available
-[here](../stack-allocation/intro).
+See also the [documentation on locality and stack
+allocation](../stack-allocation/intro).
 
 # Modes for moving between threads {#portability-contention}
 
@@ -81,9 +87,8 @@ More documentation for locality and stack allocation is available
 {: .table }
 
 Contention is a past axis that tracks whether a value has been shared between
-threads. A value is *contended* if multiple threads have full access to it,
-*shared* if multiple threads have read-only access to it, and *uncontended* if
-only one thread has access to it.
+threads. A value is *contended* if another thread can write to it, *shared* if
+multiple threads have read-only access to it, and *uncontended* otherwise.
 
 To enforce data race freedom, the typechecker does not permit reading or writing
 the mutable portions of contended values. The mutable portions of shared values
@@ -103,8 +108,9 @@ when they are contended.
 {: .table }
 
 Portability is a future axis that tracks whether a value is permitted to be
-shared with another thread. The type checker does not allow *nonportable* values
-to move across thread boundaries, while *portable* values may move freely.
+shared with another thread. OxCaml's parallelism API does not allow
+*nonportable* values to move across thread boundaries, while *portable* values
+may move freely.
 
 Portability is about functions: functions that capture uncontended mutable state
 are not portable.
@@ -156,8 +162,8 @@ cross on this axis, so all types that mode cross locality also mode cross
 uniqueness. Some other types that we don't plan to support overwriting for can
 also mode cross uniqueness, like functions.
 
-More documentation on uniqueness and linearity is available
-[here](../../uniqueness/intro/).
+See also the [documentation on uniqueness and
+linearity](../../uniqueness/intro/).
 
 ## Future modes: Linearity
 
@@ -171,17 +177,17 @@ Linearity is a future axis that tracks whether a function is permitted to be
 aliased.  Values that are *many* may used multiple times, while values that are
 *once* may only be used once.
 
-Linearity is about functions: its purpose is to track unique values in
-closures. A closure that captures a unique value is once, ensuring one can not
-create multiple references to the unique value by using the function multiple
-times.
+Like portability, linearity is about functions: its purpose is to track unique
+values in closures. A closure that captures a unique value is once, ensuring one
+can not create multiple references to the unique value by using the function
+multiple times.
 
 Linearity is irrelevant for types that do not contain functions. Values of such
 types *mode cross* on the linearity axis; they may be used as many even when
 they are once.
 
-More documentation on uniqueness and linearity is available
-[here](../../uniqueness/intro/).
+See also the [documentation on uniqueness and
+linearity](../../uniqueness/intro/).
 
 <!-- CR ccasinghino: Sections needed for statefulness, visibility, and yielding -->
 
