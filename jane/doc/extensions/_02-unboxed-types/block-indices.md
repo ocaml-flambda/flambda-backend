@@ -94,14 +94,14 @@ access so that indices can be _deepened_. For example, given
 
 ```ocaml
 module Stack : sig
- type 'a t
- val empty : 'a t
- val push : 'a t -> 'a -> unit
- val pop : 'a t -> 'a
- val update_top : 'a t -> ('a, 'b) idx_mut -> 'b -> unit
- (* [update_top] normally isn't possible without exposing the representation.
-    One could use ['a t -> ('a -> unit) -> unit], but the closure is less
-    efficient. *)
+  type 'a t
+  val empty : 'a t
+  val push : 'a t -> 'a -> unit
+  val pop : 'a t -> 'a
+  val update_top : 'a t -> ('a, 'b) idx_mut -> 'b -> unit
+  (* [update_top] normally isn't possible without exposing the representation.
+     One could use ['a t -> ('a -> unit) -> unit], but the closure is less
+     efficient. *)
 end
 
 (* ... *)
@@ -196,11 +196,15 @@ implementation of deepening, see below.
 
 We show compare the "layout view" of deepening with the "native representation"
 view of deepening. Note that the layout does not account for reordering while
-the native representation does. When the below refers to what is "left" and
+the native representation does. When the below refers to the "left" and
 "right" of the element, this refers to the layout, *not* the native
 representation.
 
-![All values or flats](assets/all_values_or_flats.png)
-![Mixed to all flats](assets/mixed_to_all_flats.png)
-![Mixed to all values](assets/mixed_to_all_values.png)
-![Mixed to mixed](assets/mixed_to_mixed.png)
+`o1` and `g1` refer to the offset and gap of the index before deepening (light
+orange), while `o2` and `g2` refer to the offset and gap of the index after
+deepening (blue). Recall that indices to all values/non-values have no gap.
+
+![All values or flats](assets/all_values_or_flats.png =500x)
+![Mixed to all flats](assets/mixed_to_all_flats.png =500x)
+![Mixed to all values](assets/mixed_to_all_values.png =500x)
+![Mixed to mixed](assets/mixed_to_mixed.png =500x)
