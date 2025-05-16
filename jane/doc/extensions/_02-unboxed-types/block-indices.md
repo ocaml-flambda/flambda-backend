@@ -10,23 +10,30 @@ This document describes the language feature and implementation for explicit
 _indices_ into a block. Before reading this document, you may wish to read up
 through the [layouts](../intro#layouts) section of the main document.
 
+A quick example:
 ```ocaml
 open Stdlib_beta
 
+(*************************************************)
+(* An immutable block index into a nested record *)
+
 type pt = { x : int; y : int }
-type line = { p : pt#; q : pt# } (* flatly contains four ints *)
+type line = { p : pt#; q : pt# }
 
-let i : (line, int) idx_imm = (.q.#y) (* an index to the second y-coord of a line *)
+let i : (line, int) idx_imm =
+  (.q.#y)
+
 let get_coord (line : line) (i : (line, int) idx_imm) : int =
+  (* Equivalent to [line.q.#y] *)
   Idx_imm.unsafe_get line i
-```
 
-If the index path is to a mutable element (it is in an array or mutable record
-field), then it is an `idx_mut`.
+(***************************************)
+(* A mutable block index into an array *)
 
-```ocaml
 let first_x : (pt# array, int) idx_mut = (.(0).#x)
+
 let inc_coord (pts : 'a) (i : ('a, int) idx_mut) =
+  (* Equivalent to [pts.(i) <- pts.(i) + 1] when [i] is in bounds *)
   Idx_mut.unsafe_set pts i (Idx_mut.unsafe_get pts i + 1)
 ```
 
