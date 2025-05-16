@@ -651,11 +651,13 @@ val ok : unit -> ('a id/2# mut_not_global# id/1, 'a) idx_mut = <fun>
 (* Principality *)
 
 type u = #{ x : int }
+type u2 = #{ x : string }
 type 'a r = { u : u }
 type 'a r2 = { u : u }
 type 'a t = { a : 'a }
 [%%expect{|
 type u = #{ x : int; }
+type u2 = #{ x : string; }
 type 'a r = { u : u; }
 type 'a r2 = { u : u; }
 type 'a t = { a : 'a; }
@@ -671,8 +673,8 @@ let f c =
 [%%expect{|
 val f : bool -> ('a r, int) idx_imm = <fun>
 |}, Principal{|
-Line 670, characters 6-7:
-670 |     (.u.#x)
+Line 677, characters 6-7:
+677 |     (.u.#x)
             ^
 Warning 18 [not-principal]: this type-based field disambiguation is not principal.
 
@@ -687,6 +689,13 @@ let f c =
     (.a.#x)
 [%%expect{|
 val f : bool -> (u t, int) idx_imm = <fun>
+|}, Principal{|
+Line 694, characters 9-10:
+694 |     (.a.#x)
+               ^
+Warning 18 [not-principal]: this type-based unboxed record field disambiguation is not principal.
+
+val f : bool -> (u t, int) idx_imm = <fun>
 |}]
 
 (* Second unboxed index disambiguated non-principally *)
@@ -696,6 +705,13 @@ let f c =
   else
     (.a.#a.#x)
 [%%expect{|
+val f : bool -> (u t# t, int) idx_imm = <fun>
+|}, Principal{|
+Line 704, characters 12-13:
+704 |     (.a.#a.#x)
+                  ^
+Warning 18 [not-principal]: this type-based unboxed record field disambiguation is not principal.
+
 val f : bool -> (u t# t, int) idx_imm = <fun>
 |}]
 
@@ -708,6 +724,13 @@ let f c =
     (.(1).#x)
 [%%expect{|
 val f : bool -> (u array, int) idx_mut = <fun>
+|}, Principal{|
+Line 715, characters 11-12:
+715 |     (.(1).#x)
+                 ^
+Warning 18 [not-principal]: this type-based unboxed record field disambiguation is not principal.
+
+val f : bool -> (u array, int) idx_mut = <fun>
 |}]
 
 (* Second unboxed index disambiguated non-principally through the expected array
@@ -718,5 +741,12 @@ let f c =
   else
     (.(1).#a.#x)
 [%%expect{|
+val f : bool -> (u t# array, int) idx_mut = <fun>
+|}, Principal{|
+Line 726, characters 14-15:
+726 |     (.(1).#a.#x)
+                    ^
+Warning 18 [not-principal]: this type-based unboxed record field disambiguation is not principal.
+
 val f : bool -> (u t# array, int) idx_mut = <fun>
 |}]
