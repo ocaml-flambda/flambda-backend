@@ -2581,6 +2581,16 @@ let set_nullability_upper_bound jk nullability_upper_bound =
   in
   { jk with jkind = { jk.jkind with mod_bounds = new_bounds } }
 
+let set_separability_upper_bound jk separability_upper_bound =
+  { jk with
+    jkind =
+      { jk.jkind with
+        mod_bounds =
+          Mod_bounds.set_separability separability_upper_bound
+            jk.jkind.mod_bounds
+      }
+  }
+
 let set_layout jk layout = { jk with jkind = { jk.jkind with layout } }
 
 let apply_modality_l modality jk =
