@@ -9,7 +9,7 @@ title: Intro
 See also the full feature [reference](../reference) and
 [common pitfalls](../pitfalls).
 
-This page describes how OCaml sometimes allocates values on a stack,
+This page describes how OxCaml sometimes allocates values on a stack,
 as opposed to its usual behavior of allocating on the heap.
 This helps performance in a couple of ways: first, the same few hot
 cache lines are constantly reused, so the cache footprint is lower than
@@ -48,7 +48,7 @@ let foo () =
 Error: This value escapes its region
 ```
 
-Most allocations in OCaml can be stack-allocated: tuples, records, variants,
+Most allocations in OxCaml can be stack-allocated: tuples, records, variants,
 closures, boxed numbers, etc. Stack allocations are also possible from C stubs,
 although this requires code changes to use the new `caml_alloc_local` instead of
 `caml_alloc`. A few types of allocation cannot be stack-allocated, though,

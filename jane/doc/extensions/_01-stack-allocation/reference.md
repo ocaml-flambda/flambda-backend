@@ -6,7 +6,7 @@ title: Reference
 # Stack Allocations Reference
 
 The goal of this document is to be a reasonably complete reference to stack
-allocations in OCaml. For a gentler introduction, see [the
+allocations in OxCaml. For a gentler introduction, see [the
 introduction](../intro).
 
 The stack allocations language extension allows the compiler to
@@ -44,7 +44,7 @@ let f = ref (stack_ `Foo)
 Error: This expression is not an allocation site.
 ```
 
-Most OCaml types can be stack-allocated, including records, variants,
+Most OxCaml types can be stack-allocated, including records, variants,
 polymorphic variants, closures, boxed numbers and strings. However, certain
 values cannot be stack-allocated, and will always be on the GC heap,
 including:
@@ -60,7 +60,7 @@ including:
 ### Runtime behavior
 
 At runtime, stack allocations do not take place on the function call stack, but on a
-separately-allocated stack that follows the same layout as the OCaml
+separately-allocated stack that follows the same layout as the stock OCaml
 minor heap. In particular, this enables local-returning functions
 without the need to copy returned values. See "Use `exclave_` to return a local value"
 below for more details.
@@ -720,7 +720,7 @@ value when the younger one's region ends.
 
 ## Curried functions
 
-The function type constructor in OCaml is right-associative, so that these are
+The function type constructor in stock OCaml is right-associative, so that these are
 equal types:
 
 ```ocaml
@@ -834,7 +834,7 @@ the local or global status of parts of a value, but rather tracks this
 only once per variable or expression. There is one exception to this
 rule, as follows.
 
-In OCaml, it is possible to simultaneously match on multiple values:
+In stock OCaml, it is possible to simultaneously match on multiple values:
 
 ```ocaml
 match x, y, z with
@@ -862,7 +862,7 @@ let a, b, c =
   x, y, z
 ```
 
-Again, there is no actual syntax for this in OCaml: that's a binding
+Again, there is no actual syntax for this in stock OCaml: that's a binding
 of the single value `(x, y, z)` against the single pattern `(a, b,
 c)`. Since it's usually thought of as the simultaneous binding of
 several variables, the type-checker treats it as such rather than
