@@ -1,0 +1,6 @@
+int8# -> int8#, ~42: -43
+int8 -> int8#, ~(-100): 99
+int8# -> int8, ~255: 0
+(int8[@unboxed]) -> int8#, ~1024: -1
+int8# -> (int8[@unboxed]), ~(-1726): -67
+Function of 7 args, 1+2+3+4+5+6+7: 28

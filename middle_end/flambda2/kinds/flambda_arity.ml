@@ -75,6 +75,8 @@ module Component_for_creation = struct
     | Pvalue vk -> Singleton (KS.from_lambda_value_kind vk)
     | Punboxed_float Unboxed_float64 -> Singleton KS.naked_float
     | Punboxed_float Unboxed_float32 -> Singleton KS.naked_float32
+    | Punboxed_int Unboxed_int8 -> Singleton KS.naked_int8
+    | Punboxed_int Unboxed_int16 -> Singleton KS.naked_int16
     | Punboxed_int Unboxed_int32 -> Singleton KS.naked_int32
     | Punboxed_int Unboxed_int64 -> Singleton KS.naked_int64
     | Punboxed_int Unboxed_nativeint -> Singleton KS.naked_nativeint

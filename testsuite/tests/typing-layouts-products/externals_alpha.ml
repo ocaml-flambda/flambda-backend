@@ -71,8 +71,8 @@ external foo1 : (#(int * float#) [@untagged]) -> int = "foo" "foo'"
 Line 1, characters 17-32:
 1 | external foo1 : (#(int * float#) [@untagged]) -> int = "foo" "foo'"
                      ^^^^^^^^^^^^^^^
-Error: Don't know how to untag this type. Only "int"
-       and other immediate types can be untagged.
+Error: Don't know how to untag this type. Only "int8", "int16", "int", and
+       other immediate types can be untagged.
 |}]
 
 external foo2 : int -> (#(int * float#) [@untagged]) = "foo" "foo'"
@@ -80,8 +80,8 @@ external foo2 : int -> (#(int * float#) [@untagged]) = "foo" "foo'"
 Line 1, characters 24-39:
 1 | external foo2 : int -> (#(int * float#) [@untagged]) = "foo" "foo'"
                             ^^^^^^^^^^^^^^^
-Error: Don't know how to untag this type. Only "int"
-       and other immediate types can be untagged.
+Error: Don't know how to untag this type. Only "int8", "int16", "int", and
+       other immediate types can be untagged.
 |}]
 
 external foo1 : #(int * float#) -> int = "foo" "foo'" [@@untagged]
@@ -89,8 +89,8 @@ external foo1 : #(int * float#) -> int = "foo" "foo'" [@@untagged]
 Line 1, characters 16-31:
 1 | external foo1 : #(int * float#) -> int = "foo" "foo'" [@@untagged]
                     ^^^^^^^^^^^^^^^
-Error: Don't know how to untag this type. Only "int"
-       and other immediate types can be untagged.
+Error: Don't know how to untag this type. Only "int8", "int16", "int", and
+       other immediate types can be untagged.
 |}]
 
 external foo2 : int -> #(int * float#) = "foo" "foo'" [@@untagged]
@@ -98,8 +98,8 @@ external foo2 : int -> #(int * float#) = "foo" "foo'" [@@untagged]
 Line 1, characters 23-38:
 1 | external foo2 : int -> #(int * float#) = "foo" "foo'" [@@untagged]
                            ^^^^^^^^^^^^^^^
-Error: Don't know how to untag this type. Only "int"
-       and other immediate types can be untagged.
+Error: Don't know how to untag this type. Only "int8", "int16", "int", and
+       other immediate types can be untagged.
 |}]
 
 (* You can't smuggle an unrepresentable type into an external inside a

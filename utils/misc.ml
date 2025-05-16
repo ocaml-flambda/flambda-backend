@@ -25,6 +25,9 @@ let fatal_errorf fmt =
 
 let fatal_error msg = fatal_errorf "%s" msg
 
+let unboxed_small_int_arrays_are_not_implemented () =
+  fatal_error "unboxed int8/int16 arrays are not implemented"
+
 (* Exceptions *)
 
 let try_finally ?(always=(fun () -> ())) ?(exceptionally=(fun () -> ())) work =

@@ -334,6 +334,8 @@ type primitive =
   | Pobj_magic of layout
   | Punbox_float of boxed_float
   | Pbox_float of boxed_float * locality_mode
+  | Puntag_int of unboxed_integer
+  | Ptag_int of unboxed_integer
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * locality_mode
   | Punbox_vector of boxed_vector
@@ -355,7 +357,7 @@ and extern_repr =
   | Same_as_ocaml_repr of Jkind.Sort.Const.t
   | Unboxed_float of boxed_float
   | Unboxed_vector of boxed_vector
-  | Unboxed_integer of boxed_integer
+  | Unboxed_integer of unboxed_integer
   | Untagged_int
 
 and external_call_description = extern_repr Primitive.description_gen
@@ -405,6 +407,8 @@ and 'a mixed_block_element =
   | Float_boxed of 'a
   | Float64
   | Float32
+  | Bits8
+  | Bits16
   | Bits32
   | Bits64
   | Vec128
@@ -473,6 +477,8 @@ and unboxed_integer = Primitive.unboxed_integer =
   | Unboxed_int64
   | Unboxed_nativeint
   | Unboxed_int32
+  | Unboxed_int16
+  | Unboxed_int8
 
 and unboxed_vector = Primitive.unboxed_vector =
   | Unboxed_vec128
@@ -493,6 +499,8 @@ and peek_or_poke =
   | Ppp_tagged_immediate
   | Ppp_unboxed_float32
   | Ppp_unboxed_float
+  | Ppp_unboxed_int8
+  | Ppp_unboxed_int16
   | Ppp_unboxed_int32
   | Ppp_unboxed_int64
   | Ppp_unboxed_nativeint
@@ -571,11 +579,13 @@ and equal_mixed_block_element :
   | Float_boxed param1, Float_boxed param2 -> eq_param param1 param2
   | Float64, Float64
   | Float32, Float32
+  | Bits8, Bits8
+  | Bits16, Bits16
   | Bits32, Bits32
   | Bits64, Bits64
   | Vec128, Vec128
   | Word, Word -> true
-  | (Value _ | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Vec128
+  | (Value _ | Float_boxed _ | Float64 | Float32 | Bits8 | Bits16 | Bits32 | Bits64 | Vec128
      | Word), _ -> false
 
 and equal_mixed_block_shape shape1 shape2 =
@@ -1014,8 +1024,10 @@ let layout_functor = non_null_value Pgenval
 let layout_boxed_float f = non_null_value (Pboxedfloatval f)
 let layout_unboxed_float f = Punboxed_float f
 let layout_unboxed_nativeint = Punboxed_int Unboxed_nativeint
-let layout_unboxed_int32 = Punboxed_int Unboxed_int32
 let layout_unboxed_int64 = Punboxed_int Unboxed_int64
+let layout_unboxed_int32 = Punboxed_int Unboxed_int32
+let layout_unboxed_int16 = Punboxed_int Unboxed_int16
+let layout_unboxed_int8 = Punboxed_int Unboxed_int8
 let layout_string = non_null_value Pgenval
 let layout_unboxed_int ubi = Punboxed_int ubi
 let layout_boxed_int bi = non_null_value (Pboxedintval bi)
@@ -1401,6 +1413,8 @@ let transl_mixed_product_shape ~get_value_kind shape =
     | Float_boxed -> Float_boxed ()
     | Float64 -> Float64
     | Float32 -> Float32
+    | Bits8 -> Bits8
+    | Bits16 -> Bits16
     | Bits32 -> Bits32
     | Bits64 -> Bits64
     | Vec128 -> Vec128
@@ -1414,6 +1428,8 @@ let transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shape =
     | Float_boxed -> Float_boxed (get_mode i)
     | Float64 -> Float64
     | Float32 -> Float32
+    | Bits8 -> Bits8
+    | Bits16 -> Bits16
     | Bits32 -> Bits32
     | Bits64 -> Bits64
     | Vec128 -> Vec128
@@ -1841,6 +1857,8 @@ let primitive_may_allocate : primitive -> locality_mode option = function
       | Value _
       | Float64
       | Float32
+      | Bits8
+      | Bits16
       | Bits32
       | Bits64
       | Vec128
@@ -1971,6 +1989,7 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pobj_dup -> Some alloc_heap
   | Pobj_magic _ -> None
   | Punbox_float _ | Punbox_int _ | Punbox_vector _ -> None
+  | Ptag_int _ | Puntag_int _ -> None
   | Pbox_float (_, m) | Pbox_int (_, m) | Pbox_vector (_, m) -> Some m
   | Prunstack | Presume | Pperform | Preperform
     (* CR mshinwell: check *)
@@ -2148,6 +2167,8 @@ let primitive_can_raise prim =
   | Pbox_float (_, _)
   | Punbox_float _
   | Pbox_vector (_, _)
+  | Ptag_int _
+  | Puntag_int _
   | Punbox_vector _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
   | Punboxed_product_field _ | Pget_header _ ->
     false
@@ -2189,6 +2210,8 @@ let rec layout_of_const_sort (c : Jkind.Sort.Const.t) : layout =
   | Base Float64 -> layout_unboxed_float Unboxed_float64
   | Base Float32 -> layout_unboxed_float Unboxed_float32
   | Base Word -> layout_unboxed_nativeint
+  | Base Bits8 -> layout_unboxed_int8
+  | Base Bits16 -> layout_unboxed_int16
   | Base Bits32 -> layout_unboxed_int32
   | Base Bits64 -> layout_unboxed_int64
   | Base Vec128 -> layout_unboxed_vector Unboxed_vec128
@@ -2200,7 +2223,10 @@ let layout_of_extern_repr : extern_repr -> _ = function
   | Untagged_int ->  layout_int
   | Unboxed_vector v -> layout_boxed_vector v
   | Unboxed_float bf -> layout_boxed_float bf
-  | Unboxed_integer bi -> layout_boxed_int bi
+  | Unboxed_integer ( Unboxed_int8 | Unboxed_int16 ) ->  layout_int
+  | Unboxed_integer (Unboxed_int64) -> layout_boxed_int Boxed_int64
+  | Unboxed_integer (Unboxed_int32) -> layout_boxed_int Boxed_int32
+  | Unboxed_integer (Unboxed_nativeint) -> layout_boxed_int Boxed_nativeint
   | Same_as_ocaml_repr s -> layout_of_const_sort s
 
 let rec layout_of_scannable_kinds kinds =
@@ -2236,6 +2262,8 @@ let layout_of_mixed_block_element (elt : _ mixed_block_element) =
   | Float_boxed _ -> layout_boxed_float Boxed_float64
   | Float64 -> layout_unboxed_float Unboxed_float64
   | Float32 -> layout_unboxed_float Unboxed_float32
+  | Bits8 -> layout_unboxed_int8
+  | Bits16 -> layout_unboxed_int16
   | Bits32 -> layout_unboxed_int32
   | Bits64 -> layout_unboxed_int64
   | Word -> layout_unboxed_nativeint
@@ -2303,20 +2331,22 @@ let primitive_result_layout (p : primitive) =
   | Pandbint (bi, _) | Porbint (bi, _) | Pxorbint (bi, _)
   | Plslbint (bi, _) | Plsrbint (bi, _) | Pasrbint (bi, _)
   | Pbbswap (bi, _) | Pbox_int (bi, _) ->
-      layout_boxed_int bi
+    layout_boxed_int bi
+  | Ptag_int _ -> layout_int
+  | Puntag_int i -> layout_unboxed_int i
   | Punbox_int bi -> Punboxed_int (Primitive.unboxed_integer bi)
   | Pstring_load_32 { boxed = true; _ } | Pbytes_load_32 { boxed = true; _ }
   | Pbigstring_load_32 { boxed = true; _ } ->
-      layout_boxed_int Boxed_int32
+    layout_boxed_int Boxed_int32
   | Pstring_load_f32 { boxed = true; _ } | Pbytes_load_f32 { boxed = true; _ }
   | Pbigstring_load_f32 { boxed = true; _ } ->
-      layout_boxed_float Boxed_float32
+    layout_boxed_float Boxed_float32
   | Pstring_load_64 { boxed = true; _ } | Pbytes_load_64 { boxed = true; _ }
   | Pbigstring_load_64 { boxed = true; _ } ->
-      layout_boxed_int Boxed_int64
+    layout_boxed_int Boxed_int64
   | Pstring_load_128 { boxed = true; _ } | Pbytes_load_128 { boxed = true; _ }
   | Pbigstring_load_128 { boxed = true; _ } ->
-      layout_boxed_vector Boxed_vec128
+    layout_boxed_vector Boxed_vec128
   | Pbigstring_load_32 { boxed = false; _ }
   | Pstring_load_32 { boxed = false; _ }
   | Pbytes_load_32 { boxed = false; _ } -> layout_unboxed_int Unboxed_int32
@@ -2328,7 +2358,7 @@ let primitive_result_layout (p : primitive) =
   | Pbytes_load_64 { boxed = false; _ } -> layout_unboxed_int Unboxed_int64
   | Pstring_load_128 { boxed = false; _ } | Pbytes_load_128 { boxed = false; _ }
   | Pbigstring_load_128 { boxed = false; _ } ->
-      layout_unboxed_vector Unboxed_vec128
+    layout_unboxed_vector Unboxed_vec128
   | Pfloatarray_load_128 { boxed = true; _ }
   | Pfloat_array_load_128 { boxed = true; _ }
   | Punboxed_float_array_load_128 { boxed = true; _ }
@@ -2337,7 +2367,7 @@ let primitive_result_layout (p : primitive) =
   | Punboxed_int64_array_load_128 { boxed = true; _ }
   | Punboxed_nativeint_array_load_128 { boxed = true; _ }
   | Punboxed_int32_array_load_128 { boxed = true; _ } ->
-      layout_boxed_vector Boxed_vec128
+    layout_boxed_vector Boxed_vec128
   | Pfloatarray_load_128 { boxed = false; _ }
   | Pfloat_array_load_128 { boxed = false; _ }
   | Punboxed_float_array_load_128 { boxed = false; _ }
@@ -2346,35 +2376,35 @@ let primitive_result_layout (p : primitive) =
   | Punboxed_int64_array_load_128 { boxed = false; _ }
   | Punboxed_nativeint_array_load_128 { boxed = false; _ }
   | Punboxed_int32_array_load_128 { boxed = false; _ } ->
-      layout_unboxed_vector Unboxed_vec128
+    layout_unboxed_vector Unboxed_vec128
   | Pbigarrayref (_, _, kind, _) ->
-      begin match kind with
-      | Pbigarray_unknown -> layout_any_value
-      | Pbigarray_float16 | Pbigarray_float32 ->
-        (* float32 bigarrays return 64-bit floats for backward compatibility.
-           Likewise for float16. *)
-        layout_boxed_float Boxed_float64
-      | Pbigarray_float32_t -> layout_boxed_float Boxed_float32
-      | Pbigarray_float64 -> layout_boxed_float Boxed_float64
-      | Pbigarray_sint8 | Pbigarray_uint8
-      | Pbigarray_sint16 | Pbigarray_uint16
-      | Pbigarray_caml_int -> layout_int
-      | Pbigarray_int32 -> layout_boxed_int Boxed_int32
-      | Pbigarray_int64 -> layout_boxed_int Boxed_int64
-      | Pbigarray_native_int -> layout_boxed_int Boxed_nativeint
-      | Pbigarray_complex32 | Pbigarray_complex64 ->
-          layout_block
-      end
+    begin match kind with
+    | Pbigarray_unknown -> layout_any_value
+    | Pbigarray_float16 | Pbigarray_float32 ->
+      (* float32 bigarrays return 64-bit floats for backward compatibility.
+         Likewise for float16. *)
+      layout_boxed_float Boxed_float64
+    | Pbigarray_float32_t -> layout_boxed_float Boxed_float32
+    | Pbigarray_float64 -> layout_boxed_float Boxed_float64
+    | Pbigarray_sint8 | Pbigarray_uint8
+    | Pbigarray_sint16 | Pbigarray_uint16
+    | Pbigarray_caml_int -> layout_int
+    | Pbigarray_int32 -> layout_boxed_int Boxed_int32
+    | Pbigarray_int64 -> layout_boxed_int Boxed_int64
+    | Pbigarray_native_int -> layout_boxed_int Boxed_nativeint
+    | Pbigarray_complex32 | Pbigarray_complex64 ->
+      layout_block
+    end
   | Pctconst (
-      Big_endian | Word_size | Int_size | Max_wosize
-      | Ostype_unix | Ostype_cygwin | Ostype_win32 | Backend_type | Runtime5
-    ) ->
-      (* Compile-time constants only ever return ints for now,
-         enumerate them all to be sure to modify this if it becomes wrong. *)
-      layout_int
+    Big_endian | Word_size | Int_size | Max_wosize
+    | Ostype_unix | Ostype_cygwin | Ostype_win32 | Backend_type | Runtime5
+  ) ->
+    (* Compile-time constants only ever return ints for now,
+       enumerate them all to be sure to modify this if it becomes wrong. *)
+    layout_int
   | Pint_as_pointer _ ->
-      (* CR ncourant: use an unboxed int64 here when it exists *)
-      layout_any_value
+    (* CR ncourant: use an unboxed int64 here when it exists *)
+    layout_any_value
   | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
   | Pget_header _ -> layout_boxed_int Boxed_nativeint
   | Prunstack | Presume | Pperform | Preperform -> layout_any_value
@@ -2401,6 +2431,8 @@ let primitive_result_layout (p : primitive) =
       | Ppp_tagged_immediate -> layout_int
       | Ppp_unboxed_float32 -> layout_unboxed_float Unboxed_float32
       | Ppp_unboxed_float -> layout_unboxed_float Unboxed_float64
+      | Ppp_unboxed_int8 -> layout_unboxed_int8
+      | Ppp_unboxed_int16 -> layout_unboxed_int16
       | Ppp_unboxed_int32 -> layout_unboxed_int32
       | Ppp_unboxed_int64 -> layout_unboxed_int64
       | Ppp_unboxed_nativeint -> layout_unboxed_nativeint

@@ -72,7 +72,9 @@ let unary_int_prim_size kind op =
     2 + does_not_need_caml_c_call_extcall_size + 1
   | Naked_immediate, Swap_byte_endianness ->
     does_not_need_caml_c_call_extcall_size + 1
-  | (Naked_int32 | Naked_int64 | Naked_nativeint), Swap_byte_endianness ->
+  | Naked_int8, Swap_byte_endianness -> 0
+  | ( (Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint),
+      Swap_byte_endianness ) ->
     does_not_need_caml_c_call_extcall_size + 1
 
 let arith_conversion_size src dst =
@@ -99,27 +101,43 @@ let arith_conversion_size src dst =
   | Naked_float32, Naked_float32 -> 0
   | Naked_float, Naked_float32 -> 1
   | Naked_float32, Naked_float -> 1
-  | ( (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate),
+  | ( ( Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint
+      | Naked_immediate ),
       Tagged_immediate ) ->
     1
   | ( Tagged_immediate,
-      (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate) ) ->
+      ( Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint
+      | Naked_immediate ) ) ->
+    1
+  | (Naked_nativeint | Naked_immediate), Naked_int32 -> if arch32 then 0 else 1
+  | (Naked_nativeint | Naked_immediate), Naked_int64 -> if arch64 then 0 else 1
+  | Naked_int16, Naked_int8
+  | Naked_int32, (Naked_int8 | Naked_int16)
+  | Naked_nativeint, Naked_immediate
+  | (Naked_nativeint | Naked_immediate), (Naked_int8 | Naked_int16)
+  | Naked_int64, (Naked_int8 | Naked_int16 | Naked_int32) ->
     1
   | Tagged_immediate, Tagged_immediate
+  | ( Naked_int8,
+      ( Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint
+      | Naked_immediate ) )
+  | ( Naked_int16,
+      ( Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint
+      | Naked_immediate ) )
   | Naked_int32, (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate)
-  | Naked_int64, (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate)
-  | ( Naked_nativeint,
-      (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate) )
-  | ( Naked_immediate,
-      (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate) ) ->
+  | Naked_int64, (Naked_int64 | Naked_nativeint | Naked_immediate)
+  | Naked_nativeint, Naked_nativeint
+  | Naked_immediate, (Naked_nativeint | Naked_immediate) ->
     0
   | Tagged_immediate, (Naked_float | Naked_float32) -> 1
-  | ( (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint),
+  | ( ( Naked_immediate | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64
+      | Naked_nativeint ),
       (Naked_float | Naked_float32) ) ->
     1
   | (Naked_float | Naked_float32), Tagged_immediate -> 1
   | ( (Naked_float | Naked_float32),
-      (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) ) ->
+      ( Naked_immediate | Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64
+      | Naked_nativeint ) ) ->
     1
 
 let unbox_number kind =
@@ -133,8 +151,7 @@ let box_number kind =
   match (kind : Flambda_kind.Boxable_number.t) with
   | Naked_float | Naked_float32 | Naked_vec128 -> alloc_size (* 1 alloc *)
   | Naked_int32 when not arch32 -> 1 + alloc_size (* shift/sextend + alloc *)
-  | Naked_int32 | Naked_int64 | Naked_nativeint -> alloc_size
-(* alloc *)
+  | Naked_int32 | Naked_int64 | Naked_nativeint -> alloc_size (* alloc *)
 
 let block_load (kind : Flambda_primitive.Block_access_kind.t) =
   match kind with Values _ | Naked_floats _ | Mixed _ -> 1
@@ -206,7 +223,7 @@ let divmod_bi_check else_branch_size (bi : Flambda_kind.Standard_int.t) =
   if arch32
      ||
      match bi with
-     | Naked_int32 -> false
+     | Naked_int8 | Naked_int16 | Naked_int32 -> false
      | Naked_int64 | Naked_nativeint | Naked_immediate | Tagged_immediate ->
        true
   then 2 + else_branch_size
@@ -234,17 +251,33 @@ let binary_int_arith_primitive kind op =
   | Tagged_immediate, Or -> 1
   | Tagged_immediate, Xor -> 2
   (* Naked ints *)
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Add
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Sub
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Mul
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), And
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Or
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Xor ->
+  | ( ( Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint
+      | Naked_immediate ),
+      Add )
+  | ( ( Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint
+      | Naked_immediate ),
+      Sub )
+  | ( ( Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint
+      | Naked_immediate ),
+      Mul )
+  | ( ( Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint
+      | Naked_immediate ),
+      And )
+  | ( ( Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint
+      | Naked_immediate ),
+      Or )
+  | ( ( Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint
+      | Naked_immediate ),
+      Xor ) ->
     1
   (* Division and modulo need some extra care *)
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Div ->
+  | ( ( Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint
+      | Naked_immediate ),
+      Div ) ->
     divmod_bi_check 1 kind + 1
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Mod ->
+  | ( ( Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint
+      | Naked_immediate ),
+      Mod ) ->
     divmod_bi_check 0 kind + 1
 
 let binary_int_shift_primitive kind op =
@@ -261,9 +294,15 @@ let binary_int_shift_primitive kind op =
   | Tagged_immediate, Lsr -> 2
   | Tagged_immediate, Asr -> 2
   (* Naked ints *)
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Lsl
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Lsr
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Asr ->
+  | ( ( Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint
+      | Naked_immediate ),
+      Lsl )
+  | ( ( Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint
+      | Naked_immediate ),
+      Lsr )
+  | ( ( Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint
+      | Naked_immediate ),
+      Asr ) ->
     1
 
 let binary_int_comp_primitive kind cmp =
@@ -297,24 +336,16 @@ let binary_int_comp_primitive kind cmp =
   | Tagged_immediate, Ge Unsigned ->
     2
   (* Naked integers. *)
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Neq
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Eq
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Lt Signed
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Le Signed
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Gt Signed
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Ge Signed
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Lt Unsigned
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Le Unsigned
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Gt Unsigned
-  | (Naked_int32 | Naked_int64 | Naked_nativeint | Naked_immediate), Ge Unsigned
-    ->
+  | ( ( Naked_int8 | Naked_int16 | Naked_int32 | Naked_int64 | Naked_nativeint
+      | Naked_immediate ),
+      _ ) ->
     2
 
 let int_comparison_like_compare_functions (kind : Flambda_kind.Standard_int.t)
     (_signedness : Flambda_primitive.signed_or_unsigned) =
   match kind with
-  | Tagged_immediate | Naked_immediate | Naked_int32 | Naked_int64
-  | Naked_nativeint ->
+  | Tagged_immediate | Naked_immediate | Naked_int8 | Naked_int16 | Naked_int32
+  | Naked_int64 | Naked_nativeint ->
     4
 
 let binary_float_arith_primitive _width _op = 2
