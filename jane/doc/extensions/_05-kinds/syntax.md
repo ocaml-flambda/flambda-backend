@@ -6,11 +6,11 @@ title: Syntax
 
 # Syntax for kind annotations
 
-[overview]: intro
-[manual]: https://ocaml.org/manual/latest/language.html
-[unboxed types]: ../unboxed-types/intro
-[nullability]: non-modal#nullability
-[externality]: non-modal#externality
+[overview]: ../intro
+[manual]: https://ocaml.org/manual/language.html
+[unboxed types]: ../../unboxed-types/intro
+[nullability]: ../non-modal#nullability
+[externality]: ../non-modal#externality
 
 This page describes user-facing concerns about kind annotations. You may
 want to read an [overview][] of the kind system first.
@@ -461,8 +461,8 @@ field_type ::= typexpr [ @@ modalities ]
 ```
 
 Please see other OxCaml documentation for details on the syntax for
-[`modality`](../modes/syntax);
-[typexpr](https://ocaml.org/manual/latest/types.html) is defined in the OCaml
+[`modality`](../../modes/syntax);
+[typexpr](https://ocaml.org/manual/types.html) is defined in the OCaml
 manual.
 
 Kind annotations are allowed at several places in the syntax. 

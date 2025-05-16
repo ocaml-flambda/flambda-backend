@@ -13,7 +13,7 @@ comprehensions](../intro).
 ## Syntax
 
 The BNF for comprehensions, in a form suitable for being added to the [grammar of
-OCaml](https://v2.ocaml.org/manual/expr.html), is
+OCaml](https://ocaml.org/manual/expr.html), is
 
 ```
 expr +::=

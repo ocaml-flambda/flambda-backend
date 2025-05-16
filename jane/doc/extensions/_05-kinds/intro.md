@@ -37,8 +37,8 @@ less precise kind is expected.
 This page describes the kind system at a high level, and contains complete
 details for the non-modal bounds. It does not exhaustively describe the possible
 layouts (which are documented on the [unboxed types
-page](../unboxed-types/index)) or the modal axes (which are documented on the
-[modes page](../modes/intro)), but does explain how those components appear in
+page](../../unboxed-types/index)) or the modal axes (which are documented on the
+[modes page](../../modes/intro)), but does explain how those components appear in
 kinds, including how the modal bounds are affected by the with-bounds.
 
 CR ccasinghino: add links to modes documentation after moving it here.
