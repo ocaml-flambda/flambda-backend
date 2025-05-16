@@ -195,11 +195,7 @@ implementation of deepening, see below.
 ## Native implementation of index deepening
 
 While from the perspective of the layout, deepening an index simply entails
-"moving to a subtree," deepening the native representation of a block index
-requires some minor calculation to update the offset and the gap, and has
-several cases. This is because, the layout does not account for reordering while
-the native representation does.
-
+"moving to a subtree," deepening the native representation is more involved.
 Below, we show the different cases of deepening the native representation of an
 index. Note that:
 - The "left" and "right" of an element refers to the layout, *not* the native
