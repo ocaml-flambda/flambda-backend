@@ -132,4 +132,4 @@ File "foo.ml", line 3, characters 6-12:
 Error: Could not determine the type of this partial tuple pattern.
 ```
 
-**This extension will appear in OCaml 5.4. See [ocaml/ocaml#13498](https://github.com/ocaml/ocaml/pull/13498).*
+*This extension will appear in OCaml 5.4. See [ocaml/ocaml#13498](https://github.com/ocaml/ocaml/pull/13498).*
