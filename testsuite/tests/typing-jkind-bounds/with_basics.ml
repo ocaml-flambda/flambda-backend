@@ -660,11 +660,11 @@ type t = Immutable.t
 module Value = F(struct type t end)
 type t : immutable_data = Value.t
 [%%expect {|
-module Value : sig type t end
+module Value : sig type t : value mod non_float end
 Line 2, characters 0-33:
 2 | type t : immutable_data = Value.t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "Value.t" is value
+Error: The kind of type "Value.t" is value mod non_float
          because of the definition of t at line 2, characters 2-34.
        But the kind of type "Value.t" must be a subkind of immutable_data
          because of the definition of t at line 2, characters 0-33.

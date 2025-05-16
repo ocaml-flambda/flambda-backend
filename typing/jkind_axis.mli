@@ -40,11 +40,21 @@ module Nullability : sig
   include Axis_ops with type t := t
 end
 
+module Separability : sig
+  type t =
+    | Non_float
+    | Separable
+    | Non_separable
+
+  include Axis_ops with type t := t
+end
+
 module Axis : sig
   module Nonmodal : sig
     type 'a t =
       | Externality : Externality.t t
       | Nullability : Nullability.t t
+      | Separability : Separability.t t
   end
 
   (** Represents an axis of a jkind *)
@@ -62,10 +72,6 @@ module Axis : sig
   val all : packed list
 
   val name : _ t -> string
-
-  (** Is this a modal axis? Includes externality, because that will one
-      day be modal (it is a deep property). *)
-  val is_modal : _ t -> bool
 end
 
 module Axis_set : sig

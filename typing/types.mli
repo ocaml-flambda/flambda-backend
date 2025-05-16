@@ -80,6 +80,7 @@ module Jkind_mod_bounds : sig
   module Visibility = Mode.Visibility.Const_op
   module Externality = Jkind_axis.Externality
   module Nullability = Jkind_axis.Nullability
+  module Separability = Jkind_axis.Separability
 
   type t
 
@@ -94,6 +95,7 @@ module Jkind_mod_bounds : sig
     visibility:Visibility.t ->
     externality:Externality.t ->
     nullability:Nullability.t ->
+    separability:Separability.t ->
     t
 
   val locality : t -> Locality.t
@@ -106,6 +108,7 @@ module Jkind_mod_bounds : sig
   val visibility : t -> Visibility.t
   val externality : t -> Externality.t
   val nullability : t -> Nullability.t
+  val separability : t -> Separability.t
 
   val set_locality : Locality.t -> t -> t
   val set_linearity : Linearity.t -> t -> t
@@ -117,6 +120,7 @@ module Jkind_mod_bounds : sig
   val set_visibility : Visibility.t -> t -> t
   val set_externality : Externality.t -> t -> t
   val set_nullability : Nullability.t -> t -> t
+  val set_separability : Separability.t -> t -> t
 
   (** [set_max_in_set bounds axes] sets all the axes in [axes] to their [max] within
       [bounds] *)

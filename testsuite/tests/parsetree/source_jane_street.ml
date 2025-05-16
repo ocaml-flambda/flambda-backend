@@ -1261,7 +1261,7 @@ type 'a abstract
 Lines 2-3, characters 0-67:
 2 | type existential_abstract : immutable_data with (type : value mod portable) abstract =
 3 |   | Mk : ('a : value mod portable) abstract -> existential_abstract
-Error: The kind of type "existential_abstract" is value
+Error: The kind of type "existential_abstract" is value mod non_float
          because it's a boxed variant type.
        But the kind of type "existential_abstract" must be a subkind of
          immutable_data with (type : value mod portable) abstract

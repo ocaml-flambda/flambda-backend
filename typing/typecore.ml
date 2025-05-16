@@ -6920,7 +6920,7 @@ and type_expect_
       in
       let cell_type =
         (* CR uniqueness: this could be the jkind of exp2 *)
-        mk_expected (newvar (Jkind.Builtin.value ~why:Boxed_record))
+        mk_expected (newvar (Jkind.for_non_float ~why:Boxed_record))
       in
       let exp1 = type_expect ~recarg env (mode_default cell_mode) exp1 cell_type in
       let new_fields_mode =

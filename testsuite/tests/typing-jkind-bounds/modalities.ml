@@ -146,4 +146,5 @@ Error: This expression has type "(string -> string) t"
 
        The first mode-crosses less than the second along:
          nullability: mod non_null with string -> string ≰ mod non_null
+         separability: mod non_float with string -> string ≰ mod separable
 |}]
