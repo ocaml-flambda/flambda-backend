@@ -4,8 +4,6 @@ collectionName: Unboxed types
 title: Block indices
 ---
 
-# CR rtjoa: finish documentation (this doc not ready for review)
-
 # Block indices
 
 This document describes the language feature and implementation for explicit
@@ -13,25 +11,92 @@ _indices_ into a block. Before reading this document, you may wish to read up
 through the [layouts](../intro#layouts) section of the main document.
 
 ```ocaml
+open Stdlib_beta
+
 type pt = { x : int; y : int }
 type line = { p : pt#; q : pt# } (* flatly contains four ints *)
 
 let i : (line, int) idx_imm = (.q.#y) (* an index to the second y-coord of a line *)
-let get_coord (line : line) (i : (line, int) idx_imm) : int = get_idx_imm line i
+let get_coord (line : line) (i : (line, int) idx_imm) : int =
+  Idx_imm.unsafe_get line i
 ```
 
-If 
+If the index path is to a mutable element (it is in an array or mutable record
+field), then it is an `idx_mut`.
 
 ```ocaml
-let first_x : (pt# array, int) mut_idx = &.(0).#x
-let inc_coord (pts : 'a) (i : ('a, int) mut_idx) = pts.<i> <- pts.<i> + 1
+let first_x : (pt# array, int) idx_mut = (.(0).#x)
+let inc_coord (pts : 'a) (i : ('a, int) idx_mut) =
+  Idx_mut.unsafe_set pts i (Idx_mut.unsafe_get pts i + 1)
 ```
-
 
 # Overview
 
-A block index is an opaque, explicit index to an element
+A block index is an opaque, explicit index to an element. The language feature includes these types in the predef:
 
+```ocaml
+type ('a, 'b : any) idx_imm : bits64
+type ('a, 'b : any) idx_mut : bits64
+```
+
+For `('a, 'b) idx_imm` and `('a, 'b) idx_mut`, we refer to `'a` as the "base
+type" and `'b` as the "element type."
+
+A block index represents the position of an element type within the base type.
+
+For example, `(.q.#y) : (line, int) idx_imm` in the example above represents
+the position of this int in a `line`:
+```
+                           v
+{ p = #{ x; y }; q = #{ x; y } }
+```
+
+In fact, in the native compiler, this block index is physically equivalent to
+`#24L`, as `q`'s `y` occurs 24 bytes from the start of the record.
+
+Accordingly, block indices can be used to read and write within blocks, polymorphically in the actual type of the block. This can be done via the functions bound in
+these modules in `Stdlib_beta` (some details elided, e.g. the particular primitives bound by externals):
+```ocaml
+module Idx_imm : sig
+  type ('a, 'b : any) t = ('a, 'b) idx_imm
+
+  external unsafe_get
+    : 'a ('b : any). ('a[@local_opt]) -> ('a, 'b) idx_imm -> ('b[@local_opt])
+end
+
+module Idx_mut : sig
+  type ('a, 'b : any) t = ('a, 'b) idx_mut
+
+  external unsafe_get
+    : 'a ('b : any). ('a[@local_opt]) -> ('a, 'b) idx_mut -> ('b[@local_opt])
+
+  external unsafe_set
+    : 'a ('b : any). 'a @ local -> ('a, 'b) idx_mut -> 'b -> unit
+end
+```
+
+Syntax is added for block index creation, e.g. `(.foo.#bar)`, which consists of
+one "block access" (a record field, array index, iarray index, or another block
+index) and zero or more "unboxed accesses" (currently, just an unboxed record
+field).
+
+If the block access is mutable (mutable record fields, arrays, mutable block
+index), then an `idx_mut` is created, and if the block access is immutable
+(immutable record fields, immutable arrays, immutable block indices), then an
+`idx_imm` is created.
+
+### Terminology
+
+
+
+### Block index creation examples
+
+- `(.
+
+# Indices to records and arrays with special representations
+
+- Indices to flat float arrays cannot be taken.
+- An index to a float into a flattened float record has an element type `float#`.
 
 # Representation of block indices
 
@@ -88,7 +153,7 @@ In-memory representation:
     erased during translation to lambda.
 
 For a visualization of the native representation of block indices, and the
-implementation of deepening, see 
+implementation of deepening, see the below.
 
 ![All values or flats](assets/all_values_or_flats.png)
 ![Mixed to all flats](assets/mixed_to_all_flats.png)
