@@ -160,6 +160,12 @@ type u = r#
 type r = { s : string; f : float#; }
 type u = r#
 |}]
+type r = { f : float#; si : #(string * int64) }
+type u = r#
+[%%expect{|
+type r = { f : float#; si : #(string * int64); }
+type u = r#
+|}]
 
 (* But not float, mixed float/float#, or [@@unboxed] records *)
 type r = { f : float ; f2 : float }

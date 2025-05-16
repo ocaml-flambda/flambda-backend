@@ -939,7 +939,11 @@ let compile_letrec input_bindings body =
           | Regular_block size -> alloc_prim, [size]
           | Float_record size -> alloc_float_record_prim, [size]
           | Mixed_record shape ->
-              let shape = Mixed_block_shape.of_mixed_block_elements shape in
+              let shape =
+                Mixed_block_shape.of_mixed_block_elements
+                  ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
+                  shape
+              in
               let value_prefix_len = Mixed_block_shape.value_prefix_len shape in
               let flat_suffix_len = Mixed_block_shape.flat_suffix_len shape in
               let size = value_prefix_len + flat_suffix_len in
