@@ -512,13 +512,11 @@ void caml_init_os_params(void)
 
 #ifndef __CYGWIN__
 #ifndef WITH_ADDRESS_SANITIZER
-static void* mmap_named(void* addr, size_t length, int prot, int flags,
-                        int fd, off_t offset, const char* name)
+void caml_plat_mem_name_map(void *mem, size_t length, const char *name)
 {
-  void* p = mmap(addr, length, prot, flags, fd, offset);
 #ifdef __linux__
-  if (p != MAP_FAILED) {
-    /* On Linux, use PR_SET_VMA_ANON_NAME to name the allocation */
+  if (name) {
+    /* On Linux, use PR_SET_VMA_ANON_NAME to name a mapping */
     char buf[80];
     snprintf(buf, sizeof buf, "OCaml: %s", name);
     /* The constants PR_SET_VMA and PR_SET_VMA_ANON_NAME are stable
@@ -527,12 +525,21 @@ static void* mmap_named(void* addr, size_t length, int prot, int flags,
        So, it's more portable to hardcode these numbers */
     enum { PR_SET_VMA_ = 0x53564d41, PR_SET_VMA_ANON_NAME_ = 0 };
     prctl(PR_SET_VMA_, PR_SET_VMA_ANON_NAME_,
-          (unsigned long)p, length, (unsigned long)buf);
+          (unsigned long)mem, length, (unsigned long)buf);
     /* No error checking or reporting here: it's a best-effort tool
        for debugging, and may fail if e.g. this prctl is not supported
        on this kernel version. */
   }
 #endif
+}
+
+static void* mmap_named(void* addr, size_t length, int prot, int flags,
+                        int fd, off_t offset, const char* name)
+{
+  void* p = mmap(addr, length, prot, flags, fd, offset);
+  if (p != MAP_FAILED) {
+    caml_plat_mem_name_map(p, length, name);
+  }
   return p;
 }
 #endif
@@ -572,9 +579,10 @@ void *caml_plat_mem_map(uintnat size, uintnat caml_flags, const char* name)
   /* Sensible kernels (on Linux, that means >= 6.7) will always provide aligned
      mappings. To avoid penalising such kernels, try mapping the exact desired
      size first and see if it happens to be aligned. */
-  mem = mmap_named(0, size, prot, flags, -1, 0, name);
+  mem = mmap(0, size, prot, flags, -1, 0);
   if (mem == MAP_FAILED) return NULL;
-  if ((((uintnat)mem) & (alignment - 1)) == 0) return mem;
+  uintnat res = (uintnat)mem;
+  if ((((uintnat)mem) & (alignment - 1)) == 0) goto got_mapping;
 
   /* Misaligned pointer, so unmap and try again.
      munmap is unlikely to fail and there's not much we can do if it does, so
@@ -582,14 +590,17 @@ void *caml_plat_mem_map(uintnat size, uintnat caml_flags, const char* name)
   munmap(mem, size);
 
   /* Allocate a longer region than needed and trim it afterwards */
-  mem = mmap_named(0, size + alignment, prot, flags, -1, 0, name);
+  mem = mmap(0, size + alignment, prot, flags, -1, 0);
   if (mem == MAP_FAILED) return NULL;
 
-  uintnat aligned = ((uintnat)mem + alignment) & ~(alignment - 1);
-  uintnat offset = aligned - (uintnat)mem;
-  munmap(mem, offset);
-  if (offset != alignment) munmap((void*)(aligned + size), alignment - offset);
-  return (void*)aligned;
+  res = ((uintnat)mem + alignment) & ~(alignment - 1);
+  uintnat offset = res - (uintnat)mem; /* possibly zero this time! */
+  if (offset) munmap(mem, offset);
+  if (offset != alignment) munmap((void*)(res + size), alignment - offset);
+
+got_mapping:
+  caml_plat_mem_name_map((void*)res, size, name);
+  return (void*)res;
 #endif
 }
 
