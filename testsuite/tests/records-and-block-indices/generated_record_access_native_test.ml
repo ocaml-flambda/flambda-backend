@@ -1,5 +1,6 @@
 (* TEST
  include stdlib_stable;
+ include stdlib_beta;
  include stdlib_upstream_compatible;
  modules = "stubs.c";
  flags = "-extension simd_beta -extension layouts_alpha";
@@ -27,6 +28,7 @@ let int64x2_u_equal i1 i2 =
 
 open Stdlib_upstream_compatible
 open Stdlib_stable
+open Stdlib_beta
 
 external[@layout_poly] makearray_dynamic_local :
   ('a : any_non_null) . int -> 'a -> 'a array @ local =
@@ -43,19 +45,6 @@ external[@layout_poly] get :
 external[@layout_poly] set :
   ('a : any_non_null) . ('a array[@local_opt]) -> (int[@local_opt]) -> 'a -> unit =
   "%array_safe_set"
-
-external[@layout_poly] get_idx_imm :
-  'a ('b : any). ('a [@local_opt]) -> ('a, 'b) idx_imm -> ('b [@local_opt]) =
-  "%unsafe_get_idx_imm"
-
-external[@layout_poly] get_idx_mut :
-  'a ('b : any). ('a [@local_opt]) -> ('a, 'b) idx_mut -> ('b [@local_opt]) =
-  "%unsafe_get_idx"
-
-external[@layout_poly] set_idx_mut :
-  'a ('b : any).
-    ('a [@local_opt]) -> ('a, 'b) idx_mut -> ('b [@local_opt]) -> unit =
-  "%unsafe_set_idx"
 
 module Idx_repr : sig
   type t

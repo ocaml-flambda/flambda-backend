@@ -60,6 +60,7 @@ let interesting_type_trees : Type_structure.t Tree.t list =
 let preamble =
   {|open Stdlib_upstream_compatible
 open Stdlib_stable
+open Stdlib_beta
 
 external[@layout_poly] makearray_dynamic_local :
   ('a : any_non_null) . int -> 'a -> 'a array @ local =
@@ -76,19 +77,6 @@ external[@layout_poly] get :
 external[@layout_poly] set :
   ('a : any_non_null) . ('a array[@local_opt]) -> (int[@local_opt]) -> 'a -> unit =
   "%array_safe_set"
-
-external[@layout_poly] get_idx_imm :
-  'a ('b : any). ('a [@local_opt]) -> ('a, 'b) idx_imm -> ('b [@local_opt]) =
-  "%unsafe_get_idx_imm"
-
-external[@layout_poly] get_idx_mut :
-  'a ('b : any). ('a [@local_opt]) -> ('a, 'b) idx_mut -> ('b [@local_opt]) =
-  "%unsafe_get_idx"
-
-external[@layout_poly] set_idx_mut :
-  'a ('b : any).
-    ('a [@local_opt]) -> ('a, 'b) idx_mut -> ('b [@local_opt]) -> unit =
-  "%unsafe_set_idx"
 
 module Idx_repr : sig
   type t
@@ -272,7 +260,7 @@ let test_array_idx_access ~local ty =
     (Type.value_code ty 0);
   line "(* Fill [a] with distinct values using block indices *)";
   for_i_below_size ~debug_exprs (fun ~debug_exprs ->
-      line "set_idx_mut a (.(i)) (mk_value i);"
+      line "Idx_mut.unsafe_set a (.(i)) (mk_value i);"
   );
   line "Gc.compact ();";
   for_i_below_size ~debug_exprs (fun ~debug_exprs ->
@@ -280,7 +268,7 @@ let test_array_idx_access ~local ty =
   );
   line "(* Also read back those values with block indices *)";
   for_i_below_size ~debug_exprs (fun ~debug_exprs ->
-      seq_assert ~debug_exprs "eq (get_idx_mut a (.(i))) (mk_value i)"
+      seq_assert ~debug_exprs "eq (Idx_mut.unsafe_get a (.(i))) (mk_value i)"
   );
   for_i_below_size ~debug_exprs (fun ~debug_exprs ->
       List.iter (Type.unboxed_paths_by_depth ty)
@@ -319,11 +307,12 @@ let test_array_idx_access ~local ty =
                 in
                 line "let el = %s in" reference_update;
                 line
-                  "set_idx_mut a ((.(i)%s) : (%s array, _) idx_mut) next_el%s;"
+                  "Idx_mut.unsafe_set a ((.(i)%s) : (%s array, _) idx_mut) \
+                   next_el%s;"
                   (Path.to_string unboxed_path)
                   (Type.code ty)
                   (Path.to_string unboxed_path);
-                seq_assert ~debug_exprs "eq (get_idx_mut a (.(i))) el"
+                seq_assert ~debug_exprs "eq (Idx_mut.unsafe_get a (.(i))) el"
             )
           )
       );
@@ -455,10 +444,10 @@ let test_record_idx_access ty ~local =
                     )
                 else sprintf "next_r%s" (Path.to_string full_path)
               in
-              line "set_idx_mut r %s %s;" idx next_r_sub_element_flat;
+              line "Idx_mut.unsafe_set r %s %s;" idx next_r_sub_element_flat;
               seq_assert ~debug_exprs "eq r expected";
               seq_assert ~debug_exprs
-                (sprintf "sub_eq (get_idx_mut r %s) %s" idx
+                (sprintf "sub_eq (Idx_mut.unsafe_get r %s) %s" idx
                    next_r_sub_element_flat
                 )
           )
@@ -685,8 +674,10 @@ let main test ~bytecode =
         Type_naming.add_names naming ty
     )
   in
-  line {|(* TEST
+  line
+    {|(* TEST
  include stdlib_stable;
+ include stdlib_beta;
  include stdlib_upstream_compatible;|};
   if bytecode
   then (

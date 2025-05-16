@@ -671,8 +671,8 @@ let f c =
 [%%expect{|
 val f : bool -> ('a r, int) idx_imm = <fun>
 |}, Principal{|
-Line 690, characters 6-7:
-690 |     (.u.#x)
+Line 670, characters 6-7:
+670 |     (.u.#x)
             ^
 Warning 18 [not-principal]: this type-based field disambiguation is not principal.
 
