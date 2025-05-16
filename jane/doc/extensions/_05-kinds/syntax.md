@@ -98,7 +98,7 @@ We thus give the non-primitive `value` the shorter name.
 
 Beyond just kind abbreviations, we also have one bounds abbreviation:
 `everything`. `everything` describes a maximal amount of crossing on
-*deep* axes: modal axes and externality. `nullability` and `separability`, due to
+*deep* axes: modal axes and externality. The `nullability` and `separability` bounds, due to
 their shallowness, are considered separately.
 
 The abbreviations defined in the language are as follows:
