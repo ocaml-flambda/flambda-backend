@@ -449,11 +449,22 @@ type 'a many = { many : 'a @@ many }
 type 'a unyielding = { unyielding : 'a @@ unyielding }
 type 'a portable = { portable : 'a @@ portable }
 type 'a contended = { contended : 'a @@ contended }
-type 'a mut_none = { mutable mut_none : string [@no_mutable_implied_modalities] }
-type 'a mut_not_global = { mutable mut_not_global : 'a @@ many aliased unyielding [@no_mutable_implied_modalities] }
-type 'a mut_not_many =  { mutable mut_not_many : 'a @@ global aliased unyielding [@no_mutable_implied_modalities] }
-type 'a mut_not_aliased = { mutable mut_not_aliased : 'a @@ global many unyielding [@no_mutable_implied_modalities] }
-type 'a mut_not_unyielding = { mutable mut_not_unyielding : 'a @@ global many aliased [@no_mutable_implied_modalities] }
+type 'a mut_none =
+  { mutable mut_none : string [@no_mutable_implied_modalities] }
+type 'a mut_not_global =
+  { mutable mut_not_global
+    : 'a @@ many aliased unyielding [@no_mutable_implied_modalities] }
+type 'a mut_not_many =
+  { mutable mut_not_many
+    : 'a @@ global aliased unyielding [@no_mutable_implied_modalities] }
+type 'a mut_not_global_nor_aliased =
+  (* mut_not_aliased not possible bc global implies aliased *)
+  { mutable mut_not_global_nor_aliased
+    : 'a @@ many unyielding [@no_mutable_implied_modalities] }
+type 'a mut_not_global_nor_unyielding =
+  (* mut_not_unyielding not possible bc global implies unyielding *)
+  { mutable mut_not_global_nor_unyielding
+    : 'a @@ many aliased [@no_mutable_implied_modalities] }
 [%%expect{|
 type 'a id = { id : 'a; }
 type 'a id = { mutable mut : 'a; }
@@ -466,9 +477,11 @@ type 'a contended = { contended : 'a @@ contended; }
 type 'a mut_none = { mutable mut_none : string; }
 type 'a mut_not_global = { mutable mut_not_global : 'a @@ many unyielding; }
 type 'a mut_not_many = { mutable global_ mut_not_many : 'a; }
-type 'a mut_not_aliased = { mutable mut_not_aliased : 'a @@ global many; }
-type 'a mut_not_unyielding = {
-  mutable mut_not_unyielding : 'a @@ global many;
+type 'a mut_not_global_nor_aliased = {
+  mutable mut_not_global_nor_aliased : 'a @@ many unyielding;
+}
+type 'a mut_not_global_nor_unyielding = {
+  mutable mut_not_global_nor_unyielding : 'a @@ many;
 }
 |}]
 
@@ -487,7 +500,7 @@ Line 1, characters 13-23:
 1 | let bad () = (.aliased)
                  ^^^^^^^^^^
 Error: Block indices do not yet support non-default modalities. In particular,
-       immutable elements must be aliased, but this is not.
+       immutable elements must be empty, but this is aliased.
 |}]
 let bad () = (.many)
 [%%expect{|
@@ -519,7 +532,7 @@ Line 1, characters 13-25:
 1 | let bad () = (.contended)
                  ^^^^^^^^^^^^
 Error: Block indices do not yet support non-default modalities. In particular,
-       immutable elements must be contended, but this is not.
+       immutable elements must be empty, but this is contended.
 |}]
 
 (* Mutable indices with each disallowed modality *)
@@ -529,7 +542,7 @@ Line 1, characters 13-24:
 1 | let bad () = (.mut_none)
                  ^^^^^^^^^^^
 Error: Block indices do not yet support non-default modalities. In particular,
-       mutable elements must be empty, but this is global.
+       mutable elements must be global, but this is not.
 |}]
 
 let bad () = (.mut_not_global)
@@ -538,7 +551,7 @@ Line 1, characters 13-30:
 1 | let bad () = (.mut_not_global)
                  ^^^^^^^^^^^^^^^^^
 Error: Block indices do not yet support non-default modalities. In particular,
-       mutable elements must be empty, but this is global.
+       mutable elements must be global, but this is not.
 |}]
 
 let bad () = (.mut_not_many)
@@ -547,17 +560,25 @@ Line 1, characters 13-28:
 1 | let bad () = (.mut_not_many)
                  ^^^^^^^^^^^^^^^
 Error: Block indices do not yet support non-default modalities. In particular,
-       mutable elements must be empty, but this is many.
+       mutable elements must be many, but this is not.
 |}]
 
-let bad () = (.mut_not_aliased)
+let bad () = (.mut_not_global_nor_aliased)
 [%%expect{|
-val bad : unit -> ('a mut_not_aliased, 'a) idx_mut = <fun>
+Line 1, characters 13-42:
+1 | let bad () = (.mut_not_global_nor_aliased)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Block indices do not yet support non-default modalities. In particular,
+       mutable elements must be global, but this is not.
 |}]
 
-let bad () = (.mut_not_unyielding)
+let bad () = (.mut_not_global_nor_unyielding)
 [%%expect{|
-val bad : unit -> ('a mut_not_unyielding, 'a) idx_mut = <fun>
+Line 1, characters 13-45:
+1 | let bad () = (.mut_not_global_nor_unyielding)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Block indices do not yet support non-default modalities. In particular,
+       mutable elements must be global, but this is not.
 |}]
 
 let bad () = (.mut.#contended)
@@ -566,7 +587,7 @@ Line 1, characters 13-30:
 1 | let bad () = (.mut.#contended)
                  ^^^^^^^^^^^^^^^^^
 Error: Block indices do not yet support non-default modalities. In particular,
-       mutable elements must be contended, but this is not.
+       mutable elements must be empty, but this is contended.
 |}]
 
 let bad () = (.mut.#portable)
@@ -650,8 +671,8 @@ let f c =
 [%%expect{|
 val f : bool -> ('a r, int) idx_imm = <fun>
 |}, Principal{|
-Line 649, characters 6-7:
-649 |     (.u.#x)
+Line 690, characters 6-7:
+690 |     (.u.#x)
             ^
 Warning 18 [not-principal]: this type-based field disambiguation is not principal.
 

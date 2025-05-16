@@ -11217,7 +11217,11 @@ let report_error ~loc env =
     Location.error ~loc
       "Block indices do not support [@@unboxed] records."
   | Block_index_modality_mismatch { mut; err } ->
-    let _, Modality.Value.Error(ax, { left; right }) = err in
+    let step, Modality.Value.Error(ax, { left; right }) = err in
+    let left, right = match step with
+      | Left_le_right -> right, left
+      | Right_le_left -> left, right
+                         in
     let print_modality id ppf m =
       Printtyp.modality ~id:(fun ppf -> Format.pp_print_string ppf id) ppf m
     in
