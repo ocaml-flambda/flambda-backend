@@ -194,17 +194,21 @@ implementation of deepening, see below.
 
 ## Native implementation of index deepening
 
-We show compare the "layout view" of deepening with the "native representation"
-view of deepening. Note that the layout does not account for reordering while
-the native representation does. When the below refers to the "left" and
-"right" of the element, this refers to the layout, *not* the native
-representation.
+While from the perspective of the layout, deepening an index simply entails
+"moving to a subtree," deepening the native representation of a block index
+requires some minor calculation to update the offset and the gap, and has
+several cases. This is because, the layout does not account for reordering while
+the native representation does.
 
-`o1` and `g1` refer to the offset and gap of the index before deepening (light
-orange), while `o2` and `g2` refer to the offset and gap of the index after
-deepening (blue). Recall that indices to all values/non-values have no gap.
+Below, we show the different cases of deepening the native representation of an
+index. Note that:
+- The "left" and "right" of an element refers to the layout, *not* the native
+  representation.
+- `o1` and `g1` refer to the offset and gap of the index before deepening (light
+   orange), while `o2` and `g2` refer to the offset and gap of the index after
+   deepening (blue).
 
 <img src="assets/all_values_or_flats.png" width="600" height="auto" />
-<img src="assets/mixed_to_all_mixed.png" width="600" height="auto" />
+<img src="assets/mixed_to_mixed.png" width="600" height="auto" />
 <img src="assets/mixed_to_all_values.png" width="600" height="auto" />
 <img src="assets/mixed_to_all_flats.png" width="600" height="auto" />
