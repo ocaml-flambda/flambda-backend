@@ -176,17 +176,18 @@ let mk_H f =
  \     (Like -I, but the program can not directly reference these dependencies)"
 
 let mk_I_paths f =
-  "-I-paths", Arg.String f, "<file>  Read list of paths that compiler can reference from\n\
-  \    a given file. This option is alternative to -I flag, but lists available files\n\
-  \    directly instead of adding the whole directory to the search path.\n\
-  \    Each line of <file> describes one file available to compiler and should be of\n\
-  \    format '<filename> <path>', which tells compiler that <filename> is available at\n\
-  \    <path>. If <path> is relative, then it is relative to a parent directory\n\
-  \    of <file>."
+  "-I-paths", Arg.String f, "<file>  Read list of paths that compiler can\n\
+  \    reference from a given file. This option is alternative to -I flag,\n\
+  \    but lists available files directly instead of adding the whole\n\
+  \    directory to the search path. Each line of <file> describes one file\n\
+  \    available to compiler and should be of format '<filename> <path>',\n\
+  \    which tells compiler that <filename> is available at <path>. If\n\
+  \    <path> is relative, then it is relative to a parent directory of\n\
+  \    <file>."
 
 let mk_H_paths f =
-  "-H-paths", Arg.String f, "<file>  Same as -I-paths, but adds given paths to the list\n\
-  \    of \"hidden\" files (see -H for more details)"
+  "-H-paths", Arg.String f, "<file>  Same as -I-paths, but adds given paths\n\
+  \    to the list of \"hidden\" files (see -H for more details)"
 
 let mk_impl f =
   "-impl", Arg.String f, "<file>  Compile <file> as a .ml file"
@@ -1867,7 +1868,8 @@ module Default = struct
     let _I dir = include_dirs := dir :: (!include_dirs)
     let _H dir = hidden_include_dirs := dir :: (!hidden_include_dirs)
     let _I_paths file = include_paths_files := file :: !include_paths_files
-    let _H_paths file = hidden_include_paths_files := file :: !hidden_include_paths_files
+    let _H_paths file =
+      hidden_include_paths_files := file :: !hidden_include_paths_files
     let _color = Misc.set_or_ignore color_reader.parse color
     let _dlambda = set dump_lambda
     let _dblambda = set dump_blambda

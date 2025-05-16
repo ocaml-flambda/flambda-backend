@@ -216,10 +216,14 @@ let init ~auto_include ~visible ~hidden =
   visible_dirs := List.rev_map (Dir.create ~hidden:false) visible;
   hidden_dirs := List.rev_map (Dir.create ~hidden:true) hidden;
   List.iter (fun path_list_file ->
-    visible_dirs := Dir.create_from_path_list_file ~hidden:false ~path_list_file :: !visible_dirs;
+    visible_dirs :=
+      Dir.create_from_path_list_file ~hidden:false ~path_list_file ::
+        !visible_dirs;
   ) !Clflags.include_paths_files;
   List.iter (fun path_list_file ->
-    hidden_dirs := Dir.create_from_path_list_file ~hidden:true ~path_list_file :: !hidden_dirs;
+    hidden_dirs :=
+      Dir.create_from_path_list_file ~hidden:true ~path_list_file ::
+        !hidden_dirs;
   ) !Clflags.hidden_include_paths_files;
   List.iter Path_cache.prepend_add !hidden_dirs;
   List.iter Path_cache.prepend_add !visible_dirs;
