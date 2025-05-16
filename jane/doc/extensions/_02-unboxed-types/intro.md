@@ -175,7 +175,7 @@ modules in the `janestreet_shims` library.)
 
 * With a few specific exceptions (documented below), existing types all expect
   `value` arguments. Thus for basically any `t`, you cannot write `float# t` or
-  `int64# t`.  This includes obvious candidates like `float#
+  `int64# t`.  This includes natural candidates like `float#
   option`.
 
 * Existing ppxs expect to work with `value` types. Accordingly, using `deriving` with

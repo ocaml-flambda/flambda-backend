@@ -120,7 +120,7 @@ The abbreviations defined in the language are as follows:
       bound of `non_float` (because the value is not a pointer to a
       floating-point block).
 
-    Using `mod everything` is appropriate for simple data represented directly,
+    Using `mod everything` is appropriate for data represented directly,
     like `int` or `float32#`.
 
 * `any_non_null = any mod non_null`
@@ -227,7 +227,7 @@ still lower than both usages.
 The only question, then, is where to start the inference from? That is, what is
 default kind for a type parameter? It is tempting to say `any`, as that's the
 top. However, this would not be backward compatible, at least in module
-signatures, as we need the following very simple example to be accepted:
+signatures, as we need the following example to be accepted:
 
 ```ocaml
 module M : sig
@@ -376,7 +376,7 @@ val id : ('a : any). 'a -> 'a
 ```
 
 Here, we have annotated the binding site of `'a` to say that it should have kind
-`any`.  (The type `('a : any). 'a -> 'a` is a perfectly good type, and a
+`any`.  (The type `('a : any). 'a -> 'a` is valid, and a
 function of that type can be called on values of any type of any kind. However,
 you will be unable to define a function of that type, because the compiler will
 not know what register will hold the argument.) In contrast, writing
@@ -385,8 +385,8 @@ not know what register will hold the argument.) In contrast, writing
 val id : ('a : any) -> 'a
 ```
 
-does not do what you might think: it constrains a *usage site* of `'a`, stating
-that `'a` must have a subkind of `any` -- but of course `value` *is* a subkind
+constrains a *usage site* of `'a`, stating
+that `'a` must have a subkind of `any` -- but `value` *is* a subkind
 of `any`, so the default behavior of choosing `value` is unaffected. That is,
 the type `('a : any) -> 'a` is the same as just writing `'a -> 'a`.
 

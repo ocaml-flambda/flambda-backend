@@ -5,7 +5,7 @@ title: Syntax
 ---
 
 # Modes and modalities
-Currently a mode expression is simply a space-delimited list of modes.
+Currently a mode expression is a space-delimited list of modes.
 
 ```
 mode := local | global | unique | shared | many | once | portable | nonportable
@@ -24,7 +24,7 @@ Modes are in a dedicated namespace separated from variable names or type names,
 which means you can continue to use `local` or `unique` as variable or type
 names.
 
-Currently a modality expression is simply a space-delimited list of modalities.
+Currently a modality expression is a space-delimited list of modalities.
 
 ```
 modality := local | global | ..
