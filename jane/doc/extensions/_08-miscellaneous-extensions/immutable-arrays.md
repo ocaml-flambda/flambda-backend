@@ -34,3 +34,5 @@ type `super`, then `sub iarray` is a subtype of `super iarray`, as though you ha
 
 You can also have *immutable array comprehensions*: `[: x, y for x = 1
 to 3 and y in [: "some"; "thing" :] :]`.
+
+*This extension will appear in OCaml 5.4 as the `Iarray` module. See [ocaml/ocaml#13097](https://github.com/ocaml/ocaml/pull/13097).*
