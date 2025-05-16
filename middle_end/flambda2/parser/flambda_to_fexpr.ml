@@ -676,10 +676,7 @@ let value_slots env map =
   List.map
     (fun (var, value) ->
       let kind = Value_slot.kind var in
-      if not
-           (Flambda_kind.equal
-              (Flambda_kind.With_subkind.kind kind)
-              Flambda_kind.value)
+      if not (Flambda_kind.equal kind Flambda_kind.value)
       then
         Misc.fatal_errorf "Value slot %a not of kind Value" Simple.print value;
       let var = Env.translate_value_slot env var in

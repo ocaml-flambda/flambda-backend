@@ -958,7 +958,7 @@ module Layout_and_axes = struct
                   { t with constr = Path.Map.add p (fuel - 1, args) constr }
               else Stop { t with fuel_status = Ran_out_of_fuel })
           | Tvar _ | Tarrow _ | Tunboxed_tuple _ | Tobject _ | Tfield _ | Tnil
-          | Tvariant _ | Tunivar _ | Tpackage _ ->
+          | Tvariant _ | Tunivar _ | Tpackage _ | Tof_kind _ ->
             (* these cases either cannot be infinitely recursive or their jkinds
                do not have with_bounds *)
             (* CR layouts v2.8: Some of these might get with-bounds someday. We
@@ -1780,30 +1780,8 @@ module Const = struct
     | Mod (base, modifiers) ->
       let base = of_user_written_annotation_unchecked_level context base in
       (* for each mode, lower the corresponding modal bound to be that mode *)
-      let parsed_modifiers = Typemode.transl_modifier_annots modifiers in
       let mod_bounds =
-        let value_for_axis (type a) ~(axis : a Axis.t) : a =
-          let (module A) = Axis.get axis in
-          let parsed_modifier =
-            Typemode.Transled_modifiers.get ~axis parsed_modifiers
-          in
-          let base_bound = Mod_bounds.get ~axis base.mod_bounds in
-          match parsed_modifier, base_bound with
-          | None, base_modifier -> base_modifier
-          | Some parsed_modifier, base_modifier ->
-            A.meet base_modifier parsed_modifier.txt
-        in
-        Mod_bounds.create
-          ~locality:(value_for_axis ~axis:(Modal (Comonadic Areality)))
-          ~linearity:(value_for_axis ~axis:(Modal (Comonadic Linearity)))
-          ~uniqueness:(value_for_axis ~axis:(Modal (Monadic Uniqueness)))
-          ~portability:(value_for_axis ~axis:(Modal (Comonadic Portability)))
-          ~contention:(value_for_axis ~axis:(Modal (Monadic Contention)))
-          ~yielding:(value_for_axis ~axis:(Modal (Comonadic Yielding)))
-          ~statefulness:(value_for_axis ~axis:(Modal (Comonadic Statefulness)))
-          ~visibility:(value_for_axis ~axis:(Modal (Monadic Visibility)))
-          ~externality:(value_for_axis ~axis:(Nonmodal Externality))
-          ~nullability:(value_for_axis ~axis:(Nonmodal Nullability))
+        Mod_bounds.meet base.mod_bounds (Typemode.transl_mod_bounds modifiers)
       in
       { layout = base.layout; mod_bounds; with_bounds = No_with_bounds }
     | Product ts ->
@@ -2673,6 +2651,8 @@ module Format_history = struct
     | Type_variable name -> fprintf ppf "the type variable %s" name
     | Type_wildcard loc ->
       fprintf ppf "the wildcard _ at %a" Location.print_loc_in_lowercase loc
+    | Type_of_kind loc ->
+      fprintf ppf "the type at %a" Location.print_loc_in_lowercase loc
     | With_error_message (_message, context) ->
       (* message gets printed in [format_flattened_history] so we ignore it here *)
       format_annotation_context ppf context
@@ -3464,6 +3444,7 @@ module Debug_printers = struct
     | Type_variable name -> fprintf ppf "Type_variable %S" name
     | Type_wildcard loc ->
       fprintf ppf "Type_wildcard (%a)" Location.print_loc loc
+    | Type_of_kind loc -> fprintf ppf "Type_of_kind (%a)" Location.print_loc loc
     | With_error_message (message, context) ->
       fprintf ppf "With_error_message (%s, %a)" message annotation_context
         context

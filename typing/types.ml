@@ -323,6 +323,7 @@ and type_desc =
   | Tunivar of { name : string option; jkind : jkind_lr }
   | Tpoly of type_expr * type_expr list
   | Tpackage of Path.t * (Longident.t * type_expr) list
+  | Tof_kind of jkind_lr
 
 and arg_label =
   | Nolabel
@@ -1307,6 +1308,7 @@ let best_effort_compare_type_expr te1 te2 =
         | Tunboxed_tuple _ -> 3
         | Tconstr (_, _, _) -> 5
         | Tpoly (_, _) -> 6
+        | Tof_kind _ -> 7
         (* Types we should never see *)
         | Tlink _ -> Misc.fatal_error "Tlink encountered in With_bounds_types"
       in

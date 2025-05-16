@@ -225,7 +225,10 @@ let build_global_target ~ppf_dump oc ~packed_compilation_unit state members
   let lam = Simplif.simplify_lambda lam in
   if !Clflags.dump_lambda then
     Format.fprintf ppf_dump "%a@." Printlambda.lambda lam;
-  let instrs = Bytegen.compile_implementation packed_compilation_unit lam in
+  let blam = Blambda_of_lambda.blambda_of_lambda lam in
+  if !Clflags.dump_blambda then
+    Format.fprintf ppf_dump "%a@." Printblambda.blambda blam;
+  let instrs = Bytegen.compile_implementation packed_compilation_unit blam in
   let size, pack_relocs, pack_events, pack_debug_dirs =
     Emitcode.to_packed_file oc instrs in
   let events = List.rev_append pack_events state.events in

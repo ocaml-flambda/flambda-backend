@@ -70,7 +70,7 @@ and leaving that stack frame resets the stack pointer to that value.
 
 ## Regions
 
-Every stack allocation takes places inside a stack frame and is freed when the
+Every stack allocation takes place inside a stack frame and is freed when the
 stack frame is freed. For this to be safe, stack-allocated values cannot be used
 after their stack frame is freed. This property is guaranteed at
 compile-time by the type checker as follows.
@@ -799,7 +799,7 @@ let f : int -> int -> int = stack_ fun a b -> a + b + !counter in
 
 Both define a closure which accepts two integers and returns an integer. The
 closure must be local, since it refers to the local value `counter`. In the
-former definition, the type of the function appears under the `stack_` keyword,
+former definition, the type of the function appears under the `local_` keyword,
 and as described above is interpreted as:
 
 ```ocaml

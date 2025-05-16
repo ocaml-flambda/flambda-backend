@@ -59,6 +59,13 @@ let dummy =
 let currstamp = ref 0
 let all_relocatable_regs = ref ([] : t list)
 
+module For_testing = struct
+  let get_stamp () = !currstamp
+  let set_state ~stamp ~relocatable_regs =
+    currstamp := stamp;
+    all_relocatable_regs := relocatable_regs  
+end
+
 let create_gen ~name ~typ ~loc =
   let preassigned =
     match loc with

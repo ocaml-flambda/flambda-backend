@@ -2621,9 +2621,20 @@ let end_assembly () =
   emit_frames
     { efa_code_label = (fun l -> D.qword (ConstLabel (emit_label l)));
       efa_data_label = (fun l -> D.qword (ConstLabel (emit_label l)));
-      efa_8 = (fun n -> D.byte (const n));
-      efa_16 = (fun n -> D.word (const n));
-      efa_32 = (fun n -> D.long (const_32 n));
+      (* Below, we emit constants of different sizes. The x86 emitter internally
+         uses int64 to represent their value and the directives [D.byte], ...,
+         [D.qword] control which assembly directive will be used to emit them.
+         Thus, even though we cast them to integers of larger sizes here (i.e.,
+         [int64]), they do not take up more space than indicated by the
+         directive. *)
+      efa_i8 = (fun n -> D.byte (Const (Int64.of_int (Numbers.Int8.to_int n))));
+      efa_i16 =
+        (fun n -> D.word (Const (Int64.of_int (Numbers.Int16.to_int n))));
+      efa_i32 = (fun n -> D.long (Const (Int64.of_int32 n)));
+      efa_u8 = (fun n -> D.byte (Const (Int64.of_int (Numbers.Uint8.to_int n))));
+      efa_u16 =
+        (fun n -> D.word (Const (Int64.of_int (Numbers.Uint16.to_int n))));
+      efa_u32 = (fun n -> D.long (Const (Numbers.Uint32.to_int64 n)));
       efa_word = (fun n -> D.qword (const n));
       efa_align = D.align ~data:true;
       efa_label_rel =

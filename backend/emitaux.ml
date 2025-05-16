@@ -198,9 +198,12 @@ let record_frame_descr ~label ~frame_size ~live_offset debuginfo =
 type emit_frame_actions =
   { efa_code_label : Label.t -> unit;
     efa_data_label : Label.t -> unit;
-    efa_8 : int -> unit;
-    efa_16 : int -> unit;
-    efa_32 : int32 -> unit;
+    efa_i8 : Numbers.Int8.t -> unit;
+    efa_i16 : Numbers.Int16.t -> unit;
+    efa_i32 : Int32.t -> unit;
+    efa_u8 : Numbers.Uint8.t -> unit;
+    efa_u16 : Numbers.Uint16.t -> unit;
+    efa_u32 : Numbers.Uint32.t -> unit;
     efa_word : int -> unit;
     efa_align : int -> unit;
     efa_label_rel : Label.t -> int32 -> unit;
@@ -209,6 +212,40 @@ type emit_frame_actions =
   }
 
 let emit_frames a =
+  (* The emit functions below perform bounds checks for the corresponding ranges
+     via the conversion functions that raise exceptions. [int32] does not have
+     such a function so we perform the check manually here. *)
+  let emit_u8 n =
+    let n = Numbers.Uint8.of_nonnegative_int_exn n in
+    a.efa_u8 n
+  in
+  let[@warning "-26"] emit_i8 n =
+    (* unused, but here for completeness *)
+    let n = Numbers.Int8.of_int_exn n in
+    a.efa_i8 n
+  in
+  let emit_i16 n =
+    let n = Numbers.Int16.of_int_exn n in
+    a.efa_i16 n
+  in
+  let emit_u16 n =
+    let n = Numbers.Uint16.of_nonnegative_int_exn n in
+    a.efa_u16 n
+  in
+  let emit_i32 n =
+    let min_i32 = Int64.neg (Int64.shift_left 1L 31) (* -0x8000_0000 *)
+    and max_i32 = Int64.sub (Int64.shift_left 1L 31) 1L (* 0x7fff_ffff *)
+    and n_64 = Int64.of_int n in
+    if Int64.compare n_64 min_i32 < 0 || Int64.compare n_64 max_i32 > 0
+    then
+      Misc.fatal_errorf
+        "attempting to emit signed 32-bit integer %d out of range" n
+    else a.efa_i32 (Int32.of_int n)
+  in
+  let emit_u32 n =
+    let n = Numbers.Uint32.of_nonnegative_int_exn n in
+    a.efa_u32 n
+  in
   let filenames = Hashtbl.create 7 in
   let label_filename name =
     try Hashtbl.find filenames name
@@ -244,7 +281,6 @@ let emit_frames a =
       Label_table.add debuginfos key lbl;
       lbl
   in
-  let emit_32 n = n |> Int32.of_int |> a.efa_32 in
   let emit_frame fd =
     let flags = get_flags fd.fd_debuginfo in
     a.efa_label_rel fd.fd_lbl 0l;
@@ -252,12 +288,21 @@ let emit_frames a =
        below. *)
     if fd.fd_long
     then (
-      a.efa_16 Flambda_backend_flags.max_long_frames_threshold;
+      emit_u16 Flambda_backend_flags.max_long_frames_threshold;
       a.efa_align 4);
-    let emit_16_or_32 = if fd.fd_long then emit_32 else a.efa_16 in
-    emit_16_or_32 (fd.fd_frame_size + flags);
-    emit_16_or_32 (List.length fd.fd_live_offset);
-    List.iter emit_16_or_32 fd.fd_live_offset;
+    let emit_signed_16_or_32 = if fd.fd_long then emit_i32 else emit_i16 in
+    let emit_unsigned_16_or_32 = if fd.fd_long then emit_u32 else emit_u16 in
+    let emit_live_offset n =
+      (* On runtime 4, the live offsets can be negative. As such, we emit them
+         as signed integers (and truncate the upper bound to 0x7f...ff); on
+         runtime 5 they are always unsigned. *)
+      if Config.runtime5
+      then emit_unsigned_16_or_32 n
+      else emit_signed_16_or_32 n
+    in
+    emit_unsigned_16_or_32 (fd.fd_frame_size + flags);
+    emit_unsigned_16_or_32 (List.length fd.fd_live_offset);
+    List.iter emit_live_offset fd.fd_live_offset;
     (match fd.fd_debuginfo with
     | _ when flags = 0 -> ()
     | Dbg_other dbg ->
@@ -268,7 +313,7 @@ let emit_frames a =
       a.efa_label_rel (label_debuginfos true dbg) Int32.zero
     | Dbg_alloc dbg ->
       assert (List.length dbg < 256);
-      a.efa_8 (List.length dbg);
+      emit_u8 (List.length dbg);
       List.iter
         (fun Cmm.{ alloc_words; _ } ->
           (* Possible allocations range between 2 and 257 *)
@@ -276,7 +321,7 @@ let emit_frames a =
             2 <= alloc_words
             && alloc_words - 1 <= Config.max_young_wosize
             && Config.max_young_wosize <= 256);
-          a.efa_8 (alloc_words - 2))
+          emit_u8 (alloc_words - 2))
         dbg;
       if flags = 3
       then (
@@ -284,7 +329,7 @@ let emit_frames a =
         List.iter
           (fun Cmm.{ alloc_dbg; _ } ->
             if is_none_dbg alloc_dbg
-            then a.efa_32 Int32.zero
+            then emit_i32 0
             else a.efa_label_rel (label_debuginfos false alloc_dbg) Int32.zero)
           dbg));
     a.efa_align Arch.size_addr
@@ -295,9 +340,9 @@ let emit_frames a =
   in
   let emit_defname (_filename, defname, loc) (file_lbl, lbl) =
     let emit_loc (start_chr, end_chr, end_offset) =
-      a.efa_16 start_chr;
-      a.efa_16 end_chr;
-      a.efa_32 (Int32.of_int end_offset)
+      emit_u16 start_chr;
+      emit_u16 end_chr;
+      emit_i32 end_offset
     in
     (* These must be 32-bit aligned, both because they contain a 32-bit value,
        and because emit_debuginfo assumes the low 2 bits of their addresses are
@@ -389,7 +434,10 @@ let emit_frames a =
       a.efa_label_rel
         (label_defname d.dinfo_file defname loc)
         (Int64.to_int32 info);
-      a.efa_32 (Int64.to_int32 (Int64.shift_right info 32));
+      (* We use [efa_i32] directly here instead of [emit_i32] to avoid a
+         round-trip via [int], which would break on 32-bit platforms. The right
+         shift ensures that the integer is in range of [int32]. *)
+      a.efa_i32 (Int64.to_int32 (Int64.shift_right info 32));
       match rest with [] -> () | d :: rest -> emit false d rest
     in
     match rdbg with [] -> assert false | d :: rest -> emit rs d rest

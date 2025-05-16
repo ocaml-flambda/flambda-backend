@@ -234,6 +234,16 @@ and type_desc =
   | Tpackage of Path.t * (Longident.t * type_expr) list
   (** Type of a first-class module (a.k.a package). *)
 
+  | Tof_kind of jkind_lr
+  (** [Tof_kind jkind] ==> [(type : jkind)]
+
+      The "canonical" type of a particular kind.
+
+      These types are uninhabited, and any appearing in translation will cause an error.
+      They are only used to represent the kinds of existentially-quantified types
+      mentioned in with-bounds. *)
+      (* CR reisenberg: add link to test once one exists *)
+
 (** This is used in the Typedtree. It is distinct from
     {{!Asttypes.arg_label}[arg_label]} because Position argument labels are
     discovered through typechecking. *)
@@ -248,6 +258,8 @@ and arrow_desc =
 
 
 
+(** See also documentation for [row_more], which enumerates how these
+    constructors arise. *)
 and fixed_explanation =
   | Univar of type_expr (** The row type was bound to an univar *)
   | Fixed_private (** The row type is private *)
@@ -523,9 +535,52 @@ val create_row:
   name:(Path.t * type_expr list) option -> row_desc
 
 val row_fields: row_desc -> (label * row_field) list
+
+(** [row_more] returns a [type_expr] with one of the following [type_desc]s
+    (also described with the return from [row_fixed], which varies similarly):
+
+    * [Tvar]: This is a row variable; it would occur in e.g. [val f :
+    [> `A | `B] -> int]. When/if we learn more about a polymorphic variant, this
+    variable might get unified with one of the other [type_desc]s listed here,
+    or a [Tvariant] that represents a new set of constructors to add to the row.
+
+    During [constraint] checking (toward the end of checking a type declaration,
+    in [Typedecl.check_constraints_rec]) we [Ctype.rigidify] a type to make it
+    so that its unification variables will not unify. When a [Tvar] row variable
+    is rigidified, its [fixed_explanation] will be [Rigid].
+
+    * [Tunivar]: This is a universally quantified row variable; it would occur
+    in e.g. [type t = { f : 'a. ([> `A | `B ] as 'a) -> int }]. A [Tunivar] has
+    a [fixed_explanation] of [Univar].
+
+    * [Tconstr]: There are two possible ways this can happen:
+
+      1. This is an abstract [#row] type created by a [private] row type, as in
+      [type t = private [> `A | `B]]. In this case, the [fixed_explanation] will
+      be [Fixed_private].
+
+      2. This is a locally abstract type created by [Ctype.reify], which happens
+      when a row variable is free in the type of the scrutinee in a GADT pattern
+      match. The [fixed_explanation] will be [Reified]. Note that any manifest
+      of a reified row variable is actually ignored by [row_repr]; this causes
+      some incompletness in type inference.
+
+    * [Tnil]: Used to denote a static polymorphic variant (with no [>] or [<]).
+
+    ----------------------------------------
+
+    It is an invariant that row variables are never shared between different
+    types. That is, if [row_more row1 == row_more row2], then [row1] and [row2]
+    come from structurally identical [Tvariant]s (but they might not be
+    physically equal). When copying types, two types with the same [row_more]
+    field are replaced by the same copy.
+*)
 val row_more: row_desc -> type_expr
 val row_closed: row_desc -> bool
+
+(** See documentation for [row_more]. *)
 val row_fixed: row_desc -> fixed_explanation option
+
 val row_name: row_desc -> (Path.t * type_expr list) option
 
 val set_row_name: row_desc -> (Path.t * type_expr list) option -> row_desc

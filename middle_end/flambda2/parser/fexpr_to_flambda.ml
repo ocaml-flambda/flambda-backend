@@ -144,7 +144,7 @@ let fresh_function_slot env { Fexpr.txt = name; loc = _ } =
   let c =
     Function_slot.create
       (Compilation_unit.get_current_exn ())
-      ~name Flambda_kind.With_subkind.any_value
+      ~name ~is_always_immediate:false Flambda_kind.value
   in
   UT.add env.function_slots name c;
   c
@@ -155,7 +155,11 @@ let fresh_or_existing_function_slot env ({ Fexpr.txt = name; loc = _ } as id) =
   | Some function_slot -> function_slot
 
 let fresh_value_slot env { Fexpr.txt = name; loc = _ } kind =
-  let c = Value_slot.create (Compilation_unit.get_current_exn ()) ~name kind in
+  let c =
+    Value_slot.create
+      (Compilation_unit.get_current_exn ())
+      ~name ~is_always_immediate:false kind
+  in
   WT.add env.vars_within_closures name c;
   c
 
@@ -436,7 +440,7 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
     Opaque_identity { middle_end_only = false; kind = Flambda_kind.value }
   | Project_value_slot { project_from; value_slot } ->
     (* CR mshinwell: support non-value kinds *)
-    let kind = Flambda_kind.With_subkind.any_value in
+    let kind = Flambda_kind.value in
     let value_slot = fresh_or_existing_value_slot env value_slot kind in
     let project_from = fresh_or_existing_function_slot env project_from in
     Project_value_slot { project_from; value_slot }
@@ -562,8 +566,7 @@ let set_of_closures env fun_decls value_slots alloc =
   let value_slots : Simple.t Value_slot.Map.t =
     let convert ({ var; value } : Fexpr.one_value_slot) =
       (* CR mshinwell: support non-value kinds *)
-      ( fresh_or_existing_value_slot env var Flambda_kind.With_subkind.any_value,
-        simple env value )
+      fresh_or_existing_value_slot env var Flambda_kind.value, simple env value
     in
     List.map convert value_slots |> Value_slot.Map.of_list
   in

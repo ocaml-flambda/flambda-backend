@@ -122,6 +122,7 @@ and dump_typedtree = ref false          (* -dtypedtree *)
 and dump_shape = ref false              (* -dshape *)
 and dump_rawlambda = ref false          (* -drawlambda *)
 and dump_lambda = ref false             (* -dlambda *)
+and dump_blambda = ref false             (* -dblambda *)
 and dump_letreclambda = ref false       (* -dletreclambda *)
 and dump_rawclambda = ref false         (* -drawclambda *)
 and dump_clambda = ref false            (* -dclambda *)
@@ -450,7 +451,7 @@ let error_style_reader = {
 
 let unboxed_types = ref false
 
-(* This is used by the -save-ir-after option. *)
+(* This is used by the -save-ir-after and -save-ir-before options. *)
 module Compiler_ir = struct
   type t = Linear | Cfg
 
@@ -540,6 +541,7 @@ module Compiler_pass = struct
   *)
   type t = Parsing | Typing | Lambda | Middle_end
          | Linearization | Emit | Simplify_cfg | Selection
+         | Register_allocation
 
   let to_string = function
     | Parsing -> "parsing"
@@ -550,6 +552,7 @@ module Compiler_pass = struct
     | Emit -> "emit"
     | Simplify_cfg -> "simplify_cfg"
     | Selection -> "selection"
+    | Register_allocation -> "register_allocation"
 
   let of_string = function
     | "parsing" -> Some Parsing
@@ -560,6 +563,7 @@ module Compiler_pass = struct
     | "emit" -> Some Emit
     | "simplify_cfg" -> Some Simplify_cfg
     | "selection" -> Some Selection
+    | "register_allocation" -> Some Register_allocation
     | _ -> None
 
   let rank = function
@@ -568,6 +572,7 @@ module Compiler_pass = struct
     | Lambda -> 2
     | Middle_end -> 3
     | Selection -> 20
+    | Register_allocation -> 30
     | Simplify_cfg -> 49
     | Linearization -> 50
     | Emit -> 60
@@ -581,6 +586,7 @@ module Compiler_pass = struct
     Emit;
     Simplify_cfg;
     Selection;
+    Register_allocation;
   ]
   let is_compilation_pass _ = true
   let is_native_only = function
@@ -589,6 +595,7 @@ module Compiler_pass = struct
     | Emit -> true
     | Simplify_cfg -> true
     | Selection -> true
+    | Register_allocation -> true
     | Parsing | Typing | Lambda -> false
 
   let enabled is_native t = not (is_native_only t) || is_native
@@ -596,6 +603,12 @@ module Compiler_pass = struct
     | Linearization -> true
     | Simplify_cfg -> true
     | Selection -> true
+    | Register_allocation -> false
+    | Parsing | Typing | Lambda | Middle_end | Emit -> false
+
+    let can_save_ir_before = function
+    | Register_allocation -> true
+    | Linearization | Simplify_cfg | Selection
     | Parsing | Typing | Lambda | Middle_end | Emit -> false
 
   let available_pass_names ~filter ~native =
@@ -612,6 +625,7 @@ module Compiler_pass = struct
     | Linearization -> prefix ^ Compiler_ir.(extension Linear)
     | Simplify_cfg -> prefix ^ Compiler_ir.(extension Cfg)
     | Selection -> prefix ^ Compiler_ir.(extension Cfg) ^ "-sel"
+    | Register_allocation ->  prefix ^ Compiler_ir.(extension Cfg) ^ "-regalloc"
     | Emit | Parsing | Typing | Lambda | Middle_end -> Misc.fatal_error "Not supported"
 
   let of_input_filename name =
@@ -631,19 +645,29 @@ let should_stop_after pass =
     | Some stop -> Compiler_pass.rank stop <= Compiler_pass.rank pass
 
 let save_ir_after = ref []
+let save_ir_before = ref []
 
 let should_save_ir_after pass =
   List.mem pass !save_ir_after
 
-let set_save_ir_after pass enabled =
-  let other_passes = List.filter ((<>) pass) !save_ir_after in
+let should_save_ir_before pass =
+  List.mem pass !save_ir_before
+
+let set_save_ir ref pass enabled =
+  let other_passes = List.filter ((<>) pass) !ref in
   let new_passes =
     if enabled then
       pass :: other_passes
     else
       other_passes
   in
-  save_ir_after := new_passes
+  ref := new_passes
+
+let set_save_ir_after pass enabled =
+  set_save_ir save_ir_after pass enabled
+
+let set_save_ir_before pass enabled =
+  set_save_ir save_ir_before pass enabled
 
 module String = Misc.Stdlib.String
 

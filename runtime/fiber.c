@@ -64,21 +64,29 @@ static _Atomic int64_t fiber_id = 0;
 /* Parameters settable with OCAMLRUNPARAM */
 uintnat caml_init_main_stack_wsz = 0;   /* -Xmain_stack_size= */
 uintnat caml_init_thread_stack_wsz = 0; /* -Xthread_stack_size= */
+uintnat caml_init_fiber_stack_wsz = 0;  /* -Xfiber_stack_size= */
 
-uintnat caml_get_init_stack_wsize (int thread_stack_wsz)
+uintnat caml_get_init_stack_wsize (int context)
 {
-#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
-  uintnat init_stack_wsize =
-    thread_stack_wsz < 0
-    ? caml_init_main_stack_wsz
-    : caml_init_thread_stack_wsz > 0
-    ? caml_init_thread_stack_wsz : thread_stack_wsz;
-#else
-  (void) thread_stack_wsz;
-  uintnat init_stack_wsize = Wsize_bsize(Stack_init_bsize);
-#endif
-  uintnat stack_wsize;
+  uintnat init_stack_wsize = 0;
 
+#ifdef STACK_GUARD_PAGES
+  switch(context) {
+  case STACK_SIZE_MAIN:   init_stack_wsize = caml_init_main_stack_wsz; break;
+  case STACK_SIZE_THREAD: init_stack_wsize = caml_init_thread_stack_wsz; break;
+  case STACK_SIZE_FIBER:  init_stack_wsize = caml_init_fiber_stack_wsz; break;
+  default: caml_fatal_error("caml_get_init_stack_wsize: invalid context");
+  }
+#else
+  switch(context) {
+  case STACK_SIZE_MAIN:
+  case STACK_SIZE_THREAD: init_stack_wsize = Wsize_bsize(Stack_init_bsize); break;
+  case STACK_SIZE_FIBER:  init_stack_wsize = Wsize_bsize(Stack_threshold * 2); break;
+  default: caml_fatal_error("caml_get_init_stack_wsize: invalid context");
+  }
+#endif
+
+  uintnat stack_wsize = 0;
   if (init_stack_wsize < caml_max_stack_wsize)
     stack_wsize = init_stack_wsize;
   else
@@ -171,8 +179,7 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
       + sizeof(value) * wosize, stack_alignment);
 
   return si;
-#else
-#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+#elif defined(STACK_GUARD_PAGES)
   /* (We use the following strategy only in native code, because bytecode
    * has its own way of dealing with stack checks.)
    *
@@ -225,14 +232,14 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
   // mmap is always expected to return a page-aligned value.
   CAMLassert((uintnat)stack % page_size == 0);
 
-  if (mprotect(Protected_stack_page(stack, page_size), page_size, PROT_NONE)) {
+  if (mprotect(Protected_stack_page(stack), page_size, PROT_NONE)) {
     caml_mem_unmap(stack, len);
     return NULL;
   }
 
   // Assert that the guard page does not impinge on the actual stack area.
   CAMLassert((char*) stack + len - (trailer_size + Bsize_wsize(wosize))
-    >= Protected_stack_page(stack, page_size) + page_size);
+    >= Protected_stack_page(stack) + page_size);
 
   stack->size = len;
   stack->handler = (struct stack_handler*)((char*)stack + len - trailer_size);
@@ -251,8 +258,7 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
     round_up_p2((uintnat)stack + sizeof(struct stack_info) +
       sizeof(value) * wosize, stack_alignment);
   return stack;
-#endif /* NATIVE_CODE */
-#endif /* USE_MMAP_MAP_STACK */
+#endif /* USE_MMAP_MAP_STACK, STACK_GUARD_PAGES */
 }
 
 /* Returns the index into the [Caml_state->stack_cache] array if this size is
@@ -614,12 +620,14 @@ void caml_maybe_expand_stack (void)
     (value*)stk->sp - Stack_base(stk);
   uintnat stack_needed =
     Stack_threshold / sizeof(value)
-    + 10 /* for words pushed by caml_start_program */;
-  /* XXX does this "8" need updating?  Provisionally changed to 10 */
+    /* for words pushed by caml_start_program */
+    + 8 + Stack_padding_word;
 
-  if (stack_available < stack_needed)
-    if (!caml_try_realloc_stack (stack_needed))
+  if (stack_available < stack_needed) {
+    if (!caml_try_realloc_stack (stack_needed)) {
       caml_raise_stack_overflow();
+    }
+  }
 
   if (Caml_state->gc_regs_buckets == NULL) {
     /* Ensure there is at least one gc_regs bucket available before
@@ -793,9 +801,9 @@ void caml_rewrite_exception_stack(struct stack_info *old_stack,
 
 int caml_try_realloc_stack(asize_t required_space)
 {
-#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+#if defined(USE_MMAP_MAP_STACK) || defined(STACK_GUARD_PAGES)
   (void) required_space;
-  abort();
+  return 0;
 #else
   struct stack_info *old_stack, *new_stack;
   asize_t wsize;
@@ -944,12 +952,10 @@ void caml_free_stack (struct stack_info* stack)
 #endif
 #ifdef USE_MMAP_MAP_STACK
     munmap(stack, stack->size);
-#else
-#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+#elif defined(STACK_GUARD_PAGES)
     caml_mem_unmap(stack, stack->size);
 #else
     caml_stat_free(stack);
-#endif
 #endif
   }
 }

@@ -214,6 +214,11 @@ typedef uint64_t uintnat;
 #define Stack_ctx_words (10 + 2)
 #endif
 
+/* Whether to use guard pages for fiber stacks */
+#if !defined(USE_MMAP_MAP_STACK) && defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+#define STACK_GUARD_PAGES
+#endif
+
 /* Whether to offset Stack_high to preserve alignment. */
 #if defined(TARGET_amd64) && !defined(WITH_FRAME_POINTERS)
 #define Stack_padding_word 1
@@ -239,10 +244,10 @@ typedef uint64_t uintnat;
 /* Default size of the minor zone. (words)  */
 #define Minor_heap_def 1048576
 
-/* Minimum size increment when growing the heap (words).
-   Must be a multiple of [Page_size / sizeof (value)]. */
-#define Heap_chunk_min (15 * Page_size)
-
+/* Default size increment when growing the heap.
+   If this is <= 1000, it's a percentage of the current heap size.
+   If it is > 1000, it's a number of words. */
+#define Heap_chunk_def 15
 
 /* Default speed setting for the major GC.  The heap will grow until
    the dead objects and the free list represent this percentage of the
