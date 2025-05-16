@@ -68,6 +68,40 @@ index), then an `idx_mut` is created, and if the block access is immutable
 (immutable record fields, immutable arrays, immutable block indices), then an
 `idx_imm` is created.
 
+# Use cases
+
+## Allow polymorphic APIs to support fine-grained access
+
+```ocaml
+module Stack : sig
+ type 'a t
+ val empty : 'a t
+ val push : 'a t -> 'a -> unit
+ val pop : 'a t -> 'a
+ val update_top : 'a t -> ('a, 'b) idx_mut -> 'b -> unit
+ (* [update_top] normally isn't possible without exposing the representation.
+    One could use ['a t -> ('a -> unit) -> unit], but the closure is less
+    efficient. *)
+end
+
+type pt = { x : int; y : int }
+type line = { mutable p : pt#; mutable q : pt# }
+
+let drop_last_to_y_axis (s : line Stack.t) =
+ update_top s &.q.y 0
+```
+
+## Implement ``interior pointers''
+
+By packing the base type parameter, block indices can be used to implement
+pointers into a block. (There is ongoing work to create a standardized library
+for interior pointers, but we include this example for illustrative purposes.)
+
+```ocaml
+type 'a iptr = P : #('base, ('base, 'a) idx_imm) -> 'a iptr [@@unboxed]
+type 'a mptr = P : #('base, ('base, 'a) idx_mut) -> 'a mptr [@@unboxed]
+```
+
 # Edge cases and limitations
 
 1. Indices to flat float arrays cannot be taken: the type parameter must be
@@ -76,8 +110,8 @@ index), then an `idx_mut` is created, and if the block access is immutable
 3. An index to a `float` into a flattened float record has an element type
    `float#`.
 4. Indices to some records containing both values and non-values, and occupying
-   over 2^16 bytes, cannot be created. See "Representation of block indices for
-   details".
+   over 2^16 bytes, cannot be created. See "Representation of block indices" for
+   details.
 
 # Representation of block indices
 
@@ -134,7 +168,15 @@ In-memory representation:
     erased during translation to lambda.
 
 For a visualization of the native representation of block indices, and the
-implementation of deepening, see the below.
+implementation of deepening, see below.
+
+## Native implementation of index deepening
+
+We show compare the "layout view" of deepening with the "native representation"
+view of deepening. Note that the layout does not account for reordering while
+the native representation does. When the below refers to what is "left" and
+"right" of the element, this refers to the layout, *not* the native
+representation.
 
 ![All values or flats](assets/all_values_or_flats.png)
 ![Mixed to all flats](assets/mixed_to_all_flats.png)
