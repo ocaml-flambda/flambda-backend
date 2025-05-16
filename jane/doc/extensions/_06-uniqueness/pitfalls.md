@@ -8,8 +8,8 @@ title: Pitfalls
 
 This document outlines some common pitfalls that may come up when trying out
 uniqueness, as well as some suggested workarounds. Over time, this list may grow
-(as experience discovers new things that go wrong) or shrink (as we deploy new
-compiler versions that ameliorate some issues).
+(as experience discovers new things that go wrong) or shrink (as new
+compiler versions ameliorate some issues).
 
 If you want an introduction to uniqueness, see the [introduction](../intro).
 

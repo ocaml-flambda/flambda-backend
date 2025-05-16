@@ -14,7 +14,7 @@ as opposed to its usual behavior of allocating on the heap.
 This helps performance in a couple of ways: first, the same few hot
 cache lines are constantly reused, so the cache footprint is lower than
 usual. More importantly, stack allocations will never trigger a GC,
-and so they're safe to use in low-latency code that must currently be
+and so they're safe to use in low-latency code that must be
 zero-alloc.
 
 Because of these advantages, values are allocated on a stack whenever
