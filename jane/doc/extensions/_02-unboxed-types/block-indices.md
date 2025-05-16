@@ -54,8 +54,9 @@ this `int` in a `line`:
 { p = #{ x; y }; q = #{ x; y } }
 ```
 
-**Index creation.** Syntax is added for block index creation, e.g. `(.foo.#bar)`, which consists of
-one "block access" and zero or more "unboxed accesses".
+**Index creation.** Block index creation uses the syntax `(.foo.#bar)`.
+Specifically, it consists of one "block access" followed by zero or more
+"unboxed accesses" within parentheses.
 
 Block accesses take the following forms:
 - `.foo` (record field)
@@ -77,10 +78,15 @@ within blocks. This can be done via the `Idx_imm.unsafe_get`,
 `Idx_mut.unsafe_get`, and `Idx_mut.unsafe_set` functions in `Stdlib_beta`.
 
 _The key advantage of block indices is that these accessor functions are
-polymorphic in both the the base type and element type._ Index reading
-roughly (ignoring mutability, layouts, modes) has the type signature
+polymorphic in both the base type and element type._ Index reading roughly
+(ignoring mutability, layouts, modes) has the type signature
 `'a -> ('a, 'b) idx -> 'b`, and index writing roughly has the type
 signature `'a -> ('a, 'b) idx -> 'b -> unit`.
+
+**Index deepening.** Block indices themselves are included as a type of block
+access so that indices can be _deepened_. For example, given
+`idx : ('a, pt#) idx_imm`, one may obtain
+`(.idx_imm(idx).#y) : ('a, int) idx_imm`.
 
 # Use cases
 
@@ -98,11 +104,13 @@ module Stack : sig
     efficient. *)
 end
 
+(* ... *)
+
 type pt = { x : int; y : int }
 type line = { mutable p : pt#; mutable q : pt# }
 
 let drop_last_to_y_axis (s : line Stack.t) =
- update_top s &.q.y 0
+  Stack.update_top s (.q.#y) 0
 ```
 
 ## Implement "interior pointers"
