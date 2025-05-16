@@ -10,70 +10,77 @@ This document describes the language feature and implementation for explicit
 _indices_ into a block. Before reading this document, you may wish to read up
 through the [layouts](../intro#layouts) section of the main document.
 
-A quick example:
+As a quick example:
 ```ocaml
 open Stdlib_beta
-
-(*************************************************)
-(* An immutable block index into a nested record *)
 
 type pt = { x : int; y : int }
 type line = { p : pt#; q : pt# }
 
-let i : (line, int) idx_imm =
-  (.q.#y)
+(* Creating an immutable block index into a nested record *)
+let mk_idx () : (line, int) idx_imm = (.q.#y)
 
 let get_coord (line : line) (i : (line, int) idx_imm) : int =
   (* Equivalent to [line.q.#y] *)
   Idx_imm.unsafe_get line i
 
-(***************************************)
-(* A mutable block index into an array *)
-
-let first_x : (pt# array, int) idx_mut = (.(0).#x)
+(* Creating a block index into an array *)
+let first_x (): (pt# array, int) idx_mut = (.(0).#x)
 
 let inc_coord (pts : 'a) (i : ('a, int) idx_mut) =
-  (* Equivalent to [pts.(i) <- pts.(i) + 1] when [i] is in bounds *)
+  (* Equivalent to [pts.(i) <- pts.(i) + 1] when [i] is in bounds and [pts] is
+     an [int array]. But this function could also be used update a mutable
+     record containing an [int]. *)
   Idx_mut.unsafe_set pts i (Idx_mut.unsafe_get pts i + 1)
 ```
 
 # Overview
 
 A block index is an opaque, explicit index to an element. The language feature
-includes these types in the predef:
+includes these predefined types:
 
 ```ocaml
 type ('a, 'b : any) idx_imm : bits64
 type ('a, 'b : any) idx_mut : bits64
 ```
 
-For `('a, 'b) idx_imm` and `('a, 'b) idx_mut`, we refer to `'a` as the "base
-type" and `'b` as the "element type."
-
-A block index represents the position of an element type within the base type.
-
-For example, `(.q.#y) : (line, int) idx_imm` in the example above represents
-the position of this int in a `line`:
+Given `('a, 'b) idx_imm` or `('a, 'b) idx_mut`, we refer to `'a` as the "base
+type" and `'b` as the "element type." A block index thus represents the position
+of an element type within the base type. For example,
+`(.q.#y) : (line, int) idx_imm` in the example above represents the position of
+this `int` in a `line`:
 ```
                            v
 { p = #{ x; y }; q = #{ x; y } }
 ```
 
+**Index creation.** Syntax is added for block index creation, e.g. `(.foo.#bar)`, which consists of
+one "block access" and zero or more "unboxed accesses".
 
-Accordingly, block indices can be used to read and write within blocks,
-polymorphically in the actual type of the block. This can be done via the
-`Idx_imm.unsafe_get`, `Idx_mut.unsafe_get`, and `Idx_mut.unsafe_set` functions
-in `Stdlib_beta`.
+Block accesses take the following forms:
+- `.foo` (record field)
+- `.(i)` (array index)
+- `.:(i)` (iarray index)
+- `.idx_imm(idx)` (immutable block index)
+- `.idx_mut(idx)` (mutable block index)
 
-Syntax is added for block index creation, e.g. `(.foo.#bar)`, which consists of
-one "block access" (a record field, array index, iarray index, or another block
-index) and zero or more "unboxed accesses" (currently, just an unboxed record
-field).
+Unboxed accesses take the following forms:
+- `.#bar` (unboxed record field)
 
-If the block access is mutable (mutable record fields, arrays, mutable block
-index), then an `idx_mut` is created, and if the block access is immutable
-(immutable record fields, immutable arrays, immutable block indices), then an
-`idx_imm` is created.
+**Index mutability.** If the block access is mutable (mutable record fields,
+arrays, and mutable block indices), then an `idx_mut` is created, and if the
+block access is immutable (immutable record fields, immutable arrays, and
+immutable block indices), then an `idx_imm` is created.
+
+**Using indices.** Naturally, block indices can be used to read and write
+within blocks. This can be done via the `Idx_imm.unsafe_get`,
+`Idx_mut.unsafe_get`, and `Idx_mut.unsafe_set` functions in `Stdlib_beta`.
+
+_The key advantage of block indices is that these accessor functions are
+polymorphic in both the the base type and element type._ Index reading
+roughly (ignoring mutability, layouts, modes) has the type signature
+`'a -> ('a, 'b) idx -> 'b`, and index writing roughly has the type
+signature `'a -> ('a, 'b) idx -> 'b -> unit`.
 
 # Use cases
 
@@ -98,7 +105,7 @@ let drop_last_to_y_axis (s : line Stack.t) =
  update_top s &.q.y 0
 ```
 
-## Implement ``interior pointers''
+## Implement "interior pointers"
 
 By packing the base type parameter, block indices can be used to implement
 pointers into a block. (There is ongoing work to create a standardized library
