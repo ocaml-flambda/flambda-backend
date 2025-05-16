@@ -14,13 +14,15 @@
 
 (** Immutable indices into blocks. *)
 
-type ('a, 'b : any) t : bits64 = ('a, 'b) idx_imm
 (** An alias for the type of immutable indices into blocks. *)
+type ('a, 'b : any) t : bits64 = ('a, 'b) idx_imm
 
-external[@layout_poly] unsafe_get :
-  'a ('b : any). ('a [@local_opt]) -> ('a, 'b) idx_imm -> ('b [@local_opt]) =
-  "%unsafe_get_idx_imm"
 (** [unsafe_get a i] uses the index [i] to access [a].
 
     It is unsafe, and may result in an out-of-bounds access, only for indices
     created outside the bounds of an array. *)
+external unsafe_get
+  : 'a ('b : any).
+  ('a[@local_opt]) -> ('a, 'b) idx_imm -> ('b[@local_opt])
+  = "%unsafe_get_idx_imm"
+[@@layout_poly]

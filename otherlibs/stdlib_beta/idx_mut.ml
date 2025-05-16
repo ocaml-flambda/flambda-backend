@@ -16,11 +16,14 @@
 
 type ('a, 'b : any) t : bits64 = ('a, 'b) idx_mut
 
-external[@layout_poly] unsafe_get :
-  'a ('b : any). ('a [@local_opt]) -> ('a, 'b) idx_mut -> ('b [@local_opt]) =
-  "%unsafe_get_idx"
+external unsafe_get
+  : 'a ('b : any).
+  ('a[@local_opt]) -> ('a, 'b) idx_mut -> ('b[@local_opt])
+  = "%unsafe_get_idx"
+[@@layout_poly]
 
-external[@layout_poly] unsafe_set :
-  'a ('b : any).
-    'a @ local -> ('a, 'b) idx_mut -> 'b -> unit =
-  "%unsafe_set_idx"
+external unsafe_set
+  : 'a ('b : any).
+  'a @ local -> ('a, 'b) idx_mut -> 'b -> unit
+  = "%unsafe_set_idx"
+[@@layout_poly]

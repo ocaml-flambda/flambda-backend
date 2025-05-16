@@ -16,6 +16,8 @@
 
 type ('a, 'b : any) t : bits64 = ('a, 'b) idx_imm
 
-external[@layout_poly] unsafe_get :
-  'a ('b : any). ('a [@local_opt]) -> ('a, 'b) idx_imm -> ('b [@local_opt]) =
-  "%unsafe_get_idx_imm"
+external unsafe_get
+  : 'a ('b : any).
+  ('a[@local_opt]) -> ('a, 'b) idx_imm -> ('b[@local_opt])
+  = "%unsafe_get_idx_imm"
+[@@layout_poly]
