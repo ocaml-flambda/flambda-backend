@@ -204,7 +204,7 @@ representation.
 orange), while `o2` and `g2` refer to the offset and gap of the index after
 deepening (blue). Recall that indices to all values/non-values have no gap.
 
-![All values or flats](assets/all_values_or_flats.png =500x)
-![Mixed to all flats](assets/mixed_to_all_flats.png =500x)
-![Mixed to all values](assets/mixed_to_all_values.png =500x)
-![Mixed to mixed](assets/mixed_to_mixed.png =500x)
+<img src="assets/all_values_or_flats.png" width="600" height="auto" />
+<img src="assets/mixed_to_all_mixed.png" width="600" height="auto" />
+<img src="assets/mixed_to_all_values.png" width="600" height="auto" />
+<img src="assets/mixed_to_all_flats.png" width="600" height="auto" />
