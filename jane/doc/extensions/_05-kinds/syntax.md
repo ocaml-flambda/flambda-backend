@@ -376,7 +376,7 @@ val id : ('a : any). 'a -> 'a
 ```
 
 Here, we have annotated the binding site of `'a` to say that it should have kind
-`any`.  (The type `('a : any). 'a -> 'a` is a perfectly good type, and a
+`any`.  (The type `('a : any). 'a -> 'a` is valid, and a
 function of that type can be called on values of any type of any kind. However,
 you will be unable to define a function of that type, because the compiler will
 not know what register will hold the argument.) In contrast, writing
@@ -385,8 +385,8 @@ not know what register will hold the argument.) In contrast, writing
 val id : ('a : any) -> 'a
 ```
 
-does not do what you might think: it constrains a *usage site* of `'a`, stating
-that `'a` must have a subkind of `any` -- but of course `value` *is* a subkind
+constrains a *usage site* of `'a`, stating
+that `'a` must have a subkind of `any` -- but `value` *is* a subkind
 of `any`, so the default behavior of choosing `value` is unaffected. That is,
 the type `('a : any) -> 'a` is the same as just writing `'a -> 'a`.
 
