@@ -52,5 +52,6 @@ type ('a : value) or_null : value_or_null =
 ```
 
 ## Separability
-
+<!--
 CR reisenberg: TODO
+-->

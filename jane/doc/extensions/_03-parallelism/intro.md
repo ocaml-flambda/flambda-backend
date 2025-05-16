@@ -7,7 +7,7 @@ title: Intro
 # Introduction to Parallelism
 
 OCaml 5 introduced multicore, which allows parallel execution in a single process.
-Based on that, the OCaml Language team developed a collection of compiler features and libraries:
+Based on that, Jane Street's OCaml Language team developed a collection of compiler features and libraries:
 - Extending the [mode system](../modes/intro) to track values' concurrent
   usages, so they can be used concurrently safely.
 - Higher-level parallelism primitives to allow users to fully expose
