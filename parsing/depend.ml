@@ -261,6 +261,9 @@ let rec add_expr bv exp =
   | Pexp_field(e, fld) | Pexp_unboxed_field(e, fld) -> add_expr bv e; add bv fld
   | Pexp_setfield(e1, fld, e2) -> add_expr bv e1; add bv fld; add_expr bv e2
   | Pexp_array (_, el) -> List.iter (add_expr bv) el
+  | Pexp_idx (ba, uas) ->
+    add_block_access bv ba;
+    List.iter (add_unboxed_access bv) uas
   | Pexp_ifthenelse(e1, e2, opte3) ->
       add_expr bv e1; add_expr bv e2; add_opt add_expr bv opte3
   | Pexp_sequence(e1, e2) -> add_expr bv e1; add_expr bv e2
@@ -351,6 +354,16 @@ and add_comprehension_iterator bv = function
     add_expr bv expr
 
 and add_labeled_tuple_expr bv el = List.iter (add_expr bv) (List.map snd el)
+
+and add_block_access bv = function
+  | Baccess_field fld -> add bv fld
+  | Baccess_array (_, _, index) ->
+    add_expr bv index
+  | Baccess_block (_, idx) ->
+    add_expr bv idx
+
+and add_unboxed_access bv = function
+  | Uaccess_unboxed_field fld -> add bv fld
 
 and add_function_param bv param =
   match param.pparam_desc with

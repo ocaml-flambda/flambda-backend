@@ -31,3 +31,5 @@ val untransl_modalities :
 
 (** Interpret a mod-bounds. *)
 val transl_mod_bounds : Parsetree.modes -> Types.Jkind_mod_bounds.t
+
+val idx_expected_modalities : mut:bool -> Mode.Modality.Value.Const.t

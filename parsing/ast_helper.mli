@@ -177,6 +177,8 @@ module Exp:
                   -> expression
     val array: ?loc:loc -> ?attrs:attrs -> mutable_flag -> expression list ->
       expression
+    val idx : ?loc:loc -> ?attrs:attrs -> block_access -> unboxed_access list
+      -> expression
     val ifthenelse: ?loc:loc -> ?attrs:attrs -> expression -> expression
                     -> expression option -> expression
     val sequence: ?loc:loc -> ?attrs:attrs -> expression -> expression
