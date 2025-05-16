@@ -932,8 +932,7 @@ CAMLprim value caml_array_blit(value a1, value ofs1, value a2, value ofs2,
 }
 
 /* In bytecode, an index is represented as a block containing a list of field
-   positions. See Note [Representation of block indices] in
-   [lambda/translcore.ml] */
+   positions. See [jane/doc/extensions/_02-unboxed-types/block-indices.md]. */
 CAMLprim value caml_unsafe_get_idx_bytecode(value base, value idx)
 {
   CAMLparam2 (base, idx);

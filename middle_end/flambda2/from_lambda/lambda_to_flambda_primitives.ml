@@ -1563,9 +1563,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             (Int64.of_int (conv_bc offset_after_index + custom_word_offset)) )
     ]
   | Pidx_deepen (mbe, field_path), [[idx]] -> (
-    (* See Note [Representation of block indices] in [lambda/translcore.ml]. For
-       a visualization of how the offset and gap change in each case, see
-       deepening *)
+    (* See [jane/doc/extensions/_02-unboxed-types/block-indices.md]. *)
     let cts = Mixed_product_bytes_wrt_path.count mbe field_path in
     let deepening_type =
       let outer_has_value_and_flat =

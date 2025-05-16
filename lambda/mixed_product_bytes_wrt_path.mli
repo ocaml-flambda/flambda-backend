@@ -31,9 +31,8 @@
     left, at subelement, and to the right.
 
     This module counts the number of value and flat bytes in each part, for the
-    purpose of computing block indices to the subelement. Also see Note
-    [Representation of block indices] in [lambda/translcore.ml].
-*)
+    purpose of computing block indices to the subelement. Also see
+    [jane/doc/extensions/_02-unboxed-types/block-indices.md]. *)
 
 type t =
   { here : Mixed_product_bytes.t;

@@ -38,7 +38,7 @@ module Idx_repr : sig
   val equal : t -> t -> bool
   val debug_string : t -> string
 end = struct
-  (* See Note [Representation of block indices] in [lambda/translcore.ml] *)
+  (* See [jane/doc/extensions/_02-unboxed-types/block-indices.md] *)
   type t =
     | Bytecode of { path : int list }
     | Native of { offset : int; gap : int }

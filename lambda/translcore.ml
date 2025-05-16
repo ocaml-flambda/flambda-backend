@@ -2183,7 +2183,7 @@ and transl_record_unboxed_product ~scopes loc env fields repres opt_init_expr =
       let exp = transl_exp ~scopes init_expr_sort init_expr in
       Llet(Strict, layout, init_id, exp, lam)
 
-(* CR rtjoa: add pointer to doc and update pointers to Note*)
+(* See [jane/doc/extensions/_02-unboxed-types/block-indices.md] *)
 and transl_idx ~scopes loc env ba uas =  (*  *)
   let ua_to_pos (Uaccess_unboxed_field (_, lbl)) =
     (* erase singleton unboxed products before lambda *)
@@ -2230,7 +2230,7 @@ and transl_idx ~scopes loc env ba uas =  (*  *)
           ~get_value_kind:(fun _ -> Lambda.generic_value) shape
       in
       (* Check to make sure the gap never overflows.
-         See Note [Representation of block indices]. *)
+         See [jane/doc/extensions/_02-unboxed-types/block-indices.md]. *)
       let cts =
         Mixed_product_bytes_wrt_path.count_shape shape lbl.lbl_pos uas_path in
       if Option.is_none
