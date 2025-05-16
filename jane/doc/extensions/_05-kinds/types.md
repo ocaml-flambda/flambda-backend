@@ -75,7 +75,7 @@ the component types>>` without constraining the kinds of any of the `ty_i`.
 
 * An applied type constructor `(ty_1, ..., ty_n) t` (where n >= 0) has the kind
 assigned to `t` at its declaration, with type arguments substituted into any
-type variables mentioned in `t`'s with-bounds. Each of the `ty_i` is constrained
+type variables mentioned in the `t` with-bounds. Each of the `ty_i` is constrained
 to be a subkind of the kind on the corresponding type parameter to `t`.
 
 * An object type `< f1 : ty_1; ...; fn : ty_n >` has kind `value mod

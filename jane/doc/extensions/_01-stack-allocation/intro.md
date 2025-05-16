@@ -76,7 +76,7 @@ let f (local_ x) = ...
 ```
 
 A local parameter is a promise by a function not to let a particular
-argument escape its region. In the body of f, you'll get a type error
+argument escape the region where it belongs. In the body of f, you'll get a type error
 if x escapes, but when calling f you can freely pass stack-allocated values as
 the argument. This promise is visible in the type of f:
 

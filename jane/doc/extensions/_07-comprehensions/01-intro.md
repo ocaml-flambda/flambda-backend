@@ -110,7 +110,7 @@ the conditions hold.  The order of the result is given by evaluating the clauses
 (`for ... and ...` and `when` alike) in order from left to right; they may be
 thought of as nested loops/conditionals.
 
-## A special-case optimization for simple (fixed-size) array comprehensions
+## A special-case optimization for fixed-size array comprehensions
 
 One somewhat unusual design choice is the decision to allow multiple iterators
 in a single clause, via `for ITERATOR_1 and ITERATOR_2 and ... and ITERATOR_N`,
@@ -151,5 +151,5 @@ per surrounding iteration before any of them begin to iterate.
 ## More details
 
 This should be enough to use comprehensions on a day-to-day basis; if you have
-more questions, or are simply curious about how things work on the inside, see
+more questions, or are curious about how things work on the inside, see
 the [details page](../details).

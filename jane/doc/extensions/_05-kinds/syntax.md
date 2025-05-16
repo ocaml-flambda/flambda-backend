@@ -120,7 +120,7 @@ The abbreviations defined in the language are as follows:
       bound of `non_float` (because the value is not a pointer to a
       floating-point block).
 
-    Using `mod everything` is appropriate for simple data represented directly,
+    Using `mod everything` is appropriate for data represented directly,
     like `int` or `float32#`.
 
 * `any_non_null = any mod non_null`
@@ -227,7 +227,7 @@ still lower than both usages.
 The only question, then, is where to start the inference from? That is, what is
 default kind for a type parameter? It is tempting to say `any`, as that's the
 top. However, this would not be backward compatible, at least in module
-signatures, as we need the following very simple example to be accepted:
+signatures, as we need the following example to be accepted:
 
 ```ocaml
 module M : sig
