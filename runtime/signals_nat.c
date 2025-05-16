@@ -113,7 +113,11 @@ DECLARE_SIGNAL_HANDLER(segv_handler)
   char* protected_low = Protected_stack_page(block);
   char* protected_high = protected_low + caml_plat_pagesize;
   if ((fault_addr >= protected_low) && (fault_addr < protected_high)) {
+#ifdef SYS_macosx
+    context->uc_mcontext->__ss.__rip = (unsigned long long) &caml_raise_stack_overflow_nat;
+#else
     context->uc_mcontext.gregs[REG_RIP]= (greg_t) &caml_raise_stack_overflow_nat;
+#endif
   } else {
     act.sa_handler = SIG_DFL;
     act.sa_flags = 0;

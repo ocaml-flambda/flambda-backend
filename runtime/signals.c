@@ -588,10 +588,12 @@ CAMLexport int caml_rev_convert_signal_number(int signo)
   return signo;
 }
 
+#ifdef __linux__
 static size_t max_size_t(size_t a, size_t b)
 {
   return (a > b) ? a : b;
 }
+#endif
 
 void * caml_init_signal_stack(size_t* signal_stack_size)
 {
