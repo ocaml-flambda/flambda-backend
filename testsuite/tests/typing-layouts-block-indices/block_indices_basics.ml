@@ -673,8 +673,8 @@ let f c =
 [%%expect{|
 val f : bool -> ('a r, int) idx_imm = <fun>
 |}, Principal{|
-Line 677, characters 6-7:
-677 |     (.u.#x)
+Line 672, characters 6-7:
+672 |     (.u.#x)
             ^
 Warning 18 [not-principal]: this type-based field disambiguation is not principal.
 
@@ -690,8 +690,8 @@ let f c =
 [%%expect{|
 val f : bool -> (u t, int) idx_imm = <fun>
 |}, Principal{|
-Line 694, characters 9-10:
-694 |     (.a.#x)
+Line 689, characters 9-10:
+689 |     (.a.#x)
                ^
 Warning 18 [not-principal]: this type-based unboxed record field disambiguation is not principal.
 
@@ -707,8 +707,8 @@ let f c =
 [%%expect{|
 val f : bool -> (u t# t, int) idx_imm = <fun>
 |}, Principal{|
-Line 704, characters 12-13:
-704 |     (.a.#a.#x)
+Line 706, characters 12-13:
+706 |     (.a.#a.#x)
                   ^
 Warning 18 [not-principal]: this type-based unboxed record field disambiguation is not principal.
 
@@ -725,8 +725,8 @@ let f c =
 [%%expect{|
 val f : bool -> (u array, int) idx_mut = <fun>
 |}, Principal{|
-Line 715, characters 11-12:
-715 |     (.(1).#x)
+Line 724, characters 11-12:
+724 |     (.(1).#x)
                  ^
 Warning 18 [not-principal]: this type-based unboxed record field disambiguation is not principal.
 
@@ -743,8 +743,8 @@ let f c =
 [%%expect{|
 val f : bool -> (u t# array, int) idx_mut = <fun>
 |}, Principal{|
-Line 726, characters 14-15:
-726 |     (.(1).#a.#x)
+Line 742, characters 14-15:
+742 |     (.(1).#a.#x)
                     ^
 Warning 18 [not-principal]: this type-based unboxed record field disambiguation is not principal.
 
