@@ -977,18 +977,6 @@ let maybe_pmod_constraint mode expr =
 %token GREATERRBRACKET        ">]"
 %token HASHLPAREN             "#("
 %token HASHLBRACE             "#{"
-/*
-%token IDX_ARRAY              "idx_array_"
-%token IDX_ARRAY_I64          "idx_array_L"
-%token IDX_ARRAY_I32          "idx_array_l"
-%token IDX_ARRAY_NATIVEINT    "idx_array_n"
-%token IDX_IARRAY             "idx_iarray_"
-%token IDX_IARRAY_I64         "idx_iarray_L"
-%token IDX_IARRAY_I32         "idx_iarray_l"
-%token IDX_IARRAY_NATIVEINT   "idx_iarray_n"
-%token IDX_IMM                "idx_imm_"
-%token IDX_MUT                "idx_mut_"
-*/
 %token IF                     "if"
 %token IN                     "in"
 %token INCLUDE                "include"
@@ -1159,11 +1147,6 @@ The precedences must be listed from low to high.
           LBRACE LBRACELESS LBRACKET LBRACKETBAR LBRACKETCOLON LIDENT LPAREN
           NEW PREFIXOP STRING TRUE UIDENT
           LBRACKETPERCENT QUOTED_STRING_EXPR HASHLBRACE HASHLPAREN
-          /*
-          IDX_ARRAY IDX_ARRAY_I64 IDX_ARRAY_I32 IDX_ARRAY_NATIVEINT
-          IDX_IARRAY IDX_IARRAY_I64 IDX_IARRAY_I32 IDX_IARRAY_NATIVEINT
-          IDX_IMM IDX_MUT
-          */
 
 /* Entry points */
 
@@ -3090,41 +3073,6 @@ block_access:
   | DOT ident _p=LPAREN seq_expr _e=error
     { indexop_unclosed_error $loc(_p) Paren $loc(_e) }
 ;
-
-/*
-block_access:
-  | DOT mkrhs(label_longident)
-    { Baccess_field $2 }
-  | DOT IDX_ARRAY LPAREN i=seq_expr RPAREN
-    { Baccess_array (Immutable, Index_int, i) }
-  | DOT IDX_ARRAY_I64 LPAREN i=seq_expr RPAREN
-    { Baccess_array (Immutable, Index_unboxed_int64, i) }
-  | DOT IDX_ARRAY_I32 LPAREN i=seq_expr RPAREN
-    { Baccess_array (Immutable, Index_unboxed_int32, i) }
-  | DOT IDX_ARRAY_NATIVEINT LPAREN i=seq_expr RPAREN
-    { Baccess_array (Immutable, Index_unboxed_nativeint, i) }
-  | DOT IDX_IARRAY LPAREN i=seq_expr RPAREN
-    { Baccess_array (Immutable, Index_int, i) }
-  | DOT IDX_IARRAY_I64 LPAREN i=seq_expr RPAREN
-    { Baccess_array (Immutable, Index_unboxed_int64, i) }
-  | DOT IDX_IARRAY_I32 LPAREN i=seq_expr RPAREN
-    { Baccess_array (Immutable, Index_unboxed_int32, i) }
-  | DOT IDX_IARRAY_NATIVEINT LPAREN i=seq_expr RPAREN
-    { Baccess_array (Immutable, Index_unboxed_nativeint, i) }
-  | DOT IDX_BLOCK_IMM LPAREN i=seq_expr RPAREN
-    { Baccess_block (Immutable, i) }
-  | DOT IDX_BLOCK_MUT LPAREN i=seq_expr RPAREN
-    { Baccess_block (Mutable, i) }
-  | DOT block_access_idx _p=LBRACKET seq_expr _e=error
-    { indexop_unclosed_error $loc(_p) Paren $loc(_e) }
-;
-block_access_idx:
-  | IDX_ARRAY | IDX_ARRAY_I64 | IDX_ARRAY_I32 | IDX_ARRAY_NATIVEINT | IDX_IARRAY
-  | IDX_IARRAY_I64 | IDX_IARRAY_I32 | IDX_IARRAY_NATIVEINT | IDX_BLOCK_IMM
-  | IDX_BLOCK_MUT
-    { () }
-;
-*/
 
 %inline simple_expr_:
   | mkrhs(val_longident)

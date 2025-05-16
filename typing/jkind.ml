@@ -2645,7 +2645,7 @@ module Format_history = struct
       fprintf ppf "it's the type being used for a peek or poke primitive"
     | Idx_element ->
       fprintf ppf
-        "it's the element type(the second type parameter) for a block index \
+        "it's the element type (the second type parameter) for a block index \
          (idx or mut_idx)"
 
   let format_concrete_legacy_creation_reason ppf :

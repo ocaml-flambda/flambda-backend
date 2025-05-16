@@ -60,8 +60,10 @@ Specifically, it consists of one "block access" followed by zero or more
 
 Block accesses take the following forms:
 - `.foo` (record field)
-- `.(i)` (array index)
-- `.:(i)` (iarray index)
+- `.(i)`, `.L(i)`, `.l(i)`, `.n(i)` (`array` index as an `int`, `int64#`,
+  `int32#`, and `nativeint#`)
+- `.:(i)`, `.:L(i)`, `.:l(i)`, `.:n(i)` (`iarray` index as an `int`, `int64#`,
+  `int32#`, and `nativeint#`)
 - `.idx_imm(idx)` (immutable block index)
 - `.idx_mut(idx)` (mutable block index)
 
@@ -134,6 +136,11 @@ type 'a mptr = P : #('base, ('base, 'a) idx_mut) -> 'a mptr [@@unboxed]
 4. Indices to some records containing both values and non-values, and occupying
    over 2^16 bytes, cannot be created. See "Representation of block indices" for
    details.
+5. Indices to structures with non-default modalities are not supported.
+   Specifically, the composition of modalities of the accesses of an `idx_imm`
+   must have the identity modality, while the composition of modalities of the
+   accesses of an `idx_mut` must the the modality
+   `global many aliased unyielding`.
 
 # Representation of block indices
 

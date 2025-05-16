@@ -5718,9 +5718,6 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   in
-  (* [expected_base_ty] is only used for record field disambiguation.
-     We don't need to unify it with [base_ty] here because we unify
-     the whole expected type later. *)
   let type_block_access expected_base_ty principal
       (ba : Parsetree.block_access) : type_block_access_result =
     match ba with
@@ -6379,8 +6376,8 @@ and type_expect_
         sargl
   | Pexp_idx (ba, uas) ->
     Language_extension.assert_enabled ~loc Layouts Language_extension.Beta;
-    (* Compute the expected base type, only to use for disambiguation of the
-       block access *)
+    (* Compute the expected base type, to use for disambiguation of the record
+       and unboxed record fields *)
     let expected_base_ty ty_expected =
       match get_desc (expand_head env ty_expected) with
       | Tconstr(p, [arg1; _], _)
@@ -6412,10 +6409,12 @@ and type_expect_
       List.fold_left_map
         (fun (el_ty, modality) ua ->
            with_local_level_if_principal
-             ~post:(fun ((t,_), ua) -> generalize_type_unboxed_access_result (t,ua))
+             ~post:(fun ((t,_), ua) ->
+               generalize_type_unboxed_access_result (t,ua))
              (fun () ->
                 let (el_ty, ua_modality), ua = type_unboxed_access el_ty ua in
-                let modality = Modality.Value.Const.concat modality ~then_:ua_modality in
+                let modality =
+                  Modality.Value.Const.concat modality ~then_:ua_modality in
                 (el_ty, modality), ua
              ))
         (el_ty, modality)

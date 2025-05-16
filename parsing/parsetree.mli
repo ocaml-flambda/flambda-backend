@@ -450,7 +450,7 @@ and expression_desc =
   | Pexp_array of mutable_flag * expression list
       (** [[| E1; ...; En |]] or [[: E1; ...; En :]] *)
   | Pexp_idx of block_access * unboxed_access list
-      (** [idx_ .foo.#bar.#baz] *)
+      (** [(BA1 UA1 UA2 ...)] e.g. [(.foo.#bar.#baz)] *)
   | Pexp_ifthenelse of expression * expression * expression option
       (** [if E1 then E2 else E3] *)
   | Pexp_sequence of expression * expression  (** [E1; E2] *)
@@ -623,7 +623,13 @@ and function_constraint =
 
 and block_access =
   | Baccess_field of Longident.t loc
+      (** [.foo] *)
   | Baccess_array of mutable_flag * index_kind * expression
+      (** Mutable block accesses: [.(E)], [.L(E)], [.l(E)], [.n(E)]
+          Immutable array accesses: [.:(E)], [.:L(E)], [.:l(E)], [.:n(E)]
+
+          Indexed by [int], [int64#], [int32#], or [nativeint#], respectively.
+      *)
   | Baccess_block of mutable_flag * expression
 
 and unboxed_access =

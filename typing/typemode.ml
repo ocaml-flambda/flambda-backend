@@ -433,27 +433,13 @@ let mutable_implied_modalities mut attrs =
 
 let idx_expected_modalities ~(mut : bool) =
   (* There are two design constraints on what modalities we allow in an index
-     creation to contain:
+     creation to contain. Because these are coupled, this function checks that
+     they are equal.
 
       1. The default modalities (id for non-mutable fields, global many aliased
          unyielding for mutable fields) should work.
-      2. It should also be safe wrt to type signatures given to externals.
-
-     Because these are coupled, this function checks that they are equal.
-
-     external[@layout_poly] get_idx_imm :
-       'a ('b : any). ('a [@local_opt]) -> ('a, 'b) idx_imm -> ('b [@local_opt]) =
-       "%unsafe_get_idx_imm"
-
-     external[@layout_poly] get_idx_mut :
-       'a ('b : any). ('a [@local_opt]) -> ('a, 'b) idx_mut -> ('b [@local_opt]) =
-       "%unsafe_get_idx"
-
-     external[@layout_poly] set_idx_mut :
-       'a ('b : any).
-         'a @ local -> ('a, 'b) idx_mut -> 'b -> unit =
-       "%unsafe_set_idx"
-  *)
+      2. It should also be safe wrt to type signatures given to block index
+         primitives (see [idx_imm.mli] and [idx_mut.mli] in [Stdlib_beta]). *)
   let expected1 =
     mutable_implied_modalities mut [] |> Mode.Modality.Value.Const.of_list
   in
@@ -461,7 +447,7 @@ let idx_expected_modalities ~(mut : bool) =
     if mut
     then
       (* If this list is updated, the external bindings in the [Idx_imm] and
-         [Idx_mut] modules in the Stdlib may also have to be updated. *)
+         [Idx_mut] modules in [Stdlib_beta] may also have to be updated. *)
       Mode.Modality.Value.Const.of_list
         [ Atom (Comonadic Areality, Meet_with Regionality.Const.legacy);
           Atom (Comonadic Linearity, Meet_with Linearity.Const.legacy);

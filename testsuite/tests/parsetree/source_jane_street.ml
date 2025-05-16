@@ -1236,6 +1236,38 @@ val payload : string = "payload"
 val inc : 'a with_idx -> 'a with_idx = <fun>
 |}]
 
+(*****************)
+(* Block indices *)
+
+type 'a r = { foo : 'a }
+let idx_r () = (.foo)
+let idx_r_r () = (.foo.#foo)
+let idx_array x = (.(x))
+let idx_array_L x = (.L(x))
+let idx_array_l x = (.l(x))
+let idx_array_n x = (.n(x))
+let idx_iarray x = (.:(x))
+let idx_iarray_L x = (.:L(x))
+let idx_iarray_l x = (.:l(x))
+let idx_iarray_n x = (.:n(x))
+let idx_imm x = (.idx_imm(x))
+let idx_mut x = (.idx_mut(x))
+[%%expect{|
+type 'a r = { foo : 'a; }
+val idx_r : unit -> ('a r, 'a) idx_imm = <fun>
+val idx_r_r : unit -> ('a r# r, 'a) idx_imm = <fun>
+val idx_array : int -> ('a array, 'a) idx_mut = <fun>
+val idx_array_L : int64# -> ('a array, 'a) idx_mut = <fun>
+val idx_array_l : int32# -> ('a array, 'a) idx_mut = <fun>
+val idx_array_n : nativeint# -> ('a array, 'a) idx_mut = <fun>
+val idx_iarray : int -> ('a iarray, 'a) idx_imm = <fun>
+val idx_iarray_L : int64# -> ('a iarray, 'a) idx_imm = <fun>
+val idx_iarray_l : int32# -> ('a iarray, 'a) idx_imm = <fun>
+val idx_iarray_n : nativeint# -> ('a iarray, 'a) idx_imm = <fun>
+val idx_imm : ('a, 'b) idx_imm -> ('a, 'b) idx_imm = <fun>
+val idx_mut : ('a, 'b) idx_mut -> ('a, 'b) idx_mut = <fun>
+|}]
+
 (***************)
 (* Modal kinds *)
 
