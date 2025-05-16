@@ -171,7 +171,7 @@ let report_reason fmt t =
     Format.fprintf fmt "the@ call@ has@ an@ [@@inline always]@ attribute"
   | Replay_history_says_must_inline ->
     (* CR gbury: We could decide not to include in the inlining report inlining
-       decisions that were made during replays (e.G. continuation
+       decisions that were made during replays (e.g. continuation
        specialization), or alternatively to store the initial inlining decision
        so that we can report it each time. *)
     Format.fprintf fmt

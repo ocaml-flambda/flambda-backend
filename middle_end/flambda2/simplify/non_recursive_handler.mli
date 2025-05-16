@@ -32,3 +32,7 @@ val create :
   t
 
 val print : Format.formatter -> t -> unit
+
+val with_handler : Flambda.Expr.t -> t -> t
+
+val rename_params : t -> t

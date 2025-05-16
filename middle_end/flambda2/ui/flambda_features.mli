@@ -156,6 +156,8 @@ module Expert : sig
   val shorten_symbol_names : unit -> bool
 
   val cont_lifting_budget : unit -> int
+
+  val cont_spec_budget : unit -> int
 end
 
 val stack_allocation_enabled : unit -> bool
