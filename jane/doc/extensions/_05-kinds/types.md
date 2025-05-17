@@ -108,10 +108,10 @@ treatment like that for existentials in variant type declarations.)
 be able to improve this, analyzing `S` for mode-crossing opportunities.)
 
 * The type `'a array` has kind `mutable_data with 'a`. The kind of `'a` must
-be a subkind of `any mod non_null`.
+be a subkind of `any mod non_null separable`.
 
 * The type `'a iarray` has kind `immutable_data with 'a`. The kind of `'a` must
-be a subkind of `any mod non_null`.
+be a subkind of `any mod non_null separable`.
 
 * The type `'a lazy_t` has kind `value mod non_float`. The kind of `'a` must be
 a subkind of `value`.
