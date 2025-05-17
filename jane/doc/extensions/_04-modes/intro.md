@@ -251,7 +251,7 @@ when they are immutable.
 {: .table}
 
 Statefulness is a future axis that tracks whether a function reads or writes to some
-mutable state that it closes over (that is not explicitly passed to it in an argument).
+mutable state that it closes over (in other words, state that is not explicitly passed to it in an argument).
 
 *Stateless* functions may not either read or write such state, and *observing*
 functions can only read it. *Stateful* functions have no restrictions.
