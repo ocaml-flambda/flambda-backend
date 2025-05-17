@@ -118,7 +118,7 @@ let iterator =
     | Pexp_tuple ([] | [_]) -> invalid_tuple loc
     | Pexp_record ([], _) -> empty_record loc
     | Pexp_apply (_, []) -> no_args loc
-    | Pexp_let (_, [], _) -> empty_let loc
+    | Pexp_let (_, _, [], _) -> empty_let loc
     | Pexp_ident id
     | Pexp_construct (id, _)
     | Pexp_field (_, id)

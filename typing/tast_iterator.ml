@@ -339,6 +339,9 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
   | Texp_let (rec_flag, list, exp) ->
       sub.value_bindings sub (rec_flag, list);
       sub.expr sub exp
+  | Texp_letmutable (vb, exp) ->
+      sub.value_binding sub vb;
+      sub.expr sub exp
   | Texp_function { params; body; _ } ->
       List.iter (function_param sub) params;
       function_body sub body
@@ -416,8 +419,12 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
       sub.expr sub exp
   | Texp_new (_, lid, _, _) -> iter_loc sub lid
   | Texp_instvar (_, _, s) -> iter_loc sub s
+  | Texp_mutvar id -> iter_loc sub id
   | Texp_setinstvar (_, _, s, exp) ->
       iter_loc sub s;
+      sub.expr sub exp
+  | Texp_setmutvar (id, _, exp) ->
+      iter_loc sub id;
       sub.expr sub exp
   | Texp_override (_, list) ->
       List.iter (fun (_, s, e) -> iter_loc sub s; sub.expr sub e) list

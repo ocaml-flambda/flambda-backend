@@ -2752,6 +2752,8 @@ module Format_history = struct
          representable at call sites)"
     | Peek_or_poke ->
       fprintf ppf "it's the type being used for a peek or poke primitive"
+    | Mutable_var_assignment ->
+      fprintf ppf "it's the mutable variable type used in an assignment"
 
   let format_concrete_legacy_creation_reason ppf :
       History.concrete_legacy_creation_reason -> unit = function
@@ -2808,6 +2810,7 @@ module Format_history = struct
     | Inside_of_Tarrow -> fprintf ppf "argument or result of a function type"
     | Array_type_argument ->
       fprintf ppf "it's the type argument to the array type"
+    | Mutable_value -> fprintf ppf "it's the type of a let mutable value"
 
   let format_immediate_creation_reason ppf :
       History.immediate_creation_reason -> _ = function
@@ -3551,6 +3554,7 @@ module Debug_printers = struct
     | Layout_poly_in_external -> fprintf ppf "Layout_poly_in_external"
     | Unboxed_tuple_element -> fprintf ppf "Unboxed_tuple_element"
     | Peek_or_poke -> fprintf ppf "Peek_or_poke"
+    | Mutable_var_assignment -> fprintf ppf "Mutable_var_assignment"
 
   let concrete_legacy_creation_reason ppf :
       History.concrete_legacy_creation_reason -> unit = function
@@ -3591,6 +3595,7 @@ module Debug_printers = struct
     | Type_expression_call -> fprintf ppf "Type_expression_call"
     | Inside_of_Tarrow -> fprintf ppf "Inside_of_Tarrow"
     | Array_type_argument -> fprintf ppf "Array_type_argument"
+    | Mutable_value -> fprintf ppf "Mutable_value"
 
   let immediate_creation_reason ppf : History.immediate_creation_reason -> _ =
     function
