@@ -176,7 +176,7 @@ The abbreviations defined in the language are as follows:
 
 * `sync_data = value mod many contended portable unyielding stateless non_float`
 
-   This is a suitable kind of plain old data that can only be mutated
+   This is a suitable kind of plain old data that the type system guarantees can be mutated only
    safely in parallel, similar to the `Sync` trait in Rust.
 
 * `mutable_data = value mod many portable unyielding stateless non_float`
