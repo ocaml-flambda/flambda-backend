@@ -53,7 +53,7 @@ type ('a : value) or_null : value_or_null =
 
 ## Separability
 
-The separability axis records whether a type can have float value or non-float value elements, where a float OCaml value is a pointer to an allocated block with the `Double_tag`.
+The separability axis records whether a type can have float or non-float values, where a float value is a pointer to an allocated block tagged with `Double_tag` (which is what `float` values look like).
 This axis has three possible values, with `non_float < separable < non_separable`.
 if none of its elements are floats, while a type is `separable` if either all or none
 of its elements are floats. Separability is used to track types for which it is safe
