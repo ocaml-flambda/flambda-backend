@@ -12,7 +12,7 @@ end
 
 type t1 = { mutable d0 : int64# ; mutable d1: int64# }
 
-let[@opaque][@specialize never] add_mutable_record (a : t1) (b: t1) (c : t1) 
+let[@opaque][@specialize never] add_mutable_record (a : t1) (b: t1) (c : t1) :
      t1 =
   c.d0 <- Int64_u.add a.d0 b.d0;
   c.d1 <- Int64_u.add a.d1 b.d1;
