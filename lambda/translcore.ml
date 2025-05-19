@@ -1467,8 +1467,10 @@ and transl_apply ~scopes
            so that evaluation is right-to-left. *)
         List.fold_right
           (fun (id, layout, lam) body ->
-          (* CR sspies: It appears all variables in [defs] are hidden from
-             the user. Is that correct? *)
+          (* XCR sspies: It appears all variables in [defs] are hidden from
+             the user. Is that correct?
+
+             rtjoa: LGTM *)
           Llet(Strict, layout, id, Lambda.debug_uid_none, lam, body))
           !defs body
     | Arg (arg, _) :: l ->

@@ -430,7 +430,12 @@ let eval_rec_bindings bindings cont =
   | (Id id, Some(loc, shape), _rhs) :: rem ->
       Llet(Strict, Lambda.layout_module, id,
           Lambda.debug_uid_none,
-          (* CR sspies: Is there a sensible [debug_uid] here? *)
+          (* XCR sspies: Is there a sensible [debug_uid] here?
+
+             rtjoa: It seems like we could add a uid to the [Id] constructor of
+             [id_or_ignore_loc], which populate with [mb_uid] in
+             [compile_recmodule]? But I'm not sure how sensible this [debug_uid]
+             is. *)
            Lapply{
              ap_loc=Loc_unknown;
              ap_func=mod_prim "init_mod";
@@ -560,7 +565,15 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
     List.fold_left (fun (params, body) (param, loc, arg_coercion) ->
         let param' = Ident.rename param in
         let param'_duid = Lambda.debug_uid_none in
-        (* CR sspies: Is there a sensible [debug_uid] here? *)
+        (* XCR sspies: Is there a sensible [debug_uid] here?
+
+           rtjoa: If the debugger can inspect the module arguments to functors,
+           it seems like there could be:
+           - The [Named] constructor of [functor_parameter] could store a uid
+           - Which we extract and return in this line of [merge_functors],
+             above:
+             | Named (Some id, _, _) -> functor_path path id, id
+        *)
         let arg = apply_coercion loc Alias arg_coercion (Lvar param') in
         let params = {
           name = param';
@@ -570,7 +583,11 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
           mode = alloc_heap
         } :: params in
         let param_duid = Lambda.debug_uid_none in
-        (* CR sspies: Should param come with a [debug_uid]? *)
+        (* XCR sspies: Should param come with a [debug_uid]?
+
+           rtjoa: I think this can use the same [duid] as the above because they
+           have the same "shape"? It might be redundant but seems safe.
+        *)
         let body = Llet (Alias, Lambda.layout_module, param, param_duid, arg,
                          body)
         in
@@ -779,7 +796,9 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
           | Some id ->
               Llet(pure_module mb.mb_expr, Lambda.layout_module, id,
               Lambda.debug_uid_none, module_body, body), size
-              (* CR sspies: Can we find a better [debug_uid] here? *)
+              (* XCR sspies: Can we find a better [debug_uid] here?
+
+                 rtjoa: Maybe [mb.mb_uid]? *)
           end
       | Tstr_module ({mb_presence=Mp_absent}) ->
           transl_structure ~scopes loc fields cc rootpath final_env rem

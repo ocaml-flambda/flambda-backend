@@ -846,8 +846,10 @@ let split_default_wrapper ~id:fun_id ~debug_uid:fun_duid ~kind ~params ~return ~
 
         let inner_id = Ident.create_local (Ident.name fun_id ^ "_inner") in
         let inner_id_duid = Lambda.debug_uid_none in
-        (* CR sspies: This variable is not user visible, right? I think passing
-           on [fun_duid] would lead to a duplication of [debug_uid]. *)
+        (* XCR sspies: This variable is not user visible, right? I think passing
+           on [fun_duid] would lead to a duplication of [debug_uid].
+
+           rtjoa: LGTM *)
         let map_param (p : Lambda.lparam) =
           try
             {

@@ -87,6 +87,15 @@
 
 *)
 
+(* CR rtjoa: I'm not familiar enough with the pattern matching compiler, but
+   documenting this case we discussed. Only [y] appears in dlambda, and it has
+   an internal uid.
+
+  let f x = match x with
+    | x, (Some y) when y -> (x, y)
+    | x, None -> (1, false)
+*)
+
 open Misc
 open Asttypes
 open Types

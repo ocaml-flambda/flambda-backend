@@ -752,6 +752,7 @@ and module_type_constraint =
 
 and functor_parameter =
   | Unit
+  (* CR rtjoa: should [Named] store a uid? See comment in translmod *)
   | Named of Ident.t option * string option loc * module_type
 
 and module_expr_desc =

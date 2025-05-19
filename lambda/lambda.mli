@@ -744,9 +744,13 @@ type debug_uid = Shape.Uid.t
     at the level of Lambda or below can use the same [debug_uid]. *)
 (* CR sspies: This comment is currently not accurate, since we do not yet
   emit these ids into dwarf code. *)
-(* CR sspies: The point of the name [debug_uid] is to preserve the connection
+(* XCR sspies: The point of the name [debug_uid] is to preserve the connection
    to the underlying [Shape.Uid.t]. It could lead to confusion around the fact
-   that these identifiers are not actually unique. *)
+   that these identifiers are not actually unique.
+
+   rtjoa: How about naming it something like [typedtree_uid], or even not
+   aliasing it at all and referring to [Typedtree.Uid.t] or [Shape.Uid.t] below?
+   This could also help indicate that typedtree is the source of truth. *)
 
 val debug_uid_none : debug_uid
 (** [debug_uid_none] should be used for those identifiers that are not
@@ -800,9 +804,14 @@ type lambda =
       lambda * (static_label * (Ident.t * debug_uid * layout) list) * lambda
       * pop_region * layout
   | Ltrywith of lambda * Ident.t * debug_uid * lambda * layout
-  (* CR sspies: What is the identifier in a [Ltrywith]. Should it get a debug
-     id? *)
-(* Lifthenelse (e, t, f, layout) evaluates t if e evaluates to 0, and evaluates f if
+  (* XCR sspies: What is the identifier in a [Ltrywith]. Should it get a debug
+     id?
+
+     rtjoa: I think [Typecore.name_cases] gives it a meaningful identifier
+     if one of the cases is a variable or alias, and otherwise it calls
+     [Ident.create_local "exn"]. So it seems like we should store a uid
+     in the former case. *)
+  (* Lifthenelse (e, t, f, layout) evaluates t if e evaluates to 0, and evaluates f if
    e evaluates to any other value; layout must be the layout of [t] and [f] *)
   | Lifthenelse of lambda * lambda * lambda * layout
   | Lsequence of lambda * lambda
