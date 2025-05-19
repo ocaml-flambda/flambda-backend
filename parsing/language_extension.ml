@@ -86,7 +86,7 @@ let get_level_ops : type a. a t -> (module Extension_level with type t = a) =
 let is_erasable : type a. a t -> bool = function
   | Mode | Unique | Overwriting | Layouts -> true
   | Comprehensions | Include_functor | Polymorphic_parameters | Immutable_arrays
-  | Module_strengthening | SIMD | Labeled_tuples | Small_numbers | Instances 
+  | Module_strengthening | SIMD | Labeled_tuples | Small_numbers | Instances
   | Separability ->
     false
 
@@ -220,7 +220,8 @@ let equal_t (type a b) (a : a t) (b : b t) : (a, b) Misc.eq option =
   | Separability, Separability -> Some Refl
   | ( ( Comprehensions | Mode | Unique | Overwriting | Include_functor
       | Polymorphic_parameters | Immutable_arrays | Module_strengthening
-      | Layouts | SIMD | Labeled_tuples | Small_numbers | Instances | Separability ),
+      | Layouts | SIMD | Labeled_tuples | Small_numbers | Instances
+      | Separability ),
       _ ) ->
     None
 
