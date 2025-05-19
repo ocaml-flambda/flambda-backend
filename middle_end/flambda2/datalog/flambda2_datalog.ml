@@ -256,14 +256,14 @@ module Datalog = struct
   type hypothesis =
     [ `Atom of atom
     | `Not_atom of atom
-    | `Not_equal of equality
+    | `Distinct of equality
     | `Filter of filter ]
 
   let atom id args = `Atom (Atom (id, args))
 
   let not (`Atom atom) = `Not_atom atom
 
-  let not_equal c x y = `Not_equal (Equality (Column.key_repr c, x, y))
+  let distinct c x y = `Distinct (Equality (Column.key_repr c, x, y))
 
   let filter f args = `Filter (Filter (f, args))
 
@@ -273,7 +273,7 @@ module Datalog = struct
         match predicate with
         | `Atom (Atom (id, args)) -> where_atom id args f
         | `Not_atom (Atom (id, args)) -> unless_atom id args f
-        | `Not_equal (Equality (repr, t1, t2)) -> unless_eq repr t1 t2 f
+        | `Distinct (Equality (repr, t1, t2)) -> unless_eq repr t1 t2 f
         | `Filter (Filter (p, args)) -> Datalog.filter p args f)
       f predicates
 

@@ -139,7 +139,7 @@ module Datalog : sig
   type hypothesis =
     [ `Atom of atom
     | `Not_atom of atom
-    | `Not_equal of equality
+    | `Distinct of equality
     | `Filter of filter ]
 
   (** [atom rel args] represents the application of relation [rel] to the
@@ -159,8 +159,8 @@ module Datalog : sig
 
   val not : [< `Atom of atom] -> [> `Not_atom of atom]
 
-  val not_equal :
-    (_, 'k, _) Column.id -> 'k Term.t -> 'k Term.t -> [> `Not_equal of equality]
+  val distinct :
+    (_, 'k, _) Column.id -> 'k Term.t -> 'k Term.t -> [> `Distinct of equality]
 
   val filter :
     ('k Constant.hlist -> bool) -> 'k Term.hlist -> [> `Filter of filter]
