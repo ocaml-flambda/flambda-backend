@@ -3297,6 +3297,25 @@ let walk_locks ~errors ~loc ~env ~item ~lid mode ty locks =
           vmode
     ) vmode locks
 
+let unwalk_locks ~errors:_ ~loc:_ ~env:_ ~item:_ ~lid:_ mode ty locks =
+  let _ = ty in
+  List.fold_right
+    (fun lock mode ->
+      match lock with
+      | Region_lock ->
+          mode
+      | Escape_lock _escaping_context ->
+          mode
+      | Share_lock _shared_context ->
+          mode
+      | Closure_lock (_locality_context, _comonadic) ->
+          mode
+      | Exclave_lock ->
+          mode
+      | Unboxed_lock ->
+          mode
+    ) locks mode
+
 let lookup_ident_value ~errors ~use ~loc name env =
   match IdTbl.find_name_and_locks wrap_value ~mark:use name env.values with
   | Ok (_, locks, Val_bound {vda_description={val_kind=Val_mut}})
@@ -4053,24 +4072,17 @@ let lookup_settable_variable ?(use=true) ~loc name env =
           Instance_variable
             (path, mut, cl_num, Subst.Lazy.force_type_expr desc.val_type)
       | Val_mut, Pident id ->
-          let rec mode_of_locks mode = function
-          (* jra: surely this is incorrect *)
-          | [] -> mode
-          | Closure_lock _ :: _ | Escape_lock _ :: _ ->
-            lookup_error loc env (Mutable_value_used_in_closure (Ident.name id))
-          | Region_lock :: locks ->
-            mode_of_locks
-              (Mode.Value.max_with (Comonadic Areality) Mode.Regionality.global)
-              locks
-          | Exclave_lock :: locks  ->
-            mode_of_locks (Mode.Value.disallow_left Mode.Value.max) locks
-          | _ :: locks -> mode_of_locks mode locks
-          in
+          let val_type = Subst.Lazy.force_type_expr desc.val_type in
           let mode =
-            mode_of_locks (Mode.Value.disallow_left Mode.Value.max) locks
+            unwalk_locks
+              ~errors:true ~loc ~env ~item:Value
+              ~lid:(Lident "")
+              (Mode.Value.disallow_left Mode.Value.max)
+              val_type
+              locks
           in
           use_value ~use ~loc path vda;
-          Mutable_variable (id, mode, Subst.Lazy.force_type_expr desc.val_type)
+          Mutable_variable (id, mode, val_type)
       | Val_mut, _ -> assert false
       (* Unreachable because only [type_pat] creates mutable variables
          and it checks that they are simple identifiers. *)
