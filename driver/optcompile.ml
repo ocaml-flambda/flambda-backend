@@ -56,7 +56,7 @@ let compile_from_raw_lambda i raw_lambda ~unix ~pipeline ~as_arg_for =
            Asmgen.compile_implementation
              unix
              ~pipeline
-             ~sourcefile:(Some (Unit_info.source_file i.target))
+             ~sourcefile:(Some (!Location.input_name))
              ~prefixname:(Unit_info.prefix i.target)
              ~ppf_dump:i.ppf_dump
              program);
