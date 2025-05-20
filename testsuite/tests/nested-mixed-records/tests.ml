@@ -7,6 +7,13 @@ external box_int32 : int32# -> (int32[@local_opt]) = "%box_int32"
 external box_int64 : int64# -> (int64[@local_opt]) = "%box_int64"
 external box_float : float# -> (float[@local_opt]) = "%box_float"
 
+let size x =
+  let x = Obj.repr x in
+  match Obj.Uniform_or_mixed.(repr (of_block x)) with
+  | Uniform -> Printf.sprintf "uniform[%d]" (Obj.size x)
+  | Mixed { scannable_prefix_len; } ->
+    Printf.sprintf "mixed[%d/%d]" scannable_prefix_len (Obj.size x)
+
 module T00 = struct
 
   (* All values in inner record are boxed, all values in outer record are boxed. *)
@@ -20,8 +27,8 @@ module T00 = struct
       str = "something";
       sub = #{ i32 = 123l; i64 = 456L; };
     } in
-    Printf.printf "size=%d value.str=%S value.sub.#i32=%ld value.sub.#i64=%Ld \n%!"
-      Obj.(size (repr value))
+    Printf.printf "size=%s value.str=%S value.sub.#i32=%ld value.sub.#i64=%Ld \n%!"
+      (size value)
       value.str
       value.sub.#i32
       value.sub.#i64
@@ -41,8 +48,8 @@ module T01 = struct
       str = "something";
       sub = #{ i32 = #123l; i64 = #456L; };
     } in
-    Printf.printf "size=%d value.str=%S value.sub.#i32=%ld value.sub.#i64=%Ld \n%!"
-      Obj.(size (repr value))
+    Printf.printf "size=%s value.str=%S value.sub.#i32=%ld value.sub.#i64=%Ld \n%!"
+      (size value)
       value.str
       (box_int32 value.sub.#i32)
       (box_int64 value.sub.#i64)
@@ -62,8 +69,8 @@ module T02 = struct
       i = #987l;
       sub = #{ i32 = 123l; i64 = 456L; };
     } in
-    Printf.printf "size=%d value.i=%ld value.sub.#i32=%ld value.sub.#i64=%Ld \n%!"
-      Obj.(size (repr value))
+    Printf.printf "size=%s value.i=%ld value.sub.#i32=%ld value.sub.#i64=%Ld \n%!"
+      (size value)
       (box_int32 value.i)
       value.sub.#i32
       value.sub.#i64
@@ -83,8 +90,8 @@ module T03 = struct
       i = #987l;
       sub = #{ i32 = #123l; i64 = #456L; };
     } in
-    Printf.printf "size=%d value.i=%ld value.sub.#i32=%ld value.sub.#i64=%Ld \n%!"
-      Obj.(size (repr value))
+    Printf.printf "size=%s value.i=%ld value.sub.#i32=%ld value.sub.#i64=%Ld \n%!"
+      (size value)
       (box_int32 value.i)
       (box_int32 value.sub.#i32)
       (box_int64 value.sub.#i64)
@@ -105,8 +112,8 @@ module T04 = struct
       sub = #{ i32 = #123l; i64 = #456L; s = "s"; };
       i = #789l;
     } in
-    Printf.printf "size=%d value.str=%S value.sub.#i32=%ld value.sub.#i64=%Ld value.sub.s=%s value.i=%ld \n%!"
-      Obj.(size (repr value))
+    Printf.printf "size=%s value.str=%S value.sub.#i32=%ld value.sub.#i64=%Ld value.sub.s=%s value.i=%ld \n%!"
+      (size value)
       value.str
       (box_int32 value.sub.#i32)
       (box_int64 value.sub.#i64)
