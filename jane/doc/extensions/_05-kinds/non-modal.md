@@ -54,9 +54,7 @@ type ('a : value) or_null : value_or_null =
 ## Separability
 
 The separability axis records whether a type can have float or non-float values, where a float value is a pointer to an allocated block tagged with `Double_tag` (which is what `float` values look like).
-This axis has three possible values, with `non_float < separable < non_separable`.
-if none of its elements are floats, while a type is `separable` if either all or none
-of its elements are floats. Separability is used to track types for which it is safe
+This axis has three possible values, with `non_float < separable < non_separable`. A type is `non_float` if none of its elements are floats, and a type is `separable` if either all or none of its elements are floats. Separability is used to track types for which it is safe
 to apply the float array optimization.
 
 `value_or_null` is considered `non_separable`, since `float or_null` has both float
