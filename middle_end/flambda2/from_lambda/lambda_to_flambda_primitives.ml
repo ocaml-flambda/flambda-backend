@@ -1442,7 +1442,6 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
         shape
     in
-    (* XXX check that the length of [args] = length of flattened [shape] *)
     let args =
       let new_indexes_to_old_indexes =
         Mixed_block_shape.new_indexes_to_old_indexes shape
@@ -1452,10 +1451,17 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           args.(new_indexes_to_old_indexes.(new_index)))
       |> Array.to_list
     in
+    let flattened_reordered_shape =
+      Mixed_block_shape.flattened_reordered_shape shape
+    in
+    if List.length args <> Array.length flattened_reordered_shape
+    then
+      Misc.fatal_errorf
+        "Pmakemixedblock: number of arguments (%d) is not consistent with \
+         shape length (%d)"
+        (List.length args)
+        (Array.length flattened_reordered_shape);
     let args =
-      let flattened_reordered_shape =
-        Mixed_block_shape.flattened_reordered_shape shape
-      in
       List.mapi
         (fun new_index arg ->
           match flattened_reordered_shape.(new_index) with

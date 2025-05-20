@@ -139,7 +139,8 @@ type primitive =
         place on entry to Flambda 2. *)
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
-  | Psetmixedfield of int list * mixed_block_shape * initialization_or_assignment
+  | Psetmixedfield of int list * mixed_block_shape
+      * initialization_or_assignment
     (** The same comment about the index as for [Pmixedfield] applies to
         [Psetmixedfield]. *)
   | Pduprecord of Types.record_representation * int
