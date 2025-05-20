@@ -53,10 +53,10 @@ end
 Line 2, characters 10-24:
 2 |   val x : t_any_non_null
               ^^^^^^^^^^^^^^
-Error: This type signature for "x" is not a value type.
+Error: This type signature for "x" does not have a representable layout.
        The layout of type t_any_non_null is any
          because of the definition of t_any_non_null at line 2, characters 0-34.
-       But the layout of type t_any_non_null must be a sublayout of value
+       But the layout of type t_any_non_null must be representable
          because it's the type of something stored in a module structure.
 |}]
 

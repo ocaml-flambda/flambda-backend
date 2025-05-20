@@ -46,45 +46,29 @@ val f2_2 : ('a : vec128). 'a t_vec128_id -> 'a t_vec128_id = <fun>
 val f2_3 : int64x2# -> int64x2# = <fun>
 |}];;
 
-(*****************************************)
-(* Test 3: No module-level bindings yet. *)
+(**********************************)
+(* Test 3: Module-level bindings. *)
 
 let x3_1 : t_vec128 = assert false;;
 [%%expect{|
-Line 1, characters 4-8:
-1 | let x3_1 : t_vec128 = assert false;;
-        ^^^^
-Error: Types of top-level module bindings must have layout "value", but
-       the type of "x3_1" has layout "vec128".
+Exception: Assert_failure ("", 1, 22).
 |}];;
 
 let x3_2 : 'a t_vec128_id = assert false;;
 [%%expect{|
-Line 1, characters 4-8:
-1 | let x3_2 : 'a t_vec128_id = assert false;;
-        ^^^^
-Error: Types of top-level module bindings must have layout "value", but
-       the type of "x3_2" has layout "vec128".
+Exception: Assert_failure ("", 1, 28).
 |}];;
 
 let x3_3 : int64x2# = assert false;;
 [%%expect{|
-Line 1, characters 4-8:
-1 | let x3_3 : int64x2# = assert false;;
-        ^^^^
-Error: Types of top-level module bindings must have layout "value", but
-       the type of "x3_3" has layout "vec128".
+Exception: Assert_failure ("", 1, 22).
 |}];;
 
 module M3_4 = struct
   let x : t_vec128 = assert false
 end
 [%%expect{|
-Line 2, characters 6-7:
-2 |   let x : t_vec128 = assert false
-          ^
-Error: Types of top-level module bindings must have layout "value", but
-       the type of "x" has layout "vec128".
+Exception: Assert_failure ("", 2, 21).
 |}];;
 
 module M3_5 = struct
@@ -93,11 +77,7 @@ module M3_5 = struct
   let y = f (assert false)
 end
 [%%expect{|
-Line 4, characters 6-7:
-4 |   let y = f (assert false)
-          ^
-Error: Types of top-level module bindings must have layout "value", but
-       the type of "y" has layout "vec128".
+Exception: Assert_failure ("", 4, 12).
 |}];;
 
 (*************************************)
@@ -250,44 +230,24 @@ type t5_6_1 = A of { x : t_vec128 } [@@unboxed];;
 type t5_6_1 = A of { x : t_vec128; } [@@unboxed]
 |}];;
 
-(****************************************************)
-(* Test 6: Can't be put at top level of signatures. *)
+(**************************************************)
+(* Test 6: Can be put at top level of signatures. *)
 module type S6_1 = sig val x : t_vec128 end
 
 let f6 (m : (module S6_1)) = let module M6 = (val m) in M6.x;;
 [%%expect{|
-Line 1, characters 31-39:
-1 | module type S6_1 = sig val x : t_vec128 end
-                                   ^^^^^^^^
-Error: This type signature for "x" is not a value type.
-       The layout of type t_vec128 is vec128
-         because of the definition of t_vec128 at line 1, characters 0-22.
-       But the layout of type t_vec128 must be a sublayout of value
-         because it's the type of something stored in a module structure.
+module type S6_1 = sig val x : t_vec128 end
+val f6 : (module S6_1) -> t_vec128 = <fun>
 |}];;
 
 module type S6_2 = sig val x : 'a t_vec128_id end
 [%%expect{|
-Line 1, characters 31-45:
-1 | module type S6_2 = sig val x : 'a t_vec128_id end
-                                   ^^^^^^^^^^^^^^
-Error: This type signature for "x" is not a value type.
-       The layout of type 'a t_vec128_id is vec128
-         because of the definition of t_vec128_id at line 2, characters 0-35.
-       But the layout of type 'a t_vec128_id must be a sublayout of value
-         because it's the type of something stored in a module structure.
+module type S6_2 = sig val x : ('a : vec128). 'a t_vec128_id end
 |}];;
 
 module type S6_3 = sig val x : int64x2# end
 [%%expect{|
-Line 1, characters 31-39:
-1 | module type S6_3 = sig val x : int64x2# end
-                                   ^^^^^^^^
-Error: This type signature for "x" is not a value type.
-       The layout of type int64x2# is vec128
-         because it is the unboxed version of the primitive type int64x2.
-       But the layout of type int64x2# must be a sublayout of value
-         because it's the type of something stored in a module structure.
+module type S6_3 = sig val x : int64x2# end
 |}];;
 
 

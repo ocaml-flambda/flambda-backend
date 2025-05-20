@@ -49,58 +49,38 @@ val f2_2 : ('a : word). 'a t_word_id -> 'a t_word_id = <fun>
 val f2_3 : nativeint# -> nativeint# = <fun>
 |}];;
 
-(*****************************************)
-(* Test 3: No module-level bindings yet. *)
+(**********************************)
+(* Test 3: Module-level bindings. *)
 
 let x3_1 : t_word = assert false;;
 [%%expect{|
-Line 1, characters 4-8:
-1 | let x3_1 : t_word = assert false;;
-        ^^^^
-Error: Types of top-level module bindings must have layout "value", but
-       the type of "x3_1" has layout "word".
+Exception: Assert_failure ("", 1, 20).
 |}];;
 
 let x3_2 : 'a t_word_id = assert false;;
 [%%expect{|
-Line 1, characters 4-8:
-1 | let x3_2 : 'a t_word_id = assert false;;
-        ^^^^
-Error: Types of top-level module bindings must have layout "value", but
-       the type of "x3_2" has layout "word".
+Exception: Assert_failure ("", 1, 26).
 |}];;
 
-let x3_3 : nativeint# = assert false;;
+let x3_3 : nativeint# = #42n;;
 [%%expect{|
-Line 1, characters 4-8:
-1 | let x3_3 : nativeint# = assert false;;
-        ^^^^
-Error: Types of top-level module bindings must have layout "value", but
-       the type of "x3_3" has layout "word".
+val x3_3 : nativeint# = <abstr>
 |}];;
 
 module M3_4 = struct
   let x : t_word = assert false
 end
 [%%expect{|
-Line 2, characters 6-7:
-2 |   let x : t_word = assert false
-          ^
-Error: Types of top-level module bindings must have layout "value", but
-       the type of "x" has layout "word".
+Exception: Assert_failure ("", 2, 19).
 |}];;
 
 module M3_5 = struct
   let f (x : nativeint#) = x
 
-  let y = f (assert false)
+  let y = f #42n
 end
 [%%expect{|
-Line 4, characters 6-7:
-4 |   let y = f (assert false)
-          ^
-Error: Types of top-level module bindings must have layout "value", but
-       the type of "y" has layout "word".
+module M3_5 : sig val f : nativeint# -> nativeint# val y : nativeint# end
 |}];;
 
 (*************************************)
@@ -247,44 +227,24 @@ type t5_6 = A of t_word [@@unboxed];;
 type t5_6 = A of t_word [@@unboxed]
 |}];;
 
-(****************************************************)
-(* Test 6: Can't be put at top level of signatures. *)
+(**************************************************)
+(* Test 6: Can be put at top level of signatures. *)
 module type S6_1 = sig val x : t_word end
 
 let f6 (m : (module S6_1)) = let module M6 = (val m) in M6.x;;
 [%%expect{|
-Line 1, characters 31-37:
-1 | module type S6_1 = sig val x : t_word end
-                                   ^^^^^^
-Error: This type signature for "x" is not a value type.
-       The layout of type t_word is word
-         because of the definition of t_word at line 1, characters 0-18.
-       But the layout of type t_word must be a sublayout of value
-         because it's the type of something stored in a module structure.
+module type S6_1 = sig val x : t_word end
+val f6 : (module S6_1) -> t_word = <fun>
 |}];;
 
 module type S6_2 = sig val x : 'a t_word_id end
 [%%expect{|
-Line 1, characters 31-43:
-1 | module type S6_2 = sig val x : 'a t_word_id end
-                                   ^^^^^^^^^^^^
-Error: This type signature for "x" is not a value type.
-       The layout of type 'a t_word_id is word
-         because of the definition of t_word_id at line 2, characters 0-31.
-       But the layout of type 'a t_word_id must be a sublayout of value
-         because it's the type of something stored in a module structure.
+module type S6_2 = sig val x : ('a : word). 'a t_word_id end
 |}];;
 
 module type S6_3 = sig val x : nativeint# end
 [%%expect{|
-Line 1, characters 31-41:
-1 | module type S6_3 = sig val x : nativeint# end
-                                   ^^^^^^^^^^
-Error: This type signature for "x" is not a value type.
-       The layout of type nativeint# is word
-         because it is the unboxed version of the primitive type nativeint.
-       But the layout of type nativeint# must be a sublayout of value
-         because it's the type of something stored in a module structure.
+module type S6_3 = sig val x : nativeint# end
 |}];;
 
 
