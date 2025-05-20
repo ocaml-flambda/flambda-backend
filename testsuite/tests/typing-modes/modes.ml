@@ -321,8 +321,12 @@ Error: Unrecognized modality foo.
 |}]
 
 type t = Foo of global_ string @@ global
-(* CR reduced-modality: this should warn. *)
 [%%expect{|
+Line 1, characters 16-23:
+1 | type t = Foo of global_ string @@ global
+                    ^^^^^^^
+Warning 213: This locality is overriden by meet_with(global) later.
+
 type t = Foo of global_ string
 |}]
 
@@ -346,8 +350,12 @@ Error: Unrecognized modality foo.
 type r = {
   global_ x : string @@ global
 }
-(* CR reduced-modality: this should warn. *)
 [%%expect{|
+Line 2, characters 2-9:
+2 |   global_ x : string @@ global
+      ^^^^^^^
+Warning 213: This locality is overriden by meet_with(global) later.
+
 type r = { global_ x : string; }
 |}]
 
@@ -356,27 +364,31 @@ type r = {
   global_ x : string @@ aliased
 }
 [%%expect{|
-type r = { x : string @@ global aliased; }
+type r = { x : string @@ aliased global; }
 |}]
 
 type r = {
   x : string @@ aliased global many
 }
 [%%expect{|
-type r = { x : string @@ global many aliased; }
+type r = { x : string @@ aliased global many; }
 |}]
 
 type r = {
   x : string @@ aliased global many aliased
 }
-(* CR reduced-modality: this should warn. *)
 [%%expect{|
-type r = { x : string @@ global many aliased; }
+Line 2, characters 16-23:
+2 |   x : string @@ aliased global many aliased
+                    ^^^^^^^
+Warning 213: This uniqueness is overriden by join_with(aliased) later.
+
+type r = { x : string @@ aliased global many; }
 |}]
 
 type r = Foo of string @@ global aliased many
 [%%expect{|
-type r = Foo of string @@ global many aliased
+type r = Foo of string @@ aliased global many
 |}]
 
 (* mutable implies global aliased many. No warnings are given since we imagine

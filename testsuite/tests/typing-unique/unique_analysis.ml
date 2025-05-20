@@ -566,7 +566,7 @@ module Value : sig type t val mk : unit -> t @ unique end
 (* Testing modalities in records *)
 type r_aliased = {x : Value.t; y : Value.t @@ aliased many}
 [%%expect{|
-type r_aliased = { x : Value.t; y : Value.t @@ many aliased; }
+type r_aliased = { x : Value.t; y : Value.t @@ aliased many; }
 |}]
 
 let foo () =
@@ -652,7 +652,7 @@ Line 3, characters 19-20:
 (* testing modalities in constructors *)
 type r_aliased = R_aliased of Value.t * Value.t @@ aliased many
 [%%expect{|
-type r_aliased = R_aliased of Value.t * Value.t @@ many aliased
+type r_aliased = R_aliased of Value.t * Value.t @@ aliased many
 |}]
 
 let foo () =

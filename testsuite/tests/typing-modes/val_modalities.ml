@@ -42,7 +42,32 @@ module type S = sig
       portable nonportable
 end
 [%%expect{|
-module type S = sig val x : string @@ many aliased contended end
+Line 2, characters 35-41:
+2 |     val x : string @@ global local unique aliased once many uncontended contended
+                                       ^^^^^^
+Warning 213: This uniqueness is overriden by join_with(aliased) later.
+
+Line 2, characters 60-71:
+2 |     val x : string @@ global local unique aliased once many uncontended contended
+                                                                ^^^^^^^^^^^
+Warning 213: This contention is overriden by join_with(contended) later.
+
+Line 2, characters 22-28:
+2 |     val x : string @@ global local unique aliased once many uncontended contended
+                          ^^^^^^
+Warning 213: This locality is overriden by meet_with(local) later.
+
+Line 2, characters 50-54:
+2 |     val x : string @@ global local unique aliased once many uncontended contended
+                                                      ^^^^
+Warning 213: This linearity is overriden by meet_with(many) later.
+
+Line 3, characters 6-14:
+3 |       portable nonportable
+          ^^^^^^^^
+Warning 213: This portability is overriden by meet_with(nonportable) later.
+
+module type S = sig val x : string @@ aliased contended many end
 |}]
 
 (* values' comonadic axes must be lower than the module *)

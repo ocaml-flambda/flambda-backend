@@ -466,8 +466,8 @@ let () =
 [%%expect{|
 type color = Red | Black
 type ('k, 'v) tree =
-    Node of { color : color; left : ('k, 'v) tree; key : 'k @@ many aliased;
-      value : 'v @@ many aliased; right : ('k, 'v) tree;
+    Node of { color : color; left : ('k, 'v) tree; key : 'k @@ aliased many;
+      value : 'v @@ aliased many; right : ('k, 'v) tree;
     }
   | Leaf
 val fold : ('a -> 'b -> 'c -> 'c) -> 'c -> ('a, 'b) tree -> 'c = <fun>

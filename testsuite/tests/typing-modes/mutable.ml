@@ -56,12 +56,12 @@ type r = { mutable s : string @@ local; }
 
 type r = {mutable s : string @@ local unyielding}
 [%%expect{|
-type r = { mutable s : string @@ local; }
+type r = { mutable s : string @@ local unyielding; }
 |}]
 
 type r = {mutable s : string @@ unyielding local}
 [%%expect{|
-type r = { mutable s : string @@ local; }
+type r = { mutable s : string @@ local unyielding; }
 |}]
 
 (* [@no_mutable_implied_modalities] disables those implied modalities on the

@@ -12,7 +12,7 @@
 type record = { x : string; y : string @@ many aliased }
 [%%expect{|
 0
-type record = { x : string; y : string @@ many aliased; }
+type record = { x : string; y : string @@ aliased many; }
 |}]
 
 let aliased_use x = x

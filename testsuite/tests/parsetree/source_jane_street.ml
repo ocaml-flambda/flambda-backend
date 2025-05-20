@@ -450,8 +450,8 @@ type record =
 [%%expect{|
 type record = {
   global_ field0 : int;
-  field1 : int @@ global portable contended;
-  field2 : int @@ global portable contended;
+  field1 : int @@ contended global portable;
+  field2 : int @@ contended global portable;
   normal_field : int;
 }
 |}]
@@ -473,16 +473,16 @@ type t =
 [%%expect{|
 type 'a parameterized_record = {
   global_ field0 : 'a;
-  field1 : 'a @@ global portable contended;
-  field2 : 'a @@ global portable contended;
+  field1 : 'a @@ contended global portable;
+  field2 : 'a @@ contended global portable;
   normal_field : 'a;
 }
 type t =
     Foo of global_ int * int
-  | Foo1 of int @@ global portable contended * int
-  | Foo2 of global_ int * int @@ global portable contended
-  | Foo3 of global_ int * int @@ portable contended
-  | Foo4 of (int * int) @@ global portable contended
+  | Foo1 of int @@ contended global portable * int
+  | Foo2 of global_ int * int @@ contended global portable
+  | Foo3 of global_ int * int @@ contended portable
+  | Foo4 of (int * int) @@ contended global portable
 |}]
 
 (* arrow types *)
