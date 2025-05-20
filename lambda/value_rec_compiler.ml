@@ -900,7 +900,7 @@ let compile_letrec input_bindings body =
               | Reachable ({ lfun; free_vars_block_size }, lam) ->
                 let functions = (id, duid, lfun) :: rev_bindings.functions in
                 let static =
-                  (ctx_id, ctx_idx_duid,
+                  (ctx_id, ctx_id_duid,
                     Regular_block free_vars_block_size, lam)
                   :: rev_bindings.static
                 in

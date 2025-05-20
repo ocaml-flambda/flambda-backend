@@ -988,7 +988,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         let mod_scopes = enter_module_definition ~scopes id in
         !transl_module ~scopes:mod_scopes Tcoerce_none None modl
       in
-      (* CR sspies: Consider adding a [debug_uid]. *)
+      (* CR sspies: Add a debug uid to [Texp_letmodule] for the binder. *)
       Llet(Strict, Lambda.layout_module, id, Lambda.debug_uid_none,
           defining_expr, transl_exp ~scopes sort body)
   | Texp_letmodule(_, _, Mp_absent, _, body) ->
@@ -1885,7 +1885,6 @@ and transl_let ~scopes ~return_layout ?(add_regions=false) ?(in_structure=false)
         List.map
           (fun {vb_pat=pat} -> match pat.pat_desc with
               Tpat_var (id,_,uid,_) -> id, uid
-              (* CR sspies:  ^^^ seems like a reasonable uid for debugging *)
             | _ -> assert false)
         pat_expr_list in
       let transl_case

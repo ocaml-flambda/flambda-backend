@@ -752,7 +752,13 @@ and module_type_constraint =
 
 and functor_parameter =
   | Unit
-  (* CR rtjoa: should [Named] store a uid? See comment in translmod *)
+  (* XCR rtjoa: should [Named] store a uid? See comment in translmod
+
+     sspies: I tried adding it in a separate branch. I realized that it adds quite a few
+     changes sprinkled throughout the compiler. I think this should be done in a separate
+     PR. I left a comment blow. *)
+  (* CR sspies: We should add an additional [debug_uid] here to support functor arguments
+     in the debugger. *)
   | Named of Ident.t option * string option loc * module_type
 
 and module_expr_desc =

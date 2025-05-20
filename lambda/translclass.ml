@@ -280,8 +280,7 @@ let rec build_object_init_0
 
 
 let bind_method tbl lab id cl_init =
-  (* CR sspies: We could probably do a better job with uids here. Not sure it
-     is worth it, though. *)
+  (* CR sspies: Can we get a better debugging uid here? *)
   Llet(Strict, layout_label, id, Lambda.debug_uid_none,
                 mkappl (oo_prim "get_method_label",
                            [Lvar tbl; transl_label lab], layout_label),
@@ -306,7 +305,7 @@ let bind_methods tbl meths vals cl_init =
                 transl_meth_list (List.map fst methl)] @ names,
               layout_label_array),
        List.fold_right
-         (* CR sspies: Could we do a better job with debug uids here? *)
+         (* CR sspies: Can we get a better debugging uid here? *)
          (fun (_lab, id) lam -> decr i; Llet(StrictOpt, layout_label, id,
                                            Lambda.debug_uid_none,
                                            lfield ids !i, lam))

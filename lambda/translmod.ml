@@ -198,7 +198,6 @@ and wrap_id_pos_list loc id_pos_list get_field lam =
       if Ident.Set.mem id' fv then
         let id'' = Ident.create_local (Ident.name id') in
         let id''_duid = Lambda.debug_uid_none in
-        (* CR sspies: What does this function do? It seems to duplicate code.*)
         let rhs = apply_coercion loc Alias c (get_field pos) in
         let fv_rhs = free_variables rhs in
         (Llet(Alias, Lambda.layout_module_field, id'', id''_duid, rhs, lam),
@@ -359,14 +358,14 @@ type binding_status =
   | Defined
 
 type id_or_ignore_loc =
-  | Id of Ident.t
+  | Id of Ident.t * Lambda.debug_uid
   | Ignore_loc of Lambda.scoped_location
 
 let extract_unsafe_cycle id status init cycle_start =
   let info i = match init.(i) with
     | Result.Error r ->
         begin match id.(i) with
-        | Id id -> id, r
+        | Id (id, _) -> id, r
         | Ignore_loc _ ->
             assert false (* Can't refer to something without a name. *)
         end
@@ -404,7 +403,7 @@ let reorder_rec_bindings bindings =
           status.(i) <- Inprogress parent;
           for j = 0 to num_bindings - 1 do
             match id.(j) with
-            | Id id when Ident.Set.mem id fv.(i) -> emit_binding (Some i) j
+            | Id (id, _) when Ident.Set.mem id fv.(i) -> emit_binding (Some i) j
             | _ -> ()
           done
         end;
@@ -427,15 +426,8 @@ let eval_rec_bindings bindings cont =
   | (Ignore_loc _, _, _) :: rem
   | (_, None, _) :: rem ->
       bind_inits rem
-  | (Id id, Some(loc, shape), _rhs) :: rem ->
-      Llet(Strict, Lambda.layout_module, id,
-          Lambda.debug_uid_none,
-          (* XCR sspies: Is there a sensible [debug_uid] here?
-
-             rtjoa: It seems like we could add a uid to the [Id] constructor of
-             [id_or_ignore_loc], which populate with [mb_uid] in
-             [compile_recmodule]? But I'm not sure how sensible this [debug_uid]
-             is. *)
+  | (Id (id, id_duid), Some(loc, shape), _rhs) :: rem ->
+      Llet(Strict, Lambda.layout_module, id, id_duid,
            Lapply{
              ap_loc=Loc_unknown;
              ap_func=mod_prim "init_mod";
@@ -454,10 +446,8 @@ let eval_rec_bindings bindings cont =
       patch_forwards bindings
   | (Ignore_loc loc, None, rhs) :: rem ->
       Lsequence(Lprim(Pignore, [rhs], loc), bind_strict rem)
-  | (Id id, None, rhs) :: rem ->
-      Llet(Strict, Lambda.layout_module, id,
-           Lambda.debug_uid_none, rhs, bind_strict rem)
-      (* CR sspies: Is there a sensible [debug_uid] here? *)
+  | (Id (id, id_duid), None, rhs) :: rem ->
+      Llet(Strict, Lambda.layout_module, id, id_duid, rhs, bind_strict rem)
   | (_id, Some _, _rhs) :: rem ->
       bind_strict rem
   and patch_forwards = function
@@ -466,7 +456,7 @@ let eval_rec_bindings bindings cont =
   | (Ignore_loc _, _, _rhs) :: rem
   | (_, None, _rhs) :: rem ->
       patch_forwards rem
-  | (Id id, Some(_loc, shape), rhs) :: rem ->
+  | (Id (id, _), Some(_loc, shape), rhs) :: rem ->
       Lsequence(
         Lapply {
           ap_loc=Loc_unknown;
@@ -488,13 +478,13 @@ let compile_recmodule ~scopes compile_rhs bindings cont =
   eval_rec_bindings
     (reorder_rec_bindings
        (List.map
-          (fun {mb_id=id; mb_name; mb_expr=modl; _} ->
+          (fun {mb_id=id; mb_uid=id_duid; mb_name; mb_expr=modl; _} ->
              let id_or_ignore_loc, shape =
                match id with
                | None ->
                  let loc = of_location ~scopes mb_name.loc in
                  Ignore_loc loc, Result.Error Unnamed
-               | Some id -> Id id, init_shape id modl
+               | Some id -> Id (id, id_duid), init_shape id modl
              in
              (id_or_ignore_loc, modl.mod_loc, shape, compile_rhs id modl))
           bindings))
@@ -508,7 +498,7 @@ let transl_class_bindings ~scopes cl_list =
    List.map
      (fun ({ci_id_class=id; ci_expr=cl; ci_virt=vf}, meths) ->
        let def, rkind = transl_class ~scopes ids id meths cl vf in
-       (* CR sspies: Should class_infos have debug identifiers?  *)
+       (* CR sspies: Can we find a better [debug_uid] here? *)
        (id, Lambda.debug_uid_none, rkind, def))
      cl_list)
 
@@ -563,31 +553,19 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
   assert (List.length functor_params_rev >= 1);  (* cf. [transl_module] *)
   let params, body =
     List.fold_left (fun (params, body) (param, loc, arg_coercion) ->
+        let param_duid = Lambda.debug_uid_none in
+        (* CR sspies: Add a debug uid to the functor argument via [Named] and then
+           propagate it here. Note that we use it twice below, once for param and once
+           for param'. *)
         let param' = Ident.rename param in
-        let param'_duid = Lambda.debug_uid_none in
-        (* XCR sspies: Is there a sensible [debug_uid] here?
-
-           rtjoa: If the debugger can inspect the module arguments to functors,
-           it seems like there could be:
-           - The [Named] constructor of [functor_parameter] could store a uid
-           - Which we extract and return in this line of [merge_functors],
-             above:
-             | Named (Some id, _, _) -> functor_path path id, id
-        *)
         let arg = apply_coercion loc Alias arg_coercion (Lvar param') in
         let params = {
           name = param';
-          debug_uid = param'_duid;
+          debug_uid = param_duid;
           layout = Lambda.layout_module;
           attributes = Lambda.default_param_attribute;
           mode = alloc_heap
         } :: params in
-        let param_duid = Lambda.debug_uid_none in
-        (* XCR sspies: Should param come with a [debug_uid]?
-
-           rtjoa: I think this can use the same [duid] as the above because they
-           have the same "shape"? It might be redundant but seems safe.
-        *)
         let body = Llet (Alias, Lambda.layout_module, param, param_duid, arg,
                          body)
         in
@@ -771,6 +749,7 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
           size
       | Tstr_module ({mb_presence=Mp_present} as mb) ->
           let id = mb.mb_id in
+          let id_duid = mb.mb_uid in
           (* Translate module first *)
           let subscopes = match id with
             | None -> scopes
@@ -795,10 +774,7 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
               size
           | Some id ->
               Llet(pure_module mb.mb_expr, Lambda.layout_module, id,
-              Lambda.debug_uid_none, module_body, body), size
-              (* XCR sspies: Can we find a better [debug_uid] here?
-
-                 rtjoa: Maybe [mb.mb_uid]? *)
+              id_duid, module_body, body), size
           end
       | Tstr_module ({mb_presence=Mp_absent}) ->
           transl_structure ~scopes loc fields cc rootpath final_env rem
@@ -1847,7 +1823,6 @@ let toploop_setvalue_id id = toploop_setvalue id (Lvar id)
 let close_toplevel_term (lam, ()) =
   Ident.Set.fold (fun id l -> Llet(Strict, Lambda.layout_any_value, id,
                                   Lambda.debug_uid_none,
-                                  (* CR sspies: Seems like this is an internal use. *)
                                   toploop_getvalue id, l))
                 (free_variables lam) lam
 

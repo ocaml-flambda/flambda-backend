@@ -1703,7 +1703,6 @@ and precompile_or ~arg ~arg_sort (cls : Simple.clause list) ors args def k =
               Typedtree.pat_bound_idents_full arg_sort orp
               |> List.filter (fun (id, _, _, _, _) -> Ident.Set.mem id pm_fv)
               |> List.map (fun (id, _, ty, uid, id_sort) ->
-                  (* CR sspies: Can this uid be used for debugging? *)
                   (id, uid, Typeopt.layout orp.pat_env orp.pat_loc id_sort ty))
             in
             let or_num = next_raise_count () in
@@ -2735,8 +2734,7 @@ module SArg = struct
     let newvar, newvar_duid, newarg =
       match arg with
       | Lvar v -> (v, Lambda.debug_uid_none, arg)
-        (* CR sspies: This seems like the kind of place where we could have
-           a debug uid. Is there a way to get it here? *)
+        (* CR sspies: Can we get a better [debug_uid] here? *)
       | _ ->
           let newvar = Ident.create_local "switcher" in
           let newvar_duid = Lambda.debug_uid_none in
@@ -3638,7 +3636,6 @@ let rec approx_present v = function
   | Lvar vv -> Ident.same v vv
   | _ -> true
 
-(* CR sspies: I'm unsure about the [debug_uid] handling in this function. *)
 let rec lower_bind v v_duid arg_layout arg lam =
   match lam with
   | Lifthenelse (cond, ifso, ifnot, kind) -> (
@@ -3727,24 +3724,20 @@ let rec comp_match_handlers layout comp_fun partial ctx first_match next_matches
 
 (* To find reasonable names for variables *)
 
-(* CR rtjoa: extract uid from var/alias *)
 let rec name_pattern default = function
   | ((pat, _), _) :: rem -> (
       match pat.pat_desc with
-      | Tpat_var (id, _, _, _) -> id
-      | Tpat_alias (_, id, _, _, _, _) -> id
+      | Tpat_var (id, _, uid, _) -> id, uid
+      | Tpat_alias (_, id, _, uid, _, _) -> id, uid
       | _ -> name_pattern default rem
     )
-  | _ -> Ident.create_local default
+  | _ -> Ident.create_local default, Lambda.debug_uid_none
 
 let arg_to_var arg cls =
   match arg with
   | Lvar v -> (v, Lambda.debug_uid_none, arg)
-  (* CR sspies: This seems like a place where we could be able to actually
-     get a debug uid. *)
   | _ ->
-      let v = name_pattern "*match*" cls in
-      let v_duid = Lambda.debug_uid_none in
+      let v, v_duid = name_pattern "*match*" cls in
       (v, v_duid, Lvar v)
 
 (*
@@ -3804,8 +3797,7 @@ and compile_match_simplified ~scopes value_kind  repr partial ctx
   | { cases = []; args = [] } -> comp_exit ctx m
   | { args = ((Lvar v as arg), str, sort, layout) :: argl } ->
       let v_duid = Lambda.debug_uid_none in
-      (* CR sspies: Is this the expression in [match e with ...] or one of the cases?
-         Seems like the kind of place where we could potentially get a debug uid. *)
+      (* CR sspies: Can we get a better [debug_uid] here? *)
       let args = (arg, Alias, sort, layout) :: argl in
       let m = { m with args } in
       let first_match, rem = split_and_precompile_simplified m in
@@ -4287,7 +4279,6 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
       Lsequence (param, body)
   | Tpat_var (id, _, duid, _)
   | Tpat_alias ({ pat_desc = Tpat_any }, id, _, duid, _, _) ->
-    (* CR sspies: Can these [Uid.t] values be used for debug information? *)
       (* Fast path, and keep track of simple bindings to unboxable numbers.
 
          Note: the (Tpat_alias (Tpat_any, id)) case needs to be
@@ -4304,7 +4295,6 @@ let for_let ~scopes ~arg_sort ~return_layout loc param pat body =
       let ids_with_kinds =
         List.map
           (fun (id, _, typ, uid, sort) ->
-             (* CR sspies: Can this uid be used for debug information? *)
              (id, uid, Typeopt.layout pat.pat_env pat.pat_loc sort typ))
           catch_ids
       in
@@ -4445,8 +4435,7 @@ let do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list pa
       List.map (function
         | Lvar id as lid, sort, layout ->
           (id, Lambda.debug_uid_none, layout), (lid, Alias, sort, layout)
-        (* CR sspies: This seems like a place where we should be able to actually
-           get a debug uid. The variable is used for a smart let binding below. *)
+        (* CR sspies: Can we get a better [debug_uid] here? *)
         | _, sort, layout ->
           let id = Ident.create_local "*match*" in
           let id_uid = Lambda.debug_uid_none in
@@ -4473,8 +4462,7 @@ let do_for_multiple_match ~scopes ~return_layout loc paraml mode pat_act_list pa
 let param_to_var (param, sort, layout) =
   match param with
   | Lvar v -> (v, Lambda.debug_uid_none, sort, layout, None)
-  (* CR sspies: Another one of these places that looks like
-     we could get a debug uid here. *)
+  (* CR sspies: Can we get a better [debug_uid] here? *)
   | _ -> (Ident.create_local "*match*",
           Lambda.debug_uid_none, sort, layout, Some param)
 
