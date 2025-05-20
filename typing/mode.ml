@@ -2971,58 +2971,58 @@ module Modality = struct
 
   (* Inferred modalities
 
-      Similar to constant modalities, an inferred modality maps the mode of a
-      record/structure to the mode of a value therein. An inferred modality [f]
-      is inferred from the structure/record mode [mm] and the value mode [m]. It
-      will only be applied on some [x >= mm]: That is, it will only be applied
-      on the original module.
+     Similar to constant modalities, an inferred modality maps the mode of a
+     record/structure to the mode of a value therein. An inferred modality [f]
+     is inferred from the structure/record mode [mm] and the value mode [m]. It
+     will only be applied on some [x >= mm]: That is, it will only be applied
+     on the original module.
 
-      It should satisfy the following conditions:
+     It should satisfy the following conditions:
 
-      Zapping: [f] should be of the form [join_c] for monadic axes, or [meet_c]
-      for comonadic axes.
+     Zapping: [f] should be of the form [join_c] for monadic axes, or [meet_c]
+     for comonadic axes.
 
-      Soundness: You should not get a value from a record/structure at a mode
-      strictly stronger than how it was put in. That is, for any [x >= mm], [f x
-      >= m].
+     Soundness: You should not get a value from a record/structure at a mode
+     strictly stronger than how it was put in. That is, for any [x >= mm], [f x
+     >= m].
 
-      Completeness: Ideally we also want [f mm <= m].
+     Completeness: Ideally we also want [f mm <= m].
 
-      Monadic axes
+     Monadic axes
 
-      Soundness condition says [join_c x >= m] for any [x >= mm]. Equivalently,
-      [join_c mm >= m]. By adjunction, [c >= subtract_mm m]. We take the lower
-      bound [c := subtract_mm m]. Note that this is equivalent to taking [c := m
-      >= subtract_mm m]. Proof:
+     Soundness condition says [join_c x >= m] for any [x >= mm]. Equivalently,
+     [join_c mm >= m]. By adjunction, [c >= subtract_mm m]. We take the lower
+     bound [c := subtract_mm m]. Note that this is equivalent to taking [c := m
+     >= subtract_mm m]. Proof:
 
-      - [join_m x >= join_(subtract_mm m) x] is trivial since [m >= subtract_mm
-        m].
-      - [join_m x <= join_(subtract_mm m) x], or equivalently [m <=
-      join_(subtract_mm m) x], or equivalently [subtract_x m <= subtract_mm m],
-      which is trivial since [x >= mm].
+     - [join_m x >= join_(subtract_mm m) x] is trivial since [m >= subtract_mm
+       m].
+     - [join_m x <= join_(subtract_mm m) x], or equivalently [m <=
+     join_(subtract_mm m) x], or equivalently [subtract_x m <= subtract_mm m],
+     which is trivial since [x >= mm].
 
-      Taking [c := subtract_mm m] is better for zapping since it's lower and
-      thus closer to identity modality. Taking [c := m] is easier for [apply]
-      and [sub].
+     Taking [c := subtract_mm m] is better for zapping since it's lower and
+     thus closer to identity modality. Taking [c := m] is easier for [apply]
+     and [sub].
 
-      Comonadic axes
+     Comonadic axes
 
-      Soundness condition says [meet_c x >= m] for any [x >= mm]. Equivalently,
-      [meet_c mm >= m]. By def. of [meet], we have both [c >= m] and [mm >= m].
-      The latter is guaranteed by the user of [infer]. We guarantee the former
-      by taking [c := imply_mm m >= m]. One might worry that this is too relaxed
-      and will be "less complete" than taking [c := m]; however, note that
-      [imply_mm m <= imply_mm m] and thus by adjunction [meet_(imply_mm m) mm <=
-      m], which means the chosen [c] is complete.
+     Soundness condition says [meet_c x >= m] for any [x >= mm]. Equivalently,
+     [meet_c mm >= m]. By def. of [meet], we have both [c >= m] and [mm >= m].
+     The latter is guaranteed by the user of [infer]. We guarantee the former
+     by taking [c := imply_mm m >= m]. One might worry that this is too relaxed
+     and will be "less complete" than taking [c := m]; however, note that
+     [imply_mm m <= imply_mm m] and thus by adjunction [meet_(imply_mm m) mm <=
+     m], which means the chosen [c] is complete.
 
-      Taking [c := m] is easier for [apply] and [sub]. Taking [c := imply_mm m]
-      is better for zapping since it's higher and thus closer to identity
-      modality. However, note that we DON'T have [meet_m x = meet_(imply_mm m)
-      x], which means [apply/sub] and [zap] might behave in a confusing (albeit
-      sound) manner.
+     Taking [c := m] is easier for [apply] and [sub]. Taking [c := imply_mm m]
+     is better for zapping since it's higher and thus closer to identity
+     modality. However, note that we DON'T have [meet_m x = meet_(imply_mm m)
+     x], which means [apply/sub] and [zap] might behave in a confusing (albeit
+     sound) manner.
 
-      CR zqian: once we support binary mode solver, we will stick to
-      [c := imply_mm m].
+     CR zqian: once we support binary mode solver, we will stick to
+     [c := imply_mm m].
   *)
 
   module Monadic = struct
