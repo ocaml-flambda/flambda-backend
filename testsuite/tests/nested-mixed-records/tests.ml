@@ -1,0 +1,122 @@
+(* TEST
+   flambda2;
+   native;
+*)
+
+external box_int32 : int32# -> (int32[@local_opt]) = "%box_int32"
+external box_int64 : int64# -> (int64[@local_opt]) = "%box_int64"
+external box_float : float# -> (float[@local_opt]) = "%box_float"
+
+module T00 = struct
+
+  (* All values in inner record are boxed, all values in outer record are boxed. *)
+
+  type sub = #{ i32 : int32; i64 : int64; }
+
+  type record = { str : string; sub : sub; }
+
+  let run () =
+    let value = Sys.opaque_identity {
+      str = "something";
+      sub = #{ i32 = 123l; i64 = 456L; };
+    } in
+    Printf.printf "size=%d value.str=%S value.sub.#i32=%ld value.sub.#i64=%Ld \n%!"
+      Obj.(size (repr value))
+      value.str
+      value.sub.#i32
+      value.sub.#i64
+
+end
+
+module T01 = struct
+
+  (* All values in inner record are unboxed, all values in outer record are boxed. *)
+
+  type sub = #{ i32 : int32#; i64 : int64#; }
+
+  type record = { str : string; sub : sub; }
+
+  let run () =
+    let value = Sys.opaque_identity {
+      str = "something";
+      sub = #{ i32 = #123l; i64 = #456L; };
+    } in
+    Printf.printf "size=%d value.str=%S value.sub.#i32=%ld value.sub.#i64=%Ld \n%!"
+      Obj.(size (repr value))
+      value.str
+      (box_int32 value.sub.#i32)
+      (box_int64 value.sub.#i64)
+
+end
+
+module T02 = struct
+
+  (* All values in inner record are boxed, all values in outer record are unboxed. *)
+
+  type sub = #{ i32 : int32; i64 : int64; }
+
+  type record = { i : int32#; sub : sub; }
+
+  let run () =
+    let value = Sys.opaque_identity {
+      i = #987l;
+      sub = #{ i32 = 123l; i64 = 456L; };
+    } in
+    Printf.printf "size=%d value.i=%ld value.sub.#i32=%ld value.sub.#i64=%Ld \n%!"
+      Obj.(size (repr value))
+      (box_int32 value.i)
+      value.sub.#i32
+      value.sub.#i64
+
+end
+
+module T03 = struct
+
+  (* All values in inner record are unboxed, all values in outer record are unboxed. *)
+
+  type sub = #{ i32 : int32#; i64 : int64#; }
+
+  type record = { i : int32#; sub : sub; }
+
+  let run () =
+    let value = Sys.opaque_identity {
+      i = #987l;
+      sub = #{ i32 = #123l; i64 = #456L; };
+    } in
+    Printf.printf "size=%d value.i=%ld value.sub.#i32=%ld value.sub.#i64=%Ld \n%!"
+      Obj.(size (repr value))
+      (box_int32 value.i)
+      (box_int32 value.sub.#i32)
+      (box_int64 value.sub.#i64)
+
+end
+
+module T04 = struct
+
+  (* Both inner and outer records have boxed and unboxed values. *)
+
+  type sub = #{ i32 : int32#; i64 : int64#; s : string; }
+
+  type record = { str : string; sub : sub; i: int32#; }
+
+  let run () =
+    let value = Sys.opaque_identity {
+      str = "something";
+      sub = #{ i32 = #123l; i64 = #456L; s = "s"; };
+      i = #789l;
+    } in
+    Printf.printf "size=%d value.str=%S value.sub.#i32=%ld value.sub.#i64=%Ld value.sub.s=%s value.i=%ld \n%!"
+      Obj.(size (repr value))
+      value.str
+      (box_int32 value.sub.#i32)
+      (box_int64 value.sub.#i64)
+      value.sub.#s
+      (box_int32 value.i)
+
+end
+
+let tests = [
+  T00.run;
+]
+
+let () = List.iter (fun test -> test ()) tests
