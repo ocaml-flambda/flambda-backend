@@ -36,8 +36,8 @@ And on locally abstract types:
 ```ocaml
 let foo (type (a : value mod portable) (b : bits32 & float64)) (x : a) (y : b)
   = ...
-  
-let bar (type a : value mod portable) (x : a) = ... 
+
+let bar (type a : value mod portable) (x : a) = ...
   (* no extra parentheses needed when there is only one locally abstract type *)
 ```
 
@@ -186,7 +186,7 @@ that is, there are *implications* between the kind axes.
 
 CR reisenberg: Document implications, which I am not fully familiar with.
 
-## Kind annotations on type declarations
+## Kind annotations in type declarations
 
 When you create a new type with a `type` declaration, you must choose the kinds
 of both the type itself and any of its parameters. There are three cases to
@@ -403,6 +403,37 @@ The bottom line here: if you want to set the kind of a type variable, do it at a
 binding site like `val f : ('a : <<here>>). ...` or `let f : ('a :
 <<here>>). ...`.
 
+## Kind annotations on local abstract types
+
+We allow a kind annotation to be put on a local abstract type, as in
+
+```ocaml
+let f (type a : immediate) (x : a) = ...
+```
+
+If you declare a local abstract type without a kind annotation, its kind
+is always `value`. Inference of kinds is never performed for local abstract
+types.
+
+As a syntactic convenience, you may declare multiple local abstract types
+with one `type` herald; any kind annotations with these will require extra
+parentheses: `let f (type a (b : immediate) (c : float64) d) ... = ...`.
+
+## Kind annotations on other types
+
+We do *not* allow a kind annotation on an arbitrary type, because the syntax
+for doing so would be easily confused with a labeled function argument. (Compare
+`(int:value) -> string` with `int:value -> string`. The first is a function
+taking an `int` (with a redundant kind annotation); the second is a function
+taking something of _type_ `value` labeled `int`.)
+
+Instead, we allow kind annotations on aliases. If you must kind-annotate a
+type, you may do so with e.g. `t as ('a : value)` or `t as (_ : value)`.
+This might useful if, say, a library exposes an abstract type `M.t` and
+your use of `M.t` requires it to be an `immediate` for performance reasons.
+You can then say `M.t as (_ : immediate)` to get a compile-time failure if
+the author of `M.t` changes it not to be an `immediate`.
+
 ## Syntax reference
 
 In this reference, we use backticks to denote a literal keyword,
@@ -417,7 +448,7 @@ kind ::= atomic-kind [ `mod` mod-bounds ] [ with-bounds ]
      |   `(` kind `)`
      |   kind `&` kind
 
-atomic-kind ::= layout 
+atomic-kind ::= layout
             |   kind_abbreviation
 
 layout ::= `any`
@@ -438,19 +469,19 @@ kind_abbreviation ::= `any_non_null`
 
 mod-bounds ::= `everything`
            |   { mod-bound }+
-           
+
 mod-bound ::= modality
           |   externality
           |   nullability
           |   separability
-          
+
 externality ::= `external_`
           |     `external64`
           |     `internal`
-          
+
 nullability ::= `non_null`
           |     `maybe_null`
-          
+
 separability ::= `non_float`
              |   `separable`
              |   `non_separable`
@@ -465,7 +496,7 @@ Please see other OxCaml documentation for details on the syntax for
 [typexpr](https://ocaml.org/manual/types.html) is defined in the OCaml
 manual.
 
-Kind annotations are allowed at several places in the syntax. 
+Kind annotations are allowed at several places in the syntax.
 As the syntax rules below extend the syntax of OCaml, we use `+::=` to denote
 additions to definitions in the OCaml [manual][]; in contrast, we use `::=` to
 denote a replacement of the definition in the [manual][].
