@@ -152,7 +152,8 @@ type primitive =
       * field_read_semantics
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
-  | Psetmixedfield of int list * mixed_block_shape * initialization_or_assignment
+  | Psetmixedfield of int list * mixed_block_shape
+      * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
@@ -1408,7 +1409,6 @@ let transl_prim mod_name name =
   | exception Not_found ->
       fatal_error ("Primitive " ^ name ^ " not found.")
 
-(* XXX is it still useful? *)
 let rec transl_mixed_product_shape ~get_value_kind shape =
   Array.mapi (fun i (elt : Types.mixed_block_element) ->
     match elt with
@@ -1438,7 +1438,8 @@ let rec transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shape =
     | Word -> Word
     | Product shapes ->
       let get_value_kind _ = generic_value in
-      Product (transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shapes)
+      Product
+        (transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shapes)
   ) shape
 
 (* Compile a sequence of expressions *)
