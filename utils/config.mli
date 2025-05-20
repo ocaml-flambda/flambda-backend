@@ -303,6 +303,9 @@ val no_stack_checks : bool
 val tsan : bool
 (** Whether ThreadSanitizer instrumentation is enabled *)
 
+val parameterised_modules : bool
+(** Whether parameterised modules are supported *)
+
 (** Access to configuration values *)
 val print_config : out_channel -> unit
 
