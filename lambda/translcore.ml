@@ -995,7 +995,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       transl_exp ~scopes sort body
   | Texp_letexception(cd, body) ->
       Llet(Strict, Lambda.layout_block,
-          (* CR sspies: Consider adding a [debug_uid]. *)
            cd.ext_id,  Lambda.debug_uid_none,
            transl_extension_constructor ~scopes e.exp_env None cd,
            transl_exp ~scopes sort body)
@@ -1467,10 +1466,6 @@ and transl_apply ~scopes
            so that evaluation is right-to-left. *)
         List.fold_right
           (fun (id, layout, lam) body ->
-          (* XCR sspies: It appears all variables in [defs] are hidden from
-             the user. Is that correct?
-
-             rtjoa: LGTM *)
           Llet(Strict, layout, id, Lambda.debug_uid_none, lam, body))
           !defs body
     | Arg (arg, _) :: l ->

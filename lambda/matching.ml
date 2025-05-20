@@ -87,14 +87,6 @@
 
 *)
 
-(* CR rtjoa: I'm not familiar enough with the pattern matching compiler, but
-   documenting this case we discussed. Only [y] appears in dlambda, and it has
-   an internal uid.
-
-  let f x = match x with
-    | x, (Some y) when y -> (x, y)
-    | x, None -> (1, false)
-*)
 
 open Misc
 open Asttypes
@@ -3735,6 +3727,7 @@ let rec comp_match_handlers layout comp_fun partial ctx first_match next_matches
 
 (* To find reasonable names for variables *)
 
+(* CR rtjoa: extract uid from var/alias *)
 let rec name_pattern default = function
   | ((pat, _), _) :: rem -> (
       match pat.pat_desc with

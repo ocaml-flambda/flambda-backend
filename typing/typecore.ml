@@ -4937,8 +4937,6 @@ let proper_exp_loc exp =
 let rec name_pattern default = function
     [] -> Ident.create_local default,
           Shape.Uid.internal_not_actually_unique
-          (* XCR sspies: This code sits above Lambda, so we do not use
-             [Lambda.debug_uid_none] here. *)
   | p :: rem ->
     match p.pat_desc with
       Tpat_var (id, _, uid, _) -> id, uid
@@ -7448,14 +7446,6 @@ and type_function
             let param, param_uid = name_pattern "param" [ pat ] in
             Tparam_pat pat, param, param_uid
         | Some (default_arg, arg_label, default_arg_sort) ->
-          (* CR rtjoa: the fact that we use the dummy uid here means that we
-             won't have debug info for optional arguments, right? Could we call
-             [name_pattern] on [pat] like we do above?
-
-             I'm guessing the existing implementation prefixes the ident name
-             with "*opt*" for a reason, so this should probably be left as a
-             future CR rather than changed now.
-          *)
             let param = Ident.create_local ("*opt*" ^ arg_label) in
             let param_uid = Shape.Uid.internal_not_actually_unique in
             Tparam_optional_default (pat, default_arg, default_arg_sort),

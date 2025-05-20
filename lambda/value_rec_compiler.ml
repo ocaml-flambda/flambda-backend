@@ -502,8 +502,6 @@ let lifted_block_read_sem : Lambda.field_read_semantics = Reads_agree
 
 let no_loc = Debuginfo.Scoped_location.Loc_unknown
 
-(* CR sspies: The function [split_static_function] seems to replace a function,
-   so copying over debug_ids inside should be fine. *)
 let rec split_static_function lfun block_var local_idents lam :
   Lambda.lambda split_result =
   match lam with
@@ -891,6 +889,7 @@ let compile_letrec input_bindings body =
               }
             | _ ->
               let ctx_id = Ident.create_local "letrec_function_context" in
+              let ctx_id_duid = Lambda.debug_uid_none in
               begin match
                 split_static_function lfun ctx_id Ident.Set.empty def
               with
@@ -901,10 +900,9 @@ let compile_letrec input_bindings body =
               | Reachable ({ lfun; free_vars_block_size }, lam) ->
                 let functions = (id, duid, lfun) :: rev_bindings.functions in
                 let static =
-                  (ctx_id, duid, Regular_block free_vars_block_size, lam) ::
-                  rev_bindings.static
-                (* CR sspies: We are explicitly duplicating a debug_id here.
-                   Does that make sense? Seems to be the same source variable. *)
+                  (ctx_id, ctx_idx_duid,
+                    Regular_block free_vars_block_size, lam)
+                  :: rev_bindings.static
                 in
                 { rev_bindings with functions; static }
               end

@@ -802,10 +802,6 @@ type parameter_attribute = {
   unbox_param: bool;
 }
 
-(* CR rtjoa: have you considered making this a [Shape.Uid.t option] rather than
-   define [debug_uid_none]? (not necessarily a suggestion; this depends on
-   how your later work uses debug uids)
-*)
 type debug_uid = Shape.Uid.t
 let debug_uid_none = Shape.Uid.internal_not_actually_unique
 
@@ -1459,12 +1455,6 @@ let build_substs update_env ?(freshen_bound_variables = false) s =
      themselves when [freshen_bound_variables] is set. *)
   let bind id duid l =
     let id' = if not freshen_bound_variables then id else Ident.rename id in
-    (* XCR sspies: If [freshen_bound_variables] is set, this code duplicates
-    the debug uids. [freshen_bound_variables] is currently only set by
-    [duplicate] below, which is called from [tmc.ml].
-
-       rtjoa: this seems fine - I suppose it can only go wrong if a free
-       variable is substituted for one of a different type? *)
     id', duid, Ident.Map.add id id' l
   in
   let bind_many ids l =
@@ -1728,8 +1718,6 @@ let map f =
 let bind_with_layout str (var, duid, layout) exp body =
   match exp with
     Lvar var' when Ident.same var var' -> body
-    (* XCR sspies: This implicitly assumes that they have the same debug uid,
-       which is probably correct.*)
   | _ -> Llet(str, layout, var, duid, exp, body)
 
 let negate_integer_comparison = function

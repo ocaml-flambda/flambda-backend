@@ -67,7 +67,6 @@ let add_dst_params ({var; offset} : Ident.t destination) params =
     (* The destination parameters are generated internally as part of the TMC
        optimization. As such, they are not user visible, and we do not associate
        them with a [debug_uid]. *)
-    (* CR sspies: Is this comment correct? *)
     attributes = Lambda.default_param_attribute ; mode = alloc_heap } ::
   { name = offset ; layout = Lambda.layout_int ;
     debug_uid= Lambda.debug_uid_none;
@@ -1092,9 +1091,6 @@ and make_dps_variant var var_duid inner_ctx outer_ctx (lfun : lfunction) =
   in
   let dps_var = special.dps_id in
   let dps_var_duid = Lambda.debug_uid_none in
-  (* The [dps_var] variable is generated internally in the TMC optimization.
-     Hence, we do not associate any [debug_uid] with it. *)
-  (* CR sspies: Is the comment above correct? *)
   [var, var_duid, direct;
    dps_var, dps_var_duid, dps]
 

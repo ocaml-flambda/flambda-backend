@@ -16,13 +16,6 @@ module Let_binding = struct
       var : lambda
     }
 
-  (* CR sspies: The [debug_uid] is Lambda.debug_uid_none at all call sites.
-     It appears we only use this function for internal variables. (The
-     definition does not really currently suggest that.) As an alternative,
-     we could remove the debug_uid from the record [t] and always choose
-     [Lambda.debug_uid_none] in the [let_one] function. In that case, it might
-     be worth renaming the function to suggest that this is only used for
-     internal variables. *)
   let make (let_kind : Let_kind.t) layout name debug_uid init =
     let id = Ident.create_local name in
     let var =
