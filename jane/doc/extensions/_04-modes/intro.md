@@ -101,7 +101,8 @@ multiple threads have read-only access to it, and *uncontended* otherwise.
 To enforce data race freedom, the typechecker does not permit reading or writing
 the mutable portions of contended values. The mutable portions of shared values
 may be read, but not written to. Uncontended values may be accessed and mutated
-freely.
+freely. However, types like `Atomic.t` may be used to bypass this restriction,
+ensuring that accesses are atomic and thus remain free of data races.
 
 Contention is irrelevant for types that are deeply immutable. Values of such
 types *mode cross* on the contention axis; they may be used as uncontended even
