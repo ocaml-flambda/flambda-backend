@@ -402,26 +402,27 @@ let transl_modality ~maturity { txt = Parsetree.Modality modality; loc } =
     transl_annot ~annot_type:Modality ~required_mode_maturity:(Some maturity)
       { txt = modality; loc }
   in
-  let atom = match axis_pair.txt with
-  | Modal_axis_pair (Comonadic Areality, mode) ->
-    Modality.Atom
-      (Comonadic Areality, Meet_with (Const.locality_as_regionality mode))
-  | Modal_axis_pair (Comonadic Linearity, mode) ->
-    Modality.Atom (Comonadic Linearity, Meet_with mode)
-  | Modal_axis_pair (Comonadic Portability, mode) ->
-    Modality.Atom (Comonadic Portability, Meet_with mode)
-  | Modal_axis_pair (Monadic Uniqueness, mode) ->
-    Modality.Atom (Monadic Uniqueness, Join_with mode)
-  | Modal_axis_pair (Monadic Contention, mode) ->
-    Modality.Atom (Monadic Contention, Join_with mode)
-  | Modal_axis_pair (Comonadic Yielding, mode) ->
-    Modality.Atom (Comonadic Yielding, Meet_with mode)
-  | Modal_axis_pair (Comonadic Statefulness, mode) ->
-    Modality.Atom (Comonadic Statefulness, Meet_with mode)
-  | Modal_axis_pair (Monadic Visibility, mode) ->
-    Modality.Atom (Monadic Visibility, Join_with mode)
-  in 
-  (atom, loc)
+  let atom =
+    match axis_pair.txt with
+    | Modal_axis_pair (Comonadic Areality, mode) ->
+      Modality.Atom
+        (Comonadic Areality, Meet_with (Const.locality_as_regionality mode))
+    | Modal_axis_pair (Comonadic Linearity, mode) ->
+      Modality.Atom (Comonadic Linearity, Meet_with mode)
+    | Modal_axis_pair (Comonadic Portability, mode) ->
+      Modality.Atom (Comonadic Portability, Meet_with mode)
+    | Modal_axis_pair (Monadic Uniqueness, mode) ->
+      Modality.Atom (Monadic Uniqueness, Join_with mode)
+    | Modal_axis_pair (Monadic Contention, mode) ->
+      Modality.Atom (Monadic Contention, Join_with mode)
+    | Modal_axis_pair (Comonadic Yielding, mode) ->
+      Modality.Atom (Comonadic Yielding, Meet_with mode)
+    | Modal_axis_pair (Comonadic Statefulness, mode) ->
+      Modality.Atom (Comonadic Statefulness, Meet_with mode)
+    | Modal_axis_pair (Monadic Visibility, mode) ->
+      Modality.Atom (Monadic Visibility, Join_with mode)
+  in
+  atom, loc
 
 let untransl_modality (a : Modality.t) : Parsetree.modality loc =
   let s =
@@ -520,37 +521,49 @@ let implied_modalities (Atom (ax, a) : Modality.t) : Modality.t list =
     [Atom (Comonadic Portability, Meet_with b)]
   | _ -> []
 
+let least_modalities_implying mut attrs (t : Modality.Value.Const.t) =
+  let baseline = mutable_implied_modalities mut attrs in
+  let annotated = Modality.Value.Const.(diff baseline t) in
+  let implied = List.concat_map implied_modalities annotated in
+  let exclude_implied =
+    List.filter (fun x -> not @@ List.mem x implied) annotated
+  in
+  let overridden =
+    List.filter_map
+      (fun (Modality.Atom (ax, m_implied)) ->
+        let m_projected = Modality.Value.Const.proj ax t in
+        if m_projected <> m_implied
+        then Some (Modality.Atom (ax, m_projected))
+        else None)
+      implied
+  in
+  exclude_implied @ overridden
+
 let sort_dedup_modalities ~warn l =
   let compare (Modality.Atom (ax0, _), _) (Modality.Atom (ax1, _), _) =
     Stdlib.compare (Value.Axis.P ax0) (Value.Axis.P ax1)
   in
   let dedup ~on_dup =
     let rec loop x = function
-    | [] -> [x]
-    | y :: xs ->
-      if compare x y = 0 then begin
-        on_dup x y;
-        loop y xs
-      end else
-        x :: (loop y xs)
+      | [] -> [x]
+      | y :: xs ->
+        if compare x y = 0
+        then (
+          on_dup x y;
+          loop y xs)
+        else x :: loop y xs
     in
-    function
-    | [] -> []
-    | x :: xs -> loop x xs
+    function [] -> [] | x :: xs -> loop x xs
   in
   let on_dup (Modality.Atom (ax0, _), loc0) (a1, _) =
-    if warn then begin
+    if warn
+    then
       let axis = Format.asprintf "%a" Value.Axis.print ax0 in
       let overriden_by = Format.asprintf "%a" Modality.print a1 in
-      Location.prerr_warning loc0 (Warnings.Modal_axis_specified_twice {
-        axis; overriden_by
-      });
-    end
+      Location.prerr_warning loc0
+        (Warnings.Modal_axis_specified_twice { axis; overriden_by })
   in
-  l
-  |> List.stable_sort compare
-  |> dedup ~on_dup
-  |> List.map fst
+  l |> List.stable_sort compare |> dedup ~on_dup |> List.map fst
 
 let transl_modalities ~maturity mut attrs modalities =
   let mut_modalities = mutable_implied_modalities mut attrs in
@@ -571,17 +584,11 @@ let transl_modalities ~maturity mut attrs modalities =
     mut_modalities modalities
 
 let untransl_modalities mut attrs t =
-  let rec loop (l : _ list) =
-    let t' = transl_modalities ~maturity:Stable mut attrs l in
-    let l' = Modality.Value.Const.diff t' t in
-    let l = l @ (List.map untransl_modality l') in
-    let l = sort_dedup_modalities ~warn:false l in
-    let implied = List.concat_map implied_modalities l in
-    l
-    |>  List.filter (fun x -> not @@ List.mem x implied)
-    |> List.map untransl_modality
-  in
-  loop []
+  t
+  |> least_modalities_implying mut attrs
+  |> List.map (fun x -> x, Location.none)
+  |> sort_dedup_modalities ~warn:false
+  |> List.map untransl_modality
 
 let transl_alloc_mode modes =
   let opt = transl_mode_annots modes in
