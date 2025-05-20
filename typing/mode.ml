@@ -2894,8 +2894,10 @@ module Const = struct
       | P (Comonadic Linearity) -> P (Comonadic Linearity)
       | P (Comonadic Portability) -> P (Comonadic Portability)
       | P (Comonadic Yielding) -> P (Comonadic Yielding)
+      | P (Comonadic Statefulness) -> P (Comonadic Statefulness)
       | P (Monadic Uniqueness) -> P (Monadic Uniqueness)
       | P (Monadic Contention) -> P (Monadic Contention)
+      | P (Monadic Visibility) -> P (Monadic Visibility)
 
     let value_as_alloc : Value.axis_packed -> Alloc.axis_packed = function
       | P (Comonadic Areality) -> P (Comonadic Areality)
