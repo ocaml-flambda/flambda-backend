@@ -368,19 +368,6 @@ Error: This pattern matches values of type "t_float64"
          because it's the type of a term-level argument to a class constructor.
 |}];;
 
-(* Structure_element *)
-module type S = sig val x : t_void end
-[%%expect{|
-Line 1, characters 28-34:
-1 | module type S = sig val x : t_void end
-                                ^^^^^^
-Error: This type signature for "x" is not a value type.
-       The layout of type t_void is void
-         because of the definition of t_void at line 6, characters 0-19.
-       But the layout of type t_void must be a sublayout of value
-         because it's the type of something stored in a module structure.
-|}];;
-
 (* Debug_printer_argument *)
 (* See [debug_printer.ml] *)
 

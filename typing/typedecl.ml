@@ -119,7 +119,7 @@ type error =
       ; err : Jkind.Violation.t
       }
   | Jkind_empty_record
-  | Non_value_in_sig of Jkind.Violation.t * string * type_expr
+  | Non_representable_in_sig of Jkind.Violation.t * string * type_expr
   | Invalid_jkind_in_block of type_expr * Jkind.Sort.Const.t * jkind_sort_loc
   | Illegal_mixed_product of mixed_product_violation
   | Separability of Typedecl_separability.error
@@ -3658,15 +3658,15 @@ let transl_value_decl env loc ~sig_modalities valdecl =
     | l -> Typemode.transl_modalities ~maturity:Stable Immutable l
   in
   let modalities = Mode.Modality.Value.of_const modalities in
-  (* CR layouts v5: relax this to check for representability. *)
-  begin match Ctype.constrain_type_jkind env cty.ctyp_type
-                (Jkind.Builtin.value_or_null ~why:Structure_element) with
-  | Ok () -> ()
+  let ty = cty.ctyp_type in
+  (* CR jrayman: should fixed be false? *)
+  begin match Ctype.type_sort ~why:Structure_element ~fixed:false env ty with
+    (* CR jrayman: don't ignore sort information *)
+  | Ok _ -> ()
   | Error err ->
     raise(Error(cty.ctyp_loc,
-                Non_value_in_sig(err,valdecl.pval_name.txt,cty.ctyp_type)))
+                Non_representable_in_sig(err,valdecl.pval_name.txt,ty)))
   end;
-  let ty = cty.ctyp_type in
   let v =
   match valdecl.pval_prim with
     [] when Env.is_in_signature env ->
@@ -4549,9 +4549,10 @@ let report_error ppf = function
          ~offender:(fun ppf -> Printtyp.type_expr ppf typ)) err
   | Jkind_empty_record ->
     fprintf ppf "@[Records must contain at least one runtime value.@]"
-  | Non_value_in_sig (err, val_name, ty) ->
+  | Non_representable_in_sig (err, val_name, ty) ->
     let offender ppf = fprintf ppf "type %a" Printtyp.type_expr ty in
-    fprintf ppf "@[This type signature for %a is not a value type.@ %a@]"
+    fprintf ppf
+      "@[This type signature for %a does not have a representable layout.@ %a@]"
       Style.inline_code val_name
       (Jkind.Violation.report_with_offender ~offender) err
   | Invalid_jkind_in_block (typ, sort_const, lloc) ->
