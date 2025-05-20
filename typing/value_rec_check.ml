@@ -770,7 +770,8 @@ let rec expression : Typedtree.expression -> term_judg =
           | Record_mixed mixed_shape ->
             (match mixed_shape.(i) with
              | Value | Float_boxed -> Guard
-             | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word | Product _ ->
+             | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word
+             | Product _ ->
                Dereference)
         in
         let field (label, field_def) =
