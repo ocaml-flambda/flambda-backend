@@ -122,12 +122,33 @@ module T04 = struct
 
 end
 
+module T05 = struct
+
+  (* Inner record has only one element (`Product` expects at least two elements). *)
+
+  type sub = #{ i32 : int32#; }
+
+  type record = { str : string; sub : sub; }
+
+  let run () =
+    let value = Sys.opaque_identity {
+      str = "something";
+      sub = #{ i32 = #123l; };
+    } in
+    Printf.printf "size=%s value.str=%S value.sub.#i32=%ld \n%!"
+      (size value)
+      value.str
+      (box_int32 value.sub.#i32)
+
+end
+
 let tests = [
   T00.run;
   T01.run;
   T02.run;
   T03.run;
   T04.run;
+  T05.run;
 ]
 
 let () = List.iter (fun test -> test ()) tests
