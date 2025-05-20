@@ -22,7 +22,9 @@ let[@zero_alloc] f_call_var x = M_alloc_var.f_alloc2 x
    Here we show that if we give it a signature that passes the typechecker (the
    mli has [val[@zero_alloc (arity 1)] f_arity_one : int -> int -> int]), it
    correctly gets checked and gives a zero_alloc backend error. *)
-let f_arity_one x y = x + y
+let f_arity_one x =
+  let () = () in
+  fun y -> x + y
 
 (* Shadowing: the mli marks [f_shadow] zero_alloc. That check should only apply
    to the last such function in the file, so we get no error even though there
@@ -99,7 +101,7 @@ module type S = functor () -> sig
 end
 
 module F () = struct
-  let f x = Some x
+  let[@opaque] f x = Some x
 end
 
 module _ : S = F
