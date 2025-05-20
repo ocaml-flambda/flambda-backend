@@ -21,6 +21,7 @@ val out_value : (formatter -> out_value -> unit) ref
 val out_label : (formatter -> string * out_mutability * out_type
   * out_modality list -> unit) ref
 val out_modality : (formatter -> out_modality -> unit) ref
+val out_modes_new : (formatter -> out_mode_new list -> unit) ref
 val out_jkind_const : (formatter -> out_jkind_const -> unit) ref
 val out_jkind : (formatter -> out_jkind -> unit) ref
 val out_type : (formatter -> out_type -> unit) ref
