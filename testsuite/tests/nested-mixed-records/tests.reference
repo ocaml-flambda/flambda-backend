@@ -1,1 +1,5 @@
 size=3 value.str="something" value.sub.#i32=123 value.sub.#i64=456 
+size=3 value.str="something" value.sub.#i32=123 value.sub.#i64=456 
+size=3 value.i=987 value.sub.#i32=123 value.sub.#i64=456 
+size=3 value.i=987 value.sub.#i32=123 value.sub.#i64=456 
+size=5 value.str="something" value.sub.#i32=123 value.sub.#i64=456 value.sub.s=s value.i=789 

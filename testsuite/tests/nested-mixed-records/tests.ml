@@ -117,6 +117,10 @@ end
 
 let tests = [
   T00.run;
+  T01.run;
+  T02.run;
+  T03.run;
+  T04.run;
 ]
 
 let () = List.iter (fun test -> test ()) tests
