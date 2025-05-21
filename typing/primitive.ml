@@ -722,6 +722,8 @@ let prim_has_valid_reprs ~loc prim =
       exactly [Same_as_ocaml_repr C.bits64; Same_as_ocaml_repr C.value]
     | "%unbox_int64" ->
       exactly [Same_as_ocaml_repr C.value; Same_as_ocaml_repr C.bits64]
+    | "%unbox_unit" ->
+      exactly [Same_as_ocaml_repr C.value; Same_as_ocaml_repr C.void]
     | "%box_vec128" ->
       exactly [Same_as_ocaml_repr C.vec128; Same_as_ocaml_repr C.value]
     | "%unbox_vec128" ->

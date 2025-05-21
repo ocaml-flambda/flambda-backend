@@ -1734,6 +1734,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         ( Box_number
             (kind, Alloc_mode.For_allocations.from_lambda mode ~current_region),
           arg ) ]
+  | Punbox_unit, [[_]] -> [Unboxed_product []]
   | Pfield_computed sem, [[obj]; [field]] ->
     (* We are reinterpreting a block(/object) as a value array, so it needs to
        be opaque. *)
@@ -2547,8 +2548,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pbox_float (_, _)
       | Punbox_vector _
       | Pbox_vector (_, _)
-      | Punbox_int _ | Pbox_int _ | Punboxed_product_field _ | Pget_header _
-      | Pufloatfield _ | Patomic_load _ | Pmixedfield _
+      | Punbox_int _ | Pbox_int _ | Punbox_unit | Punboxed_product_field _
+      | Pget_header _ | Pufloatfield _ | Patomic_load _ | Pmixedfield _
       | Preinterpret_unboxed_int64_as_tagged_int63
       | Preinterpret_tagged_int63_as_unboxed_int64
       | Parray_element_size_in_bytes _ | Ppeek _ | Pmakelazyblock _ ),
