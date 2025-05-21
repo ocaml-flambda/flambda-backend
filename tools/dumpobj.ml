@@ -96,6 +96,7 @@ let rec print_struct_const = function
   | Const_base(Const_unboxed_nativeint i)-> printf "%ndn" i
   | Const_base(Const_int64 i)
   | Const_base(Const_unboxed_int64 i) -> printf "%LdL" i
+  | Const_base(Const_unboxed_unit) -> printf "#()"
   | Const_block(tag, args) ->
       printf "<%d>" tag;
       begin match args with

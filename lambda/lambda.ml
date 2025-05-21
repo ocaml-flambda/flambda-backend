@@ -2199,6 +2199,7 @@ let constant_layout: constant -> layout = function
   | Const_float32 _ -> non_null_value (Pboxedfloatval Boxed_float32)
   | Const_unboxed_float _ -> Punboxed_float Unboxed_float64
   | Const_unboxed_float32 _ -> Punboxed_float Unboxed_float32
+  | Const_unboxed_unit -> Punboxed_product []
 
 let structured_constant_layout = function
   | Const_base const -> constant_layout const
