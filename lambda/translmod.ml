@@ -639,7 +639,8 @@ and transl_apply ~scopes ~loc ~cc mod_env funct translated_arg =
        ap_specialised=Default_specialise;
        ap_probe=None;})
 
-and transl_struct ~scopes loc fields sorts cc rootpath {str_final_env; str_items; _} =
+and transl_struct ~scopes loc fields sorts cc rootpath
+      {str_final_env; str_items; _} =
   transl_structure ~scopes loc fields sorts cc rootpath str_final_env str_items
 
 and shape_of_sorts _ = failwith "admitted"
