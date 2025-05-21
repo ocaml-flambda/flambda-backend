@@ -214,7 +214,7 @@ by types with any kind (e.g., `Sexpable`).
 # With-bounds
 
 Sometimes the kind of a type constructor depends on the kinds of the types that
-are applied as arguments.  For example, the type `'a list` can mode cross on
+are passed as arguments.  For example, the type `'a list` can mode cross on
 the portability axis if `'a` does.
 
 We could have a `list` whose kind is restricted to work on types that more cross
