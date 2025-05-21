@@ -740,8 +740,8 @@ type debug_uid = Shape.Uid.t
 (** The [debug_uid] values track typed-tree level identifiers that are then
     passed down to the lower level IRs and eventually emitted into dwarf output.
     WARNING: Unlike the name sugggests, these identifiers are not always unique.
-    Instead, in many cases, we use [debug_uid_none] below, and multiple variables
-    at the level of Lambda or below can use the same [debug_uid]. *)
+    Instead, in many cases, we use [debug_uid_none] below, and multiple
+    variables at the level of Lambda or below can use the same [debug_uid]. *)
 (* CR sspies: This comment is currently not accurate, since we do not yet
   emit these ids into dwarf code. *)
 
@@ -797,7 +797,7 @@ type lambda =
       lambda * (static_label * (Ident.t * debug_uid * layout) list) * lambda
       * pop_region * layout
   | Ltrywith of lambda * Ident.t * debug_uid * lambda * layout
-  (* Lifthenelse (e, t, f, layout) evaluates t if e evaluates to 0, and evaluates f if
+(* Lifthenelse (e, t, f, layout) evaluates t if e evaluates to 0, and evaluates f if
    e evaluates to any other value; layout must be the layout of [t] and [f] *)
   | Lifthenelse of lambda * lambda * lambda * layout
   | Lsequence of lambda * lambda

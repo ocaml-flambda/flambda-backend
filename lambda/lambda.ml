@@ -1180,7 +1180,9 @@ let name_lambda_list args fn =
   | (arg, layout) :: rem ->
       let id = Ident.create_local "let" in
       let id_debug_uid = debug_uid_none in
-      Llet(Strict, layout, id, id_debug_uid, arg, name_list (Lvar id :: names) rem) in
+      Llet(Strict, layout, id, id_debug_uid, arg,
+           name_list (Lvar id :: names) rem)
+  in
   name_list [] args
 
 

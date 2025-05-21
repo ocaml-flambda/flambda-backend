@@ -247,9 +247,11 @@ let simplify_exits lam =
   | Lfunction lfun ->
       Lfunction (map_lfunction (simplif ~layout:None ~try_depth) lfun)
   | Llet(str, kind, v, duid, l1, l2) ->
-      Llet(str, kind, v, duid, simplif ~layout:None ~try_depth l1, simplif ~layout ~try_depth l2)
+      Llet(str, kind, v, duid, simplif ~layout:None ~try_depth l1,
+           simplif ~layout ~try_depth l2)
   | Lmutlet(kind, v, duid, l1, l2) ->
-      Lmutlet(kind, v, duid, simplif ~layout:None ~try_depth l1, simplif ~layout ~try_depth l2)
+      Lmutlet(kind, v, duid, simplif ~layout:None ~try_depth l1,
+              simplif ~layout ~try_depth l2)
   | Lletrec(bindings, body) ->
       let bindings =
         List.map (fun ({ def = {kind; params; return; body = l; attr; loc;
@@ -642,8 +644,10 @@ let simplify_lets lam =
         0 -> simplif l2
       | _ -> mklet StrictOpt kind v duid (simplif l1) (simplif l2)
       end
-  | Llet(str, kind, v, duid, l1, l2) -> mklet str kind v duid (simplif l1) (simplif l2)
-  | Lmutlet(kind, v, duid, l1, l2) -> mkmutlet kind v duid (simplif l1) (simplif l2)
+  | Llet(str, kind, v, duid, l1, l2) ->
+    mklet str kind v duid (simplif l1) (simplif l2)
+  | Lmutlet(kind, v, duid, l1, l2) ->
+    mkmutlet kind v duid (simplif l1) (simplif l2)
   | Lletrec(bindings, body) ->
       let bindings =
         List.map (fun rb ->
@@ -670,7 +674,8 @@ let simplify_lets lam =
       Lstaticraise (i, List.map simplif ls)
   | Lstaticcatch(l1, (i,args), l2, r, kind) ->
       Lstaticcatch (simplif l1, (i,args), simplif l2, r, kind)
-  | Ltrywith(l1, v, duid, l2, kind) -> Ltrywith(simplif l1, v, duid, simplif l2, kind)
+  | Ltrywith(l1, v, duid, l2, kind) ->
+    Ltrywith(simplif l1, v, duid, simplif l2, kind)
   | Lifthenelse(l1, l2, l3, kind) -> Lifthenelse(simplif l1, simplif l2, simplif l3, kind)
   | Lsequence(Lifused(v, l1), l2) ->
       if count_var v > 0
@@ -804,8 +809,8 @@ and emit_tail_infos_lfunction _is_tail lfun =
    'Some' constructor, only to deconstruct it immediately in the
    function's body. *)
 
-let split_default_wrapper ~id:fun_id ~debug_uid:fun_duid ~kind ~params ~return ~body
-      ~attr ~loc ~mode ~ret_mode =
+let split_default_wrapper ~id:fun_id ~debug_uid:fun_duid ~kind ~params ~return
+      ~body ~attr ~loc ~mode ~ret_mode =
   let rec aux map add_region = function
     (* When compiling [fun ?(x=expr) -> body], this is first translated
        to:

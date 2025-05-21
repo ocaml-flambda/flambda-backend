@@ -1039,7 +1039,8 @@ and traverse_let_binding outer_ctx inner_ctx var var_duid def =
   | None -> [ var, var_duid, traverse outer_ctx def ]
   | Some lfun ->
       let functions = make_dps_variant var var_duid inner_ctx outer_ctx lfun in
-      List.map (fun (var, var_duid, lfun) -> var, var_duid, Lfunction lfun) functions
+      List.map
+        (fun (var, var_duid, lfun) -> var, var_duid, Lfunction lfun) functions
 
 and traverse_letrec_binding ctx { id; debug_uid; def } =
   if def.attr.tmc_candidate
