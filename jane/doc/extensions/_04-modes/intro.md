@@ -26,6 +26,16 @@ performed on a value. The mode may be a *past* mode, which tracks whether the
 operation has happened to this value in the past, or a *future* mode, which
 tracks whether the operation is allowed to happen to this value in the future.
 
+Just like a value has a type, a value in OxCaml also has a mode. Types do *not*
+have a mode. That is, we do not have a type `string @ local` (say), but rather
+if we have `(x : string @ local)`, then `x` has type `string` and is at mode
+`local`. Modes also appear in the argument and return slots of a function type,
+so we can have `string @ local -> string option @ global` to describe a function
+whose argument will have the `local` mode and whose return will have the
+`global` mode. These modes are properly associated with the function type, not
+the argument or result types (that is, there is still no `string @ local` or
+`string option @ global`).
+
 This page shows the modes that are currently supported. Each mode belongs to a
 modal *axis* determined by the operation it tracks and whether it is a past or
 future mode. The axes on this page are arranged with the least mode at the
