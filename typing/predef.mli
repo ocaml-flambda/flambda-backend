@@ -44,6 +44,7 @@ val type_unboxed_float32:type_expr
 val type_unboxed_nativeint:type_expr
 val type_unboxed_int32:type_expr
 val type_unboxed_int64:type_expr
+val type_unboxed_unit : type_expr
 val type_or_null: type_expr -> type_expr
 
 val type_int8x16: type_expr

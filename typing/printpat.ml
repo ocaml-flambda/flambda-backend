@@ -41,6 +41,7 @@ let pretty_const c = match c with
   Printf.sprintf "%sL" (Misc.format_as_unboxed_literal (Int64.to_string i))
 | Const_unboxed_nativeint i ->
   Printf.sprintf "%sn" (Misc.format_as_unboxed_literal (Nativeint.to_string i))
+| Const_unboxed_unit -> "#()"
 
 let pretty_extra ppf (cstr, _loc, _attrs) pretty_rest rest =
   match cstr with

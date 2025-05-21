@@ -136,6 +136,7 @@ let constant = function
   | Const_unboxed_int32 i -> Pconst_unboxed_integer (Int32.to_string i, 'l')
   | Const_unboxed_int64 i -> Pconst_unboxed_integer (Int64.to_string i, 'L')
   | Const_unboxed_nativeint i -> Pconst_unboxed_integer (Nativeint.to_string i, 'n')
+  | Const_unboxed_unit -> Pconst_unboxed_unit
 
 let attribute sub a = {
     attr_name = map_loc sub a.attr_name;

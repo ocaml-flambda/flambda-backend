@@ -1265,7 +1265,8 @@ let can_group discr pat =
   | Constant (Const_nativeint _), Constant (Const_nativeint _)
   | Constant (Const_unboxed_int32 _), Constant (Const_unboxed_int32 _)
   | Constant (Const_unboxed_int64 _), Constant (Const_unboxed_int64 _)
-  | Constant (Const_unboxed_nativeint _), Constant (Const_unboxed_nativeint _)->
+  | Constant (Const_unboxed_nativeint _), Constant (Const_unboxed_nativeint _)
+  | Constant Const_unboxed_unit, Constant Const_unboxed_unit ->
       true
   | Construct { cstr_tag = Extension _ as discr_tag }, Construct pat_cstr
     ->
@@ -1291,7 +1292,7 @@ let can_group discr pat =
           | Const_float32 _ | Const_unboxed_float _ | Const_unboxed_float32 _
           | Const_int32 _ | Const_int64 _ | Const_nativeint _
           | Const_unboxed_int32 _ | Const_unboxed_int64 _
-          | Const_unboxed_nativeint _ )
+          | Const_unboxed_nativeint _ | Const_unboxed_unit )
       | Construct _ | Tuple _ | Unboxed_tuple _ | Record _
       | Record_unboxed_product _ | Array _ | Variant _ | Lazy ) ) ->
       false
@@ -3175,6 +3176,20 @@ let combine_constant value_kind loc arg cst partial ctx def
           (Punboxed_int_comp (Unboxed_nativeint, Cne))
           (Punboxed_int_comp (Unboxed_nativeint, Clt))
           arg const_lambda_list
+    | Const_unboxed_unit ->
+      begin
+        (* Based on [make_test_sequence], except test will always succeed *)
+        let const_lambda_list = sort_lambda_list const_lambda_list in
+        let hs, const_lambda_list, fail =
+          share_actions_tree value_kind const_lambda_list fail
+        in
+        match const_lambda_list, fail with
+        | (Const_unboxed_unit, act) :: _, _ -> hs act
+        | [], Some fail -> hs fail
+        | [], None -> Misc.fatal_error "Matching.combine_constant"
+        (* CR rtjoa: is this possible? *)
+        | _ :: _, _ -> assert false
+      end
   in
   (lambda1, Jumps.union local_jumps total)
 

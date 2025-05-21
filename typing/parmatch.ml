@@ -162,6 +162,7 @@ let all_coherent column =
         | Const_float32 _, Const_float32 _
         | Const_unboxed_float _, Const_unboxed_float _
         | Const_unboxed_float32 _, Const_unboxed_float32 _
+        | Const_unboxed_unit, Const_unboxed_unit
         | Const_string _, Const_string _ -> true
         | ( Const_char _
           | Const_int _
@@ -175,6 +176,7 @@ let all_coherent column =
           | Const_float32 _
           | Const_unboxed_float _
           | Const_unboxed_float32 _
+          | Const_unboxed_unit
           | Const_string _), _ -> false
       end
     | Tuple l1, Tuple l2 ->
@@ -303,6 +305,7 @@ let const_compare x y =
     |Const_unboxed_int32 _
     |Const_unboxed_int64 _
     |Const_unboxed_nativeint _
+    |Const_unboxed_unit
     ), _ -> Stdlib.compare x y
 
 let records_args l1 l2 =
@@ -1198,6 +1201,8 @@ let build_other ext env =
             0.0 (fun f -> f +. 1.0) d env
       | Constant Const_float32 _
       | Constant Const_unboxed_float32 _ -> raise_matched_float32 ()
+      | Constant Const_unboxed_unit ->
+        make_pat (Tpat_constant Const_unboxed_unit) d.pat_type d.pat_env
       | Array (am, arg_sort, _) ->
           let all_lengths =
             List.map
@@ -2282,6 +2287,7 @@ let inactive ~partial pat =
             | Const_unboxed_float _ | Const_unboxed_float32 _ | Const_int32 _
             | Const_int64 _ | Const_nativeint _ | Const_unboxed_int32 _
             | Const_unboxed_int64 _ | Const_unboxed_nativeint _
+            | Const_unboxed_unit
             -> true
           end
         | Tpat_tuple ps ->
