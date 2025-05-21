@@ -1,4 +1,5 @@
 (* TEST
+   flags = "-extension let_mutable";
  {
    reference = "${test_source_directory}/alloc.heap.reference";
    bytecode;
@@ -470,6 +471,13 @@ let obj_direct () =
   end);
   ()
 
+let let_mutable_loop () =
+  let mutable x = [] in
+  for i = 0 to 10 do exclave_
+    x <- stack_ (i :: x)
+  done;
+  ignore_local x
+
 let run name f x =
   let prebefore = Gc.allocated_bytes () in
   let before = Gc.allocated_bytes () in
@@ -525,7 +533,8 @@ let () =
   run "optionalarg" optionalarg (fun_with_optional_arg, 10);
   run "optionaleta" optionaleta ();
   run "object" obj ();
-  run "object_direct" obj_direct ()
+  run "object_direct" obj_direct ();
+  run "let_mutable" let_mutable_loop ()
 
   (* The following test commented out as it require more memory than the CI has
      *)

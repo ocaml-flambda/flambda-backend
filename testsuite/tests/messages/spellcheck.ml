@@ -124,7 +124,7 @@ let _ =
 Line 5, characters 22-33:
 5 |     method update n = foobaz <- n
                           ^^^^^^^^^^^
-Error: The value "foobaz" is not an instance variable
+Error: The value "foobaz" is not an instance variable or mutable variable
 Hint: Did you mean "foobar"?
 |}];;
 

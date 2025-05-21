@@ -365,12 +365,18 @@ and expression_desc =
   | Pexp_constant of constant
       (** Expressions constant such as [1], ['a'], ["true"], [1.0], [1l],
             [1L], [1n] *)
-  | Pexp_let of rec_flag * value_binding list * expression
-      (** [Pexp_let(flag, [(P1,E1) ; ... ; (Pn,En)], E)] represents:
+  | Pexp_let of mutable_flag * rec_flag * value_binding list * expression
+      (** [Pexp_let(mut, rec, [(P1,E1) ; ... ; (Pn,En)], E)] represents:
             - [let P1 = E1 and ... and Pn = EN in E]
-               when [flag] is {{!Asttypes.rec_flag.Nonrecursive}[Nonrecursive]},
+               when [rec] is {{!Asttypes.rec_flag.Nonrecursive}[Nonrecursive]}
+               and [mut] = {{!Asttypes.mutable_flag.Immutable}[Immutable]}.
             - [let rec P1 = E1 and ... and Pn = EN in E]
-               when [flag] is {{!Asttypes.rec_flag.Recursive}[Recursive]}.
+               when [rec] is {{!Asttypes.rec_flag.Recursive}[Recursive]}
+               and [mut] = {{!Asttypes.mutable_flag.Immutable}[Immutable]}.
+            - [let mutable P1 = E1 in E]
+               when [rec] is {{!Asttypes.rec_flag.Nonrecursive}[Nonrecursive]}
+               and [mut] = {{!Asttypes.mutable_flag.Mutable}[Mutable]}.
+          Invariant: If [mut = Mutable] then [n = 1] and [rec = Nonrecursive]
          *)
   | Pexp_function of
       function_param list * function_constraint * function_body
@@ -469,7 +475,11 @@ and expression_desc =
          *)
   | Pexp_send of expression * label loc  (** [E # m] *)
   | Pexp_new of Longident.t loc  (** [new M.c] *)
-  | Pexp_setinstvar of label loc * expression  (** [x <- 2] *)
+  | Pexp_setvar of label loc * expression
+      (** [x <- 2]
+
+           Represents both setting an instance variable
+           and setting a mutable variable. *)
   | Pexp_override of (label loc * expression) list
       (** [{< x1 = E1; ...; xn = En >}] *)
   | Pexp_letmodule of string option loc * module_expr * expression

@@ -36,3 +36,4 @@
     optionaleta: Allocation
          object: Allocation
   object_direct: Allocation
+    let_mutable: Allocation

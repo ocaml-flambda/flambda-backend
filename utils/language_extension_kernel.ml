@@ -18,6 +18,7 @@ type _ t =
   | Labeled_tuples : unit t
   | Small_numbers : maturity t
   | Instances : unit t
+  | Let_mutable : unit t
 
 (* When you update this, update [pair_of_string] below too. *)
 let to_string : type a. a t -> string = function
@@ -34,3 +35,4 @@ let to_string : type a. a t -> string = function
   | Labeled_tuples -> "labeled_tuples"
   | Small_numbers -> "small_numbers"
   | Instances -> "instances"
+  | Let_mutable -> "let_mutable"
