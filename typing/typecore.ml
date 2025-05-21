@@ -768,6 +768,7 @@ let type_constant: Typedtree.constant -> type_expr = function
   | Const_unboxed_int32 _ -> instance Predef.type_unboxed_int32
   | Const_unboxed_int64 _ -> instance Predef.type_unboxed_int64
   | Const_unboxed_nativeint _ -> instance Predef.type_unboxed_nativeint
+  | Const_unboxed_unit -> instance Predef.type_unboxed_unit
 
 type constant_integer_result =
   | Int32 of int32
@@ -842,6 +843,7 @@ let constant : Parsetree.constant -> (Typedtree.constant, error) result =
       | Error Unknown_constant_literal ->
           Error (Unknown_literal (Misc.format_as_unboxed_literal i, suffix))
       end
+  | Pconst_unboxed_unit -> Ok Const_unboxed_unit
 
 let constant_or_raise env loc cst =
   match constant cst with
@@ -854,6 +856,9 @@ let constant_or_raise env loc cst =
        | Const_unboxed_float32 _ ->
            Language_extension.assert_enabled ~loc Layouts
              Language_extension.Stable
+       | Const_unboxed_unit ->
+           Language_extension.assert_enabled ~loc Layouts
+             Language_extension.Beta
        | Const_int _ | Const_char _ | Const_string _ | Const_float _
        | Const_float32 _ | Const_int32 _ | Const_int64 _ | Const_nativeint _ ->
            ());

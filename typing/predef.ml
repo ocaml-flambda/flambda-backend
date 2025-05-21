@@ -97,6 +97,7 @@ and path_unboxed_float32 = Path.unboxed_version path_float32
 and path_unboxed_nativeint = Path.unboxed_version path_nativeint
 and path_unboxed_int32 = Path.unboxed_version path_int32
 and path_unboxed_int64 = Path.unboxed_version path_int64
+and path_unboxed_unit = Path.unboxed_version path_unit
 
 and path_unboxed_int8x16 = Path.unboxed_version path_int8x16
 and path_unboxed_int16x8 = Path.unboxed_version path_int16x8
@@ -135,6 +136,7 @@ and type_unboxed_nativeint =
       newgenty (Tconstr(path_unboxed_nativeint, [], ref Mnil))
 and type_unboxed_int32 = newgenty (Tconstr(path_unboxed_int32, [], ref Mnil))
 and type_unboxed_int64 = newgenty (Tconstr(path_unboxed_int64, [], ref Mnil))
+and type_unboxed_unit = newgenty (Tconstr(path_unboxed_unit, [], ref Mnil))
 and type_or_null t = newgenty (Tconstr(path_or_null, [t], ref Mnil))
 
 and type_int8x16 = newgenty (Tconstr(path_int8x16, [], ref Mnil))
@@ -235,12 +237,7 @@ let mk_add_type add_type =
         let type_jkind =
           Jkind.of_builtin ~why:(Unboxed_primitive type_ident) unboxed_jkind
         in
-        let type_kind =
-          match kind with
-            | Type_abstract Definition -> Type_abstract Definition
-            | _ ->
-              Misc.fatal_error "Predef.mk_add_type: non-abstract unboxed kind"
-        in
+        let type_kind = Type_abstract Definition in
         let type_manifest =
           match manifest with
           | None -> None
@@ -493,6 +490,7 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type ident_unit
        ~kind:(variant [cstr ident_void []])
        ~jkind:Jkind.Const.Builtin.immediate
+       ~unboxed_jkind:Jkind.Const.Builtin.void
   (* Predefined exceptions - alphabetical order *)
   |> add_extension ident_assert_failure
        [newgenty (Ttuple[None, type_string; None, type_int; None, type_int]),

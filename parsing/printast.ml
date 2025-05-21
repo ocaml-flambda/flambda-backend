@@ -69,6 +69,7 @@ let fmt_constant f x =
   | Pconst_float (s,m) -> fprintf f "PConst_float (%s,%a)" s fmt_char_option m
   | Pconst_unboxed_float (s,m) ->
       fprintf f "PConst_unboxed_float (%s,%a)" s fmt_char_option m
+  | Pconst_unboxed_unit -> fprintf f "PConst_unboxed_unit"
 
 let fmt_mutable_flag f x =
   match x with

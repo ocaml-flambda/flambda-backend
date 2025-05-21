@@ -43,6 +43,7 @@ type constant =
   | Const_unboxed_int32 of int32
   | Const_unboxed_int64 of int64
   | Const_unboxed_nativeint of nativeint
+  | Const_unboxed_unit
 
 (* Value expressions for the core language *)
 

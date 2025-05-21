@@ -265,6 +265,7 @@ let constant f = function
   | Pconst_unboxed_integer (x, suffix) ->
       paren (first_is '-' x) (fun f (x, suffix) -> pp f "%s%c" x suffix) f
         (Misc.format_as_unboxed_literal x, suffix)
+  | Pconst_unboxed_unit -> pp f "#()"
 
 (* trailing space*)
 let mutable_flag f = function

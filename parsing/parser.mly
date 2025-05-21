@@ -4849,6 +4849,7 @@ value_constant:
 unboxed_constant:
   | HASH_INT          { unboxed_int $sloc $sloc Positive $1 }
   | HASH_FLOAT        { unboxed_float Positive $1 }
+  | HASHLPAREN RPAREN  { Pconst_unboxed_unit }
 ;
 constant:
     value_constant    { $1 }

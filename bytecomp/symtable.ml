@@ -291,6 +291,7 @@ let rec transl_const = function
   | Const_base(Const_unboxed_int64 i) -> Obj.repr i
   | Const_base(Const_nativeint i)
   | Const_base(Const_unboxed_nativeint i) -> Obj.repr i
+  | Const_base(Const_unboxed_unit) -> Obj.repr 0
   | Const_immstring s -> Obj.repr s
   | Const_block(tag, fields) ->
       let block = Obj.new_block tag (List.length fields) in
@@ -314,6 +315,7 @@ let rec transl_const = function
     if is_boot_compiler ()
     then Misc.fatal_error "The boot bytecode compiler should not produce null constants."
     else int_as_pointer 0
+
 
 (* Build the initial table of globals *)
 

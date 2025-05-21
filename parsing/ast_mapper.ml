@@ -104,6 +104,7 @@ module C = struct
     | Pconst_char _
     | Pconst_float _
     | Pconst_unboxed_float _
+    | Pconst_unboxed_unit
       -> c
     | Pconst_string (s, loc, quotation_delimiter) ->
         let loc = sub.location sub loc in

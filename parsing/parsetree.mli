@@ -54,6 +54,8 @@ type constant =
       Suffixes [g-z][G-Z] are accepted by the parser.
       Suffixes except ['s'] are rejected by the typechecker.
   *)
+  | Pconst_unboxed_unit
+  (** Void constant: [#()] *)
 
 type location_stack = Location.t list
 
