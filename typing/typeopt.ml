@@ -870,6 +870,8 @@ let[@inline always] rec layout_of_const_sort_generic ~value_kind ~error
   | Base Vec128 when Language_extension.(is_at_least Layouts Stable) &&
                      Language_extension.(is_at_least SIMD Stable) ->
     Lambda.Punboxed_vector Unboxed_vec128
+  | Base Void when Language_extension.(is_at_least Layouts Beta) ->
+    Lambda.Punboxed_product []
   | Product consts when Language_extension.(is_at_least Layouts Stable) ->
     (* CR layouts v7.1: assess whether it is important for performance to support
        deep value_kinds here *)
@@ -887,6 +889,7 @@ let layout env loc sort ty =
     ~error:(function
       | Base Value -> assert false
       | Base Void ->
+        (* CR rtjoa: update error *)
         raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
       | Base Float32 as const ->
         raise (Error (loc, Small_number_sort_without_extension
@@ -905,6 +908,7 @@ let layout_of_sort loc sort =
     ~error:(function
     | Base Value -> assert false
     | Base Void ->
+      (* CR rtjoa: update error *)
       raise (Error (loc, Non_value_sort_unknown_ty Jkind.Sort.void))
     | Base Float32 as const ->
       raise (Error (loc, Small_number_sort_without_extension

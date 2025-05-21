@@ -201,7 +201,8 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
           ( Const_int _ | Const_char _ | Const_string _ | Const_float32 _
           | Const_unboxed_float _ | Const_unboxed_float32 _ | Const_int32 _
           | Const_int64 _ | Const_nativeint _ | Const_unboxed_int32 _
-          | Const_unboxed_int64 _ | Const_unboxed_nativeint _ | Const_unboxed_unit )
+          | Const_unboxed_int64 _ | Const_unboxed_nativeint _
+          | Const_unboxed_unit )
       | Const_block _ | Const_mixed_block _ | Const_float_array _
       | Const_immstring _ | Const_float_block _ | Const_null ->
         Misc.fatal_errorf
@@ -1047,13 +1048,14 @@ let close_primitive acc env ~let_bound_ids_with_kinds named
       | Pbox_float (_, _)
       | Punbox_vector _
       | Pbox_vector (_, _)
-      | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
-      | Punboxed_product_field _ | Parray_element_size_in_bytes _
-      | Pget_header _ | Prunstack | Pperform | Presume | Preperform
-      | Patomic_exchange _ | Patomic_compare_exchange _ | Patomic_compare_set _
-      | Patomic_fetch_add | Patomic_add | Patomic_sub | Patomic_land
-      | Patomic_lor | Patomic_lxor | Pdls_get | Ppoll | Patomic_load _
-      | Patomic_set _ | Preinterpret_tagged_int63_as_unboxed_int64
+      | Punbox_int _ | Pbox_int _ | Punbox_unit | Pbox_unit
+      | Pmake_unboxed_product _ | Punboxed_product_field _
+      | Parray_element_size_in_bytes _ | Pget_header _ | Prunstack | Pperform
+      | Presume | Preperform | Patomic_exchange _ | Patomic_compare_exchange _
+      | Patomic_compare_set _ | Patomic_fetch_add | Patomic_add | Patomic_sub
+      | Patomic_land | Patomic_lor | Patomic_lxor | Pdls_get | Ppoll
+      | Patomic_load _ | Patomic_set _
+      | Preinterpret_tagged_int63_as_unboxed_int64
       | Preinterpret_unboxed_int64_as_tagged_int63 | Ppeek _ | Ppoke _
       | Pmakelazyblock _ ->
         (* Inconsistent with outer match *)
