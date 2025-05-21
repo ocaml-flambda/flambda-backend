@@ -2319,7 +2319,9 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
       Matching.for_function ~scopes ~arg_sort ~arg_layout ~return_layout
         e.exp_loc None (transl_exp ~scopes arg_sort arg) val_cases partial
     | arg, _ :: _ ->
-        let val_id, val_id_duid = Typecore.name_pattern "val" (List.map fst val_cases) in
+        let val_id, val_id_duid =
+          Typecore.name_pattern "val" (List.map fst val_cases)
+        in
         let arg_layout = layout_exp arg_sort arg in
         static_catch
           [transl_exp ~scopes arg_sort arg]
@@ -2333,8 +2335,8 @@ and transl_match ~scopes ~arg_sort ~return_sort e arg pat_expr_list partial =
        handler, Same_region, return_layout)
   ) classic static_handlers
 
-and transl_letop ~scopes loc env let_ ands param param_debug_uid param_sort case case_sort
-      partial =
+and transl_letop ~scopes loc env let_ ands param param_debug_uid param_sort case
+      case_sort partial =
   let rec loop prev_layout prev_lam = function
     | [] -> prev_lam
     | and_ :: rest ->

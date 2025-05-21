@@ -1046,7 +1046,9 @@ and traverse_letrec_binding ctx { id; debug_uid; def } =
   if def.attr.tmc_candidate
   then
     let functions = make_dps_variant id debug_uid ctx ctx def in
-    List.map (fun (id, id_duid, def) -> { id; debug_uid = id_duid; def }) functions
+    List.map
+      (fun (id, id_duid, def) -> { id; debug_uid = id_duid; def })
+      functions
   else
     [ { id; debug_uid = debug_uid; def = traverse_lfunction ctx def } ]
 

@@ -193,7 +193,7 @@ let iterator ~transl_exp ~scopes = function
         (transl_exp ~scopes Jkind.Sort.Const.for_predef_value sequence)
     in
     (* Create a fresh variable to use as the function argument. The debug uid is
-       [ident_debug_uid], because the variable is not visible to users. *)
+       [.debug_uid_none], because the variable is not visible to users. *)
     let element = Ident.create_local "element" in
     let element_debug_uid = Lambda.debug_uid_none in
     { builder = rev_dlist_concat_map;

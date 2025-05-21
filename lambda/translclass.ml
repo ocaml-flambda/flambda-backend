@@ -568,7 +568,8 @@ let rec transl_class_rebind ~scopes obj_init cl vf =
   | Tcl_open (_, cl) ->
       transl_class_rebind ~scopes obj_init cl vf
 
-let rec transl_class_rebind_0 ~scopes (self:Ident.t) self_debug_uid obj_init cl vf =
+let rec transl_class_rebind_0 ~scopes (self:Ident.t) self_debug_uid obj_init
+  cl vf =
   match cl.cl_desc with
     Tcl_let (rec_flag, defs, _vals, cl) ->
       let path, path_lam, obj_init =
@@ -580,7 +581,8 @@ let rec transl_class_rebind_0 ~scopes (self:Ident.t) self_debug_uid obj_init cl 
   | _ ->
       let path, path_lam, obj_init =
         transl_class_rebind ~scopes obj_init cl vf in
-      (path, path_lam, lfunction layout_obj [lparam self self_debug_uid layout_obj] obj_init)
+      (path, path_lam,
+       lfunction layout_obj [lparam self self_debug_uid layout_obj] obj_init)
 
 let transl_class_rebind ~scopes cl vf =
   try
@@ -604,7 +606,9 @@ let transl_class_rebind ~scopes cl vf =
     in
     let _, path_lam, obj_init' =
       transl_class_rebind_0 ~scopes self self_debug_uid obj_init0 cl vf in
-    let id = (obj_init' = lfunction layout_obj [lparam self self_debug_uid layout_obj] obj_init0) in
+    let id = (obj_init' = lfunction layout_obj
+                            [lparam self self_debug_uid layout_obj] obj_init0)
+    in
     if id then path_lam else
 
     let cla = Ident.create_local "class"
@@ -627,7 +631,8 @@ let transl_class_rebind ~scopes cl vf =
            lfunction layout_function [lparam table table_duid layout_table]
              (Llet(Strict, layout_function, env_init, env_init_duid,
                    mkappl(lfield cla 1, [Lvar table], layout_function),
-                   lfunction layout_function [lparam envs envs_duid layout_block]
+                   lfunction layout_function
+                     [lparam envs envs_duid layout_block]
                      (mkappl(Lvar new_init,
                              [mkappl(Lvar env_init, [Lvar envs], layout_obj)], layout_function))));
            lfield cla 2;
@@ -925,7 +930,8 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
          Dynamic (* Placeholder, real kind is computed in [lbody] below *))
     in
     let lam, rkind = mk_lam_and_kind (free_variables cl_init) in
-    Llet(Strict, layout_function, class_init, class_init_duid, cl_init, lam), rkind
+    Llet(Strict, layout_function, class_init, class_init_duid, cl_init, lam),
+    rkind
   and lbody fv =
     if List.for_all (fun id -> not (Ident.Set.mem id fv)) ids then
       mkappl (oo_prim "make_class",[transl_meth_list pub_meths;
@@ -952,7 +958,8 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
                           ~return:layout_function
                           ~mode:alloc_heap
                           ~ret_mode:alloc_heap
-                          ~params:[lparam cla cla_duid layout_table] ~body:cl_init;
+                          ~params:[lparam cla cla_duid layout_table]
+                          ~body:cl_init;
            lambda_unit; lenvs],
          Loc_unknown),
     Static
@@ -1024,7 +1031,8 @@ let transl_class ~scopes ids cl_id pub_meths cl vflag =
   in
   let ldirect () =
     ltable cla
-      (Llet(Strict, layout_function, env_init, env_init_duid, def_ids cla cl_init,
+      (Llet(Strict, layout_function, env_init, env_init_duid,
+            def_ids cla cl_init,
             Lsequence(mkappl (oo_prim "init_class", [Lvar cla], layout_unit),
                       lset cached 0 (Lvar env_init))))
   and lclass_virt () =
