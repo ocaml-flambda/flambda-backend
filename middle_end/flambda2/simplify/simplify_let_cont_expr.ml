@@ -256,13 +256,15 @@ let extra_params_for_continuation_param_aliases cont uacc rewrite_ids =
           (fun _id -> EPA.Extra_arg.Already_in_scope (Simple.var var))
           rewrite_ids
       in
+      let var_duid = Flambda_debug_uid.none in
+      (* CR sspies: [extra_params] sounds generated and not user visible. If
+         this is wrong, we should bother to propagate the right
+         [Flambda_debug_uid.t] values here. *)
       let var_kind =
         Flambda_kind.With_subkind.anything (Variable.Map.find var aliases_kind)
       in
       EPA.add
-        ~extra_param:
-          (Bound_parameter.create var var_kind
-             Flambda_uid.internal_not_actually_unique (* CR tnowak: maybe? *))
+        ~extra_param:(Bound_parameter.create var var_kind var_duid)
         ~extra_args epa ~invalids:Apply_cont_rewrite_id.Set.empty)
     required_extra_args.extra_args_for_aliases EPA.empty
 
@@ -503,11 +505,13 @@ let add_lets_around_handler cont at_unit_toplevel uacc handler =
   let handler, uacc =
     Variable.Map.fold
       (fun var bound_to (handler, uacc) ->
+        let var_duid = Flambda_debug_uid.none in
+        (* CR sspies: This seems very generic. Are these ever user visible? If
+           so, we should propagate their [Flambda_debug_uid.t] values to this
+           point. *)
         let bound_pattern =
-          (* CR tnowak: verify *)
           Bound_pattern.singleton
-            (Bound_var.create var Flambda_uid.internal_not_actually_unique
-               Name_mode.normal)
+            (Bound_var.create var var_duid Name_mode.normal)
         in
         let named = Named.create_simple (Simple.var bound_to) in
         let handler, uacc =

@@ -476,9 +476,11 @@ module Fold_prims = struct
               (fun i kind ->
                 let name = Variable.unique_name block_needed in
                 let var = Variable.create (Printf.sprintf "%s_%i" name i) in
-                Bound_parameter.create var kind
-                  Flambda_uid.internal_not_actually_unique
-                (* CR tnowak: verify *))
+                let var_duid = Flambda_debug_uid.none in
+                (* CR sspies: While this is an internally generated variable,
+                   would it make sense to try to propagate a
+                   [Flambda_debug_uid.t] here? *)
+                Bound_parameter.create var kind var_duid)
               fields_kinds
           in
           let env =

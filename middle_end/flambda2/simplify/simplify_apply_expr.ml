@@ -124,6 +124,9 @@ let simplify_direct_tuple_application ~simplify_expr dacc apply
   let vars_and_fields =
     List.init tuple_size (fun field ->
         ( Variable.create "tuple_field",
+          Flambda_debug_uid.none,
+          (* This internally created varibale does not get a
+             [Flambda_debug_uid.t]. *)
           Simplify_common.project_tuple ~dbg ~size:tuple_size ~field tuple_arg ))
   in
   (* Construct the arities for the tuple and any over application arguments *)
@@ -142,7 +145,7 @@ let simplify_direct_tuple_application ~simplify_expr dacc apply
   (* Change the application to operate on the fields of the tuple *)
   let apply =
     Apply.with_args apply
-      (List.map (fun (v, _) -> Simple.var v) vars_and_fields
+      (List.map (fun (v, _, _) -> Simple.var v) vars_and_fields
       @ over_application_args)
       ~args_arity
   in
@@ -163,11 +166,8 @@ let simplify_direct_tuple_application ~simplify_expr dacc apply
      optimizations *)
   let expr =
     List.fold_right
-      (fun (v, defining_expr) body ->
-        let var_bind =
-          Bound_var.create v Flambda_uid.internal_not_actually_unique
-            Name_mode.normal
-        in
+      (fun (v, v_duid, defining_expr) body ->
+        let var_bind = Bound_var.create v v_duid Name_mode.normal in
         Let.create
           (Bound_pattern.singleton var_bind)
           defining_expr ~body ~free_names_of_body:Unknown
@@ -426,6 +426,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       (Flambda_arity.unarize param_arity)
   in
   let wrapper_var = Variable.create "partial_app" in
+  let wrapper_var_duid = Flambda_debug_uid.none in
   let compilation_unit = Compilation_unit.get_current_exn () in
   let wrapper_function_slot =
     Function_slot.create compilation_unit ~name:"partial_app_closure"
@@ -480,8 +481,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
           List.map
             (fun kind ->
               let param = Variable.create "param" in
-              Bound_parameter.create param kind
-                Flambda_uid.internal_not_actually_unique (* CR sspies: fix *))
+              let param_duid = Flambda_debug_uid.none in
+              Bound_parameter.create param kind param_duid)
             (Flambda_arity.unarize remaining_param_arity)
           |> Bound_parameters.create
         in
@@ -608,8 +609,11 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
               | Const _ | Symbol _ -> expr, cost_metrics, free_names
               | In_closure { var; value_slot; value = _ } ->
                 let arg =
-                  VB.create var Flambda_uid.internal_not_actually_unique
-                    (* CR sspies: fix *) Name_mode.normal
+                  VB.create var Flambda_debug_uid.none
+                    (* CR sspies: I'm unsure whether these are user visible
+                       variables. At least at one call site, this is an
+                       internally defined variable. *)
+                    Name_mode.normal
                 in
                 let prim =
                   P.Unary
@@ -720,8 +724,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
       in
       let expr =
         let wrapper_var =
-          VB.create wrapper_var Flambda_uid.internal_not_actually_unique
-            (* CR sspies: fix *) Name_mode.normal
+          VB.create wrapper_var wrapper_var_duid Name_mode.normal
         in
         let bound_vars = [wrapper_var] in
         let bound = Bound_pattern.set_of_closures bound_vars in

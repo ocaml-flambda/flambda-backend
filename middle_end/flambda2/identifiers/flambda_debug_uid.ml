@@ -13,16 +13,18 @@
 (**************************************************************************)
 
 module Uid = Shape.Uid
+(* Lambda debugging uids of type [Lambda.debug_uid] are actually values of type
+   Shape.Uid.t, so we use the functions from [Shape.Uid] below. *)
 
 type t =
-  | Uid of Uid.t
-  | Proj of Uid.t * int
+  | Uid of Lambda.debug_uid
+  | Proj of Lambda.debug_uid * int
 
-let internal_not_actually_unique = Uid Uid.internal_not_actually_unique
+let none = Uid Lambda.debug_uid_none
 
-let uid u = Uid u
+let of_lambda_debug_uid u = Uid u
 
-let proj u ~field = Proj (u, field)
+let of_lambda_debug_uid_proj u ~field = Proj (u, field)
 
 module T0 = struct
   type nonrec t = t

@@ -442,9 +442,13 @@ let params_and_body0 env res code_id ~result_arity ~fun_dbg
     if not is_my_closure_used
     then params
     else
+      let my_closure_duid = Flambda_debug_uid.none in
+      (* CR sspies: Not sure whethere these closures can ever be user visible.
+         Popagating a [Lambda_debug_uid.t] here is nontrivial, so I picked
+         [Flambda_debug_uid.none] for now. *)
       let my_closure_param =
         Bound_parameter.create my_closure Flambda_kind.With_subkind.any_value
-          Flambda_uid.internal_not_actually_unique (* CR tnowak: maybe? *)
+          my_closure_duid
       in
       Bound_parameters.append params
         (Bound_parameters.create [my_closure_param])
@@ -468,10 +472,9 @@ let params_and_body0 env res code_id ~result_arity ~fun_dbg
     match my_region with
     | None -> env, None
     | Some my_region ->
+      let my_region_duid = Flambda_debug_uid.none in
       let env, region =
-        Env.create_bound_parameter env
-          ( my_region,
-            Flambda_uid.internal_not_actually_unique (* CR sspies: fix *) )
+        Env.create_bound_parameter env (my_region, my_region_duid)
       in
       env, Some region
   in
@@ -480,10 +483,9 @@ let params_and_body0 env res code_id ~result_arity ~fun_dbg
     match my_ghost_region with
     | None -> env, None
     | Some my_ghost_region ->
+      let my_ghost_region_duid = Flambda_debug_uid.none in
       let env, region =
-        Env.create_bound_parameter env
-          ( my_ghost_region,
-            Flambda_uid.internal_not_actually_unique (* CR sspies: fix *) )
+        Env.create_bound_parameter env (my_ghost_region, my_ghost_region_duid)
       in
       env, Some region
   in
@@ -729,11 +731,9 @@ let let_dynamic_set_of_closures0 env res ~body ~bound_vars set
       ~mode:(C.alloc_mode_for_allocations_to_cmm closure_alloc_mode)
       dbg ~tag l memory_chunks
   in
-  let soc_var =
-    Bound_var.create
-      (Variable.create "*set_of_closures*")
-      Flambda_uid.internal_not_actually_unique Name_mode.normal
-  in
+  let soc_var = Variable.create "*set_of_closures*" in
+  let soc_var_duid = Flambda_debug_uid.none in
+  let soc_var = Bound_var.create soc_var soc_var_duid Name_mode.normal in
   let defining_expr = Env.simple csoc free_vars in
   let env, res =
     Env.bind_variable_to_primitive env res soc_var ~inline:Env.Do_not_inline

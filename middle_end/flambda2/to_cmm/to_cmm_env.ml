@@ -293,7 +293,7 @@ let exported_offsets t = t.offsets
 
 (* Variables *)
 
-let gen_variable ~uid v =
+let gen_variable ~debug_uid v =
   let user_visible = Variable.user_visible v in
   let name = Variable.name v in
   let v = Backend_var.create_local name in
@@ -307,7 +307,7 @@ let gen_variable ~uid v =
          be reworked soon *)
       Some
         (Backend_var.Provenance.create ~module_path:(Path.Pident v)
-           ~location:Debuginfo.none ~original_ident:v ~uid)
+           ~location:Debuginfo.none ~original_ident:v ~debug_uid)
   in
   Backend_var.With_provenance.create ?provenance v
 
@@ -317,12 +317,12 @@ let add_bound_param env v v' =
   let vars = Variable.Map.add v (C.var v'', free_vars) env.vars in
   { env with vars }
 
-let create_bound_parameter env (v, uid) =
+let create_bound_parameter env (v, debug_uid) =
   if Variable.Map.mem v env.vars
   then
     Misc.fatal_errorf "Cannot rebind variable %a in To_cmm environment"
       Variable.print v;
-  let v' = gen_variable v ~uid in
+  let v' = gen_variable v ~debug_uid in
   let env = add_bound_param env v v' in
   env, v'
 
@@ -425,7 +425,9 @@ let create_binding_aux (type a) effs (var : Bound_var.t) ~(inline : a inline)
     next_order := !next_order + incr;
     !next_order
   in
-  let cmm_var = gen_variable ~uid:(Bound_var.uid var) (Bound_var.var var) in
+  let cmm_var =
+    gen_variable ~debug_uid:(Bound_var.debug_uid var) (Bound_var.var var)
+  in
   let binding = Binding { order; inline; effs; cmm_var; bound_expr } in
   binding
 

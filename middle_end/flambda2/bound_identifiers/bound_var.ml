@@ -16,21 +16,21 @@
 
 type t =
   { var : Variable.t;
-    uid : Flambda_uid.t;
+    debug_uid : Flambda_debug_uid.t;
     name_mode : Name_mode.t
   }
 
-let [@ocamlformat "disable"] print ppf { var; uid; name_mode = _; } =
-  Format.fprintf ppf "%a,uid=%a" Variable.print var Flambda_uid.print uid
+let [@ocamlformat "disable"] print ppf { var; debug_uid; name_mode = _; } =
+  Format.fprintf ppf "%a,uid=%a" Variable.print var Flambda_debug_uid.print debug_uid
 
-let create var uid name_mode =
+let create var debug_uid name_mode =
   (* Note that [name_mode] might be [In_types], e.g. when dealing with function
      return types and also using [Typing_env.add_definition]. *)
-  { var; uid; name_mode }
+  { var; debug_uid; name_mode }
 
 let var t = t.var
 
-let uid t = t.uid
+let debug_uid t = t.debug_uid
 
 let name_mode t = t.name_mode
 
@@ -49,9 +49,11 @@ let apply_renaming t renaming =
 
 let free_names t = Name_occurrences.singleton_variable t.var t.name_mode
 
-let ids_for_export { var; uid = _; name_mode = _ } =
+let ids_for_export { var; debug_uid = _; name_mode = _ } =
   Ids_for_export.add_variable Ids_for_export.empty var
 
-let renaming { var; uid = _; name_mode = _ } ~guaranteed_fresh =
-  let { var = guaranteed_fresh; uid = _; name_mode = _ } = guaranteed_fresh in
+let renaming { var; debug_uid = _; name_mode = _ } ~guaranteed_fresh =
+  let { var = guaranteed_fresh; debug_uid = _; name_mode = _ } =
+    guaranteed_fresh
+  in
   Renaming.add_fresh_variable Renaming.empty var ~guaranteed_fresh

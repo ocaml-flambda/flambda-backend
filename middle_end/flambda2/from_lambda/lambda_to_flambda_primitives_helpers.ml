@@ -309,24 +309,25 @@ let rec bind_recs acc exn_cont ~register_const0 (prim : expr_primitive)
       ~body ~is_exn_handler:false ~is_cold:false
   | If_then_else (cond, ifso, ifnot, result_kinds) ->
     let cond_result = Variable.create "cond_result" in
+    let cond_result_duid = Flambda_debug_uid.none in
     let cond_result_pat =
-      Bound_var.create cond_result Flambda_uid.internal_not_actually_unique
-        Name_mode.normal
+      Bound_var.create cond_result cond_result_duid Name_mode.normal
     in
     let ifso_cont = Continuation.create () in
     let ifnot_cont = Continuation.create () in
     let join_point_cont = Continuation.create () in
     let result_vars =
-      List.map (fun _ -> Variable.create "if_then_else_result") result_kinds
+      List.map
+        (fun _ -> Variable.create "if_then_else_result", Flambda_debug_uid.none)
+        result_kinds
     in
     let result_params =
       List.map2
-        (fun result_var result_kind ->
-          Bound_parameter.create result_var result_kind
-            Flambda_uid.internal_not_actually_unique (* CR sspies: new *))
+        (fun (result_var, result_var_duid) result_kind ->
+          Bound_parameter.create result_var result_kind result_var_duid)
         result_vars result_kinds
     in
-    let result_simples = List.map Simple.var result_vars in
+    let result_simples = List.map (fun (v, _) -> Simple.var v) result_vars in
     let result_nameds = List.map Named.create_simple result_simples in
     bind_recs acc exn_cont ~register_const0 cond dbg @@ fun acc cond ->
     let cond = must_be_singleton_named cond in
@@ -350,16 +351,17 @@ let rec bind_recs acc exn_cont ~register_const0 (prim : expr_primitive)
       bind_recs acc exn_cont ~register_const0 ifso_or_ifnot dbg
       @@ fun acc ifso_or_ifnot ->
       let result_vars =
-        List.map (fun _ -> Variable.create (name ^ "_result")) ifso_or_ifnot
+        List.map
+          (fun _ -> Variable.create (name ^ "_result"), Flambda_debug_uid.none)
+          ifso_or_ifnot
       in
       let result_pats =
         List.map
-          (fun result_var ->
-            Bound_var.create result_var Flambda_uid.internal_not_actually_unique
-              (* CR sspies: fix *) Name_mode.normal)
+          (fun (result_var, result_var_duid) ->
+            Bound_var.create result_var result_var_duid Name_mode.normal)
           result_vars
       in
-      let result_simples = List.map Simple.var result_vars in
+      let result_simples = List.map (fun (v, _) -> Simple.var v) result_vars in
       let acc, apply_cont =
         Apply_cont_with_acc.create acc join_point_cont ~args:result_simples ~dbg
       in
@@ -395,9 +397,8 @@ let rec bind_recs acc exn_cont ~register_const0 (prim : expr_primitive)
           (fun acc nameds ->
             let named = must_be_singleton_named nameds in
             let pat =
-              Bound_var.create (Variable.create "seq")
-                Flambda_uid.internal_not_actually_unique
-                (* CR sspies: fix *) Name_mode.normal
+              Bound_var.create (Variable.create "seq") Flambda_debug_uid.none
+                Name_mode.normal
               |> Bound_pattern.singleton
             in
             Let_with_acc.create acc pat named ~body))
@@ -418,15 +419,17 @@ and bind_rec_primitive acc exn_cont ~register_const0 (prim : simple_or_prim)
   | Simple s -> cont acc [s]
   | Prim p ->
     let cont acc (nameds : Named.t list) =
-      let vars = List.map (fun _ -> Variable.create "prim") nameds in
+      let vars =
+        List.map
+          (fun _ -> Variable.create "prim", Flambda_debug_uid.none)
+          nameds
+      in
       let vars' =
         List.map
-          (fun var ->
-            VB.create var Flambda_uid.internal_not_actually_unique
-              Name_mode.normal)
+          (fun (var, var_duid) -> VB.create var var_duid Name_mode.normal)
           vars
       in
-      let acc, body = cont acc (List.map Simple.var vars) in
+      let acc, body = cont acc (List.map (fun (v, _) -> Simple.var v) vars) in
       List.fold_left2
         (fun (acc, body) pat prim ->
           Let_with_acc.create acc (Bound_pattern.singleton pat) prim ~body)

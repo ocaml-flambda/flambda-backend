@@ -264,6 +264,9 @@ let create_coerced_singleton_let uacc var defining_expr
         let name = "uncoerced_" ^ Variable.unique_name (VB.var var) in
         Variable.create name
       in
+      let uncoerced_var_duid = Flambda_debug_uid.none in
+      (* CR sspies: Would it make sense here to propagate the
+         [Flambda_debug_uid.t] of the variable [var]? *)
       (* Generate [let var = uncoerced_var @ <coercion>] *)
       let ((body, uacc, inner_result) as inner) =
         let defining_simple =
@@ -285,8 +288,7 @@ let create_coerced_singleton_let uacc var defining_expr
         let ((_body, _uacc, outer_result) as outer) =
           let bound =
             Bound_pattern.singleton
-              (VB.create uncoerced_var Flambda_uid.internal_not_actually_unique
-                 name_mode)
+              (VB.create uncoerced_var uncoerced_var_duid name_mode)
           in
           create_let uacc bound defining_expr ~free_names_of_defining_expr ~body
             ~cost_metrics_of_defining_expr
@@ -570,9 +572,9 @@ let create_let_symbols uacc lifted_constant ~body =
       let free_names_of_defining_expr = Named.free_names defining_expr in
       let expr, uacc, _ =
         create_coerced_singleton_let uacc
-          (* CR tnowak: verify *)
-          (VB.create var Flambda_uid.internal_not_actually_unique
-             Name_mode.normal)
+          (VB.create var Flambda_debug_uid.none Name_mode.normal)
+          (* CR sspies: I have no idea whether this could ever be a user visible
+             variable. *)
           defining_expr ~coercion_from_defining_expr_to_var
           ~free_names_of_defining_expr ~body:expr ~cost_metrics_of_defining_expr
       in
@@ -769,9 +771,9 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
       let params =
         List.map
           (fun kind ->
-            BP.create (Variable.create "param") kind
-              Flambda_uid.internal_not_actually_unique
-            (* CR tnowak: verify *))
+            let param_var = Variable.create "param" in
+            let param_var_duid = Flambda_debug_uid.none in
+            BP.create param_var kind param_var_duid)
           (Flambda_arity.unarized_components arity)
       in
       let args = List.map BP.simple params in

@@ -35,11 +35,11 @@ let new_param t ~replay_history bound_param =
     match Replay_history.replay_variable_mapping replay_history with
     | Still_recording -> bound_param
     | Replayed variable_mapping ->
-      let original_var =
-        Variable.Map.find (BP.var bound_param) variable_mapping
-      in
-      BP.create original_var (BP.kind bound_param)
-        Flambda_uid.internal_not_actually_unique (* CR sspies: fix *)
+      let param_var, param_duid = BP.var_and_uid bound_param in
+      let original_var = Variable.Map.find param_var variable_mapping in
+      BP.create original_var (BP.kind bound_param) param_duid
+    (* CR sspies: Is it correct that we copy the [Flambda_debug_uid.t] here?
+       This requires a closer look. *)
   in
   let new_params_indexed = BP.Map.add key bound_param t.new_params_indexed in
   { len = t.len + 1; new_params_indexed }

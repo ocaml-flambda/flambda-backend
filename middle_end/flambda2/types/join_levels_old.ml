@@ -46,9 +46,11 @@ let join_types ~env_at_fork envs_with_levels =
                     let kind = TEL.find_kind level var in
                     TE.add_definition base_env
                       (Bound_name.create_var
-                         (Bound_var.create var
-                            Flambda_uid.internal_not_actually_unique
-                            (* CR sspies: fix *) Name_mode.in_types))
+                         (Bound_var.create var Flambda_debug_uid.none
+                            (* Variables with [Name_mode.in_types] do not exist
+                               at runtime, so we do not equip them with a
+                               [Flambda_debug_uid.t]. See #3967. *)
+                            Name_mode.in_types))
                       kind)
                 vars base_env)
             (TEL.variables_by_binding_time level)

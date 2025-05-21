@@ -15,11 +15,10 @@
 (**************************************************************************)
 
 module Simple = Int_ids.Simple
-module Uid = Shape.Uid
 
 type t =
   { param : Variable.t;
-    uid : Flambda_uid.t;
+    uid : Flambda_debug_uid.t;
     kind : Flambda_kind.With_subkind.t
   }
 
@@ -33,7 +32,7 @@ include Container_types.Make (struct
     then c
     else
       let c = Flambda_kind.With_subkind.compare kind1 kind2 in
-      if c <> 0 then c else Flambda_uid.compare uid1 uid2
+      if c <> 0 then c else Flambda_debug_uid.compare uid1 uid2
 
   let equal t1 t2 = compare t1 t2 = 0
 
@@ -41,13 +40,13 @@ include Container_types.Make (struct
     Hashtbl.hash
       ( Variable.hash param,
         Flambda_kind.With_subkind.hash kind,
-        Flambda_uid.hash uid )
+        Flambda_debug_uid.hash uid )
 
   let [@ocamlformat "disable"] print ppf { param; kind; uid } =
     Format.fprintf ppf "@[(%t%a,uid=%a%t @<1>\u{2237} %a)@]"
       Flambda_colours.parameter
       Variable.print param
-      Flambda_uid.print uid
+      Flambda_debug_uid.print uid
       Flambda_colours.pop
       Flambda_kind.With_subkind.print kind
 end)

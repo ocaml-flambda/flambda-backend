@@ -12,17 +12,17 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Augmented version of [Shape.Uid.t] that can track variables forming parts
+(** Augmented version of [Lambda.debug_uid] that can track variables forming parts
     of unboxed products. *)
 
 type t = private
-  | Uid of Shape.Uid.t
-  | Proj of Shape.Uid.t * int
+  | Uid of Lambda.debug_uid
+  | Proj of Lambda.debug_uid * int
 
-val internal_not_actually_unique : t
+val none : t
 
-val uid : Shape.Uid.t -> t
+val of_lambda_debug_uid : Lambda.debug_uid -> t
 
-val proj : Shape.Uid.t -> field:int -> t
+val of_lambda_debug_uid_proj : Lambda.debug_uid -> field:int -> t
 
 include Identifiable.S with type t := t

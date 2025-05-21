@@ -50,27 +50,28 @@ val register_unboxed_product :
   t ->
   unboxed_product:Ident.t ->
   before_unarization:[`Complex] Flambda_arity.Component_for_creation.t ->
-  fields:(Ident.t * Flambda_uid.t) list ->
+  fields:(Ident.t * Flambda_debug_uid.t) list ->
   t
 
 val register_unboxed_product_with_kinds :
   t ->
   unboxed_product:Ident.t ->
   before_unarization:[`Complex] Flambda_arity.Component_for_creation.t ->
-  fields:(Ident.t * Flambda_uid.t * Flambda_kind.With_subkind.t) list ->
+  fields:(Ident.t * Flambda_debug_uid.t * Flambda_kind.With_subkind.t) list ->
   t
 
 val get_unboxed_product_fields :
   t ->
   Ident.t ->
   ([`Complex] Flambda_arity.Component_for_creation.t
-  * (Ident.t * Flambda_uid.t) list)
+  * (Ident.t * Flambda_debug_uid.t) list)
   option
 
 type add_continuation_result = private
   { body_env : t;
     handler_env : t;
-    extra_params : (Ident.t * Flambda_uid.t * Flambda_kind.With_subkind.t) list
+    extra_params :
+      (Ident.t * Flambda_debug_uid.t * Flambda_kind.With_subkind.t) list
   }
 
 val add_continuation :
@@ -99,7 +100,7 @@ val extra_args_for_continuation : t -> Continuation.t -> Ident.t list
 val extra_args_for_continuation_with_kinds :
   t ->
   Continuation.t ->
-  (Ident.t * Flambda_uid.t * Flambda_kind.With_subkind.t) list
+  (Ident.t * Flambda_debug_uid.t * Flambda_kind.With_subkind.t) list
 
 val get_mutable_variable_with_kind :
   t -> Ident.t -> Ident.t * Flambda_kind.With_subkind.t

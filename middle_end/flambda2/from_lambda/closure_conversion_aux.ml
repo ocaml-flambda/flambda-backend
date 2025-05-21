@@ -23,7 +23,8 @@ module IR = struct
 
   type exn_continuation =
     { exn_handler : Continuation.t;
-      extra_args : (simple * Flambda_uid.t * Flambda_kind.With_subkind.t) list
+      extra_args :
+        (simple * Flambda_debug_uid.t * Flambda_kind.With_subkind.t) list
     }
 
   type trap_action =
@@ -746,7 +747,7 @@ module Function_decls = struct
   module Function_decl = struct
     type param =
       { name : Ident.t;
-        var_uid : Flambda_uid.t;
+        debug_uid : Flambda_debug_uid.t;
         kind : Flambda_kind.With_subkind.t;
         attributes : Lambda.parameter_attribute;
         mode : Lambda.locality_mode
@@ -764,7 +765,7 @@ module Function_decls = struct
 
     type t =
       { let_rec_ident : Ident.t;
-        let_rec_uid : Flambda_uid.t;
+        let_rec_uid : Flambda_debug_uid.t;
         function_slot : Function_slot.t;
         kind : Lambda.function_kind;
         params : param list;
@@ -832,6 +833,8 @@ module Function_decls = struct
       }
 
     let let_rec_ident t = t.let_rec_ident
+
+    let let_rec_debug_uid t = t.let_rec_uid
 
     let function_slot t = t.function_slot
 

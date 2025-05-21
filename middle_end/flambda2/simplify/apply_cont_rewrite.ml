@@ -175,9 +175,11 @@ let make_rewrite rewrite ~ctx id args : _ Or_invalid.t =
             | Already_in_scope simple ->
               simple, [], Simple.free_names simple, Name_occurrences.empty
             | New_let_binding (temp, prim) ->
+              let temp_duid = Flambda_debug_uid.none in
+              (* CR sspies: The name [temp] suggests that this is not
+                 user-visible. *)
               let extra_let =
-                ( Bound_var.create temp Flambda_uid.internal_not_actually_unique
-                    (* CR sspies: fix *) Name_mode.normal,
+                ( Bound_var.create temp temp_duid Name_mode.normal,
                   Code_size.prim prim,
                   Flambda.Named.create_prim prim Debuginfo.none )
               in
@@ -186,6 +188,9 @@ let make_rewrite rewrite ~ctx id args : _ Or_invalid.t =
                 Flambda_primitive.free_names prim,
                 Name_occurrences.singleton_variable temp Name_mode.normal )
             | New_let_binding_with_named_args (temp, gen_prim) ->
+              let temp_duid = Flambda_debug_uid.none in
+              (* CR sspies: The name [temp] suggests that this is not
+                 user-visible. *)
               let prim =
                 match (ctx : rewrite_apply_cont_ctx) with
                 | Apply_expr function_return_values ->
@@ -196,8 +201,7 @@ let make_rewrite rewrite ~ctx id args : _ Or_invalid.t =
                      since they are already named."
               in
               let extra_let =
-                ( Bound_var.create temp Flambda_uid.internal_not_actually_unique
-                    (* CR sspies: fix *) Name_mode.normal,
+                ( Bound_var.create temp temp_duid Name_mode.normal,
                   Code_size.prim prim,
                   Flambda.Named.create_prim prim Debuginfo.none )
               in

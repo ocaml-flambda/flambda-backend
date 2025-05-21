@@ -44,7 +44,7 @@ val to_set : t -> Bound_parameter.Set.t
 
 val vars : t -> Variable.t list
 
-val vars_and_uids : t -> (Variable.t * Flambda_uid.t) list
+val vars_and_uids : t -> (Variable.t * Flambda_debug_uid.t) list
 
 val var_set : t -> Variable.Set.t
 
