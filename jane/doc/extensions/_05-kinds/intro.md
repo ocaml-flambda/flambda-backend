@@ -95,7 +95,7 @@ cross on its axis.
 
 Formally, these are called modal _bounds_ because the represent upper or lower
 bounds on the appropriate modal axes. For _future_ modal axes (like portability
-and linearity), the kind records an upper bound on the mode of values of this
+and affinity), the kind records an upper bound on the mode of values of this
 type. For example, `int` is `mod portable` because if you have an `int` that is
 `nonportable`, it's safe to treat it as `portable`.  For _past_ modal axes
 (like contention and uniqueness), the kind records a lower bound on

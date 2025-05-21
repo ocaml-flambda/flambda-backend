@@ -74,7 +74,7 @@ value. However, the other directions are disallowed in general: if a value is
 value can not be made `many`.
 
 We make an exception to this rule for values of those types that cross these
-modes. A type crosses linearity if it doesn't contain functions; a type crosses
+modes. A type crosses affinity if it doesn't contain functions; a type crosses
 uniqueness if it doesn't contain memory location subject to overwriting (even
 though overwriting hasn't been implemented yet). The mode crossing capability of
 a type can be removed by adding a kind annotation to an abstract type
