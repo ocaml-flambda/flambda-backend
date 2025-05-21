@@ -1425,15 +1425,15 @@ and build_as_type_aux (env : Env.t) p ~mode =
 
         RAE: why? It looks fine as-is. *)
     let ty = newvar (Jkind.Builtin.any ~why:Dummy_jkind) in
-    let ppl = List.map (fun (_, l, p) -> l.lbl_num, p) lpl in
+    let ppl = List.map (fun (_, l, p) -> l.lbl_pos, p) lpl in
     let do_label lbl =
       let _, ty_arg, ty_res = instance_label ~fixed:false lbl in
       unify_pat env {p with pat_type = ty} ty_res;
       let refinable =
-        lbl.lbl_mut = Immutable && List.mem_assoc lbl.lbl_num ppl &&
+        lbl.lbl_mut = Immutable && List.mem_assoc lbl.lbl_pos ppl &&
         match get_desc lbl.lbl_arg with Tpoly _ -> false | _ -> true in
       if refinable then begin
-        let arg = List.assoc lbl.lbl_num ppl in
+        let arg = List.assoc lbl.lbl_pos ppl in
         unify_pat env
           {arg with pat_type = build_as_type env arg} ty_arg
       end else begin
@@ -2407,7 +2407,7 @@ let disambiguate_sort_lid_a_list
       (Warnings.Name_out_of_scope (!w_scope_ty, warning)));
   (* Invariant: records are sorted in the typed tree *)
   List.sort
-    (fun (_,lbl1,_) (_,lbl2,_) -> compare lbl1.lbl_num lbl2.lbl_num)
+    (fun (_,lbl1,_) (_,lbl2,_) -> compare lbl1.lbl_pos lbl2.lbl_pos)
     lbl_a_list
 
 let map_fold_cont f xs k =
@@ -2424,9 +2424,9 @@ let check_recordpat_labels loc lbl_pat_list closed record_form =
       let all = label1.lbl_all in
       let defined = Array.make (Array.length all) false in
       let check_defined (_, label, _) =
-        if defined.(label.lbl_num)
+        if defined.(label.lbl_pos)
         then raise(Error(loc, Env.empty, Label_multiply_defined label.lbl_name))
-        else defined.(label.lbl_num) <- true in
+        else defined.(label.lbl_pos) <- true in
       List.iter check_defined lbl_pat_list;
       if closed = Closed
       && Warnings.is_active
@@ -5549,7 +5549,7 @@ and type_expect_
       (* note: check_duplicates would better be implemented in
          disambiguate_sort_lid_a_list directly *)
       let rec check_duplicates = function
-        | (_, lbl1, _) :: (_, lbl2, _) :: _ when lbl1.lbl_num = lbl2.lbl_num ->
+        | (_, lbl1, _) :: (_, lbl2, _) :: _ when lbl1.lbl_pos = lbl2.lbl_pos ->
           raise(Error(loc, env, Label_multiply_defined lbl1.lbl_name))
         | _ :: rem ->
             check_duplicates rem
@@ -5560,7 +5560,7 @@ and type_expect_
         let (_lid, lbl, _lbl_exp) = List.hd lbl_exp_list in
         let matching_label lbl =
           List.find
-            (fun (_, lbl',_) -> lbl'.lbl_num = lbl.lbl_num)
+            (fun (_, lbl',_) -> lbl'.lbl_pos = lbl.lbl_pos)
             lbl_exp_list
         in
         let unify_kept record_loc extended_expr_loc ty_exp mode lbl =
@@ -5597,7 +5597,7 @@ and type_expect_
                       Overridden (lid, lbl_exp)
                   | exception Not_found ->
                       let present_indices =
-                        List.map (fun (_, lbl, _) -> lbl.lbl_num) lbl_exp_list
+                        List.map (fun (_, lbl, _) -> lbl.lbl_pos) lbl_exp_list
                       in
                       let label_names =
                         extract_label_names record_form env ty_expected in
@@ -6111,7 +6111,7 @@ and type_expect_
           match label.lbl_repres with
           | Record_float -> true
           | Record_mixed mixed -> begin
-              match mixed.(label.lbl_num) with
+              match mixed.(label.lbl_pos) with
               | Float_boxed -> true
               | Float64 | Float32 | Value | Bits32 | Bits64 | Vec128 | Word ->
                 false
