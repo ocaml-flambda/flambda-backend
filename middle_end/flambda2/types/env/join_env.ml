@@ -1192,7 +1192,9 @@ let cut_and_n_way_join ~n_way_join_type ~meet_type ~cut_after target_env
       Variable.Map.fold
         (fun var kind target_env ->
           TE.add_definition target_env
-            (Bound_name.create_var (Bound_var.create var Name_mode.in_types))
+            (Bound_name.create_var
+               (Bound_var.create var Flambda_uid.internal_not_actually_unique
+                  (* CR sspies: fix *) Name_mode.in_types))
             kind)
         extra_variables target_env
     in

@@ -2,11 +2,9 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                       Pierre Chambart, OCamlPro                        *)
-(*           Mark Shinwell and Leo White, Jane Street Europe              *)
+(*                   Mark Shinwell, Jane Street Europe                    *)
 (*                                                                        *)
-(*   Copyright 2013--2019 OCamlPro SAS                                    *)
-(*   Copyright 2014--2019 Jane Street Group LLC                           *)
+(*   Copyright 2023 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,19 +12,17 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Variables with name modes, as occur on the left-hand sides of
-    [Let]-expressions (see [Bound_pattern]). *)
+(** Augmented version of [Shape.Uid.t] that can track variables forming parts
+    of unboxed products. *)
 
-type t
+type t = private
+  | Uid of Shape.Uid.t
+  | Proj of Shape.Uid.t * int
 
-val create : Variable.t -> Flambda_uid.t -> Name_mode.t -> t
+val internal_not_actually_unique : t
 
-val var : t -> Variable.t
+val uid : Shape.Uid.t -> t
 
-val uid : t -> Flambda_uid.t
+val proj : Shape.Uid.t -> field:int -> t
 
-val name_mode : t -> Name_mode.t
-
-val with_name_mode : t -> Name_mode.t -> t
-
-include Bindable.S with type t := t
+include Identifiable.S with type t := t

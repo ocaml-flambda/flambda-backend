@@ -185,7 +185,10 @@ let split_direct_over_application apply
       let over_application_results =
         List.mapi
           (fun i kind ->
-            BP.create (Variable.create ("result" ^ string_of_int i)) kind)
+            BP.create
+              (Variable.create ("result" ^ string_of_int i))
+              kind
+              Flambda_uid.internal_not_actually_unique (* CR tnowak: verify *))
           (Flambda_arity.unarized_components (Apply.return_arity apply))
       in
       let call_return_continuation, call_return_continuation_free_names =
@@ -205,14 +208,17 @@ let split_direct_over_application apply
       let handler_expr =
         Let.create
           (Bound_pattern.singleton
-             (Bound_var.create (Variable.create "unit") Name_mode.normal))
+             (Bound_var.create (Variable.create "unit")
+                Flambda_uid.internal_not_actually_unique Name_mode.normal))
           (Named.create_prim
              (Unary (End_region { ghost = false }, Simple.var region))
              (Apply.dbg apply))
           ~body:
             (Let.create
                (Bound_pattern.singleton
-                  (Bound_var.create (Variable.create "unit") Name_mode.normal))
+                  (Bound_var.create (Variable.create "unit")
+                     Flambda_uid.internal_not_actually_unique
+                     (* CR sspies: fix *) Name_mode.normal))
                (Named.create_prim
                   (Unary (End_region { ghost = true }, Simple.var ghost_region))
                   (Apply.dbg apply))
@@ -242,7 +248,10 @@ let split_direct_over_application apply
   in
   let after_full_application = Continuation.create () in
   let after_full_application_handler =
-    let func_param = BP.create func_var K.With_subkind.any_value in
+    let func_param =
+      BP.create func_var K.With_subkind.any_value
+        Flambda_uid.internal_not_actually_unique (* CR tnowak: maybe? *)
+    in
     Continuation_handler.create
       (Bound_parameters.create [func_param])
       ~handler:perform_over_application
@@ -275,14 +284,18 @@ let split_direct_over_application apply
       NO.union (Apply.free_names full_apply) perform_over_application_free_names
     in
     Let.create
-      (Bound_pattern.singleton (Bound_var.create region Name_mode.normal))
+      (Bound_pattern.singleton
+         (Bound_var.create region Flambda_uid.internal_not_actually_unique
+            (* CR tnowak: verify *) Name_mode.normal))
       (Named.create_prim
          (Variadic (Begin_region { ghost = false }, []))
          (Apply.dbg apply))
       ~body:
         (Let.create
            (Bound_pattern.singleton
-              (Bound_var.create ghost_region Name_mode.normal))
+              (Bound_var.create ghost_region
+                 Flambda_uid.internal_not_actually_unique
+                 (* CR sspies: fix *) Name_mode.normal))
            (Named.create_prim
               (Variadic (Begin_region { ghost = false }, []))
               (Apply.dbg apply))

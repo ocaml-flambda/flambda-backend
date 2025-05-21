@@ -283,7 +283,9 @@ let add_defined_vars env level =
   TEL.fold_on_defined_vars
     (fun var kind env ->
       TE.add_definition env
-        (Bound_name.create_var (Bound_var.create var Name_mode.in_types))
+        (Bound_name.create_var
+           (Bound_var.create var Flambda_uid.internal_not_actually_unique
+              (* CR sspies: fix *) Name_mode.in_types))
         kind)
     level env
 
@@ -1223,7 +1225,9 @@ and meet_row_like :
     Variable.Map.fold
       (fun var kind env ->
         TE.add_definition env
-          (Bound_name.create_var (Bound_var.create var Name_mode.in_types))
+          (Bound_name.create_var
+             (Bound_var.create var Flambda_uid.internal_not_actually_unique
+                (* CR sspies: fix *) Name_mode.in_types))
           kind)
       !extra_variables result_env
   in

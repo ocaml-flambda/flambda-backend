@@ -44,7 +44,9 @@ let apply_cont cont v ~dbg =
   free_names, expr
 
 let let_prim ~dbg v prim (free_names, body) =
-  let v' = Bound_var.create v Name_mode.normal in
+  let v' =
+    Bound_var.create v Flambda_uid.internal_not_actually_unique Name_mode.normal
+  in
   let bindable = Bound_pattern.singleton v' in
   let named = Named.create_prim prim dbg in
   let free_names_of_body = Or_unknown.Known free_names in

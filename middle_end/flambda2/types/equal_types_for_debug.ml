@@ -462,7 +462,10 @@ let names_with_non_equal_types_level_ignoring_name_mode ~meet_type env level1
     Typing_env_level.fold_on_defined_vars
       (fun var kind left_env ->
         TE.add_definition left_env
-          (Bound_name.create_var (Bound_var.create var Name_mode.in_types))
+          (Bound_name.create_var
+             (Bound_var.create var
+                Flambda_uid.internal_not_actually_unique (* CR sspies: fix *)
+                Name_mode.in_types))
           kind)
       level1 env
   in
@@ -470,7 +473,10 @@ let names_with_non_equal_types_level_ignoring_name_mode ~meet_type env level1
     Typing_env_level.fold_on_defined_vars
       (fun var kind right_env ->
         TE.add_definition right_env
-          (Bound_name.create_var (Bound_var.create var Name_mode.in_types))
+          (Bound_name.create_var
+             (Bound_var.create var
+                Flambda_uid.internal_not_actually_unique (* CR sspies: fix *)
+                Name_mode.in_types))
           kind)
       level2 env
   in

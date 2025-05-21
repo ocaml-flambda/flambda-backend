@@ -39,6 +39,7 @@ let new_param t ~replay_history bound_param =
         Variable.Map.find (BP.var bound_param) variable_mapping
       in
       BP.create original_var (BP.kind bound_param)
+        Flambda_uid.internal_not_actually_unique (* CR sspies: fix *)
   in
   let new_params_indexed = BP.Map.add key bound_param t.new_params_indexed in
   { len = t.len + 1; new_params_indexed }
