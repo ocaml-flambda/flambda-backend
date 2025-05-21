@@ -2001,15 +2001,16 @@ let type_comprehension_for_range_iterator_index ~loc ~env ~param tps =
             pv_type
             pv_attributes)
 
-let value_bindings_mutability (mf : mutable_flag) env ?restriction vbs =
+let check_let_mutable (mf : mutable_flag) env ?restriction vbs =
   match vbs, mf with
   | vb :: vbs, Mutable -> begin
       let loc = vb.pvb_pat.ppat_loc in
-      (* If mutable attribute is present, check:
+      (* If the [let] is [mutable], check:
          - Let_mutable is enabled
          - There is only one value binding
-         - Mutables are not restricted here
-         - The pattern has the allowed shape *)
+         - The value binding pattern consists only of a variable, possibly
+           with a type/mode constraint
+         - Mutables are not restricted here according to [restriction] *)
       Language_extension.assert_enabled ~loc Let_mutable ();
       match restriction, vb.pvb_pat.ppat_desc, vbs with
       | _, _, _ :: _ -> raise (Error (loc, env, Unexpected_mutable In_group))
@@ -4778,12 +4779,13 @@ let check_partial_application ~statement exp =
             | Texp_overwrite _ | Texp_hole _
             | Texp_field _ | Texp_setfield _ | Texp_array _
             | Texp_list_comprehension _ | Texp_array_comprehension _
-            | Texp_while _ | Texp_for _ | Texp_instvar _ | Texp_mutvar _
-            | Texp_setinstvar _ | Texp_setmutvar _ | Texp_override _
-            | Texp_assert _ | Texp_lazy _ | Texp_object _ | Texp_pack _
-            | Texp_unreachable | Texp_extension_constructor _
-            | Texp_ifthenelse (_, _, None) | Texp_probe _
-            | Texp_probe_is_enabled _ | Texp_src_pos | Texp_function _ ->
+            | Texp_while _ | Texp_for _ | Texp_instvar _
+            | Texp_mutvar _ | Texp_setmutvar _
+            | Texp_setinstvar _ | Texp_override _ | Texp_assert _
+            | Texp_lazy _ | Texp_object _ | Texp_pack _ | Texp_unreachable
+            | Texp_extension_constructor _ | Texp_ifthenelse (_, _, None)
+            | Texp_probe _ | Texp_probe_is_enabled _ | Texp_src_pos
+            | Texp_function _ ->
                 check_statement ()
             | Texp_match (_, _, cases, _) ->
                 List.iter (fun {c_rhs; _} -> check c_rhs) cases
@@ -5750,7 +5752,9 @@ and type_expect_
         | Val_mut -> begin
             match path with
             | Path.Pident id -> Texp_mutvar {loc = lid.loc; txt = id}
-            | _ -> assert false
+            | _ ->
+              fatal_error "Typecore.type_expect_: \
+                bad mutable variable identifier"
           end
         | Val_self (_, _, _, cl_num) ->
             let (path, _) =
@@ -5809,7 +5813,7 @@ and type_expect_
         exp_type = type_constant cst;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
-  | Pexp_let(_, Nonrecursive,
+  | Pexp_let(Immutable, Nonrecursive,
              [{pvb_pat=spat; pvb_attributes=[]; _ } as vb], sbody)
     when turn_let_into_match spat ->
       (* TODO: allow non-empty attributes? *)
@@ -5827,8 +5831,9 @@ and type_expect_
       let mutability = match mutable_flag with
         | Immutable -> Immutable
         | Mutable -> Mutable Mode.Alloc.Comonadic.Const.legacy
+          (* CR jrayman: jra: This is not the correct mode *)
       in
-      value_bindings_mutability mutable_flag env ?restriction spat_sexp_list;
+      check_let_mutable mutable_flag env ?restriction spat_sexp_list;
       let existential_context : existential_restriction =
         if rec_flag = Recursive then In_rec
         else if List.compare_length_with spat_sexp_list 1 > 0 then In_group
@@ -5900,8 +5905,10 @@ and type_expect_
         match mutable_flag, pat_exp_list with
         | Immutable, _ -> Texp_let(rec_flag, pat_exp_list, body)
         | Mutable, [vb] -> Texp_letmutable(vb, body)
-        | Mutable, _ -> fatal_error "Typecore.type_expect"
-          (* Unreachable: should be prevented by [value_bindings_mutability] *)
+        | Mutable, _ ->
+          (* Unreachable: should be prevented by [check_let_mutable] *)
+          fatal_error "Typecore.type_expect_: \
+            [let mutable] should have exactly one value binding"
       in
       re {
         exp_desc = exp;
@@ -6491,12 +6498,9 @@ and type_expect_
   | Pexp_setvar (lab, snewval) ->
       let desc =
         match Env.lookup_settable_variable ~loc lab.txt env with
-        | Instance_variable (path,Mutable,cl_num,ty) ->
+        | Instance_variable (path, Mutable, cl_num,ty) ->
             let newval =
-              type_expect env
-                (mode_default (Mode.Value.max_with (Comonadic Areality)
-                  Mode.Regionality.global))
-                snewval (mk_expected (instance ty))
+              type_expect env mode_legacy snewval (mk_expected (instance ty))
             in
             let (path_self, _) =
               Env.find_value_by_name (Longident.Lident ("self-" ^ cl_num)) env
@@ -6504,7 +6508,7 @@ and type_expect_
             Texp_setinstvar(path_self, path, lab, newval)
         | Instance_variable (_,Immutable,_,_) ->
             raise(Error(loc, env, Instance_variable_not_mutable lab.txt))
-        | Mutable_variable (id,mode,ty) ->
+        | Mutable_variable (id, mode, ty) ->
             let newval =
               type_expect env (mode_default mode)
                 snewval (mk_expected (instance ty))
@@ -10985,7 +10989,7 @@ let report_error ~loc env =
         Style.inline_code "let rec"
   | Illegal_mutable_pat ->
       Location.errorf ~loc
-        "Only variables are allowed as left-hand side of %a"
+        "Only variables are allowed as the left-hand side of %a"
         Style.inline_code "let mutable"
   | Illegal_letrec_expr ->
       Location.errorf ~loc

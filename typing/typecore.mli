@@ -167,10 +167,6 @@ val generalize_structure_exp: Typedtree.expression -> unit
 val reset_delayed_checks: unit -> unit
 val force_delayed_checks: unit -> unit
 
-val value_bindings_mutability :
-  mutable_flag -> Env.t -> ?restriction:mutable_restriction ->
-  Parsetree.value_binding list -> unit
-
 val reset_allocations: unit -> unit
 val optimise_allocations: unit -> unit
 

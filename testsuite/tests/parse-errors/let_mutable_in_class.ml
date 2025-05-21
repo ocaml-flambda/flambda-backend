@@ -1,4 +1,6 @@
-(* TEST_BELOW *)
+(* TEST
+   flags = "-extension let_mutable";
+   toplevel; *)
 
 (* let mutable is not allowed in class definitions *)
 class c =
@@ -8,7 +10,3 @@ class c =
       x <- x + 1;
       x
   end
-
-(* TEST
-   flags = "-extension let_mutable";
-   toplevel; *)

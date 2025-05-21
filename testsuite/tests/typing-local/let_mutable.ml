@@ -237,7 +237,7 @@ let foo_8_1 y =
 Line 2, characters 14-21:
 2 |   let mutable (x1,x2) = (y,y+1) in
                   ^^^^^^^
-Error: Only variables are allowed as left-hand side of "let mutable"
+Error: Only variables are allowed as the left-hand side of "let mutable"
 |}]
 
 type t8_2 = {x_8_2 : int}
@@ -252,7 +252,7 @@ type t8_2 = { x_8_2 : int; }
 Line 3, characters 14-21:
 3 |   let mutable {x_8_2} = {x_8_2 = y + 1} in
                   ^^^^^^^
-Error: Only variables are allowed as left-hand side of "let mutable"
+Error: Only variables are allowed as the left-hand side of "let mutable"
 |}]
 
 (* Test 11: binding a mutable variable shouldn't be simplified away *)
