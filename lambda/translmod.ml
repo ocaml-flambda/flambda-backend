@@ -1536,7 +1536,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
                         (* CR sspies: Can we find a better [debug_uid] here? *)
                           let id_duid = Lambda.debug_uid_none in
                           Llet(Alias, Lambda.layout_module_field, id, id_duid,
-                               Lprim(mod_Pfield pos,
+                               Lprim(mod_field pos,
                                      [Lvar mid], loc),
                                Lsequence(store_ident loc id,
                                          store_idents (pos + 1) idl))
