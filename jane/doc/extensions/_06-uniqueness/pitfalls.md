@@ -28,7 +28,7 @@ lift out the allocation so that `mk ()` returns the same pointer on each
 invocation. However, you might want to annotate this allocation as `unique`:
 
 ```ocaml
-let mk () = unique_ { x = 1 }
+let mk () = ({ x = 1 } : _ @ unique)
 ```
 
 Unfortunately, this will not work: while the allocation is now indeed `unique`,
