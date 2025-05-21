@@ -690,13 +690,15 @@ let val_of_let_bindings ~loc lbs =
            ?value_constraint:lb.lb_constraint lb.lb_pattern lb.lb_expression)
       lbs.lbs_bindings
   in
-  if lbs.lbs_mutable = Mutable
-  then raise (Syntaxerr.Error
-    (Syntaxerr.Let_mutable_not_allowed_at_structure_level (make_loc loc)));
-  let str = mkstr ~loc (Pstr_value(lbs.lbs_rec, List.rev bindings)) in
-  match lbs.lbs_extension with
-  | None -> str
-  | Some id -> ghstr ~loc (Pstr_extension((id, PStr [str]), []))
+  match lbs.lbs_mutable with
+  | Mutable ->
+    raise (Syntaxerr.Error
+      (Syntaxerr.Let_mutable_not_allowed_at_structure_level (make_loc loc)))
+  | Immutable ->
+    let str = mkstr ~loc (Pstr_value(lbs.lbs_rec, List.rev bindings)) in
+    match lbs.lbs_extension with
+    | None -> str
+    | Some id -> ghstr ~loc (Pstr_extension((id, PStr [str]), []))
 
 let expr_of_let_bindings ~loc lbs body =
   let bindings =
@@ -720,12 +722,14 @@ let class_of_let_bindings ~loc lbs body =
           ?value_constraint:lb.lb_constraint lb.lb_pattern lb.lb_expression)
       lbs.lbs_bindings
   in
-    if lbs.lbs_mutable = Mutable
-    then raise (Syntaxerr.Error
-      (Syntaxerr.Let_mutable_not_allowed_in_class_definition (make_loc loc)));
-    (* Our use of let_bindings(no_ext) guarantees the following: *)
-    assert (lbs.lbs_extension = None);
-    mkclass ~loc (Pcl_let (lbs.lbs_rec, List.rev bindings, body))
+    match lbs.lbs_mutable with
+    | Mutable ->
+      raise (Syntaxerr.Error
+        (Syntaxerr.Let_mutable_not_allowed_in_class_definition (make_loc loc)))
+    | Immutable ->
+      (* Our use of let_bindings(no_ext) guarantees the following: *)
+      assert (lbs.lbs_extension = None);
+      mkclass ~loc (Pcl_let (lbs.lbs_rec, List.rev bindings, body))
 
 (* If all the parameters are [Pparam_newtype x], then return [Some xs] where
    [xs] is the corresponding list of values [x]. This function is optimized for

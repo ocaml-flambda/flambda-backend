@@ -9222,8 +9222,8 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
           in
           let (pat_list, _new_env, _force, pvs, _mvs as res) =
             with_local_level_if is_recursive (fun () ->
-              type_pattern_list Value mutability existential_context env spatl nvs
-                allow_modules
+              type_pattern_list Value mutability existential_context env spatl
+                nvs allow_modules
             ) ~post:(fun (_, _, _, pvs, _) ->
                        iter_pattern_variables_type generalize pvs)
           in
@@ -9348,7 +9348,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
         mode_pat_typ_list exp_list;
       iter_pattern_variables_type_mut
         ~f_immut:generalize
-        ~f_mut:(unify_var env (newvar (Jkind.Builtin.any ~why:Mutable_value)))
+        ~f_mut:(unify_var env (newvar (Jkind.Builtin.any ~why:Dummy_jkind)))
         pvs;
       (* update pattern variable jkind reasons *)
       List.iter

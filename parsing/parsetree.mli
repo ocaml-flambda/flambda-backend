@@ -372,12 +372,10 @@ and expression_desc =
             - [let rec P1 = E1 and ... and Pn = EN in E]
                when [rec] is {{!Asttypes.rec_flag.Recursive}[Recursive]}
                and [mut] = {{!Asttypes.mutable_flag.Immutable}[Immutable]}.
-            - [let mutable P1 = E1 and ... and Pn = EN in E]
+            - [let mutable P1 = E1 in E]
                when [rec] is {{!Asttypes.rec_flag.Nonrecursive}[Nonrecursive]}
                and [mut] = {{!Asttypes.mutable_flag.Mutable}[Mutable]}.
-            - [let mutable rec P1 = E1 and ... and Pn = EN in E]
-               when [rec] is {{!Asttypes.rec_flag.Recursive}[Recursive]}
-               and [mut] = {{!Asttypes.mutable_flag.Mutable}[Mutable]}.
+          Invariant: If [mut = Mutable] then [n = 1] and [rec = Nonrecursive]
          *)
   | Pexp_function of
       function_param list * function_constraint * function_body
