@@ -139,7 +139,7 @@ the other unboxed types) that has layout
 float# ... end`.
 
 Each numeric type has its own library for working with it: `float_u`,
-`int32_u`, `int64_u`, and `nativeint_u`. (in the `janestreet_shims` library.)
+`int32_u`, `int64_u`, and `nativeint_u` (all in the `janestreet_shims` library).
 
 * Unboxed constants are written with a prepended `#`.
   There is no literal syntax for unboxed vectors: use the `Ocaml_simd_sse` library instead.
