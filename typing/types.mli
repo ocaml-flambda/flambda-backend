@@ -1135,8 +1135,7 @@ type 'a gen_label_description =
     lbl_modalities: Mode.Modality.Value.Const.t;
                                         (* Modalities on the field *)
     lbl_sort: Jkind_types.Sort.Const.t; (* Sort of the argument *)
-    lbl_pos: int;                       (* Position in block *)
-    lbl_num: int;                       (* Position in the type *)
+    lbl_pos: int;                       (* Position in type *)
     lbl_all: 'a gen_label_description array;   (* All the labels in this type *)
     lbl_repres: 'a;  (* Representation for outer record *)
     lbl_private: private_flag;          (* Read-only field? *)

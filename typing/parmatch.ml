@@ -312,9 +312,9 @@ let records_args l1 l2 =
   | [],(_,_,p2)::rem2 -> combine (omega::r1) (p2::r2) [] rem2
   | (_,_,p1)::rem1,[] -> combine (p1::r1) (omega::r2) rem1 []
   | (_,lbl1,p1)::rem1, ( _,lbl2,p2)::rem2 ->
-      if lbl1.lbl_num < lbl2.lbl_num then
+      if lbl1.lbl_pos < lbl2.lbl_pos then
         combine (p1::r1) (omega::r2) rem1 l2
-      else if lbl1.lbl_num > lbl2.lbl_num then
+      else if lbl1.lbl_pos > lbl2.lbl_pos then
         combine (omega::r1) (p2::r2) l1 rem2
       else (* same label on both sides *)
         combine (p1::r1) (p2::r2) rem1 rem2 in
@@ -466,11 +466,11 @@ let record_unboxed_product_arg ph =
 
 let extract_fields lbls arg =
   let get_field pos arg =
-    match List.find (fun (lbl,_) -> pos = lbl.lbl_num) arg with
+    match List.find (fun (lbl,_) -> pos = lbl.lbl_pos) arg with
     | _, p -> p
     | exception Not_found -> omega
   in
-  List.map (fun lbl -> get_field lbl.lbl_num arg) lbls
+  List.map (fun lbl -> get_field lbl.lbl_pos arg) lbls
 
 (* Build argument list when p2 >= p1, where p1 is a simple pattern *)
 let simple_match_args discr head args =
@@ -535,7 +535,7 @@ let discr_pat q pss =
     | ((head, _), _) :: rows ->
       let append_unique lbls lbls_unique =
         List.fold_right (fun lbl lbls_unique ->
-          if List.exists (fun l -> l.lbl_num = lbl.lbl_num) lbls_unique then
+          if List.exists (fun l -> l.lbl_pos = lbl.lbl_pos) lbls_unique then
             lbls_unique
           else
             lbl :: lbls_unique
@@ -1972,9 +1972,9 @@ and record_lubs l1 l2 =
   | [],_ -> l2
   | _,[] -> l1
   | (lid1, lbl1,p1)::rem1, (lid2, lbl2,p2)::rem2 ->
-      if lbl1.lbl_num < lbl2.lbl_num then
+      if lbl1.lbl_pos < lbl2.lbl_pos then
         (lid1, lbl1,p1)::lub_rec rem1 l2
-      else if lbl2.lbl_num < lbl1.lbl_num  then
+      else if lbl2.lbl_pos < lbl1.lbl_pos  then
         (lid2, lbl2,p2)::lub_rec l1 rem2
       else
         (lid1, lbl1,lub p1 p2)::lub_rec rem1 rem2 in
