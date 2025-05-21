@@ -643,34 +643,52 @@ and transl_struct ~scopes loc fields sorts cc rootpath
       {str_final_env; str_items; _} =
   transl_structure ~scopes loc fields sorts cc rootpath str_final_env str_items
 
-and shape_of_sorts _ = failwith "admitted"
-
 (* The function  transl_structure is called by  the bytecode compiler.
    Some effort is made to compile in top to bottom order, in order to display
    warning by increasing locations. *)
 and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
     [] ->
       let body, size =
+        (* CR jrayman: copied from layout_of_const_sort_generic. Should
+          * we check for language extensions? Should we throw errors?
+          * Also, I doubt here is the best place to put this function. Any
+          * suggestions for where I should put it? *)
+        let rec shape_of_sort : Jkind.Sort.Const.t
+                              -> Types.mixed_block_element =
+          function
+          | Base Void -> failwith "How should Void be handled?"
+          | Base Value -> Value
+          | Base Bits32 -> Bits32
+          | Base Bits64 -> Bits64
+          | Base Float32 -> Float32
+          | Base Float64 -> Float64
+          | Base Vec128 -> Vec128
+          | Base Word -> Word
+          | Product sorts ->
+            Product (Array.map shape_of_sort (Array.of_list sorts))
+        in
+        let shape =
+          Array.map shape_of_sort
+            (Array.of_list
+              (List.map Jkind.Sort.default_for_transl_and_get sorts))
+        in
+        let block =
+          if Array.for_all (equal_mixed_block_element Value) shape
+          then Pmakeblock(0, Immutable, None, alloc_heap)
+          else
+            let shape =
+              Lambda.transl_mixed_product_shape
+                ~get_value_kind:(fun _i -> Lambda.generic_value)
+                shape
+            in
+            Pmakemixedblock(0, Immutable, shape, alloc_heap)
+        in
         match cc with
           Tcoerce_none ->
-            let ll = List.map (fun id -> Lvar id) (List.rev fields) in
-            let size = List.length fields in
-            let shape = shape_of_sorts sorts in
-            if Array.for_all (equal_mixed_block_element Value) shape
-            then
-              Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
-                    ll, loc),
-              size
-            else
-              let shape =
-                Lambda.transl_mixed_product_shape
-                  ~get_value_kind:(fun _i -> Lambda.generic_value)
-                  shape
-              in
-              Lprim (Pmakemixedblock(0, Immutable, shape, alloc_heap),
-                    ll, loc),
-              size
+            Lprim(block, List.map (fun id -> Lvar id) (List.rev fields), loc),
+              List.length fields
         | Tcoerce_structure(pos_cc_list, id_pos_list) ->
+            (* CR jrayman: need mixed block here too *)
                 (* Do not ignore id_pos_list ! *)
             (*Format.eprintf "%a@.@[" Includemod.print_coercion cc;
             List.iter (fun l -> Format.eprintf "%a@ " Ident.print l)
@@ -683,7 +701,7 @@ and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
             in
             let ids = List.fold_right Ident.Set.add fields Ident.Set.empty in
             let lam =
-              Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
+              Lprim(block,
                   List.map
                     (fun (pos, cc) ->
                       match cc with
