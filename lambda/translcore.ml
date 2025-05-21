@@ -2375,7 +2375,8 @@ and transl_letop ~scopes loc env let_ ands param param_debug_uid param_sort case
                ap_probe=None;
              })
         in
-        bind_with_layout Strict (left_id, left_id_duid, prev_layout) prev_lam (loop result_layout lam rest)
+        bind_with_layout Strict (left_id, left_id_duid, prev_layout) prev_lam
+            (loop result_layout lam rest)
   in
   let op =
     transl_ident (of_location ~scopes let_.bop_op_name.loc) env

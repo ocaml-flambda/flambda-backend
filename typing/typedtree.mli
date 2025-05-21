@@ -752,8 +752,8 @@ and module_type_constraint =
 
 and functor_parameter =
   | Unit
-  (* CR sspies: We should add an additional [debug_uid] here to support functor arguments
-     in the debugger. *)
+  (* CR sspies: We should add an additional [debug_uid] here to support functor
+     arguments in the debugger. *)
   | Named of Ident.t option * string option loc * module_type
 
 and module_expr_desc =

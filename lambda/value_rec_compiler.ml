@@ -865,7 +865,8 @@ let compile_letrec input_bindings body =
     List.fold_left (fun rev_bindings (id, duid, rkind, def) ->
         match (rkind : Value_rec_types.recursive_binding_kind) with
         | Dynamic ->
-          { rev_bindings with dynamic = (id, duid, def) :: rev_bindings.dynamic }
+          { rev_bindings
+            with dynamic = (id, duid, def) :: rev_bindings.dynamic }
         | Static ->
           let size = compute_static_size def in
           begin match size with
@@ -877,7 +878,8 @@ let compile_letrec input_bindings body =
             let def =
               Lambda.subst (fun _ _ env -> env) subst_for_constants def
             in
-            { rev_bindings with dynamic = (id, duid, def) :: rev_bindings.dynamic }
+            { rev_bindings
+              with dynamic = (id, duid, def) :: rev_bindings.dynamic }
           | Block size ->
             { rev_bindings with
               static = (id, duid, size, def) :: rev_bindings.static }

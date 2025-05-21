@@ -101,7 +101,8 @@ let transl_type_extension ~scopes env rootpath tyext body =
           (field_path rootpath ext.ext_id) ext
       in
       (* CR sspies: Can we find a better [debug_uid] here? *)
-      Llet(Strict, Lambda.layout_block, ext.ext_id, Lambda.debug_uid_none, lam, body))
+      Llet(Strict, Lambda.layout_block, ext.ext_id,
+           Lambda.debug_uid_none, lam, body))
     tyext.tyext_constructors
     body
 
@@ -554,9 +555,9 @@ let rec compile_functor ~scopes mexp coercion root_path loc =
   let params, body =
     List.fold_left (fun (params, body) (param, loc, arg_coercion) ->
         let param_duid = Lambda.debug_uid_none in
-        (* CR sspies: Add a debug uid to the functor argument via [Named] and then
-           propagate it here. Note that we use it twice below, once for param and once
-           for param'. *)
+        (* CR sspies: Add a debug uid to the functor argument via [Named] and
+           then propagate it here. Note that we use it twice below, once for
+           param and once for param'. *)
         let param' = Ident.rename param in
         let arg = apply_coercion loc Alias arg_coercion (Lvar param') in
         let params = {
@@ -1535,7 +1536,7 @@ let transl_store_structure ~scopes glob map prims aliases str =
                         (* CR sspies: Can we find a better [debug_uid] here? *)
                           let id_duid = Lambda.debug_uid_none in
                           Llet(Alias, Lambda.layout_module_field, id, id_duid,
-                               Lprim(mod_field pos,
+                               Lprim(mod_Pfield pos,
                                      [Lvar mid], loc),
                                Lsequence(store_ident loc id,
                                          store_idents (pos + 1) idl))
