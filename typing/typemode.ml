@@ -541,7 +541,7 @@ let least_modalities_implying mut attrs (t : Modality.Value.Const.t) =
 
 let sort_dedup_modalities ~warn l =
   let compare (Modality.Atom (ax0, _), _) (Modality.Atom (ax1, _), _) =
-    Stdlib.compare (Value.Axis.P ax0) (Value.Axis.P ax1)
+    Value.Axis.compare ax0 ax1
   in
   let dedup ~on_dup =
     let rec loop x = function

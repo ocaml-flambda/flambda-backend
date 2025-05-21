@@ -227,7 +227,7 @@ Error: This value is "aliased" but expected to be "unique".
 scope is controlled by locality *)
 type 'a glob = { glob: 'a @@ aliased many } [@@unboxed]
 [%%expect{|
-type 'a glob = { glob : 'a @@ aliased many; } [@@unboxed]
+type 'a glob = { glob : 'a @@ many aliased; } [@@unboxed]
 |}]
 let dup (glob : 'a) : 'a glob * 'a glob = unique_ ({glob}, {glob})
 [%%expect{|

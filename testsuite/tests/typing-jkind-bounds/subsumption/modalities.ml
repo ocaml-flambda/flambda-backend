@@ -269,15 +269,15 @@ Error: Signature mismatch:
        Modules do not match:
          sig type 'a t : immutable_data with 'a end
        is not included in
-         sig type 'a t : immutable_data with 'a @@ contended portable end
+         sig type 'a t : immutable_data with 'a @@ portable contended end
        Type declarations do not match:
          type 'a t : immutable_data with 'a
        is not included in
-         type 'a t : immutable_data with 'a @@ contended portable
+         type 'a t : immutable_data with 'a @@ portable contended
        The kind of the first is immutable_data with 'a
          because of the definition of t at line 4, characters 2-69.
        But the kind of the first must be a subkind of immutable_data
-         with 'a @@ contended portable
+         with 'a @@ portable contended
          because of the definition of t at line 2, characters 2-58.
 
        The first mode-crosses less than the second along:

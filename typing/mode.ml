@@ -929,6 +929,18 @@ module Lattices_mono = struct
       | Visibility : (Monadic_op.t, Visibility_op.t) t
       | Contention : (Monadic_op.t, Contention_op.t) t
 
+    let to_int : type a b. (a, b) t -> int = function
+      | Areality -> 0
+      | Yielding -> 1
+      | Linearity -> 2
+      | Statefulness -> 3
+      | Portability -> 4
+      | Uniqueness -> 5
+      | Visibility -> 6
+      | Contention -> 7
+
+    let compare a b = to_int a - to_int b
+
     let print : type p r. _ -> (p, r) t -> unit =
      fun ppf -> function
       | Areality -> Format.fprintf ppf "locality"
@@ -2342,6 +2354,14 @@ module Value_with (Areality : Areality) = struct
     type ('a, 'd0, 'd1) t =
       | Monadic : (Monadic.Const.t, 'a) Axis.t -> ('a, 'd, 'd neg) t
       | Comonadic : (Comonadic.Const.t, 'a) Axis.t -> ('a, 'd, 'd pos) t
+
+    let compare : type a d0 d1 b e0 e1. (a, d0, d1) t -> (b, e0, e1) t -> int =
+     fun t0 t1 ->
+      match t0, t1 with
+      | Monadic t0, Monadic t1 -> Axis.compare t0 t1
+      | Monadic _, Comonadic _ -> 1
+      | Comonadic _, Monadic _ -> -1
+      | Comonadic t0, Comonadic t1 -> Axis.compare t0 t1
 
     type packed = P : (_, _, _) t -> packed
 

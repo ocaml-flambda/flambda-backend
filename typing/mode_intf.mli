@@ -425,6 +425,8 @@ module type S = sig
         | Monadic : (Monadic.Const.t, 'a) Axis.t -> ('a, 'd, 'd neg) t
         | Comonadic : (Comonadic.Const.t, 'a) Axis.t -> ('a, 'd, 'd pos) t
 
+      val compare : ('a, 'd0, 'd1) t -> ('b, 'e0, 'e1) t -> int
+
       type packed = P : (_, _, _) t -> packed
 
       val print : Format.formatter -> ('a, _, _) t -> unit

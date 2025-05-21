@@ -90,14 +90,14 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type 'a t = Foo of 'a @@ contended many end
+         sig type 'a t = Foo of 'a @@ many contended end
        is not included in
          sig type 'a t : immutable_data end
        Type declarations do not match:
-         type 'a t = Foo of 'a @@ contended many
+         type 'a t = Foo of 'a @@ many contended
        is not included in
          type 'a t : immutable_data
-       The kind of the first is immutable_data with 'a @@ contended many
+       The kind of the first is immutable_data with 'a @@ many contended
          because of the definition of t at line 4, characters 2-41.
        But the kind of the first must be a subkind of immutable_data
          because of the definition of t at line 2, characters 2-28.

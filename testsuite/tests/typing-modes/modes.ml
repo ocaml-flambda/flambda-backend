@@ -364,14 +364,14 @@ type r = {
   global_ x : string @@ aliased
 }
 [%%expect{|
-type r = { x : string @@ aliased global; }
+type r = { x : string @@ global aliased; }
 |}]
 
 type r = {
   x : string @@ aliased global many
 }
 [%%expect{|
-type r = { x : string @@ aliased global many; }
+type r = { x : string @@ global many aliased; }
 |}]
 
 type r = {
@@ -383,12 +383,12 @@ Line 2, characters 16-23:
                     ^^^^^^^
 Warning 213: This uniqueness is overriden by join_with(aliased) later.
 
-type r = { x : string @@ aliased global many; }
+type r = { x : string @@ global many aliased; }
 |}]
 
 type r = Foo of string @@ global aliased many
 [%%expect{|
-type r = Foo of string @@ aliased global many
+type r = Foo of string @@ global many aliased
 |}]
 
 (* mutable implies global aliased many. No warnings are given since we imagine

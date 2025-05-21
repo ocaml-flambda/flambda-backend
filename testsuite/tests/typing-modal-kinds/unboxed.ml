@@ -34,9 +34,9 @@ type 'a portable = { portable : 'a @@ portable; } [@@unboxed]
 type ('a : value & value) portable_vv = { portable : 'a @@ portable; } [@@unboxed]
 type 'a contended = { contended : 'a @@ contended; } [@@unboxed]
 type ('a : value & value) contended_vv = { contended : 'a @@ contended; } [@@unboxed]
-type 'a portended = { portended : 'a @@ contended portable; } [@@unboxed]
+type 'a portended = { portended : 'a @@ portable contended; } [@@unboxed]
 type ('a : value & value) portended_vv = {
-  portended : 'a @@ contended portable;
+  portended : 'a @@ portable contended;
 } [@@unboxed]
 |}]
 
