@@ -121,6 +121,8 @@ module DSL : sig
 
   val emit_reg_v2d : Reg.t -> Arm64_ast.Operand.t
 
+  val emit_reg_v16b : Reg.t -> Arm64_ast.Operand.t
+
   val imm : int -> Arm64_ast.Operand.t
 
   val imm_float : float -> Arm64_ast.Operand.t
@@ -243,6 +245,8 @@ end = struct
   let emit_reg_v4s reg = reg_v4s (reg_index reg)
 
   let emit_reg_v2d reg = reg_v2d (reg_index reg)
+
+  let emit_reg_v16b reg = reg_v16b (reg_index reg)
 
   let emit_reg_w reg = reg_w (reg_index reg)
 
@@ -1263,7 +1267,7 @@ let move (src : Reg.t) (dst : Reg.t) =
     | Float, Reg _, Float, Reg _ | Float32, Reg _, Float32, Reg _ ->
       DSL.ins I.FMOV [| DSL.emit_reg dst; DSL.emit_reg src |]
     | (Vec128 | Valx2), Reg _, (Vec128 | Valx2), Reg _ ->
-      DSL.ins I.MOV [| DSL.emit_reg_v2d dst; DSL.emit_reg_v2d src |]
+      DSL.ins I.MOV [| DSL.emit_reg_v16b dst; DSL.emit_reg_v16b src |]
     | (Int | Val | Addr), Reg _, (Int | Val | Addr), Reg _ ->
       DSL.ins I.MOV [| DSL.emit_reg dst; DSL.emit_reg src |]
     | _, Reg _, _, Stack _ ->
