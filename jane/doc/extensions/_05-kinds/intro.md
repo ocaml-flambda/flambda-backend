@@ -134,16 +134,16 @@ contended`, or `value mod portable` and `value mod aliased`.
 Adding bounds to a kind always makes the kind more specific, or lower. That is,
 for any kind `k`, `k mod <bounds> <= k`.
 
-Along the future modal axes, a _lower_ mode leads to a lower kind. So `value mod
-stateless <= value mod observing`, and bounding by the maximum mode has no
-effect. However, along the past modal axes, a _higher_ mode leads to a lower
-kind. So `value mod contended <= value mod sharing` and bounding by the minimum
-mode has no effect. We can think of the past axes as flipped, when used in a
-kind. This is because `value mod contended` is more restrictive than `value mod
-sharing` (the former contains types that do not care at all about the value of
-the contention axis, while the latter contains types that still care about the
-distinction between `contended` and `sharing`/`uncontended`), and so we must
-flip these past axes.
+Along the future modal axes, a _lower_ mode leads to a lower kind. So `stateless
+< observing` leads to `value mod stateless <= value mod observing`, and bounding
+by the maximum mode has no effect. However, along the past modal axes, a
+_higher_ mode leads to a lower kind. So `shared < contended` leads to `value mod
+contended <= value mod shared` and it's bounding by the minimum mode that has no
+effect. Thus (beware), past modal axes are flipped, when used in a kind. For
+instance, `value mod contended` is _more restrictive_ than `value mod shared`.
+The former only contains types that do not care about the value of the
+contention axis, while the latter also contains types that care about the
+distinction between `contended` and `shared`/`uncontended`.
 
 If you want to get nerdy about it, each individual piece of a kind (the layout
 and each possible axis of bounds) is a join semilattice, and the order we're
