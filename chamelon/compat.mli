@@ -19,9 +19,9 @@ type texp_function_param = {
   param : Ident.t;
   partial : partial;
   optional_default : expression option;
-      (** The optional argument's default value. If [optional_default] is present,
-      [arg_label] must be [Optional], and [pattern] matches values of type [t]
-      if the parameter type is [t option]. *)
+      (** The optional argument's default value. If [optional_default] is
+          present, [arg_label] must be [Optional], and [pattern] matches values
+          of type [t] if the parameter type is [t option]. *)
   param_identifier : texp_function_param_identifier;
 }
 

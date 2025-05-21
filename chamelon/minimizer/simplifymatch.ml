@@ -6,7 +6,7 @@ open Tast_mapper
 open Compat
 
 (** [replace_mapper id to_replace] is a mapper replacing every occurence of [id]
-  by the expression [to_replace]*)
+    by the expression [to_replace]*)
 let replace_mapper id to_replace =
   {
     Tast_mapper.default with
