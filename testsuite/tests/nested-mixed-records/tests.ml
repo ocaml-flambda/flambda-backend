@@ -142,6 +142,29 @@ module T05 = struct
 
 end
 
+module T06 = struct
+
+  (* Three levels of nesting. *)
+
+  type aux = #{ i64 : int64#; }
+
+  type sub = #{ i32 : int32#; aux : aux; }
+
+  type record = { str : string; sub : sub; }
+
+  let run () =
+    let value = Sys.opaque_identity {
+      str = "something";
+      sub = #{ i32 = #123l; aux = #{ i64 = #456L; }; };
+    } in
+    Printf.printf "size=%s value.str=%S value.sub.#i32=%ld value.sub.#aux.#i64=%Ld \n%!"
+      (size value)
+      value.str
+      (box_int32 value.sub.#i32)
+      (box_int64 value.sub.#aux.#i64)
+
+end
+
 let tests = [
   T00.run;
   T01.run;
@@ -149,6 +172,7 @@ let tests = [
   T03.run;
   T04.run;
   T05.run;
+  T06.run;
 ]
 
 let () = List.iter (fun test -> test ()) tests
