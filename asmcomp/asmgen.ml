@@ -151,11 +151,12 @@ let save_cfg_before_regalloc (cfg_with_infos : Cfg_with_infos.t) =
     cfg_before_regalloc_unit_info.items
       <- Cfg_format.(
            Cfg_before_regalloc
-             { cfg_with_layout =
-                 copy (Cfg_with_infos.cfg_with_layout cfg_with_infos);
+             { cfg_with_layout_and_relocatable_regs =
+                 copy
+                   ( Cfg_with_infos.cfg_with_layout cfg_with_infos,
+                     Reg.all_relocatable_regs () );
                cmm_label = Cmm.cur_label ();
-               reg_stamp = Reg.For_testing.get_stamp ();
-               relocatable_regs = copy @@ Reg.all_relocatable_regs ()
+               reg_stamp = Reg.For_testing.get_stamp ()
              })
          :: cfg_before_regalloc_unit_info.items);
   cfg_with_infos

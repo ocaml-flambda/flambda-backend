@@ -23,10 +23,9 @@ type cfg_item_info =
   | Cfg of Cfg_with_layout.t
   | Data of Cmm.data_item list
   | Cfg_before_regalloc of {
-    cfg_with_layout : Cfg_with_layout.t;
+    cfg_with_layout_and_relocatable_regs : Cfg_with_layout.t * (Reg.t list);
     cmm_label: Label.t;
     reg_stamp: int;
-    relocatable_regs : Reg.t list;
   }
 
 type cfg_unit_info =
