@@ -32,9 +32,7 @@ if we have `(x : string @ local)`, then `x` has type `string` and is at mode
 `local`. Modes also appear in the argument and return slots of a function type,
 so we can have `string @ local -> string option @ global` to describe a function
 whose argument will have the `local` mode and whose return will have the
-`global` mode. These modes are properly associated with the function type, not
-the argument or result types (that is, there is still no `string @ local` or
-`string option @ global`).
+`global` mode. These modes appear in the function's type but are associated with the function's behavior, not the argument or result types (that is, there is still no `string @ local` or `string option @ global`).
 
 This page shows the modes that are currently supported. Each mode belongs to a
 modal *axis* determined by the operation it tracks and whether it is a past or
