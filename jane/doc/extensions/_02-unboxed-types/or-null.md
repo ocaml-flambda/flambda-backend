@@ -89,7 +89,7 @@ annotation burden on programmers.
 
 ## Arrays
 
-Float array optimization demands that all types in OCaml are *separable*:
+The float array optimization demands that all types in OCaml are *separable*:
 either all elements of that type are float values, or none of them are. But
 `float or_null` is not separable: as possible values, it has all floating-point
 numbers, plus the null pointer. Therefore, `float or_null array`s must be forbidden.
