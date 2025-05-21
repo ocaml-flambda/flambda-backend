@@ -559,7 +559,7 @@ let sort_dedup_modalities ~warn l =
     if warn
     then
       let axis = Format.asprintf "%a" Value.Axis.print ax0 in
-      let overriden_by = Format.asprintf "%a" Modality.print a1 in
+      let { txt = Modality overriden_by; _ } = untransl_modality a1 in
       Location.prerr_warning loc0
         (Warnings.Modal_axis_specified_twice { axis; overriden_by })
   in
@@ -574,7 +574,6 @@ let transl_modalities ~maturity mut attrs modalities =
   (* - mut_modalities is applied before explicit modalities.
      - explicit modalities can override mut_modalities.
      - For the same axis, later modalities overrides earlier modalities. *)
-  (* CR zqian: warn if an axis is specified multiple times in a modality expr. *)
   List.fold_left
     (fun m (Atom (ax, a) as t) ->
       let m = Value.Const.set ax a m in

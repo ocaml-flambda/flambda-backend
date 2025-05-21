@@ -325,7 +325,7 @@ type t = Foo of global_ string @@ global
 Line 1, characters 16-23:
 1 | type t = Foo of global_ string @@ global
                     ^^^^^^^
-Warning 213: This locality is overriden by meet_with(global) later.
+Warning 213: This locality is overriden by global later.
 
 type t = Foo of global_ string
 |}]
@@ -354,7 +354,7 @@ type r = {
 Line 2, characters 2-9:
 2 |   global_ x : string @@ global
       ^^^^^^^
-Warning 213: This locality is overriden by meet_with(global) later.
+Warning 213: This locality is overriden by global later.
 
 type r = { global_ x : string; }
 |}]
@@ -381,7 +381,7 @@ type r = {
 Line 2, characters 16-23:
 2 |   x : string @@ aliased global many aliased
                     ^^^^^^^
-Warning 213: This uniqueness is overriden by join_with(aliased) later.
+Warning 213: This uniqueness is overriden by aliased later.
 
 type r = { x : string @@ global many aliased; }
 |}]
