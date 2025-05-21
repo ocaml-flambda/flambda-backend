@@ -53,7 +53,6 @@ and simple_or_prim =
 
 let maybe_create_unboxed_product expr_prims =
   match expr_prims with
-  | [] -> Misc.fatal_error "Empty unboxed product"
   | [expr_prim] -> expr_prim
   | _ -> Unboxed_product expr_prims
 

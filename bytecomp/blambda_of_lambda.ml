@@ -195,10 +195,10 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
     | Popaque _ | Pobj_magic _
     | Pbox_float ((Boxed_float64 | Boxed_float32), _)
     | Punbox_float (Boxed_float64 | Boxed_float32)
-    | Pbox_int _ | Punbox_int _ -> (
+    | Pbox_int _ | Punbox_int _ | Punbox_unit -> (
       match args with
       | [arg] ->
-        (* in bytecode we only deal with boxed+tagged floats and ints *)
+        (* in bytecode we only deal with boxed+tagged floats/ints/units *)
         comp_expr arg
       | [] | _ :: _ :: _ -> wrong_arity ~expected:1)
     | Pignore -> (
