@@ -1260,7 +1260,7 @@ let rec lam ppf = function
       lfunction ppf lfun
   | Llet _ | Lmutlet _ as expr ->
       let let_kind = begin function
-        | Llet(str,_,_,_,_) ->
+        | Llet(str,_,_,_,_,_) ->
            begin match str with
              Alias -> "a" | Strict -> "" | StrictOpt -> "o"
            end
@@ -1269,8 +1269,8 @@ let rec lam ppf = function
         end
       in
       let rec letbody ~sp = function
-        | Llet(_, k, id, arg, body)
-        | Lmutlet(k, id, arg, body) as l ->
+        | Llet(_, k, id, _duid, arg, body)
+        | Lmutlet(k, id, _duid, arg, body) as l ->
            if sp then fprintf ppf "@ ";
            fprintf ppf "@[<2>%a =%s%a@ %a@]"
              Ident.print id (let_kind l) layout k lam arg;
@@ -1283,7 +1283,7 @@ let rec lam ppf = function
       let bindings ppf id_arg_list =
         let spc = ref false in
         List.iter
-          (fun { id; def } ->
+          (fun { id; debug_uid=_; def } ->
             if !spc then fprintf ppf "@ " else spc := true;
             fprintf ppf "@[<2>%a@ %a@]" Ident.print id lfunction def)
           id_arg_list in
@@ -1346,12 +1346,12 @@ let rec lam ppf = function
         lam lbody i
         (fun ppf vars ->
            List.iter
-             (fun (x, k) -> fprintf ppf " %a%a" Ident.print x layout k)
+             (fun (x, _duid, k) -> fprintf ppf " %a%a" Ident.print x layout k)
              vars
         )
         vars
         excl lam lhandler
-  | Ltrywith(lbody, param, lhandler, _kind) ->
+  | Ltrywith(lbody, param, _duid, lhandler, _kind) ->
       fprintf ppf "@[<2>(try@ %a@;<1 -1>with %a@ %a)@]"
         lam lbody Ident.print param lam lhandler
   | Lifthenelse(lcond, lif, lelse, _kind) ->
