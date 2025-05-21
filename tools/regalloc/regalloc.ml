@@ -15,8 +15,7 @@ external time_include_children : bool -> float
 
 let cpu_time () = time_include_children false
 
-let[@ocamlformat "disable"] process_function
-    (register_allocator : register_allocator)
+let process_function (register_allocator : register_allocator) (validate : bool)
     (cfg_with_layout : Cfg_with_layout.t) (cmm_label : Label.t)
     (reg_stamp : int) (relocatable_regs : Reg.t list) =
   Printf.eprintf "  processing function %S...\n%!"
@@ -26,6 +25,11 @@ let[@ocamlformat "disable"] process_function
   Cmm.set_label cmm_label;
   Reg.For_testing.set_state ~stamp:reg_stamp ~relocatable_regs;
   let cfg_with_infos = Cfg_with_infos.make cfg_with_layout in
+  let cfg_description =
+    match validate with
+    | false -> None
+    | true -> Some (Regalloc_validate.Description.create cfg_with_layout)
+  in
   let start_time = cpu_time () in
   let (_ : Cfg_with_infos.t) =
     match register_allocator with
@@ -34,11 +38,18 @@ let[@ocamlformat "disable"] process_function
     | LS -> Regalloc_ls.run cfg_with_infos
   in
   let end_time = cpu_time () in
-  Printf.eprintf "  register allocation took %gs...\n%!"
-    (end_time -. start_time);
+  (match cfg_description with
+  | None -> ()
+  | Some cfg_description ->
+    let (_ : Cfg_with_layout.t) =
+      Regalloc_validate.run cfg_description cfg_with_layout
+    in
+    ());
+  Printf.eprintf "  register allocation took %gs...\n%!" (end_time -. start_time);
   ()
 
-let process_file (file : string) (register_allocator : register_allocator) =
+let process_file (file : string) (register_allocator : register_allocator)
+    (validate : bool) =
   Printf.eprintf "processing file %S...\n%!" file;
   let unit_info, _digest = Cfg_format.restore file in
   List.iter unit_info.items ~f:(fun (item : Cfg_format.cfg_item_info) ->
@@ -47,8 +58,11 @@ let process_file (file : string) (register_allocator : register_allocator) =
         | Cfg _ -> ()
         | Data _ -> ()
         | Cfg_before_regalloc
-            { cfg_with_layout; cmm_label; reg_stamp; relocatable_regs } ->
-          process_function register_allocator cfg_with_layout cmm_label
+            { cfg_with_layout_and_relocatable_regs; cmm_label; reg_stamp } ->
+          let cfg_with_layout, relocatable_regs =
+            cfg_with_layout_and_relocatable_regs
+          in
+          process_function register_allocator validate cfg_with_layout cmm_label
             reg_stamp relocatable_regs
       end)
 
@@ -59,11 +73,13 @@ let () =
     | None -> assert false
     | Some allocator -> register_allocator := Some allocator
   in
+  let validate = ref false in
   let files = ref [] in
   let args : (Arg.key * Arg.spec * Arg.doc) list =
     [ ( "-regalloc",
         Arg.Symbol (List.map allocators ~f:fst, set_register_allocator),
-        "  Choose register allocator" ) ]
+        "  Choose register allocator" );
+      "-validate", Arg.Set validate, "Enable validation" ]
   in
   let anonymous file = files := file :: !files in
   Arg.parse args anonymous
@@ -75,4 +91,4 @@ let () =
     exit 1
   | Some register_allocator ->
     List.iter (List.rev !files) ~f:(fun file ->
-        process_file file register_allocator)
+        process_file file register_allocator !validate)
