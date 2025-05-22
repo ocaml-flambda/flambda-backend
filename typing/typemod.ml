@@ -3124,16 +3124,6 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         let items, shape_map =
           List.fold_left
             (fun (acc, shape_map) (id, id_info, zero_alloc) ->
-              List.iter
-                (fun (loc, _mode, sort) ->
-                   (* CR layouts v5: this jkind check has the effect of
-                      defaulting the sort of top-level bindings to value, which
-                      will change. *)
-                   if not Jkind.Sort.(equate sort value)
-                   then raise (Error (loc, env,
-                                   Toplevel_nonvalue (Ident.name id,sort)))
-                )
-                id_info;
               let zero_alloc =
                 (* We only allow "Check" attributes in signatures.  Here we
                    convert "Assume"s in structures to the equivalent "Check" for
