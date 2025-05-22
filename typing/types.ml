@@ -287,7 +287,7 @@ module Jkind_mod_bounds = struct
         visibility = Read_write;
         externality = External;
         nullability = Maybe_null;
-        separability = Non_separable } -> true
+        separability = Maybe_separable } -> true
     | _ -> false
 
   let debug_print ppf

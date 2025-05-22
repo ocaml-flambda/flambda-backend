@@ -76,8 +76,8 @@ module Axis_pair = struct
     | "read" -> Any_axis_pair (Modal (Monadic Visibility), Visibility.Const.Read)
     | "read_write" ->
       Any_axis_pair (Modal (Monadic Visibility), Visibility.Const.Read_write)
-    | "non_separable" ->
-      Any_axis_pair (Nonmodal Separability, Separability.Non_separable)
+    | "maybe_separable" ->
+      Any_axis_pair (Nonmodal Separability, Separability.Maybe_separable)
     | "separable" ->
       Any_axis_pair (Nonmodal Separability, Separability.Separable)
     | "non_float" ->
