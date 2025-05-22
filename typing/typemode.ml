@@ -25,7 +25,7 @@ exception Error of Location.t * error
 
 module Axis_pair = struct
   type 'm t =
-    | Modal_axis_pair : ('m, 'a, 'd) Mode.Alloc.axis * 'a -> modal t
+    | Modal_axis_pair : ('a, _, _) Mode.Alloc.Axis.t * 'a -> modal t
     | Any_axis_pair : 'a Axis.t * 'a -> maybe_nonmodal t
     | Everything_but_nullability : maybe_nonmodal t
 
@@ -316,8 +316,8 @@ let default_mode_annots (annots : Alloc.Const.Option.t) =
 let transl_mode_annots annots : Alloc.Const.Option.t =
   let step modifiers_so_far annot =
     let { txt =
-            Modal_axis_pair (type m a d)
-              ((axis, mode) : (m, a, d) Mode.Alloc.axis * a);
+            Modal_axis_pair (type a d0 d1)
+              ((axis, mode) : (a, d0, d1) Mode.Alloc.Axis.t * a);
           loc
         } =
       transl_annot ~annot_type:Mode ~required_mode_maturity:(Some Stable)

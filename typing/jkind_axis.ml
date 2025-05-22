@@ -177,7 +177,7 @@ module Axis = struct
   end
 
   type 'a t =
-    | Modal : ('m, 'a, 'd) Mode.Alloc.axis -> 'a t
+    | Modal : ('a, _, _) Mode.Alloc.Axis.t -> 'a t
     | Nonmodal : 'a Nonmodal.t -> 'a t
 
   type packed = Pack : 'a t -> packed [@@unboxed]
@@ -197,7 +197,7 @@ module Axis = struct
 
   let get (type a) : a t -> (module Axis_ops with type t = a) = function
     | Modal axis ->
-      (module Accent_lattice ((val Mode.Alloc.lattice_of_axis axis)))
+      (module Accent_lattice ((val Mode.Alloc.Const.lattice_of_axis axis)))
     | Nonmodal Externality -> (module Externality)
     | Nonmodal Nullability -> (module Nullability)
     | Nonmodal Separability -> (module Separability)
@@ -216,7 +216,7 @@ module Axis = struct
       Pack (Nonmodal Separability) ]
 
   let name (type a) : a t -> string = function
-    | Modal axis -> Format.asprintf "%a" Mode.Alloc.print_axis axis
+    | Modal axis -> Format.asprintf "%a" Mode.Alloc.Axis.print axis
     | Nonmodal Externality -> "externality"
     | Nonmodal Nullability -> "nullability"
     | Nonmodal Separability -> "separability"
