@@ -1,5 +1,7 @@
 # Parallelism Tutorial II
 
+<!-- CR-soon mslater: link to atomic/capsule APIs -->
+
 In part one, we learned how to parallelize a computation using `fork_join` and parallel sequences.
 However, we only had one way to share mutable data structures between `portable` functions: atomics.
 
@@ -16,22 +18,22 @@ Data that lives in a capsule is represented by the type `('a, 'k) Capsule.Data.t
 For example, to create a fresh `int ref` that lives in a capsule:
 
 ```ocaml
-let ref : (int ref, 'k) Capsule.Data.t = Capsule.Data.create (fun () -> ref 0)
+let capsule_ref : (int ref, 'k) Capsule.Data.t = Capsule.Data.create (fun () -> ref 0)
 ```
 
 The result has type `(int ref, 'k) Capsule.Data.t`, which we may interpret as a pointer to an `int ref` that lives in the capsule `'k`.
 The type `'k` is an [existential type](https://dev.realworldocaml.org/gadts.html) used to identify various pieces of capsule `'k`.
 That is, if two capsule pointers have the same `'k`, we know they point into the same capsule.
 
-Capsule data crosses portability and contention, so it may be shared across any number of `portable` functions without becoming `contended`.
-For example, we could use `ref` at `uncontended` in both branches of a fork-join expression.
+Encapsulated data crosses portability and contention: we can share a `Capsule.Data.t` across any number of `portable` functions without it becoming `contended`.
+For example, we could use `capsule_ref` at `uncontended` in both branches of a fork/join expression.
 
 ```ocaml
 let fork_join parallel =
-  let ref = Capsule.Data.create (fun () -> ref 0) in
+  let capsule_ref = Capsule.Data.create (fun () -> ref 0) in
   Parallel.fork_join2 parallel
-    (fun _ -> (ref : _ @@ uncontended))
-    (fun _ -> (ref : _ @@ uncontended))
+    (fun _ -> (capsule_ref : _ @ uncontended))
+    (fun _ -> (capsule_ref : _ @ uncontended))
 ;;
 ```
 
@@ -45,29 +47,36 @@ A value of type `'k Capsule.Access.t` indicates that we are currently executing 
 When `'k` is the current capsule, we know that no other domains can access `'k`, so it is safe to dereference pointers into `'k`.
 
 ```ocaml
-let increment ~(access : 'k Capsule.Access.t) ref =
-  let ref = Capsule.Data.unwrap ~access ref in
+let increment ~(access : 'k Capsule.Access.t) capsule_ref =
+  let ref = Capsule.Data.unwrap ~access capsule_ref in
   ref := !ref + 1
 ;;
 ```
 
-Accesses **do not** cross contention, so they cannot be freely shared between `portable` functions.
-Intuitively, a `portable` function may run in a different capsule, so it must not be allowed to see capsule `'k`.
+Accesses **do not** cross contention, and `unwrap` requires an `uncontended` access.
+Hence, accesses cannot be freely shared between `portable` functions&mdash;intuitively, a `portable` function runs in a different capsule, so it must not be allowed to examine data in `'k`.
 This property prohibits data races, as we can see with fork/join:
 
 ```ocaml
 let parallel_increment parallel ~(access : 'k Capsule.Access.t) =
-  let ref = Capsule.Data.create (fun () -> ref 0) in
+  let capsule_ref = Capsule.Data.create (fun () -> ref 0) in
   Parallel.fork_join2 parallel
-    (fun _ -> increment ~access ref)
+    (fun _ -> increment ~access capsule_ref)
 (*                       ^^^^^^                            *)
 (* This value is contended but expected to be uncontended. *)
-    (fun _ -> increment ~access ref)
+    (fun _ -> increment ~access capsule_ref)
 ;;
 ```
 
-So, how do we obtain access to capsule `'k`?
-Well, we can always request access to the capsule associated with the initial domain:
+So, how do we obtain access to a capsule?
+The simplest way is to use the top-level access associated with the initial domain:
+
+```ocaml
+let (initial : Capsule.initial Capsule.Access.t) = Capsule.initial
+```
+
+Accesses don't cross contention, so only `nonportable` functions can capture an `uncontended` reference to `initial`.
+Since `nonportable` functions always execute on the initial domain, they may manipulate data in the initial capsule.
 
 ```ocaml
 let increment_initial () =
@@ -76,8 +85,8 @@ let increment_initial () =
 ;;
 ```
 
-Because `Access.initial` is `nonportable`, we know it can never be used outside of the initial domain.
-In fact, all code executes within _some_ capsule, so we can also ask for access to the current capsule.
+Similarly, though `portable` functions may not execute in the initial capsule, they always execute in _some_ capsule.
+During a `portable` function, we can ask for access to the _current capsule_:
 
 ```ocaml
 let increment_current () =
@@ -87,11 +96,21 @@ let increment_current () =
 ;;
 ```
 
-However, we can't know whether we're currently inside a particular preexisting capsule, so `Capsule.current` returns a _packed_ access.
-Unpacking `access` generates a fresh capsule type `'k` that's distinct from all other capsules.
+We don't know whether the current capsule is the same as any preexisting capsule&mdash;in fact, we can think of every `portable` function as executing in a fresh capsule.
+Therefore, `Capsule.current` returns a _packed_ access, and unpacking the result generates a fresh `'k` that's distinct from all other capsules.
 
-Therefore, we also need a way to request access to a particular capsule `'k`.
-This is the purpose of the second mechanism: _passwords_.
+However, that means we can never access data from capsules other than the current one.
+
+```ocaml
+let increment_other (other_ref : (int ref, 'k) Capsule.Data.t) =
+  let (P access) = Capsule.current () in
+  increment other_ref ~access
+(*                     ^^^^^^                                   *)
+(* This expression has type (int ref, 'k) Capsule.Data.t but an *)
+(* expression was expected of type (int ref, $k) Capsule.Data.t *)
+```
+
+Providing access to a particular capsule is the purpose of the second mechanism: _passwords_.
 
 ## Passwords
 
@@ -99,36 +118,36 @@ A value of type `'k Capsule.Password.t` represents permission to enter the capsu
 Given a password, we can request an access:
 
 ```ocaml
-let increment ~(password : 'k Capsule.Password.t @@ local) ref =
+let increment ~(password : 'k Capsule.Password.t @ local) capsule_ref =
   Capsule.access ~password (fun access ->
-    let ref = Capsule.Data.unwrap ~access ref in
+    let ref = Capsule.Data.unwrap ~access capsule_ref in
     ref := !ref + 1)
   [@nontail]
 ;;
 ```
 
 Passwords **do** cross contention, so they can be freely shared between `portable` functions.
-Naively, that would introduce races, but passwords are also always [`local`](https://blog.janestreet.com/oxidizing-ocaml-locality/).
-That means we still can't transfer a password across domains: fork-join requires global functions, which cannot capture a `local` password.
+Naively, that would introduce races, but passwords are also always [`local`](https://oxcaml.org/documentation/stack-allocation/intro/).
+That means we still can't transfer a password across domains: fork/join requires global functions, which cannot capture a `local` password.
 
 <!-- CR-someday mslater: this is actually enforced by the yielding axis; at some
      point we will allow local fork/join and this will be wrong. -->
 
 ```ocaml
-let parallel_increment parallel ~(password : 'k Capsule.Password.t @@ local) =
-  let ref = Capsule.Data.create (fun () -> ref 0) in
+let parallel_increment parallel ~(password : 'k Capsule.Password.t @ local) =
+  let capsule_ref = Capsule.Data.create (fun () -> ref 0) in
   Parallel.fork_join2 parallel
-    (fun _ -> increment ~password ref)
+    (fun _ -> increment ~password capsule_ref)
 (*                       ^^^^^^^^                                                      *)
 (* The value password is local, so cannot be used inside a function that might escape. *)
-    (fun _ -> increment ~password ref)
+    (fun _ -> increment ~password capsule_ref)
   [@nontail]
 ;;
 ```
 
 Semantically, the primary use of passwords is requesting access, since that's what lets you unwrap capsule data.
 However, `Capsule.Data` also provides a variety of convenience functions for operating on capsule data _in situ_.
-These functions require passwords, since they do not assume that the current capsules is the correct one.
+These functions require passwords, since they do not assume that the current capsule is the correct one.
 
 ```ocaml
 val map
@@ -194,10 +213,10 @@ However, unlike a password or an access, a key may be _moved_ into one of the br
 ```ocaml
 let parallel_key parallel =
   let (P key) = Capsule.create () in
-  let ref = Capsule.Data.create (fun () -> ref 0) in
+  let capsule_ref = Capsule.Data.create (fun () -> ref 0) in
   Parallel.fork_join2 parallel
     (fun _ ->
-      Capsule.Key.with_password key ~f:(fun password -> increment ~password ref)
+      Capsule.Key.with_password key ~f:(fun password -> increment ~password capsule_ref)
       |> ignore)
     (fun _ -> ())
 ;;
@@ -213,9 +232,9 @@ We get back a `'k` access, indicating that `'k` is part of the current capsule.
 ```ocaml
 let merge_fresh () =
   let (P key) = Capsule.create () in
-  let ref = Capsule.Data.create (fun () -> ref 0) in
+  let capsule_ref = Capsule.Data.create (fun () -> ref 0) in
   let access = Capsule.Key.destroy key in
-  let ref = Capsule.Data.unwrap ~access ref in
+  let ref = Capsule.Data.unwrap ~access capsule_ref in
   ref := !ref + 1
 ;;
 ```
@@ -224,11 +243,11 @@ These three abstractions&mdash;access, password, and key&mdash;provide three dis
 Because each type's safety properties rely on a different mode axis, they enable different parallel programming patterns.
 In summary:
 
-Type | Represents | Provides | Safety Axis
------|------------|----------|--------
-`'k Access.t` | Proof that `'k` is the current capsule. | Access to data in `'k`. | Contention
-`'k Password.t` | Permission to enter capsule `'k`. | `'k Access.t` | Locality
-`'k Key.t` | The capsule `'k` itself. | `'k Password.t` | Uniqueness
+Type            | Represents                              | Provides                | Safety Axis
+----------------|-----------------------------------------|-------------------------|------------
+`'k Access.t`   | Proof that `'k` is the current capsule. | Access to data in `'k`. | Contention
+`'k Password.t` | Permission to enter capsule `'k`.       | `'k Access.t`           | Locality
+`'k Key.t`      | The capsule `'k` itself.                | `'k Password.t`         | Uniqueness
 
 ## Locks
 
@@ -255,12 +274,12 @@ Therefore, locking a mutex produces a password.
 let parallel_mutexes parallel =
   let (P key) = Capsule.create () in
   let mutex = Capsule.Mutex.create key in
-  let ref = Capsule.Data.create (fun () -> ref 0) in
+  let capsule_ref = Capsule.Data.create (fun () -> ref 0) in
     Parallel.fork_join2 parallel
     (fun _ ->
-      Capsule.Mutex.with_lock mutex ~f:(fun password -> increment ~password ref))
+      Capsule.Mutex.with_lock mutex ~f:(fun password -> increment ~password capsule_ref))
     (fun _ ->
-      Capsule.Mutex.with_lock mutex ~f:(fun password -> increment ~password ref))
+      Capsule.Mutex.with_lock mutex ~f:(fun password -> increment ~password capsule_ref))
 ;;
 ```
 
@@ -398,14 +417,14 @@ let quicksort ~scheduler ~mutex array =
 
 Finally, we may benchmark our parallel implementation on various numbers of domains:
 
-Domains | Time (ms)
---------|------
+Domains    | Time (ms)
+-----------|----------
 Sequential | 2.36
-1 | 2.78
-2 | 1.70
-4 | 1.09
-8 | 0.78
-16 | 0.77
+1          | 2.78
+2          | 1.70
+4          | 1.09
+8          | 0.78
+16         | 0.77
 
 Although we observe a speedup using up to 16 domains, quicksort only admits a limited amount of parallelism&mdash;eventually, the cost of sequentially partitioning the array dominates the runtime.
 For this reason, other algorithms (such as merge-sort) are often preferable in the parallel setting.
@@ -481,11 +500,11 @@ let filter ~scheduler ~mutex image =
 Now, if we benchmark this implementation...
 
 Domains | Time (ms)
---------|------
-1 | 309
-2 | 705
-4 | 812
-8 | 977
+--------|----------
+1       | 309
+2       | 705
+4       | 812
+8       | 977
 
 ...we'll find that it gets slower with more domains!
 That's because we've only allowed one domain at a time to access the input image, destroying any opportunity for parallelism.
@@ -533,9 +552,9 @@ We may then pass the access to `Capsule.Data.unwrap_shared` to get our desired `
 Finally, our filter's performance scales close to linearly with additional domains:
 
 Domains | Time (ms)
---------|------
-1 | 287
-2 | 150
-4 | 81
-8 | 51
+--------|----------
+1       | 287
+2       | 150
+4       | 81
+8       | 51
 
