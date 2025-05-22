@@ -578,4 +578,5 @@ We would bump the version number in either of these cases, which would prompt yo
 Version history:
 
 - `v1`: initial implementation;
-- `v2`: automatic reordering by the front- and middle-ends.
+- `v2`: automatic reordering by the front- and middle-ends;
+- `v3`: automatic flattening of nested unboxed records.
