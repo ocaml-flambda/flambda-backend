@@ -96,11 +96,13 @@ let is_symbol_used (env : env) symbol =
   is_used env (Code_id_or_name.symbol symbol)
   || not (Compilation_unit.is_current (Symbol.compilation_unit symbol))
 
-let is_var_used (env : env) var =
-  let kind = Name.Map.find (Name.var var) env.kinds in
-  match kind with
+let raw_is_var_used uses kinds var =
+  let kind = Name.Map.find (Name.var var) kinds in
+  match (kind : K.t) with
   | Region | Rec_info -> true
-  | Value | Naked_number _ -> is_used env (Code_id_or_name.var var)
+  | Value | Naked_number _ -> DS.has_use uses (Code_id_or_name.var var)
+
+let is_var_used (env : env) var = raw_is_var_used env.uses env.kinds var
 
 let is_name_used (env : env) name =
   Name.pattern_match name ~symbol:(is_symbol_used env) ~var:(is_var_used env)
@@ -1518,9 +1520,7 @@ and rebuild_holed (env : env) res (rev_expr : Rev_expr.rev_expr_holed)
         res handlers
     in
     let invariant_params =
-      filter_params
-        (fst (Continuation.Lmap.choose handlers))
-        invariant_params
+      filter_params (fst (Continuation.Lmap.choose handlers)) invariant_params
     in
     let let_cont_expr =
       RE.create_recursive_let_cont ~invariant_params handlers ~body:hole
@@ -1800,7 +1800,7 @@ let rebuild ~(code_deps : Traverse_acc.code_dep Code_id.Map.t)
       fun param kind ->
       match DS.get_unboxed_fields solved_dep (Code_id_or_name.var param) with
       | None ->
-        let is_var_used = DS.has_use solved_dep (Code_id_or_name.var param) in
+        let is_var_used = raw_is_var_used solved_dep kinds param in
         (* XXX what should happen to this "if"? *)
         if true || is_var_used then Keep (param, kind) else Delete
       | Some fields -> Unbox fields
@@ -1824,12 +1824,13 @@ let rebuild ~(code_deps : Traverse_acc.code_dep Code_id.Map.t)
           DS.cannot_change_calling_convention solved_dep code_id
         in
         let metadata = get_code_metadata code_id in
-        let kinds =
+        let result_kinds =
           Flambda_arity.unarized_components
             (Code_metadata.result_arity metadata)
         in
         if cannot_change_calling_convention
-        then List.map2 (fun v kind -> Keep (v, kind)) code_dep.return kinds
+        then
+          List.map2 (fun v kind -> Keep (v, kind)) code_dep.return result_kinds
         else
           (* Format.eprintf "DIRECT: %a@." Code_id.print code_id; *)
           List.map2
@@ -1838,9 +1839,7 @@ let rebuild ~(code_deps : Traverse_acc.code_dep Code_id.Map.t)
                 DS.get_unboxed_fields solved_dep (Code_id_or_name.var v)
               with
               | None ->
-                let is_var_used =
-                  DS.has_use solved_dep (Code_id_or_name.var v)
-                in
+                let is_var_used = raw_is_var_used solved_dep kinds v in
                 let kind =
                   DS.rewrite_kind_with_subkind solved_dep (Name.var v) kind
                 in
@@ -1848,7 +1847,7 @@ let rebuild ~(code_deps : Traverse_acc.code_dep Code_id.Map.t)
                    functions and their return continuations *)
                 if true || is_var_used then Keep (v, kind) else Delete
               | Some fields -> Unbox fields)
-            code_dep.return kinds)
+            code_dep.return result_kinds)
       code_deps
   in
   let should_keep_param cont param kind =
@@ -1859,7 +1858,7 @@ let rebuild ~(code_deps : Traverse_acc.code_dep Code_id.Map.t)
     | None ->
       if keep_all_parameters
          ||
-         let is_var_used = DS.has_use solved_dep (Code_id_or_name.var param) in
+         let is_var_used = raw_is_var_used solved_dep kinds param in
          is_var_used
          ||
          let info = Continuation.Map.find cont continuation_info in
