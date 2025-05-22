@@ -845,9 +845,13 @@ let rebuild_apply env apply =
         match Apply.callee apply with
         | None -> None
         | Some callee ->
-          Simple.pattern_match callee
+          Simple.pattern_match' callee
             ~const:(fun _ -> None)
-            ~name:(fun name ~coercion:_ -> Some (Code_id_or_name.name name)))
+            ~symbol:(fun symbol ~coercion:_ ->
+              if Compilation_unit.is_current (Symbol.compilation_unit symbol)
+              then Some (Code_id_or_name.symbol symbol)
+              else None)
+            ~var:(fun var ~coercion:_ -> Some (Code_id_or_name.var var)))
       | Function { function_call = Indirect_unknown_arity; _ }
       | C_call _ | Method _ | Effect _ ->
         None
