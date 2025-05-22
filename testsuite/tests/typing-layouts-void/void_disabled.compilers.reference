@@ -1,0 +1,5 @@
+File "void.ml", line 39, characters 12-16:
+39 | type void : void
+                 ^^^^
+Error: The appropriate layouts extension is not enabled.
+       You must enable -extension layouts_beta to use this feature.
