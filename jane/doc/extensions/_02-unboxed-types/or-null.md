@@ -21,10 +21,10 @@ works.
 
 ## The `value_or_null` layout
 
-The key observation powering `or_null` is that ordinary OCaml values are
-never equal to the word 0. Because 0 can never be a valid pointer,
-and a tagged integer always has its bottom bit set.
-Therefore, we can safely update the garbage collector not to
+The key observation powering or_null is that no ordinary OCaml value equals the
+word 0. A valid pointer will always be non-null, and an immediate (represented
+as a tagged integer) will always have its bottom bit set. Thus, all are
+different from 0. Therefore, we can safely update the garbage collector not to
 traverse null pointers.
 
 We thus want `t or_null` to be just like `t`, except now with a meaning
