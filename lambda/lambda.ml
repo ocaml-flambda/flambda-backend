@@ -2390,13 +2390,19 @@ let primitive_result_layout (p : primitive) =
   | (Parray_to_iarray | Parray_of_iarray) -> layout_any_value
   | Pget_header _ -> layout_boxed_int Boxed_nativeint
   | Prunstack | Presume | Pperform | Preperform -> layout_any_value
-  | Patomic_load { immediate_or_pointer = Immediate } -> layout_int_or_null
-  | Patomic_load { immediate_or_pointer = Pointer } -> layout_any_value
+  | Patomic_load { immediate_or_pointer = Immediate } ->
+    layout_int_or_null
+  | Patomic_load { immediate_or_pointer = Pointer } ->
+    layout_any_value
   | Patomic_set _ -> layout_unit
-  | Patomic_exchange { immediate_or_pointer = Immediate } -> layout_int_or_null
-  | Patomic_exchange { immediate_or_pointer = Pointer } -> layout_any_value
-  | Patomic_compare_exchange { immediate_or_pointer = Immediate } -> layout_int_or_null
-  | Patomic_compare_exchange { immediate_or_pointer = Pointer } -> layout_any_value
+  | Patomic_exchange { immediate_or_pointer = Immediate } ->
+    layout_int_or_null
+  | Patomic_exchange { immediate_or_pointer = Pointer } ->
+    layout_any_value
+  | Patomic_compare_exchange { immediate_or_pointer = Immediate } ->
+    layout_int_or_null
+  | Patomic_compare_exchange { immediate_or_pointer = Pointer } ->
+    layout_any_value
   | Patomic_compare_set _
   | Patomic_fetch_add -> layout_int
   | Pdls_get -> layout_any_value
