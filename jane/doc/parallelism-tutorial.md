@@ -82,45 +82,6 @@ state where `initialised` is `true` and `price_of_gold` is `0.0`.[^price-zero]
 [^price-zero]: Assuming, of course, `calculate_price_of_gold ()` doesn't
 return `0.0`. The compiler can't catch everything.
 
-<!--
-One thing to note is that the OCaml 5 memory model provides
-unusually[^unusually] strong guarantees even in the face of data races. In
-particular, memory safety still applies, so a data race won't cause a segfault
-or an out-of-bounds checked array access.
-
-[^unusually]: See [this paper] for technical details and a few examples. To
-summarize, in C++ the repercussions of a data race are “unbounded in space and
-time,” which sounds scary because it is. Java's memory model is better, but a
-data race can still cause a value to be read from anytime in the past or indeed
-the future.
-
-[this paper]: https://kcsrk.info/papers/pldi18-memory.pdf
-
-So why insist on eliminating data races? One reason is simply that they are
-bugs, and fiddly ones at that, so any language feature that helps eliminate them
-is worth considering. Such bugs are especially likely to occur when code moves
-into the multicore world: OCaml makes it easy for shared state to hide in
-surprising places (fun fact: `sexp_of_float` is one such place), and shining a
-light into those places is a good first step to making them multicore-safe.
-
-<!--
-Often, however, one can fix the data race and still have a race condition, say
-by replacing a `ref` with an `Atomic.t` (we'll see an example [later]). So what
-have we gained? Well, an important principle that we all take for granted is
-what the literature calls _sequential consistency._ Essentially, it means that
-we can see each thread in the program as a list of instructions that will happen
-in a fixed order, it's just that we don't know which thread (or threads) will
-execute their instruction next at any given time.
--- >
-
-Often, however, one can fix a data race and still have a race condition, say
-by replacing a `ref` with an `Atomic.t` (we'll see an example [later]). So what
-have we gained? In short, Well, consider these two pieces of code running in parallel:
-
-[later]: #atomics
-
--->
-
 # Fork/join parallelism
 
 Any problem that can be neatly subdivided is a good candidate for
@@ -514,81 +475,6 @@ for instance, we say that `t_in_a_trenchcoat.inner_t` is `contended` when
 
 [rule 1]: #rule-contended-parallel
 
-<!--
-#### Modalities
-
-[Rule 4] says the `contended` mode is deep—that `contended` values can't
-contain `uncontended` values (unless we demote them to `contended` by [rule 3]).
-In contrast, there's such requirement for `uncontended` values: they can contain
-either `contended` or `uncontended` values, so long as we keep track of which is
-which. For convenience, `uncontended` is “deep by default,” and we use a
-notation called a _modality_ to make a field `contended` instead:
-
-[Rule 4]: #rule-contended-deep
-[rule 3]: #rule-contended-submode
-
-```ocaml
-module State = struct
-  type t = {
-    most_expensive_thing : Thing.t @@ contended
-    my_favorite_thing : Thing.t
-  }
-end
-```
-
-This says that if I have an `uncontended` `State.t`, I have `uncontended` access
-to its `my_favorite_thing` field but `contended` access to its
-`most_expensive_thing` field. (If I have a `contended` one instead, then as
-always both fields are `contended` by rule 4.)
-
-This means we can _never_ access the `mood` of `most_expensive_thing`:
-
-```ocaml
-let most_expensive_mood (state @ uncontended) =
-  state.most_expensive_thing.mood (* error *)
-```
-
-```
-Error: This value is contended but expected to be uncontended.
-```
-
-In return, we let `most_expensive_thing` be something `contended`, even when the
-record as a whole is `uncontended`:
-
-```ocaml
-let make_state (expensive @ contended) fave =
-  let state @ uncontended =
-    { State.most_expensive_thing = expensive
-    ; my_favorite_thing = fave
-    }
-  in
-  state
-```
-
-We can't do that with `my_favorite_thing`, since that field is `uncontended`
-when `state` is:
-
-```diff
--let make_state (expensive @ contended) fave =
-+let make_state (expensive @ contended) (fave @ contended) =
- let state @ uncontended =
-   { State.most_expensive_thing = expensive
-```
-
-```
-Error: This value is contended but expected to be uncontended.
-```
--->
-<!--
-Note that there is actually an `@@ uncontended` modality but it's not useful—if
-the record is `contended`, the field has to be `contended` no matter what (see
-[rule 4]), so the modality doesn't change anything there. Fortunately, by rule
-3, you can _always_ put an `uncontended` value in a `contended` record, so the
-modality isn't even necessary there.
-
-[rule 4]: #rule-contended-deep
--->
-
 ### The `portable` and `nonportable` modes
 
 As we said before, [rule 1](#rule-contended-parallel) and [rule
@@ -750,31 +636,6 @@ notably including `Lazy.t`, so `portable` is also a concern for them.
 
 [in a trenchcoat]: #code-cheer_up_sneakily
 [mode crossing]: #mode-crossing
-
-<!--
-Lastly, `nonportable` is “deep by default” the way `uncontended` is, with
-a `@@ portable` modality. For example, one might be implementing a customizable
-scheduler:
-
-```ocaml
-module Scheduler = struct
-  type t = {
-    mutable waiting_tasks : (unit -> unit) list @@ portable;
-    run_one_task : (unit -> unit) @ portable -> unit;
-  }
-end
-```
-
-Here we have some tasks waiting to run and some custom function for running a
-task. We need to retain the ability for the tasks to run in parallel, so we
-use the `@@ portable` modality to make sure that `waiting_tasks` is `portable`
-(and, because `portable` is [deep], that means that each function is
-`portable`). But the scheduler itself might be confined to one domain, so
-`run_one_task` can happily be `nonportable` if the whole `Scheduler.t` is
-`nonportable`. So we don't give `run_one_task` a modality.
-
-[deep]: #rule-portable-deep
--->
 
 We can summarize the rules of `portable` and `contended` like so:
 
@@ -942,21 +803,6 @@ The type of `always_portable'` can be read “Given any type `'a` of kind
 
 ## Atomics
 
-<!--
-As we've seen, life is easier when things aren't `mutable`: immutable fields
-of `contended` values can still be accessed, and a value with _no_ mutable
-components (or subcomponents, etc.) [crosses contention] so that it can
-always be considered `uncontended`.
-
-[crosses contention]: #mode-crossing
-
-There's an important caveat there: arrays aside, this is about fields that
-_carry the `mutable` keyword._ It's right there in [rule 2 of `contended`]:
-no “reading or writing to a `mutable` field.”
-
-[rule 2 of `contended`]: #rule-contended-mutable
--->
-
 We've seen that `mutable` fields can cause quite some trouble: they require
 `uncontended` access, which can make functions not `portable`, and generally
 they very much get in the way. In some cases, however, you _may_ (with
@@ -1088,11 +934,6 @@ module Tree = struct
     | Nodes of 'a t iarray
 end
 ```
-<!--
-Importantly, we're using `iarray`s rather than the usual mutable `array`s
-here—otherwise there would be little hope of doing anything in parallel. The
-sequential code isn't much different from [before]:
--->
 
 The sequential code isn't much different from [before]:
 
