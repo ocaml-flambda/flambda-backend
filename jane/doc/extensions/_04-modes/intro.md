@@ -99,7 +99,9 @@ threads. A value is *contended* if another thread can write to it, *shared* if
 multiple threads have read-only access to it, and *uncontended* otherwise.
 
 To enforce data race freedom, the typechecker does not permit reading or writing
-the mutable portions of contended values. The mutable portions of shared values
+unprotected mutable portions of contended values. (Types like `Atomic.t` protect
+mutable values from data races and allow contended values to still retain
+mutable components.) The unprotected mutable portions of shared values
 may be read, but not written to. Uncontended values may be accessed and mutated
 freely.
 
@@ -197,5 +199,67 @@ they are once.
 See also the [documentation on uniqueness and
 linearity](../../uniqueness/intro/).
 
-<!-- CR ccasinghino: Sections needed for statefulness, visibility, and yielding -->
+# Modes for effects {#yielding}
 
+## Future modes: Yielding
+
+|----------------|
+| yielding       |
+| `|`            |
+| **unyielding** |
+{: .table }
+
+Yielding is a future axis that tracks whether a function is permitted to perform
+effects that will be handled in its parent stack. See [the OCaml Manual entry
+for effect handlers](https://ocaml.org/manual/5.3/effects.html).
+
+Yielding has different defaults depending on the locality axis: *global* values are
+defaulted to *unyielding*, while *local* values are defaulted to *yielding*.
+More documentation on mode implications is available [here](../_05-kinds/syntax.md).
+
+Yielding is irrelevant for types that do not contain functions, and values of such types
+*mode cross* on the yielding axis; they may be used as unyielding even
+when they are yielding.
+
+# Modes for purity {#visibility-statefulness}
+
+## Past modes: Visibility
+
+|----------------|
+| immutable      |
+| `|`            |
+| read           |
+| `|`            |
+| **read_write** |
+{: .table}
+
+Visibility is a past axis that controls access to mutable portions of values.
+It's similar to contention: the typechecker forbids accessing mutable fields of values
+with *immutable* visiblity, and forbids writing to mutable fields of values
+with *read* visibility. Unlike for contention, even thread-safe access is disallowed.
+
+Visibility is irrelevant for types that are deeply immutable. Values of such
+types *mode cross* on the visibility axis; they may be used as read_write even
+when they are immutable.
+
+## Future modes: Statefulness
+
+|--------------|
+| **stateful** |
+| `|`          |
+| observing    |
+| `|`          |
+| stateless    |
+{: .table}
+
+Statefulness is a future axis that tracks whether a function reads or writes to some
+mutable state that it closes over (in other words, state that is not explicitly passed to it in an argument).
+
+*Stateless* functions may not either read or write such state, and *observing*
+functions can only read it. *Stateful* functions have no restrictions.
+Stateless closures capture all values at visibility *immutable*,
+while observing closures capture all values at visibility *read*.
+
+Statefulness is irrelevant for types that do not contain functions, and values of such
+types *mode cross* on the statefulness axis; they may be used as stateless
+even when they are stateful.
