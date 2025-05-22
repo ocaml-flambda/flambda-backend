@@ -59,6 +59,32 @@ val type_unboxed_int64x2: type_expr
 val type_unboxed_float32x4: type_expr
 val type_unboxed_float64x2: type_expr
 
+val type_int8x32: type_expr
+val type_int16x16: type_expr
+val type_int32x8: type_expr
+val type_int64x4: type_expr
+val type_float32x8: type_expr
+val type_float64x4: type_expr
+val type_unboxed_int8x32: type_expr
+val type_unboxed_int16x16: type_expr
+val type_unboxed_int32x8: type_expr
+val type_unboxed_int64x4: type_expr
+val type_unboxed_float32x8: type_expr
+val type_unboxed_float64x4: type_expr
+
+val type_int8x64: type_expr
+val type_int16x32: type_expr
+val type_int32x16: type_expr
+val type_int64x8: type_expr
+val type_float32x16: type_expr
+val type_float64x8: type_expr
+val type_unboxed_int8x64: type_expr
+val type_unboxed_int16x32: type_expr
+val type_unboxed_int32x16: type_expr
+val type_unboxed_int64x8: type_expr
+val type_unboxed_float32x16: type_expr
+val type_unboxed_float64x8: type_expr
+
 val path_int: Path.t
 val path_char: Path.t
 val path_string: Path.t
@@ -102,6 +128,32 @@ val path_unboxed_int64x2: Path.t
 val path_unboxed_float32x4: Path.t
 val path_unboxed_float64x2: Path.t
 
+val path_int8x32: Path.t
+val path_int16x16: Path.t
+val path_int32x8: Path.t
+val path_int64x4: Path.t
+val path_float32x8: Path.t
+val path_float64x4: Path.t
+val path_unboxed_int8x32: Path.t
+val path_unboxed_int16x16: Path.t
+val path_unboxed_int32x8: Path.t
+val path_unboxed_int64x4: Path.t
+val path_unboxed_float32x8: Path.t
+val path_unboxed_float64x4: Path.t
+
+val path_int8x64: Path.t
+val path_int16x32: Path.t
+val path_int32x16: Path.t
+val path_int64x8: Path.t
+val path_float32x16: Path.t
+val path_float64x8: Path.t
+val path_unboxed_int8x64: Path.t
+val path_unboxed_int16x32: Path.t
+val path_unboxed_int32x16: Path.t
+val path_unboxed_int64x8: Path.t
+val path_unboxed_float32x16: Path.t
+val path_unboxed_float64x8: Path.t
+
 val path_match_failure: Path.t
 val path_invalid_argument: Path.t
 val path_assert_failure : Path.t
@@ -135,6 +187,18 @@ val build_initial_env:
    because we'd like to only do it if the simd extension is on. *)
 val add_simd_stable_extension_types :
   (Ident.t -> type_declaration -> 'a -> 'a) -> 'a -> 'a
+
+(* Add beta simd types to an environment.  This is separate from
+   [build_initial_env] because we'd like to only do it if the beta simd
+   extension is on. *)
+val add_simd_beta_extension_types :
+   (Ident.t -> type_declaration -> 'a -> 'a) -> 'a -> 'a
+
+(* Add alpha simd types to an environment.  This is separate from
+   [build_initial_env] because we'd like to only do it if the alpha simd
+   extension is on. *)
+val add_simd_alpha_extension_types :
+   (Ident.t -> type_declaration -> 'a -> 'a) -> 'a -> 'a
 
 (* Add small number types to an environment.  This is separate from [build_initial_env]
    because we'd like to only do it if the small numbers extension is on. *)

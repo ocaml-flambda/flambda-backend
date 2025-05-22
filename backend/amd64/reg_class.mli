@@ -1,8 +1,8 @@
 [@@@ocaml.warning "+a-40-41-42"]
 
 type t =
-  | Int64
-  | Float128
+  | GPR
+  | SIMD
 
 include Reg_class_utils.T with type t := t
 

@@ -286,7 +286,7 @@ let is_x86 = function | X86 -> true | X64 -> false
 
 let rd_of_regf regf =
   match regf with
-  | XMM n -> n
+  | XMM n | YMM n | ZMM n -> n
 
 let rd_of_reg64 = function
   | RAX -> 0
@@ -868,12 +868,12 @@ let emit_MOV b dst src =
 
 let emit_vex3 buf ~rexr ~rexx ~rexb ~vex_m ~vex_w ~vex_v ~vex_l ~vex_p =
   buf_int8 buf 0xC4; (* We only emit 3-byte VEX instructions. *)
-  buf_int8 buf (((lnot rexr) lsl 7) lor
-                ((lnot rexx) lsl 6) lor
-                ((lnot rexb) lsl 5) lor
+  buf_int8 buf (((rexr lxor 1) lsl 7) lor
+                ((rexx lxor 1) lsl 6) lor
+                ((rexb lxor 1) lsl 5) lor
                 vex_m);
   buf_int8 buf ((vex_w lsl 7) lor
-                ((lnot vex_v) lsl 3) lor
+                ((vex_v lxor 15) lsl 3) lor
                 (vex_l lsl 2) lor
                 vex_p)
 
@@ -925,11 +925,16 @@ let emit_simd b (instr : Amd64_simd_instrs.instr) args =
     | _ -> failwith instr.mnemonic
   in
   let rm_vexv_reg () =
+    (* CR-soon mslater: more configs for AVX *)
     match args with
+    | [| src; dst |] ->
+      (match enc 1, enc 0 with
+      | RM_rm, RM_r -> src, 0, rd_of_reg dst
+      | RM_r, RM_rm -> dst, 0, rd_of_reg src
+      | _ -> failwith instr.mnemonic)
     | [| src2; src1; dst |] ->
       (match enc 2, enc 1, enc 0 with
       | RM_rm, Vex_v, RM_r -> src2, rd_of_reg src1, rd_of_reg dst
-      (* CR-soon mslater: more configs for AVX *)
       | _ -> failwith instr.mnemonic)
     | _ -> failwith instr.mnemonic
   in

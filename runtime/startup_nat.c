@@ -102,7 +102,7 @@ value caml_startup_common(char_os **argv, int pooling)
   value res;
 
   caml_init_os_params();
-  
+
   /* Determine options */
   caml_parse_ocamlrunparam();
 

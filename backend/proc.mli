@@ -43,7 +43,8 @@ val loc_results_return : Cmm.machtype -> Reg.t array
 (* For argument number [n] split across multiple registers, the target-specific
    implementation of [loc_external_arguments] must return [regs] such that
    [regs.(n).(0)] is to hold the part of the value at the lowest address. *)
-val loc_external_arguments : Cmm.exttype list -> Reg.t array array * int
+val loc_external_arguments :
+  Cmm.exttype list -> Reg.t array array * int * Cmm.stack_align
 
 val loc_external_results : Cmm.machtype -> Reg.t array
 

@@ -259,9 +259,10 @@ let basic (map : spilled_map) (instr : Cfg.basic Cfg.instruction) =
   | Op
       ( Move | Spill | Reload
       | Floatop (_, (Inegf | Iabsf | Icompf _))
-      | Const_float _ | Const_float32 _ | Const_vec128 _ | Stackoffset _
-      | Load _ | Store _ | Name_for_debugger _ | Probe_is_enabled _ | Opaque
-      | Begin_region | End_region | Dls_get | Poll | Alloc _ )
+      | Const_float _ | Const_float32 _ | Const_vec128 _ | Const_vec256 _
+      | Const_vec512 _ | Stackoffset _ | Load _ | Store _ | Name_for_debugger _
+      | Probe_is_enabled _ | Opaque | Begin_region | End_region | Dls_get | Poll
+      | Alloc _ )
   | Op (Reinterpret_cast (Int_of_value | Value_of_int))
   | Op
       (Specific

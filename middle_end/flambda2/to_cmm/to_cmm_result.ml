@@ -106,7 +106,8 @@ let defines_a_symbol data =
   match (data : Cmm.data_item) with
   | Cdefine_symbol _ -> true
   | Cint8 _ | Cint16 _ | Cint32 _ | Cint _ | Csingle _ | Cdouble _ | Cvec128 _
-  | Csymbol_address _ | Csymbol_offset _ | Cstring _ | Cskip _ | Calign _ ->
+  | Cvec256 _ | Cvec512 _ | Csymbol_address _ | Csymbol_offset _ | Cstring _
+  | Cskip _ | Calign _ ->
     false
 
 let add_to_data_list x l =

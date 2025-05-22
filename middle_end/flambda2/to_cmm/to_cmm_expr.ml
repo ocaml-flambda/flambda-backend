@@ -118,7 +118,7 @@ let translate_external_call env res ~free_vars apply ~callee_simple ~args
     | Naked_number Naked_int32 -> C.sign_extend ~bits:32 ~dbg cmm
     | Naked_number
         ( Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint
-        | Naked_vec128 | Naked_float32 )
+        | Naked_vec128 | Naked_vec256 | Naked_vec512 | Naked_float32 )
     | Value | Rec_info | Region ->
       cmm
   in
@@ -157,7 +157,9 @@ let translate_external_call env res ~free_vars apply ~callee_simple ~args
           | Naked_number
               (Naked_immediate | Naked_int64 | Naked_nativeint | Naked_float) ->
             ()
-          | Naked_number (Naked_int32 | Naked_vec128 | Naked_float32)
+          | Naked_number
+              ( Naked_int32 | Naked_vec128 | Naked_vec256 | Naked_vec512
+              | Naked_float32 )
           | Value | Region | Rec_info ->
             Misc.fatal_errorf
               "Cannot compile unboxed product return from external C call with \

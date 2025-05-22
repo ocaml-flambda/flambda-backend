@@ -30,6 +30,8 @@ type to_lift = private
   | Boxed_int64 of Numeric_types.Int64.t
   | Boxed_nativeint of Targetint_32_64.t
   | Boxed_vec128 of Vector_types.Vec128.Bit_pattern.t
+  | Boxed_vec256 of Vector_types.Vec256.Bit_pattern.t
+  | Boxed_vec512 of Vector_types.Vec512.Bit_pattern.t
   | Immutable_float32_array of
       { fields : Numeric_types.Float32_by_bit_pattern.t list }
   | Immutable_float_array of
@@ -39,6 +41,10 @@ type to_lift = private
   | Immutable_nativeint_array of { fields : Targetint_32_64.t list }
   | Immutable_vec128_array of
       { fields : Vector_types.Vec128.Bit_pattern.t list }
+  | Immutable_vec256_array of
+      { fields : Vector_types.Vec256.Bit_pattern.t list }
+  | Immutable_vec512_array of
+      { fields : Vector_types.Vec512.Bit_pattern.t list }
   | Immutable_value_array of { fields : Simple.t list }
   | Empty_array of Empty_array_kind.t
 

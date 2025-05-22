@@ -138,6 +138,12 @@ let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
   | Boxed_vec128 n ->
     Static_const.boxed_vec128
       (rewrite_or_variable Vector_types.Vec128.Bit_pattern.zero env n)
+  | Boxed_vec256 n ->
+    Static_const.boxed_vec256
+      (rewrite_or_variable Vector_types.Vec256.Bit_pattern.zero env n)
+  | Boxed_vec512 n ->
+    Static_const.boxed_vec512
+      (rewrite_or_variable Vector_types.Vec512.Bit_pattern.zero env n)
   | Immutable_float_block fields ->
     let fields = List.map (rewrite_or_variable Float.zero env) fields in
     Static_const.immutable_float_block fields
@@ -168,6 +174,20 @@ let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
         fields
     in
     Static_const.immutable_vec128_array fields
+  | Immutable_vec256_array fields ->
+    let fields =
+      List.map
+        (rewrite_or_variable Vector_types.Vec256.Bit_pattern.zero env)
+        fields
+    in
+    Static_const.immutable_vec256_array fields
+  | Immutable_vec512_array fields ->
+    let fields =
+      List.map
+        (rewrite_or_variable Vector_types.Vec512.Bit_pattern.zero env)
+        fields
+    in
+    Static_const.immutable_vec512_array fields
   | Empty_array _ | Mutable_string _ | Immutable_string _ -> sc
 
 let rewrite_static_const_or_code kinds env (sc : Static_const_or_code.t) =

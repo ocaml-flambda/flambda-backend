@@ -43,7 +43,8 @@ module S = struct
       effects : Cmm.effects;
       ty_res : Cmm.machtype;
       ty_args : Cmm.exttype list;
-      stack_ofs : int
+      stack_ofs : int;
+      stack_align : Cmm.stack_align
     }
 
   type prim_call_operation =

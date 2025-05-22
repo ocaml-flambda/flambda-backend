@@ -45,10 +45,10 @@ value boxed_combine(value v0, value v1)
 }
 
 __m128i lots_of_vectors(
-  __m128i v0, __m128i v1, __m128i v2, __m128i v3,
-  __m128i v4, __m128i v5, __m128i v6, __m128i v7,
-  __m128i v8, __m128i v9, __m128i v10, __m128i v11,
-  __m128i v12, __m128i v13, __m128i v14, __m128i v15)
+    __m128i v0, __m128i v1, __m128i v2, __m128i v3,
+    __m128i v4, __m128i v5, __m128i v6, __m128i v7,
+    __m128i v8, __m128i v9, __m128i v10, __m128i v11,
+    __m128i v12, __m128i v13, __m128i v14, __m128i v15)
 {
   __m128i x0 = _mm_add_epi64(v0, v1);
   __m128i x1 = _mm_add_epi64(v2, v3);
@@ -68,12 +68,12 @@ __m128i lots_of_vectors(
 }
 
 __m128i vectors_and_floats(
-  __m128i v0, double f0, __m128i v1, double f1,
-  __m128i v2, double f2, __m128i v3, double f3,
-  double f4, __m128i v4, __m128i v5, double f5,
-  double f6, __m128i v6, __m128i v7, double f7,
-  double f8, double f9, __m128i v8, __m128i v9,
-  __m128i v10, double f10, double f11, double f12)
+    __m128i v0, double f0, __m128i v1, double f1,
+    __m128i v2, double f2, __m128i v3, double f3,
+    double f4, __m128i v4, __m128i v5, double f5,
+    double f6, __m128i v6, __m128i v7, double f7,
+    double f8, double f9, __m128i v8, __m128i v9,
+    __m128i v10, double f10, double f11, double f12)
 {
   __m128i x0 = _mm_add_epi64(v0, v1);
   __m128i x1 = _mm_add_epi64(v2, v3);
@@ -90,12 +90,12 @@ __m128i vectors_and_floats(
 }
 
 __m128i vectors_and_floats_and_ints(
-  __m128i v0, double f0, __m128i v1, int64_t i0,
-  __m128i v2, double f1, __m128i v3, int64_t i1,
-  int64_t i2, __m128i v4, __m128i v5, double f2,
-  double f3, __m128i v6, __m128i v7, int64_t i3,
-  int64_t i4, double f4, __m128i v8, __m128i v9,
-  __m128i v10, int64_t i5, int64_t i6, double f5)
+    __m128i v0, double f0, __m128i v1, int64_t i0,
+    __m128i v2, double f1, __m128i v3, int64_t i1,
+    int64_t i2, __m128i v4, __m128i v5, double f2,
+    double f3, __m128i v6, __m128i v7, int64_t i3,
+    int64_t i4, double f4, __m128i v8, __m128i v9,
+    __m128i v10, int64_t i5, int64_t i6, double f5)
 {
   __m128i x0 = _mm_add_epi64(v0, v1);
   __m128i x1 = _mm_add_epi64(v2, v3);
@@ -112,7 +112,8 @@ __m128i vectors_and_floats_and_ints(
   return vec128_of_int64s((int64_t)f + i, vec128_low_int64(z) + vec128_high_int64(z));
 }
 
-#define BUILTIN(name) void name() { assert(0); }
+#define BUILTIN(name) \
+  void name() { assert(0); }
 
 BUILTIN(caml_vec128_unreachable);
 
@@ -372,153 +373,198 @@ BUILTIN(caml_simd_vec128_interleave_low_64)
 
 // Int32
 
-int32_t uint32_max(int32_t l, int32_t r) {
+int32_t uint32_max(int32_t l, int32_t r)
+{
   uint32_t ul = (uint32_t)l;
   uint32_t ur = (uint32_t)r;
   return ul > ur ? l : r;
 }
-int32_t uint32_min(int32_t l, int32_t r) {
+int32_t uint32_min(int32_t l, int32_t r)
+{
   uint32_t ul = (uint32_t)l;
   uint32_t ur = (uint32_t)r;
   return ul < ur ? l : r;
 }
-int64_t int32_si16(int64_t i) {
+int64_t int32_si16(int64_t i)
+{
   int32_t x = (int32_t)i;
   return x > INT16_MAX ? INT16_MAX : (x < INT16_MIN ? INT16_MIN : x);
 }
-int64_t int32_su16(int64_t i) {
+int64_t int32_su16(int64_t i)
+{
   int32_t x = (int32_t)i;
   return x > UINT16_MAX ? UINT16_MAX : (x < 0 ? 0 : x);
 }
-int32_t int32_mul_low(int32_t l, int32_t r) {
+int32_t int32_mul_low(int32_t l, int32_t r)
+{
   return (int32_t)(((int64_t)l * (int64_t)r) & 0xffffffff);
 }
 
 // Int16
 
-int64_t int16_max(int64_t l, int64_t r) {
+int64_t int16_max(int64_t l, int64_t r)
+{
   int16_t ul = (int16_t)l;
   int16_t ur = (int16_t)r;
   return ul > ur ? l : r;
 }
-int64_t int16_min(int64_t l, int64_t r) {
+int64_t int16_min(int64_t l, int64_t r)
+{
   int16_t ul = (int16_t)l;
   int16_t ur = (int16_t)r;
   return ul < ur ? l : r;
 }
-int64_t int16_maxu(int64_t l, int64_t r) {
+int64_t int16_maxu(int64_t l, int64_t r)
+{
   uint16_t ul = (uint16_t)l;
   uint16_t ur = (uint16_t)r;
   return ul > ur ? l : r;
 }
-int64_t int16_minu(int64_t l, int64_t r) {
+int64_t int16_minu(int64_t l, int64_t r)
+{
   uint16_t ul = (uint16_t)l;
   uint16_t ur = (uint16_t)r;
   return ul < ur ? l : r;
 }
-int64_t int16_add(int64_t l, int64_t r) {
+int64_t int16_add(int64_t l, int64_t r)
+{
   return (int16_t)l + (int16_t)r;
 }
-int64_t int16_sub(int64_t l, int64_t r) {
+int64_t int16_sub(int64_t l, int64_t r)
+{
   return (int16_t)l - (int16_t)r;
 }
-int64_t int16_abs(int64_t i) {
+int64_t int16_abs(int64_t i)
+{
   int16_t x = i;
   return x < 0 ? -x : x;
 }
-int64_t int16_adds(int64_t l, int64_t r) {
+int64_t int16_adds(int64_t l, int64_t r)
+{
   int16_t x = l, y = r;
   int32_t sum = (int32_t)x + (int32_t)y;
-  if(sum > INT16_MAX) return INT16_MAX;
-  if(sum < INT16_MIN) return INT16_MIN;
+  if (sum > INT16_MAX)
+    return INT16_MAX;
+  if (sum < INT16_MIN)
+    return INT16_MIN;
   return sum;
 }
-int64_t int16_subs(int64_t l, int64_t r) {
+int64_t int16_subs(int64_t l, int64_t r)
+{
   int16_t x = l, y = r;
   int32_t diff = x - y;
-  if(diff > INT16_MAX) return INT16_MAX;
-  if(diff < INT16_MIN) return INT16_MIN;
+  if (diff > INT16_MAX)
+    return INT16_MAX;
+  if (diff < INT16_MIN)
+    return INT16_MIN;
   return diff;
 }
-int64_t int16_addsu(int64_t l, int64_t r) {
+int64_t int16_addsu(int64_t l, int64_t r)
+{
   uint16_t x = l, y = r;
   int32_t sum = (int32_t)x + (int32_t)y;
-  if(sum > UINT16_MAX) return UINT16_MAX;
-  if(sum < 0) return 0;
+  if (sum > UINT16_MAX)
+    return UINT16_MAX;
+  if (sum < 0)
+    return 0;
   return sum;
 }
-int64_t int16_subsu(int64_t l, int64_t r) {
+int64_t int16_subsu(int64_t l, int64_t r)
+{
   uint16_t x = l, y = r;
   int32_t sum = (int32_t)x - (int32_t)y;
-  if(sum > UINT16_MAX) return UINT16_MAX;
-  if(sum < 0) return 0;
+  if (sum > UINT16_MAX)
+    return UINT16_MAX;
+  if (sum < 0)
+    return 0;
   return sum;
 }
-int64_t int16_mulsign(int64_t l, int64_t r) {
+int64_t int16_mulsign(int64_t l, int64_t r)
+{
   int16_t x = l, y = r;
-  return y == 0 ? 0 : y > 0 ? x : -x;
+  return y == 0 ? 0 : y > 0 ? x
+                            : -x;
 }
-int64_t int16_cmpeq(int64_t l, int64_t r) {
-  if((int16_t)l == (int16_t)r) return 0xffff;
+int64_t int16_cmpeq(int64_t l, int64_t r)
+{
+  if ((int16_t)l == (int16_t)r)
+    return 0xffff;
   return 0;
 }
-int64_t int16_cmpgt(int64_t l, int64_t r) {
-  if((int16_t)l > (int16_t)r) return 0xffff;
+int64_t int16_cmpgt(int64_t l, int64_t r)
+{
+  if ((int16_t)l > (int16_t)r)
+    return 0xffff;
   return 0;
 }
-int32_t int16_sxi32(int64_t x) {
+int32_t int16_sxi32(int64_t x)
+{
   return (int32_t)(int16_t)x;
 }
-int32_t int16_zxi32(int64_t x) {
+int32_t int16_zxi32(int64_t x)
+{
   return (uint32_t)(uint16_t)x;
 }
-int64_t int16_sxi64(int64_t x) {
+int64_t int16_sxi64(int64_t x)
+{
   return (int64_t)(int16_t)x;
 }
-int64_t int16_zxi64(int64_t x) {
+int64_t int16_zxi64(int64_t x)
+{
   return (uint64_t)(uint16_t)x;
 }
-int64_t int16_logand(int64_t l, int64_t r) {
+int64_t int16_logand(int64_t l, int64_t r)
+{
   return (int16_t)l & (int16_t)r;
 }
-int64_t int16_shift_left(int64_t x, int64_t shift) {
+int64_t int16_shift_left(int64_t x, int64_t shift)
+{
   return (int16_t)x << shift;
 }
-int64_t int16_shift_right(int64_t x, int64_t shift) {
+int64_t int16_shift_right(int64_t x, int64_t shift)
+{
   return (int16_t)x >> shift;
 }
-int64_t int16_shift_right_logical(int64_t x, int64_t shift) {
+int64_t int16_shift_right_logical(int64_t x, int64_t shift)
+{
   return (uint16_t)(int16_t)x >> shift;
 }
-int64_t int16_avgu(int64_t l, int64_t r) {
+int64_t int16_avgu(int64_t l, int64_t r)
+{
   uint16_t x = (uint16_t)(int16_t)l;
   uint16_t y = (uint16_t)(int16_t)r;
   return (x + y + 1) >> 1;
 }
-int64_t int16_si8(int64_t i) {
+int64_t int16_si8(int64_t i)
+{
   int16_t x = (int16_t)i;
   return x > INT8_MAX ? INT8_MAX : (x < INT8_MIN ? INT8_MIN : x);
 }
-int64_t int16_su8(int64_t i) {
+int64_t int16_su8(int64_t i)
+{
   int16_t x = (int16_t)i;
   return x > UINT8_MAX ? UINT8_MAX : (x < 0 ? 0 : x);
 }
-int32_t int16_mul_i32(int64_t l_, int64_t r_) {
+int32_t int16_mul_i32(int64_t l_, int64_t r_)
+{
   int32_t l = (int32_t)(int16_t)l_;
   int32_t r = (int32_t)(int16_t)r_;
   return l * r;
 }
-int64_t int16_mul_low(int64_t l_, int64_t r_) {
+int64_t int16_mul_low(int64_t l_, int64_t r_)
+{
   int64_t l = (int64_t)(int16_t)l_;
   int64_t r = (int64_t)(int16_t)r_;
   return (l * r) & 0xffff;
 }
-int64_t int16_mul_high(int64_t l_, int64_t r_) {
+int64_t int16_mul_high(int64_t l_, int64_t r_)
+{
   int64_t l = (int64_t)(int16_t)l_;
   int64_t r = (int64_t)(int16_t)r_;
   return ((l * r) >> 16) & 0xffff;
 }
-int64_t int16_mul_high_unsigned(int64_t l_, int64_t r_) {
+int64_t int16_mul_high_unsigned(int64_t l_, int64_t r_)
+{
   uint64_t l = (uint64_t)(uint16_t)(int16_t)l_;
   uint64_t r = (uint64_t)(uint16_t)(int16_t)r_;
   return ((l * r) >> 16) & 0xffff;
@@ -526,105 +572,139 @@ int64_t int16_mul_high_unsigned(int64_t l_, int64_t r_) {
 
 // Int8
 
-int64_t int8_max(int64_t l, int64_t r) {
+int64_t int8_max(int64_t l, int64_t r)
+{
   int8_t ul = (int8_t)l;
   int8_t ur = (int8_t)r;
   return ul > ur ? l : r;
 }
-int64_t int8_min(int64_t l, int64_t r) {
+int64_t int8_min(int64_t l, int64_t r)
+{
   int8_t ul = (int8_t)l;
   int8_t ur = (int8_t)r;
   return ul < ur ? l : r;
 }
-int64_t int8_maxu(int64_t l, int64_t r) {
+int64_t int8_maxu(int64_t l, int64_t r)
+{
   uint8_t ul = (uint8_t)l;
   uint8_t ur = (uint8_t)r;
   return ul > ur ? l : r;
 }
-int64_t int8_minu(int64_t l, int64_t r) {
+int64_t int8_minu(int64_t l, int64_t r)
+{
   uint8_t ul = (uint8_t)l;
   uint8_t ur = (uint8_t)r;
   return ul < ur ? l : r;
 }
-int64_t int8_add(int64_t l, int64_t r) {
+int64_t int8_add(int64_t l, int64_t r)
+{
   return (int8_t)l + (int8_t)r;
 }
-int64_t int8_sub(int64_t l, int64_t r) {
+int64_t int8_sub(int64_t l, int64_t r)
+{
   return (int8_t)l - (int8_t)r;
 }
-int64_t int8_abs(int64_t i) {
+int64_t int8_abs(int64_t i)
+{
   int8_t x = i;
   return x < 0 ? -x : x;
 }
-int64_t int8_adds(int64_t l, int64_t r) {
+int64_t int8_adds(int64_t l, int64_t r)
+{
   int8_t x = l, y = r;
   int32_t sum = (int32_t)x + (int32_t)y;
-  if(sum > INT8_MAX) return INT8_MAX;
-  if(sum < INT8_MIN) return INT8_MIN;
+  if (sum > INT8_MAX)
+    return INT8_MAX;
+  if (sum < INT8_MIN)
+    return INT8_MIN;
   return sum;
 }
-int64_t int8_subs(int64_t l, int64_t r) {
+int64_t int8_subs(int64_t l, int64_t r)
+{
   int8_t x = l, y = r;
   int32_t diff = x - y;
-  if(diff > INT8_MAX) return INT8_MAX;
-  if(diff < INT8_MIN) return INT8_MIN;
+  if (diff > INT8_MAX)
+    return INT8_MAX;
+  if (diff < INT8_MIN)
+    return INT8_MIN;
   return diff;
 }
-int64_t int8_addsu(int64_t l, int64_t r) {
+int64_t int8_addsu(int64_t l, int64_t r)
+{
   uint8_t x = l, y = r;
   int32_t sum = (int32_t)x + (int32_t)y;
-  if(sum > UINT8_MAX) return UINT8_MAX;
-  if(sum < 0) return 0;
+  if (sum > UINT8_MAX)
+    return UINT8_MAX;
+  if (sum < 0)
+    return 0;
   return sum;
 }
-int64_t int8_subsu(int64_t l, int64_t r) {
+int64_t int8_subsu(int64_t l, int64_t r)
+{
   uint8_t x = l, y = r;
   int32_t sum = (int32_t)x - (int32_t)y;
-  if(sum > UINT8_MAX) return UINT8_MAX;
-  if(sum < 0) return 0;
+  if (sum > UINT8_MAX)
+    return UINT8_MAX;
+  if (sum < 0)
+    return 0;
   return sum;
 }
-int64_t int8_mulsign(int64_t l, int64_t r) {
+int64_t int8_mulsign(int64_t l, int64_t r)
+{
   int8_t x = l, y = r;
-  return y == 0 ? 0 : y > 0 ? x : -x;
+  return y == 0 ? 0 : y > 0 ? x
+                            : -x;
 }
-int64_t int8_cmpeq(int64_t l, int64_t r) {
-  if((int8_t)l == (int8_t)r) return 0xff;
+int64_t int8_cmpeq(int64_t l, int64_t r)
+{
+  if ((int8_t)l == (int8_t)r)
+    return 0xff;
   return 0;
 }
-int64_t int8_cmpgt(int64_t l, int64_t r) {
-  if((int8_t)l > (int8_t)r) return 0xff;
+int64_t int8_cmpgt(int64_t l, int64_t r)
+{
+  if ((int8_t)l > (int8_t)r)
+    return 0xff;
   return 0;
 }
-int64_t int8_sxi16(int64_t x) {
+int64_t int8_sxi16(int64_t x)
+{
   return (int64_t)(int16_t)(int8_t)x;
 }
-int64_t int8_zxi16(int64_t x) {
+int64_t int8_zxi16(int64_t x)
+{
   return (uint64_t)(uint16_t)(uint8_t)x;
 }
-int32_t int8_sxi32(int64_t x) {
+int32_t int8_sxi32(int64_t x)
+{
   return (int32_t)(int8_t)x;
 }
-int32_t int8_zxi32(int64_t x) {
+int32_t int8_zxi32(int64_t x)
+{
   return (uint32_t)(uint8_t)x;
 }
-int64_t int8_sxi64(int64_t x) {
+int64_t int8_sxi64(int64_t x)
+{
   return (int64_t)(int8_t)x;
 }
-int64_t int8_zxi64(int64_t x) {
+int64_t int8_zxi64(int64_t x)
+{
   return (uint64_t)(uint8_t)x;
 }
-int64_t int8_avgu(int64_t l, int64_t r) {
+int64_t int8_avgu(int64_t l, int64_t r)
+{
   uint8_t x = (uint8_t)(int8_t)l;
   uint8_t y = (uint8_t)(int8_t)r;
   return (x + y + 1) >> 1;
 }
-int64_t int8_diffu(int64_t l, int64_t r) {
+int64_t int8_diffu(int64_t l, int64_t r)
+{
   uint8_t x = (uint8_t)(int8_t)l;
   uint8_t y = (uint8_t)(int8_t)r;
   return x > y ? x - y : y - x;
 }
-int64_t int8_mulu_i16(int64_t l, int64_t r) {
+int64_t int8_mulu_i16(int64_t l, int64_t r)
+{
   int16_t x = (int16_t)(uint16_t)(uint8_t)(int8_t)l;
   int16_t y = (int16_t)(int8_t)r;
   return (int64_t)(x * y);
@@ -632,43 +712,55 @@ int64_t int8_mulu_i16(int64_t l, int64_t r) {
 
 // Float64
 
-double float64_round(double f) {
+double float64_round(double f)
+{
   __m128d v = _mm_set1_pd(f);
   return _mm_cvtsd_f64(_mm_round_pd(v, 0x8));
 }
-double float64_sqrt(double f) {
+double float64_sqrt(double f)
+{
   __m128d v = _mm_set1_pd(f);
   return _mm_cvtsd_f64(_mm_sqrt_pd(v));
 }
-double float64_min(double l, double r) {
+double float64_min(double l, double r)
+{
   __m128d lv = _mm_set1_pd(l);
   __m128d rv = _mm_set1_pd(r);
   return _mm_cvtsd_f64(_mm_min_pd(lv, rv));
 }
-double float64_max(double l, double r) {
+double float64_max(double l, double r)
+{
   __m128d lv = _mm_set1_pd(l);
   __m128d rv = _mm_set1_pd(r);
   return _mm_cvtsd_f64(_mm_max_pd(lv, rv));
 }
 
-
 // Float32
 
-int32_t int32_of_float(float f) {
-  return *(int32_t*)&f;
+int32_t int32_of_float(float f)
+{
+  return *(int32_t *)&f;
 }
-float float_of_int32(int32_t i) {
-  return *(float*)&i;
+float float_of_int32(int32_t i)
+{
+  return *(float *)&i;
 }
 
-int32_t test_simd_vec128_extract_ps(__m128 a, intnat i) {
+int32_t test_simd_vec128_extract_ps(__m128 a, intnat i)
+{
   int32_t bits;
-  switch (i % 4) {
-    case 0: return (_mm_extract_ps(a, 0));
-    case 1: return (_mm_extract_ps(a, 1));
-    case 2: return (_mm_extract_ps(a, 2));
-    case 3: return (_mm_extract_ps(a, 3));
-    default: assert(0);
+  switch (i % 4)
+  {
+  case 0:
+    return (_mm_extract_ps(a, 0));
+  case 1:
+    return (_mm_extract_ps(a, 1));
+  case 2:
+    return (_mm_extract_ps(a, 2));
+  case 3:
+    return (_mm_extract_ps(a, 3));
+  default:
+    assert(0);
   }
 }
 
@@ -690,21 +782,24 @@ value float32_nlt(int32_t l, int32_t r) { return Val_bool(!(float_of_int32(l) < 
 value float32_ord(int32_t l, int32_t r) { return Val_bool(!(isnan(float_of_int32(l)) || isnan(float_of_int32(r)))); }
 value float32_uord(int32_t l, int32_t r) { return Val_bool(isnan(float_of_int32(l)) || isnan(float_of_int32(r))); }
 
-#define FLOAT32_BINOP(name, intrin)              \
-  int32_t float32_##name(int32_t l, int32_t r) { \
-    __m128 vl = _mm_set1_ps(float_of_int32(l));  \
-    __m128 vr = _mm_set1_ps(float_of_int32(r));  \
-    return _mm_extract_ps(intrin(vl, vr), 0);    \
+#define FLOAT32_BINOP(name, intrin)             \
+  int32_t float32_##name(int32_t l, int32_t r)  \
+  {                                             \
+    __m128 vl = _mm_set1_ps(float_of_int32(l)); \
+    __m128 vr = _mm_set1_ps(float_of_int32(r)); \
+    return _mm_extract_ps(intrin(vl, vr), 0);   \
   }
 
 #define FLOAT32_UNOP(name, intrin)             \
-  int32_t float32_##name(int32_t f) {          \
+  int32_t float32_##name(int32_t f)            \
+  {                                            \
     __m128 v = _mm_set1_ps(float_of_int32(f)); \
     return _mm_extract_ps(intrin(v), 0);       \
   }
 
 #define FLOAT32_UNOP_INT(name, intrin)         \
-  int32_t float32_##name(int32_t f) {          \
+  int32_t float32_##name(int32_t f)            \
+  {                                            \
     __m128 v = _mm_set1_ps(float_of_int32(f)); \
     return _mm_extract_epi32(intrin(v), 0);    \
   }
@@ -721,7 +816,8 @@ FLOAT32_UNOP(rcp, _mm_rcp_ps);
 FLOAT32_UNOP(rsqrt, _mm_rsqrt_ps);
 FLOAT32_UNOP_INT(cvt_i32, _mm_cvtps_epi32);
 
-int32_t float32_round(int32_t f) {
+int32_t float32_round(int32_t f)
+{
   __m128 v = _mm_set1_ps(float_of_int32(f));
   return _mm_extract_ps(_mm_round_ps(v, 0x8), 0);
 }

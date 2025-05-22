@@ -95,8 +95,6 @@ let rcx = phys_reg Int 5
 
 let rdx = phys_reg Int 4
 
-let _xmm0v () = phys_reg Vec128 100
-
 let select_locality (l : Cmm.prefetch_temporal_locality_hint) :
     Arch.prefetch_temporal_locality_hint =
   match l with
@@ -213,8 +211,8 @@ let pseudoregs_for_operation op arg res =
       | Ioffset_loc (_, _)
       | Irdtsc | Icldemote _ | Iprefetch _ )
   | Move | Spill | Reload | Reinterpret_cast _ | Static_cast _ | Const_int _
-  | Const_float32 _ | Const_float _ | Const_vec128 _ | Const_symbol _
-  | Stackoffset _ | Load _
+  | Const_float32 _ | Const_float _ | Const_vec128 _ | Const_vec256 _
+  | Const_vec512 _ | Const_symbol _ | Stackoffset _ | Load _
   | Store (_, _, _)
   | Alloc _ | Name_for_debugger _ | Probe_is_enabled _ | Opaque | Begin_region
   | End_region | Poll | Dls_get ->
@@ -271,7 +269,7 @@ let select_store ~is_assign addr (exp : Cmm.expression) :
       (Specific (Istore_int (Nativeint.of_int n, addr, is_assign)), Ctuple [])
   | Cconst_natint (n, _dbg) when is_immediate_natint n ->
     Rewritten (Specific (Istore_int (n, addr, is_assign)), Ctuple [])
-  | Cconst_int _ | Cconst_vec128 _
+  | Cconst_int _ | Cconst_vec128 _ | Cconst_vec256 _ | Cconst_vec512 _
   | Cconst_natint (_, _)
   | Cconst_float32 (_, _)
   | Cconst_float (_, _)

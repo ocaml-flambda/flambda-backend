@@ -66,7 +66,8 @@ and call_operation =
         ty_args : Cmm.exttype list;
         alloc : bool;
         returns : bool;
-        stack_ofs : int
+        stack_ofs : int;
+        stack_align : Cmm.stack_align
       }
   | Lprobe of
       { name : string;

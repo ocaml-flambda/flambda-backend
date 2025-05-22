@@ -253,7 +253,9 @@ end = struct
     | Const_float32 _, Const_float32 _
     | Const_float _, Const_float _
     | Const_symbol _, Const_symbol _
-    | Const_vec128 _, Const_vec128 _ ->
+    | Const_vec128 _, Const_vec128 _
+    | Const_vec256 _, Const_vec256 _
+    | Const_vec512 _, Const_vec512 _ ->
       true
     | ( Load
           { memory_chunk = memory_chunk1;
@@ -295,6 +297,8 @@ end = struct
     | Const_float _, _
     | Const_symbol _, _
     | Const_vec128 _, _
+    | Const_vec256 _, _
+    | Const_vec512 _, _
     | Stackoffset _, _
     | Load _, _
     | Store _, _
@@ -797,7 +801,8 @@ end = struct
                         _ )
                   | Opaque | Begin_region | End_region | Dls_get | Poll
                   | Const_int _ | Const_float32 _ | Const_float _
-                  | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Load _
+                  | Const_symbol _ | Const_vec128 _ | Const_vec256 _
+                  | Const_vec512 _ | Stackoffset _ | Load _
                   | Store (_, _, _)
                   | Intop _ | Intop_atomic _
                   | Floatop (_, _)
@@ -1049,8 +1054,8 @@ end = struct
               "Unexpected instruction Spill or Reload during vectorize"
           | Move | Reinterpret_cast _ | Static_cast _ | Const_int _
           | Const_float32 _ | Const_float _ | Const_symbol _ | Const_vec128 _
-          | Stackoffset _ | Intop _ | Intop_imm _ | Floatop _ | Csel _ | Alloc _
-            ->
+          | Const_vec256 _ | Const_vec512 _ | Stackoffset _ | Intop _
+          | Intop_imm _ | Floatop _ | Csel _ | Alloc _ ->
             None)
 
       let create (instruction : Instruction.t) reaching_definitions : t option =
@@ -2295,10 +2300,10 @@ end = struct
         | Specific s -> Vectorize_specific.is_seed_store s
         | Alloc _ | Load _ | Move | Reinterpret_cast _ | Static_cast _ | Spill
         | Reload | Const_int _ | Const_float32 _ | Const_float _
-        | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Intop _
-        | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Probe_is_enabled _
-        | Opaque | Begin_region | End_region | Name_for_debugger _ | Dls_get
-        | Poll ->
+        | Const_symbol _ | Const_vec128 _ | Const_vec256 _ | Const_vec512 _
+        | Stackoffset _ | Intop _ | Intop_imm _ | Intop_atomic _ | Floatop _
+        | Csel _ | Probe_is_enabled _ | Opaque | Begin_region | End_region
+        | Name_for_debugger _ | Dls_get | Poll ->
           None)
 
     let from_block (block : Block.t) deps : t list =

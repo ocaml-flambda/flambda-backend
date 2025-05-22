@@ -18,9 +18,9 @@
 (foreign_library
  (archive_name stubs)
  (language c)
- (names stubs)
+ (names stubs stubs256)
  (flags
-  (:standard -msse4.2))
+  (:standard -mavx2))
  (include_dirs "../../../%{env:RUNTIME_DIR=runtime-dir-env-var-not-set}"))
 
 ; Tests with external assembler
@@ -29,6 +29,8 @@
  (names
   basic
   basic_u
+  basic256
+  basic256_u
   ops
   ops_u
   arrays
@@ -40,6 +42,8 @@
  (modules
   basic
   basic_u
+  basic256
+  basic256_u
   ops
   ops_u
   arrays
@@ -49,7 +53,9 @@
   consts_u
   callback)
  (libraries simd_test_helpers stdlib_stable stdlib_upstream_compatible)
- (foreign_archives stubs))
+ (foreign_archives stubs)
+ (ocamlopt_flags
+  (:standard -extension simd_beta)))
 
 (rule
  (enabled_if
@@ -57,6 +63,8 @@
  (targets
   basic.out
   basic_u.out
+  basic256.out
+  basic256_u.out
   ops.out
   ops_u.out
   arrays.out
@@ -68,6 +76,8 @@
  (deps
   basic.exe
   basic_u.exe
+  basic256.exe
+  basic256_u.exe
   ops.exe
   arrays.exe
   arrays_u.exe
@@ -83,6 +93,12 @@
    (with-outputs-to
     basic_u.out
     (run ./basic_u.exe))
+   (with-outputs-to
+    basic256.out
+    (run ./basic256.exe))
+   (with-outputs-to
+    basic256_u.out
+    (run ./basic256_u.exe))
    (with-outputs-to
     ops.out
     (run ./ops.exe))
@@ -118,6 +134,8 @@
   (progn
    (diff empty.expected basic.out)
    (diff empty.expected basic_u.out)
+   (diff empty.expected basic256.out)
+   (diff empty.expected basic256_u.out)
    (diff empty.expected ops.out)
    (diff empty.expected ops_u.out)
    (diff empty.expected arrays.out)
@@ -133,6 +151,8 @@
  (targets
   basic_nodynlink.ml
   basic_u_nodynlink.ml
+  basic256_nodynlink.ml
+  basic256_u_nodynlink.ml
   ops_nodynlink.ml
   ops_u_nodynlink.ml
   consts_nodynlink.ml
@@ -144,6 +164,8 @@
  (deps
   basic.ml
   basic_u.ml
+  basic256.ml
+  basic256_u.ml
   ops.ml
   ops_u.ml
   consts.ml
@@ -156,6 +178,8 @@
   (progn
    (copy basic.ml basic_nodynlink.ml)
    (copy basic_u.ml basic_u_nodynlink.ml)
+   (copy basic256.ml basic256_nodynlink.ml)
+   (copy basic256_u.ml basic256_u_nodynlink.ml)
    (copy ops.ml ops_nodynlink.ml)
    (copy ops_u.ml ops_u_nodynlink.ml)
    (copy consts.ml consts_nodynlink.ml)
@@ -169,6 +193,8 @@
  (names
   basic_nodynlink
   basic_u_nodynlink
+  basic256_nodynlink
+  basic256_u_nodynlink
   ops_nodynlink
   ops_u_nodynlink
   consts_nodynlink
@@ -180,6 +206,8 @@
  (modules
   basic_nodynlink
   basic_u_nodynlink
+  basic256_nodynlink
+  basic256_u_nodynlink
   ops_nodynlink
   ops_u_nodynlink
   consts_nodynlink
@@ -191,7 +219,7 @@
  (libraries simd_test_helpers stdlib_stable stdlib_upstream_compatible)
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -nodynlink)))
+  (:standard -nodynlink -extension simd_beta)))
 
 (rule
  (enabled_if
@@ -199,6 +227,8 @@
  (targets
   basic_nodynlink.out
   basic_u_nodynlink.out
+  basic256_nodynlink.out
+  basic256_u_nodynlink.out
   ops_nodynlink.out
   ops_u_nodynlink.out
   consts_nodynlink.out
@@ -209,7 +239,11 @@
   callback_nodynlink.out)
  (deps
   basic_nodynlink.exe
+  basic_u_nodynlink.exe
+  basic256_nodynlink.exe
+  basic256_u_nodynlink.exe
   ops_nodynlink.exe
+  ops_u_nodynlink.exe
   consts_nodynlink.exe
   consts_u_nodynlink.exe
   arrays_nodynlink.exe
@@ -224,6 +258,12 @@
    (with-outputs-to
     basic_u_nodynlink.out
     (run ./basic_u_nodynlink.exe))
+   (with-outputs-to
+    basic256_nodynlink.out
+    (run ./basic256_nodynlink.exe))
+   (with-outputs-to
+    basic256_u_nodynlink.out
+    (run ./basic256_u_nodynlink.exe))
    (with-outputs-to
     ops_nodynlink.out
     (run ./ops_nodynlink.exe))
@@ -259,6 +299,8 @@
   (progn
    (diff empty.expected basic_nodynlink.out)
    (diff empty.expected basic_u_nodynlink.out)
+   (diff empty.expected basic256_nodynlink.out)
+   (diff empty.expected basic256_u_nodynlink.out)
    (diff empty.expected ops_nodynlink.out)
    (diff empty.expected ops_u_nodynlink.out)
    (diff empty.expected arrays_nodynlink.out)
@@ -281,6 +323,8 @@
  (targets
   basic_internal.ml
   basic_u_internal.ml
+  basic256_internal.ml
+  basic256_u_internal.ml
   ops_internal.ml
   ops_u_internal.ml
   consts_internal.ml
@@ -292,6 +336,8 @@
  (deps
   basic.ml
   basic_u.ml
+  basic256.ml
+  basic256_u.ml
   ops.ml
   ops_u.ml
   consts.ml
@@ -302,6 +348,8 @@
   (progn
    (copy basic.ml basic_internal.ml)
    (copy basic_u.ml basic_u_internal.ml)
+   (copy basic256.ml basic256_internal.ml)
+   (copy basic256_u.ml basic256_u_internal.ml)
    (copy ops.ml ops_internal.ml)
    (copy ops_u.ml ops_u_internal.ml)
    (copy consts.ml consts_internal.ml)
@@ -315,6 +363,8 @@
  (names
   basic_internal
   basic_u_internal
+  basic256_internal
+  basic256_u_internal
   ops_internal
   ops_u_internal
   consts_internal
@@ -326,6 +376,8 @@
  (modules
   basic_internal
   basic_u_internal
+  basic256_internal
+  basic256_u_internal
   ops_internal
   ops_u_internal
   consts_internal
@@ -339,7 +391,7 @@
   (<> %{system} macosx))
  (foreign_archives stubs)
  (ocamlopt_flags
-  (:standard -internal-assembler)))
+  (:standard -internal-assembler -extension simd_beta)))
 
 (rule
  (enabled_if
@@ -350,6 +402,8 @@
   probes.out
   basic_internal.out
   basic_u_internal.out
+  basic256_internal.out
+  basic256_u_internal.out
   ops_internal.out
   ops_u_internal.out
   consts_internal.out
@@ -361,7 +415,11 @@
  (deps
   probes.exe
   basic_internal.exe
+  basic_u_internal.exe
+  basic256_internal.exe
+  basic256_u_internal.exe
   ops_internal.exe
+  ops_u_internal.exe
   consts_internal.exe
   consts_u_internal.exe
   arrays_internal.exe
@@ -373,6 +431,12 @@
    (with-outputs-to
     probes.out
     (run ./probes.exe))
+   (with-outputs-to
+    basic256_internal.out
+    (run ./basic256_internal.exe))
+   (with-outputs-to
+    basic256_u_internal.out
+    (run ./basic256_u_internal.exe))
    (with-outputs-to
     basic_internal.out
     (run ./basic_internal.exe))
@@ -416,6 +480,8 @@
    (diff empty.expected probes.out)
    (diff empty.expected basic_internal.out)
    (diff empty.expected basic_u_internal.out)
+   (diff empty.expected basic256_internal.out)
+   (diff empty.expected basic256_u_internal.out)
    (diff empty.expected ops_internal.out)
    (diff empty.expected ops_u_internal.out)
    (diff empty.expected arrays_internal.out)

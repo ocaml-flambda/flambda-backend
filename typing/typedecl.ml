@@ -1131,7 +1131,8 @@ let record_gets_unboxed_version = function
     Array.for_all
       (fun (kind : mixed_block_element) ->
          match kind with
-         | Value | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> true
+         | Value | Float64 | Float32 | Bits32 | Bits64
+         | Vec128 | Vec256 | Vec512 | Word -> true
          | Float_boxed -> false)
       shape
 let gets_unboxed_version decl =
@@ -1637,6 +1638,8 @@ module Element_repr = struct
     | Bits32
     | Bits64
     | Vec128
+    | Vec256
+    | Vec512
     | Word
 
   type t =
@@ -1685,6 +1688,8 @@ module Element_repr = struct
       | Bits32, _ -> Unboxed_element Bits32
       | Bits64, _ -> Unboxed_element Bits64
       | Vec128, _ -> Unboxed_element Vec128
+      | Vec256, _ -> Unboxed_element Vec256
+      | Vec512, _ -> Unboxed_element Vec512
       | Void, _ -> Element_without_runtime_component { loc; ty }
 
   let unboxed_to_flat : unboxed_element -> mixed_block_element = function
@@ -1693,6 +1698,8 @@ module Element_repr = struct
     | Bits32 -> Bits32
     | Bits64 -> Bits64
     | Vec128 -> Vec128
+    | Vec256 -> Vec256
+    | Vec512 -> Vec512
     | Word -> Word
 
   let mixed_product_shape loc ts kind =
@@ -1832,7 +1839,8 @@ let rec update_decl_jkind env dpath decl =
            | Float_element -> repr_summary.floats <- true
            | Imm_element -> repr_summary.imms <- true
            | Unboxed_element Float64 -> repr_summary.float64s <- true
-           | Unboxed_element (Float32 | Bits32 | Bits64 | Vec128 | Word) ->
+           | Unboxed_element (Float32 | Bits32 | Bits64 |
+                              Vec128 | Vec256 | Vec512 | Word) ->
                repr_summary.non_float64_unboxed_fields <- true
            | Value_element -> repr_summary.values <- true
            | Element_without_runtime_component _ -> ())
@@ -3347,6 +3355,30 @@ let native_repr_of_type env kind ty sort_or_poly =
     Some (Unboxed_vector Boxed_vec128)
   | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float64x2 ->
     Some (Unboxed_vector Boxed_vec128)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int8x32 ->
+    Some (Unboxed_vector Boxed_vec256)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int16x16 ->
+    Some (Unboxed_vector Boxed_vec256)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int32x8 ->
+    Some (Unboxed_vector Boxed_vec256)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int64x4 ->
+    Some (Unboxed_vector Boxed_vec256)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float32x8 ->
+    Some (Unboxed_vector Boxed_vec256)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float64x4 ->
+    Some (Unboxed_vector Boxed_vec256)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int8x64 ->
+    Some (Unboxed_vector Boxed_vec512)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int16x32 ->
+    Some (Unboxed_vector Boxed_vec512)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int32x16 ->
+    Some (Unboxed_vector Boxed_vec512)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_int64x8 ->
+    Some (Unboxed_vector Boxed_vec512)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float32x16 ->
+    Some (Unboxed_vector Boxed_vec512)
+  | Unboxed, Tconstr (path, _, _) when Path.same path Predef.path_float64x8 ->
+    Some (Unboxed_vector Boxed_vec512)
   | _ ->
     None
 

@@ -124,14 +124,16 @@ let arith_conversion_size src dst =
 
 let unbox_number kind =
   match (kind : Flambda_kind.Boxable_number.t) with
-  | Naked_float | Naked_float32 | Naked_vec128 -> 1 (* 1 load *)
+  | Naked_float | Naked_float32 | Naked_vec128 | Naked_vec256 | Naked_vec512 ->
+    1 (* 1 load *)
   | Naked_int64 when arch32 -> 4 (* 2 Cadda + 2 loads *)
   | Naked_int32 | Naked_int64 | Naked_nativeint -> 2
 (* Cadda + load *)
 
 let box_number kind =
   match (kind : Flambda_kind.Boxable_number.t) with
-  | Naked_float | Naked_float32 | Naked_vec128 -> alloc_size (* 1 alloc *)
+  | Naked_float | Naked_float32 | Naked_vec128 | Naked_vec256 | Naked_vec512 ->
+    alloc_size (* 1 alloc *)
   | Naked_int32 when not arch32 -> 1 + alloc_size (* shift/sextend + alloc *)
   | Naked_int32 | Naked_int64 | Naked_nativeint -> alloc_size
 (* alloc *)
@@ -144,7 +146,7 @@ let array_load (kind : Flambda_primitive.Array_load_kind.t) =
   | Immediates -> 1 (* cadda + load *)
   | Naked_floats | Values -> 1
   | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
-  | Naked_vec128s ->
+  | Naked_vec128s | Naked_vec256s | Naked_vec512s ->
     (* more computation is needed because of the representation using a custom
        block *)
     2
@@ -166,7 +168,7 @@ let array_set (kind : Flambda_primitive.Array_set_kind.t) =
   | Values (Assignment Local | Initialization) -> 1
   | Immediates | Naked_floats -> 1
   | Naked_float32s | Naked_int32s | Naked_int64s | Naked_nativeints
-  | Naked_vec128s ->
+  | Naked_vec128s | Naked_vec256s | Naked_vec512s ->
     2 (* as above *)
 
 let string_or_bigstring_load kind width =
@@ -343,7 +345,7 @@ let unary_prim_size prim =
     match array_kind with
     | Array_kind
         ( Immediates | Values | Naked_floats | Naked_int64s | Naked_nativeints
-        | Naked_vec128s | Unboxed_product _ ) ->
+        | Naked_vec128s | Naked_vec256s | Naked_vec512s | Unboxed_product _ ) ->
       array_length_size
     | Array_kind (Naked_int32s | Naked_float32s) ->
       (* There is a dynamic check here to see if the array has an odd or even

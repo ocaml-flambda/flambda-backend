@@ -169,6 +169,28 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
         (DA.are_rebuilding_terms dacc)
         or_var,
       dacc )
+  | Boxed_vec256 or_var ->
+    let or_var, ty =
+      simplify_or_variable dacc
+        (fun f -> T.this_boxed_vec256 f Alloc_mode.For_types.heap)
+        or_var K.value
+    in
+    let dacc = bind_result_sym ty in
+    ( Rebuilt_static_const.create_boxed_vec256
+        (DA.are_rebuilding_terms dacc)
+        or_var,
+      dacc )
+  | Boxed_vec512 or_var ->
+    let or_var, ty =
+      simplify_or_variable dacc
+        (fun f -> T.this_boxed_vec512 f Alloc_mode.For_types.heap)
+        or_var K.value
+    in
+    let dacc = bind_result_sym ty in
+    ( Rebuilt_static_const.create_boxed_vec512
+        (DA.are_rebuilding_terms dacc)
+        or_var,
+      dacc )
   | Immutable_float_block fields ->
     let fields_with_tys =
       List.map
@@ -202,6 +224,12 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
   | Immutable_vec128_array fields ->
     rebuild_naked_number_array dacc ~bind_result_sym KS.naked_vec128
       T.this_naked_vec128 RSC.create_immutable_vec128_array ~fields
+  | Immutable_vec256_array fields ->
+    rebuild_naked_number_array dacc ~bind_result_sym KS.naked_vec256
+      T.this_naked_vec256 RSC.create_immutable_vec256_array ~fields
+  | Immutable_vec512_array fields ->
+    rebuild_naked_number_array dacc ~bind_result_sym KS.naked_vec512
+      T.this_naked_vec512 RSC.create_immutable_vec512_array ~fields
   | Immutable_value_array fields ->
     let fields_with_tys =
       List.map

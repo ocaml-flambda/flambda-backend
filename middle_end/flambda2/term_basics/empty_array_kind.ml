@@ -21,6 +21,8 @@ type t =
   | Naked_int64s
   | Naked_nativeints
   | Naked_vec128s
+  | Naked_vec256s
+  | Naked_vec512s
 
 let print ppf t =
   match t with
@@ -31,6 +33,8 @@ let print ppf t =
   | Naked_int64s -> Format.pp_print_string ppf "Naked_int64s"
   | Naked_nativeints -> Format.pp_print_string ppf "Naked_nativeints"
   | Naked_vec128s -> Format.pp_print_string ppf "Naked_vec128s"
+  | Naked_vec256s -> Format.pp_print_string ppf "Naked_vec256s"
+  | Naked_vec512s -> Format.pp_print_string ppf "Naked_vec512s"
 
 let compare = Stdlib.compare
 
@@ -47,6 +51,8 @@ let of_element_kind t =
   | Naked_number Naked_int64 -> Naked_int64s
   | Naked_number Naked_nativeint -> Naked_nativeints
   | Naked_number Naked_vec128 -> Naked_vec128s
+  | Naked_number Naked_vec256 -> Naked_vec256s
+  | Naked_number Naked_vec512 -> Naked_vec512s
   | Region | Rec_info ->
     Misc.fatal_errorf
       "Arrays cannot contain elements of kind region or rec_info"
@@ -61,4 +67,6 @@ let of_lambda array_kind =
   | Punboxedintarray Unboxed_int64 -> Naked_int64s
   | Punboxedintarray Unboxed_nativeint -> Naked_nativeints
   | Punboxedvectorarray Unboxed_vec128 -> Naked_vec128s
+  | Punboxedvectorarray Unboxed_vec256 -> Naked_vec256s
+  | Punboxedvectorarray Unboxed_vec512 -> Naked_vec512s
   | Pgcscannableproductarray _ | Pgcignorableproductarray _ -> Unboxed_products

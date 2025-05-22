@@ -408,6 +408,8 @@ and 'a mixed_block_element =
   | Bits32
   | Bits64
   | Vec128
+  | Vec256
+  | Vec512
   | Word
 
 and mixed_block_shape = unit mixed_block_element array
@@ -476,6 +478,8 @@ and unboxed_integer = Primitive.unboxed_integer =
 
 and unboxed_vector = Primitive.unboxed_vector =
   | Unboxed_vec128
+  | Unboxed_vec256
+  | Unboxed_vec512
 
 and boxed_float = Primitive.boxed_float =
   | Boxed_float64
@@ -488,6 +492,8 @@ and boxed_integer = Primitive.boxed_integer =
 
 and boxed_vector = Primitive.boxed_vector =
   | Boxed_vec128
+  | Boxed_vec256
+  | Boxed_vec512
 
 and peek_or_poke =
   | Ppp_tagged_immediate
@@ -526,6 +532,8 @@ let generic_value =
 let print_boxed_vector ppf t =
   match t with
   | Boxed_vec128 -> Format.pp_print_string ppf "Vec128"
+  | Boxed_vec256 -> Format.pp_print_string ppf "Vec256"
+  | Boxed_vec512 -> Format.pp_print_string ppf "Vec512"
 
 let equal_nullable x y =
   match x, y with
@@ -574,9 +582,11 @@ and equal_mixed_block_element :
   | Bits32, Bits32
   | Bits64, Bits64
   | Vec128, Vec128
+  | Vec256, Vec256
+  | Vec512, Vec512
   | Word, Word -> true
   | (Value _ | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Vec128
-     | Word), _ -> false
+     | Vec256 | Vec512 | Word), _ -> false
 
 and equal_mixed_block_shape shape1 shape2 =
   Misc.Stdlib.Array.equal (equal_mixed_block_element Unit.equal) shape1 shape2
@@ -1415,6 +1425,8 @@ let transl_mixed_product_shape ~get_value_kind shape =
     | Bits32 -> Bits32
     | Bits64 -> Bits64
     | Vec128 -> Vec128
+    | Vec256 -> Vec256
+    | Vec512 -> Vec512
     | Word -> Word
   ) shape
 
@@ -1428,6 +1440,8 @@ let transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shape =
     | Bits32 -> Bits32
     | Bits64 -> Bits64
     | Vec128 -> Vec128
+    | Vec256 -> Vec256
+    | Vec512 -> Vec512
     | Word -> Word
   ) shape
 
@@ -1856,6 +1870,8 @@ let primitive_may_allocate : primitive -> locality_mode option = function
       | Bits32
       | Bits64
       | Vec128
+      | Vec256
+      | Vec512
       | Word -> None
   )
   | Psetfloatfield _ -> None
@@ -2204,6 +2220,8 @@ let rec layout_of_const_sort (c : Jkind.Sort.Const.t) : layout =
   | Base Bits32 -> layout_unboxed_int32
   | Base Bits64 -> layout_unboxed_int64
   | Base Vec128 -> layout_unboxed_vector Unboxed_vec128
+  | Base Vec256 -> layout_unboxed_vector Unboxed_vec256
+  | Base Vec512 -> layout_unboxed_vector Unboxed_vec512
   | Base Void -> assert false
   | Product sorts ->
     layout_unboxed_product (List.map layout_of_const_sort sorts)
@@ -2252,6 +2270,8 @@ let layout_of_mixed_block_element (elt : _ mixed_block_element) =
   | Bits64 -> layout_unboxed_int64
   | Word -> layout_unboxed_nativeint
   | Vec128 -> layout_unboxed_vector Unboxed_vec128
+  | Vec256 -> layout_unboxed_vector Unboxed_vec256
+  | Vec512 -> layout_unboxed_vector Unboxed_vec512
 
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;

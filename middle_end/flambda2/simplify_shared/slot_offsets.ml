@@ -891,6 +891,8 @@ end = struct
           (* flambda2 only supports 64-bit targets for now, so naked numbers can
              only be of size 1 *)
           | Naked_number Naked_vec128 -> 2, true
+          | Naked_number Naked_vec256 -> 4, true
+          | Naked_number Naked_vec512 -> 8, true
           | Value -> 1, Value_slot.is_always_immediate value_slot
         in
         if is_unboxed

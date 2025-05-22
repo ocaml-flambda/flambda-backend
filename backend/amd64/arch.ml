@@ -30,6 +30,9 @@ module Extension = struct
       | LZCNT
       | BMI
       | BMI2
+      | AVX
+      | AVX2
+      | AVX512F
 
     let rank = function
       | POPCNT -> 0
@@ -43,6 +46,9 @@ module Extension = struct
       | LZCNT -> 8
       | BMI -> 9
       | BMI2 -> 10
+      | AVX -> 11
+      | AVX2 -> 12
+      | AVX512F -> 13
 
     let compare left right = Int.compare (rank left) (rank right)
   end
@@ -62,6 +68,9 @@ module Extension = struct
     | LZCNT -> "LZCNT"
     | BMI -> "BMI"
     | BMI2 -> "BMI2"
+    | AVX -> "AVX"
+    | AVX2 -> "AVX2"
+    | AVX512F -> "AVX512F"
 
   let generation = function
     | POPCNT -> "Nehalem+"
@@ -75,17 +84,35 @@ module Extension = struct
     | LZCNT -> "Haswell+"
     | BMI -> "Haswell+"
     | BMI2 -> "Haswell+"
+    | AVX -> "Sandybridge+"
+    | AVX2 -> "Haswell+"
+    | AVX512F -> "SkylakeXeon+"
 
   let enabled_by_default = function
     | SSE3 | SSSE3 | SSE4_1 | SSE4_2
-    | POPCNT | CLMUL | LZCNT | BMI | BMI2 -> true
-    | PREFETCHW | PREFETCHWT1 -> false
+    | POPCNT | CLMUL | LZCNT | BMI | BMI2 | AVX | AVX2 -> true
+    | PREFETCHW | PREFETCHWT1 | AVX512F -> false
 
-  let all = Set.of_list [ POPCNT; PREFETCHW; PREFETCHWT1; SSE3; SSSE3; SSE4_1; SSE4_2; CLMUL; LZCNT; BMI; BMI2 ]
+  let all =
+    Set.of_list
+      [ POPCNT; PREFETCHW; PREFETCHWT1; SSE3; SSSE3; SSE4_1; SSE4_2; CLMUL;
+        LZCNT; BMI; BMI2; AVX; AVX2; AVX512F ]
+
   let config = ref (Set.filter enabled_by_default all)
 
   let enabled t = Set.mem t !config
   let disabled t = not (enabled t)
+
+  let allow_vec256 () = List.exists enabled [AVX; AVX2; AVX512F]
+  let allow_vec512 () = List.exists enabled [AVX512F]
+
+  let require_vec256 () =
+    if not (allow_vec256 ())
+    then Misc.fatal_error "AVX or AVX512 is required for 256-bit vectors"
+
+  let require_vec512 () =
+    if not (allow_vec512 ())
+    then Misc.fatal_error "AVX512 is required for 512-bit vectors"
 
   let args =
     let y t = "-f" ^ (name t |> String.lowercase_ascii) in
@@ -206,6 +233,8 @@ let size_int = 8
 let size_float = 8
 
 let size_vec128 = 16
+let size_vec256 = 32
+let size_vec512 = 64
 
 let allow_unaligned_access = true
 

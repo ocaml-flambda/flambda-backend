@@ -117,7 +117,7 @@ let simplify_comparison ~dbg ~dacc ~cont ~tagged_prim ~float_prim
         (Boxed
           ( _,
             ( Naked_float | Naked_float32 | Naked_int32 | Naked_int64
-            | Naked_nativeint | Naked_vec128 ),
+            | Naked_nativeint | Naked_vec128 | Naked_vec256 | Naked_vec512 ),
             _ )),
       Proved (Boxed _) )
   (* One or two of the arguments is not known *)
