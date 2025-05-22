@@ -162,7 +162,7 @@ Error: The kind of type "[> `X | `Y of 'a ]" is value
 
 let f (x : [< `A of int | `B of string] @ contended) =
   use_uncontended x
-(* CR layouts v2.8: This should probably be accepted *)
+(* CR layouts v2.8: This should be accepted *)
 [%%expect{|
 Line 2, characters 18-19:
 2 |   use_uncontended x
