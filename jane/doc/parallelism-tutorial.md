@@ -2,10 +2,181 @@
 
 # Introduction
 
+## What is a data race?
+
+## Why are data races bad?
+
+Every race condition is a bug, but data races are especially insidious. Both the
+compiler and the CPU routinely reorder instructions for performance, and they do
+so assuming there are no data races. As a consequence, in a program with data
+races, it's difficult if not impossible to reason about the order in which
+things happen.
+
+As an example, imagine we have two global variables:
+
+```ocaml
+let price_of_gold = ref 0.0
+let initialised = ref false
+```
+
+Now consider two pieces of code running in parallel. One is some startup code
+we'll call thread A:
+
+```ocaml
+(* ... *)
+price_of_gold := calculate_price_of_gold ();
+initialised := true
+(* ... *)
+```
+
+The other, thread B, accesses the variables:
+
+```ocaml
+(* ... *)
+if !initialised then
+  if !price_of_gold < really_good_price_for_gold then
+    buy_lots_of_gold ()
+(* ... *)
+```
+
+What happens? Well, since they're running in parallel, we don't know exactly.
+There is of course an intuitive way to reason it out: at any given point in
+time, each thread will be partway done running, we just never know exactly which
+thread gets to go next. So maybe thread A sets `price_of_gold`, and then thread
+B reads `initialised` and sees that it's `false`, and then thread A sets
+`initialised` to `true`. Or maybe thread A sets both variables before thread B
+checks `initialised`, and then if gold is cheap, thread B heads to the market.
+
+The one thing we want _not_ to happen is for thread B to see that
+`!initialised` is `true` and yet find that `price_of_gold` is still stuck at
+its initial value of `0.0`, thus causing us to `buy_lots_of_gold ()` no matter
+the price. Our intuitive method reassures us that this cannot happen: thread `A`
+doesn't set `initialised` to `true` until it's already done setting
+`price_of_gold` to something sensible.
+
+Unfortunately, our intuitive reasoning is wrong: this code very much can end up
+calling `buy_lots_of_gold ()` despite `price_of_gold` being high. Since the
+assignments to `price_of_gold` and `initialised` happen in the same thread and
+neither is a fancy [atomic] operation, they can be reordered so that
+`initialised` is set first, leading thread `B` to make an expensive mistake.
+
+[atomic]: #atomics
+
+It turns out our intuition assumes what the literature calls
+_sequential consistency:_ essentially, the principle that things happen in order
+they're written, and parallelism just means we're not sure which thread will do
+its next thing. This principle is so essential that it's hard to imagine
+reasoning about a multicore program without it.
+
+Of course, what's happened here is two data races: each of `price_of_gold` and
+`initialised` is being modified by thread A and read by thread B in parallel.
+So the moral of the story is that data races violate sequential consistency.
+
+The good news is that the inverse is also true: any program without data races
+is sequentially consistent. Data-race freedom gives us back the power to reason
+intuitively about our code, no matter how buggy it might get. And in our
+example, we can prove that replacing our `ref`s with `Atomic.t`s fixes our bug:
+sequential consistency means that it's impossible for thread B to observe a
+state where `initialised` is `true` and `price_of_gold` is `0.0`.[^price-zero]
+
+[^price-zero]: Assuming, of course, `calculate_price_of_gold ()` doesn't
+return `0.0`. The compiler can't catch everything.
+
+<!--
+One thing to note is that the OCaml 5 memory model provides
+unusually[^unusually] strong guarantees even in the face of data races. In
+particular, memory safety still applies, so a data race won't cause a segfault
+or an out-of-bounds checked array access.
+
+[^unusually]: See [this paper] for technical details and a few examples. To
+summarize, in C++ the repercussions of a data race are “unbounded in space and
+time,” which sounds scary because it is. Java's memory model is better, but a
+data race can still cause a value to be read from anytime in the past or indeed
+the future.
+
+[this paper]: https://kcsrk.info/papers/pldi18-memory.pdf
+
+So why insist on eliminating data races? One reason is simply that they are
+bugs, and fiddly ones at that, so any language feature that helps eliminate them
+is worth considering. Such bugs are especially likely to occur when code moves
+into the multicore world: OCaml makes it easy for shared state to hide in
+surprising places (fun fact: `sexp_of_float` is one such place), and shining a
+light into those places is a good first step to making them multicore-safe.
+
+<!--
+Often, however, one can fix the data race and still have a race condition, say
+by replacing a `ref` with an `Atomic.t` (we'll see an example [later]). So what
+have we gained? Well, an important principle that we all take for granted is
+what the literature calls _sequential consistency._ Essentially, it means that
+we can see each thread in the program as a list of instructions that will happen
+in a fixed order, it's just that we don't know which thread (or threads) will
+execute their instruction next at any given time.
+-- >
+
+Often, however, one can fix a data race and still have a race condition, say
+by replacing a `ref` with an `Atomic.t` (we'll see an example [later]). So what
+have we gained? In short, Well, consider these two pieces of code running in parallel:
+
+[later]: #atomics
+
+-->
+
 # Fork/join parallelism
 
-Suppose we're working with binary trees, and we want to take an average over all
-the values in the tree. Here's a basic implementation:
+Any problem that can be neatly subdivided is a good candidate for
+_fork/join parallelism,_ as provided by the `parallel` library’s `fork_join*`
+functions. For example, a very expensive way to add four integers (I promise the
+other examples are more substantial) would be this:
+
+<a id="code-add4"></a>
+```ocaml
+let add4 (par : Parallel.t) a b c d =
+  let a_plus_b, c_plus_d =
+    Parallel.fork_join2 par (fun _par -> a + b) (fun _par -> c + d)
+  in
+  a_plus_b + c_plus_d
+```
+
+The call to `Parallel.fork_join2` will schedule the calculations of `a + b` and
+`c + d` as independent *tasks*, returning both once they're both done, and then
+`add4` finishes by adding the results from the tasks. The `par` argument
+parameterizes `fork_join2` (and, in turn, `add4`) by a particular implementation
+of parallelism. It is also passed to the tasks so that they can spawn sub-tasks.
+
+To run `add4`, we need to get our hands on a *scheduler*. Each scheduler is
+provided by a library and determines the policy by which tasks get doled out and
+run in domains. For this tutorial, we'll use `parallel_scheduler_work_stealing`,
+which implements the popular [work-stealing] strategy.
+
+[work-stealing]: https://en.wikipedia.org/wiki/Work_stealing
+
+```ocaml
+let test_add4 par = add4 par 1 10 100 1000
+
+let%expect_test "add4 in parallel" =
+  let module Scheduler = Parallel_scheduler_work_stealing in
+  let scheduler = Scheduler.create () in
+  let monitor = Parallel.Monitor.create_root () in
+  let result = Scheduler.schedule scheduler ~monitor ~f:test_add4 in
+  Scheduler.stop scheduler;
+  print_s [%message (result : int)];
+  [%expect {| (result 1111) |}];
+;;
+```
+
+This creates a work-stealing scheduler, along with a _monitor_ to manage
+exceptions. Then it tells the scheduler to run the `test_add4` function before
+shutting down the scheduler. (Naturally, a real program will want to keep the
+monitor and scheduler around longer!)
+
+You can also use the `parallel` library's own `Parallel.Scheduler.Sequential`,
+which simply runs everything on the primary domain. This is handy for testing or
+debugging when you want to eliminate nondeterminism. To do so, simply replace
+`Parallel_scheduler_work_stealing` with `Parallel.Scheduler.Sequential`.
+
+Now for something more substantial. Suppose we're working with binary trees, and
+we want to take an average over all the values in the tree. Here's a basic
+implementation:
 
 <a id="code-average"></a>
 ```ocaml
@@ -29,84 +200,38 @@ let average (tree : float Tree.t) =
 ;;
 ```
 
-Now suppose we want to take advantage of multicore OCaml and get those sweet,
-sweet parallel speedups. This is an obvious candidate for _fork/join
-parallelism,_ as provided by the `parallel` library’s `fork_join*` functions.
-For example, a very expensive way to add four integers would be this:
+(Note that we've made use of the new [labeled tuples] feature for the values
+returned by `total`.)
 
-<a id="code-add4"></a>
-```ocaml
-let add4 (par : Parallel.t) a b c d =
-  let a_plus_b, c_plus_d =
-    Parallel.fork_join2 par (fun _par -> a + b) (fun _par -> c + d)
-  in
-  a_plus_b + c_plus_d
-```
-
-The call to `Parallel.fork_join2` will schedule the calculations of `a + b` and
-`c + d` as independent *tasks*, returning both once they're both done, and then
-`add4` finishes by adding the results from the tasks. The `par` argument
-parameterizes `fork_join2` (and, in turn, `add4`) by a particular implementation
-of parallelism. It is also passed to the tasks so that they can spawn sub-tasks.
-
-To run `add4`, we need to get our hands on a *scheduler*. Each scheduler is
-provided by a library and determines the policy by which tasks get doled out and
-run in domains. For this tutorial, we'll use `parallel_scheduler_work_stealing`,
-which implements the popular [work-stealing] strategy. You can also use the
-`parallel` library's own `Parallel.Scheduler.Sequential`, which simply runs
-everything on the primary domain. This is handy if you want to test parallel
-code without switching to a multicore-enabled runtime.
-
-[work-stealing]: https://en.wikipedia.org/wiki/Work_stealing
-
-```ocaml
-let test_add4 par = add4 par 1 10 100 1000
-
-let%expect_test "add4 in parallel" =
-  let scheduler = Parallel_scheduler_work_stealing.create () in
-  let monitor = Parallel.Monitor.create_root () in
-  let result =
-    Parallel_scheduler_work_stealing.schedule scheduler ~monitor ~f:test_add4
-  in
-  Parallel_scheduler_work_stealing.stop scheduler;
-  print_s [%message (result : int)];
-  [%expect {| (result 1111) |}];
-;;
-```
-
-This creates a work-stealing scheduler, along with a _monitor_ to manage
-exceptions. Then it tells the scheduler to run the `test_add4` function before
-shutting down the scheduler. (Naturally, a real program will want to keep the
-monitor and scheduler around longer!) To test using the sequential scheduler
-instead, we would simply replace `Parallel_scheduler_work_stealing` with
-`Parallel.Scheduler.Sequential`.
+[labeled tuples]: https://tyconmismatch.com/papers/ml2024_labeled_tuples.pdf
 
 We can use `fork_join2` to parallelize `average`:
 
+<a id="listing-average_par"></a>
 ```ocaml
-  let average_par (par : Parallel.t) tree =
-    let rec total par tree =
-      match tree with
-      | Tree.Leaf x -> ~total:x, ~count:1
-      | Tree.Node (l, r) ->
-        let (~total:total_l, ~count:count_l), (~total:total_r, ~count:count_r) =
-          Parallel.fork_join2
-            par
-            (fun par -> total par l)
-            (fun par -> total par r)
-        in
-        ~total:(total_l +. total_r), ~count:(count_l + count_r)
-    in
-    let ~total, ~count = total par tree in
-    total /. (count |> Float.of_int)
-  ;;
+let average_par (par : Parallel.t) tree =
+  let rec total par tree =
+    match tree with
+    | Tree.Leaf x -> ~total:x, ~count:1
+    | Tree.Node (l, r) ->
+      let (~total:total_l, ~count:count_l), (~total:total_r, ~count:count_r) =
+        Parallel.fork_join2
+          par
+          (fun par -> total par l)
+          (fun par -> total par r)
+      in
+      ~total:(total_l +. total_r), ~count:(count_l + count_r)
+  in
+  let ~total, ~count = total par tree in
+  total /. (count |> Float.of_int)
+;;
 ```
 
 Note that we don't have to worry about unbalanced trees: the work-stealing
 algorithm dynamically adapts whenever tasks are unevenly distributed among cores.
 
 We're not limited to working with simple `float`s, of course. Suppose we add a
-submodule `Thing` earlier in the file: **[Would be nice to think of something
+module `Thing` earlier in the file: **[Would be nice to think of something
 better than `Thing` here.]**
 
 <a id="listing-thing-impl"></a>
@@ -133,27 +258,17 @@ end
 All we have to do to sum over the prices in a `Thing.t Tree.t` is change the
 `Tree.Leaf` case:
 
-```ocaml
-  let average_things_par (par : Parallel.t) tree =
-    let rec total par tree =
-      match tree with
-      | Tree.Leaf x -> ~total:(Thing.price x), ~count:1 (* <== new code *)
-      | Tree.Node (l, r) ->
-        let (~total:total_l, ~count:count_l), (~total:total_r, ~count:count_r) =
-          Parallel.fork_join2
-            par
-            (fun par -> total par l)
-            (fun par -> total par r)
-        in
-        ~total:(total_l +. total_r), ~count:(count_l + count_r)
-    in
-    let ~total, ~count = total par tree in
-    total /. (count |> Float.of_int)
-  ;;
+```diff
+  let rec total par tree =
+    match tree with
+-   | Tree.Leaf x -> ~total:x, ~count:1
++   | Tree.Leaf x -> ~total:(Thing.price x), ~count:1
+    | Tree.Node (l, r) ->
+      let (~total:total_l, ~count:count_l), (~total:total_r, ~count:count_r) =
 ```
 
 So far, so good. But something annoying happens if we introduce an abstraction
-barrier. Lets move `Thing` into its own module. `thing.mli` is very simple:
+barrier. Let's move `Thing` into its own file. `thing.mli` is very simple:
 
 ```ocaml
 type t
@@ -187,7 +302,9 @@ val price : t -> float @@ portable
 ```
 
 But the compiler isn't satisfied. Now it complains about the `l` in
-`total par l`:
+`total par l` (which is still as it was [before]):
+
+[before]: #listing-average_par
 
 ```
 This value is contended but expected to be uncontended.
@@ -221,8 +338,8 @@ Firstly, `portable` and `contended` are _modes_. Like a type, a mode describes
 something about a name in an OCaml program. But whereas a type describes the
 *value* associated with a name, a mode instead describes the value's
 *circumstances.* This could be where it is in memory, who has access to it, or
-what can be done with it. If you've seen `@ local` **(link to doc)** or the
-older syntax `local_`, you've already encountered the `local` mode.
+what can be done with it. If you've seen `@ local` **(link to doc)**, you've
+already encountered the `local` mode.
 
 The `portable` mode is the one you'll see most often, but it will be easier to
 understand once we've covered `contended` and `uncontended`, so we begin there.
@@ -250,7 +367,8 @@ ensuring that this is impossible. To do so, they institute two key rules:
 
 Taken together, these two rules guarantee data-race freedom. However, rule 1
 requires quite a bit of machinery to enforce, including other modes such as
-`portable` as well as the types of parallelism APIs like `fork_join`.
+`portable` as well as the annotations on the types of parallelism APIs like
+`fork_join`.
 
 Let's see what these rules mean for our `thing.ml` from
 [before](#listing-thing-impl):
@@ -365,10 +483,12 @@ bigger data structure.
 > **Rule 4.** Any component of a `contended` value is `contended`.
 
 In particular, every field of a `contended` record, every element of a
-`contended` tuple or array (as before, `iarray`s are exempt), and every argument
+`contended` tuple or array **[note: make this `array` if we make the
+corresponding change elsewhere]** (as before, `iarray`s are exempt), and every
+argument
 of every constructor of a `contended` variant is `contended`. And of course this
 applies recursively, so the components of _those_ components are also
-`contended`. Accordingly, We say that the `contended` mode is _deep._ It's easy
+`contended`. Accordingly, we say that the `contended` mode is _deep._ It's easy
 to see what goes wrong if we let anyone treat, say, a field as `uncontended`
 when its record is `contended`:
 
@@ -394,6 +514,7 @@ for instance, we say that `t_in_a_trenchcoat.inner_t` is `contended` when
 
 [rule 1]: #rule-contended-parallel
 
+<!--
 #### Modalities
 
 [Rule 4] says the `contended` mode is deep—that `contended` values can't
@@ -409,8 +530,8 @@ notation called a _modality_ to make a field `contended` instead:
 ```ocaml
 module State = struct
   type t = {
-    mutable most_expensive_thing : Thing.t @@ contended
-    mutable my_favorite_thing : Thing.t
+    most_expensive_thing : Thing.t @@ contended
+    my_favorite_thing : Thing.t
   }
 end
 ```
@@ -431,25 +552,33 @@ let most_expensive_mood (state @ uncontended) =
 Error: This value is contended but expected to be uncontended.
 ```
 
-In return, we can set `most_expensive_thing` to something `contended`:
+In return, we let `most_expensive_thing` be something `contended`, even when the
+record as a whole is `uncontended`:
 
 ```ocaml
-let set_most_expensive_thing (state @ uncontended) (thing @ contended) =
-  state.most_expensive_thing <- thing (* ok *)
+let make_state (expensive @ contended) fave =
+  let state @ uncontended =
+    { State.most_expensive_thing = expensive
+    ; my_favorite_thing = fave
+    }
+  in
+  state
 ```
 
 We can't do that with `my_favorite_thing`, since that field is `uncontended`
 when `state` is:
 
-```ocaml
-let set_my_favorite_thing (state @ uncontended) (thing @ contended) =
-  state.my_favorite_thing <- thing (* error *)
+```diff
+-let make_state (expensive @ contended) fave =
++let make_state (expensive @ contended) (fave @ contended) =
+ let state @ uncontended =
+   { State.most_expensive_thing = expensive
 ```
 
 ```
 Error: This value is contended but expected to be uncontended.
 ```
-
+-->
 <!--
 Note that there is actually an `@@ uncontended` modality but it's not useful—if
 the record is `contended`, the field has to be `contended` no matter what (see
@@ -462,21 +591,14 @@ modality isn't even necessary there.
 
 ### The `portable` and `nonportable` modes
 
-As we said before, [rule 1] and [rule 2] of `contended` give us data-race
-freedom—assuming we can enforce them, that is. The compiler's type checker can
-just raise an error when rule 2 is violated, but rule 1 is a bit squishier. To
-reiterate:
+As we said before, [rule 1](#rule-contended-parallel) and [rule
+2](#rule-contended-mutable) of `contended` give us data-race freedom—assuming we
+can enforce them, that is. The compiler's type checker can just raise an error
+when rule 2 is violated, but rule 1 is a bit squishier. To reiterate:
 
 > **Rule 1 of `contended`.** If multiple accesses of the same value may occur
 > in parallel, at most one of them may consider the value `uncontended`. The
 > others must consider it `contended`.
-
-[rule 1]: #rule-contended-parallel
-[rule 2]: #rule-contended-mutable
-
-**[I can't tell whether this is belaboring the point a bit. The arguments to
-`fork_join2` shouldn't assume things are `uncontended`. Do I need to spell
-things out this much?]**
 
 We've seen that `Parallel.fork_join2` provides parallelism while enforcing this
 rule. How does it manage that? Let's look again at our attempt to sneak a data
@@ -513,17 +635,18 @@ In summary, the arguments to `fork_join2`
 As you might have guessed, this is exactly what the `portable` mode is for. Both
 arguments to `fork_join2` are required to be `portable`, and we have two rules:
 
+> <a id="rule-portable-safety"></a>
 > **Rule 1.** Only a `portable` value is safe to access from outside the domain
 > that created it.
 
-> <a id="rule-portable-access"></a>
+> <a id="rule-portable-closure"></a>
 > **Rule 2.** If a `portable` function refers to a value outside of its own
-> definition, then (a) that value must be `portable`, and (b) the value
-> is treated as `contended`.
+> definition, then (a) that value must be `portable`, and (b) the value is
+> treated as `contended`.
 
-**[Seems worth observing somewhere that `portable` and `contended` codify the
-maxim that “thread-safe code doesn't have uncontrolled access to shared
-state,” but I'm not sure where that goes. Maybe it's more cute than helpful.]**
+(So far it looks like `portable` is only relevant for functions, but when we get
+to [rule 4](#rule-portable-deep), we'll see that records and arrays can also
+fail to be `portable`.)
 
 Why does rule 2 say “outside of its own definition”? Well, remember what we
 said about the `t` defined in `beat_the_system` above: it was just now created,
@@ -543,7 +666,7 @@ let (factorial @ portable) i =
 As before, `a` is `uncontended` because it was just created. We can have
 `factorial` access `a` because it's allowed to treat things _inside_ its
 definition as `uncontended`. (Note that a `ref` is just a record whose only
-field is `mutable` field, so `!a` requires `uncontended` as always.) On the
+field is `mutable`, so `!a` requires `uncontended` as always.) On the
 other hand, if we try and mark `loop` as `portable`, the compiler sees that `a`
 is defined _outside_ of `loop`, so `a := !a * i` gets hit with the familiar
 
@@ -628,6 +751,7 @@ notably including `Lazy.t`, so `portable` is also a concern for them.
 [in a trenchcoat]: #code-cheer_up_sneakily
 [mode crossing]: #mode-crossing
 
+<!--
 Lastly, `nonportable` is “deep by default” the way `uncontended` is, with
 a `@@ portable` modality. For example, one might be implementing a customizable
 scheduler:
@@ -650,6 +774,16 @@ use the `@@ portable` modality to make sure that `waiting_tasks` is `portable`
 `nonportable`. So we don't give `run_one_task` a modality.
 
 [deep]: #rule-portable-deep
+-->
+
+We can summarize the rules of `portable` and `contended` like so:
+
+|        | `contended` | `portable` |
+|--------|-------------|------------|
+| Rule 1 | No parallel `uncontended` accesses | Only `portable` values may cross domains |
+| Rule 2 | No accessing `contended` `mutable` state | A `portable` function only sees `portable` `contended` values |
+| Rule 3 | Can treat `uncontended` as `contended` | Can treat `portable` as `nonportable` |
+| Rule 4 | Everything in a `contended` value is `contended` | Everything in a `portable` value must be `portable` |
 
 # Niceties
 
@@ -711,7 +845,10 @@ fact the `: immutable_data` in this case is redundant. However, in an .mli
 they are often useful.
 
 The three most important kinds for data-race freedom are `immutable_data`,
-`mutable_data`, and `value`.
+`mutable_data`, and `value`. Some kinds constrain what types they describe, and
+in return types with those kinds get to cross certain modes. In summary (this
+table isn't nearly exhaustive—in particular, there are many modes we haven't
+covered, and `immutable_data` and `mutable_data` cross some of them as well):
 
 | Kind | Requirements | Crosses |
 | ---- | ------------ | ------- |
@@ -789,20 +926,6 @@ wrote our code with no concern for whether the returned `total` and `count`
 could be accessed in parallel, thanks to the types involved, we didn't have to
 worry.
 
-**[The following isn't very compelling: even if our returned types didn't cross
-contention, we wouldn't have to worry about anything so long as we weren't
-messing with mutable stuff.]**
-
-To appreciate mode crossing, let's see what happens if (for no compelling
-reason) we have `total` return an `int ref` rather than an `int`. For example,
-the `Tree.Leaf` line becomes
-
-```ocaml
-      | Tree.Leaf x -> ~total:(Thing.price x), ~count:(ref 1)
-```
-
-**[finish discussion of mode crossing being nice]**
-
 Any type variable can be given a kind, so we can write a version of
 `always_portable` that works for _any_ `mutable_data` type:
 
@@ -866,8 +989,8 @@ As you can see, there's a bit of syntactic overhead, but in return we get to
 access `mood` even if a `Thing.t` is `contended`, and in fact we can mark `t` as
 `immutable_data` so that it ignores `contended` and `uncontended` altogether
 (that is, it [crosses contention]). Do go over the documentation for the `Atomic`
-module, as it has many useful operations from `compare_exchange` to atomic
-logical bitwise XOR.
+module **(XX link to documentation)**, as it has many useful operations from
+`compare_exchange` to atomic logical bitwise XOR.
 
 [crosses contention]: #mode-crossing
 
@@ -877,22 +1000,22 @@ the total and count from our fork/join tasks, we can keep the running total and
 count in atomics:
 
 ```ocaml
-  let average_par_running (par : Parallel.t) tree =
-    let total = Atomic.make 0.0 in
-    let count = Atomic.make 0 in
-    let rec go par tree =
-      match tree with
-      | Tree.Leaf x ->
-        Atomic.update total ~pure_f:(fun total -> total +. Thing.price x);
-        Atomic.incr count
-      | Tree.Node (l, r) ->
-        let (), () =
-          Parallel.fork_join2 par (fun par -> go par l) (fun par -> go par r)
-        in
-        ()
-    in
-    go par tree;
-    Atomic.get total /. (Atomic.get count |> Float.of_int)
+let average_par_running (par : Parallel.t) tree =
+  let total = Atomic.make 0.0 in
+  let count = Atomic.make 0 in
+  let rec go par tree =
+    match tree with
+    | Tree.Leaf x ->
+      Atomic.update total ~pure_f:(fun total -> total +. Thing.price x);
+      Atomic.incr count
+    | Tree.Node (l, r) ->
+      let (), () =
+        Parallel.fork_join2 par (fun par -> go par l) (fun par -> go par r)
+      in
+      ()
+  in
+  go par tree;
+  Atomic.get total /. (Atomic.get count |> Float.of_int)
 ```
 
 If we kept `total` and `count` in `ref`s, then `go` would not be able to access
@@ -917,6 +1040,11 @@ unpredictable number of those changes. The only way to stop _that_ is to use
 something more sophisticated like a lock over the whole tree, which grants a
 function `uncontended` access while the lock is held. That's what the capsule
 API is for, but it's beyond the scope of this tutorial.
+
+The good news is that data-race freedom guarantees that even buggy programs can
+be reasoned about intuitively. See [Why are data races bad?].
+
+[Why are data races bad?]: #why-are-data-races-bad
 
 # Parallel sequences
 
@@ -1023,8 +1151,3 @@ Another approach would be to convert the entire tree into a
 possible using `Parallel.Sequence.unfold`, though it does take more work,
 requiring a definition of an unfolding state with an operation that splits it in
 half.
-
-**[I made a solution for this but unless there's something I missed that would
-make it _radically_ simpler I'm not sure it makes sense for this tutorial?
-Unless we can use effects. I think there's a really cool way to use effects to
-make it easy-ish.]**
