@@ -134,6 +134,6 @@ end
 ```
 
 ## Modules
-Support for modules with modes is being worked on and not ready for company-wide adoption.
+Support for modules with modes is being worked on and not ready for adoption.
 For the few use sites, the syntax should be self-explanatory. More documentation will come
 as it becomes ready.
