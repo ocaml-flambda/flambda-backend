@@ -1844,13 +1844,7 @@ module Monadic_gen (Obj : Obj) = struct
   let subtract c m = Solver.apply obj (Imply c) (Solver.disallow_left m)
 
   module Guts = struct
-    let _get_floor m = Solver.get_ceil obj m
-
     let get_ceil m = Solver.get_floor obj m
-
-    let _get_loose_floor m = Solver.get_loose_ceil obj m
-
-    let _get_loose_ceil m = Solver.get_loose_floor obj m
   end
 end
 [@@inline]

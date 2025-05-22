@@ -275,7 +275,7 @@ let mutable_ (mut : Types.mutability) : mutable_flag =
   | Immutable -> Immutable
   | Mutable m ->
       let open Mode.Alloc.Comonadic.Const in
-      if Misc.Le_result.equal ~le:le m legacy then
+      if Misc.Le_result.equal ~le m legacy then
         Mutable
       else
         Misc.fatal_errorf "unexpected mutable(%a)" print m

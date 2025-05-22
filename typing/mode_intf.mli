@@ -44,16 +44,22 @@ module type Lattice_product = sig
 
   type 'a axis
 
+  (** [min_axis ax] returns the [min] for the [ax] axis. *)
   val min_axis : 'a axis -> 'a
 
+  (** [max_axis ax] returns the [max] for the [ax] axis. *)
   val max_axis : 'a axis -> 'a
 
+  (** [min_with ax elt] returns [min] but with the axis [ax] set to [elt]. *)
   val min_with : 'a axis -> 'a -> t
 
+  (** [max_with ax elt] returns [max] but with the axis [ax] set to [elt]. *)
   val max_with : 'a axis -> 'a -> t
 
+  (** [le_axis ax] returns the [le] function for the [ax] axis. *)
   val le_axis : 'a axis -> 'a -> 'a -> bool
 
+  (** [print_axis ax] returns the [print] function for the [ax] axis. *)
   val print_axis : 'a axis -> Format.formatter -> 'a -> unit
 end
 
@@ -112,8 +118,12 @@ module type Common = sig
 
   val of_const : Const.t -> ('l * 'r) t
 
+  (** [imply c] is the right adjoint of [meet c]. That is,
+     [x <= imply c y] iff [meet c x <= y]. *)
   val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
 
+  (** [subtract c] is the left adjoint of [join c]. That is,
+     [subtract c x <= y] iff [x <= join c y]. *)
   val subtract : Const.t -> ('l * 'r) t -> ('l * disallowed) t
 
   val join_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
@@ -511,11 +521,13 @@ module type S = sig
     val proj :
       ('a, 'l0 * 'r0, 'l1 * 'r1) Axis.t -> ('l0 * 'r0) t -> ('a, 'l1 * 'r1) mode
 
+    (** [max_with ax elt] returns [max] but with the axis [ax] set to [elt]. *)
     val max_with :
       ('a, 'l0 * 'r0, 'l1 * 'r1) Axis.t ->
       ('a, 'l1 * 'r1) mode ->
       (disallowed * 'r0) t
 
+    (** [min_with ax elt] returns [min] but with the axis [ax] set to [elt]. *)
     val min_with :
       ('a, 'l0 * 'r0, 'l1 * 'r1) Axis.t ->
       ('a, 'l1 * 'r1) mode ->
