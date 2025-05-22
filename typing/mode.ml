@@ -42,31 +42,6 @@ end
 (* Even though our lattices are all bi-heyting algebras, that knowledge is
    internal to this module. Externally they are seen as normal lattices. *)
 module Lattices = struct
-  module Opposite (L : BiHeyting) : BiHeyting with type t = L.t = struct
-    type t = L.t
-
-    let min = L.max
-
-    let max = L.min
-
-    let legacy = L.legacy
-
-    let[@inline] le a b = L.le b a
-
-    let equal = L.equal
-
-    let join = L.meet
-
-    let meet = L.join
-
-    let print = L.print
-
-    let imply a b = L.subtract b a
-
-    let subtract a b = L.imply b a
-  end
-  [@@inline]
-
   (* A lattice is total order, if for any [a] [b], [a <= b] or [b <= a].
      A total lattice has a bi-heyting structure given as follows. *)
   module Total (L : Lattice) : BiHeyting with type t := L.t = struct
@@ -232,8 +207,6 @@ module Lattices = struct
     end)
   end
 
-  module Uniqueness_op = Opposite (Uniqueness)
-
   module Linearity = struct
     type t =
       | Many
@@ -359,8 +332,6 @@ module Lattices = struct
         | Uncontended -> Format.fprintf ppf "uncontended"
     end)
   end
-
-  module Contention_op = Opposite (Contention)
 
   module Yielding = struct
     type t =
@@ -502,8 +473,6 @@ module Lattices = struct
         | Read_write -> Format.fprintf ppf "read_write"
     end)
   end
-
-  module Visibility_op = Opposite (Visibility)
 
   type monadic =
     { uniqueness : Uniqueness.t;
@@ -717,15 +686,54 @@ module Lattices = struct
   end
   [@@inline]
 
+  module Opposite (L : BiHeyting) : BiHeyting with type t = L.t = struct
+    type t = L.t
+
+    let min = L.max
+
+    let max = L.min
+
+    let legacy = L.legacy
+
+    let[@inline] le a b = L.le b a
+
+    let equal = L.equal
+
+    let join = L.meet
+
+    let meet = L.join
+
+    let print = L.print
+
+    let imply a b = L.subtract b a
+
+    let subtract a b = L.imply b a
+  end
+  [@@inline]
+
+  (* Notes on flipping
+
+     Our lattices are categorized into two fragments: monadic and comonadic. Moreover:
+     - Morphisms between lattices in the same fragment are always monotone.
+     - Morphisms between lattices from opposite fragments are always antitone.
+
+     [Solver_mono] only supports monotone morphisms. To conform to this limitation, we
+     flip all lattices in the monadic fragment, which makes morphisms between opposite
+     fragments monotone. We submit this category of lattices (original comonadic lattices
+     + flipped monadic lattices) to [Solver_mono].
+
+     The resulted interface given by [Solver_mono] therefore has the monadic lattices
+     flipped, which is unsuitable for the user of [mode.ml]. Therefore, We build on top of
+     that and provide an interface to the user where monadic lattices are flipped back to
+     its original ordering. See [module Monadic_gen] and [module Monadic].
+  *)
+  module Uniqueness_op = Opposite (Uniqueness)
+  module Contention_op = Opposite (Contention)
+  module Visibility_op = Opposite (Visibility)
   module Monadic_op = Opposite (Monadic)
   module Comonadic_with_locality = Comonadic_with (Locality)
   module Comonadic_with_regionality = Comonadic_with (Regionality)
 
-  (* Axes are categorized into monadic and comonadic fragments, and in general:
-     - Morphisms between the same fragment are always monotone.
-     - Morphisms between different fragments are always antitone.
-     To play well with the solver, here we flip the whole monadic fragment, so all
-     morphisms are monotone. [Solver_polarized] will flip it back. *)
   type 'a obj =
     | Locality : Locality.t obj
     | Regionality : Regionality.t obj
@@ -1774,7 +1782,7 @@ end
 [@@inline]
 
 module Monadic_gen (Obj : Obj) = struct
-  (* Monadic fragment is flipped *)
+  (* Monadic lattices are flipped. See "Notes on flipping". *)
   open Obj
 
   type 'd t = (const, 'r * 'l) Solver.mode constraint 'd = 'l * 'r
@@ -2206,6 +2214,7 @@ end
 [@@inline]
 
 module Monadic = struct
+  (* Monadic lattices are flipped. See "Notes on flipping". *)
   module Obj = struct
     type const = C.Monadic_op.t
 
