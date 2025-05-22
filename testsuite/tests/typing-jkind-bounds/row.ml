@@ -236,7 +236,7 @@ Line 1, characters 0-71:
 1 | type trec_fails : immutable_data = [ `C | `D of 'a * unit -> 'a ] as 'a
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "[ `C | `D of 'a * unit -> 'a ] as 'a" is
-         value mod immutable
+         value mod immutable non_float
          because it's a polymorphic variant type.
        But the kind of type "[ `C | `D of 'a * unit -> 'a ] as 'a" must be a subkind of
          immutable_data
@@ -258,7 +258,7 @@ Lines 1-2, characters 0-80:
 2 |   [ `X of 'b | `Y of [ `Z of ('a -> 'b) | `W of 'a | `Loop of 'b ] as 'b ] as 'a
 Error: The kind of type "[ `X of
                             [ `Loop of 'b | `W of 'a | `Z of 'a -> 'b ] as 'b
-                        | `Y of 'b ] as 'a" is value mod immutable
+                        | `Y of 'b ] as 'a" is value mod immutable non_float
          because it's a polymorphic variant type.
        But the kind of type "[ `X of
                                 [ `Loop of 'b | `W of 'a | `Z of 'a -> 'b ]
