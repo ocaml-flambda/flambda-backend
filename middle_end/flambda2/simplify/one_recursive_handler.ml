@@ -26,3 +26,5 @@ let print ppf { params; handler; is_cold } =
     "@[<hov 1>(@[<hv 1>(params@ %a)@]@ @[<hv 1>(is_cold@ %b)@]@ @[<hv \
      1>(handler@ %a)@])@]"
     Bound_parameters.print params is_cold Flambda.Expr.print handler
+
+let with_handler handler t = { t with handler }
