@@ -60,6 +60,7 @@ let main filename =
   let unix = (module Unix : Compiler_owee.Unix_intf.S) in
   Clflags.native_code := true;
   Clflags.use_linscan := true;
+  Clflags.function_sections := Config.function_sections;
   Compmisc.init_path ();
   let file_prefix = Filename.remove_extension filename ^ ext_lib in
   let genfns_partitions = Generic_fns.Cache.all () in
