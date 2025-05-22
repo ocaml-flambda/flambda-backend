@@ -425,12 +425,14 @@ module type S = sig
         | Monadic : (Monadic.Const.t, 'a) Axis.t -> ('a, 'd, 'd neg) t
         | Comonadic : (Comonadic.Const.t, 'a) Axis.t -> ('a, 'd, 'd pos) t
 
+      (** Compare two axes in implication order. If A implies B, then A is before B. *)
       val compare : ('a, 'd0, 'd1) t -> ('b, 'e0, 'e1) t -> int
 
       type packed = P : (_, _, _) t -> packed
 
       val print : Format.formatter -> ('a, _, _) t -> unit
 
+      (** List of all axes, ordered by [compare]. *)
       val all : packed list
     end
 

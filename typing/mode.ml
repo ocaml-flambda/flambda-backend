@@ -2379,6 +2379,7 @@ module Value_with (Areality : Areality) = struct
         P (Comonadic Yielding);
         P (Comonadic Statefulness);
         P (Monadic Visibility) ]
+      |> List.sort (fun (P ax0) (P ax1) -> compare ax0 ax1)
   end
 
   let proj_obj : type a d0 d1. (a, d0, d1) Axis.t -> a C.obj = function
