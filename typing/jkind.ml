@@ -997,7 +997,7 @@ module Layout_and_axes = struct
                  so if we saw one already, we don't need to expand it again. *)
               Skip)
           | Tvar _ | Tarrow _ | Tunboxed_tuple _ | Tobject _ | Tfield _ | Tnil
-          | Tunivar _ | Tpackage _ ->
+          | Tunivar _ | Tpackage _ | Tof_kind _ ->
             (* these cases either cannot be infinitely recursive or their jkinds
                do not have with_bounds *)
             (* CR layouts v2.8: Some of these might get with-bounds someday. We
