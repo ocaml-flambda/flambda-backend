@@ -96,13 +96,13 @@ let is_symbol_used (env : env) symbol =
   is_used env (Code_id_or_name.symbol symbol)
   || not (Compilation_unit.is_current (Symbol.compilation_unit symbol))
 
-let raw_is_var_used uses kinds var =
-  let kind = Name.Map.find (Name.var var) kinds in
+let raw_is_var_used uses var kind =
   match (kind : K.t) with
   | Region | Rec_info -> true
   | Value | Naked_number _ -> DS.has_use uses (Code_id_or_name.var var)
 
-let is_var_used (env : env) var = raw_is_var_used env.uses env.kinds var
+let is_var_used (env : env) var =
+  raw_is_var_used env.uses var (Name.Map.find (Name.var var) env.kinds)
 
 let is_name_used (env : env) name =
   Name.pattern_match name ~symbol:(is_symbol_used env) ~var:(is_var_used env)
@@ -1800,7 +1800,9 @@ let rebuild ~(code_deps : Traverse_acc.code_dep Code_id.Map.t)
       fun param kind ->
       match DS.get_unboxed_fields solved_dep (Code_id_or_name.var param) with
       | None ->
-        let is_var_used = raw_is_var_used solved_dep kinds param in
+        let is_var_used =
+          raw_is_var_used solved_dep param (K.With_subkind.kind kind)
+        in
         (* XXX what should happen to this "if"? *)
         if true || is_var_used then Keep (param, kind) else Delete
       | Some fields -> Unbox fields
@@ -1839,7 +1841,9 @@ let rebuild ~(code_deps : Traverse_acc.code_dep Code_id.Map.t)
                 DS.get_unboxed_fields solved_dep (Code_id_or_name.var v)
               with
               | None ->
-                let is_var_used = raw_is_var_used solved_dep kinds v in
+                let is_var_used =
+                  raw_is_var_used solved_dep v (K.With_subkind.kind kind)
+                in
                 let kind =
                   DS.rewrite_kind_with_subkind solved_dep (Name.var v) kind
                 in
@@ -1858,7 +1862,9 @@ let rebuild ~(code_deps : Traverse_acc.code_dep Code_id.Map.t)
     | None ->
       if keep_all_parameters
          ||
-         let is_var_used = raw_is_var_used solved_dep kinds param in
+         let is_var_used =
+           raw_is_var_used solved_dep param (K.With_subkind.kind kind)
+         in
          is_var_used
          ||
          let info = Continuation.Map.find cont continuation_info in
