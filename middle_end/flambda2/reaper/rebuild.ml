@@ -194,6 +194,21 @@ let get_parameters params_decisions =
     [] params_decisions
   |> List.rev
 
+let get_parameters_and_modes params_decisions modes =
+  List.fold_left
+    (fun acc (param_decision, mode) ->
+      match param_decision with
+      | Delete -> acc
+      | Keep (var, kind) -> (Bound_parameter.create var kind, mode) :: acc
+      | Unbox fields ->
+        fold_unboxed_with_kind
+          (fun kind v acc ->
+            (Bound_parameter.create v (KS.anything kind), mode) :: acc)
+          fields acc)
+    []
+    (List.combine params_decisions modes)
+  |> List.rev |> List.split
+
 let get_arity params_decisions =
   let arity =
     List.fold_left
@@ -1697,7 +1712,16 @@ and rebuild_function_params_and_body (env : env) res code_metadata
         (Code_metadata.params_arity code_metadata)
         params_decision
     in
-    let params = List.map (fun p -> get_parameters p) params_decision in
+    let params_and_modes =
+      List.map2
+        (fun p -> get_parameters_and_modes p)
+        params_decision
+        (Flambda_arity.group_by_parameter
+           (Code_metadata.params_arity code_metadata)
+           (Code_metadata.param_modes code_metadata))
+    in
+    let params = List.map fst params_and_modes in
+    let modes = List.concat_map snd params_and_modes in
     let params_from_closure, code_metadata =
       match
         (* TODO move that in the decisions There should be a single record field
@@ -1730,7 +1754,8 @@ and rebuild_function_params_and_body (env : env) res code_metadata
     in
     let code_metadata =
       Code_metadata.with_never_called_indirectly true
-        (Code_metadata.with_params_arity params_arity code_metadata)
+        (Code_metadata.with_params_arity params_arity
+           (Code_metadata.with_param_modes modes code_metadata))
     in
     let body, res = rebuild_body () in
     (* Format.eprintf "REBUILD %a FREE %a@." Code_id.print code_id
@@ -1836,8 +1861,7 @@ let rebuild ~(code_deps : Traverse_acc.code_dep Code_id.Map.t)
         let is_var_used =
           raw_is_var_used solved_dep param (K.With_subkind.kind kind)
         in
-        (* XXX what should happen to this "if"? *)
-        if true || is_var_used then Keep (param, kind) else Delete
+        if is_var_used then Keep (param, kind) else Delete
       | Some fields -> Unbox fields
   in
   let function_params_to_keep =
