@@ -106,8 +106,11 @@ let rebuild_arm uacc arm (action, use_id, arity, env_at_use)
           | Non_inlinable_zero_arity { handler = Known handler } ->
             check_handler ~handler ~action
           | Non_inlinable_zero_arity { handler = Unknown } -> Some action
-          | Invalid _ | Toplevel_or_function_return_or_exn_continuation _ ->
-            None
+          | Invalid _ -> None
+          | Toplevel_or_function_return_or_exn_continuation _ ->
+            (* It is legal to call a return continuation with zero arguments; it
+               might originally have had layout [void] *)
+            Some action
           | Non_inlinable_non_zero_arity _ ->
             Misc.fatal_errorf
               "Inconsistency for %a between [Apply_cont.is_goto] and \
