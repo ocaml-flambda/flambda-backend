@@ -1422,6 +1422,8 @@ let rec transl_mixed_product_shape ~get_value_kind shape =
     | Vec128 -> Vec128
     | Word -> Word
     | Product shapes ->
+      (* CR mshinwell: This [get_value_kind] override is a bit odd, maybe this
+         could be improved in the future (same below). *)
       let get_value_kind _ = generic_value in
       Product (transl_mixed_product_shape ~get_value_kind shapes)
   ) shape
@@ -1870,6 +1872,8 @@ let primitive_may_allocate : primitive -> locality_mode option = function
       | Vec128
       | Word
       | Product _ -> None
+
+      (* XXX *)
     )
   | Pmixedfield (_, _shape, _) -> assert false
   | Psetfloatfield _ -> None
@@ -2305,8 +2309,7 @@ let primitive_result_layout (p : primitive) =
   | Punbox_float f -> layout_unboxed_float (Primitive.unboxed_float f)
   | Pbox_vector (v, _) -> layout_boxed_vector v
   | Punbox_vector v -> layout_unboxed_vector (Primitive.unboxed_vector v)
-  | Pmixedfield ([i], shape, _) -> layout_of_mixed_block_element shape.(i)
-  | Pmixedfield (_, _shape, _) -> assert false
+  | Pmixedfield (path, shape, _) -> layout_of_mixed_block_element shape path
   | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_extern_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot
