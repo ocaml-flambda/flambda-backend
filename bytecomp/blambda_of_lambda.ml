@@ -411,22 +411,21 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
          `Getfield (idxn, [... Getfield (idx1, [Getfield (idx0, [block])])])` *)
       List.fold_left
         (fun expr idx -> Blambda.Prim (Getfield idx, [expr]))
-        (unary (Getfield hd))
-        tl
+        (unary (Getfield hd)) tl
     | Psetmixedfield ([], _, _) -> assert false
     | Psetmixedfield ([n], _, _) ->
       (* See the comment in the [Pmixedfield] case. *)
       binary (Setfield n)
-    | Psetmixedfield (path, _, _) ->
+    | Psetmixedfield (path, _, _) -> (
       (* `Psetmixedfield ([idx0, idx1, ..., idxn], [block; value])` is compiled to
          `Setfield (idxn, [... Getfield (idx1, [Getfield (idx0, [block])]); value])` *)
-      begin match args with
+      match args with
       | [] | [_] | _ :: _ :: _ :: _ -> wrong_arity ~expected:2
-      | [block; value] ->
-        begin match List.rev path with
+      | [block; value] -> (
+        match List.rev path with
         | [] -> assert false
-        | last :: rest ->
-          begin match List.rev rest with
+        | last :: rest -> (
+          match List.rev rest with
           | [] -> assert false
           | hd :: tl ->
             let block =
@@ -435,10 +434,7 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
                 (Blambda.Prim (Getfield hd, [comp_arg block]))
                 tl
             in
-            Blambda.Prim (Setfield last, [block; comp_arg value])
-          end
-        end
-      end
+            Blambda.Prim (Setfield last, [block; comp_arg value]))))
     | Pduprecord _ -> unary (Ccall "caml_obj_dup")
     | Pccall p -> n_ary (Ccall p.prim_name) ~arity:p.prim_arity
     | Pperform -> context_switch Perform ~arity:1
