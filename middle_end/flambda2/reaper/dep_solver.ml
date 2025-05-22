@@ -100,46 +100,46 @@ let rel3 name schema =
   let r = Datalog.create_relation ~name schema in
   fun x y z -> Datalog.atom r [x; y; z]
 
-let usages_rel = rel2 "usages" Cols.[n; n]
 (** [usages x y] y is an alias of x, and there is an actual use for y *)
+let usages_rel = rel2 "usages" Cols.[n; n]
 
-let used_fields_rel = rel3 "used_fields" Cols.[n; f; n]
 (** [used_fields x f y] y is an use of the field f of x
     and there is an actual use for y.
     Exists only if [accessor y f x].
     (this avoids the quadratic blowup of building the complete alias graph)
 *)
+let used_fields_rel = rel3 "used_fields" Cols.[n; f; n]
 
-let _used_pred = Global_flow_graph.used_pred
 (** [used x] x is used in an uncontrolled way *)
+let _used_pred = Global_flow_graph.used_pred
 
-let used_fields_top_rel = rel2 "used_fields_top" Cols.[n; f]
 (** [used_fields_top x f] the field f of x is used in an uncontroled way.
     It could be for instance, a value escaping the current compilation unit,
     or passed as argument to an non axiomatized function or primitive.
     Exists only if [accessor y f x] for some y.
     (this avoids propagating large number of fields properties on many variables)
 *)
+let used_fields_top_rel = rel2 "used_fields_top" Cols.[n; f]
 
-let sources_rel = rel2 "sources" Cols.[n; n]
 (** [sources x y] y is a source of x, and there is an actual source for y *)
+let sources_rel = rel2 "sources" Cols.[n; n]
 
-let any_source_pred = rel1 "any_source" Cols.[n]
 (** [any_source x] the special extern value 'any_source' is a source of x
     it represents the top for the sources.
     It can be produced for instance by an argument from an escaping function
     or the result of non axiomatized primitives and external symbols.
     Right now functions coming from other files are considered unknown *)
+let any_source_pred = rel1 "any_source" Cols.[n]
 
-let field_sources_rel = rel3 "field_sources" Cols.[n; f; n]
 (** [field_sources x f y] y is a source of the field f of x,
     and there is an actual source for y.
     Exists only if [constructor x f y].
     (this avoids the quadratic blowup of building the complete alias graph)
 *)
+let field_sources_rel = rel3 "field_sources" Cols.[n; f; n]
 
-let field_top_sources_rel = rel2 "field_top_sources" Cols.[n; f]
 (** [field_top_sources x f] the special extern value is a source for the field f of x *)
+let field_top_sources_rel = rel2 "field_top_sources" Cols.[n; f]
 (* CR pchambart: is there a reason why this is called top an not any source ? *)
 
 let cofield_sources_rel = rel3 "cofield_sources" Cols.[n; cf; n]
@@ -184,9 +184,8 @@ let datalog_schedule =
   let open Global_flow_graph in
   let open! Syntax in
   (* Reverse relations, because datalog does not implement a more efficient
-     representation yet.
-     Datalog iterates on the first key of a relation first. those reversed
-     relations allows to select a different key. *)
+     representation yet. Datalog iterates on the first key of a relation first.
+     those reversed relations allows to select a different key. *)
   let rev_alias =
     let$ [to_; from] = ["to_"; "from"] in
     [alias_rel to_ from] ==> rev_alias_rel from to_
@@ -952,8 +951,8 @@ let datalog_rules =
        "indirect1"; "indirect2" ] in [ rev_accessor_rel set_of_closures coderel
        indirect_call_witness; filter_field is_code_field coderel; used_pred
        indirect_call_witness; sources_rel indirect_call_witness indirect1;
-       sources_rel indirect_call_witness indirect2; distinct indirect1
-       indirect2 ] ==> cannot_change_calling_convention indirect1); *)
+       sources_rel indirect_call_witness indirect2; distinct indirect1 indirect2
+       ] ==> cannot_change_calling_convention indirect1); *)
     (* CR ncourant: we need to either check this is a total application or
        introduce wrappers when rebuilding *)
     (* (let$ [set_of_closures; coderel; calls_not_pure_witness; indirect] =
