@@ -21,7 +21,7 @@ works.
 
 ## The `value_or_null` layout
 
-The key observation powering or_null is that no ordinary OCaml value equals the
+The key observation powering `or_null` is that no ordinary OCaml value equals the
 word 0. A valid pointer will always be non-null, and an immediate (represented
 as a tagged integer) will always have its bottom bit set. Thus, all are
 different from 0. Therefore, we can safely update the garbage collector not to
