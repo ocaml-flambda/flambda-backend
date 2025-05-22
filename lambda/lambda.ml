@@ -1432,6 +1432,21 @@ let rec transl_mixed_product_shape ~get_value_kind shape =
       Product (transl_mixed_product_shape ~get_value_kind shapes)
   ) shape
 
+let transl_mixed_block_element :
+  Types.mixed_block_element -> unit mixed_block_element
+ = function
+  | Value -> Value generic_value
+  | Float_boxed -> Float_boxed ()
+  | Float64 -> Float64
+  | Float32 -> Float32
+  | Bits32 -> Bits32
+  | Bits64 -> Bits64
+  | Vec128 -> Vec128
+  | Word -> Word
+  | Product shapes ->
+    let get_value_kind _ = generic_value in
+    Product (transl_mixed_product_shape ~get_value_kind shapes)
+
 let rec transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shape =
   Array.mapi (fun i (elt : Types.mixed_block_element) ->
     match elt with

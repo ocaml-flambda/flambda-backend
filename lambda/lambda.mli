@@ -578,6 +578,9 @@ val generic_value : value_kind
 *)
 val layout_of_extern_repr : extern_repr -> layout
 
+(* Used for ... CR jrayman *)
+val layout_of_mixed_block_element : 'a. 'a mixed_block_element -> layout
+
 type structured_constant =
     Const_base of constant
   | Const_block of int * structured_constant list
@@ -1087,6 +1090,9 @@ val transl_address : scoped_location -> Persistent_env.address -> lambda
 val transl_mixed_product_shape :
   get_value_kind:(int -> value_kind)
   -> Types.mixed_product_shape -> mixed_block_shape
+
+val transl_mixed_block_element :
+  Types.mixed_block_element -> unit mixed_block_element
 
 val transl_mixed_product_shape_for_read :
   get_value_kind:(int -> value_kind) -> get_mode:(int -> locality_mode)

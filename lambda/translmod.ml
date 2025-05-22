@@ -119,12 +119,13 @@ let rec apply_coercion loc strict restr arg =
           else
             Lprim(mod_field pos,[Lvar id], loc)
         in
+        let get_layout _pos = Lambda.layout_module_field in
         let lam =
           Lprim(Pmakeblock(0, Immutable, None, alloc_heap),
-                List.map (apply_coercion_field loc get_field) pos_cc_list,
-                loc)
+                List.map (apply_coercion_field loc get_field)
+                pos_cc_list, loc)
         in
-        wrap_id_pos_list loc id_pos_list get_field lam)
+        wrap_id_pos_list loc id_pos_list get_field get_layout lam)
   | Tcoerce_functor(cc_arg, cc_res) ->
       let param = Ident.create_local "funarg" in
       let param_duid = Lambda.debug_uid_none in
@@ -189,7 +190,7 @@ and apply_coercion_result loc strict funct params args cc_res =
                       ap_probe=None;
                     })))
 
-and wrap_id_pos_list loc id_pos_list get_field lam =
+and wrap_id_pos_list loc id_pos_list get_field get_layout lam =
   let fv = free_variables lam in
   (*Format.eprintf "%a@." Printlambda.lambda lam;
   Ident.Set.iter (fun id -> Format.eprintf "%a " Ident.print id) fv;
@@ -200,8 +201,9 @@ and wrap_id_pos_list loc id_pos_list get_field lam =
         let id'' = Ident.create_local (Ident.name id') in
         let id''_duid = Lambda.debug_uid_none in
         let rhs = apply_coercion loc Alias c (get_field pos) in
+        let rhs_layout = get_layout pos in
         let fv_rhs = free_variables rhs in
-        (Llet(Alias, Lambda.layout_module_field, id'', id''_duid, rhs, lam),
+        (Llet(Alias, rhs_layout, id'', id''_duid, rhs, lam),
          Ident.Set.union fv fv_rhs,
          Ident.Map.add id' id'' s)
       else (lam, fv, s))
@@ -650,13 +652,15 @@ and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
     [] ->
       let body, size =
         (* CR jrayman: copied from layout_of_const_sort_generic. Should
-          * we check for language extensions? Should we throw errors?
-          * Also, I doubt here is the best place to put this function. Any
-          * suggestions for where I should put it? *)
+         * we check for language extensions? Should we throw errors?
+         * Also, I doubt here is the best place to put this function. Any
+         * suggestions for where I should put it?
+         * Also rename. It does not return a shape. *)
         let rec shape_of_sort : Jkind.Sort.Const.t
                               -> Types.mixed_block_element =
           function
-          | Base Void -> failwith "How should Void be handled?"
+          | Base Void -> fatal_error "Translmod.transl_structure: \
+            tried to convert Void to layout"
           | Base Value -> Value
           | Base Bits32 -> Bits32
           | Base Bits64 -> Bits64
@@ -667,12 +671,7 @@ and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
           | Product sorts ->
             Product (Array.map shape_of_sort (Array.of_list sorts))
         in
-        let shape =
-          Array.map shape_of_sort
-            (Array.of_list
-              (List.map Jkind.Sort.default_for_transl_and_get sorts))
-        in
-        let block =
+        let block_of ~shape =
           if Array.for_all (equal_mixed_block_element Value) shape
           then Pmakeblock(0, Immutable, None, alloc_heap)
           else
@@ -683,25 +682,34 @@ and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
             in
             Pmakemixedblock(0, Immutable, shape, alloc_heap)
         in
+        let shape = Array.map shape_of_sort (Array.of_list sorts)
+        in
         match cc with
           Tcoerce_none ->
-            Lprim(block, List.map (fun id -> Lvar id) (List.rev fields), loc),
+            Lprim(block_of ~shape,
+              List.map (fun id -> Lvar id) (List.rev fields), loc),
               List.length fields
         | Tcoerce_structure(pos_cc_list, id_pos_list) ->
-            (* CR jrayman: need mixed block here too *)
                 (* Do not ignore id_pos_list ! *)
             (*Format.eprintf "%a@.@[" Includemod.print_coercion cc;
             List.iter (fun l -> Format.eprintf "%a@ " Ident.print l)
               fields;
             Format.eprintf "@]@.";*)
             let v = Array.of_list (List.rev fields) in
+            let sort_v = Array.of_list (List.rev sorts) in
             let get_field pos =
               if pos < 0 then lambda_unit
               else Lvar v.(pos)
             in
+            let get_layout pos =
+              if pos < 0 then Lambda.layout_module_field
+              else Lambda.layout_of_mixed_block_element
+                (Lambda.transl_mixed_block_element
+                  (shape_of_sort sort_v.(pos)))
+            in
             let ids = List.fold_right Ident.Set.add fields Ident.Set.empty in
             let lam =
-              Lprim(block,
+              Lprim(block_of ~shape,
                   List.map
                     (fun (pos, cc) ->
                       match cc with
@@ -718,7 +726,7 @@ and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
               List.filter (fun (id,_,_) -> not (Ident.Set.mem id ids))
                 id_pos_list
             in
-            wrap_id_pos_list loc id_pos_list get_field lam,
+            wrap_id_pos_list loc id_pos_list get_field get_layout lam,
               List.length pos_cc_list
         | _ ->
             fatal_error "Translmod.transl_structure"
@@ -755,7 +763,10 @@ and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
           in
           let ext_sorts =
             List.rev_append
-              (List.map (fun vb -> vb.vb_sort) pat_expr_list) sorts
+              (List.map
+                (fun vb -> vb.vb_sort
+                  |> Jkind.Sort.default_for_transl_and_get)
+                pat_expr_list) sorts
           in
           (* Then, translate remainder of struct *)
           let body, size =
@@ -771,7 +782,7 @@ and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
       | Tstr_typext(tyext) ->
           let ids = List.map (fun ext -> ext.ext_id) tyext.tyext_constructors in
           let new_sorts =
-            List.map (fun _ -> Jkind.Sort.value) ids
+            List.map (fun _ -> Jkind.Sort.Const.value) ids
           in
           let body, size =
             transl_structure ~scopes loc (List.rev_append ids fields)
@@ -784,8 +795,8 @@ and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
           (* CR sspies: Can we find a better [debug_uid] here? *)
           let path = field_path rootpath id in
           let body, size =
-            transl_structure ~scopes loc (id::fields) (Jkind.Sort.value::sorts)
-              cc rootpath final_env rem
+            transl_structure ~scopes loc (id::fields)
+              (Jkind.Sort.Const.value::sorts) cc rootpath final_env rem
           in
           Llet(Strict, Lambda.layout_block, id, id_duid,
                transl_extension_constructor ~scopes
@@ -796,7 +807,7 @@ and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
       | Tstr_module ({mb_presence=Mp_present} as mb) ->
           let id = mb.mb_id in
           let id_duid = mb.mb_uid in
-          let sort = Option.map (fun _ -> Jkind.Sort.value) id in
+          let sort = Option.map (fun _ -> Jkind.Sort.Const.value) id in
           (* Translate module first *)
           let subscopes = match id with
             | None -> scopes
@@ -829,7 +840,7 @@ and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
       | Tstr_recmodule bindings ->
           let ids = List.filter_map (fun mb -> mb.mb_id) bindings in
           let new_sorts =
-            List.map (fun _ -> Jkind.Sort.value) ids
+            List.map (fun _ -> Jkind.Sort.Const.value) ids
           in
           let body, size =
             transl_structure ~scopes loc (List.rev_append ids fields)
@@ -849,7 +860,7 @@ and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
       | Tstr_class cl_list ->
           let (ids, class_bindings) = transl_class_bindings ~scopes cl_list in
           let new_sorts =
-            List.map (fun _ -> Jkind.Sort.value) ids
+            List.map (fun _ -> Jkind.Sort.Const.value) ids
           in
           let body, size =
             transl_structure ~scopes loc (List.rev_append ids fields)
@@ -868,7 +879,7 @@ and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
             | id :: ids ->
                 let body, size =
                   rebind_idents (pos + 1) (id :: newfields)
-                    (Jkind.Sort.value :: newsorts) ids
+                    (Jkind.Sort.Const.value :: newsorts) ids
                 in
                 let id_duid = Lambda.debug_uid_none in
                 (* CR sspies: Can we find a better [debug_uid] here? *)
@@ -914,7 +925,7 @@ and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
                 | id :: ids ->
                   let body, size =
                     rebind_idents (pos + 1) (id :: newfields)
-                      (Jkind.Sort.value :: newsorts) ids
+                      (Jkind.Sort.Const.value :: newsorts) ids
                   in
                   let id_duid = Lambda.debug_uid_none in
                   (* CR sspies: Can we find a better [debug_uid] here? *)
