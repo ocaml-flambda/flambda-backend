@@ -313,7 +313,7 @@ about its implementation.)
 
 ## Kind annotations on variables
 
-Type variables come in two flavors in OxCaml: rigid and unifiable. Rigid type
+Type variables come in two flavors in OCaml: rigid and unifiable. Rigid type
 variables are explicitly bound before a `.`, as in `let f : 'a 'b. ... = ...` or
 `val f : 'a 'b. ...` or `type t = { f : 'a 'b. ... }`. All other type variables
 are unifiable, including those in type declarations.
