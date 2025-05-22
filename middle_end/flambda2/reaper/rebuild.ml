@@ -286,6 +286,17 @@ let get_simple_kind env simple =
     ~var:(fun var ~coercion:_ -> Name.Map.find (Name.var var) env.kinds)
     simple
 
+let name_poison env name =
+  let kind =
+    match Name.Map.find_opt name env.kinds with
+    | Some k -> k
+    | None ->
+      if Name.is_symbol name
+      then K.value
+      else Misc.fatal_errorf "Unbound name %a" Name.print name
+  in
+  poison kind
+
 let rewrite_simple (env : env) simple =
   Simple.pattern_match simple
     ~name:(fun name ~coercion:_ ->
@@ -295,16 +306,7 @@ let rewrite_simple (env : env) simple =
       then simple (* XXX Misc.fatal_errorf "UNBOXED?? %a@." Name.print name; *)
       else if is_name_used env name
       then simple
-      else
-        let kind =
-          match Name.Map.find_opt name env.kinds with
-          | Some k -> k
-          | None ->
-            if Name.is_symbol name
-            then K.value
-            else Misc.fatal_errorf "Unbound name %a" Name.print name
-        in
-        poison kind)
+      else name_poison env name)
     ~const:(fun _ -> simple)
 
 let rewrite_simple_opt (env : env) = function
@@ -837,7 +839,34 @@ let rebuild_apply env apply =
   | Not_changing_calling_convention ->
     (* Format.eprintf "NOT CHANGING CALLING CONVENTION %a@." Apply.print
        apply; *)
-    let args = List.map (rewrite_simple env) (Apply.args apply) in
+    let callee_with_known_arity =
+      match (call_kind : Call_kind.t) with
+      | Function { function_call = Direct _ | Indirect_known_arity; _ } -> (
+        match Apply.callee apply with
+        | None -> None
+        | Some callee ->
+          Simple.pattern_match callee
+            ~const:(fun _ -> None)
+            ~name:(fun name ~coercion:_ -> Some (Code_id_or_name.name name)))
+      | Function { function_call = Indirect_unknown_arity; _ }
+      | C_call _ | Method _ | Effect _ ->
+        None
+    in
+    let args =
+      List.mapi
+        (fun i arg ->
+          match callee_with_known_arity with
+          | Some callee ->
+            if DS.cofield_has_use env.uses callee
+                 (Param (Direct_code_pointer, i))
+            then arg
+            else
+              Simple.pattern_match arg
+                ~const:(fun _ -> arg)
+                ~name:(fun name ~coercion:_ -> name_poison env name)
+          | None -> rewrite_simple env arg)
+        (Apply.args apply)
+    in
     let args_arity = Apply.args_arity apply in
     let return_arity = Apply.return_arity apply in
     let make_apply =
