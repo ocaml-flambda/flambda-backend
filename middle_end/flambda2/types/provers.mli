@@ -123,7 +123,7 @@ val prove_unique_tag_and_size :
 
 val prove_is_int : Typing_env.t -> Type_grammar.t -> bool proof_of_property
 
-val prove_is_immediate :
+val prove_is_not_a_pointer :
   Typing_env.t -> Type_grammar.t -> bool proof_of_property
 
 val meet_is_int_variant_only :
