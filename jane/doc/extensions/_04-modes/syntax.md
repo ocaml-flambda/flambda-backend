@@ -36,14 +36,6 @@ Modes are in a dedicated namespace separated from variable names or type names,
 which means you can continue to use `local` or `unique` as variable or type
 names.
 
-A mode expression actually contains a specification for each modal axis, whether
-you have written a choice for that axis or not. For axes that are omitted, the
-so-called *legacy* modes are used instead. The legacy modes are as follows:
-
-```ocaml
-global aliased many nonportable uncontended unyielding stateful read_write
-```
-
 It is an error to specify more than one mode along the same axis in one mode
 expression.
 
@@ -68,6 +60,21 @@ following example, `modes` annotates `b -> c`.
 ```ocaml
 a -> (b -> c) @ modes
 ```
+
+All arrow types actually contain choices for all modal axes for both
+the argument and the return value, whether you have written a `@` or
+not. For
+axes that are omitted, the so-called *legacy* modes are used instead. The legacy
+modes are as follows:
+
+```ocaml
+global aliased many nonportable uncontended unyielding stateful read_write
+```
+
+This means that `t1 -> t2` is actually equivalent to
+`t1 @ global aliased ... -> t2 @ global aliased ...`, and that
+`t1 @ local -> t2` is actually equivalent to
+`t1 @ local aliased ... -> t2 @ global aliased ...`.
 
 ## Function parameters
 
@@ -144,7 +151,8 @@ modalities ::= modes
 
 <!-- CR reisenberg: This should be moved to a page about the semantics
 of modalities, instead of here in the syntax page. But we don't have
-such a page now, so it's here for the time being. -->
+such a page now, so it's here for the time being. Include the semantics
+of the modalities on mutable fields when writing that page. -->
 
 Modalities are used to describe the relationship between a container and an
 element in that container; for example, if you have a record field `x` with
