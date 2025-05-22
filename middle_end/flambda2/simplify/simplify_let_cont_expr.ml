@@ -968,13 +968,30 @@ let create_handler_to_rebuild
         (List.length (Bound_parameters.to_list data.invariant_params))
         arg_types_by_use_id
     in
-    let arg_types_by_use_id =
-      arg_types_by_use_id
-      @ arg_types_by_use_id_for_lifting data.lifted_params
-          (Continuation_uses.get_uses uses)
-    in
-    Unbox_continuation_params.compute_extra_params_and_args
-      handler.unbox_decisions ~arg_types_by_use_id handler.extra_params_and_args
+    match handler.original with
+    | Non_rec _ ->
+        (* For non-rec continuations, we need to add the lifted params,
+           since the unboxing decision was made while taking those into account *)
+        let arg_types_by_use_id =
+          arg_types_by_use_id
+          @ arg_types_by_use_id_for_lifting data.lifted_params
+            (Continuation_uses.get_uses uses)
+        in
+        Unbox_continuation_params.compute_extra_params_and_args
+          handler.unbox_decisions ~arg_types_by_use_id handler.extra_params_and_args
+    | Rec _ ->
+      (* In the recursive case, we must *not* add the lifted params, since they ahve already
+         been added when making the unboxing decisions on the invariant params, and this decision
+         as well as the extra args required have all been put into the EPA for invariant params
+         (this is why the unboxing decision for invariant params is not propagated up to here) *)
+        if (match Sys.getenv_opt "FOO" with Some _ -> true | _ -> false) then
+          Format.eprintf "*** CREATE HANDLER TO REBUILD ***@\ncont: %a@\nunboxing_decisions: %a@\ninvariant arg types: [%a]@\n@."
+            Continuation.print cont
+            Unbox_continuation_params.Decisions.print handler.unbox_decisions
+            (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") (Apply_cont_rewrite_id.Map.print Continuation_uses.print_arg_type_at_use)) arg_types_by_use_id
+        ;
+        Unbox_continuation_params.compute_extra_params_and_args
+          handler.unbox_decisions ~arg_types_by_use_id handler.extra_params_and_args
   in
   { params = handler.params;
     rebuild_handler = handler.rebuild_handler;
@@ -1030,7 +1047,9 @@ let rec compute_specialized_continuation ~replay ~simplify_expr ~original_cont
   let cont = Continuation.rename original_cont in
   (* Compute the specialized handler *)
   match handler.original with
-  | Rec _ -> assert false (* TODO: fatal error *)
+  | Rec one_rec_handler ->
+    Misc.fatal_errorf "Cannot specialize recursive continuation: %a"
+      One_recursive_handler.print one_rec_handler
   | Non_rec original ->
     let original = Non_recursive_handler.rename_params original in
     let is_recursive = false in
@@ -1254,10 +1273,6 @@ and after_downwards_traversal_of_body_and_handlers ~simplify_expr ~denv_for_join
         }
       in
       down_to_up dacc ~rebuild:(prepare_to_rebuild_handlers data))
-
-and pp_replay ppf = function
-  | None -> Format.fprintf ppf "<none>"
-  | Some (replay, _) -> Replay_history.print ppf replay
 
 and prepare_dacc_for_handlers dacc ~replay ~env_at_fork ~params ~is_recursive
     ~consts_lifted_after_fork continuation_sort is_exn_handler_cont uses
@@ -1641,18 +1656,23 @@ and simplify_handlers ~simplify_expr ~down_to_up ~denv_for_join ~rebuild_body
       Continuation_uses.get_arg_types_by_use_id_for_invariant_params arity
         all_uses
     in
+    let uses = List.concat_map Continuation_uses.get_uses all_uses in
     let dacc, unbox_decisions, is_exn_handler, extra_params_and_args =
       prepare_dacc_for_handlers dacc ~env_at_fork:denv ~params:invariant_params
         ~lifted_params ~is_recursive:true ~replay:None
         ~consts_lifted_after_fork:consts_lifted_during_body
         (Normal_or_exn : Continuation.Sort.t)
-        None
-        (List.concat_map Continuation_uses.get_uses all_uses)
+        None uses
         ~arg_types_by_use_id
+    in
+    let arg_types_by_use_id_including_lifted =
+      arg_types_by_use_id
+      @ arg_types_by_use_id_for_lifting lifted_params uses
     in
     let invariant_epa =
       Unbox_continuation_params.compute_extra_params_and_args unbox_decisions
-        ~arg_types_by_use_id extra_params_and_args
+        extra_params_and_args
+        ~arg_types_by_use_id:arg_types_by_use_id_including_lifted
     in
     let common_denv = DA.denv dacc in
     assert (not is_exn_handler);
@@ -1785,9 +1805,36 @@ let simplify_let_cont0 ~(simplify_expr : _ Simplify_common.expr_simplifier) dacc
           Non_recursive_handler.with_handler new_handler non_rec_handler
         in
         Original_handlers.create_non_recursive new_non_rec_handler
-      | Recursive _ ->
-        (* TODO: handle these *)
-        assert false)
+      | Recursive { invariant_params; lifted_params; continuation_handlers; } ->
+        assert (Lifted_cont_params.is_empty lifted_params);
+        let continuation_handlers =
+          Continuation.Lmap.mapi (fun cont (one_recursive_handler : One_recursive_handler.t) ->
+              let lifted_cont =
+                Continuation.Map.find cont continuation_mapping
+              in
+              let new_handler =
+                let args =
+                  List.map
+                    (fun bp -> Simple.var (Bound_parameter.var bp))
+                    (Bound_parameters.to_list invariant_params @
+                     Bound_parameters.to_list one_recursive_handler.params)
+                in
+                let apply_cont =
+                  Apply_cont.create lifted_cont ~dbg:Debuginfo.none ~args
+                in
+                Flambda.Expr.create_apply_cont apply_cont
+              in
+              One_recursive_handler.with_handler new_handler one_recursive_handler
+            ) continuation_handlers
+        in
+        let ret = Original_handlers.create_recursive
+            ~invariant_params
+            ~lifted_params ~continuation_handlers
+        in
+        Format.eprintf "*** REC CONT LIFTED ***@\noriginal: %a@\nnew: %a@\n@."
+          Original_handlers.print data.handlers Original_handlers.print ret;
+        ret
+    )
   in
   let dacc = DA.with_denv dacc denv_for_body in
   let body = data.body in

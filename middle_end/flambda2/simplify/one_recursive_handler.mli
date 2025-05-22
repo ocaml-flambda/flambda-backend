@@ -23,3 +23,6 @@ val create :
   params:Bound_parameters.t -> handler:Flambda.Expr.t -> is_cold:bool -> t
 
 val print : Format.formatter -> t -> unit
+
+val with_handler : Flambda.Expr.t -> t -> t
+
