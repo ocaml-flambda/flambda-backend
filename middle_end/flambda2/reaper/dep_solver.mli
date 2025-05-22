@@ -55,6 +55,9 @@ val has_source : result -> Code_id_or_name.t -> bool
 val field_used :
   result -> Code_id_or_name.t -> Global_flow_graph.Field.t -> bool
 
+val cofield_has_use :
+  result -> Code_id_or_name.t -> Global_flow_graph.CoField.t -> bool
+
 val not_local_field_has_source :
   result -> Code_id_or_name.t -> Global_flow_graph.Field.t -> bool
 

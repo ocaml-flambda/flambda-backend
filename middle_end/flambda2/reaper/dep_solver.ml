@@ -671,6 +671,17 @@ let has_source =
     exists_with_parameters any_source_query [x] db
     || exists_with_parameters has_source_query [x] db
 
+let cofield_has_use =
+  let open! Global_flow_graph in
+  let cofield_query =
+    mk_exists_query ["X"; "F"] ["S"; "T"] (fun [x; f] [s; t] ->
+        [sources_rel x s; cofield_sources_rel s f t])
+  in
+  fun db x cofield ->
+    let cofield = CoField.encode cofield in
+    exists_with_parameters any_source_query [x] db
+    || exists_with_parameters cofield_query [x; cofield] db
+
 (* CR pchambart: Should rename to remove not local in the name (the notion does
    not exists right now)*)
 let not_local_field_has_source =
@@ -1034,6 +1045,11 @@ let datalog_rules =
        constructor_rel call_witness code_id_of_witness codeid;
        cannot_change_calling_convention codeid ]
      ==> cannot_unbox0 allocation_id);
+    (* CR ncourant: note that this can fail to trigger if the alias is
+       any_source but has no use! This is not a problem but makes it necessary
+       to delete unused params in calls. In the future, we could modify this
+       check to ensure it only triggers if the variable is indeed used, allowing
+       slightly more unboxing. *)
     (let$ [ alias;
             allocation_id;
             relation;
@@ -1434,6 +1450,8 @@ let get_changed_representation uses cn =
 let has_use uses v = has_use uses.db v
 
 let field_used uses v f = field_used uses.db v f
+
+let cofield_has_use uses v f = cofield_has_use uses.db v f
 
 let has_source uses v = has_source uses.db v
 
