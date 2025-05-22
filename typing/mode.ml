@@ -335,6 +335,7 @@ module Lattices = struct
 
   module Yielding = struct
     type t =
+      | Switching
       | Yielding
       | Unyielding
 
@@ -343,32 +344,32 @@ module Lattices = struct
 
       let min = Unyielding
 
-      let max = Yielding
+      let max = Switching
 
       let legacy = Unyielding
 
       let[@inline] le a b =
         match a, b with
-        | Unyielding, _ | _, Yielding -> true
-        | Yielding, Unyielding -> false
-
-      let[@inline] equal a b =
-        match a, b with
+        | Unyielding, _ | _, Switching -> true
+        | Switching, _ | _, Unyielding -> false
         | Yielding, Yielding -> true
-        | Unyielding, Unyielding -> true
-        | Yielding, Unyielding | Unyielding, Yielding -> false
+
+      let[@inline] equal a b = a = b
 
       let join a b =
         match a, b with
+        | Switching, _ | _, Switching -> Switching
         | Yielding, _ | _, Yielding -> Yielding
         | Unyielding, Unyielding -> Unyielding
 
       let meet a b =
         match a, b with
         | Unyielding, _ | _, Unyielding -> Unyielding
-        | Yielding, Yielding -> Yielding
+        | Yielding, _ | _, Yielding -> Yielding
+        | Switching, Switching -> Switching
 
       let print ppf = function
+        | Switching -> Format.fprintf ppf "switching"
         | Yielding -> Format.fprintf ppf "yielding"
         | Unyielding -> Format.fprintf ppf "unyielding"
     end)
@@ -2059,6 +2060,8 @@ module Yielding = struct
   end
 
   include Comonadic_gen (Obj)
+
+  let switching = of_const Switching
 
   let yielding = of_const Yielding
 

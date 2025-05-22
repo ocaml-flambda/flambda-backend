@@ -59,6 +59,8 @@ module Axis_pair = struct
     | "external64" ->
       Any_axis_pair (Nonmodal Externality, Externality.External64)
     | "external_" -> Any_axis_pair (Nonmodal Externality, Externality.External)
+    | "switching" ->
+      Any_axis_pair (Modal (Comonadic Yielding), Yielding.Const.Switching)
     | "yielding" ->
       Any_axis_pair (Modal (Comonadic Yielding), Yielding.Const.Yielding)
     | "unyielding" ->
@@ -292,7 +294,7 @@ let default_mode_annots (annots : Alloc.Const.Option.t) =
     match annots.yielding, annots.areality with
     | (Some _ as y), _ | y, None -> y
     | None, Some Locality.Const.Global -> Some Yielding.Const.Unyielding
-    | None, Some Locality.Const.Local -> Some Yielding.Const.Yielding
+    | None, Some Locality.Const.Local -> Some Yielding.Const.Switching
   in
   (* Likewise for [contention]. *)
   let contention =
@@ -349,7 +351,7 @@ let untransl_mode_annots (modes : Mode.Alloc.Const.Option.t) =
     (* Since [yielding] has non-standard defaults, we special-case
        whether we want to print it here. *)
     match modes.yielding, modes.areality with
-    | Some Yielding.Const.Yielding, Some Locality.Const.Local
+    | Some Yielding.Const.Switching, Some Locality.Const.Local
     | Some Yielding.Const.Unyielding, Some Locality.Const.Global ->
       None
     | _, _ -> print_to_string_opt Mode.Yielding.Const.print modes.yielding
@@ -442,6 +444,8 @@ let untransl_modality (a : Modality.t) : Parsetree.modality loc =
     | Atom (Monadic Contention, Join_with Contention.Const.Shared) -> "shared"
     | Atom (Monadic Contention, Join_with Contention.Const.Uncontended) ->
       "uncontended"
+    | Atom (Comonadic Yielding, Meet_with Yielding.Const.Switching) ->
+      "switching"
     | Atom (Comonadic Yielding, Meet_with Yielding.Const.Yielding) -> "yielding"
     | Atom (Comonadic Yielding, Meet_with Yielding.Const.Unyielding) ->
       "unyielding"
@@ -502,7 +506,7 @@ let implied_modalities (Atom (ax, a) : Modality.t) : Modality.t list =
     let b : Yielding.Const.t =
       match a with
       | Global -> Unyielding
-      | Local -> Yielding
+      | Local -> Switching
       | Regional -> assert false
     in
     [Atom (Comonadic Yielding, Meet_with b)]
