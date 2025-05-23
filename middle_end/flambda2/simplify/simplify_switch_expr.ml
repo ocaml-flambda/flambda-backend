@@ -657,7 +657,7 @@ let simplify_switch0 dacc switch ~down_to_up =
           if (not is_lifting_allowed_by_budget)
              || not is_specialization_allowed_by_budget
           then dacc
-          else (
+          else
             (* TODO/FIXME: implement an actual criterion for when to lift
                continuations and specialize them. Currently for testing, we lift
                any continuation that occurs in a handler that ends with a switch
@@ -675,7 +675,7 @@ let simplify_switch0 dacc switch ~down_to_up =
                 (Are_lifting_conts.lift_continuations_out_of continuation)
             in
             let dacc = DA.add_continuation_to_specialize dacc continuation in
-            dacc))
+            dacc)
   in
   down_to_up dacc
     ~rebuild:

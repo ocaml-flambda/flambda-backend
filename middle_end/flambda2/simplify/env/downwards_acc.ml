@@ -322,8 +322,7 @@ let reset_continuation_specialization_budget t =
 
 let decrease_continuation_specialization_budget t cost =
   if t.continuation_specialization_budget < 0
-  then (
-    t)
+  then t
   else
     let budget = max 0 (t.continuation_specialization_budget - cost) in
     with_continuation_specialization_budget t budget
