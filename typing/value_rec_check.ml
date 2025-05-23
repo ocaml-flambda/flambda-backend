@@ -745,7 +745,8 @@ let rec expression : Typedtree.expression -> term_judg =
                  | Value | Float_boxed -> Guard
                  | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word
                  | Product _ ->
-                   Dereference))
+                   Dereference
+                | Void -> Return))
       in
       let arg i e = expression e << arg_mode i in
       join [
@@ -772,7 +773,8 @@ let rec expression : Typedtree.expression -> term_judg =
              | Value | Float_boxed -> Guard
              | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word
              | Product _ ->
-               Dereference)
+               Dereference
+             | Void -> Return)
         in
         let field (label, field_def) =
           let env =

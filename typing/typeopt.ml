@@ -643,6 +643,7 @@ and value_kind_mixed_block_field env ~loc ~visited ~depth ~num_nodes_visited
       ) num_nodes_visited fs
     in
     num_nodes_visited, Product kinds
+  | Void -> num_nodes_visited, Product [||]
 
 and value_kind_mixed_block
       env ~loc ~visited ~depth ~num_nodes_visited ~shape types =

@@ -1433,6 +1433,7 @@ let rec transl_mixed_product_shape ~get_value_kind shape =
          could be improved in the future (same below). *)
       let get_value_kind _ = generic_value in
       Product (transl_mixed_product_shape ~get_value_kind shapes)
+    | Void -> Product [||]
   ) shape
 
 let rec transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shape =
@@ -1450,6 +1451,7 @@ let rec transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shape =
       let get_value_kind _ = generic_value in
       Product
         (transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shapes)
+    | Void -> Product [||]
   ) shape
 
 (* Compile a sequence of expressions *)
