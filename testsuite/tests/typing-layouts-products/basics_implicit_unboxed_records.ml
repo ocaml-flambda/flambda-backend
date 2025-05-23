@@ -340,6 +340,7 @@ Line 5, characters 18-20:
 5 |   type nonrec u = t#
                       ^^
 Error: The type "t" has no unboxed version.
+Hint: It is already an unboxed record.
 |}]
 
 (*************************************)
