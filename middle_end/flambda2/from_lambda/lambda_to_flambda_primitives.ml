@@ -1967,6 +1967,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         (Block_load { kind = block_access; mut = mutability; field = imm }, arg)
     ]
   | Pmixedfield (field_path, shape, sem), [[arg]] ->
+    if List.length field_path < 1
+    then Misc.fatal_error "Pmixedfield: field_path must be non-empty";
     let shape =
       Mixed_block_shape.of_mixed_block_elements shape
         ~print_locality:Printlambda.locality_mode
@@ -2047,6 +2049,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           value ) ]
   | ( Psetmixedfield (field_path, shape, initialization_or_assignment),
       [[block]; values] ) ->
+    if List.length field_path < 1
+    then Misc.fatal_error "Psetmixedfield: field_path must be non-empty";
     let shape =
       Mixed_block_shape.of_mixed_block_elements shape
         ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
