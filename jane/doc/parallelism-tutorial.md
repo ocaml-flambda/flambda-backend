@@ -148,7 +148,7 @@ module Tree = struct
 end
 
 let average (tree : float Tree.t) =
-  let rec total tree =
+  let rec total tree : total:float * count:int =
     match tree with
     | Tree.Leaf x -> ~total:x, ~count:1
     | Tree.Node (l, r) ->
@@ -171,7 +171,7 @@ We can use `fork_join2` to parallelize `average`:
 <a id="listing-average_par"></a>
 ```ocaml
 let average_par (par : Parallel.t) tree =
-  let rec total par tree =
+  let rec total par tree : total:float * count:int =
     match tree with
     | Tree.Leaf x -> ~total:x, ~count:1
     | Tree.Node (l, r) ->
@@ -220,7 +220,7 @@ All we have to do to sum over the prices in a `Thing.t Tree.t` is change the
 `Tree.Leaf` case:
 
 ```diff
-  let rec total par tree =
+  let rec total par tree : total:float * count:int =
     match tree with
 -   | Tree.Leaf x -> ~total:x, ~count:1
 +   | Tree.Leaf x -> ~total:(Thing.price x), ~count:1
@@ -286,6 +286,25 @@ this can be read as saying:
 
 That's enough to let `average_par_things` go through: from there, the compiler
 infers the safety properties that `Parallel.fork_join2` demands.
+
+If you modify our test code to run `average_par_things` on a test tree like
+
+```ocaml
+let test_tree =
+  Tree.Node
+    ( Leaf (Thing.create ~price:3.0 ~mood:Happy)
+    , Leaf (Thing.create ~price:4.0 ~mood:Sad) )
+```
+
+then you'll find yourself needing to make one more change to `thing.mli`:
+
+```ocaml
+val create : price:float -> mood:Mood.t -> t @ portable @@ portable
+```
+
+This says somewhat tediously that `create` both _returns_ something `portable`
+and _is itself_ `portable`. Fortunately, we'll see in the section on
+[niceties](#niceties) that both of these can be made implicit.
 
 Adding `portable` and `contended` to your .mli files can take some work, but
 over the next few sections we'll cover what exactly the modes mean, what the
@@ -475,6 +494,29 @@ for instance, we say that `t_in_a_trenchcoat.inner_t` is `contended` when
 
 [rule 1]: #rule-contended-parallel
 
+Now, you may be surprised to see that projecting a field from a `contended`
+record gives a `contended` value. After all, we have the function:
+
+```ocaml
+let price t = t.price
+```
+
+and we stated that its type is:
+
+```ocaml
+val price : t @ contended -> float @@ portable
+```
+
+Shouldn't the returned value be `contended`? In other circumstances it would: if
+you try changing the `float` in the definition of `t` to a `float ref` then
+you'll find you indeed have to add `contended` to the return type of `price`.
+We'll cover the details in the section on [mode crossing], but the short answer
+is that since `float`s are immutable, no data race can arise from them, so the
+compiler simply ignores `contended` and `uncontended` on `float`s (and you can
+make use of this for your own immutable data as well).
+
+[mode crossing]: #mode-crossing
+
 ### The `portable` and `nonportable` modes
 
 As we said before, [rule 1](#rule-contended-parallel) and [rule
@@ -618,21 +660,21 @@ And also for similar reasons as before, we need `portable` to be deep the way
 <a id="rule-portable-deep"></a>
 > **Rule 4.** Every component of a `portable` value must be `portable`.
 
-You may have been wondering why rule 2 talks about accessing values rather than
-calling functions, even though `portable` really only cares about
-functions[^other-code-types], and this is the main reason: the record could be a
-function [in a trenchcoat]. (The other, more subtle, reason is that a value of
-type `'a` could still end up being a function.) So we have to forbid _all
-accesses_ of `nonportable` values from other domains, not just function calls.
-The good news is that many types (in fact, most types) obviously _can't_ cause
-a problem—you'll never make an `(int * string option) list` that contains a
-function, much less one that will cause a data race—and if the compiler is
-aware that a type `t` can't have a function in it, it can ignore portability
-requirements altogether for values of `t`. We'll cover the specifics when we get
-to [mode crossing].
+You may have been wondering why rules 1 and 2a restrict all values, when really
+it's only functions that we care about being `portable` or
+not.[^other-code-types] This is the reason: many values can _contain_ functions,
+and if it weren't for rule 4, we could use, say, a record to smuggle the
+function around (in other words, the record could be a function [in a
+trenchcoat]). So we have to forbid _all accesses_ of `nonportable` values from
+other domains, not just function calls. The good news is that many types (in
+fact, most types) obviously _can't_ cause a problem—you'll never make an `(int *
+string option) list` that contains _any_ function, much less one that will cause
+a data race—and if the compiler is aware that a type `t` can't have a function
+in it, it can ignore portability requirements altogether for values of `t`.
+We'll cover the specifics when we get to [mode crossing].
 
 [^other-code-types]: Note that some other types are secretly function types,
-notably including `Lazy.t`, so `portable` is also a concern for them.
+notably `Lazy.t`, so `portable` is also a concern for them.
 
 [in a trenchcoat]: #code-cheer_up_sneakily
 [mode crossing]: #mode-crossing
@@ -736,56 +778,44 @@ let always_portable : int_or_string @ nonportable -> int_or_string @ portable =
 (We have to write this slightly awkwardly to specify the returned mode of a
 function.)
 
-In fact, we've already seen mode crossing in action. Let's look at the full type
-of `Parallel.fork_join2` as `parallel_kernel.mli` writes it:
+In fact, we've already seen mode crossing in action. We mentioned before when
+talking about [rule 4 of `contended`](#rule-contended-deep) that when
+`Thing.price` projects the `price` field out of a `contended` `Thing.t`, the
+only reason it gets to return an `uncontended` `float` is that `float` crosses
+contention (which is to say, it has kind `immutable_data`).
+
+We can make things more convenient with `Thing.t` as well. Recall that its
+definition is simply
 
 ```ocaml
-val fork_join2
-  :  t @ local
-  -> (t @ local -> 'a @ contended portable) @ portable
-  -> (t @ local -> 'b @ contended portable) @ portable
-  -> 'a * 'b @ contended portable
+type t =
+  { price : float
+  ; mutable mood : Mood.t
+  }
 ```
 
-We've wrestled before with the fact that both functions have to be `portable`,
-but they also have to _return_ values that are both `contended` and `portable`!
-(Exercise: What goes wrong if they're allowed to return something `uncontended`?
-How about `nonportable`?) Why didn't we worry about this before? Well, let's
-look again at the code we were writing:
+This clearly falls under `mutable_data`, which crosses portability. So we can
+go into `thing.mli` and make a few changes. First, we can change the type:
 
-```ocaml
-  let average_things_par (par : Parallel.t) tree =
-    let rec total par tree =
-      match tree with
-      | Tree.Leaf x -> ~total:(Thing.price x), ~count:1
-      | Tree.Node (l, r) ->
-        let (~total:total_l, ~count:count_l), (~total:total_r, ~count:count_r) =
-          Parallel.fork_join2
-            par
-            (fun par -> total par l)
-            (fun par -> total par r)
-        in
-        ~total:(total_l +. total_r), ~count:(count_l + count_r)
-    in
-    let ~total, ~count = total par tree in
-    total /. (count |> Float.of_int)
-  ;;
+```diff
+-type t
++type t : mutable_data
 ```
 
-The type of `total` is this:
+Now we can simplify the definition of `create`:
 
-```ocaml
-Parallel.t @ local -> Thing.t Tree.t @ contended -> total:float * count:int
+```diff
+-val create : price:float -> mood:Mood.t -> t @ portable
++val create : price:float -> mood:Mood.t -> t
 ```
 
-Crucially, the returned type—which becomes the type returned by the arguments to
-`fork_join2`—is `total:float * count:int`. The basic `float` and `int` types are
-`immutable_data`, and any pair of `immutable_data` types is also
-`immutable_data`, so this type is `immutable_data` as well (in fact, if not for
-the labels it would be the same type as our `float_and_int`). So even though we
-wrote our code with no concern for whether the returned `total` and `count`
-could be accessed in parallel, thanks to the types involved, we didn't have to
-worry.
+(At one point it also had a `@@ portable` but we took it out by [defaulting
+to `portable`].)
+
+[defaulting to `portable`]: #defaulting-to-portable
+
+Since `Thing.t` is now `mutable_data`, every `Thing.t` is implicitly assumed to
+be `portable`.
 
 Any type variable can be given a kind, so we can write a version of
 `always_portable` that works for _any_ `mutable_data` type:
