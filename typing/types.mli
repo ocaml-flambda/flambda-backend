@@ -828,6 +828,7 @@ and mixed_block_element =
   | Word
   | Product of mixed_product_shape
   (* Invariant: the array has at least two things in it. *)
+  | Void
 
 and mixed_product_shape = mixed_block_element array
 

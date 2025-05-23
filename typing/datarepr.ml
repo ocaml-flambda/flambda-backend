@@ -137,6 +137,7 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       [| Constructor_uniform_value, [| |]
        ; Constructor_uniform_value, [| Jkind.Sort.Const.value |] |]
   in
+  (* CR rtjoa: wrong for products of [void] *)
   let all_void sorts = Array.for_all Jkind.Sort.Const.(equal void) sorts in
   let num_consts = ref 0 and num_nonconsts = ref 0 in
   let cstr_constant =
