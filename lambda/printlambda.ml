@@ -579,6 +579,25 @@ let primitive ppf = function
         layouts
   | Parray_element_size_in_bytes ak ->
       fprintf ppf "array_element_size_in_bytes (%s)" (array_kind ak)
+  | Pidx_field pos ->
+      fprintf ppf "idx_field %d" pos
+  | Pidx_mixed_field (shape, pos, path) ->
+      fprintf ppf "idx_mixed_field %a %a %a"
+        (mixed_block_shape (fun _ _ -> ())) shape
+        pp_print_int pos
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_int)
+          path
+  | Pidx_array (ak, ik, mbe, path) ->
+      fprintf ppf "idx_array %s %a %a %a"
+        (array_kind ak) array_index_kind ik
+        (mixed_block_element (fun _ppf () -> ())) mbe
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_int)
+          path
+  | Pidx_deepen (mbe, path) ->
+      fprintf ppf "idx_deepen %a %a"
+        (mixed_block_element (fun _ppf () -> ())) mbe
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_int)
+          path
   | Pccall p -> fprintf ppf "%s" p.prim_name
   | Praise k -> fprintf ppf "%s" (Lambda.raise_kind k)
   | Psequand -> fprintf ppf "&&"
@@ -924,6 +943,16 @@ let primitive ppf = function
   | Ppoke layout ->
       fprintf ppf "(poke@ %a)"
         peek_or_poke layout
+  | Pget_idx (layout, Mutable) ->
+      fprintf ppf "(get_idx@ %a)"
+        (layout' false) layout
+  | Pget_idx (layout, Immutable) ->
+      fprintf ppf "(get_idx_imm@ %a)"
+        (layout' false) layout
+  | Pset_idx (layout, mode) ->
+      fprintf ppf "(set_idx%s@ %a)"
+        (match mode with Modify_heap -> "" | Modify_maybe_stack -> "_local")
+        (layout' false) layout
 
 let name_of_primitive = function
   | Pbytes_of_string -> "Pbytes_of_string"
@@ -950,6 +979,10 @@ let name_of_primitive = function
   | Pduprecord _ -> "Pduprecord"
   | Pmake_unboxed_product _ -> "Pmake_unboxed_product"
   | Punboxed_product_field _ -> "Punboxed_product_field"
+  | Pidx_field _ -> "Pidx_field"
+  | Pidx_mixed_field _ -> "Pidx_mixed_field"
+  | Pidx_array _ -> "Pidx_array"
+  | Pidx_deepen _ -> "Pidx_deepen"
   | Parray_element_size_in_bytes _ -> "Parray_element_size_in_bytes"
   | Pccall _ -> "Pccall"
   | Praise _ -> "Praise"
@@ -1124,6 +1157,8 @@ let name_of_primitive = function
       "Preinterpret_unboxed_int64_as_tagged_int63"
   | Ppeek _ -> "Ppeek"
   | Ppoke _ -> "Ppoke"
+  | Pget_idx _ -> "Pget_idx"
+  | Pset_idx _ -> "Pset_idx"
 
 let zero_alloc_attribute ppf check =
   match check with
