@@ -113,7 +113,6 @@ let builtin_attrs =
   ; "only_generative_effects"
   ; "error_message"
   ; "layout_poly"
-  ; "no_mutable_implied_modalities"
   ; "or_null_reexport"
   ; "no_recursive_modalities"
   ; "jane.non_erasable.instances"
@@ -649,9 +648,6 @@ let parse_standard_implementation_attributes attr =
   flambda_oclassic_attribute attr;
   zero_alloc_attribute ~in_signature:false attr;
   unsafe_allow_any_mode_crossing_attribute attr
-
-let has_no_mutable_implied_modalities attrs =
-  has_attribute "no_mutable_implied_modalities" attrs
 
 let has_local_opt attrs =
   has_attribute "local_opt" attrs
