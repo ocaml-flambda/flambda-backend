@@ -51,16 +51,10 @@ let use_dup_for_constant_mutable_arrays_bigger_than = 4
    When this sanity check is removed, consider whether we are still defaulting
    appropriately.
 *)
-let sort_must_not_be_void loc ty sort =
-  if Jkind.Sort.Const.(equal void sort) then raise (Error (loc, Void_sort ty))
+(* CR rtjoa: consider above *)
 
 let layout_exp sort e = layout e.exp_env e.exp_loc sort e.exp_type
 let layout_pat sort p = layout p.pat_env p.pat_loc sort p.pat_type
-
-let check_record_field_sort loc : Jkind.Sort.Const.t -> _ = function
-  | Base (Value | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word)
-  | Product _ -> ()
-  | Base Void -> raise (Error (loc, Illegal_void_record_field))
 
 (* Forward declaration -- to be filled in by Translmod.transl_module *)
 let transl_module =
@@ -519,10 +513,12 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       | Null, (Variant_boxed _ | Variant_unboxed | Variant_extensible) ->
         assert false
       | Ordinary {runtime_tag}, _ when cstr.cstr_constant ->
-          assert (args_with_sorts = []);
-          (* CR layouts v5: This could have void args, but for now we've ruled
-             that out by checking that the sort list is empty *)
-          Lconst(const_int runtime_tag)
+          assert (
+            List.for_all
+              (fun (_, s) -> Jkind.Sort.Const.all_void s) args_with_sorts);
+          List.fold_left (fun (acc : lambda) (e : lambda) -> Lsequence (e, acc))
+            (Lconst(const_int runtime_tag) : lambda)
+            ll
       | Ordinary _, (Variant_unboxed | Variant_with_null) ->
           (match ll with [v] -> v | _ -> assert false)
       | Ordinary {runtime_tag}, Variant_boxed _ ->
@@ -637,14 +633,13 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         {fields; representation; extended_expression } ->
       transl_record_unboxed_product ~scopes e.exp_loc e.exp_env
         fields representation extended_expression
-  | Texp_field(arg, arg_sort, id, lbl, float, ubr) ->
+  | Texp_field(arg, arg_sort, _id, lbl, float, ubr) ->
       let arg_sort = Jkind.Sort.default_for_transl_and_get arg_sort in
       let targ = transl_exp ~scopes arg_sort arg in
       let sem =
         if Types.is_mutable lbl.lbl_mut then Reads_vary else Reads_agree
       in
       let sem = add_barrier_to_read (transl_unique_barrier ubr) sem in
-      check_record_field_sort id.loc lbl.lbl_sort;
       begin match lbl.lbl_repres with
           Record_boxed _
         | Record_inlined (_, Constructor_uniform_value, Variant_boxed _) ->
@@ -714,12 +709,11 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
         Lprim (Punboxed_product_field (lbl.lbl_num, layouts), [targ],
                of_location ~scopes e.exp_loc)
     end
-  | Texp_setfield(arg, arg_mode, id, lbl, newval) ->
+  | Texp_setfield(arg, arg_mode, _id, lbl, newval) ->
       (* CR layouts v2.5: When we allow `any` in record fields and check
          representability on construction, [sort_of_jkind] will be unsafe here.
          Probably we should add a sort to `Texp_setfield` in the typed tree,
          then. *)
-      check_record_field_sort id.loc lbl.lbl_sort;
       let mode =
         Assignment (transl_modify_mode arg_mode)
       in
@@ -871,12 +865,10 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   Lambda.layout_unit)
   | Texp_sequence(expr1, sort', expr2) ->
       let sort' = Jkind.Sort.default_for_transl_and_get sort' in
-      sort_must_not_be_void expr1.exp_loc expr1.exp_type sort';
       Lsequence(transl_exp ~scopes sort' expr1,
                 event_before ~scopes expr2 (transl_exp ~scopes sort expr2))
   | Texp_while {wh_body; wh_body_sort; wh_cond} ->
       let wh_body_sort = Jkind.Sort.default_for_transl_and_get wh_body_sort in
-      sort_must_not_be_void wh_body.exp_loc wh_body.exp_type wh_body_sort;
       let cond = transl_exp ~scopes Jkind.Sort.Const.for_predef_value wh_cond in
       let body = transl_exp ~scopes wh_body_sort wh_body in
       Lwhile {
@@ -887,7 +879,6 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
   | Texp_for {for_id; for_debug_uid; for_from; for_to; for_dir; for_body;
               for_body_sort} ->
       let for_body_sort = Jkind.Sort.default_for_transl_and_get for_body_sort in
-      sort_must_not_be_void for_body.exp_loc for_body.exp_type for_body_sort;
       let body = transl_exp ~scopes for_body_sort for_body in
       Lfor {
         for_id;
@@ -1924,7 +1915,6 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
     let copy_id_duid = Lambda.debug_uid_none in
     let update_field cont (lbl, definition) =
       (* CR layouts v5: allow more unboxed types here. *)
-      check_record_field_sort lbl.lbl_loc lbl.lbl_sort;
       match definition with
       | Kept _ -> cont
       | Overridden (_lid, expr) ->

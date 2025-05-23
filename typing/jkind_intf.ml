@@ -43,6 +43,8 @@ module type Sort = sig
 
     val format : Format.formatter -> t -> unit
 
+    val all_void : t -> bool
+
     val value : t
 
     val void : t

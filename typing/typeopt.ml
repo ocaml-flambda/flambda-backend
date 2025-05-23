@@ -645,6 +645,7 @@ and value_kind_mixed_block_field env ~loc ~visited ~depth ~num_nodes_visited
       ) num_nodes_visited fs
     in
     num_nodes_visited, Product kinds
+  | Void -> num_nodes_visited, Product [||]
 
 and value_kind_mixed_block
       env ~loc ~visited ~depth ~num_nodes_visited ~shape types =
@@ -735,11 +736,20 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
         (is_mutable, num_nodes_visited), fields
     in
     let is_constant (cstr: Types.constructor_declaration) =
-      (* CR layouts v5: This won't count constructors with void args as
-         constant. *)
       match cstr.cd_args with
       | Cstr_tuple [] -> true
-      | (Cstr_tuple (_::_) | Cstr_record _) -> false
+      | Cstr_tuple args ->
+        List.for_all (fun ca -> Jkind.Sort.Const.all_void ca.ca_sort) args
+      | Cstr_record lbls ->
+        List.for_all (fun lbl -> Jkind.Sort.Const.all_void lbl.ld_sort) lbls
+    in
+    (* CR rtjoa: make this *)
+    let rec mixed_block_shape_is_empty shape =
+      Array.for_all mixed_block_element_is_empty shape
+    and mixed_block_element_is_empty (element : _ mixed_block_element) =
+      match element with
+      | Product shape -> mixed_block_shape_is_empty shape
+      | _ -> false
     in
     let num_nodes_visited, raw_kind =
     if List.for_all is_constant cstrs then
@@ -760,6 +770,10 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
             if is_mutable then None
             else match fields with
             | Constructor_uniform xs when List.compare_length_with xs 0 = 0 ->
+              let consts = next_const :: consts in
+              Some (num_nodes_visited,
+                    next_const + 1, consts, next_tag, non_consts)
+            | Constructor_mixed shape when mixed_block_shape_is_empty shape ->
               let consts = next_const :: consts in
               Some (num_nodes_visited,
                     next_const + 1, consts, next_tag, non_consts)
@@ -817,11 +831,6 @@ and value_kind_record env ~loc ~visited ~depth ~num_nodes_visited
                   (fun num_nodes_visited (label:Types.label_declaration) ->
                     let num_nodes_visited = num_nodes_visited + 1 in
                     let num_nodes_visited, field =
-                      (* CR layouts v5: when we add other layouts, we'll need to
-                        check here that we aren't about to call value_kind on a
-                        different sort (we can get this info from the
-                        label.ld_jkind). For now we rely on the layout check at
-                        the top of value_kind to rule out void. *)
                       (* We're using the `Pboxedfloatval` value kind for unboxed
                         floats inside of records. This is kind of a lie, but
                          that was already happening here due to the float record

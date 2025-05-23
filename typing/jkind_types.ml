@@ -77,6 +77,13 @@ module Sort = struct
       in
       pp_element ~nested:false ppf c
 
+    let rec all_void =
+      function
+      | Base Void -> true
+      | Base (Value | Float64 | Float32 | Bits32 | Bits64 | Word | Vec128) ->
+        false
+      | Product ts -> List.for_all all_void ts
+
     let value = Base Value
 
     let void = Base Void

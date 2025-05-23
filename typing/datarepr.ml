@@ -137,12 +137,11 @@ let constructor_descrs ~current_unit ty_path decl cstrs rep =
       [| Constructor_uniform_value, [| |]
        ; Constructor_uniform_value, [| Jkind.Sort.Const.value |] |]
   in
-  let all_void sorts = Array.for_all Jkind.Sort.Const.(equal void) sorts in
   let num_consts = ref 0 and num_nonconsts = ref 0 in
   let cstr_constant =
     Array.map
       (fun (_, sorts) ->
-         let all_void = all_void sorts in
+         let all_void = Array.for_all Jkind.Sort.Const.all_void sorts in
          if all_void then incr num_consts else incr num_nonconsts;
          all_void)
       cstr_shapes_and_arg_jkinds
