@@ -490,7 +490,7 @@ nullability ::= `non_null`
 
 separability ::= `non_float`
              |   `separable`
-             |   `non_separable`
+             |   `maybe_separable`
 
 with-bounds ::= { `with` field_type }+
 
