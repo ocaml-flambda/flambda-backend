@@ -803,7 +803,7 @@ type lookup_error =
       Mode.Value.Comonadic.error * closure_context
   | Local_value_used_in_exclave of lock_item * Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
-  | No_unboxed_version of Longident.t
+  | No_unboxed_version of Longident.t * type_declaration
   | Error_from_persistent_env of Persistent_env.error
 
 type error =
@@ -3820,12 +3820,13 @@ let lookup_type ~errors ~use ~loc lid env =
   | Some lid ->
     (* To get the hash version, look up without the hash, then look for the
        unboxed version *)
-    let path, _ = lookup_type_full ~errors ~use ~loc lid env in
+    let path, data = lookup_type_full ~errors ~use ~loc lid env in
     match find_type_unboxed_version path env Path.Set.empty with
     | decl ->
       Path.unboxed_version path, decl
     | exception Not_found ->
-      may_lookup_error errors loc env (No_unboxed_version lid)
+      may_lookup_error errors loc env
+        (No_unboxed_version (lid, data.tda_declaration))
 
 let lookup_modtype_lazy ~errors ~use ~loc lid env =
   match lid with
@@ -4476,7 +4477,17 @@ let report_lookup_error _loc env ppf = function
       (match label_of_other_form with
       | Some other_form ->
         Format.fprintf ppf
-          "@\n@{<hint>Hint@}: There is %s field with this name." other_form
+          "@\n@{<hint>Hint@}: @[There is %s field with this name." other_form;
+        (match record_form with
+        | Unboxed_product ->
+          (* If an unboxed field isn't in scope but a boxed field is, then
+             the boxed field must come from a record that didn't get an unboxed
+             version. *)
+          Format.fprintf ppf
+            "@ Note that float- and [%@%@unboxed]- records don't get unboxed \
+             versions.";
+        | Legacy -> ());
+        Format.fprintf ppf "@]"
       | None -> ());
   | Unbound_class lid -> begin
       fprintf ppf "Unbound class %a"
@@ -4618,9 +4629,21 @@ let report_lookup_error _loc env ppf = function
         (Style.as_inline_code !print_longident) lid
         (fun v -> Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> !print_type_expr ppf typ) v) err
-  | No_unboxed_version lid ->
+  | No_unboxed_version (lid, decl) ->
       fprintf ppf "@[The type %a has no unboxed version.@]"
-        (Style.as_inline_code !print_longident) lid
+        (Style.as_inline_code !print_longident) lid;
+      begin match decl.type_kind with
+      | Type_record (_, Record_unboxed, _) ->
+          fprintf ppf
+            "@.@[@{<hint>Hint@}: \
+             [%@%@unboxed] records don't get unboxed versions.@]"
+      | Type_record (_, (Record_float | Record_ufloat | Record_mixed _), _) ->
+          fprintf ppf
+            "@.@[@{<hint>Hint@}: Float records don't get unboxed versions.@]";
+      | Type_record_unboxed_product _ ->
+          fprintf ppf "@.@[@{<hint>Hint@}: It is already an unboxed record.@]";
+      | _ -> ()
+      end
   | Error_from_persistent_env err ->
       Persistent_env.report_error ppf err
 
