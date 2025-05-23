@@ -1907,10 +1907,6 @@ let mixed_block_projection_may_allocate shape ~path =
   in
   allocates (project_from_mixed_block_shape shape ~path)
 
-(* This function is used to determine whether a primitive may allocate.
-   It is used in the closure conversion pass to determine whether a
-   primitive may allocate in the heap or not. *)
-
 (* Changes to this function may also require changes in Flambda 2 (e.g.
    closure_conversion.ml). *)
 let primitive_may_allocate : primitive -> locality_mode option = function
