@@ -668,6 +668,85 @@ Error: In this definition, expected parameter variances are not satisfied.
        but it is injective invariant.
 |}]
 
+(******************************************************)
+(* Cannot take an index to float/non-separable arrays *)
+
+let bad () : (float array, _) idx_mut = (.(0))
+[%%expect{|
+Line 1, characters 40-46:
+1 | let bad () : (float array, _) idx_mut = (.(0))
+                                            ^^^^^^
+Error: This expression has type "('a array, 'a) idx_mut"
+       but an expression was expected of type "(float array, 'b) idx_mut"
+       The kind of float is value mod many unyielding stateless immutable
+         because it is the primitive type float.
+       But the kind of float must be a subkind of value_or_null mod non_float
+         because it's the element type (the second type parameter) for a block
+         index (idx or mut_idx).
+|}]
+
+type packed = P : 'a -> packed
+let bad () : (packed array, _) idx_mut = (.(0))
+[%%expect{|
+type packed = P : 'a -> packed
+val bad : unit -> (packed array, packed) idx_mut = <fun>
+|}]
+
+type abstract
+let bad () : (abstract array, _) idx_mut = (.(0))
+[%%expect{|
+type abstract
+Line 2, characters 43-49:
+2 | let bad () : (abstract array, _) idx_mut = (.(0))
+                                               ^^^^^^
+Error: This expression has type "('a array, 'a) idx_mut"
+       but an expression was expected of type "(abstract array, 'b) idx_mut"
+       The kind of abstract is value
+         because of the definition of abstract at line 1, characters 0-13.
+       But the kind of abstract must be a subkind of
+         value_or_null mod non_float
+         because it's the element type (the second type parameter) for a block
+         index (idx or mut_idx).
+|}]
+
+let bad () : (float iarray, _) idx_imm = (.:(0))
+[%%expect{|
+Line 1, characters 41-48:
+1 | let bad () : (float iarray, _) idx_imm = (.:(0))
+                                             ^^^^^^^
+Error: This expression has type "('a iarray, 'a) idx_imm"
+       but an expression was expected of type "(float iarray, 'b) idx_imm"
+       The kind of float is value mod many unyielding stateless immutable
+         because it is the primitive type float.
+       But the kind of float must be a subkind of value_or_null mod non_float
+         because it's the element type (the second type parameter) for a block
+         index (idx or mut_idx).
+|}]
+
+type packed = P : 'a -> packed
+let bad () : (packed iarray, _) idx_imm = (.:(0))
+[%%expect{|
+type packed = P : 'a -> packed
+val bad : unit -> (packed iarray, packed) idx_imm = <fun>
+|}]
+
+type abstract
+let bad () : (abstract iarray, _) idx_imm = (.:(0))
+[%%expect{|
+type abstract
+Line 2, characters 44-51:
+2 | let bad () : (abstract iarray, _) idx_imm = (.:(0))
+                                                ^^^^^^^
+Error: This expression has type "('a iarray, 'a) idx_imm"
+       but an expression was expected of type "(abstract iarray, 'b) idx_imm"
+       The kind of abstract is value
+         because of the definition of abstract at line 1, characters 0-13.
+       But the kind of abstract must be a subkind of
+         value_or_null mod non_float
+         because it's the element type (the second type parameter) for a block
+         index (idx or mut_idx).
+|}]
+
 (****************)
 (* Principality *)
 
