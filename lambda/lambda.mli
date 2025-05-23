@@ -578,7 +578,7 @@ val generic_value : value_kind
 *)
 val layout_of_extern_repr : extern_repr -> layout
 
-(* Used for ... CR jrayman *)
+(* CR mixed-modules: finish comment: Used for ... *)
 val layout_of_mixed_block_element : 'a. 'a mixed_block_element -> layout
 
 type structured_constant =

@@ -288,6 +288,15 @@ type error =
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
 
+(* CR mixed-modules: move somewhere else *)
+let rec to_sort : Jkind.Sort.t Jkind.Layout.t -> Jkind.Sort.t option = function
+  | Any -> None
+  | Sort b -> Some b
+  | Product ts ->
+    Option.map
+      (fun x -> Jkind_types.Sort.Product x)
+      (Misc.Stdlib.List.map_option to_sort ts)
+
 let error_of_filter_arrow_failure ~explanation ~first ty_fun
   : filter_arrow_failure -> _ = function
   | Unification_error unif_err ->
@@ -602,14 +611,14 @@ let mode_argument ~funct ~index ~position_and_mode ~partial_app marg =
   let vmode , _ = Value.newvar_below (alloc_as_value marg) in
   if partial_app then mode_default vmode, vmode
   else match funct.exp_desc, index, position_and_mode.apply_position with
-  | Texp_ident (_, _, {val_kind =
+  | Texp_ident (_, _, _, {val_kind =
       Val_prim {Primitive.prim_name = ("%sequor"|"%sequand")}},
                 Id_prim _, _), 1, Tail ->
      (* RHS of (&&) and (||) is at the tail of function region if the
         application is. The argument mode is not constrained otherwise. *)
      mode_with_position vmode (RTail (Option.get position_and_mode.region_mode, FTail)),
      vmode
-  | Texp_ident (_, _, _, Id_prim _, _), _, _ ->
+  | Texp_ident (_, _, _, _, Id_prim _, _), _, _ ->
      (* Other primitives cannot be tail-called *)
      mode_default vmode, vmode
   | _, _, (Nontail | Default) ->
@@ -1155,6 +1164,7 @@ type pattern_variable =
     pv_loc: Location.t;
     pv_as_var: bool;
     pv_attributes: attributes;
+    pv_layout: Jkind.Sort.t Jkind.Layout.t;
   }
 
 type module_variable =
@@ -1249,11 +1259,13 @@ let iter_pattern_variables_type f : pattern_variable list -> unit =
 
 let add_pattern_variables ?check ?check_as env pv =
   List.fold_right
-    (fun {pv_id; pv_mode; pv_type; pv_loc; pv_as_var; pv_attributes; pv_uid}
+    (fun {pv_id; pv_mode; pv_type; pv_loc; pv_as_var; pv_attributes; pv_uid;
+          pv_layout}
       env ->
        let check = if pv_as_var then check_as else check in
        Env.add_value ?check ~mode:pv_mode pv_id
-         {val_type = pv_type; val_kind = Val_reg; Types.val_loc = pv_loc;
+         {val_type = pv_type; val_kind = Val_reg pv_layout;
+          Types.val_loc = pv_loc;
           val_attributes = pv_attributes; val_modalities = Modality.Value.id;
           val_zero_alloc = Zero_alloc.default;
           val_uid = pv_uid
@@ -1301,7 +1313,7 @@ let add_module_variables env module_variables =
   ) env module_variables_as_list
 
 let enter_variable ?(is_module=false) ?(is_as_variable=false) tps loc name mode
-    ty attrs =
+    ty attrs layout =
   if List.exists (fun {pv_id; _} -> Ident.name pv_id = name.txt)
       tps.tps_pattern_variables
   then raise(Error(loc, Env.empty, Multiply_bound_variable name.txt));
@@ -1339,7 +1351,8 @@ let enter_variable ?(is_module=false) ?(is_as_variable=false) tps loc name mode
      pv_loc = loc;
      pv_as_var = is_as_variable;
      pv_attributes = attrs;
-     pv_uid} :: tps.tps_pattern_variables;
+     pv_uid;
+     pv_layout = layout} :: tps.tps_pattern_variables;
   id, pv_uid
 
 let sort_pattern_variables vs =
@@ -1954,7 +1967,10 @@ let type_for_loop_index ~loc ~env ~param =
             let pv_id = Ident.create_local txt in
             let pv_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
             let pv =
-              { pv_id; pv_uid; pv_mode=Value.disallow_right pv_mode; pv_type; pv_loc; pv_as_var; pv_attributes }
+              { pv_id; pv_uid; pv_mode=Value.disallow_right pv_mode; pv_type;
+                pv_loc; pv_as_var; pv_attributes;
+                pv_layout = Jkind.(Layout.of_const
+                  (Layout.Const.of_sort_const Sort.Const.for_loop_index)) }
             in
             (pv_id, pv_uid), add_pattern_variables ~check ~check_as:check env [pv])
 
@@ -1976,7 +1992,9 @@ let type_comprehension_for_range_iterator_index ~loc ~env ~param tps =
             name
             pv_mode
             pv_type
-            pv_attributes)
+            pv_attributes
+            Jkind.(Layout.of_const
+                  (Layout.Const.of_sort_const Sort.Const.for_loop_index)))
 
 
 (* Type paths *)
@@ -2811,8 +2829,14 @@ and type_pat_aux
       let alloc_mode =
         cross_left !!penv expected_ty alloc_mode.mode
       in
+      (* CR mixed-modules: this is the wrong way to do this *)
+      let layout =
+        match Ctype.type_sort !!penv ty ~why:Let_binding ~fixed:false with
+        | Error _ -> assert false
+        | Ok sort -> Jkind.Layout.Sort sort
+      in
       let id, uid =
-        enter_variable tps loc name alloc_mode ty sp.ppat_attributes
+        enter_variable tps loc name alloc_mode ty sp.ppat_attributes layout
       in
       rvp {
         pat_desc = Tpat_var (id, name, uid, alloc_mode);
@@ -2839,7 +2863,10 @@ and type_pat_aux
              [Ppat_unpack] is a case identified by [may_contain_modules]. See
              the comment on [may_contain_modules]. *)
           let id, uid = enter_variable tps loc v alloc_mode.mode
-                          t ~is_module:true sp.ppat_attributes in
+                          t ~is_module:true sp.ppat_attributes
+                          Jkind.(Layout.of_const (Layout.Const.of_sort_const
+                            Sort.Const.for_module))
+          in
           rvp {
             pat_desc = Tpat_var (id, v, uid, alloc_mode.mode);
             pat_loc = sp.ppat_loc;
@@ -2853,9 +2880,15 @@ and type_pat_aux
       let q = type_pat tps Value sq expected_ty in
       let ty_var, mode = solve_Ppat_alias ~mode:alloc_mode.mode !!penv q in
       let mode = cross_left !!penv expected_ty mode in
+      (* CR mixed-modules: this is the wrong way to do this *)
+      let layout =
+        match Ctype.type_sort !!penv ty_var ~why:Let_binding ~fixed:false with
+        | Error _ -> assert false
+        | Ok sort -> Jkind.Layout.Sort sort
+      in
       let id, uid =
         enter_variable ~is_as_variable:true tps name.loc name mode ty_var
-          sp.ppat_attributes
+          sp.ppat_attributes layout
       in
       rvp { pat_desc = Tpat_alias(q, id, name, uid, mode, ty_var);
             pat_loc = loc; pat_extra=[];
@@ -3204,7 +3237,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
   in
   let (pv, val_env, met_env) =
     List.fold_right
-      (fun {pv_id; pv_uid; pv_type; pv_loc; pv_as_var; pv_attributes}
+      (fun {pv_id; pv_uid; pv_type; pv_loc; pv_as_var; pv_attributes; pv_layout}
         (pv, val_env, met_env) ->
          let check s =
            if pv_as_var then Warnings.Unused_var s
@@ -3213,7 +3246,7 @@ let type_class_arg_pattern cl_num val_env met_env l spat =
          let val_env =
           Env.add_value ~mode:Mode.Value.legacy pv_id
             { val_type = pv_type
-            ; val_kind = Val_reg
+            ; val_kind = Val_reg pv_layout
             ; val_attributes = pv_attributes
             ; val_zero_alloc = Zero_alloc.default
             ; val_modalities = Modality.Value.id
@@ -3704,7 +3737,7 @@ let rec final_subexpression exp =
 
 let is_prim ~name funct =
   match funct.exp_desc with
-  | Texp_ident (_, _, {val_kind=Val_prim{Primitive.prim_name; _}}, Id_prim _, _) ->
+  | Texp_ident (_, _, _, {val_kind=Val_prim{Primitive.prim_name; _}}, Id_prim _, _) ->
       prim_name = name
   | _ -> false
 
@@ -4258,7 +4291,7 @@ let rec is_nonexpansive exp =
   | Texp_assert (exp, _) ->
       is_nonexpansive exp
   | Texp_apply (
-      { exp_desc = Texp_ident (_, _, {val_kind = Val_prim prim}, Id_prim _, _) },
+      { exp_desc = Texp_ident (_, _, _, {val_kind = Val_prim prim}, Id_prim _, _) },
       args, _, _, _) ->
      is_nonexpansive_prim prim args
   | Texp_array (_, _, _ :: _, _)
@@ -5679,9 +5712,10 @@ and type_expect_
   in
   match desc with
   | Pexp_ident lid ->
-      let path, (actual_mode : Env.actual_mode), desc, kind =
+      let path, bsorts, (actual_mode : Env.actual_mode), desc, kind =
         type_ident env ~recarg lid
       in
+      let bsorts = List.map Option.get bsorts in
       let exp_desc =
         match desc.val_kind with
         | Val_ivar (_, cl_num) ->
@@ -5697,11 +5731,11 @@ and type_expect_
             let (path, _) =
               Env.find_value_by_name (Longident.Lident ("self-" ^ cl_num)) env
             in
-            Texp_ident(path, lid, desc, kind,
+            Texp_ident(path, bsorts, lid, desc, kind,
               unique_use ~loc ~env actual_mode.mode
                 (as_single_mode expected_mode))
         | _ ->
-            Texp_ident(path, lid, desc, kind,
+            Texp_ident(path, bsorts, lid, desc, kind,
               unique_use ~loc ~env actual_mode.mode
                 (as_single_mode expected_mode))
       in
@@ -5940,13 +5974,13 @@ and type_expect_
       let (rt, funct), sargs =
         let rt, funct = type_sfunct sfunct in
         match funct.exp_desc, sargs with
-        | Texp_ident (_, _, {val_kind = Val_prim {prim_name = "%revapply"}; val_type},
+        | Texp_ident (_, _, _, {val_kind = Val_prim {prim_name = "%revapply"}; val_type},
                       Id_prim _, _),
           [Nolabel, sarg; Nolabel, actual_sfunct]
           when is_inferred actual_sfunct
             && check_apply_prim_type Revapply val_type ->
             type_sfunct_args actual_sfunct [Nolabel, sarg]
-        | Texp_ident (_, _, {val_kind = Val_prim {prim_name = "%apply"}; val_type},
+        | Texp_ident (_, _, _, {val_kind = Val_prim {prim_name = "%apply"}; val_type},
                       Id_prim _, _),
           [Nolabel, actual_sfunct; Nolabel, sarg]
           when check_apply_prim_type Apply val_type ->
@@ -6886,7 +6920,7 @@ and type_expect_
       | Texp_lazy _ -> unsupported Lazy
       | Texp_object _ -> unsupported Object
       | Texp_pack _ -> unsupported Module
-      | Texp_apply({ exp_desc = Texp_ident(_, _, {val_kind = Val_prim _}, _, _)},
+      | Texp_apply({ exp_desc = Texp_ident(_, _, _, {val_kind = Val_prim _}, _, _)},
           _, _, _, _)
           (* [stack_ (prim foo)] will be checked by [transl_primitive_application]. *)
           (* CR zqian: Move/Copy [Lambda.primitive_may_allocate] to [typing], then we can
@@ -6987,7 +7021,7 @@ and expression_constraint pexp =
     is_self =
       (fun expr ->
          match expr.exp_desc with
-         | Texp_ident (_, _, { val_kind = Val_self _ }, _, _) -> true
+         | Texp_ident (_, _, _, { val_kind = Val_self _ }, _, _) -> true
          | _ -> false);
   }
 
@@ -7115,7 +7149,9 @@ and type_constraint_expect
   ret, ty, exp_extra
 
 and type_ident env ?(recarg=Rejected) lid =
-  let path, desc, mode, locks = Env.lookup_value ~loc:lid.loc lid.txt env in
+  let path, bsorts, desc, mode, locks =
+    Env.lookup_value ~loc:lid.loc lid.txt env
+  in
   (* We cross modes when typing [Ppat_ident], before adding new variables into
   the environment. Therefore, one might think all values in the environment are
   already mode-crossed. That is not true for several reasons:
@@ -7190,12 +7226,12 @@ and type_ident env ?(recarg=Rejected) lid =
        ty, Id_prim (Option.map Locality.disallow_right mode, sort)
     | _ ->
        instance desc.val_type, Id_value in
-  path, actual_mode, { desc with val_type }, kind
+  path, bsorts, actual_mode, { desc with val_type }, kind
 
 and type_binding_op_ident env s =
   let loc = s.loc in
   let lid = Location.mkloc (Longident.Lident s.txt) loc in
-  let path, actual_mode, desc, kind = type_ident env lid in
+  let path, _, actual_mode, desc, kind = type_ident env lid in
   actual_submode ~env ~loc:lid.loc ~reason:Other actual_mode mode_legacy;
   let path =
     match desc.val_kind with
@@ -8070,10 +8106,10 @@ and type_argument ?explanation ?recarg ~overwrite env (mode : expected_mode) sar
       submode ~loc:sarg.pexp_loc ~env ~reason:Other
         exp_mode mode_subcomponent;
       (* eta-expand to avoid side effects *)
-      let var_pair ~(mode : Value.lr) name ty =
+      let var_pair ~(mode : Value.lr) name ty layout =
         let id = Ident.create_local name in
         let desc =
-          { val_type = ty; val_kind = Val_reg;
+          { val_type = ty; val_kind = Val_reg layout;
             val_attributes = [];
             val_zero_alloc = Zero_alloc.default;
             val_modalities = Modality.Value.id;
@@ -8082,6 +8118,7 @@ and type_argument ?explanation ?recarg ~overwrite env (mode : expected_mode) sar
           }
         in
         let exp_env = Env.add_value ~mode id desc env in
+        let bsorts = [[|to_sort layout |> Option.get|]] in
         let uu = unique_use ~loc:sarg.pexp_loc ~env mode mode in
         {pat_desc = Tpat_var (id, mknoloc name, desc.val_uid, Value.disallow_right mode);
          pat_type = ty;
@@ -8092,13 +8129,12 @@ and type_argument ?explanation ?recarg ~overwrite env (mode : expected_mode) sar
         {exp_type = ty; exp_loc = Location.none; exp_env = exp_env;
          exp_extra = []; exp_attributes = [];
          exp_desc =
-         Texp_ident(Path.Pident id, mknoloc (Longident.Lident name),
+         Texp_ident(Path.Pident id, bsorts, mknoloc (Longident.Lident name),
                     desc, Id_value, uu)}
       in
       let eta_mode, _ = Value.newvar_below (alloc_as_value marg) in
       Regionality.submode_exn
         (Value.proj (Comonadic Areality) eta_mode) Regionality.regional;
-      let eta_pat, eta_var = var_pair ~mode:eta_mode "eta" ty_arg in
       (* CR layouts v10: When we add abstract jkinds, the eta expansion here
          becomes impossible in some cases - we'll need better errors.  For test
          cases, look toward the end of
@@ -8111,6 +8147,10 @@ and type_argument ?explanation ?recarg ~overwrite env (mode : expected_mode) sar
       in
       let arg_sort = type_sort ~why:Function_argument ty_arg in
       let ret_sort = type_sort ~why:Function_result ty_res in
+      let arg_layout = Jkind.Layout.Sort arg_sort in
+      let eta_pat, eta_var =
+        var_pair ~mode:eta_mode "eta" ty_arg arg_layout
+      in
       let func texp =
         let ret_mode = alloc_as_value mret in
         let e =
@@ -8153,7 +8193,9 @@ and type_argument ?explanation ?recarg ~overwrite env (mode : expected_mode) sar
       if warn then Location.prerr_warning texp.exp_loc
           (Warnings.Non_principal_labels "eliminated omittable argument");
       (* let-expand to have side effects *)
-      let let_pat, let_var = var_pair ~mode:exp_mode "arg" texp.exp_type in
+      let let_pat, let_var =
+        var_pair ~mode:exp_mode "arg" texp.exp_type arg_layout
+      in
       let let_pat_sort =
         (* The sort of the let-bound variable, which here is always a function
            (observe it is passed to [func], which builds an application of
@@ -9962,7 +10004,7 @@ and type_send env loc explanation e met =
   let obj = type_exp env mode_object e in
   let (meth, typ) =
     match obj.exp_desc with
-    | Texp_ident(_, _, {val_kind = Val_self(sign, meths, _, _)}, _, _) ->
+    | Texp_ident(_, _, _, {val_kind = Val_self(sign, meths, _, _)}, _, _) ->
         let id, typ =
           match meths with
           | Self_concrete meths ->
@@ -9992,7 +10034,7 @@ and type_send env loc explanation e met =
           end
         in
         Tmeth_val id, typ
-    | Texp_ident(_, _, {val_kind = Val_anc (sign, meths, cl_num)}, _, _) ->
+    | Texp_ident(_, _, _, {val_kind = Val_anc (sign, meths, cl_num)}, _, _) ->
         let id =
           match Meths.find met meths with
           | id -> id
@@ -10090,7 +10132,7 @@ let type_expression env jkind sexp =
       Pexp_ident lid ->
         let loc = sexp.pexp_loc in
         (* Special case for keeping type variables when looking-up a variable *)
-        let (_path, desc, _, _) =
+        let (_path, _bsorts, desc, _, _) =
           Env.lookup_value ~use:false ~loc lid.txt env
         in
         {exp with exp_type = desc.val_type}

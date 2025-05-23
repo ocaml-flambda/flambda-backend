@@ -309,7 +309,7 @@ let transl_ident loc env ty path desc kind =
       Translprim.transl_primitive loc p env ty ~poly_mode ~poly_sort (Some path)
   | Val_anc _, Id_value ->
       raise(Error(to_location loc, Free_super_var))
-  | (Val_reg | Val_self _), Id_value ->
+  | (Val_reg _ | Val_self _), Id_value ->
       transl_value_path loc env path
   |  _ -> fatal_error "Translcore.transl_exp: bad Texp_ident"
 
@@ -336,7 +336,7 @@ let zero_alloc_of_application
   | Some assume, _ ->
     (* The user wrote a zero_alloc attribute on the application - keep it. *)
     Builtin_attributes.assume_zero_alloc ~inferred:false assume
-  | None, Texp_ident (_, _, { val_zero_alloc; _ }, _, _) ->
+  | None, Texp_ident (_, _, _, { val_zero_alloc; _ }, _, _) ->
     (* We assume the call is zero_alloc if the function is known to be
        zero_alloc. If the function is zero_alloc opt, then we need to be sure
        that the opt checks were run to license this assumption. We judge
@@ -384,7 +384,7 @@ and transl_exp1 ~scopes ~in_new_scope sort e =
 
 and transl_exp0 ~in_new_scope ~scopes sort e =
   match e.exp_desc with
-  | Texp_ident(path, _, desc, kind, _) ->
+  | Texp_ident(path, _, _, desc, kind, _) ->
       transl_ident (of_location ~scopes e.exp_loc)
         e.exp_env e.exp_type path desc kind
   | Texp_constant cst -> Lconst (Const_base cst)
@@ -397,7 +397,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       let ret_sort = Jkind.Sort.default_for_transl_and_get ret_sort in
       transl_function ~in_new_scope ~scopes e params body
         ~alloc_mode ~ret_mode ~ret_sort ~region:true ~zero_alloc
-  | Texp_apply({ exp_desc = Texp_ident(path, _, {val_kind = Val_prim p},
+  | Texp_apply({ exp_desc = Texp_ident(path, _, _, {val_kind = Val_prim p},
                                        Id_prim (pmode, psort), _);
                  exp_type = prim_type; } as funct,
                oargs, pos, ap_mode, zero_alloc)
@@ -1096,9 +1096,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           let oid = Ident.create_local "open" in
           let oid_duid = Lambda.debug_uid_none in
           let body, _ =
-            (* CR layouts v5: Currently we only allow values at the top of a
-               module.  When that changes, some adjustments may be needed
-               here. *)
+            (* CR mixed-modules: Currently we only allow values at the top of a
+               module.  When that changes, some adjustments may be
+               needed here. *)
             List.fold_left (fun (body, pos) id ->
               Llet(Alias, Lambda.layout_module_field, id,
                    Lambda.debug_uid_none,

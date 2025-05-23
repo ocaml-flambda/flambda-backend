@@ -44,6 +44,20 @@ type error =
 
 exception Error of Location.t * error
 
+(* CR mixed-modules: maybe put this function somewhere else *)
+let rec to_layout : Jkind.Layout.Const.t -> layout = function
+  | Any -> Ptop
+  | Base Void -> assert false
+  | Base Value -> Pvalue generic_value
+  | Base Float32 -> Punboxed_float Unboxed_float32
+  | Base Float64 -> Punboxed_float Unboxed_float64
+  | Base Word -> Punboxed_int Unboxed_nativeint
+  | Base Bits32 -> Punboxed_int Unboxed_int32
+  | Base Bits64 -> Punboxed_int Unboxed_int64
+  | Base Vec128 -> Punboxed_vector Unboxed_vec128
+  | Product layouts ->
+    Punboxed_product (List.map to_layout layouts)
+
 (* CR layouts v7: This is used as part of the "void safety check" in the case of
    [Tstr_eval], where we want to allow any sort (see comment on that case of
    typemod).  Remove when we remove the safety check.
@@ -302,7 +316,8 @@ let init_shape id modl =
   and init_shape_struct env sg =
     match sg with
       [] -> []
-    | Sig_value(subid, {val_kind=Val_reg; val_type=ty; val_loc=loc},_) :: rem ->
+    | Sig_value(subid, {val_kind=Val_reg _; val_type=ty; val_loc=loc},_)
+      :: rem ->
         let init_v =
           match get_desc (Ctype.expand_head env ty) with
             Tarrow(_,ty_arg,_,_) -> begin
@@ -645,13 +660,14 @@ and transl_struct ~scopes loc fields sorts cc rootpath
       {str_final_env; str_items; _} =
   transl_structure ~scopes loc fields sorts cc rootpath str_final_env str_items
 
+
 (* The function  transl_structure is called by  the bytecode compiler.
    Some effort is made to compile in top to bottom order, in order to display
    warning by increasing locations. *)
 and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
     [] ->
       let body, size =
-        (* CR jrayman: copied from layout_of_const_sort_generic. Should
+        (* CR mixed-modules: copied from layout_of_const_sort_generic. Should
          * we check for language extensions? Should we throw errors?
          * Also, I doubt here is the best place to put this function. Any
          * suggestions for where I should put it?
@@ -682,8 +698,7 @@ and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
             in
             Pmakemixedblock(0, Immutable, shape, alloc_heap)
         in
-        let shape = Array.map shape_of_sort (Array.of_list sorts)
-        in
+        let shape = Array.map shape_of_sort (Array.of_list (List.rev sorts)) in
         match cc with
           Tcoerce_none ->
             Lprim(block_of ~shape,
@@ -868,7 +883,12 @@ and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
           in
           Value_rec_compiler.compile_letrec class_bindings body, size
       | Tstr_include incl ->
-          let ids = bound_value_identifiers incl.incl_type in
+          let ids_with_layouts =
+            bound_value_identifiers_and_layouts
+              ~layout_value:Jkind.(Layout.of_const (Layout.Const.of_sort_const
+                Sort.Const.for_module_field))
+              incl.incl_type
+          in
           let modl = incl.incl_mod in
           let mid = Ident.create_local "include" in
           let mid_duid = Lambda.debug_uid_none in
@@ -876,19 +896,27 @@ and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
               [] ->
                 transl_structure ~scopes loc newfields newsorts cc rootpath
                   final_env rem
-            | id :: ids ->
+            | (id, layout) :: ids_with_layouts ->
+                let lambda_layout =
+                  to_layout (Jkind.Layout.default_to_value_and_get layout)
+                in
                 let body, size =
                   rebind_idents (pos + 1) (id :: newfields)
-                    (Jkind.Sort.Const.value :: newsorts) ids
+                    ((Jkind.Layout.to_sort layout
+                      |> Option.get
+                      |> Jkind.Sort.default_for_transl_and_get) :: newsorts)
+                    ids_with_layouts
                 in
                 let id_duid = Lambda.debug_uid_none in
                 (* CR sspies: Can we find a better [debug_uid] here? *)
-                Llet(Alias, Lambda.layout_module_field, id, id_duid,
+                Llet(Alias, lambda_layout, id, id_duid,
                      Lprim(mod_field pos, [Lvar mid],
+          (* CR mixed-modules: [mod_field] returns [Pfield(_,Pointer,_)]. Should
+           * it * sometimes return [Pfield(_,Immediate,_)] *)
                            of_location ~scopes incl.incl_loc), body),
                 size
           in
-          let body, size = rebind_idents 0 fields sorts ids in
+          let body, size = rebind_idents 0 fields sorts ids_with_layouts in
           let loc = of_location ~scopes incl.incl_loc in
           let let_kind, modl =
             match incl.incl_kind with
@@ -915,26 +943,37 @@ and transl_structure ~scopes loc fields sorts cc rootpath final_env = function
               transl_structure ~scopes loc fields sorts cc rootpath
                 final_env rem
           | _ ->
-              let ids = bound_value_identifiers od.open_bound_items in
+              let ids_with_layouts =
+                bound_value_identifiers_and_layouts
+                  ~layout_value:Jkind.(Layout.of_const
+                    (Layout.Const.of_sort_const Sort.Const.for_module_field))
+                  od.open_bound_items
+              in
               let mid = Ident.create_local "open" in
               let mid_duid = Lambda.debug_uid_none in
               let rec rebind_idents pos newfields newsorts= function
                   [] -> transl_structure
                           ~scopes loc newfields newsorts cc rootpath
                           final_env rem
-                | id :: ids ->
+                | (id, layout) :: ids_with_layouts ->
+                  let lambda_layout =
+                    to_layout (Jkind.Layout.default_to_value_and_get layout)
+                  in
                   let body, size =
                     rebind_idents (pos + 1) (id :: newfields)
-                      (Jkind.Sort.Const.value :: newsorts) ids
+                      ((Jkind.Layout.to_sort layout
+                        |> Option.get
+                        |> Jkind.Sort.default_for_transl_and_get) :: newsorts)
+                      ids_with_layouts
                   in
                   let id_duid = Lambda.debug_uid_none in
                   (* CR sspies: Can we find a better [debug_uid] here? *)
-                  Llet(Alias, Lambda.layout_module_field, id, id_duid,
+                  Llet(Alias, lambda_layout, id, id_duid,
                       Lprim(mod_field pos, [Lvar mid],
                             of_location ~scopes od.open_loc), body),
                   size
               in
-              let body, size = rebind_idents 0 fields sorts ids in
+              let body, size = rebind_idents 0 fields sorts ids_with_layouts in
               Llet(pure, Lambda.layout_module, mid, mid_duid,
                    transl_module ~scopes Tcoerce_none None od.open_expr, body),
               size

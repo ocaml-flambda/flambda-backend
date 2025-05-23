@@ -1253,7 +1253,8 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
             in
             (id,
              {exp_desc =
-              Texp_ident(path, mknoloc (Longident.Lident (Ident.name id)), vd,
+              (* CR mixed-modules: this is definitely not correct *)
+              Texp_ident(path, [], mknoloc (Longident.Lident (Ident.name id)), vd,
                          Id_value, aliased_many_use);
               exp_loc = Location.none; exp_extra = [];
               exp_type = Ctype.instance vd.val_type;
@@ -1458,7 +1459,8 @@ and class_expr_aux cl_num val_env met_env virt self_scope scl =
              in
              let expr =
                {exp_desc =
-                Texp_ident(path, mknoloc(Longident.Lident (Ident.name id)),vd,
+                (* CR mixed-modules: this is definitely not correct *)
+                Texp_ident(path, [], mknoloc(Longident.Lident (Ident.name id)),vd,
                            Id_value, aliased_many_use);
                 exp_loc = Location.none; exp_extra = [];
                 exp_type = ty;
