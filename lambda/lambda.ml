@@ -148,11 +148,16 @@ type primitive =
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * locality_mode
   | Pufloatfield of int * field_read_semantics
-  | Pmixedfield of int * mixed_block_shape_with_locality_mode
+  (* CR-someday xclerc: the first argument of `Pmixedfield` and
+     `Psetmixedfield` (the path / list of indices) should probably be
+     abstracted so that we do not check in multiple places that its length is
+     correct. *)
+  | Pmixedfield of int list * mixed_block_shape_with_locality_mode
       * field_read_semantics
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
-  | Psetmixedfield of int * mixed_block_shape * initialization_or_assignment
+  | Psetmixedfield of int list * mixed_block_shape
+      * initialization_or_assignment
   | Pduprecord of Types.record_representation * int
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
@@ -409,6 +414,7 @@ and 'a mixed_block_element =
   | Bits64
   | Vec128
   | Word
+  | Product of 'a mixed_block_element array
 
 and mixed_block_shape = unit mixed_block_element array
 
@@ -575,8 +581,11 @@ and equal_mixed_block_element :
   | Bits64, Bits64
   | Vec128, Vec128
   | Word, Word -> true
+  | Product es1, Product es2 ->
+    Misc.Stdlib.Array.equal (equal_mixed_block_element eq_param)
+      es1 es2
   | (Value _ | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Vec128
-     | Word), _ -> false
+     | Word | Product _), _ -> false
 
 and equal_mixed_block_shape shape1 shape2 =
   Misc.Stdlib.Array.equal (equal_mixed_block_element Unit.equal) shape1 shape2
@@ -1405,7 +1414,7 @@ let transl_prim mod_name name =
   | exception Not_found ->
       fatal_error ("Primitive " ^ name ^ " not found.")
 
-let transl_mixed_product_shape ~get_value_kind shape =
+let rec transl_mixed_product_shape ~get_value_kind shape =
   Array.mapi (fun i (elt : Types.mixed_block_element) ->
     match elt with
     | Value -> Value (get_value_kind i)
@@ -1416,9 +1425,14 @@ let transl_mixed_product_shape ~get_value_kind shape =
     | Bits64 -> Bits64
     | Vec128 -> Vec128
     | Word -> Word
+    | Product shapes ->
+      (* CR mshinwell: This [get_value_kind] override is a bit odd, maybe this
+         could be improved in the future (same below). *)
+      let get_value_kind _ = generic_value in
+      Product (transl_mixed_product_shape ~get_value_kind shapes)
   ) shape
 
-let transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shape =
+let rec transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shape =
   Array.mapi (fun i (elt : Types.mixed_block_element) ->
     match elt with
     | Value -> Value (get_value_kind i)
@@ -1429,6 +1443,10 @@ let transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shape =
     | Bits64 -> Bits64
     | Vec128 -> Vec128
     | Word -> Word
+    | Product shapes ->
+      let get_value_kind _ = generic_value in
+      Product
+        (transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shapes)
   ) shape
 
 (* Compile a sequence of expressions *)
@@ -1829,6 +1847,66 @@ let locality_mode_of_primitive_description (p : external_call_description) =
       *)
       if p.prim_alloc then Some alloc_heap else None
 
+let project_from_mixed_block_shape
+    : 'a. 'a mixed_block_element array -> path:int list
+          -> 'a mixed_block_element
+    = fun shape ~path ->
+  match path with
+  | [] ->
+    Misc.fatal_error "project_from_mixed_block_shape: path must be non-empty"
+  | field :: path ->
+    (* Perform the initial projection to identify which boxed field is
+       requested. *)
+    if field < 0 || field >= Array.length shape
+    then
+      Misc.fatal_errorf
+        "project_from_mixed_block_shape: field index %d out of bounds for \
+         shape of %d elements"
+        field (Array.length shape);
+    let element = shape.(field) in
+    (* Now follow the path through any unboxed product nodes. *)
+    let rec project_from_mixed_block_element_by_path element path =
+      match path with
+      | [] ->
+        (* End of path reached. *)
+        element
+      | field :: path -> (
+        (* Path still continuing: we must be at an unboxed product node.
+           Extract the relevant projection and continue. *)
+        match element with
+        | Product shape ->
+          if field < 0 || field >= Array.length shape
+          then
+            Misc.fatal_errorf
+              "project_from_mixed_block_element: field index %d out of bounds \
+               for (nested) shape of %d elements"
+              field (Array.length shape);
+          project_from_mixed_block_element_by_path shape.(field) path
+        | Value _
+        | Float_boxed _
+        | Float64 | Float32 | Bits32 | Bits64 | Word | Vec128 ->
+          Misc.fatal_error "project_from_mixed_block_element: path too long \
+            for mixed block shape")
+    in
+    project_from_mixed_block_element_by_path element path
+
+let mixed_block_projection_may_allocate shape ~path =
+  let rec allocates element =
+    match element with
+    | Float_boxed mode -> Some mode
+    | Value _ | Float64 | Float32 | Bits32 | Bits64 | Word | Vec128 -> None
+    | Product shape ->
+      Array.fold_left (fun alloc_mode element ->
+          let alloc_mode' = allocates element in
+          match alloc_mode, alloc_mode' with
+          | None, None -> None
+          | Some alloc_mode, None | None, Some alloc_mode -> Some alloc_mode
+          | Some alloc_mode, Some alloc_mode' ->
+            Some (join_locality_mode alloc_mode alloc_mode'))
+        None shape
+  in
+  allocates (project_from_mixed_block_shape shape ~path)
+
 (* Changes to this function may also require changes in Flambda 2 (e.g.
    closure_conversion.ml). *)
 let primitive_may_allocate : primitive -> locality_mode option = function
@@ -1844,20 +1922,8 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pfield _ | Pfield_computed _ | Psetfield _ | Psetfield_computed _ -> None
   | Pfloatfield (_, _, m) -> Some m
   | Pufloatfield _ -> None
-  | Pmixedfield (field, shape, _) -> (
-      if field < 0 || field >= Array.length shape then
-        Misc.fatal_errorf "primitive_may_allocate: field index out of bounds \
-          for Pmixedfield:@ %d" field;
-      match shape.(field) with
-      | Float_boxed mode -> Some mode
-      | Value _
-      | Float64
-      | Float32
-      | Bits32
-      | Bits64
-      | Vec128
-      | Word -> None
-  )
+  | Pmixedfield (path, shape, _) ->
+    mixed_block_projection_may_allocate shape ~path
   | Psetfloatfield _ -> None
   | Psetufloatfield _ -> None
   | Psetmixedfield _ -> None
@@ -2242,16 +2308,24 @@ let array_ref_kind_result_layout = function
   | Pgcscannableproductarray_ref kinds -> layout_of_scannable_kinds kinds
   | Pgcignorableproductarray_ref kinds -> layout_of_ignorable_kinds kinds
 
-let layout_of_mixed_block_element (elt : _ mixed_block_element) =
-  match elt with
-  | Value value_kind -> Pvalue value_kind
-  | Float_boxed _ -> layout_boxed_float Boxed_float64
-  | Float64 -> layout_unboxed_float Unboxed_float64
-  | Float32 -> layout_unboxed_float Unboxed_float32
-  | Bits32 -> layout_unboxed_int32
-  | Bits64 -> layout_unboxed_int64
-  | Word -> layout_unboxed_nativeint
-  | Vec128 -> layout_unboxed_vector Unboxed_vec128
+let layout_of_mixed_block_shape
+    : 'a. 'a mixed_block_element array -> path:int list -> layout
+    = fun shape ~path ->
+  let rec layout_of_mixed_block_element element =
+    match element with
+    | Value value_kind -> Pvalue value_kind
+    | Float_boxed _ -> layout_boxed_float Boxed_float64
+    | Float64 -> layout_unboxed_float Unboxed_float64
+    | Float32 -> layout_unboxed_float Unboxed_float32
+    | Bits32 -> layout_unboxed_int32
+    | Bits64 -> layout_unboxed_int64
+    | Word -> layout_unboxed_nativeint
+    | Vec128 -> layout_unboxed_vector Unboxed_vec128
+    | Product shape ->
+      Punboxed_product
+        (Array.to_list (Array.map layout_of_mixed_block_element shape))
+  in
+  layout_of_mixed_block_element (project_from_mixed_block_shape shape ~path)
 
 let primitive_result_layout (p : primitive) =
   assert !Clflags.native_code;
@@ -2288,7 +2362,7 @@ let primitive_result_layout (p : primitive) =
   | Punbox_float f -> layout_unboxed_float (Primitive.unboxed_float f)
   | Pbox_vector (v, _) -> layout_boxed_vector v
   | Punbox_vector v -> layout_unboxed_vector (Primitive.unboxed_vector v)
-  | Pmixedfield (i, shape, _) -> layout_of_mixed_block_element shape.(i)
+  | Pmixedfield (path, shape, _) -> layout_of_mixed_block_shape shape ~path
   | Pccall { prim_native_repr_res = _, repr_res } -> layout_of_extern_repr repr_res
   | Praise _ -> layout_bottom
   | Psequor | Psequand | Pnot

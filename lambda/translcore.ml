@@ -58,9 +58,9 @@ let layout_exp sort e = layout e.exp_env e.exp_loc sort e.exp_type
 let layout_pat sort p = layout p.pat_env p.pat_loc sort p.pat_type
 
 let check_record_field_sort loc : Jkind.Sort.Const.t -> _ = function
-  | Base (Value | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) -> ()
+  | Base (Value | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word)
+  | Product _ -> ()
   | Base Void -> raise (Error (loc, Illegal_void_record_field))
-  | Product _ as c -> raise (Error (loc, Illegal_product_record_field c))
 
 (* Forward declaration -- to be filled in by Translmod.transl_module *)
 let transl_module =
@@ -696,7 +696,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                           \ present for float field read")
               shape
           in
-          Lprim (Pmixedfield (lbl.lbl_pos, shape, sem), [targ],
+          Lprim (Pmixedfield ([lbl.lbl_pos], shape, sem), [targ],
                   of_location ~scopes e.exp_loc)
         | Record_inlined (_, _, Variant_with_null) -> assert false
       end
@@ -757,7 +757,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
                   Lambda.{ raw_kind; nullable })
               shape
             in
-            Psetmixedfield(lbl.lbl_pos, shape, mode)
+            Psetmixedfield([lbl.lbl_pos], shape, mode)
         | Record_inlined (_, _, Variant_with_null) -> assert false
       in
       let sort_arg =
@@ -1968,7 +1968,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
 
 
                 Psetmixedfield
-                  (lbl.lbl_pos, shape, Assignment modify_heap)
+                  ([lbl.lbl_pos], shape, Assignment modify_heap)
             | Record_inlined (_, _, Variant_with_null) -> assert false
           in
           Lsequence(Lprim(upd, [Lvar copy_id;
@@ -2046,7 +2046,7 @@ and transl_record ~scopes loc env mode fields repres opt_init_expr =
                          Lambda.alloc_heap)
                       shape
                    in
-                   Pmixedfield (i, shape, sem)
+                   Pmixedfield ([i], shape, sem)
                  | Record_inlined (_, _, Variant_with_null) -> assert false
                in
                Lprim(access, [Lvar init_id],

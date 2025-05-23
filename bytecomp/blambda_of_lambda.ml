@@ -397,7 +397,8 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
     | Pfloatfield (n, _, _) | Pufloatfield (n, _) ->
       pseudo_event (unary (Getfloatfield n))
     | Psetfloatfield (n, _) | Psetufloatfield (n, _) -> binary (Setfloatfield n)
-    | Pmixedfield (n, _, _) ->
+    | Pmixedfield ([], _, _) -> assert false
+    | Pmixedfield ([n], _, _) ->
       (* CR layouts: This will need reworking if we ever want bytecode
          to unbox fields that are written with unboxed types in the source
          language. *)
@@ -405,9 +406,39 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
          aren't stored flat like they are in native code.
       *)
       unary (Getfield n)
-    | Psetmixedfield (n, _, _) ->
+    | Pmixedfield (hd :: tl, _, _) ->
+      (* `Pmixedfield ([idx0, idx1, ..., idxn], [block])` is compiled to
+         `Getfield (idxn, [... Getfield (idx1, [Getfield (idx0, [block])])])` *)
+      List.fold_left
+        (fun expr idx -> Blambda.Prim (Getfield idx, [expr]))
+        (unary (Getfield hd)) tl
+    | Psetmixedfield ([], _, _) -> assert false
+    | Psetmixedfield ([n], _, _) ->
       (* See the comment in the [Pmixedfield] case. *)
       binary (Setfield n)
+    | Psetmixedfield (path, _, _) -> (
+      (* `Psetmixedfield ([idx0, idx1, ..., idxn], [block; value])` is compiled to
+         `Setfield (idxn, [... Getfield (idx1, [Getfield (idx0, [block])]); value])`
+         given the match case above, we know the path should have at least two
+         elements. *)
+      match args with
+      | [] | [_] | _ :: _ :: _ :: _ -> wrong_arity ~expected:2
+      | [block; value] -> (
+        match List.rev path with
+        | [] -> Misc.fatal_error "comp_expr: path must be non-empty"
+        | last :: rest -> (
+          match List.rev rest with
+          | [] ->
+            Misc.fatal_error
+              "comp_expr: path is expected to have at least two elements"
+          | hd :: tl ->
+            let block =
+              List.fold_left
+                (fun expr idx -> Blambda.Prim (Getfield idx, [expr]))
+                (Blambda.Prim (Getfield hd, [comp_arg block]))
+                tl
+            in
+            Blambda.Prim (Setfield last, [block; comp_arg value]))))
     | Pduprecord _ -> unary (Ccall "caml_obj_dup")
     | Pccall p -> n_ary (Ccall p.prim_name) ~arity:p.prim_arity
     | Pperform -> context_switch Perform ~arity:1
