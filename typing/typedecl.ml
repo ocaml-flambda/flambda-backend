@@ -1714,7 +1714,8 @@ module Element_repr = struct
       List.fold_left (fun acc (t,_) -> count_boxed_in_t acc t) 0 ts
     in
     let mixed =
-      List.exists (function (Unboxed_element _, _) -> true | _ -> false) ts
+      List.exists
+        (function ((Unboxed_element _ | Void), _) -> true | _ -> false) ts
     in
     if not mixed then None else begin
       assert_mixed_product_support loc kind ~value_prefix_len:boxed_elements;
@@ -1838,14 +1839,13 @@ let rec update_decl_jkind env dpath decl =
            | Void ->
                repr_summary.voids <- true)
         reprs;
-      let[@warning "+9"] rep =
+      let rep =
         match repr_summary with
         (* We store mixed float/float64 records as flat if there are no
             non-float fields.
         *)
         | { values = false; floats = true;
-            float64s = true; non_float64_unboxed_fields = false;
-            }
+            float64s = true; non_float64_unboxed_fields = false }
            ->
             let shape =
               List.map
@@ -1866,6 +1866,9 @@ let rec update_decl_jkind env dpath decl =
         (* For other mixed blocks, float fields are stored as flat
            only when they're unboxed.
         *)
+        | { values = true; voids = true }
+        | { floats = true; voids = true }
+        | { float64s = true; voids = true }
         | { values = true; float64s = true }
         | { non_float64_unboxed_fields = true } ->
             let shape =
@@ -1878,18 +1881,19 @@ let rec update_decl_jkind env dpath decl =
             in
             Record_mixed shape
         (* value-only records are stored as boxed records *)
-        | { values = true; float64s = false; non_float64_unboxed_fields = false }
+        | { values = true; float64s = false; non_float64_unboxed_fields = false;
+            voids = false }
           -> rep
         (* All-float and all-float64 records are stored as flat float records.
         *)
         | { values = false; floats = true ; float64s = false;
-            non_float64_unboxed_fields = false } ->
+            non_float64_unboxed_fields = false; voids = false } ->
           Record_float
         | { values = false; floats = false; float64s = true;
-            non_float64_unboxed_fields = false } ->
+            non_float64_unboxed_fields = false; voids = false } ->
           Record_ufloat
         | { values = false; floats = false; float64s = false;
-            non_float64_unboxed_fields = false }  ->
+            non_float64_unboxed_fields = false; voids = _ }  ->
           Misc.fatal_error "Typedecl.update_record_kind: empty record"
       in
       lbls, rep, jkind
