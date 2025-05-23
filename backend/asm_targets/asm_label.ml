@@ -131,4 +131,4 @@ let for_dwarf_section (dwarf_section : Asm_section.dwarf_section) =
 let for_section (section : Asm_section.t) =
   match section with
   | DWARF d -> for_dwarf_section d
-  | _ -> Misc.fatal_error "Non dwarf sections are not pre-defined with a label."
+  | _ -> Misc.fatal_error "Non DWARF sections are not pre-defined with a label."

@@ -393,7 +393,7 @@ let record_frame_label live dbg =
       | { typ = Int | Float | Float32 | Vec128; _ } -> ())
     live;
   (* CR sspies: Consider changing [record_frame_descr] to [Asm_label.t] instead
-     of linear labels. *)
+     of Linear labels. *)
   record_frame_descr ~label:lbl ~frame_size:(frame_size ())
     ~live_offset:!live_offset dbg;
   label_to_asm_label ~section:Text lbl

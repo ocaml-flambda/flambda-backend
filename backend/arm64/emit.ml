@@ -547,7 +547,7 @@ let file_emitter ~file_num ~file_name =
   D.file ~file_num:(Some file_num) ~file_name
 
 let emit_debug_info ?discriminator dbg =
-  emit_debug_info_gen ?discriminator dbg file_emitter D.loc
+  Emitaux.emit_debug_info_gen ?discriminator dbg file_emitter D.loc
 
 let emit_local_realloc lr =
   D.define_label lr.lr_lbl;
