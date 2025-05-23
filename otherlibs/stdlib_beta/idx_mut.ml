@@ -24,6 +24,6 @@ external unsafe_get
 
 external unsafe_set
   : 'a ('b : any).
-  'a @ local -> ('a, 'b) idx_mut -> 'b -> unit
+  ('a[@local_opt]) -> ('a, 'b) idx_mut -> 'b -> unit
   = "%unsafe_set_idx"
 [@@layout_poly]
