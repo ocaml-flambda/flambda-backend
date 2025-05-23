@@ -456,6 +456,14 @@ module E = struct
 
   let iter_labeled_tuple sub el = List.iter (iter_snd (sub.expr sub)) el
 
+  let iter_block_access sub = function
+    | Baccess_field lid -> iter_loc sub lid
+    | Baccess_array (_, _, index) -> sub.expr sub index
+    | Baccess_block (_, idx) -> sub.expr sub idx
+
+  let iter_unboxed_access sub = function
+    | Uaccess_unboxed_field lid -> iter_loc sub lid
+
   let iter sub {pexp_loc = loc; pexp_desc = desc; pexp_attributes = attrs} =
     sub.location sub loc;
     sub.attributes sub attrs;
@@ -491,6 +499,9 @@ module E = struct
         sub.expr sub e1; iter_loc sub lid;
         sub.expr sub e2
     | Pexp_array (_mut, el) -> List.iter (sub.expr sub) el
+    | Pexp_idx (ba, uas) ->
+        iter_block_access sub ba;
+        List.iter (iter_unboxed_access sub) uas
     | Pexp_ifthenelse (e1, e2, e3) ->
         sub.expr sub e1; sub.expr sub e2;
         iter_opt (sub.expr sub) e3
