@@ -67,6 +67,14 @@ module Layout = struct
     | Vec128 -> true
     | Product ts -> List.exists ts ~f:contains_vec128
 
+  let rec is_non_float t =
+    match t with
+    | Value Float -> false
+    | Value (Immediate | Addr_non_float)
+    | Bits32 | Bits64 | Float64 | Float32 | Vec128 | Word ->
+      true
+    | Product ts -> List.for_all ts ~f:is_non_float
+
   type acc =
     { seen_flat : bool;
       last_value_after_flat : bool
@@ -285,7 +293,8 @@ module Type_structure = struct
         && not (Layout.contains_vec128 ty_layout)
       in
       let supported_by_block_indices =
-        not (Layout.reordered_in_block ty_layout)
+        (not (Layout.reordered_in_block ty_layout))
+        && Layout.is_non_float ty_layout
       in
       if supported_in_arrays && supported_by_block_indices
       then Some ty

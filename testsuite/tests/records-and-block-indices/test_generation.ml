@@ -1,4 +1,4 @@
-(* This file is used in [run_test_generation.ml]. *)
+(* This file is used in [do_test_generation.ml]. *)
 
 open Stdlib_upstream_compatible
 open Stdlib_stable
