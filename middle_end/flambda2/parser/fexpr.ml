@@ -480,6 +480,10 @@ type apply_cont =
     args : simple list
   }
 
+type is_cont_recursive =
+  | Nonrecursive
+  | Recursive of kinded_parameter list
+
 type expr =
   | Let of let_
   | Let_cont of let_cont
@@ -524,7 +528,7 @@ and fun_decl =
   }
 
 and let_cont =
-  { recursive : is_recursive;
+  { recursive : is_cont_recursive;
     body : expr;
     bindings : continuation_binding list
   }
