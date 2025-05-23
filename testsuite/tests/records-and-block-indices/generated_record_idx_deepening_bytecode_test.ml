@@ -132,310 +132,158 @@ type t18 = #{ a18 : int; b18 : int32# } (* #{ int; int32# } *)
 type t19 = { mutable a19 : int; mutable b19 : t18 } (* { int; #{ int; int32# } } *)
 type t20 = #{ a20 : int; b20 : float } (* #{ int; float } *)
 type t21 = { mutable a21 : int; mutable b21 : t20 } (* { int; #{ int; float } } *)
-type t22 = #{ a22 : int; b22 : t14 } (* #{ int; #{ int } } *)
-type t23 = { mutable a23 : int; mutable b23 : t22 } (* { int; #{ int; #{ int } } } *)
-type t24 = #{ a24 : int32# } (* #{ int32# } *)
-type t25 = #{ a25 : int; b25 : t24 } (* #{ int; #{ int32# } } *)
-type t26 = { mutable a26 : int; mutable b26 : t25 } (* { int; #{ int; #{ int32# } } } *)
-type t27 = #{ a27 : float } (* #{ float } *)
-type t28 = #{ a28 : int; b28 : t27 } (* #{ int; #{ float } } *)
-type t29 = { mutable a29 : int; mutable b29 : t28 } (* { int; #{ int; #{ float } } } *)
-type t30 = { mutable a30 : int; mutable b30 : t24 } (* { int; #{ int32# } } *)
-type t31 = #{ a31 : int32#; b31 : int } (* #{ int32#; int } *)
-type t32 = { mutable a32 : int; mutable b32 : t31 } (* { int; #{ int32#; int } } *)
-type t33 = #{ a33 : int32#; b33 : int32# } (* #{ int32#; int32# } *)
-type t34 = { mutable a34 : int; mutable b34 : t33 } (* { int; #{ int32#; int32# } } *)
-type t35 = #{ a35 : int32#; b35 : t14 } (* #{ int32#; #{ int } } *)
-type t36 = { mutable a36 : int; mutable b36 : t35 } (* { int; #{ int32#; #{ int } } } *)
-type t37 = #{ a37 : int32#; b37 : t24 } (* #{ int32#; #{ int32# } } *)
-type t38 = { mutable a38 : int; mutable b38 : t37 } (* { int; #{ int32#; #{ int32# } } } *)
-type t39 = { mutable a39 : int; mutable b39 : t27 } (* { int; #{ float } } *)
-type t40 = #{ a40 : float; b40 : int } (* #{ float; int } *)
-type t41 = { mutable a41 : int; mutable b41 : t40 } (* { int; #{ float; int } } *)
-type t42 = #{ a42 : float; b42 : float } (* #{ float; float } *)
-type t43 = { mutable a43 : int; mutable b43 : t42 } (* { int; #{ float; float } } *)
-type t44 = #{ a44 : float; b44 : t14 } (* #{ float; #{ int } } *)
-type t45 = { mutable a45 : int; mutable b45 : t44 } (* { int; #{ float; #{ int } } } *)
-type t46 = #{ a46 : float; b46 : t27 } (* #{ float; #{ float } } *)
-type t47 = { mutable a47 : int; mutable b47 : t46 } (* { int; #{ float; #{ float } } } *)
-type t48 = #{ a48 : t16 } (* #{ #{ int; int } } *)
-type t49 = { mutable a49 : int; mutable b49 : t48 } (* { int; #{ #{ int; int } } } *)
-type t50 = #{ a50 : t18 } (* #{ #{ int; int32# } } *)
-type t51 = { mutable a51 : int; mutable b51 : t50 } (* { int; #{ #{ int; int32# } } } *)
-type t52 = #{ a52 : t20 } (* #{ #{ int; float } } *)
-type t53 = { mutable a53 : int; mutable b53 : t52 } (* { int; #{ #{ int; float } } } *)
-type t54 = #{ a54 : t31 } (* #{ #{ int32#; int } } *)
-type t55 = { mutable a55 : int; mutable b55 : t54 } (* { int; #{ #{ int32#; int } } } *)
-type t56 = #{ a56 : t33 } (* #{ #{ int32#; int32# } } *)
-type t57 = { mutable a57 : int; mutable b57 : t56 } (* { int; #{ #{ int32#; int32# } } } *)
-type t58 = #{ a58 : t40 } (* #{ #{ float; int } } *)
-type t59 = { mutable a59 : int; mutable b59 : t58 } (* { int; #{ #{ float; int } } } *)
-type t60 = #{ a60 : t42 } (* #{ #{ float; float } } *)
-type t61 = { mutable a61 : int; mutable b61 : t60 } (* { int; #{ #{ float; float } } } *)
-type t62 = { mutable a62 : int64 } (* { int64 } *)
-type t63 = { mutable a63 : int64; mutable b63 : int } (* { int64; int } *)
-type t64 = { mutable a64 : int64; mutable b64 : int64 } (* { int64; int64 } *)
-type t65 = { mutable a65 : int64; mutable b65 : int64# } (* { int64; int64# } *)
-type t66 = { mutable a66 : int64; mutable b66 : int32# } (* { int64; int32# } *)
-type t67 = { mutable a67 : int64; mutable b67 : nativeint# } (* { int64; nativeint# } *)
-type t68 = { mutable a68 : int64; mutable b68 : float } (* { int64; float } *)
-type t69 = { mutable a69 : int64# } (* { int64# } *)
-type t70 = { mutable a70 : int64#; mutable b70 : int } (* { int64#; int } *)
-type t71 = { mutable a71 : int64#; mutable b71 : int64 } (* { int64#; int64 } *)
-type t72 = { mutable a72 : int64#; mutable b72 : int64# } (* { int64#; int64# } *)
-type t73 = { mutable a73 : int64#; mutable b73 : int32# } (* { int64#; int32# } *)
-type t74 = { mutable a74 : int64#; mutable b74 : nativeint# } (* { int64#; nativeint# } *)
-type t75 = { mutable a75 : int64#; mutable b75 : float } (* { int64#; float } *)
-type t76 = { mutable a76 : int32# } (* { int32# } *)
-type t77 = { mutable a77 : int32#; mutable b77 : int } (* { int32#; int } *)
-type t78 = { mutable a78 : int32#; mutable b78 : int; mutable c78 : int } (* { int32#; int; int } *)
-type t79 = { mutable a79 : int32#; mutable b79 : int; mutable c79 : int32# } (* { int32#; int; int32# } *)
-type t80 = { mutable a80 : int32#; mutable b80 : int64 } (* { int32#; int64 } *)
-type t81 = { mutable a81 : int32#; mutable b81 : int64# } (* { int32#; int64# } *)
-type t82 = { mutable a82 : int32#; mutable b82 : int32# } (* { int32#; int32# } *)
-type t83 = { mutable a83 : int32#; mutable b83 : int32#; mutable c83 : int } (* { int32#; int32#; int } *)
-type t84 = { mutable a84 : int32#; mutable b84 : int32#; mutable c84 : int32# } (* { int32#; int32#; int32# } *)
-type t85 = { mutable a85 : int32#; mutable b85 : nativeint# } (* { int32#; nativeint# } *)
-type t86 = { mutable a86 : int32#; mutable b86 : float } (* { int32#; float } *)
-type t87 = { mutable a87 : int32#; mutable b87 : t14 } (* { int32#; #{ int } } *)
-type t88 = { mutable a88 : int32#; mutable b88 : t16 } (* { int32#; #{ int; int } } *)
-type t89 = { mutable a89 : int32#; mutable b89 : t18 } (* { int32#; #{ int; int32# } } *)
-type t90 = { mutable a90 : int32#; mutable b90 : t22 } (* { int32#; #{ int; #{ int } } } *)
-type t91 = { mutable a91 : int32#; mutable b91 : t25 } (* { int32#; #{ int; #{ int32# } } } *)
-type t92 = { mutable a92 : int32#; mutable b92 : t24 } (* { int32#; #{ int32# } } *)
-type t93 = { mutable a93 : int32#; mutable b93 : t31 } (* { int32#; #{ int32#; int } } *)
-type t94 = { mutable a94 : int32#; mutable b94 : t33 } (* { int32#; #{ int32#; int32# } } *)
-type t95 = { mutable a95 : int32#; mutable b95 : t35 } (* { int32#; #{ int32#; #{ int } } } *)
-type t96 = { mutable a96 : int32#; mutable b96 : t37 } (* { int32#; #{ int32#; #{ int32# } } } *)
-type t97 = { mutable a97 : int32#; mutable b97 : t48 } (* { int32#; #{ #{ int; int } } } *)
-type t98 = { mutable a98 : int32#; mutable b98 : t50 } (* { int32#; #{ #{ int; int32# } } } *)
-type t99 = { mutable a99 : int32#; mutable b99 : t54 } (* { int32#; #{ #{ int32#; int } } } *)
-type t100 = { mutable a100 : int32#; mutable b100 : t56 } (* { int32#; #{ #{ int32#; int32# } } } *)
-type t101 = { mutable a101 : nativeint# } (* { nativeint# } *)
-type t102 = { mutable a102 : nativeint#; mutable b102 : int } (* { nativeint#; int } *)
-type t103 = { mutable a103 : nativeint#; mutable b103 : int64 } (* { nativeint#; int64 } *)
-type t104 = { mutable a104 : nativeint#; mutable b104 : int64# } (* { nativeint#; int64# } *)
-type t105 = { mutable a105 : nativeint#; mutable b105 : int32# } (* { nativeint#; int32# } *)
-type t106 = { mutable a106 : nativeint#; mutable b106 : nativeint# } (* { nativeint#; nativeint# } *)
-type t107 = { mutable a107 : nativeint#; mutable b107 : float } (* { nativeint#; float } *)
-type t108 = { mutable a108 : float } (* { float } *)
-type t109 = { mutable a109 : float; mutable b109 : int } (* { float; int } *)
-type t110 = { mutable a110 : float; mutable b110 : int; mutable c110 : int } (* { float; int; int } *)
-type t111 = { mutable a111 : float; mutable b111 : int; mutable c111 : float } (* { float; int; float } *)
-type t112 = { mutable a112 : float; mutable b112 : int64 } (* { float; int64 } *)
-type t113 = { mutable a113 : float; mutable b113 : int64# } (* { float; int64# } *)
-type t114 = { mutable a114 : float; mutable b114 : int32# } (* { float; int32# } *)
-type t115 = { mutable a115 : float; mutable b115 : nativeint# } (* { float; nativeint# } *)
-type t116 = { mutable a116 : float; mutable b116 : float } (* { float; float } *)
-type t117 = { mutable a117 : float; mutable b117 : float; mutable c117 : int } (* { float; float; int } *)
-type t118 = { mutable a118 : float; mutable b118 : float; mutable c118 : float } (* { float; float; float } *)
-type t119 = { mutable a119 : float; mutable b119 : float; mutable c119 : float# } (* { float; float; float# } *)
-type t120 = { mutable a120 : float; mutable b120 : float# } (* { float; float# } *)
-type t121 = { mutable a121 : float; mutable b121 : float#; mutable c121 : float } (* { float; float#; float } *)
-type t122 = { mutable a122 : float; mutable b122 : float#; mutable c122 : float# } (* { float; float#; float# } *)
-type t123 = { mutable a123 : float; mutable b123 : t14 } (* { float; #{ int } } *)
-type t124 = { mutable a124 : float; mutable b124 : t16 } (* { float; #{ int; int } } *)
-type t125 = { mutable a125 : float; mutable b125 : t20 } (* { float; #{ int; float } } *)
-type t126 = { mutable a126 : float; mutable b126 : t22 } (* { float; #{ int; #{ int } } } *)
-type t127 = { mutable a127 : float; mutable b127 : t28 } (* { float; #{ int; #{ float } } } *)
-type t128 = { mutable a128 : float; mutable b128 : t27 } (* { float; #{ float } } *)
-type t129 = { mutable a129 : float; mutable b129 : t40 } (* { float; #{ float; int } } *)
-type t130 = { mutable a130 : float; mutable b130 : t42 } (* { float; #{ float; float } } *)
-type t131 = #{ a131 : float; b131 : float# } (* #{ float; float# } *)
-type t132 = { mutable a132 : float; mutable b132 : t131 } (* { float; #{ float; float# } } *)
-type t133 = { mutable a133 : float; mutable b133 : t44 } (* { float; #{ float; #{ int } } } *)
-type t134 = { mutable a134 : float; mutable b134 : t46 } (* { float; #{ float; #{ float } } } *)
-type t135 = #{ a135 : float# } (* #{ float# } *)
-type t136 = #{ a136 : float; b136 : t135 } (* #{ float; #{ float# } } *)
-type t137 = { mutable a137 : float; mutable b137 : t136 } (* { float; #{ float; #{ float# } } } *)
-type t138 = { mutable a138 : float; mutable b138 : t135 } (* { float; #{ float# } } *)
-type t139 = #{ a139 : float#; b139 : float } (* #{ float#; float } *)
-type t140 = { mutable a140 : float; mutable b140 : t139 } (* { float; #{ float#; float } } *)
-type t141 = #{ a141 : float#; b141 : float# } (* #{ float#; float# } *)
-type t142 = { mutable a142 : float; mutable b142 : t141 } (* { float; #{ float#; float# } } *)
-type t143 = #{ a143 : float#; b143 : t27 } (* #{ float#; #{ float } } *)
-type t144 = { mutable a144 : float; mutable b144 : t143 } (* { float; #{ float#; #{ float } } } *)
-type t145 = #{ a145 : float#; b145 : t135 } (* #{ float#; #{ float# } } *)
-type t146 = { mutable a146 : float; mutable b146 : t145 } (* { float; #{ float#; #{ float# } } } *)
-type t147 = { mutable a147 : float; mutable b147 : t48 } (* { float; #{ #{ int; int } } } *)
-type t148 = { mutable a148 : float; mutable b148 : t52 } (* { float; #{ #{ int; float } } } *)
-type t149 = { mutable a149 : float; mutable b149 : t58 } (* { float; #{ #{ float; int } } } *)
-type t150 = { mutable a150 : float; mutable b150 : t60 } (* { float; #{ #{ float; float } } } *)
-type t151 = #{ a151 : t131 } (* #{ #{ float; float# } } *)
-type t152 = { mutable a152 : float; mutable b152 : t151 } (* { float; #{ #{ float; float# } } } *)
-type t153 = #{ a153 : t139 } (* #{ #{ float#; float } } *)
-type t154 = { mutable a154 : float; mutable b154 : t153 } (* { float; #{ #{ float#; float } } } *)
-type t155 = #{ a155 : t141 } (* #{ #{ float#; float# } } *)
-type t156 = { mutable a156 : float; mutable b156 : t155 } (* { float; #{ #{ float#; float# } } } *)
-type t157 = { mutable a157 : float# } (* { float# } *)
-type t158 = { mutable a158 : float#; mutable b158 : float } (* { float#; float } *)
-type t159 = { mutable a159 : float#; mutable b159 : float; mutable c159 : float } (* { float#; float; float } *)
-type t160 = { mutable a160 : float#; mutable b160 : float; mutable c160 : float# } (* { float#; float; float# } *)
-type t161 = { mutable a161 : float#; mutable b161 : float# } (* { float#; float# } *)
-type t162 = { mutable a162 : float#; mutable b162 : float#; mutable c162 : float } (* { float#; float#; float } *)
-type t163 = { mutable a163 : float#; mutable b163 : float#; mutable c163 : float# } (* { float#; float#; float# } *)
-type t164 = { mutable a164 : float#; mutable b164 : t27 } (* { float#; #{ float } } *)
-type t165 = { mutable a165 : float#; mutable b165 : t42 } (* { float#; #{ float; float } } *)
-type t166 = { mutable a166 : float#; mutable b166 : t131 } (* { float#; #{ float; float# } } *)
-type t167 = { mutable a167 : float#; mutable b167 : t46 } (* { float#; #{ float; #{ float } } } *)
-type t168 = { mutable a168 : float#; mutable b168 : t136 } (* { float#; #{ float; #{ float# } } } *)
-type t169 = { mutable a169 : float#; mutable b169 : t135 } (* { float#; #{ float# } } *)
-type t170 = { mutable a170 : float#; mutable b170 : t139 } (* { float#; #{ float#; float } } *)
-type t171 = { mutable a171 : float#; mutable b171 : t141 } (* { float#; #{ float#; float# } } *)
-type t172 = { mutable a172 : float#; mutable b172 : t143 } (* { float#; #{ float#; #{ float } } } *)
-type t173 = { mutable a173 : float#; mutable b173 : t145 } (* { float#; #{ float#; #{ float# } } } *)
-type t174 = { mutable a174 : float#; mutable b174 : t60 } (* { float#; #{ #{ float; float } } } *)
-type t175 = { mutable a175 : float#; mutable b175 : t151 } (* { float#; #{ #{ float; float# } } } *)
-type t176 = { mutable a176 : float#; mutable b176 : t153 } (* { float#; #{ #{ float#; float } } } *)
-type t177 = { mutable a177 : float#; mutable b177 : t155 } (* { float#; #{ #{ float#; float# } } } *)
-type t178 = { mutable a178 : t14 } (* { #{ int } } *)
-type t179 = { mutable a179 : t14; mutable b179 : int } (* { #{ int }; int } *)
-type t180 = { mutable a180 : t14; mutable b180 : int32# } (* { #{ int }; int32# } *)
-type t181 = { mutable a181 : t14; mutable b181 : float } (* { #{ int }; float } *)
-type t182 = { mutable a182 : t16 } (* { #{ int; int } } *)
-type t183 = { mutable a183 : t16; mutable b183 : int } (* { #{ int; int }; int } *)
-type t184 = { mutable a184 : t16; mutable b184 : int32# } (* { #{ int; int }; int32# } *)
-type t185 = { mutable a185 : t16; mutable b185 : float } (* { #{ int; int }; float } *)
-type t186 = { mutable a186 : t18 } (* { #{ int; int32# } } *)
-type t187 = { mutable a187 : t18; mutable b187 : int } (* { #{ int; int32# }; int } *)
-type t188 = { mutable a188 : t18; mutable b188 : int32# } (* { #{ int; int32# }; int32# } *)
-type t189 = { mutable a189 : t20 } (* { #{ int; float } } *)
-type t190 = { mutable a190 : t20; mutable b190 : int } (* { #{ int; float }; int } *)
-type t191 = { mutable a191 : t20; mutable b191 : float } (* { #{ int; float }; float } *)
-type t192 = #{ a192 : int; b192 : t16 } (* #{ int; #{ int; int } } *)
-type t193 = { mutable a193 : t192 } (* { #{ int; #{ int; int } } } *)
-type t194 = #{ a194 : int; b194 : t18 } (* #{ int; #{ int; int32# } } *)
-type t195 = { mutable a195 : t194 } (* { #{ int; #{ int; int32# } } } *)
-type t196 = #{ a196 : int; b196 : t20 } (* #{ int; #{ int; float } } *)
-type t197 = { mutable a197 : t196 } (* { #{ int; #{ int; float } } } *)
-type t198 = #{ a198 : int; b198 : t31 } (* #{ int; #{ int32#; int } } *)
-type t199 = { mutable a199 : t198 } (* { #{ int; #{ int32#; int } } } *)
-type t200 = #{ a200 : int; b200 : t33 } (* #{ int; #{ int32#; int32# } } *)
-type t201 = { mutable a201 : t200 } (* { #{ int; #{ int32#; int32# } } } *)
-type t202 = #{ a202 : int; b202 : t40 } (* #{ int; #{ float; int } } *)
-type t203 = { mutable a203 : t202 } (* { #{ int; #{ float; int } } } *)
-type t204 = #{ a204 : int; b204 : t42 } (* #{ int; #{ float; float } } *)
-type t205 = { mutable a205 : t204 } (* { #{ int; #{ float; float } } } *)
-type t206 = #{ a206 : int64; b206 : int64# } (* #{ int64; int64# } *)
-type t207 = #{ a207 : int64#; b207 : float# } (* #{ int64#; float# } *)
-type t208 = { mutable a208 : t206; mutable b208 : t207 } (* { #{ int64; int64# }; #{ int64#; float# } } *)
-type t209 = #{ a209 : int64; b209 : string } (* #{ int64; string } *)
-type t210 = #{ a210 : int64#; b210 : string } (* #{ int64#; string } *)
-type t211 = { mutable a211 : t209; mutable b211 : t210 } (* { #{ int64; string }; #{ int64#; string } } *)
-type t212 = #{ a212 : int64#; b212 : int64 } (* #{ int64#; int64 } *)
-type t213 = #{ a213 : int64; b213 : int64 } (* #{ int64; int64 } *)
-type t214 = { mutable a214 : t212; mutable b214 : t213 } (* { #{ int64#; int64 }; #{ int64; int64 } } *)
-type t215 = #{ a215 : float32#; b215 : float } (* #{ float32#; float } *)
-type t216 = { mutable a216 : t212; mutable b216 : t215 } (* { #{ int64#; int64 }; #{ float32#; float } } *)
-type t217 = { mutable a217 : t24 } (* { #{ int32# } } *)
-type t218 = { mutable a218 : t24; mutable b218 : int } (* { #{ int32# }; int } *)
-type t219 = { mutable a219 : t24; mutable b219 : int32# } (* { #{ int32# }; int32# } *)
-type t220 = { mutable a220 : t31 } (* { #{ int32#; int } } *)
-type t221 = { mutable a221 : t31; mutable b221 : int } (* { #{ int32#; int }; int } *)
-type t222 = { mutable a222 : t31; mutable b222 : int32# } (* { #{ int32#; int }; int32# } *)
-type t223 = { mutable a223 : t33 } (* { #{ int32#; int32# } } *)
-type t224 = { mutable a224 : t33; mutable b224 : int } (* { #{ int32#; int32# }; int } *)
-type t225 = { mutable a225 : t33; mutable b225 : int32# } (* { #{ int32#; int32# }; int32# } *)
-type t226 = #{ a226 : int32#; b226 : t16 } (* #{ int32#; #{ int; int } } *)
-type t227 = { mutable a227 : t226 } (* { #{ int32#; #{ int; int } } } *)
-type t228 = #{ a228 : int32#; b228 : t18 } (* #{ int32#; #{ int; int32# } } *)
-type t229 = { mutable a229 : t228 } (* { #{ int32#; #{ int; int32# } } } *)
-type t230 = #{ a230 : int32#; b230 : t31 } (* #{ int32#; #{ int32#; int } } *)
-type t231 = { mutable a231 : t230 } (* { #{ int32#; #{ int32#; int } } } *)
-type t232 = #{ a232 : int32#; b232 : t33 } (* #{ int32#; #{ int32#; int32# } } *)
-type t233 = { mutable a233 : t232 } (* { #{ int32#; #{ int32#; int32# } } } *)
-type t234 = { mutable a234 : t27 } (* { #{ float } } *)
-type t235 = { mutable a235 : t27; mutable b235 : int } (* { #{ float }; int } *)
-type t236 = { mutable a236 : t27; mutable b236 : float } (* { #{ float }; float } *)
-type t237 = { mutable a237 : t27; mutable b237 : float# } (* { #{ float }; float# } *)
-type t238 = { mutable a238 : t40 } (* { #{ float; int } } *)
-type t239 = { mutable a239 : t40; mutable b239 : int } (* { #{ float; int }; int } *)
-type t240 = { mutable a240 : t40; mutable b240 : float } (* { #{ float; int }; float } *)
-type t241 = { mutable a241 : t42 } (* { #{ float; float } } *)
-type t242 = { mutable a242 : t42; mutable b242 : int } (* { #{ float; float }; int } *)
-type t243 = { mutable a243 : t42; mutable b243 : float } (* { #{ float; float }; float } *)
-type t244 = { mutable a244 : t42; mutable b244 : float# } (* { #{ float; float }; float# } *)
-type t245 = { mutable a245 : t131 } (* { #{ float; float# } } *)
-type t246 = { mutable a246 : t131; mutable b246 : float } (* { #{ float; float# }; float } *)
-type t247 = { mutable a247 : t131; mutable b247 : float# } (* { #{ float; float# }; float# } *)
-type t248 = #{ a248 : float; b248 : t16 } (* #{ float; #{ int; int } } *)
-type t249 = { mutable a249 : t248 } (* { #{ float; #{ int; int } } } *)
-type t250 = #{ a250 : float; b250 : t20 } (* #{ float; #{ int; float } } *)
-type t251 = { mutable a251 : t250 } (* { #{ float; #{ int; float } } } *)
-type t252 = #{ a252 : float; b252 : t40 } (* #{ float; #{ float; int } } *)
-type t253 = { mutable a253 : t252 } (* { #{ float; #{ float; int } } } *)
-type t254 = #{ a254 : float; b254 : t42 } (* #{ float; #{ float; float } } *)
-type t255 = { mutable a255 : t254 } (* { #{ float; #{ float; float } } } *)
-type t256 = #{ a256 : float; b256 : t131 } (* #{ float; #{ float; float# } } *)
-type t257 = { mutable a257 : t256 } (* { #{ float; #{ float; float# } } } *)
-type t258 = #{ a258 : float; b258 : t139 } (* #{ float; #{ float#; float } } *)
-type t259 = { mutable a259 : t258 } (* { #{ float; #{ float#; float } } } *)
-type t260 = #{ a260 : float; b260 : t141 } (* #{ float; #{ float#; float# } } *)
-type t261 = { mutable a261 : t260 } (* { #{ float; #{ float#; float# } } } *)
-type t262 = { mutable a262 : t135 } (* { #{ float# } } *)
-type t263 = { mutable a263 : t135; mutable b263 : float } (* { #{ float# }; float } *)
-type t264 = { mutable a264 : t135; mutable b264 : float# } (* { #{ float# }; float# } *)
-type t265 = { mutable a265 : t139 } (* { #{ float#; float } } *)
-type t266 = { mutable a266 : t139; mutable b266 : float } (* { #{ float#; float }; float } *)
-type t267 = { mutable a267 : t139; mutable b267 : float# } (* { #{ float#; float }; float# } *)
-type t268 = { mutable a268 : t141 } (* { #{ float#; float# } } *)
-type t269 = { mutable a269 : t141; mutable b269 : float } (* { #{ float#; float# }; float } *)
-type t270 = { mutable a270 : t141; mutable b270 : float# } (* { #{ float#; float# }; float# } *)
-type t271 = #{ a271 : float#; b271 : t42 } (* #{ float#; #{ float; float } } *)
-type t272 = { mutable a272 : t271 } (* { #{ float#; #{ float; float } } } *)
-type t273 = #{ a273 : float#; b273 : t131 } (* #{ float#; #{ float; float# } } *)
-type t274 = { mutable a274 : t273 } (* { #{ float#; #{ float; float# } } } *)
-type t275 = #{ a275 : float#; b275 : t139 } (* #{ float#; #{ float#; float } } *)
-type t276 = { mutable a276 : t275 } (* { #{ float#; #{ float#; float } } } *)
-type t277 = #{ a277 : float#; b277 : t141 } (* #{ float#; #{ float#; float# } } *)
-type t278 = { mutable a278 : t277 } (* { #{ float#; #{ float#; float# } } } *)
-type t279 = #{ a279 : float32#; b279 : int64# } (* #{ float32#; int64# } *)
-type t280 = #{ a280 : string; b280 : int64# } (* #{ string; int64# } *)
-type t281 = { mutable a281 : t279; mutable b281 : t280 } (* { #{ float32#; int64# }; #{ string; int64# } } *)
-type t282 = #{ a282 : t16; b282 : int } (* #{ #{ int; int }; int } *)
-type t283 = { mutable a283 : t282 } (* { #{ #{ int; int }; int } } *)
-type t284 = #{ a284 : t16; b284 : int32# } (* #{ #{ int; int }; int32# } *)
-type t285 = { mutable a285 : t284 } (* { #{ #{ int; int }; int32# } } *)
-type t286 = #{ a286 : t16; b286 : float } (* #{ #{ int; int }; float } *)
-type t287 = { mutable a287 : t286 } (* { #{ #{ int; int }; float } } *)
-type t288 = #{ a288 : t18; b288 : int } (* #{ #{ int; int32# }; int } *)
-type t289 = { mutable a289 : t288 } (* { #{ #{ int; int32# }; int } } *)
-type t290 = #{ a290 : t18; b290 : int32# } (* #{ #{ int; int32# }; int32# } *)
-type t291 = { mutable a291 : t290 } (* { #{ #{ int; int32# }; int32# } } *)
-type t292 = #{ a292 : t20; b292 : int } (* #{ #{ int; float }; int } *)
-type t293 = { mutable a293 : t292 } (* { #{ #{ int; float }; int } } *)
-type t294 = #{ a294 : t20; b294 : float } (* #{ #{ int; float }; float } *)
-type t295 = { mutable a295 : t294 } (* { #{ #{ int; float }; float } } *)
-type t296 = #{ a296 : t31; b296 : int } (* #{ #{ int32#; int }; int } *)
-type t297 = { mutable a297 : t296 } (* { #{ #{ int32#; int }; int } } *)
-type t298 = #{ a298 : t31; b298 : int32# } (* #{ #{ int32#; int }; int32# } *)
-type t299 = { mutable a299 : t298 } (* { #{ #{ int32#; int }; int32# } } *)
-type t300 = #{ a300 : t33; b300 : int } (* #{ #{ int32#; int32# }; int } *)
-type t301 = { mutable a301 : t300 } (* { #{ #{ int32#; int32# }; int } } *)
-type t302 = #{ a302 : t33; b302 : int32# } (* #{ #{ int32#; int32# }; int32# } *)
-type t303 = { mutable a303 : t302 } (* { #{ #{ int32#; int32# }; int32# } } *)
-type t304 = #{ a304 : t40; b304 : int } (* #{ #{ float; int }; int } *)
-type t305 = { mutable a305 : t304 } (* { #{ #{ float; int }; int } } *)
-type t306 = #{ a306 : t40; b306 : float } (* #{ #{ float; int }; float } *)
-type t307 = { mutable a307 : t306 } (* { #{ #{ float; int }; float } } *)
-type t308 = #{ a308 : t42; b308 : int } (* #{ #{ float; float }; int } *)
-type t309 = { mutable a309 : t308 } (* { #{ #{ float; float }; int } } *)
-type t310 = #{ a310 : t42; b310 : float } (* #{ #{ float; float }; float } *)
-type t311 = { mutable a311 : t310 } (* { #{ #{ float; float }; float } } *)
-type t312 = #{ a312 : t42; b312 : float# } (* #{ #{ float; float }; float# } *)
-type t313 = { mutable a313 : t312 } (* { #{ #{ float; float }; float# } } *)
-type t314 = #{ a314 : t131; b314 : float } (* #{ #{ float; float# }; float } *)
-type t315 = { mutable a315 : t314 } (* { #{ #{ float; float# }; float } } *)
-type t316 = #{ a316 : t131; b316 : float# } (* #{ #{ float; float# }; float# } *)
-type t317 = { mutable a317 : t316 } (* { #{ #{ float; float# }; float# } } *)
-type t318 = #{ a318 : t139; b318 : float } (* #{ #{ float#; float }; float } *)
-type t319 = { mutable a319 : t318 } (* { #{ #{ float#; float }; float } } *)
-type t320 = #{ a320 : t139; b320 : float# } (* #{ #{ float#; float }; float# } *)
-type t321 = { mutable a321 : t320 } (* { #{ #{ float#; float }; float# } } *)
-type t322 = #{ a322 : t141; b322 : float } (* #{ #{ float#; float# }; float } *)
-type t323 = { mutable a323 : t322 } (* { #{ #{ float#; float# }; float } } *)
-type t324 = #{ a324 : t141; b324 : float# } (* #{ #{ float#; float# }; float# } *)
-type t325 = { mutable a325 : t324 } (* { #{ #{ float#; float# }; float# } } *)
+type t22 = #{ a22 : int32# } (* #{ int32# } *)
+type t23 = { mutable a23 : int; mutable b23 : t22 } (* { int; #{ int32# } } *)
+type t24 = #{ a24 : int32#; b24 : int } (* #{ int32#; int } *)
+type t25 = { mutable a25 : int; mutable b25 : t24 } (* { int; #{ int32#; int } } *)
+type t26 = #{ a26 : int32#; b26 : int32# } (* #{ int32#; int32# } *)
+type t27 = { mutable a27 : int; mutable b27 : t26 } (* { int; #{ int32#; int32# } } *)
+type t28 = #{ a28 : float } (* #{ float } *)
+type t29 = { mutable a29 : int; mutable b29 : t28 } (* { int; #{ float } } *)
+type t30 = #{ a30 : float; b30 : int } (* #{ float; int } *)
+type t31 = { mutable a31 : int; mutable b31 : t30 } (* { int; #{ float; int } } *)
+type t32 = #{ a32 : float; b32 : float } (* #{ float; float } *)
+type t33 = { mutable a33 : int; mutable b33 : t32 } (* { int; #{ float; float } } *)
+type t34 = { mutable a34 : int64 } (* { int64 } *)
+type t35 = { mutable a35 : int64; mutable b35 : int } (* { int64; int } *)
+type t36 = { mutable a36 : int64; mutable b36 : int64 } (* { int64; int64 } *)
+type t37 = { mutable a37 : int64; mutable b37 : int64# } (* { int64; int64# } *)
+type t38 = { mutable a38 : int64; mutable b38 : int32# } (* { int64; int32# } *)
+type t39 = { mutable a39 : int64; mutable b39 : nativeint# } (* { int64; nativeint# } *)
+type t40 = { mutable a40 : int64; mutable b40 : float } (* { int64; float } *)
+type t41 = { mutable a41 : int64# } (* { int64# } *)
+type t42 = { mutable a42 : int64#; mutable b42 : int } (* { int64#; int } *)
+type t43 = { mutable a43 : int64#; mutable b43 : int64 } (* { int64#; int64 } *)
+type t44 = { mutable a44 : int64#; mutable b44 : int64# } (* { int64#; int64# } *)
+type t45 = { mutable a45 : int64#; mutable b45 : int32# } (* { int64#; int32# } *)
+type t46 = { mutable a46 : int64#; mutable b46 : nativeint# } (* { int64#; nativeint# } *)
+type t47 = { mutable a47 : int64#; mutable b47 : float } (* { int64#; float } *)
+type t48 = { mutable a48 : int32# } (* { int32# } *)
+type t49 = { mutable a49 : int32#; mutable b49 : int } (* { int32#; int } *)
+type t50 = { mutable a50 : int32#; mutable b50 : int; mutable c50 : int } (* { int32#; int; int } *)
+type t51 = { mutable a51 : int32#; mutable b51 : int; mutable c51 : int32# } (* { int32#; int; int32# } *)
+type t52 = { mutable a52 : int32#; mutable b52 : int64 } (* { int32#; int64 } *)
+type t53 = { mutable a53 : int32#; mutable b53 : int64# } (* { int32#; int64# } *)
+type t54 = { mutable a54 : int32#; mutable b54 : int32# } (* { int32#; int32# } *)
+type t55 = { mutable a55 : int32#; mutable b55 : int32#; mutable c55 : int } (* { int32#; int32#; int } *)
+type t56 = { mutable a56 : int32#; mutable b56 : int32#; mutable c56 : int32# } (* { int32#; int32#; int32# } *)
+type t57 = { mutable a57 : int32#; mutable b57 : nativeint# } (* { int32#; nativeint# } *)
+type t58 = { mutable a58 : int32#; mutable b58 : float } (* { int32#; float } *)
+type t59 = { mutable a59 : int32#; mutable b59 : t14 } (* { int32#; #{ int } } *)
+type t60 = { mutable a60 : int32#; mutable b60 : t16 } (* { int32#; #{ int; int } } *)
+type t61 = { mutable a61 : int32#; mutable b61 : t18 } (* { int32#; #{ int; int32# } } *)
+type t62 = { mutable a62 : int32#; mutable b62 : t22 } (* { int32#; #{ int32# } } *)
+type t63 = { mutable a63 : int32#; mutable b63 : t24 } (* { int32#; #{ int32#; int } } *)
+type t64 = { mutable a64 : int32#; mutable b64 : t26 } (* { int32#; #{ int32#; int32# } } *)
+type t65 = { mutable a65 : nativeint# } (* { nativeint# } *)
+type t66 = { mutable a66 : nativeint#; mutable b66 : int } (* { nativeint#; int } *)
+type t67 = { mutable a67 : nativeint#; mutable b67 : int64 } (* { nativeint#; int64 } *)
+type t68 = { mutable a68 : nativeint#; mutable b68 : int64# } (* { nativeint#; int64# } *)
+type t69 = { mutable a69 : nativeint#; mutable b69 : int32# } (* { nativeint#; int32# } *)
+type t70 = { mutable a70 : nativeint#; mutable b70 : nativeint# } (* { nativeint#; nativeint# } *)
+type t71 = { mutable a71 : nativeint#; mutable b71 : float } (* { nativeint#; float } *)
+type t72 = { mutable a72 : float } (* { float } *)
+type t73 = { mutable a73 : float; mutable b73 : int } (* { float; int } *)
+type t74 = { mutable a74 : float; mutable b74 : int; mutable c74 : int } (* { float; int; int } *)
+type t75 = { mutable a75 : float; mutable b75 : int; mutable c75 : float } (* { float; int; float } *)
+type t76 = { mutable a76 : float; mutable b76 : int64 } (* { float; int64 } *)
+type t77 = { mutable a77 : float; mutable b77 : int64# } (* { float; int64# } *)
+type t78 = { mutable a78 : float; mutable b78 : int32# } (* { float; int32# } *)
+type t79 = { mutable a79 : float; mutable b79 : nativeint# } (* { float; nativeint# } *)
+type t80 = { mutable a80 : float; mutable b80 : float } (* { float; float } *)
+type t81 = { mutable a81 : float; mutable b81 : float; mutable c81 : int } (* { float; float; int } *)
+type t82 = { mutable a82 : float; mutable b82 : float; mutable c82 : float } (* { float; float; float } *)
+type t83 = { mutable a83 : float; mutable b83 : float; mutable c83 : float# } (* { float; float; float# } *)
+type t84 = { mutable a84 : float; mutable b84 : float# } (* { float; float# } *)
+type t85 = { mutable a85 : float; mutable b85 : float#; mutable c85 : float } (* { float; float#; float } *)
+type t86 = { mutable a86 : float; mutable b86 : float#; mutable c86 : float# } (* { float; float#; float# } *)
+type t87 = { mutable a87 : float; mutable b87 : t14 } (* { float; #{ int } } *)
+type t88 = { mutable a88 : float; mutable b88 : t16 } (* { float; #{ int; int } } *)
+type t89 = { mutable a89 : float; mutable b89 : t20 } (* { float; #{ int; float } } *)
+type t90 = { mutable a90 : float; mutable b90 : t28 } (* { float; #{ float } } *)
+type t91 = { mutable a91 : float; mutable b91 : t30 } (* { float; #{ float; int } } *)
+type t92 = { mutable a92 : float; mutable b92 : t32 } (* { float; #{ float; float } } *)
+type t93 = #{ a93 : float; b93 : float# } (* #{ float; float# } *)
+type t94 = { mutable a94 : float; mutable b94 : t93 } (* { float; #{ float; float# } } *)
+type t95 = #{ a95 : float# } (* #{ float# } *)
+type t96 = { mutable a96 : float; mutable b96 : t95 } (* { float; #{ float# } } *)
+type t97 = #{ a97 : float#; b97 : float } (* #{ float#; float } *)
+type t98 = { mutable a98 : float; mutable b98 : t97 } (* { float; #{ float#; float } } *)
+type t99 = #{ a99 : float#; b99 : float# } (* #{ float#; float# } *)
+type t100 = { mutable a100 : float; mutable b100 : t99 } (* { float; #{ float#; float# } } *)
+type t101 = { mutable a101 : float# } (* { float# } *)
+type t102 = { mutable a102 : float#; mutable b102 : float } (* { float#; float } *)
+type t103 = { mutable a103 : float#; mutable b103 : float; mutable c103 : float } (* { float#; float; float } *)
+type t104 = { mutable a104 : float#; mutable b104 : float; mutable c104 : float# } (* { float#; float; float# } *)
+type t105 = { mutable a105 : float#; mutable b105 : float# } (* { float#; float# } *)
+type t106 = { mutable a106 : float#; mutable b106 : float#; mutable c106 : float } (* { float#; float#; float } *)
+type t107 = { mutable a107 : float#; mutable b107 : float#; mutable c107 : float# } (* { float#; float#; float# } *)
+type t108 = { mutable a108 : float#; mutable b108 : t28 } (* { float#; #{ float } } *)
+type t109 = { mutable a109 : float#; mutable b109 : t32 } (* { float#; #{ float; float } } *)
+type t110 = { mutable a110 : float#; mutable b110 : t93 } (* { float#; #{ float; float# } } *)
+type t111 = { mutable a111 : float#; mutable b111 : t95 } (* { float#; #{ float# } } *)
+type t112 = { mutable a112 : float#; mutable b112 : t97 } (* { float#; #{ float#; float } } *)
+type t113 = { mutable a113 : float#; mutable b113 : t99 } (* { float#; #{ float#; float# } } *)
+type t114 = { mutable a114 : t14 } (* { #{ int } } *)
+type t115 = { mutable a115 : t14; mutable b115 : int } (* { #{ int }; int } *)
+type t116 = { mutable a116 : t14; mutable b116 : int32# } (* { #{ int }; int32# } *)
+type t117 = { mutable a117 : t14; mutable b117 : float } (* { #{ int }; float } *)
+type t118 = { mutable a118 : t16 } (* { #{ int; int } } *)
+type t119 = { mutable a119 : t16; mutable b119 : int } (* { #{ int; int }; int } *)
+type t120 = { mutable a120 : t16; mutable b120 : int32# } (* { #{ int; int }; int32# } *)
+type t121 = { mutable a121 : t16; mutable b121 : float } (* { #{ int; int }; float } *)
+type t122 = { mutable a122 : t18 } (* { #{ int; int32# } } *)
+type t123 = { mutable a123 : t18; mutable b123 : int } (* { #{ int; int32# }; int } *)
+type t124 = { mutable a124 : t18; mutable b124 : int32# } (* { #{ int; int32# }; int32# } *)
+type t125 = { mutable a125 : t20 } (* { #{ int; float } } *)
+type t126 = { mutable a126 : t20; mutable b126 : int } (* { #{ int; float }; int } *)
+type t127 = { mutable a127 : t20; mutable b127 : float } (* { #{ int; float }; float } *)
+type t128 = #{ a128 : int64; b128 : int64# } (* #{ int64; int64# } *)
+type t129 = #{ a129 : int64#; b129 : float# } (* #{ int64#; float# } *)
+type t130 = { mutable a130 : t128; mutable b130 : t129 } (* { #{ int64; int64# }; #{ int64#; float# } } *)
+type t131 = #{ a131 : int64; b131 : string } (* #{ int64; string } *)
+type t132 = #{ a132 : int64#; b132 : string } (* #{ int64#; string } *)
+type t133 = { mutable a133 : t131; mutable b133 : t132 } (* { #{ int64; string }; #{ int64#; string } } *)
+type t134 = #{ a134 : int64#; b134 : int64 } (* #{ int64#; int64 } *)
+type t135 = #{ a135 : int64; b135 : int64 } (* #{ int64; int64 } *)
+type t136 = { mutable a136 : t134; mutable b136 : t135 } (* { #{ int64#; int64 }; #{ int64; int64 } } *)
+type t137 = #{ a137 : float32#; b137 : float } (* #{ float32#; float } *)
+type t138 = { mutable a138 : t134; mutable b138 : t137 } (* { #{ int64#; int64 }; #{ float32#; float } } *)
+type t139 = { mutable a139 : t22 } (* { #{ int32# } } *)
+type t140 = { mutable a140 : t22; mutable b140 : int } (* { #{ int32# }; int } *)
+type t141 = { mutable a141 : t22; mutable b141 : int32# } (* { #{ int32# }; int32# } *)
+type t142 = { mutable a142 : t24 } (* { #{ int32#; int } } *)
+type t143 = { mutable a143 : t24; mutable b143 : int } (* { #{ int32#; int }; int } *)
+type t144 = { mutable a144 : t24; mutable b144 : int32# } (* { #{ int32#; int }; int32# } *)
+type t145 = { mutable a145 : t26 } (* { #{ int32#; int32# } } *)
+type t146 = { mutable a146 : t26; mutable b146 : int } (* { #{ int32#; int32# }; int } *)
+type t147 = { mutable a147 : t26; mutable b147 : int32# } (* { #{ int32#; int32# }; int32# } *)
+type t148 = { mutable a148 : t28 } (* { #{ float } } *)
+type t149 = { mutable a149 : t28; mutable b149 : int } (* { #{ float }; int } *)
+type t150 = { mutable a150 : t28; mutable b150 : float } (* { #{ float }; float } *)
+type t151 = { mutable a151 : t28; mutable b151 : float# } (* { #{ float }; float# } *)
+type t152 = { mutable a152 : t30 } (* { #{ float; int } } *)
+type t153 = { mutable a153 : t30; mutable b153 : int } (* { #{ float; int }; int } *)
+type t154 = { mutable a154 : t30; mutable b154 : float } (* { #{ float; int }; float } *)
+type t155 = { mutable a155 : t32 } (* { #{ float; float } } *)
+type t156 = { mutable a156 : t32; mutable b156 : int } (* { #{ float; float }; int } *)
+type t157 = { mutable a157 : t32; mutable b157 : float } (* { #{ float; float }; float } *)
+type t158 = { mutable a158 : t32; mutable b158 : float# } (* { #{ float; float }; float# } *)
+type t159 = { mutable a159 : t93 } (* { #{ float; float# } } *)
+type t160 = { mutable a160 : t93; mutable b160 : float } (* { #{ float; float# }; float } *)
+type t161 = { mutable a161 : t93; mutable b161 : float# } (* { #{ float; float# }; float# } *)
+type t162 = { mutable a162 : t95 } (* { #{ float# } } *)
+type t163 = { mutable a163 : t95; mutable b163 : float } (* { #{ float# }; float } *)
+type t164 = { mutable a164 : t95; mutable b164 : float# } (* { #{ float# }; float# } *)
+type t165 = { mutable a165 : t97 } (* { #{ float#; float } } *)
+type t166 = { mutable a166 : t97; mutable b166 : float } (* { #{ float#; float }; float } *)
+type t167 = { mutable a167 : t97; mutable b167 : float# } (* { #{ float#; float }; float# } *)
+type t168 = { mutable a168 : t99 } (* { #{ float#; float# } } *)
+type t169 = { mutable a169 : t99; mutable b169 : float } (* { #{ float#; float# }; float } *)
+type t170 = { mutable a170 : t99; mutable b170 : float# } (* { #{ float#; float# }; float# } *)
+type t171 = #{ a171 : float32#; b171 : int64# } (* #{ float32#; int64# } *)
+type t172 = #{ a172 : string; b172 : int64# } (* #{ string; int64# } *)
+type t173 = { mutable a173 : t171; mutable b173 : t172 } (* { #{ float32#; int64# }; #{ string; int64# } } *)
 
 let () =
   (********************)
@@ -1042,9 +890,9 @@ let () =
     if not test then failwithf "test 56 failed %d" i;
   );
 
-  (*****************************************)
-  (*   t23 = { int; #{ int; #{ int } } }   *)
-  (*****************************************)
+  (**********************************)
+  (*   t23 = { int; #{ int32# } }   *)
+  (**********************************)
   (* Deepening to (.a23) *)
   let idx : (t23, _) idx_mut = (.a23) in
   iter indices_in_deepening_tests ~f:(fun i ->
@@ -1081,135 +929,131 @@ let () =
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 60 failed %d" i;
   );
-  (* Deepening to (.b23.#b22) *)
-  let idx : (t23, _) idx_mut = (.b23.#b22) in
+
+  (***************************************)
+  (*   t25 = { int; #{ int32#; int } }   *)
+  (***************************************)
+  (* Deepening to (.a25) *)
+  let idx : (t25, _) idx_mut = (.a25) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b23) *)
-    let shallow : (t23, _) idx_mut = (.b23) in
-    let deepened = (.idx_mut(shallow).#b22) in
+    (* from (.a25) *)
+    let shallow : (t25, _) idx_mut = (.a25) in
+    let deepened = (.idx_mut(shallow)) in
     mark_test_run 61;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 61 failed %d" i;
-    (* from (.b23.#b22) *)
-    let shallow : (t23, _) idx_mut = (.b23.#b22) in
+  );
+  (* Deepening to (.b25) *)
+  let idx : (t25, _) idx_mut = (.b25) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b25) *)
+    let shallow : (t25, _) idx_mut = (.b25) in
     let deepened = (.idx_mut(shallow)) in
     mark_test_run 62;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 62 failed %d" i;
   );
-  (* Deepening to (.b23.#b22.#a14) *)
-  let idx : (t23, _) idx_mut = (.b23.#b22.#a14) in
+  (* Deepening to (.b25.#a24) *)
+  let idx : (t25, _) idx_mut = (.b25.#a24) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b23) *)
-    let shallow : (t23, _) idx_mut = (.b23) in
-    let deepened = (.idx_mut(shallow).#b22.#a14) in
+    (* from (.b25) *)
+    let shallow : (t25, _) idx_mut = (.b25) in
+    let deepened = (.idx_mut(shallow).#a24) in
     mark_test_run 63;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 63 failed %d" i;
-    (* from (.b23.#b22) *)
-    let shallow : (t23, _) idx_mut = (.b23.#b22) in
-    let deepened = (.idx_mut(shallow).#a14) in
+    (* from (.b25.#a24) *)
+    let shallow : (t25, _) idx_mut = (.b25.#a24) in
+    let deepened = (.idx_mut(shallow)) in
     mark_test_run 64;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 64 failed %d" i;
-    (* from (.b23.#b22.#a14) *)
-    let shallow : (t23, _) idx_mut = (.b23.#b22.#a14) in
-    let deepened = (.idx_mut(shallow)) in
+  );
+  (* Deepening to (.b25.#b24) *)
+  let idx : (t25, _) idx_mut = (.b25.#b24) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b25) *)
+    let shallow : (t25, _) idx_mut = (.b25) in
+    let deepened = (.idx_mut(shallow).#b24) in
     mark_test_run 65;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 65 failed %d" i;
-  );
-
-  (********************************************)
-  (*   t26 = { int; #{ int; #{ int32# } } }   *)
-  (********************************************)
-  (* Deepening to (.a26) *)
-  let idx : (t26, _) idx_mut = (.a26) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a26) *)
-    let shallow : (t26, _) idx_mut = (.a26) in
+    (* from (.b25.#b24) *)
+    let shallow : (t25, _) idx_mut = (.b25.#b24) in
     let deepened = (.idx_mut(shallow)) in
     mark_test_run 66;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 66 failed %d" i;
   );
-  (* Deepening to (.b26) *)
-  let idx : (t26, _) idx_mut = (.b26) in
+
+  (******************************************)
+  (*   t27 = { int; #{ int32#; int32# } }   *)
+  (******************************************)
+  (* Deepening to (.a27) *)
+  let idx : (t27, _) idx_mut = (.a27) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b26) *)
-    let shallow : (t26, _) idx_mut = (.b26) in
+    (* from (.a27) *)
+    let shallow : (t27, _) idx_mut = (.a27) in
     let deepened = (.idx_mut(shallow)) in
     mark_test_run 67;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 67 failed %d" i;
   );
-  (* Deepening to (.b26.#a25) *)
-  let idx : (t26, _) idx_mut = (.b26.#a25) in
+  (* Deepening to (.b27) *)
+  let idx : (t27, _) idx_mut = (.b27) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b26) *)
-    let shallow : (t26, _) idx_mut = (.b26) in
-    let deepened = (.idx_mut(shallow).#a25) in
+    (* from (.b27) *)
+    let shallow : (t27, _) idx_mut = (.b27) in
+    let deepened = (.idx_mut(shallow)) in
     mark_test_run 68;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 68 failed %d" i;
-    (* from (.b26.#a25) *)
-    let shallow : (t26, _) idx_mut = (.b26.#a25) in
-    let deepened = (.idx_mut(shallow)) in
+  );
+  (* Deepening to (.b27.#a26) *)
+  let idx : (t27, _) idx_mut = (.b27.#a26) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b27) *)
+    let shallow : (t27, _) idx_mut = (.b27) in
+    let deepened = (.idx_mut(shallow).#a26) in
     mark_test_run 69;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 69 failed %d" i;
-  );
-  (* Deepening to (.b26.#b25) *)
-  let idx : (t26, _) idx_mut = (.b26.#b25) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b26) *)
-    let shallow : (t26, _) idx_mut = (.b26) in
-    let deepened = (.idx_mut(shallow).#b25) in
+    (* from (.b27.#a26) *)
+    let shallow : (t27, _) idx_mut = (.b27.#a26) in
+    let deepened = (.idx_mut(shallow)) in
     mark_test_run 70;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 70 failed %d" i;
-    (* from (.b26.#b25) *)
-    let shallow : (t26, _) idx_mut = (.b26.#b25) in
-    let deepened = (.idx_mut(shallow)) in
+  );
+  (* Deepening to (.b27.#b26) *)
+  let idx : (t27, _) idx_mut = (.b27.#b26) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b27) *)
+    let shallow : (t27, _) idx_mut = (.b27) in
+    let deepened = (.idx_mut(shallow).#b26) in
     mark_test_run 71;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 71 failed %d" i;
-  );
-  (* Deepening to (.b26.#b25.#a24) *)
-  let idx : (t26, _) idx_mut = (.b26.#b25.#a24) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b26) *)
-    let shallow : (t26, _) idx_mut = (.b26) in
-    let deepened = (.idx_mut(shallow).#b25.#a24) in
+    (* from (.b27.#b26) *)
+    let shallow : (t27, _) idx_mut = (.b27.#b26) in
+    let deepened = (.idx_mut(shallow)) in
     mark_test_run 72;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 72 failed %d" i;
-    (* from (.b26.#b25) *)
-    let shallow : (t26, _) idx_mut = (.b26.#b25) in
-    let deepened = (.idx_mut(shallow).#a24) in
-    mark_test_run 73;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 73 failed %d" i;
-    (* from (.b26.#b25.#a24) *)
-    let shallow : (t26, _) idx_mut = (.b26.#b25.#a24) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 74;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 74 failed %d" i;
   );
 
-  (*******************************************)
-  (*   t29 = { int; #{ int; #{ float } } }   *)
-  (*******************************************)
+  (*********************************)
+  (*   t29 = { int; #{ float } }   *)
+  (*********************************)
   (* Deepening to (.a29) *)
   let idx : (t29, _) idx_mut = (.a29) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a29) *)
     let shallow : (t29, _) idx_mut = (.a29) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 75;
+    mark_test_run 73;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 75 failed %d" i;
+    if not test then failwithf "test 73 failed %d" i;
   );
   (* Deepening to (.b29) *)
   let idx : (t29, _) idx_mut = (.b29) in
@@ -1217,9 +1061,9 @@ let () =
     (* from (.b29) *)
     let shallow : (t29, _) idx_mut = (.b29) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 76;
+    mark_test_run 74;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 76 failed %d" i;
+    if not test then failwithf "test 74 failed %d" i;
   );
   (* Deepening to (.b29.#a28) *)
   let idx : (t29, _) idx_mut = (.b29.#a28) in
@@ -1227,219 +1071,179 @@ let () =
     (* from (.b29) *)
     let shallow : (t29, _) idx_mut = (.b29) in
     let deepened = (.idx_mut(shallow).#a28) in
+    mark_test_run 75;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 75 failed %d" i;
+    (* from (.b29.#a28) *)
+    let shallow : (t29, _) idx_mut = (.b29.#a28) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 76;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 76 failed %d" i;
+  );
+
+  (**************************************)
+  (*   t31 = { int; #{ float; int } }   *)
+  (**************************************)
+  (* Deepening to (.a31) *)
+  let idx : (t31, _) idx_mut = (.a31) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a31) *)
+    let shallow : (t31, _) idx_mut = (.a31) in
+    let deepened = (.idx_mut(shallow)) in
     mark_test_run 77;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 77 failed %d" i;
-    (* from (.b29.#a28) *)
-    let shallow : (t29, _) idx_mut = (.b29.#a28) in
+  );
+  (* Deepening to (.b31) *)
+  let idx : (t31, _) idx_mut = (.b31) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b31) *)
+    let shallow : (t31, _) idx_mut = (.b31) in
     let deepened = (.idx_mut(shallow)) in
     mark_test_run 78;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 78 failed %d" i;
   );
-  (* Deepening to (.b29.#b28) *)
-  let idx : (t29, _) idx_mut = (.b29.#b28) in
+  (* Deepening to (.b31.#a30) *)
+  let idx : (t31, _) idx_mut = (.b31.#a30) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b29) *)
-    let shallow : (t29, _) idx_mut = (.b29) in
-    let deepened = (.idx_mut(shallow).#b28) in
+    (* from (.b31) *)
+    let shallow : (t31, _) idx_mut = (.b31) in
+    let deepened = (.idx_mut(shallow).#a30) in
     mark_test_run 79;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 79 failed %d" i;
-    (* from (.b29.#b28) *)
-    let shallow : (t29, _) idx_mut = (.b29.#b28) in
+    (* from (.b31.#a30) *)
+    let shallow : (t31, _) idx_mut = (.b31.#a30) in
     let deepened = (.idx_mut(shallow)) in
     mark_test_run 80;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 80 failed %d" i;
   );
-  (* Deepening to (.b29.#b28.#a27) *)
-  let idx : (t29, _) idx_mut = (.b29.#b28.#a27) in
+  (* Deepening to (.b31.#b30) *)
+  let idx : (t31, _) idx_mut = (.b31.#b30) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b29) *)
-    let shallow : (t29, _) idx_mut = (.b29) in
-    let deepened = (.idx_mut(shallow).#b28.#a27) in
+    (* from (.b31) *)
+    let shallow : (t31, _) idx_mut = (.b31) in
+    let deepened = (.idx_mut(shallow).#b30) in
     mark_test_run 81;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 81 failed %d" i;
-    (* from (.b29.#b28) *)
-    let shallow : (t29, _) idx_mut = (.b29.#b28) in
-    let deepened = (.idx_mut(shallow).#a27) in
+    (* from (.b31.#b30) *)
+    let shallow : (t31, _) idx_mut = (.b31.#b30) in
+    let deepened = (.idx_mut(shallow)) in
     mark_test_run 82;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 82 failed %d" i;
-    (* from (.b29.#b28.#a27) *)
-    let shallow : (t29, _) idx_mut = (.b29.#b28.#a27) in
+  );
+
+  (****************************************)
+  (*   t33 = { int; #{ float; float } }   *)
+  (****************************************)
+  (* Deepening to (.a33) *)
+  let idx : (t33, _) idx_mut = (.a33) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a33) *)
+    let shallow : (t33, _) idx_mut = (.a33) in
     let deepened = (.idx_mut(shallow)) in
     mark_test_run 83;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 83 failed %d" i;
   );
-
-  (**********************************)
-  (*   t30 = { int; #{ int32# } }   *)
-  (**********************************)
-  (* Deepening to (.a30) *)
-  let idx : (t30, _) idx_mut = (.a30) in
+  (* Deepening to (.b33) *)
+  let idx : (t33, _) idx_mut = (.b33) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a30) *)
-    let shallow : (t30, _) idx_mut = (.a30) in
+    (* from (.b33) *)
+    let shallow : (t33, _) idx_mut = (.b33) in
     let deepened = (.idx_mut(shallow)) in
     mark_test_run 84;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 84 failed %d" i;
   );
-  (* Deepening to (.b30) *)
-  let idx : (t30, _) idx_mut = (.b30) in
+  (* Deepening to (.b33.#a32) *)
+  let idx : (t33, _) idx_mut = (.b33.#a32) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b30) *)
-    let shallow : (t30, _) idx_mut = (.b30) in
-    let deepened = (.idx_mut(shallow)) in
+    (* from (.b33) *)
+    let shallow : (t33, _) idx_mut = (.b33) in
+    let deepened = (.idx_mut(shallow).#a32) in
     mark_test_run 85;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 85 failed %d" i;
-  );
-  (* Deepening to (.b30.#a24) *)
-  let idx : (t30, _) idx_mut = (.b30.#a24) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b30) *)
-    let shallow : (t30, _) idx_mut = (.b30) in
-    let deepened = (.idx_mut(shallow).#a24) in
+    (* from (.b33.#a32) *)
+    let shallow : (t33, _) idx_mut = (.b33.#a32) in
+    let deepened = (.idx_mut(shallow)) in
     mark_test_run 86;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 86 failed %d" i;
-    (* from (.b30.#a24) *)
-    let shallow : (t30, _) idx_mut = (.b30.#a24) in
-    let deepened = (.idx_mut(shallow)) in
+  );
+  (* Deepening to (.b33.#b32) *)
+  let idx : (t33, _) idx_mut = (.b33.#b32) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b33) *)
+    let shallow : (t33, _) idx_mut = (.b33) in
+    let deepened = (.idx_mut(shallow).#b32) in
     mark_test_run 87;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 87 failed %d" i;
-  );
-
-  (***************************************)
-  (*   t32 = { int; #{ int32#; int } }   *)
-  (***************************************)
-  (* Deepening to (.a32) *)
-  let idx : (t32, _) idx_mut = (.a32) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a32) *)
-    let shallow : (t32, _) idx_mut = (.a32) in
+    (* from (.b33.#b32) *)
+    let shallow : (t33, _) idx_mut = (.b33.#b32) in
     let deepened = (.idx_mut(shallow)) in
     mark_test_run 88;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
     if not test then failwithf "test 88 failed %d" i;
   );
-  (* Deepening to (.b32) *)
-  let idx : (t32, _) idx_mut = (.b32) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b32) *)
-    let shallow : (t32, _) idx_mut = (.b32) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 89;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 89 failed %d" i;
-  );
-  (* Deepening to (.b32.#a31) *)
-  let idx : (t32, _) idx_mut = (.b32.#a31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b32) *)
-    let shallow : (t32, _) idx_mut = (.b32) in
-    let deepened = (.idx_mut(shallow).#a31) in
-    mark_test_run 90;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 90 failed %d" i;
-    (* from (.b32.#a31) *)
-    let shallow : (t32, _) idx_mut = (.b32.#a31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 91;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 91 failed %d" i;
-  );
-  (* Deepening to (.b32.#b31) *)
-  let idx : (t32, _) idx_mut = (.b32.#b31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b32) *)
-    let shallow : (t32, _) idx_mut = (.b32) in
-    let deepened = (.idx_mut(shallow).#b31) in
-    mark_test_run 92;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 92 failed %d" i;
-    (* from (.b32.#b31) *)
-    let shallow : (t32, _) idx_mut = (.b32.#b31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 93;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 93 failed %d" i;
-  );
 
-  (******************************************)
-  (*   t34 = { int; #{ int32#; int32# } }   *)
-  (******************************************)
+  (***********************)
+  (*   t34 = { int64 }   *)
+  (***********************)
   (* Deepening to (.a34) *)
   let idx : (t34, _) idx_mut = (.a34) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a34) *)
     let shallow : (t34, _) idx_mut = (.a34) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 94;
+    mark_test_run 89;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 94 failed %d" i;
-  );
-  (* Deepening to (.b34) *)
-  let idx : (t34, _) idx_mut = (.b34) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b34) *)
-    let shallow : (t34, _) idx_mut = (.b34) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 95;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 95 failed %d" i;
-  );
-  (* Deepening to (.b34.#a33) *)
-  let idx : (t34, _) idx_mut = (.b34.#a33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b34) *)
-    let shallow : (t34, _) idx_mut = (.b34) in
-    let deepened = (.idx_mut(shallow).#a33) in
-    mark_test_run 96;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 96 failed %d" i;
-    (* from (.b34.#a33) *)
-    let shallow : (t34, _) idx_mut = (.b34.#a33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 97;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 97 failed %d" i;
-  );
-  (* Deepening to (.b34.#b33) *)
-  let idx : (t34, _) idx_mut = (.b34.#b33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b34) *)
-    let shallow : (t34, _) idx_mut = (.b34) in
-    let deepened = (.idx_mut(shallow).#b33) in
-    mark_test_run 98;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 98 failed %d" i;
-    (* from (.b34.#b33) *)
-    let shallow : (t34, _) idx_mut = (.b34.#b33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 99;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 99 failed %d" i;
+    if not test then failwithf "test 89 failed %d" i;
   );
 
-  (********************************************)
-  (*   t36 = { int; #{ int32#; #{ int } } }   *)
-  (********************************************)
+  (****************************)
+  (*   t35 = { int64; int }   *)
+  (****************************)
+  (* Deepening to (.a35) *)
+  let idx : (t35, _) idx_mut = (.a35) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a35) *)
+    let shallow : (t35, _) idx_mut = (.a35) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 90;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 90 failed %d" i;
+  );
+  (* Deepening to (.b35) *)
+  let idx : (t35, _) idx_mut = (.b35) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b35) *)
+    let shallow : (t35, _) idx_mut = (.b35) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 91;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 91 failed %d" i;
+  );
+
+  (******************************)
+  (*   t36 = { int64; int64 }   *)
+  (******************************)
   (* Deepening to (.a36) *)
   let idx : (t36, _) idx_mut = (.a36) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a36) *)
     let shallow : (t36, _) idx_mut = (.a36) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 100;
+    mark_test_run 92;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 100 failed %d" i;
+    if not test then failwithf "test 92 failed %d" i;
   );
   (* Deepening to (.b36) *)
   let idx : (t36, _) idx_mut = (.b36) in
@@ -1447,77 +1251,47 @@ let () =
     (* from (.b36) *)
     let shallow : (t36, _) idx_mut = (.b36) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 101;
+    mark_test_run 93;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 101 failed %d" i;
-  );
-  (* Deepening to (.b36.#a35) *)
-  let idx : (t36, _) idx_mut = (.b36.#a35) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b36) *)
-    let shallow : (t36, _) idx_mut = (.b36) in
-    let deepened = (.idx_mut(shallow).#a35) in
-    mark_test_run 102;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 102 failed %d" i;
-    (* from (.b36.#a35) *)
-    let shallow : (t36, _) idx_mut = (.b36.#a35) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 103;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 103 failed %d" i;
-  );
-  (* Deepening to (.b36.#b35) *)
-  let idx : (t36, _) idx_mut = (.b36.#b35) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b36) *)
-    let shallow : (t36, _) idx_mut = (.b36) in
-    let deepened = (.idx_mut(shallow).#b35) in
-    mark_test_run 104;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 104 failed %d" i;
-    (* from (.b36.#b35) *)
-    let shallow : (t36, _) idx_mut = (.b36.#b35) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 105;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 105 failed %d" i;
-  );
-  (* Deepening to (.b36.#b35.#a14) *)
-  let idx : (t36, _) idx_mut = (.b36.#b35.#a14) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b36) *)
-    let shallow : (t36, _) idx_mut = (.b36) in
-    let deepened = (.idx_mut(shallow).#b35.#a14) in
-    mark_test_run 106;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 106 failed %d" i;
-    (* from (.b36.#b35) *)
-    let shallow : (t36, _) idx_mut = (.b36.#b35) in
-    let deepened = (.idx_mut(shallow).#a14) in
-    mark_test_run 107;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 107 failed %d" i;
-    (* from (.b36.#b35.#a14) *)
-    let shallow : (t36, _) idx_mut = (.b36.#b35.#a14) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 108;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 108 failed %d" i;
+    if not test then failwithf "test 93 failed %d" i;
   );
 
-  (***********************************************)
-  (*   t38 = { int; #{ int32#; #{ int32# } } }   *)
-  (***********************************************)
+  (*******************************)
+  (*   t37 = { int64; int64# }   *)
+  (*******************************)
+  (* Deepening to (.a37) *)
+  let idx : (t37, _) idx_mut = (.a37) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a37) *)
+    let shallow : (t37, _) idx_mut = (.a37) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 94;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 94 failed %d" i;
+  );
+  (* Deepening to (.b37) *)
+  let idx : (t37, _) idx_mut = (.b37) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b37) *)
+    let shallow : (t37, _) idx_mut = (.b37) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 95;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 95 failed %d" i;
+  );
+
+  (*******************************)
+  (*   t38 = { int64; int32# }   *)
+  (*******************************)
   (* Deepening to (.a38) *)
   let idx : (t38, _) idx_mut = (.a38) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a38) *)
     let shallow : (t38, _) idx_mut = (.a38) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 109;
+    mark_test_run 96;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 109 failed %d" i;
+    if not test then failwithf "test 96 failed %d" i;
   );
   (* Deepening to (.b38) *)
   let idx : (t38, _) idx_mut = (.b38) in
@@ -1525,77 +1299,23 @@ let () =
     (* from (.b38) *)
     let shallow : (t38, _) idx_mut = (.b38) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 110;
+    mark_test_run 97;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 110 failed %d" i;
-  );
-  (* Deepening to (.b38.#a37) *)
-  let idx : (t38, _) idx_mut = (.b38.#a37) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b38) *)
-    let shallow : (t38, _) idx_mut = (.b38) in
-    let deepened = (.idx_mut(shallow).#a37) in
-    mark_test_run 111;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 111 failed %d" i;
-    (* from (.b38.#a37) *)
-    let shallow : (t38, _) idx_mut = (.b38.#a37) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 112;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 112 failed %d" i;
-  );
-  (* Deepening to (.b38.#b37) *)
-  let idx : (t38, _) idx_mut = (.b38.#b37) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b38) *)
-    let shallow : (t38, _) idx_mut = (.b38) in
-    let deepened = (.idx_mut(shallow).#b37) in
-    mark_test_run 113;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 113 failed %d" i;
-    (* from (.b38.#b37) *)
-    let shallow : (t38, _) idx_mut = (.b38.#b37) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 114;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 114 failed %d" i;
-  );
-  (* Deepening to (.b38.#b37.#a24) *)
-  let idx : (t38, _) idx_mut = (.b38.#b37.#a24) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b38) *)
-    let shallow : (t38, _) idx_mut = (.b38) in
-    let deepened = (.idx_mut(shallow).#b37.#a24) in
-    mark_test_run 115;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 115 failed %d" i;
-    (* from (.b38.#b37) *)
-    let shallow : (t38, _) idx_mut = (.b38.#b37) in
-    let deepened = (.idx_mut(shallow).#a24) in
-    mark_test_run 116;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 116 failed %d" i;
-    (* from (.b38.#b37.#a24) *)
-    let shallow : (t38, _) idx_mut = (.b38.#b37.#a24) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 117;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 117 failed %d" i;
+    if not test then failwithf "test 97 failed %d" i;
   );
 
-  (*********************************)
-  (*   t39 = { int; #{ float } }   *)
-  (*********************************)
+  (***********************************)
+  (*   t39 = { int64; nativeint# }   *)
+  (***********************************)
   (* Deepening to (.a39) *)
   let idx : (t39, _) idx_mut = (.a39) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a39) *)
     let shallow : (t39, _) idx_mut = (.a39) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 118;
+    mark_test_run 98;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 118 failed %d" i;
+    if not test then failwithf "test 98 failed %d" i;
   );
   (* Deepening to (.b39) *)
   let idx : (t39, _) idx_mut = (.b39) in
@@ -1603,95 +1323,85 @@ let () =
     (* from (.b39) *)
     let shallow : (t39, _) idx_mut = (.b39) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 119;
+    mark_test_run 99;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 119 failed %d" i;
-  );
-  (* Deepening to (.b39.#a27) *)
-  let idx : (t39, _) idx_mut = (.b39.#a27) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b39) *)
-    let shallow : (t39, _) idx_mut = (.b39) in
-    let deepened = (.idx_mut(shallow).#a27) in
-    mark_test_run 120;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 120 failed %d" i;
-    (* from (.b39.#a27) *)
-    let shallow : (t39, _) idx_mut = (.b39.#a27) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 121;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 121 failed %d" i;
+    if not test then failwithf "test 99 failed %d" i;
   );
 
-  (**************************************)
-  (*   t41 = { int; #{ float; int } }   *)
-  (**************************************)
+  (******************************)
+  (*   t40 = { int64; float }   *)
+  (******************************)
+  (* Deepening to (.a40) *)
+  let idx : (t40, _) idx_mut = (.a40) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a40) *)
+    let shallow : (t40, _) idx_mut = (.a40) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 100;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 100 failed %d" i;
+  );
+  (* Deepening to (.b40) *)
+  let idx : (t40, _) idx_mut = (.b40) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b40) *)
+    let shallow : (t40, _) idx_mut = (.b40) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 101;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 101 failed %d" i;
+  );
+
+  (************************)
+  (*   t41 = { int64# }   *)
+  (************************)
   (* Deepening to (.a41) *)
   let idx : (t41, _) idx_mut = (.a41) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a41) *)
     let shallow : (t41, _) idx_mut = (.a41) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 122;
+    mark_test_run 102;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 122 failed %d" i;
-  );
-  (* Deepening to (.b41) *)
-  let idx : (t41, _) idx_mut = (.b41) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b41) *)
-    let shallow : (t41, _) idx_mut = (.b41) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 123;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 123 failed %d" i;
-  );
-  (* Deepening to (.b41.#a40) *)
-  let idx : (t41, _) idx_mut = (.b41.#a40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b41) *)
-    let shallow : (t41, _) idx_mut = (.b41) in
-    let deepened = (.idx_mut(shallow).#a40) in
-    mark_test_run 124;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 124 failed %d" i;
-    (* from (.b41.#a40) *)
-    let shallow : (t41, _) idx_mut = (.b41.#a40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 125;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 125 failed %d" i;
-  );
-  (* Deepening to (.b41.#b40) *)
-  let idx : (t41, _) idx_mut = (.b41.#b40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b41) *)
-    let shallow : (t41, _) idx_mut = (.b41) in
-    let deepened = (.idx_mut(shallow).#b40) in
-    mark_test_run 126;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 126 failed %d" i;
-    (* from (.b41.#b40) *)
-    let shallow : (t41, _) idx_mut = (.b41.#b40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 127;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 127 failed %d" i;
+    if not test then failwithf "test 102 failed %d" i;
   );
 
-  (****************************************)
-  (*   t43 = { int; #{ float; float } }   *)
-  (****************************************)
+  (*****************************)
+  (*   t42 = { int64#; int }   *)
+  (*****************************)
+  (* Deepening to (.a42) *)
+  let idx : (t42, _) idx_mut = (.a42) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a42) *)
+    let shallow : (t42, _) idx_mut = (.a42) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 103;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 103 failed %d" i;
+  );
+  (* Deepening to (.b42) *)
+  let idx : (t42, _) idx_mut = (.b42) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b42) *)
+    let shallow : (t42, _) idx_mut = (.b42) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 104;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 104 failed %d" i;
+  );
+
+  (*******************************)
+  (*   t43 = { int64#; int64 }   *)
+  (*******************************)
   (* Deepening to (.a43) *)
   let idx : (t43, _) idx_mut = (.a43) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a43) *)
     let shallow : (t43, _) idx_mut = (.a43) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 128;
+    mark_test_run 105;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 128 failed %d" i;
+    if not test then failwithf "test 105 failed %d" i;
   );
   (* Deepening to (.b43) *)
   let idx : (t43, _) idx_mut = (.b43) in
@@ -1699,55 +1409,47 @@ let () =
     (* from (.b43) *)
     let shallow : (t43, _) idx_mut = (.b43) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 129;
+    mark_test_run 106;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 129 failed %d" i;
-  );
-  (* Deepening to (.b43.#a42) *)
-  let idx : (t43, _) idx_mut = (.b43.#a42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b43) *)
-    let shallow : (t43, _) idx_mut = (.b43) in
-    let deepened = (.idx_mut(shallow).#a42) in
-    mark_test_run 130;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 130 failed %d" i;
-    (* from (.b43.#a42) *)
-    let shallow : (t43, _) idx_mut = (.b43.#a42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 131;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 131 failed %d" i;
-  );
-  (* Deepening to (.b43.#b42) *)
-  let idx : (t43, _) idx_mut = (.b43.#b42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b43) *)
-    let shallow : (t43, _) idx_mut = (.b43) in
-    let deepened = (.idx_mut(shallow).#b42) in
-    mark_test_run 132;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 132 failed %d" i;
-    (* from (.b43.#b42) *)
-    let shallow : (t43, _) idx_mut = (.b43.#b42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 133;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 133 failed %d" i;
+    if not test then failwithf "test 106 failed %d" i;
   );
 
-  (*******************************************)
-  (*   t45 = { int; #{ float; #{ int } } }   *)
-  (*******************************************)
+  (********************************)
+  (*   t44 = { int64#; int64# }   *)
+  (********************************)
+  (* Deepening to (.a44) *)
+  let idx : (t44, _) idx_mut = (.a44) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a44) *)
+    let shallow : (t44, _) idx_mut = (.a44) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 107;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 107 failed %d" i;
+  );
+  (* Deepening to (.b44) *)
+  let idx : (t44, _) idx_mut = (.b44) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b44) *)
+    let shallow : (t44, _) idx_mut = (.b44) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 108;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 108 failed %d" i;
+  );
+
+  (********************************)
+  (*   t45 = { int64#; int32# }   *)
+  (********************************)
   (* Deepening to (.a45) *)
   let idx : (t45, _) idx_mut = (.a45) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a45) *)
     let shallow : (t45, _) idx_mut = (.a45) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 134;
+    mark_test_run 109;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 134 failed %d" i;
+    if not test then failwithf "test 109 failed %d" i;
   );
   (* Deepening to (.b45) *)
   let idx : (t45, _) idx_mut = (.b45) in
@@ -1755,77 +1457,47 @@ let () =
     (* from (.b45) *)
     let shallow : (t45, _) idx_mut = (.b45) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 135;
+    mark_test_run 110;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 135 failed %d" i;
-  );
-  (* Deepening to (.b45.#a44) *)
-  let idx : (t45, _) idx_mut = (.b45.#a44) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b45) *)
-    let shallow : (t45, _) idx_mut = (.b45) in
-    let deepened = (.idx_mut(shallow).#a44) in
-    mark_test_run 136;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 136 failed %d" i;
-    (* from (.b45.#a44) *)
-    let shallow : (t45, _) idx_mut = (.b45.#a44) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 137;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 137 failed %d" i;
-  );
-  (* Deepening to (.b45.#b44) *)
-  let idx : (t45, _) idx_mut = (.b45.#b44) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b45) *)
-    let shallow : (t45, _) idx_mut = (.b45) in
-    let deepened = (.idx_mut(shallow).#b44) in
-    mark_test_run 138;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 138 failed %d" i;
-    (* from (.b45.#b44) *)
-    let shallow : (t45, _) idx_mut = (.b45.#b44) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 139;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 139 failed %d" i;
-  );
-  (* Deepening to (.b45.#b44.#a14) *)
-  let idx : (t45, _) idx_mut = (.b45.#b44.#a14) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b45) *)
-    let shallow : (t45, _) idx_mut = (.b45) in
-    let deepened = (.idx_mut(shallow).#b44.#a14) in
-    mark_test_run 140;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 140 failed %d" i;
-    (* from (.b45.#b44) *)
-    let shallow : (t45, _) idx_mut = (.b45.#b44) in
-    let deepened = (.idx_mut(shallow).#a14) in
-    mark_test_run 141;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 141 failed %d" i;
-    (* from (.b45.#b44.#a14) *)
-    let shallow : (t45, _) idx_mut = (.b45.#b44.#a14) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 142;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 142 failed %d" i;
+    if not test then failwithf "test 110 failed %d" i;
   );
 
-  (*********************************************)
-  (*   t47 = { int; #{ float; #{ float } } }   *)
-  (*********************************************)
+  (************************************)
+  (*   t46 = { int64#; nativeint# }   *)
+  (************************************)
+  (* Deepening to (.a46) *)
+  let idx : (t46, _) idx_mut = (.a46) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a46) *)
+    let shallow : (t46, _) idx_mut = (.a46) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 111;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 111 failed %d" i;
+  );
+  (* Deepening to (.b46) *)
+  let idx : (t46, _) idx_mut = (.b46) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b46) *)
+    let shallow : (t46, _) idx_mut = (.b46) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 112;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 112 failed %d" i;
+  );
+
+  (*******************************)
+  (*   t47 = { int64#; float }   *)
+  (*******************************)
   (* Deepening to (.a47) *)
   let idx : (t47, _) idx_mut = (.a47) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a47) *)
     let shallow : (t47, _) idx_mut = (.a47) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 143;
+    mark_test_run 113;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 143 failed %d" i;
+    if not test then failwithf "test 113 failed %d" i;
   );
   (* Deepening to (.b47) *)
   let idx : (t47, _) idx_mut = (.b47) in
@@ -1833,77 +1505,37 @@ let () =
     (* from (.b47) *)
     let shallow : (t47, _) idx_mut = (.b47) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 144;
+    mark_test_run 114;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 144 failed %d" i;
-  );
-  (* Deepening to (.b47.#a46) *)
-  let idx : (t47, _) idx_mut = (.b47.#a46) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b47) *)
-    let shallow : (t47, _) idx_mut = (.b47) in
-    let deepened = (.idx_mut(shallow).#a46) in
-    mark_test_run 145;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 145 failed %d" i;
-    (* from (.b47.#a46) *)
-    let shallow : (t47, _) idx_mut = (.b47.#a46) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 146;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 146 failed %d" i;
-  );
-  (* Deepening to (.b47.#b46) *)
-  let idx : (t47, _) idx_mut = (.b47.#b46) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b47) *)
-    let shallow : (t47, _) idx_mut = (.b47) in
-    let deepened = (.idx_mut(shallow).#b46) in
-    mark_test_run 147;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 147 failed %d" i;
-    (* from (.b47.#b46) *)
-    let shallow : (t47, _) idx_mut = (.b47.#b46) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 148;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 148 failed %d" i;
-  );
-  (* Deepening to (.b47.#b46.#a27) *)
-  let idx : (t47, _) idx_mut = (.b47.#b46.#a27) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b47) *)
-    let shallow : (t47, _) idx_mut = (.b47) in
-    let deepened = (.idx_mut(shallow).#b46.#a27) in
-    mark_test_run 149;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 149 failed %d" i;
-    (* from (.b47.#b46) *)
-    let shallow : (t47, _) idx_mut = (.b47.#b46) in
-    let deepened = (.idx_mut(shallow).#a27) in
-    mark_test_run 150;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 150 failed %d" i;
-    (* from (.b47.#b46.#a27) *)
-    let shallow : (t47, _) idx_mut = (.b47.#b46.#a27) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 151;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 151 failed %d" i;
+    if not test then failwithf "test 114 failed %d" i;
   );
 
-  (*****************************************)
-  (*   t49 = { int; #{ #{ int; int } } }   *)
-  (*****************************************)
+  (************************)
+  (*   t48 = { int32# }   *)
+  (************************)
+  (* Deepening to (.a48) *)
+  let idx : (t48, _) idx_mut = (.a48) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a48) *)
+    let shallow : (t48, _) idx_mut = (.a48) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 115;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 115 failed %d" i;
+  );
+
+  (*****************************)
+  (*   t49 = { int32#; int }   *)
+  (*****************************)
   (* Deepening to (.a49) *)
   let idx : (t49, _) idx_mut = (.a49) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a49) *)
     let shallow : (t49, _) idx_mut = (.a49) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 152;
+    mark_test_run 116;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 152 failed %d" i;
+    if not test then failwithf "test 116 failed %d" i;
   );
   (* Deepening to (.b49) *)
   let idx : (t49, _) idx_mut = (.b49) in
@@ -1911,83 +1543,57 @@ let () =
     (* from (.b49) *)
     let shallow : (t49, _) idx_mut = (.b49) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 153;
+    mark_test_run 117;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 153 failed %d" i;
-  );
-  (* Deepening to (.b49.#a48) *)
-  let idx : (t49, _) idx_mut = (.b49.#a48) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b49) *)
-    let shallow : (t49, _) idx_mut = (.b49) in
-    let deepened = (.idx_mut(shallow).#a48) in
-    mark_test_run 154;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 154 failed %d" i;
-    (* from (.b49.#a48) *)
-    let shallow : (t49, _) idx_mut = (.b49.#a48) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 155;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 155 failed %d" i;
-  );
-  (* Deepening to (.b49.#a48.#a16) *)
-  let idx : (t49, _) idx_mut = (.b49.#a48.#a16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b49) *)
-    let shallow : (t49, _) idx_mut = (.b49) in
-    let deepened = (.idx_mut(shallow).#a48.#a16) in
-    mark_test_run 156;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 156 failed %d" i;
-    (* from (.b49.#a48) *)
-    let shallow : (t49, _) idx_mut = (.b49.#a48) in
-    let deepened = (.idx_mut(shallow).#a16) in
-    mark_test_run 157;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 157 failed %d" i;
-    (* from (.b49.#a48.#a16) *)
-    let shallow : (t49, _) idx_mut = (.b49.#a48.#a16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 158;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 158 failed %d" i;
-  );
-  (* Deepening to (.b49.#a48.#b16) *)
-  let idx : (t49, _) idx_mut = (.b49.#a48.#b16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b49) *)
-    let shallow : (t49, _) idx_mut = (.b49) in
-    let deepened = (.idx_mut(shallow).#a48.#b16) in
-    mark_test_run 159;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 159 failed %d" i;
-    (* from (.b49.#a48) *)
-    let shallow : (t49, _) idx_mut = (.b49.#a48) in
-    let deepened = (.idx_mut(shallow).#b16) in
-    mark_test_run 160;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 160 failed %d" i;
-    (* from (.b49.#a48.#b16) *)
-    let shallow : (t49, _) idx_mut = (.b49.#a48.#b16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 161;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 161 failed %d" i;
+    if not test then failwithf "test 117 failed %d" i;
   );
 
-  (********************************************)
-  (*   t51 = { int; #{ #{ int; int32# } } }   *)
-  (********************************************)
+  (**********************************)
+  (*   t50 = { int32#; int; int }   *)
+  (**********************************)
+  (* Deepening to (.a50) *)
+  let idx : (t50, _) idx_mut = (.a50) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a50) *)
+    let shallow : (t50, _) idx_mut = (.a50) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 118;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 118 failed %d" i;
+  );
+  (* Deepening to (.b50) *)
+  let idx : (t50, _) idx_mut = (.b50) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b50) *)
+    let shallow : (t50, _) idx_mut = (.b50) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 119;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 119 failed %d" i;
+  );
+  (* Deepening to (.c50) *)
+  let idx : (t50, _) idx_mut = (.c50) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.c50) *)
+    let shallow : (t50, _) idx_mut = (.c50) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 120;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 120 failed %d" i;
+  );
+
+  (*************************************)
+  (*   t51 = { int32#; int; int32# }   *)
+  (*************************************)
   (* Deepening to (.a51) *)
   let idx : (t51, _) idx_mut = (.a51) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a51) *)
     let shallow : (t51, _) idx_mut = (.a51) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 162;
+    mark_test_run 121;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 162 failed %d" i;
+    if not test then failwithf "test 121 failed %d" i;
   );
   (* Deepening to (.b51) *)
   let idx : (t51, _) idx_mut = (.b51) in
@@ -1995,83 +1601,57 @@ let () =
     (* from (.b51) *)
     let shallow : (t51, _) idx_mut = (.b51) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 163;
+    mark_test_run 122;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 163 failed %d" i;
+    if not test then failwithf "test 122 failed %d" i;
   );
-  (* Deepening to (.b51.#a50) *)
-  let idx : (t51, _) idx_mut = (.b51.#a50) in
+  (* Deepening to (.c51) *)
+  let idx : (t51, _) idx_mut = (.c51) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b51) *)
-    let shallow : (t51, _) idx_mut = (.b51) in
-    let deepened = (.idx_mut(shallow).#a50) in
-    mark_test_run 164;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 164 failed %d" i;
-    (* from (.b51.#a50) *)
-    let shallow : (t51, _) idx_mut = (.b51.#a50) in
+    (* from (.c51) *)
+    let shallow : (t51, _) idx_mut = (.c51) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 165;
+    mark_test_run 123;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 165 failed %d" i;
-  );
-  (* Deepening to (.b51.#a50.#a18) *)
-  let idx : (t51, _) idx_mut = (.b51.#a50.#a18) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b51) *)
-    let shallow : (t51, _) idx_mut = (.b51) in
-    let deepened = (.idx_mut(shallow).#a50.#a18) in
-    mark_test_run 166;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 166 failed %d" i;
-    (* from (.b51.#a50) *)
-    let shallow : (t51, _) idx_mut = (.b51.#a50) in
-    let deepened = (.idx_mut(shallow).#a18) in
-    mark_test_run 167;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 167 failed %d" i;
-    (* from (.b51.#a50.#a18) *)
-    let shallow : (t51, _) idx_mut = (.b51.#a50.#a18) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 168;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 168 failed %d" i;
-  );
-  (* Deepening to (.b51.#a50.#b18) *)
-  let idx : (t51, _) idx_mut = (.b51.#a50.#b18) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b51) *)
-    let shallow : (t51, _) idx_mut = (.b51) in
-    let deepened = (.idx_mut(shallow).#a50.#b18) in
-    mark_test_run 169;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 169 failed %d" i;
-    (* from (.b51.#a50) *)
-    let shallow : (t51, _) idx_mut = (.b51.#a50) in
-    let deepened = (.idx_mut(shallow).#b18) in
-    mark_test_run 170;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 170 failed %d" i;
-    (* from (.b51.#a50.#b18) *)
-    let shallow : (t51, _) idx_mut = (.b51.#a50.#b18) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 171;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 171 failed %d" i;
+    if not test then failwithf "test 123 failed %d" i;
   );
 
-  (*******************************************)
-  (*   t53 = { int; #{ #{ int; float } } }   *)
-  (*******************************************)
+  (*******************************)
+  (*   t52 = { int32#; int64 }   *)
+  (*******************************)
+  (* Deepening to (.a52) *)
+  let idx : (t52, _) idx_mut = (.a52) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a52) *)
+    let shallow : (t52, _) idx_mut = (.a52) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 124;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 124 failed %d" i;
+  );
+  (* Deepening to (.b52) *)
+  let idx : (t52, _) idx_mut = (.b52) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b52) *)
+    let shallow : (t52, _) idx_mut = (.b52) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 125;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 125 failed %d" i;
+  );
+
+  (********************************)
+  (*   t53 = { int32#; int64# }   *)
+  (********************************)
   (* Deepening to (.a53) *)
   let idx : (t53, _) idx_mut = (.a53) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a53) *)
     let shallow : (t53, _) idx_mut = (.a53) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 172;
+    mark_test_run 126;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 172 failed %d" i;
+    if not test then failwithf "test 126 failed %d" i;
   );
   (* Deepening to (.b53) *)
   let idx : (t53, _) idx_mut = (.b53) in
@@ -2079,83 +1659,47 @@ let () =
     (* from (.b53) *)
     let shallow : (t53, _) idx_mut = (.b53) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 173;
+    mark_test_run 127;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 173 failed %d" i;
-  );
-  (* Deepening to (.b53.#a52) *)
-  let idx : (t53, _) idx_mut = (.b53.#a52) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b53) *)
-    let shallow : (t53, _) idx_mut = (.b53) in
-    let deepened = (.idx_mut(shallow).#a52) in
-    mark_test_run 174;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 174 failed %d" i;
-    (* from (.b53.#a52) *)
-    let shallow : (t53, _) idx_mut = (.b53.#a52) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 175;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 175 failed %d" i;
-  );
-  (* Deepening to (.b53.#a52.#a20) *)
-  let idx : (t53, _) idx_mut = (.b53.#a52.#a20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b53) *)
-    let shallow : (t53, _) idx_mut = (.b53) in
-    let deepened = (.idx_mut(shallow).#a52.#a20) in
-    mark_test_run 176;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 176 failed %d" i;
-    (* from (.b53.#a52) *)
-    let shallow : (t53, _) idx_mut = (.b53.#a52) in
-    let deepened = (.idx_mut(shallow).#a20) in
-    mark_test_run 177;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 177 failed %d" i;
-    (* from (.b53.#a52.#a20) *)
-    let shallow : (t53, _) idx_mut = (.b53.#a52.#a20) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 178;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 178 failed %d" i;
-  );
-  (* Deepening to (.b53.#a52.#b20) *)
-  let idx : (t53, _) idx_mut = (.b53.#a52.#b20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b53) *)
-    let shallow : (t53, _) idx_mut = (.b53) in
-    let deepened = (.idx_mut(shallow).#a52.#b20) in
-    mark_test_run 179;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 179 failed %d" i;
-    (* from (.b53.#a52) *)
-    let shallow : (t53, _) idx_mut = (.b53.#a52) in
-    let deepened = (.idx_mut(shallow).#b20) in
-    mark_test_run 180;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 180 failed %d" i;
-    (* from (.b53.#a52.#b20) *)
-    let shallow : (t53, _) idx_mut = (.b53.#a52.#b20) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 181;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 181 failed %d" i;
+    if not test then failwithf "test 127 failed %d" i;
   );
 
-  (********************************************)
-  (*   t55 = { int; #{ #{ int32#; int } } }   *)
-  (********************************************)
+  (********************************)
+  (*   t54 = { int32#; int32# }   *)
+  (********************************)
+  (* Deepening to (.a54) *)
+  let idx : (t54, _) idx_mut = (.a54) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a54) *)
+    let shallow : (t54, _) idx_mut = (.a54) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 128;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 128 failed %d" i;
+  );
+  (* Deepening to (.b54) *)
+  let idx : (t54, _) idx_mut = (.b54) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b54) *)
+    let shallow : (t54, _) idx_mut = (.b54) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 129;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 129 failed %d" i;
+  );
+
+  (*************************************)
+  (*   t55 = { int32#; int32#; int }   *)
+  (*************************************)
   (* Deepening to (.a55) *)
   let idx : (t55, _) idx_mut = (.a55) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a55) *)
     let shallow : (t55, _) idx_mut = (.a55) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 182;
+    mark_test_run 130;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 182 failed %d" i;
+    if not test then failwithf "test 130 failed %d" i;
   );
   (* Deepening to (.b55) *)
   let idx : (t55, _) idx_mut = (.b55) in
@@ -2163,83 +1707,67 @@ let () =
     (* from (.b55) *)
     let shallow : (t55, _) idx_mut = (.b55) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 183;
+    mark_test_run 131;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 183 failed %d" i;
+    if not test then failwithf "test 131 failed %d" i;
   );
-  (* Deepening to (.b55.#a54) *)
-  let idx : (t55, _) idx_mut = (.b55.#a54) in
+  (* Deepening to (.c55) *)
+  let idx : (t55, _) idx_mut = (.c55) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b55) *)
-    let shallow : (t55, _) idx_mut = (.b55) in
-    let deepened = (.idx_mut(shallow).#a54) in
-    mark_test_run 184;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 184 failed %d" i;
-    (* from (.b55.#a54) *)
-    let shallow : (t55, _) idx_mut = (.b55.#a54) in
+    (* from (.c55) *)
+    let shallow : (t55, _) idx_mut = (.c55) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 185;
+    mark_test_run 132;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 185 failed %d" i;
-  );
-  (* Deepening to (.b55.#a54.#a31) *)
-  let idx : (t55, _) idx_mut = (.b55.#a54.#a31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b55) *)
-    let shallow : (t55, _) idx_mut = (.b55) in
-    let deepened = (.idx_mut(shallow).#a54.#a31) in
-    mark_test_run 186;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 186 failed %d" i;
-    (* from (.b55.#a54) *)
-    let shallow : (t55, _) idx_mut = (.b55.#a54) in
-    let deepened = (.idx_mut(shallow).#a31) in
-    mark_test_run 187;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 187 failed %d" i;
-    (* from (.b55.#a54.#a31) *)
-    let shallow : (t55, _) idx_mut = (.b55.#a54.#a31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 188;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 188 failed %d" i;
-  );
-  (* Deepening to (.b55.#a54.#b31) *)
-  let idx : (t55, _) idx_mut = (.b55.#a54.#b31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b55) *)
-    let shallow : (t55, _) idx_mut = (.b55) in
-    let deepened = (.idx_mut(shallow).#a54.#b31) in
-    mark_test_run 189;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 189 failed %d" i;
-    (* from (.b55.#a54) *)
-    let shallow : (t55, _) idx_mut = (.b55.#a54) in
-    let deepened = (.idx_mut(shallow).#b31) in
-    mark_test_run 190;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 190 failed %d" i;
-    (* from (.b55.#a54.#b31) *)
-    let shallow : (t55, _) idx_mut = (.b55.#a54.#b31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 191;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 191 failed %d" i;
+    if not test then failwithf "test 132 failed %d" i;
   );
 
-  (***********************************************)
-  (*   t57 = { int; #{ #{ int32#; int32# } } }   *)
-  (***********************************************)
+  (****************************************)
+  (*   t56 = { int32#; int32#; int32# }   *)
+  (****************************************)
+  (* Deepening to (.a56) *)
+  let idx : (t56, _) idx_mut = (.a56) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a56) *)
+    let shallow : (t56, _) idx_mut = (.a56) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 133;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 133 failed %d" i;
+  );
+  (* Deepening to (.b56) *)
+  let idx : (t56, _) idx_mut = (.b56) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b56) *)
+    let shallow : (t56, _) idx_mut = (.b56) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 134;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 134 failed %d" i;
+  );
+  (* Deepening to (.c56) *)
+  let idx : (t56, _) idx_mut = (.c56) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.c56) *)
+    let shallow : (t56, _) idx_mut = (.c56) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 135;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 135 failed %d" i;
+  );
+
+  (************************************)
+  (*   t57 = { int32#; nativeint# }   *)
+  (************************************)
   (* Deepening to (.a57) *)
   let idx : (t57, _) idx_mut = (.a57) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a57) *)
     let shallow : (t57, _) idx_mut = (.a57) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 192;
+    mark_test_run 136;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 192 failed %d" i;
+    if not test then failwithf "test 136 failed %d" i;
   );
   (* Deepening to (.b57) *)
   let idx : (t57, _) idx_mut = (.b57) in
@@ -2247,83 +1775,47 @@ let () =
     (* from (.b57) *)
     let shallow : (t57, _) idx_mut = (.b57) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 193;
+    mark_test_run 137;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 193 failed %d" i;
-  );
-  (* Deepening to (.b57.#a56) *)
-  let idx : (t57, _) idx_mut = (.b57.#a56) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b57) *)
-    let shallow : (t57, _) idx_mut = (.b57) in
-    let deepened = (.idx_mut(shallow).#a56) in
-    mark_test_run 194;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 194 failed %d" i;
-    (* from (.b57.#a56) *)
-    let shallow : (t57, _) idx_mut = (.b57.#a56) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 195;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 195 failed %d" i;
-  );
-  (* Deepening to (.b57.#a56.#a33) *)
-  let idx : (t57, _) idx_mut = (.b57.#a56.#a33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b57) *)
-    let shallow : (t57, _) idx_mut = (.b57) in
-    let deepened = (.idx_mut(shallow).#a56.#a33) in
-    mark_test_run 196;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 196 failed %d" i;
-    (* from (.b57.#a56) *)
-    let shallow : (t57, _) idx_mut = (.b57.#a56) in
-    let deepened = (.idx_mut(shallow).#a33) in
-    mark_test_run 197;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 197 failed %d" i;
-    (* from (.b57.#a56.#a33) *)
-    let shallow : (t57, _) idx_mut = (.b57.#a56.#a33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 198;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 198 failed %d" i;
-  );
-  (* Deepening to (.b57.#a56.#b33) *)
-  let idx : (t57, _) idx_mut = (.b57.#a56.#b33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b57) *)
-    let shallow : (t57, _) idx_mut = (.b57) in
-    let deepened = (.idx_mut(shallow).#a56.#b33) in
-    mark_test_run 199;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 199 failed %d" i;
-    (* from (.b57.#a56) *)
-    let shallow : (t57, _) idx_mut = (.b57.#a56) in
-    let deepened = (.idx_mut(shallow).#b33) in
-    mark_test_run 200;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 200 failed %d" i;
-    (* from (.b57.#a56.#b33) *)
-    let shallow : (t57, _) idx_mut = (.b57.#a56.#b33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 201;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 201 failed %d" i;
+    if not test then failwithf "test 137 failed %d" i;
   );
 
-  (*******************************************)
-  (*   t59 = { int; #{ #{ float; int } } }   *)
-  (*******************************************)
+  (*******************************)
+  (*   t58 = { int32#; float }   *)
+  (*******************************)
+  (* Deepening to (.a58) *)
+  let idx : (t58, _) idx_mut = (.a58) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a58) *)
+    let shallow : (t58, _) idx_mut = (.a58) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 138;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 138 failed %d" i;
+  );
+  (* Deepening to (.b58) *)
+  let idx : (t58, _) idx_mut = (.b58) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b58) *)
+    let shallow : (t58, _) idx_mut = (.b58) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 139;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 139 failed %d" i;
+  );
+
+  (**********************************)
+  (*   t59 = { int32#; #{ int } }   *)
+  (**********************************)
   (* Deepening to (.a59) *)
   let idx : (t59, _) idx_mut = (.a59) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a59) *)
     let shallow : (t59, _) idx_mut = (.a59) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 202;
+    mark_test_run 140;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 202 failed %d" i;
+    if not test then failwithf "test 140 failed %d" i;
   );
   (* Deepening to (.b59) *)
   let idx : (t59, _) idx_mut = (.b59) in
@@ -2331,83 +1823,95 @@ let () =
     (* from (.b59) *)
     let shallow : (t59, _) idx_mut = (.b59) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 203;
+    mark_test_run 141;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 203 failed %d" i;
+    if not test then failwithf "test 141 failed %d" i;
   );
-  (* Deepening to (.b59.#a58) *)
-  let idx : (t59, _) idx_mut = (.b59.#a58) in
+  (* Deepening to (.b59.#a14) *)
+  let idx : (t59, _) idx_mut = (.b59.#a14) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b59) *)
     let shallow : (t59, _) idx_mut = (.b59) in
-    let deepened = (.idx_mut(shallow).#a58) in
-    mark_test_run 204;
+    let deepened = (.idx_mut(shallow).#a14) in
+    mark_test_run 142;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 204 failed %d" i;
-    (* from (.b59.#a58) *)
-    let shallow : (t59, _) idx_mut = (.b59.#a58) in
+    if not test then failwithf "test 142 failed %d" i;
+    (* from (.b59.#a14) *)
+    let shallow : (t59, _) idx_mut = (.b59.#a14) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 205;
+    mark_test_run 143;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 205 failed %d" i;
-  );
-  (* Deepening to (.b59.#a58.#a40) *)
-  let idx : (t59, _) idx_mut = (.b59.#a58.#a40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b59) *)
-    let shallow : (t59, _) idx_mut = (.b59) in
-    let deepened = (.idx_mut(shallow).#a58.#a40) in
-    mark_test_run 206;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 206 failed %d" i;
-    (* from (.b59.#a58) *)
-    let shallow : (t59, _) idx_mut = (.b59.#a58) in
-    let deepened = (.idx_mut(shallow).#a40) in
-    mark_test_run 207;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 207 failed %d" i;
-    (* from (.b59.#a58.#a40) *)
-    let shallow : (t59, _) idx_mut = (.b59.#a58.#a40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 208;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 208 failed %d" i;
-  );
-  (* Deepening to (.b59.#a58.#b40) *)
-  let idx : (t59, _) idx_mut = (.b59.#a58.#b40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b59) *)
-    let shallow : (t59, _) idx_mut = (.b59) in
-    let deepened = (.idx_mut(shallow).#a58.#b40) in
-    mark_test_run 209;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 209 failed %d" i;
-    (* from (.b59.#a58) *)
-    let shallow : (t59, _) idx_mut = (.b59.#a58) in
-    let deepened = (.idx_mut(shallow).#b40) in
-    mark_test_run 210;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 210 failed %d" i;
-    (* from (.b59.#a58.#b40) *)
-    let shallow : (t59, _) idx_mut = (.b59.#a58.#b40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 211;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 211 failed %d" i;
+    if not test then failwithf "test 143 failed %d" i;
   );
 
-  (*********************************************)
-  (*   t61 = { int; #{ #{ float; float } } }   *)
-  (*********************************************)
+  (***************************************)
+  (*   t60 = { int32#; #{ int; int } }   *)
+  (***************************************)
+  (* Deepening to (.a60) *)
+  let idx : (t60, _) idx_mut = (.a60) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a60) *)
+    let shallow : (t60, _) idx_mut = (.a60) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 144;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 144 failed %d" i;
+  );
+  (* Deepening to (.b60) *)
+  let idx : (t60, _) idx_mut = (.b60) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b60) *)
+    let shallow : (t60, _) idx_mut = (.b60) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 145;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 145 failed %d" i;
+  );
+  (* Deepening to (.b60.#a16) *)
+  let idx : (t60, _) idx_mut = (.b60.#a16) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b60) *)
+    let shallow : (t60, _) idx_mut = (.b60) in
+    let deepened = (.idx_mut(shallow).#a16) in
+    mark_test_run 146;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 146 failed %d" i;
+    (* from (.b60.#a16) *)
+    let shallow : (t60, _) idx_mut = (.b60.#a16) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 147;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 147 failed %d" i;
+  );
+  (* Deepening to (.b60.#b16) *)
+  let idx : (t60, _) idx_mut = (.b60.#b16) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b60) *)
+    let shallow : (t60, _) idx_mut = (.b60) in
+    let deepened = (.idx_mut(shallow).#b16) in
+    mark_test_run 148;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 148 failed %d" i;
+    (* from (.b60.#b16) *)
+    let shallow : (t60, _) idx_mut = (.b60.#b16) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 149;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 149 failed %d" i;
+  );
+
+  (******************************************)
+  (*   t61 = { int32#; #{ int; int32# } }   *)
+  (******************************************)
   (* Deepening to (.a61) *)
   let idx : (t61, _) idx_mut = (.a61) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a61) *)
     let shallow : (t61, _) idx_mut = (.a61) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 212;
+    mark_test_run 150;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 212 failed %d" i;
+    if not test then failwithf "test 150 failed %d" i;
   );
   (* Deepening to (.b61) *)
   let idx : (t61, _) idx_mut = (.b61) in
@@ -2415,97 +1919,95 @@ let () =
     (* from (.b61) *)
     let shallow : (t61, _) idx_mut = (.b61) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 213;
+    mark_test_run 151;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 213 failed %d" i;
+    if not test then failwithf "test 151 failed %d" i;
   );
-  (* Deepening to (.b61.#a60) *)
-  let idx : (t61, _) idx_mut = (.b61.#a60) in
+  (* Deepening to (.b61.#a18) *)
+  let idx : (t61, _) idx_mut = (.b61.#a18) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b61) *)
     let shallow : (t61, _) idx_mut = (.b61) in
-    let deepened = (.idx_mut(shallow).#a60) in
-    mark_test_run 214;
+    let deepened = (.idx_mut(shallow).#a18) in
+    mark_test_run 152;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 214 failed %d" i;
-    (* from (.b61.#a60) *)
-    let shallow : (t61, _) idx_mut = (.b61.#a60) in
+    if not test then failwithf "test 152 failed %d" i;
+    (* from (.b61.#a18) *)
+    let shallow : (t61, _) idx_mut = (.b61.#a18) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 215;
+    mark_test_run 153;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 215 failed %d" i;
+    if not test then failwithf "test 153 failed %d" i;
   );
-  (* Deepening to (.b61.#a60.#a42) *)
-  let idx : (t61, _) idx_mut = (.b61.#a60.#a42) in
+  (* Deepening to (.b61.#b18) *)
+  let idx : (t61, _) idx_mut = (.b61.#b18) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b61) *)
     let shallow : (t61, _) idx_mut = (.b61) in
-    let deepened = (.idx_mut(shallow).#a60.#a42) in
-    mark_test_run 216;
+    let deepened = (.idx_mut(shallow).#b18) in
+    mark_test_run 154;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 216 failed %d" i;
-    (* from (.b61.#a60) *)
-    let shallow : (t61, _) idx_mut = (.b61.#a60) in
-    let deepened = (.idx_mut(shallow).#a42) in
-    mark_test_run 217;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 217 failed %d" i;
-    (* from (.b61.#a60.#a42) *)
-    let shallow : (t61, _) idx_mut = (.b61.#a60.#a42) in
+    if not test then failwithf "test 154 failed %d" i;
+    (* from (.b61.#b18) *)
+    let shallow : (t61, _) idx_mut = (.b61.#b18) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 218;
+    mark_test_run 155;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 218 failed %d" i;
-  );
-  (* Deepening to (.b61.#a60.#b42) *)
-  let idx : (t61, _) idx_mut = (.b61.#a60.#b42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b61) *)
-    let shallow : (t61, _) idx_mut = (.b61) in
-    let deepened = (.idx_mut(shallow).#a60.#b42) in
-    mark_test_run 219;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 219 failed %d" i;
-    (* from (.b61.#a60) *)
-    let shallow : (t61, _) idx_mut = (.b61.#a60) in
-    let deepened = (.idx_mut(shallow).#b42) in
-    mark_test_run 220;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 220 failed %d" i;
-    (* from (.b61.#a60.#b42) *)
-    let shallow : (t61, _) idx_mut = (.b61.#a60.#b42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 221;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 221 failed %d" i;
+    if not test then failwithf "test 155 failed %d" i;
   );
 
-  (***********************)
-  (*   t62 = { int64 }   *)
-  (***********************)
+  (*************************************)
+  (*   t62 = { int32#; #{ int32# } }   *)
+  (*************************************)
   (* Deepening to (.a62) *)
   let idx : (t62, _) idx_mut = (.a62) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a62) *)
     let shallow : (t62, _) idx_mut = (.a62) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 222;
+    mark_test_run 156;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 222 failed %d" i;
+    if not test then failwithf "test 156 failed %d" i;
+  );
+  (* Deepening to (.b62) *)
+  let idx : (t62, _) idx_mut = (.b62) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b62) *)
+    let shallow : (t62, _) idx_mut = (.b62) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 157;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 157 failed %d" i;
+  );
+  (* Deepening to (.b62.#a22) *)
+  let idx : (t62, _) idx_mut = (.b62.#a22) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b62) *)
+    let shallow : (t62, _) idx_mut = (.b62) in
+    let deepened = (.idx_mut(shallow).#a22) in
+    mark_test_run 158;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 158 failed %d" i;
+    (* from (.b62.#a22) *)
+    let shallow : (t62, _) idx_mut = (.b62.#a22) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 159;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 159 failed %d" i;
   );
 
-  (****************************)
-  (*   t63 = { int64; int }   *)
-  (****************************)
+  (******************************************)
+  (*   t63 = { int32#; #{ int32#; int } }   *)
+  (******************************************)
   (* Deepening to (.a63) *)
   let idx : (t63, _) idx_mut = (.a63) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a63) *)
     let shallow : (t63, _) idx_mut = (.a63) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 223;
+    mark_test_run 160;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 223 failed %d" i;
+    if not test then failwithf "test 160 failed %d" i;
   );
   (* Deepening to (.b63) *)
   let idx : (t63, _) idx_mut = (.b63) in
@@ -2513,23 +2015,55 @@ let () =
     (* from (.b63) *)
     let shallow : (t63, _) idx_mut = (.b63) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 224;
+    mark_test_run 161;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 224 failed %d" i;
+    if not test then failwithf "test 161 failed %d" i;
+  );
+  (* Deepening to (.b63.#a24) *)
+  let idx : (t63, _) idx_mut = (.b63.#a24) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b63) *)
+    let shallow : (t63, _) idx_mut = (.b63) in
+    let deepened = (.idx_mut(shallow).#a24) in
+    mark_test_run 162;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 162 failed %d" i;
+    (* from (.b63.#a24) *)
+    let shallow : (t63, _) idx_mut = (.b63.#a24) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 163;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 163 failed %d" i;
+  );
+  (* Deepening to (.b63.#b24) *)
+  let idx : (t63, _) idx_mut = (.b63.#b24) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b63) *)
+    let shallow : (t63, _) idx_mut = (.b63) in
+    let deepened = (.idx_mut(shallow).#b24) in
+    mark_test_run 164;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 164 failed %d" i;
+    (* from (.b63.#b24) *)
+    let shallow : (t63, _) idx_mut = (.b63.#b24) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 165;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 165 failed %d" i;
   );
 
-  (******************************)
-  (*   t64 = { int64; int64 }   *)
-  (******************************)
+  (*********************************************)
+  (*   t64 = { int32#; #{ int32#; int32# } }   *)
+  (*********************************************)
   (* Deepening to (.a64) *)
   let idx : (t64, _) idx_mut = (.a64) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a64) *)
     let shallow : (t64, _) idx_mut = (.a64) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 225;
+    mark_test_run 166;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 225 failed %d" i;
+    if not test then failwithf "test 166 failed %d" i;
   );
   (* Deepening to (.b64) *)
   let idx : (t64, _) idx_mut = (.b64) in
@@ -2537,47 +2071,69 @@ let () =
     (* from (.b64) *)
     let shallow : (t64, _) idx_mut = (.b64) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 226;
+    mark_test_run 167;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 226 failed %d" i;
+    if not test then failwithf "test 167 failed %d" i;
+  );
+  (* Deepening to (.b64.#a26) *)
+  let idx : (t64, _) idx_mut = (.b64.#a26) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b64) *)
+    let shallow : (t64, _) idx_mut = (.b64) in
+    let deepened = (.idx_mut(shallow).#a26) in
+    mark_test_run 168;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 168 failed %d" i;
+    (* from (.b64.#a26) *)
+    let shallow : (t64, _) idx_mut = (.b64.#a26) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 169;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 169 failed %d" i;
+  );
+  (* Deepening to (.b64.#b26) *)
+  let idx : (t64, _) idx_mut = (.b64.#b26) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b64) *)
+    let shallow : (t64, _) idx_mut = (.b64) in
+    let deepened = (.idx_mut(shallow).#b26) in
+    mark_test_run 170;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 170 failed %d" i;
+    (* from (.b64.#b26) *)
+    let shallow : (t64, _) idx_mut = (.b64.#b26) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 171;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 171 failed %d" i;
   );
 
-  (*******************************)
-  (*   t65 = { int64; int64# }   *)
-  (*******************************)
+  (****************************)
+  (*   t65 = { nativeint# }   *)
+  (****************************)
   (* Deepening to (.a65) *)
   let idx : (t65, _) idx_mut = (.a65) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a65) *)
     let shallow : (t65, _) idx_mut = (.a65) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 227;
+    mark_test_run 172;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 227 failed %d" i;
-  );
-  (* Deepening to (.b65) *)
-  let idx : (t65, _) idx_mut = (.b65) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b65) *)
-    let shallow : (t65, _) idx_mut = (.b65) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 228;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 228 failed %d" i;
+    if not test then failwithf "test 172 failed %d" i;
   );
 
-  (*******************************)
-  (*   t66 = { int64; int32# }   *)
-  (*******************************)
+  (*********************************)
+  (*   t66 = { nativeint#; int }   *)
+  (*********************************)
   (* Deepening to (.a66) *)
   let idx : (t66, _) idx_mut = (.a66) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a66) *)
     let shallow : (t66, _) idx_mut = (.a66) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 229;
+    mark_test_run 173;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 229 failed %d" i;
+    if not test then failwithf "test 173 failed %d" i;
   );
   (* Deepening to (.b66) *)
   let idx : (t66, _) idx_mut = (.b66) in
@@ -2585,13 +2141,13 @@ let () =
     (* from (.b66) *)
     let shallow : (t66, _) idx_mut = (.b66) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 230;
+    mark_test_run 174;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 230 failed %d" i;
+    if not test then failwithf "test 174 failed %d" i;
   );
 
   (***********************************)
-  (*   t67 = { int64; nativeint# }   *)
+  (*   t67 = { nativeint#; int64 }   *)
   (***********************************)
   (* Deepening to (.a67) *)
   let idx : (t67, _) idx_mut = (.a67) in
@@ -2599,9 +2155,9 @@ let () =
     (* from (.a67) *)
     let shallow : (t67, _) idx_mut = (.a67) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 231;
+    mark_test_run 175;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 231 failed %d" i;
+    if not test then failwithf "test 175 failed %d" i;
   );
   (* Deepening to (.b67) *)
   let idx : (t67, _) idx_mut = (.b67) in
@@ -2609,23 +2165,23 @@ let () =
     (* from (.b67) *)
     let shallow : (t67, _) idx_mut = (.b67) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 232;
+    mark_test_run 176;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 232 failed %d" i;
+    if not test then failwithf "test 176 failed %d" i;
   );
 
-  (******************************)
-  (*   t68 = { int64; float }   *)
-  (******************************)
+  (************************************)
+  (*   t68 = { nativeint#; int64# }   *)
+  (************************************)
   (* Deepening to (.a68) *)
   let idx : (t68, _) idx_mut = (.a68) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a68) *)
     let shallow : (t68, _) idx_mut = (.a68) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 233;
+    mark_test_run 177;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 233 failed %d" i;
+    if not test then failwithf "test 177 failed %d" i;
   );
   (* Deepening to (.b68) *)
   let idx : (t68, _) idx_mut = (.b68) in
@@ -2633,37 +2189,47 @@ let () =
     (* from (.b68) *)
     let shallow : (t68, _) idx_mut = (.b68) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 234;
+    mark_test_run 178;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 234 failed %d" i;
+    if not test then failwithf "test 178 failed %d" i;
   );
 
-  (************************)
-  (*   t69 = { int64# }   *)
-  (************************)
+  (************************************)
+  (*   t69 = { nativeint#; int32# }   *)
+  (************************************)
   (* Deepening to (.a69) *)
   let idx : (t69, _) idx_mut = (.a69) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a69) *)
     let shallow : (t69, _) idx_mut = (.a69) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 235;
+    mark_test_run 179;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 235 failed %d" i;
+    if not test then failwithf "test 179 failed %d" i;
+  );
+  (* Deepening to (.b69) *)
+  let idx : (t69, _) idx_mut = (.b69) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b69) *)
+    let shallow : (t69, _) idx_mut = (.b69) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 180;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 180 failed %d" i;
   );
 
-  (*****************************)
-  (*   t70 = { int64#; int }   *)
-  (*****************************)
+  (****************************************)
+  (*   t70 = { nativeint#; nativeint# }   *)
+  (****************************************)
   (* Deepening to (.a70) *)
   let idx : (t70, _) idx_mut = (.a70) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a70) *)
     let shallow : (t70, _) idx_mut = (.a70) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 236;
+    mark_test_run 181;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 236 failed %d" i;
+    if not test then failwithf "test 181 failed %d" i;
   );
   (* Deepening to (.b70) *)
   let idx : (t70, _) idx_mut = (.b70) in
@@ -2671,23 +2237,23 @@ let () =
     (* from (.b70) *)
     let shallow : (t70, _) idx_mut = (.b70) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 237;
+    mark_test_run 182;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 237 failed %d" i;
+    if not test then failwithf "test 182 failed %d" i;
   );
 
-  (*******************************)
-  (*   t71 = { int64#; int64 }   *)
-  (*******************************)
+  (***********************************)
+  (*   t71 = { nativeint#; float }   *)
+  (***********************************)
   (* Deepening to (.a71) *)
   let idx : (t71, _) idx_mut = (.a71) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a71) *)
     let shallow : (t71, _) idx_mut = (.a71) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 238;
+    mark_test_run 183;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 238 failed %d" i;
+    if not test then failwithf "test 183 failed %d" i;
   );
   (* Deepening to (.b71) *)
   let idx : (t71, _) idx_mut = (.b71) in
@@ -2695,47 +2261,37 @@ let () =
     (* from (.b71) *)
     let shallow : (t71, _) idx_mut = (.b71) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 239;
+    mark_test_run 184;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 239 failed %d" i;
+    if not test then failwithf "test 184 failed %d" i;
   );
 
-  (********************************)
-  (*   t72 = { int64#; int64# }   *)
-  (********************************)
+  (***********************)
+  (*   t72 = { float }   *)
+  (***********************)
   (* Deepening to (.a72) *)
   let idx : (t72, _) idx_mut = (.a72) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a72) *)
     let shallow : (t72, _) idx_mut = (.a72) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 240;
+    mark_test_run 185;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 240 failed %d" i;
-  );
-  (* Deepening to (.b72) *)
-  let idx : (t72, _) idx_mut = (.b72) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b72) *)
-    let shallow : (t72, _) idx_mut = (.b72) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 241;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 241 failed %d" i;
+    if not test then failwithf "test 185 failed %d" i;
   );
 
-  (********************************)
-  (*   t73 = { int64#; int32# }   *)
-  (********************************)
+  (****************************)
+  (*   t73 = { float; int }   *)
+  (****************************)
   (* Deepening to (.a73) *)
   let idx : (t73, _) idx_mut = (.a73) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a73) *)
     let shallow : (t73, _) idx_mut = (.a73) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 242;
+    mark_test_run 186;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 242 failed %d" i;
+    if not test then failwithf "test 186 failed %d" i;
   );
   (* Deepening to (.b73) *)
   let idx : (t73, _) idx_mut = (.b73) in
@@ -2743,23 +2299,23 @@ let () =
     (* from (.b73) *)
     let shallow : (t73, _) idx_mut = (.b73) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 243;
+    mark_test_run 187;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 243 failed %d" i;
+    if not test then failwithf "test 187 failed %d" i;
   );
 
-  (************************************)
-  (*   t74 = { int64#; nativeint# }   *)
-  (************************************)
+  (*********************************)
+  (*   t74 = { float; int; int }   *)
+  (*********************************)
   (* Deepening to (.a74) *)
   let idx : (t74, _) idx_mut = (.a74) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a74) *)
     let shallow : (t74, _) idx_mut = (.a74) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 244;
+    mark_test_run 188;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 244 failed %d" i;
+    if not test then failwithf "test 188 failed %d" i;
   );
   (* Deepening to (.b74) *)
   let idx : (t74, _) idx_mut = (.b74) in
@@ -2767,23 +2323,33 @@ let () =
     (* from (.b74) *)
     let shallow : (t74, _) idx_mut = (.b74) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 245;
+    mark_test_run 189;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 245 failed %d" i;
+    if not test then failwithf "test 189 failed %d" i;
+  );
+  (* Deepening to (.c74) *)
+  let idx : (t74, _) idx_mut = (.c74) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.c74) *)
+    let shallow : (t74, _) idx_mut = (.c74) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 190;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 190 failed %d" i;
   );
 
-  (*******************************)
-  (*   t75 = { int64#; float }   *)
-  (*******************************)
+  (***********************************)
+  (*   t75 = { float; int; float }   *)
+  (***********************************)
   (* Deepening to (.a75) *)
   let idx : (t75, _) idx_mut = (.a75) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a75) *)
     let shallow : (t75, _) idx_mut = (.a75) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 246;
+    mark_test_run 191;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 246 failed %d" i;
+    if not test then failwithf "test 191 failed %d" i;
   );
   (* Deepening to (.b75) *)
   let idx : (t75, _) idx_mut = (.b75) in
@@ -2791,37 +2357,57 @@ let () =
     (* from (.b75) *)
     let shallow : (t75, _) idx_mut = (.b75) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 247;
+    mark_test_run 192;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 247 failed %d" i;
+    if not test then failwithf "test 192 failed %d" i;
+  );
+  (* Deepening to (.c75) *)
+  let idx : (t75, _) idx_mut = (.c75) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.c75) *)
+    let shallow : (t75, _) idx_mut = (.c75) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 193;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 193 failed %d" i;
   );
 
-  (************************)
-  (*   t76 = { int32# }   *)
-  (************************)
+  (******************************)
+  (*   t76 = { float; int64 }   *)
+  (******************************)
   (* Deepening to (.a76) *)
   let idx : (t76, _) idx_mut = (.a76) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a76) *)
     let shallow : (t76, _) idx_mut = (.a76) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 248;
+    mark_test_run 194;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 248 failed %d" i;
+    if not test then failwithf "test 194 failed %d" i;
+  );
+  (* Deepening to (.b76) *)
+  let idx : (t76, _) idx_mut = (.b76) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b76) *)
+    let shallow : (t76, _) idx_mut = (.b76) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 195;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 195 failed %d" i;
   );
 
-  (*****************************)
-  (*   t77 = { int32#; int }   *)
-  (*****************************)
+  (*******************************)
+  (*   t77 = { float; int64# }   *)
+  (*******************************)
   (* Deepening to (.a77) *)
   let idx : (t77, _) idx_mut = (.a77) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a77) *)
     let shallow : (t77, _) idx_mut = (.a77) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 249;
+    mark_test_run 196;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 249 failed %d" i;
+    if not test then failwithf "test 196 failed %d" i;
   );
   (* Deepening to (.b77) *)
   let idx : (t77, _) idx_mut = (.b77) in
@@ -2829,23 +2415,23 @@ let () =
     (* from (.b77) *)
     let shallow : (t77, _) idx_mut = (.b77) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 250;
+    mark_test_run 197;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 250 failed %d" i;
+    if not test then failwithf "test 197 failed %d" i;
   );
 
-  (**********************************)
-  (*   t78 = { int32#; int; int }   *)
-  (**********************************)
+  (*******************************)
+  (*   t78 = { float; int32# }   *)
+  (*******************************)
   (* Deepening to (.a78) *)
   let idx : (t78, _) idx_mut = (.a78) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a78) *)
     let shallow : (t78, _) idx_mut = (.a78) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 251;
+    mark_test_run 198;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 251 failed %d" i;
+    if not test then failwithf "test 198 failed %d" i;
   );
   (* Deepening to (.b78) *)
   let idx : (t78, _) idx_mut = (.b78) in
@@ -2853,33 +2439,23 @@ let () =
     (* from (.b78) *)
     let shallow : (t78, _) idx_mut = (.b78) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 252;
+    mark_test_run 199;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 252 failed %d" i;
-  );
-  (* Deepening to (.c78) *)
-  let idx : (t78, _) idx_mut = (.c78) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.c78) *)
-    let shallow : (t78, _) idx_mut = (.c78) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 253;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 253 failed %d" i;
+    if not test then failwithf "test 199 failed %d" i;
   );
 
-  (*************************************)
-  (*   t79 = { int32#; int; int32# }   *)
-  (*************************************)
+  (***********************************)
+  (*   t79 = { float; nativeint# }   *)
+  (***********************************)
   (* Deepening to (.a79) *)
   let idx : (t79, _) idx_mut = (.a79) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a79) *)
     let shallow : (t79, _) idx_mut = (.a79) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 254;
+    mark_test_run 200;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 254 failed %d" i;
+    if not test then failwithf "test 200 failed %d" i;
   );
   (* Deepening to (.b79) *)
   let idx : (t79, _) idx_mut = (.b79) in
@@ -2887,33 +2463,23 @@ let () =
     (* from (.b79) *)
     let shallow : (t79, _) idx_mut = (.b79) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 255;
+    mark_test_run 201;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 255 failed %d" i;
-  );
-  (* Deepening to (.c79) *)
-  let idx : (t79, _) idx_mut = (.c79) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.c79) *)
-    let shallow : (t79, _) idx_mut = (.c79) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 256;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 256 failed %d" i;
+    if not test then failwithf "test 201 failed %d" i;
   );
 
-  (*******************************)
-  (*   t80 = { int32#; int64 }   *)
-  (*******************************)
+  (******************************)
+  (*   t80 = { float; float }   *)
+  (******************************)
   (* Deepening to (.a80) *)
   let idx : (t80, _) idx_mut = (.a80) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a80) *)
     let shallow : (t80, _) idx_mut = (.a80) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 257;
+    mark_test_run 202;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 257 failed %d" i;
+    if not test then failwithf "test 202 failed %d" i;
   );
   (* Deepening to (.b80) *)
   let idx : (t80, _) idx_mut = (.b80) in
@@ -2921,23 +2487,23 @@ let () =
     (* from (.b80) *)
     let shallow : (t80, _) idx_mut = (.b80) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 258;
+    mark_test_run 203;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 258 failed %d" i;
+    if not test then failwithf "test 203 failed %d" i;
   );
 
-  (********************************)
-  (*   t81 = { int32#; int64# }   *)
-  (********************************)
+  (***********************************)
+  (*   t81 = { float; float; int }   *)
+  (***********************************)
   (* Deepening to (.a81) *)
   let idx : (t81, _) idx_mut = (.a81) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a81) *)
     let shallow : (t81, _) idx_mut = (.a81) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 259;
+    mark_test_run 204;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 259 failed %d" i;
+    if not test then failwithf "test 204 failed %d" i;
   );
   (* Deepening to (.b81) *)
   let idx : (t81, _) idx_mut = (.b81) in
@@ -2945,23 +2511,33 @@ let () =
     (* from (.b81) *)
     let shallow : (t81, _) idx_mut = (.b81) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 260;
+    mark_test_run 205;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 260 failed %d" i;
+    if not test then failwithf "test 205 failed %d" i;
+  );
+  (* Deepening to (.c81) *)
+  let idx : (t81, _) idx_mut = (.c81) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.c81) *)
+    let shallow : (t81, _) idx_mut = (.c81) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 206;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 206 failed %d" i;
   );
 
-  (********************************)
-  (*   t82 = { int32#; int32# }   *)
-  (********************************)
+  (*************************************)
+  (*   t82 = { float; float; float }   *)
+  (*************************************)
   (* Deepening to (.a82) *)
   let idx : (t82, _) idx_mut = (.a82) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a82) *)
     let shallow : (t82, _) idx_mut = (.a82) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 261;
+    mark_test_run 207;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 261 failed %d" i;
+    if not test then failwithf "test 207 failed %d" i;
   );
   (* Deepening to (.b82) *)
   let idx : (t82, _) idx_mut = (.b82) in
@@ -2969,23 +2545,33 @@ let () =
     (* from (.b82) *)
     let shallow : (t82, _) idx_mut = (.b82) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 262;
+    mark_test_run 208;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 262 failed %d" i;
+    if not test then failwithf "test 208 failed %d" i;
+  );
+  (* Deepening to (.c82) *)
+  let idx : (t82, _) idx_mut = (.c82) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.c82) *)
+    let shallow : (t82, _) idx_mut = (.c82) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 209;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 209 failed %d" i;
   );
 
-  (*************************************)
-  (*   t83 = { int32#; int32#; int }   *)
-  (*************************************)
+  (**************************************)
+  (*   t83 = { float; float; float# }   *)
+  (**************************************)
   (* Deepening to (.a83) *)
   let idx : (t83, _) idx_mut = (.a83) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a83) *)
     let shallow : (t83, _) idx_mut = (.a83) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 263;
+    mark_test_run 210;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 263 failed %d" i;
+    if not test then failwithf "test 210 failed %d" i;
   );
   (* Deepening to (.b83) *)
   let idx : (t83, _) idx_mut = (.b83) in
@@ -2993,9 +2579,9 @@ let () =
     (* from (.b83) *)
     let shallow : (t83, _) idx_mut = (.b83) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 264;
+    mark_test_run 211;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 264 failed %d" i;
+    if not test then failwithf "test 211 failed %d" i;
   );
   (* Deepening to (.c83) *)
   let idx : (t83, _) idx_mut = (.c83) in
@@ -3003,23 +2589,23 @@ let () =
     (* from (.c83) *)
     let shallow : (t83, _) idx_mut = (.c83) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 265;
+    mark_test_run 212;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 265 failed %d" i;
+    if not test then failwithf "test 212 failed %d" i;
   );
 
-  (****************************************)
-  (*   t84 = { int32#; int32#; int32# }   *)
-  (****************************************)
+  (*******************************)
+  (*   t84 = { float; float# }   *)
+  (*******************************)
   (* Deepening to (.a84) *)
   let idx : (t84, _) idx_mut = (.a84) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a84) *)
     let shallow : (t84, _) idx_mut = (.a84) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 266;
+    mark_test_run 213;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 266 failed %d" i;
+    if not test then failwithf "test 213 failed %d" i;
   );
   (* Deepening to (.b84) *)
   let idx : (t84, _) idx_mut = (.b84) in
@@ -3027,33 +2613,23 @@ let () =
     (* from (.b84) *)
     let shallow : (t84, _) idx_mut = (.b84) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 267;
+    mark_test_run 214;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 267 failed %d" i;
-  );
-  (* Deepening to (.c84) *)
-  let idx : (t84, _) idx_mut = (.c84) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.c84) *)
-    let shallow : (t84, _) idx_mut = (.c84) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 268;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 268 failed %d" i;
+    if not test then failwithf "test 214 failed %d" i;
   );
 
-  (************************************)
-  (*   t85 = { int32#; nativeint# }   *)
-  (************************************)
+  (**************************************)
+  (*   t85 = { float; float#; float }   *)
+  (**************************************)
   (* Deepening to (.a85) *)
   let idx : (t85, _) idx_mut = (.a85) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a85) *)
     let shallow : (t85, _) idx_mut = (.a85) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 269;
+    mark_test_run 215;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 269 failed %d" i;
+    if not test then failwithf "test 215 failed %d" i;
   );
   (* Deepening to (.b85) *)
   let idx : (t85, _) idx_mut = (.b85) in
@@ -3061,23 +2637,33 @@ let () =
     (* from (.b85) *)
     let shallow : (t85, _) idx_mut = (.b85) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 270;
+    mark_test_run 216;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 270 failed %d" i;
+    if not test then failwithf "test 216 failed %d" i;
+  );
+  (* Deepening to (.c85) *)
+  let idx : (t85, _) idx_mut = (.c85) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.c85) *)
+    let shallow : (t85, _) idx_mut = (.c85) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 217;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 217 failed %d" i;
   );
 
-  (*******************************)
-  (*   t86 = { int32#; float }   *)
-  (*******************************)
+  (***************************************)
+  (*   t86 = { float; float#; float# }   *)
+  (***************************************)
   (* Deepening to (.a86) *)
   let idx : (t86, _) idx_mut = (.a86) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a86) *)
     let shallow : (t86, _) idx_mut = (.a86) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 271;
+    mark_test_run 218;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 271 failed %d" i;
+    if not test then failwithf "test 218 failed %d" i;
   );
   (* Deepening to (.b86) *)
   let idx : (t86, _) idx_mut = (.b86) in
@@ -3085,23 +2671,33 @@ let () =
     (* from (.b86) *)
     let shallow : (t86, _) idx_mut = (.b86) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 272;
+    mark_test_run 219;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 272 failed %d" i;
+    if not test then failwithf "test 219 failed %d" i;
+  );
+  (* Deepening to (.c86) *)
+  let idx : (t86, _) idx_mut = (.c86) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.c86) *)
+    let shallow : (t86, _) idx_mut = (.c86) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 220;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 220 failed %d" i;
   );
 
-  (**********************************)
-  (*   t87 = { int32#; #{ int } }   *)
-  (**********************************)
+  (*********************************)
+  (*   t87 = { float; #{ int } }   *)
+  (*********************************)
   (* Deepening to (.a87) *)
   let idx : (t87, _) idx_mut = (.a87) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a87) *)
     let shallow : (t87, _) idx_mut = (.a87) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 273;
+    mark_test_run 221;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 273 failed %d" i;
+    if not test then failwithf "test 221 failed %d" i;
   );
   (* Deepening to (.b87) *)
   let idx : (t87, _) idx_mut = (.b87) in
@@ -3109,9 +2705,9 @@ let () =
     (* from (.b87) *)
     let shallow : (t87, _) idx_mut = (.b87) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 274;
+    mark_test_run 222;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 274 failed %d" i;
+    if not test then failwithf "test 222 failed %d" i;
   );
   (* Deepening to (.b87.#a14) *)
   let idx : (t87, _) idx_mut = (.b87.#a14) in
@@ -3119,29 +2715,29 @@ let () =
     (* from (.b87) *)
     let shallow : (t87, _) idx_mut = (.b87) in
     let deepened = (.idx_mut(shallow).#a14) in
-    mark_test_run 275;
+    mark_test_run 223;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 275 failed %d" i;
+    if not test then failwithf "test 223 failed %d" i;
     (* from (.b87.#a14) *)
     let shallow : (t87, _) idx_mut = (.b87.#a14) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 276;
+    mark_test_run 224;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 276 failed %d" i;
+    if not test then failwithf "test 224 failed %d" i;
   );
 
-  (***************************************)
-  (*   t88 = { int32#; #{ int; int } }   *)
-  (***************************************)
+  (**************************************)
+  (*   t88 = { float; #{ int; int } }   *)
+  (**************************************)
   (* Deepening to (.a88) *)
   let idx : (t88, _) idx_mut = (.a88) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a88) *)
     let shallow : (t88, _) idx_mut = (.a88) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 277;
+    mark_test_run 225;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 277 failed %d" i;
+    if not test then failwithf "test 225 failed %d" i;
   );
   (* Deepening to (.b88) *)
   let idx : (t88, _) idx_mut = (.b88) in
@@ -3149,9 +2745,9 @@ let () =
     (* from (.b88) *)
     let shallow : (t88, _) idx_mut = (.b88) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 278;
+    mark_test_run 226;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 278 failed %d" i;
+    if not test then failwithf "test 226 failed %d" i;
   );
   (* Deepening to (.b88.#a16) *)
   let idx : (t88, _) idx_mut = (.b88.#a16) in
@@ -3159,15 +2755,15 @@ let () =
     (* from (.b88) *)
     let shallow : (t88, _) idx_mut = (.b88) in
     let deepened = (.idx_mut(shallow).#a16) in
-    mark_test_run 279;
+    mark_test_run 227;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 279 failed %d" i;
+    if not test then failwithf "test 227 failed %d" i;
     (* from (.b88.#a16) *)
     let shallow : (t88, _) idx_mut = (.b88.#a16) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 280;
+    mark_test_run 228;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 280 failed %d" i;
+    if not test then failwithf "test 228 failed %d" i;
   );
   (* Deepening to (.b88.#b16) *)
   let idx : (t88, _) idx_mut = (.b88.#b16) in
@@ -3175,29 +2771,29 @@ let () =
     (* from (.b88) *)
     let shallow : (t88, _) idx_mut = (.b88) in
     let deepened = (.idx_mut(shallow).#b16) in
-    mark_test_run 281;
+    mark_test_run 229;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 281 failed %d" i;
+    if not test then failwithf "test 229 failed %d" i;
     (* from (.b88.#b16) *)
     let shallow : (t88, _) idx_mut = (.b88.#b16) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 282;
+    mark_test_run 230;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 282 failed %d" i;
+    if not test then failwithf "test 230 failed %d" i;
   );
 
-  (******************************************)
-  (*   t89 = { int32#; #{ int; int32# } }   *)
-  (******************************************)
+  (****************************************)
+  (*   t89 = { float; #{ int; float } }   *)
+  (****************************************)
   (* Deepening to (.a89) *)
   let idx : (t89, _) idx_mut = (.a89) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a89) *)
     let shallow : (t89, _) idx_mut = (.a89) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 283;
+    mark_test_run 231;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 283 failed %d" i;
+    if not test then failwithf "test 231 failed %d" i;
   );
   (* Deepening to (.b89) *)
   let idx : (t89, _) idx_mut = (.b89) in
@@ -3205,55 +2801,55 @@ let () =
     (* from (.b89) *)
     let shallow : (t89, _) idx_mut = (.b89) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 284;
+    mark_test_run 232;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 284 failed %d" i;
+    if not test then failwithf "test 232 failed %d" i;
   );
-  (* Deepening to (.b89.#a18) *)
-  let idx : (t89, _) idx_mut = (.b89.#a18) in
+  (* Deepening to (.b89.#a20) *)
+  let idx : (t89, _) idx_mut = (.b89.#a20) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b89) *)
     let shallow : (t89, _) idx_mut = (.b89) in
-    let deepened = (.idx_mut(shallow).#a18) in
-    mark_test_run 285;
+    let deepened = (.idx_mut(shallow).#a20) in
+    mark_test_run 233;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 285 failed %d" i;
-    (* from (.b89.#a18) *)
-    let shallow : (t89, _) idx_mut = (.b89.#a18) in
+    if not test then failwithf "test 233 failed %d" i;
+    (* from (.b89.#a20) *)
+    let shallow : (t89, _) idx_mut = (.b89.#a20) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 286;
+    mark_test_run 234;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 286 failed %d" i;
+    if not test then failwithf "test 234 failed %d" i;
   );
-  (* Deepening to (.b89.#b18) *)
-  let idx : (t89, _) idx_mut = (.b89.#b18) in
+  (* Deepening to (.b89.#b20) *)
+  let idx : (t89, _) idx_mut = (.b89.#b20) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b89) *)
     let shallow : (t89, _) idx_mut = (.b89) in
-    let deepened = (.idx_mut(shallow).#b18) in
-    mark_test_run 287;
+    let deepened = (.idx_mut(shallow).#b20) in
+    mark_test_run 235;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 287 failed %d" i;
-    (* from (.b89.#b18) *)
-    let shallow : (t89, _) idx_mut = (.b89.#b18) in
+    if not test then failwithf "test 235 failed %d" i;
+    (* from (.b89.#b20) *)
+    let shallow : (t89, _) idx_mut = (.b89.#b20) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 288;
+    mark_test_run 236;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 288 failed %d" i;
+    if not test then failwithf "test 236 failed %d" i;
   );
 
-  (********************************************)
-  (*   t90 = { int32#; #{ int; #{ int } } }   *)
-  (********************************************)
+  (***********************************)
+  (*   t90 = { float; #{ float } }   *)
+  (***********************************)
   (* Deepening to (.a90) *)
   let idx : (t90, _) idx_mut = (.a90) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a90) *)
     let shallow : (t90, _) idx_mut = (.a90) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 289;
+    mark_test_run 237;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 289 failed %d" i;
+    if not test then failwithf "test 237 failed %d" i;
   );
   (* Deepening to (.b90) *)
   let idx : (t90, _) idx_mut = (.b90) in
@@ -3261,77 +2857,35 @@ let () =
     (* from (.b90) *)
     let shallow : (t90, _) idx_mut = (.b90) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 290;
+    mark_test_run 238;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 290 failed %d" i;
+    if not test then failwithf "test 238 failed %d" i;
   );
-  (* Deepening to (.b90.#a22) *)
-  let idx : (t90, _) idx_mut = (.b90.#a22) in
+  (* Deepening to (.b90.#a28) *)
+  let idx : (t90, _) idx_mut = (.b90.#a28) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b90) *)
-    let shallow : (t90, _) idx_mut = (.b90) in
-    let deepened = (.idx_mut(shallow).#a22) in
-    mark_test_run 291;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 291 failed %d" i;
-    (* from (.b90.#a22) *)
-    let shallow : (t90, _) idx_mut = (.b90.#a22) in
+    (* Note: can't deepen (.b90) because it's a path to a flattened
+       float, making its element type [float#] *)
+    (* from (.b90.#a28) *)
+    let shallow : (t90, _) idx_mut = (.b90.#a28) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 292;
+    mark_test_run 239;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 292 failed %d" i;
-  );
-  (* Deepening to (.b90.#b22) *)
-  let idx : (t90, _) idx_mut = (.b90.#b22) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b90) *)
-    let shallow : (t90, _) idx_mut = (.b90) in
-    let deepened = (.idx_mut(shallow).#b22) in
-    mark_test_run 293;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 293 failed %d" i;
-    (* from (.b90.#b22) *)
-    let shallow : (t90, _) idx_mut = (.b90.#b22) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 294;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 294 failed %d" i;
-  );
-  (* Deepening to (.b90.#b22.#a14) *)
-  let idx : (t90, _) idx_mut = (.b90.#b22.#a14) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b90) *)
-    let shallow : (t90, _) idx_mut = (.b90) in
-    let deepened = (.idx_mut(shallow).#b22.#a14) in
-    mark_test_run 295;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 295 failed %d" i;
-    (* from (.b90.#b22) *)
-    let shallow : (t90, _) idx_mut = (.b90.#b22) in
-    let deepened = (.idx_mut(shallow).#a14) in
-    mark_test_run 296;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 296 failed %d" i;
-    (* from (.b90.#b22.#a14) *)
-    let shallow : (t90, _) idx_mut = (.b90.#b22.#a14) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 297;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 297 failed %d" i;
+    if not test then failwithf "test 239 failed %d" i;
   );
 
-  (***********************************************)
-  (*   t91 = { int32#; #{ int; #{ int32# } } }   *)
-  (***********************************************)
+  (****************************************)
+  (*   t91 = { float; #{ float; int } }   *)
+  (****************************************)
   (* Deepening to (.a91) *)
   let idx : (t91, _) idx_mut = (.a91) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a91) *)
     let shallow : (t91, _) idx_mut = (.a91) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 298;
+    mark_test_run 240;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 298 failed %d" i;
+    if not test then failwithf "test 240 failed %d" i;
   );
   (* Deepening to (.b91) *)
   let idx : (t91, _) idx_mut = (.b91) in
@@ -3339,77 +2893,55 @@ let () =
     (* from (.b91) *)
     let shallow : (t91, _) idx_mut = (.b91) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 299;
+    mark_test_run 241;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 299 failed %d" i;
+    if not test then failwithf "test 241 failed %d" i;
   );
-  (* Deepening to (.b91.#a25) *)
-  let idx : (t91, _) idx_mut = (.b91.#a25) in
+  (* Deepening to (.b91.#a30) *)
+  let idx : (t91, _) idx_mut = (.b91.#a30) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b91) *)
     let shallow : (t91, _) idx_mut = (.b91) in
-    let deepened = (.idx_mut(shallow).#a25) in
-    mark_test_run 300;
+    let deepened = (.idx_mut(shallow).#a30) in
+    mark_test_run 242;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 300 failed %d" i;
-    (* from (.b91.#a25) *)
-    let shallow : (t91, _) idx_mut = (.b91.#a25) in
+    if not test then failwithf "test 242 failed %d" i;
+    (* from (.b91.#a30) *)
+    let shallow : (t91, _) idx_mut = (.b91.#a30) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 301;
+    mark_test_run 243;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 301 failed %d" i;
+    if not test then failwithf "test 243 failed %d" i;
   );
-  (* Deepening to (.b91.#b25) *)
-  let idx : (t91, _) idx_mut = (.b91.#b25) in
+  (* Deepening to (.b91.#b30) *)
+  let idx : (t91, _) idx_mut = (.b91.#b30) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b91) *)
     let shallow : (t91, _) idx_mut = (.b91) in
-    let deepened = (.idx_mut(shallow).#b25) in
-    mark_test_run 302;
+    let deepened = (.idx_mut(shallow).#b30) in
+    mark_test_run 244;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 302 failed %d" i;
-    (* from (.b91.#b25) *)
-    let shallow : (t91, _) idx_mut = (.b91.#b25) in
+    if not test then failwithf "test 244 failed %d" i;
+    (* from (.b91.#b30) *)
+    let shallow : (t91, _) idx_mut = (.b91.#b30) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 303;
+    mark_test_run 245;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 303 failed %d" i;
-  );
-  (* Deepening to (.b91.#b25.#a24) *)
-  let idx : (t91, _) idx_mut = (.b91.#b25.#a24) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b91) *)
-    let shallow : (t91, _) idx_mut = (.b91) in
-    let deepened = (.idx_mut(shallow).#b25.#a24) in
-    mark_test_run 304;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 304 failed %d" i;
-    (* from (.b91.#b25) *)
-    let shallow : (t91, _) idx_mut = (.b91.#b25) in
-    let deepened = (.idx_mut(shallow).#a24) in
-    mark_test_run 305;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 305 failed %d" i;
-    (* from (.b91.#b25.#a24) *)
-    let shallow : (t91, _) idx_mut = (.b91.#b25.#a24) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 306;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 306 failed %d" i;
+    if not test then failwithf "test 245 failed %d" i;
   );
 
-  (*************************************)
-  (*   t92 = { int32#; #{ int32# } }   *)
-  (*************************************)
+  (******************************************)
+  (*   t92 = { float; #{ float; float } }   *)
+  (******************************************)
   (* Deepening to (.a92) *)
   let idx : (t92, _) idx_mut = (.a92) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a92) *)
     let shallow : (t92, _) idx_mut = (.a92) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 307;
+    mark_test_run 246;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 307 failed %d" i;
+    if not test then failwithf "test 246 failed %d" i;
   );
   (* Deepening to (.b92) *)
   let idx : (t92, _) idx_mut = (.b92) in
@@ -3417,95 +2949,55 @@ let () =
     (* from (.b92) *)
     let shallow : (t92, _) idx_mut = (.b92) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 308;
+    mark_test_run 247;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 308 failed %d" i;
+    if not test then failwithf "test 247 failed %d" i;
   );
-  (* Deepening to (.b92.#a24) *)
-  let idx : (t92, _) idx_mut = (.b92.#a24) in
+  (* Deepening to (.b92.#a32) *)
+  let idx : (t92, _) idx_mut = (.b92.#a32) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b92) *)
     let shallow : (t92, _) idx_mut = (.b92) in
-    let deepened = (.idx_mut(shallow).#a24) in
-    mark_test_run 309;
+    let deepened = (.idx_mut(shallow).#a32) in
+    mark_test_run 248;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 309 failed %d" i;
-    (* from (.b92.#a24) *)
-    let shallow : (t92, _) idx_mut = (.b92.#a24) in
+    if not test then failwithf "test 248 failed %d" i;
+    (* from (.b92.#a32) *)
+    let shallow : (t92, _) idx_mut = (.b92.#a32) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 310;
+    mark_test_run 249;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 310 failed %d" i;
+    if not test then failwithf "test 249 failed %d" i;
+  );
+  (* Deepening to (.b92.#b32) *)
+  let idx : (t92, _) idx_mut = (.b92.#b32) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b92) *)
+    let shallow : (t92, _) idx_mut = (.b92) in
+    let deepened = (.idx_mut(shallow).#b32) in
+    mark_test_run 250;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 250 failed %d" i;
+    (* from (.b92.#b32) *)
+    let shallow : (t92, _) idx_mut = (.b92.#b32) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 251;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 251 failed %d" i;
   );
 
-  (******************************************)
-  (*   t93 = { int32#; #{ int32#; int } }   *)
-  (******************************************)
-  (* Deepening to (.a93) *)
-  let idx : (t93, _) idx_mut = (.a93) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a93) *)
-    let shallow : (t93, _) idx_mut = (.a93) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 311;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 311 failed %d" i;
-  );
-  (* Deepening to (.b93) *)
-  let idx : (t93, _) idx_mut = (.b93) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b93) *)
-    let shallow : (t93, _) idx_mut = (.b93) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 312;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 312 failed %d" i;
-  );
-  (* Deepening to (.b93.#a31) *)
-  let idx : (t93, _) idx_mut = (.b93.#a31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b93) *)
-    let shallow : (t93, _) idx_mut = (.b93) in
-    let deepened = (.idx_mut(shallow).#a31) in
-    mark_test_run 313;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 313 failed %d" i;
-    (* from (.b93.#a31) *)
-    let shallow : (t93, _) idx_mut = (.b93.#a31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 314;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 314 failed %d" i;
-  );
-  (* Deepening to (.b93.#b31) *)
-  let idx : (t93, _) idx_mut = (.b93.#b31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b93) *)
-    let shallow : (t93, _) idx_mut = (.b93) in
-    let deepened = (.idx_mut(shallow).#b31) in
-    mark_test_run 315;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 315 failed %d" i;
-    (* from (.b93.#b31) *)
-    let shallow : (t93, _) idx_mut = (.b93.#b31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 316;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 316 failed %d" i;
-  );
-
-  (*********************************************)
-  (*   t94 = { int32#; #{ int32#; int32# } }   *)
-  (*********************************************)
+  (*******************************************)
+  (*   t94 = { float; #{ float; float# } }   *)
+  (*******************************************)
   (* Deepening to (.a94) *)
   let idx : (t94, _) idx_mut = (.a94) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a94) *)
     let shallow : (t94, _) idx_mut = (.a94) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 317;
+    mark_test_run 252;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 317 failed %d" i;
+    if not test then failwithf "test 252 failed %d" i;
   );
   (* Deepening to (.b94) *)
   let idx : (t94, _) idx_mut = (.b94) in
@@ -3513,133 +3005,55 @@ let () =
     (* from (.b94) *)
     let shallow : (t94, _) idx_mut = (.b94) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 318;
+    mark_test_run 253;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 318 failed %d" i;
+    if not test then failwithf "test 253 failed %d" i;
   );
-  (* Deepening to (.b94.#a33) *)
-  let idx : (t94, _) idx_mut = (.b94.#a33) in
+  (* Deepening to (.b94.#a93) *)
+  let idx : (t94, _) idx_mut = (.b94.#a93) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b94) *)
     let shallow : (t94, _) idx_mut = (.b94) in
-    let deepened = (.idx_mut(shallow).#a33) in
-    mark_test_run 319;
+    let deepened = (.idx_mut(shallow).#a93) in
+    mark_test_run 254;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 319 failed %d" i;
-    (* from (.b94.#a33) *)
-    let shallow : (t94, _) idx_mut = (.b94.#a33) in
+    if not test then failwithf "test 254 failed %d" i;
+    (* from (.b94.#a93) *)
+    let shallow : (t94, _) idx_mut = (.b94.#a93) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 320;
+    mark_test_run 255;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 320 failed %d" i;
+    if not test then failwithf "test 255 failed %d" i;
   );
-  (* Deepening to (.b94.#b33) *)
-  let idx : (t94, _) idx_mut = (.b94.#b33) in
+  (* Deepening to (.b94.#b93) *)
+  let idx : (t94, _) idx_mut = (.b94.#b93) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b94) *)
     let shallow : (t94, _) idx_mut = (.b94) in
-    let deepened = (.idx_mut(shallow).#b33) in
-    mark_test_run 321;
+    let deepened = (.idx_mut(shallow).#b93) in
+    mark_test_run 256;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 321 failed %d" i;
-    (* from (.b94.#b33) *)
-    let shallow : (t94, _) idx_mut = (.b94.#b33) in
+    if not test then failwithf "test 256 failed %d" i;
+    (* from (.b94.#b93) *)
+    let shallow : (t94, _) idx_mut = (.b94.#b93) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 322;
+    mark_test_run 257;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 322 failed %d" i;
+    if not test then failwithf "test 257 failed %d" i;
   );
 
-  (***********************************************)
-  (*   t95 = { int32#; #{ int32#; #{ int } } }   *)
-  (***********************************************)
-  (* Deepening to (.a95) *)
-  let idx : (t95, _) idx_mut = (.a95) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a95) *)
-    let shallow : (t95, _) idx_mut = (.a95) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 323;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 323 failed %d" i;
-  );
-  (* Deepening to (.b95) *)
-  let idx : (t95, _) idx_mut = (.b95) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b95) *)
-    let shallow : (t95, _) idx_mut = (.b95) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 324;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 324 failed %d" i;
-  );
-  (* Deepening to (.b95.#a35) *)
-  let idx : (t95, _) idx_mut = (.b95.#a35) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b95) *)
-    let shallow : (t95, _) idx_mut = (.b95) in
-    let deepened = (.idx_mut(shallow).#a35) in
-    mark_test_run 325;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 325 failed %d" i;
-    (* from (.b95.#a35) *)
-    let shallow : (t95, _) idx_mut = (.b95.#a35) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 326;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 326 failed %d" i;
-  );
-  (* Deepening to (.b95.#b35) *)
-  let idx : (t95, _) idx_mut = (.b95.#b35) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b95) *)
-    let shallow : (t95, _) idx_mut = (.b95) in
-    let deepened = (.idx_mut(shallow).#b35) in
-    mark_test_run 327;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 327 failed %d" i;
-    (* from (.b95.#b35) *)
-    let shallow : (t95, _) idx_mut = (.b95.#b35) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 328;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 328 failed %d" i;
-  );
-  (* Deepening to (.b95.#b35.#a14) *)
-  let idx : (t95, _) idx_mut = (.b95.#b35.#a14) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b95) *)
-    let shallow : (t95, _) idx_mut = (.b95) in
-    let deepened = (.idx_mut(shallow).#b35.#a14) in
-    mark_test_run 329;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 329 failed %d" i;
-    (* from (.b95.#b35) *)
-    let shallow : (t95, _) idx_mut = (.b95.#b35) in
-    let deepened = (.idx_mut(shallow).#a14) in
-    mark_test_run 330;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 330 failed %d" i;
-    (* from (.b95.#b35.#a14) *)
-    let shallow : (t95, _) idx_mut = (.b95.#b35.#a14) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 331;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 331 failed %d" i;
-  );
-
-  (**************************************************)
-  (*   t96 = { int32#; #{ int32#; #{ int32# } } }   *)
-  (**************************************************)
+  (************************************)
+  (*   t96 = { float; #{ float# } }   *)
+  (************************************)
   (* Deepening to (.a96) *)
   let idx : (t96, _) idx_mut = (.a96) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a96) *)
     let shallow : (t96, _) idx_mut = (.a96) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 332;
+    mark_test_run 258;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 332 failed %d" i;
+    if not test then failwithf "test 258 failed %d" i;
   );
   (* Deepening to (.b96) *)
   let idx : (t96, _) idx_mut = (.b96) in
@@ -3647,161 +3061,39 @@ let () =
     (* from (.b96) *)
     let shallow : (t96, _) idx_mut = (.b96) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 333;
+    mark_test_run 259;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 333 failed %d" i;
+    if not test then failwithf "test 259 failed %d" i;
   );
-  (* Deepening to (.b96.#a37) *)
-  let idx : (t96, _) idx_mut = (.b96.#a37) in
+  (* Deepening to (.b96.#a95) *)
+  let idx : (t96, _) idx_mut = (.b96.#a95) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b96) *)
     let shallow : (t96, _) idx_mut = (.b96) in
-    let deepened = (.idx_mut(shallow).#a37) in
-    mark_test_run 334;
+    let deepened = (.idx_mut(shallow).#a95) in
+    mark_test_run 260;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 334 failed %d" i;
-    (* from (.b96.#a37) *)
-    let shallow : (t96, _) idx_mut = (.b96.#a37) in
+    if not test then failwithf "test 260 failed %d" i;
+    (* from (.b96.#a95) *)
+    let shallow : (t96, _) idx_mut = (.b96.#a95) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 335;
+    mark_test_run 261;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 335 failed %d" i;
-  );
-  (* Deepening to (.b96.#b37) *)
-  let idx : (t96, _) idx_mut = (.b96.#b37) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b96) *)
-    let shallow : (t96, _) idx_mut = (.b96) in
-    let deepened = (.idx_mut(shallow).#b37) in
-    mark_test_run 336;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 336 failed %d" i;
-    (* from (.b96.#b37) *)
-    let shallow : (t96, _) idx_mut = (.b96.#b37) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 337;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 337 failed %d" i;
-  );
-  (* Deepening to (.b96.#b37.#a24) *)
-  let idx : (t96, _) idx_mut = (.b96.#b37.#a24) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b96) *)
-    let shallow : (t96, _) idx_mut = (.b96) in
-    let deepened = (.idx_mut(shallow).#b37.#a24) in
-    mark_test_run 338;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 338 failed %d" i;
-    (* from (.b96.#b37) *)
-    let shallow : (t96, _) idx_mut = (.b96.#b37) in
-    let deepened = (.idx_mut(shallow).#a24) in
-    mark_test_run 339;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 339 failed %d" i;
-    (* from (.b96.#b37.#a24) *)
-    let shallow : (t96, _) idx_mut = (.b96.#b37.#a24) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 340;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 340 failed %d" i;
+    if not test then failwithf "test 261 failed %d" i;
   );
 
-  (********************************************)
-  (*   t97 = { int32#; #{ #{ int; int } } }   *)
-  (********************************************)
-  (* Deepening to (.a97) *)
-  let idx : (t97, _) idx_mut = (.a97) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a97) *)
-    let shallow : (t97, _) idx_mut = (.a97) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 341;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 341 failed %d" i;
-  );
-  (* Deepening to (.b97) *)
-  let idx : (t97, _) idx_mut = (.b97) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b97) *)
-    let shallow : (t97, _) idx_mut = (.b97) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 342;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 342 failed %d" i;
-  );
-  (* Deepening to (.b97.#a48) *)
-  let idx : (t97, _) idx_mut = (.b97.#a48) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b97) *)
-    let shallow : (t97, _) idx_mut = (.b97) in
-    let deepened = (.idx_mut(shallow).#a48) in
-    mark_test_run 343;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 343 failed %d" i;
-    (* from (.b97.#a48) *)
-    let shallow : (t97, _) idx_mut = (.b97.#a48) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 344;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 344 failed %d" i;
-  );
-  (* Deepening to (.b97.#a48.#a16) *)
-  let idx : (t97, _) idx_mut = (.b97.#a48.#a16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b97) *)
-    let shallow : (t97, _) idx_mut = (.b97) in
-    let deepened = (.idx_mut(shallow).#a48.#a16) in
-    mark_test_run 345;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 345 failed %d" i;
-    (* from (.b97.#a48) *)
-    let shallow : (t97, _) idx_mut = (.b97.#a48) in
-    let deepened = (.idx_mut(shallow).#a16) in
-    mark_test_run 346;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 346 failed %d" i;
-    (* from (.b97.#a48.#a16) *)
-    let shallow : (t97, _) idx_mut = (.b97.#a48.#a16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 347;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 347 failed %d" i;
-  );
-  (* Deepening to (.b97.#a48.#b16) *)
-  let idx : (t97, _) idx_mut = (.b97.#a48.#b16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b97) *)
-    let shallow : (t97, _) idx_mut = (.b97) in
-    let deepened = (.idx_mut(shallow).#a48.#b16) in
-    mark_test_run 348;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 348 failed %d" i;
-    (* from (.b97.#a48) *)
-    let shallow : (t97, _) idx_mut = (.b97.#a48) in
-    let deepened = (.idx_mut(shallow).#b16) in
-    mark_test_run 349;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 349 failed %d" i;
-    (* from (.b97.#a48.#b16) *)
-    let shallow : (t97, _) idx_mut = (.b97.#a48.#b16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 350;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 350 failed %d" i;
-  );
-
-  (***********************************************)
-  (*   t98 = { int32#; #{ #{ int; int32# } } }   *)
-  (***********************************************)
+  (*******************************************)
+  (*   t98 = { float; #{ float#; float } }   *)
+  (*******************************************)
   (* Deepening to (.a98) *)
   let idx : (t98, _) idx_mut = (.a98) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a98) *)
     let shallow : (t98, _) idx_mut = (.a98) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 351;
+    mark_test_run 262;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 351 failed %d" i;
+    if not test then failwithf "test 262 failed %d" i;
   );
   (* Deepening to (.b98) *)
   let idx : (t98, _) idx_mut = (.b98) in
@@ -3809,167 +3101,55 @@ let () =
     (* from (.b98) *)
     let shallow : (t98, _) idx_mut = (.b98) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 352;
+    mark_test_run 263;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 352 failed %d" i;
+    if not test then failwithf "test 263 failed %d" i;
   );
-  (* Deepening to (.b98.#a50) *)
-  let idx : (t98, _) idx_mut = (.b98.#a50) in
+  (* Deepening to (.b98.#a97) *)
+  let idx : (t98, _) idx_mut = (.b98.#a97) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b98) *)
     let shallow : (t98, _) idx_mut = (.b98) in
-    let deepened = (.idx_mut(shallow).#a50) in
-    mark_test_run 353;
+    let deepened = (.idx_mut(shallow).#a97) in
+    mark_test_run 264;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 353 failed %d" i;
-    (* from (.b98.#a50) *)
-    let shallow : (t98, _) idx_mut = (.b98.#a50) in
+    if not test then failwithf "test 264 failed %d" i;
+    (* from (.b98.#a97) *)
+    let shallow : (t98, _) idx_mut = (.b98.#a97) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 354;
+    mark_test_run 265;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 354 failed %d" i;
+    if not test then failwithf "test 265 failed %d" i;
   );
-  (* Deepening to (.b98.#a50.#a18) *)
-  let idx : (t98, _) idx_mut = (.b98.#a50.#a18) in
+  (* Deepening to (.b98.#b97) *)
+  let idx : (t98, _) idx_mut = (.b98.#b97) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b98) *)
     let shallow : (t98, _) idx_mut = (.b98) in
-    let deepened = (.idx_mut(shallow).#a50.#a18) in
-    mark_test_run 355;
+    let deepened = (.idx_mut(shallow).#b97) in
+    mark_test_run 266;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 355 failed %d" i;
-    (* from (.b98.#a50) *)
-    let shallow : (t98, _) idx_mut = (.b98.#a50) in
-    let deepened = (.idx_mut(shallow).#a18) in
-    mark_test_run 356;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 356 failed %d" i;
-    (* from (.b98.#a50.#a18) *)
-    let shallow : (t98, _) idx_mut = (.b98.#a50.#a18) in
+    if not test then failwithf "test 266 failed %d" i;
+    (* from (.b98.#b97) *)
+    let shallow : (t98, _) idx_mut = (.b98.#b97) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 357;
+    mark_test_run 267;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 357 failed %d" i;
-  );
-  (* Deepening to (.b98.#a50.#b18) *)
-  let idx : (t98, _) idx_mut = (.b98.#a50.#b18) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b98) *)
-    let shallow : (t98, _) idx_mut = (.b98) in
-    let deepened = (.idx_mut(shallow).#a50.#b18) in
-    mark_test_run 358;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 358 failed %d" i;
-    (* from (.b98.#a50) *)
-    let shallow : (t98, _) idx_mut = (.b98.#a50) in
-    let deepened = (.idx_mut(shallow).#b18) in
-    mark_test_run 359;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 359 failed %d" i;
-    (* from (.b98.#a50.#b18) *)
-    let shallow : (t98, _) idx_mut = (.b98.#a50.#b18) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 360;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 360 failed %d" i;
+    if not test then failwithf "test 267 failed %d" i;
   );
 
-  (***********************************************)
-  (*   t99 = { int32#; #{ #{ int32#; int } } }   *)
-  (***********************************************)
-  (* Deepening to (.a99) *)
-  let idx : (t99, _) idx_mut = (.a99) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a99) *)
-    let shallow : (t99, _) idx_mut = (.a99) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 361;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 361 failed %d" i;
-  );
-  (* Deepening to (.b99) *)
-  let idx : (t99, _) idx_mut = (.b99) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b99) *)
-    let shallow : (t99, _) idx_mut = (.b99) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 362;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 362 failed %d" i;
-  );
-  (* Deepening to (.b99.#a54) *)
-  let idx : (t99, _) idx_mut = (.b99.#a54) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b99) *)
-    let shallow : (t99, _) idx_mut = (.b99) in
-    let deepened = (.idx_mut(shallow).#a54) in
-    mark_test_run 363;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 363 failed %d" i;
-    (* from (.b99.#a54) *)
-    let shallow : (t99, _) idx_mut = (.b99.#a54) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 364;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 364 failed %d" i;
-  );
-  (* Deepening to (.b99.#a54.#a31) *)
-  let idx : (t99, _) idx_mut = (.b99.#a54.#a31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b99) *)
-    let shallow : (t99, _) idx_mut = (.b99) in
-    let deepened = (.idx_mut(shallow).#a54.#a31) in
-    mark_test_run 365;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 365 failed %d" i;
-    (* from (.b99.#a54) *)
-    let shallow : (t99, _) idx_mut = (.b99.#a54) in
-    let deepened = (.idx_mut(shallow).#a31) in
-    mark_test_run 366;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 366 failed %d" i;
-    (* from (.b99.#a54.#a31) *)
-    let shallow : (t99, _) idx_mut = (.b99.#a54.#a31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 367;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 367 failed %d" i;
-  );
-  (* Deepening to (.b99.#a54.#b31) *)
-  let idx : (t99, _) idx_mut = (.b99.#a54.#b31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b99) *)
-    let shallow : (t99, _) idx_mut = (.b99) in
-    let deepened = (.idx_mut(shallow).#a54.#b31) in
-    mark_test_run 368;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 368 failed %d" i;
-    (* from (.b99.#a54) *)
-    let shallow : (t99, _) idx_mut = (.b99.#a54) in
-    let deepened = (.idx_mut(shallow).#b31) in
-    mark_test_run 369;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 369 failed %d" i;
-    (* from (.b99.#a54.#b31) *)
-    let shallow : (t99, _) idx_mut = (.b99.#a54.#b31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 370;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 370 failed %d" i;
-  );
-
-  (***************************************************)
-  (*   t100 = { int32#; #{ #{ int32#; int32# } } }   *)
-  (***************************************************)
+  (*********************************************)
+  (*   t100 = { float; #{ float#; float# } }   *)
+  (*********************************************)
   (* Deepening to (.a100) *)
   let idx : (t100, _) idx_mut = (.a100) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a100) *)
     let shallow : (t100, _) idx_mut = (.a100) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 371;
+    mark_test_run 268;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 371 failed %d" i;
+    if not test then failwithf "test 268 failed %d" i;
   );
   (* Deepening to (.b100) *)
   let idx : (t100, _) idx_mut = (.b100) in
@@ -3977,97 +3157,69 @@ let () =
     (* from (.b100) *)
     let shallow : (t100, _) idx_mut = (.b100) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 372;
+    mark_test_run 269;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 372 failed %d" i;
+    if not test then failwithf "test 269 failed %d" i;
   );
-  (* Deepening to (.b100.#a56) *)
-  let idx : (t100, _) idx_mut = (.b100.#a56) in
+  (* Deepening to (.b100.#a99) *)
+  let idx : (t100, _) idx_mut = (.b100.#a99) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b100) *)
     let shallow : (t100, _) idx_mut = (.b100) in
-    let deepened = (.idx_mut(shallow).#a56) in
-    mark_test_run 373;
+    let deepened = (.idx_mut(shallow).#a99) in
+    mark_test_run 270;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 373 failed %d" i;
-    (* from (.b100.#a56) *)
-    let shallow : (t100, _) idx_mut = (.b100.#a56) in
+    if not test then failwithf "test 270 failed %d" i;
+    (* from (.b100.#a99) *)
+    let shallow : (t100, _) idx_mut = (.b100.#a99) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 374;
+    mark_test_run 271;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 374 failed %d" i;
+    if not test then failwithf "test 271 failed %d" i;
   );
-  (* Deepening to (.b100.#a56.#a33) *)
-  let idx : (t100, _) idx_mut = (.b100.#a56.#a33) in
+  (* Deepening to (.b100.#b99) *)
+  let idx : (t100, _) idx_mut = (.b100.#b99) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b100) *)
     let shallow : (t100, _) idx_mut = (.b100) in
-    let deepened = (.idx_mut(shallow).#a56.#a33) in
-    mark_test_run 375;
+    let deepened = (.idx_mut(shallow).#b99) in
+    mark_test_run 272;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 375 failed %d" i;
-    (* from (.b100.#a56) *)
-    let shallow : (t100, _) idx_mut = (.b100.#a56) in
-    let deepened = (.idx_mut(shallow).#a33) in
-    mark_test_run 376;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 376 failed %d" i;
-    (* from (.b100.#a56.#a33) *)
-    let shallow : (t100, _) idx_mut = (.b100.#a56.#a33) in
+    if not test then failwithf "test 272 failed %d" i;
+    (* from (.b100.#b99) *)
+    let shallow : (t100, _) idx_mut = (.b100.#b99) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 377;
+    mark_test_run 273;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 377 failed %d" i;
-  );
-  (* Deepening to (.b100.#a56.#b33) *)
-  let idx : (t100, _) idx_mut = (.b100.#a56.#b33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b100) *)
-    let shallow : (t100, _) idx_mut = (.b100) in
-    let deepened = (.idx_mut(shallow).#a56.#b33) in
-    mark_test_run 378;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 378 failed %d" i;
-    (* from (.b100.#a56) *)
-    let shallow : (t100, _) idx_mut = (.b100.#a56) in
-    let deepened = (.idx_mut(shallow).#b33) in
-    mark_test_run 379;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 379 failed %d" i;
-    (* from (.b100.#a56.#b33) *)
-    let shallow : (t100, _) idx_mut = (.b100.#a56.#b33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 380;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 380 failed %d" i;
+    if not test then failwithf "test 273 failed %d" i;
   );
 
-  (*****************************)
-  (*   t101 = { nativeint# }   *)
-  (*****************************)
+  (*************************)
+  (*   t101 = { float# }   *)
+  (*************************)
   (* Deepening to (.a101) *)
   let idx : (t101, _) idx_mut = (.a101) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a101) *)
     let shallow : (t101, _) idx_mut = (.a101) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 381;
+    mark_test_run 274;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 381 failed %d" i;
+    if not test then failwithf "test 274 failed %d" i;
   );
 
-  (**********************************)
-  (*   t102 = { nativeint#; int }   *)
-  (**********************************)
+  (********************************)
+  (*   t102 = { float#; float }   *)
+  (********************************)
   (* Deepening to (.a102) *)
   let idx : (t102, _) idx_mut = (.a102) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a102) *)
     let shallow : (t102, _) idx_mut = (.a102) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 382;
+    mark_test_run 275;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 382 failed %d" i;
+    if not test then failwithf "test 275 failed %d" i;
   );
   (* Deepening to (.b102) *)
   let idx : (t102, _) idx_mut = (.b102) in
@@ -4075,23 +3227,23 @@ let () =
     (* from (.b102) *)
     let shallow : (t102, _) idx_mut = (.b102) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 383;
+    mark_test_run 276;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 383 failed %d" i;
+    if not test then failwithf "test 276 failed %d" i;
   );
 
-  (************************************)
-  (*   t103 = { nativeint#; int64 }   *)
-  (************************************)
+  (***************************************)
+  (*   t103 = { float#; float; float }   *)
+  (***************************************)
   (* Deepening to (.a103) *)
   let idx : (t103, _) idx_mut = (.a103) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a103) *)
     let shallow : (t103, _) idx_mut = (.a103) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 384;
+    mark_test_run 277;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 384 failed %d" i;
+    if not test then failwithf "test 277 failed %d" i;
   );
   (* Deepening to (.b103) *)
   let idx : (t103, _) idx_mut = (.b103) in
@@ -4099,23 +3251,33 @@ let () =
     (* from (.b103) *)
     let shallow : (t103, _) idx_mut = (.b103) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 385;
+    mark_test_run 278;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 385 failed %d" i;
+    if not test then failwithf "test 278 failed %d" i;
+  );
+  (* Deepening to (.c103) *)
+  let idx : (t103, _) idx_mut = (.c103) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.c103) *)
+    let shallow : (t103, _) idx_mut = (.c103) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 279;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 279 failed %d" i;
   );
 
-  (*************************************)
-  (*   t104 = { nativeint#; int64# }   *)
-  (*************************************)
+  (****************************************)
+  (*   t104 = { float#; float; float# }   *)
+  (****************************************)
   (* Deepening to (.a104) *)
   let idx : (t104, _) idx_mut = (.a104) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a104) *)
     let shallow : (t104, _) idx_mut = (.a104) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 386;
+    mark_test_run 280;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 386 failed %d" i;
+    if not test then failwithf "test 280 failed %d" i;
   );
   (* Deepening to (.b104) *)
   let idx : (t104, _) idx_mut = (.b104) in
@@ -4123,23 +3285,33 @@ let () =
     (* from (.b104) *)
     let shallow : (t104, _) idx_mut = (.b104) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 387;
+    mark_test_run 281;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 387 failed %d" i;
+    if not test then failwithf "test 281 failed %d" i;
+  );
+  (* Deepening to (.c104) *)
+  let idx : (t104, _) idx_mut = (.c104) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.c104) *)
+    let shallow : (t104, _) idx_mut = (.c104) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 282;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 282 failed %d" i;
   );
 
-  (*************************************)
-  (*   t105 = { nativeint#; int32# }   *)
-  (*************************************)
+  (*********************************)
+  (*   t105 = { float#; float# }   *)
+  (*********************************)
   (* Deepening to (.a105) *)
   let idx : (t105, _) idx_mut = (.a105) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a105) *)
     let shallow : (t105, _) idx_mut = (.a105) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 388;
+    mark_test_run 283;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 388 failed %d" i;
+    if not test then failwithf "test 283 failed %d" i;
   );
   (* Deepening to (.b105) *)
   let idx : (t105, _) idx_mut = (.b105) in
@@ -4147,23 +3319,23 @@ let () =
     (* from (.b105) *)
     let shallow : (t105, _) idx_mut = (.b105) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 389;
+    mark_test_run 284;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 389 failed %d" i;
+    if not test then failwithf "test 284 failed %d" i;
   );
 
-  (*****************************************)
-  (*   t106 = { nativeint#; nativeint# }   *)
-  (*****************************************)
+  (****************************************)
+  (*   t106 = { float#; float#; float }   *)
+  (****************************************)
   (* Deepening to (.a106) *)
   let idx : (t106, _) idx_mut = (.a106) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a106) *)
     let shallow : (t106, _) idx_mut = (.a106) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 390;
+    mark_test_run 285;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 390 failed %d" i;
+    if not test then failwithf "test 285 failed %d" i;
   );
   (* Deepening to (.b106) *)
   let idx : (t106, _) idx_mut = (.b106) in
@@ -4171,23 +3343,33 @@ let () =
     (* from (.b106) *)
     let shallow : (t106, _) idx_mut = (.b106) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 391;
+    mark_test_run 286;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 391 failed %d" i;
+    if not test then failwithf "test 286 failed %d" i;
+  );
+  (* Deepening to (.c106) *)
+  let idx : (t106, _) idx_mut = (.c106) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.c106) *)
+    let shallow : (t106, _) idx_mut = (.c106) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 287;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 287 failed %d" i;
   );
 
-  (************************************)
-  (*   t107 = { nativeint#; float }   *)
-  (************************************)
+  (*****************************************)
+  (*   t107 = { float#; float#; float# }   *)
+  (*****************************************)
   (* Deepening to (.a107) *)
   let idx : (t107, _) idx_mut = (.a107) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a107) *)
     let shallow : (t107, _) idx_mut = (.a107) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 392;
+    mark_test_run 288;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 392 failed %d" i;
+    if not test then failwithf "test 288 failed %d" i;
   );
   (* Deepening to (.b107) *)
   let idx : (t107, _) idx_mut = (.b107) in
@@ -4195,37 +3377,69 @@ let () =
     (* from (.b107) *)
     let shallow : (t107, _) idx_mut = (.b107) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 393;
+    mark_test_run 289;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 393 failed %d" i;
+    if not test then failwithf "test 289 failed %d" i;
+  );
+  (* Deepening to (.c107) *)
+  let idx : (t107, _) idx_mut = (.c107) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.c107) *)
+    let shallow : (t107, _) idx_mut = (.c107) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 290;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 290 failed %d" i;
   );
 
-  (************************)
-  (*   t108 = { float }   *)
-  (************************)
+  (*************************************)
+  (*   t108 = { float#; #{ float } }   *)
+  (*************************************)
   (* Deepening to (.a108) *)
   let idx : (t108, _) idx_mut = (.a108) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a108) *)
     let shallow : (t108, _) idx_mut = (.a108) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 394;
+    mark_test_run 291;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 394 failed %d" i;
+    if not test then failwithf "test 291 failed %d" i;
+  );
+  (* Deepening to (.b108) *)
+  let idx : (t108, _) idx_mut = (.b108) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b108) *)
+    let shallow : (t108, _) idx_mut = (.b108) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 292;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 292 failed %d" i;
+  );
+  (* Deepening to (.b108.#a28) *)
+  let idx : (t108, _) idx_mut = (.b108.#a28) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* Note: can't deepen (.b108) because it's a path to a flattened
+       float, making its element type [float#] *)
+    (* from (.b108.#a28) *)
+    let shallow : (t108, _) idx_mut = (.b108.#a28) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 293;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 293 failed %d" i;
   );
 
-  (*****************************)
-  (*   t109 = { float; int }   *)
-  (*****************************)
+  (********************************************)
+  (*   t109 = { float#; #{ float; float } }   *)
+  (********************************************)
   (* Deepening to (.a109) *)
   let idx : (t109, _) idx_mut = (.a109) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a109) *)
     let shallow : (t109, _) idx_mut = (.a109) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 395;
+    mark_test_run 294;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 395 failed %d" i;
+    if not test then failwithf "test 294 failed %d" i;
   );
   (* Deepening to (.b109) *)
   let idx : (t109, _) idx_mut = (.b109) in
@@ -4233,23 +3447,55 @@ let () =
     (* from (.b109) *)
     let shallow : (t109, _) idx_mut = (.b109) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 396;
+    mark_test_run 295;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 396 failed %d" i;
+    if not test then failwithf "test 295 failed %d" i;
+  );
+  (* Deepening to (.b109.#a32) *)
+  let idx : (t109, _) idx_mut = (.b109.#a32) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b109) *)
+    let shallow : (t109, _) idx_mut = (.b109) in
+    let deepened = (.idx_mut(shallow).#a32) in
+    mark_test_run 296;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 296 failed %d" i;
+    (* from (.b109.#a32) *)
+    let shallow : (t109, _) idx_mut = (.b109.#a32) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 297;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 297 failed %d" i;
+  );
+  (* Deepening to (.b109.#b32) *)
+  let idx : (t109, _) idx_mut = (.b109.#b32) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b109) *)
+    let shallow : (t109, _) idx_mut = (.b109) in
+    let deepened = (.idx_mut(shallow).#b32) in
+    mark_test_run 298;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 298 failed %d" i;
+    (* from (.b109.#b32) *)
+    let shallow : (t109, _) idx_mut = (.b109.#b32) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 299;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 299 failed %d" i;
   );
 
-  (**********************************)
-  (*   t110 = { float; int; int }   *)
-  (**********************************)
+  (*********************************************)
+  (*   t110 = { float#; #{ float; float# } }   *)
+  (*********************************************)
   (* Deepening to (.a110) *)
   let idx : (t110, _) idx_mut = (.a110) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a110) *)
     let shallow : (t110, _) idx_mut = (.a110) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 397;
+    mark_test_run 300;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 397 failed %d" i;
+    if not test then failwithf "test 300 failed %d" i;
   );
   (* Deepening to (.b110) *)
   let idx : (t110, _) idx_mut = (.b110) in
@@ -4257,33 +3503,55 @@ let () =
     (* from (.b110) *)
     let shallow : (t110, _) idx_mut = (.b110) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 398;
+    mark_test_run 301;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 398 failed %d" i;
+    if not test then failwithf "test 301 failed %d" i;
   );
-  (* Deepening to (.c110) *)
-  let idx : (t110, _) idx_mut = (.c110) in
+  (* Deepening to (.b110.#a93) *)
+  let idx : (t110, _) idx_mut = (.b110.#a93) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.c110) *)
-    let shallow : (t110, _) idx_mut = (.c110) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 399;
+    (* from (.b110) *)
+    let shallow : (t110, _) idx_mut = (.b110) in
+    let deepened = (.idx_mut(shallow).#a93) in
+    mark_test_run 302;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 399 failed %d" i;
+    if not test then failwithf "test 302 failed %d" i;
+    (* from (.b110.#a93) *)
+    let shallow : (t110, _) idx_mut = (.b110.#a93) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 303;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 303 failed %d" i;
+  );
+  (* Deepening to (.b110.#b93) *)
+  let idx : (t110, _) idx_mut = (.b110.#b93) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b110) *)
+    let shallow : (t110, _) idx_mut = (.b110) in
+    let deepened = (.idx_mut(shallow).#b93) in
+    mark_test_run 304;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 304 failed %d" i;
+    (* from (.b110.#b93) *)
+    let shallow : (t110, _) idx_mut = (.b110.#b93) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 305;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 305 failed %d" i;
   );
 
-  (************************************)
-  (*   t111 = { float; int; float }   *)
-  (************************************)
+  (**************************************)
+  (*   t111 = { float#; #{ float# } }   *)
+  (**************************************)
   (* Deepening to (.a111) *)
   let idx : (t111, _) idx_mut = (.a111) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a111) *)
     let shallow : (t111, _) idx_mut = (.a111) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 400;
+    mark_test_run 306;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 400 failed %d" i;
+    if not test then failwithf "test 306 failed %d" i;
   );
   (* Deepening to (.b111) *)
   let idx : (t111, _) idx_mut = (.b111) in
@@ -4291,33 +3559,39 @@ let () =
     (* from (.b111) *)
     let shallow : (t111, _) idx_mut = (.b111) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 401;
+    mark_test_run 307;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 401 failed %d" i;
+    if not test then failwithf "test 307 failed %d" i;
   );
-  (* Deepening to (.c111) *)
-  let idx : (t111, _) idx_mut = (.c111) in
+  (* Deepening to (.b111.#a95) *)
+  let idx : (t111, _) idx_mut = (.b111.#a95) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.c111) *)
-    let shallow : (t111, _) idx_mut = (.c111) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 402;
+    (* from (.b111) *)
+    let shallow : (t111, _) idx_mut = (.b111) in
+    let deepened = (.idx_mut(shallow).#a95) in
+    mark_test_run 308;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 402 failed %d" i;
+    if not test then failwithf "test 308 failed %d" i;
+    (* from (.b111.#a95) *)
+    let shallow : (t111, _) idx_mut = (.b111.#a95) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 309;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 309 failed %d" i;
   );
 
-  (*******************************)
-  (*   t112 = { float; int64 }   *)
-  (*******************************)
+  (*********************************************)
+  (*   t112 = { float#; #{ float#; float } }   *)
+  (*********************************************)
   (* Deepening to (.a112) *)
   let idx : (t112, _) idx_mut = (.a112) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a112) *)
     let shallow : (t112, _) idx_mut = (.a112) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 403;
+    mark_test_run 310;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 403 failed %d" i;
+    if not test then failwithf "test 310 failed %d" i;
   );
   (* Deepening to (.b112) *)
   let idx : (t112, _) idx_mut = (.b112) in
@@ -4325,23 +3599,55 @@ let () =
     (* from (.b112) *)
     let shallow : (t112, _) idx_mut = (.b112) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 404;
+    mark_test_run 311;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 404 failed %d" i;
+    if not test then failwithf "test 311 failed %d" i;
+  );
+  (* Deepening to (.b112.#a97) *)
+  let idx : (t112, _) idx_mut = (.b112.#a97) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b112) *)
+    let shallow : (t112, _) idx_mut = (.b112) in
+    let deepened = (.idx_mut(shallow).#a97) in
+    mark_test_run 312;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 312 failed %d" i;
+    (* from (.b112.#a97) *)
+    let shallow : (t112, _) idx_mut = (.b112.#a97) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 313;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 313 failed %d" i;
+  );
+  (* Deepening to (.b112.#b97) *)
+  let idx : (t112, _) idx_mut = (.b112.#b97) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b112) *)
+    let shallow : (t112, _) idx_mut = (.b112) in
+    let deepened = (.idx_mut(shallow).#b97) in
+    mark_test_run 314;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 314 failed %d" i;
+    (* from (.b112.#b97) *)
+    let shallow : (t112, _) idx_mut = (.b112.#b97) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 315;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 315 failed %d" i;
   );
 
-  (********************************)
-  (*   t113 = { float; int64# }   *)
-  (********************************)
+  (**********************************************)
+  (*   t113 = { float#; #{ float#; float# } }   *)
+  (**********************************************)
   (* Deepening to (.a113) *)
   let idx : (t113, _) idx_mut = (.a113) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a113) *)
     let shallow : (t113, _) idx_mut = (.a113) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 405;
+    mark_test_run 316;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 405 failed %d" i;
+    if not test then failwithf "test 316 failed %d" i;
   );
   (* Deepening to (.b113) *)
   let idx : (t113, _) idx_mut = (.b113) in
@@ -4349,47 +3655,101 @@ let () =
     (* from (.b113) *)
     let shallow : (t113, _) idx_mut = (.b113) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 406;
+    mark_test_run 317;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 406 failed %d" i;
+    if not test then failwithf "test 317 failed %d" i;
+  );
+  (* Deepening to (.b113.#a99) *)
+  let idx : (t113, _) idx_mut = (.b113.#a99) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b113) *)
+    let shallow : (t113, _) idx_mut = (.b113) in
+    let deepened = (.idx_mut(shallow).#a99) in
+    mark_test_run 318;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 318 failed %d" i;
+    (* from (.b113.#a99) *)
+    let shallow : (t113, _) idx_mut = (.b113.#a99) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 319;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 319 failed %d" i;
+  );
+  (* Deepening to (.b113.#b99) *)
+  let idx : (t113, _) idx_mut = (.b113.#b99) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b113) *)
+    let shallow : (t113, _) idx_mut = (.b113) in
+    let deepened = (.idx_mut(shallow).#b99) in
+    mark_test_run 320;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 320 failed %d" i;
+    (* from (.b113.#b99) *)
+    let shallow : (t113, _) idx_mut = (.b113.#b99) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 321;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 321 failed %d" i;
   );
 
-  (********************************)
-  (*   t114 = { float; int32# }   *)
-  (********************************)
+  (***************************)
+  (*   t114 = { #{ int } }   *)
+  (***************************)
   (* Deepening to (.a114) *)
   let idx : (t114, _) idx_mut = (.a114) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a114) *)
     let shallow : (t114, _) idx_mut = (.a114) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 407;
+    mark_test_run 322;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 407 failed %d" i;
+    if not test then failwithf "test 322 failed %d" i;
   );
-  (* Deepening to (.b114) *)
-  let idx : (t114, _) idx_mut = (.b114) in
+  (* Deepening to (.a114.#a14) *)
+  let idx : (t114, _) idx_mut = (.a114.#a14) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b114) *)
-    let shallow : (t114, _) idx_mut = (.b114) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 408;
+    (* from (.a114) *)
+    let shallow : (t114, _) idx_mut = (.a114) in
+    let deepened = (.idx_mut(shallow).#a14) in
+    mark_test_run 323;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 408 failed %d" i;
+    if not test then failwithf "test 323 failed %d" i;
+    (* from (.a114.#a14) *)
+    let shallow : (t114, _) idx_mut = (.a114.#a14) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 324;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 324 failed %d" i;
   );
 
-  (************************************)
-  (*   t115 = { float; nativeint# }   *)
-  (************************************)
+  (********************************)
+  (*   t115 = { #{ int }; int }   *)
+  (********************************)
   (* Deepening to (.a115) *)
   let idx : (t115, _) idx_mut = (.a115) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a115) *)
     let shallow : (t115, _) idx_mut = (.a115) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 409;
+    mark_test_run 325;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 409 failed %d" i;
+    if not test then failwithf "test 325 failed %d" i;
+  );
+  (* Deepening to (.a115.#a14) *)
+  let idx : (t115, _) idx_mut = (.a115.#a14) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a115) *)
+    let shallow : (t115, _) idx_mut = (.a115) in
+    let deepened = (.idx_mut(shallow).#a14) in
+    mark_test_run 326;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 326 failed %d" i;
+    (* from (.a115.#a14) *)
+    let shallow : (t115, _) idx_mut = (.a115.#a14) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 327;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 327 failed %d" i;
   );
   (* Deepening to (.b115) *)
   let idx : (t115, _) idx_mut = (.b115) in
@@ -4397,23 +3757,39 @@ let () =
     (* from (.b115) *)
     let shallow : (t115, _) idx_mut = (.b115) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 410;
+    mark_test_run 328;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 410 failed %d" i;
+    if not test then failwithf "test 328 failed %d" i;
   );
 
-  (*******************************)
-  (*   t116 = { float; float }   *)
-  (*******************************)
+  (***********************************)
+  (*   t116 = { #{ int }; int32# }   *)
+  (***********************************)
   (* Deepening to (.a116) *)
   let idx : (t116, _) idx_mut = (.a116) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a116) *)
     let shallow : (t116, _) idx_mut = (.a116) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 411;
+    mark_test_run 329;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 411 failed %d" i;
+    if not test then failwithf "test 329 failed %d" i;
+  );
+  (* Deepening to (.a116.#a14) *)
+  let idx : (t116, _) idx_mut = (.a116.#a14) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a116) *)
+    let shallow : (t116, _) idx_mut = (.a116) in
+    let deepened = (.idx_mut(shallow).#a14) in
+    mark_test_run 330;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 330 failed %d" i;
+    (* from (.a116.#a14) *)
+    let shallow : (t116, _) idx_mut = (.a116.#a14) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 331;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 331 failed %d" i;
   );
   (* Deepening to (.b116) *)
   let idx : (t116, _) idx_mut = (.b116) in
@@ -4421,23 +3797,39 @@ let () =
     (* from (.b116) *)
     let shallow : (t116, _) idx_mut = (.b116) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 412;
+    mark_test_run 332;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 412 failed %d" i;
+    if not test then failwithf "test 332 failed %d" i;
   );
 
-  (************************************)
-  (*   t117 = { float; float; int }   *)
-  (************************************)
+  (**********************************)
+  (*   t117 = { #{ int }; float }   *)
+  (**********************************)
   (* Deepening to (.a117) *)
   let idx : (t117, _) idx_mut = (.a117) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a117) *)
     let shallow : (t117, _) idx_mut = (.a117) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 413;
+    mark_test_run 333;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 413 failed %d" i;
+    if not test then failwithf "test 333 failed %d" i;
+  );
+  (* Deepening to (.a117.#a14) *)
+  let idx : (t117, _) idx_mut = (.a117.#a14) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a117) *)
+    let shallow : (t117, _) idx_mut = (.a117) in
+    let deepened = (.idx_mut(shallow).#a14) in
+    mark_test_run 334;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 334 failed %d" i;
+    (* from (.a117.#a14) *)
+    let shallow : (t117, _) idx_mut = (.a117.#a14) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 335;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 335 failed %d" i;
   );
   (* Deepening to (.b117) *)
   let idx : (t117, _) idx_mut = (.b117) in
@@ -4445,67 +3837,101 @@ let () =
     (* from (.b117) *)
     let shallow : (t117, _) idx_mut = (.b117) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 414;
+    mark_test_run 336;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 414 failed %d" i;
-  );
-  (* Deepening to (.c117) *)
-  let idx : (t117, _) idx_mut = (.c117) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.c117) *)
-    let shallow : (t117, _) idx_mut = (.c117) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 415;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 415 failed %d" i;
+    if not test then failwithf "test 336 failed %d" i;
   );
 
-  (**************************************)
-  (*   t118 = { float; float; float }   *)
-  (**************************************)
+  (********************************)
+  (*   t118 = { #{ int; int } }   *)
+  (********************************)
   (* Deepening to (.a118) *)
   let idx : (t118, _) idx_mut = (.a118) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a118) *)
     let shallow : (t118, _) idx_mut = (.a118) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 416;
+    mark_test_run 337;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 416 failed %d" i;
+    if not test then failwithf "test 337 failed %d" i;
   );
-  (* Deepening to (.b118) *)
-  let idx : (t118, _) idx_mut = (.b118) in
+  (* Deepening to (.a118.#a16) *)
+  let idx : (t118, _) idx_mut = (.a118.#a16) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b118) *)
-    let shallow : (t118, _) idx_mut = (.b118) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 417;
+    (* from (.a118) *)
+    let shallow : (t118, _) idx_mut = (.a118) in
+    let deepened = (.idx_mut(shallow).#a16) in
+    mark_test_run 338;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 417 failed %d" i;
+    if not test then failwithf "test 338 failed %d" i;
+    (* from (.a118.#a16) *)
+    let shallow : (t118, _) idx_mut = (.a118.#a16) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 339;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 339 failed %d" i;
   );
-  (* Deepening to (.c118) *)
-  let idx : (t118, _) idx_mut = (.c118) in
+  (* Deepening to (.a118.#b16) *)
+  let idx : (t118, _) idx_mut = (.a118.#b16) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.c118) *)
-    let shallow : (t118, _) idx_mut = (.c118) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 418;
+    (* from (.a118) *)
+    let shallow : (t118, _) idx_mut = (.a118) in
+    let deepened = (.idx_mut(shallow).#b16) in
+    mark_test_run 340;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 418 failed %d" i;
+    if not test then failwithf "test 340 failed %d" i;
+    (* from (.a118.#b16) *)
+    let shallow : (t118, _) idx_mut = (.a118.#b16) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 341;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 341 failed %d" i;
   );
 
-  (***************************************)
-  (*   t119 = { float; float; float# }   *)
-  (***************************************)
+  (*************************************)
+  (*   t119 = { #{ int; int }; int }   *)
+  (*************************************)
   (* Deepening to (.a119) *)
   let idx : (t119, _) idx_mut = (.a119) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a119) *)
     let shallow : (t119, _) idx_mut = (.a119) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 419;
+    mark_test_run 342;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 419 failed %d" i;
+    if not test then failwithf "test 342 failed %d" i;
+  );
+  (* Deepening to (.a119.#a16) *)
+  let idx : (t119, _) idx_mut = (.a119.#a16) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a119) *)
+    let shallow : (t119, _) idx_mut = (.a119) in
+    let deepened = (.idx_mut(shallow).#a16) in
+    mark_test_run 343;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 343 failed %d" i;
+    (* from (.a119.#a16) *)
+    let shallow : (t119, _) idx_mut = (.a119.#a16) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 344;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 344 failed %d" i;
+  );
+  (* Deepening to (.a119.#b16) *)
+  let idx : (t119, _) idx_mut = (.a119.#b16) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a119) *)
+    let shallow : (t119, _) idx_mut = (.a119) in
+    let deepened = (.idx_mut(shallow).#b16) in
+    mark_test_run 345;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 345 failed %d" i;
+    (* from (.a119.#b16) *)
+    let shallow : (t119, _) idx_mut = (.a119.#b16) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 346;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 346 failed %d" i;
   );
   (* Deepening to (.b119) *)
   let idx : (t119, _) idx_mut = (.b119) in
@@ -4513,33 +3939,55 @@ let () =
     (* from (.b119) *)
     let shallow : (t119, _) idx_mut = (.b119) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 420;
+    mark_test_run 347;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 420 failed %d" i;
-  );
-  (* Deepening to (.c119) *)
-  let idx : (t119, _) idx_mut = (.c119) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.c119) *)
-    let shallow : (t119, _) idx_mut = (.c119) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 421;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 421 failed %d" i;
+    if not test then failwithf "test 347 failed %d" i;
   );
 
-  (********************************)
-  (*   t120 = { float; float# }   *)
-  (********************************)
+  (****************************************)
+  (*   t120 = { #{ int; int }; int32# }   *)
+  (****************************************)
   (* Deepening to (.a120) *)
   let idx : (t120, _) idx_mut = (.a120) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a120) *)
     let shallow : (t120, _) idx_mut = (.a120) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 422;
+    mark_test_run 348;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 422 failed %d" i;
+    if not test then failwithf "test 348 failed %d" i;
+  );
+  (* Deepening to (.a120.#a16) *)
+  let idx : (t120, _) idx_mut = (.a120.#a16) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a120) *)
+    let shallow : (t120, _) idx_mut = (.a120) in
+    let deepened = (.idx_mut(shallow).#a16) in
+    mark_test_run 349;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 349 failed %d" i;
+    (* from (.a120.#a16) *)
+    let shallow : (t120, _) idx_mut = (.a120.#a16) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 350;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 350 failed %d" i;
+  );
+  (* Deepening to (.a120.#b16) *)
+  let idx : (t120, _) idx_mut = (.a120.#b16) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a120) *)
+    let shallow : (t120, _) idx_mut = (.a120) in
+    let deepened = (.idx_mut(shallow).#b16) in
+    mark_test_run 351;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 351 failed %d" i;
+    (* from (.a120.#b16) *)
+    let shallow : (t120, _) idx_mut = (.a120.#b16) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 352;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 352 failed %d" i;
   );
   (* Deepening to (.b120) *)
   let idx : (t120, _) idx_mut = (.b120) in
@@ -4547,13 +3995,13 @@ let () =
     (* from (.b120) *)
     let shallow : (t120, _) idx_mut = (.b120) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 423;
+    mark_test_run 353;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 423 failed %d" i;
+    if not test then failwithf "test 353 failed %d" i;
   );
 
   (***************************************)
-  (*   t121 = { float; float#; float }   *)
+  (*   t121 = { #{ int; int }; float }   *)
   (***************************************)
   (* Deepening to (.a121) *)
   let idx : (t121, _) idx_mut = (.a121) in
@@ -4561,9 +4009,41 @@ let () =
     (* from (.a121) *)
     let shallow : (t121, _) idx_mut = (.a121) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 424;
+    mark_test_run 354;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 424 failed %d" i;
+    if not test then failwithf "test 354 failed %d" i;
+  );
+  (* Deepening to (.a121.#a16) *)
+  let idx : (t121, _) idx_mut = (.a121.#a16) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a121) *)
+    let shallow : (t121, _) idx_mut = (.a121) in
+    let deepened = (.idx_mut(shallow).#a16) in
+    mark_test_run 355;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 355 failed %d" i;
+    (* from (.a121.#a16) *)
+    let shallow : (t121, _) idx_mut = (.a121.#a16) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 356;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 356 failed %d" i;
+  );
+  (* Deepening to (.a121.#b16) *)
+  let idx : (t121, _) idx_mut = (.a121.#b16) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a121) *)
+    let shallow : (t121, _) idx_mut = (.a121) in
+    let deepened = (.idx_mut(shallow).#b16) in
+    mark_test_run 357;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 357 failed %d" i;
+    (* from (.a121.#b16) *)
+    let shallow : (t121, _) idx_mut = (.a121.#b16) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 358;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 358 failed %d" i;
   );
   (* Deepening to (.b121) *)
   let idx : (t121, _) idx_mut = (.b121) in
@@ -4571,67 +4051,101 @@ let () =
     (* from (.b121) *)
     let shallow : (t121, _) idx_mut = (.b121) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 425;
+    mark_test_run 359;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 425 failed %d" i;
-  );
-  (* Deepening to (.c121) *)
-  let idx : (t121, _) idx_mut = (.c121) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.c121) *)
-    let shallow : (t121, _) idx_mut = (.c121) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 426;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 426 failed %d" i;
+    if not test then failwithf "test 359 failed %d" i;
   );
 
-  (****************************************)
-  (*   t122 = { float; float#; float# }   *)
-  (****************************************)
+  (***********************************)
+  (*   t122 = { #{ int; int32# } }   *)
+  (***********************************)
   (* Deepening to (.a122) *)
   let idx : (t122, _) idx_mut = (.a122) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a122) *)
     let shallow : (t122, _) idx_mut = (.a122) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 427;
+    mark_test_run 360;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 427 failed %d" i;
+    if not test then failwithf "test 360 failed %d" i;
   );
-  (* Deepening to (.b122) *)
-  let idx : (t122, _) idx_mut = (.b122) in
+  (* Deepening to (.a122.#a18) *)
+  let idx : (t122, _) idx_mut = (.a122.#a18) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b122) *)
-    let shallow : (t122, _) idx_mut = (.b122) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 428;
+    (* from (.a122) *)
+    let shallow : (t122, _) idx_mut = (.a122) in
+    let deepened = (.idx_mut(shallow).#a18) in
+    mark_test_run 361;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 428 failed %d" i;
+    if not test then failwithf "test 361 failed %d" i;
+    (* from (.a122.#a18) *)
+    let shallow : (t122, _) idx_mut = (.a122.#a18) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 362;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 362 failed %d" i;
   );
-  (* Deepening to (.c122) *)
-  let idx : (t122, _) idx_mut = (.c122) in
+  (* Deepening to (.a122.#b18) *)
+  let idx : (t122, _) idx_mut = (.a122.#b18) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.c122) *)
-    let shallow : (t122, _) idx_mut = (.c122) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 429;
+    (* from (.a122) *)
+    let shallow : (t122, _) idx_mut = (.a122) in
+    let deepened = (.idx_mut(shallow).#b18) in
+    mark_test_run 363;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 429 failed %d" i;
+    if not test then failwithf "test 363 failed %d" i;
+    (* from (.a122.#b18) *)
+    let shallow : (t122, _) idx_mut = (.a122.#b18) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 364;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 364 failed %d" i;
   );
 
-  (**********************************)
-  (*   t123 = { float; #{ int } }   *)
-  (**********************************)
+  (****************************************)
+  (*   t123 = { #{ int; int32# }; int }   *)
+  (****************************************)
   (* Deepening to (.a123) *)
   let idx : (t123, _) idx_mut = (.a123) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a123) *)
     let shallow : (t123, _) idx_mut = (.a123) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 430;
+    mark_test_run 365;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 430 failed %d" i;
+    if not test then failwithf "test 365 failed %d" i;
+  );
+  (* Deepening to (.a123.#a18) *)
+  let idx : (t123, _) idx_mut = (.a123.#a18) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a123) *)
+    let shallow : (t123, _) idx_mut = (.a123) in
+    let deepened = (.idx_mut(shallow).#a18) in
+    mark_test_run 366;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 366 failed %d" i;
+    (* from (.a123.#a18) *)
+    let shallow : (t123, _) idx_mut = (.a123.#a18) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 367;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 367 failed %d" i;
+  );
+  (* Deepening to (.a123.#b18) *)
+  let idx : (t123, _) idx_mut = (.a123.#b18) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a123) *)
+    let shallow : (t123, _) idx_mut = (.a123) in
+    let deepened = (.idx_mut(shallow).#b18) in
+    mark_test_run 368;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 368 failed %d" i;
+    (* from (.a123.#b18) *)
+    let shallow : (t123, _) idx_mut = (.a123.#b18) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 369;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 369 failed %d" i;
   );
   (* Deepening to (.b123) *)
   let idx : (t123, _) idx_mut = (.b123) in
@@ -4639,39 +4153,55 @@ let () =
     (* from (.b123) *)
     let shallow : (t123, _) idx_mut = (.b123) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 431;
+    mark_test_run 370;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 431 failed %d" i;
-  );
-  (* Deepening to (.b123.#a14) *)
-  let idx : (t123, _) idx_mut = (.b123.#a14) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b123) *)
-    let shallow : (t123, _) idx_mut = (.b123) in
-    let deepened = (.idx_mut(shallow).#a14) in
-    mark_test_run 432;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 432 failed %d" i;
-    (* from (.b123.#a14) *)
-    let shallow : (t123, _) idx_mut = (.b123.#a14) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 433;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 433 failed %d" i;
+    if not test then failwithf "test 370 failed %d" i;
   );
 
-  (***************************************)
-  (*   t124 = { float; #{ int; int } }   *)
-  (***************************************)
+  (*******************************************)
+  (*   t124 = { #{ int; int32# }; int32# }   *)
+  (*******************************************)
   (* Deepening to (.a124) *)
   let idx : (t124, _) idx_mut = (.a124) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a124) *)
     let shallow : (t124, _) idx_mut = (.a124) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 434;
+    mark_test_run 371;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 434 failed %d" i;
+    if not test then failwithf "test 371 failed %d" i;
+  );
+  (* Deepening to (.a124.#a18) *)
+  let idx : (t124, _) idx_mut = (.a124.#a18) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a124) *)
+    let shallow : (t124, _) idx_mut = (.a124) in
+    let deepened = (.idx_mut(shallow).#a18) in
+    mark_test_run 372;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 372 failed %d" i;
+    (* from (.a124.#a18) *)
+    let shallow : (t124, _) idx_mut = (.a124.#a18) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 373;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 373 failed %d" i;
+  );
+  (* Deepening to (.a124.#b18) *)
+  let idx : (t124, _) idx_mut = (.a124.#b18) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a124) *)
+    let shallow : (t124, _) idx_mut = (.a124) in
+    let deepened = (.idx_mut(shallow).#b18) in
+    mark_test_run 374;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 374 failed %d" i;
+    (* from (.a124.#b18) *)
+    let shallow : (t124, _) idx_mut = (.a124.#b18) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 375;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 375 failed %d" i;
   );
   (* Deepening to (.b124) *)
   let idx : (t124, _) idx_mut = (.b124) in
@@ -4679,111 +4209,101 @@ let () =
     (* from (.b124) *)
     let shallow : (t124, _) idx_mut = (.b124) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 435;
+    mark_test_run 376;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 435 failed %d" i;
-  );
-  (* Deepening to (.b124.#a16) *)
-  let idx : (t124, _) idx_mut = (.b124.#a16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b124) *)
-    let shallow : (t124, _) idx_mut = (.b124) in
-    let deepened = (.idx_mut(shallow).#a16) in
-    mark_test_run 436;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 436 failed %d" i;
-    (* from (.b124.#a16) *)
-    let shallow : (t124, _) idx_mut = (.b124.#a16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 437;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 437 failed %d" i;
-  );
-  (* Deepening to (.b124.#b16) *)
-  let idx : (t124, _) idx_mut = (.b124.#b16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b124) *)
-    let shallow : (t124, _) idx_mut = (.b124) in
-    let deepened = (.idx_mut(shallow).#b16) in
-    mark_test_run 438;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 438 failed %d" i;
-    (* from (.b124.#b16) *)
-    let shallow : (t124, _) idx_mut = (.b124.#b16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 439;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 439 failed %d" i;
+    if not test then failwithf "test 376 failed %d" i;
   );
 
-  (*****************************************)
-  (*   t125 = { float; #{ int; float } }   *)
-  (*****************************************)
+  (**********************************)
+  (*   t125 = { #{ int; float } }   *)
+  (**********************************)
   (* Deepening to (.a125) *)
   let idx : (t125, _) idx_mut = (.a125) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a125) *)
     let shallow : (t125, _) idx_mut = (.a125) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 440;
+    mark_test_run 377;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 440 failed %d" i;
+    if not test then failwithf "test 377 failed %d" i;
   );
-  (* Deepening to (.b125) *)
-  let idx : (t125, _) idx_mut = (.b125) in
+  (* Deepening to (.a125.#a20) *)
+  let idx : (t125, _) idx_mut = (.a125.#a20) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b125) *)
-    let shallow : (t125, _) idx_mut = (.b125) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 441;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 441 failed %d" i;
-  );
-  (* Deepening to (.b125.#a20) *)
-  let idx : (t125, _) idx_mut = (.b125.#a20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b125) *)
-    let shallow : (t125, _) idx_mut = (.b125) in
+    (* from (.a125) *)
+    let shallow : (t125, _) idx_mut = (.a125) in
     let deepened = (.idx_mut(shallow).#a20) in
-    mark_test_run 442;
+    mark_test_run 378;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 442 failed %d" i;
-    (* from (.b125.#a20) *)
-    let shallow : (t125, _) idx_mut = (.b125.#a20) in
+    if not test then failwithf "test 378 failed %d" i;
+    (* from (.a125.#a20) *)
+    let shallow : (t125, _) idx_mut = (.a125.#a20) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 443;
+    mark_test_run 379;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 443 failed %d" i;
+    if not test then failwithf "test 379 failed %d" i;
   );
-  (* Deepening to (.b125.#b20) *)
-  let idx : (t125, _) idx_mut = (.b125.#b20) in
+  (* Deepening to (.a125.#b20) *)
+  let idx : (t125, _) idx_mut = (.a125.#b20) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b125) *)
-    let shallow : (t125, _) idx_mut = (.b125) in
+    (* from (.a125) *)
+    let shallow : (t125, _) idx_mut = (.a125) in
     let deepened = (.idx_mut(shallow).#b20) in
-    mark_test_run 444;
+    mark_test_run 380;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 444 failed %d" i;
-    (* from (.b125.#b20) *)
-    let shallow : (t125, _) idx_mut = (.b125.#b20) in
+    if not test then failwithf "test 380 failed %d" i;
+    (* from (.a125.#b20) *)
+    let shallow : (t125, _) idx_mut = (.a125.#b20) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 445;
+    mark_test_run 381;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 445 failed %d" i;
+    if not test then failwithf "test 381 failed %d" i;
   );
 
-  (********************************************)
-  (*   t126 = { float; #{ int; #{ int } } }   *)
-  (********************************************)
+  (***************************************)
+  (*   t126 = { #{ int; float }; int }   *)
+  (***************************************)
   (* Deepening to (.a126) *)
   let idx : (t126, _) idx_mut = (.a126) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a126) *)
     let shallow : (t126, _) idx_mut = (.a126) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 446;
+    mark_test_run 382;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 446 failed %d" i;
+    if not test then failwithf "test 382 failed %d" i;
+  );
+  (* Deepening to (.a126.#a20) *)
+  let idx : (t126, _) idx_mut = (.a126.#a20) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a126) *)
+    let shallow : (t126, _) idx_mut = (.a126) in
+    let deepened = (.idx_mut(shallow).#a20) in
+    mark_test_run 383;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 383 failed %d" i;
+    (* from (.a126.#a20) *)
+    let shallow : (t126, _) idx_mut = (.a126.#a20) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 384;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 384 failed %d" i;
+  );
+  (* Deepening to (.a126.#b20) *)
+  let idx : (t126, _) idx_mut = (.a126.#b20) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a126) *)
+    let shallow : (t126, _) idx_mut = (.a126) in
+    let deepened = (.idx_mut(shallow).#b20) in
+    mark_test_run 385;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 385 failed %d" i;
+    (* from (.a126.#b20) *)
+    let shallow : (t126, _) idx_mut = (.a126.#b20) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 386;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 386 failed %d" i;
   );
   (* Deepening to (.b126) *)
   let idx : (t126, _) idx_mut = (.b126) in
@@ -4791,77 +4311,55 @@ let () =
     (* from (.b126) *)
     let shallow : (t126, _) idx_mut = (.b126) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 447;
+    mark_test_run 387;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 447 failed %d" i;
-  );
-  (* Deepening to (.b126.#a22) *)
-  let idx : (t126, _) idx_mut = (.b126.#a22) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b126) *)
-    let shallow : (t126, _) idx_mut = (.b126) in
-    let deepened = (.idx_mut(shallow).#a22) in
-    mark_test_run 448;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 448 failed %d" i;
-    (* from (.b126.#a22) *)
-    let shallow : (t126, _) idx_mut = (.b126.#a22) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 449;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 449 failed %d" i;
-  );
-  (* Deepening to (.b126.#b22) *)
-  let idx : (t126, _) idx_mut = (.b126.#b22) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b126) *)
-    let shallow : (t126, _) idx_mut = (.b126) in
-    let deepened = (.idx_mut(shallow).#b22) in
-    mark_test_run 450;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 450 failed %d" i;
-    (* from (.b126.#b22) *)
-    let shallow : (t126, _) idx_mut = (.b126.#b22) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 451;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 451 failed %d" i;
-  );
-  (* Deepening to (.b126.#b22.#a14) *)
-  let idx : (t126, _) idx_mut = (.b126.#b22.#a14) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b126) *)
-    let shallow : (t126, _) idx_mut = (.b126) in
-    let deepened = (.idx_mut(shallow).#b22.#a14) in
-    mark_test_run 452;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 452 failed %d" i;
-    (* from (.b126.#b22) *)
-    let shallow : (t126, _) idx_mut = (.b126.#b22) in
-    let deepened = (.idx_mut(shallow).#a14) in
-    mark_test_run 453;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 453 failed %d" i;
-    (* from (.b126.#b22.#a14) *)
-    let shallow : (t126, _) idx_mut = (.b126.#b22.#a14) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 454;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 454 failed %d" i;
+    if not test then failwithf "test 387 failed %d" i;
   );
 
-  (**********************************************)
-  (*   t127 = { float; #{ int; #{ float } } }   *)
-  (**********************************************)
+  (*****************************************)
+  (*   t127 = { #{ int; float }; float }   *)
+  (*****************************************)
   (* Deepening to (.a127) *)
   let idx : (t127, _) idx_mut = (.a127) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a127) *)
     let shallow : (t127, _) idx_mut = (.a127) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 455;
+    mark_test_run 388;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 455 failed %d" i;
+    if not test then failwithf "test 388 failed %d" i;
+  );
+  (* Deepening to (.a127.#a20) *)
+  let idx : (t127, _) idx_mut = (.a127.#a20) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a127) *)
+    let shallow : (t127, _) idx_mut = (.a127) in
+    let deepened = (.idx_mut(shallow).#a20) in
+    mark_test_run 389;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 389 failed %d" i;
+    (* from (.a127.#a20) *)
+    let shallow : (t127, _) idx_mut = (.a127.#a20) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 390;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 390 failed %d" i;
+  );
+  (* Deepening to (.a127.#b20) *)
+  let idx : (t127, _) idx_mut = (.a127.#b20) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a127) *)
+    let shallow : (t127, _) idx_mut = (.a127) in
+    let deepened = (.idx_mut(shallow).#b20) in
+    mark_test_run 391;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 391 failed %d" i;
+    (* from (.a127.#b20) *)
+    let shallow : (t127, _) idx_mut = (.a127.#b20) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 392;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 392 failed %d" i;
   );
   (* Deepening to (.b127) *)
   let idx : (t127, _) idx_mut = (.b127) in
@@ -4869,169 +4367,55 @@ let () =
     (* from (.b127) *)
     let shallow : (t127, _) idx_mut = (.b127) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 456;
+    mark_test_run 393;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 456 failed %d" i;
-  );
-  (* Deepening to (.b127.#a28) *)
-  let idx : (t127, _) idx_mut = (.b127.#a28) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b127) *)
-    let shallow : (t127, _) idx_mut = (.b127) in
-    let deepened = (.idx_mut(shallow).#a28) in
-    mark_test_run 457;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 457 failed %d" i;
-    (* from (.b127.#a28) *)
-    let shallow : (t127, _) idx_mut = (.b127.#a28) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 458;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 458 failed %d" i;
-  );
-  (* Deepening to (.b127.#b28) *)
-  let idx : (t127, _) idx_mut = (.b127.#b28) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b127) *)
-    let shallow : (t127, _) idx_mut = (.b127) in
-    let deepened = (.idx_mut(shallow).#b28) in
-    mark_test_run 459;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 459 failed %d" i;
-    (* from (.b127.#b28) *)
-    let shallow : (t127, _) idx_mut = (.b127.#b28) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 460;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 460 failed %d" i;
-  );
-  (* Deepening to (.b127.#b28.#a27) *)
-  let idx : (t127, _) idx_mut = (.b127.#b28.#a27) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b127) *)
-    let shallow : (t127, _) idx_mut = (.b127) in
-    let deepened = (.idx_mut(shallow).#b28.#a27) in
-    mark_test_run 461;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 461 failed %d" i;
-    (* from (.b127.#b28) *)
-    let shallow : (t127, _) idx_mut = (.b127.#b28) in
-    let deepened = (.idx_mut(shallow).#a27) in
-    mark_test_run 462;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 462 failed %d" i;
-    (* from (.b127.#b28.#a27) *)
-    let shallow : (t127, _) idx_mut = (.b127.#b28.#a27) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 463;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 463 failed %d" i;
+    if not test then failwithf "test 393 failed %d" i;
   );
 
-  (************************************)
-  (*   t128 = { float; #{ float } }   *)
-  (************************************)
-  (* Deepening to (.a128) *)
-  let idx : (t128, _) idx_mut = (.a128) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a128) *)
-    let shallow : (t128, _) idx_mut = (.a128) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 464;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 464 failed %d" i;
-  );
-  (* Deepening to (.b128) *)
-  let idx : (t128, _) idx_mut = (.b128) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b128) *)
-    let shallow : (t128, _) idx_mut = (.b128) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 465;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 465 failed %d" i;
-  );
-  (* Deepening to (.b128.#a27) *)
-  let idx : (t128, _) idx_mut = (.b128.#a27) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* Note: can't deepen (.b128) because it's a path to a flattened
-       float, making its element type [float#] *)
-    (* from (.b128.#a27) *)
-    let shallow : (t128, _) idx_mut = (.b128.#a27) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 466;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 466 failed %d" i;
-  );
-
-  (*****************************************)
-  (*   t129 = { float; #{ float; int } }   *)
-  (*****************************************)
-  (* Deepening to (.a129) *)
-  let idx : (t129, _) idx_mut = (.a129) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a129) *)
-    let shallow : (t129, _) idx_mut = (.a129) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 467;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 467 failed %d" i;
-  );
-  (* Deepening to (.b129) *)
-  let idx : (t129, _) idx_mut = (.b129) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b129) *)
-    let shallow : (t129, _) idx_mut = (.b129) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 468;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 468 failed %d" i;
-  );
-  (* Deepening to (.b129.#a40) *)
-  let idx : (t129, _) idx_mut = (.b129.#a40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b129) *)
-    let shallow : (t129, _) idx_mut = (.b129) in
-    let deepened = (.idx_mut(shallow).#a40) in
-    mark_test_run 469;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 469 failed %d" i;
-    (* from (.b129.#a40) *)
-    let shallow : (t129, _) idx_mut = (.b129.#a40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 470;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 470 failed %d" i;
-  );
-  (* Deepening to (.b129.#b40) *)
-  let idx : (t129, _) idx_mut = (.b129.#b40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b129) *)
-    let shallow : (t129, _) idx_mut = (.b129) in
-    let deepened = (.idx_mut(shallow).#b40) in
-    mark_test_run 471;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 471 failed %d" i;
-    (* from (.b129.#b40) *)
-    let shallow : (t129, _) idx_mut = (.b129.#b40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 472;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 472 failed %d" i;
-  );
-
-  (*******************************************)
-  (*   t130 = { float; #{ float; float } }   *)
-  (*******************************************)
+  (**********************************************************)
+  (*   t130 = { #{ int64; int64# }; #{ int64#; float# } }   *)
+  (**********************************************************)
   (* Deepening to (.a130) *)
   let idx : (t130, _) idx_mut = (.a130) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a130) *)
     let shallow : (t130, _) idx_mut = (.a130) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 473;
+    mark_test_run 394;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 473 failed %d" i;
+    if not test then failwithf "test 394 failed %d" i;
+  );
+  (* Deepening to (.a130.#a128) *)
+  let idx : (t130, _) idx_mut = (.a130.#a128) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a130) *)
+    let shallow : (t130, _) idx_mut = (.a130) in
+    let deepened = (.idx_mut(shallow).#a128) in
+    mark_test_run 395;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 395 failed %d" i;
+    (* from (.a130.#a128) *)
+    let shallow : (t130, _) idx_mut = (.a130.#a128) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 396;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 396 failed %d" i;
+  );
+  (* Deepening to (.a130.#b128) *)
+  let idx : (t130, _) idx_mut = (.a130.#b128) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a130) *)
+    let shallow : (t130, _) idx_mut = (.a130) in
+    let deepened = (.idx_mut(shallow).#b128) in
+    mark_test_run 397;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 397 failed %d" i;
+    (* from (.a130.#b128) *)
+    let shallow : (t130, _) idx_mut = (.a130.#b128) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 398;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 398 failed %d" i;
   );
   (* Deepening to (.b130) *)
   let idx : (t130, _) idx_mut = (.b130) in
@@ -5039,111 +4423,87 @@ let () =
     (* from (.b130) *)
     let shallow : (t130, _) idx_mut = (.b130) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 474;
+    mark_test_run 399;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 474 failed %d" i;
+    if not test then failwithf "test 399 failed %d" i;
   );
-  (* Deepening to (.b130.#a42) *)
-  let idx : (t130, _) idx_mut = (.b130.#a42) in
+  (* Deepening to (.b130.#a129) *)
+  let idx : (t130, _) idx_mut = (.b130.#a129) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b130) *)
     let shallow : (t130, _) idx_mut = (.b130) in
-    let deepened = (.idx_mut(shallow).#a42) in
-    mark_test_run 475;
+    let deepened = (.idx_mut(shallow).#a129) in
+    mark_test_run 400;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 475 failed %d" i;
-    (* from (.b130.#a42) *)
-    let shallow : (t130, _) idx_mut = (.b130.#a42) in
+    if not test then failwithf "test 400 failed %d" i;
+    (* from (.b130.#a129) *)
+    let shallow : (t130, _) idx_mut = (.b130.#a129) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 476;
+    mark_test_run 401;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 476 failed %d" i;
+    if not test then failwithf "test 401 failed %d" i;
   );
-  (* Deepening to (.b130.#b42) *)
-  let idx : (t130, _) idx_mut = (.b130.#b42) in
+  (* Deepening to (.b130.#b129) *)
+  let idx : (t130, _) idx_mut = (.b130.#b129) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b130) *)
     let shallow : (t130, _) idx_mut = (.b130) in
-    let deepened = (.idx_mut(shallow).#b42) in
-    mark_test_run 477;
+    let deepened = (.idx_mut(shallow).#b129) in
+    mark_test_run 402;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 477 failed %d" i;
-    (* from (.b130.#b42) *)
-    let shallow : (t130, _) idx_mut = (.b130.#b42) in
+    if not test then failwithf "test 402 failed %d" i;
+    (* from (.b130.#b129) *)
+    let shallow : (t130, _) idx_mut = (.b130.#b129) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 478;
+    mark_test_run 403;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 478 failed %d" i;
+    if not test then failwithf "test 403 failed %d" i;
   );
 
-  (********************************************)
-  (*   t132 = { float; #{ float; float# } }   *)
-  (********************************************)
-  (* Deepening to (.a132) *)
-  let idx : (t132, _) idx_mut = (.a132) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a132) *)
-    let shallow : (t132, _) idx_mut = (.a132) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 479;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 479 failed %d" i;
-  );
-  (* Deepening to (.b132) *)
-  let idx : (t132, _) idx_mut = (.b132) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b132) *)
-    let shallow : (t132, _) idx_mut = (.b132) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 480;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 480 failed %d" i;
-  );
-  (* Deepening to (.b132.#a131) *)
-  let idx : (t132, _) idx_mut = (.b132.#a131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b132) *)
-    let shallow : (t132, _) idx_mut = (.b132) in
-    let deepened = (.idx_mut(shallow).#a131) in
-    mark_test_run 481;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 481 failed %d" i;
-    (* from (.b132.#a131) *)
-    let shallow : (t132, _) idx_mut = (.b132.#a131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 482;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 482 failed %d" i;
-  );
-  (* Deepening to (.b132.#b131) *)
-  let idx : (t132, _) idx_mut = (.b132.#b131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b132) *)
-    let shallow : (t132, _) idx_mut = (.b132) in
-    let deepened = (.idx_mut(shallow).#b131) in
-    mark_test_run 483;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 483 failed %d" i;
-    (* from (.b132.#b131) *)
-    let shallow : (t132, _) idx_mut = (.b132.#b131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 484;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 484 failed %d" i;
-  );
-
-  (**********************************************)
-  (*   t133 = { float; #{ float; #{ int } } }   *)
-  (**********************************************)
+  (**********************************************************)
+  (*   t133 = { #{ int64; string }; #{ int64#; string } }   *)
+  (**********************************************************)
   (* Deepening to (.a133) *)
   let idx : (t133, _) idx_mut = (.a133) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a133) *)
     let shallow : (t133, _) idx_mut = (.a133) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 485;
+    mark_test_run 404;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 485 failed %d" i;
+    if not test then failwithf "test 404 failed %d" i;
+  );
+  (* Deepening to (.a133.#a131) *)
+  let idx : (t133, _) idx_mut = (.a133.#a131) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a133) *)
+    let shallow : (t133, _) idx_mut = (.a133) in
+    let deepened = (.idx_mut(shallow).#a131) in
+    mark_test_run 405;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 405 failed %d" i;
+    (* from (.a133.#a131) *)
+    let shallow : (t133, _) idx_mut = (.a133.#a131) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 406;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 406 failed %d" i;
+  );
+  (* Deepening to (.a133.#b131) *)
+  let idx : (t133, _) idx_mut = (.a133.#b131) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a133) *)
+    let shallow : (t133, _) idx_mut = (.a133) in
+    let deepened = (.idx_mut(shallow).#b131) in
+    mark_test_run 407;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 407 failed %d" i;
+    (* from (.a133.#b131) *)
+    let shallow : (t133, _) idx_mut = (.a133.#b131) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 408;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 408 failed %d" i;
   );
   (* Deepening to (.b133) *)
   let idx : (t133, _) idx_mut = (.b133) in
@@ -5151,233 +4511,175 @@ let () =
     (* from (.b133) *)
     let shallow : (t133, _) idx_mut = (.b133) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 486;
+    mark_test_run 409;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 486 failed %d" i;
+    if not test then failwithf "test 409 failed %d" i;
   );
-  (* Deepening to (.b133.#a44) *)
-  let idx : (t133, _) idx_mut = (.b133.#a44) in
+  (* Deepening to (.b133.#a132) *)
+  let idx : (t133, _) idx_mut = (.b133.#a132) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b133) *)
     let shallow : (t133, _) idx_mut = (.b133) in
-    let deepened = (.idx_mut(shallow).#a44) in
-    mark_test_run 487;
+    let deepened = (.idx_mut(shallow).#a132) in
+    mark_test_run 410;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 487 failed %d" i;
-    (* from (.b133.#a44) *)
-    let shallow : (t133, _) idx_mut = (.b133.#a44) in
+    if not test then failwithf "test 410 failed %d" i;
+    (* from (.b133.#a132) *)
+    let shallow : (t133, _) idx_mut = (.b133.#a132) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 488;
+    mark_test_run 411;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 488 failed %d" i;
+    if not test then failwithf "test 411 failed %d" i;
   );
-  (* Deepening to (.b133.#b44) *)
-  let idx : (t133, _) idx_mut = (.b133.#b44) in
+  (* Deepening to (.b133.#b132) *)
+  let idx : (t133, _) idx_mut = (.b133.#b132) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b133) *)
     let shallow : (t133, _) idx_mut = (.b133) in
-    let deepened = (.idx_mut(shallow).#b44) in
-    mark_test_run 489;
+    let deepened = (.idx_mut(shallow).#b132) in
+    mark_test_run 412;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 489 failed %d" i;
-    (* from (.b133.#b44) *)
-    let shallow : (t133, _) idx_mut = (.b133.#b44) in
+    if not test then failwithf "test 412 failed %d" i;
+    (* from (.b133.#b132) *)
+    let shallow : (t133, _) idx_mut = (.b133.#b132) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 490;
+    mark_test_run 413;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 490 failed %d" i;
-  );
-  (* Deepening to (.b133.#b44.#a14) *)
-  let idx : (t133, _) idx_mut = (.b133.#b44.#a14) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b133) *)
-    let shallow : (t133, _) idx_mut = (.b133) in
-    let deepened = (.idx_mut(shallow).#b44.#a14) in
-    mark_test_run 491;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 491 failed %d" i;
-    (* from (.b133.#b44) *)
-    let shallow : (t133, _) idx_mut = (.b133.#b44) in
-    let deepened = (.idx_mut(shallow).#a14) in
-    mark_test_run 492;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 492 failed %d" i;
-    (* from (.b133.#b44.#a14) *)
-    let shallow : (t133, _) idx_mut = (.b133.#b44.#a14) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 493;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 493 failed %d" i;
+    if not test then failwithf "test 413 failed %d" i;
   );
 
-  (************************************************)
-  (*   t134 = { float; #{ float; #{ float } } }   *)
-  (************************************************)
-  (* Deepening to (.a134) *)
-  let idx : (t134, _) idx_mut = (.a134) in
+  (********************************************************)
+  (*   t136 = { #{ int64#; int64 }; #{ int64; int64 } }   *)
+  (********************************************************)
+  (* Deepening to (.a136) *)
+  let idx : (t136, _) idx_mut = (.a136) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a134) *)
-    let shallow : (t134, _) idx_mut = (.a134) in
+    (* from (.a136) *)
+    let shallow : (t136, _) idx_mut = (.a136) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 494;
+    mark_test_run 414;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 494 failed %d" i;
+    if not test then failwithf "test 414 failed %d" i;
   );
-  (* Deepening to (.b134) *)
-  let idx : (t134, _) idx_mut = (.b134) in
+  (* Deepening to (.a136.#a134) *)
+  let idx : (t136, _) idx_mut = (.a136.#a134) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b134) *)
-    let shallow : (t134, _) idx_mut = (.b134) in
+    (* from (.a136) *)
+    let shallow : (t136, _) idx_mut = (.a136) in
+    let deepened = (.idx_mut(shallow).#a134) in
+    mark_test_run 415;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 415 failed %d" i;
+    (* from (.a136.#a134) *)
+    let shallow : (t136, _) idx_mut = (.a136.#a134) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 495;
+    mark_test_run 416;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 495 failed %d" i;
+    if not test then failwithf "test 416 failed %d" i;
   );
-  (* Deepening to (.b134.#a46) *)
-  let idx : (t134, _) idx_mut = (.b134.#a46) in
+  (* Deepening to (.a136.#b134) *)
+  let idx : (t136, _) idx_mut = (.a136.#b134) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b134) *)
-    let shallow : (t134, _) idx_mut = (.b134) in
-    let deepened = (.idx_mut(shallow).#a46) in
-    mark_test_run 496;
+    (* from (.a136) *)
+    let shallow : (t136, _) idx_mut = (.a136) in
+    let deepened = (.idx_mut(shallow).#b134) in
+    mark_test_run 417;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 496 failed %d" i;
-    (* from (.b134.#a46) *)
-    let shallow : (t134, _) idx_mut = (.b134.#a46) in
+    if not test then failwithf "test 417 failed %d" i;
+    (* from (.a136.#b134) *)
+    let shallow : (t136, _) idx_mut = (.a136.#b134) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 497;
+    mark_test_run 418;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 497 failed %d" i;
+    if not test then failwithf "test 418 failed %d" i;
   );
-  (* Deepening to (.b134.#b46) *)
-  let idx : (t134, _) idx_mut = (.b134.#b46) in
+  (* Deepening to (.b136) *)
+  let idx : (t136, _) idx_mut = (.b136) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b134) *)
-    let shallow : (t134, _) idx_mut = (.b134) in
-    let deepened = (.idx_mut(shallow).#b46) in
-    mark_test_run 498;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 498 failed %d" i;
-    (* from (.b134.#b46) *)
-    let shallow : (t134, _) idx_mut = (.b134.#b46) in
+    (* from (.b136) *)
+    let shallow : (t136, _) idx_mut = (.b136) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 499;
+    mark_test_run 419;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 499 failed %d" i;
+    if not test then failwithf "test 419 failed %d" i;
   );
-  (* Deepening to (.b134.#b46.#a27) *)
-  let idx : (t134, _) idx_mut = (.b134.#b46.#a27) in
+  (* Deepening to (.b136.#a135) *)
+  let idx : (t136, _) idx_mut = (.b136.#a135) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b134) *)
-    let shallow : (t134, _) idx_mut = (.b134) in
-    let deepened = (.idx_mut(shallow).#b46.#a27) in
-    mark_test_run 500;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 500 failed %d" i;
-    (* from (.b134.#b46) *)
-    let shallow : (t134, _) idx_mut = (.b134.#b46) in
-    let deepened = (.idx_mut(shallow).#a27) in
-    mark_test_run 501;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 501 failed %d" i;
-    (* from (.b134.#b46.#a27) *)
-    let shallow : (t134, _) idx_mut = (.b134.#b46.#a27) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 502;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 502 failed %d" i;
-  );
-
-  (*************************************************)
-  (*   t137 = { float; #{ float; #{ float# } } }   *)
-  (*************************************************)
-  (* Deepening to (.a137) *)
-  let idx : (t137, _) idx_mut = (.a137) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a137) *)
-    let shallow : (t137, _) idx_mut = (.a137) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 503;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 503 failed %d" i;
-  );
-  (* Deepening to (.b137) *)
-  let idx : (t137, _) idx_mut = (.b137) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b137) *)
-    let shallow : (t137, _) idx_mut = (.b137) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 504;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 504 failed %d" i;
-  );
-  (* Deepening to (.b137.#a136) *)
-  let idx : (t137, _) idx_mut = (.b137.#a136) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b137) *)
-    let shallow : (t137, _) idx_mut = (.b137) in
-    let deepened = (.idx_mut(shallow).#a136) in
-    mark_test_run 505;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 505 failed %d" i;
-    (* from (.b137.#a136) *)
-    let shallow : (t137, _) idx_mut = (.b137.#a136) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 506;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 506 failed %d" i;
-  );
-  (* Deepening to (.b137.#b136) *)
-  let idx : (t137, _) idx_mut = (.b137.#b136) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b137) *)
-    let shallow : (t137, _) idx_mut = (.b137) in
-    let deepened = (.idx_mut(shallow).#b136) in
-    mark_test_run 507;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 507 failed %d" i;
-    (* from (.b137.#b136) *)
-    let shallow : (t137, _) idx_mut = (.b137.#b136) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 508;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 508 failed %d" i;
-  );
-  (* Deepening to (.b137.#b136.#a135) *)
-  let idx : (t137, _) idx_mut = (.b137.#b136.#a135) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b137) *)
-    let shallow : (t137, _) idx_mut = (.b137) in
-    let deepened = (.idx_mut(shallow).#b136.#a135) in
-    mark_test_run 509;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 509 failed %d" i;
-    (* from (.b137.#b136) *)
-    let shallow : (t137, _) idx_mut = (.b137.#b136) in
+    (* from (.b136) *)
+    let shallow : (t136, _) idx_mut = (.b136) in
     let deepened = (.idx_mut(shallow).#a135) in
-    mark_test_run 510;
+    mark_test_run 420;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 510 failed %d" i;
-    (* from (.b137.#b136.#a135) *)
-    let shallow : (t137, _) idx_mut = (.b137.#b136.#a135) in
+    if not test then failwithf "test 420 failed %d" i;
+    (* from (.b136.#a135) *)
+    let shallow : (t136, _) idx_mut = (.b136.#a135) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 511;
+    mark_test_run 421;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 511 failed %d" i;
+    if not test then failwithf "test 421 failed %d" i;
+  );
+  (* Deepening to (.b136.#b135) *)
+  let idx : (t136, _) idx_mut = (.b136.#b135) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b136) *)
+    let shallow : (t136, _) idx_mut = (.b136) in
+    let deepened = (.idx_mut(shallow).#b135) in
+    mark_test_run 422;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 422 failed %d" i;
+    (* from (.b136.#b135) *)
+    let shallow : (t136, _) idx_mut = (.b136.#b135) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 423;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 423 failed %d" i;
   );
 
-  (*************************************)
-  (*   t138 = { float; #{ float# } }   *)
-  (*************************************)
+  (***********************************************************)
+  (*   t138 = { #{ int64#; int64 }; #{ float32#; float } }   *)
+  (***********************************************************)
   (* Deepening to (.a138) *)
   let idx : (t138, _) idx_mut = (.a138) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a138) *)
     let shallow : (t138, _) idx_mut = (.a138) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 512;
+    mark_test_run 424;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 512 failed %d" i;
+    if not test then failwithf "test 424 failed %d" i;
+  );
+  (* Deepening to (.a138.#a134) *)
+  let idx : (t138, _) idx_mut = (.a138.#a134) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a138) *)
+    let shallow : (t138, _) idx_mut = (.a138) in
+    let deepened = (.idx_mut(shallow).#a134) in
+    mark_test_run 425;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 425 failed %d" i;
+    (* from (.a138.#a134) *)
+    let shallow : (t138, _) idx_mut = (.a138.#a134) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 426;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 426 failed %d" i;
+  );
+  (* Deepening to (.a138.#b134) *)
+  let idx : (t138, _) idx_mut = (.a138.#b134) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a138) *)
+    let shallow : (t138, _) idx_mut = (.a138) in
+    let deepened = (.idx_mut(shallow).#b134) in
+    mark_test_run 427;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 427 failed %d" i;
+    (* from (.a138.#b134) *)
+    let shallow : (t138, _) idx_mut = (.a138.#b134) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 428;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 428 failed %d" i;
   );
   (* Deepening to (.b138) *)
   let idx : (t138, _) idx_mut = (.b138) in
@@ -5385,39 +4687,101 @@ let () =
     (* from (.b138) *)
     let shallow : (t138, _) idx_mut = (.b138) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 513;
+    mark_test_run 429;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 513 failed %d" i;
+    if not test then failwithf "test 429 failed %d" i;
   );
-  (* Deepening to (.b138.#a135) *)
-  let idx : (t138, _) idx_mut = (.b138.#a135) in
+  (* Deepening to (.b138.#a137) *)
+  let idx : (t138, _) idx_mut = (.b138.#a137) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b138) *)
     let shallow : (t138, _) idx_mut = (.b138) in
-    let deepened = (.idx_mut(shallow).#a135) in
-    mark_test_run 514;
+    let deepened = (.idx_mut(shallow).#a137) in
+    mark_test_run 430;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 514 failed %d" i;
-    (* from (.b138.#a135) *)
-    let shallow : (t138, _) idx_mut = (.b138.#a135) in
+    if not test then failwithf "test 430 failed %d" i;
+    (* from (.b138.#a137) *)
+    let shallow : (t138, _) idx_mut = (.b138.#a137) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 515;
+    mark_test_run 431;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 515 failed %d" i;
+    if not test then failwithf "test 431 failed %d" i;
+  );
+  (* Deepening to (.b138.#b137) *)
+  let idx : (t138, _) idx_mut = (.b138.#b137) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b138) *)
+    let shallow : (t138, _) idx_mut = (.b138) in
+    let deepened = (.idx_mut(shallow).#b137) in
+    mark_test_run 432;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 432 failed %d" i;
+    (* from (.b138.#b137) *)
+    let shallow : (t138, _) idx_mut = (.b138.#b137) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 433;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 433 failed %d" i;
   );
 
-  (********************************************)
-  (*   t140 = { float; #{ float#; float } }   *)
-  (********************************************)
+  (******************************)
+  (*   t139 = { #{ int32# } }   *)
+  (******************************)
+  (* Deepening to (.a139) *)
+  let idx : (t139, _) idx_mut = (.a139) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a139) *)
+    let shallow : (t139, _) idx_mut = (.a139) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 434;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 434 failed %d" i;
+  );
+  (* Deepening to (.a139.#a22) *)
+  let idx : (t139, _) idx_mut = (.a139.#a22) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a139) *)
+    let shallow : (t139, _) idx_mut = (.a139) in
+    let deepened = (.idx_mut(shallow).#a22) in
+    mark_test_run 435;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 435 failed %d" i;
+    (* from (.a139.#a22) *)
+    let shallow : (t139, _) idx_mut = (.a139.#a22) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 436;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 436 failed %d" i;
+  );
+
+  (***********************************)
+  (*   t140 = { #{ int32# }; int }   *)
+  (***********************************)
   (* Deepening to (.a140) *)
   let idx : (t140, _) idx_mut = (.a140) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a140) *)
     let shallow : (t140, _) idx_mut = (.a140) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 516;
+    mark_test_run 437;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 516 failed %d" i;
+    if not test then failwithf "test 437 failed %d" i;
+  );
+  (* Deepening to (.a140.#a22) *)
+  let idx : (t140, _) idx_mut = (.a140.#a22) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a140) *)
+    let shallow : (t140, _) idx_mut = (.a140) in
+    let deepened = (.idx_mut(shallow).#a22) in
+    mark_test_run 438;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 438 failed %d" i;
+    (* from (.a140.#a22) *)
+    let shallow : (t140, _) idx_mut = (.a140.#a22) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 439;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 439 failed %d" i;
   );
   (* Deepening to (.b140) *)
   let idx : (t140, _) idx_mut = (.b140) in
@@ -5425,111 +4789,197 @@ let () =
     (* from (.b140) *)
     let shallow : (t140, _) idx_mut = (.b140) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 517;
+    mark_test_run 440;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 517 failed %d" i;
-  );
-  (* Deepening to (.b140.#a139) *)
-  let idx : (t140, _) idx_mut = (.b140.#a139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b140) *)
-    let shallow : (t140, _) idx_mut = (.b140) in
-    let deepened = (.idx_mut(shallow).#a139) in
-    mark_test_run 518;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 518 failed %d" i;
-    (* from (.b140.#a139) *)
-    let shallow : (t140, _) idx_mut = (.b140.#a139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 519;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 519 failed %d" i;
-  );
-  (* Deepening to (.b140.#b139) *)
-  let idx : (t140, _) idx_mut = (.b140.#b139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b140) *)
-    let shallow : (t140, _) idx_mut = (.b140) in
-    let deepened = (.idx_mut(shallow).#b139) in
-    mark_test_run 520;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 520 failed %d" i;
-    (* from (.b140.#b139) *)
-    let shallow : (t140, _) idx_mut = (.b140.#b139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 521;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 521 failed %d" i;
+    if not test then failwithf "test 440 failed %d" i;
   );
 
-  (*********************************************)
-  (*   t142 = { float; #{ float#; float# } }   *)
-  (*********************************************)
+  (**************************************)
+  (*   t141 = { #{ int32# }; int32# }   *)
+  (**************************************)
+  (* Deepening to (.a141) *)
+  let idx : (t141, _) idx_mut = (.a141) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a141) *)
+    let shallow : (t141, _) idx_mut = (.a141) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 441;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 441 failed %d" i;
+  );
+  (* Deepening to (.a141.#a22) *)
+  let idx : (t141, _) idx_mut = (.a141.#a22) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a141) *)
+    let shallow : (t141, _) idx_mut = (.a141) in
+    let deepened = (.idx_mut(shallow).#a22) in
+    mark_test_run 442;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 442 failed %d" i;
+    (* from (.a141.#a22) *)
+    let shallow : (t141, _) idx_mut = (.a141.#a22) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 443;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 443 failed %d" i;
+  );
+  (* Deepening to (.b141) *)
+  let idx : (t141, _) idx_mut = (.b141) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b141) *)
+    let shallow : (t141, _) idx_mut = (.b141) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 444;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 444 failed %d" i;
+  );
+
+  (***********************************)
+  (*   t142 = { #{ int32#; int } }   *)
+  (***********************************)
   (* Deepening to (.a142) *)
   let idx : (t142, _) idx_mut = (.a142) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a142) *)
     let shallow : (t142, _) idx_mut = (.a142) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 522;
+    mark_test_run 445;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 522 failed %d" i;
+    if not test then failwithf "test 445 failed %d" i;
   );
-  (* Deepening to (.b142) *)
-  let idx : (t142, _) idx_mut = (.b142) in
+  (* Deepening to (.a142.#a24) *)
+  let idx : (t142, _) idx_mut = (.a142.#a24) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b142) *)
-    let shallow : (t142, _) idx_mut = (.b142) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 523;
+    (* from (.a142) *)
+    let shallow : (t142, _) idx_mut = (.a142) in
+    let deepened = (.idx_mut(shallow).#a24) in
+    mark_test_run 446;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 523 failed %d" i;
+    if not test then failwithf "test 446 failed %d" i;
+    (* from (.a142.#a24) *)
+    let shallow : (t142, _) idx_mut = (.a142.#a24) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 447;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 447 failed %d" i;
   );
-  (* Deepening to (.b142.#a141) *)
-  let idx : (t142, _) idx_mut = (.b142.#a141) in
+  (* Deepening to (.a142.#b24) *)
+  let idx : (t142, _) idx_mut = (.a142.#b24) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b142) *)
-    let shallow : (t142, _) idx_mut = (.b142) in
-    let deepened = (.idx_mut(shallow).#a141) in
-    mark_test_run 524;
+    (* from (.a142) *)
+    let shallow : (t142, _) idx_mut = (.a142) in
+    let deepened = (.idx_mut(shallow).#b24) in
+    mark_test_run 448;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 524 failed %d" i;
-    (* from (.b142.#a141) *)
-    let shallow : (t142, _) idx_mut = (.b142.#a141) in
+    if not test then failwithf "test 448 failed %d" i;
+    (* from (.a142.#b24) *)
+    let shallow : (t142, _) idx_mut = (.a142.#b24) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 525;
+    mark_test_run 449;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 525 failed %d" i;
-  );
-  (* Deepening to (.b142.#b141) *)
-  let idx : (t142, _) idx_mut = (.b142.#b141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b142) *)
-    let shallow : (t142, _) idx_mut = (.b142) in
-    let deepened = (.idx_mut(shallow).#b141) in
-    mark_test_run 526;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 526 failed %d" i;
-    (* from (.b142.#b141) *)
-    let shallow : (t142, _) idx_mut = (.b142.#b141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 527;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 527 failed %d" i;
+    if not test then failwithf "test 449 failed %d" i;
   );
 
-  (*************************************************)
-  (*   t144 = { float; #{ float#; #{ float } } }   *)
-  (*************************************************)
+  (****************************************)
+  (*   t143 = { #{ int32#; int }; int }   *)
+  (****************************************)
+  (* Deepening to (.a143) *)
+  let idx : (t143, _) idx_mut = (.a143) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a143) *)
+    let shallow : (t143, _) idx_mut = (.a143) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 450;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 450 failed %d" i;
+  );
+  (* Deepening to (.a143.#a24) *)
+  let idx : (t143, _) idx_mut = (.a143.#a24) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a143) *)
+    let shallow : (t143, _) idx_mut = (.a143) in
+    let deepened = (.idx_mut(shallow).#a24) in
+    mark_test_run 451;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 451 failed %d" i;
+    (* from (.a143.#a24) *)
+    let shallow : (t143, _) idx_mut = (.a143.#a24) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 452;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 452 failed %d" i;
+  );
+  (* Deepening to (.a143.#b24) *)
+  let idx : (t143, _) idx_mut = (.a143.#b24) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a143) *)
+    let shallow : (t143, _) idx_mut = (.a143) in
+    let deepened = (.idx_mut(shallow).#b24) in
+    mark_test_run 453;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 453 failed %d" i;
+    (* from (.a143.#b24) *)
+    let shallow : (t143, _) idx_mut = (.a143.#b24) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 454;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 454 failed %d" i;
+  );
+  (* Deepening to (.b143) *)
+  let idx : (t143, _) idx_mut = (.b143) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b143) *)
+    let shallow : (t143, _) idx_mut = (.b143) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 455;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 455 failed %d" i;
+  );
+
+  (*******************************************)
+  (*   t144 = { #{ int32#; int }; int32# }   *)
+  (*******************************************)
   (* Deepening to (.a144) *)
   let idx : (t144, _) idx_mut = (.a144) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a144) *)
     let shallow : (t144, _) idx_mut = (.a144) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 528;
+    mark_test_run 456;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 528 failed %d" i;
+    if not test then failwithf "test 456 failed %d" i;
+  );
+  (* Deepening to (.a144.#a24) *)
+  let idx : (t144, _) idx_mut = (.a144.#a24) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a144) *)
+    let shallow : (t144, _) idx_mut = (.a144) in
+    let deepened = (.idx_mut(shallow).#a24) in
+    mark_test_run 457;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 457 failed %d" i;
+    (* from (.a144.#a24) *)
+    let shallow : (t144, _) idx_mut = (.a144.#a24) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 458;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 458 failed %d" i;
+  );
+  (* Deepening to (.a144.#b24) *)
+  let idx : (t144, _) idx_mut = (.a144.#b24) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a144) *)
+    let shallow : (t144, _) idx_mut = (.a144) in
+    let deepened = (.idx_mut(shallow).#b24) in
+    mark_test_run 459;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 459 failed %d" i;
+    (* from (.a144.#b24) *)
+    let shallow : (t144, _) idx_mut = (.a144.#b24) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 460;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 460 failed %d" i;
   );
   (* Deepening to (.b144) *)
   let idx : (t144, _) idx_mut = (.b144) in
@@ -5537,77 +4987,101 @@ let () =
     (* from (.b144) *)
     let shallow : (t144, _) idx_mut = (.b144) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 529;
+    mark_test_run 461;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 529 failed %d" i;
-  );
-  (* Deepening to (.b144.#a143) *)
-  let idx : (t144, _) idx_mut = (.b144.#a143) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b144) *)
-    let shallow : (t144, _) idx_mut = (.b144) in
-    let deepened = (.idx_mut(shallow).#a143) in
-    mark_test_run 530;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 530 failed %d" i;
-    (* from (.b144.#a143) *)
-    let shallow : (t144, _) idx_mut = (.b144.#a143) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 531;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 531 failed %d" i;
-  );
-  (* Deepening to (.b144.#b143) *)
-  let idx : (t144, _) idx_mut = (.b144.#b143) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b144) *)
-    let shallow : (t144, _) idx_mut = (.b144) in
-    let deepened = (.idx_mut(shallow).#b143) in
-    mark_test_run 532;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 532 failed %d" i;
-    (* from (.b144.#b143) *)
-    let shallow : (t144, _) idx_mut = (.b144.#b143) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 533;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 533 failed %d" i;
-  );
-  (* Deepening to (.b144.#b143.#a27) *)
-  let idx : (t144, _) idx_mut = (.b144.#b143.#a27) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b144) *)
-    let shallow : (t144, _) idx_mut = (.b144) in
-    let deepened = (.idx_mut(shallow).#b143.#a27) in
-    mark_test_run 534;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 534 failed %d" i;
-    (* from (.b144.#b143) *)
-    let shallow : (t144, _) idx_mut = (.b144.#b143) in
-    let deepened = (.idx_mut(shallow).#a27) in
-    mark_test_run 535;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 535 failed %d" i;
-    (* from (.b144.#b143.#a27) *)
-    let shallow : (t144, _) idx_mut = (.b144.#b143.#a27) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 536;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 536 failed %d" i;
+    if not test then failwithf "test 461 failed %d" i;
   );
 
-  (**************************************************)
-  (*   t146 = { float; #{ float#; #{ float# } } }   *)
-  (**************************************************)
+  (**************************************)
+  (*   t145 = { #{ int32#; int32# } }   *)
+  (**************************************)
+  (* Deepening to (.a145) *)
+  let idx : (t145, _) idx_mut = (.a145) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a145) *)
+    let shallow : (t145, _) idx_mut = (.a145) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 462;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 462 failed %d" i;
+  );
+  (* Deepening to (.a145.#a26) *)
+  let idx : (t145, _) idx_mut = (.a145.#a26) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a145) *)
+    let shallow : (t145, _) idx_mut = (.a145) in
+    let deepened = (.idx_mut(shallow).#a26) in
+    mark_test_run 463;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 463 failed %d" i;
+    (* from (.a145.#a26) *)
+    let shallow : (t145, _) idx_mut = (.a145.#a26) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 464;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 464 failed %d" i;
+  );
+  (* Deepening to (.a145.#b26) *)
+  let idx : (t145, _) idx_mut = (.a145.#b26) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a145) *)
+    let shallow : (t145, _) idx_mut = (.a145) in
+    let deepened = (.idx_mut(shallow).#b26) in
+    mark_test_run 465;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 465 failed %d" i;
+    (* from (.a145.#b26) *)
+    let shallow : (t145, _) idx_mut = (.a145.#b26) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 466;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 466 failed %d" i;
+  );
+
+  (*******************************************)
+  (*   t146 = { #{ int32#; int32# }; int }   *)
+  (*******************************************)
   (* Deepening to (.a146) *)
   let idx : (t146, _) idx_mut = (.a146) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a146) *)
     let shallow : (t146, _) idx_mut = (.a146) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 537;
+    mark_test_run 467;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 537 failed %d" i;
+    if not test then failwithf "test 467 failed %d" i;
+  );
+  (* Deepening to (.a146.#a26) *)
+  let idx : (t146, _) idx_mut = (.a146.#a26) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a146) *)
+    let shallow : (t146, _) idx_mut = (.a146) in
+    let deepened = (.idx_mut(shallow).#a26) in
+    mark_test_run 468;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 468 failed %d" i;
+    (* from (.a146.#a26) *)
+    let shallow : (t146, _) idx_mut = (.a146.#a26) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 469;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 469 failed %d" i;
+  );
+  (* Deepening to (.a146.#b26) *)
+  let idx : (t146, _) idx_mut = (.a146.#b26) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a146) *)
+    let shallow : (t146, _) idx_mut = (.a146) in
+    let deepened = (.idx_mut(shallow).#b26) in
+    mark_test_run 470;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 470 failed %d" i;
+    (* from (.a146.#b26) *)
+    let shallow : (t146, _) idx_mut = (.a146.#b26) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 471;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 471 failed %d" i;
   );
   (* Deepening to (.b146) *)
   let idx : (t146, _) idx_mut = (.b146) in
@@ -5615,77 +5089,55 @@ let () =
     (* from (.b146) *)
     let shallow : (t146, _) idx_mut = (.b146) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 538;
+    mark_test_run 472;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 538 failed %d" i;
-  );
-  (* Deepening to (.b146.#a145) *)
-  let idx : (t146, _) idx_mut = (.b146.#a145) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b146) *)
-    let shallow : (t146, _) idx_mut = (.b146) in
-    let deepened = (.idx_mut(shallow).#a145) in
-    mark_test_run 539;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 539 failed %d" i;
-    (* from (.b146.#a145) *)
-    let shallow : (t146, _) idx_mut = (.b146.#a145) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 540;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 540 failed %d" i;
-  );
-  (* Deepening to (.b146.#b145) *)
-  let idx : (t146, _) idx_mut = (.b146.#b145) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b146) *)
-    let shallow : (t146, _) idx_mut = (.b146) in
-    let deepened = (.idx_mut(shallow).#b145) in
-    mark_test_run 541;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 541 failed %d" i;
-    (* from (.b146.#b145) *)
-    let shallow : (t146, _) idx_mut = (.b146.#b145) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 542;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 542 failed %d" i;
-  );
-  (* Deepening to (.b146.#b145.#a135) *)
-  let idx : (t146, _) idx_mut = (.b146.#b145.#a135) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b146) *)
-    let shallow : (t146, _) idx_mut = (.b146) in
-    let deepened = (.idx_mut(shallow).#b145.#a135) in
-    mark_test_run 543;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 543 failed %d" i;
-    (* from (.b146.#b145) *)
-    let shallow : (t146, _) idx_mut = (.b146.#b145) in
-    let deepened = (.idx_mut(shallow).#a135) in
-    mark_test_run 544;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 544 failed %d" i;
-    (* from (.b146.#b145.#a135) *)
-    let shallow : (t146, _) idx_mut = (.b146.#b145.#a135) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 545;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 545 failed %d" i;
+    if not test then failwithf "test 472 failed %d" i;
   );
 
-  (********************************************)
-  (*   t147 = { float; #{ #{ int; int } } }   *)
-  (********************************************)
+  (**********************************************)
+  (*   t147 = { #{ int32#; int32# }; int32# }   *)
+  (**********************************************)
   (* Deepening to (.a147) *)
   let idx : (t147, _) idx_mut = (.a147) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a147) *)
     let shallow : (t147, _) idx_mut = (.a147) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 546;
+    mark_test_run 473;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 546 failed %d" i;
+    if not test then failwithf "test 473 failed %d" i;
+  );
+  (* Deepening to (.a147.#a26) *)
+  let idx : (t147, _) idx_mut = (.a147.#a26) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a147) *)
+    let shallow : (t147, _) idx_mut = (.a147) in
+    let deepened = (.idx_mut(shallow).#a26) in
+    mark_test_run 474;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 474 failed %d" i;
+    (* from (.a147.#a26) *)
+    let shallow : (t147, _) idx_mut = (.a147.#a26) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 475;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 475 failed %d" i;
+  );
+  (* Deepening to (.a147.#b26) *)
+  let idx : (t147, _) idx_mut = (.a147.#b26) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a147) *)
+    let shallow : (t147, _) idx_mut = (.a147) in
+    let deepened = (.idx_mut(shallow).#b26) in
+    mark_test_run 476;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 476 failed %d" i;
+    (* from (.a147.#b26) *)
+    let shallow : (t147, _) idx_mut = (.a147.#b26) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 477;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 477 failed %d" i;
   );
   (* Deepening to (.b147) *)
   let idx : (t147, _) idx_mut = (.b147) in
@@ -5693,167 +5145,65 @@ let () =
     (* from (.b147) *)
     let shallow : (t147, _) idx_mut = (.b147) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 547;
+    mark_test_run 478;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 547 failed %d" i;
-  );
-  (* Deepening to (.b147.#a48) *)
-  let idx : (t147, _) idx_mut = (.b147.#a48) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b147) *)
-    let shallow : (t147, _) idx_mut = (.b147) in
-    let deepened = (.idx_mut(shallow).#a48) in
-    mark_test_run 548;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 548 failed %d" i;
-    (* from (.b147.#a48) *)
-    let shallow : (t147, _) idx_mut = (.b147.#a48) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 549;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 549 failed %d" i;
-  );
-  (* Deepening to (.b147.#a48.#a16) *)
-  let idx : (t147, _) idx_mut = (.b147.#a48.#a16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b147) *)
-    let shallow : (t147, _) idx_mut = (.b147) in
-    let deepened = (.idx_mut(shallow).#a48.#a16) in
-    mark_test_run 550;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 550 failed %d" i;
-    (* from (.b147.#a48) *)
-    let shallow : (t147, _) idx_mut = (.b147.#a48) in
-    let deepened = (.idx_mut(shallow).#a16) in
-    mark_test_run 551;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 551 failed %d" i;
-    (* from (.b147.#a48.#a16) *)
-    let shallow : (t147, _) idx_mut = (.b147.#a48.#a16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 552;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 552 failed %d" i;
-  );
-  (* Deepening to (.b147.#a48.#b16) *)
-  let idx : (t147, _) idx_mut = (.b147.#a48.#b16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b147) *)
-    let shallow : (t147, _) idx_mut = (.b147) in
-    let deepened = (.idx_mut(shallow).#a48.#b16) in
-    mark_test_run 553;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 553 failed %d" i;
-    (* from (.b147.#a48) *)
-    let shallow : (t147, _) idx_mut = (.b147.#a48) in
-    let deepened = (.idx_mut(shallow).#b16) in
-    mark_test_run 554;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 554 failed %d" i;
-    (* from (.b147.#a48.#b16) *)
-    let shallow : (t147, _) idx_mut = (.b147.#a48.#b16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 555;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 555 failed %d" i;
+    if not test then failwithf "test 478 failed %d" i;
   );
 
-  (**********************************************)
-  (*   t148 = { float; #{ #{ int; float } } }   *)
-  (**********************************************)
+  (*****************************)
+  (*   t148 = { #{ float } }   *)
+  (*****************************)
   (* Deepening to (.a148) *)
   let idx : (t148, _) idx_mut = (.a148) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a148) *)
     let shallow : (t148, _) idx_mut = (.a148) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 556;
+    mark_test_run 479;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 556 failed %d" i;
+    if not test then failwithf "test 479 failed %d" i;
   );
-  (* Deepening to (.b148) *)
-  let idx : (t148, _) idx_mut = (.b148) in
+  (* Deepening to (.a148.#a28) *)
+  let idx : (t148, _) idx_mut = (.a148.#a28) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b148) *)
-    let shallow : (t148, _) idx_mut = (.b148) in
+    (* Note: can't deepen (.a148) because it's a path to a flattened
+       float, making its element type [float#] *)
+    (* from (.a148.#a28) *)
+    let shallow : (t148, _) idx_mut = (.a148.#a28) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 557;
+    mark_test_run 480;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 557 failed %d" i;
-  );
-  (* Deepening to (.b148.#a52) *)
-  let idx : (t148, _) idx_mut = (.b148.#a52) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b148) *)
-    let shallow : (t148, _) idx_mut = (.b148) in
-    let deepened = (.idx_mut(shallow).#a52) in
-    mark_test_run 558;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 558 failed %d" i;
-    (* from (.b148.#a52) *)
-    let shallow : (t148, _) idx_mut = (.b148.#a52) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 559;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 559 failed %d" i;
-  );
-  (* Deepening to (.b148.#a52.#a20) *)
-  let idx : (t148, _) idx_mut = (.b148.#a52.#a20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b148) *)
-    let shallow : (t148, _) idx_mut = (.b148) in
-    let deepened = (.idx_mut(shallow).#a52.#a20) in
-    mark_test_run 560;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 560 failed %d" i;
-    (* from (.b148.#a52) *)
-    let shallow : (t148, _) idx_mut = (.b148.#a52) in
-    let deepened = (.idx_mut(shallow).#a20) in
-    mark_test_run 561;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 561 failed %d" i;
-    (* from (.b148.#a52.#a20) *)
-    let shallow : (t148, _) idx_mut = (.b148.#a52.#a20) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 562;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 562 failed %d" i;
-  );
-  (* Deepening to (.b148.#a52.#b20) *)
-  let idx : (t148, _) idx_mut = (.b148.#a52.#b20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b148) *)
-    let shallow : (t148, _) idx_mut = (.b148) in
-    let deepened = (.idx_mut(shallow).#a52.#b20) in
-    mark_test_run 563;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 563 failed %d" i;
-    (* from (.b148.#a52) *)
-    let shallow : (t148, _) idx_mut = (.b148.#a52) in
-    let deepened = (.idx_mut(shallow).#b20) in
-    mark_test_run 564;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 564 failed %d" i;
-    (* from (.b148.#a52.#b20) *)
-    let shallow : (t148, _) idx_mut = (.b148.#a52.#b20) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 565;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 565 failed %d" i;
+    if not test then failwithf "test 480 failed %d" i;
   );
 
-  (**********************************************)
-  (*   t149 = { float; #{ #{ float; int } } }   *)
-  (**********************************************)
+  (**********************************)
+  (*   t149 = { #{ float }; int }   *)
+  (**********************************)
   (* Deepening to (.a149) *)
   let idx : (t149, _) idx_mut = (.a149) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a149) *)
     let shallow : (t149, _) idx_mut = (.a149) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 566;
+    mark_test_run 481;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 566 failed %d" i;
+    if not test then failwithf "test 481 failed %d" i;
+  );
+  (* Deepening to (.a149.#a28) *)
+  let idx : (t149, _) idx_mut = (.a149.#a28) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a149) *)
+    let shallow : (t149, _) idx_mut = (.a149) in
+    let deepened = (.idx_mut(shallow).#a28) in
+    mark_test_run 482;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 482 failed %d" i;
+    (* from (.a149.#a28) *)
+    let shallow : (t149, _) idx_mut = (.a149.#a28) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 483;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 483 failed %d" i;
   );
   (* Deepening to (.b149) *)
   let idx : (t149, _) idx_mut = (.b149) in
@@ -5861,83 +5211,35 @@ let () =
     (* from (.b149) *)
     let shallow : (t149, _) idx_mut = (.b149) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 567;
+    mark_test_run 484;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 567 failed %d" i;
-  );
-  (* Deepening to (.b149.#a58) *)
-  let idx : (t149, _) idx_mut = (.b149.#a58) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b149) *)
-    let shallow : (t149, _) idx_mut = (.b149) in
-    let deepened = (.idx_mut(shallow).#a58) in
-    mark_test_run 568;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 568 failed %d" i;
-    (* from (.b149.#a58) *)
-    let shallow : (t149, _) idx_mut = (.b149.#a58) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 569;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 569 failed %d" i;
-  );
-  (* Deepening to (.b149.#a58.#a40) *)
-  let idx : (t149, _) idx_mut = (.b149.#a58.#a40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b149) *)
-    let shallow : (t149, _) idx_mut = (.b149) in
-    let deepened = (.idx_mut(shallow).#a58.#a40) in
-    mark_test_run 570;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 570 failed %d" i;
-    (* from (.b149.#a58) *)
-    let shallow : (t149, _) idx_mut = (.b149.#a58) in
-    let deepened = (.idx_mut(shallow).#a40) in
-    mark_test_run 571;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 571 failed %d" i;
-    (* from (.b149.#a58.#a40) *)
-    let shallow : (t149, _) idx_mut = (.b149.#a58.#a40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 572;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 572 failed %d" i;
-  );
-  (* Deepening to (.b149.#a58.#b40) *)
-  let idx : (t149, _) idx_mut = (.b149.#a58.#b40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b149) *)
-    let shallow : (t149, _) idx_mut = (.b149) in
-    let deepened = (.idx_mut(shallow).#a58.#b40) in
-    mark_test_run 573;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 573 failed %d" i;
-    (* from (.b149.#a58) *)
-    let shallow : (t149, _) idx_mut = (.b149.#a58) in
-    let deepened = (.idx_mut(shallow).#b40) in
-    mark_test_run 574;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 574 failed %d" i;
-    (* from (.b149.#a58.#b40) *)
-    let shallow : (t149, _) idx_mut = (.b149.#a58.#b40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 575;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 575 failed %d" i;
+    if not test then failwithf "test 484 failed %d" i;
   );
 
-  (************************************************)
-  (*   t150 = { float; #{ #{ float; float } } }   *)
-  (************************************************)
+  (************************************)
+  (*   t150 = { #{ float }; float }   *)
+  (************************************)
   (* Deepening to (.a150) *)
   let idx : (t150, _) idx_mut = (.a150) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a150) *)
     let shallow : (t150, _) idx_mut = (.a150) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 576;
+    mark_test_run 485;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 576 failed %d" i;
+    if not test then failwithf "test 485 failed %d" i;
+  );
+  (* Deepening to (.a150.#a28) *)
+  let idx : (t150, _) idx_mut = (.a150.#a28) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* Note: can't deepen (.a150) because it's a path to a flattened
+       float, making its element type [float#] *)
+    (* from (.a150.#a28) *)
+    let shallow : (t150, _) idx_mut = (.a150.#a28) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 486;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 486 failed %d" i;
   );
   (* Deepening to (.b150) *)
   let idx : (t150, _) idx_mut = (.b150) in
@@ -5945,167 +5247,193 @@ let () =
     (* from (.b150) *)
     let shallow : (t150, _) idx_mut = (.b150) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 577;
+    mark_test_run 487;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 577 failed %d" i;
-  );
-  (* Deepening to (.b150.#a60) *)
-  let idx : (t150, _) idx_mut = (.b150.#a60) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b150) *)
-    let shallow : (t150, _) idx_mut = (.b150) in
-    let deepened = (.idx_mut(shallow).#a60) in
-    mark_test_run 578;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 578 failed %d" i;
-    (* from (.b150.#a60) *)
-    let shallow : (t150, _) idx_mut = (.b150.#a60) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 579;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 579 failed %d" i;
-  );
-  (* Deepening to (.b150.#a60.#a42) *)
-  let idx : (t150, _) idx_mut = (.b150.#a60.#a42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b150) *)
-    let shallow : (t150, _) idx_mut = (.b150) in
-    let deepened = (.idx_mut(shallow).#a60.#a42) in
-    mark_test_run 580;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 580 failed %d" i;
-    (* from (.b150.#a60) *)
-    let shallow : (t150, _) idx_mut = (.b150.#a60) in
-    let deepened = (.idx_mut(shallow).#a42) in
-    mark_test_run 581;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 581 failed %d" i;
-    (* from (.b150.#a60.#a42) *)
-    let shallow : (t150, _) idx_mut = (.b150.#a60.#a42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 582;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 582 failed %d" i;
-  );
-  (* Deepening to (.b150.#a60.#b42) *)
-  let idx : (t150, _) idx_mut = (.b150.#a60.#b42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b150) *)
-    let shallow : (t150, _) idx_mut = (.b150) in
-    let deepened = (.idx_mut(shallow).#a60.#b42) in
-    mark_test_run 583;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 583 failed %d" i;
-    (* from (.b150.#a60) *)
-    let shallow : (t150, _) idx_mut = (.b150.#a60) in
-    let deepened = (.idx_mut(shallow).#b42) in
-    mark_test_run 584;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 584 failed %d" i;
-    (* from (.b150.#a60.#b42) *)
-    let shallow : (t150, _) idx_mut = (.b150.#a60.#b42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 585;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 585 failed %d" i;
+    if not test then failwithf "test 487 failed %d" i;
   );
 
-  (*************************************************)
-  (*   t152 = { float; #{ #{ float; float# } } }   *)
-  (*************************************************)
+  (*************************************)
+  (*   t151 = { #{ float }; float# }   *)
+  (*************************************)
+  (* Deepening to (.a151) *)
+  let idx : (t151, _) idx_mut = (.a151) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a151) *)
+    let shallow : (t151, _) idx_mut = (.a151) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 488;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 488 failed %d" i;
+  );
+  (* Deepening to (.a151.#a28) *)
+  let idx : (t151, _) idx_mut = (.a151.#a28) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* Note: can't deepen (.a151) because it's a path to a flattened
+       float, making its element type [float#] *)
+    (* from (.a151.#a28) *)
+    let shallow : (t151, _) idx_mut = (.a151.#a28) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 489;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 489 failed %d" i;
+  );
+  (* Deepening to (.b151) *)
+  let idx : (t151, _) idx_mut = (.b151) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b151) *)
+    let shallow : (t151, _) idx_mut = (.b151) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 490;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 490 failed %d" i;
+  );
+
+  (**********************************)
+  (*   t152 = { #{ float; int } }   *)
+  (**********************************)
   (* Deepening to (.a152) *)
   let idx : (t152, _) idx_mut = (.a152) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a152) *)
     let shallow : (t152, _) idx_mut = (.a152) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 586;
+    mark_test_run 491;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 586 failed %d" i;
+    if not test then failwithf "test 491 failed %d" i;
   );
-  (* Deepening to (.b152) *)
-  let idx : (t152, _) idx_mut = (.b152) in
+  (* Deepening to (.a152.#a30) *)
+  let idx : (t152, _) idx_mut = (.a152.#a30) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b152) *)
-    let shallow : (t152, _) idx_mut = (.b152) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 587;
+    (* from (.a152) *)
+    let shallow : (t152, _) idx_mut = (.a152) in
+    let deepened = (.idx_mut(shallow).#a30) in
+    mark_test_run 492;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 587 failed %d" i;
+    if not test then failwithf "test 492 failed %d" i;
+    (* from (.a152.#a30) *)
+    let shallow : (t152, _) idx_mut = (.a152.#a30) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 493;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 493 failed %d" i;
   );
-  (* Deepening to (.b152.#a151) *)
-  let idx : (t152, _) idx_mut = (.b152.#a151) in
+  (* Deepening to (.a152.#b30) *)
+  let idx : (t152, _) idx_mut = (.a152.#b30) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b152) *)
-    let shallow : (t152, _) idx_mut = (.b152) in
-    let deepened = (.idx_mut(shallow).#a151) in
-    mark_test_run 588;
+    (* from (.a152) *)
+    let shallow : (t152, _) idx_mut = (.a152) in
+    let deepened = (.idx_mut(shallow).#b30) in
+    mark_test_run 494;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 588 failed %d" i;
-    (* from (.b152.#a151) *)
-    let shallow : (t152, _) idx_mut = (.b152.#a151) in
+    if not test then failwithf "test 494 failed %d" i;
+    (* from (.a152.#b30) *)
+    let shallow : (t152, _) idx_mut = (.a152.#b30) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 589;
+    mark_test_run 495;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 589 failed %d" i;
-  );
-  (* Deepening to (.b152.#a151.#a131) *)
-  let idx : (t152, _) idx_mut = (.b152.#a151.#a131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b152) *)
-    let shallow : (t152, _) idx_mut = (.b152) in
-    let deepened = (.idx_mut(shallow).#a151.#a131) in
-    mark_test_run 590;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 590 failed %d" i;
-    (* from (.b152.#a151) *)
-    let shallow : (t152, _) idx_mut = (.b152.#a151) in
-    let deepened = (.idx_mut(shallow).#a131) in
-    mark_test_run 591;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 591 failed %d" i;
-    (* from (.b152.#a151.#a131) *)
-    let shallow : (t152, _) idx_mut = (.b152.#a151.#a131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 592;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 592 failed %d" i;
-  );
-  (* Deepening to (.b152.#a151.#b131) *)
-  let idx : (t152, _) idx_mut = (.b152.#a151.#b131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b152) *)
-    let shallow : (t152, _) idx_mut = (.b152) in
-    let deepened = (.idx_mut(shallow).#a151.#b131) in
-    mark_test_run 593;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 593 failed %d" i;
-    (* from (.b152.#a151) *)
-    let shallow : (t152, _) idx_mut = (.b152.#a151) in
-    let deepened = (.idx_mut(shallow).#b131) in
-    mark_test_run 594;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 594 failed %d" i;
-    (* from (.b152.#a151.#b131) *)
-    let shallow : (t152, _) idx_mut = (.b152.#a151.#b131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 595;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 595 failed %d" i;
+    if not test then failwithf "test 495 failed %d" i;
   );
 
-  (*************************************************)
-  (*   t154 = { float; #{ #{ float#; float } } }   *)
-  (*************************************************)
+  (***************************************)
+  (*   t153 = { #{ float; int }; int }   *)
+  (***************************************)
+  (* Deepening to (.a153) *)
+  let idx : (t153, _) idx_mut = (.a153) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a153) *)
+    let shallow : (t153, _) idx_mut = (.a153) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 496;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 496 failed %d" i;
+  );
+  (* Deepening to (.a153.#a30) *)
+  let idx : (t153, _) idx_mut = (.a153.#a30) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a153) *)
+    let shallow : (t153, _) idx_mut = (.a153) in
+    let deepened = (.idx_mut(shallow).#a30) in
+    mark_test_run 497;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 497 failed %d" i;
+    (* from (.a153.#a30) *)
+    let shallow : (t153, _) idx_mut = (.a153.#a30) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 498;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 498 failed %d" i;
+  );
+  (* Deepening to (.a153.#b30) *)
+  let idx : (t153, _) idx_mut = (.a153.#b30) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a153) *)
+    let shallow : (t153, _) idx_mut = (.a153) in
+    let deepened = (.idx_mut(shallow).#b30) in
+    mark_test_run 499;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 499 failed %d" i;
+    (* from (.a153.#b30) *)
+    let shallow : (t153, _) idx_mut = (.a153.#b30) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 500;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 500 failed %d" i;
+  );
+  (* Deepening to (.b153) *)
+  let idx : (t153, _) idx_mut = (.b153) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b153) *)
+    let shallow : (t153, _) idx_mut = (.b153) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 501;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 501 failed %d" i;
+  );
+
+  (*****************************************)
+  (*   t154 = { #{ float; int }; float }   *)
+  (*****************************************)
   (* Deepening to (.a154) *)
   let idx : (t154, _) idx_mut = (.a154) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a154) *)
     let shallow : (t154, _) idx_mut = (.a154) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 596;
+    mark_test_run 502;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 596 failed %d" i;
+    if not test then failwithf "test 502 failed %d" i;
+  );
+  (* Deepening to (.a154.#a30) *)
+  let idx : (t154, _) idx_mut = (.a154.#a30) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a154) *)
+    let shallow : (t154, _) idx_mut = (.a154) in
+    let deepened = (.idx_mut(shallow).#a30) in
+    mark_test_run 503;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 503 failed %d" i;
+    (* from (.a154.#a30) *)
+    let shallow : (t154, _) idx_mut = (.a154.#a30) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 504;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 504 failed %d" i;
+  );
+  (* Deepening to (.a154.#b30) *)
+  let idx : (t154, _) idx_mut = (.a154.#b30) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a154) *)
+    let shallow : (t154, _) idx_mut = (.a154) in
+    let deepened = (.idx_mut(shallow).#b30) in
+    mark_test_run 505;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 505 failed %d" i;
+    (* from (.a154.#b30) *)
+    let shallow : (t154, _) idx_mut = (.a154.#b30) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 506;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 506 failed %d" i;
   );
   (* Deepening to (.b154) *)
   let idx : (t154, _) idx_mut = (.b154) in
@@ -6113,83 +5441,101 @@ let () =
     (* from (.b154) *)
     let shallow : (t154, _) idx_mut = (.b154) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 597;
+    mark_test_run 507;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 597 failed %d" i;
-  );
-  (* Deepening to (.b154.#a153) *)
-  let idx : (t154, _) idx_mut = (.b154.#a153) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b154) *)
-    let shallow : (t154, _) idx_mut = (.b154) in
-    let deepened = (.idx_mut(shallow).#a153) in
-    mark_test_run 598;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 598 failed %d" i;
-    (* from (.b154.#a153) *)
-    let shallow : (t154, _) idx_mut = (.b154.#a153) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 599;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 599 failed %d" i;
-  );
-  (* Deepening to (.b154.#a153.#a139) *)
-  let idx : (t154, _) idx_mut = (.b154.#a153.#a139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b154) *)
-    let shallow : (t154, _) idx_mut = (.b154) in
-    let deepened = (.idx_mut(shallow).#a153.#a139) in
-    mark_test_run 600;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 600 failed %d" i;
-    (* from (.b154.#a153) *)
-    let shallow : (t154, _) idx_mut = (.b154.#a153) in
-    let deepened = (.idx_mut(shallow).#a139) in
-    mark_test_run 601;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 601 failed %d" i;
-    (* from (.b154.#a153.#a139) *)
-    let shallow : (t154, _) idx_mut = (.b154.#a153.#a139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 602;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 602 failed %d" i;
-  );
-  (* Deepening to (.b154.#a153.#b139) *)
-  let idx : (t154, _) idx_mut = (.b154.#a153.#b139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b154) *)
-    let shallow : (t154, _) idx_mut = (.b154) in
-    let deepened = (.idx_mut(shallow).#a153.#b139) in
-    mark_test_run 603;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 603 failed %d" i;
-    (* from (.b154.#a153) *)
-    let shallow : (t154, _) idx_mut = (.b154.#a153) in
-    let deepened = (.idx_mut(shallow).#b139) in
-    mark_test_run 604;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 604 failed %d" i;
-    (* from (.b154.#a153.#b139) *)
-    let shallow : (t154, _) idx_mut = (.b154.#a153.#b139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 605;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 605 failed %d" i;
+    if not test then failwithf "test 507 failed %d" i;
   );
 
-  (**************************************************)
-  (*   t156 = { float; #{ #{ float#; float# } } }   *)
-  (**************************************************)
+  (************************************)
+  (*   t155 = { #{ float; float } }   *)
+  (************************************)
+  (* Deepening to (.a155) *)
+  let idx : (t155, _) idx_mut = (.a155) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a155) *)
+    let shallow : (t155, _) idx_mut = (.a155) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 508;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 508 failed %d" i;
+  );
+  (* Deepening to (.a155.#a32) *)
+  let idx : (t155, _) idx_mut = (.a155.#a32) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a155) *)
+    let shallow : (t155, _) idx_mut = (.a155) in
+    let deepened = (.idx_mut(shallow).#a32) in
+    mark_test_run 509;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 509 failed %d" i;
+    (* from (.a155.#a32) *)
+    let shallow : (t155, _) idx_mut = (.a155.#a32) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 510;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 510 failed %d" i;
+  );
+  (* Deepening to (.a155.#b32) *)
+  let idx : (t155, _) idx_mut = (.a155.#b32) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a155) *)
+    let shallow : (t155, _) idx_mut = (.a155) in
+    let deepened = (.idx_mut(shallow).#b32) in
+    mark_test_run 511;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 511 failed %d" i;
+    (* from (.a155.#b32) *)
+    let shallow : (t155, _) idx_mut = (.a155.#b32) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 512;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 512 failed %d" i;
+  );
+
+  (*****************************************)
+  (*   t156 = { #{ float; float }; int }   *)
+  (*****************************************)
   (* Deepening to (.a156) *)
   let idx : (t156, _) idx_mut = (.a156) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a156) *)
     let shallow : (t156, _) idx_mut = (.a156) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 606;
+    mark_test_run 513;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 606 failed %d" i;
+    if not test then failwithf "test 513 failed %d" i;
+  );
+  (* Deepening to (.a156.#a32) *)
+  let idx : (t156, _) idx_mut = (.a156.#a32) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a156) *)
+    let shallow : (t156, _) idx_mut = (.a156) in
+    let deepened = (.idx_mut(shallow).#a32) in
+    mark_test_run 514;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 514 failed %d" i;
+    (* from (.a156.#a32) *)
+    let shallow : (t156, _) idx_mut = (.a156.#a32) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 515;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 515 failed %d" i;
+  );
+  (* Deepening to (.a156.#b32) *)
+  let idx : (t156, _) idx_mut = (.a156.#b32) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a156) *)
+    let shallow : (t156, _) idx_mut = (.a156) in
+    let deepened = (.idx_mut(shallow).#b32) in
+    mark_test_run 516;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 516 failed %d" i;
+    (* from (.a156.#b32) *)
+    let shallow : (t156, _) idx_mut = (.a156.#b32) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 517;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 517 failed %d" i;
   );
   (* Deepening to (.b156) *)
   let idx : (t156, _) idx_mut = (.b156) in
@@ -6197,97 +5543,111 @@ let () =
     (* from (.b156) *)
     let shallow : (t156, _) idx_mut = (.b156) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 607;
+    mark_test_run 518;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 607 failed %d" i;
-  );
-  (* Deepening to (.b156.#a155) *)
-  let idx : (t156, _) idx_mut = (.b156.#a155) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b156) *)
-    let shallow : (t156, _) idx_mut = (.b156) in
-    let deepened = (.idx_mut(shallow).#a155) in
-    mark_test_run 608;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 608 failed %d" i;
-    (* from (.b156.#a155) *)
-    let shallow : (t156, _) idx_mut = (.b156.#a155) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 609;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 609 failed %d" i;
-  );
-  (* Deepening to (.b156.#a155.#a141) *)
-  let idx : (t156, _) idx_mut = (.b156.#a155.#a141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b156) *)
-    let shallow : (t156, _) idx_mut = (.b156) in
-    let deepened = (.idx_mut(shallow).#a155.#a141) in
-    mark_test_run 610;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 610 failed %d" i;
-    (* from (.b156.#a155) *)
-    let shallow : (t156, _) idx_mut = (.b156.#a155) in
-    let deepened = (.idx_mut(shallow).#a141) in
-    mark_test_run 611;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 611 failed %d" i;
-    (* from (.b156.#a155.#a141) *)
-    let shallow : (t156, _) idx_mut = (.b156.#a155.#a141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 612;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 612 failed %d" i;
-  );
-  (* Deepening to (.b156.#a155.#b141) *)
-  let idx : (t156, _) idx_mut = (.b156.#a155.#b141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b156) *)
-    let shallow : (t156, _) idx_mut = (.b156) in
-    let deepened = (.idx_mut(shallow).#a155.#b141) in
-    mark_test_run 613;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 613 failed %d" i;
-    (* from (.b156.#a155) *)
-    let shallow : (t156, _) idx_mut = (.b156.#a155) in
-    let deepened = (.idx_mut(shallow).#b141) in
-    mark_test_run 614;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 614 failed %d" i;
-    (* from (.b156.#a155.#b141) *)
-    let shallow : (t156, _) idx_mut = (.b156.#a155.#b141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 615;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 615 failed %d" i;
+    if not test then failwithf "test 518 failed %d" i;
   );
 
-  (*************************)
-  (*   t157 = { float# }   *)
-  (*************************)
+  (*******************************************)
+  (*   t157 = { #{ float; float }; float }   *)
+  (*******************************************)
   (* Deepening to (.a157) *)
   let idx : (t157, _) idx_mut = (.a157) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a157) *)
     let shallow : (t157, _) idx_mut = (.a157) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 616;
+    mark_test_run 519;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 616 failed %d" i;
+    if not test then failwithf "test 519 failed %d" i;
+  );
+  (* Deepening to (.a157.#a32) *)
+  let idx : (t157, _) idx_mut = (.a157.#a32) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a157) *)
+    let shallow : (t157, _) idx_mut = (.a157) in
+    let deepened = (.idx_mut(shallow).#a32) in
+    mark_test_run 520;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 520 failed %d" i;
+    (* from (.a157.#a32) *)
+    let shallow : (t157, _) idx_mut = (.a157.#a32) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 521;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 521 failed %d" i;
+  );
+  (* Deepening to (.a157.#b32) *)
+  let idx : (t157, _) idx_mut = (.a157.#b32) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a157) *)
+    let shallow : (t157, _) idx_mut = (.a157) in
+    let deepened = (.idx_mut(shallow).#b32) in
+    mark_test_run 522;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 522 failed %d" i;
+    (* from (.a157.#b32) *)
+    let shallow : (t157, _) idx_mut = (.a157.#b32) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 523;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 523 failed %d" i;
+  );
+  (* Deepening to (.b157) *)
+  let idx : (t157, _) idx_mut = (.b157) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.b157) *)
+    let shallow : (t157, _) idx_mut = (.b157) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 524;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 524 failed %d" i;
   );
 
-  (********************************)
-  (*   t158 = { float#; float }   *)
-  (********************************)
+  (********************************************)
+  (*   t158 = { #{ float; float }; float# }   *)
+  (********************************************)
   (* Deepening to (.a158) *)
   let idx : (t158, _) idx_mut = (.a158) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a158) *)
     let shallow : (t158, _) idx_mut = (.a158) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 617;
+    mark_test_run 525;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 617 failed %d" i;
+    if not test then failwithf "test 525 failed %d" i;
+  );
+  (* Deepening to (.a158.#a32) *)
+  let idx : (t158, _) idx_mut = (.a158.#a32) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a158) *)
+    let shallow : (t158, _) idx_mut = (.a158) in
+    let deepened = (.idx_mut(shallow).#a32) in
+    mark_test_run 526;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 526 failed %d" i;
+    (* from (.a158.#a32) *)
+    let shallow : (t158, _) idx_mut = (.a158.#a32) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 527;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 527 failed %d" i;
+  );
+  (* Deepening to (.a158.#b32) *)
+  let idx : (t158, _) idx_mut = (.a158.#b32) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a158) *)
+    let shallow : (t158, _) idx_mut = (.a158) in
+    let deepened = (.idx_mut(shallow).#b32) in
+    mark_test_run 528;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 528 failed %d" i;
+    (* from (.a158.#b32) *)
+    let shallow : (t158, _) idx_mut = (.a158.#b32) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 529;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 529 failed %d" i;
   );
   (* Deepening to (.b158) *)
   let idx : (t158, _) idx_mut = (.b158) in
@@ -6295,57 +5655,101 @@ let () =
     (* from (.b158) *)
     let shallow : (t158, _) idx_mut = (.b158) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 618;
+    mark_test_run 530;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 618 failed %d" i;
+    if not test then failwithf "test 530 failed %d" i;
   );
 
-  (***************************************)
-  (*   t159 = { float#; float; float }   *)
-  (***************************************)
+  (*************************************)
+  (*   t159 = { #{ float; float# } }   *)
+  (*************************************)
   (* Deepening to (.a159) *)
   let idx : (t159, _) idx_mut = (.a159) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a159) *)
     let shallow : (t159, _) idx_mut = (.a159) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 619;
+    mark_test_run 531;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 619 failed %d" i;
+    if not test then failwithf "test 531 failed %d" i;
   );
-  (* Deepening to (.b159) *)
-  let idx : (t159, _) idx_mut = (.b159) in
+  (* Deepening to (.a159.#a93) *)
+  let idx : (t159, _) idx_mut = (.a159.#a93) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b159) *)
-    let shallow : (t159, _) idx_mut = (.b159) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 620;
+    (* from (.a159) *)
+    let shallow : (t159, _) idx_mut = (.a159) in
+    let deepened = (.idx_mut(shallow).#a93) in
+    mark_test_run 532;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 620 failed %d" i;
+    if not test then failwithf "test 532 failed %d" i;
+    (* from (.a159.#a93) *)
+    let shallow : (t159, _) idx_mut = (.a159.#a93) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 533;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 533 failed %d" i;
   );
-  (* Deepening to (.c159) *)
-  let idx : (t159, _) idx_mut = (.c159) in
+  (* Deepening to (.a159.#b93) *)
+  let idx : (t159, _) idx_mut = (.a159.#b93) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.c159) *)
-    let shallow : (t159, _) idx_mut = (.c159) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 621;
+    (* from (.a159) *)
+    let shallow : (t159, _) idx_mut = (.a159) in
+    let deepened = (.idx_mut(shallow).#b93) in
+    mark_test_run 534;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 621 failed %d" i;
+    if not test then failwithf "test 534 failed %d" i;
+    (* from (.a159.#b93) *)
+    let shallow : (t159, _) idx_mut = (.a159.#b93) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 535;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 535 failed %d" i;
   );
 
-  (****************************************)
-  (*   t160 = { float#; float; float# }   *)
-  (****************************************)
+  (********************************************)
+  (*   t160 = { #{ float; float# }; float }   *)
+  (********************************************)
   (* Deepening to (.a160) *)
   let idx : (t160, _) idx_mut = (.a160) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a160) *)
     let shallow : (t160, _) idx_mut = (.a160) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 622;
+    mark_test_run 536;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 622 failed %d" i;
+    if not test then failwithf "test 536 failed %d" i;
+  );
+  (* Deepening to (.a160.#a93) *)
+  let idx : (t160, _) idx_mut = (.a160.#a93) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a160) *)
+    let shallow : (t160, _) idx_mut = (.a160) in
+    let deepened = (.idx_mut(shallow).#a93) in
+    mark_test_run 537;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 537 failed %d" i;
+    (* from (.a160.#a93) *)
+    let shallow : (t160, _) idx_mut = (.a160.#a93) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 538;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 538 failed %d" i;
+  );
+  (* Deepening to (.a160.#b93) *)
+  let idx : (t160, _) idx_mut = (.a160.#b93) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a160) *)
+    let shallow : (t160, _) idx_mut = (.a160) in
+    let deepened = (.idx_mut(shallow).#b93) in
+    mark_test_run 539;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 539 failed %d" i;
+    (* from (.a160.#b93) *)
+    let shallow : (t160, _) idx_mut = (.a160.#b93) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 540;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 540 failed %d" i;
   );
   (* Deepening to (.b160) *)
   let idx : (t160, _) idx_mut = (.b160) in
@@ -6353,33 +5757,55 @@ let () =
     (* from (.b160) *)
     let shallow : (t160, _) idx_mut = (.b160) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 623;
+    mark_test_run 541;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 623 failed %d" i;
-  );
-  (* Deepening to (.c160) *)
-  let idx : (t160, _) idx_mut = (.c160) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.c160) *)
-    let shallow : (t160, _) idx_mut = (.c160) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 624;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 624 failed %d" i;
+    if not test then failwithf "test 541 failed %d" i;
   );
 
-  (*********************************)
-  (*   t161 = { float#; float# }   *)
-  (*********************************)
+  (*********************************************)
+  (*   t161 = { #{ float; float# }; float# }   *)
+  (*********************************************)
   (* Deepening to (.a161) *)
   let idx : (t161, _) idx_mut = (.a161) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a161) *)
     let shallow : (t161, _) idx_mut = (.a161) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 625;
+    mark_test_run 542;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 625 failed %d" i;
+    if not test then failwithf "test 542 failed %d" i;
+  );
+  (* Deepening to (.a161.#a93) *)
+  let idx : (t161, _) idx_mut = (.a161.#a93) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a161) *)
+    let shallow : (t161, _) idx_mut = (.a161) in
+    let deepened = (.idx_mut(shallow).#a93) in
+    mark_test_run 543;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 543 failed %d" i;
+    (* from (.a161.#a93) *)
+    let shallow : (t161, _) idx_mut = (.a161.#a93) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 544;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 544 failed %d" i;
+  );
+  (* Deepening to (.a161.#b93) *)
+  let idx : (t161, _) idx_mut = (.a161.#b93) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a161) *)
+    let shallow : (t161, _) idx_mut = (.a161) in
+    let deepened = (.idx_mut(shallow).#b93) in
+    mark_test_run 545;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 545 failed %d" i;
+    (* from (.a161.#b93) *)
+    let shallow : (t161, _) idx_mut = (.a161.#b93) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 546;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 546 failed %d" i;
   );
   (* Deepening to (.b161) *)
   let idx : (t161, _) idx_mut = (.b161) in
@@ -6387,57 +5813,69 @@ let () =
     (* from (.b161) *)
     let shallow : (t161, _) idx_mut = (.b161) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 626;
+    mark_test_run 547;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 626 failed %d" i;
+    if not test then failwithf "test 547 failed %d" i;
   );
 
-  (****************************************)
-  (*   t162 = { float#; float#; float }   *)
-  (****************************************)
+  (******************************)
+  (*   t162 = { #{ float# } }   *)
+  (******************************)
   (* Deepening to (.a162) *)
   let idx : (t162, _) idx_mut = (.a162) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a162) *)
     let shallow : (t162, _) idx_mut = (.a162) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 627;
+    mark_test_run 548;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 627 failed %d" i;
+    if not test then failwithf "test 548 failed %d" i;
   );
-  (* Deepening to (.b162) *)
-  let idx : (t162, _) idx_mut = (.b162) in
+  (* Deepening to (.a162.#a95) *)
+  let idx : (t162, _) idx_mut = (.a162.#a95) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b162) *)
-    let shallow : (t162, _) idx_mut = (.b162) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 628;
+    (* from (.a162) *)
+    let shallow : (t162, _) idx_mut = (.a162) in
+    let deepened = (.idx_mut(shallow).#a95) in
+    mark_test_run 549;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 628 failed %d" i;
-  );
-  (* Deepening to (.c162) *)
-  let idx : (t162, _) idx_mut = (.c162) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.c162) *)
-    let shallow : (t162, _) idx_mut = (.c162) in
+    if not test then failwithf "test 549 failed %d" i;
+    (* from (.a162.#a95) *)
+    let shallow : (t162, _) idx_mut = (.a162.#a95) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 629;
+    mark_test_run 550;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 629 failed %d" i;
+    if not test then failwithf "test 550 failed %d" i;
   );
 
-  (*****************************************)
-  (*   t163 = { float#; float#; float# }   *)
-  (*****************************************)
+  (*************************************)
+  (*   t163 = { #{ float# }; float }   *)
+  (*************************************)
   (* Deepening to (.a163) *)
   let idx : (t163, _) idx_mut = (.a163) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a163) *)
     let shallow : (t163, _) idx_mut = (.a163) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 630;
+    mark_test_run 551;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 630 failed %d" i;
+    if not test then failwithf "test 551 failed %d" i;
+  );
+  (* Deepening to (.a163.#a95) *)
+  let idx : (t163, _) idx_mut = (.a163.#a95) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a163) *)
+    let shallow : (t163, _) idx_mut = (.a163) in
+    let deepened = (.idx_mut(shallow).#a95) in
+    mark_test_run 552;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 552 failed %d" i;
+    (* from (.a163.#a95) *)
+    let shallow : (t163, _) idx_mut = (.a163.#a95) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 553;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 553 failed %d" i;
   );
   (* Deepening to (.b163) *)
   let idx : (t163, _) idx_mut = (.b163) in
@@ -6445,33 +5883,39 @@ let () =
     (* from (.b163) *)
     let shallow : (t163, _) idx_mut = (.b163) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 631;
+    mark_test_run 554;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 631 failed %d" i;
-  );
-  (* Deepening to (.c163) *)
-  let idx : (t163, _) idx_mut = (.c163) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.c163) *)
-    let shallow : (t163, _) idx_mut = (.c163) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 632;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 632 failed %d" i;
+    if not test then failwithf "test 554 failed %d" i;
   );
 
-  (*************************************)
-  (*   t164 = { float#; #{ float } }   *)
-  (*************************************)
+  (**************************************)
+  (*   t164 = { #{ float# }; float# }   *)
+  (**************************************)
   (* Deepening to (.a164) *)
   let idx : (t164, _) idx_mut = (.a164) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a164) *)
     let shallow : (t164, _) idx_mut = (.a164) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 633;
+    mark_test_run 555;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 633 failed %d" i;
+    if not test then failwithf "test 555 failed %d" i;
+  );
+  (* Deepening to (.a164.#a95) *)
+  let idx : (t164, _) idx_mut = (.a164.#a95) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a164) *)
+    let shallow : (t164, _) idx_mut = (.a164) in
+    let deepened = (.idx_mut(shallow).#a95) in
+    mark_test_run 556;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 556 failed %d" i;
+    (* from (.a164.#a95) *)
+    let shallow : (t164, _) idx_mut = (.a164.#a95) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 557;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 557 failed %d" i;
   );
   (* Deepening to (.b164) *)
   let idx : (t164, _) idx_mut = (.b164) in
@@ -6479,91 +5923,101 @@ let () =
     (* from (.b164) *)
     let shallow : (t164, _) idx_mut = (.b164) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 634;
+    mark_test_run 558;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 634 failed %d" i;
-  );
-  (* Deepening to (.b164.#a27) *)
-  let idx : (t164, _) idx_mut = (.b164.#a27) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* Note: can't deepen (.b164) because it's a path to a flattened
-       float, making its element type [float#] *)
-    (* from (.b164.#a27) *)
-    let shallow : (t164, _) idx_mut = (.b164.#a27) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 635;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 635 failed %d" i;
+    if not test then failwithf "test 558 failed %d" i;
   );
 
-  (********************************************)
-  (*   t165 = { float#; #{ float; float } }   *)
-  (********************************************)
+  (*************************************)
+  (*   t165 = { #{ float#; float } }   *)
+  (*************************************)
   (* Deepening to (.a165) *)
   let idx : (t165, _) idx_mut = (.a165) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a165) *)
     let shallow : (t165, _) idx_mut = (.a165) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 636;
+    mark_test_run 559;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 636 failed %d" i;
+    if not test then failwithf "test 559 failed %d" i;
   );
-  (* Deepening to (.b165) *)
-  let idx : (t165, _) idx_mut = (.b165) in
+  (* Deepening to (.a165.#a97) *)
+  let idx : (t165, _) idx_mut = (.a165.#a97) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b165) *)
-    let shallow : (t165, _) idx_mut = (.b165) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 637;
+    (* from (.a165) *)
+    let shallow : (t165, _) idx_mut = (.a165) in
+    let deepened = (.idx_mut(shallow).#a97) in
+    mark_test_run 560;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 637 failed %d" i;
+    if not test then failwithf "test 560 failed %d" i;
+    (* from (.a165.#a97) *)
+    let shallow : (t165, _) idx_mut = (.a165.#a97) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 561;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 561 failed %d" i;
   );
-  (* Deepening to (.b165.#a42) *)
-  let idx : (t165, _) idx_mut = (.b165.#a42) in
+  (* Deepening to (.a165.#b97) *)
+  let idx : (t165, _) idx_mut = (.a165.#b97) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b165) *)
-    let shallow : (t165, _) idx_mut = (.b165) in
-    let deepened = (.idx_mut(shallow).#a42) in
-    mark_test_run 638;
+    (* from (.a165) *)
+    let shallow : (t165, _) idx_mut = (.a165) in
+    let deepened = (.idx_mut(shallow).#b97) in
+    mark_test_run 562;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 638 failed %d" i;
-    (* from (.b165.#a42) *)
-    let shallow : (t165, _) idx_mut = (.b165.#a42) in
+    if not test then failwithf "test 562 failed %d" i;
+    (* from (.a165.#b97) *)
+    let shallow : (t165, _) idx_mut = (.a165.#b97) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 639;
+    mark_test_run 563;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 639 failed %d" i;
-  );
-  (* Deepening to (.b165.#b42) *)
-  let idx : (t165, _) idx_mut = (.b165.#b42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b165) *)
-    let shallow : (t165, _) idx_mut = (.b165) in
-    let deepened = (.idx_mut(shallow).#b42) in
-    mark_test_run 640;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 640 failed %d" i;
-    (* from (.b165.#b42) *)
-    let shallow : (t165, _) idx_mut = (.b165.#b42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 641;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 641 failed %d" i;
+    if not test then failwithf "test 563 failed %d" i;
   );
 
-  (*********************************************)
-  (*   t166 = { float#; #{ float; float# } }   *)
-  (*********************************************)
+  (********************************************)
+  (*   t166 = { #{ float#; float }; float }   *)
+  (********************************************)
   (* Deepening to (.a166) *)
   let idx : (t166, _) idx_mut = (.a166) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a166) *)
     let shallow : (t166, _) idx_mut = (.a166) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 642;
+    mark_test_run 564;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 642 failed %d" i;
+    if not test then failwithf "test 564 failed %d" i;
+  );
+  (* Deepening to (.a166.#a97) *)
+  let idx : (t166, _) idx_mut = (.a166.#a97) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a166) *)
+    let shallow : (t166, _) idx_mut = (.a166) in
+    let deepened = (.idx_mut(shallow).#a97) in
+    mark_test_run 565;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 565 failed %d" i;
+    (* from (.a166.#a97) *)
+    let shallow : (t166, _) idx_mut = (.a166.#a97) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 566;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 566 failed %d" i;
+  );
+  (* Deepening to (.a166.#b97) *)
+  let idx : (t166, _) idx_mut = (.a166.#b97) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a166) *)
+    let shallow : (t166, _) idx_mut = (.a166) in
+    let deepened = (.idx_mut(shallow).#b97) in
+    mark_test_run 567;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 567 failed %d" i;
+    (* from (.a166.#b97) *)
+    let shallow : (t166, _) idx_mut = (.a166.#b97) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 568;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 568 failed %d" i;
   );
   (* Deepening to (.b166) *)
   let idx : (t166, _) idx_mut = (.b166) in
@@ -6571,55 +6025,55 @@ let () =
     (* from (.b166) *)
     let shallow : (t166, _) idx_mut = (.b166) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 643;
+    mark_test_run 569;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 643 failed %d" i;
-  );
-  (* Deepening to (.b166.#a131) *)
-  let idx : (t166, _) idx_mut = (.b166.#a131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b166) *)
-    let shallow : (t166, _) idx_mut = (.b166) in
-    let deepened = (.idx_mut(shallow).#a131) in
-    mark_test_run 644;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 644 failed %d" i;
-    (* from (.b166.#a131) *)
-    let shallow : (t166, _) idx_mut = (.b166.#a131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 645;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 645 failed %d" i;
-  );
-  (* Deepening to (.b166.#b131) *)
-  let idx : (t166, _) idx_mut = (.b166.#b131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b166) *)
-    let shallow : (t166, _) idx_mut = (.b166) in
-    let deepened = (.idx_mut(shallow).#b131) in
-    mark_test_run 646;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 646 failed %d" i;
-    (* from (.b166.#b131) *)
-    let shallow : (t166, _) idx_mut = (.b166.#b131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 647;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 647 failed %d" i;
+    if not test then failwithf "test 569 failed %d" i;
   );
 
-  (*************************************************)
-  (*   t167 = { float#; #{ float; #{ float } } }   *)
-  (*************************************************)
+  (*********************************************)
+  (*   t167 = { #{ float#; float }; float# }   *)
+  (*********************************************)
   (* Deepening to (.a167) *)
   let idx : (t167, _) idx_mut = (.a167) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a167) *)
     let shallow : (t167, _) idx_mut = (.a167) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 648;
+    mark_test_run 570;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 648 failed %d" i;
+    if not test then failwithf "test 570 failed %d" i;
+  );
+  (* Deepening to (.a167.#a97) *)
+  let idx : (t167, _) idx_mut = (.a167.#a97) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a167) *)
+    let shallow : (t167, _) idx_mut = (.a167) in
+    let deepened = (.idx_mut(shallow).#a97) in
+    mark_test_run 571;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 571 failed %d" i;
+    (* from (.a167.#a97) *)
+    let shallow : (t167, _) idx_mut = (.a167.#a97) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 572;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 572 failed %d" i;
+  );
+  (* Deepening to (.a167.#b97) *)
+  let idx : (t167, _) idx_mut = (.a167.#b97) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a167) *)
+    let shallow : (t167, _) idx_mut = (.a167) in
+    let deepened = (.idx_mut(shallow).#b97) in
+    mark_test_run 573;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 573 failed %d" i;
+    (* from (.a167.#b97) *)
+    let shallow : (t167, _) idx_mut = (.a167.#b97) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 574;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 574 failed %d" i;
   );
   (* Deepening to (.b167) *)
   let idx : (t167, _) idx_mut = (.b167) in
@@ -6627,155 +6081,101 @@ let () =
     (* from (.b167) *)
     let shallow : (t167, _) idx_mut = (.b167) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 649;
+    mark_test_run 575;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 649 failed %d" i;
-  );
-  (* Deepening to (.b167.#a46) *)
-  let idx : (t167, _) idx_mut = (.b167.#a46) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b167) *)
-    let shallow : (t167, _) idx_mut = (.b167) in
-    let deepened = (.idx_mut(shallow).#a46) in
-    mark_test_run 650;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 650 failed %d" i;
-    (* from (.b167.#a46) *)
-    let shallow : (t167, _) idx_mut = (.b167.#a46) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 651;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 651 failed %d" i;
-  );
-  (* Deepening to (.b167.#b46) *)
-  let idx : (t167, _) idx_mut = (.b167.#b46) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b167) *)
-    let shallow : (t167, _) idx_mut = (.b167) in
-    let deepened = (.idx_mut(shallow).#b46) in
-    mark_test_run 652;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 652 failed %d" i;
-    (* from (.b167.#b46) *)
-    let shallow : (t167, _) idx_mut = (.b167.#b46) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 653;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 653 failed %d" i;
-  );
-  (* Deepening to (.b167.#b46.#a27) *)
-  let idx : (t167, _) idx_mut = (.b167.#b46.#a27) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b167) *)
-    let shallow : (t167, _) idx_mut = (.b167) in
-    let deepened = (.idx_mut(shallow).#b46.#a27) in
-    mark_test_run 654;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 654 failed %d" i;
-    (* from (.b167.#b46) *)
-    let shallow : (t167, _) idx_mut = (.b167.#b46) in
-    let deepened = (.idx_mut(shallow).#a27) in
-    mark_test_run 655;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 655 failed %d" i;
-    (* from (.b167.#b46.#a27) *)
-    let shallow : (t167, _) idx_mut = (.b167.#b46.#a27) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 656;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 656 failed %d" i;
+    if not test then failwithf "test 575 failed %d" i;
   );
 
-  (**************************************************)
-  (*   t168 = { float#; #{ float; #{ float# } } }   *)
-  (**************************************************)
+  (**************************************)
+  (*   t168 = { #{ float#; float# } }   *)
+  (**************************************)
   (* Deepening to (.a168) *)
   let idx : (t168, _) idx_mut = (.a168) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a168) *)
     let shallow : (t168, _) idx_mut = (.a168) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 657;
+    mark_test_run 576;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 657 failed %d" i;
+    if not test then failwithf "test 576 failed %d" i;
   );
-  (* Deepening to (.b168) *)
-  let idx : (t168, _) idx_mut = (.b168) in
+  (* Deepening to (.a168.#a99) *)
+  let idx : (t168, _) idx_mut = (.a168.#a99) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b168) *)
-    let shallow : (t168, _) idx_mut = (.b168) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 658;
+    (* from (.a168) *)
+    let shallow : (t168, _) idx_mut = (.a168) in
+    let deepened = (.idx_mut(shallow).#a99) in
+    mark_test_run 577;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 658 failed %d" i;
+    if not test then failwithf "test 577 failed %d" i;
+    (* from (.a168.#a99) *)
+    let shallow : (t168, _) idx_mut = (.a168.#a99) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 578;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 578 failed %d" i;
   );
-  (* Deepening to (.b168.#a136) *)
-  let idx : (t168, _) idx_mut = (.b168.#a136) in
+  (* Deepening to (.a168.#b99) *)
+  let idx : (t168, _) idx_mut = (.a168.#b99) in
   iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b168) *)
-    let shallow : (t168, _) idx_mut = (.b168) in
-    let deepened = (.idx_mut(shallow).#a136) in
-    mark_test_run 659;
+    (* from (.a168) *)
+    let shallow : (t168, _) idx_mut = (.a168) in
+    let deepened = (.idx_mut(shallow).#b99) in
+    mark_test_run 579;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 659 failed %d" i;
-    (* from (.b168.#a136) *)
-    let shallow : (t168, _) idx_mut = (.b168.#a136) in
+    if not test then failwithf "test 579 failed %d" i;
+    (* from (.a168.#b99) *)
+    let shallow : (t168, _) idx_mut = (.a168.#b99) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 660;
+    mark_test_run 580;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 660 failed %d" i;
-  );
-  (* Deepening to (.b168.#b136) *)
-  let idx : (t168, _) idx_mut = (.b168.#b136) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b168) *)
-    let shallow : (t168, _) idx_mut = (.b168) in
-    let deepened = (.idx_mut(shallow).#b136) in
-    mark_test_run 661;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 661 failed %d" i;
-    (* from (.b168.#b136) *)
-    let shallow : (t168, _) idx_mut = (.b168.#b136) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 662;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 662 failed %d" i;
-  );
-  (* Deepening to (.b168.#b136.#a135) *)
-  let idx : (t168, _) idx_mut = (.b168.#b136.#a135) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b168) *)
-    let shallow : (t168, _) idx_mut = (.b168) in
-    let deepened = (.idx_mut(shallow).#b136.#a135) in
-    mark_test_run 663;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 663 failed %d" i;
-    (* from (.b168.#b136) *)
-    let shallow : (t168, _) idx_mut = (.b168.#b136) in
-    let deepened = (.idx_mut(shallow).#a135) in
-    mark_test_run 664;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 664 failed %d" i;
-    (* from (.b168.#b136.#a135) *)
-    let shallow : (t168, _) idx_mut = (.b168.#b136.#a135) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 665;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 665 failed %d" i;
+    if not test then failwithf "test 580 failed %d" i;
   );
 
-  (**************************************)
-  (*   t169 = { float#; #{ float# } }   *)
-  (**************************************)
+  (*********************************************)
+  (*   t169 = { #{ float#; float# }; float }   *)
+  (*********************************************)
   (* Deepening to (.a169) *)
   let idx : (t169, _) idx_mut = (.a169) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a169) *)
     let shallow : (t169, _) idx_mut = (.a169) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 666;
+    mark_test_run 581;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 666 failed %d" i;
+    if not test then failwithf "test 581 failed %d" i;
+  );
+  (* Deepening to (.a169.#a99) *)
+  let idx : (t169, _) idx_mut = (.a169.#a99) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a169) *)
+    let shallow : (t169, _) idx_mut = (.a169) in
+    let deepened = (.idx_mut(shallow).#a99) in
+    mark_test_run 582;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 582 failed %d" i;
+    (* from (.a169.#a99) *)
+    let shallow : (t169, _) idx_mut = (.a169.#a99) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 583;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 583 failed %d" i;
+  );
+  (* Deepening to (.a169.#b99) *)
+  let idx : (t169, _) idx_mut = (.a169.#b99) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a169) *)
+    let shallow : (t169, _) idx_mut = (.a169) in
+    let deepened = (.idx_mut(shallow).#b99) in
+    mark_test_run 584;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 584 failed %d" i;
+    (* from (.a169.#b99) *)
+    let shallow : (t169, _) idx_mut = (.a169.#b99) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 585;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 585 failed %d" i;
   );
   (* Deepening to (.b169) *)
   let idx : (t169, _) idx_mut = (.b169) in
@@ -6783,39 +6183,55 @@ let () =
     (* from (.b169) *)
     let shallow : (t169, _) idx_mut = (.b169) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 667;
+    mark_test_run 586;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 667 failed %d" i;
-  );
-  (* Deepening to (.b169.#a135) *)
-  let idx : (t169, _) idx_mut = (.b169.#a135) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b169) *)
-    let shallow : (t169, _) idx_mut = (.b169) in
-    let deepened = (.idx_mut(shallow).#a135) in
-    mark_test_run 668;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 668 failed %d" i;
-    (* from (.b169.#a135) *)
-    let shallow : (t169, _) idx_mut = (.b169.#a135) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 669;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 669 failed %d" i;
+    if not test then failwithf "test 586 failed %d" i;
   );
 
-  (*********************************************)
-  (*   t170 = { float#; #{ float#; float } }   *)
-  (*********************************************)
+  (**********************************************)
+  (*   t170 = { #{ float#; float# }; float# }   *)
+  (**********************************************)
   (* Deepening to (.a170) *)
   let idx : (t170, _) idx_mut = (.a170) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a170) *)
     let shallow : (t170, _) idx_mut = (.a170) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 670;
+    mark_test_run 587;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 670 failed %d" i;
+    if not test then failwithf "test 587 failed %d" i;
+  );
+  (* Deepening to (.a170.#a99) *)
+  let idx : (t170, _) idx_mut = (.a170.#a99) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a170) *)
+    let shallow : (t170, _) idx_mut = (.a170) in
+    let deepened = (.idx_mut(shallow).#a99) in
+    mark_test_run 588;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 588 failed %d" i;
+    (* from (.a170.#a99) *)
+    let shallow : (t170, _) idx_mut = (.a170.#a99) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 589;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 589 failed %d" i;
+  );
+  (* Deepening to (.a170.#b99) *)
+  let idx : (t170, _) idx_mut = (.a170.#b99) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a170) *)
+    let shallow : (t170, _) idx_mut = (.a170) in
+    let deepened = (.idx_mut(shallow).#b99) in
+    mark_test_run 590;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 590 failed %d" i;
+    (* from (.a170.#b99) *)
+    let shallow : (t170, _) idx_mut = (.a170.#b99) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 591;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 591 failed %d" i;
   );
   (* Deepening to (.b170) *)
   let idx : (t170, _) idx_mut = (.b170) in
@@ -6823,189 +6239,55 @@ let () =
     (* from (.b170) *)
     let shallow : (t170, _) idx_mut = (.b170) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 671;
+    mark_test_run 592;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 671 failed %d" i;
-  );
-  (* Deepening to (.b170.#a139) *)
-  let idx : (t170, _) idx_mut = (.b170.#a139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b170) *)
-    let shallow : (t170, _) idx_mut = (.b170) in
-    let deepened = (.idx_mut(shallow).#a139) in
-    mark_test_run 672;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 672 failed %d" i;
-    (* from (.b170.#a139) *)
-    let shallow : (t170, _) idx_mut = (.b170.#a139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 673;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 673 failed %d" i;
-  );
-  (* Deepening to (.b170.#b139) *)
-  let idx : (t170, _) idx_mut = (.b170.#b139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b170) *)
-    let shallow : (t170, _) idx_mut = (.b170) in
-    let deepened = (.idx_mut(shallow).#b139) in
-    mark_test_run 674;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 674 failed %d" i;
-    (* from (.b170.#b139) *)
-    let shallow : (t170, _) idx_mut = (.b170.#b139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 675;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 675 failed %d" i;
+    if not test then failwithf "test 592 failed %d" i;
   );
 
-  (**********************************************)
-  (*   t171 = { float#; #{ float#; float# } }   *)
-  (**********************************************)
-  (* Deepening to (.a171) *)
-  let idx : (t171, _) idx_mut = (.a171) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a171) *)
-    let shallow : (t171, _) idx_mut = (.a171) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 676;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 676 failed %d" i;
-  );
-  (* Deepening to (.b171) *)
-  let idx : (t171, _) idx_mut = (.b171) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b171) *)
-    let shallow : (t171, _) idx_mut = (.b171) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 677;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 677 failed %d" i;
-  );
-  (* Deepening to (.b171.#a141) *)
-  let idx : (t171, _) idx_mut = (.b171.#a141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b171) *)
-    let shallow : (t171, _) idx_mut = (.b171) in
-    let deepened = (.idx_mut(shallow).#a141) in
-    mark_test_run 678;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 678 failed %d" i;
-    (* from (.b171.#a141) *)
-    let shallow : (t171, _) idx_mut = (.b171.#a141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 679;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 679 failed %d" i;
-  );
-  (* Deepening to (.b171.#b141) *)
-  let idx : (t171, _) idx_mut = (.b171.#b141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b171) *)
-    let shallow : (t171, _) idx_mut = (.b171) in
-    let deepened = (.idx_mut(shallow).#b141) in
-    mark_test_run 680;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 680 failed %d" i;
-    (* from (.b171.#b141) *)
-    let shallow : (t171, _) idx_mut = (.b171.#b141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 681;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 681 failed %d" i;
-  );
-
-  (**************************************************)
-  (*   t172 = { float#; #{ float#; #{ float } } }   *)
-  (**************************************************)
-  (* Deepening to (.a172) *)
-  let idx : (t172, _) idx_mut = (.a172) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a172) *)
-    let shallow : (t172, _) idx_mut = (.a172) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 682;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 682 failed %d" i;
-  );
-  (* Deepening to (.b172) *)
-  let idx : (t172, _) idx_mut = (.b172) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b172) *)
-    let shallow : (t172, _) idx_mut = (.b172) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 683;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 683 failed %d" i;
-  );
-  (* Deepening to (.b172.#a143) *)
-  let idx : (t172, _) idx_mut = (.b172.#a143) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b172) *)
-    let shallow : (t172, _) idx_mut = (.b172) in
-    let deepened = (.idx_mut(shallow).#a143) in
-    mark_test_run 684;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 684 failed %d" i;
-    (* from (.b172.#a143) *)
-    let shallow : (t172, _) idx_mut = (.b172.#a143) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 685;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 685 failed %d" i;
-  );
-  (* Deepening to (.b172.#b143) *)
-  let idx : (t172, _) idx_mut = (.b172.#b143) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b172) *)
-    let shallow : (t172, _) idx_mut = (.b172) in
-    let deepened = (.idx_mut(shallow).#b143) in
-    mark_test_run 686;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 686 failed %d" i;
-    (* from (.b172.#b143) *)
-    let shallow : (t172, _) idx_mut = (.b172.#b143) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 687;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 687 failed %d" i;
-  );
-  (* Deepening to (.b172.#b143.#a27) *)
-  let idx : (t172, _) idx_mut = (.b172.#b143.#a27) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b172) *)
-    let shallow : (t172, _) idx_mut = (.b172) in
-    let deepened = (.idx_mut(shallow).#b143.#a27) in
-    mark_test_run 688;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 688 failed %d" i;
-    (* from (.b172.#b143) *)
-    let shallow : (t172, _) idx_mut = (.b172.#b143) in
-    let deepened = (.idx_mut(shallow).#a27) in
-    mark_test_run 689;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 689 failed %d" i;
-    (* from (.b172.#b143.#a27) *)
-    let shallow : (t172, _) idx_mut = (.b172.#b143.#a27) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 690;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 690 failed %d" i;
-  );
-
-  (***************************************************)
-  (*   t173 = { float#; #{ float#; #{ float# } } }   *)
-  (***************************************************)
+  (*************************************************************)
+  (*   t173 = { #{ float32#; int64# }; #{ string; int64# } }   *)
+  (*************************************************************)
   (* Deepening to (.a173) *)
   let idx : (t173, _) idx_mut = (.a173) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.a173) *)
     let shallow : (t173, _) idx_mut = (.a173) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 691;
+    mark_test_run 593;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 691 failed %d" i;
+    if not test then failwithf "test 593 failed %d" i;
+  );
+  (* Deepening to (.a173.#a171) *)
+  let idx : (t173, _) idx_mut = (.a173.#a171) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a173) *)
+    let shallow : (t173, _) idx_mut = (.a173) in
+    let deepened = (.idx_mut(shallow).#a171) in
+    mark_test_run 594;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 594 failed %d" i;
+    (* from (.a173.#a171) *)
+    let shallow : (t173, _) idx_mut = (.a173.#a171) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 595;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 595 failed %d" i;
+  );
+  (* Deepening to (.a173.#b171) *)
+  let idx : (t173, _) idx_mut = (.a173.#b171) in
+  iter indices_in_deepening_tests ~f:(fun i ->
+    (* from (.a173) *)
+    let shallow : (t173, _) idx_mut = (.a173) in
+    let deepened = (.idx_mut(shallow).#b171) in
+    mark_test_run 596;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 596 failed %d" i;
+    (* from (.a173.#b171) *)
+    let shallow : (t173, _) idx_mut = (.a173.#b171) in
+    let deepened = (.idx_mut(shallow)) in
+    mark_test_run 597;
+    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
+    if not test then failwithf "test 597 failed %d" i;
   );
   (* Deepening to (.b173) *)
   let idx : (t173, _) idx_mut = (.b173) in
@@ -7013,7005 +6295,47 @@ let () =
     (* from (.b173) *)
     let shallow : (t173, _) idx_mut = (.b173) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 692;
+    mark_test_run 598;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 692 failed %d" i;
+    if not test then failwithf "test 598 failed %d" i;
   );
-  (* Deepening to (.b173.#a145) *)
-  let idx : (t173, _) idx_mut = (.b173.#a145) in
+  (* Deepening to (.b173.#a172) *)
+  let idx : (t173, _) idx_mut = (.b173.#a172) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b173) *)
     let shallow : (t173, _) idx_mut = (.b173) in
-    let deepened = (.idx_mut(shallow).#a145) in
-    mark_test_run 693;
+    let deepened = (.idx_mut(shallow).#a172) in
+    mark_test_run 599;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 693 failed %d" i;
-    (* from (.b173.#a145) *)
-    let shallow : (t173, _) idx_mut = (.b173.#a145) in
+    if not test then failwithf "test 599 failed %d" i;
+    (* from (.b173.#a172) *)
+    let shallow : (t173, _) idx_mut = (.b173.#a172) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 694;
+    mark_test_run 600;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 694 failed %d" i;
+    if not test then failwithf "test 600 failed %d" i;
   );
-  (* Deepening to (.b173.#b145) *)
-  let idx : (t173, _) idx_mut = (.b173.#b145) in
+  (* Deepening to (.b173.#b172) *)
+  let idx : (t173, _) idx_mut = (.b173.#b172) in
   iter indices_in_deepening_tests ~f:(fun i ->
     (* from (.b173) *)
     let shallow : (t173, _) idx_mut = (.b173) in
-    let deepened = (.idx_mut(shallow).#b145) in
-    mark_test_run 695;
+    let deepened = (.idx_mut(shallow).#b172) in
+    mark_test_run 601;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 695 failed %d" i;
-    (* from (.b173.#b145) *)
-    let shallow : (t173, _) idx_mut = (.b173.#b145) in
+    if not test then failwithf "test 601 failed %d" i;
+    (* from (.b173.#b172) *)
+    let shallow : (t173, _) idx_mut = (.b173.#b172) in
     let deepened = (.idx_mut(shallow)) in
-    mark_test_run 696;
+    mark_test_run 602;
     let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 696 failed %d" i;
-  );
-  (* Deepening to (.b173.#b145.#a135) *)
-  let idx : (t173, _) idx_mut = (.b173.#b145.#a135) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b173) *)
-    let shallow : (t173, _) idx_mut = (.b173) in
-    let deepened = (.idx_mut(shallow).#b145.#a135) in
-    mark_test_run 697;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 697 failed %d" i;
-    (* from (.b173.#b145) *)
-    let shallow : (t173, _) idx_mut = (.b173.#b145) in
-    let deepened = (.idx_mut(shallow).#a135) in
-    mark_test_run 698;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 698 failed %d" i;
-    (* from (.b173.#b145.#a135) *)
-    let shallow : (t173, _) idx_mut = (.b173.#b145.#a135) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 699;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 699 failed %d" i;
-  );
-
-  (*************************************************)
-  (*   t174 = { float#; #{ #{ float; float } } }   *)
-  (*************************************************)
-  (* Deepening to (.a174) *)
-  let idx : (t174, _) idx_mut = (.a174) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a174) *)
-    let shallow : (t174, _) idx_mut = (.a174) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 700;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 700 failed %d" i;
-  );
-  (* Deepening to (.b174) *)
-  let idx : (t174, _) idx_mut = (.b174) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b174) *)
-    let shallow : (t174, _) idx_mut = (.b174) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 701;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 701 failed %d" i;
-  );
-  (* Deepening to (.b174.#a60) *)
-  let idx : (t174, _) idx_mut = (.b174.#a60) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b174) *)
-    let shallow : (t174, _) idx_mut = (.b174) in
-    let deepened = (.idx_mut(shallow).#a60) in
-    mark_test_run 702;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 702 failed %d" i;
-    (* from (.b174.#a60) *)
-    let shallow : (t174, _) idx_mut = (.b174.#a60) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 703;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 703 failed %d" i;
-  );
-  (* Deepening to (.b174.#a60.#a42) *)
-  let idx : (t174, _) idx_mut = (.b174.#a60.#a42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b174) *)
-    let shallow : (t174, _) idx_mut = (.b174) in
-    let deepened = (.idx_mut(shallow).#a60.#a42) in
-    mark_test_run 704;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 704 failed %d" i;
-    (* from (.b174.#a60) *)
-    let shallow : (t174, _) idx_mut = (.b174.#a60) in
-    let deepened = (.idx_mut(shallow).#a42) in
-    mark_test_run 705;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 705 failed %d" i;
-    (* from (.b174.#a60.#a42) *)
-    let shallow : (t174, _) idx_mut = (.b174.#a60.#a42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 706;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 706 failed %d" i;
-  );
-  (* Deepening to (.b174.#a60.#b42) *)
-  let idx : (t174, _) idx_mut = (.b174.#a60.#b42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b174) *)
-    let shallow : (t174, _) idx_mut = (.b174) in
-    let deepened = (.idx_mut(shallow).#a60.#b42) in
-    mark_test_run 707;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 707 failed %d" i;
-    (* from (.b174.#a60) *)
-    let shallow : (t174, _) idx_mut = (.b174.#a60) in
-    let deepened = (.idx_mut(shallow).#b42) in
-    mark_test_run 708;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 708 failed %d" i;
-    (* from (.b174.#a60.#b42) *)
-    let shallow : (t174, _) idx_mut = (.b174.#a60.#b42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 709;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 709 failed %d" i;
-  );
-
-  (**************************************************)
-  (*   t175 = { float#; #{ #{ float; float# } } }   *)
-  (**************************************************)
-  (* Deepening to (.a175) *)
-  let idx : (t175, _) idx_mut = (.a175) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a175) *)
-    let shallow : (t175, _) idx_mut = (.a175) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 710;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 710 failed %d" i;
-  );
-  (* Deepening to (.b175) *)
-  let idx : (t175, _) idx_mut = (.b175) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b175) *)
-    let shallow : (t175, _) idx_mut = (.b175) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 711;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 711 failed %d" i;
-  );
-  (* Deepening to (.b175.#a151) *)
-  let idx : (t175, _) idx_mut = (.b175.#a151) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b175) *)
-    let shallow : (t175, _) idx_mut = (.b175) in
-    let deepened = (.idx_mut(shallow).#a151) in
-    mark_test_run 712;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 712 failed %d" i;
-    (* from (.b175.#a151) *)
-    let shallow : (t175, _) idx_mut = (.b175.#a151) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 713;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 713 failed %d" i;
-  );
-  (* Deepening to (.b175.#a151.#a131) *)
-  let idx : (t175, _) idx_mut = (.b175.#a151.#a131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b175) *)
-    let shallow : (t175, _) idx_mut = (.b175) in
-    let deepened = (.idx_mut(shallow).#a151.#a131) in
-    mark_test_run 714;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 714 failed %d" i;
-    (* from (.b175.#a151) *)
-    let shallow : (t175, _) idx_mut = (.b175.#a151) in
-    let deepened = (.idx_mut(shallow).#a131) in
-    mark_test_run 715;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 715 failed %d" i;
-    (* from (.b175.#a151.#a131) *)
-    let shallow : (t175, _) idx_mut = (.b175.#a151.#a131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 716;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 716 failed %d" i;
-  );
-  (* Deepening to (.b175.#a151.#b131) *)
-  let idx : (t175, _) idx_mut = (.b175.#a151.#b131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b175) *)
-    let shallow : (t175, _) idx_mut = (.b175) in
-    let deepened = (.idx_mut(shallow).#a151.#b131) in
-    mark_test_run 717;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 717 failed %d" i;
-    (* from (.b175.#a151) *)
-    let shallow : (t175, _) idx_mut = (.b175.#a151) in
-    let deepened = (.idx_mut(shallow).#b131) in
-    mark_test_run 718;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 718 failed %d" i;
-    (* from (.b175.#a151.#b131) *)
-    let shallow : (t175, _) idx_mut = (.b175.#a151.#b131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 719;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 719 failed %d" i;
-  );
-
-  (**************************************************)
-  (*   t176 = { float#; #{ #{ float#; float } } }   *)
-  (**************************************************)
-  (* Deepening to (.a176) *)
-  let idx : (t176, _) idx_mut = (.a176) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a176) *)
-    let shallow : (t176, _) idx_mut = (.a176) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 720;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 720 failed %d" i;
-  );
-  (* Deepening to (.b176) *)
-  let idx : (t176, _) idx_mut = (.b176) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b176) *)
-    let shallow : (t176, _) idx_mut = (.b176) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 721;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 721 failed %d" i;
-  );
-  (* Deepening to (.b176.#a153) *)
-  let idx : (t176, _) idx_mut = (.b176.#a153) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b176) *)
-    let shallow : (t176, _) idx_mut = (.b176) in
-    let deepened = (.idx_mut(shallow).#a153) in
-    mark_test_run 722;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 722 failed %d" i;
-    (* from (.b176.#a153) *)
-    let shallow : (t176, _) idx_mut = (.b176.#a153) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 723;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 723 failed %d" i;
-  );
-  (* Deepening to (.b176.#a153.#a139) *)
-  let idx : (t176, _) idx_mut = (.b176.#a153.#a139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b176) *)
-    let shallow : (t176, _) idx_mut = (.b176) in
-    let deepened = (.idx_mut(shallow).#a153.#a139) in
-    mark_test_run 724;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 724 failed %d" i;
-    (* from (.b176.#a153) *)
-    let shallow : (t176, _) idx_mut = (.b176.#a153) in
-    let deepened = (.idx_mut(shallow).#a139) in
-    mark_test_run 725;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 725 failed %d" i;
-    (* from (.b176.#a153.#a139) *)
-    let shallow : (t176, _) idx_mut = (.b176.#a153.#a139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 726;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 726 failed %d" i;
-  );
-  (* Deepening to (.b176.#a153.#b139) *)
-  let idx : (t176, _) idx_mut = (.b176.#a153.#b139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b176) *)
-    let shallow : (t176, _) idx_mut = (.b176) in
-    let deepened = (.idx_mut(shallow).#a153.#b139) in
-    mark_test_run 727;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 727 failed %d" i;
-    (* from (.b176.#a153) *)
-    let shallow : (t176, _) idx_mut = (.b176.#a153) in
-    let deepened = (.idx_mut(shallow).#b139) in
-    mark_test_run 728;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 728 failed %d" i;
-    (* from (.b176.#a153.#b139) *)
-    let shallow : (t176, _) idx_mut = (.b176.#a153.#b139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 729;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 729 failed %d" i;
-  );
-
-  (***************************************************)
-  (*   t177 = { float#; #{ #{ float#; float# } } }   *)
-  (***************************************************)
-  (* Deepening to (.a177) *)
-  let idx : (t177, _) idx_mut = (.a177) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a177) *)
-    let shallow : (t177, _) idx_mut = (.a177) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 730;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 730 failed %d" i;
-  );
-  (* Deepening to (.b177) *)
-  let idx : (t177, _) idx_mut = (.b177) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b177) *)
-    let shallow : (t177, _) idx_mut = (.b177) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 731;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 731 failed %d" i;
-  );
-  (* Deepening to (.b177.#a155) *)
-  let idx : (t177, _) idx_mut = (.b177.#a155) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b177) *)
-    let shallow : (t177, _) idx_mut = (.b177) in
-    let deepened = (.idx_mut(shallow).#a155) in
-    mark_test_run 732;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 732 failed %d" i;
-    (* from (.b177.#a155) *)
-    let shallow : (t177, _) idx_mut = (.b177.#a155) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 733;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 733 failed %d" i;
-  );
-  (* Deepening to (.b177.#a155.#a141) *)
-  let idx : (t177, _) idx_mut = (.b177.#a155.#a141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b177) *)
-    let shallow : (t177, _) idx_mut = (.b177) in
-    let deepened = (.idx_mut(shallow).#a155.#a141) in
-    mark_test_run 734;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 734 failed %d" i;
-    (* from (.b177.#a155) *)
-    let shallow : (t177, _) idx_mut = (.b177.#a155) in
-    let deepened = (.idx_mut(shallow).#a141) in
-    mark_test_run 735;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 735 failed %d" i;
-    (* from (.b177.#a155.#a141) *)
-    let shallow : (t177, _) idx_mut = (.b177.#a155.#a141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 736;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 736 failed %d" i;
-  );
-  (* Deepening to (.b177.#a155.#b141) *)
-  let idx : (t177, _) idx_mut = (.b177.#a155.#b141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b177) *)
-    let shallow : (t177, _) idx_mut = (.b177) in
-    let deepened = (.idx_mut(shallow).#a155.#b141) in
-    mark_test_run 737;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 737 failed %d" i;
-    (* from (.b177.#a155) *)
-    let shallow : (t177, _) idx_mut = (.b177.#a155) in
-    let deepened = (.idx_mut(shallow).#b141) in
-    mark_test_run 738;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 738 failed %d" i;
-    (* from (.b177.#a155.#b141) *)
-    let shallow : (t177, _) idx_mut = (.b177.#a155.#b141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 739;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 739 failed %d" i;
-  );
-
-  (***************************)
-  (*   t178 = { #{ int } }   *)
-  (***************************)
-  (* Deepening to (.a178) *)
-  let idx : (t178, _) idx_mut = (.a178) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a178) *)
-    let shallow : (t178, _) idx_mut = (.a178) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 740;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 740 failed %d" i;
-  );
-  (* Deepening to (.a178.#a14) *)
-  let idx : (t178, _) idx_mut = (.a178.#a14) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a178) *)
-    let shallow : (t178, _) idx_mut = (.a178) in
-    let deepened = (.idx_mut(shallow).#a14) in
-    mark_test_run 741;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 741 failed %d" i;
-    (* from (.a178.#a14) *)
-    let shallow : (t178, _) idx_mut = (.a178.#a14) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 742;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 742 failed %d" i;
-  );
-
-  (********************************)
-  (*   t179 = { #{ int }; int }   *)
-  (********************************)
-  (* Deepening to (.a179) *)
-  let idx : (t179, _) idx_mut = (.a179) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a179) *)
-    let shallow : (t179, _) idx_mut = (.a179) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 743;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 743 failed %d" i;
-  );
-  (* Deepening to (.a179.#a14) *)
-  let idx : (t179, _) idx_mut = (.a179.#a14) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a179) *)
-    let shallow : (t179, _) idx_mut = (.a179) in
-    let deepened = (.idx_mut(shallow).#a14) in
-    mark_test_run 744;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 744 failed %d" i;
-    (* from (.a179.#a14) *)
-    let shallow : (t179, _) idx_mut = (.a179.#a14) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 745;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 745 failed %d" i;
-  );
-  (* Deepening to (.b179) *)
-  let idx : (t179, _) idx_mut = (.b179) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b179) *)
-    let shallow : (t179, _) idx_mut = (.b179) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 746;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 746 failed %d" i;
-  );
-
-  (***********************************)
-  (*   t180 = { #{ int }; int32# }   *)
-  (***********************************)
-  (* Deepening to (.a180) *)
-  let idx : (t180, _) idx_mut = (.a180) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a180) *)
-    let shallow : (t180, _) idx_mut = (.a180) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 747;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 747 failed %d" i;
-  );
-  (* Deepening to (.a180.#a14) *)
-  let idx : (t180, _) idx_mut = (.a180.#a14) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a180) *)
-    let shallow : (t180, _) idx_mut = (.a180) in
-    let deepened = (.idx_mut(shallow).#a14) in
-    mark_test_run 748;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 748 failed %d" i;
-    (* from (.a180.#a14) *)
-    let shallow : (t180, _) idx_mut = (.a180.#a14) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 749;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 749 failed %d" i;
-  );
-  (* Deepening to (.b180) *)
-  let idx : (t180, _) idx_mut = (.b180) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b180) *)
-    let shallow : (t180, _) idx_mut = (.b180) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 750;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 750 failed %d" i;
-  );
-
-  (**********************************)
-  (*   t181 = { #{ int }; float }   *)
-  (**********************************)
-  (* Deepening to (.a181) *)
-  let idx : (t181, _) idx_mut = (.a181) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a181) *)
-    let shallow : (t181, _) idx_mut = (.a181) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 751;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 751 failed %d" i;
-  );
-  (* Deepening to (.a181.#a14) *)
-  let idx : (t181, _) idx_mut = (.a181.#a14) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a181) *)
-    let shallow : (t181, _) idx_mut = (.a181) in
-    let deepened = (.idx_mut(shallow).#a14) in
-    mark_test_run 752;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 752 failed %d" i;
-    (* from (.a181.#a14) *)
-    let shallow : (t181, _) idx_mut = (.a181.#a14) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 753;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 753 failed %d" i;
-  );
-  (* Deepening to (.b181) *)
-  let idx : (t181, _) idx_mut = (.b181) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b181) *)
-    let shallow : (t181, _) idx_mut = (.b181) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 754;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 754 failed %d" i;
-  );
-
-  (********************************)
-  (*   t182 = { #{ int; int } }   *)
-  (********************************)
-  (* Deepening to (.a182) *)
-  let idx : (t182, _) idx_mut = (.a182) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a182) *)
-    let shallow : (t182, _) idx_mut = (.a182) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 755;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 755 failed %d" i;
-  );
-  (* Deepening to (.a182.#a16) *)
-  let idx : (t182, _) idx_mut = (.a182.#a16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a182) *)
-    let shallow : (t182, _) idx_mut = (.a182) in
-    let deepened = (.idx_mut(shallow).#a16) in
-    mark_test_run 756;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 756 failed %d" i;
-    (* from (.a182.#a16) *)
-    let shallow : (t182, _) idx_mut = (.a182.#a16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 757;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 757 failed %d" i;
-  );
-  (* Deepening to (.a182.#b16) *)
-  let idx : (t182, _) idx_mut = (.a182.#b16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a182) *)
-    let shallow : (t182, _) idx_mut = (.a182) in
-    let deepened = (.idx_mut(shallow).#b16) in
-    mark_test_run 758;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 758 failed %d" i;
-    (* from (.a182.#b16) *)
-    let shallow : (t182, _) idx_mut = (.a182.#b16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 759;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 759 failed %d" i;
-  );
-
-  (*************************************)
-  (*   t183 = { #{ int; int }; int }   *)
-  (*************************************)
-  (* Deepening to (.a183) *)
-  let idx : (t183, _) idx_mut = (.a183) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a183) *)
-    let shallow : (t183, _) idx_mut = (.a183) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 760;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 760 failed %d" i;
-  );
-  (* Deepening to (.a183.#a16) *)
-  let idx : (t183, _) idx_mut = (.a183.#a16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a183) *)
-    let shallow : (t183, _) idx_mut = (.a183) in
-    let deepened = (.idx_mut(shallow).#a16) in
-    mark_test_run 761;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 761 failed %d" i;
-    (* from (.a183.#a16) *)
-    let shallow : (t183, _) idx_mut = (.a183.#a16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 762;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 762 failed %d" i;
-  );
-  (* Deepening to (.a183.#b16) *)
-  let idx : (t183, _) idx_mut = (.a183.#b16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a183) *)
-    let shallow : (t183, _) idx_mut = (.a183) in
-    let deepened = (.idx_mut(shallow).#b16) in
-    mark_test_run 763;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 763 failed %d" i;
-    (* from (.a183.#b16) *)
-    let shallow : (t183, _) idx_mut = (.a183.#b16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 764;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 764 failed %d" i;
-  );
-  (* Deepening to (.b183) *)
-  let idx : (t183, _) idx_mut = (.b183) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b183) *)
-    let shallow : (t183, _) idx_mut = (.b183) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 765;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 765 failed %d" i;
-  );
-
-  (****************************************)
-  (*   t184 = { #{ int; int }; int32# }   *)
-  (****************************************)
-  (* Deepening to (.a184) *)
-  let idx : (t184, _) idx_mut = (.a184) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a184) *)
-    let shallow : (t184, _) idx_mut = (.a184) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 766;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 766 failed %d" i;
-  );
-  (* Deepening to (.a184.#a16) *)
-  let idx : (t184, _) idx_mut = (.a184.#a16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a184) *)
-    let shallow : (t184, _) idx_mut = (.a184) in
-    let deepened = (.idx_mut(shallow).#a16) in
-    mark_test_run 767;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 767 failed %d" i;
-    (* from (.a184.#a16) *)
-    let shallow : (t184, _) idx_mut = (.a184.#a16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 768;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 768 failed %d" i;
-  );
-  (* Deepening to (.a184.#b16) *)
-  let idx : (t184, _) idx_mut = (.a184.#b16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a184) *)
-    let shallow : (t184, _) idx_mut = (.a184) in
-    let deepened = (.idx_mut(shallow).#b16) in
-    mark_test_run 769;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 769 failed %d" i;
-    (* from (.a184.#b16) *)
-    let shallow : (t184, _) idx_mut = (.a184.#b16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 770;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 770 failed %d" i;
-  );
-  (* Deepening to (.b184) *)
-  let idx : (t184, _) idx_mut = (.b184) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b184) *)
-    let shallow : (t184, _) idx_mut = (.b184) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 771;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 771 failed %d" i;
-  );
-
-  (***************************************)
-  (*   t185 = { #{ int; int }; float }   *)
-  (***************************************)
-  (* Deepening to (.a185) *)
-  let idx : (t185, _) idx_mut = (.a185) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a185) *)
-    let shallow : (t185, _) idx_mut = (.a185) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 772;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 772 failed %d" i;
-  );
-  (* Deepening to (.a185.#a16) *)
-  let idx : (t185, _) idx_mut = (.a185.#a16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a185) *)
-    let shallow : (t185, _) idx_mut = (.a185) in
-    let deepened = (.idx_mut(shallow).#a16) in
-    mark_test_run 773;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 773 failed %d" i;
-    (* from (.a185.#a16) *)
-    let shallow : (t185, _) idx_mut = (.a185.#a16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 774;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 774 failed %d" i;
-  );
-  (* Deepening to (.a185.#b16) *)
-  let idx : (t185, _) idx_mut = (.a185.#b16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a185) *)
-    let shallow : (t185, _) idx_mut = (.a185) in
-    let deepened = (.idx_mut(shallow).#b16) in
-    mark_test_run 775;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 775 failed %d" i;
-    (* from (.a185.#b16) *)
-    let shallow : (t185, _) idx_mut = (.a185.#b16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 776;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 776 failed %d" i;
-  );
-  (* Deepening to (.b185) *)
-  let idx : (t185, _) idx_mut = (.b185) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b185) *)
-    let shallow : (t185, _) idx_mut = (.b185) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 777;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 777 failed %d" i;
-  );
-
-  (***********************************)
-  (*   t186 = { #{ int; int32# } }   *)
-  (***********************************)
-  (* Deepening to (.a186) *)
-  let idx : (t186, _) idx_mut = (.a186) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a186) *)
-    let shallow : (t186, _) idx_mut = (.a186) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 778;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 778 failed %d" i;
-  );
-  (* Deepening to (.a186.#a18) *)
-  let idx : (t186, _) idx_mut = (.a186.#a18) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a186) *)
-    let shallow : (t186, _) idx_mut = (.a186) in
-    let deepened = (.idx_mut(shallow).#a18) in
-    mark_test_run 779;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 779 failed %d" i;
-    (* from (.a186.#a18) *)
-    let shallow : (t186, _) idx_mut = (.a186.#a18) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 780;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 780 failed %d" i;
-  );
-  (* Deepening to (.a186.#b18) *)
-  let idx : (t186, _) idx_mut = (.a186.#b18) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a186) *)
-    let shallow : (t186, _) idx_mut = (.a186) in
-    let deepened = (.idx_mut(shallow).#b18) in
-    mark_test_run 781;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 781 failed %d" i;
-    (* from (.a186.#b18) *)
-    let shallow : (t186, _) idx_mut = (.a186.#b18) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 782;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 782 failed %d" i;
-  );
-
-  (****************************************)
-  (*   t187 = { #{ int; int32# }; int }   *)
-  (****************************************)
-  (* Deepening to (.a187) *)
-  let idx : (t187, _) idx_mut = (.a187) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a187) *)
-    let shallow : (t187, _) idx_mut = (.a187) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 783;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 783 failed %d" i;
-  );
-  (* Deepening to (.a187.#a18) *)
-  let idx : (t187, _) idx_mut = (.a187.#a18) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a187) *)
-    let shallow : (t187, _) idx_mut = (.a187) in
-    let deepened = (.idx_mut(shallow).#a18) in
-    mark_test_run 784;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 784 failed %d" i;
-    (* from (.a187.#a18) *)
-    let shallow : (t187, _) idx_mut = (.a187.#a18) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 785;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 785 failed %d" i;
-  );
-  (* Deepening to (.a187.#b18) *)
-  let idx : (t187, _) idx_mut = (.a187.#b18) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a187) *)
-    let shallow : (t187, _) idx_mut = (.a187) in
-    let deepened = (.idx_mut(shallow).#b18) in
-    mark_test_run 786;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 786 failed %d" i;
-    (* from (.a187.#b18) *)
-    let shallow : (t187, _) idx_mut = (.a187.#b18) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 787;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 787 failed %d" i;
-  );
-  (* Deepening to (.b187) *)
-  let idx : (t187, _) idx_mut = (.b187) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b187) *)
-    let shallow : (t187, _) idx_mut = (.b187) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 788;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 788 failed %d" i;
-  );
-
-  (*******************************************)
-  (*   t188 = { #{ int; int32# }; int32# }   *)
-  (*******************************************)
-  (* Deepening to (.a188) *)
-  let idx : (t188, _) idx_mut = (.a188) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a188) *)
-    let shallow : (t188, _) idx_mut = (.a188) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 789;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 789 failed %d" i;
-  );
-  (* Deepening to (.a188.#a18) *)
-  let idx : (t188, _) idx_mut = (.a188.#a18) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a188) *)
-    let shallow : (t188, _) idx_mut = (.a188) in
-    let deepened = (.idx_mut(shallow).#a18) in
-    mark_test_run 790;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 790 failed %d" i;
-    (* from (.a188.#a18) *)
-    let shallow : (t188, _) idx_mut = (.a188.#a18) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 791;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 791 failed %d" i;
-  );
-  (* Deepening to (.a188.#b18) *)
-  let idx : (t188, _) idx_mut = (.a188.#b18) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a188) *)
-    let shallow : (t188, _) idx_mut = (.a188) in
-    let deepened = (.idx_mut(shallow).#b18) in
-    mark_test_run 792;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 792 failed %d" i;
-    (* from (.a188.#b18) *)
-    let shallow : (t188, _) idx_mut = (.a188.#b18) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 793;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 793 failed %d" i;
-  );
-  (* Deepening to (.b188) *)
-  let idx : (t188, _) idx_mut = (.b188) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b188) *)
-    let shallow : (t188, _) idx_mut = (.b188) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 794;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 794 failed %d" i;
-  );
-
-  (**********************************)
-  (*   t189 = { #{ int; float } }   *)
-  (**********************************)
-  (* Deepening to (.a189) *)
-  let idx : (t189, _) idx_mut = (.a189) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a189) *)
-    let shallow : (t189, _) idx_mut = (.a189) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 795;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 795 failed %d" i;
-  );
-  (* Deepening to (.a189.#a20) *)
-  let idx : (t189, _) idx_mut = (.a189.#a20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a189) *)
-    let shallow : (t189, _) idx_mut = (.a189) in
-    let deepened = (.idx_mut(shallow).#a20) in
-    mark_test_run 796;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 796 failed %d" i;
-    (* from (.a189.#a20) *)
-    let shallow : (t189, _) idx_mut = (.a189.#a20) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 797;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 797 failed %d" i;
-  );
-  (* Deepening to (.a189.#b20) *)
-  let idx : (t189, _) idx_mut = (.a189.#b20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a189) *)
-    let shallow : (t189, _) idx_mut = (.a189) in
-    let deepened = (.idx_mut(shallow).#b20) in
-    mark_test_run 798;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 798 failed %d" i;
-    (* from (.a189.#b20) *)
-    let shallow : (t189, _) idx_mut = (.a189.#b20) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 799;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 799 failed %d" i;
-  );
-
-  (***************************************)
-  (*   t190 = { #{ int; float }; int }   *)
-  (***************************************)
-  (* Deepening to (.a190) *)
-  let idx : (t190, _) idx_mut = (.a190) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a190) *)
-    let shallow : (t190, _) idx_mut = (.a190) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 800;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 800 failed %d" i;
-  );
-  (* Deepening to (.a190.#a20) *)
-  let idx : (t190, _) idx_mut = (.a190.#a20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a190) *)
-    let shallow : (t190, _) idx_mut = (.a190) in
-    let deepened = (.idx_mut(shallow).#a20) in
-    mark_test_run 801;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 801 failed %d" i;
-    (* from (.a190.#a20) *)
-    let shallow : (t190, _) idx_mut = (.a190.#a20) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 802;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 802 failed %d" i;
-  );
-  (* Deepening to (.a190.#b20) *)
-  let idx : (t190, _) idx_mut = (.a190.#b20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a190) *)
-    let shallow : (t190, _) idx_mut = (.a190) in
-    let deepened = (.idx_mut(shallow).#b20) in
-    mark_test_run 803;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 803 failed %d" i;
-    (* from (.a190.#b20) *)
-    let shallow : (t190, _) idx_mut = (.a190.#b20) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 804;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 804 failed %d" i;
-  );
-  (* Deepening to (.b190) *)
-  let idx : (t190, _) idx_mut = (.b190) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b190) *)
-    let shallow : (t190, _) idx_mut = (.b190) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 805;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 805 failed %d" i;
-  );
-
-  (*****************************************)
-  (*   t191 = { #{ int; float }; float }   *)
-  (*****************************************)
-  (* Deepening to (.a191) *)
-  let idx : (t191, _) idx_mut = (.a191) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a191) *)
-    let shallow : (t191, _) idx_mut = (.a191) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 806;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 806 failed %d" i;
-  );
-  (* Deepening to (.a191.#a20) *)
-  let idx : (t191, _) idx_mut = (.a191.#a20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a191) *)
-    let shallow : (t191, _) idx_mut = (.a191) in
-    let deepened = (.idx_mut(shallow).#a20) in
-    mark_test_run 807;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 807 failed %d" i;
-    (* from (.a191.#a20) *)
-    let shallow : (t191, _) idx_mut = (.a191.#a20) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 808;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 808 failed %d" i;
-  );
-  (* Deepening to (.a191.#b20) *)
-  let idx : (t191, _) idx_mut = (.a191.#b20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a191) *)
-    let shallow : (t191, _) idx_mut = (.a191) in
-    let deepened = (.idx_mut(shallow).#b20) in
-    mark_test_run 809;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 809 failed %d" i;
-    (* from (.a191.#b20) *)
-    let shallow : (t191, _) idx_mut = (.a191.#b20) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 810;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 810 failed %d" i;
-  );
-  (* Deepening to (.b191) *)
-  let idx : (t191, _) idx_mut = (.b191) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b191) *)
-    let shallow : (t191, _) idx_mut = (.b191) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 811;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 811 failed %d" i;
-  );
-
-  (******************************************)
-  (*   t193 = { #{ int; #{ int; int } } }   *)
-  (******************************************)
-  (* Deepening to (.a193) *)
-  let idx : (t193, _) idx_mut = (.a193) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a193) *)
-    let shallow : (t193, _) idx_mut = (.a193) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 812;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 812 failed %d" i;
-  );
-  (* Deepening to (.a193.#a192) *)
-  let idx : (t193, _) idx_mut = (.a193.#a192) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a193) *)
-    let shallow : (t193, _) idx_mut = (.a193) in
-    let deepened = (.idx_mut(shallow).#a192) in
-    mark_test_run 813;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 813 failed %d" i;
-    (* from (.a193.#a192) *)
-    let shallow : (t193, _) idx_mut = (.a193.#a192) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 814;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 814 failed %d" i;
-  );
-  (* Deepening to (.a193.#b192) *)
-  let idx : (t193, _) idx_mut = (.a193.#b192) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a193) *)
-    let shallow : (t193, _) idx_mut = (.a193) in
-    let deepened = (.idx_mut(shallow).#b192) in
-    mark_test_run 815;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 815 failed %d" i;
-    (* from (.a193.#b192) *)
-    let shallow : (t193, _) idx_mut = (.a193.#b192) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 816;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 816 failed %d" i;
-  );
-  (* Deepening to (.a193.#b192.#a16) *)
-  let idx : (t193, _) idx_mut = (.a193.#b192.#a16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a193) *)
-    let shallow : (t193, _) idx_mut = (.a193) in
-    let deepened = (.idx_mut(shallow).#b192.#a16) in
-    mark_test_run 817;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 817 failed %d" i;
-    (* from (.a193.#b192) *)
-    let shallow : (t193, _) idx_mut = (.a193.#b192) in
-    let deepened = (.idx_mut(shallow).#a16) in
-    mark_test_run 818;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 818 failed %d" i;
-    (* from (.a193.#b192.#a16) *)
-    let shallow : (t193, _) idx_mut = (.a193.#b192.#a16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 819;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 819 failed %d" i;
-  );
-  (* Deepening to (.a193.#b192.#b16) *)
-  let idx : (t193, _) idx_mut = (.a193.#b192.#b16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a193) *)
-    let shallow : (t193, _) idx_mut = (.a193) in
-    let deepened = (.idx_mut(shallow).#b192.#b16) in
-    mark_test_run 820;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 820 failed %d" i;
-    (* from (.a193.#b192) *)
-    let shallow : (t193, _) idx_mut = (.a193.#b192) in
-    let deepened = (.idx_mut(shallow).#b16) in
-    mark_test_run 821;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 821 failed %d" i;
-    (* from (.a193.#b192.#b16) *)
-    let shallow : (t193, _) idx_mut = (.a193.#b192.#b16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 822;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 822 failed %d" i;
-  );
-
-  (*********************************************)
-  (*   t195 = { #{ int; #{ int; int32# } } }   *)
-  (*********************************************)
-  (* Deepening to (.a195) *)
-  let idx : (t195, _) idx_mut = (.a195) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a195) *)
-    let shallow : (t195, _) idx_mut = (.a195) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 823;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 823 failed %d" i;
-  );
-  (* Deepening to (.a195.#a194) *)
-  let idx : (t195, _) idx_mut = (.a195.#a194) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a195) *)
-    let shallow : (t195, _) idx_mut = (.a195) in
-    let deepened = (.idx_mut(shallow).#a194) in
-    mark_test_run 824;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 824 failed %d" i;
-    (* from (.a195.#a194) *)
-    let shallow : (t195, _) idx_mut = (.a195.#a194) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 825;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 825 failed %d" i;
-  );
-  (* Deepening to (.a195.#b194) *)
-  let idx : (t195, _) idx_mut = (.a195.#b194) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a195) *)
-    let shallow : (t195, _) idx_mut = (.a195) in
-    let deepened = (.idx_mut(shallow).#b194) in
-    mark_test_run 826;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 826 failed %d" i;
-    (* from (.a195.#b194) *)
-    let shallow : (t195, _) idx_mut = (.a195.#b194) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 827;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 827 failed %d" i;
-  );
-  (* Deepening to (.a195.#b194.#a18) *)
-  let idx : (t195, _) idx_mut = (.a195.#b194.#a18) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a195) *)
-    let shallow : (t195, _) idx_mut = (.a195) in
-    let deepened = (.idx_mut(shallow).#b194.#a18) in
-    mark_test_run 828;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 828 failed %d" i;
-    (* from (.a195.#b194) *)
-    let shallow : (t195, _) idx_mut = (.a195.#b194) in
-    let deepened = (.idx_mut(shallow).#a18) in
-    mark_test_run 829;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 829 failed %d" i;
-    (* from (.a195.#b194.#a18) *)
-    let shallow : (t195, _) idx_mut = (.a195.#b194.#a18) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 830;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 830 failed %d" i;
-  );
-  (* Deepening to (.a195.#b194.#b18) *)
-  let idx : (t195, _) idx_mut = (.a195.#b194.#b18) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a195) *)
-    let shallow : (t195, _) idx_mut = (.a195) in
-    let deepened = (.idx_mut(shallow).#b194.#b18) in
-    mark_test_run 831;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 831 failed %d" i;
-    (* from (.a195.#b194) *)
-    let shallow : (t195, _) idx_mut = (.a195.#b194) in
-    let deepened = (.idx_mut(shallow).#b18) in
-    mark_test_run 832;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 832 failed %d" i;
-    (* from (.a195.#b194.#b18) *)
-    let shallow : (t195, _) idx_mut = (.a195.#b194.#b18) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 833;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 833 failed %d" i;
-  );
-
-  (********************************************)
-  (*   t197 = { #{ int; #{ int; float } } }   *)
-  (********************************************)
-  (* Deepening to (.a197) *)
-  let idx : (t197, _) idx_mut = (.a197) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a197) *)
-    let shallow : (t197, _) idx_mut = (.a197) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 834;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 834 failed %d" i;
-  );
-  (* Deepening to (.a197.#a196) *)
-  let idx : (t197, _) idx_mut = (.a197.#a196) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a197) *)
-    let shallow : (t197, _) idx_mut = (.a197) in
-    let deepened = (.idx_mut(shallow).#a196) in
-    mark_test_run 835;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 835 failed %d" i;
-    (* from (.a197.#a196) *)
-    let shallow : (t197, _) idx_mut = (.a197.#a196) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 836;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 836 failed %d" i;
-  );
-  (* Deepening to (.a197.#b196) *)
-  let idx : (t197, _) idx_mut = (.a197.#b196) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a197) *)
-    let shallow : (t197, _) idx_mut = (.a197) in
-    let deepened = (.idx_mut(shallow).#b196) in
-    mark_test_run 837;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 837 failed %d" i;
-    (* from (.a197.#b196) *)
-    let shallow : (t197, _) idx_mut = (.a197.#b196) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 838;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 838 failed %d" i;
-  );
-  (* Deepening to (.a197.#b196.#a20) *)
-  let idx : (t197, _) idx_mut = (.a197.#b196.#a20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a197) *)
-    let shallow : (t197, _) idx_mut = (.a197) in
-    let deepened = (.idx_mut(shallow).#b196.#a20) in
-    mark_test_run 839;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 839 failed %d" i;
-    (* from (.a197.#b196) *)
-    let shallow : (t197, _) idx_mut = (.a197.#b196) in
-    let deepened = (.idx_mut(shallow).#a20) in
-    mark_test_run 840;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 840 failed %d" i;
-    (* from (.a197.#b196.#a20) *)
-    let shallow : (t197, _) idx_mut = (.a197.#b196.#a20) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 841;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 841 failed %d" i;
-  );
-  (* Deepening to (.a197.#b196.#b20) *)
-  let idx : (t197, _) idx_mut = (.a197.#b196.#b20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a197) *)
-    let shallow : (t197, _) idx_mut = (.a197) in
-    let deepened = (.idx_mut(shallow).#b196.#b20) in
-    mark_test_run 842;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 842 failed %d" i;
-    (* from (.a197.#b196) *)
-    let shallow : (t197, _) idx_mut = (.a197.#b196) in
-    let deepened = (.idx_mut(shallow).#b20) in
-    mark_test_run 843;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 843 failed %d" i;
-    (* from (.a197.#b196.#b20) *)
-    let shallow : (t197, _) idx_mut = (.a197.#b196.#b20) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 844;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 844 failed %d" i;
-  );
-
-  (*********************************************)
-  (*   t199 = { #{ int; #{ int32#; int } } }   *)
-  (*********************************************)
-  (* Deepening to (.a199) *)
-  let idx : (t199, _) idx_mut = (.a199) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a199) *)
-    let shallow : (t199, _) idx_mut = (.a199) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 845;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 845 failed %d" i;
-  );
-  (* Deepening to (.a199.#a198) *)
-  let idx : (t199, _) idx_mut = (.a199.#a198) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a199) *)
-    let shallow : (t199, _) idx_mut = (.a199) in
-    let deepened = (.idx_mut(shallow).#a198) in
-    mark_test_run 846;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 846 failed %d" i;
-    (* from (.a199.#a198) *)
-    let shallow : (t199, _) idx_mut = (.a199.#a198) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 847;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 847 failed %d" i;
-  );
-  (* Deepening to (.a199.#b198) *)
-  let idx : (t199, _) idx_mut = (.a199.#b198) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a199) *)
-    let shallow : (t199, _) idx_mut = (.a199) in
-    let deepened = (.idx_mut(shallow).#b198) in
-    mark_test_run 848;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 848 failed %d" i;
-    (* from (.a199.#b198) *)
-    let shallow : (t199, _) idx_mut = (.a199.#b198) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 849;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 849 failed %d" i;
-  );
-  (* Deepening to (.a199.#b198.#a31) *)
-  let idx : (t199, _) idx_mut = (.a199.#b198.#a31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a199) *)
-    let shallow : (t199, _) idx_mut = (.a199) in
-    let deepened = (.idx_mut(shallow).#b198.#a31) in
-    mark_test_run 850;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 850 failed %d" i;
-    (* from (.a199.#b198) *)
-    let shallow : (t199, _) idx_mut = (.a199.#b198) in
-    let deepened = (.idx_mut(shallow).#a31) in
-    mark_test_run 851;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 851 failed %d" i;
-    (* from (.a199.#b198.#a31) *)
-    let shallow : (t199, _) idx_mut = (.a199.#b198.#a31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 852;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 852 failed %d" i;
-  );
-  (* Deepening to (.a199.#b198.#b31) *)
-  let idx : (t199, _) idx_mut = (.a199.#b198.#b31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a199) *)
-    let shallow : (t199, _) idx_mut = (.a199) in
-    let deepened = (.idx_mut(shallow).#b198.#b31) in
-    mark_test_run 853;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 853 failed %d" i;
-    (* from (.a199.#b198) *)
-    let shallow : (t199, _) idx_mut = (.a199.#b198) in
-    let deepened = (.idx_mut(shallow).#b31) in
-    mark_test_run 854;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 854 failed %d" i;
-    (* from (.a199.#b198.#b31) *)
-    let shallow : (t199, _) idx_mut = (.a199.#b198.#b31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 855;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 855 failed %d" i;
-  );
-
-  (************************************************)
-  (*   t201 = { #{ int; #{ int32#; int32# } } }   *)
-  (************************************************)
-  (* Deepening to (.a201) *)
-  let idx : (t201, _) idx_mut = (.a201) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a201) *)
-    let shallow : (t201, _) idx_mut = (.a201) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 856;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 856 failed %d" i;
-  );
-  (* Deepening to (.a201.#a200) *)
-  let idx : (t201, _) idx_mut = (.a201.#a200) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a201) *)
-    let shallow : (t201, _) idx_mut = (.a201) in
-    let deepened = (.idx_mut(shallow).#a200) in
-    mark_test_run 857;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 857 failed %d" i;
-    (* from (.a201.#a200) *)
-    let shallow : (t201, _) idx_mut = (.a201.#a200) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 858;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 858 failed %d" i;
-  );
-  (* Deepening to (.a201.#b200) *)
-  let idx : (t201, _) idx_mut = (.a201.#b200) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a201) *)
-    let shallow : (t201, _) idx_mut = (.a201) in
-    let deepened = (.idx_mut(shallow).#b200) in
-    mark_test_run 859;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 859 failed %d" i;
-    (* from (.a201.#b200) *)
-    let shallow : (t201, _) idx_mut = (.a201.#b200) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 860;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 860 failed %d" i;
-  );
-  (* Deepening to (.a201.#b200.#a33) *)
-  let idx : (t201, _) idx_mut = (.a201.#b200.#a33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a201) *)
-    let shallow : (t201, _) idx_mut = (.a201) in
-    let deepened = (.idx_mut(shallow).#b200.#a33) in
-    mark_test_run 861;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 861 failed %d" i;
-    (* from (.a201.#b200) *)
-    let shallow : (t201, _) idx_mut = (.a201.#b200) in
-    let deepened = (.idx_mut(shallow).#a33) in
-    mark_test_run 862;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 862 failed %d" i;
-    (* from (.a201.#b200.#a33) *)
-    let shallow : (t201, _) idx_mut = (.a201.#b200.#a33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 863;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 863 failed %d" i;
-  );
-  (* Deepening to (.a201.#b200.#b33) *)
-  let idx : (t201, _) idx_mut = (.a201.#b200.#b33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a201) *)
-    let shallow : (t201, _) idx_mut = (.a201) in
-    let deepened = (.idx_mut(shallow).#b200.#b33) in
-    mark_test_run 864;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 864 failed %d" i;
-    (* from (.a201.#b200) *)
-    let shallow : (t201, _) idx_mut = (.a201.#b200) in
-    let deepened = (.idx_mut(shallow).#b33) in
-    mark_test_run 865;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 865 failed %d" i;
-    (* from (.a201.#b200.#b33) *)
-    let shallow : (t201, _) idx_mut = (.a201.#b200.#b33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 866;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 866 failed %d" i;
-  );
-
-  (********************************************)
-  (*   t203 = { #{ int; #{ float; int } } }   *)
-  (********************************************)
-  (* Deepening to (.a203) *)
-  let idx : (t203, _) idx_mut = (.a203) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a203) *)
-    let shallow : (t203, _) idx_mut = (.a203) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 867;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 867 failed %d" i;
-  );
-  (* Deepening to (.a203.#a202) *)
-  let idx : (t203, _) idx_mut = (.a203.#a202) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a203) *)
-    let shallow : (t203, _) idx_mut = (.a203) in
-    let deepened = (.idx_mut(shallow).#a202) in
-    mark_test_run 868;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 868 failed %d" i;
-    (* from (.a203.#a202) *)
-    let shallow : (t203, _) idx_mut = (.a203.#a202) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 869;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 869 failed %d" i;
-  );
-  (* Deepening to (.a203.#b202) *)
-  let idx : (t203, _) idx_mut = (.a203.#b202) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a203) *)
-    let shallow : (t203, _) idx_mut = (.a203) in
-    let deepened = (.idx_mut(shallow).#b202) in
-    mark_test_run 870;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 870 failed %d" i;
-    (* from (.a203.#b202) *)
-    let shallow : (t203, _) idx_mut = (.a203.#b202) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 871;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 871 failed %d" i;
-  );
-  (* Deepening to (.a203.#b202.#a40) *)
-  let idx : (t203, _) idx_mut = (.a203.#b202.#a40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a203) *)
-    let shallow : (t203, _) idx_mut = (.a203) in
-    let deepened = (.idx_mut(shallow).#b202.#a40) in
-    mark_test_run 872;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 872 failed %d" i;
-    (* from (.a203.#b202) *)
-    let shallow : (t203, _) idx_mut = (.a203.#b202) in
-    let deepened = (.idx_mut(shallow).#a40) in
-    mark_test_run 873;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 873 failed %d" i;
-    (* from (.a203.#b202.#a40) *)
-    let shallow : (t203, _) idx_mut = (.a203.#b202.#a40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 874;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 874 failed %d" i;
-  );
-  (* Deepening to (.a203.#b202.#b40) *)
-  let idx : (t203, _) idx_mut = (.a203.#b202.#b40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a203) *)
-    let shallow : (t203, _) idx_mut = (.a203) in
-    let deepened = (.idx_mut(shallow).#b202.#b40) in
-    mark_test_run 875;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 875 failed %d" i;
-    (* from (.a203.#b202) *)
-    let shallow : (t203, _) idx_mut = (.a203.#b202) in
-    let deepened = (.idx_mut(shallow).#b40) in
-    mark_test_run 876;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 876 failed %d" i;
-    (* from (.a203.#b202.#b40) *)
-    let shallow : (t203, _) idx_mut = (.a203.#b202.#b40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 877;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 877 failed %d" i;
-  );
-
-  (**********************************************)
-  (*   t205 = { #{ int; #{ float; float } } }   *)
-  (**********************************************)
-  (* Deepening to (.a205) *)
-  let idx : (t205, _) idx_mut = (.a205) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a205) *)
-    let shallow : (t205, _) idx_mut = (.a205) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 878;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 878 failed %d" i;
-  );
-  (* Deepening to (.a205.#a204) *)
-  let idx : (t205, _) idx_mut = (.a205.#a204) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a205) *)
-    let shallow : (t205, _) idx_mut = (.a205) in
-    let deepened = (.idx_mut(shallow).#a204) in
-    mark_test_run 879;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 879 failed %d" i;
-    (* from (.a205.#a204) *)
-    let shallow : (t205, _) idx_mut = (.a205.#a204) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 880;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 880 failed %d" i;
-  );
-  (* Deepening to (.a205.#b204) *)
-  let idx : (t205, _) idx_mut = (.a205.#b204) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a205) *)
-    let shallow : (t205, _) idx_mut = (.a205) in
-    let deepened = (.idx_mut(shallow).#b204) in
-    mark_test_run 881;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 881 failed %d" i;
-    (* from (.a205.#b204) *)
-    let shallow : (t205, _) idx_mut = (.a205.#b204) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 882;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 882 failed %d" i;
-  );
-  (* Deepening to (.a205.#b204.#a42) *)
-  let idx : (t205, _) idx_mut = (.a205.#b204.#a42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a205) *)
-    let shallow : (t205, _) idx_mut = (.a205) in
-    let deepened = (.idx_mut(shallow).#b204.#a42) in
-    mark_test_run 883;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 883 failed %d" i;
-    (* from (.a205.#b204) *)
-    let shallow : (t205, _) idx_mut = (.a205.#b204) in
-    let deepened = (.idx_mut(shallow).#a42) in
-    mark_test_run 884;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 884 failed %d" i;
-    (* from (.a205.#b204.#a42) *)
-    let shallow : (t205, _) idx_mut = (.a205.#b204.#a42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 885;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 885 failed %d" i;
-  );
-  (* Deepening to (.a205.#b204.#b42) *)
-  let idx : (t205, _) idx_mut = (.a205.#b204.#b42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a205) *)
-    let shallow : (t205, _) idx_mut = (.a205) in
-    let deepened = (.idx_mut(shallow).#b204.#b42) in
-    mark_test_run 886;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 886 failed %d" i;
-    (* from (.a205.#b204) *)
-    let shallow : (t205, _) idx_mut = (.a205.#b204) in
-    let deepened = (.idx_mut(shallow).#b42) in
-    mark_test_run 887;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 887 failed %d" i;
-    (* from (.a205.#b204.#b42) *)
-    let shallow : (t205, _) idx_mut = (.a205.#b204.#b42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 888;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 888 failed %d" i;
-  );
-
-  (**********************************************************)
-  (*   t208 = { #{ int64; int64# }; #{ int64#; float# } }   *)
-  (**********************************************************)
-  (* Deepening to (.a208) *)
-  let idx : (t208, _) idx_mut = (.a208) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a208) *)
-    let shallow : (t208, _) idx_mut = (.a208) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 889;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 889 failed %d" i;
-  );
-  (* Deepening to (.a208.#a206) *)
-  let idx : (t208, _) idx_mut = (.a208.#a206) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a208) *)
-    let shallow : (t208, _) idx_mut = (.a208) in
-    let deepened = (.idx_mut(shallow).#a206) in
-    mark_test_run 890;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 890 failed %d" i;
-    (* from (.a208.#a206) *)
-    let shallow : (t208, _) idx_mut = (.a208.#a206) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 891;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 891 failed %d" i;
-  );
-  (* Deepening to (.a208.#b206) *)
-  let idx : (t208, _) idx_mut = (.a208.#b206) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a208) *)
-    let shallow : (t208, _) idx_mut = (.a208) in
-    let deepened = (.idx_mut(shallow).#b206) in
-    mark_test_run 892;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 892 failed %d" i;
-    (* from (.a208.#b206) *)
-    let shallow : (t208, _) idx_mut = (.a208.#b206) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 893;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 893 failed %d" i;
-  );
-  (* Deepening to (.b208) *)
-  let idx : (t208, _) idx_mut = (.b208) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b208) *)
-    let shallow : (t208, _) idx_mut = (.b208) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 894;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 894 failed %d" i;
-  );
-  (* Deepening to (.b208.#a207) *)
-  let idx : (t208, _) idx_mut = (.b208.#a207) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b208) *)
-    let shallow : (t208, _) idx_mut = (.b208) in
-    let deepened = (.idx_mut(shallow).#a207) in
-    mark_test_run 895;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 895 failed %d" i;
-    (* from (.b208.#a207) *)
-    let shallow : (t208, _) idx_mut = (.b208.#a207) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 896;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 896 failed %d" i;
-  );
-  (* Deepening to (.b208.#b207) *)
-  let idx : (t208, _) idx_mut = (.b208.#b207) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b208) *)
-    let shallow : (t208, _) idx_mut = (.b208) in
-    let deepened = (.idx_mut(shallow).#b207) in
-    mark_test_run 897;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 897 failed %d" i;
-    (* from (.b208.#b207) *)
-    let shallow : (t208, _) idx_mut = (.b208.#b207) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 898;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 898 failed %d" i;
-  );
-
-  (**********************************************************)
-  (*   t211 = { #{ int64; string }; #{ int64#; string } }   *)
-  (**********************************************************)
-  (* Deepening to (.a211) *)
-  let idx : (t211, _) idx_mut = (.a211) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a211) *)
-    let shallow : (t211, _) idx_mut = (.a211) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 899;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 899 failed %d" i;
-  );
-  (* Deepening to (.a211.#a209) *)
-  let idx : (t211, _) idx_mut = (.a211.#a209) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a211) *)
-    let shallow : (t211, _) idx_mut = (.a211) in
-    let deepened = (.idx_mut(shallow).#a209) in
-    mark_test_run 900;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 900 failed %d" i;
-    (* from (.a211.#a209) *)
-    let shallow : (t211, _) idx_mut = (.a211.#a209) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 901;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 901 failed %d" i;
-  );
-  (* Deepening to (.a211.#b209) *)
-  let idx : (t211, _) idx_mut = (.a211.#b209) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a211) *)
-    let shallow : (t211, _) idx_mut = (.a211) in
-    let deepened = (.idx_mut(shallow).#b209) in
-    mark_test_run 902;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 902 failed %d" i;
-    (* from (.a211.#b209) *)
-    let shallow : (t211, _) idx_mut = (.a211.#b209) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 903;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 903 failed %d" i;
-  );
-  (* Deepening to (.b211) *)
-  let idx : (t211, _) idx_mut = (.b211) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b211) *)
-    let shallow : (t211, _) idx_mut = (.b211) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 904;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 904 failed %d" i;
-  );
-  (* Deepening to (.b211.#a210) *)
-  let idx : (t211, _) idx_mut = (.b211.#a210) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b211) *)
-    let shallow : (t211, _) idx_mut = (.b211) in
-    let deepened = (.idx_mut(shallow).#a210) in
-    mark_test_run 905;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 905 failed %d" i;
-    (* from (.b211.#a210) *)
-    let shallow : (t211, _) idx_mut = (.b211.#a210) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 906;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 906 failed %d" i;
-  );
-  (* Deepening to (.b211.#b210) *)
-  let idx : (t211, _) idx_mut = (.b211.#b210) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b211) *)
-    let shallow : (t211, _) idx_mut = (.b211) in
-    let deepened = (.idx_mut(shallow).#b210) in
-    mark_test_run 907;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 907 failed %d" i;
-    (* from (.b211.#b210) *)
-    let shallow : (t211, _) idx_mut = (.b211.#b210) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 908;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 908 failed %d" i;
-  );
-
-  (********************************************************)
-  (*   t214 = { #{ int64#; int64 }; #{ int64; int64 } }   *)
-  (********************************************************)
-  (* Deepening to (.a214) *)
-  let idx : (t214, _) idx_mut = (.a214) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a214) *)
-    let shallow : (t214, _) idx_mut = (.a214) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 909;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 909 failed %d" i;
-  );
-  (* Deepening to (.a214.#a212) *)
-  let idx : (t214, _) idx_mut = (.a214.#a212) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a214) *)
-    let shallow : (t214, _) idx_mut = (.a214) in
-    let deepened = (.idx_mut(shallow).#a212) in
-    mark_test_run 910;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 910 failed %d" i;
-    (* from (.a214.#a212) *)
-    let shallow : (t214, _) idx_mut = (.a214.#a212) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 911;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 911 failed %d" i;
-  );
-  (* Deepening to (.a214.#b212) *)
-  let idx : (t214, _) idx_mut = (.a214.#b212) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a214) *)
-    let shallow : (t214, _) idx_mut = (.a214) in
-    let deepened = (.idx_mut(shallow).#b212) in
-    mark_test_run 912;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 912 failed %d" i;
-    (* from (.a214.#b212) *)
-    let shallow : (t214, _) idx_mut = (.a214.#b212) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 913;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 913 failed %d" i;
-  );
-  (* Deepening to (.b214) *)
-  let idx : (t214, _) idx_mut = (.b214) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b214) *)
-    let shallow : (t214, _) idx_mut = (.b214) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 914;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 914 failed %d" i;
-  );
-  (* Deepening to (.b214.#a213) *)
-  let idx : (t214, _) idx_mut = (.b214.#a213) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b214) *)
-    let shallow : (t214, _) idx_mut = (.b214) in
-    let deepened = (.idx_mut(shallow).#a213) in
-    mark_test_run 915;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 915 failed %d" i;
-    (* from (.b214.#a213) *)
-    let shallow : (t214, _) idx_mut = (.b214.#a213) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 916;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 916 failed %d" i;
-  );
-  (* Deepening to (.b214.#b213) *)
-  let idx : (t214, _) idx_mut = (.b214.#b213) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b214) *)
-    let shallow : (t214, _) idx_mut = (.b214) in
-    let deepened = (.idx_mut(shallow).#b213) in
-    mark_test_run 917;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 917 failed %d" i;
-    (* from (.b214.#b213) *)
-    let shallow : (t214, _) idx_mut = (.b214.#b213) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 918;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 918 failed %d" i;
-  );
-
-  (***********************************************************)
-  (*   t216 = { #{ int64#; int64 }; #{ float32#; float } }   *)
-  (***********************************************************)
-  (* Deepening to (.a216) *)
-  let idx : (t216, _) idx_mut = (.a216) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a216) *)
-    let shallow : (t216, _) idx_mut = (.a216) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 919;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 919 failed %d" i;
-  );
-  (* Deepening to (.a216.#a212) *)
-  let idx : (t216, _) idx_mut = (.a216.#a212) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a216) *)
-    let shallow : (t216, _) idx_mut = (.a216) in
-    let deepened = (.idx_mut(shallow).#a212) in
-    mark_test_run 920;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 920 failed %d" i;
-    (* from (.a216.#a212) *)
-    let shallow : (t216, _) idx_mut = (.a216.#a212) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 921;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 921 failed %d" i;
-  );
-  (* Deepening to (.a216.#b212) *)
-  let idx : (t216, _) idx_mut = (.a216.#b212) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a216) *)
-    let shallow : (t216, _) idx_mut = (.a216) in
-    let deepened = (.idx_mut(shallow).#b212) in
-    mark_test_run 922;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 922 failed %d" i;
-    (* from (.a216.#b212) *)
-    let shallow : (t216, _) idx_mut = (.a216.#b212) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 923;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 923 failed %d" i;
-  );
-  (* Deepening to (.b216) *)
-  let idx : (t216, _) idx_mut = (.b216) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b216) *)
-    let shallow : (t216, _) idx_mut = (.b216) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 924;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 924 failed %d" i;
-  );
-  (* Deepening to (.b216.#a215) *)
-  let idx : (t216, _) idx_mut = (.b216.#a215) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b216) *)
-    let shallow : (t216, _) idx_mut = (.b216) in
-    let deepened = (.idx_mut(shallow).#a215) in
-    mark_test_run 925;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 925 failed %d" i;
-    (* from (.b216.#a215) *)
-    let shallow : (t216, _) idx_mut = (.b216.#a215) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 926;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 926 failed %d" i;
-  );
-  (* Deepening to (.b216.#b215) *)
-  let idx : (t216, _) idx_mut = (.b216.#b215) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b216) *)
-    let shallow : (t216, _) idx_mut = (.b216) in
-    let deepened = (.idx_mut(shallow).#b215) in
-    mark_test_run 927;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 927 failed %d" i;
-    (* from (.b216.#b215) *)
-    let shallow : (t216, _) idx_mut = (.b216.#b215) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 928;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 928 failed %d" i;
-  );
-
-  (******************************)
-  (*   t217 = { #{ int32# } }   *)
-  (******************************)
-  (* Deepening to (.a217) *)
-  let idx : (t217, _) idx_mut = (.a217) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a217) *)
-    let shallow : (t217, _) idx_mut = (.a217) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 929;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 929 failed %d" i;
-  );
-  (* Deepening to (.a217.#a24) *)
-  let idx : (t217, _) idx_mut = (.a217.#a24) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a217) *)
-    let shallow : (t217, _) idx_mut = (.a217) in
-    let deepened = (.idx_mut(shallow).#a24) in
-    mark_test_run 930;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 930 failed %d" i;
-    (* from (.a217.#a24) *)
-    let shallow : (t217, _) idx_mut = (.a217.#a24) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 931;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 931 failed %d" i;
-  );
-
-  (***********************************)
-  (*   t218 = { #{ int32# }; int }   *)
-  (***********************************)
-  (* Deepening to (.a218) *)
-  let idx : (t218, _) idx_mut = (.a218) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a218) *)
-    let shallow : (t218, _) idx_mut = (.a218) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 932;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 932 failed %d" i;
-  );
-  (* Deepening to (.a218.#a24) *)
-  let idx : (t218, _) idx_mut = (.a218.#a24) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a218) *)
-    let shallow : (t218, _) idx_mut = (.a218) in
-    let deepened = (.idx_mut(shallow).#a24) in
-    mark_test_run 933;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 933 failed %d" i;
-    (* from (.a218.#a24) *)
-    let shallow : (t218, _) idx_mut = (.a218.#a24) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 934;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 934 failed %d" i;
-  );
-  (* Deepening to (.b218) *)
-  let idx : (t218, _) idx_mut = (.b218) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b218) *)
-    let shallow : (t218, _) idx_mut = (.b218) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 935;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 935 failed %d" i;
-  );
-
-  (**************************************)
-  (*   t219 = { #{ int32# }; int32# }   *)
-  (**************************************)
-  (* Deepening to (.a219) *)
-  let idx : (t219, _) idx_mut = (.a219) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a219) *)
-    let shallow : (t219, _) idx_mut = (.a219) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 936;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 936 failed %d" i;
-  );
-  (* Deepening to (.a219.#a24) *)
-  let idx : (t219, _) idx_mut = (.a219.#a24) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a219) *)
-    let shallow : (t219, _) idx_mut = (.a219) in
-    let deepened = (.idx_mut(shallow).#a24) in
-    mark_test_run 937;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 937 failed %d" i;
-    (* from (.a219.#a24) *)
-    let shallow : (t219, _) idx_mut = (.a219.#a24) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 938;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 938 failed %d" i;
-  );
-  (* Deepening to (.b219) *)
-  let idx : (t219, _) idx_mut = (.b219) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b219) *)
-    let shallow : (t219, _) idx_mut = (.b219) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 939;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 939 failed %d" i;
-  );
-
-  (***********************************)
-  (*   t220 = { #{ int32#; int } }   *)
-  (***********************************)
-  (* Deepening to (.a220) *)
-  let idx : (t220, _) idx_mut = (.a220) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a220) *)
-    let shallow : (t220, _) idx_mut = (.a220) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 940;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 940 failed %d" i;
-  );
-  (* Deepening to (.a220.#a31) *)
-  let idx : (t220, _) idx_mut = (.a220.#a31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a220) *)
-    let shallow : (t220, _) idx_mut = (.a220) in
-    let deepened = (.idx_mut(shallow).#a31) in
-    mark_test_run 941;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 941 failed %d" i;
-    (* from (.a220.#a31) *)
-    let shallow : (t220, _) idx_mut = (.a220.#a31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 942;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 942 failed %d" i;
-  );
-  (* Deepening to (.a220.#b31) *)
-  let idx : (t220, _) idx_mut = (.a220.#b31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a220) *)
-    let shallow : (t220, _) idx_mut = (.a220) in
-    let deepened = (.idx_mut(shallow).#b31) in
-    mark_test_run 943;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 943 failed %d" i;
-    (* from (.a220.#b31) *)
-    let shallow : (t220, _) idx_mut = (.a220.#b31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 944;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 944 failed %d" i;
-  );
-
-  (****************************************)
-  (*   t221 = { #{ int32#; int }; int }   *)
-  (****************************************)
-  (* Deepening to (.a221) *)
-  let idx : (t221, _) idx_mut = (.a221) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a221) *)
-    let shallow : (t221, _) idx_mut = (.a221) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 945;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 945 failed %d" i;
-  );
-  (* Deepening to (.a221.#a31) *)
-  let idx : (t221, _) idx_mut = (.a221.#a31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a221) *)
-    let shallow : (t221, _) idx_mut = (.a221) in
-    let deepened = (.idx_mut(shallow).#a31) in
-    mark_test_run 946;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 946 failed %d" i;
-    (* from (.a221.#a31) *)
-    let shallow : (t221, _) idx_mut = (.a221.#a31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 947;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 947 failed %d" i;
-  );
-  (* Deepening to (.a221.#b31) *)
-  let idx : (t221, _) idx_mut = (.a221.#b31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a221) *)
-    let shallow : (t221, _) idx_mut = (.a221) in
-    let deepened = (.idx_mut(shallow).#b31) in
-    mark_test_run 948;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 948 failed %d" i;
-    (* from (.a221.#b31) *)
-    let shallow : (t221, _) idx_mut = (.a221.#b31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 949;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 949 failed %d" i;
-  );
-  (* Deepening to (.b221) *)
-  let idx : (t221, _) idx_mut = (.b221) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b221) *)
-    let shallow : (t221, _) idx_mut = (.b221) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 950;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 950 failed %d" i;
-  );
-
-  (*******************************************)
-  (*   t222 = { #{ int32#; int }; int32# }   *)
-  (*******************************************)
-  (* Deepening to (.a222) *)
-  let idx : (t222, _) idx_mut = (.a222) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a222) *)
-    let shallow : (t222, _) idx_mut = (.a222) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 951;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 951 failed %d" i;
-  );
-  (* Deepening to (.a222.#a31) *)
-  let idx : (t222, _) idx_mut = (.a222.#a31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a222) *)
-    let shallow : (t222, _) idx_mut = (.a222) in
-    let deepened = (.idx_mut(shallow).#a31) in
-    mark_test_run 952;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 952 failed %d" i;
-    (* from (.a222.#a31) *)
-    let shallow : (t222, _) idx_mut = (.a222.#a31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 953;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 953 failed %d" i;
-  );
-  (* Deepening to (.a222.#b31) *)
-  let idx : (t222, _) idx_mut = (.a222.#b31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a222) *)
-    let shallow : (t222, _) idx_mut = (.a222) in
-    let deepened = (.idx_mut(shallow).#b31) in
-    mark_test_run 954;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 954 failed %d" i;
-    (* from (.a222.#b31) *)
-    let shallow : (t222, _) idx_mut = (.a222.#b31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 955;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 955 failed %d" i;
-  );
-  (* Deepening to (.b222) *)
-  let idx : (t222, _) idx_mut = (.b222) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b222) *)
-    let shallow : (t222, _) idx_mut = (.b222) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 956;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 956 failed %d" i;
-  );
-
-  (**************************************)
-  (*   t223 = { #{ int32#; int32# } }   *)
-  (**************************************)
-  (* Deepening to (.a223) *)
-  let idx : (t223, _) idx_mut = (.a223) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a223) *)
-    let shallow : (t223, _) idx_mut = (.a223) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 957;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 957 failed %d" i;
-  );
-  (* Deepening to (.a223.#a33) *)
-  let idx : (t223, _) idx_mut = (.a223.#a33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a223) *)
-    let shallow : (t223, _) idx_mut = (.a223) in
-    let deepened = (.idx_mut(shallow).#a33) in
-    mark_test_run 958;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 958 failed %d" i;
-    (* from (.a223.#a33) *)
-    let shallow : (t223, _) idx_mut = (.a223.#a33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 959;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 959 failed %d" i;
-  );
-  (* Deepening to (.a223.#b33) *)
-  let idx : (t223, _) idx_mut = (.a223.#b33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a223) *)
-    let shallow : (t223, _) idx_mut = (.a223) in
-    let deepened = (.idx_mut(shallow).#b33) in
-    mark_test_run 960;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 960 failed %d" i;
-    (* from (.a223.#b33) *)
-    let shallow : (t223, _) idx_mut = (.a223.#b33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 961;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 961 failed %d" i;
-  );
-
-  (*******************************************)
-  (*   t224 = { #{ int32#; int32# }; int }   *)
-  (*******************************************)
-  (* Deepening to (.a224) *)
-  let idx : (t224, _) idx_mut = (.a224) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a224) *)
-    let shallow : (t224, _) idx_mut = (.a224) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 962;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 962 failed %d" i;
-  );
-  (* Deepening to (.a224.#a33) *)
-  let idx : (t224, _) idx_mut = (.a224.#a33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a224) *)
-    let shallow : (t224, _) idx_mut = (.a224) in
-    let deepened = (.idx_mut(shallow).#a33) in
-    mark_test_run 963;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 963 failed %d" i;
-    (* from (.a224.#a33) *)
-    let shallow : (t224, _) idx_mut = (.a224.#a33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 964;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 964 failed %d" i;
-  );
-  (* Deepening to (.a224.#b33) *)
-  let idx : (t224, _) idx_mut = (.a224.#b33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a224) *)
-    let shallow : (t224, _) idx_mut = (.a224) in
-    let deepened = (.idx_mut(shallow).#b33) in
-    mark_test_run 965;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 965 failed %d" i;
-    (* from (.a224.#b33) *)
-    let shallow : (t224, _) idx_mut = (.a224.#b33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 966;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 966 failed %d" i;
-  );
-  (* Deepening to (.b224) *)
-  let idx : (t224, _) idx_mut = (.b224) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b224) *)
-    let shallow : (t224, _) idx_mut = (.b224) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 967;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 967 failed %d" i;
-  );
-
-  (**********************************************)
-  (*   t225 = { #{ int32#; int32# }; int32# }   *)
-  (**********************************************)
-  (* Deepening to (.a225) *)
-  let idx : (t225, _) idx_mut = (.a225) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a225) *)
-    let shallow : (t225, _) idx_mut = (.a225) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 968;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 968 failed %d" i;
-  );
-  (* Deepening to (.a225.#a33) *)
-  let idx : (t225, _) idx_mut = (.a225.#a33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a225) *)
-    let shallow : (t225, _) idx_mut = (.a225) in
-    let deepened = (.idx_mut(shallow).#a33) in
-    mark_test_run 969;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 969 failed %d" i;
-    (* from (.a225.#a33) *)
-    let shallow : (t225, _) idx_mut = (.a225.#a33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 970;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 970 failed %d" i;
-  );
-  (* Deepening to (.a225.#b33) *)
-  let idx : (t225, _) idx_mut = (.a225.#b33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a225) *)
-    let shallow : (t225, _) idx_mut = (.a225) in
-    let deepened = (.idx_mut(shallow).#b33) in
-    mark_test_run 971;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 971 failed %d" i;
-    (* from (.a225.#b33) *)
-    let shallow : (t225, _) idx_mut = (.a225.#b33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 972;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 972 failed %d" i;
-  );
-  (* Deepening to (.b225) *)
-  let idx : (t225, _) idx_mut = (.b225) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b225) *)
-    let shallow : (t225, _) idx_mut = (.b225) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 973;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 973 failed %d" i;
-  );
-
-  (*********************************************)
-  (*   t227 = { #{ int32#; #{ int; int } } }   *)
-  (*********************************************)
-  (* Deepening to (.a227) *)
-  let idx : (t227, _) idx_mut = (.a227) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a227) *)
-    let shallow : (t227, _) idx_mut = (.a227) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 974;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 974 failed %d" i;
-  );
-  (* Deepening to (.a227.#a226) *)
-  let idx : (t227, _) idx_mut = (.a227.#a226) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a227) *)
-    let shallow : (t227, _) idx_mut = (.a227) in
-    let deepened = (.idx_mut(shallow).#a226) in
-    mark_test_run 975;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 975 failed %d" i;
-    (* from (.a227.#a226) *)
-    let shallow : (t227, _) idx_mut = (.a227.#a226) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 976;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 976 failed %d" i;
-  );
-  (* Deepening to (.a227.#b226) *)
-  let idx : (t227, _) idx_mut = (.a227.#b226) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a227) *)
-    let shallow : (t227, _) idx_mut = (.a227) in
-    let deepened = (.idx_mut(shallow).#b226) in
-    mark_test_run 977;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 977 failed %d" i;
-    (* from (.a227.#b226) *)
-    let shallow : (t227, _) idx_mut = (.a227.#b226) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 978;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 978 failed %d" i;
-  );
-  (* Deepening to (.a227.#b226.#a16) *)
-  let idx : (t227, _) idx_mut = (.a227.#b226.#a16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a227) *)
-    let shallow : (t227, _) idx_mut = (.a227) in
-    let deepened = (.idx_mut(shallow).#b226.#a16) in
-    mark_test_run 979;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 979 failed %d" i;
-    (* from (.a227.#b226) *)
-    let shallow : (t227, _) idx_mut = (.a227.#b226) in
-    let deepened = (.idx_mut(shallow).#a16) in
-    mark_test_run 980;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 980 failed %d" i;
-    (* from (.a227.#b226.#a16) *)
-    let shallow : (t227, _) idx_mut = (.a227.#b226.#a16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 981;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 981 failed %d" i;
-  );
-  (* Deepening to (.a227.#b226.#b16) *)
-  let idx : (t227, _) idx_mut = (.a227.#b226.#b16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a227) *)
-    let shallow : (t227, _) idx_mut = (.a227) in
-    let deepened = (.idx_mut(shallow).#b226.#b16) in
-    mark_test_run 982;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 982 failed %d" i;
-    (* from (.a227.#b226) *)
-    let shallow : (t227, _) idx_mut = (.a227.#b226) in
-    let deepened = (.idx_mut(shallow).#b16) in
-    mark_test_run 983;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 983 failed %d" i;
-    (* from (.a227.#b226.#b16) *)
-    let shallow : (t227, _) idx_mut = (.a227.#b226.#b16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 984;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 984 failed %d" i;
-  );
-
-  (************************************************)
-  (*   t229 = { #{ int32#; #{ int; int32# } } }   *)
-  (************************************************)
-  (* Deepening to (.a229) *)
-  let idx : (t229, _) idx_mut = (.a229) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a229) *)
-    let shallow : (t229, _) idx_mut = (.a229) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 985;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 985 failed %d" i;
-  );
-  (* Deepening to (.a229.#a228) *)
-  let idx : (t229, _) idx_mut = (.a229.#a228) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a229) *)
-    let shallow : (t229, _) idx_mut = (.a229) in
-    let deepened = (.idx_mut(shallow).#a228) in
-    mark_test_run 986;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 986 failed %d" i;
-    (* from (.a229.#a228) *)
-    let shallow : (t229, _) idx_mut = (.a229.#a228) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 987;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 987 failed %d" i;
-  );
-  (* Deepening to (.a229.#b228) *)
-  let idx : (t229, _) idx_mut = (.a229.#b228) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a229) *)
-    let shallow : (t229, _) idx_mut = (.a229) in
-    let deepened = (.idx_mut(shallow).#b228) in
-    mark_test_run 988;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 988 failed %d" i;
-    (* from (.a229.#b228) *)
-    let shallow : (t229, _) idx_mut = (.a229.#b228) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 989;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 989 failed %d" i;
-  );
-  (* Deepening to (.a229.#b228.#a18) *)
-  let idx : (t229, _) idx_mut = (.a229.#b228.#a18) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a229) *)
-    let shallow : (t229, _) idx_mut = (.a229) in
-    let deepened = (.idx_mut(shallow).#b228.#a18) in
-    mark_test_run 990;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 990 failed %d" i;
-    (* from (.a229.#b228) *)
-    let shallow : (t229, _) idx_mut = (.a229.#b228) in
-    let deepened = (.idx_mut(shallow).#a18) in
-    mark_test_run 991;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 991 failed %d" i;
-    (* from (.a229.#b228.#a18) *)
-    let shallow : (t229, _) idx_mut = (.a229.#b228.#a18) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 992;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 992 failed %d" i;
-  );
-  (* Deepening to (.a229.#b228.#b18) *)
-  let idx : (t229, _) idx_mut = (.a229.#b228.#b18) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a229) *)
-    let shallow : (t229, _) idx_mut = (.a229) in
-    let deepened = (.idx_mut(shallow).#b228.#b18) in
-    mark_test_run 993;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 993 failed %d" i;
-    (* from (.a229.#b228) *)
-    let shallow : (t229, _) idx_mut = (.a229.#b228) in
-    let deepened = (.idx_mut(shallow).#b18) in
-    mark_test_run 994;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 994 failed %d" i;
-    (* from (.a229.#b228.#b18) *)
-    let shallow : (t229, _) idx_mut = (.a229.#b228.#b18) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 995;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 995 failed %d" i;
-  );
-
-  (************************************************)
-  (*   t231 = { #{ int32#; #{ int32#; int } } }   *)
-  (************************************************)
-  (* Deepening to (.a231) *)
-  let idx : (t231, _) idx_mut = (.a231) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a231) *)
-    let shallow : (t231, _) idx_mut = (.a231) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 996;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 996 failed %d" i;
-  );
-  (* Deepening to (.a231.#a230) *)
-  let idx : (t231, _) idx_mut = (.a231.#a230) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a231) *)
-    let shallow : (t231, _) idx_mut = (.a231) in
-    let deepened = (.idx_mut(shallow).#a230) in
-    mark_test_run 997;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 997 failed %d" i;
-    (* from (.a231.#a230) *)
-    let shallow : (t231, _) idx_mut = (.a231.#a230) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 998;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 998 failed %d" i;
-  );
-  (* Deepening to (.a231.#b230) *)
-  let idx : (t231, _) idx_mut = (.a231.#b230) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a231) *)
-    let shallow : (t231, _) idx_mut = (.a231) in
-    let deepened = (.idx_mut(shallow).#b230) in
-    mark_test_run 999;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 999 failed %d" i;
-    (* from (.a231.#b230) *)
-    let shallow : (t231, _) idx_mut = (.a231.#b230) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1000;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1000 failed %d" i;
-  );
-  (* Deepening to (.a231.#b230.#a31) *)
-  let idx : (t231, _) idx_mut = (.a231.#b230.#a31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a231) *)
-    let shallow : (t231, _) idx_mut = (.a231) in
-    let deepened = (.idx_mut(shallow).#b230.#a31) in
-    mark_test_run 1001;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1001 failed %d" i;
-    (* from (.a231.#b230) *)
-    let shallow : (t231, _) idx_mut = (.a231.#b230) in
-    let deepened = (.idx_mut(shallow).#a31) in
-    mark_test_run 1002;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1002 failed %d" i;
-    (* from (.a231.#b230.#a31) *)
-    let shallow : (t231, _) idx_mut = (.a231.#b230.#a31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1003;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1003 failed %d" i;
-  );
-  (* Deepening to (.a231.#b230.#b31) *)
-  let idx : (t231, _) idx_mut = (.a231.#b230.#b31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a231) *)
-    let shallow : (t231, _) idx_mut = (.a231) in
-    let deepened = (.idx_mut(shallow).#b230.#b31) in
-    mark_test_run 1004;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1004 failed %d" i;
-    (* from (.a231.#b230) *)
-    let shallow : (t231, _) idx_mut = (.a231.#b230) in
-    let deepened = (.idx_mut(shallow).#b31) in
-    mark_test_run 1005;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1005 failed %d" i;
-    (* from (.a231.#b230.#b31) *)
-    let shallow : (t231, _) idx_mut = (.a231.#b230.#b31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1006;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1006 failed %d" i;
-  );
-
-  (***************************************************)
-  (*   t233 = { #{ int32#; #{ int32#; int32# } } }   *)
-  (***************************************************)
-  (* Deepening to (.a233) *)
-  let idx : (t233, _) idx_mut = (.a233) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a233) *)
-    let shallow : (t233, _) idx_mut = (.a233) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1007;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1007 failed %d" i;
-  );
-  (* Deepening to (.a233.#a232) *)
-  let idx : (t233, _) idx_mut = (.a233.#a232) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a233) *)
-    let shallow : (t233, _) idx_mut = (.a233) in
-    let deepened = (.idx_mut(shallow).#a232) in
-    mark_test_run 1008;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1008 failed %d" i;
-    (* from (.a233.#a232) *)
-    let shallow : (t233, _) idx_mut = (.a233.#a232) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1009;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1009 failed %d" i;
-  );
-  (* Deepening to (.a233.#b232) *)
-  let idx : (t233, _) idx_mut = (.a233.#b232) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a233) *)
-    let shallow : (t233, _) idx_mut = (.a233) in
-    let deepened = (.idx_mut(shallow).#b232) in
-    mark_test_run 1010;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1010 failed %d" i;
-    (* from (.a233.#b232) *)
-    let shallow : (t233, _) idx_mut = (.a233.#b232) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1011;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1011 failed %d" i;
-  );
-  (* Deepening to (.a233.#b232.#a33) *)
-  let idx : (t233, _) idx_mut = (.a233.#b232.#a33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a233) *)
-    let shallow : (t233, _) idx_mut = (.a233) in
-    let deepened = (.idx_mut(shallow).#b232.#a33) in
-    mark_test_run 1012;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1012 failed %d" i;
-    (* from (.a233.#b232) *)
-    let shallow : (t233, _) idx_mut = (.a233.#b232) in
-    let deepened = (.idx_mut(shallow).#a33) in
-    mark_test_run 1013;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1013 failed %d" i;
-    (* from (.a233.#b232.#a33) *)
-    let shallow : (t233, _) idx_mut = (.a233.#b232.#a33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1014;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1014 failed %d" i;
-  );
-  (* Deepening to (.a233.#b232.#b33) *)
-  let idx : (t233, _) idx_mut = (.a233.#b232.#b33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a233) *)
-    let shallow : (t233, _) idx_mut = (.a233) in
-    let deepened = (.idx_mut(shallow).#b232.#b33) in
-    mark_test_run 1015;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1015 failed %d" i;
-    (* from (.a233.#b232) *)
-    let shallow : (t233, _) idx_mut = (.a233.#b232) in
-    let deepened = (.idx_mut(shallow).#b33) in
-    mark_test_run 1016;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1016 failed %d" i;
-    (* from (.a233.#b232.#b33) *)
-    let shallow : (t233, _) idx_mut = (.a233.#b232.#b33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1017;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1017 failed %d" i;
-  );
-
-  (*****************************)
-  (*   t234 = { #{ float } }   *)
-  (*****************************)
-  (* Deepening to (.a234) *)
-  let idx : (t234, _) idx_mut = (.a234) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a234) *)
-    let shallow : (t234, _) idx_mut = (.a234) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1018;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1018 failed %d" i;
-  );
-  (* Deepening to (.a234.#a27) *)
-  let idx : (t234, _) idx_mut = (.a234.#a27) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* Note: can't deepen (.a234) because it's a path to a flattened
-       float, making its element type [float#] *)
-    (* from (.a234.#a27) *)
-    let shallow : (t234, _) idx_mut = (.a234.#a27) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1019;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1019 failed %d" i;
-  );
-
-  (**********************************)
-  (*   t235 = { #{ float }; int }   *)
-  (**********************************)
-  (* Deepening to (.a235) *)
-  let idx : (t235, _) idx_mut = (.a235) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a235) *)
-    let shallow : (t235, _) idx_mut = (.a235) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1020;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1020 failed %d" i;
-  );
-  (* Deepening to (.a235.#a27) *)
-  let idx : (t235, _) idx_mut = (.a235.#a27) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a235) *)
-    let shallow : (t235, _) idx_mut = (.a235) in
-    let deepened = (.idx_mut(shallow).#a27) in
-    mark_test_run 1021;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1021 failed %d" i;
-    (* from (.a235.#a27) *)
-    let shallow : (t235, _) idx_mut = (.a235.#a27) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1022;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1022 failed %d" i;
-  );
-  (* Deepening to (.b235) *)
-  let idx : (t235, _) idx_mut = (.b235) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b235) *)
-    let shallow : (t235, _) idx_mut = (.b235) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1023;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1023 failed %d" i;
-  );
-
-  (************************************)
-  (*   t236 = { #{ float }; float }   *)
-  (************************************)
-  (* Deepening to (.a236) *)
-  let idx : (t236, _) idx_mut = (.a236) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a236) *)
-    let shallow : (t236, _) idx_mut = (.a236) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1024;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1024 failed %d" i;
-  );
-  (* Deepening to (.a236.#a27) *)
-  let idx : (t236, _) idx_mut = (.a236.#a27) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* Note: can't deepen (.a236) because it's a path to a flattened
-       float, making its element type [float#] *)
-    (* from (.a236.#a27) *)
-    let shallow : (t236, _) idx_mut = (.a236.#a27) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1025;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1025 failed %d" i;
-  );
-  (* Deepening to (.b236) *)
-  let idx : (t236, _) idx_mut = (.b236) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b236) *)
-    let shallow : (t236, _) idx_mut = (.b236) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1026;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1026 failed %d" i;
-  );
-
-  (*************************************)
-  (*   t237 = { #{ float }; float# }   *)
-  (*************************************)
-  (* Deepening to (.a237) *)
-  let idx : (t237, _) idx_mut = (.a237) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a237) *)
-    let shallow : (t237, _) idx_mut = (.a237) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1027;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1027 failed %d" i;
-  );
-  (* Deepening to (.a237.#a27) *)
-  let idx : (t237, _) idx_mut = (.a237.#a27) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* Note: can't deepen (.a237) because it's a path to a flattened
-       float, making its element type [float#] *)
-    (* from (.a237.#a27) *)
-    let shallow : (t237, _) idx_mut = (.a237.#a27) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1028;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1028 failed %d" i;
-  );
-  (* Deepening to (.b237) *)
-  let idx : (t237, _) idx_mut = (.b237) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b237) *)
-    let shallow : (t237, _) idx_mut = (.b237) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1029;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1029 failed %d" i;
-  );
-
-  (**********************************)
-  (*   t238 = { #{ float; int } }   *)
-  (**********************************)
-  (* Deepening to (.a238) *)
-  let idx : (t238, _) idx_mut = (.a238) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a238) *)
-    let shallow : (t238, _) idx_mut = (.a238) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1030;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1030 failed %d" i;
-  );
-  (* Deepening to (.a238.#a40) *)
-  let idx : (t238, _) idx_mut = (.a238.#a40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a238) *)
-    let shallow : (t238, _) idx_mut = (.a238) in
-    let deepened = (.idx_mut(shallow).#a40) in
-    mark_test_run 1031;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1031 failed %d" i;
-    (* from (.a238.#a40) *)
-    let shallow : (t238, _) idx_mut = (.a238.#a40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1032;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1032 failed %d" i;
-  );
-  (* Deepening to (.a238.#b40) *)
-  let idx : (t238, _) idx_mut = (.a238.#b40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a238) *)
-    let shallow : (t238, _) idx_mut = (.a238) in
-    let deepened = (.idx_mut(shallow).#b40) in
-    mark_test_run 1033;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1033 failed %d" i;
-    (* from (.a238.#b40) *)
-    let shallow : (t238, _) idx_mut = (.a238.#b40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1034;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1034 failed %d" i;
-  );
-
-  (***************************************)
-  (*   t239 = { #{ float; int }; int }   *)
-  (***************************************)
-  (* Deepening to (.a239) *)
-  let idx : (t239, _) idx_mut = (.a239) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a239) *)
-    let shallow : (t239, _) idx_mut = (.a239) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1035;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1035 failed %d" i;
-  );
-  (* Deepening to (.a239.#a40) *)
-  let idx : (t239, _) idx_mut = (.a239.#a40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a239) *)
-    let shallow : (t239, _) idx_mut = (.a239) in
-    let deepened = (.idx_mut(shallow).#a40) in
-    mark_test_run 1036;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1036 failed %d" i;
-    (* from (.a239.#a40) *)
-    let shallow : (t239, _) idx_mut = (.a239.#a40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1037;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1037 failed %d" i;
-  );
-  (* Deepening to (.a239.#b40) *)
-  let idx : (t239, _) idx_mut = (.a239.#b40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a239) *)
-    let shallow : (t239, _) idx_mut = (.a239) in
-    let deepened = (.idx_mut(shallow).#b40) in
-    mark_test_run 1038;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1038 failed %d" i;
-    (* from (.a239.#b40) *)
-    let shallow : (t239, _) idx_mut = (.a239.#b40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1039;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1039 failed %d" i;
-  );
-  (* Deepening to (.b239) *)
-  let idx : (t239, _) idx_mut = (.b239) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b239) *)
-    let shallow : (t239, _) idx_mut = (.b239) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1040;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1040 failed %d" i;
-  );
-
-  (*****************************************)
-  (*   t240 = { #{ float; int }; float }   *)
-  (*****************************************)
-  (* Deepening to (.a240) *)
-  let idx : (t240, _) idx_mut = (.a240) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a240) *)
-    let shallow : (t240, _) idx_mut = (.a240) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1041;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1041 failed %d" i;
-  );
-  (* Deepening to (.a240.#a40) *)
-  let idx : (t240, _) idx_mut = (.a240.#a40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a240) *)
-    let shallow : (t240, _) idx_mut = (.a240) in
-    let deepened = (.idx_mut(shallow).#a40) in
-    mark_test_run 1042;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1042 failed %d" i;
-    (* from (.a240.#a40) *)
-    let shallow : (t240, _) idx_mut = (.a240.#a40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1043;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1043 failed %d" i;
-  );
-  (* Deepening to (.a240.#b40) *)
-  let idx : (t240, _) idx_mut = (.a240.#b40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a240) *)
-    let shallow : (t240, _) idx_mut = (.a240) in
-    let deepened = (.idx_mut(shallow).#b40) in
-    mark_test_run 1044;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1044 failed %d" i;
-    (* from (.a240.#b40) *)
-    let shallow : (t240, _) idx_mut = (.a240.#b40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1045;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1045 failed %d" i;
-  );
-  (* Deepening to (.b240) *)
-  let idx : (t240, _) idx_mut = (.b240) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b240) *)
-    let shallow : (t240, _) idx_mut = (.b240) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1046;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1046 failed %d" i;
-  );
-
-  (************************************)
-  (*   t241 = { #{ float; float } }   *)
-  (************************************)
-  (* Deepening to (.a241) *)
-  let idx : (t241, _) idx_mut = (.a241) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a241) *)
-    let shallow : (t241, _) idx_mut = (.a241) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1047;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1047 failed %d" i;
-  );
-  (* Deepening to (.a241.#a42) *)
-  let idx : (t241, _) idx_mut = (.a241.#a42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a241) *)
-    let shallow : (t241, _) idx_mut = (.a241) in
-    let deepened = (.idx_mut(shallow).#a42) in
-    mark_test_run 1048;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1048 failed %d" i;
-    (* from (.a241.#a42) *)
-    let shallow : (t241, _) idx_mut = (.a241.#a42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1049;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1049 failed %d" i;
-  );
-  (* Deepening to (.a241.#b42) *)
-  let idx : (t241, _) idx_mut = (.a241.#b42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a241) *)
-    let shallow : (t241, _) idx_mut = (.a241) in
-    let deepened = (.idx_mut(shallow).#b42) in
-    mark_test_run 1050;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1050 failed %d" i;
-    (* from (.a241.#b42) *)
-    let shallow : (t241, _) idx_mut = (.a241.#b42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1051;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1051 failed %d" i;
-  );
-
-  (*****************************************)
-  (*   t242 = { #{ float; float }; int }   *)
-  (*****************************************)
-  (* Deepening to (.a242) *)
-  let idx : (t242, _) idx_mut = (.a242) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a242) *)
-    let shallow : (t242, _) idx_mut = (.a242) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1052;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1052 failed %d" i;
-  );
-  (* Deepening to (.a242.#a42) *)
-  let idx : (t242, _) idx_mut = (.a242.#a42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a242) *)
-    let shallow : (t242, _) idx_mut = (.a242) in
-    let deepened = (.idx_mut(shallow).#a42) in
-    mark_test_run 1053;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1053 failed %d" i;
-    (* from (.a242.#a42) *)
-    let shallow : (t242, _) idx_mut = (.a242.#a42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1054;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1054 failed %d" i;
-  );
-  (* Deepening to (.a242.#b42) *)
-  let idx : (t242, _) idx_mut = (.a242.#b42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a242) *)
-    let shallow : (t242, _) idx_mut = (.a242) in
-    let deepened = (.idx_mut(shallow).#b42) in
-    mark_test_run 1055;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1055 failed %d" i;
-    (* from (.a242.#b42) *)
-    let shallow : (t242, _) idx_mut = (.a242.#b42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1056;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1056 failed %d" i;
-  );
-  (* Deepening to (.b242) *)
-  let idx : (t242, _) idx_mut = (.b242) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b242) *)
-    let shallow : (t242, _) idx_mut = (.b242) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1057;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1057 failed %d" i;
-  );
-
-  (*******************************************)
-  (*   t243 = { #{ float; float }; float }   *)
-  (*******************************************)
-  (* Deepening to (.a243) *)
-  let idx : (t243, _) idx_mut = (.a243) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a243) *)
-    let shallow : (t243, _) idx_mut = (.a243) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1058;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1058 failed %d" i;
-  );
-  (* Deepening to (.a243.#a42) *)
-  let idx : (t243, _) idx_mut = (.a243.#a42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a243) *)
-    let shallow : (t243, _) idx_mut = (.a243) in
-    let deepened = (.idx_mut(shallow).#a42) in
-    mark_test_run 1059;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1059 failed %d" i;
-    (* from (.a243.#a42) *)
-    let shallow : (t243, _) idx_mut = (.a243.#a42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1060;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1060 failed %d" i;
-  );
-  (* Deepening to (.a243.#b42) *)
-  let idx : (t243, _) idx_mut = (.a243.#b42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a243) *)
-    let shallow : (t243, _) idx_mut = (.a243) in
-    let deepened = (.idx_mut(shallow).#b42) in
-    mark_test_run 1061;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1061 failed %d" i;
-    (* from (.a243.#b42) *)
-    let shallow : (t243, _) idx_mut = (.a243.#b42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1062;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1062 failed %d" i;
-  );
-  (* Deepening to (.b243) *)
-  let idx : (t243, _) idx_mut = (.b243) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b243) *)
-    let shallow : (t243, _) idx_mut = (.b243) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1063;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1063 failed %d" i;
-  );
-
-  (********************************************)
-  (*   t244 = { #{ float; float }; float# }   *)
-  (********************************************)
-  (* Deepening to (.a244) *)
-  let idx : (t244, _) idx_mut = (.a244) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a244) *)
-    let shallow : (t244, _) idx_mut = (.a244) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1064;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1064 failed %d" i;
-  );
-  (* Deepening to (.a244.#a42) *)
-  let idx : (t244, _) idx_mut = (.a244.#a42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a244) *)
-    let shallow : (t244, _) idx_mut = (.a244) in
-    let deepened = (.idx_mut(shallow).#a42) in
-    mark_test_run 1065;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1065 failed %d" i;
-    (* from (.a244.#a42) *)
-    let shallow : (t244, _) idx_mut = (.a244.#a42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1066;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1066 failed %d" i;
-  );
-  (* Deepening to (.a244.#b42) *)
-  let idx : (t244, _) idx_mut = (.a244.#b42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a244) *)
-    let shallow : (t244, _) idx_mut = (.a244) in
-    let deepened = (.idx_mut(shallow).#b42) in
-    mark_test_run 1067;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1067 failed %d" i;
-    (* from (.a244.#b42) *)
-    let shallow : (t244, _) idx_mut = (.a244.#b42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1068;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1068 failed %d" i;
-  );
-  (* Deepening to (.b244) *)
-  let idx : (t244, _) idx_mut = (.b244) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b244) *)
-    let shallow : (t244, _) idx_mut = (.b244) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1069;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1069 failed %d" i;
-  );
-
-  (*************************************)
-  (*   t245 = { #{ float; float# } }   *)
-  (*************************************)
-  (* Deepening to (.a245) *)
-  let idx : (t245, _) idx_mut = (.a245) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a245) *)
-    let shallow : (t245, _) idx_mut = (.a245) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1070;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1070 failed %d" i;
-  );
-  (* Deepening to (.a245.#a131) *)
-  let idx : (t245, _) idx_mut = (.a245.#a131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a245) *)
-    let shallow : (t245, _) idx_mut = (.a245) in
-    let deepened = (.idx_mut(shallow).#a131) in
-    mark_test_run 1071;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1071 failed %d" i;
-    (* from (.a245.#a131) *)
-    let shallow : (t245, _) idx_mut = (.a245.#a131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1072;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1072 failed %d" i;
-  );
-  (* Deepening to (.a245.#b131) *)
-  let idx : (t245, _) idx_mut = (.a245.#b131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a245) *)
-    let shallow : (t245, _) idx_mut = (.a245) in
-    let deepened = (.idx_mut(shallow).#b131) in
-    mark_test_run 1073;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1073 failed %d" i;
-    (* from (.a245.#b131) *)
-    let shallow : (t245, _) idx_mut = (.a245.#b131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1074;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1074 failed %d" i;
-  );
-
-  (********************************************)
-  (*   t246 = { #{ float; float# }; float }   *)
-  (********************************************)
-  (* Deepening to (.a246) *)
-  let idx : (t246, _) idx_mut = (.a246) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a246) *)
-    let shallow : (t246, _) idx_mut = (.a246) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1075;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1075 failed %d" i;
-  );
-  (* Deepening to (.a246.#a131) *)
-  let idx : (t246, _) idx_mut = (.a246.#a131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a246) *)
-    let shallow : (t246, _) idx_mut = (.a246) in
-    let deepened = (.idx_mut(shallow).#a131) in
-    mark_test_run 1076;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1076 failed %d" i;
-    (* from (.a246.#a131) *)
-    let shallow : (t246, _) idx_mut = (.a246.#a131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1077;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1077 failed %d" i;
-  );
-  (* Deepening to (.a246.#b131) *)
-  let idx : (t246, _) idx_mut = (.a246.#b131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a246) *)
-    let shallow : (t246, _) idx_mut = (.a246) in
-    let deepened = (.idx_mut(shallow).#b131) in
-    mark_test_run 1078;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1078 failed %d" i;
-    (* from (.a246.#b131) *)
-    let shallow : (t246, _) idx_mut = (.a246.#b131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1079;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1079 failed %d" i;
-  );
-  (* Deepening to (.b246) *)
-  let idx : (t246, _) idx_mut = (.b246) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b246) *)
-    let shallow : (t246, _) idx_mut = (.b246) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1080;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1080 failed %d" i;
-  );
-
-  (*********************************************)
-  (*   t247 = { #{ float; float# }; float# }   *)
-  (*********************************************)
-  (* Deepening to (.a247) *)
-  let idx : (t247, _) idx_mut = (.a247) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a247) *)
-    let shallow : (t247, _) idx_mut = (.a247) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1081;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1081 failed %d" i;
-  );
-  (* Deepening to (.a247.#a131) *)
-  let idx : (t247, _) idx_mut = (.a247.#a131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a247) *)
-    let shallow : (t247, _) idx_mut = (.a247) in
-    let deepened = (.idx_mut(shallow).#a131) in
-    mark_test_run 1082;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1082 failed %d" i;
-    (* from (.a247.#a131) *)
-    let shallow : (t247, _) idx_mut = (.a247.#a131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1083;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1083 failed %d" i;
-  );
-  (* Deepening to (.a247.#b131) *)
-  let idx : (t247, _) idx_mut = (.a247.#b131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a247) *)
-    let shallow : (t247, _) idx_mut = (.a247) in
-    let deepened = (.idx_mut(shallow).#b131) in
-    mark_test_run 1084;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1084 failed %d" i;
-    (* from (.a247.#b131) *)
-    let shallow : (t247, _) idx_mut = (.a247.#b131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1085;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1085 failed %d" i;
-  );
-  (* Deepening to (.b247) *)
-  let idx : (t247, _) idx_mut = (.b247) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b247) *)
-    let shallow : (t247, _) idx_mut = (.b247) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1086;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1086 failed %d" i;
-  );
-
-  (********************************************)
-  (*   t249 = { #{ float; #{ int; int } } }   *)
-  (********************************************)
-  (* Deepening to (.a249) *)
-  let idx : (t249, _) idx_mut = (.a249) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a249) *)
-    let shallow : (t249, _) idx_mut = (.a249) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1087;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1087 failed %d" i;
-  );
-  (* Deepening to (.a249.#a248) *)
-  let idx : (t249, _) idx_mut = (.a249.#a248) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a249) *)
-    let shallow : (t249, _) idx_mut = (.a249) in
-    let deepened = (.idx_mut(shallow).#a248) in
-    mark_test_run 1088;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1088 failed %d" i;
-    (* from (.a249.#a248) *)
-    let shallow : (t249, _) idx_mut = (.a249.#a248) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1089;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1089 failed %d" i;
-  );
-  (* Deepening to (.a249.#b248) *)
-  let idx : (t249, _) idx_mut = (.a249.#b248) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a249) *)
-    let shallow : (t249, _) idx_mut = (.a249) in
-    let deepened = (.idx_mut(shallow).#b248) in
-    mark_test_run 1090;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1090 failed %d" i;
-    (* from (.a249.#b248) *)
-    let shallow : (t249, _) idx_mut = (.a249.#b248) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1091;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1091 failed %d" i;
-  );
-  (* Deepening to (.a249.#b248.#a16) *)
-  let idx : (t249, _) idx_mut = (.a249.#b248.#a16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a249) *)
-    let shallow : (t249, _) idx_mut = (.a249) in
-    let deepened = (.idx_mut(shallow).#b248.#a16) in
-    mark_test_run 1092;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1092 failed %d" i;
-    (* from (.a249.#b248) *)
-    let shallow : (t249, _) idx_mut = (.a249.#b248) in
-    let deepened = (.idx_mut(shallow).#a16) in
-    mark_test_run 1093;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1093 failed %d" i;
-    (* from (.a249.#b248.#a16) *)
-    let shallow : (t249, _) idx_mut = (.a249.#b248.#a16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1094;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1094 failed %d" i;
-  );
-  (* Deepening to (.a249.#b248.#b16) *)
-  let idx : (t249, _) idx_mut = (.a249.#b248.#b16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a249) *)
-    let shallow : (t249, _) idx_mut = (.a249) in
-    let deepened = (.idx_mut(shallow).#b248.#b16) in
-    mark_test_run 1095;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1095 failed %d" i;
-    (* from (.a249.#b248) *)
-    let shallow : (t249, _) idx_mut = (.a249.#b248) in
-    let deepened = (.idx_mut(shallow).#b16) in
-    mark_test_run 1096;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1096 failed %d" i;
-    (* from (.a249.#b248.#b16) *)
-    let shallow : (t249, _) idx_mut = (.a249.#b248.#b16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1097;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1097 failed %d" i;
-  );
-
-  (**********************************************)
-  (*   t251 = { #{ float; #{ int; float } } }   *)
-  (**********************************************)
-  (* Deepening to (.a251) *)
-  let idx : (t251, _) idx_mut = (.a251) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a251) *)
-    let shallow : (t251, _) idx_mut = (.a251) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1098;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1098 failed %d" i;
-  );
-  (* Deepening to (.a251.#a250) *)
-  let idx : (t251, _) idx_mut = (.a251.#a250) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a251) *)
-    let shallow : (t251, _) idx_mut = (.a251) in
-    let deepened = (.idx_mut(shallow).#a250) in
-    mark_test_run 1099;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1099 failed %d" i;
-    (* from (.a251.#a250) *)
-    let shallow : (t251, _) idx_mut = (.a251.#a250) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1100;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1100 failed %d" i;
-  );
-  (* Deepening to (.a251.#b250) *)
-  let idx : (t251, _) idx_mut = (.a251.#b250) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a251) *)
-    let shallow : (t251, _) idx_mut = (.a251) in
-    let deepened = (.idx_mut(shallow).#b250) in
-    mark_test_run 1101;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1101 failed %d" i;
-    (* from (.a251.#b250) *)
-    let shallow : (t251, _) idx_mut = (.a251.#b250) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1102;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1102 failed %d" i;
-  );
-  (* Deepening to (.a251.#b250.#a20) *)
-  let idx : (t251, _) idx_mut = (.a251.#b250.#a20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a251) *)
-    let shallow : (t251, _) idx_mut = (.a251) in
-    let deepened = (.idx_mut(shallow).#b250.#a20) in
-    mark_test_run 1103;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1103 failed %d" i;
-    (* from (.a251.#b250) *)
-    let shallow : (t251, _) idx_mut = (.a251.#b250) in
-    let deepened = (.idx_mut(shallow).#a20) in
-    mark_test_run 1104;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1104 failed %d" i;
-    (* from (.a251.#b250.#a20) *)
-    let shallow : (t251, _) idx_mut = (.a251.#b250.#a20) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1105;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1105 failed %d" i;
-  );
-  (* Deepening to (.a251.#b250.#b20) *)
-  let idx : (t251, _) idx_mut = (.a251.#b250.#b20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a251) *)
-    let shallow : (t251, _) idx_mut = (.a251) in
-    let deepened = (.idx_mut(shallow).#b250.#b20) in
-    mark_test_run 1106;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1106 failed %d" i;
-    (* from (.a251.#b250) *)
-    let shallow : (t251, _) idx_mut = (.a251.#b250) in
-    let deepened = (.idx_mut(shallow).#b20) in
-    mark_test_run 1107;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1107 failed %d" i;
-    (* from (.a251.#b250.#b20) *)
-    let shallow : (t251, _) idx_mut = (.a251.#b250.#b20) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1108;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1108 failed %d" i;
-  );
-
-  (**********************************************)
-  (*   t253 = { #{ float; #{ float; int } } }   *)
-  (**********************************************)
-  (* Deepening to (.a253) *)
-  let idx : (t253, _) idx_mut = (.a253) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a253) *)
-    let shallow : (t253, _) idx_mut = (.a253) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1109;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1109 failed %d" i;
-  );
-  (* Deepening to (.a253.#a252) *)
-  let idx : (t253, _) idx_mut = (.a253.#a252) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a253) *)
-    let shallow : (t253, _) idx_mut = (.a253) in
-    let deepened = (.idx_mut(shallow).#a252) in
-    mark_test_run 1110;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1110 failed %d" i;
-    (* from (.a253.#a252) *)
-    let shallow : (t253, _) idx_mut = (.a253.#a252) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1111;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1111 failed %d" i;
-  );
-  (* Deepening to (.a253.#b252) *)
-  let idx : (t253, _) idx_mut = (.a253.#b252) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a253) *)
-    let shallow : (t253, _) idx_mut = (.a253) in
-    let deepened = (.idx_mut(shallow).#b252) in
-    mark_test_run 1112;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1112 failed %d" i;
-    (* from (.a253.#b252) *)
-    let shallow : (t253, _) idx_mut = (.a253.#b252) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1113;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1113 failed %d" i;
-  );
-  (* Deepening to (.a253.#b252.#a40) *)
-  let idx : (t253, _) idx_mut = (.a253.#b252.#a40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a253) *)
-    let shallow : (t253, _) idx_mut = (.a253) in
-    let deepened = (.idx_mut(shallow).#b252.#a40) in
-    mark_test_run 1114;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1114 failed %d" i;
-    (* from (.a253.#b252) *)
-    let shallow : (t253, _) idx_mut = (.a253.#b252) in
-    let deepened = (.idx_mut(shallow).#a40) in
-    mark_test_run 1115;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1115 failed %d" i;
-    (* from (.a253.#b252.#a40) *)
-    let shallow : (t253, _) idx_mut = (.a253.#b252.#a40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1116;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1116 failed %d" i;
-  );
-  (* Deepening to (.a253.#b252.#b40) *)
-  let idx : (t253, _) idx_mut = (.a253.#b252.#b40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a253) *)
-    let shallow : (t253, _) idx_mut = (.a253) in
-    let deepened = (.idx_mut(shallow).#b252.#b40) in
-    mark_test_run 1117;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1117 failed %d" i;
-    (* from (.a253.#b252) *)
-    let shallow : (t253, _) idx_mut = (.a253.#b252) in
-    let deepened = (.idx_mut(shallow).#b40) in
-    mark_test_run 1118;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1118 failed %d" i;
-    (* from (.a253.#b252.#b40) *)
-    let shallow : (t253, _) idx_mut = (.a253.#b252.#b40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1119;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1119 failed %d" i;
-  );
-
-  (************************************************)
-  (*   t255 = { #{ float; #{ float; float } } }   *)
-  (************************************************)
-  (* Deepening to (.a255) *)
-  let idx : (t255, _) idx_mut = (.a255) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a255) *)
-    let shallow : (t255, _) idx_mut = (.a255) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1120;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1120 failed %d" i;
-  );
-  (* Deepening to (.a255.#a254) *)
-  let idx : (t255, _) idx_mut = (.a255.#a254) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a255) *)
-    let shallow : (t255, _) idx_mut = (.a255) in
-    let deepened = (.idx_mut(shallow).#a254) in
-    mark_test_run 1121;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1121 failed %d" i;
-    (* from (.a255.#a254) *)
-    let shallow : (t255, _) idx_mut = (.a255.#a254) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1122;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1122 failed %d" i;
-  );
-  (* Deepening to (.a255.#b254) *)
-  let idx : (t255, _) idx_mut = (.a255.#b254) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a255) *)
-    let shallow : (t255, _) idx_mut = (.a255) in
-    let deepened = (.idx_mut(shallow).#b254) in
-    mark_test_run 1123;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1123 failed %d" i;
-    (* from (.a255.#b254) *)
-    let shallow : (t255, _) idx_mut = (.a255.#b254) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1124;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1124 failed %d" i;
-  );
-  (* Deepening to (.a255.#b254.#a42) *)
-  let idx : (t255, _) idx_mut = (.a255.#b254.#a42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a255) *)
-    let shallow : (t255, _) idx_mut = (.a255) in
-    let deepened = (.idx_mut(shallow).#b254.#a42) in
-    mark_test_run 1125;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1125 failed %d" i;
-    (* from (.a255.#b254) *)
-    let shallow : (t255, _) idx_mut = (.a255.#b254) in
-    let deepened = (.idx_mut(shallow).#a42) in
-    mark_test_run 1126;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1126 failed %d" i;
-    (* from (.a255.#b254.#a42) *)
-    let shallow : (t255, _) idx_mut = (.a255.#b254.#a42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1127;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1127 failed %d" i;
-  );
-  (* Deepening to (.a255.#b254.#b42) *)
-  let idx : (t255, _) idx_mut = (.a255.#b254.#b42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a255) *)
-    let shallow : (t255, _) idx_mut = (.a255) in
-    let deepened = (.idx_mut(shallow).#b254.#b42) in
-    mark_test_run 1128;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1128 failed %d" i;
-    (* from (.a255.#b254) *)
-    let shallow : (t255, _) idx_mut = (.a255.#b254) in
-    let deepened = (.idx_mut(shallow).#b42) in
-    mark_test_run 1129;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1129 failed %d" i;
-    (* from (.a255.#b254.#b42) *)
-    let shallow : (t255, _) idx_mut = (.a255.#b254.#b42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1130;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1130 failed %d" i;
-  );
-
-  (*************************************************)
-  (*   t257 = { #{ float; #{ float; float# } } }   *)
-  (*************************************************)
-  (* Deepening to (.a257) *)
-  let idx : (t257, _) idx_mut = (.a257) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a257) *)
-    let shallow : (t257, _) idx_mut = (.a257) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1131;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1131 failed %d" i;
-  );
-  (* Deepening to (.a257.#a256) *)
-  let idx : (t257, _) idx_mut = (.a257.#a256) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a257) *)
-    let shallow : (t257, _) idx_mut = (.a257) in
-    let deepened = (.idx_mut(shallow).#a256) in
-    mark_test_run 1132;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1132 failed %d" i;
-    (* from (.a257.#a256) *)
-    let shallow : (t257, _) idx_mut = (.a257.#a256) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1133;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1133 failed %d" i;
-  );
-  (* Deepening to (.a257.#b256) *)
-  let idx : (t257, _) idx_mut = (.a257.#b256) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a257) *)
-    let shallow : (t257, _) idx_mut = (.a257) in
-    let deepened = (.idx_mut(shallow).#b256) in
-    mark_test_run 1134;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1134 failed %d" i;
-    (* from (.a257.#b256) *)
-    let shallow : (t257, _) idx_mut = (.a257.#b256) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1135;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1135 failed %d" i;
-  );
-  (* Deepening to (.a257.#b256.#a131) *)
-  let idx : (t257, _) idx_mut = (.a257.#b256.#a131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a257) *)
-    let shallow : (t257, _) idx_mut = (.a257) in
-    let deepened = (.idx_mut(shallow).#b256.#a131) in
-    mark_test_run 1136;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1136 failed %d" i;
-    (* from (.a257.#b256) *)
-    let shallow : (t257, _) idx_mut = (.a257.#b256) in
-    let deepened = (.idx_mut(shallow).#a131) in
-    mark_test_run 1137;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1137 failed %d" i;
-    (* from (.a257.#b256.#a131) *)
-    let shallow : (t257, _) idx_mut = (.a257.#b256.#a131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1138;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1138 failed %d" i;
-  );
-  (* Deepening to (.a257.#b256.#b131) *)
-  let idx : (t257, _) idx_mut = (.a257.#b256.#b131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a257) *)
-    let shallow : (t257, _) idx_mut = (.a257) in
-    let deepened = (.idx_mut(shallow).#b256.#b131) in
-    mark_test_run 1139;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1139 failed %d" i;
-    (* from (.a257.#b256) *)
-    let shallow : (t257, _) idx_mut = (.a257.#b256) in
-    let deepened = (.idx_mut(shallow).#b131) in
-    mark_test_run 1140;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1140 failed %d" i;
-    (* from (.a257.#b256.#b131) *)
-    let shallow : (t257, _) idx_mut = (.a257.#b256.#b131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1141;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1141 failed %d" i;
-  );
-
-  (*************************************************)
-  (*   t259 = { #{ float; #{ float#; float } } }   *)
-  (*************************************************)
-  (* Deepening to (.a259) *)
-  let idx : (t259, _) idx_mut = (.a259) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a259) *)
-    let shallow : (t259, _) idx_mut = (.a259) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1142;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1142 failed %d" i;
-  );
-  (* Deepening to (.a259.#a258) *)
-  let idx : (t259, _) idx_mut = (.a259.#a258) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a259) *)
-    let shallow : (t259, _) idx_mut = (.a259) in
-    let deepened = (.idx_mut(shallow).#a258) in
-    mark_test_run 1143;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1143 failed %d" i;
-    (* from (.a259.#a258) *)
-    let shallow : (t259, _) idx_mut = (.a259.#a258) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1144;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1144 failed %d" i;
-  );
-  (* Deepening to (.a259.#b258) *)
-  let idx : (t259, _) idx_mut = (.a259.#b258) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a259) *)
-    let shallow : (t259, _) idx_mut = (.a259) in
-    let deepened = (.idx_mut(shallow).#b258) in
-    mark_test_run 1145;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1145 failed %d" i;
-    (* from (.a259.#b258) *)
-    let shallow : (t259, _) idx_mut = (.a259.#b258) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1146;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1146 failed %d" i;
-  );
-  (* Deepening to (.a259.#b258.#a139) *)
-  let idx : (t259, _) idx_mut = (.a259.#b258.#a139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a259) *)
-    let shallow : (t259, _) idx_mut = (.a259) in
-    let deepened = (.idx_mut(shallow).#b258.#a139) in
-    mark_test_run 1147;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1147 failed %d" i;
-    (* from (.a259.#b258) *)
-    let shallow : (t259, _) idx_mut = (.a259.#b258) in
-    let deepened = (.idx_mut(shallow).#a139) in
-    mark_test_run 1148;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1148 failed %d" i;
-    (* from (.a259.#b258.#a139) *)
-    let shallow : (t259, _) idx_mut = (.a259.#b258.#a139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1149;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1149 failed %d" i;
-  );
-  (* Deepening to (.a259.#b258.#b139) *)
-  let idx : (t259, _) idx_mut = (.a259.#b258.#b139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a259) *)
-    let shallow : (t259, _) idx_mut = (.a259) in
-    let deepened = (.idx_mut(shallow).#b258.#b139) in
-    mark_test_run 1150;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1150 failed %d" i;
-    (* from (.a259.#b258) *)
-    let shallow : (t259, _) idx_mut = (.a259.#b258) in
-    let deepened = (.idx_mut(shallow).#b139) in
-    mark_test_run 1151;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1151 failed %d" i;
-    (* from (.a259.#b258.#b139) *)
-    let shallow : (t259, _) idx_mut = (.a259.#b258.#b139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1152;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1152 failed %d" i;
-  );
-
-  (**************************************************)
-  (*   t261 = { #{ float; #{ float#; float# } } }   *)
-  (**************************************************)
-  (* Deepening to (.a261) *)
-  let idx : (t261, _) idx_mut = (.a261) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a261) *)
-    let shallow : (t261, _) idx_mut = (.a261) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1153;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1153 failed %d" i;
-  );
-  (* Deepening to (.a261.#a260) *)
-  let idx : (t261, _) idx_mut = (.a261.#a260) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a261) *)
-    let shallow : (t261, _) idx_mut = (.a261) in
-    let deepened = (.idx_mut(shallow).#a260) in
-    mark_test_run 1154;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1154 failed %d" i;
-    (* from (.a261.#a260) *)
-    let shallow : (t261, _) idx_mut = (.a261.#a260) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1155;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1155 failed %d" i;
-  );
-  (* Deepening to (.a261.#b260) *)
-  let idx : (t261, _) idx_mut = (.a261.#b260) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a261) *)
-    let shallow : (t261, _) idx_mut = (.a261) in
-    let deepened = (.idx_mut(shallow).#b260) in
-    mark_test_run 1156;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1156 failed %d" i;
-    (* from (.a261.#b260) *)
-    let shallow : (t261, _) idx_mut = (.a261.#b260) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1157;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1157 failed %d" i;
-  );
-  (* Deepening to (.a261.#b260.#a141) *)
-  let idx : (t261, _) idx_mut = (.a261.#b260.#a141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a261) *)
-    let shallow : (t261, _) idx_mut = (.a261) in
-    let deepened = (.idx_mut(shallow).#b260.#a141) in
-    mark_test_run 1158;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1158 failed %d" i;
-    (* from (.a261.#b260) *)
-    let shallow : (t261, _) idx_mut = (.a261.#b260) in
-    let deepened = (.idx_mut(shallow).#a141) in
-    mark_test_run 1159;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1159 failed %d" i;
-    (* from (.a261.#b260.#a141) *)
-    let shallow : (t261, _) idx_mut = (.a261.#b260.#a141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1160;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1160 failed %d" i;
-  );
-  (* Deepening to (.a261.#b260.#b141) *)
-  let idx : (t261, _) idx_mut = (.a261.#b260.#b141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a261) *)
-    let shallow : (t261, _) idx_mut = (.a261) in
-    let deepened = (.idx_mut(shallow).#b260.#b141) in
-    mark_test_run 1161;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1161 failed %d" i;
-    (* from (.a261.#b260) *)
-    let shallow : (t261, _) idx_mut = (.a261.#b260) in
-    let deepened = (.idx_mut(shallow).#b141) in
-    mark_test_run 1162;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1162 failed %d" i;
-    (* from (.a261.#b260.#b141) *)
-    let shallow : (t261, _) idx_mut = (.a261.#b260.#b141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1163;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1163 failed %d" i;
-  );
-
-  (******************************)
-  (*   t262 = { #{ float# } }   *)
-  (******************************)
-  (* Deepening to (.a262) *)
-  let idx : (t262, _) idx_mut = (.a262) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a262) *)
-    let shallow : (t262, _) idx_mut = (.a262) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1164;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1164 failed %d" i;
-  );
-  (* Deepening to (.a262.#a135) *)
-  let idx : (t262, _) idx_mut = (.a262.#a135) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a262) *)
-    let shallow : (t262, _) idx_mut = (.a262) in
-    let deepened = (.idx_mut(shallow).#a135) in
-    mark_test_run 1165;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1165 failed %d" i;
-    (* from (.a262.#a135) *)
-    let shallow : (t262, _) idx_mut = (.a262.#a135) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1166;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1166 failed %d" i;
-  );
-
-  (*************************************)
-  (*   t263 = { #{ float# }; float }   *)
-  (*************************************)
-  (* Deepening to (.a263) *)
-  let idx : (t263, _) idx_mut = (.a263) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a263) *)
-    let shallow : (t263, _) idx_mut = (.a263) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1167;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1167 failed %d" i;
-  );
-  (* Deepening to (.a263.#a135) *)
-  let idx : (t263, _) idx_mut = (.a263.#a135) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a263) *)
-    let shallow : (t263, _) idx_mut = (.a263) in
-    let deepened = (.idx_mut(shallow).#a135) in
-    mark_test_run 1168;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1168 failed %d" i;
-    (* from (.a263.#a135) *)
-    let shallow : (t263, _) idx_mut = (.a263.#a135) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1169;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1169 failed %d" i;
-  );
-  (* Deepening to (.b263) *)
-  let idx : (t263, _) idx_mut = (.b263) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b263) *)
-    let shallow : (t263, _) idx_mut = (.b263) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1170;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1170 failed %d" i;
-  );
-
-  (**************************************)
-  (*   t264 = { #{ float# }; float# }   *)
-  (**************************************)
-  (* Deepening to (.a264) *)
-  let idx : (t264, _) idx_mut = (.a264) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a264) *)
-    let shallow : (t264, _) idx_mut = (.a264) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1171;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1171 failed %d" i;
-  );
-  (* Deepening to (.a264.#a135) *)
-  let idx : (t264, _) idx_mut = (.a264.#a135) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a264) *)
-    let shallow : (t264, _) idx_mut = (.a264) in
-    let deepened = (.idx_mut(shallow).#a135) in
-    mark_test_run 1172;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1172 failed %d" i;
-    (* from (.a264.#a135) *)
-    let shallow : (t264, _) idx_mut = (.a264.#a135) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1173;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1173 failed %d" i;
-  );
-  (* Deepening to (.b264) *)
-  let idx : (t264, _) idx_mut = (.b264) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b264) *)
-    let shallow : (t264, _) idx_mut = (.b264) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1174;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1174 failed %d" i;
-  );
-
-  (*************************************)
-  (*   t265 = { #{ float#; float } }   *)
-  (*************************************)
-  (* Deepening to (.a265) *)
-  let idx : (t265, _) idx_mut = (.a265) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a265) *)
-    let shallow : (t265, _) idx_mut = (.a265) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1175;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1175 failed %d" i;
-  );
-  (* Deepening to (.a265.#a139) *)
-  let idx : (t265, _) idx_mut = (.a265.#a139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a265) *)
-    let shallow : (t265, _) idx_mut = (.a265) in
-    let deepened = (.idx_mut(shallow).#a139) in
-    mark_test_run 1176;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1176 failed %d" i;
-    (* from (.a265.#a139) *)
-    let shallow : (t265, _) idx_mut = (.a265.#a139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1177;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1177 failed %d" i;
-  );
-  (* Deepening to (.a265.#b139) *)
-  let idx : (t265, _) idx_mut = (.a265.#b139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a265) *)
-    let shallow : (t265, _) idx_mut = (.a265) in
-    let deepened = (.idx_mut(shallow).#b139) in
-    mark_test_run 1178;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1178 failed %d" i;
-    (* from (.a265.#b139) *)
-    let shallow : (t265, _) idx_mut = (.a265.#b139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1179;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1179 failed %d" i;
-  );
-
-  (********************************************)
-  (*   t266 = { #{ float#; float }; float }   *)
-  (********************************************)
-  (* Deepening to (.a266) *)
-  let idx : (t266, _) idx_mut = (.a266) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a266) *)
-    let shallow : (t266, _) idx_mut = (.a266) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1180;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1180 failed %d" i;
-  );
-  (* Deepening to (.a266.#a139) *)
-  let idx : (t266, _) idx_mut = (.a266.#a139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a266) *)
-    let shallow : (t266, _) idx_mut = (.a266) in
-    let deepened = (.idx_mut(shallow).#a139) in
-    mark_test_run 1181;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1181 failed %d" i;
-    (* from (.a266.#a139) *)
-    let shallow : (t266, _) idx_mut = (.a266.#a139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1182;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1182 failed %d" i;
-  );
-  (* Deepening to (.a266.#b139) *)
-  let idx : (t266, _) idx_mut = (.a266.#b139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a266) *)
-    let shallow : (t266, _) idx_mut = (.a266) in
-    let deepened = (.idx_mut(shallow).#b139) in
-    mark_test_run 1183;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1183 failed %d" i;
-    (* from (.a266.#b139) *)
-    let shallow : (t266, _) idx_mut = (.a266.#b139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1184;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1184 failed %d" i;
-  );
-  (* Deepening to (.b266) *)
-  let idx : (t266, _) idx_mut = (.b266) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b266) *)
-    let shallow : (t266, _) idx_mut = (.b266) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1185;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1185 failed %d" i;
-  );
-
-  (*********************************************)
-  (*   t267 = { #{ float#; float }; float# }   *)
-  (*********************************************)
-  (* Deepening to (.a267) *)
-  let idx : (t267, _) idx_mut = (.a267) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a267) *)
-    let shallow : (t267, _) idx_mut = (.a267) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1186;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1186 failed %d" i;
-  );
-  (* Deepening to (.a267.#a139) *)
-  let idx : (t267, _) idx_mut = (.a267.#a139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a267) *)
-    let shallow : (t267, _) idx_mut = (.a267) in
-    let deepened = (.idx_mut(shallow).#a139) in
-    mark_test_run 1187;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1187 failed %d" i;
-    (* from (.a267.#a139) *)
-    let shallow : (t267, _) idx_mut = (.a267.#a139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1188;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1188 failed %d" i;
-  );
-  (* Deepening to (.a267.#b139) *)
-  let idx : (t267, _) idx_mut = (.a267.#b139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a267) *)
-    let shallow : (t267, _) idx_mut = (.a267) in
-    let deepened = (.idx_mut(shallow).#b139) in
-    mark_test_run 1189;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1189 failed %d" i;
-    (* from (.a267.#b139) *)
-    let shallow : (t267, _) idx_mut = (.a267.#b139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1190;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1190 failed %d" i;
-  );
-  (* Deepening to (.b267) *)
-  let idx : (t267, _) idx_mut = (.b267) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b267) *)
-    let shallow : (t267, _) idx_mut = (.b267) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1191;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1191 failed %d" i;
-  );
-
-  (**************************************)
-  (*   t268 = { #{ float#; float# } }   *)
-  (**************************************)
-  (* Deepening to (.a268) *)
-  let idx : (t268, _) idx_mut = (.a268) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a268) *)
-    let shallow : (t268, _) idx_mut = (.a268) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1192;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1192 failed %d" i;
-  );
-  (* Deepening to (.a268.#a141) *)
-  let idx : (t268, _) idx_mut = (.a268.#a141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a268) *)
-    let shallow : (t268, _) idx_mut = (.a268) in
-    let deepened = (.idx_mut(shallow).#a141) in
-    mark_test_run 1193;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1193 failed %d" i;
-    (* from (.a268.#a141) *)
-    let shallow : (t268, _) idx_mut = (.a268.#a141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1194;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1194 failed %d" i;
-  );
-  (* Deepening to (.a268.#b141) *)
-  let idx : (t268, _) idx_mut = (.a268.#b141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a268) *)
-    let shallow : (t268, _) idx_mut = (.a268) in
-    let deepened = (.idx_mut(shallow).#b141) in
-    mark_test_run 1195;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1195 failed %d" i;
-    (* from (.a268.#b141) *)
-    let shallow : (t268, _) idx_mut = (.a268.#b141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1196;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1196 failed %d" i;
-  );
-
-  (*********************************************)
-  (*   t269 = { #{ float#; float# }; float }   *)
-  (*********************************************)
-  (* Deepening to (.a269) *)
-  let idx : (t269, _) idx_mut = (.a269) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a269) *)
-    let shallow : (t269, _) idx_mut = (.a269) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1197;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1197 failed %d" i;
-  );
-  (* Deepening to (.a269.#a141) *)
-  let idx : (t269, _) idx_mut = (.a269.#a141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a269) *)
-    let shallow : (t269, _) idx_mut = (.a269) in
-    let deepened = (.idx_mut(shallow).#a141) in
-    mark_test_run 1198;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1198 failed %d" i;
-    (* from (.a269.#a141) *)
-    let shallow : (t269, _) idx_mut = (.a269.#a141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1199;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1199 failed %d" i;
-  );
-  (* Deepening to (.a269.#b141) *)
-  let idx : (t269, _) idx_mut = (.a269.#b141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a269) *)
-    let shallow : (t269, _) idx_mut = (.a269) in
-    let deepened = (.idx_mut(shallow).#b141) in
-    mark_test_run 1200;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1200 failed %d" i;
-    (* from (.a269.#b141) *)
-    let shallow : (t269, _) idx_mut = (.a269.#b141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1201;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1201 failed %d" i;
-  );
-  (* Deepening to (.b269) *)
-  let idx : (t269, _) idx_mut = (.b269) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b269) *)
-    let shallow : (t269, _) idx_mut = (.b269) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1202;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1202 failed %d" i;
-  );
-
-  (**********************************************)
-  (*   t270 = { #{ float#; float# }; float# }   *)
-  (**********************************************)
-  (* Deepening to (.a270) *)
-  let idx : (t270, _) idx_mut = (.a270) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a270) *)
-    let shallow : (t270, _) idx_mut = (.a270) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1203;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1203 failed %d" i;
-  );
-  (* Deepening to (.a270.#a141) *)
-  let idx : (t270, _) idx_mut = (.a270.#a141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a270) *)
-    let shallow : (t270, _) idx_mut = (.a270) in
-    let deepened = (.idx_mut(shallow).#a141) in
-    mark_test_run 1204;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1204 failed %d" i;
-    (* from (.a270.#a141) *)
-    let shallow : (t270, _) idx_mut = (.a270.#a141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1205;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1205 failed %d" i;
-  );
-  (* Deepening to (.a270.#b141) *)
-  let idx : (t270, _) idx_mut = (.a270.#b141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a270) *)
-    let shallow : (t270, _) idx_mut = (.a270) in
-    let deepened = (.idx_mut(shallow).#b141) in
-    mark_test_run 1206;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1206 failed %d" i;
-    (* from (.a270.#b141) *)
-    let shallow : (t270, _) idx_mut = (.a270.#b141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1207;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1207 failed %d" i;
-  );
-  (* Deepening to (.b270) *)
-  let idx : (t270, _) idx_mut = (.b270) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b270) *)
-    let shallow : (t270, _) idx_mut = (.b270) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1208;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1208 failed %d" i;
-  );
-
-  (*************************************************)
-  (*   t272 = { #{ float#; #{ float; float } } }   *)
-  (*************************************************)
-  (* Deepening to (.a272) *)
-  let idx : (t272, _) idx_mut = (.a272) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a272) *)
-    let shallow : (t272, _) idx_mut = (.a272) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1209;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1209 failed %d" i;
-  );
-  (* Deepening to (.a272.#a271) *)
-  let idx : (t272, _) idx_mut = (.a272.#a271) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a272) *)
-    let shallow : (t272, _) idx_mut = (.a272) in
-    let deepened = (.idx_mut(shallow).#a271) in
-    mark_test_run 1210;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1210 failed %d" i;
-    (* from (.a272.#a271) *)
-    let shallow : (t272, _) idx_mut = (.a272.#a271) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1211;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1211 failed %d" i;
-  );
-  (* Deepening to (.a272.#b271) *)
-  let idx : (t272, _) idx_mut = (.a272.#b271) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a272) *)
-    let shallow : (t272, _) idx_mut = (.a272) in
-    let deepened = (.idx_mut(shallow).#b271) in
-    mark_test_run 1212;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1212 failed %d" i;
-    (* from (.a272.#b271) *)
-    let shallow : (t272, _) idx_mut = (.a272.#b271) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1213;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1213 failed %d" i;
-  );
-  (* Deepening to (.a272.#b271.#a42) *)
-  let idx : (t272, _) idx_mut = (.a272.#b271.#a42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a272) *)
-    let shallow : (t272, _) idx_mut = (.a272) in
-    let deepened = (.idx_mut(shallow).#b271.#a42) in
-    mark_test_run 1214;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1214 failed %d" i;
-    (* from (.a272.#b271) *)
-    let shallow : (t272, _) idx_mut = (.a272.#b271) in
-    let deepened = (.idx_mut(shallow).#a42) in
-    mark_test_run 1215;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1215 failed %d" i;
-    (* from (.a272.#b271.#a42) *)
-    let shallow : (t272, _) idx_mut = (.a272.#b271.#a42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1216;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1216 failed %d" i;
-  );
-  (* Deepening to (.a272.#b271.#b42) *)
-  let idx : (t272, _) idx_mut = (.a272.#b271.#b42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a272) *)
-    let shallow : (t272, _) idx_mut = (.a272) in
-    let deepened = (.idx_mut(shallow).#b271.#b42) in
-    mark_test_run 1217;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1217 failed %d" i;
-    (* from (.a272.#b271) *)
-    let shallow : (t272, _) idx_mut = (.a272.#b271) in
-    let deepened = (.idx_mut(shallow).#b42) in
-    mark_test_run 1218;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1218 failed %d" i;
-    (* from (.a272.#b271.#b42) *)
-    let shallow : (t272, _) idx_mut = (.a272.#b271.#b42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1219;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1219 failed %d" i;
-  );
-
-  (**************************************************)
-  (*   t274 = { #{ float#; #{ float; float# } } }   *)
-  (**************************************************)
-  (* Deepening to (.a274) *)
-  let idx : (t274, _) idx_mut = (.a274) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a274) *)
-    let shallow : (t274, _) idx_mut = (.a274) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1220;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1220 failed %d" i;
-  );
-  (* Deepening to (.a274.#a273) *)
-  let idx : (t274, _) idx_mut = (.a274.#a273) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a274) *)
-    let shallow : (t274, _) idx_mut = (.a274) in
-    let deepened = (.idx_mut(shallow).#a273) in
-    mark_test_run 1221;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1221 failed %d" i;
-    (* from (.a274.#a273) *)
-    let shallow : (t274, _) idx_mut = (.a274.#a273) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1222;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1222 failed %d" i;
-  );
-  (* Deepening to (.a274.#b273) *)
-  let idx : (t274, _) idx_mut = (.a274.#b273) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a274) *)
-    let shallow : (t274, _) idx_mut = (.a274) in
-    let deepened = (.idx_mut(shallow).#b273) in
-    mark_test_run 1223;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1223 failed %d" i;
-    (* from (.a274.#b273) *)
-    let shallow : (t274, _) idx_mut = (.a274.#b273) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1224;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1224 failed %d" i;
-  );
-  (* Deepening to (.a274.#b273.#a131) *)
-  let idx : (t274, _) idx_mut = (.a274.#b273.#a131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a274) *)
-    let shallow : (t274, _) idx_mut = (.a274) in
-    let deepened = (.idx_mut(shallow).#b273.#a131) in
-    mark_test_run 1225;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1225 failed %d" i;
-    (* from (.a274.#b273) *)
-    let shallow : (t274, _) idx_mut = (.a274.#b273) in
-    let deepened = (.idx_mut(shallow).#a131) in
-    mark_test_run 1226;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1226 failed %d" i;
-    (* from (.a274.#b273.#a131) *)
-    let shallow : (t274, _) idx_mut = (.a274.#b273.#a131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1227;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1227 failed %d" i;
-  );
-  (* Deepening to (.a274.#b273.#b131) *)
-  let idx : (t274, _) idx_mut = (.a274.#b273.#b131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a274) *)
-    let shallow : (t274, _) idx_mut = (.a274) in
-    let deepened = (.idx_mut(shallow).#b273.#b131) in
-    mark_test_run 1228;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1228 failed %d" i;
-    (* from (.a274.#b273) *)
-    let shallow : (t274, _) idx_mut = (.a274.#b273) in
-    let deepened = (.idx_mut(shallow).#b131) in
-    mark_test_run 1229;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1229 failed %d" i;
-    (* from (.a274.#b273.#b131) *)
-    let shallow : (t274, _) idx_mut = (.a274.#b273.#b131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1230;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1230 failed %d" i;
-  );
-
-  (**************************************************)
-  (*   t276 = { #{ float#; #{ float#; float } } }   *)
-  (**************************************************)
-  (* Deepening to (.a276) *)
-  let idx : (t276, _) idx_mut = (.a276) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a276) *)
-    let shallow : (t276, _) idx_mut = (.a276) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1231;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1231 failed %d" i;
-  );
-  (* Deepening to (.a276.#a275) *)
-  let idx : (t276, _) idx_mut = (.a276.#a275) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a276) *)
-    let shallow : (t276, _) idx_mut = (.a276) in
-    let deepened = (.idx_mut(shallow).#a275) in
-    mark_test_run 1232;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1232 failed %d" i;
-    (* from (.a276.#a275) *)
-    let shallow : (t276, _) idx_mut = (.a276.#a275) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1233;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1233 failed %d" i;
-  );
-  (* Deepening to (.a276.#b275) *)
-  let idx : (t276, _) idx_mut = (.a276.#b275) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a276) *)
-    let shallow : (t276, _) idx_mut = (.a276) in
-    let deepened = (.idx_mut(shallow).#b275) in
-    mark_test_run 1234;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1234 failed %d" i;
-    (* from (.a276.#b275) *)
-    let shallow : (t276, _) idx_mut = (.a276.#b275) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1235;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1235 failed %d" i;
-  );
-  (* Deepening to (.a276.#b275.#a139) *)
-  let idx : (t276, _) idx_mut = (.a276.#b275.#a139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a276) *)
-    let shallow : (t276, _) idx_mut = (.a276) in
-    let deepened = (.idx_mut(shallow).#b275.#a139) in
-    mark_test_run 1236;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1236 failed %d" i;
-    (* from (.a276.#b275) *)
-    let shallow : (t276, _) idx_mut = (.a276.#b275) in
-    let deepened = (.idx_mut(shallow).#a139) in
-    mark_test_run 1237;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1237 failed %d" i;
-    (* from (.a276.#b275.#a139) *)
-    let shallow : (t276, _) idx_mut = (.a276.#b275.#a139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1238;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1238 failed %d" i;
-  );
-  (* Deepening to (.a276.#b275.#b139) *)
-  let idx : (t276, _) idx_mut = (.a276.#b275.#b139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a276) *)
-    let shallow : (t276, _) idx_mut = (.a276) in
-    let deepened = (.idx_mut(shallow).#b275.#b139) in
-    mark_test_run 1239;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1239 failed %d" i;
-    (* from (.a276.#b275) *)
-    let shallow : (t276, _) idx_mut = (.a276.#b275) in
-    let deepened = (.idx_mut(shallow).#b139) in
-    mark_test_run 1240;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1240 failed %d" i;
-    (* from (.a276.#b275.#b139) *)
-    let shallow : (t276, _) idx_mut = (.a276.#b275.#b139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1241;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1241 failed %d" i;
-  );
-
-  (***************************************************)
-  (*   t278 = { #{ float#; #{ float#; float# } } }   *)
-  (***************************************************)
-  (* Deepening to (.a278) *)
-  let idx : (t278, _) idx_mut = (.a278) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a278) *)
-    let shallow : (t278, _) idx_mut = (.a278) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1242;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1242 failed %d" i;
-  );
-  (* Deepening to (.a278.#a277) *)
-  let idx : (t278, _) idx_mut = (.a278.#a277) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a278) *)
-    let shallow : (t278, _) idx_mut = (.a278) in
-    let deepened = (.idx_mut(shallow).#a277) in
-    mark_test_run 1243;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1243 failed %d" i;
-    (* from (.a278.#a277) *)
-    let shallow : (t278, _) idx_mut = (.a278.#a277) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1244;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1244 failed %d" i;
-  );
-  (* Deepening to (.a278.#b277) *)
-  let idx : (t278, _) idx_mut = (.a278.#b277) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a278) *)
-    let shallow : (t278, _) idx_mut = (.a278) in
-    let deepened = (.idx_mut(shallow).#b277) in
-    mark_test_run 1245;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1245 failed %d" i;
-    (* from (.a278.#b277) *)
-    let shallow : (t278, _) idx_mut = (.a278.#b277) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1246;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1246 failed %d" i;
-  );
-  (* Deepening to (.a278.#b277.#a141) *)
-  let idx : (t278, _) idx_mut = (.a278.#b277.#a141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a278) *)
-    let shallow : (t278, _) idx_mut = (.a278) in
-    let deepened = (.idx_mut(shallow).#b277.#a141) in
-    mark_test_run 1247;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1247 failed %d" i;
-    (* from (.a278.#b277) *)
-    let shallow : (t278, _) idx_mut = (.a278.#b277) in
-    let deepened = (.idx_mut(shallow).#a141) in
-    mark_test_run 1248;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1248 failed %d" i;
-    (* from (.a278.#b277.#a141) *)
-    let shallow : (t278, _) idx_mut = (.a278.#b277.#a141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1249;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1249 failed %d" i;
-  );
-  (* Deepening to (.a278.#b277.#b141) *)
-  let idx : (t278, _) idx_mut = (.a278.#b277.#b141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a278) *)
-    let shallow : (t278, _) idx_mut = (.a278) in
-    let deepened = (.idx_mut(shallow).#b277.#b141) in
-    mark_test_run 1250;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1250 failed %d" i;
-    (* from (.a278.#b277) *)
-    let shallow : (t278, _) idx_mut = (.a278.#b277) in
-    let deepened = (.idx_mut(shallow).#b141) in
-    mark_test_run 1251;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1251 failed %d" i;
-    (* from (.a278.#b277.#b141) *)
-    let shallow : (t278, _) idx_mut = (.a278.#b277.#b141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1252;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1252 failed %d" i;
-  );
-
-  (*************************************************************)
-  (*   t281 = { #{ float32#; int64# }; #{ string; int64# } }   *)
-  (*************************************************************)
-  (* Deepening to (.a281) *)
-  let idx : (t281, _) idx_mut = (.a281) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a281) *)
-    let shallow : (t281, _) idx_mut = (.a281) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1253;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1253 failed %d" i;
-  );
-  (* Deepening to (.a281.#a279) *)
-  let idx : (t281, _) idx_mut = (.a281.#a279) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a281) *)
-    let shallow : (t281, _) idx_mut = (.a281) in
-    let deepened = (.idx_mut(shallow).#a279) in
-    mark_test_run 1254;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1254 failed %d" i;
-    (* from (.a281.#a279) *)
-    let shallow : (t281, _) idx_mut = (.a281.#a279) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1255;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1255 failed %d" i;
-  );
-  (* Deepening to (.a281.#b279) *)
-  let idx : (t281, _) idx_mut = (.a281.#b279) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a281) *)
-    let shallow : (t281, _) idx_mut = (.a281) in
-    let deepened = (.idx_mut(shallow).#b279) in
-    mark_test_run 1256;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1256 failed %d" i;
-    (* from (.a281.#b279) *)
-    let shallow : (t281, _) idx_mut = (.a281.#b279) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1257;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1257 failed %d" i;
-  );
-  (* Deepening to (.b281) *)
-  let idx : (t281, _) idx_mut = (.b281) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b281) *)
-    let shallow : (t281, _) idx_mut = (.b281) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1258;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1258 failed %d" i;
-  );
-  (* Deepening to (.b281.#a280) *)
-  let idx : (t281, _) idx_mut = (.b281.#a280) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b281) *)
-    let shallow : (t281, _) idx_mut = (.b281) in
-    let deepened = (.idx_mut(shallow).#a280) in
-    mark_test_run 1259;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1259 failed %d" i;
-    (* from (.b281.#a280) *)
-    let shallow : (t281, _) idx_mut = (.b281.#a280) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1260;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1260 failed %d" i;
-  );
-  (* Deepening to (.b281.#b280) *)
-  let idx : (t281, _) idx_mut = (.b281.#b280) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.b281) *)
-    let shallow : (t281, _) idx_mut = (.b281) in
-    let deepened = (.idx_mut(shallow).#b280) in
-    mark_test_run 1261;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1261 failed %d" i;
-    (* from (.b281.#b280) *)
-    let shallow : (t281, _) idx_mut = (.b281.#b280) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1262;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1262 failed %d" i;
-  );
-
-  (******************************************)
-  (*   t283 = { #{ #{ int; int }; int } }   *)
-  (******************************************)
-  (* Deepening to (.a283) *)
-  let idx : (t283, _) idx_mut = (.a283) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a283) *)
-    let shallow : (t283, _) idx_mut = (.a283) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1263;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1263 failed %d" i;
-  );
-  (* Deepening to (.a283.#a282) *)
-  let idx : (t283, _) idx_mut = (.a283.#a282) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a283) *)
-    let shallow : (t283, _) idx_mut = (.a283) in
-    let deepened = (.idx_mut(shallow).#a282) in
-    mark_test_run 1264;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1264 failed %d" i;
-    (* from (.a283.#a282) *)
-    let shallow : (t283, _) idx_mut = (.a283.#a282) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1265;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1265 failed %d" i;
-  );
-  (* Deepening to (.a283.#b282) *)
-  let idx : (t283, _) idx_mut = (.a283.#b282) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a283) *)
-    let shallow : (t283, _) idx_mut = (.a283) in
-    let deepened = (.idx_mut(shallow).#b282) in
-    mark_test_run 1266;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1266 failed %d" i;
-    (* from (.a283.#b282) *)
-    let shallow : (t283, _) idx_mut = (.a283.#b282) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1267;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1267 failed %d" i;
-  );
-  (* Deepening to (.a283.#a282.#a16) *)
-  let idx : (t283, _) idx_mut = (.a283.#a282.#a16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a283) *)
-    let shallow : (t283, _) idx_mut = (.a283) in
-    let deepened = (.idx_mut(shallow).#a282.#a16) in
-    mark_test_run 1268;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1268 failed %d" i;
-    (* from (.a283.#a282) *)
-    let shallow : (t283, _) idx_mut = (.a283.#a282) in
-    let deepened = (.idx_mut(shallow).#a16) in
-    mark_test_run 1269;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1269 failed %d" i;
-    (* from (.a283.#a282.#a16) *)
-    let shallow : (t283, _) idx_mut = (.a283.#a282.#a16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1270;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1270 failed %d" i;
-  );
-  (* Deepening to (.a283.#a282.#b16) *)
-  let idx : (t283, _) idx_mut = (.a283.#a282.#b16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a283) *)
-    let shallow : (t283, _) idx_mut = (.a283) in
-    let deepened = (.idx_mut(shallow).#a282.#b16) in
-    mark_test_run 1271;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1271 failed %d" i;
-    (* from (.a283.#a282) *)
-    let shallow : (t283, _) idx_mut = (.a283.#a282) in
-    let deepened = (.idx_mut(shallow).#b16) in
-    mark_test_run 1272;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1272 failed %d" i;
-    (* from (.a283.#a282.#b16) *)
-    let shallow : (t283, _) idx_mut = (.a283.#a282.#b16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1273;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1273 failed %d" i;
-  );
-
-  (*********************************************)
-  (*   t285 = { #{ #{ int; int }; int32# } }   *)
-  (*********************************************)
-  (* Deepening to (.a285) *)
-  let idx : (t285, _) idx_mut = (.a285) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a285) *)
-    let shallow : (t285, _) idx_mut = (.a285) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1274;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1274 failed %d" i;
-  );
-  (* Deepening to (.a285.#a284) *)
-  let idx : (t285, _) idx_mut = (.a285.#a284) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a285) *)
-    let shallow : (t285, _) idx_mut = (.a285) in
-    let deepened = (.idx_mut(shallow).#a284) in
-    mark_test_run 1275;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1275 failed %d" i;
-    (* from (.a285.#a284) *)
-    let shallow : (t285, _) idx_mut = (.a285.#a284) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1276;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1276 failed %d" i;
-  );
-  (* Deepening to (.a285.#b284) *)
-  let idx : (t285, _) idx_mut = (.a285.#b284) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a285) *)
-    let shallow : (t285, _) idx_mut = (.a285) in
-    let deepened = (.idx_mut(shallow).#b284) in
-    mark_test_run 1277;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1277 failed %d" i;
-    (* from (.a285.#b284) *)
-    let shallow : (t285, _) idx_mut = (.a285.#b284) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1278;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1278 failed %d" i;
-  );
-  (* Deepening to (.a285.#a284.#a16) *)
-  let idx : (t285, _) idx_mut = (.a285.#a284.#a16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a285) *)
-    let shallow : (t285, _) idx_mut = (.a285) in
-    let deepened = (.idx_mut(shallow).#a284.#a16) in
-    mark_test_run 1279;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1279 failed %d" i;
-    (* from (.a285.#a284) *)
-    let shallow : (t285, _) idx_mut = (.a285.#a284) in
-    let deepened = (.idx_mut(shallow).#a16) in
-    mark_test_run 1280;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1280 failed %d" i;
-    (* from (.a285.#a284.#a16) *)
-    let shallow : (t285, _) idx_mut = (.a285.#a284.#a16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1281;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1281 failed %d" i;
-  );
-  (* Deepening to (.a285.#a284.#b16) *)
-  let idx : (t285, _) idx_mut = (.a285.#a284.#b16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a285) *)
-    let shallow : (t285, _) idx_mut = (.a285) in
-    let deepened = (.idx_mut(shallow).#a284.#b16) in
-    mark_test_run 1282;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1282 failed %d" i;
-    (* from (.a285.#a284) *)
-    let shallow : (t285, _) idx_mut = (.a285.#a284) in
-    let deepened = (.idx_mut(shallow).#b16) in
-    mark_test_run 1283;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1283 failed %d" i;
-    (* from (.a285.#a284.#b16) *)
-    let shallow : (t285, _) idx_mut = (.a285.#a284.#b16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1284;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1284 failed %d" i;
-  );
-
-  (********************************************)
-  (*   t287 = { #{ #{ int; int }; float } }   *)
-  (********************************************)
-  (* Deepening to (.a287) *)
-  let idx : (t287, _) idx_mut = (.a287) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a287) *)
-    let shallow : (t287, _) idx_mut = (.a287) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1285;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1285 failed %d" i;
-  );
-  (* Deepening to (.a287.#a286) *)
-  let idx : (t287, _) idx_mut = (.a287.#a286) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a287) *)
-    let shallow : (t287, _) idx_mut = (.a287) in
-    let deepened = (.idx_mut(shallow).#a286) in
-    mark_test_run 1286;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1286 failed %d" i;
-    (* from (.a287.#a286) *)
-    let shallow : (t287, _) idx_mut = (.a287.#a286) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1287;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1287 failed %d" i;
-  );
-  (* Deepening to (.a287.#b286) *)
-  let idx : (t287, _) idx_mut = (.a287.#b286) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a287) *)
-    let shallow : (t287, _) idx_mut = (.a287) in
-    let deepened = (.idx_mut(shallow).#b286) in
-    mark_test_run 1288;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1288 failed %d" i;
-    (* from (.a287.#b286) *)
-    let shallow : (t287, _) idx_mut = (.a287.#b286) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1289;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1289 failed %d" i;
-  );
-  (* Deepening to (.a287.#a286.#a16) *)
-  let idx : (t287, _) idx_mut = (.a287.#a286.#a16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a287) *)
-    let shallow : (t287, _) idx_mut = (.a287) in
-    let deepened = (.idx_mut(shallow).#a286.#a16) in
-    mark_test_run 1290;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1290 failed %d" i;
-    (* from (.a287.#a286) *)
-    let shallow : (t287, _) idx_mut = (.a287.#a286) in
-    let deepened = (.idx_mut(shallow).#a16) in
-    mark_test_run 1291;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1291 failed %d" i;
-    (* from (.a287.#a286.#a16) *)
-    let shallow : (t287, _) idx_mut = (.a287.#a286.#a16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1292;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1292 failed %d" i;
-  );
-  (* Deepening to (.a287.#a286.#b16) *)
-  let idx : (t287, _) idx_mut = (.a287.#a286.#b16) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a287) *)
-    let shallow : (t287, _) idx_mut = (.a287) in
-    let deepened = (.idx_mut(shallow).#a286.#b16) in
-    mark_test_run 1293;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1293 failed %d" i;
-    (* from (.a287.#a286) *)
-    let shallow : (t287, _) idx_mut = (.a287.#a286) in
-    let deepened = (.idx_mut(shallow).#b16) in
-    mark_test_run 1294;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1294 failed %d" i;
-    (* from (.a287.#a286.#b16) *)
-    let shallow : (t287, _) idx_mut = (.a287.#a286.#b16) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1295;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1295 failed %d" i;
-  );
-
-  (*********************************************)
-  (*   t289 = { #{ #{ int; int32# }; int } }   *)
-  (*********************************************)
-  (* Deepening to (.a289) *)
-  let idx : (t289, _) idx_mut = (.a289) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a289) *)
-    let shallow : (t289, _) idx_mut = (.a289) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1296;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1296 failed %d" i;
-  );
-  (* Deepening to (.a289.#a288) *)
-  let idx : (t289, _) idx_mut = (.a289.#a288) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a289) *)
-    let shallow : (t289, _) idx_mut = (.a289) in
-    let deepened = (.idx_mut(shallow).#a288) in
-    mark_test_run 1297;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1297 failed %d" i;
-    (* from (.a289.#a288) *)
-    let shallow : (t289, _) idx_mut = (.a289.#a288) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1298;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1298 failed %d" i;
-  );
-  (* Deepening to (.a289.#b288) *)
-  let idx : (t289, _) idx_mut = (.a289.#b288) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a289) *)
-    let shallow : (t289, _) idx_mut = (.a289) in
-    let deepened = (.idx_mut(shallow).#b288) in
-    mark_test_run 1299;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1299 failed %d" i;
-    (* from (.a289.#b288) *)
-    let shallow : (t289, _) idx_mut = (.a289.#b288) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1300;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1300 failed %d" i;
-  );
-  (* Deepening to (.a289.#a288.#a18) *)
-  let idx : (t289, _) idx_mut = (.a289.#a288.#a18) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a289) *)
-    let shallow : (t289, _) idx_mut = (.a289) in
-    let deepened = (.idx_mut(shallow).#a288.#a18) in
-    mark_test_run 1301;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1301 failed %d" i;
-    (* from (.a289.#a288) *)
-    let shallow : (t289, _) idx_mut = (.a289.#a288) in
-    let deepened = (.idx_mut(shallow).#a18) in
-    mark_test_run 1302;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1302 failed %d" i;
-    (* from (.a289.#a288.#a18) *)
-    let shallow : (t289, _) idx_mut = (.a289.#a288.#a18) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1303;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1303 failed %d" i;
-  );
-  (* Deepening to (.a289.#a288.#b18) *)
-  let idx : (t289, _) idx_mut = (.a289.#a288.#b18) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a289) *)
-    let shallow : (t289, _) idx_mut = (.a289) in
-    let deepened = (.idx_mut(shallow).#a288.#b18) in
-    mark_test_run 1304;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1304 failed %d" i;
-    (* from (.a289.#a288) *)
-    let shallow : (t289, _) idx_mut = (.a289.#a288) in
-    let deepened = (.idx_mut(shallow).#b18) in
-    mark_test_run 1305;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1305 failed %d" i;
-    (* from (.a289.#a288.#b18) *)
-    let shallow : (t289, _) idx_mut = (.a289.#a288.#b18) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1306;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1306 failed %d" i;
-  );
-
-  (************************************************)
-  (*   t291 = { #{ #{ int; int32# }; int32# } }   *)
-  (************************************************)
-  (* Deepening to (.a291) *)
-  let idx : (t291, _) idx_mut = (.a291) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a291) *)
-    let shallow : (t291, _) idx_mut = (.a291) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1307;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1307 failed %d" i;
-  );
-  (* Deepening to (.a291.#a290) *)
-  let idx : (t291, _) idx_mut = (.a291.#a290) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a291) *)
-    let shallow : (t291, _) idx_mut = (.a291) in
-    let deepened = (.idx_mut(shallow).#a290) in
-    mark_test_run 1308;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1308 failed %d" i;
-    (* from (.a291.#a290) *)
-    let shallow : (t291, _) idx_mut = (.a291.#a290) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1309;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1309 failed %d" i;
-  );
-  (* Deepening to (.a291.#b290) *)
-  let idx : (t291, _) idx_mut = (.a291.#b290) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a291) *)
-    let shallow : (t291, _) idx_mut = (.a291) in
-    let deepened = (.idx_mut(shallow).#b290) in
-    mark_test_run 1310;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1310 failed %d" i;
-    (* from (.a291.#b290) *)
-    let shallow : (t291, _) idx_mut = (.a291.#b290) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1311;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1311 failed %d" i;
-  );
-  (* Deepening to (.a291.#a290.#a18) *)
-  let idx : (t291, _) idx_mut = (.a291.#a290.#a18) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a291) *)
-    let shallow : (t291, _) idx_mut = (.a291) in
-    let deepened = (.idx_mut(shallow).#a290.#a18) in
-    mark_test_run 1312;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1312 failed %d" i;
-    (* from (.a291.#a290) *)
-    let shallow : (t291, _) idx_mut = (.a291.#a290) in
-    let deepened = (.idx_mut(shallow).#a18) in
-    mark_test_run 1313;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1313 failed %d" i;
-    (* from (.a291.#a290.#a18) *)
-    let shallow : (t291, _) idx_mut = (.a291.#a290.#a18) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1314;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1314 failed %d" i;
-  );
-  (* Deepening to (.a291.#a290.#b18) *)
-  let idx : (t291, _) idx_mut = (.a291.#a290.#b18) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a291) *)
-    let shallow : (t291, _) idx_mut = (.a291) in
-    let deepened = (.idx_mut(shallow).#a290.#b18) in
-    mark_test_run 1315;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1315 failed %d" i;
-    (* from (.a291.#a290) *)
-    let shallow : (t291, _) idx_mut = (.a291.#a290) in
-    let deepened = (.idx_mut(shallow).#b18) in
-    mark_test_run 1316;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1316 failed %d" i;
-    (* from (.a291.#a290.#b18) *)
-    let shallow : (t291, _) idx_mut = (.a291.#a290.#b18) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1317;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1317 failed %d" i;
-  );
-
-  (********************************************)
-  (*   t293 = { #{ #{ int; float }; int } }   *)
-  (********************************************)
-  (* Deepening to (.a293) *)
-  let idx : (t293, _) idx_mut = (.a293) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a293) *)
-    let shallow : (t293, _) idx_mut = (.a293) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1318;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1318 failed %d" i;
-  );
-  (* Deepening to (.a293.#a292) *)
-  let idx : (t293, _) idx_mut = (.a293.#a292) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a293) *)
-    let shallow : (t293, _) idx_mut = (.a293) in
-    let deepened = (.idx_mut(shallow).#a292) in
-    mark_test_run 1319;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1319 failed %d" i;
-    (* from (.a293.#a292) *)
-    let shallow : (t293, _) idx_mut = (.a293.#a292) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1320;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1320 failed %d" i;
-  );
-  (* Deepening to (.a293.#b292) *)
-  let idx : (t293, _) idx_mut = (.a293.#b292) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a293) *)
-    let shallow : (t293, _) idx_mut = (.a293) in
-    let deepened = (.idx_mut(shallow).#b292) in
-    mark_test_run 1321;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1321 failed %d" i;
-    (* from (.a293.#b292) *)
-    let shallow : (t293, _) idx_mut = (.a293.#b292) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1322;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1322 failed %d" i;
-  );
-  (* Deepening to (.a293.#a292.#a20) *)
-  let idx : (t293, _) idx_mut = (.a293.#a292.#a20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a293) *)
-    let shallow : (t293, _) idx_mut = (.a293) in
-    let deepened = (.idx_mut(shallow).#a292.#a20) in
-    mark_test_run 1323;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1323 failed %d" i;
-    (* from (.a293.#a292) *)
-    let shallow : (t293, _) idx_mut = (.a293.#a292) in
-    let deepened = (.idx_mut(shallow).#a20) in
-    mark_test_run 1324;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1324 failed %d" i;
-    (* from (.a293.#a292.#a20) *)
-    let shallow : (t293, _) idx_mut = (.a293.#a292.#a20) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1325;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1325 failed %d" i;
-  );
-  (* Deepening to (.a293.#a292.#b20) *)
-  let idx : (t293, _) idx_mut = (.a293.#a292.#b20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a293) *)
-    let shallow : (t293, _) idx_mut = (.a293) in
-    let deepened = (.idx_mut(shallow).#a292.#b20) in
-    mark_test_run 1326;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1326 failed %d" i;
-    (* from (.a293.#a292) *)
-    let shallow : (t293, _) idx_mut = (.a293.#a292) in
-    let deepened = (.idx_mut(shallow).#b20) in
-    mark_test_run 1327;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1327 failed %d" i;
-    (* from (.a293.#a292.#b20) *)
-    let shallow : (t293, _) idx_mut = (.a293.#a292.#b20) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1328;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1328 failed %d" i;
-  );
-
-  (**********************************************)
-  (*   t295 = { #{ #{ int; float }; float } }   *)
-  (**********************************************)
-  (* Deepening to (.a295) *)
-  let idx : (t295, _) idx_mut = (.a295) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a295) *)
-    let shallow : (t295, _) idx_mut = (.a295) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1329;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1329 failed %d" i;
-  );
-  (* Deepening to (.a295.#a294) *)
-  let idx : (t295, _) idx_mut = (.a295.#a294) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a295) *)
-    let shallow : (t295, _) idx_mut = (.a295) in
-    let deepened = (.idx_mut(shallow).#a294) in
-    mark_test_run 1330;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1330 failed %d" i;
-    (* from (.a295.#a294) *)
-    let shallow : (t295, _) idx_mut = (.a295.#a294) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1331;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1331 failed %d" i;
-  );
-  (* Deepening to (.a295.#b294) *)
-  let idx : (t295, _) idx_mut = (.a295.#b294) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a295) *)
-    let shallow : (t295, _) idx_mut = (.a295) in
-    let deepened = (.idx_mut(shallow).#b294) in
-    mark_test_run 1332;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1332 failed %d" i;
-    (* from (.a295.#b294) *)
-    let shallow : (t295, _) idx_mut = (.a295.#b294) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1333;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1333 failed %d" i;
-  );
-  (* Deepening to (.a295.#a294.#a20) *)
-  let idx : (t295, _) idx_mut = (.a295.#a294.#a20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a295) *)
-    let shallow : (t295, _) idx_mut = (.a295) in
-    let deepened = (.idx_mut(shallow).#a294.#a20) in
-    mark_test_run 1334;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1334 failed %d" i;
-    (* from (.a295.#a294) *)
-    let shallow : (t295, _) idx_mut = (.a295.#a294) in
-    let deepened = (.idx_mut(shallow).#a20) in
-    mark_test_run 1335;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1335 failed %d" i;
-    (* from (.a295.#a294.#a20) *)
-    let shallow : (t295, _) idx_mut = (.a295.#a294.#a20) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1336;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1336 failed %d" i;
-  );
-  (* Deepening to (.a295.#a294.#b20) *)
-  let idx : (t295, _) idx_mut = (.a295.#a294.#b20) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a295) *)
-    let shallow : (t295, _) idx_mut = (.a295) in
-    let deepened = (.idx_mut(shallow).#a294.#b20) in
-    mark_test_run 1337;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1337 failed %d" i;
-    (* from (.a295.#a294) *)
-    let shallow : (t295, _) idx_mut = (.a295.#a294) in
-    let deepened = (.idx_mut(shallow).#b20) in
-    mark_test_run 1338;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1338 failed %d" i;
-    (* from (.a295.#a294.#b20) *)
-    let shallow : (t295, _) idx_mut = (.a295.#a294.#b20) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1339;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1339 failed %d" i;
-  );
-
-  (*********************************************)
-  (*   t297 = { #{ #{ int32#; int }; int } }   *)
-  (*********************************************)
-  (* Deepening to (.a297) *)
-  let idx : (t297, _) idx_mut = (.a297) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a297) *)
-    let shallow : (t297, _) idx_mut = (.a297) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1340;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1340 failed %d" i;
-  );
-  (* Deepening to (.a297.#a296) *)
-  let idx : (t297, _) idx_mut = (.a297.#a296) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a297) *)
-    let shallow : (t297, _) idx_mut = (.a297) in
-    let deepened = (.idx_mut(shallow).#a296) in
-    mark_test_run 1341;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1341 failed %d" i;
-    (* from (.a297.#a296) *)
-    let shallow : (t297, _) idx_mut = (.a297.#a296) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1342;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1342 failed %d" i;
-  );
-  (* Deepening to (.a297.#b296) *)
-  let idx : (t297, _) idx_mut = (.a297.#b296) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a297) *)
-    let shallow : (t297, _) idx_mut = (.a297) in
-    let deepened = (.idx_mut(shallow).#b296) in
-    mark_test_run 1343;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1343 failed %d" i;
-    (* from (.a297.#b296) *)
-    let shallow : (t297, _) idx_mut = (.a297.#b296) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1344;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1344 failed %d" i;
-  );
-  (* Deepening to (.a297.#a296.#a31) *)
-  let idx : (t297, _) idx_mut = (.a297.#a296.#a31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a297) *)
-    let shallow : (t297, _) idx_mut = (.a297) in
-    let deepened = (.idx_mut(shallow).#a296.#a31) in
-    mark_test_run 1345;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1345 failed %d" i;
-    (* from (.a297.#a296) *)
-    let shallow : (t297, _) idx_mut = (.a297.#a296) in
-    let deepened = (.idx_mut(shallow).#a31) in
-    mark_test_run 1346;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1346 failed %d" i;
-    (* from (.a297.#a296.#a31) *)
-    let shallow : (t297, _) idx_mut = (.a297.#a296.#a31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1347;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1347 failed %d" i;
-  );
-  (* Deepening to (.a297.#a296.#b31) *)
-  let idx : (t297, _) idx_mut = (.a297.#a296.#b31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a297) *)
-    let shallow : (t297, _) idx_mut = (.a297) in
-    let deepened = (.idx_mut(shallow).#a296.#b31) in
-    mark_test_run 1348;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1348 failed %d" i;
-    (* from (.a297.#a296) *)
-    let shallow : (t297, _) idx_mut = (.a297.#a296) in
-    let deepened = (.idx_mut(shallow).#b31) in
-    mark_test_run 1349;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1349 failed %d" i;
-    (* from (.a297.#a296.#b31) *)
-    let shallow : (t297, _) idx_mut = (.a297.#a296.#b31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1350;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1350 failed %d" i;
-  );
-
-  (************************************************)
-  (*   t299 = { #{ #{ int32#; int }; int32# } }   *)
-  (************************************************)
-  (* Deepening to (.a299) *)
-  let idx : (t299, _) idx_mut = (.a299) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a299) *)
-    let shallow : (t299, _) idx_mut = (.a299) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1351;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1351 failed %d" i;
-  );
-  (* Deepening to (.a299.#a298) *)
-  let idx : (t299, _) idx_mut = (.a299.#a298) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a299) *)
-    let shallow : (t299, _) idx_mut = (.a299) in
-    let deepened = (.idx_mut(shallow).#a298) in
-    mark_test_run 1352;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1352 failed %d" i;
-    (* from (.a299.#a298) *)
-    let shallow : (t299, _) idx_mut = (.a299.#a298) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1353;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1353 failed %d" i;
-  );
-  (* Deepening to (.a299.#b298) *)
-  let idx : (t299, _) idx_mut = (.a299.#b298) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a299) *)
-    let shallow : (t299, _) idx_mut = (.a299) in
-    let deepened = (.idx_mut(shallow).#b298) in
-    mark_test_run 1354;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1354 failed %d" i;
-    (* from (.a299.#b298) *)
-    let shallow : (t299, _) idx_mut = (.a299.#b298) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1355;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1355 failed %d" i;
-  );
-  (* Deepening to (.a299.#a298.#a31) *)
-  let idx : (t299, _) idx_mut = (.a299.#a298.#a31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a299) *)
-    let shallow : (t299, _) idx_mut = (.a299) in
-    let deepened = (.idx_mut(shallow).#a298.#a31) in
-    mark_test_run 1356;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1356 failed %d" i;
-    (* from (.a299.#a298) *)
-    let shallow : (t299, _) idx_mut = (.a299.#a298) in
-    let deepened = (.idx_mut(shallow).#a31) in
-    mark_test_run 1357;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1357 failed %d" i;
-    (* from (.a299.#a298.#a31) *)
-    let shallow : (t299, _) idx_mut = (.a299.#a298.#a31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1358;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1358 failed %d" i;
-  );
-  (* Deepening to (.a299.#a298.#b31) *)
-  let idx : (t299, _) idx_mut = (.a299.#a298.#b31) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a299) *)
-    let shallow : (t299, _) idx_mut = (.a299) in
-    let deepened = (.idx_mut(shallow).#a298.#b31) in
-    mark_test_run 1359;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1359 failed %d" i;
-    (* from (.a299.#a298) *)
-    let shallow : (t299, _) idx_mut = (.a299.#a298) in
-    let deepened = (.idx_mut(shallow).#b31) in
-    mark_test_run 1360;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1360 failed %d" i;
-    (* from (.a299.#a298.#b31) *)
-    let shallow : (t299, _) idx_mut = (.a299.#a298.#b31) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1361;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1361 failed %d" i;
-  );
-
-  (************************************************)
-  (*   t301 = { #{ #{ int32#; int32# }; int } }   *)
-  (************************************************)
-  (* Deepening to (.a301) *)
-  let idx : (t301, _) idx_mut = (.a301) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a301) *)
-    let shallow : (t301, _) idx_mut = (.a301) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1362;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1362 failed %d" i;
-  );
-  (* Deepening to (.a301.#a300) *)
-  let idx : (t301, _) idx_mut = (.a301.#a300) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a301) *)
-    let shallow : (t301, _) idx_mut = (.a301) in
-    let deepened = (.idx_mut(shallow).#a300) in
-    mark_test_run 1363;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1363 failed %d" i;
-    (* from (.a301.#a300) *)
-    let shallow : (t301, _) idx_mut = (.a301.#a300) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1364;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1364 failed %d" i;
-  );
-  (* Deepening to (.a301.#b300) *)
-  let idx : (t301, _) idx_mut = (.a301.#b300) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a301) *)
-    let shallow : (t301, _) idx_mut = (.a301) in
-    let deepened = (.idx_mut(shallow).#b300) in
-    mark_test_run 1365;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1365 failed %d" i;
-    (* from (.a301.#b300) *)
-    let shallow : (t301, _) idx_mut = (.a301.#b300) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1366;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1366 failed %d" i;
-  );
-  (* Deepening to (.a301.#a300.#a33) *)
-  let idx : (t301, _) idx_mut = (.a301.#a300.#a33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a301) *)
-    let shallow : (t301, _) idx_mut = (.a301) in
-    let deepened = (.idx_mut(shallow).#a300.#a33) in
-    mark_test_run 1367;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1367 failed %d" i;
-    (* from (.a301.#a300) *)
-    let shallow : (t301, _) idx_mut = (.a301.#a300) in
-    let deepened = (.idx_mut(shallow).#a33) in
-    mark_test_run 1368;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1368 failed %d" i;
-    (* from (.a301.#a300.#a33) *)
-    let shallow : (t301, _) idx_mut = (.a301.#a300.#a33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1369;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1369 failed %d" i;
-  );
-  (* Deepening to (.a301.#a300.#b33) *)
-  let idx : (t301, _) idx_mut = (.a301.#a300.#b33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a301) *)
-    let shallow : (t301, _) idx_mut = (.a301) in
-    let deepened = (.idx_mut(shallow).#a300.#b33) in
-    mark_test_run 1370;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1370 failed %d" i;
-    (* from (.a301.#a300) *)
-    let shallow : (t301, _) idx_mut = (.a301.#a300) in
-    let deepened = (.idx_mut(shallow).#b33) in
-    mark_test_run 1371;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1371 failed %d" i;
-    (* from (.a301.#a300.#b33) *)
-    let shallow : (t301, _) idx_mut = (.a301.#a300.#b33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1372;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1372 failed %d" i;
-  );
-
-  (***************************************************)
-  (*   t303 = { #{ #{ int32#; int32# }; int32# } }   *)
-  (***************************************************)
-  (* Deepening to (.a303) *)
-  let idx : (t303, _) idx_mut = (.a303) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a303) *)
-    let shallow : (t303, _) idx_mut = (.a303) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1373;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1373 failed %d" i;
-  );
-  (* Deepening to (.a303.#a302) *)
-  let idx : (t303, _) idx_mut = (.a303.#a302) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a303) *)
-    let shallow : (t303, _) idx_mut = (.a303) in
-    let deepened = (.idx_mut(shallow).#a302) in
-    mark_test_run 1374;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1374 failed %d" i;
-    (* from (.a303.#a302) *)
-    let shallow : (t303, _) idx_mut = (.a303.#a302) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1375;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1375 failed %d" i;
-  );
-  (* Deepening to (.a303.#b302) *)
-  let idx : (t303, _) idx_mut = (.a303.#b302) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a303) *)
-    let shallow : (t303, _) idx_mut = (.a303) in
-    let deepened = (.idx_mut(shallow).#b302) in
-    mark_test_run 1376;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1376 failed %d" i;
-    (* from (.a303.#b302) *)
-    let shallow : (t303, _) idx_mut = (.a303.#b302) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1377;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1377 failed %d" i;
-  );
-  (* Deepening to (.a303.#a302.#a33) *)
-  let idx : (t303, _) idx_mut = (.a303.#a302.#a33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a303) *)
-    let shallow : (t303, _) idx_mut = (.a303) in
-    let deepened = (.idx_mut(shallow).#a302.#a33) in
-    mark_test_run 1378;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1378 failed %d" i;
-    (* from (.a303.#a302) *)
-    let shallow : (t303, _) idx_mut = (.a303.#a302) in
-    let deepened = (.idx_mut(shallow).#a33) in
-    mark_test_run 1379;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1379 failed %d" i;
-    (* from (.a303.#a302.#a33) *)
-    let shallow : (t303, _) idx_mut = (.a303.#a302.#a33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1380;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1380 failed %d" i;
-  );
-  (* Deepening to (.a303.#a302.#b33) *)
-  let idx : (t303, _) idx_mut = (.a303.#a302.#b33) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a303) *)
-    let shallow : (t303, _) idx_mut = (.a303) in
-    let deepened = (.idx_mut(shallow).#a302.#b33) in
-    mark_test_run 1381;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1381 failed %d" i;
-    (* from (.a303.#a302) *)
-    let shallow : (t303, _) idx_mut = (.a303.#a302) in
-    let deepened = (.idx_mut(shallow).#b33) in
-    mark_test_run 1382;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1382 failed %d" i;
-    (* from (.a303.#a302.#b33) *)
-    let shallow : (t303, _) idx_mut = (.a303.#a302.#b33) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1383;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1383 failed %d" i;
-  );
-
-  (********************************************)
-  (*   t305 = { #{ #{ float; int }; int } }   *)
-  (********************************************)
-  (* Deepening to (.a305) *)
-  let idx : (t305, _) idx_mut = (.a305) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a305) *)
-    let shallow : (t305, _) idx_mut = (.a305) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1384;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1384 failed %d" i;
-  );
-  (* Deepening to (.a305.#a304) *)
-  let idx : (t305, _) idx_mut = (.a305.#a304) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a305) *)
-    let shallow : (t305, _) idx_mut = (.a305) in
-    let deepened = (.idx_mut(shallow).#a304) in
-    mark_test_run 1385;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1385 failed %d" i;
-    (* from (.a305.#a304) *)
-    let shallow : (t305, _) idx_mut = (.a305.#a304) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1386;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1386 failed %d" i;
-  );
-  (* Deepening to (.a305.#b304) *)
-  let idx : (t305, _) idx_mut = (.a305.#b304) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a305) *)
-    let shallow : (t305, _) idx_mut = (.a305) in
-    let deepened = (.idx_mut(shallow).#b304) in
-    mark_test_run 1387;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1387 failed %d" i;
-    (* from (.a305.#b304) *)
-    let shallow : (t305, _) idx_mut = (.a305.#b304) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1388;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1388 failed %d" i;
-  );
-  (* Deepening to (.a305.#a304.#a40) *)
-  let idx : (t305, _) idx_mut = (.a305.#a304.#a40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a305) *)
-    let shallow : (t305, _) idx_mut = (.a305) in
-    let deepened = (.idx_mut(shallow).#a304.#a40) in
-    mark_test_run 1389;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1389 failed %d" i;
-    (* from (.a305.#a304) *)
-    let shallow : (t305, _) idx_mut = (.a305.#a304) in
-    let deepened = (.idx_mut(shallow).#a40) in
-    mark_test_run 1390;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1390 failed %d" i;
-    (* from (.a305.#a304.#a40) *)
-    let shallow : (t305, _) idx_mut = (.a305.#a304.#a40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1391;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1391 failed %d" i;
-  );
-  (* Deepening to (.a305.#a304.#b40) *)
-  let idx : (t305, _) idx_mut = (.a305.#a304.#b40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a305) *)
-    let shallow : (t305, _) idx_mut = (.a305) in
-    let deepened = (.idx_mut(shallow).#a304.#b40) in
-    mark_test_run 1392;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1392 failed %d" i;
-    (* from (.a305.#a304) *)
-    let shallow : (t305, _) idx_mut = (.a305.#a304) in
-    let deepened = (.idx_mut(shallow).#b40) in
-    mark_test_run 1393;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1393 failed %d" i;
-    (* from (.a305.#a304.#b40) *)
-    let shallow : (t305, _) idx_mut = (.a305.#a304.#b40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1394;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1394 failed %d" i;
-  );
-
-  (**********************************************)
-  (*   t307 = { #{ #{ float; int }; float } }   *)
-  (**********************************************)
-  (* Deepening to (.a307) *)
-  let idx : (t307, _) idx_mut = (.a307) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a307) *)
-    let shallow : (t307, _) idx_mut = (.a307) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1395;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1395 failed %d" i;
-  );
-  (* Deepening to (.a307.#a306) *)
-  let idx : (t307, _) idx_mut = (.a307.#a306) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a307) *)
-    let shallow : (t307, _) idx_mut = (.a307) in
-    let deepened = (.idx_mut(shallow).#a306) in
-    mark_test_run 1396;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1396 failed %d" i;
-    (* from (.a307.#a306) *)
-    let shallow : (t307, _) idx_mut = (.a307.#a306) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1397;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1397 failed %d" i;
-  );
-  (* Deepening to (.a307.#b306) *)
-  let idx : (t307, _) idx_mut = (.a307.#b306) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a307) *)
-    let shallow : (t307, _) idx_mut = (.a307) in
-    let deepened = (.idx_mut(shallow).#b306) in
-    mark_test_run 1398;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1398 failed %d" i;
-    (* from (.a307.#b306) *)
-    let shallow : (t307, _) idx_mut = (.a307.#b306) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1399;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1399 failed %d" i;
-  );
-  (* Deepening to (.a307.#a306.#a40) *)
-  let idx : (t307, _) idx_mut = (.a307.#a306.#a40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a307) *)
-    let shallow : (t307, _) idx_mut = (.a307) in
-    let deepened = (.idx_mut(shallow).#a306.#a40) in
-    mark_test_run 1400;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1400 failed %d" i;
-    (* from (.a307.#a306) *)
-    let shallow : (t307, _) idx_mut = (.a307.#a306) in
-    let deepened = (.idx_mut(shallow).#a40) in
-    mark_test_run 1401;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1401 failed %d" i;
-    (* from (.a307.#a306.#a40) *)
-    let shallow : (t307, _) idx_mut = (.a307.#a306.#a40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1402;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1402 failed %d" i;
-  );
-  (* Deepening to (.a307.#a306.#b40) *)
-  let idx : (t307, _) idx_mut = (.a307.#a306.#b40) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a307) *)
-    let shallow : (t307, _) idx_mut = (.a307) in
-    let deepened = (.idx_mut(shallow).#a306.#b40) in
-    mark_test_run 1403;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1403 failed %d" i;
-    (* from (.a307.#a306) *)
-    let shallow : (t307, _) idx_mut = (.a307.#a306) in
-    let deepened = (.idx_mut(shallow).#b40) in
-    mark_test_run 1404;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1404 failed %d" i;
-    (* from (.a307.#a306.#b40) *)
-    let shallow : (t307, _) idx_mut = (.a307.#a306.#b40) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1405;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1405 failed %d" i;
-  );
-
-  (**********************************************)
-  (*   t309 = { #{ #{ float; float }; int } }   *)
-  (**********************************************)
-  (* Deepening to (.a309) *)
-  let idx : (t309, _) idx_mut = (.a309) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a309) *)
-    let shallow : (t309, _) idx_mut = (.a309) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1406;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1406 failed %d" i;
-  );
-  (* Deepening to (.a309.#a308) *)
-  let idx : (t309, _) idx_mut = (.a309.#a308) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a309) *)
-    let shallow : (t309, _) idx_mut = (.a309) in
-    let deepened = (.idx_mut(shallow).#a308) in
-    mark_test_run 1407;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1407 failed %d" i;
-    (* from (.a309.#a308) *)
-    let shallow : (t309, _) idx_mut = (.a309.#a308) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1408;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1408 failed %d" i;
-  );
-  (* Deepening to (.a309.#b308) *)
-  let idx : (t309, _) idx_mut = (.a309.#b308) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a309) *)
-    let shallow : (t309, _) idx_mut = (.a309) in
-    let deepened = (.idx_mut(shallow).#b308) in
-    mark_test_run 1409;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1409 failed %d" i;
-    (* from (.a309.#b308) *)
-    let shallow : (t309, _) idx_mut = (.a309.#b308) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1410;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1410 failed %d" i;
-  );
-  (* Deepening to (.a309.#a308.#a42) *)
-  let idx : (t309, _) idx_mut = (.a309.#a308.#a42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a309) *)
-    let shallow : (t309, _) idx_mut = (.a309) in
-    let deepened = (.idx_mut(shallow).#a308.#a42) in
-    mark_test_run 1411;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1411 failed %d" i;
-    (* from (.a309.#a308) *)
-    let shallow : (t309, _) idx_mut = (.a309.#a308) in
-    let deepened = (.idx_mut(shallow).#a42) in
-    mark_test_run 1412;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1412 failed %d" i;
-    (* from (.a309.#a308.#a42) *)
-    let shallow : (t309, _) idx_mut = (.a309.#a308.#a42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1413;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1413 failed %d" i;
-  );
-  (* Deepening to (.a309.#a308.#b42) *)
-  let idx : (t309, _) idx_mut = (.a309.#a308.#b42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a309) *)
-    let shallow : (t309, _) idx_mut = (.a309) in
-    let deepened = (.idx_mut(shallow).#a308.#b42) in
-    mark_test_run 1414;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1414 failed %d" i;
-    (* from (.a309.#a308) *)
-    let shallow : (t309, _) idx_mut = (.a309.#a308) in
-    let deepened = (.idx_mut(shallow).#b42) in
-    mark_test_run 1415;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1415 failed %d" i;
-    (* from (.a309.#a308.#b42) *)
-    let shallow : (t309, _) idx_mut = (.a309.#a308.#b42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1416;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1416 failed %d" i;
-  );
-
-  (************************************************)
-  (*   t311 = { #{ #{ float; float }; float } }   *)
-  (************************************************)
-  (* Deepening to (.a311) *)
-  let idx : (t311, _) idx_mut = (.a311) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a311) *)
-    let shallow : (t311, _) idx_mut = (.a311) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1417;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1417 failed %d" i;
-  );
-  (* Deepening to (.a311.#a310) *)
-  let idx : (t311, _) idx_mut = (.a311.#a310) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a311) *)
-    let shallow : (t311, _) idx_mut = (.a311) in
-    let deepened = (.idx_mut(shallow).#a310) in
-    mark_test_run 1418;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1418 failed %d" i;
-    (* from (.a311.#a310) *)
-    let shallow : (t311, _) idx_mut = (.a311.#a310) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1419;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1419 failed %d" i;
-  );
-  (* Deepening to (.a311.#b310) *)
-  let idx : (t311, _) idx_mut = (.a311.#b310) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a311) *)
-    let shallow : (t311, _) idx_mut = (.a311) in
-    let deepened = (.idx_mut(shallow).#b310) in
-    mark_test_run 1420;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1420 failed %d" i;
-    (* from (.a311.#b310) *)
-    let shallow : (t311, _) idx_mut = (.a311.#b310) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1421;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1421 failed %d" i;
-  );
-  (* Deepening to (.a311.#a310.#a42) *)
-  let idx : (t311, _) idx_mut = (.a311.#a310.#a42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a311) *)
-    let shallow : (t311, _) idx_mut = (.a311) in
-    let deepened = (.idx_mut(shallow).#a310.#a42) in
-    mark_test_run 1422;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1422 failed %d" i;
-    (* from (.a311.#a310) *)
-    let shallow : (t311, _) idx_mut = (.a311.#a310) in
-    let deepened = (.idx_mut(shallow).#a42) in
-    mark_test_run 1423;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1423 failed %d" i;
-    (* from (.a311.#a310.#a42) *)
-    let shallow : (t311, _) idx_mut = (.a311.#a310.#a42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1424;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1424 failed %d" i;
-  );
-  (* Deepening to (.a311.#a310.#b42) *)
-  let idx : (t311, _) idx_mut = (.a311.#a310.#b42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a311) *)
-    let shallow : (t311, _) idx_mut = (.a311) in
-    let deepened = (.idx_mut(shallow).#a310.#b42) in
-    mark_test_run 1425;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1425 failed %d" i;
-    (* from (.a311.#a310) *)
-    let shallow : (t311, _) idx_mut = (.a311.#a310) in
-    let deepened = (.idx_mut(shallow).#b42) in
-    mark_test_run 1426;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1426 failed %d" i;
-    (* from (.a311.#a310.#b42) *)
-    let shallow : (t311, _) idx_mut = (.a311.#a310.#b42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1427;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1427 failed %d" i;
-  );
-
-  (*************************************************)
-  (*   t313 = { #{ #{ float; float }; float# } }   *)
-  (*************************************************)
-  (* Deepening to (.a313) *)
-  let idx : (t313, _) idx_mut = (.a313) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a313) *)
-    let shallow : (t313, _) idx_mut = (.a313) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1428;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1428 failed %d" i;
-  );
-  (* Deepening to (.a313.#a312) *)
-  let idx : (t313, _) idx_mut = (.a313.#a312) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a313) *)
-    let shallow : (t313, _) idx_mut = (.a313) in
-    let deepened = (.idx_mut(shallow).#a312) in
-    mark_test_run 1429;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1429 failed %d" i;
-    (* from (.a313.#a312) *)
-    let shallow : (t313, _) idx_mut = (.a313.#a312) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1430;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1430 failed %d" i;
-  );
-  (* Deepening to (.a313.#b312) *)
-  let idx : (t313, _) idx_mut = (.a313.#b312) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a313) *)
-    let shallow : (t313, _) idx_mut = (.a313) in
-    let deepened = (.idx_mut(shallow).#b312) in
-    mark_test_run 1431;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1431 failed %d" i;
-    (* from (.a313.#b312) *)
-    let shallow : (t313, _) idx_mut = (.a313.#b312) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1432;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1432 failed %d" i;
-  );
-  (* Deepening to (.a313.#a312.#a42) *)
-  let idx : (t313, _) idx_mut = (.a313.#a312.#a42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a313) *)
-    let shallow : (t313, _) idx_mut = (.a313) in
-    let deepened = (.idx_mut(shallow).#a312.#a42) in
-    mark_test_run 1433;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1433 failed %d" i;
-    (* from (.a313.#a312) *)
-    let shallow : (t313, _) idx_mut = (.a313.#a312) in
-    let deepened = (.idx_mut(shallow).#a42) in
-    mark_test_run 1434;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1434 failed %d" i;
-    (* from (.a313.#a312.#a42) *)
-    let shallow : (t313, _) idx_mut = (.a313.#a312.#a42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1435;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1435 failed %d" i;
-  );
-  (* Deepening to (.a313.#a312.#b42) *)
-  let idx : (t313, _) idx_mut = (.a313.#a312.#b42) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a313) *)
-    let shallow : (t313, _) idx_mut = (.a313) in
-    let deepened = (.idx_mut(shallow).#a312.#b42) in
-    mark_test_run 1436;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1436 failed %d" i;
-    (* from (.a313.#a312) *)
-    let shallow : (t313, _) idx_mut = (.a313.#a312) in
-    let deepened = (.idx_mut(shallow).#b42) in
-    mark_test_run 1437;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1437 failed %d" i;
-    (* from (.a313.#a312.#b42) *)
-    let shallow : (t313, _) idx_mut = (.a313.#a312.#b42) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1438;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1438 failed %d" i;
-  );
-
-  (*************************************************)
-  (*   t315 = { #{ #{ float; float# }; float } }   *)
-  (*************************************************)
-  (* Deepening to (.a315) *)
-  let idx : (t315, _) idx_mut = (.a315) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a315) *)
-    let shallow : (t315, _) idx_mut = (.a315) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1439;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1439 failed %d" i;
-  );
-  (* Deepening to (.a315.#a314) *)
-  let idx : (t315, _) idx_mut = (.a315.#a314) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a315) *)
-    let shallow : (t315, _) idx_mut = (.a315) in
-    let deepened = (.idx_mut(shallow).#a314) in
-    mark_test_run 1440;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1440 failed %d" i;
-    (* from (.a315.#a314) *)
-    let shallow : (t315, _) idx_mut = (.a315.#a314) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1441;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1441 failed %d" i;
-  );
-  (* Deepening to (.a315.#b314) *)
-  let idx : (t315, _) idx_mut = (.a315.#b314) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a315) *)
-    let shallow : (t315, _) idx_mut = (.a315) in
-    let deepened = (.idx_mut(shallow).#b314) in
-    mark_test_run 1442;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1442 failed %d" i;
-    (* from (.a315.#b314) *)
-    let shallow : (t315, _) idx_mut = (.a315.#b314) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1443;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1443 failed %d" i;
-  );
-  (* Deepening to (.a315.#a314.#a131) *)
-  let idx : (t315, _) idx_mut = (.a315.#a314.#a131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a315) *)
-    let shallow : (t315, _) idx_mut = (.a315) in
-    let deepened = (.idx_mut(shallow).#a314.#a131) in
-    mark_test_run 1444;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1444 failed %d" i;
-    (* from (.a315.#a314) *)
-    let shallow : (t315, _) idx_mut = (.a315.#a314) in
-    let deepened = (.idx_mut(shallow).#a131) in
-    mark_test_run 1445;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1445 failed %d" i;
-    (* from (.a315.#a314.#a131) *)
-    let shallow : (t315, _) idx_mut = (.a315.#a314.#a131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1446;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1446 failed %d" i;
-  );
-  (* Deepening to (.a315.#a314.#b131) *)
-  let idx : (t315, _) idx_mut = (.a315.#a314.#b131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a315) *)
-    let shallow : (t315, _) idx_mut = (.a315) in
-    let deepened = (.idx_mut(shallow).#a314.#b131) in
-    mark_test_run 1447;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1447 failed %d" i;
-    (* from (.a315.#a314) *)
-    let shallow : (t315, _) idx_mut = (.a315.#a314) in
-    let deepened = (.idx_mut(shallow).#b131) in
-    mark_test_run 1448;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1448 failed %d" i;
-    (* from (.a315.#a314.#b131) *)
-    let shallow : (t315, _) idx_mut = (.a315.#a314.#b131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1449;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1449 failed %d" i;
-  );
-
-  (**************************************************)
-  (*   t317 = { #{ #{ float; float# }; float# } }   *)
-  (**************************************************)
-  (* Deepening to (.a317) *)
-  let idx : (t317, _) idx_mut = (.a317) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a317) *)
-    let shallow : (t317, _) idx_mut = (.a317) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1450;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1450 failed %d" i;
-  );
-  (* Deepening to (.a317.#a316) *)
-  let idx : (t317, _) idx_mut = (.a317.#a316) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a317) *)
-    let shallow : (t317, _) idx_mut = (.a317) in
-    let deepened = (.idx_mut(shallow).#a316) in
-    mark_test_run 1451;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1451 failed %d" i;
-    (* from (.a317.#a316) *)
-    let shallow : (t317, _) idx_mut = (.a317.#a316) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1452;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1452 failed %d" i;
-  );
-  (* Deepening to (.a317.#b316) *)
-  let idx : (t317, _) idx_mut = (.a317.#b316) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a317) *)
-    let shallow : (t317, _) idx_mut = (.a317) in
-    let deepened = (.idx_mut(shallow).#b316) in
-    mark_test_run 1453;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1453 failed %d" i;
-    (* from (.a317.#b316) *)
-    let shallow : (t317, _) idx_mut = (.a317.#b316) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1454;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1454 failed %d" i;
-  );
-  (* Deepening to (.a317.#a316.#a131) *)
-  let idx : (t317, _) idx_mut = (.a317.#a316.#a131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a317) *)
-    let shallow : (t317, _) idx_mut = (.a317) in
-    let deepened = (.idx_mut(shallow).#a316.#a131) in
-    mark_test_run 1455;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1455 failed %d" i;
-    (* from (.a317.#a316) *)
-    let shallow : (t317, _) idx_mut = (.a317.#a316) in
-    let deepened = (.idx_mut(shallow).#a131) in
-    mark_test_run 1456;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1456 failed %d" i;
-    (* from (.a317.#a316.#a131) *)
-    let shallow : (t317, _) idx_mut = (.a317.#a316.#a131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1457;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1457 failed %d" i;
-  );
-  (* Deepening to (.a317.#a316.#b131) *)
-  let idx : (t317, _) idx_mut = (.a317.#a316.#b131) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a317) *)
-    let shallow : (t317, _) idx_mut = (.a317) in
-    let deepened = (.idx_mut(shallow).#a316.#b131) in
-    mark_test_run 1458;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1458 failed %d" i;
-    (* from (.a317.#a316) *)
-    let shallow : (t317, _) idx_mut = (.a317.#a316) in
-    let deepened = (.idx_mut(shallow).#b131) in
-    mark_test_run 1459;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1459 failed %d" i;
-    (* from (.a317.#a316.#b131) *)
-    let shallow : (t317, _) idx_mut = (.a317.#a316.#b131) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1460;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1460 failed %d" i;
-  );
-
-  (*************************************************)
-  (*   t319 = { #{ #{ float#; float }; float } }   *)
-  (*************************************************)
-  (* Deepening to (.a319) *)
-  let idx : (t319, _) idx_mut = (.a319) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a319) *)
-    let shallow : (t319, _) idx_mut = (.a319) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1461;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1461 failed %d" i;
-  );
-  (* Deepening to (.a319.#a318) *)
-  let idx : (t319, _) idx_mut = (.a319.#a318) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a319) *)
-    let shallow : (t319, _) idx_mut = (.a319) in
-    let deepened = (.idx_mut(shallow).#a318) in
-    mark_test_run 1462;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1462 failed %d" i;
-    (* from (.a319.#a318) *)
-    let shallow : (t319, _) idx_mut = (.a319.#a318) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1463;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1463 failed %d" i;
-  );
-  (* Deepening to (.a319.#b318) *)
-  let idx : (t319, _) idx_mut = (.a319.#b318) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a319) *)
-    let shallow : (t319, _) idx_mut = (.a319) in
-    let deepened = (.idx_mut(shallow).#b318) in
-    mark_test_run 1464;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1464 failed %d" i;
-    (* from (.a319.#b318) *)
-    let shallow : (t319, _) idx_mut = (.a319.#b318) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1465;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1465 failed %d" i;
-  );
-  (* Deepening to (.a319.#a318.#a139) *)
-  let idx : (t319, _) idx_mut = (.a319.#a318.#a139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a319) *)
-    let shallow : (t319, _) idx_mut = (.a319) in
-    let deepened = (.idx_mut(shallow).#a318.#a139) in
-    mark_test_run 1466;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1466 failed %d" i;
-    (* from (.a319.#a318) *)
-    let shallow : (t319, _) idx_mut = (.a319.#a318) in
-    let deepened = (.idx_mut(shallow).#a139) in
-    mark_test_run 1467;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1467 failed %d" i;
-    (* from (.a319.#a318.#a139) *)
-    let shallow : (t319, _) idx_mut = (.a319.#a318.#a139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1468;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1468 failed %d" i;
-  );
-  (* Deepening to (.a319.#a318.#b139) *)
-  let idx : (t319, _) idx_mut = (.a319.#a318.#b139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a319) *)
-    let shallow : (t319, _) idx_mut = (.a319) in
-    let deepened = (.idx_mut(shallow).#a318.#b139) in
-    mark_test_run 1469;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1469 failed %d" i;
-    (* from (.a319.#a318) *)
-    let shallow : (t319, _) idx_mut = (.a319.#a318) in
-    let deepened = (.idx_mut(shallow).#b139) in
-    mark_test_run 1470;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1470 failed %d" i;
-    (* from (.a319.#a318.#b139) *)
-    let shallow : (t319, _) idx_mut = (.a319.#a318.#b139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1471;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1471 failed %d" i;
-  );
-
-  (**************************************************)
-  (*   t321 = { #{ #{ float#; float }; float# } }   *)
-  (**************************************************)
-  (* Deepening to (.a321) *)
-  let idx : (t321, _) idx_mut = (.a321) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a321) *)
-    let shallow : (t321, _) idx_mut = (.a321) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1472;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1472 failed %d" i;
-  );
-  (* Deepening to (.a321.#a320) *)
-  let idx : (t321, _) idx_mut = (.a321.#a320) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a321) *)
-    let shallow : (t321, _) idx_mut = (.a321) in
-    let deepened = (.idx_mut(shallow).#a320) in
-    mark_test_run 1473;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1473 failed %d" i;
-    (* from (.a321.#a320) *)
-    let shallow : (t321, _) idx_mut = (.a321.#a320) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1474;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1474 failed %d" i;
-  );
-  (* Deepening to (.a321.#b320) *)
-  let idx : (t321, _) idx_mut = (.a321.#b320) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a321) *)
-    let shallow : (t321, _) idx_mut = (.a321) in
-    let deepened = (.idx_mut(shallow).#b320) in
-    mark_test_run 1475;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1475 failed %d" i;
-    (* from (.a321.#b320) *)
-    let shallow : (t321, _) idx_mut = (.a321.#b320) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1476;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1476 failed %d" i;
-  );
-  (* Deepening to (.a321.#a320.#a139) *)
-  let idx : (t321, _) idx_mut = (.a321.#a320.#a139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a321) *)
-    let shallow : (t321, _) idx_mut = (.a321) in
-    let deepened = (.idx_mut(shallow).#a320.#a139) in
-    mark_test_run 1477;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1477 failed %d" i;
-    (* from (.a321.#a320) *)
-    let shallow : (t321, _) idx_mut = (.a321.#a320) in
-    let deepened = (.idx_mut(shallow).#a139) in
-    mark_test_run 1478;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1478 failed %d" i;
-    (* from (.a321.#a320.#a139) *)
-    let shallow : (t321, _) idx_mut = (.a321.#a320.#a139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1479;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1479 failed %d" i;
-  );
-  (* Deepening to (.a321.#a320.#b139) *)
-  let idx : (t321, _) idx_mut = (.a321.#a320.#b139) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a321) *)
-    let shallow : (t321, _) idx_mut = (.a321) in
-    let deepened = (.idx_mut(shallow).#a320.#b139) in
-    mark_test_run 1480;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1480 failed %d" i;
-    (* from (.a321.#a320) *)
-    let shallow : (t321, _) idx_mut = (.a321.#a320) in
-    let deepened = (.idx_mut(shallow).#b139) in
-    mark_test_run 1481;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1481 failed %d" i;
-    (* from (.a321.#a320.#b139) *)
-    let shallow : (t321, _) idx_mut = (.a321.#a320.#b139) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1482;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1482 failed %d" i;
-  );
-
-  (**************************************************)
-  (*   t323 = { #{ #{ float#; float# }; float } }   *)
-  (**************************************************)
-  (* Deepening to (.a323) *)
-  let idx : (t323, _) idx_mut = (.a323) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a323) *)
-    let shallow : (t323, _) idx_mut = (.a323) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1483;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1483 failed %d" i;
-  );
-  (* Deepening to (.a323.#a322) *)
-  let idx : (t323, _) idx_mut = (.a323.#a322) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a323) *)
-    let shallow : (t323, _) idx_mut = (.a323) in
-    let deepened = (.idx_mut(shallow).#a322) in
-    mark_test_run 1484;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1484 failed %d" i;
-    (* from (.a323.#a322) *)
-    let shallow : (t323, _) idx_mut = (.a323.#a322) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1485;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1485 failed %d" i;
-  );
-  (* Deepening to (.a323.#b322) *)
-  let idx : (t323, _) idx_mut = (.a323.#b322) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a323) *)
-    let shallow : (t323, _) idx_mut = (.a323) in
-    let deepened = (.idx_mut(shallow).#b322) in
-    mark_test_run 1486;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1486 failed %d" i;
-    (* from (.a323.#b322) *)
-    let shallow : (t323, _) idx_mut = (.a323.#b322) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1487;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1487 failed %d" i;
-  );
-  (* Deepening to (.a323.#a322.#a141) *)
-  let idx : (t323, _) idx_mut = (.a323.#a322.#a141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a323) *)
-    let shallow : (t323, _) idx_mut = (.a323) in
-    let deepened = (.idx_mut(shallow).#a322.#a141) in
-    mark_test_run 1488;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1488 failed %d" i;
-    (* from (.a323.#a322) *)
-    let shallow : (t323, _) idx_mut = (.a323.#a322) in
-    let deepened = (.idx_mut(shallow).#a141) in
-    mark_test_run 1489;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1489 failed %d" i;
-    (* from (.a323.#a322.#a141) *)
-    let shallow : (t323, _) idx_mut = (.a323.#a322.#a141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1490;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1490 failed %d" i;
-  );
-  (* Deepening to (.a323.#a322.#b141) *)
-  let idx : (t323, _) idx_mut = (.a323.#a322.#b141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a323) *)
-    let shallow : (t323, _) idx_mut = (.a323) in
-    let deepened = (.idx_mut(shallow).#a322.#b141) in
-    mark_test_run 1491;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1491 failed %d" i;
-    (* from (.a323.#a322) *)
-    let shallow : (t323, _) idx_mut = (.a323.#a322) in
-    let deepened = (.idx_mut(shallow).#b141) in
-    mark_test_run 1492;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1492 failed %d" i;
-    (* from (.a323.#a322.#b141) *)
-    let shallow : (t323, _) idx_mut = (.a323.#a322.#b141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1493;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1493 failed %d" i;
-  );
-
-  (***************************************************)
-  (*   t325 = { #{ #{ float#; float# }; float# } }   *)
-  (***************************************************)
-  (* Deepening to (.a325) *)
-  let idx : (t325, _) idx_mut = (.a325) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a325) *)
-    let shallow : (t325, _) idx_mut = (.a325) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1494;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1494 failed %d" i;
-  );
-  (* Deepening to (.a325.#a324) *)
-  let idx : (t325, _) idx_mut = (.a325.#a324) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a325) *)
-    let shallow : (t325, _) idx_mut = (.a325) in
-    let deepened = (.idx_mut(shallow).#a324) in
-    mark_test_run 1495;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1495 failed %d" i;
-    (* from (.a325.#a324) *)
-    let shallow : (t325, _) idx_mut = (.a325.#a324) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1496;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1496 failed %d" i;
-  );
-  (* Deepening to (.a325.#b324) *)
-  let idx : (t325, _) idx_mut = (.a325.#b324) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a325) *)
-    let shallow : (t325, _) idx_mut = (.a325) in
-    let deepened = (.idx_mut(shallow).#b324) in
-    mark_test_run 1497;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1497 failed %d" i;
-    (* from (.a325.#b324) *)
-    let shallow : (t325, _) idx_mut = (.a325.#b324) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1498;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1498 failed %d" i;
-  );
-  (* Deepening to (.a325.#a324.#a141) *)
-  let idx : (t325, _) idx_mut = (.a325.#a324.#a141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a325) *)
-    let shallow : (t325, _) idx_mut = (.a325) in
-    let deepened = (.idx_mut(shallow).#a324.#a141) in
-    mark_test_run 1499;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1499 failed %d" i;
-    (* from (.a325.#a324) *)
-    let shallow : (t325, _) idx_mut = (.a325.#a324) in
-    let deepened = (.idx_mut(shallow).#a141) in
-    mark_test_run 1500;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1500 failed %d" i;
-    (* from (.a325.#a324.#a141) *)
-    let shallow : (t325, _) idx_mut = (.a325.#a324.#a141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1501;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1501 failed %d" i;
-  );
-  (* Deepening to (.a325.#a324.#b141) *)
-  let idx : (t325, _) idx_mut = (.a325.#a324.#b141) in
-  iter indices_in_deepening_tests ~f:(fun i ->
-    (* from (.a325) *)
-    let shallow : (t325, _) idx_mut = (.a325) in
-    let deepened = (.idx_mut(shallow).#a324.#b141) in
-    mark_test_run 1502;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1502 failed %d" i;
-    (* from (.a325.#a324) *)
-    let shallow : (t325, _) idx_mut = (.a325.#a324) in
-    let deepened = (.idx_mut(shallow).#b141) in
-    mark_test_run 1503;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1503 failed %d" i;
-    (* from (.a325.#a324.#b141) *)
-    let shallow : (t325, _) idx_mut = (.a325.#a324.#b141) in
-    let deepened = (.idx_mut(shallow)) in
-    mark_test_run 1504;
-    let test = Idx_repr.equal (Idx_repr.of_idx_mut idx) (Idx_repr.of_idx_mut deepened) in
-    if not test then failwithf "test 1504 failed %d" i;
+    if not test then failwithf "test 602 failed %d" i;
   );
 
   ()
 ;;
 
-for i = 1 to 1504 do
+for i = 1 to 602 do
   if not (Int_set.mem i !tests_run) then failwithf "test %d not run" i
 done;;
 let () = Printf.printf "All tests passed.%!\n";;
