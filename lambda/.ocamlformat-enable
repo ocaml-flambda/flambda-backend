@@ -2,6 +2,10 @@ assume_info.ml
 assume_info.mli
 mixed_block_shape.ml
 mixed_block_shape.mli
+mixed_product_bytes.ml
+mixed_product_bytes.mli
+mixed_product_bytes_wrt_path.ml
+mixed_product_bytes_wrt_path.mli
 transl_array_comprehension.ml
 transl_array_comprehension.mli
 transl_comprehension_utils.ml
