@@ -170,6 +170,7 @@ Line 2, characters 11-13:
 2 | type bad = r#
                ^^
 Error: The type "r" has no unboxed version.
+Hint: Float records don't get unboxed versions.
 |}]
 type r = { f : float ; f2 : float# }
 type bad = r#
@@ -179,6 +180,7 @@ Line 2, characters 11-13:
 2 | type bad = r#
                ^^
 Error: The type "r" has no unboxed version.
+Hint: Float records don't get unboxed versions.
 |}]
 type r = { i : int } [@@unboxed]
 type bad = r#
@@ -188,6 +190,7 @@ Line 2, characters 11-13:
 2 | type bad = r#
                ^^
 Error: The type "r" has no unboxed version.
+Hint: [@@unboxed] records don't get unboxed versions.
 |}]
 type ('a : float64) t = { i : 'a ; j : 'a }
 type floatu_t : float64 & float64 = float t#
@@ -197,6 +200,7 @@ Line 2, characters 42-44:
 2 | type floatu_t : float64 & float64 = float t#
                                               ^^
 Error: The type "t" has no unboxed version.
+Hint: Float records don't get unboxed versions.
 |}]
 
 (* A type can get an unboxed version from both the manifest and kind *)
