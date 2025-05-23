@@ -1938,7 +1938,7 @@ type ternary_primitive =
   | Array_set of Array_kind.t * Array_set_kind.t
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
-  | Write_offset of Flambda_kind.With_subkind.t
+  | Write_offset of Flambda_kind.With_subkind.t * Alloc_mode.For_assignments.t
   | Atomic_compare_and_set of Block_access_field_kind.t
   | Atomic_compare_exchange of
       { atomic_kind : Block_access_field_kind.t;
@@ -1977,8 +1977,10 @@ let compare_ternary_primitive p1 p2 =
     else
       let c = Stdlib.compare kind1 kind2 in
       if c <> 0 then c else Stdlib.compare layout1 layout2
-  | Write_offset array_set_kind1, Write_offset array_set_kind2 ->
-    Array_set_kind.compare array_set_kind1 array_set_kind2
+  | Write_offset (array_set_kind1, mode1), Write_offset (array_set_kind2, mode2)
+    ->
+    let c = Array_set_kind.compare array_set_kind1 array_set_kind2 in
+    if c <> 0 then c else Alloc_mode.For_assignments.compare mode1 mode2
   | ( Atomic_compare_and_set block_access_field_kind1,
       Atomic_compare_and_set block_access_field_kind2 ) ->
     Block_access_field_kind.compare block_access_field_kind1
@@ -2011,9 +2013,9 @@ let print_ternary_primitive ppf p =
     fprintf ppf
       "@[(Bigarray_set (num_dimensions@ %d)@ (kind@ %a)@ (layout@ %a))@]"
       num_dimensions Bigarray_kind.print kind Bigarray_layout.print layout
-  | Write_offset kind ->
-    Format.fprintf ppf "@[(Write_offset@ %a)@]" Flambda_kind.With_subkind.print
-      kind
+  | Write_offset (kind, mode) ->
+    Format.fprintf ppf "@[(Write_offset@ %a %a)@]"
+      Flambda_kind.With_subkind.print kind Alloc_mode.For_assignments.print mode
   | Atomic_compare_and_set block_access_field_kind ->
     Format.fprintf ppf "@[(Atomic_compare_and_set@ %a)@]"
       Block_access_field_kind.print block_access_field_kind
@@ -2053,7 +2055,7 @@ let args_kind_of_ternary_primitive p =
     bigarray_kind, bigarray_index_kind, Bigarray_kind.element_kind kind
   | Atomic_compare_and_set _ | Atomic_compare_exchange _ ->
     K.value, K.value, K.value
-  | Write_offset kind -> K.value, K.naked_int64, K.With_subkind.kind kind
+  | Write_offset (kind, _) -> K.value, K.naked_int64, K.With_subkind.kind kind
 
 let result_kind_of_ternary_primitive p : result_kind =
   match p with

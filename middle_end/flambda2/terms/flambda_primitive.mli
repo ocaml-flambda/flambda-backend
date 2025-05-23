@@ -528,7 +528,7 @@ type ternary_primitive =
           for more details on the unarization. *)
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
-  | Write_offset of Flambda_kind.With_subkind.t
+  | Write_offset of Flambda_kind.With_subkind.t * Alloc_mode.For_assignments.t
   | Atomic_compare_and_set of Block_access_field_kind.t
   | Atomic_compare_exchange of
       { atomic_kind : Block_access_field_kind.t;

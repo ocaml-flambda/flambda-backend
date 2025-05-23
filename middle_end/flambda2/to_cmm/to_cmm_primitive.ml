@@ -1038,12 +1038,15 @@ let ternary_primitive _env dbg f x y z =
     bytes_or_bigstring_set ~dbg kind width ~bytes:x ~index:y ~new_value:z
   | Bigarray_set (_dimensions, kind, _layout) ->
     bigarray_store ~dbg kind ~bigarray:x ~index:y ~new_value:z
-  | Write_offset kind ->
+  | Write_offset (kind, mode) ->
     let addr = C.add_int x y dbg in
     let memory_chunk = C.memory_chunk_of_kind kind in
     let store =
       if KS.must_be_gc_scannable kind
-      then C.caml_modify ~dbg addr z
+      then
+        match mode with
+        | Heap -> C.caml_modify ~dbg addr z
+        | Local -> C.caml_modify_local ~dbg addr (Cconst_int (0, dbg)) z
       else C.store ~dbg memory_chunk Assignment ~addr ~new_value:z
     in
     C.return_unit dbg store

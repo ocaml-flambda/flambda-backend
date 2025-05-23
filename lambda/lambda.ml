@@ -361,8 +361,8 @@ type primitive =
   | Pdls_get
   (* Poll for runtime actions *)
   | Ppoll
-  | Pget_idx of (layout * Asttypes.mutable_flag)
-  | Pset_idx of layout
+  | Pget_idx of layout * Asttypes.mutable_flag
+  | Pset_idx of layout * modify_mode
 
 and extern_repr =
   | Same_as_ocaml_repr of Jkind.Sort.Const.t

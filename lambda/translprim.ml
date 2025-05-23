@@ -943,7 +943,7 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
       Primitive(Pget_idx (layout, Mutable), 2)
     | "%unsafe_set_idx" ->
       let layout = List.nth arg_layouts 2 in
-      Primitive(Pset_idx layout, 3)
+      Primitive(Pset_idx (layout, get_first_arg_mode ()), 3)
     | "%peek" -> Peek None
     | "%poke" -> Poke None
     | s when String.length s > 0 && s.[0] = '%' ->

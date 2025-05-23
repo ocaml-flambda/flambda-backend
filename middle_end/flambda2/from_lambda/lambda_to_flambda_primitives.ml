@@ -2739,7 +2739,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         kinds offsets
     in
     [H.maybe_create_unboxed_product reads]
-  | Pset_idx layout, [[ptr]; [idx]; new_values] ->
+  | Pset_idx (layout, mode), [[ptr]; [idx]; new_values] ->
+    let mode = Alloc_mode.For_assignments.from_lambda mode in
     let offsets = idx_access_offsets layout idx in
     let kinds = convert_layout_to_flambda_kind_with_subkinds layout in
     let map3 f xs ys zs =
@@ -2748,7 +2749,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let writes =
       map3
         (fun kind offset new_value ->
-          H.Ternary (Write_offset kind, ptr, Prim offset, new_value))
+          H.Ternary (Write_offset (kind, mode), ptr, Prim offset, new_value))
         kinds offsets new_values
     in
     [H.Sequence writes]

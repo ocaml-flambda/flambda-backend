@@ -947,8 +947,9 @@ let primitive ppf = function
   | Pget_idx (layout, Immutable) ->
       fprintf ppf "(get_idx_imm@ %a)"
         (layout' false) layout
-  | Pset_idx layout ->
-      fprintf ppf "(set_idx@ %a)"
+  | Pset_idx (layout, mode) ->
+      fprintf ppf "(set_idx%s@ %a)"
+        (match mode with Modify_heap -> "" | Modify_maybe_stack -> "_local")
         (layout' false) layout
 
 let name_of_primitive = function
