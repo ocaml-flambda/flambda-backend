@@ -46,6 +46,62 @@ external[@layout_poly] set :
   ('a : any_non_null) . ('a array[@local_opt]) -> (int[@local_opt]) -> 'a -> unit =
   "%array_safe_set"
 
+module Idx_repr : sig
+  type t
+  val of_idx_imm : 'a ('b : any). ('a, 'b) idx_imm -> t
+  val of_idx_mut : 'a ('b : any). ('a, 'b) idx_mut -> t
+  val equal : t -> t -> bool
+  val debug_string : t -> string
+end = struct
+  (* See [jane/doc/extensions/_02-unboxed-types/block-indices.md] *)
+  type t =
+    | Bytecode of { path : int list }
+    | Native of { offset : int; gap : int }
+
+  external magic_box_bits64 : ('a : bits64) 'b . 'a -> 'b =
+    "%box_int64"
+  external lessthan_if_bytecode : int -> int -> bool =
+    "caml_lessthan" "caml_greaterthan"
+
+  let of_idx idx =
+    let is_bytecode = lessthan_if_bytecode 0 1 in
+    if is_bytecode then
+      let r = Obj.repr (magic_box_bits64 idx) in
+      let nth_idx n : int = Obj.magic (Obj.field r n) in
+      let path = List.init (Obj.size r) nth_idx in
+      Bytecode { path }
+    else
+      let i : int64 = magic_box_bits64 idx in
+      let offset =
+        Int64.(logand (sub (shift_left one 48) one)) i
+        |> Int64.to_int
+      in
+      let gap =
+        Int64.shift_right i 48
+        |> Int64.to_int
+      in
+      Native { offset; gap }
+
+  let of_idx_imm = of_idx
+  let of_idx_mut = of_idx
+
+  let equal t1 t2 =
+    match t1, t2 with
+    | Bytecode { path = path1 }, Bytecode { path = path2 } ->
+      List.equal Int.equal path1 path2
+    | Native { gap = gap1; offset = offset1 },
+      Native { gap = gap2; offset = offset2 } ->
+      Int.equal gap1 gap2 && Int.equal offset1 offset2
+    | Bytecode _, Native _ | Native _, Bytecode _ -> assert false
+
+  let debug_string = function
+    | Bytecode { path } ->
+      Printf.sprintf "{ %s }"
+        (String.concat "; " (List.map Int.to_string path))
+    | Native { offset; gap } ->
+      Printf.sprintf "offset %d; gap %d" offset gap
+end
+
 let failwithf fmt = Printf.ksprintf failwith fmt
 
 (* Redefine iter to infer locality *)
@@ -69,185 +125,424 @@ let indices_in_deepening_tests = [0; 100_000]
 type packed = P : 'a -> packed
 let ref_to_force_heap_allocation : packed ref = ref (P 0)
 
-type t0 = { mutable a0 : int }
-type t1 = { mutable a1 : int; mutable b1 : int }
-type t2 = { mutable a2 : int; mutable b2 : int; mutable c2 : int }
-type t3 = { mutable a3 : int; mutable b3 : int; mutable c3 : int32# }
-type t4 = { mutable a4 : int; mutable b4 : int; mutable c4 : float }
-type t5 = { mutable a5 : int; mutable b5 : int; mutable c5 : int64x2# }
-type t6 = { mutable a6 : int; mutable b6 : int64 }
-type t7 = { mutable a7 : int; mutable b7 : int64# }
-type t8 = { mutable a8 : int; mutable b8 : int32# }
-type t9 = { mutable a9 : int; mutable b9 : int32#; mutable c9 : int }
-type t10 = { mutable a10 : int; mutable b10 : int32#; mutable c10 : int32# }
-type t11 = { mutable a11 : int; mutable b11 : nativeint# }
-type t12 = { mutable a12 : int; mutable b12 : float }
-type t13 = { mutable a13 : int; mutable b13 : float; mutable c13 : int }
-type t14 = { mutable a14 : int; mutable b14 : float; mutable c14 : float }
-type t15 = { mutable a15 : int; mutable b15 : int64x2# }
-type t16 = { mutable a16 : int; mutable b16 : int64x2#; mutable c16 : int }
-type t17 = { mutable a17 : int; mutable b17 : int64x2#; mutable c17 : int64x2# }
-type t18 = #{ a18 : int }
-type t19 = { mutable a19 : int; mutable b19 : t18 }
-type t20 = #{ a20 : int; b20 : int }
-type t21 = { mutable a21 : int; mutable b21 : t20 }
-type t22 = #{ a22 : int; b22 : int32# }
-type t23 = { mutable a23 : int; mutable b23 : t22 }
-type t24 = #{ a24 : int; b24 : float }
-type t25 = { mutable a25 : int; mutable b25 : t24 }
-type t26 = #{ a26 : int; b26 : int64x2# }
-type t27 = { mutable a27 : int; mutable b27 : t26 }
-type t28 = #{ a28 : int32# }
-type t29 = { mutable a29 : int; mutable b29 : t28 }
-type t30 = #{ a30 : int32#; b30 : int }
-type t31 = { mutable a31 : int; mutable b31 : t30 }
-type t32 = #{ a32 : int32#; b32 : int32# }
-type t33 = { mutable a33 : int; mutable b33 : t32 }
-type t34 = #{ a34 : float }
-type t35 = { mutable a35 : int; mutable b35 : t34 }
-type t36 = #{ a36 : float; b36 : int }
-type t37 = { mutable a37 : int; mutable b37 : t36 }
-type t38 = #{ a38 : float; b38 : float }
-type t39 = { mutable a39 : int; mutable b39 : t38 }
-type t40 = #{ a40 : int64x2# }
-type t41 = { mutable a41 : int; mutable b41 : t40 }
-type t42 = #{ a42 : int64x2#; b42 : int }
-type t43 = { mutable a43 : int; mutable b43 : t42 }
-type t44 = #{ a44 : int64x2#; b44 : int64x2# }
-type t45 = { mutable a45 : int; mutable b45 : t44 }
-type t46 = { mutable a46 : int64 }
-type t47 = { mutable a47 : int64; mutable b47 : int }
-type t48 = { mutable a48 : int64; mutable b48 : int64 }
-type t49 = { mutable a49 : int64; mutable b49 : int64# }
-type t50 = { mutable a50 : int64; mutable b50 : int32# }
-type t51 = { mutable a51 : int64; mutable b51 : nativeint# }
-type t52 = { mutable a52 : int64; mutable b52 : float }
-type t53 = { mutable a53 : int64# }
-type t54 = { mutable a54 : int64#; mutable b54 : int }
-type t55 = { mutable a55 : int64#; mutable b55 : int64 }
-type t56 = { mutable a56 : int64#; mutable b56 : int64# }
-type t57 = { mutable a57 : int64#; mutable b57 : int32# }
-type t58 = { mutable a58 : int64#; mutable b58 : nativeint# }
-type t59 = { mutable a59 : int64#; mutable b59 : float }
-type t60 = { mutable a60 : int32# }
-type t61 = { mutable a61 : int32#; mutable b61 : int }
-type t62 = { mutable a62 : int32#; mutable b62 : int; mutable c62 : int }
-type t63 = { mutable a63 : int32#; mutable b63 : int; mutable c63 : int32# }
-type t64 = { mutable a64 : int32#; mutable b64 : int64 }
-type t65 = { mutable a65 : int32#; mutable b65 : int64# }
-type t66 = { mutable a66 : int32#; mutable b66 : int32# }
-type t67 = { mutable a67 : int32#; mutable b67 : int32#; mutable c67 : int }
-type t68 = { mutable a68 : int32#; mutable b68 : int32#; mutable c68 : int32# }
-type t69 = { mutable a69 : int32#; mutable b69 : nativeint# }
-type t70 = { mutable a70 : int32#; mutable b70 : float }
-type t71 = { mutable a71 : int32#; mutable b71 : t18 }
-type t72 = { mutable a72 : int32#; mutable b72 : t20 }
-type t73 = { mutable a73 : int32#; mutable b73 : t22 }
-type t74 = { mutable a74 : int32#; mutable b74 : t28 }
-type t75 = { mutable a75 : int32#; mutable b75 : t30 }
-type t76 = { mutable a76 : int32#; mutable b76 : t32 }
-type t77 = { mutable a77 : nativeint# }
-type t78 = { mutable a78 : nativeint#; mutable b78 : int }
-type t79 = { mutable a79 : nativeint#; mutable b79 : int64 }
-type t80 = { mutable a80 : nativeint#; mutable b80 : int64# }
-type t81 = { mutable a81 : nativeint#; mutable b81 : int32# }
-type t82 = { mutable a82 : nativeint#; mutable b82 : nativeint# }
-type t83 = { mutable a83 : nativeint#; mutable b83 : float }
-type t84 = { mutable a84 : float }
-type t85 = { mutable a85 : float; mutable b85 : int }
-type t86 = { mutable a86 : float; mutable b86 : int; mutable c86 : int }
-type t87 = { mutable a87 : float; mutable b87 : int; mutable c87 : float }
-type t88 = { mutable a88 : float; mutable b88 : int64 }
-type t89 = { mutable a89 : float; mutable b89 : int64# }
-type t90 = { mutable a90 : float; mutable b90 : int32# }
-type t91 = { mutable a91 : float; mutable b91 : nativeint# }
-type t92 = { mutable a92 : float; mutable b92 : float }
-type t93 = { mutable a93 : float; mutable b93 : float; mutable c93 : int }
-type t94 = { mutable a94 : float; mutable b94 : float; mutable c94 : float }
-type t95 = { mutable a95 : float; mutable b95 : t18 }
-type t96 = { mutable a96 : float; mutable b96 : t20 }
-type t97 = { mutable a97 : float; mutable b97 : t24 }
-type t98 = { mutable a98 : float; mutable b98 : t34 }
-type t99 = { mutable a99 : float; mutable b99 : t36 }
-type t100 = { mutable a100 : float; mutable b100 : t38 }
-type t101 = { mutable a101 : int64x2# }
-type t102 = { mutable a102 : int64x2#; mutable b102 : int }
-type t103 = { mutable a103 : int64x2#; mutable b103 : int; mutable c103 : int }
-type t104 = { mutable a104 : int64x2#; mutable b104 : int; mutable c104 : int64x2# }
-type t105 = { mutable a105 : int64x2#; mutable b105 : int64x2# }
-type t106 = { mutable a106 : int64x2#; mutable b106 : int64x2#; mutable c106 : int }
-type t107 = { mutable a107 : int64x2#; mutable b107 : int64x2#; mutable c107 : int64x2# }
-type t108 = { mutable a108 : int64x2#; mutable b108 : t18 }
-type t109 = { mutable a109 : int64x2#; mutable b109 : t20 }
-type t110 = { mutable a110 : int64x2#; mutable b110 : t26 }
-type t111 = #{ a111 : string; b111 : float# }
-type t112 = { mutable a112 : int64x2#; mutable b112 : t111 }
-type t113 = { mutable a113 : int64x2#; mutable b113 : t40 }
-type t114 = { mutable a114 : int64x2#; mutable b114 : t42 }
-type t115 = { mutable a115 : int64x2#; mutable b115 : t44 }
-type t116 = { mutable a116 : t18 }
-type t117 = { mutable a117 : t18; mutable b117 : int }
-type t118 = { mutable a118 : t18; mutable b118 : int32# }
-type t119 = { mutable a119 : t18; mutable b119 : float }
-type t120 = { mutable a120 : t18; mutable b120 : int64x2# }
-type t121 = { mutable a121 : t20 }
-type t122 = { mutable a122 : t20; mutable b122 : int }
-type t123 = { mutable a123 : t20; mutable b123 : int32# }
-type t124 = { mutable a124 : t20; mutable b124 : float }
-type t125 = { mutable a125 : t20; mutable b125 : int64x2# }
-type t126 = { mutable a126 : t22 }
-type t127 = { mutable a127 : t22; mutable b127 : int }
-type t128 = { mutable a128 : t22; mutable b128 : int32# }
-type t129 = { mutable a129 : t24 }
-type t130 = { mutable a130 : t24; mutable b130 : int }
-type t131 = { mutable a131 : t24; mutable b131 : float }
-type t132 = { mutable a132 : t26 }
-type t133 = { mutable a133 : t26; mutable b133 : int }
-type t134 = { mutable a134 : t26; mutable b134 : int64x2# }
-type t135 = #{ a135 : int64; b135 : int64# }
-type t136 = #{ a136 : int64#; b136 : float# }
-type t137 = { mutable a137 : t135; mutable b137 : t136 }
-type t138 = #{ a138 : int64; b138 : string }
-type t139 = #{ a139 : int64#; b139 : string }
-type t140 = { mutable a140 : t138; mutable b140 : t139 }
-type t141 = #{ a141 : int64#; b141 : int64 }
-type t142 = #{ a142 : int64; b142 : int64 }
-type t143 = { mutable a143 : t141; mutable b143 : t142 }
-type t144 = #{ a144 : float32#; b144 : float }
-type t145 = { mutable a145 : t141; mutable b145 : t144 }
-type t146 = { mutable a146 : t28 }
-type t147 = { mutable a147 : t28; mutable b147 : int }
-type t148 = { mutable a148 : t28; mutable b148 : int32# }
-type t149 = { mutable a149 : t30 }
-type t150 = { mutable a150 : t30; mutable b150 : int }
-type t151 = { mutable a151 : t30; mutable b151 : int32# }
-type t152 = { mutable a152 : t32 }
-type t153 = { mutable a153 : t32; mutable b153 : int }
-type t154 = { mutable a154 : t32; mutable b154 : int32# }
-type t155 = { mutable a155 : t34 }
-type t156 = { mutable a156 : t34; mutable b156 : int }
-type t157 = { mutable a157 : t34; mutable b157 : float }
-type t158 = { mutable a158 : t36 }
-type t159 = { mutable a159 : t36; mutable b159 : int }
-type t160 = { mutable a160 : t36; mutable b160 : float }
-type t161 = { mutable a161 : t38 }
-type t162 = { mutable a162 : t38; mutable b162 : int }
-type t163 = { mutable a163 : t38; mutable b163 : float }
-type t164 = #{ a164 : float32#; b164 : int64# }
-type t165 = #{ a165 : string; b165 : int64# }
-type t166 = { mutable a166 : t164; mutable b166 : t165 }
-type t167 = { mutable a167 : t40 }
-type t168 = { mutable a168 : t40; mutable b168 : int }
-type t169 = { mutable a169 : t40; mutable b169 : int64x2# }
-type t170 = { mutable a170 : t42 }
-type t171 = { mutable a171 : t42; mutable b171 : int }
-type t172 = { mutable a172 : t42; mutable b172 : int64x2# }
-type t173 = #{ a173 : int64x2#; b173 : string }
-type t174 = #{ a174 : int64; b174 : float# }
-type t175 = { mutable a175 : t173; mutable b175 : t174 }
-type t176 = { mutable a176 : t44 }
-type t177 = { mutable a177 : t44; mutable b177 : int }
-type t178 = { mutable a178 : t44; mutable b178 : int64x2# }
+type t0 = { mutable a0 : int } (* { int } *)
+type t1 = { mutable a1 : int; mutable b1 : int } (* { int; int } *)
+type t2 = { mutable a2 : int; mutable b2 : int; mutable c2 : int } (* { int; int; int } *)
+type t3 = { mutable a3 : int; mutable b3 : int; mutable c3 : int32# } (* { int; int; int32# } *)
+type t4 = { mutable a4 : int; mutable b4 : int; mutable c4 : float } (* { int; int; float } *)
+type t5 = { mutable a5 : int; mutable b5 : int; mutable c5 : int64x2# } (* { int; int; int64x2# } *)
+type t6 = { mutable a6 : int; mutable b6 : int64 } (* { int; int64 } *)
+type t7 = { mutable a7 : int; mutable b7 : int64# } (* { int; int64# } *)
+type t8 = { mutable a8 : int; mutable b8 : int32# } (* { int; int32# } *)
+type t9 = { mutable a9 : int; mutable b9 : int32#; mutable c9 : int } (* { int; int32#; int } *)
+type t10 = { mutable a10 : int; mutable b10 : int32#; mutable c10 : int32# } (* { int; int32#; int32# } *)
+type t11 = { mutable a11 : int; mutable b11 : nativeint# } (* { int; nativeint# } *)
+type t12 = { mutable a12 : int; mutable b12 : float } (* { int; float } *)
+type t13 = { mutable a13 : int; mutable b13 : float; mutable c13 : int } (* { int; float; int } *)
+type t14 = { mutable a14 : int; mutable b14 : float; mutable c14 : float } (* { int; float; float } *)
+type t15 = { mutable a15 : int; mutable b15 : int64x2# } (* { int; int64x2# } *)
+type t16 = { mutable a16 : int; mutable b16 : int64x2#; mutable c16 : int } (* { int; int64x2#; int } *)
+type t17 = { mutable a17 : int; mutable b17 : int64x2#; mutable c17 : int64x2# } (* { int; int64x2#; int64x2# } *)
+type t18 = #{ a18 : int } (* #{ int } *)
+type t19 = { mutable a19 : int; mutable b19 : t18 } (* { int; #{ int } } *)
+type t20 = #{ a20 : int; b20 : int } (* #{ int; int } *)
+type t21 = { mutable a21 : int; mutable b21 : t20 } (* { int; #{ int; int } } *)
+type t22 = #{ a22 : int; b22 : int32# } (* #{ int; int32# } *)
+type t23 = { mutable a23 : int; mutable b23 : t22 } (* { int; #{ int; int32# } } *)
+type t24 = #{ a24 : int; b24 : float } (* #{ int; float } *)
+type t25 = { mutable a25 : int; mutable b25 : t24 } (* { int; #{ int; float } } *)
+type t26 = #{ a26 : int; b26 : int64x2# } (* #{ int; int64x2# } *)
+type t27 = { mutable a27 : int; mutable b27 : t26 } (* { int; #{ int; int64x2# } } *)
+type t28 = #{ a28 : int; b28 : t18 } (* #{ int; #{ int } } *)
+type t29 = { mutable a29 : int; mutable b29 : t28 } (* { int; #{ int; #{ int } } } *)
+type t30 = #{ a30 : int32# } (* #{ int32# } *)
+type t31 = #{ a31 : int; b31 : t30 } (* #{ int; #{ int32# } } *)
+type t32 = { mutable a32 : int; mutable b32 : t31 } (* { int; #{ int; #{ int32# } } } *)
+type t33 = #{ a33 : float } (* #{ float } *)
+type t34 = #{ a34 : int; b34 : t33 } (* #{ int; #{ float } } *)
+type t35 = { mutable a35 : int; mutable b35 : t34 } (* { int; #{ int; #{ float } } } *)
+type t36 = #{ a36 : int64x2# } (* #{ int64x2# } *)
+type t37 = #{ a37 : int; b37 : t36 } (* #{ int; #{ int64x2# } } *)
+type t38 = { mutable a38 : int; mutable b38 : t37 } (* { int; #{ int; #{ int64x2# } } } *)
+type t39 = { mutable a39 : int; mutable b39 : t30 } (* { int; #{ int32# } } *)
+type t40 = #{ a40 : int32#; b40 : int } (* #{ int32#; int } *)
+type t41 = { mutable a41 : int; mutable b41 : t40 } (* { int; #{ int32#; int } } *)
+type t42 = #{ a42 : int32#; b42 : int32# } (* #{ int32#; int32# } *)
+type t43 = { mutable a43 : int; mutable b43 : t42 } (* { int; #{ int32#; int32# } } *)
+type t44 = #{ a44 : int32#; b44 : t18 } (* #{ int32#; #{ int } } *)
+type t45 = { mutable a45 : int; mutable b45 : t44 } (* { int; #{ int32#; #{ int } } } *)
+type t46 = #{ a46 : int32#; b46 : t30 } (* #{ int32#; #{ int32# } } *)
+type t47 = { mutable a47 : int; mutable b47 : t46 } (* { int; #{ int32#; #{ int32# } } } *)
+type t48 = { mutable a48 : int; mutable b48 : t33 } (* { int; #{ float } } *)
+type t49 = #{ a49 : float; b49 : int } (* #{ float; int } *)
+type t50 = { mutable a50 : int; mutable b50 : t49 } (* { int; #{ float; int } } *)
+type t51 = #{ a51 : float; b51 : float } (* #{ float; float } *)
+type t52 = { mutable a52 : int; mutable b52 : t51 } (* { int; #{ float; float } } *)
+type t53 = #{ a53 : float; b53 : t18 } (* #{ float; #{ int } } *)
+type t54 = { mutable a54 : int; mutable b54 : t53 } (* { int; #{ float; #{ int } } } *)
+type t55 = #{ a55 : float; b55 : t33 } (* #{ float; #{ float } } *)
+type t56 = { mutable a56 : int; mutable b56 : t55 } (* { int; #{ float; #{ float } } } *)
+type t57 = { mutable a57 : int; mutable b57 : t36 } (* { int; #{ int64x2# } } *)
+type t58 = #{ a58 : int64x2#; b58 : int } (* #{ int64x2#; int } *)
+type t59 = { mutable a59 : int; mutable b59 : t58 } (* { int; #{ int64x2#; int } } *)
+type t60 = #{ a60 : int64x2#; b60 : int64x2# } (* #{ int64x2#; int64x2# } *)
+type t61 = { mutable a61 : int; mutable b61 : t60 } (* { int; #{ int64x2#; int64x2# } } *)
+type t62 = #{ a62 : int64x2#; b62 : t18 } (* #{ int64x2#; #{ int } } *)
+type t63 = { mutable a63 : int; mutable b63 : t62 } (* { int; #{ int64x2#; #{ int } } } *)
+type t64 = #{ a64 : int64x2#; b64 : t36 } (* #{ int64x2#; #{ int64x2# } } *)
+type t65 = { mutable a65 : int; mutable b65 : t64 } (* { int; #{ int64x2#; #{ int64x2# } } } *)
+type t66 = #{ a66 : t20 } (* #{ #{ int; int } } *)
+type t67 = { mutable a67 : int; mutable b67 : t66 } (* { int; #{ #{ int; int } } } *)
+type t68 = #{ a68 : t22 } (* #{ #{ int; int32# } } *)
+type t69 = { mutable a69 : int; mutable b69 : t68 } (* { int; #{ #{ int; int32# } } } *)
+type t70 = #{ a70 : t24 } (* #{ #{ int; float } } *)
+type t71 = { mutable a71 : int; mutable b71 : t70 } (* { int; #{ #{ int; float } } } *)
+type t72 = #{ a72 : t26 } (* #{ #{ int; int64x2# } } *)
+type t73 = { mutable a73 : int; mutable b73 : t72 } (* { int; #{ #{ int; int64x2# } } } *)
+type t74 = #{ a74 : t40 } (* #{ #{ int32#; int } } *)
+type t75 = { mutable a75 : int; mutable b75 : t74 } (* { int; #{ #{ int32#; int } } } *)
+type t76 = #{ a76 : t42 } (* #{ #{ int32#; int32# } } *)
+type t77 = { mutable a77 : int; mutable b77 : t76 } (* { int; #{ #{ int32#; int32# } } } *)
+type t78 = #{ a78 : t49 } (* #{ #{ float; int } } *)
+type t79 = { mutable a79 : int; mutable b79 : t78 } (* { int; #{ #{ float; int } } } *)
+type t80 = #{ a80 : t51 } (* #{ #{ float; float } } *)
+type t81 = { mutable a81 : int; mutable b81 : t80 } (* { int; #{ #{ float; float } } } *)
+type t82 = #{ a82 : t58 } (* #{ #{ int64x2#; int } } *)
+type t83 = { mutable a83 : int; mutable b83 : t82 } (* { int; #{ #{ int64x2#; int } } } *)
+type t84 = #{ a84 : t60 } (* #{ #{ int64x2#; int64x2# } } *)
+type t85 = { mutable a85 : int; mutable b85 : t84 } (* { int; #{ #{ int64x2#; int64x2# } } } *)
+type t86 = { mutable a86 : int64 } (* { int64 } *)
+type t87 = { mutable a87 : int64; mutable b87 : int } (* { int64; int } *)
+type t88 = { mutable a88 : int64; mutable b88 : int64 } (* { int64; int64 } *)
+type t89 = { mutable a89 : int64; mutable b89 : int64# } (* { int64; int64# } *)
+type t90 = { mutable a90 : int64; mutable b90 : int32# } (* { int64; int32# } *)
+type t91 = { mutable a91 : int64; mutable b91 : nativeint# } (* { int64; nativeint# } *)
+type t92 = { mutable a92 : int64; mutable b92 : float } (* { int64; float } *)
+type t93 = { mutable a93 : int64# } (* { int64# } *)
+type t94 = { mutable a94 : int64#; mutable b94 : int } (* { int64#; int } *)
+type t95 = { mutable a95 : int64#; mutable b95 : int64 } (* { int64#; int64 } *)
+type t96 = { mutable a96 : int64#; mutable b96 : int64# } (* { int64#; int64# } *)
+type t97 = { mutable a97 : int64#; mutable b97 : int32# } (* { int64#; int32# } *)
+type t98 = { mutable a98 : int64#; mutable b98 : nativeint# } (* { int64#; nativeint# } *)
+type t99 = { mutable a99 : int64#; mutable b99 : float } (* { int64#; float } *)
+type t100 = { mutable a100 : int32# } (* { int32# } *)
+type t101 = { mutable a101 : int32#; mutable b101 : int } (* { int32#; int } *)
+type t102 = { mutable a102 : int32#; mutable b102 : int; mutable c102 : int } (* { int32#; int; int } *)
+type t103 = { mutable a103 : int32#; mutable b103 : int; mutable c103 : int32# } (* { int32#; int; int32# } *)
+type t104 = { mutable a104 : int32#; mutable b104 : int64 } (* { int32#; int64 } *)
+type t105 = { mutable a105 : int32#; mutable b105 : int64# } (* { int32#; int64# } *)
+type t106 = { mutable a106 : int32#; mutable b106 : int32# } (* { int32#; int32# } *)
+type t107 = { mutable a107 : int32#; mutable b107 : int32#; mutable c107 : int } (* { int32#; int32#; int } *)
+type t108 = { mutable a108 : int32#; mutable b108 : int32#; mutable c108 : int32# } (* { int32#; int32#; int32# } *)
+type t109 = { mutable a109 : int32#; mutable b109 : nativeint# } (* { int32#; nativeint# } *)
+type t110 = { mutable a110 : int32#; mutable b110 : float } (* { int32#; float } *)
+type t111 = { mutable a111 : int32#; mutable b111 : t18 } (* { int32#; #{ int } } *)
+type t112 = { mutable a112 : int32#; mutable b112 : t20 } (* { int32#; #{ int; int } } *)
+type t113 = { mutable a113 : int32#; mutable b113 : t22 } (* { int32#; #{ int; int32# } } *)
+type t114 = { mutable a114 : int32#; mutable b114 : t28 } (* { int32#; #{ int; #{ int } } } *)
+type t115 = { mutable a115 : int32#; mutable b115 : t31 } (* { int32#; #{ int; #{ int32# } } } *)
+type t116 = { mutable a116 : int32#; mutable b116 : t30 } (* { int32#; #{ int32# } } *)
+type t117 = { mutable a117 : int32#; mutable b117 : t40 } (* { int32#; #{ int32#; int } } *)
+type t118 = { mutable a118 : int32#; mutable b118 : t42 } (* { int32#; #{ int32#; int32# } } *)
+type t119 = { mutable a119 : int32#; mutable b119 : t44 } (* { int32#; #{ int32#; #{ int } } } *)
+type t120 = { mutable a120 : int32#; mutable b120 : t46 } (* { int32#; #{ int32#; #{ int32# } } } *)
+type t121 = { mutable a121 : int32#; mutable b121 : t66 } (* { int32#; #{ #{ int; int } } } *)
+type t122 = { mutable a122 : int32#; mutable b122 : t68 } (* { int32#; #{ #{ int; int32# } } } *)
+type t123 = { mutable a123 : int32#; mutable b123 : t74 } (* { int32#; #{ #{ int32#; int } } } *)
+type t124 = { mutable a124 : int32#; mutable b124 : t76 } (* { int32#; #{ #{ int32#; int32# } } } *)
+type t125 = { mutable a125 : nativeint# } (* { nativeint# } *)
+type t126 = { mutable a126 : nativeint#; mutable b126 : int } (* { nativeint#; int } *)
+type t127 = { mutable a127 : nativeint#; mutable b127 : int64 } (* { nativeint#; int64 } *)
+type t128 = { mutable a128 : nativeint#; mutable b128 : int64# } (* { nativeint#; int64# } *)
+type t129 = { mutable a129 : nativeint#; mutable b129 : int32# } (* { nativeint#; int32# } *)
+type t130 = { mutable a130 : nativeint#; mutable b130 : nativeint# } (* { nativeint#; nativeint# } *)
+type t131 = { mutable a131 : nativeint#; mutable b131 : float } (* { nativeint#; float } *)
+type t132 = { mutable a132 : float } (* { float } *)
+type t133 = { mutable a133 : float; mutable b133 : int } (* { float; int } *)
+type t134 = { mutable a134 : float; mutable b134 : int; mutable c134 : int } (* { float; int; int } *)
+type t135 = { mutable a135 : float; mutable b135 : int; mutable c135 : float } (* { float; int; float } *)
+type t136 = { mutable a136 : float; mutable b136 : int64 } (* { float; int64 } *)
+type t137 = { mutable a137 : float; mutable b137 : int64# } (* { float; int64# } *)
+type t138 = { mutable a138 : float; mutable b138 : int32# } (* { float; int32# } *)
+type t139 = { mutable a139 : float; mutable b139 : nativeint# } (* { float; nativeint# } *)
+type t140 = { mutable a140 : float; mutable b140 : float } (* { float; float } *)
+type t141 = { mutable a141 : float; mutable b141 : float; mutable c141 : int } (* { float; float; int } *)
+type t142 = { mutable a142 : float; mutable b142 : float; mutable c142 : float } (* { float; float; float } *)
+type t143 = { mutable a143 : float; mutable b143 : float; mutable c143 : float# } (* { float; float; float# } *)
+type t144 = { mutable a144 : float; mutable b144 : float# } (* { float; float# } *)
+type t145 = { mutable a145 : float; mutable b145 : float#; mutable c145 : float } (* { float; float#; float } *)
+type t146 = { mutable a146 : float; mutable b146 : float#; mutable c146 : float# } (* { float; float#; float# } *)
+type t147 = { mutable a147 : float; mutable b147 : t18 } (* { float; #{ int } } *)
+type t148 = { mutable a148 : float; mutable b148 : t20 } (* { float; #{ int; int } } *)
+type t149 = { mutable a149 : float; mutable b149 : t24 } (* { float; #{ int; float } } *)
+type t150 = { mutable a150 : float; mutable b150 : t28 } (* { float; #{ int; #{ int } } } *)
+type t151 = { mutable a151 : float; mutable b151 : t34 } (* { float; #{ int; #{ float } } } *)
+type t152 = { mutable a152 : float; mutable b152 : t33 } (* { float; #{ float } } *)
+type t153 = { mutable a153 : float; mutable b153 : t49 } (* { float; #{ float; int } } *)
+type t154 = { mutable a154 : float; mutable b154 : t51 } (* { float; #{ float; float } } *)
+type t155 = #{ a155 : float; b155 : float# } (* #{ float; float# } *)
+type t156 = { mutable a156 : float; mutable b156 : t155 } (* { float; #{ float; float# } } *)
+type t157 = { mutable a157 : float; mutable b157 : t53 } (* { float; #{ float; #{ int } } } *)
+type t158 = { mutable a158 : float; mutable b158 : t55 } (* { float; #{ float; #{ float } } } *)
+type t159 = #{ a159 : float# } (* #{ float# } *)
+type t160 = #{ a160 : float; b160 : t159 } (* #{ float; #{ float# } } *)
+type t161 = { mutable a161 : float; mutable b161 : t160 } (* { float; #{ float; #{ float# } } } *)
+type t162 = { mutable a162 : float; mutable b162 : t159 } (* { float; #{ float# } } *)
+type t163 = #{ a163 : float#; b163 : float } (* #{ float#; float } *)
+type t164 = { mutable a164 : float; mutable b164 : t163 } (* { float; #{ float#; float } } *)
+type t165 = #{ a165 : float#; b165 : float# } (* #{ float#; float# } *)
+type t166 = { mutable a166 : float; mutable b166 : t165 } (* { float; #{ float#; float# } } *)
+type t167 = #{ a167 : float#; b167 : t33 } (* #{ float#; #{ float } } *)
+type t168 = { mutable a168 : float; mutable b168 : t167 } (* { float; #{ float#; #{ float } } } *)
+type t169 = #{ a169 : float#; b169 : t159 } (* #{ float#; #{ float# } } *)
+type t170 = { mutable a170 : float; mutable b170 : t169 } (* { float; #{ float#; #{ float# } } } *)
+type t171 = { mutable a171 : float; mutable b171 : t66 } (* { float; #{ #{ int; int } } } *)
+type t172 = { mutable a172 : float; mutable b172 : t70 } (* { float; #{ #{ int; float } } } *)
+type t173 = { mutable a173 : float; mutable b173 : t78 } (* { float; #{ #{ float; int } } } *)
+type t174 = { mutable a174 : float; mutable b174 : t80 } (* { float; #{ #{ float; float } } } *)
+type t175 = #{ a175 : t155 } (* #{ #{ float; float# } } *)
+type t176 = { mutable a176 : float; mutable b176 : t175 } (* { float; #{ #{ float; float# } } } *)
+type t177 = #{ a177 : t163 } (* #{ #{ float#; float } } *)
+type t178 = { mutable a178 : float; mutable b178 : t177 } (* { float; #{ #{ float#; float } } } *)
+type t179 = #{ a179 : t165 } (* #{ #{ float#; float# } } *)
+type t180 = { mutable a180 : float; mutable b180 : t179 } (* { float; #{ #{ float#; float# } } } *)
+type t181 = { mutable a181 : float# } (* { float# } *)
+type t182 = { mutable a182 : float#; mutable b182 : float } (* { float#; float } *)
+type t183 = { mutable a183 : float#; mutable b183 : float; mutable c183 : float } (* { float#; float; float } *)
+type t184 = { mutable a184 : float#; mutable b184 : float; mutable c184 : float# } (* { float#; float; float# } *)
+type t185 = { mutable a185 : float#; mutable b185 : float# } (* { float#; float# } *)
+type t186 = { mutable a186 : float#; mutable b186 : float#; mutable c186 : float } (* { float#; float#; float } *)
+type t187 = { mutable a187 : float#; mutable b187 : float#; mutable c187 : float# } (* { float#; float#; float# } *)
+type t188 = { mutable a188 : float#; mutable b188 : t33 } (* { float#; #{ float } } *)
+type t189 = { mutable a189 : float#; mutable b189 : t51 } (* { float#; #{ float; float } } *)
+type t190 = { mutable a190 : float#; mutable b190 : t155 } (* { float#; #{ float; float# } } *)
+type t191 = { mutable a191 : float#; mutable b191 : t55 } (* { float#; #{ float; #{ float } } } *)
+type t192 = { mutable a192 : float#; mutable b192 : t160 } (* { float#; #{ float; #{ float# } } } *)
+type t193 = { mutable a193 : float#; mutable b193 : t159 } (* { float#; #{ float# } } *)
+type t194 = { mutable a194 : float#; mutable b194 : t163 } (* { float#; #{ float#; float } } *)
+type t195 = { mutable a195 : float#; mutable b195 : t165 } (* { float#; #{ float#; float# } } *)
+type t196 = { mutable a196 : float#; mutable b196 : t167 } (* { float#; #{ float#; #{ float } } } *)
+type t197 = { mutable a197 : float#; mutable b197 : t169 } (* { float#; #{ float#; #{ float# } } } *)
+type t198 = { mutable a198 : float#; mutable b198 : t80 } (* { float#; #{ #{ float; float } } } *)
+type t199 = { mutable a199 : float#; mutable b199 : t175 } (* { float#; #{ #{ float; float# } } } *)
+type t200 = { mutable a200 : float#; mutable b200 : t177 } (* { float#; #{ #{ float#; float } } } *)
+type t201 = { mutable a201 : float#; mutable b201 : t179 } (* { float#; #{ #{ float#; float# } } } *)
+type t202 = { mutable a202 : int64x2# } (* { int64x2# } *)
+type t203 = { mutable a203 : int64x2#; mutable b203 : int } (* { int64x2#; int } *)
+type t204 = { mutable a204 : int64x2#; mutable b204 : int; mutable c204 : int } (* { int64x2#; int; int } *)
+type t205 = { mutable a205 : int64x2#; mutable b205 : int; mutable c205 : int64x2# } (* { int64x2#; int; int64x2# } *)
+type t206 = { mutable a206 : int64x2#; mutable b206 : int64x2# } (* { int64x2#; int64x2# } *)
+type t207 = { mutable a207 : int64x2#; mutable b207 : int64x2#; mutable c207 : int } (* { int64x2#; int64x2#; int } *)
+type t208 = { mutable a208 : int64x2#; mutable b208 : int64x2#; mutable c208 : int64x2# } (* { int64x2#; int64x2#; int64x2# } *)
+type t209 = { mutable a209 : int64x2#; mutable b209 : t18 } (* { int64x2#; #{ int } } *)
+type t210 = { mutable a210 : int64x2#; mutable b210 : t20 } (* { int64x2#; #{ int; int } } *)
+type t211 = { mutable a211 : int64x2#; mutable b211 : t26 } (* { int64x2#; #{ int; int64x2# } } *)
+type t212 = { mutable a212 : int64x2#; mutable b212 : t28 } (* { int64x2#; #{ int; #{ int } } } *)
+type t213 = { mutable a213 : int64x2#; mutable b213 : t37 } (* { int64x2#; #{ int; #{ int64x2# } } } *)
+type t214 = #{ a214 : string; b214 : float# } (* #{ string; float# } *)
+type t215 = { mutable a215 : int64x2#; mutable b215 : t214 } (* { int64x2#; #{ string; float# } } *)
+type t216 = { mutable a216 : int64x2#; mutable b216 : t36 } (* { int64x2#; #{ int64x2# } } *)
+type t217 = { mutable a217 : int64x2#; mutable b217 : t58 } (* { int64x2#; #{ int64x2#; int } } *)
+type t218 = { mutable a218 : int64x2#; mutable b218 : t60 } (* { int64x2#; #{ int64x2#; int64x2# } } *)
+type t219 = { mutable a219 : int64x2#; mutable b219 : t62 } (* { int64x2#; #{ int64x2#; #{ int } } } *)
+type t220 = { mutable a220 : int64x2#; mutable b220 : t64 } (* { int64x2#; #{ int64x2#; #{ int64x2# } } } *)
+type t221 = { mutable a221 : int64x2#; mutable b221 : t66 } (* { int64x2#; #{ #{ int; int } } } *)
+type t222 = { mutable a222 : int64x2#; mutable b222 : t72 } (* { int64x2#; #{ #{ int; int64x2# } } } *)
+type t223 = { mutable a223 : int64x2#; mutable b223 : t82 } (* { int64x2#; #{ #{ int64x2#; int } } } *)
+type t224 = { mutable a224 : int64x2#; mutable b224 : t84 } (* { int64x2#; #{ #{ int64x2#; int64x2# } } } *)
+type t225 = { mutable a225 : t18 } (* { #{ int } } *)
+type t226 = { mutable a226 : t18; mutable b226 : int } (* { #{ int }; int } *)
+type t227 = { mutable a227 : t18; mutable b227 : int32# } (* { #{ int }; int32# } *)
+type t228 = { mutable a228 : t18; mutable b228 : float } (* { #{ int }; float } *)
+type t229 = { mutable a229 : t18; mutable b229 : int64x2# } (* { #{ int }; int64x2# } *)
+type t230 = { mutable a230 : t20 } (* { #{ int; int } } *)
+type t231 = { mutable a231 : t20; mutable b231 : int } (* { #{ int; int }; int } *)
+type t232 = { mutable a232 : t20; mutable b232 : int32# } (* { #{ int; int }; int32# } *)
+type t233 = { mutable a233 : t20; mutable b233 : float } (* { #{ int; int }; float } *)
+type t234 = { mutable a234 : t20; mutable b234 : int64x2# } (* { #{ int; int }; int64x2# } *)
+type t235 = { mutable a235 : t22 } (* { #{ int; int32# } } *)
+type t236 = { mutable a236 : t22; mutable b236 : int } (* { #{ int; int32# }; int } *)
+type t237 = { mutable a237 : t22; mutable b237 : int32# } (* { #{ int; int32# }; int32# } *)
+type t238 = { mutable a238 : t24 } (* { #{ int; float } } *)
+type t239 = { mutable a239 : t24; mutable b239 : int } (* { #{ int; float }; int } *)
+type t240 = { mutable a240 : t24; mutable b240 : float } (* { #{ int; float }; float } *)
+type t241 = { mutable a241 : t26 } (* { #{ int; int64x2# } } *)
+type t242 = { mutable a242 : t26; mutable b242 : int } (* { #{ int; int64x2# }; int } *)
+type t243 = { mutable a243 : t26; mutable b243 : int64x2# } (* { #{ int; int64x2# }; int64x2# } *)
+type t244 = #{ a244 : int; b244 : t20 } (* #{ int; #{ int; int } } *)
+type t245 = { mutable a245 : t244 } (* { #{ int; #{ int; int } } } *)
+type t246 = #{ a246 : int; b246 : t22 } (* #{ int; #{ int; int32# } } *)
+type t247 = { mutable a247 : t246 } (* { #{ int; #{ int; int32# } } } *)
+type t248 = #{ a248 : int; b248 : t24 } (* #{ int; #{ int; float } } *)
+type t249 = { mutable a249 : t248 } (* { #{ int; #{ int; float } } } *)
+type t250 = #{ a250 : int; b250 : t26 } (* #{ int; #{ int; int64x2# } } *)
+type t251 = { mutable a251 : t250 } (* { #{ int; #{ int; int64x2# } } } *)
+type t252 = #{ a252 : int; b252 : t40 } (* #{ int; #{ int32#; int } } *)
+type t253 = { mutable a253 : t252 } (* { #{ int; #{ int32#; int } } } *)
+type t254 = #{ a254 : int; b254 : t42 } (* #{ int; #{ int32#; int32# } } *)
+type t255 = { mutable a255 : t254 } (* { #{ int; #{ int32#; int32# } } } *)
+type t256 = #{ a256 : int; b256 : t49 } (* #{ int; #{ float; int } } *)
+type t257 = { mutable a257 : t256 } (* { #{ int; #{ float; int } } } *)
+type t258 = #{ a258 : int; b258 : t51 } (* #{ int; #{ float; float } } *)
+type t259 = { mutable a259 : t258 } (* { #{ int; #{ float; float } } } *)
+type t260 = #{ a260 : int; b260 : t58 } (* #{ int; #{ int64x2#; int } } *)
+type t261 = { mutable a261 : t260 } (* { #{ int; #{ int64x2#; int } } } *)
+type t262 = #{ a262 : int; b262 : t60 } (* #{ int; #{ int64x2#; int64x2# } } *)
+type t263 = { mutable a263 : t262 } (* { #{ int; #{ int64x2#; int64x2# } } } *)
+type t264 = #{ a264 : int64; b264 : int64# } (* #{ int64; int64# } *)
+type t265 = #{ a265 : int64#; b265 : float# } (* #{ int64#; float# } *)
+type t266 = { mutable a266 : t264; mutable b266 : t265 } (* { #{ int64; int64# }; #{ int64#; float# } } *)
+type t267 = #{ a267 : int64; b267 : string } (* #{ int64; string } *)
+type t268 = #{ a268 : int64#; b268 : string } (* #{ int64#; string } *)
+type t269 = { mutable a269 : t267; mutable b269 : t268 } (* { #{ int64; string }; #{ int64#; string } } *)
+type t270 = #{ a270 : int64#; b270 : int64 } (* #{ int64#; int64 } *)
+type t271 = #{ a271 : int64; b271 : int64 } (* #{ int64; int64 } *)
+type t272 = { mutable a272 : t270; mutable b272 : t271 } (* { #{ int64#; int64 }; #{ int64; int64 } } *)
+type t273 = #{ a273 : float32#; b273 : float } (* #{ float32#; float } *)
+type t274 = { mutable a274 : t270; mutable b274 : t273 } (* { #{ int64#; int64 }; #{ float32#; float } } *)
+type t275 = { mutable a275 : t30 } (* { #{ int32# } } *)
+type t276 = { mutable a276 : t30; mutable b276 : int } (* { #{ int32# }; int } *)
+type t277 = { mutable a277 : t30; mutable b277 : int32# } (* { #{ int32# }; int32# } *)
+type t278 = { mutable a278 : t40 } (* { #{ int32#; int } } *)
+type t279 = { mutable a279 : t40; mutable b279 : int } (* { #{ int32#; int }; int } *)
+type t280 = { mutable a280 : t40; mutable b280 : int32# } (* { #{ int32#; int }; int32# } *)
+type t281 = { mutable a281 : t42 } (* { #{ int32#; int32# } } *)
+type t282 = { mutable a282 : t42; mutable b282 : int } (* { #{ int32#; int32# }; int } *)
+type t283 = { mutable a283 : t42; mutable b283 : int32# } (* { #{ int32#; int32# }; int32# } *)
+type t284 = #{ a284 : int32#; b284 : t20 } (* #{ int32#; #{ int; int } } *)
+type t285 = { mutable a285 : t284 } (* { #{ int32#; #{ int; int } } } *)
+type t286 = #{ a286 : int32#; b286 : t22 } (* #{ int32#; #{ int; int32# } } *)
+type t287 = { mutable a287 : t286 } (* { #{ int32#; #{ int; int32# } } } *)
+type t288 = #{ a288 : int32#; b288 : t40 } (* #{ int32#; #{ int32#; int } } *)
+type t289 = { mutable a289 : t288 } (* { #{ int32#; #{ int32#; int } } } *)
+type t290 = #{ a290 : int32#; b290 : t42 } (* #{ int32#; #{ int32#; int32# } } *)
+type t291 = { mutable a291 : t290 } (* { #{ int32#; #{ int32#; int32# } } } *)
+type t292 = { mutable a292 : t33 } (* { #{ float } } *)
+type t293 = { mutable a293 : t33; mutable b293 : int } (* { #{ float }; int } *)
+type t294 = { mutable a294 : t33; mutable b294 : float } (* { #{ float }; float } *)
+type t295 = { mutable a295 : t33; mutable b295 : float# } (* { #{ float }; float# } *)
+type t296 = { mutable a296 : t49 } (* { #{ float; int } } *)
+type t297 = { mutable a297 : t49; mutable b297 : int } (* { #{ float; int }; int } *)
+type t298 = { mutable a298 : t49; mutable b298 : float } (* { #{ float; int }; float } *)
+type t299 = { mutable a299 : t51 } (* { #{ float; float } } *)
+type t300 = { mutable a300 : t51; mutable b300 : int } (* { #{ float; float }; int } *)
+type t301 = { mutable a301 : t51; mutable b301 : float } (* { #{ float; float }; float } *)
+type t302 = { mutable a302 : t51; mutable b302 : float# } (* { #{ float; float }; float# } *)
+type t303 = { mutable a303 : t155 } (* { #{ float; float# } } *)
+type t304 = { mutable a304 : t155; mutable b304 : float } (* { #{ float; float# }; float } *)
+type t305 = { mutable a305 : t155; mutable b305 : float# } (* { #{ float; float# }; float# } *)
+type t306 = #{ a306 : float; b306 : t20 } (* #{ float; #{ int; int } } *)
+type t307 = { mutable a307 : t306 } (* { #{ float; #{ int; int } } } *)
+type t308 = #{ a308 : float; b308 : t24 } (* #{ float; #{ int; float } } *)
+type t309 = { mutable a309 : t308 } (* { #{ float; #{ int; float } } } *)
+type t310 = #{ a310 : float; b310 : t49 } (* #{ float; #{ float; int } } *)
+type t311 = { mutable a311 : t310 } (* { #{ float; #{ float; int } } } *)
+type t312 = #{ a312 : float; b312 : t51 } (* #{ float; #{ float; float } } *)
+type t313 = { mutable a313 : t312 } (* { #{ float; #{ float; float } } } *)
+type t314 = #{ a314 : float; b314 : t155 } (* #{ float; #{ float; float# } } *)
+type t315 = { mutable a315 : t314 } (* { #{ float; #{ float; float# } } } *)
+type t316 = #{ a316 : float; b316 : t163 } (* #{ float; #{ float#; float } } *)
+type t317 = { mutable a317 : t316 } (* { #{ float; #{ float#; float } } } *)
+type t318 = #{ a318 : float; b318 : t165 } (* #{ float; #{ float#; float# } } *)
+type t319 = { mutable a319 : t318 } (* { #{ float; #{ float#; float# } } } *)
+type t320 = { mutable a320 : t159 } (* { #{ float# } } *)
+type t321 = { mutable a321 : t159; mutable b321 : float } (* { #{ float# }; float } *)
+type t322 = { mutable a322 : t159; mutable b322 : float# } (* { #{ float# }; float# } *)
+type t323 = { mutable a323 : t163 } (* { #{ float#; float } } *)
+type t324 = { mutable a324 : t163; mutable b324 : float } (* { #{ float#; float }; float } *)
+type t325 = { mutable a325 : t163; mutable b325 : float# } (* { #{ float#; float }; float# } *)
+type t326 = { mutable a326 : t165 } (* { #{ float#; float# } } *)
+type t327 = { mutable a327 : t165; mutable b327 : float } (* { #{ float#; float# }; float } *)
+type t328 = { mutable a328 : t165; mutable b328 : float# } (* { #{ float#; float# }; float# } *)
+type t329 = #{ a329 : float#; b329 : t51 } (* #{ float#; #{ float; float } } *)
+type t330 = { mutable a330 : t329 } (* { #{ float#; #{ float; float } } } *)
+type t331 = #{ a331 : float#; b331 : t155 } (* #{ float#; #{ float; float# } } *)
+type t332 = { mutable a332 : t331 } (* { #{ float#; #{ float; float# } } } *)
+type t333 = #{ a333 : float#; b333 : t163 } (* #{ float#; #{ float#; float } } *)
+type t334 = { mutable a334 : t333 } (* { #{ float#; #{ float#; float } } } *)
+type t335 = #{ a335 : float#; b335 : t165 } (* #{ float#; #{ float#; float# } } *)
+type t336 = { mutable a336 : t335 } (* { #{ float#; #{ float#; float# } } } *)
+type t337 = #{ a337 : float32#; b337 : int64# } (* #{ float32#; int64# } *)
+type t338 = #{ a338 : string; b338 : int64# } (* #{ string; int64# } *)
+type t339 = { mutable a339 : t337; mutable b339 : t338 } (* { #{ float32#; int64# }; #{ string; int64# } } *)
+type t340 = { mutable a340 : t36 } (* { #{ int64x2# } } *)
+type t341 = { mutable a341 : t36; mutable b341 : int } (* { #{ int64x2# }; int } *)
+type t342 = { mutable a342 : t36; mutable b342 : int64x2# } (* { #{ int64x2# }; int64x2# } *)
+type t343 = { mutable a343 : t58 } (* { #{ int64x2#; int } } *)
+type t344 = { mutable a344 : t58; mutable b344 : int } (* { #{ int64x2#; int }; int } *)
+type t345 = { mutable a345 : t58; mutable b345 : int64x2# } (* { #{ int64x2#; int }; int64x2# } *)
+type t346 = #{ a346 : int64x2#; b346 : string } (* #{ int64x2#; string } *)
+type t347 = #{ a347 : int64; b347 : float# } (* #{ int64; float# } *)
+type t348 = { mutable a348 : t346; mutable b348 : t347 } (* { #{ int64x2#; string }; #{ int64; float# } } *)
+type t349 = { mutable a349 : t60 } (* { #{ int64x2#; int64x2# } } *)
+type t350 = { mutable a350 : t60; mutable b350 : int } (* { #{ int64x2#; int64x2# }; int } *)
+type t351 = { mutable a351 : t60; mutable b351 : int64x2# } (* { #{ int64x2#; int64x2# }; int64x2# } *)
+type t352 = #{ a352 : int64x2#; b352 : t20 } (* #{ int64x2#; #{ int; int } } *)
+type t353 = { mutable a353 : t352 } (* { #{ int64x2#; #{ int; int } } } *)
+type t354 = #{ a354 : int64x2#; b354 : t26 } (* #{ int64x2#; #{ int; int64x2# } } *)
+type t355 = { mutable a355 : t354 } (* { #{ int64x2#; #{ int; int64x2# } } } *)
+type t356 = #{ a356 : int64x2#; b356 : t58 } (* #{ int64x2#; #{ int64x2#; int } } *)
+type t357 = { mutable a357 : t356 } (* { #{ int64x2#; #{ int64x2#; int } } } *)
+type t358 = #{ a358 : int64x2#; b358 : t60 } (* #{ int64x2#; #{ int64x2#; int64x2# } } *)
+type t359 = { mutable a359 : t358 } (* { #{ int64x2#; #{ int64x2#; int64x2# } } } *)
+type t360 = #{ a360 : t20; b360 : int } (* #{ #{ int; int }; int } *)
+type t361 = { mutable a361 : t360 } (* { #{ #{ int; int }; int } } *)
+type t362 = #{ a362 : t20; b362 : int32# } (* #{ #{ int; int }; int32# } *)
+type t363 = { mutable a363 : t362 } (* { #{ #{ int; int }; int32# } } *)
+type t364 = #{ a364 : t20; b364 : float } (* #{ #{ int; int }; float } *)
+type t365 = { mutable a365 : t364 } (* { #{ #{ int; int }; float } } *)
+type t366 = #{ a366 : t20; b366 : int64x2# } (* #{ #{ int; int }; int64x2# } *)
+type t367 = { mutable a367 : t366 } (* { #{ #{ int; int }; int64x2# } } *)
+type t368 = #{ a368 : t22; b368 : int } (* #{ #{ int; int32# }; int } *)
+type t369 = { mutable a369 : t368 } (* { #{ #{ int; int32# }; int } } *)
+type t370 = #{ a370 : t22; b370 : int32# } (* #{ #{ int; int32# }; int32# } *)
+type t371 = { mutable a371 : t370 } (* { #{ #{ int; int32# }; int32# } } *)
+type t372 = #{ a372 : t24; b372 : int } (* #{ #{ int; float }; int } *)
+type t373 = { mutable a373 : t372 } (* { #{ #{ int; float }; int } } *)
+type t374 = #{ a374 : t24; b374 : float } (* #{ #{ int; float }; float } *)
+type t375 = { mutable a375 : t374 } (* { #{ #{ int; float }; float } } *)
+type t376 = #{ a376 : t26; b376 : int } (* #{ #{ int; int64x2# }; int } *)
+type t377 = { mutable a377 : t376 } (* { #{ #{ int; int64x2# }; int } } *)
+type t378 = #{ a378 : t26; b378 : int64x2# } (* #{ #{ int; int64x2# }; int64x2# } *)
+type t379 = { mutable a379 : t378 } (* { #{ #{ int; int64x2# }; int64x2# } } *)
+type t380 = #{ a380 : t40; b380 : int } (* #{ #{ int32#; int }; int } *)
+type t381 = { mutable a381 : t380 } (* { #{ #{ int32#; int }; int } } *)
+type t382 = #{ a382 : t40; b382 : int32# } (* #{ #{ int32#; int }; int32# } *)
+type t383 = { mutable a383 : t382 } (* { #{ #{ int32#; int }; int32# } } *)
+type t384 = #{ a384 : t42; b384 : int } (* #{ #{ int32#; int32# }; int } *)
+type t385 = { mutable a385 : t384 } (* { #{ #{ int32#; int32# }; int } } *)
+type t386 = #{ a386 : t42; b386 : int32# } (* #{ #{ int32#; int32# }; int32# } *)
+type t387 = { mutable a387 : t386 } (* { #{ #{ int32#; int32# }; int32# } } *)
+type t388 = #{ a388 : t49; b388 : int } (* #{ #{ float; int }; int } *)
+type t389 = { mutable a389 : t388 } (* { #{ #{ float; int }; int } } *)
+type t390 = #{ a390 : t49; b390 : float } (* #{ #{ float; int }; float } *)
+type t391 = { mutable a391 : t390 } (* { #{ #{ float; int }; float } } *)
+type t392 = #{ a392 : t51; b392 : int } (* #{ #{ float; float }; int } *)
+type t393 = { mutable a393 : t392 } (* { #{ #{ float; float }; int } } *)
+type t394 = #{ a394 : t51; b394 : float } (* #{ #{ float; float }; float } *)
+type t395 = { mutable a395 : t394 } (* { #{ #{ float; float }; float } } *)
+type t396 = #{ a396 : t51; b396 : float# } (* #{ #{ float; float }; float# } *)
+type t397 = { mutable a397 : t396 } (* { #{ #{ float; float }; float# } } *)
+type t398 = #{ a398 : t155; b398 : float } (* #{ #{ float; float# }; float } *)
+type t399 = { mutable a399 : t398 } (* { #{ #{ float; float# }; float } } *)
+type t400 = #{ a400 : t155; b400 : float# } (* #{ #{ float; float# }; float# } *)
+type t401 = { mutable a401 : t400 } (* { #{ #{ float; float# }; float# } } *)
+type t402 = #{ a402 : t163; b402 : float } (* #{ #{ float#; float }; float } *)
+type t403 = { mutable a403 : t402 } (* { #{ #{ float#; float }; float } } *)
+type t404 = #{ a404 : t163; b404 : float# } (* #{ #{ float#; float }; float# } *)
+type t405 = { mutable a405 : t404 } (* { #{ #{ float#; float }; float# } } *)
+type t406 = #{ a406 : t165; b406 : float } (* #{ #{ float#; float# }; float } *)
+type t407 = { mutable a407 : t406 } (* { #{ #{ float#; float# }; float } } *)
+type t408 = #{ a408 : t165; b408 : float# } (* #{ #{ float#; float# }; float# } *)
+type t409 = { mutable a409 : t408 } (* { #{ #{ float#; float# }; float# } } *)
+type t410 = #{ a410 : t58; b410 : int } (* #{ #{ int64x2#; int }; int } *)
+type t411 = { mutable a411 : t410 } (* { #{ #{ int64x2#; int }; int } } *)
+type t412 = #{ a412 : t58; b412 : int64x2# } (* #{ #{ int64x2#; int }; int64x2# } *)
+type t413 = { mutable a413 : t412 } (* { #{ #{ int64x2#; int }; int64x2# } } *)
+type t414 = #{ a414 : t60; b414 : int } (* #{ #{ int64x2#; int64x2# }; int } *)
+type t415 = { mutable a415 : t414 } (* { #{ #{ int64x2#; int64x2# }; int } } *)
+type t416 = #{ a416 : t60; b416 : int64x2# } (* #{ #{ int64x2#; int64x2# }; int64x2# } *)
+type t417 = { mutable a417 : t416 } (* { #{ #{ int64x2#; int64x2# }; int64x2# } } *)
 
 let () =
   (********************)
@@ -434,1050 +729,2258 @@ let () =
   let test = Int.equal (Obj.size (Obj.repr r)) 4 in
   if not test then failwithf "test 23 failed";
 
-  (**********************************)
-  (*   t29 = { int; #{ int32# } }   *)
-  (**********************************)
-  let r = { a29 = 0; b29 = #{ a28 = #1l } } in
+  (*****************************************)
+  (*   t29 = { int; #{ int; #{ int } } }   *)
+  (*****************************************)
+  let r = { a29 = 0; b29 = #{ a28 = 1; b28 = #{ a18 = 2 } } } in
   mark_test_run 24;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 24 failed";
 
-  (***************************************)
-  (*   t31 = { int; #{ int32#; int } }   *)
-  (***************************************)
-  let r = { a31 = 0; b31 = #{ a30 = #1l; b30 = 2 } } in
+  (********************************************)
+  (*   t32 = { int; #{ int; #{ int32# } } }   *)
+  (********************************************)
+  let r = { a32 = 0; b32 = #{ a31 = 1; b31 = #{ a30 = #2l } } } in
   mark_test_run 25;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 25 failed";
 
-  (******************************************)
-  (*   t33 = { int; #{ int32#; int32# } }   *)
-  (******************************************)
-  let r = { a33 = 0; b33 = #{ a32 = #1l; b32 = #2l } } in
+  (*******************************************)
+  (*   t35 = { int; #{ int; #{ float } } }   *)
+  (*******************************************)
+  let r = { a35 = 0; b35 = #{ a34 = 1; b34 = #{ a33 = 2. } } } in
   mark_test_run 26;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 26 failed";
 
-  (*********************************)
-  (*   t35 = { int; #{ float } }   *)
-  (*********************************)
-  let r = { a35 = 0; b35 = #{ a34 = 1. } } in
+  (**********************************************)
+  (*   t38 = { int; #{ int; #{ int64x2# } } }   *)
+  (**********************************************)
+  let r = { a38 = 0; b38 = #{ a37 = 1; b37 = #{ a36 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } } in
   mark_test_run 27;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
   if not test then failwithf "test 27 failed";
 
-  (**************************************)
-  (*   t37 = { int; #{ float; int } }   *)
-  (**************************************)
-  let r = { a37 = 0; b37 = #{ a36 = 1.; b36 = 2 } } in
+  (**********************************)
+  (*   t39 = { int; #{ int32# } }   *)
+  (**********************************)
+  let r = { a39 = 0; b39 = #{ a30 = #1l } } in
   mark_test_run 28;
-  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 28 failed";
 
-  (****************************************)
-  (*   t39 = { int; #{ float; float } }   *)
-  (****************************************)
-  let r = { a39 = 0; b39 = #{ a38 = 1.; b38 = 2. } } in
+  (***************************************)
+  (*   t41 = { int; #{ int32#; int } }   *)
+  (***************************************)
+  let r = { a41 = 0; b41 = #{ a40 = #1l; b40 = 2 } } in
   mark_test_run 29;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 29 failed";
 
-  (************************************)
-  (*   t41 = { int; #{ int64x2# } }   *)
-  (************************************)
-  let r = { a41 = 0; b41 = #{ a40 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } } in
+  (******************************************)
+  (*   t43 = { int; #{ int32#; int32# } }   *)
+  (******************************************)
+  let r = { a43 = 0; b43 = #{ a42 = #1l; b42 = #2l } } in
   mark_test_run 30;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 30 failed";
 
-  (*****************************************)
-  (*   t43 = { int; #{ int64x2#; int } }   *)
-  (*****************************************)
-  let r = { a43 = 0; b43 = #{ a42 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); b42 = 3 } } in
+  (********************************************)
+  (*   t45 = { int; #{ int32#; #{ int } } }   *)
+  (********************************************)
+  let r = { a45 = 0; b45 = #{ a44 = #1l; b44 = #{ a18 = 2 } } } in
   mark_test_run 31;
-  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 31 failed";
 
-  (**********************************************)
-  (*   t45 = { int; #{ int64x2#; int64x2# } }   *)
-  (**********************************************)
-  let r = { a45 = 0; b45 = #{ a44 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); b44 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } in
+  (***********************************************)
+  (*   t47 = { int; #{ int32#; #{ int32# } } }   *)
+  (***********************************************)
+  let r = { a47 = 0; b47 = #{ a46 = #1l; b46 = #{ a30 = #2l } } } in
   mark_test_run 32;
-  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 32 failed";
 
-  (***********************)
-  (*   t46 = { int64 }   *)
-  (***********************)
-  let r = { a46 = 0L } in
+  (*********************************)
+  (*   t48 = { int; #{ float } }   *)
+  (*********************************)
+  let r = { a48 = 0; b48 = #{ a33 = 1. } } in
   mark_test_run 33;
-  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 33 failed";
 
-  (****************************)
-  (*   t47 = { int64; int }   *)
-  (****************************)
-  let r = { a47 = 0L; b47 = 1 } in
+  (**************************************)
+  (*   t50 = { int; #{ float; int } }   *)
+  (**************************************)
+  let r = { a50 = 0; b50 = #{ a49 = 1.; b49 = 2 } } in
   mark_test_run 34;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 34 failed";
 
-  (******************************)
-  (*   t48 = { int64; int64 }   *)
-  (******************************)
-  let r = { a48 = 0L; b48 = 1L } in
+  (****************************************)
+  (*   t52 = { int; #{ float; float } }   *)
+  (****************************************)
+  let r = { a52 = 0; b52 = #{ a51 = 1.; b51 = 2. } } in
   mark_test_run 35;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 35 failed";
 
-  (*******************************)
-  (*   t49 = { int64; int64# }   *)
-  (*******************************)
-  let r = { a49 = 0L; b49 = #1L } in
+  (*******************************************)
+  (*   t54 = { int; #{ float; #{ int } } }   *)
+  (*******************************************)
+  let r = { a54 = 0; b54 = #{ a53 = 1.; b53 = #{ a18 = 2 } } } in
   mark_test_run 36;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 36 failed";
 
-  (*******************************)
-  (*   t50 = { int64; int32# }   *)
-  (*******************************)
-  let r = { a50 = 0L; b50 = #1l } in
+  (*********************************************)
+  (*   t56 = { int; #{ float; #{ float } } }   *)
+  (*********************************************)
+  let r = { a56 = 0; b56 = #{ a55 = 1.; b55 = #{ a33 = 2. } } } in
   mark_test_run 37;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 37 failed";
 
-  (***********************************)
-  (*   t51 = { int64; nativeint# }   *)
-  (***********************************)
-  let r = { a51 = 0L; b51 = #1n } in
+  (************************************)
+  (*   t57 = { int; #{ int64x2# } }   *)
+  (************************************)
+  let r = { a57 = 0; b57 = #{ a36 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } } in
   mark_test_run 38;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 38 failed";
 
-  (******************************)
-  (*   t52 = { int64; float }   *)
-  (******************************)
-  let r = { a52 = 0L; b52 = 1. } in
+  (*****************************************)
+  (*   t59 = { int; #{ int64x2#; int } }   *)
+  (*****************************************)
+  let r = { a59 = 0; b59 = #{ a58 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); b58 = 3 } } in
   mark_test_run 39;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
   if not test then failwithf "test 39 failed";
 
-  (************************)
-  (*   t53 = { int64# }   *)
-  (************************)
-  let r = { a53 = #0L } in
+  (**********************************************)
+  (*   t61 = { int; #{ int64x2#; int64x2# } }   *)
+  (**********************************************)
+  let r = { a61 = 0; b61 = #{ a60 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); b60 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } in
   mark_test_run 40;
-  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
   if not test then failwithf "test 40 failed";
 
-  (*****************************)
-  (*   t54 = { int64#; int }   *)
-  (*****************************)
-  let r = { a54 = #0L; b54 = 1 } in
+  (**********************************************)
+  (*   t63 = { int; #{ int64x2#; #{ int } } }   *)
+  (**********************************************)
+  let r = { a63 = 0; b63 = #{ a62 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); b62 = #{ a18 = 3 } } } in
   mark_test_run 41;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
   if not test then failwithf "test 41 failed";
 
-  (*******************************)
-  (*   t55 = { int64#; int64 }   *)
-  (*******************************)
-  let r = { a55 = #0L; b55 = 1L } in
+  (***************************************************)
+  (*   t65 = { int; #{ int64x2#; #{ int64x2# } } }   *)
+  (***************************************************)
+  let r = { a65 = 0; b65 = #{ a64 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); b64 = #{ a36 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } } in
   mark_test_run 42;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
   if not test then failwithf "test 42 failed";
 
-  (********************************)
-  (*   t56 = { int64#; int64# }   *)
-  (********************************)
-  let r = { a56 = #0L; b56 = #1L } in
+  (*****************************************)
+  (*   t67 = { int; #{ #{ int; int } } }   *)
+  (*****************************************)
+  let r = { a67 = 0; b67 = #{ a66 = #{ a20 = 1; b20 = 2 } } } in
   mark_test_run 43;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 43 failed";
 
-  (********************************)
-  (*   t57 = { int64#; int32# }   *)
-  (********************************)
-  let r = { a57 = #0L; b57 = #1l } in
+  (********************************************)
+  (*   t69 = { int; #{ #{ int; int32# } } }   *)
+  (********************************************)
+  let r = { a69 = 0; b69 = #{ a68 = #{ a22 = 1; b22 = #2l } } } in
   mark_test_run 44;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 44 failed";
 
-  (************************************)
-  (*   t58 = { int64#; nativeint# }   *)
-  (************************************)
-  let r = { a58 = #0L; b58 = #1n } in
+  (*******************************************)
+  (*   t71 = { int; #{ #{ int; float } } }   *)
+  (*******************************************)
+  let r = { a71 = 0; b71 = #{ a70 = #{ a24 = 1; b24 = 2. } } } in
   mark_test_run 45;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 45 failed";
 
-  (*******************************)
-  (*   t59 = { int64#; float }   *)
-  (*******************************)
-  let r = { a59 = #0L; b59 = 1. } in
+  (**********************************************)
+  (*   t73 = { int; #{ #{ int; int64x2# } } }   *)
+  (**********************************************)
+  let r = { a73 = 0; b73 = #{ a72 = #{ a26 = 1; b26 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } } in
   mark_test_run 46;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
   if not test then failwithf "test 46 failed";
 
-  (************************)
-  (*   t60 = { int32# }   *)
-  (************************)
-  let r = { a60 = #0l } in
+  (********************************************)
+  (*   t75 = { int; #{ #{ int32#; int } } }   *)
+  (********************************************)
+  let r = { a75 = 0; b75 = #{ a74 = #{ a40 = #1l; b40 = 2 } } } in
   mark_test_run 47;
-  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 47 failed";
 
-  (*****************************)
-  (*   t61 = { int32#; int }   *)
-  (*****************************)
-  let r = { a61 = #0l; b61 = 1 } in
+  (***********************************************)
+  (*   t77 = { int; #{ #{ int32#; int32# } } }   *)
+  (***********************************************)
+  let r = { a77 = 0; b77 = #{ a76 = #{ a42 = #1l; b42 = #2l } } } in
   mark_test_run 48;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 48 failed";
 
-  (**********************************)
-  (*   t62 = { int32#; int; int }   *)
-  (**********************************)
-  let r = { a62 = #0l; b62 = 1; c62 = 2 } in
+  (*******************************************)
+  (*   t79 = { int; #{ #{ float; int } } }   *)
+  (*******************************************)
+  let r = { a79 = 0; b79 = #{ a78 = #{ a49 = 1.; b49 = 2 } } } in
   mark_test_run 49;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 49 failed";
 
-  (*************************************)
-  (*   t63 = { int32#; int; int32# }   *)
-  (*************************************)
-  let r = { a63 = #0l; b63 = 1; c63 = #2l } in
+  (*********************************************)
+  (*   t81 = { int; #{ #{ float; float } } }   *)
+  (*********************************************)
+  let r = { a81 = 0; b81 = #{ a80 = #{ a51 = 1.; b51 = 2. } } } in
   mark_test_run 50;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 50 failed";
 
-  (*******************************)
-  (*   t64 = { int32#; int64 }   *)
-  (*******************************)
-  let r = { a64 = #0l; b64 = 1L } in
+  (**********************************************)
+  (*   t83 = { int; #{ #{ int64x2#; int } } }   *)
+  (**********************************************)
+  let r = { a83 = 0; b83 = #{ a82 = #{ a58 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); b58 = 3 } } } in
   mark_test_run 51;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
   if not test then failwithf "test 51 failed";
 
-  (********************************)
-  (*   t65 = { int32#; int64# }   *)
-  (********************************)
-  let r = { a65 = #0l; b65 = #1L } in
+  (***************************************************)
+  (*   t85 = { int; #{ #{ int64x2#; int64x2# } } }   *)
+  (***************************************************)
+  let r = { a85 = 0; b85 = #{ a84 = #{ a60 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); b60 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } } in
   mark_test_run 52;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
   if not test then failwithf "test 52 failed";
 
-  (********************************)
-  (*   t66 = { int32#; int32# }   *)
-  (********************************)
-  let r = { a66 = #0l; b66 = #1l } in
+  (***********************)
+  (*   t86 = { int64 }   *)
+  (***********************)
+  let r = { a86 = 0L } in
   mark_test_run 53;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
   if not test then failwithf "test 53 failed";
 
-  (*************************************)
-  (*   t67 = { int32#; int32#; int }   *)
-  (*************************************)
-  let r = { a67 = #0l; b67 = #1l; c67 = 2 } in
+  (****************************)
+  (*   t87 = { int64; int }   *)
+  (****************************)
+  let r = { a87 = 0L; b87 = 1 } in
   mark_test_run 54;
-  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 54 failed";
 
-  (****************************************)
-  (*   t68 = { int32#; int32#; int32# }   *)
-  (****************************************)
-  let r = { a68 = #0l; b68 = #1l; c68 = #2l } in
+  (******************************)
+  (*   t88 = { int64; int64 }   *)
+  (******************************)
+  let r = { a88 = 0L; b88 = 1L } in
   mark_test_run 55;
-  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 55 failed";
 
-  (************************************)
-  (*   t69 = { int32#; nativeint# }   *)
-  (************************************)
-  let r = { a69 = #0l; b69 = #1n } in
+  (*******************************)
+  (*   t89 = { int64; int64# }   *)
+  (*******************************)
+  let r = { a89 = 0L; b89 = #1L } in
   mark_test_run 56;
   let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 56 failed";
 
   (*******************************)
-  (*   t70 = { int32#; float }   *)
+  (*   t90 = { int64; int32# }   *)
   (*******************************)
-  let r = { a70 = #0l; b70 = 1. } in
+  let r = { a90 = 0L; b90 = #1l } in
   mark_test_run 57;
   let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 57 failed";
 
-  (**********************************)
-  (*   t71 = { int32#; #{ int } }   *)
-  (**********************************)
-  let r = { a71 = #0l; b71 = #{ a18 = 1 } } in
+  (***********************************)
+  (*   t91 = { int64; nativeint# }   *)
+  (***********************************)
+  let r = { a91 = 0L; b91 = #1n } in
   mark_test_run 58;
   let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 58 failed";
 
-  (***************************************)
-  (*   t72 = { int32#; #{ int; int } }   *)
-  (***************************************)
-  let r = { a72 = #0l; b72 = #{ a20 = 1; b20 = 2 } } in
+  (******************************)
+  (*   t92 = { int64; float }   *)
+  (******************************)
+  let r = { a92 = 0L; b92 = 1. } in
   mark_test_run 59;
-  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 59 failed";
 
-  (******************************************)
-  (*   t73 = { int32#; #{ int; int32# } }   *)
-  (******************************************)
-  let r = { a73 = #0l; b73 = #{ a22 = 1; b22 = #2l } } in
+  (************************)
+  (*   t93 = { int64# }   *)
+  (************************)
+  let r = { a93 = #0L } in
   mark_test_run 60;
-  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
   if not test then failwithf "test 60 failed";
 
-  (*************************************)
-  (*   t74 = { int32#; #{ int32# } }   *)
-  (*************************************)
-  let r = { a74 = #0l; b74 = #{ a28 = #1l } } in
+  (*****************************)
+  (*   t94 = { int64#; int }   *)
+  (*****************************)
+  let r = { a94 = #0L; b94 = 1 } in
   mark_test_run 61;
   let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 61 failed";
 
-  (******************************************)
-  (*   t75 = { int32#; #{ int32#; int } }   *)
-  (******************************************)
-  let r = { a75 = #0l; b75 = #{ a30 = #1l; b30 = 2 } } in
+  (*******************************)
+  (*   t95 = { int64#; int64 }   *)
+  (*******************************)
+  let r = { a95 = #0L; b95 = 1L } in
   mark_test_run 62;
-  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 62 failed";
 
-  (*********************************************)
-  (*   t76 = { int32#; #{ int32#; int32# } }   *)
-  (*********************************************)
-  let r = { a76 = #0l; b76 = #{ a32 = #1l; b32 = #2l } } in
+  (********************************)
+  (*   t96 = { int64#; int64# }   *)
+  (********************************)
+  let r = { a96 = #0L; b96 = #1L } in
   mark_test_run 63;
-  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 63 failed";
 
-  (****************************)
-  (*   t77 = { nativeint# }   *)
-  (****************************)
-  let r = { a77 = #0n } in
+  (********************************)
+  (*   t97 = { int64#; int32# }   *)
+  (********************************)
+  let r = { a97 = #0L; b97 = #1l } in
   mark_test_run 64;
-  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 64 failed";
 
-  (*********************************)
-  (*   t78 = { nativeint#; int }   *)
-  (*********************************)
-  let r = { a78 = #0n; b78 = 1 } in
+  (************************************)
+  (*   t98 = { int64#; nativeint# }   *)
+  (************************************)
+  let r = { a98 = #0L; b98 = #1n } in
   mark_test_run 65;
   let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 65 failed";
 
-  (***********************************)
-  (*   t79 = { nativeint#; int64 }   *)
-  (***********************************)
-  let r = { a79 = #0n; b79 = 1L } in
+  (*******************************)
+  (*   t99 = { int64#; float }   *)
+  (*******************************)
+  let r = { a99 = #0L; b99 = 1. } in
   mark_test_run 66;
   let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 66 failed";
 
-  (************************************)
-  (*   t80 = { nativeint#; int64# }   *)
-  (************************************)
-  let r = { a80 = #0n; b80 = #1L } in
+  (*************************)
+  (*   t100 = { int32# }   *)
+  (*************************)
+  let r = { a100 = #0l } in
   mark_test_run 67;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
   if not test then failwithf "test 67 failed";
 
-  (************************************)
-  (*   t81 = { nativeint#; int32# }   *)
-  (************************************)
-  let r = { a81 = #0n; b81 = #1l } in
+  (******************************)
+  (*   t101 = { int32#; int }   *)
+  (******************************)
+  let r = { a101 = #0l; b101 = 1 } in
   mark_test_run 68;
   let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 68 failed";
 
-  (****************************************)
-  (*   t82 = { nativeint#; nativeint# }   *)
-  (****************************************)
-  let r = { a82 = #0n; b82 = #1n } in
+  (***********************************)
+  (*   t102 = { int32#; int; int }   *)
+  (***********************************)
+  let r = { a102 = #0l; b102 = 1; c102 = 2 } in
   mark_test_run 69;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 69 failed";
 
-  (***********************************)
-  (*   t83 = { nativeint#; float }   *)
-  (***********************************)
-  let r = { a83 = #0n; b83 = 1. } in
+  (**************************************)
+  (*   t103 = { int32#; int; int32# }   *)
+  (**************************************)
+  let r = { a103 = #0l; b103 = 1; c103 = #2l } in
   mark_test_run 70;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 70 failed";
 
-  (***********************)
-  (*   t84 = { float }   *)
-  (***********************)
-  let r = { a84 = 0. } in
+  (********************************)
+  (*   t104 = { int32#; int64 }   *)
+  (********************************)
+  let r = { a104 = #0l; b104 = 1L } in
   mark_test_run 71;
-  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 71 failed";
 
-  (****************************)
-  (*   t85 = { float; int }   *)
-  (****************************)
-  let r = { a85 = 0.; b85 = 1 } in
+  (*********************************)
+  (*   t105 = { int32#; int64# }   *)
+  (*********************************)
+  let r = { a105 = #0l; b105 = #1L } in
   mark_test_run 72;
   let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 72 failed";
 
   (*********************************)
-  (*   t86 = { float; int; int }   *)
+  (*   t106 = { int32#; int32# }   *)
   (*********************************)
-  let r = { a86 = 0.; b86 = 1; c86 = 2 } in
+  let r = { a106 = #0l; b106 = #1l } in
   mark_test_run 73;
-  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 73 failed";
 
-  (***********************************)
-  (*   t87 = { float; int; float }   *)
-  (***********************************)
-  let r = { a87 = 0.; b87 = 1; c87 = 2. } in
+  (**************************************)
+  (*   t107 = { int32#; int32#; int }   *)
+  (**************************************)
+  let r = { a107 = #0l; b107 = #1l; c107 = 2 } in
   mark_test_run 74;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 74 failed";
 
-  (******************************)
-  (*   t88 = { float; int64 }   *)
-  (******************************)
-  let r = { a88 = 0.; b88 = 1L } in
+  (*****************************************)
+  (*   t108 = { int32#; int32#; int32# }   *)
+  (*****************************************)
+  let r = { a108 = #0l; b108 = #1l; c108 = #2l } in
   mark_test_run 75;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 75 failed";
 
-  (*******************************)
-  (*   t89 = { float; int64# }   *)
-  (*******************************)
-  let r = { a89 = 0.; b89 = #1L } in
+  (*************************************)
+  (*   t109 = { int32#; nativeint# }   *)
+  (*************************************)
+  let r = { a109 = #0l; b109 = #1n } in
   mark_test_run 76;
   let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 76 failed";
 
-  (*******************************)
-  (*   t90 = { float; int32# }   *)
-  (*******************************)
-  let r = { a90 = 0.; b90 = #1l } in
+  (********************************)
+  (*   t110 = { int32#; float }   *)
+  (********************************)
+  let r = { a110 = #0l; b110 = 1. } in
   mark_test_run 77;
   let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 77 failed";
 
   (***********************************)
-  (*   t91 = { float; nativeint# }   *)
+  (*   t111 = { int32#; #{ int } }   *)
   (***********************************)
-  let r = { a91 = 0.; b91 = #1n } in
+  let r = { a111 = #0l; b111 = #{ a18 = 1 } } in
   mark_test_run 78;
   let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 78 failed";
 
-  (******************************)
-  (*   t92 = { float; float }   *)
-  (******************************)
-  let r = { a92 = 0.; b92 = 1. } in
+  (****************************************)
+  (*   t112 = { int32#; #{ int; int } }   *)
+  (****************************************)
+  let r = { a112 = #0l; b112 = #{ a20 = 1; b20 = 2 } } in
   mark_test_run 79;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 79 failed";
 
-  (***********************************)
-  (*   t93 = { float; float; int }   *)
-  (***********************************)
-  let r = { a93 = 0.; b93 = 1.; c93 = 2 } in
+  (*******************************************)
+  (*   t113 = { int32#; #{ int; int32# } }   *)
+  (*******************************************)
+  let r = { a113 = #0l; b113 = #{ a22 = 1; b22 = #2l } } in
   mark_test_run 80;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 80 failed";
 
-  (*************************************)
-  (*   t94 = { float; float; float }   *)
-  (*************************************)
-  let r = { a94 = 0.; b94 = 1.; c94 = 2. } in
+  (*********************************************)
+  (*   t114 = { int32#; #{ int; #{ int } } }   *)
+  (*********************************************)
+  let r = { a114 = #0l; b114 = #{ a28 = 1; b28 = #{ a18 = 2 } } } in
   mark_test_run 81;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 81 failed";
 
-  (*********************************)
-  (*   t95 = { float; #{ int } }   *)
-  (*********************************)
-  let r = { a95 = 0.; b95 = #{ a18 = 1 } } in
+  (************************************************)
+  (*   t115 = { int32#; #{ int; #{ int32# } } }   *)
+  (************************************************)
+  let r = { a115 = #0l; b115 = #{ a31 = 1; b31 = #{ a30 = #2l } } } in
   mark_test_run 82;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 82 failed";
 
   (**************************************)
-  (*   t96 = { float; #{ int; int } }   *)
+  (*   t116 = { int32#; #{ int32# } }   *)
   (**************************************)
-  let r = { a96 = 0.; b96 = #{ a20 = 1; b20 = 2 } } in
+  let r = { a116 = #0l; b116 = #{ a30 = #1l } } in
   mark_test_run 83;
-  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 83 failed";
 
-  (****************************************)
-  (*   t97 = { float; #{ int; float } }   *)
-  (****************************************)
-  let r = { a97 = 0.; b97 = #{ a24 = 1; b24 = 2. } } in
+  (*******************************************)
+  (*   t117 = { int32#; #{ int32#; int } }   *)
+  (*******************************************)
+  let r = { a117 = #0l; b117 = #{ a40 = #1l; b40 = 2 } } in
   mark_test_run 84;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 84 failed";
 
-  (***********************************)
-  (*   t98 = { float; #{ float } }   *)
-  (***********************************)
-  let r = { a98 = 0.; b98 = #{ a34 = 1. } } in
+  (**********************************************)
+  (*   t118 = { int32#; #{ int32#; int32# } }   *)
+  (**********************************************)
+  let r = { a118 = #0l; b118 = #{ a42 = #1l; b42 = #2l } } in
   mark_test_run 85;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 85 failed";
 
-  (****************************************)
-  (*   t99 = { float; #{ float; int } }   *)
-  (****************************************)
-  let r = { a99 = 0.; b99 = #{ a36 = 1.; b36 = 2 } } in
+  (************************************************)
+  (*   t119 = { int32#; #{ int32#; #{ int } } }   *)
+  (************************************************)
+  let r = { a119 = #0l; b119 = #{ a44 = #1l; b44 = #{ a18 = 2 } } } in
   mark_test_run 86;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 86 failed";
 
-  (*******************************************)
-  (*   t100 = { float; #{ float; float } }   *)
-  (*******************************************)
-  let r = { a100 = 0.; b100 = #{ a38 = 1.; b38 = 2. } } in
+  (***************************************************)
+  (*   t120 = { int32#; #{ int32#; #{ int32# } } }   *)
+  (***************************************************)
+  let r = { a120 = #0l; b120 = #{ a46 = #1l; b46 = #{ a30 = #2l } } } in
   mark_test_run 87;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 87 failed";
 
-  (***************************)
-  (*   t101 = { int64x2# }   *)
-  (***************************)
-  let r = { a101 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } in
+  (*********************************************)
+  (*   t121 = { int32#; #{ #{ int; int } } }   *)
+  (*********************************************)
+  let r = { a121 = #0l; b121 = #{ a66 = #{ a20 = 1; b20 = 2 } } } in
   mark_test_run 88;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 88 failed";
 
-  (********************************)
-  (*   t102 = { int64x2#; int }   *)
-  (********************************)
-  let r = { a102 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b102 = 2 } in
+  (************************************************)
+  (*   t122 = { int32#; #{ #{ int; int32# } } }   *)
+  (************************************************)
+  let r = { a122 = #0l; b122 = #{ a68 = #{ a22 = 1; b22 = #2l } } } in
   mark_test_run 89;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 89 failed";
 
-  (*************************************)
-  (*   t103 = { int64x2#; int; int }   *)
-  (*************************************)
-  let r = { a103 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b103 = 2; c103 = 3 } in
+  (************************************************)
+  (*   t123 = { int32#; #{ #{ int32#; int } } }   *)
+  (************************************************)
+  let r = { a123 = #0l; b123 = #{ a74 = #{ a40 = #1l; b40 = 2 } } } in
   mark_test_run 90;
-  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 90 failed";
 
-  (******************************************)
-  (*   t104 = { int64x2#; int; int64x2# }   *)
-  (******************************************)
-  let r = { a104 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b104 = 2; c104 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  (***************************************************)
+  (*   t124 = { int32#; #{ #{ int32#; int32# } } }   *)
+  (***************************************************)
+  let r = { a124 = #0l; b124 = #{ a76 = #{ a42 = #1l; b42 = #2l } } } in
   mark_test_run 91;
-  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 91 failed";
 
-  (*************************************)
-  (*   t105 = { int64x2#; int64x2# }   *)
-  (*************************************)
-  let r = { a105 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b105 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  (*****************************)
+  (*   t125 = { nativeint# }   *)
+  (*****************************)
+  let r = { a125 = #0n } in
   mark_test_run 92;
-  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
   if not test then failwithf "test 92 failed";
 
-  (******************************************)
-  (*   t106 = { int64x2#; int64x2#; int }   *)
-  (******************************************)
-  let r = { a106 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b106 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c106 = 4 } in
+  (**********************************)
+  (*   t126 = { nativeint#; int }   *)
+  (**********************************)
+  let r = { a126 = #0n; b126 = 1 } in
   mark_test_run 93;
-  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 93 failed";
 
-  (***********************************************)
-  (*   t107 = { int64x2#; int64x2#; int64x2# }   *)
-  (***********************************************)
-  let r = { a107 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b107 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c107 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
+  (************************************)
+  (*   t127 = { nativeint#; int64 }   *)
+  (************************************)
+  let r = { a127 = #0n; b127 = 1L } in
   mark_test_run 94;
-  let test = Int.equal (Obj.size (Obj.repr r)) 6 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 94 failed";
 
   (*************************************)
-  (*   t108 = { int64x2#; #{ int } }   *)
+  (*   t128 = { nativeint#; int64# }   *)
   (*************************************)
-  let r = { a108 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b108 = #{ a18 = 2 } } in
+  let r = { a128 = #0n; b128 = #1L } in
   mark_test_run 95;
-  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 95 failed";
 
-  (******************************************)
-  (*   t109 = { int64x2#; #{ int; int } }   *)
-  (******************************************)
-  let r = { a109 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b109 = #{ a20 = 2; b20 = 3 } } in
+  (*************************************)
+  (*   t129 = { nativeint#; int32# }   *)
+  (*************************************)
+  let r = { a129 = #0n; b129 = #1l } in
   mark_test_run 96;
-  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 96 failed";
 
-  (***********************************************)
-  (*   t110 = { int64x2#; #{ int; int64x2# } }   *)
-  (***********************************************)
-  let r = { a110 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b110 = #{ a26 = 2; b26 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } in
+  (*****************************************)
+  (*   t130 = { nativeint#; nativeint# }   *)
+  (*****************************************)
+  let r = { a130 = #0n; b130 = #1n } in
   mark_test_run 97;
-  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 97 failed";
 
-  (************************************************)
-  (*   t112 = { int64x2#; #{ string; float# } }   *)
-  (************************************************)
-  let r = { a112 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b112 = #{ a111 = "2"; b111 = #3. } } in
+  (************************************)
+  (*   t131 = { nativeint#; float }   *)
+  (************************************)
+  let r = { a131 = #0n; b131 = 1. } in
   mark_test_run 98;
-  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 98 failed";
 
-  (******************************************)
-  (*   t113 = { int64x2#; #{ int64x2# } }   *)
-  (******************************************)
-  let r = { a113 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b113 = #{ a40 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
+  (************************)
+  (*   t132 = { float }   *)
+  (************************)
+  let r = { a132 = 0. } in
   mark_test_run 99;
-  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
   if not test then failwithf "test 99 failed";
 
-  (***********************************************)
-  (*   t114 = { int64x2#; #{ int64x2#; int } }   *)
-  (***********************************************)
-  let r = { a114 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b114 = #{ a42 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b42 = 4 } } in
+  (*****************************)
+  (*   t133 = { float; int }   *)
+  (*****************************)
+  let r = { a133 = 0.; b133 = 1 } in
   mark_test_run 100;
-  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 100 failed";
 
-  (****************************************************)
-  (*   t115 = { int64x2#; #{ int64x2#; int64x2# } }   *)
-  (****************************************************)
-  let r = { a115 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b115 = #{ a44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b44 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } } in
+  (**********************************)
+  (*   t134 = { float; int; int }   *)
+  (**********************************)
+  let r = { a134 = 0.; b134 = 1; c134 = 2 } in
   mark_test_run 101;
-  let test = Int.equal (Obj.size (Obj.repr r)) 6 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 101 failed";
 
-  (***************************)
-  (*   t116 = { #{ int } }   *)
-  (***************************)
-  let r = { a116 = #{ a18 = 0 } } in
+  (************************************)
+  (*   t135 = { float; int; float }   *)
+  (************************************)
+  let r = { a135 = 0.; b135 = 1; c135 = 2. } in
   mark_test_run 102;
-  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 102 failed";
 
-  (********************************)
-  (*   t117 = { #{ int }; int }   *)
-  (********************************)
-  let r = { a117 = #{ a18 = 0 }; b117 = 1 } in
+  (*******************************)
+  (*   t136 = { float; int64 }   *)
+  (*******************************)
+  let r = { a136 = 0.; b136 = 1L } in
   mark_test_run 103;
   let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 103 failed";
 
-  (***********************************)
-  (*   t118 = { #{ int }; int32# }   *)
-  (***********************************)
-  let r = { a118 = #{ a18 = 0 }; b118 = #1l } in
+  (********************************)
+  (*   t137 = { float; int64# }   *)
+  (********************************)
+  let r = { a137 = 0.; b137 = #1L } in
   mark_test_run 104;
   let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 104 failed";
 
-  (**********************************)
-  (*   t119 = { #{ int }; float }   *)
-  (**********************************)
-  let r = { a119 = #{ a18 = 0 }; b119 = 1. } in
+  (********************************)
+  (*   t138 = { float; int32# }   *)
+  (********************************)
+  let r = { a138 = 0.; b138 = #1l } in
   mark_test_run 105;
   let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 105 failed";
 
-  (*************************************)
-  (*   t120 = { #{ int }; int64x2# }   *)
-  (*************************************)
-  let r = { a120 = #{ a18 = 0 }; b120 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
+  (************************************)
+  (*   t139 = { float; nativeint# }   *)
+  (************************************)
+  let r = { a139 = 0.; b139 = #1n } in
   mark_test_run 106;
-  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 106 failed";
 
-  (********************************)
-  (*   t121 = { #{ int; int } }   *)
-  (********************************)
-  let r = { a121 = #{ a20 = 0; b20 = 1 } } in
+  (*******************************)
+  (*   t140 = { float; float }   *)
+  (*******************************)
+  let r = { a140 = 0.; b140 = 1. } in
   mark_test_run 107;
   let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 107 failed";
 
-  (*************************************)
-  (*   t122 = { #{ int; int }; int }   *)
-  (*************************************)
-  let r = { a122 = #{ a20 = 0; b20 = 1 }; b122 = 2 } in
+  (************************************)
+  (*   t141 = { float; float; int }   *)
+  (************************************)
+  let r = { a141 = 0.; b141 = 1.; c141 = 2 } in
   mark_test_run 108;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 108 failed";
 
-  (****************************************)
-  (*   t123 = { #{ int; int }; int32# }   *)
-  (****************************************)
-  let r = { a123 = #{ a20 = 0; b20 = 1 }; b123 = #2l } in
+  (**************************************)
+  (*   t142 = { float; float; float }   *)
+  (**************************************)
+  let r = { a142 = 0.; b142 = 1.; c142 = 2. } in
   mark_test_run 109;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 109 failed";
 
   (***************************************)
-  (*   t124 = { #{ int; int }; float }   *)
+  (*   t143 = { float; float; float# }   *)
   (***************************************)
-  let r = { a124 = #{ a20 = 0; b20 = 1 }; b124 = 2. } in
+  let r = { a143 = 0.; b143 = 1.; c143 = #2. } in
   mark_test_run 110;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 110 failed";
 
-  (******************************************)
-  (*   t125 = { #{ int; int }; int64x2# }   *)
-  (******************************************)
-  let r = { a125 = #{ a20 = 0; b20 = 1 }; b125 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  (********************************)
+  (*   t144 = { float; float# }   *)
+  (********************************)
+  let r = { a144 = 0.; b144 = #1. } in
   mark_test_run 111;
-  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 111 failed";
 
-  (***********************************)
-  (*   t126 = { #{ int; int32# } }   *)
-  (***********************************)
-  let r = { a126 = #{ a22 = 0; b22 = #1l } } in
+  (***************************************)
+  (*   t145 = { float; float#; float }   *)
+  (***************************************)
+  let r = { a145 = 0.; b145 = #1.; c145 = 2. } in
   mark_test_run 112;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 112 failed";
 
   (****************************************)
-  (*   t127 = { #{ int; int32# }; int }   *)
+  (*   t146 = { float; float#; float# }   *)
   (****************************************)
-  let r = { a127 = #{ a22 = 0; b22 = #1l }; b127 = 2 } in
+  let r = { a146 = 0.; b146 = #1.; c146 = #2. } in
   mark_test_run 113;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 113 failed";
 
-  (*******************************************)
-  (*   t128 = { #{ int; int32# }; int32# }   *)
-  (*******************************************)
-  let r = { a128 = #{ a22 = 0; b22 = #1l }; b128 = #2l } in
+  (**********************************)
+  (*   t147 = { float; #{ int } }   *)
+  (**********************************)
+  let r = { a147 = 0.; b147 = #{ a18 = 1 } } in
   mark_test_run 114;
-  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 114 failed";
 
-  (**********************************)
-  (*   t129 = { #{ int; float } }   *)
-  (**********************************)
-  let r = { a129 = #{ a24 = 0; b24 = 1. } } in
+  (***************************************)
+  (*   t148 = { float; #{ int; int } }   *)
+  (***************************************)
+  let r = { a148 = 0.; b148 = #{ a20 = 1; b20 = 2 } } in
   mark_test_run 115;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 115 failed";
 
-  (***************************************)
-  (*   t130 = { #{ int; float }; int }   *)
-  (***************************************)
-  let r = { a130 = #{ a24 = 0; b24 = 1. }; b130 = 2 } in
+  (*****************************************)
+  (*   t149 = { float; #{ int; float } }   *)
+  (*****************************************)
+  let r = { a149 = 0.; b149 = #{ a24 = 1; b24 = 2. } } in
   mark_test_run 116;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 116 failed";
 
-  (*****************************************)
-  (*   t131 = { #{ int; float }; float }   *)
-  (*****************************************)
-  let r = { a131 = #{ a24 = 0; b24 = 1. }; b131 = 2. } in
+  (********************************************)
+  (*   t150 = { float; #{ int; #{ int } } }   *)
+  (********************************************)
+  let r = { a150 = 0.; b150 = #{ a28 = 1; b28 = #{ a18 = 2 } } } in
   mark_test_run 117;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 117 failed";
 
-  (*************************************)
-  (*   t132 = { #{ int; int64x2# } }   *)
-  (*************************************)
-  let r = { a132 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } } in
+  (**********************************************)
+  (*   t151 = { float; #{ int; #{ float } } }   *)
+  (**********************************************)
+  let r = { a151 = 0.; b151 = #{ a34 = 1; b34 = #{ a33 = 2. } } } in
   mark_test_run 118;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 118 failed";
 
-  (******************************************)
-  (*   t133 = { #{ int; int64x2# }; int }   *)
-  (******************************************)
-  let r = { a133 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b133 = 3 } in
+  (************************************)
+  (*   t152 = { float; #{ float } }   *)
+  (************************************)
+  let r = { a152 = 0.; b152 = #{ a33 = 1. } } in
   mark_test_run 119;
-  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 119 failed";
 
-  (***********************************************)
-  (*   t134 = { #{ int; int64x2# }; int64x2# }   *)
-  (***********************************************)
-  let r = { a134 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b134 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  (*****************************************)
+  (*   t153 = { float; #{ float; int } }   *)
+  (*****************************************)
+  let r = { a153 = 0.; b153 = #{ a49 = 1.; b49 = 2 } } in
   mark_test_run 120;
-  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 120 failed";
 
-  (**********************************************************)
-  (*   t137 = { #{ int64; int64# }; #{ int64#; float# } }   *)
-  (**********************************************************)
-  let r = { a137 = #{ a135 = 0L; b135 = #1L }; b137 = #{ a136 = #2L; b136 = #3. } } in
+  (*******************************************)
+  (*   t154 = { float; #{ float; float } }   *)
+  (*******************************************)
+  let r = { a154 = 0.; b154 = #{ a51 = 1.; b51 = 2. } } in
   mark_test_run 121;
-  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 121 failed";
 
-  (**********************************************************)
-  (*   t140 = { #{ int64; string }; #{ int64#; string } }   *)
-  (**********************************************************)
-  let r = { a140 = #{ a138 = 0L; b138 = "1" }; b140 = #{ a139 = #2L; b139 = "3" } } in
+  (********************************************)
+  (*   t156 = { float; #{ float; float# } }   *)
+  (********************************************)
+  let r = { a156 = 0.; b156 = #{ a155 = 1.; b155 = #2. } } in
   mark_test_run 122;
-  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 122 failed";
 
-  (********************************************************)
-  (*   t143 = { #{ int64#; int64 }; #{ int64; int64 } }   *)
-  (********************************************************)
-  let r = { a143 = #{ a141 = #0L; b141 = 1L }; b143 = #{ a142 = 2L; b142 = 3L } } in
+  (**********************************************)
+  (*   t157 = { float; #{ float; #{ int } } }   *)
+  (**********************************************)
+  let r = { a157 = 0.; b157 = #{ a53 = 1.; b53 = #{ a18 = 2 } } } in
   mark_test_run 123;
-  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 123 failed";
 
-  (***********************************************************)
-  (*   t145 = { #{ int64#; int64 }; #{ float32#; float } }   *)
-  (***********************************************************)
-  let r = { a145 = #{ a141 = #0L; b141 = 1L }; b145 = #{ a144 = #2.s; b144 = 3. } } in
+  (************************************************)
+  (*   t158 = { float; #{ float; #{ float } } }   *)
+  (************************************************)
+  let r = { a158 = 0.; b158 = #{ a55 = 1.; b55 = #{ a33 = 2. } } } in
   mark_test_run 124;
-  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 124 failed";
 
-  (******************************)
-  (*   t146 = { #{ int32# } }   *)
-  (******************************)
-  let r = { a146 = #{ a28 = #0l } } in
+  (*************************************************)
+  (*   t161 = { float; #{ float; #{ float# } } }   *)
+  (*************************************************)
+  let r = { a161 = 0.; b161 = #{ a160 = 1.; b160 = #{ a159 = #2. } } } in
   mark_test_run 125;
-  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 125 failed";
 
-  (***********************************)
-  (*   t147 = { #{ int32# }; int }   *)
-  (***********************************)
-  let r = { a147 = #{ a28 = #0l }; b147 = 1 } in
+  (*************************************)
+  (*   t162 = { float; #{ float# } }   *)
+  (*************************************)
+  let r = { a162 = 0.; b162 = #{ a159 = #1. } } in
   mark_test_run 126;
   let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 126 failed";
 
-  (**************************************)
-  (*   t148 = { #{ int32# }; int32# }   *)
-  (**************************************)
-  let r = { a148 = #{ a28 = #0l }; b148 = #1l } in
+  (********************************************)
+  (*   t164 = { float; #{ float#; float } }   *)
+  (********************************************)
+  let r = { a164 = 0.; b164 = #{ a163 = #1.; b163 = 2. } } in
   mark_test_run 127;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 127 failed";
 
-  (***********************************)
-  (*   t149 = { #{ int32#; int } }   *)
-  (***********************************)
-  let r = { a149 = #{ a30 = #0l; b30 = 1 } } in
+  (*********************************************)
+  (*   t166 = { float; #{ float#; float# } }   *)
+  (*********************************************)
+  let r = { a166 = 0.; b166 = #{ a165 = #1.; b165 = #2. } } in
   mark_test_run 128;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 128 failed";
 
-  (****************************************)
-  (*   t150 = { #{ int32#; int }; int }   *)
-  (****************************************)
-  let r = { a150 = #{ a30 = #0l; b30 = 1 }; b150 = 2 } in
+  (*************************************************)
+  (*   t168 = { float; #{ float#; #{ float } } }   *)
+  (*************************************************)
+  let r = { a168 = 0.; b168 = #{ a167 = #1.; b167 = #{ a33 = 2. } } } in
   mark_test_run 129;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 129 failed";
 
-  (*******************************************)
-  (*   t151 = { #{ int32#; int }; int32# }   *)
-  (*******************************************)
-  let r = { a151 = #{ a30 = #0l; b30 = 1 }; b151 = #2l } in
+  (**************************************************)
+  (*   t170 = { float; #{ float#; #{ float# } } }   *)
+  (**************************************************)
+  let r = { a170 = 0.; b170 = #{ a169 = #1.; b169 = #{ a159 = #2. } } } in
   mark_test_run 130;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 130 failed";
 
-  (**************************************)
-  (*   t152 = { #{ int32#; int32# } }   *)
-  (**************************************)
-  let r = { a152 = #{ a32 = #0l; b32 = #1l } } in
+  (********************************************)
+  (*   t171 = { float; #{ #{ int; int } } }   *)
+  (********************************************)
+  let r = { a171 = 0.; b171 = #{ a66 = #{ a20 = 1; b20 = 2 } } } in
   mark_test_run 131;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 131 failed";
 
-  (*******************************************)
-  (*   t153 = { #{ int32#; int32# }; int }   *)
-  (*******************************************)
-  let r = { a153 = #{ a32 = #0l; b32 = #1l }; b153 = 2 } in
+  (**********************************************)
+  (*   t172 = { float; #{ #{ int; float } } }   *)
+  (**********************************************)
+  let r = { a172 = 0.; b172 = #{ a70 = #{ a24 = 1; b24 = 2. } } } in
   mark_test_run 132;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 132 failed";
 
   (**********************************************)
-  (*   t154 = { #{ int32#; int32# }; int32# }   *)
+  (*   t173 = { float; #{ #{ float; int } } }   *)
   (**********************************************)
-  let r = { a154 = #{ a32 = #0l; b32 = #1l }; b154 = #2l } in
+  let r = { a173 = 0.; b173 = #{ a78 = #{ a49 = 1.; b49 = 2 } } } in
   mark_test_run 133;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 133 failed";
 
-  (*****************************)
-  (*   t155 = { #{ float } }   *)
-  (*****************************)
-  let r = { a155 = #{ a34 = 0. } } in
+  (************************************************)
+  (*   t174 = { float; #{ #{ float; float } } }   *)
+  (************************************************)
+  let r = { a174 = 0.; b174 = #{ a80 = #{ a51 = 1.; b51 = 2. } } } in
   mark_test_run 134;
-  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 134 failed";
 
-  (**********************************)
-  (*   t156 = { #{ float }; int }   *)
-  (**********************************)
-  let r = { a156 = #{ a34 = 0. }; b156 = 1 } in
+  (*************************************************)
+  (*   t176 = { float; #{ #{ float; float# } } }   *)
+  (*************************************************)
+  let r = { a176 = 0.; b176 = #{ a175 = #{ a155 = 1.; b155 = #2. } } } in
   mark_test_run 135;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 135 failed";
 
-  (************************************)
-  (*   t157 = { #{ float }; float }   *)
-  (************************************)
-  let r = { a157 = #{ a34 = 0. }; b157 = 1. } in
+  (*************************************************)
+  (*   t178 = { float; #{ #{ float#; float } } }   *)
+  (*************************************************)
+  let r = { a178 = 0.; b178 = #{ a177 = #{ a163 = #1.; b163 = 2. } } } in
   mark_test_run 136;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 136 failed";
 
-  (**********************************)
-  (*   t158 = { #{ float; int } }   *)
-  (**********************************)
-  let r = { a158 = #{ a36 = 0.; b36 = 1 } } in
+  (**************************************************)
+  (*   t180 = { float; #{ #{ float#; float# } } }   *)
+  (**************************************************)
+  let r = { a180 = 0.; b180 = #{ a179 = #{ a165 = #1.; b165 = #2. } } } in
   mark_test_run 137;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 137 failed";
 
-  (***************************************)
-  (*   t159 = { #{ float; int }; int }   *)
-  (***************************************)
-  let r = { a159 = #{ a36 = 0.; b36 = 1 }; b159 = 2 } in
+  (*************************)
+  (*   t181 = { float# }   *)
+  (*************************)
+  let r = { a181 = #0. } in
   mark_test_run 138;
-  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
   if not test then failwithf "test 138 failed";
 
-  (*****************************************)
-  (*   t160 = { #{ float; int }; float }   *)
-  (*****************************************)
-  let r = { a160 = #{ a36 = 0.; b36 = 1 }; b160 = 2. } in
+  (********************************)
+  (*   t182 = { float#; float }   *)
+  (********************************)
+  let r = { a182 = #0.; b182 = 1. } in
   mark_test_run 139;
-  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 139 failed";
 
-  (************************************)
-  (*   t161 = { #{ float; float } }   *)
-  (************************************)
-  let r = { a161 = #{ a38 = 0.; b38 = 1. } } in
+  (***************************************)
+  (*   t183 = { float#; float; float }   *)
+  (***************************************)
+  let r = { a183 = #0.; b183 = 1.; c183 = 2. } in
   mark_test_run 140;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 140 failed";
 
-  (*****************************************)
-  (*   t162 = { #{ float; float }; int }   *)
-  (*****************************************)
-  let r = { a162 = #{ a38 = 0.; b38 = 1. }; b162 = 2 } in
+  (****************************************)
+  (*   t184 = { float#; float; float# }   *)
+  (****************************************)
+  let r = { a184 = #0.; b184 = 1.; c184 = #2. } in
   mark_test_run 141;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 141 failed";
 
-  (*******************************************)
-  (*   t163 = { #{ float; float }; float }   *)
-  (*******************************************)
-  let r = { a163 = #{ a38 = 0.; b38 = 1. }; b163 = 2. } in
+  (*********************************)
+  (*   t185 = { float#; float# }   *)
+  (*********************************)
+  let r = { a185 = #0.; b185 = #1. } in
   mark_test_run 142;
-  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 142 failed";
 
-  (*************************************************************)
-  (*   t166 = { #{ float32#; int64# }; #{ string; int64# } }   *)
-  (*************************************************************)
-  let r = { a166 = #{ a164 = #0.s; b164 = #1L }; b166 = #{ a165 = "2"; b165 = #3L } } in
+  (****************************************)
+  (*   t186 = { float#; float#; float }   *)
+  (****************************************)
+  let r = { a186 = #0.; b186 = #1.; c186 = 2. } in
   mark_test_run 143;
-  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 143 failed";
 
-  (********************************)
-  (*   t167 = { #{ int64x2# } }   *)
-  (********************************)
-  let r = { a167 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } } in
+  (*****************************************)
+  (*   t187 = { float#; float#; float# }   *)
+  (*****************************************)
+  let r = { a187 = #0.; b187 = #1.; c187 = #2. } in
   mark_test_run 144;
-  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 144 failed";
 
   (*************************************)
-  (*   t168 = { #{ int64x2# }; int }   *)
+  (*   t188 = { float#; #{ float } }   *)
   (*************************************)
-  let r = { a168 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b168 = 2 } in
+  let r = { a188 = #0.; b188 = #{ a33 = 1. } } in
   mark_test_run 145;
-  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 145 failed";
 
-  (******************************************)
-  (*   t169 = { #{ int64x2# }; int64x2# }   *)
-  (******************************************)
-  let r = { a169 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b169 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  (********************************************)
+  (*   t189 = { float#; #{ float; float } }   *)
+  (********************************************)
+  let r = { a189 = #0.; b189 = #{ a51 = 1.; b51 = 2. } } in
   mark_test_run 146;
-  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 146 failed";
 
-  (*************************************)
-  (*   t170 = { #{ int64x2#; int } }   *)
-  (*************************************)
-  let r = { a170 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 } } in
+  (*********************************************)
+  (*   t190 = { float#; #{ float; float# } }   *)
+  (*********************************************)
+  let r = { a190 = #0.; b190 = #{ a155 = 1.; b155 = #2. } } in
   mark_test_run 147;
   let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 147 failed";
 
-  (******************************************)
-  (*   t171 = { #{ int64x2#; int }; int }   *)
-  (******************************************)
-  let r = { a171 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 }; b171 = 3 } in
+  (*************************************************)
+  (*   t191 = { float#; #{ float; #{ float } } }   *)
+  (*************************************************)
+  let r = { a191 = #0.; b191 = #{ a55 = 1.; b55 = #{ a33 = 2. } } } in
   mark_test_run 148;
-  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 148 failed";
 
-  (***********************************************)
-  (*   t172 = { #{ int64x2#; int }; int64x2# }   *)
-  (***********************************************)
-  let r = { a172 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 }; b172 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  (**************************************************)
+  (*   t192 = { float#; #{ float; #{ float# } } }   *)
+  (**************************************************)
+  let r = { a192 = #0.; b192 = #{ a160 = 1.; b160 = #{ a159 = #2. } } } in
   mark_test_run 149;
-  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 149 failed";
 
-  (************************************************************)
-  (*   t175 = { #{ int64x2#; string }; #{ int64; float# } }   *)
-  (************************************************************)
-  let r = { a175 = #{ a173 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b173 = "2" }; b175 = #{ a174 = 3L; b174 = #4. } } in
+  (**************************************)
+  (*   t193 = { float#; #{ float# } }   *)
+  (**************************************)
+  let r = { a193 = #0.; b193 = #{ a159 = #1. } } in
   mark_test_run 150;
-  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
   if not test then failwithf "test 150 failed";
 
-  (******************************************)
-  (*   t176 = { #{ int64x2#; int64x2# } }   *)
-  (******************************************)
-  let r = { a176 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
+  (*********************************************)
+  (*   t194 = { float#; #{ float#; float } }   *)
+  (*********************************************)
+  let r = { a194 = #0.; b194 = #{ a163 = #1.; b163 = 2. } } in
   mark_test_run 151;
-  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 151 failed";
 
-  (***********************************************)
-  (*   t177 = { #{ int64x2#; int64x2# }; int }   *)
-  (***********************************************)
-  let r = { a177 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b177 = 4 } in
+  (**********************************************)
+  (*   t195 = { float#; #{ float#; float# } }   *)
+  (**********************************************)
+  let r = { a195 = #0.; b195 = #{ a165 = #1.; b165 = #2. } } in
   mark_test_run 152;
-  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 152 failed";
 
-  (****************************************************)
-  (*   t178 = { #{ int64x2#; int64x2# }; int64x2# }   *)
-  (****************************************************)
-  let r = { a178 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b178 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
+  (**************************************************)
+  (*   t196 = { float#; #{ float#; #{ float } } }   *)
+  (**************************************************)
+  let r = { a196 = #0.; b196 = #{ a167 = #1.; b167 = #{ a33 = 2. } } } in
   mark_test_run 153;
-  let test = Int.equal (Obj.size (Obj.repr r)) 6 in
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
   if not test then failwithf "test 153 failed";
+
+  (***************************************************)
+  (*   t197 = { float#; #{ float#; #{ float# } } }   *)
+  (***************************************************)
+  let r = { a197 = #0.; b197 = #{ a169 = #1.; b169 = #{ a159 = #2. } } } in
+  mark_test_run 154;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 154 failed";
+
+  (*************************************************)
+  (*   t198 = { float#; #{ #{ float; float } } }   *)
+  (*************************************************)
+  let r = { a198 = #0.; b198 = #{ a80 = #{ a51 = 1.; b51 = 2. } } } in
+  mark_test_run 155;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 155 failed";
+
+  (**************************************************)
+  (*   t199 = { float#; #{ #{ float; float# } } }   *)
+  (**************************************************)
+  let r = { a199 = #0.; b199 = #{ a175 = #{ a155 = 1.; b155 = #2. } } } in
+  mark_test_run 156;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 156 failed";
+
+  (**************************************************)
+  (*   t200 = { float#; #{ #{ float#; float } } }   *)
+  (**************************************************)
+  let r = { a200 = #0.; b200 = #{ a177 = #{ a163 = #1.; b163 = 2. } } } in
+  mark_test_run 157;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 157 failed";
+
+  (***************************************************)
+  (*   t201 = { float#; #{ #{ float#; float# } } }   *)
+  (***************************************************)
+  let r = { a201 = #0.; b201 = #{ a179 = #{ a165 = #1.; b165 = #2. } } } in
+  mark_test_run 158;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 158 failed";
+
+  (***************************)
+  (*   t202 = { int64x2# }   *)
+  (***************************)
+  let r = { a202 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } in
+  mark_test_run 159;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 159 failed";
+
+  (********************************)
+  (*   t203 = { int64x2#; int }   *)
+  (********************************)
+  let r = { a203 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b203 = 2 } in
+  mark_test_run 160;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 160 failed";
+
+  (*************************************)
+  (*   t204 = { int64x2#; int; int }   *)
+  (*************************************)
+  let r = { a204 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b204 = 2; c204 = 3 } in
+  mark_test_run 161;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 161 failed";
+
+  (******************************************)
+  (*   t205 = { int64x2#; int; int64x2# }   *)
+  (******************************************)
+  let r = { a205 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b205 = 2; c205 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  mark_test_run 162;
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  if not test then failwithf "test 162 failed";
+
+  (*************************************)
+  (*   t206 = { int64x2#; int64x2# }   *)
+  (*************************************)
+  let r = { a206 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b206 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  mark_test_run 163;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 163 failed";
+
+  (******************************************)
+  (*   t207 = { int64x2#; int64x2#; int }   *)
+  (******************************************)
+  let r = { a207 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b207 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c207 = 4 } in
+  mark_test_run 164;
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  if not test then failwithf "test 164 failed";
+
+  (***********************************************)
+  (*   t208 = { int64x2#; int64x2#; int64x2# }   *)
+  (***********************************************)
+  let r = { a208 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b208 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c208 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
+  mark_test_run 165;
+  let test = Int.equal (Obj.size (Obj.repr r)) 6 in
+  if not test then failwithf "test 165 failed";
+
+  (*************************************)
+  (*   t209 = { int64x2#; #{ int } }   *)
+  (*************************************)
+  let r = { a209 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b209 = #{ a18 = 2 } } in
+  mark_test_run 166;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 166 failed";
+
+  (******************************************)
+  (*   t210 = { int64x2#; #{ int; int } }   *)
+  (******************************************)
+  let r = { a210 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b210 = #{ a20 = 2; b20 = 3 } } in
+  mark_test_run 167;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 167 failed";
+
+  (***********************************************)
+  (*   t211 = { int64x2#; #{ int; int64x2# } }   *)
+  (***********************************************)
+  let r = { a211 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b211 = #{ a26 = 2; b26 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } in
+  mark_test_run 168;
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  if not test then failwithf "test 168 failed";
+
+  (***********************************************)
+  (*   t212 = { int64x2#; #{ int; #{ int } } }   *)
+  (***********************************************)
+  let r = { a212 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b212 = #{ a28 = 2; b28 = #{ a18 = 3 } } } in
+  mark_test_run 169;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 169 failed";
+
+  (****************************************************)
+  (*   t213 = { int64x2#; #{ int; #{ int64x2# } } }   *)
+  (****************************************************)
+  let r = { a213 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b213 = #{ a37 = 2; b37 = #{ a36 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } } in
+  mark_test_run 170;
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  if not test then failwithf "test 170 failed";
+
+  (************************************************)
+  (*   t215 = { int64x2#; #{ string; float# } }   *)
+  (************************************************)
+  let r = { a215 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b215 = #{ a214 = "2"; b214 = #3. } } in
+  mark_test_run 171;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 171 failed";
+
+  (******************************************)
+  (*   t216 = { int64x2#; #{ int64x2# } }   *)
+  (******************************************)
+  let r = { a216 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b216 = #{ a36 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
+  mark_test_run 172;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 172 failed";
+
+  (***********************************************)
+  (*   t217 = { int64x2#; #{ int64x2#; int } }   *)
+  (***********************************************)
+  let r = { a217 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b217 = #{ a58 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b58 = 4 } } in
+  mark_test_run 173;
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  if not test then failwithf "test 173 failed";
+
+  (****************************************************)
+  (*   t218 = { int64x2#; #{ int64x2#; int64x2# } }   *)
+  (****************************************************)
+  let r = { a218 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b218 = #{ a60 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b60 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } } in
+  mark_test_run 174;
+  let test = Int.equal (Obj.size (Obj.repr r)) 6 in
+  if not test then failwithf "test 174 failed";
+
+  (****************************************************)
+  (*   t219 = { int64x2#; #{ int64x2#; #{ int } } }   *)
+  (****************************************************)
+  let r = { a219 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b219 = #{ a62 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b62 = #{ a18 = 4 } } } in
+  mark_test_run 175;
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  if not test then failwithf "test 175 failed";
+
+  (*********************************************************)
+  (*   t220 = { int64x2#; #{ int64x2#; #{ int64x2# } } }   *)
+  (*********************************************************)
+  let r = { a220 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b220 = #{ a64 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b64 = #{ a36 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } } } in
+  mark_test_run 176;
+  let test = Int.equal (Obj.size (Obj.repr r)) 6 in
+  if not test then failwithf "test 176 failed";
+
+  (***********************************************)
+  (*   t221 = { int64x2#; #{ #{ int; int } } }   *)
+  (***********************************************)
+  let r = { a221 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b221 = #{ a66 = #{ a20 = 2; b20 = 3 } } } in
+  mark_test_run 177;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 177 failed";
+
+  (****************************************************)
+  (*   t222 = { int64x2#; #{ #{ int; int64x2# } } }   *)
+  (****************************************************)
+  let r = { a222 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b222 = #{ a72 = #{ a26 = 2; b26 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } } in
+  mark_test_run 178;
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  if not test then failwithf "test 178 failed";
+
+  (****************************************************)
+  (*   t223 = { int64x2#; #{ #{ int64x2#; int } } }   *)
+  (****************************************************)
+  let r = { a223 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b223 = #{ a82 = #{ a58 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b58 = 4 } } } in
+  mark_test_run 179;
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  if not test then failwithf "test 179 failed";
+
+  (*********************************************************)
+  (*   t224 = { int64x2#; #{ #{ int64x2#; int64x2# } } }   *)
+  (*********************************************************)
+  let r = { a224 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b224 = #{ a84 = #{ a60 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b60 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } } } in
+  mark_test_run 180;
+  let test = Int.equal (Obj.size (Obj.repr r)) 6 in
+  if not test then failwithf "test 180 failed";
+
+  (***************************)
+  (*   t225 = { #{ int } }   *)
+  (***************************)
+  let r = { a225 = #{ a18 = 0 } } in
+  mark_test_run 181;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 181 failed";
+
+  (********************************)
+  (*   t226 = { #{ int }; int }   *)
+  (********************************)
+  let r = { a226 = #{ a18 = 0 }; b226 = 1 } in
+  mark_test_run 182;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 182 failed";
+
+  (***********************************)
+  (*   t227 = { #{ int }; int32# }   *)
+  (***********************************)
+  let r = { a227 = #{ a18 = 0 }; b227 = #1l } in
+  mark_test_run 183;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 183 failed";
+
+  (**********************************)
+  (*   t228 = { #{ int }; float }   *)
+  (**********************************)
+  let r = { a228 = #{ a18 = 0 }; b228 = 1. } in
+  mark_test_run 184;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 184 failed";
+
+  (*************************************)
+  (*   t229 = { #{ int }; int64x2# }   *)
+  (*************************************)
+  let r = { a229 = #{ a18 = 0 }; b229 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
+  mark_test_run 185;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 185 failed";
+
+  (********************************)
+  (*   t230 = { #{ int; int } }   *)
+  (********************************)
+  let r = { a230 = #{ a20 = 0; b20 = 1 } } in
+  mark_test_run 186;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 186 failed";
+
+  (*************************************)
+  (*   t231 = { #{ int; int }; int }   *)
+  (*************************************)
+  let r = { a231 = #{ a20 = 0; b20 = 1 }; b231 = 2 } in
+  mark_test_run 187;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 187 failed";
+
+  (****************************************)
+  (*   t232 = { #{ int; int }; int32# }   *)
+  (****************************************)
+  let r = { a232 = #{ a20 = 0; b20 = 1 }; b232 = #2l } in
+  mark_test_run 188;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 188 failed";
+
+  (***************************************)
+  (*   t233 = { #{ int; int }; float }   *)
+  (***************************************)
+  let r = { a233 = #{ a20 = 0; b20 = 1 }; b233 = 2. } in
+  mark_test_run 189;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 189 failed";
+
+  (******************************************)
+  (*   t234 = { #{ int; int }; int64x2# }   *)
+  (******************************************)
+  let r = { a234 = #{ a20 = 0; b20 = 1 }; b234 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  mark_test_run 190;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 190 failed";
+
+  (***********************************)
+  (*   t235 = { #{ int; int32# } }   *)
+  (***********************************)
+  let r = { a235 = #{ a22 = 0; b22 = #1l } } in
+  mark_test_run 191;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 191 failed";
+
+  (****************************************)
+  (*   t236 = { #{ int; int32# }; int }   *)
+  (****************************************)
+  let r = { a236 = #{ a22 = 0; b22 = #1l }; b236 = 2 } in
+  mark_test_run 192;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 192 failed";
+
+  (*******************************************)
+  (*   t237 = { #{ int; int32# }; int32# }   *)
+  (*******************************************)
+  let r = { a237 = #{ a22 = 0; b22 = #1l }; b237 = #2l } in
+  mark_test_run 193;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 193 failed";
+
+  (**********************************)
+  (*   t238 = { #{ int; float } }   *)
+  (**********************************)
+  let r = { a238 = #{ a24 = 0; b24 = 1. } } in
+  mark_test_run 194;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 194 failed";
+
+  (***************************************)
+  (*   t239 = { #{ int; float }; int }   *)
+  (***************************************)
+  let r = { a239 = #{ a24 = 0; b24 = 1. }; b239 = 2 } in
+  mark_test_run 195;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 195 failed";
+
+  (*****************************************)
+  (*   t240 = { #{ int; float }; float }   *)
+  (*****************************************)
+  let r = { a240 = #{ a24 = 0; b24 = 1. }; b240 = 2. } in
+  mark_test_run 196;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 196 failed";
+
+  (*************************************)
+  (*   t241 = { #{ int; int64x2# } }   *)
+  (*************************************)
+  let r = { a241 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } } in
+  mark_test_run 197;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 197 failed";
+
+  (******************************************)
+  (*   t242 = { #{ int; int64x2# }; int }   *)
+  (******************************************)
+  let r = { a242 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b242 = 3 } in
+  mark_test_run 198;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 198 failed";
+
+  (***********************************************)
+  (*   t243 = { #{ int; int64x2# }; int64x2# }   *)
+  (***********************************************)
+  let r = { a243 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b243 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  mark_test_run 199;
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  if not test then failwithf "test 199 failed";
+
+  (******************************************)
+  (*   t245 = { #{ int; #{ int; int } } }   *)
+  (******************************************)
+  let r = { a245 = #{ a244 = 0; b244 = #{ a20 = 1; b20 = 2 } } } in
+  mark_test_run 200;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 200 failed";
+
+  (*********************************************)
+  (*   t247 = { #{ int; #{ int; int32# } } }   *)
+  (*********************************************)
+  let r = { a247 = #{ a246 = 0; b246 = #{ a22 = 1; b22 = #2l } } } in
+  mark_test_run 201;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 201 failed";
+
+  (********************************************)
+  (*   t249 = { #{ int; #{ int; float } } }   *)
+  (********************************************)
+  let r = { a249 = #{ a248 = 0; b248 = #{ a24 = 1; b24 = 2. } } } in
+  mark_test_run 202;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 202 failed";
+
+  (***********************************************)
+  (*   t251 = { #{ int; #{ int; int64x2# } } }   *)
+  (***********************************************)
+  let r = { a251 = #{ a250 = 0; b250 = #{ a26 = 1; b26 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } } in
+  mark_test_run 203;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 203 failed";
+
+  (*********************************************)
+  (*   t253 = { #{ int; #{ int32#; int } } }   *)
+  (*********************************************)
+  let r = { a253 = #{ a252 = 0; b252 = #{ a40 = #1l; b40 = 2 } } } in
+  mark_test_run 204;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 204 failed";
+
+  (************************************************)
+  (*   t255 = { #{ int; #{ int32#; int32# } } }   *)
+  (************************************************)
+  let r = { a255 = #{ a254 = 0; b254 = #{ a42 = #1l; b42 = #2l } } } in
+  mark_test_run 205;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 205 failed";
+
+  (********************************************)
+  (*   t257 = { #{ int; #{ float; int } } }   *)
+  (********************************************)
+  let r = { a257 = #{ a256 = 0; b256 = #{ a49 = 1.; b49 = 2 } } } in
+  mark_test_run 206;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 206 failed";
+
+  (**********************************************)
+  (*   t259 = { #{ int; #{ float; float } } }   *)
+  (**********************************************)
+  let r = { a259 = #{ a258 = 0; b258 = #{ a51 = 1.; b51 = 2. } } } in
+  mark_test_run 207;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 207 failed";
+
+  (***********************************************)
+  (*   t261 = { #{ int; #{ int64x2#; int } } }   *)
+  (***********************************************)
+  let r = { a261 = #{ a260 = 0; b260 = #{ a58 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); b58 = 3 } } } in
+  mark_test_run 208;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 208 failed";
+
+  (****************************************************)
+  (*   t263 = { #{ int; #{ int64x2#; int64x2# } } }   *)
+  (****************************************************)
+  let r = { a263 = #{ a262 = 0; b262 = #{ a60 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); b60 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } } in
+  mark_test_run 209;
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  if not test then failwithf "test 209 failed";
+
+  (**********************************************************)
+  (*   t266 = { #{ int64; int64# }; #{ int64#; float# } }   *)
+  (**********************************************************)
+  let r = { a266 = #{ a264 = 0L; b264 = #1L }; b266 = #{ a265 = #2L; b265 = #3. } } in
+  mark_test_run 210;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 210 failed";
+
+  (**********************************************************)
+  (*   t269 = { #{ int64; string }; #{ int64#; string } }   *)
+  (**********************************************************)
+  let r = { a269 = #{ a267 = 0L; b267 = "1" }; b269 = #{ a268 = #2L; b268 = "3" } } in
+  mark_test_run 211;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 211 failed";
+
+  (********************************************************)
+  (*   t272 = { #{ int64#; int64 }; #{ int64; int64 } }   *)
+  (********************************************************)
+  let r = { a272 = #{ a270 = #0L; b270 = 1L }; b272 = #{ a271 = 2L; b271 = 3L } } in
+  mark_test_run 212;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 212 failed";
+
+  (***********************************************************)
+  (*   t274 = { #{ int64#; int64 }; #{ float32#; float } }   *)
+  (***********************************************************)
+  let r = { a274 = #{ a270 = #0L; b270 = 1L }; b274 = #{ a273 = #2.s; b273 = 3. } } in
+  mark_test_run 213;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 213 failed";
+
+  (******************************)
+  (*   t275 = { #{ int32# } }   *)
+  (******************************)
+  let r = { a275 = #{ a30 = #0l } } in
+  mark_test_run 214;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 214 failed";
+
+  (***********************************)
+  (*   t276 = { #{ int32# }; int }   *)
+  (***********************************)
+  let r = { a276 = #{ a30 = #0l }; b276 = 1 } in
+  mark_test_run 215;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 215 failed";
+
+  (**************************************)
+  (*   t277 = { #{ int32# }; int32# }   *)
+  (**************************************)
+  let r = { a277 = #{ a30 = #0l }; b277 = #1l } in
+  mark_test_run 216;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 216 failed";
+
+  (***********************************)
+  (*   t278 = { #{ int32#; int } }   *)
+  (***********************************)
+  let r = { a278 = #{ a40 = #0l; b40 = 1 } } in
+  mark_test_run 217;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 217 failed";
+
+  (****************************************)
+  (*   t279 = { #{ int32#; int }; int }   *)
+  (****************************************)
+  let r = { a279 = #{ a40 = #0l; b40 = 1 }; b279 = 2 } in
+  mark_test_run 218;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 218 failed";
+
+  (*******************************************)
+  (*   t280 = { #{ int32#; int }; int32# }   *)
+  (*******************************************)
+  let r = { a280 = #{ a40 = #0l; b40 = 1 }; b280 = #2l } in
+  mark_test_run 219;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 219 failed";
+
+  (**************************************)
+  (*   t281 = { #{ int32#; int32# } }   *)
+  (**************************************)
+  let r = { a281 = #{ a42 = #0l; b42 = #1l } } in
+  mark_test_run 220;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 220 failed";
+
+  (*******************************************)
+  (*   t282 = { #{ int32#; int32# }; int }   *)
+  (*******************************************)
+  let r = { a282 = #{ a42 = #0l; b42 = #1l }; b282 = 2 } in
+  mark_test_run 221;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 221 failed";
+
+  (**********************************************)
+  (*   t283 = { #{ int32#; int32# }; int32# }   *)
+  (**********************************************)
+  let r = { a283 = #{ a42 = #0l; b42 = #1l }; b283 = #2l } in
+  mark_test_run 222;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 222 failed";
+
+  (*********************************************)
+  (*   t285 = { #{ int32#; #{ int; int } } }   *)
+  (*********************************************)
+  let r = { a285 = #{ a284 = #0l; b284 = #{ a20 = 1; b20 = 2 } } } in
+  mark_test_run 223;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 223 failed";
+
+  (************************************************)
+  (*   t287 = { #{ int32#; #{ int; int32# } } }   *)
+  (************************************************)
+  let r = { a287 = #{ a286 = #0l; b286 = #{ a22 = 1; b22 = #2l } } } in
+  mark_test_run 224;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 224 failed";
+
+  (************************************************)
+  (*   t289 = { #{ int32#; #{ int32#; int } } }   *)
+  (************************************************)
+  let r = { a289 = #{ a288 = #0l; b288 = #{ a40 = #1l; b40 = 2 } } } in
+  mark_test_run 225;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 225 failed";
+
+  (***************************************************)
+  (*   t291 = { #{ int32#; #{ int32#; int32# } } }   *)
+  (***************************************************)
+  let r = { a291 = #{ a290 = #0l; b290 = #{ a42 = #1l; b42 = #2l } } } in
+  mark_test_run 226;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 226 failed";
+
+  (*****************************)
+  (*   t292 = { #{ float } }   *)
+  (*****************************)
+  let r = { a292 = #{ a33 = 0. } } in
+  mark_test_run 227;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 227 failed";
+
+  (**********************************)
+  (*   t293 = { #{ float }; int }   *)
+  (**********************************)
+  let r = { a293 = #{ a33 = 0. }; b293 = 1 } in
+  mark_test_run 228;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 228 failed";
+
+  (************************************)
+  (*   t294 = { #{ float }; float }   *)
+  (************************************)
+  let r = { a294 = #{ a33 = 0. }; b294 = 1. } in
+  mark_test_run 229;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 229 failed";
+
+  (*************************************)
+  (*   t295 = { #{ float }; float# }   *)
+  (*************************************)
+  let r = { a295 = #{ a33 = 0. }; b295 = #1. } in
+  mark_test_run 230;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 230 failed";
+
+  (**********************************)
+  (*   t296 = { #{ float; int } }   *)
+  (**********************************)
+  let r = { a296 = #{ a49 = 0.; b49 = 1 } } in
+  mark_test_run 231;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 231 failed";
+
+  (***************************************)
+  (*   t297 = { #{ float; int }; int }   *)
+  (***************************************)
+  let r = { a297 = #{ a49 = 0.; b49 = 1 }; b297 = 2 } in
+  mark_test_run 232;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 232 failed";
+
+  (*****************************************)
+  (*   t298 = { #{ float; int }; float }   *)
+  (*****************************************)
+  let r = { a298 = #{ a49 = 0.; b49 = 1 }; b298 = 2. } in
+  mark_test_run 233;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 233 failed";
+
+  (************************************)
+  (*   t299 = { #{ float; float } }   *)
+  (************************************)
+  let r = { a299 = #{ a51 = 0.; b51 = 1. } } in
+  mark_test_run 234;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 234 failed";
+
+  (*****************************************)
+  (*   t300 = { #{ float; float }; int }   *)
+  (*****************************************)
+  let r = { a300 = #{ a51 = 0.; b51 = 1. }; b300 = 2 } in
+  mark_test_run 235;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 235 failed";
+
+  (*******************************************)
+  (*   t301 = { #{ float; float }; float }   *)
+  (*******************************************)
+  let r = { a301 = #{ a51 = 0.; b51 = 1. }; b301 = 2. } in
+  mark_test_run 236;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 236 failed";
+
+  (********************************************)
+  (*   t302 = { #{ float; float }; float# }   *)
+  (********************************************)
+  let r = { a302 = #{ a51 = 0.; b51 = 1. }; b302 = #2. } in
+  mark_test_run 237;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 237 failed";
+
+  (*************************************)
+  (*   t303 = { #{ float; float# } }   *)
+  (*************************************)
+  let r = { a303 = #{ a155 = 0.; b155 = #1. } } in
+  mark_test_run 238;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 238 failed";
+
+  (********************************************)
+  (*   t304 = { #{ float; float# }; float }   *)
+  (********************************************)
+  let r = { a304 = #{ a155 = 0.; b155 = #1. }; b304 = 2. } in
+  mark_test_run 239;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 239 failed";
+
+  (*********************************************)
+  (*   t305 = { #{ float; float# }; float# }   *)
+  (*********************************************)
+  let r = { a305 = #{ a155 = 0.; b155 = #1. }; b305 = #2. } in
+  mark_test_run 240;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 240 failed";
+
+  (********************************************)
+  (*   t307 = { #{ float; #{ int; int } } }   *)
+  (********************************************)
+  let r = { a307 = #{ a306 = 0.; b306 = #{ a20 = 1; b20 = 2 } } } in
+  mark_test_run 241;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 241 failed";
+
+  (**********************************************)
+  (*   t309 = { #{ float; #{ int; float } } }   *)
+  (**********************************************)
+  let r = { a309 = #{ a308 = 0.; b308 = #{ a24 = 1; b24 = 2. } } } in
+  mark_test_run 242;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 242 failed";
+
+  (**********************************************)
+  (*   t311 = { #{ float; #{ float; int } } }   *)
+  (**********************************************)
+  let r = { a311 = #{ a310 = 0.; b310 = #{ a49 = 1.; b49 = 2 } } } in
+  mark_test_run 243;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 243 failed";
+
+  (************************************************)
+  (*   t313 = { #{ float; #{ float; float } } }   *)
+  (************************************************)
+  let r = { a313 = #{ a312 = 0.; b312 = #{ a51 = 1.; b51 = 2. } } } in
+  mark_test_run 244;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 244 failed";
+
+  (*************************************************)
+  (*   t315 = { #{ float; #{ float; float# } } }   *)
+  (*************************************************)
+  let r = { a315 = #{ a314 = 0.; b314 = #{ a155 = 1.; b155 = #2. } } } in
+  mark_test_run 245;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 245 failed";
+
+  (*************************************************)
+  (*   t317 = { #{ float; #{ float#; float } } }   *)
+  (*************************************************)
+  let r = { a317 = #{ a316 = 0.; b316 = #{ a163 = #1.; b163 = 2. } } } in
+  mark_test_run 246;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 246 failed";
+
+  (**************************************************)
+  (*   t319 = { #{ float; #{ float#; float# } } }   *)
+  (**************************************************)
+  let r = { a319 = #{ a318 = 0.; b318 = #{ a165 = #1.; b165 = #2. } } } in
+  mark_test_run 247;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 247 failed";
+
+  (******************************)
+  (*   t320 = { #{ float# } }   *)
+  (******************************)
+  let r = { a320 = #{ a159 = #0. } } in
+  mark_test_run 248;
+  let test = Int.equal (Obj.size (Obj.repr r)) 1 in
+  if not test then failwithf "test 248 failed";
+
+  (*************************************)
+  (*   t321 = { #{ float# }; float }   *)
+  (*************************************)
+  let r = { a321 = #{ a159 = #0. }; b321 = 1. } in
+  mark_test_run 249;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 249 failed";
+
+  (**************************************)
+  (*   t322 = { #{ float# }; float# }   *)
+  (**************************************)
+  let r = { a322 = #{ a159 = #0. }; b322 = #1. } in
+  mark_test_run 250;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 250 failed";
+
+  (*************************************)
+  (*   t323 = { #{ float#; float } }   *)
+  (*************************************)
+  let r = { a323 = #{ a163 = #0.; b163 = 1. } } in
+  mark_test_run 251;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 251 failed";
+
+  (********************************************)
+  (*   t324 = { #{ float#; float }; float }   *)
+  (********************************************)
+  let r = { a324 = #{ a163 = #0.; b163 = 1. }; b324 = 2. } in
+  mark_test_run 252;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 252 failed";
+
+  (*********************************************)
+  (*   t325 = { #{ float#; float }; float# }   *)
+  (*********************************************)
+  let r = { a325 = #{ a163 = #0.; b163 = 1. }; b325 = #2. } in
+  mark_test_run 253;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 253 failed";
+
+  (**************************************)
+  (*   t326 = { #{ float#; float# } }   *)
+  (**************************************)
+  let r = { a326 = #{ a165 = #0.; b165 = #1. } } in
+  mark_test_run 254;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 254 failed";
+
+  (*********************************************)
+  (*   t327 = { #{ float#; float# }; float }   *)
+  (*********************************************)
+  let r = { a327 = #{ a165 = #0.; b165 = #1. }; b327 = 2. } in
+  mark_test_run 255;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 255 failed";
+
+  (**********************************************)
+  (*   t328 = { #{ float#; float# }; float# }   *)
+  (**********************************************)
+  let r = { a328 = #{ a165 = #0.; b165 = #1. }; b328 = #2. } in
+  mark_test_run 256;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 256 failed";
+
+  (*************************************************)
+  (*   t330 = { #{ float#; #{ float; float } } }   *)
+  (*************************************************)
+  let r = { a330 = #{ a329 = #0.; b329 = #{ a51 = 1.; b51 = 2. } } } in
+  mark_test_run 257;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 257 failed";
+
+  (**************************************************)
+  (*   t332 = { #{ float#; #{ float; float# } } }   *)
+  (**************************************************)
+  let r = { a332 = #{ a331 = #0.; b331 = #{ a155 = 1.; b155 = #2. } } } in
+  mark_test_run 258;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 258 failed";
+
+  (**************************************************)
+  (*   t334 = { #{ float#; #{ float#; float } } }   *)
+  (**************************************************)
+  let r = { a334 = #{ a333 = #0.; b333 = #{ a163 = #1.; b163 = 2. } } } in
+  mark_test_run 259;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 259 failed";
+
+  (***************************************************)
+  (*   t336 = { #{ float#; #{ float#; float# } } }   *)
+  (***************************************************)
+  let r = { a336 = #{ a335 = #0.; b335 = #{ a165 = #1.; b165 = #2. } } } in
+  mark_test_run 260;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 260 failed";
+
+  (*************************************************************)
+  (*   t339 = { #{ float32#; int64# }; #{ string; int64# } }   *)
+  (*************************************************************)
+  let r = { a339 = #{ a337 = #0.s; b337 = #1L }; b339 = #{ a338 = "2"; b338 = #3L } } in
+  mark_test_run 261;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 261 failed";
+
+  (********************************)
+  (*   t340 = { #{ int64x2# } }   *)
+  (********************************)
+  let r = { a340 = #{ a36 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } } in
+  mark_test_run 262;
+  let test = Int.equal (Obj.size (Obj.repr r)) 2 in
+  if not test then failwithf "test 262 failed";
+
+  (*************************************)
+  (*   t341 = { #{ int64x2# }; int }   *)
+  (*************************************)
+  let r = { a341 = #{ a36 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b341 = 2 } in
+  mark_test_run 263;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 263 failed";
+
+  (******************************************)
+  (*   t342 = { #{ int64x2# }; int64x2# }   *)
+  (******************************************)
+  let r = { a342 = #{ a36 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b342 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  mark_test_run 264;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 264 failed";
+
+  (*************************************)
+  (*   t343 = { #{ int64x2#; int } }   *)
+  (*************************************)
+  let r = { a343 = #{ a58 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b58 = 2 } } in
+  mark_test_run 265;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 265 failed";
+
+  (******************************************)
+  (*   t344 = { #{ int64x2#; int }; int }   *)
+  (******************************************)
+  let r = { a344 = #{ a58 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b58 = 2 }; b344 = 3 } in
+  mark_test_run 266;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 266 failed";
+
+  (***********************************************)
+  (*   t345 = { #{ int64x2#; int }; int64x2# }   *)
+  (***********************************************)
+  let r = { a345 = #{ a58 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b58 = 2 }; b345 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  mark_test_run 267;
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  if not test then failwithf "test 267 failed";
+
+  (************************************************************)
+  (*   t348 = { #{ int64x2#; string }; #{ int64; float# } }   *)
+  (************************************************************)
+  let r = { a348 = #{ a346 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b346 = "2" }; b348 = #{ a347 = 3L; b347 = #4. } } in
+  mark_test_run 268;
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  if not test then failwithf "test 268 failed";
+
+  (******************************************)
+  (*   t349 = { #{ int64x2#; int64x2# } }   *)
+  (******************************************)
+  let r = { a349 = #{ a60 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b60 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
+  mark_test_run 269;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 269 failed";
+
+  (***********************************************)
+  (*   t350 = { #{ int64x2#; int64x2# }; int }   *)
+  (***********************************************)
+  let r = { a350 = #{ a60 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b60 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b350 = 4 } in
+  mark_test_run 270;
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  if not test then failwithf "test 270 failed";
+
+  (****************************************************)
+  (*   t351 = { #{ int64x2#; int64x2# }; int64x2# }   *)
+  (****************************************************)
+  let r = { a351 = #{ a60 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b60 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b351 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
+  mark_test_run 271;
+  let test = Int.equal (Obj.size (Obj.repr r)) 6 in
+  if not test then failwithf "test 271 failed";
+
+  (***********************************************)
+  (*   t353 = { #{ int64x2#; #{ int; int } } }   *)
+  (***********************************************)
+  let r = { a353 = #{ a352 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b352 = #{ a20 = 2; b20 = 3 } } } in
+  mark_test_run 272;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 272 failed";
+
+  (****************************************************)
+  (*   t355 = { #{ int64x2#; #{ int; int64x2# } } }   *)
+  (****************************************************)
+  let r = { a355 = #{ a354 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b354 = #{ a26 = 2; b26 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } } in
+  mark_test_run 273;
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  if not test then failwithf "test 273 failed";
+
+  (****************************************************)
+  (*   t357 = { #{ int64x2#; #{ int64x2#; int } } }   *)
+  (****************************************************)
+  let r = { a357 = #{ a356 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b356 = #{ a58 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b58 = 4 } } } in
+  mark_test_run 274;
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  if not test then failwithf "test 274 failed";
+
+  (*********************************************************)
+  (*   t359 = { #{ int64x2#; #{ int64x2#; int64x2# } } }   *)
+  (*********************************************************)
+  let r = { a359 = #{ a358 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b358 = #{ a60 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b60 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } } } in
+  mark_test_run 275;
+  let test = Int.equal (Obj.size (Obj.repr r)) 6 in
+  if not test then failwithf "test 275 failed";
+
+  (******************************************)
+  (*   t361 = { #{ #{ int; int }; int } }   *)
+  (******************************************)
+  let r = { a361 = #{ a360 = #{ a20 = 0; b20 = 1 }; b360 = 2 } } in
+  mark_test_run 276;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 276 failed";
+
+  (*********************************************)
+  (*   t363 = { #{ #{ int; int }; int32# } }   *)
+  (*********************************************)
+  let r = { a363 = #{ a362 = #{ a20 = 0; b20 = 1 }; b362 = #2l } } in
+  mark_test_run 277;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 277 failed";
+
+  (********************************************)
+  (*   t365 = { #{ #{ int; int }; float } }   *)
+  (********************************************)
+  let r = { a365 = #{ a364 = #{ a20 = 0; b20 = 1 }; b364 = 2. } } in
+  mark_test_run 278;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 278 failed";
+
+  (***********************************************)
+  (*   t367 = { #{ #{ int; int }; int64x2# } }   *)
+  (***********************************************)
+  let r = { a367 = #{ a366 = #{ a20 = 0; b20 = 1 }; b366 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
+  mark_test_run 279;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 279 failed";
+
+  (*********************************************)
+  (*   t369 = { #{ #{ int; int32# }; int } }   *)
+  (*********************************************)
+  let r = { a369 = #{ a368 = #{ a22 = 0; b22 = #1l }; b368 = 2 } } in
+  mark_test_run 280;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 280 failed";
+
+  (************************************************)
+  (*   t371 = { #{ #{ int; int32# }; int32# } }   *)
+  (************************************************)
+  let r = { a371 = #{ a370 = #{ a22 = 0; b22 = #1l }; b370 = #2l } } in
+  mark_test_run 281;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 281 failed";
+
+  (********************************************)
+  (*   t373 = { #{ #{ int; float }; int } }   *)
+  (********************************************)
+  let r = { a373 = #{ a372 = #{ a24 = 0; b24 = 1. }; b372 = 2 } } in
+  mark_test_run 282;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 282 failed";
+
+  (**********************************************)
+  (*   t375 = { #{ #{ int; float }; float } }   *)
+  (**********************************************)
+  let r = { a375 = #{ a374 = #{ a24 = 0; b24 = 1. }; b374 = 2. } } in
+  mark_test_run 283;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 283 failed";
+
+  (***********************************************)
+  (*   t377 = { #{ #{ int; int64x2# }; int } }   *)
+  (***********************************************)
+  let r = { a377 = #{ a376 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b376 = 3 } } in
+  mark_test_run 284;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 284 failed";
+
+  (****************************************************)
+  (*   t379 = { #{ #{ int; int64x2# }; int64x2# } }   *)
+  (****************************************************)
+  let r = { a379 = #{ a378 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b378 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } in
+  mark_test_run 285;
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  if not test then failwithf "test 285 failed";
+
+  (*********************************************)
+  (*   t381 = { #{ #{ int32#; int }; int } }   *)
+  (*********************************************)
+  let r = { a381 = #{ a380 = #{ a40 = #0l; b40 = 1 }; b380 = 2 } } in
+  mark_test_run 286;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 286 failed";
+
+  (************************************************)
+  (*   t383 = { #{ #{ int32#; int }; int32# } }   *)
+  (************************************************)
+  let r = { a383 = #{ a382 = #{ a40 = #0l; b40 = 1 }; b382 = #2l } } in
+  mark_test_run 287;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 287 failed";
+
+  (************************************************)
+  (*   t385 = { #{ #{ int32#; int32# }; int } }   *)
+  (************************************************)
+  let r = { a385 = #{ a384 = #{ a42 = #0l; b42 = #1l }; b384 = 2 } } in
+  mark_test_run 288;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 288 failed";
+
+  (***************************************************)
+  (*   t387 = { #{ #{ int32#; int32# }; int32# } }   *)
+  (***************************************************)
+  let r = { a387 = #{ a386 = #{ a42 = #0l; b42 = #1l }; b386 = #2l } } in
+  mark_test_run 289;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 289 failed";
+
+  (********************************************)
+  (*   t389 = { #{ #{ float; int }; int } }   *)
+  (********************************************)
+  let r = { a389 = #{ a388 = #{ a49 = 0.; b49 = 1 }; b388 = 2 } } in
+  mark_test_run 290;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 290 failed";
+
+  (**********************************************)
+  (*   t391 = { #{ #{ float; int }; float } }   *)
+  (**********************************************)
+  let r = { a391 = #{ a390 = #{ a49 = 0.; b49 = 1 }; b390 = 2. } } in
+  mark_test_run 291;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 291 failed";
+
+  (**********************************************)
+  (*   t393 = { #{ #{ float; float }; int } }   *)
+  (**********************************************)
+  let r = { a393 = #{ a392 = #{ a51 = 0.; b51 = 1. }; b392 = 2 } } in
+  mark_test_run 292;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 292 failed";
+
+  (************************************************)
+  (*   t395 = { #{ #{ float; float }; float } }   *)
+  (************************************************)
+  let r = { a395 = #{ a394 = #{ a51 = 0.; b51 = 1. }; b394 = 2. } } in
+  mark_test_run 293;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 293 failed";
+
+  (*************************************************)
+  (*   t397 = { #{ #{ float; float }; float# } }   *)
+  (*************************************************)
+  let r = { a397 = #{ a396 = #{ a51 = 0.; b51 = 1. }; b396 = #2. } } in
+  mark_test_run 294;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 294 failed";
+
+  (*************************************************)
+  (*   t399 = { #{ #{ float; float# }; float } }   *)
+  (*************************************************)
+  let r = { a399 = #{ a398 = #{ a155 = 0.; b155 = #1. }; b398 = 2. } } in
+  mark_test_run 295;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 295 failed";
+
+  (**************************************************)
+  (*   t401 = { #{ #{ float; float# }; float# } }   *)
+  (**************************************************)
+  let r = { a401 = #{ a400 = #{ a155 = 0.; b155 = #1. }; b400 = #2. } } in
+  mark_test_run 296;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 296 failed";
+
+  (*************************************************)
+  (*   t403 = { #{ #{ float#; float }; float } }   *)
+  (*************************************************)
+  let r = { a403 = #{ a402 = #{ a163 = #0.; b163 = 1. }; b402 = 2. } } in
+  mark_test_run 297;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 297 failed";
+
+  (**************************************************)
+  (*   t405 = { #{ #{ float#; float }; float# } }   *)
+  (**************************************************)
+  let r = { a405 = #{ a404 = #{ a163 = #0.; b163 = 1. }; b404 = #2. } } in
+  mark_test_run 298;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 298 failed";
+
+  (**************************************************)
+  (*   t407 = { #{ #{ float#; float# }; float } }   *)
+  (**************************************************)
+  let r = { a407 = #{ a406 = #{ a165 = #0.; b165 = #1. }; b406 = 2. } } in
+  mark_test_run 299;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 299 failed";
+
+  (***************************************************)
+  (*   t409 = { #{ #{ float#; float# }; float# } }   *)
+  (***************************************************)
+  let r = { a409 = #{ a408 = #{ a165 = #0.; b165 = #1. }; b408 = #2. } } in
+  mark_test_run 300;
+  let test = Int.equal (Obj.size (Obj.repr r)) 3 in
+  if not test then failwithf "test 300 failed";
+
+  (***********************************************)
+  (*   t411 = { #{ #{ int64x2#; int }; int } }   *)
+  (***********************************************)
+  let r = { a411 = #{ a410 = #{ a58 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b58 = 2 }; b410 = 3 } } in
+  mark_test_run 301;
+  let test = Int.equal (Obj.size (Obj.repr r)) 4 in
+  if not test then failwithf "test 301 failed";
+
+  (****************************************************)
+  (*   t413 = { #{ #{ int64x2#; int }; int64x2# } }   *)
+  (****************************************************)
+  let r = { a413 = #{ a412 = #{ a58 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b58 = 2 }; b412 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } in
+  mark_test_run 302;
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  if not test then failwithf "test 302 failed";
+
+  (****************************************************)
+  (*   t415 = { #{ #{ int64x2#; int64x2# }; int } }   *)
+  (****************************************************)
+  let r = { a415 = #{ a414 = #{ a60 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b60 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b414 = 4 } } in
+  mark_test_run 303;
+  let test = Int.equal (Obj.size (Obj.repr r)) 5 in
+  if not test then failwithf "test 303 failed";
+
+  (*********************************************************)
+  (*   t417 = { #{ #{ int64x2#; int64x2# }; int64x2# } }   *)
+  (*********************************************************)
+  let r = { a417 = #{ a416 = #{ a60 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b60 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b416 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } } in
+  mark_test_run 304;
+  let test = Int.equal (Obj.size (Obj.repr r)) 6 in
+  if not test then failwithf "test 304 failed";
 
   ()
 ;;
 
-for i = 1 to 153 do
+for i = 1 to 304 do
   if not (Int_set.mem i !tests_run) then failwithf "test %d not run" i
 done;;
 let () = Printf.printf "All tests passed.%!\n";;

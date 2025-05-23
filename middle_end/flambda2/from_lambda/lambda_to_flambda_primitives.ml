@@ -486,6 +486,25 @@ let convert_array_kind_to_duplicate_array_kind (kind : L.array_kind) :
 let convert_field_read_semantics (sem : L.field_read_semantics) : Mutability.t =
   match sem with Reads_agree -> Immutable | Reads_vary -> Mutable
 
+let rec convert_layout_to_flambda_kind_with_subkinds (layout : L.layout) :
+    Flambda_kind.With_subkind.t list =
+  match layout with
+  | Pvalue value_kind -> (
+    match convert_block_access_field_kind_from_value_kind value_kind with
+    | Any_value -> [K.With_subkind.any_value]
+    | Immediate -> [K.With_subkind.naked_immediate])
+  | Punboxed_float Unboxed_float64 -> [K.With_subkind.naked_float]
+  | Punboxed_float Unboxed_float32 -> [K.With_subkind.naked_float32]
+  | Punboxed_int Unboxed_int32 -> [K.With_subkind.naked_int32]
+  | Punboxed_int Unboxed_int64 -> [K.With_subkind.naked_int64]
+  | Punboxed_int Unboxed_nativeint -> [K.With_subkind.naked_nativeint]
+  | Punboxed_vector Unboxed_vec128 -> [K.With_subkind.naked_vec128]
+  | Punboxed_product layouts ->
+    List.concat_map convert_layout_to_flambda_kind_with_subkinds layouts
+  | Ptop | Pbottom ->
+    Misc.fatal_error
+      "Lambda_to_flambda_primitives.convert_layout_to_offset_access_kinds"
+
 let bigarray_dim_bound b dimension =
   H.Prim (Unary (Bigarray_length { dimension }, b))
 
@@ -1351,6 +1370,77 @@ let opaque layout arg ~middle_end_only : H.expr_primitive list =
       Unary (Opaque_identity { middle_end_only; kind }, arg_component))
     arg kinds
 
+let array_element_size_in_bytes (array_kind : L.array_kind) =
+  match array_kind with
+  | Pgenarray | Paddrarray | Pintarray | Pfloatarray -> 8
+  | Punboxedfloatarray Unboxed_float32 ->
+    (* float32# arrays are packed *)
+    4
+  | Punboxedfloatarray Unboxed_float64 -> 8
+  | Punboxedintarray Unboxed_int32 ->
+    (* int32# arrays are packed *)
+    4
+  | Punboxedintarray (Unboxed_int64 | Unboxed_nativeint) -> 8
+  | Punboxedvectorarray Unboxed_vec128 -> 16
+  | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+    (* All elements of unboxed product arrays are currently 8 bytes wide. *)
+    L.count_initializers_array_kind array_kind * 8
+
+let simple_i64 x = H.Simple (Simple.const (Reg_width_const.naked_int64 x))
+
+let conv_bc = Mixed_product_bytes.Byte_count.on_64_bit_arch
+
+(* Given an index that points to data of some layout, produce the list of
+   offsets needed to access each element *)
+let idx_access_offsets layout idx =
+  let mbe = L.mixed_block_element_of_layout layout in
+  let cts = Mixed_product_bytes.count mbe in
+  if Mixed_product_bytes.has_value_and_flat cts
+  then
+    let offset =
+      let mask = Int64.of_int ((1 lsl 48) - 1) in
+      H.Binary (Int_arith (Naked_int64, And), idx, simple_i64 mask)
+    in
+    let gap =
+      let shifter =
+        H.Simple
+          (Simple.const
+             (Reg_width_const.naked_immediate (Targetint_31_63.of_int 48)))
+      in
+      H.Binary (Int_shift (Naked_int64, Lsr), idx, shifter)
+    in
+    let f (to_left : Mixed_product_bytes.t) (mbe : unit L.mixed_block_element) =
+      let add x y = H.Binary (Int_arith (Naked_int64, Add), Prim x, y) in
+      let offset_from_offset : H.simple_or_prim =
+        match mbe with
+        | Product _ -> assert false
+        (* Values are (values to left) beyond the offset *)
+        | Value _ -> simple_i64 (Int64.of_int (conv_bc to_left.value))
+        (* Flats are gap + (all values) + (flats to left) beyond the offset *)
+        | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Word | Vec128 ->
+          Prim
+            (add gap
+               (simple_i64
+                  (Int64.of_int (conv_bc cts.value + conv_bc to_left.flat))))
+      in
+      let prim = add offset offset_from_offset in
+      Mixed_product_bytes.add to_left (Mixed_product_bytes.count mbe), prim
+    in
+    snd
+      (List.fold_left_map f Mixed_product_bytes.zero
+         (L.mixed_block_element_leaves mbe))
+  else
+    let f (to_left : Mixed_product_bytes.t) (mbe : unit L.mixed_block_element) =
+      let summand =
+        simple_i64 (Int64.of_int (conv_bc to_left.value + conv_bc to_left.flat))
+      in
+      let prim = H.Binary (Int_arith (Naked_int64, Add), idx, summand) in
+      Mixed_product_bytes.add to_left (Mixed_product_bytes.count mbe), prim
+    in
+    snd
+      (List.fold_left_map f Mixed_product_bytes.zero
+         (L.mixed_block_element_leaves mbe))
+
 (* Primitive conversion *)
 let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     (dbg : Debuginfo.t) ~current_region ~current_ghost_region :
@@ -1407,23 +1497,143 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Parray_element_size_in_bytes array_kind, [_witness] ->
     (* This is implemented as a unary primitive, but from our point of view it's
        actually nullary. *)
-    let num_bytes =
-      match array_kind with
-      | Pgenarray | Paddrarray | Pintarray | Pfloatarray -> 8
-      | Punboxedfloatarray Unboxed_float32 ->
-        (* float32# arrays are packed *)
-        4
-      | Punboxedfloatarray Unboxed_float64 -> 8
-      | Punboxedintarray Unboxed_int32 ->
-        (* int32# arrays are packed *)
-        4
-      | Punboxedintarray (Unboxed_int64 | Unboxed_nativeint) -> 8
-      | Punboxedvectorarray Unboxed_vec128 -> 16
-      | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
-        (* All elements of unboxed product arrays are currently 8 bytes wide. *)
-        L.count_initializers_array_kind array_kind * 8
-    in
+    let num_bytes = array_element_size_in_bytes array_kind in
     [Simple (Simple.const_int (Targetint_31_63.of_int num_bytes))]
+  | Pidx_field pos, [] ->
+    let idx_raw_value = Int64.mul (Int64.of_int pos) 8L in
+    [Simple (Simple.const (Reg_width_const.naked_int64 idx_raw_value))]
+  | Pidx_mixed_field (shape, pos, path), [] ->
+    let open Mixed_product_bytes_wrt_path in
+    let { offset_bytes; gap_bytes } =
+      match offset_and_gap (count_shape shape pos path) with
+      | Some { offset_bytes; gap_bytes } -> { offset_bytes; gap_bytes }
+      | None -> Misc.fatal_error "Pidxmixedfield: illegal gap"
+    in
+    let idx_raw_value =
+      Int64.add
+        (Int64.shift_left (Int64.of_int (conv_bc gap_bytes)) 48)
+        (Int64.of_int (conv_bc offset_bytes))
+    in
+    [Simple (Simple.const (Reg_width_const.naked_int64 idx_raw_value))]
+  | Pidx_array (ak, ik, mbe, path), [[index]] ->
+    let index_as_int64 =
+      let conv_from src =
+        H.Prim (Unary (Num_conv { src; dst = Naked_int64 }, index))
+      in
+      match ik with
+      | Ptagged_int_index -> conv_from Tagged_immediate
+      | Punboxed_int_index Unboxed_int64 -> index
+      | Punboxed_int_index Unboxed_int32 -> conv_from Naked_int32
+      | Punboxed_int_index Unboxed_nativeint -> conv_from Naked_nativeint
+    in
+    let index_as_bytes =
+      let el_size = array_element_size_in_bytes ak in
+      H.Prim
+        (Binary
+           ( Int_arith (Naked_int64, Mul),
+             index_as_int64,
+             simple_i64 (Int64.of_int el_size) ))
+    in
+    let offset_after_index =
+      match Mixed_product_bytes_wrt_path.(offset_and_gap (count mbe path)) with
+      | Some { offset_bytes; gap_bytes } ->
+        if Mixed_product_bytes.Byte_count.is_zero gap_bytes
+        then offset_bytes
+        else
+          Misc.fatal_error
+            "Pidxarray: non-zero gap should be prevented by \
+             [will_be_reordered] check in translcore"
+      | None -> Misc.fatal_error "Pidxarray: illegal gap"
+    in
+    let custom_word_offset =
+      match ak with
+      | Pgenarray | Paddrarray | Pintarray | Pfloatarray
+      | Punboxedfloatarray Unboxed_float64
+      | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+        0
+      | Punboxedfloatarray Unboxed_float32
+      | Punboxedintarray (Unboxed_int64 | Unboxed_int32 | Unboxed_nativeint)
+      | Punboxedvectorarray Unboxed_vec128 ->
+        8
+    in
+    [ Binary
+        ( Int_arith (Naked_int64, Add),
+          index_as_bytes,
+          simple_i64
+            (Int64.of_int (conv_bc offset_after_index + custom_word_offset)) )
+    ]
+  | Pidx_deepen (mbe, field_path), [[idx]] -> (
+    (* See [jane/doc/extensions/_02-unboxed-types/block-indices.md]. *)
+    let cts = Mixed_product_bytes_wrt_path.count mbe field_path in
+    let deepening_type =
+      let outer_has_value_and_flat =
+        Mixed_product_bytes_wrt_path.all cts
+        |> Mixed_product_bytes.has_value_and_flat
+      in
+      if outer_has_value_and_flat
+      then
+        match
+          Mixed_product_bytes.Byte_count.(
+            is_zero cts.here.value, is_zero cts.here.flat)
+        with
+        | false, false -> `Mixed_product_to_mixed_product
+        | false, true -> `Mixed_product_to_all_values
+        | true, false -> `Mixed_product_to_all_flats
+        | true, true -> assert false
+      else `All_values_or_flats
+    in
+    match deepening_type with
+    | `All_values_or_flats ->
+      (* The initial index isn't mixed, so all 64 of its bits are an offset *)
+      (* increase this offset by left value + left flats *)
+      let to_add =
+        Int64.of_int (conv_bc cts.left.value + conv_bc cts.left.flat)
+      in
+      [Binary (Int_arith (Naked_int64, Add), idx, simple_i64 to_add)]
+    | `Mixed_product_to_mixed_product ->
+      (* E.g. move index to a #(i64#, #(string, i32#), string) to the inner
+         product *)
+      (* offset += left value; gap += right value + left flat *)
+      let to_add =
+        Int64.add
+          (Int64.shift_left
+             (Int64.of_int (conv_bc cts.right.value + conv_bc cts.left.flat))
+             48)
+          (Int64.of_int (conv_bc cts.left.value))
+      in
+      [Binary (Int_arith (Naked_int64, Add), idx, simple_i64 to_add)]
+    | `Mixed_product_to_all_values ->
+      (* gap = 0; offset += left value *)
+      let mask = Int64.of_int ((1 lsl 48) - 1) in
+      let gap_removed =
+        H.Binary (Int_arith (Naked_int64, And), idx, simple_i64 mask)
+      in
+      [ Binary
+          ( Int_arith (Naked_int64, Add),
+            H.Prim gap_removed,
+            simple_i64 (Int64.of_int (conv_bc cts.left.value)) ) ]
+    | `Mixed_product_to_all_flats ->
+      (* offset += gap + left value + right value + left flat; gap = 0 *)
+      let mask = Int64.of_int ((1 lsl 48) - 1) in
+      let offset =
+        H.Binary (Int_arith (Naked_int64, And), idx, simple_i64 mask)
+      in
+      let shifter =
+        H.Simple
+          (Simple.const
+             (Reg_width_const.naked_immediate (Targetint_31_63.of_int 48)))
+      in
+      let gap = H.Binary (Int_shift (Naked_int64, Lsr), idx, shifter) in
+      let to_add =
+        Int64.of_int
+          (conv_bc cts.left.value + conv_bc cts.right.value
+         + conv_bc cts.left.flat)
+      in
+      [ Binary
+          ( Int_arith (Naked_int64, Add),
+            H.Prim
+              (Binary (Int_arith (Naked_int64, Add), H.Prim offset, H.Prim gap)),
+            simple_i64 to_add ) ])
   | Pmakefloatblock (mutability, mode), _ ->
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -2519,6 +2729,29 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Ppoke layout, [[ptr]; [new_value]] ->
     let kind = standard_int_or_float_of_peek_or_poke layout in
     [Binary (Poke kind, ptr, new_value)]
+  | Pget_idx (layout, mut), [[ptr]; [idx]] ->
+    let offsets = idx_access_offsets layout idx in
+    let kinds = convert_layout_to_flambda_kind_with_subkinds layout in
+    let reads =
+      List.map2
+        (fun kind offset ->
+          H.Binary (Read_offset (kind, mut), ptr, Prim offset))
+        kinds offsets
+    in
+    [H.maybe_create_unboxed_product reads]
+  | Pset_idx layout, [[ptr]; [idx]; new_values] ->
+    let offsets = idx_access_offsets layout idx in
+    let kinds = convert_layout_to_flambda_kind_with_subkinds layout in
+    let map3 f xs ys zs =
+      List.map2 (fun x (y, z) -> f x y z) xs (List.combine ys zs)
+    in
+    let writes =
+      map3
+        (fun kind offset new_value ->
+          H.Ternary (Write_offset kind, ptr, Prim offset, new_value))
+        kinds offsets new_values
+    in
+    [H.Sequence writes]
   | ( ( Pdivbint { is_safe = Unsafe; size = _; mode = _ }
       | Pmodbint { is_safe = Unsafe; size = _; mode = _ }
       | Psetglobal _ | Praise _ | Pccall _ ),
@@ -2528,7 +2761,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
        here, either a bug in [Closure_conversion] or the wrong number of \
        arguments"
       Printlambda.primitive prim H.print_list_of_lists_of_simple_or_prim args
-  | Pprobe_is_enabled _, _ :: _ ->
+  | (Pprobe_is_enabled _ | Pidx_field _ | Pidx_mixed_field _), _ :: _ ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for nullary primitive \
        %a (%a)"
@@ -2551,7 +2784,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Pufloatfield _ | Patomic_load _ | Pmixedfield _
       | Preinterpret_unboxed_int64_as_tagged_int63
       | Preinterpret_tagged_int63_as_unboxed_int64
-      | Parray_element_size_in_bytes _ | Ppeek _ | Pmakelazyblock _ ),
+      | Parray_element_size_in_bytes _ | Pidx_array _ | Pidx_deepen _ | Ppeek _
+      | Pmakelazyblock _ ),
       ([] | _ :: _ :: _ | [([] | _ :: _ :: _)]) ) ->
     Misc.fatal_errorf
       "Closure_conversion.convert_primitive: Wrong arity for unary primitive \
@@ -2595,7 +2829,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
             _ )
       | Pcompare_ints | Pcompare_floats _ | Pcompare_bints _
       | Patomic_exchange _ | Patomic_set _ | Patomic_fetch_add | Patomic_add
-      | Patomic_sub | Patomic_land | Patomic_lor | Patomic_lxor | Ppoke _ ),
+      | Patomic_sub | Patomic_land | Patomic_lor | Patomic_lxor | Ppoke _
+      | Pget_idx _ ),
       ( []
       | [_]
       | _ :: _ :: _ :: _
@@ -2625,7 +2860,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
       | Punboxed_float_array_set_128 _ | Punboxed_float32_array_set_128 _
       | Punboxed_int32_array_set_128 _ | Punboxed_int64_array_set_128 _
       | Punboxed_nativeint_array_set_128 _ | Patomic_compare_set _
-      | Patomic_compare_exchange _ ),
+      | Patomic_compare_exchange _ | Pset_idx _ ),
       ( []
       | [_]
       | [_; _]
