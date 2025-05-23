@@ -2261,6 +2261,8 @@ let tvariant_not_immediate row =
       | _ -> false)
     (row_fields row)
 
+
+
 (* forward declarations *)
 let type_equal' = ref (fun _ _ _ -> Misc.fatal_error "type_equal")
 let type_jkind_purely_if_principal' =

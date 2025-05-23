@@ -6120,7 +6120,7 @@ and type_expect_
               match mixed.(label.lbl_pos) with
               | Float_boxed -> true
               | Float64 | Float32 | Value | Bits32 | Bits64 | Vec128 | Word
-              | Product _ ->
+              | Product _ | Void ->
                 false
             end
           | _ -> false

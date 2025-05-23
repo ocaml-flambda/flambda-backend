@@ -509,6 +509,10 @@ val compare_type: type_expr -> type_expr -> int
     [> `X | `Y ]       (row_closed = false)
     [< `X | `Y > `X ]  (row_closed = true)
 
+
+    [ `X ]
+    [ `X | `Y ]
+
     type t = [> `X ] as 'a      (row_more = Tvar a)
     type t = private [> `X ]    (row_more = Tconstr ("t#row", [], ref Mnil))
 
@@ -822,6 +826,7 @@ and mixed_block_element =
   | Word
   | Product of mixed_product_shape
   (* Invariant: the array has at least two things in it. *)
+  | Void
 
 and mixed_product_shape = mixed_block_element array
 
