@@ -13,11 +13,18 @@
 *)
 
 [@@@ocaml.warning "+A-4-9-42-69"]
+(* CR sspies: Warning 40 is enabled for this file, leading to unnecessarily
+   verbose code (see [constant] below). Disable it in the future. *)
 
 open! Int_replace_polymorphic_compare
 open X86_ast
 open X86_proc
 module String = Misc.Stdlib.String
+
+
+module D = Asm_targets.Asm_directives_new.Directive
+module C = D.Constant
+
 
 type section = {
   sec_name : string;
@@ -69,7 +76,7 @@ type symbol_binding = Sy_local | Sy_global | Sy_weak
 
 type symbol = {
   sy_name : string;
-  mutable sy_type : string option;
+  mutable sy_type : Asm_targets.Asm_directives_new.symbol_type option;
   mutable sy_size : int option;
   mutable sy_binding : symbol_binding;
   mutable sy_protected : bool;
@@ -90,7 +97,7 @@ type local_reloc =
   | RelocCall of string
   | RelocShortJump of string * int (* loc *)
   | RelocLongJump of string
-  | RelocConstant of constant * data_size
+  | RelocConstant of C.t * data_size
 
 type result =
   | Rint of int64
@@ -190,11 +197,11 @@ let label_pos b lbl =
    relocations. *)
 let eval_const b current_pos cst =
   let rec eval = function
-    | Const n -> Rint n
-    | ConstThis -> Rabs ("", 0L)
-    | ConstLabel lbl -> Rabs (lbl, 0L)
-    | ConstLabelOffset (lbl, o) -> Rabs (lbl, Int64.of_int o)
-    | ConstSub (c1, c2) -> (
+    | C.Signed_int n -> Rint n
+    | C.Unsigned_int n -> Rint (Numbers.Uint64.to_int64 n)
+    | C.This -> Rabs ("", 0L)
+    | C.Named_thing lbl -> Rabs (lbl, 0L)
+    | C.Sub (c1, c2) -> (
         let c1 = eval c1 and c2 = eval c2 in
         match (c1, c2) with
         | Rint n1, Rint n2 -> Rint (Int64.sub n1 n2)
@@ -248,7 +255,7 @@ let eval_const b current_pos cst =
                 | _ -> assert false)
             with Not_found -> assert false)
         | _ -> assert false)
-    | ConstAdd (c1, c2) -> (
+    | C.Add (c1, c2) -> (
         let c1 = eval c1 and c2 = eval c2 in
         match (c1, c2) with
         | Rint n1, Rint n2 -> Rint (Int64.add n1 n2)
@@ -1639,67 +1646,80 @@ let assemble_instr b loc = function
   | LZCNT (src, dst) -> emit_lzcnt b ~dst ~src
   | SIMD (instr, args) -> emit_simd b instr args
 
+
+let[@warning "+4"] constant b cst
+      (width: D.Constant_with_width.width_in_bytes) =
+  let open D.Constant_with_width in
+  match cst, width with
+  | C.Signed_int n, Eight -> buf_int8L b n
+  | C.Signed_int n, Sixteen -> buf_int16L b n
+  | C.Signed_int n, Thirty_two -> buf_int32L b n
+  | C.Signed_int n, Sixty_four -> buf_int64L b n
+  | C.Unsigned_int n, Eight -> buf_int8L b (Numbers.Uint64.to_int64 n)
+  | C.Unsigned_int n, Sixteen -> buf_int16L b (Numbers.Uint64.to_int64 n)
+  | C.Unsigned_int n, Thirty_two -> buf_int32L b (Numbers.Uint64.to_int64 n)
+  | C.Unsigned_int n, Sixty_four -> buf_int64L b (Numbers.Uint64.to_int64 n)
+  | (C.This | C.Named_thing _ | C.Add _ | C.Sub _), Eight ->
+    record_local_reloc b (RelocConstant (cst, B8));
+    buf_int8L b 0L
+  | (C.This | C.Named_thing _ | C.Add _ | C.Sub _), Sixteen ->
+    record_local_reloc b (RelocConstant (cst, B16));
+    buf_int16L b 0L
+  | (C.This | C.Named_thing _ | C.Add _ | C.Sub _), Thirty_two ->
+    record_local_reloc b (RelocConstant (cst, B32));
+    buf_int32L b 0L
+  | (C.This | C.Named_thing _ | C.Add _ | C.Sub _), Sixty_four ->
+    record_local_reloc b (RelocConstant (cst, B64));
+    buf_int64L b 0L
+
 let assemble_line b loc ins =
   try
     match ins with
     | Ins instr ->
         assemble_instr b loc instr;
         incr loc
-    | Comment _ -> ()
-    | Global sym -> (get_symbol b sym).sy_binding <- Sy_global
-    | Weak sym -> (get_symbol b sym).sy_binding <- Sy_weak
-    | Protected sym -> (get_symbol b sym).sy_protected <- true
-    | Quad (Const n) -> buf_int64L b n
-    | Quad cst ->
-        record_local_reloc b (RelocConstant (cst, B64));
-        buf_int64L b 0L
-    | Long (Const n) -> buf_int32L b n
-    | Long cst ->
-        record_local_reloc b (RelocConstant (cst, B32));
-        buf_int32L b 0L
-    | Word (Const n) -> buf_int16L b n
-    | Word cst ->
-        record_local_reloc b (RelocConstant (cst, B16));
-        buf_int16L b 0L
-    | Byte (Const n) -> buf_int8L b n
-    | Byte cst ->
-        record_local_reloc b (RelocConstant (cst, B8));
-        buf_int8L b 0L
-    | NewLabel (s, _) -> declare_label b s
-    | Bytes s -> Buffer.add_string b.buf s
-    | External (_, _) -> ()
-    | Set (_, _) -> assert false
-    | Section _ -> assert false
-    | Mode386 -> assert (is_win32 system)
-    | Model _ -> assert (is_win32 system)
-    | Cfi_startproc -> ()
-    | Cfi_endproc -> ()
-    | Cfi_adjust_cfa_offset _ -> ()
-    | Cfi_remember_state -> ()
-    | Cfi_restore_state -> ()
-    | Cfi_def_cfa_register _ -> ()
-    | Cfi_def_cfa_offset _ -> ()
-    | Cfi_offset _ -> ()
-    | File _ -> ()
-    | Loc _ -> ()
-    | Private_extern _ -> assert false
-    | Indirect_symbol _ -> assert false
-    | Type (lbl, kind) -> (get_symbol b lbl).sy_type <- Some kind
-    | Size (lbl, cst) -> (
+    | Directive (D.Comment _ )-> ()
+    | Directive (D.Global sym) -> (get_symbol b sym).sy_binding <- Sy_global
+    | Directive (D.Weak sym) -> (get_symbol b sym).sy_binding <- Sy_weak
+    | Directive (D.Protected sym) -> (get_symbol b sym).sy_protected <- true
+    | Directive (D.Const {constant = c; comment = _ }) ->
+      constant b
+              (D.Constant_with_width.constant c)
+              (D.Constant_with_width.width_in_bytes c)
+    | Directive (D.New_label (s, _)) -> declare_label b s
+    | Directive (D.Bytes { str; comment = _ }) -> Buffer.add_string b.buf str
+    | Directive (D.External _) -> ()
+    | Directive (D.Direct_assignment _) -> assert false
+    | Directive (D.Section _) -> assert false
+    | Directive D.Cfi_startproc -> ()
+    | Directive D.Cfi_endproc -> ()
+    | Directive (D.Cfi_adjust_cfa_offset _) -> ()
+    | Directive (D.Cfi_remember_state) -> ()
+    | Directive (D.Cfi_restore_state) -> ()
+    | Directive (D.Cfi_def_cfa_register _)  -> ()
+    | Directive (D.Cfi_def_cfa_offset _) -> ()
+    | Directive (D.Cfi_offset _) -> ()
+    | Directive (D.File _) -> ()
+    | Directive (D.Loc _) -> ()
+    | Directive (D.Private_extern _) -> assert false
+    | Directive (D.Indirect_symbol _) -> assert false
+    | Directive (D.Type (lbl, kind)) -> (get_symbol b lbl).sy_type <- Some kind
+    | Directive (D.Size (lbl, cst)) -> (
         match eval_const b (Buffer.length b.buf) cst with
         | Rint n -> (get_symbol b lbl).sy_size <- Some (Int64.to_int n)
         | _ -> assert false)
-    | Align (data, n) -> (
+    | Directive (D.Align { fill_x86_bin_emitter=data; bytes = n}) -> (
         (* TODO: Buffer.length = 0 => set section align *)
         let pos = Buffer.length b.buf in
         let current = pos mod n in
         if current > 0 then
           let n = n - current in
-          if data then
+          match data with
+          | Asm_targets.Asm_directives_new.Zero ->
             for _ = 1 to n do
               buf_int8 b 0x00
             done
-          else
+          | Asm_targets.Asm_directives_new.Nop ->
             match n with
             | 0 -> ()
             | 1 -> buf_int8 b 0x90
@@ -1719,18 +1739,20 @@ let assemble_line b loc ins =
                 done;
                 buf_opcodes b [ 0x0f; 0x1f; 0x84; 0x00 ];
                 buf_int32L b 0L)
-    | Space n ->
+    | Directive (D.Space { bytes = n }) ->
         (* TODO: in text section, should be NOP *)
         for _ = 1 to n do
           buf_int8 b 0
         done
-    | Hidden _ | NewLine -> ()
-    | Reloc { name = R_X86_64_PLT32;
-              expr = ConstSub (ConstLabel wrap_label, Const 4L);
-              offset = ConstSub (ConstThis, Const 4L);
-            }  when String.Tbl.mem local_labels wrap_label ->
+    | Directive (D.Hidden _) | Directive D.New_line -> ()
+    | Directive (D.Reloc { name = D.R_X86_64_PLT32;
+              expr = C.Sub (C.Named_thing wrap_label, C.Signed_int 4L);
+              offset = C.Sub (C.This, C.Signed_int 4L);
+            })  when String.Tbl.mem local_labels wrap_label ->
       record_local_reloc b ~offset:(-4) (RelocCall wrap_label)
-    | Reloc _ | Sleb128 _ | Uleb128 _ ->
+    | Directive (D.Reloc _)
+    | Directive (D.Sleb128 _)
+    | Directive (D.Uleb128 _) ->
       X86_gas.generate_asm Out_channel.stderr [ins];
       Misc.fatal_errorf "x86_binary_emitter: unsupported instruction"
   with e ->
@@ -1752,7 +1774,7 @@ let assemble_section arch section =
 
   let icount = ref 0 in
   ArrayLabels.iter section.sec_instrs ~f:(function
-    | NewLabel (lbl, _) ->
+    | Directive (D.New_label (lbl, _)) ->
         String.Tbl.add local_labels lbl !icount
     | Ins _ -> incr icount
     | _ -> ());
