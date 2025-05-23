@@ -986,21 +986,6 @@ let create_handler_to_rebuild
          invariant params, and this decision as well as the extra args required
          have all been put into the EPA for invariant params (this is why the
          unboxing decision for invariant params is not propagated up to here) *)
-      if match Sys.getenv_opt "FOO" with Some _ -> true | _ -> false
-      then
-        Format.eprintf
-          "*** CREATE HANDLER TO REBUILD ***@\n\
-           cont: %a@\n\
-           unboxing_decisions: %a@\n\
-           invariant arg types: [%a]@\n\
-           @."
-          Continuation.print cont Unbox_continuation_params.Decisions.print
-          handler.unbox_decisions
-          (Format.pp_print_list
-             ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ")
-             (Apply_cont_rewrite_id.Map.print
-                Continuation_uses.print_arg_type_at_use))
-          arg_types_by_use_id;
       Unbox_continuation_params.compute_extra_params_and_args
         handler.unbox_decisions ~arg_types_by_use_id
         handler.extra_params_and_args
@@ -1843,8 +1828,6 @@ let simplify_let_cont0 ~(simplify_expr : _ Simplify_common.expr_simplifier) dacc
           Original_handlers.create_recursive ~invariant_params ~lifted_params
             ~continuation_handlers
         in
-        Format.eprintf "*** REC CONT LIFTED ***@\noriginal: %a@\nnew: %a@\n@."
-          Original_handlers.print data.handlers Original_handlers.print ret;
         ret)
   in
   let dacc = DA.with_denv dacc denv_for_body in
