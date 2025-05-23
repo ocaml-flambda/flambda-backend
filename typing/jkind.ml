@@ -986,12 +986,12 @@ module Layout_and_axes = struct
                 Continue
                   { t with constr = Path.Map.add p (fuel - 1, args) constr }
               else Stop { t with fuel_status = Ran_out_of_fuel })
-          | Tvariant row -> (
-            let id = get_id (row_more row) in
-            match Numbers.Int.Set.mem id seen_row_var with
+          | Tvariant _ -> (
+            let row_var_id = get_id (Btype.proxy ty) in
+            match Numbers.Int.Set.mem row_var_id seen_row_var with
             | false ->
               Continue
-                { t with seen_row_var = Numbers.Int.Set.add id seen_row_var }
+                { t with seen_row_var = Numbers.Int.Set.add row_var_id seen_row_var }
             | true ->
               (* For our purposes, row variables are like constructors with no arguments,
                  so if we saw one already, we don't need to expand it again. *)
