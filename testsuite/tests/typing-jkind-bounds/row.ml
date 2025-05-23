@@ -55,14 +55,12 @@ Line 1, characters 58-59:
 Error: This value is "aliased" but expected to be "unique".
 |}]
 
-let don't_cross_locality (x : int t @ local) = use_global x
+let don't_cross_locality (x : int t @ local) = use_global x [@nontail]
 [%%expect{|
 Line 1, characters 58-59:
-1 | let don't_cross_locality (x : int t @ local) = use_global x
+1 | let don't_cross_locality (x : int t @ local) = use_global x [@nontail]
                                                               ^
 Error: This value escapes its region.
-  Hint: This argument cannot be local,
-  because it is an argument in a tail call.
 |}]
 
 
@@ -81,88 +79,102 @@ Error: This value is "nonportable" but expected to be "portable".
 
 (* Quality *)
 
-type 'a record : immutable_data with [ `A of 'a ] = { inner : 'a }
-[%%expect{|
-type 'a record = { inner : 'a; }
-|}]
-
 module type S = sig
   type 'a polyvar = [ `A of 'a ]
-  type 'a record : immutable_data with 'a polyvar = { inner : 'a }
+  type 'a abstract : immutable_data with 'a polyvar
 end
 [%%expect{|
 module type S =
-  sig type 'a polyvar = [ `A of 'a ] type 'a record = { inner : 'a; } end
+  sig
+    type 'a polyvar = [ `A of 'a ]
+    type 'a abstract : immutable_data with 'a
+  end
 |}]
 
-(* This is why we're able to give closed polymorphic variants best kinds *)
-module type S2 = S with type 'a polyvar = [ `B of int ref ]
+(* Since the jkind of [ `A of 'a ] has best quality, we can substitute with another type *)
+type 'a simple : immutable_data with 'a
+module type S2 = S with type 'a abstract = 'a simple
 [%%expect{|
-Line 1, characters 17-59:
-1 | module type S2 = S with type 'a polyvar = [ `B of int ref ]
-                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: In this "with" constraint, the new definition of "polyvar"
-       does not match its original definition in the constrained signature:
-       Type declarations do not match:
-         type 'a polyvar = [ `B of int ref ]
-       is not included in
-         type 'a polyvar = [ `A of 'a ]
-       The type "[ `B of int ref ]" is not equal to the type "[ `A of 'a ]"
-       The second variant type does not allow tag(s) "`B"
+type 'a simple : immutable_data with 'a
+module type S2 =
+  sig type 'a polyvar = [ `A of 'a ] type 'a abstract = 'a simple end
+|}]
+
+(* Contrast: jkinds of abstract types always have non-best quality. *)
+type 'a test : immutable_data with 'a
+
+module type S = sig
+  type 'a abstract : immutable_data with 'a test
+end
+
+module type S2 = S with type 'a abstract = 'a simple
+[%%expect{|
+type 'a test : immutable_data with 'a
+module type S = sig type 'a abstract : immutable_data with 'a test end
+Line 7, characters 24-52:
+7 | module type S2 = S with type 'a abstract = 'a simple
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "'a simple" is immutable_data with 'a
+         because of the definition of simple at line 1, characters 0-39.
+       But the kind of type "'a simple" must be a subkind of immutable_data
+         with 'a test
+         because of the definition of abstract at line 4, characters 2-48.
 |}]
 
 (* When we give open polymorphic variants more precise kinds, we should make sure to give them not-best quality *)
 module type S = sig
-  type 'a polyvar = private [< `A of 'a | `B of int ref ]
-  type 'a record : immutable_data with 'a polyvar = { inner : 'a }
+  type 'a polyvar := private [< `A of 'a | `B of int ref ]
+  type 'a abstract : immutable_data with 'a polyvar
 end
-module type S2 = S with type 'a polyvar = [ `A of 'a ]
-module F(M : S2) = struct
-  let cross (x : int M.record @ contended) = use_uncontended x
-end
-(* CR layouts v2.8: This should be accepted *)
 [%%expect{|
-module type S =
-  sig
-    type 'a polyvar = private [< `A of 'a | `B of int ref ]
-    type 'a record = { inner : 'a; }
-  end
-module type S2 =
-  sig type 'a polyvar = [ `A of 'a ] type 'a record = { inner : 'a; } end
-module F :
-  functor (M : S2) -> sig val cross : int M.record @ contended -> unit end
+Line 2, characters 2-58:
+2 |   type 'a polyvar := private [< `A of 'a | `B of int ref ]
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: Only type synonyms are allowed on the right of ":="
+|}]
+
+(* CR layouts v2.8: ['a abstract] should get the kind [immutable_data with 'a polyvar]
+   and this should fail: *)
+module type S3 = S with type 'a record = 'a simple
+[%%expect{|
+Line 1, characters 17-50:
+1 | module type S3 = S with type 'a record = 'a simple
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The signature constrained by "with" has no component named "record"
 |}]
 
 
 (* Harder cases: row variables *)
 
 (* CR layouts v2.8: These are both correct, but we could probably infer a more precise kind for both. *)
-type ('a, 'b) t : immediate = [< `X | `Y of 'a] as 'b
+type ('a, 'b) t : immutable_data with 'a = [< `X | `Y of 'a] as 'b
 [%%expect{|
-Line 1, characters 0-53:
-1 | type ('a, 'b) t : immediate = [< `X | `Y of 'a] as 'b
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-66:
+1 | type ('a, 'b) t : immutable_data with 'a = [< `X | `Y of 'a] as 'b
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "[< `X | `Y of 'a ]" is value
          because it's a polymorphic variant type.
-       But the kind of type "[< `X | `Y of 'a ]" must be a subkind of immediate
-         because of the definition of t at line 1, characters 0-53.
+       But the kind of type "[< `X | `Y of 'a ]" must be a subkind of
+         immutable_data with 'a
+         because of the definition of t at line 1, characters 0-66.
 |}]
-type ('a, 'b) u : immediate = [> `X | `Y of 'a] as 'b
+type ('a, 'b) u : immutable_data with 'a = [> `X | `Y of 'a] as 'b
 [%%expect{|
-Line 1, characters 0-53:
-1 | type ('a, 'b) u : immediate = [> `X | `Y of 'a] as 'b
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-66:
+1 | type ('a, 'b) u : immutable_data with 'a = [> `X | `Y of 'a] as 'b
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "[> `X | `Y of 'a ]" is value
          because it's a polymorphic variant type.
-       But the kind of type "[> `X | `Y of 'a ]" must be a subkind of immediate
-         because of the definition of u at line 1, characters 0-53.
+       But the kind of type "[> `X | `Y of 'a ]" must be a subkind of
+         immutable_data with 'a
+         because of the definition of u at line 1, characters 0-66.
 |}]
 
 (* less-than rows *)
 
 let f (x : [< `A of int | `B of string] @ contended) =
   use_uncontended x
-(* CR layouts v2.8: This should be accepted *)
+(* CR layouts v2.8: This should be accepted  *)
 [%%expect{|
 Line 2, characters 18-19:
 2 |   use_uncontended x
@@ -170,6 +182,7 @@ Line 2, characters 18-19:
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
+(* CR layouts v2.8: This should also be accepted, but not with a best quality. *)
 module M : sig
   type 'a t : immutable_data with 'a = private [< `A of 'a | `B of ('a * 'a) | `C ]
 end = struct
@@ -188,8 +201,10 @@ Error: The kind of type "[< `A of 'a | `B of 'a * 'a | `C ]" is value
 
 (* Tunivar-ified row variables *)
 
+(* With [> `Foo of int] as 'a, this should not be accepted
+   -- we can't restrict the row variable to be [value mod portable]. *)
+
 type t1 = { f : ('a : value mod portable). ([> `Foo of int] as 'a) -> unit }
-(* CR layouts v2.8: This should be accepted *)
 [%%expect{|
 Line 1, characters 64-65:
 1 | type t1 = { f : ('a : value mod portable). ([> `Foo of int] as 'a) -> unit }

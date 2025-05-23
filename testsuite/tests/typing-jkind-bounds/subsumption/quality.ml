@@ -245,6 +245,21 @@ module M :
 |}]
 
 module M : sig
+  type 'a u = [< `a of (int -> int) | `b] as 'a
+  type 'a t : value mod portable with 'a u
+end = struct
+  type 'a u = [< `a of (int -> int) | `b] as 'a
+  type 'a t constraint 'a = [< `a of (int -> int) | `b]
+end
+[%%expect {|
+module M :
+  sig
+    type 'a u = 'a constraint 'a = [< `a of int -> int | `b ]
+    type 'a t constraint 'a = [< `a of int -> int | `b ]
+  end
+|}]
+
+module M : sig
   type 'a u = [> `a of string | `b] as 'a
   type 'a t : value mod portable with 'a u
 end = struct

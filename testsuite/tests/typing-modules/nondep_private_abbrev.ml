@@ -86,6 +86,7 @@ module IndirectPriv : sig type t : immutable_data end
 (* These two behave as though a functor was defined *)
 module DirectPrivEta =
   (functor (X : sig end) -> Priv(X))(struct end);;
+(* CR layouts v2.8: examine the interaction between kinds and nondep. *)
 [%%expect{|
 module DirectPrivEta : sig type t : immutable_data with t end
 |}]
@@ -148,6 +149,7 @@ module I : functor (X : sig end) -> sig type t = Priv(X).t end
 |}]
 
 module IndirectPriv = I(struct end);;
+(* CR layouts v2.8: normalize away [with int]. *)
 [%%expect{|
 module IndirectPriv : sig type t : value mod immutable non_float with int end
 |}]
