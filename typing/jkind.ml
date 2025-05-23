@@ -1068,6 +1068,15 @@ module Layout_and_axes = struct
                   loop new_ctl bounds_so_far next_relevant_axes
                     (With_bounds.to_list b_with_bounds)
                 in
+                let nested_with_bounds =
+                  With_bounds.map
+                    (fun ti ->
+                      { relevant_axes =
+                          Axis_set.intersection ti.relevant_axes
+                            next_relevant_axes
+                      })
+                    nested_with_bounds
+                in
                 (* CR layouts v2.8: we use [new_ctl] here, not [ctl], to avoid big
                    quadratic stack growth for very widely recursive types. This is
                    sad, since it prevents us from mode crossing a record with 20
@@ -2227,6 +2236,10 @@ let of_new_legacy_sort_var ~why =
   let jkind, sort = Jkind_desc.of_new_sort_var Non_null Separable in
   fresh_jkind jkind ~annotation:None ~why:(Concrete_legacy_creation why), sort
 
+let of_new_non_float_sort_var ~why =
+  let jkind, sort = Jkind_desc.of_new_sort_var Maybe_null Non_float in
+  fresh_jkind jkind ~annotation:None ~why:(Concrete_creation why), sort
+
 let of_new_legacy_sort ~why = fst (of_new_legacy_sort_var ~why)
 
 let of_const (type l r) ~annotation ~why ~(quality : (l * r) jkind_quality)
@@ -2753,6 +2766,10 @@ module Format_history = struct
          representable at call sites)"
     | Peek_or_poke ->
       fprintf ppf "it's the type being used for a peek or poke primitive"
+    | Idx_element ->
+      fprintf ppf
+        "it's the element type (the second type parameter) for a@ block index \
+         (idx or mut_idx)"
 
   let format_concrete_legacy_creation_reason ppf :
       History.concrete_legacy_creation_reason -> unit = function
@@ -2789,8 +2806,8 @@ module Format_history = struct
       (* message gets printed in [format_flattened_history] so we ignore it here *)
       format_annotation_context ppf context
 
-  let format_any_creation_reason ppf : History.any_creation_reason -> unit =
-    function
+  let format_any_creation_reason ppf ~layout_or_kind :
+      History.any_creation_reason -> _ = function
     | Missing_cmi p ->
       fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
     | Initial_typedecl_env ->
@@ -2809,6 +2826,10 @@ module Format_history = struct
     | Inside_of_Tarrow -> fprintf ppf "argument or result of a function type"
     | Array_type_argument ->
       fprintf ppf "it's the type argument to the array type"
+    | Type_argument { parent_path; position; arity } ->
+      fprintf ppf "the %stype argument of %a has %s any"
+        (format_position ~arity position)
+        !printtyp_path parent_path layout_or_kind
 
   let format_immediate_creation_reason ppf :
       History.immediate_creation_reason -> _ = function
@@ -2886,6 +2907,10 @@ module Format_history = struct
       fprintf ppf "an abstract type has the value %s by default" layout_or_kind
     | Existential_type_variable ->
       fprintf ppf "it's an unannotated existential type variable"
+    | Idx_base ->
+      fprintf ppf
+        "it's the base type (the first type parameter) for a@ block index (idx \
+         or mut_idx)"
     | Array_comprehension_element ->
       fprintf ppf "it's the element type of array comprehension"
     | List_comprehension_iterator_element ->
@@ -2925,7 +2950,7 @@ module Format_history = struct
       fprintf ppf "of the annotation on %a" format_annotation_context ctx
     | Missing_cmi p ->
       fprintf ppf "the .cmi file for %a is missing" !printtyp_path p
-    | Any_creation any -> format_any_creation_reason ppf any
+    | Any_creation any -> format_any_creation_reason ppf any ~layout_or_kind
     | Immediate_creation immediate ->
       format_immediate_creation_reason ppf immediate
     | Immediate_or_null_creation immediate ->
@@ -3552,6 +3577,7 @@ module Debug_printers = struct
     | Layout_poly_in_external -> fprintf ppf "Layout_poly_in_external"
     | Unboxed_tuple_element -> fprintf ppf "Unboxed_tuple_element"
     | Peek_or_poke -> fprintf ppf "Peek_or_poke"
+    | Idx_element -> fprintf ppf "Idx_element"
 
   let concrete_legacy_creation_reason ppf :
       History.concrete_legacy_creation_reason -> unit = function
@@ -3592,6 +3618,9 @@ module Debug_printers = struct
     | Type_expression_call -> fprintf ppf "Type_expression_call"
     | Inside_of_Tarrow -> fprintf ppf "Inside_of_Tarrow"
     | Array_type_argument -> fprintf ppf "Array_type_argument"
+    | Type_argument { parent_path; position; arity } ->
+      fprintf ppf "Type_argument (pos %d, arity %d) of %a" position arity
+        !printtyp_path parent_path
 
   let immediate_creation_reason ppf : History.immediate_creation_reason -> _ =
     function
@@ -3643,6 +3672,7 @@ module Debug_printers = struct
     | Univar -> fprintf ppf "Univar"
     | Default_type_jkind -> fprintf ppf "Default_type_jkind"
     | Existential_type_variable -> fprintf ppf "Existential_type_variable"
+    | Idx_base -> fprintf ppf "Idx_base"
     | Array_comprehension_element -> fprintf ppf "Array_comprehension_element"
     | List_comprehension_iterator_element ->
       fprintf ppf "List_comprehension_iterator_element"
