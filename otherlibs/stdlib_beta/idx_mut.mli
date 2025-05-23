@@ -32,11 +32,11 @@ external unsafe_get
     It is unsafe, and may result in an out-of-bounds access, only for indices
     created outside the bounds of an array.
 
-    It takes [a] locally and not [v] globally because mutable indices (e.g. to
+    It can take [a] locally and [v] globally because mutable indices (e.g. to
     array elements or mutable record fields) can only be created to elements
     with the [global] modality. *)
 external unsafe_set
   : 'a ('b : any).
-  'a @ local -> ('a, 'b) idx_mut -> 'b -> unit
+  ('a[@local_opt]) -> ('a, 'b) idx_mut -> 'b -> unit
   = "%unsafe_set_idx"
 [@@layout_poly]
