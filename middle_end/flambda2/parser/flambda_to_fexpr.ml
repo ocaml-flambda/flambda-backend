@@ -1009,8 +1009,11 @@ and let_cont_expr env (lc : Flambda.Let_cont_expr.t) =
         Fexpr.Let_cont { recursive = Nonrecursive; bindings = [binding]; body })
   | Recursive handlers ->
     Flambda.Recursive_let_cont_handlers.pattern_match handlers
-      ~f:(fun ~invariant_params:_ ~body handlers ->
-        (* TODO support them *)
+      ~f:(fun ~invariant_params ~body handlers ->
+        let params, env =
+          map_accum_left kinded_parameter env
+            (Bound_parameters.to_list invariant_params)
+        in
         let env =
           List.fold_right
             (fun c env ->
@@ -1033,7 +1036,7 @@ and let_cont_expr env (lc : Flambda.Let_cont_expr.t) =
            |> Continuation.Lmap.bindings)
         in
         let body = expr env body in
-        Fexpr.Let_cont { recursive = Recursive; bindings; body })
+        Fexpr.Let_cont { recursive = Recursive params; bindings; body })
 
 and cont_handler env cont_id (sort : Continuation.Sort.t) h =
   let is_exn_handler = Flambda.Continuation_handler.is_exn_handler h in
