@@ -246,8 +246,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
         Inline (dacc, inlined))
   in
   match inlined with
-  | Inline (dacc, inlined) ->
-    simplify_expr dacc inlined ~down_to_up
+  | Inline (dacc, inlined) -> simplify_expr dacc inlined ~down_to_up
   | Do_not_inline { erase_attribute } -> (
     let apply =
       let inlined : Inlined_attribute.t =

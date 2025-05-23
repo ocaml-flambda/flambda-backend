@@ -970,28 +970,40 @@ let create_handler_to_rebuild
     in
     match handler.original with
     | Non_rec _ ->
-        (* For non-rec continuations, we need to add the lifted params,
-           since the unboxing decision was made while taking those into account *)
-        let arg_types_by_use_id =
-          arg_types_by_use_id
-          @ arg_types_by_use_id_for_lifting data.lifted_params
+      (* For non-rec continuations, we need to add the lifted params, since the
+         unboxing decision was made while taking those into account *)
+      let arg_types_by_use_id =
+        arg_types_by_use_id
+        @ arg_types_by_use_id_for_lifting data.lifted_params
             (Continuation_uses.get_uses uses)
-        in
-        Unbox_continuation_params.compute_extra_params_and_args
-          handler.unbox_decisions ~arg_types_by_use_id handler.extra_params_and_args
+      in
+      Unbox_continuation_params.compute_extra_params_and_args
+        handler.unbox_decisions ~arg_types_by_use_id
+        handler.extra_params_and_args
     | Rec _ ->
-      (* In the recursive case, we must *not* add the lifted params, since they ahve already
-         been added when making the unboxing decisions on the invariant params, and this decision
-         as well as the extra args required have all been put into the EPA for invariant params
-         (this is why the unboxing decision for invariant params is not propagated up to here) *)
-        if (match Sys.getenv_opt "FOO" with Some _ -> true | _ -> false) then
-          Format.eprintf "*** CREATE HANDLER TO REBUILD ***@\ncont: %a@\nunboxing_decisions: %a@\ninvariant arg types: [%a]@\n@."
-            Continuation.print cont
-            Unbox_continuation_params.Decisions.print handler.unbox_decisions
-            (Format.pp_print_list ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ") (Apply_cont_rewrite_id.Map.print Continuation_uses.print_arg_type_at_use)) arg_types_by_use_id
-        ;
-        Unbox_continuation_params.compute_extra_params_and_args
-          handler.unbox_decisions ~arg_types_by_use_id handler.extra_params_and_args
+      (* In the recursive case, we must *not* add the lifted params, since they
+         ahve already been added when making the unboxing decisions on the
+         invariant params, and this decision as well as the extra args required
+         have all been put into the EPA for invariant params (this is why the
+         unboxing decision for invariant params is not propagated up to here) *)
+      if match Sys.getenv_opt "FOO" with Some _ -> true | _ -> false
+      then
+        Format.eprintf
+          "*** CREATE HANDLER TO REBUILD ***@\n\
+           cont: %a@\n\
+           unboxing_decisions: %a@\n\
+           invariant arg types: [%a]@\n\
+           @."
+          Continuation.print cont Unbox_continuation_params.Decisions.print
+          handler.unbox_decisions
+          (Format.pp_print_list
+             ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ")
+             (Apply_cont_rewrite_id.Map.print
+                Continuation_uses.print_arg_type_at_use))
+          arg_types_by_use_id;
+      Unbox_continuation_params.compute_extra_params_and_args
+        handler.unbox_decisions ~arg_types_by_use_id
+        handler.extra_params_and_args
   in
   { params = handler.params;
     rebuild_handler = handler.rebuild_handler;
@@ -1662,12 +1674,10 @@ and simplify_handlers ~simplify_expr ~down_to_up ~denv_for_join ~rebuild_body
         ~lifted_params ~is_recursive:true ~replay:None
         ~consts_lifted_after_fork:consts_lifted_during_body
         (Normal_or_exn : Continuation.Sort.t)
-        None uses
-        ~arg_types_by_use_id
+        None uses ~arg_types_by_use_id
     in
     let arg_types_by_use_id_including_lifted =
-      arg_types_by_use_id
-      @ arg_types_by_use_id_for_lifting lifted_params uses
+      arg_types_by_use_id @ arg_types_by_use_id_for_lifting lifted_params uses
     in
     let invariant_epa =
       Unbox_continuation_params.compute_extra_params_and_args unbox_decisions
@@ -1805,10 +1815,11 @@ let simplify_let_cont0 ~(simplify_expr : _ Simplify_common.expr_simplifier) dacc
           Non_recursive_handler.with_handler new_handler non_rec_handler
         in
         Original_handlers.create_non_recursive new_non_rec_handler
-      | Recursive { invariant_params; lifted_params; continuation_handlers; } ->
+      | Recursive { invariant_params; lifted_params; continuation_handlers } ->
         assert (Lifted_cont_params.is_empty lifted_params);
         let continuation_handlers =
-          Continuation.Lmap.mapi (fun cont (one_recursive_handler : One_recursive_handler.t) ->
+          Continuation.Lmap.mapi
+            (fun cont (one_recursive_handler : One_recursive_handler.t) ->
               let lifted_cont =
                 Continuation.Map.find cont continuation_mapping
               in
@@ -1816,25 +1827,25 @@ let simplify_let_cont0 ~(simplify_expr : _ Simplify_common.expr_simplifier) dacc
                 let args =
                   List.map
                     (fun bp -> Simple.var (Bound_parameter.var bp))
-                    (Bound_parameters.to_list invariant_params @
-                     Bound_parameters.to_list one_recursive_handler.params)
+                    (Bound_parameters.to_list invariant_params
+                    @ Bound_parameters.to_list one_recursive_handler.params)
                 in
                 let apply_cont =
                   Apply_cont.create lifted_cont ~dbg:Debuginfo.none ~args
                 in
                 Flambda.Expr.create_apply_cont apply_cont
               in
-              One_recursive_handler.with_handler new_handler one_recursive_handler
-            ) continuation_handlers
+              One_recursive_handler.with_handler new_handler
+                one_recursive_handler)
+            continuation_handlers
         in
-        let ret = Original_handlers.create_recursive
-            ~invariant_params
-            ~lifted_params ~continuation_handlers
+        let ret =
+          Original_handlers.create_recursive ~invariant_params ~lifted_params
+            ~continuation_handlers
         in
         Format.eprintf "*** REC CONT LIFTED ***@\noriginal: %a@\nnew: %a@\n@."
           Original_handlers.print data.handlers Original_handlers.print ret;
-        ret
-    )
+        ret)
   in
   let dacc = DA.with_denv dacc denv_for_body in
   let body = data.body in
