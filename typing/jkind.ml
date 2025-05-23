@@ -991,7 +991,9 @@ module Layout_and_axes = struct
             match Numbers.Int.Set.mem row_var_id seen_row_var with
             | false ->
               Continue
-                { t with seen_row_var = Numbers.Int.Set.add row_var_id seen_row_var }
+                { t with
+                  seen_row_var = Numbers.Int.Set.add row_var_id seen_row_var
+                }
             | true ->
               (* For our purposes, row variables are like constructors with no arguments,
                  so if we saw one already, we don't need to expand it again. *)
@@ -2429,11 +2431,11 @@ let for_boxed_row row =
      else
        Btype.fold_row
          (fun jkind type_expr ->
-           add_with_bounds ~modality:Mode.Modality.Value.Const.id ~type_expr jkind)
+           add_with_bounds ~modality:Mode.Modality.Value.Const.id ~type_expr
+             jkind)
          base row)
     |> mark_best
-  else
-    Builtin.immediate ~why:Immediate_polymorphic_variant
+  else Builtin.immediate ~why:Immediate_polymorphic_variant
 
 let for_arrow =
   fresh_jkind
