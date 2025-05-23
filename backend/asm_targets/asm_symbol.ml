@@ -44,35 +44,29 @@ let should_be_escaped = function
 module Thing = struct
   type t =
     { name : string;
-      without_prefix : bool
+      already_encoded : bool
     }
 
-  let compare { name = name1; without_prefix = without_prefix1 }
-      { name = name2; without_prefix = without_prefix2 } =
+  let compare { name = name1; already_encoded = already_encoded1 }
+      { name = name2; already_encoded = already_encoded2 } =
     let cmp = String.compare name1 name2 in
-    if cmp = 0 then Bool.compare without_prefix1 without_prefix2 else cmp
+    if cmp = 0 then Bool.compare already_encoded1 already_encoded2 else cmp
 
   let equal t1 t2 = compare t1 t2 = 0
 
   let hash = Hashtbl.hash
 
-  let output chan { name; without_prefix } =
-    let symbol_prefix = if without_prefix then symbol_prefix () else "" in
-    Printf.fprintf chan "%s%s" symbol_prefix name
+  let output chan { name; already_encoded : _ } = Printf.fprintf chan "%s" name
 
-  let print fmt { name; without_prefix } =
-    let symbol_prefix = if without_prefix then symbol_prefix () else "" in
-    Format.pp_print_string fmt (symbol_prefix ^ name)
+  let print fmt { name; already_encoded : _ } = Format.pp_print_string fmt name
 end
 
 include Thing
 include Identifiable.Make (Thing)
 
-let create ?without_prefix name =
-  let without_prefix = Option.is_some without_prefix in
-  { name; without_prefix }
+let create ?(already_encoded = false) name = { name; already_encoded }
 
-let to_raw_string { name; without_prefix } = name
+let to_raw_string { name; already_encoded : _ } = name
 
 let escape name =
   let escaped_nb = ref 0 in
@@ -97,6 +91,9 @@ let to_escaped_string ?suffix ~symbol_prefix t =
   let suffix = match suffix with None -> "" | Some suffix -> suffix in
   symbol_prefix ^ escape t ^ suffix
 
-let encode t =
-  let symbol_prefix = if t.without_prefix then "" else symbol_prefix () in
-  to_escaped_string ~symbol_prefix t.name
+let encode { name; already_encoded } =
+  if already_encoded
+  then name
+  else
+    let symbol_prefix = symbol_prefix () in
+    to_escaped_string ~symbol_prefix name
