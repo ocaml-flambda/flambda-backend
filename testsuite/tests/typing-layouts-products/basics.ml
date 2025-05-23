@@ -2120,21 +2120,22 @@ type thirty_two_values = {
   c : eight_values;
   d : eight_values;
 }
-Lines 5-20, characters 0-3:
- 5 | type r_254 =
- 6 |   { a : thirty_two_values#;
- 7 |     b : thirty_two_values#;
- 8 |     c : thirty_two_values#;
- 9 |     d : thirty_two_values#;
-...
-17 |     f252 : string;
-18 |     f253 : string;
-19 |     f254 : string;
-20 |   }
-Error: The kind of type "r_254" is immutable_data with eight_values
-         because it's a boxed record type.
-       But the kind of type "r_254" must be a subkind of value mod non_float
-         because it's a boxed record type.
+type r_254 = {
+  a : thirty_two_values#;
+  b : thirty_two_values#;
+  c : thirty_two_values#;
+  d : thirty_two_values#;
+  e : thirty_two_values#;
+  f : thirty_two_values#;
+  g : thirty_two_values#;
+  h : #(eight_values * eight_values * eight_values);
+  f249 : string;
+  f250 : string;
+  f251 : string;
+  f252 : string;
+  f253 : string;
+  f254 : string;
+}
 |}]
 
 type r_255 =

@@ -1068,6 +1068,15 @@ module Layout_and_axes = struct
                   loop new_ctl bounds_so_far next_relevant_axes
                     (With_bounds.to_list b_with_bounds)
                 in
+                let nested_with_bounds =
+                  With_bounds.map
+                    (fun ti ->
+                      { relevant_axes =
+                          Axis_set.intersection ti.relevant_axes
+                            next_relevant_axes
+                      })
+                    nested_with_bounds
+                in
                 (* CR layouts v2.8: we use [new_ctl] here, not [ctl], to avoid big
                    quadratic stack growth for very widely recursive types. This is
                    sad, since it prevents us from mode crossing a record with 20
