@@ -148,6 +148,10 @@ type primitive =
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * locality_mode
   | Pufloatfield of int * field_read_semantics
+  (* CR-someday xclerc: the first argument of `Pmixedfield` and
+     `Psetmixedfield` (the path / list of indices) should probably be
+     abstracted so that we do not check in multiple places that its length is
+     correct. *)
   | Pmixedfield of int list * mixed_block_shape_with_locality_mode
       * field_read_semantics
   | Psetfloatfield of int * initialization_or_assignment

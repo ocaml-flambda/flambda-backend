@@ -418,15 +418,19 @@ let rec comp_expr (exp : Lambda.lambda) : Blambda.blambda =
       binary (Setfield n)
     | Psetmixedfield (path, _, _) -> (
       (* `Psetmixedfield ([idx0, idx1, ..., idxn], [block; value])` is compiled to
-         `Setfield (idxn, [... Getfield (idx1, [Getfield (idx0, [block])]); value])` *)
+         `Setfield (idxn, [... Getfield (idx1, [Getfield (idx0, [block])]); value])`
+         given the match case above, we know the path should have at least two
+         elements. *)
       match args with
       | [] | [_] | _ :: _ :: _ :: _ -> wrong_arity ~expected:2
       | [block; value] -> (
         match List.rev path with
-        | [] -> assert false
+        | [] -> Misc.fatal_error "comp_expr: path must be non-empty"
         | last :: rest -> (
           match List.rev rest with
-          | [] -> assert false
+          | [] ->
+            Misc.fatal_error
+              "comp_expr: path is expected to have at least two elements"
           | hd :: tl ->
             let block =
               List.fold_left
