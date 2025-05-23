@@ -885,6 +885,10 @@ let type_label label ~ty =
   | GAS_like, false -> type_ (Asm_label.encode label) ~type_:ty
   | GAS_like, true | MacOS, _ | MASM, _ -> ()
 
+let define_joint_label_and_symbol ~section symbol =
+  define_symbol_label ~section symbol;
+  define_label (Asm_label.create_label_from_symbol section symbol)
+
 let symbol ?comment sym = const_machine_width ?comment (Symbol sym)
 
 let symbol_plus_offset symbol ~offset_in_bytes =

@@ -195,6 +195,11 @@ val define_data_symbol : Asm_symbol.t -> unit
     will be raised if the current section is not a text section. *)
 val define_function_symbol : Asm_symbol.t -> unit
 
+(** Define both a label and a linker symbol. The label can be obtained as
+    [Asm_label.create_label_from_symbol]. *)
+val define_joint_label_and_symbol :
+    section:Asm_section.t -> Asm_symbol.t -> unit
+
 (** Define a symbol as a label at the current position. No type information is emitted. *)
 val define_symbol_label : section:Asm_section.t -> Asm_symbol.t -> unit
 

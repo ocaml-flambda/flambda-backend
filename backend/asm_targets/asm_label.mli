@@ -55,6 +55,10 @@ val create_string : Asm_section.t -> string -> t
 (** Create a textual label. Argument string is not checked, so use with caution. *)
 val create_string_unchecked : Asm_section.t -> string -> t
 
+(** Create a special label from a symbol name. *)
+(* CR sspies: Can we say more about where this special label comes from? *)
+val create_label_from_symbol : Asm_section.t -> Asm_symbol.t -> t
+
 (** Convert a label to the corresponding textual form, suitable for direct
     emission into an assembly file. This may be useful e.g. when emitting an
     instruction referencing a label. *)

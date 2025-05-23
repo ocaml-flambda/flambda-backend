@@ -204,9 +204,7 @@ let emit_cmm_symbol (s : Cmm.symbol) =
   (* This label is special in that it is not of the form "Lnumber". Instead, we
      take the symbol, encode it, and turn the resulting string into a label. The
      label will still be prefixed by ".L"/"L" when emitting. *)
-  (* CR sspies: Extend the new directives code to support local symbols properly
-     (as opposed to requiring chaining the label and symbol code).*)
-  | Local -> `Label (L.create_string_unchecked Text (S.encode sym))
+  | Local -> `Label (L.create_label_from_symbol Text sym)
 
 let emit_cmm_symbol_str (s : Cmm.symbol) =
   match emit_cmm_symbol s with
@@ -2033,10 +2031,7 @@ let fundecl fundecl =
       .LcamlFile__g_0_1_code:
          ...
   *)
-  (* CR sspies: The following two directives should be abstracted into a single
-     function in the directives module. *)
-  ND.define_symbol_label ~section:Text fundecl_sym;
-  ND.define_label (L.create_string_unchecked Text (S.encode fundecl_sym));
+  ND.define_joint_label_and_symbol ~section:Text fundecl_sym;
   emit_debug_info fundecl.fun_dbg;
   ND.cfi_startproc ();
   if Config.runtime5
@@ -2071,10 +2066,7 @@ let emit_item : Cmm.data_item -> unit = function
       add_def_symbol s.sym_name;
       (* Following the same convention as for function symbols above, we emit
          both a label and a linker symbol for [sym]. *)
-      (* CR sspies: The following two directives should be abstracted into a
-         single function in the directives module. *)
-      ND.define_symbol_label ~section:Data sym;
-      ND.define_label (L.create_string_unchecked Data (S.encode sym)))
+      ND.define_joint_label_and_symbol ~section:Data sym)
   | Cint8 n -> ND.int8 (Numbers.Int8.of_int_exn n)
   | Cint16 n -> ND.int16 (Numbers.Int16.of_int_exn n)
   | Cint32 n -> ND.int32 (Numbers.Int64.to_int32_exn (Int64.of_nativeint n))
