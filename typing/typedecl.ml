@@ -1779,7 +1779,10 @@ let rec update_decl_jkind env dpath decl =
   in
   let decl = { decl with type_unboxed_version } in
   let open struct
-    (* For tracking what types appear in record blocks. *)
+    (* For tracking what types appear in record blocks. All product layouts
+       count only as a [non_float64_unboxed_field], even its a
+       [float64 & float64] or [void & void].
+    *)
     type element_repr_summary =
       {  mutable values : bool; (* includes immediates. *)
          mutable floats: bool;
@@ -1788,6 +1791,8 @@ let rec update_decl_jkind env dpath decl =
          *)
          mutable float64s : bool;
          mutable non_float64_unboxed_fields : bool;
+         (* Includes product containing void *)
+         mutable voids : bool;
       }
   end in
 
@@ -1818,7 +1823,7 @@ let rec update_decl_jkind env dpath decl =
       in
       let repr_summary =
         { values = false; floats = false; float64s = false;
-          non_float64_unboxed_fields = false;
+          non_float64_unboxed_fields = false; voids = false;
         }
       in
       List.iter
@@ -1830,16 +1835,18 @@ let rec update_decl_jkind env dpath decl =
                              | Product _ ) ->
                repr_summary.non_float64_unboxed_fields <- true
            | Value_element -> repr_summary.values <- true
-           | Void -> ())
+           | Void ->
+               repr_summary.voids <- true)
         reprs;
-      let rep =
+      let[@warning "+9"] rep =
         match repr_summary with
         (* We store mixed float/float64 records as flat if there are no
             non-float fields.
         *)
         | { values = false; floats = true;
-            float64s = true; non_float64_unboxed_fields = false; }
-          [@warning "+9"] ->
+            float64s = true; non_float64_unboxed_fields = false;
+            }
+           ->
             let shape =
               List.map
                 (fun ((repr : Element_repr.t), _lbl) ->
@@ -1882,8 +1889,7 @@ let rec update_decl_jkind env dpath decl =
             non_float64_unboxed_fields = false } ->
           Record_ufloat
         | { values = false; floats = false; float64s = false;
-            non_float64_unboxed_fields = false }
-          [@warning "+9"] ->
+            non_float64_unboxed_fields = false }  ->
           Misc.fatal_error "Typedecl.update_record_kind: empty record"
       in
       lbls, rep, jkind
