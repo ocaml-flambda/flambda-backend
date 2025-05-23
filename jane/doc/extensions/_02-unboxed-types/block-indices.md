@@ -8,7 +8,7 @@ title: Block indices
 
 This document describes the language feature and implementation for explicit
 _indices_ into a block. Before reading this document, you may wish to read up
-through the [layouts](./intro#layouts) section of the main document.
+through the [layouts](./intro.md#layouts) section of the main document.
 
 As a quick example:
 ```ocaml
