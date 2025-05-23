@@ -681,8 +681,8 @@ Error: This expression has type "('a array, 'a) idx_mut"
        The kind of float is value mod many unyielding stateless immutable
          because it is the primitive type float.
        But the kind of float must be a subkind of value_or_null mod non_float
-         because it's the element type (the second type parameter) for a block
-         index (idx or mut_idx).
+         because it's the element type (the second type parameter) for a
+         block index (idx or mut_idx).
 |}]
 
 type packed = P : 'a -> packed
@@ -705,8 +705,8 @@ Error: This expression has type "('a array, 'a) idx_mut"
          because of the definition of abstract at line 1, characters 0-13.
        But the kind of abstract must be a subkind of
          value_or_null mod non_float
-         because it's the element type (the second type parameter) for a block
-         index (idx or mut_idx).
+         because it's the element type (the second type parameter) for a
+         block index (idx or mut_idx).
 |}]
 
 let bad () : (float iarray, _) idx_imm = (.:(0))
@@ -719,8 +719,8 @@ Error: This expression has type "('a iarray, 'a) idx_imm"
        The kind of float is value mod many unyielding stateless immutable
          because it is the primitive type float.
        But the kind of float must be a subkind of value_or_null mod non_float
-         because it's the element type (the second type parameter) for a block
-         index (idx or mut_idx).
+         because it's the element type (the second type parameter) for a
+         block index (idx or mut_idx).
 |}]
 
 type packed = P : 'a -> packed
@@ -743,8 +743,8 @@ Error: This expression has type "('a iarray, 'a) idx_imm"
          because of the definition of abstract at line 1, characters 0-13.
        But the kind of abstract must be a subkind of
          value_or_null mod non_float
-         because it's the element type (the second type parameter) for a block
-         index (idx or mut_idx).
+         because it's the element type (the second type parameter) for a
+         block index (idx or mut_idx).
 |}]
 
 (****************)
