@@ -871,11 +871,11 @@ let reset_probes () =
 
 let find_or_add_semaphore name enabled_at_init dbg =
   match String.Map.find_opt name !probe_semaphores with
-  | Some (label, e) ->
+  | Some (label, symbol, e) ->
     (match e, enabled_at_init with
     | None, None -> ()
     | None, Some _ ->
-      let d = label, enabled_at_init in
+      let d = label, symbol, enabled_at_init in
       probe_semaphores
         := String.Map.remove name !probe_semaphores |> String.Map.add name d
     | Some _, None ->
@@ -889,7 +889,8 @@ let find_or_add_semaphore name enabled_at_init dbg =
     label
   | None ->
     let sym = "caml_probes_semaphore_" ^ name in
-    let d = sym, enabled_at_init in
+    let symbol = S.Predef.caml_probes_semaphore ~name in
+    let d = sym, symbol, enabled_at_init in
     probe_semaphores := String.Map.add name d !probe_semaphores;
     sym
 
@@ -2130,37 +2131,35 @@ let begin_assembly unix =
   Emitaux.Dwarf_helpers.begin_dwarf ~code_begin ~code_end ~file_emitter;
   if is_win64 system
   then (
-    (* These symbols are emitted without additional encoding.*)
-    (* CR sspies: Pre-define these symbols in [Asm_symbol]. *)
-    ND.extrn (S.create ~already_encoded:true "caml_call_gc");
-    ND.extrn (S.create ~already_encoded:true "caml_c_call");
-    ND.extrn (S.create ~already_encoded:true "caml_allocN");
-    ND.extrn (S.create ~already_encoded:true "caml_alloc1");
-    ND.extrn (S.create ~already_encoded:true "caml_alloc2");
-    ND.extrn (S.create ~already_encoded:true "caml_alloc3");
-    ND.extrn (S.create ~already_encoded:true "caml_ml_array_bound_error");
-    ND.extrn (S.create ~already_encoded:true "caml_raise_exn"));
+    ND.extrn (S.Predef.caml_call_gc);
+    ND.extrn (S.Predef.caml_c_call);
+    ND.extrn (S.Predef.caml_allocN);
+    ND.extrn (S.Predef.caml_alloc1);
+    ND.extrn (S.Predef.caml_alloc2);
+    ND.extrn (S.Predef.caml_alloc3);
+    ND.extrn (S.Predef.caml_ml_array_bound_error);
+    ND.extrn (S.Predef.caml_raise_exn));
   if !Clflags.dlcode || Arch.win64
   then (
     (* from amd64.S; could emit these constants on demand *)
     ND.switch_to_section Sixteen_byte_literals;
     ND.align ~fill_x86_bin_emitter:Zero ~bytes:16;
     ND.define_symbol_label ~section:Sixteen_byte_literals
-      (S.create "caml_negf_mask");
+      (S.Predef.caml_negf_mask);
     ND.int64 0x8000000000000000L;
     ND.int64 0L;
     ND.align ~fill_x86_bin_emitter:Zero ~bytes:16;
     ND.define_symbol_label ~section:Sixteen_byte_literals
-      (S.create "caml_absf_mask");
+      (S.Predef.caml_absf_mask);
     ND.int64 0x7FFFFFFFFFFFFFFFL;
     ND.int64 0xFFFFFFFFFFFFFFFFL;
     ND.define_symbol_label ~section:Sixteen_byte_literals
-      (S.create "caml_negf32_mask");
+      (S.Predef.caml_negf32_mask);
     ND.int64 0x80000000L;
     ND.int64 0L;
     ND.align ~fill_x86_bin_emitter:Zero ~bytes:16;
     ND.define_symbol_label ~section:Sixteen_byte_literals
-      (S.create "caml_absf32_mask");
+      (S.Predef.caml_absf32_mask);
     ND.int64 0xFFFFFFFF7FFFFFFFL;
     ND.int64 0xFFFFFFFFFFFFFFFFL);
   ND.data ();
@@ -2386,7 +2385,7 @@ let emit_stapsdt_base_section () =
     (* Note that the Stapsdt symbols do not follow the usual symbol encoding
        convention. Hence, in this rare case, we create the symbol as a raw
        symbol for which no subsequent encoding will be done.*)
-    let stapsdt_sym = S.create ~already_encoded:true "_.stapsdt.base" in
+    let stapsdt_sym = S.Predef.stapsdt_base in
     ND.weak stapsdt_sym;
     ND.hidden stapsdt_sym;
     ND.define_symbol_label ~section:Stapsdt_base stapsdt_sym;
@@ -2455,7 +2454,7 @@ let emit_probe_notes0 () =
       let lbl = label_to_asm_label ~section:Stapsdt_note p.probe_label in
       ND.label lbl;
       (match Target_system.is_macos () with
-      | false -> ND.symbol (S.create ~already_encoded:true "_.stapsdt.base")
+      | false -> ND.symbol (S.Predef.stapsdt_base)
       | true -> ND.int64 0L);
       ND.symbol semaphore_label;
       ND.string "ocaml_1\000";
@@ -2472,11 +2471,10 @@ let emit_probe_notes0 () =
   | true -> ND.switch_to_section Probes);
   ND.align ~fill_x86_bin_emitter:Zero ~bytes:2;
   String.Map.iter
-    (fun _ (label, enabled_at_init) ->
+    (fun _ (label, label_sym, enabled_at_init) ->
       (* Unresolved weak symbols have a zero value regardless of the following
          initialization. *)
       let enabled_at_init = Option.value enabled_at_init ~default:false in
-      let label_sym = S.create ~already_encoded:true label in
       ND.weak label_sym;
       ND.hidden label_sym;
       ND.define_symbol_label ~section:Probes label_sym;
@@ -2506,9 +2504,7 @@ let emit_trap_notes () =
     ND.int64 0L
   in
   let emit_desc () =
-    (* CR sspies: This symbol could be pre-defined in [Asm_symbol]. We could
-       then avoid exposing the `already_encoded` flag. *)
-    ND.symbol (S.create ~already_encoded:true "_.stapsdt.base");
+    ND.symbol (S.Predef.stapsdt_base);
     emit_labels (L.Set.elements traps.enter_traps);
     emit_labels traps.push_traps;
     emit_labels traps.pop_traps

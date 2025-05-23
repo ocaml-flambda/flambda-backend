@@ -64,7 +64,10 @@ end
 include Thing
 include Identifiable.Make (Thing)
 
-let create ?(already_encoded = false) name = { name; already_encoded }
+let create name = { name; already_encoded = false }
+
+let create_without_encoding name = { name; already_encoded = true }
+
 
 let to_raw_string { name; already_encoded : _ } = name
 
@@ -97,3 +100,27 @@ let encode { name; already_encoded } =
   else
     let symbol_prefix = symbol_prefix () in
     to_escaped_string ~symbol_prefix name
+
+
+(* We predefine several common symbols that violate the standard escaping done
+   by [encode]. *)
+module Predef = struct
+  let caml_call_gc   = create_without_encoding "caml_call_gc"
+  let caml_c_call    = create_without_encoding "caml_c_call"
+  let caml_allocN    = create_without_encoding "caml_allocN"
+  let caml_alloc1    = create_without_encoding "caml_alloc1"
+  let caml_alloc2    = create_without_encoding "caml_alloc2"
+  let caml_alloc3    = create_without_encoding "caml_alloc3"
+  let caml_ml_array_bound_error
+                    = create_without_encoding "caml_ml_array_bound_error"
+  let caml_raise_exn = create_without_encoding "caml_raise_exn"
+
+  let stapsdt_base = create_without_encoding "_.stapsdt.base"
+  let caml_probes_semaphore ~name = create_without_encoding ("caml_probes_semaphore_" ^ name)
+
+  let caml_negf_mask = create "caml_negf_mask"
+  let caml_absf_mask = create "caml_absf_mask"
+  let caml_negf32_mask = create "caml_negf32_mask"
+  let caml_absf32_mask = create "caml_absf32_mask"
+
+end
