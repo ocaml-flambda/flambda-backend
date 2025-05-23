@@ -648,6 +648,7 @@ and mixed_block_element =
   | Vec128
   | Word
   | Product of mixed_product_shape
+  | Void
 
 and mixed_product_shape = mixed_block_element array
 
@@ -967,18 +968,18 @@ let compare_tag t1 t2 =
 let rec equal_mixed_block_element e1 e2 =
   match e1, e2 with
   | Value, Value | Float64, Float64 | Float32, Float32 | Float_boxed, Float_boxed
-  | Word, Word | Bits32, Bits32 | Bits64, Bits64 | Vec128, Vec128
+  | Word, Word | Bits32, Bits32 | Bits64, Bits64 | Vec128, Vec128 | Void, Void
     -> true
   | Product es1, Product es2
     -> Misc.Stdlib.Array.equal equal_mixed_block_element es1 es2
   | ( Value | Float64 | Float32 | Float_boxed | Word | Bits32 | Bits64 | Vec128
-    | Product _ ), _
+    | Product _ | Void ), _
     -> false
 
 let rec compare_mixed_block_element e1 e2 =
   match e1, e2 with
   | Value, Value | Float_boxed, Float_boxed | Float64, Float64 | Float32, Float32
-  | Word, Word | Bits32, Bits32 | Bits64, Bits64 | Vec128, Vec128
+  | Word, Word | Bits32, Bits32 | Bits64, Bits64 | Vec128, Vec128 | Void, Void
     -> 0
   | Product es1, Product es2
     -> Misc.Stdlib.Array.compare compare_mixed_block_element es1 es2
@@ -998,6 +999,8 @@ let rec compare_mixed_block_element e1 e2 =
   | _, Vec128 -> 1
   | Product _, _ -> -1
   | _, Product _ -> 1
+  | Void, _ -> -1
+  | _, Void -> 1
 
 let equal_mixed_product_shape r1 r2 = r1 == r2 ||
   Misc.Stdlib.Array.equal equal_mixed_block_element r1 r2
@@ -1154,6 +1157,7 @@ let rec mixed_block_element_to_string = function
     ^ (String.concat ", "
          (Array.to_list (Array.map mixed_block_element_to_string es)))
     ^ "]"
+  | Void -> "Void"
 
 let mixed_block_element_to_lowercase_string = function
   | Value -> "value"
@@ -1169,6 +1173,7 @@ let mixed_block_element_to_lowercase_string = function
     ^ (String.concat ", "
          (Array.to_list (Array.map mixed_block_element_to_string es)))
     ^ "]"
+  | Void -> "void"
 
 (**** Definitions for backtracking ****)
 

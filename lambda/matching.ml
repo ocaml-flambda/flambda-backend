@@ -97,24 +97,7 @@ open Printpat
 
 module Scoped_location = Debuginfo.Scoped_location
 
-type error =
-  | Void_layout
-
-exception Error of Location.t * error
-
 let dbg = false
-
-let sort_check_not_void loc sort =
-  let rec contains_void : Jkind.Sort.Const.t -> bool = function
-    | Base Void -> true
-    | Base (Value | Float64 | Float32 | Word | Bits32 | Bits64 | Vec128) -> false
-    | Product [] ->
-      Misc.fatal_error "nil in sort_check_not_void"
-    | Product ss -> List.exists contains_void ss
-  in
-  if contains_void sort then
-    raise (Error (loc, Void_layout))
-;;
 
 let debugf fmt =
   if dbg
@@ -1909,12 +1892,7 @@ let get_key_constr = function
 
 let get_pat_args_constr p rem =
   match p with
-  | { pat_desc = Tpat_construct (_, {cstr_args}, args, _) } ->
-    List.iter2
-      (fun { ca_sort } arg -> sort_check_not_void arg.pat_loc ca_sort)
-      cstr_args args;
-      (* CR layouts v5: This sanity check will have to go (or be replaced with a
-         void-specific check) when we have other non-value sorts *)
+  | { pat_desc = Tpat_construct (_, _, args, _) } ->
     args @ rem
   | _ -> assert false
 
@@ -1925,30 +1903,61 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
     | _ -> fatal_error "Matching.get_expr_args_constr"
   in
   let loc = head_loc ~scopes head in
-  (* CR layouts v5: This sanity check should be removed or changed to
-     specifically check for void when we add other non-value sorts. *)
-  List.iter (fun { ca_sort } -> sort_check_not_void head.pat_loc ca_sort)
-    cstr.cstr_args;
   let ubr = Translmode.transl_unique_barrier (head.pat_unique_barrier) in
   let sem = add_barrier_to_read ubr Reads_agree in
-  let make_field_access binding_kind sort ~field:_ ~pos =
-    let prim =
-      match cstr.cstr_shape with
-      | Constructor_uniform_value -> Pfield (pos, Pointer, sem)
-      | Constructor_mixed shape ->
-          let shape =
-            Lambda.transl_mixed_product_shape_for_read
-              ~get_value_kind:(fun _i -> Lambda.generic_value)
-              ~get_mode:(fun _i ->
-                Misc.fatal_error
-                  "unexpected flat float of layout value in \
-                    constructor field")
-              shape
-          in
-          Pmixedfield ([pos], shape, sem)
+  let make_void_access binding_kind sort pos =
+    (* Constructors to whose arguments are all void, e.g.
+      [A of #(void * void) * void], are immediates. Accesses to their fields
+      must return an new unboxed product (empty at the leaves) rather than an
+      actual block access. *)
+    let rec mk_void_el el =
+      match el with
+      | Product shape ->
+        let ll, layouts =
+          Array.map mk_void_el shape |> Array.to_list |> List.split
+        in
+        Lprim (Pmake_unboxed_product layouts, ll, loc),
+        Punboxed_product layouts
+      | Value _ | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64
+      | Vec128 | Word ->
+        fatal_error "Matching.get_exr_args_constr: non-void layout"
     in
-    let layout = Typeopt.layout_of_sort head.pat_loc sort in
-    (Lprim (prim, [ arg ], loc), binding_kind, sort, layout)
+    match cstr.cstr_shape with
+    | Constructor_uniform_value ->
+      fatal_error
+        "Matching.get_exr_args_constr: constant Constructor_uniform_value"
+    | Constructor_mixed shape ->
+      let shape =
+        transl_mixed_product_shape
+          ~get_value_kind:
+            (fun _ ->
+                fatal_error "Matching.get_expr_args_constr: get_value_kind")
+          shape
+      in
+      let e, _layout = mk_void_el shape.(pos) in
+      (e, binding_kind, sort, layout)
+  in
+  let make_field_access binding_kind sort ~field:_ ~pos =
+    if cstr.cstr_constant then
+      make_void_access binding_kind sort pos
+    else
+      let prim =
+        match cstr.cstr_shape with
+        | Constructor_uniform_value -> Pfield (pos, Pointer, sem)
+        | Constructor_mixed shape ->
+            let shape =
+              Lambda.transl_mixed_product_shape_for_read
+                ~get_value_kind:(fun _i -> Lambda.generic_value)
+                ~get_mode:(fun _i ->
+                  Misc.fatal_error
+                    "unexpected flat float of layout value in \
+                      constructor field")
+                shape
+            in
+            Pmixedfield ([pos], shape, sem)
+      in
+      let layout = Typeopt.layout_of_sort head.pat_loc sort in
+      (Lprim (prim, [ arg ], loc), binding_kind, sort, layout)
   in
   let str = add_barrier_to_let_kind ubr Alias in
   if cstr.cstr_inlined <> None then
@@ -2299,7 +2308,6 @@ let record_matching_line num_fields lbl_pat_list =
   List.iter (fun (_, lbl, pat) ->
     (* CR layouts v5: This void sanity check can be removed when we add proper
        void support (or whenever we remove `lbl_pos_void`) *)
-    sort_check_not_void pat.pat_loc lbl.lbl_sort;
     patv.(lbl.lbl_pos) <- pat)
     lbl_pat_list;
   Array.to_list patv
@@ -2333,7 +2341,6 @@ let get_expr_args_record ~scopes head (arg, _mut, sort, layout) rem =
       rem
     else
       let lbl = all_labels.(pos) in
-      sort_check_not_void head.pat_loc lbl.lbl_sort;
       let ptr, _ = Typeopt.maybe_pointer_type head.pat_env lbl.lbl_arg in
       let lbl_layout = Typeopt.layout_of_sort lbl.lbl_loc lbl.lbl_sort in
       let sem =
@@ -2408,7 +2415,6 @@ let get_expr_args_record_unboxed_product ~scopes head
       rem
     else
       let lbl = all_labels.(pos) in
-      sort_check_not_void head.pat_loc lbl.lbl_sort;
       let access = if Array.length all_labels = 1 then
         arg (* erase singleton unboxed records before lambda *)
       else
@@ -4511,24 +4517,3 @@ let for_optional_arg_default
   in
   for_let ~scopes ~arg_sort:default_arg_sort ~return_layout
     loc supplied_or_default pat body
-
-(* Error report *)
-(* CR layouts v5: This file didn't use to have the report_error infrastructure -
-   I added it only for the void sanity checking in this module, which I'm not
-   sure is even needed.  Reevaluate. *)
-open Format
-
-let report_error ppf = function
-  | Void_layout ->
-      fprintf ppf
-        "Void layout detected in translation:@ Please report this error to \
-         the Jane Street compilers team."
-
-let () =
-  Location.register_error_of_exn
-    (function
-      | Error (loc, err) ->
-          Some (Location.error_of_printer ~loc report_error err)
-      | _ ->
-        None
-    )

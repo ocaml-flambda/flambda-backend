@@ -623,6 +623,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                         | Float_boxed | Float64 ->
                             `Continue (O.repr (O.double_field obj pos))
                         | Float32 | Bits32 | Bits64 | Vec128 | Word
+                        | Void -> `Stop (Oval_stuff "<void>")
                         | Product _ ->
                             `Stop (Oval_stuff "<abstr>")
                       in
@@ -631,8 +632,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                           nest tree_of_val (depth - 1) fld ty_arg
                       | `Stop result -> result
               in
-              let pos = if is_void then pos else pos + 1 in
-              (lid, v) :: tree_of_fields false pos remainder
+              (lid, v) :: tree_of_fields false (pos + 1) remainder
         in
         Oval_record (tree_of_fields (pos = 0) pos lbl_list)
 
@@ -645,7 +645,6 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
               let name = Ident.name ld_id in
               (* PR#5722: print full module path only
                  for first record field *)
-              let is_void = Jkind.Sort.Const.(equal void ld_sort) in
               let lid =
                 if first then tree_of_label env path (Out_name.create name)
                 else Oide_ident (Out_name.create name)
@@ -659,8 +658,7 @@ module Make(O : OBJ)(EVP : EVALPATH with type valu = O.t) = struct
                     tree_of_val (depth - 1) obj ty_arg
                   | _ -> nest tree_of_val (depth - 1) (O.field obj pos) ty_arg
               in
-              let pos = if is_void then pos else pos + 1 in
-              (lid, v) :: tree_of_fields false pos remainder
+              (lid, v) :: tree_of_fields false (pos + 1) remainder
         in
         Oval_record_unboxed_product (tree_of_fields (pos = 0) pos lbl_list)
 
