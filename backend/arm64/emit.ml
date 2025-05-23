@@ -780,11 +780,12 @@ let emit_literals p align emit_literal =
       D.switch_to_section_raw
         ~names:["__TEXT,__literal" ^ Int.to_string align]
         ~flags:None
-        ~args:[Int.to_string align ^ "byte_literals"];
+        ~args:[Int.to_string align ^ "byte_literals"]
+        ~is_delayed:false;
       (* CR sspies: The following section is incorrect. We are in a data section
          here. Fix this when cleaning up the section mechanism. *)
       D.unsafe_set_internal_section_ref Text);
-    D.align ~bytes:align;
+    D.align ~fill_x86_bin_emitter:Nop ~bytes:align;
     List.iter emit_literal !p;
     p := [])
 
@@ -1259,7 +1260,7 @@ let emit_named_text_section func_name =
        the new asm directives. *)
     D.switch_to_section_raw
       ~names:[".text.caml." ^ S.encode (S.create func_name)]
-      ~flags:(Some "ax") ~args:["%progbits"];
+      ~flags:(Some "ax") ~args:["%progbits"] ~is_delayed:false;
     (* Warning: We set the internal section ref to Text here, because it
        currently does not supported named text sections. In the rest of this
        file, we pretend the section is called Text rather than the function
@@ -2117,7 +2118,7 @@ let fundecl fundecl =
   contains_calls := fundecl.fun_contains_calls;
   emit_named_text_section !function_name;
   let fun_sym = S.create fundecl.fun_name in
-  D.align ~bytes:8;
+  D.align ~fill_x86_bin_emitter:Nop ~bytes:8;
   D.global fun_sym;
   D.type_symbol ~ty:Function fun_sym;
   D.define_symbol_label ~section:Text fun_sym;
@@ -2179,11 +2180,11 @@ let emit_item (d : Cmm.data_item) =
     D.symbol_plus_offset ~offset_in_bytes:(Targetint.of_int o) sym
   | Cstring s -> D.string s
   | Cskip n -> D.space ~bytes:n
-  | Calign n -> D.align ~bytes:n
+  | Calign n -> D.align ~fill_x86_bin_emitter:Zero ~bytes:n
 
 let data l =
   D.data ();
-  D.align ~bytes:8;
+  D.align ~fill_x86_bin_emitter:Zero ~bytes:8;
   List.iter emit_item l
 
 let file_emitter ~file_num ~file_name =
@@ -2221,7 +2222,7 @@ let begin_assembly _unix =
   if macosx
   then (
     DSL.ins I.NOP [||];
-    D.align ~bytes:8);
+    D.align ~fill_x86_bin_emitter:Nop ~bytes:8);
   let code_end = Cmm_helpers.make_symbol "code_end" in
   Emitaux.Dwarf_helpers.begin_dwarf ~code_begin ~code_end ~file_emitter
 
@@ -2239,7 +2240,7 @@ let end_assembly () =
   D.global data_end_sym;
   D.define_symbol_label ~section:Data data_end_sym;
   D.int64 0L;
-  D.align ~bytes:8;
+  D.align ~fill_x86_bin_emitter:Zero ~bytes:8;
   (* #7887 *)
   let frametable = Cmm_helpers.make_symbol "frametable" in
   let frametable_sym = S.create frametable in
@@ -2264,7 +2265,7 @@ let end_assembly () =
       efa_u16 = (fun n -> D.uint16 n);
       efa_u32 = (fun n -> D.uint32 n);
       efa_word = (fun n -> D.targetint (Targetint.of_int_exn n));
-      efa_align = (fun n -> D.align ~bytes:n);
+      efa_align = (fun n -> D.align ~fill_x86_bin_emitter:Zero ~bytes:n);
       efa_label_rel =
         (fun lbl ofs ->
           let lbl = label_to_asm_label ~section:Data lbl in

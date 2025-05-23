@@ -37,7 +37,11 @@ val switch_to_section :
     command.  This function is only intended to be used for target-specific
     sections. *)
 val switch_to_section_raw :
-  names:string list -> flags:string option -> args:string list -> unit
+  names:string list ->
+  flags:string option ->
+  args:string list ->
+  is_delayed:bool ->
+  unit
 
 (** Abbreviation for [switch_to_section Text]. *)
 val text : unit -> unit
@@ -158,8 +162,16 @@ val cfi_def_cfa_register : reg:string -> unit
     supported on all platforms. *)
 val mark_stack_non_executable : unit -> unit
 
-(** Leave as much space as is required to achieve the given alignment. *)
-val align : bytes:int -> unit
+type align_padding =
+  | Nop
+  | Zero
+
+(** Leave as much space as is required to achieve the given alignment. On x86 in the
+    binary emitter, it is important what the space is filled with: in the text section,
+    one would typically fill it with [nop] instructions and in the data section, one
+    would typically fill it with zeros. This is controlled by the parameter
+    [fill_x86_bin_emitter]. *)
+val align : fill_x86_bin_emitter:align_padding -> bytes:int -> unit
 
 (** Emit a directive giving the displacement between the given symbol and
     the current position.  This should only be used to state sizes of
@@ -167,6 +179,8 @@ val align : bytes:int -> unit
     [size_of] may be specified when the symbol used for measurement differs
     from that whose size is being stated (e.g. on POWER with ELF ABI v1). *)
 val size : ?size_of:Asm_symbol.t -> Asm_symbol.t -> unit
+
+val size_const : Asm_symbol.t -> int64 -> unit
 
 (** Leave a gap in the object file. *)
 val space : bytes:int -> unit
@@ -196,6 +210,15 @@ val protected : Asm_symbol.t -> unit
 (** Mark a symbol as "private extern" (see assembler documentation for
     details). *)
 val private_extern : Asm_symbol.t -> unit
+
+(** Mark an already encoded symbol as external. *)
+val extrn : Asm_symbol.t -> unit
+
+(** Mark an already encoded symbol or label as hidden. *)
+val hidden : Asm_symbol.t -> unit
+
+(** Mark an already encoded symbol or label as weak. *)
+val weak : Asm_symbol.t -> unit
 
 (** Marker inside the definition of a lazy symbol stub (see platform or
     assembler documentation for details). *)
@@ -306,6 +329,12 @@ val offset_into_dwarf_section_symbol :
   Asm_symbol.t ->
   unit
 
+val reloc_x86_64_plt32 :
+  offset_from_this:int64 ->
+  target_symbol:Asm_symbol.t ->
+  rel_offset_from_next:int64 ->
+  unit
+
 module Directive : sig
   module Constant : sig
     (* CR sspies: make this private again once the first-class module has been
@@ -354,6 +383,10 @@ module Directive : sig
      removed *)
   type comment = string
 
+  (* ELF specific *)
+  type reloc_type = R_X86_64_PLT32
+  (* X86 only *)
+
   (* CR sspies: make this private again once the first-class module has been
      removed *)
 
@@ -363,7 +396,14 @@ module Directive : sig
       have had all necessary prefixing, mangling, escaping and suffixing
       applied. *)
   type t =
-    | Align of { bytes : int }
+    | Align of
+        { bytes : int;
+              (** The number of bytes to align to. This will be taken log2 by the emitter on
+          Arm and macOS platforms.*)
+          fill_x86_bin_emitter : align_padding
+              (** The [fill_x86_bin_emitter] flag controls whether the x86 binary emitter
+                  emits NOP instructions or null bytes. *)
+        }
     | Bytes of
         { str : string;
           comment : string option
@@ -403,7 +443,8 @@ module Directive : sig
     | Section of
         { names : string list;
           flags : string option;
-          args : string list
+          args : string list;
+          is_delayed : bool
         }
     | Size of string * Constant.t
     | Sleb128 of
@@ -417,6 +458,14 @@ module Directive : sig
           comment : string option
         }
     | Protected of string
+    | Hidden of string
+    | Weak of string
+    | External of string
+    | Reloc of
+        { offset : Constant.t;
+          name : reloc_type;
+          expr : Constant.t
+        }
 
   (** Translate the given directive to textual form.  This produces output
       suitable for either gas or MASM as appropriate. *)

@@ -46,15 +46,22 @@ type t =
   | Read_only_data
   | Eight_byte_literals
   | Sixteen_byte_literals
+  | Thirtytwo_byte_literals
+  | Sixtyfour_byte_literals
   | Jump_tables
   | Text
+  | Stapsdt_base
+  | Stapsdt_note
+  | Probes
+  | Note_ocaml_eh
 
 val to_string : t -> string
 
 type section_details = private
   { names : string list;
     flags : string option;
-    args : string list
+    args : string list;
+    is_delayed : bool
   }
 
 val dwarf_sections_in_order : unit -> t list

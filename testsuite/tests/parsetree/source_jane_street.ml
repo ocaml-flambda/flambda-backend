@@ -601,8 +601,8 @@ type t = { x : string @@ global
 type t1 = { mutable x : float
           ; mutable f : float -> float }
 
-type t2 = { mutable x : float [@no_mutable_implied_modalities]
-          ; mutable f : float -> float [@no_mutable_implied_modalities] }
+type t2 = { mutable x : float @@ local once
+          ; mutable f : float -> float @@ local once }
 
 [%%expect{|
 type t =
@@ -614,7 +614,10 @@ type t = {
   z : string @@ global many;
 }
 type t1 = { mutable x : float; mutable f : float -> float; }
-type t2 = { mutable x : float; mutable f : float -> float; }
+type t2 = {
+  mutable x : float @@ local once;
+  mutable f : float -> float @@ local once;
+}
 |}]
 
 let f1 (x @ local) (f @ once) : t1 = exclave_ { x; f }

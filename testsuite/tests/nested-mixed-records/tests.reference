@@ -1,0 +1,7 @@
+size=mixed[3/3] value.str="something" value.sub.#i32=123 value.sub.#i64=456 
+size=mixed[1/3] value.str="something" value.sub.#i32=123 value.sub.#i64=456 
+size=mixed[2/3] value.i=987 value.sub.#i32=123 value.sub.#i64=456 
+size=mixed[0/3] value.i=987 value.sub.#i32=123 value.sub.#i64=456 
+size=mixed[2/5] value.str="something" value.sub.#i32=123 value.sub.#i64=456 value.sub.s=s value.i=789 
+size=mixed[1/2] value.str="something" value.sub.#i32=123 
+size=mixed[1/3] value.str="something" value.sub.#i32=123 value.sub.#aux.#i64=456 

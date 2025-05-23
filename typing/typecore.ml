@@ -2647,7 +2647,7 @@ and type_pat_aux
       solve_Ppat_array ~refine:false loc penv mutability expected_ty
     in
     let modalities =
-      Typemode.transl_modalities ~maturity:Stable mutability [] []
+      Typemode.transl_modalities ~maturity:Stable mutability []
     in
     check_project_mutability ~loc ~env:!!penv mutability alloc_mode.mode;
     let alloc_mode = Modality.Value.Const.apply modalities alloc_mode.mode in
@@ -6115,7 +6115,8 @@ and type_expect_
               match mixed.(label.lbl_num) with
               | Float_boxed -> true
               | Float64 | Float32 | Value | Bits32 | Bits64
-              | Vec128 | Vec256 | Vec512 | Word ->
+              | Vec128 | Vec256 | Vec512 | Word
+              | Product _ ->
                 false
             end
           | _ -> false
@@ -9530,9 +9531,7 @@ and type_generic_array
     if Types.is_mutable mutability then Predef.type_array
     else Predef.type_iarray
   in
-  let modalities =
-    Typemode.transl_modalities ~maturity:Stable mutability [] []
-  in
+  let modalities = Typemode.transl_modalities ~maturity:Stable mutability [] in
   let argument_mode = mode_modality modalities array_mode in
   let jkind, elt_sort = Jkind.of_new_legacy_sort_var ~why:Array_element in
   let ty = newgenvar jkind in

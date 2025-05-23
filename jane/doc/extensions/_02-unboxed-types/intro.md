@@ -118,8 +118,7 @@ design decisions and contains additional examples.
 ## Layouts in module inclusion
 
 Layouts are part of kinds, and therefore work just like kinds for the purposes
-of module inclusion. See the [kinds
-documentation][../kinds.md#inclusion-and-variance] for more.
+of module inclusion. See the [kinds documentation](../../kinds/intro#inclusion-and-variance) for more.
 
 # Unboxed numbers
 
@@ -140,8 +139,7 @@ the other unboxed types) that has layout
 float# ... end`.
 
 Each numeric type has its own library for working with it: `float_u`,
-`int32_u`, `int64_u`, and `nativeint_u`. (Outside of Jane Street, these will be
-modules in the `janestreet_shims` library.)
+`int32_u`, `int64_u`, and `nativeint_u` (all in the `janestreet_shims` library).
 
 * Unboxed constants are written with a prepended `#`.
   There is no literal syntax for unboxed vectors: use the `Ocaml_simd_sse` library instead.
@@ -580,4 +578,5 @@ We would bump the version number in either of these cases, which would prompt yo
 Version history:
 
 - `v1`: initial implementation;
-- `v2`: automatic reordering by the front- and middle-ends.
+- `v2`: automatic reordering by the front- and middle-ends;
+- `v3`: automatic flattening of nested unboxed records.
