@@ -21,7 +21,7 @@ type line = { p : pt#; q : pt# }
 let mk_idx () : (line, int) idx_imm = (.q.#y)
 
 let get_coord (line : line) (i : (line, int) idx_imm) : int =
-  (* Equivalent to [line.q.#y] *)
+  (* If [i] is [(.q.#y)], then the below is similar to to [line.q.#y] *)
   Idx_imm.unsafe_get line i
 
 (* Creating a block index into an array *)
@@ -59,16 +59,15 @@ Specifically, it consists of one "block access" followed by zero or more
 "unboxed accesses" within parentheses.
 
 Block accesses take the following forms:
-- `.foo` (record field)
-- `.(i)`, `.L(i)`, `.l(i)`, `.n(i)` (`array` index as an `int`, `int64#`,
-  `int32#`, and `nativeint#`)
-- `.:(i)`, `.:L(i)`, `.:l(i)`, `.:n(i)` (`iarray` index as an `int`, `int64#`,
-  `int32#`, and `nativeint#`)
-- `.idx_imm(idx)` (immutable block index)
-- `.idx_mut(idx)` (mutable block index)
+- Record field: `.foo`
+- Array index as an `int`, `int64#`, `int32#`, or `nativeint#`: `.(i)`, `.L(i)`,
+  `.l(i)`, or `.n(i)`
+- Immutable array index as an `int`, `int64#`, `int32#`, or `nativeint#`:
+  `.:(i)`, `.:L(i)`, `.:l(i)`, or `.:n(i)`
+- Mutable or immutable block index: `.idx_mut(idx)` or `.idx_imm(idx)`
 
 Unboxed accesses take the following forms:
-- `.#bar` (unboxed record field)
+- Unboxed record field: `.#bar`
 
 **Index mutability.** If the block access is mutable (mutable record fields,
 arrays, and mutable block indices), then an `idx_mut` is created, and if the
@@ -79,7 +78,7 @@ immutable block indices), then an `idx_imm` is created.
 within blocks. This can be done via the `Idx_imm.unsafe_get`,
 `Idx_mut.unsafe_get`, and `Idx_mut.unsafe_set` functions in `Stdlib_beta`.
 
-_The key advantage of block indices is that these accessor functions are
+_A key advantage of block indices is that these accessor functions are
 polymorphic in both the base type and element type._ Index reading roughly
 (ignoring mutability, layouts, modes) has the type signature
 `'a -> ('a, 'b) idx -> 'b`, and index writing roughly has the type
@@ -128,14 +127,14 @@ type 'a mptr = P : #('base, ('base, 'a) idx_mut) -> 'a mptr [@@unboxed]
 
 # Edge cases and limitations
 
-1. Indices to flat float arrays cannot be taken: the type parameter must be
-   `non_float`.
+1. For block indices to arrays, the array type parameter must be `mod
+   non_float`.
 2. Indices to `[@@unboxed]` records cannot be taken.
-3. An index to a `float` into a flattened float record has an element type
+3. An index to a `float` in a flattened float record has an element type
    `float#`.
 4. Indices to some records containing both values and non-values, and occupying
-   over 2^16 bytes, cannot be created. See "Representation of block indices" for
-   details.
+   over 2^16 bytes, cannot be created. See [Representation of block
+   indices](#Representation-of-block-indices) for details.
 5. Indices to structures with non-default modalities are not supported.
    Specifically, the composition of modalities of the accesses of an `idx_imm`
    must have the identity modality, while the composition of modalities of the
@@ -203,8 +202,7 @@ implementation of deepening, see below.
 
 While from the perspective of the layout, deepening an index simply entails
 "moving to a subtree," deepening the native representation is more involved.
-Below, we show the different cases of deepening the native representation of an
-index. Note that:
+Below, we show the different cases to consider. Note that:
 - The "left" and "right" of an element refers to the layout, *not* the native
   representation.
 - `o1` and `g1` refer to the offset and gap of the index before deepening (light
