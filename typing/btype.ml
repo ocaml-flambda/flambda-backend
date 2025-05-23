@@ -175,6 +175,17 @@ let static_row row =
     (fun (_,f) -> match row_field_repr f with Reither _ -> false | _ -> true)
     (row_fields row)
 
+let tvariant_not_immediate row =
+  (* if all labels are devoid of arguments, not a pointer *)
+  (* CR layouts v5: Polymorphic variants with all void args can probably
+     be immediate, but we don't allow them to have void args right now. *)
+  not (row_closed row)
+  || List.exists
+    (fun (_,field) -> match row_field_repr field with
+      | Rpresent (Some _) | Reither (false, _, _) -> true
+      | _ -> false)
+    (row_fields row)
+
 let hash_variant s =
   let accu = ref 0 in
   for i = 0 to String.length s - 1 do

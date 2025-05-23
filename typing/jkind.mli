@@ -503,7 +503,7 @@ val for_boxed_variant : Types.constructor_declaration list -> Types.jkind_l
 (** Choose an appropriate jkind for a boxed tuple type. *)
 val for_boxed_tuple : (string option * Types.type_expr) list -> Types.jkind_l
 
-(** Choose an appropriate jkind for a (known to be non-immediate) row type *)
+(** Choose an appropriate jkind for a row type. *)
 val for_boxed_row : Types.row_desc -> Types.jkind_l
 
 (** The jkind of an arrow type. *)
