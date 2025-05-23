@@ -644,6 +644,7 @@ Line 1, characters 22-23:
                           ^
 Error: Unbound record field "u"
 Hint: There is an unboxed record field with this name.
+      To project an unboxed record field, use ".#u" instead of ".u".
 |}]
 
 let bad_get t = t.#b
