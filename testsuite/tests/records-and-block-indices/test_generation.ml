@@ -22,14 +22,17 @@ let interesting_type_trees : Type_structure.t Tree.t list =
     [[Int; Float]; [Int; Int32_u]; [Int; Int64x2_u]; [Float; Float_u]]
     ~f:(fun leaves ->
       List.concat_map
-        (Tree.enumerate_shapes' ~max_leaves_and_singleton_branches:3
-        @ [ Branch [Leaf (); Branch [Leaf (); Branch [Leaf ()]]];
-            Branch [Leaf (); Branch [Branch [Leaf (); Leaf ()]]];
-            Branch [Branch [Branch [Leaf (); Leaf ()]; Leaf ()]];
-            Branch [Branch [Leaf (); Branch [Leaf (); Leaf ()]]]
-          ]
-        )
-        ~f:(fun shape -> Tree.enumerate ~shape ~leaves)
+        (Tree.enumerate_shapes'
+           ~max_leaves_and_singleton_branches:3
+             (* Extra tree shapes make native tests too long to compile, so test
+                these locally only *)
+             (* @ [ Branch [Leaf (); Branch [Leaf (); Branch [Leaf ()]]];
+              *     Branch [Leaf (); Branch [Branch [Leaf (); Leaf ()]]];
+              *     Branch [Branch [Branch [Leaf (); Leaf ()]; Leaf ()]];
+              *     Branch [Branch [Leaf (); Branch [Leaf (); Leaf ()]]]
+              *   ] *)
+        ) ~f:(fun shape -> Tree.enumerate ~shape ~leaves
+      )
     )
   @ List.concat_map
       (Tree.enumerate_shapes' ~max_leaves_and_singleton_branches:2)
