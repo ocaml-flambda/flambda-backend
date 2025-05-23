@@ -2131,35 +2131,35 @@ let begin_assembly unix =
   Emitaux.Dwarf_helpers.begin_dwarf ~code_begin ~code_end ~file_emitter;
   if is_win64 system
   then (
-    ND.extrn (S.Predef.caml_call_gc);
-    ND.extrn (S.Predef.caml_c_call);
-    ND.extrn (S.Predef.caml_allocN);
-    ND.extrn (S.Predef.caml_alloc1);
-    ND.extrn (S.Predef.caml_alloc2);
-    ND.extrn (S.Predef.caml_alloc3);
-    ND.extrn (S.Predef.caml_ml_array_bound_error);
-    ND.extrn (S.Predef.caml_raise_exn));
+    ND.extrn S.Predef.caml_call_gc;
+    ND.extrn S.Predef.caml_c_call;
+    ND.extrn S.Predef.caml_allocN;
+    ND.extrn S.Predef.caml_alloc1;
+    ND.extrn S.Predef.caml_alloc2;
+    ND.extrn S.Predef.caml_alloc3;
+    ND.extrn S.Predef.caml_ml_array_bound_error;
+    ND.extrn S.Predef.caml_raise_exn);
   if !Clflags.dlcode || Arch.win64
   then (
     (* from amd64.S; could emit these constants on demand *)
     ND.switch_to_section Sixteen_byte_literals;
     ND.align ~fill_x86_bin_emitter:Zero ~bytes:16;
     ND.define_symbol_label ~section:Sixteen_byte_literals
-      (S.Predef.caml_negf_mask);
+      S.Predef.caml_negf_mask;
     ND.int64 0x8000000000000000L;
     ND.int64 0L;
     ND.align ~fill_x86_bin_emitter:Zero ~bytes:16;
     ND.define_symbol_label ~section:Sixteen_byte_literals
-      (S.Predef.caml_absf_mask);
+      S.Predef.caml_absf_mask;
     ND.int64 0x7FFFFFFFFFFFFFFFL;
     ND.int64 0xFFFFFFFFFFFFFFFFL;
     ND.define_symbol_label ~section:Sixteen_byte_literals
-      (S.Predef.caml_negf32_mask);
+      S.Predef.caml_negf32_mask;
     ND.int64 0x80000000L;
     ND.int64 0L;
     ND.align ~fill_x86_bin_emitter:Zero ~bytes:16;
     ND.define_symbol_label ~section:Sixteen_byte_literals
-      (S.Predef.caml_absf32_mask);
+      S.Predef.caml_absf32_mask;
     ND.int64 0xFFFFFFFF7FFFFFFFL;
     ND.int64 0xFFFFFFFFFFFFFFFFL);
   ND.data ();
@@ -2454,7 +2454,7 @@ let emit_probe_notes0 () =
       let lbl = label_to_asm_label ~section:Stapsdt_note p.probe_label in
       ND.label lbl;
       (match Target_system.is_macos () with
-      | false -> ND.symbol (S.Predef.stapsdt_base)
+      | false -> ND.symbol S.Predef.stapsdt_base
       | true -> ND.int64 0L);
       ND.symbol semaphore_label;
       ND.string "ocaml_1\000";
@@ -2504,7 +2504,7 @@ let emit_trap_notes () =
     ND.int64 0L
   in
   let emit_desc () =
-    ND.symbol (S.Predef.stapsdt_base);
+    ND.symbol S.Predef.stapsdt_base;
     emit_labels (L.Set.elements traps.enter_traps);
     emit_labels traps.push_traps;
     emit_labels traps.pop_traps

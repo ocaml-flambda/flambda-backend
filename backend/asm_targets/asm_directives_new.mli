@@ -198,7 +198,7 @@ val define_function_symbol : Asm_symbol.t -> unit
 (** Define both a label and a linker symbol. The label can be obtained as
     [Asm_label.create_label_from_symbol]. *)
 val define_joint_label_and_symbol :
-    section:Asm_section.t -> Asm_symbol.t -> unit
+  section:Asm_section.t -> Asm_symbol.t -> unit
 
 (** Define a symbol as a label at the current position. No type information is emitted. *)
 val define_symbol_label : section:Asm_section.t -> Asm_symbol.t -> unit
@@ -383,7 +383,6 @@ module Directive : sig
   (* ELF specific *)
   type reloc_type = R_X86_64_PLT32
   (* X86 only *)
-
 
   (** Internal representation of directives.  Only needed if writing a custom
       assembler or printer instead of using [print], below.
