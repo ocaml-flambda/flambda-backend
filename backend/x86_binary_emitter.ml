@@ -1647,7 +1647,8 @@ let assemble_instr b loc = function
   | SIMD (instr, args) -> emit_simd b instr args
 
 
-let[@warning "+4"] constant b cst (width: D.Constant_with_width.width_in_bytes) =
+let[@warning "+4"] constant b cst
+      (width: D.Constant_with_width.width_in_bytes) =
   let open D.Constant_with_width in
   match cst, width with
   | C.Signed_int n, Eight -> buf_int8L b n
@@ -1749,7 +1750,9 @@ let assemble_line b loc ins =
               offset = C.Sub (C.This, C.Signed_int 4L);
             })  when String.Tbl.mem local_labels wrap_label ->
       record_local_reloc b ~offset:(-4) (RelocCall wrap_label)
-    | Directive (D.Reloc _) | Directive (D.Sleb128 _) | Directive (D.Uleb128 _) ->
+    | Directive (D.Reloc _)
+    | Directive (D.Sleb128 _)
+    | Directive (D.Uleb128 _) ->
       X86_gas.generate_asm Out_channel.stderr [ins];
       Misc.fatal_errorf "x86_binary_emitter: unsupported instruction"
   with e ->
