@@ -2097,6 +2097,7 @@ let fundecl fundecl =
   D.label (label_name (emit_symbol fundecl.fun_name));
   emit_debug_info fundecl.fun_dbg;
   cfi_startproc ();
+  D.comment ("LLVM-MCA-BEGIN " ^ !function_name);
   if Config.runtime5
      && (not Config.no_stack_checks)
      && String.equal !Clflags.runtime_variant "d"
@@ -2111,6 +2112,7 @@ let fundecl fundecl =
     let n = frame_size () - 8 - if fp then 8 else 0 in
     if n <> 0 then cfi_adjust_cfa_offset (-n));
   (match fun_end_label with Some l -> def_label l | None -> ());
+  D.comment ("LLVM-MCA-END " ^ !function_name);
   cfi_endproc ();
   emit_function_type_and_size fundecl.fun_name
 
