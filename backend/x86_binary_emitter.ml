@@ -13,6 +13,8 @@
 *)
 
 [@@@ocaml.warning "+A-4-9-42-69"]
+(* CR sspies: Warning 40 is enabled for this file, leading to unnecessarily
+   verbose code (see [constant] below). Disable it in the future. *)
 
 open! Int_replace_polymorphic_compare
 open X86_ast
