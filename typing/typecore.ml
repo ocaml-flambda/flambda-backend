@@ -5764,8 +5764,8 @@ and type_expect_
       let modality = label.lbl_modalities in
       { ba; base_ty = ty_res; el_ty = ty_arg; flat_float; modality }
     | Baccess_array (mut, index_kind, index) ->
-      (* CR rtjoa: require that [el_ty] is [non_float] *)
-      let elt_jkind, elt_sort = Jkind.of_new_sort_var ~why:Idx_element in
+      let elt_jkind, elt_sort =
+        Jkind.of_new_non_float_sort_var ~why:Idx_element in
       let elt_ty = newvar elt_jkind in
       let base_ty =
         match mut with

@@ -2226,6 +2226,10 @@ let of_new_legacy_sort_var ~why =
   let jkind, sort = Jkind_desc.of_new_sort_var Non_null Separable in
   fresh_jkind jkind ~annotation:None ~why:(Concrete_legacy_creation why), sort
 
+let of_new_non_float_sort_var ~why =
+  let jkind, sort = Jkind_desc.of_new_sort_var Maybe_null Non_float in
+  fresh_jkind jkind ~annotation:None ~why:(Concrete_creation why), sort
+
 let of_new_legacy_sort ~why = fst (of_new_legacy_sort_var ~why)
 
 let of_const (type l r) ~annotation ~why ~(quality : (l * r) jkind_quality)
@@ -2754,7 +2758,7 @@ module Format_history = struct
       fprintf ppf "it's the type being used for a peek or poke primitive"
     | Idx_element ->
       fprintf ppf
-        "it's the element type (the second type parameter) for a block index \
+        "it's the element type (the second type parameter) for a@ block index \
          (idx or mut_idx)"
 
   let format_concrete_legacy_creation_reason ppf :
@@ -2895,7 +2899,7 @@ module Format_history = struct
       fprintf ppf "it's an unannotated existential type variable"
     | Idx_base ->
       fprintf ppf
-        "it's the base type (the first type parameter) for a block index (idx \
+        "it's the base type (the first type parameter) for a@ block index (idx \
          or mut_idx)"
     | Array_comprehension_element ->
       fprintf ppf "it's the element type of array comprehension"
