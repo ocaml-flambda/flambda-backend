@@ -870,9 +870,6 @@ val store :
 
 val caml_modify : dbg:Debuginfo.t -> expression -> expression -> expression
 
-val caml_modify_local :
-  dbg:Debuginfo.t -> expression -> expression -> expression -> expression
-
 (** [direct_call ty f_code args] creates a direct call to the function code
     [f_code] with arguments [args], with a return value of type [ty].
 
