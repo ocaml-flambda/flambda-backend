@@ -107,9 +107,13 @@ module type Sort = sig
 
     val for_module : t
 
+    val for_module_field : t
+
     val for_predef_value : t (* Predefined value types, e.g. int and string *)
 
     val for_tuple : t
+
+    val for_loop_index : t
   end
 
   module Var : sig
@@ -208,7 +212,6 @@ module History = struct
     | Layout_poly_in_external
     | Unboxed_tuple_element
     | Peek_or_poke
-    | Structure_element
 
   (* For sort variables that are in the "legacy" position
      on the jkind lattice, defaulting exactly to [value]. *)
@@ -254,6 +257,7 @@ module History = struct
     | Tuple_element
     | Separability_check
     | Polymorphic_variant_field
+    | Structure_element
     | V1_safety_check
     | Probe
     | Captured_in_object

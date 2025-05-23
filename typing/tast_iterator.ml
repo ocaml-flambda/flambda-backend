@@ -334,7 +334,7 @@ let expr sub {exp_loc; exp_extra; exp_desc; exp_env; exp_attributes; _} =
       fields
   in
   match exp_desc with
-  | Texp_ident (_, lid, _, _, _)  -> iter_loc sub lid
+  | Texp_ident (_, _, lid, _, _, _)  -> iter_loc sub lid
   | Texp_constant _ -> ()
   | Texp_let (rec_flag, list, exp) ->
       sub.value_bindings sub (rec_flag, list);
