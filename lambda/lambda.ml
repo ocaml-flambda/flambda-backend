@@ -1885,7 +1885,8 @@ let project_from_mixed_block_shape
         | Value _
         | Float_boxed _
         | Float64 | Float32 | Bits32 | Bits64 | Word | Vec128 ->
-          Misc.fatal_error "Path too long for mixed block shape")
+          Misc.fatal_error "project_from_mixed_block_element: path too long \
+            for mixed block shape")
     in
     project_from_mixed_block_element_by_path element path
 
