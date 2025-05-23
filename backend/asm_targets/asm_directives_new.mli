@@ -337,9 +337,7 @@ val reloc_x86_64_plt32 :
 
 module Directive : sig
   module Constant : sig
-    (* CR sspies: make this private again once the first-class module has been
-       removed *)
-    type t =
+    type t = private
       | Signed_int of Int64.t
       | Unsigned_int of Numbers.Uint64.t
       | This
@@ -360,9 +358,7 @@ module Directive : sig
 
     val constant : t -> Constant.t
 
-    (* CR sspies: make this private again once the first-class module has been
-       removed *)
-    type width_in_bytes =
+    type width_in_bytes = private
       | Eight
       | Sixteen
       | Thirty_two
@@ -373,29 +369,23 @@ module Directive : sig
     val create : Constant.t -> width_in_bytes -> t
   end
 
-  (* CR sspies: make this private again once the first-class module has been
-     removed *)
-  type thing_after_label =
+  type thing_after_label = private
     | Code
     | Machine_width_data
 
-  (* CR sspies: make this private again once the first-class module has been
-     removed *)
-  type comment = string
+  type comment = private string
 
   (* ELF specific *)
   type reloc_type = R_X86_64_PLT32
   (* X86 only *)
 
-  (* CR sspies: make this private again once the first-class module has been
-     removed *)
 
   (** Internal representation of directives.  Only needed if writing a custom
       assembler or printer instead of using [print], below.
       Symbols that occur in values of type [t] are encoded as [string]s and
       have had all necessary prefixing, mangling, escaping and suffixing
       applied. *)
-  type t =
+  type t = private
     | Align of
         { bytes : int;
               (** The number of bytes to align to. This will be taken log2 by the emitter on
