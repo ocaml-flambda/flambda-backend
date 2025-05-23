@@ -1046,7 +1046,7 @@ let ternary_primitive _env dbg f x y z =
       then
         match mode with
         | Heap -> C.caml_modify ~dbg addr z
-        | Local -> C.caml_modify_local ~dbg addr (Cconst_int (0, dbg)) z
+        | Local -> C.store ~dbg memory_chunk Assignment ~addr ~new_value:z
       else C.store ~dbg memory_chunk Assignment ~addr ~new_value:z
     in
     C.return_unit dbg store
