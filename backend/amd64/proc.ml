@@ -138,58 +138,112 @@ let word_addressed = false
 
 let size_domainstate_args = 64 * size_int
 
+module Hardware_registers : sig
+  type t
+  val make : int list -> t
+  val take : t -> int option
+end = struct
+  type t = int list ref
+  let make l = ref l
+  let take t =
+    match !t with
+    | [] -> None
+    | hd :: tl -> t := tl; Some hd
+end
+
+module Pseudo_registers : sig
+  type t
+  val make : ty:machtype_component -> stack_align: int option -> stack_size:int -> make_stack:(int -> Reg.stack_location) -> available_registers:Hardware_registers.t -> check:(Reg.t -> unit) -> t
+  val allocate : t -> int ref -> Reg.t
+end = struct
+  type t = {
+    ty : machtype_component;
+    stack_align : int option;
+    stack_size : int;
+    make_stack : int -> Reg.stack_location;
+    available_registers : Hardware_registers.t;
+    check : Reg.t -> unit;
+     }
+  let make : ty:machtype_component -> stack_align:int option -> stack_size:int -> make_stack:(int -> Reg.stack_location) -> available_registers:Hardware_registers.t -> check:(Reg.t -> unit) -> t
+   = fun ~ty ~stack_align ~stack_size ~make_stack ~available_registers ~check ->
+    { ty; stack_align; stack_size; make_stack; available_registers; check; }
+  let allocate t ofs =
+    let res =
+      match Hardware_registers.take t.available_registers with
+      | Some reg -> phys_reg t.ty reg
+      | None ->
+        begin match t.stack_align with
+        | None -> ()
+        | Some alignment -> ofs := Misc.align !ofs alignment
+        end;
+        let slot = stack_slot (t.make_stack !ofs) t.ty in
+        ofs := !ofs + t.stack_size;
+        slot
+    in
+    t.check res;
+    res
+end
+
+module MachtypeComponentTbl = Hashtbl.Make (struct
+  type t = Cmm.machtype_component
+  let hash = Cmm.hash_machtype_component
+  let equal = Cmm.equal_machtype_component
+end)
+
 let calling_conventions
-      ~first_int
-      ~last_int
-      ~step_int
-      ~first_float
-      ~last_float
-      ~make_stack
-      ~first_stack
+      ~(int_registers : int list)
+      ~(float_registers : int list)
+      ~(make_stack : int -> Reg.stack_location)
+      ~(first_stack : int)
       arg =
   let loc = Array.make (Array.length arg) Reg.dummy in
-  let int = ref first_int in
-  let float = ref first_float in
+  let int_registers = Hardware_registers.make int_registers in
+  let float_registers = Hardware_registers.make float_registers in
   let ofs = ref first_stack in
+  let not_destroyed_by_plt_stub reg =
+    assert (not (Reg.Set.mem reg destroyed_by_plt_stub_set))
+  in
+  let pseudo_registers = MachtypeComponentTbl.create 8 in
+  MachtypeComponentTbl.replace
+    pseudo_registers
+    Val
+    (Pseudo_registers.make
+      ~ty:Val ~stack_align:None ~stack_size:size_int ~make_stack
+      ~available_registers:int_registers ~check:not_destroyed_by_plt_stub);
+  MachtypeComponentTbl.replace
+    pseudo_registers
+    Int
+    (Pseudo_registers.make
+      ~ty:Int ~stack_align:None ~stack_size:size_int ~make_stack
+      ~available_registers:int_registers ~check:not_destroyed_by_plt_stub);
+  MachtypeComponentTbl.replace
+    pseudo_registers
+    Addr
+    (Pseudo_registers.make
+      ~ty:Addr ~stack_align:None ~stack_size:size_int ~make_stack
+      ~available_registers:int_registers ~check:not_destroyed_by_plt_stub);
+  MachtypeComponentTbl.replace
+    pseudo_registers
+    Float
+    (Pseudo_registers.make
+      ~ty:Float ~stack_align:None ~stack_size:size_float ~make_stack
+      ~available_registers:float_registers ~check:ignore);
+  MachtypeComponentTbl.replace
+    pseudo_registers
+    Vec128
+    (Pseudo_registers.make
+      ~ty:Vec128 ~stack_align:(Some 16) ~stack_size:size_vec128 ~make_stack
+      ~available_registers:float_registers ~check:ignore);
+  MachtypeComponentTbl.replace
+    pseudo_registers
+    Float32
+    (Pseudo_registers.make
+      ~ty:Float32 ~stack_align:None ~stack_size:size_float ~make_stack
+      ~available_registers:float_registers ~check:ignore);
   for i = 0 to Array.length arg - 1 do
-    match (arg.(i) : machtype_component) with
-    | Val | Int | Addr as ty ->
-        if !int <= last_int then begin
-          loc.(i) <- phys_reg ty !int;
-          int := !int + step_int
-        end else begin
-          loc.(i) <- stack_slot (make_stack !ofs) ty;
-          ofs := !ofs + size_int
-        end;
-        assert (not (Reg.Set.mem loc.(i) destroyed_by_plt_stub_set))
-    | Float ->
-        if !float <= last_float then begin
-          loc.(i) <- phys_reg Float !float;
-          incr float
-        end else begin
-          loc.(i) <- stack_slot (make_stack !ofs) Float;
-          ofs := !ofs + size_float
-        end
-    | Vec128 ->
-      if !float <= last_float then begin
-        loc.(i) <- phys_reg Vec128 !float;
-        incr float
-      end else begin
-        ofs := Misc.align !ofs 16;
-        loc.(i) <- stack_slot (make_stack !ofs) Vec128;
-        ofs := !ofs + size_vec128
-      end
-    | Valx2 ->
-      Misc.fatal_error "Unexpected machtype_component Valx2"
-    | Float32 ->
-        if !float <= last_float then begin
-          loc.(i) <- phys_reg Float32 !float;
-          incr float
-        end else begin
-          loc.(i) <- stack_slot (make_stack !ofs) Float32;
-          (* float32 slots still take up a full word *)
-          ofs := !ofs + size_float
-        end
+    match MachtypeComponentTbl.find_opt pseudo_registers arg.(i) with
+    | Some pseudo_regs -> loc.(i) <- Pseudo_registers.allocate pseudo_regs ofs
+    | None -> Misc.fatal_errorf "Unexpected machtype_component %a" Printcmm.machtype_component arg.(i)
   done;
   (* CR mslater: (SIMD) will need to be 32/64 if vec256/512 are used. *)
   (loc, Misc.align (max 0 !ofs) 16)  (* keep stack 16-aligned *)
@@ -206,11 +260,8 @@ let not_supported _ofs = fatal_error "Proc.loc_results: cannot call"
 
 let loc_arguments arg =
   calling_conventions
-      ~first_int:0
-      ~last_int:9
-      ~step_int:1
-      ~first_float:100
-      ~last_float:109
+      ~int_registers:[0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
+      ~float_registers:[100; 101; 102; 103; 104; 105; 106; 107; 108; 109]
       ~make_stack:outgoing
       ~first_stack:(- size_domainstate_args)
       arg
@@ -218,11 +269,8 @@ let loc_arguments arg =
 let loc_parameters arg =
   let (loc, _ofs) =
     calling_conventions
-      ~first_int:0
-      ~last_int:9
-      ~step_int:1
-      ~first_float:100
-      ~last_float:109
+      ~int_registers:[0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
+      ~float_registers:[100; 101; 102; 103; 104; 105; 106; 107; 108; 109]
       ~make_stack:incoming
       ~first_stack:(- size_domainstate_args)
       arg
@@ -231,22 +279,16 @@ let loc_parameters arg =
 
 let loc_results_call res =
   calling_conventions
-    ~first_int:0
-    ~last_int:9
-    ~step_int:1
-    ~first_float:100
-    ~last_float:109
+    ~int_registers:[0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
+    ~float_registers:[100; 101; 102; 103; 104; 105; 106; 107; 108; 109]
     ~make_stack:outgoing
     ~first_stack:(- size_domainstate_args)
     res
 let loc_results_return res =
   let (loc, _ofs) =
     calling_conventions
-      ~first_int:0
-      ~last_int:9
-      ~step_int:1
-      ~first_float:100
-      ~last_float:109
+      ~int_registers:[0; 1; 2; 3; 4; 5; 6; 7; 8; 9]
+      ~float_registers:[100; 101; 102; 103; 104; 105; 106; 107; 108; 109]      
       ~make_stack:incoming
       ~first_stack:(- size_domainstate_args)
       res
@@ -272,11 +314,8 @@ let loc_external_results res =
     (* `~last_int:4 ~step_int:4` below is to get rdx as the second int register
        (See https://refspecs.linuxbase.org/elf/x86_64-abi-0.99.pdf, pages 21 and 22) *)
     calling_conventions
-      ~first_int:0
-      ~last_int:4
-      ~step_int:4
-      ~first_float:100
-      ~last_float:101
+      ~int_registers:[0; 4]
+      ~float_registers:[100; 101]
       ~make_stack:not_supported
       ~first_stack:0
       res
@@ -284,11 +323,8 @@ let loc_external_results res =
 
 let unix_loc_external_arguments arg =
   calling_conventions
-    ~first_int:2
-    ~last_int:7
-    ~step_int:1
-    ~first_float:100
-    ~last_float:107
+    ~int_registers:[2; 3; 4; 5; 6; 7]
+    ~float_registers:[100; 101; 102; 103; 104; 105; 106; 107]
     ~make_stack:outgoing
     ~first_stack:0
     arg
