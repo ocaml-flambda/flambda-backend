@@ -1,5 +1,6 @@
 let type_expr = Printtyp.raw_type_expr
 let row_field = Printtyp.raw_field
+let row_desc = Printtyp.raw_row_desc
 let ident = Ident.print_with_scope
 let path = Path.print
 let ctype_global_state = Ctype.print_global_state

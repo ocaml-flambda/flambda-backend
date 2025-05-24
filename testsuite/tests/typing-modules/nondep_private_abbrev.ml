@@ -80,20 +80,21 @@ module IndirectPub : sig type t = [ `Foo of 'a ] as 'a end
    if we were unrolling the abbrev.  *)
 module IndirectPriv = I(struct end);;
 [%%expect{|
-module IndirectPriv : sig type t : value mod non_float end
+module IndirectPriv : sig type t : immutable_data end
 |}]
 
 (* These two behave as though a functor was defined *)
 module DirectPrivEta =
   (functor (X : sig end) -> Priv(X))(struct end);;
+(* CR layouts v2.8: examine the interaction between kinds and nondep. *)
 [%%expect{|
-module DirectPrivEta : sig type t : value mod non_float end
+module DirectPrivEta : sig type t : immutable_data with t end
 |}]
 
 module DirectPrivEtaUnit =
   (functor (_ : sig end) -> Priv)(struct end)(struct end);;
 [%%expect{|
-module DirectPrivEtaUnit : sig type t : value mod non_float end
+module DirectPrivEtaUnit : sig type t : immutable_data with t end
 |}]
 
 (*** Test proposed by Jacques in
@@ -148,6 +149,7 @@ module I : functor (X : sig end) -> sig type t = Priv(X).t end
 |}]
 
 module IndirectPriv = I(struct end);;
+(* CR layouts v2.8: normalize away [with int]. *)
 [%%expect{|
-module IndirectPriv : sig type t : value mod non_float end
+module IndirectPriv : sig type t : value mod immutable non_float with int end
 |}]

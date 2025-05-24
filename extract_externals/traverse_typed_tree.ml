@@ -228,7 +228,7 @@ let rec value_kind env (subst : value_shape Subst.t) ~visited ~depth ty :
       Block (Some (0, fields))
   | Tvariant row ->
     (* FIXME: we could do something better here *)
-    if Ctype.tvariant_not_immediate row then Or (Imm, Block None) else Imm
+    if Btype.tvariant_not_immediate row then Or (Imm, Block None) else Imm
   | Tarrow _ -> Closure
   | Tobject _ -> Obj
   | Tvar _ | Tunivar _ -> (

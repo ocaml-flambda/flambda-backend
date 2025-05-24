@@ -599,7 +599,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
                       non_consts = [0, Constructor_uniform fields] }))
   | Tvariant row ->
     num_nodes_visited,
-    if Ctype.tvariant_not_immediate row
+    if Btype.tvariant_not_immediate row
     then non_nullable Pgenval
     else non_nullable Pintval
   | _ ->
