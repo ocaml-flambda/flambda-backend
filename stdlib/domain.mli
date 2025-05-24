@@ -183,7 +183,7 @@ module Safe : sig
       val for_initial_domain : t @@ nonportable
       (** [for_initial_domain] is a permanently available [t] that can be used by any
           top-level [nonportable] function safely, as such functions can only ever be
-          executed on the primary domain. *)
+          executed on the initial domain. *)
     end
 
     type 'a key : value mod portable contended = 'a DLS.key

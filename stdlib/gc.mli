@@ -405,8 +405,6 @@ external get_minor_free : unit -> int = "caml_get_minor_free"
 
     @since 4.03 *)
 
-(* CR runtime5: We need finalisers registered on the primary domain to only ever
-   run on the primary domain. *)
 val finalise : ('a -> unit) -> 'a -> unit @@ nonportable
 (** [finalise f v] registers [f] as a finalisation function for [v].
    [v] must be heap-allocated.  [f] will be called with [v] as
@@ -425,6 +423,12 @@ val finalise : ('a -> unit) -> 'a -> unit @@ nonportable
    as the values are allocated, that means each value is finalised
    before the values it depends upon.  Of course, this becomes
    false if additional dependencies are introduced by assignments.
+
+   Finalisers are run by the domain which registered them, unless that
+   domain has already terminated in which case they may be run by some
+   other domain. Note that termination of the initial domain ends the
+   OCaml process, so finalisers registered by the initial domain will
+   only by run by that domain.
 
    In the presence of multiple OCaml threads it should be assumed that
    any particular finaliser may be executed in any of the threads.
@@ -484,6 +488,10 @@ val finalise_last : (unit -> unit) -> 'a -> unit @@ nonportable
     before running the finalisation function. Moreover the finalisation
     functions attached with {!finalise} are always called before the
     finalisation functions attached with {!finalise_last}.
+
+    As for {!finalise}, the finaliser is run by the domain which registered it,
+    unless that domain has already terminated in which case it may be run by
+    some other domain.
 
     @since 4.04
 *)
