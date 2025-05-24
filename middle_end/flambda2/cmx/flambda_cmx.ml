@@ -83,7 +83,7 @@ let all_predefined_exception_symbols () =
 
 let predefined_exception_typing_env () =
   let comp_unit = Compilation_unit.get_current () in
-  Compilation_unit.set_current (Some Compilation_unit.predef_exn);
+  Compilation_unit.set_current (Some (Compilation_unit.predef_exn, Impl));
   let typing_env =
     TE.Serializable.predefined_exceptions (all_predefined_exception_symbols ())
   in

@@ -23,7 +23,7 @@ let tool_name = "ocamlopt"
 let with_info = Compile_common.with_info ~native:true ~tool_name
 
 let interface ~source_file ~output_prefix =
-  with_info ~source_file ~output_prefix ~dump_ext:"cmi"
+  with_info ~source_file ~kind:Intf ~output_prefix ~dump_ext:"cmi"
     ~compilation_unit:Inferred_from_output_prefix
   @@ fun info ->
   Compile_common.interface
@@ -115,7 +115,8 @@ let implementation_aux unix ~(flambda2 : flambda2) ~start_from
   let pipeline : Asmgen.pipeline =
     Direct_to_cmm (flambda2 ~keep_symbol_tables)
   in
-  with_info ~source_file ~output_prefix ~dump_ext:"cmx" ~compilation_unit
+  with_info ~source_file ~kind:Impl ~output_prefix
+    ~dump_ext:"cmx" ~compilation_unit
   @@ fun info ->
   if !Flambda_backend_flags.internal_assembler then
       Emitaux.binary_backend_available := true;

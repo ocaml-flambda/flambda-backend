@@ -19,8 +19,8 @@
 open Types
 
 val extension_descr:
-  current_unit:Compilation_unit.t option -> Path.t -> extension_constructor ->
-  constructor_description
+  current_unit:Compilation_unit.with_kind option ->
+  Path.t -> extension_constructor -> constructor_description
 
 val labels_of_type:
   Path.t -> type_declaration ->
@@ -29,8 +29,8 @@ val unboxed_labels_of_type:
   Path.t -> type_declaration ->
   (Ident.t * unboxed_label_description) list
 val constructors_of_type:
-  current_unit:Compilation_unit.t option -> Path.t -> type_declaration ->
-  (Ident.t * constructor_description) list
+  current_unit:Compilation_unit.with_kind option -> Path.t ->
+  type_declaration -> (Ident.t * constructor_description) list
 
 
 exception Constr_not_found
