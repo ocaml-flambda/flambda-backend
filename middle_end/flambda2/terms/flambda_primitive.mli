@@ -515,6 +515,10 @@ type binary_primitive =
   | Float_arith of float_bitwidth * binary_float_arith_op
   | Float_comp of float_bitwidth * unit comparison_behaviour
   | Bigarray_get_alignment of int
+      (** [Bigarray_get_alignment x] returns the address of [String_or_bigstring_load(Bigstring, Eight)] mod [x] *)
+  (* CR jvanburen: rename [Bigarray_get_alignment] to [Bigstring_get_alignment],
+     or even better, change it to [Bigarray_address_of] and have it support
+     multiple dimensions *)
   | Atomic_set of Block_access_field_kind.t
   | Atomic_exchange of Block_access_field_kind.t
   | Atomic_int_arith of binary_int_atomic_op

@@ -277,7 +277,7 @@ let recognize_switch_with_single_arg_to_same_destination ~arms =
   else recognize_switch_with_single_arg_to_same_destination0 ~arms
 
 let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
-    ~original ~tagged_scrutinee ~dest ~consts ~must_untag_lookup_table_result
+    ~original ~untagged_scrutinee ~dest ~consts ~must_untag_lookup_table_result
     dbg =
   let rebuilding = UA.are_rebuilding_terms uacc in
   let block_sym =
@@ -312,7 +312,7 @@ let rebuild_switch_with_single_arg_to_same_destination uacc ~dacc_before_switch
   (* CR mshinwell: consider sharing the constants *)
   let block = Simple.symbol block_sym in
   let load_from_block_prim : P.t =
-    Binary (Array_load (Values, Values, Immutable), block, tagged_scrutinee)
+    Binary (Array_load (Values, Values, Immutable), block, untagged_scrutinee)
   in
   let load_from_block = Named.create_prim load_from_block_prim dbg in
   let arg_var = Variable.create "arg" in
@@ -447,15 +447,19 @@ let rebuild_switch ~original ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
         | None -> normal_case0 uacc
         | Some (dest, must_untag_lookup_table_result, consts) -> (
           assert (List.length consts = TI.Map.cardinal arms);
-          let tagging_prim : P.t = Unary (Tag_immediate, scrutinee) in
+          let indexing_prim : P.t =
+            Unary
+              ( Num_conv { src = Naked_immediate; dst = Naked_nativeint },
+                scrutinee )
+          in
           match
             find_cse_simple dacc_before_switch (UA.required_names uacc)
-              tagging_prim
+              indexing_prim
           with
           | None -> normal_case0 uacc
-          | Some tagged_scrutinee ->
+          | Some untagged_scrutinee ->
             rebuild_switch_with_single_arg_to_same_destination uacc
-              ~dacc_before_switch ~original ~tagged_scrutinee ~dest ~consts
+              ~dacc_before_switch ~original ~untagged_scrutinee ~dest ~consts
               ~must_untag_lookup_table_result dbg)
       in
       match switch_merged with

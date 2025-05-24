@@ -36,6 +36,8 @@ type expr_primitive =
             (** The [validity_conditions] return untagged immediates
                 representing boolean values. *)
         primitive : expr_primitive;
+        (* CR jvanburen: associate each condition with a separate failure
+           reason. *)
         failure : failure;
         (* Predefined exception *)
         dbg : Debuginfo.t

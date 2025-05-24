@@ -1,4 +1,4 @@
-let $camlUnroll__first_const23 = Block 0 () in
+let $camlUnroll__first_const21 = Block 0 () in
 let code rec size(26)
       fact_0 (n : imm tagged)
         my_closure my_region my_ghost_region my_depth

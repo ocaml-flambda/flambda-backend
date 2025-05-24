@@ -2,10 +2,11 @@ let $camlTests7__empty_block4 = Block 0 () in
 let $camlTests7__immstring7 = "Cow" in
 let $camlTests7__immstring10 = "Sheep" in
 let code size(37)
-      f_0 (x : imm tagged, str)
+      f_0 (x : imm tagged, str : val)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
+  let next_depth = rec_info (succ my_depth) in
   let prim = %string_length str in
   let Pstringlength = %Tag_imm prim in
   let prim_1 = %string_length str in
@@ -25,6 +26,7 @@ let code size(31)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : float boxed =
+  let next_depth = rec_info (succ my_depth) in
   let prim = %block_load float (1) af in
   let Pfloatfield = %Box_float prim in
   let prim_1 = %block_load float (0) af in
@@ -66,7 +68,7 @@ let $camlTests7__immstring10 = "Sheep" in
 let code f_0 deleted in
 let code foo_1 deleted in
 let code loopify(never) size(16) newer_version_of(f_0)
-      f_0_1 (x : imm tagged, str)
+      f_0_1 (x : imm tagged, str : val)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
