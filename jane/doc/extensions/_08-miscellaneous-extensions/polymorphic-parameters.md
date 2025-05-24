@@ -76,7 +76,7 @@ let r = create forty_two
 ## Limitations
 
 All polymorphic parameter require an annotation. Without an annotation
-OCaml will assume that the parameter is monomorphic.
+OxCaml will assume that the parameter is monomorphic.
 
 Rather than annotating `f` directly, you can also annotate `create` as
 a whole:

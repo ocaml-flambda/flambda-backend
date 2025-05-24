@@ -192,7 +192,7 @@ for more details.
 The unboxed product layout describes types that work like normal products (e.g.,
 tuples or records), but which are represented without a box.
 
-In OCaml, a tuple is a pointer to a block containing the elements of the tuple. If
+In stock OCaml, a tuple is a pointer to a block containing the elements of the tuple. If
 you pass a tuple to a function, it is passed by reference in one register. The
 function can access the tuple's elements through the pointer. Records and
 their fields are treated similarly. By contrast, an

@@ -6,7 +6,7 @@ title: Reference
 # Stack Allocations Reference
 
 The goal of this document is to be a reasonably complete reference to stack
-allocations in OCaml. For a gentler introduction, see [the
+allocations in OxCaml. For a gentler introduction, see [the
 introduction](../intro).
 
 The stack allocations language extension allows the compiler to
@@ -44,7 +44,7 @@ let f = ref (stack_ `Foo)
 Error: This expression is not an allocation site.
 ```
 
-Most OCaml types can be stack-allocated, including records, variants,
+Most OxCaml types can be stack-allocated, including records, variants,
 polymorphic variants, closures, boxed numbers and strings. However, certain
 values cannot be stack-allocated, and will always be on the GC heap,
 including:
