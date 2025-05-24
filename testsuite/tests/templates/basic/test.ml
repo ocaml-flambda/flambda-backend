@@ -2,10 +2,18 @@
  readonly_files = "\
    bad_arg_impl.ml bad_arg_impl.reference \
    bad_arg_intf.mli bad_arg_intf.reference \
-   bad_instance_arg_name_not_found.ml bad_instance_arg_name_not_found.reference \
-   bad_instance_arg_value_not_arg.ml bad_instance_arg_value_not_arg.reference \
-   bad_instance_arg_value_not_found.ml bad_instance_arg_value_not_found.reference \
-   bad_instance_arg_value_wrong_type.ml bad_instance_arg_value_wrong_type.reference \
+   bad_instance_arg_name_not_found.ml \
+     bad_instance_arg_name_not_found.reference \
+     bad_instance_arg_name_not_found.no-alias-deps.reference \
+   bad_instance_arg_value_not_arg.ml \
+     bad_instance_arg_value_not_arg.reference \
+     bad_instance_arg_value_not_arg.no-alias-deps.reference \
+   bad_instance_arg_value_not_found.ml \
+     bad_instance_arg_value_not_found.reference \
+     bad_instance_arg_value_not_found.no-alias-deps.reference \
+   bad_instance_arg_value_wrong_type.ml \
+     bad_instance_arg_value_wrong_type.reference \
+     bad_instance_arg_value_wrong_type.no-alias-deps.reference \
    bad_instance_repeated_arg_name.ml bad_instance_repeated_arg_name.reference \
    bad_instance_wrong_mode.ml bad_instance_wrong_mode.reference \
    bad_instantiate_missing_arg.reference \
@@ -49,6 +57,9 @@
  ";
  {
    setup-ocamlc.byte-build-env;
+
+   (* CR-someday lmaurer: Remove these when param libs stop spuriously warning *)
+   ocamlc_flags = "-w -misplaced-attribute -w -bad-module-name";
 
    flags = "-as-parameter";
    module = "monoid.mli";
@@ -207,6 +218,15 @@
        compiler_reference = "bad_instance_arg_name_not_found.reference";
        check-ocamlc.byte-output;
      }{
+       flags = "-parameter List_element -no-alias-deps";
+       module = "bad_instance_arg_name_not_found.ml";
+       compiler_output = "bad_instance_arg_name_not_found.no-alias-deps.output";
+       ocamlc_byte_exit_status = "0";
+       ocamlc.byte;
+
+       compiler_reference = "bad_instance_arg_name_not_found.no-alias-deps.reference";
+       check-ocamlc.byte-output;
+     }{
        flags = "-parameter List_element";
        module = "bad_instance_arg_value_not_arg.ml";
        compiler_output = "bad_instance_arg_value_not_arg.output";
@@ -216,6 +236,19 @@
        compiler_reference = "bad_instance_arg_value_not_arg.reference";
        check-ocamlc.byte-output;
      }{
+       flags = "-parameter List_element -no-alias-deps";
+       module = "bad_instance_arg_value_not_arg.ml";
+       compiler_output = "bad_instance_arg_value_not_arg.no-alias-deps.output";
+       ocamlc_byte_exit_status = "0";
+       ocamlc.byte;
+
+       (* CR-someday lmaurer: Fix and enable *)
+       reason = "expected failure: no warning raised";
+       skip;
+
+       compiler_reference = "bad_instance_arg_value_not_arg.no-alias-deps.reference";
+       check-ocamlc.byte-output;
+     }{
        flags = "-parameter List_element";
        module = "bad_instance_arg_value_not_found.ml";
        compiler_output = "bad_instance_arg_value_not_found.output";
@@ -223,6 +256,15 @@
        ocamlc.byte;
 
        compiler_reference = "bad_instance_arg_value_not_found.reference";
+       check-ocamlc.byte-output;
+     }{
+       flags = "-parameter List_element -no-alias-deps";
+       module = "bad_instance_arg_value_not_found.ml";
+       compiler_output = "bad_instance_arg_value_not_found.no-alias-deps.output";
+       ocamlc_byte_exit_status = "0";
+       ocamlc.byte;
+
+       compiler_reference = "bad_instance_arg_value_not_found.no-alias-deps.reference";
        check-ocamlc.byte-output;
      }{
        flags = "-parameter List_element";
@@ -262,6 +304,19 @@
          ocamlc.byte;
 
          compiler_reference = "bad_instance_arg_value_wrong_type.reference";
+         check-ocamlc.byte-output;
+       }{
+         flags = "-parameter List_element -no-alias-deps";
+         module = "bad_instance_arg_value_wrong_type.ml";
+         compiler_output = "bad_instance_arg_value_wrong_type.no-alias-deps.output";
+         ocamlc_byte_exit_status = "0";
+         ocamlc.byte;
+
+         (* CR-someday lmaurer: Fix and enable *)
+         reason = "expected failure: no warning raised";
+         skip;
+
+         compiler_reference = "bad_instance_arg_value_wrong_type.no-alias-deps.reference";
          check-ocamlc.byte-output;
        }{
          flags = "-parameter Semigroup -parameter List_element -w -misplaced-attribute";
@@ -543,6 +598,9 @@
    }
  }{
    setup-ocamlopt.byte-build-env;
+
+   (* CR-someday lmaurer: Remove these when param libs stop spuriously warning *)
+   ocamlopt_flags = "-w -misplaced-attribute -w -bad-module-name";
 
    flags = "-as-parameter";
    module = "monoid.mli";
