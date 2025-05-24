@@ -84,3 +84,4 @@ let runtime5 = false
 let no_stack_checks = false
 (* This setting is only for bootstrap, does not affect dune-built compilers: *)
 let naked_pointers = false
+let parameterised_modules = true
