@@ -108,6 +108,13 @@ val function_bound_parameters :
 val invalid :
   To_cmm_result.t -> message:string -> Cmm.expression * To_cmm_result.t
 
+val invalid_fun :
+  To_cmm_result.t ->
+  Debuginfo.t ->
+  Cmm.machtype list ->
+  message:string ->
+  To_cmm_result.t * Cmm.symbol
+
 module Update_kind : sig
   type t
 
