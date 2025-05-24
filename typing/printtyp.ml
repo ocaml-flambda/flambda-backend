@@ -1447,7 +1447,7 @@ let tree_of_modes (modes : Mode.Alloc.Const.t) =
   (* [yielding] has implied defaults depending on [areality]: *)
   let yielding =
     match modes.areality, modes.yielding with
-    | Local, Yielding | Global, Unyielding -> None
+    | Local, Switching | Global, Unyielding -> None
     | _, _ -> Some modes.yielding
   in
 

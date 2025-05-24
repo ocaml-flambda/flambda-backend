@@ -1658,15 +1658,19 @@ module Const = struct
       |> function
       | None -> None
       | Some modes ->
+        (* CR-soon dkalinichenko: there ought to be a better way to handle this. *)
         (* Handle all the mode implications *)
         let modes =
           match List.mem "global" modes, List.mem "unyielding" modes with
           | true, true ->
             (* [global] implies [unyielding], omit it. *)
             List.filter (fun m -> m <> "unyielding") modes
+          | true, false when List.mem "yielding" modes ->
+            (* Print nothing extra, [yielding] already present. *)
+            modes
           | true, false ->
-            (* Otherwise, print [mod global yielding] to indicate [yielding]. *)
-            modes @ ["yielding"]
+            (* Otherwise, print [mod global switching]. *)
+            modes @ ["switching"]
           | _, _ -> modes
         in
         let modes =
@@ -1680,10 +1684,12 @@ module Const = struct
         let modes =
           match List.mem "immutable" modes, List.mem "contended" modes with
           | true, true -> List.filter (fun m -> m <> "contended") modes
+          | true, false when List.mem "shared" modes -> modes
           | true, false -> modes @ ["contended"]
           | _, _ -> (
             match List.mem "read" modes, List.mem "shared" modes with
             | true, true -> List.filter (fun m -> m <> "shared") modes
+            | true, false when List.mem "contended" modes -> modes
             | true, false -> modes @ ["shared"]
             | _, _ -> modes)
         in
