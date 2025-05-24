@@ -13,10 +13,13 @@ let equal_data_type left right =
   | DWORD, DWORD
   | QWORD, QWORD
   | VEC128, VEC128
+  | VEC256, VEC256
+  | VEC512, VEC512
   | NEAR, NEAR
   | PROC, PROC ->
     true
-  | (NONE | REAL4 | REAL8 | BYTE | WORD | DWORD | QWORD | VEC128 | NEAR | PROC), _ ->
+  | (NONE | REAL4 | REAL8 | BYTE | WORD | DWORD | QWORD |
+     VEC128 | VEC256 | VEC512 | NEAR | PROC), _ ->
     false
 
 let equal_reg64 left right =
@@ -52,7 +55,10 @@ let equal_reg8h left right =
 
 let equal_regf left right =
   match left, right with
-  | XMM l, XMM r -> Int.equal l r
+  | XMM l, XMM r
+  | YMM l, YMM r
+  | ZMM l, ZMM r -> Int.equal l r
+  | (XMM _ | YMM _ | ZMM _), _ -> false
 
 let equal_arch left right =
   match left, right with

@@ -84,7 +84,7 @@ let suf arg =
   | DWORD | REAL8 -> "l"
   | QWORD -> "q"
   | REAL4 -> "s"
-  | VEC128 | NONE -> ""
+  | VEC128 | VEC256 | VEC512 | NONE -> ""
   | NEAR | PROC -> assert false
 
 let i0 b s = bprintf b "\t%s" s

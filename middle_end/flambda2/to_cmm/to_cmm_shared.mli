@@ -140,9 +140,23 @@ module Update_kind : sig
   (** Tightly packed (two words each); the byte offset is [index * 16]. *)
   val naked_vec128s : t
 
+  (** Tightly packed (four words each); the byte offset is [index * 32]. *)
+  val naked_vec256s : t
+
+  (** Tightly packed (eight words each); the byte offset is [index * 64]. *)
+  val naked_vec512s : t
+
   (** Assumes each field is a word; the byte offset is [index * size_addr].
       Note that in this case the index is still based on word-width fields! *)
   val naked_vec128_fields : t
+
+  (** Assumes each field is a word; the byte offset is [index * size_addr].
+      Note that in this case the index is still based on word-width fields! *)
+  val naked_vec256_fields : t
+
+  (** Assumes each field is a word; the byte offset is [index * size_addr].
+      Note that in this case the index is still based on word-width fields! *)
+  val naked_vec512_fields : t
 end
 
 (** Make an update to a statically-allocated block. *)

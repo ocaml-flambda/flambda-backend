@@ -48,6 +48,10 @@ do
   # Don't check tests for long lines
   # (a more sophisticated script would instead remove %%expect blocks)
   [[ "$changed_file" == testsuite/tests/* ]] && continue
+  [[ "$changed_file" == flambda-backend/tests/* ]] && continue
+
+  # Don't check generated simd instruction defs
+  [[ "$changed_file" == tools/simdgen/amd64_simd_instrs.ml ]] && continue
 
   # Don't check autoformatted files (there's a bug in `ocamlformat` that
   # sometimes produces lines over 80 characters)

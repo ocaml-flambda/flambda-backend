@@ -15,7 +15,12 @@ let operation ?(print_reg = Printreg.reg) (op : Operation.t) arg ppf res =
   | Const_float32 f -> fprintf ppf "%Fs" (Int32.float_of_bits f)
   | Const_float f -> fprintf ppf "%F" (Int64.float_of_bits f)
   | Const_symbol s -> fprintf ppf "\"%s\"" s.sym_name
-  | Const_vec128 { high; low } -> fprintf ppf "%016Lx:%016Lx" high low
+  | Const_vec128 { word0; word1 } -> fprintf ppf "%016Lx:%016Lx" word0 word1
+  | Const_vec256 { word0; word1; word2; word3 } ->
+    fprintf ppf "%016Lx:%016Lx:%016Lx:%016Lx" word0 word1 word2 word3
+  | Const_vec512 { word0; word1; word2; word3; word4; word5; word6; word7 } ->
+    fprintf ppf "%016Lx:%016Lx:%016Lx:%016Lx:%016Lx:%016Lx:%016Lx:%016Lx" word0
+      word1 word2 word3 word4 word5 word6 word7
   | Stackoffset n -> fprintf ppf "offset stack %i" n
   | Load { memory_chunk; addressing_mode; mutability = Immutable; is_atomic } ->
     fprintf ppf "%s %a[%a]"

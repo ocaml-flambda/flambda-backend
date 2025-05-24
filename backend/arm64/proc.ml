@@ -53,6 +53,8 @@ let types_are_compatible left right =
   | Float32, Float32 -> true
   | Vec128, Vec128 -> true
   | Valx2,Valx2 -> true
+  | (Vec256 | Vec512), _ | _, (Vec256 | Vec512) ->
+    Misc.fatal_error "arm64: got 256/512 bit vector"
   | (Int | Val | Addr | Float | Float32 | Vec128 | Valx2), _ -> false
 
 (* Representation of hard registers by pseudo-registers *)
@@ -86,7 +88,7 @@ let phys_reg ty n =
   | Float -> hard_float_reg.(n - 100)
   | Float32 -> hard_float32_reg.(n - 100)
   | Vec128 | Valx2 -> hard_vec128_reg.(n - 100)
-
+  | Vec256 | Vec512 -> Misc.fatal_error "arm64: got 256/512 bit vector"
 let reg_x8 = phys_reg Int 8
 
 let stack_slot slot ty =
@@ -145,6 +147,8 @@ let calling_conventions
         loc.(i) <- loc_float last_float make_stack float ofs
     | Vec128 ->
         loc.(i) <- loc_vec128 last_float make_stack float ofs
+    | Vec256 | Vec512 ->
+        Misc.fatal_error "arm64: got 256/512 bit vector"
     | Float32 ->
         loc.(i) <- loc_float32 last_float make_stack float ofs
     | Valx2 ->
@@ -214,11 +218,13 @@ let external_calling_conventions
         loc.(i) <- [| loc_float last_float make_stack float ofs |]
     | XVec128 ->
         loc.(i) <- [| loc_vec128 last_float make_stack float ofs |]
+    | XVec256 | XVec512 ->
+        Misc.fatal_error "XVec256 and XVec512 not supported on ARM64"
     | XFloat32 ->
         loc.(i) <- [| loc_float32 last_float make_stack float ofs |]
     end)
     ty_args;
-  (loc, Misc.align !ofs 16)  (* keep stack 16-aligned *)
+  (loc, Misc.align !ofs 16, Cmm.Align_16) (* keep stack 16-aligned *)
 
 let loc_external_arguments ty_args =
   external_calling_conventions 0 7 100 107 outgoing ty_args
@@ -318,6 +324,16 @@ let destroyed_at_basic (basic : Cfg_intf.S.basic) =
   | Poptrap _ | Prologue
     -> [||]
   | Stack_check _ -> assert false (* not supported *)
+  | Op (Const_vec256 _ | Const_vec512 _)
+  | Op (Load
+          {memory_chunk=(Twofiftysix_aligned|Twofiftysix_unaligned|
+                         Fivetwelve_aligned|Fivetwelve_unaligned);
+           _ })
+  | Op (Store
+          ((Twofiftysix_aligned|Twofiftysix_unaligned|
+            Fivetwelve_aligned|Fivetwelve_unaligned),
+            _, _))
+    -> Misc.fatal_error "arm64: got 256/512 bit vector"
 
 (* note: keep this function in sync with `is_destruction_point` below. *)
 let destroyed_at_terminator (terminator : Cfg_intf.S.terminator) =

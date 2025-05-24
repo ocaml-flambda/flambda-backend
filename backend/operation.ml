@@ -280,6 +280,8 @@ type t =
   | Const_float of int64
   | Const_symbol of Cmm.symbol
   | Const_vec128 of Cmm.vec128_bits
+  | Const_vec256 of Cmm.vec256_bits
+  | Const_vec512 of Cmm.vec512_bits
   | Stackoffset of int
   | Load of
       { memory_chunk : Cmm.memory_chunk;
@@ -328,6 +330,8 @@ let is_pure = function
   | Const_float _ -> true
   | Const_symbol _ -> true
   | Const_vec128 _ -> true
+  | Const_vec256 _ -> true
+  | Const_vec512 _ -> true
   | Stackoffset _ -> false
   | Load _ -> true
   | Store _ -> false
@@ -405,8 +409,15 @@ let dump ppf op =
     Format.fprintf ppf "const_float32 %Fs" (Int32.float_of_bits f)
   | Const_float f -> Format.fprintf ppf "const_float %F" (Int64.float_of_bits f)
   | Const_symbol s -> Format.fprintf ppf "const_symbol %s" s.sym_name
-  | Const_vec128 { high; low } ->
-    Format.fprintf ppf "const vec128 %016Lx:%016Lx" high low
+  | Const_vec128 { word0; word1 } ->
+    Format.fprintf ppf "const vec128 %016Lx:%016Lx" word0 word1
+  | Const_vec256 { word0; word1; word2; word3 } ->
+    Format.fprintf ppf "const vec256 %016Lx:%016Lx:%016Lx:%016Lx" word0 word1
+      word2 word3
+  | Const_vec512 { word0; word1; word2; word3; word4; word5; word6; word7 } ->
+    Format.fprintf ppf
+      "const vec512 %016Lx:%016Lx:%016Lx:%016Lx:%016Lx:%016Lx:%016Lx:%016Lx"
+      word0 word1 word2 word3 word4 word5 word6 word7
   | Stackoffset n -> Format.fprintf ppf "stackoffset %d" n
   | Load _ -> Format.fprintf ppf "load"
   | Store _ -> Format.fprintf ppf "store"

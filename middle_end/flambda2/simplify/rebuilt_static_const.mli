@@ -68,6 +68,12 @@ val create_boxed_nativeint :
 val create_boxed_vec128 :
   Are_rebuilding_terms.t -> Vector_types.Vec128.Bit_pattern.t Or_variable.t -> t
 
+val create_boxed_vec256 :
+  Are_rebuilding_terms.t -> Vector_types.Vec256.Bit_pattern.t Or_variable.t -> t
+
+val create_boxed_vec512 :
+  Are_rebuilding_terms.t -> Vector_types.Vec512.Bit_pattern.t Or_variable.t -> t
+
 val create_immutable_float_block :
   Are_rebuilding_terms.t ->
   Numeric_types.Float_by_bit_pattern.t Or_variable.t list ->
@@ -95,6 +101,16 @@ val create_immutable_nativeint_array :
 val create_immutable_vec128_array :
   Are_rebuilding_terms.t ->
   Vector_types.Vec128.Bit_pattern.t Or_variable.t list ->
+  t
+
+val create_immutable_vec256_array :
+  Are_rebuilding_terms.t ->
+  Vector_types.Vec256.Bit_pattern.t Or_variable.t list ->
+  t
+
+val create_immutable_vec512_array :
+  Are_rebuilding_terms.t ->
+  Vector_types.Vec512.Bit_pattern.t Or_variable.t list ->
   t
 
 val create_immutable_value_array :

@@ -125,6 +125,10 @@ let eight_byte_literals_label = lazy (create Eight_byte_literals)
 
 let sixteen_byte_literals_label = lazy (create Sixteen_byte_literals)
 
+let thirtytwo_byte_literals_label = lazy (create Thirtytwo_byte_literals)
+
+let sixtyfour_byte_literals_label = lazy (create Sixtyfour_byte_literals)
+
 let jump_tables_label = lazy (create Jump_tables)
 
 let for_dwarf_section (dwarf_section : Asm_section.dwarf_section) =
@@ -149,6 +153,8 @@ let for_section (section : Asm_section.t) =
   | Read_only_data -> Lazy.force read_only_data_label
   | Eight_byte_literals -> Lazy.force eight_byte_literals_label
   | Sixteen_byte_literals -> Lazy.force sixteen_byte_literals_label
+  | Thirtytwo_byte_literals -> Lazy.force thirtytwo_byte_literals_label
+  | Sixtyfour_byte_literals -> Lazy.force sixtyfour_byte_literals_label
   | Jump_tables -> Lazy.force jump_tables_label
   | Stapsdt_base -> Misc.fatal_error "Stapsdt_base has no associated label"
   | Stapsdt_note -> Misc.fatal_error "Stapsdt_note has no associated label"
