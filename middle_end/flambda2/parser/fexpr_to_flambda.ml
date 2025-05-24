@@ -130,7 +130,10 @@ let fresh_exn_cont env { Fexpr.txt = name; loc = _ } =
 
 let fresh_var env { Fexpr.txt = name; loc = _ } =
   let v = Variable.create name ~user_visible:() in
-  v, { env with variables = VM.add name v env.variables }
+  let v_duid = Flambda_debug_uid.none in
+  (* CR sspies: These variables are apparently user visible. Where do we get
+     [Lambda.debug_uid] values for them from? *)
+  v, v_duid, { env with variables = VM.add name v env.variables }
 
 let fresh_or_existing_code_id env { Fexpr.txt = name; loc = _ } =
   match DM.find_opt env.code_ids name with
@@ -626,8 +629,8 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     in
     let bound_vars, env =
       let convert_binding env (var, _) : Bound_var.t * env =
-        let var, env = fresh_var env var in
-        let var = Bound_var.create var Name_mode.normal in
+        let var, var_duid, env = fresh_var env var in
+        let var = Bound_var.create var var_duid Name_mode.normal in
         var, env
       in
       map_accum_left convert_binding env vars_and_closure_bindings
@@ -652,9 +655,9 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     Misc.fatal_errorf "'with' clause only allowed when defining closures"
   | Let { bindings = [{ var; defining_expr = d }]; body; value_slots = None } ->
     let named = defining_expr env d in
-    let id, env = fresh_var env var in
+    let id, id_duid, env = fresh_var env var in
     let body = expr env body in
-    let var = Bound_var.create id Name_mode.normal in
+    let var = Bound_var.create id id_duid Name_mode.normal in
     let bound = Bound_pattern.singleton var in
     Flambda.Let.create bound named ~body ~free_names_of_body:Unknown
     |> Flambda.Expr.create_let
@@ -681,9 +684,11 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
     let handler_env, params =
       List.fold_right
         (fun ({ param; kind } : Fexpr.kinded_parameter) (env, args) ->
-          let var, env = fresh_var env param in
+          let var, var_duid, env = fresh_var env param in
           let param =
-            Bound_parameter.create var (value_kind_with_subkind_opt kind)
+            Bound_parameter.create var
+              (value_kind_with_subkind_opt kind)
+              var_duid
           in
           env, param :: args)
         params (env, [])
@@ -895,17 +900,22 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
           let params, env =
             map_accum_left
               (fun env ({ param; kind } : Fexpr.kinded_parameter) ->
-                let var, env = fresh_var env param in
+                let var, var_duid, env = fresh_var env param in
                 let param =
-                  Bound_parameter.create var (value_kind_with_subkind_opt kind)
+                  Bound_parameter.create var
+                    (value_kind_with_subkind_opt kind)
+                    var_duid
                 in
                 param, env)
               env params
           in
-          let my_closure, env = fresh_var env closure_var in
-          let my_region, env = fresh_var env region_var in
-          let my_ghost_region, env = fresh_var env ghost_region_var in
-          let my_depth, env = fresh_var env depth_var in
+          let my_closure, _my_closure_duid, env = fresh_var env closure_var in
+          let my_region, _my_region_duid, env = fresh_var env region_var in
+          let my_ghost_region, _my_ghost_region, env =
+            fresh_var env ghost_region_var
+          in
+          let my_depth, _my_depth, env = fresh_var env depth_var in
+          (* CR sspies: Should we propagate these debug identifiers? *)
           let return_continuation, env =
             fresh_cont env ret_cont ~sort:Return
               ~arity:(Flambda_arity.cardinal_unarized result_arity)

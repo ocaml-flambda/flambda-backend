@@ -2,11 +2,9 @@
 (*                                                                        *)
 (*                                 OCaml                                  *)
 (*                                                                        *)
-(*                       Pierre Chambart, OCamlPro                        *)
-(*           Mark Shinwell and Leo White, Jane Street Europe              *)
+(*                   Mark Shinwell, Jane Street Europe                    *)
 (*                                                                        *)
-(*   Copyright 2013--2019 OCamlPro SAS                                    *)
-(*   Copyright 2014--2019 Jane Street Group LLC                           *)
+(*   Copyright 2023 Jane Street Group LLC                                 *)
 (*                                                                        *)
 (*   All rights reserved.  This file is distributed under the terms of    *)
 (*   the GNU Lesser General Public License version 2.1, with the          *)
@@ -14,19 +12,17 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Variables with name modes, as occur on the left-hand sides of
-    [Let]-expressions (see [Bound_pattern]). *)
+(** Augmented version of [Lambda.debug_uid] that can track variables forming parts
+    of unboxed products. *)
 
-type t
+type t = private
+  | Uid of Lambda.debug_uid
+  | Proj of Lambda.debug_uid * int
 
-val create : Variable.t -> Flambda_debug_uid.t -> Name_mode.t -> t
+val none : t
 
-val var : t -> Variable.t
+val of_lambda_debug_uid : Lambda.debug_uid -> t
 
-val debug_uid : t -> Flambda_debug_uid.t
+val of_lambda_debug_uid_proj : Lambda.debug_uid -> field:int -> t
 
-val name_mode : t -> Name_mode.t
-
-val with_name_mode : t -> Name_mode.t -> t
-
-include Bindable.S with type t := t
+include Identifiable.S with type t := t

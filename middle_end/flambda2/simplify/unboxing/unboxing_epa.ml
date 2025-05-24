@@ -420,7 +420,7 @@ let add_extra_params_and_args extra_params_and_args ~invalids decision =
     | Unbox (Unique_tag_and_size { tag = _; shape = _; fields }) ->
       List.fold_left
         (fun extra_params_and_args ({ epa; decision; kind } : U.field_decision) ->
-          let extra_param = BP.create epa.param kind in
+          let extra_param = BP.create epa.param kind epa.param_debug_uid in
           let extra_params_and_args =
             EPA.add extra_params_and_args ~invalids ~extra_param
               ~extra_args:epa.args
@@ -431,7 +431,7 @@ let add_extra_params_and_args extra_params_and_args ~invalids decision =
       Value_slot.Map.fold
         (fun _ ({ epa; decision; kind } : U.field_decision)
              extra_params_and_args ->
-          let extra_param = BP.create epa.param kind in
+          let extra_param = BP.create epa.param kind epa.param_debug_uid in
           let extra_params_and_args =
             EPA.add extra_params_and_args ~invalids ~extra_param
               ~extra_args:epa.args
@@ -445,7 +445,9 @@ let add_extra_params_and_args extra_params_and_args ~invalids decision =
             List.fold_left
               (fun extra_params_and_args
                    ({ epa; decision; kind } : U.field_decision) ->
-                let extra_param = BP.create epa.param kind in
+                let extra_param =
+                  BP.create epa.param kind epa.param_debug_uid
+                in
                 let extra_params_and_args =
                   EPA.add extra_params_and_args ~invalids ~extra_param
                     ~extra_args:epa.args
@@ -460,6 +462,7 @@ let add_extra_params_and_args extra_params_and_args ~invalids decision =
         | At_least_one { is_int; ctor = Do_not_unbox _; _ } ->
           let extra_param =
             BP.create is_int.param K.With_subkind.naked_immediate
+              is_int.param_debug_uid
           in
           EPA.add extra_params_and_args ~invalids ~extra_param
             ~extra_args:is_int.args
@@ -467,6 +470,7 @@ let add_extra_params_and_args extra_params_and_args ~invalids decision =
           ->
           let extra_param =
             BP.create is_int.param K.With_subkind.naked_immediate
+              is_int.param_debug_uid
           in
           let extra_params_and_args =
             EPA.add extra_params_and_args ~invalids ~extra_param
@@ -474,6 +478,7 @@ let add_extra_params_and_args extra_params_and_args ~invalids decision =
           in
           let extra_param =
             BP.create ctor.param K.With_subkind.naked_immediate
+              ctor.param_debug_uid
           in
           EPA.add extra_params_and_args ~invalids ~extra_param
             ~extra_args:ctor.args
@@ -491,13 +496,17 @@ let add_extra_params_and_args extra_params_and_args ~invalids decision =
             "Trying to unbox the constant constructor of a variant with a kind \
              other than Naked_immediate."
       in
-      let extra_param = BP.create tag.param K.With_subkind.naked_immediate in
+      let extra_param =
+        BP.create tag.param K.With_subkind.naked_immediate tag.param_debug_uid
+      in
       EPA.add extra_params_and_args ~invalids ~extra_param ~extra_args:tag.args
     | Unbox (Number (naked_number_kind, epa)) ->
       let kind_with_subkind =
         K.With_subkind.of_naked_number_kind naked_number_kind
       in
-      let extra_param = BP.create epa.param kind_with_subkind in
+      let extra_param =
+        BP.create epa.param kind_with_subkind epa.param_debug_uid
+      in
       EPA.add extra_params_and_args ~invalids ~extra_param ~extra_args:epa.args
   in
   aux extra_params_and_args decision

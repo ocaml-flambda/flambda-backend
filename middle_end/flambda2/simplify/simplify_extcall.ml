@@ -43,8 +43,8 @@ let apply_cont cont v ~dbg =
   let expr = Expr.create_apply_cont apply_cont in
   free_names, expr
 
-let let_prim ~dbg v prim (free_names, body) =
-  let v' = Bound_var.create v Name_mode.normal in
+let let_prim ~dbg v v_duid prim (free_names, body) =
+  let v' = Bound_var.create v v_duid Name_mode.normal in
   let bindable = Bound_pattern.singleton v' in
   let named = Named.create_prim prim dbg in
   let free_names_of_body = Or_unknown.Known free_names in
@@ -58,26 +58,34 @@ let let_prim ~dbg v prim (free_names, body) =
 
 let simplify_comparison_of_tagged_immediates ~dbg dacc ~cmp_prim cont a b =
   let v_comp = Variable.create "comp" in
+  let v_comp_duid = Flambda_debug_uid.none in
   let tagged = Variable.create "tagged" in
+  let tagged_duid = Flambda_debug_uid.none in
   let _free_names, res =
-    let_prim ~dbg v_comp (P.Binary (cmp_prim, a, b))
-    @@ let_prim ~dbg tagged (P.Unary (Tag_immediate, Simple.var v_comp))
+    let_prim ~dbg v_comp v_comp_duid (P.Binary (cmp_prim, a, b))
+    @@ let_prim ~dbg tagged tagged_duid
+         (P.Unary (Tag_immediate, Simple.var v_comp))
     @@ apply_cont ~dbg cont tagged
   in
   Specialised (dacc, res, RO.specialized_poly_compare)
 
 let simplify_comparison_of_boxed_numbers ~dbg dacc ~kind ~cmp_prim cont a b =
   let a_naked = Variable.create "unboxed" in
+  let a_naked_duid = Flambda_debug_uid.none in
   let b_naked = Variable.create "unboxed" in
+  let b_naked_duid = Flambda_debug_uid.none in
   let v_comp = Variable.create "comp" in
+  let v_comp_duid = Flambda_debug_uid.none in
   let tagged = Variable.create "tagged" in
+  let tagged_duid = Flambda_debug_uid.none in
   let _free_names, res =
     (* XXX try to remove @@ *)
-    let_prim ~dbg a_naked (P.Unary (Unbox_number kind, a))
-    @@ let_prim ~dbg b_naked (P.Unary (Unbox_number kind, b))
-    @@ let_prim ~dbg v_comp
+    let_prim ~dbg a_naked a_naked_duid (P.Unary (Unbox_number kind, a))
+    @@ let_prim ~dbg b_naked b_naked_duid (P.Unary (Unbox_number kind, b))
+    @@ let_prim ~dbg v_comp v_comp_duid
          (P.Binary (cmp_prim, Simple.var a_naked, Simple.var b_naked))
-    @@ let_prim ~dbg tagged (P.Unary (Tag_immediate, Simple.var v_comp))
+    @@ let_prim ~dbg tagged tagged_duid
+         (P.Unary (Tag_immediate, Simple.var v_comp))
     @@ apply_cont ~dbg cont tagged
   in
   Specialised (dacc, res, RO.specialized_poly_compare)

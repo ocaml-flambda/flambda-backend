@@ -18,10 +18,13 @@
 type t
 
 (** Create a kinded parameter. *)
-val create : Variable.t -> Flambda_kind.With_subkind.t -> t
+val create :
+  Variable.t -> Flambda_kind.With_subkind.t -> Flambda_debug_uid.t -> t
 
 (** The underlying variable. *)
 val var : t -> Variable.t
+
+val var_and_uid : t -> Variable.t * Flambda_debug_uid.t
 
 val name : t -> Name.t
 
