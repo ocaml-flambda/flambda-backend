@@ -2589,6 +2589,14 @@ let check_type_nullability env ty null =
   | Ok () -> true
   | Error _ -> false
 
+let check_type_separability env ty sep =
+  let upper_bound =
+    Jkind.set_separability_upper_bound (Jkind.Builtin.any ~why:Dummy_jkind) sep
+  in
+  match check_type_jkind env ty upper_bound with
+  | Ok () -> true
+  | Error _ -> false
+
 let check_type_jkind_exn env texn ty jkind =
   match check_type_jkind env ty jkind with
   | Ok _ -> ()
