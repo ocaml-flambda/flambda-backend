@@ -611,6 +611,27 @@ static void caml_thread_domain_stop_hook(void) {
 
 static atomic_bool threads_initialized = false;
 
+CAMLprim value caml_thread_use_domains(value unit)
+{
+  if (domain_lockmode == LOCKMODE_DOMAINS)
+    return Val_unit;
+
+  if (domain_lockmode == LOCKMODE_CUSTOM_SCHEME)
+    caml_failwith("Domain.use_domains cannot be used with a non-default runtime locking scheme.");
+
+  CAMLassert(domain_lockmode == LOCKMODE_STARTUP);
+  CAMLassert(!caml_domain_is_multicore());
+
+  if (threads_initialized && !This_thread->is_main)
+    caml_failwith("Domain.use_domains: first use must be from the main thread.");
+
+  /* We are on the main thread, so we hold the domain_lock,
+     so we can switch lockmode */
+  domain_lockmode = LOCKMODE_DOMAINS;
+
+  return Val_unit; 
+}
+
 static void caml_thread_domain_spawn_hook(void)
 {
   if (domain_lockmode == LOCKMODE_DOMAINS)
