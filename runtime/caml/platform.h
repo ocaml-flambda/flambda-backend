@@ -445,6 +445,11 @@ void* caml_mem_map(uintnat size, uintnat flags, const char* name);
 void* caml_mem_commit(void* mem, uintnat size, const char* name);
 void caml_mem_decommit(void* mem, uintnat size, const char* name);
 void caml_mem_unmap(void* mem, uintnat size);
+void caml_mem_name_map(void* mem, size_t length, const char* format, ...)
+#ifdef __GNUC__
+  __attribute__ ((format (printf, 3, 4)))
+#endif
+;
 
 
 CAMLnoret void caml_plat_fatal_error(const char * action, int err);
