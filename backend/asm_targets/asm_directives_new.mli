@@ -195,6 +195,11 @@ val define_data_symbol : Asm_symbol.t -> unit
     will be raised if the current section is not a text section. *)
 val define_function_symbol : Asm_symbol.t -> unit
 
+(** Define both a label and a linker symbol. The label can be obtained as
+    [Asm_label.create_label_from_symbol]. *)
+val define_joint_label_and_symbol :
+  section:Asm_section.t -> Asm_symbol.t -> unit
+
 (** Define a symbol as a label at the current position. No type information is emitted. *)
 val define_symbol_label : section:Asm_section.t -> Asm_symbol.t -> unit
 
@@ -337,9 +342,7 @@ val reloc_x86_64_plt32 :
 
 module Directive : sig
   module Constant : sig
-    (* CR sspies: make this private again once the first-class module has been
-       removed *)
-    type t =
+    type t = private
       | Signed_int of Int64.t
       | Unsigned_int of Numbers.Uint64.t
       | This
@@ -360,9 +363,7 @@ module Directive : sig
 
     val constant : t -> Constant.t
 
-    (* CR sspies: make this private again once the first-class module has been
-       removed *)
-    type width_in_bytes =
+    type width_in_bytes = private
       | Eight
       | Sixteen
       | Thirty_two
@@ -373,29 +374,22 @@ module Directive : sig
     val create : Constant.t -> width_in_bytes -> t
   end
 
-  (* CR sspies: make this private again once the first-class module has been
-     removed *)
-  type thing_after_label =
+  type thing_after_label = private
     | Code
     | Machine_width_data
 
-  (* CR sspies: make this private again once the first-class module has been
-     removed *)
-  type comment = string
+  type comment = private string
 
   (* ELF specific *)
   type reloc_type = R_X86_64_PLT32
   (* X86 only *)
-
-  (* CR sspies: make this private again once the first-class module has been
-     removed *)
 
   (** Internal representation of directives.  Only needed if writing a custom
       assembler or printer instead of using [print], below.
       Symbols that occur in values of type [t] are encoded as [string]s and
       have had all necessary prefixing, mangling, escaping and suffixing
       applied. *)
-  type t =
+  type t = private
     | Align of
         { bytes : int;
               (** The number of bytes to align to. This will be taken log2 by the emitter on

@@ -2168,7 +2168,7 @@ let begin_assembly _unix =
       Buffer.clear asm_line_buffer;
       D.Directive.print asm_line_buffer d;
       Buffer.add_string asm_line_buffer "\n";
-      Buffer.output_buffer !output_channel asm_line_buffer);
+      Emitaux.emit_buffer asm_line_buffer);
   D.file ~file_num:None ~file_name:"";
   (* PR#7037 *)
   let data_begin = Cmm_helpers.make_symbol "data_begin" in

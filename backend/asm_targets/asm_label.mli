@@ -55,6 +55,11 @@ val create_string : Asm_section.t -> string -> t
 (** Create a textual label. Argument string is not checked, so use with caution. *)
 val create_string_unchecked : Asm_section.t -> string -> t
 
+(* CR sspies: Can we say more about where this special label comes from? *)
+
+(** Create a special label from a symbol name. *)
+val create_label_from_symbol : Asm_section.t -> Asm_symbol.t -> t
+
 (** Convert a label to the corresponding textual form, suitable for direct
     emission into an assembly file. This may be useful e.g. when emitting an
     instruction referencing a label. *)
@@ -71,7 +76,9 @@ val section : t -> Asm_section.t
 include Identifiable.S with type t := t
 
 (** Retrieve a distinguished label that is suitable for identifying the start of
-    the given section within a given compilation unit's assembly file. *)
+    the given section within a given compilation unit's assembly file. This
+    function supports only DWARF sections. To support more, additional sections
+    and labels have to be emitted in [Asm_directives.debug_header]. *)
 val for_section : Asm_section.t -> t
 
 (** Like [for_section], but for DWARF sections only. *)
