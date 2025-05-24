@@ -274,12 +274,17 @@ end = struct
                store code ID %a which is classified as \
                Full_and_partial_application (so the expected size is 3)"
               Function_slot.print function_slot size Code_id.print code_id;
+          let curry_code_pointer =
+            if Code_metadata.never_called_indirectly
+                 (Env.get_code_metadata env code_id)
+            then (* CR gbury: fail here instead *) P.int ~dbg 0n
+            else
+              P.term_of_symbol ~dbg
+                (C.curry_function_sym kind params_ty result_ty)
+          in
           let acc =
             P.term_of_symbol ~dbg code_symbol
-            :: P.int ~dbg closure_info
-            :: P.term_of_symbol ~dbg
-                 (C.curry_function_sym kind params_ty result_ty)
-            :: acc
+            :: P.int ~dbg closure_info :: curry_code_pointer :: acc
           in
           ( acc,
             rev_append_chunks ~for_static_sets
@@ -620,6 +625,7 @@ let let_static_set_of_closures0 env res closure_symbols
   let block =
     match l with
     | _ :: _ ->
+      (* Format.eprintf "XXX %d %d@." length (List.length l); *)
       let header = C.cint (C.black_closure_header length) in
       header :: l
     | [] ->

@@ -456,7 +456,9 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   let expr, dacc =
     match new_closure_alloc_mode_and_first_complex_local_param with
     | Bottom ->
-      Expr.create_invalid (Partial_application_mode_mismatch apply), dacc
+      ( Expr.create_invalid
+          (Partial_application_mode_mismatch (apply, callee's_code_metadata)),
+        dacc )
     | Ok (new_closure_alloc_mode, first_complex_local_param) ->
       (match closure_alloc_mode_from_type with
       | Heap_or_local -> ()
@@ -572,6 +574,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         in
         let call_kind =
           Call_kind.direct_function_call callee's_code_id apply_alloc_mode
+          (* Call_kind.indirect_function_call_known_arity apply_alloc_mode *)
         in
         let body, cost_metrics_of_body, free_names =
           (* [free_names] is going to be the free names of the whole resulting
@@ -674,8 +677,8 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
               ~dbg ~is_tupled:false
               ~is_my_closure_used:
                 (Function_params_and_body.is_my_closure_used params_and_body)
-              ~inlining_decision:Stub ~absolute_history ~relative_history
-              ~loopify:Never_loopify
+              ~never_called_indirectly:false ~inlining_decision:Stub
+              ~absolute_history ~relative_history ~loopify:Never_loopify
           in
           Static_const_or_code.create_code code
         in
@@ -871,7 +874,8 @@ let simplify_direct_function_call ~simplify_expr dacc apply
       else if provided_num_args > num_params
       then (
         (* See comment above. *)
-        if not (Flambda_arity.is_one_param_of_kind_value result_arity)
+        if Flambda_features.kind_checks ()
+           && not (Flambda_arity.is_one_param_of_kind_value result_arity)
         then
           Misc.fatal_errorf
             "Non-singleton-value return arity for overapplied OCaml function:@ \
@@ -883,9 +887,10 @@ let simplify_direct_function_call ~simplify_expr dacc apply
       else if provided_num_args > 0 && provided_num_args < num_params
       then (
         (* See comment above. *)
-        if not
-             (Flambda_arity.is_one_param_of_kind_value
-                result_arity_of_application)
+        if Flambda_features.kind_checks ()
+           && not
+                (Flambda_arity.is_one_param_of_kind_value
+                   result_arity_of_application)
         then
           Misc.fatal_errorf
             "Non-singleton-value return arity for partially-applied OCaml \
