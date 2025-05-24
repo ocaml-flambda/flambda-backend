@@ -113,3 +113,5 @@ val mutable_unboxing_result : t -> Flow_types.Mutable_unboxing_result.t
 val set_resimplify : t -> t
 
 val resimplify : t -> bool
+
+val specialization_map : t -> Continuation.t Continuation_callsite_map.t
