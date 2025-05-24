@@ -118,18 +118,6 @@ module type Common = sig
 
   val of_const : Const.t -> ('l * 'r) t
 
-  (** [imply c] is the right adjoint of [meet c]. That is,
-     [x <= imply c y] iff [meet c x <= y]. *)
-  val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
-
-  (** [subtract c] is the left adjoint of [join c]. That is,
-     [subtract c x <= y] iff [x <= join c y]. *)
-  val subtract : Const.t -> ('l * 'r) t -> ('l * disallowed) t
-
-  val join_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
-
-  val meet_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
-
   val zap_to_ceil : ('l * allowed) t -> Const.t
 
   val zap_to_floor : (allowed * 'r) t -> Const.t
@@ -418,6 +406,8 @@ module type S = sig
         with type Const.t = Areality.Const.t comonadic_with
          and type 'a axis := (Areality.Const.t comonadic_with, 'a) Axis.t
 
+    module Axis' := Axis
+
     module Axis : sig
       (** Represents a mode axis in this product whose constant is ['a], and whose
       allowance is ['d1] given the product's allowance ['d0]. *)
@@ -527,6 +517,10 @@ module type S = sig
     val proj :
       ('a, 'l0 * 'r0, 'l1 * 'r1) Axis.t -> ('l0 * 'r0) t -> ('a, 'l1 * 'r1) mode
 
+    val meet_const : Comonadic.Const.t -> ('l * 'r) t -> ('l * 'r) t
+
+    val join_const : Monadic.Const.t -> ('l * 'r) t -> ('l * 'r) t
+
     (** [max_with ax elt] returns [max] but with the axis [ax] set to [elt]. *)
     val max_with :
       ('a, 'l0 * 'r0, 'l1 * 'r1) Axis.t ->
@@ -540,10 +534,10 @@ module type S = sig
       ('l0 * disallowed) t
 
     val meet_with :
-      ('a, 'l0 * 'r0, 'l1 * 'r1) Axis.t -> 'a -> ('l0 * 'r0) t -> ('l0 * 'r0) t
+      (Comonadic.Const.t, 'a) Axis'.t -> 'a -> ('l0 * 'r0) t -> ('l0 * 'r0) t
 
     val join_with :
-      ('a, 'l0 * 'r0, 'l1 * 'r1) Axis.t -> 'a -> ('l0 * 'r0) t -> ('l0 * 'r0) t
+      (Monadic.Const.t, 'a) Axis'.t -> 'a -> ('l0 * 'r0) t -> ('l0 * 'r0) t
 
     val zap_to_legacy : lr -> Const.t
 
