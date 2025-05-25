@@ -27,8 +27,6 @@
 #include <stdarg.h>
 #include <limits.h>
 
-#include "camlatomic.h"
-
 /* Deprecation warnings */
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -201,6 +199,8 @@ CAMLdeprecated_typedef(addr, char *);
    can obtain the domain id with Caml_state->id. These functions must
    be reentrant. */
 #ifndef __cplusplus
+#include <stdatomic.h>
+
 typedef void (*caml_timing_hook) (void);
 extern _Atomic caml_timing_hook caml_major_slice_begin_hook;
 extern _Atomic caml_timing_hook caml_major_slice_end_hook;
@@ -275,6 +275,8 @@ CAMLextern void caml_failed_assert (char *, char_os *, int)
 #define CAMLlikely(e) (e)
 #define CAMLunlikely(e) (e)
 #endif
+
+#include "camlatomic.h"
 
 #ifdef CAML_INTERNALS
 
@@ -505,7 +507,7 @@ CAMLextern int caml_read_directory(char_os * dirname,
 
 /* runtime message flags. Settable with v= in OCAMLRUNPARAM */
 
-extern atomic_uintnat caml_verb_gc;
+extern _Atomic uintnat caml_verb_gc;
 
 /* Bits which may be set in caml_verb_gc. Keep in sync with the OCaml
  * manual, the ocamlrun.1 man page, and gc.mli */
