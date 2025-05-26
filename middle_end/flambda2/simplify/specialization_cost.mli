@@ -46,8 +46,8 @@
 
 type reason =
   | At_toplevel
-  | Contain_static_consts
-  | Contain_set_of_closures
+  | Contains_static_consts
+  | Contains_set_of_closures
 
 type cost = { size_of_primitives : int }
 

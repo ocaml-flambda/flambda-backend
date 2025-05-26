@@ -431,8 +431,8 @@ let add_extra_args_to_call ~extra_args rewrite_id original_args =
 
 let normalize_acc ~specialization_map (t : T.Acc.t) =
   let map =
-    Continuation.Map.filter_map
-      (fun _cont (elt : T.Continuation_info.t) ->
+    Continuation.Map.map
+      (fun (elt : T.Continuation_info.t) ->
         (* Note: [cont=elt.continuation] *)
         (* Rewrite continuations calls to the specialized ones *)
         let apply_cont_args =
@@ -478,7 +478,7 @@ let normalize_acc ~specialization_map (t : T.Acc.t) =
               else Some rewrite_ids)
             apply_cont_args
         in
-        Some { elt with apply_cont_args })
+        { elt with apply_cont_args })
       t.map
   in
   let map =

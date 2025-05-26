@@ -27,15 +27,15 @@ let [@ocamlformat "disable"] print ppf { continuation_uses; } =
 let empty = { continuation_uses = Continuation.Map.empty }
 
 let add_continuation_use t cont kind ~id ~env_at_use ~arg_types =
+  let use = One_continuation_use.create kind ~env_at_use id ~arg_types in
   let continuation_uses =
     Continuation.Map.update cont
       (function
         | None ->
           let arity = T.arity_of_list arg_types in
           let uses = Continuation_uses.create cont arity in
-          Some (Continuation_uses.add_use uses kind ~env_at_use id ~arg_types)
-        | Some uses ->
-          Some (Continuation_uses.add_use uses kind ~env_at_use id ~arg_types))
+          Some (Continuation_uses.add_use uses use)
+        | Some uses -> Some (Continuation_uses.add_use uses use))
       t.continuation_uses
   in
   { continuation_uses }

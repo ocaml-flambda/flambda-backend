@@ -32,7 +32,10 @@ val union : t -> t -> t
 
 val mark_non_inlinable : t -> t
 
-(* Beware: this function should be used carefully. *)
+(** Manually add a continuation use, with everything specified, including
+    the id for the apply_cont (contrary to {!record_continuation_uses} which
+    always generates a fresh id). Users of this function must take care to ensure
+    there's only one use per id. *)
 val add_continuation_use :
   t ->
   Continuation.t ->

@@ -25,13 +25,7 @@ val create : Continuation.t -> [`Unarized] Flambda_arity.t -> t
 
 val print : Format.formatter -> t -> unit
 
-val add_use :
-  t ->
-  Continuation_use_kind.t ->
-  env_at_use:Downwards_env.t ->
-  Apply_cont_rewrite_id.t ->
-  arg_types:Flambda2_types.t list ->
-  t
+val add_use : t -> One_continuation_use.t -> t
 
 val get_uses : t -> One_continuation_use.t list
 

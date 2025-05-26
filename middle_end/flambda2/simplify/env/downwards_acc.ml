@@ -38,7 +38,8 @@ type t =
     continuation_lifting_budget : int;
     continuation_specialization_budget : int;
     continuations_to_specialize : Continuation.Set.t;
-        (* TODO* encode that into the map below as the keys of the map *)
+    (* CR gbury: we could try and encode the set of continuations to specialize
+       into the map below as the keys of the map *)
     specialization_map : Continuation.t Continuation_callsite_map.t
   }
 

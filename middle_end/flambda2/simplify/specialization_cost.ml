@@ -15,8 +15,8 @@
 
 type reason =
   | At_toplevel
-  | Contain_static_consts
-  | Contain_set_of_closures
+  | Contains_static_consts
+  | Contains_set_of_closures
 
 type cost = { size_of_primitives : int }
 
@@ -28,10 +28,10 @@ let [@ocamlformat "disable"] print_reason ppf reason =
   match reason with
   | At_toplevel ->
     Format.fprintf ppf "at_top_level"
-  | Contain_static_consts ->
-    Format.fprintf ppf "contain_static_consts"
-  | Contain_set_of_closures ->
-    Format.fprintf ppf "contain_set_of_closures"
+  | Contains_static_consts ->
+    Format.fprintf ppf "contains_static_consts"
+  | Contains_set_of_closures ->
+    Format.fprintf ppf "contains_set_of_closures"
 
 let [@ocamlformat "disable"] print ppf t =
   match t with
@@ -64,4 +64,4 @@ let add_prim prim t =
       { size_of_primitives = size + s })
 
 let add_set_of_closures _soc _t =
-  Cannot_specialize { reason = Contain_set_of_closures }
+  Cannot_specialize { reason = Contains_set_of_closures }
