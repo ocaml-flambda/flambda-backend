@@ -667,6 +667,12 @@ val check_type_externality :
 val check_type_nullability :
   Env.t -> type_expr -> Jkind_axis.Nullability.t -> bool
 
+(* Check whether a type's separability is less than some target.
+   Potentially cheaper than just calling [type_jkind], because this can stop
+   expansion once it succeeds. *)
+val check_type_separability :
+  Env.t -> type_expr -> Jkind_axis.Separability.t -> bool
+
 (* This function should get called after a type is generalized.
 
    It does two things:
