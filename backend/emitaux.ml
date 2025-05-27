@@ -439,7 +439,7 @@ module Dwarf_helpers = struct
         Asm_targets.Asm_directives_dwarf.build_asm_directives ()
       in
       let get_file_num = get_file_num ~file_emitter in
-      Asm_targets.Asm_directives_new.debug_header ~get_file_num;
+      Asm_targets.Asm_directives.debug_header ~get_file_num;
       let unit_name =
         (* CR lmaurer: This doesn't actually need to be an [Ident.t] *)
         Symbol.for_current_unit () |> Symbol.linkage_name

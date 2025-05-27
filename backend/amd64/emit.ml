@@ -40,7 +40,7 @@ module Simd_instrs = Amd64_simd_instrs
 [@@@ocaml.warning "-66"]
 
 open! Branch_relaxation
-module ND = Asm_targets.Asm_directives_new
+module ND = Asm_targets.Asm_directives
 module S = Asm_targets.Asm_symbol
 module L = Asm_targets.Asm_label
 

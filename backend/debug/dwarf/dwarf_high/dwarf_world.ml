@@ -15,7 +15,7 @@
 open! Int_replace_polymorphic_compare
 open Asm_targets
 open Dwarf_low
-module A = Asm_directives_new
+module A = Asm_directives
 
 let emit0_delayed ~asm_directives:_ = ()
 

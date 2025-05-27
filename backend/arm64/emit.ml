@@ -31,7 +31,7 @@ open! Operation
 open Linear
 open Emitaux
 module I = Arm64_ast.Instruction_name
-module D = Asm_targets.Asm_directives_new
+module D = Asm_targets.Asm_directives
 module S = Asm_targets.Asm_symbol
 module L = Asm_targets.Asm_label
 open! Int_replace_polymorphic_compare

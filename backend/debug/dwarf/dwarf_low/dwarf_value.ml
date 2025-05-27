@@ -27,7 +27,7 @@ module Uint8 = Numbers.Uint8
 module Uint16 = Numbers.Uint16
 module Uint32 = Numbers.Uint32
 module Uint64 = Numbers.Uint64
-module A = Asm_directives_new
+module A = Asm_directives
 
 type value =
   | Flag_true

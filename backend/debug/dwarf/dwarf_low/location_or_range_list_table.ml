@@ -19,7 +19,7 @@ open Asm_targets
 module Uint8 = Numbers.Uint8
 module Uint32 = Numbers.Uint32
 module Uint64 = Numbers.Uint64
-module A = Asm_directives_new
+module A = Asm_directives
 
 module Make (Location_or_range_list : sig
   include Dwarf_emittable.S
