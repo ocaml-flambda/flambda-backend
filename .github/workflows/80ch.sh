@@ -25,6 +25,15 @@ feature_base="HEAD^1" # GitHub automatically makes us a merge commit (HEAD),
                       # so our feature base is just the first parent (HEAD^1)
                       # of this merge commit
 
+
+# List of files to SKIP, each file name should be relative to the root of
+# the directory (from where the script will be called). Currently we use
+# spaces as delimiter between file names, as none of the file path in the
+# repository uses spaces.
+SKIPPED_FILES="\
+middle_end/flambda2/parser/flambda_parser.ml \
+"
+
 find_diff() {
 # Iterate through all files changed since this branch forked off of main.
 #
@@ -37,7 +46,11 @@ git diff --name-only "$feature_base" -z | while read -d $'\0' -r changed_file
 #                   Don't allow backslashes to escape characters            |
 #                                            Store the token in $changed_file
 do
-  # SKIP FILES
+  # Skip files that are in the hardcoded list of files to not check.
+  # This uses bash builtin regexp matching (using '=~'). Since none of the file
+  # path of the repo contain spaces, we should not fall into the annoying and
+  # weird corner cases
+  [[ " $SKIPPED_FILES " =~ " $changed_file " ]] && continue
 
   # Only check regular files that currently exist
   [[ -f "$changed_file" ]] || continue
@@ -80,14 +93,17 @@ do
     number="${long_line%%:*}" # on the first colon
 
     # Warning workflow command for GitHub Actions
-    printf '::error file=%s,line=%s,title=%s::%s\n' \
+    # Github action erases all but the last part of the message in its logs
+    # (even raw logs), so we repeat the file and line number
+    printf '::error file=%s,line=%s,title=%s::Line %s is too long in %s\n' \
       "$changed_file" "$number" \
       'Line is longer than 80 characters' \
-      'Consider rewrapping this line'
+      "$number" \
+      "$changed_file"
   done
 done
 }
 
 output="$(find_diff)"
-printf '%s' "$output"
+printf '%s\n' "$output"
 [[ -z "$output" ]] # if there is output, exit 1
