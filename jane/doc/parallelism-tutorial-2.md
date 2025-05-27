@@ -155,9 +155,8 @@ Sequential | 2.36
 2          | 1.70
 4          | 1.09
 8          | 0.78
-16         | 0.77
 
-Although we observe a speedup using up to 16 domains, quicksort only admits a limited amount of parallelism&mdash;eventually, the cost of sequentially partitioning the array dominates the runtime.
+Our code runs faster given more domains, but quicksort only admits a limited amount of parallelism&mdash;eventually, the cost of sequentially partitioning the array dominates the runtime.
 For this reason, other algorithms (such as merge-sort) are often preferable in the parallel setting.
 
 ## Image Processing
@@ -280,7 +279,7 @@ let filter ~scheduler ~key image =
 The function `Capsule.Key.access_shared` takes an `aliased` key and provides us with an `'k Access.t @ shared`.
 We may then pass the access to `Capsule.Data.unwrap_shared` to get our desired `Image.t @ shared`.
 
-Finally, our filter's performance scales close to linearly with additional domains:
+Now, our filter's performance scales close to linearly with additional domains:
 
 Domains | Time (ms)
 --------|----------
@@ -288,3 +287,8 @@ Domains | Time (ms)
 2       | 150
 4       | 81
 8       | 51
+
+<!-- CR-soon mslater: update with rwlocks -->
+
+If we needed to preserve the mutability of the input image, we could instead protect its capsule with a reader-writer lock.
+However, this would still incur some overhead for readers, and reader-writer locks are not yet compatible with the parallel library.

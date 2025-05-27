@@ -94,7 +94,7 @@ let increment_initial () =
 ;;
 ```
 
-Similarly, though `portable` functions may not execute in the initial capsule, they always execute in _some_ capsule.
+Similarly, though `portable` functions might not execute in the initial capsule, they always execute in _some_ capsule.
 During a `portable` function, we can ask for access to the _current capsule_:
 
 ```ocaml
