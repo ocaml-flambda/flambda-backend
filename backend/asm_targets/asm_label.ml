@@ -71,7 +71,7 @@ let create_string section label =
 
 let create_string_unchecked section label = { section; label = String label }
 
-let create_label_from_symbol section symbol =
+let create_label_for_local_symbol section symbol =
   create_string_unchecked section (Asm_symbol.encode symbol)
 
 let label_prefix =

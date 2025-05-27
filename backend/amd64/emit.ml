@@ -204,7 +204,9 @@ let emit_cmm_symbol (s : Cmm.symbol) =
   (* This label is special in that it is not of the form "Lnumber". Instead, we
      take the symbol, encode it, and turn the resulting string into a label. The
      label will still be prefixed by ".L"/"L" when emitting. *)
-  | Local -> `Label (L.create_label_from_symbol Text sym)
+  (* CR sspies: Improve the handling of these local symbols in the rest of the
+     emission code. *)
+  | Local -> `Label (L.create_label_for_local_symbol Text sym)
 
 let emit_cmm_symbol_str (s : Cmm.symbol) =
   match emit_cmm_symbol s with
