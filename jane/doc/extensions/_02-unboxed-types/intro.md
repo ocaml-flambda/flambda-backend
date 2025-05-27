@@ -565,8 +565,7 @@ within a function.
 
 Users who write OCaml code that depends on the layout of mixed blocks (via
 `Obj.magic` or similar) should instead include a reference in the relevant
-modules to `Stdlib_upstream_compatible.mixed_block_layout_v#` in their code.
-For example:
+modules to `Stdlib_upstream_compatible.mixed_block_layout_v#`. For example:
 ```
 let _ = Stdlib_upstream_compatible.mixed_block_layout_v3
 ```
