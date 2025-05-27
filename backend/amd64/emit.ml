@@ -2146,13 +2146,11 @@ let begin_assembly unix =
     (* from amd64.S; could emit these constants on demand *)
     D.switch_to_section Sixteen_byte_literals;
     D.align ~fill_x86_bin_emitter:Zero ~bytes:16;
-    D.define_symbol_label ~section:Sixteen_byte_literals
-      S.Predef.caml_negf_mask;
+    D.define_symbol_label ~section:Sixteen_byte_literals S.Predef.caml_negf_mask;
     D.int64 0x8000000000000000L;
     D.int64 0L;
     D.align ~fill_x86_bin_emitter:Zero ~bytes:16;
-    D.define_symbol_label ~section:Sixteen_byte_literals
-      S.Predef.caml_absf_mask;
+    D.define_symbol_label ~section:Sixteen_byte_literals S.Predef.caml_absf_mask;
     D.int64 0x7FFFFFFFFFFFFFFFL;
     D.int64 0xFFFFFFFFFFFFFFFFL;
     D.define_symbol_label ~section:Sixteen_byte_literals
