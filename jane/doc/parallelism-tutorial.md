@@ -1,16 +1,73 @@
-# Parallelism Tutorial
+# Simple Parallelism Without Data Races
 
 # Introduction
 
+OCaml 5 unleashed parallel programming for the OCaml ecosystem. As is often the
+case when something is unleashed, this has quite a bit of potential to cause
+chaos. **[Need to quit fussing with this so I'm leaving it as is for the moment,
+but am I saying we're putting the leash back on? Leashes are good, actually? Or
+maybe we're putting up a fence so the the multicore dog can run around without
+data races biting people??]**
+
+OxCaml aims to provide an infrastructure for multicore OCaml programming that
+exploits the full power of parallelism while _guaranteeing_ freedom from an
+especially pernicious threat, that of the _data race._ That infrastructure
+includes many parts, from common primitives like atomics and locks to newer
+features like modes and capsules. Fortunately, not every parallel program will
+need all of this machinery, and following this tutorial, you'll see how far you
+can get with just two modes and the `Parallel.fork_join2` function.
+
 ## What is a data race?
+
+A data race is a race condition in which two accesses to the same memory
+location conflict. Specifically, there are four elements of the crime: **[[Oops,
+I forgot to define “domain” first]]**
+
+1. Code running in parallel, which is to say in two different domains
+2. A memory location that may be accessed by both domains simultaneously
+3. At least one of the accesses is a write
+4. The location isn't atomic
+
+This last condition is a carve-out for specially synchronized memory operations
+provided by `Atomic.t`, which we'll cover [later on](#atomics). Any “normal”
+mutable OCaml data can lead to a data race: references, `mutable` fields, and
+`array`s are all possible culprits.
+
+So, for example:
+
+```ocaml
+type record = { mutable field : int }
+
+let reference : int ref = ref 1
+let record : record = { field = 2 }
+let arr : int array = [| 3; 4 |]
+```
+
+All three of these values are possible sources of data races, say if the
+following two functions were run in two different domains:
+
+```ocaml
+let fun1 () =
+  reference := 2;
+  record.field <- 3;
+  arr.(0) <- 4;
+  print_int arr.(1)
+
+let fun2 () =
+  reference := 3; (* Data race: write vs. write *)
+  print_int record.field; (* Data race: read vs. write *)
+  arr.(0) <- arr.(0) + 1; (* Two data races! *)
+  print_int arr.(1) (* This one's okay: read vs. read *)
+```
 
 ## Why are data races bad?
 
-Every race condition is a bug, but data races are especially insidious. Both the
-compiler and the CPU routinely reorder instructions for performance, and they do
-so assuming there are no data races. As a consequence, in a program with data
-races, it's difficult if not impossible to reason about the order in which
-things happen.
+Every race condition is a bug, but data races are especially insidious.
+Obviously, the outcome is unpredictable, since we don't know which side will
+“win the race,” but the problems don't end there. Both the compiler and the CPU
+routinely reorder instructions for performance, and they do so assuming there
+are no data races. As a consequence, in a program with data races, it's
+difficult if not impossible to reason about the order in which things happen.
 
 As an example, imagine we have two global variables:
 
@@ -20,7 +77,7 @@ let initialised = ref false
 ```
 
 Now consider two pieces of code running in parallel. One is some startup code
-we'll call thread A:
+we'll call domain A:
 
 ```ocaml
 (* ... *)
@@ -29,7 +86,7 @@ initialised := true
 (* ... *)
 ```
 
-The other, thread B, accesses the variables:
+The other, domain B, accesses the variables:
 
 ```ocaml
 (* ... *)
@@ -41,46 +98,58 @@ if !initialised then
 
 What happens? Well, since they're running in parallel, we don't know exactly.
 There is of course an intuitive way to reason it out: at any given point in
-time, each thread will be partway done running, we just never know exactly which
-thread gets to go next. So maybe thread A sets `price_of_gold`, and then thread
-B reads `initialised` and sees that it's `false`, and then thread A sets
-`initialised` to `true`. Or maybe thread A sets both variables before thread B
-checks `initialised`, and then if gold is cheap, thread B heads to the market.
+time, each domain will be partway done running, we just never know exactly which
+domain gets to go next. So maybe domain A sets `price_of_gold`, and then domain
+B reads `initialised` and sees that it's `false`, and then domain A sets
+`initialised` to `true`. Or maybe domain A sets both variables before domain B
+checks `initialised`, and then if gold is cheap, domain B heads to the market.
 
-The one thing we want _not_ to happen is for thread B to see that
+The one thing we want _not_ to happen is for domain B to see that
 `!initialised` is `true` and yet find that `price_of_gold` is still stuck at
 its initial value of `0.0`, thus causing us to `buy_lots_of_gold ()` no matter
-the price. Our intuitive method reassures us that this cannot happen: thread `A`
+the price. Our intuitive method reassures us that this cannot happen: domain A
 doesn't set `initialised` to `true` until it's already done setting
 `price_of_gold` to something sensible.
 
 Unfortunately, our intuitive reasoning is wrong: this code very much can end up
 calling `buy_lots_of_gold ()` despite `price_of_gold` being high. Since the
-assignments to `price_of_gold` and `initialised` happen in the same thread and
+assignments to `price_of_gold` and `initialised` happen in the same domain and
 neither is a fancy [atomic] operation, they can be reordered so that
-`initialised` is set first, leading thread `B` to make an expensive mistake.
+`initialised` is set first, _while `price_of_gold` is still zero,_ leading
+domain B to make an expensive mistake.
 
 [atomic]: #atomics
 
 It turns out our intuition assumes what the literature calls
 _sequential consistency:_ essentially, the principle that things happen in order
-they're written, and parallelism just means we're not sure which thread will do
+they're written, and parallelism just means we're not sure which domain will do
 its next thing. This principle is so essential that it's hard to imagine
 reasoning about a multicore program without it.
 
 Of course, what's happened here is two data races: each of `price_of_gold` and
-`initialised` is being modified by thread A and read by thread B in parallel.
+`initialised` is being modified by domain A and read by domain B in parallel.
 So the moral of the story is that data races violate sequential consistency.
 
 The good news is that the inverse is also true: any program without data races
 is sequentially consistent. Data-race freedom gives us back the power to reason
-intuitively about our code, no matter how buggy it might get. And in our
-example, we can prove that replacing our `ref`s with `Atomic.t`s fixes our bug:
-sequential consistency means that it's impossible for thread B to observe a
-state where `initialised` is `true` and `price_of_gold` is `0.0`.[^price-zero]
+intuitively about our code, no matter how buggy it might get. In our example,
+that means that once we fix the data races (easy to do with `Atomic.t`), we know
+that fixes our bug: sequential consistency means that it's impossible for domain
+B to observe a state where `initialised` is `true` and `price_of_gold` is
+`0.0`.[^price-zero]
 
 [^price-zero]: Assuming, of course, `calculate_price_of_gold ()` doesn't
 return `0.0`. The compiler can't catch everything.
+
+The even _better_ news is that, in code using OxCaml's extensions, the data
+races in `price_of_gold` and `initialised` would _never have compiled to begin
+with._ There's a tradeoff, of course: just as OCaml's type safety means having
+to understand the type system, the system for data-race freedom has a learning
+curve. This tutorial aims to get you moving with a practical framework that
+hopes to achieve significant parallel speedups without much fuss. You'll still
+need to convince the compiler that your code has no data races, but we'll walk
+through the rules and even some [shortcuts](#amenities) for common special
+cases.
 
 # Fork/join parallelism
 
