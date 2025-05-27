@@ -1565,6 +1565,13 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
   | Pidx_deepen (mbe, field_path), [[idx]] -> (
     (* See [jane/doc/extensions/_02-unboxed-types/block-indices.md]. *)
     let cts = Mixed_product_bytes_wrt_path.count mbe field_path in
+    let open struct
+      type deepening_type =
+        | Mixed_product_to_mixed_product
+        | Mixed_product_to_all_values
+        | Mixed_product_to_all_flats
+        | All_values_or_flats
+    end in
     let deepening_type =
       let outer_has_value_and_flat =
         Mixed_product_bytes_wrt_path.all cts
@@ -1576,21 +1583,21 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           Mixed_product_bytes.Byte_count.(
             is_zero cts.here.value, is_zero cts.here.flat)
         with
-        | false, false -> `Mixed_product_to_mixed_product
-        | false, true -> `Mixed_product_to_all_values
-        | true, false -> `Mixed_product_to_all_flats
+        | false, false -> Mixed_product_to_mixed_product
+        | false, true -> Mixed_product_to_all_values
+        | true, false -> Mixed_product_to_all_flats
         | true, true -> assert false
-      else `All_values_or_flats
+      else All_values_or_flats
     in
     match deepening_type with
-    | `All_values_or_flats ->
+    | All_values_or_flats ->
       (* The initial index isn't mixed, so all 64 of its bits are an offset *)
       (* increase this offset by left value + left flats *)
       let to_add =
         Int64.of_int (conv_bc cts.left.value + conv_bc cts.left.flat)
       in
       [Binary (Int_arith (Naked_int64, Add), idx, simple_i64 to_add)]
-    | `Mixed_product_to_mixed_product ->
+    | Mixed_product_to_mixed_product ->
       (* E.g. move index to a #(i64#, #(string, i32#), string) to the inner
          product *)
       (* offset += left value; gap += right value + left flat *)
@@ -1602,7 +1609,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           (Int64.of_int (conv_bc cts.left.value))
       in
       [Binary (Int_arith (Naked_int64, Add), idx, simple_i64 to_add)]
-    | `Mixed_product_to_all_values ->
+    | Mixed_product_to_all_values ->
       (* gap = 0; offset += left value *)
       let mask = Int64.of_int ((1 lsl 48) - 1) in
       let gap_removed =
@@ -1612,7 +1619,7 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           ( Int_arith (Naked_int64, Add),
             H.Prim gap_removed,
             simple_i64 (Int64.of_int (conv_bc cts.left.value)) ) ]
-    | `Mixed_product_to_all_flats ->
+    | Mixed_product_to_all_flats ->
       (* offset += gap + left value + right value + left flat; gap = 0 *)
       let mask = Int64.of_int ((1 lsl 48) - 1) in
       let offset =
