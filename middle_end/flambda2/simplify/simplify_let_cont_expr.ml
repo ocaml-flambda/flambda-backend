@@ -314,13 +314,13 @@ let extra_params_for_continuation_param_aliases cont uacc rewrite_ids =
     required_extra_args.extra_args_for_aliases EPA.empty
 
 let add_extra_params_for_mutable_unboxing cont uacc extra_params_and_args =
-  let Flow_types.Mutable_unboxing_result.{ additionnal_epa; _ } =
+  let Flow_types.Mutable_unboxing_result.{ additional_epa; _ } =
     UA.mutable_unboxing_result uacc
   in
-  match Continuation.Map.find cont additionnal_epa with
+  match Continuation.Map.find cont additional_epa with
   | exception Not_found -> extra_params_and_args
-  | additionnal_epa ->
-    EPA.concat ~inner:extra_params_and_args ~outer:additionnal_epa
+  | additional_epa ->
+    EPA.concat ~inner:extra_params_and_args ~outer:additional_epa
 
 type behaviour =
   | Invalid

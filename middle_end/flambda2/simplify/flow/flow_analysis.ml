@@ -125,7 +125,7 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
                 (Continuation_extra_params_and_args.extra_params epa)
             in
             Name.Set.union required_names (Name.set_of_var_set params))
-          reference_result.T.Mutable_unboxing_result.additionnal_epa
+          reference_result.T.Mutable_unboxing_result.additional_epa
           dead_variable_result.required_names
       in
       let result =
