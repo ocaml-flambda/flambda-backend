@@ -240,3 +240,57 @@ Support for modules with modes is being worked on and not ready for wide adoptio
 More documentation will come
 as it becomes ready.
 
+# Implications
+
+In both mode and modality expressions, the presence of one mode or modality
+implies another. This is because some modes simply naturally co-occur. For
+example, if an argument to a function is `immutable`, then it should also
+be marked `contended`. To see why, consider a function `f : t @ immutable -> ...`.
+If I have an `(x : t @ immutable contended)`, is it safe to pass `x` to `f`?
+Surely it is: the `immutable` annotation on `f`'s argument says that `f` does not
+touch any mutable part of `x`, and so a `contended` `x` is acceptable. But
+the legacy mode along the contention axis is `uncontended`, and so `f`'s argument
+looks like it is required to be `uncontended`, rejecting `f x`.
+
+Instead
+of forcing all programmers to write `f : t @ immutable contended -> ...`,
+we use implications: when a mode expression contains `immutable` and does not
+specify a mode along the contention axis, the expression behaves as if it contains
+`contended`. This rule still allows you to write e.g. `t @ immutable uncontended`
+if that's what you want; most users will never want this, though.
+
+Once we've done this for modes, it would be odd if we didn't also do this
+for modalities. For example, `local` implies `yielding`. Now consider
+```ocaml
+type 'a glob = { g : 'a @@ global }
+let unglob (r : 'a glob @ local) : 'a = r.g
+```
+Because of the mode implication, `r` has mode `local yielding`. The written
+`global` modality means that `r.g` will have mode `global` (corresponding to
+the unwritten legacy `global` on the return type of `'a`). But without a
+`unyielding` modality, then `r.g` will have mode `yielding`, which is not
+compatible with a return expecting the legacy `unyielding`. We thus extend
+implications to include modalities, such that `global` implies `unyielding`,
+thus getting `unglob` to type-check (because now `r.g` will be `unyielding`).
+
+Other implications
+exist, all to lower users' annotation burden, all applying both to modes
+and modalities, according to this table:
+
+
++---------------+--------------+
+| this          | implies this |
++---------------+--------------+
+| `global`      | `unyielding` |
++---------------+--------------+
+| `local`       | `yielding`   |
++---------------+--------------+
+| `stateless`   | `portable`   |
++---------------+--------------+
+| `immutable`   | `contended`  |
++---------------+--------------+
+| `read`        | `shared`     |
++---------------+--------------+
+
+These implications exist only in the surface syntax for mode and modality
+expressions. Mode inference does not necessarily follow these implications.
