@@ -219,20 +219,3 @@ let to_string t =
     details t ~first_occurrence:true
   in
   String.concat " " names
-
-let all_sections_in_order () =
-  let sections =
-    [ Text;
-      Data;
-      Read_only_data;
-      Eight_byte_literals;
-      Sixteen_byte_literals;
-      Jump_tables;
-      DWARF Debug_info;
-      DWARF Debug_abbrev;
-      DWARF Debug_aranges;
-      DWARF Debug_str;
-      DWARF Debug_line ]
-  in
-  (* CR sspies: enable the dwarf version dependent sections again *)
-  sections

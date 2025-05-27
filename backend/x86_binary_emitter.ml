@@ -22,7 +22,7 @@ open X86_proc
 module String = Misc.Stdlib.String
 
 
-module D = Asm_targets.Asm_directives_new.Directive
+module D = Asm_targets.Asm_directives.Directive
 module C = D.Constant
 
 
@@ -76,7 +76,7 @@ type symbol_binding = Sy_local | Sy_global | Sy_weak
 
 type symbol = {
   sy_name : string;
-  mutable sy_type : Asm_targets.Asm_directives_new.symbol_type option;
+  mutable sy_type : Asm_targets.Asm_directives.symbol_type option;
   mutable sy_size : int option;
   mutable sy_binding : symbol_binding;
   mutable sy_protected : bool;
@@ -1715,11 +1715,11 @@ let assemble_line b loc ins =
         if current > 0 then
           let n = n - current in
           match data with
-          | Asm_targets.Asm_directives_new.Zero ->
+          | Asm_targets.Asm_directives.Zero ->
             for _ = 1 to n do
               buf_int8 b 0x00
             done
-          | Asm_targets.Asm_directives_new.Nop ->
+          | Asm_targets.Asm_directives.Nop ->
             match n with
             | 0 -> ()
             | 1 -> buf_int8 b 0x90

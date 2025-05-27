@@ -16,7 +16,7 @@
 
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open Asm_targets
-module A = Asm_directives_new
+module A = Asm_directives
 
 type t =
   { name : Asm_label.t;

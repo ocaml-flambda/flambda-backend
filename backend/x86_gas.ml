@@ -240,7 +240,7 @@ let print_instr b = function
 let print_line b i =
   match i with
   | Ins i -> print_instr b i
-  | Directive d -> Asm_targets.Asm_directives_new.Directive.print b d
+  | Directive d -> Asm_targets.Asm_directives.Directive.print b d
 
 let generate_asm oc lines =
   let b = Buffer.create 10000 in

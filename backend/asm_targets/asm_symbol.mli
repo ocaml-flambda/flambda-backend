@@ -32,8 +32,39 @@ include Identifiable.S
 (** [create] creates a new symbol. By default, it is assumed that the symbol has not been
     encoded. In some rare cases, the symbol is encoded elsewhere. In these cases, set the
     flag [already_encoded] to [true].  *)
-val create : ?already_encoded:bool -> string -> t
+val create : string -> t
 
 val encode : t -> string
 
 val to_raw_string : t -> string
+
+(** We predefine several non-user generated symbols. *)
+module Predef : sig
+  val caml_call_gc : t
+
+  val caml_c_call : t
+
+  val caml_allocN : t
+
+  val caml_alloc1 : t
+
+  val caml_alloc2 : t
+
+  val caml_alloc3 : t
+
+  val caml_ml_array_bound_error : t
+
+  val caml_raise_exn : t
+
+  val caml_negf_mask : t
+
+  val caml_absf_mask : t
+
+  val caml_negf32_mask : t
+
+  val caml_absf32_mask : t
+
+  val stapsdt_base : t
+
+  val caml_probes_semaphore : name:string -> t
+end

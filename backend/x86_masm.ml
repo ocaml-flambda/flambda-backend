@@ -244,7 +244,7 @@ let print_instr b = function
 let print_line b = function
   | Ins instr -> print_instr b instr
   (* Warning: The MASM printing of these directives is untested.*)
-  | Directive dir -> Asm_targets.Asm_directives_new.Directive.print b dir
+  | Directive dir -> Asm_targets.Asm_directives.Directive.print b dir
 
 let generate_asm oc lines =
   let b = Buffer.create 10000 in
