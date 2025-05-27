@@ -228,15 +228,48 @@ let datalog_schedule =
     [coconstructor_rel base relation from]
     ==> rev_coconstructor_rel from relation base
   in
-  (* usages *)
+  (* usages rules:
+
+     By convention the Base name applies to something that represents a block value
+     (something on which an accessor or a constructor applies)
+
+     usage_accessor and usage_coaccessor are the relation initialisation: they define
+     what we mean by 'actually using' something. usage_alias propagatess usage to aliases.
+
+     An 'actual use' comes from either a top (used predicate) or through an accessor
+     (or coaccessor) on an used variable
+
+     All those rules are constrained not to apply when used is valid. (see [usages]
+     definition comment)
+
+   usage_accessor (1 & 2)
+   *  not (used Base)
+   *  /\ accessor To Rel Base
+   *  /\ (usages To Var \/ used To)
+   *  => usages Base Base
+
+   usage_coaccessor (1 & 2)
+   *  not (used Base)
+   *  /\ coaccessor To Var
+   *  /\ (sources To Var \/ any_source To)
+   *  => usages Base Base
+
+   usage_alias
+   * not (used From)
+   * /\ not (used To)
+   * /\ usages To Usage
+   * /\ alias To From
+   * => usages From Usage
+
+   *)
   let usages_accessor_1 =
     let$ [to_; relation; base; _var] = ["to_"; "relation"; "base"; "_var"] in
-    [not (used_pred base); usages_rel to_ _var; accessor_rel to_ relation base]
+    [not (used_pred base); accessor_rel to_ relation base; usages_rel to_ _var]
     ==> usages_rel base base
   in
   let usages_accessor_2 =
     let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
-    [not (used_pred base); used_pred to_; accessor_rel to_ relation base]
+    [not (used_pred base); accessor_rel to_ relation base; used_pred to_]
     ==> usages_rel base base
   in
   let usages_coaccessor_1 =
@@ -373,7 +406,7 @@ let datalog_schedule =
     ==> cofield_sources_rel base relation from
   in
   (* constructor-used *)
-  let alias_from_accessed_constructor =
+  let alias_from_accessed_constructor_1 =
     let$ [base; base_use; relation; from; to_] =
       ["base"; "base_use"; "relation"; "from"; "to_"]
     in
@@ -493,7 +526,7 @@ let datalog_schedule =
             any_source_from_coconstructor_used;
             rev_alias ];
         saturate
-          [ alias_from_accessed_constructor;
+          [ alias_from_accessed_constructor_1;
             alias_from_accessed_constructor_2;
             alias_from_coaccessed_coconstructor;
             alias_from_coaccessed_coconstructor_2;
