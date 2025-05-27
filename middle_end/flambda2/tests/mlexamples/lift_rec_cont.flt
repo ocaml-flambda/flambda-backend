@@ -47,30 +47,24 @@ let code loopify(never) size(50) newer_version_of(f_0)
      where k3 =
        let Pfield = %block_load (0) x in
        let Paddint = Pfield + 1 in
-       let Paddint_1 = Paddint in
-       let y_1 = Paddint_1 in
-       let prim_1 = %int_comp 0 <= Paddint_1 in
-       (switch prim_1
-          | 0 -> k5_1 (0)
-          | 1 -> k5_1 (1)
-          where k5_1 (i : imm tagged) =
-            cont k5 (y_1, i)))
-    where k2 (y_1 : imm tagged) =
-      (cont k5_1 (1)
-         where k5_1 (i : imm tagged) =
-           cont k5 (y_1, i))
-    where rec(y) k5 (i : imm tagged) =
-      (apply g (i) -> k1_1 * k1
-         where k1_1 (param) =
-           cont k4
-         where k4 =
-           let prim_1 = %int_comp i <= y in
-           (switch prim_1
-              | 0 -> k (0)
-              | 1 -> k3
-              where k3 =
-                let Paddint = i + 1 in
-                cont k5 (y, Paddint)))
+       cont k2 (Paddint))
+    where k2 (y : imm tagged) =
+      let prim = %int_comp 0 <= y in
+      (switch prim
+         | 0 -> k5 (0)
+         | 1 -> k5 (1)
+         where rec k5 (i : imm tagged) =
+           (apply g (i) -> k1_1 * k1
+              where k1_1 (param) =
+                cont k4
+              where k4 =
+                let prim_1 = %int_comp i <= y in
+                (switch prim_1
+                   | 0 -> k (0)
+                   | 1 -> k3
+                   where k3 =
+                     let Paddint = i + 1 in
+                     cont k5 (Paddint))))
 in
 let $camlFoo__f_1 = closure f_0_1 @f in
 let $camlFoo = Block 0 ($camlFoo__f_1) in
