@@ -20,11 +20,21 @@ title: Intro
 
 # Introduction to the Mode System
 
-Modes are deep properties of values that are tracked by the OxCaml type
-system. Each mode is associated with a particular operation that may be
-performed on a value. The mode may be a *past* mode, which tracks whether the
-operation has happened to this value in the past, or a *future* mode, which
-tracks whether the operation is allowed to happen to this value in the future.
+Modes are deep properties of values that are tracked by the OxCaml
+compiler. Like types, they are inferred from definitions and checked for
+consistency. (We use the term "type checking" to include both traditional type
+checking/inference and mode checking/inference.) Modes have similarities and
+relationships with types, but remain distinct: types are not modes, modes are
+not types, types do not have modes, and modes do not have types. Types describe
+what the data *is*, while modes describe how it is *used*.
+
+Each mode is associated with a particular operation that may be performed on a
+value. The mode may be a *past* mode, which tracks whether the operation has
+happened to this value in the past; or a *future* mode, which tracks whether the
+operation is allowed to happen to this value in the future. Modes are deep; when
+attached to structured data, they apply to components, recursively. (OxCaml's
+*modality* feature cuts off the deepness of a mode; modalities can be placed on
+record and constructor fields.)
 
 Just like a value has a type, a value in OxCaml also has a mode. Types do *not*
 have a mode. That is, we do not have a type `string @ local` (say), but rather
@@ -32,7 +42,11 @@ if we have `(x : string @ local)`, then `x` has type `string` and is at mode
 `local`. Modes also appear in the argument and return slots of a function type,
 so we can have `string @ local -> string option @ global` to describe a function
 whose argument will have the `local` mode and whose return will have the
-`global` mode. These modes appear in the function's type but are associated with the function's behavior, not the argument or result types (that is, there is still no `string @ local` or `string option @ global`).
+`global` mode. These modes appear in the function's type but are associated with
+the function's behavior, not the argument or result types (that is, there is
+still no `string @ local` or `string option @ global`). Modes are considered
+part of the type system; the type checker in OxCaml additionally checks for
+correct usage of modes.
 
 This page shows the modes that are currently supported. Each mode belongs to a
 modal *axis* determined by the operation it tracks and whether it is a past or
