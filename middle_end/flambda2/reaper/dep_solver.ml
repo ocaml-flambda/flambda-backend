@@ -100,7 +100,17 @@ let rel3 name schema =
   let r = Datalog.create_relation ~name schema in
   fun x y z -> Datalog.atom r [x; y; z]
 
-(** [usages x y] y is an alias of x, and there is an actual use for y *)
+(** [usages x y] y is an alias of x, and there is an actual use for y.
+
+    For performance reasons, we don't want to represent [usages x y] when
+    x is top ([used x] is valid). If x is top the used predicate subsumes
+    this property.
+
+    We avoid building this relation in that case, but it is possible to have both
+    [usages x y] and [used x] depending on the resolution order.
+
+    [usages x x] is used to represent the actual use of x.
+*)
 let usages_rel = rel2 "usages" Cols.[n; n]
 
 (** [used_fields x f y] y is an use of the field f of x
@@ -121,7 +131,17 @@ let _used_pred = Global_flow_graph.used_pred
 *)
 let used_fields_top_rel = rel2 "used_fields_top" Cols.[n; f]
 
-(** [sources x y] y is a source of x, and there is an actual source for y *)
+(** [sources x y] y is a source of x, and there is an actual source for y.
+
+    For performance reasons, we don't want to represent [sources x y] when
+    x is top ([any_source x] is valid). If x is top the any_source predicate subsumes
+    this property.
+
+    We avoid building this relation in that case, but it is possible to have both
+    [sources x y] and [any_source x] depending on the resolution order.
+
+    [sources x x] is used to represent the actual source of x.
+*)
 let sources_rel = rel2 "sources" Cols.[n; n]
 
 (** [any_source x] the special extern value 'any_source' is a source of x
