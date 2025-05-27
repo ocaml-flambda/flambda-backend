@@ -313,6 +313,23 @@ static void oldify_one (void* st_v, value v, volatile value *p)
     st->live_bytes += Bhsize_hd(hd);
     result = alloc_shared(st->domain, sz, tag, Reserved_hd(hd));
     field0 = Field(v, 0);
+    if (tag == Closure_tag) {
+      /* Copy unscannable prefix, which will include all infix tags,
+       * so that any domain can oldify infix pointers to `v` into
+       * pointers which also have Infix_tag to a working header (so
+       * that, e.g., major GC marking can work while the block is
+       * still on our oldify todo list). Have to do this here, before
+       * we update the object header.
+       */
+      i = Start_env_closinfo(Closinfo_val(v));
+      CAMLassert(i >= 2); /* at least code pointer and closinfo word */
+      CAMLassert(i <= sz);
+      /* Skip fields 0 and 1, used below for field0 and the todo list */
+      for (mlsize_t j = 2; j < i; ++j) {
+        Field(result, j) = Field(v, j);
+      }
+    }
+
     if( try_update_object_header(v, p, result, infix_offset) ) {
       /* Copy the non-scannable suffix of fields.
          There is some trickiness around the 0th field, which
@@ -461,10 +478,9 @@ again:
     i = 1;
 
     if(Tag_val(new_v) == Closure_tag) {
-      mlsize_t non_scannable = Start_env_closinfo(Closinfo_val(v));
-      for (; i < non_scannable; i++) {
-        Field(new_v, i) = Field(v, i);
-      }
+      /* non-scannable prefix already copied in oldify_one */
+      Field(new_v, 1) = Field(v, 1); /* todo-list pointer */
+      i = Start_env_closinfo(Closinfo_val(v));
     }
 
     for (; i < scannable_wosize; i++){
