@@ -4,22 +4,81 @@
 
 The [first parallelism tutorial](./parallelism-tutorial.md) introduced the contention and portability mode axes, showcasing their use in fork/join parallelism and parallel sequences.
 However, it only covered one way to share mutable data between `portable` functions: atomics.
+In this tutorial, we'll see how _parallel arrays_ and _capsules_ can be used parallelize programs that operate on more complex mutable data.
 
 Wrapping mutable state in an `Atomic.t` can be a reasonable approach, but parallel programs often require other concurrency primitives, such as locks.
-This is the purpose of the _Capsule API_, which lets us associate an unsynchronized data structure with a particular lock.
-
-In this tutorial, we'll see how capsules can be used to more efficiently parallelize programs that operate on mutable data.
+This is the purpose of the Capsule API, which lets us associate an unsynchronized data structure with a particular lock.
 
 ## Capsules
 
 The following examples make use of the "expert" capsule API, which is explained in more detail [here](./capsules.md).
-For a higher-level overview, read on.
+For a brief introduction, read on.
 
-<!-- CR mslater: todo -->
+Capsules are collections of (mutable) data identified by a type `'k`.
+Each capsule is also associated with a _key_&mdash;for example, the key for capsule `'k` has type `'k Capsule.Key.t`.
+When we create a capsule, we receive the key:
+
+```ocaml
+let (P key) = Capsule.create () in (* ... *)
+```
+
+Note that `Capsule.create` returns a "packed" key: its `'k` parameter is  [existential](https://dev.realworldocaml.org/gadts.html), so unpacking the result produces a fresh `'k` distinct from all other capsules.
+
+Keys are protected by [_uniqueness_](./extensions/_06-uniqueness/intro.md), which is another modal axis that tracks whether there exist multiple references to a value.
+Given a `unique` key (as opposed to `aliased`), we know the current thread holds the only reference to the key, so may manipulate the contents of the associated capsule.
+
+To represent data that lives in a capsule, we create a `('a, 'k) Capsule.Data.t`.
+This type can be thought of as a pointer to a value of type `'a` that is protected by capsule `'k`.
+
+```ocaml
+let (P key) = Capsule.create () in
+let capsule_ref = Capsule.Data.create (fun () -> ref 0) in (* ... *)
+```
+
+Even though the capsule may contain mutable state, encapsulated data crosses portability and contention.
+That means we can freely share this pointer between `portable` functions without it becoming `contended`.
+To prevent races, the rest of the capsule API limits when we can dereference encapsulated data.
+
+Given a unique key, we can request the _password_ for its capsule, which lets us access the data therein.
+For example, we can use `Capsule.Data.iter` to increment our reference:
+
+```ocaml
+let (P key) = Capsule.create () in
+let capsule_ref = Capsule.Data.create (fun () -> ref 0) in
+Capsule.Key.with_password key ~f:(fun password ->
+  Capsule.Data.iter capsule_ref ~password ~f:(fun ref ->
+    ref := !ref + 1
+  ))
+```
+
+However, if `unique` keys were the only way to get a password, we still couldn't let multiple domains trade off access to a capsule.
+This is the purpose of locks, the most common of which is the _mutex_.
+To create a mutex for a capsule, we consume its key, which cannot be used again:
+
+```ocaml
+let (P key) = Capsule.create () in
+let mutex = Capsule.Mutex.create key in (* ... *)
+```
+
+Mutexes also cross portability and contention, so may be freely shared across `portable` functions and used at `uncontended`.
+Now, to get a password, we can lock the mutex, indicating that our domain has exclusive access to the capsule.
+In this way, a mutex is like a _dynamically unique_ key&mdash;the mutex itself may be `aliased`, but only one domain can have the lock.
+
+```ocaml
+let (P key) = Capsule.create () in
+let mutex = Capsule.Mutex.create key in
+let capsule_ref = Capsule.Data.create (fun () -> ref 0) in
+Capsule.Mutex.with_lock mutex ~f:(fun password ->
+  Capsule.Data.iter capsule_ref ~password ~f:(fun ref ->
+    ref := !ref + 1
+  ))
+```
+
+With locks, we have the tools required to safely share mutable data structures between parallel tasks.
 
 ## Sorting
 
-Now that we can share mutable state between parallel tasks, we can speed up a broader class of algorithms.
+Now that we can share state between tasks, we can speed up a broader class of algorithms.
 For example, let's explore how we might parallelize sorting a mutable array.
 
 We'll make use of two more pieces of the `Parallel` library: _parallel arrays_ and _slices_.
@@ -206,7 +265,9 @@ let blur_at image ~x ~y =
 Introducing parallelism is easy: we just need to run this function for each output pixel.
 We will do so via `Par_array.init`, where each index corresponds to one pixel.
 
-Since we want to use the input image in multiple parallel tasks, we'll need to provide it in a capsule:
+Since we want to share the input image across multiple parallel tasks, we'll need to provide it in a capsule.
+For simplicity, we also make use of `Capsule.access`, which lets us _unwrap_ the encapsulated image before passing it to `blur_at`.
+This pattern is explained in more detail in the [capsule documentation](./capsules.md).
 
 ```ocaml
 let filter ~scheduler ~mutex image =
@@ -291,4 +352,4 @@ Domains | Time (ms)
 <!-- CR-soon mslater: update with rwlocks -->
 
 If we needed to preserve the mutability of the input image, we could instead protect its capsule with a reader-writer lock.
-However, this would still incur some overhead for readers, and reader-writer locks are not yet compatible with the parallel library.
+However, this would still incur some overhead readers, and reader-writer locks are not yet compatible with the parallel library.
