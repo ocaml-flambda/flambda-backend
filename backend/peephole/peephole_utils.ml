@@ -63,5 +63,4 @@ let mul_immediates integer_operation imm1 imm2 =
 let never_overflow _ _ = true
 
 let bitwise_immediates integer_operation imm1 imm2 op =
-  (* Bitwise operations do not need overflow check. *)
   op_immediates integer_operation imm1 imm2 never_overflow op
