@@ -620,15 +620,15 @@ FUNCTION(caml_c_call)
 #if defined(WITH_THREAD_SANITIZER)
     /* Save return value registers. Since the called function could be
        anything, it may have returned its result (if any) either in x0
-       or d0:d1. */
+       or q0:q1. */
         stp     x0, x1, [sp, -16]!
         CFI_ADJUST(16)
-        stp     d0, d1, [sp, -16]!
-        CFI_ADJUST(16)
+        stp     q0, q1, [sp, -32]!
+        CFI_ADJUST(32)
         TSAN_EXIT_FUNCTION
     /* Restore return value registers */
-        ldp     d0, d1, [sp], 16
-        CFI_ADJUST(-16)
+        ldp     q0, q1, [sp], 32
+        CFI_ADJUST(-32)
         ldp     x0, x1, [sp], 16
         CFI_ADJUST(-16)
 #endif

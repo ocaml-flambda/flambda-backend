@@ -437,8 +437,9 @@ module F :
     end
 |}]
 
-(***************************************************)
-(* Test 4: Unboxed products don't go in structures *)
+(***************************************************************************)
+(* Test 4: Unboxed products can go blocks that are nominally typed, but not
+   structurally typed. *)
 
 type poly_var_type = [ `Foo of #(int * bool) ]
 [%%expect{|
@@ -492,29 +493,17 @@ Error: This expression has type "#('a * 'b)"
 
 type record = { x : #(int * bool) }
 [%%expect{|
-Line 1, characters 0-35:
-1 | type record = { x : #(int * bool) }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type "#(int * bool)" has layout "value & value".
-       Records may not yet contain types of this layout.
+type record = { x : #(int * bool); }
 |}]
 
 type inlined_record = A of { x : #(int * bool) }
 [%%expect{|
-Line 1, characters 22-48:
-1 | type inlined_record = A of { x : #(int * bool) }
-                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type "#(int * bool)" has layout "value & value".
-       Inlined records may not yet contain types of this layout.
+type inlined_record = A of { x : #(int * bool); }
 |}]
 
 type variant = A of #(int * bool)
 [%%expect{|
-Line 1, characters 15-33:
-1 | type variant = A of #(int * bool)
-                   ^^^^^^^^^^^^^^^^^^
-Error: Type "#(int * bool)" has layout "value & value".
-       Variants may not yet contain types of this layout.
+type variant = A of #(int * bool)
 |}]
 
 module type S = sig
@@ -663,33 +652,21 @@ type record_inner = #{ i : int; b : bool }
 type record = { x : record_inner }
 [%%expect{|
 type record_inner = #{ i : int; b : bool; }
-Line 2, characters 0-34:
-2 | type record = { x : record_inner }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type "record_inner" has layout "value & value".
-       Records may not yet contain types of this layout.
+type record = { x : record_inner; }
 |}]
 
 type inlined_inner = #{ i : int; b : bool }
 type inlined_record = A of { x : inlined_inner }
 [%%expect{|
 type inlined_inner = #{ i : int; b : bool; }
-Line 2, characters 22-48:
-2 | type inlined_record = A of { x : inlined_inner }
-                          ^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Type "inlined_inner" has layout "value & value".
-       Inlined records may not yet contain types of this layout.
+type inlined_record = A of { x : inlined_inner; }
 |}]
 
 type variant_inner = #{ i : int; b : bool }
 type variant = A of variant_inner
 [%%expect{|
 type variant_inner = #{ i : int; b : bool; }
-Line 2, characters 15-33:
-2 | type variant = A of variant_inner
-                   ^^^^^^^^^^^^^^^^^^
-Error: Type "variant_inner" has layout "value & value".
-       Variants may not yet contain types of this layout.
+type variant = A of variant_inner
 |}]
 
 type sig_inner = #{ i : int; b : bool }
@@ -1124,7 +1101,9 @@ type t : immediate & ((float64 mod global) & immediate)
 let f_external_kind_annot_mode_crosses_local_2
   : local_ t -> t = fun x -> x
 [%%expect{|
-type t : value mod global & (float64 mod global & value mod global)
+type t
+  : value mod global non_float
+    & (float64 mod global & value mod global non_float)
 val f_external_kind_annot_mode_crosses_local_2 : local_ t -> t = <fun>
 |}]
 
@@ -1956,4 +1935,237 @@ Error: This expression has type "a" but an expression was expected of type
          because it is or unifies with an unannotated universal variable.
        But the layout of a must be representable
          because we must know concretely how to pass a function argument.
+|}]
+
+(****************************************************)
+(* Test 19: Complex nesting of records and variants *)
+
+type boxed_record = { x : int; y : string; z : float# }
+type unboxed_record = #{ x : int; y : int32#; z : string }
+type unboxed_tuple = #(int64# * int * string)
+
+type nested_record = { a : boxed_record#; b : unboxed_record; c : unboxed_tuple }
+type nested_variant =
+    A of boxed_record#
+  | B of unboxed_record * boxed_record#
+  | C of { a : boxed_record#; b : unboxed_record; c : unboxed_tuple }
+
+[%%expect{|
+type boxed_record = { x : int; y : string; z : float#; }
+type unboxed_record = #{ x : int; y : int32#; z : string; }
+type unboxed_tuple = #(int64# * int * string)
+type nested_record = {
+  a : boxed_record#;
+  b : unboxed_record;
+  c : unboxed_tuple;
+}
+type nested_variant =
+    A of boxed_record#
+  | B of unboxed_record * boxed_record#
+  | C of { a : boxed_record#; b : unboxed_record; c : unboxed_tuple; }
+|}]
+
+
+(* The unboxed version of the nested record has the kind we expect. *)
+type nested_record_unboxed
+  :   (value & value & float64)
+    & (value & bits32 & value)
+    & (bits64 & value & value)
+  = nested_record#
+[%%expect{|
+type nested_record_unboxed = nested_record#
+|}]
+
+(**************************************************************)
+(* Test 20: Complex nesting via abstract types and parameters *)
+
+type abstract_product : value & (float64 & value) & bits64 & value
+type ('a : float64 & (float64 & (value & bits64 & value)) & bits64, 'b)
+       nested_record =
+  { a : 'a;
+    b : abstract_product;
+    c : string;
+    d : 'b;
+    e : int64#;
+    f : abstract_product;
+    g : 'a;
+    h : int option }
+  constraint 'b = unboxed_record
+type ('a : float64 & (float64 & (value & bits64 & value)) & bits64, 'b)
+       nested_variant =
+    A of 'a
+  | B of abstract_product * 'a * string * 'b * int
+  | C of { a : abstract_product;
+           b : float#;
+           c : 'a;
+           d : string;
+           e : 'b;
+           f : string;
+           g : 'a }
+  constraint 'b = unboxed_record
+[%%expect{|
+type abstract_product : value & (float64 & value) & bits64 & value
+type ('a : float64 & (float64 & (value & bits64 & value)) & bits64, 'b)
+     nested_record = {
+  a : 'a;
+  b : abstract_product;
+  c : string;
+  d : 'b;
+  e : int64#;
+  f : abstract_product;
+  g : 'a;
+  h : int option;
+} constraint 'b = unboxed_record
+type ('a : float64 & (float64 & (value & bits64 & value)) & bits64, 'b)
+     nested_variant =
+    A of 'a
+  | B of abstract_product * 'a * string * 'b * int
+  | C of { a : abstract_product; b : float#; c : 'a; d : string; e : 'b;
+      f : string; g : 'a;
+    }
+  constraint 'b = unboxed_record
+|}]
+
+(* The unboxed version of the nested record has the kind we expect. *)
+type ('a : float64 & (float64 & (value & bits64 & value)) & bits64, 'b)
+       nested_record_unboxed
+  :   (float64 & (float64 & (value & bits64 & value)) & bits64)
+    & (value & (float64 & value) & bits64 & value)
+    & value
+    & (value & bits32 & value)
+    & bits64
+    & (value & (float64 & value) & bits64 & value)
+    & (float64 & (float64 & (value & bits64 & value)) & bits64)
+    & value
+  = ('a, 'b) nested_record#
+  constraint 'b = unboxed_record
+[%%expect{|
+type ('a : float64 & (float64 & (value & bits64 & value)) & bits64, 'b)
+     nested_record_unboxed =
+    ('a, 'b) nested_record#
+  constraint 'b = unboxed_record
+|}]
+
+(**********************************************************************)
+(* Test 21: Nested records mode cross or don't mode cross as expected *)
+
+type ('a : (value & value) mod portable, 'b) record : value mod portable =
+  { a : 'a;
+    b : string;
+    c : #(int64# * #(float# * bool option * 'b));
+    d : char }
+  constraint 'b = int * string
+[%%expect{|
+type ('a : value mod portable & value mod portable, 'b) record = {
+  a : 'a;
+  b : string;
+  c : #(int64# * #(float# * bool option * 'b));
+  d : char;
+} constraint 'b = int * string
+|}]
+
+type ('a : (value & value) mod portable, 'b) record : value mod portable =
+  { a : 'a;
+    b : string;
+    c : #(int64# * #(float# * (bool -> bool) * 'b ));
+    d : char }
+  constraint 'b = int * string
+[%%expect{|
+Lines 1-6, characters 0-30:
+1 | type ('a : (value & value) mod portable, 'b) record : value mod portable =
+2 |   { a : 'a;
+3 |     b : string;
+4 |     c : #(int64# * #(float# * (bool -> bool) * 'b ));
+5 |     d : char }
+6 |   constraint 'b = int * string
+Error: The kind of type "record" is value mod immutable non_float with 'a
+         because it's a boxed record type.
+       But the kind of type "record" must be a subkind of value mod portable
+         because of the annotation on the declaration of the type record.
+|}]
+
+(*******************************************************************************)
+(* Test 22: You can't defeat the value prefix size limit with nested products. *)
+
+(* And note that blocks with products are always mixed blocks, so we don't
+   need to add any unboxed types to hit the limit. *)
+
+type eight_values :
+  value & value & value & value & value & value & value & value
+type thirty_two_values =
+  { a : eight_values; b : eight_values; c : eight_values; d : eight_values }
+type r_254 =
+  { a : thirty_two_values#;
+    b : thirty_two_values#;
+    c : thirty_two_values#;
+    d : thirty_two_values#;
+    e : thirty_two_values#;
+    f : thirty_two_values#;
+    g : thirty_two_values#;
+    h : #(eight_values * eight_values * eight_values);
+    f249 : string;
+    f250 : string;
+    f251 : string;
+    f252 : string;
+    f253 : string;
+    f254 : string;
+  }
+
+[%%expect{|
+type eight_values
+  : value & value & value & value & value & value & value & value
+type thirty_two_values = {
+  a : eight_values;
+  b : eight_values;
+  c : eight_values;
+  d : eight_values;
+}
+Lines 5-20, characters 0-3:
+ 5 | type r_254 =
+ 6 |   { a : thirty_two_values#;
+ 7 |     b : thirty_two_values#;
+ 8 |     c : thirty_two_values#;
+ 9 |     d : thirty_two_values#;
+...
+17 |     f252 : string;
+18 |     f253 : string;
+19 |     f254 : string;
+20 |   }
+Error: The kind of type "r_254" is immutable_data with eight_values
+         because it's a boxed record type.
+       But the kind of type "r_254" must be a subkind of value mod non_float
+         because it's a boxed record type.
+|}]
+
+type r_255 =
+  { a : thirty_two_values#;
+    b : thirty_two_values#;
+    c : thirty_two_values#;
+    d : thirty_two_values#;
+    e : thirty_two_values#;
+    f : thirty_two_values#;
+    g : thirty_two_values#;
+    h : #(eight_values * eight_values * eight_values);
+    f249 : string;
+    f250 : string;
+    f251 : string;
+    f252 : string;
+    f253 : string;
+    f254 : string;
+    f255 : string;
+  }
+
+[%%expect{|
+Lines 1-17, characters 0-3:
+ 1 | type r_255 =
+ 2 |   { a : thirty_two_values#;
+ 3 |     b : thirty_two_values#;
+ 4 |     c : thirty_two_values#;
+ 5 |     d : thirty_two_values#;
+...
+14 |     f253 : string;
+15 |     f254 : string;
+16 |     f255 : string;
+17 |   }
+Error: Mixed records may contain at most 254 value fields prior to the flat suffix, but this one contains 255.
 |}]

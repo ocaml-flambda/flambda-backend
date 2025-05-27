@@ -14,11 +14,11 @@ as opposed to its usual behavior of allocating on the heap.
 This helps performance in a couple of ways: first, the same few hot
 cache lines are constantly reused, so the cache footprint is lower than
 usual. More importantly, stack allocations will never trigger a GC,
-and so they're safe to use in low-latency code that must currently be
+and so they're safe to use in low-latency code that must be
 zero-alloc.
 
 Because of these advantages, values are allocated on a stack whenever
-possible. Of course, not all values can be allocated on a stack: a value that is
+possible. Not all values can be allocated on a stack: a value that is
 used beyond the scope of its introduction must be on the heap. Accordingly,
 the compiler uses the _locality_ of a value to determine where it will be
 allocated: _local_ values go on the stack, while _global_ ones must go on the
@@ -76,7 +76,7 @@ let f (local_ x) = ...
 ```
 
 A local parameter is a promise by a function not to let a particular
-argument escape its region. In the body of f, you'll get a type error
+argument escape the region where it belongs. In the body of f, you'll get a type error
 if x escapes, but when calling f you can freely pass stack-allocated values as
 the argument. This promise is visible in the type of f:
 

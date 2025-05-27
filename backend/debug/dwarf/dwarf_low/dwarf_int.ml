@@ -17,7 +17,7 @@
 open! Int_replace_polymorphic_compare
 open Asm_targets
 module Uint64 = Numbers.Uint64
-module A = Asm_directives_new
+module A = Asm_directives
 
 type t =
   | Thirty_two of Int32.t

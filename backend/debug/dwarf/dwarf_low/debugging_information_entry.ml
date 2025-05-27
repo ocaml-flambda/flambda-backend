@@ -18,7 +18,7 @@ open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open Asm_targets
 module ASS = Dwarf_attributes.Attribute_specification.Sealed
 module AV = Dwarf_attribute_values.Attribute_value
-module A = Asm_directives_new
+module A = Asm_directives
 
 type t =
   { label : Asm_label.t;

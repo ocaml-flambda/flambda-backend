@@ -61,7 +61,7 @@ module type Lattices_mono = sig
       - [disallowed], meaning the morphism cannot be on the left because
         it does not have right adjoint.
       Similar for ['r]. *)
-  type ('a, 'b, 'd) morph
+  type ('a, 'b, 'd) morph constraint 'd = 'l * 'r
 
   (* Due to the implementation in [solver.ml], a mode doesn't have sufficient
      information to infer the object it lives in,  whether at compile-time or
@@ -160,40 +160,39 @@ module type Lattices_mono = sig
   val print_morph : 'b obj -> Format.formatter -> ('a, 'b, 'd) morph -> unit
 end
 
-(** Arrange the permissions appropriately for a positive lattice, by
-    doing nothing. *)
-type 'a pos = 'b * 'c constraint 'a = 'b * 'c
-
-(** Arrange the permissions appropriately for a negative lattice, by
-    swapping left and right. *)
-type 'a neg = 'c * 'b constraint 'a = 'b * 'c
-
-module type Solver_polarized = sig
+module type Solver_mono = sig
   (* These first few types will be replaced with types from
      the Lattices_mono *)
 
   (** The morphism type from the [Lattices_mono] we're working with. See
       comments on [Lattices_mono.morph]. *)
-  type ('a, 'b, 'd) morph
+  type ('a, 'b, 'd) morph constraint 'd = 'l * 'r
 
   (** The object type from the [Lattices_mono] we're working with *)
   type 'a obj
 
   type 'a error
 
-  (** For a negative lattice, we reverse the direction of adjoints. We thus use
-      [neg] for [polarized] for negative lattices, which reverses ['l * 'r] to
-      ['r * 'l]. (Use [pos] for positive lattices.) *)
-  type 'd polarized constraint 'd = 'l * 'r
+  (* Backtracking facilities used by [types.ml] *)
 
+  (** Represents a sequence of state mutations caused by mode operations. All
+  mutating operations in this module take a [log:changes ref option] and
+  append to it all changes made, regardless of success or failure. It is
+  [option] only for performance reasons; the caller should never provide
+  [log:None]. The caller is responsible for taking care of the appended log:
+  they can either revert the changes using [undo_changes], or commit the
+  changes to the global log in [types.ml]. *)
   type changes
+
+  (** An empty sequence of changes. *)
+  val empty_changes : changes
+
+  (** Undo the sequence of changes recorded. *)
+  val undo_changes : changes -> unit
 
   (** A mode with carrier type ['a] and allowance ['d]. See
   Note [Allowance] in allowance.mli.*)
   type ('a, 'd) mode constraint 'd = 'l * 'r
-
-  (** The mode type for the opposite polarity. *)
-  type ('a, 'd) mode_op constraint 'd = 'l * 'r
 
   include Allow_disallow with type ('a, _, 'd) sided = ('a, 'd) mode
 
@@ -269,22 +268,11 @@ module type Solver_polarized = sig
   val print :
     ?verbose:bool -> 'a obj -> Format.formatter -> ('a, 'l * 'r) mode -> unit
 
-  (** Apply a monotone morphism whose source and target modes are of the
-      polarity of this enclosing module. That is, [Positive.apply_monotone]
-      takes a positive mode to a positive mode. *)
-  val via_monotone :
+  (** Apply a monotone morphism. *)
+  val apply :
     'b obj ->
-    ('a, 'b, ('l * 'r) polarized) morph ->
+    ('a, 'b, 'l * 'r) morph ->
     ('a, 'l * 'r) mode ->
-    ('b, 'l * 'r) mode
-
-  (** Apply an antitone morphism whose target mode is the mode defined in
-      this module and whose source mode is the dual mode. That is,
-      [Positive.apply_antitone] takes a negative mode to a positive one. *)
-  val via_antitone :
-    'b obj ->
-    ('a, 'b, ('l * 'r) polarized) morph ->
-    ('a, 'r * 'l) mode_op ->
     ('b, 'l * 'r) mode
 end
 
@@ -304,70 +292,10 @@ module type S = sig
   module Magic_equal (X : Equal) :
     Equal with type ('a, 'b, 'c) t = ('a, 'b, 'c) X.t
 
-  (** Solver that supports polarized lattices; needed because some morphisms
-      are antitone  *)
-  module Solvers_polarized (C : Lattices_mono) : sig
-    (* Backtracking facilities used by [types.ml] *)
-
-    (** Represents a sequence of state mutations caused by mode operations. All
-      mutating operations in this module take a [log:changes ref option] and
-      append to it all changes made, regardless of success or failure. It is
-      [option] only for performance reasons; the caller should never provide
-      [log:None]. The caller is responsible for taking care of the appended log:
-      they can either revert the changes using [undo_changes], or commit the
-      changes to the global log in [types.ml]. *)
-    type changes
-
-    (** An empty sequence of changes. *)
-    val empty_changes : changes
-
-    (** Undo the sequence of changes recorded. *)
-    val undo_changes : changes -> unit
-
-    (* Construct a new category based on the original category [C]. Objects are
-       two copies of the objects in [C] of opposite polarity. The positive copy
-       is identical to the original lattice. The negative copy has its lattice
-       structure reversed. Morphism are four copies of the morphisms in [C], from
-       two copies of objects to two copies of objects. *)
-
-    module type Solver_polarized =
-      Solver_polarized
-        with type ('a, 'b, 'd) morph := ('a, 'b, 'd) C.morph
-         and type 'a obj := 'a C.obj
-         and type 'a error := 'a error
-         and type changes := changes
-
-    module rec Positive :
-      (Solver_polarized
-        with type 'd polarized = 'd pos
-         and type ('a, 'd) mode_op = ('a, 'd) Negative.mode)
-
-    and Negative :
-      (Solver_polarized
-        with type 'd polarized = 'd neg
-         and type ('a, 'd) mode_op = ('a, 'd) Positive.mode)
-
-    (* The following definitions show how this solver works over a category by
-       defining objects and morphisms. These definitions are not used in
-       practice. They are put into a module to make it easy to spot if we end up
-       using these in the future. *)
-    module Category : sig
-      type 'a obj = 'a C.obj
-
-      type ('a, 'b, 'd) morph = ('a, 'b, 'd) C.morph
-
-      type ('a, 'd) mode =
-        | Positive of ('a, 'd pos) Positive.mode
-        | Negative of ('a, 'd neg) Negative.mode
-
-      val apply_into_positive :
-        'b obj -> ('a, 'b, 'd) morph -> ('a, 'd) mode -> ('b, 'd) Positive.mode
-
-      val apply_into_negative :
-        'b obj ->
-        ('a, 'b, 'l * 'r) morph ->
-        ('a, 'l * 'r) mode ->
-        ('b, 'r * 'l) Negative.mode
-    end
-  end
+  (** Solver that supports lattices with monotone morphisms between them. *)
+  module Solver_mono (C : Lattices_mono) :
+    Solver_mono
+      with type ('a, 'b, 'd) morph := ('a, 'b, 'd) C.morph
+       and type 'a obj := 'a C.obj
+       and type 'a error = 'a error
 end

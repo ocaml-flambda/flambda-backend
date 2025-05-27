@@ -273,13 +273,13 @@ module Const : sig
     (** This is the jkind of normal ocaml values *)
     val value : t
 
-    (** Immutable values that don't contain functions. *)
+    (** Immutable non-float values that don't contain functions. *)
     val immutable_data : t
 
-    (** Atomically mutable values that don't contain functions. *)
+    (** Atomically mutable non-float values that don't contain functions. *)
     val sync_data : t
 
-    (** Mutable values that don't contain functions. *)
+    (** Mutable non-float values that don't contain functions. *)
     val mutable_data : t
 
     (** Values of types of this jkind are immediate on 64-bit platforms; on other
@@ -339,6 +339,11 @@ module Builtin : sig
     [any]. *)
   val any : why:History.any_creation_reason -> 'd Types.jkind
 
+  (* CR layouts v3: change to [any_separable]. *)
+
+  (** Jkind of array elements. *)
+  val any_non_null : why:History.any_creation_reason -> 'd Types.jkind
+
   (** Value of types of this jkind are not retained at all at runtime *)
   val void : why:History.void_creation_reason -> ('l * disallowed) Types.jkind
 
@@ -387,9 +392,6 @@ module Builtin : sig
   val product_of_sorts :
     why:History.product_creation_reason -> int -> Types.jkind_l
 end
-
-(** Take an existing [t] and add an ability to cross across the nullability axis. *)
-val add_nullability_crossing : 'd Types.jkind -> 'd Types.jkind
 
 (** Forcibly change the mod- and with-bounds of a [t] based on the mod- and with-bounds of [from]. *)
 val unsafely_set_bounds :
@@ -506,6 +508,12 @@ val for_arrow : Types.jkind_l
 
 (** The jkind of an object type.  *)
 val for_object : Types.jkind_l
+
+(** The jkind of a float. *)
+val for_float : Ident.t -> Types.jkind_l
+
+(** The jkind for values that are not floats. *)
+val for_non_float : why:History.value_creation_reason -> 'd Types.jkind
 
 (******************************)
 (* elimination and defaulting *)
@@ -637,7 +645,6 @@ val set_outcometree_of_type : (Types.type_expr -> Outcometree.out_type) -> unit
 
 val set_outcometree_of_modalities_new :
   (Types.mutability ->
-  Parsetree.attributes ->
   Mode.Modality.Value.Const.t ->
   Outcometree.out_mode_new list) ->
   unit

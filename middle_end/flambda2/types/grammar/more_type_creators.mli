@@ -43,6 +43,8 @@ val these_naked_vec128s :
 
 val any_tagged_immediate : Type_grammar.t
 
+val any_tagged_immediate_or_null : Type_grammar.t
+
 val these_tagged_immediates0 : Targetint_31_63.Set.t -> Type_grammar.t
 
 val these_tagged_immediates : Targetint_31_63.Set.t -> Type_grammar.t

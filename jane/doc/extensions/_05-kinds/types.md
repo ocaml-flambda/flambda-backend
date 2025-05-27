@@ -6,7 +6,7 @@ title: Kinds of types
 
 # Kinds of types
 
-[overview]: intro
+[overview]: ../intro
 
 This page describes how we compute the kind of both built-in types and
 user-defined types. You may want to read the [overview][] of the kind
@@ -75,7 +75,7 @@ the component types>>` without constraining the kinds of any of the `ty_i`.
 
 * An applied type constructor `(ty_1, ..., ty_n) t` (where n >= 0) has the kind
 assigned to `t` at its declaration, with type arguments substituted into any
-type variables mentioned in `t`'s with-bounds. Each of the `ty_i` is constrained
+type variables mentioned in the `t` with-bounds. Each of the `ty_i` is constrained
 to be a subkind of the kind on the corresponding type parameter to `t`.
 
 * An object type `< f1 : ty_1; ...; fn : ty_n >` has kind `value mod
@@ -108,10 +108,10 @@ treatment like that for existentials in variant type declarations.)
 be able to improve this, analyzing `S` for mode-crossing opportunities.)
 
 * The type `'a array` has kind `mutable_data with 'a`. The kind of `'a` must
-be a subkind of `any mod non_null`.
+be a subkind of `any mod non_null separable`.
 
 * The type `'a iarray` has kind `immutable_data with 'a`. The kind of `'a` must
-be a subkind of `any mod non_null`.
+be a subkind of `any mod non_null separable`.
 
 * The type `'a lazy_t` has kind `value mod non_float`. The kind of `'a` must be
 a subkind of `value`.

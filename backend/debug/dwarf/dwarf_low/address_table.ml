@@ -17,7 +17,7 @@
 open! Int_replace_polymorphic_compare
 open Asm_targets
 module Uint8 = Numbers.Uint8
-module A = Asm_directives_new
+module A = Asm_directives
 
 module Entry = struct
   type t =

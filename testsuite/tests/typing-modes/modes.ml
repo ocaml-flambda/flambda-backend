@@ -321,8 +321,12 @@ Error: Unrecognized modality foo.
 |}]
 
 type t = Foo of global_ string @@ global
-(* CR reduced-modality: this should warn. *)
 [%%expect{|
+Line 1, characters 16-23:
+1 | type t = Foo of global_ string @@ global
+                    ^^^^^^^
+Warning 213: This locality is overriden by global later.
+
 type t = Foo of global_ string
 |}]
 
@@ -346,8 +350,12 @@ Error: Unrecognized modality foo.
 type r = {
   global_ x : string @@ global
 }
-(* CR reduced-modality: this should warn. *)
 [%%expect{|
+Line 2, characters 2-9:
+2 |   global_ x : string @@ global
+      ^^^^^^^
+Warning 213: This locality is overriden by global later.
+
 type r = { global_ x : string; }
 |}]
 
@@ -369,8 +377,12 @@ type r = { x : string @@ global many aliased; }
 type r = {
   x : string @@ aliased global many aliased
 }
-(* CR reduced-modality: this should warn. *)
 [%%expect{|
+Line 2, characters 16-23:
+2 |   x : string @@ aliased global many aliased
+                    ^^^^^^^
+Warning 213: This uniqueness is overriden by aliased later.
+
 type r = { x : string @@ global many aliased; }
 |}]
 

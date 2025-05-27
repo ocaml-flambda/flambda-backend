@@ -6,7 +6,7 @@ title: Intro
 
 The "unboxed types" extension provides users with additional control over the
 way their data is represented in memory and registers. These new types have
-different *layouts*, which is part of their [kind](../kinds/intro), to
+different *layouts*, which is part of their [kind](../../kinds/intro), to
 distinguish them from normal OCaml types.
 
 This page gives a comprehensive overview of the extension.  Unboxed types are
@@ -109,7 +109,7 @@ let f5 x = (x : (_ : immediate))
 let f6: type (a: bits32). a -> a = fun x -> x
 ```
 
-The full syntax can be found in the [documentation for kinds](../kinds/syntax).
+The full syntax can be found in the [documentation for kinds](../../kinds/syntax).
 The complete annotation design is not yet implemented and the syntax should be
 read with `kind ::= layout-name` for now. It also provides reasoning around some
 design decisions and contains additional examples.
@@ -118,8 +118,7 @@ design decisions and contains additional examples.
 ## Layouts in module inclusion
 
 Layouts are part of kinds, and therefore work just like kinds for the purposes
-of module inclusion. See the [kinds
-documentation][../kinds.md#inclusion-and-variance] for more.
+of module inclusion. See the [kinds documentation](../../kinds/intro#inclusion-and-variance) for more.
 
 # Unboxed numbers
 
@@ -140,8 +139,7 @@ the other unboxed types) that has layout
 float# ... end`.
 
 Each numeric type has its own library for working with it: `float_u`,
-`int32_u`, `int64_u`, and `nativeint_u`. (Outside of Jane Street, these will be
-modules in the `janestreet_shims` library.)
+`int32_u`, `int64_u`, and `nativeint_u` (all in the `janestreet_shims` library).
 
 * Unboxed constants are written with a prepended `#`.
   There is no literal syntax for unboxed vectors: use the `Ocaml_simd_sse` library instead.
@@ -175,7 +173,7 @@ modules in the `janestreet_shims` library.)
 
 * With a few specific exceptions (documented below), existing types all expect
   `value` arguments. Thus for basically any `t`, you cannot write `float# t` or
-  `int64# t`.  This includes obvious candidates like `float#
+  `int64# t`.  This includes natural candidates like `float#
   option`.
 
 * Existing ppxs expect to work with `value` types. Accordingly, using `deriving` with
@@ -580,4 +578,5 @@ We would bump the version number in either of these cases, which would prompt yo
 Version history:
 
 - `v1`: initial implementation;
-- `v2`: automatic reordering by the front- and middle-ends.
+- `v2`: automatic reordering by the front- and middle-ends;
+- `v3`: automatic flattening of nested unboxed records.

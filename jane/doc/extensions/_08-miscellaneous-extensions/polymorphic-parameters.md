@@ -53,7 +53,7 @@ all require defining a fresh type to contain `f`. These work-arounds
 require additional code at each call site to wrap `f` in the associated
 type.
 
-With polymorphic parameters, you can simply annotate `f` as
+With polymorphic parameters, you can annotate `f` as
 polymorphic:
 ```ocaml
 let create (f : 'a. 'a field -> 'a) =
