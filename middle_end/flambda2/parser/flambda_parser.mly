@@ -943,13 +943,7 @@ raise_kind:
 
 cont_recursive:
   | { Nonrecursive }
-<<<<<<< HEAD
-  | KWD_REC params = kinded_args
-    { (Recursive params : Fexpr.is_cont_recursive) }
-||||||| parent of c2593359b0 (Make fexpr handle invariant arguments)
-=======
   | KWD_REC params = kinded_args { (Recursive params : Fexpr.is_cont_recursive) }
->>>>>>> c2593359b0 (Make fexpr handle invariant arguments)
 ;
 
 continuation_sort:
