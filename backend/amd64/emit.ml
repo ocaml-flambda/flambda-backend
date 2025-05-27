@@ -1485,7 +1485,15 @@ let must_save_simd_regs i =
         | Vec512 -> v512 := true
         | Val | Addr | Int | Float | Vec128 | Float32 | Valx2 -> ())
     i.live;
-  if !v512 then Save_zmm else if !v256 then Save_ymm else Save_xmm
+  if !v512
+  then (
+    Arch.require_vec512 ();
+    Save_zmm)
+  else if !v256
+  then (
+    Arch.require_vec256 ();
+    Save_ymm)
+  else Save_xmm
 
 (* Emit an instruction *)
 let emit_instr ~first ~fallthrough i =
