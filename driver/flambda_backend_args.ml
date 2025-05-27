@@ -1206,7 +1206,8 @@ module Flambda_backend_options_impl = struct
     if budget <> 0 then flambda2_advanced_meet ();
     Flambda2.Expert.cont_lifting_budget := Flambda_backend_flags.Set budget
   let flambda2_expert_cont_spec_budget budget =
-    (* continuation lifting and specialization requires the advanced meet algorithm *)
+    (* continuation lifting and specialization requires the advanced meet
+       algorithm *)
     if budget <> 0 then flambda2_advanced_meet ();
     Flambda2.Expert.cont_spec_budget := Flambda_backend_flags.Set budget
   let flambda2_debug_concrete_types_only_on_canonicals =
