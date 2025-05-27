@@ -218,6 +218,6 @@ type reloc =
 (* CR gyorsh: use inline record for Section and File constructors. *)
 type asm_line =
   | Ins of instruction
-  | Directive of Asm_targets.Asm_directives_new.Directive.t
+  | Directive of Asm_targets.Asm_directives.Directive.t
 
 type asm_program = asm_line list

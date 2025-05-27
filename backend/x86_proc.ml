@@ -388,7 +388,7 @@ let directive dir =
   if !create_asm_file then asm_code := dir :: !asm_code;
   match[@warning "-4"] dir with
   | Directive
-      (Asm_targets.Asm_directives_new.Directive.Section
+      (Asm_targets.Asm_directives.Directive.Section
         { names = name; flags; args; is_delayed }) -> (
     let name = Section_name.make name flags args in
     let where = if is_delayed then delayed_sections else asm_code_by_section in

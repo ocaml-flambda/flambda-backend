@@ -44,7 +44,7 @@ module Separability : sig
   type t =
     | Non_float
     | Separable
-    | Non_separable
+    | Maybe_separable
 
   include Axis_ops with type t := t
 end

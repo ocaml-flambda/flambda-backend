@@ -118,9 +118,9 @@ module Separability = struct
   type t =
     | Non_float
     | Separable
-    | Non_separable
+    | Maybe_separable
 
-  let max = Non_separable
+  let max = Maybe_separable
 
   let min = Non_float
 
@@ -130,42 +130,42 @@ module Separability = struct
     match s1, s2 with
     | Non_float, Non_float -> true
     | Separable, Separable -> true
-    | Non_separable, Non_separable -> true
-    | (Non_float | Separable | Non_separable), _ -> false
+    | Maybe_separable, Maybe_separable -> true
+    | (Non_float | Separable | Maybe_separable), _ -> false
 
   let less_or_equal s1 s2 : Misc.Le_result.t =
     match s1, s2 with
     | Non_float, Non_float -> Equal
-    | Non_float, (Separable | Non_separable) -> Less
+    | Non_float, (Separable | Maybe_separable) -> Less
     | Separable, Non_float -> Not_le
     | Separable, Separable -> Equal
-    | Separable, Non_separable -> Less
-    | Non_separable, (Non_float | Separable) -> Not_le
-    | Non_separable, Non_separable -> Equal
+    | Separable, Maybe_separable -> Less
+    | Maybe_separable, (Non_float | Separable) -> Not_le
+    | Maybe_separable, Maybe_separable -> Equal
 
   let le s1 s2 = Misc.Le_result.is_le (less_or_equal s1 s2)
 
   let meet s1 s2 =
     match s1, s2 with
-    | Non_float, (Non_float | Separable | Non_separable)
-    | (Separable | Non_separable), Non_float ->
+    | Non_float, (Non_float | Separable | Maybe_separable)
+    | (Separable | Maybe_separable), Non_float ->
       Non_float
-    | Separable, (Separable | Non_separable) | Non_separable, Separable ->
+    | Separable, (Separable | Maybe_separable) | Maybe_separable, Separable ->
       Separable
-    | Non_separable, Non_separable -> Non_separable
+    | Maybe_separable, Maybe_separable -> Maybe_separable
 
   let join s1 s2 =
     match s1, s2 with
-    | Non_separable, (Non_separable | Separable | Non_float)
-    | (Separable | Non_float), Non_separable ->
-      Non_separable
+    | Maybe_separable, (Maybe_separable | Separable | Non_float)
+    | (Separable | Non_float), Maybe_separable ->
+      Maybe_separable
     | Separable, (Separable | Non_float) | Non_float, Separable -> Separable
     | Non_float, Non_float -> Non_float
 
   let print ppf = function
     | Non_float -> Format.fprintf ppf "non_float"
     | Separable -> Format.fprintf ppf "separable"
-    | Non_separable -> Format.fprintf ppf "non_separable"
+    | Maybe_separable -> Format.fprintf ppf "maybe_separable"
 end
 
 module Axis = struct

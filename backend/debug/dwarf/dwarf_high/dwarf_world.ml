@@ -15,7 +15,7 @@
 open! Int_replace_polymorphic_compare
 open Asm_targets
 open Dwarf_low
-module A = Asm_directives_new
+module A = Asm_directives
 
 let emit0_delayed ~asm_directives:_ = ()
 
@@ -32,7 +32,7 @@ let emit0 ~asm_directives ~compilation_unit_proto_die
   List.iter
     (fun location_list -> Debug_loc_table.insert debug_loc_table location_list)
     assigned_abbrevs.dwarf_4_location_lists;
-  let debug_abbrev_label = Asm_label.for_section (DWARF Debug_abbrev) in
+  let debug_abbrev_label = Asm_label.for_dwarf_section Debug_abbrev in
   let debug_info =
     Profile.record "debug_info_section"
       (fun () ->

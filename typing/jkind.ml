@@ -1297,14 +1297,14 @@ module Const = struct
     let any =
       { jkind =
           mk_jkind Any ~mode_crossing:false ~nullability:Maybe_null
-            ~separability:Non_separable;
+            ~separability:Maybe_separable;
         name = "any"
       }
 
     let any_mod_everything =
       { jkind =
           mk_jkind Any ~mode_crossing:true ~nullability:Maybe_null
-            ~separability:Non_separable;
+            ~separability:Maybe_separable;
         name = "any mod everything"
       }
 
@@ -1329,14 +1329,14 @@ module Const = struct
     let value_or_null =
       { jkind =
           mk_jkind (Base Value) ~mode_crossing:false ~nullability:Maybe_null
-            ~separability:Non_separable;
+            ~separability:Maybe_separable;
         name = "value_or_null"
       }
 
     let value_or_null_mod_everything =
       { jkind =
           mk_jkind (Base Value) ~mode_crossing:true ~nullability:Maybe_null
-            ~separability:Non_separable;
+            ~separability:Maybe_separable;
         name = "value_or_null mod everything"
       }
 
@@ -1422,7 +1422,7 @@ module Const = struct
     let immediate_or_null =
       { jkind =
           mk_jkind (Base Value) ~mode_crossing:true ~nullability:Maybe_null
-            ~separability:Non_separable;
+            ~separability:Maybe_separable;
         name = "immediate_or_null"
       }
 
@@ -1834,7 +1834,7 @@ module Const = struct
           match out_jkind_verbose with
           | Some out_jkind -> out_jkind
           | None ->
-            (* If we fail, try again with nullable/non-separable jkinds. *)
+            (* If we fail, try again with nullable/maybe-separable jkinds. *)
             let out_jkind_verbose =
               convert_with_base
                 ~base:
@@ -2270,7 +2270,7 @@ let has_with_bounds (type r) (t : (_ * r) jkind) =
 (* construction *)
 
 let of_new_sort_var ~why =
-  let jkind, sort = Jkind_desc.of_new_sort_var Maybe_null Non_separable in
+  let jkind, sort = Jkind_desc.of_new_sort_var Maybe_null Maybe_separable in
   fresh_jkind jkind ~annotation:None ~why:(Concrete_creation why), sort
 
 let of_new_sort ~why = fst (of_new_sort_var ~why)
@@ -3568,7 +3568,7 @@ let is_value_for_printing ~ignore_null { jkind; _ } =
       then
         { value with
           mod_bounds =
-            Mod_bounds.set_separability Separability.Non_separable
+            Mod_bounds.set_separability Separability.Maybe_separable
               (Mod_bounds.set_nullability Nullability.Maybe_null
                  value.mod_bounds)
         }

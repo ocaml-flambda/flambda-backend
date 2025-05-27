@@ -6,48 +6,48 @@
 
 (* Basic subkinding relation. *)
 
-(* CR layouts v3.4: [mod non_separable] doesn't do anything
+(* CR layouts v3.4: [mod maybe_separable] doesn't do anything
    and should raise a warning. *)
-type t_nonsep : any mod non_separable
+type t_maybesep : any mod maybe_separable
 type t_sep : any mod separable
 type t_nonfloat : any mod non_float
 
 [%%expect{|
-type t_nonsep : any
+type t_maybesep : any
 type t_sep : any mod separable
 type t_nonfloat : any mod non_float
 |}]
 
-type ('a :  any mod non_separable) accepts_nonsep
+type ('a :  any mod maybe_separable) accepts_maybesep
 type ('a : any mod separable) accepts_sep
 type ('a : any mod non_float) accepts_nonfloat
 
 [%%expect{|
-type ('a : any) accepts_nonsep
+type ('a : any) accepts_maybesep
 type ('a : any mod separable) accepts_sep
 type ('a : any mod non_float) accepts_nonfloat
 |}]
 
-type succeeds = t_nonsep accepts_nonsep
-type succeeds = t_sep accepts_nonsep
-type succeeds = t_nonfloat accepts_nonsep
+type succeeds = t_maybesep accepts_maybesep
+type succeeds = t_sep accepts_maybesep
+type succeeds = t_nonfloat accepts_maybesep
 
 [%%expect{|
-type succeeds = t_nonsep accepts_nonsep
-type succeeds = t_sep accepts_nonsep
-type succeeds = t_nonfloat accepts_nonsep
+type succeeds = t_maybesep accepts_maybesep
+type succeeds = t_sep accepts_maybesep
+type succeeds = t_nonfloat accepts_maybesep
 |}]
 
-type fails = t_nonsep accepts_sep
+type fails = t_maybesep accepts_sep
 [%%expect{|
-Line 1, characters 13-21:
-1 | type fails = t_nonsep accepts_sep
-                 ^^^^^^^^
-Error: This type "t_nonsep" should be an instance of type
+Line 1, characters 13-23:
+1 | type fails = t_maybesep accepts_sep
+                 ^^^^^^^^^^
+Error: This type "t_maybesep" should be an instance of type
          "('a : any mod separable)"
-       The kind of t_nonsep is any
-         because of the definition of t_nonsep at line 1, characters 0-37.
-       But the kind of t_nonsep must be a subkind of any mod separable
+       The kind of t_maybesep is any
+         because of the definition of t_maybesep at line 1, characters 0-41.
+       But the kind of t_maybesep must be a subkind of any mod separable
          because of the definition of accepts_sep at line 2, characters 0-41.
 |}]
 
@@ -60,16 +60,16 @@ type succeeds = t_sep accepts_sep
 type succeeds = t_nonfloat accepts_sep
 |}]
 
-type fails = t_nonsep accepts_nonfloat
+type fails = t_maybesep accepts_nonfloat
 [%%expect{|
-Line 1, characters 13-21:
-1 | type fails = t_nonsep accepts_nonfloat
-                 ^^^^^^^^
-Error: This type "t_nonsep" should be an instance of type
+Line 1, characters 13-23:
+1 | type fails = t_maybesep accepts_nonfloat
+                 ^^^^^^^^^^
+Error: This type "t_maybesep" should be an instance of type
          "('a : any mod non_float)"
-       The kind of t_nonsep is any
-         because of the definition of t_nonsep at line 1, characters 0-37.
-       But the kind of t_nonsep must be a subkind of any mod non_float
+       The kind of t_maybesep is any
+         because of the definition of t_maybesep at line 1, characters 0-41.
+       But the kind of t_maybesep must be a subkind of any mod non_float
          because of the definition of accepts_nonfloat at line 3, characters 0-46.
 |}]
 
@@ -93,13 +93,13 @@ type succeeds = t_nonfloat accepts_nonfloat
 
 (* Testing separability for various base jkinds. *)
 
-(* [value_or_null] is non-separable: *)
+(* [value_or_null] is maybe-separable: *)
 type t_von : value_or_null
 
-type succeeds = t_von accepts_nonsep
+type succeeds = t_von accepts_maybesep
 [%%expect{|
 type t_von : value_or_null
-type succeeds = t_von accepts_nonsep
+type succeeds = t_von accepts_maybesep
 |}]
 
 type fails = t_von accepts_sep
@@ -131,12 +131,12 @@ Error: This type "t_von" should be an instance of type "('a : any mod non_float)
 (* [value] is separable *)
 type t_val : value
 
-type succeeds = t_val accepts_nonsep
+type succeeds = t_val accepts_maybesep
 type succeeds = t_val accepts_sep
 
 [%%expect{|
 type t_val
-type succeeds = t_val accepts_nonsep
+type succeeds = t_val accepts_maybesep
 type succeeds = t_val accepts_sep
 |}]
 
@@ -153,14 +153,14 @@ Error: This type "t_val" should be an instance of type "('a : any mod non_float)
          because of the definition of accepts_nonfloat at line 3, characters 0-46.
 |}]
 
-(* [any] is non-separable *)
+(* [any] is maybe-separable *)
 type t_any : any
 
-type succeeds = t_any accepts_nonsep
+type succeeds = t_any accepts_maybesep
 
 [%%expect{|
 type t_any : any
-type succeeds = t_any accepts_nonsep
+type succeeds = t_any accepts_maybesep
 |}]
 
 type fails = t_any accepts_sep
@@ -191,11 +191,11 @@ Error: This type "t_any" should be an instance of type "('a : any mod non_float)
 
 (* [any_non_null] is separable *)
 type t_ann : any_non_null
-type succeeds = t_ann accepts_nonsep
+type succeeds = t_ann accepts_maybesep
 type succeeds = t_ann accepts_sep
 [%%expect{|
 type t_ann : any_non_null
-type succeeds = t_ann accepts_nonsep
+type succeeds = t_ann accepts_maybesep
 type succeeds = t_ann accepts_sep
 |}]
 
@@ -216,65 +216,65 @@ Error: This type "t_ann" should be an instance of type "('a : any mod non_float)
 
 (* [immutable_data] is non-float *)
 type t_imm : immutable_data
-type succeeds = t_imm accepts_nonsep
+type succeeds = t_imm accepts_maybesep
 type succeeds = t_imm accepts_sep
 type succeeds = t_imm accepts_nonfloat
 
 [%%expect{|
 type t_imm : immutable_data
-type succeeds = t_imm accepts_nonsep
+type succeeds = t_imm accepts_maybesep
 type succeeds = t_imm accepts_sep
 type succeeds = t_imm accepts_nonfloat
 |}]
 
 (* [mutable_data] is non-float *)
 type t_mut : mutable_data
-type succeeds = t_mut accepts_nonsep
+type succeeds = t_mut accepts_maybesep
 type succeeds = t_mut accepts_sep
 type succeeds = t_mut accepts_nonfloat
 
 [%%expect{|
 type t_mut : mutable_data
-type succeeds = t_mut accepts_nonsep
+type succeeds = t_mut accepts_maybesep
 type succeeds = t_mut accepts_sep
 type succeeds = t_mut accepts_nonfloat
 |}]
 
 (* [sync_data] is non-float *)
 type t_sync : sync_data
-type succeeds = t_sync accepts_nonsep
+type succeeds = t_sync accepts_maybesep
 type succeeds = t_sync accepts_sep
 type succeeds = t_sync accepts_nonfloat
 
 [%%expect{|
 type t_sync : sync_data
-type succeeds = t_sync accepts_nonsep
+type succeeds = t_sync accepts_maybesep
 type succeeds = t_sync accepts_sep
 type succeeds = t_sync accepts_nonfloat
 |}]
 
 (* [immediate] is non-float *)
 type t_imm : immediate
-type succeeds = t_imm accepts_nonsep
+type succeeds = t_imm accepts_maybesep
 type succeeds = t_imm accepts_sep
 type succeeds = t_imm accepts_nonfloat
 
 [%%expect{|
 type t_imm : immediate
-type succeeds = t_imm accepts_nonsep
+type succeeds = t_imm accepts_maybesep
 type succeeds = t_imm accepts_sep
 type succeeds = t_imm accepts_nonfloat
 |}]
 
 (* [immediate64] is non-float *)
 type t_imm64 : immediate64
-type succeeds = t_imm64 accepts_nonsep
+type succeeds = t_imm64 accepts_maybesep
 type succeeds = t_imm64 accepts_sep
 type succeeds = t_imm64 accepts_nonfloat
 
 [%%expect{|
 type t_imm64 : immediate64
-type succeeds = t_imm64 accepts_nonsep
+type succeeds = t_imm64 accepts_maybesep
 type succeeds = t_imm64 accepts_sep
 type succeeds = t_imm64 accepts_nonfloat
 |}]
@@ -283,52 +283,52 @@ type succeeds = t_imm64 accepts_nonfloat
 
 (* [bits32] is non-float *)
 type t_b32 : bits32
-type succeeds = t_b32 accepts_nonsep
+type succeeds = t_b32 accepts_maybesep
 type succeeds = t_b32 accepts_sep
 type succeeds = t_b32 accepts_nonfloat
 
 [%%expect{|
 type t_b32 : bits32
-type succeeds = t_b32 accepts_nonsep
+type succeeds = t_b32 accepts_maybesep
 type succeeds = t_b32 accepts_sep
 type succeeds = t_b32 accepts_nonfloat
 |}]
 
 (* [bits64] is non-float *)
 type t_b64 : bits64
-type succeeds = t_b64 accepts_nonsep
+type succeeds = t_b64 accepts_maybesep
 type succeeds = t_b64 accepts_sep
 type succeeds = t_b64 accepts_nonfloat
 
 [%%expect{|
 type t_b64 : bits64
-type succeeds = t_b64 accepts_nonsep
+type succeeds = t_b64 accepts_maybesep
 type succeeds = t_b64 accepts_sep
 type succeeds = t_b64 accepts_nonfloat
 |}]
 
 (* [word] is non-float *)
 type t_word : word
-type succeeds = t_word accepts_nonsep
+type succeeds = t_word accepts_maybesep
 type succeeds = t_word accepts_sep
 type succeeds = t_word accepts_nonfloat
 
 [%%expect{|
 type t_word : word
-type succeeds = t_word accepts_nonsep
+type succeeds = t_word accepts_maybesep
 type succeeds = t_word accepts_sep
 type succeeds = t_word accepts_nonfloat
 |}]
 
 (* [vec128] is non-float *)
 type t_vec : vec128
-type succeeds = t_vec accepts_nonsep
+type succeeds = t_vec accepts_maybesep
 type succeeds = t_vec accepts_sep
 type succeeds = t_vec accepts_nonfloat
 
 [%%expect{|
 type t_vec : vec128
-type succeeds = t_vec accepts_nonsep
+type succeeds = t_vec accepts_maybesep
 type succeeds = t_vec accepts_sep
 type succeeds = t_vec accepts_nonfloat
 |}]
@@ -339,26 +339,26 @@ type succeeds = t_vec accepts_nonfloat
 
 (* [float32] is non-float *)
 type t_f32 : float32
-type succeeds = t_f32 accepts_nonsep
+type succeeds = t_f32 accepts_maybesep
 type succeeds = t_f32 accepts_sep
 type succeeds = t_f32 accepts_nonfloat
 
 [%%expect{|
 type t_f32 : float32
-type succeeds = t_f32 accepts_nonsep
+type succeeds = t_f32 accepts_maybesep
 type succeeds = t_f32 accepts_sep
 type succeeds = t_f32 accepts_nonfloat
 |}]
 
 (* [float64] is non-float *)
 type t_f64 : float64
-type succeeds = t_f64 accepts_nonsep
+type succeeds = t_f64 accepts_maybesep
 type succeeds = t_f64 accepts_sep
 type succeeds = t_f64 accepts_nonfloat
 
 [%%expect{|
 type t_f64 : float64
-type succeeds = t_f64 accepts_nonsep
+type succeeds = t_f64 accepts_maybesep
 type succeeds = t_f64 accepts_sep
 type succeeds = t_f64 accepts_nonfloat
 |}]
@@ -497,26 +497,26 @@ Error: This type "'a or_null" should be an instance of type
          because of the definition of accepts_sep at line 2, characters 0-41.
 |}]
 
-type 'a succeds = 'a or_null accepts_nonsep
+type 'a succeds = 'a or_null accepts_maybesep
 
 [%%expect{|
-type 'a succeds = 'a or_null accepts_nonsep
+type 'a succeds = 'a or_null accepts_maybesep
 |}]
 
-(* CR layouts v3.4: [or_null] should be able accept non-separable values? *)
+(* CR layouts v3.4: [or_null] should be able accept maybe-separable values? *)
 
-type t_nonsep_val : value_or_null mod non_null
-type fails = t_nonsep_val or_null
+type t_maybesep_val : value_or_null mod non_null
+type fails = t_maybesep_val or_null
 
 [%%expect{|
-type t_nonsep_val : value_or_null mod non_null
-Line 2, characters 13-25:
-2 | type fails = t_nonsep_val or_null
-                 ^^^^^^^^^^^^
-Error: This type "t_nonsep_val" should be an instance of type "('a : value)"
-       The kind of t_nonsep_val is value_or_null mod non_null
-         because of the definition of t_nonsep_val at line 1, characters 0-46.
-       But the kind of t_nonsep_val must be a subkind of value
+type t_maybesep_val : value_or_null mod non_null
+Line 2, characters 13-27:
+2 | type fails = t_maybesep_val or_null
+                 ^^^^^^^^^^^^^^
+Error: This type "t_maybesep_val" should be an instance of type "('a : value)"
+       The kind of t_maybesep_val is value_or_null mod non_null
+         because of the definition of t_maybesep_val at line 1, characters 0-48.
+       But the kind of t_maybesep_val must be a subkind of value
          because the type argument of or_null has kind value.
 |}]
 
@@ -549,10 +549,10 @@ Error: This type "'a or_null" should be an instance of type
          because of the definition of accepts_sep at line 2, characters 0-41.
 |}]
 
-type ('a : value mod non_float) succeeds = 'a or_null accepts_nonsep
+type ('a : value mod non_float) succeeds = 'a or_null accepts_maybesep
 
 [%%expect{|
-type ('a : value mod non_float) succeeds = 'a or_null accepts_nonsep
+type ('a : value mod non_float) succeeds = 'a or_null accepts_maybesep
 |}]
 
 (* CR layouts v2.8: fix error reporting difference. *)
@@ -587,17 +587,17 @@ Error: This type "float or_null" should be an instance of type
 
 (* Arrays accept separable values: *)
 
-type fails = t_nonsep_val array
+type fails = t_maybesep_val array
 
 [%%expect{|
-Line 1, characters 13-25:
-1 | type fails = t_nonsep_val array
-                 ^^^^^^^^^^^^
-Error: This type "t_nonsep_val" should be an instance of type
+Line 1, characters 13-27:
+1 | type fails = t_maybesep_val array
+                 ^^^^^^^^^^^^^^
+Error: This type "t_maybesep_val" should be an instance of type
          "('a : any_non_null)"
-       The kind of t_nonsep_val is value_or_null mod non_null
-         because of the definition of t_nonsep_val at line 1, characters 0-46.
-       But the kind of t_nonsep_val must be a subkind of any_non_null
+       The kind of t_maybesep_val is value_or_null mod non_null
+         because of the definition of t_maybesep_val at line 1, characters 0-48.
+       But the kind of t_maybesep_val must be a subkind of any_non_null
          because it's the type argument to the array type.
 |}]
 
@@ -786,16 +786,16 @@ type test = float t req_non_float
 
 (* Separability and [@@unboxed]. *)
 
-type unbx = { unbx : t_nonsep_val } [@@unboxed]
+type unbx = { unbx : t_maybesep_val } [@@unboxed]
 
 (* CR layouts v3.4: non-separable unboxed records should be allowed. *)
 
 [%%expect{|
-Line 1, characters 0-47:
-1 | type unbx = { unbx : t_nonsep_val } [@@unboxed]
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 0-49:
+1 | type unbx = { unbx : t_maybesep_val } [@@unboxed]
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "unbx" is value_or_null mod non_null
-         because of the definition of t_nonsep_val at line 1, characters 0-46.
+         because of the definition of t_maybesep_val at line 1, characters 0-48.
        But the kind of type "unbx" must be a subkind of value
          because it's an [@@unboxed] type,
          chosen to have kind value.
@@ -820,26 +820,26 @@ Error: The kind of type "unbx'" is value_or_null mod non_null
 
 (* One-element unboxed records inherit the separability of the element type .*)
 
-type a : value = #{ a : t_nonsep_val }
+type a : value = #{ a : t_maybesep_val }
 
 [%%expect{|
-Line 1, characters 0-38:
-1 | type a : value = #{ a : t_nonsep_val }
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "a" is immediate with t_nonsep_val
+Line 1, characters 0-40:
+1 | type a : value = #{ a : t_maybesep_val }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "a" is immediate with t_maybesep_val
          because it is an unboxed record.
        But the kind of type "a" must be a subkind of value
          because of the annotation on the declaration of the type a.
 |}]
 
-type a : value_or_null mod non_null = #{ a : t_nonsep_val }
+type a : value_or_null mod non_null = #{ a : t_maybesep_val }
 
 [%%expect{|
-type a = #{ a : t_nonsep_val; }
+type a = #{ a : t_maybesep_val; }
 |}]
 
 
-type b = #{ a : int; b: t_nonsep_val; c: float# }
+type b = #{ a : int; b: t_maybesep_val; c: float# }
 
 type ('b : value & value & float64 mod everything non_float) fails = unit constraint 'b = b
 
@@ -849,7 +849,7 @@ type ('b : value & value & float64 mod everything non_float) fails = unit constr
    Also, this error is horrible. *)
 
 [%%expect{|
-type b = #{ a : int; b : t_nonsep_val; c : float#; }
+type b = #{ a : int; b : t_maybesep_val; c : float#; }
 Line 3, characters 85-91:
 3 | type ('b : value & value & float64 mod everything non_float) fails = unit constraint 'b = b
                                                                                          ^^^^^^
@@ -857,9 +857,9 @@ Error: The type constraints are not consistent.
        Type "('b : immediate & immediate & float64 mod everything)"
        is not compatible with type "b"
        The kind of b is
-         immediate with t_nonsep_val & immediate with t_nonsep_val
-         & float64 mod everything with t_nonsep_val
-         because of the definition of b at line 1, characters 0-49.
+         immediate with t_maybesep_val & immediate with t_maybesep_val
+         & float64 mod everything with t_maybesep_val
+         because of the definition of b at line 1, characters 0-51.
        But the kind of b must be a subkind of
          immediate & immediate & float64 mod everything
          because of the annotation on 'b in the declaration of the type fails.

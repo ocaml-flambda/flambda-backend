@@ -83,5 +83,3 @@ val equal : t -> t -> bool
 
 (** Whether the section holds code. *)
 val section_is_text : t -> bool
-
-val all_sections_in_order : unit -> t list

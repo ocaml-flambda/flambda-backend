@@ -31,7 +31,7 @@ open! Operation
 open Linear
 open Emitaux
 module I = Arm64_ast.Instruction_name
-module D = Asm_targets.Asm_directives_new
+module D = Asm_targets.Asm_directives
 module S = Asm_targets.Asm_symbol
 module L = Asm_targets.Asm_label
 open! Int_replace_polymorphic_compare
@@ -2202,7 +2202,7 @@ let begin_assembly _unix =
       Buffer.clear asm_line_buffer;
       D.Directive.print asm_line_buffer d;
       Buffer.add_string asm_line_buffer "\n";
-      Buffer.output_buffer !output_channel asm_line_buffer);
+      Emitaux.emit_buffer asm_line_buffer);
   D.file ~file_num:None ~file_name:"";
   (* PR#7037 *)
   let data_begin = Cmm_helpers.make_symbol "data_begin" in

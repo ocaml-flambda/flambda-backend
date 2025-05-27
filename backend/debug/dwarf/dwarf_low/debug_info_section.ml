@@ -17,7 +17,7 @@
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open Asm_targets
 module DIE = Debugging_information_entry
-module A = Asm_directives_new
+module A = Asm_directives
 
 type t =
   { dies : DIE.t list;
