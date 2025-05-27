@@ -539,18 +539,44 @@ scanned by the garbage collector.
 The ordering constraint on structure fields is a reflection of the same
 ordering restriction in the runtime representation.
 
-## C bindings for mixed blocks
+## Depending on the layout of mixed blocks
 
 The implementation of field layout in a mixed block is not finalized. For example, we'd like for int32 fields to be packed efficiently (two to a word) on 64 bit platforms. Currently that's not the case: each one takes up a word.
 
-Users who write C bindings might want to be notified when we change this layout. To ensure that your code will need to be updated when the layout changes, use the `Assert_mixed_block_layout_v#` family of macros. For example,
+As a result, code that depends on the way mixed blocks are represented in memory
+(e.g., via C bindings) may need updates in the future. To help manage this,
+OxCaml provides mechanisms to assert your code depends on the current
+representation. The mechanism depends on whether you are writing C bindings
+or (unsafe) OCaml code.
+
+Note also that, while unboxed types are generally considered an "upstream
+compatible" (because they can be erased while preserving behavior), depending on
+the exact representation of mixed blocks is not. Thus, use of these mechanism is
+also a sign that your code may need a custom mechanism if it is intended to work
+both in OxCaml and upstream OCaml.
+
+### In C bindings
+
+To ensure that your C code will need to be updated when the layout changes, use
+the `Assert_mixed_block_layout_v#` family of macros. For example,
 
 ```
-Assert_mixed_block_layout_v1;
+Assert_mixed_block_layout_v3;
 ```
 
 Write the above in statement context, i.e. either at the top-level of a file or
 within a function.
+
+### In OCaml code
+
+Users who write OCaml code that depends on the layout of mixed blocks (via
+`Obj.magic` or similar) should instead include a reference in the relevant
+modules to `Stdlib_upstream_compatible.mixed_block_layout_v#`. For example:
+```
+let _ = Stdlib_upstream_compatible.mixed_block_layout_v3
+```
+
+### Example
 
 Here's a full example. Say you're writing C bindings against this OCaml type:
 
@@ -565,15 +591,23 @@ type t =
 Here is the recommend way to access fields:
 
 ```c
-Assert_mixed_block_layout_v1;
+Assert_mixed_block_layout_v3;
 #define Foo_t_x(foo) (*(int32_t*)&Field(foo, 0))
 #define Foo_t_y(foo) (*(int32_t*)&Field(foo, 1))
 ```
 
-We would bump the version number in either of these cases, which would prompt you to think about the code:
+### Future changes and history
+
+We will bump the version number if make changes to the layout of mixed
+blocks. For example, it will be bumped if:
 
   * We change what word half the int32 is stored in
   * We start packing int32s more efficiently
+
+When we bump the version, the C assertion for the previous version will fail at
+compile time, and the OCaml definition for the previous version will be removed
+from the standard library. This alerts maintainers of code using these
+mechanisms to consider whether that code needs updates.
 
 Version history:
 
