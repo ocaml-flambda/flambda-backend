@@ -122,15 +122,24 @@ Error: The kind of type "'a simple" is immutable_data with 'a
 |}]
 
 (* When we give open polymorphic variants more precise kinds, we should make sure to give them not-best quality *)
+(* CR reisenberg: This test output should probably mention [polyvar] still *)
 module type S = sig
-  type 'a polyvar := private [< `A of 'a | `B of int ref ]
+  type 'a polyvar = private [< `A of 'a | `B of int ref | `C ]
   type 'a abstract : immutable_data with 'a polyvar
 end
 [%%expect{|
-Line 2, characters 2-58:
-2 |   type 'a polyvar := private [< `A of 'a | `B of int ref ]
-      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Only type synonyms are allowed on the right of ":="
+module type S =
+  sig
+    type 'a polyvar = private [< `A of 'a | `B of int ref | `C ]
+    type 'a abstract : value mod non_float
+  end
+|}]
+
+(* CR reisenberg: In the output, [abstract] should have kind [immutable_data] *)
+module type S2 = S with type 'a polyvar = [ `C ]
+[%%expect{|
+module type S2 =
+  sig type 'a polyvar = [ `C ] type 'a abstract : value mod non_float end
 |}]
 
 (* CR layouts v2.8: ['a abstract] should get the kind [immutable_data with 'a polyvar]
@@ -295,17 +304,17 @@ type trec_rec_succeeds =
 (* Future tests for when we start adding row variables to with-bounds. *)
 
 type 'a t1 = [< `A of string | `B of int ] as 'a
-type 'a t2 : immutable_data with 'a t1 = C of string  (* should be rejected, at least until we sort out closed-but-not-static bestness *)
-type t3 : immutable_data with [ `A of string] t1 = C of string  (* should be accepted *)
+type 'a t2 : immediate with 'a t1 = C of string  (* should be rejected, at least until we sort out closed-but-not-static bestness *)
+type t3 : immediate with [ `A of string] t1 = C of string  (* should be accepted *)
 [%%expect{|
 type 'a t1 = 'a constraint 'a = [< `A of string | `B of int ]
 type 'a t2 = C of string constraint 'a = [< `A of string | `B of int ]
 type t3 = C of string
 |}]
 
-type 'a t1 = [> `A of string | `B of int ] as 'a
-type 'a t2 : immutable_data with 'a t1 = C of string  (* should be rejected *)
-type t3 : immutable_data with [ `A of string | `B of int | `C ] t1 = C of string  (* should be accepted *)
+type 'a t1 = [> `A | `B ] as 'a
+type 'a t2 : immediate with 'a t1 = C of string  (* should be rejected *)
+type t3 : immediate with [ `A of string | `B of int | `C ] t1 = C of string  (* should be accepted *)
 [%%expect{|
 type 'a t1 = 'a constraint 'a = [> `A of string | `B of int ]
 type 'a t2 = C of string constraint 'a = [> `A of string | `B of int ]
@@ -318,11 +327,11 @@ end
 module M1 : S = struct
   type t = [ `A of string ]
 end
-type t2 : immutable_data with M1.t = C of string  (* should be rejected, at least until we sort out closed-but-not-static bestness *)
+type t2 : immediate with M1.t = C of string  (* should be rejected, at least until we sort out closed-but-not-static bestness *)
 module M2 : S with type t = [ `A of string ] = struct
   type t = [ `A of string ]
 end
-type t3 : immutable_data with M2.t = C of string (* should be accepted *)
+type t3 : immediate with M2.t = C of string (* should be accepted *)
 [%%expect{|
 module type S = sig type t = private [< `A of string | `B of int ] end
 module M1 : S
@@ -336,7 +345,7 @@ type (_, _) eq = Refl : ('a, 'a) eq
 (* I'm not sure whether module substitution over a non-static private row type preserves the Tvariant structure; so I made this harder case, too *)
 let sneaky (x : (M1.t, [ `A of string ]) eq) = match x with
   | Refl -> let open struct
-    type t4 : immutable_data with M1.t = C of string  (* not sure what will happen, but we should eventually accept *)
+    type t4 : immediate with M1.t = C of string  (* not sure what will happen, but we should eventually accept *)
   end in ()
 [%%expect{|
 type (_, _) eq = Refl : ('a, 'a) eq
@@ -349,11 +358,11 @@ end
 module M1 : S = struct
   type t = [ `A of string | `B of int | `C of (int -> int) ref ]
 end
-type t2 : immutable_data with M1.t = C of string  (* should be rejected *)
+type t2 : immediate with M1.t = C of string  (* should be rejected *)
 module M2 : S with type t = [ `A of string | `B of int ] = struct
   type t = [ `A of string | `B of int ]
 end
-type t3 : immutable_data with M2.t = C of string (* should be accepted *)
+type t3 : immediate with M2.t = C of string (* should be accepted *)
 [%%expect{|
 module type S = sig type t = private [> `A of string | `B of int ] end
 module M1 : S
@@ -364,7 +373,7 @@ type t3 = C of string
 
 let sneaky (x : (M1.t, [ `A of string | `B of int ]) eq) = match x with
   | Refl -> let open struct
-    type t4 : immutable_data with M1.t = C of string  (* not sure what will happen, but we should eventually accept *)
+    type t4 : immediate with M1.t = C of string  (* not sure what will happen, but we should eventually accept *)
   end in ()
 [%%expect{|
 val sneaky : (M1.t, [ `A of string | `B of int ]) eq -> unit = <fun>
