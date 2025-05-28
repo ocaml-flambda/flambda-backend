@@ -177,7 +177,8 @@ let fixpoint t ~init ~eq ~f =
   res
 
 let extra_args_for_aliases_overapproximation ~required_names
-    ~(source_info : T.Acc.t) ~unboxed_blocks (doms : Dominator_graph.alias_map) t =
+    ~(source_info : T.Acc.t) ~unboxed_blocks (doms : Dominator_graph.alias_map)
+    t =
   let available_variables = compute_available_variables ~source_info t in
   let remove_vars_in_scope_of k var_set =
     let elt : T.Continuation_info.t = Continuation.Map.find k source_info.map in
