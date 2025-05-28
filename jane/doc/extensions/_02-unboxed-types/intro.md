@@ -462,7 +462,7 @@ type t =
 ## The "mixed block" representation
 
 The runtime representation of mixed blocks is slightly different than normal
-OCaml blocks. These differences are present to accomodate the garbage collector,
+OCaml blocks. These differences are present to accommodate the garbage collector,
 which must scan the fields with layout `value`, but not the fields containing
 unboxed types.
 
