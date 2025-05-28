@@ -12,20 +12,20 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module G : Strongly_connected_components.S with module Id := Variable
+module G : Strongly_connected_components.S with module Id := Simple
 
 (** An internal type for the data_flow graph *)
 type t =
   { required_names : Name.Set.t;
     params_kind : Flambda_kind.With_subkind.t Variable.Map.t;
     graph : G.directed_graph;
-    dominator_roots : Variable.Set.t
+    dominator_roots : Simple.Set.t
         (* variables that are dominated only by themselves, usually because a
            constant or a symbol can flow to that variable, and thus that
            variable cannot be dominated by another variable. *)
   }
 
-type alias_map = Variable.t Variable.Map.t
+type alias_map = Simple.t Variable.Map.t
 
 (** Create the data flow graph *)
 val create :
@@ -44,7 +44,7 @@ module Dot : sig
   val print :
     ctx:int ->
     print_name:string ->
-    doms:Variable.t Variable.Map.t ->
+    doms:alias_map ->
     Format.formatter ->
     t ->
     unit

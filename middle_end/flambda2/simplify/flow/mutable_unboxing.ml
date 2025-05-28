@@ -30,8 +30,8 @@ type extra_args =
   Continuation.Map.t
 
 type t =
-  { blocks_to_unbox : block_to_unbox Variable.Map.t;
-    continuations_with_live_block : Variable.Set.t Continuation.Map.t;
+  { blocks_to_unbox : block_to_unbox Simple.Map.t;
+    continuations_with_live_block : Simple.Set.t Continuation.Map.t;
     extra_params_and_args : (extra_params * extra_args) Continuation.Map.t;
     rewrites : Named_rewrite.t Named_rewrite_id.Map.t
   }
@@ -57,31 +57,30 @@ let free_names_of_apply_cont_args
         args free)
     apply_cont_args Variable.Set.empty
 
+let find_alias ~(dom : Dominator_graph.alias_map) simple =
+  Simple.pattern_match' simple
+    ~const:(fun _ -> simple)
+    ~symbol:(fun _ ~coercion:_ -> simple)
+    ~var:(fun var ~coercion:_ ->
+      match Variable.Map.find var dom with
+      | exception Not_found -> simple
+      | res -> res)
+
 let escaping_by_alias ~(dom : Dominator_graph.alias_map)
     ~(dom_graph : Dominator_graph.t) =
-  Variable.Map.fold
+  Simple.Map.fold
     (fun flow_to flow_from escaping ->
-      let alias_to =
-        match Variable.Map.find flow_to dom with
-        | exception Not_found -> flow_to
-        | v -> v
-      in
+      let alias_to = find_alias ~dom flow_to in
       let new_escaping =
-        Variable.Set.fold
+        Simple.Set.fold
           (fun flow_from escaping ->
-            let alias_from =
-              match Variable.Map.find flow_from dom with
-              | exception Not_found -> flow_from
-              | v -> v
-            in
-            let is_escaping = not (Variable.equal alias_to alias_from) in
-            if is_escaping
-            then Variable.Set.add alias_from escaping
-            else escaping)
-          flow_from Variable.Set.empty
+            let alias_from = find_alias ~dom flow_from in
+            let is_escaping = not (Simple.equal alias_to alias_from) in
+            if is_escaping then Simple.Set.add alias_from escaping else escaping)
+          flow_from Simple.Set.empty
       in
-      Variable.Set.union escaping new_escaping)
-    dom_graph.graph Variable.Set.empty
+      Simple.Set.union escaping new_escaping)
+    dom_graph.graph Simple.Set.empty
 
 let names_escaping_from_mutable_prim ~(result_required : bool)
     (prim : T.Mutable_prim.t) =
@@ -116,11 +115,11 @@ let escaping_by_use_for_one_continuation ~required_names
         let escaping =
           match Variable.Map.find var dom with
           | exception Not_found -> escaping
-          | var -> Variable.Set.add var escaping
+          | simple -> Simple.Set.add simple escaping
         in
-        Variable.Set.add var escaping)
+        Simple.Set.add (Simple.var var) escaping)
   in
-  let escaping = add_name_occurrences elt.used_in_handler Variable.Set.empty in
+  let escaping = add_name_occurrences elt.used_in_handler Simple.Set.empty in
   let escaping =
     Name.Map.fold
       (fun name deps escaping ->
@@ -138,7 +137,7 @@ let escaping_by_use_for_one_continuation ~required_names
       (fun var escaping ->
         match Variable.Map.find var dom with
         | exception Not_found -> escaping
-        | var -> Variable.Set.add var escaping)
+        | simple -> Simple.Set.add simple escaping)
       (names_used_in_new_let_binding elt)
       escaping
   in
@@ -168,10 +167,10 @@ let escaping_by_use ~required_names ~(dom : Dominator_graph.alias_map)
     ~(source_info : T.Acc.t) =
   Continuation.Map.fold
     (fun _cont elt escaping ->
-      Variable.Set.union
+      Simple.Set.union
         (escaping_by_use_for_one_continuation ~required_names ~dom elt)
         escaping)
-    source_info.map Variable.Set.empty
+    source_info.map Simple.Set.empty
 
 let escaping_by_return ~(dom : Dominator_graph.alias_map)
     ~(source_info : T.Acc.t) ~return_continuation ~exn_continuation =
@@ -186,15 +185,15 @@ let escaping_by_return ~(dom : Dominator_graph.alias_map)
               let escaping =
                 match Variable.Map.find var dom with
                 | exception Not_found -> escaping
-                | var -> Variable.Set.add var escaping
+                | simple -> Simple.Set.add simple escaping
               in
-              Variable.Set.add var escaping)
+              Simple.Set.add (Simple.var var) escaping)
             (free_names_of_apply_cont_args apply_cont_args)
             escaping
       in
       let escaping = add_escaping return_continuation escaping in
       add_escaping exn_continuation escaping)
-    source_info.map Variable.Set.empty
+    source_info.map Simple.Set.empty
 
 let escaping ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
     ~(source_info : T.Acc.t) ~return_continuation ~exn_continuation
@@ -204,8 +203,8 @@ let escaping ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
   let escaping_by_return =
     escaping_by_return ~dom ~source_info ~return_continuation ~exn_continuation
   in
-  Variable.Set.union escaping_by_alias
-    (Variable.Set.union escaping_by_return escaping_by_use)
+  Simple.Set.union escaping_by_alias
+    (Simple.Set.union escaping_by_return escaping_by_use)
 
 (* *)
 
@@ -223,7 +222,7 @@ let blocks_to_unbox ~escaping ~source_info ~required_names =
                escaping, unboxing non-required blocks might keep alive a
                reference to another unboxed block, while the primitive for
                creating it was removed. *)
-            if Variable.Set.mem var escaping
+            if Simple.Set.mem (Simple.var var) escaping
                || not (Name.Set.mem (Name.var var) required_names)
             then map
             else
@@ -247,25 +246,25 @@ let blocks_to_unbox ~escaping ~source_info ~required_names =
                   in
                   { tag = Tag.Scannable.to_tag tag; mut; fields_kinds }
               in
-              Variable.Map.add var block_to_unbox map)
+              Simple.Map.add (Simple.var var) block_to_unbox map)
         map elt.mutable_let_prims_rev)
-    source_info.T.Acc.map Variable.Map.empty
+    source_info.T.Acc.map Simple.Map.empty
 
 let prims_using_block ~blocks_to_unbox ~dom prim =
   match (prim : T.Mutable_prim.t) with
-  | Make_block _ -> Variable.Set.empty
+  | Make_block _ -> Simple.Set.empty
   | Is_int block
   | Get_tag block
   | Block_set { block; _ }
   | Block_load { block; _ } ->
     let block =
       match Variable.Map.find block dom with
-      | exception Not_found -> block
+      | exception Not_found -> Simple.var block
       | block -> block
     in
-    if Variable.Map.mem block blocks_to_unbox
-    then Variable.Set.singleton block
-    else Variable.Set.empty
+    if Simple.Map.mem block blocks_to_unbox
+    then Simple.Set.singleton block
+    else Simple.Set.empty
 
 let continuations_using_blocks ~blocks_to_unbox ~dom ~(source_info : T.Acc.t) =
   Continuation.Map.mapi
@@ -273,14 +272,14 @@ let continuations_using_blocks ~blocks_to_unbox ~dom ~(source_info : T.Acc.t) =
       let used =
         List.fold_left
           (fun used_block T.Mutable_let_prim.{ prim; _ } ->
-            Variable.Set.union used_block
+            Simple.Set.union used_block
               (prims_using_block ~blocks_to_unbox ~dom prim))
-          Variable.Set.empty elt.mutable_let_prims_rev
+          Simple.Set.empty elt.mutable_let_prims_rev
       in
-      if (not (Variable.Set.is_empty used)) && Flambda_features.dump_flow ()
+      if (not (Simple.Set.is_empty used)) && Flambda_features.dump_flow ()
       then
         Format.printf "Cont using block %a %a@." Continuation.print _cont
-          Variable.Set.print used;
+          Simple.Set.print used;
       used)
     source_info.map
 
@@ -290,15 +289,15 @@ let continuations_defining_blocks ~blocks_to_unbox ~(source_info : T.Acc.t) =
       let defined =
         List.fold_left
           (fun defined_blocks T.Mutable_let_prim.{ bound_var = var; _ } ->
-            if Variable.Map.mem var blocks_to_unbox
-            then Variable.Set.add var defined_blocks
+            if Simple.Map.mem (Simple.var var) blocks_to_unbox
+            then Simple.Set.add (Simple.var var) defined_blocks
             else defined_blocks)
-          Variable.Set.empty elt.mutable_let_prims_rev
+          Simple.Set.empty elt.mutable_let_prims_rev
       in
-      if (not (Variable.Set.is_empty defined)) && Flambda_features.dump_flow ()
+      if (not (Simple.Set.is_empty defined)) && Flambda_features.dump_flow ()
       then
         Format.printf "Cont defining block %a %a@." Continuation.print _cont
-          Variable.Set.print defined;
+          Simple.Set.print defined;
       defined)
     source_info.map
 
@@ -321,11 +320,11 @@ let continuations_with_live_block ~blocks_to_unbox ~dom ~source_info
         | Some _defined, None ->
           Misc.fatal_errorf
             "In Data_flow: incomplete map of continuation using blocks"
-        | Some defined, Some used -> Some (Variable.Set.diff used defined))
+        | Some defined, Some used -> Some (Simple.Set.diff used defined))
       continuations_defining_blocks continuations_using_blocks
   in
   Control_flow_graph.fixpoint control_flow_graph
-    ~init:continuations_using_blocks_but_not_defining_them
+    ~init:continuations_using_blocks_but_not_defining_them ~eq:Simple.Set.equal
     ~f:(fun
          ~caller
          ~caller_set:old_using_blocks
@@ -335,8 +334,8 @@ let continuations_with_live_block ~blocks_to_unbox ~dom ~source_info
       let defined_blocks =
         Continuation.Map.find caller continuations_defining_blocks
       in
-      Variable.Set.diff
-        (Variable.Set.union old_using_blocks used_blocks)
+      Simple.Set.diff
+        (Simple.Set.union old_using_blocks used_blocks)
         defined_blocks)
 
 let list_to_int_map l =
@@ -354,7 +353,7 @@ let int_map_to_list m = List.map snd (Numeric_types.Int.Map.bindings m)
 
 module Fold_prims = struct
   type env =
-    { bindings : Simple.t Numeric_types.Int.Map.t Variable.Map.t;
+    { bindings : Simple.t Numeric_types.Int.Map.t Simple.Map.t;
       (* non escaping / unboxed blocks fields values *)
       rewrites : Named_rewrite.t Named_rewrite_id.Map.t
     }
@@ -362,20 +361,20 @@ module Fold_prims = struct
   let with_unboxed_block ~block ~dom ~env ~blocks_to_unbox ~f =
     let block =
       match Variable.Map.find block dom with
-      | exception Not_found -> block
+      | exception Not_found -> Simple.var block
       | block -> block
     in
-    match Variable.Map.find block blocks_to_unbox with
+    match Simple.Map.find block blocks_to_unbox with
     | exception Not_found -> env
     | { tag; fields_kinds; mut = _ } -> f ~block ~tag ~fields_kinds
 
   let with_unboxed_fields ~block ~dom ~env ~f =
     let block =
       match Variable.Map.find block dom with
-      | exception Not_found -> block
+      | exception Not_found -> Simple.var block
       | block -> block
     in
-    match Variable.Map.find block env.bindings with
+    match Simple.Map.find block env.bindings with
     | exception Not_found -> env
     | fields -> f ~block fields
 
@@ -446,11 +445,11 @@ module Fold_prims = struct
               ( Named_rewrite.prim_rewrite (Named_rewrite.Prim_rewrite.invalid k),
                 fields )
           in
-          { bindings = Variable.Map.add block fields env.bindings;
+          { bindings = Simple.Map.add block fields env.bindings;
             rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
           })
     | Make_block { fields; _ } ->
-      if not (Variable.Map.mem var blocks_to_unbox)
+      if not (Simple.Map.mem (Simple.var var) blocks_to_unbox)
       then env
       else (
         if Flambda_features.dump_flow ()
@@ -459,22 +458,31 @@ module Fold_prims = struct
           Named_rewrite.prim_rewrite Named_rewrite.Prim_rewrite.remove_prim
         in
         let fields = list_to_int_map fields in
-        { bindings = Variable.Map.add var fields env.bindings;
+        { bindings = Simple.Map.add (Simple.var var) fields env.bindings;
           rewrites = Named_rewrite_id.Map.add rewrite_id rewrite env.rewrites
         })
 
-  let init_env ~(blocks_to_unbox : block_to_unbox Variable.Map.t)
-      ~(blocks_needed : Variable.Set.t) ~rewrites =
+  let init_env ~(blocks_to_unbox : block_to_unbox Simple.Map.t)
+      ~(blocks_needed : Simple.Set.t) ~rewrites =
     let env, params =
-      Variable.Set.fold
+      Simple.Set.fold
         (fun block_needed (env, params) ->
           let { tag = _; mut = _; fields_kinds } =
-            Variable.Map.find block_needed blocks_to_unbox
+            Simple.Map.find block_needed blocks_to_unbox
           in
           let block_params =
             List.mapi
               (fun i kind ->
-                let name = Variable.unique_name block_needed in
+                let name =
+                  Simple.pattern_match' block_needed
+                    ~var:(fun var ~coercion:_ -> Variable.unique_name var)
+                    ~symbol:(fun _ ~coercion:_ ->
+                      Misc.fatal_errorf
+                        "[Mutable Unboxing] Cannot unbox mutable symbols")
+                    ~const:(fun _ ->
+                      Misc.fatal_errorf
+                        "[Mutable Unboxing] Cannot unbox constants")
+                in
                 let var = Variable.create (Printf.sprintf "%s_%i" name i) in
                 Bound_parameter.create var kind)
               fields_kinds
@@ -487,12 +495,12 @@ module Fold_prims = struct
                    block_params)
             in
             { env with
-              bindings = Variable.Map.add block_needed fields env.bindings
+              bindings = Simple.Map.add block_needed fields env.bindings
             }
           in
           env, List.rev_append block_params params)
         blocks_needed
-        ({ bindings = Variable.Map.empty; rewrites }, [])
+        ({ bindings = Simple.Map.empty; rewrites }, [])
     in
     env, List.rev params
 
@@ -506,12 +514,12 @@ module Fold_prims = struct
       in
       Numeric_types.Int.Map.disjoint_union i1 shifted_i2
 
-  let compute_rewrites ~(blocks_to_unbox : block_to_unbox Variable.Map.t)
+  let compute_rewrites ~(blocks_to_unbox : block_to_unbox Simple.Map.t)
       ~continuations_with_live_block ~dom ~(source_info : T.Acc.t) =
     let rewrites = ref Named_rewrite_id.Map.empty in
     let extra_params_and_args =
       Continuation.Map.mapi
-        (fun cont (blocks_needed : Variable.Set.t) ->
+        (fun cont (blocks_needed : Simple.Set.t) ->
           let elt = Continuation.Map.find cont source_info.map in
           let env, extra_block_params =
             init_env ~blocks_to_unbox ~blocks_needed ~rewrites:!rewrites
@@ -536,11 +544,9 @@ module Fold_prims = struct
                 | exception Not_found -> Numeric_types.Int.Map.empty
                 | blocks_needed ->
                   let extra_args =
-                    Variable.Set.fold
+                    Simple.Set.fold
                       (fun block_needed extra_args ->
-                        let args =
-                          Variable.Map.find block_needed env.bindings
-                        in
+                        let args = Simple.Map.find block_needed env.bindings in
                         append_int_map extra_args args)
                       blocks_needed Numeric_types.Int.Map.empty
                   in
@@ -566,11 +572,11 @@ let create ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
   let blocks_to_unbox =
     blocks_to_unbox ~escaping ~source_info ~required_names
   in
-  if (not (Variable.Map.is_empty blocks_to_unbox))
+  if (not (Simple.Map.is_empty blocks_to_unbox))
      && Flambda_features.dump_flow ()
   then
     Format.printf "Non escaping makeblocks %a@."
-      (Variable.Map.print (fun ppf { tag; fields_kinds; mut } ->
+      (Simple.Map.print (fun ppf { tag; fields_kinds; mut } ->
            Format.fprintf ppf "{%a}(%a)[%a]" Tag.print tag Mutability.print mut
              (Format.pp_print_list ~pp_sep:Format.pp_print_space
                 Flambda_kind.With_subkind.print)
@@ -584,11 +590,11 @@ let create ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
     Continuation.Map.find source_info.dummy_toplevel_cont
       continuations_with_live_block
   in
-  if not (Variable.Set.is_empty toplevel_used)
+  if not (Simple.Set.is_empty toplevel_used)
   then
     Misc.fatal_errorf
       "Toplevel continuation cannot have needed extra argument for block: %a@."
-      Variable.Set.print toplevel_used;
+      Simple.Set.print toplevel_used;
   let extra_params_and_args, rewrites =
     Fold_prims.compute_rewrites ~dom ~source_info ~continuations_with_live_block
       ~blocks_to_unbox
@@ -602,7 +608,7 @@ let create ~(dom : Dominator_graph.alias_map) ~(dom_graph : Dominator_graph.t)
 let pp_node { blocks_to_unbox = _; continuations_with_live_block; _ } ppf cont =
   match Continuation.Map.find cont continuations_with_live_block with
   | exception Not_found -> ()
-  | live_blocks -> Format.fprintf ppf " %a" Variable.Set.print live_blocks
+  | live_blocks -> Format.fprintf ppf " %a" Simple.Set.print live_blocks
 
 let add_to_extra_params_and_args result =
   let epa = Continuation.Map.empty in
@@ -682,8 +688,8 @@ let add_to_extra_params_and_args result =
   epa
 
 let did_unbox_a_mutable_block result =
-  Variable.Map.exists
-    (fun _var block_to_unbox ->
+  Simple.Map.exists
+    (fun _simple block_to_unbox ->
       match block_to_unbox.mut with
       | Mutable -> true
       | Immutable_unique | Immutable -> false)
@@ -695,4 +701,4 @@ let make_result result =
   let did_unbox_a_mutable_block = did_unbox_a_mutable_block result in
   ( T.Mutable_unboxing_result.
       { did_unbox_a_mutable_block; additional_epa; let_rewrites },
-    Variable.Map.keys result.blocks_to_unbox )
+    Simple.Map.keys result.blocks_to_unbox )
