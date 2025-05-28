@@ -757,10 +757,6 @@ caml_empty_minor_heap_promote(caml_domain_state* domain,
                     st.live_bytes);
   }
 
-  CAML_EV_BEGIN(EV_MINOR_MEMPROF_CLEAN);
-  caml_memprof_after_minor_gc(domain);
-  CAML_EV_END(EV_MINOR_MEMPROF_CLEAN);
-
   domain->young_ptr = domain->young_end;
   /* Trigger a GC poll when half of the minor heap is filled. At that point, a
    * major slice is scheduled. */
@@ -985,6 +981,11 @@ caml_stw_empty_minor_heap_no_major_slice(caml_domain_state* domain,
     ephe_clean_minor(domain);
     CAML_EV_END(EV_MINOR_EPHE_CLEAN);
   }
+
+  CAML_EV_BEGIN(EV_MINOR_MEMPROF_CLEAN);
+  CAML_GC_MESSAGE(MINOR, "Updating memprof.\n");
+  caml_memprof_after_minor_gc(domain);
+  CAML_EV_END(EV_MINOR_MEMPROF_CLEAN);
 
   /* while the minor heap is empty, allow the major GC to mark roots */
   if (mark_requested)
