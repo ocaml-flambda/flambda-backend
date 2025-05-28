@@ -432,8 +432,7 @@ the padding value will be preserved by the generated code or the runtime.
 
 Unboxed types can usually be put in structures, though there are some restrictions.
 
-These structures may contain unboxed types, but have some restrictions on field
-orders:
+These structures may contain unboxed types:
 
   * Records
   * Constructors
@@ -450,7 +449,7 @@ There aren't fundamental issues with the structures that lack support. They will
 just take some work to implement.
 
 Here's an example of a record with an unboxed field. We call such a record
-a "mixed record".
+a "mixed record", and it is represented at runtime by a "mixed block".
 
 ```ocaml
 type t =
@@ -460,48 +459,56 @@ type t =
   }
 ```
 
-## Restrictions on field ordering
+## The "mixed block" representation
 
-The below is written about record fields but equally applies to constructor
-arguments.
+The runtime representation of mixed blocks is slightly different than normal
+OCaml blocks. These differences are present to accomodate the garbage collector,
+which must scan the fields with layout `value`, but not the fields containing
+unboxed types.
 
-Suppose a record contains any unboxed field `fld` whose layout is not `value`[^or-combination-of-values]. Then, the following restriction applies: All
-fields occurring after `fld` in the record must be "flat", i.e. the GC can
-skip looking at them. The only options for flat fields are immediates (i.e. things
-represented as ints at runtime) and other unboxed numbers.
+To enable this, the header word of mixed blocks remembers how many elements of
+the block are values, with a maximum of 254. The compiler _reorders_ the fields
+of your block so that all the values are first, and the GC knows to stop
+scanning after it has seen that number of fields.
 
-[^or-combination-of-values]: Technically, there are some non-value layouts that don't hit this restriction, like unboxed products and unboxed sums consisting only of values.
-
-The following definition is rejected, as the boxed field `s : string` appears
-after the unboxed float field `f`:
-
+For example, consider this record type:
 ```ocaml
-type t_rejected =
-  { f : float#;
-    s : string;
-  }
-  (* Error: Expected all flat fields after non-value field, f,
-            but found boxed field, s. *)
-```
-
-The only relaxation of the above restriction is for records that consist
-solely of `float` and `float#` fields. Any ordering of `float` and `float#`
-fields is permitted. The "flat float record optimization" applies to any
-such record&mdash;all of the fields are stored flat, even the `float` ones
-that will require boxing upon projection. The ordering restriction is relaxed
-in this case to provide a better migration story for all-`float` records
-to which the flat float record optimization currently applies.
-
-```ocaml
-type t_flat_float =
-  { x1 : float;
-    x2 : float#;
-    x3 : float;
+type t =
+  { w : float#;
+    x : string;
+    y : int64#;
+    z : int
   }
 ```
 
-The ordering restriction has to do with the "mixed block" runtime
-representation. Read on for more detail about that.
+The compiler will represent this type with a block where the fields are in the
+order `x`, `z`, `w`, `y`.
+
+The reordering is invisible to source-level ocaml programs that don't use unsafe
+features, but can be relevant when writing C bindings or OCaml code that depends
+on the runtime representation of values. It is stable in the sense that it never
+changes the relative order of two values, or of two non-values.  Immediates
+count as values for this purpose (they are always moved to the prefix).
+
+There is a special case for for records that consist solely of `float` and
+`float#` fields. The "flat float record optimization" applies to any such
+record&mdash;all of the fields are stored flat, even the `float` ones that will
+require boxing upon projection. The fields are also not reordered. This special
+case exists to provide a better migration story for all-`float` records to which
+the flat float record optimization currently applies.
+
+Blocks may contain unboxed products, in which case the products are "flattened"
+to become individual fields of the block, and reordered to accomodate the mixed
+block representation.  For example, consider this record type:
+
+```ocaml
+type t =
+  { a : float#;
+    b : #(w:float# * #(x:string * y:int64#) * z:(int * int));
+    c : bool }
+```
+This is represented as a block with six fields, and the fields appear the order
+`x`, `z`, `c`, `a`, `w`, `y`.
 
 ## Generic operations aren't supported
 
@@ -518,26 +525,6 @@ These operations raise an exception at runtime, similar to how polymorphic
 comparison raises when called on a function.
 
 You should use ppx-derived versions of these operations instead.
-
-## Runtime representation: mixed blocks
-
-As a general principle: The compiler should not change the user-specified
-field ordering when deciding the runtime representation.
-
-Abiding by this principle allows you to write C bindings and
-predict hardware cache performance.
-
-A structure containing unboxed types is represented at runtime as a "mixed
-block". A mixed block always consists of fields the GC can-or-must scan followed by
-fields the GC can-or-must skip[^can-or-must]. The garbage collector must be kept
-informed of which fields of the block it should scan. A portion of the header
-word is reserved to track the length of the prefix of the block that should be
-scanned by the garbage collector.
-
-[^can-or-must]: "Can-or-must" is a bit of a mouthful, but it captures the right nuance. Pointer values *must* be scanned, unboxed number fields *must* be skipped, and immediate values *can* be scanned or skipped.
-
-The ordering constraint on structure fields is a reflection of the same
-ordering restriction in the runtime representation.
 
 ## Depending on the layout of mixed blocks
 
