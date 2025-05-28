@@ -445,11 +445,17 @@ module Repr_check = struct
     | Untagged_immediate -> true
     | Same_as_ocaml_repr _ | Repr_poly -> false
 
-  let is_not_product = function
+  let valid_c_stub_arg = function
     | Same_as_ocaml_repr (Base _)
     | Unboxed_float _ | Unboxed_integer _ | Unboxed_vector _
     | Untagged_immediate | Repr_poly -> true
     | Same_as_ocaml_repr (Product _) -> false
+
+  let valid_c_stub_return = function
+    | Same_as_ocaml_repr (Base _)
+    | Unboxed_float _ | Unboxed_integer _ | Unboxed_vector _
+    | Untagged_immediate | Repr_poly -> true
+    | Same_as_ocaml_repr (Product l) -> (List.compare_length_with l 2) = 0
 
   let check checks prim =
     let reprs = args_res_reprs prim in
@@ -475,11 +481,14 @@ module Repr_check = struct
       (List.init (arity+1) (fun _ -> value_or_unboxed_or_untagged))
       prim
 
-  let no_product_repr prim =
+  let check_c_stub prim =
+    (* C externals are allowed to return a tuple, but may not take products as
+       arguments or return products with more than two elements. *)
     let arity = List.length prim.prim_native_repr_args in
-    check
-      (List.init (arity+1) (fun _ -> is_not_product))
-      prim
+    let checks =
+      (List.init arity (fun _ -> valid_c_stub_arg)) @ [valid_c_stub_return]
+    in
+    check checks prim
 end
 
 (* Note: [any] here is not the same as jkind [any]. It means we allow any
@@ -765,17 +774,7 @@ let prim_has_valid_reprs ~loc prim =
                    | "%sendcache"
                  |}
               *)
-            else
-              (* CR layouts v7.1: Right now we're restricting C externals that
-                 use unboxed products to "alpha", because they are untested and
-                 the calling convention will change. The backend PR that adds
-                 better support and testing should change this "else" case to
-                 require [beta].  Then when we move products out of beta we can
-                 change it back to its original definition: [fun _ -> Success]
-              *)
-            if Language_extension.(is_at_least Layouts Alpha)
-            then fun _ -> Success
-            else no_product_repr)
+            else check_c_stub)
   in
   match check prim with
   | Success -> ()
