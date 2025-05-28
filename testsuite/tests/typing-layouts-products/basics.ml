@@ -1143,21 +1143,43 @@ Error: The primitive [foo] is used in an invalid declaration.
        The declaration contains argument/return types with the wrong layout.
 |}]
 
-external ext_tuple_arg_with_attr_u : (#(int * bool) [@unboxed]) -> int = "foo"
+external ext_tuple_arg_with_attr_unboxed
+  : (#(int * bool) [@unboxed]) -> int = "foo"
 [%%expect{|
-Line 1, characters 38-51:
-1 | external ext_tuple_arg_with_attr_u : (#(int * bool) [@unboxed]) -> int = "foo"
-                                          ^^^^^^^^^^^^^
+Line 2, characters 5-18:
+2 |   : (#(int * bool) [@unboxed]) -> int = "foo"
+         ^^^^^^^^^^^^^
 Error: Don't know how to unbox this type.
        Only "float", "int32", "int64", "nativeint", vector primitives, and
        the corresponding unboxed types can be marked unboxed.
 |}]
 
-external ext_tuple_arg_with_attr_t : (#(int * bool) [@tagged]) -> int = "foo"
+external ext_tuple_arg_with_attr_untagged
+  : (#(int * bool) [@untagged]) -> int = "foo" "bar"
 [%%expect{|
-Line 1, characters 0-77:
-1 | external ext_tuple_arg_with_attr_t : (#(int * bool) [@tagged]) -> int = "foo"
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 5-18:
+2 |   : (#(int * bool) [@untagged]) -> int = "foo" "bar"
+         ^^^^^^^^^^^^^
+Error: Don't know how to untag this type. Only "int"
+       and other immediate types can be untagged.
+|}]
+
+external ext_tuple_arg_with_attr_tagged
+  : (#(int * bool) [@tagged]) -> int = "foo" "bar"
+[%%expect{|
+Line 2, characters 4-36:
+2 |   : (#(int * bool) [@tagged]) -> int = "foo" "bar"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [foo] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+external ext_tuple_arg_with_attr_tagged_byte_only
+  : (#(int * bool) [@tagged]) -> int = "foo"
+[%%expect{|
+Lines 1-2, characters 0-44:
+1 | external ext_tuple_arg_with_attr_tagged_byte_only
+2 |   : (#(int * bool) [@tagged]) -> int = "foo"
 Error: The native code version of the primitive is mandatory
        for types with non-value layouts.
 |}]
