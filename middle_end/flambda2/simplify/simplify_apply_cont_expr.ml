@@ -104,6 +104,13 @@ let rebuild_apply_cont apply_cont ~args ~rewrite_id uacc ~after_rebuild =
     after_rebuild expr uacc
   in
   let apply_cont_to_expr apply_cont =
+    (* Note that we call [UE.find_continuation] on the continuation after
+       resolving shortcuts, which looks like it could break linearity.
+
+       However this is OK because we can't create shortcuts to a
+       [Linearly_used_and_inlinable] continuation: shortcuts are created after
+       rebuilding, at which point [Linearly_used_and_inlinable] continuations
+       have already been inlined. *)
     let cont = AC.continuation apply_cont in
     match UE.find_continuation uenv cont with
     | Linearly_used_and_inlinable
