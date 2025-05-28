@@ -490,7 +490,7 @@ on the runtime representation of values. It is stable in the sense that it never
 changes the relative order of two values, or of two non-values.  Immediates
 count as values for this purpose (they are always moved to the prefix).
 
-There is a special case for for records that consist solely of `float` and
+There is a special case for records that consist solely of `float` and
 `float#` fields. The "flat float record optimization" applies to any such
 record&mdash;all of the fields are stored flat, even the `float` ones that will
 require boxing upon projection. The fields are also not reordered. This special
