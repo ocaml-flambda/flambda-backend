@@ -2,6 +2,7 @@
 
 open Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
+module Skip_list = Flambda_backend_utils.Skip_list
 
 val log : ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
 
@@ -59,6 +60,10 @@ module Interval : sig
 
   val equal : t -> t -> bool
 
+  val compare_asc_begin : t -> t -> int
+
+  val compare_desc_end : t -> t -> int
+
   val copy : t -> t
 
   val print : Format.formatter -> t -> unit
@@ -76,14 +81,25 @@ module Interval : sig
 
     val insert_sorted : t DLL.t -> t -> unit
   end
+
+  module AscBeginList : Skip_list.T with type elem = t
+
+  module DescEndList : Skip_list.T with type elem = t
 end
+
+val equal_dll_asc_sl : Interval.t DLL.t -> Interval.AscBeginList.t -> bool
+
+val equal_dll_desc_sl : Interval.t DLL.t -> Interval.DescEndList.t -> bool
 
 module ClassIntervals : sig
   (* Similar to [Linscan.class_intervals] (in "backend/linscan.ml"). *)
   type t =
     { fixed_dll : Interval.t DLL.t;
+      fixed_sl : Interval.DescEndList.t;
       active_dll : Interval.t DLL.t;
-      inactive_dll : Interval.t DLL.t
+      active_sl : Interval.DescEndList.t;
+      inactive_dll : Interval.t DLL.t;
+      inactive_sl : Interval.DescEndList.t
     }
 
   val make : unit -> t
@@ -95,8 +111,14 @@ module ClassIntervals : sig
   val clear : t -> unit
 
   val release_expired_intervals : t -> pos:int -> unit
+
+  val check_consistency : t -> string -> unit
 end
 
 val log_interval : kind:string -> Interval.t -> unit
 
 val log_interval_dll : kind:string -> Interval.t DLL.t -> unit
+
+val log_interval_asc_sl : kind:string -> Interval.AscBeginList.t -> unit
+
+val log_interval_desc_sl : kind:string -> Interval.DescEndList.t -> unit
