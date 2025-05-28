@@ -394,8 +394,7 @@ let raise ~loc err = raise (Error.User_error (loc, err))
 
 (* Returns the set of axes that is relevant under a given modality. For example,
    under the [global] modality, the locality axis is *not* relevant. *)
-let relevant_axes_of_modality ~relevant_for_nullability
-    ~relevant_for_separability ~modality =
+let relevant_axes_of_modality ~relevant_for_shallow ~modality =
   Axis_set.create ~f:(fun ~axis:(Pack axis) ->
       match axis with
       | Modal axis ->
@@ -412,11 +411,11 @@ let relevant_axes_of_modality ~relevant_for_nullability
          non-identity modalities. *)
       | Nonmodal Externality -> true
       | Nonmodal Nullability -> (
-        match relevant_for_nullability with
+        match relevant_for_shallow with
         | `Relevant -> true
         | `Irrelevant -> false)
       | Nonmodal Separability -> (
-        match relevant_for_separability with
+        match relevant_for_shallow with
         | `Relevant -> true
         | `Irrelevant -> false))
 
@@ -752,11 +751,10 @@ module With_bounds = struct
       With_bounds (With_bounds_types.singleton type_expr type_info)
     | With_bounds bounds -> With_bounds (add_bound type_expr type_info bounds)
 
-  let add_modality ~relevant_for_nullability ~relevant_for_separability
+  let add_modality ~relevant_for_shallow
       ~modality ~type_expr (t : (allowed * 'r) t) : (allowed * 'r) t =
     let relevant_axes =
-      relevant_axes_of_modality ~relevant_for_nullability
-        ~relevant_for_separability ~modality
+      relevant_axes_of_modality ~relevant_for_shallow ~modality
     in
     match t with
     | No_with_bounds ->
@@ -1906,8 +1904,7 @@ module Const = struct
           mod_bounds = base.mod_bounds;
           with_bounds =
             With_bounds.add_modality ~modality
-              ~relevant_for_nullability:`Irrelevant
-              ~relevant_for_separability:`Irrelevant ~type_expr:type_
+              ~relevant_for_shallow:`Irrelevant ~type_expr:type_
               base.with_bounds
         })
     | Default | Kind_of _ -> raise ~loc:jkind.pjkind_loc Unimplemented_syntax
@@ -1977,7 +1974,7 @@ module Jkind_desc = struct
   let unsafely_set_bounds t ~from =
     { t with mod_bounds = from.mod_bounds; with_bounds = from.with_bounds }
 
-  let add_with_bounds ~relevant_for_nullability ~relevant_for_separability
+  let add_with_bounds ~relevant_for_shallow
       ~type_expr ~modality t =
     match Types.get_desc type_expr with
     | Tarrow (_, _, _, _) ->
@@ -1989,14 +1986,13 @@ module Jkind_desc = struct
           Mod_bounds.join t.mod_bounds
             (Mod_bounds.set_min_in_set Mod_bounds.for_arrow
                (Axis_set.complement
-                  (relevant_axes_of_modality ~modality ~relevant_for_nullability
-                     ~relevant_for_separability)))
+                  (relevant_axes_of_modality ~modality ~relevant_for_shallow)))
       }
     | _ ->
       { t with
         with_bounds =
-          With_bounds.add_modality ~relevant_for_nullability
-            ~relevant_for_separability ~type_expr ~modality t.with_bounds
+          With_bounds.add_modality ~relevant_for_shallow
+            ~type_expr ~modality t.with_bounds
       }
 
   let max = of_const Const.max
@@ -2072,15 +2068,19 @@ module Jkind_desc = struct
 
   let product tys_modalities layouts =
     let layout = Layout.product layouts in
+    let relevant_for_shallow =
+      (* Shallow axes like nullability or separability are relevant for
+         1-field unboxed records and irrelevant for everything else. *)
+      match List.length layouts with
+      | 1 -> `Relevant
+      | _ -> `Irrelevant
+    in
     let mod_bounds = Mod_bounds.min in
     let with_bounds =
       List.fold_right
         (fun (type_expr, modality) bounds ->
           With_bounds.add_modality
-            ~relevant_for_nullability:`Relevant
-              (* CR layouts v3.4: this should be relevant for 1-element unboxed
-                 records, but irrelevant for everything else. *)
-            ~relevant_for_separability:`Relevant ~type_expr ~modality bounds)
+            ~relevant_for_shallow ~type_expr ~modality bounds)
         tys_modalities No_with_bounds
     in
     { layout; mod_bounds; with_bounds }
@@ -2214,8 +2214,7 @@ let add_with_bounds ~modality ~type_expr t =
       Jkind_desc.add_with_bounds
       (* We only care about types in fields of unboxed products for the
          nullability of the overall kind *)
-        ~relevant_for_nullability:`Irrelevant
-        ~relevant_for_separability:`Irrelevant ~type_expr ~modality t.jkind
+        ~relevant_for_shallow:`Irrelevant ~type_expr ~modality t.jkind
   }
 
 let has_with_bounds (type r) (t : (_ * r) jkind) =
@@ -2605,8 +2604,7 @@ let set_layout jk layout = { jk with jkind = { jk.jkind with layout } }
 
 let apply_modality_l modality jk =
   let relevant_axes =
-    relevant_axes_of_modality ~modality ~relevant_for_nullability:`Relevant
-      ~relevant_for_separability:`Relevant
+    relevant_axes_of_modality ~modality ~relevant_for_shallow:`Relevant
   in
   let mod_bounds =
     Mod_bounds.set_min_in_set jk.jkind.mod_bounds
@@ -2623,8 +2621,7 @@ let apply_modality_l modality jk =
 
 let apply_modality_r modality jk =
   let relevant_axes =
-    relevant_axes_of_modality ~modality ~relevant_for_nullability:`Relevant
-      ~relevant_for_separability:`Relevant
+    relevant_axes_of_modality ~modality ~relevant_for_shallow:`Relevant
   in
   let mod_bounds =
     Mod_bounds.set_max_in_set jk.jkind.mod_bounds
