@@ -77,12 +77,8 @@ let simplify_toplevel_common dacc simplify ~params ~implicit_params
         in
         let uacc =
           if Flow.Analysis.did_perform_mutable_unboxing flow_result
-          then UA.set_resimplify uacc
-          else uacc
-        in
-        let uacc =
-          if Flow.Analysis.added_useful_alias_in_loop (DA.typing_env dacc)
-               data_flow flow_result
+             || Flow.Analysis.added_useful_alias_in_loop (DA.typing_env dacc)
+                  data_flow flow_result
           then UA.set_resimplify uacc
           else uacc
         in
