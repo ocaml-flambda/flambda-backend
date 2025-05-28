@@ -2692,6 +2692,12 @@ let is_begin_or_end_region t =
   | _ -> false
   [@@ocaml.warning "-fragile-match"]
 
+let is_begin_region t =
+  match t with
+  | Variadic ((Begin_region _ | Begin_try_region _), _) -> true
+  | _ -> false
+  [@@ocaml.warning "-fragile-match"]
+
 let is_end_region t =
   match t with
   | Unary (End_region _, region) -> (
