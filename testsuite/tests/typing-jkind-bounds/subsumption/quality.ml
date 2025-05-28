@@ -237,11 +237,33 @@ end = struct
   type 'a t constraint 'a = [< `a of string | `b]
 end
 [%%expect {|
-module M :
-  sig
-    type 'a u = 'a constraint 'a = [< `a of string | `b ]
-    type 'a t constraint 'a = [< `a of string | `b ]
-  end
+Lines 4-7, characters 6-3:
+4 | ......struct
+5 |   type 'a u = [< `a of string | `b] as 'a
+6 |   type 'a t constraint 'a = [< `a of string | `b]
+7 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           type 'a u = 'a constraint 'a = [< `a of string | `b ]
+           type 'a t constraint 'a = [< `a of string | `b ]
+         end
+       is not included in
+         sig
+           type 'a u = 'a constraint 'a = [< `a of string | `b ]
+           type 'a t : value mod global with [< `a of string | `b ] u
+             constraint 'a = [< `a of string | `b ]
+         end
+       Type declarations do not match:
+         type 'a t constraint 'a = [< `a of string | `b ]
+       is not included in
+         type 'a t : value mod global with [< `a of string | `b ] u
+           constraint 'a = [< `a of string | `b ]
+       The kind of the first is value
+         because of the definition of t at line 6, characters 2-49.
+       But the kind of the first must be a subkind of value mod global
+         with [< `a of string | `b ] u
+         because of the definition of t at line 3, characters 2-40.
 |}]
 
 module M : sig
@@ -252,11 +274,33 @@ end = struct
   type 'a t constraint 'a = [< `a of (int -> int) | `b]
 end
 [%%expect {|
-module M :
-  sig
-    type 'a u = 'a constraint 'a = [< `a of int -> int | `b ]
-    type 'a t constraint 'a = [< `a of int -> int | `b ]
-  end
+Lines 4-7, characters 6-3:
+4 | ......struct
+5 |   type 'a u = [< `a of (int -> int) | `b] as 'a
+6 |   type 'a t constraint 'a = [< `a of (int -> int) | `b]
+7 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           type 'a u = 'a constraint 'a = [< `a of int -> int | `b ]
+           type 'a t constraint 'a = [< `a of int -> int | `b ]
+         end
+       is not included in
+         sig
+           type 'a u = 'a constraint 'a = [< `a of int -> int | `b ]
+           type 'a t : value mod portable with [< `a of int -> int | `b ] u
+             constraint 'a = [< `a of int -> int | `b ]
+         end
+       Type declarations do not match:
+         type 'a t constraint 'a = [< `a of int -> int | `b ]
+       is not included in
+         type 'a t : value mod portable with [< `a of int -> int | `b ] u
+           constraint 'a = [< `a of int -> int | `b ]
+       The kind of the first is value
+         because of the definition of t at line 6, characters 2-55.
+       But the kind of the first must be a subkind of value mod portable
+         with [< `a of int -> int | `b ] u
+         because of the definition of t at line 3, characters 2-42.
 |}]
 
 module M : sig
@@ -267,11 +311,33 @@ end = struct
   type 'a t constraint 'a = [> `a of string | `b]
 end
 [%%expect {|
-module M :
-  sig
-    type 'a u = 'a constraint 'a = [> `a of string | `b ]
-    type 'a t constraint 'a = [> `a of string | `b ]
-  end
+Lines 4-7, characters 6-3:
+4 | ......struct
+5 |   type 'a u = [> `a of string | `b] as 'a
+6 |   type 'a t constraint 'a = [> `a of string | `b]
+7 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           type 'a u = 'a constraint 'a = [> `a of string | `b ]
+           type 'a t constraint 'a = [> `a of string | `b ]
+         end
+       is not included in
+         sig
+           type 'a u = 'a constraint 'a = [> `a of string | `b ]
+           type 'a t : value mod portable with [> `a of string | `b ] u
+             constraint 'a = [> `a of string | `b ]
+         end
+       Type declarations do not match:
+         type 'a t constraint 'a = [> `a of string | `b ]
+       is not included in
+         type 'a t : value mod portable with [> `a of string | `b ] u
+           constraint 'a = [> `a of string | `b ]
+       The kind of the first is value
+         because of the definition of t at line 6, characters 2-49.
+       But the kind of the first must be a subkind of value mod portable
+         with [> `a of string | `b ] u
+         because of the definition of t at line 3, characters 2-42.
 |}]
 
 module M : sig
