@@ -46,12 +46,12 @@ type r = { mutable s : string @@ yielding; }
 
 type r = {mutable s : string @@ local yielding}
 [%%expect{|
-type r = { mutable s : string @@ local; }
+type r = { mutable s : string @@ local yielding; }
 |}]
 
 type r = {mutable s : string @@ yielding local}
 [%%expect{|
-type r = { mutable s : string @@ local; }
+type r = { mutable s : string @@ local yielding; }
 |}]
 
 type r = {mutable s : string @@ local unyielding}
