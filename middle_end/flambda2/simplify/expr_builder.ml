@@ -882,10 +882,10 @@ let rewrite_fixed_arity_continuation uacc cont ~use_id arity ~around =
     (* CR gbury: add a case to [Flambda.Invalid.t] for invalid extra args after
        unboxing ? *)
     uacc, RE.create_invalid (Message message)
-  | This_continuation cont -> around cont
+  | This_continuation cont -> around uacc cont
   | Apply_cont _ -> assert false
   | New_wrapper new_let_cont ->
-    let body, uacc = around new_let_cont.cont in
+    let body, uacc = around uacc new_let_cont.cont in
     bind_let_cont body uacc new_let_cont
 
 let rewrite_fixed_arity_apply uacc ~use_id arity apply =
@@ -905,7 +905,7 @@ let rewrite_fixed_arity_apply uacc ~use_id arity apply =
       Apply.print apply
   | Some use_id, Return cont ->
     rewrite_fixed_arity_continuation uacc cont ~use_id arity
-      ~around:(fun return_cont ->
+      ~around:(fun uacc return_cont ->
         let exn_cont =
           apply_exn_continuation_aliases (UA.uenv uacc)
             (Apply.exn_continuation apply)
