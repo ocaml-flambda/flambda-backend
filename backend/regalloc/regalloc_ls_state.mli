@@ -5,7 +5,11 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 
 type t
 
-val for_fatal : t -> Interval.t DLL.t * ClassIntervals.t Reg_class.Tbl.t
+val for_fatal :
+  t ->
+  Interval.t DLL.t * Interval.AscBeginList.t * ClassIntervals.t Reg_class.Tbl.t
+
+val check_consistency : t -> string -> unit
 
 val make : stack_slots:Regalloc_stack_slots.t -> t
 

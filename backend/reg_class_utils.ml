@@ -23,6 +23,8 @@ module type T = sig
 
   val hash : t -> int
 
+  val to_string : t -> string
+
   val print : Format.formatter -> t -> unit
 
   val of_machtype : Cmm.machtype_component -> t
