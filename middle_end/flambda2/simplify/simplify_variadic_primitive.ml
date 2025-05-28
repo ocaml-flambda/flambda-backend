@@ -84,8 +84,8 @@ let simplify_make_array (array_kind : P.Array_kind.t)
   let args, tys = List.split args_with_tys in
   let length =
     match Targetint_31_63.of_int_option (List.length args) with
-    | Some ti -> T.this_tagged_immediate ti
-    | None -> T.unknown K.value
+    | Some ti -> T.this_naked_immediate ti
+    | None -> T.unknown K.naked_immediate
   in
   let element_kinds = P.Array_kind.element_kinds array_kind in
   let element_kind =
