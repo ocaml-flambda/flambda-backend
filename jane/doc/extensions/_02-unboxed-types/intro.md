@@ -484,7 +484,7 @@ type t =
 The compiler will represent this type with a block where the fields are in the
 order `x`, `z`, `w`, `y`.
 
-The reordering is invisible to source-level ocaml programs that don't use unsafe
+The reordering is invisible to source-level OCaml programs that don't use unsafe
 features, but can be relevant when writing C bindings or OCaml code that depends
 on the runtime representation of values. It is stable in the sense that it never
 changes the relative order of two values, or of two non-values.  Immediates
