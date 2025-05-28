@@ -11,26 +11,6 @@ type t =
     stack_slots : Regalloc_stack_slots.t
   }
 
-let print_intervals ppf (t : t) : unit =
-  Format.fprintf ppf "interval_dll(%d):\n" (DLL.length t.interval_dll);
-  DLL.iter t.interval_dll ~f:(fun i ->
-      Format.fprintf ppf " %a\n" Interval.print i);
-  Format.fprintf ppf "interval_sl(%d):\n"
-    (Interval.AscBeginList.length t.interval_sl);
-  Interval.AscBeginList.iter t.interval_sl ~f:(fun i ->
-      Format.fprintf ppf " %a\n" Interval.print i);
-  Format.fprintf ppf "\n%!"
-
-let check_consistency t msg : unit =
-  Reg_class.Tbl.iter t.active ~f:(fun reg_class ci ->
-      ClassIntervals.check_consistency ci
-        (Printf.sprintf "%s (reg_glass=%s)" msg (Reg_class.to_string reg_class)));
-  let consistent = equal_dll_asc_sl t.interval_dll t.interval_sl in
-  if not consistent
-  then (
-    print_intervals Format.err_formatter t;
-    Misc.fatal_errorf "Regalloc_ls_state.check_consistency")
-
 let for_fatal t =
   ( Interval.AscBeginList.map t.interval_sl ~f:Interval.copy,
     Reg_class.Tbl.map t.active ~f:ClassIntervals.copy )
@@ -46,7 +26,6 @@ let[@inline] make ~stack_slots =
   { interval_sl; active; stack_slots }
 
 let[@inline] update_intervals state map =
-  check_consistency state "State.update_intervals/begin";
   let active : ClassIntervals.t Reg_class.Tbl.t = state.active in
   Reg_class.Tbl.iter active ~f:(fun _regclass intervals ->
       ClassIntervals.clear intervals);

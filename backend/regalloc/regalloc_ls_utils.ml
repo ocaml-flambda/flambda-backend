@@ -364,64 +364,6 @@ module ClassIntervals = struct
       aux t ~pos (Interval.DescEndList.hd_cell l)
   end
 
-  module SL = struct
-    let release_expired_fixed (l : Interval.DescEndList.t) ~pos =
-      let rec aux curr ~pos =
-        match curr with
-        | None -> ()
-        | Some cell ->
-          let value = Interval.DescEndList.value cell in
-          if value.Interval.end_ >= pos
-          then (
-            Interval.remove_expired value ~pos;
-            aux (Interval.DescEndList.next cell) ~pos)
-          else Interval.DescEndList.cut cell
-      in
-      aux (Interval.DescEndList.hd_cell l) ~pos
-
-    let release_expired_active (t : t) ~(pos : int) (l : Interval.DescEndList.t)
-        : unit =
-      let rec aux t ~pos curr : unit =
-        match curr with
-        | None -> ()
-        | Some cell ->
-          let value = Interval.DescEndList.value cell in
-          if value.Interval.end_ >= pos
-          then (
-            Interval.remove_expired value ~pos;
-            if Interval.is_live value ~pos
-            then aux t ~pos (Interval.DescEndList.next cell)
-            else (
-              Interval.DescEndList.insert t.inactive_sl value;
-              let next = Interval.DescEndList.next cell in
-              Interval.DescEndList.delete_curr cell;
-              aux t ~pos next))
-          else Interval.DescEndList.cut cell
-      in
-      aux t ~pos (Interval.DescEndList.hd_cell l)
-
-    let release_expired_inactive (t : t) ~(pos : int)
-        (l : Interval.DescEndList.t) : unit =
-      let rec aux t ~pos curr =
-        match curr with
-        | None -> ()
-        | Some cell ->
-          let value = Interval.DescEndList.value cell in
-          if value.Interval.end_ >= pos
-          then (
-            Interval.remove_expired value ~pos;
-            if not (Interval.is_live value ~pos)
-            then aux t ~pos (Interval.DescEndList.next cell)
-            else (
-              Interval.DescEndList.insert t.active_sl value;
-              let next = Interval.DescEndList.next cell in
-              Interval.DescEndList.delete_curr cell;
-              aux t ~pos next))
-          else Interval.DescEndList.cut cell
-      in
-      aux t ~pos (Interval.DescEndList.hd_cell l)
-  end
-
   let release_expired_intervals t ~pos =
     SL.release_expired_fixed t.fixed_sl ~pos;
     SL.release_expired_active t ~pos t.active_sl;

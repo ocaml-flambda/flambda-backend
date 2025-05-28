@@ -199,11 +199,7 @@ let allocate_blocked_register : State.t -> Interval.t -> spilling_reg =
       Interval.DescEndList.insert intervals.active_sl interval;
       allocate_stack_slot hd.reg)
     else allocate_stack_slot reg
-  | None ->
-    if Option.is_some (Interval.DescEndList.hd_cell intervals.active_sl)
-    then
-      fatal "Regalloc_ls.allocate_blocked_register: unexpected skip list head";
-    allocate_stack_slot reg
+  | None -> allocate_stack_slot reg
 
 let reg_reinit () =
   List.iter (Reg.all_relocatable_regs ()) ~f:(fun (reg : Reg.t) ->
@@ -224,9 +220,7 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
     log "main, round #%d" round;
     indent ());
   reg_reinit ();
-  State.check_consistency state "main/start";
   build_intervals state cfg_with_infos;
-  State.check_consistency state "main/after build_intervals";
   State.invariant_intervals state cfg_with_infos;
   if debug then snapshot_for_fatal := Some (State.for_fatal state);
   if debug
@@ -236,18 +230,14 @@ let rec main : round:int -> State.t -> Cfg_with_infos.t -> unit =
   let spilled =
     State.fold_intervals state ~init:Reg.Set.empty
       ~f:(fun acc (interval : Interval.t) ->
-        State.check_consistency state "main/before release";
         (* Equivalent to [walk_interval] in "backend/linscan.ml".*)
         let pos = interval.begin_ land lnot 1 in
         if debug
         then log_interval ~kind:(Printf.sprintf "<pos=%d>" pos) interval;
         State.release_expired_intervals state ~pos;
-        State.check_consistency state "main/after release";
         let spilled =
           match allocate_free_register state interval with
-          | spilled ->
-            State.check_consistency state "main/after allocate_free_register";
-            spilled
+          | spilled -> spilled
           | exception No_free_register ->
             allocate_blocked_register state interval
         in

@@ -108,8 +108,6 @@ module ClassIntervals : sig
   val clear : t -> unit
 
   val release_expired_intervals : t -> pos:int -> unit
-
-  val check_consistency : t -> string -> unit
 end
 
 val log_interval : kind:string -> Interval.t -> unit
