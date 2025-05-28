@@ -2344,7 +2344,7 @@ let rec estimate_type_jkind ~expand_component env ty =
        down a test case that cares. *)
     Jkind.round_up ~jkind_of_type |>
     Jkind.disallow_right
-  | Tof_kind jkind -> Jkind.disallow_right jkind
+  | Tof_kind jkind -> Jkind.mark_best jkind
   | Tpackage _ -> Jkind.for_non_float ~why:First_class_module
 
 and close_open_jkind ~expand_component ~is_open env jkind =
