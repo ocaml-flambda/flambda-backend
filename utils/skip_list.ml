@@ -131,7 +131,7 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
   let random_level : t -> int =
    fun t ->
     let level = ref 0 in
-    while !level < t.max_skip_level && (Random.float 1.0) <= t.skip_factor do
+    while !level < t.max_skip_level && Random.float 1.0 <= t.skip_factor do
       incr level
     done;
     assert (0 <= !level && !level <= t.max_skip_level);
@@ -220,8 +220,10 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
 
   let fold_left : t -> f:('a -> elem -> 'a) -> init:'a -> 'a =
     let rec aux (node : node option) f acc =
-      match node with None -> acc | Some node -> aux node.next.(0) f (f acc node.data)
-     in
+      match node with
+      | None -> acc
+      | Some node -> aux node.next.(0) f (f acc node.data)
+    in
     fun t ~f ~init -> aux t.head.(0) f init
 
   let map : t -> f:(elem -> elem) -> t =
@@ -339,4 +341,5 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
     for level = 0 to pred (Array.length t.head) do
       invariant_level ~prev:None ~node:(Array.unsafe_get t.head level) ~level
     done
-end[@@inline]
+end
+[@@inline]
