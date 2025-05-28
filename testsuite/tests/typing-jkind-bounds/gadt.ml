@@ -173,7 +173,7 @@ type 'x u : immediate =
 Lines 1-2, characters 0-27:
 1 | type 'x u : immediate =
 2 | | P1 : ('b, 'a1) t -> 'a1 u
-Error: The kind of type "u" is value
+Error: The kind of type "u" is value mod non_float
          because it's a boxed variant type.
        But the kind of type "u" must be a subkind of immediate
          because of the annotation on the declaration of the type u.
@@ -185,7 +185,7 @@ type 'a u : immutable_data =
 Lines 1-2, characters 0-25:
 1 | type 'a u : immutable_data =
 2 | | P1 : ('b, 'a) t -> 'a u
-Error: The kind of type "u" is value
+Error: The kind of type "u" is value mod non_float
          because it's a boxed variant type.
        But the kind of type "u" must be a subkind of immutable_data
          because of the annotation on the declaration of the type u.
@@ -205,7 +205,7 @@ type 'a t : immediate =
 Lines 1-2, characters 0-25:
 1 | type 'a t : immediate =
 2 |   | A : 'b -> 'b option t
-Error: The kind of type "t" is value
+Error: The kind of type "t" is value mod non_float
          because it's a boxed variant type.
        But the kind of type "t" must be a subkind of immediate
          because of the annotation on the declaration of the type t.
