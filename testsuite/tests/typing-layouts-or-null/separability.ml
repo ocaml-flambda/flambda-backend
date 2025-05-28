@@ -843,22 +843,12 @@ type b = #{ a : int; b: t_maybesep_val; c: float# }
 
 type ('b : value & value & float64 mod non_null non_float) fails = unit constraint 'b = b
 
-(* CR layouts v3.4: separability of 2+ element unboxed records should always be
-   non-float.
-
-   Also, this error is horrible. *)
-
 [%%expect{|
 type b = #{ a : int; b : t_maybesep_val; c : float#; }
 type 'a fails = unit constraint 'a = b
 |}]
 
 type c = #( float * float or_null * float# )
-
-(* CR layouts v3.4: separability of unboxed tuples should always be
-   non-float.
-
-   Also, this error is horrible. *)
 
 type ('c : value & value & float64 mod non_null non_float) fails = unit constraint 'c = c
 
