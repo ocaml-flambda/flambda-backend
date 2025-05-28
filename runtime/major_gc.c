@@ -1136,9 +1136,13 @@ value volatile_load_uninstrumented(volatile value* p) {
 }
 
 Caml_noinline static intnat do_some_marking(struct mark_stack* stk,
-                                            intnat budget) {
-  prefetch_buffer_t pb = { .enqueued = 0, .dequeued = 0,
-                           .waterline = PREFETCH_BUFFER_MIN };
+                                            intnat budget)
+{
+  prefetch_buffer_t pb;
+  /* Not a struct initializer, which would force clearing the .buffer */
+  pb.enqueued = 0;
+  pb.dequeued = 0;
+  pb.waterline = PREFETCH_BUFFER_MIN;
   mark_entry me;
   /* These global values are cached in locals,
      so that they can be stored in registers */
