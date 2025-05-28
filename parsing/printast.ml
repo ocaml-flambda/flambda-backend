@@ -105,6 +105,12 @@ let fmt_private_flag f x =
   | Public -> fprintf f "Public"
   | Private -> fprintf f "Private"
 
+let fmt_index_kind f = function
+  | Index_int -> fprintf f "Index_int"
+  | Index_unboxed_int64 -> fprintf f "Index_unboxed_int64"
+  | Index_unboxed_int32 -> fprintf f "Index_unboxed_int32"
+  | Index_unboxed_nativeint -> fprintf f "Index_unboxed_nativeint"
+
 let line i f s (*...*) =
   fprintf f "%s" (String.make ((2*i) mod 72) ' ');
   fprintf f s (*...*)
@@ -367,6 +373,10 @@ and expression i ppf x =
   | Pexp_array (mut, l) ->
       line i ppf "Pexp_array %a\n" fmt_mutable_flag mut;
       list i expression ppf l;
+  | Pexp_idx (ba, uas) ->
+      line i ppf "Pexp_idx\n";
+      block_access i ppf ba;
+      List.iter (unboxed_access i ppf) uas;
   | Pexp_ifthenelse (e1, e2, eo) ->
       line i ppf "Pexp_ifthenelse\n";
       expression i ppf e1;
@@ -460,6 +470,22 @@ and expression i ppf x =
       expression i ppf e2;
   | Pexp_hole ->
     line i ppf "Pexp_hole"
+
+and block_access i ppf = function
+  | Baccess_field lid ->
+      line i ppf "Baccess_field %a\n" fmt_longident_loc lid
+  | Baccess_array (mut, index_kind, index) ->
+      line i ppf "Baccess_array %a %a\n"
+        fmt_mutable_flag mut fmt_index_kind index_kind;
+      expression i ppf index
+  | Baccess_block (mut, idx) ->
+      line i ppf "Baccess_block %a\n"
+        fmt_mutable_flag mut;
+      expression i ppf idx
+
+and unboxed_access i ppf = function
+  | Uaccess_unboxed_field lid ->
+      line i ppf "Uaccess_unboxed_field %a\n" fmt_longident_loc lid
 
 and comprehension_expression i ppf = function
   | Pcomp_array_comprehension (m, c) ->
