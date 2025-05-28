@@ -993,6 +993,13 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
             shape get_tag_side
         | Unknown -> keep_side get_tag_side
   in
+  let untag_immediate ~untag_ty ~immediates ~untag_side =
+    if I.Set.is_empty immediates
+    then bottom_other_side untag_side
+    else
+      meet_with_shape ~rebuild:TG.Head_of_kind_naked_immediate.create_untag
+        untag_ty MTC.any_tagged_immediate untag_side
+  in
   match t1, t2 with
   | Naked_immediates is1, Naked_immediates is2 ->
     map_result
@@ -1010,7 +1017,15 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     is_null_immediate ~is_null_ty ~immediates ~is_null_side:Left
   | Naked_immediates immediates, Is_null is_null_ty ->
     is_null_immediate ~is_null_ty ~immediates ~is_null_side:Right
-  | (Is_int _ | Get_tag _ | Is_null _), (Is_int _ | Get_tag _ | Is_null _) ->
+  | Untag untag_ty, Naked_immediates immediates ->
+    untag_immediate ~untag_ty ~immediates ~untag_side:Left
+  | Naked_immediates immediates, Untag untag_ty ->
+    untag_immediate ~untag_ty ~immediates ~untag_side:Right
+  | Untag lhs, Untag rhs ->
+    map_result (meet env lhs rhs)
+      ~f:TG.Head_of_kind_naked_immediate.create_untag
+  | ( (Is_int _ | Get_tag _ | Is_null _ | Untag _),
+      (Is_int _ | Get_tag _ | Is_null _ | Untag _) ) ->
     (* CR mshinwell: introduce improved handling for
      *   Is_int meet Is_int
      *   Get_tag meet Get_tag
@@ -1862,6 +1877,13 @@ and join_head_of_kind_naked_immediate env
     | Ok head -> Known head
     | Bottom ->
       Misc.fatal_error "Did not expect [Bottom] from [create_naked_immediates]")
+  | Naked_immediates immediates, other when I.Set.is_empty immediates ->
+    Known other
+  | other, Naked_immediates immediates when I.Set.is_empty immediates ->
+    Known other
+  | Untag ty1, Untag ty2 ->
+    let>+ ty = join env ty1 ty2 in
+    TG.Head_of_kind_naked_immediate.create_untag ty
   | Is_int ty1, Is_int ty2 ->
     let>+ ty = join env ty1 ty2 in
     TG.Head_of_kind_naked_immediate.create_is_int ty
@@ -1890,26 +1912,21 @@ and join_head_of_kind_naked_immediate env
       | Bottom ->
         Misc.fatal_error
           "Did not expect [Bottom] from [create_naked_immediates]")
-  | Get_tag ty, Naked_immediates tags | Naked_immediates tags, Get_tag ty ->
-    if I.Set.is_empty tags
-    then Known (TG.Head_of_kind_naked_immediate.create_get_tag ty)
-    else Unknown
-  | Is_null ty, Naked_immediates is_null | Naked_immediates is_null, Is_null ty
+  | Is_null _, Naked_immediates is_null | Naked_immediates is_null, Is_null _
     -> (
-    if I.Set.is_empty is_null
-    then Known (TG.Head_of_kind_naked_immediate.create_is_null ty)
-    else
-      (* Slightly better than Unknown *)
-      let head =
-        TG.Head_of_kind_naked_immediate.create_naked_immediates
-          (I.Set.add I.zero (I.Set.add I.one is_null))
-      in
-      match head with
-      | Ok head -> Known head
-      | Bottom ->
-        Misc.fatal_error
-          "Did not expect [Bottom] from [create_naked_immediates]")
-  | (Is_int _ | Get_tag _ | Is_null _), (Is_int _ | Get_tag _ | Is_null _) ->
+    (* Slightly better than Unknown *)
+    let head =
+      TG.Head_of_kind_naked_immediate.create_naked_immediates
+        (I.Set.add I.zero (I.Set.add I.one is_null))
+    in
+    match head with
+    | Ok head -> Known head
+    | Bottom ->
+      Misc.fatal_error "Did not expect [Bottom] from [create_naked_immediates]")
+  | Naked_immediates _, (Get_tag _ | Untag _)
+  | (Get_tag _ | Untag _), Naked_immediates _
+  | ( (Is_int _ | Get_tag _ | Is_null _ | Untag _),
+      (Is_int _ | Get_tag _ | Is_null _ | Untag _) ) ->
     Unknown
 
 and join_head_of_kind_naked_float32 _env t1 t2 : _ Or_unknown.t =

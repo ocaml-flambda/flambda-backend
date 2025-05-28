@@ -430,6 +430,7 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
       | Known_result false -> Simple Simple.untagged_const_false
       | Need_meet -> try_canonical_simple ()
       | Invalid -> Invalid)
+    | Naked_immediate (Ok (Untag _)) -> try_canonical_simple ()
     | Naked_float32 (Ok fs) -> (
       match Float32.Set.get_singleton (fs :> Float32.Set.t) with
       | None -> try_canonical_simple ()

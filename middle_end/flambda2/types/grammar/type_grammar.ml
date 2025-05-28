@@ -116,12 +116,13 @@ and head_of_kind_value_non_null =
    minimal extensions, carrying a shape, or we could pre-compute the full meet
    for each case and store precise extensions; the first version would be faster
    if we don't actually use the extensions, while the second version would be
-   particularly useful if we switch several times on the same scrutinee. *)
+   particularly useful if we switch several times on the same scrutinee.) *)
 and head_of_kind_naked_immediate =
   | Naked_immediates of Targetint_31_63.Set.t
   | Is_int of t
   | Get_tag of t
   | Is_null of t
+  | Untag of t
 
 and head_of_kind_naked_float32 = Float32.Set.t
 
@@ -327,7 +328,8 @@ and free_names_head_of_kind_value_non_null ~follow_value_slots head =
 and free_names_head_of_kind_naked_immediate0 ~follow_value_slots head =
   match head with
   | Naked_immediates _ -> Name_occurrences.empty
-  | Is_int ty | Get_tag ty | Is_null ty -> free_names0 ~follow_value_slots ty
+  | Is_int ty | Get_tag ty | Is_null ty | Untag ty ->
+    free_names0 ~follow_value_slots ty
 
 and free_names_head_of_kind_naked_float32 _ = Name_occurrences.empty
 
@@ -678,6 +680,9 @@ and apply_renaming_head_of_kind_naked_immediate head renaming =
   | Is_null ty ->
     let ty' = apply_renaming ty renaming in
     if ty == ty' then head else Is_null ty'
+  | Untag ty ->
+    let ty' = apply_renaming ty renaming in
+    if ty == ty' then head else Untag ty'
 
 and apply_renaming_head_of_kind_naked_float32 head _ = head
 
@@ -961,6 +966,7 @@ and print_head_of_kind_naked_immediate ppf head =
   | Is_int ty -> Format.fprintf ppf "@[<hov 1>(Is_int@ %a)@]" print ty
   | Get_tag ty -> Format.fprintf ppf "@[<hov 1>(Get_tag@ %a)@]" print ty
   | Is_null ty -> Format.fprintf ppf "@[<hov 1>(Is_null@ %a)@]" print ty
+  | Untag ty -> Format.fprintf ppf "@[<hov 1>(Untag@ %a)@]" print ty
 
 and print_head_of_kind_naked_float32 ppf head =
   Format.fprintf ppf "@[(Naked_float32@ (%a))@]" Float32.Set.print head
@@ -1193,7 +1199,7 @@ and ids_for_export_head_of_kind_value_non_null head =
 and ids_for_export_head_of_kind_naked_immediate head =
   match head with
   | Naked_immediates _ -> Ids_for_export.empty
-  | Is_int t | Get_tag t | Is_null t -> ids_for_export t
+  | Is_int t | Get_tag t | Is_null t | Untag t -> ids_for_export t
 
 and ids_for_export_head_of_kind_naked_float32 _ = Ids_for_export.empty
 
@@ -1911,6 +1917,12 @@ and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_immediate
         ~canonicalise
     in
     if ty == ty' then head else Is_null ty'
+  | Untag ty ->
+    let ty' =
+      remove_unused_value_slots_and_shortcut_aliases ty ~used_value_slots
+        ~canonicalise
+    in
+    if ty == ty' then head else Untag ty'
 
 and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_float32
     head ~used_value_slots:_ ~canonicalise:_ =
@@ -2467,6 +2479,9 @@ and project_head_of_kind_naked_immediate ~to_project ~expand head =
   | Is_null ty ->
     let ty' = project_variables_out ~to_project ~expand ty in
     if ty == ty' then head else Is_null ty'
+  | Untag ty ->
+    let ty' = project_variables_out ~to_project ~expand ty in
+    if ty == ty' then head else Untag ty'
 
 and project_head_of_kind_naked_float32 ~to_project:_ ~expand:_ head = head
 
@@ -3344,7 +3359,10 @@ let untag_immediate t =
     match TD.descr ty with
     | Unknown -> unknown
     | Bottom -> bottom
-    | Ok (No_alias { non_null; is_null = Not_null | Maybe_null }) -> (
+    | Ok (No_alias { is_null = Maybe_null; _ }) ->
+      Misc.fatal_errorf "Type_grammer.untag_immediate: value may be null: %a"
+        print t
+    | Ok (No_alias { non_null; is_null = Not_null }) -> (
       match non_null with
       | Unknown -> unknown
       | Bottom -> bottom
@@ -3372,8 +3390,7 @@ let untag_immediate t =
     | Ok (Equals simple) -> (
       match Simple.must_be_const simple with
       | None ->
-        (* CR jvanburen: maybe add an untagged constructor for this? *)
-        unknown
+        Naked_immediate (TD.create (Untag (alias_type_of K.value simple)))
       | Some const -> (
         match RWC.is_tagged_immediate const with
         | Some const -> this_naked_immediate const
@@ -3385,6 +3402,9 @@ let untag_immediate t =
 
 let is_int_for_scrutinee ~scrutinee : t =
   Naked_immediate (TD.create (Is_int (alias_type_of K.value scrutinee)))
+
+let untag_immediate_for_scrutinee ~scrutinee : t =
+  Naked_immediate (TD.create (Untag (alias_type_of K.value scrutinee)))
 
 let get_tag_for_block ~block : t =
   Naked_immediate (TD.create (Get_tag (alias_type_of K.value block)))
@@ -3623,6 +3643,8 @@ module Head_of_kind_naked_immediate = struct
         "Head_of_kind_naked_immediates.create_naked_immediates_non_empty";
     Naked_immediates imms
 
+  let create_untag ty = Untag ty
+
   let create_is_int ty = Is_int ty
 
   let create_get_tag ty = Get_tag ty
@@ -3710,7 +3732,8 @@ let rec must_be_singleton t : RWC.t option =
                   Reg_width_const.print const)))))
   | Naked_immediate ty -> (
     match TD.descr ty with
-    | Unknown | Bottom | Ok (No_alias (Is_int _ | Get_tag _ | Is_null _)) ->
+    | Unknown | Bottom
+    | Ok (No_alias (Is_int _ | Get_tag _ | Is_null _ | Untag _)) ->
       None
     | Ok (Equals simple) -> Simple.must_be_const simple
     | Ok (No_alias (Naked_immediates is)) -> (
