@@ -84,47 +84,50 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
 
   let next : cell -> cell option =
    fun cell ->
-    match cell.node.next.(0) with
+    match Array.unsafe_get cell.node.next 0 with
     | None -> None
     | Some node -> Some { cell with node }
 
   let cut : cell -> unit =
    fun cell ->
-    match cell.node.prev.(0) with
+    match Array.unsafe_get cell.node.prev 0 with
     | None ->
       for level = 0 to pred (Array.length cell.t.head) do
-        cell.t.head.(level) <- None
+        Array.unsafe_set cell.t.head level None
       done
     | Some node ->
       let curr_node : node ref = ref node in
       let curr_pillar : pillar ref = ref node.next in
       for level = 0 to cell.t.max_skip_level do
         while level >= Array.length !curr_pillar do
-          match !curr_node.prev.(0) with
+          match Array.unsafe_get !curr_node.prev 0 with
           | None -> curr_pillar := cell.t.head
           | Some prev_node ->
             curr_node := prev_node;
             curr_pillar := prev_node.next
         done;
-        !curr_pillar.(level) <- None
+        Array.unsafe_set !curr_pillar level None
       done
 
   let delete_curr : cell -> unit =
    fun cell ->
     let node = cell.node in
     for level = 0 to pred (Array.length node.prev) do
-      match node.prev.(level) with
-      | None -> cell.t.head.(level) <- node.next.(level)
-      | Some prev -> prev.next.(level) <- node.next.(level)
+      match Array.unsafe_get node.prev level with
+      | None ->
+        Array.unsafe_set cell.t.head level (Array.unsafe_get node.next level)
+      | Some prev ->
+        Array.unsafe_set prev.next level (Array.unsafe_get node.next level)
     done;
     let level = ref 0 in
     while
-      !level < Array.length node.next && Option.is_some node.next.(!level)
+      !level < Array.length node.next
+      && Option.is_some (Array.unsafe_get node.next !level)
     do
-      match node.next.(!level) with
+      match Array.unsafe_get node.next !level with
       | None -> assert false
       | Some next ->
-        next.prev.(!level) <- node.prev.(!level);
+        Array.unsafe_set next.prev !level (Array.unsafe_get node.prev !level);
         incr level
     done
 
@@ -147,9 +150,11 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
 
   let length : t -> int =
     let rec aux (node : node option) acc =
-      match node with None -> acc | Some node -> aux node.next.(0) (succ acc)
+      match node with
+      | None -> acc
+      | Some node -> aux (Array.unsafe_get node.next 0) (succ acc)
     in
-    fun t -> aux t.head.(0) 0
+    fun t -> aux (Array.unsafe_get t.head 0) 0
 
   let clear : t -> unit =
    fun t ->
@@ -158,19 +163,26 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
     done
 
   let hd_cell : t -> cell option =
-   fun t -> match t.head.(0) with None -> None | Some node -> Some { node; t }
+   fun t ->
+    match Array.unsafe_get t.head 0 with
+    | None -> None
+    | Some node -> Some { node; t }
 
   let should_advance (i : int) (node : node option array) (value : elem) : bool
       =
-    match node.(i) with
+    match Array.unsafe_get node i with
     | None -> false
     | Some (node : node) -> OT.compare node.data value < 0
 
   let advance' (i : int) (node : node option array) : node option =
-    match node.(i) with None -> assert false | Some _node as res -> res
+    match Array.unsafe_get node i with
+    | None -> assert false
+    | Some _node as res -> res
 
   let advance (i : int) (node : node option array) : node option array =
-    match node.(i) with None -> assert false | Some node -> node.next
+    match Array.unsafe_get node i with
+    | None -> assert false
+    | Some node -> node.next
 
   let insert : t -> elem -> unit =
    fun t elem ->
@@ -189,8 +201,8 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
         prev := advance' i !curr;
         curr := advance i !curr
       done;
-      update.(i) <- !curr;
-      prev_nodes.(i) <- !prev
+      Array.unsafe_set update i !curr;
+      Array.unsafe_set prev_nodes i !prev
     done;
     let level = random_level t in
     let node =
@@ -203,7 +215,7 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
     for i = 0 to level do
       (match update.(i).(i) with
       | None -> ()
-      | Some n -> n.prev.(i) <- Some node);
+      | Some n -> Array.unsafe_set n.prev i (Some node));
       update.(i).(i) <- Some node
     done;
     ()
@@ -214,17 +226,17 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
       | None -> ()
       | Some node ->
         f node.data;
-        aux node.next.(0) f
+        aux (Array.unsafe_get node.next 0) f
     in
-    fun t ~f -> aux t.head.(0) f
+    fun t ~f -> aux (Array.unsafe_get t.head 0) f
 
   let fold_left : t -> f:('a -> elem -> 'a) -> init:'a -> 'a =
     let rec aux (node : node option) f acc =
       match node with
       | None -> acc
-      | Some node -> aux node.next.(0) f (f acc node.data)
+      | Some node -> aux (Array.unsafe_get node.next 0) f (f acc node.data)
     in
-    fun t ~f ~init -> aux t.head.(0) f init
+    fun t ~f ~init -> aux (Array.unsafe_get t.head 0) f init
 
   let map : t -> f:(elem -> elem) -> t =
    fun t ~f ->
@@ -240,18 +252,18 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
     let rec aux (node : node option) f =
       match node with
       | None -> false
-      | Some node -> f node.data || aux node.next.(0) f
+      | Some node -> f node.data || aux (Array.unsafe_get node.next 0) f
     in
-    fun t ~f -> aux t.head.(0) f
+    fun t ~f -> aux (Array.unsafe_get t.head 0) f
 
   let to_list : t -> elem list =
    fun t ->
     (* CR xclerc for xclerc: avoid the `List.rev`. *)
     let res = ref [] in
-    let curr = ref t.head.(0) in
+    let curr = ref (Array.unsafe_get t.head 0) in
     while !curr <> None do
       res := (Option.get !curr).data :: !res;
-      curr := (Option.get !curr).next.(0)
+      curr := Array.unsafe_get (Option.get !curr).next 0
     done;
     List.rev !res
 
@@ -264,13 +276,15 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
     | None -> Printf.printf "/// length=%d\n%!" acc_length
     | Some node ->
       Printf.printf "%s " (f node.data);
-      print_aux node.next.(level) f ~level ~acc_length:(succ acc_length)
+      print_aux
+        (Array.unsafe_get node.next level)
+        f ~level ~acc_length:(succ acc_length)
 
   let print_for_debug : t -> f:(elem -> string) -> unit =
    fun t ~f ->
     for level = Array.length t.head - 1 downto 0 do
       Printf.printf "[level %d] -> " level;
-      print_aux t.head.(level) f ~level ~acc_length:0
+      print_aux (Array.unsafe_get t.head level) f ~level ~acc_length:0
     done
 
   let invariant_pillar_height : string -> int -> pillar -> unit =
@@ -290,7 +304,7 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
     then ()
     else
       let some_part =
-        match pillar.(level) with
+        match Array.unsafe_get pillar level with
         | None -> false
         | Some _ ->
           if not some_part
