@@ -56,22 +56,14 @@ type t2 : any_non_null
 type t3 = #(t1 * t2)
 |}]
 
-(* Should not be allowed. *)
+(* Should be allowed -- any 2+ element product is non-null. *)
 type t1 : any
 type t2 : any mod non_null separable
 type t3 : any mod non_null separable = #(t1 * t2);;
 [%%expect{|
 type t1 : any
 type t2 : any_non_null
-Line 3, characters 0-49:
-3 | type t3 : any mod non_null separable = #(t1 * t2);;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "#(t1 * t2)" is
-         any_non_null mod everything mod non_float with t1 with t2
-         & any_non_null mod everything mod non_float with t1 with t2
-         because it is an unboxed tuple.
-       But the kind of type "#(t1 * t2)" must be a subkind of any_non_null
-         because of the definition of t3 at line 3, characters 0-49.
+type t3 = #(t1 * t2)
 |}]
 
 type t1 : any
@@ -80,16 +72,7 @@ type t3 : any & any mod non_null separable = #(t1 * t2);;
 [%%expect{|
 type t1 : any
 type t2 : any_non_null
-Line 3, characters 0-55:
-3 | type t3 : any & any mod non_null separable = #(t1 * t2);;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "#(t1 * t2)" is
-         any_non_null mod everything mod non_float with t1 with t2
-         & any_non_null mod everything mod non_float with t1 with t2
-         because it is an unboxed tuple.
-       But the kind of type "#(t1 * t2)" must be a subkind of
-         any_non_null & any_non_null
-         because of the definition of t3 at line 3, characters 0-55.
+type t3 = #(t1 * t2)
 |}]
 
 type t1 : any
@@ -98,14 +81,5 @@ type t3 : (any mod non_null separable) & (any mod non_null separable) = #(t1 * t
 [%%expect{|
 type t1 : any
 type t2 : any_non_null
-Line 3, characters 0-82:
-3 | type t3 : (any mod non_null separable) & (any mod non_null separable) = #(t1 * t2);;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "#(t1 * t2)" is
-         any_non_null mod everything mod non_float with t1 with t2
-         & any_non_null mod everything mod non_float with t1 with t2
-         because it is an unboxed tuple.
-       But the kind of type "#(t1 * t2)" must be a subkind of
-         any_non_null & any_non_null
-         because of the definition of t3 at line 3, characters 0-82.
+type t3 = #(t1 * t2)
 |}]
