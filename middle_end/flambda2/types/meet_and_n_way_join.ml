@@ -1069,6 +1069,13 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
             shape get_tag_side
         | Unknown -> keep_side get_tag_side
   in
+  let untag_immediate ~untag_ty ~immediates ~untag_side =
+    if I.Set.is_empty immediates
+    then bottom_other_side untag_side
+    else
+      meet_with_shape ~rebuild:TG.Head_of_kind_naked_immediate.create_untag
+        untag_ty MTC.any_tagged_immediate untag_side
+  in
   match t1, t2 with
   | Naked_immediates is1, Naked_immediates is2 ->
     map_result
@@ -1086,7 +1093,12 @@ and meet_head_of_kind_naked_immediate env (t1 : TG.head_of_kind_naked_immediate)
     is_null_immediate ~is_null_ty ~immediates ~is_null_side:Left
   | Naked_immediates immediates, Is_null is_null_ty ->
     is_null_immediate ~is_null_ty ~immediates ~is_null_side:Right
-  | (Is_int _ | Get_tag _ | Is_null _), (Is_int _ | Get_tag _ | Is_null _) ->
+  | Untag untag_ty, Naked_immediates immediates ->
+    untag_immediate ~untag_ty ~immediates ~untag_side:Left
+  | Naked_immediates immediates, Untag untag_ty ->
+    untag_immediate ~untag_ty ~immediates ~untag_side:Right
+  | ( (Is_int _ | Get_tag _ | Is_null _ | Untag _),
+      (Is_int _ | Get_tag _ | Is_null _ | Untag _) ) ->
     (* CR mshinwell: introduce improved handling for
      *   Is_int meet Is_int
      *   Get_tag meet Get_tag
@@ -2162,19 +2174,21 @@ and n_way_join_head_of_kind_naked_immediate env
     (heads : TG.Head_of_kind_naked_immediate.t Join_env.join_arg list) :
     TG.Head_of_kind_naked_immediate.t n_way_join_result =
   let module I = Targetint_31_63 in
-  let immediates, is_int, get_tag, is_null =
+  let immediates, is_int, get_tag, is_null, untag =
     List.fold_left
-      (fun (immediates, is_int, get_tag, is_null) (id2, head2) ->
+      (fun (immediates, is_int, get_tag, is_null, untag) (id2, head2) ->
         match (head2 : TG.head_of_kind_naked_immediate) with
-        | Is_int ty -> immediates, (id2, ty) :: is_int, get_tag, is_null
-        | Get_tag ty -> immediates, is_int, (id2, ty) :: get_tag, is_null
-        | Is_null ty -> immediates, is_int, get_tag, (id2, ty) :: is_null
+        | Is_int ty -> immediates, (id2, ty) :: is_int, get_tag, is_null, untag
+        | Get_tag ty -> immediates, is_int, (id2, ty) :: get_tag, is_null, untag
+        | Is_null ty -> immediates, is_int, get_tag, (id2, ty) :: is_null, untag
+        | Untag ty -> immediates, is_int, get_tag, is_null, (id2, ty) :: untag
         | Naked_immediates is ->
-          I.Set.union is immediates, is_int, get_tag, is_null)
-      (I.Set.empty, [], [], []) heads
+          I.Set.union is immediates, is_int, get_tag, is_null, untag)
+      (I.Set.empty, [], [], [], [])
+      heads
   in
-  match is_int, get_tag, is_null with
-  | [], [], [] -> (
+  match is_int, get_tag, is_null, untag with
+  | [], [], [], [] -> (
     let head =
       TG.Head_of_kind_naked_immediate.create_naked_immediates immediates
     in
@@ -2182,22 +2196,25 @@ and n_way_join_head_of_kind_naked_immediate env
     | Ok head -> Known head, env
     | Bottom ->
       Misc.fatal_error "Did not expect [Bottom] from [create_naked_immediates]")
-  | _ :: _, [], [] when I.Set.is_empty immediates ->
+  | _ :: _, [], [], [] when I.Set.is_empty immediates ->
     let>>+ ty = n_way_join env is_int in
     TG.Head_of_kind_naked_immediate.create_is_int ty
-  | [], _ :: _, [] when I.Set.is_empty immediates ->
+  | [], _ :: _, [], [] when I.Set.is_empty immediates ->
     let>>+ ty = n_way_join env get_tag in
     TG.Head_of_kind_naked_immediate.create_get_tag ty
-  | [], [], _ :: _ when I.Set.is_empty immediates ->
+  | [], [], _ :: _, [] when I.Set.is_empty immediates ->
     let>>+ ty = n_way_join env is_null in
     TG.Head_of_kind_naked_immediate.create_is_null ty
+  | [], [], [], _ :: _ when I.Set.is_empty immediates ->
+    let>>+ ty = n_way_join env untag in
+    TG.Head_of_kind_naked_immediate.create_untag ty
   (* From now on: Irregular cases *)
   (* CR vlaviron: There could be improvements based on reduction (trying to
      reduce the is_int and get_tag cases to naked_immediate sets, then joining
      those) but this looks unlikely to be useful and could end up begin quite
      expensive. *)
-  | _, _ :: _, _ -> Unknown, env
-  | _ :: _, [], _ | _, [], _ :: _ -> (
+  | _, _ :: _, _, _ | _, _, _, _ :: _ -> Unknown, env
+  | _ :: _, [], _, [] | _, [], _ :: _, [] -> (
     (* Slightly better than Unknown *)
     let head =
       TG.Head_of_kind_naked_immediate.create_naked_immediates

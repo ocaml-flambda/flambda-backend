@@ -224,7 +224,8 @@ let prove_is_null_generic env t : _ generic_proof =
 
 let meet_is_null env t = as_meet_shortcut (prove_is_null_generic env t)
 
-let prove_naked_immediates_generic env t : Targetint_31_63.Set.t generic_proof =
+let rec prove_naked_immediates_generic env t :
+    Targetint_31_63.Set.t generic_proof =
   match expand_head env t with
   | Naked_immediate (Ok (Naked_immediates is)) ->
     if Targetint_31_63.Set.is_empty is then Invalid else Proved is
@@ -236,6 +237,8 @@ let prove_naked_immediates_generic env t : Targetint_31_63.Set.t generic_proof =
       Proved (Targetint_31_63.Set.singleton Targetint_31_63.bool_false)
     | Unknown -> Unknown
     | Invalid -> Invalid)
+  | Naked_immediate (Ok (Untag tagged_ty)) ->
+    gen_value_to_gen prove_equals_tagged_immediates_value env tagged_ty
   | Naked_immediate (Ok (Is_null scrutinee_ty)) -> (
     match prove_is_null_generic env scrutinee_ty with
     | Proved true ->
@@ -262,14 +265,12 @@ let prove_naked_immediates_generic env t : Targetint_31_63.Set.t generic_proof =
   | Naked_nativeint _ | Naked_vec128 _ | Rec_info _ | Region _ ->
     wrong_kind "Naked_immediate" t (Invalid : _ generic_proof)
 
-let meet_naked_immediates env t =
-  as_meet_shortcut (prove_naked_immediates_generic env t)
-
 (* Note: for the equals_tagged_immediates functions, we write two different
    functions because the semantics are different, but both return generic proofs
    to leverage the wrappers for other kinds and or_null cases *)
-let prove_equals_tagged_immediates_value env
-    (value_head : TG.head_of_kind_value_non_null) : _ generic_proof =
+and prove_equals_tagged_immediates_value env
+    (value_head : TG.head_of_kind_value_non_null) :
+    Targetint_31_63.Set.t generic_proof =
   match value_head with
   | Variant { immediates; blocks; extensions = _; is_unique = _ } -> (
     match blocks with
@@ -289,6 +290,9 @@ let prove_equals_tagged_immediates_value env
   | Boxed_int64 _ | Boxed_vec128 _ | Boxed_nativeint _ | Closures _ | String _
   | Array _ ->
     Unknown
+
+let meet_naked_immediates env t =
+  as_meet_shortcut (prove_naked_immediates_generic env t)
 
 let prove_equals_tagged_immediates env t =
   gen_value_to_proof prove_equals_tagged_immediates_value env t

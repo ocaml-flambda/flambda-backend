@@ -83,6 +83,8 @@ module Typing_env_extension : sig
 
   val add_get_tag_relation : t -> Name.t -> scrutinee:Simple.t -> t
 
+  val add_untag_relation : t -> Name.t -> scrutinee:Simple.t -> t
+
   val disjoint_union : t -> t -> t
 
   module With_extra_variables : sig

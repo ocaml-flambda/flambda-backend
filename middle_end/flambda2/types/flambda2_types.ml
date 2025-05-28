@@ -56,6 +56,10 @@ module Typing_env_extension = struct
   let add_get_tag_relation t name ~scrutinee =
     add_or_replace_equation t name
       (Type_grammar.get_tag_for_block ~block:scrutinee)
+
+  let add_untag_relation t name ~scrutinee =
+    add_or_replace_equation t name
+      (Type_grammar.untag_immediate_for_scrutinee ~scrutinee)
 end
 
 type typing_env = Typing_env.t

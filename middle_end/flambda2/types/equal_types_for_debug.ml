@@ -297,7 +297,9 @@ let equal_head_of_kind_naked_immediate ~equal_type env
   | Is_int t1, Is_int t2 -> equal_type env t1 t2
   | Get_tag t1, Get_tag t2 -> equal_type env t1 t2
   | Is_null t1, Is_null t2 -> equal_type env t1 t2
-  | (Naked_immediates _ | Is_int _ | Get_tag _ | Is_null _), _ -> false
+  | Untag t1, Untag t2 -> equal_type env t1 t2
+  | (Naked_immediates _ | Is_int _ | Get_tag _ | Is_null _ | Untag _), _ ->
+    false
 
 let equal_head_of_kind_naked_float32 (t1 : TG.head_of_kind_naked_float32)
     (t2 : TG.head_of_kind_naked_float32) =

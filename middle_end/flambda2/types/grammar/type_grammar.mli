@@ -83,6 +83,7 @@ and head_of_kind_naked_immediate = private
   | Is_int of t  (** For variants only *)
   | Get_tag of t  (** For variants only *)
   | Is_null of t
+  | Untag of t  (** For tagged immediates only *)
 
 (** Invariant: the float/integer sets for naked float, int32, int64 and
     nativeint heads are non-empty. (Empty sets are represented as an overall
@@ -319,6 +320,8 @@ val tag_immediate : t -> t
 
 (** This function checks the kind of its argument. *)
 val untag_immediate : t -> t
+
+val untag_immediate_for_scrutinee : scrutinee:Simple.t -> t
 
 val is_int_for_scrutinee : scrutinee:Simple.t -> t
 
@@ -757,6 +760,8 @@ module Head_of_kind_naked_immediate : sig
   val create_naked_immediates : Targetint_31_63.Set.t -> t Or_bottom.t
 
   val create_naked_immediates_non_empty : Targetint_31_63.Set.t -> t
+
+  val create_untag : flambda_type -> t
 
   val create_is_int : flambda_type -> t
 
