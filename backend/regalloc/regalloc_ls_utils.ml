@@ -269,11 +269,8 @@ let equal_dll_desc_sl dll sl =
 
 module ClassIntervals = struct
   type t =
-    { fixed_dll : Interval.t DLL.t;
-      fixed_sl : Interval.DescEndList.t;
-      active_dll : Interval.t DLL.t;
+    { fixed_sl : Interval.DescEndList.t;
       active_sl : Interval.DescEndList.t;
-      inactive_dll : Interval.t DLL.t;
       inactive_sl : Interval.DescEndList.t
     }
 
@@ -284,113 +281,30 @@ module ClassIntervals = struct
     Format.fprintf ppf "\n%!"
 
   let print ppf t =
-    Format.fprintf ppf "fixed_dll(%d): %a\n" (DLL.length t.fixed_dll)
-      Interval.DLL.print t.fixed_dll;
-    Format.fprintf ppf "active_dll(%d): %a\n" (DLL.length t.active_dll)
-      Interval.DLL.print t.active_dll;
-    Format.fprintf ppf "inactive_dll(%d): %a\n"
-      (DLL.length t.inactive_dll)
-      Interval.DLL.print t.inactive_dll;
     print_desc_sl ppf "fixed_sl" t.fixed_sl;
     print_desc_sl ppf "active_sl" t.active_sl;
     print_desc_sl ppf "inactive_sl" t.inactive_sl
-
-  let check_consistency t msg =
-    let consistent_fixed = equal_dll_desc_sl t.fixed_dll t.fixed_sl in
-    let consistent_active = equal_dll_desc_sl t.active_dll t.active_sl in
-    let consistent_inactive = equal_dll_desc_sl t.inactive_dll t.inactive_sl in
-    if not (consistent_fixed && consistent_active && consistent_inactive)
-    then (
-      print Format.err_formatter t;
-      Misc.fatal_errorf
-        "Regalloc_ls_utils.ClassIntervals.check_consistency \
-         %S(consistent_fixed=%B consistent_active=%B consistent_inactive=%B)"
-        msg consistent_fixed consistent_active consistent_inactive)
 
   let make () =
     let make_desc_sl () =
       (* CR xclerc for xclerc: review the parameters. *)
       Interval.DescEndList.make_empty ~max_skip_level:7 ~skip_factor:0.5 ()
     in
-    let res =
-      { fixed_dll = DLL.make_empty ();
-        fixed_sl = make_desc_sl ();
-        active_dll = DLL.make_empty ();
-        active_sl = make_desc_sl ();
-        inactive_dll = DLL.make_empty ();
-        inactive_sl = make_desc_sl ()
-      }
-    in
-    check_consistency res "make/end";
-    res
+    { fixed_sl = make_desc_sl ();
+      active_sl = make_desc_sl ();
+      inactive_sl = make_desc_sl ()
+    }
 
   let copy t =
-    check_consistency t "copy/begin";
-    let res =
-      { fixed_dll = DLL.map t.fixed_dll ~f:Interval.copy;
-        fixed_sl = Interval.DescEndList.map t.fixed_sl ~f:Interval.copy;
-        active_dll = DLL.map t.active_dll ~f:Interval.copy;
-        active_sl = Interval.DescEndList.map t.active_sl ~f:Interval.copy;
-        inactive_dll = DLL.map t.inactive_dll ~f:Interval.copy;
-        inactive_sl = Interval.DescEndList.map t.inactive_sl ~f:Interval.copy
-      }
-    in
-    check_consistency res "copy/end";
-    res
+    { fixed_sl = Interval.DescEndList.map t.fixed_sl ~f:Interval.copy;
+      active_sl = Interval.DescEndList.map t.active_sl ~f:Interval.copy;
+      inactive_sl = Interval.DescEndList.map t.inactive_sl ~f:Interval.copy
+    }
 
   let clear t =
-    check_consistency t "clear/begin";
-    DLL.clear t.fixed_dll;
-    DLL.clear t.active_dll;
-    DLL.clear t.inactive_dll;
     Interval.DescEndList.clear t.fixed_sl;
     Interval.DescEndList.clear t.active_sl;
-    Interval.DescEndList.clear t.inactive_sl;
-    check_consistency t "clear/end"
-
-  module DLL = struct
-    let release_expired_active (t : t) ~(pos : int) (l : Interval.t DLL.t) :
-        unit =
-      let rec aux t ~pos curr : unit =
-        match curr with
-        | None -> ()
-        | Some cell ->
-          let value = DLL.value cell in
-          if value.Interval.end_ >= pos
-          then (
-            Interval.remove_expired value ~pos;
-            if Interval.is_live value ~pos
-            then aux t ~pos (DLL.next cell)
-            else (
-              Interval.DLL.insert_sorted t.inactive_dll value;
-              let next = DLL.next cell in
-              DLL.delete_curr cell;
-              aux t ~pos next))
-          else DLL.cut_from cell
-      in
-      aux t ~pos (DLL.hd_cell l)
-
-    let release_expired_inactive (t : t) ~(pos : int) (l : Interval.t DLL.t) :
-        unit =
-      let rec aux t ~pos curr =
-        match curr with
-        | None -> ()
-        | Some cell ->
-          let value = DLL.value cell in
-          if value.Interval.end_ >= pos
-          then (
-            Interval.remove_expired value ~pos;
-            if not (Interval.is_live value ~pos)
-            then aux t ~pos (DLL.next cell)
-            else (
-              Interval.DLL.insert_sorted t.active_dll value;
-              let next = DLL.next cell in
-              DLL.delete_curr cell;
-              aux t ~pos next))
-          else DLL.cut_from cell
-      in
-      aux t ~pos (DLL.hd_cell l)
-  end
+    Interval.DescEndList.clear t.inactive_sl
 
   module SL = struct
     let release_expired_fixed (l : Interval.DescEndList.t) ~pos =
@@ -451,14 +365,9 @@ module ClassIntervals = struct
   end
 
   let release_expired_intervals t ~pos =
-    check_consistency t "release_expired_intervals/begin";
-    Interval.DLL.release_expired_fixed t.fixed_dll ~pos;
-    DLL.release_expired_active t ~pos t.active_dll;
-    DLL.release_expired_inactive t ~pos t.inactive_dll;
     SL.release_expired_fixed t.fixed_sl ~pos;
     SL.release_expired_active t ~pos t.active_sl;
-    SL.release_expired_inactive t ~pos t.inactive_sl;
-    check_consistency t "release_expired_intervals/end"
+    SL.release_expired_inactive t ~pos t.inactive_sl
 end
 
 let log_interval ~kind (interval : Interval.t) =
