@@ -1153,7 +1153,7 @@ Error: Don't know how to unbox this type.
        the corresponding unboxed types can be marked unboxed.
 |}]
 
-external ext_tuple_arg_with_attr_t : (#(int * bool) [@tagged]) -> int = "foo"
+external ext_tuple_arg_with_attr_t : (#(int * bool) [@untagged]) -> int = "foo"
 [%%expect{|
 Line 1, characters 0-77:
 1 | external ext_tuple_arg_with_attr_t : (#(int * bool) [@tagged]) -> int = "foo"
