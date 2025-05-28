@@ -274,24 +274,12 @@ end = struct
                store code ID %a which is classified as \
                Full_and_partial_application (so the expected size is 3)"
               Function_slot.print function_slot size Code_id.print code_id;
-          let res, curry_code_pointer =
+          let curry_code_pointer =
             if only_known_arity
-            then
-              (* CR gbury: put the correct machtypes expected by the
-                 curry_code_pointer here *)
-              let res, symbol =
-                C.invalid_fun res dbg []
-                  ~message:
-                    (Format.asprintf
-                       "This function slot containing code id %a should only \
-                        have been called with Known_arity calls"
-                       Code_id.print code_id)
-              in
-              res, P.term_of_symbol ~dbg symbol
+            then P.term_of_symbol ~dbg C.fail_if_called_indirectly_sym
             else
-              ( res,
-                P.term_of_symbol ~dbg
-                  (C.curry_function_sym kind params_ty result_ty) )
+              P.term_of_symbol ~dbg
+                (C.curry_function_sym kind params_ty result_ty)
           in
           let acc =
             P.term_of_symbol ~dbg code_symbol

@@ -307,35 +307,6 @@ let invalid res ~message =
   in
   call_expr, res
 
-let invalid_fun res fun_dbg fun_args_types ~message =
-  let symbol =
-    Symbol.create
-      (Compilation_unit.get_current_exn ())
-      (Linkage_name.of_string
-         (Variable.unique_name (Variable.create "invalid_fun")))
-  in
-  let fun_name = To_cmm_result.symbol res symbol in
-  let fun_args =
-    List.mapi
-      (fun i machtype ->
-        let name = Printf.sprintf "param_%d" i in
-        let v = Backend_var.With_provenance.create (Ident.create_local name) in
-        v, machtype)
-      fun_args_types
-  in
-  let fun_body, res = invalid res ~message in
-  let fun_decl : Cmm.fundecl =
-    { fun_name;
-      fun_args;
-      fun_body;
-      fun_codegen_options = [];
-      fun_poll = Default_poll;
-      fun_dbg
-    }
-  in
-  let res = To_cmm_result.add_function res fun_decl in
-  res, fun_name
-
 module Update_kind = struct
   type kind =
     | Pointer
