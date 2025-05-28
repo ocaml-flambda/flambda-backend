@@ -178,18 +178,6 @@ let did_perform_mutable_unboxing (result : T.Flow_result.t) =
 
 let added_useful_alias_in_loop typing_env (acc : T.Acc.t)
     (result : T.Flow_result.t) =
-  (* In some cases, the alias analyis can find invariant parameters that are
-     aliased to a symbol, and which were not detected during the downwards pass,
-     for instance when the parameters are involved in a loop.
-
-     In such cases, it is pertinent to trigger a resimplification of the current
-     expression (i.e. function body), so that we can propagate the information
-     from that new alias.
-
-     In order to avoid triggering too many resimplifications for no reasons, we
-     restrict this process to trigger only when a (non-invariant) parameter of a
-     recursive continuation becomes aliased to something that has a non-trivial
-     type. *)
   Seq.exists2
     (fun (k, (continuation_info : T.Continuation_info.t))
          (k', (continuation_param_aliases : T.Continuation_param_aliases.t)) ->
