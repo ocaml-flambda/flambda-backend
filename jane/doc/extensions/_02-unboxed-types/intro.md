@@ -498,7 +498,7 @@ case exists to provide a better migration story for all-`float` records to which
 the flat float record optimization currently applies.
 
 Blocks may contain unboxed products, in which case the products are "flattened"
-to become individual fields of the block, and reordered to accomodate the mixed
+to become individual fields of the block, and reordered to accommodate the mixed
 block representation.  For example, consider this record type:
 
 ```ocaml
