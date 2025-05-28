@@ -751,8 +751,8 @@ module With_bounds = struct
       With_bounds (With_bounds_types.singleton type_expr type_info)
     | With_bounds bounds -> With_bounds (add_bound type_expr type_info bounds)
 
-  let add_modality ~relevant_for_shallow
-      ~modality ~type_expr (t : (allowed * 'r) t) : (allowed * 'r) t =
+  let add_modality ~relevant_for_shallow ~modality ~type_expr
+      (t : (allowed * 'r) t) : (allowed * 'r) t =
     let relevant_axes =
       relevant_axes_of_modality ~relevant_for_shallow ~modality
     in
@@ -1903,9 +1903,8 @@ module Const = struct
         { layout = base.layout;
           mod_bounds = base.mod_bounds;
           with_bounds =
-            With_bounds.add_modality ~modality
-              ~relevant_for_shallow:`Irrelevant ~type_expr:type_
-              base.with_bounds
+            With_bounds.add_modality ~modality ~relevant_for_shallow:`Irrelevant
+              ~type_expr:type_ base.with_bounds
         })
     | Default | Kind_of _ -> raise ~loc:jkind.pjkind_loc Unimplemented_syntax
 
@@ -1974,8 +1973,7 @@ module Jkind_desc = struct
   let unsafely_set_bounds t ~from =
     { t with mod_bounds = from.mod_bounds; with_bounds = from.with_bounds }
 
-  let add_with_bounds ~relevant_for_shallow
-      ~type_expr ~modality t =
+  let add_with_bounds ~relevant_for_shallow ~type_expr ~modality t =
     match Types.get_desc type_expr with
     | Tarrow (_, _, _, _) ->
       (* Optimization: all arrow types have the same (with-bound-free) jkind, so
@@ -1991,8 +1989,8 @@ module Jkind_desc = struct
     | _ ->
       { t with
         with_bounds =
-          With_bounds.add_modality ~relevant_for_shallow
-            ~type_expr ~modality t.with_bounds
+          With_bounds.add_modality ~relevant_for_shallow ~type_expr ~modality
+            t.with_bounds
       }
 
   let max = of_const Const.max
@@ -2071,16 +2069,14 @@ module Jkind_desc = struct
     let relevant_for_shallow =
       (* Shallow axes like nullability or separability are relevant for
          1-field unboxed records and irrelevant for everything else. *)
-      match List.length layouts with
-      | 1 -> `Relevant
-      | _ -> `Irrelevant
+      match List.length layouts with 1 -> `Relevant | _ -> `Irrelevant
     in
     let mod_bounds = Mod_bounds.min in
     let with_bounds =
       List.fold_right
         (fun (type_expr, modality) bounds ->
-          With_bounds.add_modality
-            ~relevant_for_shallow ~type_expr ~modality bounds)
+          With_bounds.add_modality ~relevant_for_shallow ~type_expr ~modality
+            bounds)
         tys_modalities No_with_bounds
     in
     { layout; mod_bounds; with_bounds }
