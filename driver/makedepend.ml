@@ -41,6 +41,7 @@ let files =
   ref ([] : (string * file_kind * String.Set.t * string list) list)
 let module_map = ref String.Map.empty
 let strict = ref false
+let output_file = ref "-"
 
 module Error_occurred : sig
   val set : unit -> unit
@@ -61,6 +62,11 @@ let fix_slash s =
   if Sys.os_type = "Unix" then s else begin
     String.map (function '\\' -> '/' | c -> c) s
   end
+
+let open_output_file () =
+  match !output_file with
+  | "-" -> stdout
+  | filename -> Out_channel.open_text filename
 
 (* Since we reinitialize load_path after reading OCAMLCOMP,
   we must use a cache instead of calling Sys.readdir too often. *)
@@ -187,10 +193,10 @@ let find_dependency target_kind modname (byt_deps, opt_deps) =
 
 let (depends_on, escaped_eol) = (":", " \\\n    ")
 
-let print_filename s =
+let print_filename oc s =
   let s = if !Clflags.force_slash then fix_slash s else s in
   if not (String.contains s ' ') then begin
-    print_string s;
+    output_string oc s;
   end else begin
     let rec count n i =
       if i >= String.length s then n
@@ -211,19 +217,19 @@ let print_filename s =
       end
     in
     loop 0 0;
-    print_bytes result;
+    output_bytes oc result;
   end
 
-let print_dependencies target_files deps =
+let print_dependencies oc target_files deps =
   let pos = ref 0 in
   let print_on_same_line item =
-    if !pos <> 0 then print_string " ";
-    print_filename item;
+    if !pos <> 0 then output_string oc " ";
+    print_filename oc item;
     pos := !pos + String.length item + 1;
   in
   let print_on_new_line item =
-    print_string escaped_eol;
-    print_filename item;
+    output_string oc escaped_eol;
+    print_filename oc item;
     pos := String.length item + 4;
   in
   let print_compact item =
@@ -237,13 +243,13 @@ let print_dependencies target_files deps =
     else print_on_new_line item
   in
   List.iter print_compact target_files;
-  print_string " "; print_string depends_on;
+  output_string oc " "; output_string oc depends_on;
   pos := !pos + String.length depends_on + 1;
   List.iter print_dep deps;
-  print_string "\n"
+  output_string oc "\n"
 
-let print_raw_dependencies source_file deps =
-  print_filename source_file; print_string depends_on;
+let print_raw_dependencies oc source_file deps =
+  print_filename oc source_file; output_string oc depends_on;
   String.Set.iter
     (fun dep ->
        (* filter out "*predef*" *)
@@ -252,8 +258,8 @@ let print_raw_dependencies source_file deps =
               | 'A'..'Z' | '\128'..'\255' -> true
               | _ -> false) then
         begin
-          print_char ' ';
-          print_string dep
+          output_char oc ' ';
+          output_string oc dep
         end)
     deps;
   print_char '\n'
@@ -345,7 +351,7 @@ let read_parse_and_extract parse_function extract_function def ast_kind
       (read_and_approximate source_file, def)
   end
 
-let print_ml_dependencies source_file extracted_deps pp_deps =
+let print_ml_dependencies oc source_file extracted_deps pp_deps =
   let basename = Filename.chop_extension source_file in
   let byte_targets = [ basename ^ ".cmo" ] in
   let native_targets =
@@ -366,30 +372,30 @@ let print_ml_dependencies source_file extracted_deps pp_deps =
     String.Set.fold (find_dependency ML)
       extracted_deps init_deps in
   if not !native_only then
-    print_dependencies (byte_targets @ extra_targets) (byt_deps @ pp_deps);
+    print_dependencies oc (byte_targets @ extra_targets) (byt_deps @ pp_deps);
   if not !bytecode_only then
     begin
-      print_dependencies (native_targets @ extra_targets)
+      print_dependencies oc (native_targets @ extra_targets)
         (native_deps @ pp_deps);
       if !shared then
-        print_dependencies (shared_targets @ extra_targets)
+        print_dependencies oc (shared_targets @ extra_targets)
           (native_deps @ pp_deps)
     end
 
-let print_mli_dependencies source_file extracted_deps pp_deps =
+let print_mli_dependencies oc source_file extracted_deps pp_deps =
   let basename = Filename.chop_extension source_file in
   let (byt_deps, _opt_deps) =
     String.Set.fold (find_dependency MLI)
       extracted_deps ([], []) in
-  print_dependencies [basename ^ ".cmi"] (byt_deps @ pp_deps)
+  print_dependencies oc [basename ^ ".cmi"] (byt_deps @ pp_deps)
 
-let print_file_dependencies (source_file, kind, extracted_deps, pp_deps) =
+let print_file_dependencies oc (source_file, kind, extracted_deps, pp_deps) =
   if !raw_dependencies then begin
-    print_raw_dependencies source_file extracted_deps
+    print_raw_dependencies oc source_file extracted_deps
   end else
     match kind with
-    | ML -> print_ml_dependencies source_file extracted_deps pp_deps
-    | MLI -> print_mli_dependencies source_file extracted_deps pp_deps
+    | ML -> print_ml_dependencies oc source_file extracted_deps pp_deps
+    | MLI -> print_mli_dependencies oc source_file extracted_deps pp_deps
 
 
 let ml_file_dependencies source_file =
@@ -449,7 +455,7 @@ let file_dependencies_as kind =
   | ML -> process_file_as ml_file_dependencies ()
   | MLI -> process_file_as mli_file_dependencies ()
 
-let sort_files_by_dependencies files =
+let sort_files_by_dependencies oc files =
   let h = Hashtbl.create 31 in
   let worklist = ref [] in
 
@@ -496,7 +502,7 @@ let sort_files_by_dependencies files =
       ) set;
       if !deps = [] then begin
         printed := true;
-        Printf.printf "%s " file;
+        Printf.fprintf oc "%s " file;
         Hashtbl.remove h key;
       end else
         prepend_to_list worklist key
@@ -517,10 +523,10 @@ let sort_files_by_dependencies files =
         Format.eprintf "%s.%s " modname (if kind=ML then "ml" else "mli")
       ) !deps;
       Format.eprintf "@]@.";
-      Printf.printf "%s " file) sorted_deps;
+      Printf.fprintf oc "%s " file) sorted_deps;
     Error_occurred.set ()
   end;
-  Printf.printf "\n%!";
+  Printf.fprintf oc "\n%!";
   ()
 
 (* Map *)
@@ -634,6 +640,8 @@ let run_main argv =
         " Generate dependencies for native-code only (no .cmo files)";
       "-bytecode", Arg.Set bytecode_only,
         " Generate dependencies for bytecode-code only (no .cmx files)";
+      "-o", Arg.Set_string output_file,
+        "<file> Output to <file> rather than stdout";
       "-one-line", Arg.Set one_line,
         " Output one line per file, regardless of the length";
       "-open", Arg.String (prepend_to_list Clflags.open_modules),
@@ -672,8 +680,9 @@ let run_main argv =
       Language_extension.Universe.maximal;
     process_dep_args (List.rev !dep_args_rev);
     Compenv.readenv stderr Before_link;
-    if !sort_files then sort_files_by_dependencies !files
-    else List.iter print_file_dependencies (List.sort compare !files);
+    let oc = open_output_file () in
+    if !sort_files then sort_files_by_dependencies oc !files
+    else List.iter (print_file_dependencies oc) (List.sort compare !files);
     (if Error_occurred.get () then 2 else 0)
   with
   | Compenv.Exit_with_status n ->
