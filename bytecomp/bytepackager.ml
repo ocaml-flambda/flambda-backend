@@ -104,7 +104,9 @@ type pack_member =
 
 let read_member_info ~packed_compilation_unit file =
   let for_pack_prefix = CU.to_prefix packed_compilation_unit in
-  let member_artifact = Unit_info.Artifact.from_filename ~for_pack_prefix file in
+  let member_artifact =
+    Unit_info.Artifact.from_filename ~for_pack_prefix file
+  in
   let packed_name = Unit_info.Artifact.modname member_artifact in
   let member_name = CU.name packed_name in
   let kind =

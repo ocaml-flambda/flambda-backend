@@ -90,10 +90,10 @@ val make:
     for_pack_prefix:Compilation_unit.Prefix.t ->
     intf_or_impl -> file_prefix -> t
 
-(** [make_with_known_compilation_unit ~source_file ~for_pack_prefix kind prefix compilation_unit]
-    associates both the [source_file] and the module name [compilation_unit] to
-    the prefix filesystem path [prefix]. It is assumed that checks were
-    performed by [Compilation_unit].
+(** [make_with_known_compilation_unit ~source_file ~for_pack_prefix kind prefix
+    compilation_unit] associates both the [source_file] and the module name
+    [compilation_unit] to the prefix filesystem path [prefix]. It is assumed
+    that checks were performed by [Compilation_unit].
 *)
 val make_with_known_compilation_unit:
   source_file:filename -> intf_or_impl -> file_prefix -> Compilation_unit.t -> t

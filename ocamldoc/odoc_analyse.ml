@@ -72,8 +72,8 @@ let no_docstring f x =
 
 let unit_from_source source_file source_kind =
   let for_pack_prefix =
-    (* CR-someday lmaurer: Definitely not right to assume that everything is in the same
-       pack and that pack is specified on the command line *)
+    (* CR-someday lmaurer: Definitely not right to assume that everything is in
+       the same pack and that pack is specified on the command line *)
     Compilation_unit.Prefix.from_clflags ()
   in
   Unit_info.make ~check_modname:false ~source_file source_kind
