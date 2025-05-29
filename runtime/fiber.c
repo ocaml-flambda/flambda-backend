@@ -154,7 +154,7 @@ static uintnat round_up_p2(uintnat x, uintnat p2)
 /* Allocate a stack with at least the specified number of words.
    The [handler] field of the result is initialised (so Stack_high(...)) is
    well-defined), but other fields are uninitialised */
-Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
+Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize, int64_t id)
 {
   /* Ensure 16-byte alignment of the [struct stack_handler*]. */
   const int stack_alignment = 16;
@@ -218,16 +218,8 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
   // struct stack_info
   // -------------------- <- [stack], page/hugepage-aligned (by caml_mem_map)
   struct stack_info* stack;
-#ifdef __linux__
-  /* On Linux, record the current TID in the mapping name */
-  char mapping_name[64];
-  snprintf(mapping_name, sizeof mapping_name,
-           "stack (tid %ld)", (long)syscall(SYS_gettid));
-#else
-  const char* mapping_name = "stack";
-#endif
   /* These mappings should never use HugeTLB pages, due to the guard page */
-  stack = caml_mem_map(len, CAML_MAP_NO_HUGETLB, mapping_name);
+  stack = caml_mem_map(len, CAML_MAP_NO_HUGETLB, NULL);
   if (stack == NULL) {
     return NULL;
   }
@@ -244,6 +236,21 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
     caml_mem_unmap(stack, len);
     return NULL;
   }
+
+#ifdef __linux__
+  /* On Linux, give names to the various mappings */
+  caml_mem_name_map(stack, page_size,
+                    "stack info (original fiber id %ld, tid %ld)",
+                    id, (long)syscall(SYS_gettid));
+
+  caml_mem_name_map(Protected_stack_page(stack), page_size,
+                    "guard page for stack (original fiber id %ld, tid %ld)",
+                    id, (long)syscall(SYS_gettid));
+
+  caml_mem_name_map(Stack_base(stack), len - 2*page_size,
+                    "stack (original fiber id %ld, tid %ld)",
+                    id, (long)syscall(SYS_gettid));
+#endif
 
   // Assert that the guard page does not impinge on the actual stack area.
   CAMLassert((char*) stack + len - (trailer_size + Bsize_wsize(wosize))
@@ -308,7 +315,7 @@ alloc_size_class_stack_noexc(mlsize_t wosize, int cache_bucket, value hval,
     CAMLassert(stack->cache_bucket == stack_cache_bucket(wosize));
   } else {
     /* couldn't get a cached stack, so have to create one */
-    stack = alloc_for_stack(wosize);
+    stack = alloc_for_stack(wosize, id);
     if (stack == NULL) {
       return NULL;
     }

@@ -104,6 +104,14 @@ struct stack_info {
  * .        Red Zone        .
  * |                        |
  * +------------------------+ <--- Stack_base
+ * [ if guard pages:
+ * .                        .
+ * |    caml_plat_pagesize  |      mprotect()ed
+ * .                        .
+ * +------------------------+ <--- Protected_stack_page
+ * .      (padding)         .
+ * .                        .
+ * ]
  * |   struct stack_info    |
  * +------------------------+ <--- Caml_state->current_stack
  */
