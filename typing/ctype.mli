@@ -770,3 +770,7 @@ val cross_left_alloc :
   Types.type_expr ->
   Mode.Alloc.l ->
   Mode.Alloc.l
+
+val check_constructor_crossing : Env.t ->
+  tag -> res:type_expr -> args:constructor_argument list ->
+  Env.held_locks -> (unit, Mode.Value.error) result

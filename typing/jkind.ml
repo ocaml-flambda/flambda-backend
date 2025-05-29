@@ -1381,6 +1381,24 @@ module Const = struct
         name = "immutable_data"
       }
 
+    let exn =
+      { jkind =
+          { layout = Base Value;
+            mod_bounds =
+              Mod_bounds.create ~locality:Locality.Const.max
+                ~linearity:Linearity.Const.max
+                ~portability:Portability.Const.min ~yielding:Yielding.Const.max
+                ~uniqueness:Uniqueness.Const_op.max
+                ~contention:Contention.Const_op.min
+                ~statefulness:Statefulness.Const.max
+                ~visibility:Visibility.Const_op.max ~externality:Externality.max
+                ~nullability:Nullability.Non_null
+                ~separability:Separability.Non_float;
+            with_bounds = No_with_bounds
+          };
+        name = "exn"
+      }
+
     let sync_data =
       { jkind =
           { layout = Base Value;

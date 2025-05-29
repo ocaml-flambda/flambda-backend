@@ -7223,3 +7223,33 @@ let constrain_decl_jkind env decl jkind =
         match decl.type_manifest with
         | None -> err
         | Some ty -> constrain_type_jkind env ty jkind
+
+let check_constructor_crossing env tag ~res ~args held_locks =
+  match tag with
+  | Ordinary _ | Null -> Ok ()
+  | Extension _ ->
+      match get_desc (expand_head env res) with
+      | Tconstr (p, _, _) when Path.same Predef.path_exn p ->
+          (* Currently only [exn] is treated specially *)
+          let mode_crossings =
+            List.map (
+              fun ({ca_type; ca_modalities; _} : Types.constructor_argument) ->
+              crossing_of_ty env ~modalities:ca_modalities ca_type
+            ) args
+          in
+          let mode_crossing =
+            List.fold_left Mode.Crossing.join Mode.Crossing.bot mode_crossings
+          in
+          (* We only check portability and contention, since [exn] doesn't
+               cross other axes anyway. *)
+          let mode =
+            Mode.Value.min_with (Comonadic Portability) Mode.Portability.max
+            |> Mode.Crossing.apply_left mode_crossing
+          in
+          let vmode =
+            Env.walk_locks ~env ~item:Constructor mode None held_locks
+          in
+          let mode = vmode.mode |> Mode.Crossing.apply_left mode_crossing in
+          Mode.Value.submode mode
+            (Mode.Value.max_with (Monadic Contention) (Mode.Contention.min))
+      | _ -> Ok ()

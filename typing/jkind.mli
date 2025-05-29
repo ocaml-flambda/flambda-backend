@@ -276,6 +276,9 @@ module Const : sig
     (** Immutable non-float values that don't contain functions. *)
     val immutable_data : t
 
+    (** Exceptions; only crossing portability *)
+    val exn : t
+
     (** Atomically mutable non-float values that don't contain functions. *)
     val sync_data : t
 
