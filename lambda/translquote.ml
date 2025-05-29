@@ -6,7 +6,7 @@ open Types
 open Debuginfo.Scoped_location
 open Longident
 
-type fv_env = (Ident.t, lambda) Hashtbl.t  (* maps identifiers to lambda *)
+type fv_env = (Ident.t, lambda) Hashtbl.t (* maps identifiers to lambda *)
 
 (* maps names of poly type variables to lambda *)
 type ptv_env = (string, Ident.t * lambda) Hashtbl.t
@@ -15,14 +15,14 @@ type var_env =
   { env_vals : fv_env;
     env_tys : fv_env;
     env_mod : fv_env;
-    env_poly : ptv_env;
+    env_poly : ptv_env
   }
 
 let vars_env =
-  {env_vals = Hashtbl.create 64;
-   env_tys = Hashtbl.create 64;
-   env_mod = Hashtbl.create 64;
-   env_poly = Hashtbl.create 64;
+  { env_vals = Hashtbl.create 64;
+    env_tys = Hashtbl.create 64;
+    env_mod = Hashtbl.create 64;
+    env_poly = Hashtbl.create 64
   }
 
 let rec print_path = function
@@ -32,24 +32,27 @@ let rec print_path = function
   | Path.Pextra_ty (p, _) -> print_path p ^ "[extra]"
 
 let with_new_value name val_ = Hashtbl.add vars_env.env_vals name val_
+
 let with_new_type name ty = Hashtbl.add vars_env.env_tys name ty
+
 let with_new_module name mod_ = Hashtbl.add vars_env.env_mod name mod_
 
-let with_new_idents_values =
-  List.iter (fun id -> with_new_value id (Lvar id))
+let with_new_idents_values = List.iter (fun id -> with_new_value id (Lvar id))
 
-let with_new_idents_types =
-  List.iter (fun id -> with_new_type id (Lvar id))
+let with_new_idents_types = List.iter (fun id -> with_new_type id (Lvar id))
 
-let with_new_idents_modules =
-  List.iter (fun id -> with_new_module id (Lvar id))
+let with_new_idents_modules = List.iter (fun id -> with_new_module id (Lvar id))
 
 let without_value name = Hashtbl.remove vars_env.env_vals name
+
 let without_type name = Hashtbl.remove vars_env.env_tys name
+
 let without_module name = Hashtbl.remove vars_env.env_mod name
 
 let without_idents_values = List.iter without_value
+
 let without_idents_types = List.iter without_type
+
 let without_idents_modules = List.iter without_module
 
 let with_poly_type name =
@@ -57,11 +60,14 @@ let with_poly_type name =
   Hashtbl.add vars_env.env_poly name (id, Lvar id)
 
 let without_poly_type name = Hashtbl.remove vars_env.env_poly name
+
 let with_new_idents_poly = List.iter with_poly_type
+
 let without_idents_poly = List.iter without_poly_type
 
 let ident_for_poly_name name =
-  let (ident, _) = Hashtbl.find vars_env.env_poly name in ident
+  let ident, _ = Hashtbl.find vars_env.env_poly name in
+  ident
 
 let camlinternalQuote =
   lazy
@@ -418,7 +424,8 @@ module Function = struct
 
   let param = combinator "Function" "param" 5
 
-  let param_module_nonbinding = combinator "Function" "param_module_nonbinding" 4
+  let param_module_nonbinding =
+    combinator "Function" "param_module_nonbinding" 4
 
   let param_module = combinator "Function" "param_module" 4
 
@@ -449,90 +456,118 @@ module Type_constraint = struct
   let coercion = combinator "Type_constraint" "coercion" 2
 end
 
+module Exp_desc = struct
+  let ident = combinator "Exp_desc" "ident" 1
+
+  let constant = combinator "Exp_desc" "constant" 1
+
+  let let_rec_simple = combinator "Exp_desc" "let_rec_simple" 3
+
+  let let_ = combinator "Exp_desc" "let_" 5
+
+  let function_ = combinator "Exp_desc" "function_" 1
+
+  let apply = combinator "Exp_desc" "apply" 2
+
+  let match_ = combinator "Exp_desc" "match_" 2
+
+  let try_ = combinator "Exp_desc" "try_" 2
+
+  let tuple = combinator "Exp_desc" "tuple" 1
+
+  let construct = combinator "Exp_desc" "construct" 2
+
+  let variant = combinator "Exp_desc" "variant" 2
+
+  let record = combinator "Exp_desc" "record" 2
+
+  let field = combinator "Exp_desc" "field" 2
+
+  let setfield = combinator "Exp_desc" "setfield" 3
+
+  let array = combinator "Exp_desc" "array" 1
+
+  let ifthenelse = combinator "Exp_desc" "ifthenelse" 3
+
+  let sequence = combinator "Exp_desc" "sequence" 2
+
+  let while_ = combinator "Exp_desc" "while_" 2
+
+  let for_simple = combinator "Exp_desc" "for_simple" 6
+
+  let unboxed_tuple = combinator "Exp_desc" "unboxed_tuple" 1
+
+  let unboxed_record_product = combinator "Exp_desc" "unboxed_record_product" 2
+
+  let unboxed_field = combinator "Exp_desc" "unboxed_field" 2
+
+  let pack = combinator "Exp_desc" "pack" 1
+
+  let unreachable = combinator "Exp_desc" "unreachable" 0
+
+  let src_pos = combinator "Exp_desc" "src_pos" 0
+
+  let exclave = combinator "Exp_desc" "exclave" 1
+
+  let extension_constructor = combinator "Exp_desc" "extension_constructor" 1
+
+  let list_comprehension = combinator "Exp_desc" "list_comprehension" 1
+
+  let array_comprehension = combinator "Exp_desc" "array_comprehension" 1
+
+  let let_exception = combinator "Exp_desc" "let_exception" 2
+
+  let let_op = combinator "Exp_desc" "let_op" 3
+
+  let new_ = combinator "Exp_desc" "new_" 1
+
+  let send = combinator "Exp_desc" "send" 2
+
+  let assert_ = combinator "Exp_desc" "assert_" 1
+
+  let stack = combinator "Exp_desc" "stack" 1
+
+  let lazy_ = combinator "Exp_desc" "lazy_" 1
+
+  let letmodule_nonbinding = combinator "Exp_desc" "letmodule_nonbinding" 3
+
+  let letmodule = combinator "Exp_desc" "letmodule" 4
+
+  let constraint_ = combinator "Exp_desc" "constraint_" 2
+
+  let quote = combinator "Exp_desc" "quote" 1
+
+  let antiquote = combinator "Exp_desc" "antiquote" 1
+
+  let splice = combinator "Exp_desc" "splice" 1
+end
+
+module Exp_attribute = struct
+  let inline = combinator "Exp_attribute" "inline" 0
+
+  let inlined = combinator "Exp_attribute" "inlined" 0
+
+  let specialise = combinator "Exp_attribute" "specialise" 0
+
+  let specialised = combinator "Exp_attribute" "specialised" 0
+
+  let unrolled = combinator "Exp_attribute" "unrolled" 0
+
+  let nontail = combinator "Exp_attribute" "nontail" 0
+
+  let tail = combinator "Exp_attribute" "tail" 0
+
+  let poll = combinator "Exp_attribute" "poll" 0
+
+  let loop = combinator "Exp_attribute" "loop" 0
+
+  let tail_mod_cons = combinator "Exp_attribute" "tail_mod_cons" 0
+
+  let quotation = combinator "Exp_attribute" "quotation" 0
+end
+
 module Exp = struct
-  let ident = combinator "Exp" "ident" 1
-
-  let constant = combinator "Exp" "constant" 1
-
-  let let_rec_simple = combinator "Exp" "let_rec_simple" 3
-
-  let let_ = combinator "Exp" "let_" 5
-
-  let function_ = combinator "Exp" "function_" 1
-
-  let apply = combinator "Exp" "apply" 2
-
-  let match_ = combinator "Exp" "match_" 2
-
-  let try_ = combinator "Exp" "try_" 2
-
-  let tuple = combinator "Exp" "tuple" 1
-
-  let construct = combinator "Exp" "construct" 2
-
-  let variant = combinator "Exp" "variant" 2
-
-  let record = combinator "Exp" "record" 2
-
-  let field = combinator "Exp" "field" 2
-
-  let setfield = combinator "Exp" "setfield" 3
-
-  let array = combinator "Exp" "array" 1
-
-  let ifthenelse = combinator "Exp" "ifthenelse" 3
-
-  let sequence = combinator "Exp" "sequence" 2
-
-  let while_ = combinator "Exp" "while_" 2
-
-  let for_simple = combinator "Exp" "for_simple" 6
-
-  let unboxed_tuple = combinator "Exp" "unboxed_tuple" 1
-
-  let unboxed_record_product = combinator "Exp" "unboxed_record_product" 2
-
-  let unboxed_field = combinator "Exp" "unboxed_field" 2
-
-  let pack = combinator "Exp" "pack" 1
-
-  let unreachable = combinator "Exp" "unreachable" 0
-
-  let src_pos = combinator "Exp" "src_pos" 0
-
-  let exclave = combinator "Exp" "exclave" 1
-
-  let extension_constructor = combinator "Exp" "extension_constructor" 1
-
-  let list_comprehension = combinator "Exp" "list_comprehension" 1
-
-  let array_comprehension = combinator "Exp" "array_comprehension" 1
-
-  let let_exception = combinator "Exp" "let_exception" 2
-
-  let let_op = combinator "Exp" "let_op" 3
-
-  let new_ = combinator "Exp" "new_" 1
-
-  let send = combinator "Exp" "send" 2
-
-  let assert_ = combinator "Exp" "assert_" 1
-
-  let stack = combinator "Exp" "stack" 1
-
-  let lazy_ = combinator "Exp" "lazy_" 1
-
-  let letmodule_nonbinding = combinator "Exp" "letmodule_nonbinding" 3
-
-  let letmodule = combinator "Exp" "letmodule" 4
-
-  let constraint_ = combinator "Exp" "constraint_" 2
-
-  let quote = combinator "Exp" "quote" 1
-
-  let antiquote = combinator "Exp" "antiquote" 1
-
-  let splice = combinator "Exp" "splice" 1
+  let mk = combinator "Exp" "mk" 2
 end
 
 module Code = struct
@@ -546,7 +581,7 @@ end
 let use comb = Lazy.force comb
 
 let apply loc comb args =
-  let comb = Lazy.force comb in
+  let comb = use comb in
   Lambda.Lapply
     { ap_func = comb;
       ap_args = args;
@@ -611,6 +646,26 @@ let func ids body =
 
 let bind id def body = Llet (Strict, Ptop, id, def, body)
 
+let mk_exp_noattr loc desc = apply loc Exp.mk [desc; nil]
+
+let quote_attributes e =
+  let quoted_attr (attr : Typedtree.attribute) =
+    match attr.attr_name.txt with
+    | "Inline" -> use Exp_attribute.inline
+    | "Inlined" -> use Exp_attribute.inlined
+    | "Specialise" -> use Exp_attribute.specialise
+    | "Specialised" -> use Exp_attribute.specialised
+    | "Unrolled" -> use Exp_attribute.unrolled
+    | "Nontail" -> use Exp_attribute.nontail
+    | "Tail" -> use Exp_attribute.tail
+    | "Poll" -> use Exp_attribute.poll
+    | "Loop" -> use Exp_attribute.loop
+    | "Tail_mod_cons" -> use Exp_attribute.tail_mod_cons
+    | "Quotation" -> use Exp_attribute.quotation
+    | _ -> fatal_error "Unknown attribute"
+  in
+  mk_list (List.map quoted_attr e.exp_attributes)
+
 let quote_constant loc (const : Typedtree.constant) =
   match const with
   | Const_int x -> apply loc Constant.int [Lconst (Const_base (Const_int x))]
@@ -672,7 +727,7 @@ let quote_method loc (meth : Typedtree.meth) =
 let quote_arg_label loc = function
   | Labelled s -> apply loc Label.labelled [string loc s]
   | Optional s -> apply loc Label.optional [string loc s]
-  | Nolabel -> Lazy.force Label.no_label
+  | Nolabel -> use Label.no_label
   | _ ->
     fatal_error
       "No support for any types of labels other than Labelled, Nolabel and \
@@ -680,64 +735,64 @@ let quote_arg_label loc = function
 
 let rec module_for_path loc = function
   | Path.Pident id -> (
-      match Hashtbl.find_opt vars_env.env_mod id with
-      | Some m -> apply loc Identifier.Module.var [m; quote_loc loc]
-      | None ->
-        if Ident.is_global id
-        then
-          apply loc Identifier.Module.compilation_unit [string loc (Ident.name id)]
-        else raise Exit)
+    match Hashtbl.find_opt vars_env.env_mod id with
+    | Some m -> apply loc Identifier.Module.var [m; quote_loc loc]
+    | None ->
+      if Ident.is_global id
+      then
+        apply loc Identifier.Module.compilation_unit [string loc (Ident.name id)]
+      else raise Exit)
   | Path.Pdot (p, s) ->
     apply loc Identifier.Module.dot [module_for_path loc p; string loc s]
   | _ -> raise Exit
 
 let module_type_for_path loc = function
-  | Path.Pident id -> apply loc Module_type.of_string [string loc (Ident.name id)]
+  | Path.Pident id ->
+    apply loc Module_type.of_string [string loc (Ident.name id)]
   | Path.Pdot (p, s) ->
     apply loc Module_type.ident
-      [apply loc Identifier.Module_type.dot [module_for_path loc p; string loc s]]
+      [ apply loc Identifier.Module_type.dot
+          [module_for_path loc p; string loc s] ]
   | _ -> raise Exit
 
-let type_for_path loc =
-  function
+let type_for_path loc = function
   | Path.Pident id -> (
-      match Hashtbl.find_opt vars_env.env_tys id with
+    match Hashtbl.find_opt vars_env.env_tys id with
     | Some t -> apply loc Identifier.Type.var [t; quote_loc loc]
-    | None ->
-        match Ident.name id with
-        | "int" -> Lazy.force Identifier.Type.int
-        | "char" -> Lazy.force Identifier.Type.char
-        | "string" -> Lazy.force Identifier.Type.string
-        | "bytes" -> Lazy.force Identifier.Type.bytes
-        | "float" -> Lazy.force Identifier.Type.float
-        | "float32" -> Lazy.force Identifier.Type.float32
-        | "bool" -> Lazy.force Identifier.Type.bool
-        | "unit" -> Lazy.force Identifier.Type.unit
-        | "exn" -> Lazy.force Identifier.Type.exn
-        | "array" -> Lazy.force Identifier.Type.array
-        | "iarray" -> Lazy.force Identifier.Type.iarray
-        | "list" -> Lazy.force Identifier.Type.list
-        | "option" -> Lazy.force Identifier.Type.option
-        | "nativeint" -> Lazy.force Identifier.Type.nativeint
-        | "int32" -> Lazy.force Identifier.Type.int32
-        | "int64" -> Lazy.force Identifier.Type.int64
-        | "lazy_t" -> Lazy.force Identifier.Type.lazy_t
-        | "extension_constructor" ->
-          Lazy.force Identifier.Type.extension_constructor
-        | "floatarray" -> Lazy.force Identifier.Type.floatarray
-        | "lexing_position" -> Lazy.force Identifier.Type.lexing_position
-        | "code" -> Lazy.force Identifier.Type.code
-        | "unboxed_float" -> Lazy.force Identifier.Type.unboxed_float
-        | "unboxed_nativeint" -> Lazy.force Identifier.Type.unboxed_nativeint
-        | "unboxed_int32" -> Lazy.force Identifier.Type.unboxed_int32
-        | "unboxed_int64" -> Lazy.force Identifier.Type.unboxed_int64
-        | "int8x16" -> Lazy.force Identifier.Type.int8x16
-        | "int16x8" -> Lazy.force Identifier.Type.int16x8
-        | "int32x4" -> Lazy.force Identifier.Type.int32x4
-        | "int64x2" -> Lazy.force Identifier.Type.int64x2
-        | "float32x4" -> Lazy.force Identifier.Type.float32x4
-        | "float62x2" -> Lazy.force Identifier.Type.float64x2
-        | _ -> raise Exit)
+    | None -> (
+      match Ident.name id with
+      | "int" -> use Identifier.Type.int
+      | "char" -> use Identifier.Type.char
+      | "string" -> use Identifier.Type.string
+      | "bytes" -> use Identifier.Type.bytes
+      | "float" -> use Identifier.Type.float
+      | "float32" -> use Identifier.Type.float32
+      | "bool" -> use Identifier.Type.bool
+      | "unit" -> use Identifier.Type.unit
+      | "exn" -> use Identifier.Type.exn
+      | "array" -> use Identifier.Type.array
+      | "iarray" -> use Identifier.Type.iarray
+      | "list" -> use Identifier.Type.list
+      | "option" -> use Identifier.Type.option
+      | "nativeint" -> use Identifier.Type.nativeint
+      | "int32" -> use Identifier.Type.int32
+      | "int64" -> use Identifier.Type.int64
+      | "lazy_t" -> use Identifier.Type.lazy_t
+      | "extension_constructor" -> use Identifier.Type.extension_constructor
+      | "floatarray" -> use Identifier.Type.floatarray
+      | "lexing_position" -> use Identifier.Type.lexing_position
+      | "code" -> use Identifier.Type.code
+      | "unboxed_float" -> use Identifier.Type.unboxed_float
+      | "unboxed_nativeint" -> use Identifier.Type.unboxed_nativeint
+      | "unboxed_int32" -> use Identifier.Type.unboxed_int32
+      | "unboxed_int64" -> use Identifier.Type.unboxed_int64
+      | "int8x16" -> use Identifier.Type.int8x16
+      | "int16x8" -> use Identifier.Type.int16x8
+      | "int32x4" -> use Identifier.Type.int32x4
+      | "int64x2" -> use Identifier.Type.int64x2
+      | "float32x4" -> use Identifier.Type.float32x4
+      | "float62x2" -> use Identifier.Type.float64x2
+      | _ -> raise Exit))
   | Path.Pdot (p, s) ->
     apply loc Identifier.Type.dot [module_for_path loc p; string loc s]
   | _ -> raise Exit
@@ -748,24 +803,22 @@ let value_for_path loc = function
   | _ -> raise Exit
 
 let value_for_path_opt loc p =
-  match value_for_path loc p with
-  | res -> Some res
-  | exception Exit -> None
+  match value_for_path loc p with res -> Some res | exception Exit -> None
 
 let quote_value_ident_path loc path =
   match value_for_path_opt loc path with
   | Some ident_val -> ident_val
   | None -> (
-      match path with
-      | Path.Pident id ->
-        if Hashtbl.mem vars_env.env_vals id
-        then apply loc Identifier.Value.var [Lvar id; quote_loc loc]
-        else fatal_error ("Cannot quote free variable " ^ Ident.name id)
-      | Path.Pdot _ | Path.Papply _ | Path.Pextra_ty _  ->
-        fatal_error ("No global path for identifier " ^ print_path path))
+    match path with
+    | Path.Pident id ->
+      if Hashtbl.mem vars_env.env_vals id
+      then apply loc Identifier.Value.var [Lvar id; quote_loc loc]
+      else fatal_error ("Cannot quote free variable " ^ Ident.name id)
+    | Path.Pdot _ | Path.Papply _ | Path.Pextra_ty _ ->
+      fatal_error ("No global path for identifier " ^ print_path path))
 
 let quote_value_ident_path_as_exp loc path =
-  apply loc Exp.ident [quote_value_ident_path loc path]
+  apply loc Exp_desc.ident [quote_value_ident_path loc path]
 
 let type_path env ty =
   let desc =
@@ -798,8 +851,8 @@ let quote_record_field env loc lbl_desc =
     apply loc Field.of_string [string loc lbl_desc.lbl_name]
   | Some (Path.Pdot (p, _)) ->
     apply loc Field.ident
-      [apply loc Identifier.Field.dot
-         [module_for_path loc p; string loc lbl_desc.lbl_name]]
+      [ apply loc Identifier.Field.dot
+          [module_for_path loc p; string loc lbl_desc.lbl_name] ]
   | _ -> fatal_error "Unsupported constructor type detected."
 
 let quote_constructor env loc constr =
@@ -807,30 +860,43 @@ let quote_constructor env loc constr =
   | None -> fatal_error "No global path for constructor"
   | Some (Path.Pident _) -> (
     match constr.cstr_name with
-    | "false" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.false_]
-    | "true" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.true_]
-    | "()" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.void]
-    | "[]" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.nil]
-    | "::" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.cons]
-    | "None" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.none]
-    | "Some" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.some]
-    | "Match_failure" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.match_failure]
-    | "Out_of_memory" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.out_of_memory]
-    | "Invalid_argument" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.invalid_argument]
-    | "Failure" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.failure]
-    | "Not_found" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.not_found]
-    | "Sys_error" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.sys_error]
-    | "End_of_file" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.end_of_file]
-    | "Division_by_zero" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.division_by_zero]
-    | "Stack_overflow" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.stack_overflow]
-    | "Sys_blocked_io" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.sys_blocked_io]
-    | "Assert_failure" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.assert_failure]
-    | "Undefined_recursive_module" -> apply loc Constructor.ident [Lazy.force Identifier.Constructor.undefined_recursive_module]
+    | "false" -> apply loc Constructor.ident [use Identifier.Constructor.false_]
+    | "true" -> apply loc Constructor.ident [use Identifier.Constructor.true_]
+    | "()" -> apply loc Constructor.ident [use Identifier.Constructor.void]
+    | "[]" -> apply loc Constructor.ident [use Identifier.Constructor.nil]
+    | "::" -> apply loc Constructor.ident [use Identifier.Constructor.cons]
+    | "None" -> apply loc Constructor.ident [use Identifier.Constructor.none]
+    | "Some" -> apply loc Constructor.ident [use Identifier.Constructor.some]
+    | "Match_failure" ->
+      apply loc Constructor.ident [use Identifier.Constructor.match_failure]
+    | "Out_of_memory" ->
+      apply loc Constructor.ident [use Identifier.Constructor.out_of_memory]
+    | "Invalid_argument" ->
+      apply loc Constructor.ident [use Identifier.Constructor.invalid_argument]
+    | "Failure" ->
+      apply loc Constructor.ident [use Identifier.Constructor.failure]
+    | "Not_found" ->
+      apply loc Constructor.ident [use Identifier.Constructor.not_found]
+    | "Sys_error" ->
+      apply loc Constructor.ident [use Identifier.Constructor.sys_error]
+    | "End_of_file" ->
+      apply loc Constructor.ident [use Identifier.Constructor.end_of_file]
+    | "Division_by_zero" ->
+      apply loc Constructor.ident [use Identifier.Constructor.division_by_zero]
+    | "Stack_overflow" ->
+      apply loc Constructor.ident [use Identifier.Constructor.stack_overflow]
+    | "Sys_blocked_io" ->
+      apply loc Constructor.ident [use Identifier.Constructor.sys_blocked_io]
+    | "Assert_failure" ->
+      apply loc Constructor.ident [use Identifier.Constructor.assert_failure]
+    | "Undefined_recursive_module" ->
+      apply loc Constructor.ident
+        [use Identifier.Constructor.undefined_recursive_module]
     | name -> apply loc Constructor.of_string [string loc name])
   | Some (Path.Pdot (p, _)) ->
     apply loc Constructor.ident
-      [apply loc Identifier.Constructor.dot
-         [module_for_path loc p; string loc constr.cstr_name]]
+      [ apply loc Identifier.Constructor.dot
+          [module_for_path loc p; string loc constr.cstr_name] ]
   | _ -> fatal_error "Unsupported constructor type detected."
 
 let quote_ext_constructor loc = function
@@ -838,8 +904,8 @@ let quote_ext_constructor loc = function
     apply loc Constructor.of_string [string loc (Ident.name id)]
   | Path.Pdot (p, s) ->
     apply loc Constructor.ident
-      [apply loc Identifier.Constructor.dot
-         [module_for_path loc p; string loc s]]
+      [ apply loc Identifier.Constructor.dot
+          [module_for_path loc p; string loc s] ]
   | _ -> fatal_error "Unsupported constructor type detected."
 
 let rec quote_fragment_of_lid loc = function
@@ -852,7 +918,7 @@ let quote_variant loc name = apply loc Variant.of_string [string loc name]
 
 let quote_nonopt loc (lbl : string option) =
   match lbl with
-  | None -> Lazy.force Label.Nonoptional.no_label
+  | None -> use Label.Nonoptional.no_label
   | Some s -> apply loc Label.Nonoptional.labelled [string loc s]
 
 let is_module pat =
@@ -862,90 +928,58 @@ let rec with_new_idents_pat pat =
   match pat.pat_desc with
   | Tpat_any -> ()
   | Tpat_var (id, _, _, _) ->
-    if is_module pat then
-      with_new_idents_modules [id]
-    else
-      with_new_idents_values [id]
+    if is_module pat
+    then with_new_idents_modules [id]
+    else with_new_idents_values [id]
   | Tpat_alias (pat, id, _, _, _) ->
     with_new_idents_values [id];
     with_new_idents_pat pat
   | Tpat_constant _ -> ()
-  | Tpat_tuple args ->
-    List.iter
-      (fun (_, pat) -> with_new_idents_pat pat)
-      args
+  | Tpat_tuple args -> List.iter (fun (_, pat) -> with_new_idents_pat pat) args
   | Tpat_construct (_, _, args, _) ->
-    List.iter
-      (fun pat -> with_new_idents_pat pat)
-      args
+    List.iter (fun pat -> with_new_idents_pat pat) args
   | Tpat_variant (_, argo, _) -> (
-      match argo with
-      | None -> ()
-      | Some pat -> with_new_idents_pat pat)
+    match argo with None -> () | Some pat -> with_new_idents_pat pat)
   | Tpat_record (lbl_pats, _) ->
-    List.iter
-      (fun (_, _, pat) -> with_new_idents_pat pat)
-      lbl_pats
+    List.iter (fun (_, _, pat) -> with_new_idents_pat pat) lbl_pats
   | Tpat_array (_, _, pats) ->
-    List.iter
-      (fun pat -> with_new_idents_pat pat)
-      pats
+    List.iter (fun pat -> with_new_idents_pat pat) pats
   | Tpat_or (pat1, pat2, _) ->
     with_new_idents_pat pat1;
     with_new_idents_pat pat2
   | Tpat_unboxed_tuple args ->
-    List.iter
-      (fun (_, pat, _) -> with_new_idents_pat pat)
-      args
+    List.iter (fun (_, pat, _) -> with_new_idents_pat pat) args
   | Tpat_record_unboxed_product (lbl_pats, _) ->
-    List.iter
-      (fun (_, _, pat) -> with_new_idents_pat pat)
-      lbl_pats
+    List.iter (fun (_, _, pat) -> with_new_idents_pat pat) lbl_pats
   | Tpat_lazy pat -> with_new_idents_pat pat
 
 let rec without_idents_pat pat =
   match pat.pat_desc with
   | Tpat_any -> ()
   | Tpat_var (id, _, _, _) ->
-    if is_module pat then
-      without_idents_modules [id]
-    else
-      without_idents_values [id]
+    if is_module pat
+    then without_idents_modules [id]
+    else without_idents_values [id]
   | Tpat_alias (pat, id, _, _, _) ->
     without_idents_values [id];
     without_idents_pat pat
   | Tpat_constant _ -> ()
-  | Tpat_tuple args ->
-    List.iter
-      (fun (_, pat) -> without_idents_pat pat)
-      args
+  | Tpat_tuple args -> List.iter (fun (_, pat) -> without_idents_pat pat) args
   | Tpat_construct (_, _, args, _) ->
-    List.iter
-      (fun pat -> without_idents_pat pat)
-      args
+    List.iter (fun pat -> without_idents_pat pat) args
   | Tpat_variant (_, argo, _) -> (
-      match argo with
-      | None -> ()
-      | Some pat -> without_idents_pat pat)
+    match argo with None -> () | Some pat -> without_idents_pat pat)
   | Tpat_record (lbl_pats, _) ->
-    List.iter
-      (fun (_, _, pat) -> without_idents_pat pat)
-      lbl_pats
+    List.iter (fun (_, _, pat) -> without_idents_pat pat) lbl_pats
   | Tpat_array (_, _, pats) ->
-    List.iter
-      (fun pat -> without_idents_pat pat)
-      pats
+    List.iter (fun pat -> without_idents_pat pat) pats
   | Tpat_or (pat1, pat2, _) ->
     without_idents_pat pat1;
     without_idents_pat pat2
   | Tpat_unboxed_tuple args ->
-    List.iter
-      (fun (_, pat, _) -> without_idents_pat pat)
-      args
+    List.iter (fun (_, pat, _) -> without_idents_pat pat) args
   | Tpat_record_unboxed_product (lbl_pats, _) ->
-    List.iter
-      (fun (_, _, pat) -> without_idents_pat pat)
-      lbl_pats
+    List.iter (fun (_, _, pat) -> without_idents_pat pat) lbl_pats
   | Tpat_lazy pat -> without_idents_pat pat
 
 let with_new_param fp =
@@ -984,34 +1018,29 @@ let rec quote_computation_pattern p =
   let loc = p.pat_loc in
   match p.pat_desc with
   | Tpat_value pat -> quote_value_pattern (pat :> value general_pattern)
-  | Tpat_exception pat ->
-    apply loc Pat.exception_ [quote_value_pattern pat]
+  | Tpat_exception pat -> apply loc Pat.exception_ [quote_value_pattern pat]
   | Tpat_or (pat1, pat2, _) ->
     let pat1 = quote_computation_pattern pat1 in
     let pat2 = quote_computation_pattern pat2 in
     apply loc Pat.exception_ [pat1; pat2]
 
 and quote_pat_extra loc pat_lam extra =
-  let (extra, _, _) = extra in
+  let extra, _, _ = extra in
   match extra with
-  | Tpat_constraint ty ->
-    apply loc Pat.constraint_ [pat_lam; quote_core_type ty]
+  | Tpat_constraint ty -> apply loc Pat.constraint_ [pat_lam; quote_core_type ty]
   | Tpat_unpack -> pat_lam (* handled elsewhere *)
   | Tpat_type _ -> pat_lam (* TODO: consider adding support for #tconst *)
   | Tpat_open _ -> fatal_error "No support for open patterns."
 
 and quote_value_pattern p =
-  let env = p.pat_env
-  and loc = p.pat_loc in
+  let env = p.pat_env and loc = p.pat_loc in
   let pat_quoted =
     match p.pat_desc with
-    | Tpat_any ->
-      if is_module p then Lazy.force Pat.any_module else Lazy.force Pat.any
+    | Tpat_any -> if is_module p then use Pat.any_module else use Pat.any
     | Tpat_var (id, _, _, _) ->
-      if is_module p then
-        apply loc Pat.unpack [Lvar id]
-      else
-        apply loc Pat.var [Lvar id]
+      if is_module p
+      then apply loc Pat.unpack [Lvar id]
+      else apply loc Pat.var [Lvar id]
     | Tpat_alias (pat, id, _, _, _) ->
       let pat = quote_value_pattern pat in
       apply loc Pat.alias [pat; Lvar id]
@@ -1021,8 +1050,7 @@ and quote_value_pattern p =
     | Tpat_tuple pats ->
       let pats =
         List.map
-          (fun (lbl, p) ->
-             pair (quote_nonopt loc lbl, quote_value_pattern p))
+          (fun (lbl, p) -> pair (quote_nonopt loc lbl, quote_value_pattern p))
           pats
       in
       apply loc Pat.tuple [mk_list pats]
@@ -1032,11 +1060,9 @@ and quote_value_pattern p =
         match args with
         | [] -> None
         | _ :: _ ->
-          let args = List.map (quote_value_pattern) args in
+          let args = List.map quote_value_pattern args in
           let with_labels =
-            List.map
-              (fun a -> pair (Lazy.force Label.Nonoptional.no_label, a))
-              args
+            List.map (fun a -> pair (use Label.Nonoptional.no_label, a)) args
           in
           let as_tuple = apply loc Pat.tuple [mk_list with_labels] in
           Some as_tuple
@@ -1044,17 +1070,15 @@ and quote_value_pattern p =
       apply loc Pat.construct [constr; option args]
     | Tpat_variant (variant, argo, _) ->
       let variant = quote_variant loc variant in
-      let argo = Option.map (quote_value_pattern) argo in
+      let argo = Option.map quote_value_pattern argo in
       apply loc Pat.variant [variant; option argo]
     | Tpat_record (lbl_pats, closed) ->
       let lbl_pats =
         List.map
           (fun (lid, lbl_desc, pat) ->
-             let lbl =
-               quote_record_field env Asttypes.(lid.loc) lbl_desc
-             in
-             let pat = quote_value_pattern pat in
-             pair (lbl, pat))
+            let lbl = quote_record_field env Asttypes.(lid.loc) lbl_desc in
+            let pat = quote_value_pattern pat in
+            pair (lbl, pat))
           lbl_pats
       in
       let closed =
@@ -1062,7 +1086,7 @@ and quote_value_pattern p =
       in
       apply loc Pat.record [mk_list lbl_pats; closed]
     | Tpat_array (_, _, pats) ->
-      let pats = List.map (quote_value_pattern) pats in
+      let pats = List.map quote_value_pattern pats in
       apply loc Pat.array [mk_list pats]
     | Tpat_or (pat1, pat2, _) ->
       let pat1 = quote_value_pattern pat1 in
@@ -1072,7 +1096,7 @@ and quote_value_pattern p =
       let pats =
         List.map
           (fun (lbl, p, _) ->
-             pair (quote_nonopt loc lbl, quote_value_pattern p))
+            pair (quote_nonopt loc lbl, quote_value_pattern p))
           pats
       in
       apply loc Pat.unboxed_tuple [mk_list pats]
@@ -1080,11 +1104,9 @@ and quote_value_pattern p =
       let lbl_pats =
         List.map
           (fun (lid, lbl_desc, pat) ->
-             let lbl =
-               quote_record_field env Asttypes.(lid.loc) lbl_desc
-             in
-             let pat = quote_value_pattern pat in
-             pair (lbl, pat))
+            let lbl = quote_record_field env Asttypes.(lid.loc) lbl_desc in
+            let pat = quote_value_pattern pat in
+            pair (lbl, pat))
           lbl_pats
       in
       let closed =
@@ -1097,8 +1119,7 @@ and quote_value_pattern p =
   in
   List.fold_right
     (fun extra p -> quote_pat_extra loc p extra)
-    p.pat_extra
-    pat_quoted
+    p.pat_extra pat_quoted
 
 and quote_core_type ty =
   let loc = ty.ctyp_loc in
@@ -1106,7 +1127,9 @@ and quote_core_type ty =
   | Ttyp_var (name, _) ->
     let id =
       Option.map
-        (fun n -> let (_, ty) = Hashtbl.find vars_env.env_poly n in ty)
+        (fun n ->
+          let _, ty = Hashtbl.find vars_env.env_poly n in
+          ty)
         name
     in
     apply loc Type.var [option id]
@@ -1118,30 +1141,28 @@ and quote_core_type ty =
   | Ttyp_tuple ts ->
     let tups =
       List.map
-        (fun (s_opt, ty) ->
-          pair (quote_nonopt loc s_opt, quote_core_type ty))
+        (fun (s_opt, ty) -> pair (quote_nonopt loc s_opt, quote_core_type ty))
         ts
     in
     apply loc Type.tuple [mk_list tups]
   | Ttyp_unboxed_tuple ts ->
     let tups =
       List.map
-        (fun (s_opt, ty) ->
-          pair (quote_nonopt loc s_opt, quote_core_type ty))
+        (fun (s_opt, ty) -> pair (quote_nonopt loc s_opt, quote_core_type ty))
         ts
     in
     apply loc Type.unboxed_tuple [mk_list tups]
   | Ttyp_constr (path, _, tys) ->
-    let ident = type_for_path loc path
-    and tys = List.map (quote_core_type) tys in
+    let ident = type_for_path loc path and tys = List.map quote_core_type tys in
     apply loc Type.constr [ident; mk_list tys]
   | Ttyp_object (_, _) -> fatal_error "Still not implemented."
   | Ttyp_class (_, _, _) -> fatal_error "Still not implemented."
   | Ttyp_alias (ty, alias_opt, _) ->
     let ty = quote_core_type ty
-    and alias_opt = match alias_opt with
+    and alias_opt =
+      match alias_opt with
       | None -> None
-      | Some {txt; loc} -> Some (string loc txt)
+      | Some { txt; loc } -> Some (string loc txt)
     in
     let alias_opt = option alias_opt in
     apply loc Type.alias [ty; alias_opt]
@@ -1151,30 +1172,30 @@ and quote_core_type ty =
         (fun rf ->
           match rf.rf_desc with
           | Tinherit ty ->
-            apply rf.rf_loc Variant_type.Row_field.inherit_
-              [quote_core_type ty]
+            apply rf.rf_loc Variant_type.Row_field.inherit_ [quote_core_type ty]
           | Ttag (tag, b, tys) ->
             let variant =
               apply tag.loc Variant.of_string [string tag.loc tag.txt]
             in
             apply rf.rf_loc Variant_type.Row_field.tag
-              [ variant;
-                quote_bool b;
-                mk_list (List.map quote_core_type tys) ])
+              [variant; quote_bool b; mk_list (List.map quote_core_type tys)])
         row_fields
     and variant_form =
       match closed_flag, labels with
-      | Open, None -> Lazy.force Variant_type.Variant_form.open_
-      | Closed, None -> Lazy.force Variant_type.Variant_form.fixed
+      | Open, None -> use Variant_type.Variant_form.open_
+      | Closed, None -> use Variant_type.Variant_form.fixed
       | _, Some labs ->
         apply loc Variant_type.Variant_form.closed
           [mk_list (List.map (string loc) labs)]
     in
     apply loc Type.variant
-      [apply loc Variant_type.of_row_fields_list [mk_list row_fields; variant_form]]
+      [ apply loc Variant_type.of_row_fields_list
+          [mk_list row_fields; variant_form] ]
   | Ttyp_poly (tvs, ty) ->
     let names = List.map (fun (name, _) -> name) tvs in
-    let names_lam = List.map (fun name -> apply loc Name.mk [string loc name]) names in
+    let names_lam =
+      List.map (fun name -> apply loc Name.mk [string loc name]) names
+    in
     with_new_idents_poly names;
     let body =
       create_list_param_binding
@@ -1184,13 +1205,14 @@ and quote_core_type ty =
     without_idents_poly names;
     apply loc Type.poly [quote_loc loc; mk_list names_lam; body]
   | Ttyp_package package ->
-    let {pack_path; pack_fields; pack_type = _; pack_txt = _} = package in
+    let { pack_path; pack_fields; pack_type = _; pack_txt = _ } = package in
     let mod_type = module_type_for_path loc pack_path
     and with_types =
       List.map
         (fun (lid, ty) ->
-           pair (quote_fragment_of_lid Asttypes.(lid.loc) lid.txt,
-                 quote_core_type ty))
+          pair
+            ( quote_fragment_of_lid Asttypes.(lid.loc) lid.txt,
+              quote_core_type ty ))
         pack_fields
     in
     apply loc Type.package [mod_type; mk_list with_types]
@@ -1207,7 +1229,7 @@ let rec case_binding transl stage case =
         let pat = quote_computation_pattern pat in
         let exp = quote_expression transl stage case.c_rhs in
         Non_binding (pat, exp)
-      | ids -> (
+      | ids ->
         let names =
           List.map (fun id -> string pat.pat_loc (Ident.name id)) ids
         in
@@ -1220,23 +1242,22 @@ let rec case_binding transl stage case =
           bind pat_id pat (bind exp_id exp (pair (Lvar pat_id, Lvar exp_id)))
         in
         let res =
-        match case.c_rhs.exp_desc with
-        | Texp_unreachable ->
-          Refutation
-            ( mk_list names,
-              mk_list [],
-              create_list_param_binding ids (create_list_param_binding [] body)
-            )
-        | _ ->
-          Pattern
-            ( mk_list names,
-              mk_list [],
-              create_list_param_binding ids (create_list_param_binding [] body)
-            )
+          match case.c_rhs.exp_desc with
+          | Texp_unreachable ->
+            Refutation
+              ( mk_list names,
+                mk_list [],
+                create_list_param_binding ids
+                  (create_list_param_binding [] body) )
+          | _ ->
+            Pattern
+              ( mk_list names,
+                mk_list [],
+                create_list_param_binding ids
+                  (create_list_param_binding [] body) )
         in
         without_idents_values ids;
         res
-      )
     in
     match pat.pat_desc with
     | Tpat_value pat -> (
@@ -1266,10 +1287,10 @@ let rec case_binding transl stage case =
            (bind exp_id exp (triple (Lvar pat_id, Lvar guard_id, Lvar exp_id))))
     in
     let res =
-    Guarded
-      ( mk_list names,
-        mk_list [],
-        create_list_param_binding ids (create_list_param_binding [] body) )
+      Guarded
+        ( mk_list names,
+          mk_list [],
+          create_list_param_binding ids (create_list_param_binding [] body) )
     in
     without_idents_values ids;
     res
@@ -1314,14 +1335,15 @@ and fun_param_binding transl stage loc param frest =
   let names =
     List.map (fun s -> apply loc Name.mk [string loc (Ident.name s)]) idents
   in
-  if is_module pat then
+  if is_module pat
+  then
     match names with
     | [] ->
       apply loc Function.param_module_nonbinding
-        [quote_arg_label loc param.fp_arg_label;
-         quote_loc loc;
-         quote_value_pattern pat;
-         with_newtypes]
+        [ quote_arg_label loc param.fp_arg_label;
+          quote_loc loc;
+          quote_value_pattern pat;
+          with_newtypes ]
     | [name] ->
       let fun_rem =
         func idents (pair (quote_value_pattern pat, with_newtypes))
@@ -1348,8 +1370,7 @@ and quote_function transl stage loc fn extras =
     let fn_body =
       match fn.body with
       | Tfunction_body exp ->
-        apply loc Function.body
-          [quote_expression transl stage exp; none]
+        apply loc Function.body [quote_expression transl stage exp; none]
       | Tfunction_cases cases ->
         apply loc Function.cases
           [ mk_list
@@ -1361,20 +1382,17 @@ and quote_function transl stage loc fn extras =
             none ]
     in
     let fn_def =
-      List.fold_right
-        (fun_param_binding transl stage loc)
-        fn.params fn_body
+      List.fold_right (fun_param_binding transl stage loc) fn.params fn_body
     in
     List.iter without_param fn.params;
     List.fold_right
       (fun (extra, loc, _) fn ->
-         match extra with
-         | Texp_newtype (id, sloc, _, _) ->
-           apply loc Function.newtype
-             [quote_loc sloc.loc; string loc sloc.txt; func [id] fn]
-         | _ -> fn)
-      extras
-      fn_def
+        match extra with
+        | Texp_newtype (id, sloc, _, _) ->
+          apply loc Function.newtype
+            [quote_loc sloc.loc; string loc sloc.txt; func [id] fn]
+        | _ -> fn)
+      extras fn_def
   | _ -> fatal_error "Unexpected usage of quote_function."
 
 and quote_module_exp transl stage loc mod_exp =
@@ -1422,8 +1440,7 @@ and quote_comprehension transl stage loc { comp_body; comp_clauses } =
         body clause_bindings
   in
   let body =
-    apply loc Comprehension.body
-      [quote_expression transl stage comp_body]
+    apply loc Comprehension.body [quote_expression transl stage comp_body]
   in
   List.fold_left (fun body clause -> add_clause body clause) body comp_clauses
 
@@ -1433,26 +1450,22 @@ and quote_expression_extra _ _ extra lambda =
   | Texp_newtype _ -> lambda
   (* Texp_newtype only relevant for functions, handled elsewhere *)
   | Texp_constraint ty ->
-    let constr_ =
-      apply loc Type_constraint.constraint_ [quote_core_type ty]
-    in
-    apply loc Exp.constraint_ [lambda; constr_]
+    let constr_ = apply loc Type_constraint.constraint_ [quote_core_type ty] in
+    apply loc Exp_desc.constraint_ [mk_exp_noattr loc lambda; constr_]
   | Texp_coerce (ty_opt, ty) ->
     let coerce =
       apply loc Type_constraint.coercion
-        [ option (Option.map (quote_core_type) ty_opt);
-          quote_core_type ty ]
+        [option (Option.map quote_core_type ty_opt); quote_core_type ty]
     in
-    apply loc Exp.constraint_ [lambda; coerce]
-  | Texp_stack -> apply loc Exp.stack [lambda]
+    apply loc Exp_desc.constraint_ [mk_exp_noattr loc lambda; coerce]
+  | Texp_stack -> apply loc Exp_desc.stack [mk_exp_noattr loc lambda]
   | Texp_poly _ -> fatal_error "No support for Texp_poly yet"
   | Texp_mode _ -> fatal_error "No support for modes yet"
 
 and update_env_with_extra extra =
   let extra, _, _ = extra in
   match extra with
-  | Texp_newtype (id, _, _, _) ->
-    with_new_idents_types [id]
+  | Texp_newtype (id, _, _, _) -> with_new_idents_types [id]
   | Texp_constraint _ | Texp_coerce _ | Texp_stack -> ()
   | Texp_poly _ -> fatal_error "No support for Texp_poly yet"
   | Texp_mode _ -> fatal_error "No support for modes yet"
@@ -1460,13 +1473,12 @@ and update_env_with_extra extra =
 and update_env_without_extra extra =
   let extra, _, _ = extra in
   match extra with
-  | Texp_newtype (id, _, _, _) ->
-    without_idents_types [id]
+  | Texp_newtype (id, _, _, _) -> without_idents_types [id]
   | Texp_constraint _ | Texp_coerce _ | Texp_stack -> ()
   | Texp_poly _ -> fatal_error "No support for Texp_poly yet"
   | Texp_mode _ -> fatal_error "No support for modes yet"
 
-and quote_expression transl stage e =
+and quote_expression_desc transl stage e =
   let env = e.exp_env in
   let loc = e.exp_loc in
   List.iter update_env_with_extra e.exp_extra;
@@ -1475,7 +1487,7 @@ and quote_expression transl stage e =
     | Texp_ident (path, _, _, _, _) -> quote_value_ident_path_as_exp loc path
     | Texp_constant const ->
       let const = quote_constant loc const in
-      apply loc Exp.constant [const]
+      apply loc Exp_desc.constant [const]
     | Texp_let (rec_flag, vbs, exp) -> (
       match rec_flag with
       | Recursive ->
@@ -1497,11 +1509,11 @@ and quote_expression transl stage e =
         let defs_lam = List.map (quote_expression transl stage) defs in
         let frest =
           create_list_param_binding idents
-            (pair
-               (mk_list defs_lam, quote_expression transl stage exp))
+            (pair (mk_list defs_lam, quote_expression transl stage exp))
         in
         without_idents_values idents;
-        apply loc Exp.let_rec_simple [quote_loc loc; mk_list names_lam; frest]
+        apply loc Exp_desc.let_rec_simple
+          [quote_loc loc; mk_list names_lam; frest]
       | Nonrecursive ->
         let val_l, _, pats, defs =
           List.fold_left
@@ -1519,8 +1531,7 @@ and quote_expression transl stage e =
                 (List.map
                    (fun pat ->
                      pair
-                       ( Lazy.force Label.Nonoptional.no_label,
-                         quote_value_pattern pat ))
+                       (use Label.Nonoptional.no_label, quote_value_pattern pat))
                    pats) ]
         in
         let names_lam =
@@ -1532,14 +1543,16 @@ and quote_expression transl stage e =
             (create_list_param_binding []
                (pair (def_pat, quote_expression transl stage exp)))
         in
-        List.iter (fun vb -> without_idents_values (pat_bound_idents vb.vb_pat)) vbs;
-        apply loc Exp.let_
+        List.iter
+          (fun vb -> without_idents_values (pat_bound_idents vb.vb_pat))
+          vbs;
+        apply loc Exp_desc.let_
           [quote_loc loc; mk_list names_lam; nil; mk_list defs; frest])
     | Texp_function fun_spec ->
       let fn =
         quote_function transl stage loc (Texp_function fun_spec) e.exp_extra
       in
-      apply loc Exp.function_ [fn]
+      apply loc Exp_desc.function_ [fn]
     | Texp_apply (fn, args, _, _, _) ->
       let fn = quote_expression transl stage fn in
       let args =
@@ -1558,26 +1571,23 @@ and quote_expression transl stage e =
               pair (lbl, exp))
           args
       in
-      apply loc Exp.apply [fn; mk_list args]
+      apply loc Exp_desc.apply [fn; mk_list args]
     | Texp_match (exp, _, cases, _) ->
       let exp = quote_expression transl stage exp in
       let cases = List.map (quote_case transl stage loc) cases in
-      apply loc Exp.match_ [exp; mk_list cases]
+      apply loc Exp_desc.match_ [exp; mk_list cases]
     | Texp_try (exp, cases) ->
       let exp = quote_expression transl stage exp
-      and cases =
-        List.map (quote_value_pattern_case transl stage loc) cases
-      in
-      apply loc Exp.try_ [exp; mk_list cases]
+      and cases = List.map (quote_value_pattern_case transl stage loc) cases in
+      apply loc Exp_desc.try_ [exp; mk_list cases]
     | Texp_tuple (exps, _) ->
       let exps =
         List.map
           (fun (lab, exp) ->
-            pair
-              (string_option loc lab, quote_expression transl stage exp))
+            pair (string_option loc lab, quote_expression transl stage exp))
           exps
       in
-      apply loc Exp.tuple [mk_list exps]
+      apply loc Exp_desc.tuple [mk_list exps]
     | Texp_construct (lid, constr, args, _) ->
       let constr = quote_constructor env lid.loc constr in
       let args =
@@ -1587,22 +1597,18 @@ and quote_expression transl stage e =
         | _ :: _ ->
           let args = List.map (quote_expression transl stage) args in
           let with_labels =
-            List.map
-              (fun a -> pair (Lazy.force Label.Nonoptional.no_label, a))
-              args
+            List.map (fun a -> pair (use Label.Nonoptional.no_label, a)) args
           in
-          let as_tuple = apply loc Exp.tuple [mk_list with_labels] in
-          Some as_tuple
+          let as_tuple = apply loc Exp_desc.tuple [mk_list with_labels] in
+          Some (apply loc Exp.mk [as_tuple; nil])
       in
-      apply loc Exp.construct [constr; option args]
+      apply loc Exp_desc.construct [constr; option args]
     | Texp_variant (variant, argo) ->
       let variant = quote_variant loc variant
       and argo =
-        Option.map
-          (fun (arg, _) -> quote_expression transl stage arg)
-          argo
+        Option.map (fun (arg, _) -> quote_expression transl stage arg) argo
       in
-      apply loc Exp.variant [variant; option argo]
+      apply loc Exp_desc.variant [variant; option argo]
     | Texp_record record ->
       let lbl_exps =
         Array.map
@@ -1622,32 +1628,32 @@ and quote_expression transl stage e =
           (fun (e, _) -> quote_expression transl stage e)
           record.extended_expression
       in
-      apply loc Exp.record [mk_list (Array.to_list lbl_exps); option base]
+      apply loc Exp_desc.record [mk_list (Array.to_list lbl_exps); option base]
     | Texp_field (rcd, lid, lbl, _, _) ->
       let rcd = quote_expression transl stage rcd in
       let lbl = quote_record_field env lid.loc lbl in
-      apply loc Exp.field [rcd; lbl]
+      apply loc Exp_desc.field [rcd; lbl]
     | Texp_setfield (rcd, _, lid, lbl, exp) ->
       let rcd = quote_expression transl stage rcd in
       let lbl = quote_record_field env lid.loc lbl in
       let exp = quote_expression transl stage exp in
-      apply loc Exp.setfield [rcd; lbl; exp]
+      apply loc Exp_desc.setfield [rcd; lbl; exp]
     | Texp_array (_, _, exps, _) ->
       let exps = List.map (quote_expression transl stage) exps in
-      apply loc Exp.array [mk_list exps]
+      apply loc Exp_desc.array [mk_list exps]
     | Texp_ifthenelse (cond, then_, else_) ->
       let cond = quote_expression transl stage cond in
       let then_ = quote_expression transl stage then_ in
       let else_ = Option.map (quote_expression transl stage) else_ in
-      apply loc Exp.ifthenelse [cond; then_; option else_]
+      apply loc Exp_desc.ifthenelse [cond; then_; option else_]
     | Texp_sequence (exp1, _, exp2) ->
       let exp1 = quote_expression transl stage exp1 in
       let exp2 = quote_expression transl stage exp2 in
-      apply loc Exp.sequence [exp1; exp2]
+      apply loc Exp_desc.sequence [exp1; exp2]
     | Texp_while wh ->
       let cond = quote_expression transl stage wh.wh_cond in
       let body = quote_expression transl stage wh.wh_body in
-      apply loc Exp.while_ [cond; body]
+      apply loc Exp_desc.while_ [cond; body]
     | Texp_for floop ->
       let low = quote_expression transl stage floop.for_from
       and high = quote_expression transl stage floop.for_to
@@ -1659,63 +1665,60 @@ and quote_expression transl stage e =
       with_new_idents_values [floop.for_id];
       let body = quote_expression transl stage floop.for_body in
       without_idents_values [floop.for_id];
-      apply loc Exp.for_simple
+      apply loc Exp_desc.for_simple
         [quote_loc loc; name; low; high; dir; func [floop.for_id] body]
     | Texp_send (obj, meth, _) ->
       let obj = quote_expression transl stage obj in
       let meth = quote_method loc meth in
-      apply loc Exp.send [obj; meth]
-    | Texp_open _ ->
-      fatal_error "No support for opening modules yet."
+      apply loc Exp_desc.send [obj; meth]
+    | Texp_open _ -> fatal_error "No support for opening modules yet."
     | Texp_letmodule (ident, _, _, mod_exp, body) -> (
       let mod_exp = quote_module_exp transl stage loc mod_exp in
       match ident with
       | None ->
-        apply loc Exp.letmodule_nonbinding
+        apply loc Exp_desc.letmodule_nonbinding
           [mod_exp; quote_expression transl stage body]
       | Some ident ->
         let name = quote_name (mkloc (Ident.name ident) loc) in
         with_new_idents_modules [ident];
         let body = quote_expression transl stage body in
         without_idents_modules [ident];
-        apply loc Exp.letmodule [quote_loc loc; name; mod_exp; func [ident] body]
-      )
+        apply loc Exp_desc.letmodule
+          [quote_loc loc; name; mod_exp; func [ident] body])
     | Texp_assert (exp, _) ->
       let exp = quote_expression transl stage exp in
-      apply loc Exp.assert_ [exp]
+      apply loc Exp_desc.assert_ [exp]
     | Texp_lazy exp ->
       let exp = quote_expression transl stage exp in
-      apply loc Exp.lazy_ [exp]
+      apply loc Exp_desc.lazy_ [exp]
     | Texp_quotation exp ->
       let exp = quote_expression transl (stage + 1) exp in
-      apply loc Exp.quote [exp]
+      apply loc Exp_desc.quote [exp]
     | Texp_antiquotation exp ->
-      if stage > 0 then
+      if stage > 0
+      then
         let exp = quote_expression transl stage exp in
-        apply loc Exp.antiquote [exp]
-      else
-        apply loc Exp.splice [transl exp]
+        apply loc Exp_desc.antiquote [exp]
+      else apply loc Exp_desc.splice [transl exp]
     | Texp_new (path, _, _, _) ->
-      apply loc Exp.new_ [quote_value_ident_path loc path]
+      apply loc Exp_desc.new_ [quote_value_ident_path loc path]
     | Texp_pack m ->
-      apply loc Exp.pack [quote_module_exp transl stage loc m]
-    | Texp_unreachable -> Lazy.force Exp.unreachable
-    | Texp_src_pos -> Lazy.force Exp.src_pos
+      apply loc Exp_desc.pack [quote_module_exp transl stage loc m]
+    | Texp_unreachable -> use Exp_desc.unreachable
+    | Texp_src_pos -> use Exp_desc.src_pos
     | Texp_exclave e ->
-      apply loc Exp.exclave [quote_expression transl stage e]
+      apply loc Exp_desc.exclave [quote_expression transl stage e]
     | Texp_extension_constructor (lid, path) ->
-      apply loc Exp.extension_constructor
+      apply loc Exp_desc.extension_constructor
         [quote_loc lid.loc; quote_ext_constructor loc path]
     | Texp_unboxed_tuple ts ->
       let tups =
         List.map
           (fun (lab_opt, exp, _) ->
-            pair
-              ( quote_nonopt loc lab_opt,
-                quote_expression transl stage exp ))
+            pair (quote_nonopt loc lab_opt, quote_expression transl stage exp))
           ts
       in
-      apply loc Exp.unboxed_tuple [mk_list tups]
+      apply loc Exp_desc.unboxed_tuple [mk_list tups]
     | Texp_record_unboxed_product record ->
       let lbl_exps =
         Array.map
@@ -1735,35 +1738,31 @@ and quote_expression transl stage e =
           (fun (e, _) -> quote_expression transl stage e)
           record.extended_expression
       in
-      apply loc Exp.unboxed_record_product
+      apply loc Exp_desc.unboxed_record_product
         [mk_list (Array.to_list lbl_exps); option base]
     | Texp_unboxed_field (rcd, _, lid, lbl, _) ->
       let rcd = quote_expression transl stage rcd in
       let lbl = quote_record_field env lid.loc lbl in
-      apply loc Exp.unboxed_field [rcd; lbl]
+      apply loc Exp_desc.unboxed_field [rcd; lbl]
     | Texp_letexception (ext_const, exp) ->
       let exp = quote_expression transl stage exp in
-      apply loc Exp.let_exception [quote_name ext_const.ext_name; exp]
+      apply loc Exp_desc.let_exception [quote_name ext_const.ext_name; exp]
     | Texp_letop rcd ->
-      let let_l =
-        quote_value_ident_path rcd.let_.bop_loc rcd.let_.bop_op_path
+      let let_l = quote_value_ident_path rcd.let_.bop_loc rcd.let_.bop_op_path
       and ands_l =
         List.map
-          (fun bop ->
-            quote_value_ident_path bop.bop_loc bop.bop_op_path)
+          (fun bop -> quote_value_ident_path bop.bop_loc bop.bop_op_path)
           rcd.ands
       and defs =
         quote_expression transl stage rcd.let_.bop_exp
-        :: List.map
-             (fun d -> quote_expression transl stage d.bop_exp)
-             rcd.ands
+        :: List.map (fun d -> quote_expression transl stage d.bop_exp) rcd.ands
       and body = quote_value_pattern_case transl stage loc rcd.body in
-      apply loc Exp.let_op [mk_list (let_l :: ands_l); mk_list defs; body]
+      apply loc Exp_desc.let_op [mk_list (let_l :: ands_l); mk_list defs; body]
     | Texp_list_comprehension compr ->
-      apply loc Exp.list_comprehension
+      apply loc Exp_desc.list_comprehension
         [quote_comprehension transl stage loc compr]
     | Texp_array_comprehension (_, _, compr) ->
-      apply loc Exp.array_comprehension
+      apply loc Exp_desc.array_comprehension
         [quote_comprehension transl stage loc compr]
     | Texp_overwrite _ -> fatal_error "Not implemented yet"
     | Texp_hole _ -> fatal_error "No support for typed holes inside quotations."
@@ -1776,16 +1775,12 @@ and quote_expression transl stage e =
   List.iter update_env_without_extra e.exp_extra;
   List.fold_right (quote_expression_extra transl stage) e.exp_extra body
 
+and quote_expression transl stage e =
+  let desc = quote_expression_desc transl stage e
+  and attributes = quote_attributes e
+  and loc = e.exp_loc in
+  apply loc Exp.mk [desc; attributes]
+
 let transl_quote transl exp loc =
-  let v = Hashtbl.length vars_env.env_vals
-  and m = Hashtbl.length vars_env.env_mod
-  and t = Hashtbl.length vars_env.env_tys
-  in
   let expr = quote_expression transl 0 exp in
-  Hashtbl.iter
-    (fun x y -> Format.printf "%s: %a\n" (Ident.name x) Printlambda.lambda y)
-    vars_env.env_tys;
-  assert (v = Hashtbl.length vars_env.env_vals);
-  assert (m = Hashtbl.length vars_env.env_mod);
-  assert (t = Hashtbl.length vars_env.env_tys);
   apply loc Code.of_exp [expr; quote_loc loc]

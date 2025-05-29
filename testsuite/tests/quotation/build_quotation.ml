@@ -705,8 +705,8 @@ let x = [%quote "foo"] and y = [%quote "bar"] in [%quote !#x ^ !#y];;
 - : string code = [%quote Stdlib.( ^ ) "foo" "bar"]
 |}];;
 
-[%quote fun x -> [%quote [%quote !#x]]];;
+[%quote fun x -> [%quote [%quote !#(!#x)]]];;
 [%%expect {|
-- : ('_weak41 code -> '_weak41 code code) code = [%quote
-fun x -> [%quote [%quote !#x]]]
+- : ('_weak41 code code -> '_weak41 code code) code = [%quote
+fun x -> [%quote [%quote !#!#x]]]
 |}];;

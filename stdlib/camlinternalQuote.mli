@@ -396,6 +396,32 @@ module Pat : sig
   val constraint_ : t -> Type.t -> t
 end
 
+module Exp_attribute : sig
+  type t
+
+  val inline : t
+
+  val inlined : t
+
+  val specialise : t
+
+  val specialised : t
+
+  val unrolled : t
+
+  val nontail : t
+
+  val tail : t
+
+  val poll : t
+
+  val loop : t
+
+  val tail_mod_cons : t
+
+  val quotation : t
+end
+
 module rec Case : sig
   type t
 
@@ -451,11 +477,7 @@ and Function : sig
   val param_module_nonbinding : Label.t -> Loc.t -> Pat.t -> t -> t
 
   val param_module :
-    Label.t ->
-    Loc.t ->
-    Name.t ->
-    (Var.Module.t -> Pat.t * t) ->
-    t
+    Label.t -> Loc.t -> Name.t -> (Var.Module.t -> Pat.t * t) -> t
 
   val newtype : Loc.t -> Name.t -> (Var.Type_var.t -> t) -> t
 end
@@ -474,7 +496,7 @@ and Comprehension : sig
     Loc.t -> Exp.t -> Name.t list -> (Var.Value.t list -> Pat.t * t) -> t
 end
 
-and Exp : sig
+and Exp_desc : sig
   type t
 
   val ident : Identifier.Value.t -> t
@@ -482,59 +504,60 @@ and Exp : sig
   val constant : Constant.t -> t
 
   val let_rec_simple :
-    Loc.t -> Name.t list -> (Var.Value.t list -> t list * t) -> t
+    Loc.t -> Name.t list -> (Var.Value.t list -> Exp.t list * Exp.t) -> t
 
   val let_ :
     Loc.t ->
     Name.t list ->
     Name.t list ->
-    t list ->
-    (Var.Value.t list -> Var.Module.t list -> Pat.t * t) ->
+    Exp.t list ->
+    (Var.Value.t list -> Var.Module.t list -> Pat.t * Exp.t) ->
     t
 
   val function_ : Function.t -> t
 
-  val apply : t -> (Label.t * t) list -> t
+  val apply : Exp.t -> (Label.t * Exp.t) list -> t
 
-  val match_ : t -> Case.t list -> t
+  val match_ : Exp.t -> Case.t list -> t
 
-  val try_ : t -> Case.t list -> t
+  val try_ : Exp.t -> Case.t list -> t
 
-  val tuple : (Label.Nonoptional.t * t) list -> t
+  val tuple : (Label.Nonoptional.t * Exp.t) list -> t
 
-  val construct : Constructor.t -> t option -> t
+  val construct : Constructor.t -> Exp.t option -> t
 
-  val variant : Name.t -> t option -> t
+  val variant : Name.t -> Exp.t option -> t
 
-  val record : (Field.t * t) list -> t option -> t
+  val record : (Field.t * Exp.t) list -> Exp.t option -> t
 
-  val field : t -> Field.t -> t
+  val field : Exp.t -> Field.t -> t
 
-  val setfield : t -> Field.t -> t -> t
+  val setfield : Exp.t -> Field.t -> Exp.t -> t
 
-  val array : t list -> t
+  val array : Exp.t list -> t
 
-  val ifthenelse : t -> t -> t option -> t
+  val ifthenelse : Exp.t -> Exp.t -> Exp.t option -> t
 
-  val sequence : t -> t -> t
+  val sequence : Exp.t -> Exp.t -> t
 
-  val while_ : t -> t -> t
+  val while_ : Exp.t -> Exp.t -> t
 
-  val for_nonbinding : Loc.t -> Pat.t -> t -> t -> bool -> t -> t
+  val for_nonbinding : Loc.t -> Pat.t -> Exp.t -> Exp.t -> bool -> Exp.t -> t
 
-  val for_simple : Loc.t -> Name.t -> t -> t -> bool -> (Var.Value.t -> t) -> t
+  val for_simple :
+    Loc.t -> Name.t -> Exp.t -> Exp.t -> bool -> (Var.Value.t -> Exp.t) -> t
 
-  val send : t -> Method.t -> t
+  val send : Exp.t -> Method.t -> t
 
-  val assert_ : t -> t
+  val assert_ : Exp.t -> t
 
-  val lazy_ : t -> t
+  val lazy_ : Exp.t -> t
 
-  val letmodule_nonbinding : Module.t -> t -> t
+  val letmodule_nonbinding : Module.t -> Exp.t -> t
 
-  val letmodule : Loc.t -> Name.t -> Module.t -> (Var.Module.t -> t) -> t
+  val letmodule : Loc.t -> Name.t -> Module.t -> (Var.Module.t -> Exp.t) -> t
 
-  val constraint_ : t -> Type_constraint.t -> t
+  val constraint_ : Exp.t -> Type_constraint.t -> t
 
   val new_ : Identifier.Value.t -> t
 
@@ -544,33 +567,39 @@ and Exp : sig
 
   val src_pos : t
 
-  val stack : t -> t
+  val stack : Exp.t -> t
 
   val extension_constructor : Name.t -> t
 
-  val let_exception : Name.t -> t -> t
+  val let_exception : Name.t -> Exp.t -> t
 
-  val let_op : Identifier.Value.t list -> t list -> Case.t -> t
+  val let_op : Identifier.Value.t list -> Exp.t list -> Case.t -> t
 
-  val exclave : t -> t
+  val exclave : Exp.t -> t
 
   val list_comprehension : Comprehension.t -> t
 
   val array_comprehension : Comprehension.t -> t
 
-  val unboxed_tuple : (Label.Nonoptional.t * t) list -> t
+  val unboxed_tuple : (Label.Nonoptional.t * Exp.t) list -> t
 
-  val unboxed_record_product : (Field.t * t) list -> t option -> t
+  val unboxed_record_product : (Field.t * Exp.t) list -> Exp.t option -> t
 
-  val unboxed_field : t -> Field.t -> t
+  val unboxed_field : Exp.t -> Field.t -> t
 
-  val quote : t -> t
+  val quote : Exp.t -> t
 
-  val antiquote : t -> t
+  val antiquote : Exp.t -> t
 
   val splice : Code.t -> t
 
-  val print : Format.formatter -> t -> unit
+  val print : Format.formatter -> Exp.t -> unit
+end
+
+and Exp : sig
+  type t
+
+  val mk : Exp_desc.t -> Exp_attribute.t list -> t
 end
 
 and Code : sig
