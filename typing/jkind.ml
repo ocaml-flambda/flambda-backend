@@ -2436,12 +2436,12 @@ let for_open_boxed_row =
 let for_boxed_row row =
   if Btype.tvariant_not_immediate row
   then
-    let base = Builtin.immutable_data ~why:Polymorphic_variant in
     if not (Btype.static_row row)
     then
       (* CR layouts v2.8: We can probably do a fair bit better here in most cases *)
       for_open_boxed_row
     else
+      let base = Builtin.immutable_data ~why:Polymorphic_variant in
       Btype.fold_row
         (fun jkind type_expr ->
           add_with_bounds ~modality:Mode.Modality.Value.Const.id ~type_expr
