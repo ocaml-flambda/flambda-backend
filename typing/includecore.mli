@@ -154,8 +154,8 @@ type mmodes =
 val child_modes: string -> mmodes -> mmodes
 
 (** Gives the modes suitable for the inclusion check of a child item. Takes the
-    modes suitable for the parent item, and the modality between the parent and
-    the child. *)
+    modes suitable for the inclusion check of the parent item, and both hands'
+    modalities between the parent and the child. *)
 val child_modes_with_modalities:
   string -> modalities:(Mode.Modality.Value.t * Mode.Modality.Value.t) ->
   mmodes -> (mmodes, Mode.Modality.Value.error) Result.t

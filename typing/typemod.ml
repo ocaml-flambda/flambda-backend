@@ -1049,7 +1049,7 @@ let map_ext fn exts =
   | [] -> []
   | d1 :: dl -> fn Text_first d1 :: List.map (fn Text_next) dl
 
-let apply_modalities_signature modalities sg =
+let apply_constant_modalities_sg modalities sg =
   List.map (function
   | Sig_value (id, vd, vis) ->
       let val_modalities =
@@ -1280,7 +1280,7 @@ and approx_sig_items env ssg=
                   let modalities =
                     Typemode.transl_modalities ~maturity:Stable Immutable [] moda
                   in
-                  apply_modalities_signature modalities sg
+                  apply_constant_modalities_sg modalities sg
               in
               let sg, newenv = Env.enter_signature ~scope sg env in
               sg @ approx_sig_items newenv srem
@@ -1802,7 +1802,7 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
         Tincl_structure, extract_sig env smty.pmty_loc mty
     in
     let modalities = transl_modalities ~sig_modalities modalities in
-    let sg = apply_modalities_signature modalities sg in
+    let sg = apply_constant_modalities_sg modalities sg in
     let sg, newenv = Env.enter_signature ~scope sg env in
     Signature_group.iter
       (Signature_names.check_sig_item names loc)
