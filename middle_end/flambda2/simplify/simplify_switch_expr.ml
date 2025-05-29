@@ -604,23 +604,78 @@ let simplify_switch0 dacc switch ~down_to_up =
          when going downwards through a [Switch] expression. See the \
          explanation in [are_lifting_conts.mli]."
     | Not_lifting -> dacc
-    | Analyzing { continuation; uses = _ } ->
-      let denv = DA.denv dacc in
-      (* Estimate the cost of lifting: this mainly comes from adding new
-         parameters, which increase the work done by the typing env, as well as
-         the flow analysis. We then only do the lifting if the cost is within
-         the budget for the current function. *)
-      let budget = DA.get_continuation_lifting_budget dacc in
-      let cost = DE.cost_of_lifting_continuations_out_of_current_one denv in
-      if budget = 0 || budget < cost
+    | Analyzing { continuation; uses; is_exn_handler } -> (
+      (* Some preliminary requirements. We do **not** specialize continuations
+         if one of the following conditions are true:
+
+         - they have only one (or less) use
+
+         - they are an exception handler. To handle this case, the existing
+         mechanism used to rewrite specialized calls on the way up should be
+         extended to also rewrite pop_traps and other uses of exn handlers
+         (which is not currently the case).
+
+         - we are at toplevel, in which case there can be symbols which we might
+         duplicate by specializing (which would be an error). More generally,
+         the benefits of specialization at unit toplevel do not seem that great,
+         because partial evaluation would be better. *)
+      let n_uses = Continuation_uses.number_of_uses uses in
+      if is_exn_handler || n_uses <= 1 || DE.at_unit_toplevel (DA.denv dacc)
       then dacc
       else
-        (* TODO/FIXME: implement an actual criterion for when to lift
-           continuations. Currently for testing, we lift any continuation that
-           occurs in a handler that ends with a switch. *)
-        DA.with_are_lifting_conts
-          (DA.decrease_continuation_lifting_budget dacc cost)
-          (Are_lifting_conts.lift_continuations_out_of continuation)
+        let denv = DA.denv dacc in
+        match DE.specialization_cost denv with
+        | Cannot_specialize { reason = _ } ->
+          (* CR gbury: we could try and emit something analog to the inlining
+             report, but for other optimizations at one point ? *)
+          dacc
+        | Can_specialize { size_of_primitives = _ } ->
+          (* Estimate the cost of lifting: this mainly comes from adding new
+             parameters, which increase the work done by the typing env, as well
+             as the flow analysis. We then only do the lifting if the cost is
+             within the budget for the current function. *)
+          let lifting_budget = DA.get_continuation_lifting_budget dacc in
+          let lifting_cost =
+            DE.cost_of_lifting_continuations_out_of_current_one denv
+          in
+          let is_lifting_allowed_by_budget =
+            lifting_budget > 0 && lifting_cost <= lifting_budget
+          in
+          (* very basic specialization budget *)
+          let specialization_budget =
+            DA.get_continuation_specialization_budget dacc
+          in
+          let specialization_cost =
+            n_uses + 1
+            (* specializing requires 'n_uses + 1' traversals of the continuation
+               handler *)
+          in
+          let is_specialization_allowed_by_budget =
+            specialization_budget > 0
+            && specialization_cost <= specialization_budget
+          in
+          if (not is_lifting_allowed_by_budget)
+             || not is_specialization_allowed_by_budget
+          then dacc
+          else
+            (* TODO/FIXME: implement an actual criterion for when to lift
+               continuations and specialize them. Currently for testing, we lift
+               any continuation that occurs in a handler that ends with a switch
+               (if the bduget for lifting and specialization allows it), and we
+               specialize the continuation that ends with the switch. *)
+            let dacc =
+              DA.decrease_continuation_lifting_budget dacc lifting_cost
+            in
+            let dacc =
+              DA.decrease_continuation_specialization_budget dacc
+                specialization_cost
+            in
+            let dacc =
+              DA.with_are_lifting_conts dacc
+                (Are_lifting_conts.lift_continuations_out_of continuation)
+            in
+            let dacc = DA.add_continuation_to_specialize dacc continuation in
+            dacc)
   in
   down_to_up dacc
     ~rebuild:

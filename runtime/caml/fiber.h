@@ -24,6 +24,7 @@
 #include "misc.h"
 #include "mlvalues.h"
 #include "roots.h"
+#include "platform.h"
 
 struct stack_info;
 
@@ -68,7 +69,15 @@ struct stack_info {
   intnat local_limit;
 };
 
+#ifdef STACK_GUARD_PAGES
+// The OCaml stack starts after the stack_info and guard pages
+#define Stack_base(stk) ((value*)(((char*) (stk)) + 2 * caml_plat_pagesize))
+// We can assume that mmap returns page-aligned addresses.
+#define Protected_stack_page(block) (((char*) (block)) + caml_plat_pagesize)
+#else 
 #define Stack_base(stk) ((value*)(stk + 1))
+#endif
+
 #define Stack_threshold_ptr(stk) \
   (Stack_base(stk) + Stack_threshold / sizeof(value))
 #define Stack_high(stk) ((value*)stk->handler - Stack_padding_word)
@@ -271,8 +280,14 @@ CAMLextern int caml_try_realloc_stack (asize_t required_wsize);
 /* Parameters settable with OCAMLRUNPARAM */
 extern uintnat caml_init_main_stack_wsz;   /* -Xmain_stack_size= */
 extern uintnat caml_init_thread_stack_wsz; /* -Xthread_stack_size= */
+extern uintnat caml_init_fiber_stack_wsz;  /* -Xfiber_stack_size= */
 
-CAMLextern uintnat caml_get_init_stack_wsize(int thread_stack_wsz);
+#define STACK_SIZE_MAIN   0
+#define STACK_SIZE_THREAD 1
+#define STACK_SIZE_FIBER  2
+
+CAMLextern uintnat caml_get_init_stack_wsize(int context);
+
 void caml_change_max_stack_size (uintnat new_max_wsize);
 void caml_maybe_expand_stack(void);
 CAMLextern void caml_free_stack(struct stack_info* stk);
@@ -302,12 +317,6 @@ CAMLnoret CAMLextern void caml_raise_continuation_already_resumed (void);
 CAMLnoret CAMLextern void caml_raise_unhandled_effect (value effect);
 
 value caml_make_unhandled_effect_exn (value effect);
-
-#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
-// We can assume that mmap returns page-aligned addresses.
-#define Protected_stack_page(block, page_size) \
-  (((char*) (block)) + (page_size))
-#endif
 
 #endif /* CAML_INTERNALS */
 

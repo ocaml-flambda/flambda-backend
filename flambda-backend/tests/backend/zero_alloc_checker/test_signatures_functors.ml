@@ -6,7 +6,7 @@
 
 (* Most basic use case. *)
 module type S_basic = sig
-  val[@zero_alloc] f : int -> int
+  val f : int -> int [@@zero_alloc]
 end
 
 module F_basic (X : S_basic) = struct

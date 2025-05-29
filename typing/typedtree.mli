@@ -469,6 +469,7 @@ and expression_desc =
     }
   | Texp_for of {
       for_id  : Ident.t;
+      for_debug_uid: Shape.Uid.t;
       for_pat : Parsetree.pattern;
       for_from : expression;
       for_to   : expression;
@@ -494,6 +495,7 @@ and expression_desc =
       let_ : binding_op;
       ands : binding_op list;
       param : Ident.t;
+      param_debug_uid : Shape.Uid.t;
       param_sort : Jkind.sort;
       body : value case;
       body_sort : Jkind.sort;
@@ -524,6 +526,7 @@ and function_param =
     (** [fp_param] is the identifier that is to be used to name the
         parameter of the function.
     *)
+    fp_param_debug_uid: Shape.Uid.t;
     fp_partial: partial;
     (**
        [fp_partial] =
@@ -578,6 +581,7 @@ and function_cases =
     fc_ret_type : Types.type_expr;
     fc_partial: partial;
     fc_param: Ident.t;
+    fc_param_debug_uid : Shape.Uid.t;
     fc_loc: Location.t;
     fc_exp_extra: exp_extra option;
     fc_attributes: attributes;
@@ -620,6 +624,7 @@ and comprehension_clause_binding =
 and comprehension_iterator =
   | Texp_comp_range of
       { ident     : Ident.t
+      ; ident_debug_uid : Shape.Uid.t
       ; pattern   : Parsetree.pattern (** Redundant with [ident] *)
       ; start     : expression
       ; stop      : expression
@@ -747,6 +752,8 @@ and module_type_constraint =
 
 and functor_parameter =
   | Unit
+  (* CR sspies: We should add an additional [debug_uid] here to support functor
+     arguments in the debugger. *)
   | Named of Ident.t option * string option loc * module_type
 
 and module_expr_desc =
@@ -986,6 +993,7 @@ and core_type_desc =
   | Ttyp_poly of (string * Parsetree.jkind_annotation option) list * core_type
   | Ttyp_package of package_type
   | Ttyp_open of Path.t * Longident.t loc * core_type
+  | Ttyp_of_kind of Parsetree.jkind_annotation
   | Ttyp_call_pos
       (** [Ttyp_call_pos] represents the type of the value of a Position
           argument ([lbl:[%call_pos] -> ...]). *)

@@ -1,11 +1,19 @@
-[@@@ocaml.warning "+a-9-40-41-42"]
+module Parameter_name : sig
+  type t
 
-type ('name, 'value) duplicate =
-  | Duplicate of { name : 'name; value1 : 'value; value2 : 'value }
+  val of_string : string -> t
+
+  val to_string : t -> string
+
+  include Identifiable.S with type t := t
+end
+
+type 'value duplicate =
+  | Duplicate of { name : Parameter_name.t; value1 : 'value; value2 : 'value }
 
 module Argument : sig
-  type ('param, 'value) t = {
-    param : 'param;
+  type 'value t = {
+    param : Parameter_name.t;
     value : 'value;
   }
 end
@@ -15,17 +23,25 @@ module Name : sig
     head : string;
     args : argument list;
   }
-  and argument = (t, t) Argument.t
+  and argument = t Argument.t
 
   include Identifiable.S with type t := t
 
-  val create : string -> argument list -> (t, (t, t) duplicate) Result.t
+  val create : string -> argument list -> (t, t duplicate) Result.t
 
   val create_exn : string -> argument list -> t
 
   val create_no_args : string -> t
 
+  val of_parameter_name : Parameter_name.t -> t
+
   val to_string : t -> string
+
+  (* Find this name in a map keyed by parameter names. Preferrable to converting
+     this to a [Parameter_name.t] since it may not in fact be a parameter name *)
+  val find_in_parameter_map : t -> 'a Parameter_name.Map.t -> 'a option
+
+  val mem_parameter_set : t -> Parameter_name.Set.t -> bool
 end
 
 (** An elaborated form of name in which all arguments are expressed, including
@@ -65,25 +81,22 @@ type t = private {
   visible_args : argument list;
   hidden_args : argument list;
 }
-and argument = (Name.t, t) Argument.t
+and argument = t Argument.t
 
 include Identifiable.S with type t := t
 
 val create
-   : string -> argument list -> hidden_args:argument list
-  -> (t, (Name.t, t) duplicate) Result.t
+   : string -> argument list -> hidden_args:Parameter_name.t list
+  -> (t, t duplicate) Result.t
 
-val create_exn : string -> argument list -> hidden_args:argument list -> t
+val create_exn : string -> argument list -> hidden_args:Parameter_name.t list -> t
 
 val to_string : t -> string
 
 val to_name : t -> Name.t
 
-val all_args : t -> argument list
-
-(** A map from parameter names to their values. Hidden arguments aren't relevant
-    in the parameter names, so they're represented by [Name.t]s here. *)
-type subst = t Name.Map.t
+(** A map from parameter names to their values. *)
+type subst = t Parameter_name.Map.t
 
 (** Apply a substitution to the given global. If it appears in the substitution
     directly (that is, its [Name.t] form is a key in the map), this simply
@@ -100,10 +113,12 @@ val subst : t -> subst -> t * [ `Changed | `Did_not_change ]
     uninterestingly just the corresponding value. *)
 val subst_inside : t -> subst -> t
 
+val find_in_parameter_map : t -> 'a Parameter_name.Map.t -> 'a option
+
 (** Check that a substitution is a valid (possibly partial) instantiation of
     a module with the given parameter list. Each name being substituted must
     appear in the list. *)
-val check : subst -> t list -> bool
+val check : subst -> Parameter_name.t list -> bool
 
 (** Returns [true] if [hidden_args] is empty and all argument values (if any)
     are also complete. This is a stronger condition than full application, and

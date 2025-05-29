@@ -17,6 +17,7 @@
 open! Int_replace_polymorphic_compare
 open Asm_targets
 module Uint64 = Numbers.Uint64
+module A = Asm_directives
 
 module Key = struct
   type t =
@@ -84,13 +85,12 @@ let size t =
       t (Dwarf_int.zero ())
 
 let emit ~asm_directives t =
-  let module Asm_directives = (val asm_directives : Asm_directives.S) in
   (* There appears to be no statement in the DWARF-4 spec (section 7.5.3) saying
      that the abbrevation table entries have to be in abbrevation code order.
      (Ours might not be.) *)
   Key.Map.iter
     (fun _key entry ->
-      Asm_directives.new_line ();
+      A.new_line ();
       Abbreviations_table_entry.emit ~asm_directives entry)
     t;
   (* DWARF-4 spec section 7.5.3: "The abbreviations for a given compilation unit

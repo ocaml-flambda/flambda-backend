@@ -49,6 +49,8 @@ let raw_lambda_to_bytecode i raw_lambda ~as_arg_for =
        |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
        |> Simplif.simplify_lambda
        |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.lambda
+       |> Blambda_of_lambda.blambda_of_lambda
+       |> print_if i.ppf_dump Clflags.dump_blambda Printblambda.blambda
        |> Bytegen.compile_implementation i.module_name
        |> print_if i.ppf_dump Clflags.dump_instr Printinstr.instrlist
        |> fun bytecode ->
@@ -109,10 +111,7 @@ let implementation_aux ~start_from ~source_file ~output_prefix
     let backend info typed =
       let as_arg_for =
         !Clflags.as_argument_for
-        |> Option.map (fun param ->
-          (* Currently, parameters don't have parameters, so we assume the argument
-             list is empty *)
-          Global_module.Name.create_no_args param)
+        |> Option.map Global_module.Parameter_name.of_string
       in
       let bytecode = to_bytecode info typed ~as_arg_for in
       emit_bytecode info bytecode

@@ -17,6 +17,8 @@
 
 [@@@ocaml.warning "+a-40-41-42"]
 
+(* CR sspies: Consider using [Asm_label.t] for this label to avoid duplication
+   in the assembly backends. *)
 type label = Cmm.label
 
 type instruction =
@@ -49,7 +51,7 @@ and instruction_desc =
   | Lentertrap
   | Ladjust_stack_offset of { delta_bytes : int }
   | Lpushtrap of { lbl_handler : label }
-  | Lpoptrap
+  | Lpoptrap of { lbl_handler : label }
   | Lraise of Lambda.raise_kind
   | Lstackcheck of { max_frame_size_bytes : int }
 

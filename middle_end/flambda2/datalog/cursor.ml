@@ -15,6 +15,10 @@
 
 open Datalog_imports
 
+type _ value_repr = Int_repr : int value_repr
+
+let int_repr = Int_repr
+
 (* Note: we don't use [with_name] here to avoid the extra indirection during
    execution. *)
 type vm_action =
@@ -24,6 +28,12 @@ type vm_action =
       * 'k Option_ref.hlist
       * string
       * string list
+      -> vm_action
+  | Unless_eq :
+      'k option ref * 'k option ref * string * string * 'k value_repr
+      -> vm_action
+  | Filter :
+      ('k Constant.hlist -> bool) * 'k Option_ref.hlist * string list
       -> vm_action
 
 type action =
@@ -38,6 +48,11 @@ let unless id cell args =
   VM_action
     (Unless
        (Table.Id.is_trie id, cell, args.values, Table.Id.name id, args.names))
+
+let unless_eq repr cell1 cell2 =
+  VM_action (Unless_eq (cell1.value, cell2.value, cell1.name, cell2.name, repr))
+
+let filter f args = VM_action (Filter (f, args.values, args.names))
 
 type binder = Bind_table : ('t, 'k, 'v) Table.Id.t * 't ref -> binder
 
@@ -55,6 +70,14 @@ let pp_cursor_action ff = function
          ~pp_sep:(fun ff () -> Format.fprintf ff ", ")
          Format.pp_print_string)
       l_names
+  | Unless_eq (_x1, _x2, x1_name, x2_name, _repr) ->
+    Format.fprintf ff "if %s == %s:@ continue" x1_name x2_name
+  | Filter (_f, _args, args_names) ->
+    Format.fprintf ff "<filter>(%a)"
+      (Format.pp_print_list
+         ~pp_sep:(fun ff () -> Format.fprintf ff ", ")
+         Format.pp_print_string)
+      args_names
 
 module Order : sig
   type t
@@ -298,19 +321,43 @@ let bind_table (Bind_table (id, handler)) database =
 let bind_table_list binders database =
   List.iter (fun binder -> ignore @@ bind_table binder database) binders
 
+let bind_cursor cursor ?(callback = ignore) db =
+  bind_table_list cursor.cursor_binders db;
+  bind_table_list cursor.cursor_naive_binders db;
+  cursor.callback := callback
+
+let unbind_table (Bind_table (id, handler)) =
+  handler := Trie.empty (Table.Id.is_trie id)
+
+let unbind_table_list binders = List.iter unbind_table binders
+
+let unbind_cursor cursor =
+  cursor.callback := ignore;
+  unbind_table_list cursor.cursor_naive_binders;
+  unbind_table_list cursor.cursor_binders
+
+let with_bound_cursor ?callback cursor db f =
+  bind_cursor ?callback cursor db;
+  Fun.protect ~finally:(fun () -> unbind_cursor cursor) f
+
 let evaluate = function
   | Unless (is_trie, cell, args, _cell_name, _args_names) ->
     if Option.is_some
          (Trie.find_opt is_trie (Option_ref.get args) cell.contents)
     then Virtual_machine.Skip
     else Virtual_machine.Accept
+  | Unless_eq (cell1, cell2, _cell1_name, _cell2_name, Int_repr) ->
+    if Int.equal (Option.get !cell1) (Option.get !cell2)
+    then Virtual_machine.Skip
+    else Virtual_machine.Accept
+  | Filter (f, args, _args_names) ->
+    if f (Option_ref.get args)
+    then Virtual_machine.Accept
+    else Virtual_machine.Skip
 
 let naive_iter cursor db f =
-  bind_table_list cursor.cursor_binders db;
-  bind_table_list cursor.cursor_naive_binders db;
-  cursor.callback := f;
-  VM.run (VM.create ~evaluate cursor.instruction);
-  cursor.callback := ignore
+  with_bound_cursor ~callback:f cursor db @@ fun () ->
+  VM.run (VM.create ~evaluate cursor.instruction)
 
 let naive_fold cursor db f acc =
   let acc = ref acc in
@@ -322,8 +369,7 @@ let naive_fold cursor db f acc =
 
    [current] must be equal to [concat ~earlier:previous ~later:diff]. *)
 let[@inline] seminaive_run cursor ~previous ~diff ~current =
-  bind_table_list cursor.cursor_binders current;
-  bind_table_list cursor.cursor_naive_binders current;
+  with_bound_cursor cursor current @@ fun () ->
   let rec loop binders =
     match binders with
     | [] -> ()

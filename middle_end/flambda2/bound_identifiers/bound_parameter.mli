@@ -36,6 +36,8 @@ val with_kind : t -> Flambda_kind.With_subkind.t -> t
 
 val rename : t -> t
 
+val is_renamed_version_of : t -> t -> bool
+
 include Container_types.S with type t := t
 
 include Contains_names.S with type t := t

@@ -199,21 +199,6 @@ let f (x : (int -> int) t @ nonportable) = use_portable_vv x
 
 [%%expect{|
 val f : (int -> int) t -> unit = <fun>
-|}, Principal{|
-Line 1, characters 59-60:
-1 | let f (x : (int -> int) t @ nonportable) = use_portable_vv x
-                                                               ^
-Error: This expression has type "(int -> int) t"
-       but an expression was expected of type "('a : value & value)"
-       The kind of (int -> int) t is
-         immediate with int -> int @@ portable & immediate
-         with int -> int @@ portable
-         because of the definition of t at lines 1-2, characters 0-45.
-       But the kind of (int -> int) t must be a subkind of value & value
-         because of the definition of use_portable_vv at line 6, characters 64-75.
-
-       The first mode-crosses less than the second along:
-         nullability: mod non_null with int -> int ≰ mod non_null
 |}]
 (* CR layouts v2.8: fix principality *)
 
@@ -227,22 +212,6 @@ type t2 = (int -> int) t require_portable_vv
 
 [%%expect{|
 type t2 = (int -> int) t require_portable_vv
-|}, Principal{|
-Line 1, characters 10-24:
-1 | type t2 = (int -> int) t require_portable_vv
-              ^^^^^^^^^^^^^^
-Error: This type "(int -> int) t" should be an instance of type
-         "('a : value mod portable & value mod portable)"
-       The kind of (int -> int) t is
-         immediate with int -> int @@ portable & immediate
-         with int -> int @@ portable
-         because of the definition of t at lines 1-2, characters 0-45.
-       But the kind of (int -> int) t must be a subkind of
-         value mod portable & value mod portable
-         because of the definition of require_portable_vv at line 1, characters 0-58.
-
-       The first mode-crosses less than the second along:
-         nullability: mod non_null with int -> int ≰ mod non_null
 |}]
 (* CR layouts v2.8: fix principality *)
 

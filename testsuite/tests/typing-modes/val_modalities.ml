@@ -42,8 +42,32 @@ module type S = sig
       portable nonportable
 end
 [%%expect{|
-module type S =
-  sig val x : string @@ global many portable aliased contended end
+Line 2, characters 22-28:
+2 |     val x : string @@ global local unique aliased once many uncontended contended
+                          ^^^^^^
+Warning 213: This locality is overriden by local later.
+
+Line 2, characters 50-54:
+2 |     val x : string @@ global local unique aliased once many uncontended contended
+                                                      ^^^^
+Warning 213: This linearity is overriden by many later.
+
+Line 3, characters 6-14:
+3 |       portable nonportable
+          ^^^^^^^^
+Warning 213: This portability is overriden by nonportable later.
+
+Line 2, characters 35-41:
+2 |     val x : string @@ global local unique aliased once many uncontended contended
+                                       ^^^^^^
+Warning 213: This uniqueness is overriden by aliased later.
+
+Line 2, characters 60-71:
+2 |     val x : string @@ global local unique aliased once many uncontended contended
+                                                                ^^^^^^^^^^^
+Warning 213: This contention is overriden by contended later.
+
+module type S = sig val x : string @@ many aliased contended end
 |}]
 
 (* values' comonadic axes must be lower than the module *)
@@ -73,18 +97,48 @@ module Module_type_of_comonadic = struct
     module M = struct
         let x @ portable = fun x -> x
     end
-    (* for comonadic axes, we default to id = meet_with_max, which is the
-    weakest. *)
+    (* for comonadic axes, we default to meet_with_min, which is the strongest.
+    *)
     module M' : module type of M = struct
         let x @ portable = fun x -> x
     end
     let _ = portable_use M.x (* The original inferred modality is zapped *)
 end
 [%%expect{|
-Line 10, characters 25-28:
-10 |     let _ = portable_use M.x (* The original inferred modality is zapped *)
-                              ^^^
-Error: This value is "nonportable" but expected to be "portable".
+module Module_type_of_comonadic :
+  sig
+    module M : sig val x : 'a -> 'a @@ stateless end
+    module M' : sig val x : 'a -> 'a @@ stateless end
+  end
+|}]
+
+(* zapping behavior can cause type error that shouldn't happen in upstream ocaml *)
+module Module_type_of_error = struct
+  module M = struct
+    let x = fun x -> x
+  end
+
+  module M' : module type of M = struct
+    let y = ref 42
+    let x = fun x -> ignore !y; x
+  end
+end
+[%%expect{|
+Lines 6-9, characters 33-5:
+6 | .................................struct
+7 |     let y = ref 42
+8 |     let x = fun x -> ignore !y; x
+9 |   end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val y : int ref val x : 'a -> 'a end
+       is not included in
+         sig val x : 'a -> 'a @@ stateless end
+       Values do not match:
+         val x : 'a -> 'a
+       is not included in
+         val x : 'a -> 'a @@ stateless
+       The second is portable and the first is nonportable.
 |}]
 
 module Module_type_of_monadic = struct
@@ -95,13 +149,28 @@ module Module_type_of_monadic = struct
     (* for monadic axes, we try to push to the id = join_with_min. The original
     modality is pushed to floor. *)
     module M' : module type of M = struct
-        let x @ contended = ref "hello"
+        let x  @ contended = ref "hello"
     end
 end
 [%%expect{|
 Lines 8-10, characters 35-7:
  8 | ...................................struct
- 9 |         let x @ contended = ref "hello"
+ 9 |         let x  @ contended = ref "hello"
+10 |     end
+Error: Signature mismatch:
+       Modules do not match:
+         sig val x : string ref @@ contended end
+       is not included in
+         sig val x : string ref @@ stateless end
+       Values do not match:
+         val x : string ref @@ contended
+       is not included in
+         val x : string ref @@ stateless
+       The second is uncontended and the first is contended.
+|}, Principal{|
+Lines 8-10, characters 35-7:
+ 8 | ...................................struct
+ 9 |         let x  @ contended = ref "hello"
 10 |     end
 Error: Signature mismatch:
        Modules do not match:
@@ -123,16 +192,20 @@ module Module_type_nested = struct
         end
     end
     module M' : module type of M = struct
-        let x @ nonportable = fun t -> t
+        let x @ portable = fun t -> t
         module N = struct
             let y @ contended = ref "hello"
         end
     end
 end
+(* CR zqian: Need to add mode crossing at binding to remove the principality
+issue. See
+https://github.com/ocaml-flambda/flambda-backend/pull/3922#discussion_r2059000469
+*)
 [%%expect{|
 Lines 8-13, characters 35-7:
  8 | ...................................struct
- 9 |         let x @ nonportable = fun t -> t
+ 9 |         let x @ portable = fun t -> t
 10 |         module N = struct
 11 |             let y @ contended = ref "hello"
 12 |         end
@@ -140,11 +213,44 @@ Lines 8-13, characters 35-7:
 Error: Signature mismatch:
        Modules do not match:
          sig
-           val x : 'a -> 'a
+           val x : 'a -> 'a @@ stateless
            module N : sig val y : string ref @@ contended end
          end
        is not included in
-         sig val x : 'a -> 'a module N : sig val y : string ref end end
+         sig
+           val x : 'a -> 'a @@ stateless
+           module N : sig val y : string ref @@ stateless end
+         end
+       In module "N":
+       Modules do not match:
+         sig val y : string ref @@ contended end
+       is not included in
+         sig val y : string ref @@ stateless end
+       In module "N":
+       Values do not match:
+         val y : string ref @@ contended
+       is not included in
+         val y : string ref @@ stateless
+       The second is uncontended and the first is contended.
+|}, Principal{|
+Lines 8-13, characters 35-7:
+ 8 | ...................................struct
+ 9 |         let x @ portable = fun t -> t
+10 |         module N = struct
+11 |             let y @ contended = ref "hello"
+12 |         end
+13 |     end
+Error: Signature mismatch:
+       Modules do not match:
+         sig
+           val x : 'a -> 'a @@ stateless
+           module N : sig val y : string ref @@ contended end
+         end
+       is not included in
+         sig
+           val x : 'a -> 'a @@ stateless
+           module N : sig val y : string ref end
+         end
        In module "N":
        Modules do not match:
          sig val y : string ref @@ contended end

@@ -217,6 +217,13 @@ let parse_warnings error v =
 let read_one_param ppf position name v =
   let set name options s =  setter ppf (fun b -> b) name options s in
   let clear name options s = setter ppf (fun b -> not b) name options s in
+  let save_ir ~filter ~setter =
+    if !native_code then begin
+      match decode_compiler_pass ppf v ~name ~filter with
+      | None -> ()
+      | Some pass -> setter pass true
+    end
+  in
   let compat name s =
     let error_if_unset = function
       | true -> true
@@ -476,12 +483,13 @@ let read_one_param ppf position name v =
     set_compiler_pass ppf v ~name Clflags.stop_after ~filter:(fun _ -> true)
 
   | "save-ir-after" ->
-    if !native_code then begin
-      let filter = Clflags.Compiler_pass.can_save_ir_after in
-      match decode_compiler_pass ppf v ~name ~filter with
-      | None -> ()
-      | Some pass -> set_save_ir_after pass true
-    end
+    save_ir
+      ~filter:Clflags.Compiler_pass.can_save_ir_after
+      ~setter:set_save_ir_after
+  | "save-ir-before" ->
+    save_ir
+      ~filter:Clflags.Compiler_pass.can_save_ir_before
+      ~setter:set_save_ir_before
   | "dump-into-file" -> Clflags.dump_into_file := true
   | "dump-into-csv" -> Clflags.dump_into_csv := true
   | "dump-dir" -> Clflags.dump_dir := Some v

@@ -63,12 +63,4 @@ let mul_immediates integer_operation imm1 imm2 =
 let never_overflow _ _ = true
 
 let bitwise_immediates integer_operation imm1 imm2 op =
-  (* Bitwise operations on immediates within range cannot produce immediates
-     outside of range. Bitwise operations do not need overflow check. *)
-  match op_immediates integer_operation imm1 imm2 never_overflow op with
-  | None ->
-    Misc.fatal_errorf
-      "Peephole: cannot rewrite immediates for %s: combining %d %d = %d"
-      (Operation.string_of_integer_operation integer_operation)
-      imm1 imm2 (op imm1 imm2)
-  | Some _ as res -> res
+  op_immediates integer_operation imm1 imm2 never_overflow op

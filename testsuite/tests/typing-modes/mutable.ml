@@ -16,14 +16,57 @@ Line 2, characters 31-32:
 Error: This value escapes its region.
 |}]
 
-(* [@no_mutable_implied_modalities] disables those implied modalities on the
-   comonadic axes, and allows us to test [mutable] alone *)
-
-(* Note the attribute is not printed back, which might be confusing.
-   Considering this is a short-term workaround, let's not worry too much. *)
-type 'a r = {mutable s : 'a [@no_mutable_implied_modalities]}
+(* you can override those implied modalities *)
+type r = {mutable s : string @@ local}
+let foo (local_ s) = exclave_ {s}
 [%%expect{|
-type 'a r = { mutable s : 'a; }
+type r = { mutable s : string @@ local; }
+val foo : local_ string -> local_ r = <fun>
+|}]
+
+type r = {mutable s : string @@ global}
+[%%expect{|
+type r = { mutable s : string; }
+|}]
+
+type r = {mutable s : string @@ global yielding}
+[%%expect{|
+type r = { mutable s : string @@ yielding; }
+|}]
+
+type r = {mutable s : string @@ yielding global}
+[%%expect{|
+type r = { mutable s : string @@ yielding; }
+|}]
+
+type r = {mutable s : string @@ yielding}
+[%%expect{|
+type r = { mutable s : string @@ yielding; }
+|}]
+
+type r = {mutable s : string @@ local yielding}
+[%%expect{|
+type r = { mutable s : string @@ local; }
+|}]
+
+type r = {mutable s : string @@ yielding local}
+[%%expect{|
+type r = { mutable s : string @@ local; }
+|}]
+
+type r = {mutable s : string @@ local unyielding}
+[%%expect{|
+type r = { mutable s : string @@ local unyielding; }
+|}]
+
+type r = {mutable s : string @@ unyielding local}
+[%%expect{|
+type r = { mutable s : string @@ local unyielding; }
+|}]
+
+type 'a r = {mutable s : 'a @@ local}
+[%%expect{|
+type 'a r = { mutable s : 'a @@ local; }
 |}]
 
 (* We can now construct a local record using a local field. *)
@@ -56,11 +99,11 @@ let foo (local_ r) =
 val foo : local_ string r -> unit = <fun>
 |}]
 
-(* We can still add modalities explicitly. Of course, the print-back is
-   confusing. *)
-type r' = {mutable s' : string @@ global [@no_mutable_implied_modalities]}
+(* We can still add modalities explicitly. But they might be omitted if they are
+  the same as the mutable-implied ones. *)
+type r' = {mutable s' : string @@ global}
 [%%expect{|
-type r' = { mutable global_ s' : string; }
+type r' = { mutable s' : string; }
 |}]
 
 let foo (local_ s') = exclave_ {s'}
@@ -104,7 +147,7 @@ Error: This value is "aliased" but expected to be "unique".
 |}]
 
 module M : sig
-  type t = { mutable s : string [@no_mutable_implied_modalities] }
+  type t = { mutable s : string @@ local }
 end = struct
   type t = { mutable s : string }
 end
@@ -117,39 +160,39 @@ Error: Signature mismatch:
        Modules do not match:
          sig type t = { mutable s : string; } end
        is not included in
-         sig type t = { mutable s : string; } end
+         sig type t = { mutable s : string @@ local; } end
        Type declarations do not match:
          type t = { mutable s : string; }
        is not included in
-         type t = { mutable s : string; }
+         type t = { mutable s : string @@ local; }
        Fields do not match:
          "mutable s : string;"
        is not the same as:
-         "mutable s : string;"
+         "mutable s : string @@ local;"
        The first is global and the second is not.
 |}]
 
 module M : sig
   type t = { mutable s : string }
 end = struct
-  type t = { mutable s : string [@no_mutable_implied_modalities] }
+  type t = { mutable s : string @@ local}
 end
 [%%expect{|
 Lines 3-5, characters 6-3:
 3 | ......struct
-4 |   type t = { mutable s : string [@no_mutable_implied_modalities] }
+4 |   type t = { mutable s : string @@ local}
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type t = { mutable s : string; } end
+         sig type t = { mutable s : string @@ local; } end
        is not included in
          sig type t = { mutable s : string; } end
        Type declarations do not match:
-         type t = { mutable s : string; }
+         type t = { mutable s : string @@ local; }
        is not included in
          type t = { mutable s : string; }
        Fields do not match:
-         "mutable s : string;"
+         "mutable s : string @@ local;"
        is not the same as:
          "mutable s : string;"
        The second is global and the first is not.

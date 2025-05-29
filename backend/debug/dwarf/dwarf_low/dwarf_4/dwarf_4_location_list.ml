@@ -16,6 +16,7 @@
 
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open Asm_targets
+module A = Asm_directives
 
 type t =
   { name : Asm_label.t;
@@ -55,7 +56,6 @@ let compare_increasing_vma t1 t2 =
   | _ -> failwith "Location_list.compare on empty location list(s)"
 
 let emit ~asm_directives t =
-  let module A = (val asm_directives : Asm_directives.S) in
   A.new_line ();
   A.comment "Location list:";
   A.define_label t.name;

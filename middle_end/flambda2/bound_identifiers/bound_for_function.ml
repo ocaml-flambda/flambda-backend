@@ -207,6 +207,17 @@ let rename
     my_depth = Variable.rename my_depth
   }
 
+let is_renamed_version_of t t' =
+  Continuation.is_renamed_version_of t.return_continuation
+    t'.return_continuation
+  && Continuation.is_renamed_version_of t.exn_continuation t'.exn_continuation
+  && Bound_parameters.is_renamed_version_of t.params t'.params
+  && Variable.is_renamed_version_of t.my_closure t'.my_closure
+  && Option.equal Variable.is_renamed_version_of t.my_region t'.my_region
+  && Option.equal Variable.is_renamed_version_of t.my_ghost_region
+       t'.my_ghost_region
+  && Variable.is_renamed_version_of t.my_depth t'.my_depth
+
 let renaming
     { return_continuation = return_continuation1;
       exn_continuation = exn_continuation1;

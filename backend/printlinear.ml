@@ -119,7 +119,7 @@ let instr' ?(print_reg = Printreg.reg) ppf i =
   | Ladjust_stack_offset { delta_bytes } ->
     fprintf ppf "adjust pseudo stack offset by %d bytes" delta_bytes
   | Lpushtrap { lbl_handler } -> fprintf ppf "push trap %a" label lbl_handler
-  | Lpoptrap -> fprintf ppf "pop trap"
+  | Lpoptrap { lbl_handler } -> fprintf ppf "pop trap %a" label lbl_handler
   | Lraise k -> fprintf ppf "%s %a" (Lambda.raise_kind k) reg i.arg.(0)
   | Lstackcheck { max_frame_size_bytes } ->
     fprintf ppf "stack check (%d bytes)" max_frame_size_bytes);

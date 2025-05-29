@@ -16,6 +16,7 @@
 
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open Asm_targets
+module A = Asm_directives
 
 module Range_list_entry = struct
   type t =
@@ -101,7 +102,6 @@ let size = function
     Base_address_selection_entry.size entry
 
 let emit ~asm_directives t =
-  let module A = (val asm_directives : Asm_directives.S) in
   match t with
   | Range_list_entry entry ->
     A.new_line ();

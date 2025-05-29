@@ -119,7 +119,7 @@ let close_phrase lam =
              [Lprim (Pgetglobal glb, [], Loc_unknown)],
              Loc_unknown)
     in
-    Llet(Strict, Lambda.layout_module_field, id, glob, l)
+    Llet(Strict, Lambda.layout_module_field, id, Lambda.debug_uid_none, glob, l)
   ) (free_variables lam) lam
 
 let toplevel_value id =

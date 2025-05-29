@@ -2,7 +2,6 @@
  readonly_files = "gen_u_array.ml test_gen_u_array.ml";
  modules = "${readonly_files} stubs.c";
  include stdlib_upstream_compatible;
- arch_amd64;
  flambda2;
  {
    flags = "-extension layouts_beta -extension simd_beta";

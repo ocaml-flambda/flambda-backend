@@ -77,6 +77,9 @@ let should_save_before_emit () =
 let should_save_cfg_before_emit () =
   should_save_ir_after Compiler_pass.Simplify_cfg && not !start_from_emit
 
+let should_save_cfg_before_regalloc () =
+  should_save_ir_before Compiler_pass.Register_allocation
+
 let linear_unit_info =
   { Linear_format.unit = Compilation_unit.dummy; items = [] }
 
@@ -84,6 +87,8 @@ let new_cfg_unit_info () =
   { Cfg_format.unit = Compilation_unit.dummy; items = [] }
 
 let cfg_unit_info = new_cfg_unit_info ()
+
+let cfg_before_regalloc_unit_info = new_cfg_unit_info ()
 
 module Compiler_pass_map = Map.Make (Compiler_pass)
 
@@ -96,10 +101,13 @@ let reset () =
   start_from_emit := false;
   Compiler_pass_map.iter
     (fun pass (cfg_unit_info : Cfg_format.cfg_unit_info) ->
-      if should_save_ir_after pass
+      if should_save_ir_after pass || should_save_ir_before pass
       then (
         cfg_unit_info.unit <- Compilation_unit.get_current_or_dummy ();
-        cfg_unit_info.items <- []))
+        cfg_unit_info.items <- [];
+        cfg_before_regalloc_unit_info.unit
+          <- Compilation_unit.get_current_or_dummy ();
+        cfg_before_regalloc_unit_info.items <- []))
     pass_to_cfg;
   if should_save_before_emit ()
   then (
@@ -134,6 +142,25 @@ let save_cfg f =
   then cfg_unit_info.items <- Cfg_format.(Cfg f) :: cfg_unit_info.items;
   f
 
+let save_cfg_before_regalloc (cfg_with_infos : Cfg_with_infos.t) =
+  (if should_save_cfg_before_regalloc ()
+  then
+    (* CFGs and registers are mutable, so make sure what we will save is a
+       snapshot of the current state. *)
+    let copy x = Marshal.from_string (Marshal.to_string x []) 0 in
+    cfg_before_regalloc_unit_info.items
+      <- Cfg_format.(
+           Cfg_before_regalloc
+             { cfg_with_layout_and_relocatable_regs =
+                 copy
+                   ( Cfg_with_infos.cfg_with_layout cfg_with_infos,
+                     Reg.all_relocatable_regs () );
+               cmm_label = Cmm.cur_label ();
+               reg_stamp = Reg.For_testing.get_stamp ()
+             })
+         :: cfg_before_regalloc_unit_info.items);
+  cfg_with_infos
+
 let write_ir prefix =
   Compiler_pass_map.iter
     (fun pass (cfg_unit_info : Cfg_format.cfg_unit_info) ->
@@ -152,7 +179,15 @@ let write_ir prefix =
   then (
     let filename = Compiler_pass.(to_output_filename Simplify_cfg ~prefix) in
     cfg_unit_info.items <- List.rev cfg_unit_info.items;
-    Cfg_format.save filename cfg_unit_info)
+    Cfg_format.save filename cfg_unit_info);
+  if should_save_cfg_before_regalloc ()
+  then (
+    let filename =
+      Compiler_pass.(to_output_filename Register_allocation ~prefix)
+    in
+    cfg_before_regalloc_unit_info.items
+      <- List.rev cfg_before_regalloc_unit_info.items;
+    Cfg_format.save filename cfg_before_regalloc_unit_info)
 
 let should_emit () = not (should_stop_after Compiler_pass.Linearization)
 
@@ -318,46 +353,48 @@ let available_regs ~stack_slots ~f x =
 let compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout =
   let register_allocator = register_allocator fd_cmm in
   let module CSE = Cfg_cse.Cse_generic (CSE) in
-  let cfg_with_infos =
-    cfg_with_layout
-    ++ (fun cfg_with_layout ->
-         match should_vectorize () with
-         | false -> cfg_with_layout
-         | true ->
-           cfg_with_layout
-           ++ cfg_with_layout_profile ~accumulate:true "vectorize"
-                (Vectorize.cfg ppf_dump)
-           ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
-                "After vectorize")
-    ++ cfg_with_layout_profile ~accumulate:true "cfg_polling"
-         (Cfg_polling.instrument_fundecl ~future_funcnames:funcnames)
-    ++ cfg_with_layout_profile ~accumulate:true "cfg_zero_alloc_checker"
-         (Zero_alloc_checker.cfg ~future_funcnames:funcnames ppf_dump)
-    ++ cfg_with_layout_profile ~accumulate:true "cfg_comballoc"
-         Cfg_comballoc.run
-    ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_combine
-    ++ cfg_with_layout_profile ~accumulate:true "cfg_cse" CSE.cfg_with_layout
-    ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_cse
-    ++ Cfg_with_infos.make
-    ++ cfg_with_infos_profile ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
-  in
-  let cfg_description =
-    Regalloc_validate.Description.create
-      (Cfg_with_infos.cfg_with_layout cfg_with_infos)
-  in
-  cfg_with_infos
-  ++ (match register_allocator with
-     | GI -> cfg_with_infos_profile ~accumulate:true "cfg_gi" Regalloc_gi.run
-     | IRC -> cfg_with_infos_profile ~accumulate:true "cfg_irc" Regalloc_irc.run
-     | LS -> cfg_with_infos_profile ~accumulate:true "cfg_ls" Regalloc_ls.run)
-  ++ Cfg_with_infos.cfg_with_layout
+  cfg_with_layout
+  ++ (fun cfg_with_layout ->
+       match should_vectorize () with
+       | false -> cfg_with_layout
+       | true ->
+         cfg_with_layout
+         ++ cfg_with_layout_profile ~accumulate:true "vectorize"
+              (Vectorize.cfg ppf_dump)
+         ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
+              "After vectorize")
+  ++ cfg_with_layout_profile ~accumulate:true "cfg_polling"
+       (Cfg_polling.instrument_fundecl ~future_funcnames:funcnames)
+  ++ cfg_with_layout_profile ~accumulate:true "cfg_zero_alloc_checker"
+       (Zero_alloc_checker.cfg ~future_funcnames:funcnames ppf_dump)
+  ++ cfg_with_layout_profile ~accumulate:true "cfg_comballoc" Cfg_comballoc.run
+  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_combine
+  ++ cfg_with_layout_profile ~accumulate:true "cfg_cse" CSE.cfg_with_layout
+  ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Cfg_cse
+  ++ Cfg_with_infos.make
+  ++ cfg_with_infos_profile ~accumulate:true "cfg_deadcode" Cfg_deadcode.run
+  ++ save_cfg_before_regalloc
+  ++ Profile.record ~accumulate:true "regalloc" (fun cfg_with_infos ->
+         let cfg_description =
+           Regalloc_validate.Description.create
+             (Cfg_with_infos.cfg_with_layout cfg_with_infos)
+         in
+         cfg_with_infos
+         ++ (match register_allocator with
+            | GI ->
+              cfg_with_infos_profile ~accumulate:true "cfg_gi" Regalloc_gi.run
+            | IRC ->
+              cfg_with_infos_profile ~accumulate:true "cfg_irc" Regalloc_irc.run
+            | LS ->
+              cfg_with_infos_profile ~accumulate:true "cfg_ls" Regalloc_ls.run)
+         ++ Cfg_with_infos.cfg_with_layout
+         ++ cfg_with_layout_profile ~accumulate:true "cfg_validate_description"
+              (Regalloc_validate.run cfg_description))
   ++ Profile.record ~accumulate:true "cfg_available_regs"
        (available_regs
           ~stack_slots:(fun x ->
             (Cfg_with_layout.cfg x).Cfg.fun_num_stack_slots)
           ~f:Cfg_available_regs.run)
-  ++ cfg_with_layout_profile ~accumulate:true "cfg_validate_description"
-       (Regalloc_validate.run cfg_description)
   ++ Profile.record ~accumulate:true "cfg_invariants" (cfg_invariants ppf_dump)
   ++ cfg_with_layout_profile ~accumulate:true "cfg_simplify"
        Regalloc_utils.simplify_cfg
@@ -388,10 +425,8 @@ let compile_fundecl ~ppf_dump ~funcnames fd_cmm =
        ++ pass_dump_cfg_if ppf_dump Flambda_backend_flags.dump_cfg
             "After selection")
   ++ Profile.record ~accumulate:true "cfg_invariants" (cfg_invariants ppf_dump)
-  ++ Profile.record ~accumulate:true "regalloc" (fun cfg_with_layout ->
-         cfg_with_layout
-         ++ Profile.record ~accumulate:true "cfg" (fun cfg_with_layout ->
-                compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout))
+  ++ Profile.record ~accumulate:true "cfg" (fun cfg_with_layout ->
+         compile_cfg ppf_dump ~funcnames fd_cmm cfg_with_layout)
   ++ pass_dump_linear_if ppf_dump dump_linear "Linearized code"
   ++ Compiler_hooks.execute_and_pipe Compiler_hooks.Linear
   ++ Profile.record ~accumulate:true "save_linear" save_linear

@@ -28,5 +28,3 @@
 [@@@ocaml.warning "+a-40-41-42"]
 
 val run : Cfg_with_layout.t -> Linear.fundecl
-
-val print_assembly : Cfg.basic_block list -> unit

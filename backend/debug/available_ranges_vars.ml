@@ -70,7 +70,7 @@ module Vars = struct
         match insn.desc with
         | Lop (Stackoffset delta) -> t.stack_offset + delta
         | Lpushtrap _ -> t.stack_offset + Proc.trap_frame_size_in_bytes
-        | Lpoptrap -> t.stack_offset - Proc.trap_frame_size_in_bytes
+        | Lpoptrap _ -> t.stack_offset - Proc.trap_frame_size_in_bytes
         | Ladjust_stack_offset { delta_bytes } -> t.stack_offset + delta_bytes
         | Lend | Lprologue | Lop _ | Lcall_op _ | Lreloadretaddr | Lreturn
         | Llabel _ | Lbranch _ | Lcondbranch _ | Lcondbranch3 _ | Lswitch _

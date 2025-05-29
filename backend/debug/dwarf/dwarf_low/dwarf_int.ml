@@ -17,6 +17,7 @@
 open! Int_replace_polymorphic_compare
 open Asm_targets
 module Uint64 = Numbers.Uint64
+module A = Asm_directives
 
 type t =
   | Thirty_two of Int32.t
@@ -100,8 +101,7 @@ let width_as_int64 () =
 let size t =
   match t with Thirty_two _ -> Thirty_two 4l | Sixty_four _ -> Sixty_four 8L
 
-let emit ~asm_directives ?comment t =
-  let module A = (val asm_directives : Asm_directives.S) in
+let emit ~asm_directives:_ ?comment t =
   match t with
   | Thirty_two i -> A.int32 ?comment i
   | Sixty_four i -> A.int64 ?comment i

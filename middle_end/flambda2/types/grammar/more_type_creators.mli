@@ -43,6 +43,8 @@ val these_naked_vec128s :
 
 val any_tagged_immediate : Type_grammar.t
 
+val any_tagged_immediate_or_null : Type_grammar.t
+
 val these_tagged_immediates0 : Targetint_31_63.Set.t -> Type_grammar.t
 
 val these_tagged_immediates : Targetint_31_63.Set.t -> Type_grammar.t
@@ -150,14 +152,14 @@ val static_closure_with_this_code :
 
 val closure_with_at_least_these_value_slots :
   this_function_slot:Function_slot.t ->
-  (Variable.t * Flambda_kind.With_subkind.t) Value_slot.Map.t ->
+  (Variable.t * Flambda_kind.t) Value_slot.Map.t ->
   Type_grammar.t
 
 val closure_with_at_least_this_value_slot :
   this_function_slot:Function_slot.t ->
   Value_slot.t ->
   value_slot_var:Variable.t ->
-  value_slot_kind:Flambda_kind.With_subkind.t ->
+  value_slot_kind:Flambda_kind.t ->
   Type_grammar.t
 
 val type_for_const : Reg_width_const.t -> Type_grammar.t

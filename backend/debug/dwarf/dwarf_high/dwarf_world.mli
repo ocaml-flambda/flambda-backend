@@ -19,7 +19,7 @@ open Asm_targets
 open Dwarf_low
 
 val emit :
-  asm_directives:(module Asm_directives.S) ->
+  asm_directives:Asm_directives_dwarf.t ->
   compilation_unit_proto_die:Proto_die.t ->
   compilation_unit_header_label:Asm_label.t ->
   debug_loc_table:Debug_loc_table.t ->
@@ -31,7 +31,7 @@ val emit :
   unit
 
 val emit_delayed :
-  asm_directives:(module Asm_directives.S) ->
+  asm_directives:Asm_directives_dwarf.t ->
   basic_block_sections:bool ->
   binary_backend_available:bool ->
   unit

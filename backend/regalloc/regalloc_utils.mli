@@ -55,8 +55,7 @@ val first_instruction_id : Cfg.basic_block -> InstructionId.t
 
 type cfg_infos =
   { arg : Reg.Set.t;
-    res : Reg.Set.t;
-    max_instruction_id : InstructionId.t
+    res : Reg.Set.t
   }
 
 (* CR xclerc for xclerc: this function currently reset the worklist to

@@ -1,4 +1,4 @@
-File "fail15.ml", line 6, characters 40-50:
+File "fail15.ml", line 6, characters 42-52:
 Warning 54 [duplicated-attribute]: the "zero_alloc" attribute is used more than once on this expression
 
 File "fail15.ml", line 8, characters 5-15:

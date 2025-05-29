@@ -51,7 +51,7 @@ and instruction_desc =
   | Lentertrap
   | Ladjust_stack_offset of { delta_bytes : int }
   | Lpushtrap of { lbl_handler : label }
-  | Lpoptrap
+  | Lpoptrap of { lbl_handler : label }
   | Lraise of Lambda.raise_kind
   | Lstackcheck of { max_frame_size_bytes : int }
 
@@ -80,7 +80,8 @@ let has_fallthrough = function
   | Lcall_op (Ltailcall_imm _) ->
     false
   | Lcall_op (Lcall_ind | Lcall_imm _ | Lextcall _ | Lprobe _)
-  | Lprologue | Lend | Lreloadretaddr | Lentertrap | Lpoptrap | Lop _ | Llabel _
+  | Lprologue | Lend | Lreloadretaddr | Lentertrap | Lpoptrap _ | Lop _
+  | Llabel _
   | Lcondbranch (_, _)
   | Lcondbranch3 (_, _, _)
   | Ladjust_stack_offset _ | Lpushtrap _ | Lstackcheck _ ->

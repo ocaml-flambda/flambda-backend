@@ -132,9 +132,15 @@ module Datalog : sig
 
   type atom
 
+  type equality
+
+  type filter
+
   type hypothesis =
     [ `Atom of atom
-    | `Not_atom of atom ]
+    | `Not_atom of atom
+    | `Distinct of equality
+    | `Filter of filter ]
 
   (** [atom rel args] represents the application of relation [rel] to the
       arguments [args].
@@ -152,6 +158,12 @@ module Datalog : sig
   val atom : ('t, 'k) relation -> 'k Term.hlist -> [> `Atom of atom]
 
   val not : [< `Atom of atom] -> [> `Not_atom of atom]
+
+  val distinct :
+    (_, 'k, _) Column.id -> 'k Term.t -> 'k Term.t -> [> `Distinct of equality]
+
+  val filter :
+    ('k Constant.hlist -> bool) -> 'k Term.hlist -> [> `Filter of filter]
 
   type database
 

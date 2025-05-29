@@ -50,7 +50,7 @@ let record_free_names_of_apply_as_used dacc ~use_id ~exn_cont_use_id apply =
 
 let loopify_decision_for_call dacc apply =
   let denv = DA.denv dacc in
-  if not (Are_rebuilding_terms.are_rebuilding (DE.are_rebuilding_terms denv))
+  if Are_rebuilding_terms.do_not_rebuild_terms (DE.are_rebuilding_terms denv)
   then
     (* During speculative inlining, we are only rebuilding the inlined body, and
        in particular we run the Flow Analysis on just the inlined body. The Flow
@@ -226,7 +226,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
         Simplify_rec_info_expr.known_remaining_unrolling_depth dacc
           (Call_site_inlining_decision.get_rec_info dacc ~function_type)
       in
-      if Are_rebuilding_terms.are_rebuilding
+      if Are_rebuilding_terms.do_rebuild_terms
            (DE.are_rebuilding_terms (DA.denv dacc))
       then
         Inlining_report.record_decision_at_call_site_for_known_function
@@ -296,7 +296,7 @@ let simplify_direct_full_application ~simplify_expr dacc apply function_type
                   result_types Apply.print apply;
               let denv = DA.denv dacc in
               let denv =
-                DE.add_parameters_with_unknown_types
+                DE.add_parameters_with_unknown_types ~extra:false
                   ~name_mode:Name_mode.in_types denv params
               in
               let params = Bound_parameters.to_list params in
@@ -425,7 +425,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   let compilation_unit = Compilation_unit.get_current_exn () in
   let wrapper_function_slot =
     Function_slot.create compilation_unit ~name:"partial_app_closure"
-      K.With_subkind.any_value
+      ~is_always_immediate:false K.value
   in
   (* The allocation mode of the closure is directly determined by the alloc_mode
      of the application. We check here that it is consistent with
@@ -507,7 +507,15 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
                 }
         end in
         let mk_value_slot kind =
-          Value_slot.create compilation_unit ~name:"arg" kind
+          let is_always_immediate =
+            match[@ocaml.warning "-4"]
+              K.With_subkind.non_null_value_subkind kind
+            with
+            | Tagged_immediate -> true
+            | _ -> false
+          in
+          Value_slot.create compilation_unit ~name:"arg" ~is_always_immediate
+            (K.With_subkind.kind kind)
         in
         let applied_value (value, kind) =
           Simple.pattern_match' value
@@ -917,7 +925,7 @@ let simplify_function_call_where_callee's_type_unavailable dacc apply
     (call : Call_kind.Function_call.t) ~apply_alloc_mode ~down_to_up =
   fail_if_probe apply;
   let denv = DA.denv dacc in
-  if Are_rebuilding_terms.are_rebuilding (DE.are_rebuilding_terms denv)
+  if Are_rebuilding_terms.do_rebuild_terms (DE.are_rebuilding_terms denv)
   then
     Inlining_report.record_decision_at_call_site_for_unknown_function
       ~pass:Inlining_report.Pass.Before_simplify

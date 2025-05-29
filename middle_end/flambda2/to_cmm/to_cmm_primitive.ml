@@ -309,13 +309,17 @@ let array_load ~dbg (array_kind : P.Array_kind.t)
   | Unboxed_product _, Naked_int32s ->
     C.unboxed_mutable_int32_unboxed_product_array_ref arr ~array_index:index dbg
   | (Immediates | Naked_floats), Naked_vec128s ->
-    array_load_128 ~dbg ~element_width_log2:3 ~has_custom_ops:false arr index
+    array_load_128 ~ptr_out_of_heap:false ~dbg ~element_width_log2:3
+      ~has_custom_ops:false arr index
   | (Naked_int64s | Naked_nativeints), Naked_vec128s ->
-    array_load_128 ~dbg ~element_width_log2:3 ~has_custom_ops:true arr index
+    array_load_128 ~ptr_out_of_heap:false ~dbg ~element_width_log2:3
+      ~has_custom_ops:true arr index
   | (Naked_int32s | Naked_float32s), Naked_vec128s ->
-    array_load_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
+    array_load_128 ~ptr_out_of_heap:false ~dbg ~element_width_log2:2
+      ~has_custom_ops:true arr index
   | Naked_vec128s, Naked_vec128s ->
-    array_load_128 ~dbg ~element_width_log2:4 ~has_custom_ops:true arr index
+    array_load_128 ~ptr_out_of_heap:false ~dbg ~element_width_log2:4
+      ~has_custom_ops:true arr index
   | ( ( Naked_floats | Naked_int32s | Naked_float32s | Naked_int64s
       | Naked_nativeints | Naked_vec128s ),
       Values ) ->
@@ -385,17 +389,17 @@ let array_set0 ~dbg (array_kind : P.Array_kind.t)
     C.unboxed_mutable_int32_unboxed_product_array_set arr ~array_index:index
       ~new_value dbg
   | (Immediates | Naked_floats), Naked_vec128s ->
-    array_set_128 ~dbg ~element_width_log2:3 ~has_custom_ops:false arr index
-      new_value
+    array_set_128 ~ptr_out_of_heap:false ~dbg ~element_width_log2:3
+      ~has_custom_ops:false arr index new_value
   | (Naked_int64s | Naked_nativeints), Naked_vec128s ->
-    array_set_128 ~dbg ~element_width_log2:3 ~has_custom_ops:true arr index
-      new_value
+    array_set_128 ~ptr_out_of_heap:false ~dbg ~element_width_log2:3
+      ~has_custom_ops:true arr index new_value
   | (Naked_int32s | Naked_float32s), Naked_vec128s ->
-    array_set_128 ~dbg ~element_width_log2:2 ~has_custom_ops:true arr index
-      new_value
+    array_set_128 ~ptr_out_of_heap:false ~dbg ~element_width_log2:2
+      ~has_custom_ops:true arr index new_value
   | Naked_vec128s, Naked_vec128s ->
-    array_set_128 ~dbg ~element_width_log2:4 ~has_custom_ops:true arr index
-      new_value
+    array_set_128 ~ptr_out_of_heap:false ~dbg ~element_width_log2:4
+      ~has_custom_ops:true arr index new_value
   | ( ( Naked_floats | Naked_int32s | Naked_float32s | Naked_int64s
       | Naked_nativeints | Naked_vec128s ),
       Values _ ) ->
@@ -456,49 +460,60 @@ let bigarray_store ~dbg kind ~bigarray ~index ~new_value =
 (* String and bytes access. For these functions, [index] is an untagged
    integer. *)
 
-let string_like_load_aux ~dbg width ~str ~index =
+let string_like_load_aux ~ptr_out_of_heap ~dbg width ~str ~index =
   match (width : P.string_accessor_width) with
-  | Eight -> C.load ~dbg Byte_unsigned Mutable ~addr:(C.add_int str index dbg)
-  | Sixteen -> C.unaligned_load_16 str index dbg
+  | Eight ->
+    (* CR mshinwell: should not be Mutable for [string] *)
+    C.load ~dbg Byte_unsigned Mutable
+      ~addr:(C.add_int_ptr ~ptr_out_of_heap str index dbg)
+  | Sixteen -> C.unaligned_load_16 ~ptr_out_of_heap str index dbg
   | Thirty_two ->
-    C.sign_extend ~bits:32 ~dbg (C.unaligned_load_32 str index dbg)
-  | Single -> C.unaligned_load_f32 str index dbg
-  | Sixty_four -> C.unaligned_load_64 str index dbg
-  | One_twenty_eight { aligned = true } -> C.aligned_load_128 str index dbg
-  | One_twenty_eight { aligned = false } -> C.unaligned_load_128 str index dbg
+    C.sign_extend ~bits:32 ~dbg
+      (C.unaligned_load_32 ~ptr_out_of_heap str index dbg)
+  | Single -> C.unaligned_load_f32 ~ptr_out_of_heap str index dbg
+  | Sixty_four -> C.unaligned_load_64 ~ptr_out_of_heap str index dbg
+  | One_twenty_eight { aligned = true } ->
+    C.aligned_load_128 ~ptr_out_of_heap str index dbg
+  | One_twenty_eight { aligned = false } ->
+    C.unaligned_load_128 ~ptr_out_of_heap str index dbg
 
 let string_like_load ~dbg kind width ~str ~index =
   match (kind : P.string_like_value) with
-  | String | Bytes -> string_like_load_aux ~dbg width ~str ~index
+  | String | Bytes ->
+    string_like_load_aux ~ptr_out_of_heap:false ~dbg width ~str ~index
   | Bigstring ->
     let ba_data_addr = C.field_address str 1 dbg in
     let ba_data = C.load ~dbg Word_int Mutable ~addr:ba_data_addr in
     C.bind "ba_data" ba_data (fun str ->
-        string_like_load_aux ~dbg width ~str ~index)
+        string_like_load_aux ~ptr_out_of_heap:true ~dbg width ~str ~index)
 
-let bytes_or_bigstring_set_aux ~dbg width ~bytes ~index ~new_value =
+let bytes_or_bigstring_set_aux ~ptr_out_of_heap ~dbg width ~bytes ~index
+    ~new_value =
   match (width : P.string_accessor_width) with
   | Eight ->
-    let addr = C.add_int bytes index dbg in
+    let addr = C.add_int_ptr ~ptr_out_of_heap bytes index dbg in
     C.store ~dbg Byte_unsigned Assignment ~addr ~new_value
-  | Sixteen -> C.unaligned_set_16 bytes index new_value dbg
-  | Thirty_two -> C.unaligned_set_32 bytes index new_value dbg
-  | Single -> C.unaligned_set_f32 bytes index new_value dbg
-  | Sixty_four -> C.unaligned_set_64 bytes index new_value dbg
+  | Sixteen -> C.unaligned_set_16 ~ptr_out_of_heap bytes index new_value dbg
+  | Thirty_two -> C.unaligned_set_32 ~ptr_out_of_heap bytes index new_value dbg
+  | Single -> C.unaligned_set_f32 ~ptr_out_of_heap bytes index new_value dbg
+  | Sixty_four -> C.unaligned_set_64 ~ptr_out_of_heap bytes index new_value dbg
   | One_twenty_eight { aligned = false } ->
-    C.unaligned_set_128 bytes index new_value dbg
+    C.unaligned_set_128 ~ptr_out_of_heap bytes index new_value dbg
   | One_twenty_eight { aligned = true } ->
-    C.aligned_set_128 bytes index new_value dbg
+    C.aligned_set_128 ~ptr_out_of_heap bytes index new_value dbg
 
 let bytes_or_bigstring_set ~dbg kind width ~bytes ~index ~new_value =
   let expr =
     match (kind : P.bytes_like_value) with
-    | Bytes -> bytes_or_bigstring_set_aux ~dbg width ~bytes ~index ~new_value
+    | Bytes ->
+      bytes_or_bigstring_set_aux ~ptr_out_of_heap:false ~dbg width ~bytes ~index
+        ~new_value
     | Bigstring ->
       let addr = C.field_address bytes 1 dbg in
       let ba_data = C.load ~dbg Word_int Mutable ~addr in
       C.bind "ba_data" ba_data (fun bytes ->
-          bytes_or_bigstring_set_aux ~dbg width ~bytes ~index ~new_value)
+          bytes_or_bigstring_set_aux ~ptr_out_of_heap:true ~dbg width ~bytes
+            ~index ~new_value)
   in
   C.return_unit dbg expr
 
@@ -555,18 +570,6 @@ let scalar_type_of_standard_int_or_float :
 
 let unary_int_arith_primitive _env dbg kind op arg =
   match (op : P.unary_int_arith_op) with
-  | Neg -> (
-    match integral_of_standard_int kind with
-    | Tagged src ->
-      C.Scalar_type.Tagged_integer.conjugate ~dbg ~outer:src
-        ~inner:C.Scalar_type.Tagged_integer.immediate
-        ~f:(fun x -> C.negint x dbg)
-        arg
-    | Untagged src ->
-      let bits = C.Scalar_type.Integer.bit_width src in
-      C.Scalar_type.Integer.conjugate arg ~outer:src
-        ~inner:C.Scalar_type.Integer.nativeint ~dbg ~f:(fun arg ->
-          C.neg_int (C.low_bits ~bits arg ~dbg) dbg))
   | Swap_byte_endianness -> (
     match (kind : K.Standard_int.t) with
     | Tagged_immediate ->
@@ -930,7 +933,9 @@ let unary_primitive env res dbg f arg =
       value_slot_offset env value_slot, function_slot_offset env project_from
     with
     | Live_value_slot { offset; _ }, Live_function_slot { offset = base; _ } ->
-      let memory_chunk = To_cmm_shared.memory_chunk_of_kind kind in
+      let memory_chunk =
+        To_cmm_shared.memory_chunk_of_kind (KS.anything kind)
+      in
       let expr =
         C.get_field_gen_given_memory_chunk memory_chunk Asttypes.Immutable arg
           (offset - base) dbg

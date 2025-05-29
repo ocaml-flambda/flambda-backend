@@ -60,6 +60,7 @@ let simplify_toplevel_common dacc simplify ~params ~implicit_params
           Flow.Analysis.analyze data_flow ~print_name ~code_age_relation
             ~used_value_slots
             ~code_ids_to_never_delete:(DA.code_ids_to_never_delete dacc)
+            ~specialization_map:(DA.specialization_map dacc)
             ~return_continuation ~exn_continuation
         in
         let uenv =
@@ -138,7 +139,7 @@ and simplify_function_body dacc expr ~return_continuation ~return_arity
         (Apply_cont_expr.create cont ~args ~dbg:Debuginfo.none)
     in
     let handlers =
-      Continuation.Map.singleton cont
+      Continuation.Lmap.singleton cont
         (Continuation_handler.create params ~handler:expr
            ~free_names_of_handler:Unknown ~is_exn_handler:false ~is_cold:false)
     in

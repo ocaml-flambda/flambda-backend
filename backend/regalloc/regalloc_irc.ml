@@ -520,9 +520,7 @@ let run : Cfg_with_infos.t -> Cfg_with_infos.t =
   let all_temporaries = Reg.Set.union cfg_infos.arg cfg_infos.res in
   if debug then log "#temporaries=%d" (Reg.Set.cardinal all_temporaries);
   let state =
-    State.make
-      ~initial:(Reg.Set.elements all_temporaries)
-      ~stack_slots ~last_used:cfg_infos.max_instruction_id ()
+    State.make ~initial:(Reg.Set.elements all_temporaries) ~stack_slots ()
   in
   let spilling_because_unused = Reg.Set.diff cfg_infos.res cfg_infos.arg in
   (match Reg.Set.elements spilling_because_unused with

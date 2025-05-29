@@ -303,13 +303,8 @@ let instr_cfg_with_layout :
     bool =
  fun cfg_with_layout ~safe_map ~back_edges ->
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  let instruction_id =
-    lazy
-      (let cfg = Cfg_with_layout.cfg cfg_with_layout in
-       InstructionId.make_sequence ~last_used:(Cfg.max_instr_id cfg) ())
-  in
   let next_instruction_id () =
-    InstructionId.get_and_incr (Lazy.force instruction_id)
+    InstructionId.get_and_incr cfg.next_instruction_id
   in
   Cfg_edge.Set.fold
     (fun { Cfg_edge.src; dst } added_poll ->

@@ -149,11 +149,12 @@ end = struct
     | Value_slot { value_slot; is_scanned; size } ->
       let simple = Value_slot.Map.find value_slot value_slots in
       let kind = Value_slot.kind value_slot in
-      if (not
-            (Flambda_kind.equal
-               (Flambda_kind.With_subkind.kind kind)
-               Flambda_kind.value))
-         && is_scanned
+      let kind_with_subkind =
+        if Value_slot.is_always_immediate value_slot
+        then KS.tagged_immediate
+        else KS.anything kind
+      in
+      if (not (Flambda_kind.equal kind Flambda_kind.value)) && is_scanned
       then
         Misc.fatal_errorf
           "Value slot %a not of kind Value (%a) but is visible by GC"
@@ -162,7 +163,7 @@ end = struct
       let env, res, fields, chunk_acc, updates =
         match contents with
         | `Expr field ->
-          let chunk = C.memory_chunk_of_kind kind in
+          let chunk = C.memory_chunk_of_kind kind_with_subkind in
           let chunk_acc =
             rev_append_chunks ~for_static_sets [chunk] chunk_acc
           in
@@ -179,11 +180,9 @@ end = struct
               } ->
             let update_kind =
               let module UK = C.Update_kind in
-              match KS.kind kind with
+              match kind with
               | Value ->
-                if KS.Non_null_value_subkind.equal
-                     (KS.non_null_value_subkind kind)
-                     Tagged_immediate
+                if Value_slot.is_always_immediate value_slot
                 then UK.tagged_immediates
                 else UK.pointers
               | Naked_number Naked_immediate
@@ -198,7 +197,7 @@ end = struct
               | Naked_number Naked_float32 -> UK.naked_float32_fields
               | Region | Rec_info ->
                 Misc.fatal_errorf "Unexpected value slot kind for %a: %a"
-                  Value_slot.print value_slot KS.print kind
+                  Value_slot.print value_slot Flambda_kind.print kind
             in
             let env, res, updates =
               C.make_update env res dbg update_kind

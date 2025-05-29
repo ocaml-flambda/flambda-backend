@@ -69,8 +69,7 @@ let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
           simple
       in
       let dacc =
-        DA.add_variable dacc result_var
-          (T.alias_type_of (K.With_subkind.kind kind) simple)
+        DA.add_variable dacc result_var (T.alias_type_of kind simple)
       in
       SPR.create (Named.create_simple simple) ~try_reify:true dacc
     | Need_meet ->
@@ -81,7 +80,7 @@ let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
             (T.closure_with_at_least_this_value_slot
                ~this_function_slot:function_slot value_slot
                ~value_slot_var:(Bound_var.var result_var) ~value_slot_kind:kind)
-          ~result_var ~result_kind:(K.With_subkind.kind kind)
+          ~result_var ~result_kind:kind
       in
       let dacc = DA.add_use_of_value_slot result.dacc value_slot in
       SPR.with_dacc result dacc
@@ -89,7 +88,8 @@ let simplify_project_value_slot function_slot value_slot ~min_name_mode dacc
   let dacc =
     Simplify_common.add_symbol_projection result.dacc ~projected_from:closure
       (Symbol_projection.Projection.project_value_slot function_slot value_slot)
-      ~projection_bound_to:result_var ~kind
+      ~projection_bound_to:result_var
+      ~kind:(Flambda_kind.With_subkind.anything kind)
   in
   SPR.with_dacc result dacc
 
@@ -275,9 +275,7 @@ module Unary_int_arith (I : A.Int_number_kind) = struct
     | Known_result ints ->
       assert (not (I.Num.Set.is_empty ints));
       let f =
-        match op with
-        | Neg -> I.Num.neg
-        | Swap_byte_endianness -> I.Num.swap_byte_endianness
+        match op with Swap_byte_endianness -> I.Num.swap_byte_endianness
       in
       let possible_results = I.Num.Set.map f ints in
       let ty = I.these_unboxed possible_results in
@@ -771,7 +769,7 @@ let simplify_atomic_load (block_access_field_kind : P.Block_access_field_kind.t)
     ~original_prim dacc ~original_term ~arg:_ ~arg_ty:_ ~result_var =
   match block_access_field_kind with
   | Immediate ->
-    let dacc = DA.add_variable dacc result_var T.any_tagged_immediate in
+    let dacc = DA.add_variable dacc result_var T.any_tagged_immediate_or_null in
     SPR.create original_term ~try_reify:false dacc
   | Any_value ->
     SPR.create_unknown dacc ~result_var

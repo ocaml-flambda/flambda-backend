@@ -4,14 +4,14 @@
 
 (* The kinds [value] and [float64] don't mode cross, but the kinds [value mod
    everything] and [float64 mod everything] cross everything (ignoring
-   nullability) *)
+   nullability and separability) *)
 type t_value : value
 type t_value_mod_e : value mod everything
 type t_float64 : float64
 type t_float64_mod_e : float64 mod everything
 [%%expect{|
 type t_value
-type t_value_mod_e : immediate
+type t_value_mod_e : immediate_or_null mod non_null separable
 type t_float64 : float64
 type t_float64_mod_e : float64 mod everything
 |}]
@@ -294,11 +294,16 @@ type t : immediate & immediate
 
 type t : value & float64 mod everything
 [%%expect{|
-type t : immediate & float64 mod everything
+type t
+  : immediate_or_null mod non_null separable
+    & float64 mod global aliased many stateless immutable external_
 |}]
 
 type t : value & (immediate & bits64) & float32 mod everything
 [%%expect{|
 type t
-  : immediate & (immediate & bits64 mod everything) & float32 mod everything
+  : immediate_or_null mod non_null separable
+    & (immediate_or_null mod non_null separable
+      & bits64 mod global aliased many stateless immutable external_)
+    & float32 mod global aliased many stateless immutable external_
 |}]

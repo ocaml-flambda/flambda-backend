@@ -24,7 +24,7 @@ module type S = sig
   val size : t -> Dwarf_int.t
 
   (** Emit assembler directives to describe the given entity. *)
-  val emit : asm_directives:(module Asm_directives.S) -> t -> unit
+  val emit : asm_directives:Asm_directives_dwarf.t -> t -> unit
 end
 
 module type S1_ignore = sig
@@ -34,5 +34,5 @@ module type S1_ignore = sig
   val size : _ t -> Dwarf_int.t
 
   (** Emit assembler directives to describe the given entity. *)
-  val emit : asm_directives:(module Asm_directives.S) -> _ t -> unit
+  val emit : asm_directives:Asm_directives_dwarf.t -> _ t -> unit
 end

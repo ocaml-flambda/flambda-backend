@@ -25,6 +25,9 @@ let macosx = String.equal Config.system "macosx"
 
 let is_asan_enabled = ref false
 
+(* CR gyorsh: refactor to use [Arch.Extension] like amd64 *)
+let feat_cssc = ref false
+
 (* Machine-specific command-line options *)
 
 let command_line_options = [
@@ -32,6 +35,11 @@ let command_line_options = [
     Arg.Clear is_asan_enabled,
     " Disable AddressSanitizer. This is only meaningful if the compiler was \
      built with AddressSanitizer support enabled."
+  ;
+
+  "-fcssc",
+    Arg.Set feat_cssc,
+    " Enable the Common Short Sequence Compression (CSSC) instructions."
 ]
 
 (* Addressing modes *)

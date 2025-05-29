@@ -44,35 +44,31 @@ let should_be_escaped = function
 module Thing = struct
   type t =
     { name : string;
-      without_prefix : bool
+      already_encoded : bool
     }
 
-  let compare { name = name1; without_prefix = without_prefix1 }
-      { name = name2; without_prefix = without_prefix2 } =
+  let compare { name = name1; already_encoded = already_encoded1 }
+      { name = name2; already_encoded = already_encoded2 } =
     let cmp = String.compare name1 name2 in
-    if cmp = 0 then Bool.compare without_prefix1 without_prefix2 else cmp
+    if cmp = 0 then Bool.compare already_encoded1 already_encoded2 else cmp
 
   let equal t1 t2 = compare t1 t2 = 0
 
   let hash = Hashtbl.hash
 
-  let output chan { name; without_prefix } =
-    let symbol_prefix = if without_prefix then symbol_prefix () else "" in
-    Printf.fprintf chan "%s%s" symbol_prefix name
+  let output chan { name; already_encoded : _ } = Printf.fprintf chan "%s" name
 
-  let print fmt { name; without_prefix } =
-    let symbol_prefix = if without_prefix then symbol_prefix () else "" in
-    Format.pp_print_string fmt (symbol_prefix ^ name)
+  let print fmt { name; already_encoded : _ } = Format.pp_print_string fmt name
 end
 
 include Thing
 include Identifiable.Make (Thing)
 
-let create ?without_prefix name =
-  let without_prefix = Option.is_some without_prefix in
-  { name; without_prefix }
+let create name = { name; already_encoded = false }
 
-let to_raw_string { name; without_prefix } = name
+let create_without_encoding name = { name; already_encoded = true }
+
+let to_raw_string { name; already_encoded : _ } = name
 
 let escape name =
   let escaped_nb = ref 0 in
@@ -97,6 +93,43 @@ let to_escaped_string ?suffix ~symbol_prefix t =
   let suffix = match suffix with None -> "" | Some suffix -> suffix in
   symbol_prefix ^ escape t ^ suffix
 
-let encode t =
-  let symbol_prefix = if t.without_prefix then "" else symbol_prefix () in
-  to_escaped_string ~symbol_prefix t.name
+let encode { name; already_encoded } =
+  if already_encoded
+  then name
+  else
+    let symbol_prefix = symbol_prefix () in
+    to_escaped_string ~symbol_prefix name
+
+(* We predefine several common symbols that violate the standard escaping done
+   by [encode]. *)
+module Predef = struct
+  let caml_call_gc = create_without_encoding "caml_call_gc"
+
+  let caml_c_call = create_without_encoding "caml_c_call"
+
+  let caml_allocN = create_without_encoding "caml_allocN"
+
+  let caml_alloc1 = create_without_encoding "caml_alloc1"
+
+  let caml_alloc2 = create_without_encoding "caml_alloc2"
+
+  let caml_alloc3 = create_without_encoding "caml_alloc3"
+
+  let caml_ml_array_bound_error =
+    create_without_encoding "caml_ml_array_bound_error"
+
+  let caml_raise_exn = create_without_encoding "caml_raise_exn"
+
+  let stapsdt_base = create_without_encoding "_.stapsdt.base"
+
+  let caml_probes_semaphore ~name =
+    create_without_encoding ("caml_probes_semaphore_" ^ name)
+
+  let caml_negf_mask = create "caml_negf_mask"
+
+  let caml_absf_mask = create "caml_absf_mask"
+
+  let caml_negf32_mask = create "caml_negf32_mask"
+
+  let caml_absf32_mask = create "caml_absf32_mask"
+end

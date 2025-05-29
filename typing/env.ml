@@ -780,7 +780,7 @@ type lookup_error =
   | Unbound_value of Longident.t * unbound_value_hint
   | Unbound_type of Longident.t
   | Unbound_constructor of Longident.t
-  | Unbound_label of (Longident.t * record_form_packed)
+  | Unbound_label of Longident.t * record_form_packed * label_usage
   | Unbound_module of Longident.t
   | Unbound_class of Longident.t
   | Unbound_modtype of Longident.t
@@ -803,14 +803,14 @@ type lookup_error =
       Mode.Value.Comonadic.error * closure_context
   | Local_value_used_in_exclave of lock_item * Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
-  | No_unboxed_version of Longident.t
+  | No_unboxed_version of Longident.t * type_declaration
   | Error_from_persistent_env of Persistent_env.error
 
 type error =
   | Missing_module of Location.t * Path.t * Path.t
   | Illegal_value_name of Location.t * string
   | Lookup_error of Location.t * t * lookup_error
-  | Incomplete_instantiation of { unset_param : Global_module.Name.t }
+  | Incomplete_instantiation of { unset_param : Global_module.Parameter_name.t }
 
 exception Error of error
 
@@ -3352,7 +3352,8 @@ let lookup_all_ident_labels (type rep) ~(record_form : rep record_form) ~errors
       ~use ~loc usage s env =
   match find_all_labels ~record_form ~mark:use s env with
   | [] ->
-    may_lookup_error errors loc env (Unbound_label (Lident s, P record_form))
+    may_lookup_error errors loc env
+      (Unbound_label (Lident s, P record_form, usage))
   | lbls -> begin
       List.map
         (fun (lbl, use_fn) ->
@@ -3553,7 +3554,7 @@ let lookup_all_dot_labels ~record_form ~errors ~use ~loc usage l s env =
   match NameMap.find s (comp_labels record_form comps) with
   | [] | exception Not_found ->
       may_lookup_error errors loc env
-        (Unbound_label (Ldot(l, s), P record_form))
+        (Unbound_label (Ldot(l, s), P record_form, usage))
   | lbls ->
       List.map
         (fun lbl ->
@@ -3824,12 +3825,13 @@ let lookup_type ~errors ~use ~loc lid env =
   | Some lid ->
     (* To get the hash version, look up without the hash, then look for the
        unboxed version *)
-    let path, _ = lookup_type_full ~errors ~use ~loc lid env in
+    let path, data = lookup_type_full ~errors ~use ~loc lid env in
     match find_type_unboxed_version path env Path.Set.empty with
     | decl ->
       Path.unboxed_version path, decl
     | exception Not_found ->
-      may_lookup_error errors loc env (No_unboxed_version lid)
+      may_lookup_error errors loc env
+        (No_unboxed_version (lid, data.tda_declaration))
 
 let lookup_modtype_lazy ~errors ~use ~loc lid env =
   match lid with
@@ -4461,7 +4463,7 @@ let report_lookup_error _loc env ppf = function
       fprintf ppf "Unbound constructor %a"
         (Style.as_inline_code !print_longident) lid;
       spellcheck ppf extract_constructors env lid;
-  | Unbound_label (lid, record_form) ->
+  | Unbound_label (lid, record_form, usage) ->
       let P record_form = record_form in
       fprintf ppf "Unbound %s field %a"
         (record_form_to_string record_form)
@@ -4480,7 +4482,25 @@ let report_lookup_error _loc env ppf = function
       (match label_of_other_form with
       | Some other_form ->
         Format.fprintf ppf
-          "@\n@{<hint>Hint@}: There is %s field with this name." other_form
+          "@\n@{<hint>Hint@}: @[There is %s field with this name." other_form;
+        (match record_form, usage with
+        | Unboxed_product, _ ->
+          (* If an unboxed field isn't in scope but a boxed field is, then
+             the boxed field must come from a record that didn't get an unboxed
+             version. *)
+          Format.fprintf ppf
+            "@ Note that float- and [%@%@unboxed]- records don't get unboxed \
+             versions."
+        | Legacy, Projection ->
+          let print_projection ppf (op, lid) =
+            fprintf ppf "%s%a" op !print_longident lid
+          in
+          fprintf ppf "@ To project an unboxed record field, use %a instead of \
+                       %a."
+            (Style.as_inline_code print_projection) (".#", lid)
+            (Style.as_inline_code print_projection) (".", lid)
+        | _ -> ());
+        Format.fprintf ppf "@]"
       | None -> ());
   | Unbound_class lid -> begin
       fprintf ppf "Unbound class %a"
@@ -4622,9 +4642,21 @@ let report_lookup_error _loc env ppf = function
         (Style.as_inline_code !print_longident) lid
         (fun v -> Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> !print_type_expr ppf typ) v) err
-  | No_unboxed_version lid ->
+  | No_unboxed_version (lid, decl) ->
       fprintf ppf "@[The type %a has no unboxed version.@]"
-        (Style.as_inline_code !print_longident) lid
+        (Style.as_inline_code !print_longident) lid;
+      begin match decl.type_kind with
+      | Type_record (_, Record_unboxed, _) ->
+          fprintf ppf
+            "@.@[@{<hint>Hint@}: \
+             [%@%@unboxed] records don't get unboxed versions.@]"
+      | Type_record (_, (Record_float | Record_ufloat | Record_mixed _), _) ->
+          fprintf ppf
+            "@.@[@{<hint>Hint@}: Float records don't get unboxed versions.@]";
+      | Type_record_unboxed_product _ ->
+          fprintf ppf "@.@[@{<hint>Hint@}: It is already an unboxed record.@]";
+      | _ -> ()
+      end
   | Error_from_persistent_env err ->
       Persistent_env.report_error ppf err
 
@@ -4649,7 +4681,7 @@ let report_error ppf = function
   | Incomplete_instantiation { unset_param } ->
       fprintf ppf "@[<hov>Not enough instance arguments: the parameter@ %a@ is \
                    required.@]"
-        Global_module.Name.print unset_param
+        Global_module.Parameter_name.print unset_param
 
 let () =
   Location.register_error_of_exn

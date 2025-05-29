@@ -19,6 +19,13 @@
 type cfg_item_info =
   | Cfg of Cfg_with_layout.t
   | Data of Cmm.data_item list
+  | Cfg_before_regalloc of {
+    (* `cfg_with_layout` and `relocatable_regs` need to be marshalled together
+       in order to preserve sharing. *)
+    cfg_with_layout_and_relocatable_regs : Cfg_with_layout.t * (Reg.t list);
+    cmm_label: Label.t;
+    reg_stamp: int;
+  } 
 
 type cfg_unit_info =
   {

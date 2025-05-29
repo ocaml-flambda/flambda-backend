@@ -8,21 +8,19 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 type t =
   { interval_dll : Interval.t DLL.t;
     active : ClassIntervals.t Reg_class.Tbl.t;
-    stack_slots : Regalloc_stack_slots.t;
-    instruction_id : InstructionId.sequence
+    stack_slots : Regalloc_stack_slots.t
   }
 
 let for_fatal t =
   ( DLL.map t.interval_dll ~f:Interval.copy,
     Reg_class.Tbl.map t.active ~f:ClassIntervals.copy )
 
-let[@inline] make ~stack_slots ~last_used =
+let[@inline] make ~stack_slots =
   let interval_dll = DLL.make_empty () in
   let active =
     Reg_class.Tbl.init ~f:(fun _reg_class -> ClassIntervals.make ())
   in
-  let instruction_id = InstructionId.make_sequence ~last_used () in
-  { interval_dll; active; stack_slots; instruction_id }
+  { interval_dll; active; stack_slots }
 
 (* CR-someday xclerc: consider using Dynarray *)
 type class_interval_array =
@@ -111,9 +109,6 @@ let[@inline] active state ~reg_class = Reg_class.Tbl.find state.active reg_class
 let[@inline] active_classes state = state.active
 
 let[@inline] stack_slots state = state.stack_slots
-
-let[@inline] get_and_incr_instruction_id state =
-  InstructionId.get_and_incr state.instruction_id
 
 let rec check_ranges (prev : Range.t) (cell : Range.t DLL.cell option) : int =
   if prev.begin_ > prev.end_

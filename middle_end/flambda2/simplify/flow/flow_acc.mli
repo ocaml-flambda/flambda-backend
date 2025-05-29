@@ -28,9 +28,16 @@ type t = Flow_types.Acc.t
 (** Printing *)
 val print : Format.formatter -> t -> unit
 
-(** "Consume" the extra args of an accumulator in order to add them to the
-    regular args and parameters in the continuation info of each continuation. *)
-val extend_args_with_extra_args : t -> t
+(** Normalize an accumulator before begin processed. Does two things:
+    - "Consume" the extra args of an accumulator in order to add them to the
+      regular args and parameters in the continuation info of each continuation
+    - Rewrite the callsites of specialized continuations
+*)
+val normalize_acc :
+  specialization_map:
+    Continuation.t Apply_cont_rewrite_id.Map.t Continuation.Map.t ->
+  t ->
+  t
 
 (** A name for the incorrec tdummy toplevel cont used to initialize the acc. *)
 val wrong_dummy_toplevel_cont_name : string

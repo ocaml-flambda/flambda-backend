@@ -601,8 +601,8 @@ type t = { x : string @@ global
 type t1 = { mutable x : float
           ; mutable f : float -> float }
 
-type t2 = { mutable x : float [@no_mutable_implied_modalities]
-          ; mutable f : float -> float [@no_mutable_implied_modalities] }
+type t2 = { mutable x : float @@ local once
+          ; mutable f : float -> float @@ local once }
 
 [%%expect{|
 type t =
@@ -614,7 +614,10 @@ type t = {
   z : string @@ global many;
 }
 type t1 = { mutable x : float; mutable f : float -> float; }
-type t2 = { mutable x : float; mutable f : float -> float; }
+type t2 = {
+  mutable x : float @@ local once;
+  mutable f : float -> float @@ local once;
+}
 |}]
 
 let f1 (x @ local) (f @ once) : t1 = exclave_ { x; f }
@@ -1250,6 +1253,15 @@ type 'a list : immutable_data with 'a
 type ('a, 'b) either : immutable_data with 'a with 'b
 type 'a contended : immutable_data with 'a @@ contended
 type 'a contended_with_int : immutable_data with 'a @@ contended
+|}]
+
+type 'a abstract
+type existential_abstract : immutable_data with (type : value mod portable) abstract =
+  | Mk : ('a : value mod portable) abstract -> existential_abstract
+[%%expect{|
+type 'a abstract
+type existential_abstract =
+    Mk : ('a : value mod portable). 'a abstract -> existential_abstract
 |}]
 
 (* not yet supported *)

@@ -61,8 +61,7 @@ let init_parameters () =
   let param_names = !Clflags.parameters in
   List.iter
     (fun param_name ->
-        (* We don't (yet!) support parameterised parameters *)
-        let param = Global_module.Name.create_no_args param_name in
+        let param = Global_module.Parameter_name.of_string param_name in
         Env.register_parameter param
     )
     param_names

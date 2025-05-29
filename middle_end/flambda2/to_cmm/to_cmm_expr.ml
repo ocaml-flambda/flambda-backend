@@ -862,7 +862,7 @@ and let_cont_rec env res invariant_params conts body =
   (* Compute the environment for Ccatch ids *)
   let conts_to_handlers = Continuation_handlers.to_map conts in
   let env =
-    Continuation.Map.fold
+    Continuation.Lmap.fold
       (fun k handler acc ->
         let continuation_arg_tys =
           Continuation_handler.pattern_match' handler
@@ -880,7 +880,7 @@ and let_cont_rec env res invariant_params conts body =
   in
   (* Translate each continuation handler *)
   let conts_to_handlers, res =
-    Continuation.Map.fold
+    Continuation.Lmap.fold
       (fun k handler (conts_to_handlers, res) ->
         let vars, _arity, handler, free_vars_of_handler, res =
           continuation_handler env res handler
