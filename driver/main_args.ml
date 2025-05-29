@@ -178,12 +178,10 @@ let mk_H f =
 let mk_I_paths f =
   "-I-paths", Arg.String f, "<file>  Read list of paths that compiler can\n\
   \    reference from a given file. This option is alternative to -I flag,\n\
-  \    but lists available files directly instead of adding the whole\n\
-  \    directory to the search path. Each line of <file> describes one file\n\
-  \    available to compiler and should be of format '<filename> <path>',\n\
-  \    which tells compiler that <filename> is available at <path>. If\n\
-  \    <path> is relative, then it is relative to a parent directory of\n\
-  \    <file>."
+  \    but specifies available files directly instead of adding the whole\n\
+  \    directory to the search path. Each line of files passed to -I-paths\n\
+  \    should be in format '<filename> <path>', which tells compiler that\n\
+  \    <filename> can be found at <path> relative to file given to -I-paths."
 
 let mk_H_paths f =
   "-H-paths", Arg.String f, "<file>  Same as -I-paths, but adds given paths\n\

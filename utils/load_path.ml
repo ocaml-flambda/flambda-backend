@@ -80,7 +80,7 @@ end = struct
       |> List.map (fun basename -> { basename; path = Filename.concat path basename }) in
     { path; files; hidden }
 
-  let read_path_list_file path =
+  let read_path_list_file' path =
     let ic = open_in path in
     Misc.try_finally
       (fun () ->
@@ -94,16 +94,19 @@ end = struct
         loop [])
       ~always:(fun () -> close_in ic)
 
-  let create_from_path_list_file ~hidden ~path_list_file =
-    let files = read_path_list_file path_list_file in
-    let files = List.map (fun { basename; path } ->
+  let read_path_list_file path =
+    let files = read_path_list_file' path in
+    List.map (fun { basename; path } ->
       let path = if Filename.is_relative path then
         (* Paths are relative to parent directory of path list file *)
-        Filename.concat (Filename.dirname path_list_file) path
+        Filename.concat (Filename.dirname path) path
       else
         path
       in
-      { basename; path }) files in
+      { basename; path }) files
+
+  let create_from_path_list_file ~hidden ~path_list_file =
+    let files = read_path_list_file path_list_file in
     { path = path_list_file; files; hidden }
 end
 
