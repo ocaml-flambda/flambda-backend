@@ -125,8 +125,9 @@ module Artifact: sig
    (** [modname a] is the module name of the compilation artifact.*)
    val modname: t -> Compilation_unit.t
 
-   (** [from_filename filename] reconstructs the module name
-       [modname_from_source filename] associated to the artifact [filename]. *)
+   (** [from_filename ~for_pack_prefix filename] reconstructs the module name
+       [modname_from_source filename] associated to the artifact [filename],
+       assuming the pack prefix is [for_pack_prefix]. *)
    val from_filename: for_pack_prefix:Compilation_unit.Prefix.t -> filename -> t
 
 end

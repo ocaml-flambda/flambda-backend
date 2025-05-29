@@ -1017,8 +1017,8 @@ end = struct
     ref None
   let get () =
     !current_unit
-  let set cu =
-    current_unit := cu
+  let set unit_info =
+    current_unit := unit_info
   let get_cu () =
     Option.map Unit_info.modname (get ())
   let get_name () =
