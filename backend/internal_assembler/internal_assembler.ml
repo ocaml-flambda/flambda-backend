@@ -167,7 +167,9 @@ let assemble_one_section ~name instructions =
   let align =
     List.fold_left
       (fun acc i ->
-        match i with X86_ast.Align (data, n) when n > acc -> n | _ -> acc)
+        match i with
+        | X86_ast.Directive (Align { bytes=n; _ }) when n > acc -> n
+        | _ -> acc)
       0 instructions
   in
   align,

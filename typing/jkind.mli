@@ -273,13 +273,13 @@ module Const : sig
     (** This is the jkind of normal ocaml values *)
     val value : t
 
-    (** Immutable values that don't contain functions. *)
+    (** Immutable non-float values that don't contain functions. *)
     val immutable_data : t
 
-    (** Atomically mutable values that don't contain functions. *)
+    (** Atomically mutable non-float values that don't contain functions. *)
     val sync_data : t
 
-    (** Mutable values that don't contain functions. *)
+    (** Mutable non-float values that don't contain functions. *)
     val mutable_data : t
 
     (** Values of types of this jkind are immediate on 64-bit platforms; on other
@@ -339,6 +339,11 @@ module Builtin : sig
     [any]. *)
   val any : why:History.any_creation_reason -> 'd Types.jkind
 
+  (* CR layouts v3: change to [any_separable]. *)
+
+  (** Jkind of array elements. *)
+  val any_non_null : why:History.any_creation_reason -> 'd Types.jkind
+
   (** Value of types of this jkind are not retained at all at runtime *)
   val void : why:History.void_creation_reason -> ('l * disallowed) Types.jkind
 
@@ -387,9 +392,6 @@ module Builtin : sig
   val product_of_sorts :
     why:History.product_creation_reason -> int -> Types.jkind_l
 end
-
-(** Take an existing [t] and add an ability to cross across the nullability axis. *)
-val add_nullability_crossing : 'd Types.jkind -> 'd Types.jkind
 
 (** Forcibly change the mod- and with-bounds of a [t] based on the mod- and with-bounds of [from]. *)
 val unsafely_set_bounds :
@@ -495,8 +497,20 @@ val for_boxed_record : Types.label_declaration list -> Types.jkind_l
 (** Choose an appropriate jkind for an unboxed record type. *)
 val for_unboxed_record : Types.label_declaration list -> Types.jkind_l
 
-(** Choose an appropriate jkind for a boxed variant type. *)
-val for_boxed_variant : Types.constructor_declaration list -> Types.jkind_l
+(** Choose an appropriate jkind for a boxed variant type.
+
+    [decl_params] is the parameters in the head of the type declaration. [type_apply]
+    should be [Ctype.apply] partially applied to an [env]. *)
+val for_boxed_variant :
+  decl_params:Types.type_expr list ->
+  type_apply:
+    (Types.type_expr list ->
+    Types.type_expr ->
+    Types.type_expr list ->
+    Types.type_expr) ->
+  free_vars:(Types.type_expr list -> Btype.TypeSet.t) ->
+  Types.constructor_declaration list ->
+  Types.jkind_l
 
 (** Choose an appropriate jkind for a boxed tuple type. *)
 val for_boxed_tuple : (string option * Types.type_expr) list -> Types.jkind_l
@@ -506,6 +520,12 @@ val for_arrow : Types.jkind_l
 
 (** The jkind of an object type.  *)
 val for_object : Types.jkind_l
+
+(** The jkind of a float. *)
+val for_float : Ident.t -> Types.jkind_l
+
+(** The jkind for values that are not floats. *)
+val for_non_float : why:History.value_creation_reason -> 'd Types.jkind
 
 (******************************)
 (* elimination and defaulting *)
@@ -580,9 +600,14 @@ val get_nullability :
   Jkind_axis.Nullability.t
 
 (** Computes a jkind that is the same as the input but with an updated maximum
-    mode for the externality axis *)
+    mode for the nullability axis *)
 val set_nullability_upper_bound :
   Types.jkind_r -> Jkind_axis.Nullability.t -> Types.jkind_r
+
+(** Computes a jkind that is the same as the input but with an updated maximum
+    mode for the separability axis *)
+val set_separability_upper_bound :
+  Types.jkind_r -> Jkind_axis.Separability.t -> Types.jkind_r
 
 (** Sets the layout in a jkind. *)
 val set_layout : 'd Types.jkind -> Sort.t Layout.t -> 'd Types.jkind
@@ -637,7 +662,6 @@ val set_outcometree_of_type : (Types.type_expr -> Outcometree.out_type) -> unit
 
 val set_outcometree_of_modalities_new :
   (Types.mutability ->
-  Parsetree.attributes ->
   Mode.Modality.Value.Const.t ->
   Outcometree.out_mode_new list) ->
   unit

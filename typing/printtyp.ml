@@ -662,6 +662,22 @@ and raw_lid_type_list tl =
   raw_list (fun ppf (lid, typ) ->
              fprintf ppf "(@,%a,@,%a)" longident lid raw_type typ)
     tl
+and raw_row_desc ppf row =
+  let Row {fields; more; name; fixed; closed} = row_repr row in
+  fprintf ppf
+    "@[<hov1>{@[%s@,%a;@]@ @[%s@,%a;@]@ %s%B;@ %s%a;@ @[<1>%s%t@]}@]"
+    "row_fields="
+    (raw_list (fun ppf (l, f) ->
+       fprintf ppf "@[%s,@ %a@]" l raw_field f))
+    fields
+    "row_more=" raw_type more
+    "row_closed=" closed
+    "row_fixed=" raw_row_fixed fixed
+    "row_name="
+    (fun ppf ->
+       match name with None -> fprintf ppf "None"
+                     | Some(p,tl) ->
+                       fprintf ppf "Some(@,%a,@,%a)" path p raw_type_list tl)
 and raw_type_desc ppf = function
     Tvar { name; jkind } ->
       fprintf ppf "Tvar (@,%a,@,%a)"
@@ -704,21 +720,7 @@ and raw_type_desc ppf = function
         raw_type t
         raw_type_list tl
   | Tvariant row ->
-      let Row {fields; more; name; fixed; closed} = row_repr row in
-      fprintf ppf
-        "@[<hov1>{@[%s@,%a;@]@ @[%s@,%a;@]@ %s%B;@ %s%a;@ @[<1>%s%t@]}@]"
-        "row_fields="
-        (raw_list (fun ppf (l, f) ->
-          fprintf ppf "@[%s,@ %a@]" l raw_field f))
-        fields
-        "row_more=" raw_type more
-        "row_closed=" closed
-        "row_fixed=" raw_row_fixed fixed
-        "row_name="
-        (fun ppf ->
-          match name with None -> fprintf ppf "None"
-          | Some(p,tl) ->
-              fprintf ppf "Some(@,%a,@,%a)" path p raw_type_list tl)
+    raw_row_desc ppf row
   | Tpackage (p, fl) ->
       fprintf ppf "@[<hov1>Tpackage(@,%a,@,%a)@]" path p
         raw_lid_type_list fl
@@ -1421,14 +1423,14 @@ let tree_of_modality_old (t: Parsetree.modality loc) =
   | Modality "global" -> Some (Ogf_legacy Ogf_global)
   | _ -> None
 
-let tree_of_modalities mut attrs t =
-  let t = Typemode.untransl_modalities mut attrs t in
+let tree_of_modalities mut t =
+  let t = Typemode.untransl_modalities mut t in
   match all_or_none tree_of_modality_old t with
   | Some l -> l
   | None -> List.map tree_of_modality_new t
 
-let tree_of_modalities_new mut attrs t =
-  let l = Typemode.untransl_modalities mut attrs t in
+let tree_of_modalities_new mut t =
+  let l = Typemode.untransl_modalities mut t in
   List.map (fun ({txt = Parsetree.Modality s; _}) -> s) l
 
 (** [tree_of_mode m l] finds the outcome node in [l] that corresponds to [m].
@@ -1647,7 +1649,7 @@ and tree_of_labeled_typlist mode tyl =
 
 and tree_of_typ_gf {ca_type=ty; ca_modalities=gf; _} =
   (tree_of_typexp Type Alloc.Const.legacy ty,
-   tree_of_modalities Immutable [] gf)
+   tree_of_modalities Immutable gf)
 
 (** We are on the RHS of an arrow type, where [ty] is the return type, and [m]
     is the return mode. This function decides the printed modes on [ty].
@@ -1837,7 +1839,8 @@ let tree_of_label l =
     match l.ld_mutable with
     | Mutable m ->
         let mut =
-          if Alloc.Comonadic.Const.eq m Alloc.Comonadic.Const.legacy then
+          let open Alloc.Comonadic.Const in
+          if Misc.Le_result.equal ~le m legacy then
             Om_mutable None
           else
             Om_mutable (Some "<non-legacy>")
@@ -1845,9 +1848,7 @@ let tree_of_label l =
         mut
     | Immutable -> Om_immutable
   in
-  let ld_modalities =
-    tree_of_modalities l.ld_mutable l.ld_attributes l.ld_modalities
-  in
+  let ld_modalities = tree_of_modalities l.ld_mutable l.ld_modalities in
   (Ident.name l.ld_id, mut, tree_of_typexp Type l.ld_type, ld_modalities)
 
 let tree_of_constructor_arguments = function
@@ -2268,8 +2269,7 @@ let tree_of_value_description id decl =
   let vd =
     { oval_name = id;
       oval_type = Otyp_poly(qtvs, ty);
-      oval_modalities =
-        tree_of_modalities_new Immutable decl.val_attributes moda;
+      oval_modalities = tree_of_modalities_new Immutable moda;
       oval_prims = [];
       oval_attributes = attrs
     }

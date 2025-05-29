@@ -1532,20 +1532,14 @@ end = struct
 
   let child proj t = List.map (UF.Path.child proj) t
 
-  let modal_child gf proj t =
+  let modal_child modalities proj t =
     (* CR zqian: Instead of just ignoring such children, we should add modality
        to [Projection.t] and add corresponding logic in [UsageTree]. *)
-    let gf = Modality.Value.Const.to_list gf in
-    let l =
-      List.filter
-        (function
-         | Atom (Monadic Uniqueness, Join_with Aliased) -> true
-         | Atom (Comonadic Linearity, Meet_with Many) -> true
-         | _ -> false
-          : Modality.t -> _)
-        gf
-    in
-    if List.length l = 2 then untracked else child proj t
+    let uni = Modality.Value.Const.proj (Monadic Uniqueness) modalities in
+    let lin = Modality.Value.Const.proj (Comonadic Linearity) modalities in
+    match uni, lin with
+    | Join_with Aliased, Meet_with Many -> untracked
+    | _ -> child proj t
 
   let tuple_field i t = child (Projection.Tuple_field i) t
 
@@ -1560,7 +1554,7 @@ end = struct
   let variant_field s t = child (Projection.Variant_field s) t
 
   let array_index mut i t =
-    let modality = Typemode.transl_modalities ~maturity:Stable mut [] [] in
+    let modality = Typemode.transl_modalities ~maturity:Stable mut [] in
     modal_child modality (Projection.Array_index i) t
 
   let memory_address t = child Projection.Memory_address t

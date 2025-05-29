@@ -27,3 +27,14 @@
          unroll5
    ))
    (diff generated-rules.inc generated-rules.inc.new))))
+
+; Manual unfolding of the rule to test `lift_rec_cont`,
+; since it is hand-written, and cannot be generated from ml
+; source code for now; and therefore a few of the auto-generated
+; rules do not work for it
+(rule
+ (alias runtest)
+ (action
+  (progn
+   (run ../tools/flexpect.exe lift_rec_cont.flt)
+   (diff? lift_rec_cont.flt lift_rec_cont.flt.corrected))))

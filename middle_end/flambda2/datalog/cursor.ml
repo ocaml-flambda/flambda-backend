@@ -15,6 +15,10 @@
 
 open Datalog_imports
 
+type _ value_repr = Int_repr : int value_repr
+
+let int_repr = Int_repr
+
 (* Note: we don't use [with_name] here to avoid the extra indirection during
    execution. *)
 type vm_action =
@@ -24,6 +28,12 @@ type vm_action =
       * 'k Option_ref.hlist
       * string
       * string list
+      -> vm_action
+  | Unless_eq :
+      'k option ref * 'k option ref * string * string * 'k value_repr
+      -> vm_action
+  | Filter :
+      ('k Constant.hlist -> bool) * 'k Option_ref.hlist * string list
       -> vm_action
 
 type action =
@@ -38,6 +48,11 @@ let unless id cell args =
   VM_action
     (Unless
        (Table.Id.is_trie id, cell, args.values, Table.Id.name id, args.names))
+
+let unless_eq repr cell1 cell2 =
+  VM_action (Unless_eq (cell1.value, cell2.value, cell1.name, cell2.name, repr))
+
+let filter f args = VM_action (Filter (f, args.values, args.names))
 
 type binder = Bind_table : ('t, 'k, 'v) Table.Id.t * 't ref -> binder
 
@@ -55,6 +70,14 @@ let pp_cursor_action ff = function
          ~pp_sep:(fun ff () -> Format.fprintf ff ", ")
          Format.pp_print_string)
       l_names
+  | Unless_eq (_x1, _x2, x1_name, x2_name, _repr) ->
+    Format.fprintf ff "if %s == %s:@ continue" x1_name x2_name
+  | Filter (_f, _args, args_names) ->
+    Format.fprintf ff "<filter>(%a)"
+      (Format.pp_print_list
+         ~pp_sep:(fun ff () -> Format.fprintf ff ", ")
+         Format.pp_print_string)
+      args_names
 
 module Order : sig
   type t
@@ -323,6 +346,14 @@ let evaluate = function
          (Trie.find_opt is_trie (Option_ref.get args) cell.contents)
     then Virtual_machine.Skip
     else Virtual_machine.Accept
+  | Unless_eq (cell1, cell2, _cell1_name, _cell2_name, Int_repr) ->
+    if Int.equal (Option.get !cell1) (Option.get !cell2)
+    then Virtual_machine.Skip
+    else Virtual_machine.Accept
+  | Filter (f, args, _args_names) ->
+    if f (Option_ref.get args)
+    then Virtual_machine.Accept
+    else Virtual_machine.Skip
 
 let naive_iter cursor db f =
   with_bound_cursor ~callback:f cursor db @@ fun () ->

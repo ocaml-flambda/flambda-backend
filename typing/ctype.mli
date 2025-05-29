@@ -535,6 +535,8 @@ val free_variables: ?env:Env.t -> type_expr -> type_expr list
            returns both normal variables and row variables*)
 val free_non_row_variables_of_list: type_expr list -> type_expr list
         (* gets only non-row variables *)
+val free_variable_set_of_list: Env.t -> type_expr list -> Btype.TypeSet.t
+        (* post-condition: all elements in the set are Tvars *)
 
 val exists_free_variable : (type_expr -> jkind_lr -> bool) -> type_expr -> bool
         (* Check if there exists a free variable that satisfies the
@@ -666,6 +668,12 @@ val check_type_externality :
    if all with-bounds are irrelevant. *)
 val check_type_nullability :
   Env.t -> type_expr -> Jkind_axis.Nullability.t -> bool
+
+(* Check whether a type's separability is less than some target.
+   Potentially cheaper than just calling [type_jkind], because this can stop
+   expansion once it succeeds. *)
+val check_type_separability :
+  Env.t -> type_expr -> Jkind_axis.Separability.t -> bool
 
 (* This function should get called after a type is generalized.
 

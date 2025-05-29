@@ -60,6 +60,9 @@ module Datalog = struct
       | { repr = Patricia_tree_repr; _ } :: (_ :: _ as columns) ->
         Trie.patricia_tree_of_trie (is_trie columns)
 
+    let key_repr : type t k v. (t, k, v) id -> k Cursor.value_repr = function
+      | { repr = Patricia_tree_repr; _ } -> Cursor.int_repr
+
     module type S = sig
       type t
 
@@ -245,20 +248,33 @@ module Datalog = struct
 
   let deduce = Schedule.deduce
 
+  type equality =
+    | Equality : 'k Cursor.value_repr * 'k Term.t * 'k Term.t -> equality
+
+  type filter = Filter : ('k Constant.hlist -> bool) * 'k Term.hlist -> filter
+
   type hypothesis =
     [ `Atom of atom
-    | `Not_atom of atom ]
+    | `Not_atom of atom
+    | `Distinct of equality
+    | `Filter of filter ]
 
   let atom id args = `Atom (Atom (id, args))
 
   let not (`Atom atom) = `Not_atom atom
+
+  let distinct c x y = `Distinct (Equality (Column.key_repr c, x, y))
+
+  let filter f args = `Filter (Filter (f, args))
 
   let where predicates f =
     List.fold_left
       (fun f predicate ->
         match predicate with
         | `Atom (Atom (id, args)) -> where_atom id args f
-        | `Not_atom (Atom (id, args)) -> unless_atom id args f)
+        | `Not_atom (Atom (id, args)) -> unless_atom id args f
+        | `Distinct (Equality (repr, t1, t2)) -> unless_eq repr t1 t2 f
+        | `Filter (Filter (p, args)) -> Datalog.filter p args f)
       f predicates
 
   module Cursor = struct

@@ -16,7 +16,7 @@
 
 open! Int_replace_polymorphic_compare
 open Asm_targets
-module A = Asm_directives_new
+module A = Asm_directives
 
 module Value = struct
   type internal_t =

@@ -17,7 +17,7 @@
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open Asm_targets
 module Int8 = Numbers.Int8
-module A = Asm_directives_new
+module A = Asm_directives
 
 type 'payload entry =
   | End_of_list

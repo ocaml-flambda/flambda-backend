@@ -16,7 +16,7 @@
 
 open! Int_replace_polymorphic_compare
 open Asm_targets
-module A = Asm_directives_new
+module A = Asm_directives
 
 module Location_list_entry = struct
   type t =

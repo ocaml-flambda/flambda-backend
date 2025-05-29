@@ -6,15 +6,15 @@ title: Reference
 # Stack Allocations Reference
 
 The goal of this document is to be a reasonably complete reference to stack
-allocations in OCaml. For a gentler introduction, see [the
+allocations in OxCaml. For a gentler introduction, see [the
 introduction](../intro).
 
 The stack allocations language extension allows the compiler to
 stack-allocate some values, placing them on a stack rather than the
 garbage collected heap. Instead of waiting for the next GC, the memory
 used by stack-allocated values is reclaimed when their stack frame
-is reclaimed, and can be immediately reused. Whether the compiler
-stack-allocates certain values is controlled or inferred from new keywords
+is popped, and can be immediately reused. Whether the compiler
+stack-allocates certain values is inferred or controlled from new keywords
 `stack_` and `local_`, whose effects are explained below.
 
 ## Stack allocation
@@ -29,8 +29,8 @@ let abc = stack_ (42, 24) in
 
 Here, the tuple cell will be stack-allocated. The `stack_` keyword works shallowly: it
 only forces the immediately following allocation to be on stack. In the following
-example, the outer tuple is guaranteed to be on stack, while the inner one is not (
-although likely to be due to optimization).
+example, the outer tuple is guaranteed to be on stack, while the inner one is not
+(although likely to be due to optimization).
 ```ocaml
 let abc = stack_ (42, (24, 42)) in
 ...
@@ -44,7 +44,7 @@ let f = ref (stack_ `Foo)
 Error: This expression is not an allocation site.
 ```
 
-Most OCaml types can be stack-allocated, including records, variants,
+Most OxCaml types can be stack-allocated, including records, variants,
 polymorphic variants, closures, boxed numbers and strings. However, certain
 values cannot be stack-allocated, and will always be on the GC heap,
 including:
@@ -61,9 +61,9 @@ including:
 
 At runtime, stack allocations do not take place on the function call stack, but on a
 separately-allocated stack that follows the same layout as the OCaml
-minor heap. In particular, this allows local-returning functions
-(see "Use `exclave_` to return a local value" below)
-without the need to copy returned values.
+minor heap. In particular, this enables local-returning functions
+without the need to copy returned values. See "Use `exclave_` to return a local value"
+below for more details.
 
 The runtime records the stack pointer when entering a new stack frame,
 and leaving that stack frame resets the stack pointer to that value.
@@ -71,7 +71,7 @@ and leaving that stack frame resets the stack pointer to that value.
 ## Regions
 
 Every stack allocation takes place inside a stack frame and is freed when the
-stack frame is freed. For this to be safe, stack-allocated values cannot be used
+stack frame is reclaimed. For this to be safe, stack-allocated values cannot be used
 after their stack frame is freed. This property is guaranteed at
 compile-time by the type checker as follows.
 
@@ -103,7 +103,7 @@ let l = if n > 0 then stack_ (n :: x) else x in
 ```
 
 Here, if `n > 0`, then `l` will be a stack-allocated cons cell and thus local.
-However, if `n <= 0`, then `l` will be `x`, which is global. The latter is
+However, if `n <= 0`, then `l` will be `x`, which is global. In that second case, `x` is
 implicitly weakened to local (because both branches of an `if` must have the
 same locality), making the whole
 expression local.
@@ -168,7 +168,8 @@ including an entire file. This region never ends and is where global (heap-alloc
 values live.
 
 One subtlety is that we wish to treat `local` variables from the current region
-differently than `local` variables from an enclosing region. The latter is called *outer-local*.
+differently than `local` variables from an enclosing region. Local from outside
+the current region is called *outer-local*.
 
 For instance:
 
@@ -183,8 +184,8 @@ let f () =
 ```
 
 At the point marked `??` inside `g`, both `outer` and `inner` are local values,
-but they live in different regions: `inner` lives in `g`'s region, while `outer`
-lives in the outer region and thus is outer-local.
+but they live in different regions: `inner` lives in the `g` region, while `outer`
+lives in the `f` region and thus is outer-local.
 
 So, if we replace `??` with `inner`, we see an error:
 
@@ -192,7 +193,7 @@ So, if we replace `??` with `inner`, we see an error:
 
 However, if we replace `??` with `outer`, the compiler will accept it: the
 value `outer`, while being local, was definitely not local to the region of
-`g`, and there is therefore no problem allowing it to escape `g`'s region.
+`g`, and there is therefore no problem allowing it to escape the `g` region.
 
 (This is quite subtle, and there is an additional wrinkle: how does the
 compiler know that it is safe to still refer to `outer` from within the closure
@@ -208,8 +209,8 @@ let f (local_ x) =
 
 Both `x` and `y` are local and cannot, in general, escape a region. However, filling `??`
 in with `x` (but not `y`) is allowed. This is because we know that `x` lives outside of
-`f`'s region and therefore will continue to exist after `f` ends. In contrast, `y` is a cons cell
-in `f`'s region, which will be destroyed after `f` ends.
+the `f` region and therefore will continue to exist after `f` ends. In contrast, `y` is a cons cell
+in the `f` region, which will be destroyed after `f` ends.
 
 ## Inference
 
@@ -317,8 +318,8 @@ which means it cannot be global. Therefore, it must be stack-allocated, and it
 local value `42 :: x` is not allowed to escape it.
 
 It is possible to write functions like `f3` that return stack-allocated
-values, but this requires an explicit annotation, as it would otherwise be easy to
-do by mistake.  See "Use `exclave_` to return a local value" below.
+values, but this requires an explicit annotation, as it could otherwise be done
+unintentionally.  See "Use `exclave_` to return a local value" below.
 
 Like local variables, inference can determine whether function arguments are
 local. However, note that for arguments of exported functions to be local, the
@@ -544,7 +545,7 @@ let make () = exclave_
 ```
 
 The keyword `exclave_` terminates the current region and executes the subsequent
-code in the outer region. Therefore, `ref 0` is executed in `f`'s region, which
+code in the outer region. Therefore, `ref 0` is executed in the `f` region, which
 allows its stack-allocation. The allocation will only be cleaned up when the
 region of `f` ends.
 
@@ -577,7 +578,7 @@ In this example, the function `f` has a region where the allocation for the
 complex computation occurs. This region is terminated by `exclave_`, releasing
 all temporary allocations. Both `None` and `Some x` are allocated in the
 caller's stack frame and are allowed to be returned. In summary, the
-temporary allocations in the `f`'s region are promptly released, and the result
+temporary allocations in the `f` region are promptly released, and the result
 allocated in the caller's region is returned.
 
 Here is another example in which the stack usage can be improved asymptotically
@@ -793,13 +794,13 @@ rejected:
 let local_ f : int -> int -> int = fun a b -> a + b + !counter in
 ...
 
-let f : int -> int -> int = stack_ fun a b -> a + b + !counter in
+let g : int -> int -> int = stack_ fun a b -> a + b + !counter in
 ...
 ```
 
 Both define a closure which accepts two integers and returns an integer. The
 closure must be local, since it refers to the local value `counter`. In the
-former definition, the type of the function appears under the `local_` keyword,
+definition of `f`, the type of the function appears under the `local_` keyword,
 and as described above is interpreted as:
 
 ```ocaml
@@ -808,8 +809,8 @@ int -> local_ (int -> int)
 
 This is the correct type for this function: if we partially apply it to
 a single argument, the resulting closure will still be local, as it refers to
-the original function which refers to `counter`. By contrast, in the latter
-definition the type of the function is outside the `stack_` keyword as is
+the original function which refers to `counter`. By contrast, in the
+definition of `g`, the type of the function is outside the `stack_` keyword as is
 interpreted as normal as:
 
 ```ocaml
@@ -822,7 +823,7 @@ case here. For this reason, this version is rejected. It would be accepted if
 written as follows:
 
 ```ocaml
-let f : int -> local_ (int -> int) = stack_ fun a b -> a + b + !counter in
+let g : int -> local_ (int -> int) = stack_ fun a b -> a + b + !counter in
 ...
 ```
 

@@ -69,8 +69,8 @@ let bad r =
 The problem here is that the compiler can not determine whether `free r` might
 dereference `r.field1` again. As such, it would be unsafe to free `r.field1`.
 The uniqueness analysis carefully tracks which children of an allocation have
-already been consumed. This tracking also works with obvious aliases, such as
-simple renamings:
+already been consumed. This tracking also works with aliases, such as
+renamings:
 
 ```ocaml
 let okay r =

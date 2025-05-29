@@ -26,20 +26,23 @@ let [@ocamlformat "disable"] print ppf { continuation_uses; } =
 
 let empty = { continuation_uses = Continuation.Map.empty }
 
-let record_continuation_use t cont kind ~env_at_use ~arg_types =
-  let id = Apply_cont_rewrite_id.create () in
+let add_continuation_use t cont kind ~id ~env_at_use ~arg_types =
+  let use = One_continuation_use.create kind ~env_at_use id ~arg_types in
   let continuation_uses =
     Continuation.Map.update cont
       (function
         | None ->
           let arity = T.arity_of_list arg_types in
           let uses = Continuation_uses.create cont arity in
-          Some (Continuation_uses.add_use uses kind ~env_at_use id ~arg_types)
-        | Some uses ->
-          Some (Continuation_uses.add_use uses kind ~env_at_use id ~arg_types))
+          Some (Continuation_uses.add_use uses use)
+        | Some uses -> Some (Continuation_uses.add_use uses use))
       t.continuation_uses
   in
-  let t : t = { continuation_uses } in
+  { continuation_uses }
+
+let record_continuation_use t cont kind ~env_at_use ~arg_types =
+  let id = Apply_cont_rewrite_id.create () in
+  let t = add_continuation_use t cont kind ~id ~env_at_use ~arg_types in
   t, id
 
 let get_typing_env_no_more_than_one_use t k =
@@ -71,6 +74,13 @@ let remove t cont =
   { continuation_uses = Continuation.Map.remove cont t.continuation_uses }
 
 let delete_continuation_uses = remove
+
+let clear_continuation_uses t cont =
+  { continuation_uses =
+      Continuation.Map.update cont
+        (Option.map Continuation_uses.clear_uses)
+        t.continuation_uses
+  }
 
 let mark_non_inlinable { continuation_uses } =
   let continuation_uses =

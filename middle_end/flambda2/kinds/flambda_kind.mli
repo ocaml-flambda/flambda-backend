@@ -84,10 +84,12 @@ type flat_suffix_element = private
   | Naked_nativeint
   | Naked_vec128
 
+module Mixed_block_lambda_shape = Mixed_block_shape
+
 module Mixed_block_shape : sig
   type t
 
-  val from_lambda : Lambda.mixed_block_shape -> t
+  val from_mixed_block_shape : _ Mixed_block_lambda_shape.t -> t
 
   val field_kinds : t -> kind array
 
@@ -314,7 +316,8 @@ module Flat_suffix_element : sig
 
   val kind : t -> kind
 
-  val from_lambda : _ Lambda.mixed_block_element -> t
+  val from_singleton_mixed_block_element :
+    _ Mixed_block_lambda_shape.Singleton_mixed_block_element.t -> t
 
   val print : Format.formatter -> t -> unit
 

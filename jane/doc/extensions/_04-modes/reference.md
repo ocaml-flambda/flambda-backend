@@ -5,7 +5,7 @@ title: Reference
 ---
 
 The goal of this document is to be a reasonably complete reference to the mode system in
-OCaml.
+OxCaml.
 
 <!-- CR zqian: For a gentler introduction, see [the introduction](../intro). -->
 

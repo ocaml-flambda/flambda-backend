@@ -36,8 +36,8 @@ And on locally abstract types:
 ```ocaml
 let foo (type (a : value mod portable) (b : bits32 & float64)) (x : a) (y : b)
   = ...
-  
-let bar (type a : value mod portable) (x : a) = ... 
+
+let bar (type a : value mod portable) (x : a) = ...
   (* no extra parentheses needed when there is only one locally abstract type *)
 ```
 
@@ -92,18 +92,19 @@ In all cases but one, the layouts described here are the basic layouts also
 described in our [unboxed types][] documentation. The exception is around
 `value`: the kind `value_or_null` is really the primitive layout here (with no
 extra requirements), while the much more common `value` additionally requires
-types not to admit any values represented by all `0` bits. (See also the
-documentation on [nullability][].) We thus give the non-primitive `value`
-the shorter name.
+types not to admit any values represented by all `0` bits, and to be compatible
+with the float array optimization. (See also the documentation on [nullability][].)
+We thus give the non-primitive `value` the shorter name.
 
 Beyond just kind abbreviations, we also have one bounds abbreviation:
-`everything`.  Naturally, `everything` describes a maximal amount of mode
-crossing.
+`everything`. `everything` describes a maximal amount of crossing on
+*deep* axes: modal axes and externality. The `nullability` and `separability` bounds, due to
+their shallowness, are considered separately.
 
 The abbreviations defined in the language are as follows:
 
 * `everything = global aliased many contended portable unyielding immutable
-                stateless external_ non_null non_float`
+                stateless external_`
 
     Values whose types have kinds that include `mod everything` do not...
 
@@ -113,29 +114,28 @@ The abbreviations defined in the language are as follows:
       unyielding stateless` (all of which only affect functions).
     * ... support mutation: this allows them to mode-cross to `contended
       immutable`.
-    * ... equal the bit pattern comprising all `0`s: this allows a bound
-      of `non_null`.
     * ... point anywhere: this allows mode-crossing to `aliased` (which would
-      confuse update-in-place of the pointed-to memory, if there was any) and a
-      bound of `non_float` (because the value is not a pointer to a
-      floating-point block).
-
-    Using `mod everything` is appropriate for simple data represented directly,
+      confuse update-in-place of the pointed-to memory, if there was any)
+    Using `mod everything` is appropriate for data represented directly,
     like `int` or `float32#`.
 
-* `any_non_null = any mod non_null`
+* `any_non_null = any mod non_null separable`
 
-* `value = value_or_null mod non_null`
+* `value = value_or_null mod non_null separable`
 
     This is the kind of typical OCaml values, as they have been before OxCaml
     was invented. When a kind is unknown (but `any` would not be an appropriate
     choice), we default kinds to be `value`. This defaulting action is described
     in further detail in the sections below.
 
-* `immediate = value mod everything`
+* `immediate = value mod everything non_null non_float`
 
     This is the kind of `int` and types like it (including enumerations and
     `bool`). It is the OxCaml equivalent of OCaml's `[@@immediate]` attribute.
+
+* `immediate_or_null = value_or_null mod everything`
+
+    This is the kind of `int or_null` and similar types.
 
 * `immediate64 = value mod global aliased many contended portable unyielding
                  immutable stateless external64 non_float`
@@ -168,13 +168,18 @@ The abbreviations defined in the language are as follows:
     [externality][].
 
 * `immutable_data =
-     value mod many contended portable unyielding immutable stateless`
+     value mod many contended portable unyielding immutable stateless non_float`
 
     This is a suitable kind for plain old data that is immutable. By "plain
     old data", we mean that values of types of this kind contain no pointers to
     functions. The type `string` has this kind.
 
-* `mutable_data = value mod many portable unyielding stateless`
+* `sync_data = value mod many contended portable unyielding stateless non_float`
+
+   This is a suitable kind of plain old data that the type system guarantees can be mutated only
+   safely in parallel, similar to the `Sync` trait in Rust.
+
+* `mutable_data = value mod many portable unyielding stateless non_float`
 
     This is a suitable kind for plain old data that may be mutable. The
     type `int ref` has this kind.
@@ -186,7 +191,7 @@ that is, there are *implications* between the kind axes.
 
 CR reisenberg: Document implications, which I am not fully familiar with.
 
-## Kind annotations on type declarations
+## Kind annotations in type declarations
 
 When you create a new type with a `type` declaration, you must choose the kinds
 of both the type itself and any of its parameters. There are three cases to
@@ -227,7 +232,7 @@ still lower than both usages.
 The only question, then, is where to start the inference from? That is, what is
 default kind for a type parameter? It is tempting to say `any`, as that's the
 top. However, this would not be backward compatible, at least in module
-signatures, as we need the following very simple example to be accepted:
+signatures, as we need the following example to be accepted:
 
 ```ocaml
 module M : sig
@@ -376,7 +381,7 @@ val id : ('a : any). 'a -> 'a
 ```
 
 Here, we have annotated the binding site of `'a` to say that it should have kind
-`any`.  (The type `('a : any). 'a -> 'a` is a perfectly good type, and a
+`any`.  (The type `('a : any). 'a -> 'a` is valid, and a
 function of that type can be called on values of any type of any kind. However,
 you will be unable to define a function of that type, because the compiler will
 not know what register will hold the argument.) In contrast, writing
@@ -385,8 +390,8 @@ not know what register will hold the argument.) In contrast, writing
 val id : ('a : any) -> 'a
 ```
 
-does not do what you might think: it constrains a *usage site* of `'a`, stating
-that `'a` must have a subkind of `any` -- but of course `value` *is* a subkind
+constrains a *usage site* of `'a`, stating
+that `'a` must have a subkind of `any` -- but `value` *is* a subkind
 of `any`, so the default behavior of choosing `value` is unaffected. That is,
 the type `('a : any) -> 'a` is the same as just writing `'a -> 'a`.
 
@@ -403,6 +408,37 @@ The bottom line here: if you want to set the kind of a type variable, do it at a
 binding site like `val f : ('a : <<here>>). ...` or `let f : ('a :
 <<here>>). ...`.
 
+## Kind annotations on local abstract types
+
+We allow a kind annotation to be put on a local abstract type, as in
+
+```ocaml
+let f (type a : immediate) (x : a) = ...
+```
+
+If you declare a local abstract type without a kind annotation, its kind
+is always `value`. Inference of kinds is never performed for local abstract
+types.
+
+As a syntactic convenience, you may declare multiple local abstract types
+with one `type` herald; any kind annotations with these will require extra
+parentheses: `let f (type a (b : immediate) (c : float64) d) ... = ...`.
+
+## Kind annotations on other types
+
+We do *not* allow a kind annotation on an arbitrary type, because the syntax
+for doing so would be easily confused with a labeled function argument. (Compare
+`(int:value) -> string` with `int:value -> string`. The first is a function
+taking an `int` (with a redundant kind annotation); the second is a function
+taking something of _type_ `value` labeled `int`.)
+
+Instead, we allow kind annotations on aliases. If you must kind-annotate a
+type, you may do so with e.g. `t as ('a : value)` or `t as (_ : value)`.
+This might useful if, say, a library exposes an abstract type `M.t` and
+your use of `M.t` requires it to be an `immediate` for performance reasons.
+You can then say `M.t as (_ : immediate)` to get a compile-time failure if
+the author of `M.t` changes it not to be an `immediate`.
+
 ## Syntax reference
 
 In this reference, we use backticks to denote a literal keyword,
@@ -417,7 +453,7 @@ kind ::= atomic-kind [ `mod` mod-bounds ] [ with-bounds ]
      |   `(` kind `)`
      |   kind `&` kind
 
-atomic-kind ::= layout 
+atomic-kind ::= layout
             |   kind_abbreviation
 
 layout ::= `any`
@@ -434,26 +470,27 @@ kind_abbreviation ::= `any_non_null`
                   |   `immediate`
                   |   `immediate64`
                   |   `immutable_data`
+                  |   `sync_data`
                   |   `mutable_data`
 
 mod-bounds ::= `everything`
            |   { mod-bound }+
-           
+
 mod-bound ::= modality
           |   externality
           |   nullability
           |   separability
-          
+
 externality ::= `external_`
           |     `external64`
           |     `internal`
-          
+
 nullability ::= `non_null`
           |     `maybe_null`
-          
+
 separability ::= `non_float`
              |   `separable`
-             |   `non_separable`
+             |   `maybe_separable`
 
 with-bounds ::= { `with` field_type }+
 
@@ -465,7 +502,7 @@ Please see other OxCaml documentation for details on the syntax for
 [typexpr](https://ocaml.org/manual/types.html) is defined in the OCaml
 manual.
 
-Kind annotations are allowed at several places in the syntax. 
+Kind annotations are allowed at several places in the syntax.
 As the syntax rules below extend the syntax of OCaml, we use `+::=` to denote
 additions to definitions in the OCaml [manual][]; in contrast, we use `::=` to
 denote a replacement of the definition in the [manual][].
