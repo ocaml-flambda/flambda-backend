@@ -52,22 +52,24 @@ let compile_from_raw_lambda i raw_lambda ~unix ~pipeline ~as_arg_for =
       |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
       |> Compiler_hooks.execute_and_pipe Compiler_hooks.Lambda
       |> (fun (program : Lambda.program) ->
-           if Clflags.(should_stop_after Compiler_pass.Lambda) then () else
-           Asmgen.compile_implementation
-             unix
-             ~pipeline
-             ~sourcefile:(Some (Unit_info.source_file i.target))
-             ~prefixname:(Unit_info.prefix i.target)
-             ~ppf_dump:i.ppf_dump
-             program);
-           let arg_descr =
-             make_arg_descr ~param:as_arg_for
-               ~arg_block_idx:program.arg_block_idx
-           in
-           Compilenv.save_unit_info
-             (Unit_info.Artifact.filename (Unit_info.cmx i.target))
-             ~main_module_block_format:program.main_module_block_format
-             ~arg_descr)
+           if Clflags.(should_stop_after Compiler_pass.Lambda) then ()
+           else begin
+             Asmgen.compile_implementation
+               unix
+               ~pipeline
+               ~sourcefile:(Some (Unit_info.source_file i.target))
+               ~prefixname:(Unit_info.prefix i.target)
+               ~ppf_dump:i.ppf_dump
+               program;
+             let arg_descr =
+               make_arg_descr ~param:as_arg_for
+                 ~arg_block_idx:program.arg_block_idx
+             in
+             Compilenv.save_unit_info
+               (Unit_info.Artifact.filename (Unit_info.cmx i.target))
+               ~main_module_block_format:program.main_module_block_format
+               ~arg_descr
+           end))
 
 let compile_from_typed i typed ~transl_style ~unix ~pipeline ~as_arg_for =
   typed
