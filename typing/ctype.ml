@@ -2260,16 +2260,6 @@ let get_unboxed_type_approximation env ty =
   match get_unboxed_type_representation env ty with
   | Ok ty | Error ty -> ty
 
-let tvariant_not_immediate row =
-  (* if all labels are devoid of arguments, not a pointer *)
-  (* CR layouts v5: Polymorphic variants with all void args can probably
-     be immediate, but we don't allow them to have void args right now. *)
-  not (row_closed row)
-  || List.exists
-    (fun (_,field) -> match row_field_repr field with
-      | Rpresent (Some _) | Reither (false, _, _) -> true
-      | _ -> false)
-    (row_fields row)
 
 (* forward declarations *)
 let type_equal' = ref (fun _ _ _ -> Misc.fatal_error "type_equal")
@@ -2328,9 +2318,7 @@ let rec estimate_type_jkind ~expand_component env ty =
   | Tnil -> Jkind.Builtin.value ~why:Tnil
   | Tlink _ | Tsubst _ -> assert false
   | Tvariant row ->
-     if tvariant_not_immediate row
-     then Jkind.for_non_float ~why:Polymorphic_variant
-     else Jkind.Builtin.immediate ~why:Immediate_polymorphic_variant
+     Jkind.for_boxed_row row
   | Tunivar { jkind } -> Jkind.disallow_right jkind
   | Tpoly (ty, _) ->
     let jkind_of_type = !type_jkind_purely_if_principal' env in

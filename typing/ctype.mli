@@ -600,10 +600,6 @@ val contained_without_boxing : Env.t -> type_expr -> type_expr list
        (or "without indirection" or "flatly"); in the case of [@@unboxed]
        existentials, these types might have free variables*)
 
-(* Given the row from a variant type, determine if it is immediate.  Currently
-   just checks that all constructors have no arguments, doesn't consider
-   void. *)
-val tvariant_not_immediate : row_desc -> bool
 
 (* Cheap upper bound on jkind.  Will not expand unboxed types - call
    [type_jkind] if that's needed. *)

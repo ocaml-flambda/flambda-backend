@@ -333,6 +333,8 @@ t := λ [[ 'aᵢ : κᵢ ]]. δ : κ ∈ Γ
 ----------------------- T_POLY
 Γ ⊢ ('a : jkind). σ : κ {q}
 
+(* CR layouts v2.8: Some simple cases of polymorphic variants now get more
+   precise kinds in the compiler; update this to reflect that *)
 TODO
 ---------------------------------------- T_POLY_VARIANT
 Γ ⊢ polymorphic_variant : value; ⟪⊤_Ξ⟫ {not_best}
