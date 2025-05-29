@@ -1329,10 +1329,14 @@ enum reachable_words_node_state {
    * root that we reached it from */
 };
 
-/* CR ocaml 5 domains (mshinwell): think about what to do here */
-/* Not multicore-safe (the [volatile] just lets us use this with the [Field] macro) */
-static void add_to_long_value(volatile value *v, intnat x) {
-  *v = Val_long(Long_val(*v) + x);
+/* This is multicore-safe, for the non-local reason that we only apply
+ * it to an array which this thread just allocated in
+ * caml_obj_uniquely_reachable_words. */
+
+Caml_inline
+void add_to_field(value sizes, uintnat index, intnat x) {
+  volatile value *p = &Field(sizes, index);
+  *p = Val_long(Long_val(*p) + x);
 }
 
 /* Performs traversal through the OCaml object reachability graph to deterime
@@ -1427,11 +1431,11 @@ intnat reachable_words_once(struct caml_extern_state *s,
             /* mark is identifier of some other root that we counted this node
              * as contributing to. Since it is evidently not uniquely reachable, we
              * undo this contribution */
-            add_to_long_value(&Field(sizes_by_root_id, mark), -sz_with_header);
+            add_to_field(sizes_by_root_id, mark, -sz_with_header);
             *shared_size += sz_with_header;
           } else {
             CAMLassert(new_mark == identifier || (v == root && new_mark == RootProcessed));
-            add_to_long_value(&Field(sizes_by_root_id, identifier), sz_with_header);
+            add_to_field(sizes_by_root_id, identifier, sz_with_header);
           }
         }
         if (tag < No_scan_tag) {

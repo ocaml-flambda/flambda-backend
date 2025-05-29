@@ -43,9 +43,8 @@ using std::memory_order_seq_cst;
 #include <stdatomic.h>
 #define ATOMIC_UINTNAT_INIT(x) (x)
 
-// CR ocaml 5 domains: provide these typedefs (requires C11)
-// typedef _Atomic uintnat atomic_uintnat;
-// typedef _Atomic intnat atomic_intnat;
+typedef _Atomic uintnat atomic_uintnat;
+typedef _Atomic intnat atomic_intnat;
 
 #elif defined(__GNUC__)
 
