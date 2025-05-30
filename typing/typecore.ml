@@ -11174,8 +11174,7 @@ let () =
 let check_partial ?lev a b c cases =
   check_partial ?lev a b c (List.map Parmatch.typed_case cases)
 
-(* drop unnecessary arguments from the external API
-   and check for uniqueness *)
+(* drop unnecessary arguments from the external API and check for uniqueness. This comment is too long.*)
 let type_expect env e ty =
   let exp = type_expect env mode_legacy e ty in
   maybe_check_uniqueness_exp exp; exp
