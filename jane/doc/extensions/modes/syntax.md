@@ -90,6 +90,12 @@ type r = {x : string @ local -> string @ local @@ global}
 val foo : string -> string @ local @@ portable
 ```
 
+## Including signatures
+The following includes all items from `S` with extra modality `portable` applied.
+```ocaml
+include S @@ portable
+```
+
 ## Expressions
 ```ocaml
 (expression : _ @@ local)
