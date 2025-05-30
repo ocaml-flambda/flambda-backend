@@ -1155,11 +1155,11 @@ Error: Don't know how to unbox this type.
 
 external ext_tuple_arg_with_attr_t : (#(int * bool) [@untagged]) -> int = "foo"
 [%%expect{|
-Line 1, characters 0-77:
-1 | external ext_tuple_arg_with_attr_t : (#(int * bool) [@tagged]) -> int = "foo"
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The native code version of the primitive is mandatory
-       for types with non-value layouts.
+Line 1, characters 38-51:
+1 | external ext_tuple_arg_with_attr_t : (#(int * bool) [@untagged]) -> int = "foo"
+                                          ^^^^^^^^^^^^^
+Error: Don't know how to untag this type. Only "int"
+       and other immediate types can be untagged.
 |}]
 
 external ext_product_arg : t_product -> int = "foo" "bar"
