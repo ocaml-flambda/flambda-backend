@@ -284,7 +284,8 @@ let find_constr ~constant tag cstrs =
       (function
         | (({cstr_tag=Ordinary {runtime_tag=tag'}; cstr_constant},_),_) ->
           tag' = tag && cstr_constant = constant
-        | (({cstr_tag=Null; cstr_constant}, _),_) -> tag = -1 && cstr_constant = constant
+        | (({cstr_tag=Null; cstr_constant}, _),_) ->
+          tag = -1 && cstr_constant = constant
         | (({cstr_tag=Extension _},_),_) -> false)
       cstrs
   with

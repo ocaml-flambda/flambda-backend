@@ -203,6 +203,14 @@ let (foo @ portable) () =
 val foo : unit -> 'a = <fun>
 |}]
 
+let (foo @ portable) () =
+    let exception Bad of int ref * (unit -> unit) in
+    raise (Bad (ref 42, fun () -> ()))
+[%%expect{|
+val foo : unit -> 'a = <fun>
+|}]
+
+
 exception Fields : { x : int } -> exn
 exception MutFields : { mutable x : string } -> exn
 exception MutFields': { mutable z : int ref @@ contended } -> exn
@@ -246,8 +254,19 @@ Error: The constructor "MutFields'" is nonportable, so cannot be used inside a f
 show that's safe. *)
 let (foo @ portable) () =
     match x with
-    | Assert_failure _ -> ()
-    | Match_failure _ -> ()
+    | Exit
+    | Match_failure _
+    | Assert_failure _
+    | Invalid_argument _
+    | Failure _
+    | Not_found
+    | Out_of_memory
+    | Stack_overflow
+    | Sys_error _
+    | End_of_file
+    | Division_by_zero
+    | Sys_blocked_io
+    | Undefined_recursive_module _
     | _ -> ()
 [%%expect{|
 val foo : unit -> unit = <fun>

@@ -3606,7 +3606,9 @@ let lookup_all_dot_constructors ~errors ~use ~loc usage l s env =
       lookup_all_ident_constructors
         ~errors ~use ~loc usage s (Lazy.force initial)
   | _ ->
-      let (_, locks, comps) = lookup_structure_components ~errors ~use ~loc l env in
+      let (_, locks, comps) =
+        lookup_structure_components ~errors ~use ~loc l env
+      in
       match NameMap.find s comps.comp_constrs with
       | [] | exception Not_found ->
           may_lookup_error errors loc env (Unbound_constructor (Ldot(l, s)))
