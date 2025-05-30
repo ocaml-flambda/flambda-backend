@@ -2371,6 +2371,119 @@ let for_non_float ~(why : History.value_creation_reason) =
     { layout = Sort (Base Value); mod_bounds; with_bounds = No_with_bounds }
     ~annotation:None ~why:(Value_creation why)
 
+(* Note [With-bounds for GADTs]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   Inferring the with-bounds for a variant requires gathering bounds from each
+   constructor. We thus loop over each constructor:
+
+   A. If a constructor is not a GADT constructor, just add its fields and their
+   modalities as with-bounds.
+
+   B. If a constructor uses GADT syntax:
+
+   GADT constructors introduce their own local scope. That is, when we see
+
+   {[
+     type 'a t = K : 'b option -> 'b t
+   ]}
+
+   the ['b] in the constructor is distinct from the ['a] in the type header.
+   This would be true even if we wrote ['a] in the constructor: the variables
+   introduced in the type head never scope over GADT constructors.
+
+   So in order to get properly-scoped with-bounds, we must substitute.  But
+   what, exactly, do we substitute? The domain is the bare variables that appear
+   as arguments in the return type. The range is the corresponding variables in
+   the type head (even if those are written as [_]s; which are turned into
+   proper type variables by now).
+
+   We use [Ctype.apply] (passed in as [type_apply]) to perform the substitution.
+
+   We thus have
+
+   * STEP B1. Gather such variables from the result type, matching them with
+   their corresponding variables in the type head. We'll call these B1
+   variables.
+
+   We do not actually substitute quite yet.
+
+   There may still be other free type variables in the constructor type. Here
+   are some examples:
+
+   {[
+     type 'a t =
+       | K1 : 'o -> int t
+       | K2 : 'o -> 'o option t
+       | K3 : 'o -> 'b t
+   ]}
+
+   In each constructor, the type variable ['o] is not a B1 variable.  (The ['b]
+   in [K3] /is/ a B1 variable.) We call these variables /orphaned/. All
+   existential variables are orphans (as we see in [K1] and [K3]), but even
+   non-existential variables can be orphan (as we see in [K2]; note that ['o]
+   appears in the result).
+
+   We wish to replace each orphaned type variable with a [Tof_kind], holding
+   just its kind. Since [Tof_kind] has a *best* kind, they'll just get
+   normalized away during normalization, except in the case that they show up as
+   an argument to a type constructor representing an abstract type - in which
+   case, they still end up in the (fully normalized) with-bounds. For example,
+   the following type:
+
+   {[
+     type t : A : ('a : value mod portable). 'a abstract -> t
+   ]}
+
+   has kind:
+
+   {[
+     immutable_data with (type : value mod portable) abstract
+   ]}
+
+   This use of the [(type : <<kind>>)] construct is the reason we have
+   [Tof_kind] in the first place.
+
+   We thus have
+
+   * STEP B2. Gather the orphaned variables
+   * STEP B3. Build the [Tof_kind] types to use in the substitution
+   * STEP B4. Perform the substitution
+
+   There are wrinkles:
+
+   BW1. For repeated types on arguments, e.g. in the following type:
+
+   {[
+     type ('x, 'y) t = A : 'a -> ('a, 'a) t
+   ]}
+
+   we substitute only the *first* time we see an argument.  That means that in
+   the above type, we'll map all instances of ['a] to ['x] and infer a kind of
+   [immutable_data with 'x]. This is sound, but somewhat restrictive; in a
+   perfect world, we'd infer a kind of [immutable_data with ('x OR 'y)], but
+   that goes beyond what with-bounds can describe (which, if we implemented it,
+   would introduce a disjunction in type inference, requiring backtracking). At
+   some point in the future, we should at least change the subsumption algorithm
+   to accept either [immutable_data with 'x] or [immutable_data with 'y]
+   (* CR layouts v2.8: do that *)
+
+   BW2. All of the above applies for row variables. Here is an example:
+
+   {[
+     type t = K : [> `A] -> t
+   ]}
+
+   The row variable in the [ [> `A] ] is existential, and thus gets transformed
+   into a [(type : value)] when computing the kind of [t].
+
+   This fact has a few consequences:
+
+   * [Tof_kind] can appear as a [row_more].
+   * When [Tof_kind] is a [row_more], that row is considered fixed; it thus
+     needs a [fixed_explanation]. The [fixed_explanation] is [Existential], used
+     only for this purpose.
+*)
 let for_boxed_variant ~decl_params ~type_apply ~free_vars cstrs =
   let open Types in
   if List.for_all
@@ -2397,124 +2510,6 @@ let for_boxed_variant ~decl_params ~type_apply ~free_vars cstrs =
         ~why:Boxed_variant
       |> mark_best
     in
-    (* Note [With-bounds for GADTs]
-       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-       Inferring the with-bounds for a variant requires gathering bounds from
-       each constructor. We thus loop over each constructor:
-
-       A. If a constructor is not a GADT
-       constructor, just add its fields and their modalities as with-bounds.
-
-       B. If a constructor uses GADT syntax:
-
-       GADT constructors introduce their own local scope. That is, when we
-       see
-
-       {[
-         type 'a t = K : 'b option -> 'b t
-       ]}
-
-       the ['b] in the constructor is distinct from the ['a] in the type header.
-       This would be true even if we wrote ['a] in the constructor: the
-       variables introduced in the type head never scope over GADT constructors.
-
-       So in order to get properly-scoped with-bounds, we must substitute.
-       But what, exactly, do we substitute? The domain is the bare
-       variables that appear as arguments in the return type. The range is
-       the corresponding variables in the type head (even if those are written
-       as [_]s; which are turned into proper type variables by now).
-
-       We use [Ctype.apply] (passed in as [type_apply]) to perform the
-       substitution.
-
-       We thus have
-
-         * STEP B1. Gather such variables from the result type, matching them
-         with their corresponding variables in the type head. We'll call these
-         B1 variables.
-
-       We do not actually substitute quite yet.
-
-       There may still be other free type variables in the constructor
-       type. Here are some examples:
-
-       {[
-         type 'a t =
-           | K1 : 'o -> int t
-           | K2 : 'o -> 'o option t
-           | K3 : 'o -> 'b t
-       ]}
-
-       In each constructor, the type variable ['o] is not a B1 variable.
-       (The ['b] in [K3] /is/ a B1 variable.) We call
-       these variables /orphaned/. All existential variables are orphans
-       (as we see in [K1] and [K3]), but even non-existential variables
-       can be orphan (as we see in [K2]; note that ['o] appears in the
-       result).
-
-       We wish to replace each orphaned type variable with a [Tof_kind], holding
-       just its kind. Since [Tof_kind] has a *best* kind, they'll just get
-       normalized away during normalization, except in the case that they show
-       up as an argument to a type constructor representing an abstract type -
-       in which case, they still end up in the (fully normalized)
-       with-bounds. For example, the following type:
-
-       {[
-         type t : A : ('a : value mod portable). 'a abstract -> t
-       ]}
-
-       has kind:
-
-       {[
-         immutable_data with (type : value mod portable) abstract
-       ]}
-
-       This use of the [(type : <<kind>>)] construct is the reason we have
-       [Tof_kind] in the first place.
-
-       We thus have
-
-         * STEP B2. Gather the orphaned variables
-         * STEP B3. Build the [Tof_kind] types to use in the substitution
-         * STEP B4. Perform the substitution
-
-       There are wrinkles:
-
-       BW1. For repeated types on arguments, e.g. in the following type:
-
-       {[
-         type ('x, 'y) t = A : 'a -> ('a, 'a) t
-       ]}
-
-       we substitute only the *first* time we see an argument.
-       That means that in the
-       above type, we'll map all instances of ['a] to ['x] and infer a
-       kind of [immutable_data with 'x]. This is sound, but somewhat
-       restrictive; in a perfect world, we'd infer a kind of [immutable_data
-       with ('x OR 'y)], but that goes beyond what with-bounds can describe
-       (which, if we implemented it, would introduce a disjunction in type
-       inference, requiring backtracking). At some point in the future, we
-       should at least change the subsumption algorithm to accept either
-       [immutable_data with 'x] or [immutable_data with 'y] (* CR layouts v2.8:
-       do that *)
-
-       BW2. All of the above applies for row variables. Here is an example:
-
-       {[
-         type t = K : [> `A] -> t
-       ]}
-
-       The row variable in the [ [> `A] ] is existential, and thus gets
-       transformed into a [(type : value)] when computing the kind of [t].
-
-       This fact has a few consequences:
-
-       * [Tof_kind] can appear as a [row_more].
-       * When [Tof_kind] is a [row_more], that row is considered fixed; it
-       thus needs a [fixed_explanation]. The [fixed_explanation] is
-       [Existential], used only for this purpose.
-    *)
     let add_with_bounds_for_cstr jkind_so_far cstr =
       let cstr_arg_tys, cstr_arg_modalities =
         match cstr.cd_args with
@@ -2531,6 +2526,7 @@ let for_boxed_variant ~decl_params ~type_apply ~free_vars cstrs =
         match cstr.cd_res with
         | None -> cstr_arg_tys
         | Some res ->
+          (* See Note [With-bounds for GADTs] for an overview *)
           let apply_subst domain range tys =
             if Misc.Stdlib.List.is_empty domain
             then tys
