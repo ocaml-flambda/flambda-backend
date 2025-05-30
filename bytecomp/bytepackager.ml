@@ -103,11 +103,12 @@ type pack_member =
     pm_kind: pack_member_kind }
 
 let read_member_info ~packed_compilation_unit file =
-  let member_artifact = Unit_info.Artifact.from_filename file in
-  let member_name =
-    Unit_info.Artifact.modname member_artifact |> CU.Name.of_string
+  let for_pack_prefix = CU.to_prefix packed_compilation_unit in
+  let member_artifact =
+    Unit_info.Artifact.from_filename ~for_pack_prefix file
   in
-  let packed_name = CU.create_child packed_compilation_unit member_name in
+  let packed_name = Unit_info.Artifact.modname member_artifact in
+  let member_name = CU.name packed_name in
   let kind =
     (* PR#7479: make sure it is either a .cmi or a .cmo *)
     if Unit_info.is_cmi member_artifact then
@@ -244,13 +245,8 @@ let build_global_target ~ppf_dump oc ~packed_compilation_unit state members
 
 let package_object_files ~ppf_dump files target coercion =
   let targetfile = Unit_info.Artifact.filename target in
-  let packed_compilation_unit_name =
-    CU.Name.of_string (Unit_info.Artifact.modname target)
-  in
-  let packed_compilation_unit =
-    let prefix = CU.Prefix.from_clflags () in
-    CU.create prefix packed_compilation_unit_name
-  in
+  let packed_compilation_unit = Unit_info.Artifact.modname target in
+  let packed_compilation_unit_name = CU.name packed_compilation_unit in
   let members =
     map_left_right (read_member_info ~packed_compilation_unit) files
   in
@@ -353,12 +349,15 @@ let package_files ~ppf_dump initial_env files targetfile =
          try Load_path.find f
          with Not_found -> raise(Error(File_not_found f)))
       files in
-  let target = Unit_info.Artifact.from_filename targetfile in
-  let comp_unit =
-    CU.create (CU.Prefix.from_clflags ())
-      (Unit_info.Artifact.modname target |> CU.Name.of_string)
+  let for_pack_prefix = CU.Prefix.from_clflags () in
+  let target = Unit_info.Artifact.from_filename ~for_pack_prefix targetfile in
+  let comp_unit = Unit_info.Artifact.modname target in
+  let unit_info =
+    (* Do what [asmpackager] does and use the target .cmx as a dummy source
+       file *)
+    Unit_info.of_artifact Impl target ~dummy_source_file:targetfile
   in
-  CU.set_current (Some comp_unit);
+  Env.set_unit_name (Some unit_info);
   Misc.try_finally (fun () ->
       let coercion =
         Typemod.package_units initial_env files (Unit_info.companion_cmi target)

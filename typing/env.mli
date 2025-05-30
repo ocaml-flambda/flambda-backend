@@ -518,8 +518,8 @@ val reset_cache: preserve_persistent_env:bool -> unit
 val reset_cache_toplevel: unit -> unit
 
 (* Remember the name of the current compilation unit. *)
-val set_unit_name: Compilation_unit.t option -> unit
-val get_unit_name: unit -> Compilation_unit.t option
+val set_unit_name: Unit_info.t option -> unit
+val get_unit_name: unit -> Unit_info.t option
 
 (* Read, save a signature to/from a file. *)
 val read_signature:
