@@ -1,5 +1,5 @@
 (* TEST
-    flags += "-extension mode";
+    flags += "-extension mode_alpha";
     expect;
 *)
 
@@ -130,6 +130,9 @@ Lines 1-3, characters 15-3:
 2 |   module M' = M
 3 | end
 Error: Signature mismatch:
-       Modules do not match: sig module M' = M end is not included in S
+       Modules do not match:
+         sig module M' = M @@ many unyielding end
+       is not included in
+         S
        Got "nonportable" but expected "portable".
 |}]

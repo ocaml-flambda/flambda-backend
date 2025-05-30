@@ -1,6 +1,6 @@
 (* TEST
     readonly_files = "portable_interface.mli use_portable_interface.ml";
-    flags += "-extension mode";
+    flags += "-extension mode_alpha";
     setup-ocamlc.byte-build-env;
     module = "portable_interface.mli";
     ocamlc.byte;
