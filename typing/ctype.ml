@@ -7230,7 +7230,7 @@ let check_constructor_crossing env tag ~res args held_locks =
   | Extension _ ->
       match get_desc (expand_head env res) with
       | Tconstr (p, _, _) when Path.same Predef.path_exn p ->
-          (* Currently only [exn] is treated specially *)
+          (* CR zqian: handle other extensible variant types as well *)
           let mode_crossings =
             List.map (
               fun ({ca_type; ca_modalities; _} : Types.constructor_argument) ->

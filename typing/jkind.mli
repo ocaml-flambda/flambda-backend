@@ -276,9 +276,6 @@ module Const : sig
     (** Immutable non-float values that don't contain functions. *)
     val immutable_data : t
 
-    (** Exceptions; only crossing portability *)
-    val exn : t
-
     (** Atomically mutable non-float values that don't contain functions. *)
     val sync_data : t
 
@@ -526,6 +523,9 @@ val for_arrow : Types.jkind_l
 
 (** The jkind of an object type.  *)
 val for_object : Types.jkind_l
+
+(** The jkind for [exn] *)
+val for_exn : Ident.t -> Types.jkind_l
 
 (** The jkind of a float. *)
 val for_float : Ident.t -> Types.jkind_l
