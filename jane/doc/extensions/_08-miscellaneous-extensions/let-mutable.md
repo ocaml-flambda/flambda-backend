@@ -12,13 +12,7 @@ let triangle n =
   total
 ```
 
-Mutable `let` declarations may not be recursive, and they may not be used at the
-structure level or in class definitions. The pattern of a mutable `let`
-statement must be a single variable, possibly with a type annotation, e.g. `let
-mutable x, y = ..` is not allowed. Mutable `let` statements must also not use
-`and`s.
-
-Mutable variables must also not escape their scope. For example, you can't
+Mutable variables must not escape their scope. For example, you can't
 return a closure that closes over a mutable variable. At the moment, the mode
 checker is, sadly, not sophisticated enough to allow some constructions which
 are obviously safe. For example, the following code is safe, but rejected by the
@@ -30,3 +24,12 @@ let sum xs =
   List.iter xs ~f:(fun x -> total <- total + x);
   total
 ```
+
+
+## Restrictions
+
+Mutable `let` declarations may not be recursive, and they may not be used at the
+structure level or in class definitions. The pattern of a mutable `let`
+statement must be a single variable, possibly with a type annotation, e.g. `let
+mutable x, y = ..` and `let mutable add x y = ..` are not allowed. Mutable `let`
+statements must also not use `and`s.

@@ -806,6 +806,7 @@ type lookup_error =
   | No_unboxed_version of Longident.t * type_declaration
   | Error_from_persistent_env of Persistent_env.error
   | Mutable_value_used_in_closure of string
+  | Mutable_value_used_in_escape of string
 
 type error =
   | Missing_module of Location.t * Path.t * Path.t
@@ -3305,20 +3306,26 @@ let walk_locks ~errors ~loc ~env ~item ~lid mode ty locks =
 let unwalk_locks ~errors:_ ~loc:_ ~env:_ ~item:_ ~lid:_ mode _ty _locks =
   mode
 
-(** Would this set of locks prevent a mutable variable from being used?
+(** Which lock, if any, blocks mutable variables from being used?
     The current implementation is too restrictive: Any [Closure_lock] will
     block a mutable variable, even if the closure does not leave the mutable
     variable's scope *)
-let blocks_mutable_variables locks =
-  List.exists (function
-    | Closure_lock _ | Escape_lock _ | Share_lock _ -> true
-    | Region_lock | Exclave_lock | Unboxed_lock -> false) locks
+let lock_blocking_mutable_variables locks =
+  List.find_opt (function
+    (* CR jrayman for zqian: is this correct, specifically for share locks? *)
+    | Closure_lock _ | Escape_lock _ -> true
+    | Share_lock _ | Region_lock | Exclave_lock | Unboxed_lock -> false) locks
 
 let lookup_ident_value ~errors ~use ~loc name env =
   match IdTbl.find_name_and_locks wrap_value ~mark:use name env.values with
   | Ok (_, locks, Val_bound {vda_description={val_kind=Val_mut _}})
-    when blocks_mutable_variables locks ->
-      may_lookup_error errors loc env (Mutable_value_used_in_closure name)
+    when lock_blocking_mutable_variables locks |> Option.is_some ->
+      may_lookup_error errors loc env
+        (match lock_blocking_mutable_variables locks |> Option.get with
+         | Closure_lock _ -> Mutable_value_used_in_closure name
+         | Escape_lock _ -> Mutable_value_used_in_escape name
+         | _ -> assert false
+                (* See definition of [lock_blocking_mutable_variables] *))
   | Ok (path, locks, Val_bound vda) ->
       use_value ~use ~loc path vda;
       path, locks, vda
@@ -4701,6 +4708,11 @@ let report_lookup_error _loc env ppf = function
       fprintf ppf
         "@[The variable %s is mutable, so cannot be used \
            inside a closure that might escape@]"
+        name
+  | Mutable_value_used_in_escape name ->
+      fprintf ppf
+        "@[The variable %s is mutable, so it may not cross an \
+           escape lock@]"
         name
 
 let report_error ppf = function

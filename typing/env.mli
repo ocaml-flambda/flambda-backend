@@ -258,7 +258,7 @@ type lookup_error =
   | No_unboxed_version of Longident.t * type_declaration
   | Error_from_persistent_env of Persistent_env.error
   | Mutable_value_used_in_closure of string
-    (* jra: Maybe rename this error/add other errors? *)
+  | Mutable_value_used_in_escape of string (* jra: write test for this *)
 
 val lookup_error: Location.t -> t -> lookup_error -> 'a
 
