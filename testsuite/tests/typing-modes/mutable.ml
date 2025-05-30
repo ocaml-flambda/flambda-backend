@@ -126,7 +126,7 @@ Error: Signature mismatch:
          "mutable s : string;"
        is not the same as:
          "mutable s : string;"
-       The first is global_ and the second is not.
+       The first is global and the second is not.
 |}]
 
 module M : sig
@@ -152,7 +152,7 @@ Error: Signature mismatch:
          "mutable s : string;"
        is not the same as:
          "mutable s : string;"
-       The second is global_ and the first is not.
+       The second is global and the first is not.
 |}]
 
 type r =

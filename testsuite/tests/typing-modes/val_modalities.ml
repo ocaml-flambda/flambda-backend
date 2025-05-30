@@ -680,7 +680,7 @@ Error: In this "with" constraint, the new definition of "M"
        is not included in
          sig val foo : 'a -> 'a @@ global many end
        Modalities on foo do not match:
-       The second is global_ and the first is not.
+       The second is global and the first is not.
 |}]
 
 module type F = functor (M':sig val foo : 'a -> 'a end) -> sig
@@ -703,7 +703,7 @@ Error: In this "with" constraint, the new definition of "M"
        is not included in
          sig val foo : 'a -> 'a @@ global many end
        Modalities on foo do not match:
-       The second is global_ and the first is not.
+       The second is global and the first is not.
 |}]
 
 
@@ -723,7 +723,7 @@ Error: In this strengthened module type, the type of "M"
        is not included in
          sig val foo : 'a -> 'a @@ global many end
        Modalities on foo do not match:
-       The second is global_ and the first is not.
+       The second is global and the first is not.
 |}]
 
 
@@ -756,7 +756,7 @@ Error: Signature mismatch:
          sig val foo : 'a @@ global many end
        At position "module type S = <here>"
        Modalities on foo do not match:
-       The second is global_ and the first is not.
+       The second is global and the first is not.
 |}]
 
 (* Module declaration inclusion check inside a module type declaration inclusion
@@ -805,7 +805,7 @@ Error: Signature mismatch:
          sig val foo : 'a -> 'a @@ global many end
        At position "module type N = sig module M : <here> end"
        Modalities on foo do not match:
-       The second is global_ and the first is not.
+       The second is global and the first is not.
 |}]
 
 (* functor type inclusion: the following two functor types are equivalent,

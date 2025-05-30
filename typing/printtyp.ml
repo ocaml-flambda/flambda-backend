@@ -1699,7 +1699,8 @@ let modality ?(id = fun _ppf -> ()) ppf modality =
   else
     modality
     |> Typemode.untransl_modality
-    |> tree_of_modality
+    |> tree_of_modality_new
+    |> (fun x -> Ogf_new x)
     |> !Oprint.out_modality ppf
 
 let prepared_type_expr ppf ty = typexp Type ppf ty
