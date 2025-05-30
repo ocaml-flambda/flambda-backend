@@ -646,3 +646,13 @@ Line 8, characters 24-29:
                             ^^^^^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
+
+(*********************************************************)
+(* Unifying Tof_kind row_mores *)
+
+(* this case is reduced from a real failure *)
+type 'a t1 constraint 'a = [< `A ]
+type 'a t2 = 'a t1
+type 'a t3 = T : 'a t2 -> 'a t3
+
+[%%expect]
