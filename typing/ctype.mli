@@ -776,4 +776,4 @@ usages of constructors are constrained according to the mode crossing of
 constructor arguments. *)
 val check_constructor_crossing : Env.t ->
   tag -> res:type_expr -> constructor_argument list ->
-  Env.held_locks -> (unit, Mode.Value.error) result
+  Env.held_locks -> unit

@@ -7226,7 +7226,7 @@ let constrain_decl_jkind env decl jkind =
 
 let check_constructor_crossing env tag ~res args held_locks =
   match tag with
-  | Ordinary _ | Null -> Ok ()
+  | Ordinary _ | Null -> ()
   | Extension _ ->
       match get_desc (expand_head env res) with
       | Tconstr (p, _, _) when Path.same Predef.path_exn p ->
@@ -7242,14 +7242,19 @@ let check_constructor_crossing env tag ~res args held_locks =
           in
           (* We only check portability and contention, since [exn] doesn't
                cross other axes anyway. *)
-          let mode =
+          let monadic =
+            Mode.Value.max_with (Monadic Contention) Mode.Contention.min
+            |> Mode.Crossing.apply_right mode_crossing
+          in
+          let comonadic =
             Mode.Value.min_with (Comonadic Portability) Mode.Portability.max
             |> Mode.Crossing.apply_left mode_crossing
           in
-          let vmode =
-            Env.walk_locks ~env ~item:Constructor mode None held_locks
+          let mode = {
+            monadic = monadic.monadic;
+            comonadic = comonadic.comonadic;
+          }
+          |> Mode.Value.close_over
           in
-          let mode = vmode.mode |> Mode.Crossing.apply_left mode_crossing in
-          Mode.Value.submode mode
-            (Mode.Value.max_with (Monadic Contention) (Mode.Contention.min))
-      | _ -> Ok ()
+          ignore (Env.walk_locks ~env ~item:Constructor mode None held_locks)
+      | _ -> ()

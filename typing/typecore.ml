@@ -2967,13 +2967,8 @@ and type_pat_aux
         solve_Ppat_construct ~refine:false tps penv loc constr no_existentials
           existential_styp expected_ty
       in
-      begin match Ctype.check_constructor_crossing !!penv constr.cstr_tag
-        ~res:expected_ty args held_locks with
-      | Ok () -> ()
-      | Error e ->
-          raise (Error(lid.loc, !!penv,
-            Submode_failed(e, Other, None, None, None, None)))
-      end;
+      Ctype.check_constructor_crossing !!penv constr.cstr_tag ~res:expected_ty
+        args held_locks;
 
       let rec check_non_escaping p =
         match p.ppat_desc with
@@ -8568,13 +8563,8 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
         List.iter (fun {Types.ca_type=ty; _} -> generalize_structure ty) ty_args)
   in
   let ty_args, ty_res, texp = unify_as_construct ty_expected in
-  begin match Ctype.check_constructor_crossing env constr.cstr_tag
-    ~res:ty_res ty_args held_locks with
-  | Ok () -> ()
-  | Error e ->
-      raise (Error (lid.loc, env, Submode_failed(e, Other, None, None, None,
-        None)))
-  end;
+  Ctype.check_constructor_crossing env constr.cstr_tag ~res:ty_res ty_args
+    held_locks;
   let ty_args0, ty_res =
     match instance_list (ty_res :: (List.map (fun ca -> ca.Types.ca_type) ty_args)) with
       t :: tl -> tl, t

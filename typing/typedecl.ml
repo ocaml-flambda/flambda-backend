@@ -141,7 +141,6 @@ type error =
   | Unsafe_mode_crossing_on_invalid_type_kind
   | Illegal_baggage of jkind_l
   | No_unboxed_version of Path.t
-  | Constructor_submode_failed of Mode.Value.error
 
 open Typedtree
 
@@ -3029,11 +3028,8 @@ let transl_extension_constructor ~scope env type_path type_params
               | _ -> ())
             typext_params
         end;
-        begin match Ctype.check_constructor_crossing env cdescr.cstr_tag
-          ~res:cstr_res args held_locks with
-        | Ok () -> ()
-        | Error e -> raise (Error (lid.loc, Constructor_submode_failed e))
-        end;
+        Ctype.check_constructor_crossing env cdescr.cstr_tag ~res:cstr_res args
+          held_locks;
         (* Ensure that constructor's type matches the type being extended *)
         let cstr_type_path = Btype.cstr_type_path cdescr in
         let cstr_type_params = (Env.find_type cstr_type_path env).type_params in
@@ -4703,11 +4699,6 @@ let report_error ppf = function
   | No_unboxed_version p ->
       fprintf ppf "@[The type %a@ has no unboxed version.@]"
         (Style.as_inline_code Printtyp.path) p
-  | Constructor_submode_failed (Error (ax, {left; right})) ->
-      fprintf ppf "@[This constructor is at mode %a, \
-        but expected to be at mode %a.@]"
-        (Style.as_inline_code (Mode.Value.Const.print_axis ax)) left
-        (Style.as_inline_code (Mode.Value.Const.print_axis ax)) right
 
 let () =
   Location.register_error_of_exn

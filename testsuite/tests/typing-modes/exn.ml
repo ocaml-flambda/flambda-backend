@@ -156,7 +156,7 @@ let (foo @ portable) () =
 Line 3, characters 6-15:
 3 |     | Contended _ -> ()
           ^^^^^^^^^
-Error: This value is "contended" but expected to be "uncontended".
+Error: The constructor "Contended" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
 let (foo @ portable) () =
@@ -177,7 +177,7 @@ let (foo @ portable) () =
 Line 2, characters 11-20:
 2 |     raise (Contended (ref 42))
                ^^^^^^^^^
-Error: This value is "contended" but expected to be "uncontended".
+Error: The constructor "Contended" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
 (* rebinding counts as usage *)
@@ -187,11 +187,6 @@ let (foo @ portable) () =
     end in
     ()
 [%%expect{|
-Line 3, characters 31-40:
-3 |         exception Contended' = Contended
-                                   ^^^^^^^^^
-Error: This constructor is at mode "contended", but expected to be at mode "uncontended".
-|}, Principal{|
 Line 3, characters 31-40:
 3 |         exception Contended' = Contended
                                    ^^^^^^^^^
@@ -233,7 +228,7 @@ let (foo @ portable) () =
 Line 3, characters 6-15:
 3 |     | MutFields _ -> ()
           ^^^^^^^^^
-Error: This value is "contended" but expected to be "uncontended".
+Error: The constructor "MutFields" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
 let (foo @ portable) () =
@@ -244,7 +239,7 @@ let (foo @ portable) () =
 Line 3, characters 6-16:
 3 |     | MutFields' _ -> ()
           ^^^^^^^^^^
-Error: This value is "contended" but expected to be "uncontended".
+Error: The constructor "MutFields'" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
 (* built-in exceptions can be raised arbitrarily inside portable functions - we
