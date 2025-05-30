@@ -732,6 +732,7 @@ and raw_row_fixed ppf = function
 | Some Types.Rigid -> fprintf ppf "Some Rigid"
 | Some Types.Univar t -> fprintf ppf "Some(Univar(%a))" raw_type t
 | Some Types.Reified p -> fprintf ppf "Some(Reified(%a))" path p
+| Some Types.Fixed_existential -> fprintf ppf "Some Fixed_existential"
 
 and raw_field ppf rf =
   match_row_field
@@ -3043,6 +3044,7 @@ let explain_fixed_row pos expl = match expl with
            print_path p ppf))
       p
   | Rigid -> ignore
+  | Fixed_existential -> ignore
 
 let explain_variant (type variety) : variety Errortrace.variant -> _ = function
   (* Common *)
@@ -3066,7 +3068,7 @@ let explain_variant (type variety) : variety Errortrace.variant -> _ = function
         dprintf "@,@[%t,@ %a@]" (explain_fixed_row pos e)
           explain_fixed_row_case k
       )
-  | Errortrace.Fixed_row (_,_, Rigid) ->
+  | Errortrace.Fixed_row (_,_, (Rigid | Fixed_existential)) ->
       (* this case never happens *)
       None
   (* Equality & Moregen *)

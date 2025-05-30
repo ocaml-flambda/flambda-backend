@@ -157,6 +157,7 @@ let merge_fixed_explanation fixed1 fixed2 =
   | Some Fixed_private as x, _ | _, (Some Fixed_private as x) -> x
   | Some Reified _ as x, _ | _, (Some Reified _ as x) -> x
   | Some Rigid as x, _ | _, (Some Rigid as x) -> x
+  | Some Fixed_existential as x, _ | _, (Some Fixed_existential as x) -> x
   | None, None -> None
 
 
@@ -169,6 +170,7 @@ let fixed_explanation row =
       | Tvar _ | Tnil -> None
       | Tunivar _ -> Some (Univar ty)
       | Tconstr (p,_,_) -> Some (Reified p)
+      | Tof_kind _ -> Some Fixed_existential
       | _ -> assert false
 
 let is_fixed row = match row_fixed row with

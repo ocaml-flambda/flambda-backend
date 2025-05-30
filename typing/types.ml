@@ -365,7 +365,11 @@ and row_desc =
       row_fixed: fixed_explanation option;
       row_name: (Path.t * type_expr list) option }
 and fixed_explanation =
-  | Univar of type_expr | Fixed_private | Reified of Path.t | Rigid
+  | Univar of type_expr
+  | Fixed_private
+  | Reified of Path.t
+  | Rigid
+  | Fixed_existential
 and row_field = [`some] row_field_gen
 and _ row_field_gen =
     RFpresent : type_expr option -> [> `some] row_field_gen

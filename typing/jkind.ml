@@ -2479,9 +2479,9 @@ let for_boxed_variant ~decl_params ~type_apply ~free_vars cstrs =
          * STEP B3. Build the [Tof_kind] types to use in the substitution
          * STEP B4. Perform the substitution
 
-       There is one notable wrinkle:
+       There are wrinkles:
 
-       BW. For repeated types on arguments, e.g. in the following type:
+       BW1. For repeated types on arguments, e.g. in the following type:
 
        {[
          type ('x, 'y) t = A : 'a -> ('a, 'a) t
@@ -2498,6 +2498,22 @@ let for_boxed_variant ~decl_params ~type_apply ~free_vars cstrs =
        should at least change the subsumption algorithm to accept either
        [immutable_data with 'x] or [immutable_data with 'y] (* CR layouts v2.8:
        do that *)
+
+       BW2. All of the above applies for row variables. Here is an example:
+
+       {[
+         type t = K : [> `A] -> t
+       ]}
+
+       The row variable in the [ [> `A] ] is existential, and thus gets
+       transformed into a [(type : value)] when computing the kind of [t].
+
+       This fact has a few consequences:
+
+       * [Tof_kind] can appear as a [row_more].
+       * When [Tof_kind] is a [row_more], that row is considered fixed; it
+       thus needs a [fixed_explanation]. The [fixed_explanation] is
+       [Existential], used only for this purpose.
     *)
     let add_with_bounds_for_cstr jkind_so_far cstr =
       let cstr_arg_tys, cstr_arg_modalities =
@@ -2532,7 +2548,8 @@ let for_boxed_variant ~decl_params ~type_apply ~free_vars cstrs =
                 if Btype.TypeSet.mem arg seen
                 then
                   (* We've already seen this type parameter, so don't add it
-                     again.  See wrinkle BW from Note [With-bounds for GADTs] *)
+                     again.  See wrinkle BW1 from Note [With-bounds for GADTs]
+                  *)
                   acc
                 else
                   match Types.get_desc arg with

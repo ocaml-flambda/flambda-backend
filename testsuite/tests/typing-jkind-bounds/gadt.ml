@@ -655,4 +655,8 @@ type 'a t1 constraint 'a = [< `A ]
 type 'a t2 = 'a t1
 type 'a t3 = T : 'a t2 -> 'a t3
 
-[%%expect]
+[%%expect{|
+type 'a t1 constraint 'a = [< `A ]
+type 'a t2 = 'a t1 constraint 'a = [< `A ]
+type 'a t3 = T : 'b t2 -> ([< `A ] as 'b) t3
+|}]
