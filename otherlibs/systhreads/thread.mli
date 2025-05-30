@@ -193,3 +193,9 @@ val set_uncaught_exception_handler : (exn -> unit) @ portable -> unit
 
     If the newly set uncaught exception handler raise an exception,
     {!default_uncaught_exception_handler} will be called. *)
+
+val use_domains : unit -> unit
+(** [Thread.use_domains ()] sets the internal locking system to the one
+    used by domains. This ensures that domains can be started from threads
+    other than the initial one. It prevents the use of a custom locking
+    scheme, such as the one used by pyocaml. *)
