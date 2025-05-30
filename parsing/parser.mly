@@ -670,9 +670,10 @@ let addlb lbs lb =
   if lb.lb_is_pun && lbs.lbs_extension = None then syntax_error ();
   { lbs with lbs_bindings = lb :: lbs.lbs_bindings }
 
-let mklbs ext rf lb =
+let mklbs ext mf rf lb =
   let lbs = {
     lbs_bindings = [];
+    lbs_mutable = mf;
     lbs_rec = rf;
     lbs_extension = ext;
   } in
@@ -689,10 +690,27 @@ let val_of_let_bindings ~loc lbs =
            ?value_constraint:lb.lb_constraint lb.lb_pattern lb.lb_expression)
       lbs.lbs_bindings
   in
-  let str = mkstr ~loc (Pstr_value(lbs.lbs_rec, List.rev bindings)) in
-  match lbs.lbs_extension with
-  | None -> str
-  | Some id -> ghstr ~loc (Pstr_extension((id, PStr [str]), []))
+  match lbs.lbs_mutable with
+  | Mutable ->
+    raise (Syntaxerr.Error
+      (Syntaxerr.Let_mutable_not_allowed_at_structure_level (make_loc loc)))
+  | Immutable ->
+    let str = mkstr ~loc (Pstr_value(lbs.lbs_rec, List.rev bindings)) in
+    match lbs.lbs_extension with
+    | None -> str
+    | Some id -> ghstr ~loc (Pstr_extension((id, PStr [str]), []))
+
+
+(* Find the location of the first binding in [bindings] that contains a ghost
+ * function expression. This is used to disallow [let mutable f x y = ..]. *)
+let ghost_fun_binding_loc bindings =
+  List.find_opt (fun binding ->
+    match binding.lb_expression.pexp_loc.loc_ghost,
+          binding.lb_expression.pexp_desc
+    with
+    | true, Pexp_function _ -> true | _ -> false)
+  bindings
+  |> Option.map (fun binding -> binding.lb_loc)
 
 let expr_of_let_bindings ~loc lbs body =
   let bindings =
@@ -703,7 +721,16 @@ let expr_of_let_bindings ~loc lbs body =
           ?value_constraint:lb.lb_constraint  lb.lb_pattern lb.lb_expression)
       lbs.lbs_bindings
   in
-    mkexp_attrs ~loc (Pexp_let(lbs.lbs_rec, List.rev bindings, body))
+  (* Disallow [let mutable f x y = ..] but still allow
+   * [let mutable f = fun x y -> ..]. *)
+  match lbs.lbs_mutable, ghost_fun_binding_loc lbs.lbs_bindings with
+  | Mutable, Some loc ->
+    raise (Syntaxerr.Error
+        (* jra: rename error *)
+      (Syntaxerr.Let_mutable_not_allowed_with_function_bindings loc))
+  | _ ->
+    mkexp_attrs ~loc
+      (Pexp_let(lbs.lbs_mutable, lbs.lbs_rec, List.rev bindings, body))
       (lbs.lbs_extension, [])
 
 let class_of_let_bindings ~loc lbs body =
@@ -715,9 +742,14 @@ let class_of_let_bindings ~loc lbs body =
           ?value_constraint:lb.lb_constraint lb.lb_pattern lb.lb_expression)
       lbs.lbs_bindings
   in
-    (* Our use of let_bindings(no_ext) guarantees the following: *)
-    assert (lbs.lbs_extension = None);
-    mkclass ~loc (Pcl_let (lbs.lbs_rec, List.rev bindings, body))
+    match lbs.lbs_mutable with
+    | Mutable ->
+      raise (Syntaxerr.Error
+        (Syntaxerr.Let_mutable_not_allowed_in_class_definition (make_loc loc)))
+    | Immutable ->
+      (* Our use of let_bindings(no_ext) guarantees the following: *)
+      assert (lbs.lbs_extension = None);
+      mkclass ~loc (Pcl_let (lbs.lbs_rec, List.rev bindings, body))
 
 (* If all the parameters are [Pparam_newtype x], then return [Some xs] where
    [xs] is the corresponding list of values [x]. This function is optimized for
@@ -2805,7 +2837,7 @@ fun_expr:
       { mkexp_cons ~loc:$sloc $loc($2)
           (ghexp ~loc:$sloc (Pexp_tuple[None, $1;None, $3])) }
   | mkrhs(label) LESSMINUS expr
-      { mkexp ~loc:$sloc (Pexp_setinstvar($1, $3)) }
+      { mkexp ~loc:$sloc (Pexp_setvar($1, $3)) }
   | simple_expr DOT mkrhs(label_longident) LESSMINUS expr
       { mkexp ~loc:$sloc (Pexp_setfield($1, $3, $5)) }
   | indexop_expr(DOT, seq_expr, LESSMINUS v=expr {Some v})
@@ -3230,12 +3262,13 @@ let_bindings(EXT):
   LET
   ext = EXT
   attrs1 = attributes
+  mutable_flag = mutable_flag
   rec_flag = rec_flag
   body = let_binding_body
   attrs2 = post_item_attributes
     {
       let attrs = attrs1 @ attrs2 in
-      mklbs ext rec_flag (mklb ~loc:$sloc true body attrs)
+      mklbs ext mutable_flag rec_flag (mklb ~loc:$sloc true body attrs)
     }
 ;
 and_let_binding:

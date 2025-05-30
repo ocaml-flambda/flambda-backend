@@ -1,0 +1,11 @@
+
+
+Lines 7-12, characters 2-5:
+ 7 | ..let mutable x = 20 in
+ 8 |   object
+ 9 |     method read_incr =
+10 |       x <- x + 1;
+11 |       x
+12 |   end
+Error: Syntax error: Mutable let bindings are not allowed inside class definitions.
+

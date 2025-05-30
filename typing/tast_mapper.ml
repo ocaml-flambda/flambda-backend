@@ -464,6 +464,8 @@ let expr sub x =
     | Texp_let (rec_flag, list, exp) ->
         let (rec_flag, list) = sub.value_bindings sub (rec_flag, list) in
         Texp_let (rec_flag, list, sub.expr sub exp)
+    | Texp_letmutable (vb, exp) ->
+        Texp_letmutable (sub.value_binding sub vb, sub.expr sub exp)
     | Texp_function { params; body; alloc_mode; ret_mode; ret_sort;
                       zero_alloc } ->
         let params = List.map (function_param sub) params in
@@ -575,6 +577,7 @@ let expr sub x =
           path2,
           map_loc sub id
         )
+    | Texp_mutvar id -> Texp_mutvar (map_loc sub id)
     | Texp_setinstvar (path1, path2, id, exp) ->
         Texp_setinstvar (
           path1,
@@ -582,6 +585,8 @@ let expr sub x =
           map_loc sub id,
           sub.expr sub exp
         )
+    | Texp_setmutvar (id, sort, exp) ->
+        Texp_setmutvar (map_loc sub id, sort, sub.expr sub exp)
     | Texp_override (path, list) ->
         Texp_override (
           path,
