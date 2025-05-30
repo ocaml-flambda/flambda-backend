@@ -497,20 +497,8 @@ val for_boxed_record : Types.label_declaration list -> Types.jkind_l
 (** Choose an appropriate jkind for an unboxed record type. *)
 val for_unboxed_record : Types.label_declaration list -> Types.jkind_l
 
-(** Choose an appropriate jkind for a boxed variant type.
-
-    [decl_params] is the parameters in the head of the type declaration. [type_apply]
-    should be [Ctype.apply] partially applied to an [env]. *)
-val for_boxed_variant :
-  decl_params:Types.type_expr list ->
-  type_apply:
-    (Types.type_expr list ->
-    Types.type_expr ->
-    Types.type_expr list ->
-    Types.type_expr) ->
-  free_vars:(Types.type_expr list -> Btype.TypeSet.t) ->
-  Types.constructor_declaration list ->
-  Types.jkind_l
+(** Choose an appropriate jkind for a boxed variant type. *)
+val for_boxed_variant : Types.constructor_declaration list -> Types.jkind_l
 
 (** Choose an appropriate jkind for a boxed tuple type. *)
 val for_boxed_tuple : (string option * Types.type_expr) list -> Types.jkind_l
