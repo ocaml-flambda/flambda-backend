@@ -48,6 +48,9 @@ val meet_naked_immediates :
 val meet_equals_single_tagged_immediate :
   Typing_env.t -> Type_grammar.t -> Targetint_31_63.t meet_shortcut
 
+val meet_single_naked_immediate :
+  Typing_env.t -> Type_grammar.t -> Targetint_31_63.t meet_shortcut
+
 val meet_naked_float32s :
   Typing_env.t ->
   Type_grammar.t ->
