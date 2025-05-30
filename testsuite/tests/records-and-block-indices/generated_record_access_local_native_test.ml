@@ -46,6 +46,62 @@ external[@layout_poly] set :
   ('a : any_non_null) . ('a array[@local_opt]) -> (int[@local_opt]) -> 'a -> unit =
   "%array_safe_set"
 
+module Idx_repr : sig
+  type t
+  val of_idx_imm : 'a ('b : any). ('a, 'b) idx_imm -> t
+  val of_idx_mut : 'a ('b : any). ('a, 'b) idx_mut -> t
+  val equal : t -> t -> bool
+  val debug_string : t -> string
+end = struct
+  (* See [jane/doc/extensions/_02-unboxed-types/block-indices.md] *)
+  type t =
+    | Bytecode of { path : int list }
+    | Native of { offset : int; gap : int }
+
+  external magic_box_bits64 : ('a : bits64) 'b . 'a -> 'b =
+    "%box_int64"
+  external lessthan_if_bytecode : int -> int -> bool =
+    "caml_lessthan" "caml_greaterthan"
+
+  let of_idx idx =
+    let is_bytecode = lessthan_if_bytecode 0 1 in
+    if is_bytecode then
+      let r = Obj.repr (magic_box_bits64 idx) in
+      let nth_idx n : int = Obj.magic (Obj.field r n) in
+      let path = List.init (Obj.size r) nth_idx in
+      Bytecode { path }
+    else
+      let i : int64 = magic_box_bits64 idx in
+      let offset =
+        Int64.(logand (sub (shift_left one 48) one)) i
+        |> Int64.to_int
+      in
+      let gap =
+        Int64.shift_right i 48
+        |> Int64.to_int
+      in
+      Native { offset; gap }
+
+  let of_idx_imm = of_idx
+  let of_idx_mut = of_idx
+
+  let equal t1 t2 =
+    match t1, t2 with
+    | Bytecode { path = path1 }, Bytecode { path = path2 } ->
+      List.equal Int.equal path1 path2
+    | Native { gap = gap1; offset = offset1 },
+      Native { gap = gap2; offset = offset2 } ->
+      Int.equal gap1 gap2 && Int.equal offset1 offset2
+    | Bytecode _, Native _ | Native _, Bytecode _ -> assert false
+
+  let debug_string = function
+    | Bytecode { path } ->
+      Printf.sprintf "{ %s }"
+        (String.concat "; " (List.map Int.to_string path))
+    | Native { offset; gap } ->
+      Printf.sprintf "offset %d; gap %d" offset gap
+end
+
 let failwithf fmt = Printf.ksprintf failwith fmt
 
 (* Redefine iter to infer locality *)
@@ -69,185 +125,224 @@ let indices_in_deepening_tests = [0; 100_000]
 type packed = P : 'a -> packed
 let ref_to_force_heap_allocation : packed ref = ref (P 0)
 
-type t0 = { mutable a0 : int }
-type t1 = { mutable a1 : int; mutable b1 : int }
-type t2 = { mutable a2 : int; mutable b2 : int; mutable c2 : int }
-type t3 = { mutable a3 : int; mutable b3 : int; mutable c3 : int32# }
-type t4 = { mutable a4 : int; mutable b4 : int; mutable c4 : float }
-type t5 = { mutable a5 : int; mutable b5 : int; mutable c5 : int64x2# }
-type t6 = { mutable a6 : int; mutable b6 : int64 }
-type t7 = { mutable a7 : int; mutable b7 : int64# }
-type t8 = { mutable a8 : int; mutable b8 : int32# }
-type t9 = { mutable a9 : int; mutable b9 : int32#; mutable c9 : int }
-type t10 = { mutable a10 : int; mutable b10 : int32#; mutable c10 : int32# }
-type t11 = { mutable a11 : int; mutable b11 : nativeint# }
-type t12 = { mutable a12 : int; mutable b12 : float }
-type t13 = { mutable a13 : int; mutable b13 : float; mutable c13 : int }
-type t14 = { mutable a14 : int; mutable b14 : float; mutable c14 : float }
-type t15 = { mutable a15 : int; mutable b15 : int64x2# }
-type t16 = { mutable a16 : int; mutable b16 : int64x2#; mutable c16 : int }
-type t17 = { mutable a17 : int; mutable b17 : int64x2#; mutable c17 : int64x2# }
-type t18 = #{ a18 : int }
-type t19 = { mutable a19 : int; mutable b19 : t18 }
-type t20 = #{ a20 : int; b20 : int }
-type t21 = { mutable a21 : int; mutable b21 : t20 }
-type t22 = #{ a22 : int; b22 : int32# }
-type t23 = { mutable a23 : int; mutable b23 : t22 }
-type t24 = #{ a24 : int; b24 : float }
-type t25 = { mutable a25 : int; mutable b25 : t24 }
-type t26 = #{ a26 : int; b26 : int64x2# }
-type t27 = { mutable a27 : int; mutable b27 : t26 }
-type t28 = #{ a28 : int32# }
-type t29 = { mutable a29 : int; mutable b29 : t28 }
-type t30 = #{ a30 : int32#; b30 : int }
-type t31 = { mutable a31 : int; mutable b31 : t30 }
-type t32 = #{ a32 : int32#; b32 : int32# }
-type t33 = { mutable a33 : int; mutable b33 : t32 }
-type t34 = #{ a34 : float }
-type t35 = { mutable a35 : int; mutable b35 : t34 }
-type t36 = #{ a36 : float; b36 : int }
-type t37 = { mutable a37 : int; mutable b37 : t36 }
-type t38 = #{ a38 : float; b38 : float }
-type t39 = { mutable a39 : int; mutable b39 : t38 }
-type t40 = #{ a40 : int64x2# }
-type t41 = { mutable a41 : int; mutable b41 : t40 }
-type t42 = #{ a42 : int64x2#; b42 : int }
-type t43 = { mutable a43 : int; mutable b43 : t42 }
-type t44 = #{ a44 : int64x2#; b44 : int64x2# }
-type t45 = { mutable a45 : int; mutable b45 : t44 }
-type t46 = { mutable a46 : int64 }
-type t47 = { mutable a47 : int64; mutable b47 : int }
-type t48 = { mutable a48 : int64; mutable b48 : int64 }
-type t49 = { mutable a49 : int64; mutable b49 : int64# }
-type t50 = { mutable a50 : int64; mutable b50 : int32# }
-type t51 = { mutable a51 : int64; mutable b51 : nativeint# }
-type t52 = { mutable a52 : int64; mutable b52 : float }
-type t53 = { mutable a53 : int64# }
-type t54 = { mutable a54 : int64#; mutable b54 : int }
-type t55 = { mutable a55 : int64#; mutable b55 : int64 }
-type t56 = { mutable a56 : int64#; mutable b56 : int64# }
-type t57 = { mutable a57 : int64#; mutable b57 : int32# }
-type t58 = { mutable a58 : int64#; mutable b58 : nativeint# }
-type t59 = { mutable a59 : int64#; mutable b59 : float }
-type t60 = { mutable a60 : int32# }
-type t61 = { mutable a61 : int32#; mutable b61 : int }
-type t62 = { mutable a62 : int32#; mutable b62 : int; mutable c62 : int }
-type t63 = { mutable a63 : int32#; mutable b63 : int; mutable c63 : int32# }
-type t64 = { mutable a64 : int32#; mutable b64 : int64 }
-type t65 = { mutable a65 : int32#; mutable b65 : int64# }
-type t66 = { mutable a66 : int32#; mutable b66 : int32# }
-type t67 = { mutable a67 : int32#; mutable b67 : int32#; mutable c67 : int }
-type t68 = { mutable a68 : int32#; mutable b68 : int32#; mutable c68 : int32# }
-type t69 = { mutable a69 : int32#; mutable b69 : nativeint# }
-type t70 = { mutable a70 : int32#; mutable b70 : float }
-type t71 = { mutable a71 : int32#; mutable b71 : t18 }
-type t72 = { mutable a72 : int32#; mutable b72 : t20 }
-type t73 = { mutable a73 : int32#; mutable b73 : t22 }
-type t74 = { mutable a74 : int32#; mutable b74 : t28 }
-type t75 = { mutable a75 : int32#; mutable b75 : t30 }
-type t76 = { mutable a76 : int32#; mutable b76 : t32 }
-type t77 = { mutable a77 : nativeint# }
-type t78 = { mutable a78 : nativeint#; mutable b78 : int }
-type t79 = { mutable a79 : nativeint#; mutable b79 : int64 }
-type t80 = { mutable a80 : nativeint#; mutable b80 : int64# }
-type t81 = { mutable a81 : nativeint#; mutable b81 : int32# }
-type t82 = { mutable a82 : nativeint#; mutable b82 : nativeint# }
-type t83 = { mutable a83 : nativeint#; mutable b83 : float }
-type t84 = { mutable a84 : float }
-type t85 = { mutable a85 : float; mutable b85 : int }
-type t86 = { mutable a86 : float; mutable b86 : int; mutable c86 : int }
-type t87 = { mutable a87 : float; mutable b87 : int; mutable c87 : float }
-type t88 = { mutable a88 : float; mutable b88 : int64 }
-type t89 = { mutable a89 : float; mutable b89 : int64# }
-type t90 = { mutable a90 : float; mutable b90 : int32# }
-type t91 = { mutable a91 : float; mutable b91 : nativeint# }
-type t92 = { mutable a92 : float; mutable b92 : float }
-type t93 = { mutable a93 : float; mutable b93 : float; mutable c93 : int }
-type t94 = { mutable a94 : float; mutable b94 : float; mutable c94 : float }
-type t95 = { mutable a95 : float; mutable b95 : t18 }
-type t96 = { mutable a96 : float; mutable b96 : t20 }
-type t97 = { mutable a97 : float; mutable b97 : t24 }
-type t98 = { mutable a98 : float; mutable b98 : t34 }
-type t99 = { mutable a99 : float; mutable b99 : t36 }
-type t100 = { mutable a100 : float; mutable b100 : t38 }
-type t101 = { mutable a101 : int64x2# }
-type t102 = { mutable a102 : int64x2#; mutable b102 : int }
-type t103 = { mutable a103 : int64x2#; mutable b103 : int; mutable c103 : int }
-type t104 = { mutable a104 : int64x2#; mutable b104 : int; mutable c104 : int64x2# }
-type t105 = { mutable a105 : int64x2#; mutable b105 : int64x2# }
-type t106 = { mutable a106 : int64x2#; mutable b106 : int64x2#; mutable c106 : int }
-type t107 = { mutable a107 : int64x2#; mutable b107 : int64x2#; mutable c107 : int64x2# }
-type t108 = { mutable a108 : int64x2#; mutable b108 : t18 }
-type t109 = { mutable a109 : int64x2#; mutable b109 : t20 }
-type t110 = { mutable a110 : int64x2#; mutable b110 : t26 }
-type t111 = #{ a111 : string; b111 : float# }
-type t112 = { mutable a112 : int64x2#; mutable b112 : t111 }
-type t113 = { mutable a113 : int64x2#; mutable b113 : t40 }
-type t114 = { mutable a114 : int64x2#; mutable b114 : t42 }
-type t115 = { mutable a115 : int64x2#; mutable b115 : t44 }
-type t116 = { mutable a116 : t18 }
-type t117 = { mutable a117 : t18; mutable b117 : int }
-type t118 = { mutable a118 : t18; mutable b118 : int32# }
-type t119 = { mutable a119 : t18; mutable b119 : float }
-type t120 = { mutable a120 : t18; mutable b120 : int64x2# }
-type t121 = { mutable a121 : t20 }
-type t122 = { mutable a122 : t20; mutable b122 : int }
-type t123 = { mutable a123 : t20; mutable b123 : int32# }
-type t124 = { mutable a124 : t20; mutable b124 : float }
-type t125 = { mutable a125 : t20; mutable b125 : int64x2# }
-type t126 = { mutable a126 : t22 }
-type t127 = { mutable a127 : t22; mutable b127 : int }
-type t128 = { mutable a128 : t22; mutable b128 : int32# }
-type t129 = { mutable a129 : t24 }
-type t130 = { mutable a130 : t24; mutable b130 : int }
-type t131 = { mutable a131 : t24; mutable b131 : float }
-type t132 = { mutable a132 : t26 }
-type t133 = { mutable a133 : t26; mutable b133 : int }
-type t134 = { mutable a134 : t26; mutable b134 : int64x2# }
-type t135 = #{ a135 : int64; b135 : int64# }
-type t136 = #{ a136 : int64#; b136 : float# }
-type t137 = { mutable a137 : t135; mutable b137 : t136 }
-type t138 = #{ a138 : int64; b138 : string }
-type t139 = #{ a139 : int64#; b139 : string }
-type t140 = { mutable a140 : t138; mutable b140 : t139 }
-type t141 = #{ a141 : int64#; b141 : int64 }
-type t142 = #{ a142 : int64; b142 : int64 }
-type t143 = { mutable a143 : t141; mutable b143 : t142 }
-type t144 = #{ a144 : float32#; b144 : float }
-type t145 = { mutable a145 : t141; mutable b145 : t144 }
-type t146 = { mutable a146 : t28 }
-type t147 = { mutable a147 : t28; mutable b147 : int }
-type t148 = { mutable a148 : t28; mutable b148 : int32# }
-type t149 = { mutable a149 : t30 }
-type t150 = { mutable a150 : t30; mutable b150 : int }
-type t151 = { mutable a151 : t30; mutable b151 : int32# }
-type t152 = { mutable a152 : t32 }
-type t153 = { mutable a153 : t32; mutable b153 : int }
-type t154 = { mutable a154 : t32; mutable b154 : int32# }
-type t155 = { mutable a155 : t34 }
-type t156 = { mutable a156 : t34; mutable b156 : int }
-type t157 = { mutable a157 : t34; mutable b157 : float }
-type t158 = { mutable a158 : t36 }
-type t159 = { mutable a159 : t36; mutable b159 : int }
-type t160 = { mutable a160 : t36; mutable b160 : float }
-type t161 = { mutable a161 : t38 }
-type t162 = { mutable a162 : t38; mutable b162 : int }
-type t163 = { mutable a163 : t38; mutable b163 : float }
-type t164 = #{ a164 : float32#; b164 : int64# }
-type t165 = #{ a165 : string; b165 : int64# }
-type t166 = { mutable a166 : t164; mutable b166 : t165 }
-type t167 = { mutable a167 : t40 }
-type t168 = { mutable a168 : t40; mutable b168 : int }
-type t169 = { mutable a169 : t40; mutable b169 : int64x2# }
-type t170 = { mutable a170 : t42 }
-type t171 = { mutable a171 : t42; mutable b171 : int }
-type t172 = { mutable a172 : t42; mutable b172 : int64x2# }
-type t173 = #{ a173 : int64x2#; b173 : string }
-type t174 = #{ a174 : int64; b174 : float# }
-type t175 = { mutable a175 : t173; mutable b175 : t174 }
-type t176 = { mutable a176 : t44 }
-type t177 = { mutable a177 : t44; mutable b177 : int }
-type t178 = { mutable a178 : t44; mutable b178 : int64x2# }
+type t0 = { mutable a0 : int } (* { int } *)
+type t1 = { mutable a1 : int; mutable b1 : int } (* { int; int } *)
+type t2 = { mutable a2 : int; mutable b2 : int; mutable c2 : int } (* { int; int; int } *)
+type t3 = { mutable a3 : int; mutable b3 : int; mutable c3 : int32# } (* { int; int; int32# } *)
+type t4 = { mutable a4 : int; mutable b4 : int; mutable c4 : float } (* { int; int; float } *)
+type t5 = { mutable a5 : int; mutable b5 : int; mutable c5 : int64x2# } (* { int; int; int64x2# } *)
+type t6 = { mutable a6 : int; mutable b6 : int64 } (* { int; int64 } *)
+type t7 = { mutable a7 : int; mutable b7 : int64# } (* { int; int64# } *)
+type t8 = { mutable a8 : int; mutable b8 : int32# } (* { int; int32# } *)
+type t9 = { mutable a9 : int; mutable b9 : int32#; mutable c9 : int } (* { int; int32#; int } *)
+type t10 = { mutable a10 : int; mutable b10 : int32#; mutable c10 : int32# } (* { int; int32#; int32# } *)
+type t11 = { mutable a11 : int; mutable b11 : nativeint# } (* { int; nativeint# } *)
+type t12 = { mutable a12 : int; mutable b12 : float } (* { int; float } *)
+type t13 = { mutable a13 : int; mutable b13 : float; mutable c13 : int } (* { int; float; int } *)
+type t14 = { mutable a14 : int; mutable b14 : float; mutable c14 : float } (* { int; float; float } *)
+type t15 = { mutable a15 : int; mutable b15 : int64x2# } (* { int; int64x2# } *)
+type t16 = { mutable a16 : int; mutable b16 : int64x2#; mutable c16 : int } (* { int; int64x2#; int } *)
+type t17 = { mutable a17 : int; mutable b17 : int64x2#; mutable c17 : int64x2# } (* { int; int64x2#; int64x2# } *)
+type t18 = #{ a18 : int } (* #{ int } *)
+type t19 = { mutable a19 : int; mutable b19 : t18 } (* { int; #{ int } } *)
+type t20 = #{ a20 : int; b20 : int } (* #{ int; int } *)
+type t21 = { mutable a21 : int; mutable b21 : t20 } (* { int; #{ int; int } } *)
+type t22 = #{ a22 : int; b22 : int32# } (* #{ int; int32# } *)
+type t23 = { mutable a23 : int; mutable b23 : t22 } (* { int; #{ int; int32# } } *)
+type t24 = #{ a24 : int; b24 : float } (* #{ int; float } *)
+type t25 = { mutable a25 : int; mutable b25 : t24 } (* { int; #{ int; float } } *)
+type t26 = #{ a26 : int; b26 : int64x2# } (* #{ int; int64x2# } *)
+type t27 = { mutable a27 : int; mutable b27 : t26 } (* { int; #{ int; int64x2# } } *)
+type t28 = #{ a28 : int32# } (* #{ int32# } *)
+type t29 = { mutable a29 : int; mutable b29 : t28 } (* { int; #{ int32# } } *)
+type t30 = #{ a30 : int32#; b30 : int } (* #{ int32#; int } *)
+type t31 = { mutable a31 : int; mutable b31 : t30 } (* { int; #{ int32#; int } } *)
+type t32 = #{ a32 : int32#; b32 : int32# } (* #{ int32#; int32# } *)
+type t33 = { mutable a33 : int; mutable b33 : t32 } (* { int; #{ int32#; int32# } } *)
+type t34 = #{ a34 : float } (* #{ float } *)
+type t35 = { mutable a35 : int; mutable b35 : t34 } (* { int; #{ float } } *)
+type t36 = #{ a36 : float; b36 : int } (* #{ float; int } *)
+type t37 = { mutable a37 : int; mutable b37 : t36 } (* { int; #{ float; int } } *)
+type t38 = #{ a38 : float; b38 : float } (* #{ float; float } *)
+type t39 = { mutable a39 : int; mutable b39 : t38 } (* { int; #{ float; float } } *)
+type t40 = #{ a40 : int64x2# } (* #{ int64x2# } *)
+type t41 = { mutable a41 : int; mutable b41 : t40 } (* { int; #{ int64x2# } } *)
+type t42 = #{ a42 : int64x2#; b42 : int } (* #{ int64x2#; int } *)
+type t43 = { mutable a43 : int; mutable b43 : t42 } (* { int; #{ int64x2#; int } } *)
+type t44 = #{ a44 : int64x2#; b44 : int64x2# } (* #{ int64x2#; int64x2# } *)
+type t45 = { mutable a45 : int; mutable b45 : t44 } (* { int; #{ int64x2#; int64x2# } } *)
+type t46 = { mutable a46 : int64 } (* { int64 } *)
+type t47 = { mutable a47 : int64; mutable b47 : int } (* { int64; int } *)
+type t48 = { mutable a48 : int64; mutable b48 : int64 } (* { int64; int64 } *)
+type t49 = { mutable a49 : int64; mutable b49 : int64# } (* { int64; int64# } *)
+type t50 = { mutable a50 : int64; mutable b50 : int32# } (* { int64; int32# } *)
+type t51 = { mutable a51 : int64; mutable b51 : nativeint# } (* { int64; nativeint# } *)
+type t52 = { mutable a52 : int64; mutable b52 : float } (* { int64; float } *)
+type t53 = { mutable a53 : int64# } (* { int64# } *)
+type t54 = { mutable a54 : int64#; mutable b54 : int } (* { int64#; int } *)
+type t55 = { mutable a55 : int64#; mutable b55 : int64 } (* { int64#; int64 } *)
+type t56 = { mutable a56 : int64#; mutable b56 : int64# } (* { int64#; int64# } *)
+type t57 = { mutable a57 : int64#; mutable b57 : int32# } (* { int64#; int32# } *)
+type t58 = { mutable a58 : int64#; mutable b58 : nativeint# } (* { int64#; nativeint# } *)
+type t59 = { mutable a59 : int64#; mutable b59 : float } (* { int64#; float } *)
+type t60 = { mutable a60 : int32# } (* { int32# } *)
+type t61 = { mutable a61 : int32#; mutable b61 : int } (* { int32#; int } *)
+type t62 = { mutable a62 : int32#; mutable b62 : int; mutable c62 : int } (* { int32#; int; int } *)
+type t63 = { mutable a63 : int32#; mutable b63 : int; mutable c63 : int32# } (* { int32#; int; int32# } *)
+type t64 = { mutable a64 : int32#; mutable b64 : int64 } (* { int32#; int64 } *)
+type t65 = { mutable a65 : int32#; mutable b65 : int64# } (* { int32#; int64# } *)
+type t66 = { mutable a66 : int32#; mutable b66 : int32# } (* { int32#; int32# } *)
+type t67 = { mutable a67 : int32#; mutable b67 : int32#; mutable c67 : int } (* { int32#; int32#; int } *)
+type t68 = { mutable a68 : int32#; mutable b68 : int32#; mutable c68 : int32# } (* { int32#; int32#; int32# } *)
+type t69 = { mutable a69 : int32#; mutable b69 : nativeint# } (* { int32#; nativeint# } *)
+type t70 = { mutable a70 : int32#; mutable b70 : float } (* { int32#; float } *)
+type t71 = { mutable a71 : int32#; mutable b71 : t18 } (* { int32#; #{ int } } *)
+type t72 = { mutable a72 : int32#; mutable b72 : t20 } (* { int32#; #{ int; int } } *)
+type t73 = { mutable a73 : int32#; mutable b73 : t22 } (* { int32#; #{ int; int32# } } *)
+type t74 = { mutable a74 : int32#; mutable b74 : t28 } (* { int32#; #{ int32# } } *)
+type t75 = { mutable a75 : int32#; mutable b75 : t30 } (* { int32#; #{ int32#; int } } *)
+type t76 = { mutable a76 : int32#; mutable b76 : t32 } (* { int32#; #{ int32#; int32# } } *)
+type t77 = { mutable a77 : nativeint# } (* { nativeint# } *)
+type t78 = { mutable a78 : nativeint#; mutable b78 : int } (* { nativeint#; int } *)
+type t79 = { mutable a79 : nativeint#; mutable b79 : int64 } (* { nativeint#; int64 } *)
+type t80 = { mutable a80 : nativeint#; mutable b80 : int64# } (* { nativeint#; int64# } *)
+type t81 = { mutable a81 : nativeint#; mutable b81 : int32# } (* { nativeint#; int32# } *)
+type t82 = { mutable a82 : nativeint#; mutable b82 : nativeint# } (* { nativeint#; nativeint# } *)
+type t83 = { mutable a83 : nativeint#; mutable b83 : float } (* { nativeint#; float } *)
+type t84 = { mutable a84 : float } (* { float } *)
+type t85 = { mutable a85 : float; mutable b85 : int } (* { float; int } *)
+type t86 = { mutable a86 : float; mutable b86 : int; mutable c86 : int } (* { float; int; int } *)
+type t87 = { mutable a87 : float; mutable b87 : int; mutable c87 : float } (* { float; int; float } *)
+type t88 = { mutable a88 : float; mutable b88 : int64 } (* { float; int64 } *)
+type t89 = { mutable a89 : float; mutable b89 : int64# } (* { float; int64# } *)
+type t90 = { mutable a90 : float; mutable b90 : int32# } (* { float; int32# } *)
+type t91 = { mutable a91 : float; mutable b91 : nativeint# } (* { float; nativeint# } *)
+type t92 = { mutable a92 : float; mutable b92 : float } (* { float; float } *)
+type t93 = { mutable a93 : float; mutable b93 : float; mutable c93 : int } (* { float; float; int } *)
+type t94 = { mutable a94 : float; mutable b94 : float; mutable c94 : float } (* { float; float; float } *)
+type t95 = { mutable a95 : float; mutable b95 : float; mutable c95 : float# } (* { float; float; float# } *)
+type t96 = { mutable a96 : float; mutable b96 : float# } (* { float; float# } *)
+type t97 = { mutable a97 : float; mutable b97 : float#; mutable c97 : float } (* { float; float#; float } *)
+type t98 = { mutable a98 : float; mutable b98 : float#; mutable c98 : float# } (* { float; float#; float# } *)
+type t99 = { mutable a99 : float; mutable b99 : t18 } (* { float; #{ int } } *)
+type t100 = { mutable a100 : float; mutable b100 : t20 } (* { float; #{ int; int } } *)
+type t101 = { mutable a101 : float; mutable b101 : t24 } (* { float; #{ int; float } } *)
+type t102 = { mutable a102 : float; mutable b102 : t34 } (* { float; #{ float } } *)
+type t103 = { mutable a103 : float; mutable b103 : t36 } (* { float; #{ float; int } } *)
+type t104 = { mutable a104 : float; mutable b104 : t38 } (* { float; #{ float; float } } *)
+type t105 = #{ a105 : float; b105 : float# } (* #{ float; float# } *)
+type t106 = { mutable a106 : float; mutable b106 : t105 } (* { float; #{ float; float# } } *)
+type t107 = #{ a107 : float# } (* #{ float# } *)
+type t108 = { mutable a108 : float; mutable b108 : t107 } (* { float; #{ float# } } *)
+type t109 = #{ a109 : float#; b109 : float } (* #{ float#; float } *)
+type t110 = { mutable a110 : float; mutable b110 : t109 } (* { float; #{ float#; float } } *)
+type t111 = #{ a111 : float#; b111 : float# } (* #{ float#; float# } *)
+type t112 = { mutable a112 : float; mutable b112 : t111 } (* { float; #{ float#; float# } } *)
+type t113 = { mutable a113 : float# } (* { float# } *)
+type t114 = { mutable a114 : float#; mutable b114 : float } (* { float#; float } *)
+type t115 = { mutable a115 : float#; mutable b115 : float; mutable c115 : float } (* { float#; float; float } *)
+type t116 = { mutable a116 : float#; mutable b116 : float; mutable c116 : float# } (* { float#; float; float# } *)
+type t117 = { mutable a117 : float#; mutable b117 : float# } (* { float#; float# } *)
+type t118 = { mutable a118 : float#; mutable b118 : float#; mutable c118 : float } (* { float#; float#; float } *)
+type t119 = { mutable a119 : float#; mutable b119 : float#; mutable c119 : float# } (* { float#; float#; float# } *)
+type t120 = { mutable a120 : float#; mutable b120 : t34 } (* { float#; #{ float } } *)
+type t121 = { mutable a121 : float#; mutable b121 : t38 } (* { float#; #{ float; float } } *)
+type t122 = { mutable a122 : float#; mutable b122 : t105 } (* { float#; #{ float; float# } } *)
+type t123 = { mutable a123 : float#; mutable b123 : t107 } (* { float#; #{ float# } } *)
+type t124 = { mutable a124 : float#; mutable b124 : t109 } (* { float#; #{ float#; float } } *)
+type t125 = { mutable a125 : float#; mutable b125 : t111 } (* { float#; #{ float#; float# } } *)
+type t126 = { mutable a126 : int64x2# } (* { int64x2# } *)
+type t127 = { mutable a127 : int64x2#; mutable b127 : int } (* { int64x2#; int } *)
+type t128 = { mutable a128 : int64x2#; mutable b128 : int; mutable c128 : int } (* { int64x2#; int; int } *)
+type t129 = { mutable a129 : int64x2#; mutable b129 : int; mutable c129 : int64x2# } (* { int64x2#; int; int64x2# } *)
+type t130 = { mutable a130 : int64x2#; mutable b130 : int64x2# } (* { int64x2#; int64x2# } *)
+type t131 = { mutable a131 : int64x2#; mutable b131 : int64x2#; mutable c131 : int } (* { int64x2#; int64x2#; int } *)
+type t132 = { mutable a132 : int64x2#; mutable b132 : int64x2#; mutable c132 : int64x2# } (* { int64x2#; int64x2#; int64x2# } *)
+type t133 = { mutable a133 : int64x2#; mutable b133 : t18 } (* { int64x2#; #{ int } } *)
+type t134 = { mutable a134 : int64x2#; mutable b134 : t20 } (* { int64x2#; #{ int; int } } *)
+type t135 = { mutable a135 : int64x2#; mutable b135 : t26 } (* { int64x2#; #{ int; int64x2# } } *)
+type t136 = #{ a136 : string; b136 : float# } (* #{ string; float# } *)
+type t137 = { mutable a137 : int64x2#; mutable b137 : t136 } (* { int64x2#; #{ string; float# } } *)
+type t138 = { mutable a138 : int64x2#; mutable b138 : t40 } (* { int64x2#; #{ int64x2# } } *)
+type t139 = { mutable a139 : int64x2#; mutable b139 : t42 } (* { int64x2#; #{ int64x2#; int } } *)
+type t140 = { mutable a140 : int64x2#; mutable b140 : t44 } (* { int64x2#; #{ int64x2#; int64x2# } } *)
+type t141 = { mutable a141 : t18 } (* { #{ int } } *)
+type t142 = { mutable a142 : t18; mutable b142 : int } (* { #{ int }; int } *)
+type t143 = { mutable a143 : t18; mutable b143 : int32# } (* { #{ int }; int32# } *)
+type t144 = { mutable a144 : t18; mutable b144 : float } (* { #{ int }; float } *)
+type t145 = { mutable a145 : t18; mutable b145 : int64x2# } (* { #{ int }; int64x2# } *)
+type t146 = { mutable a146 : t20 } (* { #{ int; int } } *)
+type t147 = { mutable a147 : t20; mutable b147 : int } (* { #{ int; int }; int } *)
+type t148 = { mutable a148 : t20; mutable b148 : int32# } (* { #{ int; int }; int32# } *)
+type t149 = { mutable a149 : t20; mutable b149 : float } (* { #{ int; int }; float } *)
+type t150 = { mutable a150 : t20; mutable b150 : int64x2# } (* { #{ int; int }; int64x2# } *)
+type t151 = { mutable a151 : t22 } (* { #{ int; int32# } } *)
+type t152 = { mutable a152 : t22; mutable b152 : int } (* { #{ int; int32# }; int } *)
+type t153 = { mutable a153 : t22; mutable b153 : int32# } (* { #{ int; int32# }; int32# } *)
+type t154 = { mutable a154 : t24 } (* { #{ int; float } } *)
+type t155 = { mutable a155 : t24; mutable b155 : int } (* { #{ int; float }; int } *)
+type t156 = { mutable a156 : t24; mutable b156 : float } (* { #{ int; float }; float } *)
+type t157 = { mutable a157 : t26 } (* { #{ int; int64x2# } } *)
+type t158 = { mutable a158 : t26; mutable b158 : int } (* { #{ int; int64x2# }; int } *)
+type t159 = { mutable a159 : t26; mutable b159 : int64x2# } (* { #{ int; int64x2# }; int64x2# } *)
+type t160 = #{ a160 : int64; b160 : int64# } (* #{ int64; int64# } *)
+type t161 = #{ a161 : int64#; b161 : float# } (* #{ int64#; float# } *)
+type t162 = { mutable a162 : t160; mutable b162 : t161 } (* { #{ int64; int64# }; #{ int64#; float# } } *)
+type t163 = #{ a163 : int64; b163 : string } (* #{ int64; string } *)
+type t164 = #{ a164 : int64#; b164 : string } (* #{ int64#; string } *)
+type t165 = { mutable a165 : t163; mutable b165 : t164 } (* { #{ int64; string }; #{ int64#; string } } *)
+type t166 = #{ a166 : int64#; b166 : int64 } (* #{ int64#; int64 } *)
+type t167 = #{ a167 : int64; b167 : int64 } (* #{ int64; int64 } *)
+type t168 = { mutable a168 : t166; mutable b168 : t167 } (* { #{ int64#; int64 }; #{ int64; int64 } } *)
+type t169 = #{ a169 : float32#; b169 : float } (* #{ float32#; float } *)
+type t170 = { mutable a170 : t166; mutable b170 : t169 } (* { #{ int64#; int64 }; #{ float32#; float } } *)
+type t171 = { mutable a171 : t28 } (* { #{ int32# } } *)
+type t172 = { mutable a172 : t28; mutable b172 : int } (* { #{ int32# }; int } *)
+type t173 = { mutable a173 : t28; mutable b173 : int32# } (* { #{ int32# }; int32# } *)
+type t174 = { mutable a174 : t30 } (* { #{ int32#; int } } *)
+type t175 = { mutable a175 : t30; mutable b175 : int } (* { #{ int32#; int }; int } *)
+type t176 = { mutable a176 : t30; mutable b176 : int32# } (* { #{ int32#; int }; int32# } *)
+type t177 = { mutable a177 : t32 } (* { #{ int32#; int32# } } *)
+type t178 = { mutable a178 : t32; mutable b178 : int } (* { #{ int32#; int32# }; int } *)
+type t179 = { mutable a179 : t32; mutable b179 : int32# } (* { #{ int32#; int32# }; int32# } *)
+type t180 = { mutable a180 : t34 } (* { #{ float } } *)
+type t181 = { mutable a181 : t34; mutable b181 : int } (* { #{ float }; int } *)
+type t182 = { mutable a182 : t34; mutable b182 : float } (* { #{ float }; float } *)
+type t183 = { mutable a183 : t34; mutable b183 : float# } (* { #{ float }; float# } *)
+type t184 = { mutable a184 : t36 } (* { #{ float; int } } *)
+type t185 = { mutable a185 : t36; mutable b185 : int } (* { #{ float; int }; int } *)
+type t186 = { mutable a186 : t36; mutable b186 : float } (* { #{ float; int }; float } *)
+type t187 = { mutable a187 : t38 } (* { #{ float; float } } *)
+type t188 = { mutable a188 : t38; mutable b188 : int } (* { #{ float; float }; int } *)
+type t189 = { mutable a189 : t38; mutable b189 : float } (* { #{ float; float }; float } *)
+type t190 = { mutable a190 : t38; mutable b190 : float# } (* { #{ float; float }; float# } *)
+type t191 = { mutable a191 : t105 } (* { #{ float; float# } } *)
+type t192 = { mutable a192 : t105; mutable b192 : float } (* { #{ float; float# }; float } *)
+type t193 = { mutable a193 : t105; mutable b193 : float# } (* { #{ float; float# }; float# } *)
+type t194 = { mutable a194 : t107 } (* { #{ float# } } *)
+type t195 = { mutable a195 : t107; mutable b195 : float } (* { #{ float# }; float } *)
+type t196 = { mutable a196 : t107; mutable b196 : float# } (* { #{ float# }; float# } *)
+type t197 = { mutable a197 : t109 } (* { #{ float#; float } } *)
+type t198 = { mutable a198 : t109; mutable b198 : float } (* { #{ float#; float }; float } *)
+type t199 = { mutable a199 : t109; mutable b199 : float# } (* { #{ float#; float }; float# } *)
+type t200 = { mutable a200 : t111 } (* { #{ float#; float# } } *)
+type t201 = { mutable a201 : t111; mutable b201 : float } (* { #{ float#; float# }; float } *)
+type t202 = { mutable a202 : t111; mutable b202 : float# } (* { #{ float#; float# }; float# } *)
+type t203 = #{ a203 : float32#; b203 : int64# } (* #{ float32#; int64# } *)
+type t204 = #{ a204 : string; b204 : int64# } (* #{ string; int64# } *)
+type t205 = { mutable a205 : t203; mutable b205 : t204 } (* { #{ float32#; int64# }; #{ string; int64# } } *)
+type t206 = { mutable a206 : t40 } (* { #{ int64x2# } } *)
+type t207 = { mutable a207 : t40; mutable b207 : int } (* { #{ int64x2# }; int } *)
+type t208 = { mutable a208 : t40; mutable b208 : int64x2# } (* { #{ int64x2# }; int64x2# } *)
+type t209 = { mutable a209 : t42 } (* { #{ int64x2#; int } } *)
+type t210 = { mutable a210 : t42; mutable b210 : int } (* { #{ int64x2#; int }; int } *)
+type t211 = { mutable a211 : t42; mutable b211 : int64x2# } (* { #{ int64x2#; int }; int64x2# } *)
+type t212 = #{ a212 : int64x2#; b212 : string } (* #{ int64x2#; string } *)
+type t213 = #{ a213 : int64; b213 : float# } (* #{ int64; float# } *)
+type t214 = { mutable a214 : t212; mutable b214 : t213 } (* { #{ int64x2#; string }; #{ int64; float# } } *)
+type t215 = { mutable a215 : t44 } (* { #{ int64x2#; int64x2# } } *)
+type t216 = { mutable a216 : t44; mutable b216 : int } (* { #{ int64x2#; int64x2# }; int } *)
+type t217 = { mutable a217 : t44; mutable b217 : int64x2# } (* { #{ int64x2#; int64x2# }; int64x2# } *)
 
 let () =
   (********************)
@@ -5735,10 +5830,10 @@ let () =
   let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_c94 c94 in
   if not test then failwithf "test 744 failed";
 
-  (*********************************)
-  (*   t95 = { float; #{ int } }   *)
-  (*********************************)
-  let r = stack_ { a95 = 0.; b95 = #{ a18 = 1 } } in
+  (**************************************)
+  (*   t95 = { float; float; float# }   *)
+  (**************************************)
+  let r = stack_ { a95 = 0.; b95 = 1.; c95 = #2. } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a95 *)
@@ -5750,23 +5845,23 @@ let () =
   (* Paths of depth 1 *)
   (* .b95 *)
   let actual = r.b95 in
-  let expected = #{ a18 = 1 } in
+  let expected = 1. in
   mark_test_run 746;
-  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) actual expected in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
   if not test then failwithf "test 746 failed";
-  (* Paths of depth 2 *)
-  (* .b95.#a18 *)
-  let actual = r.b95.#a18 in
-  let expected = 1 in
+  (* Paths of depth 1 *)
+  (* .c95 *)
+  let actual = r.c95 in
+  let expected = #2. in
   mark_test_run 747;
-  let test = (fun a b -> Int.equal a b) actual expected in
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
   if not test then failwithf "test 747 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a95 = a951; b95 = b951 } { a95 = a952; b95 = b952 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a951 a952 && (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) b951 b952) in
-  let next_r = stack_ { a95 = 100.; b95 = #{ a18 = 101 } } in
-  let r_expected = stack_ { a95 = 0.; b95 = #{ a18 = 1 } } in
+  let eq = (fun { a95 = a951; b95 = b951; c95 = c951 } { a95 = a952; b95 = b952; c95 = c952 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a951 a952 && (fun a b -> Float.equal (globalize a) (globalize b)) b951 b952 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) c951 c952) in
+  let next_r = stack_ { a95 = 100.; b95 = 101.; c95 = #102. } in
+  let r_expected = stack_ { a95 = 0.; b95 = 1.; c95 = #2. } in
   (* .a95 *)
   r.a95 <- next_r.a95;
   let r_expected = { r_expected with a95 = next_r.a95 } in
@@ -5781,93 +5876,91 @@ let () =
   let test = eq r r_expected in
   if not test then failwithf "test 749 failed";
   Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a95; b95 = #{ a18 } } = r in
-  let expected_a95 = 100. in
+  (* .c95 *)
+  r.c95 <- next_r.c95;
+  let r_expected = { r_expected with c95 = next_r.c95 } in
   mark_test_run 750;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a95 a95 in
+  let test = eq r r_expected in
   if not test then failwithf "test 750 failed";
-  let expected_a18 = 101 in
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a95; b95; c95 } = r in
+  let expected_a95 = 100. in
   mark_test_run 751;
-  let test = (fun a b -> Int.equal a b) expected_a18 a18 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a95 a95 in
   if not test then failwithf "test 751 failed";
+  let expected_b95 = 101. in
+  mark_test_run 752;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b95 b95 in
+  if not test then failwithf "test 752 failed";
+  let expected_c95 = #102. in
+  mark_test_run 753;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_c95 c95 in
+  if not test then failwithf "test 753 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a95; b95 } = r in
+  let { a95; b95; c95 } = r in
   let expected_a95 = 100. in
-  mark_test_run 752;
+  mark_test_run 754;
   let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a95 a95 in
-  if not test then failwithf "test 752 failed";
-  let expected_b95 = #{ a18 = 101 } in
-  mark_test_run 753;
-  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) expected_b95 b95 in
-  if not test then failwithf "test 753 failed";
+  if not test then failwithf "test 754 failed";
+  let expected_b95 = 101. in
+  mark_test_run 755;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b95 b95 in
+  if not test then failwithf "test 755 failed";
+  let expected_c95 = #102. in
+  mark_test_run 756;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_c95 c95 in
+  if not test then failwithf "test 756 failed";
 
-  (**************************************)
-  (*   t96 = { float; #{ int; int } }   *)
-  (**************************************)
-  let r = stack_ { a96 = 0.; b96 = #{ a20 = 1; b20 = 2 } } in
+  (*******************************)
+  (*   t96 = { float; float# }   *)
+  (*******************************)
+  let r = stack_ { a96 = 0.; b96 = #1. } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a96 *)
   let actual = r.a96 in
   let expected = 0. in
-  mark_test_run 754;
+  mark_test_run 757;
   let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 754 failed";
+  if not test then failwithf "test 757 failed";
   (* Paths of depth 1 *)
   (* .b96 *)
   let actual = r.b96 in
-  let expected = #{ a20 = 1; b20 = 2 } in
-  mark_test_run 755;
-  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) actual expected in
-  if not test then failwithf "test 755 failed";
-  (* Paths of depth 2 *)
-  (* .b96.#a20 *)
-  let actual = r.b96.#a20 in
-  let expected = 1 in
-  mark_test_run 756;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 756 failed";
-  (* .b96.#b20 *)
-  let actual = r.b96.#b20 in
-  let expected = 2 in
-  mark_test_run 757;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 757 failed";
+  let expected = #1. in
+  mark_test_run 758;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 758 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a96 = a961; b96 = b961 } { a96 = a962; b96 = b962 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a961 a962 && (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) b961 b962) in
-  let next_r = stack_ { a96 = 100.; b96 = #{ a20 = 101; b20 = 102 } } in
-  let r_expected = stack_ { a96 = 0.; b96 = #{ a20 = 1; b20 = 2 } } in
+  let eq = (fun { a96 = a961; b96 = b961 } { a96 = a962; b96 = b962 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a961 a962 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b961 b962) in
+  let next_r = stack_ { a96 = 100.; b96 = #101. } in
+  let r_expected = stack_ { a96 = 0.; b96 = #1. } in
   (* .a96 *)
   r.a96 <- next_r.a96;
   let r_expected = { r_expected with a96 = next_r.a96 } in
-  mark_test_run 758;
-  let test = eq r r_expected in
-  if not test then failwithf "test 758 failed";
-  Gc.compact ();
-  (* .b96 *)
-  r.b96 <- next_r.b96;
-  let r_expected = { r_expected with b96 = next_r.b96 } in
   mark_test_run 759;
   let test = eq r r_expected in
   if not test then failwithf "test 759 failed";
   Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a96; b96 = #{ a20; b20 } } = r in
-  let expected_a96 = 100. in
+  (* .b96 *)
+  r.b96 <- next_r.b96;
+  let r_expected = { r_expected with b96 = next_r.b96 } in
   mark_test_run 760;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a96 a96 in
+  let test = eq r r_expected in
   if not test then failwithf "test 760 failed";
-  let expected_a20 = 101 in
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a96; b96 } = r in
+  let expected_a96 = 100. in
   mark_test_run 761;
-  let test = (fun a b -> Int.equal a b) expected_a20 a20 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a96 a96 in
   if not test then failwithf "test 761 failed";
-  let expected_b20 = 102 in
+  let expected_b96 = #101. in
   mark_test_run 762;
-  let test = (fun a b -> Int.equal a b) expected_b20 b20 in
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b96 b96 in
   if not test then failwithf "test 762 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
@@ -5876,15 +5969,15 @@ let () =
   mark_test_run 763;
   let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a96 a96 in
   if not test then failwithf "test 763 failed";
-  let expected_b96 = #{ a20 = 101; b20 = 102 } in
+  let expected_b96 = #101. in
   mark_test_run 764;
-  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) expected_b96 b96 in
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b96 b96 in
   if not test then failwithf "test 764 failed";
 
-  (****************************************)
-  (*   t97 = { float; #{ int; float } }   *)
-  (****************************************)
-  let r = stack_ { a97 = 0.; b97 = #{ a24 = 1; b24 = 2. } } in
+  (**************************************)
+  (*   t97 = { float; float#; float }   *)
+  (**************************************)
+  let r = stack_ { a97 = 0.; b97 = #1.; c97 = 2. } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a97 *)
@@ -5896,5026 +5989,7545 @@ let () =
   (* Paths of depth 1 *)
   (* .b97 *)
   let actual = r.b97 in
-  let expected = #{ a24 = 1; b24 = 2. } in
+  let expected = #1. in
   mark_test_run 766;
-  let test = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) actual expected in
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
   if not test then failwithf "test 766 failed";
-  (* Paths of depth 2 *)
-  (* .b97.#a24 *)
-  let actual = r.b97.#a24 in
-  let expected = 1 in
-  mark_test_run 767;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 767 failed";
-  (* .b97.#b24 *)
-  let actual = r.b97.#b24 in
+  (* Paths of depth 1 *)
+  (* .c97 *)
+  let actual = r.c97 in
   let expected = 2. in
-  mark_test_run 768;
+  mark_test_run 767;
   let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 768 failed";
+  if not test then failwithf "test 767 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a97 = a971; b97 = b971 } { a97 = a972; b97 = b972 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a971 a972 && (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) b971 b972) in
-  let next_r = stack_ { a97 = 100.; b97 = #{ a24 = 101; b24 = 102. } } in
-  let r_expected = stack_ { a97 = 0.; b97 = #{ a24 = 1; b24 = 2. } } in
+  let eq = (fun { a97 = a971; b97 = b971; c97 = c971 } { a97 = a972; b97 = b972; c97 = c972 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a971 a972 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b971 b972 && (fun a b -> Float.equal (globalize a) (globalize b)) c971 c972) in
+  let next_r = stack_ { a97 = 100.; b97 = #101.; c97 = 102. } in
+  let r_expected = stack_ { a97 = 0.; b97 = #1.; c97 = 2. } in
   (* .a97 *)
   r.a97 <- next_r.a97;
   let r_expected = { r_expected with a97 = next_r.a97 } in
-  mark_test_run 769;
+  mark_test_run 768;
   let test = eq r r_expected in
-  if not test then failwithf "test 769 failed";
+  if not test then failwithf "test 768 failed";
   Gc.compact ();
   (* .b97 *)
   r.b97 <- next_r.b97;
   let r_expected = { r_expected with b97 = next_r.b97 } in
+  mark_test_run 769;
+  let test = eq r r_expected in
+  if not test then failwithf "test 769 failed";
+  Gc.compact ();
+  (* .c97 *)
+  r.c97 <- next_r.c97;
+  let r_expected = { r_expected with c97 = next_r.c97 } in
   mark_test_run 770;
   let test = eq r r_expected in
   if not test then failwithf "test 770 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a97; b97 = #{ a24; b24 } } = r in
+  let { a97; b97; c97 } = r in
   let expected_a97 = 100. in
   mark_test_run 771;
   let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a97 a97 in
   if not test then failwithf "test 771 failed";
-  let expected_a24 = 101 in
+  let expected_b97 = #101. in
   mark_test_run 772;
-  let test = (fun a b -> Int.equal a b) expected_a24 a24 in
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b97 b97 in
   if not test then failwithf "test 772 failed";
-  let expected_b24 = 102. in
+  let expected_c97 = 102. in
   mark_test_run 773;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b24 b24 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_c97 c97 in
   if not test then failwithf "test 773 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a97; b97 } = r in
+  let { a97; b97; c97 } = r in
   let expected_a97 = 100. in
   mark_test_run 774;
   let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a97 a97 in
   if not test then failwithf "test 774 failed";
-  let expected_b97 = #{ a24 = 101; b24 = 102. } in
+  let expected_b97 = #101. in
   mark_test_run 775;
-  let test = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) expected_b97 b97 in
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b97 b97 in
   if not test then failwithf "test 775 failed";
+  let expected_c97 = 102. in
+  mark_test_run 776;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_c97 c97 in
+  if not test then failwithf "test 776 failed";
 
-  (***********************************)
-  (*   t98 = { float; #{ float } }   *)
-  (***********************************)
-  let r = stack_ { a98 = 0.; b98 = #{ a34 = 1. } } in
+  (***************************************)
+  (*   t98 = { float; float#; float# }   *)
+  (***************************************)
+  let r = stack_ { a98 = 0.; b98 = #1.; c98 = #2. } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a98 *)
   let actual = r.a98 in
   let expected = 0. in
-  mark_test_run 776;
+  mark_test_run 777;
   let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 776 failed";
+  if not test then failwithf "test 777 failed";
   (* Paths of depth 1 *)
   (* .b98 *)
   let actual = r.b98 in
-  let expected = #{ a34 = 1. } in
-  mark_test_run 777;
-  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) actual expected in
-  if not test then failwithf "test 777 failed";
-  (* Paths of depth 2 *)
-  (* .b98.#a34 *)
-  let actual = r.b98.#a34 in
-  let expected = 1. in
+  let expected = #1. in
   mark_test_run 778;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
   if not test then failwithf "test 778 failed";
+  (* Paths of depth 1 *)
+  (* .c98 *)
+  let actual = r.c98 in
+  let expected = #2. in
+  mark_test_run 779;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 779 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a98 = a981; b98 = b981 } { a98 = a982; b98 = b982 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a981 a982 && (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) b981 b982) in
-  let next_r = stack_ { a98 = 100.; b98 = #{ a34 = 101. } } in
-  let r_expected = stack_ { a98 = 0.; b98 = #{ a34 = 1. } } in
+  let eq = (fun { a98 = a981; b98 = b981; c98 = c981 } { a98 = a982; b98 = b982; c98 = c982 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a981 a982 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b981 b982 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) c981 c982) in
+  let next_r = stack_ { a98 = 100.; b98 = #101.; c98 = #102. } in
+  let r_expected = stack_ { a98 = 0.; b98 = #1.; c98 = #2. } in
   (* .a98 *)
   r.a98 <- next_r.a98;
   let r_expected = { r_expected with a98 = next_r.a98 } in
-  mark_test_run 779;
-  let test = eq r r_expected in
-  if not test then failwithf "test 779 failed";
-  Gc.compact ();
-  (* .b98 *)
-  r.b98 <- next_r.b98;
-  let r_expected = { r_expected with b98 = next_r.b98 } in
   mark_test_run 780;
   let test = eq r r_expected in
   if not test then failwithf "test 780 failed";
   Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a98; b98 = #{ a34 } } = r in
-  let expected_a98 = 100. in
+  (* .b98 *)
+  r.b98 <- next_r.b98;
+  let r_expected = { r_expected with b98 = next_r.b98 } in
   mark_test_run 781;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a98 a98 in
+  let test = eq r r_expected in
   if not test then failwithf "test 781 failed";
-  let expected_a34 = 101. in
+  Gc.compact ();
+  (* .c98 *)
+  r.c98 <- next_r.c98;
+  let r_expected = { r_expected with c98 = next_r.c98 } in
   mark_test_run 782;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a34 a34 in
+  let test = eq r r_expected in
   if not test then failwithf "test 782 failed";
   Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a98; b98 } = r in
+  (* 3. Test deep matching *)
+  let { a98; b98; c98 } = r in
   let expected_a98 = 100. in
   mark_test_run 783;
   let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a98 a98 in
   if not test then failwithf "test 783 failed";
-  let expected_b98 = #{ a34 = 101. } in
+  let expected_b98 = #101. in
   mark_test_run 784;
-  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) expected_b98 b98 in
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b98 b98 in
   if not test then failwithf "test 784 failed";
+  let expected_c98 = #102. in
+  mark_test_run 785;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_c98 c98 in
+  if not test then failwithf "test 785 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a98; b98; c98 } = r in
+  let expected_a98 = 100. in
+  mark_test_run 786;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a98 a98 in
+  if not test then failwithf "test 786 failed";
+  let expected_b98 = #101. in
+  mark_test_run 787;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b98 b98 in
+  if not test then failwithf "test 787 failed";
+  let expected_c98 = #102. in
+  mark_test_run 788;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_c98 c98 in
+  if not test then failwithf "test 788 failed";
 
-  (****************************************)
-  (*   t99 = { float; #{ float; int } }   *)
-  (****************************************)
-  let r = stack_ { a99 = 0.; b99 = #{ a36 = 1.; b36 = 2 } } in
+  (*********************************)
+  (*   t99 = { float; #{ int } }   *)
+  (*********************************)
+  let r = stack_ { a99 = 0.; b99 = #{ a18 = 1 } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a99 *)
   let actual = r.a99 in
   let expected = 0. in
-  mark_test_run 785;
+  mark_test_run 789;
   let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 785 failed";
+  if not test then failwithf "test 789 failed";
   (* Paths of depth 1 *)
   (* .b99 *)
   let actual = r.b99 in
-  let expected = #{ a36 = 1.; b36 = 2 } in
-  mark_test_run 786;
-  let test = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) actual expected in
-  if not test then failwithf "test 786 failed";
+  let expected = #{ a18 = 1 } in
+  mark_test_run 790;
+  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) actual expected in
+  if not test then failwithf "test 790 failed";
   (* Paths of depth 2 *)
-  (* .b99.#a36 *)
-  let actual = r.b99.#a36 in
-  let expected = 1. in
-  mark_test_run 787;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 787 failed";
-  (* .b99.#b36 *)
-  let actual = r.b99.#b36 in
-  let expected = 2 in
-  mark_test_run 788;
+  (* .b99.#a18 *)
+  let actual = r.b99.#a18 in
+  let expected = 1 in
+  mark_test_run 791;
   let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 788 failed";
+  if not test then failwithf "test 791 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a99 = a991; b99 = b991 } { a99 = a992; b99 = b992 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a991 a992 && (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) b991 b992) in
-  let next_r = stack_ { a99 = 100.; b99 = #{ a36 = 101.; b36 = 102 } } in
-  let r_expected = stack_ { a99 = 0.; b99 = #{ a36 = 1.; b36 = 2 } } in
+  let eq = (fun { a99 = a991; b99 = b991 } { a99 = a992; b99 = b992 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a991 a992 && (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) b991 b992) in
+  let next_r = stack_ { a99 = 100.; b99 = #{ a18 = 101 } } in
+  let r_expected = stack_ { a99 = 0.; b99 = #{ a18 = 1 } } in
   (* .a99 *)
   r.a99 <- next_r.a99;
   let r_expected = { r_expected with a99 = next_r.a99 } in
-  mark_test_run 789;
+  mark_test_run 792;
   let test = eq r r_expected in
-  if not test then failwithf "test 789 failed";
+  if not test then failwithf "test 792 failed";
   Gc.compact ();
   (* .b99 *)
   r.b99 <- next_r.b99;
   let r_expected = { r_expected with b99 = next_r.b99 } in
-  mark_test_run 790;
-  let test = eq r r_expected in
-  if not test then failwithf "test 790 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a99; b99 = #{ a36; b36 } } = r in
-  let expected_a99 = 100. in
-  mark_test_run 791;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a99 a99 in
-  if not test then failwithf "test 791 failed";
-  let expected_a36 = 101. in
-  mark_test_run 792;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a36 a36 in
-  if not test then failwithf "test 792 failed";
-  let expected_b36 = 102 in
   mark_test_run 793;
-  let test = (fun a b -> Int.equal a b) expected_b36 b36 in
+  let test = eq r r_expected in
   if not test then failwithf "test 793 failed";
   Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a99; b99 } = r in
+  (* 3. Test deep matching *)
+  let { a99; b99 = #{ a18 } } = r in
   let expected_a99 = 100. in
   mark_test_run 794;
   let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a99 a99 in
   if not test then failwithf "test 794 failed";
-  let expected_b99 = #{ a36 = 101.; b36 = 102 } in
+  let expected_a18 = 101 in
   mark_test_run 795;
-  let test = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) expected_b99 b99 in
+  let test = (fun a b -> Int.equal a b) expected_a18 a18 in
   if not test then failwithf "test 795 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a99; b99 } = r in
+  let expected_a99 = 100. in
+  mark_test_run 796;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a99 a99 in
+  if not test then failwithf "test 796 failed";
+  let expected_b99 = #{ a18 = 101 } in
+  mark_test_run 797;
+  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) expected_b99 b99 in
+  if not test then failwithf "test 797 failed";
 
-  (*******************************************)
-  (*   t100 = { float; #{ float; float } }   *)
-  (*******************************************)
-  let r = stack_ { a100 = 0.; b100 = #{ a38 = 1.; b38 = 2. } } in
+  (***************************************)
+  (*   t100 = { float; #{ int; int } }   *)
+  (***************************************)
+  let r = stack_ { a100 = 0.; b100 = #{ a20 = 1; b20 = 2 } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a100 *)
   let actual = r.a100 in
   let expected = 0. in
-  mark_test_run 796;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 796 failed";
-  (* Paths of depth 1 *)
-  (* .b100 *)
-  let actual = r.b100 in
-  let expected = #{ a38 = 1.; b38 = 2. } in
-  mark_test_run 797;
-  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) actual expected in
-  if not test then failwithf "test 797 failed";
-  (* Paths of depth 2 *)
-  (* .b100.#a38 *)
-  let actual = r.b100.#a38 in
-  let expected = 1. in
   mark_test_run 798;
   let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
   if not test then failwithf "test 798 failed";
-  (* .b100.#b38 *)
-  let actual = r.b100.#b38 in
-  let expected = 2. in
+  (* Paths of depth 1 *)
+  (* .b100 *)
+  let actual = r.b100 in
+  let expected = #{ a20 = 1; b20 = 2 } in
   mark_test_run 799;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) actual expected in
   if not test then failwithf "test 799 failed";
+  (* Paths of depth 2 *)
+  (* .b100.#a20 *)
+  let actual = r.b100.#a20 in
+  let expected = 1 in
+  mark_test_run 800;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 800 failed";
+  (* .b100.#b20 *)
+  let actual = r.b100.#b20 in
+  let expected = 2 in
+  mark_test_run 801;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 801 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a100 = a1001; b100 = b1001 } { a100 = a1002; b100 = b1002 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1001 a1002 && (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) b1001 b1002) in
-  let next_r = stack_ { a100 = 100.; b100 = #{ a38 = 101.; b38 = 102. } } in
-  let r_expected = stack_ { a100 = 0.; b100 = #{ a38 = 1.; b38 = 2. } } in
+  let eq = (fun { a100 = a1001; b100 = b1001 } { a100 = a1002; b100 = b1002 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1001 a1002 && (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) b1001 b1002) in
+  let next_r = stack_ { a100 = 100.; b100 = #{ a20 = 101; b20 = 102 } } in
+  let r_expected = stack_ { a100 = 0.; b100 = #{ a20 = 1; b20 = 2 } } in
   (* .a100 *)
   r.a100 <- next_r.a100;
   let r_expected = { r_expected with a100 = next_r.a100 } in
-  mark_test_run 800;
+  mark_test_run 802;
   let test = eq r r_expected in
-  if not test then failwithf "test 800 failed";
+  if not test then failwithf "test 802 failed";
   Gc.compact ();
   (* .b100 *)
   r.b100 <- next_r.b100;
   let r_expected = { r_expected with b100 = next_r.b100 } in
-  mark_test_run 801;
+  mark_test_run 803;
   let test = eq r r_expected in
-  if not test then failwithf "test 801 failed";
+  if not test then failwithf "test 803 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a100; b100 = #{ a38; b38 } } = r in
+  let { a100; b100 = #{ a20; b20 } } = r in
   let expected_a100 = 100. in
-  mark_test_run 802;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a100 a100 in
-  if not test then failwithf "test 802 failed";
-  let expected_a38 = 101. in
-  mark_test_run 803;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a38 a38 in
-  if not test then failwithf "test 803 failed";
-  let expected_b38 = 102. in
   mark_test_run 804;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b38 b38 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a100 a100 in
   if not test then failwithf "test 804 failed";
+  let expected_a20 = 101 in
+  mark_test_run 805;
+  let test = (fun a b -> Int.equal a b) expected_a20 a20 in
+  if not test then failwithf "test 805 failed";
+  let expected_b20 = 102 in
+  mark_test_run 806;
+  let test = (fun a b -> Int.equal a b) expected_b20 b20 in
+  if not test then failwithf "test 806 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a100; b100 } = r in
   let expected_a100 = 100. in
-  mark_test_run 805;
+  mark_test_run 807;
   let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a100 a100 in
-  if not test then failwithf "test 805 failed";
-  let expected_b100 = #{ a38 = 101.; b38 = 102. } in
-  mark_test_run 806;
-  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) expected_b100 b100 in
-  if not test then failwithf "test 806 failed";
+  if not test then failwithf "test 807 failed";
+  let expected_b100 = #{ a20 = 101; b20 = 102 } in
+  mark_test_run 808;
+  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) expected_b100 b100 in
+  if not test then failwithf "test 808 failed";
 
-  (***************************)
-  (*   t101 = { int64x2# }   *)
-  (***************************)
-  let r = stack_ { a101 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } in
+  (*****************************************)
+  (*   t101 = { float; #{ int; float } }   *)
+  (*****************************************)
+  let r = stack_ { a101 = 0.; b101 = #{ a24 = 1; b24 = 2. } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a101 *)
   let actual = r.a101 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 807;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 807 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a101 = a1011 } { a101 = a1012 } -> int64x2_u_equal a1011 a1012) in
-  let next_r = stack_ { a101 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) } in
-  let r_expected = stack_ { a101 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } in
-  (* .a101 *)
-  r.a101 <- next_r.a101;
-  let r_expected = { r_expected with a101 = next_r.a101 } in
-  mark_test_run 808;
-  let test = eq r r_expected in
-  if not test then failwithf "test 808 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a101 } = r in
-  let expected_a101 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  let expected = 0. in
   mark_test_run 809;
-  let test = int64x2_u_equal expected_a101 a101 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
   if not test then failwithf "test 809 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a101 } = r in
-  let expected_a101 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  (* Paths of depth 1 *)
+  (* .b101 *)
+  let actual = r.b101 in
+  let expected = #{ a24 = 1; b24 = 2. } in
   mark_test_run 810;
-  let test = int64x2_u_equal expected_a101 a101 in
+  let test = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) actual expected in
   if not test then failwithf "test 810 failed";
-
-  (********************************)
-  (*   t102 = { int64x2#; int }   *)
-  (********************************)
-  let r = stack_ { a102 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b102 = 2 } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a102 *)
-  let actual = r.a102 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  (* Paths of depth 2 *)
+  (* .b101.#a24 *)
+  let actual = r.b101.#a24 in
+  let expected = 1 in
   mark_test_run 811;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 811 failed";
-  (* Paths of depth 1 *)
-  (* .b102 *)
-  let actual = r.b102 in
-  let expected = 2 in
-  mark_test_run 812;
   let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 811 failed";
+  (* .b101.#b24 *)
+  let actual = r.b101.#b24 in
+  let expected = 2. in
+  mark_test_run 812;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
   if not test then failwithf "test 812 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a102 = a1021; b102 = b1021 } { a102 = a1022; b102 = b1022 } -> int64x2_u_equal a1021 a1022 && (fun a b -> Int.equal a b) b1021 b1022) in
-  let next_r = stack_ { a102 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b102 = 102 } in
-  let r_expected = stack_ { a102 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b102 = 2 } in
-  (* .a102 *)
-  r.a102 <- next_r.a102;
-  let r_expected = { r_expected with a102 = next_r.a102 } in
+  let eq = (fun { a101 = a1011; b101 = b1011 } { a101 = a1012; b101 = b1012 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1011 a1012 && (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) b1011 b1012) in
+  let next_r = stack_ { a101 = 100.; b101 = #{ a24 = 101; b24 = 102. } } in
+  let r_expected = stack_ { a101 = 0.; b101 = #{ a24 = 1; b24 = 2. } } in
+  (* .a101 *)
+  r.a101 <- next_r.a101;
+  let r_expected = { r_expected with a101 = next_r.a101 } in
   mark_test_run 813;
   let test = eq r r_expected in
   if not test then failwithf "test 813 failed";
   Gc.compact ();
-  (* .b102 *)
-  r.b102 <- next_r.b102;
-  let r_expected = { r_expected with b102 = next_r.b102 } in
+  (* .b101 *)
+  r.b101 <- next_r.b101;
+  let r_expected = { r_expected with b101 = next_r.b101 } in
   mark_test_run 814;
   let test = eq r r_expected in
   if not test then failwithf "test 814 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a102; b102 } = r in
-  let expected_a102 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  let { a101; b101 = #{ a24; b24 } } = r in
+  let expected_a101 = 100. in
   mark_test_run 815;
-  let test = int64x2_u_equal expected_a102 a102 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a101 a101 in
   if not test then failwithf "test 815 failed";
-  let expected_b102 = 102 in
+  let expected_a24 = 101 in
   mark_test_run 816;
-  let test = (fun a b -> Int.equal a b) expected_b102 b102 in
+  let test = (fun a b -> Int.equal a b) expected_a24 a24 in
   if not test then failwithf "test 816 failed";
+  let expected_b24 = 102. in
+  mark_test_run 817;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b24 b24 in
+  if not test then failwithf "test 817 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a102; b102 } = r in
-  let expected_a102 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 817;
-  let test = int64x2_u_equal expected_a102 a102 in
-  if not test then failwithf "test 817 failed";
-  let expected_b102 = 102 in
+  let { a101; b101 } = r in
+  let expected_a101 = 100. in
   mark_test_run 818;
-  let test = (fun a b -> Int.equal a b) expected_b102 b102 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a101 a101 in
   if not test then failwithf "test 818 failed";
+  let expected_b101 = #{ a24 = 101; b24 = 102. } in
+  mark_test_run 819;
+  let test = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) expected_b101 b101 in
+  if not test then failwithf "test 819 failed";
 
-  (*************************************)
-  (*   t103 = { int64x2#; int; int }   *)
-  (*************************************)
-  let r = stack_ { a103 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b103 = 2; c103 = 3 } in
+  (************************************)
+  (*   t102 = { float; #{ float } }   *)
+  (************************************)
+  let r = stack_ { a102 = 0.; b102 = #{ a34 = 1. } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
-  (* .a103 *)
-  let actual = r.a103 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 819;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 819 failed";
-  (* Paths of depth 1 *)
-  (* .b103 *)
-  let actual = r.b103 in
-  let expected = 2 in
+  (* .a102 *)
+  let actual = r.a102 in
+  let expected = 0. in
   mark_test_run 820;
-  let test = (fun a b -> Int.equal a b) actual expected in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
   if not test then failwithf "test 820 failed";
   (* Paths of depth 1 *)
-  (* .c103 *)
-  let actual = r.c103 in
-  let expected = 3 in
+  (* .b102 *)
+  let actual = r.b102 in
+  let expected = #{ a34 = 1. } in
   mark_test_run 821;
-  let test = (fun a b -> Int.equal a b) actual expected in
+  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) actual expected in
   if not test then failwithf "test 821 failed";
+  (* Paths of depth 2 *)
+  (* .b102.#a34 *)
+  let actual = r.b102.#a34 in
+  let expected = 1. in
+  mark_test_run 822;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 822 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a103 = a1031; b103 = b1031; c103 = c1031 } { a103 = a1032; b103 = b1032; c103 = c1032 } -> int64x2_u_equal a1031 a1032 && (fun a b -> Int.equal a b) b1031 b1032 && (fun a b -> Int.equal a b) c1031 c1032) in
-  let next_r = stack_ { a103 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b103 = 102; c103 = 103 } in
-  let r_expected = stack_ { a103 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b103 = 2; c103 = 3 } in
-  (* .a103 *)
-  r.a103 <- next_r.a103;
-  let r_expected = { r_expected with a103 = next_r.a103 } in
-  mark_test_run 822;
-  let test = eq r r_expected in
-  if not test then failwithf "test 822 failed";
-  Gc.compact ();
-  (* .b103 *)
-  r.b103 <- next_r.b103;
-  let r_expected = { r_expected with b103 = next_r.b103 } in
+  let eq = (fun { a102 = a1021; b102 = b1021 } { a102 = a1022; b102 = b1022 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1021 a1022 && (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) b1021 b1022) in
+  let next_r = stack_ { a102 = 100.; b102 = #{ a34 = 101. } } in
+  let r_expected = stack_ { a102 = 0.; b102 = #{ a34 = 1. } } in
+  (* .a102 *)
+  r.a102 <- next_r.a102;
+  let r_expected = { r_expected with a102 = next_r.a102 } in
   mark_test_run 823;
   let test = eq r r_expected in
   if not test then failwithf "test 823 failed";
   Gc.compact ();
-  (* .c103 *)
-  r.c103 <- next_r.c103;
-  let r_expected = { r_expected with c103 = next_r.c103 } in
+  (* .b102 *)
+  r.b102 <- next_r.b102;
+  let r_expected = { r_expected with b102 = next_r.b102 } in
   mark_test_run 824;
   let test = eq r r_expected in
   if not test then failwithf "test 824 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a103; b103; c103 } = r in
-  let expected_a103 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  let { a102; b102 = #{ a34 } } = r in
+  let expected_a102 = 100. in
   mark_test_run 825;
-  let test = int64x2_u_equal expected_a103 a103 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a102 a102 in
   if not test then failwithf "test 825 failed";
-  let expected_b103 = 102 in
+  let expected_a34 = 101. in
   mark_test_run 826;
-  let test = (fun a b -> Int.equal a b) expected_b103 b103 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a34 a34 in
   if not test then failwithf "test 826 failed";
-  let expected_c103 = 103 in
-  mark_test_run 827;
-  let test = (fun a b -> Int.equal a b) expected_c103 c103 in
-  if not test then failwithf "test 827 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a103; b103; c103 } = r in
-  let expected_a103 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  let { a102; b102 } = r in
+  let expected_a102 = 100. in
+  mark_test_run 827;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a102 a102 in
+  if not test then failwithf "test 827 failed";
+  let expected_b102 = #{ a34 = 101. } in
   mark_test_run 828;
-  let test = int64x2_u_equal expected_a103 a103 in
+  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) expected_b102 b102 in
   if not test then failwithf "test 828 failed";
-  let expected_b103 = 102 in
-  mark_test_run 829;
-  let test = (fun a b -> Int.equal a b) expected_b103 b103 in
-  if not test then failwithf "test 829 failed";
-  let expected_c103 = 103 in
-  mark_test_run 830;
-  let test = (fun a b -> Int.equal a b) expected_c103 c103 in
-  if not test then failwithf "test 830 failed";
 
-  (******************************************)
-  (*   t104 = { int64x2#; int; int64x2# }   *)
-  (******************************************)
-  let r = stack_ { a104 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b104 = 2; c104 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  (*****************************************)
+  (*   t103 = { float; #{ float; int } }   *)
+  (*****************************************)
+  let r = stack_ { a103 = 0.; b103 = #{ a36 = 1.; b36 = 2 } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
-  (* .a104 *)
-  let actual = r.a104 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 831;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 831 failed";
+  (* .a103 *)
+  let actual = r.a103 in
+  let expected = 0. in
+  mark_test_run 829;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 829 failed";
   (* Paths of depth 1 *)
-  (* .b104 *)
-  let actual = r.b104 in
+  (* .b103 *)
+  let actual = r.b103 in
+  let expected = #{ a36 = 1.; b36 = 2 } in
+  mark_test_run 830;
+  let test = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) actual expected in
+  if not test then failwithf "test 830 failed";
+  (* Paths of depth 2 *)
+  (* .b103.#a36 *)
+  let actual = r.b103.#a36 in
+  let expected = 1. in
+  mark_test_run 831;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 831 failed";
+  (* .b103.#b36 *)
+  let actual = r.b103.#b36 in
   let expected = 2 in
   mark_test_run 832;
   let test = (fun a b -> Int.equal a b) actual expected in
   if not test then failwithf "test 832 failed";
-  (* Paths of depth 1 *)
-  (* .c104 *)
-  let actual = r.c104 in
-  let expected = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) in
-  mark_test_run 833;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 833 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a104 = a1041; b104 = b1041; c104 = c1041 } { a104 = a1042; b104 = b1042; c104 = c1042 } -> int64x2_u_equal a1041 a1042 && (fun a b -> Int.equal a b) b1041 b1042 && int64x2_u_equal c1041 c1042) in
-  let next_r = stack_ { a104 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b104 = 102; c104 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
-  let r_expected = stack_ { a104 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b104 = 2; c104 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
-  (* .a104 *)
-  r.a104 <- next_r.a104;
-  let r_expected = { r_expected with a104 = next_r.a104 } in
+  let eq = (fun { a103 = a1031; b103 = b1031 } { a103 = a1032; b103 = b1032 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1031 a1032 && (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) b1031 b1032) in
+  let next_r = stack_ { a103 = 100.; b103 = #{ a36 = 101.; b36 = 102 } } in
+  let r_expected = stack_ { a103 = 0.; b103 = #{ a36 = 1.; b36 = 2 } } in
+  (* .a103 *)
+  r.a103 <- next_r.a103;
+  let r_expected = { r_expected with a103 = next_r.a103 } in
+  mark_test_run 833;
+  let test = eq r r_expected in
+  if not test then failwithf "test 833 failed";
+  Gc.compact ();
+  (* .b103 *)
+  r.b103 <- next_r.b103;
+  let r_expected = { r_expected with b103 = next_r.b103 } in
   mark_test_run 834;
   let test = eq r r_expected in
   if not test then failwithf "test 834 failed";
   Gc.compact ();
-  (* .b104 *)
-  r.b104 <- next_r.b104;
-  let r_expected = { r_expected with b104 = next_r.b104 } in
-  mark_test_run 835;
-  let test = eq r r_expected in
-  if not test then failwithf "test 835 failed";
-  Gc.compact ();
-  (* .c104 *)
-  r.c104 <- next_r.c104;
-  let r_expected = { r_expected with c104 = next_r.c104 } in
-  mark_test_run 836;
-  let test = eq r r_expected in
-  if not test then failwithf "test 836 failed";
-  Gc.compact ();
   (* 3. Test deep matching *)
-  let { a104; b104; c104 } = r in
-  let expected_a104 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  let { a103; b103 = #{ a36; b36 } } = r in
+  let expected_a103 = 100. in
+  mark_test_run 835;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a103 a103 in
+  if not test then failwithf "test 835 failed";
+  let expected_a36 = 101. in
+  mark_test_run 836;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a36 a36 in
+  if not test then failwithf "test 836 failed";
+  let expected_b36 = 102 in
   mark_test_run 837;
-  let test = int64x2_u_equal expected_a104 a104 in
+  let test = (fun a b -> Int.equal a b) expected_b36 b36 in
   if not test then failwithf "test 837 failed";
-  let expected_b104 = 102 in
-  mark_test_run 838;
-  let test = (fun a b -> Int.equal a b) expected_b104 b104 in
-  if not test then failwithf "test 838 failed";
-  let expected_c104 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) in
-  mark_test_run 839;
-  let test = int64x2_u_equal expected_c104 c104 in
-  if not test then failwithf "test 839 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a104; b104; c104 } = r in
-  let expected_a104 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 840;
-  let test = int64x2_u_equal expected_a104 a104 in
-  if not test then failwithf "test 840 failed";
-  let expected_b104 = 102 in
-  mark_test_run 841;
-  let test = (fun a b -> Int.equal a b) expected_b104 b104 in
-  if not test then failwithf "test 841 failed";
-  let expected_c104 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) in
-  mark_test_run 842;
-  let test = int64x2_u_equal expected_c104 c104 in
-  if not test then failwithf "test 842 failed";
+  let { a103; b103 } = r in
+  let expected_a103 = 100. in
+  mark_test_run 838;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a103 a103 in
+  if not test then failwithf "test 838 failed";
+  let expected_b103 = #{ a36 = 101.; b36 = 102 } in
+  mark_test_run 839;
+  let test = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) expected_b103 b103 in
+  if not test then failwithf "test 839 failed";
 
-  (*************************************)
-  (*   t105 = { int64x2#; int64x2# }   *)
-  (*************************************)
-  let r = stack_ { a105 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b105 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  (*******************************************)
+  (*   t104 = { float; #{ float; float } }   *)
+  (*******************************************)
+  let r = stack_ { a104 = 0.; b104 = #{ a38 = 1.; b38 = 2. } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
-  (* .a105 *)
-  let actual = r.a105 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 843;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 843 failed";
+  (* .a104 *)
+  let actual = r.a104 in
+  let expected = 0. in
+  mark_test_run 840;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 840 failed";
   (* Paths of depth 1 *)
-  (* .b105 *)
-  let actual = r.b105 in
-  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
-  mark_test_run 844;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 844 failed";
+  (* .b104 *)
+  let actual = r.b104 in
+  let expected = #{ a38 = 1.; b38 = 2. } in
+  mark_test_run 841;
+  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) actual expected in
+  if not test then failwithf "test 841 failed";
+  (* Paths of depth 2 *)
+  (* .b104.#a38 *)
+  let actual = r.b104.#a38 in
+  let expected = 1. in
+  mark_test_run 842;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 842 failed";
+  (* .b104.#b38 *)
+  let actual = r.b104.#b38 in
+  let expected = 2. in
+  mark_test_run 843;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 843 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a105 = a1051; b105 = b1051 } { a105 = a1052; b105 = b1052 } -> int64x2_u_equal a1051 a1052 && int64x2_u_equal b1051 b1052) in
-  let next_r = stack_ { a105 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b105 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
-  let r_expected = stack_ { a105 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b105 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
-  (* .a105 *)
-  r.a105 <- next_r.a105;
-  let r_expected = { r_expected with a105 = next_r.a105 } in
+  let eq = (fun { a104 = a1041; b104 = b1041 } { a104 = a1042; b104 = b1042 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1041 a1042 && (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) b1041 b1042) in
+  let next_r = stack_ { a104 = 100.; b104 = #{ a38 = 101.; b38 = 102. } } in
+  let r_expected = stack_ { a104 = 0.; b104 = #{ a38 = 1.; b38 = 2. } } in
+  (* .a104 *)
+  r.a104 <- next_r.a104;
+  let r_expected = { r_expected with a104 = next_r.a104 } in
+  mark_test_run 844;
+  let test = eq r r_expected in
+  if not test then failwithf "test 844 failed";
+  Gc.compact ();
+  (* .b104 *)
+  r.b104 <- next_r.b104;
+  let r_expected = { r_expected with b104 = next_r.b104 } in
   mark_test_run 845;
   let test = eq r r_expected in
   if not test then failwithf "test 845 failed";
   Gc.compact ();
-  (* .b105 *)
-  r.b105 <- next_r.b105;
-  let r_expected = { r_expected with b105 = next_r.b105 } in
-  mark_test_run 846;
-  let test = eq r r_expected in
-  if not test then failwithf "test 846 failed";
-  Gc.compact ();
   (* 3. Test deep matching *)
-  let { a105; b105 } = r in
-  let expected_a105 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  let { a104; b104 = #{ a38; b38 } } = r in
+  let expected_a104 = 100. in
+  mark_test_run 846;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a104 a104 in
+  if not test then failwithf "test 846 failed";
+  let expected_a38 = 101. in
   mark_test_run 847;
-  let test = int64x2_u_equal expected_a105 a105 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a38 a38 in
   if not test then failwithf "test 847 failed";
-  let expected_b105 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  let expected_b38 = 102. in
   mark_test_run 848;
-  let test = int64x2_u_equal expected_b105 b105 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b38 b38 in
   if not test then failwithf "test 848 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a105; b105 } = r in
-  let expected_a105 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  let { a104; b104 } = r in
+  let expected_a104 = 100. in
   mark_test_run 849;
-  let test = int64x2_u_equal expected_a105 a105 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a104 a104 in
   if not test then failwithf "test 849 failed";
-  let expected_b105 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  let expected_b104 = #{ a38 = 101.; b38 = 102. } in
   mark_test_run 850;
-  let test = int64x2_u_equal expected_b105 b105 in
+  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) expected_b104 b104 in
   if not test then failwithf "test 850 failed";
 
-  (******************************************)
-  (*   t106 = { int64x2#; int64x2#; int }   *)
-  (******************************************)
-  let r = stack_ { a106 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b106 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c106 = 4 } in
+  (********************************************)
+  (*   t106 = { float; #{ float; float# } }   *)
+  (********************************************)
+  let r = stack_ { a106 = 0.; b106 = #{ a105 = 1.; b105 = #2. } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a106 *)
   let actual = r.a106 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  let expected = 0. in
   mark_test_run 851;
-  let test = int64x2_u_equal actual expected in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
   if not test then failwithf "test 851 failed";
   (* Paths of depth 1 *)
   (* .b106 *)
   let actual = r.b106 in
-  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
+  let expected = #{ a105 = 1.; b105 = #2. } in
   mark_test_run 852;
-  let test = int64x2_u_equal actual expected in
+  let test = (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) actual expected in
   if not test then failwithf "test 852 failed";
-  (* Paths of depth 1 *)
-  (* .c106 *)
-  let actual = r.c106 in
-  let expected = 4 in
+  (* Paths of depth 2 *)
+  (* .b106.#a105 *)
+  let actual = r.b106.#a105 in
+  let expected = 1. in
   mark_test_run 853;
-  let test = (fun a b -> Int.equal a b) actual expected in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
   if not test then failwithf "test 853 failed";
+  (* .b106.#b105 *)
+  let actual = r.b106.#b105 in
+  let expected = #2. in
+  mark_test_run 854;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 854 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a106 = a1061; b106 = b1061; c106 = c1061 } { a106 = a1062; b106 = b1062; c106 = c1062 } -> int64x2_u_equal a1061 a1062 && int64x2_u_equal b1061 b1062 && (fun a b -> Int.equal a b) c1061 c1062) in
-  let next_r = stack_ { a106 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b106 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); c106 = 104 } in
-  let r_expected = stack_ { a106 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b106 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c106 = 4 } in
+  let eq = (fun { a106 = a1061; b106 = b1061 } { a106 = a1062; b106 = b1062 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1061 a1062 && (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) b1061 b1062) in
+  let next_r = stack_ { a106 = 100.; b106 = #{ a105 = 101.; b105 = #102. } } in
+  let r_expected = stack_ { a106 = 0.; b106 = #{ a105 = 1.; b105 = #2. } } in
   (* .a106 *)
   r.a106 <- next_r.a106;
   let r_expected = { r_expected with a106 = next_r.a106 } in
-  mark_test_run 854;
-  let test = eq r r_expected in
-  if not test then failwithf "test 854 failed";
-  Gc.compact ();
-  (* .b106 *)
-  r.b106 <- next_r.b106;
-  let r_expected = { r_expected with b106 = next_r.b106 } in
   mark_test_run 855;
   let test = eq r r_expected in
   if not test then failwithf "test 855 failed";
   Gc.compact ();
-  (* .c106 *)
-  r.c106 <- next_r.c106;
-  let r_expected = { r_expected with c106 = next_r.c106 } in
+  (* .b106 *)
+  r.b106 <- next_r.b106;
+  let r_expected = { r_expected with b106 = next_r.b106 } in
   mark_test_run 856;
   let test = eq r r_expected in
   if not test then failwithf "test 856 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a106; b106; c106 } = r in
-  let expected_a106 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  let { a106; b106 = #{ a105; b105 } } = r in
+  let expected_a106 = 100. in
   mark_test_run 857;
-  let test = int64x2_u_equal expected_a106 a106 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a106 a106 in
   if not test then failwithf "test 857 failed";
-  let expected_b106 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  let expected_a105 = 101. in
   mark_test_run 858;
-  let test = int64x2_u_equal expected_b106 b106 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a105 a105 in
   if not test then failwithf "test 858 failed";
-  let expected_c106 = 104 in
+  let expected_b105 = #102. in
   mark_test_run 859;
-  let test = (fun a b -> Int.equal a b) expected_c106 c106 in
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b105 b105 in
   if not test then failwithf "test 859 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a106; b106; c106 } = r in
-  let expected_a106 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  let { a106; b106 } = r in
+  let expected_a106 = 100. in
   mark_test_run 860;
-  let test = int64x2_u_equal expected_a106 a106 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a106 a106 in
   if not test then failwithf "test 860 failed";
-  let expected_b106 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  let expected_b106 = #{ a105 = 101.; b105 = #102. } in
   mark_test_run 861;
-  let test = int64x2_u_equal expected_b106 b106 in
+  let test = (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) expected_b106 b106 in
   if not test then failwithf "test 861 failed";
-  let expected_c106 = 104 in
-  mark_test_run 862;
-  let test = (fun a b -> Int.equal a b) expected_c106 c106 in
-  if not test then failwithf "test 862 failed";
-
-  (***********************************************)
-  (*   t107 = { int64x2#; int64x2#; int64x2# }   *)
-  (***********************************************)
-  let r = stack_ { a107 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b107 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c107 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a107 *)
-  let actual = r.a107 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 863;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 863 failed";
-  (* Paths of depth 1 *)
-  (* .b107 *)
-  let actual = r.b107 in
-  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
-  mark_test_run 864;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 864 failed";
-  (* Paths of depth 1 *)
-  (* .c107 *)
-  let actual = r.c107 in
-  let expected = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) in
-  mark_test_run 865;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 865 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a107 = a1071; b107 = b1071; c107 = c1071 } { a107 = a1072; b107 = b1072; c107 = c1072 } -> int64x2_u_equal a1071 a1072 && int64x2_u_equal b1071 b1072 && int64x2_u_equal c1071 c1072) in
-  let next_r = stack_ { a107 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b107 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); c107 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } in
-  let r_expected = stack_ { a107 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b107 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c107 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
-  (* .a107 *)
-  r.a107 <- next_r.a107;
-  let r_expected = { r_expected with a107 = next_r.a107 } in
-  mark_test_run 866;
-  let test = eq r r_expected in
-  if not test then failwithf "test 866 failed";
-  Gc.compact ();
-  (* .b107 *)
-  r.b107 <- next_r.b107;
-  let r_expected = { r_expected with b107 = next_r.b107 } in
-  mark_test_run 867;
-  let test = eq r r_expected in
-  if not test then failwithf "test 867 failed";
-  Gc.compact ();
-  (* .c107 *)
-  r.c107 <- next_r.c107;
-  let r_expected = { r_expected with c107 = next_r.c107 } in
-  mark_test_run 868;
-  let test = eq r r_expected in
-  if not test then failwithf "test 868 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a107; b107; c107 } = r in
-  let expected_a107 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 869;
-  let test = int64x2_u_equal expected_a107 a107 in
-  if not test then failwithf "test 869 failed";
-  let expected_b107 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
-  mark_test_run 870;
-  let test = int64x2_u_equal expected_b107 b107 in
-  if not test then failwithf "test 870 failed";
-  let expected_c107 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) in
-  mark_test_run 871;
-  let test = int64x2_u_equal expected_c107 c107 in
-  if not test then failwithf "test 871 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a107; b107; c107 } = r in
-  let expected_a107 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 872;
-  let test = int64x2_u_equal expected_a107 a107 in
-  if not test then failwithf "test 872 failed";
-  let expected_b107 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
-  mark_test_run 873;
-  let test = int64x2_u_equal expected_b107 b107 in
-  if not test then failwithf "test 873 failed";
-  let expected_c107 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) in
-  mark_test_run 874;
-  let test = int64x2_u_equal expected_c107 c107 in
-  if not test then failwithf "test 874 failed";
 
   (*************************************)
-  (*   t108 = { int64x2#; #{ int } }   *)
+  (*   t108 = { float; #{ float# } }   *)
   (*************************************)
-  let r = stack_ { a108 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b108 = #{ a18 = 2 } } in
+  let r = stack_ { a108 = 0.; b108 = #{ a107 = #1. } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a108 *)
   let actual = r.a108 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 875;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 875 failed";
+  let expected = 0. in
+  mark_test_run 862;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 862 failed";
   (* Paths of depth 1 *)
   (* .b108 *)
   let actual = r.b108 in
-  let expected = #{ a18 = 2 } in
-  mark_test_run 876;
-  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) actual expected in
-  if not test then failwithf "test 876 failed";
+  let expected = #{ a107 = #1. } in
+  mark_test_run 863;
+  let test = (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) actual expected in
+  if not test then failwithf "test 863 failed";
   (* Paths of depth 2 *)
-  (* .b108.#a18 *)
-  let actual = r.b108.#a18 in
-  let expected = 2 in
-  mark_test_run 877;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 877 failed";
+  (* .b108.#a107 *)
+  let actual = r.b108.#a107 in
+  let expected = #1. in
+  mark_test_run 864;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 864 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a108 = a1081; b108 = b1081 } { a108 = a1082; b108 = b1082 } -> int64x2_u_equal a1081 a1082 && (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) b1081 b1082) in
-  let next_r = stack_ { a108 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b108 = #{ a18 = 102 } } in
-  let r_expected = stack_ { a108 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b108 = #{ a18 = 2 } } in
+  let eq = (fun { a108 = a1081; b108 = b1081 } { a108 = a1082; b108 = b1082 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1081 a1082 && (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) b1081 b1082) in
+  let next_r = stack_ { a108 = 100.; b108 = #{ a107 = #101. } } in
+  let r_expected = stack_ { a108 = 0.; b108 = #{ a107 = #1. } } in
   (* .a108 *)
   r.a108 <- next_r.a108;
   let r_expected = { r_expected with a108 = next_r.a108 } in
-  mark_test_run 878;
+  mark_test_run 865;
   let test = eq r r_expected in
-  if not test then failwithf "test 878 failed";
+  if not test then failwithf "test 865 failed";
   Gc.compact ();
   (* .b108 *)
   r.b108 <- next_r.b108;
   let r_expected = { r_expected with b108 = next_r.b108 } in
-  mark_test_run 879;
+  mark_test_run 866;
   let test = eq r r_expected in
-  if not test then failwithf "test 879 failed";
+  if not test then failwithf "test 866 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a108; b108 = #{ a18 } } = r in
-  let expected_a108 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 880;
-  let test = int64x2_u_equal expected_a108 a108 in
-  if not test then failwithf "test 880 failed";
-  let expected_a18 = 102 in
-  mark_test_run 881;
-  let test = (fun a b -> Int.equal a b) expected_a18 a18 in
-  if not test then failwithf "test 881 failed";
+  let { a108; b108 = #{ a107 } } = r in
+  let expected_a108 = 100. in
+  mark_test_run 867;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a108 a108 in
+  if not test then failwithf "test 867 failed";
+  let expected_a107 = #101. in
+  mark_test_run 868;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a107 a107 in
+  if not test then failwithf "test 868 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a108; b108 } = r in
-  let expected_a108 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 882;
-  let test = int64x2_u_equal expected_a108 a108 in
-  if not test then failwithf "test 882 failed";
-  let expected_b108 = #{ a18 = 102 } in
-  mark_test_run 883;
-  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) expected_b108 b108 in
-  if not test then failwithf "test 883 failed";
+  let expected_a108 = 100. in
+  mark_test_run 869;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a108 a108 in
+  if not test then failwithf "test 869 failed";
+  let expected_b108 = #{ a107 = #101. } in
+  mark_test_run 870;
+  let test = (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) expected_b108 b108 in
+  if not test then failwithf "test 870 failed";
 
-  (******************************************)
-  (*   t109 = { int64x2#; #{ int; int } }   *)
-  (******************************************)
-  let r = stack_ { a109 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b109 = #{ a20 = 2; b20 = 3 } } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a109 *)
-  let actual = r.a109 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 884;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 884 failed";
-  (* Paths of depth 1 *)
-  (* .b109 *)
-  let actual = r.b109 in
-  let expected = #{ a20 = 2; b20 = 3 } in
-  mark_test_run 885;
-  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) actual expected in
-  if not test then failwithf "test 885 failed";
-  (* Paths of depth 2 *)
-  (* .b109.#a20 *)
-  let actual = r.b109.#a20 in
-  let expected = 2 in
-  mark_test_run 886;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 886 failed";
-  (* .b109.#b20 *)
-  let actual = r.b109.#b20 in
-  let expected = 3 in
-  mark_test_run 887;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 887 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a109 = a1091; b109 = b1091 } { a109 = a1092; b109 = b1092 } -> int64x2_u_equal a1091 a1092 && (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) b1091 b1092) in
-  let next_r = stack_ { a109 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b109 = #{ a20 = 102; b20 = 103 } } in
-  let r_expected = stack_ { a109 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b109 = #{ a20 = 2; b20 = 3 } } in
-  (* .a109 *)
-  r.a109 <- next_r.a109;
-  let r_expected = { r_expected with a109 = next_r.a109 } in
-  mark_test_run 888;
-  let test = eq r r_expected in
-  if not test then failwithf "test 888 failed";
-  Gc.compact ();
-  (* .b109 *)
-  r.b109 <- next_r.b109;
-  let r_expected = { r_expected with b109 = next_r.b109 } in
-  mark_test_run 889;
-  let test = eq r r_expected in
-  if not test then failwithf "test 889 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a109; b109 = #{ a20; b20 } } = r in
-  let expected_a109 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 890;
-  let test = int64x2_u_equal expected_a109 a109 in
-  if not test then failwithf "test 890 failed";
-  let expected_a20 = 102 in
-  mark_test_run 891;
-  let test = (fun a b -> Int.equal a b) expected_a20 a20 in
-  if not test then failwithf "test 891 failed";
-  let expected_b20 = 103 in
-  mark_test_run 892;
-  let test = (fun a b -> Int.equal a b) expected_b20 b20 in
-  if not test then failwithf "test 892 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a109; b109 } = r in
-  let expected_a109 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 893;
-  let test = int64x2_u_equal expected_a109 a109 in
-  if not test then failwithf "test 893 failed";
-  let expected_b109 = #{ a20 = 102; b20 = 103 } in
-  mark_test_run 894;
-  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) expected_b109 b109 in
-  if not test then failwithf "test 894 failed";
-
-  (***********************************************)
-  (*   t110 = { int64x2#; #{ int; int64x2# } }   *)
-  (***********************************************)
-  let r = stack_ { a110 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b110 = #{ a26 = 2; b26 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } in
+  (********************************************)
+  (*   t110 = { float; #{ float#; float } }   *)
+  (********************************************)
+  let r = stack_ { a110 = 0.; b110 = #{ a109 = #1.; b109 = 2. } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a110 *)
   let actual = r.a110 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 895;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 895 failed";
+  let expected = 0. in
+  mark_test_run 871;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 871 failed";
   (* Paths of depth 1 *)
   (* .b110 *)
   let actual = r.b110 in
-  let expected = #{ a26 = 2; b26 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
-  mark_test_run 896;
-  let test = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) actual expected in
-  if not test then failwithf "test 896 failed";
+  let expected = #{ a109 = #1.; b109 = 2. } in
+  mark_test_run 872;
+  let test = (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) actual expected in
+  if not test then failwithf "test 872 failed";
   (* Paths of depth 2 *)
-  (* .b110.#a26 *)
-  let actual = r.b110.#a26 in
-  let expected = 2 in
-  mark_test_run 897;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 897 failed";
-  (* .b110.#b26 *)
-  let actual = r.b110.#b26 in
-  let expected = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) in
-  mark_test_run 898;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 898 failed";
+  (* .b110.#a109 *)
+  let actual = r.b110.#a109 in
+  let expected = #1. in
+  mark_test_run 873;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 873 failed";
+  (* .b110.#b109 *)
+  let actual = r.b110.#b109 in
+  let expected = 2. in
+  mark_test_run 874;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 874 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a110 = a1101; b110 = b1101 } { a110 = a1102; b110 = b1102 } -> int64x2_u_equal a1101 a1102 && (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) b1101 b1102) in
-  let next_r = stack_ { a110 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b110 = #{ a26 = 102; b26 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } } in
-  let r_expected = stack_ { a110 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b110 = #{ a26 = 2; b26 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } in
+  let eq = (fun { a110 = a1101; b110 = b1101 } { a110 = a1102; b110 = b1102 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1101 a1102 && (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) b1101 b1102) in
+  let next_r = stack_ { a110 = 100.; b110 = #{ a109 = #101.; b109 = 102. } } in
+  let r_expected = stack_ { a110 = 0.; b110 = #{ a109 = #1.; b109 = 2. } } in
   (* .a110 *)
   r.a110 <- next_r.a110;
   let r_expected = { r_expected with a110 = next_r.a110 } in
-  mark_test_run 899;
+  mark_test_run 875;
   let test = eq r r_expected in
-  if not test then failwithf "test 899 failed";
+  if not test then failwithf "test 875 failed";
   Gc.compact ();
   (* .b110 *)
   r.b110 <- next_r.b110;
   let r_expected = { r_expected with b110 = next_r.b110 } in
+  mark_test_run 876;
+  let test = eq r r_expected in
+  if not test then failwithf "test 876 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a110; b110 = #{ a109; b109 } } = r in
+  let expected_a110 = 100. in
+  mark_test_run 877;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a110 a110 in
+  if not test then failwithf "test 877 failed";
+  let expected_a109 = #101. in
+  mark_test_run 878;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a109 a109 in
+  if not test then failwithf "test 878 failed";
+  let expected_b109 = 102. in
+  mark_test_run 879;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b109 b109 in
+  if not test then failwithf "test 879 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a110; b110 } = r in
+  let expected_a110 = 100. in
+  mark_test_run 880;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a110 a110 in
+  if not test then failwithf "test 880 failed";
+  let expected_b110 = #{ a109 = #101.; b109 = 102. } in
+  mark_test_run 881;
+  let test = (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) expected_b110 b110 in
+  if not test then failwithf "test 881 failed";
+
+  (*********************************************)
+  (*   t112 = { float; #{ float#; float# } }   *)
+  (*********************************************)
+  let r = stack_ { a112 = 0.; b112 = #{ a111 = #1.; b111 = #2. } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a112 *)
+  let actual = r.a112 in
+  let expected = 0. in
+  mark_test_run 882;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 882 failed";
+  (* Paths of depth 1 *)
+  (* .b112 *)
+  let actual = r.b112 in
+  let expected = #{ a111 = #1.; b111 = #2. } in
+  mark_test_run 883;
+  let test = (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) actual expected in
+  if not test then failwithf "test 883 failed";
+  (* Paths of depth 2 *)
+  (* .b112.#a111 *)
+  let actual = r.b112.#a111 in
+  let expected = #1. in
+  mark_test_run 884;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 884 failed";
+  (* .b112.#b111 *)
+  let actual = r.b112.#b111 in
+  let expected = #2. in
+  mark_test_run 885;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 885 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a112 = a1121; b112 = b1121 } { a112 = a1122; b112 = b1122 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1121 a1122 && (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) b1121 b1122) in
+  let next_r = stack_ { a112 = 100.; b112 = #{ a111 = #101.; b111 = #102. } } in
+  let r_expected = stack_ { a112 = 0.; b112 = #{ a111 = #1.; b111 = #2. } } in
+  (* .a112 *)
+  r.a112 <- next_r.a112;
+  let r_expected = { r_expected with a112 = next_r.a112 } in
+  mark_test_run 886;
+  let test = eq r r_expected in
+  if not test then failwithf "test 886 failed";
+  Gc.compact ();
+  (* .b112 *)
+  r.b112 <- next_r.b112;
+  let r_expected = { r_expected with b112 = next_r.b112 } in
+  mark_test_run 887;
+  let test = eq r r_expected in
+  if not test then failwithf "test 887 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a112; b112 = #{ a111; b111 } } = r in
+  let expected_a112 = 100. in
+  mark_test_run 888;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a112 a112 in
+  if not test then failwithf "test 888 failed";
+  let expected_a111 = #101. in
+  mark_test_run 889;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a111 a111 in
+  if not test then failwithf "test 889 failed";
+  let expected_b111 = #102. in
+  mark_test_run 890;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b111 b111 in
+  if not test then failwithf "test 890 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a112; b112 } = r in
+  let expected_a112 = 100. in
+  mark_test_run 891;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a112 a112 in
+  if not test then failwithf "test 891 failed";
+  let expected_b112 = #{ a111 = #101.; b111 = #102. } in
+  mark_test_run 892;
+  let test = (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) expected_b112 b112 in
+  if not test then failwithf "test 892 failed";
+
+  (*************************)
+  (*   t113 = { float# }   *)
+  (*************************)
+  let r = stack_ { a113 = #0. } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a113 *)
+  let actual = r.a113 in
+  let expected = #0. in
+  mark_test_run 893;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 893 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a113 = a1131 } { a113 = a1132 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1131 a1132) in
+  let next_r = stack_ { a113 = #100. } in
+  let r_expected = stack_ { a113 = #0. } in
+  (* .a113 *)
+  r.a113 <- next_r.a113;
+  let r_expected = { r_expected with a113 = next_r.a113 } in
+  mark_test_run 894;
+  let test = eq r r_expected in
+  if not test then failwithf "test 894 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a113 } = r in
+  let expected_a113 = #100. in
+  mark_test_run 895;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a113 a113 in
+  if not test then failwithf "test 895 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a113 } = r in
+  let expected_a113 = #100. in
+  mark_test_run 896;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a113 a113 in
+  if not test then failwithf "test 896 failed";
+
+  (********************************)
+  (*   t114 = { float#; float }   *)
+  (********************************)
+  let r = stack_ { a114 = #0.; b114 = 1. } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a114 *)
+  let actual = r.a114 in
+  let expected = #0. in
+  mark_test_run 897;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 897 failed";
+  (* Paths of depth 1 *)
+  (* .b114 *)
+  let actual = r.b114 in
+  let expected = 1. in
+  mark_test_run 898;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 898 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a114 = a1141; b114 = b1141 } { a114 = a1142; b114 = b1142 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1141 a1142 && (fun a b -> Float.equal (globalize a) (globalize b)) b1141 b1142) in
+  let next_r = stack_ { a114 = #100.; b114 = 101. } in
+  let r_expected = stack_ { a114 = #0.; b114 = 1. } in
+  (* .a114 *)
+  r.a114 <- next_r.a114;
+  let r_expected = { r_expected with a114 = next_r.a114 } in
+  mark_test_run 899;
+  let test = eq r r_expected in
+  if not test then failwithf "test 899 failed";
+  Gc.compact ();
+  (* .b114 *)
+  r.b114 <- next_r.b114;
+  let r_expected = { r_expected with b114 = next_r.b114 } in
   mark_test_run 900;
   let test = eq r r_expected in
   if not test then failwithf "test 900 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a110; b110 = #{ a26; b26 } } = r in
-  let expected_a110 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  let { a114; b114 } = r in
+  let expected_a114 = #100. in
   mark_test_run 901;
-  let test = int64x2_u_equal expected_a110 a110 in
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a114 a114 in
   if not test then failwithf "test 901 failed";
-  let expected_a26 = 102 in
+  let expected_b114 = 101. in
   mark_test_run 902;
-  let test = (fun a b -> Int.equal a b) expected_a26 a26 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b114 b114 in
   if not test then failwithf "test 902 failed";
-  let expected_b26 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) in
-  mark_test_run 903;
-  let test = int64x2_u_equal expected_b26 b26 in
-  if not test then failwithf "test 903 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a110; b110 } = r in
-  let expected_a110 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 904;
-  let test = int64x2_u_equal expected_a110 a110 in
-  if not test then failwithf "test 904 failed";
-  let expected_b110 = #{ a26 = 102; b26 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
-  mark_test_run 905;
-  let test = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) expected_b110 b110 in
-  if not test then failwithf "test 905 failed";
-
-  (************************************************)
-  (*   t112 = { int64x2#; #{ string; float# } }   *)
-  (************************************************)
-  let r = stack_ { a112 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b112 = #{ a111 = "2"; b111 = #3. } } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a112 *)
-  let actual = r.a112 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 906;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 906 failed";
-  (* Paths of depth 1 *)
-  (* .b112 *)
-  let actual = r.b112 in
-  let expected = #{ a111 = "2"; b111 = #3. } in
-  mark_test_run 907;
-  let test = (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> String.equal (globalize a) (globalize b)) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) actual expected in
-  if not test then failwithf "test 907 failed";
-  (* Paths of depth 2 *)
-  (* .b112.#a111 *)
-  let actual = r.b112.#a111 in
-  let expected = "2" in
-  mark_test_run 908;
-  let test = (fun a b -> String.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 908 failed";
-  (* .b112.#b111 *)
-  let actual = r.b112.#b111 in
-  let expected = #3. in
-  mark_test_run 909;
-  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
-  if not test then failwithf "test 909 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a112 = a1121; b112 = b1121 } { a112 = a1122; b112 = b1122 } -> int64x2_u_equal a1121 a1122 && (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> String.equal (globalize a) (globalize b)) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) b1121 b1122) in
-  let next_r = stack_ { a112 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b112 = #{ a111 = "102"; b111 = #103. } } in
-  let r_expected = stack_ { a112 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b112 = #{ a111 = "2"; b111 = #3. } } in
-  (* .a112 *)
-  r.a112 <- next_r.a112;
-  let r_expected = { r_expected with a112 = next_r.a112 } in
-  mark_test_run 910;
-  let test = eq r r_expected in
-  if not test then failwithf "test 910 failed";
-  Gc.compact ();
-  (* .b112 *)
-  r.b112 <- next_r.b112;
-  let r_expected = { r_expected with b112 = next_r.b112 } in
-  mark_test_run 911;
-  let test = eq r r_expected in
-  if not test then failwithf "test 911 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a112; b112 = #{ a111; b111 } } = r in
-  let expected_a112 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 912;
-  let test = int64x2_u_equal expected_a112 a112 in
-  if not test then failwithf "test 912 failed";
-  let expected_a111 = "102" in
-  mark_test_run 913;
-  let test = (fun a b -> String.equal (globalize a) (globalize b)) expected_a111 a111 in
-  if not test then failwithf "test 913 failed";
-  let expected_b111 = #103. in
-  mark_test_run 914;
-  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b111 b111 in
-  if not test then failwithf "test 914 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a112; b112 } = r in
-  let expected_a112 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 915;
-  let test = int64x2_u_equal expected_a112 a112 in
-  if not test then failwithf "test 915 failed";
-  let expected_b112 = #{ a111 = "102"; b111 = #103. } in
-  mark_test_run 916;
-  let test = (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> String.equal (globalize a) (globalize b)) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) expected_b112 b112 in
-  if not test then failwithf "test 916 failed";
-
-  (******************************************)
-  (*   t113 = { int64x2#; #{ int64x2# } }   *)
-  (******************************************)
-  let r = stack_ { a113 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b113 = #{ a40 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a113 *)
-  let actual = r.a113 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 917;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 917 failed";
-  (* Paths of depth 1 *)
-  (* .b113 *)
-  let actual = r.b113 in
-  let expected = #{ a40 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
-  mark_test_run 918;
-  let test = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) actual expected in
-  if not test then failwithf "test 918 failed";
-  (* Paths of depth 2 *)
-  (* .b113.#a40 *)
-  let actual = r.b113.#a40 in
-  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
-  mark_test_run 919;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 919 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a113 = a1131; b113 = b1131 } { a113 = a1132; b113 = b1132 } -> int64x2_u_equal a1131 a1132 && (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) b1131 b1132) in
-  let next_r = stack_ { a113 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b113 = #{ a40 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } } in
-  let r_expected = stack_ { a113 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b113 = #{ a40 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
-  (* .a113 *)
-  r.a113 <- next_r.a113;
-  let r_expected = { r_expected with a113 = next_r.a113 } in
-  mark_test_run 920;
-  let test = eq r r_expected in
-  if not test then failwithf "test 920 failed";
-  Gc.compact ();
-  (* .b113 *)
-  r.b113 <- next_r.b113;
-  let r_expected = { r_expected with b113 = next_r.b113 } in
-  mark_test_run 921;
-  let test = eq r r_expected in
-  if not test then failwithf "test 921 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a113; b113 = #{ a40 } } = r in
-  let expected_a113 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 922;
-  let test = int64x2_u_equal expected_a113 a113 in
-  if not test then failwithf "test 922 failed";
-  let expected_a40 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
-  mark_test_run 923;
-  let test = int64x2_u_equal expected_a40 a40 in
-  if not test then failwithf "test 923 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a113; b113 } = r in
-  let expected_a113 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 924;
-  let test = int64x2_u_equal expected_a113 a113 in
-  if not test then failwithf "test 924 failed";
-  let expected_b113 = #{ a40 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
-  mark_test_run 925;
-  let test = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) expected_b113 b113 in
-  if not test then failwithf "test 925 failed";
-
-  (***********************************************)
-  (*   t114 = { int64x2#; #{ int64x2#; int } }   *)
-  (***********************************************)
-  let r = stack_ { a114 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b114 = #{ a42 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b42 = 4 } } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a114 *)
-  let actual = r.a114 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 926;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 926 failed";
-  (* Paths of depth 1 *)
-  (* .b114 *)
-  let actual = r.b114 in
-  let expected = #{ a42 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b42 = 4 } in
-  mark_test_run 927;
-  let test = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) actual expected in
-  if not test then failwithf "test 927 failed";
-  (* Paths of depth 2 *)
-  (* .b114.#a42 *)
-  let actual = r.b114.#a42 in
-  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
-  mark_test_run 928;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 928 failed";
-  (* .b114.#b42 *)
-  let actual = r.b114.#b42 in
-  let expected = 4 in
-  mark_test_run 929;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 929 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a114 = a1141; b114 = b1141 } { a114 = a1142; b114 = b1142 } -> int64x2_u_equal a1141 a1142 && (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) b1141 b1142) in
-  let next_r = stack_ { a114 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b114 = #{ a42 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); b42 = 104 } } in
-  let r_expected = stack_ { a114 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b114 = #{ a42 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b42 = 4 } } in
-  (* .a114 *)
-  r.a114 <- next_r.a114;
-  let r_expected = { r_expected with a114 = next_r.a114 } in
-  mark_test_run 930;
-  let test = eq r r_expected in
-  if not test then failwithf "test 930 failed";
-  Gc.compact ();
-  (* .b114 *)
-  r.b114 <- next_r.b114;
-  let r_expected = { r_expected with b114 = next_r.b114 } in
-  mark_test_run 931;
-  let test = eq r r_expected in
-  if not test then failwithf "test 931 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a114; b114 = #{ a42; b42 } } = r in
-  let expected_a114 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 932;
-  let test = int64x2_u_equal expected_a114 a114 in
-  if not test then failwithf "test 932 failed";
-  let expected_a42 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
-  mark_test_run 933;
-  let test = int64x2_u_equal expected_a42 a42 in
-  if not test then failwithf "test 933 failed";
-  let expected_b42 = 104 in
-  mark_test_run 934;
-  let test = (fun a b -> Int.equal a b) expected_b42 b42 in
-  if not test then failwithf "test 934 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a114; b114 } = r in
-  let expected_a114 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 935;
-  let test = int64x2_u_equal expected_a114 a114 in
-  if not test then failwithf "test 935 failed";
-  let expected_b114 = #{ a42 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); b42 = 104 } in
-  mark_test_run 936;
-  let test = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) expected_b114 b114 in
-  if not test then failwithf "test 936 failed";
+  let expected_a114 = #100. in
+  mark_test_run 903;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a114 a114 in
+  if not test then failwithf "test 903 failed";
+  let expected_b114 = 101. in
+  mark_test_run 904;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b114 b114 in
+  if not test then failwithf "test 904 failed";
 
-  (****************************************************)
-  (*   t115 = { int64x2#; #{ int64x2#; int64x2# } }   *)
-  (****************************************************)
-  let r = stack_ { a115 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b115 = #{ a44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b44 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } } in
+  (***************************************)
+  (*   t115 = { float#; float; float }   *)
+  (***************************************)
+  let r = stack_ { a115 = #0.; b115 = 1.; c115 = 2. } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a115 *)
   let actual = r.a115 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 937;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 937 failed";
+  let expected = #0. in
+  mark_test_run 905;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 905 failed";
   (* Paths of depth 1 *)
   (* .b115 *)
   let actual = r.b115 in
-  let expected = #{ a44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b44 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
-  mark_test_run 938;
-  let test = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) actual expected in
-  if not test then failwithf "test 938 failed";
-  (* Paths of depth 2 *)
-  (* .b115.#a44 *)
-  let actual = r.b115.#a44 in
-  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
-  mark_test_run 939;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 939 failed";
-  (* .b115.#b44 *)
-  let actual = r.b115.#b44 in
-  let expected = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) in
-  mark_test_run 940;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 940 failed";
+  let expected = 1. in
+  mark_test_run 906;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 906 failed";
+  (* Paths of depth 1 *)
+  (* .c115 *)
+  let actual = r.c115 in
+  let expected = 2. in
+  mark_test_run 907;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 907 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a115 = a1151; b115 = b1151 } { a115 = a1152; b115 = b1152 } -> int64x2_u_equal a1151 a1152 && (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) b1151 b1152) in
-  let next_r = stack_ { a115 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b115 = #{ a44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); b44 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } } in
-  let r_expected = stack_ { a115 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b115 = #{ a44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b44 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } } in
+  let eq = (fun { a115 = a1151; b115 = b1151; c115 = c1151 } { a115 = a1152; b115 = b1152; c115 = c1152 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1151 a1152 && (fun a b -> Float.equal (globalize a) (globalize b)) b1151 b1152 && (fun a b -> Float.equal (globalize a) (globalize b)) c1151 c1152) in
+  let next_r = stack_ { a115 = #100.; b115 = 101.; c115 = 102. } in
+  let r_expected = stack_ { a115 = #0.; b115 = 1.; c115 = 2. } in
   (* .a115 *)
   r.a115 <- next_r.a115;
   let r_expected = { r_expected with a115 = next_r.a115 } in
-  mark_test_run 941;
+  mark_test_run 908;
   let test = eq r r_expected in
-  if not test then failwithf "test 941 failed";
+  if not test then failwithf "test 908 failed";
   Gc.compact ();
   (* .b115 *)
   r.b115 <- next_r.b115;
   let r_expected = { r_expected with b115 = next_r.b115 } in
+  mark_test_run 909;
+  let test = eq r r_expected in
+  if not test then failwithf "test 909 failed";
+  Gc.compact ();
+  (* .c115 *)
+  r.c115 <- next_r.c115;
+  let r_expected = { r_expected with c115 = next_r.c115 } in
+  mark_test_run 910;
+  let test = eq r r_expected in
+  if not test then failwithf "test 910 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a115; b115; c115 } = r in
+  let expected_a115 = #100. in
+  mark_test_run 911;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a115 a115 in
+  if not test then failwithf "test 911 failed";
+  let expected_b115 = 101. in
+  mark_test_run 912;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b115 b115 in
+  if not test then failwithf "test 912 failed";
+  let expected_c115 = 102. in
+  mark_test_run 913;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_c115 c115 in
+  if not test then failwithf "test 913 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a115; b115; c115 } = r in
+  let expected_a115 = #100. in
+  mark_test_run 914;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a115 a115 in
+  if not test then failwithf "test 914 failed";
+  let expected_b115 = 101. in
+  mark_test_run 915;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b115 b115 in
+  if not test then failwithf "test 915 failed";
+  let expected_c115 = 102. in
+  mark_test_run 916;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_c115 c115 in
+  if not test then failwithf "test 916 failed";
+
+  (****************************************)
+  (*   t116 = { float#; float; float# }   *)
+  (****************************************)
+  let r = stack_ { a116 = #0.; b116 = 1.; c116 = #2. } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a116 *)
+  let actual = r.a116 in
+  let expected = #0. in
+  mark_test_run 917;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 917 failed";
+  (* Paths of depth 1 *)
+  (* .b116 *)
+  let actual = r.b116 in
+  let expected = 1. in
+  mark_test_run 918;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 918 failed";
+  (* Paths of depth 1 *)
+  (* .c116 *)
+  let actual = r.c116 in
+  let expected = #2. in
+  mark_test_run 919;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 919 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a116 = a1161; b116 = b1161; c116 = c1161 } { a116 = a1162; b116 = b1162; c116 = c1162 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1161 a1162 && (fun a b -> Float.equal (globalize a) (globalize b)) b1161 b1162 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) c1161 c1162) in
+  let next_r = stack_ { a116 = #100.; b116 = 101.; c116 = #102. } in
+  let r_expected = stack_ { a116 = #0.; b116 = 1.; c116 = #2. } in
+  (* .a116 *)
+  r.a116 <- next_r.a116;
+  let r_expected = { r_expected with a116 = next_r.a116 } in
+  mark_test_run 920;
+  let test = eq r r_expected in
+  if not test then failwithf "test 920 failed";
+  Gc.compact ();
+  (* .b116 *)
+  r.b116 <- next_r.b116;
+  let r_expected = { r_expected with b116 = next_r.b116 } in
+  mark_test_run 921;
+  let test = eq r r_expected in
+  if not test then failwithf "test 921 failed";
+  Gc.compact ();
+  (* .c116 *)
+  r.c116 <- next_r.c116;
+  let r_expected = { r_expected with c116 = next_r.c116 } in
+  mark_test_run 922;
+  let test = eq r r_expected in
+  if not test then failwithf "test 922 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a116; b116; c116 } = r in
+  let expected_a116 = #100. in
+  mark_test_run 923;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a116 a116 in
+  if not test then failwithf "test 923 failed";
+  let expected_b116 = 101. in
+  mark_test_run 924;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b116 b116 in
+  if not test then failwithf "test 924 failed";
+  let expected_c116 = #102. in
+  mark_test_run 925;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_c116 c116 in
+  if not test then failwithf "test 925 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a116; b116; c116 } = r in
+  let expected_a116 = #100. in
+  mark_test_run 926;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a116 a116 in
+  if not test then failwithf "test 926 failed";
+  let expected_b116 = 101. in
+  mark_test_run 927;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b116 b116 in
+  if not test then failwithf "test 927 failed";
+  let expected_c116 = #102. in
+  mark_test_run 928;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_c116 c116 in
+  if not test then failwithf "test 928 failed";
+
+  (*********************************)
+  (*   t117 = { float#; float# }   *)
+  (*********************************)
+  let r = stack_ { a117 = #0.; b117 = #1. } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a117 *)
+  let actual = r.a117 in
+  let expected = #0. in
+  mark_test_run 929;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 929 failed";
+  (* Paths of depth 1 *)
+  (* .b117 *)
+  let actual = r.b117 in
+  let expected = #1. in
+  mark_test_run 930;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 930 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a117 = a1171; b117 = b1171 } { a117 = a1172; b117 = b1172 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1171 a1172 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1171 b1172) in
+  let next_r = stack_ { a117 = #100.; b117 = #101. } in
+  let r_expected = stack_ { a117 = #0.; b117 = #1. } in
+  (* .a117 *)
+  r.a117 <- next_r.a117;
+  let r_expected = { r_expected with a117 = next_r.a117 } in
+  mark_test_run 931;
+  let test = eq r r_expected in
+  if not test then failwithf "test 931 failed";
+  Gc.compact ();
+  (* .b117 *)
+  r.b117 <- next_r.b117;
+  let r_expected = { r_expected with b117 = next_r.b117 } in
+  mark_test_run 932;
+  let test = eq r r_expected in
+  if not test then failwithf "test 932 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a117; b117 } = r in
+  let expected_a117 = #100. in
+  mark_test_run 933;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a117 a117 in
+  if not test then failwithf "test 933 failed";
+  let expected_b117 = #101. in
+  mark_test_run 934;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b117 b117 in
+  if not test then failwithf "test 934 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a117; b117 } = r in
+  let expected_a117 = #100. in
+  mark_test_run 935;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a117 a117 in
+  if not test then failwithf "test 935 failed";
+  let expected_b117 = #101. in
+  mark_test_run 936;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b117 b117 in
+  if not test then failwithf "test 936 failed";
+
+  (****************************************)
+  (*   t118 = { float#; float#; float }   *)
+  (****************************************)
+  let r = stack_ { a118 = #0.; b118 = #1.; c118 = 2. } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a118 *)
+  let actual = r.a118 in
+  let expected = #0. in
+  mark_test_run 937;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 937 failed";
+  (* Paths of depth 1 *)
+  (* .b118 *)
+  let actual = r.b118 in
+  let expected = #1. in
+  mark_test_run 938;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 938 failed";
+  (* Paths of depth 1 *)
+  (* .c118 *)
+  let actual = r.c118 in
+  let expected = 2. in
+  mark_test_run 939;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 939 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a118 = a1181; b118 = b1181; c118 = c1181 } { a118 = a1182; b118 = b1182; c118 = c1182 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1181 a1182 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1181 b1182 && (fun a b -> Float.equal (globalize a) (globalize b)) c1181 c1182) in
+  let next_r = stack_ { a118 = #100.; b118 = #101.; c118 = 102. } in
+  let r_expected = stack_ { a118 = #0.; b118 = #1.; c118 = 2. } in
+  (* .a118 *)
+  r.a118 <- next_r.a118;
+  let r_expected = { r_expected with a118 = next_r.a118 } in
+  mark_test_run 940;
+  let test = eq r r_expected in
+  if not test then failwithf "test 940 failed";
+  Gc.compact ();
+  (* .b118 *)
+  r.b118 <- next_r.b118;
+  let r_expected = { r_expected with b118 = next_r.b118 } in
+  mark_test_run 941;
+  let test = eq r r_expected in
+  if not test then failwithf "test 941 failed";
+  Gc.compact ();
+  (* .c118 *)
+  r.c118 <- next_r.c118;
+  let r_expected = { r_expected with c118 = next_r.c118 } in
   mark_test_run 942;
   let test = eq r r_expected in
   if not test then failwithf "test 942 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a115; b115 = #{ a44; b44 } } = r in
-  let expected_a115 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  let { a118; b118; c118 } = r in
+  let expected_a118 = #100. in
   mark_test_run 943;
-  let test = int64x2_u_equal expected_a115 a115 in
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a118 a118 in
   if not test then failwithf "test 943 failed";
-  let expected_a44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  let expected_b118 = #101. in
   mark_test_run 944;
-  let test = int64x2_u_equal expected_a44 a44 in
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b118 b118 in
   if not test then failwithf "test 944 failed";
-  let expected_b44 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) in
+  let expected_c118 = 102. in
   mark_test_run 945;
-  let test = int64x2_u_equal expected_b44 b44 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_c118 c118 in
   if not test then failwithf "test 945 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a115; b115 } = r in
-  let expected_a115 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  let { a118; b118; c118 } = r in
+  let expected_a118 = #100. in
   mark_test_run 946;
-  let test = int64x2_u_equal expected_a115 a115 in
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a118 a118 in
   if not test then failwithf "test 946 failed";
-  let expected_b115 = #{ a44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); b44 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } in
+  let expected_b118 = #101. in
   mark_test_run 947;
-  let test = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) expected_b115 b115 in
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b118 b118 in
   if not test then failwithf "test 947 failed";
-
-  (***************************)
-  (*   t116 = { #{ int } }   *)
-  (***************************)
-  let r = stack_ { a116 = #{ a18 = 0 } } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a116 *)
-  let actual = r.a116 in
-  let expected = #{ a18 = 0 } in
+  let expected_c118 = 102. in
   mark_test_run 948;
-  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) actual expected in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_c118 c118 in
   if not test then failwithf "test 948 failed";
-  (* Paths of depth 2 *)
-  (* .a116.#a18 *)
-  let actual = r.a116.#a18 in
-  let expected = 0 in
-  mark_test_run 949;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 949 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a116 = a1161 } { a116 = a1162 } -> (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) a1161 a1162) in
-  let next_r = stack_ { a116 = #{ a18 = 100 } } in
-  let r_expected = stack_ { a116 = #{ a18 = 0 } } in
-  (* .a116 *)
-  r.a116 <- next_r.a116;
-  let r_expected = { r_expected with a116 = next_r.a116 } in
-  mark_test_run 950;
-  let test = eq r r_expected in
-  if not test then failwithf "test 950 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a116 = #{ a18 } } = r in
-  let expected_a18 = 100 in
-  mark_test_run 951;
-  let test = (fun a b -> Int.equal a b) expected_a18 a18 in
-  if not test then failwithf "test 951 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a116 } = r in
-  let expected_a116 = #{ a18 = 100 } in
-  mark_test_run 952;
-  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) expected_a116 a116 in
-  if not test then failwithf "test 952 failed";
 
-  (********************************)
-  (*   t117 = { #{ int }; int }   *)
-  (********************************)
-  let r = stack_ { a117 = #{ a18 = 0 }; b117 = 1 } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a117 *)
-  let actual = r.a117 in
-  let expected = #{ a18 = 0 } in
-  mark_test_run 953;
-  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) actual expected in
-  if not test then failwithf "test 953 failed";
-  (* Paths of depth 2 *)
-  (* .a117.#a18 *)
-  let actual = r.a117.#a18 in
-  let expected = 0 in
-  mark_test_run 954;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 954 failed";
-  (* Paths of depth 1 *)
-  (* .b117 *)
-  let actual = r.b117 in
-  let expected = 1 in
-  mark_test_run 955;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 955 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a117 = a1171; b117 = b1171 } { a117 = a1172; b117 = b1172 } -> (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) a1171 a1172 && (fun a b -> Int.equal a b) b1171 b1172) in
-  let next_r = stack_ { a117 = #{ a18 = 100 }; b117 = 101 } in
-  let r_expected = stack_ { a117 = #{ a18 = 0 }; b117 = 1 } in
-  (* .a117 *)
-  r.a117 <- next_r.a117;
-  let r_expected = { r_expected with a117 = next_r.a117 } in
-  mark_test_run 956;
-  let test = eq r r_expected in
-  if not test then failwithf "test 956 failed";
-  Gc.compact ();
-  (* .b117 *)
-  r.b117 <- next_r.b117;
-  let r_expected = { r_expected with b117 = next_r.b117 } in
-  mark_test_run 957;
-  let test = eq r r_expected in
-  if not test then failwithf "test 957 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a117 = #{ a18 }; b117 } = r in
-  let expected_a18 = 100 in
-  mark_test_run 958;
-  let test = (fun a b -> Int.equal a b) expected_a18 a18 in
-  if not test then failwithf "test 958 failed";
-  let expected_b117 = 101 in
-  mark_test_run 959;
-  let test = (fun a b -> Int.equal a b) expected_b117 b117 in
-  if not test then failwithf "test 959 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a117; b117 } = r in
-  let expected_a117 = #{ a18 = 100 } in
-  mark_test_run 960;
-  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) expected_a117 a117 in
-  if not test then failwithf "test 960 failed";
-  let expected_b117 = 101 in
-  mark_test_run 961;
-  let test = (fun a b -> Int.equal a b) expected_b117 b117 in
-  if not test then failwithf "test 961 failed";
-
-  (***********************************)
-  (*   t118 = { #{ int }; int32# }   *)
-  (***********************************)
-  let r = stack_ { a118 = #{ a18 = 0 }; b118 = #1l } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a118 *)
-  let actual = r.a118 in
-  let expected = #{ a18 = 0 } in
-  mark_test_run 962;
-  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) actual expected in
-  if not test then failwithf "test 962 failed";
-  (* Paths of depth 2 *)
-  (* .a118.#a18 *)
-  let actual = r.a118.#a18 in
-  let expected = 0 in
-  mark_test_run 963;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 963 failed";
-  (* Paths of depth 1 *)
-  (* .b118 *)
-  let actual = r.b118 in
-  let expected = #1l in
-  mark_test_run 964;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 964 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a118 = a1181; b118 = b1181 } { a118 = a1182; b118 = b1182 } -> (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) a1181 a1182 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1181 b1182) in
-  let next_r = stack_ { a118 = #{ a18 = 100 }; b118 = #101l } in
-  let r_expected = stack_ { a118 = #{ a18 = 0 }; b118 = #1l } in
-  (* .a118 *)
-  r.a118 <- next_r.a118;
-  let r_expected = { r_expected with a118 = next_r.a118 } in
-  mark_test_run 965;
-  let test = eq r r_expected in
-  if not test then failwithf "test 965 failed";
-  Gc.compact ();
-  (* .b118 *)
-  r.b118 <- next_r.b118;
-  let r_expected = { r_expected with b118 = next_r.b118 } in
-  mark_test_run 966;
-  let test = eq r r_expected in
-  if not test then failwithf "test 966 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a118 = #{ a18 }; b118 } = r in
-  let expected_a18 = 100 in
-  mark_test_run 967;
-  let test = (fun a b -> Int.equal a b) expected_a18 a18 in
-  if not test then failwithf "test 967 failed";
-  let expected_b118 = #101l in
-  mark_test_run 968;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b118 b118 in
-  if not test then failwithf "test 968 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a118; b118 } = r in
-  let expected_a118 = #{ a18 = 100 } in
-  mark_test_run 969;
-  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) expected_a118 a118 in
-  if not test then failwithf "test 969 failed";
-  let expected_b118 = #101l in
-  mark_test_run 970;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b118 b118 in
-  if not test then failwithf "test 970 failed";
-
-  (**********************************)
-  (*   t119 = { #{ int }; float }   *)
-  (**********************************)
-  let r = stack_ { a119 = #{ a18 = 0 }; b119 = 1. } in
+  (*****************************************)
+  (*   t119 = { float#; float#; float# }   *)
+  (*****************************************)
+  let r = stack_ { a119 = #0.; b119 = #1.; c119 = #2. } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a119 *)
   let actual = r.a119 in
-  let expected = #{ a18 = 0 } in
-  mark_test_run 971;
-  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) actual expected in
-  if not test then failwithf "test 971 failed";
-  (* Paths of depth 2 *)
-  (* .a119.#a18 *)
-  let actual = r.a119.#a18 in
-  let expected = 0 in
-  mark_test_run 972;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 972 failed";
+  let expected = #0. in
+  mark_test_run 949;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 949 failed";
   (* Paths of depth 1 *)
   (* .b119 *)
   let actual = r.b119 in
+  let expected = #1. in
+  mark_test_run 950;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 950 failed";
+  (* Paths of depth 1 *)
+  (* .c119 *)
+  let actual = r.c119 in
+  let expected = #2. in
+  mark_test_run 951;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 951 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a119 = a1191; b119 = b1191; c119 = c1191 } { a119 = a1192; b119 = b1192; c119 = c1192 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1191 a1192 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1191 b1192 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) c1191 c1192) in
+  let next_r = stack_ { a119 = #100.; b119 = #101.; c119 = #102. } in
+  let r_expected = stack_ { a119 = #0.; b119 = #1.; c119 = #2. } in
+  (* .a119 *)
+  r.a119 <- next_r.a119;
+  let r_expected = { r_expected with a119 = next_r.a119 } in
+  mark_test_run 952;
+  let test = eq r r_expected in
+  if not test then failwithf "test 952 failed";
+  Gc.compact ();
+  (* .b119 *)
+  r.b119 <- next_r.b119;
+  let r_expected = { r_expected with b119 = next_r.b119 } in
+  mark_test_run 953;
+  let test = eq r r_expected in
+  if not test then failwithf "test 953 failed";
+  Gc.compact ();
+  (* .c119 *)
+  r.c119 <- next_r.c119;
+  let r_expected = { r_expected with c119 = next_r.c119 } in
+  mark_test_run 954;
+  let test = eq r r_expected in
+  if not test then failwithf "test 954 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a119; b119; c119 } = r in
+  let expected_a119 = #100. in
+  mark_test_run 955;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a119 a119 in
+  if not test then failwithf "test 955 failed";
+  let expected_b119 = #101. in
+  mark_test_run 956;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b119 b119 in
+  if not test then failwithf "test 956 failed";
+  let expected_c119 = #102. in
+  mark_test_run 957;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_c119 c119 in
+  if not test then failwithf "test 957 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a119; b119; c119 } = r in
+  let expected_a119 = #100. in
+  mark_test_run 958;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a119 a119 in
+  if not test then failwithf "test 958 failed";
+  let expected_b119 = #101. in
+  mark_test_run 959;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b119 b119 in
+  if not test then failwithf "test 959 failed";
+  let expected_c119 = #102. in
+  mark_test_run 960;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_c119 c119 in
+  if not test then failwithf "test 960 failed";
+
+  (*************************************)
+  (*   t120 = { float#; #{ float } }   *)
+  (*************************************)
+  let r = stack_ { a120 = #0.; b120 = #{ a34 = 1. } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a120 *)
+  let actual = r.a120 in
+  let expected = #0. in
+  mark_test_run 961;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 961 failed";
+  (* Paths of depth 1 *)
+  (* .b120 *)
+  let actual = r.b120 in
+  let expected = #{ a34 = 1. } in
+  mark_test_run 962;
+  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) actual expected in
+  if not test then failwithf "test 962 failed";
+  (* Paths of depth 2 *)
+  (* .b120.#a34 *)
+  let actual = r.b120.#a34 in
   let expected = 1. in
+  mark_test_run 963;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 963 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a120 = a1201; b120 = b1201 } { a120 = a1202; b120 = b1202 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1201 a1202 && (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) b1201 b1202) in
+  let next_r = stack_ { a120 = #100.; b120 = #{ a34 = 101. } } in
+  let r_expected = stack_ { a120 = #0.; b120 = #{ a34 = 1. } } in
+  (* .a120 *)
+  r.a120 <- next_r.a120;
+  let r_expected = { r_expected with a120 = next_r.a120 } in
+  mark_test_run 964;
+  let test = eq r r_expected in
+  if not test then failwithf "test 964 failed";
+  Gc.compact ();
+  (* .b120 *)
+  r.b120 <- next_r.b120;
+  let r_expected = { r_expected with b120 = next_r.b120 } in
+  mark_test_run 965;
+  let test = eq r r_expected in
+  if not test then failwithf "test 965 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a120; b120 = #{ a34 } } = r in
+  let expected_a120 = #100. in
+  mark_test_run 966;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a120 a120 in
+  if not test then failwithf "test 966 failed";
+  let expected_a34 = 101. in
+  mark_test_run 967;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a34 a34 in
+  if not test then failwithf "test 967 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a120; b120 } = r in
+  let expected_a120 = #100. in
+  mark_test_run 968;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a120 a120 in
+  if not test then failwithf "test 968 failed";
+  let expected_b120 = #{ a34 = 101. } in
+  mark_test_run 969;
+  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) expected_b120 b120 in
+  if not test then failwithf "test 969 failed";
+
+  (********************************************)
+  (*   t121 = { float#; #{ float; float } }   *)
+  (********************************************)
+  let r = stack_ { a121 = #0.; b121 = #{ a38 = 1.; b38 = 2. } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a121 *)
+  let actual = r.a121 in
+  let expected = #0. in
+  mark_test_run 970;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 970 failed";
+  (* Paths of depth 1 *)
+  (* .b121 *)
+  let actual = r.b121 in
+  let expected = #{ a38 = 1.; b38 = 2. } in
+  mark_test_run 971;
+  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) actual expected in
+  if not test then failwithf "test 971 failed";
+  (* Paths of depth 2 *)
+  (* .b121.#a38 *)
+  let actual = r.b121.#a38 in
+  let expected = 1. in
+  mark_test_run 972;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 972 failed";
+  (* .b121.#b38 *)
+  let actual = r.b121.#b38 in
+  let expected = 2. in
   mark_test_run 973;
   let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
   if not test then failwithf "test 973 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a119 = a1191; b119 = b1191 } { a119 = a1192; b119 = b1192 } -> (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) a1191 a1192 && (fun a b -> Float.equal (globalize a) (globalize b)) b1191 b1192) in
-  let next_r = stack_ { a119 = #{ a18 = 100 }; b119 = 101. } in
-  let r_expected = stack_ { a119 = #{ a18 = 0 }; b119 = 1. } in
-  (* .a119 *)
-  r.a119 <- next_r.a119;
-  let r_expected = { r_expected with a119 = next_r.a119 } in
+  let eq = (fun { a121 = a1211; b121 = b1211 } { a121 = a1212; b121 = b1212 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1211 a1212 && (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) b1211 b1212) in
+  let next_r = stack_ { a121 = #100.; b121 = #{ a38 = 101.; b38 = 102. } } in
+  let r_expected = stack_ { a121 = #0.; b121 = #{ a38 = 1.; b38 = 2. } } in
+  (* .a121 *)
+  r.a121 <- next_r.a121;
+  let r_expected = { r_expected with a121 = next_r.a121 } in
   mark_test_run 974;
   let test = eq r r_expected in
   if not test then failwithf "test 974 failed";
   Gc.compact ();
-  (* .b119 *)
-  r.b119 <- next_r.b119;
-  let r_expected = { r_expected with b119 = next_r.b119 } in
+  (* .b121 *)
+  r.b121 <- next_r.b121;
+  let r_expected = { r_expected with b121 = next_r.b121 } in
   mark_test_run 975;
   let test = eq r r_expected in
   if not test then failwithf "test 975 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a119 = #{ a18 }; b119 } = r in
-  let expected_a18 = 100 in
+  let { a121; b121 = #{ a38; b38 } } = r in
+  let expected_a121 = #100. in
   mark_test_run 976;
-  let test = (fun a b -> Int.equal a b) expected_a18 a18 in
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a121 a121 in
   if not test then failwithf "test 976 failed";
-  let expected_b119 = 101. in
+  let expected_a38 = 101. in
   mark_test_run 977;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b119 b119 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a38 a38 in
   if not test then failwithf "test 977 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a119; b119 } = r in
-  let expected_a119 = #{ a18 = 100 } in
+  let expected_b38 = 102. in
   mark_test_run 978;
-  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) expected_a119 a119 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b38 b38 in
   if not test then failwithf "test 978 failed";
-  let expected_b119 = 101. in
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a121; b121 } = r in
+  let expected_a121 = #100. in
   mark_test_run 979;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b119 b119 in
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a121 a121 in
   if not test then failwithf "test 979 failed";
-
-  (*************************************)
-  (*   t120 = { #{ int }; int64x2# }   *)
-  (*************************************)
-  let r = stack_ { a120 = #{ a18 = 0 }; b120 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a120 *)
-  let actual = r.a120 in
-  let expected = #{ a18 = 0 } in
+  let expected_b121 = #{ a38 = 101.; b38 = 102. } in
   mark_test_run 980;
-  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) actual expected in
+  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) expected_b121 b121 in
   if not test then failwithf "test 980 failed";
-  (* Paths of depth 2 *)
-  (* .a120.#a18 *)
-  let actual = r.a120.#a18 in
-  let expected = 0 in
-  mark_test_run 981;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 981 failed";
-  (* Paths of depth 1 *)
-  (* .b120 *)
-  let actual = r.b120 in
-  let expected = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) in
-  mark_test_run 982;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 982 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a120 = a1201; b120 = b1201 } { a120 = a1202; b120 = b1202 } -> (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) a1201 a1202 && int64x2_u_equal b1201 b1202) in
-  let next_r = stack_ { a120 = #{ a18 = 100 }; b120 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } in
-  let r_expected = stack_ { a120 = #{ a18 = 0 }; b120 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
-  (* .a120 *)
-  r.a120 <- next_r.a120;
-  let r_expected = { r_expected with a120 = next_r.a120 } in
-  mark_test_run 983;
-  let test = eq r r_expected in
-  if not test then failwithf "test 983 failed";
-  Gc.compact ();
-  (* .b120 *)
-  r.b120 <- next_r.b120;
-  let r_expected = { r_expected with b120 = next_r.b120 } in
-  mark_test_run 984;
-  let test = eq r r_expected in
-  if not test then failwithf "test 984 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a120 = #{ a18 }; b120 } = r in
-  let expected_a18 = 100 in
-  mark_test_run 985;
-  let test = (fun a b -> Int.equal a b) expected_a18 a18 in
-  if not test then failwithf "test 985 failed";
-  let expected_b120 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) in
-  mark_test_run 986;
-  let test = int64x2_u_equal expected_b120 b120 in
-  if not test then failwithf "test 986 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a120; b120 } = r in
-  let expected_a120 = #{ a18 = 100 } in
-  mark_test_run 987;
-  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) expected_a120 a120 in
-  if not test then failwithf "test 987 failed";
-  let expected_b120 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) in
-  mark_test_run 988;
-  let test = int64x2_u_equal expected_b120 b120 in
-  if not test then failwithf "test 988 failed";
 
-  (********************************)
-  (*   t121 = { #{ int; int } }   *)
-  (********************************)
-  let r = stack_ { a121 = #{ a20 = 0; b20 = 1 } } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a121 *)
-  let actual = r.a121 in
-  let expected = #{ a20 = 0; b20 = 1 } in
-  mark_test_run 989;
-  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) actual expected in
-  if not test then failwithf "test 989 failed";
-  (* Paths of depth 2 *)
-  (* .a121.#a20 *)
-  let actual = r.a121.#a20 in
-  let expected = 0 in
-  mark_test_run 990;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 990 failed";
-  (* .a121.#b20 *)
-  let actual = r.a121.#b20 in
-  let expected = 1 in
-  mark_test_run 991;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 991 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a121 = a1211 } { a121 = a1212 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) a1211 a1212) in
-  let next_r = stack_ { a121 = #{ a20 = 100; b20 = 101 } } in
-  let r_expected = stack_ { a121 = #{ a20 = 0; b20 = 1 } } in
-  (* .a121 *)
-  r.a121 <- next_r.a121;
-  let r_expected = { r_expected with a121 = next_r.a121 } in
-  mark_test_run 992;
-  let test = eq r r_expected in
-  if not test then failwithf "test 992 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a121 = #{ a20; b20 } } = r in
-  let expected_a20 = 100 in
-  mark_test_run 993;
-  let test = (fun a b -> Int.equal a b) expected_a20 a20 in
-  if not test then failwithf "test 993 failed";
-  let expected_b20 = 101 in
-  mark_test_run 994;
-  let test = (fun a b -> Int.equal a b) expected_b20 b20 in
-  if not test then failwithf "test 994 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a121 } = r in
-  let expected_a121 = #{ a20 = 100; b20 = 101 } in
-  mark_test_run 995;
-  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) expected_a121 a121 in
-  if not test then failwithf "test 995 failed";
-
-  (*************************************)
-  (*   t122 = { #{ int; int }; int }   *)
-  (*************************************)
-  let r = stack_ { a122 = #{ a20 = 0; b20 = 1 }; b122 = 2 } in
+  (*********************************************)
+  (*   t122 = { float#; #{ float; float# } }   *)
+  (*********************************************)
+  let r = stack_ { a122 = #0.; b122 = #{ a105 = 1.; b105 = #2. } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a122 *)
   let actual = r.a122 in
-  let expected = #{ a20 = 0; b20 = 1 } in
-  mark_test_run 996;
-  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) actual expected in
-  if not test then failwithf "test 996 failed";
-  (* Paths of depth 2 *)
-  (* .a122.#a20 *)
-  let actual = r.a122.#a20 in
-  let expected = 0 in
-  mark_test_run 997;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 997 failed";
-  (* .a122.#b20 *)
-  let actual = r.a122.#b20 in
-  let expected = 1 in
-  mark_test_run 998;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 998 failed";
+  let expected = #0. in
+  mark_test_run 981;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 981 failed";
   (* Paths of depth 1 *)
   (* .b122 *)
   let actual = r.b122 in
-  let expected = 2 in
-  mark_test_run 999;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 999 failed";
+  let expected = #{ a105 = 1.; b105 = #2. } in
+  mark_test_run 982;
+  let test = (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) actual expected in
+  if not test then failwithf "test 982 failed";
+  (* Paths of depth 2 *)
+  (* .b122.#a105 *)
+  let actual = r.b122.#a105 in
+  let expected = 1. in
+  mark_test_run 983;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 983 failed";
+  (* .b122.#b105 *)
+  let actual = r.b122.#b105 in
+  let expected = #2. in
+  mark_test_run 984;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 984 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a122 = a1221; b122 = b1221 } { a122 = a1222; b122 = b1222 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) a1221 a1222 && (fun a b -> Int.equal a b) b1221 b1222) in
-  let next_r = stack_ { a122 = #{ a20 = 100; b20 = 101 }; b122 = 102 } in
-  let r_expected = stack_ { a122 = #{ a20 = 0; b20 = 1 }; b122 = 2 } in
+  let eq = (fun { a122 = a1221; b122 = b1221 } { a122 = a1222; b122 = b1222 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1221 a1222 && (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) b1221 b1222) in
+  let next_r = stack_ { a122 = #100.; b122 = #{ a105 = 101.; b105 = #102. } } in
+  let r_expected = stack_ { a122 = #0.; b122 = #{ a105 = 1.; b105 = #2. } } in
   (* .a122 *)
   r.a122 <- next_r.a122;
   let r_expected = { r_expected with a122 = next_r.a122 } in
-  mark_test_run 1000;
+  mark_test_run 985;
   let test = eq r r_expected in
-  if not test then failwithf "test 1000 failed";
+  if not test then failwithf "test 985 failed";
   Gc.compact ();
   (* .b122 *)
   r.b122 <- next_r.b122;
   let r_expected = { r_expected with b122 = next_r.b122 } in
-  mark_test_run 1001;
+  mark_test_run 986;
   let test = eq r r_expected in
-  if not test then failwithf "test 1001 failed";
+  if not test then failwithf "test 986 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a122 = #{ a20; b20 }; b122 } = r in
-  let expected_a20 = 100 in
-  mark_test_run 1002;
-  let test = (fun a b -> Int.equal a b) expected_a20 a20 in
-  if not test then failwithf "test 1002 failed";
-  let expected_b20 = 101 in
-  mark_test_run 1003;
-  let test = (fun a b -> Int.equal a b) expected_b20 b20 in
-  if not test then failwithf "test 1003 failed";
-  let expected_b122 = 102 in
-  mark_test_run 1004;
-  let test = (fun a b -> Int.equal a b) expected_b122 b122 in
-  if not test then failwithf "test 1004 failed";
+  let { a122; b122 = #{ a105; b105 } } = r in
+  let expected_a122 = #100. in
+  mark_test_run 987;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a122 a122 in
+  if not test then failwithf "test 987 failed";
+  let expected_a105 = 101. in
+  mark_test_run 988;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a105 a105 in
+  if not test then failwithf "test 988 failed";
+  let expected_b105 = #102. in
+  mark_test_run 989;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b105 b105 in
+  if not test then failwithf "test 989 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a122; b122 } = r in
-  let expected_a122 = #{ a20 = 100; b20 = 101 } in
-  mark_test_run 1005;
-  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) expected_a122 a122 in
-  if not test then failwithf "test 1005 failed";
-  let expected_b122 = 102 in
-  mark_test_run 1006;
-  let test = (fun a b -> Int.equal a b) expected_b122 b122 in
-  if not test then failwithf "test 1006 failed";
+  let expected_a122 = #100. in
+  mark_test_run 990;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a122 a122 in
+  if not test then failwithf "test 990 failed";
+  let expected_b122 = #{ a105 = 101.; b105 = #102. } in
+  mark_test_run 991;
+  let test = (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) expected_b122 b122 in
+  if not test then failwithf "test 991 failed";
 
-  (****************************************)
-  (*   t123 = { #{ int; int }; int32# }   *)
-  (****************************************)
-  let r = stack_ { a123 = #{ a20 = 0; b20 = 1 }; b123 = #2l } in
+  (**************************************)
+  (*   t123 = { float#; #{ float# } }   *)
+  (**************************************)
+  let r = stack_ { a123 = #0.; b123 = #{ a107 = #1. } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a123 *)
   let actual = r.a123 in
-  let expected = #{ a20 = 0; b20 = 1 } in
-  mark_test_run 1007;
-  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) actual expected in
-  if not test then failwithf "test 1007 failed";
-  (* Paths of depth 2 *)
-  (* .a123.#a20 *)
-  let actual = r.a123.#a20 in
-  let expected = 0 in
-  mark_test_run 1008;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1008 failed";
-  (* .a123.#b20 *)
-  let actual = r.a123.#b20 in
-  let expected = 1 in
-  mark_test_run 1009;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1009 failed";
+  let expected = #0. in
+  mark_test_run 992;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 992 failed";
   (* Paths of depth 1 *)
   (* .b123 *)
   let actual = r.b123 in
-  let expected = #2l in
-  mark_test_run 1010;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 1010 failed";
+  let expected = #{ a107 = #1. } in
+  mark_test_run 993;
+  let test = (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) actual expected in
+  if not test then failwithf "test 993 failed";
+  (* Paths of depth 2 *)
+  (* .b123.#a107 *)
+  let actual = r.b123.#a107 in
+  let expected = #1. in
+  mark_test_run 994;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 994 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a123 = a1231; b123 = b1231 } { a123 = a1232; b123 = b1232 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) a1231 a1232 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1231 b1232) in
-  let next_r = stack_ { a123 = #{ a20 = 100; b20 = 101 }; b123 = #102l } in
-  let r_expected = stack_ { a123 = #{ a20 = 0; b20 = 1 }; b123 = #2l } in
+  let eq = (fun { a123 = a1231; b123 = b1231 } { a123 = a1232; b123 = b1232 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1231 a1232 && (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) b1231 b1232) in
+  let next_r = stack_ { a123 = #100.; b123 = #{ a107 = #101. } } in
+  let r_expected = stack_ { a123 = #0.; b123 = #{ a107 = #1. } } in
   (* .a123 *)
   r.a123 <- next_r.a123;
   let r_expected = { r_expected with a123 = next_r.a123 } in
-  mark_test_run 1011;
+  mark_test_run 995;
   let test = eq r r_expected in
-  if not test then failwithf "test 1011 failed";
+  if not test then failwithf "test 995 failed";
   Gc.compact ();
   (* .b123 *)
   r.b123 <- next_r.b123;
   let r_expected = { r_expected with b123 = next_r.b123 } in
-  mark_test_run 1012;
+  mark_test_run 996;
   let test = eq r r_expected in
-  if not test then failwithf "test 1012 failed";
+  if not test then failwithf "test 996 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a123 = #{ a20; b20 }; b123 } = r in
-  let expected_a20 = 100 in
-  mark_test_run 1013;
-  let test = (fun a b -> Int.equal a b) expected_a20 a20 in
-  if not test then failwithf "test 1013 failed";
-  let expected_b20 = 101 in
-  mark_test_run 1014;
-  let test = (fun a b -> Int.equal a b) expected_b20 b20 in
-  if not test then failwithf "test 1014 failed";
-  let expected_b123 = #102l in
-  mark_test_run 1015;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b123 b123 in
-  if not test then failwithf "test 1015 failed";
+  let { a123; b123 = #{ a107 } } = r in
+  let expected_a123 = #100. in
+  mark_test_run 997;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a123 a123 in
+  if not test then failwithf "test 997 failed";
+  let expected_a107 = #101. in
+  mark_test_run 998;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a107 a107 in
+  if not test then failwithf "test 998 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a123; b123 } = r in
-  let expected_a123 = #{ a20 = 100; b20 = 101 } in
-  mark_test_run 1016;
-  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) expected_a123 a123 in
-  if not test then failwithf "test 1016 failed";
-  let expected_b123 = #102l in
-  mark_test_run 1017;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b123 b123 in
-  if not test then failwithf "test 1017 failed";
+  let expected_a123 = #100. in
+  mark_test_run 999;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a123 a123 in
+  if not test then failwithf "test 999 failed";
+  let expected_b123 = #{ a107 = #101. } in
+  mark_test_run 1000;
+  let test = (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) expected_b123 b123 in
+  if not test then failwithf "test 1000 failed";
 
-  (***************************************)
-  (*   t124 = { #{ int; int }; float }   *)
-  (***************************************)
-  let r = stack_ { a124 = #{ a20 = 0; b20 = 1 }; b124 = 2. } in
+  (*********************************************)
+  (*   t124 = { float#; #{ float#; float } }   *)
+  (*********************************************)
+  let r = stack_ { a124 = #0.; b124 = #{ a109 = #1.; b109 = 2. } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a124 *)
   let actual = r.a124 in
-  let expected = #{ a20 = 0; b20 = 1 } in
-  mark_test_run 1018;
-  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) actual expected in
-  if not test then failwithf "test 1018 failed";
-  (* Paths of depth 2 *)
-  (* .a124.#a20 *)
-  let actual = r.a124.#a20 in
-  let expected = 0 in
-  mark_test_run 1019;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1019 failed";
-  (* .a124.#b20 *)
-  let actual = r.a124.#b20 in
-  let expected = 1 in
-  mark_test_run 1020;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1020 failed";
+  let expected = #0. in
+  mark_test_run 1001;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1001 failed";
   (* Paths of depth 1 *)
   (* .b124 *)
   let actual = r.b124 in
+  let expected = #{ a109 = #1.; b109 = 2. } in
+  mark_test_run 1002;
+  let test = (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) actual expected in
+  if not test then failwithf "test 1002 failed";
+  (* Paths of depth 2 *)
+  (* .b124.#a109 *)
+  let actual = r.b124.#a109 in
+  let expected = #1. in
+  mark_test_run 1003;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1003 failed";
+  (* .b124.#b109 *)
+  let actual = r.b124.#b109 in
   let expected = 2. in
-  mark_test_run 1021;
+  mark_test_run 1004;
   let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1021 failed";
+  if not test then failwithf "test 1004 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a124 = a1241; b124 = b1241 } { a124 = a1242; b124 = b1242 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) a1241 a1242 && (fun a b -> Float.equal (globalize a) (globalize b)) b1241 b1242) in
-  let next_r = stack_ { a124 = #{ a20 = 100; b20 = 101 }; b124 = 102. } in
-  let r_expected = stack_ { a124 = #{ a20 = 0; b20 = 1 }; b124 = 2. } in
+  let eq = (fun { a124 = a1241; b124 = b1241 } { a124 = a1242; b124 = b1242 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1241 a1242 && (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) b1241 b1242) in
+  let next_r = stack_ { a124 = #100.; b124 = #{ a109 = #101.; b109 = 102. } } in
+  let r_expected = stack_ { a124 = #0.; b124 = #{ a109 = #1.; b109 = 2. } } in
   (* .a124 *)
   r.a124 <- next_r.a124;
   let r_expected = { r_expected with a124 = next_r.a124 } in
-  mark_test_run 1022;
+  mark_test_run 1005;
   let test = eq r r_expected in
-  if not test then failwithf "test 1022 failed";
+  if not test then failwithf "test 1005 failed";
   Gc.compact ();
   (* .b124 *)
   r.b124 <- next_r.b124;
   let r_expected = { r_expected with b124 = next_r.b124 } in
-  mark_test_run 1023;
+  mark_test_run 1006;
   let test = eq r r_expected in
-  if not test then failwithf "test 1023 failed";
+  if not test then failwithf "test 1006 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a124 = #{ a20; b20 }; b124 } = r in
-  let expected_a20 = 100 in
-  mark_test_run 1024;
-  let test = (fun a b -> Int.equal a b) expected_a20 a20 in
-  if not test then failwithf "test 1024 failed";
-  let expected_b20 = 101 in
-  mark_test_run 1025;
-  let test = (fun a b -> Int.equal a b) expected_b20 b20 in
-  if not test then failwithf "test 1025 failed";
-  let expected_b124 = 102. in
-  mark_test_run 1026;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b124 b124 in
-  if not test then failwithf "test 1026 failed";
+  let { a124; b124 = #{ a109; b109 } } = r in
+  let expected_a124 = #100. in
+  mark_test_run 1007;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a124 a124 in
+  if not test then failwithf "test 1007 failed";
+  let expected_a109 = #101. in
+  mark_test_run 1008;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a109 a109 in
+  if not test then failwithf "test 1008 failed";
+  let expected_b109 = 102. in
+  mark_test_run 1009;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b109 b109 in
+  if not test then failwithf "test 1009 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a124; b124 } = r in
-  let expected_a124 = #{ a20 = 100; b20 = 101 } in
-  mark_test_run 1027;
-  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) expected_a124 a124 in
-  if not test then failwithf "test 1027 failed";
-  let expected_b124 = 102. in
-  mark_test_run 1028;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b124 b124 in
-  if not test then failwithf "test 1028 failed";
+  let expected_a124 = #100. in
+  mark_test_run 1010;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a124 a124 in
+  if not test then failwithf "test 1010 failed";
+  let expected_b124 = #{ a109 = #101.; b109 = 102. } in
+  mark_test_run 1011;
+  let test = (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) expected_b124 b124 in
+  if not test then failwithf "test 1011 failed";
 
-  (******************************************)
-  (*   t125 = { #{ int; int }; int64x2# }   *)
-  (******************************************)
-  let r = stack_ { a125 = #{ a20 = 0; b20 = 1 }; b125 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  (**********************************************)
+  (*   t125 = { float#; #{ float#; float# } }   *)
+  (**********************************************)
+  let r = stack_ { a125 = #0.; b125 = #{ a111 = #1.; b111 = #2. } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a125 *)
   let actual = r.a125 in
-  let expected = #{ a20 = 0; b20 = 1 } in
-  mark_test_run 1029;
-  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) actual expected in
-  if not test then failwithf "test 1029 failed";
-  (* Paths of depth 2 *)
-  (* .a125.#a20 *)
-  let actual = r.a125.#a20 in
-  let expected = 0 in
-  mark_test_run 1030;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1030 failed";
-  (* .a125.#b20 *)
-  let actual = r.a125.#b20 in
-  let expected = 1 in
-  mark_test_run 1031;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1031 failed";
+  let expected = #0. in
+  mark_test_run 1012;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1012 failed";
   (* Paths of depth 1 *)
   (* .b125 *)
   let actual = r.b125 in
-  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
-  mark_test_run 1032;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1032 failed";
+  let expected = #{ a111 = #1.; b111 = #2. } in
+  mark_test_run 1013;
+  let test = (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) actual expected in
+  if not test then failwithf "test 1013 failed";
+  (* Paths of depth 2 *)
+  (* .b125.#a111 *)
+  let actual = r.b125.#a111 in
+  let expected = #1. in
+  mark_test_run 1014;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1014 failed";
+  (* .b125.#b111 *)
+  let actual = r.b125.#b111 in
+  let expected = #2. in
+  mark_test_run 1015;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1015 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a125 = a1251; b125 = b1251 } { a125 = a1252; b125 = b1252 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) a1251 a1252 && int64x2_u_equal b1251 b1252) in
-  let next_r = stack_ { a125 = #{ a20 = 100; b20 = 101 }; b125 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
-  let r_expected = stack_ { a125 = #{ a20 = 0; b20 = 1 }; b125 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  let eq = (fun { a125 = a1251; b125 = b1251 } { a125 = a1252; b125 = b1252 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1251 a1252 && (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) b1251 b1252) in
+  let next_r = stack_ { a125 = #100.; b125 = #{ a111 = #101.; b111 = #102. } } in
+  let r_expected = stack_ { a125 = #0.; b125 = #{ a111 = #1.; b111 = #2. } } in
   (* .a125 *)
   r.a125 <- next_r.a125;
   let r_expected = { r_expected with a125 = next_r.a125 } in
-  mark_test_run 1033;
+  mark_test_run 1016;
   let test = eq r r_expected in
-  if not test then failwithf "test 1033 failed";
+  if not test then failwithf "test 1016 failed";
   Gc.compact ();
   (* .b125 *)
   r.b125 <- next_r.b125;
   let r_expected = { r_expected with b125 = next_r.b125 } in
-  mark_test_run 1034;
+  mark_test_run 1017;
   let test = eq r r_expected in
-  if not test then failwithf "test 1034 failed";
+  if not test then failwithf "test 1017 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a125 = #{ a20; b20 }; b125 } = r in
-  let expected_a20 = 100 in
-  mark_test_run 1035;
-  let test = (fun a b -> Int.equal a b) expected_a20 a20 in
-  if not test then failwithf "test 1035 failed";
-  let expected_b20 = 101 in
-  mark_test_run 1036;
-  let test = (fun a b -> Int.equal a b) expected_b20 b20 in
-  if not test then failwithf "test 1036 failed";
-  let expected_b125 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
-  mark_test_run 1037;
-  let test = int64x2_u_equal expected_b125 b125 in
-  if not test then failwithf "test 1037 failed";
+  let { a125; b125 = #{ a111; b111 } } = r in
+  let expected_a125 = #100. in
+  mark_test_run 1018;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a125 a125 in
+  if not test then failwithf "test 1018 failed";
+  let expected_a111 = #101. in
+  mark_test_run 1019;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a111 a111 in
+  if not test then failwithf "test 1019 failed";
+  let expected_b111 = #102. in
+  mark_test_run 1020;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b111 b111 in
+  if not test then failwithf "test 1020 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a125; b125 } = r in
-  let expected_a125 = #{ a20 = 100; b20 = 101 } in
-  mark_test_run 1038;
-  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) expected_a125 a125 in
-  if not test then failwithf "test 1038 failed";
-  let expected_b125 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
-  mark_test_run 1039;
-  let test = int64x2_u_equal expected_b125 b125 in
-  if not test then failwithf "test 1039 failed";
+  let expected_a125 = #100. in
+  mark_test_run 1021;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a125 a125 in
+  if not test then failwithf "test 1021 failed";
+  let expected_b125 = #{ a111 = #101.; b111 = #102. } in
+  mark_test_run 1022;
+  let test = (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) expected_b125 b125 in
+  if not test then failwithf "test 1022 failed";
 
-  (***********************************)
-  (*   t126 = { #{ int; int32# } }   *)
-  (***********************************)
-  let r = stack_ { a126 = #{ a22 = 0; b22 = #1l } } in
+  (***************************)
+  (*   t126 = { int64x2# }   *)
+  (***************************)
+  let r = stack_ { a126 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a126 *)
   let actual = r.a126 in
-  let expected = #{ a22 = 0; b22 = #1l } in
-  mark_test_run 1040;
-  let test = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) actual expected in
-  if not test then failwithf "test 1040 failed";
-  (* Paths of depth 2 *)
-  (* .a126.#a22 *)
-  let actual = r.a126.#a22 in
-  let expected = 0 in
-  mark_test_run 1041;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1041 failed";
-  (* .a126.#b22 *)
-  let actual = r.a126.#b22 in
-  let expected = #1l in
-  mark_test_run 1042;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 1042 failed";
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1023;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1023 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a126 = a1261 } { a126 = a1262 } -> (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) a1261 a1262) in
-  let next_r = stack_ { a126 = #{ a22 = 100; b22 = #101l } } in
-  let r_expected = stack_ { a126 = #{ a22 = 0; b22 = #1l } } in
+  let eq = (fun { a126 = a1261 } { a126 = a1262 } -> int64x2_u_equal a1261 a1262) in
+  let next_r = stack_ { a126 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) } in
+  let r_expected = stack_ { a126 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } in
   (* .a126 *)
   r.a126 <- next_r.a126;
   let r_expected = { r_expected with a126 = next_r.a126 } in
-  mark_test_run 1043;
+  mark_test_run 1024;
   let test = eq r r_expected in
-  if not test then failwithf "test 1043 failed";
+  if not test then failwithf "test 1024 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a126 = #{ a22; b22 } } = r in
-  let expected_a22 = 100 in
-  mark_test_run 1044;
-  let test = (fun a b -> Int.equal a b) expected_a22 a22 in
-  if not test then failwithf "test 1044 failed";
-  let expected_b22 = #101l in
-  mark_test_run 1045;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b22 b22 in
-  if not test then failwithf "test 1045 failed";
+  let { a126 } = r in
+  let expected_a126 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1025;
+  let test = int64x2_u_equal expected_a126 a126 in
+  if not test then failwithf "test 1025 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a126 } = r in
-  let expected_a126 = #{ a22 = 100; b22 = #101l } in
-  mark_test_run 1046;
-  let test = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) expected_a126 a126 in
-  if not test then failwithf "test 1046 failed";
+  let expected_a126 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1026;
+  let test = int64x2_u_equal expected_a126 a126 in
+  if not test then failwithf "test 1026 failed";
 
-  (****************************************)
-  (*   t127 = { #{ int; int32# }; int }   *)
-  (****************************************)
-  let r = stack_ { a127 = #{ a22 = 0; b22 = #1l }; b127 = 2 } in
+  (********************************)
+  (*   t127 = { int64x2#; int }   *)
+  (********************************)
+  let r = stack_ { a127 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b127 = 2 } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a127 *)
   let actual = r.a127 in
-  let expected = #{ a22 = 0; b22 = #1l } in
-  mark_test_run 1047;
-  let test = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) actual expected in
-  if not test then failwithf "test 1047 failed";
-  (* Paths of depth 2 *)
-  (* .a127.#a22 *)
-  let actual = r.a127.#a22 in
-  let expected = 0 in
-  mark_test_run 1048;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1048 failed";
-  (* .a127.#b22 *)
-  let actual = r.a127.#b22 in
-  let expected = #1l in
-  mark_test_run 1049;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 1049 failed";
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1027;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1027 failed";
   (* Paths of depth 1 *)
   (* .b127 *)
   let actual = r.b127 in
   let expected = 2 in
-  mark_test_run 1050;
+  mark_test_run 1028;
   let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1050 failed";
+  if not test then failwithf "test 1028 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a127 = a1271; b127 = b1271 } { a127 = a1272; b127 = b1272 } -> (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) a1271 a1272 && (fun a b -> Int.equal a b) b1271 b1272) in
-  let next_r = stack_ { a127 = #{ a22 = 100; b22 = #101l }; b127 = 102 } in
-  let r_expected = stack_ { a127 = #{ a22 = 0; b22 = #1l }; b127 = 2 } in
+  let eq = (fun { a127 = a1271; b127 = b1271 } { a127 = a1272; b127 = b1272 } -> int64x2_u_equal a1271 a1272 && (fun a b -> Int.equal a b) b1271 b1272) in
+  let next_r = stack_ { a127 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b127 = 102 } in
+  let r_expected = stack_ { a127 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b127 = 2 } in
   (* .a127 *)
   r.a127 <- next_r.a127;
   let r_expected = { r_expected with a127 = next_r.a127 } in
-  mark_test_run 1051;
+  mark_test_run 1029;
   let test = eq r r_expected in
-  if not test then failwithf "test 1051 failed";
+  if not test then failwithf "test 1029 failed";
   Gc.compact ();
   (* .b127 *)
   r.b127 <- next_r.b127;
   let r_expected = { r_expected with b127 = next_r.b127 } in
+  mark_test_run 1030;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1030 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a127; b127 } = r in
+  let expected_a127 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1031;
+  let test = int64x2_u_equal expected_a127 a127 in
+  if not test then failwithf "test 1031 failed";
+  let expected_b127 = 102 in
+  mark_test_run 1032;
+  let test = (fun a b -> Int.equal a b) expected_b127 b127 in
+  if not test then failwithf "test 1032 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a127; b127 } = r in
+  let expected_a127 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1033;
+  let test = int64x2_u_equal expected_a127 a127 in
+  if not test then failwithf "test 1033 failed";
+  let expected_b127 = 102 in
+  mark_test_run 1034;
+  let test = (fun a b -> Int.equal a b) expected_b127 b127 in
+  if not test then failwithf "test 1034 failed";
+
+  (*************************************)
+  (*   t128 = { int64x2#; int; int }   *)
+  (*************************************)
+  let r = stack_ { a128 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b128 = 2; c128 = 3 } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a128 *)
+  let actual = r.a128 in
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1035;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1035 failed";
+  (* Paths of depth 1 *)
+  (* .b128 *)
+  let actual = r.b128 in
+  let expected = 2 in
+  mark_test_run 1036;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1036 failed";
+  (* Paths of depth 1 *)
+  (* .c128 *)
+  let actual = r.c128 in
+  let expected = 3 in
+  mark_test_run 1037;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1037 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a128 = a1281; b128 = b1281; c128 = c1281 } { a128 = a1282; b128 = b1282; c128 = c1282 } -> int64x2_u_equal a1281 a1282 && (fun a b -> Int.equal a b) b1281 b1282 && (fun a b -> Int.equal a b) c1281 c1282) in
+  let next_r = stack_ { a128 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b128 = 102; c128 = 103 } in
+  let r_expected = stack_ { a128 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b128 = 2; c128 = 3 } in
+  (* .a128 *)
+  r.a128 <- next_r.a128;
+  let r_expected = { r_expected with a128 = next_r.a128 } in
+  mark_test_run 1038;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1038 failed";
+  Gc.compact ();
+  (* .b128 *)
+  r.b128 <- next_r.b128;
+  let r_expected = { r_expected with b128 = next_r.b128 } in
+  mark_test_run 1039;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1039 failed";
+  Gc.compact ();
+  (* .c128 *)
+  r.c128 <- next_r.c128;
+  let r_expected = { r_expected with c128 = next_r.c128 } in
+  mark_test_run 1040;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1040 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a128; b128; c128 } = r in
+  let expected_a128 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1041;
+  let test = int64x2_u_equal expected_a128 a128 in
+  if not test then failwithf "test 1041 failed";
+  let expected_b128 = 102 in
+  mark_test_run 1042;
+  let test = (fun a b -> Int.equal a b) expected_b128 b128 in
+  if not test then failwithf "test 1042 failed";
+  let expected_c128 = 103 in
+  mark_test_run 1043;
+  let test = (fun a b -> Int.equal a b) expected_c128 c128 in
+  if not test then failwithf "test 1043 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a128; b128; c128 } = r in
+  let expected_a128 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1044;
+  let test = int64x2_u_equal expected_a128 a128 in
+  if not test then failwithf "test 1044 failed";
+  let expected_b128 = 102 in
+  mark_test_run 1045;
+  let test = (fun a b -> Int.equal a b) expected_b128 b128 in
+  if not test then failwithf "test 1045 failed";
+  let expected_c128 = 103 in
+  mark_test_run 1046;
+  let test = (fun a b -> Int.equal a b) expected_c128 c128 in
+  if not test then failwithf "test 1046 failed";
+
+  (******************************************)
+  (*   t129 = { int64x2#; int; int64x2# }   *)
+  (******************************************)
+  let r = stack_ { a129 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b129 = 2; c129 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a129 *)
+  let actual = r.a129 in
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1047;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1047 failed";
+  (* Paths of depth 1 *)
+  (* .b129 *)
+  let actual = r.b129 in
+  let expected = 2 in
+  mark_test_run 1048;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1048 failed";
+  (* Paths of depth 1 *)
+  (* .c129 *)
+  let actual = r.c129 in
+  let expected = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) in
+  mark_test_run 1049;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1049 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a129 = a1291; b129 = b1291; c129 = c1291 } { a129 = a1292; b129 = b1292; c129 = c1292 } -> int64x2_u_equal a1291 a1292 && (fun a b -> Int.equal a b) b1291 b1292 && int64x2_u_equal c1291 c1292) in
+  let next_r = stack_ { a129 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b129 = 102; c129 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
+  let r_expected = stack_ { a129 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b129 = 2; c129 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  (* .a129 *)
+  r.a129 <- next_r.a129;
+  let r_expected = { r_expected with a129 = next_r.a129 } in
+  mark_test_run 1050;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1050 failed";
+  Gc.compact ();
+  (* .b129 *)
+  r.b129 <- next_r.b129;
+  let r_expected = { r_expected with b129 = next_r.b129 } in
+  mark_test_run 1051;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1051 failed";
+  Gc.compact ();
+  (* .c129 *)
+  r.c129 <- next_r.c129;
+  let r_expected = { r_expected with c129 = next_r.c129 } in
   mark_test_run 1052;
   let test = eq r r_expected in
   if not test then failwithf "test 1052 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a127 = #{ a22; b22 }; b127 } = r in
-  let expected_a22 = 100 in
+  let { a129; b129; c129 } = r in
+  let expected_a129 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
   mark_test_run 1053;
-  let test = (fun a b -> Int.equal a b) expected_a22 a22 in
+  let test = int64x2_u_equal expected_a129 a129 in
   if not test then failwithf "test 1053 failed";
-  let expected_b22 = #101l in
+  let expected_b129 = 102 in
   mark_test_run 1054;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b22 b22 in
+  let test = (fun a b -> Int.equal a b) expected_b129 b129 in
   if not test then failwithf "test 1054 failed";
-  let expected_b127 = 102 in
+  let expected_c129 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) in
   mark_test_run 1055;
-  let test = (fun a b -> Int.equal a b) expected_b127 b127 in
+  let test = int64x2_u_equal expected_c129 c129 in
   if not test then failwithf "test 1055 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a127; b127 } = r in
-  let expected_a127 = #{ a22 = 100; b22 = #101l } in
+  let { a129; b129; c129 } = r in
+  let expected_a129 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
   mark_test_run 1056;
-  let test = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) expected_a127 a127 in
+  let test = int64x2_u_equal expected_a129 a129 in
   if not test then failwithf "test 1056 failed";
-  let expected_b127 = 102 in
+  let expected_b129 = 102 in
   mark_test_run 1057;
-  let test = (fun a b -> Int.equal a b) expected_b127 b127 in
+  let test = (fun a b -> Int.equal a b) expected_b129 b129 in
   if not test then failwithf "test 1057 failed";
+  let expected_c129 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) in
+  mark_test_run 1058;
+  let test = int64x2_u_equal expected_c129 c129 in
+  if not test then failwithf "test 1058 failed";
 
-  (*******************************************)
-  (*   t128 = { #{ int; int32# }; int32# }   *)
-  (*******************************************)
-  let r = stack_ { a128 = #{ a22 = 0; b22 = #1l }; b128 = #2l } in
+  (*************************************)
+  (*   t130 = { int64x2#; int64x2# }   *)
+  (*************************************)
+  let r = stack_ { a130 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b130 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
-  (* .a128 *)
-  let actual = r.a128 in
-  let expected = #{ a22 = 0; b22 = #1l } in
-  mark_test_run 1058;
-  let test = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) actual expected in
-  if not test then failwithf "test 1058 failed";
-  (* Paths of depth 2 *)
-  (* .a128.#a22 *)
-  let actual = r.a128.#a22 in
-  let expected = 0 in
+  (* .a130 *)
+  let actual = r.a130 in
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
   mark_test_run 1059;
-  let test = (fun a b -> Int.equal a b) actual expected in
+  let test = int64x2_u_equal actual expected in
   if not test then failwithf "test 1059 failed";
-  (* .a128.#b22 *)
-  let actual = r.a128.#b22 in
-  let expected = #1l in
-  mark_test_run 1060;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 1060 failed";
   (* Paths of depth 1 *)
-  (* .b128 *)
-  let actual = r.b128 in
-  let expected = #2l in
-  mark_test_run 1061;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 1061 failed";
+  (* .b130 *)
+  let actual = r.b130 in
+  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
+  mark_test_run 1060;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1060 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a128 = a1281; b128 = b1281 } { a128 = a1282; b128 = b1282 } -> (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) a1281 a1282 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1281 b1282) in
-  let next_r = stack_ { a128 = #{ a22 = 100; b22 = #101l }; b128 = #102l } in
-  let r_expected = stack_ { a128 = #{ a22 = 0; b22 = #1l }; b128 = #2l } in
-  (* .a128 *)
-  r.a128 <- next_r.a128;
-  let r_expected = { r_expected with a128 = next_r.a128 } in
+  let eq = (fun { a130 = a1301; b130 = b1301 } { a130 = a1302; b130 = b1302 } -> int64x2_u_equal a1301 a1302 && int64x2_u_equal b1301 b1302) in
+  let next_r = stack_ { a130 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b130 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
+  let r_expected = stack_ { a130 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b130 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  (* .a130 *)
+  r.a130 <- next_r.a130;
+  let r_expected = { r_expected with a130 = next_r.a130 } in
+  mark_test_run 1061;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1061 failed";
+  Gc.compact ();
+  (* .b130 *)
+  r.b130 <- next_r.b130;
+  let r_expected = { r_expected with b130 = next_r.b130 } in
   mark_test_run 1062;
   let test = eq r r_expected in
   if not test then failwithf "test 1062 failed";
   Gc.compact ();
-  (* .b128 *)
-  r.b128 <- next_r.b128;
-  let r_expected = { r_expected with b128 = next_r.b128 } in
-  mark_test_run 1063;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1063 failed";
-  Gc.compact ();
   (* 3. Test deep matching *)
-  let { a128 = #{ a22; b22 }; b128 } = r in
-  let expected_a22 = 100 in
+  let { a130; b130 } = r in
+  let expected_a130 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1063;
+  let test = int64x2_u_equal expected_a130 a130 in
+  if not test then failwithf "test 1063 failed";
+  let expected_b130 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
   mark_test_run 1064;
-  let test = (fun a b -> Int.equal a b) expected_a22 a22 in
+  let test = int64x2_u_equal expected_b130 b130 in
   if not test then failwithf "test 1064 failed";
-  let expected_b22 = #101l in
-  mark_test_run 1065;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b22 b22 in
-  if not test then failwithf "test 1065 failed";
-  let expected_b128 = #102l in
-  mark_test_run 1066;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b128 b128 in
-  if not test then failwithf "test 1066 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a128; b128 } = r in
-  let expected_a128 = #{ a22 = 100; b22 = #101l } in
-  mark_test_run 1067;
-  let test = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) expected_a128 a128 in
-  if not test then failwithf "test 1067 failed";
-  let expected_b128 = #102l in
-  mark_test_run 1068;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b128 b128 in
-  if not test then failwithf "test 1068 failed";
+  let { a130; b130 } = r in
+  let expected_a130 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1065;
+  let test = int64x2_u_equal expected_a130 a130 in
+  if not test then failwithf "test 1065 failed";
+  let expected_b130 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  mark_test_run 1066;
+  let test = int64x2_u_equal expected_b130 b130 in
+  if not test then failwithf "test 1066 failed";
 
-  (**********************************)
-  (*   t129 = { #{ int; float } }   *)
-  (**********************************)
-  let r = stack_ { a129 = #{ a24 = 0; b24 = 1. } } in
+  (******************************************)
+  (*   t131 = { int64x2#; int64x2#; int }   *)
+  (******************************************)
+  let r = stack_ { a131 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b131 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c131 = 4 } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
-  (* .a129 *)
-  let actual = r.a129 in
-  let expected = #{ a24 = 0; b24 = 1. } in
+  (* .a131 *)
+  let actual = r.a131 in
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1067;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1067 failed";
+  (* Paths of depth 1 *)
+  (* .b131 *)
+  let actual = r.b131 in
+  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
+  mark_test_run 1068;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1068 failed";
+  (* Paths of depth 1 *)
+  (* .c131 *)
+  let actual = r.c131 in
+  let expected = 4 in
   mark_test_run 1069;
-  let test = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) actual expected in
-  if not test then failwithf "test 1069 failed";
-  (* Paths of depth 2 *)
-  (* .a129.#a24 *)
-  let actual = r.a129.#a24 in
-  let expected = 0 in
-  mark_test_run 1070;
   let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1070 failed";
-  (* .a129.#b24 *)
-  let actual = r.a129.#b24 in
-  let expected = 1. in
-  mark_test_run 1071;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1071 failed";
+  if not test then failwithf "test 1069 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a129 = a1291 } { a129 = a1292 } -> (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) a1291 a1292) in
-  let next_r = stack_ { a129 = #{ a24 = 100; b24 = 101. } } in
-  let r_expected = stack_ { a129 = #{ a24 = 0; b24 = 1. } } in
-  (* .a129 *)
-  r.a129 <- next_r.a129;
-  let r_expected = { r_expected with a129 = next_r.a129 } in
+  let eq = (fun { a131 = a1311; b131 = b1311; c131 = c1311 } { a131 = a1312; b131 = b1312; c131 = c1312 } -> int64x2_u_equal a1311 a1312 && int64x2_u_equal b1311 b1312 && (fun a b -> Int.equal a b) c1311 c1312) in
+  let next_r = stack_ { a131 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b131 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); c131 = 104 } in
+  let r_expected = stack_ { a131 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b131 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c131 = 4 } in
+  (* .a131 *)
+  r.a131 <- next_r.a131;
+  let r_expected = { r_expected with a131 = next_r.a131 } in
+  mark_test_run 1070;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1070 failed";
+  Gc.compact ();
+  (* .b131 *)
+  r.b131 <- next_r.b131;
+  let r_expected = { r_expected with b131 = next_r.b131 } in
+  mark_test_run 1071;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1071 failed";
+  Gc.compact ();
+  (* .c131 *)
+  r.c131 <- next_r.c131;
+  let r_expected = { r_expected with c131 = next_r.c131 } in
   mark_test_run 1072;
   let test = eq r r_expected in
   if not test then failwithf "test 1072 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a129 = #{ a24; b24 } } = r in
-  let expected_a24 = 100 in
+  let { a131; b131; c131 } = r in
+  let expected_a131 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
   mark_test_run 1073;
-  let test = (fun a b -> Int.equal a b) expected_a24 a24 in
+  let test = int64x2_u_equal expected_a131 a131 in
   if not test then failwithf "test 1073 failed";
-  let expected_b24 = 101. in
+  let expected_b131 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
   mark_test_run 1074;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b24 b24 in
+  let test = int64x2_u_equal expected_b131 b131 in
   if not test then failwithf "test 1074 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a129 } = r in
-  let expected_a129 = #{ a24 = 100; b24 = 101. } in
+  let expected_c131 = 104 in
   mark_test_run 1075;
-  let test = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) expected_a129 a129 in
+  let test = (fun a b -> Int.equal a b) expected_c131 c131 in
   if not test then failwithf "test 1075 failed";
-
-  (***************************************)
-  (*   t130 = { #{ int; float }; int }   *)
-  (***************************************)
-  let r = stack_ { a130 = #{ a24 = 0; b24 = 1. }; b130 = 2 } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a130 *)
-  let actual = r.a130 in
-  let expected = #{ a24 = 0; b24 = 1. } in
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a131; b131; c131 } = r in
+  let expected_a131 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
   mark_test_run 1076;
-  let test = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) actual expected in
+  let test = int64x2_u_equal expected_a131 a131 in
   if not test then failwithf "test 1076 failed";
-  (* Paths of depth 2 *)
-  (* .a130.#a24 *)
-  let actual = r.a130.#a24 in
-  let expected = 0 in
+  let expected_b131 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
   mark_test_run 1077;
-  let test = (fun a b -> Int.equal a b) actual expected in
+  let test = int64x2_u_equal expected_b131 b131 in
   if not test then failwithf "test 1077 failed";
-  (* .a130.#b24 *)
-  let actual = r.a130.#b24 in
-  let expected = 1. in
+  let expected_c131 = 104 in
   mark_test_run 1078;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  let test = (fun a b -> Int.equal a b) expected_c131 c131 in
   if not test then failwithf "test 1078 failed";
-  (* Paths of depth 1 *)
-  (* .b130 *)
-  let actual = r.b130 in
-  let expected = 2 in
-  mark_test_run 1079;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1079 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a130 = a1301; b130 = b1301 } { a130 = a1302; b130 = b1302 } -> (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) a1301 a1302 && (fun a b -> Int.equal a b) b1301 b1302) in
-  let next_r = stack_ { a130 = #{ a24 = 100; b24 = 101. }; b130 = 102 } in
-  let r_expected = stack_ { a130 = #{ a24 = 0; b24 = 1. }; b130 = 2 } in
-  (* .a130 *)
-  r.a130 <- next_r.a130;
-  let r_expected = { r_expected with a130 = next_r.a130 } in
-  mark_test_run 1080;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1080 failed";
-  Gc.compact ();
-  (* .b130 *)
-  r.b130 <- next_r.b130;
-  let r_expected = { r_expected with b130 = next_r.b130 } in
-  mark_test_run 1081;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1081 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a130 = #{ a24; b24 }; b130 } = r in
-  let expected_a24 = 100 in
-  mark_test_run 1082;
-  let test = (fun a b -> Int.equal a b) expected_a24 a24 in
-  if not test then failwithf "test 1082 failed";
-  let expected_b24 = 101. in
-  mark_test_run 1083;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b24 b24 in
-  if not test then failwithf "test 1083 failed";
-  let expected_b130 = 102 in
-  mark_test_run 1084;
-  let test = (fun a b -> Int.equal a b) expected_b130 b130 in
-  if not test then failwithf "test 1084 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a130; b130 } = r in
-  let expected_a130 = #{ a24 = 100; b24 = 101. } in
-  mark_test_run 1085;
-  let test = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) expected_a130 a130 in
-  if not test then failwithf "test 1085 failed";
-  let expected_b130 = 102 in
-  mark_test_run 1086;
-  let test = (fun a b -> Int.equal a b) expected_b130 b130 in
-  if not test then failwithf "test 1086 failed";
 
-  (*****************************************)
-  (*   t131 = { #{ int; float }; float }   *)
-  (*****************************************)
-  let r = stack_ { a131 = #{ a24 = 0; b24 = 1. }; b131 = 2. } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a131 *)
-  let actual = r.a131 in
-  let expected = #{ a24 = 0; b24 = 1. } in
-  mark_test_run 1087;
-  let test = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) actual expected in
-  if not test then failwithf "test 1087 failed";
-  (* Paths of depth 2 *)
-  (* .a131.#a24 *)
-  let actual = r.a131.#a24 in
-  let expected = 0 in
-  mark_test_run 1088;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1088 failed";
-  (* .a131.#b24 *)
-  let actual = r.a131.#b24 in
-  let expected = 1. in
-  mark_test_run 1089;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1089 failed";
-  (* Paths of depth 1 *)
-  (* .b131 *)
-  let actual = r.b131 in
-  let expected = 2. in
-  mark_test_run 1090;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1090 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a131 = a1311; b131 = b1311 } { a131 = a1312; b131 = b1312 } -> (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) a1311 a1312 && (fun a b -> Float.equal (globalize a) (globalize b)) b1311 b1312) in
-  let next_r = stack_ { a131 = #{ a24 = 100; b24 = 101. }; b131 = 102. } in
-  let r_expected = stack_ { a131 = #{ a24 = 0; b24 = 1. }; b131 = 2. } in
-  (* .a131 *)
-  r.a131 <- next_r.a131;
-  let r_expected = { r_expected with a131 = next_r.a131 } in
-  mark_test_run 1091;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1091 failed";
-  Gc.compact ();
-  (* .b131 *)
-  r.b131 <- next_r.b131;
-  let r_expected = { r_expected with b131 = next_r.b131 } in
-  mark_test_run 1092;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1092 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a131 = #{ a24; b24 }; b131 } = r in
-  let expected_a24 = 100 in
-  mark_test_run 1093;
-  let test = (fun a b -> Int.equal a b) expected_a24 a24 in
-  if not test then failwithf "test 1093 failed";
-  let expected_b24 = 101. in
-  mark_test_run 1094;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b24 b24 in
-  if not test then failwithf "test 1094 failed";
-  let expected_b131 = 102. in
-  mark_test_run 1095;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b131 b131 in
-  if not test then failwithf "test 1095 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a131; b131 } = r in
-  let expected_a131 = #{ a24 = 100; b24 = 101. } in
-  mark_test_run 1096;
-  let test = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) expected_a131 a131 in
-  if not test then failwithf "test 1096 failed";
-  let expected_b131 = 102. in
-  mark_test_run 1097;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b131 b131 in
-  if not test then failwithf "test 1097 failed";
-
-  (*************************************)
-  (*   t132 = { #{ int; int64x2# } }   *)
-  (*************************************)
-  let r = stack_ { a132 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } } in
+  (***********************************************)
+  (*   t132 = { int64x2#; int64x2#; int64x2# }   *)
+  (***********************************************)
+  let r = stack_ { a132 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b132 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c132 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a132 *)
   let actual = r.a132 in
-  let expected = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
-  mark_test_run 1098;
-  let test = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) actual expected in
-  if not test then failwithf "test 1098 failed";
-  (* Paths of depth 2 *)
-  (* .a132.#a26 *)
-  let actual = r.a132.#a26 in
-  let expected = 0 in
-  mark_test_run 1099;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1099 failed";
-  (* .a132.#b26 *)
-  let actual = r.a132.#b26 in
-  let expected = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) in
-  mark_test_run 1100;
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1079;
   let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1100 failed";
+  if not test then failwithf "test 1079 failed";
+  (* Paths of depth 1 *)
+  (* .b132 *)
+  let actual = r.b132 in
+  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
+  mark_test_run 1080;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1080 failed";
+  (* Paths of depth 1 *)
+  (* .c132 *)
+  let actual = r.c132 in
+  let expected = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) in
+  mark_test_run 1081;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1081 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a132 = a1321 } { a132 = a1322 } -> (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) a1321 a1322) in
-  let next_r = stack_ { a132 = #{ a26 = 100; b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } } in
-  let r_expected = stack_ { a132 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } } in
+  let eq = (fun { a132 = a1321; b132 = b1321; c132 = c1321 } { a132 = a1322; b132 = b1322; c132 = c1322 } -> int64x2_u_equal a1321 a1322 && int64x2_u_equal b1321 b1322 && int64x2_u_equal c1321 c1322) in
+  let next_r = stack_ { a132 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b132 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); c132 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } in
+  let r_expected = stack_ { a132 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b132 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c132 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
   (* .a132 *)
   r.a132 <- next_r.a132;
   let r_expected = { r_expected with a132 = next_r.a132 } in
-  mark_test_run 1101;
+  mark_test_run 1082;
   let test = eq r r_expected in
-  if not test then failwithf "test 1101 failed";
+  if not test then failwithf "test 1082 failed";
+  Gc.compact ();
+  (* .b132 *)
+  r.b132 <- next_r.b132;
+  let r_expected = { r_expected with b132 = next_r.b132 } in
+  mark_test_run 1083;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1083 failed";
+  Gc.compact ();
+  (* .c132 *)
+  r.c132 <- next_r.c132;
+  let r_expected = { r_expected with c132 = next_r.c132 } in
+  mark_test_run 1084;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1084 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a132 = #{ a26; b26 } } = r in
-  let expected_a26 = 100 in
-  mark_test_run 1102;
-  let test = (fun a b -> Int.equal a b) expected_a26 a26 in
-  if not test then failwithf "test 1102 failed";
-  let expected_b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) in
-  mark_test_run 1103;
-  let test = int64x2_u_equal expected_b26 b26 in
-  if not test then failwithf "test 1103 failed";
+  let { a132; b132; c132 } = r in
+  let expected_a132 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1085;
+  let test = int64x2_u_equal expected_a132 a132 in
+  if not test then failwithf "test 1085 failed";
+  let expected_b132 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  mark_test_run 1086;
+  let test = int64x2_u_equal expected_b132 b132 in
+  if not test then failwithf "test 1086 failed";
+  let expected_c132 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) in
+  mark_test_run 1087;
+  let test = int64x2_u_equal expected_c132 c132 in
+  if not test then failwithf "test 1087 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a132 } = r in
-  let expected_a132 = #{ a26 = 100; b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } in
-  mark_test_run 1104;
-  let test = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) expected_a132 a132 in
-  if not test then failwithf "test 1104 failed";
+  let { a132; b132; c132 } = r in
+  let expected_a132 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1088;
+  let test = int64x2_u_equal expected_a132 a132 in
+  if not test then failwithf "test 1088 failed";
+  let expected_b132 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  mark_test_run 1089;
+  let test = int64x2_u_equal expected_b132 b132 in
+  if not test then failwithf "test 1089 failed";
+  let expected_c132 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) in
+  mark_test_run 1090;
+  let test = int64x2_u_equal expected_c132 c132 in
+  if not test then failwithf "test 1090 failed";
 
-  (******************************************)
-  (*   t133 = { #{ int; int64x2# }; int }   *)
-  (******************************************)
-  let r = stack_ { a133 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b133 = 3 } in
+  (*************************************)
+  (*   t133 = { int64x2#; #{ int } }   *)
+  (*************************************)
+  let r = stack_ { a133 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b133 = #{ a18 = 2 } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a133 *)
   let actual = r.a133 in
-  let expected = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
-  mark_test_run 1105;
-  let test = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) actual expected in
-  if not test then failwithf "test 1105 failed";
-  (* Paths of depth 2 *)
-  (* .a133.#a26 *)
-  let actual = r.a133.#a26 in
-  let expected = 0 in
-  mark_test_run 1106;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1106 failed";
-  (* .a133.#b26 *)
-  let actual = r.a133.#b26 in
-  let expected = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) in
-  mark_test_run 1107;
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1091;
   let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1107 failed";
+  if not test then failwithf "test 1091 failed";
   (* Paths of depth 1 *)
   (* .b133 *)
   let actual = r.b133 in
-  let expected = 3 in
-  mark_test_run 1108;
+  let expected = #{ a18 = 2 } in
+  mark_test_run 1092;
+  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) actual expected in
+  if not test then failwithf "test 1092 failed";
+  (* Paths of depth 2 *)
+  (* .b133.#a18 *)
+  let actual = r.b133.#a18 in
+  let expected = 2 in
+  mark_test_run 1093;
   let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1108 failed";
+  if not test then failwithf "test 1093 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a133 = a1331; b133 = b1331 } { a133 = a1332; b133 = b1332 } -> (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) a1331 a1332 && (fun a b -> Int.equal a b) b1331 b1332) in
-  let next_r = stack_ { a133 = #{ a26 = 100; b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) }; b133 = 103 } in
-  let r_expected = stack_ { a133 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b133 = 3 } in
+  let eq = (fun { a133 = a1331; b133 = b1331 } { a133 = a1332; b133 = b1332 } -> int64x2_u_equal a1331 a1332 && (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) b1331 b1332) in
+  let next_r = stack_ { a133 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b133 = #{ a18 = 102 } } in
+  let r_expected = stack_ { a133 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b133 = #{ a18 = 2 } } in
   (* .a133 *)
   r.a133 <- next_r.a133;
   let r_expected = { r_expected with a133 = next_r.a133 } in
-  mark_test_run 1109;
+  mark_test_run 1094;
   let test = eq r r_expected in
-  if not test then failwithf "test 1109 failed";
+  if not test then failwithf "test 1094 failed";
   Gc.compact ();
   (* .b133 *)
   r.b133 <- next_r.b133;
   let r_expected = { r_expected with b133 = next_r.b133 } in
-  mark_test_run 1110;
+  mark_test_run 1095;
   let test = eq r r_expected in
-  if not test then failwithf "test 1110 failed";
+  if not test then failwithf "test 1095 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a133 = #{ a26; b26 }; b133 } = r in
-  let expected_a26 = 100 in
-  mark_test_run 1111;
-  let test = (fun a b -> Int.equal a b) expected_a26 a26 in
-  if not test then failwithf "test 1111 failed";
-  let expected_b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) in
-  mark_test_run 1112;
-  let test = int64x2_u_equal expected_b26 b26 in
-  if not test then failwithf "test 1112 failed";
-  let expected_b133 = 103 in
-  mark_test_run 1113;
-  let test = (fun a b -> Int.equal a b) expected_b133 b133 in
-  if not test then failwithf "test 1113 failed";
+  let { a133; b133 = #{ a18 } } = r in
+  let expected_a133 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1096;
+  let test = int64x2_u_equal expected_a133 a133 in
+  if not test then failwithf "test 1096 failed";
+  let expected_a18 = 102 in
+  mark_test_run 1097;
+  let test = (fun a b -> Int.equal a b) expected_a18 a18 in
+  if not test then failwithf "test 1097 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a133; b133 } = r in
-  let expected_a133 = #{ a26 = 100; b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } in
-  mark_test_run 1114;
-  let test = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) expected_a133 a133 in
-  if not test then failwithf "test 1114 failed";
-  let expected_b133 = 103 in
-  mark_test_run 1115;
-  let test = (fun a b -> Int.equal a b) expected_b133 b133 in
-  if not test then failwithf "test 1115 failed";
+  let expected_a133 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1098;
+  let test = int64x2_u_equal expected_a133 a133 in
+  if not test then failwithf "test 1098 failed";
+  let expected_b133 = #{ a18 = 102 } in
+  mark_test_run 1099;
+  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) expected_b133 b133 in
+  if not test then failwithf "test 1099 failed";
 
-  (***********************************************)
-  (*   t134 = { #{ int; int64x2# }; int64x2# }   *)
-  (***********************************************)
-  let r = stack_ { a134 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b134 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  (******************************************)
+  (*   t134 = { int64x2#; #{ int; int } }   *)
+  (******************************************)
+  let r = stack_ { a134 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b134 = #{ a20 = 2; b20 = 3 } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a134 *)
   let actual = r.a134 in
-  let expected = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
-  mark_test_run 1116;
-  let test = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) actual expected in
-  if not test then failwithf "test 1116 failed";
-  (* Paths of depth 2 *)
-  (* .a134.#a26 *)
-  let actual = r.a134.#a26 in
-  let expected = 0 in
-  mark_test_run 1117;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1117 failed";
-  (* .a134.#b26 *)
-  let actual = r.a134.#b26 in
-  let expected = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) in
-  mark_test_run 1118;
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1100;
   let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1118 failed";
+  if not test then failwithf "test 1100 failed";
   (* Paths of depth 1 *)
   (* .b134 *)
   let actual = r.b134 in
-  let expected = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) in
-  mark_test_run 1119;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1119 failed";
+  let expected = #{ a20 = 2; b20 = 3 } in
+  mark_test_run 1101;
+  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) actual expected in
+  if not test then failwithf "test 1101 failed";
+  (* Paths of depth 2 *)
+  (* .b134.#a20 *)
+  let actual = r.b134.#a20 in
+  let expected = 2 in
+  mark_test_run 1102;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1102 failed";
+  (* .b134.#b20 *)
+  let actual = r.b134.#b20 in
+  let expected = 3 in
+  mark_test_run 1103;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1103 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a134 = a1341; b134 = b1341 } { a134 = a1342; b134 = b1342 } -> (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) a1341 a1342 && int64x2_u_equal b1341 b1342) in
-  let next_r = stack_ { a134 = #{ a26 = 100; b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) }; b134 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
-  let r_expected = stack_ { a134 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b134 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  let eq = (fun { a134 = a1341; b134 = b1341 } { a134 = a1342; b134 = b1342 } -> int64x2_u_equal a1341 a1342 && (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) b1341 b1342) in
+  let next_r = stack_ { a134 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b134 = #{ a20 = 102; b20 = 103 } } in
+  let r_expected = stack_ { a134 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b134 = #{ a20 = 2; b20 = 3 } } in
   (* .a134 *)
   r.a134 <- next_r.a134;
   let r_expected = { r_expected with a134 = next_r.a134 } in
-  mark_test_run 1120;
+  mark_test_run 1104;
   let test = eq r r_expected in
-  if not test then failwithf "test 1120 failed";
+  if not test then failwithf "test 1104 failed";
   Gc.compact ();
   (* .b134 *)
   r.b134 <- next_r.b134;
   let r_expected = { r_expected with b134 = next_r.b134 } in
-  mark_test_run 1121;
+  mark_test_run 1105;
   let test = eq r r_expected in
-  if not test then failwithf "test 1121 failed";
+  if not test then failwithf "test 1105 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a134 = #{ a26; b26 }; b134 } = r in
-  let expected_a26 = 100 in
-  mark_test_run 1122;
-  let test = (fun a b -> Int.equal a b) expected_a26 a26 in
-  if not test then failwithf "test 1122 failed";
-  let expected_b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) in
-  mark_test_run 1123;
-  let test = int64x2_u_equal expected_b26 b26 in
-  if not test then failwithf "test 1123 failed";
-  let expected_b134 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) in
-  mark_test_run 1124;
-  let test = int64x2_u_equal expected_b134 b134 in
-  if not test then failwithf "test 1124 failed";
+  let { a134; b134 = #{ a20; b20 } } = r in
+  let expected_a134 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1106;
+  let test = int64x2_u_equal expected_a134 a134 in
+  if not test then failwithf "test 1106 failed";
+  let expected_a20 = 102 in
+  mark_test_run 1107;
+  let test = (fun a b -> Int.equal a b) expected_a20 a20 in
+  if not test then failwithf "test 1107 failed";
+  let expected_b20 = 103 in
+  mark_test_run 1108;
+  let test = (fun a b -> Int.equal a b) expected_b20 b20 in
+  if not test then failwithf "test 1108 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a134; b134 } = r in
-  let expected_a134 = #{ a26 = 100; b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } in
-  mark_test_run 1125;
-  let test = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) expected_a134 a134 in
-  if not test then failwithf "test 1125 failed";
-  let expected_b134 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) in
-  mark_test_run 1126;
-  let test = int64x2_u_equal expected_b134 b134 in
-  if not test then failwithf "test 1126 failed";
+  let expected_a134 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1109;
+  let test = int64x2_u_equal expected_a134 a134 in
+  if not test then failwithf "test 1109 failed";
+  let expected_b134 = #{ a20 = 102; b20 = 103 } in
+  mark_test_run 1110;
+  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) expected_b134 b134 in
+  if not test then failwithf "test 1110 failed";
 
-  (**********************************************************)
-  (*   t137 = { #{ int64; int64# }; #{ int64#; float# } }   *)
-  (**********************************************************)
-  let r = stack_ { a137 = #{ a135 = 0L; b135 = #1L }; b137 = #{ a136 = #2L; b136 = #3. } } in
+  (***********************************************)
+  (*   t135 = { int64x2#; #{ int; int64x2# } }   *)
+  (***********************************************)
+  let r = stack_ { a135 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b135 = #{ a26 = 2; b26 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a135 *)
+  let actual = r.a135 in
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1111;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1111 failed";
+  (* Paths of depth 1 *)
+  (* .b135 *)
+  let actual = r.b135 in
+  let expected = #{ a26 = 2; b26 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  mark_test_run 1112;
+  let test = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) actual expected in
+  if not test then failwithf "test 1112 failed";
+  (* Paths of depth 2 *)
+  (* .b135.#a26 *)
+  let actual = r.b135.#a26 in
+  let expected = 2 in
+  mark_test_run 1113;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1113 failed";
+  (* .b135.#b26 *)
+  let actual = r.b135.#b26 in
+  let expected = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) in
+  mark_test_run 1114;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1114 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a135 = a1351; b135 = b1351 } { a135 = a1352; b135 = b1352 } -> int64x2_u_equal a1351 a1352 && (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) b1351 b1352) in
+  let next_r = stack_ { a135 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b135 = #{ a26 = 102; b26 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } } in
+  let r_expected = stack_ { a135 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b135 = #{ a26 = 2; b26 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } in
+  (* .a135 *)
+  r.a135 <- next_r.a135;
+  let r_expected = { r_expected with a135 = next_r.a135 } in
+  mark_test_run 1115;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1115 failed";
+  Gc.compact ();
+  (* .b135 *)
+  r.b135 <- next_r.b135;
+  let r_expected = { r_expected with b135 = next_r.b135 } in
+  mark_test_run 1116;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1116 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a135; b135 = #{ a26; b26 } } = r in
+  let expected_a135 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1117;
+  let test = int64x2_u_equal expected_a135 a135 in
+  if not test then failwithf "test 1117 failed";
+  let expected_a26 = 102 in
+  mark_test_run 1118;
+  let test = (fun a b -> Int.equal a b) expected_a26 a26 in
+  if not test then failwithf "test 1118 failed";
+  let expected_b26 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) in
+  mark_test_run 1119;
+  let test = int64x2_u_equal expected_b26 b26 in
+  if not test then failwithf "test 1119 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a135; b135 } = r in
+  let expected_a135 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1120;
+  let test = int64x2_u_equal expected_a135 a135 in
+  if not test then failwithf "test 1120 failed";
+  let expected_b135 = #{ a26 = 102; b26 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
+  mark_test_run 1121;
+  let test = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) expected_b135 b135 in
+  if not test then failwithf "test 1121 failed";
+
+  (************************************************)
+  (*   t137 = { int64x2#; #{ string; float# } }   *)
+  (************************************************)
+  let r = stack_ { a137 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b137 = #{ a136 = "2"; b136 = #3. } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a137 *)
   let actual = r.a137 in
-  let expected = #{ a135 = 0L; b135 = #1L } in
-  mark_test_run 1127;
-  let test = (fun #{ a135 = a1351; b135 = b1351 } #{ a135 = a1352; b135 = b1352 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1351 a1352 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1351 b1352) actual expected in
-  if not test then failwithf "test 1127 failed";
-  (* Paths of depth 2 *)
-  (* .a137.#a135 *)
-  let actual = r.a137.#a135 in
-  let expected = 0L in
-  mark_test_run 1128;
-  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1128 failed";
-  (* .a137.#b135 *)
-  let actual = r.a137.#b135 in
-  let expected = #1L in
-  mark_test_run 1129;
-  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) actual expected in
-  if not test then failwithf "test 1129 failed";
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1122;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1122 failed";
   (* Paths of depth 1 *)
   (* .b137 *)
   let actual = r.b137 in
-  let expected = #{ a136 = #2L; b136 = #3. } in
-  mark_test_run 1130;
-  let test = (fun #{ a136 = a1361; b136 = b1361 } #{ a136 = a1362; b136 = b1362 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1361 a1362 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1361 b1362) actual expected in
-  if not test then failwithf "test 1130 failed";
+  let expected = #{ a136 = "2"; b136 = #3. } in
+  mark_test_run 1123;
+  let test = (fun #{ a136 = a1361; b136 = b1361 } #{ a136 = a1362; b136 = b1362 } -> (fun a b -> String.equal (globalize a) (globalize b)) a1361 a1362 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1361 b1362) actual expected in
+  if not test then failwithf "test 1123 failed";
   (* Paths of depth 2 *)
   (* .b137.#a136 *)
   let actual = r.b137.#a136 in
-  let expected = #2L in
-  mark_test_run 1131;
-  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) actual expected in
-  if not test then failwithf "test 1131 failed";
+  let expected = "2" in
+  mark_test_run 1124;
+  let test = (fun a b -> String.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1124 failed";
   (* .b137.#b136 *)
   let actual = r.b137.#b136 in
   let expected = #3. in
-  mark_test_run 1132;
+  mark_test_run 1125;
   let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
-  if not test then failwithf "test 1132 failed";
+  if not test then failwithf "test 1125 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a137 = a1371; b137 = b1371 } { a137 = a1372; b137 = b1372 } -> (fun #{ a135 = a1351; b135 = b1351 } #{ a135 = a1352; b135 = b1352 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1351 a1352 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1351 b1352) a1371 a1372 && (fun #{ a136 = a1361; b136 = b1361 } #{ a136 = a1362; b136 = b1362 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1361 a1362 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1361 b1362) b1371 b1372) in
-  let next_r = stack_ { a137 = #{ a135 = 100L; b135 = #101L }; b137 = #{ a136 = #102L; b136 = #103. } } in
-  let r_expected = stack_ { a137 = #{ a135 = 0L; b135 = #1L }; b137 = #{ a136 = #2L; b136 = #3. } } in
+  let eq = (fun { a137 = a1371; b137 = b1371 } { a137 = a1372; b137 = b1372 } -> int64x2_u_equal a1371 a1372 && (fun #{ a136 = a1361; b136 = b1361 } #{ a136 = a1362; b136 = b1362 } -> (fun a b -> String.equal (globalize a) (globalize b)) a1361 a1362 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1361 b1362) b1371 b1372) in
+  let next_r = stack_ { a137 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b137 = #{ a136 = "102"; b136 = #103. } } in
+  let r_expected = stack_ { a137 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b137 = #{ a136 = "2"; b136 = #3. } } in
   (* .a137 *)
   r.a137 <- next_r.a137;
   let r_expected = { r_expected with a137 = next_r.a137 } in
-  mark_test_run 1133;
+  mark_test_run 1126;
   let test = eq r r_expected in
-  if not test then failwithf "test 1133 failed";
+  if not test then failwithf "test 1126 failed";
   Gc.compact ();
   (* .b137 *)
   r.b137 <- next_r.b137;
   let r_expected = { r_expected with b137 = next_r.b137 } in
-  mark_test_run 1134;
+  mark_test_run 1127;
   let test = eq r r_expected in
-  if not test then failwithf "test 1134 failed";
+  if not test then failwithf "test 1127 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a137 = #{ a135; b135 }; b137 = #{ a136; b136 } } = r in
-  let expected_a135 = 100L in
-  mark_test_run 1135;
-  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) expected_a135 a135 in
-  if not test then failwithf "test 1135 failed";
-  let expected_b135 = #101L in
-  mark_test_run 1136;
-  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) expected_b135 b135 in
-  if not test then failwithf "test 1136 failed";
-  let expected_a136 = #102L in
-  mark_test_run 1137;
-  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) expected_a136 a136 in
-  if not test then failwithf "test 1137 failed";
+  let { a137; b137 = #{ a136; b136 } } = r in
+  let expected_a137 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1128;
+  let test = int64x2_u_equal expected_a137 a137 in
+  if not test then failwithf "test 1128 failed";
+  let expected_a136 = "102" in
+  mark_test_run 1129;
+  let test = (fun a b -> String.equal (globalize a) (globalize b)) expected_a136 a136 in
+  if not test then failwithf "test 1129 failed";
   let expected_b136 = #103. in
-  mark_test_run 1138;
+  mark_test_run 1130;
   let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b136 b136 in
-  if not test then failwithf "test 1138 failed";
+  if not test then failwithf "test 1130 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a137; b137 } = r in
-  let expected_a137 = #{ a135 = 100L; b135 = #101L } in
-  mark_test_run 1139;
-  let test = (fun #{ a135 = a1351; b135 = b1351 } #{ a135 = a1352; b135 = b1352 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1351 a1352 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1351 b1352) expected_a137 a137 in
-  if not test then failwithf "test 1139 failed";
-  let expected_b137 = #{ a136 = #102L; b136 = #103. } in
-  mark_test_run 1140;
-  let test = (fun #{ a136 = a1361; b136 = b1361 } #{ a136 = a1362; b136 = b1362 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1361 a1362 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1361 b1362) expected_b137 b137 in
-  if not test then failwithf "test 1140 failed";
+  let expected_a137 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1131;
+  let test = int64x2_u_equal expected_a137 a137 in
+  if not test then failwithf "test 1131 failed";
+  let expected_b137 = #{ a136 = "102"; b136 = #103. } in
+  mark_test_run 1132;
+  let test = (fun #{ a136 = a1361; b136 = b1361 } #{ a136 = a1362; b136 = b1362 } -> (fun a b -> String.equal (globalize a) (globalize b)) a1361 a1362 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1361 b1362) expected_b137 b137 in
+  if not test then failwithf "test 1132 failed";
 
-  (**********************************************************)
-  (*   t140 = { #{ int64; string }; #{ int64#; string } }   *)
-  (**********************************************************)
-  let r = stack_ { a140 = #{ a138 = 0L; b138 = "1" }; b140 = #{ a139 = #2L; b139 = "3" } } in
+  (******************************************)
+  (*   t138 = { int64x2#; #{ int64x2# } }   *)
+  (******************************************)
+  let r = stack_ { a138 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b138 = #{ a40 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
-  (* .a140 *)
-  let actual = r.a140 in
-  let expected = #{ a138 = 0L; b138 = "1" } in
-  mark_test_run 1141;
-  let test = (fun #{ a138 = a1381; b138 = b1381 } #{ a138 = a1382; b138 = b1382 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1381 a1382 && (fun a b -> String.equal (globalize a) (globalize b)) b1381 b1382) actual expected in
-  if not test then failwithf "test 1141 failed";
-  (* Paths of depth 2 *)
-  (* .a140.#a138 *)
-  let actual = r.a140.#a138 in
-  let expected = 0L in
-  mark_test_run 1142;
-  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1142 failed";
-  (* .a140.#b138 *)
-  let actual = r.a140.#b138 in
-  let expected = "1" in
-  mark_test_run 1143;
-  let test = (fun a b -> String.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1143 failed";
+  (* .a138 *)
+  let actual = r.a138 in
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1133;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1133 failed";
   (* Paths of depth 1 *)
-  (* .b140 *)
-  let actual = r.b140 in
-  let expected = #{ a139 = #2L; b139 = "3" } in
-  mark_test_run 1144;
-  let test = (fun #{ a139 = a1391; b139 = b1391 } #{ a139 = a1392; b139 = b1392 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1391 a1392 && (fun a b -> String.equal (globalize a) (globalize b)) b1391 b1392) actual expected in
-  if not test then failwithf "test 1144 failed";
+  (* .b138 *)
+  let actual = r.b138 in
+  let expected = #{ a40 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  mark_test_run 1134;
+  let test = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) actual expected in
+  if not test then failwithf "test 1134 failed";
   (* Paths of depth 2 *)
-  (* .b140.#a139 *)
-  let actual = r.b140.#a139 in
-  let expected = #2L in
-  mark_test_run 1145;
-  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) actual expected in
-  if not test then failwithf "test 1145 failed";
-  (* .b140.#b139 *)
-  let actual = r.b140.#b139 in
-  let expected = "3" in
-  mark_test_run 1146;
-  let test = (fun a b -> String.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1146 failed";
+  (* .b138.#a40 *)
+  let actual = r.b138.#a40 in
+  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
+  mark_test_run 1135;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1135 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a140 = a1401; b140 = b1401 } { a140 = a1402; b140 = b1402 } -> (fun #{ a138 = a1381; b138 = b1381 } #{ a138 = a1382; b138 = b1382 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1381 a1382 && (fun a b -> String.equal (globalize a) (globalize b)) b1381 b1382) a1401 a1402 && (fun #{ a139 = a1391; b139 = b1391 } #{ a139 = a1392; b139 = b1392 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1391 a1392 && (fun a b -> String.equal (globalize a) (globalize b)) b1391 b1392) b1401 b1402) in
-  let next_r = stack_ { a140 = #{ a138 = 100L; b138 = "101" }; b140 = #{ a139 = #102L; b139 = "103" } } in
-  let r_expected = stack_ { a140 = #{ a138 = 0L; b138 = "1" }; b140 = #{ a139 = #2L; b139 = "3" } } in
-  (* .a140 *)
-  r.a140 <- next_r.a140;
-  let r_expected = { r_expected with a140 = next_r.a140 } in
+  let eq = (fun { a138 = a1381; b138 = b1381 } { a138 = a1382; b138 = b1382 } -> int64x2_u_equal a1381 a1382 && (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) b1381 b1382) in
+  let next_r = stack_ { a138 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b138 = #{ a40 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } } in
+  let r_expected = stack_ { a138 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b138 = #{ a40 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
+  (* .a138 *)
+  r.a138 <- next_r.a138;
+  let r_expected = { r_expected with a138 = next_r.a138 } in
+  mark_test_run 1136;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1136 failed";
+  Gc.compact ();
+  (* .b138 *)
+  r.b138 <- next_r.b138;
+  let r_expected = { r_expected with b138 = next_r.b138 } in
+  mark_test_run 1137;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1137 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a138; b138 = #{ a40 } } = r in
+  let expected_a138 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1138;
+  let test = int64x2_u_equal expected_a138 a138 in
+  if not test then failwithf "test 1138 failed";
+  let expected_a40 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  mark_test_run 1139;
+  let test = int64x2_u_equal expected_a40 a40 in
+  if not test then failwithf "test 1139 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a138; b138 } = r in
+  let expected_a138 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1140;
+  let test = int64x2_u_equal expected_a138 a138 in
+  if not test then failwithf "test 1140 failed";
+  let expected_b138 = #{ a40 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
+  mark_test_run 1141;
+  let test = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) expected_b138 b138 in
+  if not test then failwithf "test 1141 failed";
+
+  (***********************************************)
+  (*   t139 = { int64x2#; #{ int64x2#; int } }   *)
+  (***********************************************)
+  let r = stack_ { a139 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b139 = #{ a42 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b42 = 4 } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a139 *)
+  let actual = r.a139 in
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1142;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1142 failed";
+  (* Paths of depth 1 *)
+  (* .b139 *)
+  let actual = r.b139 in
+  let expected = #{ a42 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b42 = 4 } in
+  mark_test_run 1143;
+  let test = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) actual expected in
+  if not test then failwithf "test 1143 failed";
+  (* Paths of depth 2 *)
+  (* .b139.#a42 *)
+  let actual = r.b139.#a42 in
+  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
+  mark_test_run 1144;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1144 failed";
+  (* .b139.#b42 *)
+  let actual = r.b139.#b42 in
+  let expected = 4 in
+  mark_test_run 1145;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1145 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a139 = a1391; b139 = b1391 } { a139 = a1392; b139 = b1392 } -> int64x2_u_equal a1391 a1392 && (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) b1391 b1392) in
+  let next_r = stack_ { a139 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b139 = #{ a42 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); b42 = 104 } } in
+  let r_expected = stack_ { a139 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b139 = #{ a42 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b42 = 4 } } in
+  (* .a139 *)
+  r.a139 <- next_r.a139;
+  let r_expected = { r_expected with a139 = next_r.a139 } in
+  mark_test_run 1146;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1146 failed";
+  Gc.compact ();
+  (* .b139 *)
+  r.b139 <- next_r.b139;
+  let r_expected = { r_expected with b139 = next_r.b139 } in
   mark_test_run 1147;
   let test = eq r r_expected in
   if not test then failwithf "test 1147 failed";
   Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a139; b139 = #{ a42; b42 } } = r in
+  let expected_a139 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1148;
+  let test = int64x2_u_equal expected_a139 a139 in
+  if not test then failwithf "test 1148 failed";
+  let expected_a42 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  mark_test_run 1149;
+  let test = int64x2_u_equal expected_a42 a42 in
+  if not test then failwithf "test 1149 failed";
+  let expected_b42 = 104 in
+  mark_test_run 1150;
+  let test = (fun a b -> Int.equal a b) expected_b42 b42 in
+  if not test then failwithf "test 1150 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a139; b139 } = r in
+  let expected_a139 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1151;
+  let test = int64x2_u_equal expected_a139 a139 in
+  if not test then failwithf "test 1151 failed";
+  let expected_b139 = #{ a42 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); b42 = 104 } in
+  mark_test_run 1152;
+  let test = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) expected_b139 b139 in
+  if not test then failwithf "test 1152 failed";
+
+  (****************************************************)
+  (*   t140 = { int64x2#; #{ int64x2#; int64x2# } }   *)
+  (****************************************************)
+  let r = stack_ { a140 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b140 = #{ a44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b44 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a140 *)
+  let actual = r.a140 in
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1153;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1153 failed";
+  (* Paths of depth 1 *)
+  (* .b140 *)
+  let actual = r.b140 in
+  let expected = #{ a44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b44 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
+  mark_test_run 1154;
+  let test = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) actual expected in
+  if not test then failwithf "test 1154 failed";
+  (* Paths of depth 2 *)
+  (* .b140.#a44 *)
+  let actual = r.b140.#a44 in
+  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
+  mark_test_run 1155;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1155 failed";
+  (* .b140.#b44 *)
+  let actual = r.b140.#b44 in
+  let expected = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) in
+  mark_test_run 1156;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1156 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a140 = a1401; b140 = b1401 } { a140 = a1402; b140 = b1402 } -> int64x2_u_equal a1401 a1402 && (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) b1401 b1402) in
+  let next_r = stack_ { a140 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b140 = #{ a44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); b44 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } } in
+  let r_expected = stack_ { a140 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b140 = #{ a44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b44 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } } in
+  (* .a140 *)
+  r.a140 <- next_r.a140;
+  let r_expected = { r_expected with a140 = next_r.a140 } in
+  mark_test_run 1157;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1157 failed";
+  Gc.compact ();
   (* .b140 *)
   r.b140 <- next_r.b140;
   let r_expected = { r_expected with b140 = next_r.b140 } in
-  mark_test_run 1148;
+  mark_test_run 1158;
   let test = eq r r_expected in
-  if not test then failwithf "test 1148 failed";
+  if not test then failwithf "test 1158 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a140 = #{ a138; b138 }; b140 = #{ a139; b139 } } = r in
-  let expected_a138 = 100L in
-  mark_test_run 1149;
-  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) expected_a138 a138 in
-  if not test then failwithf "test 1149 failed";
-  let expected_b138 = "101" in
-  mark_test_run 1150;
-  let test = (fun a b -> String.equal (globalize a) (globalize b)) expected_b138 b138 in
-  if not test then failwithf "test 1150 failed";
-  let expected_a139 = #102L in
-  mark_test_run 1151;
-  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) expected_a139 a139 in
-  if not test then failwithf "test 1151 failed";
-  let expected_b139 = "103" in
-  mark_test_run 1152;
-  let test = (fun a b -> String.equal (globalize a) (globalize b)) expected_b139 b139 in
-  if not test then failwithf "test 1152 failed";
+  let { a140; b140 = #{ a44; b44 } } = r in
+  let expected_a140 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1159;
+  let test = int64x2_u_equal expected_a140 a140 in
+  if not test then failwithf "test 1159 failed";
+  let expected_a44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  mark_test_run 1160;
+  let test = int64x2_u_equal expected_a44 a44 in
+  if not test then failwithf "test 1160 failed";
+  let expected_b44 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) in
+  mark_test_run 1161;
+  let test = int64x2_u_equal expected_b44 b44 in
+  if not test then failwithf "test 1161 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a140; b140 } = r in
-  let expected_a140 = #{ a138 = 100L; b138 = "101" } in
-  mark_test_run 1153;
-  let test = (fun #{ a138 = a1381; b138 = b1381 } #{ a138 = a1382; b138 = b1382 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1381 a1382 && (fun a b -> String.equal (globalize a) (globalize b)) b1381 b1382) expected_a140 a140 in
-  if not test then failwithf "test 1153 failed";
-  let expected_b140 = #{ a139 = #102L; b139 = "103" } in
-  mark_test_run 1154;
-  let test = (fun #{ a139 = a1391; b139 = b1391 } #{ a139 = a1392; b139 = b1392 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1391 a1392 && (fun a b -> String.equal (globalize a) (globalize b)) b1391 b1392) expected_b140 b140 in
-  if not test then failwithf "test 1154 failed";
+  let expected_a140 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1162;
+  let test = int64x2_u_equal expected_a140 a140 in
+  if not test then failwithf "test 1162 failed";
+  let expected_b140 = #{ a44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); b44 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } in
+  mark_test_run 1163;
+  let test = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) expected_b140 b140 in
+  if not test then failwithf "test 1163 failed";
 
-  (********************************************************)
-  (*   t143 = { #{ int64#; int64 }; #{ int64; int64 } }   *)
-  (********************************************************)
-  let r = stack_ { a143 = #{ a141 = #0L; b141 = 1L }; b143 = #{ a142 = 2L; b142 = 3L } } in
+  (***************************)
+  (*   t141 = { #{ int } }   *)
+  (***************************)
+  let r = stack_ { a141 = #{ a18 = 0 } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a141 *)
+  let actual = r.a141 in
+  let expected = #{ a18 = 0 } in
+  mark_test_run 1164;
+  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) actual expected in
+  if not test then failwithf "test 1164 failed";
+  (* Paths of depth 2 *)
+  (* .a141.#a18 *)
+  let actual = r.a141.#a18 in
+  let expected = 0 in
+  mark_test_run 1165;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1165 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a141 = a1411 } { a141 = a1412 } -> (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) a1411 a1412) in
+  let next_r = stack_ { a141 = #{ a18 = 100 } } in
+  let r_expected = stack_ { a141 = #{ a18 = 0 } } in
+  (* .a141 *)
+  r.a141 <- next_r.a141;
+  let r_expected = { r_expected with a141 = next_r.a141 } in
+  mark_test_run 1166;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1166 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a141 = #{ a18 } } = r in
+  let expected_a18 = 100 in
+  mark_test_run 1167;
+  let test = (fun a b -> Int.equal a b) expected_a18 a18 in
+  if not test then failwithf "test 1167 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a141 } = r in
+  let expected_a141 = #{ a18 = 100 } in
+  mark_test_run 1168;
+  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) expected_a141 a141 in
+  if not test then failwithf "test 1168 failed";
+
+  (********************************)
+  (*   t142 = { #{ int }; int }   *)
+  (********************************)
+  let r = stack_ { a142 = #{ a18 = 0 }; b142 = 1 } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a142 *)
+  let actual = r.a142 in
+  let expected = #{ a18 = 0 } in
+  mark_test_run 1169;
+  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) actual expected in
+  if not test then failwithf "test 1169 failed";
+  (* Paths of depth 2 *)
+  (* .a142.#a18 *)
+  let actual = r.a142.#a18 in
+  let expected = 0 in
+  mark_test_run 1170;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1170 failed";
+  (* Paths of depth 1 *)
+  (* .b142 *)
+  let actual = r.b142 in
+  let expected = 1 in
+  mark_test_run 1171;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1171 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a142 = a1421; b142 = b1421 } { a142 = a1422; b142 = b1422 } -> (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) a1421 a1422 && (fun a b -> Int.equal a b) b1421 b1422) in
+  let next_r = stack_ { a142 = #{ a18 = 100 }; b142 = 101 } in
+  let r_expected = stack_ { a142 = #{ a18 = 0 }; b142 = 1 } in
+  (* .a142 *)
+  r.a142 <- next_r.a142;
+  let r_expected = { r_expected with a142 = next_r.a142 } in
+  mark_test_run 1172;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1172 failed";
+  Gc.compact ();
+  (* .b142 *)
+  r.b142 <- next_r.b142;
+  let r_expected = { r_expected with b142 = next_r.b142 } in
+  mark_test_run 1173;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1173 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a142 = #{ a18 }; b142 } = r in
+  let expected_a18 = 100 in
+  mark_test_run 1174;
+  let test = (fun a b -> Int.equal a b) expected_a18 a18 in
+  if not test then failwithf "test 1174 failed";
+  let expected_b142 = 101 in
+  mark_test_run 1175;
+  let test = (fun a b -> Int.equal a b) expected_b142 b142 in
+  if not test then failwithf "test 1175 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a142; b142 } = r in
+  let expected_a142 = #{ a18 = 100 } in
+  mark_test_run 1176;
+  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) expected_a142 a142 in
+  if not test then failwithf "test 1176 failed";
+  let expected_b142 = 101 in
+  mark_test_run 1177;
+  let test = (fun a b -> Int.equal a b) expected_b142 b142 in
+  if not test then failwithf "test 1177 failed";
+
+  (***********************************)
+  (*   t143 = { #{ int }; int32# }   *)
+  (***********************************)
+  let r = stack_ { a143 = #{ a18 = 0 }; b143 = #1l } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a143 *)
   let actual = r.a143 in
-  let expected = #{ a141 = #0L; b141 = 1L } in
-  mark_test_run 1155;
-  let test = (fun #{ a141 = a1411; b141 = b1411 } #{ a141 = a1412; b141 = b1412 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1411 a1412 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1411 b1412) actual expected in
-  if not test then failwithf "test 1155 failed";
+  let expected = #{ a18 = 0 } in
+  mark_test_run 1178;
+  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) actual expected in
+  if not test then failwithf "test 1178 failed";
   (* Paths of depth 2 *)
-  (* .a143.#a141 *)
-  let actual = r.a143.#a141 in
-  let expected = #0L in
-  mark_test_run 1156;
-  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) actual expected in
-  if not test then failwithf "test 1156 failed";
-  (* .a143.#b141 *)
-  let actual = r.a143.#b141 in
-  let expected = 1L in
-  mark_test_run 1157;
-  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1157 failed";
+  (* .a143.#a18 *)
+  let actual = r.a143.#a18 in
+  let expected = 0 in
+  mark_test_run 1179;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1179 failed";
   (* Paths of depth 1 *)
   (* .b143 *)
   let actual = r.b143 in
-  let expected = #{ a142 = 2L; b142 = 3L } in
-  mark_test_run 1158;
-  let test = (fun #{ a142 = a1421; b142 = b1421 } #{ a142 = a1422; b142 = b1422 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1421 a1422 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1421 b1422) actual expected in
-  if not test then failwithf "test 1158 failed";
-  (* Paths of depth 2 *)
-  (* .b143.#a142 *)
-  let actual = r.b143.#a142 in
-  let expected = 2L in
-  mark_test_run 1159;
-  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1159 failed";
-  (* .b143.#b142 *)
-  let actual = r.b143.#b142 in
-  let expected = 3L in
-  mark_test_run 1160;
-  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1160 failed";
+  let expected = #1l in
+  mark_test_run 1180;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  if not test then failwithf "test 1180 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a143 = a1431; b143 = b1431 } { a143 = a1432; b143 = b1432 } -> (fun #{ a141 = a1411; b141 = b1411 } #{ a141 = a1412; b141 = b1412 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1411 a1412 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1411 b1412) a1431 a1432 && (fun #{ a142 = a1421; b142 = b1421 } #{ a142 = a1422; b142 = b1422 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1421 a1422 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1421 b1422) b1431 b1432) in
-  let next_r = stack_ { a143 = #{ a141 = #100L; b141 = 101L }; b143 = #{ a142 = 102L; b142 = 103L } } in
-  let r_expected = stack_ { a143 = #{ a141 = #0L; b141 = 1L }; b143 = #{ a142 = 2L; b142 = 3L } } in
+  let eq = (fun { a143 = a1431; b143 = b1431 } { a143 = a1432; b143 = b1432 } -> (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) a1431 a1432 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1431 b1432) in
+  let next_r = stack_ { a143 = #{ a18 = 100 }; b143 = #101l } in
+  let r_expected = stack_ { a143 = #{ a18 = 0 }; b143 = #1l } in
   (* .a143 *)
   r.a143 <- next_r.a143;
   let r_expected = { r_expected with a143 = next_r.a143 } in
-  mark_test_run 1161;
+  mark_test_run 1181;
   let test = eq r r_expected in
-  if not test then failwithf "test 1161 failed";
+  if not test then failwithf "test 1181 failed";
   Gc.compact ();
   (* .b143 *)
   r.b143 <- next_r.b143;
   let r_expected = { r_expected with b143 = next_r.b143 } in
-  mark_test_run 1162;
+  mark_test_run 1182;
   let test = eq r r_expected in
-  if not test then failwithf "test 1162 failed";
+  if not test then failwithf "test 1182 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a143 = #{ a141; b141 }; b143 = #{ a142; b142 } } = r in
-  let expected_a141 = #100L in
-  mark_test_run 1163;
-  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) expected_a141 a141 in
-  if not test then failwithf "test 1163 failed";
-  let expected_b141 = 101L in
-  mark_test_run 1164;
-  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) expected_b141 b141 in
-  if not test then failwithf "test 1164 failed";
-  let expected_a142 = 102L in
-  mark_test_run 1165;
-  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) expected_a142 a142 in
-  if not test then failwithf "test 1165 failed";
-  let expected_b142 = 103L in
-  mark_test_run 1166;
-  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) expected_b142 b142 in
-  if not test then failwithf "test 1166 failed";
+  let { a143 = #{ a18 }; b143 } = r in
+  let expected_a18 = 100 in
+  mark_test_run 1183;
+  let test = (fun a b -> Int.equal a b) expected_a18 a18 in
+  if not test then failwithf "test 1183 failed";
+  let expected_b143 = #101l in
+  mark_test_run 1184;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b143 b143 in
+  if not test then failwithf "test 1184 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a143; b143 } = r in
-  let expected_a143 = #{ a141 = #100L; b141 = 101L } in
-  mark_test_run 1167;
-  let test = (fun #{ a141 = a1411; b141 = b1411 } #{ a141 = a1412; b141 = b1412 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1411 a1412 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1411 b1412) expected_a143 a143 in
-  if not test then failwithf "test 1167 failed";
-  let expected_b143 = #{ a142 = 102L; b142 = 103L } in
-  mark_test_run 1168;
-  let test = (fun #{ a142 = a1421; b142 = b1421 } #{ a142 = a1422; b142 = b1422 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1421 a1422 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1421 b1422) expected_b143 b143 in
-  if not test then failwithf "test 1168 failed";
-
-  (***********************************************************)
-  (*   t145 = { #{ int64#; int64 }; #{ float32#; float } }   *)
-  (***********************************************************)
-  let r = stack_ { a145 = #{ a141 = #0L; b141 = 1L }; b145 = #{ a144 = #2.s; b144 = 3. } } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a145 *)
-  let actual = r.a145 in
-  let expected = #{ a141 = #0L; b141 = 1L } in
-  mark_test_run 1169;
-  let test = (fun #{ a141 = a1411; b141 = b1411 } #{ a141 = a1412; b141 = b1412 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1411 a1412 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1411 b1412) actual expected in
-  if not test then failwithf "test 1169 failed";
-  (* Paths of depth 2 *)
-  (* .a145.#a141 *)
-  let actual = r.a145.#a141 in
-  let expected = #0L in
-  mark_test_run 1170;
-  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) actual expected in
-  if not test then failwithf "test 1170 failed";
-  (* .a145.#b141 *)
-  let actual = r.a145.#b141 in
-  let expected = 1L in
-  mark_test_run 1171;
-  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1171 failed";
-  (* Paths of depth 1 *)
-  (* .b145 *)
-  let actual = r.b145 in
-  let expected = #{ a144 = #2.s; b144 = 3. } in
-  mark_test_run 1172;
-  let test = (fun #{ a144 = a1441; b144 = b1441 } #{ a144 = a1442; b144 = b1442 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1441 a1442 && (fun a b -> Float.equal (globalize a) (globalize b)) b1441 b1442) actual expected in
-  if not test then failwithf "test 1172 failed";
-  (* Paths of depth 2 *)
-  (* .b145.#a144 *)
-  let actual = r.b145.#a144 in
-  let expected = #2.s in
-  mark_test_run 1173;
-  let test = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) actual expected in
-  if not test then failwithf "test 1173 failed";
-  (* .b145.#b144 *)
-  let actual = r.b145.#b144 in
-  let expected = 3. in
-  mark_test_run 1174;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1174 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a145 = a1451; b145 = b1451 } { a145 = a1452; b145 = b1452 } -> (fun #{ a141 = a1411; b141 = b1411 } #{ a141 = a1412; b141 = b1412 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1411 a1412 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1411 b1412) a1451 a1452 && (fun #{ a144 = a1441; b144 = b1441 } #{ a144 = a1442; b144 = b1442 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1441 a1442 && (fun a b -> Float.equal (globalize a) (globalize b)) b1441 b1442) b1451 b1452) in
-  let next_r = stack_ { a145 = #{ a141 = #100L; b141 = 101L }; b145 = #{ a144 = #102.s; b144 = 103. } } in
-  let r_expected = stack_ { a145 = #{ a141 = #0L; b141 = 1L }; b145 = #{ a144 = #2.s; b144 = 3. } } in
-  (* .a145 *)
-  r.a145 <- next_r.a145;
-  let r_expected = { r_expected with a145 = next_r.a145 } in
-  mark_test_run 1175;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1175 failed";
-  Gc.compact ();
-  (* .b145 *)
-  r.b145 <- next_r.b145;
-  let r_expected = { r_expected with b145 = next_r.b145 } in
-  mark_test_run 1176;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1176 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a145 = #{ a141; b141 }; b145 = #{ a144; b144 } } = r in
-  let expected_a141 = #100L in
-  mark_test_run 1177;
-  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) expected_a141 a141 in
-  if not test then failwithf "test 1177 failed";
-  let expected_b141 = 101L in
-  mark_test_run 1178;
-  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) expected_b141 b141 in
-  if not test then failwithf "test 1178 failed";
-  let expected_a144 = #102.s in
-  mark_test_run 1179;
-  let test = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) expected_a144 a144 in
-  if not test then failwithf "test 1179 failed";
-  let expected_b144 = 103. in
-  mark_test_run 1180;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b144 b144 in
-  if not test then failwithf "test 1180 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a145; b145 } = r in
-  let expected_a145 = #{ a141 = #100L; b141 = 101L } in
-  mark_test_run 1181;
-  let test = (fun #{ a141 = a1411; b141 = b1411 } #{ a141 = a1412; b141 = b1412 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1411 a1412 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1411 b1412) expected_a145 a145 in
-  if not test then failwithf "test 1181 failed";
-  let expected_b145 = #{ a144 = #102.s; b144 = 103. } in
-  mark_test_run 1182;
-  let test = (fun #{ a144 = a1441; b144 = b1441 } #{ a144 = a1442; b144 = b1442 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1441 a1442 && (fun a b -> Float.equal (globalize a) (globalize b)) b1441 b1442) expected_b145 b145 in
-  if not test then failwithf "test 1182 failed";
-
-  (******************************)
-  (*   t146 = { #{ int32# } }   *)
-  (******************************)
-  let r = stack_ { a146 = #{ a28 = #0l } } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a146 *)
-  let actual = r.a146 in
-  let expected = #{ a28 = #0l } in
-  mark_test_run 1183;
-  let test = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) actual expected in
-  if not test then failwithf "test 1183 failed";
-  (* Paths of depth 2 *)
-  (* .a146.#a28 *)
-  let actual = r.a146.#a28 in
-  let expected = #0l in
-  mark_test_run 1184;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 1184 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a146 = a1461 } { a146 = a1462 } -> (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) a1461 a1462) in
-  let next_r = stack_ { a146 = #{ a28 = #100l } } in
-  let r_expected = stack_ { a146 = #{ a28 = #0l } } in
-  (* .a146 *)
-  r.a146 <- next_r.a146;
-  let r_expected = { r_expected with a146 = next_r.a146 } in
+  let expected_a143 = #{ a18 = 100 } in
   mark_test_run 1185;
-  let test = eq r r_expected in
+  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) expected_a143 a143 in
   if not test then failwithf "test 1185 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a146 = #{ a28 } } = r in
-  let expected_a28 = #100l in
+  let expected_b143 = #101l in
   mark_test_run 1186;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_a28 a28 in
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b143 b143 in
   if not test then failwithf "test 1186 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a146 } = r in
-  let expected_a146 = #{ a28 = #100l } in
-  mark_test_run 1187;
-  let test = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) expected_a146 a146 in
-  if not test then failwithf "test 1187 failed";
 
-  (***********************************)
-  (*   t147 = { #{ int32# }; int }   *)
-  (***********************************)
-  let r = stack_ { a147 = #{ a28 = #0l }; b147 = 1 } in
+  (**********************************)
+  (*   t144 = { #{ int }; float }   *)
+  (**********************************)
+  let r = stack_ { a144 = #{ a18 = 0 }; b144 = 1. } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
-  (* .a147 *)
-  let actual = r.a147 in
-  let expected = #{ a28 = #0l } in
-  mark_test_run 1188;
-  let test = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) actual expected in
-  if not test then failwithf "test 1188 failed";
+  (* .a144 *)
+  let actual = r.a144 in
+  let expected = #{ a18 = 0 } in
+  mark_test_run 1187;
+  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) actual expected in
+  if not test then failwithf "test 1187 failed";
   (* Paths of depth 2 *)
-  (* .a147.#a28 *)
-  let actual = r.a147.#a28 in
-  let expected = #0l in
-  mark_test_run 1189;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 1189 failed";
-  (* Paths of depth 1 *)
-  (* .b147 *)
-  let actual = r.b147 in
-  let expected = 1 in
-  mark_test_run 1190;
+  (* .a144.#a18 *)
+  let actual = r.a144.#a18 in
+  let expected = 0 in
+  mark_test_run 1188;
   let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1188 failed";
+  (* Paths of depth 1 *)
+  (* .b144 *)
+  let actual = r.b144 in
+  let expected = 1. in
+  mark_test_run 1189;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1189 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a144 = a1441; b144 = b1441 } { a144 = a1442; b144 = b1442 } -> (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) a1441 a1442 && (fun a b -> Float.equal (globalize a) (globalize b)) b1441 b1442) in
+  let next_r = stack_ { a144 = #{ a18 = 100 }; b144 = 101. } in
+  let r_expected = stack_ { a144 = #{ a18 = 0 }; b144 = 1. } in
+  (* .a144 *)
+  r.a144 <- next_r.a144;
+  let r_expected = { r_expected with a144 = next_r.a144 } in
+  mark_test_run 1190;
+  let test = eq r r_expected in
   if not test then failwithf "test 1190 failed";
   Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a147 = a1471; b147 = b1471 } { a147 = a1472; b147 = b1472 } -> (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) a1471 a1472 && (fun a b -> Int.equal a b) b1471 b1472) in
-  let next_r = stack_ { a147 = #{ a28 = #100l }; b147 = 101 } in
-  let r_expected = stack_ { a147 = #{ a28 = #0l }; b147 = 1 } in
-  (* .a147 *)
-  r.a147 <- next_r.a147;
-  let r_expected = { r_expected with a147 = next_r.a147 } in
+  (* .b144 *)
+  r.b144 <- next_r.b144;
+  let r_expected = { r_expected with b144 = next_r.b144 } in
   mark_test_run 1191;
   let test = eq r r_expected in
   if not test then failwithf "test 1191 failed";
   Gc.compact ();
-  (* .b147 *)
-  r.b147 <- next_r.b147;
-  let r_expected = { r_expected with b147 = next_r.b147 } in
-  mark_test_run 1192;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1192 failed";
-  Gc.compact ();
   (* 3. Test deep matching *)
-  let { a147 = #{ a28 }; b147 } = r in
-  let expected_a28 = #100l in
+  let { a144 = #{ a18 }; b144 } = r in
+  let expected_a18 = 100 in
+  mark_test_run 1192;
+  let test = (fun a b -> Int.equal a b) expected_a18 a18 in
+  if not test then failwithf "test 1192 failed";
+  let expected_b144 = 101. in
   mark_test_run 1193;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_a28 a28 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b144 b144 in
   if not test then failwithf "test 1193 failed";
-  let expected_b147 = 101 in
-  mark_test_run 1194;
-  let test = (fun a b -> Int.equal a b) expected_b147 b147 in
-  if not test then failwithf "test 1194 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a147; b147 } = r in
-  let expected_a147 = #{ a28 = #100l } in
+  let { a144; b144 } = r in
+  let expected_a144 = #{ a18 = 100 } in
+  mark_test_run 1194;
+  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) expected_a144 a144 in
+  if not test then failwithf "test 1194 failed";
+  let expected_b144 = 101. in
   mark_test_run 1195;
-  let test = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) expected_a147 a147 in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b144 b144 in
   if not test then failwithf "test 1195 failed";
-  let expected_b147 = 101 in
-  mark_test_run 1196;
-  let test = (fun a b -> Int.equal a b) expected_b147 b147 in
-  if not test then failwithf "test 1196 failed";
 
-  (**************************************)
-  (*   t148 = { #{ int32# }; int32# }   *)
-  (**************************************)
-  let r = stack_ { a148 = #{ a28 = #0l }; b148 = #1l } in
+  (*************************************)
+  (*   t145 = { #{ int }; int64x2# }   *)
+  (*************************************)
+  let r = stack_ { a145 = #{ a18 = 0 }; b145 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
-  (* .a148 *)
-  let actual = r.a148 in
-  let expected = #{ a28 = #0l } in
-  mark_test_run 1197;
-  let test = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) actual expected in
-  if not test then failwithf "test 1197 failed";
+  (* .a145 *)
+  let actual = r.a145 in
+  let expected = #{ a18 = 0 } in
+  mark_test_run 1196;
+  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) actual expected in
+  if not test then failwithf "test 1196 failed";
   (* Paths of depth 2 *)
-  (* .a148.#a28 *)
-  let actual = r.a148.#a28 in
-  let expected = #0l in
-  mark_test_run 1198;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 1198 failed";
+  (* .a145.#a18 *)
+  let actual = r.a145.#a18 in
+  let expected = 0 in
+  mark_test_run 1197;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1197 failed";
   (* Paths of depth 1 *)
-  (* .b148 *)
-  let actual = r.b148 in
-  let expected = #1l in
-  mark_test_run 1199;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 1199 failed";
+  (* .b145 *)
+  let actual = r.b145 in
+  let expected = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) in
+  mark_test_run 1198;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1198 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a148 = a1481; b148 = b1481 } { a148 = a1482; b148 = b1482 } -> (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) a1481 a1482 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1481 b1482) in
-  let next_r = stack_ { a148 = #{ a28 = #100l }; b148 = #101l } in
-  let r_expected = stack_ { a148 = #{ a28 = #0l }; b148 = #1l } in
-  (* .a148 *)
-  r.a148 <- next_r.a148;
-  let r_expected = { r_expected with a148 = next_r.a148 } in
+  let eq = (fun { a145 = a1451; b145 = b1451 } { a145 = a1452; b145 = b1452 } -> (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) a1451 a1452 && int64x2_u_equal b1451 b1452) in
+  let next_r = stack_ { a145 = #{ a18 = 100 }; b145 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } in
+  let r_expected = stack_ { a145 = #{ a18 = 0 }; b145 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
+  (* .a145 *)
+  r.a145 <- next_r.a145;
+  let r_expected = { r_expected with a145 = next_r.a145 } in
+  mark_test_run 1199;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1199 failed";
+  Gc.compact ();
+  (* .b145 *)
+  r.b145 <- next_r.b145;
+  let r_expected = { r_expected with b145 = next_r.b145 } in
   mark_test_run 1200;
   let test = eq r r_expected in
   if not test then failwithf "test 1200 failed";
   Gc.compact ();
-  (* .b148 *)
-  r.b148 <- next_r.b148;
-  let r_expected = { r_expected with b148 = next_r.b148 } in
-  mark_test_run 1201;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1201 failed";
-  Gc.compact ();
   (* 3. Test deep matching *)
-  let { a148 = #{ a28 }; b148 } = r in
-  let expected_a28 = #100l in
+  let { a145 = #{ a18 }; b145 } = r in
+  let expected_a18 = 100 in
+  mark_test_run 1201;
+  let test = (fun a b -> Int.equal a b) expected_a18 a18 in
+  if not test then failwithf "test 1201 failed";
+  let expected_b145 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) in
   mark_test_run 1202;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_a28 a28 in
+  let test = int64x2_u_equal expected_b145 b145 in
   if not test then failwithf "test 1202 failed";
-  let expected_b148 = #101l in
-  mark_test_run 1203;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b148 b148 in
-  if not test then failwithf "test 1203 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a148; b148 } = r in
-  let expected_a148 = #{ a28 = #100l } in
+  let { a145; b145 } = r in
+  let expected_a145 = #{ a18 = 100 } in
+  mark_test_run 1203;
+  let test = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) expected_a145 a145 in
+  if not test then failwithf "test 1203 failed";
+  let expected_b145 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) in
   mark_test_run 1204;
-  let test = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) expected_a148 a148 in
+  let test = int64x2_u_equal expected_b145 b145 in
   if not test then failwithf "test 1204 failed";
-  let expected_b148 = #101l in
-  mark_test_run 1205;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b148 b148 in
-  if not test then failwithf "test 1205 failed";
 
-  (***********************************)
-  (*   t149 = { #{ int32#; int } }   *)
-  (***********************************)
-  let r = stack_ { a149 = #{ a30 = #0l; b30 = 1 } } in
+  (********************************)
+  (*   t146 = { #{ int; int } }   *)
+  (********************************)
+  let r = stack_ { a146 = #{ a20 = 0; b20 = 1 } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
-  (* .a149 *)
-  let actual = r.a149 in
-  let expected = #{ a30 = #0l; b30 = 1 } in
-  mark_test_run 1206;
-  let test = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) actual expected in
-  if not test then failwithf "test 1206 failed";
+  (* .a146 *)
+  let actual = r.a146 in
+  let expected = #{ a20 = 0; b20 = 1 } in
+  mark_test_run 1205;
+  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) actual expected in
+  if not test then failwithf "test 1205 failed";
   (* Paths of depth 2 *)
-  (* .a149.#a30 *)
-  let actual = r.a149.#a30 in
-  let expected = #0l in
-  mark_test_run 1207;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 1207 failed";
-  (* .a149.#b30 *)
-  let actual = r.a149.#b30 in
-  let expected = 1 in
-  mark_test_run 1208;
+  (* .a146.#a20 *)
+  let actual = r.a146.#a20 in
+  let expected = 0 in
+  mark_test_run 1206;
   let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1208 failed";
+  if not test then failwithf "test 1206 failed";
+  (* .a146.#b20 *)
+  let actual = r.a146.#b20 in
+  let expected = 1 in
+  mark_test_run 1207;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1207 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a149 = a1491 } { a149 = a1492 } -> (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) a1491 a1492) in
-  let next_r = stack_ { a149 = #{ a30 = #100l; b30 = 101 } } in
-  let r_expected = stack_ { a149 = #{ a30 = #0l; b30 = 1 } } in
-  (* .a149 *)
-  r.a149 <- next_r.a149;
-  let r_expected = { r_expected with a149 = next_r.a149 } in
-  mark_test_run 1209;
+  let eq = (fun { a146 = a1461 } { a146 = a1462 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) a1461 a1462) in
+  let next_r = stack_ { a146 = #{ a20 = 100; b20 = 101 } } in
+  let r_expected = stack_ { a146 = #{ a20 = 0; b20 = 1 } } in
+  (* .a146 *)
+  r.a146 <- next_r.a146;
+  let r_expected = { r_expected with a146 = next_r.a146 } in
+  mark_test_run 1208;
   let test = eq r r_expected in
-  if not test then failwithf "test 1209 failed";
+  if not test then failwithf "test 1208 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a149 = #{ a30; b30 } } = r in
-  let expected_a30 = #100l in
+  let { a146 = #{ a20; b20 } } = r in
+  let expected_a20 = 100 in
+  mark_test_run 1209;
+  let test = (fun a b -> Int.equal a b) expected_a20 a20 in
+  if not test then failwithf "test 1209 failed";
+  let expected_b20 = 101 in
   mark_test_run 1210;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_a30 a30 in
+  let test = (fun a b -> Int.equal a b) expected_b20 b20 in
   if not test then failwithf "test 1210 failed";
-  let expected_b30 = 101 in
-  mark_test_run 1211;
-  let test = (fun a b -> Int.equal a b) expected_b30 b30 in
-  if not test then failwithf "test 1211 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a149 } = r in
-  let expected_a149 = #{ a30 = #100l; b30 = 101 } in
-  mark_test_run 1212;
-  let test = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) expected_a149 a149 in
-  if not test then failwithf "test 1212 failed";
+  let { a146 } = r in
+  let expected_a146 = #{ a20 = 100; b20 = 101 } in
+  mark_test_run 1211;
+  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) expected_a146 a146 in
+  if not test then failwithf "test 1211 failed";
 
-  (****************************************)
-  (*   t150 = { #{ int32#; int }; int }   *)
-  (****************************************)
-  let r = stack_ { a150 = #{ a30 = #0l; b30 = 1 }; b150 = 2 } in
+  (*************************************)
+  (*   t147 = { #{ int; int }; int }   *)
+  (*************************************)
+  let r = stack_ { a147 = #{ a20 = 0; b20 = 1 }; b147 = 2 } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
-  (* .a150 *)
-  let actual = r.a150 in
-  let expected = #{ a30 = #0l; b30 = 1 } in
-  mark_test_run 1213;
-  let test = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) actual expected in
-  if not test then failwithf "test 1213 failed";
+  (* .a147 *)
+  let actual = r.a147 in
+  let expected = #{ a20 = 0; b20 = 1 } in
+  mark_test_run 1212;
+  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) actual expected in
+  if not test then failwithf "test 1212 failed";
   (* Paths of depth 2 *)
-  (* .a150.#a30 *)
-  let actual = r.a150.#a30 in
-  let expected = #0l in
-  mark_test_run 1214;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 1214 failed";
-  (* .a150.#b30 *)
-  let actual = r.a150.#b30 in
+  (* .a147.#a20 *)
+  let actual = r.a147.#a20 in
+  let expected = 0 in
+  mark_test_run 1213;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1213 failed";
+  (* .a147.#b20 *)
+  let actual = r.a147.#b20 in
   let expected = 1 in
+  mark_test_run 1214;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1214 failed";
+  (* Paths of depth 1 *)
+  (* .b147 *)
+  let actual = r.b147 in
+  let expected = 2 in
   mark_test_run 1215;
   let test = (fun a b -> Int.equal a b) actual expected in
   if not test then failwithf "test 1215 failed";
-  (* Paths of depth 1 *)
-  (* .b150 *)
-  let actual = r.b150 in
-  let expected = 2 in
-  mark_test_run 1216;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1216 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a150 = a1501; b150 = b1501 } { a150 = a1502; b150 = b1502 } -> (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) a1501 a1502 && (fun a b -> Int.equal a b) b1501 b1502) in
-  let next_r = stack_ { a150 = #{ a30 = #100l; b30 = 101 }; b150 = 102 } in
-  let r_expected = stack_ { a150 = #{ a30 = #0l; b30 = 1 }; b150 = 2 } in
-  (* .a150 *)
-  r.a150 <- next_r.a150;
-  let r_expected = { r_expected with a150 = next_r.a150 } in
+  let eq = (fun { a147 = a1471; b147 = b1471 } { a147 = a1472; b147 = b1472 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) a1471 a1472 && (fun a b -> Int.equal a b) b1471 b1472) in
+  let next_r = stack_ { a147 = #{ a20 = 100; b20 = 101 }; b147 = 102 } in
+  let r_expected = stack_ { a147 = #{ a20 = 0; b20 = 1 }; b147 = 2 } in
+  (* .a147 *)
+  r.a147 <- next_r.a147;
+  let r_expected = { r_expected with a147 = next_r.a147 } in
+  mark_test_run 1216;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1216 failed";
+  Gc.compact ();
+  (* .b147 *)
+  r.b147 <- next_r.b147;
+  let r_expected = { r_expected with b147 = next_r.b147 } in
   mark_test_run 1217;
   let test = eq r r_expected in
   if not test then failwithf "test 1217 failed";
   Gc.compact ();
-  (* .b150 *)
-  r.b150 <- next_r.b150;
-  let r_expected = { r_expected with b150 = next_r.b150 } in
-  mark_test_run 1218;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1218 failed";
-  Gc.compact ();
   (* 3. Test deep matching *)
-  let { a150 = #{ a30; b30 }; b150 } = r in
-  let expected_a30 = #100l in
+  let { a147 = #{ a20; b20 }; b147 } = r in
+  let expected_a20 = 100 in
+  mark_test_run 1218;
+  let test = (fun a b -> Int.equal a b) expected_a20 a20 in
+  if not test then failwithf "test 1218 failed";
+  let expected_b20 = 101 in
   mark_test_run 1219;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_a30 a30 in
+  let test = (fun a b -> Int.equal a b) expected_b20 b20 in
   if not test then failwithf "test 1219 failed";
-  let expected_b30 = 101 in
+  let expected_b147 = 102 in
   mark_test_run 1220;
-  let test = (fun a b -> Int.equal a b) expected_b30 b30 in
+  let test = (fun a b -> Int.equal a b) expected_b147 b147 in
   if not test then failwithf "test 1220 failed";
-  let expected_b150 = 102 in
-  mark_test_run 1221;
-  let test = (fun a b -> Int.equal a b) expected_b150 b150 in
-  if not test then failwithf "test 1221 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a150; b150 } = r in
-  let expected_a150 = #{ a30 = #100l; b30 = 101 } in
+  let { a147; b147 } = r in
+  let expected_a147 = #{ a20 = 100; b20 = 101 } in
+  mark_test_run 1221;
+  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) expected_a147 a147 in
+  if not test then failwithf "test 1221 failed";
+  let expected_b147 = 102 in
   mark_test_run 1222;
-  let test = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) expected_a150 a150 in
+  let test = (fun a b -> Int.equal a b) expected_b147 b147 in
   if not test then failwithf "test 1222 failed";
-  let expected_b150 = 102 in
-  mark_test_run 1223;
-  let test = (fun a b -> Int.equal a b) expected_b150 b150 in
-  if not test then failwithf "test 1223 failed";
 
-  (*******************************************)
-  (*   t151 = { #{ int32#; int }; int32# }   *)
-  (*******************************************)
-  let r = stack_ { a151 = #{ a30 = #0l; b30 = 1 }; b151 = #2l } in
+  (****************************************)
+  (*   t148 = { #{ int; int }; int32# }   *)
+  (****************************************)
+  let r = stack_ { a148 = #{ a20 = 0; b20 = 1 }; b148 = #2l } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
-  (* .a151 *)
-  let actual = r.a151 in
-  let expected = #{ a30 = #0l; b30 = 1 } in
-  mark_test_run 1224;
-  let test = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) actual expected in
-  if not test then failwithf "test 1224 failed";
+  (* .a148 *)
+  let actual = r.a148 in
+  let expected = #{ a20 = 0; b20 = 1 } in
+  mark_test_run 1223;
+  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) actual expected in
+  if not test then failwithf "test 1223 failed";
   (* Paths of depth 2 *)
-  (* .a151.#a30 *)
-  let actual = r.a151.#a30 in
-  let expected = #0l in
-  mark_test_run 1225;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 1225 failed";
-  (* .a151.#b30 *)
-  let actual = r.a151.#b30 in
-  let expected = 1 in
-  mark_test_run 1226;
+  (* .a148.#a20 *)
+  let actual = r.a148.#a20 in
+  let expected = 0 in
+  mark_test_run 1224;
   let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1226 failed";
+  if not test then failwithf "test 1224 failed";
+  (* .a148.#b20 *)
+  let actual = r.a148.#b20 in
+  let expected = 1 in
+  mark_test_run 1225;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1225 failed";
   (* Paths of depth 1 *)
-  (* .b151 *)
-  let actual = r.b151 in
+  (* .b148 *)
+  let actual = r.b148 in
   let expected = #2l in
-  mark_test_run 1227;
+  mark_test_run 1226;
   let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 1227 failed";
+  if not test then failwithf "test 1226 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a151 = a1511; b151 = b1511 } { a151 = a1512; b151 = b1512 } -> (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) a1511 a1512 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1511 b1512) in
-  let next_r = stack_ { a151 = #{ a30 = #100l; b30 = 101 }; b151 = #102l } in
-  let r_expected = stack_ { a151 = #{ a30 = #0l; b30 = 1 }; b151 = #2l } in
-  (* .a151 *)
-  r.a151 <- next_r.a151;
-  let r_expected = { r_expected with a151 = next_r.a151 } in
+  let eq = (fun { a148 = a1481; b148 = b1481 } { a148 = a1482; b148 = b1482 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) a1481 a1482 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1481 b1482) in
+  let next_r = stack_ { a148 = #{ a20 = 100; b20 = 101 }; b148 = #102l } in
+  let r_expected = stack_ { a148 = #{ a20 = 0; b20 = 1 }; b148 = #2l } in
+  (* .a148 *)
+  r.a148 <- next_r.a148;
+  let r_expected = { r_expected with a148 = next_r.a148 } in
+  mark_test_run 1227;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1227 failed";
+  Gc.compact ();
+  (* .b148 *)
+  r.b148 <- next_r.b148;
+  let r_expected = { r_expected with b148 = next_r.b148 } in
   mark_test_run 1228;
   let test = eq r r_expected in
   if not test then failwithf "test 1228 failed";
   Gc.compact ();
-  (* .b151 *)
-  r.b151 <- next_r.b151;
-  let r_expected = { r_expected with b151 = next_r.b151 } in
-  mark_test_run 1229;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1229 failed";
-  Gc.compact ();
   (* 3. Test deep matching *)
-  let { a151 = #{ a30; b30 }; b151 } = r in
-  let expected_a30 = #100l in
+  let { a148 = #{ a20; b20 }; b148 } = r in
+  let expected_a20 = 100 in
+  mark_test_run 1229;
+  let test = (fun a b -> Int.equal a b) expected_a20 a20 in
+  if not test then failwithf "test 1229 failed";
+  let expected_b20 = 101 in
   mark_test_run 1230;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_a30 a30 in
+  let test = (fun a b -> Int.equal a b) expected_b20 b20 in
   if not test then failwithf "test 1230 failed";
-  let expected_b30 = 101 in
+  let expected_b148 = #102l in
   mark_test_run 1231;
-  let test = (fun a b -> Int.equal a b) expected_b30 b30 in
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b148 b148 in
   if not test then failwithf "test 1231 failed";
-  let expected_b151 = #102l in
-  mark_test_run 1232;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b151 b151 in
-  if not test then failwithf "test 1232 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a151; b151 } = r in
-  let expected_a151 = #{ a30 = #100l; b30 = 101 } in
+  let { a148; b148 } = r in
+  let expected_a148 = #{ a20 = 100; b20 = 101 } in
+  mark_test_run 1232;
+  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) expected_a148 a148 in
+  if not test then failwithf "test 1232 failed";
+  let expected_b148 = #102l in
   mark_test_run 1233;
-  let test = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) expected_a151 a151 in
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b148 b148 in
   if not test then failwithf "test 1233 failed";
-  let expected_b151 = #102l in
-  mark_test_run 1234;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b151 b151 in
-  if not test then failwithf "test 1234 failed";
 
-  (**************************************)
-  (*   t152 = { #{ int32#; int32# } }   *)
-  (**************************************)
-  let r = stack_ { a152 = #{ a32 = #0l; b32 = #1l } } in
+  (***************************************)
+  (*   t149 = { #{ int; int }; float }   *)
+  (***************************************)
+  let r = stack_ { a149 = #{ a20 = 0; b20 = 1 }; b149 = 2. } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
-  (* .a152 *)
-  let actual = r.a152 in
-  let expected = #{ a32 = #0l; b32 = #1l } in
-  mark_test_run 1235;
-  let test = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) actual expected in
-  if not test then failwithf "test 1235 failed";
+  (* .a149 *)
+  let actual = r.a149 in
+  let expected = #{ a20 = 0; b20 = 1 } in
+  mark_test_run 1234;
+  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) actual expected in
+  if not test then failwithf "test 1234 failed";
   (* Paths of depth 2 *)
-  (* .a152.#a32 *)
-  let actual = r.a152.#a32 in
-  let expected = #0l in
+  (* .a149.#a20 *)
+  let actual = r.a149.#a20 in
+  let expected = 0 in
+  mark_test_run 1235;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1235 failed";
+  (* .a149.#b20 *)
+  let actual = r.a149.#b20 in
+  let expected = 1 in
   mark_test_run 1236;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  let test = (fun a b -> Int.equal a b) actual expected in
   if not test then failwithf "test 1236 failed";
-  (* .a152.#b32 *)
-  let actual = r.a152.#b32 in
-  let expected = #1l in
+  (* Paths of depth 1 *)
+  (* .b149 *)
+  let actual = r.b149 in
+  let expected = 2. in
   mark_test_run 1237;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
   if not test then failwithf "test 1237 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a152 = a1521 } { a152 = a1522 } -> (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) a1521 a1522) in
-  let next_r = stack_ { a152 = #{ a32 = #100l; b32 = #101l } } in
-  let r_expected = stack_ { a152 = #{ a32 = #0l; b32 = #1l } } in
-  (* .a152 *)
-  r.a152 <- next_r.a152;
-  let r_expected = { r_expected with a152 = next_r.a152 } in
+  let eq = (fun { a149 = a1491; b149 = b1491 } { a149 = a1492; b149 = b1492 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) a1491 a1492 && (fun a b -> Float.equal (globalize a) (globalize b)) b1491 b1492) in
+  let next_r = stack_ { a149 = #{ a20 = 100; b20 = 101 }; b149 = 102. } in
+  let r_expected = stack_ { a149 = #{ a20 = 0; b20 = 1 }; b149 = 2. } in
+  (* .a149 *)
+  r.a149 <- next_r.a149;
+  let r_expected = { r_expected with a149 = next_r.a149 } in
   mark_test_run 1238;
   let test = eq r r_expected in
   if not test then failwithf "test 1238 failed";
   Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a152 = #{ a32; b32 } } = r in
-  let expected_a32 = #100l in
+  (* .b149 *)
+  r.b149 <- next_r.b149;
+  let r_expected = { r_expected with b149 = next_r.b149 } in
   mark_test_run 1239;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_a32 a32 in
+  let test = eq r r_expected in
   if not test then failwithf "test 1239 failed";
-  let expected_b32 = #101l in
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a149 = #{ a20; b20 }; b149 } = r in
+  let expected_a20 = 100 in
   mark_test_run 1240;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b32 b32 in
+  let test = (fun a b -> Int.equal a b) expected_a20 a20 in
   if not test then failwithf "test 1240 failed";
+  let expected_b20 = 101 in
+  mark_test_run 1241;
+  let test = (fun a b -> Int.equal a b) expected_b20 b20 in
+  if not test then failwithf "test 1241 failed";
+  let expected_b149 = 102. in
+  mark_test_run 1242;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b149 b149 in
+  if not test then failwithf "test 1242 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a152 } = r in
-  let expected_a152 = #{ a32 = #100l; b32 = #101l } in
-  mark_test_run 1241;
-  let test = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) expected_a152 a152 in
-  if not test then failwithf "test 1241 failed";
+  let { a149; b149 } = r in
+  let expected_a149 = #{ a20 = 100; b20 = 101 } in
+  mark_test_run 1243;
+  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) expected_a149 a149 in
+  if not test then failwithf "test 1243 failed";
+  let expected_b149 = 102. in
+  mark_test_run 1244;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b149 b149 in
+  if not test then failwithf "test 1244 failed";
+
+  (******************************************)
+  (*   t150 = { #{ int; int }; int64x2# }   *)
+  (******************************************)
+  let r = stack_ { a150 = #{ a20 = 0; b20 = 1 }; b150 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a150 *)
+  let actual = r.a150 in
+  let expected = #{ a20 = 0; b20 = 1 } in
+  mark_test_run 1245;
+  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) actual expected in
+  if not test then failwithf "test 1245 failed";
+  (* Paths of depth 2 *)
+  (* .a150.#a20 *)
+  let actual = r.a150.#a20 in
+  let expected = 0 in
+  mark_test_run 1246;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1246 failed";
+  (* .a150.#b20 *)
+  let actual = r.a150.#b20 in
+  let expected = 1 in
+  mark_test_run 1247;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1247 failed";
+  (* Paths of depth 1 *)
+  (* .b150 *)
+  let actual = r.b150 in
+  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
+  mark_test_run 1248;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1248 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a150 = a1501; b150 = b1501 } { a150 = a1502; b150 = b1502 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) a1501 a1502 && int64x2_u_equal b1501 b1502) in
+  let next_r = stack_ { a150 = #{ a20 = 100; b20 = 101 }; b150 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
+  let r_expected = stack_ { a150 = #{ a20 = 0; b20 = 1 }; b150 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  (* .a150 *)
+  r.a150 <- next_r.a150;
+  let r_expected = { r_expected with a150 = next_r.a150 } in
+  mark_test_run 1249;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1249 failed";
+  Gc.compact ();
+  (* .b150 *)
+  r.b150 <- next_r.b150;
+  let r_expected = { r_expected with b150 = next_r.b150 } in
+  mark_test_run 1250;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1250 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a150 = #{ a20; b20 }; b150 } = r in
+  let expected_a20 = 100 in
+  mark_test_run 1251;
+  let test = (fun a b -> Int.equal a b) expected_a20 a20 in
+  if not test then failwithf "test 1251 failed";
+  let expected_b20 = 101 in
+  mark_test_run 1252;
+  let test = (fun a b -> Int.equal a b) expected_b20 b20 in
+  if not test then failwithf "test 1252 failed";
+  let expected_b150 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  mark_test_run 1253;
+  let test = int64x2_u_equal expected_b150 b150 in
+  if not test then failwithf "test 1253 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a150; b150 } = r in
+  let expected_a150 = #{ a20 = 100; b20 = 101 } in
+  mark_test_run 1254;
+  let test = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) expected_a150 a150 in
+  if not test then failwithf "test 1254 failed";
+  let expected_b150 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  mark_test_run 1255;
+  let test = int64x2_u_equal expected_b150 b150 in
+  if not test then failwithf "test 1255 failed";
+
+  (***********************************)
+  (*   t151 = { #{ int; int32# } }   *)
+  (***********************************)
+  let r = stack_ { a151 = #{ a22 = 0; b22 = #1l } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a151 *)
+  let actual = r.a151 in
+  let expected = #{ a22 = 0; b22 = #1l } in
+  mark_test_run 1256;
+  let test = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) actual expected in
+  if not test then failwithf "test 1256 failed";
+  (* Paths of depth 2 *)
+  (* .a151.#a22 *)
+  let actual = r.a151.#a22 in
+  let expected = 0 in
+  mark_test_run 1257;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1257 failed";
+  (* .a151.#b22 *)
+  let actual = r.a151.#b22 in
+  let expected = #1l in
+  mark_test_run 1258;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  if not test then failwithf "test 1258 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a151 = a1511 } { a151 = a1512 } -> (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) a1511 a1512) in
+  let next_r = stack_ { a151 = #{ a22 = 100; b22 = #101l } } in
+  let r_expected = stack_ { a151 = #{ a22 = 0; b22 = #1l } } in
+  (* .a151 *)
+  r.a151 <- next_r.a151;
+  let r_expected = { r_expected with a151 = next_r.a151 } in
+  mark_test_run 1259;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1259 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a151 = #{ a22; b22 } } = r in
+  let expected_a22 = 100 in
+  mark_test_run 1260;
+  let test = (fun a b -> Int.equal a b) expected_a22 a22 in
+  if not test then failwithf "test 1260 failed";
+  let expected_b22 = #101l in
+  mark_test_run 1261;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b22 b22 in
+  if not test then failwithf "test 1261 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a151 } = r in
+  let expected_a151 = #{ a22 = 100; b22 = #101l } in
+  mark_test_run 1262;
+  let test = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) expected_a151 a151 in
+  if not test then failwithf "test 1262 failed";
+
+  (****************************************)
+  (*   t152 = { #{ int; int32# }; int }   *)
+  (****************************************)
+  let r = stack_ { a152 = #{ a22 = 0; b22 = #1l }; b152 = 2 } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a152 *)
+  let actual = r.a152 in
+  let expected = #{ a22 = 0; b22 = #1l } in
+  mark_test_run 1263;
+  let test = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) actual expected in
+  if not test then failwithf "test 1263 failed";
+  (* Paths of depth 2 *)
+  (* .a152.#a22 *)
+  let actual = r.a152.#a22 in
+  let expected = 0 in
+  mark_test_run 1264;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1264 failed";
+  (* .a152.#b22 *)
+  let actual = r.a152.#b22 in
+  let expected = #1l in
+  mark_test_run 1265;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  if not test then failwithf "test 1265 failed";
+  (* Paths of depth 1 *)
+  (* .b152 *)
+  let actual = r.b152 in
+  let expected = 2 in
+  mark_test_run 1266;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1266 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a152 = a1521; b152 = b1521 } { a152 = a1522; b152 = b1522 } -> (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) a1521 a1522 && (fun a b -> Int.equal a b) b1521 b1522) in
+  let next_r = stack_ { a152 = #{ a22 = 100; b22 = #101l }; b152 = 102 } in
+  let r_expected = stack_ { a152 = #{ a22 = 0; b22 = #1l }; b152 = 2 } in
+  (* .a152 *)
+  r.a152 <- next_r.a152;
+  let r_expected = { r_expected with a152 = next_r.a152 } in
+  mark_test_run 1267;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1267 failed";
+  Gc.compact ();
+  (* .b152 *)
+  r.b152 <- next_r.b152;
+  let r_expected = { r_expected with b152 = next_r.b152 } in
+  mark_test_run 1268;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1268 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a152 = #{ a22; b22 }; b152 } = r in
+  let expected_a22 = 100 in
+  mark_test_run 1269;
+  let test = (fun a b -> Int.equal a b) expected_a22 a22 in
+  if not test then failwithf "test 1269 failed";
+  let expected_b22 = #101l in
+  mark_test_run 1270;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b22 b22 in
+  if not test then failwithf "test 1270 failed";
+  let expected_b152 = 102 in
+  mark_test_run 1271;
+  let test = (fun a b -> Int.equal a b) expected_b152 b152 in
+  if not test then failwithf "test 1271 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a152; b152 } = r in
+  let expected_a152 = #{ a22 = 100; b22 = #101l } in
+  mark_test_run 1272;
+  let test = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) expected_a152 a152 in
+  if not test then failwithf "test 1272 failed";
+  let expected_b152 = 102 in
+  mark_test_run 1273;
+  let test = (fun a b -> Int.equal a b) expected_b152 b152 in
+  if not test then failwithf "test 1273 failed";
 
   (*******************************************)
-  (*   t153 = { #{ int32#; int32# }; int }   *)
+  (*   t153 = { #{ int; int32# }; int32# }   *)
   (*******************************************)
-  let r = stack_ { a153 = #{ a32 = #0l; b32 = #1l }; b153 = 2 } in
+  let r = stack_ { a153 = #{ a22 = 0; b22 = #1l }; b153 = #2l } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a153 *)
   let actual = r.a153 in
-  let expected = #{ a32 = #0l; b32 = #1l } in
-  mark_test_run 1242;
-  let test = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) actual expected in
-  if not test then failwithf "test 1242 failed";
+  let expected = #{ a22 = 0; b22 = #1l } in
+  mark_test_run 1274;
+  let test = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) actual expected in
+  if not test then failwithf "test 1274 failed";
   (* Paths of depth 2 *)
-  (* .a153.#a32 *)
-  let actual = r.a153.#a32 in
-  let expected = #0l in
-  mark_test_run 1243;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 1243 failed";
-  (* .a153.#b32 *)
-  let actual = r.a153.#b32 in
+  (* .a153.#a22 *)
+  let actual = r.a153.#a22 in
+  let expected = 0 in
+  mark_test_run 1275;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1275 failed";
+  (* .a153.#b22 *)
+  let actual = r.a153.#b22 in
   let expected = #1l in
-  mark_test_run 1244;
+  mark_test_run 1276;
   let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 1244 failed";
+  if not test then failwithf "test 1276 failed";
   (* Paths of depth 1 *)
   (* .b153 *)
   let actual = r.b153 in
-  let expected = 2 in
-  mark_test_run 1245;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1245 failed";
+  let expected = #2l in
+  mark_test_run 1277;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  if not test then failwithf "test 1277 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a153 = a1531; b153 = b1531 } { a153 = a1532; b153 = b1532 } -> (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) a1531 a1532 && (fun a b -> Int.equal a b) b1531 b1532) in
-  let next_r = stack_ { a153 = #{ a32 = #100l; b32 = #101l }; b153 = 102 } in
-  let r_expected = stack_ { a153 = #{ a32 = #0l; b32 = #1l }; b153 = 2 } in
+  let eq = (fun { a153 = a1531; b153 = b1531 } { a153 = a1532; b153 = b1532 } -> (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) a1531 a1532 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1531 b1532) in
+  let next_r = stack_ { a153 = #{ a22 = 100; b22 = #101l }; b153 = #102l } in
+  let r_expected = stack_ { a153 = #{ a22 = 0; b22 = #1l }; b153 = #2l } in
   (* .a153 *)
   r.a153 <- next_r.a153;
   let r_expected = { r_expected with a153 = next_r.a153 } in
-  mark_test_run 1246;
+  mark_test_run 1278;
   let test = eq r r_expected in
-  if not test then failwithf "test 1246 failed";
+  if not test then failwithf "test 1278 failed";
   Gc.compact ();
   (* .b153 *)
   r.b153 <- next_r.b153;
   let r_expected = { r_expected with b153 = next_r.b153 } in
-  mark_test_run 1247;
+  mark_test_run 1279;
   let test = eq r r_expected in
-  if not test then failwithf "test 1247 failed";
+  if not test then failwithf "test 1279 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a153 = #{ a32; b32 }; b153 } = r in
-  let expected_a32 = #100l in
-  mark_test_run 1248;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_a32 a32 in
-  if not test then failwithf "test 1248 failed";
-  let expected_b32 = #101l in
-  mark_test_run 1249;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b32 b32 in
-  if not test then failwithf "test 1249 failed";
-  let expected_b153 = 102 in
-  mark_test_run 1250;
-  let test = (fun a b -> Int.equal a b) expected_b153 b153 in
-  if not test then failwithf "test 1250 failed";
+  let { a153 = #{ a22; b22 }; b153 } = r in
+  let expected_a22 = 100 in
+  mark_test_run 1280;
+  let test = (fun a b -> Int.equal a b) expected_a22 a22 in
+  if not test then failwithf "test 1280 failed";
+  let expected_b22 = #101l in
+  mark_test_run 1281;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b22 b22 in
+  if not test then failwithf "test 1281 failed";
+  let expected_b153 = #102l in
+  mark_test_run 1282;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b153 b153 in
+  if not test then failwithf "test 1282 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a153; b153 } = r in
-  let expected_a153 = #{ a32 = #100l; b32 = #101l } in
-  mark_test_run 1251;
-  let test = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) expected_a153 a153 in
-  if not test then failwithf "test 1251 failed";
-  let expected_b153 = 102 in
-  mark_test_run 1252;
-  let test = (fun a b -> Int.equal a b) expected_b153 b153 in
-  if not test then failwithf "test 1252 failed";
+  let expected_a153 = #{ a22 = 100; b22 = #101l } in
+  mark_test_run 1283;
+  let test = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) expected_a153 a153 in
+  if not test then failwithf "test 1283 failed";
+  let expected_b153 = #102l in
+  mark_test_run 1284;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b153 b153 in
+  if not test then failwithf "test 1284 failed";
 
-  (**********************************************)
-  (*   t154 = { #{ int32#; int32# }; int32# }   *)
-  (**********************************************)
-  let r = stack_ { a154 = #{ a32 = #0l; b32 = #1l }; b154 = #2l } in
+  (**********************************)
+  (*   t154 = { #{ int; float } }   *)
+  (**********************************)
+  let r = stack_ { a154 = #{ a24 = 0; b24 = 1. } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a154 *)
   let actual = r.a154 in
-  let expected = #{ a32 = #0l; b32 = #1l } in
-  mark_test_run 1253;
-  let test = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) actual expected in
-  if not test then failwithf "test 1253 failed";
+  let expected = #{ a24 = 0; b24 = 1. } in
+  mark_test_run 1285;
+  let test = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) actual expected in
+  if not test then failwithf "test 1285 failed";
   (* Paths of depth 2 *)
-  (* .a154.#a32 *)
-  let actual = r.a154.#a32 in
-  let expected = #0l in
-  mark_test_run 1254;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 1254 failed";
-  (* .a154.#b32 *)
-  let actual = r.a154.#b32 in
-  let expected = #1l in
-  mark_test_run 1255;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 1255 failed";
-  (* Paths of depth 1 *)
-  (* .b154 *)
-  let actual = r.b154 in
-  let expected = #2l in
-  mark_test_run 1256;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
-  if not test then failwithf "test 1256 failed";
+  (* .a154.#a24 *)
+  let actual = r.a154.#a24 in
+  let expected = 0 in
+  mark_test_run 1286;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1286 failed";
+  (* .a154.#b24 *)
+  let actual = r.a154.#b24 in
+  let expected = 1. in
+  mark_test_run 1287;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1287 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a154 = a1541; b154 = b1541 } { a154 = a1542; b154 = b1542 } -> (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) a1541 a1542 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1541 b1542) in
-  let next_r = stack_ { a154 = #{ a32 = #100l; b32 = #101l }; b154 = #102l } in
-  let r_expected = stack_ { a154 = #{ a32 = #0l; b32 = #1l }; b154 = #2l } in
+  let eq = (fun { a154 = a1541 } { a154 = a1542 } -> (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) a1541 a1542) in
+  let next_r = stack_ { a154 = #{ a24 = 100; b24 = 101. } } in
+  let r_expected = stack_ { a154 = #{ a24 = 0; b24 = 1. } } in
   (* .a154 *)
   r.a154 <- next_r.a154;
   let r_expected = { r_expected with a154 = next_r.a154 } in
-  mark_test_run 1257;
+  mark_test_run 1288;
   let test = eq r r_expected in
-  if not test then failwithf "test 1257 failed";
-  Gc.compact ();
-  (* .b154 *)
-  r.b154 <- next_r.b154;
-  let r_expected = { r_expected with b154 = next_r.b154 } in
-  mark_test_run 1258;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1258 failed";
+  if not test then failwithf "test 1288 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a154 = #{ a32; b32 }; b154 } = r in
-  let expected_a32 = #100l in
-  mark_test_run 1259;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_a32 a32 in
-  if not test then failwithf "test 1259 failed";
-  let expected_b32 = #101l in
-  mark_test_run 1260;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b32 b32 in
-  if not test then failwithf "test 1260 failed";
-  let expected_b154 = #102l in
-  mark_test_run 1261;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b154 b154 in
-  if not test then failwithf "test 1261 failed";
+  let { a154 = #{ a24; b24 } } = r in
+  let expected_a24 = 100 in
+  mark_test_run 1289;
+  let test = (fun a b -> Int.equal a b) expected_a24 a24 in
+  if not test then failwithf "test 1289 failed";
+  let expected_b24 = 101. in
+  mark_test_run 1290;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b24 b24 in
+  if not test then failwithf "test 1290 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a154; b154 } = r in
-  let expected_a154 = #{ a32 = #100l; b32 = #101l } in
-  mark_test_run 1262;
-  let test = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) expected_a154 a154 in
-  if not test then failwithf "test 1262 failed";
-  let expected_b154 = #102l in
-  mark_test_run 1263;
-  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b154 b154 in
-  if not test then failwithf "test 1263 failed";
+  let { a154 } = r in
+  let expected_a154 = #{ a24 = 100; b24 = 101. } in
+  mark_test_run 1291;
+  let test = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) expected_a154 a154 in
+  if not test then failwithf "test 1291 failed";
 
-  (*****************************)
-  (*   t155 = { #{ float } }   *)
-  (*****************************)
-  let r = stack_ { a155 = #{ a34 = 0. } } in
+  (***************************************)
+  (*   t155 = { #{ int; float }; int }   *)
+  (***************************************)
+  let r = stack_ { a155 = #{ a24 = 0; b24 = 1. }; b155 = 2 } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a155 *)
   let actual = r.a155 in
-  let expected = #{ a34 = 0. } in
-  mark_test_run 1264;
-  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) actual expected in
-  if not test then failwithf "test 1264 failed";
+  let expected = #{ a24 = 0; b24 = 1. } in
+  mark_test_run 1292;
+  let test = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) actual expected in
+  if not test then failwithf "test 1292 failed";
   (* Paths of depth 2 *)
-  (* .a155.#a34 *)
-  let actual = r.a155.#a34 in
-  let expected = 0. in
-  mark_test_run 1265;
+  (* .a155.#a24 *)
+  let actual = r.a155.#a24 in
+  let expected = 0 in
+  mark_test_run 1293;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1293 failed";
+  (* .a155.#b24 *)
+  let actual = r.a155.#b24 in
+  let expected = 1. in
+  mark_test_run 1294;
   let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1265 failed";
+  if not test then failwithf "test 1294 failed";
+  (* Paths of depth 1 *)
+  (* .b155 *)
+  let actual = r.b155 in
+  let expected = 2 in
+  mark_test_run 1295;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1295 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a155 = a1551 } { a155 = a1552 } -> (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) a1551 a1552) in
-  let next_r = stack_ { a155 = #{ a34 = 100. } } in
-  let r_expected = stack_ { a155 = #{ a34 = 0. } } in
+  let eq = (fun { a155 = a1551; b155 = b1551 } { a155 = a1552; b155 = b1552 } -> (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) a1551 a1552 && (fun a b -> Int.equal a b) b1551 b1552) in
+  let next_r = stack_ { a155 = #{ a24 = 100; b24 = 101. }; b155 = 102 } in
+  let r_expected = stack_ { a155 = #{ a24 = 0; b24 = 1. }; b155 = 2 } in
   (* .a155 *)
   r.a155 <- next_r.a155;
   let r_expected = { r_expected with a155 = next_r.a155 } in
-  mark_test_run 1266;
+  mark_test_run 1296;
   let test = eq r r_expected in
-  if not test then failwithf "test 1266 failed";
+  if not test then failwithf "test 1296 failed";
+  Gc.compact ();
+  (* .b155 *)
+  r.b155 <- next_r.b155;
+  let r_expected = { r_expected with b155 = next_r.b155 } in
+  mark_test_run 1297;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1297 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a155 = #{ a34 } } = r in
-  let expected_a34 = 100. in
-  mark_test_run 1267;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a34 a34 in
-  if not test then failwithf "test 1267 failed";
+  let { a155 = #{ a24; b24 }; b155 } = r in
+  let expected_a24 = 100 in
+  mark_test_run 1298;
+  let test = (fun a b -> Int.equal a b) expected_a24 a24 in
+  if not test then failwithf "test 1298 failed";
+  let expected_b24 = 101. in
+  mark_test_run 1299;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b24 b24 in
+  if not test then failwithf "test 1299 failed";
+  let expected_b155 = 102 in
+  mark_test_run 1300;
+  let test = (fun a b -> Int.equal a b) expected_b155 b155 in
+  if not test then failwithf "test 1300 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a155 } = r in
-  let expected_a155 = #{ a34 = 100. } in
-  mark_test_run 1268;
-  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) expected_a155 a155 in
-  if not test then failwithf "test 1268 failed";
+  let { a155; b155 } = r in
+  let expected_a155 = #{ a24 = 100; b24 = 101. } in
+  mark_test_run 1301;
+  let test = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) expected_a155 a155 in
+  if not test then failwithf "test 1301 failed";
+  let expected_b155 = 102 in
+  mark_test_run 1302;
+  let test = (fun a b -> Int.equal a b) expected_b155 b155 in
+  if not test then failwithf "test 1302 failed";
 
-  (**********************************)
-  (*   t156 = { #{ float }; int }   *)
-  (**********************************)
-  let r = stack_ { a156 = #{ a34 = 0. }; b156 = 1 } in
+  (*****************************************)
+  (*   t156 = { #{ int; float }; float }   *)
+  (*****************************************)
+  let r = stack_ { a156 = #{ a24 = 0; b24 = 1. }; b156 = 2. } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a156 *)
   let actual = r.a156 in
-  let expected = #{ a34 = 0. } in
-  mark_test_run 1269;
-  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) actual expected in
-  if not test then failwithf "test 1269 failed";
+  let expected = #{ a24 = 0; b24 = 1. } in
+  mark_test_run 1303;
+  let test = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) actual expected in
+  if not test then failwithf "test 1303 failed";
   (* Paths of depth 2 *)
-  (* .a156.#a34 *)
-  let actual = r.a156.#a34 in
-  let expected = 0. in
-  mark_test_run 1270;
+  (* .a156.#a24 *)
+  let actual = r.a156.#a24 in
+  let expected = 0 in
+  mark_test_run 1304;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1304 failed";
+  (* .a156.#b24 *)
+  let actual = r.a156.#b24 in
+  let expected = 1. in
+  mark_test_run 1305;
   let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1270 failed";
+  if not test then failwithf "test 1305 failed";
   (* Paths of depth 1 *)
   (* .b156 *)
   let actual = r.b156 in
-  let expected = 1 in
-  mark_test_run 1271;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1271 failed";
+  let expected = 2. in
+  mark_test_run 1306;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1306 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a156 = a1561; b156 = b1561 } { a156 = a1562; b156 = b1562 } -> (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) a1561 a1562 && (fun a b -> Int.equal a b) b1561 b1562) in
-  let next_r = stack_ { a156 = #{ a34 = 100. }; b156 = 101 } in
-  let r_expected = stack_ { a156 = #{ a34 = 0. }; b156 = 1 } in
+  let eq = (fun { a156 = a1561; b156 = b1561 } { a156 = a1562; b156 = b1562 } -> (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) a1561 a1562 && (fun a b -> Float.equal (globalize a) (globalize b)) b1561 b1562) in
+  let next_r = stack_ { a156 = #{ a24 = 100; b24 = 101. }; b156 = 102. } in
+  let r_expected = stack_ { a156 = #{ a24 = 0; b24 = 1. }; b156 = 2. } in
   (* .a156 *)
   r.a156 <- next_r.a156;
   let r_expected = { r_expected with a156 = next_r.a156 } in
-  mark_test_run 1272;
+  mark_test_run 1307;
   let test = eq r r_expected in
-  if not test then failwithf "test 1272 failed";
+  if not test then failwithf "test 1307 failed";
   Gc.compact ();
   (* .b156 *)
   r.b156 <- next_r.b156;
   let r_expected = { r_expected with b156 = next_r.b156 } in
-  mark_test_run 1273;
+  mark_test_run 1308;
   let test = eq r r_expected in
-  if not test then failwithf "test 1273 failed";
+  if not test then failwithf "test 1308 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a156 = #{ a34 }; b156 } = r in
-  let expected_a34 = 100. in
-  mark_test_run 1274;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a34 a34 in
-  if not test then failwithf "test 1274 failed";
-  let expected_b156 = 101 in
-  mark_test_run 1275;
-  let test = (fun a b -> Int.equal a b) expected_b156 b156 in
-  if not test then failwithf "test 1275 failed";
+  let { a156 = #{ a24; b24 }; b156 } = r in
+  let expected_a24 = 100 in
+  mark_test_run 1309;
+  let test = (fun a b -> Int.equal a b) expected_a24 a24 in
+  if not test then failwithf "test 1309 failed";
+  let expected_b24 = 101. in
+  mark_test_run 1310;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b24 b24 in
+  if not test then failwithf "test 1310 failed";
+  let expected_b156 = 102. in
+  mark_test_run 1311;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b156 b156 in
+  if not test then failwithf "test 1311 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a156; b156 } = r in
-  let expected_a156 = #{ a34 = 100. } in
-  mark_test_run 1276;
-  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) expected_a156 a156 in
-  if not test then failwithf "test 1276 failed";
-  let expected_b156 = 101 in
-  mark_test_run 1277;
-  let test = (fun a b -> Int.equal a b) expected_b156 b156 in
-  if not test then failwithf "test 1277 failed";
+  let expected_a156 = #{ a24 = 100; b24 = 101. } in
+  mark_test_run 1312;
+  let test = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) expected_a156 a156 in
+  if not test then failwithf "test 1312 failed";
+  let expected_b156 = 102. in
+  mark_test_run 1313;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b156 b156 in
+  if not test then failwithf "test 1313 failed";
 
-  (************************************)
-  (*   t157 = { #{ float }; float }   *)
-  (************************************)
-  let r = stack_ { a157 = #{ a34 = 0. }; b157 = 1. } in
+  (*************************************)
+  (*   t157 = { #{ int; int64x2# } }   *)
+  (*************************************)
+  let r = stack_ { a157 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a157 *)
   let actual = r.a157 in
-  let expected = #{ a34 = 0. } in
-  mark_test_run 1278;
-  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) actual expected in
-  if not test then failwithf "test 1278 failed";
+  let expected = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
+  mark_test_run 1314;
+  let test = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) actual expected in
+  if not test then failwithf "test 1314 failed";
   (* Paths of depth 2 *)
-  (* .a157.#a34 *)
-  let actual = r.a157.#a34 in
-  let expected = 0. in
-  mark_test_run 1279;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1279 failed";
-  (* Paths of depth 1 *)
-  (* .b157 *)
-  let actual = r.b157 in
-  let expected = 1. in
-  mark_test_run 1280;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1280 failed";
+  (* .a157.#a26 *)
+  let actual = r.a157.#a26 in
+  let expected = 0 in
+  mark_test_run 1315;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1315 failed";
+  (* .a157.#b26 *)
+  let actual = r.a157.#b26 in
+  let expected = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) in
+  mark_test_run 1316;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1316 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a157 = a1571; b157 = b1571 } { a157 = a1572; b157 = b1572 } -> (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) a1571 a1572 && (fun a b -> Float.equal (globalize a) (globalize b)) b1571 b1572) in
-  let next_r = stack_ { a157 = #{ a34 = 100. }; b157 = 101. } in
-  let r_expected = stack_ { a157 = #{ a34 = 0. }; b157 = 1. } in
+  let eq = (fun { a157 = a1571 } { a157 = a1572 } -> (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) a1571 a1572) in
+  let next_r = stack_ { a157 = #{ a26 = 100; b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } } in
+  let r_expected = stack_ { a157 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } } in
   (* .a157 *)
   r.a157 <- next_r.a157;
   let r_expected = { r_expected with a157 = next_r.a157 } in
-  mark_test_run 1281;
+  mark_test_run 1317;
   let test = eq r r_expected in
-  if not test then failwithf "test 1281 failed";
-  Gc.compact ();
-  (* .b157 *)
-  r.b157 <- next_r.b157;
-  let r_expected = { r_expected with b157 = next_r.b157 } in
-  mark_test_run 1282;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1282 failed";
+  if not test then failwithf "test 1317 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a157 = #{ a34 }; b157 } = r in
-  let expected_a34 = 100. in
-  mark_test_run 1283;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a34 a34 in
-  if not test then failwithf "test 1283 failed";
-  let expected_b157 = 101. in
-  mark_test_run 1284;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b157 b157 in
-  if not test then failwithf "test 1284 failed";
+  let { a157 = #{ a26; b26 } } = r in
+  let expected_a26 = 100 in
+  mark_test_run 1318;
+  let test = (fun a b -> Int.equal a b) expected_a26 a26 in
+  if not test then failwithf "test 1318 failed";
+  let expected_b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) in
+  mark_test_run 1319;
+  let test = int64x2_u_equal expected_b26 b26 in
+  if not test then failwithf "test 1319 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a157; b157 } = r in
-  let expected_a157 = #{ a34 = 100. } in
-  mark_test_run 1285;
-  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) expected_a157 a157 in
-  if not test then failwithf "test 1285 failed";
-  let expected_b157 = 101. in
-  mark_test_run 1286;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b157 b157 in
-  if not test then failwithf "test 1286 failed";
+  let { a157 } = r in
+  let expected_a157 = #{ a26 = 100; b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } in
+  mark_test_run 1320;
+  let test = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) expected_a157 a157 in
+  if not test then failwithf "test 1320 failed";
 
-  (**********************************)
-  (*   t158 = { #{ float; int } }   *)
-  (**********************************)
-  let r = stack_ { a158 = #{ a36 = 0.; b36 = 1 } } in
+  (******************************************)
+  (*   t158 = { #{ int; int64x2# }; int }   *)
+  (******************************************)
+  let r = stack_ { a158 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b158 = 3 } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a158 *)
   let actual = r.a158 in
-  let expected = #{ a36 = 0.; b36 = 1 } in
-  mark_test_run 1287;
-  let test = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) actual expected in
-  if not test then failwithf "test 1287 failed";
+  let expected = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
+  mark_test_run 1321;
+  let test = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) actual expected in
+  if not test then failwithf "test 1321 failed";
   (* Paths of depth 2 *)
-  (* .a158.#a36 *)
-  let actual = r.a158.#a36 in
-  let expected = 0. in
-  mark_test_run 1288;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1288 failed";
-  (* .a158.#b36 *)
-  let actual = r.a158.#b36 in
-  let expected = 1 in
-  mark_test_run 1289;
+  (* .a158.#a26 *)
+  let actual = r.a158.#a26 in
+  let expected = 0 in
+  mark_test_run 1322;
   let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1289 failed";
+  if not test then failwithf "test 1322 failed";
+  (* .a158.#b26 *)
+  let actual = r.a158.#b26 in
+  let expected = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) in
+  mark_test_run 1323;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1323 failed";
+  (* Paths of depth 1 *)
+  (* .b158 *)
+  let actual = r.b158 in
+  let expected = 3 in
+  mark_test_run 1324;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1324 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a158 = a1581 } { a158 = a1582 } -> (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) a1581 a1582) in
-  let next_r = stack_ { a158 = #{ a36 = 100.; b36 = 101 } } in
-  let r_expected = stack_ { a158 = #{ a36 = 0.; b36 = 1 } } in
+  let eq = (fun { a158 = a1581; b158 = b1581 } { a158 = a1582; b158 = b1582 } -> (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) a1581 a1582 && (fun a b -> Int.equal a b) b1581 b1582) in
+  let next_r = stack_ { a158 = #{ a26 = 100; b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) }; b158 = 103 } in
+  let r_expected = stack_ { a158 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b158 = 3 } in
   (* .a158 *)
   r.a158 <- next_r.a158;
   let r_expected = { r_expected with a158 = next_r.a158 } in
-  mark_test_run 1290;
+  mark_test_run 1325;
   let test = eq r r_expected in
-  if not test then failwithf "test 1290 failed";
+  if not test then failwithf "test 1325 failed";
+  Gc.compact ();
+  (* .b158 *)
+  r.b158 <- next_r.b158;
+  let r_expected = { r_expected with b158 = next_r.b158 } in
+  mark_test_run 1326;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1326 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a158 = #{ a36; b36 } } = r in
-  let expected_a36 = 100. in
-  mark_test_run 1291;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a36 a36 in
-  if not test then failwithf "test 1291 failed";
-  let expected_b36 = 101 in
-  mark_test_run 1292;
-  let test = (fun a b -> Int.equal a b) expected_b36 b36 in
-  if not test then failwithf "test 1292 failed";
+  let { a158 = #{ a26; b26 }; b158 } = r in
+  let expected_a26 = 100 in
+  mark_test_run 1327;
+  let test = (fun a b -> Int.equal a b) expected_a26 a26 in
+  if not test then failwithf "test 1327 failed";
+  let expected_b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) in
+  mark_test_run 1328;
+  let test = int64x2_u_equal expected_b26 b26 in
+  if not test then failwithf "test 1328 failed";
+  let expected_b158 = 103 in
+  mark_test_run 1329;
+  let test = (fun a b -> Int.equal a b) expected_b158 b158 in
+  if not test then failwithf "test 1329 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a158 } = r in
-  let expected_a158 = #{ a36 = 100.; b36 = 101 } in
-  mark_test_run 1293;
-  let test = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) expected_a158 a158 in
-  if not test then failwithf "test 1293 failed";
+  let { a158; b158 } = r in
+  let expected_a158 = #{ a26 = 100; b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } in
+  mark_test_run 1330;
+  let test = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) expected_a158 a158 in
+  if not test then failwithf "test 1330 failed";
+  let expected_b158 = 103 in
+  mark_test_run 1331;
+  let test = (fun a b -> Int.equal a b) expected_b158 b158 in
+  if not test then failwithf "test 1331 failed";
 
-  (***************************************)
-  (*   t159 = { #{ float; int }; int }   *)
-  (***************************************)
-  let r = stack_ { a159 = #{ a36 = 0.; b36 = 1 }; b159 = 2 } in
+  (***********************************************)
+  (*   t159 = { #{ int; int64x2# }; int64x2# }   *)
+  (***********************************************)
+  let r = stack_ { a159 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b159 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a159 *)
   let actual = r.a159 in
-  let expected = #{ a36 = 0.; b36 = 1 } in
-  mark_test_run 1294;
-  let test = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) actual expected in
-  if not test then failwithf "test 1294 failed";
+  let expected = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
+  mark_test_run 1332;
+  let test = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) actual expected in
+  if not test then failwithf "test 1332 failed";
   (* Paths of depth 2 *)
-  (* .a159.#a36 *)
-  let actual = r.a159.#a36 in
-  let expected = 0. in
-  mark_test_run 1295;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1295 failed";
-  (* .a159.#b36 *)
-  let actual = r.a159.#b36 in
-  let expected = 1 in
-  mark_test_run 1296;
+  (* .a159.#a26 *)
+  let actual = r.a159.#a26 in
+  let expected = 0 in
+  mark_test_run 1333;
   let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1296 failed";
+  if not test then failwithf "test 1333 failed";
+  (* .a159.#b26 *)
+  let actual = r.a159.#b26 in
+  let expected = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) in
+  mark_test_run 1334;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1334 failed";
   (* Paths of depth 1 *)
   (* .b159 *)
   let actual = r.b159 in
-  let expected = 2 in
-  mark_test_run 1297;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1297 failed";
+  let expected = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) in
+  mark_test_run 1335;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1335 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a159 = a1591; b159 = b1591 } { a159 = a1592; b159 = b1592 } -> (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) a1591 a1592 && (fun a b -> Int.equal a b) b1591 b1592) in
-  let next_r = stack_ { a159 = #{ a36 = 100.; b36 = 101 }; b159 = 102 } in
-  let r_expected = stack_ { a159 = #{ a36 = 0.; b36 = 1 }; b159 = 2 } in
+  let eq = (fun { a159 = a1591; b159 = b1591 } { a159 = a1592; b159 = b1592 } -> (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) a1591 a1592 && int64x2_u_equal b1591 b1592) in
+  let next_r = stack_ { a159 = #{ a26 = 100; b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) }; b159 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
+  let r_expected = stack_ { a159 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b159 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
   (* .a159 *)
   r.a159 <- next_r.a159;
   let r_expected = { r_expected with a159 = next_r.a159 } in
-  mark_test_run 1298;
+  mark_test_run 1336;
   let test = eq r r_expected in
-  if not test then failwithf "test 1298 failed";
+  if not test then failwithf "test 1336 failed";
   Gc.compact ();
   (* .b159 *)
   r.b159 <- next_r.b159;
   let r_expected = { r_expected with b159 = next_r.b159 } in
-  mark_test_run 1299;
+  mark_test_run 1337;
   let test = eq r r_expected in
-  if not test then failwithf "test 1299 failed";
+  if not test then failwithf "test 1337 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a159 = #{ a36; b36 }; b159 } = r in
-  let expected_a36 = 100. in
-  mark_test_run 1300;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a36 a36 in
-  if not test then failwithf "test 1300 failed";
-  let expected_b36 = 101 in
-  mark_test_run 1301;
-  let test = (fun a b -> Int.equal a b) expected_b36 b36 in
-  if not test then failwithf "test 1301 failed";
-  let expected_b159 = 102 in
-  mark_test_run 1302;
-  let test = (fun a b -> Int.equal a b) expected_b159 b159 in
-  if not test then failwithf "test 1302 failed";
+  let { a159 = #{ a26; b26 }; b159 } = r in
+  let expected_a26 = 100 in
+  mark_test_run 1338;
+  let test = (fun a b -> Int.equal a b) expected_a26 a26 in
+  if not test then failwithf "test 1338 failed";
+  let expected_b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) in
+  mark_test_run 1339;
+  let test = int64x2_u_equal expected_b26 b26 in
+  if not test then failwithf "test 1339 failed";
+  let expected_b159 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) in
+  mark_test_run 1340;
+  let test = int64x2_u_equal expected_b159 b159 in
+  if not test then failwithf "test 1340 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a159; b159 } = r in
-  let expected_a159 = #{ a36 = 100.; b36 = 101 } in
-  mark_test_run 1303;
-  let test = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) expected_a159 a159 in
-  if not test then failwithf "test 1303 failed";
-  let expected_b159 = 102 in
-  mark_test_run 1304;
-  let test = (fun a b -> Int.equal a b) expected_b159 b159 in
-  if not test then failwithf "test 1304 failed";
+  let expected_a159 = #{ a26 = 100; b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } in
+  mark_test_run 1341;
+  let test = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) expected_a159 a159 in
+  if not test then failwithf "test 1341 failed";
+  let expected_b159 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) in
+  mark_test_run 1342;
+  let test = int64x2_u_equal expected_b159 b159 in
+  if not test then failwithf "test 1342 failed";
 
-  (*****************************************)
-  (*   t160 = { #{ float; int }; float }   *)
-  (*****************************************)
-  let r = stack_ { a160 = #{ a36 = 0.; b36 = 1 }; b160 = 2. } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a160 *)
-  let actual = r.a160 in
-  let expected = #{ a36 = 0.; b36 = 1 } in
-  mark_test_run 1305;
-  let test = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) actual expected in
-  if not test then failwithf "test 1305 failed";
-  (* Paths of depth 2 *)
-  (* .a160.#a36 *)
-  let actual = r.a160.#a36 in
-  let expected = 0. in
-  mark_test_run 1306;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1306 failed";
-  (* .a160.#b36 *)
-  let actual = r.a160.#b36 in
-  let expected = 1 in
-  mark_test_run 1307;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1307 failed";
-  (* Paths of depth 1 *)
-  (* .b160 *)
-  let actual = r.b160 in
-  let expected = 2. in
-  mark_test_run 1308;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1308 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a160 = a1601; b160 = b1601 } { a160 = a1602; b160 = b1602 } -> (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) a1601 a1602 && (fun a b -> Float.equal (globalize a) (globalize b)) b1601 b1602) in
-  let next_r = stack_ { a160 = #{ a36 = 100.; b36 = 101 }; b160 = 102. } in
-  let r_expected = stack_ { a160 = #{ a36 = 0.; b36 = 1 }; b160 = 2. } in
-  (* .a160 *)
-  r.a160 <- next_r.a160;
-  let r_expected = { r_expected with a160 = next_r.a160 } in
-  mark_test_run 1309;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1309 failed";
-  Gc.compact ();
-  (* .b160 *)
-  r.b160 <- next_r.b160;
-  let r_expected = { r_expected with b160 = next_r.b160 } in
-  mark_test_run 1310;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1310 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a160 = #{ a36; b36 }; b160 } = r in
-  let expected_a36 = 100. in
-  mark_test_run 1311;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a36 a36 in
-  if not test then failwithf "test 1311 failed";
-  let expected_b36 = 101 in
-  mark_test_run 1312;
-  let test = (fun a b -> Int.equal a b) expected_b36 b36 in
-  if not test then failwithf "test 1312 failed";
-  let expected_b160 = 102. in
-  mark_test_run 1313;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b160 b160 in
-  if not test then failwithf "test 1313 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a160; b160 } = r in
-  let expected_a160 = #{ a36 = 100.; b36 = 101 } in
-  mark_test_run 1314;
-  let test = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) expected_a160 a160 in
-  if not test then failwithf "test 1314 failed";
-  let expected_b160 = 102. in
-  mark_test_run 1315;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b160 b160 in
-  if not test then failwithf "test 1315 failed";
-
-  (************************************)
-  (*   t161 = { #{ float; float } }   *)
-  (************************************)
-  let r = stack_ { a161 = #{ a38 = 0.; b38 = 1. } } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a161 *)
-  let actual = r.a161 in
-  let expected = #{ a38 = 0.; b38 = 1. } in
-  mark_test_run 1316;
-  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) actual expected in
-  if not test then failwithf "test 1316 failed";
-  (* Paths of depth 2 *)
-  (* .a161.#a38 *)
-  let actual = r.a161.#a38 in
-  let expected = 0. in
-  mark_test_run 1317;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1317 failed";
-  (* .a161.#b38 *)
-  let actual = r.a161.#b38 in
-  let expected = 1. in
-  mark_test_run 1318;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1318 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a161 = a1611 } { a161 = a1612 } -> (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) a1611 a1612) in
-  let next_r = stack_ { a161 = #{ a38 = 100.; b38 = 101. } } in
-  let r_expected = stack_ { a161 = #{ a38 = 0.; b38 = 1. } } in
-  (* .a161 *)
-  r.a161 <- next_r.a161;
-  let r_expected = { r_expected with a161 = next_r.a161 } in
-  mark_test_run 1319;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1319 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a161 = #{ a38; b38 } } = r in
-  let expected_a38 = 100. in
-  mark_test_run 1320;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a38 a38 in
-  if not test then failwithf "test 1320 failed";
-  let expected_b38 = 101. in
-  mark_test_run 1321;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b38 b38 in
-  if not test then failwithf "test 1321 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a161 } = r in
-  let expected_a161 = #{ a38 = 100.; b38 = 101. } in
-  mark_test_run 1322;
-  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) expected_a161 a161 in
-  if not test then failwithf "test 1322 failed";
-
-  (*****************************************)
-  (*   t162 = { #{ float; float }; int }   *)
-  (*****************************************)
-  let r = stack_ { a162 = #{ a38 = 0.; b38 = 1. }; b162 = 2 } in
+  (**********************************************************)
+  (*   t162 = { #{ int64; int64# }; #{ int64#; float# } }   *)
+  (**********************************************************)
+  let r = stack_ { a162 = #{ a160 = 0L; b160 = #1L }; b162 = #{ a161 = #2L; b161 = #3. } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a162 *)
   let actual = r.a162 in
-  let expected = #{ a38 = 0.; b38 = 1. } in
-  mark_test_run 1323;
-  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) actual expected in
-  if not test then failwithf "test 1323 failed";
+  let expected = #{ a160 = 0L; b160 = #1L } in
+  mark_test_run 1343;
+  let test = (fun #{ a160 = a1601; b160 = b1601 } #{ a160 = a1602; b160 = b1602 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1601 a1602 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1601 b1602) actual expected in
+  if not test then failwithf "test 1343 failed";
   (* Paths of depth 2 *)
-  (* .a162.#a38 *)
-  let actual = r.a162.#a38 in
-  let expected = 0. in
-  mark_test_run 1324;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1324 failed";
-  (* .a162.#b38 *)
-  let actual = r.a162.#b38 in
-  let expected = 1. in
-  mark_test_run 1325;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1325 failed";
+  (* .a162.#a160 *)
+  let actual = r.a162.#a160 in
+  let expected = 0L in
+  mark_test_run 1344;
+  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1344 failed";
+  (* .a162.#b160 *)
+  let actual = r.a162.#b160 in
+  let expected = #1L in
+  mark_test_run 1345;
+  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) actual expected in
+  if not test then failwithf "test 1345 failed";
   (* Paths of depth 1 *)
   (* .b162 *)
   let actual = r.b162 in
-  let expected = 2 in
-  mark_test_run 1326;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1326 failed";
+  let expected = #{ a161 = #2L; b161 = #3. } in
+  mark_test_run 1346;
+  let test = (fun #{ a161 = a1611; b161 = b1611 } #{ a161 = a1612; b161 = b1612 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1611 a1612 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1611 b1612) actual expected in
+  if not test then failwithf "test 1346 failed";
+  (* Paths of depth 2 *)
+  (* .b162.#a161 *)
+  let actual = r.b162.#a161 in
+  let expected = #2L in
+  mark_test_run 1347;
+  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) actual expected in
+  if not test then failwithf "test 1347 failed";
+  (* .b162.#b161 *)
+  let actual = r.b162.#b161 in
+  let expected = #3. in
+  mark_test_run 1348;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1348 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a162 = a1621; b162 = b1621 } { a162 = a1622; b162 = b1622 } -> (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) a1621 a1622 && (fun a b -> Int.equal a b) b1621 b1622) in
-  let next_r = stack_ { a162 = #{ a38 = 100.; b38 = 101. }; b162 = 102 } in
-  let r_expected = stack_ { a162 = #{ a38 = 0.; b38 = 1. }; b162 = 2 } in
+  let eq = (fun { a162 = a1621; b162 = b1621 } { a162 = a1622; b162 = b1622 } -> (fun #{ a160 = a1601; b160 = b1601 } #{ a160 = a1602; b160 = b1602 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1601 a1602 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1601 b1602) a1621 a1622 && (fun #{ a161 = a1611; b161 = b1611 } #{ a161 = a1612; b161 = b1612 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1611 a1612 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1611 b1612) b1621 b1622) in
+  let next_r = stack_ { a162 = #{ a160 = 100L; b160 = #101L }; b162 = #{ a161 = #102L; b161 = #103. } } in
+  let r_expected = stack_ { a162 = #{ a160 = 0L; b160 = #1L }; b162 = #{ a161 = #2L; b161 = #3. } } in
   (* .a162 *)
   r.a162 <- next_r.a162;
   let r_expected = { r_expected with a162 = next_r.a162 } in
-  mark_test_run 1327;
+  mark_test_run 1349;
   let test = eq r r_expected in
-  if not test then failwithf "test 1327 failed";
+  if not test then failwithf "test 1349 failed";
   Gc.compact ();
   (* .b162 *)
   r.b162 <- next_r.b162;
   let r_expected = { r_expected with b162 = next_r.b162 } in
-  mark_test_run 1328;
+  mark_test_run 1350;
   let test = eq r r_expected in
-  if not test then failwithf "test 1328 failed";
+  if not test then failwithf "test 1350 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a162 = #{ a38; b38 }; b162 } = r in
-  let expected_a38 = 100. in
-  mark_test_run 1329;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a38 a38 in
-  if not test then failwithf "test 1329 failed";
-  let expected_b38 = 101. in
-  mark_test_run 1330;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b38 b38 in
-  if not test then failwithf "test 1330 failed";
-  let expected_b162 = 102 in
-  mark_test_run 1331;
-  let test = (fun a b -> Int.equal a b) expected_b162 b162 in
-  if not test then failwithf "test 1331 failed";
+  let { a162 = #{ a160; b160 }; b162 = #{ a161; b161 } } = r in
+  let expected_a160 = 100L in
+  mark_test_run 1351;
+  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) expected_a160 a160 in
+  if not test then failwithf "test 1351 failed";
+  let expected_b160 = #101L in
+  mark_test_run 1352;
+  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) expected_b160 b160 in
+  if not test then failwithf "test 1352 failed";
+  let expected_a161 = #102L in
+  mark_test_run 1353;
+  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) expected_a161 a161 in
+  if not test then failwithf "test 1353 failed";
+  let expected_b161 = #103. in
+  mark_test_run 1354;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b161 b161 in
+  if not test then failwithf "test 1354 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a162; b162 } = r in
-  let expected_a162 = #{ a38 = 100.; b38 = 101. } in
-  mark_test_run 1332;
-  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) expected_a162 a162 in
-  if not test then failwithf "test 1332 failed";
-  let expected_b162 = 102 in
-  mark_test_run 1333;
-  let test = (fun a b -> Int.equal a b) expected_b162 b162 in
-  if not test then failwithf "test 1333 failed";
-
-  (*******************************************)
-  (*   t163 = { #{ float; float }; float }   *)
-  (*******************************************)
-  let r = stack_ { a163 = #{ a38 = 0.; b38 = 1. }; b163 = 2. } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a163 *)
-  let actual = r.a163 in
-  let expected = #{ a38 = 0.; b38 = 1. } in
-  mark_test_run 1334;
-  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) actual expected in
-  if not test then failwithf "test 1334 failed";
-  (* Paths of depth 2 *)
-  (* .a163.#a38 *)
-  let actual = r.a163.#a38 in
-  let expected = 0. in
-  mark_test_run 1335;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1335 failed";
-  (* .a163.#b38 *)
-  let actual = r.a163.#b38 in
-  let expected = 1. in
-  mark_test_run 1336;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1336 failed";
-  (* Paths of depth 1 *)
-  (* .b163 *)
-  let actual = r.b163 in
-  let expected = 2. in
-  mark_test_run 1337;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1337 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a163 = a1631; b163 = b1631 } { a163 = a1632; b163 = b1632 } -> (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) a1631 a1632 && (fun a b -> Float.equal (globalize a) (globalize b)) b1631 b1632) in
-  let next_r = stack_ { a163 = #{ a38 = 100.; b38 = 101. }; b163 = 102. } in
-  let r_expected = stack_ { a163 = #{ a38 = 0.; b38 = 1. }; b163 = 2. } in
-  (* .a163 *)
-  r.a163 <- next_r.a163;
-  let r_expected = { r_expected with a163 = next_r.a163 } in
-  mark_test_run 1338;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1338 failed";
-  Gc.compact ();
-  (* .b163 *)
-  r.b163 <- next_r.b163;
-  let r_expected = { r_expected with b163 = next_r.b163 } in
-  mark_test_run 1339;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1339 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a163 = #{ a38; b38 }; b163 } = r in
-  let expected_a38 = 100. in
-  mark_test_run 1340;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a38 a38 in
-  if not test then failwithf "test 1340 failed";
-  let expected_b38 = 101. in
-  mark_test_run 1341;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b38 b38 in
-  if not test then failwithf "test 1341 failed";
-  let expected_b163 = 102. in
-  mark_test_run 1342;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b163 b163 in
-  if not test then failwithf "test 1342 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a163; b163 } = r in
-  let expected_a163 = #{ a38 = 100.; b38 = 101. } in
-  mark_test_run 1343;
-  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) expected_a163 a163 in
-  if not test then failwithf "test 1343 failed";
-  let expected_b163 = 102. in
-  mark_test_run 1344;
-  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b163 b163 in
-  if not test then failwithf "test 1344 failed";
-
-  (*************************************************************)
-  (*   t166 = { #{ float32#; int64# }; #{ string; int64# } }   *)
-  (*************************************************************)
-  let r = stack_ { a166 = #{ a164 = #0.s; b164 = #1L }; b166 = #{ a165 = "2"; b165 = #3L } } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a166 *)
-  let actual = r.a166 in
-  let expected = #{ a164 = #0.s; b164 = #1L } in
-  mark_test_run 1345;
-  let test = (fun #{ a164 = a1641; b164 = b1641 } #{ a164 = a1642; b164 = b1642 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1641 a1642 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1641 b1642) actual expected in
-  if not test then failwithf "test 1345 failed";
-  (* Paths of depth 2 *)
-  (* .a166.#a164 *)
-  let actual = r.a166.#a164 in
-  let expected = #0.s in
-  mark_test_run 1346;
-  let test = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) actual expected in
-  if not test then failwithf "test 1346 failed";
-  (* .a166.#b164 *)
-  let actual = r.a166.#b164 in
-  let expected = #1L in
-  mark_test_run 1347;
-  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) actual expected in
-  if not test then failwithf "test 1347 failed";
-  (* Paths of depth 1 *)
-  (* .b166 *)
-  let actual = r.b166 in
-  let expected = #{ a165 = "2"; b165 = #3L } in
-  mark_test_run 1348;
-  let test = (fun #{ a165 = a1651; b165 = b1651 } #{ a165 = a1652; b165 = b1652 } -> (fun a b -> String.equal (globalize a) (globalize b)) a1651 a1652 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1651 b1652) actual expected in
-  if not test then failwithf "test 1348 failed";
-  (* Paths of depth 2 *)
-  (* .b166.#a165 *)
-  let actual = r.b166.#a165 in
-  let expected = "2" in
-  mark_test_run 1349;
-  let test = (fun a b -> String.equal (globalize a) (globalize b)) actual expected in
-  if not test then failwithf "test 1349 failed";
-  (* .b166.#b165 *)
-  let actual = r.b166.#b165 in
-  let expected = #3L in
-  mark_test_run 1350;
-  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) actual expected in
-  if not test then failwithf "test 1350 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a166 = a1661; b166 = b1661 } { a166 = a1662; b166 = b1662 } -> (fun #{ a164 = a1641; b164 = b1641 } #{ a164 = a1642; b164 = b1642 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1641 a1642 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1641 b1642) a1661 a1662 && (fun #{ a165 = a1651; b165 = b1651 } #{ a165 = a1652; b165 = b1652 } -> (fun a b -> String.equal (globalize a) (globalize b)) a1651 a1652 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1651 b1652) b1661 b1662) in
-  let next_r = stack_ { a166 = #{ a164 = #100.s; b164 = #101L }; b166 = #{ a165 = "102"; b165 = #103L } } in
-  let r_expected = stack_ { a166 = #{ a164 = #0.s; b164 = #1L }; b166 = #{ a165 = "2"; b165 = #3L } } in
-  (* .a166 *)
-  r.a166 <- next_r.a166;
-  let r_expected = { r_expected with a166 = next_r.a166 } in
-  mark_test_run 1351;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1351 failed";
-  Gc.compact ();
-  (* .b166 *)
-  r.b166 <- next_r.b166;
-  let r_expected = { r_expected with b166 = next_r.b166 } in
-  mark_test_run 1352;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1352 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a166 = #{ a164; b164 }; b166 = #{ a165; b165 } } = r in
-  let expected_a164 = #100.s in
-  mark_test_run 1353;
-  let test = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) expected_a164 a164 in
-  if not test then failwithf "test 1353 failed";
-  let expected_b164 = #101L in
-  mark_test_run 1354;
-  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) expected_b164 b164 in
-  if not test then failwithf "test 1354 failed";
-  let expected_a165 = "102" in
+  let expected_a162 = #{ a160 = 100L; b160 = #101L } in
   mark_test_run 1355;
-  let test = (fun a b -> String.equal (globalize a) (globalize b)) expected_a165 a165 in
+  let test = (fun #{ a160 = a1601; b160 = b1601 } #{ a160 = a1602; b160 = b1602 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1601 a1602 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1601 b1602) expected_a162 a162 in
   if not test then failwithf "test 1355 failed";
-  let expected_b165 = #103L in
+  let expected_b162 = #{ a161 = #102L; b161 = #103. } in
   mark_test_run 1356;
-  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) expected_b165 b165 in
+  let test = (fun #{ a161 = a1611; b161 = b1611 } #{ a161 = a1612; b161 = b1612 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1611 a1612 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1611 b1612) expected_b162 b162 in
   if not test then failwithf "test 1356 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a166; b166 } = r in
-  let expected_a166 = #{ a164 = #100.s; b164 = #101L } in
-  mark_test_run 1357;
-  let test = (fun #{ a164 = a1641; b164 = b1641 } #{ a164 = a1642; b164 = b1642 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1641 a1642 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1641 b1642) expected_a166 a166 in
-  if not test then failwithf "test 1357 failed";
-  let expected_b166 = #{ a165 = "102"; b165 = #103L } in
-  mark_test_run 1358;
-  let test = (fun #{ a165 = a1651; b165 = b1651 } #{ a165 = a1652; b165 = b1652 } -> (fun a b -> String.equal (globalize a) (globalize b)) a1651 a1652 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1651 b1652) expected_b166 b166 in
-  if not test then failwithf "test 1358 failed";
 
-  (********************************)
-  (*   t167 = { #{ int64x2# } }   *)
-  (********************************)
-  let r = stack_ { a167 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } } in
+  (**********************************************************)
+  (*   t165 = { #{ int64; string }; #{ int64#; string } }   *)
+  (**********************************************************)
+  let r = stack_ { a165 = #{ a163 = 0L; b163 = "1" }; b165 = #{ a164 = #2L; b164 = "3" } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
-  (* .a167 *)
-  let actual = r.a167 in
-  let expected = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } in
-  mark_test_run 1359;
-  let test = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) actual expected in
-  if not test then failwithf "test 1359 failed";
+  (* .a165 *)
+  let actual = r.a165 in
+  let expected = #{ a163 = 0L; b163 = "1" } in
+  mark_test_run 1357;
+  let test = (fun #{ a163 = a1631; b163 = b1631 } #{ a163 = a1632; b163 = b1632 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1631 a1632 && (fun a b -> String.equal (globalize a) (globalize b)) b1631 b1632) actual expected in
+  if not test then failwithf "test 1357 failed";
   (* Paths of depth 2 *)
-  (* .a167.#a40 *)
-  let actual = r.a167.#a40 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  (* .a165.#a163 *)
+  let actual = r.a165.#a163 in
+  let expected = 0L in
+  mark_test_run 1358;
+  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1358 failed";
+  (* .a165.#b163 *)
+  let actual = r.a165.#b163 in
+  let expected = "1" in
+  mark_test_run 1359;
+  let test = (fun a b -> String.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1359 failed";
+  (* Paths of depth 1 *)
+  (* .b165 *)
+  let actual = r.b165 in
+  let expected = #{ a164 = #2L; b164 = "3" } in
   mark_test_run 1360;
-  let test = int64x2_u_equal actual expected in
+  let test = (fun #{ a164 = a1641; b164 = b1641 } #{ a164 = a1642; b164 = b1642 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1641 a1642 && (fun a b -> String.equal (globalize a) (globalize b)) b1641 b1642) actual expected in
   if not test then failwithf "test 1360 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a167 = a1671 } { a167 = a1672 } -> (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) a1671 a1672) in
-  let next_r = stack_ { a167 = #{ a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) } } in
-  let r_expected = stack_ { a167 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } } in
-  (* .a167 *)
-  r.a167 <- next_r.a167;
-  let r_expected = { r_expected with a167 = next_r.a167 } in
+  (* Paths of depth 2 *)
+  (* .b165.#a164 *)
+  let actual = r.b165.#a164 in
+  let expected = #2L in
   mark_test_run 1361;
-  let test = eq r r_expected in
+  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) actual expected in
   if not test then failwithf "test 1361 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a167 = #{ a40 } } = r in
-  let expected_a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  (* .b165.#b164 *)
+  let actual = r.b165.#b164 in
+  let expected = "3" in
   mark_test_run 1362;
-  let test = int64x2_u_equal expected_a40 a40 in
+  let test = (fun a b -> String.equal (globalize a) (globalize b)) actual expected in
   if not test then failwithf "test 1362 failed";
   Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a167 } = r in
-  let expected_a167 = #{ a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) } in
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a165 = a1651; b165 = b1651 } { a165 = a1652; b165 = b1652 } -> (fun #{ a163 = a1631; b163 = b1631 } #{ a163 = a1632; b163 = b1632 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1631 a1632 && (fun a b -> String.equal (globalize a) (globalize b)) b1631 b1632) a1651 a1652 && (fun #{ a164 = a1641; b164 = b1641 } #{ a164 = a1642; b164 = b1642 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1641 a1642 && (fun a b -> String.equal (globalize a) (globalize b)) b1641 b1642) b1651 b1652) in
+  let next_r = stack_ { a165 = #{ a163 = 100L; b163 = "101" }; b165 = #{ a164 = #102L; b164 = "103" } } in
+  let r_expected = stack_ { a165 = #{ a163 = 0L; b163 = "1" }; b165 = #{ a164 = #2L; b164 = "3" } } in
+  (* .a165 *)
+  r.a165 <- next_r.a165;
+  let r_expected = { r_expected with a165 = next_r.a165 } in
   mark_test_run 1363;
-  let test = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) expected_a167 a167 in
+  let test = eq r r_expected in
   if not test then failwithf "test 1363 failed";
+  Gc.compact ();
+  (* .b165 *)
+  r.b165 <- next_r.b165;
+  let r_expected = { r_expected with b165 = next_r.b165 } in
+  mark_test_run 1364;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1364 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a165 = #{ a163; b163 }; b165 = #{ a164; b164 } } = r in
+  let expected_a163 = 100L in
+  mark_test_run 1365;
+  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) expected_a163 a163 in
+  if not test then failwithf "test 1365 failed";
+  let expected_b163 = "101" in
+  mark_test_run 1366;
+  let test = (fun a b -> String.equal (globalize a) (globalize b)) expected_b163 b163 in
+  if not test then failwithf "test 1366 failed";
+  let expected_a164 = #102L in
+  mark_test_run 1367;
+  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) expected_a164 a164 in
+  if not test then failwithf "test 1367 failed";
+  let expected_b164 = "103" in
+  mark_test_run 1368;
+  let test = (fun a b -> String.equal (globalize a) (globalize b)) expected_b164 b164 in
+  if not test then failwithf "test 1368 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a165; b165 } = r in
+  let expected_a165 = #{ a163 = 100L; b163 = "101" } in
+  mark_test_run 1369;
+  let test = (fun #{ a163 = a1631; b163 = b1631 } #{ a163 = a1632; b163 = b1632 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1631 a1632 && (fun a b -> String.equal (globalize a) (globalize b)) b1631 b1632) expected_a165 a165 in
+  if not test then failwithf "test 1369 failed";
+  let expected_b165 = #{ a164 = #102L; b164 = "103" } in
+  mark_test_run 1370;
+  let test = (fun #{ a164 = a1641; b164 = b1641 } #{ a164 = a1642; b164 = b1642 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1641 a1642 && (fun a b -> String.equal (globalize a) (globalize b)) b1641 b1642) expected_b165 b165 in
+  if not test then failwithf "test 1370 failed";
 
-  (*************************************)
-  (*   t168 = { #{ int64x2# }; int }   *)
-  (*************************************)
-  let r = stack_ { a168 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b168 = 2 } in
+  (********************************************************)
+  (*   t168 = { #{ int64#; int64 }; #{ int64; int64 } }   *)
+  (********************************************************)
+  let r = stack_ { a168 = #{ a166 = #0L; b166 = 1L }; b168 = #{ a167 = 2L; b167 = 3L } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a168 *)
   let actual = r.a168 in
-  let expected = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } in
-  mark_test_run 1364;
-  let test = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) actual expected in
-  if not test then failwithf "test 1364 failed";
+  let expected = #{ a166 = #0L; b166 = 1L } in
+  mark_test_run 1371;
+  let test = (fun #{ a166 = a1661; b166 = b1661 } #{ a166 = a1662; b166 = b1662 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1661 a1662 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1661 b1662) actual expected in
+  if not test then failwithf "test 1371 failed";
   (* Paths of depth 2 *)
-  (* .a168.#a40 *)
-  let actual = r.a168.#a40 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 1365;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1365 failed";
+  (* .a168.#a166 *)
+  let actual = r.a168.#a166 in
+  let expected = #0L in
+  mark_test_run 1372;
+  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) actual expected in
+  if not test then failwithf "test 1372 failed";
+  (* .a168.#b166 *)
+  let actual = r.a168.#b166 in
+  let expected = 1L in
+  mark_test_run 1373;
+  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1373 failed";
   (* Paths of depth 1 *)
   (* .b168 *)
   let actual = r.b168 in
-  let expected = 2 in
-  mark_test_run 1366;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1366 failed";
+  let expected = #{ a167 = 2L; b167 = 3L } in
+  mark_test_run 1374;
+  let test = (fun #{ a167 = a1671; b167 = b1671 } #{ a167 = a1672; b167 = b1672 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1671 a1672 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1671 b1672) actual expected in
+  if not test then failwithf "test 1374 failed";
+  (* Paths of depth 2 *)
+  (* .b168.#a167 *)
+  let actual = r.b168.#a167 in
+  let expected = 2L in
+  mark_test_run 1375;
+  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1375 failed";
+  (* .b168.#b167 *)
+  let actual = r.b168.#b167 in
+  let expected = 3L in
+  mark_test_run 1376;
+  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1376 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a168 = a1681; b168 = b1681 } { a168 = a1682; b168 = b1682 } -> (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) a1681 a1682 && (fun a b -> Int.equal a b) b1681 b1682) in
-  let next_r = stack_ { a168 = #{ a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) }; b168 = 102 } in
-  let r_expected = stack_ { a168 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b168 = 2 } in
+  let eq = (fun { a168 = a1681; b168 = b1681 } { a168 = a1682; b168 = b1682 } -> (fun #{ a166 = a1661; b166 = b1661 } #{ a166 = a1662; b166 = b1662 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1661 a1662 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1661 b1662) a1681 a1682 && (fun #{ a167 = a1671; b167 = b1671 } #{ a167 = a1672; b167 = b1672 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1671 a1672 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1671 b1672) b1681 b1682) in
+  let next_r = stack_ { a168 = #{ a166 = #100L; b166 = 101L }; b168 = #{ a167 = 102L; b167 = 103L } } in
+  let r_expected = stack_ { a168 = #{ a166 = #0L; b166 = 1L }; b168 = #{ a167 = 2L; b167 = 3L } } in
   (* .a168 *)
   r.a168 <- next_r.a168;
   let r_expected = { r_expected with a168 = next_r.a168 } in
-  mark_test_run 1367;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1367 failed";
-  Gc.compact ();
-  (* .b168 *)
-  r.b168 <- next_r.b168;
-  let r_expected = { r_expected with b168 = next_r.b168 } in
-  mark_test_run 1368;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1368 failed";
-  Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a168 = #{ a40 }; b168 } = r in
-  let expected_a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 1369;
-  let test = int64x2_u_equal expected_a40 a40 in
-  if not test then failwithf "test 1369 failed";
-  let expected_b168 = 102 in
-  mark_test_run 1370;
-  let test = (fun a b -> Int.equal a b) expected_b168 b168 in
-  if not test then failwithf "test 1370 failed";
-  Gc.compact ();
-  (* 4. Test shallow matching *)
-  let { a168; b168 } = r in
-  let expected_a168 = #{ a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) } in
-  mark_test_run 1371;
-  let test = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) expected_a168 a168 in
-  if not test then failwithf "test 1371 failed";
-  let expected_b168 = 102 in
-  mark_test_run 1372;
-  let test = (fun a b -> Int.equal a b) expected_b168 b168 in
-  if not test then failwithf "test 1372 failed";
-
-  (******************************************)
-  (*   t169 = { #{ int64x2# }; int64x2# }   *)
-  (******************************************)
-  let r = stack_ { a169 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b169 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
-  (* 1. Test field get *)
-  (* Paths of depth 1 *)
-  (* .a169 *)
-  let actual = r.a169 in
-  let expected = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } in
-  mark_test_run 1373;
-  let test = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) actual expected in
-  if not test then failwithf "test 1373 failed";
-  (* Paths of depth 2 *)
-  (* .a169.#a40 *)
-  let actual = r.a169.#a40 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 1374;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1374 failed";
-  (* Paths of depth 1 *)
-  (* .b169 *)
-  let actual = r.b169 in
-  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
-  mark_test_run 1375;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1375 failed";
-  Gc.compact ();
-  (* 2. Test field set *)
-  (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a169 = a1691; b169 = b1691 } { a169 = a1692; b169 = b1692 } -> (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) a1691 a1692 && int64x2_u_equal b1691 b1692) in
-  let next_r = stack_ { a169 = #{ a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) }; b169 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
-  let r_expected = stack_ { a169 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b169 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
-  (* .a169 *)
-  r.a169 <- next_r.a169;
-  let r_expected = { r_expected with a169 = next_r.a169 } in
-  mark_test_run 1376;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1376 failed";
-  Gc.compact ();
-  (* .b169 *)
-  r.b169 <- next_r.b169;
-  let r_expected = { r_expected with b169 = next_r.b169 } in
   mark_test_run 1377;
   let test = eq r r_expected in
   if not test then failwithf "test 1377 failed";
   Gc.compact ();
-  (* 3. Test deep matching *)
-  let { a169 = #{ a40 }; b169 } = r in
-  let expected_a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  (* .b168 *)
+  r.b168 <- next_r.b168;
+  let r_expected = { r_expected with b168 = next_r.b168 } in
   mark_test_run 1378;
-  let test = int64x2_u_equal expected_a40 a40 in
+  let test = eq r r_expected in
   if not test then failwithf "test 1378 failed";
-  let expected_b169 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a168 = #{ a166; b166 }; b168 = #{ a167; b167 } } = r in
+  let expected_a166 = #100L in
   mark_test_run 1379;
-  let test = int64x2_u_equal expected_b169 b169 in
+  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) expected_a166 a166 in
   if not test then failwithf "test 1379 failed";
+  let expected_b166 = 101L in
+  mark_test_run 1380;
+  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) expected_b166 b166 in
+  if not test then failwithf "test 1380 failed";
+  let expected_a167 = 102L in
+  mark_test_run 1381;
+  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) expected_a167 a167 in
+  if not test then failwithf "test 1381 failed";
+  let expected_b167 = 103L in
+  mark_test_run 1382;
+  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) expected_b167 b167 in
+  if not test then failwithf "test 1382 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a169; b169 } = r in
-  let expected_a169 = #{ a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) } in
-  mark_test_run 1380;
-  let test = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) expected_a169 a169 in
-  if not test then failwithf "test 1380 failed";
-  let expected_b169 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
-  mark_test_run 1381;
-  let test = int64x2_u_equal expected_b169 b169 in
-  if not test then failwithf "test 1381 failed";
+  let { a168; b168 } = r in
+  let expected_a168 = #{ a166 = #100L; b166 = 101L } in
+  mark_test_run 1383;
+  let test = (fun #{ a166 = a1661; b166 = b1661 } #{ a166 = a1662; b166 = b1662 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1661 a1662 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1661 b1662) expected_a168 a168 in
+  if not test then failwithf "test 1383 failed";
+  let expected_b168 = #{ a167 = 102L; b167 = 103L } in
+  mark_test_run 1384;
+  let test = (fun #{ a167 = a1671; b167 = b1671 } #{ a167 = a1672; b167 = b1672 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1671 a1672 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1671 b1672) expected_b168 b168 in
+  if not test then failwithf "test 1384 failed";
 
-  (*************************************)
-  (*   t170 = { #{ int64x2#; int } }   *)
-  (*************************************)
-  let r = stack_ { a170 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 } } in
+  (***********************************************************)
+  (*   t170 = { #{ int64#; int64 }; #{ float32#; float } }   *)
+  (***********************************************************)
+  let r = stack_ { a170 = #{ a166 = #0L; b166 = 1L }; b170 = #{ a169 = #2.s; b169 = 3. } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a170 *)
   let actual = r.a170 in
-  let expected = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 } in
-  mark_test_run 1382;
-  let test = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) actual expected in
-  if not test then failwithf "test 1382 failed";
+  let expected = #{ a166 = #0L; b166 = 1L } in
+  mark_test_run 1385;
+  let test = (fun #{ a166 = a1661; b166 = b1661 } #{ a166 = a1662; b166 = b1662 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1661 a1662 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1661 b1662) actual expected in
+  if not test then failwithf "test 1385 failed";
   (* Paths of depth 2 *)
-  (* .a170.#a42 *)
-  let actual = r.a170.#a42 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 1383;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1383 failed";
-  (* .a170.#b42 *)
-  let actual = r.a170.#b42 in
-  let expected = 2 in
-  mark_test_run 1384;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1384 failed";
+  (* .a170.#a166 *)
+  let actual = r.a170.#a166 in
+  let expected = #0L in
+  mark_test_run 1386;
+  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) actual expected in
+  if not test then failwithf "test 1386 failed";
+  (* .a170.#b166 *)
+  let actual = r.a170.#b166 in
+  let expected = 1L in
+  mark_test_run 1387;
+  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1387 failed";
+  (* Paths of depth 1 *)
+  (* .b170 *)
+  let actual = r.b170 in
+  let expected = #{ a169 = #2.s; b169 = 3. } in
+  mark_test_run 1388;
+  let test = (fun #{ a169 = a1691; b169 = b1691 } #{ a169 = a1692; b169 = b1692 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1691 a1692 && (fun a b -> Float.equal (globalize a) (globalize b)) b1691 b1692) actual expected in
+  if not test then failwithf "test 1388 failed";
+  (* Paths of depth 2 *)
+  (* .b170.#a169 *)
+  let actual = r.b170.#a169 in
+  let expected = #2.s in
+  mark_test_run 1389;
+  let test = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) actual expected in
+  if not test then failwithf "test 1389 failed";
+  (* .b170.#b169 *)
+  let actual = r.b170.#b169 in
+  let expected = 3. in
+  mark_test_run 1390;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1390 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a170 = a1701 } { a170 = a1702 } -> (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) a1701 a1702) in
-  let next_r = stack_ { a170 = #{ a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b42 = 102 } } in
-  let r_expected = stack_ { a170 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 } } in
+  let eq = (fun { a170 = a1701; b170 = b1701 } { a170 = a1702; b170 = b1702 } -> (fun #{ a166 = a1661; b166 = b1661 } #{ a166 = a1662; b166 = b1662 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1661 a1662 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1661 b1662) a1701 a1702 && (fun #{ a169 = a1691; b169 = b1691 } #{ a169 = a1692; b169 = b1692 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1691 a1692 && (fun a b -> Float.equal (globalize a) (globalize b)) b1691 b1692) b1701 b1702) in
+  let next_r = stack_ { a170 = #{ a166 = #100L; b166 = 101L }; b170 = #{ a169 = #102.s; b169 = 103. } } in
+  let r_expected = stack_ { a170 = #{ a166 = #0L; b166 = 1L }; b170 = #{ a169 = #2.s; b169 = 3. } } in
   (* .a170 *)
   r.a170 <- next_r.a170;
   let r_expected = { r_expected with a170 = next_r.a170 } in
-  mark_test_run 1385;
+  mark_test_run 1391;
   let test = eq r r_expected in
-  if not test then failwithf "test 1385 failed";
+  if not test then failwithf "test 1391 failed";
+  Gc.compact ();
+  (* .b170 *)
+  r.b170 <- next_r.b170;
+  let r_expected = { r_expected with b170 = next_r.b170 } in
+  mark_test_run 1392;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1392 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a170 = #{ a42; b42 } } = r in
-  let expected_a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 1386;
-  let test = int64x2_u_equal expected_a42 a42 in
-  if not test then failwithf "test 1386 failed";
-  let expected_b42 = 102 in
-  mark_test_run 1387;
-  let test = (fun a b -> Int.equal a b) expected_b42 b42 in
-  if not test then failwithf "test 1387 failed";
+  let { a170 = #{ a166; b166 }; b170 = #{ a169; b169 } } = r in
+  let expected_a166 = #100L in
+  mark_test_run 1393;
+  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) expected_a166 a166 in
+  if not test then failwithf "test 1393 failed";
+  let expected_b166 = 101L in
+  mark_test_run 1394;
+  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) expected_b166 b166 in
+  if not test then failwithf "test 1394 failed";
+  let expected_a169 = #102.s in
+  mark_test_run 1395;
+  let test = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) expected_a169 a169 in
+  if not test then failwithf "test 1395 failed";
+  let expected_b169 = 103. in
+  mark_test_run 1396;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b169 b169 in
+  if not test then failwithf "test 1396 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a170 } = r in
-  let expected_a170 = #{ a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b42 = 102 } in
-  mark_test_run 1388;
-  let test = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) expected_a170 a170 in
-  if not test then failwithf "test 1388 failed";
+  let { a170; b170 } = r in
+  let expected_a170 = #{ a166 = #100L; b166 = 101L } in
+  mark_test_run 1397;
+  let test = (fun #{ a166 = a1661; b166 = b1661 } #{ a166 = a1662; b166 = b1662 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1661 a1662 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1661 b1662) expected_a170 a170 in
+  if not test then failwithf "test 1397 failed";
+  let expected_b170 = #{ a169 = #102.s; b169 = 103. } in
+  mark_test_run 1398;
+  let test = (fun #{ a169 = a1691; b169 = b1691 } #{ a169 = a1692; b169 = b1692 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1691 a1692 && (fun a b -> Float.equal (globalize a) (globalize b)) b1691 b1692) expected_b170 b170 in
+  if not test then failwithf "test 1398 failed";
 
-  (******************************************)
-  (*   t171 = { #{ int64x2#; int }; int }   *)
-  (******************************************)
-  let r = stack_ { a171 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 }; b171 = 3 } in
+  (******************************)
+  (*   t171 = { #{ int32# } }   *)
+  (******************************)
+  let r = stack_ { a171 = #{ a28 = #0l } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a171 *)
   let actual = r.a171 in
-  let expected = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 } in
-  mark_test_run 1389;
-  let test = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) actual expected in
-  if not test then failwithf "test 1389 failed";
+  let expected = #{ a28 = #0l } in
+  mark_test_run 1399;
+  let test = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) actual expected in
+  if not test then failwithf "test 1399 failed";
   (* Paths of depth 2 *)
-  (* .a171.#a42 *)
-  let actual = r.a171.#a42 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 1390;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1390 failed";
-  (* .a171.#b42 *)
-  let actual = r.a171.#b42 in
-  let expected = 2 in
-  mark_test_run 1391;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1391 failed";
-  (* Paths of depth 1 *)
-  (* .b171 *)
-  let actual = r.b171 in
-  let expected = 3 in
-  mark_test_run 1392;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1392 failed";
+  (* .a171.#a28 *)
+  let actual = r.a171.#a28 in
+  let expected = #0l in
+  mark_test_run 1400;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  if not test then failwithf "test 1400 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a171 = a1711; b171 = b1711 } { a171 = a1712; b171 = b1712 } -> (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) a1711 a1712 && (fun a b -> Int.equal a b) b1711 b1712) in
-  let next_r = stack_ { a171 = #{ a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b42 = 102 }; b171 = 103 } in
-  let r_expected = stack_ { a171 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 }; b171 = 3 } in
+  let eq = (fun { a171 = a1711 } { a171 = a1712 } -> (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) a1711 a1712) in
+  let next_r = stack_ { a171 = #{ a28 = #100l } } in
+  let r_expected = stack_ { a171 = #{ a28 = #0l } } in
   (* .a171 *)
   r.a171 <- next_r.a171;
   let r_expected = { r_expected with a171 = next_r.a171 } in
-  mark_test_run 1393;
+  mark_test_run 1401;
   let test = eq r r_expected in
-  if not test then failwithf "test 1393 failed";
-  Gc.compact ();
-  (* .b171 *)
-  r.b171 <- next_r.b171;
-  let r_expected = { r_expected with b171 = next_r.b171 } in
-  mark_test_run 1394;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1394 failed";
+  if not test then failwithf "test 1401 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a171 = #{ a42; b42 }; b171 } = r in
-  let expected_a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 1395;
-  let test = int64x2_u_equal expected_a42 a42 in
-  if not test then failwithf "test 1395 failed";
-  let expected_b42 = 102 in
-  mark_test_run 1396;
-  let test = (fun a b -> Int.equal a b) expected_b42 b42 in
-  if not test then failwithf "test 1396 failed";
-  let expected_b171 = 103 in
-  mark_test_run 1397;
-  let test = (fun a b -> Int.equal a b) expected_b171 b171 in
-  if not test then failwithf "test 1397 failed";
+  let { a171 = #{ a28 } } = r in
+  let expected_a28 = #100l in
+  mark_test_run 1402;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_a28 a28 in
+  if not test then failwithf "test 1402 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a171; b171 } = r in
-  let expected_a171 = #{ a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b42 = 102 } in
-  mark_test_run 1398;
-  let test = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) expected_a171 a171 in
-  if not test then failwithf "test 1398 failed";
-  let expected_b171 = 103 in
-  mark_test_run 1399;
-  let test = (fun a b -> Int.equal a b) expected_b171 b171 in
-  if not test then failwithf "test 1399 failed";
+  let { a171 } = r in
+  let expected_a171 = #{ a28 = #100l } in
+  mark_test_run 1403;
+  let test = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) expected_a171 a171 in
+  if not test then failwithf "test 1403 failed";
 
-  (***********************************************)
-  (*   t172 = { #{ int64x2#; int }; int64x2# }   *)
-  (***********************************************)
-  let r = stack_ { a172 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 }; b172 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  (***********************************)
+  (*   t172 = { #{ int32# }; int }   *)
+  (***********************************)
+  let r = stack_ { a172 = #{ a28 = #0l }; b172 = 1 } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a172 *)
   let actual = r.a172 in
-  let expected = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 } in
-  mark_test_run 1400;
-  let test = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) actual expected in
-  if not test then failwithf "test 1400 failed";
+  let expected = #{ a28 = #0l } in
+  mark_test_run 1404;
+  let test = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) actual expected in
+  if not test then failwithf "test 1404 failed";
   (* Paths of depth 2 *)
-  (* .a172.#a42 *)
-  let actual = r.a172.#a42 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 1401;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1401 failed";
-  (* .a172.#b42 *)
-  let actual = r.a172.#b42 in
-  let expected = 2 in
-  mark_test_run 1402;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1402 failed";
+  (* .a172.#a28 *)
+  let actual = r.a172.#a28 in
+  let expected = #0l in
+  mark_test_run 1405;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  if not test then failwithf "test 1405 failed";
   (* Paths of depth 1 *)
   (* .b172 *)
   let actual = r.b172 in
-  let expected = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) in
-  mark_test_run 1403;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1403 failed";
+  let expected = 1 in
+  mark_test_run 1406;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1406 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a172 = a1721; b172 = b1721 } { a172 = a1722; b172 = b1722 } -> (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) a1721 a1722 && int64x2_u_equal b1721 b1722) in
-  let next_r = stack_ { a172 = #{ a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b42 = 102 }; b172 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
-  let r_expected = stack_ { a172 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 }; b172 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  let eq = (fun { a172 = a1721; b172 = b1721 } { a172 = a1722; b172 = b1722 } -> (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) a1721 a1722 && (fun a b -> Int.equal a b) b1721 b1722) in
+  let next_r = stack_ { a172 = #{ a28 = #100l }; b172 = 101 } in
+  let r_expected = stack_ { a172 = #{ a28 = #0l }; b172 = 1 } in
   (* .a172 *)
   r.a172 <- next_r.a172;
   let r_expected = { r_expected with a172 = next_r.a172 } in
-  mark_test_run 1404;
+  mark_test_run 1407;
   let test = eq r r_expected in
-  if not test then failwithf "test 1404 failed";
+  if not test then failwithf "test 1407 failed";
   Gc.compact ();
   (* .b172 *)
   r.b172 <- next_r.b172;
   let r_expected = { r_expected with b172 = next_r.b172 } in
-  mark_test_run 1405;
+  mark_test_run 1408;
   let test = eq r r_expected in
-  if not test then failwithf "test 1405 failed";
+  if not test then failwithf "test 1408 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a172 = #{ a42; b42 }; b172 } = r in
-  let expected_a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 1406;
-  let test = int64x2_u_equal expected_a42 a42 in
-  if not test then failwithf "test 1406 failed";
-  let expected_b42 = 102 in
-  mark_test_run 1407;
-  let test = (fun a b -> Int.equal a b) expected_b42 b42 in
-  if not test then failwithf "test 1407 failed";
-  let expected_b172 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) in
-  mark_test_run 1408;
-  let test = int64x2_u_equal expected_b172 b172 in
-  if not test then failwithf "test 1408 failed";
+  let { a172 = #{ a28 }; b172 } = r in
+  let expected_a28 = #100l in
+  mark_test_run 1409;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_a28 a28 in
+  if not test then failwithf "test 1409 failed";
+  let expected_b172 = 101 in
+  mark_test_run 1410;
+  let test = (fun a b -> Int.equal a b) expected_b172 b172 in
+  if not test then failwithf "test 1410 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a172; b172 } = r in
-  let expected_a172 = #{ a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b42 = 102 } in
-  mark_test_run 1409;
-  let test = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) expected_a172 a172 in
-  if not test then failwithf "test 1409 failed";
-  let expected_b172 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) in
-  mark_test_run 1410;
-  let test = int64x2_u_equal expected_b172 b172 in
-  if not test then failwithf "test 1410 failed";
+  let expected_a172 = #{ a28 = #100l } in
+  mark_test_run 1411;
+  let test = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) expected_a172 a172 in
+  if not test then failwithf "test 1411 failed";
+  let expected_b172 = 101 in
+  mark_test_run 1412;
+  let test = (fun a b -> Int.equal a b) expected_b172 b172 in
+  if not test then failwithf "test 1412 failed";
 
-  (************************************************************)
-  (*   t175 = { #{ int64x2#; string }; #{ int64; float# } }   *)
-  (************************************************************)
-  let r = stack_ { a175 = #{ a173 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b173 = "2" }; b175 = #{ a174 = 3L; b174 = #4. } } in
+  (**************************************)
+  (*   t173 = { #{ int32# }; int32# }   *)
+  (**************************************)
+  let r = stack_ { a173 = #{ a28 = #0l }; b173 = #1l } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
-  (* .a175 *)
-  let actual = r.a175 in
-  let expected = #{ a173 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b173 = "2" } in
-  mark_test_run 1411;
-  let test = (fun #{ a173 = a1731; b173 = b1731 } #{ a173 = a1732; b173 = b1732 } -> int64x2_u_equal a1731 a1732 && (fun a b -> String.equal (globalize a) (globalize b)) b1731 b1732) actual expected in
-  if not test then failwithf "test 1411 failed";
-  (* Paths of depth 2 *)
-  (* .a175.#a173 *)
-  let actual = r.a175.#a173 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 1412;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1412 failed";
-  (* .a175.#b173 *)
-  let actual = r.a175.#b173 in
-  let expected = "2" in
+  (* .a173 *)
+  let actual = r.a173 in
+  let expected = #{ a28 = #0l } in
   mark_test_run 1413;
-  let test = (fun a b -> String.equal (globalize a) (globalize b)) actual expected in
+  let test = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) actual expected in
   if not test then failwithf "test 1413 failed";
-  (* Paths of depth 1 *)
-  (* .b175 *)
-  let actual = r.b175 in
-  let expected = #{ a174 = 3L; b174 = #4. } in
-  mark_test_run 1414;
-  let test = (fun #{ a174 = a1741; b174 = b1741 } #{ a174 = a1742; b174 = b1742 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1741 a1742 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1741 b1742) actual expected in
-  if not test then failwithf "test 1414 failed";
   (* Paths of depth 2 *)
-  (* .b175.#a174 *)
-  let actual = r.b175.#a174 in
-  let expected = 3L in
+  (* .a173.#a28 *)
+  let actual = r.a173.#a28 in
+  let expected = #0l in
+  mark_test_run 1414;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  if not test then failwithf "test 1414 failed";
+  (* Paths of depth 1 *)
+  (* .b173 *)
+  let actual = r.b173 in
+  let expected = #1l in
   mark_test_run 1415;
-  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) actual expected in
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
   if not test then failwithf "test 1415 failed";
-  (* .b175.#b174 *)
-  let actual = r.b175.#b174 in
-  let expected = #4. in
-  mark_test_run 1416;
-  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
-  if not test then failwithf "test 1416 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a175 = a1751; b175 = b1751 } { a175 = a1752; b175 = b1752 } -> (fun #{ a173 = a1731; b173 = b1731 } #{ a173 = a1732; b173 = b1732 } -> int64x2_u_equal a1731 a1732 && (fun a b -> String.equal (globalize a) (globalize b)) b1731 b1732) a1751 a1752 && (fun #{ a174 = a1741; b174 = b1741 } #{ a174 = a1742; b174 = b1742 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1741 a1742 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1741 b1742) b1751 b1752) in
-  let next_r = stack_ { a175 = #{ a173 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b173 = "102" }; b175 = #{ a174 = 103L; b174 = #104. } } in
-  let r_expected = stack_ { a175 = #{ a173 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b173 = "2" }; b175 = #{ a174 = 3L; b174 = #4. } } in
-  (* .a175 *)
-  r.a175 <- next_r.a175;
-  let r_expected = { r_expected with a175 = next_r.a175 } in
+  let eq = (fun { a173 = a1731; b173 = b1731 } { a173 = a1732; b173 = b1732 } -> (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) a1731 a1732 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1731 b1732) in
+  let next_r = stack_ { a173 = #{ a28 = #100l }; b173 = #101l } in
+  let r_expected = stack_ { a173 = #{ a28 = #0l }; b173 = #1l } in
+  (* .a173 *)
+  r.a173 <- next_r.a173;
+  let r_expected = { r_expected with a173 = next_r.a173 } in
+  mark_test_run 1416;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1416 failed";
+  Gc.compact ();
+  (* .b173 *)
+  r.b173 <- next_r.b173;
+  let r_expected = { r_expected with b173 = next_r.b173 } in
   mark_test_run 1417;
   let test = eq r r_expected in
   if not test then failwithf "test 1417 failed";
   Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a173 = #{ a28 }; b173 } = r in
+  let expected_a28 = #100l in
+  mark_test_run 1418;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_a28 a28 in
+  if not test then failwithf "test 1418 failed";
+  let expected_b173 = #101l in
+  mark_test_run 1419;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b173 b173 in
+  if not test then failwithf "test 1419 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a173; b173 } = r in
+  let expected_a173 = #{ a28 = #100l } in
+  mark_test_run 1420;
+  let test = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) expected_a173 a173 in
+  if not test then failwithf "test 1420 failed";
+  let expected_b173 = #101l in
+  mark_test_run 1421;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b173 b173 in
+  if not test then failwithf "test 1421 failed";
+
+  (***********************************)
+  (*   t174 = { #{ int32#; int } }   *)
+  (***********************************)
+  let r = stack_ { a174 = #{ a30 = #0l; b30 = 1 } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a174 *)
+  let actual = r.a174 in
+  let expected = #{ a30 = #0l; b30 = 1 } in
+  mark_test_run 1422;
+  let test = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) actual expected in
+  if not test then failwithf "test 1422 failed";
+  (* Paths of depth 2 *)
+  (* .a174.#a30 *)
+  let actual = r.a174.#a30 in
+  let expected = #0l in
+  mark_test_run 1423;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  if not test then failwithf "test 1423 failed";
+  (* .a174.#b30 *)
+  let actual = r.a174.#b30 in
+  let expected = 1 in
+  mark_test_run 1424;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1424 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a174 = a1741 } { a174 = a1742 } -> (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) a1741 a1742) in
+  let next_r = stack_ { a174 = #{ a30 = #100l; b30 = 101 } } in
+  let r_expected = stack_ { a174 = #{ a30 = #0l; b30 = 1 } } in
+  (* .a174 *)
+  r.a174 <- next_r.a174;
+  let r_expected = { r_expected with a174 = next_r.a174 } in
+  mark_test_run 1425;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1425 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a174 = #{ a30; b30 } } = r in
+  let expected_a30 = #100l in
+  mark_test_run 1426;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_a30 a30 in
+  if not test then failwithf "test 1426 failed";
+  let expected_b30 = 101 in
+  mark_test_run 1427;
+  let test = (fun a b -> Int.equal a b) expected_b30 b30 in
+  if not test then failwithf "test 1427 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a174 } = r in
+  let expected_a174 = #{ a30 = #100l; b30 = 101 } in
+  mark_test_run 1428;
+  let test = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) expected_a174 a174 in
+  if not test then failwithf "test 1428 failed";
+
+  (****************************************)
+  (*   t175 = { #{ int32#; int }; int }   *)
+  (****************************************)
+  let r = stack_ { a175 = #{ a30 = #0l; b30 = 1 }; b175 = 2 } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a175 *)
+  let actual = r.a175 in
+  let expected = #{ a30 = #0l; b30 = 1 } in
+  mark_test_run 1429;
+  let test = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) actual expected in
+  if not test then failwithf "test 1429 failed";
+  (* Paths of depth 2 *)
+  (* .a175.#a30 *)
+  let actual = r.a175.#a30 in
+  let expected = #0l in
+  mark_test_run 1430;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  if not test then failwithf "test 1430 failed";
+  (* .a175.#b30 *)
+  let actual = r.a175.#b30 in
+  let expected = 1 in
+  mark_test_run 1431;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1431 failed";
+  (* Paths of depth 1 *)
+  (* .b175 *)
+  let actual = r.b175 in
+  let expected = 2 in
+  mark_test_run 1432;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1432 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a175 = a1751; b175 = b1751 } { a175 = a1752; b175 = b1752 } -> (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) a1751 a1752 && (fun a b -> Int.equal a b) b1751 b1752) in
+  let next_r = stack_ { a175 = #{ a30 = #100l; b30 = 101 }; b175 = 102 } in
+  let r_expected = stack_ { a175 = #{ a30 = #0l; b30 = 1 }; b175 = 2 } in
+  (* .a175 *)
+  r.a175 <- next_r.a175;
+  let r_expected = { r_expected with a175 = next_r.a175 } in
+  mark_test_run 1433;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1433 failed";
+  Gc.compact ();
   (* .b175 *)
   r.b175 <- next_r.b175;
   let r_expected = { r_expected with b175 = next_r.b175 } in
-  mark_test_run 1418;
+  mark_test_run 1434;
   let test = eq r r_expected in
-  if not test then failwithf "test 1418 failed";
+  if not test then failwithf "test 1434 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a175 = #{ a173; b173 }; b175 = #{ a174; b174 } } = r in
-  let expected_a173 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 1419;
-  let test = int64x2_u_equal expected_a173 a173 in
-  if not test then failwithf "test 1419 failed";
-  let expected_b173 = "102" in
-  mark_test_run 1420;
-  let test = (fun a b -> String.equal (globalize a) (globalize b)) expected_b173 b173 in
-  if not test then failwithf "test 1420 failed";
-  let expected_a174 = 103L in
-  mark_test_run 1421;
-  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) expected_a174 a174 in
-  if not test then failwithf "test 1421 failed";
-  let expected_b174 = #104. in
-  mark_test_run 1422;
-  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b174 b174 in
-  if not test then failwithf "test 1422 failed";
+  let { a175 = #{ a30; b30 }; b175 } = r in
+  let expected_a30 = #100l in
+  mark_test_run 1435;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_a30 a30 in
+  if not test then failwithf "test 1435 failed";
+  let expected_b30 = 101 in
+  mark_test_run 1436;
+  let test = (fun a b -> Int.equal a b) expected_b30 b30 in
+  if not test then failwithf "test 1436 failed";
+  let expected_b175 = 102 in
+  mark_test_run 1437;
+  let test = (fun a b -> Int.equal a b) expected_b175 b175 in
+  if not test then failwithf "test 1437 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a175; b175 } = r in
-  let expected_a175 = #{ a173 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b173 = "102" } in
-  mark_test_run 1423;
-  let test = (fun #{ a173 = a1731; b173 = b1731 } #{ a173 = a1732; b173 = b1732 } -> int64x2_u_equal a1731 a1732 && (fun a b -> String.equal (globalize a) (globalize b)) b1731 b1732) expected_a175 a175 in
-  if not test then failwithf "test 1423 failed";
-  let expected_b175 = #{ a174 = 103L; b174 = #104. } in
-  mark_test_run 1424;
-  let test = (fun #{ a174 = a1741; b174 = b1741 } #{ a174 = a1742; b174 = b1742 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1741 a1742 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1741 b1742) expected_b175 b175 in
-  if not test then failwithf "test 1424 failed";
+  let expected_a175 = #{ a30 = #100l; b30 = 101 } in
+  mark_test_run 1438;
+  let test = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) expected_a175 a175 in
+  if not test then failwithf "test 1438 failed";
+  let expected_b175 = 102 in
+  mark_test_run 1439;
+  let test = (fun a b -> Int.equal a b) expected_b175 b175 in
+  if not test then failwithf "test 1439 failed";
 
-  (******************************************)
-  (*   t176 = { #{ int64x2#; int64x2# } }   *)
-  (******************************************)
-  let r = stack_ { a176 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
+  (*******************************************)
+  (*   t176 = { #{ int32#; int }; int32# }   *)
+  (*******************************************)
+  let r = stack_ { a176 = #{ a30 = #0l; b30 = 1 }; b176 = #2l } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a176 *)
   let actual = r.a176 in
-  let expected = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
-  mark_test_run 1425;
-  let test = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) actual expected in
-  if not test then failwithf "test 1425 failed";
+  let expected = #{ a30 = #0l; b30 = 1 } in
+  mark_test_run 1440;
+  let test = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) actual expected in
+  if not test then failwithf "test 1440 failed";
   (* Paths of depth 2 *)
-  (* .a176.#a44 *)
-  let actual = r.a176.#a44 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 1426;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1426 failed";
-  (* .a176.#b44 *)
-  let actual = r.a176.#b44 in
-  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
-  mark_test_run 1427;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1427 failed";
+  (* .a176.#a30 *)
+  let actual = r.a176.#a30 in
+  let expected = #0l in
+  mark_test_run 1441;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  if not test then failwithf "test 1441 failed";
+  (* .a176.#b30 *)
+  let actual = r.a176.#b30 in
+  let expected = 1 in
+  mark_test_run 1442;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1442 failed";
+  (* Paths of depth 1 *)
+  (* .b176 *)
+  let actual = r.b176 in
+  let expected = #2l in
+  mark_test_run 1443;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  if not test then failwithf "test 1443 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a176 = a1761 } { a176 = a1762 } -> (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) a1761 a1762) in
-  let next_r = stack_ { a176 = #{ a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } } in
-  let r_expected = stack_ { a176 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
+  let eq = (fun { a176 = a1761; b176 = b1761 } { a176 = a1762; b176 = b1762 } -> (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) a1761 a1762 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1761 b1762) in
+  let next_r = stack_ { a176 = #{ a30 = #100l; b30 = 101 }; b176 = #102l } in
+  let r_expected = stack_ { a176 = #{ a30 = #0l; b30 = 1 }; b176 = #2l } in
   (* .a176 *)
   r.a176 <- next_r.a176;
   let r_expected = { r_expected with a176 = next_r.a176 } in
-  mark_test_run 1428;
+  mark_test_run 1444;
   let test = eq r r_expected in
-  if not test then failwithf "test 1428 failed";
+  if not test then failwithf "test 1444 failed";
+  Gc.compact ();
+  (* .b176 *)
+  r.b176 <- next_r.b176;
+  let r_expected = { r_expected with b176 = next_r.b176 } in
+  mark_test_run 1445;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1445 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a176 = #{ a44; b44 } } = r in
-  let expected_a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 1429;
-  let test = int64x2_u_equal expected_a44 a44 in
-  if not test then failwithf "test 1429 failed";
-  let expected_b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
-  mark_test_run 1430;
-  let test = int64x2_u_equal expected_b44 b44 in
-  if not test then failwithf "test 1430 failed";
+  let { a176 = #{ a30; b30 }; b176 } = r in
+  let expected_a30 = #100l in
+  mark_test_run 1446;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_a30 a30 in
+  if not test then failwithf "test 1446 failed";
+  let expected_b30 = 101 in
+  mark_test_run 1447;
+  let test = (fun a b -> Int.equal a b) expected_b30 b30 in
+  if not test then failwithf "test 1447 failed";
+  let expected_b176 = #102l in
+  mark_test_run 1448;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b176 b176 in
+  if not test then failwithf "test 1448 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a176 } = r in
-  let expected_a176 = #{ a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
-  mark_test_run 1431;
-  let test = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) expected_a176 a176 in
-  if not test then failwithf "test 1431 failed";
+  let { a176; b176 } = r in
+  let expected_a176 = #{ a30 = #100l; b30 = 101 } in
+  mark_test_run 1449;
+  let test = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) expected_a176 a176 in
+  if not test then failwithf "test 1449 failed";
+  let expected_b176 = #102l in
+  mark_test_run 1450;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b176 b176 in
+  if not test then failwithf "test 1450 failed";
 
-  (***********************************************)
-  (*   t177 = { #{ int64x2#; int64x2# }; int }   *)
-  (***********************************************)
-  let r = stack_ { a177 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b177 = 4 } in
+  (**************************************)
+  (*   t177 = { #{ int32#; int32# } }   *)
+  (**************************************)
+  let r = stack_ { a177 = #{ a32 = #0l; b32 = #1l } } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a177 *)
   let actual = r.a177 in
-  let expected = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
-  mark_test_run 1432;
-  let test = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) actual expected in
-  if not test then failwithf "test 1432 failed";
+  let expected = #{ a32 = #0l; b32 = #1l } in
+  mark_test_run 1451;
+  let test = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) actual expected in
+  if not test then failwithf "test 1451 failed";
   (* Paths of depth 2 *)
-  (* .a177.#a44 *)
-  let actual = r.a177.#a44 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 1433;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1433 failed";
-  (* .a177.#b44 *)
-  let actual = r.a177.#b44 in
-  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
-  mark_test_run 1434;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1434 failed";
-  (* Paths of depth 1 *)
-  (* .b177 *)
-  let actual = r.b177 in
-  let expected = 4 in
-  mark_test_run 1435;
-  let test = (fun a b -> Int.equal a b) actual expected in
-  if not test then failwithf "test 1435 failed";
+  (* .a177.#a32 *)
+  let actual = r.a177.#a32 in
+  let expected = #0l in
+  mark_test_run 1452;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  if not test then failwithf "test 1452 failed";
+  (* .a177.#b32 *)
+  let actual = r.a177.#b32 in
+  let expected = #1l in
+  mark_test_run 1453;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  if not test then failwithf "test 1453 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a177 = a1771; b177 = b1771 } { a177 = a1772; b177 = b1772 } -> (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) a1771 a1772 && (fun a b -> Int.equal a b) b1771 b1772) in
-  let next_r = stack_ { a177 = #{ a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) }; b177 = 104 } in
-  let r_expected = stack_ { a177 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b177 = 4 } in
+  let eq = (fun { a177 = a1771 } { a177 = a1772 } -> (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) a1771 a1772) in
+  let next_r = stack_ { a177 = #{ a32 = #100l; b32 = #101l } } in
+  let r_expected = stack_ { a177 = #{ a32 = #0l; b32 = #1l } } in
   (* .a177 *)
   r.a177 <- next_r.a177;
   let r_expected = { r_expected with a177 = next_r.a177 } in
-  mark_test_run 1436;
+  mark_test_run 1454;
   let test = eq r r_expected in
-  if not test then failwithf "test 1436 failed";
-  Gc.compact ();
-  (* .b177 *)
-  r.b177 <- next_r.b177;
-  let r_expected = { r_expected with b177 = next_r.b177 } in
-  mark_test_run 1437;
-  let test = eq r r_expected in
-  if not test then failwithf "test 1437 failed";
+  if not test then failwithf "test 1454 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a177 = #{ a44; b44 }; b177 } = r in
-  let expected_a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 1438;
-  let test = int64x2_u_equal expected_a44 a44 in
-  if not test then failwithf "test 1438 failed";
-  let expected_b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
-  mark_test_run 1439;
-  let test = int64x2_u_equal expected_b44 b44 in
-  if not test then failwithf "test 1439 failed";
-  let expected_b177 = 104 in
-  mark_test_run 1440;
-  let test = (fun a b -> Int.equal a b) expected_b177 b177 in
-  if not test then failwithf "test 1440 failed";
+  let { a177 = #{ a32; b32 } } = r in
+  let expected_a32 = #100l in
+  mark_test_run 1455;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_a32 a32 in
+  if not test then failwithf "test 1455 failed";
+  let expected_b32 = #101l in
+  mark_test_run 1456;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b32 b32 in
+  if not test then failwithf "test 1456 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
-  let { a177; b177 } = r in
-  let expected_a177 = #{ a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
-  mark_test_run 1441;
-  let test = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) expected_a177 a177 in
-  if not test then failwithf "test 1441 failed";
-  let expected_b177 = 104 in
-  mark_test_run 1442;
-  let test = (fun a b -> Int.equal a b) expected_b177 b177 in
-  if not test then failwithf "test 1442 failed";
+  let { a177 } = r in
+  let expected_a177 = #{ a32 = #100l; b32 = #101l } in
+  mark_test_run 1457;
+  let test = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) expected_a177 a177 in
+  if not test then failwithf "test 1457 failed";
 
-  (****************************************************)
-  (*   t178 = { #{ int64x2#; int64x2# }; int64x2# }   *)
-  (****************************************************)
-  let r = stack_ { a178 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b178 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
+  (*******************************************)
+  (*   t178 = { #{ int32#; int32# }; int }   *)
+  (*******************************************)
+  let r = stack_ { a178 = #{ a32 = #0l; b32 = #1l }; b178 = 2 } in
   (* 1. Test field get *)
   (* Paths of depth 1 *)
   (* .a178 *)
   let actual = r.a178 in
-  let expected = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
-  mark_test_run 1443;
-  let test = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) actual expected in
-  if not test then failwithf "test 1443 failed";
+  let expected = #{ a32 = #0l; b32 = #1l } in
+  mark_test_run 1458;
+  let test = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) actual expected in
+  if not test then failwithf "test 1458 failed";
   (* Paths of depth 2 *)
-  (* .a178.#a44 *)
-  let actual = r.a178.#a44 in
-  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
-  mark_test_run 1444;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1444 failed";
-  (* .a178.#b44 *)
-  let actual = r.a178.#b44 in
-  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
-  mark_test_run 1445;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1445 failed";
+  (* .a178.#a32 *)
+  let actual = r.a178.#a32 in
+  let expected = #0l in
+  mark_test_run 1459;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  if not test then failwithf "test 1459 failed";
+  (* .a178.#b32 *)
+  let actual = r.a178.#b32 in
+  let expected = #1l in
+  mark_test_run 1460;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  if not test then failwithf "test 1460 failed";
   (* Paths of depth 1 *)
   (* .b178 *)
   let actual = r.b178 in
-  let expected = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) in
-  mark_test_run 1446;
-  let test = int64x2_u_equal actual expected in
-  if not test then failwithf "test 1446 failed";
+  let expected = 2 in
+  mark_test_run 1461;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1461 failed";
   Gc.compact ();
   (* 2. Test field set *)
   (* Change [r] to [next_r] one field at a time *)
-  let eq = (fun { a178 = a1781; b178 = b1781 } { a178 = a1782; b178 = b1782 } -> (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) a1781 a1782 && int64x2_u_equal b1781 b1782) in
-  let next_r = stack_ { a178 = #{ a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) }; b178 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } in
-  let r_expected = stack_ { a178 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b178 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
+  let eq = (fun { a178 = a1781; b178 = b1781 } { a178 = a1782; b178 = b1782 } -> (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) a1781 a1782 && (fun a b -> Int.equal a b) b1781 b1782) in
+  let next_r = stack_ { a178 = #{ a32 = #100l; b32 = #101l }; b178 = 102 } in
+  let r_expected = stack_ { a178 = #{ a32 = #0l; b32 = #1l }; b178 = 2 } in
   (* .a178 *)
   r.a178 <- next_r.a178;
   let r_expected = { r_expected with a178 = next_r.a178 } in
-  mark_test_run 1447;
+  mark_test_run 1462;
   let test = eq r r_expected in
-  if not test then failwithf "test 1447 failed";
+  if not test then failwithf "test 1462 failed";
   Gc.compact ();
   (* .b178 *)
   r.b178 <- next_r.b178;
   let r_expected = { r_expected with b178 = next_r.b178 } in
-  mark_test_run 1448;
+  mark_test_run 1463;
   let test = eq r r_expected in
-  if not test then failwithf "test 1448 failed";
+  if not test then failwithf "test 1463 failed";
   Gc.compact ();
   (* 3. Test deep matching *)
-  let { a178 = #{ a44; b44 }; b178 } = r in
-  let expected_a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
-  mark_test_run 1449;
-  let test = int64x2_u_equal expected_a44 a44 in
-  if not test then failwithf "test 1449 failed";
-  let expected_b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
-  mark_test_run 1450;
-  let test = int64x2_u_equal expected_b44 b44 in
-  if not test then failwithf "test 1450 failed";
-  let expected_b178 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) in
-  mark_test_run 1451;
-  let test = int64x2_u_equal expected_b178 b178 in
-  if not test then failwithf "test 1451 failed";
+  let { a178 = #{ a32; b32 }; b178 } = r in
+  let expected_a32 = #100l in
+  mark_test_run 1464;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_a32 a32 in
+  if not test then failwithf "test 1464 failed";
+  let expected_b32 = #101l in
+  mark_test_run 1465;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b32 b32 in
+  if not test then failwithf "test 1465 failed";
+  let expected_b178 = 102 in
+  mark_test_run 1466;
+  let test = (fun a b -> Int.equal a b) expected_b178 b178 in
+  if not test then failwithf "test 1466 failed";
   Gc.compact ();
   (* 4. Test shallow matching *)
   let { a178; b178 } = r in
-  let expected_a178 = #{ a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
-  mark_test_run 1452;
-  let test = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) expected_a178 a178 in
-  if not test then failwithf "test 1452 failed";
-  let expected_b178 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) in
-  mark_test_run 1453;
-  let test = int64x2_u_equal expected_b178 b178 in
-  if not test then failwithf "test 1453 failed";
+  let expected_a178 = #{ a32 = #100l; b32 = #101l } in
+  mark_test_run 1467;
+  let test = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) expected_a178 a178 in
+  if not test then failwithf "test 1467 failed";
+  let expected_b178 = 102 in
+  mark_test_run 1468;
+  let test = (fun a b -> Int.equal a b) expected_b178 b178 in
+  if not test then failwithf "test 1468 failed";
+
+  (**********************************************)
+  (*   t179 = { #{ int32#; int32# }; int32# }   *)
+  (**********************************************)
+  let r = stack_ { a179 = #{ a32 = #0l; b32 = #1l }; b179 = #2l } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a179 *)
+  let actual = r.a179 in
+  let expected = #{ a32 = #0l; b32 = #1l } in
+  mark_test_run 1469;
+  let test = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) actual expected in
+  if not test then failwithf "test 1469 failed";
+  (* Paths of depth 2 *)
+  (* .a179.#a32 *)
+  let actual = r.a179.#a32 in
+  let expected = #0l in
+  mark_test_run 1470;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  if not test then failwithf "test 1470 failed";
+  (* .a179.#b32 *)
+  let actual = r.a179.#b32 in
+  let expected = #1l in
+  mark_test_run 1471;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  if not test then failwithf "test 1471 failed";
+  (* Paths of depth 1 *)
+  (* .b179 *)
+  let actual = r.b179 in
+  let expected = #2l in
+  mark_test_run 1472;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) actual expected in
+  if not test then failwithf "test 1472 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a179 = a1791; b179 = b1791 } { a179 = a1792; b179 = b1792 } -> (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) a1791 a1792 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1791 b1792) in
+  let next_r = stack_ { a179 = #{ a32 = #100l; b32 = #101l }; b179 = #102l } in
+  let r_expected = stack_ { a179 = #{ a32 = #0l; b32 = #1l }; b179 = #2l } in
+  (* .a179 *)
+  r.a179 <- next_r.a179;
+  let r_expected = { r_expected with a179 = next_r.a179 } in
+  mark_test_run 1473;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1473 failed";
+  Gc.compact ();
+  (* .b179 *)
+  r.b179 <- next_r.b179;
+  let r_expected = { r_expected with b179 = next_r.b179 } in
+  mark_test_run 1474;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1474 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a179 = #{ a32; b32 }; b179 } = r in
+  let expected_a32 = #100l in
+  mark_test_run 1475;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_a32 a32 in
+  if not test then failwithf "test 1475 failed";
+  let expected_b32 = #101l in
+  mark_test_run 1476;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b32 b32 in
+  if not test then failwithf "test 1476 failed";
+  let expected_b179 = #102l in
+  mark_test_run 1477;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b179 b179 in
+  if not test then failwithf "test 1477 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a179; b179 } = r in
+  let expected_a179 = #{ a32 = #100l; b32 = #101l } in
+  mark_test_run 1478;
+  let test = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) expected_a179 a179 in
+  if not test then failwithf "test 1478 failed";
+  let expected_b179 = #102l in
+  mark_test_run 1479;
+  let test = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) expected_b179 b179 in
+  if not test then failwithf "test 1479 failed";
+
+  (*****************************)
+  (*   t180 = { #{ float } }   *)
+  (*****************************)
+  let r = stack_ { a180 = #{ a34 = 0. } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a180 *)
+  let actual = r.a180 in
+  let expected = #{ a34 = 0. } in
+  mark_test_run 1480;
+  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) actual expected in
+  if not test then failwithf "test 1480 failed";
+  (* Paths of depth 2 *)
+  (* .a180.#a34 *)
+  let actual = r.a180.#a34 in
+  let expected = 0. in
+  mark_test_run 1481;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1481 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a180 = a1801 } { a180 = a1802 } -> (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) a1801 a1802) in
+  let next_r = stack_ { a180 = #{ a34 = 100. } } in
+  let r_expected = stack_ { a180 = #{ a34 = 0. } } in
+  (* .a180 *)
+  r.a180 <- next_r.a180;
+  let r_expected = { r_expected with a180 = next_r.a180 } in
+  mark_test_run 1482;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1482 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a180 = #{ a34 } } = r in
+  let expected_a34 = 100. in
+  mark_test_run 1483;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a34 a34 in
+  if not test then failwithf "test 1483 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a180 } = r in
+  let expected_a180 = #{ a34 = 100. } in
+  mark_test_run 1484;
+  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) expected_a180 a180 in
+  if not test then failwithf "test 1484 failed";
+
+  (**********************************)
+  (*   t181 = { #{ float }; int }   *)
+  (**********************************)
+  let r = stack_ { a181 = #{ a34 = 0. }; b181 = 1 } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a181 *)
+  let actual = r.a181 in
+  let expected = #{ a34 = 0. } in
+  mark_test_run 1485;
+  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) actual expected in
+  if not test then failwithf "test 1485 failed";
+  (* Paths of depth 2 *)
+  (* .a181.#a34 *)
+  let actual = r.a181.#a34 in
+  let expected = 0. in
+  mark_test_run 1486;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1486 failed";
+  (* Paths of depth 1 *)
+  (* .b181 *)
+  let actual = r.b181 in
+  let expected = 1 in
+  mark_test_run 1487;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1487 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a181 = a1811; b181 = b1811 } { a181 = a1812; b181 = b1812 } -> (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) a1811 a1812 && (fun a b -> Int.equal a b) b1811 b1812) in
+  let next_r = stack_ { a181 = #{ a34 = 100. }; b181 = 101 } in
+  let r_expected = stack_ { a181 = #{ a34 = 0. }; b181 = 1 } in
+  (* .a181 *)
+  r.a181 <- next_r.a181;
+  let r_expected = { r_expected with a181 = next_r.a181 } in
+  mark_test_run 1488;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1488 failed";
+  Gc.compact ();
+  (* .b181 *)
+  r.b181 <- next_r.b181;
+  let r_expected = { r_expected with b181 = next_r.b181 } in
+  mark_test_run 1489;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1489 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a181 = #{ a34 }; b181 } = r in
+  let expected_a34 = 100. in
+  mark_test_run 1490;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a34 a34 in
+  if not test then failwithf "test 1490 failed";
+  let expected_b181 = 101 in
+  mark_test_run 1491;
+  let test = (fun a b -> Int.equal a b) expected_b181 b181 in
+  if not test then failwithf "test 1491 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a181; b181 } = r in
+  let expected_a181 = #{ a34 = 100. } in
+  mark_test_run 1492;
+  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) expected_a181 a181 in
+  if not test then failwithf "test 1492 failed";
+  let expected_b181 = 101 in
+  mark_test_run 1493;
+  let test = (fun a b -> Int.equal a b) expected_b181 b181 in
+  if not test then failwithf "test 1493 failed";
+
+  (************************************)
+  (*   t182 = { #{ float }; float }   *)
+  (************************************)
+  let r = stack_ { a182 = #{ a34 = 0. }; b182 = 1. } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a182 *)
+  let actual = r.a182 in
+  let expected = #{ a34 = 0. } in
+  mark_test_run 1494;
+  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) actual expected in
+  if not test then failwithf "test 1494 failed";
+  (* Paths of depth 2 *)
+  (* .a182.#a34 *)
+  let actual = r.a182.#a34 in
+  let expected = 0. in
+  mark_test_run 1495;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1495 failed";
+  (* Paths of depth 1 *)
+  (* .b182 *)
+  let actual = r.b182 in
+  let expected = 1. in
+  mark_test_run 1496;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1496 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a182 = a1821; b182 = b1821 } { a182 = a1822; b182 = b1822 } -> (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) a1821 a1822 && (fun a b -> Float.equal (globalize a) (globalize b)) b1821 b1822) in
+  let next_r = stack_ { a182 = #{ a34 = 100. }; b182 = 101. } in
+  let r_expected = stack_ { a182 = #{ a34 = 0. }; b182 = 1. } in
+  (* .a182 *)
+  r.a182 <- next_r.a182;
+  let r_expected = { r_expected with a182 = next_r.a182 } in
+  mark_test_run 1497;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1497 failed";
+  Gc.compact ();
+  (* .b182 *)
+  r.b182 <- next_r.b182;
+  let r_expected = { r_expected with b182 = next_r.b182 } in
+  mark_test_run 1498;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1498 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a182 = #{ a34 }; b182 } = r in
+  let expected_a34 = 100. in
+  mark_test_run 1499;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a34 a34 in
+  if not test then failwithf "test 1499 failed";
+  let expected_b182 = 101. in
+  mark_test_run 1500;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b182 b182 in
+  if not test then failwithf "test 1500 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a182; b182 } = r in
+  let expected_a182 = #{ a34 = 100. } in
+  mark_test_run 1501;
+  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) expected_a182 a182 in
+  if not test then failwithf "test 1501 failed";
+  let expected_b182 = 101. in
+  mark_test_run 1502;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b182 b182 in
+  if not test then failwithf "test 1502 failed";
+
+  (*************************************)
+  (*   t183 = { #{ float }; float# }   *)
+  (*************************************)
+  let r = stack_ { a183 = #{ a34 = 0. }; b183 = #1. } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a183 *)
+  let actual = r.a183 in
+  let expected = #{ a34 = 0. } in
+  mark_test_run 1503;
+  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) actual expected in
+  if not test then failwithf "test 1503 failed";
+  (* Paths of depth 2 *)
+  (* .a183.#a34 *)
+  let actual = r.a183.#a34 in
+  let expected = 0. in
+  mark_test_run 1504;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1504 failed";
+  (* Paths of depth 1 *)
+  (* .b183 *)
+  let actual = r.b183 in
+  let expected = #1. in
+  mark_test_run 1505;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1505 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a183 = a1831; b183 = b1831 } { a183 = a1832; b183 = b1832 } -> (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) a1831 a1832 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1831 b1832) in
+  let next_r = stack_ { a183 = #{ a34 = 100. }; b183 = #101. } in
+  let r_expected = stack_ { a183 = #{ a34 = 0. }; b183 = #1. } in
+  (* .a183 *)
+  r.a183 <- next_r.a183;
+  let r_expected = { r_expected with a183 = next_r.a183 } in
+  mark_test_run 1506;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1506 failed";
+  Gc.compact ();
+  (* .b183 *)
+  r.b183 <- next_r.b183;
+  let r_expected = { r_expected with b183 = next_r.b183 } in
+  mark_test_run 1507;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1507 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a183 = #{ a34 }; b183 } = r in
+  let expected_a34 = 100. in
+  mark_test_run 1508;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a34 a34 in
+  if not test then failwithf "test 1508 failed";
+  let expected_b183 = #101. in
+  mark_test_run 1509;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b183 b183 in
+  if not test then failwithf "test 1509 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a183; b183 } = r in
+  let expected_a183 = #{ a34 = 100. } in
+  mark_test_run 1510;
+  let test = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) expected_a183 a183 in
+  if not test then failwithf "test 1510 failed";
+  let expected_b183 = #101. in
+  mark_test_run 1511;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b183 b183 in
+  if not test then failwithf "test 1511 failed";
+
+  (**********************************)
+  (*   t184 = { #{ float; int } }   *)
+  (**********************************)
+  let r = stack_ { a184 = #{ a36 = 0.; b36 = 1 } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a184 *)
+  let actual = r.a184 in
+  let expected = #{ a36 = 0.; b36 = 1 } in
+  mark_test_run 1512;
+  let test = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) actual expected in
+  if not test then failwithf "test 1512 failed";
+  (* Paths of depth 2 *)
+  (* .a184.#a36 *)
+  let actual = r.a184.#a36 in
+  let expected = 0. in
+  mark_test_run 1513;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1513 failed";
+  (* .a184.#b36 *)
+  let actual = r.a184.#b36 in
+  let expected = 1 in
+  mark_test_run 1514;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1514 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a184 = a1841 } { a184 = a1842 } -> (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) a1841 a1842) in
+  let next_r = stack_ { a184 = #{ a36 = 100.; b36 = 101 } } in
+  let r_expected = stack_ { a184 = #{ a36 = 0.; b36 = 1 } } in
+  (* .a184 *)
+  r.a184 <- next_r.a184;
+  let r_expected = { r_expected with a184 = next_r.a184 } in
+  mark_test_run 1515;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1515 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a184 = #{ a36; b36 } } = r in
+  let expected_a36 = 100. in
+  mark_test_run 1516;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a36 a36 in
+  if not test then failwithf "test 1516 failed";
+  let expected_b36 = 101 in
+  mark_test_run 1517;
+  let test = (fun a b -> Int.equal a b) expected_b36 b36 in
+  if not test then failwithf "test 1517 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a184 } = r in
+  let expected_a184 = #{ a36 = 100.; b36 = 101 } in
+  mark_test_run 1518;
+  let test = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) expected_a184 a184 in
+  if not test then failwithf "test 1518 failed";
+
+  (***************************************)
+  (*   t185 = { #{ float; int }; int }   *)
+  (***************************************)
+  let r = stack_ { a185 = #{ a36 = 0.; b36 = 1 }; b185 = 2 } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a185 *)
+  let actual = r.a185 in
+  let expected = #{ a36 = 0.; b36 = 1 } in
+  mark_test_run 1519;
+  let test = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) actual expected in
+  if not test then failwithf "test 1519 failed";
+  (* Paths of depth 2 *)
+  (* .a185.#a36 *)
+  let actual = r.a185.#a36 in
+  let expected = 0. in
+  mark_test_run 1520;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1520 failed";
+  (* .a185.#b36 *)
+  let actual = r.a185.#b36 in
+  let expected = 1 in
+  mark_test_run 1521;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1521 failed";
+  (* Paths of depth 1 *)
+  (* .b185 *)
+  let actual = r.b185 in
+  let expected = 2 in
+  mark_test_run 1522;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1522 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a185 = a1851; b185 = b1851 } { a185 = a1852; b185 = b1852 } -> (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) a1851 a1852 && (fun a b -> Int.equal a b) b1851 b1852) in
+  let next_r = stack_ { a185 = #{ a36 = 100.; b36 = 101 }; b185 = 102 } in
+  let r_expected = stack_ { a185 = #{ a36 = 0.; b36 = 1 }; b185 = 2 } in
+  (* .a185 *)
+  r.a185 <- next_r.a185;
+  let r_expected = { r_expected with a185 = next_r.a185 } in
+  mark_test_run 1523;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1523 failed";
+  Gc.compact ();
+  (* .b185 *)
+  r.b185 <- next_r.b185;
+  let r_expected = { r_expected with b185 = next_r.b185 } in
+  mark_test_run 1524;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1524 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a185 = #{ a36; b36 }; b185 } = r in
+  let expected_a36 = 100. in
+  mark_test_run 1525;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a36 a36 in
+  if not test then failwithf "test 1525 failed";
+  let expected_b36 = 101 in
+  mark_test_run 1526;
+  let test = (fun a b -> Int.equal a b) expected_b36 b36 in
+  if not test then failwithf "test 1526 failed";
+  let expected_b185 = 102 in
+  mark_test_run 1527;
+  let test = (fun a b -> Int.equal a b) expected_b185 b185 in
+  if not test then failwithf "test 1527 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a185; b185 } = r in
+  let expected_a185 = #{ a36 = 100.; b36 = 101 } in
+  mark_test_run 1528;
+  let test = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) expected_a185 a185 in
+  if not test then failwithf "test 1528 failed";
+  let expected_b185 = 102 in
+  mark_test_run 1529;
+  let test = (fun a b -> Int.equal a b) expected_b185 b185 in
+  if not test then failwithf "test 1529 failed";
+
+  (*****************************************)
+  (*   t186 = { #{ float; int }; float }   *)
+  (*****************************************)
+  let r = stack_ { a186 = #{ a36 = 0.; b36 = 1 }; b186 = 2. } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a186 *)
+  let actual = r.a186 in
+  let expected = #{ a36 = 0.; b36 = 1 } in
+  mark_test_run 1530;
+  let test = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) actual expected in
+  if not test then failwithf "test 1530 failed";
+  (* Paths of depth 2 *)
+  (* .a186.#a36 *)
+  let actual = r.a186.#a36 in
+  let expected = 0. in
+  mark_test_run 1531;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1531 failed";
+  (* .a186.#b36 *)
+  let actual = r.a186.#b36 in
+  let expected = 1 in
+  mark_test_run 1532;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1532 failed";
+  (* Paths of depth 1 *)
+  (* .b186 *)
+  let actual = r.b186 in
+  let expected = 2. in
+  mark_test_run 1533;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1533 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a186 = a1861; b186 = b1861 } { a186 = a1862; b186 = b1862 } -> (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) a1861 a1862 && (fun a b -> Float.equal (globalize a) (globalize b)) b1861 b1862) in
+  let next_r = stack_ { a186 = #{ a36 = 100.; b36 = 101 }; b186 = 102. } in
+  let r_expected = stack_ { a186 = #{ a36 = 0.; b36 = 1 }; b186 = 2. } in
+  (* .a186 *)
+  r.a186 <- next_r.a186;
+  let r_expected = { r_expected with a186 = next_r.a186 } in
+  mark_test_run 1534;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1534 failed";
+  Gc.compact ();
+  (* .b186 *)
+  r.b186 <- next_r.b186;
+  let r_expected = { r_expected with b186 = next_r.b186 } in
+  mark_test_run 1535;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1535 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a186 = #{ a36; b36 }; b186 } = r in
+  let expected_a36 = 100. in
+  mark_test_run 1536;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a36 a36 in
+  if not test then failwithf "test 1536 failed";
+  let expected_b36 = 101 in
+  mark_test_run 1537;
+  let test = (fun a b -> Int.equal a b) expected_b36 b36 in
+  if not test then failwithf "test 1537 failed";
+  let expected_b186 = 102. in
+  mark_test_run 1538;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b186 b186 in
+  if not test then failwithf "test 1538 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a186; b186 } = r in
+  let expected_a186 = #{ a36 = 100.; b36 = 101 } in
+  mark_test_run 1539;
+  let test = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) expected_a186 a186 in
+  if not test then failwithf "test 1539 failed";
+  let expected_b186 = 102. in
+  mark_test_run 1540;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b186 b186 in
+  if not test then failwithf "test 1540 failed";
+
+  (************************************)
+  (*   t187 = { #{ float; float } }   *)
+  (************************************)
+  let r = stack_ { a187 = #{ a38 = 0.; b38 = 1. } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a187 *)
+  let actual = r.a187 in
+  let expected = #{ a38 = 0.; b38 = 1. } in
+  mark_test_run 1541;
+  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) actual expected in
+  if not test then failwithf "test 1541 failed";
+  (* Paths of depth 2 *)
+  (* .a187.#a38 *)
+  let actual = r.a187.#a38 in
+  let expected = 0. in
+  mark_test_run 1542;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1542 failed";
+  (* .a187.#b38 *)
+  let actual = r.a187.#b38 in
+  let expected = 1. in
+  mark_test_run 1543;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1543 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a187 = a1871 } { a187 = a1872 } -> (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) a1871 a1872) in
+  let next_r = stack_ { a187 = #{ a38 = 100.; b38 = 101. } } in
+  let r_expected = stack_ { a187 = #{ a38 = 0.; b38 = 1. } } in
+  (* .a187 *)
+  r.a187 <- next_r.a187;
+  let r_expected = { r_expected with a187 = next_r.a187 } in
+  mark_test_run 1544;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1544 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a187 = #{ a38; b38 } } = r in
+  let expected_a38 = 100. in
+  mark_test_run 1545;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a38 a38 in
+  if not test then failwithf "test 1545 failed";
+  let expected_b38 = 101. in
+  mark_test_run 1546;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b38 b38 in
+  if not test then failwithf "test 1546 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a187 } = r in
+  let expected_a187 = #{ a38 = 100.; b38 = 101. } in
+  mark_test_run 1547;
+  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) expected_a187 a187 in
+  if not test then failwithf "test 1547 failed";
+
+  (*****************************************)
+  (*   t188 = { #{ float; float }; int }   *)
+  (*****************************************)
+  let r = stack_ { a188 = #{ a38 = 0.; b38 = 1. }; b188 = 2 } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a188 *)
+  let actual = r.a188 in
+  let expected = #{ a38 = 0.; b38 = 1. } in
+  mark_test_run 1548;
+  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) actual expected in
+  if not test then failwithf "test 1548 failed";
+  (* Paths of depth 2 *)
+  (* .a188.#a38 *)
+  let actual = r.a188.#a38 in
+  let expected = 0. in
+  mark_test_run 1549;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1549 failed";
+  (* .a188.#b38 *)
+  let actual = r.a188.#b38 in
+  let expected = 1. in
+  mark_test_run 1550;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1550 failed";
+  (* Paths of depth 1 *)
+  (* .b188 *)
+  let actual = r.b188 in
+  let expected = 2 in
+  mark_test_run 1551;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1551 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a188 = a1881; b188 = b1881 } { a188 = a1882; b188 = b1882 } -> (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) a1881 a1882 && (fun a b -> Int.equal a b) b1881 b1882) in
+  let next_r = stack_ { a188 = #{ a38 = 100.; b38 = 101. }; b188 = 102 } in
+  let r_expected = stack_ { a188 = #{ a38 = 0.; b38 = 1. }; b188 = 2 } in
+  (* .a188 *)
+  r.a188 <- next_r.a188;
+  let r_expected = { r_expected with a188 = next_r.a188 } in
+  mark_test_run 1552;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1552 failed";
+  Gc.compact ();
+  (* .b188 *)
+  r.b188 <- next_r.b188;
+  let r_expected = { r_expected with b188 = next_r.b188 } in
+  mark_test_run 1553;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1553 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a188 = #{ a38; b38 }; b188 } = r in
+  let expected_a38 = 100. in
+  mark_test_run 1554;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a38 a38 in
+  if not test then failwithf "test 1554 failed";
+  let expected_b38 = 101. in
+  mark_test_run 1555;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b38 b38 in
+  if not test then failwithf "test 1555 failed";
+  let expected_b188 = 102 in
+  mark_test_run 1556;
+  let test = (fun a b -> Int.equal a b) expected_b188 b188 in
+  if not test then failwithf "test 1556 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a188; b188 } = r in
+  let expected_a188 = #{ a38 = 100.; b38 = 101. } in
+  mark_test_run 1557;
+  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) expected_a188 a188 in
+  if not test then failwithf "test 1557 failed";
+  let expected_b188 = 102 in
+  mark_test_run 1558;
+  let test = (fun a b -> Int.equal a b) expected_b188 b188 in
+  if not test then failwithf "test 1558 failed";
+
+  (*******************************************)
+  (*   t189 = { #{ float; float }; float }   *)
+  (*******************************************)
+  let r = stack_ { a189 = #{ a38 = 0.; b38 = 1. }; b189 = 2. } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a189 *)
+  let actual = r.a189 in
+  let expected = #{ a38 = 0.; b38 = 1. } in
+  mark_test_run 1559;
+  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) actual expected in
+  if not test then failwithf "test 1559 failed";
+  (* Paths of depth 2 *)
+  (* .a189.#a38 *)
+  let actual = r.a189.#a38 in
+  let expected = 0. in
+  mark_test_run 1560;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1560 failed";
+  (* .a189.#b38 *)
+  let actual = r.a189.#b38 in
+  let expected = 1. in
+  mark_test_run 1561;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1561 failed";
+  (* Paths of depth 1 *)
+  (* .b189 *)
+  let actual = r.b189 in
+  let expected = 2. in
+  mark_test_run 1562;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1562 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a189 = a1891; b189 = b1891 } { a189 = a1892; b189 = b1892 } -> (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) a1891 a1892 && (fun a b -> Float.equal (globalize a) (globalize b)) b1891 b1892) in
+  let next_r = stack_ { a189 = #{ a38 = 100.; b38 = 101. }; b189 = 102. } in
+  let r_expected = stack_ { a189 = #{ a38 = 0.; b38 = 1. }; b189 = 2. } in
+  (* .a189 *)
+  r.a189 <- next_r.a189;
+  let r_expected = { r_expected with a189 = next_r.a189 } in
+  mark_test_run 1563;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1563 failed";
+  Gc.compact ();
+  (* .b189 *)
+  r.b189 <- next_r.b189;
+  let r_expected = { r_expected with b189 = next_r.b189 } in
+  mark_test_run 1564;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1564 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a189 = #{ a38; b38 }; b189 } = r in
+  let expected_a38 = 100. in
+  mark_test_run 1565;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a38 a38 in
+  if not test then failwithf "test 1565 failed";
+  let expected_b38 = 101. in
+  mark_test_run 1566;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b38 b38 in
+  if not test then failwithf "test 1566 failed";
+  let expected_b189 = 102. in
+  mark_test_run 1567;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b189 b189 in
+  if not test then failwithf "test 1567 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a189; b189 } = r in
+  let expected_a189 = #{ a38 = 100.; b38 = 101. } in
+  mark_test_run 1568;
+  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) expected_a189 a189 in
+  if not test then failwithf "test 1568 failed";
+  let expected_b189 = 102. in
+  mark_test_run 1569;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b189 b189 in
+  if not test then failwithf "test 1569 failed";
+
+  (********************************************)
+  (*   t190 = { #{ float; float }; float# }   *)
+  (********************************************)
+  let r = stack_ { a190 = #{ a38 = 0.; b38 = 1. }; b190 = #2. } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a190 *)
+  let actual = r.a190 in
+  let expected = #{ a38 = 0.; b38 = 1. } in
+  mark_test_run 1570;
+  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) actual expected in
+  if not test then failwithf "test 1570 failed";
+  (* Paths of depth 2 *)
+  (* .a190.#a38 *)
+  let actual = r.a190.#a38 in
+  let expected = 0. in
+  mark_test_run 1571;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1571 failed";
+  (* .a190.#b38 *)
+  let actual = r.a190.#b38 in
+  let expected = 1. in
+  mark_test_run 1572;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1572 failed";
+  (* Paths of depth 1 *)
+  (* .b190 *)
+  let actual = r.b190 in
+  let expected = #2. in
+  mark_test_run 1573;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1573 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a190 = a1901; b190 = b1901 } { a190 = a1902; b190 = b1902 } -> (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) a1901 a1902 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1901 b1902) in
+  let next_r = stack_ { a190 = #{ a38 = 100.; b38 = 101. }; b190 = #102. } in
+  let r_expected = stack_ { a190 = #{ a38 = 0.; b38 = 1. }; b190 = #2. } in
+  (* .a190 *)
+  r.a190 <- next_r.a190;
+  let r_expected = { r_expected with a190 = next_r.a190 } in
+  mark_test_run 1574;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1574 failed";
+  Gc.compact ();
+  (* .b190 *)
+  r.b190 <- next_r.b190;
+  let r_expected = { r_expected with b190 = next_r.b190 } in
+  mark_test_run 1575;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1575 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a190 = #{ a38; b38 }; b190 } = r in
+  let expected_a38 = 100. in
+  mark_test_run 1576;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a38 a38 in
+  if not test then failwithf "test 1576 failed";
+  let expected_b38 = 101. in
+  mark_test_run 1577;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b38 b38 in
+  if not test then failwithf "test 1577 failed";
+  let expected_b190 = #102. in
+  mark_test_run 1578;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b190 b190 in
+  if not test then failwithf "test 1578 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a190; b190 } = r in
+  let expected_a190 = #{ a38 = 100.; b38 = 101. } in
+  mark_test_run 1579;
+  let test = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) expected_a190 a190 in
+  if not test then failwithf "test 1579 failed";
+  let expected_b190 = #102. in
+  mark_test_run 1580;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b190 b190 in
+  if not test then failwithf "test 1580 failed";
+
+  (*************************************)
+  (*   t191 = { #{ float; float# } }   *)
+  (*************************************)
+  let r = stack_ { a191 = #{ a105 = 0.; b105 = #1. } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a191 *)
+  let actual = r.a191 in
+  let expected = #{ a105 = 0.; b105 = #1. } in
+  mark_test_run 1581;
+  let test = (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) actual expected in
+  if not test then failwithf "test 1581 failed";
+  (* Paths of depth 2 *)
+  (* .a191.#a105 *)
+  let actual = r.a191.#a105 in
+  let expected = 0. in
+  mark_test_run 1582;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1582 failed";
+  (* .a191.#b105 *)
+  let actual = r.a191.#b105 in
+  let expected = #1. in
+  mark_test_run 1583;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1583 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a191 = a1911 } { a191 = a1912 } -> (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) a1911 a1912) in
+  let next_r = stack_ { a191 = #{ a105 = 100.; b105 = #101. } } in
+  let r_expected = stack_ { a191 = #{ a105 = 0.; b105 = #1. } } in
+  (* .a191 *)
+  r.a191 <- next_r.a191;
+  let r_expected = { r_expected with a191 = next_r.a191 } in
+  mark_test_run 1584;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1584 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a191 = #{ a105; b105 } } = r in
+  let expected_a105 = 100. in
+  mark_test_run 1585;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a105 a105 in
+  if not test then failwithf "test 1585 failed";
+  let expected_b105 = #101. in
+  mark_test_run 1586;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b105 b105 in
+  if not test then failwithf "test 1586 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a191 } = r in
+  let expected_a191 = #{ a105 = 100.; b105 = #101. } in
+  mark_test_run 1587;
+  let test = (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) expected_a191 a191 in
+  if not test then failwithf "test 1587 failed";
+
+  (********************************************)
+  (*   t192 = { #{ float; float# }; float }   *)
+  (********************************************)
+  let r = stack_ { a192 = #{ a105 = 0.; b105 = #1. }; b192 = 2. } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a192 *)
+  let actual = r.a192 in
+  let expected = #{ a105 = 0.; b105 = #1. } in
+  mark_test_run 1588;
+  let test = (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) actual expected in
+  if not test then failwithf "test 1588 failed";
+  (* Paths of depth 2 *)
+  (* .a192.#a105 *)
+  let actual = r.a192.#a105 in
+  let expected = 0. in
+  mark_test_run 1589;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1589 failed";
+  (* .a192.#b105 *)
+  let actual = r.a192.#b105 in
+  let expected = #1. in
+  mark_test_run 1590;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1590 failed";
+  (* Paths of depth 1 *)
+  (* .b192 *)
+  let actual = r.b192 in
+  let expected = 2. in
+  mark_test_run 1591;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1591 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a192 = a1921; b192 = b1921 } { a192 = a1922; b192 = b1922 } -> (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) a1921 a1922 && (fun a b -> Float.equal (globalize a) (globalize b)) b1921 b1922) in
+  let next_r = stack_ { a192 = #{ a105 = 100.; b105 = #101. }; b192 = 102. } in
+  let r_expected = stack_ { a192 = #{ a105 = 0.; b105 = #1. }; b192 = 2. } in
+  (* .a192 *)
+  r.a192 <- next_r.a192;
+  let r_expected = { r_expected with a192 = next_r.a192 } in
+  mark_test_run 1592;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1592 failed";
+  Gc.compact ();
+  (* .b192 *)
+  r.b192 <- next_r.b192;
+  let r_expected = { r_expected with b192 = next_r.b192 } in
+  mark_test_run 1593;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1593 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a192 = #{ a105; b105 }; b192 } = r in
+  let expected_a105 = 100. in
+  mark_test_run 1594;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a105 a105 in
+  if not test then failwithf "test 1594 failed";
+  let expected_b105 = #101. in
+  mark_test_run 1595;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b105 b105 in
+  if not test then failwithf "test 1595 failed";
+  let expected_b192 = 102. in
+  mark_test_run 1596;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b192 b192 in
+  if not test then failwithf "test 1596 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a192; b192 } = r in
+  let expected_a192 = #{ a105 = 100.; b105 = #101. } in
+  mark_test_run 1597;
+  let test = (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) expected_a192 a192 in
+  if not test then failwithf "test 1597 failed";
+  let expected_b192 = 102. in
+  mark_test_run 1598;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b192 b192 in
+  if not test then failwithf "test 1598 failed";
+
+  (*********************************************)
+  (*   t193 = { #{ float; float# }; float# }   *)
+  (*********************************************)
+  let r = stack_ { a193 = #{ a105 = 0.; b105 = #1. }; b193 = #2. } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a193 *)
+  let actual = r.a193 in
+  let expected = #{ a105 = 0.; b105 = #1. } in
+  mark_test_run 1599;
+  let test = (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) actual expected in
+  if not test then failwithf "test 1599 failed";
+  (* Paths of depth 2 *)
+  (* .a193.#a105 *)
+  let actual = r.a193.#a105 in
+  let expected = 0. in
+  mark_test_run 1600;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1600 failed";
+  (* .a193.#b105 *)
+  let actual = r.a193.#b105 in
+  let expected = #1. in
+  mark_test_run 1601;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1601 failed";
+  (* Paths of depth 1 *)
+  (* .b193 *)
+  let actual = r.b193 in
+  let expected = #2. in
+  mark_test_run 1602;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1602 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a193 = a1931; b193 = b1931 } { a193 = a1932; b193 = b1932 } -> (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) a1931 a1932 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1931 b1932) in
+  let next_r = stack_ { a193 = #{ a105 = 100.; b105 = #101. }; b193 = #102. } in
+  let r_expected = stack_ { a193 = #{ a105 = 0.; b105 = #1. }; b193 = #2. } in
+  (* .a193 *)
+  r.a193 <- next_r.a193;
+  let r_expected = { r_expected with a193 = next_r.a193 } in
+  mark_test_run 1603;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1603 failed";
+  Gc.compact ();
+  (* .b193 *)
+  r.b193 <- next_r.b193;
+  let r_expected = { r_expected with b193 = next_r.b193 } in
+  mark_test_run 1604;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1604 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a193 = #{ a105; b105 }; b193 } = r in
+  let expected_a105 = 100. in
+  mark_test_run 1605;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_a105 a105 in
+  if not test then failwithf "test 1605 failed";
+  let expected_b105 = #101. in
+  mark_test_run 1606;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b105 b105 in
+  if not test then failwithf "test 1606 failed";
+  let expected_b193 = #102. in
+  mark_test_run 1607;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b193 b193 in
+  if not test then failwithf "test 1607 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a193; b193 } = r in
+  let expected_a193 = #{ a105 = 100.; b105 = #101. } in
+  mark_test_run 1608;
+  let test = (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) expected_a193 a193 in
+  if not test then failwithf "test 1608 failed";
+  let expected_b193 = #102. in
+  mark_test_run 1609;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b193 b193 in
+  if not test then failwithf "test 1609 failed";
+
+  (******************************)
+  (*   t194 = { #{ float# } }   *)
+  (******************************)
+  let r = stack_ { a194 = #{ a107 = #0. } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a194 *)
+  let actual = r.a194 in
+  let expected = #{ a107 = #0. } in
+  mark_test_run 1610;
+  let test = (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) actual expected in
+  if not test then failwithf "test 1610 failed";
+  (* Paths of depth 2 *)
+  (* .a194.#a107 *)
+  let actual = r.a194.#a107 in
+  let expected = #0. in
+  mark_test_run 1611;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1611 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a194 = a1941 } { a194 = a1942 } -> (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) a1941 a1942) in
+  let next_r = stack_ { a194 = #{ a107 = #100. } } in
+  let r_expected = stack_ { a194 = #{ a107 = #0. } } in
+  (* .a194 *)
+  r.a194 <- next_r.a194;
+  let r_expected = { r_expected with a194 = next_r.a194 } in
+  mark_test_run 1612;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1612 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a194 = #{ a107 } } = r in
+  let expected_a107 = #100. in
+  mark_test_run 1613;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a107 a107 in
+  if not test then failwithf "test 1613 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a194 } = r in
+  let expected_a194 = #{ a107 = #100. } in
+  mark_test_run 1614;
+  let test = (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) expected_a194 a194 in
+  if not test then failwithf "test 1614 failed";
+
+  (*************************************)
+  (*   t195 = { #{ float# }; float }   *)
+  (*************************************)
+  let r = stack_ { a195 = #{ a107 = #0. }; b195 = 1. } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a195 *)
+  let actual = r.a195 in
+  let expected = #{ a107 = #0. } in
+  mark_test_run 1615;
+  let test = (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) actual expected in
+  if not test then failwithf "test 1615 failed";
+  (* Paths of depth 2 *)
+  (* .a195.#a107 *)
+  let actual = r.a195.#a107 in
+  let expected = #0. in
+  mark_test_run 1616;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1616 failed";
+  (* Paths of depth 1 *)
+  (* .b195 *)
+  let actual = r.b195 in
+  let expected = 1. in
+  mark_test_run 1617;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1617 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a195 = a1951; b195 = b1951 } { a195 = a1952; b195 = b1952 } -> (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) a1951 a1952 && (fun a b -> Float.equal (globalize a) (globalize b)) b1951 b1952) in
+  let next_r = stack_ { a195 = #{ a107 = #100. }; b195 = 101. } in
+  let r_expected = stack_ { a195 = #{ a107 = #0. }; b195 = 1. } in
+  (* .a195 *)
+  r.a195 <- next_r.a195;
+  let r_expected = { r_expected with a195 = next_r.a195 } in
+  mark_test_run 1618;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1618 failed";
+  Gc.compact ();
+  (* .b195 *)
+  r.b195 <- next_r.b195;
+  let r_expected = { r_expected with b195 = next_r.b195 } in
+  mark_test_run 1619;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1619 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a195 = #{ a107 }; b195 } = r in
+  let expected_a107 = #100. in
+  mark_test_run 1620;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a107 a107 in
+  if not test then failwithf "test 1620 failed";
+  let expected_b195 = 101. in
+  mark_test_run 1621;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b195 b195 in
+  if not test then failwithf "test 1621 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a195; b195 } = r in
+  let expected_a195 = #{ a107 = #100. } in
+  mark_test_run 1622;
+  let test = (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) expected_a195 a195 in
+  if not test then failwithf "test 1622 failed";
+  let expected_b195 = 101. in
+  mark_test_run 1623;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b195 b195 in
+  if not test then failwithf "test 1623 failed";
+
+  (**************************************)
+  (*   t196 = { #{ float# }; float# }   *)
+  (**************************************)
+  let r = stack_ { a196 = #{ a107 = #0. }; b196 = #1. } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a196 *)
+  let actual = r.a196 in
+  let expected = #{ a107 = #0. } in
+  mark_test_run 1624;
+  let test = (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) actual expected in
+  if not test then failwithf "test 1624 failed";
+  (* Paths of depth 2 *)
+  (* .a196.#a107 *)
+  let actual = r.a196.#a107 in
+  let expected = #0. in
+  mark_test_run 1625;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1625 failed";
+  (* Paths of depth 1 *)
+  (* .b196 *)
+  let actual = r.b196 in
+  let expected = #1. in
+  mark_test_run 1626;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1626 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a196 = a1961; b196 = b1961 } { a196 = a1962; b196 = b1962 } -> (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) a1961 a1962 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1961 b1962) in
+  let next_r = stack_ { a196 = #{ a107 = #100. }; b196 = #101. } in
+  let r_expected = stack_ { a196 = #{ a107 = #0. }; b196 = #1. } in
+  (* .a196 *)
+  r.a196 <- next_r.a196;
+  let r_expected = { r_expected with a196 = next_r.a196 } in
+  mark_test_run 1627;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1627 failed";
+  Gc.compact ();
+  (* .b196 *)
+  r.b196 <- next_r.b196;
+  let r_expected = { r_expected with b196 = next_r.b196 } in
+  mark_test_run 1628;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1628 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a196 = #{ a107 }; b196 } = r in
+  let expected_a107 = #100. in
+  mark_test_run 1629;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a107 a107 in
+  if not test then failwithf "test 1629 failed";
+  let expected_b196 = #101. in
+  mark_test_run 1630;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b196 b196 in
+  if not test then failwithf "test 1630 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a196; b196 } = r in
+  let expected_a196 = #{ a107 = #100. } in
+  mark_test_run 1631;
+  let test = (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) expected_a196 a196 in
+  if not test then failwithf "test 1631 failed";
+  let expected_b196 = #101. in
+  mark_test_run 1632;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b196 b196 in
+  if not test then failwithf "test 1632 failed";
+
+  (*************************************)
+  (*   t197 = { #{ float#; float } }   *)
+  (*************************************)
+  let r = stack_ { a197 = #{ a109 = #0.; b109 = 1. } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a197 *)
+  let actual = r.a197 in
+  let expected = #{ a109 = #0.; b109 = 1. } in
+  mark_test_run 1633;
+  let test = (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) actual expected in
+  if not test then failwithf "test 1633 failed";
+  (* Paths of depth 2 *)
+  (* .a197.#a109 *)
+  let actual = r.a197.#a109 in
+  let expected = #0. in
+  mark_test_run 1634;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1634 failed";
+  (* .a197.#b109 *)
+  let actual = r.a197.#b109 in
+  let expected = 1. in
+  mark_test_run 1635;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1635 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a197 = a1971 } { a197 = a1972 } -> (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) a1971 a1972) in
+  let next_r = stack_ { a197 = #{ a109 = #100.; b109 = 101. } } in
+  let r_expected = stack_ { a197 = #{ a109 = #0.; b109 = 1. } } in
+  (* .a197 *)
+  r.a197 <- next_r.a197;
+  let r_expected = { r_expected with a197 = next_r.a197 } in
+  mark_test_run 1636;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1636 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a197 = #{ a109; b109 } } = r in
+  let expected_a109 = #100. in
+  mark_test_run 1637;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a109 a109 in
+  if not test then failwithf "test 1637 failed";
+  let expected_b109 = 101. in
+  mark_test_run 1638;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b109 b109 in
+  if not test then failwithf "test 1638 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a197 } = r in
+  let expected_a197 = #{ a109 = #100.; b109 = 101. } in
+  mark_test_run 1639;
+  let test = (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) expected_a197 a197 in
+  if not test then failwithf "test 1639 failed";
+
+  (********************************************)
+  (*   t198 = { #{ float#; float }; float }   *)
+  (********************************************)
+  let r = stack_ { a198 = #{ a109 = #0.; b109 = 1. }; b198 = 2. } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a198 *)
+  let actual = r.a198 in
+  let expected = #{ a109 = #0.; b109 = 1. } in
+  mark_test_run 1640;
+  let test = (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) actual expected in
+  if not test then failwithf "test 1640 failed";
+  (* Paths of depth 2 *)
+  (* .a198.#a109 *)
+  let actual = r.a198.#a109 in
+  let expected = #0. in
+  mark_test_run 1641;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1641 failed";
+  (* .a198.#b109 *)
+  let actual = r.a198.#b109 in
+  let expected = 1. in
+  mark_test_run 1642;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1642 failed";
+  (* Paths of depth 1 *)
+  (* .b198 *)
+  let actual = r.b198 in
+  let expected = 2. in
+  mark_test_run 1643;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1643 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a198 = a1981; b198 = b1981 } { a198 = a1982; b198 = b1982 } -> (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) a1981 a1982 && (fun a b -> Float.equal (globalize a) (globalize b)) b1981 b1982) in
+  let next_r = stack_ { a198 = #{ a109 = #100.; b109 = 101. }; b198 = 102. } in
+  let r_expected = stack_ { a198 = #{ a109 = #0.; b109 = 1. }; b198 = 2. } in
+  (* .a198 *)
+  r.a198 <- next_r.a198;
+  let r_expected = { r_expected with a198 = next_r.a198 } in
+  mark_test_run 1644;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1644 failed";
+  Gc.compact ();
+  (* .b198 *)
+  r.b198 <- next_r.b198;
+  let r_expected = { r_expected with b198 = next_r.b198 } in
+  mark_test_run 1645;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1645 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a198 = #{ a109; b109 }; b198 } = r in
+  let expected_a109 = #100. in
+  mark_test_run 1646;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a109 a109 in
+  if not test then failwithf "test 1646 failed";
+  let expected_b109 = 101. in
+  mark_test_run 1647;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b109 b109 in
+  if not test then failwithf "test 1647 failed";
+  let expected_b198 = 102. in
+  mark_test_run 1648;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b198 b198 in
+  if not test then failwithf "test 1648 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a198; b198 } = r in
+  let expected_a198 = #{ a109 = #100.; b109 = 101. } in
+  mark_test_run 1649;
+  let test = (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) expected_a198 a198 in
+  if not test then failwithf "test 1649 failed";
+  let expected_b198 = 102. in
+  mark_test_run 1650;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b198 b198 in
+  if not test then failwithf "test 1650 failed";
+
+  (*********************************************)
+  (*   t199 = { #{ float#; float }; float# }   *)
+  (*********************************************)
+  let r = stack_ { a199 = #{ a109 = #0.; b109 = 1. }; b199 = #2. } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a199 *)
+  let actual = r.a199 in
+  let expected = #{ a109 = #0.; b109 = 1. } in
+  mark_test_run 1651;
+  let test = (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) actual expected in
+  if not test then failwithf "test 1651 failed";
+  (* Paths of depth 2 *)
+  (* .a199.#a109 *)
+  let actual = r.a199.#a109 in
+  let expected = #0. in
+  mark_test_run 1652;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1652 failed";
+  (* .a199.#b109 *)
+  let actual = r.a199.#b109 in
+  let expected = 1. in
+  mark_test_run 1653;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1653 failed";
+  (* Paths of depth 1 *)
+  (* .b199 *)
+  let actual = r.b199 in
+  let expected = #2. in
+  mark_test_run 1654;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1654 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a199 = a1991; b199 = b1991 } { a199 = a1992; b199 = b1992 } -> (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) a1991 a1992 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1991 b1992) in
+  let next_r = stack_ { a199 = #{ a109 = #100.; b109 = 101. }; b199 = #102. } in
+  let r_expected = stack_ { a199 = #{ a109 = #0.; b109 = 1. }; b199 = #2. } in
+  (* .a199 *)
+  r.a199 <- next_r.a199;
+  let r_expected = { r_expected with a199 = next_r.a199 } in
+  mark_test_run 1655;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1655 failed";
+  Gc.compact ();
+  (* .b199 *)
+  r.b199 <- next_r.b199;
+  let r_expected = { r_expected with b199 = next_r.b199 } in
+  mark_test_run 1656;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1656 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a199 = #{ a109; b109 }; b199 } = r in
+  let expected_a109 = #100. in
+  mark_test_run 1657;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a109 a109 in
+  if not test then failwithf "test 1657 failed";
+  let expected_b109 = 101. in
+  mark_test_run 1658;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b109 b109 in
+  if not test then failwithf "test 1658 failed";
+  let expected_b199 = #102. in
+  mark_test_run 1659;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b199 b199 in
+  if not test then failwithf "test 1659 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a199; b199 } = r in
+  let expected_a199 = #{ a109 = #100.; b109 = 101. } in
+  mark_test_run 1660;
+  let test = (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) expected_a199 a199 in
+  if not test then failwithf "test 1660 failed";
+  let expected_b199 = #102. in
+  mark_test_run 1661;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b199 b199 in
+  if not test then failwithf "test 1661 failed";
+
+  (**************************************)
+  (*   t200 = { #{ float#; float# } }   *)
+  (**************************************)
+  let r = stack_ { a200 = #{ a111 = #0.; b111 = #1. } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a200 *)
+  let actual = r.a200 in
+  let expected = #{ a111 = #0.; b111 = #1. } in
+  mark_test_run 1662;
+  let test = (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) actual expected in
+  if not test then failwithf "test 1662 failed";
+  (* Paths of depth 2 *)
+  (* .a200.#a111 *)
+  let actual = r.a200.#a111 in
+  let expected = #0. in
+  mark_test_run 1663;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1663 failed";
+  (* .a200.#b111 *)
+  let actual = r.a200.#b111 in
+  let expected = #1. in
+  mark_test_run 1664;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1664 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a200 = a2001 } { a200 = a2002 } -> (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) a2001 a2002) in
+  let next_r = stack_ { a200 = #{ a111 = #100.; b111 = #101. } } in
+  let r_expected = stack_ { a200 = #{ a111 = #0.; b111 = #1. } } in
+  (* .a200 *)
+  r.a200 <- next_r.a200;
+  let r_expected = { r_expected with a200 = next_r.a200 } in
+  mark_test_run 1665;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1665 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a200 = #{ a111; b111 } } = r in
+  let expected_a111 = #100. in
+  mark_test_run 1666;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a111 a111 in
+  if not test then failwithf "test 1666 failed";
+  let expected_b111 = #101. in
+  mark_test_run 1667;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b111 b111 in
+  if not test then failwithf "test 1667 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a200 } = r in
+  let expected_a200 = #{ a111 = #100.; b111 = #101. } in
+  mark_test_run 1668;
+  let test = (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) expected_a200 a200 in
+  if not test then failwithf "test 1668 failed";
+
+  (*********************************************)
+  (*   t201 = { #{ float#; float# }; float }   *)
+  (*********************************************)
+  let r = stack_ { a201 = #{ a111 = #0.; b111 = #1. }; b201 = 2. } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a201 *)
+  let actual = r.a201 in
+  let expected = #{ a111 = #0.; b111 = #1. } in
+  mark_test_run 1669;
+  let test = (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) actual expected in
+  if not test then failwithf "test 1669 failed";
+  (* Paths of depth 2 *)
+  (* .a201.#a111 *)
+  let actual = r.a201.#a111 in
+  let expected = #0. in
+  mark_test_run 1670;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1670 failed";
+  (* .a201.#b111 *)
+  let actual = r.a201.#b111 in
+  let expected = #1. in
+  mark_test_run 1671;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1671 failed";
+  (* Paths of depth 1 *)
+  (* .b201 *)
+  let actual = r.b201 in
+  let expected = 2. in
+  mark_test_run 1672;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1672 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a201 = a2011; b201 = b2011 } { a201 = a2012; b201 = b2012 } -> (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) a2011 a2012 && (fun a b -> Float.equal (globalize a) (globalize b)) b2011 b2012) in
+  let next_r = stack_ { a201 = #{ a111 = #100.; b111 = #101. }; b201 = 102. } in
+  let r_expected = stack_ { a201 = #{ a111 = #0.; b111 = #1. }; b201 = 2. } in
+  (* .a201 *)
+  r.a201 <- next_r.a201;
+  let r_expected = { r_expected with a201 = next_r.a201 } in
+  mark_test_run 1673;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1673 failed";
+  Gc.compact ();
+  (* .b201 *)
+  r.b201 <- next_r.b201;
+  let r_expected = { r_expected with b201 = next_r.b201 } in
+  mark_test_run 1674;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1674 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a201 = #{ a111; b111 }; b201 } = r in
+  let expected_a111 = #100. in
+  mark_test_run 1675;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a111 a111 in
+  if not test then failwithf "test 1675 failed";
+  let expected_b111 = #101. in
+  mark_test_run 1676;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b111 b111 in
+  if not test then failwithf "test 1676 failed";
+  let expected_b201 = 102. in
+  mark_test_run 1677;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b201 b201 in
+  if not test then failwithf "test 1677 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a201; b201 } = r in
+  let expected_a201 = #{ a111 = #100.; b111 = #101. } in
+  mark_test_run 1678;
+  let test = (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) expected_a201 a201 in
+  if not test then failwithf "test 1678 failed";
+  let expected_b201 = 102. in
+  mark_test_run 1679;
+  let test = (fun a b -> Float.equal (globalize a) (globalize b)) expected_b201 b201 in
+  if not test then failwithf "test 1679 failed";
+
+  (**********************************************)
+  (*   t202 = { #{ float#; float# }; float# }   *)
+  (**********************************************)
+  let r = stack_ { a202 = #{ a111 = #0.; b111 = #1. }; b202 = #2. } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a202 *)
+  let actual = r.a202 in
+  let expected = #{ a111 = #0.; b111 = #1. } in
+  mark_test_run 1680;
+  let test = (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) actual expected in
+  if not test then failwithf "test 1680 failed";
+  (* Paths of depth 2 *)
+  (* .a202.#a111 *)
+  let actual = r.a202.#a111 in
+  let expected = #0. in
+  mark_test_run 1681;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1681 failed";
+  (* .a202.#b111 *)
+  let actual = r.a202.#b111 in
+  let expected = #1. in
+  mark_test_run 1682;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1682 failed";
+  (* Paths of depth 1 *)
+  (* .b202 *)
+  let actual = r.b202 in
+  let expected = #2. in
+  mark_test_run 1683;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1683 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a202 = a2021; b202 = b2021 } { a202 = a2022; b202 = b2022 } -> (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) a2021 a2022 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b2021 b2022) in
+  let next_r = stack_ { a202 = #{ a111 = #100.; b111 = #101. }; b202 = #102. } in
+  let r_expected = stack_ { a202 = #{ a111 = #0.; b111 = #1. }; b202 = #2. } in
+  (* .a202 *)
+  r.a202 <- next_r.a202;
+  let r_expected = { r_expected with a202 = next_r.a202 } in
+  mark_test_run 1684;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1684 failed";
+  Gc.compact ();
+  (* .b202 *)
+  r.b202 <- next_r.b202;
+  let r_expected = { r_expected with b202 = next_r.b202 } in
+  mark_test_run 1685;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1685 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a202 = #{ a111; b111 }; b202 } = r in
+  let expected_a111 = #100. in
+  mark_test_run 1686;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_a111 a111 in
+  if not test then failwithf "test 1686 failed";
+  let expected_b111 = #101. in
+  mark_test_run 1687;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b111 b111 in
+  if not test then failwithf "test 1687 failed";
+  let expected_b202 = #102. in
+  mark_test_run 1688;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b202 b202 in
+  if not test then failwithf "test 1688 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a202; b202 } = r in
+  let expected_a202 = #{ a111 = #100.; b111 = #101. } in
+  mark_test_run 1689;
+  let test = (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) expected_a202 a202 in
+  if not test then failwithf "test 1689 failed";
+  let expected_b202 = #102. in
+  mark_test_run 1690;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b202 b202 in
+  if not test then failwithf "test 1690 failed";
+
+  (*************************************************************)
+  (*   t205 = { #{ float32#; int64# }; #{ string; int64# } }   *)
+  (*************************************************************)
+  let r = stack_ { a205 = #{ a203 = #0.s; b203 = #1L }; b205 = #{ a204 = "2"; b204 = #3L } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a205 *)
+  let actual = r.a205 in
+  let expected = #{ a203 = #0.s; b203 = #1L } in
+  mark_test_run 1691;
+  let test = (fun #{ a203 = a2031; b203 = b2031 } #{ a203 = a2032; b203 = b2032 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a2031 a2032 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b2031 b2032) actual expected in
+  if not test then failwithf "test 1691 failed";
+  (* Paths of depth 2 *)
+  (* .a205.#a203 *)
+  let actual = r.a205.#a203 in
+  let expected = #0.s in
+  mark_test_run 1692;
+  let test = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) actual expected in
+  if not test then failwithf "test 1692 failed";
+  (* .a205.#b203 *)
+  let actual = r.a205.#b203 in
+  let expected = #1L in
+  mark_test_run 1693;
+  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) actual expected in
+  if not test then failwithf "test 1693 failed";
+  (* Paths of depth 1 *)
+  (* .b205 *)
+  let actual = r.b205 in
+  let expected = #{ a204 = "2"; b204 = #3L } in
+  mark_test_run 1694;
+  let test = (fun #{ a204 = a2041; b204 = b2041 } #{ a204 = a2042; b204 = b2042 } -> (fun a b -> String.equal (globalize a) (globalize b)) a2041 a2042 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b2041 b2042) actual expected in
+  if not test then failwithf "test 1694 failed";
+  (* Paths of depth 2 *)
+  (* .b205.#a204 *)
+  let actual = r.b205.#a204 in
+  let expected = "2" in
+  mark_test_run 1695;
+  let test = (fun a b -> String.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1695 failed";
+  (* .b205.#b204 *)
+  let actual = r.b205.#b204 in
+  let expected = #3L in
+  mark_test_run 1696;
+  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) actual expected in
+  if not test then failwithf "test 1696 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a205 = a2051; b205 = b2051 } { a205 = a2052; b205 = b2052 } -> (fun #{ a203 = a2031; b203 = b2031 } #{ a203 = a2032; b203 = b2032 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a2031 a2032 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b2031 b2032) a2051 a2052 && (fun #{ a204 = a2041; b204 = b2041 } #{ a204 = a2042; b204 = b2042 } -> (fun a b -> String.equal (globalize a) (globalize b)) a2041 a2042 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b2041 b2042) b2051 b2052) in
+  let next_r = stack_ { a205 = #{ a203 = #100.s; b203 = #101L }; b205 = #{ a204 = "102"; b204 = #103L } } in
+  let r_expected = stack_ { a205 = #{ a203 = #0.s; b203 = #1L }; b205 = #{ a204 = "2"; b204 = #3L } } in
+  (* .a205 *)
+  r.a205 <- next_r.a205;
+  let r_expected = { r_expected with a205 = next_r.a205 } in
+  mark_test_run 1697;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1697 failed";
+  Gc.compact ();
+  (* .b205 *)
+  r.b205 <- next_r.b205;
+  let r_expected = { r_expected with b205 = next_r.b205 } in
+  mark_test_run 1698;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1698 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a205 = #{ a203; b203 }; b205 = #{ a204; b204 } } = r in
+  let expected_a203 = #100.s in
+  mark_test_run 1699;
+  let test = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) expected_a203 a203 in
+  if not test then failwithf "test 1699 failed";
+  let expected_b203 = #101L in
+  mark_test_run 1700;
+  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) expected_b203 b203 in
+  if not test then failwithf "test 1700 failed";
+  let expected_a204 = "102" in
+  mark_test_run 1701;
+  let test = (fun a b -> String.equal (globalize a) (globalize b)) expected_a204 a204 in
+  if not test then failwithf "test 1701 failed";
+  let expected_b204 = #103L in
+  mark_test_run 1702;
+  let test = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) expected_b204 b204 in
+  if not test then failwithf "test 1702 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a205; b205 } = r in
+  let expected_a205 = #{ a203 = #100.s; b203 = #101L } in
+  mark_test_run 1703;
+  let test = (fun #{ a203 = a2031; b203 = b2031 } #{ a203 = a2032; b203 = b2032 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a2031 a2032 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b2031 b2032) expected_a205 a205 in
+  if not test then failwithf "test 1703 failed";
+  let expected_b205 = #{ a204 = "102"; b204 = #103L } in
+  mark_test_run 1704;
+  let test = (fun #{ a204 = a2041; b204 = b2041 } #{ a204 = a2042; b204 = b2042 } -> (fun a b -> String.equal (globalize a) (globalize b)) a2041 a2042 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b2041 b2042) expected_b205 b205 in
+  if not test then failwithf "test 1704 failed";
+
+  (********************************)
+  (*   t206 = { #{ int64x2# } }   *)
+  (********************************)
+  let r = stack_ { a206 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a206 *)
+  let actual = r.a206 in
+  let expected = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } in
+  mark_test_run 1705;
+  let test = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) actual expected in
+  if not test then failwithf "test 1705 failed";
+  (* Paths of depth 2 *)
+  (* .a206.#a40 *)
+  let actual = r.a206.#a40 in
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1706;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1706 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a206 = a2061 } { a206 = a2062 } -> (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) a2061 a2062) in
+  let next_r = stack_ { a206 = #{ a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) } } in
+  let r_expected = stack_ { a206 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } } in
+  (* .a206 *)
+  r.a206 <- next_r.a206;
+  let r_expected = { r_expected with a206 = next_r.a206 } in
+  mark_test_run 1707;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1707 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a206 = #{ a40 } } = r in
+  let expected_a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1708;
+  let test = int64x2_u_equal expected_a40 a40 in
+  if not test then failwithf "test 1708 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a206 } = r in
+  let expected_a206 = #{ a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) } in
+  mark_test_run 1709;
+  let test = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) expected_a206 a206 in
+  if not test then failwithf "test 1709 failed";
+
+  (*************************************)
+  (*   t207 = { #{ int64x2# }; int }   *)
+  (*************************************)
+  let r = stack_ { a207 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b207 = 2 } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a207 *)
+  let actual = r.a207 in
+  let expected = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } in
+  mark_test_run 1710;
+  let test = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) actual expected in
+  if not test then failwithf "test 1710 failed";
+  (* Paths of depth 2 *)
+  (* .a207.#a40 *)
+  let actual = r.a207.#a40 in
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1711;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1711 failed";
+  (* Paths of depth 1 *)
+  (* .b207 *)
+  let actual = r.b207 in
+  let expected = 2 in
+  mark_test_run 1712;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1712 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a207 = a2071; b207 = b2071 } { a207 = a2072; b207 = b2072 } -> (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) a2071 a2072 && (fun a b -> Int.equal a b) b2071 b2072) in
+  let next_r = stack_ { a207 = #{ a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) }; b207 = 102 } in
+  let r_expected = stack_ { a207 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b207 = 2 } in
+  (* .a207 *)
+  r.a207 <- next_r.a207;
+  let r_expected = { r_expected with a207 = next_r.a207 } in
+  mark_test_run 1713;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1713 failed";
+  Gc.compact ();
+  (* .b207 *)
+  r.b207 <- next_r.b207;
+  let r_expected = { r_expected with b207 = next_r.b207 } in
+  mark_test_run 1714;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1714 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a207 = #{ a40 }; b207 } = r in
+  let expected_a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1715;
+  let test = int64x2_u_equal expected_a40 a40 in
+  if not test then failwithf "test 1715 failed";
+  let expected_b207 = 102 in
+  mark_test_run 1716;
+  let test = (fun a b -> Int.equal a b) expected_b207 b207 in
+  if not test then failwithf "test 1716 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a207; b207 } = r in
+  let expected_a207 = #{ a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) } in
+  mark_test_run 1717;
+  let test = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) expected_a207 a207 in
+  if not test then failwithf "test 1717 failed";
+  let expected_b207 = 102 in
+  mark_test_run 1718;
+  let test = (fun a b -> Int.equal a b) expected_b207 b207 in
+  if not test then failwithf "test 1718 failed";
+
+  (******************************************)
+  (*   t208 = { #{ int64x2# }; int64x2# }   *)
+  (******************************************)
+  let r = stack_ { a208 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b208 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a208 *)
+  let actual = r.a208 in
+  let expected = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } in
+  mark_test_run 1719;
+  let test = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) actual expected in
+  if not test then failwithf "test 1719 failed";
+  (* Paths of depth 2 *)
+  (* .a208.#a40 *)
+  let actual = r.a208.#a40 in
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1720;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1720 failed";
+  (* Paths of depth 1 *)
+  (* .b208 *)
+  let actual = r.b208 in
+  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
+  mark_test_run 1721;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1721 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a208 = a2081; b208 = b2081 } { a208 = a2082; b208 = b2082 } -> (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) a2081 a2082 && int64x2_u_equal b2081 b2082) in
+  let next_r = stack_ { a208 = #{ a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) }; b208 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
+  let r_expected = stack_ { a208 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b208 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  (* .a208 *)
+  r.a208 <- next_r.a208;
+  let r_expected = { r_expected with a208 = next_r.a208 } in
+  mark_test_run 1722;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1722 failed";
+  Gc.compact ();
+  (* .b208 *)
+  r.b208 <- next_r.b208;
+  let r_expected = { r_expected with b208 = next_r.b208 } in
+  mark_test_run 1723;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1723 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a208 = #{ a40 }; b208 } = r in
+  let expected_a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1724;
+  let test = int64x2_u_equal expected_a40 a40 in
+  if not test then failwithf "test 1724 failed";
+  let expected_b208 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  mark_test_run 1725;
+  let test = int64x2_u_equal expected_b208 b208 in
+  if not test then failwithf "test 1725 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a208; b208 } = r in
+  let expected_a208 = #{ a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) } in
+  mark_test_run 1726;
+  let test = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) expected_a208 a208 in
+  if not test then failwithf "test 1726 failed";
+  let expected_b208 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  mark_test_run 1727;
+  let test = int64x2_u_equal expected_b208 b208 in
+  if not test then failwithf "test 1727 failed";
+
+  (*************************************)
+  (*   t209 = { #{ int64x2#; int } }   *)
+  (*************************************)
+  let r = stack_ { a209 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a209 *)
+  let actual = r.a209 in
+  let expected = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 } in
+  mark_test_run 1728;
+  let test = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) actual expected in
+  if not test then failwithf "test 1728 failed";
+  (* Paths of depth 2 *)
+  (* .a209.#a42 *)
+  let actual = r.a209.#a42 in
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1729;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1729 failed";
+  (* .a209.#b42 *)
+  let actual = r.a209.#b42 in
+  let expected = 2 in
+  mark_test_run 1730;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1730 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a209 = a2091 } { a209 = a2092 } -> (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) a2091 a2092) in
+  let next_r = stack_ { a209 = #{ a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b42 = 102 } } in
+  let r_expected = stack_ { a209 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 } } in
+  (* .a209 *)
+  r.a209 <- next_r.a209;
+  let r_expected = { r_expected with a209 = next_r.a209 } in
+  mark_test_run 1731;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1731 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a209 = #{ a42; b42 } } = r in
+  let expected_a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1732;
+  let test = int64x2_u_equal expected_a42 a42 in
+  if not test then failwithf "test 1732 failed";
+  let expected_b42 = 102 in
+  mark_test_run 1733;
+  let test = (fun a b -> Int.equal a b) expected_b42 b42 in
+  if not test then failwithf "test 1733 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a209 } = r in
+  let expected_a209 = #{ a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b42 = 102 } in
+  mark_test_run 1734;
+  let test = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) expected_a209 a209 in
+  if not test then failwithf "test 1734 failed";
+
+  (******************************************)
+  (*   t210 = { #{ int64x2#; int }; int }   *)
+  (******************************************)
+  let r = stack_ { a210 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 }; b210 = 3 } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a210 *)
+  let actual = r.a210 in
+  let expected = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 } in
+  mark_test_run 1735;
+  let test = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) actual expected in
+  if not test then failwithf "test 1735 failed";
+  (* Paths of depth 2 *)
+  (* .a210.#a42 *)
+  let actual = r.a210.#a42 in
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1736;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1736 failed";
+  (* .a210.#b42 *)
+  let actual = r.a210.#b42 in
+  let expected = 2 in
+  mark_test_run 1737;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1737 failed";
+  (* Paths of depth 1 *)
+  (* .b210 *)
+  let actual = r.b210 in
+  let expected = 3 in
+  mark_test_run 1738;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1738 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a210 = a2101; b210 = b2101 } { a210 = a2102; b210 = b2102 } -> (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) a2101 a2102 && (fun a b -> Int.equal a b) b2101 b2102) in
+  let next_r = stack_ { a210 = #{ a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b42 = 102 }; b210 = 103 } in
+  let r_expected = stack_ { a210 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 }; b210 = 3 } in
+  (* .a210 *)
+  r.a210 <- next_r.a210;
+  let r_expected = { r_expected with a210 = next_r.a210 } in
+  mark_test_run 1739;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1739 failed";
+  Gc.compact ();
+  (* .b210 *)
+  r.b210 <- next_r.b210;
+  let r_expected = { r_expected with b210 = next_r.b210 } in
+  mark_test_run 1740;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1740 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a210 = #{ a42; b42 }; b210 } = r in
+  let expected_a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1741;
+  let test = int64x2_u_equal expected_a42 a42 in
+  if not test then failwithf "test 1741 failed";
+  let expected_b42 = 102 in
+  mark_test_run 1742;
+  let test = (fun a b -> Int.equal a b) expected_b42 b42 in
+  if not test then failwithf "test 1742 failed";
+  let expected_b210 = 103 in
+  mark_test_run 1743;
+  let test = (fun a b -> Int.equal a b) expected_b210 b210 in
+  if not test then failwithf "test 1743 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a210; b210 } = r in
+  let expected_a210 = #{ a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b42 = 102 } in
+  mark_test_run 1744;
+  let test = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) expected_a210 a210 in
+  if not test then failwithf "test 1744 failed";
+  let expected_b210 = 103 in
+  mark_test_run 1745;
+  let test = (fun a b -> Int.equal a b) expected_b210 b210 in
+  if not test then failwithf "test 1745 failed";
+
+  (***********************************************)
+  (*   t211 = { #{ int64x2#; int }; int64x2# }   *)
+  (***********************************************)
+  let r = stack_ { a211 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 }; b211 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a211 *)
+  let actual = r.a211 in
+  let expected = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 } in
+  mark_test_run 1746;
+  let test = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) actual expected in
+  if not test then failwithf "test 1746 failed";
+  (* Paths of depth 2 *)
+  (* .a211.#a42 *)
+  let actual = r.a211.#a42 in
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1747;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1747 failed";
+  (* .a211.#b42 *)
+  let actual = r.a211.#b42 in
+  let expected = 2 in
+  mark_test_run 1748;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1748 failed";
+  (* Paths of depth 1 *)
+  (* .b211 *)
+  let actual = r.b211 in
+  let expected = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) in
+  mark_test_run 1749;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1749 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a211 = a2111; b211 = b2111 } { a211 = a2112; b211 = b2112 } -> (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) a2111 a2112 && int64x2_u_equal b2111 b2112) in
+  let next_r = stack_ { a211 = #{ a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b42 = 102 }; b211 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
+  let r_expected = stack_ { a211 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 }; b211 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  (* .a211 *)
+  r.a211 <- next_r.a211;
+  let r_expected = { r_expected with a211 = next_r.a211 } in
+  mark_test_run 1750;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1750 failed";
+  Gc.compact ();
+  (* .b211 *)
+  r.b211 <- next_r.b211;
+  let r_expected = { r_expected with b211 = next_r.b211 } in
+  mark_test_run 1751;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1751 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a211 = #{ a42; b42 }; b211 } = r in
+  let expected_a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1752;
+  let test = int64x2_u_equal expected_a42 a42 in
+  if not test then failwithf "test 1752 failed";
+  let expected_b42 = 102 in
+  mark_test_run 1753;
+  let test = (fun a b -> Int.equal a b) expected_b42 b42 in
+  if not test then failwithf "test 1753 failed";
+  let expected_b211 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) in
+  mark_test_run 1754;
+  let test = int64x2_u_equal expected_b211 b211 in
+  if not test then failwithf "test 1754 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a211; b211 } = r in
+  let expected_a211 = #{ a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b42 = 102 } in
+  mark_test_run 1755;
+  let test = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) expected_a211 a211 in
+  if not test then failwithf "test 1755 failed";
+  let expected_b211 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) in
+  mark_test_run 1756;
+  let test = int64x2_u_equal expected_b211 b211 in
+  if not test then failwithf "test 1756 failed";
+
+  (************************************************************)
+  (*   t214 = { #{ int64x2#; string }; #{ int64; float# } }   *)
+  (************************************************************)
+  let r = stack_ { a214 = #{ a212 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b212 = "2" }; b214 = #{ a213 = 3L; b213 = #4. } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a214 *)
+  let actual = r.a214 in
+  let expected = #{ a212 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b212 = "2" } in
+  mark_test_run 1757;
+  let test = (fun #{ a212 = a2121; b212 = b2121 } #{ a212 = a2122; b212 = b2122 } -> int64x2_u_equal a2121 a2122 && (fun a b -> String.equal (globalize a) (globalize b)) b2121 b2122) actual expected in
+  if not test then failwithf "test 1757 failed";
+  (* Paths of depth 2 *)
+  (* .a214.#a212 *)
+  let actual = r.a214.#a212 in
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1758;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1758 failed";
+  (* .a214.#b212 *)
+  let actual = r.a214.#b212 in
+  let expected = "2" in
+  mark_test_run 1759;
+  let test = (fun a b -> String.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1759 failed";
+  (* Paths of depth 1 *)
+  (* .b214 *)
+  let actual = r.b214 in
+  let expected = #{ a213 = 3L; b213 = #4. } in
+  mark_test_run 1760;
+  let test = (fun #{ a213 = a2131; b213 = b2131 } #{ a213 = a2132; b213 = b2132 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a2131 a2132 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b2131 b2132) actual expected in
+  if not test then failwithf "test 1760 failed";
+  (* Paths of depth 2 *)
+  (* .b214.#a213 *)
+  let actual = r.b214.#a213 in
+  let expected = 3L in
+  mark_test_run 1761;
+  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) actual expected in
+  if not test then failwithf "test 1761 failed";
+  (* .b214.#b213 *)
+  let actual = r.b214.#b213 in
+  let expected = #4. in
+  mark_test_run 1762;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) actual expected in
+  if not test then failwithf "test 1762 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a214 = a2141; b214 = b2141 } { a214 = a2142; b214 = b2142 } -> (fun #{ a212 = a2121; b212 = b2121 } #{ a212 = a2122; b212 = b2122 } -> int64x2_u_equal a2121 a2122 && (fun a b -> String.equal (globalize a) (globalize b)) b2121 b2122) a2141 a2142 && (fun #{ a213 = a2131; b213 = b2131 } #{ a213 = a2132; b213 = b2132 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a2131 a2132 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b2131 b2132) b2141 b2142) in
+  let next_r = stack_ { a214 = #{ a212 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b212 = "102" }; b214 = #{ a213 = 103L; b213 = #104. } } in
+  let r_expected = stack_ { a214 = #{ a212 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b212 = "2" }; b214 = #{ a213 = 3L; b213 = #4. } } in
+  (* .a214 *)
+  r.a214 <- next_r.a214;
+  let r_expected = { r_expected with a214 = next_r.a214 } in
+  mark_test_run 1763;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1763 failed";
+  Gc.compact ();
+  (* .b214 *)
+  r.b214 <- next_r.b214;
+  let r_expected = { r_expected with b214 = next_r.b214 } in
+  mark_test_run 1764;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1764 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a214 = #{ a212; b212 }; b214 = #{ a213; b213 } } = r in
+  let expected_a212 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1765;
+  let test = int64x2_u_equal expected_a212 a212 in
+  if not test then failwithf "test 1765 failed";
+  let expected_b212 = "102" in
+  mark_test_run 1766;
+  let test = (fun a b -> String.equal (globalize a) (globalize b)) expected_b212 b212 in
+  if not test then failwithf "test 1766 failed";
+  let expected_a213 = 103L in
+  mark_test_run 1767;
+  let test = (fun a b -> Int64.equal (globalize a) (globalize b)) expected_a213 a213 in
+  if not test then failwithf "test 1767 failed";
+  let expected_b213 = #104. in
+  mark_test_run 1768;
+  let test = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) expected_b213 b213 in
+  if not test then failwithf "test 1768 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a214; b214 } = r in
+  let expected_a214 = #{ a212 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b212 = "102" } in
+  mark_test_run 1769;
+  let test = (fun #{ a212 = a2121; b212 = b2121 } #{ a212 = a2122; b212 = b2122 } -> int64x2_u_equal a2121 a2122 && (fun a b -> String.equal (globalize a) (globalize b)) b2121 b2122) expected_a214 a214 in
+  if not test then failwithf "test 1769 failed";
+  let expected_b214 = #{ a213 = 103L; b213 = #104. } in
+  mark_test_run 1770;
+  let test = (fun #{ a213 = a2131; b213 = b2131 } #{ a213 = a2132; b213 = b2132 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a2131 a2132 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b2131 b2132) expected_b214 b214 in
+  if not test then failwithf "test 1770 failed";
+
+  (******************************************)
+  (*   t215 = { #{ int64x2#; int64x2# } }   *)
+  (******************************************)
+  let r = stack_ { a215 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a215 *)
+  let actual = r.a215 in
+  let expected = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  mark_test_run 1771;
+  let test = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) actual expected in
+  if not test then failwithf "test 1771 failed";
+  (* Paths of depth 2 *)
+  (* .a215.#a44 *)
+  let actual = r.a215.#a44 in
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1772;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1772 failed";
+  (* .a215.#b44 *)
+  let actual = r.a215.#b44 in
+  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
+  mark_test_run 1773;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1773 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a215 = a2151 } { a215 = a2152 } -> (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) a2151 a2152) in
+  let next_r = stack_ { a215 = #{ a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } } in
+  let r_expected = stack_ { a215 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
+  (* .a215 *)
+  r.a215 <- next_r.a215;
+  let r_expected = { r_expected with a215 = next_r.a215 } in
+  mark_test_run 1774;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1774 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a215 = #{ a44; b44 } } = r in
+  let expected_a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1775;
+  let test = int64x2_u_equal expected_a44 a44 in
+  if not test then failwithf "test 1775 failed";
+  let expected_b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  mark_test_run 1776;
+  let test = int64x2_u_equal expected_b44 b44 in
+  if not test then failwithf "test 1776 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a215 } = r in
+  let expected_a215 = #{ a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
+  mark_test_run 1777;
+  let test = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) expected_a215 a215 in
+  if not test then failwithf "test 1777 failed";
+
+  (***********************************************)
+  (*   t216 = { #{ int64x2#; int64x2# }; int }   *)
+  (***********************************************)
+  let r = stack_ { a216 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b216 = 4 } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a216 *)
+  let actual = r.a216 in
+  let expected = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  mark_test_run 1778;
+  let test = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) actual expected in
+  if not test then failwithf "test 1778 failed";
+  (* Paths of depth 2 *)
+  (* .a216.#a44 *)
+  let actual = r.a216.#a44 in
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1779;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1779 failed";
+  (* .a216.#b44 *)
+  let actual = r.a216.#b44 in
+  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
+  mark_test_run 1780;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1780 failed";
+  (* Paths of depth 1 *)
+  (* .b216 *)
+  let actual = r.b216 in
+  let expected = 4 in
+  mark_test_run 1781;
+  let test = (fun a b -> Int.equal a b) actual expected in
+  if not test then failwithf "test 1781 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a216 = a2161; b216 = b2161 } { a216 = a2162; b216 = b2162 } -> (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) a2161 a2162 && (fun a b -> Int.equal a b) b2161 b2162) in
+  let next_r = stack_ { a216 = #{ a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) }; b216 = 104 } in
+  let r_expected = stack_ { a216 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b216 = 4 } in
+  (* .a216 *)
+  r.a216 <- next_r.a216;
+  let r_expected = { r_expected with a216 = next_r.a216 } in
+  mark_test_run 1782;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1782 failed";
+  Gc.compact ();
+  (* .b216 *)
+  r.b216 <- next_r.b216;
+  let r_expected = { r_expected with b216 = next_r.b216 } in
+  mark_test_run 1783;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1783 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a216 = #{ a44; b44 }; b216 } = r in
+  let expected_a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1784;
+  let test = int64x2_u_equal expected_a44 a44 in
+  if not test then failwithf "test 1784 failed";
+  let expected_b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  mark_test_run 1785;
+  let test = int64x2_u_equal expected_b44 b44 in
+  if not test then failwithf "test 1785 failed";
+  let expected_b216 = 104 in
+  mark_test_run 1786;
+  let test = (fun a b -> Int.equal a b) expected_b216 b216 in
+  if not test then failwithf "test 1786 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a216; b216 } = r in
+  let expected_a216 = #{ a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
+  mark_test_run 1787;
+  let test = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) expected_a216 a216 in
+  if not test then failwithf "test 1787 failed";
+  let expected_b216 = 104 in
+  mark_test_run 1788;
+  let test = (fun a b -> Int.equal a b) expected_b216 b216 in
+  if not test then failwithf "test 1788 failed";
+
+  (****************************************************)
+  (*   t217 = { #{ int64x2#; int64x2# }; int64x2# }   *)
+  (****************************************************)
+  let r = stack_ { a217 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b217 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
+  (* 1. Test field get *)
+  (* Paths of depth 1 *)
+  (* .a217 *)
+  let actual = r.a217 in
+  let expected = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  mark_test_run 1789;
+  let test = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) actual expected in
+  if not test then failwithf "test 1789 failed";
+  (* Paths of depth 2 *)
+  (* .a217.#a44 *)
+  let actual = r.a217.#a44 in
+  let expected = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) in
+  mark_test_run 1790;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1790 failed";
+  (* .a217.#b44 *)
+  let actual = r.a217.#b44 in
+  let expected = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) in
+  mark_test_run 1791;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1791 failed";
+  (* Paths of depth 1 *)
+  (* .b217 *)
+  let actual = r.b217 in
+  let expected = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) in
+  mark_test_run 1792;
+  let test = int64x2_u_equal actual expected in
+  if not test then failwithf "test 1792 failed";
+  Gc.compact ();
+  (* 2. Test field set *)
+  (* Change [r] to [next_r] one field at a time *)
+  let eq = (fun { a217 = a2171; b217 = b2171 } { a217 = a2172; b217 = b2172 } -> (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) a2171 a2172 && int64x2_u_equal b2171 b2172) in
+  let next_r = stack_ { a217 = #{ a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) }; b217 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } in
+  let r_expected = stack_ { a217 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b217 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
+  (* .a217 *)
+  r.a217 <- next_r.a217;
+  let r_expected = { r_expected with a217 = next_r.a217 } in
+  mark_test_run 1793;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1793 failed";
+  Gc.compact ();
+  (* .b217 *)
+  r.b217 <- next_r.b217;
+  let r_expected = { r_expected with b217 = next_r.b217 } in
+  mark_test_run 1794;
+  let test = eq r r_expected in
+  if not test then failwithf "test 1794 failed";
+  Gc.compact ();
+  (* 3. Test deep matching *)
+  let { a217 = #{ a44; b44 }; b217 } = r in
+  let expected_a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) in
+  mark_test_run 1795;
+  let test = int64x2_u_equal expected_a44 a44 in
+  if not test then failwithf "test 1795 failed";
+  let expected_b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) in
+  mark_test_run 1796;
+  let test = int64x2_u_equal expected_b44 b44 in
+  if not test then failwithf "test 1796 failed";
+  let expected_b217 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) in
+  mark_test_run 1797;
+  let test = int64x2_u_equal expected_b217 b217 in
+  if not test then failwithf "test 1797 failed";
+  Gc.compact ();
+  (* 4. Test shallow matching *)
+  let { a217; b217 } = r in
+  let expected_a217 = #{ a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
+  mark_test_run 1798;
+  let test = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) expected_a217 a217 in
+  if not test then failwithf "test 1798 failed";
+  let expected_b217 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) in
+  mark_test_run 1799;
+  let test = int64x2_u_equal expected_b217 b217 in
+  if not test then failwithf "test 1799 failed";
 
   ()
 ;;
 
-for i = 1 to 1453 do
+for i = 1 to 1799 do
   if not (Int_set.mem i !tests_run) then failwithf "test %d not run" i
 done;;
 let () = Printf.printf "All tests passed.%!\n";;
