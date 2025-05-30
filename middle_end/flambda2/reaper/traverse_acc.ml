@@ -50,7 +50,8 @@ type apply_dep =
 
 type closure_dep =
   { let_bound_name_of_the_closure : Name.t;
-    closure_code_id : Code_id.t
+    closure_code_id : Code_id.t;
+    only_known_arity : bool
   }
 
 type t =
@@ -154,14 +155,20 @@ let get_continuation_info t = t.continuation_info
 
 let add_apply apply t = t.apply_deps <- apply :: t.apply_deps
 
-let add_set_of_closures_dep let_bound_name_of_the_closure closure_code_id t =
+let add_set_of_closures_dep let_bound_name_of_the_closure closure_code_id
+    only_known_arity t =
   t.set_of_closures_dep
-    <- { let_bound_name_of_the_closure; closure_code_id }
+    <- { let_bound_name_of_the_closure; closure_code_id; only_known_arity }
        :: t.set_of_closures_dep
 
 let record_set_of_closure_deps t =
   List.iter
-    (fun { let_bound_name_of_the_closure = name; closure_code_id = code_id } ->
+    (fun { let_bound_name_of_the_closure = name;
+           closure_code_id = code_id;
+           only_known_arity = _
+         } ->
+      (* CR ncourant: use only_known_arity; not done here to avoid conflicts in
+         code that will be rewritten for unbox-fv-closures anyway. *)
       match find_code t code_id with
       | exception Not_found ->
         assert (

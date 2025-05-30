@@ -2197,6 +2197,11 @@ let curry_function_sym function_kind arity result =
     sym_global = Global
   }
 
+let fail_if_called_indirectly_name = "caml_fail_if_called_indirectly"
+
+let fail_if_called_indirectly_sym =
+  { sym_name = fail_if_called_indirectly_name; sym_global = Global }
+
 (* Big arrays *)
 
 let bigarray_elt_size_in_bytes : Lambda.bigarray_kind -> int = function
@@ -3919,6 +3924,40 @@ let make_symbol ?compilation_unit name =
   in
   Symbol.for_name compilation_unit name
   |> Symbol.linkage_name |> Linkage_name.to_string
+
+(* Failure function for closures that should never be called indirectly *)
+
+let fail_if_called_indirectly_function () =
+  let message = "This function should never be called indirectly" in
+  let message_symbol =
+    { sym_name = "caml_fail_if_called_indirectly_message"; sym_global = Local }
+  in
+  let string_data = emit_string_constant message_symbol message [] in
+  let fun_body =
+    Cop
+      ( Cextcall
+          { func = Cmm.caml_flambda2_invalid;
+            ty = Cmm.typ_void;
+            alloc = false;
+            ty_args = [XInt];
+            returns = false;
+            builtin = false;
+            effects = Arbitrary_effects;
+            coeffects = Has_coeffects
+          },
+        [Cconst_symbol (message_symbol, Debuginfo.none)],
+        Debuginfo.none )
+  in
+  let fn : Cmm.fundecl =
+    { fun_name = fail_if_called_indirectly_sym;
+      fun_args = [];
+      fun_body;
+      fun_codegen_options = [];
+      fun_poll = Default_poll;
+      fun_dbg = Debuginfo.none
+    }
+  in
+  [Cdata string_data; Cfunction fn]
 
 (* Generate the entry point *)
 (*
