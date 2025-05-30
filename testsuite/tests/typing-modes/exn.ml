@@ -32,6 +32,30 @@ Error: The constructor "Nonportable" is nonportable, so cannot be used inside a 
 |}]
 
 let (foo @ portable) () =
+    try () with
+    | Nonportable g -> ()
+    | _ -> ()
+[%%expect{|
+Line 3, characters 6-17:
+3 |     | Nonportable g -> ()
+          ^^^^^^^^^^^
+Error: The constructor "Nonportable" is nonportable, so cannot be used inside a function that is portable.
+|}]
+
+let (foo @ portable) () =
+    match () with
+    | exception Nonportable g -> ()
+    | _ -> ()
+[%%expect{|
+Line 3, characters 16-27:
+3 |     | exception Nonportable g -> ()
+                    ^^^^^^^^^^^
+Error: The constructor "Nonportable" is nonportable, so cannot be used inside a function that is portable.
+|}]
+
+(* below we will only use [match] to test *)
+
+let (foo @ portable) () =
     match x with
     | Portable g -> ()
     | _ -> ()
@@ -172,6 +196,16 @@ Line 3, characters 31-40:
 3 |         exception Contended' = Contended
                                    ^^^^^^^^^
 Error: The constructor "Contended" is nonportable, so cannot be used inside a function that is portable.
+|}]
+
+(* defining exception inside a portable function is fine *)
+let (foo @ portable) () =
+    let module M = struct
+        exception Bad of int ref * (unit -> unit)
+    end in
+    raise (M.Bad (ref 42, fun () -> ()))
+[%%expect{|
+val foo : unit -> 'a = <fun>
 |}]
 
 exception Fields : { x : int } -> exn
