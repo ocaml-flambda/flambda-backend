@@ -5,7 +5,7 @@
 }{
    include runtime_events;
    include unix;
-   amd64;
+   arch_amd64;
    runtime5;
    libunix;
    set OCAML_RUNTIME_EVENTS_PRESERVE = "1";
