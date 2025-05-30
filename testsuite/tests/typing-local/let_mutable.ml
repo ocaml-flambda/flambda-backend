@@ -306,7 +306,7 @@ val x_14 : int = 32
 |}]
 
 (* Test 15: mutable unboxed floats *)
-let r_15 =
+let r_15 e
   let open Stdlib_upstream_compatible.Float_u in
   let mutable r = #256.0 in
   for i = 1 to 10 do
