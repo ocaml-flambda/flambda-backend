@@ -1091,9 +1091,9 @@ let check_unsupported_modal_module ~env reason modes =
   | None -> ()
   | Some loc -> raise(Error(loc, env, Unsupported_modal_module reason))
 
-let transl_modalities ~sig_modalities modalities =
+let transl_modalities ?(default_modalities = Mode.Modality.Value.Const.id) modalities =
   match modalities with
-  | [] -> sig_modalities
+  | [] -> default_modalities
   | _ :: _ ->
     Typemode.transl_modalities ~maturity:Stable Immutable [] modalities
 
@@ -1777,10 +1777,7 @@ and transl_with ~loc env remove_aliases (rev_tcstrs,sg) constr =
 and transl_signature env {psg_items; psg_modalities; psg_loc} =
   let names = Signature_names.create () in
 
-  let sig_modalities =
-    transl_modalities ~sig_modalities:Mode.Modality.Value.Const.id
-      psg_modalities
-  in
+  let sig_modalities = transl_modalities psg_modalities in
 
   let transl_include ~loc env sig_acc sincl modalities =
     let smty = sincl.pincl_mod in
@@ -1801,7 +1798,9 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
       | Structure ->
         Tincl_structure, extract_sig env smty.pmty_loc mty
     in
-    let modalities = transl_modalities ~sig_modalities modalities in
+    let modalities =
+      transl_modalities ~default_modalities:sig_modalities modalities
+    in
     let sg = apply_constant_modalities_sg modalities sg in
     let sg, newenv = Env.enter_signature ~scope sg env in
     Signature_group.iter
@@ -1898,7 +1897,7 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
             (fun () -> transl_modtype env pmd.pmd_type)
         in
         let md_modalities =
-          transl_modalities ~sig_modalities pmd.pmd_modalities
+          transl_modalities ~default_modalities:sig_modalities pmd.pmd_modalities
           |> Mode.Modality.Value.of_const
         in
         let pres =
@@ -2194,7 +2193,8 @@ and transl_recmodule_modtypes env ~sig_modalities sdecls =
       (fun id (pmd, smmode) ->
          let md_uid = Uid.mk ~current_unit:(Env.get_unit_name ()) in
          let md_modalities =
-            transl_modalities ~sig_modalities pmd.pmd_modalities
+            transl_modalities ~default_modalities:sig_modalities
+              pmd.pmd_modalities
             |> Mode.Modality.Value.of_const
          in
          let md =
