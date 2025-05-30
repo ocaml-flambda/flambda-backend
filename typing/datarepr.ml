@@ -282,17 +282,16 @@ let find_constr ~constant tag cstrs =
   try
     List.find
       (function
-        | (({cstr_tag=Ordinary {runtime_tag=tag'}; cstr_constant},_),_) ->
+        | ({cstr_tag=Ordinary {runtime_tag=tag'}; cstr_constant},_) ->
           tag' = tag && cstr_constant = constant
-        | (({cstr_tag=Null; cstr_constant}, _),_) ->
-          tag = -1 && cstr_constant = constant
-        | (({cstr_tag=Extension _},_),_) -> false)
+        | ({cstr_tag=Null; cstr_constant}, _) -> tag = -1 && cstr_constant = constant
+        | ({cstr_tag=Extension _},_) -> false)
       cstrs
   with
   | Not_found -> raise Constr_not_found
 
 let find_constr_by_tag ~constant tag cstrlist =
-  fst (fst (find_constr ~constant tag cstrlist))
+  fst (find_constr ~constant tag cstrlist)
 
 let constructors_of_type ~current_unit ty_path decl =
   match decl.type_kind with
