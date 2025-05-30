@@ -369,17 +369,21 @@ Error: Signature mismatch:
          because of the definition of t at line 3, characters 2-34.
 |}]
 
+(* CR layouts v2.8: gadts shouldn't be "best" because we intend to give them more refined
+   jkinds in the future. So this program will error in the future. *)
 type gadt = Foo : int -> gadt
 module M : sig
   type t : value mod portable with gadt
 end = struct
-  type t : value mod portable
+  type t
 end
 [%%expect {|
 type gadt = Foo : int -> gadt
-module M : sig type t : value mod portable end
+module M : sig type t end
 |}]
 
+(* CR layouts v2.8: gadts shouldn't be "best". But maybe they should track quality along
+   individual axes, and so this should be accepted anyways? *)
 type gadt = Foo : int -> gadt
 module M : sig
   type t : value mod global with gadt
@@ -388,23 +392,7 @@ end = struct
 end
 [%%expect {|
 type gadt = Foo : int -> gadt
-Lines 4-6, characters 6-3:
-4 | ......struct
-5 |   type t
-6 | end
-Error: Signature mismatch:
-       Modules do not match:
-         sig type t end
-       is not included in
-         sig type t : value mod unyielding end
-       Type declarations do not match:
-         type t
-       is not included in
-         type t : value mod unyielding
-       The kind of the first is value
-         because of the definition of t at line 5, characters 2-8.
-       But the kind of the first must be a subkind of value mod unyielding
-         because of the definition of t at line 3, characters 2-37.
+module M : sig type t end
 |}]
 
 type gadt = Foo : int -> gadt [@@unboxed]
