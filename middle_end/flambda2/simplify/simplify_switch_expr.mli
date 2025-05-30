@@ -15,8 +15,9 @@
 (**************************************************************************)
 
 val simplify_switch :
-  simplify_let:
-    (simplify_expr:Flambda.Expr.t Simplify_common.expr_simplifier ->
+  simplify_let_with_bound_pattern:
+    (simplify_expr_with_bound_pattern:
+       (Bound_pattern.t * Flambda.Expr.t) Simplify_common.expr_simplifier ->
     simplify_function_body:Simplify_common.simplify_function_body ->
     Flambda.Let.t Simplify_common.expr_simplifier) ->
   simplify_function_body:Simplify_common.simplify_function_body ->
