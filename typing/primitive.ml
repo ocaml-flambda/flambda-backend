@@ -445,17 +445,22 @@ module Repr_check = struct
     | Untagged_immediate -> true
     | Same_as_ocaml_repr _ | Repr_poly -> false
 
+  let is_not_product_sort : Jkind_types.Sort.Const.t -> bool = function
+    | Base _ -> true
+    | Product _ -> false
+
   let valid_c_stub_arg = function
-    | Same_as_ocaml_repr (Base _)
+    | Same_as_ocaml_repr s -> is_not_product_sort s
     | Unboxed_float _ | Unboxed_integer _ | Unboxed_vector _
     | Untagged_immediate | Repr_poly -> true
-    | Same_as_ocaml_repr (Product _) -> false
 
   let valid_c_stub_return = function
     | Same_as_ocaml_repr (Base _)
     | Unboxed_float _ | Unboxed_integer _ | Unboxed_vector _
     | Untagged_immediate | Repr_poly -> true
-    | Same_as_ocaml_repr (Product l) -> (List.compare_length_with l 2) = 0
+    | Same_as_ocaml_repr (Product [s1; s2]) ->
+      is_not_product_sort s1 && is_not_product_sort s2
+    | Same_as_ocaml_repr (Product _) -> false
 
   let check checks prim =
     let reprs = args_res_reprs prim in

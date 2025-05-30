@@ -1213,6 +1213,15 @@ Error: The primitive [foo] is used in an invalid declaration.
        The declaration contains argument/return types with the wrong layout.
 |}]
 
+external ext_nested_tuple_return : int -> #(int * #(int * bool)) = "foo" "bar"
+[%%expect{|
+Line 1, characters 35-64:
+1 | external ext_nested_tuple_return : int -> #(int * #(int * bool)) = "foo" "bar"
+                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The primitive [foo] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
 external ext_tuple_return_with_attr_u :
   int -> (#(int * bool) [@unboxed]) = "foo"
 [%%expect{|
@@ -1346,6 +1355,17 @@ type t_3 = #{ i : int; b : bool; s : string; }
 Line 2, characters 31-41:
 2 | external ext_record_return_3 : int -> t_3 = "foo" "bar"
                                    ^^^^^^^^^^
+Error: The primitive [foo] is used in an invalid declaration.
+       The declaration contains argument/return types with the wrong layout.
+|}]
+
+type ext_record_nested = #{ x : int; y : ext_record_arg_record }
+external ext_record_neested : int -> ext_record_nested = "foo" "bar"
+[%%expect{|
+type ext_record_nested = #{ x : int; y : ext_record_arg_record; }
+Line 2, characters 30-54:
+2 | external ext_record_neested : int -> ext_record_nested = "foo" "bar"
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The primitive [foo] is used in an invalid declaration.
        The declaration contains argument/return types with the wrong layout.
 |}]
