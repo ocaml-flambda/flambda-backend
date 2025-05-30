@@ -460,11 +460,11 @@ val open_signature:
     used_slot:bool ref ->
     loc:Location.t -> toplevel:bool ->
     Asttypes.override_flag -> Longident.t Location.loc ->
-    t -> Path.t * t
+    t -> Path.t * mode_with_locks * t
 
 val open_signature_by_path: Path.t -> t -> t
 
-val open_pers_signature: string -> t -> Path.t * t
+val open_pers_signature: string -> t -> Path.t * mode_with_locks * t
 
 val remove_last_open: Path.t -> t -> t option
 

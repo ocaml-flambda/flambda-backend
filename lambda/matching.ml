@@ -2070,7 +2070,7 @@ let get_mod_field modname field =
        Env.add_persistent_structure mod_ident
          (Lazy.force Env.initial)
      in
-     let _, env = Env.open_pers_signature modname env in
+     let _, _, env = Env.open_pers_signature modname env in
      match Env.find_value_by_name (Longident.Lident field) env with
      | exception Not_found ->
          fatal_errorf "Primitive %s.%s not found." modname field

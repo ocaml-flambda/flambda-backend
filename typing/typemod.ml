@@ -252,8 +252,10 @@ let initial_env ~loc ~initially_opened_module
     let lexbuf = Lexing.from_string m in
     let txt =
       Location.init lexbuf (Printf.sprintf "command line argument: -open %S" m);
-      Parse.simple_module_path lexbuf in
-        snd (type_open_ Override env loc {txt;loc})
+      Parse.simple_module_path lexbuf
+    in
+    let _, _, env = type_open_ Override env loc {txt;loc} in
+    env
   in
   let add_units env units =
     String.Set.fold
@@ -294,7 +296,7 @@ let initial_env ~loc ~initially_opened_module
   List.fold_left open_module env open_implicit_modules
 
 let type_open_descr ?used_slot ?toplevel env sod =
-  let (path, newenv) =
+  let (path, _, newenv) =
     Builtin_attributes.warning_scope sod.popen_attributes
       (fun () ->
          type_open_ ?used_slot ?toplevel sod.popen_override env sod.popen_loc
@@ -3035,13 +3037,12 @@ and type_open_decl_aux ?used_slot ?toplevel funct_body names env od =
   let loc = od.popen_loc in
   match od.popen_expr.pmod_desc with
   | Pmod_ident lid ->
-    let path, newenv =
+    let path, (mode, locks), newenv =
       type_open_ ?used_slot ?toplevel od.popen_override env loc lid
     in
     let md = { mod_desc = Tmod_ident (path, lid);
                mod_type = Mty_alias path;
-               mod_mode = Value.(disallow_right max), None;
-               (* CR zqian: maybe put in the correct mode and locks. *)
+               mod_mode = mode, Some (locks, lid.txt, lid.loc);
                mod_env = env;
                mod_attributes = od.popen_expr.pmod_attributes;
                mod_loc = od.popen_expr.pmod_loc }
@@ -3769,6 +3770,10 @@ let type_open_decl ?used_slot env od =
 
 let type_open_descr ?used_slot env od =
   type_open_descr ?used_slot ?toplevel:None env od
+
+let type_open_ ?used_slot ?toplevel ovf env loc lid =
+  let path, _, newenv = type_open_ ?used_slot ?toplevel ovf env loc lid in
+  path, newenv
 
 let () =
   Typecore.type_module := type_module_alias;

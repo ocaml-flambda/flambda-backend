@@ -3409,21 +3409,21 @@ let rec lookup_module_components ~errors ~use ~loc lid env =
   match lid with
   | Lident s ->
       let path, (_, locks), data = lookup_ident_module Load ~errors ~use ~loc s env in
-      path, locks, data.mda_components
+      path, (data.mda_mode, locks), data.mda_components
   | Ldot(l, s) ->
       let path, locks, data = lookup_dot_module ~errors ~use ~loc l s env in
-      path, locks, data.mda_components
+      path, (data.mda_mode, locks), data.mda_components
   | Lapply _ as lid ->
       let f_path, f_comp, arg = lookup_apply ~errors ~use ~loc lid env in
       let comps =
         !components_of_functor_appl' ~loc ~f_path ~f_comp ~arg env in
       (* [Lapply] is for [F(M).t] so nothing is closed over. *)
-      Papply (f_path, arg), locks_empty, comps
+      Papply (f_path, arg), (Mode.alloc_as_value fcomp_res_mode, locks_empty), comps
 
 and lookup_structure_components ~errors ~use ~loc ?(reason = Project) lid env =
-  let path, locks, comps = lookup_module_components ~errors ~use ~loc lid env in
+  let path, mode_with_locks, comps = lookup_module_components ~errors ~use ~loc lid env in
   match get_components_res comps with
-  | Ok (Structure_comps comps) -> path, locks, comps
+  | Ok (Structure_comps comps) -> path, mode_with_locks, comps
   | Ok (Functor_comps _) ->
       may_lookup_error errors loc env (Functor_used_as_structure (lid, reason))
   | Error (No_components_abstract p) ->
@@ -3516,19 +3516,19 @@ and lookup_module ~errors ~use ~loc lid env =
       Papply(path_f, path_arg), md, (Mode.alloc_as_value fcomp_res_mode, locks_empty)
 
 and lookup_dot_module ~errors ~use ~loc l s env =
-  let p, mode_with_locks, comps =
+  let p, (_, locks), comps =
     lookup_structure_components ~errors ~use ~loc l env
   in
   match NameMap.find s comps.comp_modules with
   | mda ->
       let path = Pdot(p, s) in
       use_module ~use ~loc path mda;
-      (path, mode_with_locks, mda)
+      (path, locks, mda)
   | exception Not_found ->
       may_lookup_error errors loc env (Unbound_module (Ldot(l, s)))
 
 let lookup_dot_value ~errors ~use ~loc l s env =
-  let (path, locks, comps) =
+  let (path, (_, locks), comps) =
     lookup_structure_components ~errors ~use ~loc l env
   in
   match NameMap.find s comps.comp_values with
@@ -3560,7 +3560,7 @@ let lookup_dot_modtype ~errors ~use ~loc l s env =
       may_lookup_error errors loc env (Unbound_modtype (Ldot(l, s)))
 
 let lookup_dot_class ~errors ~use ~loc l s env =
-  let (p, locks, comps) = lookup_structure_components ~errors ~use ~loc l env in
+  let (p, (_, locks), comps) = lookup_structure_components ~errors ~use ~loc l env in
   match NameMap.find s comps.comp_classes with
   | clda ->
       let path = Pdot(p, s) in
@@ -3668,10 +3668,11 @@ let open_signature_by_path path env0 =
   add_components None path env0 comps locks_empty
 
 let open_signature ~errors ~loc slot lid env0 =
-  let (root, locks, comps) =
+  let (root, mode_with_locks, comps) =
     lookup_structure_components ~errors ~use:true ~loc ~reason:Open lid env0
   in
-  root, add_components slot root env0 comps locks
+  let _, locks = mode_with_locks in
+  root, mode_with_locks, add_components slot root env0 comps locks
 
 let remove_last_open root env0 =
   let rec filter_summary summary =
