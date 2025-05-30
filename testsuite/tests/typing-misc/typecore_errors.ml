@@ -182,7 +182,7 @@ let x = object(self) method m = self <-0 end
 Line 1, characters 32-40:
 1 | let x = object(self) method m = self <-0 end
                                     ^^^^^^^^
-Error: The value "self" is not an instance variable
+Error: The value "self" is not an instance variable or mutable variable
 |}]
 
 (** Multiply override *)
@@ -388,7 +388,7 @@ let o = object method m = instance <- 0 end
 Line 3, characters 26-39:
 3 | let o = object method m = instance <- 0 end
                               ^^^^^^^^^^^^^
-Error: Unbound instance variable "instance"
+Error: Unbound instance variable or mutable variable "instance"
 |}]
 
 

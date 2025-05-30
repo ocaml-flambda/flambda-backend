@@ -310,8 +310,8 @@ and expression i ppf x =
   match x.pexp_desc with
   | Pexp_ident (li) -> line i ppf "Pexp_ident %a\n" fmt_longident_loc li;
   | Pexp_constant (c) -> line i ppf "Pexp_constant %a\n" fmt_constant c;
-  | Pexp_let (rf, l, e) ->
-      line i ppf "Pexp_let %a\n" fmt_rec_flag rf;
+  | Pexp_let (mf, rf, l, e) ->
+      line i ppf "Pexp_let %a %a\n" fmt_mutable_flag mf fmt_rec_flag rf;
       list i value_binding ppf l;
       expression i ppf e;
   | Pexp_function (params, c, body) ->
@@ -400,8 +400,8 @@ and expression i ppf x =
       line i ppf "Pexp_send \"%s\"\n" s.txt;
       expression i ppf e;
   | Pexp_new (li) -> line i ppf "Pexp_new %a\n" fmt_longident_loc li;
-  | Pexp_setinstvar (s, e) ->
-      line i ppf "Pexp_setinstvar %a\n" fmt_string_loc s;
+  | Pexp_setvar (s, e) ->
+      line i ppf "Pexp_setvar %a\n" fmt_string_loc s;
       expression i ppf e;
   | Pexp_override (l) ->
       line i ppf "Pexp_override\n";

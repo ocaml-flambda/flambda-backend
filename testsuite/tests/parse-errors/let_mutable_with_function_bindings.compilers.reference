@@ -1,0 +1,7 @@
+Line 6, characters 8-27:
+6 | let _ = let mutable f x = x in f;;
+            ^^^^^^^^^^^^^^^^^^^
+Error: Syntax error: Mutable let is not allowed with function bindings.
+Hint: If you really want a mutable function variable, use the de-sugared syntax:
+  "let mutable f = fun x -> .."
+
