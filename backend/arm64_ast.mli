@@ -189,6 +189,7 @@ module Instruction_name : sig
     | LSR
     | ASR
     | CLZ
+    | CTZ
     | RBIT
     | CNT
     | SMULH
@@ -320,6 +321,12 @@ module DSL : sig
   val reg_v2s : int -> Operand.t
 
   val reg_v4s : int -> Operand.t
+
+  val reg_v8b : int -> Operand.t
+
+  val reg_v16b : int -> Operand.t
+
+  val reg_b : int -> Operand.t
 
   val reg_s : int -> Operand.t
 

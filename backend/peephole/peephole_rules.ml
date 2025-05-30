@@ -93,6 +93,11 @@ let are_compatible op1 op2 imm1 imm2 :
   match
     (op1 : Operation.integer_operation), (op2 : Operation.integer_operation)
   with
+  (* CR-someday xclerc: `U.bitwise_immediates` will return `None` if the
+     resulting immediate cannot be represented, but in some case a peephole rule
+     should nevertheless apply. For instance, on arm64 `(x xor 2) xor 2` will
+     fail, but there should arguably be a rule so that the expression is
+     simplified to `x`. *)
   | Iand, Iand -> U.bitwise_immediates op1 imm1 imm2 ( land )
   | Ior, Ior -> U.bitwise_immediates op1 imm1 imm2 ( lor )
   | Ixor, Ixor -> U.bitwise_immediates op1 imm1 imm2 ( lxor )

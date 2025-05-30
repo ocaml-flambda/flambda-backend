@@ -1,4 +1,8 @@
 #define CAML_NAME_SPACE
+#include <caml/config.h>
+#ifdef WITH_ADDRESS_SANITIZER
+#include <dlfcn.h>
+#endif
 #include <caml/memory.h>
 #include <caml/mlvalues.h>
 #include <caml/alloc.h>
@@ -70,6 +74,24 @@ static int cmp_callback(const void* p_a, const void* p_b)
   value* const* b = p_b;
   return Long_val(caml_callback2(*cmp_fn, **a, **b));
 }
+
+#ifdef WITH_ADDRESS_SANITIZER
+/* AddressSanitizer provides its own definition of [qsort], which runs the comparator
+   function over the entire array in order to detect memory safety issues [1].
+   That breaks this test, since the output of the test depends on how many times the
+   comparator function is invoked. To work around this, we retrieve the standard [qsort]
+   definition provided by [libc] using [dlsym], and call that directly.
+
+   [1]: https://github.com/llvm/llvm-project/blob/1101b767329dd163d528fa5f667a6c0dbdde0ad5/compiler-rt/lib/sanitizer_common/sanitizer_common_interceptors.inc#L10047-L10051
+*/
+void qsort(void *base, size_t nmemb, size_t size, __compar_fn_t compar) {
+  static void (*libc_qsort)(void *, size_t, size_t, __compar_fn_t) = NULL;
+  if (libc_qsort == NULL) {
+    libc_qsort = dlsym(RTLD_NEXT, "qsort");
+  }
+  libc_qsort(base, nmemb, size, compar);
+}
+#endif
 
 value sort2(value cmp_clos, value a, value b)
 {

@@ -69,7 +69,8 @@ boot_targets = \
   $(boot_ocamlmklib) \
   $(boot_ocamldep) \
   $(boot_ocamlobjinfo) \
-  ocamltest/ocamltest.native
+  ocamltest/ocamltest.native \
+  tools/regalloc/regalloc.exe
 
 boot-compiler: _build/_bootinstall
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) $(coverage_dune_flags) $(boot_targets)

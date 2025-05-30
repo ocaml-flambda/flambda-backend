@@ -280,18 +280,18 @@ G(name):
         str     x25, [TMP, 192]
     /* Save caller-save floating-point registers
        (callee-saves are preserved by C functions) */
-        stp     d0, d1, [TMP, 208]
-        stp     d2, d3, [TMP, 224]
-        stp     d4, d5, [TMP, 240]
-        stp     d6, d7, [TMP, 256]
-        stp     d16, d17, [TMP, 272]
-        stp     d18, d19, [TMP, 288]
-        stp     d20, d21, [TMP, 304]
-        stp     d22, d23, [TMP, 320]
-        stp     d24, d25, [TMP, 336]
-        stp     d26, d27, [TMP, 352]
-        stp     d28, d29, [TMP, 368]
-        stp     d30, d31, [TMP, 384]
+        stp     q0, q1, [TMP, 208]
+        stp     q2, q3, [TMP, 240]
+        stp     q4, q5, [TMP, 272]
+        stp     q6, q7, [TMP, 304]
+        stp     q16, q17, [TMP, 336]
+        stp     q18, q19, [TMP, 368]
+        stp     q20, q21, [TMP, 400]
+        stp     q22, q23, [TMP, 432]
+        stp     q24, q25, [TMP, 464]
+        stp     q26, q27, [TMP, 496]
+        stp     q28, q29, [TMP, 528]
+        stp     q30, q31, [TMP, 560]
         add     TMP, TMP, #16
         str     TMP, Caml_state(gc_regs)
 .endm
@@ -315,18 +315,18 @@ G(name):
         ldp     x21, x22, [TMP, 160]
         ldp     x23, x24, [TMP, 176]
         ldr     x25, [TMP, 192]
-        ldp     d0, d1, [TMP, 208]
-        ldp     d2, d3, [TMP, 224]
-        ldp     d4, d5, [TMP, 240]
-        ldp     d6, d7, [TMP, 256]
-        ldp     d16, d17, [TMP, 272]
-        ldp     d18, d19, [TMP, 288]
-        ldp     d20, d21, [TMP, 304]
-        ldp     d22, d23, [TMP, 320]
-        ldp     d24, d25, [TMP, 336]
-        ldp     d26, d27, [TMP, 352]
-        ldp     d28, d29, [TMP, 368]
-        ldp     d30, d31, [TMP, 384]
+        ldp     q0, q1, [TMP, 208]
+        ldp     q2, q3, [TMP, 240]
+        ldp     q4, q5, [TMP, 272]
+        ldp     q6, q7, [TMP, 304]
+        ldp     q16, q17, [TMP, 336]
+        ldp     q18, q19, [TMP, 368]
+        ldp     q20, q21, [TMP, 400]
+        ldp     q22, q23, [TMP, 432]
+        ldp     q24, q25, [TMP, 464]
+        ldp     q26, q27, [TMP, 496]
+        ldp     q28, q29, [TMP, 528]
+        ldp     q30, q31, [TMP, 560]
     /* Put gc_regs struct back in bucket linked list */
         ldr     TMP2, Caml_state(gc_regs_buckets)
         str     TMP2, [TMP, 0]  /* next ptr */
@@ -392,18 +392,18 @@ G(name):
         stp     x12, x13, [TMP, 112]
         stp     x14, x15, [TMP, 128]
     /* Save caller-save floating-point registers */
-        stp     d0, d1, [TMP, 208]
-        stp     d2, d3, [TMP, 224]
-        stp     d4, d5, [TMP, 240]
-        stp     d6, d7, [TMP, 256]
-        stp     d16, d17, [TMP, 272]
-        stp     d18, d19, [TMP, 288]
-        stp     d20, d21, [TMP, 304]
-        stp     d22, d23, [TMP, 320]
-        stp     d24, d25, [TMP, 336]
-        stp     d26, d27, [TMP, 352]
-        stp     d28, d29, [TMP, 368]
-        stp     d30, d31, [TMP, 384]
+        stp     q0, q1, [TMP, 208]
+        stp     q2, q3, [TMP, 240]
+        stp     q4, q5, [TMP, 272]
+        stp     q6, q7, [TMP, 304]
+        stp     q16, q17, [TMP, 336]
+        stp     q18, q19, [TMP, 368]
+        stp     q20, q21, [TMP, 400]
+        stp     q22, q23, [TMP, 432]
+        stp     q24, q25, [TMP, 464]
+        stp     q26, q27, [TMP, 496]
+        stp     q28, q29, [TMP, 528]
+        stp     q30, q31, [TMP, 560]
         add     TMP, TMP, #16
         str     TMP, Caml_state(gc_regs)
 .endm
@@ -423,18 +423,18 @@ G(name):
         ldp     x10, x11, [TMP, 96]
         ldp     x12, x13, [TMP, 112]
         ldp     x14, x15, [TMP, 128]
-        ldp     d0, d1, [TMP, 208]
-        ldp     d2, d3, [TMP, 224]
-        ldp     d4, d5, [TMP, 240]
-        ldp     d6, d7, [TMP, 256]
-        ldp     d16, d17, [TMP, 272]
-        ldp     d18, d19, [TMP, 288]
-        ldp     d20, d21, [TMP, 304]
-        ldp     d22, d23, [TMP, 320]
-        ldp     d24, d25, [TMP, 336]
-        ldp     d26, d27, [TMP, 352]
-        ldp     d28, d29, [TMP, 368]
-        ldp     d30, d31, [TMP, 384]
+        ldp     q0, q1, [TMP, 208]
+        ldp     q2, q3, [TMP, 240]
+        ldp     q4, q5, [TMP, 272]
+        ldp     q6, q7, [TMP, 304]
+        ldp     q16, q17, [TMP, 336]
+        ldp     q18, q19, [TMP, 368]
+        ldp     q20, q21, [TMP, 400]
+        ldp     q22, q23, [TMP, 432]
+        ldp     q24, q25, [TMP, 464]
+        ldp     q26, q27, [TMP, 496]
+        ldp     q28, q29, [TMP, 528]
+        ldp     q30, q31, [TMP, 560]
     /* Put gc_regs struct back in bucket linked list */
         ldr     TMP2, Caml_state(gc_regs_buckets)
         str     TMP2, [TMP, 0]  /* next ptr */
@@ -620,15 +620,15 @@ FUNCTION(caml_c_call)
 #if defined(WITH_THREAD_SANITIZER)
     /* Save return value registers. Since the called function could be
        anything, it may have returned its result (if any) either in x0
-       or d0:d1. */
+       or q0:q1. */
         stp     x0, x1, [sp, -16]!
         CFI_ADJUST(16)
-        stp     d0, d1, [sp, -16]!
-        CFI_ADJUST(16)
+        stp     q0, q1, [sp, -32]!
+        CFI_ADJUST(32)
         TSAN_EXIT_FUNCTION
     /* Restore return value registers */
-        ldp     d0, d1, [sp], 16
-        CFI_ADJUST(-16)
+        ldp     q0, q1, [sp], 32
+        CFI_ADJUST(-32)
         ldp     x0, x1, [sp], 16
         CFI_ADJUST(-16)
 #endif
@@ -732,8 +732,8 @@ FUNCTION(caml_start_program)
 
 L(jump_to_caml):
     /* Set up stack frame and save callee-save registers */
-        stp     x29, x30, [sp, -160]!
-        CFI_ADJUST(160)
+        stp     x29, x30, [sp, -224]!
+        CFI_ADJUST(224)
         CFI_OFFSET(29, 0)
         CFI_OFFSET(30, 8)
         add     x29, sp, #0
@@ -742,10 +742,10 @@ L(jump_to_caml):
         stp     x23, x24, [sp, 48]
         stp     x25, x26, [sp, 64]
         stp     x27, x28, [sp, 80]
-        stp     d8, d9, [sp, 96]
-        stp     d10, d11, [sp, 112]
-        stp     d12, d13, [sp, 128]
-        stp     d14, d15, [sp, 144]
+        stp     q8, q9, [sp, 96]
+        stp     q10, q11, [sp, 128]
+        stp     q12, q13, [sp, 160]
+        stp     q14, q15, [sp, 192]
     /* Load domain state pointer from argument */
         mov     DOMAIN_STATE_PTR, TMP
     /* Reload allocation pointer */
@@ -841,12 +841,12 @@ L(return_result):
         ldp     x23, x24, [sp, 48]
         ldp     x25, x26, [sp, 64]
         ldp     x27, x28, [sp, 80]
-        ldp     d8, d9, [sp, 96]
-        ldp     d10, d11, [sp, 112]
-        ldp     d12, d13, [sp, 128]
-        ldp     d14, d15, [sp, 144]
-        ldp     x29, x30, [sp], 160
-        CFI_ADJUST(-160)
+        ldp     q8, q9, [sp, 96]
+        ldp     q10, q11, [sp, 128]
+        ldp     q12, q13, [sp, 160]
+        ldp     q14, q15, [sp, 192]
+        ldp     x29, x30, [sp], 224
+        CFI_ADJUST(-224)
     /* Return to C caller */
         ret
         CFI_ENDPROC

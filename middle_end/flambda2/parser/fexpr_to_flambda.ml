@@ -144,7 +144,7 @@ let fresh_function_slot env { Fexpr.txt = name; loc = _ } =
   let c =
     Function_slot.create
       (Compilation_unit.get_current_exn ())
-      ~name Flambda_kind.With_subkind.any_value
+      ~name ~is_always_immediate:false Flambda_kind.value
   in
   UT.add env.function_slots name c;
   c
@@ -155,7 +155,11 @@ let fresh_or_existing_function_slot env ({ Fexpr.txt = name; loc = _ } as id) =
   | Some function_slot -> function_slot
 
 let fresh_value_slot env { Fexpr.txt = name; loc = _ } kind =
-  let c = Value_slot.create (Compilation_unit.get_current_exn ()) ~name kind in
+  let c =
+    Value_slot.create
+      (Compilation_unit.get_current_exn ())
+      ~name ~is_always_immediate:false kind
+  in
   WT.add env.vars_within_closures name c;
   c
 
@@ -436,7 +440,7 @@ let unop env (unop : Fexpr.unop) : Flambda_primitive.unary_primitive =
     Opaque_identity { middle_end_only = false; kind = Flambda_kind.value }
   | Project_value_slot { project_from; value_slot } ->
     (* CR mshinwell: support non-value kinds *)
-    let kind = Flambda_kind.With_subkind.any_value in
+    let kind = Flambda_kind.value in
     let value_slot = fresh_or_existing_value_slot env value_slot kind in
     let project_from = fresh_or_existing_function_slot env project_from in
     Project_value_slot { project_from; value_slot }
@@ -562,8 +566,7 @@ let set_of_closures env fun_decls value_slots alloc =
   let value_slots : Simple.t Value_slot.Map.t =
     let convert ({ var; value } : Fexpr.one_value_slot) =
       (* CR mshinwell: support non-value kinds *)
-      ( fresh_or_existing_value_slot env var Flambda_kind.With_subkind.any_value,
-        simple env value )
+      fresh_or_existing_value_slot env var Flambda_kind.value, simple env value
     in
     List.map convert value_slots |> Value_slot.Map.of_list
   in
@@ -664,41 +667,51 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
       match sort with Exn -> true | Normal | Define_root_symbol -> false
     in
     let sort = continuation_sort sort in
+    let arity =
+      match recursive with
+      | Nonrecursive -> List.length params
+      | Recursive invariant_params ->
+        List.length invariant_params + List.length params
+    in
     let name, body_env =
       if is_exn_handler
       then
         let e, env = fresh_exn_cont env name in
         Exn_continuation.exn_handler e, env
-      else fresh_cont env name ~sort ~arity:(List.length params)
+      else fresh_cont env name ~sort ~arity
     in
     let body = expr body_env body in
-    let env =
-      match recursive with Nonrecursive -> env | Recursive -> body_env
+    let create_params env params =
+      let env, parameters =
+        List.fold_right
+          (fun ({ param; kind } : Fexpr.kinded_parameter) (env, args) ->
+            let var, env = fresh_var env param in
+            let param =
+              Bound_parameter.create var (value_kind_with_subkind_opt kind)
+            in
+            env, param :: args)
+          params (env, [])
+      in
+      env, Bound_parameters.create parameters
     in
-    let handler_env, params =
-      List.fold_right
-        (fun ({ param; kind } : Fexpr.kinded_parameter) (env, args) ->
-          let var, env = fresh_var env param in
-          let param =
-            Bound_parameter.create var (value_kind_with_subkind_opt kind)
-          in
-          env, param :: args)
-        params (env, [])
+    let env, invariant_params =
+      match recursive with
+      | Nonrecursive -> env, Bound_parameters.empty
+      | Recursive invariant_params -> create_params body_env invariant_params
     in
+    let handler_env, params = create_params env params in
     let handler = expr handler_env handler in
     let handler =
-      Flambda.Continuation_handler.create
-        (Bound_parameters.create params)
-        ~handler ~free_names_of_handler:Unknown ~is_exn_handler ~is_cold:false
+      Flambda.Continuation_handler.create params ~handler
+        ~free_names_of_handler:Unknown ~is_exn_handler ~is_cold:false
     in
     match recursive with
     | Nonrecursive ->
       Flambda.Let_cont.create_non_recursive name handler ~body
         ~free_names_of_body:Unknown
-    | Recursive ->
+    | Recursive _ ->
       let handlers = Continuation.Lmap.singleton name handler in
-      Flambda.Let_cont.create_recursive ~invariant_params:Bound_parameters.empty
-        handlers ~body)
+      Flambda.Let_cont.create_recursive ~invariant_params handlers ~body)
   | Let_cont _ -> failwith "TODO andwhere"
   | Apply_cont ac -> Flambda.Expr.create_apply_cont (apply_cont env ac)
   | Switch { scrutinee; cases } ->

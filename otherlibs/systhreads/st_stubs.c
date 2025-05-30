@@ -134,6 +134,7 @@ struct caml_thread_struct {
   char * async_exn_handler;  /* saved value of Caml_state->async_exn_handler */
   memprof_thread_t memprof;  /* memprof's internal thread data structure */
   void * signal_stack;       /* this thread's signal stack */
+  size_t signal_stack_size;  /* size of this thread's signal stack in bytes */
   int is_main;               /* whether this is the main thread of its domain */
 
 #ifndef NATIVE_CODE
@@ -349,6 +350,7 @@ CAMLexport void caml_switch_runtime_locking_scheme(struct caml_locking_scheme* n
     caml_fatal_error("Switching locking scheme is unsupported in multicore programs");
   CAMLassert (!caml_domain_is_multicore());
   save_runtime_state();
+  domain_lockmode = LOCKMODE_CUSTOM_SCHEME;
   old = atomic_exchange(&Locking_scheme(dom_id), new);
   /* We hold 'old', but it is no longer the runtime lock */
   old->unlock(old->context);
@@ -768,7 +770,7 @@ static void thread_detach_from_runtime(void)
   caml_threadstatus_terminate(Terminated(th->descr));
   /* Remove signal stack */
   CAMLassert(th->signal_stack != NULL);
-  caml_free_signal_stack(th->signal_stack);
+  caml_free_signal_stack(th->signal_stack, th->signal_stack_size);
   /* The following also sets Active_thread to a sane value in case the
      backup thread does a GC before the domain lock is acquired
      again.  It also removes the thread from memprof. */
@@ -784,7 +786,7 @@ static void thread_init_current(caml_thread_t th)
 {
   st_tls_set(caml_thread_key, th);
   restore_runtime_state(th);
-  th->signal_stack = caml_init_signal_stack();
+  th->signal_stack = caml_init_signal_stack(&th->signal_stack_size);
 }
 
 /* Create a thread */

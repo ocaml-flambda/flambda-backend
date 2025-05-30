@@ -734,14 +734,14 @@ let mk_not dbg cmm =
     | _ ->
       (* 0 -> 3, 1 -> 1 *)
       Cop
-        ( Csubi,
+        ( Cxor,
           [Cconst_int (3, dbg); Cop (Clsl, [c; Cconst_int (1, dbg)], dbg)],
           dbg ))
   | Cconst_int (3, _) -> Cconst_int (1, dbg)
   | Cconst_int (1, _) -> Cconst_int (3, dbg)
   | c ->
     (* 1 -> 3, 3 -> 1 *)
-    Cop (Csubi, [Cconst_int (4, dbg); c], dbg)
+    Cop (Cxor, [Cconst_int (2, dbg); c], dbg)
 
 let mk_compare_ints_untagged dbg a1 a2 =
   bind "int_cmp" a2 (fun a2 ->
@@ -2988,12 +2988,12 @@ let maybe_reset_current_region ~dbg ~body_tail ~body_nontail old_region =
       dbg () )
 
 let apply_or_call_caml_apply result arity mut clos args pos mode dbg =
-  match args with
-  | [arg] ->
+  match arity with
+  | [_] ->
     bind "fun" clos (fun clos ->
         Cop
           ( Capply (Extended_machtype.to_machtype result, pos),
-            [get_field_codepointer mut clos 0 dbg; arg; clos],
+            (get_field_codepointer mut clos 0 dbg :: args) @ [clos],
             dbg ))
   | _ -> call_caml_apply result arity mut clos args pos mode dbg
 
@@ -4354,10 +4354,12 @@ let indirect_call ~dbg ty pos alloc_mode f args_type args =
   might_split_call_caml_apply ty args_type Asttypes.Mutable f args pos
     alloc_mode dbg
 
-let indirect_full_call ~dbg ty pos alloc_mode f args_type = function
+let indirect_full_call ~dbg ty pos alloc_mode f args_type args =
+  match args_type with
   (* the single-argument case is already optimized by indirect_call *)
-  | [_] as args -> indirect_call ~dbg ty pos alloc_mode f args_type args
-  | args ->
+  | [_] -> indirect_call ~dbg ty pos alloc_mode f args_type args
+  | [] -> Misc.fatal_error "indirect_full_call: args_type was empty"
+  | _ :: _ :: _ ->
     (* Use a variable to avoid duplicating the cmm code of the closure [f]. *)
     let v = Backend_var.create_local "*closure*" in
     let v' = Backend_var.With_provenance.create v in

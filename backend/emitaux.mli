@@ -19,56 +19,13 @@
 
 val output_channel : out_channel ref
 
-val femit_string : out_channel -> string -> unit
-
 val emit_string : string -> unit
 
-val femit_int : out_channel -> int -> unit
-
-val emit_int : int -> unit
-
-val femit_nativeint : out_channel -> nativeint -> unit
-
-val emit_nativeint : nativeint -> unit
-
-val femit_int32 : out_channel -> int32 -> unit
-
-val emit_int32 : int32 -> unit
-
-val femit_symbol : out_channel -> string -> unit
-
-val emit_symbol : string -> unit
-
-(* CR sspies: use types to distinguish the two string versions *)
-val symbol_to_string : string -> string
-
-val emit_printf : ('a, out_channel, unit) format -> 'a
-
-val femit_char : out_channel -> char -> unit
-
-val emit_char : char -> unit
-
-val femit_string_literal : out_channel -> string -> unit
-
-val emit_string_literal : string -> unit
-
-val emit_string_directive : string -> string -> unit
-
-val emit_bytes_directive : string -> string -> unit
-
-val emit_float64_directive : string -> int64 -> unit
-
-val emit_float64_split_directive : string -> int64 -> unit
-
-val emit_float32_directive : string -> int32 -> unit
+val emit_buffer : Buffer.t -> unit
 
 val reset : unit -> unit
 
 val reset_debug_info : unit -> unit
-
-val femit_debug_info : ?discriminator:int -> out_channel -> Debuginfo.t -> unit
-
-val emit_debug_info : ?discriminator:int -> Debuginfo.t -> unit
 
 val emit_debug_info_gen :
   ?discriminator:int ->
@@ -76,10 +33,6 @@ val emit_debug_info_gen :
   (file_num:int -> file_name:string -> unit) ->
   (file_num:int -> line:int -> col:int -> ?discriminator:int -> unit -> unit) ->
   unit
-
-(** Get the file number associated with the filename (or allocate one) *)
-val get_file_num :
-  file_emitter:(file_num:int -> file_name:string -> unit) -> string -> int
 
 type frame_debuginfo =
   | Dbg_alloc of Cmm.alloc_dbginfo
@@ -100,9 +53,12 @@ val record_frame_descr :
 type emit_frame_actions =
   { efa_code_label : Label.t -> unit;
     efa_data_label : Label.t -> unit;
-    efa_8 : int -> unit;
-    efa_16 : int -> unit;
-    efa_32 : int32 -> unit;
+    efa_i8 : Numbers.Int8.t -> unit;
+    efa_i16 : Numbers.Int16.t -> unit;
+    efa_i32 : Int32.t -> unit;
+    efa_u8 : Numbers.Uint8.t -> unit;
+    efa_u16 : Numbers.Uint16.t -> unit;
+    efa_u32 : Numbers.Uint32.t -> unit;
     efa_word : int -> unit;
     efa_align : int -> unit;
     efa_label_rel : Label.t -> int32 -> unit;
@@ -113,22 +69,6 @@ type emit_frame_actions =
 val emit_frames : emit_frame_actions -> unit
 
 val is_generic_function : string -> bool
-
-val cfi_startproc : unit -> unit
-
-val cfi_endproc : unit -> unit
-
-val cfi_adjust_cfa_offset : int -> unit
-
-val cfi_offset : reg:int -> offset:int -> unit
-
-val cfi_def_cfa_offset : int -> unit
-
-val cfi_remember_state : unit -> unit
-
-val cfi_restore_state : unit -> unit
-
-val cfi_def_cfa_register : reg:int -> unit
 
 (** Is a binary backend available.  If yes, we don't need
         to generate the textual assembly file (unless the user

@@ -20,8 +20,12 @@ several different dimensions. For example, kinds can be used to identify which
 types have values that are passed in floating point registers, or are safely
 ignored by the garbage collector.
 
-The kind of a type has four components: the _layout_, the _modal bounds_, the
-_with-bounds_, and the _non-modal bounds_. The layout describes the shape of the
+The kind of a type has four components:
+* the _layout_,
+* the _modal bounds_,
+* the _with-bounds_,
+* and the _non-modal bounds_.
+The layout describes the shape of the
 data at runtime, and is used to support unboxed types. The modal bounds describe
 how different types interact with our mode system. In particular, some types
 don't have interesting interactions with some modes, so values of these types
@@ -37,15 +41,16 @@ less precise kind is expected.
 This page describes the kind system at a high level, and contains complete
 details for the non-modal bounds. It does not exhaustively describe the possible
 layouts (which are documented on the [unboxed types
-page](../unboxed-types/index)) or the modal axes (which are documented on the
-[modes page](../modes/intro)), but does explain how those components appear in
+page](../../unboxed-types/index)) or the modal axes (which are documented on the
+[modes page](../../modes/intro)), but does explain how those components appear in
 kinds, including how the modal bounds are affected by the with-bounds.
-
+<!--
+TODO
 CR ccasinghino: add links to modes documentation after moving it here.
 
 CR reisenberg: Where should/do we document mode crossing? There is some text
 in proposals/unboxed-types/kinds.md that might be useful.
-
+-->
 # The basic structure of kinds
 
 Basic kinds have the form:
@@ -79,7 +84,7 @@ addition, `int`s are not `float`s and they do not need to be garbage-collected
 
 # The meaning of kinds
 
-In additional to `value`, OxCaml supports layouts like `float64` (unboxed
+In addition to `value`, OxCaml supports layouts like `float64` (unboxed
 floating point numbers that are passed in SIMD registers), `bits64`
 and `bits32` (for types represented by unboxed/untagged integers) and product
 layouts like `float64 & bits32` (an unboxed pair that is passed in two
@@ -93,7 +98,7 @@ meaning of the mode and details of the implementation of related features in the
 OxCaml runtime. See the documentation for each mode to understand which types
 cross on its axis.
 
-Formally, these are called modal _bounds_ because the represent upper or lower
+Formally, these are called modal _bounds_ because they represent upper or lower
 bounds on the appropriate modal axes. For _future_ modal axes (like portability
 and linearity), the kind records an upper bound on the mode of values of this
 type. For example, `int` is `mod portable` because if you have an `int` that is
@@ -103,11 +108,11 @@ _expectations_.  For example, `int` is `mod contended` because in a place where
 an `uncontended` value is expected, it's still safe to use a `contended` int.
 
 Why do past and future modal axes get different treatment in kinds? This is
-covered in the "Advanced Topics" section below, but isn't essential to
+covered in the [Advanced Topics](#advanced-topics) section below, but isn't essential to
 understand for day-to-day use of the system.
 
-The non-modal bounds encode several different properties; see the section
-"Non-modal bounds" below. They are called bounds because each non-modal axis
+The non-modal bounds encode several different properties; see the
+[Non-modal bounds](../non-modal) document. They are called bounds because each non-modal axis
 still supports a sub-kinding relationship, where a type of a more specific kind
 can be used in place of a variable of a less specific kind.
 
@@ -129,16 +134,16 @@ contended`, or `value mod portable` and `value mod aliased`.
 Adding bounds to a kind always makes the kind more specific, or lower. That is,
 for any kind `k`, `k mod <bounds> <= k`.
 
-Along the future modal axes, a lower mode leads to a lower kind. So `value mod
-stateless <= value mod observing`, and bounding by the maximum mode has no
-effect. However, along the past modal axes, a _higher_ mode leads to a lower
-kind. So `value mod contended <= value mod sharing` and bounding by the minimum
-mode has no effect. We can think of the past axes as flipped, when used in a
-kind. This is because `value mod contended` is more restrictive than `value mod
-sharing` (the former contains types that do not care at all about the value of
-the contention axis, while the latter contains types that still care about the
-distinction between `contended` and `sharing`/`uncontended`), and so we must
-flip these past axes (somewhat unfortunately).
+Along the future modal axes, a _lower_ mode leads to a lower kind. So `stateless
+< observing` leads to `value mod stateless <= value mod observing`, and bounding
+by the maximum mode has no effect. However, along the past modal axes, a
+_higher_ mode leads to a lower kind. So `shared < contended` leads to `value mod
+contended <= value mod shared` and it's bounding by the minimum mode that has no
+effect. Thus (beware), past modal axes are flipped, when used in a kind. For
+instance, `value mod contended` is _more restrictive_ than `value mod shared`.
+The former only contains types that do not care about the value of the
+contention axis, while the latter also contains types that care about the
+distinction between `contended` and `shared`/`uncontended`.
 
 If you want to get nerdy about it, each individual piece of a kind (the layout
 and each possible axis of bounds) is a join semilattice, and the order we're
@@ -209,7 +214,7 @@ by types with any kind (e.g., `Sexpable`).
 # With-bounds
 
 Sometimes the kind of a type constructor depends on the kinds of the types that
-instantiate its parameters.  For example, the type `'a list` can mode cross on
+are passed as arguments.  For example, the type `'a list` can mode cross on
 the portability axis if `'a` does.
 
 We could have a `list` whose kind is restricted to work on types that more cross

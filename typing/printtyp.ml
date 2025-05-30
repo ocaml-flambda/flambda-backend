@@ -662,6 +662,22 @@ and raw_lid_type_list tl =
   raw_list (fun ppf (lid, typ) ->
              fprintf ppf "(@,%a,@,%a)" longident lid raw_type typ)
     tl
+and raw_row_desc ppf row =
+  let Row {fields; more; name; fixed; closed} = row_repr row in
+  fprintf ppf
+    "@[<hov1>{@[%s@,%a;@]@ @[%s@,%a;@]@ %s%B;@ %s%a;@ @[<1>%s%t@]}@]"
+    "row_fields="
+    (raw_list (fun ppf (l, f) ->
+       fprintf ppf "@[%s,@ %a@]" l raw_field f))
+    fields
+    "row_more=" raw_type more
+    "row_closed=" closed
+    "row_fixed=" raw_row_fixed fixed
+    "row_name="
+    (fun ppf ->
+       match name with None -> fprintf ppf "None"
+                     | Some(p,tl) ->
+                       fprintf ppf "Some(@,%a,@,%a)" path p raw_type_list tl)
 and raw_type_desc ppf = function
     Tvar { name; jkind } ->
       fprintf ppf "Tvar (@,%a,@,%a)"
@@ -704,30 +720,19 @@ and raw_type_desc ppf = function
         raw_type t
         raw_type_list tl
   | Tvariant row ->
-      let Row {fields; more; name; fixed; closed} = row_repr row in
-      fprintf ppf
-        "@[<hov1>{@[%s@,%a;@]@ @[%s@,%a;@]@ %s%B;@ %s%a;@ @[<1>%s%t@]}@]"
-        "row_fields="
-        (raw_list (fun ppf (l, f) ->
-          fprintf ppf "@[%s,@ %a@]" l raw_field f))
-        fields
-        "row_more=" raw_type more
-        "row_closed=" closed
-        "row_fixed=" raw_row_fixed fixed
-        "row_name="
-        (fun ppf ->
-          match name with None -> fprintf ppf "None"
-          | Some(p,tl) ->
-              fprintf ppf "Some(@,%a,@,%a)" path p raw_type_list tl)
+    raw_row_desc ppf row
   | Tpackage (p, fl) ->
       fprintf ppf "@[<hov1>Tpackage(@,%a,@,%a)@]" path p
         raw_lid_type_list fl
+  | Tof_kind jkind ->
+    fprintf ppf "(type@ :@ %a)" Jkind.format jkind
 and raw_row_fixed ppf = function
 | None -> fprintf ppf "None"
 | Some Types.Fixed_private -> fprintf ppf "Some Fixed_private"
 | Some Types.Rigid -> fprintf ppf "Some Rigid"
 | Some Types.Univar t -> fprintf ppf "Some(Univar(%a))" raw_type t
 | Some Types.Reified p -> fprintf ppf "Some(Reified(%a))" path p
+| Some Types.Fixed_existential -> fprintf ppf "Some Fixed_existential"
 
 and raw_field ppf rf =
   match_row_field
@@ -1419,14 +1424,14 @@ let tree_of_modality_old (t: Parsetree.modality loc) =
   | Modality "global" -> Some (Ogf_legacy Ogf_global)
   | _ -> None
 
-let tree_of_modalities mut attrs t =
-  let t = Typemode.untransl_modalities mut attrs t in
+let tree_of_modalities mut t =
+  let t = Typemode.untransl_modalities mut t in
   match all_or_none tree_of_modality_old t with
   | Some l -> l
   | None -> List.map tree_of_modality_new t
 
-let tree_of_modalities_new mut attrs t =
-  let l = Typemode.untransl_modalities mut attrs t in
+let tree_of_modalities_new mut t =
+  let l = Typemode.untransl_modalities mut t in
   List.map (fun ({txt = Parsetree.Modality s; _}) -> s) l
 
 (** [tree_of_mode m l] finds the outcome node in [l] that corresponds to [m].
@@ -1599,6 +1604,8 @@ let rec tree_of_typexp mode alloc_mode ty =
               tree_of_typexp mode Alloc.Const.legacy ty
             )) fl in
         Otyp_module (tree_of_path (Some Module_type) p, fl)
+    | Tof_kind jkind ->
+      Otyp_of_kind (out_jkind_of_desc (Jkind.get jkind))
   in
   if List.memq px !delayed then delayed := List.filter ((!=) px) !delayed;
   alias_nongen_row mode px ty;
@@ -1643,7 +1650,7 @@ and tree_of_labeled_typlist mode tyl =
 
 and tree_of_typ_gf {ca_type=ty; ca_modalities=gf; _} =
   (tree_of_typexp Type Alloc.Const.legacy ty,
-   tree_of_modalities Immutable [] gf)
+   tree_of_modalities Immutable gf)
 
 (** We are on the RHS of an arrow type, where [ty] is the return type, and [m]
     is the return mode. This function decides the printed modes on [ty].
@@ -1833,7 +1840,8 @@ let tree_of_label l =
     match l.ld_mutable with
     | Mutable m ->
         let mut =
-          if Alloc.Comonadic.Const.eq m Alloc.Comonadic.Const.legacy then
+          let open Alloc.Comonadic.Const in
+          if Misc.Le_result.equal ~le m legacy then
             Om_mutable None
           else
             Om_mutable (Some "<non-legacy>")
@@ -1841,9 +1849,7 @@ let tree_of_label l =
         mut
     | Immutable -> Om_immutable
   in
-  let ld_modalities =
-    tree_of_modalities l.ld_mutable l.ld_attributes l.ld_modalities
-  in
+  let ld_modalities = tree_of_modalities l.ld_mutable l.ld_modalities in
   (Ident.name l.ld_id, mut, tree_of_typexp Type l.ld_type, ld_modalities)
 
 let tree_of_constructor_arguments = function
@@ -2264,8 +2270,7 @@ let tree_of_value_description id decl =
   let vd =
     { oval_name = id;
       oval_type = Otyp_poly(qtvs, ty);
-      oval_modalities =
-        tree_of_modalities_new Immutable decl.val_attributes moda;
+      oval_modalities = tree_of_modalities_new Immutable moda;
       oval_prims = [];
       oval_attributes = attrs
     }
@@ -3039,6 +3044,7 @@ let explain_fixed_row pos expl = match expl with
            print_path p ppf))
       p
   | Rigid -> ignore
+  | Fixed_existential -> ignore
 
 let explain_variant (type variety) : variety Errortrace.variant -> _ = function
   (* Common *)
@@ -3062,7 +3068,7 @@ let explain_variant (type variety) : variety Errortrace.variant -> _ = function
         dprintf "@,@[%t,@ %a@]" (explain_fixed_row pos e)
           explain_fixed_row_case k
       )
-  | Errortrace.Fixed_row (_,_, Rigid) ->
+  | Errortrace.Fixed_row (_,_, (Rigid | Fixed_existential)) ->
       (* this case never happens *)
       None
   (* Equality & Moregen *)
@@ -3184,14 +3190,22 @@ let explanation (type variety) intro prev env
       Some (dprintf "@ @[<hov>%a@]"
               (Jkind.Violation.report_with_offender_sort
                  ~offender:(fun ppf -> type_expr ppf t)) e)
-  | Errortrace.Unequal_var_jkinds (t1,l1,t2,l2) ->
-      let fmt_history t l ppf =
+  | Errortrace.Unequal_var_jkinds (t1,k1,t2,k2) ->
+      let fmt_history t k ppf =
         Jkind.(format_history ~intro:(
-          dprintf "The layout of %a is %a" prepared_type_expr t format l) ppf l)
+          dprintf "The layout of %a is %a" prepared_type_expr t format k) ppf k)
       in
       Some (dprintf "@ because the layouts of their variables are different.\
                      @ @[<v>%t@;%t@]"
-              (fmt_history t1 l1) (fmt_history t2 l2))
+              (fmt_history t1 k1) (fmt_history t2 k2))
+  | Errortrace.Unequal_tof_kind_jkinds (k1, k2) ->
+      let fmt_history which k ppf =
+        Jkind.(format_history ~intro:(
+          dprintf "The kind of %s is %a" which format k) ppf k)
+      in
+      Some (dprintf "@ because their kinds are different.\
+                     @ @[<v>%t@;%t@]"
+              (fmt_history "the first" k1) (fmt_history "the second" k2))
 
 let mismatch intro env trace =
   Errortrace.explain trace (fun ~prev h -> explanation intro prev env h)
@@ -3255,7 +3269,8 @@ let error trace_format mode subst env tr txt1 ppf txt2 ty_expect_explanation =
       tr
   in
   let jkind_error = match Misc.last tr with
-    | Some (Bad_jkind _ | Bad_jkind_sort _ | Unequal_var_jkinds _) ->
+    | Some (Bad_jkind _ | Bad_jkind_sort _ | Unequal_var_jkinds _
+           | Unequal_tof_kind_jkinds _) ->
         true
     | Some (Diff _ | Escape _ | Variant _ | Obj _ | Incompatible_fields _
            | Rec_occur _)

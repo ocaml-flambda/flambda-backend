@@ -425,7 +425,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
   let compilation_unit = Compilation_unit.get_current_exn () in
   let wrapper_function_slot =
     Function_slot.create compilation_unit ~name:"partial_app_closure"
-      K.With_subkind.any_value
+      ~is_always_immediate:false K.value
   in
   (* The allocation mode of the closure is directly determined by the alloc_mode
      of the application. We check here that it is consistent with
@@ -507,7 +507,15 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
                 }
         end in
         let mk_value_slot kind =
-          Value_slot.create compilation_unit ~name:"arg" kind
+          let is_always_immediate =
+            match[@ocaml.warning "-4"]
+              K.With_subkind.non_null_value_subkind kind
+            with
+            | Tagged_immediate -> true
+            | _ -> false
+          in
+          Value_slot.create compilation_unit ~name:"arg" ~is_always_immediate
+            (K.With_subkind.kind kind)
         in
         let applied_value (value, kind) =
           Simple.pattern_match' value

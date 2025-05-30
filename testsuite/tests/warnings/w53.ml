@@ -6,8 +6,8 @@
  check-ocamlc.byte-output;
 *)
 
-type r0 = {s : string [@no_mutable_implied_modalities]} (* rejected *)
-type r1 = {mutable s : string [@no_mutable_implied_modalities]} (* accepted *)
+
+
 
 module type TestAlertSig = sig
   type t1 = Foo1 [@alert foo "foo"] (* accepted *)

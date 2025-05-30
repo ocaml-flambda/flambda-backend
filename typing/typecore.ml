@@ -1711,20 +1711,19 @@ let solve_Ppat_construct ~refine tps penv loc constr no_existentials
     unify_pat_types_return_equated_pairs ~refine loc penv ty_res expected_ty
   in
 
-  let ty_args_ty, ty_args_gf, equated_types, existential_ctyp =
+  let ty_args, equated_types, existential_ctyp =
     with_local_level_iter ~post: generalize_structure begin fun () ->
       let expected_ty = instance expected_ty in
-      let ty_args_ty, ty_args_gf, ty_res, equated_types, existential_ctyp =
+      let ty_args, ty_args_ty, ty_res, equated_types, existential_ctyp =
         match existential_styp with
           None ->
             let ty_args, ty_res, _ =
               instance_constructor (Make_existentials_abstract penv) constr
             in
-            let ty_args_ty, ty_args_gf =
-              List.split
-                (List.map (fun ca -> ca.Types.ca_type, ca.Types.ca_modalities) ty_args)
+            let ty_args_ty =
+              List.map (fun ca -> ca.Types.ca_type) ty_args
             in
-            ty_args_ty, ty_args_gf, ty_res, unify_res ty_res expected_ty, None
+            ty_args, ty_args_ty, ty_res, unify_res ty_res expected_ty, None
         | Some (name_list, sty) ->
             let existential_treatment =
               if name_list = [] then
@@ -1738,19 +1737,20 @@ let solve_Ppat_construct ~refine tps penv loc constr no_existentials
               instance_constructor existential_treatment constr
             in
             let equated_types = unify_res ty_res expected_ty in
-            let ty_args_ty, ty_args_gf =
-              List.split
-                (List.map (fun ca -> ca.Types.ca_type, ca.Types.ca_modalities) ty_args)
-            in
+            let ty_args_ty = List.map (fun ca -> ca.Types.ca_type) ty_args in
             let ty_args_ty, existential_ctyp =
               solve_constructor_annotation tps penv name_list sty ty_args_ty
                 ty_ex
             in
-            ty_args_ty, ty_args_gf, ty_res, equated_types, existential_ctyp
+            let ty_args =
+              List.map2 (fun arg ca_type -> {arg with Types.ca_type}) ty_args
+                ty_args_ty
+            in
+            ty_args, ty_args_ty, ty_res, equated_types, existential_ctyp
       in
       if constr.cstr_existentials <> [] then
         lower_variables_only !!penv penv.Pattern_env.equations_scope ty_res;
-      ((ty_args_ty, ty_args_gf, equated_types, existential_ctyp),
+      ((ty_args, equated_types, existential_ctyp),
        expected_ty :: ty_res :: ty_args_ty)
     end
   in
@@ -1776,7 +1776,7 @@ let solve_Ppat_construct ~refine tps penv loc constr no_existentials
         equated_types
     with Warn_only_once -> ()
   end;
-  (ty_args_ty, ty_args_gf, existential_ctyp)
+  (ty_args, existential_ctyp)
 
 let solve_Ppat_record_field ~refine loc penv label label_lid record_ty
       record_form =
@@ -2447,11 +2447,11 @@ let check_recordpat_labels loc lbl_pat_list closed record_form =
 (* Constructors *)
 
 module Constructor = NameChoice (struct
-  type t = constructor_description
+  type t = constructor_description * Env.locks
   type usage = Env.constructor_usage
   let kind = Datatype_kind.Variant
-  let get_name cstr = cstr.cstr_name
-  let get_type cstr = cstr.cstr_res
+  let get_name (cstr, _) = cstr.cstr_name
+  let get_type (cstr, _) = cstr.cstr_res
   let lookup_all_from_type loc usage path env =
     match Env.lookup_all_constructors_from_type ~loc usage path env with
     | _ :: _ as x -> x
@@ -2465,7 +2465,9 @@ module Constructor = NameChoice (struct
             let filter lbl =
               compare_type_path env
                 path (get_constr_type_path @@ get_type lbl) in
-            let add_valid x acc = if filter x then (x,ignore)::acc else acc in
+            let add_valid x acc =
+              let x = (x, Env.locks_empty) in
+              if filter x then (x, ignore)::acc else acc in
             Env.fold_constructors add_valid None env []
         | _ -> []
   let in_env _ = true
@@ -2647,7 +2649,7 @@ and type_pat_aux
       solve_Ppat_array ~refine:false loc penv mutability expected_ty
     in
     let modalities =
-      Typemode.transl_modalities ~maturity:Stable mutability [] []
+      Typemode.transl_modalities ~maturity:Stable mutability []
     in
     check_project_mutability ~loc ~env:!!penv mutability alloc_mode.mode;
     let alloc_mode = Modality.Value.Const.apply modalities alloc_mode.mode in
@@ -2903,7 +2905,7 @@ and type_pat_aux
             let error = Wrong_expected_kind(srt, Pattern, expected_ty) in
             raise (Error (loc, !!penv, error))
       in
-      let constr =
+      let constr, locks =
         let candidates =
           Env.lookup_all_constructors Env.Pattern ~loc:lid.loc lid.txt !!penv in
         wrap_disambiguate "This variant pattern is expected to have"
@@ -2911,6 +2913,7 @@ and type_pat_aux
           (Constructor.disambiguate Env.Pattern lid !!penv expected_type)
           candidates
       in
+      let held_locks = (locks, lid.txt, lid.loc) in
       begin match no_existentials, constr.cstr_existentials with
       | None, _ | _, [] -> ()
       | Some r, (_ :: _) ->
@@ -2960,10 +2963,12 @@ and type_pat_aux
         raise(Error(loc, !!penv, Constructor_arity_mismatch(lid.txt,
                                      constr.cstr_arity, List.length sargs)));
 
-      let (ty_args_ty, ty_args_gf, existential_ctyp) =
+      let (args, existential_ctyp) =
         solve_Ppat_construct ~refine:false tps penv loc constr no_existentials
           existential_styp expected_ty
       in
+      Ctype.check_constructor_crossing !!penv constr.cstr_tag ~res:expected_ty
+        args held_locks;
 
       let rec check_non_escaping p =
         match p.ppat_desc with
@@ -2984,11 +2989,13 @@ and type_pat_aux
 
       let args =
         List.map2
-          (fun p (ty, gf) ->
-             let alloc_mode = Modality.Value.Const.apply gf alloc_mode.mode in
+          (fun p (arg : Types.constructor_argument) ->
+             let alloc_mode =
+              Modality.Value.Const.apply arg.ca_modalities alloc_mode.mode
+             in
              let alloc_mode = simple_pat_mode alloc_mode in
-             type_pat ~alloc_mode tps Value p ty)
-          sargs (List.combine ty_args_ty ty_args_gf)
+             type_pat ~alloc_mode tps Value p arg.ca_type)
+          sargs args
       in
       rvp { pat_desc=Tpat_construct(lid, constr, args, existential_ctyp);
             pat_loc = loc; pat_extra=[];
@@ -3543,12 +3550,12 @@ let rec check_counter_example_pat
   | Tpat_construct(cstr_lid, constr, targs, _) ->
       if constr.cstr_generalized && must_backtrack_on_gadt then
         raise Need_backtrack;
-      let (ty_args, _, existential_ctyp) =
+      let (ty_args, existential_ctyp) =
         solve_Ppat_construct ~refine type_pat_state penv loc constr None None
           expected_ty
       in
       map_fold_cont
-        (fun (p,t) -> check_rec p t)
+        (fun (p,t) -> check_rec p t.Types.ca_type)
         (List.combine targs ty_args)
         (fun args ->
           mkp k (Tpat_construct(cstr_lid, constr, args, existential_ctyp)))
@@ -4935,11 +4942,12 @@ let proper_exp_loc exp =
 (* To find reasonable names for let-bound and lambda-bound idents *)
 
 let rec name_pattern default = function
-    [] -> Ident.create_local default
+    [] -> Ident.create_local default,
+          Shape.Uid.internal_not_actually_unique
   | p :: rem ->
     match p.pat_desc with
-      Tpat_var (id, _, _, _) -> id
-    | Tpat_alias(_, id, _, _, _, _) -> id
+      Tpat_var (id, _, uid, _) -> id, uid
+    | Tpat_alias(_, id, _, uid, _, _) -> id, uid
     | _ -> name_pattern default rem
 
 let name_cases default lst =
@@ -6113,7 +6121,8 @@ and type_expect_
           | Record_mixed mixed -> begin
               match mixed.(label.lbl_num) with
               | Float_boxed -> true
-              | Float64 | Float32 | Value | Bits32 | Bits64 | Vec128 | Word ->
+              | Float64 | Float32 | Value | Bits32 | Bits64 | Vec128 | Word
+              | Product _ ->
                 false
             end
           | _ -> false
@@ -6294,8 +6303,7 @@ and type_expect_
           (mk_expected ~explanation:For_loop_stop_index Predef.type_int)
       in
       let env = Env.add_share_lock For_loop env in
-      (* When we'll want to add Uid to for loops, we can take it from here. *)
-      let (for_id, _for_uid), new_env =
+      let (for_id, for_uid), new_env =
         type_for_loop_index ~loc ~env ~param
       in
       let new_env = Env.add_region_lock new_env in
@@ -6304,8 +6312,9 @@ and type_expect_
         type_statement ~explanation:For_loop_body ~position new_env sbody
       in
       rue {
-        exp_desc = Texp_for {for_id; for_pat = param; for_from; for_to;
-                             for_dir = dir; for_body; for_body_sort };
+        exp_desc = Texp_for {for_id; for_debug_uid = for_uid; for_pat = param;
+                             for_from; for_to; for_dir = dir; for_body;
+                             for_body_sort };
         exp_loc = loc; exp_extra = [];
         exp_type = instance Predef.type_unit;
         exp_attributes = sexp.pexp_attributes;
@@ -6755,7 +6764,7 @@ and type_expect_
         | [case] -> case
         | _ -> assert false
       in
-      let param = name_cases "param" cases in
+      let param, param_debug_uid = name_cases "param" cases in
       let let_ =
         { bop_op_name = slet.pbop_op;
           bop_op_path = op_path;
@@ -6767,7 +6776,8 @@ and type_expect_
           bop_loc = slet.pbop_loc; }
       in
       let desc =
-        Texp_letop{let_; ands; param; param_sort; body; body_sort; partial}
+        Texp_letop{let_; ands; param; param_debug_uid; param_sort; body;
+                   body_sort; partial}
       in
       rue { exp_desc = desc;
             exp_loc = sexp.pexp_loc;
@@ -6784,9 +6794,11 @@ and type_expect_
                    Pstr_eval ({ pexp_desc = Pexp_construct (lid, None); _ }, _)
                } ] ->
           let path =
-            let cd =
+            let cd, held_locks =
               Env.lookup_constructor Env.Positive ~loc:lid.loc lid.txt env
             in
+            (* no argument and thus crossing portability *)
+            ignore held_locks;
             match cd.cstr_tag with
             | Extension path -> path
             | _ -> raise (Error (lid.loc, env, Not_an_extension_constructor))
@@ -6920,7 +6932,7 @@ and type_expect_
       in
       let cell_type =
         (* CR uniqueness: this could be the jkind of exp2 *)
-        mk_expected (newvar (Jkind.Builtin.value ~why:Boxed_record))
+        mk_expected (newvar (Jkind.for_non_float ~why:Boxed_record))
       in
       let exp1 = type_expect ~recarg env (mode_default cell_mode) exp1 cell_type in
       let new_fields_mode =
@@ -7438,14 +7450,17 @@ and type_function
       else if is_position typed_arg_label && not_nolabel_function ty_ret then
         Location.prerr_warning pat.pat_loc
           Warnings.Unerasable_position_argument;
-      let fp_kind, fp_param =
+      let fp_kind, fp_param, fp_param_debug_uid =
         match default_arg with
         | None ->
-            let param = name_pattern "param" [ pat ] in
-            Tparam_pat pat, param
+            let param, param_uid = name_pattern "param" [ pat ] in
+            Tparam_pat pat, param, param_uid
         | Some (default_arg, arg_label, default_arg_sort) ->
             let param = Ident.create_local ("*opt*" ^ arg_label) in
-            Tparam_optional_default (pat, default_arg, default_arg_sort), param
+            let param_uid = Shape.Uid.internal_not_actually_unique in
+            Tparam_optional_default (pat, default_arg, default_arg_sort),
+            param,
+            param_uid
       in
       let param =
         { has_poly;
@@ -7453,6 +7468,7 @@ and type_function
             { fp_kind;
               fp_arg_label = typed_arg_label;
               fp_param;
+              fp_param_debug_uid;
               fp_partial = partial;
               fp_newtypes = newtypes;
               fp_sort = arg_sort;
@@ -8120,16 +8136,17 @@ and type_argument ?explanation ?recarg ~overwrite env (mode : expected_mode) sar
         let e = {texp with exp_type = ty_res; exp_desc = Texp_exclave e} in
         let cases = [ case eta_pat e ] in
         let cases_loc = { texp.exp_loc with loc_ghost = true } in
-        let param = name_cases "param" cases in
+        let param, param_uid = name_cases "param" cases in
         { texp with exp_type = ty_fun; exp_desc =
           Texp_function
             { params = [];
               body =
                 Tfunction_cases
                   { fc_cases = cases; fc_partial = Total; fc_param = param;
-                    fc_env = env; fc_ret_type = ty_res;
-                    fc_loc = cases_loc; fc_exp_extra = None;
-                    fc_attributes = []; fc_arg_mode = Alloc.disallow_right marg;
+                    fc_param_debug_uid = param_uid; fc_env = env;
+                    fc_ret_type = ty_res; fc_loc = cases_loc;
+                    fc_exp_extra = None; fc_attributes = [];
+                    fc_arg_mode = Alloc.disallow_right marg;
                     fc_arg_sort = arg_sort;
                   };
               ret_mode = Alloc.disallow_right mret;
@@ -8146,10 +8163,16 @@ and type_argument ?explanation ?recarg ~overwrite env (mode : expected_mode) sar
           (Warnings.Non_principal_labels "eliminated omittable argument");
       (* let-expand to have side effects *)
       let let_pat, let_var = var_pair ~mode:exp_mode "arg" texp.exp_type in
+      let let_pat_sort =
+        (* The sort of the let-bound variable, which here is always a function
+           (observe it is passed to [func], which builds an application of
+           it). *)
+        Jkind.Sort.value
+      in
       re { texp with exp_type = ty_fun;
              exp_desc =
                Texp_let (Nonrecursive,
-                         [{vb_pat=let_pat; vb_expr=texp; vb_sort=arg_sort;
+                         [{vb_pat=let_pat; vb_expr=texp; vb_sort=let_pat_sort;
                            vb_attributes=[]; vb_loc=Location.none;
                            vb_rec_kind = Dynamic;
                           }],
@@ -8485,11 +8508,12 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
   let constrs =
     Env.lookup_all_constructors ~loc:lid.loc Env.Positive lid.txt env
   in
-  let constr =
+  let constr, locks =
     wrap_disambiguate "This variant expression is expected to have"
       ty_expected_explained
       (Constructor.disambiguate Env.Positive lid env expected_type) constrs
   in
+  let held_locks = (locks, lid.txt, lid.loc) in
   let sargs =
     match sarg with
     | None -> []
@@ -8539,6 +8563,8 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
         List.iter (fun {Types.ca_type=ty; _} -> generalize_structure ty) ty_args)
   in
   let ty_args, ty_res, texp = unify_as_construct ty_expected in
+  Ctype.check_constructor_crossing env constr.cstr_tag ~res:ty_res ty_args
+    held_locks;
   let ty_args0, ty_res =
     match instance_list (ty_res :: (List.map (fun ca -> ca.Types.ca_type) ty_args)) with
       t :: tl -> tl, t
@@ -9062,11 +9088,12 @@ and type_function_cases_expect
            (Tarrow ((Nolabel, arg_mode, ret_mode), ty_arg, ty_ret, commu_ok)))
     in
     unify_exp_types loc env ty_fun (instance ty_expected);
-    let param = name_cases "param" cases in
+    let param , param_uid = name_cases "param" cases in
     let cases =
       { fc_cases = cases;
         fc_partial = partial;
         fc_param = param;
+        fc_param_debug_uid = param_uid;
         fc_loc = loc;
         fc_exp_extra = None;
         fc_env = env;
@@ -9515,9 +9542,7 @@ and type_generic_array
     if Types.is_mutable mutability then Predef.type_array
     else Predef.type_iarray
   in
-  let modalities =
-    Typemode.transl_modalities ~maturity:Stable mutability [] []
-  in
+  let modalities = Typemode.transl_modalities ~maturity:Stable mutability [] in
   let argument_mode = mode_modality modalities array_mode in
   let jkind, elt_sort = Jkind.of_new_legacy_sort_var ~why:Array_element in
   let ty = newgenvar jkind in
@@ -9893,14 +9918,15 @@ and type_comprehension_iterator
       let stop  = tbound ~explanation:Comprehension_for_stop  stop  in
       (* When we'll want to add Uid to comprehension bindings,
          we can take it from here. *)
-      let (ident, _uid) =
+      let (ident, uid) =
         type_comprehension_for_range_iterator_index
           tps
           ~loc
           ~env
           ~param:pattern
       in
-      Texp_comp_range { ident; pattern; start; stop; direction }
+      Texp_comp_range { ident; ident_debug_uid = uid; pattern; start; stop;
+                        direction }
   | Pcomp_in seq ->
       let value_reason =
         match (comprehension_type : comprehension_type) with

@@ -453,6 +453,12 @@ let mk_flambda2_expert_cont_lifting_budget f =
     \ when lifting continuations (per function)"
 ;;
 
+let mk_flambda2_expert_cont_spec_budget f =
+  "-flambda2-expert-cont-specialization-budget", Arg.Int f,
+  Printf.sprintf " Set the limit on the number of continuations \n\
+    \ copied/generated when specializing a continuation (per function)"
+;;
+
 let mk_flambda2_debug_concrete_types_only_on_canonicals f =
   "-flambda2-debug-concrete-types-only-on-canonicals", Arg.Unit f,
   Printf.sprintf " Check that concrete\n\
@@ -815,6 +821,7 @@ module type Flambda_backend_options = sig
   val flambda2_expert_shorten_symbol_names : unit -> unit
   val no_flambda2_expert_shorten_symbol_names : unit -> unit
   val flambda2_expert_cont_lifting_budget : int -> unit
+  val flambda2_expert_cont_spec_budget : int -> unit
   val flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val flambda2_debug_keep_invalid_handlers : unit -> unit
@@ -973,6 +980,8 @@ struct
       F.no_flambda2_expert_shorten_symbol_names;
     mk_flambda2_expert_cont_lifting_budget
       F.flambda2_expert_cont_lifting_budget;
+    mk_flambda2_expert_cont_spec_budget
+      F.flambda2_expert_cont_spec_budget;
     mk_flambda2_debug_concrete_types_only_on_canonicals
       F.flambda2_debug_concrete_types_only_on_canonicals;
     mk_no_flambda2_debug_concrete_types_only_on_canonicals
@@ -1196,6 +1205,11 @@ module Flambda_backend_options_impl = struct
     (* continuation lifting requires the advanced meet algorithm *)
     if budget <> 0 then flambda2_advanced_meet ();
     Flambda2.Expert.cont_lifting_budget := Flambda_backend_flags.Set budget
+  let flambda2_expert_cont_spec_budget budget =
+    (* continuation lifting and specialization requires the advanced meet
+       algorithm *)
+    if budget <> 0 then flambda2_advanced_meet ();
+    Flambda2.Expert.cont_spec_budget := Flambda_backend_flags.Set budget
   let flambda2_debug_concrete_types_only_on_canonicals =
     set' Flambda2.Debug.concrete_types_only_on_canonicals
   let no_flambda2_debug_concrete_types_only_on_canonicals =
@@ -1514,6 +1528,13 @@ module Extra_params = struct
       begin match Compenv.check_int ppf name v with
       | Some i ->
          Flambda2.Expert.cont_lifting_budget := Flambda_backend_flags.Set i
+      | None -> ()
+      end;
+      true
+    | "flambda2-expert-cont-spec-budget" ->
+      begin match Compenv.check_int ppf name v with
+      | Some i ->
+         Flambda2.Expert.cont_spec_budget := Flambda_backend_flags.Set i
       | None -> ()
       end;
       true

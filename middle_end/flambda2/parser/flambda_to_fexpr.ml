@@ -676,10 +676,7 @@ let value_slots env map =
   List.map
     (fun (var, value) ->
       let kind = Value_slot.kind var in
-      if not
-           (Flambda_kind.equal
-              (Flambda_kind.With_subkind.kind kind)
-              Flambda_kind.value)
+      if not (Flambda_kind.equal kind Flambda_kind.value)
       then
         Misc.fatal_errorf "Value slot %a not of kind Value" Simple.print value;
       let var = Env.translate_value_slot env var in
@@ -1012,8 +1009,11 @@ and let_cont_expr env (lc : Flambda.Let_cont_expr.t) =
         Fexpr.Let_cont { recursive = Nonrecursive; bindings = [binding]; body })
   | Recursive handlers ->
     Flambda.Recursive_let_cont_handlers.pattern_match handlers
-      ~f:(fun ~invariant_params:_ ~body handlers ->
-        (* TODO support them *)
+      ~f:(fun ~invariant_params ~body handlers ->
+        let params, env =
+          map_accum_left kinded_parameter env
+            (Bound_parameters.to_list invariant_params)
+        in
         let env =
           List.fold_right
             (fun c env ->
@@ -1036,7 +1036,7 @@ and let_cont_expr env (lc : Flambda.Let_cont_expr.t) =
            |> Continuation.Lmap.bindings)
         in
         let body = expr env body in
-        Fexpr.Let_cont { recursive = Recursive; bindings; body })
+        Fexpr.Let_cont { recursive = Recursive params; bindings; body })
 
 and cont_handler env cont_id (sort : Continuation.Sort.t) h =
   let is_exn_handler = Flambda.Continuation_handler.is_exn_handler h in

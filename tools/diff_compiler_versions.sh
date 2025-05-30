@@ -41,7 +41,7 @@ TARGETDIR_REL_ABS=$1
 mkdir -p $TARGETDIR_REL_ABS
 TARGETDIR=$(realpath $TARGETDIR_REL_ABS)
 
-if [ $TARGETDIR = "/" ]; then
+if [ "$TARGETDIR" = "/" ]; then
   echo "Error: target directory cannot be root"
   exit 1
 fi

@@ -80,6 +80,7 @@ module Jkind_mod_bounds : sig
   module Visibility = Mode.Visibility.Const_op
   module Externality = Jkind_axis.Externality
   module Nullability = Jkind_axis.Nullability
+  module Separability = Jkind_axis.Separability
 
   type t
 
@@ -94,6 +95,7 @@ module Jkind_mod_bounds : sig
     visibility:Visibility.t ->
     externality:Externality.t ->
     nullability:Nullability.t ->
+    separability:Separability.t ->
     t
 
   val locality : t -> Locality.t
@@ -106,6 +108,7 @@ module Jkind_mod_bounds : sig
   val visibility : t -> Visibility.t
   val externality : t -> Externality.t
   val nullability : t -> Nullability.t
+  val separability : t -> Separability.t
 
   val set_locality : Locality.t -> t -> t
   val set_linearity : Linearity.t -> t -> t
@@ -117,6 +120,7 @@ module Jkind_mod_bounds : sig
   val set_visibility : Visibility.t -> t -> t
   val set_externality : Externality.t -> t -> t
   val set_nullability : Nullability.t -> t -> t
+  val set_separability : Separability.t -> t -> t
 
   (** [set_max_in_set bounds axes] sets all the axes in [axes] to their [max] within
       [bounds] *)
@@ -234,6 +238,15 @@ and type_desc =
   | Tpackage of Path.t * (Longident.t * type_expr) list
   (** Type of a first-class module (a.k.a package). *)
 
+  | Tof_kind of jkind_lr
+  (** [Tof_kind jkind] ==> [(type : jkind)]
+
+      The "canonical" type of a particular kind.
+
+      These types are uninhabited, and any appearing in translation will cause an error.
+      They are only used to represent the kinds of existentially-quantified types
+      mentioned in with-bounds. See test typing-jkind-bounds/gadt.ml *)
+
 (** This is used in the Typedtree. It is distinct from
     {{!Asttypes.arg_label}[arg_label]} because Position argument labels are
     discovered through typechecking. *)
@@ -248,11 +261,15 @@ and arrow_desc =
 
 
 
+(** See also documentation for [row_more], which enumerates how these
+    constructors arise. *)
 and fixed_explanation =
   | Univar of type_expr (** The row type was bound to an univar *)
   | Fixed_private (** The row type is private *)
   | Reified of Path.t (** The row was reified *)
   | Rigid (** The row type was made rigid during constraint verification *)
+  | Fixed_existential (** The row type is existential in a with-bound.
+                      See Note [With-bounds for GADTs] in Jkind. *)
 
 (** [abbrev_memo] allows one to keep track of different expansions of a type
     alias. This is done for performance purposes.
@@ -523,9 +540,57 @@ val create_row:
   name:(Path.t * type_expr list) option -> row_desc
 
 val row_fields: row_desc -> (label * row_field) list
+
+(** [row_more] returns a [type_expr] with one of the following [type_desc]s
+    (also described with the return from [row_fixed], which varies similarly):
+
+    * [Tvar]: This is a row variable; it would occur in e.g. [val f :
+    [> `A | `B] -> int]. When/if we learn more about a polymorphic variant, this
+    variable might get unified with one of the other [type_desc]s listed here,
+    or a [Tvariant] that represents a new set of constructors to add to the row.
+
+    During [constraint] checking (toward the end of checking a type declaration,
+    in [Typedecl.check_constraints_rec]) we [Ctype.rigidify] a type to make it
+    so that its unification variables will not unify. When a [Tvar] row variable
+    is rigidified, its [fixed_explanation] will be [Rigid].
+
+    * [Tunivar]: This is a universally quantified row variable; it would occur
+    in e.g. [type t = { f : 'a. ([> `A | `B ] as 'a) -> int }]. A [Tunivar] has
+    a [fixed_explanation] of [Univar].
+
+    * [Tconstr]: There are two possible ways this can happen:
+
+      1. This is an abstract [#row] type created by a [private] row type, as in
+      [type t = private [> `A | `B]]. In this case, the [fixed_explanation] will
+      be [Fixed_private].
+
+      2. This is a locally abstract type created by [Ctype.reify], which happens
+      when a row variable is free in the type of the scrutinee in a GADT pattern
+      match. The [fixed_explanation] will be [Reified]. Note that any manifest
+      of a reified row variable is actually ignored by [row_repr]; this causes
+      some incompletness in type inference.
+
+    * [Tnil]: Used to denote a static polymorphic variant (with no [>] or [<]).
+
+    * [Tof_kind]: See Wrinkle BW2 in Note [With-bounds for GADTs] in Jkind.
+    Briefly, [Tof_kind] can appear as a [row_more] when computing the kind
+    of a GADT with an existentially-bound row variable. The [fixed_explanation]
+    will be [Fixed_existential].
+
+    ----------------------------------------
+
+    It is an invariant that row variables are never shared between different
+    types. That is, if [row_more row1 == row_more row2], then [row1] and [row2]
+    come from structurally identical [Tvariant]s (but they might not be
+    physically equal). When copying types, two types with the same [row_more]
+    field are replaced by the same copy.
+*)
 val row_more: row_desc -> type_expr
 val row_closed: row_desc -> bool
+
+(** See documentation for [row_more]. *)
 val row_fixed: row_desc -> fixed_explanation option
+
 val row_name: row_desc -> (Path.t * type_expr list) option
 
 val set_row_name: row_desc -> (Path.t * type_expr list) option -> row_desc
@@ -761,6 +826,8 @@ and mixed_block_element =
   | Bits64
   | Vec128
   | Word
+  | Product of mixed_product_shape
+  (* Invariant: the array has at least two things in it. *)
 
 and mixed_product_shape = mixed_block_element array
 

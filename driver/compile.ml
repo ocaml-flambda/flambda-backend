@@ -23,7 +23,7 @@ let with_info =
 
 let interface ~source_file ~output_prefix =
   with_info ~source_file ~output_prefix ~dump_ext:"cmi"
-    ~compilation_unit:Inferred_from_output_prefix
+    ~compilation_unit:Inferred_from_output_prefix ~kind:Intf
   @@ fun info ->
   Compile_common.interface
     ~hook_parse_tree:(fun _ -> ())
@@ -49,6 +49,8 @@ let raw_lambda_to_bytecode i raw_lambda ~as_arg_for =
        |> print_if i.ppf_dump Clflags.dump_rawlambda Printlambda.lambda
        |> Simplif.simplify_lambda
        |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.lambda
+       |> Blambda_of_lambda.blambda_of_lambda
+       |> print_if i.ppf_dump Clflags.dump_blambda Printblambda.blambda
        |> Bytegen.compile_implementation i.module_name
        |> print_if i.ppf_dump Clflags.dump_instr Printinstr.instrlist
        |> fun bytecode ->
@@ -102,6 +104,7 @@ let implementation_aux ~start_from ~source_file ~output_prefix
     ~keep_symbol_tables:_
     ~(compilation_unit : Compile_common.compilation_unit_or_inferred) =
   with_info ~source_file ~output_prefix ~dump_ext:"cmo" ~compilation_unit
+    ~kind:Impl
   @@ fun info ->
   match start_from with
   | Parsing ->

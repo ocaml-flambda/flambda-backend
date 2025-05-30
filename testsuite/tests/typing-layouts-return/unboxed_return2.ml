@@ -5,11 +5,9 @@
  flambda2;
  arch_amd64;
  {
-   flags = "-extension layouts_alpha";
    native;
  }
  {
-   flags = "-extension layouts_alpha";
    bytecode;
  }
 *)

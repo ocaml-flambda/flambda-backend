@@ -224,6 +224,7 @@ type lock_item =
   | Value
   | Module
   | Class
+  | Constructor
 
 type structure_components_reason =
   | Project
@@ -233,7 +234,7 @@ type lookup_error =
   | Unbound_value of Longident.t * unbound_value_hint
   | Unbound_type of Longident.t
   | Unbound_constructor of Longident.t
-  | Unbound_label of (Longident.t * record_form_packed)
+  | Unbound_label of Longident.t * record_form_packed * label_usage
   | Unbound_module of Longident.t
   | Unbound_class of Longident.t
   | Unbound_modtype of Longident.t
@@ -255,7 +256,7 @@ type lookup_error =
   | Value_used_in_closure of lock_item * Longident.t * Mode.Value.Comonadic.error * closure_context
   | Local_value_used_in_exclave of lock_item * Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
-  | No_unboxed_version of Longident.t
+  | No_unboxed_version of Longident.t * type_declaration
   | Error_from_persistent_env of Persistent_env.error
 
 val lookup_error: Location.t -> t -> lookup_error -> 'a
@@ -317,14 +318,14 @@ val lookup_module_instance_path:
 
 val lookup_constructor:
   ?use:bool -> loc:Location.t -> constructor_usage -> Longident.t -> t ->
-  constructor_description
+  constructor_description * locks
 val lookup_all_constructors:
   ?use:bool -> loc:Location.t -> constructor_usage -> Longident.t -> t ->
-  ((constructor_description * (unit -> unit)) list,
+  (((constructor_description * locks) * (unit -> unit)) list,
    Location.t * t * lookup_error) result
 val lookup_all_constructors_from_type:
   ?use:bool -> loc:Location.t -> constructor_usage -> Path.t -> t ->
-  (constructor_description * (unit -> unit)) list
+  ((constructor_description * locks) * (unit -> unit)) list
 
 val lookup_label:
   ?use:bool -> record_form:'rcd record_form -> loc:Location.t -> label_usage -> Longident.t -> t ->
@@ -518,8 +519,8 @@ val reset_cache: preserve_persistent_env:bool -> unit
 val reset_cache_toplevel: unit -> unit
 
 (* Remember the name of the current compilation unit. *)
-val set_unit_name: Compilation_unit.t option -> unit
-val get_unit_name: unit -> Compilation_unit.t option
+val set_unit_name: Unit_info.t option -> unit
+val get_unit_name: unit -> Unit_info.t option
 
 (* Read, save a signature to/from a file. *)
 val read_signature:

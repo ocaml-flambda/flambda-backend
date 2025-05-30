@@ -49,6 +49,10 @@ type t =
     loopify_state : Loopify_state.t;
     replay_history : Replay_history.t;
         (* Replay history for the current continuation handler (or toplevel) *)
+    specialization_cost : Specialization_cost.t;
+        (* Accumulator to record whether the handler of the current continuation
+           can be specialized, or whether there are reasons why it could not (or
+           rather why it would not be beneficial) *)
     defined_variables_by_scope : Lifted_cont_params.t list;
         (* Stack of variables defined. The first element of the list refers to
            variables defined by the current continuation, and the last element
@@ -76,7 +80,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
                 are_rebuilding_terms; closure_info;
                 unit_toplevel_return_continuation; all_code;
                 get_imported_code = _; inlining_history_tracker = _;
-                loopify_state; replay_history; defined_variables_by_scope;
+                loopify_state; replay_history; specialization_cost; defined_variables_by_scope;
                 lifted = _; cost_of_lifting_continuations_out_of_current_one;
               } =
   Format.fprintf ppf "@[<hov 1>(\
@@ -97,6 +101,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
       @[<hov 1>(all_code@ %a)@]@ \
       @[<hov 1>(loopify_state@ %a)@]@ \
       @[<hov 1>(binding_histories@ %a)@]@ \
+      @[<hov 1>(specialization_cost@ %a)@]@ \
       @[<hov 1>(defined_variables_by_scope@ %a)@]@ \
       @[<hov 1>(cost_of_lifting_continuation_out_of_current_one %d)@]\
       )@]"
@@ -117,6 +122,7 @@ let [@ocamlformat "disable"] print ppf { round; typing_env;
     (Code_id.Map.print Code.print) all_code
     Loopify_state.print loopify_state
     Replay_history.print replay_history
+    Specialization_cost.print specialization_cost
     (Format.pp_print_list ~pp_sep:Format.pp_print_space Lifted_cont_params.print) defined_variables_by_scope
     cost_of_lifting_continuations_out_of_current_one
 
@@ -196,6 +202,7 @@ let create ~round ~(resolver : resolver)
         Inlining_history.Tracker.empty (Compilation_unit.get_current_exn ());
       loopify_state = Loopify_state.do_not_loopify;
       replay_history = Replay_history.first_pass;
+      specialization_cost = Specialization_cost.can_specialize;
       defined_variables_by_scope = [Lifted_cont_params.empty];
       lifted = Variable.Set.empty;
       cost_of_lifting_continuations_out_of_current_one = 0
@@ -273,6 +280,7 @@ let enter_set_of_closures
       inlining_history_tracker;
       loopify_state = _;
       replay_history = _;
+      specialization_cost = _;
       defined_variables_by_scope = _;
       lifted = _;
       cost_of_lifting_continuations_out_of_current_one = _
@@ -296,6 +304,7 @@ let enter_set_of_closures
     inlining_history_tracker;
     loopify_state = Loopify_state.do_not_loopify;
     replay_history = Replay_history.first_pass;
+    specialization_cost = Specialization_cost.can_specialize;
     defined_variables_by_scope = [Lifted_cont_params.empty];
     lifted = Variable.Set.empty;
     cost_of_lifting_continuations_out_of_current_one = 0
@@ -646,16 +655,21 @@ let must_inline t = Replay_history.must_inline t.replay_history
 
 let replay_history t = t.replay_history
 
+let map_specialization_cost ~f t =
+  { t with specialization_cost = f t.specialization_cost }
+
+let specialization_cost t = t.specialization_cost
+
 let denv_for_lifted_continuation ~denv_for_join ~denv =
-  (* At this point, we are lifting a continuation k' with handler [handlers],
-     out of a continuation k, and:
+  (* At this point, we are lifting a continuation k' with handler [handler], out
+     of a continuation k, and:
 
      - [denv_for_join] is the denv just before the let_cont for k
 
      - [denv] is the denv just before the let_cont for k'
 
-     And we need to decide which parts of denv to use to simplify the handlers
-     of k' after there are lifted out from the handler of k. *)
+     And we need to decide which parts of denv to use to simplify the handler of
+     k' after they are lifted out from the handler of k. *)
   { (* denv *)
     inlined_debuginfo = denv.inlined_debuginfo;
     can_inline = denv.can_inline;
@@ -669,6 +683,7 @@ let denv_for_lifted_continuation ~denv_for_join ~denv =
     cse = denv_for_join.cse;
     comparison_results = denv_for_join.comparison_results;
     replay_history = denv_for_join.replay_history;
+    specialization_cost = denv_for_join.specialization_cost;
     defined_variables_by_scope = denv_for_join.defined_variables_by_scope;
     lifted = denv_for_join.lifted;
     cost_of_lifting_continuations_out_of_current_one =

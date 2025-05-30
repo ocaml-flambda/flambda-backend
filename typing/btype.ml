@@ -20,6 +20,11 @@ open Types
 
 open Local_store
 
+(**** Forward declarations ****)
+
+let print_raw =
+  ref (fun _ -> assert false : Format.formatter -> type_expr -> unit)
+
 (**** Sets, maps and hashtables of types ****)
 
 let wrap_repr f ty = f (Transient_expr.repr ty)
@@ -34,6 +39,13 @@ module TypeSet = struct
   let exists p = TransientTypeSet.exists (wrap_type_expr p)
   let elements set =
     List.map Transient_expr.type_expr (TransientTypeSet.elements set)
+  let debug_print ppf t =
+    Format.(
+      fprintf ppf "{ %a }"
+        (pp_print_seq
+           ~pp_sep:(fun ppf () -> fprintf ppf ";@,")
+           !print_raw)
+        (to_seq t |> Seq.map Transient_expr.type_expr))
 end
 module TransientTypeMap = Map.Make(TransientTypeOps)
 module TypeMap = struct
@@ -95,10 +107,6 @@ module TypePairs = struct
         f (type_expr t1, type_expr t2))
 end
 
-(**** Forward declarations ****)
-
-let print_raw =
-  ref (fun _ -> assert false : Format.formatter -> type_expr -> unit)
 
 (**** Type level management ****)
 
@@ -149,6 +157,7 @@ let merge_fixed_explanation fixed1 fixed2 =
   | Some Fixed_private as x, _ | _, (Some Fixed_private as x) -> x
   | Some Reified _ as x, _ | _, (Some Reified _ as x) -> x
   | Some Rigid as x, _ | _, (Some Rigid as x) -> x
+  | Some Fixed_existential as x, _ | _, (Some Fixed_existential as x) -> x
   | None, None -> None
 
 
@@ -161,6 +170,7 @@ let fixed_explanation row =
       | Tvar _ | Tnil -> None
       | Tunivar _ -> Some (Univar ty)
       | Tconstr (p,_,_) -> Some (Reified p)
+      | Tof_kind _ -> Some Fixed_existential
       | _ -> assert false
 
 let is_fixed row = match row_fixed row with
@@ -173,6 +183,17 @@ let static_row row =
   row_closed row &&
   List.for_all
     (fun (_,f) -> match row_field_repr f with Reither _ -> false | _ -> true)
+    (row_fields row)
+
+let tvariant_not_immediate row =
+  (* if all labels are devoid of arguments, not a pointer *)
+  (* CR layouts v5: Polymorphic variants with all void args can probably
+     be immediate, but we don't allow them to have void args right now. *)
+  not (row_closed row)
+  || List.exists
+    (fun (_,field) -> match row_field_repr field with
+      | Rpresent (Some _) | Reither (false, _, _) -> true
+      | _ -> false)
     (row_fields row)
 
 let hash_variant s =
@@ -260,7 +281,10 @@ let fold_row f init row =
       (row_fields row)
   in
   match get_desc (row_more row) with
-  | Tvar _ | Tunivar _ | Tsubst _ | Tconstr _ | Tnil ->
+  | Tvar _ | Tunivar _ | Tsubst _ | Tconstr _ | Tnil
+    (* Tof_kind can appear in [row_more] in case the row's row variable was existentially
+       quantified in a GADT *)
+  | Tof_kind _ ->
     begin match
       Option.map (fun (_,l) -> List.fold_left f result l) (row_name row)
     with
@@ -271,6 +295,7 @@ let fold_row f init row =
 
 let iter_row f row =
   fold_row (fun () v -> f v) () row
+
 
 let fold_type_expr f init ty =
   match get_desc ty with
@@ -300,6 +325,7 @@ let fold_type_expr f init ty =
     List.fold_left f result tyl
   | Tpackage (_, fl)  ->
     List.fold_left (fun result (_n, ty) -> f result ty) init fl
+  | Tof_kind _ -> init
 
 let iter_type_expr f ty =
   fold_type_expr (fun () v -> f v) () ty
@@ -481,6 +507,7 @@ let rec copy_type_desc ?(keep_names=false) f = function
       let tyl = List.map f tyl in
       Tpoly (f ty, tyl)
   | Tpackage (p, fl)  -> Tpackage (p, List.map (fun (n, ty) -> (n, f ty)) fl)
+  | Tof_kind jk -> Tof_kind jk
 
 (* Utilities for copying *)
 

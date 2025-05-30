@@ -13,7 +13,7 @@ comprehensions](../intro).
 ## Syntax
 
 The BNF for comprehensions, in a form suitable for being added to the [grammar of
-OCaml](https://v2.ocaml.org/manual/expr.html), is
+OCaml](https://ocaml.org/manual/expr.html), is
 
 ```
 expr +::=
@@ -107,7 +107,7 @@ iterated over (the `seq` of a `for pat in seq` iterator, or the `start` and
 `end` of a `for x = start to/downto end` iterator); the function argument is
 then to be called once for each item.  What goes in the function?  It will be
 the next iterator, desugared in the same way.  At any time, a `when` clause
-might intervene, which is simply desugared into a conditional that gates
+might intervene, which is desugared into a conditional that gates
 entering the next phase of the translation.
 
 Eventually, we reach the body, which is placed into the body of the innermost
@@ -176,9 +176,9 @@ size.
 The second source of extra complexity is the fixed-size array case.  In this
 case, we have to first compute the size of every iterator and multiply them
 together; for both of these operations, we have to check for overflow, in which
-case we simply fail.  We also check to see if any of the iterators would be
+case we fail.  We also check to see if any of the iterators would be
 empty (have size `0`), in which case we can shortcut this whole process and
-simply return an empty array.  Once we do that, though, the loop body is simpler
+return an empty array.  Once we do that, though, the loop body is lighter
 as there’s no need to double the array size, and we don’t need to cut the list
 down to size at the end.
 

@@ -48,7 +48,7 @@ type s =
 
 let ( + ) = Int64.add
 
-let[@inline never] [@local never] foo a =
+let[@opaque] foo a =
   let f0 = a.f0 in
   let f1 = a.f1 in
   let f2 = a.f2 in

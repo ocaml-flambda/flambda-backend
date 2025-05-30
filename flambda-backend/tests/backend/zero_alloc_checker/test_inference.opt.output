@@ -1,14 +1,71 @@
-File "test_inference.ml", line 1:
-Error: The implementation test_inference.ml
-       does not match the interface test_inference.cmi: 
-       Values do not match:
-         val f_arity_one : int -> int -> int
-       is not included in
-         val f_arity_one : int -> int -> int [@@zero_alloc arity 1]
-       zero_alloc arity mismatch:
-       When using "zero_alloc" in a signature, the syntactic arity of
-       the implementation must match the function type in the interface.
-       Here the former is 2 and the latter is 1.
-       File "test_inference.mli", line 11, characters 0-58:
-         Expected declaration
-       File "test_inference.ml", line 25, characters 4-15: Actual declaration
+File "test_inference.ml", line 6, characters 27-35:
+Error: Annotation check for zero_alloc failed on function Test_inference.f_alloc (camlTest_inference.f_alloc_HIDE_STAMP).
+
+File "test_inference.ml", line 6, characters 31-35:
+Error: allocation of 24 bytes
+
+File "test_inference.ml", line 15, characters 30-38:
+Error: Annotation check for zero_alloc failed on function Test_inference.M_alloc_var.f_alloc2 (camlTest_inference.f_alloc2_HIDE_STAMP).
+
+File "test_inference.ml", line 15, characters 34-38:
+Error: allocation of 24 bytes
+
+File "test_inference.ml", lines 25-27, characters 16-16:
+Error: Annotation check for zero_alloc failed on function Test_inference.f_arity_one (camlTest_inference.f_arity_one_HIDE_STAMP).
+
+File "test_inference.ml", line 27, characters 2-16:
+Error: allocation of 32 bytes for closure
+
+File "test_inference.ml", line 40, characters 19-27:
+Error: Annotation check for zero_alloc failed on function Test_inference.f_shadow_alloc (camlTest_inference.f_shadow_alloc_HIDE_STAMP).
+
+File "test_inference.ml", line 40, characters 23-27:
+Error: allocation of 24 bytes
+
+File "test_inference.ml", line 46, characters 24-36:
+Error: Annotation check for zero_alloc failed on function Test_inference.f_shadow_alloc_both (camlTest_inference.f_shadow_alloc_both_HIDE_STAMP).
+
+File "test_inference.ml", line 46, characters 28-36:
+Error: allocation of 24 bytes
+
+File "test_inference.ml", line 61, characters 17-25:
+Error: Annotation check for zero_alloc failed on function Test_inference.f_basic_fail (camlTest_inference.f_basic_fail_HIDE_STAMP).
+
+File "test_inference.ml", line 61, characters 21-25:
+Error: allocation of 24 bytes
+
+File "test_inference.ml", lines 66-71, characters 18-15:
+Error: Annotation check for zero_alloc strict failed on function Test_inference.f_strict_fail (camlTest_inference.f_strict_fail_HIDE_STAMP).
+
+File "test_inference.ml", line 70, characters 12-35:
+Error: called function may allocate on a path to exceptional return (direct call camlCamlinternalFormat.make_printf_HIDE_STAMP) (test_inference.ml:70,12--35;printf.ml:48,18--43;printf.ml:46,2--31)
+
+File "test_inference.ml", line 70, characters 12-35:
+Error: called function may allocate on a path to exceptional return (indirect call)
+
+File "test_inference.ml", line 71, characters 10-15:
+Error: allocation of 24 bytes on a path to exceptional return
+
+File "test_inference.ml", line 82, characters 15-23:
+Error: Annotation check for zero_alloc failed on function Test_inference.f_opt_fail (camlTest_inference.f_opt_fail_HIDE_STAMP).
+
+File "test_inference.ml", line 82, characters 19-23:
+Error: allocation of 24 bytes
+
+File "test_inference.ml", lines 88-93, characters 22-15:
+Error: Annotation check for zero_alloc strict failed on function Test_inference.f_strict_opt_fail (camlTest_inference.f_strict_opt_fail_HIDE_STAMP).
+
+File "test_inference.ml", line 92, characters 12-35:
+Error: called function may allocate on a path to exceptional return (direct call camlCamlinternalFormat.make_printf_HIDE_STAMP) (test_inference.ml:92,12--35;printf.ml:48,18--43;printf.ml:46,2--31)
+
+File "test_inference.ml", line 92, characters 12-35:
+Error: called function may allocate on a path to exceptional return (indirect call)
+
+File "test_inference.ml", line 93, characters 10-15:
+Error: allocation of 24 bytes on a path to exceptional return
+
+File "test_inference.ml", line 104, characters 17-27:
+Error: Annotation check for zero_alloc failed on function Test_inference.F.f (camlTest_inference.f_HIDE_STAMP).
+
+File "test_inference.ml", line 104, characters 21-27:
+Error: allocation of 16 bytes

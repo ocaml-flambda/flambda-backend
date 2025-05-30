@@ -20,27 +20,27 @@
    now.  This test shows the current behavior. *)
 
 (* Should be allowed *)
-type t1 : any mod non_null
+type t1 : any mod non_null separable
 type t2 : value
-type t3 : any mod non_null = #(t1 * t2);;
+type t3 : any mod non_null separable = #(t1 * t2);;
 [%%expect{|
 type t1 : any_non_null
 type t2
 type t3 = #(t1 * t2)
 |}]
 
-type t1 : any mod non_null
+type t1 : any mod non_null separable
 type t2 : value
-type t3 : any & value mod non_null = #(t1 * t2);;
+type t3 : any & value mod non_null separable = #(t1 * t2);;
 [%%expect{|
 type t1 : any_non_null
 type t2
 type t3 = #(t1 * t2)
 |}]
 
-type t1 : any mod non_null
+type t1 : any mod non_null separable
 type t2 : value
-type t3 : (any mod non_null) & (value mod non_null) = #(t1 * t2);;
+type t3 : (any mod non_null separable) & (value mod non_null separable) = #(t1 * t2);;
 [%%expect{|
 type t1 : any_non_null
 type t2
@@ -48,64 +48,38 @@ type t3 = #(t1 * t2)
 |}]
 
 type t1 : any
-type t2 : any mod non_null
-type t3 : any & (any mod non_null) = #(t1 * t2);;
+type t2 : any mod non_null separable
+type t3 : any & (any mod non_null separable) = #(t1 * t2);;
 [%%expect{|
 type t1 : any
 type t2 : any_non_null
 type t3 = #(t1 * t2)
 |}]
 
-(* Should not be allowed. *)
+(* Should be allowed -- any 2+ element product is non-null. *)
 type t1 : any
-type t2 : any mod non_null
-type t3 : any mod non_null = #(t1 * t2);;
+type t2 : any mod non_null separable
+type t3 : any mod non_null separable = #(t1 * t2);;
 [%%expect{|
 type t1 : any
 type t2 : any_non_null
-Line 3, characters 0-39:
-3 | type t3 : any mod non_null = #(t1 * t2);;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "#(t1 * t2)" is
-         any_non_null mod everything with t1 with t2
-         & any_non_null mod everything with t1 with t2
-         because it is an unboxed tuple.
-       But the kind of type "#(t1 * t2)" must be a subkind of any_non_null
-         because of the definition of t3 at line 3, characters 0-39.
+type t3 = #(t1 * t2)
 |}]
 
 type t1 : any
-type t2 : any mod non_null
-type t3 : any & any mod non_null = #(t1 * t2);;
+type t2 : any mod non_null separable
+type t3 : any & any mod non_null separable = #(t1 * t2);;
 [%%expect{|
 type t1 : any
 type t2 : any_non_null
-Line 3, characters 0-45:
-3 | type t3 : any & any mod non_null = #(t1 * t2);;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "#(t1 * t2)" is
-         any_non_null mod everything with t1 with t2
-         & any_non_null mod everything with t1 with t2
-         because it is an unboxed tuple.
-       But the kind of type "#(t1 * t2)" must be a subkind of
-         any_non_null & any_non_null
-         because of the definition of t3 at line 3, characters 0-45.
+type t3 = #(t1 * t2)
 |}]
 
 type t1 : any
-type t2 : any mod non_null
-type t3 : (any mod non_null) & (any mod non_null) = #(t1 * t2);;
+type t2 : any mod non_null separable
+type t3 : (any mod non_null separable) & (any mod non_null separable) = #(t1 * t2);;
 [%%expect{|
 type t1 : any
 type t2 : any_non_null
-Line 3, characters 0-62:
-3 | type t3 : (any mod non_null) & (any mod non_null) = #(t1 * t2);;
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "#(t1 * t2)" is
-         any_non_null mod everything with t1 with t2
-         & any_non_null mod everything with t1 with t2
-         because it is an unboxed tuple.
-       But the kind of type "#(t1 * t2)" must be a subkind of
-         any_non_null & any_non_null
-         because of the definition of t3 at line 3, characters 0-62.
+type t3 = #(t1 * t2)
 |}]

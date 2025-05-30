@@ -189,9 +189,12 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
       SC.block (Tag.Scannable.create_exn tag) Immutable Value_only fields
     in
     register_const acc dbg const "const_block"
-  | Const_mixed_block (tag, shape, consts) ->
-    let shape = Mixed_block_shape.of_mixed_block_elements shape in
-    (* CR mshinwell: why do we need these "const" block cases? *)
+  | Const_mixed_block (tag, shape, args) ->
+    let shape =
+      Mixed_block_shape.of_mixed_block_elements
+        ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
+        shape
+    in
     let unbox_float_constant (c : Lambda.structured_constant) :
         Lambda.structured_constant =
       match c with
@@ -208,30 +211,42 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
           \       Float_boxed contained the  constant %a"
           Printlambda.structured_constant c
     in
-    let consts =
-      consts |> Array.of_list
-      |> Mixed_block_shape.reorder_array shape
-      |> Array.mapi (fun i c ->
-             match Mixed_block_shape.get_reordered shape i with
-             | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
-               c
-             | Float_boxed _ -> unbox_float_constant c)
+    (* CR mshinwell: factor out, this is also in the Pmakemixedblock case. Or
+       even better, add support for lifting mixed blocks, then remove this
+       special handling for Const_block and Const_mixed_block and use that
+       (mshinwell has a partial patch for this). *)
+    let args =
+      let new_indexes_to_old_indexes =
+        Mixed_block_shape.new_indexes_to_old_indexes shape
+      in
+      let args = Array.of_list args in
+      Array.init (Array.length args) (fun new_index ->
+          args.(new_indexes_to_old_indexes.(new_index)))
       |> Array.to_list
     in
-    let shape =
-      K.Mixed_block_shape.from_lambda (Mixed_block_shape.reordered_shape shape)
+    let args =
+      let flattened_reordered_shape =
+        Mixed_block_shape.flattened_reordered_shape shape
+      in
+      List.mapi
+        (fun new_index arg ->
+          match flattened_reordered_shape.(new_index) with
+          | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> arg
+          | Float_boxed _ -> unbox_float_constant arg)
+        args
     in
+    let kind_shape = K.Mixed_block_shape.from_mixed_block_shape shape in
     let acc, fields =
       List.fold_left_map
         (fun acc c ->
           let acc, field, _name = declare_const acc dbg c in
           acc, field)
-        acc consts
+        acc args
     in
     let const : SC.t =
       SC.block
         (Tag.Scannable.create_exn tag)
-        Immutable (Mixed_record shape) fields
+        Immutable (Mixed_record kind_shape) fields
     in
     register_const acc dbg const "const_mixed_block"
   | Const_null -> acc, reg_width RWC.const_null, "null"
@@ -2627,7 +2642,17 @@ let close_functions acc external_env ~current_region function_declarations =
             | None -> Ident.name id
             | Some var -> Variable.name var
           in
-          Ident.Map.add id (Value_slot.create compilation_unit ~name kind) map)
+          let is_always_immediate =
+            match[@ocaml.warning "-4"]
+              Flambda_kind.With_subkind.non_null_value_subkind kind
+            with
+            | Tagged_immediate -> true
+            | _ -> false
+          in
+          Ident.Map.add id
+            (Value_slot.create compilation_unit ~name ~is_always_immediate
+               (Flambda_kind.With_subkind.kind kind))
+            map)
       (Function_decls.all_free_idents function_declarations)
       Ident.Map.empty
   in
@@ -2774,10 +2799,11 @@ let close_functions acc external_env ~current_region function_declarations =
         let external_simple, kind' =
           find_simple_from_id_with_kind external_env id
         in
-        if not (K.With_subkind.equal kind kind')
+        if not (K.equal kind (K.With_subkind.kind kind'))
         then
           Misc.fatal_errorf "Value slot kinds %a and %a don't match for slot %a"
-            K.With_subkind.print kind K.With_subkind.print kind'
+            K.print kind K.print
+            (K.With_subkind.kind kind')
             Value_slot.print value_slot;
         (* We're sure [external_simple] is a variable since
            [value_slot_from_idents] has already filtered constants and symbols
@@ -2946,7 +2972,7 @@ let wrap_partial_application acc env apply_continuation (apply : IR.apply)
   let function_slot =
     Function_slot.create
       (Compilation_unit.get_current_exn ())
-      ~name:(Ident.name wrapper_id) K.With_subkind.any_value
+      ~name:(Ident.name wrapper_id) ~is_always_immediate:false K.value
   in
   let num_provided = Flambda_arity.num_params provided_arity in
   let missing_arity_and_param_modes =

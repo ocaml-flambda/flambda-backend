@@ -213,7 +213,7 @@ Error: The layout of type "a" is value
          because of the definition of b at line 2, characters 0-30.
 |}]
 
-type a : value mod global aliased many immutable stateless external_ unyielding
+type a : value mod global aliased many immutable stateless external_ unyielding non_float
 type b : value mod local unique once contended nonportable internal = a
 [%%expect{|
 type a : immediate
@@ -273,8 +273,8 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 |}]
 
 type a : immediate
-type b : value mod global aliased many immutable stateless unyielding external_ = a
-type c : value mod global aliased many immutable stateless unyielding external_
+type b : value mod global aliased many immutable stateless unyielding external_ non_float = a
+type c : value mod global aliased many immutable stateless unyielding external_ non_float
 type d : immediate = c
 [%%expect{|
 type a : immediate
@@ -284,8 +284,8 @@ type d = c
 |}]
 
 type a : immediate64
-type b : value mod global aliased many immutable stateless unyielding external64 = a
-type c : value mod global aliased many immutable stateless unyielding external64
+type b : value mod global aliased many immutable stateless unyielding external64 non_float = a
+type c : value mod global aliased many immutable stateless unyielding external64 non_float
 type d : immediate64 = c
 [%%expect{|
 type a : immediate64
@@ -990,7 +990,7 @@ type ('a : immediate) t : value mod global = { mutable x : 'a }
 Line 1, characters 0-63:
 1 | type ('a : immediate) t : value mod global = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is mutable_data with 'a @@ many unyielding
+Error: The kind of type "t" is mutable_data with 'a @@ unyielding many
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod global
          because of the annotation on the declaration of the type t.
@@ -1004,7 +1004,7 @@ type ('a : immediate) t : value mod aliased = { mutable x : 'a }
 Line 1, characters 0-64:
 1 | type ('a : immediate) t : value mod aliased = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is mutable_data with 'a @@ many unyielding
+Error: The kind of type "t" is mutable_data with 'a @@ unyielding many
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod aliased
          because of the annotation on the declaration of the type t.
@@ -1018,7 +1018,7 @@ type ('a : immediate) t : value mod contended = { mutable x : 'a }
 Line 1, characters 0-66:
 1 | type ('a : immediate) t : value mod contended = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is mutable_data with 'a @@ many unyielding
+Error: The kind of type "t" is mutable_data with 'a @@ unyielding many
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod contended
          because of the annotation on the declaration of the type t.
@@ -1032,7 +1032,7 @@ type ('a : immediate) t : value mod external_ = { mutable x : 'a }
 Line 1, characters 0-66:
 1 | type ('a : immediate) t : value mod external_ = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is mutable_data with 'a @@ many unyielding
+Error: The kind of type "t" is mutable_data with 'a @@ unyielding many
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod external_
          because of the annotation on the declaration of the type t.
@@ -1046,7 +1046,7 @@ type ('a : immediate) t : value mod external64 = { mutable x : 'a }
 Line 1, characters 0-67:
 1 | type ('a : immediate) t : value mod external64 = { mutable x : 'a }
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: The kind of type "t" is mutable_data with 'a @@ many unyielding
+Error: The kind of type "t" is mutable_data with 'a @@ unyielding many
          because it's a boxed record type.
        But the kind of type "t" must be a subkind of value mod external64
          because of the annotation on the declaration of the type t.
@@ -1173,11 +1173,11 @@ type 'a t = { x : 'a @@ global many portable aliased contended; } [@@unboxed]
    [layout_of], we'll be able to give a better jkind to [@@unboxed] types, and
    this will likely improve. *)
 
-type 'a t : value mod global immutable stateless many aliased unyielding =
+type 'a t : value mod global immutable stateless many aliased unyielding non_float =
   Foo of 'a @@ global immutable stateless many aliased [@@unboxed]
 [%%expect {|
 Lines 1-2, characters 0-66:
-1 | type 'a t : value mod global immutable stateless many aliased unyielding =
+1 | type 'a t : value mod global immutable stateless many aliased unyielding non_float =
 2 |   Foo of 'a @@ global immutable stateless many aliased [@@unboxed]
 Error: The kind of type "t" is value
          because it instantiates an unannotated type parameter of t,
@@ -1271,7 +1271,7 @@ Error: The kind of type "t" is immutable_data with 'a @@ unyielding
 type ('a : value mod aliased) t = ('a : value mod global)
 type ('a : immediate) t = ('a : value)
 type ('a : value) t = ('a : immediate)
-type ('a : value mod external_ stateless many unyielding) t = ('a : value mod immutable global aliased)
+type ('a : value mod external_ stateless many unyielding non_float) t = ('a : value mod immutable global aliased)
 type ('a : value) t = ('a : any)
 type ('a : value) t = ('a : value)
 type ('a : bits32 mod aliased) t = ('a : any mod global)
@@ -1438,7 +1438,7 @@ Line 1, characters 41-51:
                                              ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod aliased)"
-       The kind of <  > is value mod global many
+       The kind of <  > is value mod global many non_float
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod aliased
          because of the annotation on the wildcard _ at line 1, characters 19-36.
@@ -1451,7 +1451,7 @@ Line 1, characters 42-52:
                                               ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod portable)"
-       The kind of <  > is value mod global many
+       The kind of <  > is value mod global many non_float
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod portable
          because of the annotation on the wildcard _ at line 1, characters 19-37.
@@ -1464,7 +1464,7 @@ Line 1, characters 43-53:
                                                ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod contended)"
-       The kind of <  > is value mod global many
+       The kind of <  > is value mod global many non_float
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod contended
          because of the annotation on the wildcard _ at line 1, characters 19-38.
@@ -1477,7 +1477,7 @@ Line 1, characters 43-53:
                                                ^^^^^^^^^^
 Error: This expression has type "<  >" but an expression was expected of type
          "('a : value mod external_)"
-       The kind of <  > is value mod global many
+       The kind of <  > is value mod global many non_float
          because it's the type of an object.
        But the kind of <  > must be a subkind of value mod external_
          because of the annotation on the wildcard _ at line 1, characters 19-38.
@@ -1666,8 +1666,8 @@ Error: This expression has type "int t" but an expression was expected of type
 (*********************************)
 (* Test 15: extensible variants *)
 
-(* The best kind an extensible variant can get is [value] *)
-type extensible : value = ..
+(* The best kind an extensible variant can get is [value mod non_float] *)
+type extensible : value mod non_float = ..
 [%%expect{|
 type extensible = ..
 |}]
@@ -1676,10 +1676,10 @@ type extensible = ..
 module M : sig
   type t : immediate with extensible
 end = struct
-  type t
+  type t : value mod non_float
 end
 [%%expect{|
-module M : sig type t end
+module M : sig type t : value mod non_float end
 |}]
 
 (*********************************)
@@ -1721,8 +1721,8 @@ Error: This expression has type "int t" but an expression was expected of type
 (*********************************)
 (* Test 17: extensible variants *)
 
-(* The best kind an extensible variant can get is [value] *)
-type extensible : value = ..
+(* The best kind an extensible variant can get is [value mod non_float] *)
+type extensible : value mod non_float = ..
 [%%expect{|
 type extensible = ..
 |}]
@@ -1731,8 +1731,8 @@ type extensible = ..
 module M : sig
   type t : immediate with extensible
 end = struct
-  type t
+  type t : value mod non_float
 end
 [%%expect{|
-module M : sig type t end
+module M : sig type t : value mod non_float end
 |}]

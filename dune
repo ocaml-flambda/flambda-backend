@@ -302,6 +302,9 @@
  (libraries ocamlcommon)
  (modules
   ;; bytecomp/
+  blambda
+  printblambda
+  blambda_of_lambda
   bytegen
   byteinstantiator
   bytelibrarian
@@ -841,9 +844,9 @@
   (glob_files .ocamloptcomp.objs/byte/*.{cmi,cmo,cmt,cmti})
   (glob_files .ocamloptcomp.objs/native/*.cmx)
   (glob_files
-   backend/asm_targets/.asm_targets.objs/byte/asm_targets.{cmi,cmo,cmt})
+   backend/asm_targets/.asm_targets.objs/byte/*.{cmi,cmo,cmt,cmti})
   (glob_files_rec
-   backend/asm_targets/.asm_targets.objs/native/asm_targets.cmx)
+   backend/asm_targets/.asm_targets.objs/native/*.cmx)
   (glob_files middle_end/flambda2/.flambda2objs/byte/flambda2.{cmi,cmt})
   (glob_files
    middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm{,__To_cmm}.{cmi,cmt})

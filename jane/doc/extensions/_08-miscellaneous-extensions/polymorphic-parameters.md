@@ -47,13 +47,13 @@ Error: This expression has type int field
 The issue is that you need to apply `f` to both a `string field` and
 an `int field`: you need it to be *polymorphic*.
 
-There are existing ways to work around this issue -- polymorphic
-record fields, first-class modules and polymorphic methods -- but they
+There are existing ways to work around this issue &mdash; polymorphic
+record fields, first-class modules and polymorphic methods &mdash; but they
 all require defining a fresh type to contain `f`. These work-arounds
 require additional code at each call site to wrap `f` in the associated
 type.
 
-With polymorphic parameters, you can simply annotate `f` as
+With polymorphic parameters, you can annotate `f` as
 polymorphic:
 ```ocaml
 let create (f : 'a. 'a field -> 'a) =
@@ -76,7 +76,7 @@ let r = create forty_two
 ## Limitations
 
 All polymorphic parameter require an annotation. Without an annotation
-OCaml will assume that the parameter is monomorphic.
+OxCaml will assume that the parameter is monomorphic.
 
 Rather than annotating `f` directly, you can also annotate `create` as
 a whole:
