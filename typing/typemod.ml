@@ -1918,8 +1918,9 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
           | None -> None, env
           | Some name ->
             let id, newenv =
-              (* the module is added only for its types, so we give it the
-              strongest mode to avoid false mode errors. *)
+              (* We are in a signature, [newenv] is used to check later
+              signature items, and thus modes in [newenv] doesn't matter.
+              Therefore, we enter the strongest mode to avoid false mode errors. *)
               Env.enter_module_declaration ~scope name pres md
                 ~mode:Value.min env
             in
