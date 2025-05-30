@@ -7224,7 +7224,7 @@ let constrain_decl_jkind env decl jkind =
         | None -> err
         | Some ty -> constrain_type_jkind env ty jkind
 
-let check_constructor_crossing env tag ~res ~args held_locks =
+let check_constructor_crossing env tag ~res args held_locks =
   match tag with
   | Ordinary _ | Null -> Ok ()
   | Extension _ ->

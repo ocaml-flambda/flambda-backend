@@ -2968,7 +2968,7 @@ and type_pat_aux
           existential_styp expected_ty
       in
       begin match Ctype.check_constructor_crossing !!penv constr.cstr_tag
-        ~res:expected_ty ~args held_locks with
+        ~res:expected_ty args held_locks with
       | Ok () -> ()
       | Error e ->
           raise (Error(lid.loc, !!penv,
@@ -8569,7 +8569,7 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
   in
   let ty_args, ty_res, texp = unify_as_construct ty_expected in
   begin match Ctype.check_constructor_crossing env constr.cstr_tag
-    ~res:ty_res ~args:ty_args held_locks with
+    ~res:ty_res ty_args held_locks with
   | Ok () -> ()
   | Error e ->
       raise (Error (lid.loc, env, Submode_failed(e, Other, None, None, None,

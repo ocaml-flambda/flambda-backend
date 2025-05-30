@@ -3030,7 +3030,7 @@ let transl_extension_constructor ~scope env type_path type_params
             typext_params
         end;
         begin match Ctype.check_constructor_crossing env cdescr.cstr_tag
-          ~res:cstr_res ~args held_locks with
+          ~res:cstr_res args held_locks with
         | Ok () -> ()
         | Error e -> raise (Error (lid.loc, Constructor_submode_failed e))
         end;

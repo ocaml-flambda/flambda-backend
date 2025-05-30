@@ -408,7 +408,9 @@ let build_initial_env add_type add_extension empty_env =
        ~kind:(variant [ cstr ident_false []; cstr ident_true []])
        ~jkind:Jkind.Const.Builtin.immediate
   |> add_type ident_char ~jkind:Jkind.Const.Builtin.immediate
-  |> add_type ident_exn ~kind:Type_open ~jkind:Jkind.Const.Builtin.exn
+  |> add_type ident_exn ~kind:Type_open
+      (* this is safe by [Ctype.check_constructor_crossing] *)
+       ~jkind:Jkind.Const.Builtin.exn
   |> add_type ident_extension_constructor ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type_with_jkind ident_float ~jkind:(Jkind.for_float ident_float)
       ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_float
