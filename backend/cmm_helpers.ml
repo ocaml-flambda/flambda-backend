@@ -396,13 +396,13 @@ let rec add_int c1 c2 dbg =
 
 let rec sub_int c1 c2 dbg =
   map_tail2 c1 c2 ~f:(fun c1 c2 ->
-      match c1, c2 with
-      | c1, Cconst_int (n2, _) when n2 <> min_int -> add_const c1 (-n2) dbg
-      | c1, Cop (Caddi, [c2; Cconst_int (n2, _)], _) when n2 <> min_int ->
+      match prefer_add c1, prefer_add c2 with
+      | _, Cconst_int (n2, _) when n2 <> min_int -> add_const c1 (-n2) dbg
+      | _, Cop (Caddi, [c2; Cconst_int (n2, _)], _) when n2 <> min_int ->
         add_const (sub_int c1 c2 dbg) (-n2) dbg
-      | Cop (Caddi, [c1; Cconst_int (n1, _)], _), c2 ->
+      | Cop (Caddi, [c1; Cconst_int (n1, _)], _), _ ->
         add_const (sub_int c1 c2 dbg) n1 dbg
-      | c1, c2 -> Cop (Csubi, [c1; c2], dbg))
+      | _, _ -> Cop (Csubi, [c1; c2], dbg))
 
 let add_int_addr c1 c2 dbg = Cop (Cadda, [c1; c2], dbg)
 
