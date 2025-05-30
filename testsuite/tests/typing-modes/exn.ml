@@ -174,8 +174,59 @@ Line 3, characters 31-40:
 Error: The constructor "Contended" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
+exception Fields : { x : int } -> exn
+exception MutFields : { mutable x : string } -> exn
+exception MutFields': { mutable z : int ref @@ contended } -> exn
+[%%expect{|
+exception Fields : { x : int; } -> exn
+exception MutFields : { mutable x : string; } -> exn
+exception MutFields' : { mutable z : int ref @@ contended; } -> exn
+|}]
+
+let (foo @ portable) () =
+    match x with
+    | Fields _ -> ()
+    | _ -> ()
+[%%expect{|
+val foo : unit -> unit = <fun>
+|}]
+
+let (foo @ portable) () =
+    match x with
+    | MutFields _ -> ()
+    | _ -> ()
+[%%expect{|
+Line 3, characters 6-15:
+3 |     | MutFields _ -> ()
+          ^^^^^^^^^
+Error: This value is "contended" but expected to be "uncontended".
+|}]
+
+let (foo @ portable) () =
+    match x with
+    | MutFields' _ -> ()
+    | _ -> ()
+[%%expect{|
+Line 3, characters 6-16:
+3 |     | MutFields' _ -> ()
+          ^^^^^^^^^^
+Error: This value is "contended" but expected to be "uncontended".
+|}]
+
+(* built-in exceptions can be raised arbitrarily inside portable functions - we
+show that's safe. *)
+let (foo @ portable) () =
+    match x with
+    | Assert_failure _ -> ()
+    | Match_failure _ -> ()
+    | _ -> ()
+[%%expect{|
+val foo : unit -> unit = <fun>
+|}]
+
 
 (* other extensible types are not affected *)
+(* CR zqian: support other extensible types. *)
 type t = ..
 
 type t += Foo of int
