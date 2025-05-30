@@ -662,6 +662,22 @@ and raw_lid_type_list tl =
   raw_list (fun ppf (lid, typ) ->
              fprintf ppf "(@,%a,@,%a)" longident lid raw_type typ)
     tl
+and raw_row_desc ppf row =
+  let Row {fields; more; name; fixed; closed} = row_repr row in
+  fprintf ppf
+    "@[<hov1>{@[%s@,%a;@]@ @[%s@,%a;@]@ %s%B;@ %s%a;@ @[<1>%s%t@]}@]"
+    "row_fields="
+    (raw_list (fun ppf (l, f) ->
+       fprintf ppf "@[%s,@ %a@]" l raw_field f))
+    fields
+    "row_more=" raw_type more
+    "row_closed=" closed
+    "row_fixed=" raw_row_fixed fixed
+    "row_name="
+    (fun ppf ->
+       match name with None -> fprintf ppf "None"
+                     | Some(p,tl) ->
+                       fprintf ppf "Some(@,%a,@,%a)" path p raw_type_list tl)
 and raw_type_desc ppf = function
     Tvar { name; jkind } ->
       fprintf ppf "Tvar (@,%a,@,%a)"
@@ -704,21 +720,7 @@ and raw_type_desc ppf = function
         raw_type t
         raw_type_list tl
   | Tvariant row ->
-      let Row {fields; more; name; fixed; closed} = row_repr row in
-      fprintf ppf
-        "@[<hov1>{@[%s@,%a;@]@ @[%s@,%a;@]@ %s%B;@ %s%a;@ @[<1>%s%t@]}@]"
-        "row_fields="
-        (raw_list (fun ppf (l, f) ->
-          fprintf ppf "@[%s,@ %a@]" l raw_field f))
-        fields
-        "row_more=" raw_type more
-        "row_closed=" closed
-        "row_fixed=" raw_row_fixed fixed
-        "row_name="
-        (fun ppf ->
-          match name with None -> fprintf ppf "None"
-          | Some(p,tl) ->
-              fprintf ppf "Some(@,%a,@,%a)" path p raw_type_list tl)
+    raw_row_desc ppf row
   | Tpackage (p, fl) ->
       fprintf ppf "@[<hov1>Tpackage(@,%a,@,%a)@]" path p
         raw_lid_type_list fl
@@ -730,6 +732,7 @@ and raw_row_fixed ppf = function
 | Some Types.Rigid -> fprintf ppf "Some Rigid"
 | Some Types.Univar t -> fprintf ppf "Some(Univar(%a))" raw_type t
 | Some Types.Reified p -> fprintf ppf "Some(Reified(%a))" path p
+| Some Types.Fixed_existential -> fprintf ppf "Some Fixed_existential"
 
 and raw_field ppf rf =
   match_row_field
@@ -3041,6 +3044,7 @@ let explain_fixed_row pos expl = match expl with
            print_path p ppf))
       p
   | Rigid -> ignore
+  | Fixed_existential -> ignore
 
 let explain_variant (type variety) : variety Errortrace.variant -> _ = function
   (* Common *)
@@ -3064,7 +3068,7 @@ let explain_variant (type variety) : variety Errortrace.variant -> _ = function
         dprintf "@,@[%t,@ %a@]" (explain_fixed_row pos e)
           explain_fixed_row_case k
       )
-  | Errortrace.Fixed_row (_,_, Rigid) ->
+  | Errortrace.Fixed_row (_,_, (Rigid | Fixed_existential)) ->
       (* this case never happens *)
       None
   (* Equality & Moregen *)

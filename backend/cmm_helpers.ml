@@ -755,14 +755,14 @@ let mk_not dbg cmm =
     | _ ->
       (* 0 -> 3, 1 -> 1 *)
       Cop
-        ( Csubi,
+        ( Cxor,
           [Cconst_int (3, dbg); Cop (Clsl, [c; Cconst_int (1, dbg)], dbg)],
           dbg ))
   | Cconst_int (3, _) -> Cconst_int (1, dbg)
   | Cconst_int (1, _) -> Cconst_int (3, dbg)
   | c ->
     (* 1 -> 3, 3 -> 1 *)
-    Cop (Csubi, [Cconst_int (4, dbg); c], dbg)
+    Cop (Cxor, [Cconst_int (2, dbg); c], dbg)
 
 let mk_compare_ints_untagged dbg a1 a2 =
   bind "int_cmp" a2 (fun a2 ->

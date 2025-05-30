@@ -723,9 +723,15 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
     | Continuation cont -> cont
     | Apply_cont apply_cont -> Apply_cont.continuation apply_cont
   in
-  let original_cont = cont in
-  let cont = UE.resolve_continuation_aliases uenv cont in
-  match UE.find_apply_cont_rewrite uenv original_cont with
+  let actual_cont =
+    match
+      Continuation_callsite_map.find cont use_id (UA.specialization_map uacc)
+    with
+    | exception Not_found -> cont
+    | specialized -> specialized
+  in
+  let cont = UE.resolve_continuation_aliases uenv actual_cont in
+  match UE.find_apply_cont_rewrite uenv actual_cont with
   | None -> This_continuation cont
   | Some rewrite when Apply_cont_rewrite.does_nothing rewrite ->
     let arity_in_rewrite = Apply_cont_rewrite.original_params_arity rewrite in
@@ -760,7 +766,7 @@ let rewrite_fixed_arity_continuation0 uacc cont_or_apply_cont ~use_id arity :
         { cont; handler; free_names_of_handler; cost_metrics_of_handler }
     in
     match cont_or_apply_cont with
-    | Continuation cont -> (
+    | Continuation _ -> (
       (* In this case, any generated [Apply_cont] will sit inside a wrapper that
          binds [kinded_params]. *)
       let params =

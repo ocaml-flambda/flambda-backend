@@ -364,7 +364,10 @@ let make_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units cached_g
   let startup_comp_unit =
     CU.create CU.Prefix.empty (CU.Name.of_string "_startup")
   in
-  Compilenv.reset startup_comp_unit;
+  let startup_unit_info =
+    Unit_info.make_dummy ~input_name:"caml_startup" startup_comp_unit
+  in
+  Compilenv.reset startup_unit_info;
   Emitaux.Dwarf_helpers.init ~disable_dwarf:(not !Dwarf_flags.dwarf_for_startup_file)
     ~sourcefile:sourcefile_for_dwarf;
   Emit.begin_assembly unix;
@@ -421,7 +424,10 @@ let make_shared_startup_file unix ~ppf_dump ~sourcefile_for_dwarf genfns units =
   let shared_startup_comp_unit =
     CU.create CU.Prefix.empty (CU.Name.of_string "_shared_startup")
   in
-  Compilenv.reset shared_startup_comp_unit;
+  let shared_startup_unit_info =
+    Unit_info.make_dummy ~input_name:"caml_startup" shared_startup_comp_unit
+  in
+  Compilenv.reset shared_startup_unit_info;
   Emitaux.Dwarf_helpers.init ~disable_dwarf:(not !Dwarf_flags.dwarf_for_startup_file)
     ~sourcefile:sourcefile_for_dwarf;
   Emit.begin_assembly unix;

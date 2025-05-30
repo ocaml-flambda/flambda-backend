@@ -283,6 +283,10 @@ module Expert = struct
   let cont_lifting_budget () =
     !Flambda_backend_flags.Flambda2.Expert.cont_lifting_budget
     |> with_default ~f:(fun d -> d.cont_lifting_budget)
+
+  let cont_spec_budget () =
+    !Flambda_backend_flags.Flambda2.Expert.cont_spec_budget
+    |> with_default ~f:(fun d -> d.cont_spec_budget)
 end
 
 let stack_allocation_enabled () = Config.stack_allocation

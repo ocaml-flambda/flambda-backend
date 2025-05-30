@@ -245,8 +245,7 @@ and type_desc =
 
       These types are uninhabited, and any appearing in translation will cause an error.
       They are only used to represent the kinds of existentially-quantified types
-      mentioned in with-bounds. *)
-      (* CR reisenberg: add link to test once one exists *)
+      mentioned in with-bounds. See test typing-jkind-bounds/gadt.ml *)
 
 (** This is used in the Typedtree. It is distinct from
     {{!Asttypes.arg_label}[arg_label]} because Position argument labels are
@@ -269,6 +268,8 @@ and fixed_explanation =
   | Fixed_private (** The row type is private *)
   | Reified of Path.t (** The row was reified *)
   | Rigid (** The row type was made rigid during constraint verification *)
+  | Fixed_existential (** The row type is existential in a with-bound.
+                      See Note [With-bounds for GADTs] in Jkind. *)
 
 (** [abbrev_memo] allows one to keep track of different expansions of a type
     alias. This is done for performance purposes.
@@ -570,6 +571,11 @@ val row_fields: row_desc -> (label * row_field) list
       some incompletness in type inference.
 
     * [Tnil]: Used to denote a static polymorphic variant (with no [>] or [<]).
+
+    * [Tof_kind]: See Wrinkle BW2 in Note [With-bounds for GADTs] in Jkind.
+    Briefly, [Tof_kind] can appear as a [row_more] when computing the kind
+    of a GADT with an existentially-bound row variable. The [fixed_explanation]
+    will be [Fixed_existential].
 
     ----------------------------------------
 

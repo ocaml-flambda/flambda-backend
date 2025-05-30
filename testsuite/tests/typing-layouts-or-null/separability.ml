@@ -841,69 +841,18 @@ type a = #{ a : t_maybesep_val; }
 
 type b = #{ a : int; b: t_maybesep_val; c: float# }
 
-type ('b : value & value & float64 mod everything non_float) fails = unit constraint 'b = b
-
-(* CR layouts v3.4: separability of 2+ element unboxed records should always be
-   non-float.
-
-   Also, this error is horrible. *)
+type ('b : value & value & float64 mod non_null non_float) fails = unit constraint 'b = b
 
 [%%expect{|
 type b = #{ a : int; b : t_maybesep_val; c : float#; }
-Line 3, characters 85-91:
-3 | type ('b : value & value & float64 mod everything non_float) fails = unit constraint 'b = b
-                                                                                         ^^^^^^
-Error: The type constraints are not consistent.
-       Type "('b : immediate & immediate & float64 mod everything)"
-       is not compatible with type "b"
-       The kind of b is
-         immediate with t_maybesep_val & immediate with t_maybesep_val
-         & float64 mod everything with t_maybesep_val
-         because of the definition of b at line 1, characters 0-51.
-       But the kind of b must be a subkind of
-         immediate & immediate & float64 mod everything
-         because of the annotation on 'b in the declaration of the type fails.
+type 'a fails = unit constraint 'a = b
 |}]
 
 type c = #( float * float or_null * float# )
 
-(* CR layouts v3.4: separability of unboxed tuples should always be
-   non-float.
-
-   Also, this error is horrible. *)
-
-type ('c : value & value & float64 mod everything non_float) fails = unit constraint 'c = c
+type ('c : value & value & float64 mod non_null non_float) fails = unit constraint 'c = c
 
 [%%expect{|
 type c = #(float * float or_null * float#)
-Line 8, characters 85-91:
-8 | type ('c : value & value & float64 mod everything non_float) fails = unit constraint 'c = c
-                                                                                         ^^^^^^
-Error: The type constraints are not consistent.
-       Type "('c : immediate & immediate & float64 mod everything)"
-       is not compatible with type "c" = "#(float * float or_null * float#)"
-       The kind of c is
-         value_or_null mod many unyielding stateless immutable
-         & value_or_null mod many unyielding stateless immutable
-         & float64 mod many unyielding stateless immutable
-         because it is an unboxed tuple.
-       But the kind of c must be a subkind of
-         immediate & immediate & float64 mod everything
-         because of the annotation on 'c in the declaration of the type fails.
-|}, Principal{|
-type c = #(float * float or_null * float#)
-Line 8, characters 85-91:
-8 | type ('c : value & value & float64 mod everything non_float) fails = unit constraint 'c = c
-                                                                                         ^^^^^^
-Error: The type constraints are not consistent.
-       Type "('c : immediate & immediate & float64 mod everything)"
-       is not compatible with type "c" = "#(float * float or_null * float#)"
-       The kind of c is
-         immediate with float with float or_null with float# & immediate
-         with float with float or_null with float# & float64 mod everything
-         with float with float or_null with float#
-         because it is an unboxed tuple.
-       But the kind of c must be a subkind of
-         immediate & immediate & float64 mod everything
-         because of the annotation on 'c in the declaration of the type fails.
+type 'a fails = unit constraint 'a = c
 |}]

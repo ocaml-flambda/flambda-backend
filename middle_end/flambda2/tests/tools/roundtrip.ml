@@ -28,9 +28,10 @@ let () =
     let modname =
       Parse_flambda.make_compilation_unit ~filename:file ~extension:".fl" ()
     in
+    let unit_info = Unit_info.make_dummy ~input_name:file modname in
     (* Need to get this right or the conversion will complain about binding
        non-local symbols *)
-    Compilation_unit.set_current (Some modname);
+    Env.set_unit_name (Some unit_info);
     let unit =
       match Parse_flambda.parse file with
       | Ok unit -> unit

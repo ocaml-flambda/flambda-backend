@@ -350,6 +350,7 @@ CAMLexport void caml_switch_runtime_locking_scheme(struct caml_locking_scheme* n
     caml_fatal_error("Switching locking scheme is unsupported in multicore programs");
   CAMLassert (!caml_domain_is_multicore());
   save_runtime_state();
+  domain_lockmode = LOCKMODE_CUSTOM_SCHEME;
   old = atomic_exchange(&Locking_scheme(dom_id), new);
   /* We hold 'old', but it is no longer the runtime lock */
   old->unlock(old->context);

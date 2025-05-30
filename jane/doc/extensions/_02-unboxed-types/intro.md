@@ -192,7 +192,7 @@ for more details.
 The unboxed product layout describes types that work like normal products (e.g.,
 tuples or records), but which are represented without a box.
 
-In OCaml, a tuple is a pointer to a block containing the elements of the tuple. If
+In stock OCaml, a tuple is a pointer to a block containing the elements of the tuple. If
 you pass a tuple to a function, it is passed by reference in one register. The
 function can access the tuple's elements through the pointer. Records and
 their fields are treated similarly. By contrast, an
@@ -432,8 +432,7 @@ the padding value will be preserved by the generated code or the runtime.
 
 Unboxed types can usually be put in structures, though there are some restrictions.
 
-These structures may contain unboxed types, but have some restrictions on field
-orders:
+These structures may contain unboxed types:
 
   * Records
   * Constructors
@@ -450,7 +449,7 @@ There aren't fundamental issues with the structures that lack support. They will
 just take some work to implement.
 
 Here's an example of a record with an unboxed field. We call such a record
-a "mixed record".
+a "mixed record", and it is represented at runtime by a "mixed block".
 
 ```ocaml
 type t =
@@ -460,48 +459,56 @@ type t =
   }
 ```
 
-## Restrictions on field ordering
+## The "mixed block" representation
 
-The below is written about record fields but equally applies to constructor
-arguments.
+The runtime representation of mixed blocks is slightly different than normal
+OCaml blocks. These differences are present to accommodate the garbage collector,
+which must scan the fields with layout `value`, but not the fields containing
+unboxed types.
 
-Suppose a record contains any unboxed field `fld` whose layout is not `value`[^or-combination-of-values]. Then, the following restriction applies: All
-fields occurring after `fld` in the record must be "flat", i.e. the GC can
-skip looking at them. The only options for flat fields are immediates (i.e. things
-represented as ints at runtime) and other unboxed numbers.
+To enable this, the header word of mixed blocks remembers how many elements of
+the block are values, with a maximum of 254. The compiler _reorders_ the fields
+of your block so that all the values are first, and the GC knows to stop
+scanning after it has seen that number of fields.
 
-[^or-combination-of-values]: Technically, there are some non-value layouts that don't hit this restriction, like unboxed products and unboxed sums consisting only of values.
-
-The following definition is rejected, as the boxed field `s : string` appears
-after the unboxed float field `f`:
-
+For example, consider this record type:
 ```ocaml
-type t_rejected =
-  { f : float#;
-    s : string;
-  }
-  (* Error: Expected all flat fields after non-value field, f,
-            but found boxed field, s. *)
-```
-
-The only relaxation of the above restriction is for records that consist
-solely of `float` and `float#` fields. Any ordering of `float` and `float#`
-fields is permitted. The "flat float record optimization" applies to any
-such record&mdash;all of the fields are stored flat, even the `float` ones
-that will require boxing upon projection. The ordering restriction is relaxed
-in this case to provide a better migration story for all-`float` records
-to which the flat float record optimization currently applies.
-
-```ocaml
-type t_flat_float =
-  { x1 : float;
-    x2 : float#;
-    x3 : float;
+type t =
+  { w : float#;
+    x : string;
+    y : int64#;
+    z : int
   }
 ```
 
-The ordering restriction has to do with the "mixed block" runtime
-representation. Read on for more detail about that.
+The compiler will represent this type with a block where the fields are in the
+order `x`, `z`, `w`, `y`.
+
+The reordering is invisible to source-level OCaml programs that don't use unsafe
+features, but can be relevant when writing C bindings or OCaml code that depends
+on the runtime representation of values. It is stable in the sense that it never
+changes the relative order of two values, or of two non-values.  Immediates
+count as values for this purpose (they are always moved to the prefix).
+
+There is a special case for records that consist solely of `float` and
+`float#` fields. The "flat float record optimization" applies to any such
+record&mdash;all of the fields are stored flat, even the `float` ones that will
+require boxing upon projection. The fields are also not reordered. This special
+case exists to provide a better migration story for all-`float` records to which
+the flat float record optimization currently applies.
+
+Blocks may contain unboxed products, in which case the products are "flattened"
+to become individual fields of the block, and reordered to accommodate the mixed
+block representation.  For example, consider this record type:
+
+```ocaml
+type t =
+  { a : float#;
+    b : #(w:float# * #(x:string * y:int64#) * z:(int * int));
+    c : bool }
+```
+This is represented as a block with six fields, and the fields appear the order
+`x`, `z`, `c`, `a`, `w`, `y`.
 
 ## Generic operations aren't supported
 
@@ -519,38 +526,44 @@ comparison raises when called on a function.
 
 You should use ppx-derived versions of these operations instead.
 
-## Runtime representation: mixed blocks
-
-As a general principle: The compiler should not change the user-specified
-field ordering when deciding the runtime representation.
-
-Abiding by this principle allows you to write C bindings and
-predict hardware cache performance.
-
-A structure containing unboxed types is represented at runtime as a "mixed
-block". A mixed block always consists of fields the GC can-or-must scan followed by
-fields the GC can-or-must skip[^can-or-must]. The garbage collector must be kept
-informed of which fields of the block it should scan. A portion of the header
-word is reserved to track the length of the prefix of the block that should be
-scanned by the garbage collector.
-
-[^can-or-must]: "Can-or-must" is a bit of a mouthful, but it captures the right nuance. Pointer values *must* be scanned, unboxed number fields *must* be skipped, and immediate values *can* be scanned or skipped.
-
-The ordering constraint on structure fields is a reflection of the same
-ordering restriction in the runtime representation.
-
-## C bindings for mixed blocks
+## Depending on the layout of mixed blocks
 
 The implementation of field layout in a mixed block is not finalized. For example, we'd like for int32 fields to be packed efficiently (two to a word) on 64 bit platforms. Currently that's not the case: each one takes up a word.
 
-Users who write C bindings might want to be notified when we change this layout. To ensure that your code will need to be updated when the layout changes, use the `Assert_mixed_block_layout_v#` family of macros. For example,
+As a result, code that depends on the way mixed blocks are represented in memory
+(e.g., via C bindings) may need updates in the future. To help manage this,
+OxCaml provides mechanisms to assert your code depends on the current
+representation. The mechanism depends on whether you are writing C bindings
+or (unsafe) OCaml code.
+
+Note also that, while unboxed types are generally considered an "upstream
+compatible" (because they can be erased while preserving behavior), depending on
+the exact representation of mixed blocks is not. Thus, use of these mechanism is
+also a sign that your code may need a custom mechanism if it is intended to work
+both in OxCaml and upstream OCaml.
+
+### In C bindings
+
+To ensure that your C code will need to be updated when the layout changes, use
+the `Assert_mixed_block_layout_v#` family of macros. For example,
 
 ```
-Assert_mixed_block_layout_v1;
+Assert_mixed_block_layout_v3;
 ```
 
 Write the above in statement context, i.e. either at the top-level of a file or
 within a function.
+
+### In OCaml code
+
+Users who write OCaml code that depends on the layout of mixed blocks (via
+`Obj.magic` or similar) should instead include a reference in the relevant
+modules to `Stdlib_upstream_compatible.mixed_block_layout_v#`. For example:
+```
+let _ = Stdlib_upstream_compatible.mixed_block_layout_v3
+```
+
+### Example
 
 Here's a full example. Say you're writing C bindings against this OCaml type:
 
@@ -565,15 +578,23 @@ type t =
 Here is the recommend way to access fields:
 
 ```c
-Assert_mixed_block_layout_v1;
+Assert_mixed_block_layout_v3;
 #define Foo_t_x(foo) (*(int32_t*)&Field(foo, 0))
 #define Foo_t_y(foo) (*(int32_t*)&Field(foo, 1))
 ```
 
-We would bump the version number in either of these cases, which would prompt you to think about the code:
+### Future changes and history
+
+We will bump the version number if make changes to the layout of mixed
+blocks. For example, it will be bumped if:
 
   * We change what word half the int32 is stored in
   * We start packing int32s more efficiently
+
+When we bump the version, the C assertion for the previous version will fail at
+compile time, and the OCaml definition for the previous version will be removed
+from the standard library. This alerts maintainers of code using these
+mechanisms to consider whether that code needs updates.
 
 Version history:
 

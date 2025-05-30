@@ -78,6 +78,7 @@ let () =
     (pipe-outputs
     (with-accepted-exit-codes ${exit_code}
      (run %{bin:ocamlopt.opt} %{ml} -g -color never -error-style short -c
+          -flambda2-expert-cont-specialization-budget 0
           ${extra_flags} -zero-alloc-checker-details-cutoff ${cutoff} -O3))
     (run "./${filter}")
    ))))

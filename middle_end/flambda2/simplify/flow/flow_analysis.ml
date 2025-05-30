@@ -52,13 +52,16 @@ let print_graph ~print ~print_name ~lazy_ppf ~graph =
 
 let analyze ?(speculative = false) ?print_name ~return_continuation
     ~exn_continuation ~code_age_relation ~used_value_slots
-    ~code_ids_to_never_delete t : T.Flow_result.t =
+    ~code_ids_to_never_delete ~specialization_map t : T.Flow_result.t =
   Profile.record_call ~accumulate:true "data_flow" (fun () ->
       if Flambda_features.dump_flow ()
-      then Format.eprintf "PRESOURCE:@\n%a@\n@." T.Acc.print t;
+      then
+        Format.eprintf "PRESOURCE:@\nspec:%a@\n%a@\n@."
+          (Continuation_callsite_map.print Continuation.print)
+          specialization_map T.Acc.print t;
       (* Accumulator normalization *)
       let ({ T.Acc.stack; map; extra = _; dummy_toplevel_cont } as t) =
-        Flow_acc.extend_args_with_extra_args t
+        Flow_acc.normalize_acc ~specialization_map t
       in
       assert (match stack with [] -> true | _ :: _ -> false);
       assert (
@@ -122,7 +125,7 @@ let analyze ?(speculative = false) ?print_name ~return_continuation
                 (Continuation_extra_params_and_args.extra_params epa)
             in
             Name.Set.union required_names (Name.set_of_var_set params))
-          reference_result.T.Mutable_unboxing_result.additionnal_epa
+          reference_result.T.Mutable_unboxing_result.additional_epa
           dead_variable_result.required_names
       in
       let result =

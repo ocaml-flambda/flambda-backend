@@ -58,6 +58,7 @@ extern uintnat caml_pool_min_chunk_bsz;  /* see shared_heap.c */
 extern uintnat caml_percent_sweep_per_mark; /* see major_gc.c */
 extern uintnat caml_gc_pacing_policy;       /* see major_gc.c */
 extern uintnat caml_gc_overhead_adjustment; /* see major_gc.c */
+extern uintnat caml_nohugepage_stacks;    /* see fiber.c */
 
 CAMLprim value caml_gc_quick_stat(value v)
 {
@@ -443,6 +444,7 @@ static struct gc_tweak gc_tweaks[] = {
   { "percent_sweep_per_mark", &caml_percent_sweep_per_mark, 0 },
   { "gc_pacing_policy", &caml_gc_pacing_policy, 0 },
   { "gc_overhead_adjustment", &caml_gc_overhead_adjustment, 0 },
+  { "nohugepage_stacks", &caml_nohugepage_stacks, 0 },
 };
 
 enum {N_GC_TWEAKS = sizeof(gc_tweaks)/sizeof(gc_tweaks[0])};

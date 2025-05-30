@@ -509,17 +509,35 @@ val for_boxed_record : Types.label_declaration list -> Types.jkind_l
 (** Choose an appropriate jkind for an unboxed record type. *)
 val for_unboxed_record : Types.label_declaration list -> Types.jkind_l
 
-(** Choose an appropriate jkind for a boxed variant type. *)
-val for_boxed_variant : Types.constructor_declaration list -> Types.jkind_l
+(** Choose an appropriate jkind for a boxed variant type.
+
+    [decl_params] is the parameters in the head of the type declaration. [type_apply]
+    should be [Ctype.apply] partially applied to an [env]. *)
+val for_boxed_variant :
+  decl_params:Types.type_expr list ->
+  type_apply:
+    (Types.type_expr list ->
+    Types.type_expr ->
+    Types.type_expr list ->
+    Types.type_expr) ->
+  free_vars:(Types.type_expr list -> Btype.TypeSet.t) ->
+  Types.constructor_declaration list ->
+  Types.jkind_l
 
 (** Choose an appropriate jkind for a boxed tuple type. *)
 val for_boxed_tuple : (string option * Types.type_expr) list -> Types.jkind_l
+
+(** Choose an appropriate jkind for a row type. *)
+val for_boxed_row : Types.row_desc -> Types.jkind_l
 
 (** The jkind of an arrow type. *)
 val for_arrow : Types.jkind_l
 
 (** The jkind of an object type.  *)
 val for_object : Types.jkind_l
+
+(** The jkind for [exn] *)
+val for_exn : Ident.t -> Types.jkind_l
 
 (** The jkind of a float. *)
 val for_float : Ident.t -> Types.jkind_l
@@ -600,9 +618,14 @@ val get_nullability :
   Jkind_axis.Nullability.t
 
 (** Computes a jkind that is the same as the input but with an updated maximum
-    mode for the externality axis *)
+    mode for the nullability axis *)
 val set_nullability_upper_bound :
   Types.jkind_r -> Jkind_axis.Nullability.t -> Types.jkind_r
+
+(** Computes a jkind that is the same as the input but with an updated maximum
+    mode for the separability axis *)
+val set_separability_upper_bound :
+  Types.jkind_r -> Jkind_axis.Separability.t -> Types.jkind_r
 
 (** Sets the layout in a jkind. *)
 val set_layout : 'd Types.jkind -> Sort.t Layout.t -> 'd Types.jkind

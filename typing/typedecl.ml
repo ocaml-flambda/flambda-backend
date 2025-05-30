@@ -1963,7 +1963,13 @@ let rec update_decl_jkind env dpath decl =
           (idx+1,cstr::cstrs)
         ) (0,[]) cstrs
       in
-      let jkind = Jkind.for_boxed_variant cstrs in
+      let jkind =
+        Jkind.for_boxed_variant
+          ~decl_params:decl.type_params
+          ~type_apply:(Ctype.apply env)
+          ~free_vars:(Ctype.free_variable_set_of_list env)
+          cstrs
+      in
       List.rev cstrs, rep, jkind
     | (([] | (_ :: _)), Variant_unboxed | _, Variant_extensible) ->
       assert false
@@ -2993,7 +2999,10 @@ let transl_extension_constructor ~scope env type_path type_params
         let usage : Env.constructor_usage =
           if priv = Public then Env.Exported else Env.Exported_private
         in
-        let cdescr = Env.lookup_constructor ~loc:lid.loc usage lid.txt env in
+        let cdescr, locks =
+          Env.lookup_constructor ~loc:lid.loc usage lid.txt env
+        in
+        let held_locks = (locks, lid.txt, lid.loc) in
         let (args, cstr_res, _ex) =
           Ctype.instance_constructor Keep_existentials_flexible cdescr
         in
@@ -3027,6 +3036,8 @@ let transl_extension_constructor ~scope env type_path type_params
               | _ -> ())
             typext_params
         end;
+        Ctype.check_constructor_crossing env cdescr.cstr_tag ~res:cstr_res args
+          held_locks;
         (* Ensure that constructor's type matches the type being extended *)
         let cstr_type_path = Btype.cstr_type_path cdescr in
         let cstr_type_params = (Env.find_type cstr_type_path env).type_params in

@@ -648,6 +648,16 @@ let free_non_row_variables_of_list tyl =
   List.iter unmark_type tyl;
   tl
 
+let free_variable_set_of_list env tys =
+  let add_one ty jkind _kind acc =
+    match jkind with
+    | None -> (* not a Tvar *) acc
+    | Some _jkind -> TypeSet.add ty acc
+  in
+  let ts = free_vars ~zero:TypeSet.empty ~add_one ~env tys in
+  List.iter unmark_type tys;
+  ts
+
 let exists_free_variable f ty =
   let exception Exists in
   let add_one ty jkind _kind _acc =
@@ -1297,7 +1307,7 @@ let rec copy ?partial ?keep_names copy_scope ty =
                   Tsubst (ty, None) -> ty
                   (* TODO: is this case possible?
                      possibly an interaction with (copy more) below? *)
-                | Tconstr _ | Tnil ->
+                | Tconstr _ | Tnil | Tof_kind _ ->
                     copy more
                 | Tvar _ | Tunivar _ ->
                     if keep then more else newty mored
@@ -2250,16 +2260,6 @@ let get_unboxed_type_approximation env ty =
   match get_unboxed_type_representation env ty with
   | Ok ty | Error ty -> ty
 
-let tvariant_not_immediate row =
-  (* if all labels are devoid of arguments, not a pointer *)
-  (* CR layouts v5: Polymorphic variants with all void args can probably
-     be immediate, but we don't allow them to have void args right now. *)
-  not (row_closed row)
-  || List.exists
-    (fun (_,field) -> match row_field_repr field with
-      | Rpresent (Some _) | Reither (false, _, _) -> true
-      | _ -> false)
-    (row_fields row)
 
 (* forward declarations *)
 let type_equal' = ref (fun _ _ _ -> Misc.fatal_error "type_equal")
@@ -2318,9 +2318,7 @@ let rec estimate_type_jkind ~expand_component env ty =
   | Tnil -> Jkind.Builtin.value ~why:Tnil
   | Tlink _ | Tsubst _ -> assert false
   | Tvariant row ->
-     if tvariant_not_immediate row
-     then Jkind.for_non_float ~why:Polymorphic_variant
-     else Jkind.Builtin.immediate ~why:Immediate_polymorphic_variant
+     Jkind.for_boxed_row row
   | Tunivar { jkind } -> Jkind.disallow_right jkind
   | Tpoly (ty, _) ->
     let jkind_of_type = !type_jkind_purely_if_principal' env in
@@ -2334,7 +2332,7 @@ let rec estimate_type_jkind ~expand_component env ty =
        down a test case that cares. *)
     Jkind.round_up ~jkind_of_type |>
     Jkind.disallow_right
-  | Tof_kind jkind -> Jkind.disallow_right jkind
+  | Tof_kind jkind -> Jkind.mark_best jkind
   | Tpackage _ -> Jkind.for_non_float ~why:First_class_module
 
 and close_open_jkind ~expand_component ~is_open env jkind =
@@ -2584,6 +2582,14 @@ let check_type_externality env ty ext =
 let check_type_nullability env ty null =
   let upper_bound =
     Jkind.set_nullability_upper_bound (Jkind.Builtin.any ~why:Dummy_jkind) null
+  in
+  match check_type_jkind env ty upper_bound with
+  | Ok () -> true
+  | Error _ -> false
+
+let check_type_separability env ty sep =
+  let upper_bound =
+    Jkind.set_separability_upper_bound (Jkind.Builtin.any ~why:Dummy_jkind) sep
   in
   match check_type_jkind env ty upper_bound with
   | Ok () -> true
@@ -7217,3 +7223,38 @@ let constrain_decl_jkind env decl jkind =
         match decl.type_manifest with
         | None -> err
         | Some ty -> constrain_type_jkind env ty jkind
+
+let check_constructor_crossing env tag ~res args held_locks =
+  match tag with
+  | Ordinary _ | Null -> ()
+  | Extension _ ->
+      match get_desc (expand_head env res) with
+      | Tconstr (p, _, _) when Path.same Predef.path_exn p ->
+          (* CR zqian: handle other extensible variant types as well *)
+          let mode_crossings =
+            List.map (
+              fun ({ca_type; ca_modalities; _} : Types.constructor_argument) ->
+              crossing_of_ty env ~modalities:ca_modalities ca_type
+            ) args
+          in
+          let mode_crossing =
+            List.fold_left Mode.Crossing.join Mode.Crossing.bot mode_crossings
+          in
+          (* We only check portability and contention, since [exn] doesn't
+               cross other axes anyway. *)
+          let monadic =
+            Mode.Value.max_with (Monadic Contention) Mode.Contention.min
+            |> Mode.Crossing.apply_right mode_crossing
+          in
+          let comonadic =
+            Mode.Value.min_with (Comonadic Portability) Mode.Portability.max
+            |> Mode.Crossing.apply_left mode_crossing
+          in
+          let mode = {
+            monadic = monadic.monadic;
+            comonadic = comonadic.comonadic;
+          }
+          |> Mode.Value.close_over
+          in
+          ignore (Env.walk_locks ~env ~item:Constructor mode None held_locks)
+      | _ -> ()

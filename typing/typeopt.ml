@@ -260,8 +260,15 @@ let array_kind_of_elt ~elt_sort env loc ty =
     else
       Pgcscannableproductarray (scannable_product_array_kind loc sorts)
   in
+  (* CR dkalinichenko: many checks in [classify] are redundant
+     with separability. *)
   match classify ~classify_product env loc ty elt_sort with
-  | Any -> if Config.flat_float_array then Pgenarray else Paddrarray
+  | Any ->
+    if Config.flat_float_array
+      && not (Language_extension.is_at_least Separability ()
+          && Ctype.check_type_separability env ty Non_float)
+    then Pgenarray
+    else Paddrarray
   | Float -> if Config.flat_float_array then Pfloatarray else Paddrarray
   | Addr | Lazy -> Paddrarray
   | Int -> Pintarray
@@ -641,7 +648,7 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
                       non_consts = [0, Constructor_uniform fields] }))
   | Tvariant row ->
     num_nodes_visited,
-    if Ctype.tvariant_not_immediate row
+    if Btype.tvariant_not_immediate row
     then non_nullable Pgenval
     else non_nullable Pintval
   | _ ->

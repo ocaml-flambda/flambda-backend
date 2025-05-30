@@ -675,41 +675,51 @@ let rec expr env (e : Fexpr.expr) : Flambda.Expr.t =
       match sort with Exn -> true | Normal | Define_root_symbol -> false
     in
     let sort = continuation_sort sort in
+    let arity =
+      match recursive with
+      | Nonrecursive -> List.length params
+      | Recursive invariant_params ->
+        List.length invariant_params + List.length params
+    in
     let name, body_env =
       if is_exn_handler
       then
         let e, env = fresh_exn_cont env name in
         Exn_continuation.exn_handler e, env
-      else fresh_cont env name ~sort ~arity:(List.length params)
+      else fresh_cont env name ~sort ~arity
     in
     let body = expr body_env body in
-    let env =
-      match recursive with Nonrecursive -> env | Recursive -> body_env
+    let create_params env params =
+      let env, parameters =
+        List.fold_right
+          (fun ({ param; kind } : Fexpr.kinded_parameter) (env, args) ->
+            let var, env = fresh_var env param in
+            let param =
+              Bound_parameter.create var (value_kind_with_subkind_opt kind)
+            in
+            env, param :: args)
+          params (env, [])
+      in
+      env, Bound_parameters.create parameters
     in
-    let handler_env, params =
-      List.fold_right
-        (fun ({ param; kind } : Fexpr.kinded_parameter) (env, args) ->
-          let var, env = fresh_var env param in
-          let param =
-            Bound_parameter.create var (value_kind_with_subkind_opt kind)
-          in
-          env, param :: args)
-        params (env, [])
+    let env, invariant_params =
+      match recursive with
+      | Nonrecursive -> env, Bound_parameters.empty
+      | Recursive invariant_params -> create_params body_env invariant_params
     in
+    let handler_env, params = create_params env params in
     let handler = expr handler_env handler in
     let handler =
-      Flambda.Continuation_handler.create
-        (Bound_parameters.create params)
-        ~handler ~free_names_of_handler:Unknown ~is_exn_handler ~is_cold:false
+      Flambda.Continuation_handler.create params ~handler
+        ~free_names_of_handler:Unknown ~is_exn_handler ~is_cold:false
     in
     match recursive with
     | Nonrecursive ->
       Flambda.Let_cont.create_non_recursive name handler ~body
         ~free_names_of_body:Unknown
-    | Recursive ->
+    | Recursive _ ->
       let handlers = Continuation.Lmap.singleton name handler in
-      Flambda.Let_cont.create_recursive ~invariant_params:Bound_parameters.empty
-        handlers ~body)
+      Flambda.Let_cont.create_recursive ~invariant_params handlers ~body)
   | Let_cont _ -> failwith "TODO andwhere"
   | Apply_cont ac -> Flambda.Expr.create_apply_cont (apply_cont env ac)
   | Switch { scrutinee; cases } ->

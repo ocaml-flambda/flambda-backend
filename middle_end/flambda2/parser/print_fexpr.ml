@@ -41,7 +41,8 @@ let pp_option ~space f ppf = function
   | None -> ()
   | Some a -> pp_spaced ~space ppf "%a" f a
 
-let recursive ~space ppf = function
+let recursive ~space ppf r =
+  match (r : is_recursive) with
   | Nonrecursive -> ()
   | Recursive -> pp_spaced ~space ppf "rec"
 
@@ -689,6 +690,12 @@ let kinded_parameters ~space ppf = function
   | [] -> ()
   | args -> pp_spaced ~space ppf "(@[<hv>%a@])" (pp_comma_list parameter) args
 
+let cont_recursive ~space ppf recu =
+  match (recu : is_cont_recursive) with
+  | Nonrecursive -> ()
+  | Recursive l ->
+    pp_spaced ~space ppf "rec%a" (kinded_parameters ~space:Neither) l
+
 let raise_kind ppf rt =
   Format.pp_print_string ppf
   @@
@@ -841,8 +848,9 @@ let rec expr scope ppf = function
     parens ~if_scope_is:Continuation_body scope ppf (fun _scope ppf ->
         Format.fprintf ppf
           "@[<v 2>%a@ @[<v>@[<v 2>@[where%a @]@[<hv 2>%a%a%a@] =@ %a@]%a@]@]"
-          (expr Where_body) body (recursive ~space:Before) recu continuation_id
-          name
+          (expr Where_body) body
+          (cont_recursive ~space:Before)
+          recu continuation_id name
           (pp_option continuation_sort ~space:Before)
           sort
           (kinded_parameters ~space:Before)

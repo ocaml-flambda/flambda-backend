@@ -131,8 +131,7 @@ module Continuation_info = struct
       code_ids : Name_occurrences.t Code_id.Map.t;
       value_slots : Name_occurrences.t Name.Map.t Value_slot.Map.t;
       apply_cont_args :
-        Cont_arg.t Numeric_types.Int.Map.t Apply_cont_rewrite_id.Map.t
-        Continuation.Map.t
+        Cont_arg.t Numeric_types.Int.Map.t Continuation_callsite_map.t
     }
 
   let [@ocamlformat "disable"] print ppf
@@ -320,19 +319,19 @@ end
 module Mutable_unboxing_result = struct
   type t =
     { did_unbox_a_mutable_block : bool;
-      additionnal_epa : Continuation_extra_params_and_args.t Continuation.Map.t;
+      additional_epa : Continuation_extra_params_and_args.t Continuation.Map.t;
       let_rewrites : Named_rewrite.t Named_rewrite_id.Map.t
     }
 
-  let [@ocamlformat "disable"] print ppf { did_unbox_a_mutable_block; additionnal_epa; let_rewrites } =
+  let [@ocamlformat "disable"] print ppf { did_unbox_a_mutable_block; additional_epa; let_rewrites } =
     Format.fprintf ppf
       "@[<hov 1>(\
          @[<hov 1>(did_unbox_a_mutable_block@ %b)@]@ \
-         @[<hov 1>(additionnal_epa@ %a)@]@ \
+         @[<hov 1>(additional_epa@ %a)@]@ \
          @[<hov 1>(let_rewrites@ %a)@]\
        )@]"
       did_unbox_a_mutable_block
-      (Continuation.Map.print Continuation_extra_params_and_args.print) additionnal_epa
+      (Continuation.Map.print Continuation_extra_params_and_args.print) additional_epa
       (Named_rewrite_id.Map.print Named_rewrite.print) let_rewrites
 end
 

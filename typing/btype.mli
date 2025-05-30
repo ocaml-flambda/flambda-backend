@@ -27,6 +27,7 @@ module TypeSet : sig
   val singleton: type_expr -> t
   val exists: (type_expr -> bool) -> t -> bool
   val elements: t -> type_expr list
+  val debug_print : Format.formatter -> t -> unit
 end
 module TransientTypeMap : Map.S with type key = transient_expr
 module TypeMap : sig
@@ -106,6 +107,9 @@ val merge_fixed_explanation:
 
 val static_row: row_desc -> bool
         (* Return whether the row is static or not *)
+val tvariant_not_immediate: row_desc -> bool
+        (* Return whether the polymorphic variant is non-immediate
+           (i.e., has arguments or is open) *)
 val hash_variant: label -> int
         (* Hash function for variant tags *)
 

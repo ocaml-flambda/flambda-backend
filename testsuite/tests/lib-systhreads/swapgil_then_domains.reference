@@ -1,0 +1,1 @@
+Failure("Domain.spawn cannot be used with a non-default runtime locking scheme.")
