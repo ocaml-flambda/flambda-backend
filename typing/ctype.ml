@@ -648,6 +648,16 @@ let free_non_row_variables_of_list tyl =
   List.iter unmark_type tyl;
   tl
 
+let free_variable_set_of_list env tys =
+  let add_one ty jkind _kind acc =
+    match jkind with
+    | None -> (* not a Tvar *) acc
+    | Some _jkind -> TypeSet.add ty acc
+  in
+  let ts = free_vars ~zero:TypeSet.empty ~add_one ~env tys in
+  List.iter unmark_type tys;
+  ts
+
 let exists_free_variable f ty =
   let exception Exists in
   let add_one ty jkind _kind _acc =
@@ -1297,7 +1307,7 @@ let rec copy ?partial ?keep_names copy_scope ty =
                   Tsubst (ty, None) -> ty
                   (* TODO: is this case possible?
                      possibly an interaction with (copy more) below? *)
-                | Tconstr _ | Tnil ->
+                | Tconstr _ | Tnil | Tof_kind _ ->
                     copy more
                 | Tvar _ | Tunivar _ ->
                     if keep then more else newty mored
@@ -2322,7 +2332,7 @@ let rec estimate_type_jkind ~expand_component env ty =
        down a test case that cares. *)
     Jkind.round_up ~jkind_of_type |>
     Jkind.disallow_right
-  | Tof_kind jkind -> Jkind.disallow_right jkind
+  | Tof_kind jkind -> Jkind.mark_best jkind
   | Tpackage _ -> Jkind.for_non_float ~why:First_class_module
 
 and close_open_jkind ~expand_component ~is_open env jkind =
