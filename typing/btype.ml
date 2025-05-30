@@ -20,6 +20,11 @@ open Types
 
 open Local_store
 
+(**** Forward declarations ****)
+
+let print_raw =
+  ref (fun _ -> assert false : Format.formatter -> type_expr -> unit)
+
 (**** Sets, maps and hashtables of types ****)
 
 let wrap_repr f ty = f (Transient_expr.repr ty)
@@ -34,6 +39,13 @@ module TypeSet = struct
   let exists p = TransientTypeSet.exists (wrap_type_expr p)
   let elements set =
     List.map Transient_expr.type_expr (TransientTypeSet.elements set)
+  let debug_print ppf t =
+    Format.(
+      fprintf ppf "{ %a }"
+        (pp_print_seq
+           ~pp_sep:(fun ppf () -> fprintf ppf ";@,")
+           !print_raw)
+        (to_seq t |> Seq.map Transient_expr.type_expr))
 end
 module TransientTypeMap = Map.Make(TransientTypeOps)
 module TypeMap = struct
@@ -95,10 +107,6 @@ module TypePairs = struct
         f (type_expr t1, type_expr t2))
 end
 
-(**** Forward declarations ****)
-
-let print_raw =
-  ref (fun _ -> assert false : Format.formatter -> type_expr -> unit)
 
 (**** Type level management ****)
 
@@ -149,6 +157,7 @@ let merge_fixed_explanation fixed1 fixed2 =
   | Some Fixed_private as x, _ | _, (Some Fixed_private as x) -> x
   | Some Reified _ as x, _ | _, (Some Reified _ as x) -> x
   | Some Rigid as x, _ | _, (Some Rigid as x) -> x
+  | Some Fixed_existential as x, _ | _, (Some Fixed_existential as x) -> x
   | None, None -> None
 
 
@@ -161,6 +170,7 @@ let fixed_explanation row =
       | Tvar _ | Tnil -> None
       | Tunivar _ -> Some (Univar ty)
       | Tconstr (p,_,_) -> Some (Reified p)
+      | Tof_kind _ -> Some Fixed_existential
       | _ -> assert false
 
 let is_fixed row = match row_fixed row with
@@ -285,6 +295,7 @@ let fold_row f init row =
 
 let iter_row f row =
   fold_row (fun () v -> f v) () row
+
 
 let fold_type_expr f init ty =
   match get_desc ty with

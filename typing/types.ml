@@ -365,7 +365,11 @@ and row_desc =
       row_fixed: fixed_explanation option;
       row_name: (Path.t * type_expr list) option }
 and fixed_explanation =
-  | Univar of type_expr | Fixed_private | Reified of Path.t | Rigid
+  | Univar of type_expr
+  | Fixed_private
+  | Reified of Path.t
+  | Rigid
+  | Fixed_existential
 and row_field = [`some] row_field_gen
 and _ row_field_gen =
     RFpresent : type_expr option -> [> `some] row_field_gen
@@ -1285,7 +1289,7 @@ module Transient_expr = struct
     match ty.desc with
     | Tvar { name; _ } ->
       set_desc ty (Tvar { name; jkind = jkind' })
-    | _ -> assert false
+    | _ -> Misc.fatal_error "set_var_jkind called on non-var"
   let coerce ty = ty
   let repr = repr
   let type_expr ty = ty

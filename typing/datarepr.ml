@@ -29,12 +29,12 @@ let free_vars ?(param=false) ty =
       | Tvar _ ->
           ret := TypeSet.add ty !ret
       | Tvariant row ->
-          iter_row loop row;
-          if not (static_row row) then begin
-            match get_desc (row_more row) with
-            | Tvar _ when param -> ret := TypeSet.add ty !ret
-            | _ -> loop (row_more row)
-          end
+        iter_row loop row;
+        if not (static_row row) then begin
+          match get_desc (row_more row) with
+          | Tvar _ when param -> ret := TypeSet.add ty !ret
+          | _ -> loop (row_more row)
+        end
       (* XXX: What about Tobject ? *)
       | _ ->
           iter_type_expr loop ty
