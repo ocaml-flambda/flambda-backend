@@ -6,6 +6,7 @@ not-windows;
 poll-insertion;
 no-tsan;
 runtime5;
+multidomain;
 {
   bytecode;
 }{
