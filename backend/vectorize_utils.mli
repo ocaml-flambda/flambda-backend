@@ -9,6 +9,8 @@ module Width_in_bits : sig
     | W32
     | W64
     | W128
+    | W256
+    | W512
 
   val of_memory_chunk : Cmm.memory_chunk -> t
 

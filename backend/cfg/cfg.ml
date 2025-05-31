@@ -364,10 +364,23 @@ let dump_terminator' ?(print_reg = Printreg.reg) ?(res = [||]) ?(args = [||])
     Format.fprintf ppf "%t%a" print_res dump_linear_call_op
       (match prim with
       | External
-          { func_symbol = func; ty_res; ty_args; alloc; stack_ofs; effects = _ }
-        ->
+          { func_symbol = func;
+            ty_res;
+            ty_args;
+            alloc;
+            stack_ofs;
+            stack_align;
+            effects = _
+          } ->
         Linear.Lextcall
-          { func; ty_res; ty_args; returns = true; alloc; stack_ofs }
+          { func;
+            ty_res;
+            ty_args;
+            returns = true;
+            alloc;
+            stack_ofs;
+            stack_align
+          }
       | Probe { name; handler_code_sym; enabled_at_init } ->
         Linear.Lprobe { name; handler_code_sym; enabled_at_init });
     Format.fprintf ppf "%sgoto %a" sep Label.format label_after
@@ -491,10 +504,11 @@ let is_noop_move instr =
       Reg.same_loc instr.res.(0) ifso && Reg.same_loc instr.res.(0) ifnot)
   | Op
       ( Const_int _ | Const_float _ | Const_float32 _ | Const_symbol _
-      | Const_vec128 _ | Stackoffset _ | Load _ | Store _ | Intop _
-      | Intop_imm _ | Intop_atomic _ | Floatop _ | Opaque | Reinterpret_cast _
-      | Static_cast _ | Probe_is_enabled _ | Specific _ | Name_for_debugger _
-      | Begin_region | End_region | Dls_get | Poll | Alloc _ )
+      | Const_vec128 _ | Const_vec256 _ | Const_vec512 _ | Stackoffset _
+      | Load _ | Store _ | Intop _ | Intop_imm _ | Intop_atomic _ | Floatop _
+      | Opaque | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+      | Specific _ | Name_for_debugger _ | Begin_region | End_region | Dls_get
+      | Poll | Alloc _ )
   | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
     false
 
@@ -565,7 +579,8 @@ let is_poll (instr : basic instruction) =
   | Op
       ( Alloc _ | Move | Spill | Reload | Opaque | Begin_region | End_region
       | Dls_get | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
-      | Const_vec128 _ | Stackoffset _ | Load _
+      | Const_vec128 _ | Const_vec256 _ | Const_vec512 _ | Stackoffset _
+      | Load _
       | Store (_, _, _)
       | Intop _
       | Intop_imm (_, _)
@@ -582,7 +597,8 @@ let is_alloc (instr : basic instruction) =
   | Op
       ( Poll | Move | Spill | Reload | Opaque | Begin_region | End_region
       | Dls_get | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
-      | Const_vec128 _ | Stackoffset _ | Load _
+      | Const_vec128 _ | Const_vec256 _ | Const_vec512 _ | Stackoffset _
+      | Load _
       | Store (_, _, _)
       | Intop _
       | Intop_imm (_, _)
@@ -599,7 +615,8 @@ let is_end_region (b : basic) =
   | Op
       ( Alloc _ | Poll | Move | Spill | Reload | Opaque | Begin_region | Dls_get
       | Const_int _ | Const_float32 _ | Const_float _ | Const_symbol _
-      | Const_vec128 _ | Stackoffset _ | Load _
+      | Const_vec128 _ | Const_vec256 _ | Const_vec512 _ | Stackoffset _
+      | Load _
       | Store (_, _, _)
       | Intop _
       | Intop_imm (_, _)
@@ -680,11 +697,11 @@ let remove_trap_instructions t removed_trap_handlers =
       update_basic_next (DLL.Cursor.next cursor) ~stack_offset:(stack_offset + n)
     | Op
         ( Move | Spill | Reload | Const_int _ | Const_float _ | Const_float32 _
-        | Const_symbol _ | Const_vec128 _ | Load _ | Store _ | Intop _
-        | Intop_imm _ | Intop_atomic _ | Floatop _ | Csel _ | Static_cast _
-        | Reinterpret_cast _ | Probe_is_enabled _ | Opaque | Begin_region
-        | End_region | Specific _ | Name_for_debugger _ | Dls_get | Poll
-        | Alloc _ )
+        | Const_symbol _ | Const_vec128 _ | Const_vec256 _ | Const_vec512 _
+        | Load _ | Store _ | Intop _ | Intop_imm _ | Intop_atomic _ | Floatop _
+        | Csel _ | Static_cast _ | Reinterpret_cast _ | Probe_is_enabled _
+        | Opaque | Begin_region | End_region | Specific _ | Name_for_debugger _
+        | Dls_get | Poll | Alloc _ )
     | Reloadretaddr | Prologue | Stack_check _ ->
       update_basic_next (DLL.Cursor.next cursor) ~stack_offset
   and update_body r ~stack_offset =

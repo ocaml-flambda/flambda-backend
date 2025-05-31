@@ -178,7 +178,7 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
               | Tagged_immediate _ | Null -> ()
               | Naked_immediate _ | Naked_float32 _ | Naked_float _
               | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
-              | Naked_vec128 _ ->
+              | Naked_vec128 _ | Naked_vec256 _ | Naked_vec512 _ ->
                 Misc.fatal_errorf
                   "Unboxed constants are not allowed inside of Const_block: %a"
                   Printlambda.structured_constant const);
@@ -231,7 +231,9 @@ let rec declare_const acc dbg (const : Lambda.structured_constant) =
       List.mapi
         (fun new_index arg ->
           match flattened_reordered_shape.(new_index) with
-          | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> arg
+          | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Vec256
+          | Vec512 | Word ->
+            arg
           | Float_boxed _ -> unbox_float_constant arg)
         args
     in
@@ -526,6 +528,16 @@ let rec unarize_const_sort_for_extern_repr (sort : Jkind.Sort.Const.t) =
       [ { kind = K.naked_vec128;
           arg_transformer = None;
           return_transformer = None
+        } ]
+    | Vec256 ->
+      [ { kind = K.naked_vec256;
+          arg_transformer = None;
+          return_transformer = None
+        } ]
+    | Vec512 ->
+      [ { kind = K.naked_vec512;
+          arg_transformer = None;
+          return_transformer = None
         } ])
   | Product sorts -> List.concat_map unarize_const_sort_for_extern_repr sorts
 
@@ -569,6 +581,16 @@ let unarize_extern_repr alloc_mode (extern_repr : Lambda.extern_repr) =
     [ { kind = K.naked_vec128;
         arg_transformer = Some (P.Unbox_number Naked_vec128);
         return_transformer = Some (P.Box_number (Naked_vec128, alloc_mode))
+      } ]
+  | Unboxed_vector Boxed_vec256 ->
+    [ { kind = K.naked_vec256;
+        arg_transformer = Some (P.Unbox_number Naked_vec256);
+        return_transformer = Some (P.Box_number (Naked_vec256, alloc_mode))
+      } ]
+  | Unboxed_vector Boxed_vec512 ->
+    [ { kind = K.naked_vec512;
+        arg_transformer = Some (P.Unbox_number Naked_vec512);
+        return_transformer = Some (P.Box_number (Naked_vec512, alloc_mode))
       } ]
   | Untagged_int ->
     [ { kind = K.naked_immediate;
@@ -1317,7 +1339,8 @@ let close_let acc env let_bound_ids_with_kinds user_visible defining_expr
                           | Naked_float f -> Or_variable.Const f
                           | Tagged_immediate _ | Naked_immediate _
                           | Naked_float32 _ | Naked_int32 _ | Naked_int64 _
-                          | Naked_nativeint _ | Naked_vec128 _ | Null ->
+                          | Naked_nativeint _ | Naked_vec128 _ | Naked_vec256 _
+                          | Naked_vec512 _ | Null ->
                             Misc.fatal_errorf
                               "Binding of %a to %a contains the constant %a \
                                inside a float record, whereas only naked \

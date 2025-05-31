@@ -209,6 +209,10 @@ val make_const_float : int64 -> Operation.t
 
 val make_const_vec128 : Cmm.vec128_bits -> Operation.t
 
+val make_const_vec256 : Cmm.vec256_bits -> Operation.t
+
+val make_const_vec512 : Cmm.vec512_bits -> Operation.t
+
 val make_const_symbol : Cmm.symbol -> Operation.t
 
 val make_opaque : unit -> Operation.t

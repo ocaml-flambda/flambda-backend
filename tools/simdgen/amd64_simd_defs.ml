@@ -32,8 +32,10 @@ type temp =
   | M32
   | M64
   | M128
+  | M256
   | MM
   | XMM
+  | YMM
 
 (* Possible argument location *)
 type loc =
@@ -128,10 +130,15 @@ let equal_temp temp0 temp1 =
   | M32, M32
   | M64, M64
   | M128, M128
+  | M256, M256
   | MM, MM
-  | XMM, XMM ->
+  | XMM, XMM
+  | YMM, YMM ->
     true
-  | (R8 | R16 | R32 | R64 | M8 | M16 | M32 | M64 | M128 | MM | XMM), _ -> false
+  | ( ( R8 | R16 | R32 | R64 | M8 | M16 | M32 | M64 | M128 | M256 | MM | XMM
+      | YMM ),
+      _ ) ->
+    false
 
 let equal_loc loc0 loc1 =
   match loc0, loc1 with
@@ -140,8 +147,8 @@ let equal_loc loc0 loc1 =
   | (Pin _ | Temp _), _ -> false
 
 let temp_is_reg = function
-  | R8 | R16 | R32 | R64 | MM | XMM -> true
-  | M8 | M16 | M32 | M64 | M128 -> false
+  | R8 | R16 | R32 | R64 | MM | XMM | YMM -> true
+  | M8 | M16 | M32 | M64 | M128 | M256 -> false
 
 let loc_allows_reg = function
   | Pin _ -> true
@@ -176,6 +183,6 @@ let loc_requires_width = function
         | R16 -> set Sixteen
         | R32 -> set Thirtytwo
         | R64 -> set Sixtyfour
-        | M8 | M16 | M32 | M64 | M128 | MM | XMM -> ())
+        | M8 | M16 | M32 | M64 | M128 | M256 | MM | XMM | YMM -> ())
       temps;
     !width

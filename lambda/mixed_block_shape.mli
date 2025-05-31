@@ -42,6 +42,8 @@ module Singleton_mixed_block_element : sig
     | Bits32
     | Bits64
     | Vec128
+    | Vec256
+    | Vec512
     | Word
 
   val print :

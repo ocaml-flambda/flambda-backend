@@ -18,6 +18,8 @@ module K = Flambda_kind
 module Float32 = Numeric_types.Float32_by_bit_pattern
 module Float = Numeric_types.Float_by_bit_pattern
 module Vec128 = Vector_types.Vec128.Bit_pattern
+module Vec256 = Vector_types.Vec256.Bit_pattern
+module Vec512 = Vector_types.Vec512.Bit_pattern
 module Int32 = Numeric_types.Int32
 module Int64 = Numeric_types.Int64
 module RWC = Reg_width_const
@@ -52,6 +54,8 @@ type t =
   | Naked_int64 of head_of_kind_naked_int64 TD.t
   | Naked_nativeint of head_of_kind_naked_nativeint TD.t
   | Naked_vec128 of head_of_kind_naked_vec128 TD.t
+  | Naked_vec256 of head_of_kind_naked_vec256 TD.t
+  | Naked_vec512 of head_of_kind_naked_vec512 TD.t
   | Rec_info of head_of_kind_rec_info TD.t
   | Region of head_of_kind_region TD.t
 
@@ -78,6 +82,8 @@ and head_of_kind_value_non_null =
   | Boxed_int64 of t * Alloc_mode.For_types.t
   | Boxed_nativeint of t * Alloc_mode.For_types.t
   | Boxed_vec128 of t * Alloc_mode.For_types.t
+  | Boxed_vec256 of t * Alloc_mode.For_types.t
+  | Boxed_vec512 of t * Alloc_mode.For_types.t
   | Closures of
       { by_function_slot : row_like_for_closures;
         alloc_mode : Alloc_mode.For_types.t
@@ -134,6 +140,10 @@ and head_of_kind_naked_int64 = Int64.Set.t
 and head_of_kind_naked_nativeint = Targetint_32_64.Set.t
 
 and head_of_kind_naked_vec128 = Vec128.Set.t
+
+and head_of_kind_naked_vec256 = Vec256.Set.t
+
+and head_of_kind_naked_vec512 = Vec512.Set.t
 
 and head_of_kind_rec_info = Rec_info_expr.t
 
@@ -230,6 +240,8 @@ let get_alias_exn t =
   | Naked_int64 ty -> TD.get_alias_exn ty
   | Naked_nativeint ty -> TD.get_alias_exn ty
   | Naked_vec128 ty -> TD.get_alias_exn ty
+  | Naked_vec256 ty -> TD.get_alias_exn ty
+  | Naked_vec512 ty -> TD.get_alias_exn ty
   | Rec_info ty -> TD.get_alias_exn ty
   | Region ty -> TD.get_alias_exn ty
 
@@ -273,6 +285,12 @@ let rec free_names0 ~follow_value_slots t =
   | Naked_vec128 ty ->
     type_descr_free_names ~free_names_head:free_names_head_of_kind_naked_vec128
       ty
+  | Naked_vec256 ty ->
+    type_descr_free_names ~free_names_head:free_names_head_of_kind_naked_vec256
+      ty
+  | Naked_vec512 ty ->
+    type_descr_free_names ~free_names_head:free_names_head_of_kind_naked_vec512
+      ty
   | Rec_info ty ->
     type_descr_free_names ~free_names_head:free_names_head_of_kind_rec_info ty
   | Region ty ->
@@ -301,6 +319,8 @@ and free_names_head_of_kind_value_non_null ~follow_value_slots head =
   | Boxed_int64 (ty, _alloc_mode) -> free_names0 ~follow_value_slots ty
   | Boxed_nativeint (ty, _alloc_mode) -> free_names0 ~follow_value_slots ty
   | Boxed_vec128 (ty, _alloc_mode) -> free_names0 ~follow_value_slots ty
+  | Boxed_vec256 (ty, _alloc_mode) -> free_names0 ~follow_value_slots ty
+  | Boxed_vec512 (ty, _alloc_mode) -> free_names0 ~follow_value_slots ty
   | Closures { by_function_slot; alloc_mode = _ } ->
     free_names_row_like_for_closures ~follow_value_slots by_function_slot
   | String _ -> Name_occurrences.empty
@@ -340,6 +360,10 @@ and free_names_head_of_kind_naked_int64 _ = Name_occurrences.empty
 and free_names_head_of_kind_naked_nativeint _ = Name_occurrences.empty
 
 and free_names_head_of_kind_naked_vec128 _ = Name_occurrences.empty
+
+and free_names_head_of_kind_naked_vec256 _ = Name_occurrences.empty
+
+and free_names_head_of_kind_naked_vec512 _ = Name_occurrences.empty
 
 and free_names_head_of_kind_rec_info head =
   Rec_info_expr.free_names_in_types head
@@ -555,6 +579,20 @@ let rec apply_renaming t renaming =
           ~free_names_head:free_names_head_of_kind_naked_vec128 ty renaming
       in
       if ty == ty' then t else Naked_vec128 ty'
+    | Naked_vec256 ty ->
+      let ty' =
+        TD.apply_renaming
+          ~apply_renaming_head:apply_renaming_head_of_kind_naked_vec256
+          ~free_names_head:free_names_head_of_kind_naked_vec256 ty renaming
+      in
+      if ty == ty' then t else Naked_vec256 ty'
+    | Naked_vec512 ty ->
+      let ty' =
+        TD.apply_renaming
+          ~apply_renaming_head:apply_renaming_head_of_kind_naked_vec512
+          ~free_names_head:free_names_head_of_kind_naked_vec512 ty renaming
+      in
+      if ty == ty' then t else Naked_vec512 ty'
     | Rec_info ty ->
       let ty' =
         TD.apply_renaming
@@ -623,6 +661,12 @@ and apply_renaming_head_of_kind_value_non_null head renaming =
   | Boxed_vec128 (ty, alloc_mode) ->
     let ty' = apply_renaming ty renaming in
     if ty == ty' then head else Boxed_vec128 (ty', alloc_mode)
+  | Boxed_vec256 (ty, alloc_mode) ->
+    let ty' = apply_renaming ty renaming in
+    if ty == ty' then head else Boxed_vec256 (ty', alloc_mode)
+  | Boxed_vec512 (ty, alloc_mode) ->
+    let ty' = apply_renaming ty renaming in
+    if ty == ty' then head else Boxed_vec512 (ty', alloc_mode)
   | Closures { by_function_slot; alloc_mode } ->
     let by_function_slot' =
       apply_renaming_row_like_for_closures by_function_slot renaming
@@ -690,6 +734,10 @@ and apply_renaming_head_of_kind_naked_int64 head _ = head
 and apply_renaming_head_of_kind_naked_nativeint head _ = head
 
 and apply_renaming_head_of_kind_naked_vec128 head _ = head
+
+and apply_renaming_head_of_kind_naked_vec256 head _ = head
+
+and apply_renaming_head_of_kind_naked_vec512 head _ = head
 
 and apply_renaming_head_of_kind_rec_info head renaming =
   Rec_info_expr.apply_renaming head renaming
@@ -876,6 +924,14 @@ let rec print ppf t =
     Format.fprintf ppf "@[<hov 1>(Naked_vec128@ %a)@]"
       (TD.print ~print_head:print_head_of_kind_naked_vec128)
       ty
+  | Naked_vec256 ty ->
+    Format.fprintf ppf "@[<hov 1>(Naked_vec256@ %a)@]"
+      (TD.print ~print_head:print_head_of_kind_naked_vec256)
+      ty
+  | Naked_vec512 ty ->
+    Format.fprintf ppf "@[<hov 1>(Naked_vec512@ %a)@]"
+      (TD.print ~print_head:print_head_of_kind_naked_vec512)
+      ty
   | Rec_info ty ->
     Format.fprintf ppf "@[<hov 1>(Rec_info@ %a)@]"
       (TD.print ~print_head:print_head_of_kind_rec_info)
@@ -923,6 +979,12 @@ and print_head_of_kind_value_non_null ppf head =
       Alloc_mode.For_types.print alloc_mode print ty
   | Boxed_vec128 (ty, alloc_mode) ->
     Format.fprintf ppf "@[<hov 1>(Boxed_vec128@ %a@ %a)@]"
+      Alloc_mode.For_types.print alloc_mode print ty
+  | Boxed_vec256 (ty, alloc_mode) ->
+    Format.fprintf ppf "@[<hov 1>(Boxed_vec256@ %a@ %a)@]"
+      Alloc_mode.For_types.print alloc_mode print ty
+  | Boxed_vec512 (ty, alloc_mode) ->
+    Format.fprintf ppf "@[<hov 1>(Boxed_vec512@ %a@ %a)@]"
       Alloc_mode.For_types.print alloc_mode print ty
   | Closures { by_function_slot; alloc_mode } ->
     print_row_like_for_closures alloc_mode ppf by_function_slot
@@ -980,6 +1042,12 @@ and print_head_of_kind_naked_nativeint ppf head =
 
 and print_head_of_kind_naked_vec128 ppf head =
   Format.fprintf ppf "@[(Naked_vec128@ (%a))@]" Vec128.Set.print head
+
+and print_head_of_kind_naked_vec256 ppf head =
+  Format.fprintf ppf "@[(Naked_vec256@ (%a))@]" Vec256.Set.print head
+
+and print_head_of_kind_naked_vec512 ppf head =
+  Format.fprintf ppf "@[(Naked_vec512@ (%a))@]" Vec512.Set.print head
 
 and print_head_of_kind_rec_info ppf head = Rec_info_expr.print ppf head
 
@@ -1145,6 +1213,12 @@ let rec ids_for_export t =
   | Naked_vec128 ty ->
     TD.ids_for_export
       ~ids_for_export_head:ids_for_export_head_of_kind_naked_vec128 ty
+  | Naked_vec256 ty ->
+    TD.ids_for_export
+      ~ids_for_export_head:ids_for_export_head_of_kind_naked_vec256 ty
+  | Naked_vec512 ty ->
+    TD.ids_for_export
+      ~ids_for_export_head:ids_for_export_head_of_kind_naked_vec512 ty
   | Rec_info ty ->
     TD.ids_for_export ~ids_for_export_head:ids_for_export_head_of_kind_rec_info
       ty
@@ -1170,6 +1244,8 @@ and ids_for_export_head_of_kind_value_non_null head =
   | Boxed_int64 (t, _alloc_mode) -> ids_for_export t
   | Boxed_nativeint (t, _alloc_mode) -> ids_for_export t
   | Boxed_vec128 (t, _alloc_mode) -> ids_for_export t
+  | Boxed_vec256 (t, _alloc_mode) -> ids_for_export t
+  | Boxed_vec512 (t, _alloc_mode) -> ids_for_export t
   | Closures { by_function_slot; alloc_mode = _ } ->
     ids_for_export_row_like_for_closures by_function_slot
   | String _ -> Ids_for_export.empty
@@ -1204,6 +1280,10 @@ and ids_for_export_head_of_kind_naked_int32 _ = Ids_for_export.empty
 and ids_for_export_head_of_kind_naked_int64 _ = Ids_for_export.empty
 
 and ids_for_export_head_of_kind_naked_vec128 _ = Ids_for_export.empty
+
+and ids_for_export_head_of_kind_naked_vec256 _ = Ids_for_export.empty
+
+and ids_for_export_head_of_kind_naked_vec512 _ = Ids_for_export.empty
 
 and ids_for_export_head_of_kind_naked_nativeint _ = Ids_for_export.empty
 
@@ -1390,6 +1470,20 @@ let rec apply_coercion t coercion : t Or_bottom.t =
           ty
       in
       if ty == ty' then t else Naked_vec128 ty'
+    | Naked_vec256 ty ->
+      let<+ ty' =
+        TD.apply_coercion
+          ~apply_coercion_head:apply_coercion_head_of_kind_naked_vec256 coercion
+          ty
+      in
+      if ty == ty' then t else Naked_vec256 ty'
+    | Naked_vec512 ty ->
+      let<+ ty' =
+        TD.apply_coercion
+          ~apply_coercion_head:apply_coercion_head_of_kind_naked_vec512 coercion
+          ty
+      in
+      if ty == ty' then t else Naked_vec512 ty'
     | Rec_info ty ->
       let<+ ty' =
         TD.apply_coercion
@@ -1433,7 +1527,7 @@ and apply_coercion_head_of_kind_value_non_null head coercion : _ Or_bottom.t =
        value coercion. *)
     if Coercion.is_id coercion then Ok head else Bottom
   | Boxed_int32 _ | Boxed_int64 _ | Boxed_nativeint _ | Boxed_vec128 _
-  | String _ ->
+  | Boxed_vec256 _ | Boxed_vec512 _ | String _ ->
     (* Similarly, we don't have lifted coercions for these. *)
     if Coercion.is_id coercion then Ok head else Bottom
   | Array
@@ -1473,6 +1567,12 @@ and apply_coercion_head_of_kind_naked_nativeint head coercion : _ Or_bottom.t =
   if Coercion.is_id coercion then Ok head else Bottom
 
 and apply_coercion_head_of_kind_naked_vec128 head coercion : _ Or_bottom.t =
+  if Coercion.is_id coercion then Ok head else Bottom
+
+and apply_coercion_head_of_kind_naked_vec256 head coercion : _ Or_bottom.t =
+  if Coercion.is_id coercion then Ok head else Bottom
+
+and apply_coercion_head_of_kind_naked_vec512 head coercion : _ Or_bottom.t =
   if Coercion.is_id coercion then Ok head else Bottom
 
 and apply_coercion_head_of_kind_rec_info head coercion : _ Or_bottom.t =
@@ -1739,6 +1839,22 @@ let rec remove_unused_value_slots_and_shortcut_aliases t ~used_value_slots
           remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_vec128
     in
     if ty == ty' then t else Naked_vec128 ty'
+  | Naked_vec256 ty ->
+    let ty' =
+      TD.remove_unused_value_slots_and_shortcut_aliases ty ~used_value_slots
+        ~canonicalise
+        ~remove_unused_value_slots_and_shortcut_aliases_head:
+          remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_vec256
+    in
+    if ty == ty' then t else Naked_vec256 ty'
+  | Naked_vec512 ty ->
+    let ty' =
+      TD.remove_unused_value_slots_and_shortcut_aliases ty ~used_value_slots
+        ~canonicalise
+        ~remove_unused_value_slots_and_shortcut_aliases_head:
+          remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_vec512
+    in
+    if ty == ty' then t else Naked_vec512 ty'
   | Rec_info ty ->
     let ty' =
       TD.remove_unused_value_slots_and_shortcut_aliases ty ~used_value_slots
@@ -1835,6 +1951,18 @@ and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_value_non_null
         ~canonicalise
     in
     if ty == ty' then head else Boxed_vec128 (ty', alloc_mode)
+  | Boxed_vec256 (ty, alloc_mode) ->
+    let ty' =
+      remove_unused_value_slots_and_shortcut_aliases ty ~used_value_slots
+        ~canonicalise
+    in
+    if ty == ty' then head else Boxed_vec256 (ty', alloc_mode)
+  | Boxed_vec512 (ty, alloc_mode) ->
+    let ty' =
+      remove_unused_value_slots_and_shortcut_aliases ty ~used_value_slots
+        ~canonicalise
+    in
+    if ty == ty' then head else Boxed_vec512 (ty', alloc_mode)
   | Closures { by_function_slot; alloc_mode } ->
     let by_function_slot' =
       remove_unused_value_slots_and_shortcut_aliases_row_like_for_closures
@@ -1933,6 +2061,14 @@ and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_nativeint
   head
 
 and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_vec128
+    head ~used_value_slots:_ ~canonicalise:_ =
+  head
+
+and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_vec256
+    head ~used_value_slots:_ ~canonicalise:_ =
+  head
+
+and remove_unused_value_slots_and_shortcut_aliases_head_of_kind_naked_vec512
     head ~used_value_slots:_ ~canonicalise:_ =
   head
 
@@ -2172,8 +2308,8 @@ let rec project_variables_out ~to_project ~expand t =
       match apply_coercion (expand var) coercion with
       | Value ty -> ty
       | ( Naked_immediate _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
-        | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _
-        | Region _ ) as ty ->
+        | Naked_int64 _ | Naked_vec128 _ | Naked_vec256 _ | Naked_vec512 _
+        | Naked_nativeint _ | Rec_info _ | Region _ ) as ty ->
         Misc.fatal_errorf
           "Wrong kind while expanding %a: expecting [Value], got type %a"
           Variable.print var print ty
@@ -2190,8 +2326,8 @@ let rec project_variables_out ~to_project ~expand t =
       match apply_coercion (expand var) coercion with
       | Naked_immediate ty -> ty
       | ( Value _ | Naked_float _ | Naked_float32 _ | Naked_int32 _
-        | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _
-        | Region _ ) as ty ->
+        | Naked_int64 _ | Naked_vec128 _ | Naked_vec256 _ | Naked_vec512 _
+        | Naked_nativeint _ | Rec_info _ | Region _ ) as ty ->
         Misc.fatal_errorf
           "Wrong kind while expanding %a: expecting [Naked_immediate], got \
            type %a"
@@ -2210,8 +2346,8 @@ let rec project_variables_out ~to_project ~expand t =
       match apply_coercion (expand var) coercion with
       | Naked_float32 ty -> ty
       | ( Value _ | Naked_immediate _ | Naked_int32 _ | Naked_float _
-        | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _
-        | Region _ ) as ty ->
+        | Naked_int64 _ | Naked_vec128 _ | Naked_vec256 _ | Naked_vec512 _
+        | Naked_nativeint _ | Rec_info _ | Region _ ) as ty ->
         Misc.fatal_errorf
           "Wrong kind while expanding %a: expecting [Naked_float], got type %a"
           Variable.print var print ty
@@ -2229,8 +2365,8 @@ let rec project_variables_out ~to_project ~expand t =
       match apply_coercion (expand var) coercion with
       | Naked_float ty -> ty
       | ( Value _ | Naked_immediate _ | Naked_int32 _ | Naked_float32 _
-        | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _
-        | Region _ ) as ty ->
+        | Naked_int64 _ | Naked_vec128 _ | Naked_vec256 _ | Naked_vec512 _
+        | Naked_nativeint _ | Rec_info _ | Region _ ) as ty ->
         Misc.fatal_errorf
           "Wrong kind while expanding %a: expecting [Naked_float], got type %a"
           Variable.print var print ty
@@ -2248,8 +2384,8 @@ let rec project_variables_out ~to_project ~expand t =
       match apply_coercion (expand var) coercion with
       | Naked_int32 ty -> ty
       | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-        | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _
-        | Region _ ) as ty ->
+        | Naked_int64 _ | Naked_vec128 _ | Naked_vec256 _ | Naked_vec512 _
+        | Naked_nativeint _ | Rec_info _ | Region _ ) as ty ->
         Misc.fatal_errorf
           "Wrong kind while expanding %a: expecting [Naked_int32], got type %a"
           Variable.print var print ty
@@ -2267,8 +2403,8 @@ let rec project_variables_out ~to_project ~expand t =
       match apply_coercion (expand var) coercion with
       | Naked_int64 ty -> ty
       | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-        | Naked_int32 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _
-        | Region _ ) as ty ->
+        | Naked_int32 _ | Naked_vec128 _ | Naked_vec256 _ | Naked_vec512 _
+        | Naked_nativeint _ | Rec_info _ | Region _ ) as ty ->
         Misc.fatal_errorf
           "Wrong kind while expanding %a: expecting [Naked_int64], got type %a"
           Variable.print var print ty
@@ -2286,8 +2422,8 @@ let rec project_variables_out ~to_project ~expand t =
       match apply_coercion (expand var) coercion with
       | Naked_nativeint ty -> ty
       | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-        | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _ | Rec_info _ | Region _
-          ) as ty ->
+        | Naked_int32 _ | Naked_vec128 _ | Naked_vec256 _ | Naked_vec512 _
+        | Naked_int64 _ | Rec_info _ | Region _ ) as ty ->
         Misc.fatal_errorf
           "Wrong kind while expanding %a: expecting [Naked_nativeint], got \
            type %a"
@@ -2306,8 +2442,8 @@ let rec project_variables_out ~to_project ~expand t =
       match apply_coercion (expand var) coercion with
       | Naked_vec128 ty -> ty
       | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-        | Naked_int32 _ | Naked_nativeint _ | Naked_int64 _ | Rec_info _
-        | Region _ ) as ty ->
+        | Naked_int32 _ | Naked_nativeint _ | Naked_int64 _ | Naked_vec256 _
+        | Naked_vec512 _ | Rec_info _ | Region _ ) as ty ->
         Misc.fatal_errorf
           "Wrong kind while expanding %a: expecting [Naked_vec128], got type %a"
           Variable.print var print ty
@@ -2320,13 +2456,51 @@ let rec project_variables_out ~to_project ~expand t =
         ty
     in
     if ty == ty' then t else Naked_vec128 ty'
+  | Naked_vec256 ty ->
+    let expand_with_coercion var ~coercion =
+      match apply_coercion (expand var) coercion with
+      | Naked_vec256 ty -> ty
+      | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
+        | Naked_int32 _ | Naked_nativeint _ | Naked_int64 _ | Naked_vec128 _
+        | Naked_vec512 _ | Rec_info _ | Region _ ) as ty ->
+        Misc.fatal_errorf
+          "Wrong kind while expanding %a: expecting [Naked_vec256], got type %a"
+          Variable.print var print ty
+    in
+    let ty' =
+      TD.project_variables_out
+        ~free_names_head:free_names_head_of_kind_naked_vec256 ~to_project
+        ~expand:expand_with_coercion
+        ~project_head:(project_head_of_kind_naked_vec256 ~to_project ~expand)
+        ty
+    in
+    if ty == ty' then t else Naked_vec256 ty'
+  | Naked_vec512 ty ->
+    let expand_with_coercion var ~coercion =
+      match apply_coercion (expand var) coercion with
+      | Naked_vec512 ty -> ty
+      | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
+        | Naked_int32 _ | Naked_nativeint _ | Naked_int64 _ | Naked_vec128 _
+        | Naked_vec256 _ | Rec_info _ | Region _ ) as ty ->
+        Misc.fatal_errorf
+          "Wrong kind while expanding %a: expecting [Naked_vec512], got type %a"
+          Variable.print var print ty
+    in
+    let ty' =
+      TD.project_variables_out
+        ~free_names_head:free_names_head_of_kind_naked_vec512 ~to_project
+        ~expand:expand_with_coercion
+        ~project_head:(project_head_of_kind_naked_vec512 ~to_project ~expand)
+        ty
+    in
+    if ty == ty' then t else Naked_vec512 ty'
   | Rec_info ty ->
     let expand_with_coercion var ~coercion =
       match apply_coercion (expand var) coercion with
       | Rec_info ty -> ty
       | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-        | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _
-        | Region _ ) as ty ->
+        | Naked_int32 _ | Naked_vec128 _ | Naked_vec256 _ | Naked_vec512 _
+        | Naked_int64 _ | Naked_nativeint _ | Region _ ) as ty ->
         Misc.fatal_errorf
           "Wrong kind while expanding %a: expecting [Rec_info], got type %a"
           Variable.print var print ty
@@ -2343,8 +2517,8 @@ let rec project_variables_out ~to_project ~expand t =
       match apply_coercion (expand var) coercion with
       | Region ty -> ty
       | ( Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-        | Naked_int32 _ | Naked_vec128 _ | Naked_int64 _ | Naked_nativeint _
-        | Rec_info _ ) as ty ->
+        | Naked_int32 _ | Naked_vec128 _ | Naked_vec256 _ | Naked_vec512 _
+        | Naked_int64 _ | Naked_nativeint _ | Rec_info _ ) as ty ->
         Misc.fatal_errorf
           "Wrong kind while expanding %a: expecting [Region], got type %a"
           Variable.print var print ty
@@ -2412,6 +2586,12 @@ and project_head_of_kind_value_non_null ~to_project ~expand head =
   | Boxed_vec128 (ty, alloc_mode) ->
     let ty' = project_variables_out ~to_project ~expand ty in
     if ty == ty' then head else Boxed_vec128 (ty', alloc_mode)
+  | Boxed_vec256 (ty, alloc_mode) ->
+    let ty' = project_variables_out ~to_project ~expand ty in
+    if ty == ty' then head else Boxed_vec256 (ty', alloc_mode)
+  | Boxed_vec512 (ty, alloc_mode) ->
+    let ty' = project_variables_out ~to_project ~expand ty in
+    if ty == ty' then head else Boxed_vec512 (ty', alloc_mode)
   | Closures { by_function_slot; alloc_mode } ->
     let by_function_slot' =
       project_row_like_for_closures ~to_project ~expand by_function_slot
@@ -2479,6 +2659,10 @@ and project_head_of_kind_naked_int64 ~to_project:_ ~expand:_ head = head
 and project_head_of_kind_naked_nativeint ~to_project:_ ~expand:_ head = head
 
 and project_head_of_kind_naked_vec128 ~to_project:_ ~expand:_ head = head
+
+and project_head_of_kind_naked_vec256 ~to_project:_ ~expand:_ head = head
+
+and project_head_of_kind_naked_vec512 ~to_project:_ ~expand:_ head = head
 
 and project_head_of_kind_rec_info ~to_project ~expand:_ head =
   match (head : head_of_kind_rec_info) with
@@ -2666,6 +2850,8 @@ let kind t =
   | Naked_int64 _ -> K.naked_int64
   | Naked_nativeint _ -> K.naked_nativeint
   | Naked_vec128 _ -> K.naked_vec128
+  | Naked_vec256 _ -> K.naked_vec256
+  | Naked_vec512 _ -> K.naked_vec512
   | Rec_info _ -> K.rec_info
   | Region _ -> K.region
 
@@ -3119,6 +3305,8 @@ let is_obviously_bottom t =
   | Naked_int64 ty -> TD.is_obviously_bottom ty
   | Naked_nativeint ty -> TD.is_obviously_bottom ty
   | Naked_vec128 ty -> TD.is_obviously_bottom ty
+  | Naked_vec256 ty -> TD.is_obviously_bottom ty
+  | Naked_vec512 ty -> TD.is_obviously_bottom ty
   | Rec_info ty -> TD.is_obviously_bottom ty
   | Region ty -> TD.is_obviously_bottom ty
 
@@ -3132,6 +3320,8 @@ let is_obviously_unknown t =
   | Naked_int64 ty -> TD.is_obviously_unknown ty
   | Naked_nativeint ty -> TD.is_obviously_unknown ty
   | Naked_vec128 ty -> TD.is_obviously_unknown ty
+  | Naked_vec256 ty -> TD.is_obviously_unknown ty
+  | Naked_vec512 ty -> TD.is_obviously_unknown ty
   | Rec_info ty -> TD.is_obviously_unknown ty
   | Region ty -> TD.is_obviously_unknown ty
 
@@ -3145,6 +3335,8 @@ let alias_type_of (kind : K.t) name : t =
   | Naked_number Naked_int64 -> Naked_int64 (TD.create_equals name)
   | Naked_number Naked_nativeint -> Naked_nativeint (TD.create_equals name)
   | Naked_number Naked_vec128 -> Naked_vec128 (TD.create_equals name)
+  | Naked_number Naked_vec256 -> Naked_vec256 (TD.create_equals name)
+  | Naked_number Naked_vec512 -> Naked_vec512 (TD.create_equals name)
   | Rec_info -> Rec_info (TD.create_equals name)
   | Region -> Region (TD.create_equals name)
 
@@ -3163,6 +3355,10 @@ let bottom_naked_int64 = Naked_int64 TD.bottom
 let bottom_naked_nativeint = Naked_nativeint TD.bottom
 
 let bottom_naked_vec128 = Naked_vec128 TD.bottom
+
+let bottom_naked_vec256 = Naked_vec256 TD.bottom
+
+let bottom_naked_vec512 = Naked_vec512 TD.bottom
 
 let bottom_rec_info = Rec_info TD.bottom
 
@@ -3183,6 +3379,10 @@ let any_naked_int64 = Naked_int64 TD.unknown
 let any_naked_nativeint = Naked_nativeint TD.unknown
 
 let any_naked_vec128 = Naked_vec128 TD.unknown
+
+let any_naked_vec256 = Naked_vec256 TD.unknown
+
+let any_naked_vec512 = Naked_vec512 TD.unknown
 
 let any_region = Region TD.unknown
 
@@ -3208,6 +3408,12 @@ let this_naked_nativeint i : t =
 
 let this_naked_vec128 i : t =
   Naked_vec128 (TD.create_equals (Simple.const (RWC.naked_vec128 i)))
+
+let this_naked_vec256 i : t =
+  Naked_vec256 (TD.create_equals (Simple.const (RWC.naked_vec256 i)))
+
+let this_naked_vec512 i : t =
+  Naked_vec512 (TD.create_equals (Simple.const (RWC.naked_vec512 i)))
 
 let these_naked_immediates is =
   match Targetint_31_63.Set.get_singleton is with
@@ -3265,50 +3471,85 @@ let these_naked_vec128s vs =
     then bottom_naked_vec128
     else Naked_vec128 (TD.create vs)
 
+let these_naked_vec256s vs =
+  match Vector_types.Vec256.Bit_pattern.Set.get_singleton vs with
+  | Some v -> this_naked_vec256 v
+  | _ ->
+    if Vector_types.Vec256.Bit_pattern.Set.is_empty vs
+    then bottom_naked_vec256
+    else Naked_vec256 (TD.create vs)
+
+let these_naked_vec512s vs =
+  match Vector_types.Vec512.Bit_pattern.Set.get_singleton vs with
+  | Some v -> this_naked_vec512 v
+  | _ ->
+    if Vector_types.Vec512.Bit_pattern.Set.is_empty vs
+    then bottom_naked_vec512
+    else Naked_vec512 (TD.create vs)
+
 let box_float32 (t : t) alloc_mode : t =
   match t with
   | Naked_float32 _ -> non_null_value (Boxed_float32 (t, alloc_mode))
   | Value _ | Naked_immediate _ | Naked_int32 _ | Naked_float _ | Naked_int64 _
-  | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_vec128 _ | Naked_vec256 _ | Naked_vec512 _ | Naked_nativeint _
+  | Rec_info _ | Region _ ->
     Misc.fatal_errorf "Type of wrong kind for [box_float32]: %a" print t
 
 let box_float (t : t) alloc_mode : t =
   match t with
   | Naked_float _ -> non_null_value (Boxed_float (t, alloc_mode))
   | Value _ | Naked_immediate _ | Naked_int32 _ | Naked_float32 _
-  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
-    ->
+  | Naked_int64 _ | Naked_vec128 _ | Naked_vec256 _ | Naked_vec512 _
+  | Naked_nativeint _ | Rec_info _ | Region _ ->
     Misc.fatal_errorf "Type of wrong kind for [box_float]: %a" print t
 
 let box_int32 (t : t) alloc_mode : t =
   match t with
   | Naked_int32 _ -> non_null_value (Boxed_int32 (t, alloc_mode))
   | Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-  | Naked_int64 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
-    ->
+  | Naked_int64 _ | Naked_vec128 _ | Naked_vec256 _ | Naked_vec512 _
+  | Naked_nativeint _ | Rec_info _ | Region _ ->
     Misc.fatal_errorf "Type of wrong kind for [box_int32]: %a" print t
 
 let box_int64 (t : t) alloc_mode : t =
   match t with
   | Naked_int64 _ -> non_null_value (Boxed_int64 (t, alloc_mode))
   | Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-  | Naked_int32 _ | Naked_vec128 _ | Naked_nativeint _ | Rec_info _ | Region _
-    ->
+  | Naked_int32 _ | Naked_vec128 _ | Naked_vec256 _ | Naked_vec512 _
+  | Naked_nativeint _ | Rec_info _ | Region _ ->
     Misc.fatal_errorf "Type of wrong kind for [box_int64]: %a" print t
 
 let box_nativeint (t : t) alloc_mode : t =
   match t with
   | Naked_nativeint _ -> non_null_value (Boxed_nativeint (t, alloc_mode))
   | Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-  | Naked_int32 _ | Naked_int64 _ | Naked_vec128 _ | Rec_info _ | Region _ ->
+  | Naked_int32 _ | Naked_int64 _ | Naked_vec128 _ | Naked_vec256 _
+  | Naked_vec512 _ | Rec_info _ | Region _ ->
     Misc.fatal_errorf "Type of wrong kind for [box_nativeint]: %a" print t
 
 let box_vec128 (t : t) alloc_mode : t =
   match t with
   | Naked_vec128 _ -> non_null_value (Boxed_vec128 (t, alloc_mode))
   | Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
-  | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _ | Rec_info _ | Region _ ->
+  | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _ | Naked_vec256 _
+  | Naked_vec512 _ | Rec_info _ | Region _ ->
     Misc.fatal_errorf "Type of wrong kind for [box_vec128]: %a" print t
+
+let box_vec256 (t : t) alloc_mode : t =
+  match t with
+  | Naked_vec256 _ -> non_null_value (Boxed_vec256 (t, alloc_mode))
+  | Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
+  | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _
+  | Naked_vec512 _ | Rec_info _ | Region _ ->
+    Misc.fatal_errorf "Type of wrong kind for [box_vec256]: %a" print t
+
+let box_vec512 (t : t) alloc_mode : t =
+  match t with
+  | Naked_vec512 _ -> non_null_value (Boxed_vec512 (t, alloc_mode))
+  | Value _ | Naked_immediate _ | Naked_float _ | Naked_float32 _
+  | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _
+  | Naked_vec256 _ | Rec_info _ | Region _ ->
+    Misc.fatal_errorf "Type of wrong kind for [box_vec512]: %a" print t
 
 let null : t = Value (TD.create { non_null = Bottom; is_null = Maybe_null })
 
@@ -3329,7 +3570,8 @@ let tag_immediate t : t =
            blocks = Known Row_like_for_blocks.bottom
          })
   | Value _ | Naked_float _ | Naked_float32 _ | Naked_int32 _ | Naked_int64 _
-  | Naked_nativeint _ | Naked_vec128 _ | Rec_info _ | Region _ ->
+  | Naked_nativeint _ | Naked_vec128 _ | Naked_vec256 _ | Naked_vec512 _
+  | Rec_info _ | Region _ ->
     Misc.fatal_errorf "Type of wrong kind for [tag_immediate]: %a" print t
 
 let tagged_immediate_alias_to ~naked_immediate : t =
@@ -3363,6 +3605,12 @@ let boxed_nativeint_alias_to ~naked_nativeint =
 
 let boxed_vec128_alias_to ~naked_vec128 =
   box_vec128 (Naked_vec128 (TD.create_equals (Simple.var naked_vec128)))
+
+let boxed_vec256_alias_to ~naked_vec256 =
+  box_vec256 (Naked_vec256 (TD.create_equals (Simple.var naked_vec256)))
+
+let boxed_vec512_alias_to ~naked_vec512 =
+  box_vec512 (Naked_vec512 (TD.create_equals (Simple.var naked_vec512)))
 
 let this_immutable_string str =
   let size = Targetint_31_63.of_int (String.length str) in
@@ -3417,6 +3665,10 @@ module Descr = struct
         head_of_kind_naked_nativeint TD.Descr.t Or_unknown_or_bottom.t
     | Naked_vec128 of
         head_of_kind_naked_vec128 TD.Descr.t Or_unknown_or_bottom.t
+    | Naked_vec256 of
+        head_of_kind_naked_vec256 TD.Descr.t Or_unknown_or_bottom.t
+    | Naked_vec512 of
+        head_of_kind_naked_vec512 TD.Descr.t Or_unknown_or_bottom.t
     | Rec_info of head_of_kind_rec_info TD.Descr.t Or_unknown_or_bottom.t
     | Region of head_of_kind_region TD.Descr.t Or_unknown_or_bottom.t
 end
@@ -3431,6 +3683,8 @@ let descr t : Descr.t =
   | Naked_int64 ty -> Naked_int64 (TD.descr ty)
   | Naked_nativeint ty -> Naked_nativeint (TD.descr ty)
   | Naked_vec128 ty -> Naked_vec128 (TD.descr ty)
+  | Naked_vec256 ty -> Naked_vec256 (TD.descr ty)
+  | Naked_vec512 ty -> Naked_vec512 (TD.descr ty)
   | Rec_info ty -> Rec_info (TD.descr ty)
   | Region ty -> Region (TD.descr ty)
 
@@ -3449,6 +3703,10 @@ let create_from_head_naked_int64 head = Naked_int64 (TD.create head)
 let create_from_head_naked_nativeint head = Naked_nativeint (TD.create head)
 
 let create_from_head_naked_vec128 head = Naked_vec128 (TD.create head)
+
+let create_from_head_naked_vec256 head = Naked_vec256 (TD.create head)
+
+let create_from_head_naked_vec512 head = Naked_vec512 (TD.create head)
 
 let create_from_head_rec_info head = Rec_info (TD.create head)
 
@@ -3484,6 +3742,12 @@ module Head_of_kind_value = struct
 
   let create_boxed_vec128 ty alloc_mode =
     mk_non_null (Boxed_vec128 (ty, alloc_mode))
+
+  let create_boxed_vec256 ty alloc_mode =
+    mk_non_null (Boxed_vec256 (ty, alloc_mode))
+
+  let create_boxed_vec512 ty alloc_mode =
+    mk_non_null (Boxed_vec512 (ty, alloc_mode))
 
   let create_tagged_immediate imm : t =
     mk_non_null
@@ -3522,6 +3786,10 @@ module Head_of_kind_value_non_null = struct
   let create_boxed_nativeint ty alloc_mode = Boxed_nativeint (ty, alloc_mode)
 
   let create_boxed_vec128 ty alloc_mode = Boxed_vec128 (ty, alloc_mode)
+
+  let create_boxed_vec256 ty alloc_mode = Boxed_vec256 (ty, alloc_mode)
+
+  let create_boxed_vec512 ty alloc_mode = Boxed_vec512 (ty, alloc_mode)
 
   let create_tagged_immediate imm : t =
     Variant
@@ -3615,6 +3883,10 @@ module Head_of_kind_naked_nativeint =
   Make_head_of_kind_naked_number (Targetint_32_64)
 module Head_of_kind_naked_vec128 =
   Make_head_of_kind_naked_number (Vector_types.Vec128.Bit_pattern)
+module Head_of_kind_naked_vec256 =
+  Make_head_of_kind_naked_number (Vector_types.Vec256.Bit_pattern)
+module Head_of_kind_naked_vec512 =
+  Make_head_of_kind_naked_number (Vector_types.Vec512.Bit_pattern)
 
 let rec must_be_singleton t : RWC.t option =
   match t with
@@ -3631,7 +3903,8 @@ let rec must_be_singleton t : RWC.t option =
               | Ok
                   ( Mutable_block _ | Boxed_float _ | Boxed_float32 _
                   | Boxed_int32 _ | Boxed_int64 _ | Boxed_vec128 _
-                  | Boxed_nativeint _ | String _ | Closures _ | Array _ ) )
+                  | Boxed_vec256 _ | Boxed_vec512 _ | Boxed_nativeint _
+                  | String _ | Closures _ | Array _ ) )
           }) ->
       None
     | Ok (Equals simple) -> Simple.must_be_const simple
@@ -3657,7 +3930,7 @@ let rec must_be_singleton t : RWC.t option =
               | Naked_immediate i -> Some (RWC.tagged_immediate i)
               | Tagged_immediate _ | Naked_float _ | Naked_float32 _
               | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
-              | Naked_vec128 _ | Null ->
+              | Naked_vec128 _ | Naked_vec256 _ | Naked_vec512 _ | Null ->
                 Misc.fatal_errorf
                   "Immediates case returned wrong kind of constant:@ %a"
                   Reg_width_const.print const)))))
@@ -3717,5 +3990,21 @@ let rec must_be_singleton t : RWC.t option =
     | Ok (No_alias is) -> (
       match Vec128.Set.get_singleton is with
       | Some f -> Some (RWC.naked_vec128 f)
+      | None -> None))
+  | Naked_vec256 ty -> (
+    match TD.descr ty with
+    | Unknown | Bottom -> None
+    | Ok (Equals simple) -> Simple.must_be_const simple
+    | Ok (No_alias is) -> (
+      match Vec256.Set.get_singleton is with
+      | Some f -> Some (RWC.naked_vec256 f)
+      | None -> None))
+  | Naked_vec512 ty -> (
+    match TD.descr ty with
+    | Unknown | Bottom -> None
+    | Ok (Equals simple) -> Simple.must_be_const simple
+    | Ok (No_alias is) -> (
+      match Vec512.Set.get_singleton is with
+      | Some f -> Some (RWC.naked_vec512 f)
       | None -> None))
   | Rec_info _ | Region _ -> None

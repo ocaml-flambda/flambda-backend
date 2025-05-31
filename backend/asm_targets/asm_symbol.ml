@@ -105,18 +105,41 @@ let encode { name; already_encoded } =
 module Predef = struct
   let caml_call_gc = create_without_encoding "caml_call_gc"
 
+  let caml_call_gc_avx = create_without_encoding "caml_call_gc_avx"
+
+  let caml_call_gc_avx512 = create_without_encoding "caml_call_gc_avx512"
+
   let caml_c_call = create_without_encoding "caml_c_call"
 
   let caml_allocN = create_without_encoding "caml_allocN"
 
+  let caml_allocN_avx = create_without_encoding "caml_allocN_avx"
+
+  let caml_allocN_avx512 = create_without_encoding "caml_allocN_avx512"
+
   let caml_alloc1 = create_without_encoding "caml_alloc1"
+
+  let caml_alloc1_avx = create_without_encoding "caml_alloc1_avx"
+
+  let caml_alloc1_avx512 = create_without_encoding "caml_alloc1_avx512"
 
   let caml_alloc2 = create_without_encoding "caml_alloc2"
 
+  let caml_alloc2_avx = create_without_encoding "caml_alloc2_avx"
+
+  let caml_alloc2_avx512 = create_without_encoding "caml_alloc2_avx512"
+
   let caml_alloc3 = create_without_encoding "caml_alloc3"
+
+  let caml_alloc3_avx = create_without_encoding "caml_alloc3_avx"
+
+  let caml_alloc3_avx512 = create_without_encoding "caml_alloc3_avx512"
 
   let caml_ml_array_bound_error =
     create_without_encoding "caml_ml_array_bound_error"
+
+  let caml_ml_array_align_error =
+    create_without_encoding "caml_ml_array_align_error"
 
   let caml_raise_exn = create_without_encoding "caml_raise_exn"
 

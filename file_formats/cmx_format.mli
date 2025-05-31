@@ -32,7 +32,9 @@ open Misc
    of these infos *)
 
 (* Declare machtype here to avoid depending on [Cmm]. *)
-type machtype_component = Val | Addr | Int | Float | Vec128 | Float32 | Valx2
+type machtype_component =
+  Val | Addr | Int | Float | Vec128 | Vec256 | Vec512 | Float32 | Valx2
+
 type machtype = machtype_component array
 
 (* [alloc_mode] should be isomorphic to [Cmm.Alloc_mode.t],

@@ -646,6 +646,8 @@ and mixed_block_element =
   | Bits32
   | Bits64
   | Vec128
+  | Vec256
+  | Vec512
   | Word
   | Product of mixed_product_shape
 
@@ -967,18 +969,21 @@ let compare_tag t1 t2 =
 let rec equal_mixed_block_element e1 e2 =
   match e1, e2 with
   | Value, Value | Float64, Float64 | Float32, Float32 | Float_boxed, Float_boxed
-  | Word, Word | Bits32, Bits32 | Bits64, Bits64 | Vec128, Vec128
+  | Word, Word | Bits32, Bits32 | Bits64, Bits64
+  | Vec128, Vec128 | Vec256, Vec256 | Vec512, Vec512
     -> true
   | Product es1, Product es2
     -> Misc.Stdlib.Array.equal equal_mixed_block_element es1 es2
-  | ( Value | Float64 | Float32 | Float_boxed | Word | Bits32 | Bits64 | Vec128
-    | Product _ ), _
+  | ( Value | Float64 | Float32 | Float_boxed | Word | Bits32 | Bits64
+    | Vec128 | Vec256 | Vec512 | Product _ ), _
     -> false
 
 let rec compare_mixed_block_element e1 e2 =
   match e1, e2 with
-  | Value, Value | Float_boxed, Float_boxed | Float64, Float64 | Float32, Float32
-  | Word, Word | Bits32, Bits32 | Bits64, Bits64 | Vec128, Vec128
+  | Value, Value | Float_boxed, Float_boxed
+  | Float64, Float64 | Float32, Float32
+  | Word, Word | Bits32, Bits32 | Bits64, Bits64
+  | Vec128, Vec128 | Vec256, Vec256 | Vec512, Vec512
     -> 0
   | Product es1, Product es2
     -> Misc.Stdlib.Array.compare compare_mixed_block_element es1 es2
@@ -996,6 +1001,10 @@ let rec compare_mixed_block_element e1 e2 =
   | _, Bits32 -> 1
   | Vec128, _ -> -1
   | _, Vec128 -> 1
+  | Vec256, _ -> -1
+  | _, Vec256 -> 1
+  | Vec512, _ -> -1
+  | _, Vec512 -> 1
   | Product _, _ -> -1
   | _, Product _ -> 1
 
@@ -1148,6 +1157,8 @@ let rec mixed_block_element_to_string = function
   | Bits32 -> "Bits32"
   | Bits64 -> "Bits64"
   | Vec128 -> "Vec128"
+  | Vec256 -> "Vec256"
+  | Vec512 -> "Vec512"
   | Word -> "Word"
   | Product es ->
     "Product ["
@@ -1163,6 +1174,8 @@ let mixed_block_element_to_lowercase_string = function
   | Bits32 -> "bits32"
   | Bits64 -> "bits64"
   | Vec128 -> "vec128"
+  | Vec256 -> "vec256"
+  | Vec512 -> "vec512"
   | Word -> "word"
   | Product es ->
     "product ["

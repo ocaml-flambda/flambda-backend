@@ -101,7 +101,7 @@ and instrument = function
 
   (* these are base cases and have no logging *)
   | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
-  | Cconst_vec128 _ | Cconst_symbol _
+  | Cconst_vec128 _ | Cconst_vec256 _ | Cconst_vec512 _ | Cconst_symbol _
   | Cvar _ as c -> c
 
 let instrument_function c dbg =
