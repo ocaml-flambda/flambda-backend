@@ -16,9 +16,9 @@ external test_without_lock : unit -> bool = "without_lock"
 let passed b = Printf.printf (if b then "passed\n" else "failed\n")
 
 let f () =
-  (* CR ocaml 5 domains: all systhreads will always have [caml_state != NULL] *)
-  passed (test_without_lock ());
-  passed (test_with_lock ())
+  passed (test_with_lock ());
+    (* with systhreads, caml_state is not NULL even outside the domain lock *)
+  passed (test_without_lock ())
 
 let _ =
   f ();
