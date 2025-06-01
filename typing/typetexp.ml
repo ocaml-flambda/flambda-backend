@@ -1077,30 +1077,35 @@ and transl_type_var env ~policy ~row_context attrs loc name jkind_annot_opt =
   let print_name = "'" ^ name in
   if not (valid_tyvar_name name) then
     raise (Error (loc, env, Invalid_variable_name print_name));
-  let of_annot = jkind_of_annotation (Type_variable print_name) attrs in
+  let jkind_of_annot =
+    match jkind_annot_opt with
+    | None -> None
+    | Some jkind_annot ->
+      Some (jkind_of_annotation (Type_variable print_name) attrs jkind_annot,
+        jkind_annot.pjkind_loc)
+  in
   let ty = try
       TyVarEnv.lookup_local ~row_context name
     with Not_found ->
       let jkind =
         (* See Note [Global type variables] *)
         try TyVarEnv.lookup_global_jkind name
-        with Not_found -> TyVarEnv.new_jkind ~is_named:true policy
+        with Not_found ->
+          match jkind_of_annot with
+          | None -> TyVarEnv.new_jkind ~is_named:true policy
+          | Some (jkind, _) -> jkind
       in
       let ty = TyVarEnv.new_var ~name jkind policy in
       TyVarEnv.remember_used name ty loc;
       ty
   in
-  let jkind_annot =
-    match jkind_annot_opt with
-    | None -> None
-    | Some jkind_annot ->
-      let jkind = of_annot jkind_annot in
-      match constrain_type_jkind env ty jkind with
-      | Ok () -> Some jkind_annot
-      | Error err ->
-          raise (Error(jkind_annot.pjkind_loc, env, Bad_jkind_annot (ty, err)))
-  in
-  Ttyp_var (Some name, jkind_annot), ty
+  (match jkind_of_annot with
+  | None -> ()
+  | Some (jkind, pjkind_loc) ->
+    match constrain_type_jkind env ty jkind with
+    | Ok () -> ()
+    | Error err -> raise (Error(pjkind_loc, env, Bad_jkind_annot (ty, err))));
+  Ttyp_var (Some name, jkind_annot_opt), ty
 
 and transl_type_poly env ~policy ~row_context mode loc vars st =
   let typed_vars, new_univars, cty =
