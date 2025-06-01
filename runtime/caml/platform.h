@@ -54,14 +54,6 @@ Caml_inline void cpu_relax(void) {
 }
 
 
-/* Atomic read-modify-write instructions, with full fences */
-
-Caml_inline uintnat atomic_fetch_add_verify_ge0(atomic_uintnat* p, uintnat v) {
-  uintnat result = atomic_fetch_add(p,v);
-  CAMLassert ((intnat)result > 0);
-  return result;
-}
-
 /* If we're using glibc, use a custom condition variable implementation to
    avoid this bug: https://sourceware.org/bugzilla/show_bug.cgi?id=25847
 
@@ -308,7 +300,7 @@ typedef uintnat barrier_status;
    the last arrival. */
 Caml_inline barrier_status caml_plat_barrier_arrive(caml_plat_barrier* barrier)
 {
-  return 1 + atomic_fetch_add(&barrier->arrived, 1);
+  return caml_atomic_counter_incr(&barrier->arrived);
 }
 
 /* -- Single-sense --
