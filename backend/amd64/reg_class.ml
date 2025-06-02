@@ -94,10 +94,12 @@ module T = struct
 
   let hash : t -> int = function Int64 -> 0 | Float128 -> 1
 
+  let to_string : t -> string = function
+    | Int64 -> "int64"
+    | Float128 -> "float128"
+
   let print : Format.formatter -> t -> unit =
-   fun ppf reg_class ->
-    Format.fprintf ppf "%s"
-      (match reg_class with Int64 -> "int64" | Float128 -> "float128")
+   fun ppf reg_class -> Format.fprintf ppf "%s" (to_string reg_class)
 end
 
 include T
