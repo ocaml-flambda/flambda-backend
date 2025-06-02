@@ -14,7 +14,7 @@
 (**************************************************************************)
 
 module type Iterator = sig
-  include Heterogenous_list.S
+  type 'a t
 
   val current : 'a t -> 'a option
 
@@ -31,6 +31,42 @@ module type Iterator = sig
   val compare_key : 'a t -> 'a -> 'a -> int
 end
 
+module Map (T : Container_types.S_plus_iterator) = struct
+  type _ t =
+    | Iterator :
+        { mutable iterator : 'v T.Map.iterator;
+          map : 'v T.Map.t ref;
+          handler : 'v ref
+        }
+        -> T.t t
+
+  let equal_key (type a) (Iterator _ : a t) : a -> a -> bool = T.equal
+
+  let compare_key (type a) (Iterator _ : a t) : a -> a -> int = T.compare
+
+  let current (type a) (Iterator i : a t) : a option =
+    match T.Map.current i.iterator with
+    | Some (key, _) -> Some key
+    | None -> None
+
+  let advance (type a) (Iterator i : a t) : unit =
+    i.iterator <- T.Map.advance i.iterator
+
+  let seek (type a) (Iterator i : a t) (k : a) : unit =
+    i.iterator <- T.Map.seek i.iterator k
+
+  let init (type a) (Iterator i : a t) : unit =
+    i.iterator <- T.Map.iterator !(i.map)
+
+  let accept (type a) (Iterator i : a t) : unit =
+    match T.Map.current i.iterator with
+    | None -> invalid_arg "accept: iterator is exhausted"
+    | Some (_, value) -> i.handler := value
+
+  let create cell handler =
+    Iterator { iterator = T.Map.iterator T.Map.empty; map = cell; handler }
+end
+
 module Join (Iterator : Iterator) : sig
   include Iterator
 
@@ -40,10 +76,6 @@ end = struct
     { iterators : 'k Iterator.t array;
       mutable at_end : bool
     }
-
-  include Heterogenous_list.Make (struct
-    type nonrec 'a t = 'a t
-  end)
 
   let current (type a) ({ iterators; at_end } : a t) : a option =
     if at_end

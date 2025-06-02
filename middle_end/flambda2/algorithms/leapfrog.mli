@@ -63,8 +63,6 @@ module type Iterator = sig
       is hidden. *)
   type 'a t
 
-  include Heterogenous_list.S with type 'a t := 'a t
-
   (** [current it] is the key at the current position of the iterator [it], or
       [None] if the iterator is exhausted. *)
   val current : 'a t -> 'a option
@@ -96,6 +94,20 @@ module type Iterator = sig
 
   (** [equal_key it] is a comparison function on iterator keys. *)
   val compare_key : 'a t -> 'a -> 'a -> int
+end
+
+module Map (T : Container_types.S_plus_iterator) : sig
+  include Iterator
+
+  (** [create cell handler] returns a new imperative iterator that iterates over
+      the keys of the map in [cell].
+
+       - When calling [init], the iterator is initialised with the lowest key of
+         the map currently in the [cell] reference.
+
+       - Calling [accept] will set the [handler] reference to the current value
+         of the iterator. *)
+  val create : 'a T.Map.t ref -> 'a ref -> T.t t
 end
 
 module Join (Iterator : Iterator) : sig
