@@ -1136,6 +1136,7 @@ let unbox_vector ~header ~local_header ~chunk ~structured_constant_of_sym dbg =
       when Nativeint.equal hdr header || Nativeint.equal hdr local_header ->
       c
     | Cconst_symbol (s, _dbg) as cmm -> (
+      (* CR mshinwell: consider using [_dbg] *)
       match structured_constant_of_sym s.sym_name dbg with
       | Some const -> const
       | None -> Cop (mk_load_immut chunk, [cmm], dbg))
