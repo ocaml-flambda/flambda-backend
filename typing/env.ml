@@ -28,7 +28,6 @@ module String = Misc.Stdlib.String
 
 let add_delayed_check_forward = ref (fun _ -> assert false)
 
-
 type 'a usage_tbl = ('a -> unit) Types.Uid.Tbl.t
 (** This table is used to track usage of value declarations.
     A declaration is identified by its uid.
@@ -1137,7 +1136,7 @@ let read_sign_of_cmi sign name uid ~shape ~address:addr ~flags =
       empty Subst.identity
       path mda_address mty mda_shape
   in
-  let mda_block_sorts = 
+  let mda_block_sorts =
     !block_sorts_of_signature empty
       (Mty_signature (Subst.Lazy.force_signature sign))
   in
@@ -3501,11 +3500,15 @@ and lookup_apply ~errors ~use ~loc lid0 env =
 and lookup_module ~errors ~use ~loc lid env =
   match lid with
   | Lident s ->
-      let path, _bsorts, locks, data = lookup_ident_module Load ~errors ~use ~loc s env in
+      let path, _bsorts, locks, data =
+        lookup_ident_module Load ~errors ~use ~loc s env
+      in
       let md = Subst.Lazy.force_module_decl data.mda_declaration in
       path, md, locks
   | Ldot(l, s) ->
-      let path, _bsorts, locks, data = lookup_dot_module ~errors ~use ~loc l s env in
+      let path, _bsorts, locks, data =
+        lookup_dot_module ~errors ~use ~loc l s env
+      in
       let md = Subst.Lazy.force_module_decl data.mda_declaration in
       path, md, locks
   | Lapply _ as lid ->
@@ -3515,7 +3518,7 @@ and lookup_module ~errors ~use ~loc lid env =
       Papply(path_f, path_arg), md, locks_empty
 
 and lookup_dot_module ~errors ~use ~loc l s env =
-  (* CR mixed-modules: [shapes] should be renamed [block_sorts] or similar 
+  (* CR mixed-modules: [shapes] should be renamed [block_sorts] or similar
    * (not only here, but in a few other places) *)
   let p, shapes, locks, comps = lookup_structure_components ~errors ~use ~loc l env in
   match NameMap.find s comps.comp_modules with
@@ -3564,7 +3567,9 @@ let lookup_dot_modtype ~errors ~use ~loc l s env =
       may_lookup_error errors loc env (Unbound_modtype (Ldot(l, s)))
 
 let lookup_dot_class ~errors ~use ~loc l s env =
-  let (p, bsorts, locks, comps) = lookup_structure_components ~errors ~use ~loc l env in
+  let p, bsorts, locks, comps =
+    lookup_structure_components ~errors ~use ~loc l env
+  in
   match NameMap.find s comps.comp_classes with
   | clda ->
       let path = Pdot(p, s) in
@@ -3574,7 +3579,9 @@ let lookup_dot_class ~errors ~use ~loc l s env =
       may_lookup_error errors loc env (Unbound_class (Ldot(l, s)))
 
 let lookup_dot_cltype ~errors ~use ~loc l s env =
-  let (p, bsorts, _, comps) = lookup_structure_components ~errors ~use ~loc l env in
+  let p, bsorts, _, comps =
+    lookup_structure_components ~errors ~use ~loc l env
+  in
   match NameMap.find s comps.comp_cltypes with
   | cltda ->
       let path = Pdot(p, s) in
@@ -3603,7 +3610,9 @@ let lookup_all_dot_constructors ~errors ~use ~loc usage l s env =
       lookup_all_ident_constructors
         ~errors ~use ~loc usage s (Lazy.force initial)
   | _ ->
-      let (_, _, _, comps) = lookup_structure_components ~errors ~use ~loc l env in
+      let _, _, _, comps =
+        lookup_structure_components ~errors ~use ~loc l env
+      in
       match NameMap.find s comps.comp_constrs with
       | [] | exception Not_found ->
           may_lookup_error errors loc env (Unbound_constructor (Ldot(l, s)))
@@ -3786,7 +3795,9 @@ let lookup_module_path ~errors ~use ~loc ~load lid env =
         in
         path, bsorts, locks
   | Ldot(l, s) ->
-      let path, bsorts, locks, _ = lookup_dot_module ~errors ~use ~loc l s env in
+      let path, bsorts, locks, _ =
+        lookup_dot_module ~errors ~use ~loc l s env
+      in
       path, bsorts, locks
   | Lapply _ as lid ->
       let path_f, _comp_f, path_arg = lookup_apply ~errors ~use ~loc lid env in
@@ -3969,7 +3980,9 @@ let find_module_by_name lid env =
 
 let find_value_by_name lid env =
   let loc = Location.(in_file !input_name) in
-  let path, _bsorts, desc, _, _ = lookup_value ~errors:false ~use:false ~loc lid env in
+  let path, _bsorts, desc, _, _ =
+    lookup_value ~errors:false ~use:false ~loc lid env
+  in
   path, desc
 
 let find_type_by_name lid env =
@@ -3984,12 +3997,16 @@ let find_modtype_by_name lid env =
 
 let find_class_by_name lid env =
   let loc = Location.(in_file !input_name) in
-  let path, _bsorts, desc, _ = lookup_class ~errors:false ~use:false ~loc lid env in
+  let path, _bsorts, desc, _ =
+    lookup_class ~errors:false ~use:false ~loc lid env
+  in
   path, desc
 
 let find_cltype_by_name lid env =
   let loc = Location.(in_file !input_name) in
-  let path, _bsorts, cty = lookup_cltype ~errors:false ~use:false ~loc lid env in
+  let path, _bsorts, cty =
+    lookup_cltype ~errors:false ~use:false ~loc lid env
+  in
   path, cty
 
 let find_constructor_by_name lid env =
@@ -4023,7 +4040,9 @@ let walk_locks ~env ~item mode ty (locks, lid, loc) =
   walk_locks ~errors:true ~loc ~env ~item ~lid mode ty locks
 
 let lookup_module_path ?(use=true) ~loc ~load lid env =
-  let p, _bsorts, locks = lookup_module_path ~errors:true ~use ~loc ~load lid env in
+  let p, _bsorts, locks =
+    lookup_module_path ~errors:true ~use ~loc ~load lid env
+  in
   p, locks
 
 let lookup_module_instance_path ?(use=true) ~loc ~load lid env =
@@ -4033,7 +4052,9 @@ let lookup_module ?(use=true) ~loc lid env =
   lookup_module ~errors:true ~use ~loc lid env
 
 let lookup_value ?(use=true) ~loc lid env =
-  let p, bsorts, vd, mode, locks = lookup_value ~errors:true ~use ~loc lid env in
+  let p, bsorts, vd, mode, locks =
+    lookup_value ~errors:true ~use ~loc lid env
+  in
   p, bsorts, vd, mode, locks
 
 let lookup_type ?(use=true) ~loc lid env =
@@ -4051,7 +4072,9 @@ let lookup_modtype_path ?(use=true) ~loc lid env =
   path
 
 let lookup_class ?(use=true) ~loc lid env =
-  let path, _bsorts, desc, vmode = lookup_class ~errors:true ~use ~loc lid env in
+  let path, _bsorts, desc, vmode =
+    lookup_class ~errors:true ~use ~loc lid env
+  in
   path, desc, vmode.mode
 
 let lookup_cltype ?(use=true) ~loc lid env =
