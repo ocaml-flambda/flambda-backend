@@ -805,8 +805,8 @@ type lookup_error =
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
   | No_unboxed_version of Longident.t * type_declaration
   | Error_from_persistent_env of Persistent_env.error
-  | Mutable_value_used_in_closure of string
-  | Mutable_value_used_in_escape of string
+  | Mutable_value_used_in_closure of
+      [`Escape of escaping_context | `Shared of shared_context | `Closure]
 
 type error =
   | Missing_module of Location.t * Path.t * Path.t
@@ -3302,31 +3302,47 @@ let walk_locks ~errors ~loc ~env ~item ~lid mode ty locks =
           vmode
     ) vmode locks
 
-(** jra: write documentation *)
-let unwalk_locks ~errors:_ ~loc:_ ~env:_ ~item:_ ~lid:_ mode _ty _locks =
-  mode
-
-(** Which lock, if any, blocks mutable variables from being used?
-    The current implementation is too restrictive: Any [Closure_lock] will
-    block a mutable variable, even if the closure does not leave the mutable
-    variable's scope *)
-let lock_blocking_mutable_variables locks =
-  List.find_opt (function
-    (* CR jrayman for zqian: is this correct, specifically for share locks? *)
-    | Closure_lock _ | Escape_lock _ -> true
-    | Share_lock _ | Region_lock | Exclave_lock | Unboxed_lock -> false) locks
+(** Take the parameter of [mutable(m0)] at declaration site,  *)
+let walk_locks_for_mutable_mode ~errors ~loc ~env  mode locks =
+  List.fold_left
+    (fun (mode : Mode.Value.r) lock ->
+      match lock with
+      | Region_lock ->
+          (* If [m0] is [global], then inside the region we require new values
+            to be [global]. If [m0] is [local], morally inside the region we can
+            require new values to be [regional]. However, GC doesn't support
+            backward pointers inside a single stack frame. So we just require
+            new values to be [global].
+            *)
+          Mode.Value.meet
+            [mode;
+             Mode.Value.max_with (Comonadic Areality) (Mode.Regionality.global)]
+      | Exclave_lock ->
+          (* If [m0] is [global], then inside the exclave we require new values
+          to be [global]. If [m0] is [local], then we require the new values to
+          be [local]. *)
+          mode
+      | Escape_lock ctx ->
+          may_lookup_error errors loc env (Mutable_value_used_in_closure (`Escape ctx))
+      | Share_lock ctx ->
+          may_lookup_error errors loc env (Mutable_value_used_in_closure (`Shared ctx))
+      | Closure_lock _ ->
+          may_lookup_error errors loc env (Mutable_value_used_in_closure `Closure)
+      | Unboxed_lock -> mode
+    ) mode locks
 
 let lookup_ident_value ~errors ~use ~loc name env =
   match IdTbl.find_name_and_locks wrap_value ~mark:use name env.values with
-  | Ok (_, locks, Val_bound {vda_description={val_kind=Val_mut _}})
-    when lock_blocking_mutable_variables locks |> Option.is_some ->
-      may_lookup_error errors loc env
-        (match lock_blocking_mutable_variables locks |> Option.get with
-         | Closure_lock _ -> Mutable_value_used_in_closure name
-         | Escape_lock _ -> Mutable_value_used_in_escape name
-         | _ -> assert false
-                (* See definition of [lock_blocking_mutable_variables] *))
   | Ok (path, locks, Val_bound vda) ->
+      let vda =
+        match vda with
+        | {vda_description={val_kind=Val_mut (m0, sort); _}; _} ->
+            let m0 = walk_locks_for_mutable_mode ~errors ~loc ~env m0 locks in
+            let val_kind = Val_mut (m0, sort) in
+            let vda_description = {vda.vda_description with val_kind} in
+            {vda with vda_description}
+        | _ -> vda
+      in
       use_value ~use ~loc path vda;
       path, locks, vda
   | Ok (_, _, Val_unbound reason) ->
@@ -4074,15 +4090,12 @@ let lookup_settable_variable ?(use=true) ~loc name env =
           use_value ~use ~loc path vda;
           Instance_variable
             (path, mut, cl_num, Subst.Lazy.force_type_expr desc.val_type)
-      | Val_mut(mode_restriction, sort), Pident id ->
+      | Val_mut(m0, sort), Pident id ->
           let val_type = Subst.Lazy.force_type_expr desc.val_type in
           let mode =
-            unwalk_locks
-              ~errors:true ~loc ~env ~item:Value
-              ~lid:(Lident "")
-              mode_restriction
-              val_type
-              locks
+            walk_locks_for_mutable_mode
+              ~errors:true ~loc ~env
+              m0 locks
           in
           use_value ~use ~loc path vda;
           Mutable_variable (id, mode, val_type, sort)
@@ -4704,16 +4717,16 @@ let report_lookup_error _loc env ppf = function
       end
   | Error_from_persistent_env err ->
       Persistent_env.report_error ppf err
-  | Mutable_value_used_in_closure name ->
+  | Mutable_value_used_in_closure ctx ->
+      let ctx =
+        match ctx with
+        | `Escape ctx -> string_of_escaping_context ctx
+        | `Shared ctx -> string_of_shared_context ctx
+        | `Closure -> "closure"
+      in
       fprintf ppf
-        "@[The variable %s is mutable, so cannot be used \
-           inside a closure that might escape@]"
-        name
-  | Mutable_value_used_in_escape name ->
-      fprintf ppf
-        "@[The variable %s is mutable, so it may not cross an \
-           escape lock@]"
-        name
+        "@[Mutable variable cannot be used \
+           inside a %s.@]" ctx
 
 let report_error ppf = function
   | Missing_module(_, path1, path2) ->

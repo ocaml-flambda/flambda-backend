@@ -475,11 +475,6 @@ module Vars = Misc.Stdlib.String.Map
 type value_kind =
     Val_reg                             (* Regular value *)
   | Val_mut of Mode.Value.r * Jkind_types.Sort.t
-                              (* Mutable value (let mutable(m0) x = ..)
-                               * where m0 is the upper bound of future values
-                               *
-                               * Note: as of 2025-05, the (m0) syntax does
-                               * not exist, so m0 is always [legacy \/ local] *)
   | Val_prim of Primitive.description   (* Primitive *)
   | Val_ivar of mutable_flag * string   (* Instance variable (mutable ?) *)
   | Val_self of

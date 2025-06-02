@@ -650,11 +650,14 @@ module Vars  : Map.S with type key = string
 type value_kind =
     Val_reg                             (* Regular value *)
   | Val_mut of Mode.Value.r * Jkind_types.Sort.t
-                              (* Mutable value (let mutable(m0) x = ..)
-                               * where m0 is the upper bound of future values
-                               *
-                               * Note: as of 2025-05, the (m0) syntax does
-                               * not exist, so m0 is always [legacy \/ local] *)
+  (** Mutable value, declared as [let mutable(m0) x = ..]. The mode returned
+      here is [m0] adjusted for regions, suitable to be used as the expected
+      mode of the new content.
+
+      Currently, the syntax is not supported and [m0] is fixed to be [local,
+      legacy]. After adjusting for regions, the mode here could be [global,
+      legacy].
+  *)
   | Val_prim of Primitive.description   (* Primitive *)
   | Val_ivar of mutable_flag * string   (* Instance variable (mutable ?) *)
   | Val_self of class_signature * self_meths * Ident.t Vars.t * string
