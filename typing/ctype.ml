@@ -1699,14 +1699,13 @@ let with_locality_and_yielding (locality, yielding) m =
     Option.value ~default:(Alloc.proj (Comonadic Yielding) m) yielding
   in
   Yielding.equate_exn (Alloc.proj (Comonadic Yielding) m') yielding;
-  Alloc.submode_exn m' (Alloc.join_const
-    { Alloc.Const.min with
-      areality = Locality.Const.max;
-      yielding = Yielding.Const.max} m);
-  Alloc.submode_exn (Alloc.meet_const
-    { Alloc.Const.max with
+  let c =
+    { Alloc.Comonadic.Const.max with
       areality = Locality.Const.min;
-      yielding = Yielding.Const.min} m) m';
+      yielding = Yielding.Const.min}
+  in
+  Alloc.submode_exn (Alloc.meet_const c m') m;
+  Alloc.submode_exn (Alloc.meet_const c m) m';
   m'
 
 let curry_mode alloc arg : Alloc.Const.t =
