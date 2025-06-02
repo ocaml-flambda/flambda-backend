@@ -51,11 +51,27 @@ module type Set = sig
 
   val union : t -> t -> t
 
+  (** [union_sharing s1 s2] is [union s1 s2], with maximal sharing of the result
+      with [s1]. *)
+  val union_sharing : t -> t -> t
+
+  (** [union_shared s1 s2] is [union_sharing s1 s2], with a fast path for
+      shared subsets of [s1] and [s2]. *)
+  val union_shared : t -> t -> t
+
   val inter : t -> t -> t
 
   val disjoint : t -> t -> bool
 
   val diff : t -> t -> t
+
+  (** [diff_sharing s1 s2] is [diff s1 s2], with maximal sharing of the result
+        with [s1]. *)
+  val diff_sharing : t -> t -> t
+
+  (** [diff_shared s1 s2] is [diff_sharing s1 s2], with a fast path for shared
+        subsets of [s1] and [s2]. *)
+  val diff_shared : t -> t -> t
 
   val compare : t -> t -> int
 
@@ -142,6 +158,15 @@ module type Map = sig
      cover it efficiently). *)
   val union : (key -> 'a -> 'a -> 'a option) -> 'a t -> 'a t -> 'a t
 
+  (** [union_sharing f m1 m2] is a version of [union f m1 m2] that maximizes
+      sharing of the result with [m1]. *)
+  val union_sharing : (key -> 'a -> 'a -> 'a option) -> 'a t -> 'a t -> 'a t
+
+  (** [union_shared f m1 m2] is a version of [union_sharing f m1 m2] that also
+      exploits sharing of [m1] and [m2] to avoid calling [f] when possible,
+      assuming that [f x x = Some x] for all [x]s. *)
+  val union_shared : (key -> 'a -> 'a -> 'a option) -> 'a t -> 'a t -> 'a t
+
   val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
 
   val equal : ('a -> 'a -> bool) -> 'a t -> 'a t -> bool
@@ -213,9 +238,28 @@ module type Map = sig
   val print :
     (Format.formatter -> 'a -> unit) -> Format.formatter -> 'a t -> unit
 
-  val diff_domains : 'a t -> 'a t -> 'a t
+  val diff_domains : 'a t -> 'b t -> 'a t
 
   val inter : (key -> 'a -> 'b -> 'c) -> 'a t -> 'b t -> 'c t
+
+  (** [diff f m1 m2] computes a map whose keys are a subset of the keys of [m1].
+      When a binding is defined in both [m1] and [m2], the function [f] is used
+      to combine them. Bindings that are only present in [m1] are preserved.
+      This is a special case of [merge]: [diff f m1 m2] is equivalent to
+      [merge f' m1 m2], where
+      - [f' _key None _ = None]
+      - [f' _key (Some v) None = Some v]
+      - [f' key (Some v1) (Some v2) = f key v1 v2] *)
+  val diff : (key -> 'a -> 'b -> 'a option) -> 'a t -> 'b t -> 'a t
+
+  (** [diff_sharing f m1 m2] is a version of [diff f m1 m2] that maximizes
+      sharing of the result with [m1]. *)
+  val diff_sharing : (key -> 'a -> 'b -> 'a option) -> 'a t -> 'b t -> 'a t
+
+  (** [diff_shared f m1 m2] is a version of [diff_sharing f m1 m2] that also
+      exploits sharing of [m1] and [m2] to avoid calling [f] when possible,
+      assuming that [f x x] always returns [None]. *)
+  val diff_shared : (key -> 'a -> 'a -> 'a option) -> 'a t -> 'a t -> 'a t
 
   val inter_domain_is_non_empty : 'a t -> 'a t -> bool
 
