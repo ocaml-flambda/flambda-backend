@@ -317,6 +317,9 @@ val tagged_immediate_alias_to : naked_immediate:Variable.t -> t
 (** This function checks the kind of its argument. *)
 val tag_immediate : t -> t
 
+(** This function checks the kind of its argument. *)
+val untag_immediate : t -> t
+
 val is_int_for_scrutinee : scrutinee:Simple.t -> t
 
 val get_tag_for_block : block:Simple.t -> t

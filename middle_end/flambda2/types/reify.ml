@@ -551,7 +551,7 @@ let reify ~allowed_if_free_vars_defined_in ~var_is_defined_at_toplevel
                     alloc_mode = _
                   })
           }) -> (
-      match Provers.meet_equals_single_tagged_immediate env length with
+      match Provers.meet_single_naked_immediate env length with
       | Known_result length -> (
         if not (Targetint_31_63.equal length Targetint_31_63.zero)
         then try_canonical_simple ()

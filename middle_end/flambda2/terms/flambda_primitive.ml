@@ -632,11 +632,11 @@ let array_kind = K.value
 
 let string_or_bytes_kind = K.value
 
-let array_index_kind = K.value
+let array_index_kind = K.naked_nativeint
 
-let string_or_bigstring_index_kind = K.naked_immediate
+let string_or_bigstring_index_kind = K.naked_nativeint
 
-let bytes_or_bigstring_index_kind = K.naked_immediate
+let bytes_or_bigstring_index_kind = K.naked_nativeint
 
 type 'signed_or_unsigned comparison =
   | Eq
@@ -812,7 +812,7 @@ let writing_to_a_bigarray kind =
        observable coeffect. *) ->
     Effects.Arbitrary_effects, Coeffects.No_coeffects, Placement.Strict
 
-let bigarray_index_kind = K.value
+let bigarray_index_kind = K.naked_nativeint
 
 type string_like_value =
   | String
@@ -1356,7 +1356,6 @@ let result_kind_of_unary_primitive p : result_kind =
     Singleton (Block_access_kind.element_kind_for_load kind)
   | Duplicate_array _ | Duplicate_block _ -> Singleton K.value
   | Is_int _ | Is_null | Get_tag -> Singleton K.naked_immediate
-  | String_length _ -> Singleton K.naked_immediate
   | Int_as_pointer _ ->
     (* This primitive is *only* to be used when the resulting pointer points at
        something which is a valid OCaml value (even if outside of the heap). *)
@@ -1373,8 +1372,8 @@ let result_kind_of_unary_primitive p : result_kind =
     | Unboxed_float64_as_unboxed_int64 -> Singleton K.naked_int64)
   | Float_arith (Float64, _) -> Singleton K.naked_float
   | Float_arith (Float32, _) -> Singleton K.naked_float32
-  | Array_length _ -> Singleton K.value
-  | Bigarray_length _ -> Singleton K.naked_immediate
+  | Array_length _ | Bigarray_length _ | String_length _ ->
+    Singleton K.naked_immediate
   | Unbox_number kind -> Singleton (K.Boxable_number.unboxed_kind kind)
   | Untag_immediate -> Singleton K.naked_immediate
   | Box_number _ | Tag_immediate | Project_function_slot _ -> Singleton K.value
@@ -1822,7 +1821,7 @@ let args_kind_of_binary_primitive p =
     K.naked_float, K.naked_float
   | Float_arith (Float32, _) | Float_comp (Float32, _) ->
     K.naked_float32, K.naked_float32
-  | Bigarray_get_alignment _ -> bigstring_kind, K.naked_immediate
+  | Bigarray_get_alignment _ -> bigstring_kind, bigarray_index_kind
   | Atomic_set _ | Atomic_exchange _ | Atomic_int_arith _ -> K.value, K.value
   | Poke kind -> K.naked_nativeint, K.Standard_int_or_float.to_kind kind
 
@@ -1845,7 +1844,7 @@ let result_kind_of_binary_primitive p : result_kind =
   | Float_arith (Float64, _) -> Singleton K.naked_float
   | Float_arith (Float32, _) -> Singleton K.naked_float32
   | Phys_equal _ | Int_comp _ | Float_comp _ -> Singleton K.naked_immediate
-  | Bigarray_get_alignment _ -> Singleton K.naked_immediate
+  | Bigarray_get_alignment _ -> Singleton bigarray_index_kind
   | Atomic_exchange _ | Atomic_int_arith Fetch_add -> Singleton K.value
   | Atomic_set _ -> Unit
   | Atomic_int_arith (Add | Sub | And | Or | Xor) -> Unit

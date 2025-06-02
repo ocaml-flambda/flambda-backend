@@ -222,7 +222,7 @@ let simplify_static_const_of_kind_value dacc (static_const : Static_const.t)
     let dacc =
       bind_result_sym
         (T.array_of_length ~element_kind:Bottom
-           ~length:(T.this_tagged_immediate Targetint_31_63.zero)
+           ~length:(T.this_naked_immediate Targetint_31_63.zero)
            Alloc_mode.For_types.heap)
     in
     ( Rebuilt_static_const.create_empty_array
