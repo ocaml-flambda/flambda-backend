@@ -936,12 +936,9 @@ int caml_do_opportunistic_major_slice
 {
   int work_available = caml_opportunistic_major_work_available(domain_state);
   if (work_available) {
-    /* NB: need to put guard around the ev logs to prevent spam when we poll */
-    uintnat log_events =
-        atomic_load_relaxed(&caml_verb_gc) & CAML_GC_MSG_SLICE;
-    if (log_events) CAML_EV_BEGIN(EV_MAJOR_MARK_OPPORTUNISTIC);
+    CAML_EV_BEGIN(EV_MAJOR_MARK_OPPORTUNISTIC);
     caml_opportunistic_major_collection_slice(Major_slice_work_min);
-    if (log_events) CAML_EV_END(EV_MAJOR_MARK_OPPORTUNISTIC);
+    CAML_EV_END(EV_MAJOR_MARK_OPPORTUNISTIC);
   }
   return work_available;
 }
