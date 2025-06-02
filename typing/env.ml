@@ -4725,8 +4725,7 @@ let report_lookup_error _loc env ppf = function
         | `Closure -> "closure"
       in
       fprintf ppf
-        "@[Mutable variable cannot be used \
-           inside a %s.@]" ctx
+        "@[Mutable variable cannot be used inside %s.@]" ctx
 
 let report_error ppf = function
   | Missing_module(_, path1, path2) ->
