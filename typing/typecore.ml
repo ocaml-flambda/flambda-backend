@@ -477,7 +477,7 @@ let check_tail_call_local_returning loc env ap_mode {region_mode; _} =
 
 let meet_regional mode =
   let mode = Value.disallow_left mode in
-  Value.meet_with (Comonadic Areality) Regionality.Const.Regional mode
+  Value.meet_with Areality Regionality.Const.Regional mode
 
 let mode_default mode =
   { position = RNontail;
@@ -533,10 +533,15 @@ let mode_with_position mode position =
 let mode_max_with_position position =
   { mode_max with position }
 
+(** Take the expected mode of [exclave_ exp], return the expected mode of [exp].
+    [expected_mode] must be higher than [regional]. *)
 let mode_exclave expected_mode =
   let mode =
-    Value.join_with (Comonadic Areality)
-      Regionality.Const.Local (as_single_mode expected_mode)
+     as_single_mode expected_mode
+     (* if we expect an exclave to be [regional], then inside the exclave the
+        body should be [local] *)
+     |> value_to_alloc_r2l
+     |> alloc_as_value
   in
   { (mode_default mode)
     with strictly_local = true
@@ -554,18 +559,24 @@ let mode_lazy expected_mode =
   let expected_mode =
     mode_coerce (
       Value.max_with (Comonadic Areality) Regionality.global
-      |> Value.meet_with (Comonadic Yielding) Yielding.Const.Unyielding)
+      |> Value.meet_with Yielding Yielding.Const.Unyielding)
       expected_mode
   in
+  let mode_crossing =
+    Crossing.of_bounds {
+      comonadic = {
+        Alloc.Comonadic.Const.max with
+        (* The thunk is evaluated only once, so we only require it to be [once],
+          even if the [lazy] is [many]. *)
+        linearity = Many;
+        (* The thunk is evaluated only when the [lazy] is [uncontended], so we
+          only require it to be [nonportable], even if the [lazy] is [portable].
+          *)
+        portability = Portable };
+      monadic = Alloc.Monadic.Const.min }
+  in
   let closure_mode =
-    expected_mode
-    |> as_single_mode
-    (* The thunk is evaluated only once, so we only require it to be [once],
-       even if the [lazy] is [many]. *)
-    |> Value.join_with (Comonadic Linearity) Linearity.Const.Once
-    (* The thunk is evaluated only when the [lazy] is [uncontended], so we only require it
-       to be [nonportable], even if the [lazy] is [portable]. *)
-    |> Value.join_with (Comonadic Portability) Portability.Const.Nonportable
+    expected_mode |> as_single_mode |> Crossing.apply_right mode_crossing
   in
   {expected_mode with locality_context = Some Lazy }, closure_mode
 
@@ -663,8 +674,9 @@ let tuple_pat_mode mode tuple_modes =
 
 let global_pat_mode {mode; _}=
   let mode =
-    Value.meet_with (Comonadic Areality) Regionality.Const.Global mode
-    |> Value.meet_with (Comonadic Yielding) Yielding.Const.Unyielding
+    mode
+    |> Value.meet_with Areality Regionality.Const.Global
+    |> Value.meet_with Yielding Yielding.Const.Unyielding
   in
   simple_pat_mode mode
 
@@ -1014,10 +1026,10 @@ let check_construct_mutability ~loc ~env mutability ty ?modalities block_mode =
 (** The [expected_mode] of the record when projecting a mutable field. *)
 let mode_project_mutable =
   let mode =
-    Contention.Const.Shared
-    |> Contention.of_const
-    |> Value.max_with (Monadic Contention)
-    |> Value.meet_with (Monadic Visibility) Visibility.Const.Read
+    { Value.Const.max with
+      visibility = Visibility.Const.Read;
+      contention = Contention.Const.Shared }
+    |> Value.of_const
   in
   { (mode_default mode) with
     contention_context = Some Read_mutable;
@@ -1026,10 +1038,10 @@ let mode_project_mutable =
 (** The [expected_mode] of the record when mutating a mutable field. *)
 let mode_mutate_mutable =
   let mode =
-    Contention.Const.Uncontended
-    |> Contention.of_const
-    |> Value.max_with (Monadic Contention)
-    |> Value.meet_with (Monadic Visibility) Visibility.Const.Read_write
+    { Value.Const.max with
+      visibility = Read_write;
+      contention = Uncontended }
+    |> Value.of_const
   in
   { (mode_default mode) with
     contention_context = Some Write_mutable;
@@ -6852,11 +6864,7 @@ and type_expect_
            exp_attributes = sexp.pexp_attributes;
            exp_env = env }
   | Pexp_stack e ->
-      let expected_mode' =
-        mode_morph (Value.join_with (Comonadic Areality) Regionality.Const.Local)
-          expected_mode
-      in
-      let exp = type_expect env expected_mode' e ty_expected_explained in
+      let exp = type_expect env expected_mode e ty_expected_explained in
       let unsupported category =
         raise (Error (exp.exp_loc, env, Unsupported_stack_allocation category))
       in
@@ -6917,9 +6925,11 @@ and type_expect_
         (* The overwritten cell has to be unique
            and should have the areality expected here: *)
         Value.newvar_below
-          (Value.meet_with (Monadic Uniqueness) Uniqueness.Const.Unique
-             (Value.max_with (Comonadic Areality)
-                (Value.proj (Comonadic Areality) expected_mode.mode)))
+          (Value.meet [
+            Value.max_with (Monadic Uniqueness)
+              Uniqueness.(of_const Const.Unique);
+            Value.max_with (Comonadic Areality)
+              (Value.proj (Comonadic Areality) expected_mode.mode)])
       in
       let cell_type =
         (* CR uniqueness: this could be the jkind of exp2 *)
@@ -6931,14 +6941,18 @@ and type_expect_
            We enforce that here, by asking the allocation to be global.
            This makes the block alloc_heap, but we ignore that information anyway. *)
         (* CR uniqueness: this shouldn't mention yielding *)
-        { Value.Const.max with
+        { Value.Comonadic.Const.max with
           areality = Regionality.Const.Global
         ; yielding = Yielding.Const.Unyielding }
       in
       let exp2 =
         let exp2_mode =
           mode_coerce
-            (Value.(meet_const new_fields_mode max |> disallow_left))
+            Value.({
+              comonadic = new_fields_mode;
+              monadic = Monadic.Const.max}
+              |> Const.merge
+              |> of_const)
             expected_mode
         in
         (* When typing holes, we will enforce: fields_mode <= expected_mode.
