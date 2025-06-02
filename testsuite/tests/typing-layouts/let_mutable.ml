@@ -41,7 +41,17 @@ let triangle_f32 n =
   done;
   sum
 
-let () = Printf.printf "%.2f\n" (triangle_f64 10 |> Float32_u.to_float)
+let () = Printf.printf "%.2f\n" (triangle_f32 10 |> Float32_u.to_float)
+
+
+let triangle_i64 n =
+  let mutable sum = #0L in
+  for i = 1 to n do
+    sum <- Int64_u.add sum (Int64_u.of_int i)
+  done;
+  sum
+
+let () = Printf.printf "%d\n" (triangle_i64 10 |> Int64_u.to_int)
 
 
 let triangle_i32 n =
@@ -54,11 +64,20 @@ let triangle_i32 n =
 let () = Printf.printf "%d\n" (triangle_i32 10 |> Int32_u.to_int)
 
 
-let triangle_i64 n =
-  let mutable sum = #0L in
+(* jra: how do you create a vec128? *)
+
+let triangle_i64_i32_f64 n =
+  let mutable sum = #(#0L, #(#0l, #0.)) in
   for i = 1 to n do
-    sum <- Int64_u.add sum (Int64_u.of_int i)
+    let #(a, #(b, c)) = sum in
+    sum <- #(Int64_u.add a (Int64_u.of_int i),
+             #(Int32_u.add b (Int32_u.of_int i),
+               Float_u.add c (Float_u.of_int i)))
   done;
   sum
 
-let () = Printf.printf "%d\n" (triangle_i64 10 |> Int64_u.to_int)
+let () =
+  let #(a, #(b, c)) = triangle_i64_i32_f64 10 in
+  Printf.printf "%d %d %.2f\n" (Int64_u.to_int a)
+                               (Int32_u.to_int b)
+                               (Float_u.to_float c)
