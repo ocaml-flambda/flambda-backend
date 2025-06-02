@@ -538,8 +538,8 @@ let mode_max_with_position position =
 let mode_exclave expected_mode =
   let mode =
      as_single_mode expected_mode
-     (* if we expect an exclave to be [regional], then inside the exclave the body should
-        be [local] *)
+     (* if we expect an exclave to be [regional], then inside the exclave the
+        body should be [local] *)
      |> value_to_alloc_r2l
      |> alloc_as_value
   in
@@ -569,8 +569,9 @@ let mode_lazy expected_mode =
         (* The thunk is evaluated only once, so we only require it to be [once],
           even if the [lazy] is [many]. *)
         linearity = Many;
-        (* The thunk is evaluated only when the [lazy] is [uncontended], so we only require it
-          to be [nonportable], even if the [lazy] is [portable]. *)
+        (* The thunk is evaluated only when the [lazy] is [uncontended], so we
+          only require it to be [nonportable], even if the [lazy] is [portable].
+          *)
         portability = Portable };
       monadic = Alloc.Monadic.Const.min }
   in
@@ -6925,9 +6926,10 @@ and type_expect_
            and should have the areality expected here: *)
         Value.newvar_below
           (Value.meet [
-            Value.max_with (Monadic Uniqueness) Uniqueness.(of_const Const.Unique);
+            Value.max_with (Monadic Uniqueness)
+              Uniqueness.(of_const Const.Unique);
             Value.max_with (Comonadic Areality)
-                (Value.proj (Comonadic Areality) expected_mode.mode)])
+              (Value.proj (Comonadic Areality) expected_mode.mode)])
       in
       let cell_type =
         (* CR uniqueness: this could be the jkind of exp2 *)
