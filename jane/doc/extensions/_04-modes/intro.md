@@ -33,7 +33,7 @@ value. The mode may be a *past* mode, which tracks whether the operation has
 happened to this value in the past; or a *future* mode, which tracks whether the
 operation is allowed to happen to this value in the future. Modes are deep; when
 attached to structured data, they apply to components, recursively. (OxCaml's
-*modality* feature cuts off the deepness of a mode; modalities can be placed on
+[*modality*](../modalities) feature cuts off the deepness of a mode; modalities can be placed on
 record and constructor fields.)
 
 Just like a value has a type, a value in OxCaml also has a mode. Types do *not*
@@ -69,6 +69,8 @@ programs.
 * [Modes for moving between threads (portability and
   contention)](#portability-contention)
 * [Modes for aliasing (uniqueness and linearity)](#uniqueness-linearity)
+* [Modes for effects (yielding)](#yielding)
+* [Modes for purity (visibility and statefulness)](#visibility-statefulness)
 
 # Modes for scope {#locality}
 
