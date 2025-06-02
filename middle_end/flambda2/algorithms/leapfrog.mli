@@ -63,8 +63,6 @@ module type Iterator = sig
       is hidden. *)
   type 'a t
 
-  (* include Heterogenous_list.S with type 'a t := 'a t *)
-
   (** [current it] is the key at the current position of the iterator [it], or
       [None] if the iterator is exhausted. *)
   val current : 'a t -> 'a option
