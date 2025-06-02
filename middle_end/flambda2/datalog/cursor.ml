@@ -154,7 +154,12 @@ let add_new_level levels name =
   levels.last_order <- order;
   level
 
-module Join_iterator = Leapfrog.Join (Trie.Iterator)
+module Join_iterator = struct
+  module T0 = Leapfrog.Join (Trie.Iterator)
+  include T0
+  include Heterogenous_list.Make (T0)
+end
+
 module VM = Virtual_machine.Make (Join_iterator)
 
 type binders = { mutable rev_binders : binder list }

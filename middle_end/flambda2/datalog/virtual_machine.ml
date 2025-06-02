@@ -19,7 +19,12 @@ type outcome =
   | Accept
   | Skip
 
-module Make (Iterator : Leapfrog.Iterator) = struct
+module Make (Iterator : sig
+  include Leapfrog.Iterator
+
+  include Heterogenous_list.S with type 'a t := 'a t
+end) =
+struct
   type 's stack =
     | Stack_nil : nil stack
     | Stack_cons :
