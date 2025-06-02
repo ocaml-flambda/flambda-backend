@@ -3573,7 +3573,7 @@ let read_from_closure_given_machtype t clos base_offset dbg =
           (* Float32 slots still take up a full word *)
           ( (non_scanned_pos + 1, scanned_pos),
             load (Single { reg = Float32 }) non_scanned_pos )
-          (* SIMD vectors stored in closures may not be aligned. *)
+          (* SIMD vectors stored in closures might not be aligned. *)
         | Vec128 ->
           ( (non_scanned_pos + ints_per_vec128, scanned_pos),
             load Onetwentyeight_unaligned non_scanned_pos )
