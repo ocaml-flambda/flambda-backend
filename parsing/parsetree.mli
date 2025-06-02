@@ -376,8 +376,12 @@ and expression_desc =
             - [let mutable P1 = E1 in E]
                when [rec] is {{!Asttypes.rec_flag.Nonrecursive}[Nonrecursive]}
                and [mut] = {{!Asttypes.mutable_flag.Mutable}[Mutable]}.
-          Invariant: If [mut = Mutable] then [n = 1] and [rec = Nonrecursive]
-         *)
+          Invariant: If [mut = Mutable] then [n = 1] and [rec = Nonrecursive] *)
+
+      (* CR jrayman: The parser forbids the sugared function syntax with
+       * [mut = Mutable] (e.g. [let mutable f x y = ..]) by checking if the RHS
+       * of the binding is a ghost function expression. Does this method prevent
+       * PPXs from generating mutable function bindings? *)
   | Pexp_function of
       function_param list * function_constraint * function_body
   (** [Pexp_function ([P1; ...; Pn], C, body)] represents any construct

@@ -726,7 +726,6 @@ let expr_of_let_bindings ~loc lbs body =
   match lbs.lbs_mutable, ghost_fun_binding_loc lbs.lbs_bindings with
   | Mutable, Some loc ->
     raise (Syntaxerr.Error
-        (* jra: rename error *)
       (Syntaxerr.Let_mutable_not_allowed_with_function_bindings loc))
   | _ ->
     mkexp_attrs ~loc
