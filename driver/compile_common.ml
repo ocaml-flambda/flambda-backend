@@ -84,7 +84,7 @@ let typecheck_intf info ast =
   if !Clflags.print_types then
     Printtyp.wrap_printing_env ~error:false info.env (fun () ->
         Format.(fprintf std_formatter) "%a@."
-          (Printtyp.printed_signature (Unit_info.source_file info.target))
+          (Printtyp.printed_signature !Location.input_name)
           sg);
   ignore (Includemod.signatures info.env ~mark:Mark_both
     ~modes:(Legacy None) sg sg);
