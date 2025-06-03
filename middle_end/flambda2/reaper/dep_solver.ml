@@ -246,13 +246,12 @@ let datalog_schedule =
   in
   (* propagate
 
-     The [propagate] relation is part of the input of the solver,
-     with the intended meaning of this rule. That is an alias if [is_used] is used.
-
-  *)
+     The [propagate] relation is part of the input of the solver, with the
+     intended meaning of this rule. That is an alias if [is_used] is used. *)
   let alias_from_usage_propagate =
     let$ [if_used; to_; from] = ["if_used"; "to_"; "from"] in
-    [any_usage_pred if_used; propagate_rel if_used to_ from] ==> alias_rel to_ from
+    [any_usage_pred if_used; propagate_rel if_used to_ from]
+    ==> alias_rel to_ from
   in
   (* usages rules:
 
@@ -299,12 +298,16 @@ let datalog_schedule =
   in
   let usages_accessor_1 =
     let$ [to_; relation; base; _var] = ["to_"; "relation"; "base"; "_var"] in
-    [not (any_usage_pred base); accessor_rel to_ relation base; usages_rel to_ _var]
+    [ not (any_usage_pred base);
+      accessor_rel to_ relation base;
+      usages_rel to_ _var ]
     ==> usages_rel base base
   in
   let usages_accessor_2 =
     let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
-    [not (any_usage_pred base); accessor_rel to_ relation base; any_usage_pred to_]
+    [ not (any_usage_pred base);
+      accessor_rel to_ relation base;
+      any_usage_pred to_ ]
     ==> usages_rel base base
   in
   let usages_coaccessor_1 =
@@ -316,7 +319,9 @@ let datalog_schedule =
   in
   let usages_coaccessor_2 =
     let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
-    [not (any_usage_pred base); any_source_pred to_; coaccessor_rel to_ relation base]
+    [ not (any_usage_pred base);
+      any_source_pred to_;
+      coaccessor_rel to_ relation base ]
     ==> usages_rel base base
   in
   let usages_alias =
@@ -327,16 +332,18 @@ let datalog_schedule =
       alias_rel to_ from ]
     ==> usages_rel from usage
   in
-(* accessor-usage
+  (* accessor-usage
 
    *  not (any_usage Base)
    *  /\ any_usage To
    *  /\ accessor To Rel Base
    *  => field_usages_top Base Rel
-*)
+   *)
   let field_usages_from_accessor_field_usages_top =
     let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
-    [not (any_usage_pred base); any_usage_pred to_; accessor_rel to_ relation base]
+    [ not (any_usage_pred base);
+      any_usage_pred to_;
+      accessor_rel to_ relation base ]
     ==> field_usages_top_rel base relation
   in
   let field_usages_from_accessor_field_usages =
@@ -358,7 +365,9 @@ let datalog_schedule =
   in
   let cofield_usages_from_coaccessor2 =
     let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
-    [not (any_usage_pred base); any_source_pred to_; coaccessor_rel to_ relation base]
+    [ not (any_usage_pred base);
+      any_source_pred to_;
+      coaccessor_rel to_ relation base ]
     ==> cofield_usages_rel base relation to_
   in
   (* constructor-usages *)
@@ -386,7 +395,8 @@ let datalog_schedule =
   in
   let any_usage_from_constructor_any_usage =
     let$ [base; relation; from] = ["base"; "relation"; "from"] in
-    [any_usage_pred base; constructor_rel base relation from] ==> any_usage_pred from
+    [any_usage_pred base; constructor_rel base relation from]
+    ==> any_usage_pred from
   in
   let any_usage_from_coaccessor_any_source =
     let$ [base; relation; to_] = ["base"; "relation"; "to_"] in
@@ -547,12 +557,10 @@ let datalog_schedule =
       cofield_sources_rel base_source relation from ]
     ==> alias_rel from to_
   in
-
   (* use
 
-   CR ncouran: There is an asymmetry here between source and use, but it could (and should) be resolved by adding any_source to the input graph.
-
-  *)
+     CR ncouran: There is an asymmetry here between source and use, but it could
+     (and should) be resolved by adding any_source to the input graph. *)
   let any_usage_from_use_1 =
     let$ [to_; from; _var] = ["to_"; "from"; "_var"] in
     [usages_rel to_ _var; use_rel to_ from] ==> any_usage_pred from
@@ -1082,9 +1090,10 @@ let datalog_rules =
     (* (let$ [set_of_closures; coderel; calls_not_pure_witness; indirect] =
        ["set_of_closures"; "coderel"; "calls_not_pure_witness"; "indirect"] in [
        rev_accessor_rel set_of_closures coderel calls_not_pure_witness;
-       filter_field is_code_field coderel; any_usage_pred calls_not_pure_witness;
-       any_source_pred calls_not_pure_witness; alias_rel calls_not_pure_witness
-       indirect ] ==> cannot_change_calling_convention indirect); *)
+       filter_field is_code_field coderel; any_usage_pred
+       calls_not_pure_witness; any_source_pred calls_not_pure_witness; alias_rel
+       calls_not_pure_witness indirect ] ==> cannot_change_calling_convention
+       indirect); *)
     (* CR-someday ncourant: we completely prevent changing the representation of
        symbols. While allowing them to be unboxed is difficult, due to symbols
        being always values, we could at least change their representation. This
@@ -1615,7 +1624,9 @@ let code_id_actually_called_query =
                 (yield [code_id_of_witness; codeid]))))
 
 let code_id_actually_called uses v =
-  if exists_with_parameters any_usage_pred_query [Code_id_or_name.name v] uses.db
+  if exists_with_parameters any_usage_pred_query
+       [Code_id_or_name.name v]
+       uses.db
   then None
   else if exists_with_parameters
             cannot_change_calling_convention_of_called_closure_query1
