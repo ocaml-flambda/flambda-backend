@@ -612,6 +612,16 @@ let add_simd_stable_extension_types add_type env =
   |> add_type ident_float64x2 ~jkind:Jkind.Const.Builtin.immutable_data
       ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_128bit_vectors
 
+(* CR-soon mslater:
+  Remaining work before these can be moved to stable:
+    - Static & reinterpet casts (tests: see ops.ml)
+    - Constants (tests: see consts.ml, consts_u.ml)
+    - Array accessors (tests: see arrays.ml, arrays_u.ml)
+  Not strictly required for stable, but will be necessary:
+    - Align Vec256 stack slots on the OCaml stack
+    - Use VEX encoding for SSE intrinsics when AVX is enabled
+    - AVX & AVX2 intrinsics (tests: see ops.ml, ocaml_simd_sse)
+*)
 let add_simd_beta_extension_types add_type env =
   let _, add_type = mk_add_type add_type in
   env
