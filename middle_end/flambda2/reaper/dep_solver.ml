@@ -105,7 +105,7 @@ let rel3 name schema =
    from [accessor] and [rev_constructor].
    [used] and [any_source] are the tops.
    [used_fields] and [field_sources]
-   [used_fields_top] and [field_top_sources]
+   [used_fields_top] and [field_sources_top]
    [cofield_uses] and [cofield_sources]
 *)
 
@@ -168,14 +168,14 @@ let any_source_pred = rel1 "any_source" Cols.[n]
     Exists only if [constructor x f y].
     (this avoids the quadratic blowup of building the complete alias graph)
 
-    We avoid building this relation if [field_top_sources x f], but it is possible to have both
-    [field_sources x f _] and [field_top_sources x f] depending on the resolution order.
+    We avoid building this relation if [field_sources_top x f], but it is possible to have both
+    [field_sources x f _] and [field_sources_top x f] depending on the resolution order.
 
 *)
 let field_sources_rel = rel3 "field_sources" Cols.[n; f; n]
 
-(** [field_top_sources x f] the special extern value is a source for the field f of x *)
-let field_top_sources_rel = rel2 "field_top_sources" Cols.[n; f]
+(** [field_sources_top x f] the special extern value is a source for the field f of x *)
+let field_sources_top_rel = rel2 "field_sources_top" Cols.[n; f]
 (* CR pchambart: is there a reason why this is called top an not any source ? *)
 
 let cofield_sources_rel = rel3 "cofield_sources" Cols.[n; cf; n]
@@ -429,18 +429,18 @@ let datalog_schedule =
     ==> sources_rel to_ source
   in
   (* constructor-sources *)
-  let field_sources_from_constructor_field_top_sources =
+  let field_sources_from_constructor_field_sources_top =
     let$ [from; relation; base] = ["from"; "relation"; "base"] in
     [ not (any_source_pred base);
       any_source_pred from;
       rev_constructor_rel from relation base ]
-    ==> field_top_sources_rel base relation
+    ==> field_sources_top_rel base relation
   in
   let field_sources_from_constructor_field_sources =
     let$ [from; relation; base; _var] = ["from"; "relation"; "base"; "_var"] in
     [ not (any_source_pred base);
       not (any_source_pred from);
-      not (field_top_sources_rel base relation);
+      not (field_sources_top_rel base relation);
       rev_constructor_rel from relation base;
       sources_rel from _var ]
     ==> field_sources_rel base relation from
@@ -509,7 +509,7 @@ let datalog_schedule =
       ["base"; "base_source"; "relation"; "to_"; "from"]
     in
     [ not (any_source_pred to_);
-      not (field_top_sources_rel base_source relation);
+      not (field_sources_top_rel base_source relation);
       not (any_source_pred base);
       rev_accessor_rel base relation to_;
       sources_rel base base_source;
@@ -523,7 +523,7 @@ let datalog_schedule =
     [ rev_accessor_rel base relation to_;
       not (any_source_pred base);
       sources_rel base base_source;
-      field_top_sources_rel base_source relation ]
+      field_sources_top_rel base_source relation ]
     ==> any_source_pred to_
   in
   let any_source_from_accessor_any_source =
@@ -590,7 +590,7 @@ let datalog_schedule =
             cofield_used_from_coaccessor1;
             cofield_used_from_coaccessor2;
             field_sources_from_constructor_field_sources;
-            field_sources_from_constructor_field_top_sources;
+            field_sources_from_constructor_field_sources_top;
             cofield_sources_from_coconstrucor1;
             cofield_sources_from_coconstrucor2;
             usages_accessor_1;
@@ -799,7 +799,7 @@ let not_local_field_has_source =
   in
   let field_any_source_query =
     mk_exists_query ["X"; "F"] ["S"] (fun [x; f] [s] ->
-        [sources_rel x s; field_top_sources_rel s f])
+        [sources_rel x s; field_sources_top_rel s f])
   in
   let field_source_query =
     mk_exists_query ["X"; "F"] ["S"; "V"] (fun [x; f] [s; v] ->
