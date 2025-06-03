@@ -5010,14 +5010,16 @@ let crossing_of_jkind env jkind =
   Jkind.get_mode_crossing ~jkind_of_type jkind
 
 let crossing_of_ty env ?modalities ty =
-  if not (is_principal ty)
-  then Crossing.top
-  else
-    let jkind = type_jkind_purely env ty in
-    let crossing = crossing_of_jkind env jkind in
-    match modalities with
-    | None -> crossing
-    | Some m -> Crossing.modality m crossing
+  let crossing =
+    if not (is_principal ty)
+      then Crossing.top
+    else
+      let jkind = type_jkind_purely env ty in
+      crossing_of_jkind env jkind
+  in
+  match modalities with
+  | None -> crossing
+  | Some m -> Crossing.modality m crossing
 
 let cross_left env ?modalities ty mode =
   let crossing = crossing_of_ty env ?modalities ty in
