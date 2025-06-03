@@ -104,8 +104,8 @@ let rel3 name schema =
    [usages] and [sources] are dual. They build the same relation
    from [accessor] and [rev_constructor].
    [used] and [any_source] are the tops.
-   [used_fields] and [field_sources]
-   [used_fields_top] and [field_sources_top]
+   [field_usages] and [field_sources]
+   [field_usages_top] and [field_sources_top]
    [cofield_uses] and [cofield_sources]
 *)
 
@@ -122,26 +122,26 @@ let rel3 name schema =
 *)
 let usages_rel = rel2 "usages" Cols.[n; n]
 
-(** [used_fields x f y] y is an use of the field f of x
+(** [field_usages x f y] y is an use of the field f of x
     and there is an actual use for y.
     Exists only if [accessor y f x].
     (this avoids the quadratic blowup of building the complete alias graph)
 
-    We avoid building this relation if [used_fields_top x f], but it is possible to have both
-    [used_fields x f _] and [used_fields_top x f] depending on the resolution order.
+    We avoid building this relation if [field_usages_top x f], but it is possible to have both
+    [field_usages x f _] and [field_usages_top x f] depending on the resolution order.
 *)
-let used_fields_rel = rel3 "used_fields" Cols.[n; f; n]
+let field_usages_rel = rel3 "field_usages" Cols.[n; f; n]
 
 (** [used x] x is used in an uncontrolled way *)
 let _used_pred = Global_flow_graph.used_pred
 
-(** [used_fields_top x f] the field f of x is used in an uncontroled way.
+(** [field_usages_top x f] the field f of x is used in an uncontroled way.
     It could be for instance, a value escaping the current compilation unit,
     or passed as argument to an non axiomatized function or primitive.
     Exists only if [accessor y f x] for some y.
     (this avoids propagating large number of fields properties on many variables)
 *)
-let used_fields_top_rel = rel2 "used_fields_top" Cols.[n; f]
+let field_usages_top_rel = rel2 "field_usages_top" Cols.[n; f]
 
 (** [sources x y] y is a source of x, and there is an actual source for y.
 
@@ -332,21 +332,21 @@ let datalog_schedule =
    *  not (used Base)
    *  /\ used To
    *  /\ accessor To Rel Base
-   *  => used_fields_top Base Rel
+   *  => field_usages_top Base Rel
 *)
-  let used_fields_from_accessor_used_fields_top =
+  let field_usages_from_accessor_field_usages_top =
     let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
     [not (used_pred base); used_pred to_; accessor_rel to_ relation base]
-    ==> used_fields_top_rel base relation
+    ==> field_usages_top_rel base relation
   in
-  let used_fields_from_accessor_used_fields =
+  let field_usages_from_accessor_field_usages =
     let$ [to_; relation; base; _var] = ["to_"; "relation"; "base"; "_var"] in
     [ not (used_pred base);
       not (used_pred to_);
-      not (used_fields_top_rel base relation);
+      not (field_usages_top_rel base relation);
       accessor_rel to_ relation base;
       usages_rel to_ _var ]
-    ==> used_fields_rel base relation to_
+    ==> field_usages_rel base relation to_
   in
   (* coaccessor-used *)
   let cofield_used_from_coaccessor1 =
@@ -466,11 +466,11 @@ let datalog_schedule =
       ["base"; "base_use"; "relation"; "from"; "to_"]
     in
     [ not (used_pred from);
-      not (used_fields_top_rel base_use relation);
+      not (field_usages_top_rel base_use relation);
       not (used_pred base);
       constructor_rel base relation from;
       usages_rel base base_use;
-      used_fields_rel base_use relation to_ ]
+      field_usages_rel base_use relation to_ ]
     ==> alias_rel to_ from
   in
   let used_from_accessed_constructor =
@@ -480,7 +480,7 @@ let datalog_schedule =
     [ constructor_rel base relation from;
       not (used_pred base);
       usages_rel base base_use;
-      used_fields_top_rel base_use relation ]
+      field_usages_top_rel base_use relation ]
     ==> used_pred from
   in
   let used_from_constructor_used =
@@ -585,8 +585,8 @@ let datalog_schedule =
             alias_from_accessed_constructor_2;
             alias_from_coaccessed_coconstructor;
             alias_from_coaccessed_coconstructor_2;
-            used_fields_from_accessor_used_fields;
-            used_fields_from_accessor_used_fields_top;
+            field_usages_from_accessor_field_usages;
+            field_usages_from_accessor_field_usages_top;
             cofield_used_from_coaccessor1;
             cofield_used_from_coaccessor2;
             field_sources_from_constructor_field_sources;
@@ -644,7 +644,7 @@ let get_all_usages : Datalog.database -> unit Code_id_or_name.Map.t -> usages =
        [in_ x; usages_rel x y] ==> out y);
       (let$ [x; field; y; z] = ["x"; "field"; "y"; "z"] in
        [ out x;
-         used_fields_rel x field y;
+         field_usages_rel x field y;
          filter_field is_function_slot field;
          usages_rel y z ]
        ==> out z) ]
@@ -678,12 +678,12 @@ let get_fields : Datalog.database -> usages -> field_usage Field.Map.t =
   let rs =
     [ (let$ [x; field] = ["x"; "field"] in
        [ in_ x;
-         used_fields_top_rel x field;
+         field_usages_top_rel x field;
          filter_field (fun x -> Stdlib.not (is_function_slot x)) field ]
        ==> out1 field);
       (let$ [x; field; y] = ["x"; "field"; "y"] in
        [ in_ x;
-         used_fields_rel x field y;
+         field_usages_rel x field y;
          not (out1 field);
          filter_field (fun x -> Stdlib.not (is_function_slot x)) field ]
        ==> out2 field y) ]
@@ -752,11 +752,11 @@ let has_use, field_used =
   in
   let used_field_top_query =
     mk_exists_query ["X"; "F"] ["U"] (fun [x; f] [u] ->
-        [usages_rel x u; used_fields_top_rel u f])
+        [usages_rel x u; field_usages_top_rel u f])
   in
   let used_field_query =
     mk_exists_query ["X"; "F"] ["U"; "V"] (fun [x; f] [u; v] ->
-        [usages_rel x u; used_fields_rel u f v])
+        [usages_rel x u; field_usages_rel u f v])
   in
   ( (fun db x ->
       exists_with_parameters used_pred_query [x] db
@@ -867,14 +867,14 @@ let datalog_rules =
      in
      [ constructor_rel base relation from;
        usages_rel base usage;
-       used_fields_top_rel usage relation ]
+       field_usages_top_rel usage relation ]
      ==> field_of_constructor_is_used base relation);
     (let$ [base; relation; from; usage; _v] =
        ["base"; "relation"; "from"; "usage"; "_v"]
      in
      [ constructor_rel base relation from;
        usages_rel base usage;
-       used_fields_rel usage relation _v ]
+       field_usages_rel usage relation _v ]
      ==> field_of_constructor_is_used base relation);
     (let$ [base; relation; from; coderel; indirect_call_witness] =
        ["base"; "relation"; "from"; "coderel"; "indirect_call_witness"]
@@ -894,7 +894,7 @@ let datalog_rules =
        sources_rel alias alias_source;
        distinct Cols.n alias_source allocation_id;
        filter_field real_field field;
-       used_fields_rel alias field _v ]
+       field_usages_rel alias field _v ]
      ==> cannot_change_representation0 allocation_id);
     (let$ [allocation_id; alias; alias_source; field] =
        ["allocation_id"; "alias"; "alias_source"; "field"]
@@ -903,7 +903,7 @@ let datalog_rules =
        sources_rel alias alias_source;
        distinct Cols.n alias_source allocation_id;
        filter_field real_field field;
-       used_fields_top_rel alias field ]
+       field_usages_top_rel alias field ]
      ==> cannot_change_representation0 allocation_id);
     (let$ [allocation_id; alias; field; _v] =
        ["allocation_id"; "alias"; "field"; "_v"]
@@ -911,13 +911,13 @@ let datalog_rules =
      [ usages_rel allocation_id alias;
        any_source_pred alias;
        filter_field real_field field;
-       used_fields_rel alias field _v ]
+       field_usages_rel alias field _v ]
      ==> cannot_change_representation0 allocation_id);
     (let$ [allocation_id; alias; field] = ["allocation_id"; "alias"; "field"] in
      [ usages_rel allocation_id alias;
        any_source_pred alias;
        filter_field real_field field;
-       used_fields_top_rel alias field ]
+       field_usages_top_rel alias field ]
      ==> cannot_change_representation0 allocation_id);
     (let$ [allocation_id; source] = ["allocation_id"; "source"] in
      [sources_rel allocation_id source; distinct Cols.n source allocation_id]
@@ -945,7 +945,7 @@ let datalog_rules =
        sources_rel alias alias_source;
        distinct Cols.n alias_source allocation_id;
        filter_field is_code_field field;
-       used_fields_rel alias field _v ]
+       field_usages_rel alias field _v ]
      ==> cannot_change_closure_calling_convention allocation_id);
     (let$ [allocation_id; alias; alias_source; field] =
        ["allocation_id"; "alias"; "alias_source"; "field"]
@@ -954,7 +954,7 @@ let datalog_rules =
        sources_rel alias alias_source;
        distinct Cols.n alias_source allocation_id;
        filter_field is_code_field field;
-       used_fields_top_rel alias field ]
+       field_usages_top_rel alias field ]
      ==> cannot_change_closure_calling_convention allocation_id);
     (let$ [allocation_id; alias; field; _v] =
        ["allocation_id"; "alias"; "field"; "_v"]
@@ -962,13 +962,13 @@ let datalog_rules =
      [ usages_rel allocation_id alias;
        any_source_pred alias;
        filter_field is_code_field field;
-       used_fields_rel alias field _v ]
+       field_usages_rel alias field _v ]
      ==> cannot_change_closure_calling_convention allocation_id);
     (let$ [allocation_id; alias; field] = ["allocation_id"; "alias"; "field"] in
      [ usages_rel allocation_id alias;
        any_source_pred alias;
        filter_field is_code_field field;
-       used_fields_top_rel alias field ]
+       field_usages_top_rel alias field ]
      ==> cannot_change_closure_calling_convention allocation_id);
     (let$ [allocation_id; source] = ["allocation_id"; "source"] in
      [sources_rel allocation_id source; distinct Cols.n source allocation_id]
