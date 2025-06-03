@@ -1162,13 +1162,13 @@ end = struct
     !stack_offset land 15 = 0
 
   let asan_report_function memory_chunk_size memory_access : X86_ast.arg =
-    let index =
-      (Memory_chunk_size.to_bytes_log2 memory_chunk_size lsl 1)
-      +
+    let chunk_size = Memory_chunk_size.to_bytes_log2 memory_chunk_size in
+    let access =
       match memory_access with
       | Load -> 0
       | Store_initialize | Store_modify -> 1
     in
+    let index = (chunk_size lsl 1) + access in
     (* We take extra care to structure our code such that these are statically
        allocated as manifest constants in a flat array. *)
     match index with
@@ -1183,9 +1183,12 @@ end = struct
     | 8 -> Sym "caml_asan_report_load16_noabort"
     | 9 -> Sym "caml_asan_report_store16_noabort"
     | _ ->
-      (* Larger loads and stores can be reported using
-         [__asan_report_load_n_noabort], but we don't support this yet. *)
-      assert false
+      (* CR-soon mslater: this is wrong, 32/64-byte operations should be routed
+         to [__asan_report_load_n_noabort]. Also, unaligned 16-byte operations
+         need a second check that the last byte's address is valid. *)
+      if access = 0
+      then Sym "caml_asan_report_load16_noabort"
+      else Sym "caml_asan_report_store16_noabort"
 
   (* CR-soon ksvetlitski: find a way to accomplish this without breaking the
      abstraction barrier of [X86_ast]. *)

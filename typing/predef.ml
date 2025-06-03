@@ -617,6 +617,7 @@ let add_simd_stable_extension_types add_type env =
     - Static & reinterpet casts (tests: see ops.ml)
     - Constants (tests: see consts.ml, consts_u.ml)
     - Array accessors (tests: see arrays.ml, arrays_u.ml)
+    - Correct ASAN checks for 32/64 byte memory chunks
   Not strictly required for stable, but will be necessary:
     - Align Vec256 stack slots on the OCaml stack
     - Use VEX encoding for SSE intrinsics when AVX is enabled
