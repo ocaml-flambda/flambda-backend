@@ -450,19 +450,19 @@ type symbol =
 (* SIMD vectors are untyped in the backend. This record holds the bitwise
    representation of a 128-bit value. [word0] is the least significant word. *)
 type vec128_bits =
-  { word0 : int64;
+  { word0 : int64; (* Least significant *)
     word1 : int64
   }
 
 type vec256_bits =
-  { word0 : int64;
+  { word0 : int64; (* Least significant *)
     word1 : int64;
     word2 : int64;
     word3 : int64
   }
 
 type vec512_bits =
-  { word0 : int64;
+  { word0 : int64; (* Least significant *)
     word1 : int64;
     word2 : int64;
     word3 : int64;

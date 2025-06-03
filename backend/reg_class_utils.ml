@@ -17,8 +17,6 @@ module type T = sig
 
   val register_name : Cmm.machtype_component -> int -> string
 
-  val gc_regs_offset : Cmm.machtype_component -> int -> int
-
   val equal : t -> t -> bool
 
   val hash : t -> int

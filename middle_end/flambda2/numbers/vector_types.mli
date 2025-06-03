@@ -33,7 +33,7 @@ module Vec128 : sig
     val zero : t
 
     type bits =
-      { word0 : int64;
+      { word0 : int64; (* Least significant *)
         word1 : int64
       }
 
@@ -53,7 +53,7 @@ module Vec256 : sig
     val zero : t
 
     type bits =
-      { word0 : int64;
+      { word0 : int64; (* Least significant *)
         word1 : int64;
         word2 : int64;
         word3 : int64
@@ -75,7 +75,7 @@ module Vec512 : sig
     val zero : t
 
     type bits =
-      { word0 : int64;
+      { word0 : int64; (* Least significant *)
         word1 : int64;
         word2 : int64;
         word3 : int64;

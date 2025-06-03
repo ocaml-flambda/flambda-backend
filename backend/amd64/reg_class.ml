@@ -1,5 +1,10 @@
 [@@@ocaml.warning "+a-40-41-42"]
 
+type save_simd_regs =
+  | Save_xmm
+  | Save_ymm
+  | Save_zmm
+
 module T = struct
   type t =
     | GPR
@@ -36,38 +41,16 @@ module T = struct
       [| "%rax"; "%rbx"; "%rdi"; "%rsi"; "%rdx"; "%rcx"; "%r8"; "%r9";
          "%r12"; "%r13"; "%r10"; "%r11"; "%rbp" |]
 
-  let[@ocamlformat "disable"] xmm_name =
+  let gen_mm_names ~kind =
     match Config.ccomp_type with
-    | "msvc" ->
-      [| "xmm0"; "xmm1"; "xmm2"; "xmm3"; "xmm4"; "xmm5"; "xmm6"; "xmm7";
-         "xmm8"; "xmm9"; "xmm10"; "xmm11";
-         "xmm12"; "xmm13"; "xmm14"; "xmm15" |]
-    | _ ->
-      [| "%xmm0"; "%xmm1"; "%xmm2"; "%xmm3"; "%xmm4"; "%xmm5"; "%xmm6"; "%xmm7";
-         "%xmm8"; "%xmm9"; "%xmm10"; "%xmm11";
-         "%xmm12"; "%xmm13"; "%xmm14"; "%xmm15" |]
+    | "msvc" -> Array.init 16 (fun i -> Printf.sprintf "%cmm%d" kind i)
+    | _ -> Array.init 16 (fun i -> Printf.sprintf "%%%cmm%d" kind i)
 
-  let[@ocamlformat "disable"] ymm_name =
-    match Config.ccomp_type with
-    | "msvc" ->
-      [| "ymm0"; "ymm1"; "ymm2"; "ymm3"; "ymm4"; "ymm5"; "ymm6"; "ymm7";
-         "ymm8"; "ymm9"; "ymm10"; "ymm11";
-         "ymm12"; "ymm13"; "ymm14"; "ymm15" |]
-    | _ ->
-      [| "%ymm0"; "%ymm1"; "%ymm2"; "%ymm3"; "%ymm4"; "%ymm5"; "%ymm6"; "%ymm7";
-         "%ymm8"; "%ymm9"; "%ymm10"; "%ymm11";
-         "%ymm12"; "%ymm13"; "%ymm14"; "%ymm15" |]
+  let xmm_name = gen_mm_names ~kind:'x'
 
-  let[@ocamlformat "disable"] zmm_name =
-    match Config.ccomp_type with
-    | "msvc" ->
-      [| "zmm0"; "zmm1"; "zmm2"; "zmm3"; "zmm4"; "zmm5"; "zmm6"; "zmm7";
-         "zmm8"; "zmm9"; "zmm10"; "zmm11";
-         "zmm12"; "zmm13"; "zmm14"; "zmm15" |]
-    | _ ->
-      [| "%zmm0"; "%zmm1"; "%zmm2"; "%zmm3"; "%zmm4"; "%zmm5"; "%zmm6"; "%zmm7";
-         "%zmm8"; "%zmm9"; "%zmm10"; "%zmm11";
-         "%zmm12"; "%zmm13"; "%zmm14"; "%zmm15" |]
+  let ymm_name = gen_mm_names ~kind:'y'
+
+  let zmm_name = gen_mm_names ~kind:'z'
 
   let register_name ty r =
     (* If the ID doesn't match the type, the array access will raise. *)
@@ -82,7 +65,8 @@ module T = struct
     | Val | Int | Addr -> GPR
     | Float | Float32 | Vec128 | Vec256 | Vec512 | Valx2 -> SIMD
 
-  let gc_regs_offset (typ : Cmm.machtype_component) (reg_index : int) =
+  let gc_regs_offset ~(simd : save_simd_regs) (typ : Cmm.machtype_component)
+      (reg_index : int) =
     (* Given register with type [typ] and index [reg_index], return the offset
        (the number of [value] slots, not their size in bytes) of the register
        from the [gc_regs] pointer during GC at runtime. Keep in sync with
@@ -92,20 +76,23 @@ module T = struct
     match reg_class with
     | GPR -> index
     | SIMD ->
-      let slot_size_in_vals = 2 in
-      assert (Arch.size_vec128 / Arch.size_int = slot_size_in_vals);
+      let slot_size_in_vals =
+        match simd with Save_xmm -> 2 | Save_ymm -> 4 | Save_zmm -> 8
+      in
       if Config.runtime5
       then
-        (* xmm slots are above regular slots based at [gc_regs_bucket] *)
+        (* simd slots are above regular slots based at [gc_regs_bucket] *)
         let num_regular_slots =
           (* rbp is always spilled even without frame pointers *)
           13
         in
         num_regular_slots + (index * slot_size_in_vals)
       else
-        (* xmm slots are below [gc_regs] pointer *)
-        let num_xmm_slots = 16 in
-        let offset = Int.neg (num_xmm_slots * slot_size_in_vals) in
+        (* simd slots are below [gc_regs] pointer *)
+        let num_simd_slots =
+          match simd with Save_xmm | Save_ymm -> 16 | Save_zmm -> 32
+        in
+        let offset = Int.neg (num_simd_slots * slot_size_in_vals) in
         offset + (index * slot_size_in_vals)
 
   let equal : t -> t -> bool =

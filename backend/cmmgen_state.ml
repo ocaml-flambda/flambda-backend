@@ -27,17 +27,17 @@ type ustructured_constant =
   | Const_int64 of int64
   | Const_nativeint of nativeint
   | Const_vec128 of
-      { word0 : int64;
+      { word0 : int64; (* Least significant *)
         word1 : int64
       }
   | Const_vec256 of
-      { word0 : int64;
+      { word0 : int64; (* Least significant *)
         word1 : int64;
         word2 : int64;
         word3 : int64
       }
   | Const_vec512 of
-      { word0 : int64;
+      { word0 : int64; (* Least significant *)
         word1 : int64;
         word2 : int64;
         word3 : int64;

@@ -81,8 +81,6 @@ module T = struct
     | Vec128 | Valx2 -> Float128
     | Vec256 | Vec512 -> Misc.fatal_error "arm64: got 256/512 bit vector"
 
-  let gc_regs_offset _ = Misc.fatal_error "arm64: gc_reg_offset unreachable"
-
   let equal : t -> t -> bool =
    fun left right ->
     match left, right with

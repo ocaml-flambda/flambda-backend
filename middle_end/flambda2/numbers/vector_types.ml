@@ -72,7 +72,7 @@ module Vec128 = struct
     end)
 
     type bits =
-      { word0 : int64;
+      { word0 : int64; (* Least significant *)
         word1 : int64
       }
 
@@ -92,7 +92,7 @@ module Vec256 = struct
     end)
 
     type bits =
-      { word0 : int64;
+      { word0 : int64; (* Least significant *)
         word1 : int64;
         word2 : int64;
         word3 : int64
@@ -115,7 +115,7 @@ module Vec512 = struct
     end)
 
     type bits =
-      { word0 : int64;
+      { word0 : int64; (* Least significant *)
         word1 : int64;
         word2 : int64;
         word3 : int64;

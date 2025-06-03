@@ -380,23 +380,51 @@ let addressing addr typ i n =
 
 (* Record live pointers at call points -- see Emitaux *)
 
+type save_simd_regs = Reg_class.save_simd_regs =
+  | Save_xmm
+  | Save_ymm
+  | Save_zmm
+
+let must_save_simd_regs live =
+  let v256, v512 = ref false, ref false in
+  Reg.Set.iter
+    (fun r ->
+      if not (Reg.is_reg r)
+      then ()
+      else
+        match r.typ with
+        | Vec256 -> v256 := true
+        | Vec512 -> v512 := true
+        | Val | Addr | Int | Float | Vec128 | Float32 | Valx2 -> ())
+    live;
+  if !v512
+  then (
+    Arch.Extension.require_vec512 ();
+    Save_zmm)
+  else if !v256
+  then (
+    Arch.Extension.require_vec256 ();
+    Save_ymm)
+  else Save_xmm
+
 (* CR sspies: Consider whether more of [record_frame_label] can be shared with
    the Arm backend. *)
 
 let record_frame_label live dbg =
   let lbl = Cmm.new_label () in
   let live_offset = ref [] in
+  let simd = must_save_simd_regs live in
   Reg.Set.iter
     (fun (r : Reg.t) ->
       match r with
       | { typ = Val; loc = Reg r; _ } ->
-        assert (Reg_class.gc_regs_offset Val r = r);
+        assert (Reg_class.gc_regs_offset ~simd Val r = r);
         live_offset := ((r lsl 1) + 1) :: !live_offset
       | { typ = Val; loc = Stack s; _ } as reg ->
         live_offset
           := slot_offset s (Stack_class.of_machtype reg.typ) :: !live_offset
       | { typ = Valx2; loc = Reg r; _ } ->
-        let n = Reg_class.gc_regs_offset Valx2 r in
+        let n = Reg_class.gc_regs_offset ~simd Valx2 r in
         let encode n = (n lsl 1) + 1 in
         live_offset := encode n :: encode (n + 1) :: !live_offset
       | { typ = Valx2; loc = Stack s; _ } as reg ->
@@ -419,11 +447,6 @@ let record_frame live dbg =
   D.define_label lbl
 
 (* Record calls to the GC -- we've moved them out of the way *)
-
-type save_simd_regs =
-  | Save_xmm
-  | Save_ymm
-  | Save_zmm
 
 type gc_call =
   { gc_lbl : L.t; (* Entry label *)
@@ -1474,28 +1497,6 @@ let emit_simd_instr_with_memory_arg (simd : Simd.Mem.operation) i addr =
   | SSE Mul_f32 -> I.simd mulps [| addr; res i 0 |]
   | SSE Div_f32 -> I.simd divps [| addr; res i 0 |]
 
-let must_save_simd_regs i =
-  let v256, v512 = ref false, ref false in
-  Reg.Set.iter
-    (fun r ->
-      if not (Reg.is_reg r)
-      then ()
-      else
-        match r.typ with
-        | Vec256 -> v256 := true
-        | Vec512 -> v512 := true
-        | Val | Addr | Int | Float | Vec128 | Float32 | Valx2 -> ())
-    i.live;
-  if !v512
-  then (
-    Arch.Extension.require_vec512 ();
-    Save_zmm)
-  else if !v256
-  then (
-    Arch.Extension.require_vec256 ();
-    Save_ymm)
-  else Save_xmm
-
 (* Emit an instruction *)
 let emit_instr ~first ~fallthrough i =
   let open Amd64_simd_instrs in
@@ -1562,7 +1563,7 @@ let emit_instr ~first ~fallthrough i =
       let lbl = add_float_constant f in
       I.movsd (mem64_rip REAL8 (L.encode lbl)) (res i 0))
   | Lop (Const_vec128 { word0; word1 }) -> (
-    match word0, word1 with
+    match word1, word0 with
     | 0x0000_0000_0000_0000L, 0x0000_0000_0000_0000L ->
       I.xorpd (res i 0) (res i 0)
     | _ ->
@@ -1570,7 +1571,7 @@ let emit_instr ~first ~fallthrough i =
       I.movapd (mem64_rip VEC128 (L.encode lbl)) (res i 0))
   | Lop (Const_vec256 { word0; word1; word2; word3 }) -> (
     match
-      List.for_all (fun w -> Int64.equal w 0L) [word0; word1; word2; word3]
+      List.for_all (fun w -> Int64.equal w 0L) [word3; word2; word1; word0]
     with
     | true -> I.simd vxorpd_Y_Y_Ym256 [| res i 0; res i 0; res i 0 |]
     | false ->
@@ -1720,7 +1721,7 @@ let emit_instr ~first ~fallthrough i =
     I.mov src address
   | Lop (Alloc { bytes = n; dbginfo; mode = Heap }) ->
     assert (n <= (Config.max_young_wosize + 1) * Arch.size_addr);
-    let gc_save_simd = must_save_simd_regs i in
+    let gc_save_simd = must_save_simd_regs i.live in
     if !fastcode_flag
     then (
       I.sub (int n) r15;
@@ -1775,7 +1776,7 @@ let emit_instr ~first ~fallthrough i =
       := { lr_lbl = lbl_call;
            lr_dbg = i.dbg;
            lr_return_lbl = lbl_after_alloc;
-           lr_save_simd = must_save_simd_regs i
+           lr_save_simd = must_save_simd_regs i.live
          }
          :: !local_realloc_sites
   | Lop Poll ->
@@ -1789,7 +1790,7 @@ let emit_instr ~first ~fallthrough i =
            gc_return_lbl = lbl_after_poll;
            gc_dbg = i.dbg;
            gc_frame = lbl_frame;
-           gc_save_simd = must_save_simd_regs i
+           gc_save_simd = must_save_simd_regs i.live
          }
          :: !call_gc_sites;
     D.define_label lbl_after_poll
@@ -2124,7 +2125,8 @@ let emit_instr ~first ~fallthrough i =
       I.jmp r11)
   | Lstackcheck { max_frame_size_bytes } ->
     emit_stack_check ~size_in_bytes:max_frame_size_bytes
-      ~save_registers:(not first) ~save_simd:(must_save_simd_regs i)
+      ~save_registers:(not first)
+      ~save_simd:(must_save_simd_regs i.live)
 
 let emit_instr ~first ~fallthrough i =
   try emit_instr ~first ~fallthrough i
@@ -2247,14 +2249,17 @@ let emit_item : Cmm.data_item -> unit = function
   | Cdouble f -> D.float64 f
   (* SIMD vectors respect little-endian byte order *)
   | Cvec128 { word0; word1 } ->
+    (* Least significant *)
     D.float64_from_bits word0;
     D.float64_from_bits word1
   | Cvec256 { word0; word1; word2; word3 } ->
+    (* Least significant *)
     D.float64_from_bits word0;
     D.float64_from_bits word1;
     D.float64_from_bits word2;
     D.float64_from_bits word3
   | Cvec512 { word0; word1; word2; word3; word4; word5; word6; word7 } ->
+    (* Least significant *)
     D.float64_from_bits word0;
     D.float64_from_bits word1;
     D.float64_from_bits word2;
@@ -2534,7 +2539,7 @@ let emit_probe_handler_wrapper p =
      && n >= Stack_check.stack_threshold_size
   then
     emit_stack_check ~size_in_bytes:n ~save_registers:true
-      ~save_simd:(must_save_simd_regs p.probe_insn);
+      ~save_simd:(must_save_simd_regs p.probe_insn.live);
   emit_stack_offset n;
   (* Save all live hard registers *)
   let offset = aux_offset + tmp_offset + loc_offset in
