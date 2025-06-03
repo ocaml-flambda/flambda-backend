@@ -26,6 +26,32 @@ external add : float32x4 -> float32x4 -> float32x4
   = "caml_vec128_unreachable" "caml_sse_float32x4_add"
   [@@noalloc] [@@unboxed] [@@builtin]
 
+let callback0 () =
+  let x0 = low_of 0.0s in
+  let x1 = low_of 1.0s in
+  let x2 = low_of 2.0s in
+  let x3 = low_of 3.0s in
+  let x4 = low_of 4.0s in
+  let x5 = low_of 5.0s in
+  let x6 = low_of 6.0s in
+  let x7 = low_of 7.0s in
+  let x8 = low_of 8.0s in
+  let x9 = low_of 9.0s in
+  let x10 = low_of 10.0s in
+  let x11 = low_of 11.0s in
+  let x12 = low_of 12.0s in
+  let x13 = low_of 13.0s in
+  let x14 = low_of 14.0s in
+  let x15 = low_of 15.0s in
+  let x16 = low_of 16.0s in
+  let sum =
+    add x16
+      (add
+         (add (add (add x0 x1) (add x2 x3)) (add (add x4 x5) (add x6 x7)))
+         (add (add (add x8 x9) (add x10 x11)) (add (add x12 x13) (add x14 x15))))
+  in
+  assert (low_to sum = 136.s)
+
 let callback () =
   let x0 = low_of 0.0s in
   let x1 = low_of 1.0s in
@@ -44,6 +70,7 @@ let callback () =
   let x14 = low_of 14.0s in
   let x15 = low_of 15.0s in
   let x16 = low_of 16.0s in
+  callback0 ();
   let sum =
     add x16
       (add
