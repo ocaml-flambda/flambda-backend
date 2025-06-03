@@ -3072,8 +3072,8 @@ module Modality = struct
       x], which means [apply/sub] and [zap] might behave in a confusing (albeit
       sound) manner.
 
-      CR zqian: once we support binary mode solver, we will stick to
-      [c := imply_mm m].
+      CR zqian: once we support binary mode solver, [c := imply_mm m] will be
+      used uniformly by [apply] [sub] and [zap].
   *)
 
   module Monadic = struct
