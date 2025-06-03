@@ -222,6 +222,27 @@ let datalog_schedule =
   (* Reverse relations, because datalog does not implement a more efficient
      representation yet. Datalog iterates on the first key of a relation first.
      those reversed relations allows to select a different key. *)
+  (*
+   rev_alias
+   * alias To From
+   * => rev_alias From To
+
+   rev_accessor
+   * accessor To Rel Base
+   * => rev_accessor Base Rel To
+
+   rev_constructor
+   * constructor Base Rel From
+   * => rev_constructor From Rel Base
+
+   rev_coaccessor
+   * coaccessor To Rel Base
+   * => rev_coaccessor Base Rel To
+
+   rev_coconstructor
+   * coconstructor Base Rel From
+   * => rev_coconstructor From Rel Base
+   *)
   let rev_alias =
     let$ [to_; from] = ["to_"; "from"] in
     [alias_rel to_ from] ==> rev_alias_rel from to_
@@ -334,10 +355,20 @@ let datalog_schedule =
   in
   (* accessor-usage
 
+   field_usages_from_accessor_field_usages_top
    *  not (any_usage Base)
    *  /\ any_usage To
    *  /\ accessor To Rel Base
    *  => field_usages_top Base Rel
+
+   field_usages_from_accessor_field_usages
+   * not (any_usage Base)
+   * /\ not (any_usage To)
+   * /\ not (field_usages_top Base Rel)
+   * /\ accessor To Rel Base
+   * /\ usages To Var
+   * => field_usages Base Rel To
+
    *)
   let field_usages_from_accessor_field_usages_top =
     let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
@@ -355,7 +386,15 @@ let datalog_schedule =
       usages_rel to_ _var ]
     ==> field_usages_rel base relation to_
   in
-  (* coaccessor-usages *)
+  (* coaccessor-usages
+
+   cofield_usages_from_coaccessor (1 & 2)
+   * not (any_usage Base)
+   * /\ coaccessor To Rel Base
+   * /\ (sources To Var \/ any_source To)
+   * => cofield_usages Base Rel To
+
+   *)
   let cofield_usages_from_coaccessor1 =
     let$ [to_; relation; base; _var] = ["to_"; "relation"; "base"; "_var"] in
     [ not (any_usage_pred base);
@@ -370,7 +409,18 @@ let datalog_schedule =
       coaccessor_rel to_ relation base ]
     ==> cofield_usages_rel base relation to_
   in
-  (* constructor-usages *)
+  (* constructor-usages
+
+   alias_from_accessed_constructor_1
+   * not (any_usage From)
+   * /\ not (field_usages_top BaseUse Rel)
+   * /\ not (any_usage Base)
+   * /\ constructor Base Rel From
+   * /\ usages Base BaseUse
+   * /\ field_usages BaseUse Rel To
+   * => alias To From
+
+   *)
   let alias_from_accessed_constructor_1 =
     let$ [base; base_use; relation; from; to_] =
       ["base"; "base_use"; "relation"; "from"; "to_"]
@@ -383,6 +433,14 @@ let datalog_schedule =
       field_usages_rel base_use relation to_ ]
     ==> alias_rel to_ from
   in
+  (*
+   any_usage_from_accessed_constructor
+   * constructor Base Rel From
+   * /\ not (any_usage Base)
+   * /\ usages Base BaseUse
+   * /\ field_usages_top BaseUse Rel
+   * => any_usage From
+   *)
   let any_usage_from_accessed_constructor =
     let$ [base; base_use; relation; from] =
       ["base"; "base_use"; "relation"; "from"]
@@ -393,6 +451,17 @@ let datalog_schedule =
       field_usages_top_rel base_use relation ]
     ==> any_usage_pred from
   in
+  (*
+   any_usage_from_constructor_any_usage
+   * any_usage Base
+   * /\ constructor Base Rel From
+   * => any_usage From
+
+   any_usage_from_coaccessor_any_source
+   * any_source Base
+   * /\ rev_coaccessor Base Rel To
+   * => any_usage To
+   *)
   let any_usage_from_constructor_any_usage =
     let$ [base; relation; from] = ["base"; "relation"; "from"] in
     [any_usage_pred base; constructor_rel base relation from]
@@ -470,7 +539,21 @@ let datalog_schedule =
       rev_alias_rel from to_ ]
     ==> sources_rel to_ source
   in
-  (* constructor-sources *)
+  (* constructor-sources
+   field_sources_from_constructor_field_sources_top
+   * not (any_source Base)
+   * /\ any_source From
+   * /\ rev_constructor From Rel Base
+   * => field_sources_top Base Rel
+
+   field_sources_from_constructor_field_sources
+   * not (any_source Base)
+   * /\ not (any_source From)
+   * /\ not (field_sources_top Base Rel)
+   * /\ rev_constructor From Rel Base
+   * /\ sources From Var
+   * => field_sources Base Rel From
+   *)
   let field_sources_from_constructor_field_sources_top =
     let$ [from; relation; base] = ["from"; "relation"; "base"] in
     [ not (any_source_pred base);
@@ -487,7 +570,15 @@ let datalog_schedule =
       sources_rel from _var ]
     ==> field_sources_rel base relation from
   in
-  (* coaccessor-sources *)
+  (* coaccessor-sources
+
+   cofield_sources_from_coconstructor (1 & 2)
+   * not (any_source Base)
+   * /\ rev_coconstructor From Rel Base
+   * /\ (usages From Var \/ any_usage From)
+   * => cofield_sources Base Rel From
+
+   *)
   let cofield_sources_from_coconstrucor1 =
     let$ [from; relation; base; _var] = ["from"; "relation"; "base"; "_var"] in
     [ not (any_source_pred base);
@@ -502,7 +593,16 @@ let datalog_schedule =
       rev_coconstructor_rel from relation base ]
     ==> cofield_sources_rel base relation from
   in
-  (* coconstructor-uses XXX *)
+  (* coconstructor-uses XXX
+
+   alias_from_coaccessed_coconstructor
+   * not (any_usage Base)
+   * /\ coconstructor Base Rel From
+   * /\ usages Base BaseUse
+   * /\ cofield_usages BaseUse Rel To
+   * => alias From To
+
+   *)
   let alias_from_coaccessed_coconstructor =
     let$ [base; base_use; relation; from; to_] =
       ["base"; "base_use"; "relation"; "from"; "to_"]
@@ -513,12 +613,34 @@ let datalog_schedule =
       cofield_usages_rel base_use relation to_ ]
     ==> alias_rel from to_
   in
+  (*
+   any_source_from_coconstructor_any_usage
+   * any_usage Base
+   * /\ coconstructor Base Rel From
+   * => any_source From
+   *)
   let any_source_from_coconstructor_any_usage =
     let$ [base; relation; from] = ["base"; "relation"; "from"] in
     [any_usage_pred base; coconstructor_rel base relation from]
     ==> any_source_pred from
   in
-  (* accessor-sources *)
+  (* accessor-sources
+   alias_from_accessed_constructor_2
+   * not (any_source To)
+   * /\ not (field_sources_top BaseSource Rel)
+   * /\ not (any_source Base)
+   * /\ rev_accessor Base Rel To
+   * /\ sources Base BaseSource
+   * /\ field_sources BaseSource Rel From
+   * => alias To From
+
+   any_source_from_accessed_constructor
+   * rev_accessor Base Rel To
+   * /\ not (any_source Base)
+   * /\ sources Base BaseSource
+   * /\ field_sources_top BaseSource Rel
+   * => any_source To
+   *)
   let alias_from_accessed_constructor_2 =
     let$ [base; base_source; relation; to_; from] =
       ["base"; "base_source"; "relation"; "to_"; "from"]
@@ -541,12 +663,26 @@ let datalog_schedule =
       field_sources_top_rel base_source relation ]
     ==> any_source_pred to_
   in
+  (*
+   any_source_from_accessor_any_source
+   * any_source Base
+   * /\ rev_accessor Base Rel To
+   * => any_source To
+   *)
   let any_source_from_accessor_any_source =
     let$ [base; relation; to_] = ["base"; "relation"; "to_"] in
     [any_source_pred base; rev_accessor_rel base relation to_]
     ==> any_source_pred to_
   in
   (* ... *)
+  (*
+   alias_from_coaccessed_coconstructor_2
+   * not (any_source Base)
+   * /\ rev_coaccessor Base Rel To
+   * /\ sources Base BaseSource
+   * /\ cofield_sources BaseSource Rel From
+   * => alias From To
+   *)
   let alias_from_coaccessed_coconstructor_2 =
     let$ [base; base_source; relation; to_; from] =
       ["base"; "base_source"; "relation"; "to_"; "from"]
@@ -561,6 +697,18 @@ let datalog_schedule =
 
      CR ncouran: There is an asymmetry here between source and use, but it could
      (and should) be resolved by adding any_source to the input graph. *)
+  (*
+   any_usage_from_use (1 & 2)
+   * use To From
+   * /\ (usages To Var \/ any_usage To)
+   * => any_usage From
+   *)
+
+  (*
+   any_source_use
+   * use To From
+   * => any_source To
+   *)
   let any_usage_from_use_1 =
     let$ [to_; from; _var] = ["to_"; "from"; "_var"] in
     [usages_rel to_ _var; use_rel to_ from] ==> any_usage_pred from
