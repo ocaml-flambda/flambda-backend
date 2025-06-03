@@ -103,20 +103,20 @@ let rel3 name schema =
 (**
    [usages] and [sources] are dual. They build the same relation
    from [accessor] and [rev_constructor].
-   [used] and [any_source] are the tops.
+   [any_usage] and [any_source] are the tops.
    [field_usages] and [field_sources]
    [field_usages_top] and [field_sources_top]
-   [cofield_uses] and [cofield_sources]
+   [cofield_usages] and [cofield_sources]
 *)
 
 (** [usages x y] y is an alias of x, and there is an actual use for y.
 
     For performance reasons, we don't want to represent [usages x y] when
-    x is top ([used x] is valid). If x is top the used predicate subsumes
+    x is top ([any_usage x] is valid). If x is top the any_usage predicate subsumes
     this property.
 
     We avoid building this relation in that case, but it is possible to have both
-    [usages x y] and [used x] depending on the resolution order.
+    [usages x y] and [any_usage x] depending on the resolution order.
 
     [usages x x] is used to represent the actual use of x.
 *)
@@ -132,8 +132,8 @@ let usages_rel = rel2 "usages" Cols.[n; n]
 *)
 let field_usages_rel = rel3 "field_usages" Cols.[n; f; n]
 
-(** [used x] x is used in an uncontrolled way *)
-let _used_pred = Global_flow_graph.used_pred
+(** [any_usage x] x is used in an uncontrolled way *)
+let _any_usage_pred = Global_flow_graph.any_usage_pred
 
 (** [field_usages_top x f] the field f of x is used in an uncontroled way.
     It could be for instance, a value escaping the current compilation unit,
@@ -180,7 +180,7 @@ let field_sources_top_rel = rel2 "field_sources_top" Cols.[n; f]
 
 let cofield_sources_rel = rel3 "cofield_sources" Cols.[n; cf; n]
 
-let cofield_uses_rel = rel3 "cofield_uses" Cols.[n; cf; n]
+let cofield_usages_rel = rel3 "cofield_usages" Cols.[n; cf; n]
 
 let rev_alias_rel = rel2 "rev_alias" Cols.[n; n]
 
@@ -250,9 +250,9 @@ let datalog_schedule =
      with the intended meaning of this rule. That is an alias if [is_used] is used.
 
   *)
-  let alias_from_used_propagate =
+  let alias_from_usage_propagate =
     let$ [if_used; to_; from] = ["if_used"; "to_"; "from"] in
-    [used_pred if_used; propagate_rel if_used to_ from] ==> alias_rel to_ from
+    [any_usage_pred if_used; propagate_rel if_used to_ from] ==> alias_rel to_ from
   in
   (* usages rules:
 
@@ -262,136 +262,136 @@ let datalog_schedule =
      usage_accessor and usage_coaccessor are the relation initialisation: they define
      what we mean by 'actually using' something. usage_alias propagatess usage to aliases.
 
-     An 'actual use' comes from either a top (used predicate) or through an accessor
+     An 'actual use' comes from either a top (any_usage predicate) or through an accessor
      (or coaccessor) on an used variable
 
-     All those rules are constrained not to apply when used is valid. (see [usages]
+     All those rules are constrained not to apply when any_usage is valid. (see [usages]
      definition comment)
 
-   used_from_alias_used
+   any_usage_from_alias_any_usage
    *  alias To From
-   *  /\ used To
-   *  => used From
+   *  /\ any_usage To
+   *  => any_usage From
 
    usage_accessor (1 & 2)
-   *  not (used Base)
+   *  not (any_usage Base)
    *  /\ accessor To Rel Base
-   *  /\ (usages To Var \/ used To)
+   *  /\ (usages To Var \/ any_usage To)
    *  => usages Base Base
 
    usage_coaccessor (1 & 2)
-   *  not (used Base)
+   *  not (any_usage Base)
    *  /\ coaccessor To Rel Var
    *  /\ (sources To Var \/ any_source To)
    *  => usages Base Base
 
    usage_alias
-   * not (used From)
-   * /\ not (used To)
+   * not (any_usage From)
+   * /\ not (any_usage To)
    * /\ usages To Usage
    * /\ alias To From
    * => usages From Usage
 
    *)
-  let used_from_alias_used =
+  let any_usage_from_alias_any_usage =
     let$ [to_; from] = ["to_"; "from"] in
-    [alias_rel to_ from; used_pred to_] ==> used_pred from
+    [alias_rel to_ from; any_usage_pred to_] ==> any_usage_pred from
   in
   let usages_accessor_1 =
     let$ [to_; relation; base; _var] = ["to_"; "relation"; "base"; "_var"] in
-    [not (used_pred base); accessor_rel to_ relation base; usages_rel to_ _var]
+    [not (any_usage_pred base); accessor_rel to_ relation base; usages_rel to_ _var]
     ==> usages_rel base base
   in
   let usages_accessor_2 =
     let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
-    [not (used_pred base); accessor_rel to_ relation base; used_pred to_]
+    [not (any_usage_pred base); accessor_rel to_ relation base; any_usage_pred to_]
     ==> usages_rel base base
   in
   let usages_coaccessor_1 =
     let$ [to_; relation; base; _var] = ["to_"; "relation"; "base"; "_var"] in
-    [ not (used_pred base);
+    [ not (any_usage_pred base);
       sources_rel to_ _var;
       coaccessor_rel to_ relation base ]
     ==> usages_rel base base
   in
   let usages_coaccessor_2 =
     let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
-    [not (used_pred base); any_source_pred to_; coaccessor_rel to_ relation base]
+    [not (any_usage_pred base); any_source_pred to_; coaccessor_rel to_ relation base]
     ==> usages_rel base base
   in
   let usages_alias =
     let$ [to_; from; usage] = ["to_"; "from"; "usage"] in
-    [ not (used_pred from);
-      not (used_pred to_);
+    [ not (any_usage_pred from);
+      not (any_usage_pred to_);
       usages_rel to_ usage;
       alias_rel to_ from ]
     ==> usages_rel from usage
   in
-(* accessor-used
+(* accessor-usage
 
-   *  not (used Base)
-   *  /\ used To
+   *  not (any_usage Base)
+   *  /\ any_usage To
    *  /\ accessor To Rel Base
    *  => field_usages_top Base Rel
 *)
   let field_usages_from_accessor_field_usages_top =
     let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
-    [not (used_pred base); used_pred to_; accessor_rel to_ relation base]
+    [not (any_usage_pred base); any_usage_pred to_; accessor_rel to_ relation base]
     ==> field_usages_top_rel base relation
   in
   let field_usages_from_accessor_field_usages =
     let$ [to_; relation; base; _var] = ["to_"; "relation"; "base"; "_var"] in
-    [ not (used_pred base);
-      not (used_pred to_);
+    [ not (any_usage_pred base);
+      not (any_usage_pred to_);
       not (field_usages_top_rel base relation);
       accessor_rel to_ relation base;
       usages_rel to_ _var ]
     ==> field_usages_rel base relation to_
   in
-  (* coaccessor-used *)
-  let cofield_used_from_coaccessor1 =
+  (* coaccessor-usages *)
+  let cofield_usages_from_coaccessor1 =
     let$ [to_; relation; base; _var] = ["to_"; "relation"; "base"; "_var"] in
-    [ not (used_pred base);
+    [ not (any_usage_pred base);
       coaccessor_rel to_ relation base;
       sources_rel to_ _var ]
-    ==> cofield_uses_rel base relation to_
+    ==> cofield_usages_rel base relation to_
   in
-  let cofield_used_from_coaccessor2 =
+  let cofield_usages_from_coaccessor2 =
     let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
-    [not (used_pred base); any_source_pred to_; coaccessor_rel to_ relation base]
-    ==> cofield_uses_rel base relation to_
+    [not (any_usage_pred base); any_source_pred to_; coaccessor_rel to_ relation base]
+    ==> cofield_usages_rel base relation to_
   in
-  (* constructor-used *)
+  (* constructor-usages *)
   let alias_from_accessed_constructor_1 =
     let$ [base; base_use; relation; from; to_] =
       ["base"; "base_use"; "relation"; "from"; "to_"]
     in
-    [ not (used_pred from);
+    [ not (any_usage_pred from);
       not (field_usages_top_rel base_use relation);
-      not (used_pred base);
+      not (any_usage_pred base);
       constructor_rel base relation from;
       usages_rel base base_use;
       field_usages_rel base_use relation to_ ]
     ==> alias_rel to_ from
   in
-  let used_from_accessed_constructor =
+  let any_usage_from_accessed_constructor =
     let$ [base; base_use; relation; from] =
       ["base"; "base_use"; "relation"; "from"]
     in
     [ constructor_rel base relation from;
-      not (used_pred base);
+      not (any_usage_pred base);
       usages_rel base base_use;
       field_usages_top_rel base_use relation ]
-    ==> used_pred from
+    ==> any_usage_pred from
   in
-  let used_from_constructor_used =
+  let any_usage_from_constructor_any_usage =
     let$ [base; relation; from] = ["base"; "relation"; "from"] in
-    [used_pred base; constructor_rel base relation from] ==> used_pred from
+    [any_usage_pred base; constructor_rel base relation from] ==> any_usage_pred from
   in
-  let used_from_coaccessor_any_source =
+  let any_usage_from_coaccessor_any_source =
     let$ [base; relation; to_] = ["base"; "relation"; "to_"] in
     [any_source_pred base; rev_coaccessor_rel base relation to_]
-    ==> used_pred to_
+    ==> any_usage_pred to_
   in
   (* sources: see explanation on usage
 
@@ -448,7 +448,7 @@ let datalog_schedule =
   let sources_coconstructor_2 =
     let$ [from; relation; base] = ["from"; "relation"; "base"] in
     [ not (any_source_pred base);
-      used_pred from;
+      any_usage_pred from;
       rev_coconstructor_rel from relation base ]
     ==> sources_rel base base
   in
@@ -488,7 +488,7 @@ let datalog_schedule =
   let cofield_sources_from_coconstrucor2 =
     let$ [from; relation; base] = ["from"; "relation"; "base"] in
     [ not (any_source_pred base);
-      used_pred from;
+      any_usage_pred from;
       rev_coconstructor_rel from relation base ]
     ==> cofield_sources_rel base relation from
   in
@@ -497,15 +497,15 @@ let datalog_schedule =
     let$ [base; base_use; relation; from; to_] =
       ["base"; "base_use"; "relation"; "from"; "to_"]
     in
-    [ not (used_pred base);
+    [ not (any_usage_pred base);
       coconstructor_rel base relation from;
       usages_rel base base_use;
-      cofield_uses_rel base_use relation to_ ]
+      cofield_usages_rel base_use relation to_ ]
     ==> alias_rel from to_
   in
-  let any_source_from_coconstructor_used =
+  let any_source_from_coconstructor_any_usage =
     let$ [base; relation; from] = ["base"; "relation"; "from"] in
-    [used_pred base; coconstructor_rel base relation from]
+    [any_usage_pred base; coconstructor_rel base relation from]
     ==> any_source_pred from
   in
   (* accessor-sources *)
@@ -553,13 +553,13 @@ let datalog_schedule =
    CR ncouran: There is an asymmetry here between source and use, but it could (and should) be resolved by adding any_source to the input graph.
 
   *)
-  let used_from_use_1 =
+  let any_usage_from_use_1 =
     let$ [to_; from; _var] = ["to_"; "from"; "_var"] in
-    [usages_rel to_ _var; use_rel to_ from] ==> used_pred from
+    [usages_rel to_ _var; use_rel to_ from] ==> any_usage_pred from
   in
-  let used_from_use_2 =
+  let any_usage_from_use_2 =
     let$ [to_; from] = ["to_"; "from"] in
-    [used_pred to_; use_rel to_ from] ==> used_pred from
+    [any_usage_pred to_; use_rel to_ from] ==> any_usage_pred from
   in
   let any_source_use =
     let$ [to_; _from] = ["to_"; "_from"] in
@@ -573,17 +573,17 @@ let datalog_schedule =
             rev_coaccessor;
             rev_coconstructor;
             any_source_use;
-            alias_from_used_propagate;
-            used_from_alias_used;
+            alias_from_usage_propagate;
+            any_usage_from_alias_any_usage;
             any_source_from_alias_any_source;
-            used_from_constructor_used;
-            used_from_coaccessor_any_source;
-            used_from_use_1;
-            used_from_use_2;
-            used_from_accessed_constructor;
+            any_usage_from_constructor_any_usage;
+            any_usage_from_coaccessor_any_source;
+            any_usage_from_use_1;
+            any_usage_from_use_2;
+            any_usage_from_accessed_constructor;
             any_source_from_accessed_constructor;
             any_source_from_accessor_any_source;
-            any_source_from_coconstructor_used;
+            any_source_from_coconstructor_any_usage;
             rev_alias ];
         saturate
           [ alias_from_accessed_constructor_1;
@@ -592,8 +592,8 @@ let datalog_schedule =
             alias_from_coaccessed_coconstructor_2;
             field_usages_from_accessor_field_usages;
             field_usages_from_accessor_field_usages_top;
-            cofield_used_from_coaccessor1;
-            cofield_used_from_coaccessor2;
+            cofield_usages_from_coaccessor1;
+            cofield_usages_from_coaccessor2;
             field_sources_from_constructor_field_sources;
             field_sources_from_constructor_field_sources_top;
             cofield_sources_from_coconstrucor1;
@@ -740,13 +740,13 @@ let get_set_of_closures_def :
     in
     match l with [] -> Not_a_set_of_closures | _ :: _ -> Set_of_closures l
 
-let used_pred_query =
+let any_usage_pred_query =
   let open! Global_flow_graph in
-  mk_exists_query ["X"] [] (fun [x] [] -> [used_pred x])
+  mk_exists_query ["X"] [] (fun [x] [] -> [any_usage_pred x])
 
 (* CR pchambart: should rename: mutiple potential top is_used_as_top (should be
    obviously different from has use) *)
-let is_top db x = exists_with_parameters used_pred_query [x] db
+let is_top db x = exists_with_parameters any_usage_pred_query [x] db
 
 (* CR pchambart: field_used should rename to mean that this is the specific
    field of a given variable. *)
@@ -764,11 +764,11 @@ let has_use, field_used =
         [usages_rel x u; field_usages_rel u f v])
   in
   ( (fun db x ->
-      exists_with_parameters used_pred_query [x] db
+      exists_with_parameters any_usage_pred_query [x] db
       || exists_with_parameters usages_query [x] db),
     fun db x field ->
       let field = Field.encode field in
-      exists_with_parameters used_pred_query [x] db
+      exists_with_parameters any_usage_pred_query [x] db
       || exists_with_parameters used_field_top_query [x; field] db
       || exists_with_parameters used_field_query [x; field] db )
 
@@ -865,7 +865,7 @@ let datalog_rules =
     | _ -> false
   in
   [ (let$ [base; relation; from] = ["base"; "relation"; "from"] in
-     [constructor_rel base relation from; used_pred base]
+     [constructor_rel base relation from; any_usage_pred base]
      ==> field_of_constructor_is_used base relation);
     (let$ [base; relation; from; usage] =
        ["base"; "relation"; "from"; "usage"]
@@ -887,11 +887,11 @@ let datalog_rules =
      [ constructor_rel base relation from;
        filter_field is_apply_field relation;
        constructor_rel base coderel indirect_call_witness;
-       used_pred indirect_call_witness;
+       any_usage_pred indirect_call_witness;
        filter_field is_code_field coderel ]
      ==> field_of_constructor_is_used base relation);
     (let$ [x] = ["x"] in
-     [used_pred x] ==> cannot_change_representation0 x);
+     [any_usage_pred x] ==> cannot_change_representation0 x);
     (let$ [allocation_id; alias; alias_source; field; _v] =
        ["allocation_id"; "alias"; "alias_source"; "field"; "_v"]
      in
@@ -942,7 +942,7 @@ let datalog_rules =
     (* TODO this is wrong: some closures can have their representation changed
        but not their calling convention *)
     (let$ [x] = ["x"] in
-     [used_pred x] ==> cannot_change_closure_calling_convention x);
+     [any_usage_pred x] ==> cannot_change_closure_calling_convention x);
     (let$ [allocation_id; alias; alias_source; field; _v] =
        ["allocation_id"; "alias"; "alias_source"; "field"; "_v"]
      in
@@ -1001,7 +1001,7 @@ let datalog_rules =
      [ constructor_rel set_of_closures coderel indirect_call_witness;
        constructor_rel indirect_call_witness code_id_of_witness code_id;
        filter_field is_code_field coderel;
-       used_pred indirect_call_witness;
+       any_usage_pred indirect_call_witness;
        cannot_change_closure_calling_convention set_of_closures ]
      ==> cannot_change_calling_convention code_id);
     (* CR ncourant: we're preventing changing the calling convention of
@@ -1073,7 +1073,7 @@ let datalog_rules =
     (* (let$ [set_of_closures; coderel; indirect_call_witness; indirect1;
        indirect2] = [ "set_of_closures"; "coderel"; "indirect_call_witness";
        "indirect1"; "indirect2" ] in [ rev_accessor_rel set_of_closures coderel
-       indirect_call_witness; filter_field is_code_field coderel; used_pred
+       indirect_call_witness; filter_field is_code_field coderel; any_usage_pred
        indirect_call_witness; sources_rel indirect_call_witness indirect1;
        sources_rel indirect_call_witness indirect2; distinct indirect1 indirect2
        ] ==> cannot_change_calling_convention indirect1); *)
@@ -1082,7 +1082,7 @@ let datalog_rules =
     (* (let$ [set_of_closures; coderel; calls_not_pure_witness; indirect] =
        ["set_of_closures"; "coderel"; "calls_not_pure_witness"; "indirect"] in [
        rev_accessor_rel set_of_closures coderel calls_not_pure_witness;
-       filter_field is_code_field coderel; used_pred calls_not_pure_witness;
+       filter_field is_code_field coderel; any_usage_pred calls_not_pure_witness;
        any_source_pred calls_not_pure_witness; alias_rel calls_not_pure_witness
        indirect ] ==> cannot_change_calling_convention indirect); *)
     (* CR-someday ncourant: we completely prevent changing the representation of
@@ -1125,7 +1125,7 @@ let datalog_rules =
     (let$ [x] = ["x"] in
      [cannot_change_representation1 x] ==> cannot_unbox0 x);
     (let$ [x] = ["x"] in
-     [used_pred x] ==> cannot_unbox0 x);
+     [any_usage_pred x] ==> cannot_unbox0 x);
     (let$ [x; field] = ["x"; "field"] in
      [ field_of_constructor_is_used x field;
        filter_field field_cannot_be_destructured field ]
@@ -1203,11 +1203,11 @@ let datalog_rules =
        filter_field is_function_slot field ]
      ==> cannot_unbox y);
     (let$ [x] = ["x"] in
-     [used_pred x; not (cannot_unbox x)] ==> to_unbox x);
+     [any_usage_pred x; not (cannot_unbox x)] ==> to_unbox x);
     (let$ [x; _y] = ["x"; "_y"] in
      [usages_rel x _y; not (cannot_unbox x)] ==> to_unbox x);
     (let$ [x] = ["x"] in
-     [used_pred x; not (cannot_change_representation x); not (to_unbox x)]
+     [any_usage_pred x; not (cannot_change_representation x); not (to_unbox x)]
      ==> to_change_representation x);
     (let$ [x; _y] = ["x"; "_y"] in
      [usages_rel x _y; not (cannot_change_representation x); not (to_unbox x)]
@@ -1539,7 +1539,7 @@ let print_color { db; unboxed_fields; changed_representation } v =
     else "ff"
   in
   let green =
-    if exists_with_parameters used_pred_query [v] db
+    if exists_with_parameters any_usage_pred_query [v] db
     then "22"
     else if has_use db v
     then "88"
@@ -1610,12 +1610,12 @@ let code_id_actually_called_query =
               where
                 [ rev_accessor_rel set_of_closres coderel indirect_call_witness;
                   sources_rel indirect_call_witness indirect;
-                  used_pred indirect_call_witness;
+                  any_usage_pred indirect_call_witness;
                   constructor_rel indirect code_id_of_witness codeid ]
                 (yield [code_id_of_witness; codeid]))))
 
 let code_id_actually_called uses v =
-  if exists_with_parameters used_pred_query [Code_id_or_name.name v] uses.db
+  if exists_with_parameters any_usage_pred_query [Code_id_or_name.name v] uses.db
   then None
   else if exists_with_parameters
             cannot_change_calling_convention_of_called_closure_query1

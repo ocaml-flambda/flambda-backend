@@ -91,7 +91,7 @@ val coconstructor_rel : (Code_id_or_name.t, int, Code_id_or_name.t, _) rel3
 val propagate_rel :
   (Code_id_or_name.t, Code_id_or_name.t, Code_id_or_name.t, _) rel3
 
-val used_pred : (Code_id_or_name.t, _) rel1
+val any_usage_pred : (Code_id_or_name.t, _) rel1
 
 val create : unit -> graph
 
