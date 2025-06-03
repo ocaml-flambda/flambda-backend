@@ -5841,10 +5841,10 @@ and type_expect_
       let mutability = match mutable_flag with
         | Immutable -> Immutable
         | Mutable ->
-          Mutable (Mode.Alloc.Comonadic.Const.join
-            Mode.Alloc.Comonadic.Const.legacy
-            { Mode.Alloc.Comonadic.Const.min
-              with areality = Mode.Locality.Const.max })
+          Mutable
+            { Mode.Alloc.Comonadic.Const.legacy with
+              areality = Mode.Locality.Const.max;
+              yielding = Mode.Yielding.Const.max }
       in
       check_let_mutable mutable_flag env ?restriction spat_sexp_list;
       let existential_context : existential_restriction =

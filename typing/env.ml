@@ -322,7 +322,6 @@ type shared_context =
   | For_loop
   | While_loop
   | Letop
-  | Closure
   | Comprehension
   | Class
   | Module
@@ -3322,10 +3321,12 @@ let walk_locks_for_mutable_mode ~errors ~loc ~env  mode locks =
           to be [global]. If [m0] is [local], then we require the new values to
           be [local]. *)
           mode
-      | Escape_lock ctx ->
+      | Escape_lock (Letop | Probe | Class | Module as ctx) ->
           may_lookup_error errors loc env (Mutable_value_used_in_closure (`Escape ctx))
-      | Share_lock ctx ->
+      | Share_lock (Letop | Probe | Class | Module as ctx) ->
           may_lookup_error errors loc env (Mutable_value_used_in_closure (`Shared ctx))
+      | Share_lock (For_loop | While_loop | Comprehension) ->
+          mode
       | Closure_lock _ ->
           may_lookup_error errors loc env (Mutable_value_used_in_closure `Closure)
       | Unboxed_lock -> mode
@@ -4430,7 +4431,6 @@ let string_of_shared_context : shared_context -> string =
   | For_loop -> "a for loop"
   | While_loop -> "a while loop"
   | Letop -> "a letop"
-  | Closure -> "a closure that is not once"
   | Comprehension -> "a comprehension"
   | Class -> "a class"
   | Module -> "a module"
@@ -4457,11 +4457,6 @@ let sharedness_hint ppf : shared_context -> _ = function
     Format.fprintf ppf
         "@[Hint: This identifier cannot be used uniquely,@ \
           because it is defined in a class.@]"
-  | Closure ->
-    Format.fprintf ppf
-        "@[Hint: This identifier was defined outside of the current closure.@ \
-          Either this closure has to be once, or the identifier can be used only@ \
-          as aliased.@]"
   | Module ->
     Format.fprintf ppf
         "@[Hint: This identifier cannot be used uniquely,@ \

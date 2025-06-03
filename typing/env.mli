@@ -202,7 +202,6 @@ type shared_context =
   | For_loop
   | While_loop
   | Letop
-  | Closure
   | Comprehension
   | Class
   | Module

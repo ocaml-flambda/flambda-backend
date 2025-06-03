@@ -33,7 +33,7 @@ let foo2 y =
 Line 5, characters 6-16:
 5 |       x <- x + i
           ^^^^^^^^^^
-Error: The variable x is mutable, so cannot be used inside a closure that might escape
+Error: Mutable variable cannot be used inside closure.
 |}]
 
 (* Test 3: Rejected for same reason as test 2, but this one is actually safe and
@@ -50,7 +50,7 @@ let foo3 y =
 Line 5, characters 11-12:
 5 |     | 0 -> x
                ^
-Error: The variable x is mutable, so cannot be used inside a closure that might escape
+Error: Mutable variable cannot be used inside closure.
 |}]
 
 (* Test 4: Disallowed interactions with locals *)
@@ -87,7 +87,7 @@ let foo4_2 y = (* Can't sneak local out of non-local for loop body region *)
 Line 5, characters 6-26:
 5 |       x <- local_ (i :: x)
           ^^^^^^^^^^^^^^^^^^^^
-Error: The variable x is mutable, so cannot be used inside a closure that might escape
+Error: Mutable variable cannot be used inside closure.
 |}]
 
 
@@ -189,10 +189,14 @@ let foo5_4 y = (* Assign of local works in _local_ while cond region *)
   done; x
 
 [%%expect{|
-val foo5_1 : 'a -> 'a = <fun>
-val foo5_2 : int -> int = <fun>
-val foo5_3 : int -> int = <fun>
-val foo5_4 : int -> int = <fun>
+Line 4, characters 16-17:
+4 |   x <- (local_ (y :: x));
+                    ^
+Error: This value is used here, but it has already been used as unique:
+Line 3, characters 16-17:
+3 |   x <- (local_ (y :: x));
+                    ^
+
 |}]
 
 (* Test 6: let mutable ... and ... is illegal *)
@@ -291,6 +295,11 @@ let x_13 =
   !y
 ;;
 [%%expect{|
+val reset_ref : int ref @ unique -> unit = <fun>
+Line 6, characters 7-8:
+6 |   x <- y;
+           ^
+Error: This value is "aliased" but expected to be "unique".
 |}]
 
 (* Test 14: mutable functions *)
