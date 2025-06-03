@@ -324,7 +324,7 @@ let add_extra_params_for_mutable_unboxing cont uacc extra_params_and_args =
 
 type behaviour =
   | Invalid
-  | Alias_for of Continuation.t
+  | Shortcut_to of Continuation.t * Simple.t list
   | Unknown
 
 let get_removed_aliased_params uacc cont =
@@ -718,10 +718,7 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel
                 | Some _ -> Unknown
                 | None ->
                   let args = Apply_cont.args apply_cont in
-                  let params = Bound_parameters.simples params in
-                  if Misc.Stdlib.List.compare Simple.compare args params = 0
-                  then Alias_for (Apply_cont.continuation apply_cont)
-                  else Unknown)
+                  Shortcut_to (Apply_cont.continuation apply_cont, args))
               | None ->
                 if RE.can_be_removed_as_invalid handler
                      (UA.are_rebuilding_terms uacc)
@@ -732,9 +729,8 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel
           | Invalid ->
             let arity = Bound_parameters.arity params in
             UE.add_invalid_continuation uenv cont arity
-          | Alias_for alias_for ->
-            let arity = Bound_parameters.arity params in
-            UE.add_continuation_alias uenv cont arity ~alias_for
+          | Shortcut_to (shortcut_to, args) ->
+            UE.add_continuation_shortcut uenv cont ~params ~shortcut_to ~args
           | Unknown ->
             UE.add_non_inlinable_continuation uenv cont ~params
               ~handler:(if is_cold then Unknown else Known handler)
