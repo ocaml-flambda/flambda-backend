@@ -516,9 +516,9 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
           assert (
             List.for_all
               (fun (_, s) -> Jkind.Sort.Const.(equal s void)) args_with_sorts);
-          (* CR layouts v5: This could have void args, but for now we've ruled
-             that out by checking that the sort list is empty *)
-          Lconst(const_int runtime_tag)
+          List.fold_left (fun (acc : lambda) (e : lambda) -> Lsequence (e, acc))
+            (Lconst(const_int runtime_tag) : lambda)
+            ll
       | Ordinary _, (Variant_unboxed | Variant_with_null) ->
           (match ll with [v] -> v | _ -> assert false)
       | Ordinary {runtime_tag}, Variant_boxed _ ->

@@ -2271,8 +2271,6 @@ let divide_unboxed_tuple ~scopes head shape ctx pm =
 let record_matching_line num_fields lbl_pat_list =
   let patv = Array.make num_fields Patterns.omega in
   List.iter (fun (_, lbl, pat) ->
-    (* CR layouts v5: This void sanity check can be removed when we add proper
-       void support (or whenever we remove `lbl_pos_void`) *)
     patv.(lbl.lbl_pos) <- pat)
     lbl_pat_list;
   Array.to_list patv
