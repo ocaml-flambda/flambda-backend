@@ -105,7 +105,7 @@ let rel3 name schema =
    from [accessor] and [rev_constructor].
    [used] and [any_source] are the tops.
    [used_fields] and [field_sources]
-   [used_fields_top] and [fields_tope_sources]
+   [used_fields_top] and [field_top_sources]
    [cofield_uses] and [cofield_sources]
 *)
 
@@ -244,6 +244,16 @@ let datalog_schedule =
     [coconstructor_rel base relation from]
     ==> rev_coconstructor_rel from relation base
   in
+  (* propagate
+
+     The [propagate] relation is part of the input of the solver,
+     with the intended meaning of this rule. That is an alias if [is_used] is used.
+
+  *)
+  let alias_from_used_propagate =
+    let$ [if_used; to_; from] = ["if_used"; "to_"; "from"] in
+    [used_pred if_used; propagate_rel if_used to_ from] ==> alias_rel to_ from
+  in
   (* usages rules:
 
      By convention the Base name applies to something that represents a block value
@@ -317,6 +327,40 @@ let datalog_schedule =
       alias_rel to_ from ]
     ==> usages_rel from usage
   in
+(* accessor-used
+
+   *  not (used Base)
+   *  /\ used To
+   *  /\ accessor To Rel Base
+   *  => used_fields_top Base Rel
+*)
+  let used_fields_from_accessor_used_fields_top =
+    let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
+    [not (used_pred base); used_pred to_; accessor_rel to_ relation base]
+    ==> used_fields_top_rel base relation
+  in
+  let used_fields_from_accessor_used_fields =
+    let$ [to_; relation; base; _var] = ["to_"; "relation"; "base"; "_var"] in
+    [ not (used_pred base);
+      not (used_pred to_);
+      not (used_fields_top_rel base relation);
+      accessor_rel to_ relation base;
+      usages_rel to_ _var ]
+    ==> used_fields_rel base relation to_
+  in
+  (* coaccessor-used *)
+  let cofield_used_from_coaccessor1 =
+    let$ [to_; relation; base; _var] = ["to_"; "relation"; "base"; "_var"] in
+    [ not (used_pred base);
+      coaccessor_rel to_ relation base;
+      sources_rel to_ _var ]
+    ==> cofield_uses_rel base relation to_
+  in
+  let cofield_used_from_coaccessor2 =
+    let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
+    [not (used_pred base); any_source_pred to_; coaccessor_rel to_ relation base]
+    ==> cofield_uses_rel base relation to_
+  in
   (* sources: see explanation on usage
 
    any_source_from_alias_any_source
@@ -384,45 +428,14 @@ let datalog_schedule =
       rev_alias_rel from to_ ]
     ==> sources_rel to_ source
   in
-  (* propagate
-
-     The [propagate] relation is part of the input of the solver,
-     with the intended meaning of this rule. That is an alias if [is_used] is used.
-
-  *)
-  let alias_from_used_propagate =
-    let$ [if_used; to_; from] = ["if_used"; "to_"; "from"] in
-    [used_pred if_used; propagate_rel if_used to_ from] ==> alias_rel to_ from
-  in
-  (* accessor-used *)
-  let used_fields_from_accessor_used_fields =
-    let$ [to_; relation; base; _var] = ["to_"; "relation"; "base"; "_var"] in
-    [ not (used_pred base);
-      not (used_pred to_);
-      not (used_fields_top_rel base relation);
-      accessor_rel to_ relation base;
-      usages_rel to_ _var ]
-    ==> used_fields_rel base relation to_
-  in
-  let used_fields_from_accessor_used_fields_top =
-    let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
-    [not (used_pred base); used_pred to_; accessor_rel to_ relation base]
-    ==> used_fields_top_rel base relation
-  in
-  (* coaccessor-used *)
-  let cofield_used_from_coaccessor1 =
-    let$ [to_; relation; base; _var] = ["to_"; "relation"; "base"; "_var"] in
-    [ not (used_pred base);
-      coaccessor_rel to_ relation base;
-      sources_rel to_ _var ]
-    ==> cofield_uses_rel base relation to_
-  in
-  let cofield_used_from_coaccessor2 =
-    let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
-    [not (used_pred base); any_source_pred to_; coaccessor_rel to_ relation base]
-    ==> cofield_uses_rel base relation to_
-  in
   (* constructor-sources *)
+  let field_sources_from_constructor_field_top_sources =
+    let$ [from; relation; base] = ["from"; "relation"; "base"] in
+    [ not (any_source_pred base);
+      any_source_pred from;
+      rev_constructor_rel from relation base ]
+    ==> field_top_sources_rel base relation
+  in
   let field_sources_from_constructor_field_sources =
     let$ [from; relation; base; _var] = ["from"; "relation"; "base"; "_var"] in
     [ not (any_source_pred base);
@@ -431,13 +444,6 @@ let datalog_schedule =
       rev_constructor_rel from relation base;
       sources_rel from _var ]
     ==> field_sources_rel base relation from
-  in
-  let field_sources_from_constructor_field_top_sources =
-    let$ [from; relation; base] = ["from"; "relation"; "base"] in
-    [ not (any_source_pred base);
-      any_source_pred from;
-      rev_constructor_rel from relation base ]
-    ==> field_top_sources_rel base relation
   in
   (* coaccessor-sources *)
   let cofield_sources_from_coconstrucor1 =
