@@ -126,6 +126,9 @@ let usages_rel = rel2 "usages" Cols.[n; n]
     and there is an actual use for y.
     Exists only if [accessor y f x].
     (this avoids the quadratic blowup of building the complete alias graph)
+
+    We avoid building this relation if [used_fields_top x f], but it is possible to have both
+    [used_fields x f _] and [used_fields_top x f] depending on the resolution order.
 *)
 let used_fields_rel = rel3 "used_fields" Cols.[n; f; n]
 
@@ -164,6 +167,10 @@ let any_source_pred = rel1 "any_source" Cols.[n]
     and there is an actual source for y.
     Exists only if [constructor x f y].
     (this avoids the quadratic blowup of building the complete alias graph)
+
+    We avoid building this relation if [field_top_sources x f], but it is possible to have both
+    [field_sources x f _] and [field_top_sources x f] depending on the resolution order.
+
 *)
 let field_sources_rel = rel3 "field_sources" Cols.[n; f; n]
 
