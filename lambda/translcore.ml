@@ -513,6 +513,7 @@ and transl_exp0 ~in_new_scope ~scopes sort e =
       | Null, (Variant_boxed _ | Variant_unboxed | Variant_extensible) ->
         assert false
       | Ordinary {runtime_tag}, _ when cstr.cstr_constant ->
+        (* CR rtjoa: this is wrong because it could also be products of void *)
           assert (
             List.for_all
               (fun (_, s) -> Jkind.Sort.Const.(equal s void)) args_with_sorts);

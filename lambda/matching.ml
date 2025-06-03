@@ -1906,6 +1906,34 @@ let get_expr_args_constr ~scopes head (arg, _mut, sort, layout) rem =
   let ubr = Translmode.transl_unique_barrier (head.pat_unique_barrier) in
   let sem = add_barrier_to_read ubr Reads_agree in
   let make_field_access binding_kind sort ~field:_ ~pos =
+    if cstr.cstr_constant then
+      let rec mk_void_el el =
+        match el with
+        | Product shape ->
+          let ll, layouts =
+            Array.map mk_void_el shape |> Array.to_list |> List.split
+          in
+          Lprim (Pmake_unboxed_product layouts, ll, loc),
+          Punboxed_product layouts
+        | Value _ | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64
+        | Vec128 | Word ->
+          fatal_error "Matching.get_exr_args_constr: non-void layout"
+      in
+      match cstr.cstr_shape with
+      | Constructor_uniform_value ->
+        fatal_error
+          "Matching.get_exr_args_constr: constant Constructor_uniform_value"
+      | Constructor_mixed shape ->
+        let shape =
+          transl_mixed_product_shape
+            ~get_value_kind:
+              (fun _ ->
+                 fatal_error "Matching.get_expr_args_constr: get_value_kind")
+            shape
+        in
+        let e, _layout = mk_void_el shape.(pos) in
+        (e, binding_kind, sort, layout)
+    else
     let prim =
       match cstr.cstr_shape with
       | Constructor_uniform_value -> Pfield (pos, Pointer, sem)

@@ -733,12 +733,29 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
         in
         (is_mutable, num_nodes_visited), fields
     in
+    (* CR rtjoa: move this somewhere *)
+    let rec all_void (s : Jkind.Sort.Const.t) =
+      match s with
+      | Base Void -> true
+      | Base (Value | Float64 | Float32 | Bits32 | Bits64 | Word | Vec128) ->
+        false
+      | Product sorts -> List.for_all all_void sorts
+    in
     let is_constant (cstr: Types.constructor_declaration) =
-      (* CR layouts v5: This won't count constructors with void args as
-         constant. *)
       match cstr.cd_args with
       | Cstr_tuple [] -> true
-      | (Cstr_tuple (_::_) | Cstr_record _) -> false
+      | Cstr_tuple args ->
+        List.for_all (fun ca -> all_void ca.ca_sort) args
+      | Cstr_record lbls ->
+        List.for_all (fun lbl -> all_void lbl.ld_sort) lbls
+    in
+    (* CR rtjoa: make this *)
+    let rec mixed_block_shape_is_empty shape =
+      Array.for_all mixed_block_element_is_empty shape
+    and mixed_block_element_is_empty (element : _ mixed_block_element) =
+      match element with
+      | Product shape -> mixed_block_shape_is_empty shape
+      | _ -> false
     in
     let num_nodes_visited, raw_kind =
     if List.for_all is_constant cstrs then
@@ -759,6 +776,10 @@ and value_kind_variant env ~loc ~visited ~depth ~num_nodes_visited
             if is_mutable then None
             else match fields with
             | Constructor_uniform xs when List.compare_length_with xs 0 = 0 ->
+              let consts = next_const :: consts in
+              Some (num_nodes_visited,
+                    next_const + 1, consts, next_tag, non_consts)
+            | Constructor_mixed shape when mixed_block_shape_is_empty shape ->
               let consts = next_const :: consts in
               Some (num_nodes_visited,
                     next_const + 1, consts, next_tag, non_consts)
