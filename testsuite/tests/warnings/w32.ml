@@ -81,6 +81,23 @@ module Nominal = struct
   module N = F(M)
 end
 
+(* from ocaml/ocaml#13955 no unused warning should be triggered for [test] *)
+
+module I : sig
+  module F (_ : sig val test : int end) : sig end
+end = struct
+ module F (X: sig val test : int end) = struct let _ = X.test end
+end
+
+(* same for the recursive version *)
+
+module rec X: sig
+  module F(_:sig val x:int end): sig end
+end = struct
+  module F(X:sig val x:int end) = struct let _ = X.x end
+end
+and Y: sig end = struct end
+
 (* TEST
  flags = "-w +A";
  setup-ocamlc.byte-build-env;

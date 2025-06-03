@@ -2425,7 +2425,7 @@ let check_recmodule_inclusion env bindings =
         and mty_actual' = subst_and_strengthen scope s id mty_actual in
         let coercion, shape =
           try
-            Includemod.modtypes_with_shape ~shape
+            Includemod.modtypes_constraint ~shape
               ~loc:modl.mod_loc ~mark:true
               env ~modes:(Legacy None) mty_actual' mty_decl'
           with Includemod.Error msg ->
@@ -2541,7 +2541,7 @@ let wrap_constraint_with_shape env mark arg held_locks mty
   shape explicit =
   let coercion, shape =
     try
-      Includemod.modtypes_with_shape ~shape ~loc:arg.mod_loc env ~mark
+      Includemod.modtypes_constraint ~shape ~loc:arg.mod_loc env ~mark
         ~modes:(Legacy held_locks) arg.mod_type mty
     with Includemod.Error msg ->
       raise(Error(arg.mod_loc, env, Not_included msg)) in
