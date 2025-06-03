@@ -100,6 +100,15 @@ let rel3 name schema =
   let r = Datalog.create_relation ~name schema in
   fun x y z -> Datalog.atom r [x; y; z]
 
+(**
+   [usages] and [sources] are dual. They build the same relation
+   from [accessor] and [rev_constructor].
+   [used] and [any_source] are the tops.
+   [used_fields] and [field_sources]
+   [used_fields_top] and [fields_tope_sources]
+   [cofield_uses] and [cofield_sources]
+*)
+
 (** [usages x y] y is an alias of x, and there is an actual use for y.
 
     For performance reasons, we don't want to represent [usages x y] when
@@ -242,6 +251,11 @@ let datalog_schedule =
      All those rules are constrained not to apply when used is valid. (see [usages]
      definition comment)
 
+   used_from_alias_used
+   *  alias To From
+   *  /\ used To
+   *  => used From
+
    usage_accessor (1 & 2)
    *  not (used Base)
    *  /\ accessor To Rel Base
@@ -250,7 +264,7 @@ let datalog_schedule =
 
    usage_coaccessor (1 & 2)
    *  not (used Base)
-   *  /\ coaccessor To Var
+   *  /\ coaccessor To Rel Var
    *  /\ (sources To Var \/ any_source To)
    *  => usages Base Base
 
@@ -262,6 +276,10 @@ let datalog_schedule =
    * => usages From Usage
 
    *)
+  let used_from_alias_used =
+    let$ [to_; from] = ["to_"; "from"] in
+    [alias_rel to_ from; used_pred to_] ==> used_pred from
+  in
   let usages_accessor_1 =
     let$ [to_; relation; base; _var] = ["to_"; "relation"; "base"; "_var"] in
     [not (used_pred base); accessor_rel to_ relation base; usages_rel to_ _var]
@@ -292,7 +310,37 @@ let datalog_schedule =
       alias_rel to_ from ]
     ==> usages_rel from usage
   in
-  (* sources *)
+  (* sources: see explanation on usage
+
+   any_source_from_alias_any_source
+   * rev_alias From To
+   * /\ any_source From
+   * => any_source To
+
+   sources_constructor (1 & 2)
+   *  not (any_source Base)
+   *  /\ rev_constructor From Rel Base
+   *  /\ (sources From Var \/ any_source From)
+   *  => sources Base Base
+
+   sources_coconstructor (1 & 2)
+   *  not (any_source Base)
+   *  /\ rev_coconstructor From Rel Var
+   *  /\ (sources From Var \/ any_source From)
+   *  => sources Base Base
+
+   usage_alias
+   * not (any_source From)
+   * /\ not (any_source From)
+   * /\ sources From Source
+   * /\ rev_alias From To
+   * => sources To Source
+
+   *)
+  let any_source_from_alias_any_source =
+    let$ [from; to_] = ["from"; "to_"] in
+    [rev_alias_rel from to_; any_source_pred from] ==> any_source_pred to_
+  in
   let sources_constructor_1 =
     let$ [from; relation; base; _var] = ["from"; "relation"; "base"; "_var"] in
     [ not (any_source_pred base);
@@ -321,9 +369,6 @@ let datalog_schedule =
       rev_coconstructor_rel from relation base ]
     ==> sources_rel base base
   in
-  (* let sources_constructor = let$ [from; relation; base] = ["from";
-     "relation"; "base"] in [ not (any_source_pred base); rev_constructor_rel
-     from relation base] ==> sources_rel base base in *)
   let sources_alias =
     let$ [from; to_; source] = ["from"; "to_"; "source"] in
     [ not (any_source_pred from);
@@ -332,18 +377,15 @@ let datalog_schedule =
       rev_alias_rel from to_ ]
     ==> sources_rel to_ source
   in
-  (* propagate *)
+  (* propagate
+
+     The [propagate] relation is part of the input of the solver,
+     with the intended meaning of this rule. That is an alias if [is_used] is used.
+
+  *)
   let alias_from_used_propagate =
     let$ [if_used; to_; from] = ["if_used"; "to_"; "from"] in
     [used_pred if_used; propagate_rel if_used to_ from] ==> alias_rel to_ from
-  in
-  let used_from_alias_used =
-    let$ [to_; from] = ["to_"; "from"] in
-    [alias_rel to_ from; used_pred to_] ==> used_pred from
-  in
-  let any_source_from_alias_any_source =
-    let$ [from; to_] = ["from"; "to_"] in
-    [rev_alias_rel from to_; any_source_pred from] ==> any_source_pred to_
   in
   (* accessor-used *)
   let used_fields_from_accessor_used_fields =
