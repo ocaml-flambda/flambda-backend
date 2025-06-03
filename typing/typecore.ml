@@ -1269,7 +1269,11 @@ let add_pattern_variables ?check ?check_as env pv =
        let kind = match pv_mutable with
          | Immutable -> Val_reg
          | Mutable mode ->
-           Val_mut (mutable_mode mode,
+           let modalities =
+             Typemode.transl_modalities ~maturity:Stable
+               ~for_mutable_variable:true pv_mutable []
+           in
+           Val_mut (mutable_mode mode |> Modality.Value.Const.apply modalities,
              match
                (* CR-someday let_mutable: move the sort calculation elsewhere *)
                Ctype.type_sort ~why:Jkind.History.Mutable_var_assignment
@@ -1277,7 +1281,7 @@ let add_pattern_variables ?check ?check_as env pv =
              with
              | Ok sort -> sort
              | Error err -> raise(Error(pv_loc, env,
-                                        Function_type_not_rep(pv_type, err))))
+                                        Mutable_var_not_rep(pv_type, err))))
        in
        Env.add_value ?check ~mode:pv_mode pv_id
          {val_type = pv_type; val_kind = kind; Types.val_loc = pv_loc;
@@ -2692,23 +2696,23 @@ and type_pat_aux
   let rp = crp
   and rvp x = crp (pure category x)
   and rcp x = crp (only_impure category x) in
-  let type_pat_array mut spl pat_attributes =
+  let type_pat_array mutability spl pat_attributes =
     (* Sharing the code between the two array cases means we're guaranteed to
        keep them in sync, at the cost of a worse diff with upstream; it
        shouldn't be too bad.  We can inline this when we upstream this code and
        combine the two array pattern constructors. *)
     let ty_elt, arg_sort =
-      solve_Ppat_array ~refine:false loc penv mut expected_ty
+      solve_Ppat_array ~refine:false loc penv mutability expected_ty
     in
     let modalities =
-      Typemode.transl_modalities ~maturity:Stable mut []
+      Typemode.transl_modalities ~maturity:Stable mutability []
     in
-    check_project_mutability ~loc ~env:!!penv mut alloc_mode.mode;
+    check_project_mutability ~loc ~env:!!penv mutability alloc_mode.mode;
     let alloc_mode = Modality.Value.Const.apply modalities alloc_mode.mode in
     let alloc_mode = simple_pat_mode alloc_mode in
     let pl = List.map (fun p -> type_pat ~alloc_mode tps Value p ty_elt) spl in
     rvp {
-      pat_desc = Tpat_array (mut, arg_sort, pl);
+      pat_desc = Tpat_array (mutability, arg_sort, pl);
       pat_loc = loc; pat_extra=[];
       pat_type = instance expected_ty;
       pat_attributes;

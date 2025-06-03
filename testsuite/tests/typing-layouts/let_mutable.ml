@@ -64,7 +64,7 @@ let triangle_i32 n =
 let () = Printf.printf "%d\n" (triangle_i32 10 |> Int32_u.to_int)
 
 
-(* jra: how do you create a vec128? *)
+(* CR jrayman: how do you create a vec128? *)
 
 let triangle_i64_i32_f64 n =
   let mutable sum = #(#0L, #(#0l, #0.)) in
