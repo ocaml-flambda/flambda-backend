@@ -115,10 +115,11 @@ let compare_structured_constants c1 c2 =
   | Const_string s1, Const_string s2 -> String.compare s1 s2
   | ( Const_vec128 { word0 = l0; word1 = l1 },
       Const_vec128 { word0 = r0; word1 = r1 } ) ->
-    List.compare Int64.compare [l0; l1] [r0; r1]
+    Misc.Stdlib.Array.compare Int64.compare [| l0; l1 |] [| r0; r1 |]
   | ( Const_vec256 { word0 = l0; word1 = l1; word2 = l2; word3 = l3 },
       Const_vec256 { word0 = r0; word1 = r1; word2 = r2; word3 = r3 } ) ->
-    List.compare Int64.compare [l0; l1; l2; l3] [r0; r1; r2; r3]
+    Misc.Stdlib.Array.compare Int64.compare [| l0; l1; l2; l3 |]
+      [| r0; r1; r2; r3 |]
   | ( Const_vec512
         { word0 = l0;
           word1 = l1;
@@ -139,9 +140,9 @@ let compare_structured_constants c1 c2 =
           word6 = r6;
           word7 = r7
         } ) ->
-    List.compare Int64.compare
-      [l0; l1; l2; l3; l4; l5; l6; l7]
-      [r0; r1; r2; r3; r4; r5; r6; r7]
+    Misc.Stdlib.Array.compare Int64.compare
+      [| l0; l1; l2; l3; l4; l5; l6; l7 |]
+      [| r0; r1; r2; r3; r4; r5; r6; r7 |]
   | ( ( Const_string _ | Const_float _ | Const_int32 _ | Const_int64 _
       | Const_nativeint _ | Const_block _ | Const_float_array _ | Const_vec128 _
       | Const_vec256 _ | Const_vec512 _ | Const_float32 _ ),
