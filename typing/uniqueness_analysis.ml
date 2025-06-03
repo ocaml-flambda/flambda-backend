@@ -2139,7 +2139,7 @@ let rec check_uniqueness_exp ~overwrite (ienv : Ienv.t) exp : UF.t =
     in
     UF.seq uf_vbs uf_body
   | Texp_letmutable (vb, body) ->
-    (* jra: not immediately clear this is correct *)
+    (* CR jrayman: not immediately clear this is correct *)
     let ext, uf_vbs = check_uniqueness_value_bindings ienv [vb] in
     let uf_body =
       check_uniqueness_exp ~overwrite:None (Ienv.extend ienv ext) body

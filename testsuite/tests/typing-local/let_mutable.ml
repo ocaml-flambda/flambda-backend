@@ -3,7 +3,7 @@
    include stdlib_upstream_compatible;
    expect; *)
 
-(* Test 1: basic usage in a for loop *)
+(* Test 1.1: basic usage in a for loop *)
 let foo1 y =
   let mutable x = y in
   for i = 1 to 10 do
@@ -17,6 +17,18 @@ let () = assert (Int.equal (foo1 42) 97)
 [%%expect{|
 val foo1 : int -> int = <fun>
 |}]
+
+(* Test 1.2: basic usage with a nested record *)
+type t_1_2 = { str_1_2 : string ref }
+let x_1_2 =
+  let mutable x = { str_1_2 = ref "Hi" } in
+  x <- { str_1_2 = ref "Bye" };
+  x
+[%%expect{|
+type t_1_2 = { str_1_2 : string ref; }
+val x_1_2 : t_1_2 = {str_1_2 = {contents = "Bye"}}
+|}]
+
 
 (* Test 2: Reject use of mutable in closure. *)
 let foo2 y =
@@ -119,6 +131,7 @@ Line 3, characters 13-29:
 Error: This value escapes its region.
 |}]
 
+(* exclave_ closes one region, not two *)
 let foo4_5 y =
   let mutable x = [] in
   for i = 1 to y do
@@ -189,14 +202,10 @@ let foo5_4 y = (* Assign of local works in _local_ while cond region *)
   done; x
 
 [%%expect{|
-Line 4, characters 16-17:
-4 |   x <- (local_ (y :: x));
-                    ^
-Error: This value is used here, but it has already been used as unique:
-Line 3, characters 16-17:
-3 |   x <- (local_ (y :: x));
-                    ^
-
+val foo5_1 : 'a -> 'a = <fun>
+val foo5_2 : int -> int = <fun>
+val foo5_3 : int -> int = <fun>
+val foo5_4 : int -> int = <fun>
 |}]
 
 (* Test 6: let mutable ... and ... is illegal *)
@@ -284,10 +293,9 @@ type t_12 = Foo_12 of int
 val y_12 : t_12 = Foo_12 42
 |}]
 
-(* Test 13: modes? *)
+(* Test 13.1: Can't put aliased in unique mutable variable *)
 let reset_ref (x @ unique) = x := 0;;
-
-let x_13 =
+let x_13_1 =
   let y = ref 3 in
   let mutable x @ unique = { contents = 1 } in
   x <- y;
@@ -296,10 +304,33 @@ let x_13 =
 ;;
 [%%expect{|
 val reset_ref : int ref @ unique -> unit = <fun>
-Line 6, characters 7-8:
-6 |   x <- y;
+Line 5, characters 7-8:
+5 |   x <- y;
            ^
 Error: This value is "aliased" but expected to be "unique".
+|}]
+
+(* Test 13.2: Unique mutable variable *)
+let x_13_2 =
+  let mutable x @ unique = { contents = 1 } in
+  reset_ref x;
+  !x
+;;
+[%%expect{|
+val x_13_2 : int = 0
+|}]
+
+(* Test 13.3: Can't put a global in a local record *)
+let x_13_3 = ref 0
+let y_13_3 =
+  let mutable x @ local = ref (ref 0) in
+  x := x_13_3;
+  x <- ref x_13_3;
+  !x
+[%%expect{|
+val x_13_3 : int ref = {contents = 0}
+
+Error: This value is "global" bet expected to be "local".
 |}]
 
 (* Test 14: mutable functions *)

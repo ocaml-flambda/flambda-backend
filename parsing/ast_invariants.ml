@@ -124,7 +124,7 @@ let iterator =
     | Pexp_let (Mutable, Recursive, _, _) -> mutable_rec_let loc
     | Pexp_let (Mutable, _, l, _) when List.length l > 1 ->
         multiple_mutable_let loc
-      (* jra: test previous two invariants *)
+      (* CR jrayman: test previous two invariants *)
     | Pexp_ident id
     | Pexp_construct (id, _)
     | Pexp_field (_, id)
