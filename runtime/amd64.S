@@ -765,11 +765,11 @@ G(caml_system__code_begin):
         RESTORE_ALL_REGS RESTORE_SIMD_REGS; \
         LEAVE_FUNCTION; \
         ret; \
-1:      SWITCH_OCAML_TO_C; \
-        /* Restore the gc_regs bucket popped by SAVE_ALL_REGS */ \
+1:      /* Restore the gc_regs bucket popped by SAVE_ALL_REGS */ \
         movq    Caml_state(gc_regs_buckets), %r11; \
         movq    %r11, 0(%r15); /* next ptr */ \
         movq    %r15, Caml_state(gc_regs_buckets); \
+        SWITCH_OCAML_TO_C; \
         LEA_VAR(caml_exn_Stack_overflow, %rdi); \
         C_call  (GCALL(caml_raise_async));
 
