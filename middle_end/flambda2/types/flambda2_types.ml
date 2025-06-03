@@ -18,27 +18,52 @@ module Typing_env = struct
   include Typing_env
 
   let add_equation t name ty =
-    add_equation t name ty ~meet_type:(Meet.meet_type ())
+    with_reduce ~meet_type:(Meet.meet_type ())
+      (fun t -> add_equation t name ty ~meet_type:(Meet.meet_type ()))
+      t
+
+  let add_relation t property ~scrutinee name =
+    with_reduce ~meet_type:(Meet.meet_type ())
+      (fun t -> add_relation t property ~scrutinee name)
+      t
 
   let add_is_null_relation t name ~scrutinee =
-    add_equation t name (Type_grammar.is_null ~scrutinee)
+    if Flambda_features.types_database ()
+    then add_relation t Database.Function.is_null ~scrutinee (Simple.name name)
+    else add_equation t name (Type_grammar.is_null ~scrutinee)
 
   let add_is_int_relation t name ~scrutinee =
-    add_equation t name (Type_grammar.is_int_for_scrutinee ~scrutinee)
+    if Flambda_features.types_database ()
+    then add_relation t Database.Function.is_int ~scrutinee (Simple.name name)
+    else add_equation t name (Type_grammar.is_int_for_scrutinee ~scrutinee)
 
   let add_get_tag_relation t name ~scrutinee =
-    add_equation t name (Type_grammar.get_tag_for_block ~block:scrutinee)
+    if Flambda_features.types_database ()
+    then add_relation t Database.Function.get_tag ~scrutinee (Simple.name name)
+    else add_equation t name (Type_grammar.get_tag_for_block ~block:scrutinee)
+
+  let add_conditional_get_tag_relation t name ~scrutinee =
+    add_conditional_get_tag_relation t ~arg:scrutinee ~result:name
+      ~meet_type:(Meet.meet_type ())
 
   let add_equations_on_params t ~params ~param_types =
-    add_equations_on_params t ~params ~param_types
-      ~meet_type:(Meet.meet_type ())
+    with_reduce ~meet_type:(Meet.meet_type ())
+      (fun t ->
+        add_equations_on_params t ~params ~param_types
+          ~meet_type:(Meet.meet_type ()))
+      t
 
   let add_env_extension t extension =
-    add_env_extension t extension ~meet_type:(Meet.meet_type ())
+    with_reduce ~meet_type:(Meet.meet_type ())
+      (fun t -> add_env_extension t extension ~meet_type:(Meet.meet_type ()))
+      t
 
   let add_env_extension_with_extra_variables t extension =
-    add_env_extension_with_extra_variables t extension
-      ~meet_type:(Meet.meet_type ())
+    with_reduce ~meet_type:(Meet.meet_type ())
+      (fun t ->
+        add_env_extension_with_extra_variables t extension
+          ~meet_type:(Meet.meet_type ()))
+      t
 
   module Alias_set = Aliases.Alias_set
 end
@@ -47,15 +72,33 @@ module Typing_env_extension = struct
   include Typing_env_extension
 
   let add_is_null_relation t name ~scrutinee =
-    add_or_replace_equation t name (Type_grammar.is_null ~scrutinee)
+    if Flambda_features.types_database ()
+    then t
+    else add_or_replace_equation t name (Type_grammar.is_null ~scrutinee)
 
   let add_is_int_relation t name ~scrutinee =
-    add_or_replace_equation t name
-      (Type_grammar.is_int_for_scrutinee ~scrutinee)
+    if Flambda_features.types_database ()
+    then
+      Simple.pattern_match scrutinee
+        ~const:(fun _ -> t)
+        ~name:(fun arg ~coercion:_ ->
+          add_or_replace_relation t Database.Function.is_int ~arg
+            ~result:(Simple.name name))
+    else
+      add_or_replace_equation t name
+        (Type_grammar.is_int_for_scrutinee ~scrutinee)
 
   let add_get_tag_relation t name ~scrutinee =
-    add_or_replace_equation t name
-      (Type_grammar.get_tag_for_block ~block:scrutinee)
+    if Flambda_features.types_database ()
+    then
+      Simple.pattern_match scrutinee
+        ~const:(fun _ -> t)
+        ~name:(fun arg ~coercion:_ ->
+          add_or_replace_relation t Database.Function.get_tag ~arg
+            ~result:(Simple.name name))
+    else
+      add_or_replace_equation t name
+        (Type_grammar.get_tag_for_block ~block:scrutinee)
 end
 
 type typing_env = Typing_env.t

@@ -73,6 +73,10 @@ let use_n_way_join () =
     false
   | N_way -> true
 
+let types_database () =
+  !Flambda_backend_flags.Flambda2.types_database
+  |> with_default ~f:(fun d -> d.types_database)
+
 let enable_reaper () =
   !Flambda_backend_flags.Flambda2.enable_reaper
   |> with_default ~f:(fun d -> d.enable_reaper)

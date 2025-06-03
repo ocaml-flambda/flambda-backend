@@ -152,7 +152,6 @@
     (.unix.objs/byte/unixLabels.cmi as unix/unixLabels.cmi)
     (.unix.objs/byte/unixLabels.cmt as unix/unixLabels.cmt)
     (.unix.objs/byte/unixLabels.cmti as unix/unixLabels.cmti)
-    (unix.cmxs as unix/unix.cmxs)
     (unix.mli as unix/unix.mli)
     (unixLabels.mli as unix/unixLabels.mli)
     (libunix_stubs.a as unix/libunix_stubs.a)

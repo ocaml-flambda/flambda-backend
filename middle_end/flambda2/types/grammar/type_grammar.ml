@@ -209,7 +209,10 @@ and array_contents =
   | Immutable of { fields : t array }
   | Mutable
 
-and env_extension = { equations : t Name.Map.t } [@@unboxed]
+and env_extension =
+  { equations : t Name.Map.t;
+    database : Database.Extension.t
+  }
 
 and variant_extensions =
   | No_extensions
@@ -466,14 +469,15 @@ and free_names_function_type ~follow_value_slots
       (free_names0 ~follow_value_slots rec_info)
       code_id Name_mode.normal
 
-and free_names_env_extension ~follow_value_slots { equations } =
+and free_names_env_extension ~follow_value_slots { equations; database } =
+  let free_names = Database.Extension.free_names database in
   Name.Map.fold
     (fun name t acc ->
       let acc =
         Name_occurrences.union acc (free_names0 ~follow_value_slots t)
       in
       Name_occurrences.add_name acc name Name_mode.in_types)
-    equations Name_occurrences.empty
+    equations free_names
 
 and free_names_variant_extensions ~follow_value_slots
     (extensions : variant_extensions) =
@@ -817,7 +821,8 @@ and apply_renaming_function_type ({ code_id; rec_info } as function_type)
   then function_type
   else { code_id = code_id'; rec_info = rec_info' }
 
-and apply_renaming_env_extension ({ equations } as env_extension) renaming =
+and apply_renaming_env_extension ({ equations; database } as env_extension)
+    renaming =
   let changed = ref false in
   let equations' =
     Name.Map.fold
@@ -828,7 +833,11 @@ and apply_renaming_env_extension ({ equations } as env_extension) renaming =
         Name.Map.add name' ty' acc)
       equations Name.Map.empty
   in
-  if !changed then { equations = equations' } else env_extension
+  let database' = Database.Extension.apply_renaming database renaming in
+  if database' != database then changed := true;
+  if !changed
+  then { equations = equations'; database = database' }
+  else env_extension
 
 and apply_renaming_variant_extensions extensions renaming =
   match extensions with
@@ -1096,7 +1105,7 @@ and print_function_type ppf { code_id; rec_info } =
      %a)@])@]"
     Code_id.print code_id print rec_info
 
-and print_env_extension ppf { equations } =
+and print_env_extension ppf { equations; database } =
   let print_equations ppf equations =
     let equations = Name.Map.bindings equations in
     match equations with
@@ -1109,8 +1118,16 @@ and print_env_extension ppf { equations } =
         ppf equations;
       Format.pp_print_string ppf ")"
   in
-  Format.fprintf ppf "@[<hov 1>(equations@ @[<v 1>%a@])@]" print_equations
-    equations
+  let print_database ppf database =
+    if Database.Extension.is_empty database
+    then ()
+    else (
+      Format.pp_print_space ppf ();
+      Format.fprintf ppf "@[<hov 1>(relations@ @[<v 1>%a@])@]"
+        Database.Extension.print database)
+  in
+  Format.fprintf ppf "@[<hov 1>(equations@ @[<v 1>%a@])%a@]" print_equations
+    equations print_database database
 
 and print_variant_extensions ppf (extensions : variant_extensions) =
   match extensions with
@@ -1301,7 +1318,8 @@ and ids_for_export_function_type { code_id; rec_info } =
     (Ids_for_export.singleton_code_id code_id)
     (ids_for_export rec_info)
 
-and ids_for_export_env_extension { equations } =
+and ids_for_export_env_extension { equations; database = _ } =
+  (* CR bclement: export database *)
   Name.Map.fold
     (fun name t ids ->
       Ids_for_export.add_name (Ids_for_export.union ids (ids_for_export t)) name)
@@ -1654,7 +1672,8 @@ and apply_coercion_function_type
       let rec_info = Rec_info (TD.create to_) in
       Ok (Or_unknown_or_bottom.Ok { code_id; rec_info }))
 
-and apply_coercion_env_extension { equations } coercion : _ Or_bottom.t =
+and apply_coercion_env_extension { equations; database } coercion :
+    _ Or_bottom.t =
   let<+ equations =
     Name.Map.fold
       (fun name t result ->
@@ -1663,7 +1682,9 @@ and apply_coercion_env_extension { equations } coercion : _ Or_bottom.t =
         Name.Map.add name t result)
       equations (Or_bottom.Ok Name.Map.empty)
   in
-  { equations }
+  (* CR bclement: Should we apply coercion recursively in the database
+     extension? *)
+  { equations; database }
 
 let apply_coercion t coercion =
   match apply_coercion t coercion with
@@ -2117,18 +2138,17 @@ and remove_unused_value_slots_and_shortcut_aliases_function_type
   then function_type
   else { code_id; rec_info = rec_info' }
 
-and remove_unused_value_slots_and_shortcut_aliases_env_extension { equations }
-    ~used_value_slots ~canonicalise =
+and remove_unused_value_slots_and_shortcut_aliases_env_extension
+    ({ equations; database } as env_extension) ~used_value_slots ~canonicalise =
   (* CR vlaviron: Two things can be improved here. First, we could try to
      preserve sharing. Currently we lose sharing as soon as the extension isn't
-     empty (the [env_extension] type is unboxed so the final record expression
-     doesn't lose sharing). With a bit of work we could recover sharing in the
-     general case, but it's unclear whether it's worth the trouble because this
-     function is only called just before emitting the cmx. The second
-     improvement would be to make this function return [Bottom] when an
-     inconsistency is discovered, and use this to remove incompatible cases in
-     the type that contains the extension. *)
-  let equations =
+     empty. With a bit of work we could recover sharing in the general case, but
+     it's unclear whether it's worth the trouble because this function is only
+     called just before emitting the cmx. The second improvement would be to
+     make this function return [Bottom] when an inconsistency is discovered, and
+     use this to remove incompatible cases in the type that contains the
+     extension. *)
+  let equations' =
     Name.Map.fold
       (fun name ty acc ->
         let ty' =
@@ -2146,7 +2166,11 @@ and remove_unused_value_slots_and_shortcut_aliases_env_extension { equations }
           ~const:(fun _c -> acc (* CR vlaviron: check bottom and propagate *)))
       equations Name.Map.empty
   in
-  { equations }
+  (* CR bclement: preserve database extension *)
+  let database' = Database.Extension.empty in
+  if equations' == equations && database' == database
+  then env_extension
+  else { equations = equations'; database = database' }
 
 and remove_unused_value_slots_and_shortcut_aliases_variant_extensions
     (extensions : variant_extensions) ~used_value_slots ~canonicalise =
@@ -2621,7 +2645,8 @@ and project_function_type ~to_project ~expand
   then function_type
   else { code_id; rec_info = rec_info' }
 
-and project_env_extension ~to_project ~expand ({ equations } as env_extension) =
+and project_env_extension ~to_project ~expand
+    ({ equations; database } as env_extension) =
   let changed = ref false in
   let equations' =
     Name.Map.fold
@@ -2641,7 +2666,13 @@ and project_env_extension ~to_project ~expand ({ equations } as env_extension) =
             else keep_equation ()))
       equations Name.Map.empty
   in
-  if !changed then { equations = equations' } else env_extension
+  let database' =
+    Database.Extension.project_variables_out ~to_project database
+  in
+  if not (database' == database) then changed := true;
+  if !changed
+  then { equations = equations'; database = database' }
+  else env_extension
 
 and project_variant_extensions ~to_project ~expand
     (extensions : variant_extensions) =
@@ -2689,6 +2720,25 @@ let mutable_block alloc_mode = non_null_value (Mutable_block { alloc_mode })
 
 let create_closures alloc_mode by_function_slot =
   non_null_value (Closures { by_function_slot; alloc_mode })
+
+module Env_extension = struct
+  type t = env_extension
+
+  let empty =
+    { equations = Name.Map.empty; database = Database.Extension.empty }
+
+  let create ~equations ~database = { equations; database }
+
+  let ids_for_export = ids_for_export_env_extension
+
+  let apply_renaming = apply_renaming_env_extension
+
+  let free_names = free_names_env_extension ~follow_value_slots:true
+
+  let print = print_env_extension
+
+  let to_map t = t.equations
+end
 
 module Function_type = struct
   type t = function_type
@@ -2820,7 +2870,7 @@ module Row_like_for_blocks = struct
           (Or_unknown.Known
              { maps_to;
                index = { domain = Known index; shape };
-               env_extension = { equations = Name.Map.empty }
+               env_extension = Env_extension.empty
              });
       other_tags = Bottom;
       alloc_mode
@@ -2832,7 +2882,7 @@ module Row_like_for_blocks = struct
           (Or_unknown.Known
              { maps_to;
                index = { domain = At_least index; shape };
-               env_extension = { equations = Name.Map.empty }
+               env_extension = Env_extension.empty
              });
       other_tags = Bottom;
       alloc_mode
@@ -2844,7 +2894,7 @@ module Row_like_for_blocks = struct
         Ok
           { maps_to;
             index = { domain = At_least index; shape };
-            env_extension = { equations = Name.Map.empty }
+            env_extension = Env_extension.empty
           };
       alloc_mode
     }
@@ -2920,7 +2970,7 @@ module Row_like_for_blocks = struct
         ~f:(fun shape ->
           { maps_to;
             index = { domain = At_least Targetint_31_63.zero; shape };
-            env_extension = { equations = Name.Map.empty }
+            env_extension = Env_extension.empty
           })
         shape
     in
@@ -2936,7 +2986,7 @@ module Row_like_for_blocks = struct
           Or_unknown.Known
             { maps_to;
               index = { domain = Known size; shape };
-              env_extension = { equations = Name.Map.empty }
+              env_extension = Env_extension.empty
             })
         shape_and_field_tys_by_tag
     in
@@ -3018,7 +3068,7 @@ module Row_like_for_closures = struct
       Function_slot.Map.singleton function_slot
         { index = { domain = Known contents; shape = () };
           maps_to = closures_entry;
-          env_extension = { equations = Name.Map.empty }
+          env_extension = Env_extension.empty
         }
     in
     { known_closures; other_closures = Bottom }
@@ -3030,7 +3080,7 @@ module Row_like_for_closures = struct
       Function_slot.Map.singleton function_slot
         { index = { domain = At_least contents; shape = () };
           maps_to = closures_entry;
-          env_extension = { equations = Name.Map.empty }
+          env_extension = Env_extension.empty
         }
     in
     { known_closures; other_closures = Bottom }
@@ -3089,24 +3139,6 @@ module Row_like_for_closures = struct
       with
       | None -> Unknown
       | Some env_var_ty -> Known env_var_ty)
-end
-
-module Env_extension = struct
-  type t = env_extension
-
-  let empty = { equations = Name.Map.empty }
-
-  let create ~equations = { equations }
-
-  let ids_for_export = ids_for_export_env_extension
-
-  let apply_renaming = apply_renaming_env_extension
-
-  let free_names = free_names_env_extension ~follow_value_slots:true
-
-  let print = print_env_extension
-
-  let to_map t = t.equations
 end
 
 let is_obviously_bottom t =

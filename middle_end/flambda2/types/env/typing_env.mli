@@ -113,6 +113,19 @@ val add_definition : t -> Bound_name.t -> Flambda_kind.t -> t
 
 val add_equation : t -> Name.t -> Type_grammar.t -> meet_type:meet_type -> t
 
+val add_relation :
+  t -> Database.Function.t -> scrutinee:Simple.t -> Simple.t -> t
+
+val add_conditional_get_tag_relation :
+  t -> arg:Name.t -> result:Name.t -> meet_type:meet_type -> t
+
+val check_relation :
+  t -> Database.Function.t -> scrutinee:Simple.t -> Simple.t -> bool
+
+val reducer : t -> meet_type:meet_type -> t -> t
+
+val with_reduce : (t -> t) -> t -> meet_type:meet_type -> t
+
 val add_equation_strict :
   t -> Name.t -> Type_grammar.t -> meet_type:meet_type -> t Or_bottom.t
 
@@ -201,6 +214,9 @@ val code_age_relation : t -> Code_age_relation.t
 val with_code_age_relation : t -> Code_age_relation.t -> t
 
 val cut : t -> cut_after:Scope.t -> Typing_env_level.t
+
+val cut_with_database :
+  t -> cut_after:Scope.t -> Typing_env_level.t * Database.level
 
 val cut_as_extension : t -> cut_after:Scope.t -> Typing_env_extension.t
 

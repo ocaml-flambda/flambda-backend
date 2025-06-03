@@ -207,4 +207,4 @@ let as_extension_without_bindings
       Misc.fatal_errorf
         "Typing_env_level.as_extension_without_bindings:@ level %a has bindings"
         print t;
-  TG.Env_extension.create ~equations
+  TG.Env_extension.create ~equations ~database:Database.Extension.empty

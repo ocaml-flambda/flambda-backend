@@ -116,7 +116,9 @@ type t =
     next_binding_time : Binding_time.t;
     min_binding_time : Binding_time.t;
         (* Earlier variables have mode In_types *)
-    is_bottom : bool
+    is_bottom : bool;
+    extensions :
+      (Continuation.t * Apply_cont_rewrite_id.Set.t) Database.Extension_id.Map.t
   }
 
 and serializable =
@@ -136,15 +138,20 @@ let make_bottom t = { t with is_bottom = true }
 
 let is_bottom t = t.is_bottom
 
-let aliases t =
-  Cached_level.aliases (One_level.just_after_level t.current_level)
+let cached t = One_level.just_after_level t.current_level
+
+let aliases t = Cached_level.aliases (cached t)
+
+let database t = Cached_level.database (cached t)
+
+let extensions t = Cached_level.extensions (cached t)
 
 (* CR-someday mshinwell: Should print name occurrence kinds *)
 let [@ocamlformat "disable"] print ppf
-      ({ resolver = _; binding_time_resolver = _;get_imported_names = _;
+      ({ resolver = _; binding_time_resolver = _; get_imported_names = _;
          prev_levels; current_level; next_binding_time = _;
          defined_symbols; code_age_relation; min_binding_time;
-         is_bottom;
+         is_bottom; extensions = _;
        } as t) =
   if is_empty t then
     Format.pp_print_string ppf "Empty"
@@ -163,7 +170,9 @@ let [@ocamlformat "disable"] print ppf
          @[<hov 1>(defined_symbols@ %a)@]@ \
          @[<hov 1>(code_age_relation@ %a)@]@ \
          @[<hov 1>(levels@ %a)@]@ \
-         @[<hov 1>(aliases@ %a)@]\
+         @[<hov 1>(aliases@ %a)@]@ \
+         @[<hov 1>(extensions@ %a)@]@ \
+         @[<hov 1>(database@ %a)@]@ \
        )@]"
       Symbol.Set.print defined_symbols
       Code_age_relation.print code_age_relation
@@ -171,6 +180,8 @@ let [@ocamlformat "disable"] print ppf
          (One_level.print ~min_binding_time))
       levels
       Aliases.print (aliases t)
+      (Database.Extension_id.Map.print Typing_env_extension.print) (extensions t)
+      (Database.print) (database t)
 
 let [@ocamlformat "disable"] print_serializable ppf
     { defined_symbols_without_equations; code_age_relation; just_after_level } =
@@ -368,6 +379,7 @@ let create ~resolver ~get_imported_names =
     defined_symbols = Symbol.Set.empty;
     code_age_relation = Code_age_relation.empty;
     min_binding_time = Binding_time.earliest_var;
+    extensions = Database.Extension_id.Map.empty;
     is_bottom = false
   }
 
@@ -607,7 +619,26 @@ let with_aliases t ~aliases =
   let current_level = One_level.with_aliases t.current_level ~aliases in
   with_current_level t ~current_level
 
-let cached t = One_level.just_after_level t.current_level
+let with_database_and_aliases t ~database ~aliases =
+  let just_after_level =
+    Cached_level.with_database_and_aliases (cached t) ~database ~aliases
+  in
+  let level = One_level.level t.current_level in
+  let current_level =
+    One_level.create (current_scope t) level ~just_after_level
+  in
+  with_current_level t ~current_level
+
+let with_extension t extension =
+  let extension_id = Database.Extension_id.create () in
+  let just_after_level =
+    Cached_level.add_or_replace_extension (cached t) extension_id extension
+  in
+  let level = One_level.level t.current_level in
+  let current_level =
+    One_level.create (current_scope t) level ~just_after_level
+  in
+  extension_id, with_current_level t ~current_level
 
 let add_variable_definition t var kind name_mode =
   (* We can add equations in our own compilation unit on variables and symbols
@@ -860,7 +891,7 @@ let record_demotion ~raise_on_bottom t kind demoted canonical ~meet_type =
      We now need to record that information in the types structure, and add the
      previous type of [demoted] to [canonical] to ensure we do not lose
      information that was only stored on the type of [demoted]. *)
-  let ty_of_demoted = find t demoted (Some kind) in
+  let ty_of_demoted = find t demoted kind in
   (if Flambda_features.check_light_invariants ()
   then
     match TG.get_alias_opt ty_of_demoted with
@@ -869,9 +900,58 @@ let record_demotion ~raise_on_bottom t kind demoted canonical ~meet_type =
       Misc.fatal_errorf
         "Expected %a to have a concrete type, not an alias type to %a"
         Name.print demoted Simple.print alias);
+  let kind = TG.kind ty_of_demoted in
   let t = replace_equation t demoted (TG.alias_type_of kind canonical) in
   add_concrete_equation_on_canonical ~raise_on_bottom t canonical ty_of_demoted
     ~meet_type
+
+let get_canonical_simple_ignoring_name_mode t simple =
+  Simple.pattern_match simple
+    ~const:(fun _ -> simple)
+    ~name:(fun name ~coercion ->
+      let canonical_of_name =
+        Aliases.get_canonical_ignoring_name_mode (aliases t) name
+      in
+      Simple.apply_coercion_exn canonical_of_name coercion)
+
+let rebuild_types ~raise_on_bottom t demotions ~meet_type =
+  Name.Map.fold
+    (fun demoted _ t ->
+      let canonical =
+        get_canonical_simple_ignoring_name_mode t (Simple.name demoted)
+      in
+      record_demotion ~raise_on_bottom t None demoted canonical ~meet_type)
+    demotions t
+
+let rebuild_once ~raise_on_bottom t demotions ~meet_type =
+  let aliases_before_rebuild = aliases t in
+  let database_before_rebuild = database t in
+  match
+    Database.rebuild ~binding_time_resolver:t.binding_time_resolver
+      ~binding_times_and_modes:(names_to_types t) aliases_before_rebuild
+      database_before_rebuild demotions
+  with
+  | Bottom -> if raise_on_bottom then raise Bottom_equation else t
+  | Ok (database_after_rebuild, aliases_after_rebuild) ->
+    let t =
+      with_database_and_aliases t ~database:database_after_rebuild
+        ~aliases:aliases_after_rebuild
+    in
+    let demotions_from_rebuild =
+      Aliases.diff ~later:aliases_after_rebuild ~earlier:aliases_before_rebuild
+    in
+    if Name.Map.is_empty demotions_from_rebuild
+    then t
+    else rebuild_types ~raise_on_bottom t demotions_from_rebuild ~meet_type
+
+let rec rebuild ~raise_on_bottom t ~cut_after ~meet_type =
+  let aliases = aliases t in
+  let demotions = Aliases.diff ~later:aliases ~earlier:cut_after in
+  if Name.Map.is_empty demotions
+  then t
+  else
+    let t = rebuild_once ~raise_on_bottom t demotions ~meet_type in
+    rebuild ~raise_on_bottom t ~cut_after:aliases ~meet_type
 
 let add_alias_between_canonicals ~raise_on_bottom t kind canonical_element1
     canonical_element2 ~meet_type =
@@ -895,17 +975,8 @@ let add_alias_between_canonicals ~raise_on_bottom t kind canonical_element1
       t
     | Ok { demoted_name; canonical_element; t = aliases } ->
       let t = with_aliases t ~aliases in
-      record_demotion ~raise_on_bottom t kind demoted_name canonical_element
-        ~meet_type
-
-let get_canonical_simple_ignoring_name_mode t simple =
-  Simple.pattern_match simple
-    ~const:(fun _ -> simple)
-    ~name:(fun name ~coercion ->
-      let canonical_of_name =
-        Aliases.get_canonical_ignoring_name_mode (aliases t) name
-      in
-      Simple.apply_coercion_exn canonical_of_name coercion)
+      record_demotion ~raise_on_bottom t (Some kind) demoted_name
+        canonical_element ~meet_type
 
 let add_equation_on_canonical ~raise_on_bottom t simple ty ~meet_type =
   (* We are adding a type [ty] to [simple], which must be canonical. There are
@@ -931,11 +1002,38 @@ let add_equation_on_simple ~raise_on_bottom t simple ty ~meet_type =
 let add_equation ~raise_on_bottom t name ty ~meet_type =
   add_equation_on_simple ~raise_on_bottom t (Simple.name name) ty ~meet_type
 
+let add_relation ~raise_on_bottom t property ~scrutinee value =
+  let scrutinee = get_canonical_simple_ignoring_name_mode t scrutinee in
+  let value = get_canonical_simple_ignoring_name_mode t value in
+  match
+    Database.add_property ~binding_time_resolver:t.binding_time_resolver
+      ~binding_times_and_modes:(names_to_types t) (aliases t) (database t)
+      property ~arg:scrutinee ~result:value
+  with
+  | Or_bottom.Bottom ->
+    if raise_on_bottom then raise Bottom_equation else make_bottom t
+  | Or_bottom.Ok (database, aliases) ->
+    with_database_and_aliases t ~database ~aliases
+
+let check_relation t property ~scrutinee value =
+  let scrutinee = get_canonical_simple_ignoring_name_mode t scrutinee in
+  let value = get_canonical_simple_ignoring_name_mode t value in
+  match
+    Database.add_property ~binding_time_resolver:t.binding_time_resolver
+      ~binding_times_and_modes:(names_to_types t) (aliases t) (database t)
+      property ~arg:scrutinee ~result:value
+  with
+  | Or_bottom.Bottom -> false
+  | Or_bottom.Ok (database0, aliases0) ->
+    database0 == database t && aliases0 == aliases t
+
 let add_env_extension ~raise_on_bottom t
     (env_extension : Typing_env_extension.t) ~meet_type =
   Typing_env_extension.fold
     ~equation:(fun name ty t ->
       add_equation ~raise_on_bottom t name ty ~meet_type)
+    ~relation:(fun fn ~arg ~result t ->
+      add_relation ~raise_on_bottom t fn ~scrutinee:(Simple.name arg) result)
     env_extension t
 
 let add_env_extension_with_extra_variables t
@@ -947,6 +1045,106 @@ let add_env_extension_with_extra_variables t
       try add_equation ~raise_on_bottom:true t name ty ~meet_type
       with Bottom_equation -> make_bottom t)
     env_extension t
+
+let reduce_once ~raise_on_bottom ~meet_type database_level t =
+  let t =
+    Database.Extension_id.Set.fold
+      (fun extension_id t ->
+        (* There is no need to keep track of the definition of the
+           [extension_id] once it has been activated, but there should also be
+           no harm in doing so as a active extension will not be re-activated by
+           the database. *)
+        match Cached_level.find_extension (cached t) extension_id with
+        | None -> t
+        | Some extension ->
+          add_env_extension ~raise_on_bottom t extension ~meet_type)
+      (Database.Level.activated_extensions database_level)
+      t
+  in
+  Database.Level.fold_constant_properties
+    (fun property name value t ->
+      let module I = Targetint_31_63 in
+      match
+        ( Database.Function.descr property,
+          Reg_width_const.is_naked_immediate value )
+      with
+      | Is_int, Some is_int ->
+        if I.equal I.zero is_int
+        then add_equation ~raise_on_bottom ~meet_type t name MTC.any_block
+        else if I.equal I.one is_int
+        then
+          add_equation ~raise_on_bottom ~meet_type t name
+            MTC.any_tagged_immediate
+        else make_bottom t
+      | Get_tag, Some get_tag -> (
+        match Tag.create_from_targetint get_tag with
+        | None -> (* We could probably return bottom here. *) t
+        | Some tag -> (
+          let tags = Tag.Set.singleton tag in
+          match
+            MTC.blocks_with_these_tags tags (Alloc_mode.For_types.unknown ())
+          with
+          | Known ty -> add_equation ~raise_on_bottom ~meet_type t name ty
+          | Unknown -> (* Should not happen, but is it worth an assertion? *) t)
+        )
+      | Is_null, Some is_null ->
+        if I.equal I.zero is_null
+        then
+          add_equation ~raise_on_bottom ~meet_type t name TG.any_non_null_value
+        else if I.equal I.one is_null
+        then add_equation ~raise_on_bottom ~meet_type t name TG.null
+        else make_bottom t
+      | (Is_int | Get_tag | Is_null), None -> assert false
+      | (Untag_imm | Tag_imm), _ -> t)
+    database_level t
+
+let rec reduce ~raise_on_bottom t ~cut_after_aliases ~cut_after_database
+    ~meet_type =
+  let current_aliases = aliases t in
+  let demotions =
+    Aliases.diff ~later:current_aliases ~earlier:cut_after_aliases
+  in
+  let t =
+    if Name.Map.is_empty demotions
+    then t
+    else
+      let t = rebuild_once ~raise_on_bottom t demotions ~meet_type in
+      rebuild ~raise_on_bottom t ~cut_after:current_aliases ~meet_type
+  in
+  let aliases_after_rebuild = aliases t in
+  let database_after_rebuild = database t in
+  let level =
+    Database.cut database_after_rebuild ~cut_after:cut_after_database
+  in
+  let before_reduction = t in
+  let t = reduce_once ~raise_on_bottom ~meet_type level t in
+  if t == before_reduction
+  then t
+  else
+    reduce ~raise_on_bottom t ~cut_after_aliases:aliases_after_rebuild
+      ~cut_after_database:database_after_rebuild ~meet_type
+
+let reducer ~raise_on_bottom t_before ~meet_type =
+  let aliases_before = aliases t_before in
+  let database_before = database t_before in
+  fun t ->
+    reduce ~raise_on_bottom t ~cut_after_aliases:aliases_before
+      ~cut_after_database:database_before ~meet_type
+
+let reducer t_before ~meet_type =
+  let reduce = reducer ~raise_on_bottom:true t_before ~meet_type in
+  fun t -> try reduce t with Bottom_equation -> make_bottom t
+
+let with_reduce ~raise_on_bottom f t ~meet_type =
+  let aliases_before = aliases t in
+  let database_before = database t in
+  let t = f t in
+  reduce ~raise_on_bottom t ~cut_after_aliases:aliases_before
+    ~cut_after_database:database_before ~meet_type
+
+let with_reduce f t ~meet_type =
+  try with_reduce ~raise_on_bottom:true f t ~meet_type
+  with Bottom_equation -> make_bottom t
 
 let add_env_extension_from_level t level ~meet_type : t =
   let t =
@@ -986,6 +1184,63 @@ let add_env_extension_maybe_bottom t env_extension ~meet_type =
 let add_equation t name ty ~meet_type =
   try add_equation ~raise_on_bottom:true t name ty ~meet_type
   with Bottom_equation -> make_bottom t
+
+let add_relation t relation ~scrutinee simple =
+  try add_relation ~raise_on_bottom:true t relation ~scrutinee simple
+  with Bottom_equation -> make_bottom t
+
+let add_variant_extension t arg ~when_block ~when_immediate ~meet_type:_ =
+  let when_block, t =
+    if Typing_env_extension.is_empty when_block
+    then Database.Extension_id.Set.empty, t
+    else
+      let when_block_id, t = with_extension t when_block in
+      Database.Extension_id.Set.singleton when_block_id, t
+  in
+  let when_immediate, t =
+    if Typing_env_extension.is_empty when_immediate
+    then Database.Extension_id.Set.empty, t
+    else
+      let when_block_id, t = with_extension t when_immediate in
+      Database.Extension_id.Set.singleton when_block_id, t
+  in
+  let database = database t and aliases = aliases t in
+  match
+    Database.add_switch_on_property Database.Function.is_int arg
+      ~arms:
+        (Reg_width_const.Map.of_list
+           [ Reg_width_const.untagged_const_false, when_block;
+             Reg_width_const.untagged_const_true, when_immediate ])
+      database ~aliases
+  with
+  | Bottom -> make_bottom t
+  | Ok database -> with_database_and_aliases t ~database ~aliases
+
+let add_conditional_get_tag_relation t ~arg ~result ~meet_type =
+  (* It is semantically unsound to add a [Get_tag] relation when we do not know
+     for sure that the argument is a block, because [Get_tag] is not defined for
+     immediates.
+
+     When using the types database, we record the [Get_tag] relation in an
+     extension that only gets activated when we know that the argument is
+     actually a block, which is safe semantically.
+
+     When not using the types database, we cannot do this, because it would
+     require an extension on the scrutinee that potentially adds an equation on
+     the scrutinee, triggering a potential infinite loop when computing the env
+     extension [meet]. In practice, it is probably fine to add the [Get_tag]
+     relation unconditionally in this case, since we will only reduce the
+     [Get_tag] relation if the result is used. *)
+  if Flambda_features.types_database ()
+  then
+    add_variant_extension t (Simple.name arg) ~meet_type
+      ~when_immediate:Typing_env_extension.empty
+      ~when_block:
+        (Typing_env_extension.add_or_replace_relation Typing_env_extension.empty
+           Database.Function.get_tag ~arg ~result:(Simple.name result))
+  else
+    add_equation t result ~meet_type
+      (TG.get_tag_for_block ~block:(Simple.name arg))
 
 let add_env_extension t env_extension ~meet_type =
   try add_env_extension ~raise_on_bottom:true t env_extension ~meet_type
@@ -1038,13 +1293,19 @@ let with_code_age_relation t code_age_relation = { t with code_age_relation }
 let bump_current_level_scope t =
   { t with current_level = One_level.bump_scope t.current_level }
 
-let cut t ~cut_after =
+let cut ~with_database t ~cut_after =
   let current_scope = current_scope t in
   if Scope.( >= ) cut_after current_scope
-  then TEL.empty
+  then TEL.empty, Database.Level.empty
   else
     let rec loop result = function
-      | [] -> result
+      | [] ->
+        let database_level =
+          if with_database
+          then Database.cut (database t) ~cut_after:Database.empty
+          else Database.Level.empty
+        in
+        result, database_level
       | one_level :: levels ->
         if Scope.( > ) (One_level.scope one_level) cut_after
         then
@@ -1052,14 +1313,30 @@ let cut t ~cut_after =
             TEL.concat ~earlier:(One_level.level one_level) ~later:result
           in
           loop result levels
-        else result
+        else
+          let just_after_level = One_level.just_after_level one_level in
+          let cut_after_database = Cached_level.database just_after_level in
+          let database_level =
+            if with_database
+            then Database.cut (database t) ~cut_after:cut_after_database
+            else Database.Level.empty
+          in
+          result, database_level
     in
     (* Owing to the check above it is certain that we want [t.current_level]
        included in the result. *)
     loop (One_level.level t.current_level) t.prev_levels
 
+let cut_with_database t ~cut_after = cut ~with_database:true t ~cut_after
+
+let cut t ~cut_after =
+  let level, db_level = cut ~with_database:false t ~cut_after in
+  assert (Database.Level.is_empty db_level);
+  level
+
 let cut_as_extension t ~cut_after =
-  Typing_env_level.as_extension_without_bindings (cut t ~cut_after)
+  let level = cut t ~cut_after in
+  Typing_env_level.as_extension_without_bindings level
 
 let type_simple_in_term_exn t ?min_name_mode simple =
   (* If [simple] is a variable then it should not come from a missing .cmx file,

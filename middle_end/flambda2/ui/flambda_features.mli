@@ -45,6 +45,8 @@ type join_algorithm = Flambda_backend_flags.join_algorithm =
 
 val join_algorithm : unit -> join_algorithm
 
+val types_database : unit -> bool
+
 val enable_reaper : unit -> bool
 
 val kind_checks : unit -> bool

@@ -72,13 +72,10 @@ module Shared_set (T : S) : sig
 
   (** [diff ss1 ss2] computes the difference of the shared sets [ss1] and [ss2].
 
-      {b Sharing}: Sharing is guaranteed with sub-trees of [ss1] that are
-      disjoint from [ss2].
-
       {b Complexity}: The complexity of [diff (union ss1 ss2) ss1] is linear
       in the size of [ss2]. The complexity of [diff (add k ss) ss] is the
       same as that of [mem k (add k ss)]. *)
-  val diff : t -> t -> t
+  val diff : t -> t -> T.Set.t
 
   (** [diff_set ss s] returns a shared set that is identical to [ss], with the
       keys from [s] removed.
@@ -146,14 +143,10 @@ module Shared_map (T : S) : sig
       [diff] assumes that [f] always returns [None] when called with physically
       equal arguments, and will never call [f] with physically equal arguments.
 
-      {b Sharing}: Sharing is guaranteed for sub-trees of [sm1] for which all
-      call to [f] return the first value unchanged. In particular, sharing is
-      guaranteed for all sub-trees of [sm1] that are disjoint from [sm2].
-
       {b Complexity}: The complexity of [diff f (union g sm1 sm2) sm1] is linear
       in the size of [sm2]. The complexity of [diff f (add sm k v) sm] is the
       same as that of [find k (add sm k v)]. *)
-  val diff : (key -> 'a -> 'a -> 'a option) -> 'a t -> 'a t -> 'a t
+  val diff : (key -> 'a -> 'a -> 'a option) -> 'a t -> 'a t -> 'a T.Map.t
 
   (** [diff_map f sm m] returns a shared map that is identical to [sm], except
       that bindings in [sm] with a key [k] that also appear in [m] are updated
@@ -171,6 +164,8 @@ module Shared_map (T : S) : sig
   val fold : (key -> 'a -> 'b -> 'b) -> 'a t -> 'b -> 'b
 
   val iter : (key -> 'a -> unit) -> 'a t -> unit
+
+  val map : ('a -> 'a) -> 'a t -> 'a t
 
   (** {2 Unsharing functions}
 

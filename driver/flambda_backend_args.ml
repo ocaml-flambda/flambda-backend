@@ -297,6 +297,18 @@ let mk_flambda2_join_algorithm f =
       debugging)."
 ;;
 
+let mk_flambda2_types_database f =
+  "-flambda2-types-database", Arg.Unit f,
+  Printf.sprintf " Enable the types database%s (Flambda 2 only)"
+    (format_default Flambda2.Default.types_database)
+;;
+
+let mk_no_flambda2_types_database f =
+  "-no-flambda2-types-database", Arg.Unit f,
+  Printf.sprintf " Disable the types database%s (Flambda 2 only)"
+    (format_not_default Flambda2.Default.types_database)
+;;
+
 let mk_flambda2_join_points f =
   "-flambda2-join-points", Arg.Unit f,
   Printf.sprintf " Propagate information from all incoming edges to a join\n\
@@ -814,6 +826,8 @@ module type Flambda_backend_options = sig
   val flambda2_basic_meet : unit -> unit
   val flambda2_advanced_meet : unit -> unit
   val flambda2_join_algorithm : string -> unit
+  val flambda2_types_database : unit -> unit
+  val no_flambda2_types_database : unit -> unit
   val flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val no_flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val flambda2_backend_cse_at_toplevel : unit -> unit
@@ -957,6 +971,8 @@ struct
     mk_flambda2_basic_meet F.flambda2_basic_meet;
     mk_flambda2_advanced_meet F.flambda2_advanced_meet;
     mk_flambda2_join_algorithm F.flambda2_join_algorithm;
+    mk_flambda2_types_database F.flambda2_types_database;
+    mk_no_flambda2_types_database F.no_flambda2_types_database;
     mk_flambda2_unbox_along_intra_function_control_flow
       F.flambda2_unbox_along_intra_function_control_flow;
     mk_no_flambda2_unbox_along_intra_function_control_flow
@@ -1193,6 +1209,8 @@ module Flambda_backend_options_impl = struct
   let flambda2_join_depth n = Flambda2.join_depth := Flambda_backend_flags.Set n
   let flambda2_reaper = set Flambda2.enable_reaper
   let no_flambda2_reaper = clear Flambda2.enable_reaper
+  let flambda2_types_database = set Flambda2.types_database
+  let no_flambda2_types_database = clear Flambda2.types_database
   let flambda2_expert_fallback_inlining_heuristic =
     set Flambda2.Expert.fallback_inlining_heuristic
   let no_flambda2_expert_fallback_inlining_heuristic =
@@ -1526,6 +1544,8 @@ module Extra_params = struct
       | _ ->
         Misc.fatal_error "Syntax: flambda2-join-algorithm=binary|n-way|checked");
       true
+    | "flambda2-types-database" ->
+      set Flambda2.types_database
     | "flambda2-unbox-along-intra-function-control-flow" ->
        set Flambda2.unbox_along_intra_function_control_flow
     | "flambda2-backend-cse-at-toplevel" ->

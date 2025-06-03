@@ -85,19 +85,26 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
     let tag_v = VB.create tag.param Name_mode.normal in
     let denv = DE.define_extra_variable denv tag_v K.naked_immediate in
     let denv =
-      DE.map_typing_env denv ~f:(fun tenv ->
-          TE.add_get_tag_relation tenv (Name.var tag.param)
-            ~scrutinee:(Simple.var param_var))
+      let get_tag_prim =
+        P.Eligible_for_cse.create_get_tag ~block:(Name.var param_var)
+      in
+      DE.add_cse denv get_tag_prim ~bound_to:(Simple.var tag.param)
     in
-    let get_tag_prim =
-      P.Eligible_for_cse.create_get_tag ~block:(Name.var param_var)
-    in
-    let denv = DE.add_cse denv get_tag_prim ~bound_to:(Simple.var tag.param) in
     (* Same thing for is_int *)
     let denv =
       match const_ctors with
-      | Zero -> denv
+      | Zero ->
+        DE.map_typing_env denv ~f:(fun tenv ->
+            TE.add_get_tag_relation tenv (Name.var tag.param)
+              ~scrutinee:(Simple.var param_var))
       | At_least_one { is_int; _ } ->
+        let denv =
+          (* Need to use [add_conditional_get_tag_relation] if the scrutinee is
+             not guaranteed to be a block. *)
+          DE.map_typing_env denv ~f:(fun tenv ->
+              TE.add_conditional_get_tag_relation tenv (Name.var tag.param)
+                ~scrutinee:(Name.var param_var))
+        in
         let is_int_v = VB.create is_int.param Name_mode.normal in
         let denv = DE.define_extra_variable denv is_int_v K.naked_immediate in
         let denv =
@@ -105,11 +112,11 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
               TE.add_is_int_relation tenv (Name.var is_int.param)
                 ~scrutinee:(Simple.var param_var))
         in
-        let is_int_prim =
-          P.Eligible_for_cse.create_is_int ~variant_only:true
-            ~immediate_or_block:(Name.var param_var)
-        in
         let denv =
+          let is_int_prim =
+            P.Eligible_for_cse.create_is_int ~variant_only:true
+              ~immediate_or_block:(Name.var param_var)
+          in
           DE.add_cse denv is_int_prim ~bound_to:(Simple.var is_int.param)
         in
         denv

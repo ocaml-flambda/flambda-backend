@@ -35,7 +35,20 @@ val add_or_replace_binding :
 
 val replace_variable_binding : t -> Variable.t -> Type_grammar.t -> t
 
+val database : t -> Database.t
+
+val extensions : t -> Typing_env_extension.t Database.Extension_id.Map.t
+
+val find_extension :
+  t -> Database.Extension_id.t -> Typing_env_extension.t option
+
+val add_or_replace_extension :
+  t -> Database.Extension_id.t -> Typing_env_extension.t -> t
+
 val with_aliases : t -> aliases:Aliases.t -> t
+
+val with_database_and_aliases :
+  t -> database:Database.t -> aliases:Aliases.t -> t
 
 val add_symbol_projection : t -> Variable.t -> Symbol_projection.t -> t
 

@@ -387,6 +387,8 @@ module Shared_map (T : S) = struct
 
   let iter = T.Map.iter
 
+  let map = T.Map.map_sharing
+
   let map_unshare = T.Map.map
 
   let map_keys_unshare = T.Map.map_keys

@@ -18,7 +18,9 @@ type t =
   { names_to_types :
       (Type_grammar.t * Binding_time.With_name_mode.t) Name.Map.t;
     aliases : Aliases.t;
-    symbol_projections : Symbol_projection.t Variable.Map.t
+    symbol_projections : Symbol_projection.t Variable.Map.t;
+    database : Database.t;
+    extensions : Typing_env_extension.t Database.Extension_id.Map.t
   }
 
 let print_kind_and_mode ~min_binding_time ppf (ty, binding_time_and_mode) =
@@ -40,7 +42,9 @@ let print_name_modes ~restrict_to ~min_binding_time ppf t =
 let empty =
   { names_to_types = Name.Map.empty;
     aliases = Aliases.empty;
-    symbol_projections = Variable.Map.empty
+    symbol_projections = Variable.Map.empty;
+    database = Database.empty;
+    extensions = Database.Extension_id.Map.empty
   }
 
 let names_to_types t = t.names_to_types
@@ -58,7 +62,9 @@ let add_or_replace_binding t (name : Name.t) ty binding_time name_mode =
   in
   { names_to_types;
     aliases = t.aliases;
-    symbol_projections = t.symbol_projections
+    symbol_projections = t.symbol_projections;
+    database = t.database;
+    extensions = t.extensions
   }
 
 let replace_variable_binding t var ty =
@@ -69,8 +75,26 @@ let replace_variable_binding t var ty =
   in
   { names_to_types;
     aliases = t.aliases;
-    symbol_projections = t.symbol_projections
+    symbol_projections = t.symbol_projections;
+    database = t.database;
+    extensions = t.extensions
   }
+
+let database t = t.database
+
+let extensions t = t.extensions
+
+let find_extension t extension_id =
+  Database.Extension_id.Map.find_opt extension_id t.extensions
+
+let add_or_replace_extension t extension_id extension =
+  let extensions =
+    Database.Extension_id.Map.add extension_id extension t.extensions
+  in
+  { t with extensions }
+
+let with_database_and_aliases t ~database ~aliases =
+  { t with database; aliases }
 
 let with_aliases t ~aliases = { t with aliases }
 
@@ -109,9 +133,12 @@ let clean_for_export t ~reachable_names =
       t.names_to_types
   in
   let aliases = Aliases.empty in
-  { t with names_to_types; aliases }
+  let database = Database.empty in
+  { t with names_to_types; aliases; database }
 
-let apply_renaming { names_to_types; aliases; symbol_projections } renaming =
+let apply_renaming
+    { names_to_types; aliases; symbol_projections; database; extensions }
+    renaming =
   let names_to_types =
     Name.Map.fold
       (fun name (ty, binding_time_and_mode) acc ->
@@ -131,7 +158,13 @@ let apply_renaming { names_to_types; aliases; symbol_projections } renaming =
           acc)
       symbol_projections Variable.Map.empty
   in
-  { names_to_types; aliases; symbol_projections }
+  let database = Database.apply_renaming database renaming in
+  let extensions =
+    Database.Extension_id.Map.map
+      (fun ext -> Typing_env_extension.apply_renaming ext renaming)
+      extensions
+  in
+  { names_to_types; aliases; symbol_projections; database; extensions }
 
 let merge t1 t2 =
   let names_to_types =
@@ -150,7 +183,9 @@ let merge t1 t2 =
             Symbol_projection.print proj2)
       t1.symbol_projections t2.symbol_projections
   in
-  { names_to_types; aliases; symbol_projections }
+  let database = Database.empty in
+  let extensions = Database.Extension_id.Map.empty in
+  { names_to_types; aliases; symbol_projections; database; extensions }
 
 let canonicalise t simple =
   Simple.pattern_match simple
@@ -161,7 +196,8 @@ let canonicalise t simple =
         coercion)
 
 let remove_unused_value_slots_and_shortcut_aliases
-    ({ names_to_types; aliases; symbol_projections } as t) ~used_value_slots =
+    ({ names_to_types; aliases; symbol_projections; database; extensions = _ }
+    as t) ~used_value_slots =
   let canonicalise = canonicalise t in
   let names_to_types =
     Name.Map.map_sharing
@@ -173,17 +209,31 @@ let remove_unused_value_slots_and_shortcut_aliases
         if ty == ty' then info else ty', binding_time_and_mode)
       names_to_types
   in
-  { names_to_types; aliases; symbol_projections }
+  let database = Database.shortcut_aliases ~canonicalise database in
+  let extensions = Database.Extension_id.Map.empty in
+  { names_to_types; aliases; symbol_projections; database; extensions }
 
 let free_function_slots_and_value_slots
-    { names_to_types; aliases = _; symbol_projections } =
-  let from_projections =
+    { names_to_types; aliases = _; symbol_projections; database; extensions } =
+  let from_database =
+    Name_occurrences.restrict_to_value_slots_and_function_slots
+      (Database.free_names database)
+  in
+  let from_database_and_extensions =
+    Database.Extension_id.Map.fold
+      (fun _extension_id extension free_names ->
+        Name_occurrences.union free_names
+          (Name_occurrences.restrict_to_value_slots_and_function_slots
+             (Typing_env_extension.free_names extension)))
+      extensions from_database
+  in
+  let from_projections_and_database =
     Variable.Map.fold
       (fun _var proj free_names ->
         Name_occurrences.union free_names
           (Name_occurrences.restrict_to_value_slots_and_function_slots
              (Symbol_projection.free_names proj)))
-      symbol_projections Name_occurrences.empty
+      symbol_projections from_database_and_extensions
   in
   Name.Map.fold
     (fun _name (ty, _binding_time) free_names ->
@@ -191,7 +241,7 @@ let free_function_slots_and_value_slots
       Name_occurrences.union free_names
         (Name_occurrences.restrict_to_value_slots_and_function_slots
            free_names_of_ty))
-    names_to_types from_projections
+    names_to_types from_projections_and_database
 
 let ids_for_export t =
   if not (Aliases.is_empty t.aliases)
@@ -199,9 +249,17 @@ let ids_for_export t =
     Misc.fatal_error
       "Aliases structure must be empty for export; did you forget to call \
        [clean_for_export]?";
-  Name.Map.fold
-    (fun name (typ, _binding_time_and_mode) ids ->
-      Ids_for_export.add_name
-        (Ids_for_export.union ids (Type_grammar.ids_for_export typ))
-        name)
-    (names_to_types t) Ids_for_export.empty
+  if not (Database.is_empty t.database)
+  then
+    Misc.fatal_error
+      "Database structure must be empty for export; did you forget to call \
+       [clean_for_export]?";
+  let ids_for_export =
+    Name.Map.fold
+      (fun name (typ, _binding_time_and_mode) ids ->
+        Ids_for_export.add_name
+          (Ids_for_export.union ids (Type_grammar.ids_for_export typ))
+          name)
+      (names_to_types t) Ids_for_export.empty
+  in
+  ids_for_export

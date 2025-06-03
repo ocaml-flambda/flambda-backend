@@ -289,8 +289,7 @@ let meet_disjunction ~meet_a ~meet_b ~bottom_a ~bottom_b ~meet_type
   let join_scope = TE.current_scope initial_env in
   let env = TE.increment_scope initial_env in
   let to_extension scoped_env =
-    TE.cut scoped_env ~cut_after:join_scope
-    |> Typing_env_level.as_extension_without_bindings
+    TE.cut_as_extension scoped_env ~cut_after:join_scope
   in
   let direct_return r =
     map_env r ~f:(fun scoped_env ->
@@ -2292,11 +2291,17 @@ let meet env ty1 ty2 : _ Or_bottom.t =
   if TE.is_bottom env
   then Bottom
   else
+    let reduce = TE.reducer env ~meet_type in
     match meet env ty1 ty2 with
     | Bottom _ -> Bottom
     | Ok (r, env) ->
+      let env = reduce env in
       let res_ty = extract_value r ty1 ty2 in
-      if TG.is_obviously_bottom res_ty then Bottom else Ok (res_ty, env)
+      (* Check [TE.is_bottom env] as we could discover a global inconsistency
+         while reducing the database. *)
+      if TG.is_obviously_bottom res_ty || TE.is_bottom env
+      then Bottom
+      else Ok (res_ty, env)
 
 let meet_shape env t ~shape : _ Or_bottom.t =
   if TE.is_bottom env

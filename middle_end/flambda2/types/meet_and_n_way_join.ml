@@ -2706,11 +2706,17 @@ let meet env ty1 ty2 : _ Or_bottom.t =
   if TE.is_bottom env
   then Bottom
   else
+    let reduce = TE.reducer env ~meet_type in
     match meet env ty1 ty2 with
     | Bottom _ -> Bottom
     | Ok (r, env) ->
+      let env = reduce env in
       let res_ty = extract_value r ty1 ty2 in
-      if TG.is_obviously_bottom res_ty then Bottom else Ok (res_ty, env)
+      (* Check [TE.is_bottom env] as we could discover a global inconsistency
+         while reducing the database. *)
+      if TG.is_obviously_bottom res_ty || TE.is_bottom env
+      then Bottom
+      else Ok (res_ty, env)
 
 let meet_shape env t ~shape : _ Or_bottom.t =
   if TE.is_bottom env

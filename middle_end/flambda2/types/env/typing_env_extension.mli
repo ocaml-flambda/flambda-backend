@@ -18,7 +18,12 @@ type t = Type_grammar.Env_extension.t
 
 val print : Format.formatter -> t -> unit
 
-val fold : equation:(Name.t -> Type_grammar.t -> 'a -> 'a) -> t -> 'a -> 'a
+val fold :
+  equation:(Name.t -> Type_grammar.t -> 'a -> 'a) ->
+  relation:(Database.Function.t -> arg:Name.t -> result:Simple.t -> 'a -> 'a) ->
+  t ->
+  'a ->
+  'a
 
 val invariant : t -> unit
 
@@ -35,6 +40,9 @@ val has_equation : Name.t -> t -> bool
 val one_equation : Name.t -> Type_grammar.t -> t
 
 val add_or_replace_equation : t -> Name.t -> Type_grammar.t -> t
+
+val add_or_replace_relation :
+  t -> Database.Function.t -> arg:Name.t -> result:Simple.t -> t
 
 val replace_equation : t -> Name.t -> Type_grammar.t -> t
 
