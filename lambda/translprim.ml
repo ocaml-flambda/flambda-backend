@@ -929,6 +929,8 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%box_int32" -> Primitive(Pbox_int (Boxed_int32, mode), 1)
     | "%unbox_int64" -> Primitive(Punbox_int Boxed_int64, 1)
     | "%box_int64" -> Primitive(Pbox_int (Boxed_int64, mode), 1)
+    | "%unbox_unit" -> Primitive(Punbox_unit, 1)
+    | "%box_unit" -> Primitive(Pbox_unit, 1)
     | "%reinterpret_tagged_int63_as_unboxed_int64" ->
       Primitive(Preinterpret_tagged_int63_as_unboxed_int64, 1)
     | "%reinterpret_unboxed_int64_as_tagged_int63" ->
@@ -1965,6 +1967,7 @@ let lambda_primitive_needs_event_after = function
   | Preinterpret_unboxed_int64_as_tagged_int63 | Ppeek _ | Ppoke _
   (* These don't allocate in bytecode; they're just identity functions: *)
   | Pbox_float (_, _) | Pbox_int _ | Pbox_vector (_, _)
+  | Punbox_unit | Pbox_unit
     -> false
 
 (* Determine if a primitive should be surrounded by an "after" debug event *)

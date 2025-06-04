@@ -22,10 +22,8 @@ open Lambda
 
 type error =
     Non_value_layout of type_expr * Jkind.Violation.t option
-  | Non_value_sort of Jkind.Sort.t * type_expr
   | Sort_without_extension of
       Jkind.Sort.t * Language_extension.maturity * type_expr option
-  | Non_value_sort_unknown_ty of Jkind.Sort.t
   | Small_number_sort_without_extension of Jkind.Sort.t * type_expr option
   | Simd_sort_without_extension of Jkind.Sort.t * type_expr option
   | Not_a_sort of type_expr * Jkind.Violation.t
@@ -891,6 +889,8 @@ let[@inline always] rec layout_of_const_sort_generic ~value_kind ~error
   | Base Vec128 when Language_extension.(is_at_least Layouts Stable) &&
                      Language_extension.(is_at_least SIMD Stable) ->
     Lambda.Punboxed_vector Unboxed_vec128
+  | Base Void when Language_extension.(is_at_least Layouts Beta) ->
+    Lambda.Punboxed_product []
   | Product consts when Language_extension.(is_at_least Layouts Stable) ->
     (* CR layouts v7.1: assess whether it is important for performance to support
        deep value_kinds here *)
@@ -907,8 +907,10 @@ let layout env loc sort ty =
     ~value_kind:(lazy (value_kind env loc ty))
     ~error:(function
       | Base Value -> assert false
-      | Base Void ->
-        raise (Error (loc, Non_value_sort (Jkind.Sort.void,ty)))
+      | Base Void as const ->
+        raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const,
+                                                   Alpha,
+                                                   Some ty)))
       | Base Float32 as const ->
         raise (Error (loc, Small_number_sort_without_extension
                              (Jkind.Sort.of_const const, Some ty)))
@@ -925,8 +927,10 @@ let layout_of_sort loc sort =
   layout_of_const_sort_generic sort ~value_kind:(lazy Lambda.generic_value)
     ~error:(function
     | Base Value -> assert false
-    | Base Void ->
-      raise (Error (loc, Non_value_sort_unknown_ty Jkind.Sort.void))
+    | Base Void as const ->
+      raise (Error (loc, Sort_without_extension (Jkind.Sort.of_const const,
+                                                 Alpha,
+                                                 None)))
     | Base Float32 as const ->
       raise (Error (loc, Small_number_sort_without_extension
                            (Jkind.Sort.of_const const, None)))
@@ -1050,16 +1054,6 @@ let report_error ppf = function
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
       end
-  | Non_value_sort (sort, ty) ->
-      fprintf ppf
-        "Non-value layout %a detected in [Typeopt.layout] as sort for type@ %a.@ \
-         Please report this error to the Jane Street compilers team."
-        Jkind.Sort.format sort Printtyp.type_expr ty
-  | Non_value_sort_unknown_ty sort ->
-      fprintf ppf
-        "Non-value layout %a detected in [layout_of_sort]@ Please report this \
-         error to the Jane Street compilers team."
-        Jkind.Sort.format sort
   | Sort_without_extension (sort, maturity, ty) ->
       fprintf ppf "Non-value layout %a detected" Jkind.Sort.format sort;
       begin match ty with

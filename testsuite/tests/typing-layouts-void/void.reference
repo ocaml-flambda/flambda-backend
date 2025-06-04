@@ -1,0 +1,64 @@
+1 (expected 1)
+42 (expected 42)
+foo
+after definition
+42 (expected 42)
+after definition
+bar
+42 (expected 42)
+42 (expected 42)
+foo
+after definition
+42 (expected 42)
+after definition
+bar
+42 (expected 42)
+42 (expected 42)
+foo
+after definition
+42 (expected 42)
+after definition
+bar
+42 (expected 42)
+OVERAPP1
+42 (expected 42)
+foo
+42 (expected 42)
+bar
+42 (expected 42)
+OVERAPP2
+42 (expected 42)
+foo
+42 (expected 42)
+bar
+42 (expected 42)
+OVERAPP3
+42 (expected 42)
+foo
+42 (expected 42)
+bar
+42 (expected 42)
+42 (expected 42)
+foo
+after definition
+42 (expected 42)
+after definition
+bar
+42 (expected 42)
+42 (expected 42)
+foo
+after definition
+42 (expected 42)
+after definition
+bar
+42 (expected 42)
+foo
+foo2
+FOO
+FOO
+FOO
+FOO
+FOO
+FOO
+FOO
+FOO

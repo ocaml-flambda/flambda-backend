@@ -341,6 +341,8 @@ type primitive =
   | Pbox_float of boxed_float * locality_mode
   | Punbox_int of boxed_integer
   | Pbox_int of boxed_integer * locality_mode
+  | Punbox_unit
+  | Pbox_unit
   | Punbox_vector of boxed_vector
   | Pbox_vector of boxed_vector * locality_mode
   | Preinterpret_unboxed_int64_as_tagged_int63
@@ -1002,6 +1004,7 @@ let nullable_value raw_kind =
   Pvalue { raw_kind; nullable = Nullable }
 
 let layout_unit = non_null_value Pintval
+let layout_unboxed_unit = Punboxed_product []
 let layout_int = non_null_value Pintval
 let layout_int_or_null = nullable_value Pintval
 let layout_array kind = non_null_value (Parrayval kind)
@@ -2049,6 +2052,7 @@ let primitive_may_allocate : primitive -> locality_mode option = function
   | Pobj_dup -> Some alloc_heap
   | Pobj_magic _ -> None
   | Punbox_float _ | Punbox_int _ | Punbox_vector _ -> None
+  | Punbox_unit | Pbox_unit -> None
   | Pbox_float (_, m) | Pbox_int (_, m) | Pbox_vector (_, m) -> Some m
   | Prunstack | Presume | Pperform | Preperform
     (* CR mshinwell: check *)
@@ -2227,6 +2231,7 @@ let primitive_can_raise prim =
   | Punbox_float _
   | Pbox_vector (_, _)
   | Punbox_vector _ | Punbox_int _ | Pbox_int _ | Pmake_unboxed_product _
+  | Punbox_unit | Pbox_unit
   | Punboxed_product_field _ | Pget_header _ ->
     false
   | Patomic_exchange _ | Patomic_compare_exchange _
@@ -2270,7 +2275,7 @@ let rec layout_of_const_sort (c : Jkind.Sort.Const.t) : layout =
   | Base Bits32 -> layout_unboxed_int32
   | Base Bits64 -> layout_unboxed_int64
   | Base Vec128 -> layout_unboxed_vector Unboxed_vec128
-  | Base Void -> assert false
+  | Base Void -> layout_unboxed_product []
   | Product sorts ->
     layout_unboxed_product (List.map layout_of_const_sort sorts)
 
@@ -2391,6 +2396,8 @@ let primitive_result_layout (p : primitive) =
   | Pbbswap (bi, _) | Pbox_int (bi, _) ->
       layout_boxed_int bi
   | Punbox_int bi -> Punboxed_int (Primitive.unboxed_integer bi)
+  | Pbox_unit -> layout_unit
+  | Punbox_unit -> layout_unboxed_unit
   | Pstring_load_32 { boxed = true; _ } | Pbytes_load_32 { boxed = true; _ }
   | Pbigstring_load_32 { boxed = true; _ } ->
       layout_boxed_int Boxed_int32
