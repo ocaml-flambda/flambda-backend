@@ -1537,9 +1537,7 @@ end = struct
        to [Projection.t] and add corresponding logic in [UsageTree]. *)
     let uni = Modality.Value.Const.proj (Monadic Uniqueness) modalities in
     let lin = Modality.Value.Const.proj (Comonadic Linearity) modalities in
-    match uni, lin with
-    | Join_with Aliased, Meet_with Many -> untracked
-    | _ -> child proj t
+    match uni, lin with Aliased, Many -> untracked | _ -> child proj t
 
   let tuple_field i t = child (Projection.Tuple_field i) t
 

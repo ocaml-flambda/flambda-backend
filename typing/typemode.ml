@@ -405,57 +405,47 @@ let transl_modality ~maturity { txt = Parsetree.Modality modality; loc } =
   let atom =
     match axis_pair.txt with
     | Modal_axis_pair (Comonadic Areality, mode) ->
-      Modality.Atom
-        (Comonadic Areality, Meet_with (Const.locality_as_regionality mode))
+      Modality.Atom (Comonadic Areality, Const.locality_as_regionality mode)
     | Modal_axis_pair (Comonadic Linearity, mode) ->
-      Modality.Atom (Comonadic Linearity, Meet_with mode)
+      Modality.Atom (Comonadic Linearity, mode)
     | Modal_axis_pair (Comonadic Portability, mode) ->
-      Modality.Atom (Comonadic Portability, Meet_with mode)
+      Modality.Atom (Comonadic Portability, mode)
     | Modal_axis_pair (Monadic Uniqueness, mode) ->
-      Modality.Atom (Monadic Uniqueness, Join_with mode)
+      Modality.Atom (Monadic Uniqueness, mode)
     | Modal_axis_pair (Monadic Contention, mode) ->
-      Modality.Atom (Monadic Contention, Join_with mode)
+      Modality.Atom (Monadic Contention, mode)
     | Modal_axis_pair (Comonadic Yielding, mode) ->
-      Modality.Atom (Comonadic Yielding, Meet_with mode)
+      Modality.Atom (Comonadic Yielding, mode)
     | Modal_axis_pair (Comonadic Statefulness, mode) ->
-      Modality.Atom (Comonadic Statefulness, Meet_with mode)
+      Modality.Atom (Comonadic Statefulness, mode)
     | Modal_axis_pair (Monadic Visibility, mode) ->
-      Modality.Atom (Monadic Visibility, Join_with mode)
+      Modality.Atom (Monadic Visibility, mode)
   in
   atom, loc
 
 let untransl_modality (a : Modality.t) : Parsetree.modality loc =
   let s =
     match a with
-    | Atom (Comonadic Areality, Meet_with Regionality.Const.Global) -> "global"
-    | Atom (Comonadic Areality, Meet_with Regionality.Const.Local) -> "local"
-    | Atom (Comonadic Linearity, Meet_with Linearity.Const.Many) -> "many"
-    | Atom (Comonadic Linearity, Meet_with Linearity.Const.Once) -> "once"
-    | Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Aliased) -> "aliased"
-    | Atom (Monadic Uniqueness, Join_with Uniqueness.Const.Unique) -> "unique"
-    | Atom (Comonadic Portability, Meet_with Portability.Const.Portable) ->
-      "portable"
-    | Atom (Comonadic Portability, Meet_with Portability.Const.Nonportable) ->
+    | Atom (Comonadic Areality, Regionality.Const.Global) -> "global"
+    | Atom (Comonadic Areality, Regionality.Const.Local) -> "local"
+    | Atom (Comonadic Linearity, Linearity.Const.Many) -> "many"
+    | Atom (Comonadic Linearity, Linearity.Const.Once) -> "once"
+    | Atom (Monadic Uniqueness, Uniqueness.Const.Aliased) -> "aliased"
+    | Atom (Monadic Uniqueness, Uniqueness.Const.Unique) -> "unique"
+    | Atom (Comonadic Portability, Portability.Const.Portable) -> "portable"
+    | Atom (Comonadic Portability, Portability.Const.Nonportable) ->
       "nonportable"
-    | Atom (Monadic Contention, Join_with Contention.Const.Contended) ->
-      "contended"
-    | Atom (Monadic Contention, Join_with Contention.Const.Shared) -> "shared"
-    | Atom (Monadic Contention, Join_with Contention.Const.Uncontended) ->
-      "uncontended"
-    | Atom (Comonadic Yielding, Meet_with Yielding.Const.Yielding) -> "yielding"
-    | Atom (Comonadic Yielding, Meet_with Yielding.Const.Unyielding) ->
-      "unyielding"
-    | Atom (Comonadic Statefulness, Meet_with Statefulness.Const.Stateless) ->
-      "stateless"
-    | Atom (Comonadic Statefulness, Meet_with Statefulness.Const.Observing) ->
-      "observing"
-    | Atom (Comonadic Statefulness, Meet_with Statefulness.Const.Stateful) ->
-      "stateful"
-    | Atom (Monadic Visibility, Join_with Visibility.Const.Immutable) ->
-      "immutable"
-    | Atom (Monadic Visibility, Join_with Visibility.Const.Read) -> "read"
-    | Atom (Monadic Visibility, Join_with Visibility.Const.Read_write) ->
-      "read_write"
+    | Atom (Monadic Contention, Contention.Const.Contended) -> "contended"
+    | Atom (Monadic Contention, Contention.Const.Shared) -> "shared"
+    | Atom (Monadic Contention, Contention.Const.Uncontended) -> "uncontended"
+    | Atom (Comonadic Yielding, Yielding.Const.Yielding) -> "yielding"
+    | Atom (Comonadic Yielding, Yielding.Const.Unyielding) -> "unyielding"
+    | Atom (Comonadic Statefulness, Statefulness.Const.Stateless) -> "stateless"
+    | Atom (Comonadic Statefulness, Statefulness.Const.Observing) -> "observing"
+    | Atom (Comonadic Statefulness, Statefulness.Const.Stateful) -> "stateful"
+    | Atom (Monadic Visibility, Visibility.Const.Immutable) -> "immutable"
+    | Atom (Monadic Visibility, Visibility.Const.Read) -> "read"
+    | Atom (Monadic Visibility, Visibility.Const.Read_write) -> "read_write"
     | _ -> failwith "BUG: impossible modality atom"
   in
   { txt = Modality s; loc = Location.none }
@@ -467,16 +457,16 @@ let untransl_modality (a : Modality.t) : Parsetree.modality loc =
 (* CR zqian: decouple mutable and comonadic modalities *)
 let mutable_implied_modalities (mut : Types.mutability) =
   let comonadic : Modality.t list =
-    [ Atom (Comonadic Areality, Meet_with Regionality.Const.legacy);
-      Atom (Comonadic Linearity, Meet_with Linearity.Const.legacy);
-      Atom (Comonadic Portability, Meet_with Portability.Const.legacy);
-      Atom (Comonadic Yielding, Meet_with Yielding.Const.legacy);
-      Atom (Comonadic Statefulness, Meet_with Statefulness.Const.legacy) ]
+    [ Atom (Comonadic Areality, Regionality.Const.legacy);
+      Atom (Comonadic Linearity, Linearity.Const.legacy);
+      Atom (Comonadic Portability, Portability.Const.legacy);
+      Atom (Comonadic Yielding, Yielding.Const.legacy);
+      Atom (Comonadic Statefulness, Statefulness.Const.legacy) ]
   in
   let monadic : Modality.t list =
-    [ Atom (Monadic Uniqueness, Join_with Uniqueness.Const.legacy);
-      Atom (Monadic Contention, Join_with Contention.Const.legacy);
-      Atom (Monadic Visibility, Join_with Visibility.Const.legacy) ]
+    [ Atom (Monadic Uniqueness, Uniqueness.Const.legacy);
+      Atom (Monadic Contention, Contention.Const.legacy);
+      Atom (Monadic Visibility, Visibility.Const.legacy) ]
   in
   match mut with Immutable -> [] | Mutable _ -> monadic @ comonadic
 
@@ -492,27 +482,27 @@ let mutable_implied_modalities (mut : Types.mutability) =
    Similarly for [visibility]/[contention] and [statefulness]/[portability]. *)
 let implied_modalities (Atom (ax, a) : Modality.t) : Modality.t list =
   match ax, a with
-  | Comonadic Areality, Meet_with a ->
+  | Comonadic Areality, a ->
     let b : Yielding.Const.t =
       match a with
       | Global -> Unyielding
       | Local -> Yielding
       | Regional -> assert false
     in
-    [Atom (Comonadic Yielding, Meet_with b)]
-  | Monadic Visibility, Join_with a ->
+    [Atom (Comonadic Yielding, b)]
+  | Monadic Visibility, a ->
     let b : Contention.Const.t =
       match a with
       | Immutable -> Contended
       | Read -> Shared
       | Read_write -> Uncontended
     in
-    [Atom (Monadic Contention, Join_with b)]
-  | Comonadic Statefulness, Meet_with a ->
+    [Atom (Monadic Contention, b)]
+  | Comonadic Statefulness, a ->
     let b : Portability.Const.t =
       match a with Stateless -> Portable | Stateful | Observing -> Nonportable
     in
-    [Atom (Comonadic Portability, Meet_with b)]
+    [Atom (Comonadic Portability, b)]
   | _ -> []
 
 let least_modalities_implying mut (t : Modality.Value.Const.t) =

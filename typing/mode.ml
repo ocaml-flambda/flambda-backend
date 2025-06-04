@@ -2858,26 +2858,24 @@ let value_to_alloc_r2l m =
   { comonadic; monadic }
 
 module Modality = struct
-  type 'a raw =
-    | Meet_with : 'a -> 'a raw
-    | Join_with : 'a -> 'a raw
+  type 'a raw = 'a
 
   type t = Atom : ('a, _, _) Value.Axis.t * 'a raw -> t
 
   let is_id (Atom (ax, a)) =
-    match a with
-    | Join_with c -> Value.Const.is_min ax c
-    | Meet_with c -> Value.Const.is_max ax c
+    match ax with
+    | Monadic _ -> Value.Const.is_min ax a
+    | Comonadic _ -> Value.Const.is_max ax a
 
   let is_constant (Atom (ax, a)) =
-    match a with
-    | Join_with c -> Value.Const.is_max ax c
-    | Meet_with c -> Value.Const.is_min ax c
+    match ax with
+    | Monadic _ -> Value.Const.is_max ax a
+    | Comonadic _ -> Value.Const.is_min ax a
 
   let print ppf = function
-    | Atom (ax, Join_with c) ->
+    | Atom ((Comonadic _ as ax), c) ->
       Format.fprintf ppf "join_with(%a)" (C.print (Value.proj_obj ax)) c
-    | Atom (ax, Meet_with c) ->
+    | Atom ((Monadic _ as ax), c) ->
       Format.fprintf ppf "meet_with(%a)" (C.print (Value.proj_obj ax)) c
 
   module Monadic = struct
@@ -2905,8 +2903,7 @@ module Modality = struct
             let (Error (ax, { left; right })) =
               Mode.axis_of_error { left = c0; right = c1 }
             in
-            Error
-              (Error (ax, { left = Join_with left; right = Join_with right }))
+            Error (Error (ax, { left; right }))
 
       let concat ~then_ t =
         match then_, t with
@@ -2915,12 +2912,9 @@ module Modality = struct
       let apply : type l r. t -> (l * r) Mode.t -> (l * r) Mode.t =
        fun t x -> match t with Join_const c -> Mode.join_const c x
 
-      let proj ax (Join_const c) = Join_with (Axis.proj ax c)
+      let proj ax (Join_const c) = Axis.proj ax c
 
-      let set ax a (Join_const c) =
-        match a with
-        | Join_with a -> Join_const (Axis.set ax a c)
-        | Meet_with _ -> assert false
+      let set ax a (Join_const c) = Join_const (Axis.set ax a c)
 
       let print ppf = function
         | Join_const c -> Format.fprintf ppf "join_const(%a)" Mode.Const.print c
@@ -2952,11 +2946,7 @@ module Modality = struct
         match Mode.submode_log m (Mode.join_const c mm) ~log with
         | Ok () -> Ok ()
         | Error (Error (ax, { left; _ })) ->
-          Error
-            (Error
-               ( ax,
-                 { left = Join_with left; right = Join_with (Axis.proj ax c) }
-               )))
+          Error (Error (ax, { left; right = Axis.proj ax c })))
       | Diff (_, _m0), Diff (_, _m1) ->
         (* [m1] is a left mode so it cannot appear on the right. So we can't do
            a proper check. However, this branch is only hit by
@@ -3048,8 +3038,7 @@ module Modality = struct
             let (Error (ax, { left; right })) =
               Mode.axis_of_error { left = c0; right = c1 }
             in
-            Error
-              (Error (ax, { left = Meet_with left; right = Meet_with right }))
+            Error (Error (ax, { left; right }))
 
       let concat ~then_ t =
         match then_, t with
@@ -3058,12 +3047,9 @@ module Modality = struct
       let apply : type l r. t -> (l * r) Mode.t -> (l * r) Mode.t =
        fun t x -> match t with Meet_const c -> Mode.meet_const c x
 
-      let proj ax (Meet_const c) = Meet_with (Axis.proj ax c)
+      let proj ax (Meet_const c) = Axis.proj ax c
 
-      let set ax a (Meet_const c) =
-        match a with
-        | Meet_with a -> Meet_const (Axis.set ax a c)
-        | Join_with _ -> assert false
+      let set ax a (Meet_const c) = Meet_const (Axis.set ax a c)
 
       let print ppf = function
         | Meet_const c -> Format.fprintf ppf "meet_const(%a)" Mode.Const.print c
@@ -3086,11 +3072,7 @@ module Modality = struct
         match Mode.submode_log m (Mode.of_const c) ~log with
         | Ok () -> Ok ()
         | Error (Error (ax, { left; _ })) ->
-          Error
-            (Error
-               ( ax,
-                 { left = Meet_with left; right = Meet_with (Axis.proj ax c) }
-               )))
+          Error (Error (ax, { left; right = Axis.proj ax c })))
       | Exactly (_, _m0), Exactly (_, _m1) ->
         (* [m1] is a left mode, so there is no good way to check.
            However, this branch only hit by [wrap_constraint_with_shape],
@@ -3444,8 +3426,7 @@ module Crossing = struct
 
   let print ppf t =
     let print_atom ppf = function
-      | Modality.Atom (ax, Join_with c) -> C.print (Value.proj_obj ax) ppf c
-      | Modality.Atom (ax, Meet_with c) -> C.print (Value.proj_obj ax) ppf c
+      | Modality.Atom (ax, c) -> C.print (Value.proj_obj ax) ppf c
     in
     let l =
       List.filter_map

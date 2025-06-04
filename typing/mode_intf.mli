@@ -597,13 +597,9 @@ module type S = sig
   val value_to_alloc_r2g : ('l * 'r) Value.t -> ('l * 'r) Alloc.t
 
   module Modality : sig
-    type 'a raw =
-      | Meet_with : 'a -> 'a raw
-          (** [Meet_with c] takes [x] and returns [meet c x]. [c] can be [max]
-          in which case it's the identity modality. *)
-      | Join_with : 'a -> 'a raw
-          (** [Join_with c] takes [x] and returns [join c x]. [c] can be [min]
-          in which case it's the identity modality. *)
+    (** A raw modality only specifies a constant [c] in an axis. It will act as
+        either [join_c] or [meet_c] once we know the axis. *)
+    type 'a raw = 'a
 
     (** An atom modality is a [raw] accompanied by the axis it acts on. *)
     type t = Atom : ('a, _, _) Value.Axis.t * 'a raw -> t
