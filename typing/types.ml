@@ -35,8 +35,11 @@ module Jkind_mod_bounds = struct
   module Portability = Mode.Portability.Const
   module Contention = Mode.Contention.Const_op
   module Yielding = Mode.Yielding.Const
+  module Statefulness = Mode.Statefulness.Const
+  module Visibility = Mode.Visibility.Const_op
   module Externality = Jkind_axis.Externality
   module Nullability = Jkind_axis.Nullability
+  module Separability = Jkind_axis.Separability
 
   type t = {
     locality: Locality.t;
@@ -45,8 +48,11 @@ module Jkind_mod_bounds = struct
     portability: Portability.t;
     contention: Contention.t;
     yielding: Yielding.t;
+    statefulness: Statefulness.t;
+    visibility: Visibility.t;
     externality: Externality.t;
     nullability: Nullability.t;
+    separability: Separability.t;
   }
 
   let[@inline] locality t = t.locality
@@ -55,8 +61,11 @@ module Jkind_mod_bounds = struct
   let[@inline] portability t = t.portability
   let[@inline] contention t = t.contention
   let[@inline] yielding t = t.yielding
+  let[@inline] statefulness t = t.statefulness
+  let[@inline] visibility t = t.visibility
   let[@inline] externality t = t.externality
   let[@inline] nullability t = t.nullability
+  let[@inline] separability t = t.separability
 
   let[@inline] create
       ~locality
@@ -65,8 +74,11 @@ module Jkind_mod_bounds = struct
       ~portability
       ~contention
       ~yielding
+      ~statefulness
+      ~visibility
       ~externality
-      ~nullability =
+      ~nullability
+      ~separability =
     {
       locality;
       linearity;
@@ -74,8 +86,11 @@ module Jkind_mod_bounds = struct
       portability;
       contention;
       yielding;
+      statefulness;
+      visibility;
       externality;
       nullability;
+      separability;
     }
 
   let[@inline] set_locality locality t = { t with locality }
@@ -84,8 +99,11 @@ module Jkind_mod_bounds = struct
   let[@inline] set_portability portability t = { t with portability }
   let[@inline] set_contention contention t = { t with contention }
   let[@inline] set_yielding yielding t = { t with yielding }
+  let[@inline] set_statefulness statefulness t = { t with statefulness }
+  let[@inline] set_visibility visibility t = { t with visibility }
   let[@inline] set_externality externality t = { t with externality }
   let[@inline] set_nullability nullability t = { t with nullability }
+  let[@inline] set_separability separability t = { t with separability }
 
   let[@inline] set_max_in_set t max_axes =
     let open Jkind_axis.Axis_set in
@@ -121,6 +139,16 @@ module Jkind_mod_bounds = struct
       then Yielding.max
       else t.yielding
     in
+    let statefulness =
+      if mem max_axes (Modal (Comonadic Statefulness))
+      then Statefulness.max
+      else t.statefulness
+    in
+    let visibility =
+      if mem max_axes (Modal (Monadic Visibility))
+      then Visibility.max
+      else t.visibility
+    in
     let externality =
       if mem max_axes (Nonmodal Externality)
       then Externality.max
@@ -131,6 +159,11 @@ module Jkind_mod_bounds = struct
       then Nullability.max
       else t.nullability
     in
+    let separability =
+      if mem max_axes (Nonmodal Separability)
+      then Separability.max
+      else t.separability
+    in
     {
       locality;
       linearity;
@@ -138,8 +171,11 @@ module Jkind_mod_bounds = struct
       portability;
       contention;
       yielding;
+      statefulness;
+      visibility;
       externality;
       nullability;
+      separability;
     }
 
   let[@inline] set_min_in_set t min_axes =
@@ -176,6 +212,16 @@ module Jkind_mod_bounds = struct
       then Yielding.min
       else t.yielding
     in
+    let statefulness =
+      if mem min_axes (Modal (Comonadic Statefulness))
+      then Statefulness.min
+      else t.statefulness
+    in
+    let visibility =
+      if mem min_axes (Modal (Monadic Visibility))
+      then Visibility.min
+      else t.visibility
+    in
     let externality =
       if mem min_axes (Nonmodal Externality)
       then Externality.min
@@ -186,15 +232,23 @@ module Jkind_mod_bounds = struct
       then Nullability.min
       else t.nullability
     in
+    let separability =
+      if mem min_axes (Nonmodal Separability)
+      then Separability.min
+      else t.separability
+    in
     {
       locality;
       linearity;
       uniqueness;
       portability;
       contention;
+      statefulness;
+      visibility;
       yielding;
       externality;
       nullability;
+      separability;
     }
 
   let[@inline] is_max_within_set t axes =
@@ -211,10 +265,16 @@ module Jkind_mod_bounds = struct
      Contention.(le max (contention t))) &&
     (not (mem axes (Modal (Comonadic Yielding))) ||
      Yielding.(le max (yielding t))) &&
+    (not (mem axes (Modal (Comonadic Statefulness))) ||
+     Statefulness.(le max (statefulness t))) &&
+    (not (mem axes (Modal (Monadic Visibility))) ||
+     Visibility.(le max (visibility t))) &&
     (not (mem axes (Nonmodal Externality)) ||
      Externality.(le max (externality t))) &&
     (not (mem axes (Nonmodal Nullability)) ||
-     Nullability.(le max (nullability t)))
+     Nullability.(le max (nullability t))) &&
+    (not (mem axes (Nonmodal Separability)) ||
+     Separability.(le max (separability t)))
 
   let[@inline] is_max = function
     | { locality = Local;
@@ -223,8 +283,11 @@ module Jkind_mod_bounds = struct
         portability = Portable;
         contention = Uncontended;
         yielding = Yielding;
+        statefulness = Stateful;
+        visibility = Read_write;
         externality = External;
-        nullability = Maybe_null } -> true
+        nullability = Maybe_null;
+        separability = Maybe_separable } -> true
     | _ -> false
 
   let debug_print ppf
@@ -234,19 +297,26 @@ module Jkind_mod_bounds = struct
           portability;
           contention;
           yielding;
+          statefulness;
+          visibility;
           externality;
-          nullability } =
+          nullability;
+          separability } =
     Format.fprintf ppf "@[{ locality = %a;@ linearity = %a;@ uniqueness = %a;@ \
-      portability = %a;@ contention = %a;@ yielding = %a;@ externality = %a;@ \
-      nullability = %a }@]"
+      portability = %a;@ contention = %a;@ yielding = %a;@ statefulness = %a;@ \
+      visibility = %a;@ externality = %a;@ \
+      nullability = %a;@ separability = %a }@]"
       Locality.print locality
       Linearity.print linearity
       Uniqueness.print uniqueness
       Portability.print portability
       Contention.print contention
       Yielding.print yielding
+      Statefulness.print statefulness
+      Visibility.print visibility
       Externality.print externality
       Nullability.print nullability
+      Separability.print separability
 end
 
 
@@ -277,6 +347,7 @@ and type_desc =
   | Tunivar of { name : string option; jkind : jkind_lr }
   | Tpoly of type_expr * type_expr list
   | Tpackage of Path.t * (Longident.t * type_expr) list
+  | Tof_kind of jkind_lr
 
 and arg_label =
   | Nolabel
@@ -294,7 +365,11 @@ and row_desc =
       row_fixed: fixed_explanation option;
       row_name: (Path.t * type_expr list) option }
 and fixed_explanation =
-  | Univar of type_expr | Fixed_private | Reified of Path.t | Rigid
+  | Univar of type_expr
+  | Fixed_private
+  | Reified of Path.t
+  | Rigid
+  | Fixed_existential
 and row_field = [`some] row_field_gen
 and _ row_field_gen =
     RFpresent : type_expr option -> [> `some] row_field_gen
@@ -572,6 +647,7 @@ and mixed_block_element =
   | Bits64
   | Vec128
   | Word
+  | Product of mixed_product_shape
 
 and mixed_product_shape = mixed_block_element array
 
@@ -888,19 +964,24 @@ let compare_tag t1 t2 =
   | Extension _, Null -> -1
   | Null, Extension _ -> 1
 
-let equal_mixed_block_element e1 e2 =
+let rec equal_mixed_block_element e1 e2 =
   match e1, e2 with
   | Value, Value | Float64, Float64 | Float32, Float32 | Float_boxed, Float_boxed
   | Word, Word | Bits32, Bits32 | Bits64, Bits64 | Vec128, Vec128
     -> true
-  | (Value | Float64 | Float32 | Float_boxed | Word | Bits32 | Bits64 | Vec128), _
+  | Product es1, Product es2
+    -> Misc.Stdlib.Array.equal equal_mixed_block_element es1 es2
+  | ( Value | Float64 | Float32 | Float_boxed | Word | Bits32 | Bits64 | Vec128
+    | Product _ ), _
     -> false
 
-let compare_mixed_block_element e1 e2 =
+let rec compare_mixed_block_element e1 e2 =
   match e1, e2 with
   | Value, Value | Float_boxed, Float_boxed | Float64, Float64 | Float32, Float32
   | Word, Word | Bits32, Bits32 | Bits64, Bits64 | Vec128, Vec128
     -> 0
+  | Product es1, Product es2
+    -> Misc.Stdlib.Array.compare compare_mixed_block_element es1 es2
   | Value, _ -> -1
   | _, Value -> 1
   | Float_boxed, _ -> -1
@@ -915,6 +996,8 @@ let compare_mixed_block_element e1 e2 =
   | _, Bits32 -> 1
   | Vec128, _ -> -1
   | _, Vec128 -> 1
+  | Product _, _ -> -1
+  | _, Product _ -> 1
 
 let equal_mixed_product_shape r1 r2 = r1 == r2 ||
   Misc.Stdlib.Array.equal equal_mixed_block_element r1 r2
@@ -1057,7 +1140,7 @@ let signature_item_id = function
   | Sig_class_type (id, _, _, _)
     -> id
 
-let mixed_block_element_to_string = function
+let rec mixed_block_element_to_string = function
   | Value -> "Value"
   | Float_boxed -> "Float_boxed"
   | Float32 -> "Float32"
@@ -1066,6 +1149,11 @@ let mixed_block_element_to_string = function
   | Bits64 -> "Bits64"
   | Vec128 -> "Vec128"
   | Word -> "Word"
+  | Product es ->
+    "Product ["
+    ^ (String.concat ", "
+         (Array.to_list (Array.map mixed_block_element_to_string es)))
+    ^ "]"
 
 let mixed_block_element_to_lowercase_string = function
   | Value -> "value"
@@ -1076,6 +1164,11 @@ let mixed_block_element_to_lowercase_string = function
   | Bits64 -> "bits64"
   | Vec128 -> "vec128"
   | Word -> "word"
+  | Product es ->
+    "product ["
+    ^ (String.concat ", "
+         (Array.to_list (Array.map mixed_block_element_to_string es)))
+    ^ "]"
 
 (**** Definitions for backtracking ****)
 
@@ -1196,7 +1289,7 @@ module Transient_expr = struct
     match ty.desc with
     | Tvar { name; _ } ->
       set_desc ty (Tvar { name; jkind = jkind' })
-    | _ -> assert false
+    | _ -> Misc.fatal_error "set_var_jkind called on non-var"
   let coerce ty = ty
   let repr = repr
   let type_expr ty = ty
@@ -1261,6 +1354,7 @@ let best_effort_compare_type_expr te1 te2 =
         | Tunboxed_tuple _ -> 3
         | Tconstr (_, _, _) -> 5
         | Tpoly (_, _) -> 6
+        | Tof_kind _ -> 7
         (* Types we should never see *)
         | Tlink _ -> Misc.fatal_error "Tlink encountered in With_bounds_types"
       in

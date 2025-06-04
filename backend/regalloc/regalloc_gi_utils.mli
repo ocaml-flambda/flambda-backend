@@ -2,23 +2,21 @@
 
 open Regalloc_utils
 
-val gi_debug : bool
+val log : ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
 
-val gi_verbose : bool Lazy.t
+val indent : unit -> unit
 
-val gi_invariants : bool Lazy.t
+val dedent : unit -> unit
 
-val log :
-  indent:int -> ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
+val reset_indentation : unit -> unit
 
 val log_body_and_terminator :
-  indent:int ->
   Cfg.basic_instruction_list ->
   Cfg.terminator Cfg.instruction ->
   liveness ->
   unit
 
-val log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit
+val log_cfg_with_infos : Cfg_with_infos.t -> unit
 
 module Priority_heuristics : sig
   type t =
@@ -65,46 +63,6 @@ module Spilling_heuristics : sig
   val value : t Lazy.t
 end
 
-module type Order = sig
-  type t
-
-  val compare : t -> t -> int
-
-  val to_string : t -> string
-end
-
-module type Priority_queue = sig
-  type priority
-
-  type 'a t
-
-  type 'a element =
-    { priority : priority;
-      data : 'a
-    }
-
-  val make : initial_capacity:int -> 'a t
-
-  val is_empty : 'a t -> bool
-
-  val size : 'a t -> int
-
-  val add : 'a t -> priority:priority -> data:'a -> unit
-
-  val get : 'a t -> 'a element
-
-  val remove : 'a t -> unit
-
-  val get_and_remove : 'a t -> 'a element
-
-  val iter : 'a t -> f:('a element -> unit) -> unit
-end
-
-module Make_max_priority_queue (Priority : Order) :
-  Priority_queue with type priority = Priority.t
-
-val iter_cfg_layout : Cfg_with_layout.t -> f:(Cfg.basic_block -> unit) -> unit
-
 val iter_instructions_layout :
   Cfg_with_layout.t ->
   instruction:(trap_handler:bool -> Cfg.basic Cfg.instruction -> unit) ->
@@ -150,11 +108,12 @@ val build_intervals : Cfg_with_infos.t -> Interval.t Reg.Tbl.t
 
 module Hardware_register : sig
   type location = private
-    { reg_class : int;
+    { reg_class : Reg_class.t;
       reg_index_in_class : int
     }
 
-  val make_location : reg_class:int -> reg_index_in_class:int -> location
+  val make_location :
+    reg_class:Reg_class.t -> reg_index_in_class:int -> location
 
   val print_location : Format.formatter -> location -> unit
 
@@ -192,5 +151,5 @@ module Hardware_registers : sig
 
   val of_reg : t -> Reg.t -> Hardware_register.t option
 
-  val find_available : t -> Reg.t -> Interval.t -> available
+  val find_available : t -> SpillCosts.t -> Reg.t -> Interval.t -> available
 end

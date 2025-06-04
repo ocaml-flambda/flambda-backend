@@ -26,30 +26,49 @@
 
 open! Int_replace_polymorphic_compare
 
+let symbol_prefix () =
+  (* CR mshinwell: needs checking *)
+  match Target_system.architecture () with
+  | IA32 | X86_64 | AArch64 -> (
+    match Target_system.derived_system () with
+    | Linux | Win32 | Win64 | MinGW_32 | MinGW_64 | Cygwin | FreeBSD | NetBSD
+    | OpenBSD | Generic_BSD | Solaris | BeOS | GNU | Dragonfly | Unknown ->
+      "" (* checked ok. *)
+    | MacOS_like -> "_" (* checked ok. *))
+  | ARM | POWER | Z | Riscv -> ""
+
 let should_be_escaped = function
   | 'A' .. 'Z' | 'a' .. 'z' | '0' .. '9' | '_' | '.' -> false
   | _c -> true
 
 module Thing = struct
-  type t = string
+  type t =
+    { name : string;
+      already_encoded : bool
+    }
 
-  let compare = String.compare
+  let compare { name = name1; already_encoded = already_encoded1 }
+      { name = name2; already_encoded = already_encoded2 } =
+    let cmp = String.compare name1 name2 in
+    if cmp = 0 then Bool.compare already_encoded1 already_encoded2 else cmp
 
-  let equal = String.equal
+  let equal t1 t2 = compare t1 t2 = 0
 
   let hash = Hashtbl.hash
 
-  let output chan t = Printf.fprintf chan "%s" t
+  let output chan { name; already_encoded : _ } = Printf.fprintf chan "%s" name
 
-  let print = Format.pp_print_string
+  let print fmt { name; already_encoded : _ } = Format.pp_print_string fmt name
 end
 
 include Thing
 include Identifiable.Make (Thing)
 
-let create name = name
+let create name = { name; already_encoded = false }
 
-let to_raw_string t = t
+let create_without_encoding name = { name; already_encoded = true }
+
+let to_raw_string { name; already_encoded : _ } = name
 
 let escape name =
   let escaped_nb = ref 0 in
@@ -70,23 +89,47 @@ let escape name =
       name;
     Buffer.contents b
 
-let symbol_prefix () =
-  (* CR mshinwell: needs checking *)
-  match Target_system.architecture () with
-  | IA32 | X86_64 | AArch64 -> (
-    match Target_system.derived_system () with
-    | Linux | Win32 | Win64 | MinGW_32 | MinGW_64 | Cygwin | FreeBSD | NetBSD
-    | OpenBSD | Generic_BSD | Solaris | BeOS | GNU | Dragonfly | Unknown ->
-      "" (* checked ok. *)
-    | MacOS_like -> "_" (* checked ok. *))
-  | ARM | POWER | Z | Riscv -> ""
-
 let to_escaped_string ?suffix ~symbol_prefix t =
   let suffix = match suffix with None -> "" | Some suffix -> suffix in
   symbol_prefix ^ escape t ^ suffix
 
-let encode ?without_prefix t =
-  let symbol_prefix =
-    match without_prefix with None -> symbol_prefix () | Some () -> ""
-  in
-  to_escaped_string ~symbol_prefix t
+let encode { name; already_encoded } =
+  if already_encoded
+  then name
+  else
+    let symbol_prefix = symbol_prefix () in
+    to_escaped_string ~symbol_prefix name
+
+(* We predefine several common symbols that violate the standard escaping done
+   by [encode]. *)
+module Predef = struct
+  let caml_call_gc = create_without_encoding "caml_call_gc"
+
+  let caml_c_call = create_without_encoding "caml_c_call"
+
+  let caml_allocN = create_without_encoding "caml_allocN"
+
+  let caml_alloc1 = create_without_encoding "caml_alloc1"
+
+  let caml_alloc2 = create_without_encoding "caml_alloc2"
+
+  let caml_alloc3 = create_without_encoding "caml_alloc3"
+
+  let caml_ml_array_bound_error =
+    create_without_encoding "caml_ml_array_bound_error"
+
+  let caml_raise_exn = create_without_encoding "caml_raise_exn"
+
+  let stapsdt_base = create_without_encoding "_.stapsdt.base"
+
+  let caml_probes_semaphore ~name =
+    create_without_encoding ("caml_probes_semaphore_" ^ name)
+
+  let caml_negf_mask = create "caml_negf_mask"
+
+  let caml_absf_mask = create "caml_absf_mask"
+
+  let caml_negf32_mask = create "caml_negf32_mask"
+
+  let caml_absf32_mask = create "caml_absf32_mask"
+end

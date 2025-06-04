@@ -51,14 +51,6 @@ val set_int_arg :
 val set_float_arg :
     int option -> Float_arg_helper.parsed ref -> float -> float option -> unit
 
-module Libloc : sig
-  type t = {
-    path: string;
-    libs: string list;
-    hidden_libs: string list
-  }
-end
-
 type profile_column = [ `Time | `Alloc | `Top_heap | `Abs_top_heap | `Counters ]
 type profile_granularity_level = File_level | Function_level | Block_level
 type flambda_invariant_checks = No_checks | Light_checks | Heavy_checks
@@ -70,8 +62,9 @@ val cmi_file : string option ref
 val compile_only : bool ref
 val output_name : string option ref
 val include_dirs : string list ref
-val libloc : Libloc.t list ref
 val hidden_include_dirs : string list ref
+val include_paths_files : string list ref
+val hidden_include_paths_files : string list ref
 val no_std_include : bool ref
 val no_cwd : bool ref
 val print_types : bool ref
@@ -140,6 +133,7 @@ val dump_typedtree : bool ref
 val dump_shape : bool ref
 val dump_rawlambda : bool ref
 val dump_lambda : bool ref
+val dump_blambda : bool ref
 val dump_letreclambda : bool ref
 val dump_rawclambda : bool ref
 val dump_clambda : bool ref
@@ -271,11 +265,13 @@ end
 module Compiler_pass : sig
   type t = Parsing | Typing | Lambda | Middle_end
          | Linearization | Emit | Simplify_cfg | Selection
+         | Register_allocation
   val of_string : string -> t option
   val to_string : t -> string
   val is_compilation_pass : t -> bool
   val available_pass_names : filter:(t -> bool) -> native:bool -> string list
   val can_save_ir_after : t -> bool
+  val can_save_ir_before : t -> bool
   val compare : t -> t -> int
   val to_output_filename: t -> prefix:string -> string
   val of_input_filename: string -> t option
@@ -283,7 +279,9 @@ end
 val stop_after : Compiler_pass.t option ref
 val should_stop_after : Compiler_pass.t -> bool
 val set_save_ir_after : Compiler_pass.t -> bool -> unit
+val set_save_ir_before : Compiler_pass.t -> bool -> unit
 val should_save_ir_after : Compiler_pass.t -> bool
+val should_save_ir_before : Compiler_pass.t -> bool
 
 val is_flambda2 : unit -> bool
 

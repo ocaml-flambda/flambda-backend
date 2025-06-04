@@ -389,8 +389,7 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type1 ident_array
        ~variance:Variance.full
        ~separability:Separability.Ind
-       ~param_jkind:(Jkind.add_nullability_crossing
-                      (Jkind.Builtin.any ~why:Array_type_argument))
+       ~param_jkind:(Jkind.Builtin.any_non_null ~why:Array_type_argument)
        ~jkind:(fun param ->
          Jkind.Builtin.mutable_data ~why:(Primitive ident_array) |>
          Jkind.add_with_bounds
@@ -399,8 +398,7 @@ let build_initial_env add_type add_extension empty_env =
   |> add_type1 ident_iarray
        ~variance:Variance.covariant
        ~separability:Separability.Ind
-       ~param_jkind:(Jkind.add_nullability_crossing
-                      (Jkind.Builtin.any ~why:Array_type_argument))
+       ~param_jkind:(Jkind.Builtin.any_non_null ~why:Array_type_argument)
        ~jkind:(fun param ->
          Jkind.Builtin.immutable_data ~why:(Primitive ident_iarray) |>
          Jkind.add_with_bounds
@@ -410,16 +408,17 @@ let build_initial_env add_type add_extension empty_env =
        ~kind:(variant [ cstr ident_false []; cstr ident_true []])
        ~jkind:Jkind.Const.Builtin.immediate
   |> add_type ident_char ~jkind:Jkind.Const.Builtin.immediate
-  |> add_type ident_exn ~kind:Type_open ~jkind:Jkind.Const.Builtin.value
-  |> add_type ident_extension_constructor ~jkind:Jkind.Const.Builtin.value
-  |> add_type ident_float ~jkind:Jkind.Const.Builtin.immutable_data
-      ~unboxed_jkind:Jkind.Const.Builtin.float64
+  |> add_type_with_jkind ident_exn ~kind:Type_open
+    ~jkind:(Jkind.for_non_float ~why:(Primitive ident_exn))
+  |> add_type ident_extension_constructor ~jkind:Jkind.Const.Builtin.immutable_data
+  |> add_type_with_jkind ident_float ~jkind:(Jkind.for_float ident_float)
+      ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_float
   |> add_type ident_floatarray ~jkind:Jkind.Const.Builtin.mutable_data
   |> add_type ident_int ~jkind:Jkind.Const.Builtin.immediate
   |> add_type ident_int32 ~jkind:Jkind.Const.Builtin.immutable_data
-      ~unboxed_jkind:Jkind.Const.Builtin.bits32
+      ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_int32
   |> add_type ident_int64 ~jkind:Jkind.Const.Builtin.immutable_data
-      ~unboxed_jkind:Jkind.Const.Builtin.bits64
+      ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_int64
   |> add_type1 ident_lazy_t
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -428,7 +427,7 @@ let build_initial_env add_type add_extension empty_env =
           It might also cross portability, linearity, uniqueness subject to its
           parameter. But I'm also fine not doing that for now (and wait until
           users complains).  *)
-       ~jkind:(fun _ -> Jkind.Builtin.value ~why:(Primitive ident_lazy_t))
+       ~jkind:(fun _ -> Jkind.for_non_float ~why:(Primitive ident_lazy_t))
   |> add_type1 ident_list
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -440,7 +439,7 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind:list_jkind
   |> add_type ident_nativeint
       ~jkind:Jkind.Const.Builtin.immutable_data
-      ~unboxed_jkind:Jkind.Const.Builtin.word
+      ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_nativeint
   |> add_type1 ident_option
        ~variance:Variance.covariant
        ~separability:Separability.Ind
@@ -521,23 +520,23 @@ let add_simd_stable_extension_types add_type env =
   let _, add_type = mk_add_type add_type in
   env
   |> add_type ident_int8x16 ~jkind:Jkind.Const.Builtin.immutable_data
-      ~unboxed_jkind:Jkind.Const.Builtin.vec128
+      ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_128bit_vectors
   |> add_type ident_int16x8 ~jkind:Jkind.Const.Builtin.immutable_data
-      ~unboxed_jkind:Jkind.Const.Builtin.vec128
+      ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_128bit_vectors
   |> add_type ident_int32x4 ~jkind:Jkind.Const.Builtin.immutable_data
-      ~unboxed_jkind:Jkind.Const.Builtin.vec128
+      ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_128bit_vectors
   |> add_type ident_int64x2 ~jkind:Jkind.Const.Builtin.immutable_data
-      ~unboxed_jkind:Jkind.Const.Builtin.vec128
+      ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_128bit_vectors
   |> add_type ident_float32x4 ~jkind:Jkind.Const.Builtin.immutable_data
-      ~unboxed_jkind:Jkind.Const.Builtin.vec128
+      ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_128bit_vectors
   |> add_type ident_float64x2 ~jkind:Jkind.Const.Builtin.immutable_data
-      ~unboxed_jkind:Jkind.Const.Builtin.vec128
+      ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_128bit_vectors
 
 let add_small_number_extension_types add_type env =
   let _, add_type = mk_add_type add_type in
   env
   |> add_type ident_float32 ~jkind:Jkind.Const.Builtin.immutable_data
-       ~unboxed_jkind:Jkind.Const.Builtin.float32
+       ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_float32
 
 let add_small_number_beta_extension_types add_type env =
   let _, add_type = mk_add_type add_type in

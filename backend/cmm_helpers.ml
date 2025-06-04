@@ -15,6 +15,8 @@
 
 [@@@ocaml.warning "+a-4-9-40-41-42-44-45"]
 
+(* CR-soon xclerc for xclerc: try to add open!
+   Int_replace_polymorphic_compare *)
 module V = Backend_var
 module VP = Backend_var.With_provenance
 open Cmm
@@ -347,7 +349,7 @@ let rec map_tail1 e ~f =
   | Csequence (e1, e2) -> Csequence (e1, map_tail1 e2 ~f)
   | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
   | Cconst_vec128 _ | Cconst_symbol _ | Cvar _ | Ctuple _ | Cop _
-  | Cifthenelse _ | Cexit _ | Ccatch _ | Ctrywith _ | Cswitch _ ->
+  | Cifthenelse _ | Cexit _ | Ccatch _ | Cswitch _ ->
     f e
 
 let map_tail2 x y ~f = map_tail1 y ~f:(fun y -> map_tail1 x ~f:(fun x -> f x y))
@@ -394,13 +396,29 @@ let rec add_int c1 c2 dbg =
 
 let rec sub_int c1 c2 dbg =
   map_tail2 c1 c2 ~f:(fun c1 c2 ->
-      match c1, c2 with
-      | c1, Cconst_int (n2, _) when n2 <> min_int -> add_const c1 (-n2) dbg
-      | c1, Cop (Caddi, [c2; Cconst_int (n2, _)], _) when n2 <> min_int ->
+      match prefer_add c1, prefer_add c2 with
+      | _, Cconst_int (n2, _) when n2 <> min_int -> add_const c1 (-n2) dbg
+      | _, Cop (Caddi, [c2; Cconst_int (n2, _)], _) when n2 <> min_int ->
         add_const (sub_int c1 c2 dbg) (-n2) dbg
-      | Cop (Caddi, [c1; Cconst_int (n1, _)], _), c2 ->
+      | Cop (Caddi, [c1; Cconst_int (n1, _)], _), _ ->
         add_const (sub_int c1 c2 dbg) n1 dbg
-      | c1, c2 -> Cop (Csubi, [c1; c2], dbg))
+      | _, _ -> Cop (Csubi, [c1; c2], dbg))
+
+let add_int_addr c1 c2 dbg = Cop (Cadda, [c1; c2], dbg)
+
+let add_int_ptr ~ptr_out_of_heap c1 c2 dbg =
+  (* The [add_int_addr] case is only used for string access, and it seems
+     unlikely that the more complicated optimizations done for [add_int] will
+     apply.
+
+     For out-of-heap accesses, we use [add_int], thus allowing more CSE. *)
+  if ptr_out_of_heap
+  then add_int c1 c2 dbg
+  else
+    match c1, c2 with
+    | Cconst_int (0, _), c | c, Cconst_int (0, _) -> c
+    | Cconst_natint (0n, _), c | c, Cconst_natint (0n, _) -> c
+    | _, _ -> add_int_addr c1 c2 dbg
 
 let neg_int c dbg = sub_int (Cconst_int (0, dbg)) c dbg
 
@@ -716,14 +734,14 @@ let mk_not dbg cmm =
     | _ ->
       (* 0 -> 3, 1 -> 1 *)
       Cop
-        ( Csubi,
+        ( Cxor,
           [Cconst_int (3, dbg); Cop (Clsl, [c; Cconst_int (1, dbg)], dbg)],
           dbg ))
   | Cconst_int (3, _) -> Cconst_int (1, dbg)
   | Cconst_int (1, _) -> Cconst_int (3, dbg)
   | c ->
     (* 1 -> 3, 3 -> 1 *)
-    Cop (Csubi, [Cconst_int (4, dbg); c], dbg)
+    Cop (Cxor, [Cconst_int (2, dbg); c], dbg)
 
 let mk_compare_ints_untagged dbg a1 a2 =
   bind "int_cmp" a2 (fun a2 ->
@@ -888,8 +906,7 @@ let make_safe_divmod operator ~if_divisor_is_negative_one
                 Cop (operator, [c1; c2], dbg),
                 dbg,
                 if_divisor_is_negative_one ~dividend:c1 ~dbg,
-                dbg,
-                Any )))
+                dbg )))
 
 let is_power_of_2_or_zero n = Nativeint.logand n (Nativeint.pred n) = 0n
 
@@ -915,8 +932,7 @@ let div_int ?dividend_cannot_be_min_int c1 c2 dbg =
           Cconst_int (1, dbg),
           dbg,
           Cconst_int (0, dbg),
-          dbg,
-          Any )
+          dbg )
     else if is_power_of_2_or_zero divisor
     then
       (* [divisor] must be positive be here since we already handled zero and
@@ -996,8 +1012,7 @@ let mod_int ?dividend_cannot_be_min_int c1 c2 dbg =
               Cconst_int (0, dbg),
               dbg,
               c1,
-              dbg,
-              Any ))
+              dbg ))
     else if is_power_of_2_or_zero n
     then
       (* [divisor] must be positive be here since we already handled zero and
@@ -1053,7 +1068,7 @@ let box_float32 dbg mode exp =
       dbg )
 
 let unbox_float32 dbg =
-  map_tail ~kind:Any (function
+  map_tail (function
     | Cop (Calloc _, [Cconst_natint (hdr, _); Cconst_symbol (sym, _); c], _)
       when (Nativeint.equal hdr boxedfloat32_header
            || Nativeint.equal hdr boxedfloat32_local_header)
@@ -1077,7 +1092,7 @@ let box_float dbg m c =
   Cop (Calloc (m, Alloc_block_kind_float), [alloc_float_header m dbg; c], dbg)
 
 let unbox_float dbg =
-  map_tail ~kind:Any (function
+  map_tail (function
     | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
       when Nativeint.equal hdr float_header
            || Nativeint.equal hdr float_local_header ->
@@ -1099,7 +1114,7 @@ let box_vec128 dbg m c =
 let unbox_vec128 dbg =
   (* Boxed vectors are not 16-byte aligned by the GC, so we must use an
      unaligned load. *)
-  map_tail ~kind:Any (function
+  map_tail (function
     | Cop (Calloc _, [Cconst_natint (hdr, _); c], _)
       when Nativeint.equal hdr boxedvec128_header
            || Nativeint.equal hdr boxedvec128_local_header ->
@@ -2275,7 +2290,7 @@ let unbox_int dbg bi =
         [Cop (Cadda, [arg; Cconst_int (size_addr, dbg)], dbg)],
         dbg )
   in
-  map_tail ~kind:Any (function
+  map_tail (function
     | Cop
         ( Calloc _,
           [hdr; ops; Cop (Clsl, [contents; Cconst_int (32, _)], _dbg')],
@@ -2306,26 +2321,41 @@ let unbox_int dbg bi =
 let make_unsigned_int bi arg dbg =
   if bi = Primitive.Unboxed_int32 then zero_extend ~bits:32 arg ~dbg else arg
 
-let unaligned_load_16 ptr idx dbg =
+let unaligned_load_16 ~ptr_out_of_heap ptr idx dbg =
   if Arch.allow_unaligned_access
-  then Cop (mk_load_mut Sixteen_unsigned, [add_int ptr idx dbg], dbg)
+  then
+    Cop
+      ( mk_load_mut Sixteen_unsigned,
+        [add_int_ptr ~ptr_out_of_heap ptr idx dbg],
+        dbg )
   else
     let cconst_int i = Cconst_int (i, dbg) in
-    let v1 = Cop (mk_load_mut Byte_unsigned, [add_int ptr idx dbg], dbg) in
+    let v1 =
+      Cop
+        ( mk_load_mut Byte_unsigned,
+          [add_int_ptr ~ptr_out_of_heap ptr idx dbg],
+          dbg )
+    in
     let v2 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [add_int (add_int ptr idx dbg) (cconst_int 1) dbg],
+          (* CR mshinwell/gbury: Refactor this to compute [idx + 1] using
+             [add_int], then use [add_int_ptr] on that. *)
+          [ add_int_ptr ~ptr_out_of_heap
+              (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+              (cconst_int 1) dbg ],
           dbg )
     in
     let b1, b2 = if Arch.big_endian then v1, v2 else v2, v1 in
     Cop (Cor, [lsl_int b1 (cconst_int 8) dbg; b2], dbg)
 
-let unaligned_set_16 ptr idx newval dbg =
+let unaligned_set_16 ~ptr_out_of_heap ptr idx newval dbg =
   if Arch.allow_unaligned_access
   then
     Cop
-      (Cstore (Sixteen_unsigned, Assignment), [add_int ptr idx dbg; newval], dbg)
+      ( Cstore (Sixteen_unsigned, Assignment),
+        [add_int_ptr ~ptr_out_of_heap ptr idx dbg; newval],
+        dbg )
   else
     let cconst_int i = Cconst_int (i, dbg) in
     let v1 =
@@ -2334,34 +2364,55 @@ let unaligned_set_16 ptr idx newval dbg =
     let v2 = Cop (Cand, [newval; cconst_int 0xFF], dbg) in
     let b1, b2 = if Arch.big_endian then v1, v2 else v2, v1 in
     Csequence
-      ( Cop (Cstore (Byte_unsigned, Assignment), [add_int ptr idx dbg; b1], dbg),
+      ( Cop
+          ( Cstore (Byte_unsigned, Assignment),
+            [add_int_ptr ~ptr_out_of_heap ptr idx dbg; b1],
+            dbg ),
         Cop
           ( Cstore (Byte_unsigned, Assignment),
-            [add_int (add_int ptr idx dbg) (cconst_int 1) dbg; b2],
+            [ add_int_ptr ~ptr_out_of_heap
+                (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+                (cconst_int 1) dbg;
+              b2 ],
             dbg ) )
 
-let unaligned_load_32 ptr idx dbg =
+let unaligned_load_32 ~ptr_out_of_heap ptr idx dbg =
   if Arch.allow_unaligned_access
-  then Cop (mk_load_mut Thirtytwo_unsigned, [add_int ptr idx dbg], dbg)
+  then
+    Cop
+      ( mk_load_mut Thirtytwo_unsigned,
+        [add_int_ptr ~ptr_out_of_heap ptr idx dbg],
+        dbg )
   else
     let cconst_int i = Cconst_int (i, dbg) in
-    let v1 = Cop (mk_load_mut Byte_unsigned, [add_int ptr idx dbg], dbg) in
+    let v1 =
+      Cop
+        ( mk_load_mut Byte_unsigned,
+          [add_int_ptr ~ptr_out_of_heap ptr idx dbg],
+          dbg )
+    in
     let v2 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [add_int (add_int ptr idx dbg) (cconst_int 1) dbg],
+          [ add_int_ptr ~ptr_out_of_heap
+              (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+              (cconst_int 1) dbg ],
           dbg )
     in
     let v3 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [add_int (add_int ptr idx dbg) (cconst_int 2) dbg],
+          [ add_int_ptr ~ptr_out_of_heap
+              (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+              (cconst_int 2) dbg ],
           dbg )
     in
     let v4 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [add_int (add_int ptr idx dbg) (cconst_int 3) dbg],
+          [ add_int_ptr ~ptr_out_of_heap
+              (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+              (cconst_int 3) dbg ],
           dbg )
     in
     let b1, b2, b3, b4 =
@@ -2376,12 +2427,12 @@ let unaligned_load_32 ptr idx dbg =
           Cop (Cor, [lsl_int b3 (cconst_int 8) dbg; b4], dbg) ],
         dbg )
 
-let unaligned_set_32 ptr idx newval dbg =
+let unaligned_set_32 ~ptr_out_of_heap ptr idx newval dbg =
   if Arch.allow_unaligned_access
   then
     Cop
       ( Cstore (Thirtytwo_unsigned, Assignment),
-        [add_int ptr idx dbg; newval],
+        [add_int_ptr ~ptr_out_of_heap ptr idx dbg; newval],
         dbg )
   else
     let cconst_int i = Cconst_int (i, dbg) in
@@ -2404,68 +2455,97 @@ let unaligned_set_32 ptr idx newval dbg =
       ( Csequence
           ( Cop
               ( Cstore (Byte_unsigned, Assignment),
-                [add_int ptr idx dbg; b1],
+                [add_int_ptr ~ptr_out_of_heap ptr idx dbg; b1],
                 dbg ),
             Cop
               ( Cstore (Byte_unsigned, Assignment),
-                [add_int (add_int ptr idx dbg) (cconst_int 1) dbg; b2],
+                [ add_int_ptr ~ptr_out_of_heap
+                    (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+                    (cconst_int 1) dbg;
+                  b2 ],
                 dbg ) ),
         Csequence
           ( Cop
               ( Cstore (Byte_unsigned, Assignment),
-                [add_int (add_int ptr idx dbg) (cconst_int 2) dbg; b3],
+                [ add_int_ptr ~ptr_out_of_heap
+                    (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+                    (cconst_int 2) dbg;
+                  b3 ],
                 dbg ),
             Cop
               ( Cstore (Byte_unsigned, Assignment),
-                [add_int (add_int ptr idx dbg) (cconst_int 3) dbg; b4],
+                [ add_int_ptr ~ptr_out_of_heap
+                    (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+                    (cconst_int 3) dbg;
+                  b4 ],
                 dbg ) ) )
 
-let unaligned_load_64 ptr idx dbg =
+let unaligned_load_64 ~ptr_out_of_heap ptr idx dbg =
   if Arch.allow_unaligned_access
-  then Cop (mk_load_mut Word_int, [add_int ptr idx dbg], dbg)
+  then
+    Cop (mk_load_mut Word_int, [add_int_ptr ~ptr_out_of_heap ptr idx dbg], dbg)
   else
     let cconst_int i = Cconst_int (i, dbg) in
-    let v1 = Cop (mk_load_mut Byte_unsigned, [add_int ptr idx dbg], dbg) in
+    let v1 =
+      Cop
+        ( mk_load_mut Byte_unsigned,
+          [add_int_ptr ~ptr_out_of_heap ptr idx dbg],
+          dbg )
+    in
     let v2 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [add_int (add_int ptr idx dbg) (cconst_int 1) dbg],
+          [ add_int_ptr ~ptr_out_of_heap
+              (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+              (cconst_int 1) dbg ],
           dbg )
     in
     let v3 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [add_int (add_int ptr idx dbg) (cconst_int 2) dbg],
+          [ add_int_ptr ~ptr_out_of_heap
+              (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+              (cconst_int 2) dbg ],
           dbg )
     in
     let v4 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [add_int (add_int ptr idx dbg) (cconst_int 3) dbg],
+          [ add_int_ptr ~ptr_out_of_heap
+              (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+              (cconst_int 3) dbg ],
           dbg )
     in
     let v5 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [add_int (add_int ptr idx dbg) (cconst_int 4) dbg],
+          [ add_int_ptr ~ptr_out_of_heap
+              (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+              (cconst_int 4) dbg ],
           dbg )
     in
     let v6 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [add_int (add_int ptr idx dbg) (cconst_int 5) dbg],
+          [ add_int_ptr ~ptr_out_of_heap
+              (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+              (cconst_int 5) dbg ],
           dbg )
     in
     let v7 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [add_int (add_int ptr idx dbg) (cconst_int 6) dbg],
+          [ add_int_ptr ~ptr_out_of_heap
+              (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+              (cconst_int 6) dbg ],
           dbg )
     in
     let v8 =
       Cop
         ( mk_load_mut Byte_unsigned,
-          [add_int (add_int ptr idx dbg) (cconst_int 7) dbg],
+          [ add_int_ptr ~ptr_out_of_heap
+              (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+              (cconst_int 7) dbg ],
           dbg )
     in
     let b1, b2, b3, b4, b5, b6, b7, b8 =
@@ -2499,9 +2579,13 @@ let unaligned_load_64 ptr idx dbg =
               dbg ) ],
         dbg )
 
-let unaligned_set_64 ptr idx newval dbg =
+let unaligned_set_64 ~ptr_out_of_heap ptr idx newval dbg =
   if Arch.allow_unaligned_access
-  then Cop (Cstore (Word_int, Assignment), [add_int ptr idx dbg; newval], dbg)
+  then
+    Cop
+      ( Cstore (Word_int, Assignment),
+        [add_int_ptr ~ptr_out_of_heap ptr idx dbg; newval],
+        dbg )
   else
     let cconst_int i = Cconst_int (i, dbg) in
     let v1 =
@@ -2554,77 +2638,107 @@ let unaligned_set_64 ptr idx newval dbg =
           ( Csequence
               ( Cop
                   ( Cstore (Byte_unsigned, Assignment),
-                    [add_int ptr idx dbg; b1],
+                    [add_int_ptr ~ptr_out_of_heap ptr idx dbg; b1],
                     dbg ),
                 Cop
                   ( Cstore (Byte_unsigned, Assignment),
-                    [add_int (add_int ptr idx dbg) (cconst_int 1) dbg; b2],
+                    [ add_int_ptr ~ptr_out_of_heap
+                        (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+                        (cconst_int 1) dbg;
+                      b2 ],
                     dbg ) ),
             Csequence
               ( Cop
                   ( Cstore (Byte_unsigned, Assignment),
-                    [add_int (add_int ptr idx dbg) (cconst_int 2) dbg; b3],
+                    [ add_int_ptr ~ptr_out_of_heap
+                        (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+                        (cconst_int 2) dbg;
+                      b3 ],
                     dbg ),
                 Cop
                   ( Cstore (Byte_unsigned, Assignment),
-                    [add_int (add_int ptr idx dbg) (cconst_int 3) dbg; b4],
+                    [ add_int_ptr ~ptr_out_of_heap
+                        (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+                        (cconst_int 3) dbg;
+                      b4 ],
                     dbg ) ) ),
         Csequence
           ( Csequence
               ( Cop
                   ( Cstore (Byte_unsigned, Assignment),
-                    [add_int (add_int ptr idx dbg) (cconst_int 4) dbg; b5],
+                    [ add_int_ptr ~ptr_out_of_heap
+                        (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+                        (cconst_int 4) dbg;
+                      b5 ],
                     dbg ),
                 Cop
                   ( Cstore (Byte_unsigned, Assignment),
-                    [add_int (add_int ptr idx dbg) (cconst_int 5) dbg; b6],
+                    [ add_int_ptr ~ptr_out_of_heap
+                        (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+                        (cconst_int 5) dbg;
+                      b6 ],
                     dbg ) ),
             Csequence
               ( Cop
                   ( Cstore (Byte_unsigned, Assignment),
-                    [add_int (add_int ptr idx dbg) (cconst_int 6) dbg; b7],
+                    [ add_int_ptr ~ptr_out_of_heap
+                        (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+                        (cconst_int 6) dbg;
+                      b7 ],
                     dbg ),
                 Cop
                   ( Cstore (Byte_unsigned, Assignment),
-                    [add_int (add_int ptr idx dbg) (cconst_int 7) dbg; b8],
+                    [ add_int_ptr ~ptr_out_of_heap
+                        (add_int_ptr ~ptr_out_of_heap ptr idx dbg)
+                        (cconst_int 7) dbg;
+                      b8 ],
                     dbg ) ) ) )
 
-let unaligned_load_f32 ptr idx dbg =
-  Cop (mk_load_mut (Single { reg = Float32 }), [add_int ptr idx dbg], dbg)
-
-let unaligned_set_f32 ptr idx newval dbg =
+let unaligned_load_f32 ~ptr_out_of_heap ptr idx dbg =
   Cop
-    ( Cstore (Single { reg = Float32 }, Assignment),
-      [add_int ptr idx dbg; newval],
+    ( mk_load_mut (Single { reg = Float32 }),
+      [add_int_ptr ~ptr_out_of_heap ptr idx dbg],
       dbg )
 
-let unaligned_load_128 ptr idx dbg =
-  assert (size_vec128 = 16);
-  Cop (mk_load_mut Onetwentyeight_unaligned, [add_int ptr idx dbg], dbg)
+let unaligned_set_f32 ~ptr_out_of_heap ptr idx newval dbg =
+  Cop
+    ( Cstore (Single { reg = Float32 }, Assignment),
+      [add_int_ptr ~ptr_out_of_heap ptr idx dbg; newval],
+      dbg )
 
-let unaligned_set_128 ptr idx newval dbg =
+let unaligned_load_128 ~ptr_out_of_heap ptr idx dbg =
+  assert (size_vec128 = 16);
+  Cop
+    ( mk_load_mut Onetwentyeight_unaligned,
+      [add_int_ptr ~ptr_out_of_heap ptr idx dbg],
+      dbg )
+
+let unaligned_set_128 ~ptr_out_of_heap ptr idx newval dbg =
   assert (size_vec128 = 16);
   Cop
     ( Cstore (Onetwentyeight_unaligned, Assignment),
-      [add_int ptr idx dbg; newval],
+      [add_int_ptr ~ptr_out_of_heap ptr idx dbg; newval],
       dbg )
 
-let aligned_load_128 ptr idx dbg =
+let aligned_load_128 ~ptr_out_of_heap ptr idx dbg =
   assert (size_vec128 = 16);
-  Cop (mk_load_mut Onetwentyeight_aligned, [add_int ptr idx dbg], dbg)
+  Cop
+    ( mk_load_mut Onetwentyeight_aligned,
+      [add_int_ptr ~ptr_out_of_heap ptr idx dbg],
+      dbg )
 
-let aligned_set_128 ptr idx newval dbg =
+let aligned_set_128 ~ptr_out_of_heap ptr idx newval dbg =
   assert (size_vec128 = 16);
   Cop
     ( Cstore (Onetwentyeight_aligned, Assignment),
-      [add_int ptr idx dbg; newval],
+      [add_int_ptr ~ptr_out_of_heap ptr idx dbg; newval],
       dbg )
 
 let opaque e dbg = Cop (Copaque, [e], dbg)
 
 (* Build an actual switch (ie jump table) *)
 
-let make_switch arg cases actions dbg kind =
+let make_switch arg cases actions dbg =
   let extract_uconstant = function
     (* Constant integers loaded from a table should end in 1, so that Cload
        never produces untagged integers *)
@@ -2672,7 +2786,7 @@ let make_switch arg cases actions dbg kind =
       dbg
   in
   match Misc.Stdlib.Array.all_somes (Array.map extract_uconstant actions) with
-  | None -> Cswitch (arg, cases, actions, dbg, kind)
+  | None -> Cswitch (arg, cases, actions, dbg)
   | Some const_actions -> (
     match extract_affine ~cases ~const_actions with
     | Some (offset, slope) -> make_affine_computation ~offset ~slope arg dbg
@@ -2699,9 +2813,11 @@ module SArgBlocks = struct
 
   type act = expression
 
-  type loc = Debuginfo.t
+  (* The module [SArgBlocks] must conform to the signature `Switch.S`. Since we
+     do not need a layout, we pick unit as the layout. *)
+  type layout = unit
 
-  type layout = kind_for_unboxing
+  type loc = Debuginfo.t
 
   (* CR mshinwell: GPR#2294 will fix the Debuginfo here *)
 
@@ -2719,23 +2835,17 @@ module SArgBlocks = struct
 
   let arg_as_test arg = arg
 
-  let make_if value_kind cond ifso ifnot =
+  let make_if () cond ifso ifnot =
     Cifthenelse
-      ( cond,
-        Debuginfo.none,
-        ifso,
-        Debuginfo.none,
-        ifnot,
-        Debuginfo.none,
-        value_kind )
+      (cond, Debuginfo.none, ifso, Debuginfo.none, ifnot, Debuginfo.none)
 
-  let make_switch dbg value_kind arg cases actions =
+  let make_switch dbg () arg cases actions =
     let actions = Array.map (fun expr -> expr, dbg) actions in
-    make_switch arg cases actions dbg value_kind
+    make_switch arg cases actions dbg
 
   let bind arg body = bind "switcher" arg body
 
-  let make_catch kind handler =
+  let make_catch () handler =
     match handler with
     | Cexit (Lbl i, [], []) -> i, fun e -> e
     | _ -> (
@@ -2748,7 +2858,7 @@ module SArgBlocks = struct
         fun body ->
           match body with
           | Cexit (j, _, _) -> if Lbl i = j then handler else body
-          | _ -> ccatch (i, [], body, handler, dbg, kind, false) ))
+          | _ -> ccatch (i, [], body, handler, dbg, false) ))
 
   let make_exit i = Cexit (Lbl i, [], [])
 end
@@ -2780,7 +2890,7 @@ end)
 
 module SwitcherBlocks = Switch.Make (SArgBlocks)
 
-let transl_switch_clambda loc value_kind arg index cases =
+let transl_switch_clambda loc arg index cases =
   let store = StoreExpForSwitch.mk_store () in
   let index = Array.map (fun j -> store.Switch.act_store j cases.(j)) index in
   let n_index = Array.length index in
@@ -2803,7 +2913,7 @@ let transl_switch_clambda loc value_kind arg index cases =
   | [_] -> cases.(0)
   | inters ->
     bind "switcher" arg (fun a ->
-        SwitcherBlocks.zyva loc value_kind
+        SwitcherBlocks.zyva loc ()
           (0, n_index - 1)
           a (Array.of_list inters) store)
 
@@ -2858,8 +2968,7 @@ let call_caml_apply extended_ty extended_args_type mut clos args pos mode dbg =
                     dbg ),
                 dbg,
                 really_call_caml_apply clos args,
-                dbg,
-                Any )))
+                dbg )))
   else really_call_caml_apply clos args
 
 (* CR mshinwell: These will be filled in by later pull requests. *)
@@ -2876,16 +2985,15 @@ let maybe_reset_current_region ~dbg ~body_tail ~body_nontail old_region =
          ( VP.create res,
            body_nontail,
            Csequence (Cop (Cendregion, [old_region], dbg ()), Cvar res) )),
-      dbg (),
-      Any )
+      dbg () )
 
 let apply_or_call_caml_apply result arity mut clos args pos mode dbg =
-  match args with
-  | [arg] ->
+  match arity with
+  | [_] ->
     bind "fun" clos (fun clos ->
         Cop
           ( Capply (Extended_machtype.to_machtype result, pos),
-            [get_field_codepointer mut clos 0 dbg; arg; clos],
+            (get_field_codepointer mut clos 0 dbg :: args) @ [clos],
             dbg ))
   | _ -> call_caml_apply result arity mut clos args pos mode dbg
 
@@ -3001,8 +3109,7 @@ let cache_public_method meths tag cache dbg =
         Cexit (Lbl found_cont, [Cvar check_li], []),
         dbg,
         Cexit (Lbl loop_cont, [Cvar check_li; Cvar check_hi], []),
-        dbg,
-        Any )
+        dbg )
   in
   let dichotomy_expr =
     Clet
@@ -3034,8 +3141,7 @@ let cache_public_method meths tag cache dbg =
             dbg,
             (* tag >= a.(mi) : interval is now [ mi; hi ] *)
             Cexit (Lbl check_cont, [Cvar mi; Cvar hi], []),
-            dbg,
-            Any ) )
+            dbg ) )
   in
   let loop_body =
     ccatch
@@ -3044,7 +3150,6 @@ let cache_public_method meths tag cache dbg =
         dichotomy_expr,
         check_expr,
         dbg,
-        Any,
         false )
   in
   let li_vp = VP.create li in
@@ -3059,11 +3164,9 @@ let cache_public_method meths tag cache dbg =
           Cexit
             ( Lbl loop_cont,
               [cconst_int 3; Cop (mk_load_mut Word_int, [meths], dbg)],
-              [] ),
-          Any ),
+              [] ) ),
       found_expr,
       dbg,
-      Any,
       false )
 
 let placeholder_fun_dbg ~human_name:_ = Debuginfo.none
@@ -3155,8 +3258,7 @@ let apply_function_body arity result (mode : Cmx_format.alloc_mode) =
               dbg () ),
           dbg (),
           code,
-          dbg (),
-          Any ) )
+          dbg () ) )
 
 let send_function (arity, result, mode) =
   let dbg = placeholder_dbg in
@@ -3194,8 +3296,7 @@ let send_function (arity, result, mode) =
                     cache_public_method (Cvar meths) tag cache (dbg ()),
                     dbg (),
                     cached_pos,
-                    dbg (),
-                    Any ),
+                    dbg () ),
                 Cop
                   ( mk_load_mut Word_val,
                     [ Cop
@@ -3888,8 +3989,7 @@ let entry_point namelist =
           Cexit (Lbl raise_num, [], []),
           dbg,
           Ctuple [],
-          dbg,
-          Any )
+          dbg )
     in
     let cont = Lambda.next_raise_count () in
     let id = Backend_var.create_local "*id*" in
@@ -3906,11 +4006,9 @@ let entry_point namelist =
                   ),
                 dbg,
                 false ) ],
-            Cexit (Lbl cont, [cconst_int 0], []),
-            Any ),
+            Cexit (Lbl cont, [cconst_int 0], []) ),
         Ctuple [],
         dbg,
-        Any,
         false )
   in
   let fun_name = global_symbol "caml_program" in
@@ -4040,8 +4138,7 @@ let letin v ~defining_expr ~body =
     defining_expr
   | Cvar _ | Cconst_int _ | Cconst_natint _ | Cconst_float32 _ | Cconst_float _
   | Cconst_symbol _ | Cconst_vec128 _ | Clet _ | Cphantom_let _ | Ctuple _
-  | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _
-  | Ctrywith _ ->
+  | Cop _ | Csequence _ | Cifthenelse _ | Cswitch _ | Ccatch _ | Cexit _ ->
     Clet (v, defining_expr, body)
 
 let sequence x y =
@@ -4051,10 +4148,17 @@ let sequence x y =
   | _, _ -> Csequence (x, y)
 
 let ite ~dbg ~then_dbg ~then_ ~else_dbg ~else_ cond =
-  Cifthenelse (cond, then_dbg, then_, else_dbg, else_, dbg, Any)
+  Cifthenelse (cond, then_dbg, then_, else_dbg, else_, dbg)
 
 let trywith ~dbg ~body ~exn_var ~extra_args ~handler_cont ~handler () =
-  Ctrywith (body, handler_cont, exn_var, extra_args, handler, dbg, Any)
+  Ccatch
+    ( Exn_handler,
+      [ ( handler_cont,
+          (exn_var, typ_val) :: extra_args,
+          handler,
+          dbg,
+          false (* is_cold *) ) ],
+      body )
 
 type static_handler =
   int
@@ -4071,8 +4175,8 @@ let trap_return arg trap_actions =
   Cmm.Cexit (Cmm.Return_lbl, [arg], trap_actions)
 
 let create_ccatch ~rec_flag ~handlers ~body =
-  let rec_flag = if rec_flag then Cmm.Recursive else Cmm.Nonrecursive in
-  Cmm.Ccatch (rec_flag, handlers, body, Any)
+  let rec_flag = if rec_flag then Cmm.Recursive else Cmm.Normal in
+  Cmm.Ccatch (rec_flag, handlers, body)
 
 let unary op ~dbg x = Cop (op, [x], dbg)
 
@@ -4250,10 +4354,12 @@ let indirect_call ~dbg ty pos alloc_mode f args_type args =
   might_split_call_caml_apply ty args_type Asttypes.Mutable f args pos
     alloc_mode dbg
 
-let indirect_full_call ~dbg ty pos alloc_mode f args_type = function
+let indirect_full_call ~dbg ty pos alloc_mode f args_type args =
+  match args_type with
   (* the single-argument case is already optimized by indirect_call *)
-  | [_] as args -> indirect_call ~dbg ty pos alloc_mode f args_type args
-  | args ->
+  | [_] -> indirect_call ~dbg ty pos alloc_mode f args_type args
+  | [] -> Misc.fatal_error "indirect_full_call: args_type was empty"
+  | _ :: _ :: _ ->
     (* Use a variable to avoid duplicating the cmm code of the closure [f]. *)
     let v = Backend_var.create_local "*closure*" in
     let v' = Backend_var.With_provenance.create v in
@@ -4372,7 +4478,7 @@ let cmm_arith_size (e : Cmm.expression) =
     Some 0
   | Cop _ -> Some (cmm_arith_size0 e)
   | Clet _ | Cphantom_let _ | Ctuple _ | Csequence _ | Cifthenelse _ | Cswitch _
-  | Ccatch _ | Cexit _ | Ctrywith _ ->
+  | Ccatch _ | Cexit _ ->
     None
 
 (* Atomics *)

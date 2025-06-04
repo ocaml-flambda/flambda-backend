@@ -134,6 +134,7 @@ struct caml_thread_struct {
   char * async_exn_handler;  /* saved value of Caml_state->async_exn_handler */
   memprof_thread_t memprof;  /* memprof's internal thread data structure */
   void * signal_stack;       /* this thread's signal stack */
+  size_t signal_stack_size;  /* size of this thread's signal stack in bytes */
   int is_main;               /* whether this is the main thread of its domain */
 
 #ifndef NATIVE_CODE
@@ -349,6 +350,7 @@ CAMLexport void caml_switch_runtime_locking_scheme(struct caml_locking_scheme* n
     caml_fatal_error("Switching locking scheme is unsupported in multicore programs");
   CAMLassert (!caml_domain_is_multicore());
   save_runtime_state();
+  domain_lockmode = LOCKMODE_CUSTOM_SCHEME;
   old = atomic_exchange(&Locking_scheme(dom_id), new);
   /* We hold 'old', but it is no longer the runtime lock */
   old->unlock(old->context);
@@ -393,19 +395,6 @@ static void caml_thread_leave_blocking_section(void)
   restore_runtime_state(th);
 }
 
-static int get_pthreads_stack_size_in_bytes(void)
-{
-  pthread_attr_t attr;
-  size_t res =
-    // default value, retrieved from a recent system (May 2024)
-    8388608;
-  if (pthread_attr_init(&attr) == 0) {
-    pthread_attr_getstacksize(&attr, &res);
-  }
-  pthread_attr_destroy(&attr);
-  return res;
-}
-
 /* Create and setup a new thread info block.
    This block has no associated thread descriptor and
    is not inserted in the list of threads. */
@@ -413,8 +402,7 @@ static caml_thread_t caml_thread_new_info(void)
 {
   caml_thread_t th = NULL;
   caml_domain_state *domain_state = Caml_state;
-  uintnat stack_wsize =
-    caml_get_init_stack_wsize(Wsize_bsize(get_pthreads_stack_size_in_bytes()));
+  uintnat stack_wsize = caml_get_init_stack_wsize(STACK_SIZE_THREAD);
 
   th = (caml_thread_t)caml_stat_alloc_noexc(sizeof(struct caml_thread_struct));
   if (th == NULL) return NULL;
@@ -624,6 +612,27 @@ static void caml_thread_domain_stop_hook(void) {
 
 static atomic_bool threads_initialized = false;
 
+CAMLprim value caml_thread_use_domains(value unit)
+{
+  if (domain_lockmode == LOCKMODE_DOMAINS)
+    return Val_unit;
+
+  if (domain_lockmode == LOCKMODE_CUSTOM_SCHEME)
+    caml_failwith("Thread.use_domains cannot be used with a non-default runtime locking scheme.");
+
+  CAMLassert(domain_lockmode == LOCKMODE_STARTUP);
+  CAMLassert(!caml_domain_is_multicore());
+
+  if (threads_initialized && !This_thread->is_main)
+    caml_failwith("Thread.use_domains: first use must be from the main thread.");
+
+  /* We are on the main thread, so we hold the domain_lock,
+     so we can switch lockmode */
+  domain_lockmode = LOCKMODE_DOMAINS;
+
+  return Val_unit; 
+}
+
 static void caml_thread_domain_spawn_hook(void)
 {
   if (domain_lockmode == LOCKMODE_DOMAINS)
@@ -782,7 +791,7 @@ static void thread_detach_from_runtime(void)
   caml_threadstatus_terminate(Terminated(th->descr));
   /* Remove signal stack */
   CAMLassert(th->signal_stack != NULL);
-  caml_free_signal_stack(th->signal_stack);
+  caml_free_signal_stack(th->signal_stack, th->signal_stack_size);
   /* The following also sets Active_thread to a sane value in case the
      backup thread does a GC before the domain lock is acquired
      again.  It also removes the thread from memprof. */
@@ -798,7 +807,7 @@ static void thread_init_current(caml_thread_t th)
 {
   st_tls_set(caml_thread_key, th);
   restore_runtime_state(th);
-  th->signal_stack = caml_init_signal_stack();
+  th->signal_stack = caml_init_signal_stack(&th->signal_stack_size);
 }
 
 /* Create a thread */

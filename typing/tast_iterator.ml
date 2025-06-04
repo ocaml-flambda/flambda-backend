@@ -313,7 +313,7 @@ let function_body sub body =
   | Tfunction_cases
       { fc_cases; fc_exp_extra; fc_loc; fc_attributes; fc_env;
         fc_arg_mode = _; fc_arg_sort = _; fc_ret_type = _;
-        fc_partial = _; fc_param = _;
+        fc_partial = _; fc_param = _; fc_param_debug_uid = _;
       } ->
       List.iter (sub.case sub) fc_cases;
       Option.iter (extra sub) fc_exp_extra;
@@ -676,6 +676,7 @@ let typ sub {ctyp_loc; ctyp_desc; ctyp_env; ctyp_attributes; _} =
   | Ttyp_open (_, mod_ident, t) ->
       iter_loc sub mod_ident;
       sub.typ sub t
+  | Ttyp_of_kind jkind -> sub.jkind_annotation sub jkind
   | Ttyp_call_pos -> ()
 
 let class_structure sub {cstr_self; cstr_fields; _} =

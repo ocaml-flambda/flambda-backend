@@ -1404,7 +1404,7 @@ Error: Signature mismatch:
          "foo : string;"
        is not the same as:
          "global_ foo : string;"
-       The second is global_ and the first is not.
+       The second is global and the first is not.
 |}]
 
 module M : sig
@@ -1430,7 +1430,7 @@ Error: Signature mismatch:
          "global_ foo : string;"
        is not the same as:
          "foo : string;"
-       The first is global_ and the second is not.
+       The first is global and the second is not.
 |}]
 
 (* Unboxed records version of the same test *)
@@ -1458,7 +1458,7 @@ Error: Signature mismatch:
          "foo : string;"
        is not the same as:
          "global_ foo : string;"
-       The second is global_ and the first is not.
+       The second is global and the first is not.
 |}]
 
 module M : sig
@@ -1484,7 +1484,7 @@ Error: Signature mismatch:
          "global_ foo : string;"
        is not the same as:
          "foo : string;"
-       The first is global_ and the second is not.
+       The first is global and the second is not.
 |}]
 
 (* Special handling of tuples in matches and let bindings *)
@@ -2310,7 +2310,7 @@ Error: Signature mismatch:
        is not the same as:
          "Bar of int * global_ string"
        Modality mismatch at argument position 2:
-       The second is global_ and the first is not.
+       The second is global and the first is not.
 |}]
 
 
@@ -2338,7 +2338,7 @@ Error: Signature mismatch:
        is not the same as:
          "Bar of int * string"
        Modality mismatch at argument position 2:
-       The first is global_ and the second is not.
+       The first is global and the second is not.
 |}]
 
 (* global_ binds closer than star *)

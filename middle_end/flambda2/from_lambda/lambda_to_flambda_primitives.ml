@@ -539,11 +539,6 @@ let box_vec128 mode (arg : H.expr_primitive) ~current_region : H.expr_primitive
 let unbox_vec128 (arg : H.simple_or_prim) : H.simple_or_prim =
   Prim (Unary (Unbox_number Naked_vec128, arg))
 
-let bint_unary_prim bi mode prim arg1 =
-  box_bint bi mode
-    (Unary
-       (Int_arith (standard_int_of_boxed_integer bi, prim), unbox_bint bi arg1))
-
 let bint_binary_prim bi mode prim arg1 arg2 =
   box_bint bi mode
     (Binary
@@ -1442,16 +1437,34 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let mutability = Mutability.from_lambda mutability in
     [Variadic (Make_block (Naked_floats, mutability, mode), args)]
   | Pmakemixedblock (tag, mutability, shape, mode), _ ->
-    let shape = Mixed_block_shape.of_mixed_block_elements shape in
-    let args =
-      List.flatten args |> Array.of_list
-      |> Mixed_block_shape.reorder_array shape
-      |> Array.to_list
+    let shape =
+      Mixed_block_shape.of_mixed_block_elements
+        ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
+        shape
     in
     let args =
+      let new_indexes_to_old_indexes =
+        Mixed_block_shape.new_indexes_to_old_indexes shape
+      in
+      let args = List.flatten args |> Array.of_list in
+      Array.init (Array.length args) (fun new_index ->
+          args.(new_indexes_to_old_indexes.(new_index)))
+      |> Array.to_list
+    in
+    let flattened_reordered_shape =
+      Mixed_block_shape.flattened_reordered_shape shape
+    in
+    if List.length args <> Array.length flattened_reordered_shape
+    then
+      Misc.fatal_errorf
+        "Pmakemixedblock: number of arguments (%d) is not consistent with \
+         shape length (%d)"
+        (List.length args)
+        (Array.length flattened_reordered_shape);
+    let args =
       List.mapi
-        (fun i arg ->
-          match Mixed_block_shape.get_reordered shape i with
+        (fun new_index arg ->
+          match flattened_reordered_shape.(new_index) with
           | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> arg
           | Float_boxed _ -> unbox_float arg)
         args
@@ -1459,10 +1472,8 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
     let mutability = Mutability.from_lambda mutability in
     let tag = Tag.Scannable.create_exn tag in
-    let shape =
-      K.Mixed_block_shape.from_lambda (Mixed_block_shape.reordered_shape shape)
-    in
-    [Variadic (Make_block (Mixed (tag, shape), mutability, mode), args)]
+    let kind_shape = K.Mixed_block_shape.from_mixed_block_shape shape in
+    [Variadic (Make_block (Mixed (tag, kind_shape), mutability, mode), args)]
   | Pmakearray (lambda_array_kind, mutability, mode), _ -> (
     let args = List.flatten args in
     let mode = Alloc_mode.For_allocations.from_lambda mode ~current_region in
@@ -1547,7 +1558,10 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
           Printlambda.primitive prim
     in
     [Unary (Duplicate_block { kind }, arg)]
-  | Pnegint, [[arg]] -> [Unary (Int_arith (I.Tagged_immediate, Neg), arg)]
+  | Pnegint, [[arg]] ->
+    let kind = I.Tagged_immediate in
+    let zero = Simple.const_int_of_kind (I.to_kind kind) 0 in
+    [Binary (Int_arith (kind, Sub), Simple zero, arg)]
   | Paddint, [[arg1]; [arg2]] ->
     [Binary (Int_arith (I.Tagged_immediate, Add), arg1, arg2)]
   | Psubint, [[arg1]; [arg2]] ->
@@ -1890,7 +1904,12 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
              unbox_bint source arg ))
         ~current_region ]
   | Pnegbint (bi, mode), [[arg]] ->
-    [bint_unary_prim bi mode Neg arg ~current_region]
+    let size = standard_int_of_boxed_integer bi in
+    [ box_bint bi mode ~current_region
+        (Binary
+           ( Int_arith (size, Sub),
+             Simple (Simple.const_int_of_kind (I.to_kind size) 0),
+             unbox_bint bi arg )) ]
   | Paddbint (bi, mode), [[arg1]; [arg2]] ->
     [bint_binary_prim bi mode Add arg1 arg2 ~current_region]
   | Psubbint (bi, mode), [[arg1]; [arg2]] ->
@@ -1947,38 +1966,52 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
     [ Unary
         (Block_load { kind = block_access; mut = mutability; field = imm }, arg)
     ]
-  | Pmixedfield (field, shape, sem), [[arg]] -> (
-    let shape = Mixed_block_shape.of_mixed_block_elements shape in
-    let field = Mixed_block_shape.old_index_to_new_index shape field in
-    let imm = Targetint_31_63.of_int field in
-    check_non_negative_imm imm "Pmixedfield";
-    let mutability = convert_field_read_semantics sem in
-    let block_access : P.Block_access_kind.t =
-      let field_kind : P.Mixed_block_access_field_kind.t =
-        match Mixed_block_shape.get_reordered shape field with
-        | Value value_kind ->
-          Value_prefix
-            (convert_block_access_field_kind_from_value_kind value_kind)
-        | (Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) as
-          mixed_block_element ->
-          Flat_suffix (K.Flat_suffix_element.from_lambda mixed_block_element)
-        | Float_boxed _ -> Flat_suffix K.Flat_suffix_element.naked_float
-      in
-      let shape =
-        K.Mixed_block_shape.from_lambda
-          (Mixed_block_shape.reordered_shape_unit shape)
-      in
-      Mixed { tag = Unknown; field_kind; shape; size = Unknown }
+  | Pmixedfield (field_path, shape, sem), [[arg]] ->
+    if List.length field_path < 1
+    then Misc.fatal_error "Pmixedfield: field_path must be non-empty";
+    let shape =
+      Mixed_block_shape.of_mixed_block_elements shape
+        ~print_locality:Printlambda.locality_mode
     in
-    let block_access : H.expr_primitive =
-      Unary
-        (Block_load { kind = block_access; mut = mutability; field = imm }, arg)
+    let flattened_reordered_shape =
+      Mixed_block_shape.flattened_reordered_shape shape
     in
-    match Mixed_block_shape.get_reordered shape field with
-    | Float_boxed (mode : Lambda.locality_mode) ->
-      [box_float mode block_access ~current_region]
-    | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
-      [block_access])
+    let kind_shape = K.Mixed_block_shape.from_mixed_block_shape shape in
+    let new_indexes =
+      Mixed_block_shape.lookup_path_producing_new_indexes shape field_path
+    in
+    List.map
+      (fun new_index ->
+        let imm = Targetint_31_63.of_int new_index in
+        check_non_negative_imm imm "Pmixedfield";
+        let mutability = convert_field_read_semantics sem in
+        let block_access : P.Block_access_kind.t =
+          let field_kind : P.Mixed_block_access_field_kind.t =
+            match flattened_reordered_shape.(new_index) with
+            | Value value_kind ->
+              Value_prefix
+                (convert_block_access_field_kind_from_value_kind value_kind)
+            | (Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) as
+              mixed_block_element ->
+              Flat_suffix
+                (K.Flat_suffix_element.from_singleton_mixed_block_element
+                   mixed_block_element)
+            | Float_boxed _ -> Flat_suffix K.Flat_suffix_element.naked_float
+          in
+          Mixed
+            { tag = Unknown; field_kind; shape = kind_shape; size = Unknown }
+        in
+        let block_access : H.expr_primitive =
+          Unary
+            ( Block_load { kind = block_access; mut = mutability; field = imm },
+              arg )
+        in
+        match flattened_reordered_shape.(new_index) with
+        | Float_boxed (mode : Lambda.locality_mode) ->
+          box_float mode block_access ~current_region
+        | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
+          block_access)
+      new_indexes
   | ( Psetfield (index, immediate_or_pointer, initialization_or_assignment),
       [[block]; [value]] ) ->
     let field_kind = convert_block_access_field_kind immediate_or_pointer in
@@ -2014,41 +2047,71 @@ let convert_lprim ~big_endian (prim : L.primitive) (args : Simple.t list list)
         ( Block_set { kind = block_access; init = init_or_assign; field = imm },
           block,
           value ) ]
-  | ( Psetmixedfield (field, shape, initialization_or_assignment),
-      [[block]; [value]] ) ->
-    let shape = Mixed_block_shape.of_mixed_block_elements shape in
-    let field = Mixed_block_shape.old_index_to_new_index shape field in
-    let imm = Targetint_31_63.of_int field in
-    check_non_negative_imm imm "Psetmixedfield";
-    let block_access : P.Block_access_kind.t =
-      Mixed
-        { field_kind =
-            (match Mixed_block_shape.get_reordered shape field with
-            | Value (value_kind : Lambda.value_kind) ->
-              P.Mixed_block_access_field_kind.Value_prefix
-                (convert_block_access_field_kind_from_value_kind value_kind)
-            | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Vec128
-            | Word ->
-              Flat_suffix
-                (K.Flat_suffix_element.from_lambda
-                   (Mixed_block_shape.get_reordered shape field)));
-          shape =
-            K.Mixed_block_shape.from_lambda
-              (Mixed_block_shape.reordered_shape shape);
-          tag = Unknown;
-          size = Unknown
-        }
+  | ( Psetmixedfield (field_path, shape, initialization_or_assignment),
+      [[block]; values] ) ->
+    if List.length field_path < 1
+    then Misc.fatal_error "Psetmixedfield: field_path must be non-empty";
+    let shape =
+      Mixed_block_shape.of_mixed_block_elements shape
+        ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
     in
-    let init_or_assign = convert_init_or_assign initialization_or_assignment in
-    let value : H.simple_or_prim =
-      match Mixed_block_shape.get_reordered shape field with
-      | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word -> value
-      | Float_boxed _ -> unbox_float value
+    let flattened_reordered_shape =
+      Mixed_block_shape.flattened_reordered_shape shape
     in
-    [ Binary
-        ( Block_set { kind = block_access; init = init_or_assign; field = imm },
-          block,
-          value ) ]
+    let kind_shape = K.Mixed_block_shape.from_mixed_block_shape shape in
+    let new_indexes =
+      Mixed_block_shape.lookup_path_producing_new_indexes shape field_path
+    in
+    let num_indices = List.length new_indexes in
+    let num_values = List.length values in
+    if num_indices <> num_values
+    then
+      Misc.fatal_errorf "inconsistent Psetmixedfield: %d indices and %d values"
+        num_indices num_values;
+    let exprs =
+      List.map2
+        (fun new_index value : H.expr_primitive ->
+          let imm = Targetint_31_63.of_int new_index in
+          check_non_negative_imm imm "Psetmixedfield";
+          let block_access : P.Block_access_kind.t =
+            Mixed
+              { field_kind =
+                  (match flattened_reordered_shape.(new_index) with
+                  | Value value_kind ->
+                    Value_prefix
+                      (convert_block_access_field_kind_from_value_kind
+                         value_kind)
+                  | (Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word) as
+                    mixed_block_element ->
+                    Flat_suffix
+                      (K.Flat_suffix_element.from_singleton_mixed_block_element
+                         mixed_block_element)
+                  | Float_boxed _ ->
+                    Flat_suffix K.Flat_suffix_element.naked_float);
+                shape = kind_shape;
+                tag = Unknown;
+                size = Unknown
+              }
+          in
+          let init_or_assign =
+            convert_init_or_assign initialization_or_assignment
+          in
+          let value : H.simple_or_prim =
+            match flattened_reordered_shape.(new_index) with
+            | Value _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
+              value
+            | Float_boxed _ -> unbox_float value
+          in
+          Binary
+            ( Block_set
+                { kind = block_access; init = init_or_assign; field = imm },
+              block,
+              value ))
+        new_indexes values
+    in
+    (* CR mshinwell: should these be set in reverse order, to match the
+       evaluation order? *)
+    [H.Sequence exprs]
   | Pdivint Unsafe, [[arg1]; [arg2]] ->
     [Binary (Int_arith (I.Tagged_immediate, Div), arg1, arg2)]
   | Pdivint Safe, [[arg1]; [arg2]] ->

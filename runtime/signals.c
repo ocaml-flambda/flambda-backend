@@ -37,6 +37,10 @@
 #include "caml/memprof.h"
 #include "caml/finalise.h"
 #include "caml/printexc.h"
+#ifdef __linux__
+#include <sys/auxv.h>
+#include <linux/auxvec.h>
+#endif
 
 /* The set of pending signals (received but not yet processed).
    It is represented as a bit vector.
@@ -584,12 +588,39 @@ CAMLexport int caml_rev_convert_signal_number(int signo)
   return signo;
 }
 
-void * caml_init_signal_stack(void)
+#ifdef __linux__
+static size_t max_size_t(size_t a, size_t b)
+{
+  return (a > b) ? a : b;
+}
+#endif
+
+void * caml_init_signal_stack(size_t* signal_stack_size)
 {
 #ifdef POSIX_SIGNALS
   stack_t stk;
   stk.ss_flags = 0;
+
+#ifdef __linux__
+  /* On some systems, e.g. when AMX has been enabled on certain glibc versions,
+     the dynamic value of MINSIGSTKSZ might be larger than SIGSTKSZ and/or any
+     compile-time MINSIGSTKSZ.  As such we compute our own SIGSTKSZ.  The
+     "4 * " scaling factor matches current glibc behaviour.
+
+     If the values the system has provided look sensible, however, we
+     trust SIGSTKSZ. */
+  size_t at_minsigstksz = getauxval(AT_MINSIGSTKSZ);
+
+  if (at_minsigstksz <= MINSIGSTKSZ && MINSIGSTKSZ <= SIGSTKSZ)
+    stk.ss_size = SIGSTKSZ;
+  else
+    stk.ss_size = max_size_t(
+      SIGSTKSZ, 4 * max_size_t(MINSIGSTKSZ, at_minsigstksz));
+#else
+  /* Preserve existing runtime5 behaviour for now. */
   stk.ss_size = SIGSTKSZ;
+#endif
+
   /* The memory used for the alternate signal stack must not free'd before
      calling sigaltstack with SS_DISABLE. malloc/mmap is therefore used rather
      than caml_stat_alloc_noexc so that if a shutdown path erroneously fails
@@ -602,7 +633,7 @@ void * caml_init_signal_stack(void)
   if (stk.ss_sp == MAP_FAILED)
     return NULL;
   if (sigaltstack(&stk, NULL) < 0) {
-    munmap(stk.ss_sp, SIGSTKSZ);
+    munmap(stk.ss_sp, stk.ss_size);
     return NULL;
   }
 #else
@@ -614,19 +645,21 @@ void * caml_init_signal_stack(void)
     return NULL;
   }
 #endif /* USE_MMAP_MAP_STACK */
+  *signal_stack_size = stk.ss_size;
   return stk.ss_sp;
 #else
+  *signal_stack_size = 0;
   return NULL;
 #endif /* POSIX_SIGNALS */
 }
 
-void caml_free_signal_stack(void * signal_stack)
+void caml_free_signal_stack(void * signal_stack, size_t signal_stack_size)
 {
 #ifdef POSIX_SIGNALS
   stack_t stk, disable;
   disable.ss_flags = SS_DISABLE;
   disable.ss_sp = NULL;  /* not required but avoids a valgrind false alarm */
-  disable.ss_size = SIGSTKSZ; /* macOS wants a valid size here */
+  disable.ss_size = signal_stack_size; /* macOS wants a valid size here */
   if (sigaltstack(&disable, &stk) < 0) {
     caml_fatal_error("Failed to reset signal stack (err %d)", errno);
   }
@@ -638,7 +671,7 @@ void caml_free_signal_stack(void * signal_stack)
   /* Memory was allocated with malloc/mmap directly (see
      caml_init_signal_stack) */
 #ifdef USE_MMAP_MAP_STACK
-  munmap(signal_stack, SIGSTKSZ);
+  munmap(signal_stack, signal_stack_size);
 #else
   free(signal_stack);
 #endif /* USE_MMAP_MAP_STACK */
@@ -648,15 +681,18 @@ void caml_free_signal_stack(void * signal_stack)
 #ifdef POSIX_SIGNALS
 /* This is the alternate signal stack block for domain 0 */
 static void * caml_signal_stack_0 = NULL;
+static size_t caml_signal_stack_0_size = 0;
 #endif
 
 void caml_init_signals(void)
 {
   /* Set up alternate signal stack for domain 0 */
 #ifdef POSIX_SIGNALS
-  caml_signal_stack_0 = caml_init_signal_stack();
+  errno = 0;
+  caml_signal_stack_0 = caml_init_signal_stack(&caml_signal_stack_0_size);
   if (caml_signal_stack_0 == NULL) {
-    caml_fatal_error("Failed to allocate signal stack for domain 0");
+    caml_fatal_error("Failed to allocate signal stack for domain 0 (errno %d)",
+      errno);
   }
 
   /* gprof installs a signal handler for SIGPROF.
@@ -679,7 +715,7 @@ void caml_init_signals(void)
 void caml_terminate_signals(void)
 {
 #ifdef POSIX_SIGNALS
-  caml_free_signal_stack(caml_signal_stack_0);
+  caml_free_signal_stack(caml_signal_stack_0, caml_signal_stack_0_size);
   caml_signal_stack_0 = NULL;
 #endif
 }

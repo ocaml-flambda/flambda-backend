@@ -52,6 +52,8 @@ Error: The kind of type "t" is immutable_data with 'a @@ portable
          linearity: mod many with 'a ≰ mod many
          contention: mod contended with 'a ≰ mod contended
          yielding: mod unyielding with 'a ≰ mod unyielding
+         statefulness: mod stateless with 'a ≰ mod stateless
+         visibility: mod immutable with 'a ≰ mod immutable
 |}]
 
 module M : sig
@@ -103,6 +105,8 @@ Error: Signature mismatch:
        The first mode-crosses less than the second along:
          portability: mod portable with 'a ≰ mod portable
          yielding: mod unyielding with 'a ≰ mod unyielding
+         statefulness: mod stateless with 'a ≰ mod stateless
+         visibility: mod immutable with 'a ≰ mod immutable
 |}]
 
 module M : sig
@@ -175,13 +179,15 @@ Line 3, characters 11-12:
                ^
 Error: This type "a" = "int ref" should be an instance of type
          "('a : immutable_data)"
-       The kind of a is mutable_data with int @@ many unyielding.
+       The kind of a is mutable_data with int @@ unyielding many.
        But the kind of a must be a subkind of immutable_data
          because of the definition of t at line 2, characters 0-28.
 
        The first mode-crosses less than the second along:
          contention: mod uncontended ≰ mod contended
          portability: mod portable with int ≰ mod portable
+         statefulness: mod stateless with int ≰ mod stateless
+         visibility: mod read_write ≰ mod immutable
 |}]
 
 type 'a u = Foo of 'a @@ portable
@@ -195,7 +201,7 @@ Line 3, characters 11-25:
                ^^^^^^^^^^^^^^
 Error: This type "(int -> int) u" should be an instance of type
          "('a : immutable_data)"
-       The kind of (int -> int) u is value mod contended portable
+       The kind of (int -> int) u is value mod portable immutable non_float
          because of the definition of u at line 1, characters 0-33.
        But the kind of (int -> int) u must be a subkind of immutable_data
          because of the definition of t at line 2, characters 0-28.
@@ -217,6 +223,8 @@ Error: This type "(int -> int) u" should be an instance of type
          linearity: mod many with int -> int ≰ mod many
          contention: mod contended with int -> int ≰ mod contended
          yielding: mod unyielding with int -> int ≰ mod unyielding
+         statefulness: mod stateless with int -> int ≰ mod stateless
+         visibility: mod immutable with int -> int ≰ mod immutable
 |}]
 
 module M : sig
@@ -335,15 +343,15 @@ Error: Signature mismatch:
        Modules do not match:
          sig type 'a t : mutable_data with 'a end
        is not included in
-         sig type 'a t : mutable_data with 'a @@ many unyielding end
+         sig type 'a t : mutable_data with 'a @@ unyielding many end
        Type declarations do not match:
          type 'a t : mutable_data with 'a
        is not included in
-         type 'a t : mutable_data with 'a @@ many unyielding
+         type 'a t : mutable_data with 'a @@ unyielding many
        The kind of the first is mutable_data with 'a
          because of the definition of t at line 4, characters 2-34.
        But the kind of the first must be a subkind of mutable_data
-         with 'a @@ many unyielding
+         with 'a @@ unyielding many
          because of the definition of t at line 2, characters 2-40.
 
        The first mode-crosses less than the second along:
@@ -415,18 +423,19 @@ Lines 3-5, characters 6-3:
 5 | end
 Error: Signature mismatch:
        Modules do not match:
-         sig type 'a t : mutable_data with 'a @@ many unyielding end
+         sig type 'a t : mutable_data with 'a @@ unyielding many end
        is not included in
          sig type 'a t : immutable_data with 'a end
        Type declarations do not match:
-         type 'a t : mutable_data with 'a @@ many unyielding
+         type 'a t : mutable_data with 'a @@ unyielding many
        is not included in
          type 'a t : immutable_data with 'a
-       The kind of the first is mutable_data with 'a @@ many unyielding
+       The kind of the first is mutable_data with 'a @@ unyielding many
          because of the definition of t at line 4, characters 2-40.
        But the kind of the first must be a subkind of immutable_data with 'a
          because of the definition of t at line 2, characters 2-56.
 
        The first mode-crosses less than the second along:
          contention: mod uncontended ≰ mod contended with 'a
+         visibility: mod read_write ≰ mod immutable with 'a
 |}]

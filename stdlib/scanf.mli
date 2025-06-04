@@ -103,7 +103,7 @@ open! Stdlib
 
 (** {1 Formatted input channel} *)
 
-module (Scanning @ nonportable) : sig @@ portable
+module (Scanning @@ nonportable) : sig @@ portable
 
 type in_channel
 (** The notion of input channel for the {!Scanf} module:

@@ -3,15 +3,27 @@ open Stdlib
 external run_callback : (unit -> unit) -> unit = "" "vec128_run_callback"
 
 external run_callback_stack_args :
-  int -> int -> int -> int -> int -> int -> int -> int ->
-  (int -> int -> int -> int -> int -> int -> int -> int -> unit) -> unit = "" "vec128_run_callback_stack_args"
+  int ->
+  int ->
+  int ->
+  int ->
+  int ->
+  int ->
+  int ->
+  int ->
+  (int -> int -> int -> int -> int -> int -> int -> int -> unit) ->
+  unit = "" "vec128_run_callback_stack_args"
 
-external low_of : float32 -> float32x4 = "caml_vec128_unreachable" "caml_float32x4_low_of_float32"
-  [@@noalloc] [@@unboxed] [@@builtin]
-external low_to : float32x4 -> float32 = "caml_vec128_unreachable" "caml_float32x4_low_to_float32"
+external low_of : float32 -> float32x4
+  = "caml_vec128_unreachable" "caml_float32x4_low_of_float32"
   [@@noalloc] [@@unboxed] [@@builtin]
 
-external add : float32x4 -> float32x4 -> float32x4 = "caml_vec128_unreachable" "caml_sse_float32x4_add"
+external low_to : float32x4 -> float32
+  = "caml_vec128_unreachable" "caml_float32x4_low_to_float32"
+  [@@noalloc] [@@unboxed] [@@builtin]
+
+external add : float32x4 -> float32x4 -> float32x4
+  = "caml_vec128_unreachable" "caml_sse_float32x4_add"
   [@@noalloc] [@@unboxed] [@@builtin]
 
 let callback () =
@@ -32,13 +44,17 @@ let callback () =
   let x14 = low_of 14.0s in
   let x15 = low_of 15.0s in
   let x16 = low_of 16.0s in
-  let sum = add x16
-            (add (add (add (add x0 x1) (add x2 x3)) (add (add x4 x5) (add x6 x7)))
-                (add (add (add x8 x9) (add x10 x11)) (add (add x12 x13) (add x14 x15)))) in
+  let sum =
+    add x16
+      (add
+         (add (add (add x0 x1) (add x2 x3)) (add (add x4 x5) (add x6 x7)))
+         (add (add (add x8 x9) (add x10 x11)) (add (add x12 x13) (add x14 x15))))
+  in
   assert (low_to sum = 136.s)
 
 let callback_n i0 i1 i2 i3 i4 i5 i6 i7 =
-  assert (i0 = 0 && i1 = 1 && i2 = 2 && i3 = 3 && i4 = 4 && i5 = 5 && i6 = 6 && i7 = 7);
+  assert (
+    i0 = 0 && i1 = 1 && i2 = 2 && i3 = 3 && i4 = 4 && i5 = 5 && i6 = 6 && i7 = 7);
   callback ()
 
 (* Previously failing tests *)
@@ -66,7 +82,7 @@ let () =
   | Sys.Break -> callback ()
   | _ -> assert false
 
-let[@loop never] rec stack_overflow () = stack_overflow () [@nontail]
+let[@loop never] rec stack_overflow () = (stack_overflow () [@nontail])
 
 let () =
   try Sys.with_async_exns stack_overflow with
@@ -80,73 +96,120 @@ module Effect = Stdlib__Effect
 type _ Effect.t += E : unit Effect.t
 
 let eff0 () =
-  try Effect.Deep.try_with (fun () -> Effect.perform E) ()
-    { effc = (fun (type a) (_ : a Effect.t) -> None) }
+  try
+    Effect.Deep.try_with
+      (fun () -> Effect.perform E)
+      ()
+      { effc = (fun (type a) (_ : a Effect.t) -> None) }
   with Effect.Unhandled E -> callback ()
 
 let eff1 () =
-  Effect.Deep.try_with (fun () -> callback ()) ()
+  Effect.Deep.try_with
+    (fun () -> callback ())
+    ()
     { effc = (fun (type a) (_ : a Effect.t) -> None) };
   callback ()
 
 let eff2 () =
-  Effect.Deep.try_with (fun () -> Effect.perform E) ()
-    { effc = (fun (type a) (e : a Effect.t) ->
-        match e with
-        | E -> callback ();
-          Some (fun (_ : (a, unit) Effect.Deep.continuation) -> callback ())
-        | _ -> None) };
+  Effect.Deep.try_with
+    (fun () -> Effect.perform E)
+    ()
+    { effc =
+        (fun (type a) (e : a Effect.t) ->
+          match e with
+          | E ->
+            callback ();
+            Some (fun (_ : (a, unit) Effect.Deep.continuation) -> callback ())
+          | _ -> None)
+    };
   callback ()
 
 let eff3 () =
-  Effect.Deep.try_with (fun () -> callback (); Effect.perform E; callback ()) ()
-  { effc = (fun (type a) (e : a Effect.t) ->
-      match e with
-      | E -> Some (fun (k : (a, unit) Effect.Deep.continuation) ->
-          callback (); Effect.Deep.continue k ())
-      | _ -> None) };
+  Effect.Deep.try_with
+    (fun () ->
+      callback ();
+      Effect.perform E;
+      callback ())
+    ()
+    { effc =
+        (fun (type a) (e : a Effect.t) ->
+          match e with
+          | E ->
+            Some
+              (fun (k : (a, unit) Effect.Deep.continuation) ->
+                callback ();
+                Effect.Deep.continue k ())
+          | _ -> None)
+    };
   callback ()
 
 let eff4 () =
-  Effect.Deep.match_with (fun () -> ()) ()
-    { retc = (fun () -> callback ())
-    ; exnc = (fun _ -> ())
-    ; effc = (fun (type a) (_ : a Effect.t) -> None)
+  Effect.Deep.match_with
+    (fun () -> ())
+    ()
+    { retc = (fun () -> callback ());
+      exnc = (fun _ -> ());
+      effc = (fun (type a) (_ : a Effect.t) -> None)
     };
   callback ()
 
 let eff5 () =
-  Effect.Deep.match_with (fun () -> assert false) ()
-    { retc = (fun () -> assert false)
-    ; exnc = (fun _ -> callback ())
-    ; effc = (fun (type a) (_ : a Effect.t) -> None)
+  Effect.Deep.match_with
+    (fun () -> assert false)
+    ()
+    { retc = (fun () -> assert false);
+      exnc = (fun _ -> callback ());
+      effc = (fun (type a) (_ : a Effect.t) -> None)
     };
   callback ()
 
 type _ Effect.t += E2 : unit Effect.t
 
 let eff6 () =
-  try Effect.Deep.match_with (fun () ->
+  try
+    Effect.Deep.match_with
+      (fun () ->
+        callback ();
+        Effect.Deep.try_with
+          (fun () ->
+            callback ();
+            Effect.perform E2;
+            assert false)
+          ()
+          { effc =
+              (fun (type a) (_ : a Effect.t) ->
+                callback ();
+                Effect.perform E;
+                callback ();
+                None)
+          })
+      ()
+      { retc = (fun () -> assert false);
+        exnc =
+          (function
+          | Effect.Unhandled E2 ->
+            callback ();
+            Effect.perform E
+          | _ -> assert false);
+        effc =
+          (fun (type a) (e : a Effect.t) ->
+            match e with
+            | E ->
+              Some
+                (fun (k : (a, unit) Effect.Deep.continuation) ->
+                  callback ();
+                  Effect.Deep.continue k ())
+            | _ -> None)
+      }
+  with Effect.Unhandled E ->
     callback ();
-    Effect.Deep.try_with (fun () -> callback (); Effect.perform E2; assert false) ()
-          { effc = (fun (type a) (_ : a Effect.t) -> callback (); Effect.perform E; callback (); None) }) ()
-    { retc = (fun () -> assert false)
-    ; exnc = (function
-              | Effect.Unhandled E2 -> callback (); Effect.perform E
-              | _ -> assert false)
-    ; effc = (fun (type a) (e : a Effect.t) ->
-        match e with
-        | E -> Some (fun (k : (a, unit) Effect.Deep.continuation) ->
-          callback (); Effect.Deep.continue k ())
-        | _ -> None)
-    };
-  with Effect.Unhandled E -> callback ();
-  callback ()
+    callback ()
 
 external runtime5 : unit -> bool = "%runtime5"
 
 let () =
-  if runtime5 () then (
+  if runtime5 ()
+  then (
     eff0 ();
     eff1 ();
     eff2 ();

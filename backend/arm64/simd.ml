@@ -51,15 +51,41 @@ module Float_cond = struct
     | EQ
     | GT
     | LE
+    | GE
     | LT
+    | NE
+    | CC
+    | CS
+    | LS
+    | HI
 
   let to_string t =
-    match t with EQ -> "eq" | GT -> "ne" | LE -> "le" | LT -> "lt"
+    match t with
+    | EQ -> "eq"
+    | GT -> "gt"
+    | LE -> "le"
+    | GE -> "ge"
+    | LT -> "lt"
+    | NE -> "ne"
+    | CC -> "cc"
+    | CS -> "cs"
+    | LS -> "ls"
+    | HI -> "hi"
 
   let equal t1 t2 =
     match t1, t2 with
-    | EQ, EQ | GT, GT | LE, LE | LT, LT -> true
-    | (EQ | GT | LE | LT), _ -> false
+    | EQ, EQ
+    | GT, GT
+    | LE, LE
+    | GE, GE
+    | LT, LT
+    | NE, NE
+    | CC, CC
+    | CS, CS
+    | LS, LS
+    | HI, HI ->
+      true
+    | (EQ | GT | LE | GE | LT | NE | CC | CS | LS | HI), _ -> false
 end
 
 module Cond = struct

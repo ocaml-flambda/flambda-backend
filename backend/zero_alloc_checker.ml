@@ -23,7 +23,9 @@
  * SOFTWARE.                                                                      *
  *                                                                                *
  **********************************************************************************)
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
+
+open! Int_replace_polymorphic_compare
 
 let debug = false
 
@@ -2209,15 +2211,15 @@ end = struct
     let desc = "Arch.specific_operation" in
     report t next ~msg:"transform_specific next" ~desc dbg;
     report t exn ~msg:"transform_specific exn" ~desc dbg;
-    let can_raise = Arch.operation_can_raise s in
     let effect =
       let w = create_witnesses t Arch_specific dbg in
-      match Metadata.assume_value dbg ~can_raise w with
+      match Metadata.assume_value dbg ~can_raise:false w with
       | Some v -> v
       | None ->
         (* Conservatively assume that operation can return normally. *)
         let nor = if Arch.operation_allocates s then V.top w else V.safe in
-        let exn = if Arch.operation_can_raise s then nor else V.bot in
+        (* Specific operations cannot raise *)
+        let exn = V.bot in
         (* Assume that the operation does not diverge. *)
         let div = V.bot in
         { Value.nor; exn; div }
@@ -2516,7 +2518,7 @@ end = struct
           =
         match i.desc with
         | Op op -> Ok (operation t ~next op i.dbg)
-        | Pushtrap _ | Poptrap ->
+        | Pushtrap _ | Poptrap _ ->
           (* treated as no-op here, flow and handling of exceptions is
              incorporated into the blocks and edges of the CFG *)
           Ok next
@@ -2581,8 +2583,6 @@ end = struct
           let w = create_witnesses t (Direct_call { callee = func }) dbg in
           transform_call t ~next ~exn func w ~desc:("direct call to " ^ func)
             dbg
-        | Specific_can_raise { op = s; _ } ->
-          transform_specific t s ~next ~exn dbg
 
       let terminator next ~exn (i : Cfg.terminator Cfg.instruction) t =
         Ok (terminator next ~exn i t)
@@ -2636,8 +2636,9 @@ let update_caml_flambda_invalid_cfg cfg_with_layout =
     Annotation.is_check_enabled
       (Annotation.of_cfg cfg.fun_codegen_options cfg.fun_name cfg.fun_dbg)
   in
-  if enabled
-  then (
+  if not enabled
+  then cfg_with_layout
+  else
     let modified = ref false in
     Cfg.iter_blocks cfg ~f:(fun label block ->
         match block.terminator.desc with
@@ -2662,23 +2663,17 @@ let update_caml_flambda_invalid_cfg cfg_with_layout =
         | Prim { op = Probe _; _ }
         | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
         | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-        | Tailcall_func _ | Call_no_return _ | Call _ | Specific_can_raise _ ->
+        | Tailcall_func _ | Call_no_return _ | Call _ ->
           ());
-    if !modified
-    then
-      Profile.record ~accumulate:true "cleanup"
-        (fun () ->
-          Eliminate_fallthrough_blocks.run cfg_with_layout;
-          Merge_straightline_blocks.run cfg_with_layout;
-          Simplify_terminator.run cfg;
-          Eliminate_dead_code.run_dead_block cfg_with_layout)
-        ())
+    if not !modified
+    then cfg_with_layout
+    else
+      Profile.record ~accumulate:true "cleanup" Cfg_simplify.run cfg_with_layout
 
 let cfg ppf_dump ~future_funcnames cl =
   let cfg = Cfg_with_layout.cfg cl in
   Analysis.cfg cfg ~future_funcnames unit_info unresolved_deps ppf_dump;
-  update_caml_flambda_invalid_cfg cl;
-  cl
+  update_caml_flambda_invalid_cfg cl
 
 let reset_unit_info () =
   Unit_info.reset unit_info;

@@ -9,10 +9,9 @@
  (targets ops_u.ml)
  (deps unbox_types.ml ops.ml)
  (action
-   (with-stdout-to
-    ops_u.ml
-    (cat "unbox_types.ml" "ops.ml")
- )))
+  (with-stdout-to
+   ops_u.ml
+   (cat "unbox_types.ml" "ops.ml"))))
 
 ; Stubs
 

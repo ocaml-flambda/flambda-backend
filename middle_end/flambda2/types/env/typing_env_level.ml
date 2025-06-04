@@ -36,7 +36,6 @@ let find_kind t var = Variable.Map.find var t.defined_vars
 
 let variable_is_defined t var = Variable.Map.mem var t.defined_vars
 
-(* CR mshinwell: print symbol projections *)
 let print_equations ppf equations =
   let equations = Name.Map.bindings equations in
   match equations with
@@ -47,25 +46,35 @@ let print_equations ppf equations =
            Format.fprintf ppf "@[<hov 1>%a@ :@ %a@]" Name.print name TG.print ty))
       equations
 
+let print_symbol_projections ppf symbol_projections =
+  let symbol_projections = Variable.Map.bindings symbol_projections in
+  match symbol_projections with
+  | [] -> Format.pp_print_string ppf "()"
+  | _ :: _ ->
+    Format.fprintf ppf "(%a)"
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space (fun ppf (name, ty) ->
+           Format.fprintf ppf "@[<hov 1>%a@ :@ %a@]" Variable.print name
+             Symbol_projection.print ty))
+      symbol_projections
+
 let [@ocamlformat "disable"] print ppf
       { defined_vars; binding_times = _; equations;
-        symbol_projections = _; } =
+        symbol_projections } =
   (* CR mshinwell: Print [defined_vars] when not called from
      [Typing_env.print] *)
-  if Variable.Map.is_empty defined_vars then
+  Format.fprintf ppf "@[<hov 1>(";
+  if not (Variable.Map.is_empty defined_vars) then
     Format.fprintf ppf
-      "@[<hov 1>(\
-        @[<hov 1>(equations@ @[<v 1>%a@])@])\
-        @]"
-      print_equations equations
-  else
+      "@[<hov 1>(defined_vars@ @[<hov 1>%a@])@]@ "
+      Variable.Set.print (Variable.Map.keys defined_vars);
+  if not (Variable.Map.is_empty symbol_projections) then
     Format.fprintf ppf
-      "@[<hov 1>(\
-        @[<hov 1>(defined_vars@ @[<hov 1>%a@])@]@ \
-        @[<hov 1>(equations@ @[<v 1>%a@])@]@ \
-        )@]"
-      Variable.Set.print (Variable.Map.keys defined_vars)
-      print_equations equations
+      "@[<hov 1>(symbol_projections@ @[<hov 1>%a@])@]@ "
+      print_symbol_projections symbol_projections ;
+  Format.fprintf ppf
+    "@[<hov 1>(equations@ @[<v 1>%a@])@])"
+    print_equations equations;
+  Format.fprintf ppf ")@]"
 
 let fold_on_defined_vars f t init =
   Binding_time.Map.fold
@@ -188,7 +197,7 @@ let ids_for_export t =
 
 let as_extension_without_bindings
     ({ defined_vars; binding_times; equations; symbol_projections } as t) =
-  if Flambda_features.check_invariants ()
+  if Flambda_features.check_light_invariants ()
   then
     if Variable.Map.is_empty defined_vars
        && Binding_time.Map.is_empty binding_times

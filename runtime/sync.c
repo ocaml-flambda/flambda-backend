@@ -168,10 +168,7 @@ CAMLprim value caml_ml_condition_wait(value wcond, value wmut)
   sync_retcode retcode;
 
   CAML_EV_BEGIN(EV_DOMAIN_CONDITION_WAIT);
-  /* no_pending here: we don't want to delay releasing the mutex.
-     (We're waiting for another thread to wake us up anyway: they
-     can handle any pending actions)) */
-  caml_enter_blocking_section_no_pending();
+  caml_enter_blocking_section();
   retcode = sync_condvar_wait(cond, mut);
   caml_leave_blocking_section();
   sync_check_error(retcode, "Condition.wait");

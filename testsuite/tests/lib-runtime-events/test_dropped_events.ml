@@ -5,13 +5,14 @@
  }{
    include runtime_events;
    runtime5;
+   multidomain;
    flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
    include unix;
    set OCAMLRUNPARAM = "e=6";
    hasunix;
+   arch_amd64;
    { bytecode; }
    {
-    arch_amd64;
     native;
    }
  }

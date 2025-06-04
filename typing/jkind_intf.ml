@@ -235,6 +235,7 @@ module History = struct
     | Univar : string -> (allowed * allowed) annotation_context
     | Type_variable : string -> (allowed * allowed) annotation_context
     | Type_wildcard : Location.t -> (allowed * allowed) annotation_context
+    | Type_of_kind : Location.t -> (allowed * allowed) annotation_context
     | With_error_message :
         string * 'd annotation_context
         -> 'd annotation_context

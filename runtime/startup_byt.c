@@ -458,6 +458,8 @@ CAMLexport void caml_main(char_os **argv)
   char_os * shared_lib_path, * shared_libs;
   char_os * exe_name, * proc_self_exe;
 
+  caml_init_os_params();
+  
   /* Determine options */
   caml_parse_ocamlrunparam();
 
@@ -476,7 +478,6 @@ CAMLexport void caml_main(char_os **argv)
   caml_install_invalid_parameter_handler();
 #endif
   caml_init_custom_operations();
-  caml_init_os_params();
   caml_ext_table_init(&caml_shared_libs_path, 8);
 
   /* Determine position of bytecode file */

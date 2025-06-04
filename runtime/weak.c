@@ -209,13 +209,14 @@ static void do_set (value e, mlsize_t offset, value v)
 {
   if (Is_block(v) && Is_young(v)) {
     value old = Field(e, offset);
-    Field(e, offset) = v;
     if (!(Is_block(old) && Is_young(old)))
       add_to_ephe_ref_table (&Caml_state->minor_tables->ephe_ref,
                              e, offset);
-  } else {
-    Field(e, offset) = v;
   }
+
+  /* See Note [MM] in memory.c */
+  atomic_thread_fence(memory_order_acquire);
+  atomic_store_release(Op_atomic_val(e) + offset, v);
 }
 
 static value ephe_set_field (value e, mlsize_t offset, value el)

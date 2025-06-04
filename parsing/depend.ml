@@ -123,6 +123,7 @@ let rec add_type bv ty =
   | Ptyp_open (mod_ident, t) ->
     let bv = open_module bv mod_ident.txt in
     add_type bv t
+  | Ptyp_of_kind jkind -> add_jkind bv jkind
   | Ptyp_extension e -> handle_extension e
 
 and add_type_labeled_tuple bv tl =

@@ -9,8 +9,7 @@ type 'a node =
 let[@inline] unattached_node value = Node { value; prev = Empty; next = Empty }
 
 type 'a t =
-  { mutable length : int;
-    mutable first : 'a node;
+  { mutable first : 'a node;
     mutable last : 'a node
   }
 
@@ -33,7 +32,6 @@ let insert_and_return_before cell value =
       new_node.next <- cell.node;
       new_node.prev <- cell_node.prev;
       cell_node.prev <- value_node;
-      cell.t.length <- succ cell.t.length;
       (match new_node.prev with
       | Empty -> cell.t.first <- value_node
       | Node node -> node.next <- value_node);
@@ -55,7 +53,6 @@ let insert_and_return_after cell value =
       (new_node.next <- cell_node.next;
        new_node.prev <- cell.node;
        cell_node.next <- value_node;
-       cell.t.length <- succ cell.t.length;
        match new_node.next with
        | Empty -> cell.t.last <- value_node
        | Node node -> node.prev <- value_node);
@@ -97,14 +94,29 @@ let next cell =
     let next = cell_node.next in
     match next with Empty -> None | Node _ -> Some { node = next; t = cell.t })
 
-let make_empty () = { length = 0; first = Empty; last = Empty }
+let cut_from cell =
+  let t = cell.t in
+  match cell.node with
+  | Empty ->
+    (* internal invariant: cell's nodes are not empty *)
+    assert false
+  | Node curr -> (
+    match curr.prev with
+    | Empty ->
+      t.first <- Empty;
+      t.last <- Empty
+    | Node prev_node as last_node ->
+      t.last <- last_node;
+      prev_node.next <- Empty;
+      curr.prev <- Empty)
+
+let make_empty () = { first = Empty; last = Empty }
 
 let make_single value =
   let node = unattached_node value in
-  { length = 1; first = node; last = node }
+  { first = node; last = node }
 
 let clear t =
-  t.length <- 0;
   t.first <- Empty;
   t.last <- Empty
 
@@ -122,19 +134,15 @@ let add_begin t value =
     (* internal invariant: unattached node returns a non-empty node *)
     assert false
   | Node node as value_node -> (
-    let len = t.length in
     match t.first with
     | Empty ->
       assert (t.last = Empty);
-      assert (len = 0);
       t.first <- value_node;
-      t.last <- value_node;
-      t.length <- 1
+      t.last <- value_node
     | Node first_node ->
       node.next <- t.first;
       first_node.prev <- value_node;
-      t.first <- value_node;
-      t.length <- succ len)
+      t.first <- value_node)
 
 let add_end t value =
   match unattached_node value with
@@ -142,19 +150,15 @@ let add_end t value =
     (* internal invariant: unattached node returns a non-empty node *)
     assert false
   | Node node as value_node -> (
-    let len = t.length in
     match t.last with
     | Empty ->
       assert (t.first = Empty);
-      assert (len = 0);
       t.first <- value_node;
-      t.last <- value_node;
-      t.length <- 1
+      t.last <- value_node
     | Node last_node ->
       node.prev <- t.last;
       last_node.next <- value_node;
-      t.last <- value_node;
-      t.length <- succ len)
+      t.last <- value_node)
 
 let add_list t l = List.iter (fun x -> add_end t x) l
 
@@ -163,23 +167,38 @@ let of_list l =
   add_list res l;
   res
 
-let is_empty t = Int.equal t.length 0
+let add_array t arr =
+  for i = 0 to pred (Array.length arr) do
+    add_end t (Array.unsafe_get arr i)
+  done
 
-let length t = t.length
+let of_array arr =
+  let res = make_empty () in
+  add_array res arr;
+  res
+
+let is_empty (t : _ t) = match t.first with Empty -> true | Node _ -> false
+
+let length t =
+  let rec aux acc curr =
+    match curr with
+    | Empty -> acc
+    | Node { value = _; prev = _; next } -> aux (succ acc) next
+  in
+  aux 0 t.first
 
 let remove t curr =
   match curr with
   | Empty ->
     (* internal invariant: the node given to [remove] is never empty *)
     assert false
-  | Node curr ->
+  | Node curr -> (
     (match curr.prev with
     | Empty -> t.first <- curr.next
     | Node node -> node.next <- curr.next);
-    (match curr.next with
+    match curr.next with
     | Empty -> t.last <- curr.prev
-    | Node node -> node.prev <- curr.prev);
-    t.length <- pred t.length
+    | Node node -> node.prev <- curr.prev)
 
 let delete_curr cell = remove cell.t cell.node
 
@@ -358,29 +377,24 @@ let transfer ~to_ ~from () =
   | Empty, _ ->
     to_.first <- from.first;
     to_.last <- from.last;
-    to_.length <- from.length;
     from.first <- Empty;
-    from.last <- Empty;
-    from.length <- 0
+    from.last <- Empty
   | Node to_last, Node from_first ->
     to_last.next <- from.first;
     from_first.prev <- to_.last;
     to_.last <- from.last;
-    to_.length <- to_.length + from.length;
     from.first <- Empty;
-    from.last <- Empty;
-    from.length <- 0
+    from.last <- Empty
 
 let map t ~f =
   let res = make_empty () in
   iter t ~f:(fun x -> add_end res (f x));
   res
 
-
 module Cursor = struct
   type nonrec 'a t =
-    { t : 'a t
-    ; mutable node : 'a node
+    { t : 'a t;
+      mutable node : 'a node
     }
 
   let value (t : _ t) =
@@ -389,27 +403,38 @@ module Cursor = struct
       (* internal invariant: cell's nodes are not empty *)
       assert false
     | Node node -> node.value
-  ;;
 
   let next (t : _ t) =
     match t.node with
     | Empty ->
       (* internal invariant: cell's nodes are not empty *)
       assert false
-    | Node content ->
-      (match content.next with
-       | Empty -> Error `End_of_list
-       | Node _ ->
-         t.node <- content.next;
-         Ok ())
-  ;;
+    | Node content -> (
+      match content.next with
+      | Empty -> Error `End_of_list
+      | Node _ ->
+        t.node <- content.next;
+        Ok ())
 
   let delete_and_next (t : _ t) =
     remove t.t t.node;
     next t
 end
 
-let create_hd_cursor t : (_ Cursor.t, [`Empty]) result  =
+let create_hd_cursor t : (_ Cursor.t, [`Empty]) result =
   match t.first with
   | Empty -> Error `Empty
   | Node _ -> Ok { t; node = t.first }
+
+let copy t = map t ~f:Fun.id
+
+let equal eq left right =
+  let rec aux eq left right =
+    match left, right with
+    | Empty, Empty -> true
+    | Empty, Node _ | Node _, Empty -> false
+    | ( Node { value = left_value; next = left_next; prev = _ },
+        Node { value = right_value; next = right_next; prev = _ } ) ->
+      eq left_value right_value && aux eq left_next right_next
+  in
+  aux eq left.first right.first

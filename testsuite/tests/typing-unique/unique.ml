@@ -362,7 +362,7 @@ val unique_default_args : ?x:float @ unique -> unit -> float = <fun>
 
 let ul (unique_ local_ x) = x
 [%%expect{|
-val ul : local_ 'a @ unique -> local_ 'a = <fun>
+val ul : 'a @ local unique -> local_ 'a = <fun>
 |}]
 
 let ul_ret x = exclave_ unique_ x
@@ -376,7 +376,7 @@ let rec foo =
   | Some () -> foo None
   | None -> ()
 [%%expect{|
-val foo : local_ unit option @ unique -> unit = <fun>
+val foo : unit option @ local unique -> unit = <fun>
 |}]
 
 let rec bar =
@@ -385,17 +385,17 @@ let rec bar =
   | Some () -> ()
   | None -> bar (local_ Some ()) [@nontail]
 [%%expect{|
-val bar : local_ unit option @ unique -> unit = <fun>
+val bar : unit option @ local unique -> unit = <fun>
 |}]
 
 let foo : local_ unique_ string -> unit = fun (local_ s) -> ()
 [%%expect{|
-val foo : local_ string @ unique -> unit = <fun>
+val foo : string @ local unique -> unit = <fun>
 |}]
 
 let bar : local_ unique_ string -> unit = fun (unique_ s) -> ()
 [%%expect{|
-val bar : local_ string @ unique -> unit = <fun>
+val bar : string @ local unique -> unit = <fun>
 |}]
 
 (* Currying *)

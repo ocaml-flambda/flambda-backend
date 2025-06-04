@@ -22,5 +22,5 @@ val simplify_let_cont :
 
 val simplify_as_recursive_let_cont :
   simplify_expr:Expr.t Simplify_common.expr_simplifier ->
-  (Expr.t * Continuation_handler.t Continuation.Map.t)
+  (Expr.t * Continuation_handler.t Continuation.Lmap.t)
   Simplify_common.expr_simplifier

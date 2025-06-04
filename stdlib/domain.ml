@@ -33,7 +33,7 @@ module Runtime_4 = struct
     end
 
     let[@inline] access f =
-      try f Access.Access with
+      try (f [@inlined hint]) Access.Access with
       | exn ->
         let bt = Printexc.get_raw_backtrace () in
         let exn_string = Printexc.to_string exn in
@@ -185,7 +185,7 @@ module Runtime_5 = struct
     end
 
     let[@inline] access (f : Access.t -> 'a @ portable contended) =
-      try f Access.Access with
+      try (f [@inlined hint]) Access.Access with
       | exn ->
         let bt = Printexc.get_raw_backtrace () in
         let exn_string = Printexc.to_string exn in
@@ -456,7 +456,7 @@ module type S = sig
     type 'a key : value mod portable contended
 
     val access
-      :  (Access.t -> 'a @ portable contended) @ local portable
+      :  (Access.t -> 'a @ portable contended) @ local portable unyielding once
       -> 'a @ portable contended
       @@ portable
 

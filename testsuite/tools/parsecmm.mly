@@ -233,7 +233,7 @@ expr:
           | _ -> Cifthenelse($3, debuginfo (), $4, debuginfo (),
                              (Cexit(lbl0,[])),
                              debuginfo (), Any) in
-        Ccatch(Nonrecursive, [lbl0, [], Ctuple [], debuginfo ()],
+        Ccatch(Normal, [lbl0, [], Ctuple [], debuginfo ()],
           Ccatch(Recursive,
             [lbl1, [], Csequence(body, Cexit(lbl1, [])), debuginfo ()],
             Cexit(lbl1, []), Any), Any) }
@@ -246,7 +246,8 @@ expr:
       Ccatch(Recursive, handlers, $3, Any) }
   | EXIT        { Cexit(0,[]) }
   | LPAREN TRY sequence WITH bind_ident sequence RPAREN
-                { unbind_ident $5; Ctrywith($3, $5, [], $6, debuginfo (), Any) }
+                { unbind_ident $5;
+                  ctrywith ($3, $5, [], $6, debuginfo (), Any) }
   | LPAREN VAL expr expr RPAREN
       { let open Asttypes in
         Cop(Cload {memory_chunk=Word_val;

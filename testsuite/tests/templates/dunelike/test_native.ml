@@ -211,7 +211,7 @@
    ocamlopt.byte;
 
    set flg_main_basic = "\
-     $flg -I p -I p_int -I p_string -I basic -I main_basic -I instances \
+     $flg -I p_int -I p_string -I basic -I main_basic -I instances \
      -open Main_basic__ -open No_direct_access_to_main_basic \
    ";
 
@@ -311,7 +311,7 @@
    ocamlopt.byte;
 
    set flg_util = "\
-     $flg -parameter P -I p -I q -I q_impl -I basic -I fancy -I util \
+     $flg -parameter P -I p -I q_impl -I basic -I fancy -I util \
      -open Util__ -open No_direct_access_to_util \
    ";
 
@@ -324,7 +324,7 @@
    ocamlopt.byte;
 
    {
-     flags = "$flg -I p -I p_int -I util";
+     flags = "$flg -I p_int -I util";
      module = "bad_use_util_wrongly.ml";
      ocamlopt_byte_exit_status = "2";
      compiler_output = "bad_use_util_wrongly.output";
@@ -350,7 +350,7 @@
    ocamlopt.byte;
 
    set flg_export_fancy_q_impl = "\
-     $flg -parameter P -I p -I q -I q_impl -I basic -I fancy \
+     $flg -parameter P -I p -I q_impl -I basic -I fancy \
      -I export_fancy_q_impl -I util \
      -open Export_fancy_q_impl__ -open No_direct_access_to_export_fancy_q_impl \
    ";
@@ -367,7 +367,7 @@
    ocamlopt.byte;
 
    set flg_export_fancy_q_impl_p_int =
-     "$flg_instance -I export_fancy_q_impl -I p -I p_int";
+     "$flg_instance -I export_fancy_q_impl -I p_int";
 
    flags = "$flg_export_fancy_q_impl_p_int -instantiate";
    module = "";
@@ -382,7 +382,7 @@
    ocamlopt.byte;
 
    set flg_use_fancy_q_impl = "\
-     $flg -parameter P -I p -I q -I q_impl -I basic -I fancy \
+     $flg -parameter P -I p -I q_impl -I basic -I fancy \
      -I export_fancy_q_impl -I use_fancy_q_impl -I util \
      -open Use_fancy_q_impl__ -open No_direct_access_to_use_fancy_q_impl \
    ";
@@ -396,7 +396,7 @@
    ocamlopt.byte;
 
    set flg_use_fancy_q_impl_p_int =
-     "$flg_instance -I use_fancy_q_impl -I p -I p_int";
+     "$flg_instance -I use_fancy_q_impl -I p_int";
 
    flags = "$flg_use_fancy_q_impl_p_int -instantiate";
    module = "";
@@ -411,7 +411,7 @@
    ocamlopt.byte;
 
    set flg_main = "\
-     $flg -I p -I p_int -I p_string -I q -I q_impl -I fancy -I basic -I main \
+     $flg -I p_int -I p_string -I q_impl -I fancy -I basic -I main \
      -H export_fancy_q_impl -I use_fancy_q_impl -I util -I instances \
      -open Main__ -open No_direct_access_to_main \
    ";

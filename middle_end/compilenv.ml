@@ -65,10 +65,11 @@ let current_unit =
     ui_external_symbols = [];
   }
 
-let reset compilation_unit =
+let reset unit_info =
+  let compilation_unit = Unit_info.modname unit_info in
   Infos_table.clear global_infos_table;
   Zero_alloc_info.reset cached_zero_alloc_info;
-  CU.set_current (Some compilation_unit);
+  Env.set_unit_name (Some unit_info);
   current_unit.ui_unit <- compilation_unit;
   current_unit.ui_defines <- [compilation_unit];
   current_unit.ui_arg_descr <- None;
@@ -144,7 +145,7 @@ let read_library_info filename =
 let equal_args arg1 arg2 =
   let ({ param = name1; value = value1 } : CU.argument) = arg1 in
   let ({ param = name2; value = value2 } : CU.argument) = arg2 in
-  CU.equal name1 name2 && CU.equal value1 value2
+  CU.Name.equal name1 name2 && CU.equal value1 value2
 
 let equal_up_to_pack_prefix cu1 cu2 =
   CU.Name.equal (CU.name cu1) (CU.name cu2)

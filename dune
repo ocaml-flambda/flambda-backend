@@ -43,6 +43,10 @@
 
 (copy_files# backend/*.ml{,i})
 
+(copy_files# "backend/%{env:ARCH=amd64}/*.ml{,i}")
+
+(copy_files# tools/simdgen/*.ml{,i})
+
 (copy_files# backend/cfg/*.ml{,i})
 
 (copy_files# backend/debug/*.ml{,i})
@@ -122,6 +126,7 @@
   mode_intf)
  (modules
   ;; UTILS
+  arrayset
   config
   build_path_prefix_map
   misc
@@ -132,6 +137,7 @@
   debug
   profile
   profile_counters_functions
+  priority_queue
   terminfo
   ccomp
   warnings
@@ -296,6 +302,9 @@
  (libraries ocamlcommon)
  (modules
   ;; bytecomp/
+  blambda
+  printblambda
+  blambda_of_lambda
   bytegen
   byteinstantiator
   bytelibrarian
@@ -433,6 +442,7 @@
   branch_relaxation
   branch_relaxation_intf
   cfg_selectgen
+  cfg_selectgen_target_intf
   cfg_selection
   cfg_invariants
   cmm_helpers
@@ -459,16 +469,20 @@
   proc
   simd
   simd_selection
-  simd_reload
   simd_proc
-  simple_operation
+  amd64_simd_defs
+  amd64_simd_instrs
   stack_check
   sub_cfg
   reg
+  reg_class
+  reg_class_utils
   relocation_entry
   relocation_table
   section_table
   select_utils
+  stack_class
+  stack_class_utils
   string_table
   symbol_entry
   symbol_table
@@ -485,6 +499,7 @@
   ;; backend/cfg
   cfg
   cfg_available_regs
+  cfg_edge
   cfg_intf
   cfg_to_linear
   cfg_with_layout
@@ -497,13 +512,10 @@
   cfg_loop_infos
   cfg_to_linear_desc
   cfg_cse
+  cfg_cse_target_intf
   cfg_stack_checks
   cfg_polling
-  eliminate_dead_code
-  disconnect_block
-  eliminate_dead_blocks
-  eliminate_fallthrough_blocks
-  merge_straightline_blocks
+  cfg_simplify
   extra_debug
   label
   linear_utils
@@ -528,6 +540,7 @@
   regalloc_split_utils
   regalloc_stack_operands
   regalloc_stack_slots
+  regalloc_substitution
   regalloc_utils
   regalloc_validate
   ;; file_formats/
@@ -831,9 +844,9 @@
   (glob_files .ocamloptcomp.objs/byte/*.{cmi,cmo,cmt,cmti})
   (glob_files .ocamloptcomp.objs/native/*.cmx)
   (glob_files
-   backend/asm_targets/.asm_targets.objs/byte/asm_targets.{cmi,cmo,cmt})
+   backend/asm_targets/.asm_targets.objs/byte/*.{cmi,cmo,cmt,cmti})
   (glob_files_rec
-   backend/asm_targets/.asm_targets.objs/native/asm_targets.cmx)
+   backend/asm_targets/.asm_targets.objs/native/*.cmx)
   (glob_files middle_end/flambda2/.flambda2objs/byte/flambda2.{cmi,cmt})
   (glob_files
    middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm{,__To_cmm}.{cmi,cmt})

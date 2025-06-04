@@ -42,6 +42,11 @@ let mk_dcfg_invariants f =
 let mk_regalloc f =
   "-regalloc", Arg.String f, " Select the register allocator"
 
+let mk_regalloc_linscan_threshold f =
+  "-regalloc-linscan-threshold",
+  Arg.Int f,
+  (Printf.sprintf " Use linscan on functions with more temporaries than the threshold (default is %d)"Flambda_backend_flags.default_regalloc_linscan_threshold)
+
 let mk_regalloc_param f =
   "-regalloc-param", Arg.String f, " Pass a parameter to the register allocator"
 
@@ -98,6 +103,12 @@ let mk_no_cfg_stack_checks f =
 
 let mk_cfg_stack_checks_threshold f =
   "-cfg-stack-checks-threshold", Arg.Int f, "<n>  Only CFGs with fewer than n blocks will be optimized"
+
+let mk_cfg_eliminate_dead_trap_handlers f =
+  "-cfg-eliminate-dead-trap-handlers", Arg.Unit f, " Eliminate dead trap handlers"
+
+let mk_no_cfg_eliminate_dead_trap_handlers f =
+  "-no-cfg-eliminate-dead-trap-handlers", Arg.Unit f, " Do not eliminate dead trap handlers"
 
 let mk_reorder_blocks_random f =
   "-reorder-blocks-random",
@@ -262,6 +273,15 @@ let mk_flambda2_advanced_meet f =
   Printf.sprintf " Use an advanced meet algorithm (deprecated) (Flambda 2 only)"
 ;;
 
+let mk_flambda2_join_algorithm f =
+  "-flambda2-join-algorithm", Arg.Symbol (["binary"; "n-way"; "checked"], f),
+  Printf.sprintf " Select the join algorithm to use (Flambda 2 only)\n \
+      \     Valid values are: \n\
+      \       \"binary\" is the legacy binary join;\n\
+      \       \"n-way\" is the new n-way join;\n\
+      \       \"checked\" runs both algorithms and compares them (use for \
+      debugging)."
+;;
 
 let mk_flambda2_join_points f =
   "-flambda2-join-points", Arg.Unit f,
@@ -431,6 +451,12 @@ let mk_flambda2_expert_cont_lifting_budget f =
   "-flambda2-expert-cont-lifting-budget", Arg.Int f,
   Printf.sprintf " Set the limit of extra parameters introduced\n\
     \ when lifting continuations (per function)"
+;;
+
+let mk_flambda2_expert_cont_spec_budget f =
+  "-flambda2-expert-cont-specialization-budget", Arg.Int f,
+  Printf.sprintf " Set the limit on the number of continuations \n\
+    \ copied/generated when specializing a continuation (per function)"
 ;;
 
 let mk_flambda2_debug_concrete_types_only_on_canonicals f =
@@ -710,6 +736,7 @@ module type Flambda_backend_options = sig
   val dcfg : unit -> unit
   val dcfg_invariants : unit -> unit
   val regalloc : string -> unit
+  val regalloc_linscan_threshold : int -> unit
   val regalloc_param : string -> unit
   val regalloc_validate : unit -> unit
   val no_regalloc_validate : unit -> unit
@@ -725,6 +752,9 @@ module type Flambda_backend_options = sig
   val cfg_stack_checks : unit -> unit
   val no_cfg_stack_checks : unit -> unit
   val cfg_stack_checks_threshold : int -> unit
+
+  val cfg_eliminate_dead_trap_handlers : unit -> unit
+  val no_cfg_eliminate_dead_trap_handlers : unit -> unit
 
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
@@ -768,6 +798,7 @@ module type Flambda_backend_options = sig
   val no_flambda2_result_types : unit -> unit
   val flambda2_basic_meet : unit -> unit
   val flambda2_advanced_meet : unit -> unit
+  val flambda2_join_algorithm : string -> unit
   val flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val no_flambda2_unbox_along_intra_function_control_flow : unit -> unit
   val flambda2_backend_cse_at_toplevel : unit -> unit
@@ -790,6 +821,7 @@ module type Flambda_backend_options = sig
   val flambda2_expert_shorten_symbol_names : unit -> unit
   val no_flambda2_expert_shorten_symbol_names : unit -> unit
   val flambda2_expert_cont_lifting_budget : int -> unit
+  val flambda2_expert_cont_spec_budget : int -> unit
   val flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val no_flambda2_debug_concrete_types_only_on_canonicals : unit -> unit
   val flambda2_debug_keep_invalid_handlers : unit -> unit
@@ -841,6 +873,7 @@ struct
     mk_dcfg F.dcfg;
     mk_dcfg_invariants F.dcfg_invariants;
     mk_regalloc F.regalloc;
+    mk_regalloc_linscan_threshold F.regalloc_linscan_threshold;
     mk_regalloc_param F.regalloc_param;
     mk_regalloc_validate F.regalloc_validate;
     mk_no_regalloc_validate F.no_regalloc_validate;
@@ -856,6 +889,9 @@ struct
     mk_cfg_stack_checks F.cfg_stack_checks;
     mk_no_cfg_stack_checks F.no_cfg_stack_checks;
     mk_cfg_stack_checks_threshold F.cfg_stack_checks_threshold;
+
+    mk_cfg_eliminate_dead_trap_handlers F.cfg_eliminate_dead_trap_handlers;
+    mk_no_cfg_eliminate_dead_trap_handlers F.no_cfg_eliminate_dead_trap_handlers;
 
     mk_reorder_blocks_random F.reorder_blocks_random;
     mk_basic_block_sections F.basic_block_sections;
@@ -904,6 +940,7 @@ struct
       F.no_flambda2_result_types;
     mk_flambda2_basic_meet F.flambda2_basic_meet;
     mk_flambda2_advanced_meet F.flambda2_advanced_meet;
+    mk_flambda2_join_algorithm F.flambda2_join_algorithm;
     mk_flambda2_unbox_along_intra_function_control_flow
       F.flambda2_unbox_along_intra_function_control_flow;
     mk_no_flambda2_unbox_along_intra_function_control_flow
@@ -943,6 +980,8 @@ struct
       F.no_flambda2_expert_shorten_symbol_names;
     mk_flambda2_expert_cont_lifting_budget
       F.flambda2_expert_cont_lifting_budget;
+    mk_flambda2_expert_cont_spec_budget
+      F.flambda2_expert_cont_spec_budget;
     mk_flambda2_debug_concrete_types_only_on_canonicals
       F.flambda2_debug_concrete_types_only_on_canonicals;
     mk_no_flambda2_debug_concrete_types_only_on_canonicals
@@ -1003,6 +1042,7 @@ module Flambda_backend_options_impl = struct
   let dcfg = set' Flambda_backend_flags.dump_cfg
   let dcfg_invariants = set' Flambda_backend_flags.cfg_invariants
   let regalloc x = Flambda_backend_flags.regalloc := x
+  let regalloc_linscan_threshold x = Flambda_backend_flags.regalloc_linscan_threshold := x
   let regalloc_param x = Flambda_backend_flags.regalloc_params := x :: !Flambda_backend_flags.regalloc_params
   let regalloc_validate = set' Flambda_backend_flags.regalloc_validate
   let no_regalloc_validate = clear' Flambda_backend_flags.regalloc_validate
@@ -1019,6 +1059,11 @@ module Flambda_backend_options_impl = struct
   let cfg_stack_checks = set' Flambda_backend_flags.cfg_stack_checks
   let no_cfg_stack_checks = clear' Flambda_backend_flags.cfg_stack_checks
   let cfg_stack_checks_threshold n = Flambda_backend_flags.cfg_stack_checks_threshold := n
+
+  let cfg_eliminate_dead_trap_handlers =
+    set' Flambda_backend_flags.cfg_eliminate_dead_trap_handlers
+  let no_cfg_eliminate_dead_trap_handlers =
+    clear' Flambda_backend_flags.cfg_eliminate_dead_trap_handlers
 
   let reorder_blocks_random seed =
     Flambda_backend_flags.reorder_blocks_random := Some seed
@@ -1109,6 +1154,15 @@ module Flambda_backend_options_impl = struct
     Flambda2.function_result_types := Flambda_backend_flags.Set Flambda_backend_flags.Never
   let flambda2_basic_meet () = ()
   let flambda2_advanced_meet () = ()
+  let flambda2_join_algorithm algorithm =
+    match algorithm with
+    | "binary" ->
+      Flambda2.join_algorithm := Flambda_backend_flags.Set Flambda_backend_flags.Binary
+    | "n-way" ->
+      Flambda2.join_algorithm := Flambda_backend_flags.Set Flambda_backend_flags.N_way
+    | "checked" ->
+      Flambda2.join_algorithm := Flambda_backend_flags.Set Flambda_backend_flags.Checked
+    | _ -> () (* This should not occur as we use Arg.Symbol *)
   let flambda2_unbox_along_intra_function_control_flow =
     set Flambda2.unbox_along_intra_function_control_flow
   let no_flambda2_unbox_along_intra_function_control_flow =
@@ -1151,6 +1205,11 @@ module Flambda_backend_options_impl = struct
     (* continuation lifting requires the advanced meet algorithm *)
     if budget <> 0 then flambda2_advanced_meet ();
     Flambda2.Expert.cont_lifting_budget := Flambda_backend_flags.Set budget
+  let flambda2_expert_cont_spec_budget budget =
+    (* continuation lifting and specialization requires the advanced meet
+       algorithm *)
+    if budget <> 0 then flambda2_advanced_meet ();
+    Flambda2.Expert.cont_spec_budget := Flambda_backend_flags.Set budget
   let flambda2_debug_concrete_types_only_on_canonicals =
     set' Flambda2.Debug.concrete_types_only_on_canonicals
   let no_flambda2_debug_concrete_types_only_on_canonicals =
@@ -1341,6 +1400,7 @@ module Extra_params = struct
     | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
     | "cfg-invariants" -> set' Flambda_backend_flags.cfg_invariants
     | "regalloc" -> set_string Flambda_backend_flags.regalloc
+    | "regalloc-linscan-threshold" -> set_int' Flambda_backend_flags.regalloc_linscan_threshold
     | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
     | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
     | "vectorize" -> set' Flambda_backend_flags.vectorize
@@ -1348,7 +1408,8 @@ module Extra_params = struct
     | "vectorize-max-block-size" -> set_int' Flambda_backend_flags.vectorize_max_block_size
     | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
     | "cfg-stack-checks" -> set' Flambda_backend_flags.cfg_stack_checks
-    | "cfg-stack-checks-threshold" -> set_int' Flambda_backend_flags.cfg_stack_checks_threshold
+    | "cfg-eliminate-dead-trap-handlers" ->
+        set' Flambda_backend_flags.cfg_eliminate_dead_trap_handlers
     | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
     | "davail" -> set' Flambda_backend_flags.davail
     | "dranges" -> set' Flambda_backend_flags.dranges
@@ -1438,6 +1499,13 @@ module Extra_params = struct
       | _ ->
         Misc.fatal_error "Syntax: flambda2-meet_algorithm=basic|advanced");
       true
+    | "flambda2-join-algorithm" ->
+      (match String.lowercase_ascii v with
+      | "binary" | "n-way" | "checked" as v ->
+        Flambda_backend_options_impl.flambda2_join_algorithm v
+      | _ ->
+        Misc.fatal_error "Syntax: flambda2-join-algorithm=binary|n-way|checked");
+      true
     | "flambda2-unbox-along-intra-function-control-flow" ->
        set Flambda2.unbox_along_intra_function_control_flow
     | "flambda2-backend-cse-at-toplevel" ->
@@ -1460,6 +1528,13 @@ module Extra_params = struct
       begin match Compenv.check_int ppf name v with
       | Some i ->
          Flambda2.Expert.cont_lifting_budget := Flambda_backend_flags.Set i
+      | None -> ()
+      end;
+      true
+    | "flambda2-expert-cont-spec-budget" ->
+      begin match Compenv.check_int ppf name v with
+      | Some i ->
+         Flambda2.Expert.cont_spec_budget := Flambda_backend_flags.Set i
       | None -> ()
       end;
       true

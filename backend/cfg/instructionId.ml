@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 include Numbers.Int
@@ -21,7 +21,9 @@ let make_sequence ?(last_used = -1) () = { next = succ last_used }
 
 let reset seq = seq.next <- 0
 
-let get_next seq =
+let get seq = seq.next
+
+let get_and_incr seq =
   let res = seq.next in
   seq.next <- succ seq.next;
   res

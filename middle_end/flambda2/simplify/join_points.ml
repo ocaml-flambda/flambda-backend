@@ -65,7 +65,7 @@ let introduce_extra_params_for_join denv use_envs_with_ids
     denv, use_tenvs_with_ids
   else
     let extra_params = EPA.extra_params extra_params_and_args in
-    let denv = DE.define_parameters denv ~params:extra_params in
+    let denv = DE.define_parameters ~extra:true denv ~params:extra_params in
     let use_envs_with_ids =
       List.filter_map
         (introduce_extra_params_in_use_env extra_params_and_args)
@@ -73,11 +73,11 @@ let introduce_extra_params_for_join denv use_envs_with_ids
     in
     denv, use_envs_with_ids
 
-let join ?cut_after denv params ~consts_lifted_during_body ~use_envs_with_ids
-    ~lifted_cont_extra_params_and_args =
+let join ?cut_after denv params ~consts_lifted_after_fork ~use_envs_with_ids
+    ~previous_extra_params_and_args =
   let definition_scope = DE.get_continuation_scope denv in
   let extra_lifted_consts_in_use_envs =
-    LCS.all_defined_symbols consts_lifted_during_body
+    LCS.all_defined_symbols consts_lifted_after_fork
   in
   let module CSE = Common_subexpression_elimination in
   let cse_join_result =
@@ -92,11 +92,11 @@ let join ?cut_after denv params ~consts_lifted_during_body ~use_envs_with_ids
   in
   let extra_params_and_args =
     match cse_join_result with
-    | None -> lifted_cont_extra_params_and_args
+    | None -> previous_extra_params_and_args
     | Some cse_join_result ->
       (* CR gbury: the order of the EPA should not matter here *)
       EPA.concat ~outer:cse_join_result.extra_params
-        ~inner:lifted_cont_extra_params_and_args
+        ~inner:previous_extra_params_and_args
   in
   let denv, use_envs_with_ids' =
     introduce_extra_params_for_join denv use_envs_with_ids
@@ -119,9 +119,7 @@ let join ?cut_after denv params ~consts_lifted_during_body ~use_envs_with_ids
     match cse_join_result with
     | None -> handler_env
     | Some cse_join_result ->
-      Name.Map.fold
-        (fun name ty handler_env -> TE.add_equation handler_env name ty)
-        cse_join_result.extra_equations handler_env
+      TE.add_env_extension handler_env cse_join_result.env_extension
   in
   let denv =
     let denv = DE.with_typing_env denv handler_env in
@@ -175,31 +173,36 @@ let add_equations_on_params typing_env ~is_recursive ~params:params'
   in
   add_equations_on_params typing_env params param_types
 
-let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
-    ~consts_lifted_during_body ~params ~lifted_cont_extra_params_and_args =
+let compute_use_env_with_ids ?replay ~is_recursive ~params use =
+  let add_or_meet_param_type typing_env =
+    let param_types = U.arg_types use in
+    add_equations_on_params typing_env ~is_recursive ~params ~param_types
+  in
+  let use_env =
+    let use_env = DE.with_replay_history replay (U.env_at_use use) in
+    let use_env = DE.define_parameters ~extra:false use_env ~params in
+    DE.map_typing_env use_env ~f:add_or_meet_param_type
+  in
+  use_env, U.id use, U.use_kind use
+
+let compute_handler_env ?replay ?cut_after uses ~is_recursive ~env_at_fork
+    ~consts_lifted_after_fork ~params ~previous_extra_params_and_args =
   (* Augment the environment at each use with the parameter definitions and
      associated equations. *)
-  let use_envs_with_ids =
-    List.map
-      (fun use ->
-        let add_or_meet_param_type typing_env =
-          let param_types = U.arg_types use in
-          add_equations_on_params typing_env ~is_recursive ~params ~param_types
-        in
-        let use_env =
-          let use_env = DE.define_parameters (U.env_at_use use) ~params in
-          DE.map_typing_env use_env ~f:add_or_meet_param_type
-        in
-        use_env, U.id use, U.use_kind use)
-      uses
-  in
-  match use_envs_with_ids with
-  | [(use_env, use_id, Inlinable)] when not is_recursive ->
+  match uses with
+  | [use]
+    when (not is_recursive)
+         &&
+         match U.use_kind use with
+         | Inlinable -> true
+         | Non_inlinable _ -> false ->
     (* First add the extra params and args equations in the typing env *)
+    let ((use_env, _use_id, _use_kind) as use) =
+      compute_use_env_with_ids ?replay ~is_recursive ~params use
+    in
     let use_tenv =
-      let use = use_env, use_id, Continuation_use_kind.Inlinable in
       match
-        introduce_extra_params_in_use_env lifted_cont_extra_params_and_args use
+        introduce_extra_params_in_use_env previous_extra_params_and_args use
       with
       | Some (use_env, _, _) -> use_env
       | None ->
@@ -224,8 +227,7 @@ let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
        because they were defined on the path between the fork point and this
        particular use). *)
     let handler_env =
-      LCS.add_to_denv ~maybe_already_defined:() use_env
-        consts_lifted_during_body
+      LCS.add_to_denv ~maybe_already_defined:() use_env consts_lifted_after_fork
     in
     (* The use environment might have a deeper inlining depth increment than the
        fork environment. (e.g. where an [Apply] was inlined, revealing the
@@ -246,19 +248,24 @@ let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
         (DE.at_unit_toplevel env_at_fork)
     in
     { handler_env;
-      extra_params_and_args = EPA.empty;
+      extra_params_and_args = previous_extra_params_and_args;
       is_single_inlinable_use = true;
       escapes = false
     }
-  | [] | [(_, _, Non_inlinable _)] | (_, _, (Inlinable | Non_inlinable _)) :: _
-    ->
+  | _ ->
+    let use_envs_with_ids =
+      List.map
+        (compute_use_env_with_ids ?replay:None ~is_recursive ~params)
+        uses
+    in
     (* This is the general case.
 
        The lifted constants are put into the _fork_ environment now because it
        overall makes things easier; the join operation can just discard any
        equation about a lifted constant (any such equation could not be
        materially more precise anyway). *)
-    let denv = LCS.add_to_denv env_at_fork consts_lifted_during_body in
+    let denv = DE.with_replay_history replay env_at_fork in
+    let denv = LCS.add_to_denv denv consts_lifted_after_fork in
     let should_do_join =
       Flambda_features.join_points ()
       || match use_envs_with_ids with [] | [_] -> true | _ :: _ :: _ -> false
@@ -268,18 +275,20 @@ let compute_handler_env ?cut_after uses ~is_recursive ~env_at_fork
       then
         (* No need to add equations, as they will be computed from the use
            environments *)
-        let denv = DE.define_parameters denv ~params in
+        let denv = DE.define_parameters denv ~extra:false ~params in
         Profile.record_call ~accumulate:true "join" (fun () ->
-            join ?cut_after denv params ~consts_lifted_during_body
-              ~use_envs_with_ids ~lifted_cont_extra_params_and_args)
+            join ?cut_after denv params ~consts_lifted_after_fork
+              ~use_envs_with_ids ~previous_extra_params_and_args)
       else
         (* Define parameters with basic equations from the subkinds *)
-        let denv = DE.add_parameters_with_unknown_types denv params in
         let denv =
-          DE.add_parameters_with_unknown_types denv
-            (EPA.extra_params lifted_cont_extra_params_and_args)
+          DE.add_parameters_with_unknown_types denv ~extra:false params
         in
-        denv, lifted_cont_extra_params_and_args
+        let denv =
+          DE.add_parameters_with_unknown_types denv ~extra:true
+            (EPA.extra_params previous_extra_params_and_args)
+        in
+        denv, previous_extra_params_and_args
     in
     let escapes =
       List.exists

@@ -362,9 +362,6 @@ ocaml/primitives.new
 /tools/dumpobj.opt
 /tools/ocamlobjinfo
 /tools/ocamlobjinfo.opt
-/tools/cvt_emit
-/tools/cvt_emit.opt
-/tools/cvt_emit.ml
 /tools/ocamlcp
 /tools/ocamlcp.opt
 /tools/ocamloptp

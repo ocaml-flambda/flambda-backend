@@ -15,7 +15,7 @@
 
 (* Pretty-printing of registers *)
 
-[@@@ocaml.warning "+a-4-9-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 val loc :
   ?wrap_out:(Format.formatter -> (Format.formatter -> unit) -> unit) ->

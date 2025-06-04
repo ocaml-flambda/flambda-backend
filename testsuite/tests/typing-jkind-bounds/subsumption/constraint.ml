@@ -141,13 +141,14 @@ Error: Signature mismatch:
          type 'a t = Foo of 'a constraint 'a = 'b ref
        is not included in
          type 'a t : immutable_data with 'b constraint 'a = 'b ref
-       The kind of the first is mutable_data with 'b @@ many unyielding
+       The kind of the first is mutable_data with 'b @@ unyielding many
          because of the definition of t at line 4, characters 2-46.
        But the kind of the first must be a subkind of immutable_data with 'b
          because of the definition of t at line 2, characters 2-59.
 
        The first mode-crosses less than the second along:
          contention: mod uncontended ≰ mod contended with 'b
+         visibility: mod read_write ≰ mod immutable with 'b
 |}]
 
 module M : sig

@@ -60,14 +60,14 @@ val is_empty : t -> bool
 (** The result of calling [add] to state that two [Simple.t]s are now aliases. *)
 type add_result = private
   { t : t;  (** The new state of the alias tracker. *)
-    canonical_element : Simple.t;
-        (** The canonical element of the combined equivalence class. In the type
-            environment, this will be the name (if it is a name) that is
-            assigned a concrete type. *)
-    alias_of_demoted_element : Simple.t
+    demoted_name : Name.t;
         (** Whichever argument to [add] had its equivalence class consumed and
             its canonical element demoted to an alias. It is this name that
             needs its type to change to record the new canonical element. *)
+    canonical_element : Simple.t
+        (** The canonical element of the combined equivalence class. In the type
+            environment, this will be the name (if it is a name) that is
+            assigned a concrete type. *)
   }
 
 (** Add an alias relationship to the tracker. The two simple expressions must be

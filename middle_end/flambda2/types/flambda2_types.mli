@@ -71,9 +71,19 @@ module Typing_env_extension : sig
 
   val empty : t
 
+  val has_equation : Name.t -> t -> bool
+
   val one_equation : Name.t -> flambda_type -> t
 
   val add_or_replace_equation : t -> Name.t -> flambda_type -> t
+
+  val add_is_null_relation : t -> Name.t -> scrutinee:Simple.t -> t
+
+  val add_is_int_relation : t -> Name.t -> scrutinee:Simple.t -> t
+
+  val add_get_tag_relation : t -> Name.t -> scrutinee:Simple.t -> t
+
+  val disjoint_union : t -> t -> t
 
   module With_extra_variables : sig
     type t
@@ -176,6 +186,12 @@ module Typing_env : sig
 
   val add_equations_on_params :
     t -> params:Bound_parameters.t -> param_types:flambda_type list -> t
+
+  val add_is_null_relation : t -> Name.t -> scrutinee:Simple.t -> t
+
+  val add_is_int_relation : t -> Name.t -> scrutinee:Simple.t -> t
+
+  val add_get_tag_relation : t -> Name.t -> scrutinee:Simple.t -> t
 
   val mem : ?min_name_mode:Name_mode.t -> t -> Name.t -> bool
 
@@ -311,6 +327,8 @@ val any_value : t
 
 val any_tagged_immediate : t
 
+val any_tagged_immediate_or_null : t
+
 val any_tagged_bool : t
 
 val any_boxed_float32 : t
@@ -438,12 +456,6 @@ val tagged_immediate_alias_to : naked_immediate:Variable.t -> t
 
 val tag_immediate : t -> t
 
-val is_int_for_scrutinee : scrutinee:Simple.t -> t
-
-val get_tag_for_block : block:Simple.t -> t
-
-val is_null : scrutinee:Simple.t -> t
-
 val any_block : t
 
 (** The type of an immutable block with a known tag, size and field types. *)
@@ -495,12 +507,12 @@ val closure_with_at_least_this_value_slot :
   this_function_slot:Function_slot.t ->
   Value_slot.t ->
   value_slot_var:Variable.t ->
-  value_slot_kind:Flambda_kind.With_subkind.t ->
+  value_slot_kind:Flambda_kind.t ->
   flambda_type
 
 val closure_with_at_least_these_value_slots :
   this_function_slot:Function_slot.t ->
-  (Variable.t * Flambda_kind.With_subkind.t) Value_slot.Map.t ->
+  (Variable.t * Flambda_kind.t) Value_slot.Map.t ->
   flambda_type
 
 val array_of_length :
@@ -635,6 +647,9 @@ val prove_unique_fully_constructed_immutable_heap_block :
   proof_of_property
 
 val prove_is_int : Typing_env.t -> t -> bool proof_of_property
+
+(* Either a tagged integer or a null poitner. *)
+val prove_is_not_a_pointer : Typing_env.t -> t -> bool proof_of_property
 
 (* Returns the result of [Is_flat_float_array] *)
 val meet_is_flat_float_array : Typing_env.t -> t -> bool meet_shortcut
@@ -789,3 +804,10 @@ val never_holds_locally_allocated_values :
   Typing_env.t -> Variable.t -> unit proof_of_property
 
 val remove_outermost_alias : Typing_env.t -> t -> t
+
+module Equal_types_for_debug : sig
+  val equal_type : Typing_env.t -> t -> t -> bool
+
+  val equal_env_extension :
+    Typing_env.t -> Typing_env_extension.t -> Typing_env_extension.t -> bool
+end

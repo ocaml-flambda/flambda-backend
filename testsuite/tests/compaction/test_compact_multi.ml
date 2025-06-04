@@ -5,6 +5,7 @@
    skip;
  }{
    runtime5;
+   multidomain;
    { bytecode; }
    { native; }
  }

@@ -16,6 +16,7 @@
 
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open Asm_targets
+module A = Asm_directives
 
 module Make (Entry : Location_or_range_list_entry.S) = struct
   type t = Entry.t list
@@ -32,7 +33,6 @@ module Make (Entry : Location_or_range_list_entry.S) = struct
       (Dwarf_int.zero ()) t
 
   let emit ~asm_directives t =
-    let module A = (val asm_directives : Asm_directives.S) in
     A.comment "Start of list:";
     A.new_line ();
     List.iter (fun entry -> Entry.emit ~asm_directives entry) (List.rev t)

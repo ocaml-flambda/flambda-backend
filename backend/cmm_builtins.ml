@@ -12,7 +12,9 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+[@@@ocaml.warning "+a-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 open Cmm
 open Cmm_helpers
 open Arch
@@ -52,7 +54,7 @@ let if_operation_supported op ~f =
   match Proc.operation_supported op with true -> Some (f ()) | false -> None
 
 let if_operation_supported_bi bi op ~f =
-  if bi = Primitive.Unboxed_int64 && size_int = 4
+  if Primitive.equal_unboxed_integer bi Primitive.Unboxed_int64 && size_int = 4
   then None
   else if_operation_supported op ~f
 
@@ -69,7 +71,21 @@ let shift32 make_op arg count dbg =
     | Cconst_natint (n, _) ->
       Cconst_int
         (Nativeint.to_int (Nativeint.logand n (Nativeint.of_int mask)), dbg)
-    | _ -> Cop (Cand, [count; Cconst_int (mask, dbg)], dbg)
+    | Cconst_float32 _
+    | Cconst_float (_, _)
+    | Cconst_vec128 (_, _)
+    | Cconst_symbol (_, _)
+    | Cvar _
+    | Clet (_, _, _)
+    | Cphantom_let (_, _, _)
+    | Ctuple _
+    | Cop (_, _, _)
+    | Csequence (_, _)
+    | Cifthenelse (_, _, _, _, _, _)
+    | Cswitch (_, _, _, _)
+    | Ccatch (_, _, _)
+    | Cexit (_, _, _) ->
+      Cop (Cand, [count; Cconst_int (mask, dbg)], dbg)
   in
   Some (make_op arg count dbg)
 
@@ -85,13 +101,14 @@ let clz ~arg_is_non_zero bi arg dbg =
   let op = Cclz { arg_is_non_zero } in
   if_operation_supported_bi bi op ~f:(fun () ->
       let res = Cop (op, [make_unsigned_int bi arg dbg], dbg) in
-      if bi = Primitive.Unboxed_int32 && size_int = 8
+      if Primitive.equal_unboxed_integer bi Primitive.Unboxed_int32
+         && size_int = 8
       then Cop (Caddi, [res; Cconst_int (-32, dbg)], dbg)
       else res)
 
 let ctz ~arg_is_non_zero bi arg dbg =
   let arg = make_unsigned_int bi arg dbg in
-  if bi = Primitive.Unboxed_int32 && size_int = 8
+  if Primitive.equal_unboxed_integer bi Primitive.Unboxed_int32 && size_int = 8
   then
     (* regardless of the value of the argument [arg_is_non_zero], always set the
        corresponding field to [true], because we make it non-zero below by
@@ -223,26 +240,28 @@ let rec const_args_gen ~extract ~type_name n args name =
 (* Assumes unboxed float32 *)
 let const_float32_args =
   const_args_gen
-    ~extract:(function Cconst_float32 (f, _) -> Some f | _ -> None)
+    ~extract:(function[@warning "-4"]
+      | Cconst_float32 (f, _) -> Some f | _ -> None)
     ~type_name:"float32"
 
 (* Assumes unboxed float64 *)
 let const_float_args =
   const_args_gen
-    ~extract:(function Cconst_float (f, _) -> Some f | _ -> None)
+    ~extract:(function[@warning "-4"]
+      | Cconst_float (f, _) -> Some f | _ -> None)
     ~type_name:"float"
 
 (* Assumes untagged int or unboxed int32, always representable by int63 *)
 let const_int_args =
   const_args_gen
-    ~extract:(function Cconst_int (i, _) -> Some i | _ -> None)
+    ~extract:(function[@warning "-4"] Cconst_int (i, _) -> Some i | _ -> None)
     ~type_name:"int"
 
 (* Assumes unboxed int64: no tag, comes as Cconst_int when representable by
    int63, otherwise we get Cconst_natint *)
 let const_int64_args =
   const_args_gen
-    ~extract:(function
+    ~extract:(function[@warning "-4"]
       | Cconst_int (i, _) -> Some (Int64.of_int i)
       | Cconst_natint (i, _) -> Some (Int64.of_nativeint i)
       | _ -> None)
@@ -541,7 +560,22 @@ let transl_builtin name args dbg typ_res =
         match cond with
         | Cconst_int (0, _) -> ifnot
         | Cconst_int (1, _) -> ifso
-        | _ -> Cop (op, [cond; ifso; ifnot], dbg))
+        | Cconst_int _ | Cconst_natint _
+        | Cconst_float32 (_, _)
+        | Cconst_float (_, _)
+        | Cconst_vec128 (_, _)
+        | Cconst_symbol (_, _)
+        | Cvar _
+        | Clet (_, _, _)
+        | Cphantom_let (_, _, _)
+        | Ctuple _
+        | Cop (_, _, _)
+        | Csequence (_, _)
+        | Cifthenelse (_, _, _, _, _, _)
+        | Cswitch (_, _, _, _)
+        | Ccatch (_, _, _)
+        | Cexit (_, _, _) ->
+          Cop (op, [cond; ifso; ifnot], dbg))
   | "caml_int32_shift_left_by_int32_unboxed" ->
     let arg, count = two_args name args in
     shift32 lsl_int arg count dbg
@@ -798,7 +832,10 @@ let builtin_even_if_not_annotated = function
 
 let extcall ~dbg ~returns ~alloc ~is_c_builtin ~effects ~coeffects ~ty_args name
     typ_res args =
-  if not returns then assert (typ_res = typ_void);
+  if not returns
+  then
+    assert (
+      Misc.Stdlib.Array.equal Cmm.equal_machtype_component typ_res typ_void);
   let default =
     Cop
       ( Cextcall

@@ -69,6 +69,11 @@ let create_string section label =
   assert (not (contains_escapable_char label));
   { section; label = String label }
 
+let create_string_unchecked section label = { section; label = String label }
+
+let create_label_for_local_symbol section symbol =
+  create_string_unchecked section (Asm_symbol.encode symbol)
+
 let label_prefix =
   match Target_system.assembler () with MacOS -> "L" | MASM | GAS_like -> ".L"
 
@@ -128,5 +133,5 @@ let for_dwarf_section (dwarf_section : Asm_section.dwarf_section) =
 
 let for_section (section : Asm_section.t) =
   match section with
-  | DWARF dwarf_section -> for_dwarf_section dwarf_section
-  | Text -> Misc.fatal_error "Not yet implemented"
+  | DWARF d -> for_dwarf_section d
+  | _ -> Misc.fatal_error "Non DWARF sections are not pre-defined with a label."

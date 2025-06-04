@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 (* CR-soon xclerc for xclerc: try and unify Forward_transfer/Backward_transfer,
    and Forward_S/Backward_S. *)

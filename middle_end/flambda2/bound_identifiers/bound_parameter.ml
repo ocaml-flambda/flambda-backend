@@ -56,6 +56,10 @@ let with_kind t kind = { t with kind }
 
 let rename t = { t with param = Variable.rename t.param }
 
+let is_renamed_version_of t t' =
+  Flambda_kind.With_subkind.equal t.kind t'.kind
+  && Variable.is_renamed_version_of t.param t'.param
+
 let free_names ({ param = _; kind = _ } as t) =
   Name_occurrences.singleton_variable (var t) Name_mode.normal
 

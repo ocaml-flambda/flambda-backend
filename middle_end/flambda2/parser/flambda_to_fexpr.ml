@@ -676,10 +676,7 @@ let value_slots env map =
   List.map
     (fun (var, value) ->
       let kind = Value_slot.kind var in
-      if not
-           (Flambda_kind.equal
-              (Flambda_kind.With_subkind.kind kind)
-              Flambda_kind.value)
+      if not (Flambda_kind.equal kind Flambda_kind.value)
       then
         Misc.fatal_errorf "Value slot %a not of kind Value" Simple.print value;
       let var = Env.translate_value_slot env var in
@@ -1012,10 +1009,13 @@ and let_cont_expr env (lc : Flambda.Let_cont_expr.t) =
         Fexpr.Let_cont { recursive = Nonrecursive; bindings = [binding]; body })
   | Recursive handlers ->
     Flambda.Recursive_let_cont_handlers.pattern_match handlers
-      ~f:(fun ~invariant_params:_ ~body handlers ->
-        (* TODO support them *)
+      ~f:(fun ~invariant_params ~body handlers ->
+        let params, env =
+          map_accum_left kinded_parameter env
+            (Bound_parameters.to_list invariant_params)
+        in
         let env =
-          Continuation.Set.fold
+          List.fold_right
             (fun c env ->
               let _, env = Env.bind_named_continuation env c in
               env)
@@ -1033,10 +1033,10 @@ and let_cont_expr env (lc : Flambda.Let_cont_expr.t) =
               in
               cont_handler env c sort handler)
             (handlers |> Flambda.Continuation_handlers.to_map
-           |> Continuation.Map.bindings)
+           |> Continuation.Lmap.bindings)
         in
         let body = expr env body in
-        Fexpr.Let_cont { recursive = Recursive; bindings; body })
+        Fexpr.Let_cont { recursive = Recursive params; bindings; body })
 
 and cont_handler env cont_id (sort : Continuation.Sort.t) h =
   let is_exn_handler = Flambda.Continuation_handler.is_exn_handler h in
@@ -1236,7 +1236,7 @@ module Iter = struct
 
   and let_cont_rec f_c f_s conts body =
     let map = Continuation_handlers.to_map conts in
-    Continuation.Map.iter (continuation_handler f_c f_s) map;
+    Continuation.Lmap.iter (continuation_handler f_c f_s) map;
     expr f_c f_s body
 
   and continuation_handler f_c f_s _ h =

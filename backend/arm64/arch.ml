@@ -25,6 +25,9 @@ let macosx = String.equal Config.system "macosx"
 
 let is_asan_enabled = ref false
 
+(* CR gyorsh: refactor to use [Arch.Extension] like amd64 *)
+let feat_cssc = ref false
+
 (* Machine-specific command-line options *)
 
 let command_line_options = [
@@ -32,6 +35,11 @@ let command_line_options = [
     Arg.Clear is_asan_enabled,
     " Disable AddressSanitizer. This is only meaningful if the compiler was \
      built with AddressSanitizer support enabled."
+  ;
+
+  "-fcssc",
+    Arg.Set feat_cssc,
+    " Enable the Common Short Sequence Compression (CSSC) instructions."
 ]
 
 (* Addressing modes *)
@@ -52,6 +60,7 @@ type cmm_label = Label.t
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
+(* Specific operations, including [Simd], must not raise. *)
 type specific_operation =
   | Ifar_poll
   | Ifar_alloc of { bytes : int; dbginfo : Cmm.alloc_dbginfo }
@@ -93,9 +102,12 @@ let division_crashes_on_overflow = false
 
 let identity_addressing = Iindexed 0
 
-let offset_addressing _addr _delta =
-  (* Resulting offset might not be representable.  *)
-  Misc.fatal_error "Arch.offset_addressing not supported"
+let offset_addressing addr delta =
+  (* Resulting offset might not be representable, but that is the
+     responsibility of the caller. *)
+  match addr with
+  | Iindexed i -> Iindexed (i + delta)
+  | Ibased (sym, i) -> Ibased (sym, i + delta)
 
 let num_args_addressing = function
   | Iindexed _ -> 1
@@ -315,23 +327,6 @@ let operation_is_pure : specific_operation -> bool = function
   | Isimd op -> Simd.operation_is_pure op
 
 (* Specific operations that can raise *)
-
-let operation_can_raise = function
-  | Ifar_alloc _
-  | Ifar_poll -> true
-  | Imuladd
-  | Imulsub
-  | Inegmulf
-  | Imuladdf
-  | Inegmuladdf
-  | Imulsubf
-  | Inegmulsubf
-  | Isqrtf
-  | Imove32
-  | Ishiftarith (_, _)
-  | Isignext _
-  | Ibswap _
-  | Isimd _ -> false
 
 let operation_allocates = function
   | Ifar_alloc _ -> true

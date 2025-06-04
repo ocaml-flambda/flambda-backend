@@ -72,3 +72,17 @@ let evaluate =
 let _ =
   Printf.printf "\"real\" code (3.14): %.2f\n"
     (box_float (evaluate [|2; 3; 4|] ~size:1))
+
+(* Omitting optional arg, where let binding is needed for function. *)
+module M = struct
+  (* Putting this in a module defeats an optimization in simplif that removes an
+     intermediate let binding where the bug occurs (it reduces [let x = y in
+     ...], but only if [y] is precisely a variable, which a projection from a
+     module is not). *)
+  let to_string ?(explicit_plus = false) x =
+    if explicit_plus then "blah" else string_of_float (box_float x)
+end
+
+let pi_to_string ~value_to_string = value_to_string #3.14
+let pi = pi_to_string ~value_to_string:M.to_string
+let () = Printf.printf "Omitting optional arg (3.14): %s\n" pi

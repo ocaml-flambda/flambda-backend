@@ -15,6 +15,10 @@
 
 open Datalog_imports
 
+type 'a value_repr
+
+val int_repr : int value_repr
+
 type action
 
 val bind_iterator :
@@ -22,6 +26,12 @@ val bind_iterator :
 
 val unless :
   ('t, 'k, 'v) Table.Id.t -> 't ref -> 'k Option_ref.hlist with_names -> action
+
+val unless_eq :
+  'k value_repr -> 'k option ref with_name -> 'k option ref with_name -> action
+
+val filter :
+  ('k Constant.hlist -> bool) -> 'k Option_ref.hlist with_names -> action
 
 type actions
 

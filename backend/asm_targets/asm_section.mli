@@ -42,14 +42,24 @@ type dwarf_section =
 
 type t =
   | DWARF of dwarf_section
+  | Data
+  | Read_only_data
+  | Eight_byte_literals
+  | Sixteen_byte_literals
+  | Jump_tables
   | Text
+  | Stapsdt_base
+  | Stapsdt_note
+  | Probes
+  | Note_ocaml_eh
 
 val to_string : t -> string
 
 type section_details = private
   { names : string list;
     flags : string option;
-    args : string list
+    args : string list;
+    is_delayed : bool
   }
 
 val dwarf_sections_in_order : unit -> t list
@@ -68,3 +78,6 @@ val print : Format.formatter -> t -> unit
 val compare : t -> t -> int
 
 val equal : t -> t -> bool
+
+(** Whether the section holds code. *)
+val section_is_text : t -> bool

@@ -58,6 +58,7 @@ extern uintnat caml_pool_min_chunk_bsz;  /* see shared_heap.c */
 extern uintnat caml_percent_sweep_per_mark; /* see major_gc.c */
 extern uintnat caml_gc_pacing_policy;       /* see major_gc.c */
 extern uintnat caml_gc_overhead_adjustment; /* see major_gc.c */
+extern uintnat caml_nohugepage_stacks;    /* see fiber.c */
 
 CAMLprim value caml_gc_quick_stat(value v)
 {
@@ -373,13 +374,7 @@ void caml_init_gc (void)
     caml_norm_minor_heap_size(caml_params->init_minor_heap_wsz);
 
   caml_max_stack_wsize = caml_params->init_max_stack_wsz;
-#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
-  // CR mslater: initial fiber stack size should be configurable, and have a smaller
-  // default than the main stack / thread stacks
-  caml_fiber_wsz = caml_get_init_stack_wsize(-1);
-#else
-  caml_fiber_wsz = (Stack_threshold * 2) / sizeof(value);
-#endif
+  caml_fiber_wsz = caml_get_init_stack_wsize(STACK_SIZE_FIBER);
   caml_percent_free = norm_pfree (caml_params->init_percent_free);
   caml_max_percent_free = norm_pmax (caml_params->init_max_percent_free);
   CAML_GC_MESSAGE(STACKS, "Initial stack limit: %"
@@ -445,9 +440,11 @@ static struct gc_tweak gc_tweaks[] = {
   { "pool_min_chunk_size", &caml_pool_min_chunk_bsz, 0 },
   { "main_stack_size", &caml_init_main_stack_wsz, 0 },
   { "thread_stack_size", &caml_init_thread_stack_wsz, 0 },
+  { "fiber_stack_size", &caml_init_fiber_stack_wsz, 0 },
   { "percent_sweep_per_mark", &caml_percent_sweep_per_mark, 0 },
   { "gc_pacing_policy", &caml_gc_pacing_policy, 0 },
   { "gc_overhead_adjustment", &caml_gc_overhead_adjustment, 0 },
+  { "nohugepage_stacks", &caml_nohugepage_stacks, 0 },
 };
 
 enum {N_GC_TWEAKS = sizeof(gc_tweaks)/sizeof(gc_tweaks[0])};
@@ -571,7 +568,7 @@ CAMLprim value caml_runtime_parameters (value unit)
   char *no_tweaks = "";
   /* keep in sync with runtime4 and with parse_ocamlrunparam */
   value res = caml_alloc_sprintf
-    ("b=%d,c="F_Z",d="F_Z",e="F_Z",i="F_Z",l="F_Z
+    ("b=%d,c="F_Z",d="F_Z",e="F_Z",H="F_Z",i="F_Z",l="F_Z
      ",m="F_Z",M="F_Z",n="F_Z",o="F_Z",O="F_Z
      ",p="F_Z",s="F_Z",t="F_Z",v="F_Z",V="F_Z
      ",W="F_Z"%s",
@@ -581,7 +578,7 @@ CAMLprim value caml_runtime_parameters (value unit)
        /* d */ caml_params->max_domains,
        /* e */ caml_params->runtime_events_log_wsize,
        /* h is runtime 4 init heap size */
-       /* H is runtime 4 huge pages */
+       /* H */ caml_params->use_hugetlb_pages,
        /* i */ caml_major_heap_increment,
        /* l */ caml_max_stack_wsize,
        /* m */ caml_custom_minor_ratio,

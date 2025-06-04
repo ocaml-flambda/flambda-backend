@@ -1,5 +1,8 @@
 (* TEST
  modules = "qsort_.c";
+ (* [-D_GNU_SOURCE] is needed when AddressSanitizer support is enabled in order
+    for the [dlsym] workaround in [qsort_.c] to work. *)
+ flags = "-ccopt -D_GNU_SOURCE";
  frame_pointers;
  {
    bytecode;

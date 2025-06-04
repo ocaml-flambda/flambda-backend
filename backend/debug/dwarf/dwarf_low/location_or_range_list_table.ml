@@ -19,6 +19,7 @@ open Asm_targets
 module Uint8 = Numbers.Uint8
 module Uint32 = Numbers.Uint32
 module Uint64 = Numbers.Uint64
+module A = Asm_directives
 
 module Make (Location_or_range_list : sig
   include Dwarf_emittable.S
@@ -108,7 +109,6 @@ struct
       (Initial_length.to_dwarf_int initial_length)
 
   let emit ~asm_directives t =
-    let module A = (val asm_directives : Asm_directives.S) in
     Initial_length.emit ~asm_directives (initial_length t);
     Dwarf_version.emit ~asm_directives Dwarf_version.five;
     A.uint8 ~comment:"Dwarf_arch_sizes.size_addr"

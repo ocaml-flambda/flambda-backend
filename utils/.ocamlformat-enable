@@ -1,5 +1,7 @@
 compilation_unit.ml
 compilation_unit.mli
+doubly_linked_list.ml
+doubly_linked_list.mli
 import_info.ml
 import_info.mli
 language_extension_kernel.ml
@@ -10,3 +12,8 @@ zero_alloc_annotations.ml
 zero_alloc_annotations.mli
 profile_counters_functions.ml
 profile_counters_functions.mli
+arrayset.ml
+arrayset.mli
+priority_queue.ml
+priority_queue.mli
+

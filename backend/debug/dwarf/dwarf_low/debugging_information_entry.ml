@@ -18,6 +18,7 @@ open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open Asm_targets
 module ASS = Dwarf_attributes.Attribute_specification.Sealed
 module AV = Dwarf_attribute_values.Attribute_value
+module A = Asm_directives
 
 type t =
   { label : Asm_label.t;
@@ -40,7 +41,6 @@ let null =
 let create_null () = Lazy.force null
 
 let emit ~asm_directives t =
-  let module A = (val asm_directives : Asm_directives.S) in
   (* The null DIE is likely to be emitted multiple times; we must not emit its
      label multiple times, or the assembler would complain. We don't actually
      need to point at the null DIE from anywhere else, so we elide emission of

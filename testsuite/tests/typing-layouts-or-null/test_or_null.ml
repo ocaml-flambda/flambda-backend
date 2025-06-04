@@ -216,7 +216,7 @@ Line 1, characters 19-32:
 Error: This type "float or_null" should be an instance of type
          "('a : any_non_null)"
        The kind of float or_null is
-         value_or_null mod many contended portable unyielding
+         value_or_null mod many unyielding stateless immutable
          because it is the primitive immediate_or_null type or_null.
        But the kind of float or_null must be a subkind of any_non_null
          because it's the type argument to the array type.
@@ -270,7 +270,7 @@ Line 1, characters 19-32:
 Error: This type "float or_null" should be an instance of type
          "('a : any_non_null)"
        The kind of float or_null is
-         value_or_null mod many contended portable unyielding
+         value_or_null mod many unyielding stateless immutable
          because it is the primitive immediate_or_null type or_null.
        But the kind of float or_null must be a subkind of any_non_null
          because it's the type argument to the array type.

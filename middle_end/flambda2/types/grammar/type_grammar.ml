@@ -3616,7 +3616,7 @@ module Head_of_kind_naked_nativeint =
 module Head_of_kind_naked_vec128 =
   Make_head_of_kind_naked_number (Vector_types.Vec128.Bit_pattern)
 
-let rec recover_const_alias t : RWC.t option =
+let rec must_be_singleton t : RWC.t option =
   match t with
   | Value ty -> (
     match TD.descr ty with
@@ -3650,7 +3650,7 @@ let rec recover_const_alias t : RWC.t option =
           match immediates with
           | Unknown -> None
           | Known immediates -> (
-            match recover_const_alias immediates with
+            match must_be_singleton immediates with
             | None -> None
             | Some const -> (
               match RWC.descr const with

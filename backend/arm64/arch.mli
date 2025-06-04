@@ -14,12 +14,12 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-
+[@@@ocaml.warning "+a-40-41-42"]
 (* Specific operations for the ARM processor, 64-bit mode *)
 
 val macosx : bool
 val is_asan_enabled : bool ref
-
+val feat_cssc : bool ref
 (* Machine-specific command-line options *)
 
 val command_line_options : (string * Arg.spec * string) list
@@ -114,8 +114,6 @@ val operation_is_pure : specific_operation -> bool
 val operation_allocates : specific_operation -> bool
 
 (* Specific operations that can raise *)
-
-val operation_can_raise : specific_operation -> bool
 
 val isomorphic_specific_operation : specific_operation -> specific_operation -> bool
 

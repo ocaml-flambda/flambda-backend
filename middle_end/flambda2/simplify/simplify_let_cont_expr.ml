@@ -44,6 +44,10 @@ open! Simplify_import
 (* For each stage, the information received by this stage is of type
    stage_data. *)
 
+type one_original_handler =
+  | Rec of One_recursive_handler.t
+  | Non_rec of Non_recursive_handler.t
+
 type simplify_let_cont_data =
   { body : Expr.t;
     handlers : Original_handlers.t
@@ -58,7 +62,8 @@ type after_downwards_traversal_of_body_data =
 type expr_to_rebuild = (Rebuilt_expr.t * Upwards_acc.t) Simplify_common.rebuild
 
 type handler_after_downwards_traversal =
-  { params : Bound_parameters.t;
+  { original : one_original_handler;
+    params : Bound_parameters.t;
     rebuild_handler : expr_to_rebuild;
     is_exn_handler : bool;
     is_cold : bool;
@@ -72,10 +77,19 @@ type handler_after_downwards_traversal =
   }
 
 type after_downwards_traversal_of_body_and_handlers_data =
-  { rebuild_body : expr_to_rebuild;
+  { after_downwards_traversal_of_body : after_downwards_traversal_of_body_data;
+    cont_uses_env_after_body : CUE.t;
+    (* used for specialization *)
+    dacc_after_body : DA.t;
+    rebuild_body : expr_to_rebuild;
     cont_uses_env : CUE.t;
-    (* total cont uses env in body + handlers (+ previous exprs) *)
+    (* total cont uses env in body + handlers, including the uses of the
+       continuations currently being bound *)
     at_unit_toplevel : bool;
+    consts_lifted_after_fork : Lifted_constant_state.t;
+    (* this includes the constants lifted during the body, but also the ones
+       lifted during the handler. This is useful for continuation specialisation
+       (and mutually recursive continuations). *)
     lifted_params : Lifted_cont_params.t;
     invariant_params : Bound_parameters.t;
     invariant_extra_params_and_args : EPA.t;
@@ -120,7 +134,7 @@ type rebuilt_handler =
 
 type rebuilt_handlers_group =
   | Recursive of
-      { continuation_handlers : rebuilt_handler Continuation.Map.t;
+      { continuation_handlers : rebuilt_handler Continuation.Lmap.t;
         invariant_params : Bound_parameters.t
       }
   | Non_recursive of
@@ -169,7 +183,7 @@ let split_recursive_let_cont handlers =
   assert (not (Continuation_handlers.contains_exn_handler rec_handlers));
   let handlers = Continuation_handlers.to_map rec_handlers in
   let continuation_handlers =
-    Continuation.Map.map
+    Continuation.Lmap.map
       (fun handler ->
         let is_cold = CH.is_cold handler in
         CH.pattern_match handler ~f:(fun params ~handler ->
@@ -199,6 +213,41 @@ let extra_params_and_args_for_lifting callee_lifted_params uses =
       in
       EPA.add_args_for_all_params epa id extra_args)
     epa uses
+
+let arg_types_by_use_id_for_lifting callee_lifted_params uses =
+  let bound_callee_params =
+    Bound_parameters.to_list
+      (Lifted_cont_params.bound_parameters callee_lifted_params)
+  in
+  List.fold_left
+    (fun arg_types_by_use_id one_use ->
+      let id = One_continuation_use.id one_use in
+      let env_at_use = One_continuation_use.env_at_use one_use in
+      let caller_stack_lifted_params =
+        DE.defined_variables_by_scope env_at_use
+      in
+      let args =
+        Lifted_cont_params.args ~callee_lifted_params
+          ~caller_stack_lifted_params
+      in
+      let lifted_arg_types =
+        List.map2
+          (fun arg param ->
+            Continuation_uses.
+              { typing_env = DE.typing_env env_at_use;
+                arg_type =
+                  Flambda2_types.alias_type_of
+                    (KS.kind (Bound_parameter.kind param))
+                    arg
+              })
+          args bound_callee_params
+      in
+      List.map2
+        (fun arg_type_by_use_id arg_type ->
+          Apply_cont_rewrite_id.Map.add id arg_type arg_type_by_use_id)
+        arg_types_by_use_id lifted_arg_types)
+    (List.map (fun _ -> Apply_cont_rewrite_id.Map.empty) bound_callee_params)
+    uses
 
 let decide_param_usage_non_recursive ~free_names ~required_names
     ~removed_aliased ~exn_bucket param : Apply_cont_rewrite.used =
@@ -265,17 +314,17 @@ let extra_params_for_continuation_param_aliases cont uacc rewrite_ids =
     required_extra_args.extra_args_for_aliases EPA.empty
 
 let add_extra_params_for_mutable_unboxing cont uacc extra_params_and_args =
-  let Flow_types.Mutable_unboxing_result.{ additionnal_epa; _ } =
+  let Flow_types.Mutable_unboxing_result.{ additional_epa; _ } =
     UA.mutable_unboxing_result uacc
   in
-  match Continuation.Map.find cont additionnal_epa with
+  match Continuation.Map.find cont additional_epa with
   | exception Not_found -> extra_params_and_args
-  | additionnal_epa ->
-    EPA.concat ~inner:extra_params_and_args ~outer:additionnal_epa
+  | additional_epa ->
+    EPA.concat ~inner:extra_params_and_args ~outer:additional_epa
 
 type behaviour =
   | Invalid
-  | Alias_for of Continuation.t
+  | Shortcut_to of Continuation.t * Simple.t list
   | Unknown
 
 let get_removed_aliased_params uacc cont =
@@ -432,7 +481,7 @@ let rebuild_let_cont (data : rebuild_let_cont_data) ~after_rebuild body uacc =
       rebuild_groups expr name_occurrences cost_metrics uacc groups
     | Recursive { continuation_handlers; invariant_params } :: groups ->
       let rec_handlers =
-        Continuation.Map.map
+        Continuation.Lmap.map
           (fun handler -> handler.handler)
           continuation_handlers
       in
@@ -442,20 +491,20 @@ let rebuild_let_cont (data : rebuild_let_cont_data) ~after_rebuild body uacc =
           ~invariant_params rec_handlers ~body
       in
       let name_occurrences =
-        Continuation.Map.fold
+        Continuation.Lmap.fold
           (fun _ handler name_occurrences ->
             NO.union name_occurrences
               (NO.increase_counts handler.name_occurrences_of_handler))
           continuation_handlers name_occurrences_body
       in
       let name_occurrences =
-        Continuation.Map.fold
+        Continuation.Lmap.fold
           (fun cont _ name_occurrences ->
             NO.remove_continuation name_occurrences ~continuation:cont)
           continuation_handlers name_occurrences
       in
       let cost_metrics_of_handlers =
-        Continuation.Map.fold
+        Continuation.Lmap.fold
           (fun _ handler cost_metrics ->
             Cost_metrics.( + ) cost_metrics handler.cost_metrics_of_handler)
           continuation_handlers Cost_metrics.zero
@@ -496,7 +545,12 @@ let add_lets_around_handler cont at_unit_toplevel uacc handler =
     UA.continuation_param_aliases uacc
   in
   let continuation_parameters =
-    Continuation.Map.find cont continuation_parameters
+    try Continuation.Map.find cont continuation_parameters
+    with Not_found ->
+      Misc.fatal_errorf
+        "Continuation %a not found in the continuation param aliases map from \
+         the Flow Analysis results."
+        Continuation.print cont
   in
   let handler, uacc =
     Variable.Map.fold
@@ -664,10 +718,7 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel
                 | Some _ -> Unknown
                 | None ->
                   let args = Apply_cont.args apply_cont in
-                  let params = Bound_parameters.simples params in
-                  if Misc.Stdlib.List.compare Simple.compare args params = 0
-                  then Alias_for (Apply_cont.continuation apply_cont)
-                  else Unknown)
+                  Shortcut_to (Apply_cont.continuation apply_cont, args))
               | None ->
                 if RE.can_be_removed_as_invalid handler
                      (UA.are_rebuilding_terms uacc)
@@ -678,9 +729,8 @@ let rebuild_single_non_recursive_handler ~at_unit_toplevel
           | Invalid ->
             let arity = Bound_parameters.arity params in
             UE.add_invalid_continuation uenv cont arity
-          | Alias_for alias_for ->
-            let arity = Bound_parameters.arity params in
-            UE.add_continuation_alias uenv cont arity ~alias_for
+          | Shortcut_to (shortcut_to, args) ->
+            UE.add_continuation_shortcut uenv cont ~params ~shortcut_to ~args
           | Unknown ->
             UE.add_non_inlinable_continuation uenv cont ~params
               ~handler:(if is_cold then Unknown else Known handler)
@@ -812,10 +862,10 @@ let rec rebuild_continuation_handlers_loop ~rebuild_body
                 else Some invariant_params
             in
             loop uacc invariant_params remaining_handlers
-              (Continuation.Map.add cont rebuilt_handler rebuilt_handlers)
+              (Continuation.Lmap.add cont rebuilt_handler rebuilt_handlers)
               k)
     in
-    loop uacc None rebuild_continuation_handlers Continuation.Map.empty
+    loop uacc None rebuild_continuation_handlers Continuation.Lmap.empty
       (fun invariant_params rebuilt_handlers uacc ->
         (* Add all rewrites and continue rebuilding *)
         rebuild_continuation_handlers_loop ~rebuild_body
@@ -914,8 +964,27 @@ let create_handler_to_rebuild
         (List.length (Bound_parameters.to_list data.invariant_params))
         arg_types_by_use_id
     in
-    Unbox_continuation_params.compute_extra_params_and_args
-      handler.unbox_decisions ~arg_types_by_use_id handler.extra_params_and_args
+    match handler.original with
+    | Non_rec _ ->
+      (* For non-rec continuations, we need to add the lifted params, since the
+         unboxing decision was made while taking those into account *)
+      let arg_types_by_use_id =
+        arg_types_by_use_id
+        @ arg_types_by_use_id_for_lifting data.lifted_params
+            (Continuation_uses.get_uses uses)
+      in
+      Unbox_continuation_params.compute_extra_params_and_args
+        handler.unbox_decisions ~arg_types_by_use_id
+        handler.extra_params_and_args
+    | Rec _ ->
+      (* In the recursive case, we must *not* add the lifted params, since they
+         ahve already been added when making the unboxing decisions on the
+         invariant params, and this decision as well as the extra args required
+         have all been put into the EPA for invariant params (this is why the
+         unboxing decision for invariant params is not propagated up to here) *)
+      Unbox_continuation_params.compute_extra_params_and_args
+        handler.unbox_decisions ~arg_types_by_use_id
+        handler.extra_params_and_args
   in
   { params = handler.params;
     rebuild_handler = handler.rebuild_handler;
@@ -966,70 +1035,245 @@ let sort_handlers data handlers =
       group :: inner)
     [] sorted_handlers_from_the_inside_to_the_outside
 
-(* CR pchambart: Those functions don't need to be recursive, it would be nice to
-   fix that later *)
-let rec after_downwards_traversal_of_body_and_handlers ~simplify_expr
-    ~denv_for_join (data : after_downwards_traversal_of_body_and_handlers_data)
-    ~down_to_up dacc =
+(* CR pchambart/gbury: All of those functions don't need to be recursive, it
+   would be nice to split some of them out (e.g. prepare_dacc_for_handlers). *)
+let rec compute_specialized_continuation ~replay ~simplify_expr ~original_cont
+    ~(handler : handler_after_downwards_traversal) dacc data use k =
+  let cont = Continuation.rename original_cont in
+  (* Compute the specialized handler *)
+  match handler.original with
+  | Rec one_rec_handler ->
+    Misc.fatal_errorf "Cannot specialize recursive continuation: %a"
+      One_recursive_handler.print one_rec_handler
+  | Non_rec original ->
+    let original = Non_recursive_handler.rename_params original in
+    let is_recursive = false in
+    let params = original.params in
+    let lifted_params = original.lifted_params in
+    let is_exn_handler = original.is_exn_handler in
+    let denv = data.after_downwards_traversal_of_body.denv_for_join in
+    let arg_types_by_use_id =
+      let uses =
+        Continuation_uses.create cont (Bound_parameters.arity params)
+      in
+      let uses = Continuation_uses.add_use uses use in
+      Continuation_uses.get_arg_types_by_use_id uses
+    in
+    let dacc, unbox_decisions, is_exn_handler, extra_params_and_args =
+      prepare_dacc_for_handlers dacc ~env_at_fork:denv ~params ~replay
+        ~lifted_params ~consts_lifted_after_fork:data.consts_lifted_after_fork
+        ~is_recursive (Continuation.sort cont)
+        (if is_exn_handler then Some cont else None)
+        [use] ~arg_types_by_use_id
+    in
+    (* Set the adequate state for lifting. Note that this must be done **after**
+       the call to {prepare_dacc_for_handlers} as that function can sometimes
+       set some of these values for the generic case. *)
+    let dacc = DA.with_are_lifting_conts dacc Are_lifting_conts.no_lifting in
+    simplify_handler ~simplify_expr ~is_recursive ~is_exn_handler ~params cont
+      dacc original.handler ~invariant_params:Bound_parameters.empty
+      (fun dacc rebuild_handler cont_uses_env_in_handler ->
+        let dacc, consts_lifted_in_handler =
+          DA.get_and_clear_lifted_constants dacc
+        in
+        let consts_lifted_after_fork =
+          LCS.union data.consts_lifted_after_fork consts_lifted_in_handler
+        in
+        let cont_uses_env =
+          CUE.union data.cont_uses_env cont_uses_env_in_handler
+        in
+        (* create the new handler *)
+        let rebuild =
+          { original = Non_rec original;
+            params;
+            rebuild_handler;
+            is_exn_handler;
+            is_cold = handler.is_cold;
+            continuations_used = Continuation.Set.empty;
+            (* this is only used for sorting mutually recursive continuation, so
+               this does not matter for non-recursive continuations *)
+            unbox_decisions;
+            extra_params_and_args
+          }
+        in
+        (* set things up so that the specialized continuations are rewritten on
+           the way up *)
+        let dacc =
+          DA.add_specialization dacc
+            (One_continuation_use.id use)
+            ~old:original_cont ~specialized:cont
+        in
+        let data =
+          { data with
+            consts_lifted_after_fork;
+            handlers = Continuation.Map.add cont rebuild data.handlers;
+            cont_uses_env =
+              CUE.add_continuation_use cont_uses_env cont
+                (One_continuation_use.use_kind use)
+                ~id:(One_continuation_use.id use)
+                ~env_at_use:(One_continuation_use.env_at_use use)
+                ~arg_types:(One_continuation_use.arg_types use)
+          }
+        in
+        k dacc data)
+
+and compute_specialized_continuation_handlers ~replay ~simplify_expr
+    ~original_cont ~handler dacc data uses k =
+  match uses with
+  | [] -> k dacc data
+  | use :: other_uses ->
+    compute_specialized_continuation ~replay ~simplify_expr ~original_cont
+      ~handler dacc data use (fun dacc data ->
+        compute_specialized_continuation_handlers ~replay ~simplify_expr
+          ~original_cont ~handler dacc data other_uses k)
+
+and specialize_continuation_if_needed ~simplify_expr dacc
+    (data : after_downwards_traversal_of_body_and_handlers_data) k =
+  match Continuation.Map.get_singleton data.handlers with
+  | Some (cont, handler)
+    when Continuation.Set.mem cont (DA.continuations_to_specialize dacc) -> (
+    match CUE.get_continuation_uses data.cont_uses_env cont with
+    | None ->
+      Misc.fatal_errorf "No uses for continuation %a to be specialized"
+        Continuation.print cont
+    | Some uses -> (
+      match Continuation_uses.get_uses uses with
+      | [] ->
+        Misc.fatal_errorf "Empty uses for continuation %a to be specialized"
+          Continuation.print cont
+      | [_] ->
+        (* only a single use, the continuation is already specialized *)
+        k dacc data
+      | uses ->
+        (* We need to save a few values from the dacc, because the
+           specialization can reset the dacc to the one after the traversal of
+           the body. For most values in the dacc, this is not a problem since
+           they relate to the simplified handler that we throw away (and replace
+           by the specialized handlers). However, some values in the dacc
+           instead keep track of some budgets/amount of work done/to do, and
+           these values should be kept so that these budgets are accurately
+           respected. *)
+        let lifting_budget = DA.get_continuation_lifting_budget dacc in
+        let spec_budget = DA.get_continuation_specialization_budget dacc in
+        (* Save the replay history from the handler, using the dacc after
+           traversal of the handler *)
+        let replay =
+          let always_inline = true in
+          let denv = DA.denv dacc in
+          let replay_history = DE.replay_history denv in
+          Some (replay_history, always_inline)
+        in
+        (* Use the dacc after the body to ignore any lifted constants or other
+           information coming from the first traversal of the handler. We still
+           reset a few values that come from the dacc after simplification of
+           the handler, see comment above. *)
+        let dacc = data.dacc_after_body in
+        let dacc = DA.with_continuation_lifting_budget dacc lifting_budget in
+        let dacc =
+          DA.with_continuation_specialization_budget dacc spec_budget
+        in
+        (* Remove the (generic) continuation uses from the CUE, since we will
+           then add uses for each of the specialized continuation. *)
+        let cont_uses_env = CUE.remove data.cont_uses_env_after_body cont in
+        let data =
+          { data with
+            handlers = Continuation.Map.empty;
+            cont_uses_env;
+            cont_uses_env_after_body = cont_uses_env
+          }
+        in
+        compute_specialized_continuation_handlers ~simplify_expr ~replay
+          ~original_cont:cont ~handler dacc data uses k))
+  | _ -> k dacc data
+
+and after_downwards_traversal_of_body_and_handlers ~simplify_expr ~denv_for_join
+    (data : after_downwards_traversal_of_body_and_handlers_data) ~down_to_up
+    dacc =
   (* At this point we have done a downwards traversal on the body and all the
      handlers. *)
-  let dacc, down_to_up =
-    let dacc, lifted_conts = DA.get_and_clear_lifted_continuations dacc in
-    ( dacc,
-      down_to_up_for_lifted_continuations ~simplify_expr ~denv_for_join
-        lifted_conts ~down_to_up )
+  let dacc, lifted_conts = DA.get_and_clear_lifted_continuations dacc in
+  let down_to_up =
+    down_to_up_for_lifted_continuations ~simplify_expr ~denv_for_join
+      lifted_conts ~down_to_up
   in
-  (* Here, we want to actually rebuild the let-cont, so we need to call the
-     global [down_to_up] function. First however, we have to take care of
-     several things:
+  specialize_continuation_if_needed ~simplify_expr dacc data
+    (fun dacc (data : after_downwards_traversal_of_body_and_handlers_data) ->
+      (* Here, we want to actually rebuild the let-cont, so we need to call the
+         global [down_to_up] function. First however, we have to take care of
+         several things:
 
-     - We need to compute the extra params and args related to unboxed
-     parameters. This could not be done earlier, as we might not have seen every
-     use of the continuations (particularly in the recursive case) (done in the
-     [create_handler_to_rebuild] function).
+         - We need to compute the extra params and args related to unboxed
+         parameters. This could not be done earlier, as we might not have seen
+         every use of the continuations (particularly in the recursive case)
+         (done in the [create_handler_to_rebuild] function).
 
-     - Now that we were able to compute the extra params and args, we add this
-     information to the flow analysis, so that it can correctly compute all the
-     information we need when going up.
+         - Now that we were able to compute the extra params and args, we add
+         this information to the flow analysis, so that it can correctly compute
+         all the information we need when going up.
 
-     - We perform a strongly-connected components analysis of the continuations
-     to be able to turn mutually-recursive continuations into several
-     independant blocks of recursive or non-recursive continuations. In case one
-     of those is non-recursive, we can check whether the continuation is
-     inlinable if it is used a single time. *)
-  let handlers =
-    Continuation.Map.mapi (create_handler_to_rebuild data) data.handlers
-  in
-  let dacc =
-    DA.map_flow_acc dacc ~f:(fun flow_acc ->
+         - We perform a strongly-connected components analysis of the
+         continuations to be able to turn mutually-recursive continuations into
+         several independant blocks of recursive or non-recursive continuations.
+         In case one of those is non-recursive, we can check whether the
+         continuation is inlinable if it is used a single time. *)
+      (* We need to restore the lifted constant state so that the lifted
+         constants can be placed as needed when rebuilding. *)
+      let dacc =
+        DA.add_to_lifted_constant_accumulator dacc data.consts_lifted_after_fork
+      in
+      let dacc =
+        DA.add_to_lifted_constant_accumulator dacc
+          data.after_downwards_traversal_of_body.prior_lifted_constants
+      in
+      (* We need to reset the [dacc.cont_uses_env] for the rest of the
+         traversal. Here, [data.cont_uses_env] contains the total CUE for the
+         body + handler, so we only need to remove the continuations that we
+         bind from it to reset the [cont_uses_env] correctly. *)
+      let cont_uses_env =
         Continuation.Map.fold
-          (fun cont handler flow_acc ->
-            Flow.Acc.add_extra_params_and_args cont
-              (EPA.concat ~inner:handler.invariant_extra_params_and_args
-                 ~outer:handler.extra_params_and_args)
-              flow_acc)
-          handlers flow_acc)
-  in
-  let handlers_from_the_outside_to_the_inside = sort_handlers data handlers in
-  let data : prepare_to_rebuild_handlers_data =
-    { rebuild_body = data.rebuild_body;
-      handlers_from_the_outside_to_the_inside;
-      at_unit_toplevel = data.at_unit_toplevel;
-      original_invariant_params = data.invariant_params;
-      invariant_extra_params =
-        EPA.extra_params data.invariant_extra_params_and_args
-    }
-  in
-  down_to_up dacc ~rebuild:(prepare_to_rebuild_handlers data)
+          (fun cont _ cont_uses_env -> CUE.remove cont_uses_env cont)
+          data.handlers data.cont_uses_env
+      in
+      let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env in
+      let handlers =
+        Continuation.Map.mapi (create_handler_to_rebuild data) data.handlers
+      in
+      let dacc =
+        DA.map_flow_acc dacc ~f:(fun flow_acc ->
+            Continuation.Map.fold
+              (fun cont handler flow_acc ->
+                Flow.Acc.add_extra_params_and_args cont
+                  (EPA.concat ~inner:handler.invariant_extra_params_and_args
+                     ~outer:handler.extra_params_and_args)
+                  flow_acc)
+              handlers flow_acc)
+      in
+      let handlers_from_the_outside_to_the_inside =
+        sort_handlers data handlers
+      in
+      let data : prepare_to_rebuild_handlers_data =
+        { rebuild_body = data.rebuild_body;
+          handlers_from_the_outside_to_the_inside;
+          at_unit_toplevel = data.at_unit_toplevel;
+          original_invariant_params = data.invariant_params;
+          invariant_extra_params =
+            EPA.extra_params data.invariant_extra_params_and_args
+        }
+      in
+      down_to_up dacc ~rebuild:(prepare_to_rebuild_handlers data))
 
-and prepare_dacc_for_handlers dacc ~env_at_fork ~params ~is_recursive
-    ~consts_lifted_during_body continuation_sort is_exn_handler_cont uses
+and prepare_dacc_for_handlers dacc ~replay ~env_at_fork ~params ~is_recursive
+    ~consts_lifted_after_fork continuation_sort is_exn_handler_cont uses
     ~lifted_params ~arg_types_by_use_id =
   (* In the recursive case, [params] are actually the invariant params, as we
      prepare a common dacc for all handlers. *)
   let env_at_fork = DE.enter_continuation_handler lifted_params env_at_fork in
   let lifted_cont_extra_params_and_args =
     extra_params_and_args_for_lifting lifted_params uses
+  in
+  let params_including_lifted_params =
+    Bound_parameters.append params
+      (Lifted_cont_params.bound_parameters lifted_params)
   in
   let join_result =
     (* We add to the continuation uses (and therefore to the handler env) the
@@ -1040,8 +1284,9 @@ and prepare_dacc_for_handlers dacc ~env_at_fork ~params ~is_recursive
        handler. We should look into whether it's actually useful, and try
        enabling unboxing for those (while avoiding re-unboxing parameters that
        have already been unboxed). *)
-    Join_points.compute_handler_env uses ~params ~is_recursive ~env_at_fork
-      ~consts_lifted_during_body ~lifted_cont_extra_params_and_args
+    Join_points.compute_handler_env uses ?replay ~params ~is_recursive
+      ~env_at_fork ~consts_lifted_after_fork
+      ~previous_extra_params_and_args:lifted_cont_extra_params_and_args
   in
   let code_age_relation = TE.code_age_relation (DA.typing_env dacc) in
   let handler_env =
@@ -1049,7 +1294,8 @@ and prepare_dacc_for_handlers dacc ~env_at_fork ~params ~is_recursive
     |> DE.bump_current_level_scope
   in
   let do_not_unbox () =
-    Unbox_continuation_params.make_do_not_unbox_decisions params
+    Unbox_continuation_params.make_do_not_unbox_decisions
+      params_including_lifted_params
   in
   let handler_env, unbox_decisions, is_exn_handler, dacc =
     match (continuation_sort : Continuation.Sort.t) with
@@ -1083,11 +1329,19 @@ and prepare_dacc_for_handlers dacc ~env_at_fork ~params ~is_recursive
         (* Unbox the parameters of the continuation if possible. Any such
            unboxing will induce a rewrite (or wrapper) on the application sites
            of the continuation. *)
-        let param_types = TE.find_params (DE.typing_env handler_env) params in
+        let arg_types_by_use_id =
+          arg_types_by_use_id
+          @ arg_types_by_use_id_for_lifting lifted_params uses
+        in
+        let param_types_including_lifted =
+          TE.find_params
+            (DE.typing_env handler_env)
+            params_including_lifted_params
+        in
         let handler_env, decisions =
           Unbox_continuation_params.make_decisions handler_env
-            ~continuation_arg_types:(Non_recursive arg_types_by_use_id) params
-            param_types
+            ~continuation_arg_types:(Non_recursive arg_types_by_use_id)
+            params_including_lifted_params param_types_including_lifted
         in
         handler_env, decisions, false, dacc
     | Return | Toplevel_return -> (
@@ -1127,8 +1381,9 @@ and simplify_handler ~simplify_expr ~is_recursive ~is_exn_handler
       k dacc rebuild_handler cont_uses_env_in_handler)
 
 and simplify_single_recursive_handler ~simplify_expr cont_uses_env_so_far
-    ~invariant_params consts_lifted_during_body all_handlers_set denv_to_reset
-    dacc cont ({ params; handler; is_cold } : One_recursive_handler.t) k =
+    ~invariant_params consts_lifted_after_fork all_handlers_set denv_to_reset
+    dacc cont
+    ({ params; handler; is_cold } as original : One_recursive_handler.t) k =
   (* Here we perform the downwards traversal on a single handler.
 
      We also make unboxing decisions at this step, which are necessary to
@@ -1137,9 +1392,9 @@ and simplify_single_recursive_handler ~simplify_expr cont_uses_env_so_far
      uses (needed for the recursive continuation handlers). *)
   let handler_env =
     assert (not (DE.at_unit_toplevel denv_to_reset));
-    DE.add_parameters_with_unknown_types denv_to_reset params
+    DE.add_parameters_with_unknown_types ~extra:false denv_to_reset params
   in
-  let handler_env = LCS.add_to_denv handler_env consts_lifted_during_body in
+  let handler_env = LCS.add_to_denv handler_env consts_lifted_after_fork in
   let code_age_relation = TE.code_age_relation (DA.typing_env dacc) in
   let handler_env = DE.with_code_age_relation code_age_relation handler_env in
   let handler_env, unbox_decisions, dacc =
@@ -1166,7 +1421,8 @@ and simplify_single_recursive_handler ~simplify_expr cont_uses_env_so_far
           (CUE.all_continuations_used cont_uses_env_in_handler)
       in
       k dacc
-        { params;
+        { original = Rec original;
+          params;
           rebuild_handler;
           is_exn_handler = false;
           is_cold;
@@ -1176,12 +1432,13 @@ and simplify_single_recursive_handler ~simplify_expr cont_uses_env_so_far
         }
         cont_uses_env_so_far)
 
-and simplify_recursive_handlers ~down_to_up ~rebuild_body ~denv_for_join
-    ~previous_are_lifting_conts ~lifted_params ~invariant_params ~invariant_epa
-    ~continuation_handlers ~simplify_expr ~consts_lifted_during_body
-    ~all_conts_set ~common_denv =
-  let rec loop cont_uses_env_so_far reachable_handlers_to_simplify
-      simplified_handlers_set simplified_handlers dacc =
+and simplify_recursive_handlers ~down_to_up ~data ~rebuild_body ~dacc_after_body
+    ~denv_for_join ~previous_are_lifting_conts ~cont_uses_env_after_body
+    ~lifted_params ~invariant_params ~invariant_epa ~continuation_handlers
+    ~simplify_expr ~consts_lifted_during_body ~all_conts_set ~common_denv =
+  let rec loop consts_lifted_after_fork cont_uses_env_so_far
+      reachable_handlers_to_simplify simplified_handlers_set simplified_handlers
+      dacc =
     (* This is the core loop to simplify all handlers defined by a recursive let
        cont. We loop over all handlers, each time taking the first handler that
        we have not yet processed and that has at least one use, until we have
@@ -1195,20 +1452,18 @@ and simplify_recursive_handlers ~down_to_up ~rebuild_body ~denv_for_join
     match Continuation.Set.min_elt_opt reachable_handlers_to_simplify with
     | None ->
       (* all remaining_handlers are unreachable *)
-      let cont_uses_env =
-        Continuation.Set.fold
-          (fun cont cont_uses_env -> CUE.remove cont_uses_env cont)
-          simplified_handlers_set cont_uses_env_so_far
-      in
-      let dacc = DA.with_continuation_uses_env dacc ~cont_uses_env in
       let data : after_downwards_traversal_of_body_and_handlers_data =
         { rebuild_body;
+          dacc_after_body;
+          cont_uses_env_after_body;
+          after_downwards_traversal_of_body = data;
           cont_uses_env = cont_uses_env_so_far;
           lifted_params;
           invariant_params;
           invariant_extra_params_and_args = invariant_epa;
           handlers = simplified_handlers;
-          at_unit_toplevel = false
+          at_unit_toplevel = false;
+          consts_lifted_after_fork
         }
       in
       let dacc = DA.with_are_lifting_conts dacc previous_are_lifting_conts in
@@ -1218,10 +1473,16 @@ and simplify_recursive_handlers ~down_to_up ~rebuild_body ~denv_for_join
       let reachable_handlers_to_simplify =
         Continuation.Set.remove cont reachable_handlers_to_simplify
       in
-      let handler = Continuation.Map.find cont continuation_handlers in
+      let handler = Continuation.Lmap.find cont continuation_handlers in
       simplify_single_recursive_handler ~simplify_expr ~invariant_params
-        cont_uses_env_so_far consts_lifted_during_body all_conts_set common_denv
+        cont_uses_env_so_far consts_lifted_after_fork all_conts_set common_denv
         dacc cont handler (fun dacc rebuild cont_uses_env_so_far ->
+          let dacc, consts_lifted_in_handler =
+            DA.get_and_clear_lifted_constants dacc
+          in
+          let consts_lifted_after_fork =
+            LCS.union consts_lifted_after_fork consts_lifted_in_handler
+          in
           let simplified_handlers_set =
             Continuation.Set.add cont simplified_handlers_set
           in
@@ -1233,10 +1494,11 @@ and simplify_recursive_handlers ~down_to_up ~rebuild_body ~denv_for_join
           let simplified_handlers =
             Continuation.Map.add cont rebuild simplified_handlers
           in
-          loop cont_uses_env_so_far reachable_handlers_to_simplify
-            simplified_handlers_set simplified_handlers dacc)
+          loop consts_lifted_after_fork cont_uses_env_so_far
+            reachable_handlers_to_simplify simplified_handlers_set
+            simplified_handlers dacc)
   in
-  loop
+  loop consts_lifted_during_body
 
 and simplify_handlers ~simplify_expr ~down_to_up ~denv_for_join ~rebuild_body
     (data : after_downwards_traversal_of_body_data) dacc =
@@ -1244,16 +1506,17 @@ and simplify_handlers ~simplify_expr ~down_to_up ~denv_for_join ~rebuild_body
      outside of its context. So the remaining thing to do is setup the dacc, and
      later decide whether to lift the continuations defined inside the
      continuation being currently let-bound. *)
+  let dacc_after_body = dacc in
   let body_continuation_uses_env = DA.continuation_uses_env dacc in
   let denv = data.denv_for_join in
-  let consts_lifted_during_body = DA.get_lifted_constants dacc in
-  let dacc =
-    DA.add_to_lifted_constant_accumulator dacc data.prior_lifted_constants
+  let dacc, consts_lifted_during_body =
+    DA.get_and_clear_lifted_constants dacc
   in
   let previous_are_lifting_conts = DA.are_lifting_conts dacc in
   match data.handlers with
   | Non_recursive
-      { cont; params; lifted_params; handler; is_exn_handler; is_cold } -> (
+      ({ cont; params; lifted_params; handler; is_exn_handler; is_cold } as
+      original) -> (
     match
       Continuation_uses_env.get_continuation_uses body_continuation_uses_env
         cont
@@ -1262,12 +1525,16 @@ and simplify_handlers ~simplify_expr ~down_to_up ~denv_for_join ~rebuild_body
       (* Continuation unused, no need to traverse its handler *)
       let data : after_downwards_traversal_of_body_and_handlers_data =
         { rebuild_body;
+          dacc_after_body;
+          cont_uses_env_after_body = body_continuation_uses_env;
+          after_downwards_traversal_of_body = data;
           cont_uses_env = body_continuation_uses_env;
           lifted_params = Lifted_cont_params.empty;
           invariant_params = Bound_parameters.empty;
           invariant_extra_params_and_args = EPA.empty;
           handlers = Continuation.Map.empty;
-          at_unit_toplevel = false
+          at_unit_toplevel = false;
+          consts_lifted_after_fork = consts_lifted_during_body
         }
       in
       after_downwards_traversal_of_body_and_handlers data dacc ~simplify_expr
@@ -1275,7 +1542,8 @@ and simplify_handlers ~simplify_expr ~down_to_up ~denv_for_join ~rebuild_body
     | Some uses ->
       let dacc =
         DA.with_are_lifting_conts dacc
-          (Are_lifting_conts.think_about_lifting_out_of cont uses)
+          (Are_lifting_conts.think_about_lifting_out_of ~is_exn_handler cont
+             uses)
       in
       let at_unit_toplevel =
         (* We try to show that [handler] postdominates [body] (which is done by
@@ -1294,8 +1562,8 @@ and simplify_handlers ~simplify_expr ~down_to_up ~denv_for_join ~rebuild_body
       let denv = DE.set_at_unit_toplevel_state denv at_unit_toplevel in
       let dacc, unbox_decisions, is_exn_handler, extra_params_and_args =
         prepare_dacc_for_handlers dacc ~env_at_fork:denv ~params ~lifted_params
-          ~consts_lifted_during_body ~is_recursive:false
-          (Continuation.sort cont)
+          ~consts_lifted_after_fork:consts_lifted_during_body
+          ~is_recursive:false ~replay:None (Continuation.sort cont)
           (if is_exn_handler then Some cont else None)
           (Continuation_uses.get_uses uses)
           ~arg_types_by_use_id:(Continuation_uses.get_arg_types_by_use_id uses)
@@ -1303,12 +1571,19 @@ and simplify_handlers ~simplify_expr ~down_to_up ~denv_for_join ~rebuild_body
       simplify_handler ~simplify_expr ~is_recursive:false ~is_exn_handler
         ~params cont dacc handler ~invariant_params:Bound_parameters.empty
         (fun dacc rebuild_handler cont_uses_env_in_handler ->
+          let dacc, consts_lifted_in_handler =
+            DA.get_and_clear_lifted_constants dacc
+          in
+          let consts_lifted_after_fork =
+            LCS.union consts_lifted_during_body consts_lifted_in_handler
+          in
           let cont_uses_env_so_far =
             CUE.union body_continuation_uses_env cont_uses_env_in_handler
           in
           let continuations_used = Continuation.Set.empty in
           let rebuild =
-            { params;
+            { original = Non_rec original;
+              params;
               rebuild_handler;
               is_exn_handler;
               is_cold;
@@ -1318,22 +1593,20 @@ and simplify_handlers ~simplify_expr ~down_to_up ~denv_for_join ~rebuild_body
             }
           in
           let dacc =
-            (* Update the dacc with the new cont_uses_env, which removes the
-               uses of [cont] since it leaves scope. *)
-            let cont_uses_env = CUE.remove cont_uses_env_so_far cont in
-            DA.with_continuation_uses_env dacc ~cont_uses_env
-          in
-          let dacc =
             DA.with_are_lifting_conts dacc previous_are_lifting_conts
           in
           let data : after_downwards_traversal_of_body_and_handlers_data =
             { rebuild_body;
+              dacc_after_body;
+              cont_uses_env_after_body = body_continuation_uses_env;
+              after_downwards_traversal_of_body = data;
               cont_uses_env = cont_uses_env_so_far;
               lifted_params;
               invariant_params = Bound_parameters.empty;
               invariant_extra_params_and_args = EPA.empty;
               handlers = Continuation.Map.singleton cont rebuild;
-              at_unit_toplevel
+              at_unit_toplevel;
+              consts_lifted_after_fork
             }
           in
           after_downwards_traversal_of_body_and_handlers data dacc
@@ -1354,7 +1627,9 @@ and simplify_handlers ~simplify_expr ~down_to_up ~denv_for_join ~rebuild_body
      *)
     let dacc = DA.with_are_lifting_conts dacc Are_lifting_conts.no_lifting in
     let denv = DE.set_at_unit_toplevel_state denv false in
-    let all_conts_set = Continuation.Map.keys continuation_handlers in
+    let all_conts_set =
+      Continuation.Set.of_list @@ Continuation.Lmap.keys continuation_handlers
+    in
     let used_handlers_in_body =
       Continuation.Set.inter all_conts_set
         (CUE.all_continuations_used body_continuation_uses_env)
@@ -1369,23 +1644,28 @@ and simplify_handlers ~simplify_expr ~down_to_up ~denv_for_join ~rebuild_body
       Continuation_uses.get_arg_types_by_use_id_for_invariant_params arity
         all_uses
     in
+    let uses = List.concat_map Continuation_uses.get_uses all_uses in
     let dacc, unbox_decisions, is_exn_handler, extra_params_and_args =
       prepare_dacc_for_handlers dacc ~env_at_fork:denv ~params:invariant_params
-        ~lifted_params ~is_recursive:true ~consts_lifted_during_body
+        ~lifted_params ~is_recursive:true ~replay:None
+        ~consts_lifted_after_fork:consts_lifted_during_body
         (Normal_or_exn : Continuation.Sort.t)
-        None
-        (List.concat_map Continuation_uses.get_uses all_uses)
-        ~arg_types_by_use_id
+        None uses ~arg_types_by_use_id
+    in
+    let arg_types_by_use_id_including_lifted =
+      arg_types_by_use_id @ arg_types_by_use_id_for_lifting lifted_params uses
     in
     let invariant_epa =
       Unbox_continuation_params.compute_extra_params_and_args unbox_decisions
-        ~arg_types_by_use_id extra_params_and_args
+        extra_params_and_args
+        ~arg_types_by_use_id:arg_types_by_use_id_including_lifted
     in
     let common_denv = DA.denv dacc in
     assert (not is_exn_handler);
-    simplify_recursive_handlers ~down_to_up ~denv_for_join ~rebuild_body
-      ~previous_are_lifting_conts ~lifted_params ~invariant_params
-      ~invariant_epa ~continuation_handlers ~simplify_expr
+    simplify_recursive_handlers ~down_to_up ~data ~denv_for_join ~rebuild_body
+      ~dacc_after_body ~previous_are_lifting_conts
+      ~cont_uses_env_after_body:body_continuation_uses_env ~lifted_params
+      ~invariant_params ~invariant_epa ~continuation_handlers ~simplify_expr
       ~consts_lifted_during_body ~all_conts_set ~common_denv
       body_continuation_uses_env used_handlers_in_body Continuation.Set.empty
       Continuation.Map.empty dacc
@@ -1473,12 +1753,77 @@ let simplify_let_cont0 ~(simplify_expr : _ Simplify_common.expr_simplifier) dacc
       Lifted_cont_params.length
         (DE.variables_defined_in_current_continuation denv_for_body)
     in
-    DE.add_lifting_cost lifting_cost denv_for_body
+    let bound_continuations =
+      Original_handlers.bound_continuations data.handlers
+    in
+    DE.add_lifting_cost lifting_cost
+      (DE.define_continuations denv_for_body bound_continuations)
+  in
+  (* During specialization, we must take care of correctly handling let-bound
+     continuations that have been lifted during the first downwards pass, and
+     whose handlers must be replaced on subsequent passes, so that they can
+     refer to the lifted ones. *)
+  let handlers =
+    match
+      Replay_history.replay_continuation_mapping
+        (DE.replay_history denv_for_body)
+    with
+    | Still_recording -> data.handlers
+    | Replayed continuation_mapping -> (
+      match data.handlers with
+      | Non_recursive non_rec_handler ->
+        let lifted_cont =
+          Continuation.Map.find non_rec_handler.cont continuation_mapping
+        in
+        let new_handler =
+          let args =
+            List.map
+              (fun bp -> Simple.var (Bound_parameter.var bp))
+              (Bound_parameters.to_list non_rec_handler.params)
+          in
+          let apply_cont =
+            Apply_cont.create lifted_cont ~dbg:Debuginfo.none ~args
+          in
+          Flambda.Expr.create_apply_cont apply_cont
+        in
+        let new_non_rec_handler =
+          Non_recursive_handler.with_handler new_handler non_rec_handler
+        in
+        Original_handlers.create_non_recursive new_non_rec_handler
+      | Recursive { invariant_params; lifted_params; continuation_handlers } ->
+        assert (Lifted_cont_params.is_empty lifted_params);
+        let continuation_handlers =
+          Continuation.Lmap.mapi
+            (fun cont (one_recursive_handler : One_recursive_handler.t) ->
+              let lifted_cont =
+                Continuation.Map.find cont continuation_mapping
+              in
+              let new_handler =
+                let args =
+                  List.map
+                    (fun bp -> Simple.var (Bound_parameter.var bp))
+                    (Bound_parameters.to_list invariant_params
+                    @ Bound_parameters.to_list one_recursive_handler.params)
+                in
+                let apply_cont =
+                  Apply_cont.create lifted_cont ~dbg:Debuginfo.none ~args
+                in
+                Flambda.Expr.create_apply_cont apply_cont
+              in
+              One_recursive_handler.with_handler new_handler
+                one_recursive_handler)
+            continuation_handlers
+        in
+        let ret =
+          Original_handlers.create_recursive ~invariant_params ~lifted_params
+            ~continuation_handlers
+        in
+        ret)
   in
   let dacc = DA.with_denv dacc denv_for_body in
   let body = data.body in
   let data : after_downwards_traversal_of_body_data =
-    { denv_for_join; prior_lifted_constants; handlers = data.handlers }
+    { denv_for_join; prior_lifted_constants; handlers }
   in
   simplify_expr dacc body
     ~down_to_up:
@@ -1516,7 +1861,7 @@ let simplify_as_recursive_let_cont ~simplify_expr dacc (body, handlers)
      allows to simplify a recursive let cont with the name abstraction already
      opened. *)
   let continuation_handlers =
-    Continuation.Map.map
+    Continuation.Lmap.map
       (fun handler ->
         let is_cold = CH.is_cold handler in
         CH.pattern_match handler ~f:(fun params ~handler ->

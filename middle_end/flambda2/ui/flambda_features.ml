@@ -57,6 +57,22 @@ let join_depth () =
   !Flambda_backend_flags.Flambda2.join_depth
   |> with_default ~f:(fun d -> d.join_depth)
 
+type join_algorithm = Flambda_backend_flags.join_algorithm =
+  | Binary
+  | N_way
+  | Checked
+
+let join_algorithm () =
+  !Flambda_backend_flags.Flambda2.join_algorithm
+  |> with_default ~f:(fun d -> d.join_algorithm)
+
+let use_n_way_join () =
+  match join_algorithm () with
+  | Binary | Checked ->
+    (* In checked mode, this only impacts [join] when called from [meet]. *)
+    false
+  | N_way -> true
+
 let enable_reaper () =
   !Flambda_backend_flags.Flambda2.enable_reaper
   |> with_default ~f:(fun d -> d.enable_reaper)
@@ -267,6 +283,10 @@ module Expert = struct
   let cont_lifting_budget () =
     !Flambda_backend_flags.Flambda2.Expert.cont_lifting_budget
     |> with_default ~f:(fun d -> d.cont_lifting_budget)
+
+  let cont_spec_budget () =
+    !Flambda_backend_flags.Flambda2.Expert.cont_spec_budget
+    |> with_default ~f:(fun d -> d.cont_spec_budget)
 end
 
 let stack_allocation_enabled () = Config.stack_allocation

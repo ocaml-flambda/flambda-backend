@@ -20,18 +20,27 @@ let array_fold_left_filter_map f init array =
   in
   ans, new_array
 
-let subst t (args : (Global_module.Name.t * Global_module.t) list) =
+let name_in_subst (name : Global_module.Name.t) subst =
+  match name with
+  | { head; args = [] } ->
+    (* Not generally okay to just convert to a parameter name, but we're only doing this
+       to check whether there happens to be a parameter with this name in the subst *)
+    let head_as_param_name = head |> Global_module.Parameter_name.of_string in
+    Global_module.Parameter_name.Map.mem head_as_param_name subst
+  | _ -> false
+
+let subst t (args : (Global_module.Parameter_name.t * Global_module.t) list) =
   let { sign; bound_globals } = t in
   match args with
   | [] -> t
   | _ ->
       (* The global-level substitution *)
-      let arg_subst = Global_module.Name.Map.of_list args in
+      let arg_subst = Global_module.Parameter_name.Map.of_list args in
       (* Take a bound global, substitute arguments into it, then return the
          updated global while also adding it to the term-level substitution *)
       let add_and_update_binding subst (bound_global, prec) =
         let name = Global_module.to_name bound_global in
-        if Global_module.Name.Map.mem name arg_subst then
+        if name_in_subst name arg_subst then
           (* This shouldn't happen: only globals with hidden arguments should be
              in [bound_globals], and parameters shouldn't have arguments.
              Previous code that was meant to handle parameterised parameters
@@ -69,7 +78,9 @@ let subst t (args : (Global_module.Name.t * Global_module.t) list) =
       in
       (* Add an argument to the substitution. *)
       let add_arg subst (name, value) =
-        let name_id = Ident.create_global name in
+        let name_id =
+          Ident.create_global (name |> Global_module.Name.of_parameter_name)
+        in
         let value_as_name = Global_module.to_name value in
         let value_id = Ident.create_global value_as_name in
         Subst.add_module name_id (Pident value_id) subst

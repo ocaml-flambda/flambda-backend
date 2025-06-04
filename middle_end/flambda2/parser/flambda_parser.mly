@@ -278,6 +278,8 @@ let make_boxed_const_int (i, m) : static_data =
 %type <Fexpr.symbol_binding> symbol_binding
 %type <Fexpr.unary_int_arith_op> unary_int_arith_op
 %type <Fexpr.unop> unop
+%type <Fexpr.is_recursive> recursive
+%type <Fexpr.is_cont_recursive> cont_recursive
 %%
 
 (* CR-someday lmaurer: Modularize and generally clean up *)
@@ -386,7 +388,6 @@ recursive:
 
 unary_int_arith_op:
   | KWD_BSWAP { Swap_byte_endianness }
-  | TILDEMINUS { Neg }
 
 unop:
   | PRIM_ARRAY_LENGTH; kind = array_kind_for_length { Array_length kind }
@@ -771,7 +772,7 @@ inner_expr:
 ;
 
 where_expr:
-  | body = inner_expr; KWD_WHERE; recursive = recursive;
+  | body = inner_expr; KWD_WHERE; recursive = cont_recursive;
     bindings = separated_list(KWD_ANDWHERE, continuation_binding)
     { Let_cont { recursive; body; bindings } }
 ;
@@ -939,6 +940,12 @@ raise_kind:
   | KWD_REGULAR { Regular }
   | KWD_RERAISE { Reraise }
   | KWD_NOTRACE { No_trace }
+
+cont_recursive:
+  | { Nonrecursive }
+  | KWD_REC params = kinded_args
+    { (Recursive params : Fexpr.is_cont_recursive) }
+;
 
 continuation_sort:
   | { None }

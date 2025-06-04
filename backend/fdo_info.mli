@@ -11,6 +11,8 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+[@@@ocaml.warning "+a-40-41-42"]
+
 (** [Fdo_info] identifies instructions in low-level intermediate representation
     for the purpose of mapping execution counters directly back
     to them, instead of source locations.

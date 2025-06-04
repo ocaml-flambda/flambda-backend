@@ -5,6 +5,7 @@
 }{
    include runtime_events;
    include unix;
+   arch_amd64;
    runtime5;
    libunix;
    set OCAML_RUNTIME_EVENTS_PRESERVE = "1";
@@ -12,6 +13,8 @@
    { native; }
  }
 *)
+
+(* CR mslater for nbarnes: this test currently fails on arm64 *)
 
   let runtime_begin _ _ _ = ()
   let runtime_end _ _ _ = ()

@@ -594,7 +594,7 @@ end
     similar in most regards.)
 
    *)
-module (Memprof @ nonportable) :
+module (Memprof @@ nonportable) :
   sig @@ portable
     type t
     (** the type of a profile *)
@@ -608,8 +608,7 @@ module (Memprof @ nonportable) :
         (** The size of the block, in words, excluding the header. *)
 
         source : allocation_source;
-        (** The cause of the allocation; [Marshal] cannot be produced
-          since OCaml 5. *)
+        (** The cause of the allocation. *)
 
         callstack : Printexc.raw_backtrace
         (** The callstack for the allocation. *)
@@ -748,7 +747,7 @@ end
 
         OCAMLRUNPARAM='Xfoo=42'
     *)
-module (Tweak @ nonportable) : sig
+module (Tweak @@ nonportable) : sig
   (** Change a parameter.
       Raises Invalid_argument if no such parameter exists *)
   val set : string -> int -> unit

@@ -225,12 +225,12 @@ val inspect : [< `A of a & int ] -> unit = <fun>
 |}]
 
 (** Error messages with weakly polymorphic row variables *)
-let x = Fun.id (function `X -> () | _ -> ())
+let x = !(ref (function `X -> () | _ -> ()))
 [%%expect {|
 val x : ([> `X ] as '_weak1) -> unit = <fun>
 |}]
 
-let x = let rec x = `X (`Y (fun y -> x = y)) in Fun.id x
+let x = let rec x = `X (`Y (fun y -> x = y)) in !(ref x)
 [%%expect {|
 val x : [> `X of [> `Y of '_weak2 -> bool ] as '_weak3 ] as '_weak2 =
   `X (`Y <fun>)

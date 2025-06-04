@@ -26,7 +26,7 @@
 (** Insertion of extra debugging information used to correlate between machine
     instructions, [Linear] and [Cfg] code. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 (** Writes the id of each cfg instruction into [fdo] field. This information is
     copied to the corresponding field of [Linear.instruction] during

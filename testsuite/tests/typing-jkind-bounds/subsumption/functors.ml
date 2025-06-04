@@ -59,7 +59,7 @@ Line 4, characters 0-48:
 4 | type 'a t : immutable_data with 'a = 'a F(Ref).t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "'a F(Ref).t" is mutable_data
-         with 'a @@ many unyielding
+         with 'a @@ unyielding many
          because of the definition of t at line 2, characters 2-40.
        But the kind of type "'a F(Ref).t" must be a subkind of immutable_data
          with 'a
@@ -67,6 +67,7 @@ Error: The kind of type "'a F(Ref).t" is mutable_data
 
        The first mode-crosses less than the second along:
          contention: mod uncontended ≰ mod contended with 'a
+         visibility: mod read_write ≰ mod immutable with 'a
 |}]
 
 module Ref = struct
@@ -79,13 +80,14 @@ Line 4, characters 0-38:
 4 | type 'a t : mutable_data = 'a F(Ref).t
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The kind of type "'a F(Ref).t" is mutable_data
-         with 'a @@ many unyielding
+         with 'a @@ unyielding many
          because of the definition of t at line 2, characters 2-40.
        But the kind of type "'a F(Ref).t" must be a subkind of mutable_data
          because of the definition of t at line 4, characters 0-38.
 
        The first mode-crosses less than the second along:
          portability: mod portable with 'a ≰ mod portable
+         statefulness: mod stateless with 'a ≰ mod stateless
 |}]
 
 module F (M : sig

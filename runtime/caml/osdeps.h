@@ -106,10 +106,12 @@ extern int caml_format_timestamp(char* buf, size_t sz, int formatted);
 
 /* Memory management platform-specific operations */
 
-void *caml_plat_mem_map(uintnat, int, const char*);
+void *caml_plat_mem_map(uintnat size, uintnat flags, const char* name);
 void *caml_plat_mem_commit(void *, uintnat, const char*);
 void caml_plat_mem_decommit(void *, uintnat, const char*);
 void caml_plat_mem_unmap(void *, uintnat);
+void caml_plat_mem_name_map(void *, size_t, const char *);
+
 
 #ifdef _WIN32
 

@@ -189,7 +189,7 @@ AS_IF([test x"$enable_runtime5" = xyes],
       [runtime_suffix=4])
 
 AC_ARG_ENABLE([stack_checks],
-  [AS_HELP_STRING([--enable-stack_checks],
+  [AS_HELP_STRING([--enable-stack-checks],
     [Enable stack checks])])
 
 ## Output variables
@@ -361,6 +361,7 @@ AC_SUBST([compute_deps])
 AC_SUBST([intel_jcc_bug_cflags])
 AC_SUBST([stack_allocation])
 AC_SUBST([poll_insertion])
+AC_SUBST([enable_multidomain])
 AC_SUBST([dune])
 AC_SUBST([ocaml_bindir])
 AC_SUBST([ocaml_libdir])
@@ -700,6 +701,10 @@ AC_ARG_ENABLE([stack-allocation],
 AC_ARG_ENABLE([poll-insertion],
   [AS_HELP_STRING([--enable-poll-insertion],
     [enable insertion of poll points])])
+
+AC_ARG_ENABLE([multidomain],
+  [AS_HELP_STRING([--enable-multidomain],
+    [allow the creation of multiple domains])])
 
 AC_ARG_WITH([flexdll],
   [AS_HELP_STRING([--with-flexdll],
@@ -2557,8 +2562,7 @@ AS_CASE([$host],
     # global CFLAGS and LIBS variables. This means that all the subsequent
     # tests can rely on the assumption that pthread is enabled.
     CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
-    LIBS="$LIBS $PTHREAD_LIBS"
-    AC_CHECK_FUNC([sigwait], [AC_DEFINE([HAS_SIGWAIT])])],
+    LIBS="$LIBS $PTHREAD_LIBS"],
     [AC_MSG_ERROR(m4_normalize([POSIX threads are required but not supported on
       this platform]))])])
 
@@ -2835,6 +2839,14 @@ AS_IF([test x"$enable_poll_insertion" = "xyes"],
   [AC_DEFINE([POLL_INSERTION])
    poll_insertion=true],
   [poll_insertion=false])
+
+AS_IF([test x"$enable_multidomain" = "xyes"],
+  [AS_IF([test x"$enable_runtime5" = "xyes" &&
+          test x"$enable_stack_checks" = "xyes" &&
+          test x"$enable_poll_insertion" = "xyes"],
+    [AC_DEFINE([MULTIDOMAIN]), enable_multidomain=true],
+    [AC_MSG_ERROR([Creating multiple domains is only supported on runtime5 with \
+stack checks and poll insertion enabled.])])], [])
 
 oc_cflags="$common_cflags $internal_cflags"
 oc_cppflags="$common_cppflags $internal_cppflags"

@@ -25,6 +25,6 @@
  **********************************************************************************)
 (** Invariants checking for Cfg. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 val run : Format.formatter -> Cfg_with_layout.t -> bool

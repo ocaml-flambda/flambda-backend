@@ -135,7 +135,7 @@ let locality_mode ppf = function
   | Alloc_heap -> fprintf ppf "heap"
   | Alloc_local -> fprintf ppf "local"
 
-let mixed_block_element print_value_kind ppf el =
+let rec mixed_block_element print_value_kind ppf el =
   match el with
   | Value vk -> print_value_kind ppf vk
   | Float_boxed _ -> fprintf ppf "float"
@@ -145,6 +145,10 @@ let mixed_block_element print_value_kind ppf el =
   | Bits64 -> fprintf ppf "bits64"
   | Vec128 -> fprintf ppf "vec128"
   | Word -> fprintf ppf "word"
+  | Product shape ->
+    fprintf ppf "product %a"
+      (Format.pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
+         (mixed_block_element print_value_kind)) (Array.to_list shape)
 
 let constructor_shape print_value_kind ppf shape =
   match shape with
@@ -367,7 +371,9 @@ let block_shape ppf shape = match shape with
         t;
       Format.fprintf ppf ")"
 
-let mixed_block_element print_mode ppf (elt : _ mixed_block_element) =
+let rec mixed_block_element
+  : 'a. (_ -> 'a -> _) -> _ -> 'a mixed_block_element -> _ =
+  fun print_mode ppf elt ->
   match elt with
   | Value vk -> value_kind value_kind_non_null ppf vk
   | Float_boxed param -> fprintf ppf "float_boxed(%a)" print_mode param
@@ -377,8 +383,12 @@ let mixed_block_element print_mode ppf (elt : _ mixed_block_element) =
   | Bits64 -> fprintf ppf "bits64"
   | Vec128 -> fprintf ppf "vec128"
   | Word -> fprintf ppf "word"
+  | Product shape ->
+    fprintf ppf "product %a" (mixed_block_shape (fun _ _ -> ())) shape
 
-let mixed_block_shape print_mode ppf shape =
+and mixed_block_shape
+  : 'a. (_ -> 'a -> _) -> _ -> 'a mixed_block_element array -> _
+  = fun print_mode ppf shape ->
   match Array.length shape with
   | 0 -> ()
   | 1 -> fprintf ppf " (%a)" (mixed_block_element print_mode) shape.(0)
@@ -518,8 +528,9 @@ let primitive ppf = function
       fprintf ppf "ufloatfield%a %i"
         field_read_semantics sem n
   | Pmixedfield (n, shape, sem) ->
-      fprintf ppf "mixedfield%a %i %a"
-        field_read_semantics sem n
+      fprintf ppf "mixedfield%a %a %a"
+        field_read_semantics sem
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_int) n
         (mixed_block_shape
           (fun ppf mode -> fprintf ppf "%s" (locality_mode_if_local mode)))
         shape
@@ -549,8 +560,9 @@ let primitive ppf = function
         | Assignment Modify_heap -> ""
         | Assignment Modify_maybe_stack -> "(maybe-stack)"
       in
-      fprintf ppf "setmixedfield%s %i %a"
-        init n
+      fprintf ppf "setmixedfield%s %a %a"
+        init
+        (pp_print_list ~pp_sep:(fun ppf () -> fprintf ppf ",") pp_print_int) n
         (mixed_block_shape (fun _ _ -> ())) shape
   | Pduprecord (rep, size) -> fprintf ppf "duprecord %a %i" record_rep rep size
   | Prunstack -> fprintf ppf "runstack"
@@ -1260,7 +1272,7 @@ let rec lam ppf = function
       lfunction ppf lfun
   | Llet _ | Lmutlet _ as expr ->
       let let_kind = begin function
-        | Llet(str,_,_,_,_) ->
+        | Llet(str,_,_,_,_,_) ->
            begin match str with
              Alias -> "a" | Strict -> "" | StrictOpt -> "o"
            end
@@ -1269,8 +1281,8 @@ let rec lam ppf = function
         end
       in
       let rec letbody ~sp = function
-        | Llet(_, k, id, arg, body)
-        | Lmutlet(k, id, arg, body) as l ->
+        | Llet(_, k, id, _duid, arg, body)
+        | Lmutlet(k, id, _duid, arg, body) as l ->
            if sp then fprintf ppf "@ ";
            fprintf ppf "@[<2>%a =%s%a@ %a@]"
              Ident.print id (let_kind l) layout k lam arg;
@@ -1283,7 +1295,7 @@ let rec lam ppf = function
       let bindings ppf id_arg_list =
         let spc = ref false in
         List.iter
-          (fun { id; def } ->
+          (fun { id; debug_uid=_; def } ->
             if !spc then fprintf ppf "@ " else spc := true;
             fprintf ppf "@[<2>%a@ %a@]" Ident.print id lfunction def)
           id_arg_list in
@@ -1346,12 +1358,12 @@ let rec lam ppf = function
         lam lbody i
         (fun ppf vars ->
            List.iter
-             (fun (x, k) -> fprintf ppf " %a%a" Ident.print x layout k)
+             (fun (x, _duid, k) -> fprintf ppf " %a%a" Ident.print x layout k)
              vars
         )
         vars
         excl lam lhandler
-  | Ltrywith(lbody, param, lhandler, _kind) ->
+  | Ltrywith(lbody, param, _duid, lhandler, _kind) ->
       fprintf ppf "@[<2>(try@ %a@;<1 -1>with %a@ %a)@]"
         lam lbody Ident.print param lam lhandler
   | Lifthenelse(lcond, lif, lelse, _kind) ->

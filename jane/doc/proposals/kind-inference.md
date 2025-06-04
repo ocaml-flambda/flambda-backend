@@ -333,6 +333,8 @@ t := λ [[ 'aᵢ : κᵢ ]]. δ : κ ∈ Γ
 ----------------------- T_POLY
 Γ ⊢ ('a : jkind). σ : κ {q}
 
+(* CR layouts v2.8: Some simple cases of polymorphic variants now get more
+   precise kinds in the compiler; update this to reflect that *)
 TODO
 ---------------------------------------- T_POLY_VARIANT
 Γ ⊢ polymorphic_variant : value; ⟪⊤_Ξ⟫ {not_best}
@@ -480,7 +482,7 @@ m_portability = portable
     Γ ⊢ κᵢ ≤ χᵢ
   κ₀' = κ₀{τsⱼ/[['aᵢ]]}
   ∀ Ξ:
-    mode m_Ξ ≤ Ξ(κ₀')
+    mode mⱼ_Ξ ≤ Ξ(κ₀')
     ∀ σ ∈ types_for(Ξ, field_typesⱼ), with σ ≤ Ξ(κ₀')
   value ≤ lay(κ₀')
 if [@@unboxed]:

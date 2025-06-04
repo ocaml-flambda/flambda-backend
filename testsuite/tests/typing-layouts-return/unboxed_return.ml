@@ -4,11 +4,9 @@
  include stdlib_stable;
  flambda2;
  {
-   flags = "-extension layouts_alpha";
    native;
  }
  {
-   flags = "-extension layouts_alpha";
    bytecode;
  }
 *)
