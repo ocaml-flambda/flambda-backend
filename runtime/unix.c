@@ -510,9 +510,10 @@ void caml_init_os_params(void)
   return;
 }
 
+#ifndef __CYGWIN__
 void caml_plat_mem_name_map(void *mem, size_t length, const char *name)
 {
-#if defined(__linux__) && !defined(__CYGWIN__) && !defined(WITH_ADDRESS_SANITIZER)
+#if defined(__linux__) && !defined(WITH_ADDRESS_SANITIZER)
   if (name) {
     /* On Linux, use PR_SET_VMA_ANON_NAME to name a mapping */
     char buf[80];
