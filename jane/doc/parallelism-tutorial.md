@@ -2,12 +2,12 @@
 
 # Introduction
 
-OCaml 5 unleashed parallel programming for the OCaml ecosystem. As is often the
+OCaml 5 unleashed parallel programming on the OCaml ecosystem. As is often the
 case when something is unleashed, this has quite a bit of potential to cause
-chaos. **[Need to quit fussing with this so I'm leaving it as is for the moment,
-but am I saying we're putting the leash back on? Leashes are good, actually? Or
-maybe we're putting up a fence so the the multicore dog can run around without
-data races biting people??]**
+chaos. Race conditions lead to bugs that are easy to write, hard to replicate,
+and tricky to eliminate. But it's hard to argue with the potential performance
+gains. What might the language do to help us get those speedups and spend less
+time debugging nondeterministic behavior?
 
 OxCaml aims to provide an infrastructure for multicore OCaml programming that
 exploits the full power of parallelism while _guaranteeing_ freedom from an
@@ -20,15 +20,18 @@ can get with just two modes and the `Parallel.fork_join2` function.
 ## What is a data race?
 
 A data race is a race condition in which two accesses to the same memory
-location conflict. Specifically, there are four elements of the crime: **[[Oops,
-I forgot to define “domain” first]]**
+location conflict. Specifically, there are four elements of the crime:
 
-1. Code running in parallel, which is to say in two different domains
+1. Code running in parallel, which is to say in two different _domains_
 2. A memory location that may be accessed by both domains simultaneously
 3. At least one of the accesses is a write
 4. The location isn't atomic
 
-This last condition is a carve-out for specially synchronized memory operations
+(A _domain_ is for our purposes what OCaml calls a thread. In particular, it
+will correspond to an actual OS thread, so the code running in two different
+domains can potentially run in parallel on different cores.)
+
+The last condition is a carve-out for specially synchronized memory operations
 provided by `Atomic.t`, which we'll cover [later on](#atomics). Any “normal”
 mutable OCaml data can lead to a data race: references, `mutable` fields, and
 `array`s are all possible culprits.
@@ -153,10 +156,10 @@ cases.
 
 # Fork/join parallelism
 
-Any problem that can be neatly subdivided is a good candidate for
-_fork/join parallelism,_ as provided by the `parallel` library’s `fork_join*`
-functions. For example, a very expensive way to add four integers (I promise the
-other examples are more substantial) would be this:
+Any problem that can be neatly subdivided is a good candidate for _fork/join
+parallelism,_ as provided by the `parallel` library’s `fork_join*` functions
+**(XX link to .mli)**. For example, a very expensive way to add four integers (I
+promise the other examples are more substantial) would be this:
 
 <a id="code-add4"></a>
 ```ocaml
@@ -230,10 +233,8 @@ let average (tree : float Tree.t) =
 ;;
 ```
 
-(Note that we've made use of the new [labeled tuples] feature for the values
-returned by `total`.)
-
-[labeled tuples]: https://tyconmismatch.com/papers/ml2024_labeled_tuples.pdf
+(Note that we've made use of the new labeled tuples **(XX: link)** feature for
+the values returned by `total`.)
 
 We can use `fork_join2` to parallelize `average`:
 
@@ -261,8 +262,7 @@ Note that we don't have to worry about unbalanced trees: the work-stealing
 algorithm dynamically adapts whenever tasks are unevenly distributed among cores.
 
 We're not limited to working with simple `float`s, of course. Suppose we add a
-module `Thing` earlier in the file: **[Would be nice to think of something
-better than `Thing` here.]**
+module `Thing` earlier in the file:
 
 <a id="listing-thing-impl"></a>
 ```ocaml
@@ -351,10 +351,46 @@ Once you're familiar with the `portable` and `contended` modes, you'll see that
 this can be read as saying:
 
 > The `price` function is safe to call from any domain, and it won't produce a
-> data race even if its argument is mutated in parallel.
+> data race even if its argument might be mutated in parallel.
 
-That's enough to let `average_par_things` go through: from there, the compiler
-infers the safety properties that `Parallel.fork_join2` demands.
+Why should we believe this is true? Well, remember, `price` is simply
+
+```ocaml
+let price { price; _ } = price
+```
+
+It does nothing but project an _immutable_ field out of a record. And as we
+covered in [defining a data race](#what-is-a-data-race), rule 3 is that in order
+for two accesses to produce a data race, one of them must be a write—and an
+immutable field can't be modified[^write-on-initialization]. Hence `price` can't
+produce a data race no matter what is happening in parallel. The situation
+changes if we make `price` mutable:
+
+```diff
+   type t =
+-    { price : float
++    { mutable price : float
+     ; mutable mood : Mood.t
+     }
+
+```
+
+```
+Values do not match:
+  val price : t -> float @@ portable
+is not included in
+  val price : t @ contended -> float @@ portable
+```
+
+The type that the compiler now wants to give `price` says essentially “this
+is only safe to call if no other domain can access the argument.” But
+`Parallel.fork_join2` can't make that promise, since it's scheduling tasks in
+parallel. (If this all seems vague at the moment, we'll make it systematic when
+we detail how `portable` and `contended` work.)
+
+Giving `price` the right type is enough to let `average_par` go through: from
+there, the compiler infers that our calls to `Parallel.fork_join2` won't produce
+data races, and in turn that `average_par` is again data-race free.
 
 If you modify our test code to run `average_par_things` on a test tree like
 
@@ -395,29 +431,27 @@ understand once we've covered `contended` and `uncontended`, so we begin there.
 
 ### The `contended` and `uncontended` modes
 
-A data race requires two things:
+We said [before](#what-is-a-data-race) that a data race needs four things.
 
-- Two domains can access the same value.
-- One of those domains can modify that value, and the other can either observe
-  that modification or attempt its own.
+1. Code running in parallel, which is to say in two different _domains_
+2. A memory location that may be accessed by both domains simultaneously
+3. At least one of the accesses is a write
+4. The location isn't atomic
 
 The `contended` mode and its opposite, `uncontended`, prevent data races by
-ensuring that this is impossible. To do so, they institute two key rules:
+ensuring that this is impossible. They institute two key rules:
 
 > <a id="rule-contended-parallel"></a>
-> **Rule 1.** If multiple accesses of the same value may occur in parallel, at
-> most one of them may consider the value `uncontended`. The others must
-> consider it `contended`.
+> **Rule 1.** If two domains may access the same value, at most one of them may
+> consider the value `uncontended`. The others must consider it `contended`.
 
 > <a id="rule-contended-mutable"></a>
 > **Rule 2.** Reading or modifying a `mutable` field is not allowed if the
-> record is `contended`. The same goes for any element of a `contended` array
-> (unless it's an `iarray`, since those are immutable).
+> record is `contended`. The same goes for any element of a `contended` `array`.
 
-Taken together, these two rules guarantee data-race freedom. However, rule 1
-requires quite a bit of machinery to enforce, including other modes such as
-`portable` as well as the annotations on the types of parallelism APIs like
-`fork_join`.
+Taken together, these two rules guarantee data-race freedom: it's not allowed
+for two domains to access the same location in memory if either of them could
+possibly modify it.
 
 Let's see what these rules mean for our `thing.ml` from
 [before](#listing-thing-impl):
@@ -480,10 +514,10 @@ comes in handy for things like read/write locks.
 
 Adding `uncontended` signals to the compiler that a data race is possible: if
 `cheer_up` and `bum_out` can be called with the same argument in parallel, we
-have a race. Enter [rule 1](#rule-contended-parallel), which simply says _it is
-not permissible_ to do so. Unlike rule 2, there's no one place where rule 1 is
-enforced—really, it's an invariant of the whole system (language, runtime, and
-core libraries)—but let's see one example of trying to break it:
+have a data race. Enter [rule 1](#rule-contended-parallel), which simply says
+_it is not permissible_ to do so. Unlike rule 2, there's no one place where rule
+1 is enforced—really, it's an invariant of the whole system (language, runtime,
+and core libraries)—but let's see one example of trying to break it:
 
 ```ocaml
 let beat_the_system par =
@@ -521,8 +555,13 @@ This is entirely consistent with rules 1 and 2: having an `uncontended` value
 gives strictly more power than having a `contended` one, so it's always safe to
 forget we have that power. The upshot is that if a function takes a `contended`
 parameter then the caller is _allowed_ to pass a `contended` value but it is not
-required to. (You may be aware that `local` is the same way.) On the other hand,
-`uncontended` (like `global`) is a constraint that _must_ be met.
+required to. On the other hand, `uncontended` is a constraint that _must_ be
+met.[^local-means-allowed]
+
+[^local-means-allowed]: If you've worked with `local` and `global`, you may know
+they have a similar relationship: if a function takes a `local` argument, you're
+_allowed_ to pass something `local` but not required, whereas `global` is a hard
+requirement.
 
 Finally, recall that our running example wants to fork/join over an entire tree
 of `Thing.t`s, so we should consider what happens when the `Thing.t` is in a
@@ -532,9 +571,7 @@ bigger data structure.
 > **Rule 4.** Any component of a `contended` value is `contended`.
 
 In particular, every field of a `contended` record, every element of a
-`contended` tuple or array **[note: make this `array` if we make the
-corresponding change elsewhere]** (as before, `iarray`s are exempt), and every
-argument
+`contended` tuple or `array`, and every argument
 of every constructor of a `contended` variant is `contended`. And of course this
 applies recursively, so the components of _those_ components are also
 `contended`. Accordingly, we say that the `contended` mode is _deep._ It's easy
@@ -991,6 +1028,19 @@ be reasoned about intuitively. See [Why are data races bad?].
 
 [Why are data races bad?]: #why-are-data-races-bad
 
+## Immutable arrays
+
+Another possible way to avoid getting tangled in `contended` is to change your
+`array`s into `iarray`s. [Rule 2 of `contended`](#rule-contended-mutable)
+forbids accessing an element of a `contended` `array`—that's specifically a
+`contended` value of the OCaml type `array`. Since an `iarray`'s elements are
+immutable, they're exempt from the rule (just like immutable fields of a
+record). Obviously, your code may not be able to make this change easily.
+However, since `iarray`s are a new feature, it's worth checking whether your
+`array`s are ever actually mutated. If not, changing them to `iarray`s means
+accesses no longer have to be `uncontended`—and possibly even that your record
+can be `immutable_data`.
+
 # Parallel sequences
 
 Our very first example added exactly four integers, and generally we've been
@@ -1019,7 +1069,8 @@ let add_many_par par arr =
   |> Option.value ~default:0
 ```
 
-We first need to convert from `iarray` to `Parallel.Sequence.t`, a general
+We first need to convert from `iarray` to `Parallel.Sequence.t` **(XX link to
+documentation)**, a general
 sequence type supporting a rich selection of parallel operations. Among them is
 a parallel `reduce`, which operates much like an unordered `fold`.
 
