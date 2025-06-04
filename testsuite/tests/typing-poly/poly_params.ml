@@ -400,3 +400,30 @@ Error: The syntactic arity of the function doesn't match the type constraint:
           where "gadt_pat" is the pattern with the GADT constructor that
           introduces the local type equation on "a".
 |}];;
+
+(* Check that we are getting the right behaviour for polymorphic variants
+   in polymorphic parameters. *)
+
+let poly_poly_var : [< `A | `B ] -> unit = function  | `A -> () | `B -> ()
+
+let accept_poly_poly_var (g : 'a. ([< `A | `B ] as 'a) -> unit) = g `A
+
+let () = accept_poly_poly_var poly_poly_var
+[%%expect {|
+val poly_poly_var : [< `A | `B ] -> unit = <fun>
+val accept_poly_poly_var : ('a. ([< `A | `B ] as 'a) -> unit) -> unit = <fun>
+Line 5, characters 30-43:
+5 | let () = accept_poly_poly_var poly_poly_var
+                                  ^^^^^^^^^^^^^
+Error: This argument has type "[< `A | `B ] -> unit" which is less general than
+         "'a. ([< `A | `B ] as 'a) -> unit"
+|}, Principal{|
+val poly_poly_var : [< `A | `B ] -> unit = <fun>
+val accept_poly_poly_var : ('a. ([< `A | `B ] as 'a) -> unit) -> unit = <fun>
+Line 5, characters 30-43:
+5 | let () = accept_poly_poly_var poly_poly_var
+                                  ^^^^^^^^^^^^^
+Error: This expression has type "[  ] -> unit"
+       but an expression was expected of type "[< `A | `B ] -> unit"
+       These two variant types have no intersection
+|}]
