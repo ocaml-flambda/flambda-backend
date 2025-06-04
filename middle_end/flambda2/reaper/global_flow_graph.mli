@@ -93,6 +93,8 @@ val propagate_rel :
 
 val any_usage_pred : (Code_id_or_name.t, _) rel1
 
+val any_source_pred : (Code_id_or_name.t, _) rel1
+
 val create : unit -> graph
 
 val add_opaque_let_dependency :
@@ -104,6 +106,8 @@ val add_use_dep :
   graph -> to_:Code_id_or_name.t -> from:Code_id_or_name.t -> unit
 
 val add_use : graph -> Code_id_or_name.t -> unit
+
+val add_any_source : graph -> Code_id_or_name.t -> unit
 
 val add_propagate_dep :
   graph ->
