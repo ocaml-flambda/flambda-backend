@@ -134,50 +134,62 @@ type t5 = #{ a5 : int; b5 : int64# } (* #{ int; int64# } *)
 type t6 = #{ a6 : int; b6 : int32# } (* #{ int; int32# } *)
 type t7 = #{ a7 : int; b7 : int32#; c7 : int32# } (* #{ int; int32#; int32# } *)
 type t8 = #{ a8 : int; b8 : nativeint# } (* #{ int; nativeint# } *)
-type t9 = #{ a9 : int; b9 : t0 } (* #{ int; #{ int } } *)
-type t10 = #{ a10 : int; b10 : t1 } (* #{ int; #{ int; int } } *)
-type t11 = #{ a11 : int; b11 : t6 } (* #{ int; #{ int; int32# } } *)
-type t12 = #{ a12 : int32# } (* #{ int32# } *)
-type t13 = #{ a13 : int; b13 : t12 } (* #{ int; #{ int32# } } *)
-type t14 = #{ a14 : int32#; b14 : int32# } (* #{ int32#; int32# } *)
-type t15 = #{ a15 : int; b15 : t14 } (* #{ int; #{ int32#; int32# } } *)
-type t16 = #{ a16 : int64 } (* #{ int64 } *)
-type t17 = #{ a17 : int64; b17 : int } (* #{ int64; int } *)
-type t18 = #{ a18 : int64; b18 : int64 } (* #{ int64; int64 } *)
-type t19 = #{ a19 : int64# } (* #{ int64# } *)
-type t20 = #{ a20 : int64#; b20 : int64# } (* #{ int64#; int64# } *)
-type t21 = #{ a21 : int64#; b21 : int32# } (* #{ int64#; int32# } *)
-type t22 = #{ a22 : int64#; b22 : nativeint# } (* #{ int64#; nativeint# } *)
-type t23 = #{ a23 : int32#; b23 : int64# } (* #{ int32#; int64# } *)
-type t24 = #{ a24 : int32#; b24 : int32#; c24 : int32# } (* #{ int32#; int32#; int32# } *)
-type t25 = #{ a25 : int32#; b25 : nativeint# } (* #{ int32#; nativeint# } *)
-type t26 = #{ a26 : int32#; b26 : t12 } (* #{ int32#; #{ int32# } } *)
-type t27 = #{ a27 : int32#; b27 : t14 } (* #{ int32#; #{ int32#; int32# } } *)
-type t28 = #{ a28 : nativeint# } (* #{ nativeint# } *)
-type t29 = #{ a29 : nativeint#; b29 : int64# } (* #{ nativeint#; int64# } *)
-type t30 = #{ a30 : nativeint#; b30 : int32# } (* #{ nativeint#; int32# } *)
-type t31 = #{ a31 : nativeint#; b31 : nativeint# } (* #{ nativeint#; nativeint# } *)
-type t32 = #{ a32 : float# } (* #{ float# } *)
-type t33 = #{ a33 : float#; b33 : float# } (* #{ float#; float# } *)
-type t34 = #{ a34 : float#; b34 : float#; c34 : float# } (* #{ float#; float#; float# } *)
-type t35 = #{ a35 : float#; b35 : t32 } (* #{ float#; #{ float# } } *)
-type t36 = #{ a36 : float#; b36 : t33 } (* #{ float#; #{ float#; float# } } *)
-type t37 = #{ a37 : t0 } (* #{ #{ int } } *)
-type t38 = #{ a38 : t0; b38 : int } (* #{ #{ int }; int } *)
-type t39 = #{ a39 : t0; b39 : int32# } (* #{ #{ int }; int32# } *)
-type t40 = #{ a40 : t1 } (* #{ #{ int; int } } *)
-type t41 = #{ a41 : t1; b41 : int } (* #{ #{ int; int }; int } *)
-type t42 = #{ a42 : t1; b42 : int32# } (* #{ #{ int; int }; int32# } *)
-type t43 = #{ a43 : t6 } (* #{ #{ int; int32# } } *)
-type t44 = #{ a44 : t6; b44 : int32# } (* #{ #{ int; int32# }; int32# } *)
-type t45 = #{ a45 : t12 } (* #{ #{ int32# } } *)
-type t46 = #{ a46 : t12; b46 : int32# } (* #{ #{ int32# }; int32# } *)
-type t47 = #{ a47 : t14 } (* #{ #{ int32#; int32# } } *)
-type t48 = #{ a48 : t14; b48 : int32# } (* #{ #{ int32#; int32# }; int32# } *)
-type t49 = #{ a49 : t32 } (* #{ #{ float# } } *)
-type t50 = #{ a50 : t32; b50 : float# } (* #{ #{ float# }; float# } *)
-type t51 = #{ a51 : t33 } (* #{ #{ float#; float# } } *)
-type t52 = #{ a52 : t33; b52 : float# } (* #{ #{ float#; float# }; float# } *)
+type t9 = #{ a9 : int; b9 : unit_u } (* #{ int; unit_u } *)
+type t10 = #{ a10 : int; b10 : t0 } (* #{ int; #{ int } } *)
+type t11 = #{ a11 : int; b11 : t1 } (* #{ int; #{ int; int } } *)
+type t12 = #{ a12 : int; b12 : t6 } (* #{ int; #{ int; int32# } } *)
+type t13 = #{ a13 : int32# } (* #{ int32# } *)
+type t14 = #{ a14 : int; b14 : t13 } (* #{ int; #{ int32# } } *)
+type t15 = #{ a15 : int32#; b15 : int32# } (* #{ int32#; int32# } *)
+type t16 = #{ a16 : int; b16 : t15 } (* #{ int; #{ int32#; int32# } } *)
+type t17 = #{ a17 : int64 } (* #{ int64 } *)
+type t18 = #{ a18 : int64; b18 : int } (* #{ int64; int } *)
+type t19 = #{ a19 : int64; b19 : int64 } (* #{ int64; int64 } *)
+type t20 = #{ a20 : int64; b20 : unit_u } (* #{ int64; unit_u } *)
+type t21 = #{ a21 : int64# } (* #{ int64# } *)
+type t22 = #{ a22 : int64#; b22 : int64# } (* #{ int64#; int64# } *)
+type t23 = #{ a23 : int64#; b23 : int32# } (* #{ int64#; int32# } *)
+type t24 = #{ a24 : int64#; b24 : nativeint# } (* #{ int64#; nativeint# } *)
+type t25 = #{ a25 : int64#; b25 : unit_u } (* #{ int64#; unit_u } *)
+type t26 = #{ a26 : int32#; b26 : int64# } (* #{ int32#; int64# } *)
+type t27 = #{ a27 : int32#; b27 : int32#; c27 : int32# } (* #{ int32#; int32#; int32# } *)
+type t28 = #{ a28 : int32#; b28 : nativeint# } (* #{ int32#; nativeint# } *)
+type t29 = #{ a29 : int32#; b29 : unit_u } (* #{ int32#; unit_u } *)
+type t30 = #{ a30 : int32#; b30 : t13 } (* #{ int32#; #{ int32# } } *)
+type t31 = #{ a31 : int32#; b31 : t15 } (* #{ int32#; #{ int32#; int32# } } *)
+type t32 = #{ a32 : nativeint# } (* #{ nativeint# } *)
+type t33 = #{ a33 : nativeint#; b33 : int64# } (* #{ nativeint#; int64# } *)
+type t34 = #{ a34 : nativeint#; b34 : int32# } (* #{ nativeint#; int32# } *)
+type t35 = #{ a35 : nativeint#; b35 : nativeint# } (* #{ nativeint#; nativeint# } *)
+type t36 = #{ a36 : nativeint#; b36 : unit_u } (* #{ nativeint#; unit_u } *)
+type t37 = #{ a37 : unit_u } (* #{ unit_u } *)
+type t38 = #{ a38 : unit_u; b38 : int } (* #{ unit_u; int } *)
+type t39 = #{ a39 : unit_u; b39 : int64 } (* #{ unit_u; int64 } *)
+type t40 = #{ a40 : unit_u; b40 : int64# } (* #{ unit_u; int64# } *)
+type t41 = #{ a41 : unit_u; b41 : int32# } (* #{ unit_u; int32# } *)
+type t42 = #{ a42 : unit_u; b42 : nativeint# } (* #{ unit_u; nativeint# } *)
+type t43 = #{ a43 : unit_u; b43 : unit_u } (* #{ unit_u; unit_u } *)
+type t44 = #{ a44 : float# } (* #{ float# } *)
+type t45 = #{ a45 : float#; b45 : float# } (* #{ float#; float# } *)
+type t46 = #{ a46 : float#; b46 : float#; c46 : float# } (* #{ float#; float#; float# } *)
+type t47 = #{ a47 : float#; b47 : t44 } (* #{ float#; #{ float# } } *)
+type t48 = #{ a48 : float#; b48 : t45 } (* #{ float#; #{ float#; float# } } *)
+type t49 = #{ a49 : t0 } (* #{ #{ int } } *)
+type t50 = #{ a50 : t0; b50 : int } (* #{ #{ int }; int } *)
+type t51 = #{ a51 : t0; b51 : int32# } (* #{ #{ int }; int32# } *)
+type t52 = #{ a52 : t1 } (* #{ #{ int; int } } *)
+type t53 = #{ a53 : t1; b53 : int } (* #{ #{ int; int }; int } *)
+type t54 = #{ a54 : t1; b54 : int32# } (* #{ #{ int; int }; int32# } *)
+type t55 = #{ a55 : t6 } (* #{ #{ int; int32# } } *)
+type t56 = #{ a56 : t6; b56 : int32# } (* #{ #{ int; int32# }; int32# } *)
+type t57 = #{ a57 : t13 } (* #{ #{ int32# } } *)
+type t58 = #{ a58 : t13; b58 : int32# } (* #{ #{ int32# }; int32# } *)
+type t59 = #{ a59 : t15 } (* #{ #{ int32#; int32# } } *)
+type t60 = #{ a60 : t15; b60 : int32# } (* #{ #{ int32#; int32# }; int32# } *)
+type t61 = #{ a61 : t44 } (* #{ #{ float# } } *)
+type t62 = #{ a62 : t44; b62 : float# } (* #{ #{ float# }; float# } *)
+type t63 = #{ a63 : t45 } (* #{ #{ float#; float# } } *)
+type t64 = #{ a64 : t45; b64 : float# } (* #{ #{ float#; float# }; float# } *)
 
 let test size =
   (***********)
@@ -321,12 +333,12 @@ let test size =
   Gc.compact ();
 
   (**************)
-  (*   float#   *)
+  (*   unit_u   *)
   (**************)
-  let eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let mk_value i = Float_u.of_int (i + 0) in
+  let eq = (fun _ _ -> true) in
+  let mk_value i = unbox_unit () in
   (* Create an array of size [size] *)
-  let a : float# array = makearray_dynamic size #0. in
+  let a : unit_u array = makearray_dynamic size (unbox_unit ()) in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
@@ -348,13 +360,13 @@ let test size =
   done;
   Gc.compact ();
 
-  (*********************)
-  (*   t0 = #{ int }   *)
-  (*********************)
-  let eq = (fun #{ a0 = a01 } #{ a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) in
-  let mk_value i = #{ a0 = (i + 0) } in
+  (**************)
+  (*   float#   *)
+  (**************)
+  let eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let mk_value i = Float_u.of_int (i + 0) in
   (* Create an array of size [size] *)
-  let a : t0 array = makearray_dynamic size #{ a0 = 0 } in
+  let a : float# array = makearray_dynamic size #0. in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
@@ -372,6 +384,34 @@ let test size =
     if not test then failwithf "test 14 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
+    ()
+  done;
+  Gc.compact ();
+
+  (*********************)
+  (*   t0 = #{ int }   *)
+  (*********************)
+  let eq = (fun #{ a0 = a01 } #{ a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) in
+  let mk_value i = #{ a0 = (i + 0) } in
+  (* Create an array of size [size] *)
+  let a : t0 array = makearray_dynamic size #{ a0 = 0 } in
+  (* Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    Idx_mut.unsafe_set a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 15;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 15 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 16;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
+    if not test then failwithf "test 16 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
     (* Paths of depth 1 *)
     let next_el = mk_value (i + 100 * 1) in
     (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
@@ -380,9 +420,9 @@ let test size =
     (* Path: [.#a0] *)
     let el = #{ el with a0 = next_el.#a0 } in
     Idx_mut.unsafe_set a ((.(i).#a0) : (t0 array, _) idx_mut) next_el.#a0;
-    mark_test_run 15;
+    mark_test_run 17;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 15 failed %d %d" size i;
+    if not test then failwithf "test 17 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
@@ -400,15 +440,15 @@ let test size =
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 16;
+    mark_test_run 18;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 16 failed %d %d" size i;
+    if not test then failwithf "test 18 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 17;
+    mark_test_run 19;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 17 failed %d %d" size i;
+    if not test then failwithf "test 19 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -419,15 +459,15 @@ let test size =
     (* Path: [.#a1] *)
     let el = #{ el with a1 = next_el.#a1 } in
     Idx_mut.unsafe_set a ((.(i).#a1) : (t1 array, _) idx_mut) next_el.#a1;
-    mark_test_run 18;
+    mark_test_run 20;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 18 failed %d %d" size i;
+    if not test then failwithf "test 20 failed %d %d" size i;
     (* Path: [.#b1] *)
     let el = #{ el with b1 = next_el.#b1 } in
     Idx_mut.unsafe_set a ((.(i).#b1) : (t1 array, _) idx_mut) next_el.#b1;
-    mark_test_run 19;
+    mark_test_run 21;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 19 failed %d %d" size i;
+    if not test then failwithf "test 21 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
@@ -445,15 +485,15 @@ let test size =
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 20;
+    mark_test_run 22;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 20 failed %d %d" size i;
+    if not test then failwithf "test 22 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 21;
+    mark_test_run 23;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 21 failed %d %d" size i;
+    if not test then failwithf "test 23 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -464,21 +504,21 @@ let test size =
     (* Path: [.#a2] *)
     let el = #{ el with a2 = next_el.#a2 } in
     Idx_mut.unsafe_set a ((.(i).#a2) : (t2 array, _) idx_mut) next_el.#a2;
-    mark_test_run 22;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 22 failed %d %d" size i;
-    (* Path: [.#b2] *)
-    let el = #{ el with b2 = next_el.#b2 } in
-    Idx_mut.unsafe_set a ((.(i).#b2) : (t2 array, _) idx_mut) next_el.#b2;
-    mark_test_run 23;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 23 failed %d %d" size i;
-    (* Path: [.#c2] *)
-    let el = #{ el with c2 = next_el.#c2 } in
-    Idx_mut.unsafe_set a ((.(i).#c2) : (t2 array, _) idx_mut) next_el.#c2;
     mark_test_run 24;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 24 failed %d %d" size i;
+    (* Path: [.#b2] *)
+    let el = #{ el with b2 = next_el.#b2 } in
+    Idx_mut.unsafe_set a ((.(i).#b2) : (t2 array, _) idx_mut) next_el.#b2;
+    mark_test_run 25;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 25 failed %d %d" size i;
+    (* Path: [.#c2] *)
+    let el = #{ el with c2 = next_el.#c2 } in
+    Idx_mut.unsafe_set a ((.(i).#c2) : (t2 array, _) idx_mut) next_el.#c2;
+    mark_test_run 26;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 26 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
@@ -496,15 +536,15 @@ let test size =
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 25;
+    mark_test_run 27;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 25 failed %d %d" size i;
+    if not test then failwithf "test 27 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 26;
+    mark_test_run 28;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 26 failed %d %d" size i;
+    if not test then failwithf "test 28 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -515,21 +555,21 @@ let test size =
     (* Path: [.#a3] *)
     let el = #{ el with a3 = next_el.#a3 } in
     Idx_mut.unsafe_set a ((.(i).#a3) : (t3 array, _) idx_mut) next_el.#a3;
-    mark_test_run 27;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 27 failed %d %d" size i;
-    (* Path: [.#b3] *)
-    let el = #{ el with b3 = next_el.#b3 } in
-    Idx_mut.unsafe_set a ((.(i).#b3) : (t3 array, _) idx_mut) next_el.#b3;
-    mark_test_run 28;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 28 failed %d %d" size i;
-    (* Path: [.#c3] *)
-    let el = #{ el with c3 = next_el.#c3 } in
-    Idx_mut.unsafe_set a ((.(i).#c3) : (t3 array, _) idx_mut) next_el.#c3;
     mark_test_run 29;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 29 failed %d %d" size i;
+    (* Path: [.#b3] *)
+    let el = #{ el with b3 = next_el.#b3 } in
+    Idx_mut.unsafe_set a ((.(i).#b3) : (t3 array, _) idx_mut) next_el.#b3;
+    mark_test_run 30;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 30 failed %d %d" size i;
+    (* Path: [.#c3] *)
+    let el = #{ el with c3 = next_el.#c3 } in
+    Idx_mut.unsafe_set a ((.(i).#c3) : (t3 array, _) idx_mut) next_el.#c3;
+    mark_test_run 31;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 31 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
@@ -547,15 +587,15 @@ let test size =
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 30;
+    mark_test_run 32;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 30 failed %d %d" size i;
+    if not test then failwithf "test 32 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 31;
+    mark_test_run 33;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 31 failed %d %d" size i;
+    if not test then failwithf "test 33 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -566,15 +606,15 @@ let test size =
     (* Path: [.#a4] *)
     let el = #{ el with a4 = next_el.#a4 } in
     Idx_mut.unsafe_set a ((.(i).#a4) : (t4 array, _) idx_mut) next_el.#a4;
-    mark_test_run 32;
+    mark_test_run 34;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 32 failed %d %d" size i;
+    if not test then failwithf "test 34 failed %d %d" size i;
     (* Path: [.#b4] *)
     let el = #{ el with b4 = next_el.#b4 } in
     Idx_mut.unsafe_set a ((.(i).#b4) : (t4 array, _) idx_mut) next_el.#b4;
-    mark_test_run 33;
+    mark_test_run 35;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 33 failed %d %d" size i;
+    if not test then failwithf "test 35 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
@@ -592,15 +632,15 @@ let test size =
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 34;
+    mark_test_run 36;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 34 failed %d %d" size i;
+    if not test then failwithf "test 36 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 35;
+    mark_test_run 37;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 35 failed %d %d" size i;
+    if not test then failwithf "test 37 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -611,15 +651,15 @@ let test size =
     (* Path: [.#a5] *)
     let el = #{ el with a5 = next_el.#a5 } in
     Idx_mut.unsafe_set a ((.(i).#a5) : (t5 array, _) idx_mut) next_el.#a5;
-    mark_test_run 36;
+    mark_test_run 38;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 36 failed %d %d" size i;
+    if not test then failwithf "test 38 failed %d %d" size i;
     (* Path: [.#b5] *)
     let el = #{ el with b5 = next_el.#b5 } in
     Idx_mut.unsafe_set a ((.(i).#b5) : (t5 array, _) idx_mut) next_el.#b5;
-    mark_test_run 37;
+    mark_test_run 39;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 37 failed %d %d" size i;
+    if not test then failwithf "test 39 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
@@ -637,15 +677,15 @@ let test size =
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 38;
+    mark_test_run 40;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 38 failed %d %d" size i;
+    if not test then failwithf "test 40 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 39;
+    mark_test_run 41;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 39 failed %d %d" size i;
+    if not test then failwithf "test 41 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -656,15 +696,15 @@ let test size =
     (* Path: [.#a6] *)
     let el = #{ el with a6 = next_el.#a6 } in
     Idx_mut.unsafe_set a ((.(i).#a6) : (t6 array, _) idx_mut) next_el.#a6;
-    mark_test_run 40;
+    mark_test_run 42;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 40 failed %d %d" size i;
+    if not test then failwithf "test 42 failed %d %d" size i;
     (* Path: [.#b6] *)
     let el = #{ el with b6 = next_el.#b6 } in
     Idx_mut.unsafe_set a ((.(i).#b6) : (t6 array, _) idx_mut) next_el.#b6;
-    mark_test_run 41;
+    mark_test_run 43;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 41 failed %d %d" size i;
+    if not test then failwithf "test 43 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
@@ -682,15 +722,15 @@ let test size =
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 42;
+    mark_test_run 44;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 42 failed %d %d" size i;
+    if not test then failwithf "test 44 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 43;
+    mark_test_run 45;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 43 failed %d %d" size i;
+    if not test then failwithf "test 45 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -701,21 +741,21 @@ let test size =
     (* Path: [.#a7] *)
     let el = #{ el with a7 = next_el.#a7 } in
     Idx_mut.unsafe_set a ((.(i).#a7) : (t7 array, _) idx_mut) next_el.#a7;
-    mark_test_run 44;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 44 failed %d %d" size i;
-    (* Path: [.#b7] *)
-    let el = #{ el with b7 = next_el.#b7 } in
-    Idx_mut.unsafe_set a ((.(i).#b7) : (t7 array, _) idx_mut) next_el.#b7;
-    mark_test_run 45;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 45 failed %d %d" size i;
-    (* Path: [.#c7] *)
-    let el = #{ el with c7 = next_el.#c7 } in
-    Idx_mut.unsafe_set a ((.(i).#c7) : (t7 array, _) idx_mut) next_el.#c7;
     mark_test_run 46;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 46 failed %d %d" size i;
+    (* Path: [.#b7] *)
+    let el = #{ el with b7 = next_el.#b7 } in
+    Idx_mut.unsafe_set a ((.(i).#b7) : (t7 array, _) idx_mut) next_el.#b7;
+    mark_test_run 47;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 47 failed %d %d" size i;
+    (* Path: [.#c7] *)
+    let el = #{ el with c7 = next_el.#c7 } in
+    Idx_mut.unsafe_set a ((.(i).#c7) : (t7 array, _) idx_mut) next_el.#c7;
+    mark_test_run 48;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 48 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
@@ -733,15 +773,15 @@ let test size =
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 47;
+    mark_test_run 49;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 47 failed %d %d" size i;
+    if not test then failwithf "test 49 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 48;
+    mark_test_run 50;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 48 failed %d %d" size i;
+    if not test then failwithf "test 50 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -752,41 +792,41 @@ let test size =
     (* Path: [.#a8] *)
     let el = #{ el with a8 = next_el.#a8 } in
     Idx_mut.unsafe_set a ((.(i).#a8) : (t8 array, _) idx_mut) next_el.#a8;
-    mark_test_run 49;
+    mark_test_run 51;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 49 failed %d %d" size i;
+    if not test then failwithf "test 51 failed %d %d" size i;
     (* Path: [.#b8] *)
     let el = #{ el with b8 = next_el.#b8 } in
     Idx_mut.unsafe_set a ((.(i).#b8) : (t8 array, _) idx_mut) next_el.#b8;
-    mark_test_run 50;
+    mark_test_run 52;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 50 failed %d %d" size i;
+    if not test then failwithf "test 52 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (*******************************)
-  (*   t9 = #{ int; #{ int } }   *)
-  (*******************************)
-  let eq = (fun #{ a9 = a91; b9 = b91 } #{ a9 = a92; b9 = b92 } -> (fun a b -> Int.equal a b) a91 a92 && (fun #{ a0 = a01 } #{ a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) b91 b92) in
-  let mk_value i = #{ a9 = (i + 0); b9 = #{ a0 = (i + 1) } } in
+  (*****************************)
+  (*   t9 = #{ int; unit_u }   *)
+  (*****************************)
+  let eq = (fun #{ a9 = a91; b9 = b91 } #{ a9 = a92; b9 = b92 } -> (fun a b -> Int.equal a b) a91 a92 && (fun _ _ -> true) b91 b92) in
+  let mk_value i = #{ a9 = (i + 0); b9 = unbox_unit () } in
   (* Create an array of size [size] *)
-  let a : t9 array = makearray_dynamic size #{ a9 = 0; b9 = #{ a0 = 1 } } in
+  let a : t9 array = makearray_dynamic size #{ a9 = 0; b9 = (unbox_unit ()) } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 51;
+    mark_test_run 53;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 51 failed %d %d" size i;
+    if not test then failwithf "test 53 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 52;
+    mark_test_run 54;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 52 failed %d %d" size i;
+    if not test then failwithf "test 54 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -797,52 +837,41 @@ let test size =
     (* Path: [.#a9] *)
     let el = #{ el with a9 = next_el.#a9 } in
     Idx_mut.unsafe_set a ((.(i).#a9) : (t9 array, _) idx_mut) next_el.#a9;
-    mark_test_run 53;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 53 failed %d %d" size i;
-    (* Path: [.#b9] *)
-    let el = #{ el with b9 = next_el.#b9 } in
-    Idx_mut.unsafe_set a ((.(i).#b9) : (t9 array, _) idx_mut) next_el.#b9;
-    mark_test_run 54;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 54 failed %d %d" size i;
-    (* Paths of depth 2 *)
-    let next_el = mk_value (i + 100 * 2) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
-    (* [el] is the reference value, updated with [with] *)
-    let el = get a i in
-    (* Path: [.#b9.#a0] *)
-    let el = #{ el with b9 = #{ el.#b9 with a0 = next_el.#b9.#a0 } } in
-    Idx_mut.unsafe_set a ((.(i).#b9.#a0) : (t9 array, _) idx_mut) next_el.#b9.#a0;
     mark_test_run 55;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 55 failed %d %d" size i;
+    (* Path: [.#b9] *)
+    let el = #{ el with b9 = next_el.#b9 } in
+    Idx_mut.unsafe_set a ((.(i).#b9) : (t9 array, _) idx_mut) next_el.#b9;
+    mark_test_run 56;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 56 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (*************************************)
-  (*   t10 = #{ int; #{ int; int } }   *)
-  (*************************************)
-  let eq = (fun #{ a10 = a101; b10 = b101 } #{ a10 = a102; b10 = b102 } -> (fun a b -> Int.equal a b) a101 a102 && (fun #{ a1 = a11; b1 = b11 } #{ a1 = a12; b1 = b12 } -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) b101 b102) in
-  let mk_value i = #{ a10 = (i + 0); b10 = #{ a1 = (i + 1); b1 = (i + 2) } } in
+  (********************************)
+  (*   t10 = #{ int; #{ int } }   *)
+  (********************************)
+  let eq = (fun #{ a10 = a101; b10 = b101 } #{ a10 = a102; b10 = b102 } -> (fun a b -> Int.equal a b) a101 a102 && (fun #{ a0 = a01 } #{ a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) b101 b102) in
+  let mk_value i = #{ a10 = (i + 0); b10 = #{ a0 = (i + 1) } } in
   (* Create an array of size [size] *)
-  let a : t10 array = makearray_dynamic size #{ a10 = 0; b10 = #{ a1 = 1; b1 = 2 } } in
+  let a : t10 array = makearray_dynamic size #{ a10 = 0; b10 = #{ a0 = 1 } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 56;
+    mark_test_run 57;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 56 failed %d %d" size i;
+    if not test then failwithf "test 57 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 57;
+    mark_test_run 58;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 57 failed %d %d" size i;
+    if not test then failwithf "test 58 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -853,29 +882,23 @@ let test size =
     (* Path: [.#a10] *)
     let el = #{ el with a10 = next_el.#a10 } in
     Idx_mut.unsafe_set a ((.(i).#a10) : (t10 array, _) idx_mut) next_el.#a10;
-    mark_test_run 58;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 58 failed %d %d" size i;
-    (* Path: [.#b10] *)
-    let el = #{ el with b10 = next_el.#b10 } in
-    Idx_mut.unsafe_set a ((.(i).#b10) : (t10 array, _) idx_mut) next_el.#b10;
     mark_test_run 59;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 59 failed %d %d" size i;
+    (* Path: [.#b10] *)
+    let el = #{ el with b10 = next_el.#b10 } in
+    Idx_mut.unsafe_set a ((.(i).#b10) : (t10 array, _) idx_mut) next_el.#b10;
+    mark_test_run 60;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 60 failed %d %d" size i;
     (* Paths of depth 2 *)
     let next_el = mk_value (i + 100 * 2) in
     (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
     (* [el] is the reference value, updated with [with] *)
     let el = get a i in
-    (* Path: [.#b10.#a1] *)
-    let el = #{ el with b10 = #{ el.#b10 with a1 = next_el.#b10.#a1 } } in
-    Idx_mut.unsafe_set a ((.(i).#b10.#a1) : (t10 array, _) idx_mut) next_el.#b10.#a1;
-    mark_test_run 60;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 60 failed %d %d" size i;
-    (* Path: [.#b10.#b1] *)
-    let el = #{ el with b10 = #{ el.#b10 with b1 = next_el.#b10.#b1 } } in
-    Idx_mut.unsafe_set a ((.(i).#b10.#b1) : (t10 array, _) idx_mut) next_el.#b10.#b1;
+    (* Path: [.#b10.#a0] *)
+    let el = #{ el with b10 = #{ el.#b10 with a0 = next_el.#b10.#a0 } } in
+    Idx_mut.unsafe_set a ((.(i).#b10.#a0) : (t10 array, _) idx_mut) next_el.#b10.#a0;
     mark_test_run 61;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 61 failed %d %d" size i;
@@ -883,13 +906,13 @@ let test size =
   done;
   Gc.compact ();
 
-  (****************************************)
-  (*   t11 = #{ int; #{ int; int32# } }   *)
-  (****************************************)
-  let eq = (fun #{ a11 = a111; b11 = b111 } #{ a11 = a112; b11 = b112 } -> (fun a b -> Int.equal a b) a111 a112 && (fun #{ a6 = a61; b6 = b61 } #{ a6 = a62; b6 = b62 } -> (fun a b -> Int.equal a b) a61 a62 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b61 b62) b111 b112) in
-  let mk_value i = #{ a11 = (i + 0); b11 = #{ a6 = (i + 1); b6 = Int32_u.of_int (i + 2) } } in
+  (*************************************)
+  (*   t11 = #{ int; #{ int; int } }   *)
+  (*************************************)
+  let eq = (fun #{ a11 = a111; b11 = b111 } #{ a11 = a112; b11 = b112 } -> (fun a b -> Int.equal a b) a111 a112 && (fun #{ a1 = a11; b1 = b11 } #{ a1 = a12; b1 = b12 } -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) b111 b112) in
+  let mk_value i = #{ a11 = (i + 0); b11 = #{ a1 = (i + 1); b1 = (i + 2) } } in
   (* Create an array of size [size] *)
-  let a : t11 array = makearray_dynamic size #{ a11 = 0; b11 = #{ a6 = 1; b6 = #2l } } in
+  let a : t11 array = makearray_dynamic size #{ a11 = 0; b11 = #{ a1 = 1; b1 = 2 } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
@@ -929,15 +952,15 @@ let test size =
     (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
     (* [el] is the reference value, updated with [with] *)
     let el = get a i in
-    (* Path: [.#b11.#a6] *)
-    let el = #{ el with b11 = #{ el.#b11 with a6 = next_el.#b11.#a6 } } in
-    Idx_mut.unsafe_set a ((.(i).#b11.#a6) : (t11 array, _) idx_mut) next_el.#b11.#a6;
+    (* Path: [.#b11.#a1] *)
+    let el = #{ el with b11 = #{ el.#b11 with a1 = next_el.#b11.#a1 } } in
+    Idx_mut.unsafe_set a ((.(i).#b11.#a1) : (t11 array, _) idx_mut) next_el.#b11.#a1;
     mark_test_run 66;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 66 failed %d %d" size i;
-    (* Path: [.#b11.#b6] *)
-    let el = #{ el with b11 = #{ el.#b11 with b6 = next_el.#b11.#b6 } } in
-    Idx_mut.unsafe_set a ((.(i).#b11.#b6) : (t11 array, _) idx_mut) next_el.#b11.#b6;
+    (* Path: [.#b11.#b1] *)
+    let el = #{ el with b11 = #{ el.#b11 with b1 = next_el.#b11.#b1 } } in
+    Idx_mut.unsafe_set a ((.(i).#b11.#b1) : (t11 array, _) idx_mut) next_el.#b11.#b1;
     mark_test_run 67;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 67 failed %d %d" size i;
@@ -945,13 +968,13 @@ let test size =
   done;
   Gc.compact ();
 
-  (***********************************)
-  (*   t13 = #{ int; #{ int32# } }   *)
-  (***********************************)
-  let eq = (fun #{ a13 = a131; b13 = b131 } #{ a13 = a132; b13 = b132 } -> (fun a b -> Int.equal a b) a131 a132 && (fun #{ a12 = a121 } #{ a12 = a122 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a121 a122) b131 b132) in
-  let mk_value i = #{ a13 = (i + 0); b13 = #{ a12 = Int32_u.of_int (i + 1) } } in
+  (****************************************)
+  (*   t12 = #{ int; #{ int; int32# } }   *)
+  (****************************************)
+  let eq = (fun #{ a12 = a121; b12 = b121 } #{ a12 = a122; b12 = b122 } -> (fun a b -> Int.equal a b) a121 a122 && (fun #{ a6 = a61; b6 = b61 } #{ a6 = a62; b6 = b62 } -> (fun a b -> Int.equal a b) a61 a62 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b61 b62) b121 b122) in
+  let mk_value i = #{ a12 = (i + 0); b12 = #{ a6 = (i + 1); b6 = Int32_u.of_int (i + 2) } } in
   (* Create an array of size [size] *)
-  let a : t13 array = makearray_dynamic size #{ a13 = 0; b13 = #{ a12 = #1l } } in
+  let a : t12 array = makearray_dynamic size #{ a12 = 0; b12 = #{ a6 = 1; b6 = #2l } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
@@ -974,15 +997,15 @@ let test size =
     (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
     (* [el] is the reference value, updated with [with] *)
     let el = get a i in
-    (* Path: [.#a13] *)
-    let el = #{ el with a13 = next_el.#a13 } in
-    Idx_mut.unsafe_set a ((.(i).#a13) : (t13 array, _) idx_mut) next_el.#a13;
+    (* Path: [.#a12] *)
+    let el = #{ el with a12 = next_el.#a12 } in
+    Idx_mut.unsafe_set a ((.(i).#a12) : (t12 array, _) idx_mut) next_el.#a12;
     mark_test_run 70;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 70 failed %d %d" size i;
-    (* Path: [.#b13] *)
-    let el = #{ el with b13 = next_el.#b13 } in
-    Idx_mut.unsafe_set a ((.(i).#b13) : (t13 array, _) idx_mut) next_el.#b13;
+    (* Path: [.#b12] *)
+    let el = #{ el with b12 = next_el.#b12 } in
+    Idx_mut.unsafe_set a ((.(i).#b12) : (t12 array, _) idx_mut) next_el.#b12;
     mark_test_run 71;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 71 failed %d %d" size i;
@@ -991,38 +1014,44 @@ let test size =
     (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
     (* [el] is the reference value, updated with [with] *)
     let el = get a i in
-    (* Path: [.#b13.#a12] *)
-    let el = #{ el with b13 = #{ el.#b13 with a12 = next_el.#b13.#a12 } } in
-    Idx_mut.unsafe_set a ((.(i).#b13.#a12) : (t13 array, _) idx_mut) next_el.#b13.#a12;
+    (* Path: [.#b12.#a6] *)
+    let el = #{ el with b12 = #{ el.#b12 with a6 = next_el.#b12.#a6 } } in
+    Idx_mut.unsafe_set a ((.(i).#b12.#a6) : (t12 array, _) idx_mut) next_el.#b12.#a6;
     mark_test_run 72;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 72 failed %d %d" size i;
+    (* Path: [.#b12.#b6] *)
+    let el = #{ el with b12 = #{ el.#b12 with b6 = next_el.#b12.#b6 } } in
+    Idx_mut.unsafe_set a ((.(i).#b12.#b6) : (t12 array, _) idx_mut) next_el.#b12.#b6;
+    mark_test_run 73;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 73 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (*******************************************)
-  (*   t15 = #{ int; #{ int32#; int32# } }   *)
-  (*******************************************)
-  let eq = (fun #{ a15 = a151; b15 = b151 } #{ a15 = a152; b15 = b152 } -> (fun a b -> Int.equal a b) a151 a152 && (fun #{ a14 = a141; b14 = b141 } #{ a14 = a142; b14 = b142 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a141 a142 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b141 b142) b151 b152) in
-  let mk_value i = #{ a15 = (i + 0); b15 = #{ a14 = Int32_u.of_int (i + 1); b14 = Int32_u.of_int (i + 2) } } in
+  (***********************************)
+  (*   t14 = #{ int; #{ int32# } }   *)
+  (***********************************)
+  let eq = (fun #{ a14 = a141; b14 = b141 } #{ a14 = a142; b14 = b142 } -> (fun a b -> Int.equal a b) a141 a142 && (fun #{ a13 = a131 } #{ a13 = a132 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a131 a132) b141 b142) in
+  let mk_value i = #{ a14 = (i + 0); b14 = #{ a13 = Int32_u.of_int (i + 1) } } in
   (* Create an array of size [size] *)
-  let a : t15 array = makearray_dynamic size #{ a15 = 0; b15 = #{ a14 = #1l; b14 = #2l } } in
+  let a : t14 array = makearray_dynamic size #{ a14 = 0; b14 = #{ a13 = #1l } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 73;
+    mark_test_run 74;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 73 failed %d %d" size i;
+    if not test then failwithf "test 74 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 74;
+    mark_test_run 75;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 74 failed %d %d" size i;
+    if not test then failwithf "test 75 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -1030,32 +1059,26 @@ let test size =
     (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
     (* [el] is the reference value, updated with [with] *)
     let el = get a i in
-    (* Path: [.#a15] *)
-    let el = #{ el with a15 = next_el.#a15 } in
-    Idx_mut.unsafe_set a ((.(i).#a15) : (t15 array, _) idx_mut) next_el.#a15;
-    mark_test_run 75;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 75 failed %d %d" size i;
-    (* Path: [.#b15] *)
-    let el = #{ el with b15 = next_el.#b15 } in
-    Idx_mut.unsafe_set a ((.(i).#b15) : (t15 array, _) idx_mut) next_el.#b15;
+    (* Path: [.#a14] *)
+    let el = #{ el with a14 = next_el.#a14 } in
+    Idx_mut.unsafe_set a ((.(i).#a14) : (t14 array, _) idx_mut) next_el.#a14;
     mark_test_run 76;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 76 failed %d %d" size i;
+    (* Path: [.#b14] *)
+    let el = #{ el with b14 = next_el.#b14 } in
+    Idx_mut.unsafe_set a ((.(i).#b14) : (t14 array, _) idx_mut) next_el.#b14;
+    mark_test_run 77;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 77 failed %d %d" size i;
     (* Paths of depth 2 *)
     let next_el = mk_value (i + 100 * 2) in
     (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
     (* [el] is the reference value, updated with [with] *)
     let el = get a i in
-    (* Path: [.#b15.#a14] *)
-    let el = #{ el with b15 = #{ el.#b15 with a14 = next_el.#b15.#a14 } } in
-    Idx_mut.unsafe_set a ((.(i).#b15.#a14) : (t15 array, _) idx_mut) next_el.#b15.#a14;
-    mark_test_run 77;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 77 failed %d %d" size i;
-    (* Path: [.#b15.#b14] *)
-    let el = #{ el with b15 = #{ el.#b15 with b14 = next_el.#b15.#b14 } } in
-    Idx_mut.unsafe_set a ((.(i).#b15.#b14) : (t15 array, _) idx_mut) next_el.#b15.#b14;
+    (* Path: [.#b14.#a13] *)
+    let el = #{ el with b14 = #{ el.#b14 with a13 = next_el.#b14.#a13 } } in
+    Idx_mut.unsafe_set a ((.(i).#b14.#a13) : (t14 array, _) idx_mut) next_el.#b14.#a13;
     mark_test_run 78;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 78 failed %d %d" size i;
@@ -1063,13 +1086,13 @@ let test size =
   done;
   Gc.compact ();
 
-  (************************)
-  (*   t16 = #{ int64 }   *)
-  (************************)
-  let eq = (fun #{ a16 = a161 } #{ a16 = a162 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a161 a162) in
-  let mk_value i = #{ a16 = Int64.of_int (i + 0) } in
+  (*******************************************)
+  (*   t16 = #{ int; #{ int32#; int32# } }   *)
+  (*******************************************)
+  let eq = (fun #{ a16 = a161; b16 = b161 } #{ a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && (fun #{ a15 = a151; b15 = b151 } #{ a15 = a152; b15 = b152 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a151 a152 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b151 b152) b161 b162) in
+  let mk_value i = #{ a16 = (i + 0); b16 = #{ a15 = Int32_u.of_int (i + 1); b15 = Int32_u.of_int (i + 2) } } in
   (* Create an array of size [size] *)
-  let a : t16 array = makearray_dynamic size #{ a16 = 0L } in
+  let a : t16 array = makearray_dynamic size #{ a16 = 0; b16 = #{ a15 = #1l; b15 = #2l } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
@@ -1098,32 +1121,55 @@ let test size =
     mark_test_run 81;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 81 failed %d %d" size i;
+    (* Path: [.#b16] *)
+    let el = #{ el with b16 = next_el.#b16 } in
+    Idx_mut.unsafe_set a ((.(i).#b16) : (t16 array, _) idx_mut) next_el.#b16;
+    mark_test_run 82;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 82 failed %d %d" size i;
+    (* Paths of depth 2 *)
+    let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#b16.#a15] *)
+    let el = #{ el with b16 = #{ el.#b16 with a15 = next_el.#b16.#a15 } } in
+    Idx_mut.unsafe_set a ((.(i).#b16.#a15) : (t16 array, _) idx_mut) next_el.#b16.#a15;
+    mark_test_run 83;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 83 failed %d %d" size i;
+    (* Path: [.#b16.#b15] *)
+    let el = #{ el with b16 = #{ el.#b16 with b15 = next_el.#b16.#b15 } } in
+    Idx_mut.unsafe_set a ((.(i).#b16.#b15) : (t16 array, _) idx_mut) next_el.#b16.#b15;
+    mark_test_run 84;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 84 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (*****************************)
-  (*   t17 = #{ int64; int }   *)
-  (*****************************)
-  let eq = (fun #{ a17 = a171; b17 = b171 } #{ a17 = a172; b17 = b172 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a171 a172 && (fun a b -> Int.equal a b) b171 b172) in
-  let mk_value i = #{ a17 = Int64.of_int (i + 0); b17 = (i + 1) } in
+  (************************)
+  (*   t17 = #{ int64 }   *)
+  (************************)
+  let eq = (fun #{ a17 = a171 } #{ a17 = a172 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a171 a172) in
+  let mk_value i = #{ a17 = Int64.of_int (i + 0) } in
   (* Create an array of size [size] *)
-  let a : t17 array = makearray_dynamic size #{ a17 = 0L; b17 = 1 } in
+  let a : t17 array = makearray_dynamic size #{ a17 = 0L } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 82;
+    mark_test_run 85;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 82 failed %d %d" size i;
+    if not test then failwithf "test 85 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 83;
+    mark_test_run 86;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 83 failed %d %d" size i;
+    if not test then failwithf "test 86 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -1134,41 +1180,35 @@ let test size =
     (* Path: [.#a17] *)
     let el = #{ el with a17 = next_el.#a17 } in
     Idx_mut.unsafe_set a ((.(i).#a17) : (t17 array, _) idx_mut) next_el.#a17;
-    mark_test_run 84;
+    mark_test_run 87;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 84 failed %d %d" size i;
-    (* Path: [.#b17] *)
-    let el = #{ el with b17 = next_el.#b17 } in
-    Idx_mut.unsafe_set a ((.(i).#b17) : (t17 array, _) idx_mut) next_el.#b17;
-    mark_test_run 85;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 85 failed %d %d" size i;
+    if not test then failwithf "test 87 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (*******************************)
-  (*   t18 = #{ int64; int64 }   *)
-  (*******************************)
-  let eq = (fun #{ a18 = a181; b18 = b181 } #{ a18 = a182; b18 = b182 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a181 a182 && (fun a b -> Int64.equal (globalize a) (globalize b)) b181 b182) in
-  let mk_value i = #{ a18 = Int64.of_int (i + 0); b18 = Int64.of_int (i + 1) } in
+  (*****************************)
+  (*   t18 = #{ int64; int }   *)
+  (*****************************)
+  let eq = (fun #{ a18 = a181; b18 = b181 } #{ a18 = a182; b18 = b182 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a181 a182 && (fun a b -> Int.equal a b) b181 b182) in
+  let mk_value i = #{ a18 = Int64.of_int (i + 0); b18 = (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t18 array = makearray_dynamic size #{ a18 = 0L; b18 = 1L } in
+  let a : t18 array = makearray_dynamic size #{ a18 = 0L; b18 = 1 } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 86;
+    mark_test_run 88;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 86 failed %d %d" size i;
+    if not test then failwithf "test 88 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 87;
+    mark_test_run 89;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 87 failed %d %d" size i;
+    if not test then failwithf "test 89 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -1179,41 +1219,41 @@ let test size =
     (* Path: [.#a18] *)
     let el = #{ el with a18 = next_el.#a18 } in
     Idx_mut.unsafe_set a ((.(i).#a18) : (t18 array, _) idx_mut) next_el.#a18;
-    mark_test_run 88;
+    mark_test_run 90;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 88 failed %d %d" size i;
+    if not test then failwithf "test 90 failed %d %d" size i;
     (* Path: [.#b18] *)
     let el = #{ el with b18 = next_el.#b18 } in
     Idx_mut.unsafe_set a ((.(i).#b18) : (t18 array, _) idx_mut) next_el.#b18;
-    mark_test_run 89;
+    mark_test_run 91;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 89 failed %d %d" size i;
+    if not test then failwithf "test 91 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (*************************)
-  (*   t19 = #{ int64# }   *)
-  (*************************)
-  let eq = (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a191 a192) in
-  let mk_value i = #{ a19 = Int64_u.of_int (i + 0) } in
+  (*******************************)
+  (*   t19 = #{ int64; int64 }   *)
+  (*******************************)
+  let eq = (fun #{ a19 = a191; b19 = b191 } #{ a19 = a192; b19 = b192 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a191 a192 && (fun a b -> Int64.equal (globalize a) (globalize b)) b191 b192) in
+  let mk_value i = #{ a19 = Int64.of_int (i + 0); b19 = Int64.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t19 array = makearray_dynamic size #{ a19 = #0L } in
+  let a : t19 array = makearray_dynamic size #{ a19 = 0L; b19 = 1L } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 90;
+    mark_test_run 92;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 90 failed %d %d" size i;
+    if not test then failwithf "test 92 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 91;
+    mark_test_run 93;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 91 failed %d %d" size i;
+    if not test then failwithf "test 93 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -1224,35 +1264,41 @@ let test size =
     (* Path: [.#a19] *)
     let el = #{ el with a19 = next_el.#a19 } in
     Idx_mut.unsafe_set a ((.(i).#a19) : (t19 array, _) idx_mut) next_el.#a19;
-    mark_test_run 92;
+    mark_test_run 94;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 92 failed %d %d" size i;
+    if not test then failwithf "test 94 failed %d %d" size i;
+    (* Path: [.#b19] *)
+    let el = #{ el with b19 = next_el.#b19 } in
+    Idx_mut.unsafe_set a ((.(i).#b19) : (t19 array, _) idx_mut) next_el.#b19;
+    mark_test_run 95;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 95 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (*********************************)
-  (*   t20 = #{ int64#; int64# }   *)
-  (*********************************)
-  let eq = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a201 a202 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b201 b202) in
-  let mk_value i = #{ a20 = Int64_u.of_int (i + 0); b20 = Int64_u.of_int (i + 1) } in
+  (********************************)
+  (*   t20 = #{ int64; unit_u }   *)
+  (********************************)
+  let eq = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a201 a202 && (fun _ _ -> true) b201 b202) in
+  let mk_value i = #{ a20 = Int64.of_int (i + 0); b20 = unbox_unit () } in
   (* Create an array of size [size] *)
-  let a : t20 array = makearray_dynamic size #{ a20 = #0L; b20 = #1L } in
+  let a : t20 array = makearray_dynamic size #{ a20 = 0L; b20 = (unbox_unit ()) } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 93;
+    mark_test_run 96;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 93 failed %d %d" size i;
+    if not test then failwithf "test 96 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 94;
+    mark_test_run 97;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 94 failed %d %d" size i;
+    if not test then failwithf "test 97 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -1263,41 +1309,41 @@ let test size =
     (* Path: [.#a20] *)
     let el = #{ el with a20 = next_el.#a20 } in
     Idx_mut.unsafe_set a ((.(i).#a20) : (t20 array, _) idx_mut) next_el.#a20;
-    mark_test_run 95;
+    mark_test_run 98;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 95 failed %d %d" size i;
+    if not test then failwithf "test 98 failed %d %d" size i;
     (* Path: [.#b20] *)
     let el = #{ el with b20 = next_el.#b20 } in
     Idx_mut.unsafe_set a ((.(i).#b20) : (t20 array, _) idx_mut) next_el.#b20;
-    mark_test_run 96;
+    mark_test_run 99;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 96 failed %d %d" size i;
+    if not test then failwithf "test 99 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (*********************************)
-  (*   t21 = #{ int64#; int32# }   *)
-  (*********************************)
-  let eq = (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a211 a212 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b211 b212) in
-  let mk_value i = #{ a21 = Int64_u.of_int (i + 0); b21 = Int32_u.of_int (i + 1) } in
+  (*************************)
+  (*   t21 = #{ int64# }   *)
+  (*************************)
+  let eq = (fun #{ a21 = a211 } #{ a21 = a212 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a211 a212) in
+  let mk_value i = #{ a21 = Int64_u.of_int (i + 0) } in
   (* Create an array of size [size] *)
-  let a : t21 array = makearray_dynamic size #{ a21 = #0L; b21 = #1l } in
+  let a : t21 array = makearray_dynamic size #{ a21 = #0L } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 97;
+    mark_test_run 100;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 97 failed %d %d" size i;
+    if not test then failwithf "test 100 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 98;
+    mark_test_run 101;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 98 failed %d %d" size i;
+    if not test then failwithf "test 101 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -1308,41 +1354,35 @@ let test size =
     (* Path: [.#a21] *)
     let el = #{ el with a21 = next_el.#a21 } in
     Idx_mut.unsafe_set a ((.(i).#a21) : (t21 array, _) idx_mut) next_el.#a21;
-    mark_test_run 99;
+    mark_test_run 102;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 99 failed %d %d" size i;
-    (* Path: [.#b21] *)
-    let el = #{ el with b21 = next_el.#b21 } in
-    Idx_mut.unsafe_set a ((.(i).#b21) : (t21 array, _) idx_mut) next_el.#b21;
-    mark_test_run 100;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 100 failed %d %d" size i;
+    if not test then failwithf "test 102 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (*************************************)
-  (*   t22 = #{ int64#; nativeint# }   *)
-  (*************************************)
-  let eq = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a221 a222 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b221 b222) in
-  let mk_value i = #{ a22 = Int64_u.of_int (i + 0); b22 = Nativeint_u.of_int (i + 1) } in
+  (*********************************)
+  (*   t22 = #{ int64#; int64# }   *)
+  (*********************************)
+  let eq = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a221 a222 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b221 b222) in
+  let mk_value i = #{ a22 = Int64_u.of_int (i + 0); b22 = Int64_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t22 array = makearray_dynamic size #{ a22 = #0L; b22 = #1n } in
+  let a : t22 array = makearray_dynamic size #{ a22 = #0L; b22 = #1L } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 101;
+    mark_test_run 103;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 101 failed %d %d" size i;
+    if not test then failwithf "test 103 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 102;
+    mark_test_run 104;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 102 failed %d %d" size i;
+    if not test then failwithf "test 104 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -1353,80 +1393,41 @@ let test size =
     (* Path: [.#a22] *)
     let el = #{ el with a22 = next_el.#a22 } in
     Idx_mut.unsafe_set a ((.(i).#a22) : (t22 array, _) idx_mut) next_el.#a22;
-    mark_test_run 103;
+    mark_test_run 105;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 103 failed %d %d" size i;
+    if not test then failwithf "test 105 failed %d %d" size i;
     (* Path: [.#b22] *)
     let el = #{ el with b22 = next_el.#b22 } in
     Idx_mut.unsafe_set a ((.(i).#b22) : (t22 array, _) idx_mut) next_el.#b22;
-    mark_test_run 104;
+    mark_test_run 106;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 104 failed %d %d" size i;
+    if not test then failwithf "test 106 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (*************************)
-  (*   t12 = #{ int32# }   *)
-  (*************************)
-  let eq = (fun #{ a12 = a121 } #{ a12 = a122 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a121 a122) in
-  let mk_value i = #{ a12 = Int32_u.of_int (i + 0) } in
+  (*********************************)
+  (*   t23 = #{ int64#; int32# }   *)
+  (*********************************)
+  let eq = (fun #{ a23 = a231; b23 = b231 } #{ a23 = a232; b23 = b232 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a231 a232 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b231 b232) in
+  let mk_value i = #{ a23 = Int64_u.of_int (i + 0); b23 = Int32_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t12 array = makearray_dynamic size #{ a12 = #0l } in
+  let a : t23 array = makearray_dynamic size #{ a23 = #0L; b23 = #1l } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 105;
+    mark_test_run 107;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 105 failed %d %d" size i;
+    if not test then failwithf "test 107 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 106;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 106 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    (* Paths of depth 1 *)
-    let next_el = mk_value (i + 100 * 1) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
-    (* [el] is the reference value, updated with [with] *)
-    let el = get a i in
-    (* Path: [.#a12] *)
-    let el = #{ el with a12 = next_el.#a12 } in
-    Idx_mut.unsafe_set a ((.(i).#a12) : (t12 array, _) idx_mut) next_el.#a12;
-    mark_test_run 107;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 107 failed %d %d" size i;
-    ()
-  done;
-  Gc.compact ();
-
-  (*********************************)
-  (*   t23 = #{ int32#; int64# }   *)
-  (*********************************)
-  let eq = (fun #{ a23 = a231; b23 = b231 } #{ a23 = a232; b23 = b232 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a231 a232 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b231 b232) in
-  let mk_value i = #{ a23 = Int32_u.of_int (i + 0); b23 = Int64_u.of_int (i + 1) } in
-  (* Create an array of size [size] *)
-  let a : t23 array = makearray_dynamic size #{ a23 = #0l; b23 = #1L } in
-  (* Fill [a] with distinct values using block indices *)
-  for i = 0 to size - 1 do
-    Idx_mut.unsafe_set a (.(i)) (mk_value i);
-  done;
-  Gc.compact ();
   for i = 0 to size - 1 do
     mark_test_run 108;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 108 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 109;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 109 failed %d %d" size i;
+    if not test then failwithf "test 108 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -1437,86 +1438,41 @@ let test size =
     (* Path: [.#a23] *)
     let el = #{ el with a23 = next_el.#a23 } in
     Idx_mut.unsafe_set a ((.(i).#a23) : (t23 array, _) idx_mut) next_el.#a23;
-    mark_test_run 110;
+    mark_test_run 109;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 110 failed %d %d" size i;
+    if not test then failwithf "test 109 failed %d %d" size i;
     (* Path: [.#b23] *)
     let el = #{ el with b23 = next_el.#b23 } in
     Idx_mut.unsafe_set a ((.(i).#b23) : (t23 array, _) idx_mut) next_el.#b23;
-    mark_test_run 111;
+    mark_test_run 110;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 111 failed %d %d" size i;
+    if not test then failwithf "test 110 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (*********************************)
-  (*   t14 = #{ int32#; int32# }   *)
-  (*********************************)
-  let eq = (fun #{ a14 = a141; b14 = b141 } #{ a14 = a142; b14 = b142 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a141 a142 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b141 b142) in
-  let mk_value i = #{ a14 = Int32_u.of_int (i + 0); b14 = Int32_u.of_int (i + 1) } in
+  (*************************************)
+  (*   t24 = #{ int64#; nativeint# }   *)
+  (*************************************)
+  let eq = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a241 a242 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b241 b242) in
+  let mk_value i = #{ a24 = Int64_u.of_int (i + 0); b24 = Nativeint_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t14 array = makearray_dynamic size #{ a14 = #0l; b14 = #1l } in
+  let a : t24 array = makearray_dynamic size #{ a24 = #0L; b24 = #1n } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 111;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 111 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
     mark_test_run 112;
-    let test = eq (get a i) (mk_value i) in
+    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
     if not test then failwithf "test 112 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 113;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 113 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    (* Paths of depth 1 *)
-    let next_el = mk_value (i + 100 * 1) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
-    (* [el] is the reference value, updated with [with] *)
-    let el = get a i in
-    (* Path: [.#a14] *)
-    let el = #{ el with a14 = next_el.#a14 } in
-    Idx_mut.unsafe_set a ((.(i).#a14) : (t14 array, _) idx_mut) next_el.#a14;
-    mark_test_run 114;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 114 failed %d %d" size i;
-    (* Path: [.#b14] *)
-    let el = #{ el with b14 = next_el.#b14 } in
-    Idx_mut.unsafe_set a ((.(i).#b14) : (t14 array, _) idx_mut) next_el.#b14;
-    mark_test_run 115;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 115 failed %d %d" size i;
-    ()
-  done;
-  Gc.compact ();
-
-  (*****************************************)
-  (*   t24 = #{ int32#; int32#; int32# }   *)
-  (*****************************************)
-  let eq = (fun #{ a24 = a241; b24 = b241; c24 = c241 } #{ a24 = a242; b24 = b242; c24 = c242 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a241 a242 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b241 b242 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c241 c242) in
-  let mk_value i = #{ a24 = Int32_u.of_int (i + 0); b24 = Int32_u.of_int (i + 1); c24 = Int32_u.of_int (i + 2) } in
-  (* Create an array of size [size] *)
-  let a : t24 array = makearray_dynamic size #{ a24 = #0l; b24 = #1l; c24 = #2l } in
-  (* Fill [a] with distinct values using block indices *)
-  for i = 0 to size - 1 do
-    Idx_mut.unsafe_set a (.(i)) (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 116;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 116 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 117;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 117 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -1527,47 +1483,41 @@ let test size =
     (* Path: [.#a24] *)
     let el = #{ el with a24 = next_el.#a24 } in
     Idx_mut.unsafe_set a ((.(i).#a24) : (t24 array, _) idx_mut) next_el.#a24;
-    mark_test_run 118;
+    mark_test_run 113;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 118 failed %d %d" size i;
+    if not test then failwithf "test 113 failed %d %d" size i;
     (* Path: [.#b24] *)
     let el = #{ el with b24 = next_el.#b24 } in
     Idx_mut.unsafe_set a ((.(i).#b24) : (t24 array, _) idx_mut) next_el.#b24;
-    mark_test_run 119;
+    mark_test_run 114;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 119 failed %d %d" size i;
-    (* Path: [.#c24] *)
-    let el = #{ el with c24 = next_el.#c24 } in
-    Idx_mut.unsafe_set a ((.(i).#c24) : (t24 array, _) idx_mut) next_el.#c24;
-    mark_test_run 120;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 120 failed %d %d" size i;
+    if not test then failwithf "test 114 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (*************************************)
-  (*   t25 = #{ int32#; nativeint# }   *)
-  (*************************************)
-  let eq = (fun #{ a25 = a251; b25 = b251 } #{ a25 = a252; b25 = b252 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a251 a252 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b251 b252) in
-  let mk_value i = #{ a25 = Int32_u.of_int (i + 0); b25 = Nativeint_u.of_int (i + 1) } in
+  (*********************************)
+  (*   t25 = #{ int64#; unit_u }   *)
+  (*********************************)
+  let eq = (fun #{ a25 = a251; b25 = b251 } #{ a25 = a252; b25 = b252 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a251 a252 && (fun _ _ -> true) b251 b252) in
+  let mk_value i = #{ a25 = Int64_u.of_int (i + 0); b25 = unbox_unit () } in
   (* Create an array of size [size] *)
-  let a : t25 array = makearray_dynamic size #{ a25 = #0l; b25 = #1n } in
+  let a : t25 array = makearray_dynamic size #{ a25 = #0L; b25 = (unbox_unit ()) } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 121;
+    mark_test_run 115;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 121 failed %d %d" size i;
+    if not test then failwithf "test 115 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 122;
+    mark_test_run 116;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 122 failed %d %d" size i;
+    if not test then failwithf "test 116 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -1578,41 +1528,80 @@ let test size =
     (* Path: [.#a25] *)
     let el = #{ el with a25 = next_el.#a25 } in
     Idx_mut.unsafe_set a ((.(i).#a25) : (t25 array, _) idx_mut) next_el.#a25;
-    mark_test_run 123;
+    mark_test_run 117;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 123 failed %d %d" size i;
+    if not test then failwithf "test 117 failed %d %d" size i;
     (* Path: [.#b25] *)
     let el = #{ el with b25 = next_el.#b25 } in
     Idx_mut.unsafe_set a ((.(i).#b25) : (t25 array, _) idx_mut) next_el.#b25;
-    mark_test_run 124;
+    mark_test_run 118;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 124 failed %d %d" size i;
+    if not test then failwithf "test 118 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (**************************************)
-  (*   t26 = #{ int32#; #{ int32# } }   *)
-  (**************************************)
-  let eq = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun #{ a12 = a121 } #{ a12 = a122 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a121 a122) b261 b262) in
-  let mk_value i = #{ a26 = Int32_u.of_int (i + 0); b26 = #{ a12 = Int32_u.of_int (i + 1) } } in
+  (*************************)
+  (*   t13 = #{ int32# }   *)
+  (*************************)
+  let eq = (fun #{ a13 = a131 } #{ a13 = a132 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a131 a132) in
+  let mk_value i = #{ a13 = Int32_u.of_int (i + 0) } in
   (* Create an array of size [size] *)
-  let a : t26 array = makearray_dynamic size #{ a26 = #0l; b26 = #{ a12 = #1l } } in
+  let a : t13 array = makearray_dynamic size #{ a13 = #0l } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 125;
+    mark_test_run 119;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 125 failed %d %d" size i;
+    if not test then failwithf "test 119 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 126;
+    mark_test_run 120;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 126 failed %d %d" size i;
+    if not test then failwithf "test 120 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    (* Paths of depth 1 *)
+    let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a13] *)
+    let el = #{ el with a13 = next_el.#a13 } in
+    Idx_mut.unsafe_set a ((.(i).#a13) : (t13 array, _) idx_mut) next_el.#a13;
+    mark_test_run 121;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 121 failed %d %d" size i;
+    ()
+  done;
+  Gc.compact ();
+
+  (*********************************)
+  (*   t26 = #{ int32#; int64# }   *)
+  (*********************************)
+  let eq = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a261 a262 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b261 b262) in
+  let mk_value i = #{ a26 = Int32_u.of_int (i + 0); b26 = Int64_u.of_int (i + 1) } in
+  (* Create an array of size [size] *)
+  let a : t26 array = makearray_dynamic size #{ a26 = #0l; b26 = #1L } in
+  (* Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    Idx_mut.unsafe_set a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 122;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 122 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 123;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
+    if not test then failwithf "test 123 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -1623,23 +1612,57 @@ let test size =
     (* Path: [.#a26] *)
     let el = #{ el with a26 = next_el.#a26 } in
     Idx_mut.unsafe_set a ((.(i).#a26) : (t26 array, _) idx_mut) next_el.#a26;
-    mark_test_run 127;
+    mark_test_run 124;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 127 failed %d %d" size i;
+    if not test then failwithf "test 124 failed %d %d" size i;
     (* Path: [.#b26] *)
     let el = #{ el with b26 = next_el.#b26 } in
     Idx_mut.unsafe_set a ((.(i).#b26) : (t26 array, _) idx_mut) next_el.#b26;
+    mark_test_run 125;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 125 failed %d %d" size i;
+    ()
+  done;
+  Gc.compact ();
+
+  (*********************************)
+  (*   t15 = #{ int32#; int32# }   *)
+  (*********************************)
+  let eq = (fun #{ a15 = a151; b15 = b151 } #{ a15 = a152; b15 = b152 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a151 a152 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b151 b152) in
+  let mk_value i = #{ a15 = Int32_u.of_int (i + 0); b15 = Int32_u.of_int (i + 1) } in
+  (* Create an array of size [size] *)
+  let a : t15 array = makearray_dynamic size #{ a15 = #0l; b15 = #1l } in
+  (* Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    Idx_mut.unsafe_set a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 126;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 126 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 127;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
+    if not test then failwithf "test 127 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    (* Paths of depth 1 *)
+    let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a15] *)
+    let el = #{ el with a15 = next_el.#a15 } in
+    Idx_mut.unsafe_set a ((.(i).#a15) : (t15 array, _) idx_mut) next_el.#a15;
     mark_test_run 128;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 128 failed %d %d" size i;
-    (* Paths of depth 2 *)
-    let next_el = mk_value (i + 100 * 2) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
-    (* [el] is the reference value, updated with [with] *)
-    let el = get a i in
-    (* Path: [.#b26.#a12] *)
-    let el = #{ el with b26 = #{ el.#b26 with a12 = next_el.#b26.#a12 } } in
-    Idx_mut.unsafe_set a ((.(i).#b26.#a12) : (t26 array, _) idx_mut) next_el.#b26.#a12;
+    (* Path: [.#b15] *)
+    let el = #{ el with b15 = next_el.#b15 } in
+    Idx_mut.unsafe_set a ((.(i).#b15) : (t15 array, _) idx_mut) next_el.#b15;
     mark_test_run 129;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 129 failed %d %d" size i;
@@ -1647,13 +1670,13 @@ let test size =
   done;
   Gc.compact ();
 
-  (**********************************************)
-  (*   t27 = #{ int32#; #{ int32#; int32# } }   *)
-  (**********************************************)
-  let eq = (fun #{ a27 = a271; b27 = b271 } #{ a27 = a272; b27 = b272 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a271 a272 && (fun #{ a14 = a141; b14 = b141 } #{ a14 = a142; b14 = b142 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a141 a142 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b141 b142) b271 b272) in
-  let mk_value i = #{ a27 = Int32_u.of_int (i + 0); b27 = #{ a14 = Int32_u.of_int (i + 1); b14 = Int32_u.of_int (i + 2) } } in
+  (*****************************************)
+  (*   t27 = #{ int32#; int32#; int32# }   *)
+  (*****************************************)
+  let eq = (fun #{ a27 = a271; b27 = b271; c27 = c271 } #{ a27 = a272; b27 = b272; c27 = c272 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a271 a272 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b271 b272 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c271 c272) in
+  let mk_value i = #{ a27 = Int32_u.of_int (i + 0); b27 = Int32_u.of_int (i + 1); c27 = Int32_u.of_int (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t27 array = makearray_dynamic size #{ a27 = #0l; b27 = #{ a14 = #1l; b14 = #2l } } in
+  let a : t27 array = makearray_dynamic size #{ a27 = #0l; b27 = #1l; c27 = #2l } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
@@ -1688,49 +1711,38 @@ let test size =
     mark_test_run 133;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 133 failed %d %d" size i;
-    (* Paths of depth 2 *)
-    let next_el = mk_value (i + 100 * 2) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
-    (* [el] is the reference value, updated with [with] *)
-    let el = get a i in
-    (* Path: [.#b27.#a14] *)
-    let el = #{ el with b27 = #{ el.#b27 with a14 = next_el.#b27.#a14 } } in
-    Idx_mut.unsafe_set a ((.(i).#b27.#a14) : (t27 array, _) idx_mut) next_el.#b27.#a14;
+    (* Path: [.#c27] *)
+    let el = #{ el with c27 = next_el.#c27 } in
+    Idx_mut.unsafe_set a ((.(i).#c27) : (t27 array, _) idx_mut) next_el.#c27;
     mark_test_run 134;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 134 failed %d %d" size i;
-    (* Path: [.#b27.#b14] *)
-    let el = #{ el with b27 = #{ el.#b27 with b14 = next_el.#b27.#b14 } } in
-    Idx_mut.unsafe_set a ((.(i).#b27.#b14) : (t27 array, _) idx_mut) next_el.#b27.#b14;
-    mark_test_run 135;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 135 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (*****************************)
-  (*   t28 = #{ nativeint# }   *)
-  (*****************************)
-  let eq = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a281 a282) in
-  let mk_value i = #{ a28 = Nativeint_u.of_int (i + 0) } in
+  (*************************************)
+  (*   t28 = #{ int32#; nativeint# }   *)
+  (*************************************)
+  let eq = (fun #{ a28 = a281; b28 = b281 } #{ a28 = a282; b28 = b282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b281 b282) in
+  let mk_value i = #{ a28 = Int32_u.of_int (i + 0); b28 = Nativeint_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t28 array = makearray_dynamic size #{ a28 = #0n } in
+  let a : t28 array = makearray_dynamic size #{ a28 = #0l; b28 = #1n } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 136;
+    mark_test_run 135;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 136 failed %d %d" size i;
+    if not test then failwithf "test 135 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 137;
+    mark_test_run 136;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 137 failed %d %d" size i;
+    if not test then failwithf "test 136 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -1741,6 +1753,12 @@ let test size =
     (* Path: [.#a28] *)
     let el = #{ el with a28 = next_el.#a28 } in
     Idx_mut.unsafe_set a ((.(i).#a28) : (t28 array, _) idx_mut) next_el.#a28;
+    mark_test_run 137;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 137 failed %d %d" size i;
+    (* Path: [.#b28] *)
+    let el = #{ el with b28 = next_el.#b28 } in
+    Idx_mut.unsafe_set a ((.(i).#b28) : (t28 array, _) idx_mut) next_el.#b28;
     mark_test_run 138;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 138 failed %d %d" size i;
@@ -1748,13 +1766,13 @@ let test size =
   done;
   Gc.compact ();
 
-  (*************************************)
-  (*   t29 = #{ nativeint#; int64# }   *)
-  (*************************************)
-  let eq = (fun #{ a29 = a291; b29 = b291 } #{ a29 = a292; b29 = b292 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a291 a292 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b291 b292) in
-  let mk_value i = #{ a29 = Nativeint_u.of_int (i + 0); b29 = Int64_u.of_int (i + 1) } in
+  (*********************************)
+  (*   t29 = #{ int32#; unit_u }   *)
+  (*********************************)
+  let eq = (fun #{ a29 = a291; b29 = b291 } #{ a29 = a292; b29 = b292 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a291 a292 && (fun _ _ -> true) b291 b292) in
+  let mk_value i = #{ a29 = Int32_u.of_int (i + 0); b29 = unbox_unit () } in
   (* Create an array of size [size] *)
-  let a : t29 array = makearray_dynamic size #{ a29 = #0n; b29 = #1L } in
+  let a : t29 array = makearray_dynamic size #{ a29 = #0l; b29 = (unbox_unit ()) } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
@@ -1793,13 +1811,13 @@ let test size =
   done;
   Gc.compact ();
 
-  (*************************************)
-  (*   t30 = #{ nativeint#; int32# }   *)
-  (*************************************)
-  let eq = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a301 a302 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b301 b302) in
-  let mk_value i = #{ a30 = Nativeint_u.of_int (i + 0); b30 = Int32_u.of_int (i + 1) } in
+  (**************************************)
+  (*   t30 = #{ int32#; #{ int32# } }   *)
+  (**************************************)
+  let eq = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun #{ a13 = a131 } #{ a13 = a132 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a131 a132) b301 b302) in
+  let mk_value i = #{ a30 = Int32_u.of_int (i + 0); b30 = #{ a13 = Int32_u.of_int (i + 1) } } in
   (* Create an array of size [size] *)
-  let a : t30 array = makearray_dynamic size #{ a30 = #0n; b30 = #1l } in
+  let a : t30 array = makearray_dynamic size #{ a30 = #0l; b30 = #{ a13 = #1l } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
@@ -1834,32 +1852,43 @@ let test size =
     mark_test_run 146;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 146 failed %d %d" size i;
+    (* Paths of depth 2 *)
+    let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#b30.#a13] *)
+    let el = #{ el with b30 = #{ el.#b30 with a13 = next_el.#b30.#a13 } } in
+    Idx_mut.unsafe_set a ((.(i).#b30.#a13) : (t30 array, _) idx_mut) next_el.#b30.#a13;
+    mark_test_run 147;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 147 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (*****************************************)
-  (*   t31 = #{ nativeint#; nativeint# }   *)
-  (*****************************************)
-  let eq = (fun #{ a31 = a311; b31 = b311 } #{ a31 = a312; b31 = b312 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a311 a312 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b311 b312) in
-  let mk_value i = #{ a31 = Nativeint_u.of_int (i + 0); b31 = Nativeint_u.of_int (i + 1) } in
+  (**********************************************)
+  (*   t31 = #{ int32#; #{ int32#; int32# } }   *)
+  (**********************************************)
+  let eq = (fun #{ a31 = a311; b31 = b311 } #{ a31 = a312; b31 = b312 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a311 a312 && (fun #{ a15 = a151; b15 = b151 } #{ a15 = a152; b15 = b152 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a151 a152 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b151 b152) b311 b312) in
+  let mk_value i = #{ a31 = Int32_u.of_int (i + 0); b31 = #{ a15 = Int32_u.of_int (i + 1); b15 = Int32_u.of_int (i + 2) } } in
   (* Create an array of size [size] *)
-  let a : t31 array = makearray_dynamic size #{ a31 = #0n; b31 = #1n } in
+  let a : t31 array = makearray_dynamic size #{ a31 = #0l; b31 = #{ a15 = #1l; b15 = #2l } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 147;
+    mark_test_run 148;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 147 failed %d %d" size i;
+    if not test then failwithf "test 148 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 148;
+    mark_test_run 149;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 148 failed %d %d" size i;
+    if not test then failwithf "test 149 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -1870,51 +1899,29 @@ let test size =
     (* Path: [.#a31] *)
     let el = #{ el with a31 = next_el.#a31 } in
     Idx_mut.unsafe_set a ((.(i).#a31) : (t31 array, _) idx_mut) next_el.#a31;
-    mark_test_run 149;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 149 failed %d %d" size i;
-    (* Path: [.#b31] *)
-    let el = #{ el with b31 = next_el.#b31 } in
-    Idx_mut.unsafe_set a ((.(i).#b31) : (t31 array, _) idx_mut) next_el.#b31;
     mark_test_run 150;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 150 failed %d %d" size i;
-    ()
-  done;
-  Gc.compact ();
-
-  (*************************)
-  (*   t32 = #{ float# }   *)
-  (*************************)
-  let eq = (fun #{ a32 = a321 } #{ a32 = a322 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a321 a322) in
-  let mk_value i = #{ a32 = Float_u.of_int (i + 0) } in
-  (* Create an array of size [size] *)
-  let a : t32 array = makearray_dynamic size #{ a32 = #0. } in
-  (* Fill [a] with distinct values using block indices *)
-  for i = 0 to size - 1 do
-    Idx_mut.unsafe_set a (.(i)) (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
+    (* Path: [.#b31] *)
+    let el = #{ el with b31 = next_el.#b31 } in
+    Idx_mut.unsafe_set a ((.(i).#b31) : (t31 array, _) idx_mut) next_el.#b31;
     mark_test_run 151;
-    let test = eq (get a i) (mk_value i) in
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 151 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 152;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 152 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    (* Paths of depth 1 *)
-    let next_el = mk_value (i + 100 * 1) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* Paths of depth 2 *)
+    let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
     (* [el] is the reference value, updated with [with] *)
     let el = get a i in
-    (* Path: [.#a32] *)
-    let el = #{ el with a32 = next_el.#a32 } in
-    Idx_mut.unsafe_set a ((.(i).#a32) : (t32 array, _) idx_mut) next_el.#a32;
+    (* Path: [.#b31.#a15] *)
+    let el = #{ el with b31 = #{ el.#b31 with a15 = next_el.#b31.#a15 } } in
+    Idx_mut.unsafe_set a ((.(i).#b31.#a15) : (t31 array, _) idx_mut) next_el.#b31.#a15;
+    mark_test_run 152;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 152 failed %d %d" size i;
+    (* Path: [.#b31.#b15] *)
+    let el = #{ el with b31 = #{ el.#b31 with b15 = next_el.#b31.#b15 } } in
+    Idx_mut.unsafe_set a ((.(i).#b31.#b15) : (t31 array, _) idx_mut) next_el.#b31.#b15;
     mark_test_run 153;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 153 failed %d %d" size i;
@@ -1922,13 +1929,13 @@ let test size =
   done;
   Gc.compact ();
 
-  (*********************************)
-  (*   t33 = #{ float#; float# }   *)
-  (*********************************)
-  let eq = (fun #{ a33 = a331; b33 = b331 } #{ a33 = a332; b33 = b332 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a331 a332 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b331 b332) in
-  let mk_value i = #{ a33 = Float_u.of_int (i + 0); b33 = Float_u.of_int (i + 1) } in
+  (*****************************)
+  (*   t32 = #{ nativeint# }   *)
+  (*****************************)
+  let eq = (fun #{ a32 = a321 } #{ a32 = a322 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a321 a322) in
+  let mk_value i = #{ a32 = Nativeint_u.of_int (i + 0) } in
   (* Create an array of size [size] *)
-  let a : t33 array = makearray_dynamic size #{ a33 = #0.; b33 = #1. } in
+  let a : t32 array = makearray_dynamic size #{ a32 = #0n } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
@@ -1951,44 +1958,83 @@ let test size =
     (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
     (* [el] is the reference value, updated with [with] *)
     let el = get a i in
-    (* Path: [.#a33] *)
-    let el = #{ el with a33 = next_el.#a33 } in
-    Idx_mut.unsafe_set a ((.(i).#a33) : (t33 array, _) idx_mut) next_el.#a33;
+    (* Path: [.#a32] *)
+    let el = #{ el with a32 = next_el.#a32 } in
+    Idx_mut.unsafe_set a ((.(i).#a32) : (t32 array, _) idx_mut) next_el.#a32;
     mark_test_run 156;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 156 failed %d %d" size i;
-    (* Path: [.#b33] *)
-    let el = #{ el with b33 = next_el.#b33 } in
-    Idx_mut.unsafe_set a ((.(i).#b33) : (t33 array, _) idx_mut) next_el.#b33;
-    mark_test_run 157;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 157 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (*****************************************)
-  (*   t34 = #{ float#; float#; float# }   *)
-  (*****************************************)
-  let eq = (fun #{ a34 = a341; b34 = b341; c34 = c341 } #{ a34 = a342; b34 = b342; c34 = c342 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a341 a342 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b341 b342 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) c341 c342) in
-  let mk_value i = #{ a34 = Float_u.of_int (i + 0); b34 = Float_u.of_int (i + 1); c34 = Float_u.of_int (i + 2) } in
+  (*************************************)
+  (*   t33 = #{ nativeint#; int64# }   *)
+  (*************************************)
+  let eq = (fun #{ a33 = a331; b33 = b331 } #{ a33 = a332; b33 = b332 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a331 a332 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b331 b332) in
+  let mk_value i = #{ a33 = Nativeint_u.of_int (i + 0); b33 = Int64_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t34 array = makearray_dynamic size #{ a34 = #0.; b34 = #1.; c34 = #2. } in
+  let a : t33 array = makearray_dynamic size #{ a33 = #0n; b33 = #1L } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 158;
+    mark_test_run 157;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 158 failed %d %d" size i;
+    if not test then failwithf "test 157 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 159;
+    mark_test_run 158;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
+    if not test then failwithf "test 158 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    (* Paths of depth 1 *)
+    let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a33] *)
+    let el = #{ el with a33 = next_el.#a33 } in
+    Idx_mut.unsafe_set a ((.(i).#a33) : (t33 array, _) idx_mut) next_el.#a33;
+    mark_test_run 159;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 159 failed %d %d" size i;
+    (* Path: [.#b33] *)
+    let el = #{ el with b33 = next_el.#b33 } in
+    Idx_mut.unsafe_set a ((.(i).#b33) : (t33 array, _) idx_mut) next_el.#b33;
+    mark_test_run 160;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 160 failed %d %d" size i;
+    ()
+  done;
+  Gc.compact ();
+
+  (*************************************)
+  (*   t34 = #{ nativeint#; int32# }   *)
+  (*************************************)
+  let eq = (fun #{ a34 = a341; b34 = b341 } #{ a34 = a342; b34 = b342 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a341 a342 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b341 b342) in
+  let mk_value i = #{ a34 = Nativeint_u.of_int (i + 0); b34 = Int32_u.of_int (i + 1) } in
+  (* Create an array of size [size] *)
+  let a : t34 array = makearray_dynamic size #{ a34 = #0n; b34 = #1l } in
+  (* Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    Idx_mut.unsafe_set a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 161;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 161 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 162;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
+    if not test then failwithf "test 162 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -1999,47 +2045,41 @@ let test size =
     (* Path: [.#a34] *)
     let el = #{ el with a34 = next_el.#a34 } in
     Idx_mut.unsafe_set a ((.(i).#a34) : (t34 array, _) idx_mut) next_el.#a34;
-    mark_test_run 160;
+    mark_test_run 163;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 160 failed %d %d" size i;
+    if not test then failwithf "test 163 failed %d %d" size i;
     (* Path: [.#b34] *)
     let el = #{ el with b34 = next_el.#b34 } in
     Idx_mut.unsafe_set a ((.(i).#b34) : (t34 array, _) idx_mut) next_el.#b34;
-    mark_test_run 161;
+    mark_test_run 164;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 161 failed %d %d" size i;
-    (* Path: [.#c34] *)
-    let el = #{ el with c34 = next_el.#c34 } in
-    Idx_mut.unsafe_set a ((.(i).#c34) : (t34 array, _) idx_mut) next_el.#c34;
-    mark_test_run 162;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 162 failed %d %d" size i;
+    if not test then failwithf "test 164 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (**************************************)
-  (*   t35 = #{ float#; #{ float# } }   *)
-  (**************************************)
-  let eq = (fun #{ a35 = a351; b35 = b351 } #{ a35 = a352; b35 = b352 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a351 a352 && (fun #{ a32 = a321 } #{ a32 = a322 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a321 a322) b351 b352) in
-  let mk_value i = #{ a35 = Float_u.of_int (i + 0); b35 = #{ a32 = Float_u.of_int (i + 1) } } in
+  (*****************************************)
+  (*   t35 = #{ nativeint#; nativeint# }   *)
+  (*****************************************)
+  let eq = (fun #{ a35 = a351; b35 = b351 } #{ a35 = a352; b35 = b352 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a351 a352 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b351 b352) in
+  let mk_value i = #{ a35 = Nativeint_u.of_int (i + 0); b35 = Nativeint_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t35 array = makearray_dynamic size #{ a35 = #0.; b35 = #{ a32 = #1. } } in
+  let a : t35 array = makearray_dynamic size #{ a35 = #0n; b35 = #1n } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 163;
+    mark_test_run 165;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 163 failed %d %d" size i;
+    if not test then failwithf "test 165 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 164;
+    mark_test_run 166;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 164 failed %d %d" size i;
+    if not test then failwithf "test 166 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -2050,52 +2090,41 @@ let test size =
     (* Path: [.#a35] *)
     let el = #{ el with a35 = next_el.#a35 } in
     Idx_mut.unsafe_set a ((.(i).#a35) : (t35 array, _) idx_mut) next_el.#a35;
-    mark_test_run 165;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 165 failed %d %d" size i;
-    (* Path: [.#b35] *)
-    let el = #{ el with b35 = next_el.#b35 } in
-    Idx_mut.unsafe_set a ((.(i).#b35) : (t35 array, _) idx_mut) next_el.#b35;
-    mark_test_run 166;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 166 failed %d %d" size i;
-    (* Paths of depth 2 *)
-    let next_el = mk_value (i + 100 * 2) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
-    (* [el] is the reference value, updated with [with] *)
-    let el = get a i in
-    (* Path: [.#b35.#a32] *)
-    let el = #{ el with b35 = #{ el.#b35 with a32 = next_el.#b35.#a32 } } in
-    Idx_mut.unsafe_set a ((.(i).#b35.#a32) : (t35 array, _) idx_mut) next_el.#b35.#a32;
     mark_test_run 167;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 167 failed %d %d" size i;
+    (* Path: [.#b35] *)
+    let el = #{ el with b35 = next_el.#b35 } in
+    Idx_mut.unsafe_set a ((.(i).#b35) : (t35 array, _) idx_mut) next_el.#b35;
+    mark_test_run 168;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 168 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (**********************************************)
-  (*   t36 = #{ float#; #{ float#; float# } }   *)
-  (**********************************************)
-  let eq = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a361 a362 && (fun #{ a33 = a331; b33 = b331 } #{ a33 = a332; b33 = b332 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a331 a332 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b331 b332) b361 b362) in
-  let mk_value i = #{ a36 = Float_u.of_int (i + 0); b36 = #{ a33 = Float_u.of_int (i + 1); b33 = Float_u.of_int (i + 2) } } in
+  (*************************************)
+  (*   t36 = #{ nativeint#; unit_u }   *)
+  (*************************************)
+  let eq = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a361 a362 && (fun _ _ -> true) b361 b362) in
+  let mk_value i = #{ a36 = Nativeint_u.of_int (i + 0); b36 = unbox_unit () } in
   (* Create an array of size [size] *)
-  let a : t36 array = makearray_dynamic size #{ a36 = #0.; b36 = #{ a33 = #1.; b33 = #2. } } in
+  let a : t36 array = makearray_dynamic size #{ a36 = #0n; b36 = (unbox_unit ()) } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 168;
+    mark_test_run 169;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 168 failed %d %d" size i;
+    if not test then failwithf "test 169 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 169;
+    mark_test_run 170;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 169 failed %d %d" size i;
+    if not test then failwithf "test 170 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -2106,58 +2135,41 @@ let test size =
     (* Path: [.#a36] *)
     let el = #{ el with a36 = next_el.#a36 } in
     Idx_mut.unsafe_set a ((.(i).#a36) : (t36 array, _) idx_mut) next_el.#a36;
-    mark_test_run 170;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 170 failed %d %d" size i;
-    (* Path: [.#b36] *)
-    let el = #{ el with b36 = next_el.#b36 } in
-    Idx_mut.unsafe_set a ((.(i).#b36) : (t36 array, _) idx_mut) next_el.#b36;
     mark_test_run 171;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 171 failed %d %d" size i;
-    (* Paths of depth 2 *)
-    let next_el = mk_value (i + 100 * 2) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
-    (* [el] is the reference value, updated with [with] *)
-    let el = get a i in
-    (* Path: [.#b36.#a33] *)
-    let el = #{ el with b36 = #{ el.#b36 with a33 = next_el.#b36.#a33 } } in
-    Idx_mut.unsafe_set a ((.(i).#b36.#a33) : (t36 array, _) idx_mut) next_el.#b36.#a33;
+    (* Path: [.#b36] *)
+    let el = #{ el with b36 = next_el.#b36 } in
+    Idx_mut.unsafe_set a ((.(i).#b36) : (t36 array, _) idx_mut) next_el.#b36;
     mark_test_run 172;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 172 failed %d %d" size i;
-    (* Path: [.#b36.#b33] *)
-    let el = #{ el with b36 = #{ el.#b36 with b33 = next_el.#b36.#b33 } } in
-    Idx_mut.unsafe_set a ((.(i).#b36.#b33) : (t36 array, _) idx_mut) next_el.#b36.#b33;
-    mark_test_run 173;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 173 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (***************************)
-  (*   t37 = #{ #{ int } }   *)
-  (***************************)
-  let eq = (fun #{ a37 = a371 } #{ a37 = a372 } -> (fun #{ a0 = a01 } #{ a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) a371 a372) in
-  let mk_value i = #{ a37 = #{ a0 = (i + 0) } } in
+  (*************************)
+  (*   t37 = #{ unit_u }   *)
+  (*************************)
+  let eq = (fun #{ a37 = a371 } #{ a37 = a372 } -> (fun _ _ -> true) a371 a372) in
+  let mk_value i = #{ a37 = unbox_unit () } in
   (* Create an array of size [size] *)
-  let a : t37 array = makearray_dynamic size #{ a37 = #{ a0 = 0 } } in
+  let a : t37 array = makearray_dynamic size #{ a37 = (unbox_unit ()) } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 174;
+    mark_test_run 173;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 174 failed %d %d" size i;
+    if not test then failwithf "test 173 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 175;
+    mark_test_run 174;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 175 failed %d %d" size i;
+    if not test then failwithf "test 174 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -2168,46 +2180,35 @@ let test size =
     (* Path: [.#a37] *)
     let el = #{ el with a37 = next_el.#a37 } in
     Idx_mut.unsafe_set a ((.(i).#a37) : (t37 array, _) idx_mut) next_el.#a37;
-    mark_test_run 176;
+    mark_test_run 175;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 176 failed %d %d" size i;
-    (* Paths of depth 2 *)
-    let next_el = mk_value (i + 100 * 2) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
-    (* [el] is the reference value, updated with [with] *)
-    let el = get a i in
-    (* Path: [.#a37.#a0] *)
-    let el = #{ el with a37 = #{ el.#a37 with a0 = next_el.#a37.#a0 } } in
-    Idx_mut.unsafe_set a ((.(i).#a37.#a0) : (t37 array, _) idx_mut) next_el.#a37.#a0;
-    mark_test_run 177;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 177 failed %d %d" size i;
+    if not test then failwithf "test 175 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (********************************)
-  (*   t38 = #{ #{ int }; int }   *)
-  (********************************)
-  let eq = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun #{ a0 = a01 } #{ a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) a381 a382 && (fun a b -> Int.equal a b) b381 b382) in
-  let mk_value i = #{ a38 = #{ a0 = (i + 0) }; b38 = (i + 1) } in
+  (******************************)
+  (*   t38 = #{ unit_u; int }   *)
+  (******************************)
+  let eq = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun _ _ -> true) a381 a382 && (fun a b -> Int.equal a b) b381 b382) in
+  let mk_value i = #{ a38 = unbox_unit (); b38 = (i + 0) } in
   (* Create an array of size [size] *)
-  let a : t38 array = makearray_dynamic size #{ a38 = #{ a0 = 0 }; b38 = 1 } in
+  let a : t38 array = makearray_dynamic size #{ a38 = (unbox_unit ()); b38 = 0 } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 178;
+    mark_test_run 176;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 178 failed %d %d" size i;
+    if not test then failwithf "test 176 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 179;
+    mark_test_run 177;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 179 failed %d %d" size i;
+    if not test then failwithf "test 177 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -2218,52 +2219,41 @@ let test size =
     (* Path: [.#a38] *)
     let el = #{ el with a38 = next_el.#a38 } in
     Idx_mut.unsafe_set a ((.(i).#a38) : (t38 array, _) idx_mut) next_el.#a38;
-    mark_test_run 180;
+    mark_test_run 178;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 180 failed %d %d" size i;
+    if not test then failwithf "test 178 failed %d %d" size i;
     (* Path: [.#b38] *)
     let el = #{ el with b38 = next_el.#b38 } in
     Idx_mut.unsafe_set a ((.(i).#b38) : (t38 array, _) idx_mut) next_el.#b38;
-    mark_test_run 181;
+    mark_test_run 179;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 181 failed %d %d" size i;
-    (* Paths of depth 2 *)
-    let next_el = mk_value (i + 100 * 2) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
-    (* [el] is the reference value, updated with [with] *)
-    let el = get a i in
-    (* Path: [.#a38.#a0] *)
-    let el = #{ el with a38 = #{ el.#a38 with a0 = next_el.#a38.#a0 } } in
-    Idx_mut.unsafe_set a ((.(i).#a38.#a0) : (t38 array, _) idx_mut) next_el.#a38.#a0;
-    mark_test_run 182;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 182 failed %d %d" size i;
+    if not test then failwithf "test 179 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (***********************************)
-  (*   t39 = #{ #{ int }; int32# }   *)
-  (***********************************)
-  let eq = (fun #{ a39 = a391; b39 = b391 } #{ a39 = a392; b39 = b392 } -> (fun #{ a0 = a01 } #{ a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) a391 a392 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b391 b392) in
-  let mk_value i = #{ a39 = #{ a0 = (i + 0) }; b39 = Int32_u.of_int (i + 1) } in
+  (********************************)
+  (*   t39 = #{ unit_u; int64 }   *)
+  (********************************)
+  let eq = (fun #{ a39 = a391; b39 = b391 } #{ a39 = a392; b39 = b392 } -> (fun _ _ -> true) a391 a392 && (fun a b -> Int64.equal (globalize a) (globalize b)) b391 b392) in
+  let mk_value i = #{ a39 = unbox_unit (); b39 = Int64.of_int (i + 0) } in
   (* Create an array of size [size] *)
-  let a : t39 array = makearray_dynamic size #{ a39 = #{ a0 = 0 }; b39 = #1l } in
+  let a : t39 array = makearray_dynamic size #{ a39 = (unbox_unit ()); b39 = 0L } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 183;
+    mark_test_run 180;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 183 failed %d %d" size i;
+    if not test then failwithf "test 180 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 184;
+    mark_test_run 181;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 184 failed %d %d" size i;
+    if not test then failwithf "test 181 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -2274,23 +2264,57 @@ let test size =
     (* Path: [.#a39] *)
     let el = #{ el with a39 = next_el.#a39 } in
     Idx_mut.unsafe_set a ((.(i).#a39) : (t39 array, _) idx_mut) next_el.#a39;
-    mark_test_run 185;
+    mark_test_run 182;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 185 failed %d %d" size i;
+    if not test then failwithf "test 182 failed %d %d" size i;
     (* Path: [.#b39] *)
     let el = #{ el with b39 = next_el.#b39 } in
     Idx_mut.unsafe_set a ((.(i).#b39) : (t39 array, _) idx_mut) next_el.#b39;
+    mark_test_run 183;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 183 failed %d %d" size i;
+    ()
+  done;
+  Gc.compact ();
+
+  (*********************************)
+  (*   t40 = #{ unit_u; int64# }   *)
+  (*********************************)
+  let eq = (fun #{ a40 = a401; b40 = b401 } #{ a40 = a402; b40 = b402 } -> (fun _ _ -> true) a401 a402 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b401 b402) in
+  let mk_value i = #{ a40 = unbox_unit (); b40 = Int64_u.of_int (i + 0) } in
+  (* Create an array of size [size] *)
+  let a : t40 array = makearray_dynamic size #{ a40 = (unbox_unit ()); b40 = #0L } in
+  (* Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    Idx_mut.unsafe_set a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 184;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 184 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 185;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
+    if not test then failwithf "test 185 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    (* Paths of depth 1 *)
+    let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a40] *)
+    let el = #{ el with a40 = next_el.#a40 } in
+    Idx_mut.unsafe_set a ((.(i).#a40) : (t40 array, _) idx_mut) next_el.#a40;
     mark_test_run 186;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 186 failed %d %d" size i;
-    (* Paths of depth 2 *)
-    let next_el = mk_value (i + 100 * 2) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
-    (* [el] is the reference value, updated with [with] *)
-    let el = get a i in
-    (* Path: [.#a39.#a0] *)
-    let el = #{ el with a39 = #{ el.#a39 with a0 = next_el.#a39.#a0 } } in
-    Idx_mut.unsafe_set a ((.(i).#a39.#a0) : (t39 array, _) idx_mut) next_el.#a39.#a0;
+    (* Path: [.#b40] *)
+    let el = #{ el with b40 = next_el.#b40 } in
+    Idx_mut.unsafe_set a ((.(i).#b40) : (t40 array, _) idx_mut) next_el.#b40;
     mark_test_run 187;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
     if not test then failwithf "test 187 failed %d %d" size i;
@@ -2298,13 +2322,13 @@ let test size =
   done;
   Gc.compact ();
 
-  (********************************)
-  (*   t40 = #{ #{ int; int } }   *)
-  (********************************)
-  let eq = (fun #{ a40 = a401 } #{ a40 = a402 } -> (fun #{ a1 = a11; b1 = b11 } #{ a1 = a12; b1 = b12 } -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) a401 a402) in
-  let mk_value i = #{ a40 = #{ a1 = (i + 0); b1 = (i + 1) } } in
+  (*********************************)
+  (*   t41 = #{ unit_u; int32# }   *)
+  (*********************************)
+  let eq = (fun #{ a41 = a411; b41 = b411 } #{ a41 = a412; b41 = b412 } -> (fun _ _ -> true) a411 a412 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b411 b412) in
+  let mk_value i = #{ a41 = unbox_unit (); b41 = Int32_u.of_int (i + 0) } in
   (* Create an array of size [size] *)
-  let a : t40 array = makearray_dynamic size #{ a40 = #{ a1 = 0; b1 = 1 } } in
+  let a : t41 array = makearray_dynamic size #{ a41 = (unbox_unit ()); b41 = #0l } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
@@ -2327,117 +2351,44 @@ let test size =
     (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
     (* [el] is the reference value, updated with [with] *)
     let el = get a i in
-    (* Path: [.#a40] *)
-    let el = #{ el with a40 = next_el.#a40 } in
-    Idx_mut.unsafe_set a ((.(i).#a40) : (t40 array, _) idx_mut) next_el.#a40;
-    mark_test_run 190;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 190 failed %d %d" size i;
-    (* Paths of depth 2 *)
-    let next_el = mk_value (i + 100 * 2) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
-    (* [el] is the reference value, updated with [with] *)
-    let el = get a i in
-    (* Path: [.#a40.#a1] *)
-    let el = #{ el with a40 = #{ el.#a40 with a1 = next_el.#a40.#a1 } } in
-    Idx_mut.unsafe_set a ((.(i).#a40.#a1) : (t40 array, _) idx_mut) next_el.#a40.#a1;
-    mark_test_run 191;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 191 failed %d %d" size i;
-    (* Path: [.#a40.#b1] *)
-    let el = #{ el with a40 = #{ el.#a40 with b1 = next_el.#a40.#b1 } } in
-    Idx_mut.unsafe_set a ((.(i).#a40.#b1) : (t40 array, _) idx_mut) next_el.#a40.#b1;
-    mark_test_run 192;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 192 failed %d %d" size i;
-    ()
-  done;
-  Gc.compact ();
-
-  (*************************************)
-  (*   t41 = #{ #{ int; int }; int }   *)
-  (*************************************)
-  let eq = (fun #{ a41 = a411; b41 = b411 } #{ a41 = a412; b41 = b412 } -> (fun #{ a1 = a11; b1 = b11 } #{ a1 = a12; b1 = b12 } -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) a411 a412 && (fun a b -> Int.equal a b) b411 b412) in
-  let mk_value i = #{ a41 = #{ a1 = (i + 0); b1 = (i + 1) }; b41 = (i + 2) } in
-  (* Create an array of size [size] *)
-  let a : t41 array = makearray_dynamic size #{ a41 = #{ a1 = 0; b1 = 1 }; b41 = 2 } in
-  (* Fill [a] with distinct values using block indices *)
-  for i = 0 to size - 1 do
-    Idx_mut.unsafe_set a (.(i)) (mk_value i);
-  done;
-  Gc.compact ();
-  for i = 0 to size - 1 do
-    mark_test_run 193;
-    let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 193 failed %d %d" size i;
-  done;
-  (* Also read back those values with block indices *)
-  for i = 0 to size - 1 do
-    mark_test_run 194;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 194 failed %d %d" size i;
-  done;
-  for i = 0 to size - 1 do
-    (* Paths of depth 1 *)
-    let next_el = mk_value (i + 100 * 1) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
-    (* [el] is the reference value, updated with [with] *)
-    let el = get a i in
     (* Path: [.#a41] *)
     let el = #{ el with a41 = next_el.#a41 } in
     Idx_mut.unsafe_set a ((.(i).#a41) : (t41 array, _) idx_mut) next_el.#a41;
-    mark_test_run 195;
+    mark_test_run 190;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 195 failed %d %d" size i;
+    if not test then failwithf "test 190 failed %d %d" size i;
     (* Path: [.#b41] *)
     let el = #{ el with b41 = next_el.#b41 } in
     Idx_mut.unsafe_set a ((.(i).#b41) : (t41 array, _) idx_mut) next_el.#b41;
-    mark_test_run 196;
+    mark_test_run 191;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 196 failed %d %d" size i;
-    (* Paths of depth 2 *)
-    let next_el = mk_value (i + 100 * 2) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
-    (* [el] is the reference value, updated with [with] *)
-    let el = get a i in
-    (* Path: [.#a41.#a1] *)
-    let el = #{ el with a41 = #{ el.#a41 with a1 = next_el.#a41.#a1 } } in
-    Idx_mut.unsafe_set a ((.(i).#a41.#a1) : (t41 array, _) idx_mut) next_el.#a41.#a1;
-    mark_test_run 197;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 197 failed %d %d" size i;
-    (* Path: [.#a41.#b1] *)
-    let el = #{ el with a41 = #{ el.#a41 with b1 = next_el.#a41.#b1 } } in
-    Idx_mut.unsafe_set a ((.(i).#a41.#b1) : (t41 array, _) idx_mut) next_el.#a41.#b1;
-    mark_test_run 198;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 198 failed %d %d" size i;
+    if not test then failwithf "test 191 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (****************************************)
-  (*   t42 = #{ #{ int; int }; int32# }   *)
-  (****************************************)
-  let eq = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> (fun #{ a1 = a11; b1 = b11 } #{ a1 = a12; b1 = b12 } -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) a421 a422 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b421 b422) in
-  let mk_value i = #{ a42 = #{ a1 = (i + 0); b1 = (i + 1) }; b42 = Int32_u.of_int (i + 2) } in
+  (*************************************)
+  (*   t42 = #{ unit_u; nativeint# }   *)
+  (*************************************)
+  let eq = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> (fun _ _ -> true) a421 a422 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b421 b422) in
+  let mk_value i = #{ a42 = unbox_unit (); b42 = Nativeint_u.of_int (i + 0) } in
   (* Create an array of size [size] *)
-  let a : t42 array = makearray_dynamic size #{ a42 = #{ a1 = 0; b1 = 1 }; b42 = #2l } in
+  let a : t42 array = makearray_dynamic size #{ a42 = (unbox_unit ()); b42 = #0n } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 199;
+    mark_test_run 192;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 199 failed %d %d" size i;
+    if not test then failwithf "test 192 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 200;
+    mark_test_run 193;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 200 failed %d %d" size i;
+    if not test then failwithf "test 193 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -2448,58 +2399,41 @@ let test size =
     (* Path: [.#a42] *)
     let el = #{ el with a42 = next_el.#a42 } in
     Idx_mut.unsafe_set a ((.(i).#a42) : (t42 array, _) idx_mut) next_el.#a42;
-    mark_test_run 201;
+    mark_test_run 194;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 201 failed %d %d" size i;
+    if not test then failwithf "test 194 failed %d %d" size i;
     (* Path: [.#b42] *)
     let el = #{ el with b42 = next_el.#b42 } in
     Idx_mut.unsafe_set a ((.(i).#b42) : (t42 array, _) idx_mut) next_el.#b42;
-    mark_test_run 202;
+    mark_test_run 195;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 202 failed %d %d" size i;
-    (* Paths of depth 2 *)
-    let next_el = mk_value (i + 100 * 2) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
-    (* [el] is the reference value, updated with [with] *)
-    let el = get a i in
-    (* Path: [.#a42.#a1] *)
-    let el = #{ el with a42 = #{ el.#a42 with a1 = next_el.#a42.#a1 } } in
-    Idx_mut.unsafe_set a ((.(i).#a42.#a1) : (t42 array, _) idx_mut) next_el.#a42.#a1;
-    mark_test_run 203;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 203 failed %d %d" size i;
-    (* Path: [.#a42.#b1] *)
-    let el = #{ el with a42 = #{ el.#a42 with b1 = next_el.#a42.#b1 } } in
-    Idx_mut.unsafe_set a ((.(i).#a42.#b1) : (t42 array, _) idx_mut) next_el.#a42.#b1;
-    mark_test_run 204;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 204 failed %d %d" size i;
+    if not test then failwithf "test 195 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (***********************************)
-  (*   t43 = #{ #{ int; int32# } }   *)
-  (***********************************)
-  let eq = (fun #{ a43 = a431 } #{ a43 = a432 } -> (fun #{ a6 = a61; b6 = b61 } #{ a6 = a62; b6 = b62 } -> (fun a b -> Int.equal a b) a61 a62 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b61 b62) a431 a432) in
-  let mk_value i = #{ a43 = #{ a6 = (i + 0); b6 = Int32_u.of_int (i + 1) } } in
+  (*********************************)
+  (*   t43 = #{ unit_u; unit_u }   *)
+  (*********************************)
+  let eq = (fun #{ a43 = a431; b43 = b431 } #{ a43 = a432; b43 = b432 } -> (fun _ _ -> true) a431 a432 && (fun _ _ -> true) b431 b432) in
+  let mk_value i = #{ a43 = unbox_unit (); b43 = unbox_unit () } in
   (* Create an array of size [size] *)
-  let a : t43 array = makearray_dynamic size #{ a43 = #{ a6 = 0; b6 = #1l } } in
+  let a : t43 array = makearray_dynamic size #{ a43 = (unbox_unit ()); b43 = (unbox_unit ()) } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 205;
+    mark_test_run 196;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 205 failed %d %d" size i;
+    if not test then failwithf "test 196 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 206;
+    mark_test_run 197;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 206 failed %d %d" size i;
+    if not test then failwithf "test 197 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -2510,52 +2444,41 @@ let test size =
     (* Path: [.#a43] *)
     let el = #{ el with a43 = next_el.#a43 } in
     Idx_mut.unsafe_set a ((.(i).#a43) : (t43 array, _) idx_mut) next_el.#a43;
-    mark_test_run 207;
+    mark_test_run 198;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 207 failed %d %d" size i;
-    (* Paths of depth 2 *)
-    let next_el = mk_value (i + 100 * 2) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
-    (* [el] is the reference value, updated with [with] *)
-    let el = get a i in
-    (* Path: [.#a43.#a6] *)
-    let el = #{ el with a43 = #{ el.#a43 with a6 = next_el.#a43.#a6 } } in
-    Idx_mut.unsafe_set a ((.(i).#a43.#a6) : (t43 array, _) idx_mut) next_el.#a43.#a6;
-    mark_test_run 208;
+    if not test then failwithf "test 198 failed %d %d" size i;
+    (* Path: [.#b43] *)
+    let el = #{ el with b43 = next_el.#b43 } in
+    Idx_mut.unsafe_set a ((.(i).#b43) : (t43 array, _) idx_mut) next_el.#b43;
+    mark_test_run 199;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 208 failed %d %d" size i;
-    (* Path: [.#a43.#b6] *)
-    let el = #{ el with a43 = #{ el.#a43 with b6 = next_el.#a43.#b6 } } in
-    Idx_mut.unsafe_set a ((.(i).#a43.#b6) : (t43 array, _) idx_mut) next_el.#a43.#b6;
-    mark_test_run 209;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 209 failed %d %d" size i;
+    if not test then failwithf "test 199 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (*******************************************)
-  (*   t44 = #{ #{ int; int32# }; int32# }   *)
-  (*******************************************)
-  let eq = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> (fun #{ a6 = a61; b6 = b61 } #{ a6 = a62; b6 = b62 } -> (fun a b -> Int.equal a b) a61 a62 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b61 b62) a441 a442 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b441 b442) in
-  let mk_value i = #{ a44 = #{ a6 = (i + 0); b6 = Int32_u.of_int (i + 1) }; b44 = Int32_u.of_int (i + 2) } in
+  (*************************)
+  (*   t44 = #{ float# }   *)
+  (*************************)
+  let eq = (fun #{ a44 = a441 } #{ a44 = a442 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a441 a442) in
+  let mk_value i = #{ a44 = Float_u.of_int (i + 0) } in
   (* Create an array of size [size] *)
-  let a : t44 array = makearray_dynamic size #{ a44 = #{ a6 = 0; b6 = #1l }; b44 = #2l } in
+  let a : t44 array = makearray_dynamic size #{ a44 = #0. } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 210;
+    mark_test_run 200;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 210 failed %d %d" size i;
+    if not test then failwithf "test 200 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 211;
+    mark_test_run 201;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 211 failed %d %d" size i;
+    if not test then failwithf "test 201 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -2566,58 +2489,35 @@ let test size =
     (* Path: [.#a44] *)
     let el = #{ el with a44 = next_el.#a44 } in
     Idx_mut.unsafe_set a ((.(i).#a44) : (t44 array, _) idx_mut) next_el.#a44;
-    mark_test_run 212;
+    mark_test_run 202;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 212 failed %d %d" size i;
-    (* Path: [.#b44] *)
-    let el = #{ el with b44 = next_el.#b44 } in
-    Idx_mut.unsafe_set a ((.(i).#b44) : (t44 array, _) idx_mut) next_el.#b44;
-    mark_test_run 213;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 213 failed %d %d" size i;
-    (* Paths of depth 2 *)
-    let next_el = mk_value (i + 100 * 2) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
-    (* [el] is the reference value, updated with [with] *)
-    let el = get a i in
-    (* Path: [.#a44.#a6] *)
-    let el = #{ el with a44 = #{ el.#a44 with a6 = next_el.#a44.#a6 } } in
-    Idx_mut.unsafe_set a ((.(i).#a44.#a6) : (t44 array, _) idx_mut) next_el.#a44.#a6;
-    mark_test_run 214;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 214 failed %d %d" size i;
-    (* Path: [.#a44.#b6] *)
-    let el = #{ el with a44 = #{ el.#a44 with b6 = next_el.#a44.#b6 } } in
-    Idx_mut.unsafe_set a ((.(i).#a44.#b6) : (t44 array, _) idx_mut) next_el.#a44.#b6;
-    mark_test_run 215;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 215 failed %d %d" size i;
+    if not test then failwithf "test 202 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (******************************)
-  (*   t45 = #{ #{ int32# } }   *)
-  (******************************)
-  let eq = (fun #{ a45 = a451 } #{ a45 = a452 } -> (fun #{ a12 = a121 } #{ a12 = a122 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a121 a122) a451 a452) in
-  let mk_value i = #{ a45 = #{ a12 = Int32_u.of_int (i + 0) } } in
+  (*********************************)
+  (*   t45 = #{ float#; float# }   *)
+  (*********************************)
+  let eq = (fun #{ a45 = a451; b45 = b451 } #{ a45 = a452; b45 = b452 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a451 a452 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b451 b452) in
+  let mk_value i = #{ a45 = Float_u.of_int (i + 0); b45 = Float_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t45 array = makearray_dynamic size #{ a45 = #{ a12 = #0l } } in
+  let a : t45 array = makearray_dynamic size #{ a45 = #0.; b45 = #1. } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 216;
+    mark_test_run 203;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 216 failed %d %d" size i;
+    if not test then failwithf "test 203 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 217;
+    mark_test_run 204;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 217 failed %d %d" size i;
+    if not test then failwithf "test 204 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -2628,46 +2528,41 @@ let test size =
     (* Path: [.#a45] *)
     let el = #{ el with a45 = next_el.#a45 } in
     Idx_mut.unsafe_set a ((.(i).#a45) : (t45 array, _) idx_mut) next_el.#a45;
-    mark_test_run 218;
+    mark_test_run 205;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 218 failed %d %d" size i;
-    (* Paths of depth 2 *)
-    let next_el = mk_value (i + 100 * 2) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
-    (* [el] is the reference value, updated with [with] *)
-    let el = get a i in
-    (* Path: [.#a45.#a12] *)
-    let el = #{ el with a45 = #{ el.#a45 with a12 = next_el.#a45.#a12 } } in
-    Idx_mut.unsafe_set a ((.(i).#a45.#a12) : (t45 array, _) idx_mut) next_el.#a45.#a12;
-    mark_test_run 219;
+    if not test then failwithf "test 205 failed %d %d" size i;
+    (* Path: [.#b45] *)
+    let el = #{ el with b45 = next_el.#b45 } in
+    Idx_mut.unsafe_set a ((.(i).#b45) : (t45 array, _) idx_mut) next_el.#b45;
+    mark_test_run 206;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 219 failed %d %d" size i;
+    if not test then failwithf "test 206 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (**************************************)
-  (*   t46 = #{ #{ int32# }; int32# }   *)
-  (**************************************)
-  let eq = (fun #{ a46 = a461; b46 = b461 } #{ a46 = a462; b46 = b462 } -> (fun #{ a12 = a121 } #{ a12 = a122 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a121 a122) a461 a462 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b461 b462) in
-  let mk_value i = #{ a46 = #{ a12 = Int32_u.of_int (i + 0) }; b46 = Int32_u.of_int (i + 1) } in
+  (*****************************************)
+  (*   t46 = #{ float#; float#; float# }   *)
+  (*****************************************)
+  let eq = (fun #{ a46 = a461; b46 = b461; c46 = c461 } #{ a46 = a462; b46 = b462; c46 = c462 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a461 a462 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b461 b462 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) c461 c462) in
+  let mk_value i = #{ a46 = Float_u.of_int (i + 0); b46 = Float_u.of_int (i + 1); c46 = Float_u.of_int (i + 2) } in
   (* Create an array of size [size] *)
-  let a : t46 array = makearray_dynamic size #{ a46 = #{ a12 = #0l }; b46 = #1l } in
+  let a : t46 array = makearray_dynamic size #{ a46 = #0.; b46 = #1.; c46 = #2. } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 220;
+    mark_test_run 207;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 220 failed %d %d" size i;
+    if not test then failwithf "test 207 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 221;
+    mark_test_run 208;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 221 failed %d %d" size i;
+    if not test then failwithf "test 208 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -2678,52 +2573,47 @@ let test size =
     (* Path: [.#a46] *)
     let el = #{ el with a46 = next_el.#a46 } in
     Idx_mut.unsafe_set a ((.(i).#a46) : (t46 array, _) idx_mut) next_el.#a46;
-    mark_test_run 222;
+    mark_test_run 209;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 222 failed %d %d" size i;
+    if not test then failwithf "test 209 failed %d %d" size i;
     (* Path: [.#b46] *)
     let el = #{ el with b46 = next_el.#b46 } in
     Idx_mut.unsafe_set a ((.(i).#b46) : (t46 array, _) idx_mut) next_el.#b46;
-    mark_test_run 223;
+    mark_test_run 210;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 223 failed %d %d" size i;
-    (* Paths of depth 2 *)
-    let next_el = mk_value (i + 100 * 2) in
-    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
-    (* [el] is the reference value, updated with [with] *)
-    let el = get a i in
-    (* Path: [.#a46.#a12] *)
-    let el = #{ el with a46 = #{ el.#a46 with a12 = next_el.#a46.#a12 } } in
-    Idx_mut.unsafe_set a ((.(i).#a46.#a12) : (t46 array, _) idx_mut) next_el.#a46.#a12;
-    mark_test_run 224;
+    if not test then failwithf "test 210 failed %d %d" size i;
+    (* Path: [.#c46] *)
+    let el = #{ el with c46 = next_el.#c46 } in
+    Idx_mut.unsafe_set a ((.(i).#c46) : (t46 array, _) idx_mut) next_el.#c46;
+    mark_test_run 211;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 224 failed %d %d" size i;
+    if not test then failwithf "test 211 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
   (**************************************)
-  (*   t47 = #{ #{ int32#; int32# } }   *)
+  (*   t47 = #{ float#; #{ float# } }   *)
   (**************************************)
-  let eq = (fun #{ a47 = a471 } #{ a47 = a472 } -> (fun #{ a14 = a141; b14 = b141 } #{ a14 = a142; b14 = b142 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a141 a142 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b141 b142) a471 a472) in
-  let mk_value i = #{ a47 = #{ a14 = Int32_u.of_int (i + 0); b14 = Int32_u.of_int (i + 1) } } in
+  let eq = (fun #{ a47 = a471; b47 = b471 } #{ a47 = a472; b47 = b472 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a471 a472 && (fun #{ a44 = a441 } #{ a44 = a442 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a441 a442) b471 b472) in
+  let mk_value i = #{ a47 = Float_u.of_int (i + 0); b47 = #{ a44 = Float_u.of_int (i + 1) } } in
   (* Create an array of size [size] *)
-  let a : t47 array = makearray_dynamic size #{ a47 = #{ a14 = #0l; b14 = #1l } } in
+  let a : t47 array = makearray_dynamic size #{ a47 = #0.; b47 = #{ a44 = #1. } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 225;
+    mark_test_run 212;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 225 failed %d %d" size i;
+    if not test then failwithf "test 212 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 226;
+    mark_test_run 213;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 226 failed %d %d" size i;
+    if not test then failwithf "test 213 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -2734,52 +2624,52 @@ let test size =
     (* Path: [.#a47] *)
     let el = #{ el with a47 = next_el.#a47 } in
     Idx_mut.unsafe_set a ((.(i).#a47) : (t47 array, _) idx_mut) next_el.#a47;
-    mark_test_run 227;
+    mark_test_run 214;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 227 failed %d %d" size i;
+    if not test then failwithf "test 214 failed %d %d" size i;
+    (* Path: [.#b47] *)
+    let el = #{ el with b47 = next_el.#b47 } in
+    Idx_mut.unsafe_set a ((.(i).#b47) : (t47 array, _) idx_mut) next_el.#b47;
+    mark_test_run 215;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 215 failed %d %d" size i;
     (* Paths of depth 2 *)
     let next_el = mk_value (i + 100 * 2) in
     (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
     (* [el] is the reference value, updated with [with] *)
     let el = get a i in
-    (* Path: [.#a47.#a14] *)
-    let el = #{ el with a47 = #{ el.#a47 with a14 = next_el.#a47.#a14 } } in
-    Idx_mut.unsafe_set a ((.(i).#a47.#a14) : (t47 array, _) idx_mut) next_el.#a47.#a14;
-    mark_test_run 228;
+    (* Path: [.#b47.#a44] *)
+    let el = #{ el with b47 = #{ el.#b47 with a44 = next_el.#b47.#a44 } } in
+    Idx_mut.unsafe_set a ((.(i).#b47.#a44) : (t47 array, _) idx_mut) next_el.#b47.#a44;
+    mark_test_run 216;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 228 failed %d %d" size i;
-    (* Path: [.#a47.#b14] *)
-    let el = #{ el with a47 = #{ el.#a47 with b14 = next_el.#a47.#b14 } } in
-    Idx_mut.unsafe_set a ((.(i).#a47.#b14) : (t47 array, _) idx_mut) next_el.#a47.#b14;
-    mark_test_run 229;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 229 failed %d %d" size i;
+    if not test then failwithf "test 216 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
   (**********************************************)
-  (*   t48 = #{ #{ int32#; int32# }; int32# }   *)
+  (*   t48 = #{ float#; #{ float#; float# } }   *)
   (**********************************************)
-  let eq = (fun #{ a48 = a481; b48 = b481 } #{ a48 = a482; b48 = b482 } -> (fun #{ a14 = a141; b14 = b141 } #{ a14 = a142; b14 = b142 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a141 a142 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b141 b142) a481 a482 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b481 b482) in
-  let mk_value i = #{ a48 = #{ a14 = Int32_u.of_int (i + 0); b14 = Int32_u.of_int (i + 1) }; b48 = Int32_u.of_int (i + 2) } in
+  let eq = (fun #{ a48 = a481; b48 = b481 } #{ a48 = a482; b48 = b482 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a481 a482 && (fun #{ a45 = a451; b45 = b451 } #{ a45 = a452; b45 = b452 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a451 a452 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b451 b452) b481 b482) in
+  let mk_value i = #{ a48 = Float_u.of_int (i + 0); b48 = #{ a45 = Float_u.of_int (i + 1); b45 = Float_u.of_int (i + 2) } } in
   (* Create an array of size [size] *)
-  let a : t48 array = makearray_dynamic size #{ a48 = #{ a14 = #0l; b14 = #1l }; b48 = #2l } in
+  let a : t48 array = makearray_dynamic size #{ a48 = #0.; b48 = #{ a45 = #1.; b45 = #2. } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 230;
+    mark_test_run 217;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 230 failed %d %d" size i;
+    if not test then failwithf "test 217 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 231;
+    mark_test_run 218;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 231 failed %d %d" size i;
+    if not test then failwithf "test 218 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -2790,58 +2680,58 @@ let test size =
     (* Path: [.#a48] *)
     let el = #{ el with a48 = next_el.#a48 } in
     Idx_mut.unsafe_set a ((.(i).#a48) : (t48 array, _) idx_mut) next_el.#a48;
-    mark_test_run 232;
+    mark_test_run 219;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 232 failed %d %d" size i;
+    if not test then failwithf "test 219 failed %d %d" size i;
     (* Path: [.#b48] *)
     let el = #{ el with b48 = next_el.#b48 } in
     Idx_mut.unsafe_set a ((.(i).#b48) : (t48 array, _) idx_mut) next_el.#b48;
-    mark_test_run 233;
+    mark_test_run 220;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 233 failed %d %d" size i;
+    if not test then failwithf "test 220 failed %d %d" size i;
     (* Paths of depth 2 *)
     let next_el = mk_value (i + 100 * 2) in
     (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
     (* [el] is the reference value, updated with [with] *)
     let el = get a i in
-    (* Path: [.#a48.#a14] *)
-    let el = #{ el with a48 = #{ el.#a48 with a14 = next_el.#a48.#a14 } } in
-    Idx_mut.unsafe_set a ((.(i).#a48.#a14) : (t48 array, _) idx_mut) next_el.#a48.#a14;
-    mark_test_run 234;
+    (* Path: [.#b48.#a45] *)
+    let el = #{ el with b48 = #{ el.#b48 with a45 = next_el.#b48.#a45 } } in
+    Idx_mut.unsafe_set a ((.(i).#b48.#a45) : (t48 array, _) idx_mut) next_el.#b48.#a45;
+    mark_test_run 221;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 234 failed %d %d" size i;
-    (* Path: [.#a48.#b14] *)
-    let el = #{ el with a48 = #{ el.#a48 with b14 = next_el.#a48.#b14 } } in
-    Idx_mut.unsafe_set a ((.(i).#a48.#b14) : (t48 array, _) idx_mut) next_el.#a48.#b14;
-    mark_test_run 235;
+    if not test then failwithf "test 221 failed %d %d" size i;
+    (* Path: [.#b48.#b45] *)
+    let el = #{ el with b48 = #{ el.#b48 with b45 = next_el.#b48.#b45 } } in
+    Idx_mut.unsafe_set a ((.(i).#b48.#b45) : (t48 array, _) idx_mut) next_el.#b48.#b45;
+    mark_test_run 222;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 235 failed %d %d" size i;
+    if not test then failwithf "test 222 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (******************************)
-  (*   t49 = #{ #{ float# } }   *)
-  (******************************)
-  let eq = (fun #{ a49 = a491 } #{ a49 = a492 } -> (fun #{ a32 = a321 } #{ a32 = a322 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a321 a322) a491 a492) in
-  let mk_value i = #{ a49 = #{ a32 = Float_u.of_int (i + 0) } } in
+  (***************************)
+  (*   t49 = #{ #{ int } }   *)
+  (***************************)
+  let eq = (fun #{ a49 = a491 } #{ a49 = a492 } -> (fun #{ a0 = a01 } #{ a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) a491 a492) in
+  let mk_value i = #{ a49 = #{ a0 = (i + 0) } } in
   (* Create an array of size [size] *)
-  let a : t49 array = makearray_dynamic size #{ a49 = #{ a32 = #0. } } in
+  let a : t49 array = makearray_dynamic size #{ a49 = #{ a0 = 0 } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 236;
+    mark_test_run 223;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 236 failed %d %d" size i;
+    if not test then failwithf "test 223 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 237;
+    mark_test_run 224;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 237 failed %d %d" size i;
+    if not test then failwithf "test 224 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -2852,46 +2742,46 @@ let test size =
     (* Path: [.#a49] *)
     let el = #{ el with a49 = next_el.#a49 } in
     Idx_mut.unsafe_set a ((.(i).#a49) : (t49 array, _) idx_mut) next_el.#a49;
-    mark_test_run 238;
+    mark_test_run 225;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 238 failed %d %d" size i;
+    if not test then failwithf "test 225 failed %d %d" size i;
     (* Paths of depth 2 *)
     let next_el = mk_value (i + 100 * 2) in
     (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
     (* [el] is the reference value, updated with [with] *)
     let el = get a i in
-    (* Path: [.#a49.#a32] *)
-    let el = #{ el with a49 = #{ el.#a49 with a32 = next_el.#a49.#a32 } } in
-    Idx_mut.unsafe_set a ((.(i).#a49.#a32) : (t49 array, _) idx_mut) next_el.#a49.#a32;
-    mark_test_run 239;
+    (* Path: [.#a49.#a0] *)
+    let el = #{ el with a49 = #{ el.#a49 with a0 = next_el.#a49.#a0 } } in
+    Idx_mut.unsafe_set a ((.(i).#a49.#a0) : (t49 array, _) idx_mut) next_el.#a49.#a0;
+    mark_test_run 226;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 239 failed %d %d" size i;
+    if not test then failwithf "test 226 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (**************************************)
-  (*   t50 = #{ #{ float# }; float# }   *)
-  (**************************************)
-  let eq = (fun #{ a50 = a501; b50 = b501 } #{ a50 = a502; b50 = b502 } -> (fun #{ a32 = a321 } #{ a32 = a322 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a321 a322) a501 a502 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b501 b502) in
-  let mk_value i = #{ a50 = #{ a32 = Float_u.of_int (i + 0) }; b50 = Float_u.of_int (i + 1) } in
+  (********************************)
+  (*   t50 = #{ #{ int }; int }   *)
+  (********************************)
+  let eq = (fun #{ a50 = a501; b50 = b501 } #{ a50 = a502; b50 = b502 } -> (fun #{ a0 = a01 } #{ a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) a501 a502 && (fun a b -> Int.equal a b) b501 b502) in
+  let mk_value i = #{ a50 = #{ a0 = (i + 0) }; b50 = (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t50 array = makearray_dynamic size #{ a50 = #{ a32 = #0. }; b50 = #1. } in
+  let a : t50 array = makearray_dynamic size #{ a50 = #{ a0 = 0 }; b50 = 1 } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 240;
+    mark_test_run 227;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 240 failed %d %d" size i;
+    if not test then failwithf "test 227 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 241;
+    mark_test_run 228;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 241 failed %d %d" size i;
+    if not test then failwithf "test 228 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -2902,52 +2792,52 @@ let test size =
     (* Path: [.#a50] *)
     let el = #{ el with a50 = next_el.#a50 } in
     Idx_mut.unsafe_set a ((.(i).#a50) : (t50 array, _) idx_mut) next_el.#a50;
-    mark_test_run 242;
+    mark_test_run 229;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 242 failed %d %d" size i;
+    if not test then failwithf "test 229 failed %d %d" size i;
     (* Path: [.#b50] *)
     let el = #{ el with b50 = next_el.#b50 } in
     Idx_mut.unsafe_set a ((.(i).#b50) : (t50 array, _) idx_mut) next_el.#b50;
-    mark_test_run 243;
+    mark_test_run 230;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 243 failed %d %d" size i;
+    if not test then failwithf "test 230 failed %d %d" size i;
     (* Paths of depth 2 *)
     let next_el = mk_value (i + 100 * 2) in
     (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
     (* [el] is the reference value, updated with [with] *)
     let el = get a i in
-    (* Path: [.#a50.#a32] *)
-    let el = #{ el with a50 = #{ el.#a50 with a32 = next_el.#a50.#a32 } } in
-    Idx_mut.unsafe_set a ((.(i).#a50.#a32) : (t50 array, _) idx_mut) next_el.#a50.#a32;
-    mark_test_run 244;
+    (* Path: [.#a50.#a0] *)
+    let el = #{ el with a50 = #{ el.#a50 with a0 = next_el.#a50.#a0 } } in
+    Idx_mut.unsafe_set a ((.(i).#a50.#a0) : (t50 array, _) idx_mut) next_el.#a50.#a0;
+    mark_test_run 231;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 244 failed %d %d" size i;
+    if not test then failwithf "test 231 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (**************************************)
-  (*   t51 = #{ #{ float#; float# } }   *)
-  (**************************************)
-  let eq = (fun #{ a51 = a511 } #{ a51 = a512 } -> (fun #{ a33 = a331; b33 = b331 } #{ a33 = a332; b33 = b332 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a331 a332 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b331 b332) a511 a512) in
-  let mk_value i = #{ a51 = #{ a33 = Float_u.of_int (i + 0); b33 = Float_u.of_int (i + 1) } } in
+  (***********************************)
+  (*   t51 = #{ #{ int }; int32# }   *)
+  (***********************************)
+  let eq = (fun #{ a51 = a511; b51 = b511 } #{ a51 = a512; b51 = b512 } -> (fun #{ a0 = a01 } #{ a0 = a02 } -> (fun a b -> Int.equal a b) a01 a02) a511 a512 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b511 b512) in
+  let mk_value i = #{ a51 = #{ a0 = (i + 0) }; b51 = Int32_u.of_int (i + 1) } in
   (* Create an array of size [size] *)
-  let a : t51 array = makearray_dynamic size #{ a51 = #{ a33 = #0.; b33 = #1. } } in
+  let a : t51 array = makearray_dynamic size #{ a51 = #{ a0 = 0 }; b51 = #1l } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 245;
+    mark_test_run 232;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 245 failed %d %d" size i;
+    if not test then failwithf "test 232 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 246;
+    mark_test_run 233;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 246 failed %d %d" size i;
+    if not test then failwithf "test 233 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -2958,52 +2848,52 @@ let test size =
     (* Path: [.#a51] *)
     let el = #{ el with a51 = next_el.#a51 } in
     Idx_mut.unsafe_set a ((.(i).#a51) : (t51 array, _) idx_mut) next_el.#a51;
-    mark_test_run 247;
+    mark_test_run 234;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 247 failed %d %d" size i;
+    if not test then failwithf "test 234 failed %d %d" size i;
+    (* Path: [.#b51] *)
+    let el = #{ el with b51 = next_el.#b51 } in
+    Idx_mut.unsafe_set a ((.(i).#b51) : (t51 array, _) idx_mut) next_el.#b51;
+    mark_test_run 235;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 235 failed %d %d" size i;
     (* Paths of depth 2 *)
     let next_el = mk_value (i + 100 * 2) in
     (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
     (* [el] is the reference value, updated with [with] *)
     let el = get a i in
-    (* Path: [.#a51.#a33] *)
-    let el = #{ el with a51 = #{ el.#a51 with a33 = next_el.#a51.#a33 } } in
-    Idx_mut.unsafe_set a ((.(i).#a51.#a33) : (t51 array, _) idx_mut) next_el.#a51.#a33;
-    mark_test_run 248;
+    (* Path: [.#a51.#a0] *)
+    let el = #{ el with a51 = #{ el.#a51 with a0 = next_el.#a51.#a0 } } in
+    Idx_mut.unsafe_set a ((.(i).#a51.#a0) : (t51 array, _) idx_mut) next_el.#a51.#a0;
+    mark_test_run 236;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 248 failed %d %d" size i;
-    (* Path: [.#a51.#b33] *)
-    let el = #{ el with a51 = #{ el.#a51 with b33 = next_el.#a51.#b33 } } in
-    Idx_mut.unsafe_set a ((.(i).#a51.#b33) : (t51 array, _) idx_mut) next_el.#a51.#b33;
-    mark_test_run 249;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 249 failed %d %d" size i;
+    if not test then failwithf "test 236 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
 
-  (**********************************************)
-  (*   t52 = #{ #{ float#; float# }; float# }   *)
-  (**********************************************)
-  let eq = (fun #{ a52 = a521; b52 = b521 } #{ a52 = a522; b52 = b522 } -> (fun #{ a33 = a331; b33 = b331 } #{ a33 = a332; b33 = b332 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a331 a332 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b331 b332) a521 a522 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b521 b522) in
-  let mk_value i = #{ a52 = #{ a33 = Float_u.of_int (i + 0); b33 = Float_u.of_int (i + 1) }; b52 = Float_u.of_int (i + 2) } in
+  (********************************)
+  (*   t52 = #{ #{ int; int } }   *)
+  (********************************)
+  let eq = (fun #{ a52 = a521 } #{ a52 = a522 } -> (fun #{ a1 = a11; b1 = b11 } #{ a1 = a12; b1 = b12 } -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) a521 a522) in
+  let mk_value i = #{ a52 = #{ a1 = (i + 0); b1 = (i + 1) } } in
   (* Create an array of size [size] *)
-  let a : t52 array = makearray_dynamic size #{ a52 = #{ a33 = #0.; b33 = #1. }; b52 = #2. } in
+  let a : t52 array = makearray_dynamic size #{ a52 = #{ a1 = 0; b1 = 1 } } in
   (* Fill [a] with distinct values using block indices *)
   for i = 0 to size - 1 do
     Idx_mut.unsafe_set a (.(i)) (mk_value i);
   done;
   Gc.compact ();
   for i = 0 to size - 1 do
-    mark_test_run 250;
+    mark_test_run 237;
     let test = eq (get a i) (mk_value i) in
-    if not test then failwithf "test 250 failed %d %d" size i;
+    if not test then failwithf "test 237 failed %d %d" size i;
   done;
   (* Also read back those values with block indices *)
   for i = 0 to size - 1 do
-    mark_test_run 251;
+    mark_test_run 238;
     let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
-    if not test then failwithf "test 251 failed %d %d" size i;
+    if not test then failwithf "test 238 failed %d %d" size i;
   done;
   for i = 0 to size - 1 do
     (* Paths of depth 1 *)
@@ -3014,32 +2904,716 @@ let test size =
     (* Path: [.#a52] *)
     let el = #{ el with a52 = next_el.#a52 } in
     Idx_mut.unsafe_set a ((.(i).#a52) : (t52 array, _) idx_mut) next_el.#a52;
-    mark_test_run 252;
+    mark_test_run 239;
     let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 252 failed %d %d" size i;
-    (* Path: [.#b52] *)
-    let el = #{ el with b52 = next_el.#b52 } in
-    Idx_mut.unsafe_set a ((.(i).#b52) : (t52 array, _) idx_mut) next_el.#b52;
-    mark_test_run 253;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
-    if not test then failwithf "test 253 failed %d %d" size i;
+    if not test then failwithf "test 239 failed %d %d" size i;
     (* Paths of depth 2 *)
     let next_el = mk_value (i + 100 * 2) in
     (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
     (* [el] is the reference value, updated with [with] *)
     let el = get a i in
-    (* Path: [.#a52.#a33] *)
-    let el = #{ el with a52 = #{ el.#a52 with a33 = next_el.#a52.#a33 } } in
-    Idx_mut.unsafe_set a ((.(i).#a52.#a33) : (t52 array, _) idx_mut) next_el.#a52.#a33;
+    (* Path: [.#a52.#a1] *)
+    let el = #{ el with a52 = #{ el.#a52 with a1 = next_el.#a52.#a1 } } in
+    Idx_mut.unsafe_set a ((.(i).#a52.#a1) : (t52 array, _) idx_mut) next_el.#a52.#a1;
+    mark_test_run 240;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 240 failed %d %d" size i;
+    (* Path: [.#a52.#b1] *)
+    let el = #{ el with a52 = #{ el.#a52 with b1 = next_el.#a52.#b1 } } in
+    Idx_mut.unsafe_set a ((.(i).#a52.#b1) : (t52 array, _) idx_mut) next_el.#a52.#b1;
+    mark_test_run 241;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 241 failed %d %d" size i;
+    ()
+  done;
+  Gc.compact ();
+
+  (*************************************)
+  (*   t53 = #{ #{ int; int }; int }   *)
+  (*************************************)
+  let eq = (fun #{ a53 = a531; b53 = b531 } #{ a53 = a532; b53 = b532 } -> (fun #{ a1 = a11; b1 = b11 } #{ a1 = a12; b1 = b12 } -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) a531 a532 && (fun a b -> Int.equal a b) b531 b532) in
+  let mk_value i = #{ a53 = #{ a1 = (i + 0); b1 = (i + 1) }; b53 = (i + 2) } in
+  (* Create an array of size [size] *)
+  let a : t53 array = makearray_dynamic size #{ a53 = #{ a1 = 0; b1 = 1 }; b53 = 2 } in
+  (* Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    Idx_mut.unsafe_set a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 242;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 242 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 243;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
+    if not test then failwithf "test 243 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    (* Paths of depth 1 *)
+    let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a53] *)
+    let el = #{ el with a53 = next_el.#a53 } in
+    Idx_mut.unsafe_set a ((.(i).#a53) : (t53 array, _) idx_mut) next_el.#a53;
+    mark_test_run 244;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 244 failed %d %d" size i;
+    (* Path: [.#b53] *)
+    let el = #{ el with b53 = next_el.#b53 } in
+    Idx_mut.unsafe_set a ((.(i).#b53) : (t53 array, _) idx_mut) next_el.#b53;
+    mark_test_run 245;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 245 failed %d %d" size i;
+    (* Paths of depth 2 *)
+    let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a53.#a1] *)
+    let el = #{ el with a53 = #{ el.#a53 with a1 = next_el.#a53.#a1 } } in
+    Idx_mut.unsafe_set a ((.(i).#a53.#a1) : (t53 array, _) idx_mut) next_el.#a53.#a1;
+    mark_test_run 246;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 246 failed %d %d" size i;
+    (* Path: [.#a53.#b1] *)
+    let el = #{ el with a53 = #{ el.#a53 with b1 = next_el.#a53.#b1 } } in
+    Idx_mut.unsafe_set a ((.(i).#a53.#b1) : (t53 array, _) idx_mut) next_el.#a53.#b1;
+    mark_test_run 247;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 247 failed %d %d" size i;
+    ()
+  done;
+  Gc.compact ();
+
+  (****************************************)
+  (*   t54 = #{ #{ int; int }; int32# }   *)
+  (****************************************)
+  let eq = (fun #{ a54 = a541; b54 = b541 } #{ a54 = a542; b54 = b542 } -> (fun #{ a1 = a11; b1 = b11 } #{ a1 = a12; b1 = b12 } -> (fun a b -> Int.equal a b) a11 a12 && (fun a b -> Int.equal a b) b11 b12) a541 a542 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b541 b542) in
+  let mk_value i = #{ a54 = #{ a1 = (i + 0); b1 = (i + 1) }; b54 = Int32_u.of_int (i + 2) } in
+  (* Create an array of size [size] *)
+  let a : t54 array = makearray_dynamic size #{ a54 = #{ a1 = 0; b1 = 1 }; b54 = #2l } in
+  (* Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    Idx_mut.unsafe_set a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 248;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 248 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 249;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
+    if not test then failwithf "test 249 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    (* Paths of depth 1 *)
+    let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a54] *)
+    let el = #{ el with a54 = next_el.#a54 } in
+    Idx_mut.unsafe_set a ((.(i).#a54) : (t54 array, _) idx_mut) next_el.#a54;
+    mark_test_run 250;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 250 failed %d %d" size i;
+    (* Path: [.#b54] *)
+    let el = #{ el with b54 = next_el.#b54 } in
+    Idx_mut.unsafe_set a ((.(i).#b54) : (t54 array, _) idx_mut) next_el.#b54;
+    mark_test_run 251;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 251 failed %d %d" size i;
+    (* Paths of depth 2 *)
+    let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a54.#a1] *)
+    let el = #{ el with a54 = #{ el.#a54 with a1 = next_el.#a54.#a1 } } in
+    Idx_mut.unsafe_set a ((.(i).#a54.#a1) : (t54 array, _) idx_mut) next_el.#a54.#a1;
+    mark_test_run 252;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 252 failed %d %d" size i;
+    (* Path: [.#a54.#b1] *)
+    let el = #{ el with a54 = #{ el.#a54 with b1 = next_el.#a54.#b1 } } in
+    Idx_mut.unsafe_set a ((.(i).#a54.#b1) : (t54 array, _) idx_mut) next_el.#a54.#b1;
+    mark_test_run 253;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 253 failed %d %d" size i;
+    ()
+  done;
+  Gc.compact ();
+
+  (***********************************)
+  (*   t55 = #{ #{ int; int32# } }   *)
+  (***********************************)
+  let eq = (fun #{ a55 = a551 } #{ a55 = a552 } -> (fun #{ a6 = a61; b6 = b61 } #{ a6 = a62; b6 = b62 } -> (fun a b -> Int.equal a b) a61 a62 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b61 b62) a551 a552) in
+  let mk_value i = #{ a55 = #{ a6 = (i + 0); b6 = Int32_u.of_int (i + 1) } } in
+  (* Create an array of size [size] *)
+  let a : t55 array = makearray_dynamic size #{ a55 = #{ a6 = 0; b6 = #1l } } in
+  (* Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    Idx_mut.unsafe_set a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
     mark_test_run 254;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    let test = eq (get a i) (mk_value i) in
     if not test then failwithf "test 254 failed %d %d" size i;
-    (* Path: [.#a52.#b33] *)
-    let el = #{ el with a52 = #{ el.#a52 with b33 = next_el.#a52.#b33 } } in
-    Idx_mut.unsafe_set a ((.(i).#a52.#b33) : (t52 array, _) idx_mut) next_el.#a52.#b33;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
     mark_test_run 255;
-    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
     if not test then failwithf "test 255 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    (* Paths of depth 1 *)
+    let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a55] *)
+    let el = #{ el with a55 = next_el.#a55 } in
+    Idx_mut.unsafe_set a ((.(i).#a55) : (t55 array, _) idx_mut) next_el.#a55;
+    mark_test_run 256;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 256 failed %d %d" size i;
+    (* Paths of depth 2 *)
+    let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a55.#a6] *)
+    let el = #{ el with a55 = #{ el.#a55 with a6 = next_el.#a55.#a6 } } in
+    Idx_mut.unsafe_set a ((.(i).#a55.#a6) : (t55 array, _) idx_mut) next_el.#a55.#a6;
+    mark_test_run 257;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 257 failed %d %d" size i;
+    (* Path: [.#a55.#b6] *)
+    let el = #{ el with a55 = #{ el.#a55 with b6 = next_el.#a55.#b6 } } in
+    Idx_mut.unsafe_set a ((.(i).#a55.#b6) : (t55 array, _) idx_mut) next_el.#a55.#b6;
+    mark_test_run 258;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 258 failed %d %d" size i;
+    ()
+  done;
+  Gc.compact ();
+
+  (*******************************************)
+  (*   t56 = #{ #{ int; int32# }; int32# }   *)
+  (*******************************************)
+  let eq = (fun #{ a56 = a561; b56 = b561 } #{ a56 = a562; b56 = b562 } -> (fun #{ a6 = a61; b6 = b61 } #{ a6 = a62; b6 = b62 } -> (fun a b -> Int.equal a b) a61 a62 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b61 b62) a561 a562 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b561 b562) in
+  let mk_value i = #{ a56 = #{ a6 = (i + 0); b6 = Int32_u.of_int (i + 1) }; b56 = Int32_u.of_int (i + 2) } in
+  (* Create an array of size [size] *)
+  let a : t56 array = makearray_dynamic size #{ a56 = #{ a6 = 0; b6 = #1l }; b56 = #2l } in
+  (* Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    Idx_mut.unsafe_set a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 259;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 259 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 260;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
+    if not test then failwithf "test 260 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    (* Paths of depth 1 *)
+    let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a56] *)
+    let el = #{ el with a56 = next_el.#a56 } in
+    Idx_mut.unsafe_set a ((.(i).#a56) : (t56 array, _) idx_mut) next_el.#a56;
+    mark_test_run 261;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 261 failed %d %d" size i;
+    (* Path: [.#b56] *)
+    let el = #{ el with b56 = next_el.#b56 } in
+    Idx_mut.unsafe_set a ((.(i).#b56) : (t56 array, _) idx_mut) next_el.#b56;
+    mark_test_run 262;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 262 failed %d %d" size i;
+    (* Paths of depth 2 *)
+    let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a56.#a6] *)
+    let el = #{ el with a56 = #{ el.#a56 with a6 = next_el.#a56.#a6 } } in
+    Idx_mut.unsafe_set a ((.(i).#a56.#a6) : (t56 array, _) idx_mut) next_el.#a56.#a6;
+    mark_test_run 263;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 263 failed %d %d" size i;
+    (* Path: [.#a56.#b6] *)
+    let el = #{ el with a56 = #{ el.#a56 with b6 = next_el.#a56.#b6 } } in
+    Idx_mut.unsafe_set a ((.(i).#a56.#b6) : (t56 array, _) idx_mut) next_el.#a56.#b6;
+    mark_test_run 264;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 264 failed %d %d" size i;
+    ()
+  done;
+  Gc.compact ();
+
+  (******************************)
+  (*   t57 = #{ #{ int32# } }   *)
+  (******************************)
+  let eq = (fun #{ a57 = a571 } #{ a57 = a572 } -> (fun #{ a13 = a131 } #{ a13 = a132 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a131 a132) a571 a572) in
+  let mk_value i = #{ a57 = #{ a13 = Int32_u.of_int (i + 0) } } in
+  (* Create an array of size [size] *)
+  let a : t57 array = makearray_dynamic size #{ a57 = #{ a13 = #0l } } in
+  (* Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    Idx_mut.unsafe_set a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 265;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 265 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 266;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
+    if not test then failwithf "test 266 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    (* Paths of depth 1 *)
+    let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a57] *)
+    let el = #{ el with a57 = next_el.#a57 } in
+    Idx_mut.unsafe_set a ((.(i).#a57) : (t57 array, _) idx_mut) next_el.#a57;
+    mark_test_run 267;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 267 failed %d %d" size i;
+    (* Paths of depth 2 *)
+    let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a57.#a13] *)
+    let el = #{ el with a57 = #{ el.#a57 with a13 = next_el.#a57.#a13 } } in
+    Idx_mut.unsafe_set a ((.(i).#a57.#a13) : (t57 array, _) idx_mut) next_el.#a57.#a13;
+    mark_test_run 268;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 268 failed %d %d" size i;
+    ()
+  done;
+  Gc.compact ();
+
+  (**************************************)
+  (*   t58 = #{ #{ int32# }; int32# }   *)
+  (**************************************)
+  let eq = (fun #{ a58 = a581; b58 = b581 } #{ a58 = a582; b58 = b582 } -> (fun #{ a13 = a131 } #{ a13 = a132 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a131 a132) a581 a582 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b581 b582) in
+  let mk_value i = #{ a58 = #{ a13 = Int32_u.of_int (i + 0) }; b58 = Int32_u.of_int (i + 1) } in
+  (* Create an array of size [size] *)
+  let a : t58 array = makearray_dynamic size #{ a58 = #{ a13 = #0l }; b58 = #1l } in
+  (* Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    Idx_mut.unsafe_set a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 269;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 269 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 270;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
+    if not test then failwithf "test 270 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    (* Paths of depth 1 *)
+    let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a58] *)
+    let el = #{ el with a58 = next_el.#a58 } in
+    Idx_mut.unsafe_set a ((.(i).#a58) : (t58 array, _) idx_mut) next_el.#a58;
+    mark_test_run 271;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 271 failed %d %d" size i;
+    (* Path: [.#b58] *)
+    let el = #{ el with b58 = next_el.#b58 } in
+    Idx_mut.unsafe_set a ((.(i).#b58) : (t58 array, _) idx_mut) next_el.#b58;
+    mark_test_run 272;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 272 failed %d %d" size i;
+    (* Paths of depth 2 *)
+    let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a58.#a13] *)
+    let el = #{ el with a58 = #{ el.#a58 with a13 = next_el.#a58.#a13 } } in
+    Idx_mut.unsafe_set a ((.(i).#a58.#a13) : (t58 array, _) idx_mut) next_el.#a58.#a13;
+    mark_test_run 273;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 273 failed %d %d" size i;
+    ()
+  done;
+  Gc.compact ();
+
+  (**************************************)
+  (*   t59 = #{ #{ int32#; int32# } }   *)
+  (**************************************)
+  let eq = (fun #{ a59 = a591 } #{ a59 = a592 } -> (fun #{ a15 = a151; b15 = b151 } #{ a15 = a152; b15 = b152 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a151 a152 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b151 b152) a591 a592) in
+  let mk_value i = #{ a59 = #{ a15 = Int32_u.of_int (i + 0); b15 = Int32_u.of_int (i + 1) } } in
+  (* Create an array of size [size] *)
+  let a : t59 array = makearray_dynamic size #{ a59 = #{ a15 = #0l; b15 = #1l } } in
+  (* Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    Idx_mut.unsafe_set a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 274;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 274 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 275;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
+    if not test then failwithf "test 275 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    (* Paths of depth 1 *)
+    let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a59] *)
+    let el = #{ el with a59 = next_el.#a59 } in
+    Idx_mut.unsafe_set a ((.(i).#a59) : (t59 array, _) idx_mut) next_el.#a59;
+    mark_test_run 276;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 276 failed %d %d" size i;
+    (* Paths of depth 2 *)
+    let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a59.#a15] *)
+    let el = #{ el with a59 = #{ el.#a59 with a15 = next_el.#a59.#a15 } } in
+    Idx_mut.unsafe_set a ((.(i).#a59.#a15) : (t59 array, _) idx_mut) next_el.#a59.#a15;
+    mark_test_run 277;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 277 failed %d %d" size i;
+    (* Path: [.#a59.#b15] *)
+    let el = #{ el with a59 = #{ el.#a59 with b15 = next_el.#a59.#b15 } } in
+    Idx_mut.unsafe_set a ((.(i).#a59.#b15) : (t59 array, _) idx_mut) next_el.#a59.#b15;
+    mark_test_run 278;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 278 failed %d %d" size i;
+    ()
+  done;
+  Gc.compact ();
+
+  (**********************************************)
+  (*   t60 = #{ #{ int32#; int32# }; int32# }   *)
+  (**********************************************)
+  let eq = (fun #{ a60 = a601; b60 = b601 } #{ a60 = a602; b60 = b602 } -> (fun #{ a15 = a151; b15 = b151 } #{ a15 = a152; b15 = b152 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a151 a152 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b151 b152) a601 a602 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b601 b602) in
+  let mk_value i = #{ a60 = #{ a15 = Int32_u.of_int (i + 0); b15 = Int32_u.of_int (i + 1) }; b60 = Int32_u.of_int (i + 2) } in
+  (* Create an array of size [size] *)
+  let a : t60 array = makearray_dynamic size #{ a60 = #{ a15 = #0l; b15 = #1l }; b60 = #2l } in
+  (* Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    Idx_mut.unsafe_set a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 279;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 279 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 280;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
+    if not test then failwithf "test 280 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    (* Paths of depth 1 *)
+    let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a60] *)
+    let el = #{ el with a60 = next_el.#a60 } in
+    Idx_mut.unsafe_set a ((.(i).#a60) : (t60 array, _) idx_mut) next_el.#a60;
+    mark_test_run 281;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 281 failed %d %d" size i;
+    (* Path: [.#b60] *)
+    let el = #{ el with b60 = next_el.#b60 } in
+    Idx_mut.unsafe_set a ((.(i).#b60) : (t60 array, _) idx_mut) next_el.#b60;
+    mark_test_run 282;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 282 failed %d %d" size i;
+    (* Paths of depth 2 *)
+    let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a60.#a15] *)
+    let el = #{ el with a60 = #{ el.#a60 with a15 = next_el.#a60.#a15 } } in
+    Idx_mut.unsafe_set a ((.(i).#a60.#a15) : (t60 array, _) idx_mut) next_el.#a60.#a15;
+    mark_test_run 283;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 283 failed %d %d" size i;
+    (* Path: [.#a60.#b15] *)
+    let el = #{ el with a60 = #{ el.#a60 with b15 = next_el.#a60.#b15 } } in
+    Idx_mut.unsafe_set a ((.(i).#a60.#b15) : (t60 array, _) idx_mut) next_el.#a60.#b15;
+    mark_test_run 284;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 284 failed %d %d" size i;
+    ()
+  done;
+  Gc.compact ();
+
+  (******************************)
+  (*   t61 = #{ #{ float# } }   *)
+  (******************************)
+  let eq = (fun #{ a61 = a611 } #{ a61 = a612 } -> (fun #{ a44 = a441 } #{ a44 = a442 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a441 a442) a611 a612) in
+  let mk_value i = #{ a61 = #{ a44 = Float_u.of_int (i + 0) } } in
+  (* Create an array of size [size] *)
+  let a : t61 array = makearray_dynamic size #{ a61 = #{ a44 = #0. } } in
+  (* Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    Idx_mut.unsafe_set a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 285;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 285 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 286;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
+    if not test then failwithf "test 286 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    (* Paths of depth 1 *)
+    let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a61] *)
+    let el = #{ el with a61 = next_el.#a61 } in
+    Idx_mut.unsafe_set a ((.(i).#a61) : (t61 array, _) idx_mut) next_el.#a61;
+    mark_test_run 287;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 287 failed %d %d" size i;
+    (* Paths of depth 2 *)
+    let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a61.#a44] *)
+    let el = #{ el with a61 = #{ el.#a61 with a44 = next_el.#a61.#a44 } } in
+    Idx_mut.unsafe_set a ((.(i).#a61.#a44) : (t61 array, _) idx_mut) next_el.#a61.#a44;
+    mark_test_run 288;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 288 failed %d %d" size i;
+    ()
+  done;
+  Gc.compact ();
+
+  (**************************************)
+  (*   t62 = #{ #{ float# }; float# }   *)
+  (**************************************)
+  let eq = (fun #{ a62 = a621; b62 = b621 } #{ a62 = a622; b62 = b622 } -> (fun #{ a44 = a441 } #{ a44 = a442 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a441 a442) a621 a622 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b621 b622) in
+  let mk_value i = #{ a62 = #{ a44 = Float_u.of_int (i + 0) }; b62 = Float_u.of_int (i + 1) } in
+  (* Create an array of size [size] *)
+  let a : t62 array = makearray_dynamic size #{ a62 = #{ a44 = #0. }; b62 = #1. } in
+  (* Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    Idx_mut.unsafe_set a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 289;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 289 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 290;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
+    if not test then failwithf "test 290 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    (* Paths of depth 1 *)
+    let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a62] *)
+    let el = #{ el with a62 = next_el.#a62 } in
+    Idx_mut.unsafe_set a ((.(i).#a62) : (t62 array, _) idx_mut) next_el.#a62;
+    mark_test_run 291;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 291 failed %d %d" size i;
+    (* Path: [.#b62] *)
+    let el = #{ el with b62 = next_el.#b62 } in
+    Idx_mut.unsafe_set a ((.(i).#b62) : (t62 array, _) idx_mut) next_el.#b62;
+    mark_test_run 292;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 292 failed %d %d" size i;
+    (* Paths of depth 2 *)
+    let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a62.#a44] *)
+    let el = #{ el with a62 = #{ el.#a62 with a44 = next_el.#a62.#a44 } } in
+    Idx_mut.unsafe_set a ((.(i).#a62.#a44) : (t62 array, _) idx_mut) next_el.#a62.#a44;
+    mark_test_run 293;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 293 failed %d %d" size i;
+    ()
+  done;
+  Gc.compact ();
+
+  (**************************************)
+  (*   t63 = #{ #{ float#; float# } }   *)
+  (**************************************)
+  let eq = (fun #{ a63 = a631 } #{ a63 = a632 } -> (fun #{ a45 = a451; b45 = b451 } #{ a45 = a452; b45 = b452 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a451 a452 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b451 b452) a631 a632) in
+  let mk_value i = #{ a63 = #{ a45 = Float_u.of_int (i + 0); b45 = Float_u.of_int (i + 1) } } in
+  (* Create an array of size [size] *)
+  let a : t63 array = makearray_dynamic size #{ a63 = #{ a45 = #0.; b45 = #1. } } in
+  (* Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    Idx_mut.unsafe_set a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 294;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 294 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 295;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
+    if not test then failwithf "test 295 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    (* Paths of depth 1 *)
+    let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a63] *)
+    let el = #{ el with a63 = next_el.#a63 } in
+    Idx_mut.unsafe_set a ((.(i).#a63) : (t63 array, _) idx_mut) next_el.#a63;
+    mark_test_run 296;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 296 failed %d %d" size i;
+    (* Paths of depth 2 *)
+    let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a63.#a45] *)
+    let el = #{ el with a63 = #{ el.#a63 with a45 = next_el.#a63.#a45 } } in
+    Idx_mut.unsafe_set a ((.(i).#a63.#a45) : (t63 array, _) idx_mut) next_el.#a63.#a45;
+    mark_test_run 297;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 297 failed %d %d" size i;
+    (* Path: [.#a63.#b45] *)
+    let el = #{ el with a63 = #{ el.#a63 with b45 = next_el.#a63.#b45 } } in
+    Idx_mut.unsafe_set a ((.(i).#a63.#b45) : (t63 array, _) idx_mut) next_el.#a63.#b45;
+    mark_test_run 298;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 298 failed %d %d" size i;
+    ()
+  done;
+  Gc.compact ();
+
+  (**********************************************)
+  (*   t64 = #{ #{ float#; float# }; float# }   *)
+  (**********************************************)
+  let eq = (fun #{ a64 = a641; b64 = b641 } #{ a64 = a642; b64 = b642 } -> (fun #{ a45 = a451; b45 = b451 } #{ a45 = a452; b45 = b452 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a451 a452 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b451 b452) a641 a642 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b641 b642) in
+  let mk_value i = #{ a64 = #{ a45 = Float_u.of_int (i + 0); b45 = Float_u.of_int (i + 1) }; b64 = Float_u.of_int (i + 2) } in
+  (* Create an array of size [size] *)
+  let a : t64 array = makearray_dynamic size #{ a64 = #{ a45 = #0.; b45 = #1. }; b64 = #2. } in
+  (* Fill [a] with distinct values using block indices *)
+  for i = 0 to size - 1 do
+    Idx_mut.unsafe_set a (.(i)) (mk_value i);
+  done;
+  Gc.compact ();
+  for i = 0 to size - 1 do
+    mark_test_run 299;
+    let test = eq (get a i) (mk_value i) in
+    if not test then failwithf "test 299 failed %d %d" size i;
+  done;
+  (* Also read back those values with block indices *)
+  for i = 0 to size - 1 do
+    mark_test_run 300;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) (mk_value i) in
+    if not test then failwithf "test 300 failed %d %d" size i;
+  done;
+  for i = 0 to size - 1 do
+    (* Paths of depth 1 *)
+    let next_el = mk_value (i + 100 * 1) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 1 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a64] *)
+    let el = #{ el with a64 = next_el.#a64 } in
+    Idx_mut.unsafe_set a ((.(i).#a64) : (t64 array, _) idx_mut) next_el.#a64;
+    mark_test_run 301;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 301 failed %d %d" size i;
+    (* Path: [.#b64] *)
+    let el = #{ el with b64 = next_el.#b64 } in
+    Idx_mut.unsafe_set a ((.(i).#b64) : (t64 array, _) idx_mut) next_el.#b64;
+    mark_test_run 302;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 302 failed %d %d" size i;
+    (* Paths of depth 2 *)
+    let next_el = mk_value (i + 100 * 2) in
+    (* We update [a.(i)] to become [next_el] by setting all paths of depth 2 *)
+    (* [el] is the reference value, updated with [with] *)
+    let el = get a i in
+    (* Path: [.#a64.#a45] *)
+    let el = #{ el with a64 = #{ el.#a64 with a45 = next_el.#a64.#a45 } } in
+    Idx_mut.unsafe_set a ((.(i).#a64.#a45) : (t64 array, _) idx_mut) next_el.#a64.#a45;
+    mark_test_run 303;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 303 failed %d %d" size i;
+    (* Path: [.#a64.#b45] *)
+    let el = #{ el with a64 = #{ el.#a64 with b45 = next_el.#a64.#b45 } } in
+    Idx_mut.unsafe_set a ((.(i).#a64.#b45) : (t64 array, _) idx_mut) next_el.#a64.#b45;
+    mark_test_run 304;
+    let test = eq (Idx_mut.unsafe_get a (.(i))) el in
+    if not test then failwithf "test 304 failed %d %d" size i;
     ()
   done;
   Gc.compact ();
@@ -3052,7 +3626,7 @@ let () =
   ()
 ;;
 
-for i = 1 to 255 do
+for i = 1 to 304 do
   if not (Int_set.mem i !tests_run) then failwithf "test %d not run" i
 done;;
 let () = Printf.printf "All tests passed.%!\n";;
