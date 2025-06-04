@@ -34,12 +34,14 @@ let create_have_lifted_set_of_closures dacc bound_vars_to_symbols
     bindings_to_place =
       List.mapi
         (fun i (var, sym) ->
-          { Expr_builder.let_bound = Bound_pattern.singleton var;
-            simplified_defining_expr =
-              Simplified_named.create (Named.create_simple (Simple.symbol sym));
-            original_defining_expr =
-              (if i = 0 then Some original_defining_expr else None)
-          })
+          Expr_builder.Keep_binding
+            { let_bound = Bound_pattern.singleton var;
+              simplified_defining_expr =
+                Simplified_named.create
+                  (Named.create_simple (Simple.symbol sym));
+              original_defining_expr =
+                (if i = 0 then Some original_defining_expr else None)
+            })
         bound_vars_to_symbols;
     was_lifted_set_of_closures = true
   }

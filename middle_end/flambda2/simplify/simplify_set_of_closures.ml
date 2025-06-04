@@ -779,8 +779,49 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
     C.closure_bound_names_inside_functions_exactly_one_set context
   in
   let { set_of_closures; dacc } =
-    simplify_set_of_closures0 dacc context set_of_closures ~closure_bound_names
-      ~closure_bound_names_inside ~value_slots ~value_slot_types
+    if Name_mode.is_normal (Bound_pattern.name_mode bound_vars)
+    then
+      simplify_set_of_closures0 dacc context set_of_closures
+        ~closure_bound_names ~closure_bound_names_inside ~value_slots
+        ~value_slot_types
+    else
+      let dacc =
+        DA.map_denv dacc ~f:(fun denv ->
+            Bound_pattern.fold_all_bound_vars bound_vars ~init:denv
+              ~f:(fun denv var -> DE.define_variable denv var K.value))
+      in
+      let set_of_closures =
+        let value_slots =
+          Value_slot.Map.map
+            (fun simple ->
+              snd
+                (Simplify_simple.simplify_simple dacc simple
+                   ~min_name_mode:(Bound_pattern.name_mode bound_vars)))
+            (Set_of_closures.value_slots set_of_closures)
+        in
+        let function_decls =
+          Function_slot.Lmap.map
+            (fun (func : Function_declarations.code_id_in_function_declaration) ->
+              match func with
+              | Deleted _ -> func
+              | Code_id code_id ->
+                let code_metadata =
+                  DE.find_code_exn (DA.denv dacc) code_id
+                  |> Code_or_metadata.code_metadata
+                in
+                Function_declarations.Deleted
+                  { function_slot_size =
+                      Code_metadata.function_slot_size code_metadata;
+                    dbg = Code_metadata.dbg code_metadata
+                  })
+            (Function_declarations.funs_in_order
+               (Set_of_closures.function_decls set_of_closures))
+        in
+        Set_of_closures.create ~value_slots
+          (Set_of_closures.alloc_mode set_of_closures)
+          (Function_declarations.create function_decls)
+      in
+      { set_of_closures; dacc }
   in
   let defining_expr =
     let named = Named.create_set_of_closures set_of_closures in
@@ -806,11 +847,12 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
            ~f:(Specialization_cost.add_set_of_closures set_of_closures))
   in
   Simplify_named_result.create dacc
-    [ { Expr_builder.let_bound = bound_vars;
-        simplified_defining_expr = defining_expr;
-        original_defining_expr =
-          Some (Named.create_set_of_closures set_of_closures)
-      } ]
+    [ Expr_builder.Keep_binding
+        { let_bound = bound_vars;
+          simplified_defining_expr = defining_expr;
+          original_defining_expr =
+            Some (Named.create_set_of_closures set_of_closures)
+        } ]
 
 type lifting_decision_result =
   { can_lift : bool;

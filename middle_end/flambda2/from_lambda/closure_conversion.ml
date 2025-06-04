@@ -3695,10 +3695,12 @@ let close_program (type mode) ~(mode : mode Flambda_features.mode) ~big_endian
         Slot_offsets.
           { function_slots_in_normal_projections =
               Name_occurrences.function_slots_in_normal_projections free_names;
-            all_function_slots = Name_occurrences.all_function_slots free_names;
+            all_function_slots =
+              Name_occurrences.all_function_slots_at_normal_mode free_names;
             value_slots_in_normal_projections =
               Name_occurrences.value_slots_in_normal_projections free_names;
-            all_value_slots = Name_occurrences.all_value_slots free_names
+            all_value_slots =
+              Name_occurrences.all_value_slots_at_normal_mode free_names
           }
       in
       Slot_offsets.finalize_offsets (Acc.slot_offsets acc) ~get_code_metadata
