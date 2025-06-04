@@ -132,12 +132,13 @@ let mk_basic_block_sections f =
 let mk_module_entry_functions_section f =
   if Config.function_sections then
     "-module-entry-functions-section",  Arg.Unit f,
-    " Emit all module entry functions into a separate section if the target supports it. Requires \
-     -ocamlcfg."
+    " Emit all module entry functions into a separate section if the target \
+      supports it. Requires -ocamlcfg."
   else
     let err () =
       raise (Arg.Bad "OCaml has been configured without support for \
-                      -function-sections which is required for -module-entry-functions-section")
+                      -function-sections which is required for \
+                      -module-entry-functions-section")
     in
     "-module-entry-functions-section", Arg.Unit err, " (option not available)"
 ;;
@@ -1434,7 +1435,8 @@ module Extra_params = struct
     | "reorder-blocks-random" ->
        set_int_option' Flambda_backend_flags.reorder_blocks_random
     | "basic-block-sections" -> set' Flambda_backend_flags.basic_block_sections
-    | "module-entry-functions-section" -> set' Flambda_backend_flags.module_entry_functions_section
+    | "module-entry-functions-section" ->
+      set' Flambda_backend_flags.module_entry_functions_section
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "zero-alloc-check" ->
       (match Zero_alloc_annotations.Check.of_string v with
