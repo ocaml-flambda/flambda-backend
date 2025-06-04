@@ -152,11 +152,8 @@ end = struct
   type t : void
 end;;
 [%%expect {|
-Line 4, characters 13-14:
-4 |   let create _ = ()
-                 ^
-Error: Non-value layout void detected in [Typeopt.layout] as sort for type
-       'a. Please report this error to the Jane Street compilers team.
+module rec Foo3 : sig val create : Bar3.t -> unit end
+and Bar3 : sig type t : void end
 |}];;
 
 module rec Foo3 : sig
