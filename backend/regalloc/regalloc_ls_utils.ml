@@ -9,17 +9,6 @@ module Skip_list = Flambda_backend_utils.Skip_list
 
 let log_function = lazy (make_log_function ~label:"ls")
 
-let equal_list_dll eq list dll =
-  let rec aux eq list cell =
-    match list, cell with
-    | [], None -> true
-    | _ :: _, None | [], Some _ -> false
-    | hd :: tl, Some cell ->
-      let value = DLL.value cell in
-      eq hd value && aux eq tl (DLL.next cell)
-  in
-  aux eq list (DLL.hd_cell dll)
-
 let indent () = (Lazy.force log_function).indent ()
 
 let dedent () = (Lazy.force log_function).dedent ()
@@ -195,37 +184,6 @@ module Interval = struct
   let remove_expired : t -> pos:int -> unit =
    fun t ~pos -> Range.remove_expired t.ranges ~pos
 
-  module DLL = struct
-    let print ppf l =
-      DLL.iter l ~f:(fun i -> Format.fprintf ppf "- %a\n" print i)
-
-    let release_expired_fixed l ~pos =
-      let rec aux curr ~pos =
-        match curr with
-        | None -> ()
-        | Some cell ->
-          let value = DLL.value cell in
-          if value.end_ >= pos
-          then (
-            remove_expired value ~pos;
-            aux (DLL.next cell) ~pos)
-          else DLL.cut_from cell
-      in
-      aux (DLL.hd_cell l) ~pos
-
-    let insert_sorted (l : t DLL.t) (interval : t) : unit =
-      let rec aux l interval curr =
-        match curr with
-        | None -> DLL.add_end l interval
-        | Some cell ->
-          let value = DLL.value cell in
-          if compare_desc_end value interval >= 0
-          then DLL.insert_before cell interval
-          else aux l interval (DLL.next cell)
-      in
-      aux l interval (DLL.hd_cell l)
-  end
-
   module AscBeginList = Skip_list.Make [@inlined hint] (struct
     type nonrec t = t
 
@@ -238,34 +196,6 @@ module Interval = struct
     let compare = compare_desc_end
   end)
 end
-
-(* CR-soon xclerc: the two functions below (`equal_dll_asc_sl` and
-   `equal_dll_desc_sl`) could share some code, but they will be deleted soon. *)
-let equal_dll_asc_sl dll sl =
-  let rec aux dll_cell sl_cell =
-    match dll_cell, sl_cell with
-    | None, None -> true
-    | Some _, None | None, Some _ -> false
-    | Some dll_cell, Some sl_cell ->
-      let dll_value = DLL.value dll_cell in
-      let sl_value = Interval.AscBeginList.value sl_cell in
-      Interval.equal dll_value sl_value
-      && aux (DLL.next dll_cell) (Interval.AscBeginList.next sl_cell)
-  in
-  aux (DLL.hd_cell dll) (Interval.AscBeginList.hd_cell sl)
-
-let equal_dll_desc_sl dll sl =
-  let rec aux dll_cell sl_cell =
-    match dll_cell, sl_cell with
-    | None, None -> true
-    | Some _, None | None, Some _ -> false
-    | Some dll_cell, Some sl_cell ->
-      let dll_value = DLL.value dll_cell in
-      let sl_value = Interval.DescEndList.value sl_cell in
-      Interval.equal dll_value sl_value
-      && aux (DLL.next dll_cell) (Interval.DescEndList.next sl_cell)
-  in
-  aux (DLL.hd_cell dll) (Interval.DescEndList.hd_cell sl)
 
 module ClassIntervals = struct
   type t =
@@ -382,10 +312,6 @@ let log_interval ~kind (interval : Interval.t) =
   indent ();
   log "%s" (Buffer.contents ranges);
   dedent ()
-
-let log_interval_dll ~kind (intervals : Interval.t DLL.t) =
-  DLL.iter intervals ~f:(fun (interval : Interval.t) ->
-      log_interval ~kind interval)
 
 let log_interval_asc_sl ~kind (intervals : Interval.AscBeginList.t) =
   Interval.AscBeginList.iter intervals ~f:(fun (interval : Interval.t) ->
