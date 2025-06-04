@@ -44,6 +44,20 @@ module type T = sig
   val print_for_debug : t -> f:(elem -> string) -> unit
 
   val invariant : t -> unit
+
+  module Cursor : sig
+    type t
+
+    val value : t -> elem
+
+    val next : t -> bool
+
+    val delete_and_next : t -> bool
+
+    val cut : t -> unit
+  end
+
+  val create_cursor_hd : t -> Cursor.t option
 end
 
 module Make (OT : OrderedType) : T with type elem = OT.t

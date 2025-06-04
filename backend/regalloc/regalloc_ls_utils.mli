@@ -58,6 +58,8 @@ module Interval : sig
       ranges : Range.t DLL.t
     }
 
+  (* note: `equal` is expensive, and should be used only e.g. to enforce
+     invariants. *)
   val equal : t -> t -> bool
 
   val compare_asc_begin : t -> t -> int
