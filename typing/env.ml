@@ -40,6 +40,9 @@ let value_declarations  : unit usage_tbl ref = s_table Types.Uid.Tbl.create 16
 let type_declarations   : unit usage_tbl ref = s_table Types.Uid.Tbl.create 16
 let module_declarations : unit usage_tbl ref = s_table Types.Uid.Tbl.create 16
 
+let mutated_mutable_values : unit usage_tbl ref =
+  s_table Types.Uid.Tbl.create 16
+
 type constructor_usage = Positive | Pattern | Exported_private | Exported
 type constructor_usages =
   {
@@ -1181,6 +1184,7 @@ let reset_declaration_caches () =
   Types.Uid.Tbl.clear !value_declarations;
   Types.Uid.Tbl.clear !type_declarations;
   Types.Uid.Tbl.clear !module_declarations;
+  Types.Uid.Tbl.clear !mutated_mutable_values;
   Types.Uid.Tbl.clear !used_constructors;
   Types.Uid.Tbl.clear !used_labels;
   ()
@@ -2306,7 +2310,12 @@ and store_value ?check ~mode id addr decl shape env =
   check_value_name (Ident.name id) decl.val_loc;
   Builtin_attributes.mark_alerts_used decl.val_attributes;
   Option.iter
-    (fun f -> check_usage decl.val_loc id decl.val_uid f !value_declarations)
+    (fun f ->
+      check_usage decl.val_loc id decl.val_uid f !value_declarations;
+      match decl.val_kind with
+      | Val_mut _ ->
+        check_usage decl.val_loc id decl.val_uid f !mutated_mutable_values
+      | _ -> ())
     check;
   let vda =
     { vda_description = decl;
@@ -2974,6 +2983,11 @@ let mark_value_used uid =
   | mark -> mark ()
   | exception Not_found -> ()
 
+let mark_value_mutated uid =
+  match Types.Uid.Tbl.find !mutated_mutable_values uid with
+  | mark -> mark ()
+  | exception Not_found -> ()
+
 let mark_type_used (uid : Uid.t) =
   let uid =
     (* Using the unboxed version of a type counts as using the boxed version *)
@@ -3036,6 +3050,9 @@ let mark_cltype_used uid =
 let set_value_used_callback vd callback =
   Types.Uid.Tbl.add !value_declarations vd.Subst.Lazy.val_uid callback
 
+let set_value_mutated_callback vd callback =
+  Types.Uid.Tbl.add !mutated_mutable_values vd.Subst.Lazy.val_uid callback
+
 let set_type_used_callback td callback =
   if Uid.for_actual_declaration td.type_uid then
     let old =
@@ -3093,6 +3110,14 @@ let use_value ~use ~loc path vda =
   if use then begin
     let desc = vda.vda_description in
     mark_value_used desc.val_uid;
+    Builtin_attributes.check_alerts loc desc.val_attributes
+      (Path.name path)
+  end
+
+let mutate_value ~use ~loc path vda =
+  if use then begin
+    let desc = vda.vda_description in
+    mark_value_mutated desc.val_uid;
     Builtin_attributes.check_alerts loc desc.val_attributes
       (Path.name path)
   end
@@ -4100,7 +4125,7 @@ let lookup_settable_variable ?(use=true) ~loc name env =
             |> Mode.Modality.Value.Const.apply
                 (Typemode.let_mutable_modalities m0)
           in
-          use_value ~use ~loc path vda;
+          mutate_value ~use ~loc path vda;
           Mutable_variable (id, mode, val_type, sort)
       | Val_mut _, _ -> assert false
       (* Unreachable because only [type_pat] creates mutable variables
