@@ -412,18 +412,4 @@ let () = accept_poly_poly_var poly_poly_var
 [%%expect {|
 val poly_poly_var : [< `A | `B ] -> unit = <fun>
 val accept_poly_poly_var : ('a. ([< `A | `B ] as 'a) -> unit) -> unit = <fun>
-Line 5, characters 30-43:
-5 | let () = accept_poly_poly_var poly_poly_var
-                                  ^^^^^^^^^^^^^
-Error: This argument has type "[< `A | `B ] -> unit" which is less general than
-         "'a. ([< `A | `B ] as 'a) -> unit"
-|}, Principal{|
-val poly_poly_var : [< `A | `B ] -> unit = <fun>
-val accept_poly_poly_var : ('a. ([< `A | `B ] as 'a) -> unit) -> unit = <fun>
-Line 5, characters 30-43:
-5 | let () = accept_poly_poly_var poly_poly_var
-                                  ^^^^^^^^^^^^^
-Error: This expression has type "[  ] -> unit"
-       but an expression was expected of type "[< `A | `B ] -> unit"
-       These two variant types have no intersection
 |}]
