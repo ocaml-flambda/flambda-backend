@@ -344,24 +344,24 @@ module ClassIntervals = struct
 
     let release_expired_inactive (t : t) ~(pos : int)
         (l : Interval.DescEndList.t) : unit =
-      let rec aux t ~pos curr =
-        match curr with
-        | None -> ()
-        | Some cell ->
-          let value = Interval.DescEndList.value cell in
-          if value.Interval.end_ >= pos
+      let rec aux t ~pos (cursor : Interval.DescEndList.Cursor.t) =
+        let value = Interval.DescEndList.Cursor.value cursor in
+        if value.Interval.end_ >= pos
+        then (
+          Interval.remove_expired value ~pos;
+          if not (Interval.is_live value ~pos)
           then (
-            Interval.remove_expired value ~pos;
-            if not (Interval.is_live value ~pos)
-            then aux t ~pos (Interval.DescEndList.next cell)
-            else (
-              Interval.DescEndList.insert t.active_sl value;
-              let next = Interval.DescEndList.next cell in
-              Interval.DescEndList.delete_curr cell;
-              aux t ~pos next))
-          else Interval.DescEndList.cut cell
+            let continue = Interval.DescEndList.Cursor.next cursor in
+            if continue then aux t ~pos cursor)
+          else (
+            Interval.DescEndList.insert t.active_sl value;
+            let continue = Interval.DescEndList.Cursor.delete_and_next cursor in
+            if continue then aux t ~pos cursor))
+        else Interval.DescEndList.Cursor.cut cursor
       in
-      aux t ~pos (Interval.DescEndList.hd_cell l)
+      match Interval.DescEndList.create_cursor_hd l with
+      | None -> ()
+      | Some curr -> aux t ~pos curr
   end
 
   let release_expired_intervals t ~pos =
