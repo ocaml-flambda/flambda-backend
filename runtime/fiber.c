@@ -237,7 +237,7 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize, int64_t id)
     return NULL;
   }
 
-#ifdef __linux__
+#if defined(__linux__) && !defined(WITH_ADDRESS_SANITIZER)
   /* On Linux, give names to the various mappings */
   caml_mem_name_map(stack, page_size,
                     "stack info (original fiber id %ld, tid %ld)",
