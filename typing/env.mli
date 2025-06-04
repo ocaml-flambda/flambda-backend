@@ -162,6 +162,9 @@ val mark_value_used: Uid.t -> unit
 val mark_module_used: Uid.t -> unit
 val mark_type_used: Uid.t -> unit
 
+(* Mark mutable variable as mutated *)
+val mark_value_mutated: Uid.t -> unit
+
 type constructor_usage = Positive | Pattern | Exported_private | Exported
 val mark_constructor_used:
     constructor_usage -> constructor_declaration -> unit
@@ -343,6 +346,8 @@ type settable_variable =
   | Instance_variable of Path.t * Asttypes.mutable_flag * string * type_expr
   | Mutable_variable of Ident.t * Mode.Value.r * type_expr * Jkind.Sort.t
 
+(** For a mutable variable, [use] means mark as mutated. For an instance
+    variable, it means mark as used (unclear if this is desired). *)
 val lookup_settable_variable:
   ?use:bool -> loc:Location.t -> string -> t -> settable_variable
 
@@ -618,6 +623,8 @@ val in_signature: bool -> t -> t
 val is_in_signature: t -> bool
 
 val set_value_used_callback:
+    Subst.Lazy.value_description -> (unit -> unit) -> unit
+val set_value_mutated_callback:
     Subst.Lazy.value_description -> (unit -> unit) -> unit
 val set_type_used_callback:
     type_declaration -> ((unit -> unit) -> unit) -> unit
