@@ -38,7 +38,7 @@ let interesting_type_trees : Type_structure.t Tree.t list =
       (Tree.enumerate_shapes' ~max_leaves_and_singleton_branches:2)
       ~f:(fun shape ->
         Tree.enumerate ~shape
-          ~leaves:[Int; Int64; Int32_u; Float; Int64_u; Nativeint_u]
+          ~leaves:[Int; Int64; Int32_u; Float; Int64_u; Nativeint_u; Unit_u]
     )
   @ (* Some particular interesting trees *)
   [ Branch

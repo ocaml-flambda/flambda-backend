@@ -53,6 +53,7 @@ module Layout : sig
     | Bits32
     | Vec128
     | Word
+    | Void
 
   val all_scannable : t -> bool
 
@@ -77,6 +78,7 @@ module Type_structure : sig
     | Int32_u
     | Nativeint
     | Nativeint_u
+    | Unit_u
     | Float
     | Float_u
     | Float32
@@ -133,6 +135,7 @@ module Type : sig
     | Int32_u
     | Nativeint
     | Nativeint_u
+    | Unit_u
     | Float
     | Float_u
     | Float32

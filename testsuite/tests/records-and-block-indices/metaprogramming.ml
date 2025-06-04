@@ -47,10 +47,12 @@ module Layout = struct
     | Bits32
     | Vec128
     | Word
+    | Void
 
   let rec all_scannable t =
     match t with
     | Value _ -> true
+    | Void -> true
     | Bits32 | Bits64 | Float64 | Float32 | Vec128 | Word -> false
     | Product ts -> List.for_all ts ~f:all_scannable
 
@@ -58,12 +60,13 @@ module Layout = struct
     match t with
     | Value Immediate | Float64 | Float32 | Bits64 | Bits32 | Vec128 | Word ->
       true
+    | Void -> true
     | Value Addr_non_float | Value Float -> false
     | Product ts -> List.for_all ts ~f:all_ignorable
 
   let rec contains_vec128 t =
     match t with
-    | Value _ | Float64 | Float32 | Bits64 | Bits32 | Word -> false
+    | Value _ | Float64 | Float32 | Bits64 | Bits32 | Word | Void -> false
     | Vec128 -> true
     | Product ts -> List.exists ts ~f:contains_vec128
 
@@ -71,7 +74,7 @@ module Layout = struct
     match t with
     | Value Float -> false
     | Value (Immediate | Addr_non_float)
-    | Bits32 | Bits64 | Float64 | Float32 | Vec128 | Word ->
+    | Bits32 | Bits64 | Float64 | Float32 | Vec128 | Word | Void ->
       true
     | Product ts -> List.for_all ts ~f:is_non_float
 
@@ -86,6 +89,7 @@ module Layout = struct
       | Value _ -> { acc with last_value_after_flat = acc.seen_flat }
       | Float64 | Float32 | Bits64 | Bits32 | Vec128 | Word ->
         { acc with seen_flat = true }
+      | Void -> acc
       | Product ts ->
         List.fold_left ts ~init:acc ~f:(fun acc layout -> aux layout acc)
     in
@@ -228,6 +232,7 @@ module Type_structure = struct
     | Int32_u
     | Nativeint
     | Nativeint_u
+    | Unit_u
     | Float
     | Float_u
     | Float32
@@ -253,6 +258,7 @@ module Type_structure = struct
     | Float32_u -> Float32
     | Float_u -> Float64
     | Nativeint_u -> Word
+    | Unit_u -> Void
     | Int64x2_u -> Vec128
 
   let is_flat_float_record t =
@@ -266,7 +272,7 @@ module Type_structure = struct
     | Record (ts, _) | Tuple (ts, _) -> List.exists ts ~f:contains_vec128
     | Option t -> contains_vec128 t
     | String | Int64 | Nativeint | Float32 | Int32 | Int | Float | Int64_u
-    | Float_u | Int32_u | Float32_u | Nativeint_u ->
+    | Float_u | Int32_u | Float32_u | Nativeint_u | Unit_u ->
       false
     | Int64x2_u -> true
 
@@ -319,6 +325,7 @@ module Type_structure = struct
     | Int64_u -> "int64#"
     | Int32_u -> "int32#"
     | Nativeint_u -> "nativeint#"
+    | Unit_u -> "unit_u"
     | Float_u -> "float#"
     | Float32_u -> "float32#"
     | Int64x2_u -> "int64x2#"
@@ -393,6 +400,7 @@ module Type = struct
     | Int32_u
     | Nativeint
     | Nativeint_u
+    | Unit_u
     | Float
     | Float_u
     | Float32
@@ -429,6 +437,7 @@ module Type = struct
     | Int32_u -> Int32_u
     | Nativeint -> Nativeint
     | Nativeint_u -> Nativeint_u
+    | Unit_u -> Unit_u
     | Float -> Float
     | Float_u -> Float_u
     | Float32 -> Float32
@@ -449,6 +458,7 @@ module Type = struct
     | Int32_u -> "int32#"
     | Nativeint -> "nativeint"
     | Nativeint_u -> "nativeint#"
+    | Unit_u -> "unit_u"
     | Float -> "float"
     | Float_u -> "float#"
     | Float32 -> "float32"
@@ -463,6 +473,7 @@ module Type = struct
     | Tuple (ts, _) ->
       List.fold_left ts ~f:(fun acc t -> acc + num_subvals t) ~init:0
     | Option t -> num_subvals t
+    | Unit_u -> 0
     | Int | Int64 | Int64_u | Int32 | Int32_u | Nativeint | Nativeint_u | Float
     | Float_u | Float32 | Float32_u | String ->
       1
@@ -520,6 +531,7 @@ module Type = struct
     | Int32_u -> "#" ^ Int.to_string i ^ "l"
     | Nativeint -> Int.to_string i ^ "n"
     | Nativeint_u -> "#" ^ Int.to_string i ^ "n"
+    | Unit_u -> "(unbox_unit ())"
     | Float -> Int.to_string i ^ "."
     | Float_u -> "#" ^ Int.to_string i ^ "."
     | Float32 -> Int.to_string i ^ ".s"
@@ -559,6 +571,7 @@ module Type = struct
     | Int32_u -> sprintf "Int32_u.of_int (i + %d)" i
     | Nativeint -> sprintf "Nativeint.of_int (i + %d)" i
     | Nativeint_u -> sprintf "Nativeint_u.of_int (i + %d)" i
+    | Unit_u -> "unbox_unit ()"
     | Float -> sprintf "Float.of_int (i + %d)" i
     | Float_u -> sprintf "Float_u.of_int (i + %d)" i
     | Float32 -> sprintf "Float32.of_int (i + %d)" i
@@ -609,6 +622,7 @@ module Type = struct
       sprintf "(fun a b -> Nativeint.equal (globalize a) (globalize b))"
     | Nativeint_u ->
       sprintf "(fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b)))"
+    | Unit_u -> "(fun _ _ -> true)"
     | Float -> sprintf "(fun a b -> Float.equal (globalize a) (globalize b))"
     | Float_u -> sprintf "(fun a b -> Float_u.(equal (add #0. a) (add #0. b)))"
     | Float32_u ->
@@ -699,6 +713,7 @@ module Type_naming = struct
       | Int32_u -> t, Int32_u
       | Nativeint -> t, Nativeint
       | Nativeint_u -> t, Nativeint_u
+      | Unit_u -> t, Unit_u
       | Float -> t, Float
       | Float_u -> t, Float_u
       | Float32 -> t, Float32
