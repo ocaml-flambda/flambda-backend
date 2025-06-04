@@ -170,7 +170,10 @@ module Interval = struct
     DLL.iter t.ranges ~f:(fun r -> Format.fprintf ppf " %a" Range.print r)
 
   let overlap : t -> t -> bool =
-   fun left right -> Range.overlap left.ranges right.ranges
+   fun left right ->
+    if left.end_ < right.begin_ || right.end_ < left.begin_
+    then false
+    else Range.overlap left.ranges right.ranges
 
   let is_live : t -> pos:int -> bool = fun t ~pos -> Range.is_live t.ranges ~pos
 

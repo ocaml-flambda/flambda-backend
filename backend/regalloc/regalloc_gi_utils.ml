@@ -193,6 +193,7 @@ module Range = struct
 
   let rec overlap : t list -> t list -> bool =
    fun left right ->
+    (* CR-soon xclerc for xclerc: use the same version as linscan (cursors). *)
     match left, right with
     | left_hd :: left_tl, right_hd :: right_tl ->
       if left_hd.end_ >= right_hd.begin_ && right_hd.end_ >= left_hd.begin_
@@ -255,9 +256,10 @@ module Interval = struct
     List.iter t.ranges ~f:(fun r -> Format.fprintf ppf " %a" Range.print r)
 
   let overlap : t -> t -> bool =
-   (* CR xclerc for xclerc: short-cut to avoid iterating over the lists using
-      the Interval.{begin_in_,end_} fields *)
-   fun left right -> Range.overlap left.ranges right.ranges
+   fun left right ->
+    if left.end_ < right.begin_ || right.end_ < left.begin_
+    then false
+    else Range.overlap left.ranges right.ranges
 
   (* CR xclerc for xclerc: assumes no overlap *)
   let add_ranges : t -> from:t -> unit =
