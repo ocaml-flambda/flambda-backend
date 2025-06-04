@@ -536,6 +536,7 @@ void caml_plat_mem_name_map(void *mem, size_t length, const char *name)
 #endif
 }
 
+#ifndef WITH_ADDRESS_SANITIZER
 static void* mmap_named(void* addr, size_t length, int prot, int flags,
                         int fd, off_t offset, const char* name)
 {
@@ -545,6 +546,7 @@ static void* mmap_named(void* addr, size_t length, int prot, int flags,
   }
   return p;
 }
+#endif
 
 void *caml_plat_mem_map(uintnat size, uintnat caml_flags, const char* name)
 {
