@@ -146,16 +146,21 @@ exception Outdated_version
 
 let open_and_check_magic inputfile ast_magic =
   let ic = open_in_bin inputfile in
+  let buffer = ref "" in
   let is_ast_file =
     try
-      let buffer = really_input_string ic (String.length ast_magic) in
-      if buffer = ast_magic then true
-      else if String.sub buffer 0 9 = String.sub ast_magic 0 9 then
+      buffer := really_input_string ic (String.length ast_magic);
+      if !buffer = ast_magic then true
+      else if String.sub !buffer 0 9 = String.sub ast_magic 0 9 then
         raise Outdated_version
       else false
     with
       Outdated_version ->
-        Misc.fatal_error "OCaml and preprocessor have incompatible versions"
+        Misc.fatal_errorf {|
+OCaml and preprocessor have incompatible versions
+  - OCaml compiler version: %s
+  - Preprocessor version (from [ppxlib/astlib/ast_999.ml]): %s
+|} ast_magic !buffer
     | _ -> false
   in
   (ic, is_ast_file)
