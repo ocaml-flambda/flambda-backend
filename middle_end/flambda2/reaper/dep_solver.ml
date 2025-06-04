@@ -161,7 +161,7 @@ let sources_rel = rel2 "sources" Cols.[n; n]
     It can be produced for instance by an argument from an escaping function
     or the result of non axiomatized primitives and external symbols.
     Right now functions coming from other files are considered unknown *)
-let any_source_pred = rel1 "any_source" Cols.[n]
+let _any_source_pred = Global_flow_graph.any_source_pred
 
 (** [field_sources x f y] y is a source of the field f of x,
     and there is an actual source for y.
@@ -929,6 +929,7 @@ let has_use, field_used =
       || exists_with_parameters used_field_query [x; field] db )
 
 let any_source_query =
+  let open! Global_flow_graph in
   mk_exists_query ["X"] [] (fun [x] [] -> [any_source_pred x])
 
 let has_source =
@@ -1731,6 +1732,7 @@ let cannot_change_calling_convention_query =
   mk_exists_query ["X"] [] (fun [x] [] -> [cannot_change_calling_convention x])
 
 let cannot_change_calling_convention_of_called_closure_query1 =
+  let open! Global_flow_graph in
   mk_exists_query ["set_of_closures"; "coderel"] ["call_witness"]
     (fun [set_of_closures; coderel] [call_witness] ->
       [ rev_accessor_rel set_of_closures coderel call_witness;

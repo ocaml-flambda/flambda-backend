@@ -225,6 +225,7 @@ module CoAccessor_rel =
 module CoConstructor_rel =
   Datalog.Schema.Relation3 (Code_id_or_name) (CoFieldC) (Code_id_or_name)
 module Any_usage_pred = Datalog.Schema.Relation1 (Code_id_or_name)
+module Any_source_pred = Datalog.Schema.Relation1 (Code_id_or_name)
 
 type graph =
   { mutable alias_rel : Alias_rel.t;
@@ -234,7 +235,8 @@ type graph =
     mutable coaccessor_rel : CoAccessor_rel.t;
     mutable coconstructor_rel : CoConstructor_rel.t;
     mutable propagate_rel : Propagate_rel.t;
-    mutable any_usage_pred : Any_usage_pred.t
+    mutable any_usage_pred : Any_usage_pred.t;
+    mutable any_source_pred : Any_source_pred.t
   }
 
 let print_iter_edges ~print_edge graph =
@@ -279,7 +281,9 @@ let coconstructor_rel = CoConstructor_rel.create ~name:"coconstructor"
 
 let propagate_rel = Propagate_rel.create ~name:"propagate"
 
-let any_usage_pred = Any_usage_pred.create ~name:"used"
+let any_usage_pred = Any_usage_pred.create ~name:"any_usage"
+
+let any_source_pred = Any_source_pred.create ~name:"any_source"
 
 let to_datalog graph =
   Datalog.set_table alias_rel graph.alias_rel
@@ -290,6 +294,7 @@ let to_datalog graph =
   @@ Datalog.set_table coconstructor_rel graph.coconstructor_rel
   @@ Datalog.set_table propagate_rel graph.propagate_rel
   @@ Datalog.set_table any_usage_pred graph.any_usage_pred
+  @@ Datalog.set_table any_source_pred graph.any_source_pred
   @@ Datalog.empty
 
 type 'a rel0 = [> `Atom of Datalog.atom] as 'a
@@ -328,6 +333,8 @@ let propagate_rel if_used to_ from =
 
 let any_usage_pred var = Datalog.atom any_usage_pred [var]
 
+let any_source_pred var = Datalog.atom any_source_pred [var]
+
 let create () =
   { alias_rel = Alias_rel.empty;
     use_rel = Use_rel.empty;
@@ -336,7 +343,8 @@ let create () =
     coaccessor_rel = CoAccessor_rel.empty;
     coconstructor_rel = CoConstructor_rel.empty;
     propagate_rel = Propagate_rel.empty;
-    any_usage_pred = Any_usage_pred.empty
+    any_usage_pred = Any_usage_pred.empty;
+    any_source_pred = Any_source_pred.empty
   }
 
 let add_alias t ~to_ ~from =
@@ -389,3 +397,6 @@ let add_opaque_let_dependency t ~to_ ~from =
 
 let add_use t (var : Code_id_or_name.t) =
   t.any_usage_pred <- Any_usage_pred.add_or_replace [var] () t.any_usage_pred
+
+let add_any_source t (var : Code_id_or_name.t) =
+  t.any_source_pred <- Any_source_pred.add_or_replace [var] () t.any_source_pred
