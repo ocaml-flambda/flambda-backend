@@ -9,27 +9,40 @@ and tricky to eliminate. But it's hard to argue with the potential performance
 gains. What might the language do to help us get those speedups and spend less
 time debugging nondeterministic behavior?
 
-OxCaml aims to provide an infrastructure for multicore OCaml programming that
-exploits the full power of parallelism while _guaranteeing_ freedom from an
-especially pernicious threat, that of the _data race._ That infrastructure
-includes many parts, from common primitives like atomics and locks to newer
-features like modes and capsules. Fortunately, not every parallel program will
-need all of this machinery, and following this tutorial, you'll see how far you
-can get with just two modes and the `Parallel.fork_join2` function.
+OxCaml provides an infrastructure for multicore OCaml programming that exploits
+the full power of parallelism while _guaranteeing_ freedom from an especially
+pernicious threat, that of the _data race._ That infrastructure includes many
+parts, from common primitives like atomics and locks to more exotic features
+like modes and capsules. Fortunately, many parallel programs only need some of
+this machinery, and following this tutorial, you'll see how far you can get with
+just two modes and the `Parallel.fork_join2` function.
+
+## Multicore OCaml in a nutshell
+
+OCaml 5 provides parallelism for otherwise perfectly ordinary OCaml code. The
+program is divided into _domains,_ each of which executes in a separate OS
+thread. Domains are allowed to pass values around freely to each other, so a
+function may at any time be accessing values allocated by other domains—and thus
+other domains may be accessing those values in parallel.
+
+The great thing about multicore OCaml is that there is total flexibility to
+structure the program without concern for who may be touching what at any time.
+The problem of course is that there is total flexibilty to structure the program
+without concern for who may be touching what at any time. Race conditions may
+abound, of which data races are especially concerning. OxCaml's data-race
+freedom extensions retain the ability to run code in parallel and intermix data
+between parallel domains, yet they add enough guard rails to eliminate data
+races entirely.
 
 ## What is a data race?
 
 A data race is a race condition in which two accesses to the same memory
 location conflict. Specifically, there are four elements of the crime:
 
-1. Code running in parallel, which is to say in two different _domains_
+1. Code running in parallel, which is to say in two different domains
 2. A memory location that may be accessed by both domains simultaneously
 3. At least one of the accesses is a write
 4. The location isn't atomic
-
-(A _domain_ is for our purposes what OCaml calls a thread. In particular, it
-will correspond to an actual OS thread, so the code running in two different
-domains can potentially run in parallel on different cores.)
 
 The last condition is a carve-out for specially synchronized memory operations
 provided by `Atomic.t`, which we'll cover [later on](#atomics). Any “normal”
@@ -127,17 +140,27 @@ It turns out our intuition assumes what the literature calls
 _sequential consistency:_ essentially, the principle that things happen in order
 they're written, and parallelism just means we're not sure which domain will do
 its next thing. This principle is so essential that it's hard to imagine
-reasoning about a multicore program without it.
+reasoning about a multicore program without it. Alas, OCaml 5 doesn't guarantee
+sequential consistency for this code—because of the data races.
 
-Of course, what's happened here is two data races: each of `price_of_gold` and
+There are two data races, to be specific: each of `price_of_gold` and
 `initialised` is being modified by domain A and read by domain B in parallel.
-So the moral of the story is that data races violate sequential consistency.
+When there is a data race, the OCaml memory model throws up its hands and says
+“sorry, no sequential consistency.”[^bounded-in-space-and-time]
+
+[^bounded-in-space-and-time]: If you come from a C/C++ or Java background, you
+may be interested to know that data races are still _considerably_ less
+catastrophic in OCaml than in other languages, where the repercussions are
+“unbounded in space and time,” which is as scary as it sounds. For details see
+[this paper][bounding data races].
+
+[bounding data races]: https://kcsrk.info/papers/pldi18-memory.pdf
 
 The good news is that the inverse is also true: any program without data races
-is sequentially consistent. Data-race freedom gives us back the power to reason
-intuitively about our code, no matter how buggy it might get. In our example,
+is sequentially consistent. *Data-race freedom gives us back the power to reason
+intuitively about our code, no matter how buggy it might get.* In our example,
 that means that once we fix the data races (easy to do with `Atomic.t`), we know
-that fixes our bug: sequential consistency means that it's impossible for domain
+our bug is gone: sequential consistency means that it's impossible for domain
 B to observe a state where `initialised` is `true` and `price_of_gold` is
 `0.0`.[^price-zero]
 
@@ -158,8 +181,8 @@ cases.
 
 Any problem that can be neatly subdivided is a good candidate for _fork/join
 parallelism,_ as provided by the `parallel` library’s `fork_join*` functions
-**(XX link to .mli)**. For example, a very expensive way to add four integers (I
-promise the other examples are more substantial) would be this:
+**(XX link to .mli)**. For example, a very expensive way to add four integers
+(we promise the other examples are more substantial) would be this:
 
 <a id="code-add4"></a>
 ```ocaml
@@ -186,15 +209,18 @@ which implements the popular [work-stealing] strategy.
 ```ocaml
 let test_add4 par = add4 par 1 10 100 1000
 
-let%expect_test "add4 in parallel" =
+let () =
   let module Scheduler = Parallel_scheduler_work_stealing in
   let scheduler = Scheduler.create () in
   let monitor = Parallel.Monitor.create_root () in
   let result = Scheduler.schedule scheduler ~monitor ~f:test_add4 in
   Scheduler.stop scheduler;
-  print_s [%message (result : int)];
-  [%expect {| (result 1111) |}];
+  Printf.printf "result: %d\n" result
 ;;
+```
+
+```
+result: 1111
 ```
 
 This creates a work-stealing scheduler, along with a _monitor_ to manage
@@ -209,7 +235,8 @@ debugging when you want to eliminate nondeterminism. To do so, simply replace
 
 Now for something more substantial. Suppose we're working with binary trees, and
 we want to take an average over all the values in the tree. Here's a basic
-implementation:
+implementation (note that we've made use of the new labeled tuples **(XX: link)**
+feature):
 
 <a id="code-average"></a>
 ```ocaml
@@ -220,7 +247,7 @@ module Tree = struct
 end
 
 let average (tree : float Tree.t) =
-  let rec total tree : total:float * count:int =
+  let rec total tree : (total:float * count:int) =
     match tree with
     | Tree.Leaf x -> ~total:x, ~count:1
     | Tree.Node (l, r) ->
@@ -231,10 +258,9 @@ let average (tree : float Tree.t) =
   let ~total, ~count = total tree in
   total /. (count |> Float.of_int)
 ;;
-```
 
-(Note that we've made use of the new labeled tuples **(XX: link)** feature for
-the values returned by `total`.)
+let test_tree = Tree.Node (Leaf 3.0, Leaf 4.0)
+```
 
 We can use `fork_join2` to parallelize `average`:
 
@@ -282,6 +308,7 @@ module Thing = struct
   let create ~price ~mood = { price; mood }
   let price { price; _ } = price
   let mood { mood; _ } = mood
+  let cheer_up t = t.mood <- Happy
 end
 ```
 
@@ -295,6 +322,15 @@ All we have to do to sum over the prices in a `Thing.t Tree.t` is change the
 +   | Tree.Leaf x -> ~total:(Thing.price x), ~count:1
     | Tree.Node (l, r) ->
       let (~total:total_l, ~count:count_l), (~total:total_r, ~count:count_r) =
+```
+
+And of course you'll need a new test tree:
+
+```
+let test_tree =
+  Tree.Node
+    ( Leaf (Thing.create ~price:3.0 ~mood:Happy)
+    , Leaf (Thing.create ~price:4.0 ~mood:Sad) )
 ```
 
 So far, so good. But something annoying happens if we introduce an abstraction
@@ -313,19 +349,34 @@ end
 val create : price:float -> mood:Mood.t -> t
 val price : t -> float
 val mood : t -> Mood.t
+val cheer_up : t -> unit
 ```
 
 But now we get an error from the compiler:
+
+```
+The value total is nonportable, so cannot be used inside a function that is
+portable.
+```
+
+Why are things breaking just because we moved some code? We can get closer to
+the answer by insisting that `total` is `portable`:
+
+```diff
+ let average_par (par : Parallel.t) (tree : Thing.t Tree.t) =
+-  let rec total par tree =
++  let rec (total @ portable) par tree =
+     match tree with
+```
 
 ```
 The value Thing.price is nonportable, so cannot be used inside a function that
 is portable.
 ```
 
-Why are things breaking just because we moved some code? As it turns out, it's
-because our declaration for `price` left out crucial information that the
-compiler was previously able to infer. We can take the compiler's suggestion
-easily enough by explaining that `price` is `portable`:
+What's going on is that our declaration for `price` left out crucial information
+that the compiler was previously able to infer. We can take the compiler's
+suggestion easily enough by explaining that `price` is `portable`:
 
 ```ocaml
 val price : t -> float @@ portable
@@ -346,6 +397,9 @@ missing information on `price`:
 ```ocaml
 val price : t @ contended -> float @@ portable
 ```
+
+(The precedences here are such that the `t` argument is `contended` and the
+whole function, namely `price`, is `portable`.)
 
 Once you're familiar with the `portable` and `contended` modes, you'll see that
 this can be read as saying:
@@ -392,16 +446,8 @@ Giving `price` the right type is enough to let `average_par` go through: from
 there, the compiler infers that our calls to `Parallel.fork_join2` won't produce
 data races, and in turn that `average_par` is again data-race free.
 
-If you modify our test code to run `average_par_things` on a test tree like
-
-```ocaml
-let test_tree =
-  Tree.Node
-    ( Leaf (Thing.create ~price:3.0 ~mood:Happy)
-    , Leaf (Thing.create ~price:4.0 ~mood:Sad) )
-```
-
-then you'll find yourself needing to make one more change to `thing.mli`:
+If you modify our test code to run `average_par` on the new `test_tree`, you'll
+find yourself needing to make one more change to `thing.mli`:
 
 ```ocaml
 val create : price:float -> mood:Mood.t -> t @ portable @@ portable
@@ -517,16 +563,27 @@ Adding `uncontended` signals to the compiler that a data race is possible: if
 have a data race. Enter [rule 1](#rule-contended-parallel), which simply says
 _it is not permissible_ to do so. Unlike rule 2, there's no one place where rule
 1 is enforced—really, it's an invariant of the whole system (language, runtime,
-and core libraries)—but let's see one example of trying to break it:
+and core libraries)—but let's see one example of trying to break it. First, make
+sure `cheer_up` and `bum_out` have the right signatures in `thing.mli`:
+
+```ocaml
+val cheer_up : t -> unit @@ portable
+val bum_out : t -> unit @@ portable
+```
+
+They both take their argument `uncontended`, so it would certainly be a shame
+if they could be called in parallel:
 
 ```ocaml
 let beat_the_system par =
-  let t = { price = 42.0; mood = Neutral }
+  let t = { price = 42.0; mood = Neutral } in
   let (), () =
     Parallel.fork_join2 par (fun _par -> cheer_up t) (fun _par -> bum_out t)
   in
   ()
 ```
+
+Fortunately:
 
 ```
 Error: This value is contended but expected to be uncontended.
@@ -534,7 +591,8 @@ Error: This value is contended but expected to be uncontended.
 
 When we cover the `portable` mode [next], we'll be able to explain precisely
 what's going on here, but for the moment suffice it to say that the type of
-`fork_join2` forces the two tasks to obey rule 1.
+`fork_join2` forces the two tasks to obey rule 1: since the tasks may be running
+in separate domains, they are forbidden to access `t` as `uncontended`.
 
 [next]: #the-portable-and-nonportable-modes
 
@@ -617,9 +675,9 @@ Shouldn't the returned value be `contended`? In other circumstances it would: if
 you try changing the `float` in the definition of `t` to a `float ref` then
 you'll find you indeed have to add `contended` to the return type of `price`.
 We'll cover the details in the section on [mode crossing], but the short answer
-is that since `float`s are immutable, no data race can arise from them, so the
-compiler simply ignores `contended` and `uncontended` on `float`s (and you can
-make use of this for your own immutable data as well).
+is that since `float`s have no mutable parts, no data race can arise from them,
+so the compiler simply ignores `contended` and `uncontended` on `float`s (and
+you can make use of this for your own deeply immutable data as well).
 
 [mode crossing]: #mode-crossing
 
@@ -809,14 +867,25 @@ top. Similarly you can have `@@ portable` as the first thing in a `sig` to make
 each function `portable`. In either case, you can always say `@@ nonportable` to
 opt out an individual function.
 
-So for example, we can take this .mli:
+So for example, we can take our earstwhile `thing.mli` with the changes we've
+made to date (and say one more function for illustrative purposes):
 
 ```ocaml
 type t
 
-val create : unit -> t @@ portable
-val combine : t -> t -> t @@ portable
-val do_something_involving_shared_state : t -> unit
+module Mood : sig
+  type t =
+    | Happy
+    | Neutral
+    | Sad
+end
+
+val create : price:float -> mood:Mood.t -> t @ portable @@ portable
+val price : t @ contended -> float @@ portable
+val mood : t -> Mood.t @@ portable
+val cheer_up : t -> unit @@ portable
+val bum_out : t -> unit @@ portable
+val do_something_involving_shared_state : unit -> unit
 ```
 
 And change the default to `portable`:
@@ -826,9 +895,19 @@ And change the default to `portable`:
 
 type t
 
-val create : unit -> t
-val combine : t -> t -> t
-val do_something_involving_shared_state : t -> unit @@ nonportable
+module Mood : sig
+  type t =
+    | Happy
+    | Neutral
+    | Sad
+end
+
+val create : price:float -> mood:Mood.t -> t @ portable
+val price : t @ contended -> float
+val mood : t -> Mood.t
+val cheer_up : t -> unit
+val bum_out : t -> unit
+val do_something_involving_shared_state : unit -> unit @@ nonportable
 ```
 
 ## Mode crossing
@@ -855,9 +934,10 @@ they are often useful.
 
 The three most important kinds for data-race freedom are `immutable_data`,
 `mutable_data`, and `value`. Some kinds constrain what types they describe, and
-in return types with those kinds get to cross certain modes. In summary (this
-table isn't nearly exhaustive—in particular, there are many modes we haven't
-covered, and `immutable_data` and `mutable_data` cross some of them as well):
+in return types with those kinds get to _cross_ certain modes, in essense
+ignoring those modes. In summary (this table isn't nearly exhaustive—see the
+documentation on kinds **(XX link)** for many more modes and what kinds cross
+them):
 
 | Kind | Requirements | Crosses |
 | ---- | ------------ | ------- |
@@ -888,7 +968,7 @@ In fact, we've already seen mode crossing in action. We mentioned before when
 talking about [rule 4 of `contended`](#rule-contended-deep) that when
 `Thing.price` projects the `price` field out of a `contended` `Thing.t`, the
 only reason it gets to return an `uncontended` `float` is that `float` crosses
-contention (which is to say, it has kind `immutable_data`).
+contention.
 
 We can make things more convenient with `Thing.t` as well. Recall that its
 definition is simply
@@ -970,9 +1050,12 @@ end
 As you can see, there's a bit of syntactic overhead, but in return we get to
 access `mood` even if a `Thing.t` is `contended`, and in fact we can mark `t` as
 `immutable_data` so that it ignores `contended` and `uncontended` altogether
-(that is, it [crosses contention]). Do go over the documentation for the `Atomic`
-module **(XX link to documentation)**, as it has many useful operations from
-`compare_exchange` to atomic logical bitwise XOR.
+(that is, it [crosses contention]). Do go over the documentation for the
+`Atomic` module **(XX link to documentation)**, as it has many useful operations
+from `compare_exchange` to atomic logical bitwise XOR. Also, note that we're
+using Core's `Atomic` here rather than the `Atomic` from OxCaml's standard
+library, which hews closer to the upstream OCaml standard library and doesn't
+support mode crossing.
 
 [crosses contention]: #mode-crossing
 
@@ -1009,9 +1092,9 @@ stopped,_ not what actually stops us.)
 Now for the caveats: Firstly, there are performance penalties, since an
 `Atomic.t` is a pointer and atomic operations are more expensive. Secondly,
 `Atomic.t` frees us from concerns about data races, but it absolutely does not
-prevent race _conditions_. There are few guarantees about the order in which the
-updates to `total` and `count` occur: we know only that they all happen before
-the outermost `fork_join2` returns.
+prevent race conditions in general. There are few guarantees about the order in
+which the updates to `total` and `count` occur: we know only that they all
+happen before the outermost `fork_join2` returns.
 
 Of course, in this case what saves us is that it doesn't matter what order the
 updates happen in: addition is commutative. However, now that we've made `mood`
@@ -1020,8 +1103,9 @@ atomic as well, suppose we wanted to take the average of all the nodes whose
 `bum_out` on the entire tree in parallel, then our average will reflect an
 unpredictable number of those changes. The only way to stop _that_ is to use
 something more sophisticated like a lock over the whole tree, which grants a
-function `uncontended` access while the lock is held. That's what the capsule
-API is for, but it's beyond the scope of this tutorial.
+function `uncontended` access while the lock is held (which is safe because of
+course only one domain can hold the lock). That's what the capsule API is for,
+but it's beyond the scope of this tutorial.
 
 The good news is that data-race freedom guarantees that even buggy programs can
 be reasoned about intuitively. See [Why are data races bad?].
