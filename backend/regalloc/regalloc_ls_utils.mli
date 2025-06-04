@@ -6,8 +6,6 @@ module Skip_list = Flambda_backend_utils.Skip_list
 
 val log : ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
 
-val equal_list_dll : ('a -> 'a -> bool) -> 'a list -> 'a DLL.t -> bool
-
 val indent : unit -> unit
 
 val dedent : unit -> unit
@@ -76,22 +74,10 @@ module Interval : sig
 
   val remove_expired : t -> pos:int -> unit
 
-  module DLL : sig
-    val print : Format.formatter -> t DLL.t -> unit
-
-    val release_expired_fixed : t DLL.t -> pos:int -> unit
-
-    val insert_sorted : t DLL.t -> t -> unit
-  end
-
   module AscBeginList : Skip_list.T with type elem = t
 
   module DescEndList : Skip_list.T with type elem = t
 end
-
-val equal_dll_asc_sl : Interval.t DLL.t -> Interval.AscBeginList.t -> bool
-
-val equal_dll_desc_sl : Interval.t DLL.t -> Interval.DescEndList.t -> bool
 
 module ClassIntervals : sig
   (* Similar to [Linscan.class_intervals] (in "backend/linscan.ml"). *)
@@ -113,8 +99,6 @@ module ClassIntervals : sig
 end
 
 val log_interval : kind:string -> Interval.t -> unit
-
-val log_interval_dll : kind:string -> Interval.t DLL.t -> unit
 
 val log_interval_asc_sl : kind:string -> Interval.AscBeginList.t -> unit
 
