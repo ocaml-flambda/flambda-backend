@@ -137,212 +137,226 @@ type t8 = { mutable a8 : int; mutable b8 : int32# } (* { int; int32# } *)
 type t9 = { mutable a9 : int; mutable b9 : int32#; mutable c9 : int } (* { int; int32#; int } *)
 type t10 = { mutable a10 : int; mutable b10 : int32#; mutable c10 : int32# } (* { int; int32#; int32# } *)
 type t11 = { mutable a11 : int; mutable b11 : nativeint# } (* { int; nativeint# } *)
-type t12 = { mutable a12 : int; mutable b12 : float } (* { int; float } *)
-type t13 = { mutable a13 : int; mutable b13 : float; mutable c13 : int } (* { int; float; int } *)
-type t14 = { mutable a14 : int; mutable b14 : float; mutable c14 : float } (* { int; float; float } *)
-type t15 = { mutable a15 : int; mutable b15 : int64x2# } (* { int; int64x2# } *)
-type t16 = { mutable a16 : int; mutable b16 : int64x2#; mutable c16 : int } (* { int; int64x2#; int } *)
-type t17 = { mutable a17 : int; mutable b17 : int64x2#; mutable c17 : int64x2# } (* { int; int64x2#; int64x2# } *)
-type t18 = #{ a18 : int } (* #{ int } *)
-type t19 = { mutable a19 : int; mutable b19 : t18 } (* { int; #{ int } } *)
-type t20 = #{ a20 : int; b20 : int } (* #{ int; int } *)
-type t21 = { mutable a21 : int; mutable b21 : t20 } (* { int; #{ int; int } } *)
-type t22 = #{ a22 : int; b22 : int32# } (* #{ int; int32# } *)
-type t23 = { mutable a23 : int; mutable b23 : t22 } (* { int; #{ int; int32# } } *)
-type t24 = #{ a24 : int; b24 : float } (* #{ int; float } *)
-type t25 = { mutable a25 : int; mutable b25 : t24 } (* { int; #{ int; float } } *)
-type t26 = #{ a26 : int; b26 : int64x2# } (* #{ int; int64x2# } *)
-type t27 = { mutable a27 : int; mutable b27 : t26 } (* { int; #{ int; int64x2# } } *)
-type t28 = #{ a28 : int32# } (* #{ int32# } *)
-type t29 = { mutable a29 : int; mutable b29 : t28 } (* { int; #{ int32# } } *)
-type t30 = #{ a30 : int32#; b30 : int } (* #{ int32#; int } *)
-type t31 = { mutable a31 : int; mutable b31 : t30 } (* { int; #{ int32#; int } } *)
-type t32 = #{ a32 : int32#; b32 : int32# } (* #{ int32#; int32# } *)
-type t33 = { mutable a33 : int; mutable b33 : t32 } (* { int; #{ int32#; int32# } } *)
-type t34 = #{ a34 : float } (* #{ float } *)
-type t35 = { mutable a35 : int; mutable b35 : t34 } (* { int; #{ float } } *)
-type t36 = #{ a36 : float; b36 : int } (* #{ float; int } *)
-type t37 = { mutable a37 : int; mutable b37 : t36 } (* { int; #{ float; int } } *)
-type t38 = #{ a38 : float; b38 : float } (* #{ float; float } *)
-type t39 = { mutable a39 : int; mutable b39 : t38 } (* { int; #{ float; float } } *)
-type t40 = #{ a40 : int64x2# } (* #{ int64x2# } *)
-type t41 = { mutable a41 : int; mutable b41 : t40 } (* { int; #{ int64x2# } } *)
-type t42 = #{ a42 : int64x2#; b42 : int } (* #{ int64x2#; int } *)
-type t43 = { mutable a43 : int; mutable b43 : t42 } (* { int; #{ int64x2#; int } } *)
-type t44 = #{ a44 : int64x2#; b44 : int64x2# } (* #{ int64x2#; int64x2# } *)
-type t45 = { mutable a45 : int; mutable b45 : t44 } (* { int; #{ int64x2#; int64x2# } } *)
-type t46 = { mutable a46 : int64 } (* { int64 } *)
-type t47 = { mutable a47 : int64; mutable b47 : int } (* { int64; int } *)
-type t48 = { mutable a48 : int64; mutable b48 : int64 } (* { int64; int64 } *)
-type t49 = { mutable a49 : int64; mutable b49 : int64# } (* { int64; int64# } *)
-type t50 = { mutable a50 : int64; mutable b50 : int32# } (* { int64; int32# } *)
-type t51 = { mutable a51 : int64; mutable b51 : nativeint# } (* { int64; nativeint# } *)
-type t52 = { mutable a52 : int64; mutable b52 : float } (* { int64; float } *)
-type t53 = { mutable a53 : int64# } (* { int64# } *)
-type t54 = { mutable a54 : int64#; mutable b54 : int } (* { int64#; int } *)
-type t55 = { mutable a55 : int64#; mutable b55 : int64 } (* { int64#; int64 } *)
-type t56 = { mutable a56 : int64#; mutable b56 : int64# } (* { int64#; int64# } *)
-type t57 = { mutable a57 : int64#; mutable b57 : int32# } (* { int64#; int32# } *)
-type t58 = { mutable a58 : int64#; mutable b58 : nativeint# } (* { int64#; nativeint# } *)
-type t59 = { mutable a59 : int64#; mutable b59 : float } (* { int64#; float } *)
-type t60 = { mutable a60 : int32# } (* { int32# } *)
-type t61 = { mutable a61 : int32#; mutable b61 : int } (* { int32#; int } *)
-type t62 = { mutable a62 : int32#; mutable b62 : int; mutable c62 : int } (* { int32#; int; int } *)
-type t63 = { mutable a63 : int32#; mutable b63 : int; mutable c63 : int32# } (* { int32#; int; int32# } *)
-type t64 = { mutable a64 : int32#; mutable b64 : int64 } (* { int32#; int64 } *)
-type t65 = { mutable a65 : int32#; mutable b65 : int64# } (* { int32#; int64# } *)
-type t66 = { mutable a66 : int32#; mutable b66 : int32# } (* { int32#; int32# } *)
-type t67 = { mutable a67 : int32#; mutable b67 : int32#; mutable c67 : int } (* { int32#; int32#; int } *)
-type t68 = { mutable a68 : int32#; mutable b68 : int32#; mutable c68 : int32# } (* { int32#; int32#; int32# } *)
-type t69 = { mutable a69 : int32#; mutable b69 : nativeint# } (* { int32#; nativeint# } *)
-type t70 = { mutable a70 : int32#; mutable b70 : float } (* { int32#; float } *)
-type t71 = { mutable a71 : int32#; mutable b71 : t18 } (* { int32#; #{ int } } *)
-type t72 = { mutable a72 : int32#; mutable b72 : t20 } (* { int32#; #{ int; int } } *)
-type t73 = { mutable a73 : int32#; mutable b73 : t22 } (* { int32#; #{ int; int32# } } *)
-type t74 = { mutable a74 : int32#; mutable b74 : t28 } (* { int32#; #{ int32# } } *)
-type t75 = { mutable a75 : int32#; mutable b75 : t30 } (* { int32#; #{ int32#; int } } *)
-type t76 = { mutable a76 : int32#; mutable b76 : t32 } (* { int32#; #{ int32#; int32# } } *)
-type t77 = { mutable a77 : nativeint# } (* { nativeint# } *)
-type t78 = { mutable a78 : nativeint#; mutable b78 : int } (* { nativeint#; int } *)
-type t79 = { mutable a79 : nativeint#; mutable b79 : int64 } (* { nativeint#; int64 } *)
-type t80 = { mutable a80 : nativeint#; mutable b80 : int64# } (* { nativeint#; int64# } *)
-type t81 = { mutable a81 : nativeint#; mutable b81 : int32# } (* { nativeint#; int32# } *)
-type t82 = { mutable a82 : nativeint#; mutable b82 : nativeint# } (* { nativeint#; nativeint# } *)
-type t83 = { mutable a83 : nativeint#; mutable b83 : float } (* { nativeint#; float } *)
-type t84 = { mutable a84 : float } (* { float } *)
-type t85 = { mutable a85 : float; mutable b85 : int } (* { float; int } *)
-type t86 = { mutable a86 : float; mutable b86 : int; mutable c86 : int } (* { float; int; int } *)
-type t87 = { mutable a87 : float; mutable b87 : int; mutable c87 : float } (* { float; int; float } *)
-type t88 = { mutable a88 : float; mutable b88 : int64 } (* { float; int64 } *)
-type t89 = { mutable a89 : float; mutable b89 : int64# } (* { float; int64# } *)
-type t90 = { mutable a90 : float; mutable b90 : int32# } (* { float; int32# } *)
-type t91 = { mutable a91 : float; mutable b91 : nativeint# } (* { float; nativeint# } *)
-type t92 = { mutable a92 : float; mutable b92 : float } (* { float; float } *)
-type t93 = { mutable a93 : float; mutable b93 : float; mutable c93 : int } (* { float; float; int } *)
-type t94 = { mutable a94 : float; mutable b94 : float; mutable c94 : float } (* { float; float; float } *)
-type t95 = { mutable a95 : float; mutable b95 : float; mutable c95 : float# } (* { float; float; float# } *)
-type t96 = { mutable a96 : float; mutable b96 : float# } (* { float; float# } *)
-type t97 = { mutable a97 : float; mutable b97 : float#; mutable c97 : float } (* { float; float#; float } *)
-type t98 = { mutable a98 : float; mutable b98 : float#; mutable c98 : float# } (* { float; float#; float# } *)
-type t99 = { mutable a99 : float; mutable b99 : t18 } (* { float; #{ int } } *)
-type t100 = { mutable a100 : float; mutable b100 : t20 } (* { float; #{ int; int } } *)
-type t101 = { mutable a101 : float; mutable b101 : t24 } (* { float; #{ int; float } } *)
-type t102 = { mutable a102 : float; mutable b102 : t34 } (* { float; #{ float } } *)
-type t103 = { mutable a103 : float; mutable b103 : t36 } (* { float; #{ float; int } } *)
-type t104 = { mutable a104 : float; mutable b104 : t38 } (* { float; #{ float; float } } *)
-type t105 = #{ a105 : float; b105 : float# } (* #{ float; float# } *)
-type t106 = { mutable a106 : float; mutable b106 : t105 } (* { float; #{ float; float# } } *)
-type t107 = #{ a107 : float# } (* #{ float# } *)
-type t108 = { mutable a108 : float; mutable b108 : t107 } (* { float; #{ float# } } *)
-type t109 = #{ a109 : float#; b109 : float } (* #{ float#; float } *)
-type t110 = { mutable a110 : float; mutable b110 : t109 } (* { float; #{ float#; float } } *)
-type t111 = #{ a111 : float#; b111 : float# } (* #{ float#; float# } *)
-type t112 = { mutable a112 : float; mutable b112 : t111 } (* { float; #{ float#; float# } } *)
-type t113 = { mutable a113 : float# } (* { float# } *)
-type t114 = { mutable a114 : float#; mutable b114 : float } (* { float#; float } *)
-type t115 = { mutable a115 : float#; mutable b115 : float; mutable c115 : float } (* { float#; float; float } *)
-type t116 = { mutable a116 : float#; mutable b116 : float; mutable c116 : float# } (* { float#; float; float# } *)
-type t117 = { mutable a117 : float#; mutable b117 : float# } (* { float#; float# } *)
-type t118 = { mutable a118 : float#; mutable b118 : float#; mutable c118 : float } (* { float#; float#; float } *)
-type t119 = { mutable a119 : float#; mutable b119 : float#; mutable c119 : float# } (* { float#; float#; float# } *)
-type t120 = { mutable a120 : float#; mutable b120 : t34 } (* { float#; #{ float } } *)
-type t121 = { mutable a121 : float#; mutable b121 : t38 } (* { float#; #{ float; float } } *)
-type t122 = { mutable a122 : float#; mutable b122 : t105 } (* { float#; #{ float; float# } } *)
-type t123 = { mutable a123 : float#; mutable b123 : t107 } (* { float#; #{ float# } } *)
-type t124 = { mutable a124 : float#; mutable b124 : t109 } (* { float#; #{ float#; float } } *)
-type t125 = { mutable a125 : float#; mutable b125 : t111 } (* { float#; #{ float#; float# } } *)
-type t126 = { mutable a126 : int64x2# } (* { int64x2# } *)
-type t127 = { mutable a127 : int64x2#; mutable b127 : int } (* { int64x2#; int } *)
-type t128 = { mutable a128 : int64x2#; mutable b128 : int; mutable c128 : int } (* { int64x2#; int; int } *)
-type t129 = { mutable a129 : int64x2#; mutable b129 : int; mutable c129 : int64x2# } (* { int64x2#; int; int64x2# } *)
-type t130 = { mutable a130 : int64x2#; mutable b130 : int64x2# } (* { int64x2#; int64x2# } *)
-type t131 = { mutable a131 : int64x2#; mutable b131 : int64x2#; mutable c131 : int } (* { int64x2#; int64x2#; int } *)
-type t132 = { mutable a132 : int64x2#; mutable b132 : int64x2#; mutable c132 : int64x2# } (* { int64x2#; int64x2#; int64x2# } *)
-type t133 = { mutable a133 : int64x2#; mutable b133 : t18 } (* { int64x2#; #{ int } } *)
-type t134 = { mutable a134 : int64x2#; mutable b134 : t20 } (* { int64x2#; #{ int; int } } *)
-type t135 = { mutable a135 : int64x2#; mutable b135 : t26 } (* { int64x2#; #{ int; int64x2# } } *)
-type t136 = #{ a136 : string; b136 : float# } (* #{ string; float# } *)
-type t137 = { mutable a137 : int64x2#; mutable b137 : t136 } (* { int64x2#; #{ string; float# } } *)
-type t138 = { mutable a138 : int64x2#; mutable b138 : t40 } (* { int64x2#; #{ int64x2# } } *)
-type t139 = { mutable a139 : int64x2#; mutable b139 : t42 } (* { int64x2#; #{ int64x2#; int } } *)
-type t140 = { mutable a140 : int64x2#; mutable b140 : t44 } (* { int64x2#; #{ int64x2#; int64x2# } } *)
-type t141 = { mutable a141 : t18 } (* { #{ int } } *)
-type t142 = { mutable a142 : t18; mutable b142 : int } (* { #{ int }; int } *)
-type t143 = { mutable a143 : t18; mutable b143 : int32# } (* { #{ int }; int32# } *)
-type t144 = { mutable a144 : t18; mutable b144 : float } (* { #{ int }; float } *)
-type t145 = { mutable a145 : t18; mutable b145 : int64x2# } (* { #{ int }; int64x2# } *)
-type t146 = { mutable a146 : t20 } (* { #{ int; int } } *)
-type t147 = { mutable a147 : t20; mutable b147 : int } (* { #{ int; int }; int } *)
-type t148 = { mutable a148 : t20; mutable b148 : int32# } (* { #{ int; int }; int32# } *)
-type t149 = { mutable a149 : t20; mutable b149 : float } (* { #{ int; int }; float } *)
-type t150 = { mutable a150 : t20; mutable b150 : int64x2# } (* { #{ int; int }; int64x2# } *)
-type t151 = { mutable a151 : t22 } (* { #{ int; int32# } } *)
-type t152 = { mutable a152 : t22; mutable b152 : int } (* { #{ int; int32# }; int } *)
-type t153 = { mutable a153 : t22; mutable b153 : int32# } (* { #{ int; int32# }; int32# } *)
-type t154 = { mutable a154 : t24 } (* { #{ int; float } } *)
-type t155 = { mutable a155 : t24; mutable b155 : int } (* { #{ int; float }; int } *)
-type t156 = { mutable a156 : t24; mutable b156 : float } (* { #{ int; float }; float } *)
-type t157 = { mutable a157 : t26 } (* { #{ int; int64x2# } } *)
-type t158 = { mutable a158 : t26; mutable b158 : int } (* { #{ int; int64x2# }; int } *)
-type t159 = { mutable a159 : t26; mutable b159 : int64x2# } (* { #{ int; int64x2# }; int64x2# } *)
-type t160 = #{ a160 : int64; b160 : int64# } (* #{ int64; int64# } *)
-type t161 = #{ a161 : int64#; b161 : float# } (* #{ int64#; float# } *)
-type t162 = { mutable a162 : t160; mutable b162 : t161 } (* { #{ int64; int64# }; #{ int64#; float# } } *)
-type t163 = #{ a163 : int64; b163 : string } (* #{ int64; string } *)
-type t164 = #{ a164 : int64#; b164 : string } (* #{ int64#; string } *)
-type t165 = { mutable a165 : t163; mutable b165 : t164 } (* { #{ int64; string }; #{ int64#; string } } *)
-type t166 = #{ a166 : int64#; b166 : int64 } (* #{ int64#; int64 } *)
-type t167 = #{ a167 : int64; b167 : int64 } (* #{ int64; int64 } *)
-type t168 = { mutable a168 : t166; mutable b168 : t167 } (* { #{ int64#; int64 }; #{ int64; int64 } } *)
-type t169 = #{ a169 : float32#; b169 : float } (* #{ float32#; float } *)
-type t170 = { mutable a170 : t166; mutable b170 : t169 } (* { #{ int64#; int64 }; #{ float32#; float } } *)
-type t171 = { mutable a171 : t28 } (* { #{ int32# } } *)
-type t172 = { mutable a172 : t28; mutable b172 : int } (* { #{ int32# }; int } *)
-type t173 = { mutable a173 : t28; mutable b173 : int32# } (* { #{ int32# }; int32# } *)
-type t174 = { mutable a174 : t30 } (* { #{ int32#; int } } *)
-type t175 = { mutable a175 : t30; mutable b175 : int } (* { #{ int32#; int }; int } *)
-type t176 = { mutable a176 : t30; mutable b176 : int32# } (* { #{ int32#; int }; int32# } *)
-type t177 = { mutable a177 : t32 } (* { #{ int32#; int32# } } *)
-type t178 = { mutable a178 : t32; mutable b178 : int } (* { #{ int32#; int32# }; int } *)
-type t179 = { mutable a179 : t32; mutable b179 : int32# } (* { #{ int32#; int32# }; int32# } *)
-type t180 = { mutable a180 : t34 } (* { #{ float } } *)
-type t181 = { mutable a181 : t34; mutable b181 : int } (* { #{ float }; int } *)
-type t182 = { mutable a182 : t34; mutable b182 : float } (* { #{ float }; float } *)
-type t183 = { mutable a183 : t34; mutable b183 : float# } (* { #{ float }; float# } *)
-type t184 = { mutable a184 : t36 } (* { #{ float; int } } *)
-type t185 = { mutable a185 : t36; mutable b185 : int } (* { #{ float; int }; int } *)
-type t186 = { mutable a186 : t36; mutable b186 : float } (* { #{ float; int }; float } *)
-type t187 = { mutable a187 : t38 } (* { #{ float; float } } *)
-type t188 = { mutable a188 : t38; mutable b188 : int } (* { #{ float; float }; int } *)
-type t189 = { mutable a189 : t38; mutable b189 : float } (* { #{ float; float }; float } *)
-type t190 = { mutable a190 : t38; mutable b190 : float# } (* { #{ float; float }; float# } *)
-type t191 = { mutable a191 : t105 } (* { #{ float; float# } } *)
-type t192 = { mutable a192 : t105; mutable b192 : float } (* { #{ float; float# }; float } *)
-type t193 = { mutable a193 : t105; mutable b193 : float# } (* { #{ float; float# }; float# } *)
-type t194 = { mutable a194 : t107 } (* { #{ float# } } *)
-type t195 = { mutable a195 : t107; mutable b195 : float } (* { #{ float# }; float } *)
-type t196 = { mutable a196 : t107; mutable b196 : float# } (* { #{ float# }; float# } *)
-type t197 = { mutable a197 : t109 } (* { #{ float#; float } } *)
-type t198 = { mutable a198 : t109; mutable b198 : float } (* { #{ float#; float }; float } *)
-type t199 = { mutable a199 : t109; mutable b199 : float# } (* { #{ float#; float }; float# } *)
-type t200 = { mutable a200 : t111 } (* { #{ float#; float# } } *)
-type t201 = { mutable a201 : t111; mutable b201 : float } (* { #{ float#; float# }; float } *)
-type t202 = { mutable a202 : t111; mutable b202 : float# } (* { #{ float#; float# }; float# } *)
-type t203 = #{ a203 : float32#; b203 : int64# } (* #{ float32#; int64# } *)
-type t204 = #{ a204 : string; b204 : int64# } (* #{ string; int64# } *)
-type t205 = { mutable a205 : t203; mutable b205 : t204 } (* { #{ float32#; int64# }; #{ string; int64# } } *)
-type t206 = { mutable a206 : t40 } (* { #{ int64x2# } } *)
-type t207 = { mutable a207 : t40; mutable b207 : int } (* { #{ int64x2# }; int } *)
-type t208 = { mutable a208 : t40; mutable b208 : int64x2# } (* { #{ int64x2# }; int64x2# } *)
-type t209 = { mutable a209 : t42 } (* { #{ int64x2#; int } } *)
-type t210 = { mutable a210 : t42; mutable b210 : int } (* { #{ int64x2#; int }; int } *)
-type t211 = { mutable a211 : t42; mutable b211 : int64x2# } (* { #{ int64x2#; int }; int64x2# } *)
-type t212 = #{ a212 : int64x2#; b212 : string } (* #{ int64x2#; string } *)
-type t213 = #{ a213 : int64; b213 : float# } (* #{ int64; float# } *)
-type t214 = { mutable a214 : t212; mutable b214 : t213 } (* { #{ int64x2#; string }; #{ int64; float# } } *)
-type t215 = { mutable a215 : t44 } (* { #{ int64x2#; int64x2# } } *)
-type t216 = { mutable a216 : t44; mutable b216 : int } (* { #{ int64x2#; int64x2# }; int } *)
-type t217 = { mutable a217 : t44; mutable b217 : int64x2# } (* { #{ int64x2#; int64x2# }; int64x2# } *)
+type t12 = { mutable a12 : int; mutable b12 : unit_u } (* { int; unit_u } *)
+type t13 = { mutable a13 : int; mutable b13 : float } (* { int; float } *)
+type t14 = { mutable a14 : int; mutable b14 : float; mutable c14 : int } (* { int; float; int } *)
+type t15 = { mutable a15 : int; mutable b15 : float; mutable c15 : float } (* { int; float; float } *)
+type t16 = { mutable a16 : int; mutable b16 : int64x2# } (* { int; int64x2# } *)
+type t17 = { mutable a17 : int; mutable b17 : int64x2#; mutable c17 : int } (* { int; int64x2#; int } *)
+type t18 = { mutable a18 : int; mutable b18 : int64x2#; mutable c18 : int64x2# } (* { int; int64x2#; int64x2# } *)
+type t19 = #{ a19 : int } (* #{ int } *)
+type t20 = { mutable a20 : int; mutable b20 : t19 } (* { int; #{ int } } *)
+type t21 = #{ a21 : int; b21 : int } (* #{ int; int } *)
+type t22 = { mutable a22 : int; mutable b22 : t21 } (* { int; #{ int; int } } *)
+type t23 = #{ a23 : int; b23 : int32# } (* #{ int; int32# } *)
+type t24 = { mutable a24 : int; mutable b24 : t23 } (* { int; #{ int; int32# } } *)
+type t25 = #{ a25 : int; b25 : float } (* #{ int; float } *)
+type t26 = { mutable a26 : int; mutable b26 : t25 } (* { int; #{ int; float } } *)
+type t27 = #{ a27 : int; b27 : int64x2# } (* #{ int; int64x2# } *)
+type t28 = { mutable a28 : int; mutable b28 : t27 } (* { int; #{ int; int64x2# } } *)
+type t29 = #{ a29 : int32# } (* #{ int32# } *)
+type t30 = { mutable a30 : int; mutable b30 : t29 } (* { int; #{ int32# } } *)
+type t31 = #{ a31 : int32#; b31 : int } (* #{ int32#; int } *)
+type t32 = { mutable a32 : int; mutable b32 : t31 } (* { int; #{ int32#; int } } *)
+type t33 = #{ a33 : int32#; b33 : int32# } (* #{ int32#; int32# } *)
+type t34 = { mutable a34 : int; mutable b34 : t33 } (* { int; #{ int32#; int32# } } *)
+type t35 = #{ a35 : float } (* #{ float } *)
+type t36 = { mutable a36 : int; mutable b36 : t35 } (* { int; #{ float } } *)
+type t37 = #{ a37 : float; b37 : int } (* #{ float; int } *)
+type t38 = { mutable a38 : int; mutable b38 : t37 } (* { int; #{ float; int } } *)
+type t39 = #{ a39 : float; b39 : float } (* #{ float; float } *)
+type t40 = { mutable a40 : int; mutable b40 : t39 } (* { int; #{ float; float } } *)
+type t41 = #{ a41 : int64x2# } (* #{ int64x2# } *)
+type t42 = { mutable a42 : int; mutable b42 : t41 } (* { int; #{ int64x2# } } *)
+type t43 = #{ a43 : int64x2#; b43 : int } (* #{ int64x2#; int } *)
+type t44 = { mutable a44 : int; mutable b44 : t43 } (* { int; #{ int64x2#; int } } *)
+type t45 = #{ a45 : int64x2#; b45 : int64x2# } (* #{ int64x2#; int64x2# } *)
+type t46 = { mutable a46 : int; mutable b46 : t45 } (* { int; #{ int64x2#; int64x2# } } *)
+type t47 = { mutable a47 : int64 } (* { int64 } *)
+type t48 = { mutable a48 : int64; mutable b48 : int } (* { int64; int } *)
+type t49 = { mutable a49 : int64; mutable b49 : int64 } (* { int64; int64 } *)
+type t50 = { mutable a50 : int64; mutable b50 : int64# } (* { int64; int64# } *)
+type t51 = { mutable a51 : int64; mutable b51 : int32# } (* { int64; int32# } *)
+type t52 = { mutable a52 : int64; mutable b52 : nativeint# } (* { int64; nativeint# } *)
+type t53 = { mutable a53 : int64; mutable b53 : unit_u } (* { int64; unit_u } *)
+type t54 = { mutable a54 : int64; mutable b54 : float } (* { int64; float } *)
+type t55 = { mutable a55 : int64# } (* { int64# } *)
+type t56 = { mutable a56 : int64#; mutable b56 : int } (* { int64#; int } *)
+type t57 = { mutable a57 : int64#; mutable b57 : int64 } (* { int64#; int64 } *)
+type t58 = { mutable a58 : int64#; mutable b58 : int64# } (* { int64#; int64# } *)
+type t59 = { mutable a59 : int64#; mutable b59 : int32# } (* { int64#; int32# } *)
+type t60 = { mutable a60 : int64#; mutable b60 : nativeint# } (* { int64#; nativeint# } *)
+type t61 = { mutable a61 : int64#; mutable b61 : unit_u } (* { int64#; unit_u } *)
+type t62 = { mutable a62 : int64#; mutable b62 : float } (* { int64#; float } *)
+type t63 = { mutable a63 : int32# } (* { int32# } *)
+type t64 = { mutable a64 : int32#; mutable b64 : int } (* { int32#; int } *)
+type t65 = { mutable a65 : int32#; mutable b65 : int; mutable c65 : int } (* { int32#; int; int } *)
+type t66 = { mutable a66 : int32#; mutable b66 : int; mutable c66 : int32# } (* { int32#; int; int32# } *)
+type t67 = { mutable a67 : int32#; mutable b67 : int64 } (* { int32#; int64 } *)
+type t68 = { mutable a68 : int32#; mutable b68 : int64# } (* { int32#; int64# } *)
+type t69 = { mutable a69 : int32#; mutable b69 : int32# } (* { int32#; int32# } *)
+type t70 = { mutable a70 : int32#; mutable b70 : int32#; mutable c70 : int } (* { int32#; int32#; int } *)
+type t71 = { mutable a71 : int32#; mutable b71 : int32#; mutable c71 : int32# } (* { int32#; int32#; int32# } *)
+type t72 = { mutable a72 : int32#; mutable b72 : nativeint# } (* { int32#; nativeint# } *)
+type t73 = { mutable a73 : int32#; mutable b73 : unit_u } (* { int32#; unit_u } *)
+type t74 = { mutable a74 : int32#; mutable b74 : float } (* { int32#; float } *)
+type t75 = { mutable a75 : int32#; mutable b75 : t19 } (* { int32#; #{ int } } *)
+type t76 = { mutable a76 : int32#; mutable b76 : t21 } (* { int32#; #{ int; int } } *)
+type t77 = { mutable a77 : int32#; mutable b77 : t23 } (* { int32#; #{ int; int32# } } *)
+type t78 = { mutable a78 : int32#; mutable b78 : t29 } (* { int32#; #{ int32# } } *)
+type t79 = { mutable a79 : int32#; mutable b79 : t31 } (* { int32#; #{ int32#; int } } *)
+type t80 = { mutable a80 : int32#; mutable b80 : t33 } (* { int32#; #{ int32#; int32# } } *)
+type t81 = { mutable a81 : nativeint# } (* { nativeint# } *)
+type t82 = { mutable a82 : nativeint#; mutable b82 : int } (* { nativeint#; int } *)
+type t83 = { mutable a83 : nativeint#; mutable b83 : int64 } (* { nativeint#; int64 } *)
+type t84 = { mutable a84 : nativeint#; mutable b84 : int64# } (* { nativeint#; int64# } *)
+type t85 = { mutable a85 : nativeint#; mutable b85 : int32# } (* { nativeint#; int32# } *)
+type t86 = { mutable a86 : nativeint#; mutable b86 : nativeint# } (* { nativeint#; nativeint# } *)
+type t87 = { mutable a87 : nativeint#; mutable b87 : unit_u } (* { nativeint#; unit_u } *)
+type t88 = { mutable a88 : nativeint#; mutable b88 : float } (* { nativeint#; float } *)
+type t89 = { mutable a89 : unit_u } (* { unit_u } *)
+type t90 = { mutable a90 : unit_u; mutable b90 : int } (* { unit_u; int } *)
+type t91 = { mutable a91 : unit_u; mutable b91 : int64 } (* { unit_u; int64 } *)
+type t92 = { mutable a92 : unit_u; mutable b92 : int64# } (* { unit_u; int64# } *)
+type t93 = { mutable a93 : unit_u; mutable b93 : int32# } (* { unit_u; int32# } *)
+type t94 = { mutable a94 : unit_u; mutable b94 : nativeint# } (* { unit_u; nativeint# } *)
+type t95 = { mutable a95 : unit_u; mutable b95 : unit_u } (* { unit_u; unit_u } *)
+type t96 = { mutable a96 : unit_u; mutable b96 : float } (* { unit_u; float } *)
+type t97 = { mutable a97 : float } (* { float } *)
+type t98 = { mutable a98 : float; mutable b98 : int } (* { float; int } *)
+type t99 = { mutable a99 : float; mutable b99 : int; mutable c99 : int } (* { float; int; int } *)
+type t100 = { mutable a100 : float; mutable b100 : int; mutable c100 : float } (* { float; int; float } *)
+type t101 = { mutable a101 : float; mutable b101 : int64 } (* { float; int64 } *)
+type t102 = { mutable a102 : float; mutable b102 : int64# } (* { float; int64# } *)
+type t103 = { mutable a103 : float; mutable b103 : int32# } (* { float; int32# } *)
+type t104 = { mutable a104 : float; mutable b104 : nativeint# } (* { float; nativeint# } *)
+type t105 = { mutable a105 : float; mutable b105 : unit_u } (* { float; unit_u } *)
+type t106 = { mutable a106 : float; mutable b106 : float } (* { float; float } *)
+type t107 = { mutable a107 : float; mutable b107 : float; mutable c107 : int } (* { float; float; int } *)
+type t108 = { mutable a108 : float; mutable b108 : float; mutable c108 : float } (* { float; float; float } *)
+type t109 = { mutable a109 : float; mutable b109 : float; mutable c109 : float# } (* { float; float; float# } *)
+type t110 = { mutable a110 : float; mutable b110 : float# } (* { float; float# } *)
+type t111 = { mutable a111 : float; mutable b111 : float#; mutable c111 : float } (* { float; float#; float } *)
+type t112 = { mutable a112 : float; mutable b112 : float#; mutable c112 : float# } (* { float; float#; float# } *)
+type t113 = { mutable a113 : float; mutable b113 : t19 } (* { float; #{ int } } *)
+type t114 = { mutable a114 : float; mutable b114 : t21 } (* { float; #{ int; int } } *)
+type t115 = { mutable a115 : float; mutable b115 : t25 } (* { float; #{ int; float } } *)
+type t116 = { mutable a116 : float; mutable b116 : t35 } (* { float; #{ float } } *)
+type t117 = { mutable a117 : float; mutable b117 : t37 } (* { float; #{ float; int } } *)
+type t118 = { mutable a118 : float; mutable b118 : t39 } (* { float; #{ float; float } } *)
+type t119 = #{ a119 : float; b119 : float# } (* #{ float; float# } *)
+type t120 = { mutable a120 : float; mutable b120 : t119 } (* { float; #{ float; float# } } *)
+type t121 = #{ a121 : float# } (* #{ float# } *)
+type t122 = { mutable a122 : float; mutable b122 : t121 } (* { float; #{ float# } } *)
+type t123 = #{ a123 : float#; b123 : float } (* #{ float#; float } *)
+type t124 = { mutable a124 : float; mutable b124 : t123 } (* { float; #{ float#; float } } *)
+type t125 = #{ a125 : float#; b125 : float# } (* #{ float#; float# } *)
+type t126 = { mutable a126 : float; mutable b126 : t125 } (* { float; #{ float#; float# } } *)
+type t127 = { mutable a127 : float# } (* { float# } *)
+type t128 = { mutable a128 : float#; mutable b128 : float } (* { float#; float } *)
+type t129 = { mutable a129 : float#; mutable b129 : float; mutable c129 : float } (* { float#; float; float } *)
+type t130 = { mutable a130 : float#; mutable b130 : float; mutable c130 : float# } (* { float#; float; float# } *)
+type t131 = { mutable a131 : float#; mutable b131 : float# } (* { float#; float# } *)
+type t132 = { mutable a132 : float#; mutable b132 : float#; mutable c132 : float } (* { float#; float#; float } *)
+type t133 = { mutable a133 : float#; mutable b133 : float#; mutable c133 : float# } (* { float#; float#; float# } *)
+type t134 = { mutable a134 : float#; mutable b134 : t35 } (* { float#; #{ float } } *)
+type t135 = { mutable a135 : float#; mutable b135 : t39 } (* { float#; #{ float; float } } *)
+type t136 = { mutable a136 : float#; mutable b136 : t119 } (* { float#; #{ float; float# } } *)
+type t137 = { mutable a137 : float#; mutable b137 : t121 } (* { float#; #{ float# } } *)
+type t138 = { mutable a138 : float#; mutable b138 : t123 } (* { float#; #{ float#; float } } *)
+type t139 = { mutable a139 : float#; mutable b139 : t125 } (* { float#; #{ float#; float# } } *)
+type t140 = { mutable a140 : int64x2# } (* { int64x2# } *)
+type t141 = { mutable a141 : int64x2#; mutable b141 : int } (* { int64x2#; int } *)
+type t142 = { mutable a142 : int64x2#; mutable b142 : int; mutable c142 : int } (* { int64x2#; int; int } *)
+type t143 = { mutable a143 : int64x2#; mutable b143 : int; mutable c143 : int64x2# } (* { int64x2#; int; int64x2# } *)
+type t144 = { mutable a144 : int64x2#; mutable b144 : int64x2# } (* { int64x2#; int64x2# } *)
+type t145 = { mutable a145 : int64x2#; mutable b145 : int64x2#; mutable c145 : int } (* { int64x2#; int64x2#; int } *)
+type t146 = { mutable a146 : int64x2#; mutable b146 : int64x2#; mutable c146 : int64x2# } (* { int64x2#; int64x2#; int64x2# } *)
+type t147 = { mutable a147 : int64x2#; mutable b147 : t19 } (* { int64x2#; #{ int } } *)
+type t148 = { mutable a148 : int64x2#; mutable b148 : t21 } (* { int64x2#; #{ int; int } } *)
+type t149 = { mutable a149 : int64x2#; mutable b149 : t27 } (* { int64x2#; #{ int; int64x2# } } *)
+type t150 = #{ a150 : string; b150 : float# } (* #{ string; float# } *)
+type t151 = { mutable a151 : int64x2#; mutable b151 : t150 } (* { int64x2#; #{ string; float# } } *)
+type t152 = { mutable a152 : int64x2#; mutable b152 : t41 } (* { int64x2#; #{ int64x2# } } *)
+type t153 = { mutable a153 : int64x2#; mutable b153 : t43 } (* { int64x2#; #{ int64x2#; int } } *)
+type t154 = { mutable a154 : int64x2#; mutable b154 : t45 } (* { int64x2#; #{ int64x2#; int64x2# } } *)
+type t155 = { mutable a155 : t19 } (* { #{ int } } *)
+type t156 = { mutable a156 : t19; mutable b156 : int } (* { #{ int }; int } *)
+type t157 = { mutable a157 : t19; mutable b157 : int32# } (* { #{ int }; int32# } *)
+type t158 = { mutable a158 : t19; mutable b158 : float } (* { #{ int }; float } *)
+type t159 = { mutable a159 : t19; mutable b159 : int64x2# } (* { #{ int }; int64x2# } *)
+type t160 = { mutable a160 : t21 } (* { #{ int; int } } *)
+type t161 = { mutable a161 : t21; mutable b161 : int } (* { #{ int; int }; int } *)
+type t162 = { mutable a162 : t21; mutable b162 : int32# } (* { #{ int; int }; int32# } *)
+type t163 = { mutable a163 : t21; mutable b163 : float } (* { #{ int; int }; float } *)
+type t164 = { mutable a164 : t21; mutable b164 : int64x2# } (* { #{ int; int }; int64x2# } *)
+type t165 = { mutable a165 : t23 } (* { #{ int; int32# } } *)
+type t166 = { mutable a166 : t23; mutable b166 : int } (* { #{ int; int32# }; int } *)
+type t167 = { mutable a167 : t23; mutable b167 : int32# } (* { #{ int; int32# }; int32# } *)
+type t168 = { mutable a168 : t25 } (* { #{ int; float } } *)
+type t169 = { mutable a169 : t25; mutable b169 : int } (* { #{ int; float }; int } *)
+type t170 = { mutable a170 : t25; mutable b170 : float } (* { #{ int; float }; float } *)
+type t171 = { mutable a171 : t27 } (* { #{ int; int64x2# } } *)
+type t172 = { mutable a172 : t27; mutable b172 : int } (* { #{ int; int64x2# }; int } *)
+type t173 = { mutable a173 : t27; mutable b173 : int64x2# } (* { #{ int; int64x2# }; int64x2# } *)
+type t174 = #{ a174 : int64; b174 : int64# } (* #{ int64; int64# } *)
+type t175 = #{ a175 : int64#; b175 : float# } (* #{ int64#; float# } *)
+type t176 = { mutable a176 : t174; mutable b176 : t175 } (* { #{ int64; int64# }; #{ int64#; float# } } *)
+type t177 = #{ a177 : int64; b177 : string } (* #{ int64; string } *)
+type t178 = #{ a178 : int64#; b178 : string } (* #{ int64#; string } *)
+type t179 = { mutable a179 : t177; mutable b179 : t178 } (* { #{ int64; string }; #{ int64#; string } } *)
+type t180 = #{ a180 : int64#; b180 : int64 } (* #{ int64#; int64 } *)
+type t181 = #{ a181 : int64; b181 : int64 } (* #{ int64; int64 } *)
+type t182 = { mutable a182 : t180; mutable b182 : t181 } (* { #{ int64#; int64 }; #{ int64; int64 } } *)
+type t183 = #{ a183 : float32#; b183 : float } (* #{ float32#; float } *)
+type t184 = { mutable a184 : t180; mutable b184 : t183 } (* { #{ int64#; int64 }; #{ float32#; float } } *)
+type t185 = { mutable a185 : t29 } (* { #{ int32# } } *)
+type t186 = { mutable a186 : t29; mutable b186 : int } (* { #{ int32# }; int } *)
+type t187 = { mutable a187 : t29; mutable b187 : int32# } (* { #{ int32# }; int32# } *)
+type t188 = { mutable a188 : t31 } (* { #{ int32#; int } } *)
+type t189 = { mutable a189 : t31; mutable b189 : int } (* { #{ int32#; int }; int } *)
+type t190 = { mutable a190 : t31; mutable b190 : int32# } (* { #{ int32#; int }; int32# } *)
+type t191 = { mutable a191 : t33 } (* { #{ int32#; int32# } } *)
+type t192 = { mutable a192 : t33; mutable b192 : int } (* { #{ int32#; int32# }; int } *)
+type t193 = { mutable a193 : t33; mutable b193 : int32# } (* { #{ int32#; int32# }; int32# } *)
+type t194 = { mutable a194 : t35 } (* { #{ float } } *)
+type t195 = { mutable a195 : t35; mutable b195 : int } (* { #{ float }; int } *)
+type t196 = { mutable a196 : t35; mutable b196 : float } (* { #{ float }; float } *)
+type t197 = { mutable a197 : t35; mutable b197 : float# } (* { #{ float }; float# } *)
+type t198 = { mutable a198 : t37 } (* { #{ float; int } } *)
+type t199 = { mutable a199 : t37; mutable b199 : int } (* { #{ float; int }; int } *)
+type t200 = { mutable a200 : t37; mutable b200 : float } (* { #{ float; int }; float } *)
+type t201 = { mutable a201 : t39 } (* { #{ float; float } } *)
+type t202 = { mutable a202 : t39; mutable b202 : int } (* { #{ float; float }; int } *)
+type t203 = { mutable a203 : t39; mutable b203 : float } (* { #{ float; float }; float } *)
+type t204 = { mutable a204 : t39; mutable b204 : float# } (* { #{ float; float }; float# } *)
+type t205 = { mutable a205 : t119 } (* { #{ float; float# } } *)
+type t206 = { mutable a206 : t119; mutable b206 : float } (* { #{ float; float# }; float } *)
+type t207 = { mutable a207 : t119; mutable b207 : float# } (* { #{ float; float# }; float# } *)
+type t208 = { mutable a208 : t121 } (* { #{ float# } } *)
+type t209 = { mutable a209 : t121; mutable b209 : float } (* { #{ float# }; float } *)
+type t210 = { mutable a210 : t121; mutable b210 : float# } (* { #{ float# }; float# } *)
+type t211 = { mutable a211 : t123 } (* { #{ float#; float } } *)
+type t212 = { mutable a212 : t123; mutable b212 : float } (* { #{ float#; float }; float } *)
+type t213 = { mutable a213 : t123; mutable b213 : float# } (* { #{ float#; float }; float# } *)
+type t214 = { mutable a214 : t125 } (* { #{ float#; float# } } *)
+type t215 = { mutable a215 : t125; mutable b215 : float } (* { #{ float#; float# }; float } *)
+type t216 = { mutable a216 : t125; mutable b216 : float# } (* { #{ float#; float# }; float# } *)
+type t217 = #{ a217 : float32#; b217 : int64# } (* #{ float32#; int64# } *)
+type t218 = #{ a218 : string; b218 : int64# } (* #{ string; int64# } *)
+type t219 = { mutable a219 : t217; mutable b219 : t218 } (* { #{ float32#; int64# }; #{ string; int64# } } *)
+type t220 = { mutable a220 : t41 } (* { #{ int64x2# } } *)
+type t221 = { mutable a221 : t41; mutable b221 : int } (* { #{ int64x2# }; int } *)
+type t222 = { mutable a222 : t41; mutable b222 : int64x2# } (* { #{ int64x2# }; int64x2# } *)
+type t223 = { mutable a223 : t43 } (* { #{ int64x2#; int } } *)
+type t224 = { mutable a224 : t43; mutable b224 : int } (* { #{ int64x2#; int }; int } *)
+type t225 = { mutable a225 : t43; mutable b225 : int64x2# } (* { #{ int64x2#; int }; int64x2# } *)
+type t226 = #{ a226 : int64x2#; b226 : string } (* #{ int64x2#; string } *)
+type t227 = #{ a227 : int64; b227 : float# } (* #{ int64; float# } *)
+type t228 = { mutable a228 : t226; mutable b228 : t227 } (* { #{ int64x2#; string }; #{ int64; float# } } *)
+type t229 = { mutable a229 : t45 } (* { #{ int64x2#; int64x2# } } *)
+type t230 = { mutable a230 : t45; mutable b230 : int } (* { #{ int64x2#; int64x2# }; int } *)
+type t231 = { mutable a231 : t45; mutable b231 : int64x2# } (* { #{ int64x2#; int64x2# }; int64x2# } *)
 
 let () =
   (********************)
@@ -770,13 +784,13 @@ let () =
   mark_test_run 58;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b11) : (t11, _) idx_mut)) next_r.b11 in
   if not test then failwithf "test 58 failed";
-  (****************************)
-  (*   t12 = { int; float }   *)
-  (****************************)
-  let eq = (fun { a12 = a121; b12 = b121 } { a12 = a122; b12 = b122 } -> (fun a b -> Int.equal a b) a121 a122 && (fun a b -> Float.equal (globalize a) (globalize b)) b121 b122) in
-  let r = { a12 = 0; b12 = 1. } in
+  (*****************************)
+  (*   t12 = { int; unit_u }   *)
+  (*****************************)
+  let eq = (fun { a12 = a121; b12 = b121 } { a12 = a122; b12 = b122 } -> (fun a b -> Int.equal a b) a121 a122 && (fun _ _ -> true) b121 b122) in
+  let r = { a12 = 0; b12 = (unbox_unit ()) } in
   (* Paths of depth 1 *)
-  let next_r = { a12 = 100; b12 = 101. } in
+  let next_r = { a12 = 100; b12 = (unbox_unit ()) } in
   (* .a12 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a12 = next_r.a12 } in
@@ -787,11 +801,11 @@ let () =
   mark_test_run 60;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a12) : (t12, _) idx_mut)) next_r.a12 in
   if not test then failwithf "test 60 failed";
-  let r = { a12 = 0; b12 = 1. } in
+  let r = { a12 = 0; b12 = (unbox_unit ()) } in
   (* Paths of depth 1 *)
-  let next_r = { a12 = 100; b12 = 101. } in
+  let next_r = { a12 = 100; b12 = (unbox_unit ()) } in
   (* .b12 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let sub_eq = (fun _ _ -> true) in
   let expected = { r with b12 = next_r.b12 } in
   Idx_mut.unsafe_set r ((.b12) : (t12, _) idx_mut) next_r.b12;
   mark_test_run 61;
@@ -800,13 +814,13 @@ let () =
   mark_test_run 62;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b12) : (t12, _) idx_mut)) next_r.b12 in
   if not test then failwithf "test 62 failed";
-  (*********************************)
-  (*   t13 = { int; float; int }   *)
-  (*********************************)
-  let eq = (fun { a13 = a131; b13 = b131; c13 = c131 } { a13 = a132; b13 = b132; c13 = c132 } -> (fun a b -> Int.equal a b) a131 a132 && (fun a b -> Float.equal (globalize a) (globalize b)) b131 b132 && (fun a b -> Int.equal a b) c131 c132) in
-  let r = { a13 = 0; b13 = 1.; c13 = 2 } in
+  (****************************)
+  (*   t13 = { int; float }   *)
+  (****************************)
+  let eq = (fun { a13 = a131; b13 = b131 } { a13 = a132; b13 = b132 } -> (fun a b -> Int.equal a b) a131 a132 && (fun a b -> Float.equal (globalize a) (globalize b)) b131 b132) in
+  let r = { a13 = 0; b13 = 1. } in
   (* Paths of depth 1 *)
-  let next_r = { a13 = 100; b13 = 101.; c13 = 102 } in
+  let next_r = { a13 = 100; b13 = 101. } in
   (* .a13 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a13 = next_r.a13 } in
@@ -817,9 +831,9 @@ let () =
   mark_test_run 64;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a13) : (t13, _) idx_mut)) next_r.a13 in
   if not test then failwithf "test 64 failed";
-  let r = { a13 = 0; b13 = 1.; c13 = 2 } in
+  let r = { a13 = 0; b13 = 1. } in
   (* Paths of depth 1 *)
-  let next_r = { a13 = 100; b13 = 101.; c13 = 102 } in
+  let next_r = { a13 = 100; b13 = 101. } in
   (* .b13 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b13 = next_r.b13 } in
@@ -830,99 +844,99 @@ let () =
   mark_test_run 66;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b13) : (t13, _) idx_mut)) next_r.b13 in
   if not test then failwithf "test 66 failed";
-  let r = { a13 = 0; b13 = 1.; c13 = 2 } in
+  (*********************************)
+  (*   t14 = { int; float; int }   *)
+  (*********************************)
+  let eq = (fun { a14 = a141; b14 = b141; c14 = c141 } { a14 = a142; b14 = b142; c14 = c142 } -> (fun a b -> Int.equal a b) a141 a142 && (fun a b -> Float.equal (globalize a) (globalize b)) b141 b142 && (fun a b -> Int.equal a b) c141 c142) in
+  let r = { a14 = 0; b14 = 1.; c14 = 2 } in
   (* Paths of depth 1 *)
-  let next_r = { a13 = 100; b13 = 101.; c13 = 102 } in
-  (* .c13 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with c13 = next_r.c13 } in
-  Idx_mut.unsafe_set r ((.c13) : (t13, _) idx_mut) next_r.c13;
-  mark_test_run 67;
-  let test = eq r expected in
-  if not test then failwithf "test 67 failed";
-  mark_test_run 68;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c13) : (t13, _) idx_mut)) next_r.c13 in
-  if not test then failwithf "test 68 failed";
-  (***********************************)
-  (*   t14 = { int; float; float }   *)
-  (***********************************)
-  let eq = (fun { a14 = a141; b14 = b141; c14 = c141 } { a14 = a142; b14 = b142; c14 = c142 } -> (fun a b -> Int.equal a b) a141 a142 && (fun a b -> Float.equal (globalize a) (globalize b)) b141 b142 && (fun a b -> Float.equal (globalize a) (globalize b)) c141 c142) in
-  let r = { a14 = 0; b14 = 1.; c14 = 2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a14 = 100; b14 = 101.; c14 = 102. } in
+  let next_r = { a14 = 100; b14 = 101.; c14 = 102 } in
   (* .a14 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a14 = next_r.a14 } in
   Idx_mut.unsafe_set r ((.a14) : (t14, _) idx_mut) next_r.a14;
-  mark_test_run 69;
+  mark_test_run 67;
   let test = eq r expected in
-  if not test then failwithf "test 69 failed";
-  mark_test_run 70;
+  if not test then failwithf "test 67 failed";
+  mark_test_run 68;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a14) : (t14, _) idx_mut)) next_r.a14 in
-  if not test then failwithf "test 70 failed";
-  let r = { a14 = 0; b14 = 1.; c14 = 2. } in
+  if not test then failwithf "test 68 failed";
+  let r = { a14 = 0; b14 = 1.; c14 = 2 } in
   (* Paths of depth 1 *)
-  let next_r = { a14 = 100; b14 = 101.; c14 = 102. } in
+  let next_r = { a14 = 100; b14 = 101.; c14 = 102 } in
   (* .b14 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b14 = next_r.b14 } in
   Idx_mut.unsafe_set r ((.b14) : (t14, _) idx_mut) next_r.b14;
+  mark_test_run 69;
+  let test = eq r expected in
+  if not test then failwithf "test 69 failed";
+  mark_test_run 70;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b14) : (t14, _) idx_mut)) next_r.b14 in
+  if not test then failwithf "test 70 failed";
+  let r = { a14 = 0; b14 = 1.; c14 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a14 = 100; b14 = 101.; c14 = 102 } in
+  (* .c14 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with c14 = next_r.c14 } in
+  Idx_mut.unsafe_set r ((.c14) : (t14, _) idx_mut) next_r.c14;
   mark_test_run 71;
   let test = eq r expected in
   if not test then failwithf "test 71 failed";
   mark_test_run 72;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b14) : (t14, _) idx_mut)) next_r.b14 in
-  if not test then failwithf "test 72 failed";
-  let r = { a14 = 0; b14 = 1.; c14 = 2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a14 = 100; b14 = 101.; c14 = 102. } in
-  (* .c14 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with c14 = next_r.c14 } in
-  Idx_mut.unsafe_set r ((.c14) : (t14, _) idx_mut) next_r.c14;
-  mark_test_run 73;
-  let test = eq r expected in
-  if not test then failwithf "test 73 failed";
-  mark_test_run 74;
   let test = sub_eq (Idx_mut.unsafe_get r ((.c14) : (t14, _) idx_mut)) next_r.c14 in
-  if not test then failwithf "test 74 failed";
-  (*******************************)
-  (*   t15 = { int; int64x2# }   *)
-  (*******************************)
-  let eq = (fun { a15 = a151; b15 = b151 } { a15 = a152; b15 = b152 } -> (fun a b -> Int.equal a b) a151 a152 && int64x2_u_equal b151 b152) in
-  let r = { a15 = 0; b15 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
+  if not test then failwithf "test 72 failed";
+  (***********************************)
+  (*   t15 = { int; float; float }   *)
+  (***********************************)
+  let eq = (fun { a15 = a151; b15 = b151; c15 = c151 } { a15 = a152; b15 = b152; c15 = c152 } -> (fun a b -> Int.equal a b) a151 a152 && (fun a b -> Float.equal (globalize a) (globalize b)) b151 b152 && (fun a b -> Float.equal (globalize a) (globalize b)) c151 c152) in
+  let r = { a15 = 0; b15 = 1.; c15 = 2. } in
   (* Paths of depth 1 *)
-  let next_r = { a15 = 100; b15 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } in
+  let next_r = { a15 = 100; b15 = 101.; c15 = 102. } in
   (* .a15 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a15 = next_r.a15 } in
   Idx_mut.unsafe_set r ((.a15) : (t15, _) idx_mut) next_r.a15;
+  mark_test_run 73;
+  let test = eq r expected in
+  if not test then failwithf "test 73 failed";
+  mark_test_run 74;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a15) : (t15, _) idx_mut)) next_r.a15 in
+  if not test then failwithf "test 74 failed";
+  let r = { a15 = 0; b15 = 1.; c15 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a15 = 100; b15 = 101.; c15 = 102. } in
+  (* .b15 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b15 = next_r.b15 } in
+  Idx_mut.unsafe_set r ((.b15) : (t15, _) idx_mut) next_r.b15;
   mark_test_run 75;
   let test = eq r expected in
   if not test then failwithf "test 75 failed";
   mark_test_run 76;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a15) : (t15, _) idx_mut)) next_r.a15 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b15) : (t15, _) idx_mut)) next_r.b15 in
   if not test then failwithf "test 76 failed";
-  let r = { a15 = 0; b15 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
+  let r = { a15 = 0; b15 = 1.; c15 = 2. } in
   (* Paths of depth 1 *)
-  let next_r = { a15 = 100; b15 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } in
-  (* .b15 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with b15 = next_r.b15 } in
-  Idx_mut.unsafe_set r ((.b15) : (t15, _) idx_mut) next_r.b15;
+  let next_r = { a15 = 100; b15 = 101.; c15 = 102. } in
+  (* .c15 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with c15 = next_r.c15 } in
+  Idx_mut.unsafe_set r ((.c15) : (t15, _) idx_mut) next_r.c15;
   mark_test_run 77;
   let test = eq r expected in
   if not test then failwithf "test 77 failed";
   mark_test_run 78;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b15) : (t15, _) idx_mut)) next_r.b15 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c15) : (t15, _) idx_mut)) next_r.c15 in
   if not test then failwithf "test 78 failed";
-  (************************************)
-  (*   t16 = { int; int64x2#; int }   *)
-  (************************************)
-  let eq = (fun { a16 = a161; b16 = b161; c16 = c161 } { a16 = a162; b16 = b162; c16 = c162 } -> (fun a b -> Int.equal a b) a161 a162 && int64x2_u_equal b161 b162 && (fun a b -> Int.equal a b) c161 c162) in
-  let r = { a16 = 0; b16 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); c16 = 3 } in
+  (*******************************)
+  (*   t16 = { int; int64x2# }   *)
+  (*******************************)
+  let eq = (fun { a16 = a161; b16 = b161 } { a16 = a162; b16 = b162 } -> (fun a b -> Int.equal a b) a161 a162 && int64x2_u_equal b161 b162) in
+  let r = { a16 = 0; b16 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
   (* Paths of depth 1 *)
-  let next_r = { a16 = 100; b16 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); c16 = 103 } in
+  let next_r = { a16 = 100; b16 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } in
   (* .a16 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a16 = next_r.a16 } in
@@ -933,9 +947,9 @@ let () =
   mark_test_run 80;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a16) : (t16, _) idx_mut)) next_r.a16 in
   if not test then failwithf "test 80 failed";
-  let r = { a16 = 0; b16 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); c16 = 3 } in
+  let r = { a16 = 0; b16 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
   (* Paths of depth 1 *)
-  let next_r = { a16 = 100; b16 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); c16 = 103 } in
+  let next_r = { a16 = 100; b16 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } in
   (* .b16 *)
   let sub_eq = int64x2_u_equal in
   let expected = { r with b16 = next_r.b16 } in
@@ -946,804 +960,804 @@ let () =
   mark_test_run 82;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b16) : (t16, _) idx_mut)) next_r.b16 in
   if not test then failwithf "test 82 failed";
-  let r = { a16 = 0; b16 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); c16 = 3 } in
+  (************************************)
+  (*   t17 = { int; int64x2#; int }   *)
+  (************************************)
+  let eq = (fun { a17 = a171; b17 = b171; c17 = c171 } { a17 = a172; b17 = b172; c17 = c172 } -> (fun a b -> Int.equal a b) a171 a172 && int64x2_u_equal b171 b172 && (fun a b -> Int.equal a b) c171 c172) in
+  let r = { a17 = 0; b17 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); c17 = 3 } in
   (* Paths of depth 1 *)
-  let next_r = { a16 = 100; b16 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); c16 = 103 } in
-  (* .c16 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with c16 = next_r.c16 } in
-  Idx_mut.unsafe_set r ((.c16) : (t16, _) idx_mut) next_r.c16;
-  mark_test_run 83;
-  let test = eq r expected in
-  if not test then failwithf "test 83 failed";
-  mark_test_run 84;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c16) : (t16, _) idx_mut)) next_r.c16 in
-  if not test then failwithf "test 84 failed";
-  (*****************************************)
-  (*   t17 = { int; int64x2#; int64x2# }   *)
-  (*****************************************)
-  let eq = (fun { a17 = a171; b17 = b171; c17 = c171 } { a17 = a172; b17 = b172; c17 = c172 } -> (fun a b -> Int.equal a b) a171 a172 && int64x2_u_equal b171 b172 && int64x2_u_equal c171 c172) in
-  let r = { a17 = 0; b17 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); c17 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
-  (* Paths of depth 1 *)
-  let next_r = { a17 = 100; b17 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); c17 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
+  let next_r = { a17 = 100; b17 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); c17 = 103 } in
   (* .a17 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with a17 = next_r.a17 } in
   Idx_mut.unsafe_set r ((.a17) : (t17, _) idx_mut) next_r.a17;
-  mark_test_run 85;
+  mark_test_run 83;
   let test = eq r expected in
-  if not test then failwithf "test 85 failed";
-  mark_test_run 86;
+  if not test then failwithf "test 83 failed";
+  mark_test_run 84;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a17) : (t17, _) idx_mut)) next_r.a17 in
-  if not test then failwithf "test 86 failed";
-  let r = { a17 = 0; b17 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); c17 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  if not test then failwithf "test 84 failed";
+  let r = { a17 = 0; b17 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); c17 = 3 } in
   (* Paths of depth 1 *)
-  let next_r = { a17 = 100; b17 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); c17 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
+  let next_r = { a17 = 100; b17 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); c17 = 103 } in
   (* .b17 *)
   let sub_eq = int64x2_u_equal in
   let expected = { r with b17 = next_r.b17 } in
   Idx_mut.unsafe_set r ((.b17) : (t17, _) idx_mut) next_r.b17;
+  mark_test_run 85;
+  let test = eq r expected in
+  if not test then failwithf "test 85 failed";
+  mark_test_run 86;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b17) : (t17, _) idx_mut)) next_r.b17 in
+  if not test then failwithf "test 86 failed";
+  let r = { a17 = 0; b17 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); c17 = 3 } in
+  (* Paths of depth 1 *)
+  let next_r = { a17 = 100; b17 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); c17 = 103 } in
+  (* .c17 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with c17 = next_r.c17 } in
+  Idx_mut.unsafe_set r ((.c17) : (t17, _) idx_mut) next_r.c17;
   mark_test_run 87;
   let test = eq r expected in
   if not test then failwithf "test 87 failed";
   mark_test_run 88;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b17) : (t17, _) idx_mut)) next_r.b17 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c17) : (t17, _) idx_mut)) next_r.c17 in
   if not test then failwithf "test 88 failed";
-  let r = { a17 = 0; b17 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); c17 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  (*****************************************)
+  (*   t18 = { int; int64x2#; int64x2# }   *)
+  (*****************************************)
+  let eq = (fun { a18 = a181; b18 = b181; c18 = c181 } { a18 = a182; b18 = b182; c18 = c182 } -> (fun a b -> Int.equal a b) a181 a182 && int64x2_u_equal b181 b182 && int64x2_u_equal c181 c182) in
+  let r = { a18 = 0; b18 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); c18 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
   (* Paths of depth 1 *)
-  let next_r = { a17 = 100; b17 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); c17 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
-  (* .c17 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with c17 = next_r.c17 } in
-  Idx_mut.unsafe_set r ((.c17) : (t17, _) idx_mut) next_r.c17;
+  let next_r = { a18 = 100; b18 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); c18 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
+  (* .a18 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a18 = next_r.a18 } in
+  Idx_mut.unsafe_set r ((.a18) : (t18, _) idx_mut) next_r.a18;
   mark_test_run 89;
   let test = eq r expected in
   if not test then failwithf "test 89 failed";
   mark_test_run 90;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c17) : (t17, _) idx_mut)) next_r.c17 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a18) : (t18, _) idx_mut)) next_r.a18 in
   if not test then failwithf "test 90 failed";
-  (*******************************)
-  (*   t19 = { int; #{ int } }   *)
-  (*******************************)
-  let eq = (fun { a19 = a191; b19 = b191 } { a19 = a192; b19 = b192 } -> (fun a b -> Int.equal a b) a191 a192 && (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) b191 b192) in
-  let r = { a19 = 0; b19 = #{ a18 = 1 } } in
+  let r = { a18 = 0; b18 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); c18 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
   (* Paths of depth 1 *)
-  let next_r = { a19 = 100; b19 = #{ a18 = 101 } } in
-  (* .a19 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a19 = next_r.a19 } in
-  Idx_mut.unsafe_set r ((.a19) : (t19, _) idx_mut) next_r.a19;
+  let next_r = { a18 = 100; b18 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); c18 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
+  (* .b18 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with b18 = next_r.b18 } in
+  Idx_mut.unsafe_set r ((.b18) : (t18, _) idx_mut) next_r.b18;
   mark_test_run 91;
   let test = eq r expected in
   if not test then failwithf "test 91 failed";
   mark_test_run 92;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a19) : (t19, _) idx_mut)) next_r.a19 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b18) : (t18, _) idx_mut)) next_r.b18 in
   if not test then failwithf "test 92 failed";
-  let r = { a19 = 0; b19 = #{ a18 = 1 } } in
+  let r = { a18 = 0; b18 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); c18 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
   (* Paths of depth 1 *)
-  let next_r = { a19 = 100; b19 = #{ a18 = 101 } } in
-  (* .b19 *)
-  let sub_eq = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) in
-  let expected = { r with b19 = next_r.b19 } in
-  Idx_mut.unsafe_set r ((.b19) : (t19, _) idx_mut) next_r.b19;
+  let next_r = { a18 = 100; b18 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); c18 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
+  (* .c18 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with c18 = next_r.c18 } in
+  Idx_mut.unsafe_set r ((.c18) : (t18, _) idx_mut) next_r.c18;
   mark_test_run 93;
   let test = eq r expected in
   if not test then failwithf "test 93 failed";
   mark_test_run 94;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b19) : (t19, _) idx_mut)) next_r.b19 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c18) : (t18, _) idx_mut)) next_r.c18 in
   if not test then failwithf "test 94 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a19 = 200; b19 = #{ a18 = 201 } } in
-  (* .b19.#a18 *)
+  (*******************************)
+  (*   t20 = { int; #{ int } }   *)
+  (*******************************)
+  let eq = (fun { a20 = a201; b20 = b201 } { a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int.equal a b) a191 a192) b201 b202) in
+  let r = { a20 = 0; b20 = #{ a19 = 1 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a20 = 100; b20 = #{ a19 = 101 } } in
+  (* .a20 *)
   let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b19 = #{ r.b19 with a18 = next_r.b19.#a18 } } in
-  Idx_mut.unsafe_set r ((.b19.#a18) : (t19, _) idx_mut) next_r.b19.#a18;
+  let expected = { r with a20 = next_r.a20 } in
+  Idx_mut.unsafe_set r ((.a20) : (t20, _) idx_mut) next_r.a20;
   mark_test_run 95;
   let test = eq r expected in
   if not test then failwithf "test 95 failed";
   mark_test_run 96;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b19.#a18) : (t19, _) idx_mut)) next_r.b19.#a18 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a20) : (t20, _) idx_mut)) next_r.a20 in
   if not test then failwithf "test 96 failed";
-  (************************************)
-  (*   t21 = { int; #{ int; int } }   *)
-  (************************************)
-  let eq = (fun { a21 = a211; b21 = b211 } { a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) b211 b212) in
-  let r = { a21 = 0; b21 = #{ a20 = 1; b20 = 2 } } in
+  let r = { a20 = 0; b20 = #{ a19 = 1 } } in
   (* Paths of depth 1 *)
-  let next_r = { a21 = 100; b21 = #{ a20 = 101; b20 = 102 } } in
-  (* .a21 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a21 = next_r.a21 } in
-  Idx_mut.unsafe_set r ((.a21) : (t21, _) idx_mut) next_r.a21;
+  let next_r = { a20 = 100; b20 = #{ a19 = 101 } } in
+  (* .b20 *)
+  let sub_eq = (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int.equal a b) a191 a192) in
+  let expected = { r with b20 = next_r.b20 } in
+  Idx_mut.unsafe_set r ((.b20) : (t20, _) idx_mut) next_r.b20;
   mark_test_run 97;
   let test = eq r expected in
   if not test then failwithf "test 97 failed";
   mark_test_run 98;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a21) : (t21, _) idx_mut)) next_r.a21 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b20) : (t20, _) idx_mut)) next_r.b20 in
   if not test then failwithf "test 98 failed";
-  let r = { a21 = 0; b21 = #{ a20 = 1; b20 = 2 } } in
-  (* Paths of depth 1 *)
-  let next_r = { a21 = 100; b21 = #{ a20 = 101; b20 = 102 } } in
-  (* .b21 *)
-  let sub_eq = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) in
-  let expected = { r with b21 = next_r.b21 } in
-  Idx_mut.unsafe_set r ((.b21) : (t21, _) idx_mut) next_r.b21;
+  (* Paths of depth 2 *)
+  let next_r = { a20 = 200; b20 = #{ a19 = 201 } } in
+  (* .b20.#a19 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b20 = #{ r.b20 with a19 = next_r.b20.#a19 } } in
+  Idx_mut.unsafe_set r ((.b20.#a19) : (t20, _) idx_mut) next_r.b20.#a19;
   mark_test_run 99;
   let test = eq r expected in
   if not test then failwithf "test 99 failed";
   mark_test_run 100;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b21) : (t21, _) idx_mut)) next_r.b21 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b20.#a19) : (t20, _) idx_mut)) next_r.b20.#a19 in
   if not test then failwithf "test 100 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a21 = 200; b21 = #{ a20 = 201; b20 = 202 } } in
-  (* .b21.#a20 *)
+  (************************************)
+  (*   t22 = { int; #{ int; int } }   *)
+  (************************************)
+  let eq = (fun { a22 = a221; b22 = b221 } { a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun a b -> Int.equal a b) b211 b212) b221 b222) in
+  let r = { a22 = 0; b22 = #{ a21 = 1; b21 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a22 = 100; b22 = #{ a21 = 101; b21 = 102 } } in
+  (* .a22 *)
   let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b21 = #{ r.b21 with a20 = next_r.b21.#a20 } } in
-  Idx_mut.unsafe_set r ((.b21.#a20) : (t21, _) idx_mut) next_r.b21.#a20;
+  let expected = { r with a22 = next_r.a22 } in
+  Idx_mut.unsafe_set r ((.a22) : (t22, _) idx_mut) next_r.a22;
   mark_test_run 101;
   let test = eq r expected in
   if not test then failwithf "test 101 failed";
   mark_test_run 102;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b21.#a20) : (t21, _) idx_mut)) next_r.b21.#a20 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a22) : (t22, _) idx_mut)) next_r.a22 in
   if not test then failwithf "test 102 failed";
-  (* .b21.#b20 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b21 = #{ r.b21 with b20 = next_r.b21.#b20 } } in
-  Idx_mut.unsafe_set r ((.b21.#b20) : (t21, _) idx_mut) next_r.b21.#b20;
+  let r = { a22 = 0; b22 = #{ a21 = 1; b21 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a22 = 100; b22 = #{ a21 = 101; b21 = 102 } } in
+  (* .b22 *)
+  let sub_eq = (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun a b -> Int.equal a b) b211 b212) in
+  let expected = { r with b22 = next_r.b22 } in
+  Idx_mut.unsafe_set r ((.b22) : (t22, _) idx_mut) next_r.b22;
   mark_test_run 103;
   let test = eq r expected in
   if not test then failwithf "test 103 failed";
   mark_test_run 104;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b21.#b20) : (t21, _) idx_mut)) next_r.b21.#b20 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b22) : (t22, _) idx_mut)) next_r.b22 in
   if not test then failwithf "test 104 failed";
-  (***************************************)
-  (*   t23 = { int; #{ int; int32# } }   *)
-  (***************************************)
-  let eq = (fun { a23 = a231; b23 = b231 } { a23 = a232; b23 = b232 } -> (fun a b -> Int.equal a b) a231 a232 && (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) b231 b232) in
-  let r = { a23 = 0; b23 = #{ a22 = 1; b22 = #2l } } in
-  (* Paths of depth 1 *)
-  let next_r = { a23 = 100; b23 = #{ a22 = 101; b22 = #102l } } in
-  (* .a23 *)
+  (* Paths of depth 2 *)
+  let next_r = { a22 = 200; b22 = #{ a21 = 201; b21 = 202 } } in
+  (* .b22.#a21 *)
   let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a23 = next_r.a23 } in
-  Idx_mut.unsafe_set r ((.a23) : (t23, _) idx_mut) next_r.a23;
+  let expected = { r with b22 = #{ r.b22 with a21 = next_r.b22.#a21 } } in
+  Idx_mut.unsafe_set r ((.b22.#a21) : (t22, _) idx_mut) next_r.b22.#a21;
   mark_test_run 105;
   let test = eq r expected in
   if not test then failwithf "test 105 failed";
   mark_test_run 106;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a23) : (t23, _) idx_mut)) next_r.a23 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b22.#a21) : (t22, _) idx_mut)) next_r.b22.#a21 in
   if not test then failwithf "test 106 failed";
-  let r = { a23 = 0; b23 = #{ a22 = 1; b22 = #2l } } in
-  (* Paths of depth 1 *)
-  let next_r = { a23 = 100; b23 = #{ a22 = 101; b22 = #102l } } in
-  (* .b23 *)
-  let sub_eq = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) in
-  let expected = { r with b23 = next_r.b23 } in
-  Idx_mut.unsafe_set r ((.b23) : (t23, _) idx_mut) next_r.b23;
+  (* .b22.#b21 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b22 = #{ r.b22 with b21 = next_r.b22.#b21 } } in
+  Idx_mut.unsafe_set r ((.b22.#b21) : (t22, _) idx_mut) next_r.b22.#b21;
   mark_test_run 107;
   let test = eq r expected in
   if not test then failwithf "test 107 failed";
   mark_test_run 108;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b23) : (t23, _) idx_mut)) next_r.b23 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b22.#b21) : (t22, _) idx_mut)) next_r.b22.#b21 in
   if not test then failwithf "test 108 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a23 = 200; b23 = #{ a22 = 201; b22 = #202l } } in
-  (* .b23.#a22 *)
+  (***************************************)
+  (*   t24 = { int; #{ int; int32# } }   *)
+  (***************************************)
+  let eq = (fun { a24 = a241; b24 = b241 } { a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun #{ a23 = a231; b23 = b231 } #{ a23 = a232; b23 = b232 } -> (fun a b -> Int.equal a b) a231 a232 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b231 b232) b241 b242) in
+  let r = { a24 = 0; b24 = #{ a23 = 1; b23 = #2l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a24 = 100; b24 = #{ a23 = 101; b23 = #102l } } in
+  (* .a24 *)
   let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b23 = #{ r.b23 with a22 = next_r.b23.#a22 } } in
-  Idx_mut.unsafe_set r ((.b23.#a22) : (t23, _) idx_mut) next_r.b23.#a22;
+  let expected = { r with a24 = next_r.a24 } in
+  Idx_mut.unsafe_set r ((.a24) : (t24, _) idx_mut) next_r.a24;
   mark_test_run 109;
   let test = eq r expected in
   if not test then failwithf "test 109 failed";
   mark_test_run 110;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b23.#a22) : (t23, _) idx_mut)) next_r.b23.#a22 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a24) : (t24, _) idx_mut)) next_r.a24 in
   if not test then failwithf "test 110 failed";
-  (* .b23.#b22 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b23 = #{ r.b23 with b22 = next_r.b23.#b22 } } in
-  Idx_mut.unsafe_set r ((.b23.#b22) : (t23, _) idx_mut) next_r.b23.#b22;
+  let r = { a24 = 0; b24 = #{ a23 = 1; b23 = #2l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a24 = 100; b24 = #{ a23 = 101; b23 = #102l } } in
+  (* .b24 *)
+  let sub_eq = (fun #{ a23 = a231; b23 = b231 } #{ a23 = a232; b23 = b232 } -> (fun a b -> Int.equal a b) a231 a232 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b231 b232) in
+  let expected = { r with b24 = next_r.b24 } in
+  Idx_mut.unsafe_set r ((.b24) : (t24, _) idx_mut) next_r.b24;
   mark_test_run 111;
   let test = eq r expected in
   if not test then failwithf "test 111 failed";
   mark_test_run 112;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b23.#b22) : (t23, _) idx_mut)) next_r.b23.#b22 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b24) : (t24, _) idx_mut)) next_r.b24 in
   if not test then failwithf "test 112 failed";
-  (**************************************)
-  (*   t25 = { int; #{ int; float } }   *)
-  (**************************************)
-  let eq = (fun { a25 = a251; b25 = b251 } { a25 = a252; b25 = b252 } -> (fun a b -> Int.equal a b) a251 a252 && (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) b251 b252) in
-  let r = { a25 = 0; b25 = #{ a24 = 1; b24 = 2. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a25 = 100; b25 = #{ a24 = 101; b24 = 102. } } in
-  (* .a25 *)
+  (* Paths of depth 2 *)
+  let next_r = { a24 = 200; b24 = #{ a23 = 201; b23 = #202l } } in
+  (* .b24.#a23 *)
   let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a25 = next_r.a25 } in
-  Idx_mut.unsafe_set r ((.a25) : (t25, _) idx_mut) next_r.a25;
+  let expected = { r with b24 = #{ r.b24 with a23 = next_r.b24.#a23 } } in
+  Idx_mut.unsafe_set r ((.b24.#a23) : (t24, _) idx_mut) next_r.b24.#a23;
   mark_test_run 113;
   let test = eq r expected in
   if not test then failwithf "test 113 failed";
   mark_test_run 114;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a25) : (t25, _) idx_mut)) next_r.a25 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b24.#a23) : (t24, _) idx_mut)) next_r.b24.#a23 in
   if not test then failwithf "test 114 failed";
-  let r = { a25 = 0; b25 = #{ a24 = 1; b24 = 2. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a25 = 100; b25 = #{ a24 = 101; b24 = 102. } } in
-  (* .b25 *)
-  let sub_eq = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) in
-  let expected = { r with b25 = next_r.b25 } in
-  Idx_mut.unsafe_set r ((.b25) : (t25, _) idx_mut) next_r.b25;
+  (* .b24.#b23 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b24 = #{ r.b24 with b23 = next_r.b24.#b23 } } in
+  Idx_mut.unsafe_set r ((.b24.#b23) : (t24, _) idx_mut) next_r.b24.#b23;
   mark_test_run 115;
   let test = eq r expected in
   if not test then failwithf "test 115 failed";
   mark_test_run 116;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b25) : (t25, _) idx_mut)) next_r.b25 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b24.#b23) : (t24, _) idx_mut)) next_r.b24.#b23 in
   if not test then failwithf "test 116 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a25 = 200; b25 = #{ a24 = 201; b24 = 202. } } in
-  (* .b25.#a24 *)
+  (**************************************)
+  (*   t26 = { int; #{ int; float } }   *)
+  (**************************************)
+  let eq = (fun { a26 = a261; b26 = b261 } { a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && (fun #{ a25 = a251; b25 = b251 } #{ a25 = a252; b25 = b252 } -> (fun a b -> Int.equal a b) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) b261 b262) in
+  let r = { a26 = 0; b26 = #{ a25 = 1; b25 = 2. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a26 = 100; b26 = #{ a25 = 101; b25 = 102. } } in
+  (* .a26 *)
   let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b25 = #{ r.b25 with a24 = next_r.b25.#a24 } } in
-  Idx_mut.unsafe_set r ((.b25.#a24) : (t25, _) idx_mut) next_r.b25.#a24;
+  let expected = { r with a26 = next_r.a26 } in
+  Idx_mut.unsafe_set r ((.a26) : (t26, _) idx_mut) next_r.a26;
   mark_test_run 117;
   let test = eq r expected in
   if not test then failwithf "test 117 failed";
   mark_test_run 118;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b25.#a24) : (t25, _) idx_mut)) next_r.b25.#a24 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a26) : (t26, _) idx_mut)) next_r.a26 in
   if not test then failwithf "test 118 failed";
-  (* .b25.#b24 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b25 = #{ r.b25 with b24 = next_r.b25.#b24 } } in
-  Idx_mut.unsafe_set r ((.b25.#b24) : (t25, _) idx_mut) next_r.b25.#b24;
+  let r = { a26 = 0; b26 = #{ a25 = 1; b25 = 2. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a26 = 100; b26 = #{ a25 = 101; b25 = 102. } } in
+  (* .b26 *)
+  let sub_eq = (fun #{ a25 = a251; b25 = b251 } #{ a25 = a252; b25 = b252 } -> (fun a b -> Int.equal a b) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) in
+  let expected = { r with b26 = next_r.b26 } in
+  Idx_mut.unsafe_set r ((.b26) : (t26, _) idx_mut) next_r.b26;
   mark_test_run 119;
   let test = eq r expected in
   if not test then failwithf "test 119 failed";
   mark_test_run 120;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b25.#b24) : (t25, _) idx_mut)) next_r.b25.#b24 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b26) : (t26, _) idx_mut)) next_r.b26 in
   if not test then failwithf "test 120 failed";
-  (*****************************************)
-  (*   t27 = { int; #{ int; int64x2# } }   *)
-  (*****************************************)
-  let eq = (fun { a27 = a271; b27 = b271 } { a27 = a272; b27 = b272 } -> (fun a b -> Int.equal a b) a271 a272 && (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) b271 b272) in
-  let r = { a27 = 0; b27 = #{ a26 = 1; b26 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
-  (* Paths of depth 1 *)
-  let next_r = { a27 = 100; b27 = #{ a26 = 101; b26 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } } in
-  (* .a27 *)
+  (* Paths of depth 2 *)
+  let next_r = { a26 = 200; b26 = #{ a25 = 201; b25 = 202. } } in
+  (* .b26.#a25 *)
   let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a27 = next_r.a27 } in
-  Idx_mut.unsafe_set r ((.a27) : (t27, _) idx_mut) next_r.a27;
+  let expected = { r with b26 = #{ r.b26 with a25 = next_r.b26.#a25 } } in
+  Idx_mut.unsafe_set r ((.b26.#a25) : (t26, _) idx_mut) next_r.b26.#a25;
   mark_test_run 121;
   let test = eq r expected in
   if not test then failwithf "test 121 failed";
   mark_test_run 122;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a27) : (t27, _) idx_mut)) next_r.a27 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b26.#a25) : (t26, _) idx_mut)) next_r.b26.#a25 in
   if not test then failwithf "test 122 failed";
-  let r = { a27 = 0; b27 = #{ a26 = 1; b26 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
-  (* Paths of depth 1 *)
-  let next_r = { a27 = 100; b27 = #{ a26 = 101; b26 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } } in
-  (* .b27 *)
-  let sub_eq = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) in
-  let expected = { r with b27 = next_r.b27 } in
-  Idx_mut.unsafe_set r ((.b27) : (t27, _) idx_mut) next_r.b27;
+  (* .b26.#b25 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b26 = #{ r.b26 with b25 = next_r.b26.#b25 } } in
+  Idx_mut.unsafe_set r ((.b26.#b25) : (t26, _) idx_mut) next_r.b26.#b25;
   mark_test_run 123;
   let test = eq r expected in
   if not test then failwithf "test 123 failed";
   mark_test_run 124;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b27) : (t27, _) idx_mut)) next_r.b27 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b26.#b25) : (t26, _) idx_mut)) next_r.b26.#b25 in
   if not test then failwithf "test 124 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a27 = 200; b27 = #{ a26 = 201; b26 = (interleave_low_64 (int64x2_of_int64 202L) (int64x2_of_int64 203L)) } } in
-  (* .b27.#a26 *)
+  (*****************************************)
+  (*   t28 = { int; #{ int; int64x2# } }   *)
+  (*****************************************)
+  let eq = (fun { a28 = a281; b28 = b281 } { a28 = a282; b28 = b282 } -> (fun a b -> Int.equal a b) a281 a282 && (fun #{ a27 = a271; b27 = b271 } #{ a27 = a272; b27 = b272 } -> (fun a b -> Int.equal a b) a271 a272 && int64x2_u_equal b271 b272) b281 b282) in
+  let r = { a28 = 0; b28 = #{ a27 = 1; b27 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
+  (* Paths of depth 1 *)
+  let next_r = { a28 = 100; b28 = #{ a27 = 101; b27 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } } in
+  (* .a28 *)
   let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b27 = #{ r.b27 with a26 = next_r.b27.#a26 } } in
-  Idx_mut.unsafe_set r ((.b27.#a26) : (t27, _) idx_mut) next_r.b27.#a26;
+  let expected = { r with a28 = next_r.a28 } in
+  Idx_mut.unsafe_set r ((.a28) : (t28, _) idx_mut) next_r.a28;
   mark_test_run 125;
   let test = eq r expected in
   if not test then failwithf "test 125 failed";
   mark_test_run 126;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b27.#a26) : (t27, _) idx_mut)) next_r.b27.#a26 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a28) : (t28, _) idx_mut)) next_r.a28 in
   if not test then failwithf "test 126 failed";
-  (* .b27.#b26 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with b27 = #{ r.b27 with b26 = next_r.b27.#b26 } } in
-  Idx_mut.unsafe_set r ((.b27.#b26) : (t27, _) idx_mut) next_r.b27.#b26;
+  let r = { a28 = 0; b28 = #{ a27 = 1; b27 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
+  (* Paths of depth 1 *)
+  let next_r = { a28 = 100; b28 = #{ a27 = 101; b27 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } } in
+  (* .b28 *)
+  let sub_eq = (fun #{ a27 = a271; b27 = b271 } #{ a27 = a272; b27 = b272 } -> (fun a b -> Int.equal a b) a271 a272 && int64x2_u_equal b271 b272) in
+  let expected = { r with b28 = next_r.b28 } in
+  Idx_mut.unsafe_set r ((.b28) : (t28, _) idx_mut) next_r.b28;
   mark_test_run 127;
   let test = eq r expected in
   if not test then failwithf "test 127 failed";
   mark_test_run 128;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b27.#b26) : (t27, _) idx_mut)) next_r.b27.#b26 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b28) : (t28, _) idx_mut)) next_r.b28 in
   if not test then failwithf "test 128 failed";
-  (**********************************)
-  (*   t29 = { int; #{ int32# } }   *)
-  (**********************************)
-  let eq = (fun { a29 = a291; b29 = b291 } { a29 = a292; b29 = b292 } -> (fun a b -> Int.equal a b) a291 a292 && (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) b291 b292) in
-  let r = { a29 = 0; b29 = #{ a28 = #1l } } in
-  (* Paths of depth 1 *)
-  let next_r = { a29 = 100; b29 = #{ a28 = #101l } } in
-  (* .a29 *)
+  (* Paths of depth 2 *)
+  let next_r = { a28 = 200; b28 = #{ a27 = 201; b27 = (interleave_low_64 (int64x2_of_int64 202L) (int64x2_of_int64 203L)) } } in
+  (* .b28.#a27 *)
   let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a29 = next_r.a29 } in
-  Idx_mut.unsafe_set r ((.a29) : (t29, _) idx_mut) next_r.a29;
+  let expected = { r with b28 = #{ r.b28 with a27 = next_r.b28.#a27 } } in
+  Idx_mut.unsafe_set r ((.b28.#a27) : (t28, _) idx_mut) next_r.b28.#a27;
   mark_test_run 129;
   let test = eq r expected in
   if not test then failwithf "test 129 failed";
   mark_test_run 130;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a29) : (t29, _) idx_mut)) next_r.a29 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b28.#a27) : (t28, _) idx_mut)) next_r.b28.#a27 in
   if not test then failwithf "test 130 failed";
-  let r = { a29 = 0; b29 = #{ a28 = #1l } } in
-  (* Paths of depth 1 *)
-  let next_r = { a29 = 100; b29 = #{ a28 = #101l } } in
-  (* .b29 *)
-  let sub_eq = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) in
-  let expected = { r with b29 = next_r.b29 } in
-  Idx_mut.unsafe_set r ((.b29) : (t29, _) idx_mut) next_r.b29;
+  (* .b28.#b27 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with b28 = #{ r.b28 with b27 = next_r.b28.#b27 } } in
+  Idx_mut.unsafe_set r ((.b28.#b27) : (t28, _) idx_mut) next_r.b28.#b27;
   mark_test_run 131;
   let test = eq r expected in
   if not test then failwithf "test 131 failed";
   mark_test_run 132;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b29) : (t29, _) idx_mut)) next_r.b29 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b28.#b27) : (t28, _) idx_mut)) next_r.b28.#b27 in
   if not test then failwithf "test 132 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a29 = 200; b29 = #{ a28 = #201l } } in
-  (* .b29.#a28 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b29 = #{ r.b29 with a28 = next_r.b29.#a28 } } in
-  Idx_mut.unsafe_set r ((.b29.#a28) : (t29, _) idx_mut) next_r.b29.#a28;
+  (**********************************)
+  (*   t30 = { int; #{ int32# } }   *)
+  (**********************************)
+  let eq = (fun { a30 = a301; b30 = b301 } { a30 = a302; b30 = b302 } -> (fun a b -> Int.equal a b) a301 a302 && (fun #{ a29 = a291 } #{ a29 = a292 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a291 a292) b301 b302) in
+  let r = { a30 = 0; b30 = #{ a29 = #1l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a30 = 100; b30 = #{ a29 = #101l } } in
+  (* .a30 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a30 = next_r.a30 } in
+  Idx_mut.unsafe_set r ((.a30) : (t30, _) idx_mut) next_r.a30;
   mark_test_run 133;
   let test = eq r expected in
   if not test then failwithf "test 133 failed";
   mark_test_run 134;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b29.#a28) : (t29, _) idx_mut)) next_r.b29.#a28 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a30) : (t30, _) idx_mut)) next_r.a30 in
   if not test then failwithf "test 134 failed";
-  (***************************************)
-  (*   t31 = { int; #{ int32#; int } }   *)
-  (***************************************)
-  let eq = (fun { a31 = a311; b31 = b311 } { a31 = a312; b31 = b312 } -> (fun a b -> Int.equal a b) a311 a312 && (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) b311 b312) in
-  let r = { a31 = 0; b31 = #{ a30 = #1l; b30 = 2 } } in
+  let r = { a30 = 0; b30 = #{ a29 = #1l } } in
   (* Paths of depth 1 *)
-  let next_r = { a31 = 100; b31 = #{ a30 = #101l; b30 = 102 } } in
-  (* .a31 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a31 = next_r.a31 } in
-  Idx_mut.unsafe_set r ((.a31) : (t31, _) idx_mut) next_r.a31;
+  let next_r = { a30 = 100; b30 = #{ a29 = #101l } } in
+  (* .b30 *)
+  let sub_eq = (fun #{ a29 = a291 } #{ a29 = a292 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a291 a292) in
+  let expected = { r with b30 = next_r.b30 } in
+  Idx_mut.unsafe_set r ((.b30) : (t30, _) idx_mut) next_r.b30;
   mark_test_run 135;
   let test = eq r expected in
   if not test then failwithf "test 135 failed";
   mark_test_run 136;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a31) : (t31, _) idx_mut)) next_r.a31 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b30) : (t30, _) idx_mut)) next_r.b30 in
   if not test then failwithf "test 136 failed";
-  let r = { a31 = 0; b31 = #{ a30 = #1l; b30 = 2 } } in
-  (* Paths of depth 1 *)
-  let next_r = { a31 = 100; b31 = #{ a30 = #101l; b30 = 102 } } in
-  (* .b31 *)
-  let sub_eq = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) in
-  let expected = { r with b31 = next_r.b31 } in
-  Idx_mut.unsafe_set r ((.b31) : (t31, _) idx_mut) next_r.b31;
+  (* Paths of depth 2 *)
+  let next_r = { a30 = 200; b30 = #{ a29 = #201l } } in
+  (* .b30.#a29 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b30 = #{ r.b30 with a29 = next_r.b30.#a29 } } in
+  Idx_mut.unsafe_set r ((.b30.#a29) : (t30, _) idx_mut) next_r.b30.#a29;
   mark_test_run 137;
   let test = eq r expected in
   if not test then failwithf "test 137 failed";
   mark_test_run 138;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b31) : (t31, _) idx_mut)) next_r.b31 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b30.#a29) : (t30, _) idx_mut)) next_r.b30.#a29 in
   if not test then failwithf "test 138 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a31 = 200; b31 = #{ a30 = #201l; b30 = 202 } } in
-  (* .b31.#a30 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b31 = #{ r.b31 with a30 = next_r.b31.#a30 } } in
-  Idx_mut.unsafe_set r ((.b31.#a30) : (t31, _) idx_mut) next_r.b31.#a30;
+  (***************************************)
+  (*   t32 = { int; #{ int32#; int } }   *)
+  (***************************************)
+  let eq = (fun { a32 = a321; b32 = b321 } { a32 = a322; b32 = b322 } -> (fun a b -> Int.equal a b) a321 a322 && (fun #{ a31 = a311; b31 = b311 } #{ a31 = a312; b31 = b312 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a311 a312 && (fun a b -> Int.equal a b) b311 b312) b321 b322) in
+  let r = { a32 = 0; b32 = #{ a31 = #1l; b31 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a32 = 100; b32 = #{ a31 = #101l; b31 = 102 } } in
+  (* .a32 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a32 = next_r.a32 } in
+  Idx_mut.unsafe_set r ((.a32) : (t32, _) idx_mut) next_r.a32;
   mark_test_run 139;
   let test = eq r expected in
   if not test then failwithf "test 139 failed";
   mark_test_run 140;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b31.#a30) : (t31, _) idx_mut)) next_r.b31.#a30 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a32) : (t32, _) idx_mut)) next_r.a32 in
   if not test then failwithf "test 140 failed";
-  (* .b31.#b30 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b31 = #{ r.b31 with b30 = next_r.b31.#b30 } } in
-  Idx_mut.unsafe_set r ((.b31.#b30) : (t31, _) idx_mut) next_r.b31.#b30;
+  let r = { a32 = 0; b32 = #{ a31 = #1l; b31 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a32 = 100; b32 = #{ a31 = #101l; b31 = 102 } } in
+  (* .b32 *)
+  let sub_eq = (fun #{ a31 = a311; b31 = b311 } #{ a31 = a312; b31 = b312 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a311 a312 && (fun a b -> Int.equal a b) b311 b312) in
+  let expected = { r with b32 = next_r.b32 } in
+  Idx_mut.unsafe_set r ((.b32) : (t32, _) idx_mut) next_r.b32;
   mark_test_run 141;
   let test = eq r expected in
   if not test then failwithf "test 141 failed";
   mark_test_run 142;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b31.#b30) : (t31, _) idx_mut)) next_r.b31.#b30 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b32) : (t32, _) idx_mut)) next_r.b32 in
   if not test then failwithf "test 142 failed";
-  (******************************************)
-  (*   t33 = { int; #{ int32#; int32# } }   *)
-  (******************************************)
-  let eq = (fun { a33 = a331; b33 = b331 } { a33 = a332; b33 = b332 } -> (fun a b -> Int.equal a b) a331 a332 && (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) b331 b332) in
-  let r = { a33 = 0; b33 = #{ a32 = #1l; b32 = #2l } } in
-  (* Paths of depth 1 *)
-  let next_r = { a33 = 100; b33 = #{ a32 = #101l; b32 = #102l } } in
-  (* .a33 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a33 = next_r.a33 } in
-  Idx_mut.unsafe_set r ((.a33) : (t33, _) idx_mut) next_r.a33;
+  (* Paths of depth 2 *)
+  let next_r = { a32 = 200; b32 = #{ a31 = #201l; b31 = 202 } } in
+  (* .b32.#a31 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b32 = #{ r.b32 with a31 = next_r.b32.#a31 } } in
+  Idx_mut.unsafe_set r ((.b32.#a31) : (t32, _) idx_mut) next_r.b32.#a31;
   mark_test_run 143;
   let test = eq r expected in
   if not test then failwithf "test 143 failed";
   mark_test_run 144;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a33) : (t33, _) idx_mut)) next_r.a33 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b32.#a31) : (t32, _) idx_mut)) next_r.b32.#a31 in
   if not test then failwithf "test 144 failed";
-  let r = { a33 = 0; b33 = #{ a32 = #1l; b32 = #2l } } in
-  (* Paths of depth 1 *)
-  let next_r = { a33 = 100; b33 = #{ a32 = #101l; b32 = #102l } } in
-  (* .b33 *)
-  let sub_eq = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) in
-  let expected = { r with b33 = next_r.b33 } in
-  Idx_mut.unsafe_set r ((.b33) : (t33, _) idx_mut) next_r.b33;
+  (* .b32.#b31 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b32 = #{ r.b32 with b31 = next_r.b32.#b31 } } in
+  Idx_mut.unsafe_set r ((.b32.#b31) : (t32, _) idx_mut) next_r.b32.#b31;
   mark_test_run 145;
   let test = eq r expected in
   if not test then failwithf "test 145 failed";
   mark_test_run 146;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b33) : (t33, _) idx_mut)) next_r.b33 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b32.#b31) : (t32, _) idx_mut)) next_r.b32.#b31 in
   if not test then failwithf "test 146 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a33 = 200; b33 = #{ a32 = #201l; b32 = #202l } } in
-  (* .b33.#a32 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b33 = #{ r.b33 with a32 = next_r.b33.#a32 } } in
-  Idx_mut.unsafe_set r ((.b33.#a32) : (t33, _) idx_mut) next_r.b33.#a32;
+  (******************************************)
+  (*   t34 = { int; #{ int32#; int32# } }   *)
+  (******************************************)
+  let eq = (fun { a34 = a341; b34 = b341 } { a34 = a342; b34 = b342 } -> (fun a b -> Int.equal a b) a341 a342 && (fun #{ a33 = a331; b33 = b331 } #{ a33 = a332; b33 = b332 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a331 a332 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b331 b332) b341 b342) in
+  let r = { a34 = 0; b34 = #{ a33 = #1l; b33 = #2l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a34 = 100; b34 = #{ a33 = #101l; b33 = #102l } } in
+  (* .a34 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a34 = next_r.a34 } in
+  Idx_mut.unsafe_set r ((.a34) : (t34, _) idx_mut) next_r.a34;
   mark_test_run 147;
   let test = eq r expected in
   if not test then failwithf "test 147 failed";
   mark_test_run 148;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b33.#a32) : (t33, _) idx_mut)) next_r.b33.#a32 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a34) : (t34, _) idx_mut)) next_r.a34 in
   if not test then failwithf "test 148 failed";
-  (* .b33.#b32 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b33 = #{ r.b33 with b32 = next_r.b33.#b32 } } in
-  Idx_mut.unsafe_set r ((.b33.#b32) : (t33, _) idx_mut) next_r.b33.#b32;
+  let r = { a34 = 0; b34 = #{ a33 = #1l; b33 = #2l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a34 = 100; b34 = #{ a33 = #101l; b33 = #102l } } in
+  (* .b34 *)
+  let sub_eq = (fun #{ a33 = a331; b33 = b331 } #{ a33 = a332; b33 = b332 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a331 a332 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b331 b332) in
+  let expected = { r with b34 = next_r.b34 } in
+  Idx_mut.unsafe_set r ((.b34) : (t34, _) idx_mut) next_r.b34;
   mark_test_run 149;
   let test = eq r expected in
   if not test then failwithf "test 149 failed";
   mark_test_run 150;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b33.#b32) : (t33, _) idx_mut)) next_r.b33.#b32 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b34) : (t34, _) idx_mut)) next_r.b34 in
   if not test then failwithf "test 150 failed";
-  (*********************************)
-  (*   t35 = { int; #{ float } }   *)
-  (*********************************)
-  let eq = (fun { a35 = a351; b35 = b351 } { a35 = a352; b35 = b352 } -> (fun a b -> Int.equal a b) a351 a352 && (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) b351 b352) in
-  let r = { a35 = 0; b35 = #{ a34 = 1. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a35 = 100; b35 = #{ a34 = 101. } } in
-  (* .a35 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a35 = next_r.a35 } in
-  Idx_mut.unsafe_set r ((.a35) : (t35, _) idx_mut) next_r.a35;
+  (* Paths of depth 2 *)
+  let next_r = { a34 = 200; b34 = #{ a33 = #201l; b33 = #202l } } in
+  (* .b34.#a33 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b34 = #{ r.b34 with a33 = next_r.b34.#a33 } } in
+  Idx_mut.unsafe_set r ((.b34.#a33) : (t34, _) idx_mut) next_r.b34.#a33;
   mark_test_run 151;
   let test = eq r expected in
   if not test then failwithf "test 151 failed";
   mark_test_run 152;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a35) : (t35, _) idx_mut)) next_r.a35 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b34.#a33) : (t34, _) idx_mut)) next_r.b34.#a33 in
   if not test then failwithf "test 152 failed";
-  let r = { a35 = 0; b35 = #{ a34 = 1. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a35 = 100; b35 = #{ a34 = 101. } } in
-  (* .b35 *)
-  let sub_eq = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) in
-  let expected = { r with b35 = next_r.b35 } in
-  Idx_mut.unsafe_set r ((.b35) : (t35, _) idx_mut) next_r.b35;
+  (* .b34.#b33 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b34 = #{ r.b34 with b33 = next_r.b34.#b33 } } in
+  Idx_mut.unsafe_set r ((.b34.#b33) : (t34, _) idx_mut) next_r.b34.#b33;
   mark_test_run 153;
   let test = eq r expected in
   if not test then failwithf "test 153 failed";
   mark_test_run 154;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b35) : (t35, _) idx_mut)) next_r.b35 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b34.#b33) : (t34, _) idx_mut)) next_r.b34.#b33 in
   if not test then failwithf "test 154 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a35 = 200; b35 = #{ a34 = 201. } } in
-  (* .b35.#a34 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b35 = #{ r.b35 with a34 = next_r.b35.#a34 } } in
-  Idx_mut.unsafe_set r ((.b35.#a34) : (t35, _) idx_mut) next_r.b35.#a34;
+  (*********************************)
+  (*   t36 = { int; #{ float } }   *)
+  (*********************************)
+  let eq = (fun { a36 = a361; b36 = b361 } { a36 = a362; b36 = b362 } -> (fun a b -> Int.equal a b) a361 a362 && (fun #{ a35 = a351 } #{ a35 = a352 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a351 a352) b361 b362) in
+  let r = { a36 = 0; b36 = #{ a35 = 1. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a36 = 100; b36 = #{ a35 = 101. } } in
+  (* .a36 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a36 = next_r.a36 } in
+  Idx_mut.unsafe_set r ((.a36) : (t36, _) idx_mut) next_r.a36;
   mark_test_run 155;
   let test = eq r expected in
   if not test then failwithf "test 155 failed";
   mark_test_run 156;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b35.#a34) : (t35, _) idx_mut)) next_r.b35.#a34 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a36) : (t36, _) idx_mut)) next_r.a36 in
   if not test then failwithf "test 156 failed";
-  (**************************************)
-  (*   t37 = { int; #{ float; int } }   *)
-  (**************************************)
-  let eq = (fun { a37 = a371; b37 = b371 } { a37 = a372; b37 = b372 } -> (fun a b -> Int.equal a b) a371 a372 && (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) b371 b372) in
-  let r = { a37 = 0; b37 = #{ a36 = 1.; b36 = 2 } } in
+  let r = { a36 = 0; b36 = #{ a35 = 1. } } in
   (* Paths of depth 1 *)
-  let next_r = { a37 = 100; b37 = #{ a36 = 101.; b36 = 102 } } in
-  (* .a37 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a37 = next_r.a37 } in
-  Idx_mut.unsafe_set r ((.a37) : (t37, _) idx_mut) next_r.a37;
+  let next_r = { a36 = 100; b36 = #{ a35 = 101. } } in
+  (* .b36 *)
+  let sub_eq = (fun #{ a35 = a351 } #{ a35 = a352 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a351 a352) in
+  let expected = { r with b36 = next_r.b36 } in
+  Idx_mut.unsafe_set r ((.b36) : (t36, _) idx_mut) next_r.b36;
   mark_test_run 157;
   let test = eq r expected in
   if not test then failwithf "test 157 failed";
   mark_test_run 158;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a37) : (t37, _) idx_mut)) next_r.a37 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b36) : (t36, _) idx_mut)) next_r.b36 in
   if not test then failwithf "test 158 failed";
-  let r = { a37 = 0; b37 = #{ a36 = 1.; b36 = 2 } } in
-  (* Paths of depth 1 *)
-  let next_r = { a37 = 100; b37 = #{ a36 = 101.; b36 = 102 } } in
-  (* .b37 *)
-  let sub_eq = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) in
-  let expected = { r with b37 = next_r.b37 } in
-  Idx_mut.unsafe_set r ((.b37) : (t37, _) idx_mut) next_r.b37;
+  (* Paths of depth 2 *)
+  let next_r = { a36 = 200; b36 = #{ a35 = 201. } } in
+  (* .b36.#a35 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b36 = #{ r.b36 with a35 = next_r.b36.#a35 } } in
+  Idx_mut.unsafe_set r ((.b36.#a35) : (t36, _) idx_mut) next_r.b36.#a35;
   mark_test_run 159;
   let test = eq r expected in
   if not test then failwithf "test 159 failed";
   mark_test_run 160;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b37) : (t37, _) idx_mut)) next_r.b37 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b36.#a35) : (t36, _) idx_mut)) next_r.b36.#a35 in
   if not test then failwithf "test 160 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a37 = 200; b37 = #{ a36 = 201.; b36 = 202 } } in
-  (* .b37.#a36 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b37 = #{ r.b37 with a36 = next_r.b37.#a36 } } in
-  Idx_mut.unsafe_set r ((.b37.#a36) : (t37, _) idx_mut) next_r.b37.#a36;
+  (**************************************)
+  (*   t38 = { int; #{ float; int } }   *)
+  (**************************************)
+  let eq = (fun { a38 = a381; b38 = b381 } { a38 = a382; b38 = b382 } -> (fun a b -> Int.equal a b) a381 a382 && (fun #{ a37 = a371; b37 = b371 } #{ a37 = a372; b37 = b372 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a371 a372 && (fun a b -> Int.equal a b) b371 b372) b381 b382) in
+  let r = { a38 = 0; b38 = #{ a37 = 1.; b37 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a38 = 100; b38 = #{ a37 = 101.; b37 = 102 } } in
+  (* .a38 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a38 = next_r.a38 } in
+  Idx_mut.unsafe_set r ((.a38) : (t38, _) idx_mut) next_r.a38;
   mark_test_run 161;
   let test = eq r expected in
   if not test then failwithf "test 161 failed";
   mark_test_run 162;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b37.#a36) : (t37, _) idx_mut)) next_r.b37.#a36 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a38) : (t38, _) idx_mut)) next_r.a38 in
   if not test then failwithf "test 162 failed";
-  (* .b37.#b36 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b37 = #{ r.b37 with b36 = next_r.b37.#b36 } } in
-  Idx_mut.unsafe_set r ((.b37.#b36) : (t37, _) idx_mut) next_r.b37.#b36;
+  let r = { a38 = 0; b38 = #{ a37 = 1.; b37 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a38 = 100; b38 = #{ a37 = 101.; b37 = 102 } } in
+  (* .b38 *)
+  let sub_eq = (fun #{ a37 = a371; b37 = b371 } #{ a37 = a372; b37 = b372 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a371 a372 && (fun a b -> Int.equal a b) b371 b372) in
+  let expected = { r with b38 = next_r.b38 } in
+  Idx_mut.unsafe_set r ((.b38) : (t38, _) idx_mut) next_r.b38;
   mark_test_run 163;
   let test = eq r expected in
   if not test then failwithf "test 163 failed";
   mark_test_run 164;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b37.#b36) : (t37, _) idx_mut)) next_r.b37.#b36 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b38) : (t38, _) idx_mut)) next_r.b38 in
   if not test then failwithf "test 164 failed";
-  (****************************************)
-  (*   t39 = { int; #{ float; float } }   *)
-  (****************************************)
-  let eq = (fun { a39 = a391; b39 = b391 } { a39 = a392; b39 = b392 } -> (fun a b -> Int.equal a b) a391 a392 && (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) b391 b392) in
-  let r = { a39 = 0; b39 = #{ a38 = 1.; b38 = 2. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a39 = 100; b39 = #{ a38 = 101.; b38 = 102. } } in
-  (* .a39 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a39 = next_r.a39 } in
-  Idx_mut.unsafe_set r ((.a39) : (t39, _) idx_mut) next_r.a39;
+  (* Paths of depth 2 *)
+  let next_r = { a38 = 200; b38 = #{ a37 = 201.; b37 = 202 } } in
+  (* .b38.#a37 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b38 = #{ r.b38 with a37 = next_r.b38.#a37 } } in
+  Idx_mut.unsafe_set r ((.b38.#a37) : (t38, _) idx_mut) next_r.b38.#a37;
   mark_test_run 165;
   let test = eq r expected in
   if not test then failwithf "test 165 failed";
   mark_test_run 166;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a39) : (t39, _) idx_mut)) next_r.a39 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b38.#a37) : (t38, _) idx_mut)) next_r.b38.#a37 in
   if not test then failwithf "test 166 failed";
-  let r = { a39 = 0; b39 = #{ a38 = 1.; b38 = 2. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a39 = 100; b39 = #{ a38 = 101.; b38 = 102. } } in
-  (* .b39 *)
-  let sub_eq = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) in
-  let expected = { r with b39 = next_r.b39 } in
-  Idx_mut.unsafe_set r ((.b39) : (t39, _) idx_mut) next_r.b39;
+  (* .b38.#b37 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b38 = #{ r.b38 with b37 = next_r.b38.#b37 } } in
+  Idx_mut.unsafe_set r ((.b38.#b37) : (t38, _) idx_mut) next_r.b38.#b37;
   mark_test_run 167;
   let test = eq r expected in
   if not test then failwithf "test 167 failed";
   mark_test_run 168;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b39) : (t39, _) idx_mut)) next_r.b39 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b38.#b37) : (t38, _) idx_mut)) next_r.b38.#b37 in
   if not test then failwithf "test 168 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a39 = 200; b39 = #{ a38 = 201.; b38 = 202. } } in
-  (* .b39.#a38 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b39 = #{ r.b39 with a38 = next_r.b39.#a38 } } in
-  Idx_mut.unsafe_set r ((.b39.#a38) : (t39, _) idx_mut) next_r.b39.#a38;
+  (****************************************)
+  (*   t40 = { int; #{ float; float } }   *)
+  (****************************************)
+  let eq = (fun { a40 = a401; b40 = b401 } { a40 = a402; b40 = b402 } -> (fun a b -> Int.equal a b) a401 a402 && (fun #{ a39 = a391; b39 = b391 } #{ a39 = a392; b39 = b392 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Float.equal (globalize a) (globalize b)) b391 b392) b401 b402) in
+  let r = { a40 = 0; b40 = #{ a39 = 1.; b39 = 2. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a40 = 100; b40 = #{ a39 = 101.; b39 = 102. } } in
+  (* .a40 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a40 = next_r.a40 } in
+  Idx_mut.unsafe_set r ((.a40) : (t40, _) idx_mut) next_r.a40;
   mark_test_run 169;
   let test = eq r expected in
   if not test then failwithf "test 169 failed";
   mark_test_run 170;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b39.#a38) : (t39, _) idx_mut)) next_r.b39.#a38 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a40) : (t40, _) idx_mut)) next_r.a40 in
   if not test then failwithf "test 170 failed";
-  (* .b39.#b38 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b39 = #{ r.b39 with b38 = next_r.b39.#b38 } } in
-  Idx_mut.unsafe_set r ((.b39.#b38) : (t39, _) idx_mut) next_r.b39.#b38;
+  let r = { a40 = 0; b40 = #{ a39 = 1.; b39 = 2. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a40 = 100; b40 = #{ a39 = 101.; b39 = 102. } } in
+  (* .b40 *)
+  let sub_eq = (fun #{ a39 = a391; b39 = b391 } #{ a39 = a392; b39 = b392 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Float.equal (globalize a) (globalize b)) b391 b392) in
+  let expected = { r with b40 = next_r.b40 } in
+  Idx_mut.unsafe_set r ((.b40) : (t40, _) idx_mut) next_r.b40;
   mark_test_run 171;
   let test = eq r expected in
   if not test then failwithf "test 171 failed";
   mark_test_run 172;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b39.#b38) : (t39, _) idx_mut)) next_r.b39.#b38 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b40) : (t40, _) idx_mut)) next_r.b40 in
   if not test then failwithf "test 172 failed";
-  (************************************)
-  (*   t41 = { int; #{ int64x2# } }   *)
-  (************************************)
-  let eq = (fun { a41 = a411; b41 = b411 } { a41 = a412; b41 = b412 } -> (fun a b -> Int.equal a b) a411 a412 && (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) b411 b412) in
-  let r = { a41 = 0; b41 = #{ a40 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } } in
-  (* Paths of depth 1 *)
-  let next_r = { a41 = 100; b41 = #{ a40 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } } in
-  (* .a41 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a41 = next_r.a41 } in
-  Idx_mut.unsafe_set r ((.a41) : (t41, _) idx_mut) next_r.a41;
+  (* Paths of depth 2 *)
+  let next_r = { a40 = 200; b40 = #{ a39 = 201.; b39 = 202. } } in
+  (* .b40.#a39 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b40 = #{ r.b40 with a39 = next_r.b40.#a39 } } in
+  Idx_mut.unsafe_set r ((.b40.#a39) : (t40, _) idx_mut) next_r.b40.#a39;
   mark_test_run 173;
   let test = eq r expected in
   if not test then failwithf "test 173 failed";
   mark_test_run 174;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a41) : (t41, _) idx_mut)) next_r.a41 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b40.#a39) : (t40, _) idx_mut)) next_r.b40.#a39 in
   if not test then failwithf "test 174 failed";
-  let r = { a41 = 0; b41 = #{ a40 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } } in
-  (* Paths of depth 1 *)
-  let next_r = { a41 = 100; b41 = #{ a40 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } } in
-  (* .b41 *)
-  let sub_eq = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) in
-  let expected = { r with b41 = next_r.b41 } in
-  Idx_mut.unsafe_set r ((.b41) : (t41, _) idx_mut) next_r.b41;
+  (* .b40.#b39 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b40 = #{ r.b40 with b39 = next_r.b40.#b39 } } in
+  Idx_mut.unsafe_set r ((.b40.#b39) : (t40, _) idx_mut) next_r.b40.#b39;
   mark_test_run 175;
   let test = eq r expected in
   if not test then failwithf "test 175 failed";
   mark_test_run 176;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b41) : (t41, _) idx_mut)) next_r.b41 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b40.#b39) : (t40, _) idx_mut)) next_r.b40.#b39 in
   if not test then failwithf "test 176 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a41 = 200; b41 = #{ a40 = (interleave_low_64 (int64x2_of_int64 201L) (int64x2_of_int64 202L)) } } in
-  (* .b41.#a40 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with b41 = #{ r.b41 with a40 = next_r.b41.#a40 } } in
-  Idx_mut.unsafe_set r ((.b41.#a40) : (t41, _) idx_mut) next_r.b41.#a40;
+  (************************************)
+  (*   t42 = { int; #{ int64x2# } }   *)
+  (************************************)
+  let eq = (fun { a42 = a421; b42 = b421 } { a42 = a422; b42 = b422 } -> (fun a b -> Int.equal a b) a421 a422 && (fun #{ a41 = a411 } #{ a41 = a412 } -> int64x2_u_equal a411 a412) b421 b422) in
+  let r = { a42 = 0; b42 = #{ a41 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } } in
+  (* Paths of depth 1 *)
+  let next_r = { a42 = 100; b42 = #{ a41 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } } in
+  (* .a42 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a42 = next_r.a42 } in
+  Idx_mut.unsafe_set r ((.a42) : (t42, _) idx_mut) next_r.a42;
   mark_test_run 177;
   let test = eq r expected in
   if not test then failwithf "test 177 failed";
   mark_test_run 178;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b41.#a40) : (t41, _) idx_mut)) next_r.b41.#a40 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a42) : (t42, _) idx_mut)) next_r.a42 in
   if not test then failwithf "test 178 failed";
-  (*****************************************)
-  (*   t43 = { int; #{ int64x2#; int } }   *)
-  (*****************************************)
-  let eq = (fun { a43 = a431; b43 = b431 } { a43 = a432; b43 = b432 } -> (fun a b -> Int.equal a b) a431 a432 && (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) b431 b432) in
-  let r = { a43 = 0; b43 = #{ a42 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); b42 = 3 } } in
+  let r = { a42 = 0; b42 = #{ a41 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } } in
   (* Paths of depth 1 *)
-  let next_r = { a43 = 100; b43 = #{ a42 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); b42 = 103 } } in
-  (* .a43 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a43 = next_r.a43 } in
-  Idx_mut.unsafe_set r ((.a43) : (t43, _) idx_mut) next_r.a43;
+  let next_r = { a42 = 100; b42 = #{ a41 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } } in
+  (* .b42 *)
+  let sub_eq = (fun #{ a41 = a411 } #{ a41 = a412 } -> int64x2_u_equal a411 a412) in
+  let expected = { r with b42 = next_r.b42 } in
+  Idx_mut.unsafe_set r ((.b42) : (t42, _) idx_mut) next_r.b42;
   mark_test_run 179;
   let test = eq r expected in
   if not test then failwithf "test 179 failed";
   mark_test_run 180;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a43) : (t43, _) idx_mut)) next_r.a43 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b42) : (t42, _) idx_mut)) next_r.b42 in
   if not test then failwithf "test 180 failed";
-  let r = { a43 = 0; b43 = #{ a42 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); b42 = 3 } } in
-  (* Paths of depth 1 *)
-  let next_r = { a43 = 100; b43 = #{ a42 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); b42 = 103 } } in
-  (* .b43 *)
-  let sub_eq = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) in
-  let expected = { r with b43 = next_r.b43 } in
-  Idx_mut.unsafe_set r ((.b43) : (t43, _) idx_mut) next_r.b43;
+  (* Paths of depth 2 *)
+  let next_r = { a42 = 200; b42 = #{ a41 = (interleave_low_64 (int64x2_of_int64 201L) (int64x2_of_int64 202L)) } } in
+  (* .b42.#a41 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with b42 = #{ r.b42 with a41 = next_r.b42.#a41 } } in
+  Idx_mut.unsafe_set r ((.b42.#a41) : (t42, _) idx_mut) next_r.b42.#a41;
   mark_test_run 181;
   let test = eq r expected in
   if not test then failwithf "test 181 failed";
   mark_test_run 182;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b43) : (t43, _) idx_mut)) next_r.b43 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b42.#a41) : (t42, _) idx_mut)) next_r.b42.#a41 in
   if not test then failwithf "test 182 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a43 = 200; b43 = #{ a42 = (interleave_low_64 (int64x2_of_int64 201L) (int64x2_of_int64 202L)); b42 = 203 } } in
-  (* .b43.#a42 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with b43 = #{ r.b43 with a42 = next_r.b43.#a42 } } in
-  Idx_mut.unsafe_set r ((.b43.#a42) : (t43, _) idx_mut) next_r.b43.#a42;
+  (*****************************************)
+  (*   t44 = { int; #{ int64x2#; int } }   *)
+  (*****************************************)
+  let eq = (fun { a44 = a441; b44 = b441 } { a44 = a442; b44 = b442 } -> (fun a b -> Int.equal a b) a441 a442 && (fun #{ a43 = a431; b43 = b431 } #{ a43 = a432; b43 = b432 } -> int64x2_u_equal a431 a432 && (fun a b -> Int.equal a b) b431 b432) b441 b442) in
+  let r = { a44 = 0; b44 = #{ a43 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); b43 = 3 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a44 = 100; b44 = #{ a43 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); b43 = 103 } } in
+  (* .a44 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a44 = next_r.a44 } in
+  Idx_mut.unsafe_set r ((.a44) : (t44, _) idx_mut) next_r.a44;
   mark_test_run 183;
   let test = eq r expected in
   if not test then failwithf "test 183 failed";
   mark_test_run 184;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b43.#a42) : (t43, _) idx_mut)) next_r.b43.#a42 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a44) : (t44, _) idx_mut)) next_r.a44 in
   if not test then failwithf "test 184 failed";
-  (* .b43.#b42 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b43 = #{ r.b43 with b42 = next_r.b43.#b42 } } in
-  Idx_mut.unsafe_set r ((.b43.#b42) : (t43, _) idx_mut) next_r.b43.#b42;
+  let r = { a44 = 0; b44 = #{ a43 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); b43 = 3 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a44 = 100; b44 = #{ a43 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); b43 = 103 } } in
+  (* .b44 *)
+  let sub_eq = (fun #{ a43 = a431; b43 = b431 } #{ a43 = a432; b43 = b432 } -> int64x2_u_equal a431 a432 && (fun a b -> Int.equal a b) b431 b432) in
+  let expected = { r with b44 = next_r.b44 } in
+  Idx_mut.unsafe_set r ((.b44) : (t44, _) idx_mut) next_r.b44;
   mark_test_run 185;
   let test = eq r expected in
   if not test then failwithf "test 185 failed";
   mark_test_run 186;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b43.#b42) : (t43, _) idx_mut)) next_r.b43.#b42 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b44) : (t44, _) idx_mut)) next_r.b44 in
   if not test then failwithf "test 186 failed";
-  (**********************************************)
-  (*   t45 = { int; #{ int64x2#; int64x2# } }   *)
-  (**********************************************)
-  let eq = (fun { a45 = a451; b45 = b451 } { a45 = a452; b45 = b452 } -> (fun a b -> Int.equal a b) a451 a452 && (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) b451 b452) in
-  let r = { a45 = 0; b45 = #{ a44 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); b44 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } in
-  (* Paths of depth 1 *)
-  let next_r = { a45 = 100; b45 = #{ a44 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); b44 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } } in
-  (* .a45 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a45 = next_r.a45 } in
-  Idx_mut.unsafe_set r ((.a45) : (t45, _) idx_mut) next_r.a45;
+  (* Paths of depth 2 *)
+  let next_r = { a44 = 200; b44 = #{ a43 = (interleave_low_64 (int64x2_of_int64 201L) (int64x2_of_int64 202L)); b43 = 203 } } in
+  (* .b44.#a43 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with b44 = #{ r.b44 with a43 = next_r.b44.#a43 } } in
+  Idx_mut.unsafe_set r ((.b44.#a43) : (t44, _) idx_mut) next_r.b44.#a43;
   mark_test_run 187;
   let test = eq r expected in
   if not test then failwithf "test 187 failed";
   mark_test_run 188;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a45) : (t45, _) idx_mut)) next_r.a45 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b44.#a43) : (t44, _) idx_mut)) next_r.b44.#a43 in
   if not test then failwithf "test 188 failed";
-  let r = { a45 = 0; b45 = #{ a44 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); b44 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } in
-  (* Paths of depth 1 *)
-  let next_r = { a45 = 100; b45 = #{ a44 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); b44 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } } in
-  (* .b45 *)
-  let sub_eq = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) in
-  let expected = { r with b45 = next_r.b45 } in
-  Idx_mut.unsafe_set r ((.b45) : (t45, _) idx_mut) next_r.b45;
+  (* .b44.#b43 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b44 = #{ r.b44 with b43 = next_r.b44.#b43 } } in
+  Idx_mut.unsafe_set r ((.b44.#b43) : (t44, _) idx_mut) next_r.b44.#b43;
   mark_test_run 189;
   let test = eq r expected in
   if not test then failwithf "test 189 failed";
   mark_test_run 190;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b45) : (t45, _) idx_mut)) next_r.b45 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b44.#b43) : (t44, _) idx_mut)) next_r.b44.#b43 in
   if not test then failwithf "test 190 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a45 = 200; b45 = #{ a44 = (interleave_low_64 (int64x2_of_int64 201L) (int64x2_of_int64 202L)); b44 = (interleave_low_64 (int64x2_of_int64 203L) (int64x2_of_int64 204L)) } } in
-  (* .b45.#a44 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with b45 = #{ r.b45 with a44 = next_r.b45.#a44 } } in
-  Idx_mut.unsafe_set r ((.b45.#a44) : (t45, _) idx_mut) next_r.b45.#a44;
+  (**********************************************)
+  (*   t46 = { int; #{ int64x2#; int64x2# } }   *)
+  (**********************************************)
+  let eq = (fun { a46 = a461; b46 = b461 } { a46 = a462; b46 = b462 } -> (fun a b -> Int.equal a b) a461 a462 && (fun #{ a45 = a451; b45 = b451 } #{ a45 = a452; b45 = b452 } -> int64x2_u_equal a451 a452 && int64x2_u_equal b451 b452) b461 b462) in
+  let r = { a46 = 0; b46 = #{ a45 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); b45 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } in
+  (* Paths of depth 1 *)
+  let next_r = { a46 = 100; b46 = #{ a45 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); b45 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } } in
+  (* .a46 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a46 = next_r.a46 } in
+  Idx_mut.unsafe_set r ((.a46) : (t46, _) idx_mut) next_r.a46;
   mark_test_run 191;
   let test = eq r expected in
   if not test then failwithf "test 191 failed";
   mark_test_run 192;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b45.#a44) : (t45, _) idx_mut)) next_r.b45.#a44 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a46) : (t46, _) idx_mut)) next_r.a46 in
   if not test then failwithf "test 192 failed";
-  (* .b45.#b44 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with b45 = #{ r.b45 with b44 = next_r.b45.#b44 } } in
-  Idx_mut.unsafe_set r ((.b45.#b44) : (t45, _) idx_mut) next_r.b45.#b44;
+  let r = { a46 = 0; b46 = #{ a45 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)); b45 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } in
+  (* Paths of depth 1 *)
+  let next_r = { a46 = 100; b46 = #{ a45 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)); b45 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } } in
+  (* .b46 *)
+  let sub_eq = (fun #{ a45 = a451; b45 = b451 } #{ a45 = a452; b45 = b452 } -> int64x2_u_equal a451 a452 && int64x2_u_equal b451 b452) in
+  let expected = { r with b46 = next_r.b46 } in
+  Idx_mut.unsafe_set r ((.b46) : (t46, _) idx_mut) next_r.b46;
   mark_test_run 193;
   let test = eq r expected in
   if not test then failwithf "test 193 failed";
   mark_test_run 194;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b45.#b44) : (t45, _) idx_mut)) next_r.b45.#b44 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b46) : (t46, _) idx_mut)) next_r.b46 in
   if not test then failwithf "test 194 failed";
-  (***********************)
-  (*   t46 = { int64 }   *)
-  (***********************)
-  let eq = (fun { a46 = a461 } { a46 = a462 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a461 a462) in
-  let r = { a46 = 0L } in
-  (* Paths of depth 1 *)
-  let next_r = { a46 = 100L } in
-  (* .a46 *)
-  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
-  let expected = { r with a46 = next_r.a46 } in
-  Idx_mut.unsafe_set r ((.a46) : (t46, _) idx_mut) next_r.a46;
+  (* Paths of depth 2 *)
+  let next_r = { a46 = 200; b46 = #{ a45 = (interleave_low_64 (int64x2_of_int64 201L) (int64x2_of_int64 202L)); b45 = (interleave_low_64 (int64x2_of_int64 203L) (int64x2_of_int64 204L)) } } in
+  (* .b46.#a45 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with b46 = #{ r.b46 with a45 = next_r.b46.#a45 } } in
+  Idx_mut.unsafe_set r ((.b46.#a45) : (t46, _) idx_mut) next_r.b46.#a45;
   mark_test_run 195;
   let test = eq r expected in
   if not test then failwithf "test 195 failed";
   mark_test_run 196;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a46) : (t46, _) idx_mut)) next_r.a46 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b46.#a45) : (t46, _) idx_mut)) next_r.b46.#a45 in
   if not test then failwithf "test 196 failed";
-  (****************************)
-  (*   t47 = { int64; int }   *)
-  (****************************)
-  let eq = (fun { a47 = a471; b47 = b471 } { a47 = a472; b47 = b472 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a471 a472 && (fun a b -> Int.equal a b) b471 b472) in
-  let r = { a47 = 0L; b47 = 1 } in
-  (* Paths of depth 1 *)
-  let next_r = { a47 = 100L; b47 = 101 } in
-  (* .a47 *)
-  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
-  let expected = { r with a47 = next_r.a47 } in
-  Idx_mut.unsafe_set r ((.a47) : (t47, _) idx_mut) next_r.a47;
+  (* .b46.#b45 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with b46 = #{ r.b46 with b45 = next_r.b46.#b45 } } in
+  Idx_mut.unsafe_set r ((.b46.#b45) : (t46, _) idx_mut) next_r.b46.#b45;
   mark_test_run 197;
   let test = eq r expected in
   if not test then failwithf "test 197 failed";
   mark_test_run 198;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a47) : (t47, _) idx_mut)) next_r.a47 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b46.#b45) : (t46, _) idx_mut)) next_r.b46.#b45 in
   if not test then failwithf "test 198 failed";
-  let r = { a47 = 0L; b47 = 1 } in
+  (***********************)
+  (*   t47 = { int64 }   *)
+  (***********************)
+  let eq = (fun { a47 = a471 } { a47 = a472 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a471 a472) in
+  let r = { a47 = 0L } in
   (* Paths of depth 1 *)
-  let next_r = { a47 = 100L; b47 = 101 } in
-  (* .b47 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b47 = next_r.b47 } in
-  Idx_mut.unsafe_set r ((.b47) : (t47, _) idx_mut) next_r.b47;
+  let next_r = { a47 = 100L } in
+  (* .a47 *)
+  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
+  let expected = { r with a47 = next_r.a47 } in
+  Idx_mut.unsafe_set r ((.a47) : (t47, _) idx_mut) next_r.a47;
   mark_test_run 199;
   let test = eq r expected in
   if not test then failwithf "test 199 failed";
   mark_test_run 200;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b47) : (t47, _) idx_mut)) next_r.b47 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a47) : (t47, _) idx_mut)) next_r.a47 in
   if not test then failwithf "test 200 failed";
-  (******************************)
-  (*   t48 = { int64; int64 }   *)
-  (******************************)
-  let eq = (fun { a48 = a481; b48 = b481 } { a48 = a482; b48 = b482 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a481 a482 && (fun a b -> Int64.equal (globalize a) (globalize b)) b481 b482) in
-  let r = { a48 = 0L; b48 = 1L } in
+  (****************************)
+  (*   t48 = { int64; int }   *)
+  (****************************)
+  let eq = (fun { a48 = a481; b48 = b481 } { a48 = a482; b48 = b482 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a481 a482 && (fun a b -> Int.equal a b) b481 b482) in
+  let r = { a48 = 0L; b48 = 1 } in
   (* Paths of depth 1 *)
-  let next_r = { a48 = 100L; b48 = 101L } in
+  let next_r = { a48 = 100L; b48 = 101 } in
   (* .a48 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with a48 = next_r.a48 } in
@@ -1754,11 +1768,11 @@ let () =
   mark_test_run 202;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a48) : (t48, _) idx_mut)) next_r.a48 in
   if not test then failwithf "test 202 failed";
-  let r = { a48 = 0L; b48 = 1L } in
+  let r = { a48 = 0L; b48 = 1 } in
   (* Paths of depth 1 *)
-  let next_r = { a48 = 100L; b48 = 101L } in
+  let next_r = { a48 = 100L; b48 = 101 } in
   (* .b48 *)
-  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
+  let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b48 = next_r.b48 } in
   Idx_mut.unsafe_set r ((.b48) : (t48, _) idx_mut) next_r.b48;
   mark_test_run 203;
@@ -1767,13 +1781,13 @@ let () =
   mark_test_run 204;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b48) : (t48, _) idx_mut)) next_r.b48 in
   if not test then failwithf "test 204 failed";
-  (*******************************)
-  (*   t49 = { int64; int64# }   *)
-  (*******************************)
-  let eq = (fun { a49 = a491; b49 = b491 } { a49 = a492; b49 = b492 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a491 a492 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b491 b492) in
-  let r = { a49 = 0L; b49 = #1L } in
+  (******************************)
+  (*   t49 = { int64; int64 }   *)
+  (******************************)
+  let eq = (fun { a49 = a491; b49 = b491 } { a49 = a492; b49 = b492 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a491 a492 && (fun a b -> Int64.equal (globalize a) (globalize b)) b491 b492) in
+  let r = { a49 = 0L; b49 = 1L } in
   (* Paths of depth 1 *)
-  let next_r = { a49 = 100L; b49 = #101L } in
+  let next_r = { a49 = 100L; b49 = 101L } in
   (* .a49 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with a49 = next_r.a49 } in
@@ -1784,11 +1798,11 @@ let () =
   mark_test_run 206;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a49) : (t49, _) idx_mut)) next_r.a49 in
   if not test then failwithf "test 206 failed";
-  let r = { a49 = 0L; b49 = #1L } in
+  let r = { a49 = 0L; b49 = 1L } in
   (* Paths of depth 1 *)
-  let next_r = { a49 = 100L; b49 = #101L } in
+  let next_r = { a49 = 100L; b49 = 101L } in
   (* .b49 *)
-  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
+  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with b49 = next_r.b49 } in
   Idx_mut.unsafe_set r ((.b49) : (t49, _) idx_mut) next_r.b49;
   mark_test_run 207;
@@ -1798,12 +1812,12 @@ let () =
   let test = sub_eq (Idx_mut.unsafe_get r ((.b49) : (t49, _) idx_mut)) next_r.b49 in
   if not test then failwithf "test 208 failed";
   (*******************************)
-  (*   t50 = { int64; int32# }   *)
+  (*   t50 = { int64; int64# }   *)
   (*******************************)
-  let eq = (fun { a50 = a501; b50 = b501 } { a50 = a502; b50 = b502 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a501 a502 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b501 b502) in
-  let r = { a50 = 0L; b50 = #1l } in
+  let eq = (fun { a50 = a501; b50 = b501 } { a50 = a502; b50 = b502 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a501 a502 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b501 b502) in
+  let r = { a50 = 0L; b50 = #1L } in
   (* Paths of depth 1 *)
-  let next_r = { a50 = 100L; b50 = #101l } in
+  let next_r = { a50 = 100L; b50 = #101L } in
   (* .a50 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with a50 = next_r.a50 } in
@@ -1814,11 +1828,11 @@ let () =
   mark_test_run 210;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a50) : (t50, _) idx_mut)) next_r.a50 in
   if not test then failwithf "test 210 failed";
-  let r = { a50 = 0L; b50 = #1l } in
+  let r = { a50 = 0L; b50 = #1L } in
   (* Paths of depth 1 *)
-  let next_r = { a50 = 100L; b50 = #101l } in
+  let next_r = { a50 = 100L; b50 = #101L } in
   (* .b50 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with b50 = next_r.b50 } in
   Idx_mut.unsafe_set r ((.b50) : (t50, _) idx_mut) next_r.b50;
   mark_test_run 211;
@@ -1827,13 +1841,13 @@ let () =
   mark_test_run 212;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b50) : (t50, _) idx_mut)) next_r.b50 in
   if not test then failwithf "test 212 failed";
-  (***********************************)
-  (*   t51 = { int64; nativeint# }   *)
-  (***********************************)
-  let eq = (fun { a51 = a511; b51 = b511 } { a51 = a512; b51 = b512 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a511 a512 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b511 b512) in
-  let r = { a51 = 0L; b51 = #1n } in
+  (*******************************)
+  (*   t51 = { int64; int32# }   *)
+  (*******************************)
+  let eq = (fun { a51 = a511; b51 = b511 } { a51 = a512; b51 = b512 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a511 a512 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b511 b512) in
+  let r = { a51 = 0L; b51 = #1l } in
   (* Paths of depth 1 *)
-  let next_r = { a51 = 100L; b51 = #101n } in
+  let next_r = { a51 = 100L; b51 = #101l } in
   (* .a51 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with a51 = next_r.a51 } in
@@ -1844,11 +1858,11 @@ let () =
   mark_test_run 214;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a51) : (t51, _) idx_mut)) next_r.a51 in
   if not test then failwithf "test 214 failed";
-  let r = { a51 = 0L; b51 = #1n } in
+  let r = { a51 = 0L; b51 = #1l } in
   (* Paths of depth 1 *)
-  let next_r = { a51 = 100L; b51 = #101n } in
+  let next_r = { a51 = 100L; b51 = #101l } in
   (* .b51 *)
-  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b51 = next_r.b51 } in
   Idx_mut.unsafe_set r ((.b51) : (t51, _) idx_mut) next_r.b51;
   mark_test_run 215;
@@ -1857,13 +1871,13 @@ let () =
   mark_test_run 216;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b51) : (t51, _) idx_mut)) next_r.b51 in
   if not test then failwithf "test 216 failed";
-  (******************************)
-  (*   t52 = { int64; float }   *)
-  (******************************)
-  let eq = (fun { a52 = a521; b52 = b521 } { a52 = a522; b52 = b522 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a521 a522 && (fun a b -> Float.equal (globalize a) (globalize b)) b521 b522) in
-  let r = { a52 = 0L; b52 = 1. } in
+  (***********************************)
+  (*   t52 = { int64; nativeint# }   *)
+  (***********************************)
+  let eq = (fun { a52 = a521; b52 = b521 } { a52 = a522; b52 = b522 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a521 a522 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b521 b522) in
+  let r = { a52 = 0L; b52 = #1n } in
   (* Paths of depth 1 *)
-  let next_r = { a52 = 100L; b52 = 101. } in
+  let next_r = { a52 = 100L; b52 = #101n } in
   (* .a52 *)
   let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with a52 = next_r.a52 } in
@@ -1874,11 +1888,11 @@ let () =
   mark_test_run 218;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a52) : (t52, _) idx_mut)) next_r.a52 in
   if not test then failwithf "test 218 failed";
-  let r = { a52 = 0L; b52 = 1. } in
+  let r = { a52 = 0L; b52 = #1n } in
   (* Paths of depth 1 *)
-  let next_r = { a52 = 100L; b52 = 101. } in
+  let next_r = { a52 = 100L; b52 = #101n } in
   (* .b52 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with b52 = next_r.b52 } in
   Idx_mut.unsafe_set r ((.b52) : (t52, _) idx_mut) next_r.b52;
   mark_test_run 219;
@@ -1887,15 +1901,15 @@ let () =
   mark_test_run 220;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b52) : (t52, _) idx_mut)) next_r.b52 in
   if not test then failwithf "test 220 failed";
-  (************************)
-  (*   t53 = { int64# }   *)
-  (************************)
-  let eq = (fun { a53 = a531 } { a53 = a532 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a531 a532) in
-  let r = { a53 = #0L } in
+  (*******************************)
+  (*   t53 = { int64; unit_u }   *)
+  (*******************************)
+  let eq = (fun { a53 = a531; b53 = b531 } { a53 = a532; b53 = b532 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a531 a532 && (fun _ _ -> true) b531 b532) in
+  let r = { a53 = 0L; b53 = (unbox_unit ()) } in
   (* Paths of depth 1 *)
-  let next_r = { a53 = #100L } in
+  let next_r = { a53 = 100L; b53 = (unbox_unit ()) } in
   (* .a53 *)
-  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
+  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with a53 = next_r.a53 } in
   Idx_mut.unsafe_set r ((.a53) : (t53, _) idx_mut) next_r.a53;
   mark_test_run 221;
@@ -1904,73 +1918,73 @@ let () =
   mark_test_run 222;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a53) : (t53, _) idx_mut)) next_r.a53 in
   if not test then failwithf "test 222 failed";
-  (*****************************)
-  (*   t54 = { int64#; int }   *)
-  (*****************************)
-  let eq = (fun { a54 = a541; b54 = b541 } { a54 = a542; b54 = b542 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a541 a542 && (fun a b -> Int.equal a b) b541 b542) in
-  let r = { a54 = #0L; b54 = 1 } in
+  let r = { a53 = 0L; b53 = (unbox_unit ()) } in
   (* Paths of depth 1 *)
-  let next_r = { a54 = #100L; b54 = 101 } in
-  (* .a54 *)
-  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
-  let expected = { r with a54 = next_r.a54 } in
-  Idx_mut.unsafe_set r ((.a54) : (t54, _) idx_mut) next_r.a54;
+  let next_r = { a53 = 100L; b53 = (unbox_unit ()) } in
+  (* .b53 *)
+  let sub_eq = (fun _ _ -> true) in
+  let expected = { r with b53 = next_r.b53 } in
+  Idx_mut.unsafe_set r ((.b53) : (t53, _) idx_mut) next_r.b53;
   mark_test_run 223;
   let test = eq r expected in
   if not test then failwithf "test 223 failed";
   mark_test_run 224;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a54) : (t54, _) idx_mut)) next_r.a54 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b53) : (t53, _) idx_mut)) next_r.b53 in
   if not test then failwithf "test 224 failed";
-  let r = { a54 = #0L; b54 = 1 } in
+  (******************************)
+  (*   t54 = { int64; float }   *)
+  (******************************)
+  let eq = (fun { a54 = a541; b54 = b541 } { a54 = a542; b54 = b542 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a541 a542 && (fun a b -> Float.equal (globalize a) (globalize b)) b541 b542) in
+  let r = { a54 = 0L; b54 = 1. } in
   (* Paths of depth 1 *)
-  let next_r = { a54 = #100L; b54 = 101 } in
-  (* .b54 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b54 = next_r.b54 } in
-  Idx_mut.unsafe_set r ((.b54) : (t54, _) idx_mut) next_r.b54;
+  let next_r = { a54 = 100L; b54 = 101. } in
+  (* .a54 *)
+  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
+  let expected = { r with a54 = next_r.a54 } in
+  Idx_mut.unsafe_set r ((.a54) : (t54, _) idx_mut) next_r.a54;
   mark_test_run 225;
   let test = eq r expected in
   if not test then failwithf "test 225 failed";
   mark_test_run 226;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b54) : (t54, _) idx_mut)) next_r.b54 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a54) : (t54, _) idx_mut)) next_r.a54 in
   if not test then failwithf "test 226 failed";
-  (*******************************)
-  (*   t55 = { int64#; int64 }   *)
-  (*******************************)
-  let eq = (fun { a55 = a551; b55 = b551 } { a55 = a552; b55 = b552 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a551 a552 && (fun a b -> Int64.equal (globalize a) (globalize b)) b551 b552) in
-  let r = { a55 = #0L; b55 = 1L } in
+  let r = { a54 = 0L; b54 = 1. } in
   (* Paths of depth 1 *)
-  let next_r = { a55 = #100L; b55 = 101L } in
-  (* .a55 *)
-  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
-  let expected = { r with a55 = next_r.a55 } in
-  Idx_mut.unsafe_set r ((.a55) : (t55, _) idx_mut) next_r.a55;
+  let next_r = { a54 = 100L; b54 = 101. } in
+  (* .b54 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b54 = next_r.b54 } in
+  Idx_mut.unsafe_set r ((.b54) : (t54, _) idx_mut) next_r.b54;
   mark_test_run 227;
   let test = eq r expected in
   if not test then failwithf "test 227 failed";
   mark_test_run 228;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a55) : (t55, _) idx_mut)) next_r.a55 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b54) : (t54, _) idx_mut)) next_r.b54 in
   if not test then failwithf "test 228 failed";
-  let r = { a55 = #0L; b55 = 1L } in
+  (************************)
+  (*   t55 = { int64# }   *)
+  (************************)
+  let eq = (fun { a55 = a551 } { a55 = a552 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a551 a552) in
+  let r = { a55 = #0L } in
   (* Paths of depth 1 *)
-  let next_r = { a55 = #100L; b55 = 101L } in
-  (* .b55 *)
-  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
-  let expected = { r with b55 = next_r.b55 } in
-  Idx_mut.unsafe_set r ((.b55) : (t55, _) idx_mut) next_r.b55;
+  let next_r = { a55 = #100L } in
+  (* .a55 *)
+  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
+  let expected = { r with a55 = next_r.a55 } in
+  Idx_mut.unsafe_set r ((.a55) : (t55, _) idx_mut) next_r.a55;
   mark_test_run 229;
   let test = eq r expected in
   if not test then failwithf "test 229 failed";
   mark_test_run 230;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b55) : (t55, _) idx_mut)) next_r.b55 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a55) : (t55, _) idx_mut)) next_r.a55 in
   if not test then failwithf "test 230 failed";
-  (********************************)
-  (*   t56 = { int64#; int64# }   *)
-  (********************************)
-  let eq = (fun { a56 = a561; b56 = b561 } { a56 = a562; b56 = b562 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a561 a562 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b561 b562) in
-  let r = { a56 = #0L; b56 = #1L } in
+  (*****************************)
+  (*   t56 = { int64#; int }   *)
+  (*****************************)
+  let eq = (fun { a56 = a561; b56 = b561 } { a56 = a562; b56 = b562 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a561 a562 && (fun a b -> Int.equal a b) b561 b562) in
+  let r = { a56 = #0L; b56 = 1 } in
   (* Paths of depth 1 *)
-  let next_r = { a56 = #100L; b56 = #101L } in
+  let next_r = { a56 = #100L; b56 = 101 } in
   (* .a56 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with a56 = next_r.a56 } in
@@ -1981,11 +1995,11 @@ let () =
   mark_test_run 232;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a56) : (t56, _) idx_mut)) next_r.a56 in
   if not test then failwithf "test 232 failed";
-  let r = { a56 = #0L; b56 = #1L } in
+  let r = { a56 = #0L; b56 = 1 } in
   (* Paths of depth 1 *)
-  let next_r = { a56 = #100L; b56 = #101L } in
+  let next_r = { a56 = #100L; b56 = 101 } in
   (* .b56 *)
-  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
+  let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b56 = next_r.b56 } in
   Idx_mut.unsafe_set r ((.b56) : (t56, _) idx_mut) next_r.b56;
   mark_test_run 233;
@@ -1994,13 +2008,13 @@ let () =
   mark_test_run 234;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b56) : (t56, _) idx_mut)) next_r.b56 in
   if not test then failwithf "test 234 failed";
-  (********************************)
-  (*   t57 = { int64#; int32# }   *)
-  (********************************)
-  let eq = (fun { a57 = a571; b57 = b571 } { a57 = a572; b57 = b572 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a571 a572 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b571 b572) in
-  let r = { a57 = #0L; b57 = #1l } in
+  (*******************************)
+  (*   t57 = { int64#; int64 }   *)
+  (*******************************)
+  let eq = (fun { a57 = a571; b57 = b571 } { a57 = a572; b57 = b572 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a571 a572 && (fun a b -> Int64.equal (globalize a) (globalize b)) b571 b572) in
+  let r = { a57 = #0L; b57 = 1L } in
   (* Paths of depth 1 *)
-  let next_r = { a57 = #100L; b57 = #101l } in
+  let next_r = { a57 = #100L; b57 = 101L } in
   (* .a57 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with a57 = next_r.a57 } in
@@ -2011,11 +2025,11 @@ let () =
   mark_test_run 236;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a57) : (t57, _) idx_mut)) next_r.a57 in
   if not test then failwithf "test 236 failed";
-  let r = { a57 = #0L; b57 = #1l } in
+  let r = { a57 = #0L; b57 = 1L } in
   (* Paths of depth 1 *)
-  let next_r = { a57 = #100L; b57 = #101l } in
+  let next_r = { a57 = #100L; b57 = 101L } in
   (* .b57 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with b57 = next_r.b57 } in
   Idx_mut.unsafe_set r ((.b57) : (t57, _) idx_mut) next_r.b57;
   mark_test_run 237;
@@ -2024,13 +2038,13 @@ let () =
   mark_test_run 238;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b57) : (t57, _) idx_mut)) next_r.b57 in
   if not test then failwithf "test 238 failed";
-  (************************************)
-  (*   t58 = { int64#; nativeint# }   *)
-  (************************************)
-  let eq = (fun { a58 = a581; b58 = b581 } { a58 = a582; b58 = b582 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a581 a582 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b581 b582) in
-  let r = { a58 = #0L; b58 = #1n } in
+  (********************************)
+  (*   t58 = { int64#; int64# }   *)
+  (********************************)
+  let eq = (fun { a58 = a581; b58 = b581 } { a58 = a582; b58 = b582 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a581 a582 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b581 b582) in
+  let r = { a58 = #0L; b58 = #1L } in
   (* Paths of depth 1 *)
-  let next_r = { a58 = #100L; b58 = #101n } in
+  let next_r = { a58 = #100L; b58 = #101L } in
   (* .a58 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with a58 = next_r.a58 } in
@@ -2041,11 +2055,11 @@ let () =
   mark_test_run 240;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a58) : (t58, _) idx_mut)) next_r.a58 in
   if not test then failwithf "test 240 failed";
-  let r = { a58 = #0L; b58 = #1n } in
+  let r = { a58 = #0L; b58 = #1L } in
   (* Paths of depth 1 *)
-  let next_r = { a58 = #100L; b58 = #101n } in
+  let next_r = { a58 = #100L; b58 = #101L } in
   (* .b58 *)
-  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with b58 = next_r.b58 } in
   Idx_mut.unsafe_set r ((.b58) : (t58, _) idx_mut) next_r.b58;
   mark_test_run 241;
@@ -2054,13 +2068,13 @@ let () =
   mark_test_run 242;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b58) : (t58, _) idx_mut)) next_r.b58 in
   if not test then failwithf "test 242 failed";
-  (*******************************)
-  (*   t59 = { int64#; float }   *)
-  (*******************************)
-  let eq = (fun { a59 = a591; b59 = b591 } { a59 = a592; b59 = b592 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a591 a592 && (fun a b -> Float.equal (globalize a) (globalize b)) b591 b592) in
-  let r = { a59 = #0L; b59 = 1. } in
+  (********************************)
+  (*   t59 = { int64#; int32# }   *)
+  (********************************)
+  let eq = (fun { a59 = a591; b59 = b591 } { a59 = a592; b59 = b592 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a591 a592 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b591 b592) in
+  let r = { a59 = #0L; b59 = #1l } in
   (* Paths of depth 1 *)
-  let next_r = { a59 = #100L; b59 = 101. } in
+  let next_r = { a59 = #100L; b59 = #101l } in
   (* .a59 *)
   let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with a59 = next_r.a59 } in
@@ -2071,11 +2085,11 @@ let () =
   mark_test_run 244;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a59) : (t59, _) idx_mut)) next_r.a59 in
   if not test then failwithf "test 244 failed";
-  let r = { a59 = #0L; b59 = 1. } in
+  let r = { a59 = #0L; b59 = #1l } in
   (* Paths of depth 1 *)
-  let next_r = { a59 = #100L; b59 = 101. } in
+  let next_r = { a59 = #100L; b59 = #101l } in
   (* .b59 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b59 = next_r.b59 } in
   Idx_mut.unsafe_set r ((.b59) : (t59, _) idx_mut) next_r.b59;
   mark_test_run 245;
@@ -2084,15 +2098,15 @@ let () =
   mark_test_run 246;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b59) : (t59, _) idx_mut)) next_r.b59 in
   if not test then failwithf "test 246 failed";
-  (************************)
-  (*   t60 = { int32# }   *)
-  (************************)
-  let eq = (fun { a60 = a601 } { a60 = a602 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a601 a602) in
-  let r = { a60 = #0l } in
+  (************************************)
+  (*   t60 = { int64#; nativeint# }   *)
+  (************************************)
+  let eq = (fun { a60 = a601; b60 = b601 } { a60 = a602; b60 = b602 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a601 a602 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b601 b602) in
+  let r = { a60 = #0L; b60 = #1n } in
   (* Paths of depth 1 *)
-  let next_r = { a60 = #100l } in
+  let next_r = { a60 = #100L; b60 = #101n } in
   (* .a60 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with a60 = next_r.a60 } in
   Idx_mut.unsafe_set r ((.a60) : (t60, _) idx_mut) next_r.a60;
   mark_test_run 247;
@@ -2101,86 +2115,86 @@ let () =
   mark_test_run 248;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a60) : (t60, _) idx_mut)) next_r.a60 in
   if not test then failwithf "test 248 failed";
-  (*****************************)
-  (*   t61 = { int32#; int }   *)
-  (*****************************)
-  let eq = (fun { a61 = a611; b61 = b611 } { a61 = a612; b61 = b612 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a611 a612 && (fun a b -> Int.equal a b) b611 b612) in
-  let r = { a61 = #0l; b61 = 1 } in
+  let r = { a60 = #0L; b60 = #1n } in
   (* Paths of depth 1 *)
-  let next_r = { a61 = #100l; b61 = 101 } in
-  (* .a61 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with a61 = next_r.a61 } in
-  Idx_mut.unsafe_set r ((.a61) : (t61, _) idx_mut) next_r.a61;
+  let next_r = { a60 = #100L; b60 = #101n } in
+  (* .b60 *)
+  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  let expected = { r with b60 = next_r.b60 } in
+  Idx_mut.unsafe_set r ((.b60) : (t60, _) idx_mut) next_r.b60;
   mark_test_run 249;
   let test = eq r expected in
   if not test then failwithf "test 249 failed";
   mark_test_run 250;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a61) : (t61, _) idx_mut)) next_r.a61 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b60) : (t60, _) idx_mut)) next_r.b60 in
   if not test then failwithf "test 250 failed";
-  let r = { a61 = #0l; b61 = 1 } in
+  (********************************)
+  (*   t61 = { int64#; unit_u }   *)
+  (********************************)
+  let eq = (fun { a61 = a611; b61 = b611 } { a61 = a612; b61 = b612 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a611 a612 && (fun _ _ -> true) b611 b612) in
+  let r = { a61 = #0L; b61 = (unbox_unit ()) } in
   (* Paths of depth 1 *)
-  let next_r = { a61 = #100l; b61 = 101 } in
-  (* .b61 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b61 = next_r.b61 } in
-  Idx_mut.unsafe_set r ((.b61) : (t61, _) idx_mut) next_r.b61;
+  let next_r = { a61 = #100L; b61 = (unbox_unit ()) } in
+  (* .a61 *)
+  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
+  let expected = { r with a61 = next_r.a61 } in
+  Idx_mut.unsafe_set r ((.a61) : (t61, _) idx_mut) next_r.a61;
   mark_test_run 251;
   let test = eq r expected in
   if not test then failwithf "test 251 failed";
   mark_test_run 252;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b61) : (t61, _) idx_mut)) next_r.b61 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a61) : (t61, _) idx_mut)) next_r.a61 in
   if not test then failwithf "test 252 failed";
-  (**********************************)
-  (*   t62 = { int32#; int; int }   *)
-  (**********************************)
-  let eq = (fun { a62 = a621; b62 = b621; c62 = c621 } { a62 = a622; b62 = b622; c62 = c622 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a621 a622 && (fun a b -> Int.equal a b) b621 b622 && (fun a b -> Int.equal a b) c621 c622) in
-  let r = { a62 = #0l; b62 = 1; c62 = 2 } in
+  let r = { a61 = #0L; b61 = (unbox_unit ()) } in
   (* Paths of depth 1 *)
-  let next_r = { a62 = #100l; b62 = 101; c62 = 102 } in
-  (* .a62 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with a62 = next_r.a62 } in
-  Idx_mut.unsafe_set r ((.a62) : (t62, _) idx_mut) next_r.a62;
+  let next_r = { a61 = #100L; b61 = (unbox_unit ()) } in
+  (* .b61 *)
+  let sub_eq = (fun _ _ -> true) in
+  let expected = { r with b61 = next_r.b61 } in
+  Idx_mut.unsafe_set r ((.b61) : (t61, _) idx_mut) next_r.b61;
   mark_test_run 253;
   let test = eq r expected in
   if not test then failwithf "test 253 failed";
   mark_test_run 254;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a62) : (t62, _) idx_mut)) next_r.a62 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b61) : (t61, _) idx_mut)) next_r.b61 in
   if not test then failwithf "test 254 failed";
-  let r = { a62 = #0l; b62 = 1; c62 = 2 } in
+  (*******************************)
+  (*   t62 = { int64#; float }   *)
+  (*******************************)
+  let eq = (fun { a62 = a621; b62 = b621 } { a62 = a622; b62 = b622 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a621 a622 && (fun a b -> Float.equal (globalize a) (globalize b)) b621 b622) in
+  let r = { a62 = #0L; b62 = 1. } in
   (* Paths of depth 1 *)
-  let next_r = { a62 = #100l; b62 = 101; c62 = 102 } in
-  (* .b62 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b62 = next_r.b62 } in
-  Idx_mut.unsafe_set r ((.b62) : (t62, _) idx_mut) next_r.b62;
+  let next_r = { a62 = #100L; b62 = 101. } in
+  (* .a62 *)
+  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
+  let expected = { r with a62 = next_r.a62 } in
+  Idx_mut.unsafe_set r ((.a62) : (t62, _) idx_mut) next_r.a62;
   mark_test_run 255;
   let test = eq r expected in
   if not test then failwithf "test 255 failed";
   mark_test_run 256;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b62) : (t62, _) idx_mut)) next_r.b62 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a62) : (t62, _) idx_mut)) next_r.a62 in
   if not test then failwithf "test 256 failed";
-  let r = { a62 = #0l; b62 = 1; c62 = 2 } in
+  let r = { a62 = #0L; b62 = 1. } in
   (* Paths of depth 1 *)
-  let next_r = { a62 = #100l; b62 = 101; c62 = 102 } in
-  (* .c62 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with c62 = next_r.c62 } in
-  Idx_mut.unsafe_set r ((.c62) : (t62, _) idx_mut) next_r.c62;
+  let next_r = { a62 = #100L; b62 = 101. } in
+  (* .b62 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b62 = next_r.b62 } in
+  Idx_mut.unsafe_set r ((.b62) : (t62, _) idx_mut) next_r.b62;
   mark_test_run 257;
   let test = eq r expected in
   if not test then failwithf "test 257 failed";
   mark_test_run 258;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c62) : (t62, _) idx_mut)) next_r.c62 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b62) : (t62, _) idx_mut)) next_r.b62 in
   if not test then failwithf "test 258 failed";
-  (*************************************)
-  (*   t63 = { int32#; int; int32# }   *)
-  (*************************************)
-  let eq = (fun { a63 = a631; b63 = b631; c63 = c631 } { a63 = a632; b63 = b632; c63 = c632 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a631 a632 && (fun a b -> Int.equal a b) b631 b632 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c631 c632) in
-  let r = { a63 = #0l; b63 = 1; c63 = #2l } in
+  (************************)
+  (*   t63 = { int32# }   *)
+  (************************)
+  let eq = (fun { a63 = a631 } { a63 = a632 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a631 a632) in
+  let r = { a63 = #0l } in
   (* Paths of depth 1 *)
-  let next_r = { a63 = #100l; b63 = 101; c63 = #102l } in
+  let next_r = { a63 = #100l } in
   (* .a63 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a63 = next_r.a63 } in
@@ -2191,129 +2205,129 @@ let () =
   mark_test_run 260;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a63) : (t63, _) idx_mut)) next_r.a63 in
   if not test then failwithf "test 260 failed";
-  let r = { a63 = #0l; b63 = 1; c63 = #2l } in
+  (*****************************)
+  (*   t64 = { int32#; int }   *)
+  (*****************************)
+  let eq = (fun { a64 = a641; b64 = b641 } { a64 = a642; b64 = b642 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a641 a642 && (fun a b -> Int.equal a b) b641 b642) in
+  let r = { a64 = #0l; b64 = 1 } in
   (* Paths of depth 1 *)
-  let next_r = { a63 = #100l; b63 = 101; c63 = #102l } in
-  (* .b63 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b63 = next_r.b63 } in
-  Idx_mut.unsafe_set r ((.b63) : (t63, _) idx_mut) next_r.b63;
-  mark_test_run 261;
-  let test = eq r expected in
-  if not test then failwithf "test 261 failed";
-  mark_test_run 262;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b63) : (t63, _) idx_mut)) next_r.b63 in
-  if not test then failwithf "test 262 failed";
-  let r = { a63 = #0l; b63 = 1; c63 = #2l } in
-  (* Paths of depth 1 *)
-  let next_r = { a63 = #100l; b63 = 101; c63 = #102l } in
-  (* .c63 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with c63 = next_r.c63 } in
-  Idx_mut.unsafe_set r ((.c63) : (t63, _) idx_mut) next_r.c63;
-  mark_test_run 263;
-  let test = eq r expected in
-  if not test then failwithf "test 263 failed";
-  mark_test_run 264;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c63) : (t63, _) idx_mut)) next_r.c63 in
-  if not test then failwithf "test 264 failed";
-  (*******************************)
-  (*   t64 = { int32#; int64 }   *)
-  (*******************************)
-  let eq = (fun { a64 = a641; b64 = b641 } { a64 = a642; b64 = b642 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a641 a642 && (fun a b -> Int64.equal (globalize a) (globalize b)) b641 b642) in
-  let r = { a64 = #0l; b64 = 1L } in
-  (* Paths of depth 1 *)
-  let next_r = { a64 = #100l; b64 = 101L } in
+  let next_r = { a64 = #100l; b64 = 101 } in
   (* .a64 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a64 = next_r.a64 } in
   Idx_mut.unsafe_set r ((.a64) : (t64, _) idx_mut) next_r.a64;
-  mark_test_run 265;
+  mark_test_run 261;
   let test = eq r expected in
-  if not test then failwithf "test 265 failed";
-  mark_test_run 266;
+  if not test then failwithf "test 261 failed";
+  mark_test_run 262;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a64) : (t64, _) idx_mut)) next_r.a64 in
-  if not test then failwithf "test 266 failed";
-  let r = { a64 = #0l; b64 = 1L } in
+  if not test then failwithf "test 262 failed";
+  let r = { a64 = #0l; b64 = 1 } in
   (* Paths of depth 1 *)
-  let next_r = { a64 = #100l; b64 = 101L } in
+  let next_r = { a64 = #100l; b64 = 101 } in
   (* .b64 *)
-  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
+  let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b64 = next_r.b64 } in
   Idx_mut.unsafe_set r ((.b64) : (t64, _) idx_mut) next_r.b64;
-  mark_test_run 267;
+  mark_test_run 263;
   let test = eq r expected in
-  if not test then failwithf "test 267 failed";
-  mark_test_run 268;
+  if not test then failwithf "test 263 failed";
+  mark_test_run 264;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b64) : (t64, _) idx_mut)) next_r.b64 in
-  if not test then failwithf "test 268 failed";
-  (********************************)
-  (*   t65 = { int32#; int64# }   *)
-  (********************************)
-  let eq = (fun { a65 = a651; b65 = b651 } { a65 = a652; b65 = b652 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a651 a652 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b651 b652) in
-  let r = { a65 = #0l; b65 = #1L } in
+  if not test then failwithf "test 264 failed";
+  (**********************************)
+  (*   t65 = { int32#; int; int }   *)
+  (**********************************)
+  let eq = (fun { a65 = a651; b65 = b651; c65 = c651 } { a65 = a652; b65 = b652; c65 = c652 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a651 a652 && (fun a b -> Int.equal a b) b651 b652 && (fun a b -> Int.equal a b) c651 c652) in
+  let r = { a65 = #0l; b65 = 1; c65 = 2 } in
   (* Paths of depth 1 *)
-  let next_r = { a65 = #100l; b65 = #101L } in
+  let next_r = { a65 = #100l; b65 = 101; c65 = 102 } in
   (* .a65 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a65 = next_r.a65 } in
   Idx_mut.unsafe_set r ((.a65) : (t65, _) idx_mut) next_r.a65;
+  mark_test_run 265;
+  let test = eq r expected in
+  if not test then failwithf "test 265 failed";
+  mark_test_run 266;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a65) : (t65, _) idx_mut)) next_r.a65 in
+  if not test then failwithf "test 266 failed";
+  let r = { a65 = #0l; b65 = 1; c65 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a65 = #100l; b65 = 101; c65 = 102 } in
+  (* .b65 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b65 = next_r.b65 } in
+  Idx_mut.unsafe_set r ((.b65) : (t65, _) idx_mut) next_r.b65;
+  mark_test_run 267;
+  let test = eq r expected in
+  if not test then failwithf "test 267 failed";
+  mark_test_run 268;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b65) : (t65, _) idx_mut)) next_r.b65 in
+  if not test then failwithf "test 268 failed";
+  let r = { a65 = #0l; b65 = 1; c65 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a65 = #100l; b65 = 101; c65 = 102 } in
+  (* .c65 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with c65 = next_r.c65 } in
+  Idx_mut.unsafe_set r ((.c65) : (t65, _) idx_mut) next_r.c65;
   mark_test_run 269;
   let test = eq r expected in
   if not test then failwithf "test 269 failed";
   mark_test_run 270;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a65) : (t65, _) idx_mut)) next_r.a65 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c65) : (t65, _) idx_mut)) next_r.c65 in
   if not test then failwithf "test 270 failed";
-  let r = { a65 = #0l; b65 = #1L } in
+  (*************************************)
+  (*   t66 = { int32#; int; int32# }   *)
+  (*************************************)
+  let eq = (fun { a66 = a661; b66 = b661; c66 = c661 } { a66 = a662; b66 = b662; c66 = c662 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a661 a662 && (fun a b -> Int.equal a b) b661 b662 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c661 c662) in
+  let r = { a66 = #0l; b66 = 1; c66 = #2l } in
   (* Paths of depth 1 *)
-  let next_r = { a65 = #100l; b65 = #101L } in
-  (* .b65 *)
-  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
-  let expected = { r with b65 = next_r.b65 } in
-  Idx_mut.unsafe_set r ((.b65) : (t65, _) idx_mut) next_r.b65;
-  mark_test_run 271;
-  let test = eq r expected in
-  if not test then failwithf "test 271 failed";
-  mark_test_run 272;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b65) : (t65, _) idx_mut)) next_r.b65 in
-  if not test then failwithf "test 272 failed";
-  (********************************)
-  (*   t66 = { int32#; int32# }   *)
-  (********************************)
-  let eq = (fun { a66 = a661; b66 = b661 } { a66 = a662; b66 = b662 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a661 a662 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b661 b662) in
-  let r = { a66 = #0l; b66 = #1l } in
-  (* Paths of depth 1 *)
-  let next_r = { a66 = #100l; b66 = #101l } in
+  let next_r = { a66 = #100l; b66 = 101; c66 = #102l } in
   (* .a66 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a66 = next_r.a66 } in
   Idx_mut.unsafe_set r ((.a66) : (t66, _) idx_mut) next_r.a66;
+  mark_test_run 271;
+  let test = eq r expected in
+  if not test then failwithf "test 271 failed";
+  mark_test_run 272;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a66) : (t66, _) idx_mut)) next_r.a66 in
+  if not test then failwithf "test 272 failed";
+  let r = { a66 = #0l; b66 = 1; c66 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a66 = #100l; b66 = 101; c66 = #102l } in
+  (* .b66 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b66 = next_r.b66 } in
+  Idx_mut.unsafe_set r ((.b66) : (t66, _) idx_mut) next_r.b66;
   mark_test_run 273;
   let test = eq r expected in
   if not test then failwithf "test 273 failed";
   mark_test_run 274;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a66) : (t66, _) idx_mut)) next_r.a66 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b66) : (t66, _) idx_mut)) next_r.b66 in
   if not test then failwithf "test 274 failed";
-  let r = { a66 = #0l; b66 = #1l } in
+  let r = { a66 = #0l; b66 = 1; c66 = #2l } in
   (* Paths of depth 1 *)
-  let next_r = { a66 = #100l; b66 = #101l } in
-  (* .b66 *)
+  let next_r = { a66 = #100l; b66 = 101; c66 = #102l } in
+  (* .c66 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b66 = next_r.b66 } in
-  Idx_mut.unsafe_set r ((.b66) : (t66, _) idx_mut) next_r.b66;
+  let expected = { r with c66 = next_r.c66 } in
+  Idx_mut.unsafe_set r ((.c66) : (t66, _) idx_mut) next_r.c66;
   mark_test_run 275;
   let test = eq r expected in
   if not test then failwithf "test 275 failed";
   mark_test_run 276;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b66) : (t66, _) idx_mut)) next_r.b66 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c66) : (t66, _) idx_mut)) next_r.c66 in
   if not test then failwithf "test 276 failed";
-  (*************************************)
-  (*   t67 = { int32#; int32#; int }   *)
-  (*************************************)
-  let eq = (fun { a67 = a671; b67 = b671; c67 = c671 } { a67 = a672; b67 = b672; c67 = c672 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a671 a672 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b671 b672 && (fun a b -> Int.equal a b) c671 c672) in
-  let r = { a67 = #0l; b67 = #1l; c67 = 2 } in
+  (*******************************)
+  (*   t67 = { int32#; int64 }   *)
+  (*******************************)
+  let eq = (fun { a67 = a671; b67 = b671 } { a67 = a672; b67 = b672 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a671 a672 && (fun a b -> Int64.equal (globalize a) (globalize b)) b671 b672) in
+  let r = { a67 = #0l; b67 = 1L } in
   (* Paths of depth 1 *)
-  let next_r = { a67 = #100l; b67 = #101l; c67 = 102 } in
+  let next_r = { a67 = #100l; b67 = 101L } in
   (* .a67 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a67 = next_r.a67 } in
@@ -2324,11 +2338,11 @@ let () =
   mark_test_run 278;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a67) : (t67, _) idx_mut)) next_r.a67 in
   if not test then failwithf "test 278 failed";
-  let r = { a67 = #0l; b67 = #1l; c67 = 2 } in
+  let r = { a67 = #0l; b67 = 1L } in
   (* Paths of depth 1 *)
-  let next_r = { a67 = #100l; b67 = #101l; c67 = 102 } in
+  let next_r = { a67 = #100l; b67 = 101L } in
   (* .b67 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with b67 = next_r.b67 } in
   Idx_mut.unsafe_set r ((.b67) : (t67, _) idx_mut) next_r.b67;
   mark_test_run 279;
@@ -2337,558 +2351,558 @@ let () =
   mark_test_run 280;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b67) : (t67, _) idx_mut)) next_r.b67 in
   if not test then failwithf "test 280 failed";
-  let r = { a67 = #0l; b67 = #1l; c67 = 2 } in
+  (********************************)
+  (*   t68 = { int32#; int64# }   *)
+  (********************************)
+  let eq = (fun { a68 = a681; b68 = b681 } { a68 = a682; b68 = b682 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a681 a682 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b681 b682) in
+  let r = { a68 = #0l; b68 = #1L } in
   (* Paths of depth 1 *)
-  let next_r = { a67 = #100l; b67 = #101l; c67 = 102 } in
-  (* .c67 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with c67 = next_r.c67 } in
-  Idx_mut.unsafe_set r ((.c67) : (t67, _) idx_mut) next_r.c67;
-  mark_test_run 281;
-  let test = eq r expected in
-  if not test then failwithf "test 281 failed";
-  mark_test_run 282;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c67) : (t67, _) idx_mut)) next_r.c67 in
-  if not test then failwithf "test 282 failed";
-  (****************************************)
-  (*   t68 = { int32#; int32#; int32# }   *)
-  (****************************************)
-  let eq = (fun { a68 = a681; b68 = b681; c68 = c681 } { a68 = a682; b68 = b682; c68 = c682 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a681 a682 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b681 b682 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c681 c682) in
-  let r = { a68 = #0l; b68 = #1l; c68 = #2l } in
-  (* Paths of depth 1 *)
-  let next_r = { a68 = #100l; b68 = #101l; c68 = #102l } in
+  let next_r = { a68 = #100l; b68 = #101L } in
   (* .a68 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a68 = next_r.a68 } in
   Idx_mut.unsafe_set r ((.a68) : (t68, _) idx_mut) next_r.a68;
+  mark_test_run 281;
+  let test = eq r expected in
+  if not test then failwithf "test 281 failed";
+  mark_test_run 282;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a68) : (t68, _) idx_mut)) next_r.a68 in
+  if not test then failwithf "test 282 failed";
+  let r = { a68 = #0l; b68 = #1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a68 = #100l; b68 = #101L } in
+  (* .b68 *)
+  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
+  let expected = { r with b68 = next_r.b68 } in
+  Idx_mut.unsafe_set r ((.b68) : (t68, _) idx_mut) next_r.b68;
   mark_test_run 283;
   let test = eq r expected in
   if not test then failwithf "test 283 failed";
   mark_test_run 284;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a68) : (t68, _) idx_mut)) next_r.a68 in
-  if not test then failwithf "test 284 failed";
-  let r = { a68 = #0l; b68 = #1l; c68 = #2l } in
-  (* Paths of depth 1 *)
-  let next_r = { a68 = #100l; b68 = #101l; c68 = #102l } in
-  (* .b68 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b68 = next_r.b68 } in
-  Idx_mut.unsafe_set r ((.b68) : (t68, _) idx_mut) next_r.b68;
-  mark_test_run 285;
-  let test = eq r expected in
-  if not test then failwithf "test 285 failed";
-  mark_test_run 286;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b68) : (t68, _) idx_mut)) next_r.b68 in
-  if not test then failwithf "test 286 failed";
-  let r = { a68 = #0l; b68 = #1l; c68 = #2l } in
+  if not test then failwithf "test 284 failed";
+  (********************************)
+  (*   t69 = { int32#; int32# }   *)
+  (********************************)
+  let eq = (fun { a69 = a691; b69 = b691 } { a69 = a692; b69 = b692 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a691 a692 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b691 b692) in
+  let r = { a69 = #0l; b69 = #1l } in
   (* Paths of depth 1 *)
-  let next_r = { a68 = #100l; b68 = #101l; c68 = #102l } in
-  (* .c68 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with c68 = next_r.c68 } in
-  Idx_mut.unsafe_set r ((.c68) : (t68, _) idx_mut) next_r.c68;
-  mark_test_run 287;
-  let test = eq r expected in
-  if not test then failwithf "test 287 failed";
-  mark_test_run 288;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c68) : (t68, _) idx_mut)) next_r.c68 in
-  if not test then failwithf "test 288 failed";
-  (************************************)
-  (*   t69 = { int32#; nativeint# }   *)
-  (************************************)
-  let eq = (fun { a69 = a691; b69 = b691 } { a69 = a692; b69 = b692 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a691 a692 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b691 b692) in
-  let r = { a69 = #0l; b69 = #1n } in
-  (* Paths of depth 1 *)
-  let next_r = { a69 = #100l; b69 = #101n } in
+  let next_r = { a69 = #100l; b69 = #101l } in
   (* .a69 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a69 = next_r.a69 } in
   Idx_mut.unsafe_set r ((.a69) : (t69, _) idx_mut) next_r.a69;
-  mark_test_run 289;
+  mark_test_run 285;
   let test = eq r expected in
-  if not test then failwithf "test 289 failed";
-  mark_test_run 290;
+  if not test then failwithf "test 285 failed";
+  mark_test_run 286;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a69) : (t69, _) idx_mut)) next_r.a69 in
-  if not test then failwithf "test 290 failed";
-  let r = { a69 = #0l; b69 = #1n } in
+  if not test then failwithf "test 286 failed";
+  let r = { a69 = #0l; b69 = #1l } in
   (* Paths of depth 1 *)
-  let next_r = { a69 = #100l; b69 = #101n } in
+  let next_r = { a69 = #100l; b69 = #101l } in
   (* .b69 *)
-  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b69 = next_r.b69 } in
   Idx_mut.unsafe_set r ((.b69) : (t69, _) idx_mut) next_r.b69;
-  mark_test_run 291;
+  mark_test_run 287;
   let test = eq r expected in
-  if not test then failwithf "test 291 failed";
-  mark_test_run 292;
+  if not test then failwithf "test 287 failed";
+  mark_test_run 288;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b69) : (t69, _) idx_mut)) next_r.b69 in
-  if not test then failwithf "test 292 failed";
-  (*******************************)
-  (*   t70 = { int32#; float }   *)
-  (*******************************)
-  let eq = (fun { a70 = a701; b70 = b701 } { a70 = a702; b70 = b702 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a701 a702 && (fun a b -> Float.equal (globalize a) (globalize b)) b701 b702) in
-  let r = { a70 = #0l; b70 = 1. } in
+  if not test then failwithf "test 288 failed";
+  (*************************************)
+  (*   t70 = { int32#; int32#; int }   *)
+  (*************************************)
+  let eq = (fun { a70 = a701; b70 = b701; c70 = c701 } { a70 = a702; b70 = b702; c70 = c702 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a701 a702 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b701 b702 && (fun a b -> Int.equal a b) c701 c702) in
+  let r = { a70 = #0l; b70 = #1l; c70 = 2 } in
   (* Paths of depth 1 *)
-  let next_r = { a70 = #100l; b70 = 101. } in
+  let next_r = { a70 = #100l; b70 = #101l; c70 = 102 } in
   (* .a70 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a70 = next_r.a70 } in
   Idx_mut.unsafe_set r ((.a70) : (t70, _) idx_mut) next_r.a70;
+  mark_test_run 289;
+  let test = eq r expected in
+  if not test then failwithf "test 289 failed";
+  mark_test_run 290;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a70) : (t70, _) idx_mut)) next_r.a70 in
+  if not test then failwithf "test 290 failed";
+  let r = { a70 = #0l; b70 = #1l; c70 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a70 = #100l; b70 = #101l; c70 = 102 } in
+  (* .b70 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b70 = next_r.b70 } in
+  Idx_mut.unsafe_set r ((.b70) : (t70, _) idx_mut) next_r.b70;
+  mark_test_run 291;
+  let test = eq r expected in
+  if not test then failwithf "test 291 failed";
+  mark_test_run 292;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b70) : (t70, _) idx_mut)) next_r.b70 in
+  if not test then failwithf "test 292 failed";
+  let r = { a70 = #0l; b70 = #1l; c70 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a70 = #100l; b70 = #101l; c70 = 102 } in
+  (* .c70 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with c70 = next_r.c70 } in
+  Idx_mut.unsafe_set r ((.c70) : (t70, _) idx_mut) next_r.c70;
   mark_test_run 293;
   let test = eq r expected in
   if not test then failwithf "test 293 failed";
   mark_test_run 294;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a70) : (t70, _) idx_mut)) next_r.a70 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c70) : (t70, _) idx_mut)) next_r.c70 in
   if not test then failwithf "test 294 failed";
-  let r = { a70 = #0l; b70 = 1. } in
+  (****************************************)
+  (*   t71 = { int32#; int32#; int32# }   *)
+  (****************************************)
+  let eq = (fun { a71 = a711; b71 = b711; c71 = c711 } { a71 = a712; b71 = b712; c71 = c712 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a711 a712 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b711 b712 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) c711 c712) in
+  let r = { a71 = #0l; b71 = #1l; c71 = #2l } in
   (* Paths of depth 1 *)
-  let next_r = { a70 = #100l; b70 = 101. } in
-  (* .b70 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b70 = next_r.b70 } in
-  Idx_mut.unsafe_set r ((.b70) : (t70, _) idx_mut) next_r.b70;
-  mark_test_run 295;
-  let test = eq r expected in
-  if not test then failwithf "test 295 failed";
-  mark_test_run 296;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b70) : (t70, _) idx_mut)) next_r.b70 in
-  if not test then failwithf "test 296 failed";
-  (**********************************)
-  (*   t71 = { int32#; #{ int } }   *)
-  (**********************************)
-  let eq = (fun { a71 = a711; b71 = b711 } { a71 = a712; b71 = b712 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a711 a712 && (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) b711 b712) in
-  let r = { a71 = #0l; b71 = #{ a18 = 1 } } in
-  (* Paths of depth 1 *)
-  let next_r = { a71 = #100l; b71 = #{ a18 = 101 } } in
+  let next_r = { a71 = #100l; b71 = #101l; c71 = #102l } in
   (* .a71 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a71 = next_r.a71 } in
   Idx_mut.unsafe_set r ((.a71) : (t71, _) idx_mut) next_r.a71;
+  mark_test_run 295;
+  let test = eq r expected in
+  if not test then failwithf "test 295 failed";
+  mark_test_run 296;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a71) : (t71, _) idx_mut)) next_r.a71 in
+  if not test then failwithf "test 296 failed";
+  let r = { a71 = #0l; b71 = #1l; c71 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a71 = #100l; b71 = #101l; c71 = #102l } in
+  (* .b71 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b71 = next_r.b71 } in
+  Idx_mut.unsafe_set r ((.b71) : (t71, _) idx_mut) next_r.b71;
   mark_test_run 297;
   let test = eq r expected in
   if not test then failwithf "test 297 failed";
   mark_test_run 298;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a71) : (t71, _) idx_mut)) next_r.a71 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b71) : (t71, _) idx_mut)) next_r.b71 in
   if not test then failwithf "test 298 failed";
-  let r = { a71 = #0l; b71 = #{ a18 = 1 } } in
+  let r = { a71 = #0l; b71 = #1l; c71 = #2l } in
   (* Paths of depth 1 *)
-  let next_r = { a71 = #100l; b71 = #{ a18 = 101 } } in
-  (* .b71 *)
-  let sub_eq = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) in
-  let expected = { r with b71 = next_r.b71 } in
-  Idx_mut.unsafe_set r ((.b71) : (t71, _) idx_mut) next_r.b71;
+  let next_r = { a71 = #100l; b71 = #101l; c71 = #102l } in
+  (* .c71 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with c71 = next_r.c71 } in
+  Idx_mut.unsafe_set r ((.c71) : (t71, _) idx_mut) next_r.c71;
   mark_test_run 299;
   let test = eq r expected in
   if not test then failwithf "test 299 failed";
   mark_test_run 300;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b71) : (t71, _) idx_mut)) next_r.b71 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c71) : (t71, _) idx_mut)) next_r.c71 in
   if not test then failwithf "test 300 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a71 = #200l; b71 = #{ a18 = 201 } } in
-  (* .b71.#a18 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b71 = #{ r.b71 with a18 = next_r.b71.#a18 } } in
-  Idx_mut.unsafe_set r ((.b71.#a18) : (t71, _) idx_mut) next_r.b71.#a18;
-  mark_test_run 301;
-  let test = eq r expected in
-  if not test then failwithf "test 301 failed";
-  mark_test_run 302;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b71.#a18) : (t71, _) idx_mut)) next_r.b71.#a18 in
-  if not test then failwithf "test 302 failed";
-  (***************************************)
-  (*   t72 = { int32#; #{ int; int } }   *)
-  (***************************************)
-  let eq = (fun { a72 = a721; b72 = b721 } { a72 = a722; b72 = b722 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a721 a722 && (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) b721 b722) in
-  let r = { a72 = #0l; b72 = #{ a20 = 1; b20 = 2 } } in
+  (************************************)
+  (*   t72 = { int32#; nativeint# }   *)
+  (************************************)
+  let eq = (fun { a72 = a721; b72 = b721 } { a72 = a722; b72 = b722 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a721 a722 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b721 b722) in
+  let r = { a72 = #0l; b72 = #1n } in
   (* Paths of depth 1 *)
-  let next_r = { a72 = #100l; b72 = #{ a20 = 101; b20 = 102 } } in
+  let next_r = { a72 = #100l; b72 = #101n } in
   (* .a72 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a72 = next_r.a72 } in
   Idx_mut.unsafe_set r ((.a72) : (t72, _) idx_mut) next_r.a72;
+  mark_test_run 301;
+  let test = eq r expected in
+  if not test then failwithf "test 301 failed";
+  mark_test_run 302;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a72) : (t72, _) idx_mut)) next_r.a72 in
+  if not test then failwithf "test 302 failed";
+  let r = { a72 = #0l; b72 = #1n } in
+  (* Paths of depth 1 *)
+  let next_r = { a72 = #100l; b72 = #101n } in
+  (* .b72 *)
+  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  let expected = { r with b72 = next_r.b72 } in
+  Idx_mut.unsafe_set r ((.b72) : (t72, _) idx_mut) next_r.b72;
   mark_test_run 303;
   let test = eq r expected in
   if not test then failwithf "test 303 failed";
   mark_test_run 304;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a72) : (t72, _) idx_mut)) next_r.a72 in
-  if not test then failwithf "test 304 failed";
-  let r = { a72 = #0l; b72 = #{ a20 = 1; b20 = 2 } } in
-  (* Paths of depth 1 *)
-  let next_r = { a72 = #100l; b72 = #{ a20 = 101; b20 = 102 } } in
-  (* .b72 *)
-  let sub_eq = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) in
-  let expected = { r with b72 = next_r.b72 } in
-  Idx_mut.unsafe_set r ((.b72) : (t72, _) idx_mut) next_r.b72;
-  mark_test_run 305;
-  let test = eq r expected in
-  if not test then failwithf "test 305 failed";
-  mark_test_run 306;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b72) : (t72, _) idx_mut)) next_r.b72 in
-  if not test then failwithf "test 306 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a72 = #200l; b72 = #{ a20 = 201; b20 = 202 } } in
-  (* .b72.#a20 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b72 = #{ r.b72 with a20 = next_r.b72.#a20 } } in
-  Idx_mut.unsafe_set r ((.b72.#a20) : (t72, _) idx_mut) next_r.b72.#a20;
-  mark_test_run 307;
-  let test = eq r expected in
-  if not test then failwithf "test 307 failed";
-  mark_test_run 308;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b72.#a20) : (t72, _) idx_mut)) next_r.b72.#a20 in
-  if not test then failwithf "test 308 failed";
-  (* .b72.#b20 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b72 = #{ r.b72 with b20 = next_r.b72.#b20 } } in
-  Idx_mut.unsafe_set r ((.b72.#b20) : (t72, _) idx_mut) next_r.b72.#b20;
-  mark_test_run 309;
-  let test = eq r expected in
-  if not test then failwithf "test 309 failed";
-  mark_test_run 310;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b72.#b20) : (t72, _) idx_mut)) next_r.b72.#b20 in
-  if not test then failwithf "test 310 failed";
-  (******************************************)
-  (*   t73 = { int32#; #{ int; int32# } }   *)
-  (******************************************)
-  let eq = (fun { a73 = a731; b73 = b731 } { a73 = a732; b73 = b732 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a731 a732 && (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) b731 b732) in
-  let r = { a73 = #0l; b73 = #{ a22 = 1; b22 = #2l } } in
+  if not test then failwithf "test 304 failed";
+  (********************************)
+  (*   t73 = { int32#; unit_u }   *)
+  (********************************)
+  let eq = (fun { a73 = a731; b73 = b731 } { a73 = a732; b73 = b732 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a731 a732 && (fun _ _ -> true) b731 b732) in
+  let r = { a73 = #0l; b73 = (unbox_unit ()) } in
   (* Paths of depth 1 *)
-  let next_r = { a73 = #100l; b73 = #{ a22 = 101; b22 = #102l } } in
+  let next_r = { a73 = #100l; b73 = (unbox_unit ()) } in
   (* .a73 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a73 = next_r.a73 } in
   Idx_mut.unsafe_set r ((.a73) : (t73, _) idx_mut) next_r.a73;
-  mark_test_run 311;
+  mark_test_run 305;
   let test = eq r expected in
-  if not test then failwithf "test 311 failed";
-  mark_test_run 312;
+  if not test then failwithf "test 305 failed";
+  mark_test_run 306;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a73) : (t73, _) idx_mut)) next_r.a73 in
-  if not test then failwithf "test 312 failed";
-  let r = { a73 = #0l; b73 = #{ a22 = 1; b22 = #2l } } in
+  if not test then failwithf "test 306 failed";
+  let r = { a73 = #0l; b73 = (unbox_unit ()) } in
   (* Paths of depth 1 *)
-  let next_r = { a73 = #100l; b73 = #{ a22 = 101; b22 = #102l } } in
+  let next_r = { a73 = #100l; b73 = (unbox_unit ()) } in
   (* .b73 *)
-  let sub_eq = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) in
+  let sub_eq = (fun _ _ -> true) in
   let expected = { r with b73 = next_r.b73 } in
   Idx_mut.unsafe_set r ((.b73) : (t73, _) idx_mut) next_r.b73;
-  mark_test_run 313;
+  mark_test_run 307;
   let test = eq r expected in
-  if not test then failwithf "test 313 failed";
-  mark_test_run 314;
+  if not test then failwithf "test 307 failed";
+  mark_test_run 308;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b73) : (t73, _) idx_mut)) next_r.b73 in
-  if not test then failwithf "test 314 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a73 = #200l; b73 = #{ a22 = 201; b22 = #202l } } in
-  (* .b73.#a22 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b73 = #{ r.b73 with a22 = next_r.b73.#a22 } } in
-  Idx_mut.unsafe_set r ((.b73.#a22) : (t73, _) idx_mut) next_r.b73.#a22;
-  mark_test_run 315;
-  let test = eq r expected in
-  if not test then failwithf "test 315 failed";
-  mark_test_run 316;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b73.#a22) : (t73, _) idx_mut)) next_r.b73.#a22 in
-  if not test then failwithf "test 316 failed";
-  (* .b73.#b22 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b73 = #{ r.b73 with b22 = next_r.b73.#b22 } } in
-  Idx_mut.unsafe_set r ((.b73.#b22) : (t73, _) idx_mut) next_r.b73.#b22;
-  mark_test_run 317;
-  let test = eq r expected in
-  if not test then failwithf "test 317 failed";
-  mark_test_run 318;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b73.#b22) : (t73, _) idx_mut)) next_r.b73.#b22 in
-  if not test then failwithf "test 318 failed";
-  (*************************************)
-  (*   t74 = { int32#; #{ int32# } }   *)
-  (*************************************)
-  let eq = (fun { a74 = a741; b74 = b741 } { a74 = a742; b74 = b742 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a741 a742 && (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) b741 b742) in
-  let r = { a74 = #0l; b74 = #{ a28 = #1l } } in
+  if not test then failwithf "test 308 failed";
+  (*******************************)
+  (*   t74 = { int32#; float }   *)
+  (*******************************)
+  let eq = (fun { a74 = a741; b74 = b741 } { a74 = a742; b74 = b742 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a741 a742 && (fun a b -> Float.equal (globalize a) (globalize b)) b741 b742) in
+  let r = { a74 = #0l; b74 = 1. } in
   (* Paths of depth 1 *)
-  let next_r = { a74 = #100l; b74 = #{ a28 = #101l } } in
+  let next_r = { a74 = #100l; b74 = 101. } in
   (* .a74 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a74 = next_r.a74 } in
   Idx_mut.unsafe_set r ((.a74) : (t74, _) idx_mut) next_r.a74;
-  mark_test_run 319;
+  mark_test_run 309;
   let test = eq r expected in
-  if not test then failwithf "test 319 failed";
-  mark_test_run 320;
+  if not test then failwithf "test 309 failed";
+  mark_test_run 310;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a74) : (t74, _) idx_mut)) next_r.a74 in
-  if not test then failwithf "test 320 failed";
-  let r = { a74 = #0l; b74 = #{ a28 = #1l } } in
+  if not test then failwithf "test 310 failed";
+  let r = { a74 = #0l; b74 = 1. } in
   (* Paths of depth 1 *)
-  let next_r = { a74 = #100l; b74 = #{ a28 = #101l } } in
+  let next_r = { a74 = #100l; b74 = 101. } in
   (* .b74 *)
-  let sub_eq = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) in
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with b74 = next_r.b74 } in
   Idx_mut.unsafe_set r ((.b74) : (t74, _) idx_mut) next_r.b74;
-  mark_test_run 321;
+  mark_test_run 311;
   let test = eq r expected in
-  if not test then failwithf "test 321 failed";
-  mark_test_run 322;
+  if not test then failwithf "test 311 failed";
+  mark_test_run 312;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b74) : (t74, _) idx_mut)) next_r.b74 in
-  if not test then failwithf "test 322 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a74 = #200l; b74 = #{ a28 = #201l } } in
-  (* .b74.#a28 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b74 = #{ r.b74 with a28 = next_r.b74.#a28 } } in
-  Idx_mut.unsafe_set r ((.b74.#a28) : (t74, _) idx_mut) next_r.b74.#a28;
-  mark_test_run 323;
-  let test = eq r expected in
-  if not test then failwithf "test 323 failed";
-  mark_test_run 324;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b74.#a28) : (t74, _) idx_mut)) next_r.b74.#a28 in
-  if not test then failwithf "test 324 failed";
-  (******************************************)
-  (*   t75 = { int32#; #{ int32#; int } }   *)
-  (******************************************)
-  let eq = (fun { a75 = a751; b75 = b751 } { a75 = a752; b75 = b752 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a751 a752 && (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) b751 b752) in
-  let r = { a75 = #0l; b75 = #{ a30 = #1l; b30 = 2 } } in
+  if not test then failwithf "test 312 failed";
+  (**********************************)
+  (*   t75 = { int32#; #{ int } }   *)
+  (**********************************)
+  let eq = (fun { a75 = a751; b75 = b751 } { a75 = a752; b75 = b752 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a751 a752 && (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int.equal a b) a191 a192) b751 b752) in
+  let r = { a75 = #0l; b75 = #{ a19 = 1 } } in
   (* Paths of depth 1 *)
-  let next_r = { a75 = #100l; b75 = #{ a30 = #101l; b30 = 102 } } in
+  let next_r = { a75 = #100l; b75 = #{ a19 = 101 } } in
   (* .a75 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a75 = next_r.a75 } in
   Idx_mut.unsafe_set r ((.a75) : (t75, _) idx_mut) next_r.a75;
-  mark_test_run 325;
+  mark_test_run 313;
   let test = eq r expected in
-  if not test then failwithf "test 325 failed";
-  mark_test_run 326;
+  if not test then failwithf "test 313 failed";
+  mark_test_run 314;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a75) : (t75, _) idx_mut)) next_r.a75 in
-  if not test then failwithf "test 326 failed";
-  let r = { a75 = #0l; b75 = #{ a30 = #1l; b30 = 2 } } in
+  if not test then failwithf "test 314 failed";
+  let r = { a75 = #0l; b75 = #{ a19 = 1 } } in
   (* Paths of depth 1 *)
-  let next_r = { a75 = #100l; b75 = #{ a30 = #101l; b30 = 102 } } in
+  let next_r = { a75 = #100l; b75 = #{ a19 = 101 } } in
   (* .b75 *)
-  let sub_eq = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) in
+  let sub_eq = (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int.equal a b) a191 a192) in
   let expected = { r with b75 = next_r.b75 } in
   Idx_mut.unsafe_set r ((.b75) : (t75, _) idx_mut) next_r.b75;
-  mark_test_run 327;
+  mark_test_run 315;
   let test = eq r expected in
-  if not test then failwithf "test 327 failed";
-  mark_test_run 328;
+  if not test then failwithf "test 315 failed";
+  mark_test_run 316;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b75) : (t75, _) idx_mut)) next_r.b75 in
-  if not test then failwithf "test 328 failed";
+  if not test then failwithf "test 316 failed";
   (* Paths of depth 2 *)
-  let next_r = { a75 = #200l; b75 = #{ a30 = #201l; b30 = 202 } } in
-  (* .b75.#a30 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b75 = #{ r.b75 with a30 = next_r.b75.#a30 } } in
-  Idx_mut.unsafe_set r ((.b75.#a30) : (t75, _) idx_mut) next_r.b75.#a30;
-  mark_test_run 329;
-  let test = eq r expected in
-  if not test then failwithf "test 329 failed";
-  mark_test_run 330;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b75.#a30) : (t75, _) idx_mut)) next_r.b75.#a30 in
-  if not test then failwithf "test 330 failed";
-  (* .b75.#b30 *)
+  let next_r = { a75 = #200l; b75 = #{ a19 = 201 } } in
+  (* .b75.#a19 *)
   let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b75 = #{ r.b75 with b30 = next_r.b75.#b30 } } in
-  Idx_mut.unsafe_set r ((.b75.#b30) : (t75, _) idx_mut) next_r.b75.#b30;
-  mark_test_run 331;
+  let expected = { r with b75 = #{ r.b75 with a19 = next_r.b75.#a19 } } in
+  Idx_mut.unsafe_set r ((.b75.#a19) : (t75, _) idx_mut) next_r.b75.#a19;
+  mark_test_run 317;
   let test = eq r expected in
-  if not test then failwithf "test 331 failed";
-  mark_test_run 332;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b75.#b30) : (t75, _) idx_mut)) next_r.b75.#b30 in
-  if not test then failwithf "test 332 failed";
-  (*********************************************)
-  (*   t76 = { int32#; #{ int32#; int32# } }   *)
-  (*********************************************)
-  let eq = (fun { a76 = a761; b76 = b761 } { a76 = a762; b76 = b762 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a761 a762 && (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) b761 b762) in
-  let r = { a76 = #0l; b76 = #{ a32 = #1l; b32 = #2l } } in
+  if not test then failwithf "test 317 failed";
+  mark_test_run 318;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b75.#a19) : (t75, _) idx_mut)) next_r.b75.#a19 in
+  if not test then failwithf "test 318 failed";
+  (***************************************)
+  (*   t76 = { int32#; #{ int; int } }   *)
+  (***************************************)
+  let eq = (fun { a76 = a761; b76 = b761 } { a76 = a762; b76 = b762 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a761 a762 && (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun a b -> Int.equal a b) b211 b212) b761 b762) in
+  let r = { a76 = #0l; b76 = #{ a21 = 1; b21 = 2 } } in
   (* Paths of depth 1 *)
-  let next_r = { a76 = #100l; b76 = #{ a32 = #101l; b32 = #102l } } in
+  let next_r = { a76 = #100l; b76 = #{ a21 = 101; b21 = 102 } } in
   (* .a76 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with a76 = next_r.a76 } in
   Idx_mut.unsafe_set r ((.a76) : (t76, _) idx_mut) next_r.a76;
+  mark_test_run 319;
+  let test = eq r expected in
+  if not test then failwithf "test 319 failed";
+  mark_test_run 320;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a76) : (t76, _) idx_mut)) next_r.a76 in
+  if not test then failwithf "test 320 failed";
+  let r = { a76 = #0l; b76 = #{ a21 = 1; b21 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a76 = #100l; b76 = #{ a21 = 101; b21 = 102 } } in
+  (* .b76 *)
+  let sub_eq = (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun a b -> Int.equal a b) b211 b212) in
+  let expected = { r with b76 = next_r.b76 } in
+  Idx_mut.unsafe_set r ((.b76) : (t76, _) idx_mut) next_r.b76;
+  mark_test_run 321;
+  let test = eq r expected in
+  if not test then failwithf "test 321 failed";
+  mark_test_run 322;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b76) : (t76, _) idx_mut)) next_r.b76 in
+  if not test then failwithf "test 322 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a76 = #200l; b76 = #{ a21 = 201; b21 = 202 } } in
+  (* .b76.#a21 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b76 = #{ r.b76 with a21 = next_r.b76.#a21 } } in
+  Idx_mut.unsafe_set r ((.b76.#a21) : (t76, _) idx_mut) next_r.b76.#a21;
+  mark_test_run 323;
+  let test = eq r expected in
+  if not test then failwithf "test 323 failed";
+  mark_test_run 324;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b76.#a21) : (t76, _) idx_mut)) next_r.b76.#a21 in
+  if not test then failwithf "test 324 failed";
+  (* .b76.#b21 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b76 = #{ r.b76 with b21 = next_r.b76.#b21 } } in
+  Idx_mut.unsafe_set r ((.b76.#b21) : (t76, _) idx_mut) next_r.b76.#b21;
+  mark_test_run 325;
+  let test = eq r expected in
+  if not test then failwithf "test 325 failed";
+  mark_test_run 326;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b76.#b21) : (t76, _) idx_mut)) next_r.b76.#b21 in
+  if not test then failwithf "test 326 failed";
+  (******************************************)
+  (*   t77 = { int32#; #{ int; int32# } }   *)
+  (******************************************)
+  let eq = (fun { a77 = a771; b77 = b771 } { a77 = a772; b77 = b772 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a771 a772 && (fun #{ a23 = a231; b23 = b231 } #{ a23 = a232; b23 = b232 } -> (fun a b -> Int.equal a b) a231 a232 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b231 b232) b771 b772) in
+  let r = { a77 = #0l; b77 = #{ a23 = 1; b23 = #2l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a77 = #100l; b77 = #{ a23 = 101; b23 = #102l } } in
+  (* .a77 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with a77 = next_r.a77 } in
+  Idx_mut.unsafe_set r ((.a77) : (t77, _) idx_mut) next_r.a77;
+  mark_test_run 327;
+  let test = eq r expected in
+  if not test then failwithf "test 327 failed";
+  mark_test_run 328;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a77) : (t77, _) idx_mut)) next_r.a77 in
+  if not test then failwithf "test 328 failed";
+  let r = { a77 = #0l; b77 = #{ a23 = 1; b23 = #2l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a77 = #100l; b77 = #{ a23 = 101; b23 = #102l } } in
+  (* .b77 *)
+  let sub_eq = (fun #{ a23 = a231; b23 = b231 } #{ a23 = a232; b23 = b232 } -> (fun a b -> Int.equal a b) a231 a232 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b231 b232) in
+  let expected = { r with b77 = next_r.b77 } in
+  Idx_mut.unsafe_set r ((.b77) : (t77, _) idx_mut) next_r.b77;
+  mark_test_run 329;
+  let test = eq r expected in
+  if not test then failwithf "test 329 failed";
+  mark_test_run 330;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b77) : (t77, _) idx_mut)) next_r.b77 in
+  if not test then failwithf "test 330 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a77 = #200l; b77 = #{ a23 = 201; b23 = #202l } } in
+  (* .b77.#a23 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b77 = #{ r.b77 with a23 = next_r.b77.#a23 } } in
+  Idx_mut.unsafe_set r ((.b77.#a23) : (t77, _) idx_mut) next_r.b77.#a23;
+  mark_test_run 331;
+  let test = eq r expected in
+  if not test then failwithf "test 331 failed";
+  mark_test_run 332;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b77.#a23) : (t77, _) idx_mut)) next_r.b77.#a23 in
+  if not test then failwithf "test 332 failed";
+  (* .b77.#b23 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b77 = #{ r.b77 with b23 = next_r.b77.#b23 } } in
+  Idx_mut.unsafe_set r ((.b77.#b23) : (t77, _) idx_mut) next_r.b77.#b23;
   mark_test_run 333;
   let test = eq r expected in
   if not test then failwithf "test 333 failed";
   mark_test_run 334;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a76) : (t76, _) idx_mut)) next_r.a76 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b77.#b23) : (t77, _) idx_mut)) next_r.b77.#b23 in
   if not test then failwithf "test 334 failed";
-  let r = { a76 = #0l; b76 = #{ a32 = #1l; b32 = #2l } } in
+  (*************************************)
+  (*   t78 = { int32#; #{ int32# } }   *)
+  (*************************************)
+  let eq = (fun { a78 = a781; b78 = b781 } { a78 = a782; b78 = b782 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a781 a782 && (fun #{ a29 = a291 } #{ a29 = a292 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a291 a292) b781 b782) in
+  let r = { a78 = #0l; b78 = #{ a29 = #1l } } in
   (* Paths of depth 1 *)
-  let next_r = { a76 = #100l; b76 = #{ a32 = #101l; b32 = #102l } } in
-  (* .b76 *)
-  let sub_eq = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) in
-  let expected = { r with b76 = next_r.b76 } in
-  Idx_mut.unsafe_set r ((.b76) : (t76, _) idx_mut) next_r.b76;
+  let next_r = { a78 = #100l; b78 = #{ a29 = #101l } } in
+  (* .a78 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with a78 = next_r.a78 } in
+  Idx_mut.unsafe_set r ((.a78) : (t78, _) idx_mut) next_r.a78;
   mark_test_run 335;
   let test = eq r expected in
   if not test then failwithf "test 335 failed";
   mark_test_run 336;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b76) : (t76, _) idx_mut)) next_r.b76 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a78) : (t78, _) idx_mut)) next_r.a78 in
   if not test then failwithf "test 336 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a76 = #200l; b76 = #{ a32 = #201l; b32 = #202l } } in
-  (* .b76.#a32 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b76 = #{ r.b76 with a32 = next_r.b76.#a32 } } in
-  Idx_mut.unsafe_set r ((.b76.#a32) : (t76, _) idx_mut) next_r.b76.#a32;
+  let r = { a78 = #0l; b78 = #{ a29 = #1l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a78 = #100l; b78 = #{ a29 = #101l } } in
+  (* .b78 *)
+  let sub_eq = (fun #{ a29 = a291 } #{ a29 = a292 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a291 a292) in
+  let expected = { r with b78 = next_r.b78 } in
+  Idx_mut.unsafe_set r ((.b78) : (t78, _) idx_mut) next_r.b78;
   mark_test_run 337;
   let test = eq r expected in
   if not test then failwithf "test 337 failed";
   mark_test_run 338;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b76.#a32) : (t76, _) idx_mut)) next_r.b76.#a32 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b78) : (t78, _) idx_mut)) next_r.b78 in
   if not test then failwithf "test 338 failed";
-  (* .b76.#b32 *)
+  (* Paths of depth 2 *)
+  let next_r = { a78 = #200l; b78 = #{ a29 = #201l } } in
+  (* .b78.#a29 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b76 = #{ r.b76 with b32 = next_r.b76.#b32 } } in
-  Idx_mut.unsafe_set r ((.b76.#b32) : (t76, _) idx_mut) next_r.b76.#b32;
+  let expected = { r with b78 = #{ r.b78 with a29 = next_r.b78.#a29 } } in
+  Idx_mut.unsafe_set r ((.b78.#a29) : (t78, _) idx_mut) next_r.b78.#a29;
   mark_test_run 339;
   let test = eq r expected in
   if not test then failwithf "test 339 failed";
   mark_test_run 340;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b76.#b32) : (t76, _) idx_mut)) next_r.b76.#b32 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b78.#a29) : (t78, _) idx_mut)) next_r.b78.#a29 in
   if not test then failwithf "test 340 failed";
-  (****************************)
-  (*   t77 = { nativeint# }   *)
-  (****************************)
-  let eq = (fun { a77 = a771 } { a77 = a772 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a771 a772) in
-  let r = { a77 = #0n } in
+  (******************************************)
+  (*   t79 = { int32#; #{ int32#; int } }   *)
+  (******************************************)
+  let eq = (fun { a79 = a791; b79 = b791 } { a79 = a792; b79 = b792 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a791 a792 && (fun #{ a31 = a311; b31 = b311 } #{ a31 = a312; b31 = b312 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a311 a312 && (fun a b -> Int.equal a b) b311 b312) b791 b792) in
+  let r = { a79 = #0l; b79 = #{ a31 = #1l; b31 = 2 } } in
   (* Paths of depth 1 *)
-  let next_r = { a77 = #100n } in
-  (* .a77 *)
-  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
-  let expected = { r with a77 = next_r.a77 } in
-  Idx_mut.unsafe_set r ((.a77) : (t77, _) idx_mut) next_r.a77;
+  let next_r = { a79 = #100l; b79 = #{ a31 = #101l; b31 = 102 } } in
+  (* .a79 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with a79 = next_r.a79 } in
+  Idx_mut.unsafe_set r ((.a79) : (t79, _) idx_mut) next_r.a79;
   mark_test_run 341;
   let test = eq r expected in
   if not test then failwithf "test 341 failed";
   mark_test_run 342;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a77) : (t77, _) idx_mut)) next_r.a77 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a79) : (t79, _) idx_mut)) next_r.a79 in
   if not test then failwithf "test 342 failed";
-  (*********************************)
-  (*   t78 = { nativeint#; int }   *)
-  (*********************************)
-  let eq = (fun { a78 = a781; b78 = b781 } { a78 = a782; b78 = b782 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a781 a782 && (fun a b -> Int.equal a b) b781 b782) in
-  let r = { a78 = #0n; b78 = 1 } in
+  let r = { a79 = #0l; b79 = #{ a31 = #1l; b31 = 2 } } in
   (* Paths of depth 1 *)
-  let next_r = { a78 = #100n; b78 = 101 } in
-  (* .a78 *)
-  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
-  let expected = { r with a78 = next_r.a78 } in
-  Idx_mut.unsafe_set r ((.a78) : (t78, _) idx_mut) next_r.a78;
+  let next_r = { a79 = #100l; b79 = #{ a31 = #101l; b31 = 102 } } in
+  (* .b79 *)
+  let sub_eq = (fun #{ a31 = a311; b31 = b311 } #{ a31 = a312; b31 = b312 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a311 a312 && (fun a b -> Int.equal a b) b311 b312) in
+  let expected = { r with b79 = next_r.b79 } in
+  Idx_mut.unsafe_set r ((.b79) : (t79, _) idx_mut) next_r.b79;
   mark_test_run 343;
   let test = eq r expected in
   if not test then failwithf "test 343 failed";
   mark_test_run 344;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a78) : (t78, _) idx_mut)) next_r.a78 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b79) : (t79, _) idx_mut)) next_r.b79 in
   if not test then failwithf "test 344 failed";
-  let r = { a78 = #0n; b78 = 1 } in
-  (* Paths of depth 1 *)
-  let next_r = { a78 = #100n; b78 = 101 } in
-  (* .b78 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b78 = next_r.b78 } in
-  Idx_mut.unsafe_set r ((.b78) : (t78, _) idx_mut) next_r.b78;
+  (* Paths of depth 2 *)
+  let next_r = { a79 = #200l; b79 = #{ a31 = #201l; b31 = 202 } } in
+  (* .b79.#a31 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b79 = #{ r.b79 with a31 = next_r.b79.#a31 } } in
+  Idx_mut.unsafe_set r ((.b79.#a31) : (t79, _) idx_mut) next_r.b79.#a31;
   mark_test_run 345;
   let test = eq r expected in
   if not test then failwithf "test 345 failed";
   mark_test_run 346;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b78) : (t78, _) idx_mut)) next_r.b78 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b79.#a31) : (t79, _) idx_mut)) next_r.b79.#a31 in
   if not test then failwithf "test 346 failed";
-  (***********************************)
-  (*   t79 = { nativeint#; int64 }   *)
-  (***********************************)
-  let eq = (fun { a79 = a791; b79 = b791 } { a79 = a792; b79 = b792 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a791 a792 && (fun a b -> Int64.equal (globalize a) (globalize b)) b791 b792) in
-  let r = { a79 = #0n; b79 = 1L } in
-  (* Paths of depth 1 *)
-  let next_r = { a79 = #100n; b79 = 101L } in
-  (* .a79 *)
-  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
-  let expected = { r with a79 = next_r.a79 } in
-  Idx_mut.unsafe_set r ((.a79) : (t79, _) idx_mut) next_r.a79;
+  (* .b79.#b31 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b79 = #{ r.b79 with b31 = next_r.b79.#b31 } } in
+  Idx_mut.unsafe_set r ((.b79.#b31) : (t79, _) idx_mut) next_r.b79.#b31;
   mark_test_run 347;
   let test = eq r expected in
   if not test then failwithf "test 347 failed";
   mark_test_run 348;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a79) : (t79, _) idx_mut)) next_r.a79 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b79.#b31) : (t79, _) idx_mut)) next_r.b79.#b31 in
   if not test then failwithf "test 348 failed";
-  let r = { a79 = #0n; b79 = 1L } in
+  (*********************************************)
+  (*   t80 = { int32#; #{ int32#; int32# } }   *)
+  (*********************************************)
+  let eq = (fun { a80 = a801; b80 = b801 } { a80 = a802; b80 = b802 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a801 a802 && (fun #{ a33 = a331; b33 = b331 } #{ a33 = a332; b33 = b332 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a331 a332 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b331 b332) b801 b802) in
+  let r = { a80 = #0l; b80 = #{ a33 = #1l; b33 = #2l } } in
   (* Paths of depth 1 *)
-  let next_r = { a79 = #100n; b79 = 101L } in
-  (* .b79 *)
-  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
-  let expected = { r with b79 = next_r.b79 } in
-  Idx_mut.unsafe_set r ((.b79) : (t79, _) idx_mut) next_r.b79;
+  let next_r = { a80 = #100l; b80 = #{ a33 = #101l; b33 = #102l } } in
+  (* .a80 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with a80 = next_r.a80 } in
+  Idx_mut.unsafe_set r ((.a80) : (t80, _) idx_mut) next_r.a80;
   mark_test_run 349;
   let test = eq r expected in
   if not test then failwithf "test 349 failed";
   mark_test_run 350;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b79) : (t79, _) idx_mut)) next_r.b79 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a80) : (t80, _) idx_mut)) next_r.a80 in
   if not test then failwithf "test 350 failed";
-  (************************************)
-  (*   t80 = { nativeint#; int64# }   *)
-  (************************************)
-  let eq = (fun { a80 = a801; b80 = b801 } { a80 = a802; b80 = b802 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a801 a802 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b801 b802) in
-  let r = { a80 = #0n; b80 = #1L } in
+  let r = { a80 = #0l; b80 = #{ a33 = #1l; b33 = #2l } } in
   (* Paths of depth 1 *)
-  let next_r = { a80 = #100n; b80 = #101L } in
-  (* .a80 *)
-  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
-  let expected = { r with a80 = next_r.a80 } in
-  Idx_mut.unsafe_set r ((.a80) : (t80, _) idx_mut) next_r.a80;
+  let next_r = { a80 = #100l; b80 = #{ a33 = #101l; b33 = #102l } } in
+  (* .b80 *)
+  let sub_eq = (fun #{ a33 = a331; b33 = b331 } #{ a33 = a332; b33 = b332 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a331 a332 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b331 b332) in
+  let expected = { r with b80 = next_r.b80 } in
+  Idx_mut.unsafe_set r ((.b80) : (t80, _) idx_mut) next_r.b80;
   mark_test_run 351;
   let test = eq r expected in
   if not test then failwithf "test 351 failed";
   mark_test_run 352;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a80) : (t80, _) idx_mut)) next_r.a80 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b80) : (t80, _) idx_mut)) next_r.b80 in
   if not test then failwithf "test 352 failed";
-  let r = { a80 = #0n; b80 = #1L } in
-  (* Paths of depth 1 *)
-  let next_r = { a80 = #100n; b80 = #101L } in
-  (* .b80 *)
-  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
-  let expected = { r with b80 = next_r.b80 } in
-  Idx_mut.unsafe_set r ((.b80) : (t80, _) idx_mut) next_r.b80;
+  (* Paths of depth 2 *)
+  let next_r = { a80 = #200l; b80 = #{ a33 = #201l; b33 = #202l } } in
+  (* .b80.#a33 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b80 = #{ r.b80 with a33 = next_r.b80.#a33 } } in
+  Idx_mut.unsafe_set r ((.b80.#a33) : (t80, _) idx_mut) next_r.b80.#a33;
   mark_test_run 353;
   let test = eq r expected in
   if not test then failwithf "test 353 failed";
   mark_test_run 354;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b80) : (t80, _) idx_mut)) next_r.b80 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b80.#a33) : (t80, _) idx_mut)) next_r.b80.#a33 in
   if not test then failwithf "test 354 failed";
-  (************************************)
-  (*   t81 = { nativeint#; int32# }   *)
-  (************************************)
-  let eq = (fun { a81 = a811; b81 = b811 } { a81 = a812; b81 = b812 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a811 a812 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b811 b812) in
-  let r = { a81 = #0n; b81 = #1l } in
-  (* Paths of depth 1 *)
-  let next_r = { a81 = #100n; b81 = #101l } in
-  (* .a81 *)
-  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
-  let expected = { r with a81 = next_r.a81 } in
-  Idx_mut.unsafe_set r ((.a81) : (t81, _) idx_mut) next_r.a81;
+  (* .b80.#b33 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b80 = #{ r.b80 with b33 = next_r.b80.#b33 } } in
+  Idx_mut.unsafe_set r ((.b80.#b33) : (t80, _) idx_mut) next_r.b80.#b33;
   mark_test_run 355;
   let test = eq r expected in
   if not test then failwithf "test 355 failed";
   mark_test_run 356;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a81) : (t81, _) idx_mut)) next_r.a81 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b80.#b33) : (t80, _) idx_mut)) next_r.b80.#b33 in
   if not test then failwithf "test 356 failed";
-  let r = { a81 = #0n; b81 = #1l } in
+  (****************************)
+  (*   t81 = { nativeint# }   *)
+  (****************************)
+  let eq = (fun { a81 = a811 } { a81 = a812 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a811 a812) in
+  let r = { a81 = #0n } in
   (* Paths of depth 1 *)
-  let next_r = { a81 = #100n; b81 = #101l } in
-  (* .b81 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b81 = next_r.b81 } in
-  Idx_mut.unsafe_set r ((.b81) : (t81, _) idx_mut) next_r.b81;
+  let next_r = { a81 = #100n } in
+  (* .a81 *)
+  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  let expected = { r with a81 = next_r.a81 } in
+  Idx_mut.unsafe_set r ((.a81) : (t81, _) idx_mut) next_r.a81;
   mark_test_run 357;
   let test = eq r expected in
   if not test then failwithf "test 357 failed";
   mark_test_run 358;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b81) : (t81, _) idx_mut)) next_r.b81 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a81) : (t81, _) idx_mut)) next_r.a81 in
   if not test then failwithf "test 358 failed";
-  (****************************************)
-  (*   t82 = { nativeint#; nativeint# }   *)
-  (****************************************)
-  let eq = (fun { a82 = a821; b82 = b821 } { a82 = a822; b82 = b822 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a821 a822 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b821 b822) in
-  let r = { a82 = #0n; b82 = #1n } in
+  (*********************************)
+  (*   t82 = { nativeint#; int }   *)
+  (*********************************)
+  let eq = (fun { a82 = a821; b82 = b821 } { a82 = a822; b82 = b822 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a821 a822 && (fun a b -> Int.equal a b) b821 b822) in
+  let r = { a82 = #0n; b82 = 1 } in
   (* Paths of depth 1 *)
-  let next_r = { a82 = #100n; b82 = #101n } in
+  let next_r = { a82 = #100n; b82 = 101 } in
   (* .a82 *)
   let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with a82 = next_r.a82 } in
@@ -2899,11 +2913,11 @@ let () =
   mark_test_run 360;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a82) : (t82, _) idx_mut)) next_r.a82 in
   if not test then failwithf "test 360 failed";
-  let r = { a82 = #0n; b82 = #1n } in
+  let r = { a82 = #0n; b82 = 1 } in
   (* Paths of depth 1 *)
-  let next_r = { a82 = #100n; b82 = #101n } in
+  let next_r = { a82 = #100n; b82 = 101 } in
   (* .b82 *)
-  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b82 = next_r.b82 } in
   Idx_mut.unsafe_set r ((.b82) : (t82, _) idx_mut) next_r.b82;
   mark_test_run 361;
@@ -2913,12 +2927,12 @@ let () =
   let test = sub_eq (Idx_mut.unsafe_get r ((.b82) : (t82, _) idx_mut)) next_r.b82 in
   if not test then failwithf "test 362 failed";
   (***********************************)
-  (*   t83 = { nativeint#; float }   *)
+  (*   t83 = { nativeint#; int64 }   *)
   (***********************************)
-  let eq = (fun { a83 = a831; b83 = b831 } { a83 = a832; b83 = b832 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a831 a832 && (fun a b -> Float.equal (globalize a) (globalize b)) b831 b832) in
-  let r = { a83 = #0n; b83 = 1. } in
+  let eq = (fun { a83 = a831; b83 = b831 } { a83 = a832; b83 = b832 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a831 a832 && (fun a b -> Int64.equal (globalize a) (globalize b)) b831 b832) in
+  let r = { a83 = #0n; b83 = 1L } in
   (* Paths of depth 1 *)
-  let next_r = { a83 = #100n; b83 = 101. } in
+  let next_r = { a83 = #100n; b83 = 101L } in
   (* .a83 *)
   let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with a83 = next_r.a83 } in
@@ -2929,11 +2943,11 @@ let () =
   mark_test_run 364;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a83) : (t83, _) idx_mut)) next_r.a83 in
   if not test then failwithf "test 364 failed";
-  let r = { a83 = #0n; b83 = 1. } in
+  let r = { a83 = #0n; b83 = 1L } in
   (* Paths of depth 1 *)
-  let next_r = { a83 = #100n; b83 = 101. } in
+  let next_r = { a83 = #100n; b83 = 101L } in
   (* .b83 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with b83 = next_r.b83 } in
   Idx_mut.unsafe_set r ((.b83) : (t83, _) idx_mut) next_r.b83;
   mark_test_run 365;
@@ -2942,106 +2956,105 @@ let () =
   mark_test_run 366;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b83) : (t83, _) idx_mut)) next_r.b83 in
   if not test then failwithf "test 366 failed";
-  (***********************)
-  (*   t84 = { float }   *)
-  (***********************)
-  let eq = (fun { a84 = a841 } { a84 = a842 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a841 a842) in
-  let r = { a84 = 0. } in
+  (************************************)
+  (*   t84 = { nativeint#; int64# }   *)
+  (************************************)
+  let eq = (fun { a84 = a841; b84 = b841 } { a84 = a842; b84 = b842 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a841 a842 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b841 b842) in
+  let r = { a84 = #0n; b84 = #1L } in
   (* Paths of depth 1 *)
-  let next_r = { a84 = 100. } in
+  let next_r = { a84 = #100n; b84 = #101L } in
   (* .a84 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with a84 = next_r.a84 } in
-  Idx_mut.unsafe_set r ((.a84) : (t84, _) idx_mut) (Float_u.of_float next_r.a84);
+  Idx_mut.unsafe_set r ((.a84) : (t84, _) idx_mut) next_r.a84;
   mark_test_run 367;
   let test = eq r expected in
   if not test then failwithf "test 367 failed";
   mark_test_run 368;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a84) : (t84, _) idx_mut)) (Float_u.of_float next_r.a84) in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a84) : (t84, _) idx_mut)) next_r.a84 in
   if not test then failwithf "test 368 failed";
-  (****************************)
-  (*   t85 = { float; int }   *)
-  (****************************)
-  let eq = (fun { a85 = a851; b85 = b851 } { a85 = a852; b85 = b852 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a851 a852 && (fun a b -> Int.equal a b) b851 b852) in
-  let r = { a85 = 0.; b85 = 1 } in
+  let r = { a84 = #0n; b84 = #1L } in
   (* Paths of depth 1 *)
-  let next_r = { a85 = 100.; b85 = 101 } in
-  (* .a85 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a85 = next_r.a85 } in
-  Idx_mut.unsafe_set r ((.a85) : (t85, _) idx_mut) next_r.a85;
+  let next_r = { a84 = #100n; b84 = #101L } in
+  (* .b84 *)
+  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
+  let expected = { r with b84 = next_r.b84 } in
+  Idx_mut.unsafe_set r ((.b84) : (t84, _) idx_mut) next_r.b84;
   mark_test_run 369;
   let test = eq r expected in
   if not test then failwithf "test 369 failed";
   mark_test_run 370;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a85) : (t85, _) idx_mut)) next_r.a85 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b84) : (t84, _) idx_mut)) next_r.b84 in
   if not test then failwithf "test 370 failed";
-  let r = { a85 = 0.; b85 = 1 } in
+  (************************************)
+  (*   t85 = { nativeint#; int32# }   *)
+  (************************************)
+  let eq = (fun { a85 = a851; b85 = b851 } { a85 = a852; b85 = b852 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a851 a852 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b851 b852) in
+  let r = { a85 = #0n; b85 = #1l } in
   (* Paths of depth 1 *)
-  let next_r = { a85 = 100.; b85 = 101 } in
-  (* .b85 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b85 = next_r.b85 } in
-  Idx_mut.unsafe_set r ((.b85) : (t85, _) idx_mut) next_r.b85;
+  let next_r = { a85 = #100n; b85 = #101l } in
+  (* .a85 *)
+  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  let expected = { r with a85 = next_r.a85 } in
+  Idx_mut.unsafe_set r ((.a85) : (t85, _) idx_mut) next_r.a85;
   mark_test_run 371;
   let test = eq r expected in
   if not test then failwithf "test 371 failed";
   mark_test_run 372;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b85) : (t85, _) idx_mut)) next_r.b85 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a85) : (t85, _) idx_mut)) next_r.a85 in
   if not test then failwithf "test 372 failed";
-  (*********************************)
-  (*   t86 = { float; int; int }   *)
-  (*********************************)
-  let eq = (fun { a86 = a861; b86 = b861; c86 = c861 } { a86 = a862; b86 = b862; c86 = c862 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a861 a862 && (fun a b -> Int.equal a b) b861 b862 && (fun a b -> Int.equal a b) c861 c862) in
-  let r = { a86 = 0.; b86 = 1; c86 = 2 } in
+  let r = { a85 = #0n; b85 = #1l } in
   (* Paths of depth 1 *)
-  let next_r = { a86 = 100.; b86 = 101; c86 = 102 } in
-  (* .a86 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a86 = next_r.a86 } in
-  Idx_mut.unsafe_set r ((.a86) : (t86, _) idx_mut) next_r.a86;
+  let next_r = { a85 = #100n; b85 = #101l } in
+  (* .b85 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b85 = next_r.b85 } in
+  Idx_mut.unsafe_set r ((.b85) : (t85, _) idx_mut) next_r.b85;
   mark_test_run 373;
   let test = eq r expected in
   if not test then failwithf "test 373 failed";
   mark_test_run 374;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a86) : (t86, _) idx_mut)) next_r.a86 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b85) : (t85, _) idx_mut)) next_r.b85 in
   if not test then failwithf "test 374 failed";
-  let r = { a86 = 0.; b86 = 1; c86 = 2 } in
+  (****************************************)
+  (*   t86 = { nativeint#; nativeint# }   *)
+  (****************************************)
+  let eq = (fun { a86 = a861; b86 = b861 } { a86 = a862; b86 = b862 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a861 a862 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b861 b862) in
+  let r = { a86 = #0n; b86 = #1n } in
   (* Paths of depth 1 *)
-  let next_r = { a86 = 100.; b86 = 101; c86 = 102 } in
-  (* .b86 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b86 = next_r.b86 } in
-  Idx_mut.unsafe_set r ((.b86) : (t86, _) idx_mut) next_r.b86;
+  let next_r = { a86 = #100n; b86 = #101n } in
+  (* .a86 *)
+  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  let expected = { r with a86 = next_r.a86 } in
+  Idx_mut.unsafe_set r ((.a86) : (t86, _) idx_mut) next_r.a86;
   mark_test_run 375;
   let test = eq r expected in
   if not test then failwithf "test 375 failed";
   mark_test_run 376;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b86) : (t86, _) idx_mut)) next_r.b86 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a86) : (t86, _) idx_mut)) next_r.a86 in
   if not test then failwithf "test 376 failed";
-  let r = { a86 = 0.; b86 = 1; c86 = 2 } in
+  let r = { a86 = #0n; b86 = #1n } in
   (* Paths of depth 1 *)
-  let next_r = { a86 = 100.; b86 = 101; c86 = 102 } in
-  (* .c86 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with c86 = next_r.c86 } in
-  Idx_mut.unsafe_set r ((.c86) : (t86, _) idx_mut) next_r.c86;
+  let next_r = { a86 = #100n; b86 = #101n } in
+  (* .b86 *)
+  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  let expected = { r with b86 = next_r.b86 } in
+  Idx_mut.unsafe_set r ((.b86) : (t86, _) idx_mut) next_r.b86;
   mark_test_run 377;
   let test = eq r expected in
   if not test then failwithf "test 377 failed";
   mark_test_run 378;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c86) : (t86, _) idx_mut)) next_r.c86 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b86) : (t86, _) idx_mut)) next_r.b86 in
   if not test then failwithf "test 378 failed";
-  (***********************************)
-  (*   t87 = { float; int; float }   *)
-  (***********************************)
-  let eq = (fun { a87 = a871; b87 = b871; c87 = c871 } { a87 = a872; b87 = b872; c87 = c872 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a871 a872 && (fun a b -> Int.equal a b) b871 b872 && (fun a b -> Float.equal (globalize a) (globalize b)) c871 c872) in
-  let r = { a87 = 0.; b87 = 1; c87 = 2. } in
+  (************************************)
+  (*   t87 = { nativeint#; unit_u }   *)
+  (************************************)
+  let eq = (fun { a87 = a871; b87 = b871 } { a87 = a872; b87 = b872 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a871 a872 && (fun _ _ -> true) b871 b872) in
+  let r = { a87 = #0n; b87 = (unbox_unit ()) } in
   (* Paths of depth 1 *)
-  let next_r = { a87 = 100.; b87 = 101; c87 = 102. } in
+  let next_r = { a87 = #100n; b87 = (unbox_unit ()) } in
   (* .a87 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with a87 = next_r.a87 } in
   Idx_mut.unsafe_set r ((.a87) : (t87, _) idx_mut) next_r.a87;
   mark_test_run 379;
@@ -3050,11 +3063,11 @@ let () =
   mark_test_run 380;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a87) : (t87, _) idx_mut)) next_r.a87 in
   if not test then failwithf "test 380 failed";
-  let r = { a87 = 0.; b87 = 1; c87 = 2. } in
+  let r = { a87 = #0n; b87 = (unbox_unit ()) } in
   (* Paths of depth 1 *)
-  let next_r = { a87 = 100.; b87 = 101; c87 = 102. } in
+  let next_r = { a87 = #100n; b87 = (unbox_unit ()) } in
   (* .b87 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
+  let sub_eq = (fun _ _ -> true) in
   let expected = { r with b87 = next_r.b87 } in
   Idx_mut.unsafe_set r ((.b87) : (t87, _) idx_mut) next_r.b87;
   mark_test_run 381;
@@ -3063,5222 +3076,5630 @@ let () =
   mark_test_run 382;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b87) : (t87, _) idx_mut)) next_r.b87 in
   if not test then failwithf "test 382 failed";
-  let r = { a87 = 0.; b87 = 1; c87 = 2. } in
+  (***********************************)
+  (*   t88 = { nativeint#; float }   *)
+  (***********************************)
+  let eq = (fun { a88 = a881; b88 = b881 } { a88 = a882; b88 = b882 } -> (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) a881 a882 && (fun a b -> Float.equal (globalize a) (globalize b)) b881 b882) in
+  let r = { a88 = #0n; b88 = 1. } in
   (* Paths of depth 1 *)
-  let next_r = { a87 = 100.; b87 = 101; c87 = 102. } in
-  (* .c87 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with c87 = next_r.c87 } in
-  Idx_mut.unsafe_set r ((.c87) : (t87, _) idx_mut) next_r.c87;
+  let next_r = { a88 = #100n; b88 = 101. } in
+  (* .a88 *)
+  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  let expected = { r with a88 = next_r.a88 } in
+  Idx_mut.unsafe_set r ((.a88) : (t88, _) idx_mut) next_r.a88;
   mark_test_run 383;
   let test = eq r expected in
   if not test then failwithf "test 383 failed";
   mark_test_run 384;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c87) : (t87, _) idx_mut)) next_r.c87 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a88) : (t88, _) idx_mut)) next_r.a88 in
   if not test then failwithf "test 384 failed";
-  (******************************)
-  (*   t88 = { float; int64 }   *)
-  (******************************)
-  let eq = (fun { a88 = a881; b88 = b881 } { a88 = a882; b88 = b882 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a881 a882 && (fun a b -> Int64.equal (globalize a) (globalize b)) b881 b882) in
-  let r = { a88 = 0.; b88 = 1L } in
+  let r = { a88 = #0n; b88 = 1. } in
   (* Paths of depth 1 *)
-  let next_r = { a88 = 100.; b88 = 101L } in
-  (* .a88 *)
+  let next_r = { a88 = #100n; b88 = 101. } in
+  (* .b88 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a88 = next_r.a88 } in
-  Idx_mut.unsafe_set r ((.a88) : (t88, _) idx_mut) next_r.a88;
+  let expected = { r with b88 = next_r.b88 } in
+  Idx_mut.unsafe_set r ((.b88) : (t88, _) idx_mut) next_r.b88;
   mark_test_run 385;
   let test = eq r expected in
   if not test then failwithf "test 385 failed";
   mark_test_run 386;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a88) : (t88, _) idx_mut)) next_r.a88 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b88) : (t88, _) idx_mut)) next_r.b88 in
   if not test then failwithf "test 386 failed";
-  let r = { a88 = 0.; b88 = 1L } in
+  (************************)
+  (*   t89 = { unit_u }   *)
+  (************************)
+  let eq = (fun { a89 = a891 } { a89 = a892 } -> (fun _ _ -> true) a891 a892) in
+  let r = { a89 = (unbox_unit ()) } in
   (* Paths of depth 1 *)
-  let next_r = { a88 = 100.; b88 = 101L } in
-  (* .b88 *)
-  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
-  let expected = { r with b88 = next_r.b88 } in
-  Idx_mut.unsafe_set r ((.b88) : (t88, _) idx_mut) next_r.b88;
+  let next_r = { a89 = (unbox_unit ()) } in
+  (* .a89 *)
+  let sub_eq = (fun _ _ -> true) in
+  let expected = { r with a89 = next_r.a89 } in
+  Idx_mut.unsafe_set r ((.a89) : (t89, _) idx_mut) next_r.a89;
   mark_test_run 387;
   let test = eq r expected in
   if not test then failwithf "test 387 failed";
   mark_test_run 388;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b88) : (t88, _) idx_mut)) next_r.b88 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a89) : (t89, _) idx_mut)) next_r.a89 in
   if not test then failwithf "test 388 failed";
-  (*******************************)
-  (*   t89 = { float; int64# }   *)
-  (*******************************)
-  let eq = (fun { a89 = a891; b89 = b891 } { a89 = a892; b89 = b892 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a891 a892 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b891 b892) in
-  let r = { a89 = 0.; b89 = #1L } in
+  (*****************************)
+  (*   t90 = { unit_u; int }   *)
+  (*****************************)
+  let eq = (fun { a90 = a901; b90 = b901 } { a90 = a902; b90 = b902 } -> (fun _ _ -> true) a901 a902 && (fun a b -> Int.equal a b) b901 b902) in
+  let r = { a90 = (unbox_unit ()); b90 = 0 } in
   (* Paths of depth 1 *)
-  let next_r = { a89 = 100.; b89 = #101L } in
-  (* .a89 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a89 = next_r.a89 } in
-  Idx_mut.unsafe_set r ((.a89) : (t89, _) idx_mut) next_r.a89;
+  let next_r = { a90 = (unbox_unit ()); b90 = 100 } in
+  (* .a90 *)
+  let sub_eq = (fun _ _ -> true) in
+  let expected = { r with a90 = next_r.a90 } in
+  Idx_mut.unsafe_set r ((.a90) : (t90, _) idx_mut) next_r.a90;
   mark_test_run 389;
   let test = eq r expected in
   if not test then failwithf "test 389 failed";
   mark_test_run 390;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a89) : (t89, _) idx_mut)) next_r.a89 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a90) : (t90, _) idx_mut)) next_r.a90 in
   if not test then failwithf "test 390 failed";
-  let r = { a89 = 0.; b89 = #1L } in
+  let r = { a90 = (unbox_unit ()); b90 = 0 } in
   (* Paths of depth 1 *)
-  let next_r = { a89 = 100.; b89 = #101L } in
-  (* .b89 *)
-  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
-  let expected = { r with b89 = next_r.b89 } in
-  Idx_mut.unsafe_set r ((.b89) : (t89, _) idx_mut) next_r.b89;
+  let next_r = { a90 = (unbox_unit ()); b90 = 100 } in
+  (* .b90 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b90 = next_r.b90 } in
+  Idx_mut.unsafe_set r ((.b90) : (t90, _) idx_mut) next_r.b90;
   mark_test_run 391;
   let test = eq r expected in
   if not test then failwithf "test 391 failed";
   mark_test_run 392;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b89) : (t89, _) idx_mut)) next_r.b89 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b90) : (t90, _) idx_mut)) next_r.b90 in
   if not test then failwithf "test 392 failed";
   (*******************************)
-  (*   t90 = { float; int32# }   *)
+  (*   t91 = { unit_u; int64 }   *)
   (*******************************)
-  let eq = (fun { a90 = a901; b90 = b901 } { a90 = a902; b90 = b902 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a901 a902 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b901 b902) in
-  let r = { a90 = 0.; b90 = #1l } in
+  let eq = (fun { a91 = a911; b91 = b911 } { a91 = a912; b91 = b912 } -> (fun _ _ -> true) a911 a912 && (fun a b -> Int64.equal (globalize a) (globalize b)) b911 b912) in
+  let r = { a91 = (unbox_unit ()); b91 = 0L } in
   (* Paths of depth 1 *)
-  let next_r = { a90 = 100.; b90 = #101l } in
-  (* .a90 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a90 = next_r.a90 } in
-  Idx_mut.unsafe_set r ((.a90) : (t90, _) idx_mut) next_r.a90;
+  let next_r = { a91 = (unbox_unit ()); b91 = 100L } in
+  (* .a91 *)
+  let sub_eq = (fun _ _ -> true) in
+  let expected = { r with a91 = next_r.a91 } in
+  Idx_mut.unsafe_set r ((.a91) : (t91, _) idx_mut) next_r.a91;
   mark_test_run 393;
   let test = eq r expected in
   if not test then failwithf "test 393 failed";
   mark_test_run 394;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a90) : (t90, _) idx_mut)) next_r.a90 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a91) : (t91, _) idx_mut)) next_r.a91 in
   if not test then failwithf "test 394 failed";
-  let r = { a90 = 0.; b90 = #1l } in
+  let r = { a91 = (unbox_unit ()); b91 = 0L } in
   (* Paths of depth 1 *)
-  let next_r = { a90 = 100.; b90 = #101l } in
-  (* .b90 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b90 = next_r.b90 } in
-  Idx_mut.unsafe_set r ((.b90) : (t90, _) idx_mut) next_r.b90;
+  let next_r = { a91 = (unbox_unit ()); b91 = 100L } in
+  (* .b91 *)
+  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
+  let expected = { r with b91 = next_r.b91 } in
+  Idx_mut.unsafe_set r ((.b91) : (t91, _) idx_mut) next_r.b91;
   mark_test_run 395;
   let test = eq r expected in
   if not test then failwithf "test 395 failed";
   mark_test_run 396;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b90) : (t90, _) idx_mut)) next_r.b90 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b91) : (t91, _) idx_mut)) next_r.b91 in
   if not test then failwithf "test 396 failed";
-  (***********************************)
-  (*   t91 = { float; nativeint# }   *)
-  (***********************************)
-  let eq = (fun { a91 = a911; b91 = b911 } { a91 = a912; b91 = b912 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a911 a912 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b911 b912) in
-  let r = { a91 = 0.; b91 = #1n } in
+  (********************************)
+  (*   t92 = { unit_u; int64# }   *)
+  (********************************)
+  let eq = (fun { a92 = a921; b92 = b921 } { a92 = a922; b92 = b922 } -> (fun _ _ -> true) a921 a922 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b921 b922) in
+  let r = { a92 = (unbox_unit ()); b92 = #0L } in
   (* Paths of depth 1 *)
-  let next_r = { a91 = 100.; b91 = #101n } in
-  (* .a91 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a91 = next_r.a91 } in
-  Idx_mut.unsafe_set r ((.a91) : (t91, _) idx_mut) next_r.a91;
+  let next_r = { a92 = (unbox_unit ()); b92 = #100L } in
+  (* .a92 *)
+  let sub_eq = (fun _ _ -> true) in
+  let expected = { r with a92 = next_r.a92 } in
+  Idx_mut.unsafe_set r ((.a92) : (t92, _) idx_mut) next_r.a92;
   mark_test_run 397;
   let test = eq r expected in
   if not test then failwithf "test 397 failed";
   mark_test_run 398;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a91) : (t91, _) idx_mut)) next_r.a91 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a92) : (t92, _) idx_mut)) next_r.a92 in
   if not test then failwithf "test 398 failed";
-  let r = { a91 = 0.; b91 = #1n } in
+  let r = { a92 = (unbox_unit ()); b92 = #0L } in
   (* Paths of depth 1 *)
-  let next_r = { a91 = 100.; b91 = #101n } in
-  (* .b91 *)
-  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
-  let expected = { r with b91 = next_r.b91 } in
-  Idx_mut.unsafe_set r ((.b91) : (t91, _) idx_mut) next_r.b91;
+  let next_r = { a92 = (unbox_unit ()); b92 = #100L } in
+  (* .b92 *)
+  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
+  let expected = { r with b92 = next_r.b92 } in
+  Idx_mut.unsafe_set r ((.b92) : (t92, _) idx_mut) next_r.b92;
   mark_test_run 399;
   let test = eq r expected in
   if not test then failwithf "test 399 failed";
   mark_test_run 400;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b91) : (t91, _) idx_mut)) next_r.b91 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b92) : (t92, _) idx_mut)) next_r.b92 in
   if not test then failwithf "test 400 failed";
-  (******************************)
-  (*   t92 = { float; float }   *)
-  (******************************)
-  let eq = (fun { a92 = a921; b92 = b921 } { a92 = a922; b92 = b922 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a921 a922 && (fun a b -> Float.equal (globalize a) (globalize b)) b921 b922) in
-  let r = { a92 = 0.; b92 = 1. } in
+  (********************************)
+  (*   t93 = { unit_u; int32# }   *)
+  (********************************)
+  let eq = (fun { a93 = a931; b93 = b931 } { a93 = a932; b93 = b932 } -> (fun _ _ -> true) a931 a932 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b931 b932) in
+  let r = { a93 = (unbox_unit ()); b93 = #0l } in
   (* Paths of depth 1 *)
-  let next_r = { a92 = 100.; b92 = 101. } in
-  (* .a92 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a92 = next_r.a92 } in
-  Idx_mut.unsafe_set r ((.a92) : (t92, _) idx_mut) (Float_u.of_float next_r.a92);
+  let next_r = { a93 = (unbox_unit ()); b93 = #100l } in
+  (* .a93 *)
+  let sub_eq = (fun _ _ -> true) in
+  let expected = { r with a93 = next_r.a93 } in
+  Idx_mut.unsafe_set r ((.a93) : (t93, _) idx_mut) next_r.a93;
   mark_test_run 401;
   let test = eq r expected in
   if not test then failwithf "test 401 failed";
   mark_test_run 402;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a92) : (t92, _) idx_mut)) (Float_u.of_float next_r.a92) in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a93) : (t93, _) idx_mut)) next_r.a93 in
   if not test then failwithf "test 402 failed";
-  let r = { a92 = 0.; b92 = 1. } in
+  let r = { a93 = (unbox_unit ()); b93 = #0l } in
   (* Paths of depth 1 *)
-  let next_r = { a92 = 100.; b92 = 101. } in
-  (* .b92 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b92 = next_r.b92 } in
-  Idx_mut.unsafe_set r ((.b92) : (t92, _) idx_mut) (Float_u.of_float next_r.b92);
+  let next_r = { a93 = (unbox_unit ()); b93 = #100l } in
+  (* .b93 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b93 = next_r.b93 } in
+  Idx_mut.unsafe_set r ((.b93) : (t93, _) idx_mut) next_r.b93;
   mark_test_run 403;
   let test = eq r expected in
   if not test then failwithf "test 403 failed";
   mark_test_run 404;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b92) : (t92, _) idx_mut)) (Float_u.of_float next_r.b92) in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b93) : (t93, _) idx_mut)) next_r.b93 in
   if not test then failwithf "test 404 failed";
-  (***********************************)
-  (*   t93 = { float; float; int }   *)
-  (***********************************)
-  let eq = (fun { a93 = a931; b93 = b931; c93 = c931 } { a93 = a932; b93 = b932; c93 = c932 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a931 a932 && (fun a b -> Float.equal (globalize a) (globalize b)) b931 b932 && (fun a b -> Int.equal a b) c931 c932) in
-  let r = { a93 = 0.; b93 = 1.; c93 = 2 } in
+  (************************************)
+  (*   t94 = { unit_u; nativeint# }   *)
+  (************************************)
+  let eq = (fun { a94 = a941; b94 = b941 } { a94 = a942; b94 = b942 } -> (fun _ _ -> true) a941 a942 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b941 b942) in
+  let r = { a94 = (unbox_unit ()); b94 = #0n } in
   (* Paths of depth 1 *)
-  let next_r = { a93 = 100.; b93 = 101.; c93 = 102 } in
-  (* .a93 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a93 = next_r.a93 } in
-  Idx_mut.unsafe_set r ((.a93) : (t93, _) idx_mut) next_r.a93;
+  let next_r = { a94 = (unbox_unit ()); b94 = #100n } in
+  (* .a94 *)
+  let sub_eq = (fun _ _ -> true) in
+  let expected = { r with a94 = next_r.a94 } in
+  Idx_mut.unsafe_set r ((.a94) : (t94, _) idx_mut) next_r.a94;
   mark_test_run 405;
   let test = eq r expected in
   if not test then failwithf "test 405 failed";
   mark_test_run 406;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a93) : (t93, _) idx_mut)) next_r.a93 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a94) : (t94, _) idx_mut)) next_r.a94 in
   if not test then failwithf "test 406 failed";
-  let r = { a93 = 0.; b93 = 1.; c93 = 2 } in
+  let r = { a94 = (unbox_unit ()); b94 = #0n } in
   (* Paths of depth 1 *)
-  let next_r = { a93 = 100.; b93 = 101.; c93 = 102 } in
-  (* .b93 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b93 = next_r.b93 } in
-  Idx_mut.unsafe_set r ((.b93) : (t93, _) idx_mut) next_r.b93;
+  let next_r = { a94 = (unbox_unit ()); b94 = #100n } in
+  (* .b94 *)
+  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
+  let expected = { r with b94 = next_r.b94 } in
+  Idx_mut.unsafe_set r ((.b94) : (t94, _) idx_mut) next_r.b94;
   mark_test_run 407;
   let test = eq r expected in
   if not test then failwithf "test 407 failed";
   mark_test_run 408;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b93) : (t93, _) idx_mut)) next_r.b93 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b94) : (t94, _) idx_mut)) next_r.b94 in
   if not test then failwithf "test 408 failed";
-  let r = { a93 = 0.; b93 = 1.; c93 = 2 } in
+  (********************************)
+  (*   t95 = { unit_u; unit_u }   *)
+  (********************************)
+  let eq = (fun { a95 = a951; b95 = b951 } { a95 = a952; b95 = b952 } -> (fun _ _ -> true) a951 a952 && (fun _ _ -> true) b951 b952) in
+  let r = { a95 = (unbox_unit ()); b95 = (unbox_unit ()) } in
   (* Paths of depth 1 *)
-  let next_r = { a93 = 100.; b93 = 101.; c93 = 102 } in
-  (* .c93 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with c93 = next_r.c93 } in
-  Idx_mut.unsafe_set r ((.c93) : (t93, _) idx_mut) next_r.c93;
+  let next_r = { a95 = (unbox_unit ()); b95 = (unbox_unit ()) } in
+  (* .a95 *)
+  let sub_eq = (fun _ _ -> true) in
+  let expected = { r with a95 = next_r.a95 } in
+  Idx_mut.unsafe_set r ((.a95) : (t95, _) idx_mut) next_r.a95;
   mark_test_run 409;
   let test = eq r expected in
   if not test then failwithf "test 409 failed";
   mark_test_run 410;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c93) : (t93, _) idx_mut)) next_r.c93 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a95) : (t95, _) idx_mut)) next_r.a95 in
   if not test then failwithf "test 410 failed";
-  (*************************************)
-  (*   t94 = { float; float; float }   *)
-  (*************************************)
-  let eq = (fun { a94 = a941; b94 = b941; c94 = c941 } { a94 = a942; b94 = b942; c94 = c942 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a941 a942 && (fun a b -> Float.equal (globalize a) (globalize b)) b941 b942 && (fun a b -> Float.equal (globalize a) (globalize b)) c941 c942) in
-  let r = { a94 = 0.; b94 = 1.; c94 = 2. } in
+  let r = { a95 = (unbox_unit ()); b95 = (unbox_unit ()) } in
   (* Paths of depth 1 *)
-  let next_r = { a94 = 100.; b94 = 101.; c94 = 102. } in
-  (* .a94 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a94 = next_r.a94 } in
-  Idx_mut.unsafe_set r ((.a94) : (t94, _) idx_mut) (Float_u.of_float next_r.a94);
+  let next_r = { a95 = (unbox_unit ()); b95 = (unbox_unit ()) } in
+  (* .b95 *)
+  let sub_eq = (fun _ _ -> true) in
+  let expected = { r with b95 = next_r.b95 } in
+  Idx_mut.unsafe_set r ((.b95) : (t95, _) idx_mut) next_r.b95;
   mark_test_run 411;
   let test = eq r expected in
   if not test then failwithf "test 411 failed";
   mark_test_run 412;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a94) : (t94, _) idx_mut)) (Float_u.of_float next_r.a94) in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b95) : (t95, _) idx_mut)) next_r.b95 in
   if not test then failwithf "test 412 failed";
-  let r = { a94 = 0.; b94 = 1.; c94 = 2. } in
+  (*******************************)
+  (*   t96 = { unit_u; float }   *)
+  (*******************************)
+  let eq = (fun { a96 = a961; b96 = b961 } { a96 = a962; b96 = b962 } -> (fun _ _ -> true) a961 a962 && (fun a b -> Float.equal (globalize a) (globalize b)) b961 b962) in
+  let r = { a96 = (unbox_unit ()); b96 = 0. } in
   (* Paths of depth 1 *)
-  let next_r = { a94 = 100.; b94 = 101.; c94 = 102. } in
-  (* .b94 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b94 = next_r.b94 } in
-  Idx_mut.unsafe_set r ((.b94) : (t94, _) idx_mut) (Float_u.of_float next_r.b94);
+  let next_r = { a96 = (unbox_unit ()); b96 = 100. } in
+  (* .a96 *)
+  let sub_eq = (fun _ _ -> true) in
+  let expected = { r with a96 = next_r.a96 } in
+  Idx_mut.unsafe_set r ((.a96) : (t96, _) idx_mut) next_r.a96;
   mark_test_run 413;
   let test = eq r expected in
   if not test then failwithf "test 413 failed";
   mark_test_run 414;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b94) : (t94, _) idx_mut)) (Float_u.of_float next_r.b94) in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a96) : (t96, _) idx_mut)) next_r.a96 in
   if not test then failwithf "test 414 failed";
-  let r = { a94 = 0.; b94 = 1.; c94 = 2. } in
+  let r = { a96 = (unbox_unit ()); b96 = 0. } in
   (* Paths of depth 1 *)
-  let next_r = { a94 = 100.; b94 = 101.; c94 = 102. } in
-  (* .c94 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with c94 = next_r.c94 } in
-  Idx_mut.unsafe_set r ((.c94) : (t94, _) idx_mut) (Float_u.of_float next_r.c94);
+  let next_r = { a96 = (unbox_unit ()); b96 = 100. } in
+  (* .b96 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b96 = next_r.b96 } in
+  Idx_mut.unsafe_set r ((.b96) : (t96, _) idx_mut) next_r.b96;
   mark_test_run 415;
   let test = eq r expected in
   if not test then failwithf "test 415 failed";
   mark_test_run 416;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c94) : (t94, _) idx_mut)) (Float_u.of_float next_r.c94) in
-  if not test then failwithf "test 416 failed";
-  (**************************************)
-  (*   t95 = { float; float; float# }   *)
-  (**************************************)
-  let eq = (fun { a95 = a951; b95 = b951; c95 = c951 } { a95 = a952; b95 = b952; c95 = c952 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a951 a952 && (fun a b -> Float.equal (globalize a) (globalize b)) b951 b952 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) c951 c952) in
-  let r = { a95 = 0.; b95 = 1.; c95 = #2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a95 = 100.; b95 = 101.; c95 = #102. } in
-  (* .a95 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a95 = next_r.a95 } in
-  Idx_mut.unsafe_set r ((.a95) : (t95, _) idx_mut) (Float_u.of_float next_r.a95);
-  mark_test_run 417;
-  let test = eq r expected in
-  if not test then failwithf "test 417 failed";
-  mark_test_run 418;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a95) : (t95, _) idx_mut)) (Float_u.of_float next_r.a95) in
-  if not test then failwithf "test 418 failed";
-  let r = { a95 = 0.; b95 = 1.; c95 = #2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a95 = 100.; b95 = 101.; c95 = #102. } in
-  (* .b95 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b95 = next_r.b95 } in
-  Idx_mut.unsafe_set r ((.b95) : (t95, _) idx_mut) (Float_u.of_float next_r.b95);
-  mark_test_run 419;
-  let test = eq r expected in
-  if not test then failwithf "test 419 failed";
-  mark_test_run 420;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b95) : (t95, _) idx_mut)) (Float_u.of_float next_r.b95) in
-  if not test then failwithf "test 420 failed";
-  let r = { a95 = 0.; b95 = 1.; c95 = #2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a95 = 100.; b95 = 101.; c95 = #102. } in
-  (* .c95 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with c95 = next_r.c95 } in
-  Idx_mut.unsafe_set r ((.c95) : (t95, _) idx_mut) next_r.c95;
-  mark_test_run 421;
-  let test = eq r expected in
-  if not test then failwithf "test 421 failed";
-  mark_test_run 422;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c95) : (t95, _) idx_mut)) next_r.c95 in
-  if not test then failwithf "test 422 failed";
-  (*******************************)
-  (*   t96 = { float; float# }   *)
-  (*******************************)
-  let eq = (fun { a96 = a961; b96 = b961 } { a96 = a962; b96 = b962 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a961 a962 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b961 b962) in
-  let r = { a96 = 0.; b96 = #1. } in
-  (* Paths of depth 1 *)
-  let next_r = { a96 = 100.; b96 = #101. } in
-  (* .a96 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a96 = next_r.a96 } in
-  Idx_mut.unsafe_set r ((.a96) : (t96, _) idx_mut) (Float_u.of_float next_r.a96);
-  mark_test_run 423;
-  let test = eq r expected in
-  if not test then failwithf "test 423 failed";
-  mark_test_run 424;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a96) : (t96, _) idx_mut)) (Float_u.of_float next_r.a96) in
-  if not test then failwithf "test 424 failed";
-  let r = { a96 = 0.; b96 = #1. } in
-  (* Paths of depth 1 *)
-  let next_r = { a96 = 100.; b96 = #101. } in
-  (* .b96 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b96 = next_r.b96 } in
-  Idx_mut.unsafe_set r ((.b96) : (t96, _) idx_mut) next_r.b96;
-  mark_test_run 425;
-  let test = eq r expected in
-  if not test then failwithf "test 425 failed";
-  mark_test_run 426;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b96) : (t96, _) idx_mut)) next_r.b96 in
-  if not test then failwithf "test 426 failed";
-  (**************************************)
-  (*   t97 = { float; float#; float }   *)
-  (**************************************)
-  let eq = (fun { a97 = a971; b97 = b971; c97 = c971 } { a97 = a972; b97 = b972; c97 = c972 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a971 a972 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b971 b972 && (fun a b -> Float.equal (globalize a) (globalize b)) c971 c972) in
-  let r = { a97 = 0.; b97 = #1.; c97 = 2. } in
+  if not test then failwithf "test 416 failed";
+  (***********************)
+  (*   t97 = { float }   *)
+  (***********************)
+  let eq = (fun { a97 = a971 } { a97 = a972 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a971 a972) in
+  let r = { a97 = 0. } in
   (* Paths of depth 1 *)
-  let next_r = { a97 = 100.; b97 = #101.; c97 = 102. } in
+  let next_r = { a97 = 100. } in
   (* .a97 *)
   (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
   let expected = { r with a97 = next_r.a97 } in
   Idx_mut.unsafe_set r ((.a97) : (t97, _) idx_mut) (Float_u.of_float next_r.a97);
-  mark_test_run 427;
+  mark_test_run 417;
   let test = eq r expected in
-  if not test then failwithf "test 427 failed";
-  mark_test_run 428;
+  if not test then failwithf "test 417 failed";
+  mark_test_run 418;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a97) : (t97, _) idx_mut)) (Float_u.of_float next_r.a97) in
-  if not test then failwithf "test 428 failed";
-  let r = { a97 = 0.; b97 = #1.; c97 = 2. } in
+  if not test then failwithf "test 418 failed";
+  (****************************)
+  (*   t98 = { float; int }   *)
+  (****************************)
+  let eq = (fun { a98 = a981; b98 = b981 } { a98 = a982; b98 = b982 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a981 a982 && (fun a b -> Int.equal a b) b981 b982) in
+  let r = { a98 = 0.; b98 = 1 } in
   (* Paths of depth 1 *)
-  let next_r = { a97 = 100.; b97 = #101.; c97 = 102. } in
-  (* .b97 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b97 = next_r.b97 } in
-  Idx_mut.unsafe_set r ((.b97) : (t97, _) idx_mut) next_r.b97;
-  mark_test_run 429;
-  let test = eq r expected in
-  if not test then failwithf "test 429 failed";
-  mark_test_run 430;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b97) : (t97, _) idx_mut)) next_r.b97 in
-  if not test then failwithf "test 430 failed";
-  let r = { a97 = 0.; b97 = #1.; c97 = 2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a97 = 100.; b97 = #101.; c97 = 102. } in
-  (* .c97 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with c97 = next_r.c97 } in
-  Idx_mut.unsafe_set r ((.c97) : (t97, _) idx_mut) (Float_u.of_float next_r.c97);
-  mark_test_run 431;
-  let test = eq r expected in
-  if not test then failwithf "test 431 failed";
-  mark_test_run 432;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c97) : (t97, _) idx_mut)) (Float_u.of_float next_r.c97) in
-  if not test then failwithf "test 432 failed";
-  (***************************************)
-  (*   t98 = { float; float#; float# }   *)
-  (***************************************)
-  let eq = (fun { a98 = a981; b98 = b981; c98 = c981 } { a98 = a982; b98 = b982; c98 = c982 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a981 a982 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b981 b982 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) c981 c982) in
-  let r = { a98 = 0.; b98 = #1.; c98 = #2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a98 = 100.; b98 = #101.; c98 = #102. } in
+  let next_r = { a98 = 100.; b98 = 101 } in
   (* .a98 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a98 = next_r.a98 } in
-  Idx_mut.unsafe_set r ((.a98) : (t98, _) idx_mut) (Float_u.of_float next_r.a98);
-  mark_test_run 433;
+  Idx_mut.unsafe_set r ((.a98) : (t98, _) idx_mut) next_r.a98;
+  mark_test_run 419;
   let test = eq r expected in
-  if not test then failwithf "test 433 failed";
-  mark_test_run 434;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a98) : (t98, _) idx_mut)) (Float_u.of_float next_r.a98) in
-  if not test then failwithf "test 434 failed";
-  let r = { a98 = 0.; b98 = #1.; c98 = #2. } in
+  if not test then failwithf "test 419 failed";
+  mark_test_run 420;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a98) : (t98, _) idx_mut)) next_r.a98 in
+  if not test then failwithf "test 420 failed";
+  let r = { a98 = 0.; b98 = 1 } in
   (* Paths of depth 1 *)
-  let next_r = { a98 = 100.; b98 = #101.; c98 = #102. } in
+  let next_r = { a98 = 100.; b98 = 101 } in
   (* .b98 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b98 = next_r.b98 } in
   Idx_mut.unsafe_set r ((.b98) : (t98, _) idx_mut) next_r.b98;
-  mark_test_run 435;
+  mark_test_run 421;
   let test = eq r expected in
-  if not test then failwithf "test 435 failed";
-  mark_test_run 436;
+  if not test then failwithf "test 421 failed";
+  mark_test_run 422;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b98) : (t98, _) idx_mut)) next_r.b98 in
-  if not test then failwithf "test 436 failed";
-  let r = { a98 = 0.; b98 = #1.; c98 = #2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a98 = 100.; b98 = #101.; c98 = #102. } in
-  (* .c98 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with c98 = next_r.c98 } in
-  Idx_mut.unsafe_set r ((.c98) : (t98, _) idx_mut) next_r.c98;
-  mark_test_run 437;
-  let test = eq r expected in
-  if not test then failwithf "test 437 failed";
-  mark_test_run 438;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c98) : (t98, _) idx_mut)) next_r.c98 in
-  if not test then failwithf "test 438 failed";
+  if not test then failwithf "test 422 failed";
   (*********************************)
-  (*   t99 = { float; #{ int } }   *)
+  (*   t99 = { float; int; int }   *)
   (*********************************)
-  let eq = (fun { a99 = a991; b99 = b991 } { a99 = a992; b99 = b992 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a991 a992 && (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) b991 b992) in
-  let r = { a99 = 0.; b99 = #{ a18 = 1 } } in
+  let eq = (fun { a99 = a991; b99 = b991; c99 = c991 } { a99 = a992; b99 = b992; c99 = c992 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a991 a992 && (fun a b -> Int.equal a b) b991 b992 && (fun a b -> Int.equal a b) c991 c992) in
+  let r = { a99 = 0.; b99 = 1; c99 = 2 } in
   (* Paths of depth 1 *)
-  let next_r = { a99 = 100.; b99 = #{ a18 = 101 } } in
+  let next_r = { a99 = 100.; b99 = 101; c99 = 102 } in
   (* .a99 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a99 = next_r.a99 } in
   Idx_mut.unsafe_set r ((.a99) : (t99, _) idx_mut) next_r.a99;
-  mark_test_run 439;
+  mark_test_run 423;
   let test = eq r expected in
-  if not test then failwithf "test 439 failed";
-  mark_test_run 440;
+  if not test then failwithf "test 423 failed";
+  mark_test_run 424;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a99) : (t99, _) idx_mut)) next_r.a99 in
-  if not test then failwithf "test 440 failed";
-  let r = { a99 = 0.; b99 = #{ a18 = 1 } } in
+  if not test then failwithf "test 424 failed";
+  let r = { a99 = 0.; b99 = 1; c99 = 2 } in
   (* Paths of depth 1 *)
-  let next_r = { a99 = 100.; b99 = #{ a18 = 101 } } in
+  let next_r = { a99 = 100.; b99 = 101; c99 = 102 } in
   (* .b99 *)
-  let sub_eq = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) in
+  let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b99 = next_r.b99 } in
   Idx_mut.unsafe_set r ((.b99) : (t99, _) idx_mut) next_r.b99;
-  mark_test_run 441;
+  mark_test_run 425;
   let test = eq r expected in
-  if not test then failwithf "test 441 failed";
-  mark_test_run 442;
+  if not test then failwithf "test 425 failed";
+  mark_test_run 426;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b99) : (t99, _) idx_mut)) next_r.b99 in
-  if not test then failwithf "test 442 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a99 = 200.; b99 = #{ a18 = 201 } } in
-  (* .b99.#a18 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b99 = #{ r.b99 with a18 = next_r.b99.#a18 } } in
-  Idx_mut.unsafe_set r ((.b99.#a18) : (t99, _) idx_mut) next_r.b99.#a18;
-  mark_test_run 443;
-  let test = eq r expected in
-  if not test then failwithf "test 443 failed";
-  mark_test_run 444;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b99.#a18) : (t99, _) idx_mut)) next_r.b99.#a18 in
-  if not test then failwithf "test 444 failed";
-  (***************************************)
-  (*   t100 = { float; #{ int; int } }   *)
-  (***************************************)
-  let eq = (fun { a100 = a1001; b100 = b1001 } { a100 = a1002; b100 = b1002 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1001 a1002 && (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) b1001 b1002) in
-  let r = { a100 = 0.; b100 = #{ a20 = 1; b20 = 2 } } in
+  if not test then failwithf "test 426 failed";
+  let r = { a99 = 0.; b99 = 1; c99 = 2 } in
   (* Paths of depth 1 *)
-  let next_r = { a100 = 100.; b100 = #{ a20 = 101; b20 = 102 } } in
+  let next_r = { a99 = 100.; b99 = 101; c99 = 102 } in
+  (* .c99 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with c99 = next_r.c99 } in
+  Idx_mut.unsafe_set r ((.c99) : (t99, _) idx_mut) next_r.c99;
+  mark_test_run 427;
+  let test = eq r expected in
+  if not test then failwithf "test 427 failed";
+  mark_test_run 428;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c99) : (t99, _) idx_mut)) next_r.c99 in
+  if not test then failwithf "test 428 failed";
+  (************************************)
+  (*   t100 = { float; int; float }   *)
+  (************************************)
+  let eq = (fun { a100 = a1001; b100 = b1001; c100 = c1001 } { a100 = a1002; b100 = b1002; c100 = c1002 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1001 a1002 && (fun a b -> Int.equal a b) b1001 b1002 && (fun a b -> Float.equal (globalize a) (globalize b)) c1001 c1002) in
+  let r = { a100 = 0.; b100 = 1; c100 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a100 = 100.; b100 = 101; c100 = 102. } in
   (* .a100 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a100 = next_r.a100 } in
   Idx_mut.unsafe_set r ((.a100) : (t100, _) idx_mut) next_r.a100;
-  mark_test_run 445;
+  mark_test_run 429;
   let test = eq r expected in
-  if not test then failwithf "test 445 failed";
-  mark_test_run 446;
+  if not test then failwithf "test 429 failed";
+  mark_test_run 430;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a100) : (t100, _) idx_mut)) next_r.a100 in
-  if not test then failwithf "test 446 failed";
-  let r = { a100 = 0.; b100 = #{ a20 = 1; b20 = 2 } } in
+  if not test then failwithf "test 430 failed";
+  let r = { a100 = 0.; b100 = 1; c100 = 2. } in
   (* Paths of depth 1 *)
-  let next_r = { a100 = 100.; b100 = #{ a20 = 101; b20 = 102 } } in
+  let next_r = { a100 = 100.; b100 = 101; c100 = 102. } in
   (* .b100 *)
-  let sub_eq = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) in
+  let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b100 = next_r.b100 } in
   Idx_mut.unsafe_set r ((.b100) : (t100, _) idx_mut) next_r.b100;
-  mark_test_run 447;
+  mark_test_run 431;
   let test = eq r expected in
-  if not test then failwithf "test 447 failed";
-  mark_test_run 448;
+  if not test then failwithf "test 431 failed";
+  mark_test_run 432;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b100) : (t100, _) idx_mut)) next_r.b100 in
-  if not test then failwithf "test 448 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a100 = 200.; b100 = #{ a20 = 201; b20 = 202 } } in
-  (* .b100.#a20 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b100 = #{ r.b100 with a20 = next_r.b100.#a20 } } in
-  Idx_mut.unsafe_set r ((.b100.#a20) : (t100, _) idx_mut) next_r.b100.#a20;
-  mark_test_run 449;
-  let test = eq r expected in
-  if not test then failwithf "test 449 failed";
-  mark_test_run 450;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b100.#a20) : (t100, _) idx_mut)) next_r.b100.#a20 in
-  if not test then failwithf "test 450 failed";
-  (* .b100.#b20 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b100 = #{ r.b100 with b20 = next_r.b100.#b20 } } in
-  Idx_mut.unsafe_set r ((.b100.#b20) : (t100, _) idx_mut) next_r.b100.#b20;
-  mark_test_run 451;
-  let test = eq r expected in
-  if not test then failwithf "test 451 failed";
-  mark_test_run 452;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b100.#b20) : (t100, _) idx_mut)) next_r.b100.#b20 in
-  if not test then failwithf "test 452 failed";
-  (*****************************************)
-  (*   t101 = { float; #{ int; float } }   *)
-  (*****************************************)
-  let eq = (fun { a101 = a1011; b101 = b1011 } { a101 = a1012; b101 = b1012 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1011 a1012 && (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) b1011 b1012) in
-  let r = { a101 = 0.; b101 = #{ a24 = 1; b24 = 2. } } in
+  if not test then failwithf "test 432 failed";
+  let r = { a100 = 0.; b100 = 1; c100 = 2. } in
   (* Paths of depth 1 *)
-  let next_r = { a101 = 100.; b101 = #{ a24 = 101; b24 = 102. } } in
+  let next_r = { a100 = 100.; b100 = 101; c100 = 102. } in
+  (* .c100 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with c100 = next_r.c100 } in
+  Idx_mut.unsafe_set r ((.c100) : (t100, _) idx_mut) next_r.c100;
+  mark_test_run 433;
+  let test = eq r expected in
+  if not test then failwithf "test 433 failed";
+  mark_test_run 434;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c100) : (t100, _) idx_mut)) next_r.c100 in
+  if not test then failwithf "test 434 failed";
+  (*******************************)
+  (*   t101 = { float; int64 }   *)
+  (*******************************)
+  let eq = (fun { a101 = a1011; b101 = b1011 } { a101 = a1012; b101 = b1012 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1011 a1012 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1011 b1012) in
+  let r = { a101 = 0.; b101 = 1L } in
+  (* Paths of depth 1 *)
+  let next_r = { a101 = 100.; b101 = 101L } in
   (* .a101 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a101 = next_r.a101 } in
   Idx_mut.unsafe_set r ((.a101) : (t101, _) idx_mut) next_r.a101;
-  mark_test_run 453;
+  mark_test_run 435;
   let test = eq r expected in
-  if not test then failwithf "test 453 failed";
-  mark_test_run 454;
+  if not test then failwithf "test 435 failed";
+  mark_test_run 436;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a101) : (t101, _) idx_mut)) next_r.a101 in
-  if not test then failwithf "test 454 failed";
-  let r = { a101 = 0.; b101 = #{ a24 = 1; b24 = 2. } } in
+  if not test then failwithf "test 436 failed";
+  let r = { a101 = 0.; b101 = 1L } in
   (* Paths of depth 1 *)
-  let next_r = { a101 = 100.; b101 = #{ a24 = 101; b24 = 102. } } in
+  let next_r = { a101 = 100.; b101 = 101L } in
   (* .b101 *)
-  let sub_eq = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) in
+  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
   let expected = { r with b101 = next_r.b101 } in
   Idx_mut.unsafe_set r ((.b101) : (t101, _) idx_mut) next_r.b101;
-  mark_test_run 455;
+  mark_test_run 437;
   let test = eq r expected in
-  if not test then failwithf "test 455 failed";
-  mark_test_run 456;
+  if not test then failwithf "test 437 failed";
+  mark_test_run 438;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b101) : (t101, _) idx_mut)) next_r.b101 in
-  if not test then failwithf "test 456 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a101 = 200.; b101 = #{ a24 = 201; b24 = 202. } } in
-  (* .b101.#a24 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b101 = #{ r.b101 with a24 = next_r.b101.#a24 } } in
-  Idx_mut.unsafe_set r ((.b101.#a24) : (t101, _) idx_mut) next_r.b101.#a24;
-  mark_test_run 457;
-  let test = eq r expected in
-  if not test then failwithf "test 457 failed";
-  mark_test_run 458;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b101.#a24) : (t101, _) idx_mut)) next_r.b101.#a24 in
-  if not test then failwithf "test 458 failed";
-  (* .b101.#b24 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b101 = #{ r.b101 with b24 = next_r.b101.#b24 } } in
-  Idx_mut.unsafe_set r ((.b101.#b24) : (t101, _) idx_mut) next_r.b101.#b24;
-  mark_test_run 459;
-  let test = eq r expected in
-  if not test then failwithf "test 459 failed";
-  mark_test_run 460;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b101.#b24) : (t101, _) idx_mut)) next_r.b101.#b24 in
-  if not test then failwithf "test 460 failed";
-  (************************************)
-  (*   t102 = { float; #{ float } }   *)
-  (************************************)
-  let eq = (fun { a102 = a1021; b102 = b1021 } { a102 = a1022; b102 = b1022 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1021 a1022 && (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) b1021 b1022) in
-  let r = { a102 = 0.; b102 = #{ a34 = 1. } } in
+  if not test then failwithf "test 438 failed";
+  (********************************)
+  (*   t102 = { float; int64# }   *)
+  (********************************)
+  let eq = (fun { a102 = a1021; b102 = b1021 } { a102 = a1022; b102 = b1022 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1021 a1022 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1021 b1022) in
+  let r = { a102 = 0.; b102 = #1L } in
   (* Paths of depth 1 *)
-  let next_r = { a102 = 100.; b102 = #{ a34 = 101. } } in
+  let next_r = { a102 = 100.; b102 = #101L } in
   (* .a102 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a102 = next_r.a102 } in
-  Idx_mut.unsafe_set r ((.a102) : (t102, _) idx_mut) (Float_u.of_float next_r.a102);
-  mark_test_run 461;
+  Idx_mut.unsafe_set r ((.a102) : (t102, _) idx_mut) next_r.a102;
+  mark_test_run 439;
   let test = eq r expected in
-  if not test then failwithf "test 461 failed";
-  mark_test_run 462;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a102) : (t102, _) idx_mut)) (Float_u.of_float next_r.a102) in
-  if not test then failwithf "test 462 failed";
-  let r = { a102 = 0.; b102 = #{ a34 = 1. } } in
+  if not test then failwithf "test 439 failed";
+  mark_test_run 440;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a102) : (t102, _) idx_mut)) next_r.a102 in
+  if not test then failwithf "test 440 failed";
+  let r = { a102 = 0.; b102 = #1L } in
   (* Paths of depth 1 *)
-  let next_r = { a102 = 100.; b102 = #{ a34 = 101. } } in
+  let next_r = { a102 = 100.; b102 = #101L } in
   (* .b102 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
   let expected = { r with b102 = next_r.b102 } in
-  Idx_mut.unsafe_set r ((.b102) : (t102, _) idx_mut) (Float_u.of_float next_r.b102.#a34);
-  mark_test_run 463;
+  Idx_mut.unsafe_set r ((.b102) : (t102, _) idx_mut) next_r.b102;
+  mark_test_run 441;
   let test = eq r expected in
-  if not test then failwithf "test 463 failed";
-  mark_test_run 464;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b102) : (t102, _) idx_mut)) (Float_u.of_float next_r.b102.#a34) in
-  if not test then failwithf "test 464 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a102 = 200.; b102 = #{ a34 = 201. } } in
-  (* .b102.#a34 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b102 = #{ r.b102 with a34 = next_r.b102.#a34 } } in
-  Idx_mut.unsafe_set r ((.b102.#a34) : (t102, _) idx_mut) (Float_u.of_float next_r.b102.#a34);
-  mark_test_run 465;
-  let test = eq r expected in
-  if not test then failwithf "test 465 failed";
-  mark_test_run 466;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b102.#a34) : (t102, _) idx_mut)) (Float_u.of_float next_r.b102.#a34) in
-  if not test then failwithf "test 466 failed";
-  (*****************************************)
-  (*   t103 = { float; #{ float; int } }   *)
-  (*****************************************)
-  let eq = (fun { a103 = a1031; b103 = b1031 } { a103 = a1032; b103 = b1032 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1031 a1032 && (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) b1031 b1032) in
-  let r = { a103 = 0.; b103 = #{ a36 = 1.; b36 = 2 } } in
+  if not test then failwithf "test 441 failed";
+  mark_test_run 442;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b102) : (t102, _) idx_mut)) next_r.b102 in
+  if not test then failwithf "test 442 failed";
+  (********************************)
+  (*   t103 = { float; int32# }   *)
+  (********************************)
+  let eq = (fun { a103 = a1031; b103 = b1031 } { a103 = a1032; b103 = b1032 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1031 a1032 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1031 b1032) in
+  let r = { a103 = 0.; b103 = #1l } in
   (* Paths of depth 1 *)
-  let next_r = { a103 = 100.; b103 = #{ a36 = 101.; b36 = 102 } } in
+  let next_r = { a103 = 100.; b103 = #101l } in
   (* .a103 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a103 = next_r.a103 } in
   Idx_mut.unsafe_set r ((.a103) : (t103, _) idx_mut) next_r.a103;
-  mark_test_run 467;
+  mark_test_run 443;
   let test = eq r expected in
-  if not test then failwithf "test 467 failed";
-  mark_test_run 468;
+  if not test then failwithf "test 443 failed";
+  mark_test_run 444;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a103) : (t103, _) idx_mut)) next_r.a103 in
-  if not test then failwithf "test 468 failed";
-  let r = { a103 = 0.; b103 = #{ a36 = 1.; b36 = 2 } } in
+  if not test then failwithf "test 444 failed";
+  let r = { a103 = 0.; b103 = #1l } in
   (* Paths of depth 1 *)
-  let next_r = { a103 = 100.; b103 = #{ a36 = 101.; b36 = 102 } } in
+  let next_r = { a103 = 100.; b103 = #101l } in
   (* .b103 *)
-  let sub_eq = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) in
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
   let expected = { r with b103 = next_r.b103 } in
   Idx_mut.unsafe_set r ((.b103) : (t103, _) idx_mut) next_r.b103;
-  mark_test_run 469;
+  mark_test_run 445;
   let test = eq r expected in
-  if not test then failwithf "test 469 failed";
-  mark_test_run 470;
+  if not test then failwithf "test 445 failed";
+  mark_test_run 446;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b103) : (t103, _) idx_mut)) next_r.b103 in
-  if not test then failwithf "test 470 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a103 = 200.; b103 = #{ a36 = 201.; b36 = 202 } } in
-  (* .b103.#a36 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b103 = #{ r.b103 with a36 = next_r.b103.#a36 } } in
-  Idx_mut.unsafe_set r ((.b103.#a36) : (t103, _) idx_mut) next_r.b103.#a36;
-  mark_test_run 471;
-  let test = eq r expected in
-  if not test then failwithf "test 471 failed";
-  mark_test_run 472;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b103.#a36) : (t103, _) idx_mut)) next_r.b103.#a36 in
-  if not test then failwithf "test 472 failed";
-  (* .b103.#b36 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b103 = #{ r.b103 with b36 = next_r.b103.#b36 } } in
-  Idx_mut.unsafe_set r ((.b103.#b36) : (t103, _) idx_mut) next_r.b103.#b36;
-  mark_test_run 473;
-  let test = eq r expected in
-  if not test then failwithf "test 473 failed";
-  mark_test_run 474;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b103.#b36) : (t103, _) idx_mut)) next_r.b103.#b36 in
-  if not test then failwithf "test 474 failed";
-  (*******************************************)
-  (*   t104 = { float; #{ float; float } }   *)
-  (*******************************************)
-  let eq = (fun { a104 = a1041; b104 = b1041 } { a104 = a1042; b104 = b1042 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1041 a1042 && (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) b1041 b1042) in
-  let r = { a104 = 0.; b104 = #{ a38 = 1.; b38 = 2. } } in
+  if not test then failwithf "test 446 failed";
+  (************************************)
+  (*   t104 = { float; nativeint# }   *)
+  (************************************)
+  let eq = (fun { a104 = a1041; b104 = b1041 } { a104 = a1042; b104 = b1042 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1041 a1042 && (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) b1041 b1042) in
+  let r = { a104 = 0.; b104 = #1n } in
   (* Paths of depth 1 *)
-  let next_r = { a104 = 100.; b104 = #{ a38 = 101.; b38 = 102. } } in
+  let next_r = { a104 = 100.; b104 = #101n } in
   (* .a104 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
   let expected = { r with a104 = next_r.a104 } in
   Idx_mut.unsafe_set r ((.a104) : (t104, _) idx_mut) next_r.a104;
-  mark_test_run 475;
+  mark_test_run 447;
   let test = eq r expected in
-  if not test then failwithf "test 475 failed";
-  mark_test_run 476;
+  if not test then failwithf "test 447 failed";
+  mark_test_run 448;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a104) : (t104, _) idx_mut)) next_r.a104 in
-  if not test then failwithf "test 476 failed";
-  let r = { a104 = 0.; b104 = #{ a38 = 1.; b38 = 2. } } in
+  if not test then failwithf "test 448 failed";
+  let r = { a104 = 0.; b104 = #1n } in
   (* Paths of depth 1 *)
-  let next_r = { a104 = 100.; b104 = #{ a38 = 101.; b38 = 102. } } in
+  let next_r = { a104 = 100.; b104 = #101n } in
   (* .b104 *)
-  let sub_eq = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) in
+  let sub_eq = (fun a b -> Nativeint_u.(equal (add #0n a) (add #0n b))) in
   let expected = { r with b104 = next_r.b104 } in
   Idx_mut.unsafe_set r ((.b104) : (t104, _) idx_mut) next_r.b104;
-  mark_test_run 477;
+  mark_test_run 449;
   let test = eq r expected in
-  if not test then failwithf "test 477 failed";
-  mark_test_run 478;
+  if not test then failwithf "test 449 failed";
+  mark_test_run 450;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b104) : (t104, _) idx_mut)) next_r.b104 in
-  if not test then failwithf "test 478 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a104 = 200.; b104 = #{ a38 = 201.; b38 = 202. } } in
-  (* .b104.#a38 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b104 = #{ r.b104 with a38 = next_r.b104.#a38 } } in
-  Idx_mut.unsafe_set r ((.b104.#a38) : (t104, _) idx_mut) next_r.b104.#a38;
-  mark_test_run 479;
-  let test = eq r expected in
-  if not test then failwithf "test 479 failed";
-  mark_test_run 480;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b104.#a38) : (t104, _) idx_mut)) next_r.b104.#a38 in
-  if not test then failwithf "test 480 failed";
-  (* .b104.#b38 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b104 = #{ r.b104 with b38 = next_r.b104.#b38 } } in
-  Idx_mut.unsafe_set r ((.b104.#b38) : (t104, _) idx_mut) next_r.b104.#b38;
-  mark_test_run 481;
-  let test = eq r expected in
-  if not test then failwithf "test 481 failed";
-  mark_test_run 482;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b104.#b38) : (t104, _) idx_mut)) next_r.b104.#b38 in
-  if not test then failwithf "test 482 failed";
-  (********************************************)
-  (*   t106 = { float; #{ float; float# } }   *)
-  (********************************************)
-  let eq = (fun { a106 = a1061; b106 = b1061 } { a106 = a1062; b106 = b1062 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1061 a1062 && (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) b1061 b1062) in
-  let r = { a106 = 0.; b106 = #{ a105 = 1.; b105 = #2. } } in
+  if not test then failwithf "test 450 failed";
+  (********************************)
+  (*   t105 = { float; unit_u }   *)
+  (********************************)
+  let eq = (fun { a105 = a1051; b105 = b1051 } { a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun _ _ -> true) b1051 b1052) in
+  let r = { a105 = 0.; b105 = (unbox_unit ()) } in
   (* Paths of depth 1 *)
-  let next_r = { a106 = 100.; b106 = #{ a105 = 101.; b105 = #102. } } in
+  let next_r = { a105 = 100.; b105 = (unbox_unit ()) } in
+  (* .a105 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a105 = next_r.a105 } in
+  Idx_mut.unsafe_set r ((.a105) : (t105, _) idx_mut) next_r.a105;
+  mark_test_run 451;
+  let test = eq r expected in
+  if not test then failwithf "test 451 failed";
+  mark_test_run 452;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a105) : (t105, _) idx_mut)) next_r.a105 in
+  if not test then failwithf "test 452 failed";
+  let r = { a105 = 0.; b105 = (unbox_unit ()) } in
+  (* Paths of depth 1 *)
+  let next_r = { a105 = 100.; b105 = (unbox_unit ()) } in
+  (* .b105 *)
+  let sub_eq = (fun _ _ -> true) in
+  let expected = { r with b105 = next_r.b105 } in
+  Idx_mut.unsafe_set r ((.b105) : (t105, _) idx_mut) next_r.b105;
+  mark_test_run 453;
+  let test = eq r expected in
+  if not test then failwithf "test 453 failed";
+  mark_test_run 454;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b105) : (t105, _) idx_mut)) next_r.b105 in
+  if not test then failwithf "test 454 failed";
+  (*******************************)
+  (*   t106 = { float; float }   *)
+  (*******************************)
+  let eq = (fun { a106 = a1061; b106 = b1061 } { a106 = a1062; b106 = b1062 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1061 a1062 && (fun a b -> Float.equal (globalize a) (globalize b)) b1061 b1062) in
+  let r = { a106 = 0.; b106 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a106 = 100.; b106 = 101. } in
   (* .a106 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a106 = next_r.a106 } in
-  Idx_mut.unsafe_set r ((.a106) : (t106, _) idx_mut) next_r.a106;
-  mark_test_run 483;
-  let test = eq r expected in
-  if not test then failwithf "test 483 failed";
-  mark_test_run 484;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a106) : (t106, _) idx_mut)) next_r.a106 in
-  if not test then failwithf "test 484 failed";
-  let r = { a106 = 0.; b106 = #{ a105 = 1.; b105 = #2. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a106 = 100.; b106 = #{ a105 = 101.; b105 = #102. } } in
-  (* .b106 *)
-  let sub_eq = (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) in
-  let expected = { r with b106 = next_r.b106 } in
-  Idx_mut.unsafe_set r ((.b106) : (t106, _) idx_mut) next_r.b106;
-  mark_test_run 485;
-  let test = eq r expected in
-  if not test then failwithf "test 485 failed";
-  mark_test_run 486;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b106) : (t106, _) idx_mut)) next_r.b106 in
-  if not test then failwithf "test 486 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a106 = 200.; b106 = #{ a105 = 201.; b105 = #202. } } in
-  (* .b106.#a105 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b106 = #{ r.b106 with a105 = next_r.b106.#a105 } } in
-  Idx_mut.unsafe_set r ((.b106.#a105) : (t106, _) idx_mut) next_r.b106.#a105;
-  mark_test_run 487;
-  let test = eq r expected in
-  if not test then failwithf "test 487 failed";
-  mark_test_run 488;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b106.#a105) : (t106, _) idx_mut)) next_r.b106.#a105 in
-  if not test then failwithf "test 488 failed";
-  (* .b106.#b105 *)
+  (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b106 = #{ r.b106 with b105 = next_r.b106.#b105 } } in
-  Idx_mut.unsafe_set r ((.b106.#b105) : (t106, _) idx_mut) next_r.b106.#b105;
-  mark_test_run 489;
+  let expected = { r with a106 = next_r.a106 } in
+  Idx_mut.unsafe_set r ((.a106) : (t106, _) idx_mut) (Float_u.of_float next_r.a106);
+  mark_test_run 455;
   let test = eq r expected in
-  if not test then failwithf "test 489 failed";
-  mark_test_run 490;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b106.#b105) : (t106, _) idx_mut)) next_r.b106.#b105 in
-  if not test then failwithf "test 490 failed";
-  (*************************************)
-  (*   t108 = { float; #{ float# } }   *)
-  (*************************************)
-  let eq = (fun { a108 = a1081; b108 = b1081 } { a108 = a1082; b108 = b1082 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1081 a1082 && (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) b1081 b1082) in
-  let r = { a108 = 0.; b108 = #{ a107 = #1. } } in
+  if not test then failwithf "test 455 failed";
+  mark_test_run 456;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a106) : (t106, _) idx_mut)) (Float_u.of_float next_r.a106) in
+  if not test then failwithf "test 456 failed";
+  let r = { a106 = 0.; b106 = 1. } in
   (* Paths of depth 1 *)
-  let next_r = { a108 = 100.; b108 = #{ a107 = #101. } } in
+  let next_r = { a106 = 100.; b106 = 101. } in
+  (* .b106 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b106 = next_r.b106 } in
+  Idx_mut.unsafe_set r ((.b106) : (t106, _) idx_mut) (Float_u.of_float next_r.b106);
+  mark_test_run 457;
+  let test = eq r expected in
+  if not test then failwithf "test 457 failed";
+  mark_test_run 458;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b106) : (t106, _) idx_mut)) (Float_u.of_float next_r.b106) in
+  if not test then failwithf "test 458 failed";
+  (************************************)
+  (*   t107 = { float; float; int }   *)
+  (************************************)
+  let eq = (fun { a107 = a1071; b107 = b1071; c107 = c1071 } { a107 = a1072; b107 = b1072; c107 = c1072 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1071 a1072 && (fun a b -> Float.equal (globalize a) (globalize b)) b1071 b1072 && (fun a b -> Int.equal a b) c1071 c1072) in
+  let r = { a107 = 0.; b107 = 1.; c107 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a107 = 100.; b107 = 101.; c107 = 102 } in
+  (* .a107 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a107 = next_r.a107 } in
+  Idx_mut.unsafe_set r ((.a107) : (t107, _) idx_mut) next_r.a107;
+  mark_test_run 459;
+  let test = eq r expected in
+  if not test then failwithf "test 459 failed";
+  mark_test_run 460;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a107) : (t107, _) idx_mut)) next_r.a107 in
+  if not test then failwithf "test 460 failed";
+  let r = { a107 = 0.; b107 = 1.; c107 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a107 = 100.; b107 = 101.; c107 = 102 } in
+  (* .b107 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b107 = next_r.b107 } in
+  Idx_mut.unsafe_set r ((.b107) : (t107, _) idx_mut) next_r.b107;
+  mark_test_run 461;
+  let test = eq r expected in
+  if not test then failwithf "test 461 failed";
+  mark_test_run 462;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b107) : (t107, _) idx_mut)) next_r.b107 in
+  if not test then failwithf "test 462 failed";
+  let r = { a107 = 0.; b107 = 1.; c107 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a107 = 100.; b107 = 101.; c107 = 102 } in
+  (* .c107 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with c107 = next_r.c107 } in
+  Idx_mut.unsafe_set r ((.c107) : (t107, _) idx_mut) next_r.c107;
+  mark_test_run 463;
+  let test = eq r expected in
+  if not test then failwithf "test 463 failed";
+  mark_test_run 464;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c107) : (t107, _) idx_mut)) next_r.c107 in
+  if not test then failwithf "test 464 failed";
+  (**************************************)
+  (*   t108 = { float; float; float }   *)
+  (**************************************)
+  let eq = (fun { a108 = a1081; b108 = b1081; c108 = c1081 } { a108 = a1082; b108 = b1082; c108 = c1082 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1081 a1082 && (fun a b -> Float.equal (globalize a) (globalize b)) b1081 b1082 && (fun a b -> Float.equal (globalize a) (globalize b)) c1081 c1082) in
+  let r = { a108 = 0.; b108 = 1.; c108 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a108 = 100.; b108 = 101.; c108 = 102. } in
   (* .a108 *)
   (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
   let expected = { r with a108 = next_r.a108 } in
   Idx_mut.unsafe_set r ((.a108) : (t108, _) idx_mut) (Float_u.of_float next_r.a108);
+  mark_test_run 465;
+  let test = eq r expected in
+  if not test then failwithf "test 465 failed";
+  mark_test_run 466;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a108) : (t108, _) idx_mut)) (Float_u.of_float next_r.a108) in
+  if not test then failwithf "test 466 failed";
+  let r = { a108 = 0.; b108 = 1.; c108 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a108 = 100.; b108 = 101.; c108 = 102. } in
+  (* .b108 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b108 = next_r.b108 } in
+  Idx_mut.unsafe_set r ((.b108) : (t108, _) idx_mut) (Float_u.of_float next_r.b108);
+  mark_test_run 467;
+  let test = eq r expected in
+  if not test then failwithf "test 467 failed";
+  mark_test_run 468;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b108) : (t108, _) idx_mut)) (Float_u.of_float next_r.b108) in
+  if not test then failwithf "test 468 failed";
+  let r = { a108 = 0.; b108 = 1.; c108 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a108 = 100.; b108 = 101.; c108 = 102. } in
+  (* .c108 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with c108 = next_r.c108 } in
+  Idx_mut.unsafe_set r ((.c108) : (t108, _) idx_mut) (Float_u.of_float next_r.c108);
+  mark_test_run 469;
+  let test = eq r expected in
+  if not test then failwithf "test 469 failed";
+  mark_test_run 470;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c108) : (t108, _) idx_mut)) (Float_u.of_float next_r.c108) in
+  if not test then failwithf "test 470 failed";
+  (***************************************)
+  (*   t109 = { float; float; float# }   *)
+  (***************************************)
+  let eq = (fun { a109 = a1091; b109 = b1091; c109 = c1091 } { a109 = a1092; b109 = b1092; c109 = c1092 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) c1091 c1092) in
+  let r = { a109 = 0.; b109 = 1.; c109 = #2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a109 = 100.; b109 = 101.; c109 = #102. } in
+  (* .a109 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a109 = next_r.a109 } in
+  Idx_mut.unsafe_set r ((.a109) : (t109, _) idx_mut) (Float_u.of_float next_r.a109);
+  mark_test_run 471;
+  let test = eq r expected in
+  if not test then failwithf "test 471 failed";
+  mark_test_run 472;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a109) : (t109, _) idx_mut)) (Float_u.of_float next_r.a109) in
+  if not test then failwithf "test 472 failed";
+  let r = { a109 = 0.; b109 = 1.; c109 = #2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a109 = 100.; b109 = 101.; c109 = #102. } in
+  (* .b109 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b109 = next_r.b109 } in
+  Idx_mut.unsafe_set r ((.b109) : (t109, _) idx_mut) (Float_u.of_float next_r.b109);
+  mark_test_run 473;
+  let test = eq r expected in
+  if not test then failwithf "test 473 failed";
+  mark_test_run 474;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b109) : (t109, _) idx_mut)) (Float_u.of_float next_r.b109) in
+  if not test then failwithf "test 474 failed";
+  let r = { a109 = 0.; b109 = 1.; c109 = #2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a109 = 100.; b109 = 101.; c109 = #102. } in
+  (* .c109 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with c109 = next_r.c109 } in
+  Idx_mut.unsafe_set r ((.c109) : (t109, _) idx_mut) next_r.c109;
+  mark_test_run 475;
+  let test = eq r expected in
+  if not test then failwithf "test 475 failed";
+  mark_test_run 476;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c109) : (t109, _) idx_mut)) next_r.c109 in
+  if not test then failwithf "test 476 failed";
+  (********************************)
+  (*   t110 = { float; float# }   *)
+  (********************************)
+  let eq = (fun { a110 = a1101; b110 = b1101 } { a110 = a1102; b110 = b1102 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1101 a1102 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1101 b1102) in
+  let r = { a110 = 0.; b110 = #1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a110 = 100.; b110 = #101. } in
+  (* .a110 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a110 = next_r.a110 } in
+  Idx_mut.unsafe_set r ((.a110) : (t110, _) idx_mut) (Float_u.of_float next_r.a110);
+  mark_test_run 477;
+  let test = eq r expected in
+  if not test then failwithf "test 477 failed";
+  mark_test_run 478;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a110) : (t110, _) idx_mut)) (Float_u.of_float next_r.a110) in
+  if not test then failwithf "test 478 failed";
+  let r = { a110 = 0.; b110 = #1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a110 = 100.; b110 = #101. } in
+  (* .b110 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b110 = next_r.b110 } in
+  Idx_mut.unsafe_set r ((.b110) : (t110, _) idx_mut) next_r.b110;
+  mark_test_run 479;
+  let test = eq r expected in
+  if not test then failwithf "test 479 failed";
+  mark_test_run 480;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b110) : (t110, _) idx_mut)) next_r.b110 in
+  if not test then failwithf "test 480 failed";
+  (***************************************)
+  (*   t111 = { float; float#; float }   *)
+  (***************************************)
+  let eq = (fun { a111 = a1111; b111 = b1111; c111 = c1111 } { a111 = a1112; b111 = b1112; c111 = c1112 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112 && (fun a b -> Float.equal (globalize a) (globalize b)) c1111 c1112) in
+  let r = { a111 = 0.; b111 = #1.; c111 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a111 = 100.; b111 = #101.; c111 = 102. } in
+  (* .a111 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a111 = next_r.a111 } in
+  Idx_mut.unsafe_set r ((.a111) : (t111, _) idx_mut) (Float_u.of_float next_r.a111);
+  mark_test_run 481;
+  let test = eq r expected in
+  if not test then failwithf "test 481 failed";
+  mark_test_run 482;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a111) : (t111, _) idx_mut)) (Float_u.of_float next_r.a111) in
+  if not test then failwithf "test 482 failed";
+  let r = { a111 = 0.; b111 = #1.; c111 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a111 = 100.; b111 = #101.; c111 = 102. } in
+  (* .b111 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b111 = next_r.b111 } in
+  Idx_mut.unsafe_set r ((.b111) : (t111, _) idx_mut) next_r.b111;
+  mark_test_run 483;
+  let test = eq r expected in
+  if not test then failwithf "test 483 failed";
+  mark_test_run 484;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b111) : (t111, _) idx_mut)) next_r.b111 in
+  if not test then failwithf "test 484 failed";
+  let r = { a111 = 0.; b111 = #1.; c111 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a111 = 100.; b111 = #101.; c111 = 102. } in
+  (* .c111 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with c111 = next_r.c111 } in
+  Idx_mut.unsafe_set r ((.c111) : (t111, _) idx_mut) (Float_u.of_float next_r.c111);
+  mark_test_run 485;
+  let test = eq r expected in
+  if not test then failwithf "test 485 failed";
+  mark_test_run 486;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c111) : (t111, _) idx_mut)) (Float_u.of_float next_r.c111) in
+  if not test then failwithf "test 486 failed";
+  (****************************************)
+  (*   t112 = { float; float#; float# }   *)
+  (****************************************)
+  let eq = (fun { a112 = a1121; b112 = b1121; c112 = c1121 } { a112 = a1122; b112 = b1122; c112 = c1122 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1121 a1122 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1121 b1122 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) c1121 c1122) in
+  let r = { a112 = 0.; b112 = #1.; c112 = #2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a112 = 100.; b112 = #101.; c112 = #102. } in
+  (* .a112 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a112 = next_r.a112 } in
+  Idx_mut.unsafe_set r ((.a112) : (t112, _) idx_mut) (Float_u.of_float next_r.a112);
+  mark_test_run 487;
+  let test = eq r expected in
+  if not test then failwithf "test 487 failed";
+  mark_test_run 488;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a112) : (t112, _) idx_mut)) (Float_u.of_float next_r.a112) in
+  if not test then failwithf "test 488 failed";
+  let r = { a112 = 0.; b112 = #1.; c112 = #2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a112 = 100.; b112 = #101.; c112 = #102. } in
+  (* .b112 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b112 = next_r.b112 } in
+  Idx_mut.unsafe_set r ((.b112) : (t112, _) idx_mut) next_r.b112;
+  mark_test_run 489;
+  let test = eq r expected in
+  if not test then failwithf "test 489 failed";
+  mark_test_run 490;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b112) : (t112, _) idx_mut)) next_r.b112 in
+  if not test then failwithf "test 490 failed";
+  let r = { a112 = 0.; b112 = #1.; c112 = #2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a112 = 100.; b112 = #101.; c112 = #102. } in
+  (* .c112 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with c112 = next_r.c112 } in
+  Idx_mut.unsafe_set r ((.c112) : (t112, _) idx_mut) next_r.c112;
   mark_test_run 491;
   let test = eq r expected in
   if not test then failwithf "test 491 failed";
   mark_test_run 492;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a108) : (t108, _) idx_mut)) (Float_u.of_float next_r.a108) in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c112) : (t112, _) idx_mut)) next_r.c112 in
   if not test then failwithf "test 492 failed";
-  let r = { a108 = 0.; b108 = #{ a107 = #1. } } in
+  (**********************************)
+  (*   t113 = { float; #{ int } }   *)
+  (**********************************)
+  let eq = (fun { a113 = a1131; b113 = b1131 } { a113 = a1132; b113 = b1132 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1131 a1132 && (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int.equal a b) a191 a192) b1131 b1132) in
+  let r = { a113 = 0.; b113 = #{ a19 = 1 } } in
   (* Paths of depth 1 *)
-  let next_r = { a108 = 100.; b108 = #{ a107 = #101. } } in
-  (* .b108 *)
-  let sub_eq = (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) in
-  let expected = { r with b108 = next_r.b108 } in
-  Idx_mut.unsafe_set r ((.b108) : (t108, _) idx_mut) next_r.b108;
+  let next_r = { a113 = 100.; b113 = #{ a19 = 101 } } in
+  (* .a113 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a113 = next_r.a113 } in
+  Idx_mut.unsafe_set r ((.a113) : (t113, _) idx_mut) next_r.a113;
   mark_test_run 493;
   let test = eq r expected in
   if not test then failwithf "test 493 failed";
   mark_test_run 494;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b108) : (t108, _) idx_mut)) next_r.b108 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a113) : (t113, _) idx_mut)) next_r.a113 in
   if not test then failwithf "test 494 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a108 = 200.; b108 = #{ a107 = #201. } } in
-  (* .b108.#a107 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b108 = #{ r.b108 with a107 = next_r.b108.#a107 } } in
-  Idx_mut.unsafe_set r ((.b108.#a107) : (t108, _) idx_mut) next_r.b108.#a107;
+  let r = { a113 = 0.; b113 = #{ a19 = 1 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a113 = 100.; b113 = #{ a19 = 101 } } in
+  (* .b113 *)
+  let sub_eq = (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int.equal a b) a191 a192) in
+  let expected = { r with b113 = next_r.b113 } in
+  Idx_mut.unsafe_set r ((.b113) : (t113, _) idx_mut) next_r.b113;
   mark_test_run 495;
   let test = eq r expected in
   if not test then failwithf "test 495 failed";
   mark_test_run 496;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b108.#a107) : (t108, _) idx_mut)) next_r.b108.#a107 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b113) : (t113, _) idx_mut)) next_r.b113 in
   if not test then failwithf "test 496 failed";
-  (********************************************)
-  (*   t110 = { float; #{ float#; float } }   *)
-  (********************************************)
-  let eq = (fun { a110 = a1101; b110 = b1101 } { a110 = a1102; b110 = b1102 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1101 a1102 && (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) b1101 b1102) in
-  let r = { a110 = 0.; b110 = #{ a109 = #1.; b109 = 2. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a110 = 100.; b110 = #{ a109 = #101.; b109 = 102. } } in
-  (* .a110 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a110 = next_r.a110 } in
-  Idx_mut.unsafe_set r ((.a110) : (t110, _) idx_mut) next_r.a110;
+  (* Paths of depth 2 *)
+  let next_r = { a113 = 200.; b113 = #{ a19 = 201 } } in
+  (* .b113.#a19 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b113 = #{ r.b113 with a19 = next_r.b113.#a19 } } in
+  Idx_mut.unsafe_set r ((.b113.#a19) : (t113, _) idx_mut) next_r.b113.#a19;
   mark_test_run 497;
   let test = eq r expected in
   if not test then failwithf "test 497 failed";
   mark_test_run 498;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a110) : (t110, _) idx_mut)) next_r.a110 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b113.#a19) : (t113, _) idx_mut)) next_r.b113.#a19 in
   if not test then failwithf "test 498 failed";
-  let r = { a110 = 0.; b110 = #{ a109 = #1.; b109 = 2. } } in
+  (***************************************)
+  (*   t114 = { float; #{ int; int } }   *)
+  (***************************************)
+  let eq = (fun { a114 = a1141; b114 = b1141 } { a114 = a1142; b114 = b1142 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1141 a1142 && (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun a b -> Int.equal a b) b211 b212) b1141 b1142) in
+  let r = { a114 = 0.; b114 = #{ a21 = 1; b21 = 2 } } in
   (* Paths of depth 1 *)
-  let next_r = { a110 = 100.; b110 = #{ a109 = #101.; b109 = 102. } } in
-  (* .b110 *)
-  let sub_eq = (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) in
-  let expected = { r with b110 = next_r.b110 } in
-  Idx_mut.unsafe_set r ((.b110) : (t110, _) idx_mut) next_r.b110;
+  let next_r = { a114 = 100.; b114 = #{ a21 = 101; b21 = 102 } } in
+  (* .a114 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a114 = next_r.a114 } in
+  Idx_mut.unsafe_set r ((.a114) : (t114, _) idx_mut) next_r.a114;
   mark_test_run 499;
   let test = eq r expected in
   if not test then failwithf "test 499 failed";
   mark_test_run 500;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b110) : (t110, _) idx_mut)) next_r.b110 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a114) : (t114, _) idx_mut)) next_r.a114 in
   if not test then failwithf "test 500 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a110 = 200.; b110 = #{ a109 = #201.; b109 = 202. } } in
-  (* .b110.#a109 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b110 = #{ r.b110 with a109 = next_r.b110.#a109 } } in
-  Idx_mut.unsafe_set r ((.b110.#a109) : (t110, _) idx_mut) next_r.b110.#a109;
+  let r = { a114 = 0.; b114 = #{ a21 = 1; b21 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a114 = 100.; b114 = #{ a21 = 101; b21 = 102 } } in
+  (* .b114 *)
+  let sub_eq = (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun a b -> Int.equal a b) b211 b212) in
+  let expected = { r with b114 = next_r.b114 } in
+  Idx_mut.unsafe_set r ((.b114) : (t114, _) idx_mut) next_r.b114;
   mark_test_run 501;
   let test = eq r expected in
   if not test then failwithf "test 501 failed";
   mark_test_run 502;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b110.#a109) : (t110, _) idx_mut)) next_r.b110.#a109 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b114) : (t114, _) idx_mut)) next_r.b114 in
   if not test then failwithf "test 502 failed";
-  (* .b110.#b109 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b110 = #{ r.b110 with b109 = next_r.b110.#b109 } } in
-  Idx_mut.unsafe_set r ((.b110.#b109) : (t110, _) idx_mut) next_r.b110.#b109;
+  (* Paths of depth 2 *)
+  let next_r = { a114 = 200.; b114 = #{ a21 = 201; b21 = 202 } } in
+  (* .b114.#a21 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b114 = #{ r.b114 with a21 = next_r.b114.#a21 } } in
+  Idx_mut.unsafe_set r ((.b114.#a21) : (t114, _) idx_mut) next_r.b114.#a21;
   mark_test_run 503;
   let test = eq r expected in
   if not test then failwithf "test 503 failed";
   mark_test_run 504;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b110.#b109) : (t110, _) idx_mut)) next_r.b110.#b109 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b114.#a21) : (t114, _) idx_mut)) next_r.b114.#a21 in
   if not test then failwithf "test 504 failed";
-  (*********************************************)
-  (*   t112 = { float; #{ float#; float# } }   *)
-  (*********************************************)
-  let eq = (fun { a112 = a1121; b112 = b1121 } { a112 = a1122; b112 = b1122 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1121 a1122 && (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) b1121 b1122) in
-  let r = { a112 = 0.; b112 = #{ a111 = #1.; b111 = #2. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a112 = 100.; b112 = #{ a111 = #101.; b111 = #102. } } in
-  (* .a112 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a112 = next_r.a112 } in
-  Idx_mut.unsafe_set r ((.a112) : (t112, _) idx_mut) next_r.a112;
+  (* .b114.#b21 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b114 = #{ r.b114 with b21 = next_r.b114.#b21 } } in
+  Idx_mut.unsafe_set r ((.b114.#b21) : (t114, _) idx_mut) next_r.b114.#b21;
   mark_test_run 505;
   let test = eq r expected in
   if not test then failwithf "test 505 failed";
   mark_test_run 506;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a112) : (t112, _) idx_mut)) next_r.a112 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b114.#b21) : (t114, _) idx_mut)) next_r.b114.#b21 in
   if not test then failwithf "test 506 failed";
-  let r = { a112 = 0.; b112 = #{ a111 = #1.; b111 = #2. } } in
+  (*****************************************)
+  (*   t115 = { float; #{ int; float } }   *)
+  (*****************************************)
+  let eq = (fun { a115 = a1151; b115 = b1151 } { a115 = a1152; b115 = b1152 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1151 a1152 && (fun #{ a25 = a251; b25 = b251 } #{ a25 = a252; b25 = b252 } -> (fun a b -> Int.equal a b) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) b1151 b1152) in
+  let r = { a115 = 0.; b115 = #{ a25 = 1; b25 = 2. } } in
   (* Paths of depth 1 *)
-  let next_r = { a112 = 100.; b112 = #{ a111 = #101.; b111 = #102. } } in
-  (* .b112 *)
-  let sub_eq = (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) in
-  let expected = { r with b112 = next_r.b112 } in
-  Idx_mut.unsafe_set r ((.b112) : (t112, _) idx_mut) next_r.b112;
+  let next_r = { a115 = 100.; b115 = #{ a25 = 101; b25 = 102. } } in
+  (* .a115 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a115 = next_r.a115 } in
+  Idx_mut.unsafe_set r ((.a115) : (t115, _) idx_mut) next_r.a115;
   mark_test_run 507;
   let test = eq r expected in
   if not test then failwithf "test 507 failed";
   mark_test_run 508;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b112) : (t112, _) idx_mut)) next_r.b112 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a115) : (t115, _) idx_mut)) next_r.a115 in
   if not test then failwithf "test 508 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a112 = 200.; b112 = #{ a111 = #201.; b111 = #202. } } in
-  (* .b112.#a111 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b112 = #{ r.b112 with a111 = next_r.b112.#a111 } } in
-  Idx_mut.unsafe_set r ((.b112.#a111) : (t112, _) idx_mut) next_r.b112.#a111;
+  let r = { a115 = 0.; b115 = #{ a25 = 1; b25 = 2. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a115 = 100.; b115 = #{ a25 = 101; b25 = 102. } } in
+  (* .b115 *)
+  let sub_eq = (fun #{ a25 = a251; b25 = b251 } #{ a25 = a252; b25 = b252 } -> (fun a b -> Int.equal a b) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) in
+  let expected = { r with b115 = next_r.b115 } in
+  Idx_mut.unsafe_set r ((.b115) : (t115, _) idx_mut) next_r.b115;
   mark_test_run 509;
   let test = eq r expected in
   if not test then failwithf "test 509 failed";
   mark_test_run 510;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b112.#a111) : (t112, _) idx_mut)) next_r.b112.#a111 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b115) : (t115, _) idx_mut)) next_r.b115 in
   if not test then failwithf "test 510 failed";
-  (* .b112.#b111 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b112 = #{ r.b112 with b111 = next_r.b112.#b111 } } in
-  Idx_mut.unsafe_set r ((.b112.#b111) : (t112, _) idx_mut) next_r.b112.#b111;
+  (* Paths of depth 2 *)
+  let next_r = { a115 = 200.; b115 = #{ a25 = 201; b25 = 202. } } in
+  (* .b115.#a25 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b115 = #{ r.b115 with a25 = next_r.b115.#a25 } } in
+  Idx_mut.unsafe_set r ((.b115.#a25) : (t115, _) idx_mut) next_r.b115.#a25;
   mark_test_run 511;
   let test = eq r expected in
   if not test then failwithf "test 511 failed";
   mark_test_run 512;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b112.#b111) : (t112, _) idx_mut)) next_r.b112.#b111 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b115.#a25) : (t115, _) idx_mut)) next_r.b115.#a25 in
   if not test then failwithf "test 512 failed";
-  (*************************)
-  (*   t113 = { float# }   *)
-  (*************************)
-  let eq = (fun { a113 = a1131 } { a113 = a1132 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1131 a1132) in
-  let r = { a113 = #0. } in
-  (* Paths of depth 1 *)
-  let next_r = { a113 = #100. } in
-  (* .a113 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a113 = next_r.a113 } in
-  Idx_mut.unsafe_set r ((.a113) : (t113, _) idx_mut) next_r.a113;
+  (* .b115.#b25 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b115 = #{ r.b115 with b25 = next_r.b115.#b25 } } in
+  Idx_mut.unsafe_set r ((.b115.#b25) : (t115, _) idx_mut) next_r.b115.#b25;
   mark_test_run 513;
   let test = eq r expected in
   if not test then failwithf "test 513 failed";
   mark_test_run 514;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a113) : (t113, _) idx_mut)) next_r.a113 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b115.#b25) : (t115, _) idx_mut)) next_r.b115.#b25 in
   if not test then failwithf "test 514 failed";
-  (********************************)
-  (*   t114 = { float#; float }   *)
-  (********************************)
-  let eq = (fun { a114 = a1141; b114 = b1141 } { a114 = a1142; b114 = b1142 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1141 a1142 && (fun a b -> Float.equal (globalize a) (globalize b)) b1141 b1142) in
-  let r = { a114 = #0.; b114 = 1. } in
+  (************************************)
+  (*   t116 = { float; #{ float } }   *)
+  (************************************)
+  let eq = (fun { a116 = a1161; b116 = b1161 } { a116 = a1162; b116 = b1162 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1161 a1162 && (fun #{ a35 = a351 } #{ a35 = a352 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a351 a352) b1161 b1162) in
+  let r = { a116 = 0.; b116 = #{ a35 = 1. } } in
   (* Paths of depth 1 *)
-  let next_r = { a114 = #100.; b114 = 101. } in
-  (* .a114 *)
+  let next_r = { a116 = 100.; b116 = #{ a35 = 101. } } in
+  (* .a116 *)
+  (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a114 = next_r.a114 } in
-  Idx_mut.unsafe_set r ((.a114) : (t114, _) idx_mut) next_r.a114;
+  let expected = { r with a116 = next_r.a116 } in
+  Idx_mut.unsafe_set r ((.a116) : (t116, _) idx_mut) (Float_u.of_float next_r.a116);
   mark_test_run 515;
   let test = eq r expected in
   if not test then failwithf "test 515 failed";
   mark_test_run 516;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a114) : (t114, _) idx_mut)) next_r.a114 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a116) : (t116, _) idx_mut)) (Float_u.of_float next_r.a116) in
   if not test then failwithf "test 516 failed";
-  let r = { a114 = #0.; b114 = 1. } in
+  let r = { a116 = 0.; b116 = #{ a35 = 1. } } in
   (* Paths of depth 1 *)
-  let next_r = { a114 = #100.; b114 = 101. } in
-  (* .b114 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b114 = next_r.b114 } in
-  Idx_mut.unsafe_set r ((.b114) : (t114, _) idx_mut) (Float_u.of_float next_r.b114);
-  mark_test_run 517;
-  let test = eq r expected in
-  if not test then failwithf "test 517 failed";
-  mark_test_run 518;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b114) : (t114, _) idx_mut)) (Float_u.of_float next_r.b114) in
-  if not test then failwithf "test 518 failed";
-  (***************************************)
-  (*   t115 = { float#; float; float }   *)
-  (***************************************)
-  let eq = (fun { a115 = a1151; b115 = b1151; c115 = c1151 } { a115 = a1152; b115 = b1152; c115 = c1152 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1151 a1152 && (fun a b -> Float.equal (globalize a) (globalize b)) b1151 b1152 && (fun a b -> Float.equal (globalize a) (globalize b)) c1151 c1152) in
-  let r = { a115 = #0.; b115 = 1.; c115 = 2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a115 = #100.; b115 = 101.; c115 = 102. } in
-  (* .a115 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a115 = next_r.a115 } in
-  Idx_mut.unsafe_set r ((.a115) : (t115, _) idx_mut) next_r.a115;
-  mark_test_run 519;
-  let test = eq r expected in
-  if not test then failwithf "test 519 failed";
-  mark_test_run 520;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a115) : (t115, _) idx_mut)) next_r.a115 in
-  if not test then failwithf "test 520 failed";
-  let r = { a115 = #0.; b115 = 1.; c115 = 2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a115 = #100.; b115 = 101.; c115 = 102. } in
-  (* .b115 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b115 = next_r.b115 } in
-  Idx_mut.unsafe_set r ((.b115) : (t115, _) idx_mut) (Float_u.of_float next_r.b115);
-  mark_test_run 521;
-  let test = eq r expected in
-  if not test then failwithf "test 521 failed";
-  mark_test_run 522;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b115) : (t115, _) idx_mut)) (Float_u.of_float next_r.b115) in
-  if not test then failwithf "test 522 failed";
-  let r = { a115 = #0.; b115 = 1.; c115 = 2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a115 = #100.; b115 = 101.; c115 = 102. } in
-  (* .c115 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with c115 = next_r.c115 } in
-  Idx_mut.unsafe_set r ((.c115) : (t115, _) idx_mut) (Float_u.of_float next_r.c115);
-  mark_test_run 523;
-  let test = eq r expected in
-  if not test then failwithf "test 523 failed";
-  mark_test_run 524;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c115) : (t115, _) idx_mut)) (Float_u.of_float next_r.c115) in
-  if not test then failwithf "test 524 failed";
-  (****************************************)
-  (*   t116 = { float#; float; float# }   *)
-  (****************************************)
-  let eq = (fun { a116 = a1161; b116 = b1161; c116 = c1161 } { a116 = a1162; b116 = b1162; c116 = c1162 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1161 a1162 && (fun a b -> Float.equal (globalize a) (globalize b)) b1161 b1162 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) c1161 c1162) in
-  let r = { a116 = #0.; b116 = 1.; c116 = #2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a116 = #100.; b116 = 101.; c116 = #102. } in
-  (* .a116 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a116 = next_r.a116 } in
-  Idx_mut.unsafe_set r ((.a116) : (t116, _) idx_mut) next_r.a116;
-  mark_test_run 525;
-  let test = eq r expected in
-  if not test then failwithf "test 525 failed";
-  mark_test_run 526;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a116) : (t116, _) idx_mut)) next_r.a116 in
-  if not test then failwithf "test 526 failed";
-  let r = { a116 = #0.; b116 = 1.; c116 = #2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a116 = #100.; b116 = 101.; c116 = #102. } in
+  let next_r = { a116 = 100.; b116 = #{ a35 = 101. } } in
   (* .b116 *)
   (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
   let expected = { r with b116 = next_r.b116 } in
-  Idx_mut.unsafe_set r ((.b116) : (t116, _) idx_mut) (Float_u.of_float next_r.b116);
+  Idx_mut.unsafe_set r ((.b116) : (t116, _) idx_mut) (Float_u.of_float next_r.b116.#a35);
+  mark_test_run 517;
+  let test = eq r expected in
+  if not test then failwithf "test 517 failed";
+  mark_test_run 518;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b116) : (t116, _) idx_mut)) (Float_u.of_float next_r.b116.#a35) in
+  if not test then failwithf "test 518 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a116 = 200.; b116 = #{ a35 = 201. } } in
+  (* .b116.#a35 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b116 = #{ r.b116 with a35 = next_r.b116.#a35 } } in
+  Idx_mut.unsafe_set r ((.b116.#a35) : (t116, _) idx_mut) (Float_u.of_float next_r.b116.#a35);
+  mark_test_run 519;
+  let test = eq r expected in
+  if not test then failwithf "test 519 failed";
+  mark_test_run 520;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b116.#a35) : (t116, _) idx_mut)) (Float_u.of_float next_r.b116.#a35) in
+  if not test then failwithf "test 520 failed";
+  (*****************************************)
+  (*   t117 = { float; #{ float; int } }   *)
+  (*****************************************)
+  let eq = (fun { a117 = a1171; b117 = b1171 } { a117 = a1172; b117 = b1172 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1171 a1172 && (fun #{ a37 = a371; b37 = b371 } #{ a37 = a372; b37 = b372 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a371 a372 && (fun a b -> Int.equal a b) b371 b372) b1171 b1172) in
+  let r = { a117 = 0.; b117 = #{ a37 = 1.; b37 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a117 = 100.; b117 = #{ a37 = 101.; b37 = 102 } } in
+  (* .a117 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a117 = next_r.a117 } in
+  Idx_mut.unsafe_set r ((.a117) : (t117, _) idx_mut) next_r.a117;
+  mark_test_run 521;
+  let test = eq r expected in
+  if not test then failwithf "test 521 failed";
+  mark_test_run 522;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a117) : (t117, _) idx_mut)) next_r.a117 in
+  if not test then failwithf "test 522 failed";
+  let r = { a117 = 0.; b117 = #{ a37 = 1.; b37 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a117 = 100.; b117 = #{ a37 = 101.; b37 = 102 } } in
+  (* .b117 *)
+  let sub_eq = (fun #{ a37 = a371; b37 = b371 } #{ a37 = a372; b37 = b372 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a371 a372 && (fun a b -> Int.equal a b) b371 b372) in
+  let expected = { r with b117 = next_r.b117 } in
+  Idx_mut.unsafe_set r ((.b117) : (t117, _) idx_mut) next_r.b117;
+  mark_test_run 523;
+  let test = eq r expected in
+  if not test then failwithf "test 523 failed";
+  mark_test_run 524;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b117) : (t117, _) idx_mut)) next_r.b117 in
+  if not test then failwithf "test 524 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a117 = 200.; b117 = #{ a37 = 201.; b37 = 202 } } in
+  (* .b117.#a37 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b117 = #{ r.b117 with a37 = next_r.b117.#a37 } } in
+  Idx_mut.unsafe_set r ((.b117.#a37) : (t117, _) idx_mut) next_r.b117.#a37;
+  mark_test_run 525;
+  let test = eq r expected in
+  if not test then failwithf "test 525 failed";
+  mark_test_run 526;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b117.#a37) : (t117, _) idx_mut)) next_r.b117.#a37 in
+  if not test then failwithf "test 526 failed";
+  (* .b117.#b37 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b117 = #{ r.b117 with b37 = next_r.b117.#b37 } } in
+  Idx_mut.unsafe_set r ((.b117.#b37) : (t117, _) idx_mut) next_r.b117.#b37;
   mark_test_run 527;
   let test = eq r expected in
   if not test then failwithf "test 527 failed";
   mark_test_run 528;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b116) : (t116, _) idx_mut)) (Float_u.of_float next_r.b116) in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b117.#b37) : (t117, _) idx_mut)) next_r.b117.#b37 in
   if not test then failwithf "test 528 failed";
-  let r = { a116 = #0.; b116 = 1.; c116 = #2. } in
+  (*******************************************)
+  (*   t118 = { float; #{ float; float } }   *)
+  (*******************************************)
+  let eq = (fun { a118 = a1181; b118 = b1181 } { a118 = a1182; b118 = b1182 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1181 a1182 && (fun #{ a39 = a391; b39 = b391 } #{ a39 = a392; b39 = b392 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Float.equal (globalize a) (globalize b)) b391 b392) b1181 b1182) in
+  let r = { a118 = 0.; b118 = #{ a39 = 1.; b39 = 2. } } in
   (* Paths of depth 1 *)
-  let next_r = { a116 = #100.; b116 = 101.; c116 = #102. } in
-  (* .c116 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with c116 = next_r.c116 } in
-  Idx_mut.unsafe_set r ((.c116) : (t116, _) idx_mut) next_r.c116;
+  let next_r = { a118 = 100.; b118 = #{ a39 = 101.; b39 = 102. } } in
+  (* .a118 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a118 = next_r.a118 } in
+  Idx_mut.unsafe_set r ((.a118) : (t118, _) idx_mut) next_r.a118;
   mark_test_run 529;
   let test = eq r expected in
   if not test then failwithf "test 529 failed";
   mark_test_run 530;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c116) : (t116, _) idx_mut)) next_r.c116 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a118) : (t118, _) idx_mut)) next_r.a118 in
   if not test then failwithf "test 530 failed";
-  (*********************************)
-  (*   t117 = { float#; float# }   *)
-  (*********************************)
-  let eq = (fun { a117 = a1171; b117 = b1171 } { a117 = a1172; b117 = b1172 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1171 a1172 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1171 b1172) in
-  let r = { a117 = #0.; b117 = #1. } in
+  let r = { a118 = 0.; b118 = #{ a39 = 1.; b39 = 2. } } in
   (* Paths of depth 1 *)
-  let next_r = { a117 = #100.; b117 = #101. } in
-  (* .a117 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a117 = next_r.a117 } in
-  Idx_mut.unsafe_set r ((.a117) : (t117, _) idx_mut) next_r.a117;
+  let next_r = { a118 = 100.; b118 = #{ a39 = 101.; b39 = 102. } } in
+  (* .b118 *)
+  let sub_eq = (fun #{ a39 = a391; b39 = b391 } #{ a39 = a392; b39 = b392 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Float.equal (globalize a) (globalize b)) b391 b392) in
+  let expected = { r with b118 = next_r.b118 } in
+  Idx_mut.unsafe_set r ((.b118) : (t118, _) idx_mut) next_r.b118;
   mark_test_run 531;
   let test = eq r expected in
   if not test then failwithf "test 531 failed";
   mark_test_run 532;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a117) : (t117, _) idx_mut)) next_r.a117 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b118) : (t118, _) idx_mut)) next_r.b118 in
   if not test then failwithf "test 532 failed";
-  let r = { a117 = #0.; b117 = #1. } in
-  (* Paths of depth 1 *)
-  let next_r = { a117 = #100.; b117 = #101. } in
-  (* .b117 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b117 = next_r.b117 } in
-  Idx_mut.unsafe_set r ((.b117) : (t117, _) idx_mut) next_r.b117;
+  (* Paths of depth 2 *)
+  let next_r = { a118 = 200.; b118 = #{ a39 = 201.; b39 = 202. } } in
+  (* .b118.#a39 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b118 = #{ r.b118 with a39 = next_r.b118.#a39 } } in
+  Idx_mut.unsafe_set r ((.b118.#a39) : (t118, _) idx_mut) next_r.b118.#a39;
   mark_test_run 533;
   let test = eq r expected in
   if not test then failwithf "test 533 failed";
   mark_test_run 534;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b117) : (t117, _) idx_mut)) next_r.b117 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b118.#a39) : (t118, _) idx_mut)) next_r.b118.#a39 in
   if not test then failwithf "test 534 failed";
-  (****************************************)
-  (*   t118 = { float#; float#; float }   *)
-  (****************************************)
-  let eq = (fun { a118 = a1181; b118 = b1181; c118 = c1181 } { a118 = a1182; b118 = b1182; c118 = c1182 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1181 a1182 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1181 b1182 && (fun a b -> Float.equal (globalize a) (globalize b)) c1181 c1182) in
-  let r = { a118 = #0.; b118 = #1.; c118 = 2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a118 = #100.; b118 = #101.; c118 = 102. } in
-  (* .a118 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a118 = next_r.a118 } in
-  Idx_mut.unsafe_set r ((.a118) : (t118, _) idx_mut) next_r.a118;
+  (* .b118.#b39 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b118 = #{ r.b118 with b39 = next_r.b118.#b39 } } in
+  Idx_mut.unsafe_set r ((.b118.#b39) : (t118, _) idx_mut) next_r.b118.#b39;
   mark_test_run 535;
   let test = eq r expected in
   if not test then failwithf "test 535 failed";
   mark_test_run 536;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a118) : (t118, _) idx_mut)) next_r.a118 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b118.#b39) : (t118, _) idx_mut)) next_r.b118.#b39 in
   if not test then failwithf "test 536 failed";
-  let r = { a118 = #0.; b118 = #1.; c118 = 2. } in
+  (********************************************)
+  (*   t120 = { float; #{ float; float# } }   *)
+  (********************************************)
+  let eq = (fun { a120 = a1201; b120 = b1201 } { a120 = a1202; b120 = b1202 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1201 a1202 && (fun #{ a119 = a1191; b119 = b1191 } #{ a119 = a1192; b119 = b1192 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1191 a1192 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1191 b1192) b1201 b1202) in
+  let r = { a120 = 0.; b120 = #{ a119 = 1.; b119 = #2. } } in
   (* Paths of depth 1 *)
-  let next_r = { a118 = #100.; b118 = #101.; c118 = 102. } in
-  (* .b118 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b118 = next_r.b118 } in
-  Idx_mut.unsafe_set r ((.b118) : (t118, _) idx_mut) next_r.b118;
+  let next_r = { a120 = 100.; b120 = #{ a119 = 101.; b119 = #102. } } in
+  (* .a120 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a120 = next_r.a120 } in
+  Idx_mut.unsafe_set r ((.a120) : (t120, _) idx_mut) next_r.a120;
   mark_test_run 537;
   let test = eq r expected in
   if not test then failwithf "test 537 failed";
   mark_test_run 538;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b118) : (t118, _) idx_mut)) next_r.b118 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a120) : (t120, _) idx_mut)) next_r.a120 in
   if not test then failwithf "test 538 failed";
-  let r = { a118 = #0.; b118 = #1.; c118 = 2. } in
+  let r = { a120 = 0.; b120 = #{ a119 = 1.; b119 = #2. } } in
   (* Paths of depth 1 *)
-  let next_r = { a118 = #100.; b118 = #101.; c118 = 102. } in
-  (* .c118 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with c118 = next_r.c118 } in
-  Idx_mut.unsafe_set r ((.c118) : (t118, _) idx_mut) (Float_u.of_float next_r.c118);
+  let next_r = { a120 = 100.; b120 = #{ a119 = 101.; b119 = #102. } } in
+  (* .b120 *)
+  let sub_eq = (fun #{ a119 = a1191; b119 = b1191 } #{ a119 = a1192; b119 = b1192 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1191 a1192 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1191 b1192) in
+  let expected = { r with b120 = next_r.b120 } in
+  Idx_mut.unsafe_set r ((.b120) : (t120, _) idx_mut) next_r.b120;
   mark_test_run 539;
   let test = eq r expected in
   if not test then failwithf "test 539 failed";
   mark_test_run 540;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c118) : (t118, _) idx_mut)) (Float_u.of_float next_r.c118) in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b120) : (t120, _) idx_mut)) next_r.b120 in
   if not test then failwithf "test 540 failed";
-  (*****************************************)
-  (*   t119 = { float#; float#; float# }   *)
-  (*****************************************)
-  let eq = (fun { a119 = a1191; b119 = b1191; c119 = c1191 } { a119 = a1192; b119 = b1192; c119 = c1192 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1191 a1192 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1191 b1192 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) c1191 c1192) in
-  let r = { a119 = #0.; b119 = #1.; c119 = #2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a119 = #100.; b119 = #101.; c119 = #102. } in
-  (* .a119 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a119 = next_r.a119 } in
-  Idx_mut.unsafe_set r ((.a119) : (t119, _) idx_mut) next_r.a119;
+  (* Paths of depth 2 *)
+  let next_r = { a120 = 200.; b120 = #{ a119 = 201.; b119 = #202. } } in
+  (* .b120.#a119 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b120 = #{ r.b120 with a119 = next_r.b120.#a119 } } in
+  Idx_mut.unsafe_set r ((.b120.#a119) : (t120, _) idx_mut) next_r.b120.#a119;
   mark_test_run 541;
   let test = eq r expected in
   if not test then failwithf "test 541 failed";
   mark_test_run 542;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a119) : (t119, _) idx_mut)) next_r.a119 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b120.#a119) : (t120, _) idx_mut)) next_r.b120.#a119 in
   if not test then failwithf "test 542 failed";
-  let r = { a119 = #0.; b119 = #1.; c119 = #2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a119 = #100.; b119 = #101.; c119 = #102. } in
-  (* .b119 *)
+  (* .b120.#b119 *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b119 = next_r.b119 } in
-  Idx_mut.unsafe_set r ((.b119) : (t119, _) idx_mut) next_r.b119;
+  let expected = { r with b120 = #{ r.b120 with b119 = next_r.b120.#b119 } } in
+  Idx_mut.unsafe_set r ((.b120.#b119) : (t120, _) idx_mut) next_r.b120.#b119;
   mark_test_run 543;
   let test = eq r expected in
   if not test then failwithf "test 543 failed";
   mark_test_run 544;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b119) : (t119, _) idx_mut)) next_r.b119 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b120.#b119) : (t120, _) idx_mut)) next_r.b120.#b119 in
   if not test then failwithf "test 544 failed";
-  let r = { a119 = #0.; b119 = #1.; c119 = #2. } in
+  (*************************************)
+  (*   t122 = { float; #{ float# } }   *)
+  (*************************************)
+  let eq = (fun { a122 = a1221; b122 = b1221 } { a122 = a1222; b122 = b1222 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1221 a1222 && (fun #{ a121 = a1211 } #{ a121 = a1212 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1211 a1212) b1221 b1222) in
+  let r = { a122 = 0.; b122 = #{ a121 = #1. } } in
   (* Paths of depth 1 *)
-  let next_r = { a119 = #100.; b119 = #101.; c119 = #102. } in
-  (* .c119 *)
+  let next_r = { a122 = 100.; b122 = #{ a121 = #101. } } in
+  (* .a122 *)
+  (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with c119 = next_r.c119 } in
-  Idx_mut.unsafe_set r ((.c119) : (t119, _) idx_mut) next_r.c119;
+  let expected = { r with a122 = next_r.a122 } in
+  Idx_mut.unsafe_set r ((.a122) : (t122, _) idx_mut) (Float_u.of_float next_r.a122);
   mark_test_run 545;
   let test = eq r expected in
   if not test then failwithf "test 545 failed";
   mark_test_run 546;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c119) : (t119, _) idx_mut)) next_r.c119 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a122) : (t122, _) idx_mut)) (Float_u.of_float next_r.a122) in
   if not test then failwithf "test 546 failed";
-  (*************************************)
-  (*   t120 = { float#; #{ float } }   *)
-  (*************************************)
-  let eq = (fun { a120 = a1201; b120 = b1201 } { a120 = a1202; b120 = b1202 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1201 a1202 && (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) b1201 b1202) in
-  let r = { a120 = #0.; b120 = #{ a34 = 1. } } in
+  let r = { a122 = 0.; b122 = #{ a121 = #1. } } in
   (* Paths of depth 1 *)
-  let next_r = { a120 = #100.; b120 = #{ a34 = 101. } } in
-  (* .a120 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a120 = next_r.a120 } in
-  Idx_mut.unsafe_set r ((.a120) : (t120, _) idx_mut) next_r.a120;
+  let next_r = { a122 = 100.; b122 = #{ a121 = #101. } } in
+  (* .b122 *)
+  let sub_eq = (fun #{ a121 = a1211 } #{ a121 = a1212 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1211 a1212) in
+  let expected = { r with b122 = next_r.b122 } in
+  Idx_mut.unsafe_set r ((.b122) : (t122, _) idx_mut) next_r.b122;
   mark_test_run 547;
   let test = eq r expected in
   if not test then failwithf "test 547 failed";
   mark_test_run 548;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a120) : (t120, _) idx_mut)) next_r.a120 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b122) : (t122, _) idx_mut)) next_r.b122 in
   if not test then failwithf "test 548 failed";
-  let r = { a120 = #0.; b120 = #{ a34 = 1. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a120 = #100.; b120 = #{ a34 = 101. } } in
-  (* .b120 *)
-  (* ff *)
+  (* Paths of depth 2 *)
+  let next_r = { a122 = 200.; b122 = #{ a121 = #201. } } in
+  (* .b122.#a121 *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b120 = next_r.b120 } in
-  Idx_mut.unsafe_set r ((.b120) : (t120, _) idx_mut) (Float_u.of_float next_r.b120.#a34);
+  let expected = { r with b122 = #{ r.b122 with a121 = next_r.b122.#a121 } } in
+  Idx_mut.unsafe_set r ((.b122.#a121) : (t122, _) idx_mut) next_r.b122.#a121;
   mark_test_run 549;
   let test = eq r expected in
   if not test then failwithf "test 549 failed";
   mark_test_run 550;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b120) : (t120, _) idx_mut)) (Float_u.of_float next_r.b120.#a34) in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b122.#a121) : (t122, _) idx_mut)) next_r.b122.#a121 in
   if not test then failwithf "test 550 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a120 = #200.; b120 = #{ a34 = 201. } } in
-  (* .b120.#a34 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b120 = #{ r.b120 with a34 = next_r.b120.#a34 } } in
-  Idx_mut.unsafe_set r ((.b120.#a34) : (t120, _) idx_mut) (Float_u.of_float next_r.b120.#a34);
+  (********************************************)
+  (*   t124 = { float; #{ float#; float } }   *)
+  (********************************************)
+  let eq = (fun { a124 = a1241; b124 = b1241 } { a124 = a1242; b124 = b1242 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1241 a1242 && (fun #{ a123 = a1231; b123 = b1231 } #{ a123 = a1232; b123 = b1232 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1231 a1232 && (fun a b -> Float.equal (globalize a) (globalize b)) b1231 b1232) b1241 b1242) in
+  let r = { a124 = 0.; b124 = #{ a123 = #1.; b123 = 2. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a124 = 100.; b124 = #{ a123 = #101.; b123 = 102. } } in
+  (* .a124 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a124 = next_r.a124 } in
+  Idx_mut.unsafe_set r ((.a124) : (t124, _) idx_mut) next_r.a124;
   mark_test_run 551;
   let test = eq r expected in
   if not test then failwithf "test 551 failed";
   mark_test_run 552;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b120.#a34) : (t120, _) idx_mut)) (Float_u.of_float next_r.b120.#a34) in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a124) : (t124, _) idx_mut)) next_r.a124 in
   if not test then failwithf "test 552 failed";
-  (********************************************)
-  (*   t121 = { float#; #{ float; float } }   *)
-  (********************************************)
-  let eq = (fun { a121 = a1211; b121 = b1211 } { a121 = a1212; b121 = b1212 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1211 a1212 && (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) b1211 b1212) in
-  let r = { a121 = #0.; b121 = #{ a38 = 1.; b38 = 2. } } in
+  let r = { a124 = 0.; b124 = #{ a123 = #1.; b123 = 2. } } in
   (* Paths of depth 1 *)
-  let next_r = { a121 = #100.; b121 = #{ a38 = 101.; b38 = 102. } } in
-  (* .a121 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a121 = next_r.a121 } in
-  Idx_mut.unsafe_set r ((.a121) : (t121, _) idx_mut) next_r.a121;
+  let next_r = { a124 = 100.; b124 = #{ a123 = #101.; b123 = 102. } } in
+  (* .b124 *)
+  let sub_eq = (fun #{ a123 = a1231; b123 = b1231 } #{ a123 = a1232; b123 = b1232 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1231 a1232 && (fun a b -> Float.equal (globalize a) (globalize b)) b1231 b1232) in
+  let expected = { r with b124 = next_r.b124 } in
+  Idx_mut.unsafe_set r ((.b124) : (t124, _) idx_mut) next_r.b124;
   mark_test_run 553;
   let test = eq r expected in
   if not test then failwithf "test 553 failed";
   mark_test_run 554;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a121) : (t121, _) idx_mut)) next_r.a121 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b124) : (t124, _) idx_mut)) next_r.b124 in
   if not test then failwithf "test 554 failed";
-  let r = { a121 = #0.; b121 = #{ a38 = 1.; b38 = 2. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a121 = #100.; b121 = #{ a38 = 101.; b38 = 102. } } in
-  (* .b121 *)
-  let sub_eq = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) in
-  let expected = { r with b121 = next_r.b121 } in
-  Idx_mut.unsafe_set r ((.b121) : (t121, _) idx_mut) next_r.b121;
+  (* Paths of depth 2 *)
+  let next_r = { a124 = 200.; b124 = #{ a123 = #201.; b123 = 202. } } in
+  (* .b124.#a123 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b124 = #{ r.b124 with a123 = next_r.b124.#a123 } } in
+  Idx_mut.unsafe_set r ((.b124.#a123) : (t124, _) idx_mut) next_r.b124.#a123;
   mark_test_run 555;
   let test = eq r expected in
   if not test then failwithf "test 555 failed";
   mark_test_run 556;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b121) : (t121, _) idx_mut)) next_r.b121 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b124.#a123) : (t124, _) idx_mut)) next_r.b124.#a123 in
   if not test then failwithf "test 556 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a121 = #200.; b121 = #{ a38 = 201.; b38 = 202. } } in
-  (* .b121.#a38 *)
+  (* .b124.#b123 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b121 = #{ r.b121 with a38 = next_r.b121.#a38 } } in
-  Idx_mut.unsafe_set r ((.b121.#a38) : (t121, _) idx_mut) next_r.b121.#a38;
+  let expected = { r with b124 = #{ r.b124 with b123 = next_r.b124.#b123 } } in
+  Idx_mut.unsafe_set r ((.b124.#b123) : (t124, _) idx_mut) next_r.b124.#b123;
   mark_test_run 557;
   let test = eq r expected in
   if not test then failwithf "test 557 failed";
   mark_test_run 558;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b121.#a38) : (t121, _) idx_mut)) next_r.b121.#a38 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b124.#b123) : (t124, _) idx_mut)) next_r.b124.#b123 in
   if not test then failwithf "test 558 failed";
-  (* .b121.#b38 *)
+  (*********************************************)
+  (*   t126 = { float; #{ float#; float# } }   *)
+  (*********************************************)
+  let eq = (fun { a126 = a1261; b126 = b1261 } { a126 = a1262; b126 = b1262 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1261 a1262 && (fun #{ a125 = a1251; b125 = b1251 } #{ a125 = a1252; b125 = b1252 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1251 a1252 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1251 b1252) b1261 b1262) in
+  let r = { a126 = 0.; b126 = #{ a125 = #1.; b125 = #2. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a126 = 100.; b126 = #{ a125 = #101.; b125 = #102. } } in
+  (* .a126 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b121 = #{ r.b121 with b38 = next_r.b121.#b38 } } in
-  Idx_mut.unsafe_set r ((.b121.#b38) : (t121, _) idx_mut) next_r.b121.#b38;
+  let expected = { r with a126 = next_r.a126 } in
+  Idx_mut.unsafe_set r ((.a126) : (t126, _) idx_mut) next_r.a126;
   mark_test_run 559;
   let test = eq r expected in
   if not test then failwithf "test 559 failed";
   mark_test_run 560;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b121.#b38) : (t121, _) idx_mut)) next_r.b121.#b38 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a126) : (t126, _) idx_mut)) next_r.a126 in
   if not test then failwithf "test 560 failed";
-  (*********************************************)
-  (*   t122 = { float#; #{ float; float# } }   *)
-  (*********************************************)
-  let eq = (fun { a122 = a1221; b122 = b1221 } { a122 = a1222; b122 = b1222 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1221 a1222 && (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) b1221 b1222) in
-  let r = { a122 = #0.; b122 = #{ a105 = 1.; b105 = #2. } } in
+  let r = { a126 = 0.; b126 = #{ a125 = #1.; b125 = #2. } } in
   (* Paths of depth 1 *)
-  let next_r = { a122 = #100.; b122 = #{ a105 = 101.; b105 = #102. } } in
-  (* .a122 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a122 = next_r.a122 } in
-  Idx_mut.unsafe_set r ((.a122) : (t122, _) idx_mut) next_r.a122;
+  let next_r = { a126 = 100.; b126 = #{ a125 = #101.; b125 = #102. } } in
+  (* .b126 *)
+  let sub_eq = (fun #{ a125 = a1251; b125 = b1251 } #{ a125 = a1252; b125 = b1252 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1251 a1252 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1251 b1252) in
+  let expected = { r with b126 = next_r.b126 } in
+  Idx_mut.unsafe_set r ((.b126) : (t126, _) idx_mut) next_r.b126;
   mark_test_run 561;
   let test = eq r expected in
   if not test then failwithf "test 561 failed";
   mark_test_run 562;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a122) : (t122, _) idx_mut)) next_r.a122 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b126) : (t126, _) idx_mut)) next_r.b126 in
   if not test then failwithf "test 562 failed";
-  let r = { a122 = #0.; b122 = #{ a105 = 1.; b105 = #2. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a122 = #100.; b122 = #{ a105 = 101.; b105 = #102. } } in
-  (* .b122 *)
-  let sub_eq = (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) in
-  let expected = { r with b122 = next_r.b122 } in
-  Idx_mut.unsafe_set r ((.b122) : (t122, _) idx_mut) next_r.b122;
+  (* Paths of depth 2 *)
+  let next_r = { a126 = 200.; b126 = #{ a125 = #201.; b125 = #202. } } in
+  (* .b126.#a125 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b126 = #{ r.b126 with a125 = next_r.b126.#a125 } } in
+  Idx_mut.unsafe_set r ((.b126.#a125) : (t126, _) idx_mut) next_r.b126.#a125;
   mark_test_run 563;
   let test = eq r expected in
   if not test then failwithf "test 563 failed";
   mark_test_run 564;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b122) : (t122, _) idx_mut)) next_r.b122 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b126.#a125) : (t126, _) idx_mut)) next_r.b126.#a125 in
   if not test then failwithf "test 564 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a122 = #200.; b122 = #{ a105 = 201.; b105 = #202. } } in
-  (* .b122.#a105 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b122 = #{ r.b122 with a105 = next_r.b122.#a105 } } in
-  Idx_mut.unsafe_set r ((.b122.#a105) : (t122, _) idx_mut) next_r.b122.#a105;
+  (* .b126.#b125 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b126 = #{ r.b126 with b125 = next_r.b126.#b125 } } in
+  Idx_mut.unsafe_set r ((.b126.#b125) : (t126, _) idx_mut) next_r.b126.#b125;
   mark_test_run 565;
   let test = eq r expected in
   if not test then failwithf "test 565 failed";
   mark_test_run 566;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b122.#a105) : (t122, _) idx_mut)) next_r.b122.#a105 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b126.#b125) : (t126, _) idx_mut)) next_r.b126.#b125 in
   if not test then failwithf "test 566 failed";
-  (* .b122.#b105 *)
+  (*************************)
+  (*   t127 = { float# }   *)
+  (*************************)
+  let eq = (fun { a127 = a1271 } { a127 = a1272 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1271 a1272) in
+  let r = { a127 = #0. } in
+  (* Paths of depth 1 *)
+  let next_r = { a127 = #100. } in
+  (* .a127 *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b122 = #{ r.b122 with b105 = next_r.b122.#b105 } } in
-  Idx_mut.unsafe_set r ((.b122.#b105) : (t122, _) idx_mut) next_r.b122.#b105;
+  let expected = { r with a127 = next_r.a127 } in
+  Idx_mut.unsafe_set r ((.a127) : (t127, _) idx_mut) next_r.a127;
   mark_test_run 567;
   let test = eq r expected in
   if not test then failwithf "test 567 failed";
   mark_test_run 568;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b122.#b105) : (t122, _) idx_mut)) next_r.b122.#b105 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a127) : (t127, _) idx_mut)) next_r.a127 in
   if not test then failwithf "test 568 failed";
-  (**************************************)
-  (*   t123 = { float#; #{ float# } }   *)
-  (**************************************)
-  let eq = (fun { a123 = a1231; b123 = b1231 } { a123 = a1232; b123 = b1232 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1231 a1232 && (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) b1231 b1232) in
-  let r = { a123 = #0.; b123 = #{ a107 = #1. } } in
+  (********************************)
+  (*   t128 = { float#; float }   *)
+  (********************************)
+  let eq = (fun { a128 = a1281; b128 = b1281 } { a128 = a1282; b128 = b1282 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1281 a1282 && (fun a b -> Float.equal (globalize a) (globalize b)) b1281 b1282) in
+  let r = { a128 = #0.; b128 = 1. } in
   (* Paths of depth 1 *)
-  let next_r = { a123 = #100.; b123 = #{ a107 = #101. } } in
-  (* .a123 *)
+  let next_r = { a128 = #100.; b128 = 101. } in
+  (* .a128 *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a123 = next_r.a123 } in
-  Idx_mut.unsafe_set r ((.a123) : (t123, _) idx_mut) next_r.a123;
+  let expected = { r with a128 = next_r.a128 } in
+  Idx_mut.unsafe_set r ((.a128) : (t128, _) idx_mut) next_r.a128;
   mark_test_run 569;
   let test = eq r expected in
   if not test then failwithf "test 569 failed";
   mark_test_run 570;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a123) : (t123, _) idx_mut)) next_r.a123 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a128) : (t128, _) idx_mut)) next_r.a128 in
   if not test then failwithf "test 570 failed";
-  let r = { a123 = #0.; b123 = #{ a107 = #1. } } in
+  let r = { a128 = #0.; b128 = 1. } in
   (* Paths of depth 1 *)
-  let next_r = { a123 = #100.; b123 = #{ a107 = #101. } } in
-  (* .b123 *)
-  let sub_eq = (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) in
-  let expected = { r with b123 = next_r.b123 } in
-  Idx_mut.unsafe_set r ((.b123) : (t123, _) idx_mut) next_r.b123;
+  let next_r = { a128 = #100.; b128 = 101. } in
+  (* .b128 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b128 = next_r.b128 } in
+  Idx_mut.unsafe_set r ((.b128) : (t128, _) idx_mut) (Float_u.of_float next_r.b128);
   mark_test_run 571;
   let test = eq r expected in
   if not test then failwithf "test 571 failed";
   mark_test_run 572;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b123) : (t123, _) idx_mut)) next_r.b123 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b128) : (t128, _) idx_mut)) (Float_u.of_float next_r.b128) in
   if not test then failwithf "test 572 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a123 = #200.; b123 = #{ a107 = #201. } } in
-  (* .b123.#a107 *)
+  (***************************************)
+  (*   t129 = { float#; float; float }   *)
+  (***************************************)
+  let eq = (fun { a129 = a1291; b129 = b1291; c129 = c1291 } { a129 = a1292; b129 = b1292; c129 = c1292 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1291 a1292 && (fun a b -> Float.equal (globalize a) (globalize b)) b1291 b1292 && (fun a b -> Float.equal (globalize a) (globalize b)) c1291 c1292) in
+  let r = { a129 = #0.; b129 = 1.; c129 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a129 = #100.; b129 = 101.; c129 = 102. } in
+  (* .a129 *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b123 = #{ r.b123 with a107 = next_r.b123.#a107 } } in
-  Idx_mut.unsafe_set r ((.b123.#a107) : (t123, _) idx_mut) next_r.b123.#a107;
+  let expected = { r with a129 = next_r.a129 } in
+  Idx_mut.unsafe_set r ((.a129) : (t129, _) idx_mut) next_r.a129;
   mark_test_run 573;
   let test = eq r expected in
   if not test then failwithf "test 573 failed";
   mark_test_run 574;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b123.#a107) : (t123, _) idx_mut)) next_r.b123.#a107 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a129) : (t129, _) idx_mut)) next_r.a129 in
   if not test then failwithf "test 574 failed";
-  (*********************************************)
-  (*   t124 = { float#; #{ float#; float } }   *)
-  (*********************************************)
-  let eq = (fun { a124 = a1241; b124 = b1241 } { a124 = a1242; b124 = b1242 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1241 a1242 && (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) b1241 b1242) in
-  let r = { a124 = #0.; b124 = #{ a109 = #1.; b109 = 2. } } in
+  let r = { a129 = #0.; b129 = 1.; c129 = 2. } in
   (* Paths of depth 1 *)
-  let next_r = { a124 = #100.; b124 = #{ a109 = #101.; b109 = 102. } } in
-  (* .a124 *)
+  let next_r = { a129 = #100.; b129 = 101.; c129 = 102. } in
+  (* .b129 *)
+  (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a124 = next_r.a124 } in
-  Idx_mut.unsafe_set r ((.a124) : (t124, _) idx_mut) next_r.a124;
+  let expected = { r with b129 = next_r.b129 } in
+  Idx_mut.unsafe_set r ((.b129) : (t129, _) idx_mut) (Float_u.of_float next_r.b129);
   mark_test_run 575;
   let test = eq r expected in
   if not test then failwithf "test 575 failed";
   mark_test_run 576;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a124) : (t124, _) idx_mut)) next_r.a124 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b129) : (t129, _) idx_mut)) (Float_u.of_float next_r.b129) in
   if not test then failwithf "test 576 failed";
-  let r = { a124 = #0.; b124 = #{ a109 = #1.; b109 = 2. } } in
+  let r = { a129 = #0.; b129 = 1.; c129 = 2. } in
   (* Paths of depth 1 *)
-  let next_r = { a124 = #100.; b124 = #{ a109 = #101.; b109 = 102. } } in
-  (* .b124 *)
-  let sub_eq = (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) in
-  let expected = { r with b124 = next_r.b124 } in
-  Idx_mut.unsafe_set r ((.b124) : (t124, _) idx_mut) next_r.b124;
+  let next_r = { a129 = #100.; b129 = 101.; c129 = 102. } in
+  (* .c129 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with c129 = next_r.c129 } in
+  Idx_mut.unsafe_set r ((.c129) : (t129, _) idx_mut) (Float_u.of_float next_r.c129);
   mark_test_run 577;
   let test = eq r expected in
   if not test then failwithf "test 577 failed";
   mark_test_run 578;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b124) : (t124, _) idx_mut)) next_r.b124 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c129) : (t129, _) idx_mut)) (Float_u.of_float next_r.c129) in
   if not test then failwithf "test 578 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a124 = #200.; b124 = #{ a109 = #201.; b109 = 202. } } in
-  (* .b124.#a109 *)
+  (****************************************)
+  (*   t130 = { float#; float; float# }   *)
+  (****************************************)
+  let eq = (fun { a130 = a1301; b130 = b1301; c130 = c1301 } { a130 = a1302; b130 = b1302; c130 = c1302 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1301 a1302 && (fun a b -> Float.equal (globalize a) (globalize b)) b1301 b1302 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) c1301 c1302) in
+  let r = { a130 = #0.; b130 = 1.; c130 = #2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a130 = #100.; b130 = 101.; c130 = #102. } in
+  (* .a130 *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b124 = #{ r.b124 with a109 = next_r.b124.#a109 } } in
-  Idx_mut.unsafe_set r ((.b124.#a109) : (t124, _) idx_mut) next_r.b124.#a109;
+  let expected = { r with a130 = next_r.a130 } in
+  Idx_mut.unsafe_set r ((.a130) : (t130, _) idx_mut) next_r.a130;
   mark_test_run 579;
   let test = eq r expected in
   if not test then failwithf "test 579 failed";
   mark_test_run 580;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b124.#a109) : (t124, _) idx_mut)) next_r.b124.#a109 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a130) : (t130, _) idx_mut)) next_r.a130 in
   if not test then failwithf "test 580 failed";
-  (* .b124.#b109 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b124 = #{ r.b124 with b109 = next_r.b124.#b109 } } in
-  Idx_mut.unsafe_set r ((.b124.#b109) : (t124, _) idx_mut) next_r.b124.#b109;
+  let r = { a130 = #0.; b130 = 1.; c130 = #2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a130 = #100.; b130 = 101.; c130 = #102. } in
+  (* .b130 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b130 = next_r.b130 } in
+  Idx_mut.unsafe_set r ((.b130) : (t130, _) idx_mut) (Float_u.of_float next_r.b130);
   mark_test_run 581;
   let test = eq r expected in
   if not test then failwithf "test 581 failed";
   mark_test_run 582;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b124.#b109) : (t124, _) idx_mut)) next_r.b124.#b109 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b130) : (t130, _) idx_mut)) (Float_u.of_float next_r.b130) in
   if not test then failwithf "test 582 failed";
-  (**********************************************)
-  (*   t125 = { float#; #{ float#; float# } }   *)
-  (**********************************************)
-  let eq = (fun { a125 = a1251; b125 = b1251 } { a125 = a1252; b125 = b1252 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1251 a1252 && (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) b1251 b1252) in
-  let r = { a125 = #0.; b125 = #{ a111 = #1.; b111 = #2. } } in
+  let r = { a130 = #0.; b130 = 1.; c130 = #2. } in
   (* Paths of depth 1 *)
-  let next_r = { a125 = #100.; b125 = #{ a111 = #101.; b111 = #102. } } in
-  (* .a125 *)
+  let next_r = { a130 = #100.; b130 = 101.; c130 = #102. } in
+  (* .c130 *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a125 = next_r.a125 } in
-  Idx_mut.unsafe_set r ((.a125) : (t125, _) idx_mut) next_r.a125;
+  let expected = { r with c130 = next_r.c130 } in
+  Idx_mut.unsafe_set r ((.c130) : (t130, _) idx_mut) next_r.c130;
   mark_test_run 583;
   let test = eq r expected in
   if not test then failwithf "test 583 failed";
   mark_test_run 584;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a125) : (t125, _) idx_mut)) next_r.a125 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c130) : (t130, _) idx_mut)) next_r.c130 in
   if not test then failwithf "test 584 failed";
-  let r = { a125 = #0.; b125 = #{ a111 = #1.; b111 = #2. } } in
+  (*********************************)
+  (*   t131 = { float#; float# }   *)
+  (*********************************)
+  let eq = (fun { a131 = a1311; b131 = b1311 } { a131 = a1312; b131 = b1312 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1311 a1312 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1311 b1312) in
+  let r = { a131 = #0.; b131 = #1. } in
   (* Paths of depth 1 *)
-  let next_r = { a125 = #100.; b125 = #{ a111 = #101.; b111 = #102. } } in
-  (* .b125 *)
-  let sub_eq = (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) in
-  let expected = { r with b125 = next_r.b125 } in
-  Idx_mut.unsafe_set r ((.b125) : (t125, _) idx_mut) next_r.b125;
+  let next_r = { a131 = #100.; b131 = #101. } in
+  (* .a131 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a131 = next_r.a131 } in
+  Idx_mut.unsafe_set r ((.a131) : (t131, _) idx_mut) next_r.a131;
   mark_test_run 585;
   let test = eq r expected in
   if not test then failwithf "test 585 failed";
   mark_test_run 586;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b125) : (t125, _) idx_mut)) next_r.b125 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a131) : (t131, _) idx_mut)) next_r.a131 in
   if not test then failwithf "test 586 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a125 = #200.; b125 = #{ a111 = #201.; b111 = #202. } } in
-  (* .b125.#a111 *)
+  let r = { a131 = #0.; b131 = #1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a131 = #100.; b131 = #101. } in
+  (* .b131 *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b125 = #{ r.b125 with a111 = next_r.b125.#a111 } } in
-  Idx_mut.unsafe_set r ((.b125.#a111) : (t125, _) idx_mut) next_r.b125.#a111;
+  let expected = { r with b131 = next_r.b131 } in
+  Idx_mut.unsafe_set r ((.b131) : (t131, _) idx_mut) next_r.b131;
   mark_test_run 587;
   let test = eq r expected in
   if not test then failwithf "test 587 failed";
   mark_test_run 588;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b125.#a111) : (t125, _) idx_mut)) next_r.b125.#a111 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b131) : (t131, _) idx_mut)) next_r.b131 in
   if not test then failwithf "test 588 failed";
-  (* .b125.#b111 *)
+  (****************************************)
+  (*   t132 = { float#; float#; float }   *)
+  (****************************************)
+  let eq = (fun { a132 = a1321; b132 = b1321; c132 = c1321 } { a132 = a1322; b132 = b1322; c132 = c1322 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1321 a1322 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1321 b1322 && (fun a b -> Float.equal (globalize a) (globalize b)) c1321 c1322) in
+  let r = { a132 = #0.; b132 = #1.; c132 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a132 = #100.; b132 = #101.; c132 = 102. } in
+  (* .a132 *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b125 = #{ r.b125 with b111 = next_r.b125.#b111 } } in
-  Idx_mut.unsafe_set r ((.b125.#b111) : (t125, _) idx_mut) next_r.b125.#b111;
+  let expected = { r with a132 = next_r.a132 } in
+  Idx_mut.unsafe_set r ((.a132) : (t132, _) idx_mut) next_r.a132;
   mark_test_run 589;
   let test = eq r expected in
   if not test then failwithf "test 589 failed";
   mark_test_run 590;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b125.#b111) : (t125, _) idx_mut)) next_r.b125.#b111 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a132) : (t132, _) idx_mut)) next_r.a132 in
   if not test then failwithf "test 590 failed";
-  (***************************)
-  (*   t126 = { int64x2# }   *)
-  (***************************)
-  let eq = (fun { a126 = a1261 } { a126 = a1262 } -> int64x2_u_equal a1261 a1262) in
-  let r = { a126 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } in
+  let r = { a132 = #0.; b132 = #1.; c132 = 2. } in
   (* Paths of depth 1 *)
-  let next_r = { a126 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) } in
-  (* .a126 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a126 = next_r.a126 } in
-  Idx_mut.unsafe_set r ((.a126) : (t126, _) idx_mut) next_r.a126;
+  let next_r = { a132 = #100.; b132 = #101.; c132 = 102. } in
+  (* .b132 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b132 = next_r.b132 } in
+  Idx_mut.unsafe_set r ((.b132) : (t132, _) idx_mut) next_r.b132;
   mark_test_run 591;
   let test = eq r expected in
   if not test then failwithf "test 591 failed";
   mark_test_run 592;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a126) : (t126, _) idx_mut)) next_r.a126 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b132) : (t132, _) idx_mut)) next_r.b132 in
   if not test then failwithf "test 592 failed";
-  (********************************)
-  (*   t127 = { int64x2#; int }   *)
-  (********************************)
-  let eq = (fun { a127 = a1271; b127 = b1271 } { a127 = a1272; b127 = b1272 } -> int64x2_u_equal a1271 a1272 && (fun a b -> Int.equal a b) b1271 b1272) in
-  let r = { a127 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b127 = 2 } in
+  let r = { a132 = #0.; b132 = #1.; c132 = 2. } in
   (* Paths of depth 1 *)
-  let next_r = { a127 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b127 = 102 } in
-  (* .a127 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a127 = next_r.a127 } in
-  Idx_mut.unsafe_set r ((.a127) : (t127, _) idx_mut) next_r.a127;
+  let next_r = { a132 = #100.; b132 = #101.; c132 = 102. } in
+  (* .c132 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with c132 = next_r.c132 } in
+  Idx_mut.unsafe_set r ((.c132) : (t132, _) idx_mut) (Float_u.of_float next_r.c132);
   mark_test_run 593;
   let test = eq r expected in
   if not test then failwithf "test 593 failed";
   mark_test_run 594;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a127) : (t127, _) idx_mut)) next_r.a127 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c132) : (t132, _) idx_mut)) (Float_u.of_float next_r.c132) in
   if not test then failwithf "test 594 failed";
-  let r = { a127 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b127 = 2 } in
+  (*****************************************)
+  (*   t133 = { float#; float#; float# }   *)
+  (*****************************************)
+  let eq = (fun { a133 = a1331; b133 = b1331; c133 = c1331 } { a133 = a1332; b133 = b1332; c133 = c1332 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1331 a1332 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1331 b1332 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) c1331 c1332) in
+  let r = { a133 = #0.; b133 = #1.; c133 = #2. } in
   (* Paths of depth 1 *)
-  let next_r = { a127 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b127 = 102 } in
-  (* .b127 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b127 = next_r.b127 } in
-  Idx_mut.unsafe_set r ((.b127) : (t127, _) idx_mut) next_r.b127;
+  let next_r = { a133 = #100.; b133 = #101.; c133 = #102. } in
+  (* .a133 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a133 = next_r.a133 } in
+  Idx_mut.unsafe_set r ((.a133) : (t133, _) idx_mut) next_r.a133;
   mark_test_run 595;
   let test = eq r expected in
   if not test then failwithf "test 595 failed";
   mark_test_run 596;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b127) : (t127, _) idx_mut)) next_r.b127 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a133) : (t133, _) idx_mut)) next_r.a133 in
   if not test then failwithf "test 596 failed";
-  (*************************************)
-  (*   t128 = { int64x2#; int; int }   *)
-  (*************************************)
-  let eq = (fun { a128 = a1281; b128 = b1281; c128 = c1281 } { a128 = a1282; b128 = b1282; c128 = c1282 } -> int64x2_u_equal a1281 a1282 && (fun a b -> Int.equal a b) b1281 b1282 && (fun a b -> Int.equal a b) c1281 c1282) in
-  let r = { a128 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b128 = 2; c128 = 3 } in
+  let r = { a133 = #0.; b133 = #1.; c133 = #2. } in
   (* Paths of depth 1 *)
-  let next_r = { a128 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b128 = 102; c128 = 103 } in
-  (* .a128 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a128 = next_r.a128 } in
-  Idx_mut.unsafe_set r ((.a128) : (t128, _) idx_mut) next_r.a128;
+  let next_r = { a133 = #100.; b133 = #101.; c133 = #102. } in
+  (* .b133 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b133 = next_r.b133 } in
+  Idx_mut.unsafe_set r ((.b133) : (t133, _) idx_mut) next_r.b133;
   mark_test_run 597;
   let test = eq r expected in
   if not test then failwithf "test 597 failed";
   mark_test_run 598;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a128) : (t128, _) idx_mut)) next_r.a128 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b133) : (t133, _) idx_mut)) next_r.b133 in
   if not test then failwithf "test 598 failed";
-  let r = { a128 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b128 = 2; c128 = 3 } in
+  let r = { a133 = #0.; b133 = #1.; c133 = #2. } in
   (* Paths of depth 1 *)
-  let next_r = { a128 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b128 = 102; c128 = 103 } in
-  (* .b128 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b128 = next_r.b128 } in
-  Idx_mut.unsafe_set r ((.b128) : (t128, _) idx_mut) next_r.b128;
+  let next_r = { a133 = #100.; b133 = #101.; c133 = #102. } in
+  (* .c133 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with c133 = next_r.c133 } in
+  Idx_mut.unsafe_set r ((.c133) : (t133, _) idx_mut) next_r.c133;
   mark_test_run 599;
   let test = eq r expected in
   if not test then failwithf "test 599 failed";
   mark_test_run 600;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b128) : (t128, _) idx_mut)) next_r.b128 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c133) : (t133, _) idx_mut)) next_r.c133 in
   if not test then failwithf "test 600 failed";
-  let r = { a128 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b128 = 2; c128 = 3 } in
+  (*************************************)
+  (*   t134 = { float#; #{ float } }   *)
+  (*************************************)
+  let eq = (fun { a134 = a1341; b134 = b1341 } { a134 = a1342; b134 = b1342 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1341 a1342 && (fun #{ a35 = a351 } #{ a35 = a352 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a351 a352) b1341 b1342) in
+  let r = { a134 = #0.; b134 = #{ a35 = 1. } } in
   (* Paths of depth 1 *)
-  let next_r = { a128 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b128 = 102; c128 = 103 } in
-  (* .c128 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with c128 = next_r.c128 } in
-  Idx_mut.unsafe_set r ((.c128) : (t128, _) idx_mut) next_r.c128;
+  let next_r = { a134 = #100.; b134 = #{ a35 = 101. } } in
+  (* .a134 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a134 = next_r.a134 } in
+  Idx_mut.unsafe_set r ((.a134) : (t134, _) idx_mut) next_r.a134;
   mark_test_run 601;
   let test = eq r expected in
   if not test then failwithf "test 601 failed";
   mark_test_run 602;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c128) : (t128, _) idx_mut)) next_r.c128 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a134) : (t134, _) idx_mut)) next_r.a134 in
   if not test then failwithf "test 602 failed";
-  (******************************************)
-  (*   t129 = { int64x2#; int; int64x2# }   *)
-  (******************************************)
-  let eq = (fun { a129 = a1291; b129 = b1291; c129 = c1291 } { a129 = a1292; b129 = b1292; c129 = c1292 } -> int64x2_u_equal a1291 a1292 && (fun a b -> Int.equal a b) b1291 b1292 && int64x2_u_equal c1291 c1292) in
-  let r = { a129 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b129 = 2; c129 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  let r = { a134 = #0.; b134 = #{ a35 = 1. } } in
   (* Paths of depth 1 *)
-  let next_r = { a129 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b129 = 102; c129 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
-  (* .a129 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a129 = next_r.a129 } in
-  Idx_mut.unsafe_set r ((.a129) : (t129, _) idx_mut) next_r.a129;
+  let next_r = { a134 = #100.; b134 = #{ a35 = 101. } } in
+  (* .b134 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b134 = next_r.b134 } in
+  Idx_mut.unsafe_set r ((.b134) : (t134, _) idx_mut) (Float_u.of_float next_r.b134.#a35);
   mark_test_run 603;
   let test = eq r expected in
   if not test then failwithf "test 603 failed";
   mark_test_run 604;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a129) : (t129, _) idx_mut)) next_r.a129 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b134) : (t134, _) idx_mut)) (Float_u.of_float next_r.b134.#a35) in
   if not test then failwithf "test 604 failed";
-  let r = { a129 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b129 = 2; c129 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
-  (* Paths of depth 1 *)
-  let next_r = { a129 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b129 = 102; c129 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
-  (* .b129 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b129 = next_r.b129 } in
-  Idx_mut.unsafe_set r ((.b129) : (t129, _) idx_mut) next_r.b129;
+  (* Paths of depth 2 *)
+  let next_r = { a134 = #200.; b134 = #{ a35 = 201. } } in
+  (* .b134.#a35 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b134 = #{ r.b134 with a35 = next_r.b134.#a35 } } in
+  Idx_mut.unsafe_set r ((.b134.#a35) : (t134, _) idx_mut) (Float_u.of_float next_r.b134.#a35);
   mark_test_run 605;
   let test = eq r expected in
   if not test then failwithf "test 605 failed";
   mark_test_run 606;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b129) : (t129, _) idx_mut)) next_r.b129 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b134.#a35) : (t134, _) idx_mut)) (Float_u.of_float next_r.b134.#a35) in
   if not test then failwithf "test 606 failed";
-  let r = { a129 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b129 = 2; c129 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  (********************************************)
+  (*   t135 = { float#; #{ float; float } }   *)
+  (********************************************)
+  let eq = (fun { a135 = a1351; b135 = b1351 } { a135 = a1352; b135 = b1352 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1351 a1352 && (fun #{ a39 = a391; b39 = b391 } #{ a39 = a392; b39 = b392 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Float.equal (globalize a) (globalize b)) b391 b392) b1351 b1352) in
+  let r = { a135 = #0.; b135 = #{ a39 = 1.; b39 = 2. } } in
   (* Paths of depth 1 *)
-  let next_r = { a129 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b129 = 102; c129 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
-  (* .c129 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with c129 = next_r.c129 } in
-  Idx_mut.unsafe_set r ((.c129) : (t129, _) idx_mut) next_r.c129;
+  let next_r = { a135 = #100.; b135 = #{ a39 = 101.; b39 = 102. } } in
+  (* .a135 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a135 = next_r.a135 } in
+  Idx_mut.unsafe_set r ((.a135) : (t135, _) idx_mut) next_r.a135;
   mark_test_run 607;
   let test = eq r expected in
   if not test then failwithf "test 607 failed";
   mark_test_run 608;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c129) : (t129, _) idx_mut)) next_r.c129 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a135) : (t135, _) idx_mut)) next_r.a135 in
   if not test then failwithf "test 608 failed";
-  (*************************************)
-  (*   t130 = { int64x2#; int64x2# }   *)
-  (*************************************)
-  let eq = (fun { a130 = a1301; b130 = b1301 } { a130 = a1302; b130 = b1302 } -> int64x2_u_equal a1301 a1302 && int64x2_u_equal b1301 b1302) in
-  let r = { a130 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b130 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  let r = { a135 = #0.; b135 = #{ a39 = 1.; b39 = 2. } } in
   (* Paths of depth 1 *)
-  let next_r = { a130 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b130 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
-  (* .a130 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a130 = next_r.a130 } in
-  Idx_mut.unsafe_set r ((.a130) : (t130, _) idx_mut) next_r.a130;
+  let next_r = { a135 = #100.; b135 = #{ a39 = 101.; b39 = 102. } } in
+  (* .b135 *)
+  let sub_eq = (fun #{ a39 = a391; b39 = b391 } #{ a39 = a392; b39 = b392 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Float.equal (globalize a) (globalize b)) b391 b392) in
+  let expected = { r with b135 = next_r.b135 } in
+  Idx_mut.unsafe_set r ((.b135) : (t135, _) idx_mut) next_r.b135;
   mark_test_run 609;
   let test = eq r expected in
   if not test then failwithf "test 609 failed";
   mark_test_run 610;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a130) : (t130, _) idx_mut)) next_r.a130 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b135) : (t135, _) idx_mut)) next_r.b135 in
   if not test then failwithf "test 610 failed";
-  let r = { a130 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b130 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
-  (* Paths of depth 1 *)
-  let next_r = { a130 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b130 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
-  (* .b130 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with b130 = next_r.b130 } in
-  Idx_mut.unsafe_set r ((.b130) : (t130, _) idx_mut) next_r.b130;
+  (* Paths of depth 2 *)
+  let next_r = { a135 = #200.; b135 = #{ a39 = 201.; b39 = 202. } } in
+  (* .b135.#a39 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b135 = #{ r.b135 with a39 = next_r.b135.#a39 } } in
+  Idx_mut.unsafe_set r ((.b135.#a39) : (t135, _) idx_mut) next_r.b135.#a39;
   mark_test_run 611;
   let test = eq r expected in
   if not test then failwithf "test 611 failed";
   mark_test_run 612;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b130) : (t130, _) idx_mut)) next_r.b130 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b135.#a39) : (t135, _) idx_mut)) next_r.b135.#a39 in
   if not test then failwithf "test 612 failed";
-  (******************************************)
-  (*   t131 = { int64x2#; int64x2#; int }   *)
-  (******************************************)
-  let eq = (fun { a131 = a1311; b131 = b1311; c131 = c1311 } { a131 = a1312; b131 = b1312; c131 = c1312 } -> int64x2_u_equal a1311 a1312 && int64x2_u_equal b1311 b1312 && (fun a b -> Int.equal a b) c1311 c1312) in
-  let r = { a131 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b131 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c131 = 4 } in
-  (* Paths of depth 1 *)
-  let next_r = { a131 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b131 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); c131 = 104 } in
-  (* .a131 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a131 = next_r.a131 } in
-  Idx_mut.unsafe_set r ((.a131) : (t131, _) idx_mut) next_r.a131;
+  (* .b135.#b39 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b135 = #{ r.b135 with b39 = next_r.b135.#b39 } } in
+  Idx_mut.unsafe_set r ((.b135.#b39) : (t135, _) idx_mut) next_r.b135.#b39;
   mark_test_run 613;
   let test = eq r expected in
   if not test then failwithf "test 613 failed";
   mark_test_run 614;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a131) : (t131, _) idx_mut)) next_r.a131 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b135.#b39) : (t135, _) idx_mut)) next_r.b135.#b39 in
   if not test then failwithf "test 614 failed";
-  let r = { a131 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b131 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c131 = 4 } in
+  (*********************************************)
+  (*   t136 = { float#; #{ float; float# } }   *)
+  (*********************************************)
+  let eq = (fun { a136 = a1361; b136 = b1361 } { a136 = a1362; b136 = b1362 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1361 a1362 && (fun #{ a119 = a1191; b119 = b1191 } #{ a119 = a1192; b119 = b1192 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1191 a1192 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1191 b1192) b1361 b1362) in
+  let r = { a136 = #0.; b136 = #{ a119 = 1.; b119 = #2. } } in
   (* Paths of depth 1 *)
-  let next_r = { a131 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b131 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); c131 = 104 } in
-  (* .b131 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with b131 = next_r.b131 } in
-  Idx_mut.unsafe_set r ((.b131) : (t131, _) idx_mut) next_r.b131;
+  let next_r = { a136 = #100.; b136 = #{ a119 = 101.; b119 = #102. } } in
+  (* .a136 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a136 = next_r.a136 } in
+  Idx_mut.unsafe_set r ((.a136) : (t136, _) idx_mut) next_r.a136;
   mark_test_run 615;
   let test = eq r expected in
   if not test then failwithf "test 615 failed";
   mark_test_run 616;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b131) : (t131, _) idx_mut)) next_r.b131 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a136) : (t136, _) idx_mut)) next_r.a136 in
   if not test then failwithf "test 616 failed";
-  let r = { a131 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b131 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c131 = 4 } in
+  let r = { a136 = #0.; b136 = #{ a119 = 1.; b119 = #2. } } in
   (* Paths of depth 1 *)
-  let next_r = { a131 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b131 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); c131 = 104 } in
-  (* .c131 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with c131 = next_r.c131 } in
-  Idx_mut.unsafe_set r ((.c131) : (t131, _) idx_mut) next_r.c131;
+  let next_r = { a136 = #100.; b136 = #{ a119 = 101.; b119 = #102. } } in
+  (* .b136 *)
+  let sub_eq = (fun #{ a119 = a1191; b119 = b1191 } #{ a119 = a1192; b119 = b1192 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1191 a1192 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1191 b1192) in
+  let expected = { r with b136 = next_r.b136 } in
+  Idx_mut.unsafe_set r ((.b136) : (t136, _) idx_mut) next_r.b136;
   mark_test_run 617;
   let test = eq r expected in
   if not test then failwithf "test 617 failed";
   mark_test_run 618;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c131) : (t131, _) idx_mut)) next_r.c131 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b136) : (t136, _) idx_mut)) next_r.b136 in
   if not test then failwithf "test 618 failed";
-  (***********************************************)
-  (*   t132 = { int64x2#; int64x2#; int64x2# }   *)
-  (***********************************************)
-  let eq = (fun { a132 = a1321; b132 = b1321; c132 = c1321 } { a132 = a1322; b132 = b1322; c132 = c1322 } -> int64x2_u_equal a1321 a1322 && int64x2_u_equal b1321 b1322 && int64x2_u_equal c1321 c1322) in
-  let r = { a132 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b132 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c132 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
-  (* Paths of depth 1 *)
-  let next_r = { a132 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b132 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); c132 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } in
-  (* .a132 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a132 = next_r.a132 } in
-  Idx_mut.unsafe_set r ((.a132) : (t132, _) idx_mut) next_r.a132;
+  (* Paths of depth 2 *)
+  let next_r = { a136 = #200.; b136 = #{ a119 = 201.; b119 = #202. } } in
+  (* .b136.#a119 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b136 = #{ r.b136 with a119 = next_r.b136.#a119 } } in
+  Idx_mut.unsafe_set r ((.b136.#a119) : (t136, _) idx_mut) next_r.b136.#a119;
   mark_test_run 619;
   let test = eq r expected in
   if not test then failwithf "test 619 failed";
   mark_test_run 620;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a132) : (t132, _) idx_mut)) next_r.a132 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b136.#a119) : (t136, _) idx_mut)) next_r.b136.#a119 in
   if not test then failwithf "test 620 failed";
-  let r = { a132 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b132 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c132 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
-  (* Paths of depth 1 *)
-  let next_r = { a132 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b132 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); c132 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } in
-  (* .b132 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with b132 = next_r.b132 } in
-  Idx_mut.unsafe_set r ((.b132) : (t132, _) idx_mut) next_r.b132;
+  (* .b136.#b119 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b136 = #{ r.b136 with b119 = next_r.b136.#b119 } } in
+  Idx_mut.unsafe_set r ((.b136.#b119) : (t136, _) idx_mut) next_r.b136.#b119;
   mark_test_run 621;
   let test = eq r expected in
   if not test then failwithf "test 621 failed";
   mark_test_run 622;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b132) : (t132, _) idx_mut)) next_r.b132 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b136.#b119) : (t136, _) idx_mut)) next_r.b136.#b119 in
   if not test then failwithf "test 622 failed";
-  let r = { a132 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b132 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c132 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
+  (**************************************)
+  (*   t137 = { float#; #{ float# } }   *)
+  (**************************************)
+  let eq = (fun { a137 = a1371; b137 = b1371 } { a137 = a1372; b137 = b1372 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1371 a1372 && (fun #{ a121 = a1211 } #{ a121 = a1212 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1211 a1212) b1371 b1372) in
+  let r = { a137 = #0.; b137 = #{ a121 = #1. } } in
   (* Paths of depth 1 *)
-  let next_r = { a132 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b132 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); c132 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } in
-  (* .c132 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with c132 = next_r.c132 } in
-  Idx_mut.unsafe_set r ((.c132) : (t132, _) idx_mut) next_r.c132;
+  let next_r = { a137 = #100.; b137 = #{ a121 = #101. } } in
+  (* .a137 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a137 = next_r.a137 } in
+  Idx_mut.unsafe_set r ((.a137) : (t137, _) idx_mut) next_r.a137;
   mark_test_run 623;
   let test = eq r expected in
   if not test then failwithf "test 623 failed";
   mark_test_run 624;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.c132) : (t132, _) idx_mut)) next_r.c132 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a137) : (t137, _) idx_mut)) next_r.a137 in
   if not test then failwithf "test 624 failed";
-  (*************************************)
-  (*   t133 = { int64x2#; #{ int } }   *)
-  (*************************************)
-  let eq = (fun { a133 = a1331; b133 = b1331 } { a133 = a1332; b133 = b1332 } -> int64x2_u_equal a1331 a1332 && (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) b1331 b1332) in
-  let r = { a133 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b133 = #{ a18 = 2 } } in
+  let r = { a137 = #0.; b137 = #{ a121 = #1. } } in
   (* Paths of depth 1 *)
-  let next_r = { a133 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b133 = #{ a18 = 102 } } in
-  (* .a133 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a133 = next_r.a133 } in
-  Idx_mut.unsafe_set r ((.a133) : (t133, _) idx_mut) next_r.a133;
+  let next_r = { a137 = #100.; b137 = #{ a121 = #101. } } in
+  (* .b137 *)
+  let sub_eq = (fun #{ a121 = a1211 } #{ a121 = a1212 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1211 a1212) in
+  let expected = { r with b137 = next_r.b137 } in
+  Idx_mut.unsafe_set r ((.b137) : (t137, _) idx_mut) next_r.b137;
   mark_test_run 625;
   let test = eq r expected in
   if not test then failwithf "test 625 failed";
   mark_test_run 626;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a133) : (t133, _) idx_mut)) next_r.a133 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b137) : (t137, _) idx_mut)) next_r.b137 in
   if not test then failwithf "test 626 failed";
-  let r = { a133 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b133 = #{ a18 = 2 } } in
-  (* Paths of depth 1 *)
-  let next_r = { a133 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b133 = #{ a18 = 102 } } in
-  (* .b133 *)
-  let sub_eq = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) in
-  let expected = { r with b133 = next_r.b133 } in
-  Idx_mut.unsafe_set r ((.b133) : (t133, _) idx_mut) next_r.b133;
+  (* Paths of depth 2 *)
+  let next_r = { a137 = #200.; b137 = #{ a121 = #201. } } in
+  (* .b137.#a121 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b137 = #{ r.b137 with a121 = next_r.b137.#a121 } } in
+  Idx_mut.unsafe_set r ((.b137.#a121) : (t137, _) idx_mut) next_r.b137.#a121;
   mark_test_run 627;
   let test = eq r expected in
   if not test then failwithf "test 627 failed";
   mark_test_run 628;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b133) : (t133, _) idx_mut)) next_r.b133 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b137.#a121) : (t137, _) idx_mut)) next_r.b137.#a121 in
   if not test then failwithf "test 628 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a133 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b133 = #{ a18 = 202 } } in
-  (* .b133.#a18 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b133 = #{ r.b133 with a18 = next_r.b133.#a18 } } in
-  Idx_mut.unsafe_set r ((.b133.#a18) : (t133, _) idx_mut) next_r.b133.#a18;
+  (*********************************************)
+  (*   t138 = { float#; #{ float#; float } }   *)
+  (*********************************************)
+  let eq = (fun { a138 = a1381; b138 = b1381 } { a138 = a1382; b138 = b1382 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1381 a1382 && (fun #{ a123 = a1231; b123 = b1231 } #{ a123 = a1232; b123 = b1232 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1231 a1232 && (fun a b -> Float.equal (globalize a) (globalize b)) b1231 b1232) b1381 b1382) in
+  let r = { a138 = #0.; b138 = #{ a123 = #1.; b123 = 2. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a138 = #100.; b138 = #{ a123 = #101.; b123 = 102. } } in
+  (* .a138 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a138 = next_r.a138 } in
+  Idx_mut.unsafe_set r ((.a138) : (t138, _) idx_mut) next_r.a138;
   mark_test_run 629;
   let test = eq r expected in
   if not test then failwithf "test 629 failed";
   mark_test_run 630;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b133.#a18) : (t133, _) idx_mut)) next_r.b133.#a18 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a138) : (t138, _) idx_mut)) next_r.a138 in
   if not test then failwithf "test 630 failed";
-  (******************************************)
-  (*   t134 = { int64x2#; #{ int; int } }   *)
-  (******************************************)
-  let eq = (fun { a134 = a1341; b134 = b1341 } { a134 = a1342; b134 = b1342 } -> int64x2_u_equal a1341 a1342 && (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) b1341 b1342) in
-  let r = { a134 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b134 = #{ a20 = 2; b20 = 3 } } in
+  let r = { a138 = #0.; b138 = #{ a123 = #1.; b123 = 2. } } in
   (* Paths of depth 1 *)
-  let next_r = { a134 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b134 = #{ a20 = 102; b20 = 103 } } in
-  (* .a134 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a134 = next_r.a134 } in
-  Idx_mut.unsafe_set r ((.a134) : (t134, _) idx_mut) next_r.a134;
+  let next_r = { a138 = #100.; b138 = #{ a123 = #101.; b123 = 102. } } in
+  (* .b138 *)
+  let sub_eq = (fun #{ a123 = a1231; b123 = b1231 } #{ a123 = a1232; b123 = b1232 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1231 a1232 && (fun a b -> Float.equal (globalize a) (globalize b)) b1231 b1232) in
+  let expected = { r with b138 = next_r.b138 } in
+  Idx_mut.unsafe_set r ((.b138) : (t138, _) idx_mut) next_r.b138;
   mark_test_run 631;
   let test = eq r expected in
   if not test then failwithf "test 631 failed";
   mark_test_run 632;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a134) : (t134, _) idx_mut)) next_r.a134 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b138) : (t138, _) idx_mut)) next_r.b138 in
   if not test then failwithf "test 632 failed";
-  let r = { a134 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b134 = #{ a20 = 2; b20 = 3 } } in
-  (* Paths of depth 1 *)
-  let next_r = { a134 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b134 = #{ a20 = 102; b20 = 103 } } in
-  (* .b134 *)
-  let sub_eq = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) in
-  let expected = { r with b134 = next_r.b134 } in
-  Idx_mut.unsafe_set r ((.b134) : (t134, _) idx_mut) next_r.b134;
+  (* Paths of depth 2 *)
+  let next_r = { a138 = #200.; b138 = #{ a123 = #201.; b123 = 202. } } in
+  (* .b138.#a123 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b138 = #{ r.b138 with a123 = next_r.b138.#a123 } } in
+  Idx_mut.unsafe_set r ((.b138.#a123) : (t138, _) idx_mut) next_r.b138.#a123;
   mark_test_run 633;
   let test = eq r expected in
   if not test then failwithf "test 633 failed";
   mark_test_run 634;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b134) : (t134, _) idx_mut)) next_r.b134 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b138.#a123) : (t138, _) idx_mut)) next_r.b138.#a123 in
   if not test then failwithf "test 634 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a134 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b134 = #{ a20 = 202; b20 = 203 } } in
-  (* .b134.#a20 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b134 = #{ r.b134 with a20 = next_r.b134.#a20 } } in
-  Idx_mut.unsafe_set r ((.b134.#a20) : (t134, _) idx_mut) next_r.b134.#a20;
+  (* .b138.#b123 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b138 = #{ r.b138 with b123 = next_r.b138.#b123 } } in
+  Idx_mut.unsafe_set r ((.b138.#b123) : (t138, _) idx_mut) next_r.b138.#b123;
   mark_test_run 635;
   let test = eq r expected in
   if not test then failwithf "test 635 failed";
   mark_test_run 636;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b134.#a20) : (t134, _) idx_mut)) next_r.b134.#a20 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b138.#b123) : (t138, _) idx_mut)) next_r.b138.#b123 in
   if not test then failwithf "test 636 failed";
-  (* .b134.#b20 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b134 = #{ r.b134 with b20 = next_r.b134.#b20 } } in
-  Idx_mut.unsafe_set r ((.b134.#b20) : (t134, _) idx_mut) next_r.b134.#b20;
+  (**********************************************)
+  (*   t139 = { float#; #{ float#; float# } }   *)
+  (**********************************************)
+  let eq = (fun { a139 = a1391; b139 = b1391 } { a139 = a1392; b139 = b1392 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1391 a1392 && (fun #{ a125 = a1251; b125 = b1251 } #{ a125 = a1252; b125 = b1252 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1251 a1252 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1251 b1252) b1391 b1392) in
+  let r = { a139 = #0.; b139 = #{ a125 = #1.; b125 = #2. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a139 = #100.; b139 = #{ a125 = #101.; b125 = #102. } } in
+  (* .a139 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a139 = next_r.a139 } in
+  Idx_mut.unsafe_set r ((.a139) : (t139, _) idx_mut) next_r.a139;
   mark_test_run 637;
   let test = eq r expected in
   if not test then failwithf "test 637 failed";
   mark_test_run 638;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b134.#b20) : (t134, _) idx_mut)) next_r.b134.#b20 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a139) : (t139, _) idx_mut)) next_r.a139 in
   if not test then failwithf "test 638 failed";
-  (***********************************************)
-  (*   t135 = { int64x2#; #{ int; int64x2# } }   *)
-  (***********************************************)
-  let eq = (fun { a135 = a1351; b135 = b1351 } { a135 = a1352; b135 = b1352 } -> int64x2_u_equal a1351 a1352 && (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) b1351 b1352) in
-  let r = { a135 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b135 = #{ a26 = 2; b26 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } in
+  let r = { a139 = #0.; b139 = #{ a125 = #1.; b125 = #2. } } in
   (* Paths of depth 1 *)
-  let next_r = { a135 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b135 = #{ a26 = 102; b26 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } } in
-  (* .a135 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a135 = next_r.a135 } in
-  Idx_mut.unsafe_set r ((.a135) : (t135, _) idx_mut) next_r.a135;
+  let next_r = { a139 = #100.; b139 = #{ a125 = #101.; b125 = #102. } } in
+  (* .b139 *)
+  let sub_eq = (fun #{ a125 = a1251; b125 = b1251 } #{ a125 = a1252; b125 = b1252 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1251 a1252 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1251 b1252) in
+  let expected = { r with b139 = next_r.b139 } in
+  Idx_mut.unsafe_set r ((.b139) : (t139, _) idx_mut) next_r.b139;
   mark_test_run 639;
   let test = eq r expected in
   if not test then failwithf "test 639 failed";
   mark_test_run 640;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a135) : (t135, _) idx_mut)) next_r.a135 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b139) : (t139, _) idx_mut)) next_r.b139 in
   if not test then failwithf "test 640 failed";
-  let r = { a135 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b135 = #{ a26 = 2; b26 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } in
-  (* Paths of depth 1 *)
-  let next_r = { a135 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b135 = #{ a26 = 102; b26 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } } in
-  (* .b135 *)
-  let sub_eq = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) in
-  let expected = { r with b135 = next_r.b135 } in
-  Idx_mut.unsafe_set r ((.b135) : (t135, _) idx_mut) next_r.b135;
+  (* Paths of depth 2 *)
+  let next_r = { a139 = #200.; b139 = #{ a125 = #201.; b125 = #202. } } in
+  (* .b139.#a125 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b139 = #{ r.b139 with a125 = next_r.b139.#a125 } } in
+  Idx_mut.unsafe_set r ((.b139.#a125) : (t139, _) idx_mut) next_r.b139.#a125;
   mark_test_run 641;
   let test = eq r expected in
   if not test then failwithf "test 641 failed";
   mark_test_run 642;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b135) : (t135, _) idx_mut)) next_r.b135 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b139.#a125) : (t139, _) idx_mut)) next_r.b139.#a125 in
   if not test then failwithf "test 642 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a135 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b135 = #{ a26 = 202; b26 = (interleave_low_64 (int64x2_of_int64 203L) (int64x2_of_int64 204L)) } } in
-  (* .b135.#a26 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b135 = #{ r.b135 with a26 = next_r.b135.#a26 } } in
-  Idx_mut.unsafe_set r ((.b135.#a26) : (t135, _) idx_mut) next_r.b135.#a26;
+  (* .b139.#b125 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b139 = #{ r.b139 with b125 = next_r.b139.#b125 } } in
+  Idx_mut.unsafe_set r ((.b139.#b125) : (t139, _) idx_mut) next_r.b139.#b125;
   mark_test_run 643;
   let test = eq r expected in
   if not test then failwithf "test 643 failed";
   mark_test_run 644;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b135.#a26) : (t135, _) idx_mut)) next_r.b135.#a26 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b139.#b125) : (t139, _) idx_mut)) next_r.b139.#b125 in
   if not test then failwithf "test 644 failed";
-  (* .b135.#b26 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with b135 = #{ r.b135 with b26 = next_r.b135.#b26 } } in
-  Idx_mut.unsafe_set r ((.b135.#b26) : (t135, _) idx_mut) next_r.b135.#b26;
-  mark_test_run 645;
-  let test = eq r expected in
-  if not test then failwithf "test 645 failed";
-  mark_test_run 646;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b135.#b26) : (t135, _) idx_mut)) next_r.b135.#b26 in
-  if not test then failwithf "test 646 failed";
-  (************************************************)
-  (*   t137 = { int64x2#; #{ string; float# } }   *)
-  (************************************************)
-  let eq = (fun { a137 = a1371; b137 = b1371 } { a137 = a1372; b137 = b1372 } -> int64x2_u_equal a1371 a1372 && (fun #{ a136 = a1361; b136 = b1361 } #{ a136 = a1362; b136 = b1362 } -> (fun a b -> String.equal (globalize a) (globalize b)) a1361 a1362 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1361 b1362) b1371 b1372) in
-  let r = { a137 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b137 = #{ a136 = "2"; b136 = #3. } } in
+  (***************************)
+  (*   t140 = { int64x2# }   *)
+  (***************************)
+  let eq = (fun { a140 = a1401 } { a140 = a1402 } -> int64x2_u_equal a1401 a1402) in
+  let r = { a140 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } in
   (* Paths of depth 1 *)
-  let next_r = { a137 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b137 = #{ a136 = "102"; b136 = #103. } } in
-  (* .a137 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a137 = next_r.a137 } in
-  Idx_mut.unsafe_set r ((.a137) : (t137, _) idx_mut) next_r.a137;
-  mark_test_run 647;
-  let test = eq r expected in
-  if not test then failwithf "test 647 failed";
-  mark_test_run 648;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a137) : (t137, _) idx_mut)) next_r.a137 in
-  if not test then failwithf "test 648 failed";
-  let r = { a137 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b137 = #{ a136 = "2"; b136 = #3. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a137 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b137 = #{ a136 = "102"; b136 = #103. } } in
-  (* .b137 *)
-  let sub_eq = (fun #{ a136 = a1361; b136 = b1361 } #{ a136 = a1362; b136 = b1362 } -> (fun a b -> String.equal (globalize a) (globalize b)) a1361 a1362 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1361 b1362) in
-  let expected = { r with b137 = next_r.b137 } in
-  Idx_mut.unsafe_set r ((.b137) : (t137, _) idx_mut) next_r.b137;
-  mark_test_run 649;
-  let test = eq r expected in
-  if not test then failwithf "test 649 failed";
-  mark_test_run 650;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b137) : (t137, _) idx_mut)) next_r.b137 in
-  if not test then failwithf "test 650 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a137 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b137 = #{ a136 = "202"; b136 = #203. } } in
-  (* .b137.#a136 *)
-  let sub_eq = (fun a b -> String.equal (globalize a) (globalize b)) in
-  let expected = { r with b137 = #{ r.b137 with a136 = next_r.b137.#a136 } } in
-  Idx_mut.unsafe_set r ((.b137.#a136) : (t137, _) idx_mut) next_r.b137.#a136;
-  mark_test_run 651;
-  let test = eq r expected in
-  if not test then failwithf "test 651 failed";
-  mark_test_run 652;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b137.#a136) : (t137, _) idx_mut)) next_r.b137.#a136 in
-  if not test then failwithf "test 652 failed";
-  (* .b137.#b136 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b137 = #{ r.b137 with b136 = next_r.b137.#b136 } } in
-  Idx_mut.unsafe_set r ((.b137.#b136) : (t137, _) idx_mut) next_r.b137.#b136;
-  mark_test_run 653;
-  let test = eq r expected in
-  if not test then failwithf "test 653 failed";
-  mark_test_run 654;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b137.#b136) : (t137, _) idx_mut)) next_r.b137.#b136 in
-  if not test then failwithf "test 654 failed";
-  (******************************************)
-  (*   t138 = { int64x2#; #{ int64x2# } }   *)
-  (******************************************)
-  let eq = (fun { a138 = a1381; b138 = b1381 } { a138 = a1382; b138 = b1382 } -> int64x2_u_equal a1381 a1382 && (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) b1381 b1382) in
-  let r = { a138 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b138 = #{ a40 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
-  (* Paths of depth 1 *)
-  let next_r = { a138 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b138 = #{ a40 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } } in
-  (* .a138 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a138 = next_r.a138 } in
-  Idx_mut.unsafe_set r ((.a138) : (t138, _) idx_mut) next_r.a138;
-  mark_test_run 655;
-  let test = eq r expected in
-  if not test then failwithf "test 655 failed";
-  mark_test_run 656;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a138) : (t138, _) idx_mut)) next_r.a138 in
-  if not test then failwithf "test 656 failed";
-  let r = { a138 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b138 = #{ a40 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
-  (* Paths of depth 1 *)
-  let next_r = { a138 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b138 = #{ a40 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } } in
-  (* .b138 *)
-  let sub_eq = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) in
-  let expected = { r with b138 = next_r.b138 } in
-  Idx_mut.unsafe_set r ((.b138) : (t138, _) idx_mut) next_r.b138;
-  mark_test_run 657;
-  let test = eq r expected in
-  if not test then failwithf "test 657 failed";
-  mark_test_run 658;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b138) : (t138, _) idx_mut)) next_r.b138 in
-  if not test then failwithf "test 658 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a138 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b138 = #{ a40 = (interleave_low_64 (int64x2_of_int64 202L) (int64x2_of_int64 203L)) } } in
-  (* .b138.#a40 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with b138 = #{ r.b138 with a40 = next_r.b138.#a40 } } in
-  Idx_mut.unsafe_set r ((.b138.#a40) : (t138, _) idx_mut) next_r.b138.#a40;
-  mark_test_run 659;
-  let test = eq r expected in
-  if not test then failwithf "test 659 failed";
-  mark_test_run 660;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b138.#a40) : (t138, _) idx_mut)) next_r.b138.#a40 in
-  if not test then failwithf "test 660 failed";
-  (***********************************************)
-  (*   t139 = { int64x2#; #{ int64x2#; int } }   *)
-  (***********************************************)
-  let eq = (fun { a139 = a1391; b139 = b1391 } { a139 = a1392; b139 = b1392 } -> int64x2_u_equal a1391 a1392 && (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) b1391 b1392) in
-  let r = { a139 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b139 = #{ a42 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b42 = 4 } } in
-  (* Paths of depth 1 *)
-  let next_r = { a139 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b139 = #{ a42 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); b42 = 104 } } in
-  (* .a139 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a139 = next_r.a139 } in
-  Idx_mut.unsafe_set r ((.a139) : (t139, _) idx_mut) next_r.a139;
-  mark_test_run 661;
-  let test = eq r expected in
-  if not test then failwithf "test 661 failed";
-  mark_test_run 662;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a139) : (t139, _) idx_mut)) next_r.a139 in
-  if not test then failwithf "test 662 failed";
-  let r = { a139 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b139 = #{ a42 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b42 = 4 } } in
-  (* Paths of depth 1 *)
-  let next_r = { a139 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b139 = #{ a42 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); b42 = 104 } } in
-  (* .b139 *)
-  let sub_eq = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) in
-  let expected = { r with b139 = next_r.b139 } in
-  Idx_mut.unsafe_set r ((.b139) : (t139, _) idx_mut) next_r.b139;
-  mark_test_run 663;
-  let test = eq r expected in
-  if not test then failwithf "test 663 failed";
-  mark_test_run 664;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b139) : (t139, _) idx_mut)) next_r.b139 in
-  if not test then failwithf "test 664 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a139 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b139 = #{ a42 = (interleave_low_64 (int64x2_of_int64 202L) (int64x2_of_int64 203L)); b42 = 204 } } in
-  (* .b139.#a42 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with b139 = #{ r.b139 with a42 = next_r.b139.#a42 } } in
-  Idx_mut.unsafe_set r ((.b139.#a42) : (t139, _) idx_mut) next_r.b139.#a42;
-  mark_test_run 665;
-  let test = eq r expected in
-  if not test then failwithf "test 665 failed";
-  mark_test_run 666;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b139.#a42) : (t139, _) idx_mut)) next_r.b139.#a42 in
-  if not test then failwithf "test 666 failed";
-  (* .b139.#b42 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b139 = #{ r.b139 with b42 = next_r.b139.#b42 } } in
-  Idx_mut.unsafe_set r ((.b139.#b42) : (t139, _) idx_mut) next_r.b139.#b42;
-  mark_test_run 667;
-  let test = eq r expected in
-  if not test then failwithf "test 667 failed";
-  mark_test_run 668;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b139.#b42) : (t139, _) idx_mut)) next_r.b139.#b42 in
-  if not test then failwithf "test 668 failed";
-  (****************************************************)
-  (*   t140 = { int64x2#; #{ int64x2#; int64x2# } }   *)
-  (****************************************************)
-  let eq = (fun { a140 = a1401; b140 = b1401 } { a140 = a1402; b140 = b1402 } -> int64x2_u_equal a1401 a1402 && (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) b1401 b1402) in
-  let r = { a140 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b140 = #{ a44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b44 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } } in
-  (* Paths of depth 1 *)
-  let next_r = { a140 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b140 = #{ a44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); b44 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } } in
+  let next_r = { a140 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) } in
   (* .a140 *)
   let sub_eq = int64x2_u_equal in
   let expected = { r with a140 = next_r.a140 } in
   Idx_mut.unsafe_set r ((.a140) : (t140, _) idx_mut) next_r.a140;
-  mark_test_run 669;
+  mark_test_run 645;
   let test = eq r expected in
-  if not test then failwithf "test 669 failed";
-  mark_test_run 670;
+  if not test then failwithf "test 645 failed";
+  mark_test_run 646;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a140) : (t140, _) idx_mut)) next_r.a140 in
-  if not test then failwithf "test 670 failed";
-  let r = { a140 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b140 = #{ a44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b44 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } } in
+  if not test then failwithf "test 646 failed";
+  (********************************)
+  (*   t141 = { int64x2#; int }   *)
+  (********************************)
+  let eq = (fun { a141 = a1411; b141 = b1411 } { a141 = a1412; b141 = b1412 } -> int64x2_u_equal a1411 a1412 && (fun a b -> Int.equal a b) b1411 b1412) in
+  let r = { a141 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b141 = 2 } in
   (* Paths of depth 1 *)
-  let next_r = { a140 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b140 = #{ a44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); b44 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } } in
-  (* .b140 *)
-  let sub_eq = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) in
-  let expected = { r with b140 = next_r.b140 } in
-  Idx_mut.unsafe_set r ((.b140) : (t140, _) idx_mut) next_r.b140;
-  mark_test_run 671;
-  let test = eq r expected in
-  if not test then failwithf "test 671 failed";
-  mark_test_run 672;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b140) : (t140, _) idx_mut)) next_r.b140 in
-  if not test then failwithf "test 672 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a140 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b140 = #{ a44 = (interleave_low_64 (int64x2_of_int64 202L) (int64x2_of_int64 203L)); b44 = (interleave_low_64 (int64x2_of_int64 204L) (int64x2_of_int64 205L)) } } in
-  (* .b140.#a44 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with b140 = #{ r.b140 with a44 = next_r.b140.#a44 } } in
-  Idx_mut.unsafe_set r ((.b140.#a44) : (t140, _) idx_mut) next_r.b140.#a44;
-  mark_test_run 673;
-  let test = eq r expected in
-  if not test then failwithf "test 673 failed";
-  mark_test_run 674;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b140.#a44) : (t140, _) idx_mut)) next_r.b140.#a44 in
-  if not test then failwithf "test 674 failed";
-  (* .b140.#b44 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with b140 = #{ r.b140 with b44 = next_r.b140.#b44 } } in
-  Idx_mut.unsafe_set r ((.b140.#b44) : (t140, _) idx_mut) next_r.b140.#b44;
-  mark_test_run 675;
-  let test = eq r expected in
-  if not test then failwithf "test 675 failed";
-  mark_test_run 676;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b140.#b44) : (t140, _) idx_mut)) next_r.b140.#b44 in
-  if not test then failwithf "test 676 failed";
-  (***************************)
-  (*   t141 = { #{ int } }   *)
-  (***************************)
-  let eq = (fun { a141 = a1411 } { a141 = a1412 } -> (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) a1411 a1412) in
-  let r = { a141 = #{ a18 = 0 } } in
-  (* Paths of depth 1 *)
-  let next_r = { a141 = #{ a18 = 100 } } in
+  let next_r = { a141 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b141 = 102 } in
   (* .a141 *)
-  let sub_eq = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) in
+  let sub_eq = int64x2_u_equal in
   let expected = { r with a141 = next_r.a141 } in
   Idx_mut.unsafe_set r ((.a141) : (t141, _) idx_mut) next_r.a141;
-  mark_test_run 677;
+  mark_test_run 647;
   let test = eq r expected in
-  if not test then failwithf "test 677 failed";
-  mark_test_run 678;
+  if not test then failwithf "test 647 failed";
+  mark_test_run 648;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a141) : (t141, _) idx_mut)) next_r.a141 in
-  if not test then failwithf "test 678 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a141 = #{ a18 = 200 } } in
-  (* .a141.#a18 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a141 = #{ r.a141 with a18 = next_r.a141.#a18 } } in
-  Idx_mut.unsafe_set r ((.a141.#a18) : (t141, _) idx_mut) next_r.a141.#a18;
-  mark_test_run 679;
-  let test = eq r expected in
-  if not test then failwithf "test 679 failed";
-  mark_test_run 680;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a141.#a18) : (t141, _) idx_mut)) next_r.a141.#a18 in
-  if not test then failwithf "test 680 failed";
-  (********************************)
-  (*   t142 = { #{ int }; int }   *)
-  (********************************)
-  let eq = (fun { a142 = a1421; b142 = b1421 } { a142 = a1422; b142 = b1422 } -> (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) a1421 a1422 && (fun a b -> Int.equal a b) b1421 b1422) in
-  let r = { a142 = #{ a18 = 0 }; b142 = 1 } in
+  if not test then failwithf "test 648 failed";
+  let r = { a141 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b141 = 2 } in
   (* Paths of depth 1 *)
-  let next_r = { a142 = #{ a18 = 100 }; b142 = 101 } in
+  let next_r = { a141 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b141 = 102 } in
+  (* .b141 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b141 = next_r.b141 } in
+  Idx_mut.unsafe_set r ((.b141) : (t141, _) idx_mut) next_r.b141;
+  mark_test_run 649;
+  let test = eq r expected in
+  if not test then failwithf "test 649 failed";
+  mark_test_run 650;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b141) : (t141, _) idx_mut)) next_r.b141 in
+  if not test then failwithf "test 650 failed";
+  (*************************************)
+  (*   t142 = { int64x2#; int; int }   *)
+  (*************************************)
+  let eq = (fun { a142 = a1421; b142 = b1421; c142 = c1421 } { a142 = a1422; b142 = b1422; c142 = c1422 } -> int64x2_u_equal a1421 a1422 && (fun a b -> Int.equal a b) b1421 b1422 && (fun a b -> Int.equal a b) c1421 c1422) in
+  let r = { a142 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b142 = 2; c142 = 3 } in
+  (* Paths of depth 1 *)
+  let next_r = { a142 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b142 = 102; c142 = 103 } in
   (* .a142 *)
-  let sub_eq = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) in
+  let sub_eq = int64x2_u_equal in
   let expected = { r with a142 = next_r.a142 } in
   Idx_mut.unsafe_set r ((.a142) : (t142, _) idx_mut) next_r.a142;
-  mark_test_run 681;
+  mark_test_run 651;
   let test = eq r expected in
-  if not test then failwithf "test 681 failed";
-  mark_test_run 682;
+  if not test then failwithf "test 651 failed";
+  mark_test_run 652;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a142) : (t142, _) idx_mut)) next_r.a142 in
-  if not test then failwithf "test 682 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a142 = #{ a18 = 200 }; b142 = 201 } in
-  (* .a142.#a18 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a142 = #{ r.a142 with a18 = next_r.a142.#a18 } } in
-  Idx_mut.unsafe_set r ((.a142.#a18) : (t142, _) idx_mut) next_r.a142.#a18;
-  mark_test_run 683;
-  let test = eq r expected in
-  if not test then failwithf "test 683 failed";
-  mark_test_run 684;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a142.#a18) : (t142, _) idx_mut)) next_r.a142.#a18 in
-  if not test then failwithf "test 684 failed";
-  let r = { a142 = #{ a18 = 0 }; b142 = 1 } in
+  if not test then failwithf "test 652 failed";
+  let r = { a142 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b142 = 2; c142 = 3 } in
   (* Paths of depth 1 *)
-  let next_r = { a142 = #{ a18 = 100 }; b142 = 101 } in
+  let next_r = { a142 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b142 = 102; c142 = 103 } in
   (* .b142 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b142 = next_r.b142 } in
   Idx_mut.unsafe_set r ((.b142) : (t142, _) idx_mut) next_r.b142;
-  mark_test_run 685;
+  mark_test_run 653;
   let test = eq r expected in
-  if not test then failwithf "test 685 failed";
-  mark_test_run 686;
+  if not test then failwithf "test 653 failed";
+  mark_test_run 654;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b142) : (t142, _) idx_mut)) next_r.b142 in
-  if not test then failwithf "test 686 failed";
-  (***********************************)
-  (*   t143 = { #{ int }; int32# }   *)
-  (***********************************)
-  let eq = (fun { a143 = a1431; b143 = b1431 } { a143 = a1432; b143 = b1432 } -> (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) a1431 a1432 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1431 b1432) in
-  let r = { a143 = #{ a18 = 0 }; b143 = #1l } in
+  if not test then failwithf "test 654 failed";
+  let r = { a142 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b142 = 2; c142 = 3 } in
   (* Paths of depth 1 *)
-  let next_r = { a143 = #{ a18 = 100 }; b143 = #101l } in
+  let next_r = { a142 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b142 = 102; c142 = 103 } in
+  (* .c142 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with c142 = next_r.c142 } in
+  Idx_mut.unsafe_set r ((.c142) : (t142, _) idx_mut) next_r.c142;
+  mark_test_run 655;
+  let test = eq r expected in
+  if not test then failwithf "test 655 failed";
+  mark_test_run 656;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c142) : (t142, _) idx_mut)) next_r.c142 in
+  if not test then failwithf "test 656 failed";
+  (******************************************)
+  (*   t143 = { int64x2#; int; int64x2# }   *)
+  (******************************************)
+  let eq = (fun { a143 = a1431; b143 = b1431; c143 = c1431 } { a143 = a1432; b143 = b1432; c143 = c1432 } -> int64x2_u_equal a1431 a1432 && (fun a b -> Int.equal a b) b1431 b1432 && int64x2_u_equal c1431 c1432) in
+  let r = { a143 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b143 = 2; c143 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  (* Paths of depth 1 *)
+  let next_r = { a143 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b143 = 102; c143 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
   (* .a143 *)
-  let sub_eq = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) in
+  let sub_eq = int64x2_u_equal in
   let expected = { r with a143 = next_r.a143 } in
   Idx_mut.unsafe_set r ((.a143) : (t143, _) idx_mut) next_r.a143;
-  mark_test_run 687;
+  mark_test_run 657;
   let test = eq r expected in
-  if not test then failwithf "test 687 failed";
-  mark_test_run 688;
+  if not test then failwithf "test 657 failed";
+  mark_test_run 658;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a143) : (t143, _) idx_mut)) next_r.a143 in
-  if not test then failwithf "test 688 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a143 = #{ a18 = 200 }; b143 = #201l } in
-  (* .a143.#a18 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a143 = #{ r.a143 with a18 = next_r.a143.#a18 } } in
-  Idx_mut.unsafe_set r ((.a143.#a18) : (t143, _) idx_mut) next_r.a143.#a18;
-  mark_test_run 689;
-  let test = eq r expected in
-  if not test then failwithf "test 689 failed";
-  mark_test_run 690;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a143.#a18) : (t143, _) idx_mut)) next_r.a143.#a18 in
-  if not test then failwithf "test 690 failed";
-  let r = { a143 = #{ a18 = 0 }; b143 = #1l } in
+  if not test then failwithf "test 658 failed";
+  let r = { a143 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b143 = 2; c143 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
   (* Paths of depth 1 *)
-  let next_r = { a143 = #{ a18 = 100 }; b143 = #101l } in
+  let next_r = { a143 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b143 = 102; c143 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
   (* .b143 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b143 = next_r.b143 } in
   Idx_mut.unsafe_set r ((.b143) : (t143, _) idx_mut) next_r.b143;
-  mark_test_run 691;
+  mark_test_run 659;
   let test = eq r expected in
-  if not test then failwithf "test 691 failed";
-  mark_test_run 692;
+  if not test then failwithf "test 659 failed";
+  mark_test_run 660;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b143) : (t143, _) idx_mut)) next_r.b143 in
-  if not test then failwithf "test 692 failed";
-  (**********************************)
-  (*   t144 = { #{ int }; float }   *)
-  (**********************************)
-  let eq = (fun { a144 = a1441; b144 = b1441 } { a144 = a1442; b144 = b1442 } -> (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) a1441 a1442 && (fun a b -> Float.equal (globalize a) (globalize b)) b1441 b1442) in
-  let r = { a144 = #{ a18 = 0 }; b144 = 1. } in
+  if not test then failwithf "test 660 failed";
+  let r = { a143 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b143 = 2; c143 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
   (* Paths of depth 1 *)
-  let next_r = { a144 = #{ a18 = 100 }; b144 = 101. } in
+  let next_r = { a143 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b143 = 102; c143 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
+  (* .c143 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with c143 = next_r.c143 } in
+  Idx_mut.unsafe_set r ((.c143) : (t143, _) idx_mut) next_r.c143;
+  mark_test_run 661;
+  let test = eq r expected in
+  if not test then failwithf "test 661 failed";
+  mark_test_run 662;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c143) : (t143, _) idx_mut)) next_r.c143 in
+  if not test then failwithf "test 662 failed";
+  (*************************************)
+  (*   t144 = { int64x2#; int64x2# }   *)
+  (*************************************)
+  let eq = (fun { a144 = a1441; b144 = b1441 } { a144 = a1442; b144 = b1442 } -> int64x2_u_equal a1441 a1442 && int64x2_u_equal b1441 b1442) in
+  let r = { a144 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b144 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  (* Paths of depth 1 *)
+  let next_r = { a144 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b144 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
   (* .a144 *)
-  let sub_eq = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) in
+  let sub_eq = int64x2_u_equal in
   let expected = { r with a144 = next_r.a144 } in
   Idx_mut.unsafe_set r ((.a144) : (t144, _) idx_mut) next_r.a144;
-  mark_test_run 693;
+  mark_test_run 663;
   let test = eq r expected in
-  if not test then failwithf "test 693 failed";
-  mark_test_run 694;
+  if not test then failwithf "test 663 failed";
+  mark_test_run 664;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a144) : (t144, _) idx_mut)) next_r.a144 in
-  if not test then failwithf "test 694 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a144 = #{ a18 = 200 }; b144 = 201. } in
-  (* .a144.#a18 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a144 = #{ r.a144 with a18 = next_r.a144.#a18 } } in
-  Idx_mut.unsafe_set r ((.a144.#a18) : (t144, _) idx_mut) next_r.a144.#a18;
-  mark_test_run 695;
-  let test = eq r expected in
-  if not test then failwithf "test 695 failed";
-  mark_test_run 696;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a144.#a18) : (t144, _) idx_mut)) next_r.a144.#a18 in
-  if not test then failwithf "test 696 failed";
-  let r = { a144 = #{ a18 = 0 }; b144 = 1. } in
+  if not test then failwithf "test 664 failed";
+  let r = { a144 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b144 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
   (* Paths of depth 1 *)
-  let next_r = { a144 = #{ a18 = 100 }; b144 = 101. } in
+  let next_r = { a144 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b144 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
   (* .b144 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let sub_eq = int64x2_u_equal in
   let expected = { r with b144 = next_r.b144 } in
   Idx_mut.unsafe_set r ((.b144) : (t144, _) idx_mut) next_r.b144;
-  mark_test_run 697;
+  mark_test_run 665;
   let test = eq r expected in
-  if not test then failwithf "test 697 failed";
-  mark_test_run 698;
+  if not test then failwithf "test 665 failed";
+  mark_test_run 666;
   let test = sub_eq (Idx_mut.unsafe_get r ((.b144) : (t144, _) idx_mut)) next_r.b144 in
-  if not test then failwithf "test 698 failed";
-  (*************************************)
-  (*   t145 = { #{ int }; int64x2# }   *)
-  (*************************************)
-  let eq = (fun { a145 = a1451; b145 = b1451 } { a145 = a1452; b145 = b1452 } -> (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) a1451 a1452 && int64x2_u_equal b1451 b1452) in
-  let r = { a145 = #{ a18 = 0 }; b145 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
+  if not test then failwithf "test 666 failed";
+  (******************************************)
+  (*   t145 = { int64x2#; int64x2#; int }   *)
+  (******************************************)
+  let eq = (fun { a145 = a1451; b145 = b1451; c145 = c1451 } { a145 = a1452; b145 = b1452; c145 = c1452 } -> int64x2_u_equal a1451 a1452 && int64x2_u_equal b1451 b1452 && (fun a b -> Int.equal a b) c1451 c1452) in
+  let r = { a145 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b145 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c145 = 4 } in
   (* Paths of depth 1 *)
-  let next_r = { a145 = #{ a18 = 100 }; b145 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } in
+  let next_r = { a145 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b145 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); c145 = 104 } in
   (* .a145 *)
-  let sub_eq = (fun #{ a18 = a181 } #{ a18 = a182 } -> (fun a b -> Int.equal a b) a181 a182) in
+  let sub_eq = int64x2_u_equal in
   let expected = { r with a145 = next_r.a145 } in
   Idx_mut.unsafe_set r ((.a145) : (t145, _) idx_mut) next_r.a145;
-  mark_test_run 699;
+  mark_test_run 667;
   let test = eq r expected in
-  if not test then failwithf "test 699 failed";
-  mark_test_run 700;
+  if not test then failwithf "test 667 failed";
+  mark_test_run 668;
   let test = sub_eq (Idx_mut.unsafe_get r ((.a145) : (t145, _) idx_mut)) next_r.a145 in
-  if not test then failwithf "test 700 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a145 = #{ a18 = 200 }; b145 = (interleave_low_64 (int64x2_of_int64 201L) (int64x2_of_int64 202L)) } in
-  (* .a145.#a18 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a145 = #{ r.a145 with a18 = next_r.a145.#a18 } } in
-  Idx_mut.unsafe_set r ((.a145.#a18) : (t145, _) idx_mut) next_r.a145.#a18;
-  mark_test_run 701;
-  let test = eq r expected in
-  if not test then failwithf "test 701 failed";
-  mark_test_run 702;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a145.#a18) : (t145, _) idx_mut)) next_r.a145.#a18 in
-  if not test then failwithf "test 702 failed";
-  let r = { a145 = #{ a18 = 0 }; b145 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
+  if not test then failwithf "test 668 failed";
+  let r = { a145 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b145 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c145 = 4 } in
   (* Paths of depth 1 *)
-  let next_r = { a145 = #{ a18 = 100 }; b145 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } in
+  let next_r = { a145 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b145 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); c145 = 104 } in
   (* .b145 *)
   let sub_eq = int64x2_u_equal in
   let expected = { r with b145 = next_r.b145 } in
   Idx_mut.unsafe_set r ((.b145) : (t145, _) idx_mut) next_r.b145;
+  mark_test_run 669;
+  let test = eq r expected in
+  if not test then failwithf "test 669 failed";
+  mark_test_run 670;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b145) : (t145, _) idx_mut)) next_r.b145 in
+  if not test then failwithf "test 670 failed";
+  let r = { a145 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b145 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c145 = 4 } in
+  (* Paths of depth 1 *)
+  let next_r = { a145 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b145 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); c145 = 104 } in
+  (* .c145 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with c145 = next_r.c145 } in
+  Idx_mut.unsafe_set r ((.c145) : (t145, _) idx_mut) next_r.c145;
+  mark_test_run 671;
+  let test = eq r expected in
+  if not test then failwithf "test 671 failed";
+  mark_test_run 672;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c145) : (t145, _) idx_mut)) next_r.c145 in
+  if not test then failwithf "test 672 failed";
+  (***********************************************)
+  (*   t146 = { int64x2#; int64x2#; int64x2# }   *)
+  (***********************************************)
+  let eq = (fun { a146 = a1461; b146 = b1461; c146 = c1461 } { a146 = a1462; b146 = b1462; c146 = c1462 } -> int64x2_u_equal a1461 a1462 && int64x2_u_equal b1461 b1462 && int64x2_u_equal c1461 c1462) in
+  let r = { a146 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b146 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c146 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
+  (* Paths of depth 1 *)
+  let next_r = { a146 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b146 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); c146 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } in
+  (* .a146 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a146 = next_r.a146 } in
+  Idx_mut.unsafe_set r ((.a146) : (t146, _) idx_mut) next_r.a146;
+  mark_test_run 673;
+  let test = eq r expected in
+  if not test then failwithf "test 673 failed";
+  mark_test_run 674;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a146) : (t146, _) idx_mut)) next_r.a146 in
+  if not test then failwithf "test 674 failed";
+  let r = { a146 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b146 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c146 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
+  (* Paths of depth 1 *)
+  let next_r = { a146 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b146 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); c146 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } in
+  (* .b146 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with b146 = next_r.b146 } in
+  Idx_mut.unsafe_set r ((.b146) : (t146, _) idx_mut) next_r.b146;
+  mark_test_run 675;
+  let test = eq r expected in
+  if not test then failwithf "test 675 failed";
+  mark_test_run 676;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b146) : (t146, _) idx_mut)) next_r.b146 in
+  if not test then failwithf "test 676 failed";
+  let r = { a146 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b146 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); c146 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
+  (* Paths of depth 1 *)
+  let next_r = { a146 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b146 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); c146 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } in
+  (* .c146 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with c146 = next_r.c146 } in
+  Idx_mut.unsafe_set r ((.c146) : (t146, _) idx_mut) next_r.c146;
+  mark_test_run 677;
+  let test = eq r expected in
+  if not test then failwithf "test 677 failed";
+  mark_test_run 678;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.c146) : (t146, _) idx_mut)) next_r.c146 in
+  if not test then failwithf "test 678 failed";
+  (*************************************)
+  (*   t147 = { int64x2#; #{ int } }   *)
+  (*************************************)
+  let eq = (fun { a147 = a1471; b147 = b1471 } { a147 = a1472; b147 = b1472 } -> int64x2_u_equal a1471 a1472 && (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int.equal a b) a191 a192) b1471 b1472) in
+  let r = { a147 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b147 = #{ a19 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a147 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b147 = #{ a19 = 102 } } in
+  (* .a147 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a147 = next_r.a147 } in
+  Idx_mut.unsafe_set r ((.a147) : (t147, _) idx_mut) next_r.a147;
+  mark_test_run 679;
+  let test = eq r expected in
+  if not test then failwithf "test 679 failed";
+  mark_test_run 680;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a147) : (t147, _) idx_mut)) next_r.a147 in
+  if not test then failwithf "test 680 failed";
+  let r = { a147 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b147 = #{ a19 = 2 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a147 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b147 = #{ a19 = 102 } } in
+  (* .b147 *)
+  let sub_eq = (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int.equal a b) a191 a192) in
+  let expected = { r with b147 = next_r.b147 } in
+  Idx_mut.unsafe_set r ((.b147) : (t147, _) idx_mut) next_r.b147;
+  mark_test_run 681;
+  let test = eq r expected in
+  if not test then failwithf "test 681 failed";
+  mark_test_run 682;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b147) : (t147, _) idx_mut)) next_r.b147 in
+  if not test then failwithf "test 682 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a147 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b147 = #{ a19 = 202 } } in
+  (* .b147.#a19 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b147 = #{ r.b147 with a19 = next_r.b147.#a19 } } in
+  Idx_mut.unsafe_set r ((.b147.#a19) : (t147, _) idx_mut) next_r.b147.#a19;
+  mark_test_run 683;
+  let test = eq r expected in
+  if not test then failwithf "test 683 failed";
+  mark_test_run 684;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b147.#a19) : (t147, _) idx_mut)) next_r.b147.#a19 in
+  if not test then failwithf "test 684 failed";
+  (******************************************)
+  (*   t148 = { int64x2#; #{ int; int } }   *)
+  (******************************************)
+  let eq = (fun { a148 = a1481; b148 = b1481 } { a148 = a1482; b148 = b1482 } -> int64x2_u_equal a1481 a1482 && (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun a b -> Int.equal a b) b211 b212) b1481 b1482) in
+  let r = { a148 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b148 = #{ a21 = 2; b21 = 3 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a148 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b148 = #{ a21 = 102; b21 = 103 } } in
+  (* .a148 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a148 = next_r.a148 } in
+  Idx_mut.unsafe_set r ((.a148) : (t148, _) idx_mut) next_r.a148;
+  mark_test_run 685;
+  let test = eq r expected in
+  if not test then failwithf "test 685 failed";
+  mark_test_run 686;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a148) : (t148, _) idx_mut)) next_r.a148 in
+  if not test then failwithf "test 686 failed";
+  let r = { a148 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b148 = #{ a21 = 2; b21 = 3 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a148 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b148 = #{ a21 = 102; b21 = 103 } } in
+  (* .b148 *)
+  let sub_eq = (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun a b -> Int.equal a b) b211 b212) in
+  let expected = { r with b148 = next_r.b148 } in
+  Idx_mut.unsafe_set r ((.b148) : (t148, _) idx_mut) next_r.b148;
+  mark_test_run 687;
+  let test = eq r expected in
+  if not test then failwithf "test 687 failed";
+  mark_test_run 688;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b148) : (t148, _) idx_mut)) next_r.b148 in
+  if not test then failwithf "test 688 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a148 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b148 = #{ a21 = 202; b21 = 203 } } in
+  (* .b148.#a21 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b148 = #{ r.b148 with a21 = next_r.b148.#a21 } } in
+  Idx_mut.unsafe_set r ((.b148.#a21) : (t148, _) idx_mut) next_r.b148.#a21;
+  mark_test_run 689;
+  let test = eq r expected in
+  if not test then failwithf "test 689 failed";
+  mark_test_run 690;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b148.#a21) : (t148, _) idx_mut)) next_r.b148.#a21 in
+  if not test then failwithf "test 690 failed";
+  (* .b148.#b21 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b148 = #{ r.b148 with b21 = next_r.b148.#b21 } } in
+  Idx_mut.unsafe_set r ((.b148.#b21) : (t148, _) idx_mut) next_r.b148.#b21;
+  mark_test_run 691;
+  let test = eq r expected in
+  if not test then failwithf "test 691 failed";
+  mark_test_run 692;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b148.#b21) : (t148, _) idx_mut)) next_r.b148.#b21 in
+  if not test then failwithf "test 692 failed";
+  (***********************************************)
+  (*   t149 = { int64x2#; #{ int; int64x2# } }   *)
+  (***********************************************)
+  let eq = (fun { a149 = a1491; b149 = b1491 } { a149 = a1492; b149 = b1492 } -> int64x2_u_equal a1491 a1492 && (fun #{ a27 = a271; b27 = b271 } #{ a27 = a272; b27 = b272 } -> (fun a b -> Int.equal a b) a271 a272 && int64x2_u_equal b271 b272) b1491 b1492) in
+  let r = { a149 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b149 = #{ a27 = 2; b27 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } in
+  (* Paths of depth 1 *)
+  let next_r = { a149 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b149 = #{ a27 = 102; b27 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } } in
+  (* .a149 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a149 = next_r.a149 } in
+  Idx_mut.unsafe_set r ((.a149) : (t149, _) idx_mut) next_r.a149;
+  mark_test_run 693;
+  let test = eq r expected in
+  if not test then failwithf "test 693 failed";
+  mark_test_run 694;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a149) : (t149, _) idx_mut)) next_r.a149 in
+  if not test then failwithf "test 694 failed";
+  let r = { a149 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b149 = #{ a27 = 2; b27 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } } in
+  (* Paths of depth 1 *)
+  let next_r = { a149 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b149 = #{ a27 = 102; b27 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } } in
+  (* .b149 *)
+  let sub_eq = (fun #{ a27 = a271; b27 = b271 } #{ a27 = a272; b27 = b272 } -> (fun a b -> Int.equal a b) a271 a272 && int64x2_u_equal b271 b272) in
+  let expected = { r with b149 = next_r.b149 } in
+  Idx_mut.unsafe_set r ((.b149) : (t149, _) idx_mut) next_r.b149;
+  mark_test_run 695;
+  let test = eq r expected in
+  if not test then failwithf "test 695 failed";
+  mark_test_run 696;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b149) : (t149, _) idx_mut)) next_r.b149 in
+  if not test then failwithf "test 696 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a149 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b149 = #{ a27 = 202; b27 = (interleave_low_64 (int64x2_of_int64 203L) (int64x2_of_int64 204L)) } } in
+  (* .b149.#a27 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b149 = #{ r.b149 with a27 = next_r.b149.#a27 } } in
+  Idx_mut.unsafe_set r ((.b149.#a27) : (t149, _) idx_mut) next_r.b149.#a27;
+  mark_test_run 697;
+  let test = eq r expected in
+  if not test then failwithf "test 697 failed";
+  mark_test_run 698;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b149.#a27) : (t149, _) idx_mut)) next_r.b149.#a27 in
+  if not test then failwithf "test 698 failed";
+  (* .b149.#b27 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with b149 = #{ r.b149 with b27 = next_r.b149.#b27 } } in
+  Idx_mut.unsafe_set r ((.b149.#b27) : (t149, _) idx_mut) next_r.b149.#b27;
+  mark_test_run 699;
+  let test = eq r expected in
+  if not test then failwithf "test 699 failed";
+  mark_test_run 700;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b149.#b27) : (t149, _) idx_mut)) next_r.b149.#b27 in
+  if not test then failwithf "test 700 failed";
+  (************************************************)
+  (*   t151 = { int64x2#; #{ string; float# } }   *)
+  (************************************************)
+  let eq = (fun { a151 = a1511; b151 = b1511 } { a151 = a1512; b151 = b1512 } -> int64x2_u_equal a1511 a1512 && (fun #{ a150 = a1501; b150 = b1501 } #{ a150 = a1502; b150 = b1502 } -> (fun a b -> String.equal (globalize a) (globalize b)) a1501 a1502 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1501 b1502) b1511 b1512) in
+  let r = { a151 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b151 = #{ a150 = "2"; b150 = #3. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a151 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b151 = #{ a150 = "102"; b150 = #103. } } in
+  (* .a151 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a151 = next_r.a151 } in
+  Idx_mut.unsafe_set r ((.a151) : (t151, _) idx_mut) next_r.a151;
+  mark_test_run 701;
+  let test = eq r expected in
+  if not test then failwithf "test 701 failed";
+  mark_test_run 702;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a151) : (t151, _) idx_mut)) next_r.a151 in
+  if not test then failwithf "test 702 failed";
+  let r = { a151 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b151 = #{ a150 = "2"; b150 = #3. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a151 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b151 = #{ a150 = "102"; b150 = #103. } } in
+  (* .b151 *)
+  let sub_eq = (fun #{ a150 = a1501; b150 = b1501 } #{ a150 = a1502; b150 = b1502 } -> (fun a b -> String.equal (globalize a) (globalize b)) a1501 a1502 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1501 b1502) in
+  let expected = { r with b151 = next_r.b151 } in
+  Idx_mut.unsafe_set r ((.b151) : (t151, _) idx_mut) next_r.b151;
   mark_test_run 703;
   let test = eq r expected in
   if not test then failwithf "test 703 failed";
   mark_test_run 704;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b145) : (t145, _) idx_mut)) next_r.b145 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b151) : (t151, _) idx_mut)) next_r.b151 in
   if not test then failwithf "test 704 failed";
-  (********************************)
-  (*   t146 = { #{ int; int } }   *)
-  (********************************)
-  let eq = (fun { a146 = a1461 } { a146 = a1462 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) a1461 a1462) in
-  let r = { a146 = #{ a20 = 0; b20 = 1 } } in
-  (* Paths of depth 1 *)
-  let next_r = { a146 = #{ a20 = 100; b20 = 101 } } in
-  (* .a146 *)
-  let sub_eq = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) in
-  let expected = { r with a146 = next_r.a146 } in
-  Idx_mut.unsafe_set r ((.a146) : (t146, _) idx_mut) next_r.a146;
+  (* Paths of depth 2 *)
+  let next_r = { a151 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b151 = #{ a150 = "202"; b150 = #203. } } in
+  (* .b151.#a150 *)
+  let sub_eq = (fun a b -> String.equal (globalize a) (globalize b)) in
+  let expected = { r with b151 = #{ r.b151 with a150 = next_r.b151.#a150 } } in
+  Idx_mut.unsafe_set r ((.b151.#a150) : (t151, _) idx_mut) next_r.b151.#a150;
   mark_test_run 705;
   let test = eq r expected in
   if not test then failwithf "test 705 failed";
   mark_test_run 706;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a146) : (t146, _) idx_mut)) next_r.a146 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b151.#a150) : (t151, _) idx_mut)) next_r.b151.#a150 in
   if not test then failwithf "test 706 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a146 = #{ a20 = 200; b20 = 201 } } in
-  (* .a146.#a20 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a146 = #{ r.a146 with a20 = next_r.a146.#a20 } } in
-  Idx_mut.unsafe_set r ((.a146.#a20) : (t146, _) idx_mut) next_r.a146.#a20;
+  (* .b151.#b150 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b151 = #{ r.b151 with b150 = next_r.b151.#b150 } } in
+  Idx_mut.unsafe_set r ((.b151.#b150) : (t151, _) idx_mut) next_r.b151.#b150;
   mark_test_run 707;
   let test = eq r expected in
   if not test then failwithf "test 707 failed";
   mark_test_run 708;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a146.#a20) : (t146, _) idx_mut)) next_r.a146.#a20 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b151.#b150) : (t151, _) idx_mut)) next_r.b151.#b150 in
   if not test then failwithf "test 708 failed";
-  (* .a146.#b20 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a146 = #{ r.a146 with b20 = next_r.a146.#b20 } } in
-  Idx_mut.unsafe_set r ((.a146.#b20) : (t146, _) idx_mut) next_r.a146.#b20;
+  (******************************************)
+  (*   t152 = { int64x2#; #{ int64x2# } }   *)
+  (******************************************)
+  let eq = (fun { a152 = a1521; b152 = b1521 } { a152 = a1522; b152 = b1522 } -> int64x2_u_equal a1521 a1522 && (fun #{ a41 = a411 } #{ a41 = a412 } -> int64x2_u_equal a411 a412) b1521 b1522) in
+  let r = { a152 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b152 = #{ a41 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
+  (* Paths of depth 1 *)
+  let next_r = { a152 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b152 = #{ a41 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } } in
+  (* .a152 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a152 = next_r.a152 } in
+  Idx_mut.unsafe_set r ((.a152) : (t152, _) idx_mut) next_r.a152;
   mark_test_run 709;
   let test = eq r expected in
   if not test then failwithf "test 709 failed";
   mark_test_run 710;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a146.#b20) : (t146, _) idx_mut)) next_r.a146.#b20 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a152) : (t152, _) idx_mut)) next_r.a152 in
   if not test then failwithf "test 710 failed";
-  (*************************************)
-  (*   t147 = { #{ int; int }; int }   *)
-  (*************************************)
-  let eq = (fun { a147 = a1471; b147 = b1471 } { a147 = a1472; b147 = b1472 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) a1471 a1472 && (fun a b -> Int.equal a b) b1471 b1472) in
-  let r = { a147 = #{ a20 = 0; b20 = 1 }; b147 = 2 } in
+  let r = { a152 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b152 = #{ a41 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
   (* Paths of depth 1 *)
-  let next_r = { a147 = #{ a20 = 100; b20 = 101 }; b147 = 102 } in
-  (* .a147 *)
-  let sub_eq = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) in
-  let expected = { r with a147 = next_r.a147 } in
-  Idx_mut.unsafe_set r ((.a147) : (t147, _) idx_mut) next_r.a147;
+  let next_r = { a152 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b152 = #{ a41 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } } in
+  (* .b152 *)
+  let sub_eq = (fun #{ a41 = a411 } #{ a41 = a412 } -> int64x2_u_equal a411 a412) in
+  let expected = { r with b152 = next_r.b152 } in
+  Idx_mut.unsafe_set r ((.b152) : (t152, _) idx_mut) next_r.b152;
   mark_test_run 711;
   let test = eq r expected in
   if not test then failwithf "test 711 failed";
   mark_test_run 712;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a147) : (t147, _) idx_mut)) next_r.a147 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b152) : (t152, _) idx_mut)) next_r.b152 in
   if not test then failwithf "test 712 failed";
   (* Paths of depth 2 *)
-  let next_r = { a147 = #{ a20 = 200; b20 = 201 }; b147 = 202 } in
-  (* .a147.#a20 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a147 = #{ r.a147 with a20 = next_r.a147.#a20 } } in
-  Idx_mut.unsafe_set r ((.a147.#a20) : (t147, _) idx_mut) next_r.a147.#a20;
+  let next_r = { a152 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b152 = #{ a41 = (interleave_low_64 (int64x2_of_int64 202L) (int64x2_of_int64 203L)) } } in
+  (* .b152.#a41 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with b152 = #{ r.b152 with a41 = next_r.b152.#a41 } } in
+  Idx_mut.unsafe_set r ((.b152.#a41) : (t152, _) idx_mut) next_r.b152.#a41;
   mark_test_run 713;
   let test = eq r expected in
   if not test then failwithf "test 713 failed";
   mark_test_run 714;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a147.#a20) : (t147, _) idx_mut)) next_r.a147.#a20 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b152.#a41) : (t152, _) idx_mut)) next_r.b152.#a41 in
   if not test then failwithf "test 714 failed";
-  (* .a147.#b20 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a147 = #{ r.a147 with b20 = next_r.a147.#b20 } } in
-  Idx_mut.unsafe_set r ((.a147.#b20) : (t147, _) idx_mut) next_r.a147.#b20;
+  (***********************************************)
+  (*   t153 = { int64x2#; #{ int64x2#; int } }   *)
+  (***********************************************)
+  let eq = (fun { a153 = a1531; b153 = b1531 } { a153 = a1532; b153 = b1532 } -> int64x2_u_equal a1531 a1532 && (fun #{ a43 = a431; b43 = b431 } #{ a43 = a432; b43 = b432 } -> int64x2_u_equal a431 a432 && (fun a b -> Int.equal a b) b431 b432) b1531 b1532) in
+  let r = { a153 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b153 = #{ a43 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b43 = 4 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a153 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b153 = #{ a43 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); b43 = 104 } } in
+  (* .a153 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a153 = next_r.a153 } in
+  Idx_mut.unsafe_set r ((.a153) : (t153, _) idx_mut) next_r.a153;
   mark_test_run 715;
   let test = eq r expected in
   if not test then failwithf "test 715 failed";
   mark_test_run 716;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a147.#b20) : (t147, _) idx_mut)) next_r.a147.#b20 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a153) : (t153, _) idx_mut)) next_r.a153 in
   if not test then failwithf "test 716 failed";
-  let r = { a147 = #{ a20 = 0; b20 = 1 }; b147 = 2 } in
+  let r = { a153 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b153 = #{ a43 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b43 = 4 } } in
   (* Paths of depth 1 *)
-  let next_r = { a147 = #{ a20 = 100; b20 = 101 }; b147 = 102 } in
-  (* .b147 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b147 = next_r.b147 } in
-  Idx_mut.unsafe_set r ((.b147) : (t147, _) idx_mut) next_r.b147;
+  let next_r = { a153 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b153 = #{ a43 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); b43 = 104 } } in
+  (* .b153 *)
+  let sub_eq = (fun #{ a43 = a431; b43 = b431 } #{ a43 = a432; b43 = b432 } -> int64x2_u_equal a431 a432 && (fun a b -> Int.equal a b) b431 b432) in
+  let expected = { r with b153 = next_r.b153 } in
+  Idx_mut.unsafe_set r ((.b153) : (t153, _) idx_mut) next_r.b153;
   mark_test_run 717;
   let test = eq r expected in
   if not test then failwithf "test 717 failed";
   mark_test_run 718;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b147) : (t147, _) idx_mut)) next_r.b147 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b153) : (t153, _) idx_mut)) next_r.b153 in
   if not test then failwithf "test 718 failed";
-  (****************************************)
-  (*   t148 = { #{ int; int }; int32# }   *)
-  (****************************************)
-  let eq = (fun { a148 = a1481; b148 = b1481 } { a148 = a1482; b148 = b1482 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) a1481 a1482 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1481 b1482) in
-  let r = { a148 = #{ a20 = 0; b20 = 1 }; b148 = #2l } in
-  (* Paths of depth 1 *)
-  let next_r = { a148 = #{ a20 = 100; b20 = 101 }; b148 = #102l } in
-  (* .a148 *)
-  let sub_eq = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) in
-  let expected = { r with a148 = next_r.a148 } in
-  Idx_mut.unsafe_set r ((.a148) : (t148, _) idx_mut) next_r.a148;
+  (* Paths of depth 2 *)
+  let next_r = { a153 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b153 = #{ a43 = (interleave_low_64 (int64x2_of_int64 202L) (int64x2_of_int64 203L)); b43 = 204 } } in
+  (* .b153.#a43 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with b153 = #{ r.b153 with a43 = next_r.b153.#a43 } } in
+  Idx_mut.unsafe_set r ((.b153.#a43) : (t153, _) idx_mut) next_r.b153.#a43;
   mark_test_run 719;
   let test = eq r expected in
   if not test then failwithf "test 719 failed";
   mark_test_run 720;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a148) : (t148, _) idx_mut)) next_r.a148 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b153.#a43) : (t153, _) idx_mut)) next_r.b153.#a43 in
   if not test then failwithf "test 720 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a148 = #{ a20 = 200; b20 = 201 }; b148 = #202l } in
-  (* .a148.#a20 *)
+  (* .b153.#b43 *)
   let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a148 = #{ r.a148 with a20 = next_r.a148.#a20 } } in
-  Idx_mut.unsafe_set r ((.a148.#a20) : (t148, _) idx_mut) next_r.a148.#a20;
+  let expected = { r with b153 = #{ r.b153 with b43 = next_r.b153.#b43 } } in
+  Idx_mut.unsafe_set r ((.b153.#b43) : (t153, _) idx_mut) next_r.b153.#b43;
   mark_test_run 721;
   let test = eq r expected in
   if not test then failwithf "test 721 failed";
   mark_test_run 722;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a148.#a20) : (t148, _) idx_mut)) next_r.a148.#a20 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b153.#b43) : (t153, _) idx_mut)) next_r.b153.#b43 in
   if not test then failwithf "test 722 failed";
-  (* .a148.#b20 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a148 = #{ r.a148 with b20 = next_r.a148.#b20 } } in
-  Idx_mut.unsafe_set r ((.a148.#b20) : (t148, _) idx_mut) next_r.a148.#b20;
+  (****************************************************)
+  (*   t154 = { int64x2#; #{ int64x2#; int64x2# } }   *)
+  (****************************************************)
+  let eq = (fun { a154 = a1541; b154 = b1541 } { a154 = a1542; b154 = b1542 } -> int64x2_u_equal a1541 a1542 && (fun #{ a45 = a451; b45 = b451 } #{ a45 = a452; b45 = b452 } -> int64x2_u_equal a451 a452 && int64x2_u_equal b451 b452) b1541 b1542) in
+  let r = { a154 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b154 = #{ a45 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b45 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } } in
+  (* Paths of depth 1 *)
+  let next_r = { a154 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b154 = #{ a45 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); b45 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } } in
+  (* .a154 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a154 = next_r.a154 } in
+  Idx_mut.unsafe_set r ((.a154) : (t154, _) idx_mut) next_r.a154;
   mark_test_run 723;
   let test = eq r expected in
   if not test then failwithf "test 723 failed";
   mark_test_run 724;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a148.#b20) : (t148, _) idx_mut)) next_r.a148.#b20 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a154) : (t154, _) idx_mut)) next_r.a154 in
   if not test then failwithf "test 724 failed";
-  let r = { a148 = #{ a20 = 0; b20 = 1 }; b148 = #2l } in
+  let r = { a154 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b154 = #{ a45 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)); b45 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } } in
   (* Paths of depth 1 *)
-  let next_r = { a148 = #{ a20 = 100; b20 = 101 }; b148 = #102l } in
-  (* .b148 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b148 = next_r.b148 } in
-  Idx_mut.unsafe_set r ((.b148) : (t148, _) idx_mut) next_r.b148;
+  let next_r = { a154 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b154 = #{ a45 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)); b45 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } } in
+  (* .b154 *)
+  let sub_eq = (fun #{ a45 = a451; b45 = b451 } #{ a45 = a452; b45 = b452 } -> int64x2_u_equal a451 a452 && int64x2_u_equal b451 b452) in
+  let expected = { r with b154 = next_r.b154 } in
+  Idx_mut.unsafe_set r ((.b154) : (t154, _) idx_mut) next_r.b154;
   mark_test_run 725;
   let test = eq r expected in
   if not test then failwithf "test 725 failed";
   mark_test_run 726;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b148) : (t148, _) idx_mut)) next_r.b148 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b154) : (t154, _) idx_mut)) next_r.b154 in
   if not test then failwithf "test 726 failed";
-  (***************************************)
-  (*   t149 = { #{ int; int }; float }   *)
-  (***************************************)
-  let eq = (fun { a149 = a1491; b149 = b1491 } { a149 = a1492; b149 = b1492 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) a1491 a1492 && (fun a b -> Float.equal (globalize a) (globalize b)) b1491 b1492) in
-  let r = { a149 = #{ a20 = 0; b20 = 1 }; b149 = 2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a149 = #{ a20 = 100; b20 = 101 }; b149 = 102. } in
-  (* .a149 *)
-  let sub_eq = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) in
-  let expected = { r with a149 = next_r.a149 } in
-  Idx_mut.unsafe_set r ((.a149) : (t149, _) idx_mut) next_r.a149;
+  (* Paths of depth 2 *)
+  let next_r = { a154 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b154 = #{ a45 = (interleave_low_64 (int64x2_of_int64 202L) (int64x2_of_int64 203L)); b45 = (interleave_low_64 (int64x2_of_int64 204L) (int64x2_of_int64 205L)) } } in
+  (* .b154.#a45 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with b154 = #{ r.b154 with a45 = next_r.b154.#a45 } } in
+  Idx_mut.unsafe_set r ((.b154.#a45) : (t154, _) idx_mut) next_r.b154.#a45;
   mark_test_run 727;
   let test = eq r expected in
   if not test then failwithf "test 727 failed";
   mark_test_run 728;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a149) : (t149, _) idx_mut)) next_r.a149 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b154.#a45) : (t154, _) idx_mut)) next_r.b154.#a45 in
   if not test then failwithf "test 728 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a149 = #{ a20 = 200; b20 = 201 }; b149 = 202. } in
-  (* .a149.#a20 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a149 = #{ r.a149 with a20 = next_r.a149.#a20 } } in
-  Idx_mut.unsafe_set r ((.a149.#a20) : (t149, _) idx_mut) next_r.a149.#a20;
+  (* .b154.#b45 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with b154 = #{ r.b154 with b45 = next_r.b154.#b45 } } in
+  Idx_mut.unsafe_set r ((.b154.#b45) : (t154, _) idx_mut) next_r.b154.#b45;
   mark_test_run 729;
   let test = eq r expected in
   if not test then failwithf "test 729 failed";
   mark_test_run 730;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a149.#a20) : (t149, _) idx_mut)) next_r.a149.#a20 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b154.#b45) : (t154, _) idx_mut)) next_r.b154.#b45 in
   if not test then failwithf "test 730 failed";
-  (* .a149.#b20 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a149 = #{ r.a149 with b20 = next_r.a149.#b20 } } in
-  Idx_mut.unsafe_set r ((.a149.#b20) : (t149, _) idx_mut) next_r.a149.#b20;
+  (***************************)
+  (*   t155 = { #{ int } }   *)
+  (***************************)
+  let eq = (fun { a155 = a1551 } { a155 = a1552 } -> (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int.equal a b) a191 a192) a1551 a1552) in
+  let r = { a155 = #{ a19 = 0 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a155 = #{ a19 = 100 } } in
+  (* .a155 *)
+  let sub_eq = (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int.equal a b) a191 a192) in
+  let expected = { r with a155 = next_r.a155 } in
+  Idx_mut.unsafe_set r ((.a155) : (t155, _) idx_mut) next_r.a155;
   mark_test_run 731;
   let test = eq r expected in
   if not test then failwithf "test 731 failed";
   mark_test_run 732;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a149.#b20) : (t149, _) idx_mut)) next_r.a149.#b20 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a155) : (t155, _) idx_mut)) next_r.a155 in
   if not test then failwithf "test 732 failed";
-  let r = { a149 = #{ a20 = 0; b20 = 1 }; b149 = 2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a149 = #{ a20 = 100; b20 = 101 }; b149 = 102. } in
-  (* .b149 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b149 = next_r.b149 } in
-  Idx_mut.unsafe_set r ((.b149) : (t149, _) idx_mut) next_r.b149;
+  (* Paths of depth 2 *)
+  let next_r = { a155 = #{ a19 = 200 } } in
+  (* .a155.#a19 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a155 = #{ r.a155 with a19 = next_r.a155.#a19 } } in
+  Idx_mut.unsafe_set r ((.a155.#a19) : (t155, _) idx_mut) next_r.a155.#a19;
   mark_test_run 733;
   let test = eq r expected in
   if not test then failwithf "test 733 failed";
   mark_test_run 734;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b149) : (t149, _) idx_mut)) next_r.b149 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a155.#a19) : (t155, _) idx_mut)) next_r.a155.#a19 in
   if not test then failwithf "test 734 failed";
-  (******************************************)
-  (*   t150 = { #{ int; int }; int64x2# }   *)
-  (******************************************)
-  let eq = (fun { a150 = a1501; b150 = b1501 } { a150 = a1502; b150 = b1502 } -> (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) a1501 a1502 && int64x2_u_equal b1501 b1502) in
-  let r = { a150 = #{ a20 = 0; b20 = 1 }; b150 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  (********************************)
+  (*   t156 = { #{ int }; int }   *)
+  (********************************)
+  let eq = (fun { a156 = a1561; b156 = b1561 } { a156 = a1562; b156 = b1562 } -> (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int.equal a b) a191 a192) a1561 a1562 && (fun a b -> Int.equal a b) b1561 b1562) in
+  let r = { a156 = #{ a19 = 0 }; b156 = 1 } in
   (* Paths of depth 1 *)
-  let next_r = { a150 = #{ a20 = 100; b20 = 101 }; b150 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
-  (* .a150 *)
-  let sub_eq = (fun #{ a20 = a201; b20 = b201 } #{ a20 = a202; b20 = b202 } -> (fun a b -> Int.equal a b) a201 a202 && (fun a b -> Int.equal a b) b201 b202) in
-  let expected = { r with a150 = next_r.a150 } in
-  Idx_mut.unsafe_set r ((.a150) : (t150, _) idx_mut) next_r.a150;
+  let next_r = { a156 = #{ a19 = 100 }; b156 = 101 } in
+  (* .a156 *)
+  let sub_eq = (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int.equal a b) a191 a192) in
+  let expected = { r with a156 = next_r.a156 } in
+  Idx_mut.unsafe_set r ((.a156) : (t156, _) idx_mut) next_r.a156;
   mark_test_run 735;
   let test = eq r expected in
   if not test then failwithf "test 735 failed";
   mark_test_run 736;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a150) : (t150, _) idx_mut)) next_r.a150 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a156) : (t156, _) idx_mut)) next_r.a156 in
   if not test then failwithf "test 736 failed";
   (* Paths of depth 2 *)
-  let next_r = { a150 = #{ a20 = 200; b20 = 201 }; b150 = (interleave_low_64 (int64x2_of_int64 202L) (int64x2_of_int64 203L)) } in
-  (* .a150.#a20 *)
+  let next_r = { a156 = #{ a19 = 200 }; b156 = 201 } in
+  (* .a156.#a19 *)
   let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a150 = #{ r.a150 with a20 = next_r.a150.#a20 } } in
-  Idx_mut.unsafe_set r ((.a150.#a20) : (t150, _) idx_mut) next_r.a150.#a20;
+  let expected = { r with a156 = #{ r.a156 with a19 = next_r.a156.#a19 } } in
+  Idx_mut.unsafe_set r ((.a156.#a19) : (t156, _) idx_mut) next_r.a156.#a19;
   mark_test_run 737;
   let test = eq r expected in
   if not test then failwithf "test 737 failed";
   mark_test_run 738;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a150.#a20) : (t150, _) idx_mut)) next_r.a150.#a20 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a156.#a19) : (t156, _) idx_mut)) next_r.a156.#a19 in
   if not test then failwithf "test 738 failed";
-  (* .a150.#b20 *)
+  let r = { a156 = #{ a19 = 0 }; b156 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a156 = #{ a19 = 100 }; b156 = 101 } in
+  (* .b156 *)
   let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a150 = #{ r.a150 with b20 = next_r.a150.#b20 } } in
-  Idx_mut.unsafe_set r ((.a150.#b20) : (t150, _) idx_mut) next_r.a150.#b20;
+  let expected = { r with b156 = next_r.b156 } in
+  Idx_mut.unsafe_set r ((.b156) : (t156, _) idx_mut) next_r.b156;
   mark_test_run 739;
   let test = eq r expected in
   if not test then failwithf "test 739 failed";
   mark_test_run 740;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a150.#b20) : (t150, _) idx_mut)) next_r.a150.#b20 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b156) : (t156, _) idx_mut)) next_r.b156 in
   if not test then failwithf "test 740 failed";
-  let r = { a150 = #{ a20 = 0; b20 = 1 }; b150 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  (***********************************)
+  (*   t157 = { #{ int }; int32# }   *)
+  (***********************************)
+  let eq = (fun { a157 = a1571; b157 = b1571 } { a157 = a1572; b157 = b1572 } -> (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int.equal a b) a191 a192) a1571 a1572 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1571 b1572) in
+  let r = { a157 = #{ a19 = 0 }; b157 = #1l } in
   (* Paths of depth 1 *)
-  let next_r = { a150 = #{ a20 = 100; b20 = 101 }; b150 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
-  (* .b150 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with b150 = next_r.b150 } in
-  Idx_mut.unsafe_set r ((.b150) : (t150, _) idx_mut) next_r.b150;
+  let next_r = { a157 = #{ a19 = 100 }; b157 = #101l } in
+  (* .a157 *)
+  let sub_eq = (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int.equal a b) a191 a192) in
+  let expected = { r with a157 = next_r.a157 } in
+  Idx_mut.unsafe_set r ((.a157) : (t157, _) idx_mut) next_r.a157;
   mark_test_run 741;
   let test = eq r expected in
   if not test then failwithf "test 741 failed";
   mark_test_run 742;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b150) : (t150, _) idx_mut)) next_r.b150 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a157) : (t157, _) idx_mut)) next_r.a157 in
   if not test then failwithf "test 742 failed";
-  (***********************************)
-  (*   t151 = { #{ int; int32# } }   *)
-  (***********************************)
-  let eq = (fun { a151 = a1511 } { a151 = a1512 } -> (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) a1511 a1512) in
-  let r = { a151 = #{ a22 = 0; b22 = #1l } } in
-  (* Paths of depth 1 *)
-  let next_r = { a151 = #{ a22 = 100; b22 = #101l } } in
-  (* .a151 *)
-  let sub_eq = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) in
-  let expected = { r with a151 = next_r.a151 } in
-  Idx_mut.unsafe_set r ((.a151) : (t151, _) idx_mut) next_r.a151;
+  (* Paths of depth 2 *)
+  let next_r = { a157 = #{ a19 = 200 }; b157 = #201l } in
+  (* .a157.#a19 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a157 = #{ r.a157 with a19 = next_r.a157.#a19 } } in
+  Idx_mut.unsafe_set r ((.a157.#a19) : (t157, _) idx_mut) next_r.a157.#a19;
   mark_test_run 743;
   let test = eq r expected in
   if not test then failwithf "test 743 failed";
   mark_test_run 744;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a151) : (t151, _) idx_mut)) next_r.a151 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a157.#a19) : (t157, _) idx_mut)) next_r.a157.#a19 in
   if not test then failwithf "test 744 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a151 = #{ a22 = 200; b22 = #201l } } in
-  (* .a151.#a22 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a151 = #{ r.a151 with a22 = next_r.a151.#a22 } } in
-  Idx_mut.unsafe_set r ((.a151.#a22) : (t151, _) idx_mut) next_r.a151.#a22;
+  let r = { a157 = #{ a19 = 0 }; b157 = #1l } in
+  (* Paths of depth 1 *)
+  let next_r = { a157 = #{ a19 = 100 }; b157 = #101l } in
+  (* .b157 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b157 = next_r.b157 } in
+  Idx_mut.unsafe_set r ((.b157) : (t157, _) idx_mut) next_r.b157;
   mark_test_run 745;
   let test = eq r expected in
   if not test then failwithf "test 745 failed";
   mark_test_run 746;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a151.#a22) : (t151, _) idx_mut)) next_r.a151.#a22 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b157) : (t157, _) idx_mut)) next_r.b157 in
   if not test then failwithf "test 746 failed";
-  (* .a151.#b22 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with a151 = #{ r.a151 with b22 = next_r.a151.#b22 } } in
-  Idx_mut.unsafe_set r ((.a151.#b22) : (t151, _) idx_mut) next_r.a151.#b22;
+  (**********************************)
+  (*   t158 = { #{ int }; float }   *)
+  (**********************************)
+  let eq = (fun { a158 = a1581; b158 = b1581 } { a158 = a1582; b158 = b1582 } -> (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int.equal a b) a191 a192) a1581 a1582 && (fun a b -> Float.equal (globalize a) (globalize b)) b1581 b1582) in
+  let r = { a158 = #{ a19 = 0 }; b158 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a158 = #{ a19 = 100 }; b158 = 101. } in
+  (* .a158 *)
+  let sub_eq = (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int.equal a b) a191 a192) in
+  let expected = { r with a158 = next_r.a158 } in
+  Idx_mut.unsafe_set r ((.a158) : (t158, _) idx_mut) next_r.a158;
   mark_test_run 747;
   let test = eq r expected in
   if not test then failwithf "test 747 failed";
   mark_test_run 748;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a151.#b22) : (t151, _) idx_mut)) next_r.a151.#b22 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a158) : (t158, _) idx_mut)) next_r.a158 in
   if not test then failwithf "test 748 failed";
-  (****************************************)
-  (*   t152 = { #{ int; int32# }; int }   *)
-  (****************************************)
-  let eq = (fun { a152 = a1521; b152 = b1521 } { a152 = a1522; b152 = b1522 } -> (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) a1521 a1522 && (fun a b -> Int.equal a b) b1521 b1522) in
-  let r = { a152 = #{ a22 = 0; b22 = #1l }; b152 = 2 } in
-  (* Paths of depth 1 *)
-  let next_r = { a152 = #{ a22 = 100; b22 = #101l }; b152 = 102 } in
-  (* .a152 *)
-  let sub_eq = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) in
-  let expected = { r with a152 = next_r.a152 } in
-  Idx_mut.unsafe_set r ((.a152) : (t152, _) idx_mut) next_r.a152;
+  (* Paths of depth 2 *)
+  let next_r = { a158 = #{ a19 = 200 }; b158 = 201. } in
+  (* .a158.#a19 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a158 = #{ r.a158 with a19 = next_r.a158.#a19 } } in
+  Idx_mut.unsafe_set r ((.a158.#a19) : (t158, _) idx_mut) next_r.a158.#a19;
   mark_test_run 749;
   let test = eq r expected in
   if not test then failwithf "test 749 failed";
   mark_test_run 750;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a152) : (t152, _) idx_mut)) next_r.a152 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a158.#a19) : (t158, _) idx_mut)) next_r.a158.#a19 in
   if not test then failwithf "test 750 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a152 = #{ a22 = 200; b22 = #201l }; b152 = 202 } in
-  (* .a152.#a22 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a152 = #{ r.a152 with a22 = next_r.a152.#a22 } } in
-  Idx_mut.unsafe_set r ((.a152.#a22) : (t152, _) idx_mut) next_r.a152.#a22;
+  let r = { a158 = #{ a19 = 0 }; b158 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a158 = #{ a19 = 100 }; b158 = 101. } in
+  (* .b158 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b158 = next_r.b158 } in
+  Idx_mut.unsafe_set r ((.b158) : (t158, _) idx_mut) next_r.b158;
   mark_test_run 751;
   let test = eq r expected in
   if not test then failwithf "test 751 failed";
   mark_test_run 752;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a152.#a22) : (t152, _) idx_mut)) next_r.a152.#a22 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b158) : (t158, _) idx_mut)) next_r.b158 in
   if not test then failwithf "test 752 failed";
-  (* .a152.#b22 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with a152 = #{ r.a152 with b22 = next_r.a152.#b22 } } in
-  Idx_mut.unsafe_set r ((.a152.#b22) : (t152, _) idx_mut) next_r.a152.#b22;
+  (*************************************)
+  (*   t159 = { #{ int }; int64x2# }   *)
+  (*************************************)
+  let eq = (fun { a159 = a1591; b159 = b1591 } { a159 = a1592; b159 = b1592 } -> (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int.equal a b) a191 a192) a1591 a1592 && int64x2_u_equal b1591 b1592) in
+  let r = { a159 = #{ a19 = 0 }; b159 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
+  (* Paths of depth 1 *)
+  let next_r = { a159 = #{ a19 = 100 }; b159 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } in
+  (* .a159 *)
+  let sub_eq = (fun #{ a19 = a191 } #{ a19 = a192 } -> (fun a b -> Int.equal a b) a191 a192) in
+  let expected = { r with a159 = next_r.a159 } in
+  Idx_mut.unsafe_set r ((.a159) : (t159, _) idx_mut) next_r.a159;
   mark_test_run 753;
   let test = eq r expected in
   if not test then failwithf "test 753 failed";
   mark_test_run 754;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a152.#b22) : (t152, _) idx_mut)) next_r.a152.#b22 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a159) : (t159, _) idx_mut)) next_r.a159 in
   if not test then failwithf "test 754 failed";
-  let r = { a152 = #{ a22 = 0; b22 = #1l }; b152 = 2 } in
-  (* Paths of depth 1 *)
-  let next_r = { a152 = #{ a22 = 100; b22 = #101l }; b152 = 102 } in
-  (* .b152 *)
+  (* Paths of depth 2 *)
+  let next_r = { a159 = #{ a19 = 200 }; b159 = (interleave_low_64 (int64x2_of_int64 201L) (int64x2_of_int64 202L)) } in
+  (* .a159.#a19 *)
   let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b152 = next_r.b152 } in
-  Idx_mut.unsafe_set r ((.b152) : (t152, _) idx_mut) next_r.b152;
+  let expected = { r with a159 = #{ r.a159 with a19 = next_r.a159.#a19 } } in
+  Idx_mut.unsafe_set r ((.a159.#a19) : (t159, _) idx_mut) next_r.a159.#a19;
   mark_test_run 755;
   let test = eq r expected in
   if not test then failwithf "test 755 failed";
   mark_test_run 756;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b152) : (t152, _) idx_mut)) next_r.b152 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a159.#a19) : (t159, _) idx_mut)) next_r.a159.#a19 in
   if not test then failwithf "test 756 failed";
-  (*******************************************)
-  (*   t153 = { #{ int; int32# }; int32# }   *)
-  (*******************************************)
-  let eq = (fun { a153 = a1531; b153 = b1531 } { a153 = a1532; b153 = b1532 } -> (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) a1531 a1532 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1531 b1532) in
-  let r = { a153 = #{ a22 = 0; b22 = #1l }; b153 = #2l } in
+  let r = { a159 = #{ a19 = 0 }; b159 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } in
   (* Paths of depth 1 *)
-  let next_r = { a153 = #{ a22 = 100; b22 = #101l }; b153 = #102l } in
-  (* .a153 *)
-  let sub_eq = (fun #{ a22 = a221; b22 = b221 } #{ a22 = a222; b22 = b222 } -> (fun a b -> Int.equal a b) a221 a222 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b221 b222) in
-  let expected = { r with a153 = next_r.a153 } in
-  Idx_mut.unsafe_set r ((.a153) : (t153, _) idx_mut) next_r.a153;
-  mark_test_run 757;
-  let test = eq r expected in
-  if not test then failwithf "test 757 failed";
-  mark_test_run 758;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a153) : (t153, _) idx_mut)) next_r.a153 in
-  if not test then failwithf "test 758 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a153 = #{ a22 = 200; b22 = #201l }; b153 = #202l } in
-  (* .a153.#a22 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a153 = #{ r.a153 with a22 = next_r.a153.#a22 } } in
-  Idx_mut.unsafe_set r ((.a153.#a22) : (t153, _) idx_mut) next_r.a153.#a22;
-  mark_test_run 759;
-  let test = eq r expected in
-  if not test then failwithf "test 759 failed";
-  mark_test_run 760;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a153.#a22) : (t153, _) idx_mut)) next_r.a153.#a22 in
-  if not test then failwithf "test 760 failed";
-  (* .a153.#b22 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with a153 = #{ r.a153 with b22 = next_r.a153.#b22 } } in
-  Idx_mut.unsafe_set r ((.a153.#b22) : (t153, _) idx_mut) next_r.a153.#b22;
-  mark_test_run 761;
-  let test = eq r expected in
-  if not test then failwithf "test 761 failed";
-  mark_test_run 762;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a153.#b22) : (t153, _) idx_mut)) next_r.a153.#b22 in
-  if not test then failwithf "test 762 failed";
-  let r = { a153 = #{ a22 = 0; b22 = #1l }; b153 = #2l } in
-  (* Paths of depth 1 *)
-  let next_r = { a153 = #{ a22 = 100; b22 = #101l }; b153 = #102l } in
-  (* .b153 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b153 = next_r.b153 } in
-  Idx_mut.unsafe_set r ((.b153) : (t153, _) idx_mut) next_r.b153;
-  mark_test_run 763;
-  let test = eq r expected in
-  if not test then failwithf "test 763 failed";
-  mark_test_run 764;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b153) : (t153, _) idx_mut)) next_r.b153 in
-  if not test then failwithf "test 764 failed";
-  (**********************************)
-  (*   t154 = { #{ int; float } }   *)
-  (**********************************)
-  let eq = (fun { a154 = a1541 } { a154 = a1542 } -> (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) a1541 a1542) in
-  let r = { a154 = #{ a24 = 0; b24 = 1. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a154 = #{ a24 = 100; b24 = 101. } } in
-  (* .a154 *)
-  let sub_eq = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) in
-  let expected = { r with a154 = next_r.a154 } in
-  Idx_mut.unsafe_set r ((.a154) : (t154, _) idx_mut) next_r.a154;
-  mark_test_run 765;
-  let test = eq r expected in
-  if not test then failwithf "test 765 failed";
-  mark_test_run 766;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a154) : (t154, _) idx_mut)) next_r.a154 in
-  if not test then failwithf "test 766 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a154 = #{ a24 = 200; b24 = 201. } } in
-  (* .a154.#a24 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a154 = #{ r.a154 with a24 = next_r.a154.#a24 } } in
-  Idx_mut.unsafe_set r ((.a154.#a24) : (t154, _) idx_mut) next_r.a154.#a24;
-  mark_test_run 767;
-  let test = eq r expected in
-  if not test then failwithf "test 767 failed";
-  mark_test_run 768;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a154.#a24) : (t154, _) idx_mut)) next_r.a154.#a24 in
-  if not test then failwithf "test 768 failed";
-  (* .a154.#b24 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a154 = #{ r.a154 with b24 = next_r.a154.#b24 } } in
-  Idx_mut.unsafe_set r ((.a154.#b24) : (t154, _) idx_mut) next_r.a154.#b24;
-  mark_test_run 769;
-  let test = eq r expected in
-  if not test then failwithf "test 769 failed";
-  mark_test_run 770;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a154.#b24) : (t154, _) idx_mut)) next_r.a154.#b24 in
-  if not test then failwithf "test 770 failed";
-  (***************************************)
-  (*   t155 = { #{ int; float }; int }   *)
-  (***************************************)
-  let eq = (fun { a155 = a1551; b155 = b1551 } { a155 = a1552; b155 = b1552 } -> (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) a1551 a1552 && (fun a b -> Int.equal a b) b1551 b1552) in
-  let r = { a155 = #{ a24 = 0; b24 = 1. }; b155 = 2 } in
-  (* Paths of depth 1 *)
-  let next_r = { a155 = #{ a24 = 100; b24 = 101. }; b155 = 102 } in
-  (* .a155 *)
-  let sub_eq = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) in
-  let expected = { r with a155 = next_r.a155 } in
-  Idx_mut.unsafe_set r ((.a155) : (t155, _) idx_mut) next_r.a155;
-  mark_test_run 771;
-  let test = eq r expected in
-  if not test then failwithf "test 771 failed";
-  mark_test_run 772;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a155) : (t155, _) idx_mut)) next_r.a155 in
-  if not test then failwithf "test 772 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a155 = #{ a24 = 200; b24 = 201. }; b155 = 202 } in
-  (* .a155.#a24 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a155 = #{ r.a155 with a24 = next_r.a155.#a24 } } in
-  Idx_mut.unsafe_set r ((.a155.#a24) : (t155, _) idx_mut) next_r.a155.#a24;
-  mark_test_run 773;
-  let test = eq r expected in
-  if not test then failwithf "test 773 failed";
-  mark_test_run 774;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a155.#a24) : (t155, _) idx_mut)) next_r.a155.#a24 in
-  if not test then failwithf "test 774 failed";
-  (* .a155.#b24 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a155 = #{ r.a155 with b24 = next_r.a155.#b24 } } in
-  Idx_mut.unsafe_set r ((.a155.#b24) : (t155, _) idx_mut) next_r.a155.#b24;
-  mark_test_run 775;
-  let test = eq r expected in
-  if not test then failwithf "test 775 failed";
-  mark_test_run 776;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a155.#b24) : (t155, _) idx_mut)) next_r.a155.#b24 in
-  if not test then failwithf "test 776 failed";
-  let r = { a155 = #{ a24 = 0; b24 = 1. }; b155 = 2 } in
-  (* Paths of depth 1 *)
-  let next_r = { a155 = #{ a24 = 100; b24 = 101. }; b155 = 102 } in
-  (* .b155 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b155 = next_r.b155 } in
-  Idx_mut.unsafe_set r ((.b155) : (t155, _) idx_mut) next_r.b155;
-  mark_test_run 777;
-  let test = eq r expected in
-  if not test then failwithf "test 777 failed";
-  mark_test_run 778;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b155) : (t155, _) idx_mut)) next_r.b155 in
-  if not test then failwithf "test 778 failed";
-  (*****************************************)
-  (*   t156 = { #{ int; float }; float }   *)
-  (*****************************************)
-  let eq = (fun { a156 = a1561; b156 = b1561 } { a156 = a1562; b156 = b1562 } -> (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) a1561 a1562 && (fun a b -> Float.equal (globalize a) (globalize b)) b1561 b1562) in
-  let r = { a156 = #{ a24 = 0; b24 = 1. }; b156 = 2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a156 = #{ a24 = 100; b24 = 101. }; b156 = 102. } in
-  (* .a156 *)
-  let sub_eq = (fun #{ a24 = a241; b24 = b241 } #{ a24 = a242; b24 = b242 } -> (fun a b -> Int.equal a b) a241 a242 && (fun a b -> Float.equal (globalize a) (globalize b)) b241 b242) in
-  let expected = { r with a156 = next_r.a156 } in
-  Idx_mut.unsafe_set r ((.a156) : (t156, _) idx_mut) next_r.a156;
-  mark_test_run 779;
-  let test = eq r expected in
-  if not test then failwithf "test 779 failed";
-  mark_test_run 780;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a156) : (t156, _) idx_mut)) next_r.a156 in
-  if not test then failwithf "test 780 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a156 = #{ a24 = 200; b24 = 201. }; b156 = 202. } in
-  (* .a156.#a24 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a156 = #{ r.a156 with a24 = next_r.a156.#a24 } } in
-  Idx_mut.unsafe_set r ((.a156.#a24) : (t156, _) idx_mut) next_r.a156.#a24;
-  mark_test_run 781;
-  let test = eq r expected in
-  if not test then failwithf "test 781 failed";
-  mark_test_run 782;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a156.#a24) : (t156, _) idx_mut)) next_r.a156.#a24 in
-  if not test then failwithf "test 782 failed";
-  (* .a156.#b24 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a156 = #{ r.a156 with b24 = next_r.a156.#b24 } } in
-  Idx_mut.unsafe_set r ((.a156.#b24) : (t156, _) idx_mut) next_r.a156.#b24;
-  mark_test_run 783;
-  let test = eq r expected in
-  if not test then failwithf "test 783 failed";
-  mark_test_run 784;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a156.#b24) : (t156, _) idx_mut)) next_r.a156.#b24 in
-  if not test then failwithf "test 784 failed";
-  let r = { a156 = #{ a24 = 0; b24 = 1. }; b156 = 2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a156 = #{ a24 = 100; b24 = 101. }; b156 = 102. } in
-  (* .b156 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b156 = next_r.b156 } in
-  Idx_mut.unsafe_set r ((.b156) : (t156, _) idx_mut) next_r.b156;
-  mark_test_run 785;
-  let test = eq r expected in
-  if not test then failwithf "test 785 failed";
-  mark_test_run 786;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b156) : (t156, _) idx_mut)) next_r.b156 in
-  if not test then failwithf "test 786 failed";
-  (*************************************)
-  (*   t157 = { #{ int; int64x2# } }   *)
-  (*************************************)
-  let eq = (fun { a157 = a1571 } { a157 = a1572 } -> (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) a1571 a1572) in
-  let r = { a157 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } } in
-  (* Paths of depth 1 *)
-  let next_r = { a157 = #{ a26 = 100; b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } } in
-  (* .a157 *)
-  let sub_eq = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) in
-  let expected = { r with a157 = next_r.a157 } in
-  Idx_mut.unsafe_set r ((.a157) : (t157, _) idx_mut) next_r.a157;
-  mark_test_run 787;
-  let test = eq r expected in
-  if not test then failwithf "test 787 failed";
-  mark_test_run 788;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a157) : (t157, _) idx_mut)) next_r.a157 in
-  if not test then failwithf "test 788 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a157 = #{ a26 = 200; b26 = (interleave_low_64 (int64x2_of_int64 201L) (int64x2_of_int64 202L)) } } in
-  (* .a157.#a26 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a157 = #{ r.a157 with a26 = next_r.a157.#a26 } } in
-  Idx_mut.unsafe_set r ((.a157.#a26) : (t157, _) idx_mut) next_r.a157.#a26;
-  mark_test_run 789;
-  let test = eq r expected in
-  if not test then failwithf "test 789 failed";
-  mark_test_run 790;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a157.#a26) : (t157, _) idx_mut)) next_r.a157.#a26 in
-  if not test then failwithf "test 790 failed";
-  (* .a157.#b26 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a157 = #{ r.a157 with b26 = next_r.a157.#b26 } } in
-  Idx_mut.unsafe_set r ((.a157.#b26) : (t157, _) idx_mut) next_r.a157.#b26;
-  mark_test_run 791;
-  let test = eq r expected in
-  if not test then failwithf "test 791 failed";
-  mark_test_run 792;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a157.#b26) : (t157, _) idx_mut)) next_r.a157.#b26 in
-  if not test then failwithf "test 792 failed";
-  (******************************************)
-  (*   t158 = { #{ int; int64x2# }; int }   *)
-  (******************************************)
-  let eq = (fun { a158 = a1581; b158 = b1581 } { a158 = a1582; b158 = b1582 } -> (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) a1581 a1582 && (fun a b -> Int.equal a b) b1581 b1582) in
-  let r = { a158 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b158 = 3 } in
-  (* Paths of depth 1 *)
-  let next_r = { a158 = #{ a26 = 100; b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) }; b158 = 103 } in
-  (* .a158 *)
-  let sub_eq = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) in
-  let expected = { r with a158 = next_r.a158 } in
-  Idx_mut.unsafe_set r ((.a158) : (t158, _) idx_mut) next_r.a158;
-  mark_test_run 793;
-  let test = eq r expected in
-  if not test then failwithf "test 793 failed";
-  mark_test_run 794;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a158) : (t158, _) idx_mut)) next_r.a158 in
-  if not test then failwithf "test 794 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a158 = #{ a26 = 200; b26 = (interleave_low_64 (int64x2_of_int64 201L) (int64x2_of_int64 202L)) }; b158 = 203 } in
-  (* .a158.#a26 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a158 = #{ r.a158 with a26 = next_r.a158.#a26 } } in
-  Idx_mut.unsafe_set r ((.a158.#a26) : (t158, _) idx_mut) next_r.a158.#a26;
-  mark_test_run 795;
-  let test = eq r expected in
-  if not test then failwithf "test 795 failed";
-  mark_test_run 796;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a158.#a26) : (t158, _) idx_mut)) next_r.a158.#a26 in
-  if not test then failwithf "test 796 failed";
-  (* .a158.#b26 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a158 = #{ r.a158 with b26 = next_r.a158.#b26 } } in
-  Idx_mut.unsafe_set r ((.a158.#b26) : (t158, _) idx_mut) next_r.a158.#b26;
-  mark_test_run 797;
-  let test = eq r expected in
-  if not test then failwithf "test 797 failed";
-  mark_test_run 798;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a158.#b26) : (t158, _) idx_mut)) next_r.a158.#b26 in
-  if not test then failwithf "test 798 failed";
-  let r = { a158 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b158 = 3 } in
-  (* Paths of depth 1 *)
-  let next_r = { a158 = #{ a26 = 100; b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) }; b158 = 103 } in
-  (* .b158 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b158 = next_r.b158 } in
-  Idx_mut.unsafe_set r ((.b158) : (t158, _) idx_mut) next_r.b158;
-  mark_test_run 799;
-  let test = eq r expected in
-  if not test then failwithf "test 799 failed";
-  mark_test_run 800;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b158) : (t158, _) idx_mut)) next_r.b158 in
-  if not test then failwithf "test 800 failed";
-  (***********************************************)
-  (*   t159 = { #{ int; int64x2# }; int64x2# }   *)
-  (***********************************************)
-  let eq = (fun { a159 = a1591; b159 = b1591 } { a159 = a1592; b159 = b1592 } -> (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) a1591 a1592 && int64x2_u_equal b1591 b1592) in
-  let r = { a159 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b159 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
-  (* Paths of depth 1 *)
-  let next_r = { a159 = #{ a26 = 100; b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) }; b159 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
-  (* .a159 *)
-  let sub_eq = (fun #{ a26 = a261; b26 = b261 } #{ a26 = a262; b26 = b262 } -> (fun a b -> Int.equal a b) a261 a262 && int64x2_u_equal b261 b262) in
-  let expected = { r with a159 = next_r.a159 } in
-  Idx_mut.unsafe_set r ((.a159) : (t159, _) idx_mut) next_r.a159;
-  mark_test_run 801;
-  let test = eq r expected in
-  if not test then failwithf "test 801 failed";
-  mark_test_run 802;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a159) : (t159, _) idx_mut)) next_r.a159 in
-  if not test then failwithf "test 802 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a159 = #{ a26 = 200; b26 = (interleave_low_64 (int64x2_of_int64 201L) (int64x2_of_int64 202L)) }; b159 = (interleave_low_64 (int64x2_of_int64 203L) (int64x2_of_int64 204L)) } in
-  (* .a159.#a26 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a159 = #{ r.a159 with a26 = next_r.a159.#a26 } } in
-  Idx_mut.unsafe_set r ((.a159.#a26) : (t159, _) idx_mut) next_r.a159.#a26;
-  mark_test_run 803;
-  let test = eq r expected in
-  if not test then failwithf "test 803 failed";
-  mark_test_run 804;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a159.#a26) : (t159, _) idx_mut)) next_r.a159.#a26 in
-  if not test then failwithf "test 804 failed";
-  (* .a159.#b26 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a159 = #{ r.a159 with b26 = next_r.a159.#b26 } } in
-  Idx_mut.unsafe_set r ((.a159.#b26) : (t159, _) idx_mut) next_r.a159.#b26;
-  mark_test_run 805;
-  let test = eq r expected in
-  if not test then failwithf "test 805 failed";
-  mark_test_run 806;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a159.#b26) : (t159, _) idx_mut)) next_r.a159.#b26 in
-  if not test then failwithf "test 806 failed";
-  let r = { a159 = #{ a26 = 0; b26 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b159 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
-  (* Paths of depth 1 *)
-  let next_r = { a159 = #{ a26 = 100; b26 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) }; b159 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
+  let next_r = { a159 = #{ a19 = 100 }; b159 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } in
   (* .b159 *)
   let sub_eq = int64x2_u_equal in
   let expected = { r with b159 = next_r.b159 } in
   Idx_mut.unsafe_set r ((.b159) : (t159, _) idx_mut) next_r.b159;
+  mark_test_run 757;
+  let test = eq r expected in
+  if not test then failwithf "test 757 failed";
+  mark_test_run 758;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b159) : (t159, _) idx_mut)) next_r.b159 in
+  if not test then failwithf "test 758 failed";
+  (********************************)
+  (*   t160 = { #{ int; int } }   *)
+  (********************************)
+  let eq = (fun { a160 = a1601 } { a160 = a1602 } -> (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun a b -> Int.equal a b) b211 b212) a1601 a1602) in
+  let r = { a160 = #{ a21 = 0; b21 = 1 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a160 = #{ a21 = 100; b21 = 101 } } in
+  (* .a160 *)
+  let sub_eq = (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun a b -> Int.equal a b) b211 b212) in
+  let expected = { r with a160 = next_r.a160 } in
+  Idx_mut.unsafe_set r ((.a160) : (t160, _) idx_mut) next_r.a160;
+  mark_test_run 759;
+  let test = eq r expected in
+  if not test then failwithf "test 759 failed";
+  mark_test_run 760;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a160) : (t160, _) idx_mut)) next_r.a160 in
+  if not test then failwithf "test 760 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a160 = #{ a21 = 200; b21 = 201 } } in
+  (* .a160.#a21 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a160 = #{ r.a160 with a21 = next_r.a160.#a21 } } in
+  Idx_mut.unsafe_set r ((.a160.#a21) : (t160, _) idx_mut) next_r.a160.#a21;
+  mark_test_run 761;
+  let test = eq r expected in
+  if not test then failwithf "test 761 failed";
+  mark_test_run 762;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a160.#a21) : (t160, _) idx_mut)) next_r.a160.#a21 in
+  if not test then failwithf "test 762 failed";
+  (* .a160.#b21 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a160 = #{ r.a160 with b21 = next_r.a160.#b21 } } in
+  Idx_mut.unsafe_set r ((.a160.#b21) : (t160, _) idx_mut) next_r.a160.#b21;
+  mark_test_run 763;
+  let test = eq r expected in
+  if not test then failwithf "test 763 failed";
+  mark_test_run 764;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a160.#b21) : (t160, _) idx_mut)) next_r.a160.#b21 in
+  if not test then failwithf "test 764 failed";
+  (*************************************)
+  (*   t161 = { #{ int; int }; int }   *)
+  (*************************************)
+  let eq = (fun { a161 = a1611; b161 = b1611 } { a161 = a1612; b161 = b1612 } -> (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun a b -> Int.equal a b) b211 b212) a1611 a1612 && (fun a b -> Int.equal a b) b1611 b1612) in
+  let r = { a161 = #{ a21 = 0; b21 = 1 }; b161 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a161 = #{ a21 = 100; b21 = 101 }; b161 = 102 } in
+  (* .a161 *)
+  let sub_eq = (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun a b -> Int.equal a b) b211 b212) in
+  let expected = { r with a161 = next_r.a161 } in
+  Idx_mut.unsafe_set r ((.a161) : (t161, _) idx_mut) next_r.a161;
+  mark_test_run 765;
+  let test = eq r expected in
+  if not test then failwithf "test 765 failed";
+  mark_test_run 766;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a161) : (t161, _) idx_mut)) next_r.a161 in
+  if not test then failwithf "test 766 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a161 = #{ a21 = 200; b21 = 201 }; b161 = 202 } in
+  (* .a161.#a21 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a161 = #{ r.a161 with a21 = next_r.a161.#a21 } } in
+  Idx_mut.unsafe_set r ((.a161.#a21) : (t161, _) idx_mut) next_r.a161.#a21;
+  mark_test_run 767;
+  let test = eq r expected in
+  if not test then failwithf "test 767 failed";
+  mark_test_run 768;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a161.#a21) : (t161, _) idx_mut)) next_r.a161.#a21 in
+  if not test then failwithf "test 768 failed";
+  (* .a161.#b21 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a161 = #{ r.a161 with b21 = next_r.a161.#b21 } } in
+  Idx_mut.unsafe_set r ((.a161.#b21) : (t161, _) idx_mut) next_r.a161.#b21;
+  mark_test_run 769;
+  let test = eq r expected in
+  if not test then failwithf "test 769 failed";
+  mark_test_run 770;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a161.#b21) : (t161, _) idx_mut)) next_r.a161.#b21 in
+  if not test then failwithf "test 770 failed";
+  let r = { a161 = #{ a21 = 0; b21 = 1 }; b161 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a161 = #{ a21 = 100; b21 = 101 }; b161 = 102 } in
+  (* .b161 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b161 = next_r.b161 } in
+  Idx_mut.unsafe_set r ((.b161) : (t161, _) idx_mut) next_r.b161;
+  mark_test_run 771;
+  let test = eq r expected in
+  if not test then failwithf "test 771 failed";
+  mark_test_run 772;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b161) : (t161, _) idx_mut)) next_r.b161 in
+  if not test then failwithf "test 772 failed";
+  (****************************************)
+  (*   t162 = { #{ int; int }; int32# }   *)
+  (****************************************)
+  let eq = (fun { a162 = a1621; b162 = b1621 } { a162 = a1622; b162 = b1622 } -> (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun a b -> Int.equal a b) b211 b212) a1621 a1622 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1621 b1622) in
+  let r = { a162 = #{ a21 = 0; b21 = 1 }; b162 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a162 = #{ a21 = 100; b21 = 101 }; b162 = #102l } in
+  (* .a162 *)
+  let sub_eq = (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun a b -> Int.equal a b) b211 b212) in
+  let expected = { r with a162 = next_r.a162 } in
+  Idx_mut.unsafe_set r ((.a162) : (t162, _) idx_mut) next_r.a162;
+  mark_test_run 773;
+  let test = eq r expected in
+  if not test then failwithf "test 773 failed";
+  mark_test_run 774;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a162) : (t162, _) idx_mut)) next_r.a162 in
+  if not test then failwithf "test 774 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a162 = #{ a21 = 200; b21 = 201 }; b162 = #202l } in
+  (* .a162.#a21 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a162 = #{ r.a162 with a21 = next_r.a162.#a21 } } in
+  Idx_mut.unsafe_set r ((.a162.#a21) : (t162, _) idx_mut) next_r.a162.#a21;
+  mark_test_run 775;
+  let test = eq r expected in
+  if not test then failwithf "test 775 failed";
+  mark_test_run 776;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a162.#a21) : (t162, _) idx_mut)) next_r.a162.#a21 in
+  if not test then failwithf "test 776 failed";
+  (* .a162.#b21 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a162 = #{ r.a162 with b21 = next_r.a162.#b21 } } in
+  Idx_mut.unsafe_set r ((.a162.#b21) : (t162, _) idx_mut) next_r.a162.#b21;
+  mark_test_run 777;
+  let test = eq r expected in
+  if not test then failwithf "test 777 failed";
+  mark_test_run 778;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a162.#b21) : (t162, _) idx_mut)) next_r.a162.#b21 in
+  if not test then failwithf "test 778 failed";
+  let r = { a162 = #{ a21 = 0; b21 = 1 }; b162 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a162 = #{ a21 = 100; b21 = 101 }; b162 = #102l } in
+  (* .b162 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b162 = next_r.b162 } in
+  Idx_mut.unsafe_set r ((.b162) : (t162, _) idx_mut) next_r.b162;
+  mark_test_run 779;
+  let test = eq r expected in
+  if not test then failwithf "test 779 failed";
+  mark_test_run 780;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b162) : (t162, _) idx_mut)) next_r.b162 in
+  if not test then failwithf "test 780 failed";
+  (***************************************)
+  (*   t163 = { #{ int; int }; float }   *)
+  (***************************************)
+  let eq = (fun { a163 = a1631; b163 = b1631 } { a163 = a1632; b163 = b1632 } -> (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun a b -> Int.equal a b) b211 b212) a1631 a1632 && (fun a b -> Float.equal (globalize a) (globalize b)) b1631 b1632) in
+  let r = { a163 = #{ a21 = 0; b21 = 1 }; b163 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a163 = #{ a21 = 100; b21 = 101 }; b163 = 102. } in
+  (* .a163 *)
+  let sub_eq = (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun a b -> Int.equal a b) b211 b212) in
+  let expected = { r with a163 = next_r.a163 } in
+  Idx_mut.unsafe_set r ((.a163) : (t163, _) idx_mut) next_r.a163;
+  mark_test_run 781;
+  let test = eq r expected in
+  if not test then failwithf "test 781 failed";
+  mark_test_run 782;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a163) : (t163, _) idx_mut)) next_r.a163 in
+  if not test then failwithf "test 782 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a163 = #{ a21 = 200; b21 = 201 }; b163 = 202. } in
+  (* .a163.#a21 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a163 = #{ r.a163 with a21 = next_r.a163.#a21 } } in
+  Idx_mut.unsafe_set r ((.a163.#a21) : (t163, _) idx_mut) next_r.a163.#a21;
+  mark_test_run 783;
+  let test = eq r expected in
+  if not test then failwithf "test 783 failed";
+  mark_test_run 784;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a163.#a21) : (t163, _) idx_mut)) next_r.a163.#a21 in
+  if not test then failwithf "test 784 failed";
+  (* .a163.#b21 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a163 = #{ r.a163 with b21 = next_r.a163.#b21 } } in
+  Idx_mut.unsafe_set r ((.a163.#b21) : (t163, _) idx_mut) next_r.a163.#b21;
+  mark_test_run 785;
+  let test = eq r expected in
+  if not test then failwithf "test 785 failed";
+  mark_test_run 786;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a163.#b21) : (t163, _) idx_mut)) next_r.a163.#b21 in
+  if not test then failwithf "test 786 failed";
+  let r = { a163 = #{ a21 = 0; b21 = 1 }; b163 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a163 = #{ a21 = 100; b21 = 101 }; b163 = 102. } in
+  (* .b163 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b163 = next_r.b163 } in
+  Idx_mut.unsafe_set r ((.b163) : (t163, _) idx_mut) next_r.b163;
+  mark_test_run 787;
+  let test = eq r expected in
+  if not test then failwithf "test 787 failed";
+  mark_test_run 788;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b163) : (t163, _) idx_mut)) next_r.b163 in
+  if not test then failwithf "test 788 failed";
+  (******************************************)
+  (*   t164 = { #{ int; int }; int64x2# }   *)
+  (******************************************)
+  let eq = (fun { a164 = a1641; b164 = b1641 } { a164 = a1642; b164 = b1642 } -> (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun a b -> Int.equal a b) b211 b212) a1641 a1642 && int64x2_u_equal b1641 b1642) in
+  let r = { a164 = #{ a21 = 0; b21 = 1 }; b164 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  (* Paths of depth 1 *)
+  let next_r = { a164 = #{ a21 = 100; b21 = 101 }; b164 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
+  (* .a164 *)
+  let sub_eq = (fun #{ a21 = a211; b21 = b211 } #{ a21 = a212; b21 = b212 } -> (fun a b -> Int.equal a b) a211 a212 && (fun a b -> Int.equal a b) b211 b212) in
+  let expected = { r with a164 = next_r.a164 } in
+  Idx_mut.unsafe_set r ((.a164) : (t164, _) idx_mut) next_r.a164;
+  mark_test_run 789;
+  let test = eq r expected in
+  if not test then failwithf "test 789 failed";
+  mark_test_run 790;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a164) : (t164, _) idx_mut)) next_r.a164 in
+  if not test then failwithf "test 790 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a164 = #{ a21 = 200; b21 = 201 }; b164 = (interleave_low_64 (int64x2_of_int64 202L) (int64x2_of_int64 203L)) } in
+  (* .a164.#a21 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a164 = #{ r.a164 with a21 = next_r.a164.#a21 } } in
+  Idx_mut.unsafe_set r ((.a164.#a21) : (t164, _) idx_mut) next_r.a164.#a21;
+  mark_test_run 791;
+  let test = eq r expected in
+  if not test then failwithf "test 791 failed";
+  mark_test_run 792;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a164.#a21) : (t164, _) idx_mut)) next_r.a164.#a21 in
+  if not test then failwithf "test 792 failed";
+  (* .a164.#b21 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a164 = #{ r.a164 with b21 = next_r.a164.#b21 } } in
+  Idx_mut.unsafe_set r ((.a164.#b21) : (t164, _) idx_mut) next_r.a164.#b21;
+  mark_test_run 793;
+  let test = eq r expected in
+  if not test then failwithf "test 793 failed";
+  mark_test_run 794;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a164.#b21) : (t164, _) idx_mut)) next_r.a164.#b21 in
+  if not test then failwithf "test 794 failed";
+  let r = { a164 = #{ a21 = 0; b21 = 1 }; b164 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  (* Paths of depth 1 *)
+  let next_r = { a164 = #{ a21 = 100; b21 = 101 }; b164 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
+  (* .b164 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with b164 = next_r.b164 } in
+  Idx_mut.unsafe_set r ((.b164) : (t164, _) idx_mut) next_r.b164;
+  mark_test_run 795;
+  let test = eq r expected in
+  if not test then failwithf "test 795 failed";
+  mark_test_run 796;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b164) : (t164, _) idx_mut)) next_r.b164 in
+  if not test then failwithf "test 796 failed";
+  (***********************************)
+  (*   t165 = { #{ int; int32# } }   *)
+  (***********************************)
+  let eq = (fun { a165 = a1651 } { a165 = a1652 } -> (fun #{ a23 = a231; b23 = b231 } #{ a23 = a232; b23 = b232 } -> (fun a b -> Int.equal a b) a231 a232 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b231 b232) a1651 a1652) in
+  let r = { a165 = #{ a23 = 0; b23 = #1l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a165 = #{ a23 = 100; b23 = #101l } } in
+  (* .a165 *)
+  let sub_eq = (fun #{ a23 = a231; b23 = b231 } #{ a23 = a232; b23 = b232 } -> (fun a b -> Int.equal a b) a231 a232 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b231 b232) in
+  let expected = { r with a165 = next_r.a165 } in
+  Idx_mut.unsafe_set r ((.a165) : (t165, _) idx_mut) next_r.a165;
+  mark_test_run 797;
+  let test = eq r expected in
+  if not test then failwithf "test 797 failed";
+  mark_test_run 798;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a165) : (t165, _) idx_mut)) next_r.a165 in
+  if not test then failwithf "test 798 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a165 = #{ a23 = 200; b23 = #201l } } in
+  (* .a165.#a23 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a165 = #{ r.a165 with a23 = next_r.a165.#a23 } } in
+  Idx_mut.unsafe_set r ((.a165.#a23) : (t165, _) idx_mut) next_r.a165.#a23;
+  mark_test_run 799;
+  let test = eq r expected in
+  if not test then failwithf "test 799 failed";
+  mark_test_run 800;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a165.#a23) : (t165, _) idx_mut)) next_r.a165.#a23 in
+  if not test then failwithf "test 800 failed";
+  (* .a165.#b23 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with a165 = #{ r.a165 with b23 = next_r.a165.#b23 } } in
+  Idx_mut.unsafe_set r ((.a165.#b23) : (t165, _) idx_mut) next_r.a165.#b23;
+  mark_test_run 801;
+  let test = eq r expected in
+  if not test then failwithf "test 801 failed";
+  mark_test_run 802;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a165.#b23) : (t165, _) idx_mut)) next_r.a165.#b23 in
+  if not test then failwithf "test 802 failed";
+  (****************************************)
+  (*   t166 = { #{ int; int32# }; int }   *)
+  (****************************************)
+  let eq = (fun { a166 = a1661; b166 = b1661 } { a166 = a1662; b166 = b1662 } -> (fun #{ a23 = a231; b23 = b231 } #{ a23 = a232; b23 = b232 } -> (fun a b -> Int.equal a b) a231 a232 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b231 b232) a1661 a1662 && (fun a b -> Int.equal a b) b1661 b1662) in
+  let r = { a166 = #{ a23 = 0; b23 = #1l }; b166 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a166 = #{ a23 = 100; b23 = #101l }; b166 = 102 } in
+  (* .a166 *)
+  let sub_eq = (fun #{ a23 = a231; b23 = b231 } #{ a23 = a232; b23 = b232 } -> (fun a b -> Int.equal a b) a231 a232 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b231 b232) in
+  let expected = { r with a166 = next_r.a166 } in
+  Idx_mut.unsafe_set r ((.a166) : (t166, _) idx_mut) next_r.a166;
+  mark_test_run 803;
+  let test = eq r expected in
+  if not test then failwithf "test 803 failed";
+  mark_test_run 804;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a166) : (t166, _) idx_mut)) next_r.a166 in
+  if not test then failwithf "test 804 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a166 = #{ a23 = 200; b23 = #201l }; b166 = 202 } in
+  (* .a166.#a23 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a166 = #{ r.a166 with a23 = next_r.a166.#a23 } } in
+  Idx_mut.unsafe_set r ((.a166.#a23) : (t166, _) idx_mut) next_r.a166.#a23;
+  mark_test_run 805;
+  let test = eq r expected in
+  if not test then failwithf "test 805 failed";
+  mark_test_run 806;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a166.#a23) : (t166, _) idx_mut)) next_r.a166.#a23 in
+  if not test then failwithf "test 806 failed";
+  (* .a166.#b23 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with a166 = #{ r.a166 with b23 = next_r.a166.#b23 } } in
+  Idx_mut.unsafe_set r ((.a166.#b23) : (t166, _) idx_mut) next_r.a166.#b23;
   mark_test_run 807;
   let test = eq r expected in
   if not test then failwithf "test 807 failed";
   mark_test_run 808;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b159) : (t159, _) idx_mut)) next_r.b159 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a166.#b23) : (t166, _) idx_mut)) next_r.a166.#b23 in
   if not test then failwithf "test 808 failed";
-  (**********************************************************)
-  (*   t162 = { #{ int64; int64# }; #{ int64#; float# } }   *)
-  (**********************************************************)
-  let eq = (fun { a162 = a1621; b162 = b1621 } { a162 = a1622; b162 = b1622 } -> (fun #{ a160 = a1601; b160 = b1601 } #{ a160 = a1602; b160 = b1602 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1601 a1602 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1601 b1602) a1621 a1622 && (fun #{ a161 = a1611; b161 = b1611 } #{ a161 = a1612; b161 = b1612 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1611 a1612 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1611 b1612) b1621 b1622) in
-  let r = { a162 = #{ a160 = 0L; b160 = #1L }; b162 = #{ a161 = #2L; b161 = #3. } } in
+  let r = { a166 = #{ a23 = 0; b23 = #1l }; b166 = 2 } in
   (* Paths of depth 1 *)
-  let next_r = { a162 = #{ a160 = 100L; b160 = #101L }; b162 = #{ a161 = #102L; b161 = #103. } } in
-  (* .a162 *)
-  let sub_eq = (fun #{ a160 = a1601; b160 = b1601 } #{ a160 = a1602; b160 = b1602 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1601 a1602 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1601 b1602) in
-  let expected = { r with a162 = next_r.a162 } in
-  Idx_mut.unsafe_set r ((.a162) : (t162, _) idx_mut) next_r.a162;
+  let next_r = { a166 = #{ a23 = 100; b23 = #101l }; b166 = 102 } in
+  (* .b166 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b166 = next_r.b166 } in
+  Idx_mut.unsafe_set r ((.b166) : (t166, _) idx_mut) next_r.b166;
   mark_test_run 809;
   let test = eq r expected in
   if not test then failwithf "test 809 failed";
   mark_test_run 810;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a162) : (t162, _) idx_mut)) next_r.a162 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b166) : (t166, _) idx_mut)) next_r.b166 in
   if not test then failwithf "test 810 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a162 = #{ a160 = 200L; b160 = #201L }; b162 = #{ a161 = #202L; b161 = #203. } } in
-  (* .a162.#a160 *)
-  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
-  let expected = { r with a162 = #{ r.a162 with a160 = next_r.a162.#a160 } } in
-  Idx_mut.unsafe_set r ((.a162.#a160) : (t162, _) idx_mut) next_r.a162.#a160;
+  (*******************************************)
+  (*   t167 = { #{ int; int32# }; int32# }   *)
+  (*******************************************)
+  let eq = (fun { a167 = a1671; b167 = b1671 } { a167 = a1672; b167 = b1672 } -> (fun #{ a23 = a231; b23 = b231 } #{ a23 = a232; b23 = b232 } -> (fun a b -> Int.equal a b) a231 a232 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b231 b232) a1671 a1672 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1671 b1672) in
+  let r = { a167 = #{ a23 = 0; b23 = #1l }; b167 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a167 = #{ a23 = 100; b23 = #101l }; b167 = #102l } in
+  (* .a167 *)
+  let sub_eq = (fun #{ a23 = a231; b23 = b231 } #{ a23 = a232; b23 = b232 } -> (fun a b -> Int.equal a b) a231 a232 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b231 b232) in
+  let expected = { r with a167 = next_r.a167 } in
+  Idx_mut.unsafe_set r ((.a167) : (t167, _) idx_mut) next_r.a167;
   mark_test_run 811;
   let test = eq r expected in
   if not test then failwithf "test 811 failed";
   mark_test_run 812;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a162.#a160) : (t162, _) idx_mut)) next_r.a162.#a160 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a167) : (t167, _) idx_mut)) next_r.a167 in
   if not test then failwithf "test 812 failed";
-  (* .a162.#b160 *)
-  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
-  let expected = { r with a162 = #{ r.a162 with b160 = next_r.a162.#b160 } } in
-  Idx_mut.unsafe_set r ((.a162.#b160) : (t162, _) idx_mut) next_r.a162.#b160;
+  (* Paths of depth 2 *)
+  let next_r = { a167 = #{ a23 = 200; b23 = #201l }; b167 = #202l } in
+  (* .a167.#a23 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a167 = #{ r.a167 with a23 = next_r.a167.#a23 } } in
+  Idx_mut.unsafe_set r ((.a167.#a23) : (t167, _) idx_mut) next_r.a167.#a23;
   mark_test_run 813;
   let test = eq r expected in
   if not test then failwithf "test 813 failed";
   mark_test_run 814;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a162.#b160) : (t162, _) idx_mut)) next_r.a162.#b160 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a167.#a23) : (t167, _) idx_mut)) next_r.a167.#a23 in
   if not test then failwithf "test 814 failed";
-  let r = { a162 = #{ a160 = 0L; b160 = #1L }; b162 = #{ a161 = #2L; b161 = #3. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a162 = #{ a160 = 100L; b160 = #101L }; b162 = #{ a161 = #102L; b161 = #103. } } in
-  (* .b162 *)
-  let sub_eq = (fun #{ a161 = a1611; b161 = b1611 } #{ a161 = a1612; b161 = b1612 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1611 a1612 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1611 b1612) in
-  let expected = { r with b162 = next_r.b162 } in
-  Idx_mut.unsafe_set r ((.b162) : (t162, _) idx_mut) next_r.b162;
+  (* .a167.#b23 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with a167 = #{ r.a167 with b23 = next_r.a167.#b23 } } in
+  Idx_mut.unsafe_set r ((.a167.#b23) : (t167, _) idx_mut) next_r.a167.#b23;
   mark_test_run 815;
   let test = eq r expected in
   if not test then failwithf "test 815 failed";
   mark_test_run 816;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b162) : (t162, _) idx_mut)) next_r.b162 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a167.#b23) : (t167, _) idx_mut)) next_r.a167.#b23 in
   if not test then failwithf "test 816 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a162 = #{ a160 = 200L; b160 = #201L }; b162 = #{ a161 = #202L; b161 = #203. } } in
-  (* .b162.#a161 *)
-  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
-  let expected = { r with b162 = #{ r.b162 with a161 = next_r.b162.#a161 } } in
-  Idx_mut.unsafe_set r ((.b162.#a161) : (t162, _) idx_mut) next_r.b162.#a161;
+  let r = { a167 = #{ a23 = 0; b23 = #1l }; b167 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a167 = #{ a23 = 100; b23 = #101l }; b167 = #102l } in
+  (* .b167 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b167 = next_r.b167 } in
+  Idx_mut.unsafe_set r ((.b167) : (t167, _) idx_mut) next_r.b167;
   mark_test_run 817;
   let test = eq r expected in
   if not test then failwithf "test 817 failed";
   mark_test_run 818;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b162.#a161) : (t162, _) idx_mut)) next_r.b162.#a161 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b167) : (t167, _) idx_mut)) next_r.b167 in
   if not test then failwithf "test 818 failed";
-  (* .b162.#b161 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b162 = #{ r.b162 with b161 = next_r.b162.#b161 } } in
-  Idx_mut.unsafe_set r ((.b162.#b161) : (t162, _) idx_mut) next_r.b162.#b161;
+  (**********************************)
+  (*   t168 = { #{ int; float } }   *)
+  (**********************************)
+  let eq = (fun { a168 = a1681 } { a168 = a1682 } -> (fun #{ a25 = a251; b25 = b251 } #{ a25 = a252; b25 = b252 } -> (fun a b -> Int.equal a b) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) a1681 a1682) in
+  let r = { a168 = #{ a25 = 0; b25 = 1. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a168 = #{ a25 = 100; b25 = 101. } } in
+  (* .a168 *)
+  let sub_eq = (fun #{ a25 = a251; b25 = b251 } #{ a25 = a252; b25 = b252 } -> (fun a b -> Int.equal a b) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) in
+  let expected = { r with a168 = next_r.a168 } in
+  Idx_mut.unsafe_set r ((.a168) : (t168, _) idx_mut) next_r.a168;
   mark_test_run 819;
   let test = eq r expected in
   if not test then failwithf "test 819 failed";
   mark_test_run 820;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b162.#b161) : (t162, _) idx_mut)) next_r.b162.#b161 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a168) : (t168, _) idx_mut)) next_r.a168 in
   if not test then failwithf "test 820 failed";
-  (**********************************************************)
-  (*   t165 = { #{ int64; string }; #{ int64#; string } }   *)
-  (**********************************************************)
-  let eq = (fun { a165 = a1651; b165 = b1651 } { a165 = a1652; b165 = b1652 } -> (fun #{ a163 = a1631; b163 = b1631 } #{ a163 = a1632; b163 = b1632 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1631 a1632 && (fun a b -> String.equal (globalize a) (globalize b)) b1631 b1632) a1651 a1652 && (fun #{ a164 = a1641; b164 = b1641 } #{ a164 = a1642; b164 = b1642 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1641 a1642 && (fun a b -> String.equal (globalize a) (globalize b)) b1641 b1642) b1651 b1652) in
-  let r = { a165 = #{ a163 = 0L; b163 = "1" }; b165 = #{ a164 = #2L; b164 = "3" } } in
-  (* Paths of depth 1 *)
-  let next_r = { a165 = #{ a163 = 100L; b163 = "101" }; b165 = #{ a164 = #102L; b164 = "103" } } in
-  (* .a165 *)
-  let sub_eq = (fun #{ a163 = a1631; b163 = b1631 } #{ a163 = a1632; b163 = b1632 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1631 a1632 && (fun a b -> String.equal (globalize a) (globalize b)) b1631 b1632) in
-  let expected = { r with a165 = next_r.a165 } in
-  Idx_mut.unsafe_set r ((.a165) : (t165, _) idx_mut) next_r.a165;
+  (* Paths of depth 2 *)
+  let next_r = { a168 = #{ a25 = 200; b25 = 201. } } in
+  (* .a168.#a25 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a168 = #{ r.a168 with a25 = next_r.a168.#a25 } } in
+  Idx_mut.unsafe_set r ((.a168.#a25) : (t168, _) idx_mut) next_r.a168.#a25;
   mark_test_run 821;
   let test = eq r expected in
   if not test then failwithf "test 821 failed";
   mark_test_run 822;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a165) : (t165, _) idx_mut)) next_r.a165 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a168.#a25) : (t168, _) idx_mut)) next_r.a168.#a25 in
   if not test then failwithf "test 822 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a165 = #{ a163 = 200L; b163 = "201" }; b165 = #{ a164 = #202L; b164 = "203" } } in
-  (* .a165.#a163 *)
-  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
-  let expected = { r with a165 = #{ r.a165 with a163 = next_r.a165.#a163 } } in
-  Idx_mut.unsafe_set r ((.a165.#a163) : (t165, _) idx_mut) next_r.a165.#a163;
+  (* .a168.#b25 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a168 = #{ r.a168 with b25 = next_r.a168.#b25 } } in
+  Idx_mut.unsafe_set r ((.a168.#b25) : (t168, _) idx_mut) next_r.a168.#b25;
   mark_test_run 823;
   let test = eq r expected in
   if not test then failwithf "test 823 failed";
   mark_test_run 824;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a165.#a163) : (t165, _) idx_mut)) next_r.a165.#a163 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a168.#b25) : (t168, _) idx_mut)) next_r.a168.#b25 in
   if not test then failwithf "test 824 failed";
-  (* .a165.#b163 *)
-  let sub_eq = (fun a b -> String.equal (globalize a) (globalize b)) in
-  let expected = { r with a165 = #{ r.a165 with b163 = next_r.a165.#b163 } } in
-  Idx_mut.unsafe_set r ((.a165.#b163) : (t165, _) idx_mut) next_r.a165.#b163;
+  (***************************************)
+  (*   t169 = { #{ int; float }; int }   *)
+  (***************************************)
+  let eq = (fun { a169 = a1691; b169 = b1691 } { a169 = a1692; b169 = b1692 } -> (fun #{ a25 = a251; b25 = b251 } #{ a25 = a252; b25 = b252 } -> (fun a b -> Int.equal a b) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) a1691 a1692 && (fun a b -> Int.equal a b) b1691 b1692) in
+  let r = { a169 = #{ a25 = 0; b25 = 1. }; b169 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a169 = #{ a25 = 100; b25 = 101. }; b169 = 102 } in
+  (* .a169 *)
+  let sub_eq = (fun #{ a25 = a251; b25 = b251 } #{ a25 = a252; b25 = b252 } -> (fun a b -> Int.equal a b) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) in
+  let expected = { r with a169 = next_r.a169 } in
+  Idx_mut.unsafe_set r ((.a169) : (t169, _) idx_mut) next_r.a169;
   mark_test_run 825;
   let test = eq r expected in
   if not test then failwithf "test 825 failed";
   mark_test_run 826;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a165.#b163) : (t165, _) idx_mut)) next_r.a165.#b163 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a169) : (t169, _) idx_mut)) next_r.a169 in
   if not test then failwithf "test 826 failed";
-  let r = { a165 = #{ a163 = 0L; b163 = "1" }; b165 = #{ a164 = #2L; b164 = "3" } } in
-  (* Paths of depth 1 *)
-  let next_r = { a165 = #{ a163 = 100L; b163 = "101" }; b165 = #{ a164 = #102L; b164 = "103" } } in
-  (* .b165 *)
-  let sub_eq = (fun #{ a164 = a1641; b164 = b1641 } #{ a164 = a1642; b164 = b1642 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1641 a1642 && (fun a b -> String.equal (globalize a) (globalize b)) b1641 b1642) in
-  let expected = { r with b165 = next_r.b165 } in
-  Idx_mut.unsafe_set r ((.b165) : (t165, _) idx_mut) next_r.b165;
+  (* Paths of depth 2 *)
+  let next_r = { a169 = #{ a25 = 200; b25 = 201. }; b169 = 202 } in
+  (* .a169.#a25 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a169 = #{ r.a169 with a25 = next_r.a169.#a25 } } in
+  Idx_mut.unsafe_set r ((.a169.#a25) : (t169, _) idx_mut) next_r.a169.#a25;
   mark_test_run 827;
   let test = eq r expected in
   if not test then failwithf "test 827 failed";
   mark_test_run 828;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b165) : (t165, _) idx_mut)) next_r.b165 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a169.#a25) : (t169, _) idx_mut)) next_r.a169.#a25 in
   if not test then failwithf "test 828 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a165 = #{ a163 = 200L; b163 = "201" }; b165 = #{ a164 = #202L; b164 = "203" } } in
-  (* .b165.#a164 *)
-  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
-  let expected = { r with b165 = #{ r.b165 with a164 = next_r.b165.#a164 } } in
-  Idx_mut.unsafe_set r ((.b165.#a164) : (t165, _) idx_mut) next_r.b165.#a164;
+  (* .a169.#b25 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a169 = #{ r.a169 with b25 = next_r.a169.#b25 } } in
+  Idx_mut.unsafe_set r ((.a169.#b25) : (t169, _) idx_mut) next_r.a169.#b25;
   mark_test_run 829;
   let test = eq r expected in
   if not test then failwithf "test 829 failed";
   mark_test_run 830;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b165.#a164) : (t165, _) idx_mut)) next_r.b165.#a164 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a169.#b25) : (t169, _) idx_mut)) next_r.a169.#b25 in
   if not test then failwithf "test 830 failed";
-  (* .b165.#b164 *)
-  let sub_eq = (fun a b -> String.equal (globalize a) (globalize b)) in
-  let expected = { r with b165 = #{ r.b165 with b164 = next_r.b165.#b164 } } in
-  Idx_mut.unsafe_set r ((.b165.#b164) : (t165, _) idx_mut) next_r.b165.#b164;
+  let r = { a169 = #{ a25 = 0; b25 = 1. }; b169 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a169 = #{ a25 = 100; b25 = 101. }; b169 = 102 } in
+  (* .b169 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b169 = next_r.b169 } in
+  Idx_mut.unsafe_set r ((.b169) : (t169, _) idx_mut) next_r.b169;
   mark_test_run 831;
   let test = eq r expected in
   if not test then failwithf "test 831 failed";
   mark_test_run 832;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b165.#b164) : (t165, _) idx_mut)) next_r.b165.#b164 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b169) : (t169, _) idx_mut)) next_r.b169 in
   if not test then failwithf "test 832 failed";
-  (********************************************************)
-  (*   t168 = { #{ int64#; int64 }; #{ int64; int64 } }   *)
-  (********************************************************)
-  let eq = (fun { a168 = a1681; b168 = b1681 } { a168 = a1682; b168 = b1682 } -> (fun #{ a166 = a1661; b166 = b1661 } #{ a166 = a1662; b166 = b1662 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1661 a1662 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1661 b1662) a1681 a1682 && (fun #{ a167 = a1671; b167 = b1671 } #{ a167 = a1672; b167 = b1672 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1671 a1672 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1671 b1672) b1681 b1682) in
-  let r = { a168 = #{ a166 = #0L; b166 = 1L }; b168 = #{ a167 = 2L; b167 = 3L } } in
+  (*****************************************)
+  (*   t170 = { #{ int; float }; float }   *)
+  (*****************************************)
+  let eq = (fun { a170 = a1701; b170 = b1701 } { a170 = a1702; b170 = b1702 } -> (fun #{ a25 = a251; b25 = b251 } #{ a25 = a252; b25 = b252 } -> (fun a b -> Int.equal a b) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) a1701 a1702 && (fun a b -> Float.equal (globalize a) (globalize b)) b1701 b1702) in
+  let r = { a170 = #{ a25 = 0; b25 = 1. }; b170 = 2. } in
   (* Paths of depth 1 *)
-  let next_r = { a168 = #{ a166 = #100L; b166 = 101L }; b168 = #{ a167 = 102L; b167 = 103L } } in
-  (* .a168 *)
-  let sub_eq = (fun #{ a166 = a1661; b166 = b1661 } #{ a166 = a1662; b166 = b1662 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1661 a1662 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1661 b1662) in
-  let expected = { r with a168 = next_r.a168 } in
-  Idx_mut.unsafe_set r ((.a168) : (t168, _) idx_mut) next_r.a168;
+  let next_r = { a170 = #{ a25 = 100; b25 = 101. }; b170 = 102. } in
+  (* .a170 *)
+  let sub_eq = (fun #{ a25 = a251; b25 = b251 } #{ a25 = a252; b25 = b252 } -> (fun a b -> Int.equal a b) a251 a252 && (fun a b -> Float.equal (globalize a) (globalize b)) b251 b252) in
+  let expected = { r with a170 = next_r.a170 } in
+  Idx_mut.unsafe_set r ((.a170) : (t170, _) idx_mut) next_r.a170;
   mark_test_run 833;
   let test = eq r expected in
   if not test then failwithf "test 833 failed";
   mark_test_run 834;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a168) : (t168, _) idx_mut)) next_r.a168 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a170) : (t170, _) idx_mut)) next_r.a170 in
   if not test then failwithf "test 834 failed";
   (* Paths of depth 2 *)
-  let next_r = { a168 = #{ a166 = #200L; b166 = 201L }; b168 = #{ a167 = 202L; b167 = 203L } } in
-  (* .a168.#a166 *)
-  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
-  let expected = { r with a168 = #{ r.a168 with a166 = next_r.a168.#a166 } } in
-  Idx_mut.unsafe_set r ((.a168.#a166) : (t168, _) idx_mut) next_r.a168.#a166;
+  let next_r = { a170 = #{ a25 = 200; b25 = 201. }; b170 = 202. } in
+  (* .a170.#a25 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a170 = #{ r.a170 with a25 = next_r.a170.#a25 } } in
+  Idx_mut.unsafe_set r ((.a170.#a25) : (t170, _) idx_mut) next_r.a170.#a25;
   mark_test_run 835;
   let test = eq r expected in
   if not test then failwithf "test 835 failed";
   mark_test_run 836;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a168.#a166) : (t168, _) idx_mut)) next_r.a168.#a166 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a170.#a25) : (t170, _) idx_mut)) next_r.a170.#a25 in
   if not test then failwithf "test 836 failed";
-  (* .a168.#b166 *)
-  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
-  let expected = { r with a168 = #{ r.a168 with b166 = next_r.a168.#b166 } } in
-  Idx_mut.unsafe_set r ((.a168.#b166) : (t168, _) idx_mut) next_r.a168.#b166;
+  (* .a170.#b25 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a170 = #{ r.a170 with b25 = next_r.a170.#b25 } } in
+  Idx_mut.unsafe_set r ((.a170.#b25) : (t170, _) idx_mut) next_r.a170.#b25;
   mark_test_run 837;
   let test = eq r expected in
   if not test then failwithf "test 837 failed";
   mark_test_run 838;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a168.#b166) : (t168, _) idx_mut)) next_r.a168.#b166 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a170.#b25) : (t170, _) idx_mut)) next_r.a170.#b25 in
   if not test then failwithf "test 838 failed";
-  let r = { a168 = #{ a166 = #0L; b166 = 1L }; b168 = #{ a167 = 2L; b167 = 3L } } in
+  let r = { a170 = #{ a25 = 0; b25 = 1. }; b170 = 2. } in
   (* Paths of depth 1 *)
-  let next_r = { a168 = #{ a166 = #100L; b166 = 101L }; b168 = #{ a167 = 102L; b167 = 103L } } in
-  (* .b168 *)
-  let sub_eq = (fun #{ a167 = a1671; b167 = b1671 } #{ a167 = a1672; b167 = b1672 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1671 a1672 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1671 b1672) in
-  let expected = { r with b168 = next_r.b168 } in
-  Idx_mut.unsafe_set r ((.b168) : (t168, _) idx_mut) next_r.b168;
+  let next_r = { a170 = #{ a25 = 100; b25 = 101. }; b170 = 102. } in
+  (* .b170 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b170 = next_r.b170 } in
+  Idx_mut.unsafe_set r ((.b170) : (t170, _) idx_mut) next_r.b170;
   mark_test_run 839;
   let test = eq r expected in
   if not test then failwithf "test 839 failed";
   mark_test_run 840;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b168) : (t168, _) idx_mut)) next_r.b168 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b170) : (t170, _) idx_mut)) next_r.b170 in
   if not test then failwithf "test 840 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a168 = #{ a166 = #200L; b166 = 201L }; b168 = #{ a167 = 202L; b167 = 203L } } in
-  (* .b168.#a167 *)
-  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
-  let expected = { r with b168 = #{ r.b168 with a167 = next_r.b168.#a167 } } in
-  Idx_mut.unsafe_set r ((.b168.#a167) : (t168, _) idx_mut) next_r.b168.#a167;
+  (*************************************)
+  (*   t171 = { #{ int; int64x2# } }   *)
+  (*************************************)
+  let eq = (fun { a171 = a1711 } { a171 = a1712 } -> (fun #{ a27 = a271; b27 = b271 } #{ a27 = a272; b27 = b272 } -> (fun a b -> Int.equal a b) a271 a272 && int64x2_u_equal b271 b272) a1711 a1712) in
+  let r = { a171 = #{ a27 = 0; b27 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) } } in
+  (* Paths of depth 1 *)
+  let next_r = { a171 = #{ a27 = 100; b27 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) } } in
+  (* .a171 *)
+  let sub_eq = (fun #{ a27 = a271; b27 = b271 } #{ a27 = a272; b27 = b272 } -> (fun a b -> Int.equal a b) a271 a272 && int64x2_u_equal b271 b272) in
+  let expected = { r with a171 = next_r.a171 } in
+  Idx_mut.unsafe_set r ((.a171) : (t171, _) idx_mut) next_r.a171;
   mark_test_run 841;
   let test = eq r expected in
   if not test then failwithf "test 841 failed";
   mark_test_run 842;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b168.#a167) : (t168, _) idx_mut)) next_r.b168.#a167 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a171) : (t171, _) idx_mut)) next_r.a171 in
   if not test then failwithf "test 842 failed";
-  (* .b168.#b167 *)
-  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
-  let expected = { r with b168 = #{ r.b168 with b167 = next_r.b168.#b167 } } in
-  Idx_mut.unsafe_set r ((.b168.#b167) : (t168, _) idx_mut) next_r.b168.#b167;
+  (* Paths of depth 2 *)
+  let next_r = { a171 = #{ a27 = 200; b27 = (interleave_low_64 (int64x2_of_int64 201L) (int64x2_of_int64 202L)) } } in
+  (* .a171.#a27 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a171 = #{ r.a171 with a27 = next_r.a171.#a27 } } in
+  Idx_mut.unsafe_set r ((.a171.#a27) : (t171, _) idx_mut) next_r.a171.#a27;
   mark_test_run 843;
   let test = eq r expected in
   if not test then failwithf "test 843 failed";
   mark_test_run 844;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b168.#b167) : (t168, _) idx_mut)) next_r.b168.#b167 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a171.#a27) : (t171, _) idx_mut)) next_r.a171.#a27 in
   if not test then failwithf "test 844 failed";
-  (***********************************************************)
-  (*   t170 = { #{ int64#; int64 }; #{ float32#; float } }   *)
-  (***********************************************************)
-  let eq = (fun { a170 = a1701; b170 = b1701 } { a170 = a1702; b170 = b1702 } -> (fun #{ a166 = a1661; b166 = b1661 } #{ a166 = a1662; b166 = b1662 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1661 a1662 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1661 b1662) a1701 a1702 && (fun #{ a169 = a1691; b169 = b1691 } #{ a169 = a1692; b169 = b1692 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1691 a1692 && (fun a b -> Float.equal (globalize a) (globalize b)) b1691 b1692) b1701 b1702) in
-  let r = { a170 = #{ a166 = #0L; b166 = 1L }; b170 = #{ a169 = #2.s; b169 = 3. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a170 = #{ a166 = #100L; b166 = 101L }; b170 = #{ a169 = #102.s; b169 = 103. } } in
-  (* .a170 *)
-  let sub_eq = (fun #{ a166 = a1661; b166 = b1661 } #{ a166 = a1662; b166 = b1662 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1661 a1662 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1661 b1662) in
-  let expected = { r with a170 = next_r.a170 } in
-  Idx_mut.unsafe_set r ((.a170) : (t170, _) idx_mut) next_r.a170;
+  (* .a171.#b27 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a171 = #{ r.a171 with b27 = next_r.a171.#b27 } } in
+  Idx_mut.unsafe_set r ((.a171.#b27) : (t171, _) idx_mut) next_r.a171.#b27;
   mark_test_run 845;
   let test = eq r expected in
   if not test then failwithf "test 845 failed";
   mark_test_run 846;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a170) : (t170, _) idx_mut)) next_r.a170 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a171.#b27) : (t171, _) idx_mut)) next_r.a171.#b27 in
   if not test then failwithf "test 846 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a170 = #{ a166 = #200L; b166 = 201L }; b170 = #{ a169 = #202.s; b169 = 203. } } in
-  (* .a170.#a166 *)
-  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
-  let expected = { r with a170 = #{ r.a170 with a166 = next_r.a170.#a166 } } in
-  Idx_mut.unsafe_set r ((.a170.#a166) : (t170, _) idx_mut) next_r.a170.#a166;
+  (******************************************)
+  (*   t172 = { #{ int; int64x2# }; int }   *)
+  (******************************************)
+  let eq = (fun { a172 = a1721; b172 = b1721 } { a172 = a1722; b172 = b1722 } -> (fun #{ a27 = a271; b27 = b271 } #{ a27 = a272; b27 = b272 } -> (fun a b -> Int.equal a b) a271 a272 && int64x2_u_equal b271 b272) a1721 a1722 && (fun a b -> Int.equal a b) b1721 b1722) in
+  let r = { a172 = #{ a27 = 0; b27 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b172 = 3 } in
+  (* Paths of depth 1 *)
+  let next_r = { a172 = #{ a27 = 100; b27 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) }; b172 = 103 } in
+  (* .a172 *)
+  let sub_eq = (fun #{ a27 = a271; b27 = b271 } #{ a27 = a272; b27 = b272 } -> (fun a b -> Int.equal a b) a271 a272 && int64x2_u_equal b271 b272) in
+  let expected = { r with a172 = next_r.a172 } in
+  Idx_mut.unsafe_set r ((.a172) : (t172, _) idx_mut) next_r.a172;
   mark_test_run 847;
   let test = eq r expected in
   if not test then failwithf "test 847 failed";
   mark_test_run 848;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a170.#a166) : (t170, _) idx_mut)) next_r.a170.#a166 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a172) : (t172, _) idx_mut)) next_r.a172 in
   if not test then failwithf "test 848 failed";
-  (* .a170.#b166 *)
-  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
-  let expected = { r with a170 = #{ r.a170 with b166 = next_r.a170.#b166 } } in
-  Idx_mut.unsafe_set r ((.a170.#b166) : (t170, _) idx_mut) next_r.a170.#b166;
+  (* Paths of depth 2 *)
+  let next_r = { a172 = #{ a27 = 200; b27 = (interleave_low_64 (int64x2_of_int64 201L) (int64x2_of_int64 202L)) }; b172 = 203 } in
+  (* .a172.#a27 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a172 = #{ r.a172 with a27 = next_r.a172.#a27 } } in
+  Idx_mut.unsafe_set r ((.a172.#a27) : (t172, _) idx_mut) next_r.a172.#a27;
   mark_test_run 849;
   let test = eq r expected in
   if not test then failwithf "test 849 failed";
   mark_test_run 850;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a170.#b166) : (t170, _) idx_mut)) next_r.a170.#b166 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a172.#a27) : (t172, _) idx_mut)) next_r.a172.#a27 in
   if not test then failwithf "test 850 failed";
-  let r = { a170 = #{ a166 = #0L; b166 = 1L }; b170 = #{ a169 = #2.s; b169 = 3. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a170 = #{ a166 = #100L; b166 = 101L }; b170 = #{ a169 = #102.s; b169 = 103. } } in
-  (* .b170 *)
-  let sub_eq = (fun #{ a169 = a1691; b169 = b1691 } #{ a169 = a1692; b169 = b1692 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1691 a1692 && (fun a b -> Float.equal (globalize a) (globalize b)) b1691 b1692) in
-  let expected = { r with b170 = next_r.b170 } in
-  Idx_mut.unsafe_set r ((.b170) : (t170, _) idx_mut) next_r.b170;
+  (* .a172.#b27 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a172 = #{ r.a172 with b27 = next_r.a172.#b27 } } in
+  Idx_mut.unsafe_set r ((.a172.#b27) : (t172, _) idx_mut) next_r.a172.#b27;
   mark_test_run 851;
   let test = eq r expected in
   if not test then failwithf "test 851 failed";
   mark_test_run 852;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b170) : (t170, _) idx_mut)) next_r.b170 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a172.#b27) : (t172, _) idx_mut)) next_r.a172.#b27 in
   if not test then failwithf "test 852 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a170 = #{ a166 = #200L; b166 = 201L }; b170 = #{ a169 = #202.s; b169 = 203. } } in
-  (* .b170.#a169 *)
-  let sub_eq = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) in
-  let expected = { r with b170 = #{ r.b170 with a169 = next_r.b170.#a169 } } in
-  Idx_mut.unsafe_set r ((.b170.#a169) : (t170, _) idx_mut) next_r.b170.#a169;
-  mark_test_run 853;
-  let test = eq r expected in
-  if not test then failwithf "test 853 failed";
-  mark_test_run 854;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b170.#a169) : (t170, _) idx_mut)) next_r.b170.#a169 in
-  if not test then failwithf "test 854 failed";
-  (* .b170.#b169 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b170 = #{ r.b170 with b169 = next_r.b170.#b169 } } in
-  Idx_mut.unsafe_set r ((.b170.#b169) : (t170, _) idx_mut) next_r.b170.#b169;
-  mark_test_run 855;
-  let test = eq r expected in
-  if not test then failwithf "test 855 failed";
-  mark_test_run 856;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b170.#b169) : (t170, _) idx_mut)) next_r.b170.#b169 in
-  if not test then failwithf "test 856 failed";
-  (******************************)
-  (*   t171 = { #{ int32# } }   *)
-  (******************************)
-  let eq = (fun { a171 = a1711 } { a171 = a1712 } -> (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) a1711 a1712) in
-  let r = { a171 = #{ a28 = #0l } } in
+  let r = { a172 = #{ a27 = 0; b27 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b172 = 3 } in
   (* Paths of depth 1 *)
-  let next_r = { a171 = #{ a28 = #100l } } in
-  (* .a171 *)
-  let sub_eq = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) in
-  let expected = { r with a171 = next_r.a171 } in
-  Idx_mut.unsafe_set r ((.a171) : (t171, _) idx_mut) next_r.a171;
-  mark_test_run 857;
-  let test = eq r expected in
-  if not test then failwithf "test 857 failed";
-  mark_test_run 858;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a171) : (t171, _) idx_mut)) next_r.a171 in
-  if not test then failwithf "test 858 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a171 = #{ a28 = #200l } } in
-  (* .a171.#a28 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with a171 = #{ r.a171 with a28 = next_r.a171.#a28 } } in
-  Idx_mut.unsafe_set r ((.a171.#a28) : (t171, _) idx_mut) next_r.a171.#a28;
-  mark_test_run 859;
-  let test = eq r expected in
-  if not test then failwithf "test 859 failed";
-  mark_test_run 860;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a171.#a28) : (t171, _) idx_mut)) next_r.a171.#a28 in
-  if not test then failwithf "test 860 failed";
-  (***********************************)
-  (*   t172 = { #{ int32# }; int }   *)
-  (***********************************)
-  let eq = (fun { a172 = a1721; b172 = b1721 } { a172 = a1722; b172 = b1722 } -> (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) a1721 a1722 && (fun a b -> Int.equal a b) b1721 b1722) in
-  let r = { a172 = #{ a28 = #0l }; b172 = 1 } in
-  (* Paths of depth 1 *)
-  let next_r = { a172 = #{ a28 = #100l }; b172 = 101 } in
-  (* .a172 *)
-  let sub_eq = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) in
-  let expected = { r with a172 = next_r.a172 } in
-  Idx_mut.unsafe_set r ((.a172) : (t172, _) idx_mut) next_r.a172;
-  mark_test_run 861;
-  let test = eq r expected in
-  if not test then failwithf "test 861 failed";
-  mark_test_run 862;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a172) : (t172, _) idx_mut)) next_r.a172 in
-  if not test then failwithf "test 862 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a172 = #{ a28 = #200l }; b172 = 201 } in
-  (* .a172.#a28 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with a172 = #{ r.a172 with a28 = next_r.a172.#a28 } } in
-  Idx_mut.unsafe_set r ((.a172.#a28) : (t172, _) idx_mut) next_r.a172.#a28;
-  mark_test_run 863;
-  let test = eq r expected in
-  if not test then failwithf "test 863 failed";
-  mark_test_run 864;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a172.#a28) : (t172, _) idx_mut)) next_r.a172.#a28 in
-  if not test then failwithf "test 864 failed";
-  let r = { a172 = #{ a28 = #0l }; b172 = 1 } in
-  (* Paths of depth 1 *)
-  let next_r = { a172 = #{ a28 = #100l }; b172 = 101 } in
+  let next_r = { a172 = #{ a27 = 100; b27 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) }; b172 = 103 } in
   (* .b172 *)
   let sub_eq = (fun a b -> Int.equal a b) in
   let expected = { r with b172 = next_r.b172 } in
   Idx_mut.unsafe_set r ((.b172) : (t172, _) idx_mut) next_r.b172;
+  mark_test_run 853;
+  let test = eq r expected in
+  if not test then failwithf "test 853 failed";
+  mark_test_run 854;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b172) : (t172, _) idx_mut)) next_r.b172 in
+  if not test then failwithf "test 854 failed";
+  (***********************************************)
+  (*   t173 = { #{ int; int64x2# }; int64x2# }   *)
+  (***********************************************)
+  let eq = (fun { a173 = a1731; b173 = b1731 } { a173 = a1732; b173 = b1732 } -> (fun #{ a27 = a271; b27 = b271 } #{ a27 = a272; b27 = b272 } -> (fun a b -> Int.equal a b) a271 a272 && int64x2_u_equal b271 b272) a1731 a1732 && int64x2_u_equal b1731 b1732) in
+  let r = { a173 = #{ a27 = 0; b27 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b173 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  (* Paths of depth 1 *)
+  let next_r = { a173 = #{ a27 = 100; b27 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) }; b173 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
+  (* .a173 *)
+  let sub_eq = (fun #{ a27 = a271; b27 = b271 } #{ a27 = a272; b27 = b272 } -> (fun a b -> Int.equal a b) a271 a272 && int64x2_u_equal b271 b272) in
+  let expected = { r with a173 = next_r.a173 } in
+  Idx_mut.unsafe_set r ((.a173) : (t173, _) idx_mut) next_r.a173;
+  mark_test_run 855;
+  let test = eq r expected in
+  if not test then failwithf "test 855 failed";
+  mark_test_run 856;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a173) : (t173, _) idx_mut)) next_r.a173 in
+  if not test then failwithf "test 856 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a173 = #{ a27 = 200; b27 = (interleave_low_64 (int64x2_of_int64 201L) (int64x2_of_int64 202L)) }; b173 = (interleave_low_64 (int64x2_of_int64 203L) (int64x2_of_int64 204L)) } in
+  (* .a173.#a27 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a173 = #{ r.a173 with a27 = next_r.a173.#a27 } } in
+  Idx_mut.unsafe_set r ((.a173.#a27) : (t173, _) idx_mut) next_r.a173.#a27;
+  mark_test_run 857;
+  let test = eq r expected in
+  if not test then failwithf "test 857 failed";
+  mark_test_run 858;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a173.#a27) : (t173, _) idx_mut)) next_r.a173.#a27 in
+  if not test then failwithf "test 858 failed";
+  (* .a173.#b27 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a173 = #{ r.a173 with b27 = next_r.a173.#b27 } } in
+  Idx_mut.unsafe_set r ((.a173.#b27) : (t173, _) idx_mut) next_r.a173.#b27;
+  mark_test_run 859;
+  let test = eq r expected in
+  if not test then failwithf "test 859 failed";
+  mark_test_run 860;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a173.#b27) : (t173, _) idx_mut)) next_r.a173.#b27 in
+  if not test then failwithf "test 860 failed";
+  let r = { a173 = #{ a27 = 0; b27 = (interleave_low_64 (int64x2_of_int64 1L) (int64x2_of_int64 2L)) }; b173 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  (* Paths of depth 1 *)
+  let next_r = { a173 = #{ a27 = 100; b27 = (interleave_low_64 (int64x2_of_int64 101L) (int64x2_of_int64 102L)) }; b173 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
+  (* .b173 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with b173 = next_r.b173 } in
+  Idx_mut.unsafe_set r ((.b173) : (t173, _) idx_mut) next_r.b173;
+  mark_test_run 861;
+  let test = eq r expected in
+  if not test then failwithf "test 861 failed";
+  mark_test_run 862;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b173) : (t173, _) idx_mut)) next_r.b173 in
+  if not test then failwithf "test 862 failed";
+  (**********************************************************)
+  (*   t176 = { #{ int64; int64# }; #{ int64#; float# } }   *)
+  (**********************************************************)
+  let eq = (fun { a176 = a1761; b176 = b1761 } { a176 = a1762; b176 = b1762 } -> (fun #{ a174 = a1741; b174 = b1741 } #{ a174 = a1742; b174 = b1742 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1741 a1742 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1741 b1742) a1761 a1762 && (fun #{ a175 = a1751; b175 = b1751 } #{ a175 = a1752; b175 = b1752 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1751 a1752 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1751 b1752) b1761 b1762) in
+  let r = { a176 = #{ a174 = 0L; b174 = #1L }; b176 = #{ a175 = #2L; b175 = #3. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a176 = #{ a174 = 100L; b174 = #101L }; b176 = #{ a175 = #102L; b175 = #103. } } in
+  (* .a176 *)
+  let sub_eq = (fun #{ a174 = a1741; b174 = b1741 } #{ a174 = a1742; b174 = b1742 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1741 a1742 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b1741 b1742) in
+  let expected = { r with a176 = next_r.a176 } in
+  Idx_mut.unsafe_set r ((.a176) : (t176, _) idx_mut) next_r.a176;
+  mark_test_run 863;
+  let test = eq r expected in
+  if not test then failwithf "test 863 failed";
+  mark_test_run 864;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a176) : (t176, _) idx_mut)) next_r.a176 in
+  if not test then failwithf "test 864 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a176 = #{ a174 = 200L; b174 = #201L }; b176 = #{ a175 = #202L; b175 = #203. } } in
+  (* .a176.#a174 *)
+  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
+  let expected = { r with a176 = #{ r.a176 with a174 = next_r.a176.#a174 } } in
+  Idx_mut.unsafe_set r ((.a176.#a174) : (t176, _) idx_mut) next_r.a176.#a174;
   mark_test_run 865;
   let test = eq r expected in
   if not test then failwithf "test 865 failed";
   mark_test_run 866;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b172) : (t172, _) idx_mut)) next_r.b172 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a176.#a174) : (t176, _) idx_mut)) next_r.a176.#a174 in
   if not test then failwithf "test 866 failed";
-  (**************************************)
-  (*   t173 = { #{ int32# }; int32# }   *)
-  (**************************************)
-  let eq = (fun { a173 = a1731; b173 = b1731 } { a173 = a1732; b173 = b1732 } -> (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) a1731 a1732 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1731 b1732) in
-  let r = { a173 = #{ a28 = #0l }; b173 = #1l } in
-  (* Paths of depth 1 *)
-  let next_r = { a173 = #{ a28 = #100l }; b173 = #101l } in
-  (* .a173 *)
-  let sub_eq = (fun #{ a28 = a281 } #{ a28 = a282 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a281 a282) in
-  let expected = { r with a173 = next_r.a173 } in
-  Idx_mut.unsafe_set r ((.a173) : (t173, _) idx_mut) next_r.a173;
+  (* .a176.#b174 *)
+  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
+  let expected = { r with a176 = #{ r.a176 with b174 = next_r.a176.#b174 } } in
+  Idx_mut.unsafe_set r ((.a176.#b174) : (t176, _) idx_mut) next_r.a176.#b174;
   mark_test_run 867;
   let test = eq r expected in
   if not test then failwithf "test 867 failed";
   mark_test_run 868;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a173) : (t173, _) idx_mut)) next_r.a173 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a176.#b174) : (t176, _) idx_mut)) next_r.a176.#b174 in
   if not test then failwithf "test 868 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a173 = #{ a28 = #200l }; b173 = #201l } in
-  (* .a173.#a28 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with a173 = #{ r.a173 with a28 = next_r.a173.#a28 } } in
-  Idx_mut.unsafe_set r ((.a173.#a28) : (t173, _) idx_mut) next_r.a173.#a28;
+  let r = { a176 = #{ a174 = 0L; b174 = #1L }; b176 = #{ a175 = #2L; b175 = #3. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a176 = #{ a174 = 100L; b174 = #101L }; b176 = #{ a175 = #102L; b175 = #103. } } in
+  (* .b176 *)
+  let sub_eq = (fun #{ a175 = a1751; b175 = b1751 } #{ a175 = a1752; b175 = b1752 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1751 a1752 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1751 b1752) in
+  let expected = { r with b176 = next_r.b176 } in
+  Idx_mut.unsafe_set r ((.b176) : (t176, _) idx_mut) next_r.b176;
   mark_test_run 869;
   let test = eq r expected in
   if not test then failwithf "test 869 failed";
   mark_test_run 870;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a173.#a28) : (t173, _) idx_mut)) next_r.a173.#a28 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b176) : (t176, _) idx_mut)) next_r.b176 in
   if not test then failwithf "test 870 failed";
-  let r = { a173 = #{ a28 = #0l }; b173 = #1l } in
-  (* Paths of depth 1 *)
-  let next_r = { a173 = #{ a28 = #100l }; b173 = #101l } in
-  (* .b173 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b173 = next_r.b173 } in
-  Idx_mut.unsafe_set r ((.b173) : (t173, _) idx_mut) next_r.b173;
+  (* Paths of depth 2 *)
+  let next_r = { a176 = #{ a174 = 200L; b174 = #201L }; b176 = #{ a175 = #202L; b175 = #203. } } in
+  (* .b176.#a175 *)
+  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
+  let expected = { r with b176 = #{ r.b176 with a175 = next_r.b176.#a175 } } in
+  Idx_mut.unsafe_set r ((.b176.#a175) : (t176, _) idx_mut) next_r.b176.#a175;
   mark_test_run 871;
   let test = eq r expected in
   if not test then failwithf "test 871 failed";
   mark_test_run 872;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b173) : (t173, _) idx_mut)) next_r.b173 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b176.#a175) : (t176, _) idx_mut)) next_r.b176.#a175 in
   if not test then failwithf "test 872 failed";
-  (***********************************)
-  (*   t174 = { #{ int32#; int } }   *)
-  (***********************************)
-  let eq = (fun { a174 = a1741 } { a174 = a1742 } -> (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) a1741 a1742) in
-  let r = { a174 = #{ a30 = #0l; b30 = 1 } } in
-  (* Paths of depth 1 *)
-  let next_r = { a174 = #{ a30 = #100l; b30 = 101 } } in
-  (* .a174 *)
-  let sub_eq = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) in
-  let expected = { r with a174 = next_r.a174 } in
-  Idx_mut.unsafe_set r ((.a174) : (t174, _) idx_mut) next_r.a174;
+  (* .b176.#b175 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b176 = #{ r.b176 with b175 = next_r.b176.#b175 } } in
+  Idx_mut.unsafe_set r ((.b176.#b175) : (t176, _) idx_mut) next_r.b176.#b175;
   mark_test_run 873;
   let test = eq r expected in
   if not test then failwithf "test 873 failed";
   mark_test_run 874;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a174) : (t174, _) idx_mut)) next_r.a174 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b176.#b175) : (t176, _) idx_mut)) next_r.b176.#b175 in
   if not test then failwithf "test 874 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a174 = #{ a30 = #200l; b30 = 201 } } in
-  (* .a174.#a30 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with a174 = #{ r.a174 with a30 = next_r.a174.#a30 } } in
-  Idx_mut.unsafe_set r ((.a174.#a30) : (t174, _) idx_mut) next_r.a174.#a30;
+  (**********************************************************)
+  (*   t179 = { #{ int64; string }; #{ int64#; string } }   *)
+  (**********************************************************)
+  let eq = (fun { a179 = a1791; b179 = b1791 } { a179 = a1792; b179 = b1792 } -> (fun #{ a177 = a1771; b177 = b1771 } #{ a177 = a1772; b177 = b1772 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1771 a1772 && (fun a b -> String.equal (globalize a) (globalize b)) b1771 b1772) a1791 a1792 && (fun #{ a178 = a1781; b178 = b1781 } #{ a178 = a1782; b178 = b1782 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1781 a1782 && (fun a b -> String.equal (globalize a) (globalize b)) b1781 b1782) b1791 b1792) in
+  let r = { a179 = #{ a177 = 0L; b177 = "1" }; b179 = #{ a178 = #2L; b178 = "3" } } in
+  (* Paths of depth 1 *)
+  let next_r = { a179 = #{ a177 = 100L; b177 = "101" }; b179 = #{ a178 = #102L; b178 = "103" } } in
+  (* .a179 *)
+  let sub_eq = (fun #{ a177 = a1771; b177 = b1771 } #{ a177 = a1772; b177 = b1772 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1771 a1772 && (fun a b -> String.equal (globalize a) (globalize b)) b1771 b1772) in
+  let expected = { r with a179 = next_r.a179 } in
+  Idx_mut.unsafe_set r ((.a179) : (t179, _) idx_mut) next_r.a179;
   mark_test_run 875;
   let test = eq r expected in
   if not test then failwithf "test 875 failed";
   mark_test_run 876;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a174.#a30) : (t174, _) idx_mut)) next_r.a174.#a30 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a179) : (t179, _) idx_mut)) next_r.a179 in
   if not test then failwithf "test 876 failed";
-  (* .a174.#b30 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a174 = #{ r.a174 with b30 = next_r.a174.#b30 } } in
-  Idx_mut.unsafe_set r ((.a174.#b30) : (t174, _) idx_mut) next_r.a174.#b30;
+  (* Paths of depth 2 *)
+  let next_r = { a179 = #{ a177 = 200L; b177 = "201" }; b179 = #{ a178 = #202L; b178 = "203" } } in
+  (* .a179.#a177 *)
+  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
+  let expected = { r with a179 = #{ r.a179 with a177 = next_r.a179.#a177 } } in
+  Idx_mut.unsafe_set r ((.a179.#a177) : (t179, _) idx_mut) next_r.a179.#a177;
   mark_test_run 877;
   let test = eq r expected in
   if not test then failwithf "test 877 failed";
   mark_test_run 878;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a174.#b30) : (t174, _) idx_mut)) next_r.a174.#b30 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a179.#a177) : (t179, _) idx_mut)) next_r.a179.#a177 in
   if not test then failwithf "test 878 failed";
-  (****************************************)
-  (*   t175 = { #{ int32#; int }; int }   *)
-  (****************************************)
-  let eq = (fun { a175 = a1751; b175 = b1751 } { a175 = a1752; b175 = b1752 } -> (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) a1751 a1752 && (fun a b -> Int.equal a b) b1751 b1752) in
-  let r = { a175 = #{ a30 = #0l; b30 = 1 }; b175 = 2 } in
-  (* Paths of depth 1 *)
-  let next_r = { a175 = #{ a30 = #100l; b30 = 101 }; b175 = 102 } in
-  (* .a175 *)
-  let sub_eq = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) in
-  let expected = { r with a175 = next_r.a175 } in
-  Idx_mut.unsafe_set r ((.a175) : (t175, _) idx_mut) next_r.a175;
+  (* .a179.#b177 *)
+  let sub_eq = (fun a b -> String.equal (globalize a) (globalize b)) in
+  let expected = { r with a179 = #{ r.a179 with b177 = next_r.a179.#b177 } } in
+  Idx_mut.unsafe_set r ((.a179.#b177) : (t179, _) idx_mut) next_r.a179.#b177;
   mark_test_run 879;
   let test = eq r expected in
   if not test then failwithf "test 879 failed";
   mark_test_run 880;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a175) : (t175, _) idx_mut)) next_r.a175 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a179.#b177) : (t179, _) idx_mut)) next_r.a179.#b177 in
   if not test then failwithf "test 880 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a175 = #{ a30 = #200l; b30 = 201 }; b175 = 202 } in
-  (* .a175.#a30 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with a175 = #{ r.a175 with a30 = next_r.a175.#a30 } } in
-  Idx_mut.unsafe_set r ((.a175.#a30) : (t175, _) idx_mut) next_r.a175.#a30;
+  let r = { a179 = #{ a177 = 0L; b177 = "1" }; b179 = #{ a178 = #2L; b178 = "3" } } in
+  (* Paths of depth 1 *)
+  let next_r = { a179 = #{ a177 = 100L; b177 = "101" }; b179 = #{ a178 = #102L; b178 = "103" } } in
+  (* .b179 *)
+  let sub_eq = (fun #{ a178 = a1781; b178 = b1781 } #{ a178 = a1782; b178 = b1782 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1781 a1782 && (fun a b -> String.equal (globalize a) (globalize b)) b1781 b1782) in
+  let expected = { r with b179 = next_r.b179 } in
+  Idx_mut.unsafe_set r ((.b179) : (t179, _) idx_mut) next_r.b179;
   mark_test_run 881;
   let test = eq r expected in
   if not test then failwithf "test 881 failed";
   mark_test_run 882;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a175.#a30) : (t175, _) idx_mut)) next_r.a175.#a30 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b179) : (t179, _) idx_mut)) next_r.b179 in
   if not test then failwithf "test 882 failed";
-  (* .a175.#b30 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a175 = #{ r.a175 with b30 = next_r.a175.#b30 } } in
-  Idx_mut.unsafe_set r ((.a175.#b30) : (t175, _) idx_mut) next_r.a175.#b30;
+  (* Paths of depth 2 *)
+  let next_r = { a179 = #{ a177 = 200L; b177 = "201" }; b179 = #{ a178 = #202L; b178 = "203" } } in
+  (* .b179.#a178 *)
+  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
+  let expected = { r with b179 = #{ r.b179 with a178 = next_r.b179.#a178 } } in
+  Idx_mut.unsafe_set r ((.b179.#a178) : (t179, _) idx_mut) next_r.b179.#a178;
   mark_test_run 883;
   let test = eq r expected in
   if not test then failwithf "test 883 failed";
   mark_test_run 884;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a175.#b30) : (t175, _) idx_mut)) next_r.a175.#b30 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b179.#a178) : (t179, _) idx_mut)) next_r.b179.#a178 in
   if not test then failwithf "test 884 failed";
-  let r = { a175 = #{ a30 = #0l; b30 = 1 }; b175 = 2 } in
-  (* Paths of depth 1 *)
-  let next_r = { a175 = #{ a30 = #100l; b30 = 101 }; b175 = 102 } in
-  (* .b175 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b175 = next_r.b175 } in
-  Idx_mut.unsafe_set r ((.b175) : (t175, _) idx_mut) next_r.b175;
+  (* .b179.#b178 *)
+  let sub_eq = (fun a b -> String.equal (globalize a) (globalize b)) in
+  let expected = { r with b179 = #{ r.b179 with b178 = next_r.b179.#b178 } } in
+  Idx_mut.unsafe_set r ((.b179.#b178) : (t179, _) idx_mut) next_r.b179.#b178;
   mark_test_run 885;
   let test = eq r expected in
   if not test then failwithf "test 885 failed";
   mark_test_run 886;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b175) : (t175, _) idx_mut)) next_r.b175 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b179.#b178) : (t179, _) idx_mut)) next_r.b179.#b178 in
   if not test then failwithf "test 886 failed";
-  (*******************************************)
-  (*   t176 = { #{ int32#; int }; int32# }   *)
-  (*******************************************)
-  let eq = (fun { a176 = a1761; b176 = b1761 } { a176 = a1762; b176 = b1762 } -> (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) a1761 a1762 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1761 b1762) in
-  let r = { a176 = #{ a30 = #0l; b30 = 1 }; b176 = #2l } in
+  (********************************************************)
+  (*   t182 = { #{ int64#; int64 }; #{ int64; int64 } }   *)
+  (********************************************************)
+  let eq = (fun { a182 = a1821; b182 = b1821 } { a182 = a1822; b182 = b1822 } -> (fun #{ a180 = a1801; b180 = b1801 } #{ a180 = a1802; b180 = b1802 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1801 a1802 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1801 b1802) a1821 a1822 && (fun #{ a181 = a1811; b181 = b1811 } #{ a181 = a1812; b181 = b1812 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1811 a1812 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1811 b1812) b1821 b1822) in
+  let r = { a182 = #{ a180 = #0L; b180 = 1L }; b182 = #{ a181 = 2L; b181 = 3L } } in
   (* Paths of depth 1 *)
-  let next_r = { a176 = #{ a30 = #100l; b30 = 101 }; b176 = #102l } in
-  (* .a176 *)
-  let sub_eq = (fun #{ a30 = a301; b30 = b301 } #{ a30 = a302; b30 = b302 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a301 a302 && (fun a b -> Int.equal a b) b301 b302) in
-  let expected = { r with a176 = next_r.a176 } in
-  Idx_mut.unsafe_set r ((.a176) : (t176, _) idx_mut) next_r.a176;
+  let next_r = { a182 = #{ a180 = #100L; b180 = 101L }; b182 = #{ a181 = 102L; b181 = 103L } } in
+  (* .a182 *)
+  let sub_eq = (fun #{ a180 = a1801; b180 = b1801 } #{ a180 = a1802; b180 = b1802 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1801 a1802 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1801 b1802) in
+  let expected = { r with a182 = next_r.a182 } in
+  Idx_mut.unsafe_set r ((.a182) : (t182, _) idx_mut) next_r.a182;
   mark_test_run 887;
   let test = eq r expected in
   if not test then failwithf "test 887 failed";
   mark_test_run 888;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a176) : (t176, _) idx_mut)) next_r.a176 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a182) : (t182, _) idx_mut)) next_r.a182 in
   if not test then failwithf "test 888 failed";
   (* Paths of depth 2 *)
-  let next_r = { a176 = #{ a30 = #200l; b30 = 201 }; b176 = #202l } in
-  (* .a176.#a30 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with a176 = #{ r.a176 with a30 = next_r.a176.#a30 } } in
-  Idx_mut.unsafe_set r ((.a176.#a30) : (t176, _) idx_mut) next_r.a176.#a30;
+  let next_r = { a182 = #{ a180 = #200L; b180 = 201L }; b182 = #{ a181 = 202L; b181 = 203L } } in
+  (* .a182.#a180 *)
+  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
+  let expected = { r with a182 = #{ r.a182 with a180 = next_r.a182.#a180 } } in
+  Idx_mut.unsafe_set r ((.a182.#a180) : (t182, _) idx_mut) next_r.a182.#a180;
   mark_test_run 889;
   let test = eq r expected in
   if not test then failwithf "test 889 failed";
   mark_test_run 890;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a176.#a30) : (t176, _) idx_mut)) next_r.a176.#a30 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a182.#a180) : (t182, _) idx_mut)) next_r.a182.#a180 in
   if not test then failwithf "test 890 failed";
-  (* .a176.#b30 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a176 = #{ r.a176 with b30 = next_r.a176.#b30 } } in
-  Idx_mut.unsafe_set r ((.a176.#b30) : (t176, _) idx_mut) next_r.a176.#b30;
+  (* .a182.#b180 *)
+  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
+  let expected = { r with a182 = #{ r.a182 with b180 = next_r.a182.#b180 } } in
+  Idx_mut.unsafe_set r ((.a182.#b180) : (t182, _) idx_mut) next_r.a182.#b180;
   mark_test_run 891;
   let test = eq r expected in
   if not test then failwithf "test 891 failed";
   mark_test_run 892;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a176.#b30) : (t176, _) idx_mut)) next_r.a176.#b30 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a182.#b180) : (t182, _) idx_mut)) next_r.a182.#b180 in
   if not test then failwithf "test 892 failed";
-  let r = { a176 = #{ a30 = #0l; b30 = 1 }; b176 = #2l } in
+  let r = { a182 = #{ a180 = #0L; b180 = 1L }; b182 = #{ a181 = 2L; b181 = 3L } } in
   (* Paths of depth 1 *)
-  let next_r = { a176 = #{ a30 = #100l; b30 = 101 }; b176 = #102l } in
-  (* .b176 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b176 = next_r.b176 } in
-  Idx_mut.unsafe_set r ((.b176) : (t176, _) idx_mut) next_r.b176;
+  let next_r = { a182 = #{ a180 = #100L; b180 = 101L }; b182 = #{ a181 = 102L; b181 = 103L } } in
+  (* .b182 *)
+  let sub_eq = (fun #{ a181 = a1811; b181 = b1811 } #{ a181 = a1812; b181 = b1812 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a1811 a1812 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1811 b1812) in
+  let expected = { r with b182 = next_r.b182 } in
+  Idx_mut.unsafe_set r ((.b182) : (t182, _) idx_mut) next_r.b182;
   mark_test_run 893;
   let test = eq r expected in
   if not test then failwithf "test 893 failed";
   mark_test_run 894;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b176) : (t176, _) idx_mut)) next_r.b176 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b182) : (t182, _) idx_mut)) next_r.b182 in
   if not test then failwithf "test 894 failed";
-  (**************************************)
-  (*   t177 = { #{ int32#; int32# } }   *)
-  (**************************************)
-  let eq = (fun { a177 = a1771 } { a177 = a1772 } -> (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) a1771 a1772) in
-  let r = { a177 = #{ a32 = #0l; b32 = #1l } } in
-  (* Paths of depth 1 *)
-  let next_r = { a177 = #{ a32 = #100l; b32 = #101l } } in
-  (* .a177 *)
-  let sub_eq = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) in
-  let expected = { r with a177 = next_r.a177 } in
-  Idx_mut.unsafe_set r ((.a177) : (t177, _) idx_mut) next_r.a177;
+  (* Paths of depth 2 *)
+  let next_r = { a182 = #{ a180 = #200L; b180 = 201L }; b182 = #{ a181 = 202L; b181 = 203L } } in
+  (* .b182.#a181 *)
+  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
+  let expected = { r with b182 = #{ r.b182 with a181 = next_r.b182.#a181 } } in
+  Idx_mut.unsafe_set r ((.b182.#a181) : (t182, _) idx_mut) next_r.b182.#a181;
   mark_test_run 895;
   let test = eq r expected in
   if not test then failwithf "test 895 failed";
   mark_test_run 896;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a177) : (t177, _) idx_mut)) next_r.a177 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b182.#a181) : (t182, _) idx_mut)) next_r.b182.#a181 in
   if not test then failwithf "test 896 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a177 = #{ a32 = #200l; b32 = #201l } } in
-  (* .a177.#a32 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with a177 = #{ r.a177 with a32 = next_r.a177.#a32 } } in
-  Idx_mut.unsafe_set r ((.a177.#a32) : (t177, _) idx_mut) next_r.a177.#a32;
+  (* .b182.#b181 *)
+  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
+  let expected = { r with b182 = #{ r.b182 with b181 = next_r.b182.#b181 } } in
+  Idx_mut.unsafe_set r ((.b182.#b181) : (t182, _) idx_mut) next_r.b182.#b181;
   mark_test_run 897;
   let test = eq r expected in
   if not test then failwithf "test 897 failed";
   mark_test_run 898;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a177.#a32) : (t177, _) idx_mut)) next_r.a177.#a32 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b182.#b181) : (t182, _) idx_mut)) next_r.b182.#b181 in
   if not test then failwithf "test 898 failed";
-  (* .a177.#b32 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with a177 = #{ r.a177 with b32 = next_r.a177.#b32 } } in
-  Idx_mut.unsafe_set r ((.a177.#b32) : (t177, _) idx_mut) next_r.a177.#b32;
+  (***********************************************************)
+  (*   t184 = { #{ int64#; int64 }; #{ float32#; float } }   *)
+  (***********************************************************)
+  let eq = (fun { a184 = a1841; b184 = b1841 } { a184 = a1842; b184 = b1842 } -> (fun #{ a180 = a1801; b180 = b1801 } #{ a180 = a1802; b180 = b1802 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1801 a1802 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1801 b1802) a1841 a1842 && (fun #{ a183 = a1831; b183 = b1831 } #{ a183 = a1832; b183 = b1832 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1831 a1832 && (fun a b -> Float.equal (globalize a) (globalize b)) b1831 b1832) b1841 b1842) in
+  let r = { a184 = #{ a180 = #0L; b180 = 1L }; b184 = #{ a183 = #2.s; b183 = 3. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a184 = #{ a180 = #100L; b180 = 101L }; b184 = #{ a183 = #102.s; b183 = 103. } } in
+  (* .a184 *)
+  let sub_eq = (fun #{ a180 = a1801; b180 = b1801 } #{ a180 = a1802; b180 = b1802 } -> (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) a1801 a1802 && (fun a b -> Int64.equal (globalize a) (globalize b)) b1801 b1802) in
+  let expected = { r with a184 = next_r.a184 } in
+  Idx_mut.unsafe_set r ((.a184) : (t184, _) idx_mut) next_r.a184;
   mark_test_run 899;
   let test = eq r expected in
   if not test then failwithf "test 899 failed";
   mark_test_run 900;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a177.#b32) : (t177, _) idx_mut)) next_r.a177.#b32 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a184) : (t184, _) idx_mut)) next_r.a184 in
   if not test then failwithf "test 900 failed";
-  (*******************************************)
-  (*   t178 = { #{ int32#; int32# }; int }   *)
-  (*******************************************)
-  let eq = (fun { a178 = a1781; b178 = b1781 } { a178 = a1782; b178 = b1782 } -> (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) a1781 a1782 && (fun a b -> Int.equal a b) b1781 b1782) in
-  let r = { a178 = #{ a32 = #0l; b32 = #1l }; b178 = 2 } in
-  (* Paths of depth 1 *)
-  let next_r = { a178 = #{ a32 = #100l; b32 = #101l }; b178 = 102 } in
-  (* .a178 *)
-  let sub_eq = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) in
-  let expected = { r with a178 = next_r.a178 } in
-  Idx_mut.unsafe_set r ((.a178) : (t178, _) idx_mut) next_r.a178;
+  (* Paths of depth 2 *)
+  let next_r = { a184 = #{ a180 = #200L; b180 = 201L }; b184 = #{ a183 = #202.s; b183 = 203. } } in
+  (* .a184.#a180 *)
+  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
+  let expected = { r with a184 = #{ r.a184 with a180 = next_r.a184.#a180 } } in
+  Idx_mut.unsafe_set r ((.a184.#a180) : (t184, _) idx_mut) next_r.a184.#a180;
   mark_test_run 901;
   let test = eq r expected in
   if not test then failwithf "test 901 failed";
   mark_test_run 902;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a178) : (t178, _) idx_mut)) next_r.a178 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a184.#a180) : (t184, _) idx_mut)) next_r.a184.#a180 in
   if not test then failwithf "test 902 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a178 = #{ a32 = #200l; b32 = #201l }; b178 = 202 } in
-  (* .a178.#a32 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with a178 = #{ r.a178 with a32 = next_r.a178.#a32 } } in
-  Idx_mut.unsafe_set r ((.a178.#a32) : (t178, _) idx_mut) next_r.a178.#a32;
+  (* .a184.#b180 *)
+  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
+  let expected = { r with a184 = #{ r.a184 with b180 = next_r.a184.#b180 } } in
+  Idx_mut.unsafe_set r ((.a184.#b180) : (t184, _) idx_mut) next_r.a184.#b180;
   mark_test_run 903;
   let test = eq r expected in
   if not test then failwithf "test 903 failed";
   mark_test_run 904;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a178.#a32) : (t178, _) idx_mut)) next_r.a178.#a32 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a184.#b180) : (t184, _) idx_mut)) next_r.a184.#b180 in
   if not test then failwithf "test 904 failed";
-  (* .a178.#b32 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with a178 = #{ r.a178 with b32 = next_r.a178.#b32 } } in
-  Idx_mut.unsafe_set r ((.a178.#b32) : (t178, _) idx_mut) next_r.a178.#b32;
+  let r = { a184 = #{ a180 = #0L; b180 = 1L }; b184 = #{ a183 = #2.s; b183 = 3. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a184 = #{ a180 = #100L; b180 = 101L }; b184 = #{ a183 = #102.s; b183 = 103. } } in
+  (* .b184 *)
+  let sub_eq = (fun #{ a183 = a1831; b183 = b1831 } #{ a183 = a1832; b183 = b1832 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a1831 a1832 && (fun a b -> Float.equal (globalize a) (globalize b)) b1831 b1832) in
+  let expected = { r with b184 = next_r.b184 } in
+  Idx_mut.unsafe_set r ((.b184) : (t184, _) idx_mut) next_r.b184;
   mark_test_run 905;
   let test = eq r expected in
   if not test then failwithf "test 905 failed";
   mark_test_run 906;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a178.#b32) : (t178, _) idx_mut)) next_r.a178.#b32 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b184) : (t184, _) idx_mut)) next_r.b184 in
   if not test then failwithf "test 906 failed";
-  let r = { a178 = #{ a32 = #0l; b32 = #1l }; b178 = 2 } in
-  (* Paths of depth 1 *)
-  let next_r = { a178 = #{ a32 = #100l; b32 = #101l }; b178 = 102 } in
-  (* .b178 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b178 = next_r.b178 } in
-  Idx_mut.unsafe_set r ((.b178) : (t178, _) idx_mut) next_r.b178;
+  (* Paths of depth 2 *)
+  let next_r = { a184 = #{ a180 = #200L; b180 = 201L }; b184 = #{ a183 = #202.s; b183 = 203. } } in
+  (* .b184.#a183 *)
+  let sub_eq = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) in
+  let expected = { r with b184 = #{ r.b184 with a183 = next_r.b184.#a183 } } in
+  Idx_mut.unsafe_set r ((.b184.#a183) : (t184, _) idx_mut) next_r.b184.#a183;
   mark_test_run 907;
   let test = eq r expected in
   if not test then failwithf "test 907 failed";
   mark_test_run 908;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b178) : (t178, _) idx_mut)) next_r.b178 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b184.#a183) : (t184, _) idx_mut)) next_r.b184.#a183 in
   if not test then failwithf "test 908 failed";
-  (**********************************************)
-  (*   t179 = { #{ int32#; int32# }; int32# }   *)
-  (**********************************************)
-  let eq = (fun { a179 = a1791; b179 = b1791 } { a179 = a1792; b179 = b1792 } -> (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) a1791 a1792 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1791 b1792) in
-  let r = { a179 = #{ a32 = #0l; b32 = #1l }; b179 = #2l } in
-  (* Paths of depth 1 *)
-  let next_r = { a179 = #{ a32 = #100l; b32 = #101l }; b179 = #102l } in
-  (* .a179 *)
-  let sub_eq = (fun #{ a32 = a321; b32 = b321 } #{ a32 = a322; b32 = b322 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a321 a322 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b321 b322) in
-  let expected = { r with a179 = next_r.a179 } in
-  Idx_mut.unsafe_set r ((.a179) : (t179, _) idx_mut) next_r.a179;
+  (* .b184.#b183 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b184 = #{ r.b184 with b183 = next_r.b184.#b183 } } in
+  Idx_mut.unsafe_set r ((.b184.#b183) : (t184, _) idx_mut) next_r.b184.#b183;
   mark_test_run 909;
   let test = eq r expected in
   if not test then failwithf "test 909 failed";
   mark_test_run 910;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a179) : (t179, _) idx_mut)) next_r.a179 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b184.#b183) : (t184, _) idx_mut)) next_r.b184.#b183 in
   if not test then failwithf "test 910 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a179 = #{ a32 = #200l; b32 = #201l }; b179 = #202l } in
-  (* .a179.#a32 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with a179 = #{ r.a179 with a32 = next_r.a179.#a32 } } in
-  Idx_mut.unsafe_set r ((.a179.#a32) : (t179, _) idx_mut) next_r.a179.#a32;
+  (******************************)
+  (*   t185 = { #{ int32# } }   *)
+  (******************************)
+  let eq = (fun { a185 = a1851 } { a185 = a1852 } -> (fun #{ a29 = a291 } #{ a29 = a292 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a291 a292) a1851 a1852) in
+  let r = { a185 = #{ a29 = #0l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a185 = #{ a29 = #100l } } in
+  (* .a185 *)
+  let sub_eq = (fun #{ a29 = a291 } #{ a29 = a292 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a291 a292) in
+  let expected = { r with a185 = next_r.a185 } in
+  Idx_mut.unsafe_set r ((.a185) : (t185, _) idx_mut) next_r.a185;
   mark_test_run 911;
   let test = eq r expected in
   if not test then failwithf "test 911 failed";
   mark_test_run 912;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a179.#a32) : (t179, _) idx_mut)) next_r.a179.#a32 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a185) : (t185, _) idx_mut)) next_r.a185 in
   if not test then failwithf "test 912 failed";
-  (* .a179.#b32 *)
+  (* Paths of depth 2 *)
+  let next_r = { a185 = #{ a29 = #200l } } in
+  (* .a185.#a29 *)
   let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with a179 = #{ r.a179 with b32 = next_r.a179.#b32 } } in
-  Idx_mut.unsafe_set r ((.a179.#b32) : (t179, _) idx_mut) next_r.a179.#b32;
+  let expected = { r with a185 = #{ r.a185 with a29 = next_r.a185.#a29 } } in
+  Idx_mut.unsafe_set r ((.a185.#a29) : (t185, _) idx_mut) next_r.a185.#a29;
   mark_test_run 913;
   let test = eq r expected in
   if not test then failwithf "test 913 failed";
   mark_test_run 914;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a179.#b32) : (t179, _) idx_mut)) next_r.a179.#b32 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a185.#a29) : (t185, _) idx_mut)) next_r.a185.#a29 in
   if not test then failwithf "test 914 failed";
-  let r = { a179 = #{ a32 = #0l; b32 = #1l }; b179 = #2l } in
+  (***********************************)
+  (*   t186 = { #{ int32# }; int }   *)
+  (***********************************)
+  let eq = (fun { a186 = a1861; b186 = b1861 } { a186 = a1862; b186 = b1862 } -> (fun #{ a29 = a291 } #{ a29 = a292 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a291 a292) a1861 a1862 && (fun a b -> Int.equal a b) b1861 b1862) in
+  let r = { a186 = #{ a29 = #0l }; b186 = 1 } in
   (* Paths of depth 1 *)
-  let next_r = { a179 = #{ a32 = #100l; b32 = #101l }; b179 = #102l } in
-  (* .b179 *)
-  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
-  let expected = { r with b179 = next_r.b179 } in
-  Idx_mut.unsafe_set r ((.b179) : (t179, _) idx_mut) next_r.b179;
+  let next_r = { a186 = #{ a29 = #100l }; b186 = 101 } in
+  (* .a186 *)
+  let sub_eq = (fun #{ a29 = a291 } #{ a29 = a292 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a291 a292) in
+  let expected = { r with a186 = next_r.a186 } in
+  Idx_mut.unsafe_set r ((.a186) : (t186, _) idx_mut) next_r.a186;
   mark_test_run 915;
   let test = eq r expected in
   if not test then failwithf "test 915 failed";
   mark_test_run 916;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b179) : (t179, _) idx_mut)) next_r.b179 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a186) : (t186, _) idx_mut)) next_r.a186 in
   if not test then failwithf "test 916 failed";
-  (*****************************)
-  (*   t180 = { #{ float } }   *)
-  (*****************************)
-  let eq = (fun { a180 = a1801 } { a180 = a1802 } -> (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) a1801 a1802) in
-  let r = { a180 = #{ a34 = 0. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a180 = #{ a34 = 100. } } in
-  (* .a180 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a180 = next_r.a180 } in
-  Idx_mut.unsafe_set r ((.a180) : (t180, _) idx_mut) (Float_u.of_float next_r.a180.#a34);
+  (* Paths of depth 2 *)
+  let next_r = { a186 = #{ a29 = #200l }; b186 = 201 } in
+  (* .a186.#a29 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with a186 = #{ r.a186 with a29 = next_r.a186.#a29 } } in
+  Idx_mut.unsafe_set r ((.a186.#a29) : (t186, _) idx_mut) next_r.a186.#a29;
   mark_test_run 917;
   let test = eq r expected in
   if not test then failwithf "test 917 failed";
   mark_test_run 918;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a180) : (t180, _) idx_mut)) (Float_u.of_float next_r.a180.#a34) in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a186.#a29) : (t186, _) idx_mut)) next_r.a186.#a29 in
   if not test then failwithf "test 918 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a180 = #{ a34 = 200. } } in
-  (* .a180.#a34 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a180 = #{ r.a180 with a34 = next_r.a180.#a34 } } in
-  Idx_mut.unsafe_set r ((.a180.#a34) : (t180, _) idx_mut) (Float_u.of_float next_r.a180.#a34);
+  let r = { a186 = #{ a29 = #0l }; b186 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a186 = #{ a29 = #100l }; b186 = 101 } in
+  (* .b186 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b186 = next_r.b186 } in
+  Idx_mut.unsafe_set r ((.b186) : (t186, _) idx_mut) next_r.b186;
   mark_test_run 919;
   let test = eq r expected in
   if not test then failwithf "test 919 failed";
   mark_test_run 920;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a180.#a34) : (t180, _) idx_mut)) (Float_u.of_float next_r.a180.#a34) in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b186) : (t186, _) idx_mut)) next_r.b186 in
   if not test then failwithf "test 920 failed";
-  (**********************************)
-  (*   t181 = { #{ float }; int }   *)
-  (**********************************)
-  let eq = (fun { a181 = a1811; b181 = b1811 } { a181 = a1812; b181 = b1812 } -> (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) a1811 a1812 && (fun a b -> Int.equal a b) b1811 b1812) in
-  let r = { a181 = #{ a34 = 0. }; b181 = 1 } in
+  (**************************************)
+  (*   t187 = { #{ int32# }; int32# }   *)
+  (**************************************)
+  let eq = (fun { a187 = a1871; b187 = b1871 } { a187 = a1872; b187 = b1872 } -> (fun #{ a29 = a291 } #{ a29 = a292 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a291 a292) a1871 a1872 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1871 b1872) in
+  let r = { a187 = #{ a29 = #0l }; b187 = #1l } in
   (* Paths of depth 1 *)
-  let next_r = { a181 = #{ a34 = 100. }; b181 = 101 } in
-  (* .a181 *)
-  let sub_eq = (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) in
-  let expected = { r with a181 = next_r.a181 } in
-  Idx_mut.unsafe_set r ((.a181) : (t181, _) idx_mut) next_r.a181;
+  let next_r = { a187 = #{ a29 = #100l }; b187 = #101l } in
+  (* .a187 *)
+  let sub_eq = (fun #{ a29 = a291 } #{ a29 = a292 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a291 a292) in
+  let expected = { r with a187 = next_r.a187 } in
+  Idx_mut.unsafe_set r ((.a187) : (t187, _) idx_mut) next_r.a187;
   mark_test_run 921;
   let test = eq r expected in
   if not test then failwithf "test 921 failed";
   mark_test_run 922;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a181) : (t181, _) idx_mut)) next_r.a181 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a187) : (t187, _) idx_mut)) next_r.a187 in
   if not test then failwithf "test 922 failed";
   (* Paths of depth 2 *)
-  let next_r = { a181 = #{ a34 = 200. }; b181 = 201 } in
-  (* .a181.#a34 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a181 = #{ r.a181 with a34 = next_r.a181.#a34 } } in
-  Idx_mut.unsafe_set r ((.a181.#a34) : (t181, _) idx_mut) next_r.a181.#a34;
+  let next_r = { a187 = #{ a29 = #200l }; b187 = #201l } in
+  (* .a187.#a29 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with a187 = #{ r.a187 with a29 = next_r.a187.#a29 } } in
+  Idx_mut.unsafe_set r ((.a187.#a29) : (t187, _) idx_mut) next_r.a187.#a29;
   mark_test_run 923;
   let test = eq r expected in
   if not test then failwithf "test 923 failed";
   mark_test_run 924;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a181.#a34) : (t181, _) idx_mut)) next_r.a181.#a34 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a187.#a29) : (t187, _) idx_mut)) next_r.a187.#a29 in
   if not test then failwithf "test 924 failed";
-  let r = { a181 = #{ a34 = 0. }; b181 = 1 } in
+  let r = { a187 = #{ a29 = #0l }; b187 = #1l } in
   (* Paths of depth 1 *)
-  let next_r = { a181 = #{ a34 = 100. }; b181 = 101 } in
-  (* .b181 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b181 = next_r.b181 } in
-  Idx_mut.unsafe_set r ((.b181) : (t181, _) idx_mut) next_r.b181;
+  let next_r = { a187 = #{ a29 = #100l }; b187 = #101l } in
+  (* .b187 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b187 = next_r.b187 } in
+  Idx_mut.unsafe_set r ((.b187) : (t187, _) idx_mut) next_r.b187;
   mark_test_run 925;
   let test = eq r expected in
   if not test then failwithf "test 925 failed";
   mark_test_run 926;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b181) : (t181, _) idx_mut)) next_r.b181 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b187) : (t187, _) idx_mut)) next_r.b187 in
   if not test then failwithf "test 926 failed";
-  (************************************)
-  (*   t182 = { #{ float }; float }   *)
-  (************************************)
-  let eq = (fun { a182 = a1821; b182 = b1821 } { a182 = a1822; b182 = b1822 } -> (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) a1821 a1822 && (fun a b -> Float.equal (globalize a) (globalize b)) b1821 b1822) in
-  let r = { a182 = #{ a34 = 0. }; b182 = 1. } in
+  (***********************************)
+  (*   t188 = { #{ int32#; int } }   *)
+  (***********************************)
+  let eq = (fun { a188 = a1881 } { a188 = a1882 } -> (fun #{ a31 = a311; b31 = b311 } #{ a31 = a312; b31 = b312 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a311 a312 && (fun a b -> Int.equal a b) b311 b312) a1881 a1882) in
+  let r = { a188 = #{ a31 = #0l; b31 = 1 } } in
   (* Paths of depth 1 *)
-  let next_r = { a182 = #{ a34 = 100. }; b182 = 101. } in
-  (* .a182 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a182 = next_r.a182 } in
-  Idx_mut.unsafe_set r ((.a182) : (t182, _) idx_mut) (Float_u.of_float next_r.a182.#a34);
+  let next_r = { a188 = #{ a31 = #100l; b31 = 101 } } in
+  (* .a188 *)
+  let sub_eq = (fun #{ a31 = a311; b31 = b311 } #{ a31 = a312; b31 = b312 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a311 a312 && (fun a b -> Int.equal a b) b311 b312) in
+  let expected = { r with a188 = next_r.a188 } in
+  Idx_mut.unsafe_set r ((.a188) : (t188, _) idx_mut) next_r.a188;
   mark_test_run 927;
   let test = eq r expected in
   if not test then failwithf "test 927 failed";
   mark_test_run 928;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a182) : (t182, _) idx_mut)) (Float_u.of_float next_r.a182.#a34) in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a188) : (t188, _) idx_mut)) next_r.a188 in
   if not test then failwithf "test 928 failed";
   (* Paths of depth 2 *)
-  let next_r = { a182 = #{ a34 = 200. }; b182 = 201. } in
-  (* .a182.#a34 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a182 = #{ r.a182 with a34 = next_r.a182.#a34 } } in
-  Idx_mut.unsafe_set r ((.a182.#a34) : (t182, _) idx_mut) (Float_u.of_float next_r.a182.#a34);
+  let next_r = { a188 = #{ a31 = #200l; b31 = 201 } } in
+  (* .a188.#a31 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with a188 = #{ r.a188 with a31 = next_r.a188.#a31 } } in
+  Idx_mut.unsafe_set r ((.a188.#a31) : (t188, _) idx_mut) next_r.a188.#a31;
   mark_test_run 929;
   let test = eq r expected in
   if not test then failwithf "test 929 failed";
   mark_test_run 930;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a182.#a34) : (t182, _) idx_mut)) (Float_u.of_float next_r.a182.#a34) in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a188.#a31) : (t188, _) idx_mut)) next_r.a188.#a31 in
   if not test then failwithf "test 930 failed";
-  let r = { a182 = #{ a34 = 0. }; b182 = 1. } in
-  (* Paths of depth 1 *)
-  let next_r = { a182 = #{ a34 = 100. }; b182 = 101. } in
-  (* .b182 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b182 = next_r.b182 } in
-  Idx_mut.unsafe_set r ((.b182) : (t182, _) idx_mut) (Float_u.of_float next_r.b182);
+  (* .a188.#b31 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a188 = #{ r.a188 with b31 = next_r.a188.#b31 } } in
+  Idx_mut.unsafe_set r ((.a188.#b31) : (t188, _) idx_mut) next_r.a188.#b31;
   mark_test_run 931;
   let test = eq r expected in
   if not test then failwithf "test 931 failed";
   mark_test_run 932;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b182) : (t182, _) idx_mut)) (Float_u.of_float next_r.b182) in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a188.#b31) : (t188, _) idx_mut)) next_r.a188.#b31 in
   if not test then failwithf "test 932 failed";
-  (*************************************)
-  (*   t183 = { #{ float }; float# }   *)
-  (*************************************)
-  let eq = (fun { a183 = a1831; b183 = b1831 } { a183 = a1832; b183 = b1832 } -> (fun #{ a34 = a341 } #{ a34 = a342 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a341 a342) a1831 a1832 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1831 b1832) in
-  let r = { a183 = #{ a34 = 0. }; b183 = #1. } in
+  (****************************************)
+  (*   t189 = { #{ int32#; int }; int }   *)
+  (****************************************)
+  let eq = (fun { a189 = a1891; b189 = b1891 } { a189 = a1892; b189 = b1892 } -> (fun #{ a31 = a311; b31 = b311 } #{ a31 = a312; b31 = b312 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a311 a312 && (fun a b -> Int.equal a b) b311 b312) a1891 a1892 && (fun a b -> Int.equal a b) b1891 b1892) in
+  let r = { a189 = #{ a31 = #0l; b31 = 1 }; b189 = 2 } in
   (* Paths of depth 1 *)
-  let next_r = { a183 = #{ a34 = 100. }; b183 = #101. } in
-  (* .a183 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a183 = next_r.a183 } in
-  Idx_mut.unsafe_set r ((.a183) : (t183, _) idx_mut) (Float_u.of_float next_r.a183.#a34);
+  let next_r = { a189 = #{ a31 = #100l; b31 = 101 }; b189 = 102 } in
+  (* .a189 *)
+  let sub_eq = (fun #{ a31 = a311; b31 = b311 } #{ a31 = a312; b31 = b312 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a311 a312 && (fun a b -> Int.equal a b) b311 b312) in
+  let expected = { r with a189 = next_r.a189 } in
+  Idx_mut.unsafe_set r ((.a189) : (t189, _) idx_mut) next_r.a189;
   mark_test_run 933;
   let test = eq r expected in
   if not test then failwithf "test 933 failed";
   mark_test_run 934;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a183) : (t183, _) idx_mut)) (Float_u.of_float next_r.a183.#a34) in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a189) : (t189, _) idx_mut)) next_r.a189 in
   if not test then failwithf "test 934 failed";
   (* Paths of depth 2 *)
-  let next_r = { a183 = #{ a34 = 200. }; b183 = #201. } in
-  (* .a183.#a34 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a183 = #{ r.a183 with a34 = next_r.a183.#a34 } } in
-  Idx_mut.unsafe_set r ((.a183.#a34) : (t183, _) idx_mut) (Float_u.of_float next_r.a183.#a34);
+  let next_r = { a189 = #{ a31 = #200l; b31 = 201 }; b189 = 202 } in
+  (* .a189.#a31 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with a189 = #{ r.a189 with a31 = next_r.a189.#a31 } } in
+  Idx_mut.unsafe_set r ((.a189.#a31) : (t189, _) idx_mut) next_r.a189.#a31;
   mark_test_run 935;
   let test = eq r expected in
   if not test then failwithf "test 935 failed";
   mark_test_run 936;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a183.#a34) : (t183, _) idx_mut)) (Float_u.of_float next_r.a183.#a34) in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a189.#a31) : (t189, _) idx_mut)) next_r.a189.#a31 in
   if not test then failwithf "test 936 failed";
-  let r = { a183 = #{ a34 = 0. }; b183 = #1. } in
-  (* Paths of depth 1 *)
-  let next_r = { a183 = #{ a34 = 100. }; b183 = #101. } in
-  (* .b183 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b183 = next_r.b183 } in
-  Idx_mut.unsafe_set r ((.b183) : (t183, _) idx_mut) next_r.b183;
+  (* .a189.#b31 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a189 = #{ r.a189 with b31 = next_r.a189.#b31 } } in
+  Idx_mut.unsafe_set r ((.a189.#b31) : (t189, _) idx_mut) next_r.a189.#b31;
   mark_test_run 937;
   let test = eq r expected in
   if not test then failwithf "test 937 failed";
   mark_test_run 938;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b183) : (t183, _) idx_mut)) next_r.b183 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a189.#b31) : (t189, _) idx_mut)) next_r.a189.#b31 in
   if not test then failwithf "test 938 failed";
-  (**********************************)
-  (*   t184 = { #{ float; int } }   *)
-  (**********************************)
-  let eq = (fun { a184 = a1841 } { a184 = a1842 } -> (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) a1841 a1842) in
-  let r = { a184 = #{ a36 = 0.; b36 = 1 } } in
+  let r = { a189 = #{ a31 = #0l; b31 = 1 }; b189 = 2 } in
   (* Paths of depth 1 *)
-  let next_r = { a184 = #{ a36 = 100.; b36 = 101 } } in
-  (* .a184 *)
-  let sub_eq = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) in
-  let expected = { r with a184 = next_r.a184 } in
-  Idx_mut.unsafe_set r ((.a184) : (t184, _) idx_mut) next_r.a184;
+  let next_r = { a189 = #{ a31 = #100l; b31 = 101 }; b189 = 102 } in
+  (* .b189 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b189 = next_r.b189 } in
+  Idx_mut.unsafe_set r ((.b189) : (t189, _) idx_mut) next_r.b189;
   mark_test_run 939;
   let test = eq r expected in
   if not test then failwithf "test 939 failed";
   mark_test_run 940;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a184) : (t184, _) idx_mut)) next_r.a184 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b189) : (t189, _) idx_mut)) next_r.b189 in
   if not test then failwithf "test 940 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a184 = #{ a36 = 200.; b36 = 201 } } in
-  (* .a184.#a36 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a184 = #{ r.a184 with a36 = next_r.a184.#a36 } } in
-  Idx_mut.unsafe_set r ((.a184.#a36) : (t184, _) idx_mut) next_r.a184.#a36;
+  (*******************************************)
+  (*   t190 = { #{ int32#; int }; int32# }   *)
+  (*******************************************)
+  let eq = (fun { a190 = a1901; b190 = b1901 } { a190 = a1902; b190 = b1902 } -> (fun #{ a31 = a311; b31 = b311 } #{ a31 = a312; b31 = b312 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a311 a312 && (fun a b -> Int.equal a b) b311 b312) a1901 a1902 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1901 b1902) in
+  let r = { a190 = #{ a31 = #0l; b31 = 1 }; b190 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a190 = #{ a31 = #100l; b31 = 101 }; b190 = #102l } in
+  (* .a190 *)
+  let sub_eq = (fun #{ a31 = a311; b31 = b311 } #{ a31 = a312; b31 = b312 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a311 a312 && (fun a b -> Int.equal a b) b311 b312) in
+  let expected = { r with a190 = next_r.a190 } in
+  Idx_mut.unsafe_set r ((.a190) : (t190, _) idx_mut) next_r.a190;
   mark_test_run 941;
   let test = eq r expected in
   if not test then failwithf "test 941 failed";
   mark_test_run 942;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a184.#a36) : (t184, _) idx_mut)) next_r.a184.#a36 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a190) : (t190, _) idx_mut)) next_r.a190 in
   if not test then failwithf "test 942 failed";
-  (* .a184.#b36 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a184 = #{ r.a184 with b36 = next_r.a184.#b36 } } in
-  Idx_mut.unsafe_set r ((.a184.#b36) : (t184, _) idx_mut) next_r.a184.#b36;
+  (* Paths of depth 2 *)
+  let next_r = { a190 = #{ a31 = #200l; b31 = 201 }; b190 = #202l } in
+  (* .a190.#a31 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with a190 = #{ r.a190 with a31 = next_r.a190.#a31 } } in
+  Idx_mut.unsafe_set r ((.a190.#a31) : (t190, _) idx_mut) next_r.a190.#a31;
   mark_test_run 943;
   let test = eq r expected in
   if not test then failwithf "test 943 failed";
   mark_test_run 944;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a184.#b36) : (t184, _) idx_mut)) next_r.a184.#b36 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a190.#a31) : (t190, _) idx_mut)) next_r.a190.#a31 in
   if not test then failwithf "test 944 failed";
-  (***************************************)
-  (*   t185 = { #{ float; int }; int }   *)
-  (***************************************)
-  let eq = (fun { a185 = a1851; b185 = b1851 } { a185 = a1852; b185 = b1852 } -> (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) a1851 a1852 && (fun a b -> Int.equal a b) b1851 b1852) in
-  let r = { a185 = #{ a36 = 0.; b36 = 1 }; b185 = 2 } in
-  (* Paths of depth 1 *)
-  let next_r = { a185 = #{ a36 = 100.; b36 = 101 }; b185 = 102 } in
-  (* .a185 *)
-  let sub_eq = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) in
-  let expected = { r with a185 = next_r.a185 } in
-  Idx_mut.unsafe_set r ((.a185) : (t185, _) idx_mut) next_r.a185;
+  (* .a190.#b31 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a190 = #{ r.a190 with b31 = next_r.a190.#b31 } } in
+  Idx_mut.unsafe_set r ((.a190.#b31) : (t190, _) idx_mut) next_r.a190.#b31;
   mark_test_run 945;
   let test = eq r expected in
   if not test then failwithf "test 945 failed";
   mark_test_run 946;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a185) : (t185, _) idx_mut)) next_r.a185 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a190.#b31) : (t190, _) idx_mut)) next_r.a190.#b31 in
   if not test then failwithf "test 946 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a185 = #{ a36 = 200.; b36 = 201 }; b185 = 202 } in
-  (* .a185.#a36 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a185 = #{ r.a185 with a36 = next_r.a185.#a36 } } in
-  Idx_mut.unsafe_set r ((.a185.#a36) : (t185, _) idx_mut) next_r.a185.#a36;
+  let r = { a190 = #{ a31 = #0l; b31 = 1 }; b190 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a190 = #{ a31 = #100l; b31 = 101 }; b190 = #102l } in
+  (* .b190 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b190 = next_r.b190 } in
+  Idx_mut.unsafe_set r ((.b190) : (t190, _) idx_mut) next_r.b190;
   mark_test_run 947;
   let test = eq r expected in
   if not test then failwithf "test 947 failed";
   mark_test_run 948;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a185.#a36) : (t185, _) idx_mut)) next_r.a185.#a36 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b190) : (t190, _) idx_mut)) next_r.b190 in
   if not test then failwithf "test 948 failed";
-  (* .a185.#b36 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a185 = #{ r.a185 with b36 = next_r.a185.#b36 } } in
-  Idx_mut.unsafe_set r ((.a185.#b36) : (t185, _) idx_mut) next_r.a185.#b36;
+  (**************************************)
+  (*   t191 = { #{ int32#; int32# } }   *)
+  (**************************************)
+  let eq = (fun { a191 = a1911 } { a191 = a1912 } -> (fun #{ a33 = a331; b33 = b331 } #{ a33 = a332; b33 = b332 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a331 a332 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b331 b332) a1911 a1912) in
+  let r = { a191 = #{ a33 = #0l; b33 = #1l } } in
+  (* Paths of depth 1 *)
+  let next_r = { a191 = #{ a33 = #100l; b33 = #101l } } in
+  (* .a191 *)
+  let sub_eq = (fun #{ a33 = a331; b33 = b331 } #{ a33 = a332; b33 = b332 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a331 a332 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b331 b332) in
+  let expected = { r with a191 = next_r.a191 } in
+  Idx_mut.unsafe_set r ((.a191) : (t191, _) idx_mut) next_r.a191;
   mark_test_run 949;
   let test = eq r expected in
   if not test then failwithf "test 949 failed";
   mark_test_run 950;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a185.#b36) : (t185, _) idx_mut)) next_r.a185.#b36 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a191) : (t191, _) idx_mut)) next_r.a191 in
   if not test then failwithf "test 950 failed";
-  let r = { a185 = #{ a36 = 0.; b36 = 1 }; b185 = 2 } in
-  (* Paths of depth 1 *)
-  let next_r = { a185 = #{ a36 = 100.; b36 = 101 }; b185 = 102 } in
-  (* .b185 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b185 = next_r.b185 } in
-  Idx_mut.unsafe_set r ((.b185) : (t185, _) idx_mut) next_r.b185;
+  (* Paths of depth 2 *)
+  let next_r = { a191 = #{ a33 = #200l; b33 = #201l } } in
+  (* .a191.#a33 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with a191 = #{ r.a191 with a33 = next_r.a191.#a33 } } in
+  Idx_mut.unsafe_set r ((.a191.#a33) : (t191, _) idx_mut) next_r.a191.#a33;
   mark_test_run 951;
   let test = eq r expected in
   if not test then failwithf "test 951 failed";
   mark_test_run 952;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b185) : (t185, _) idx_mut)) next_r.b185 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a191.#a33) : (t191, _) idx_mut)) next_r.a191.#a33 in
   if not test then failwithf "test 952 failed";
-  (*****************************************)
-  (*   t186 = { #{ float; int }; float }   *)
-  (*****************************************)
-  let eq = (fun { a186 = a1861; b186 = b1861 } { a186 = a1862; b186 = b1862 } -> (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) a1861 a1862 && (fun a b -> Float.equal (globalize a) (globalize b)) b1861 b1862) in
-  let r = { a186 = #{ a36 = 0.; b36 = 1 }; b186 = 2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a186 = #{ a36 = 100.; b36 = 101 }; b186 = 102. } in
-  (* .a186 *)
-  let sub_eq = (fun #{ a36 = a361; b36 = b361 } #{ a36 = a362; b36 = b362 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a361 a362 && (fun a b -> Int.equal a b) b361 b362) in
-  let expected = { r with a186 = next_r.a186 } in
-  Idx_mut.unsafe_set r ((.a186) : (t186, _) idx_mut) next_r.a186;
+  (* .a191.#b33 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with a191 = #{ r.a191 with b33 = next_r.a191.#b33 } } in
+  Idx_mut.unsafe_set r ((.a191.#b33) : (t191, _) idx_mut) next_r.a191.#b33;
   mark_test_run 953;
   let test = eq r expected in
   if not test then failwithf "test 953 failed";
   mark_test_run 954;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a186) : (t186, _) idx_mut)) next_r.a186 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a191.#b33) : (t191, _) idx_mut)) next_r.a191.#b33 in
   if not test then failwithf "test 954 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a186 = #{ a36 = 200.; b36 = 201 }; b186 = 202. } in
-  (* .a186.#a36 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a186 = #{ r.a186 with a36 = next_r.a186.#a36 } } in
-  Idx_mut.unsafe_set r ((.a186.#a36) : (t186, _) idx_mut) next_r.a186.#a36;
+  (*******************************************)
+  (*   t192 = { #{ int32#; int32# }; int }   *)
+  (*******************************************)
+  let eq = (fun { a192 = a1921; b192 = b1921 } { a192 = a1922; b192 = b1922 } -> (fun #{ a33 = a331; b33 = b331 } #{ a33 = a332; b33 = b332 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a331 a332 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b331 b332) a1921 a1922 && (fun a b -> Int.equal a b) b1921 b1922) in
+  let r = { a192 = #{ a33 = #0l; b33 = #1l }; b192 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a192 = #{ a33 = #100l; b33 = #101l }; b192 = 102 } in
+  (* .a192 *)
+  let sub_eq = (fun #{ a33 = a331; b33 = b331 } #{ a33 = a332; b33 = b332 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a331 a332 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b331 b332) in
+  let expected = { r with a192 = next_r.a192 } in
+  Idx_mut.unsafe_set r ((.a192) : (t192, _) idx_mut) next_r.a192;
   mark_test_run 955;
   let test = eq r expected in
   if not test then failwithf "test 955 failed";
   mark_test_run 956;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a186.#a36) : (t186, _) idx_mut)) next_r.a186.#a36 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a192) : (t192, _) idx_mut)) next_r.a192 in
   if not test then failwithf "test 956 failed";
-  (* .a186.#b36 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a186 = #{ r.a186 with b36 = next_r.a186.#b36 } } in
-  Idx_mut.unsafe_set r ((.a186.#b36) : (t186, _) idx_mut) next_r.a186.#b36;
+  (* Paths of depth 2 *)
+  let next_r = { a192 = #{ a33 = #200l; b33 = #201l }; b192 = 202 } in
+  (* .a192.#a33 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with a192 = #{ r.a192 with a33 = next_r.a192.#a33 } } in
+  Idx_mut.unsafe_set r ((.a192.#a33) : (t192, _) idx_mut) next_r.a192.#a33;
   mark_test_run 957;
   let test = eq r expected in
   if not test then failwithf "test 957 failed";
   mark_test_run 958;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a186.#b36) : (t186, _) idx_mut)) next_r.a186.#b36 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a192.#a33) : (t192, _) idx_mut)) next_r.a192.#a33 in
   if not test then failwithf "test 958 failed";
-  let r = { a186 = #{ a36 = 0.; b36 = 1 }; b186 = 2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a186 = #{ a36 = 100.; b36 = 101 }; b186 = 102. } in
-  (* .b186 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b186 = next_r.b186 } in
-  Idx_mut.unsafe_set r ((.b186) : (t186, _) idx_mut) next_r.b186;
+  (* .a192.#b33 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with a192 = #{ r.a192 with b33 = next_r.a192.#b33 } } in
+  Idx_mut.unsafe_set r ((.a192.#b33) : (t192, _) idx_mut) next_r.a192.#b33;
   mark_test_run 959;
   let test = eq r expected in
   if not test then failwithf "test 959 failed";
   mark_test_run 960;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b186) : (t186, _) idx_mut)) next_r.b186 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a192.#b33) : (t192, _) idx_mut)) next_r.a192.#b33 in
   if not test then failwithf "test 960 failed";
-  (************************************)
-  (*   t187 = { #{ float; float } }   *)
-  (************************************)
-  let eq = (fun { a187 = a1871 } { a187 = a1872 } -> (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) a1871 a1872) in
-  let r = { a187 = #{ a38 = 0.; b38 = 1. } } in
+  let r = { a192 = #{ a33 = #0l; b33 = #1l }; b192 = 2 } in
   (* Paths of depth 1 *)
-  let next_r = { a187 = #{ a38 = 100.; b38 = 101. } } in
-  (* .a187 *)
-  let sub_eq = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) in
-  let expected = { r with a187 = next_r.a187 } in
-  Idx_mut.unsafe_set r ((.a187) : (t187, _) idx_mut) next_r.a187;
+  let next_r = { a192 = #{ a33 = #100l; b33 = #101l }; b192 = 102 } in
+  (* .b192 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b192 = next_r.b192 } in
+  Idx_mut.unsafe_set r ((.b192) : (t192, _) idx_mut) next_r.b192;
   mark_test_run 961;
   let test = eq r expected in
   if not test then failwithf "test 961 failed";
   mark_test_run 962;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a187) : (t187, _) idx_mut)) next_r.a187 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b192) : (t192, _) idx_mut)) next_r.b192 in
   if not test then failwithf "test 962 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a187 = #{ a38 = 200.; b38 = 201. } } in
-  (* .a187.#a38 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a187 = #{ r.a187 with a38 = next_r.a187.#a38 } } in
-  Idx_mut.unsafe_set r ((.a187.#a38) : (t187, _) idx_mut) next_r.a187.#a38;
+  (**********************************************)
+  (*   t193 = { #{ int32#; int32# }; int32# }   *)
+  (**********************************************)
+  let eq = (fun { a193 = a1931; b193 = b1931 } { a193 = a1932; b193 = b1932 } -> (fun #{ a33 = a331; b33 = b331 } #{ a33 = a332; b33 = b332 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a331 a332 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b331 b332) a1931 a1932 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b1931 b1932) in
+  let r = { a193 = #{ a33 = #0l; b33 = #1l }; b193 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a193 = #{ a33 = #100l; b33 = #101l }; b193 = #102l } in
+  (* .a193 *)
+  let sub_eq = (fun #{ a33 = a331; b33 = b331 } #{ a33 = a332; b33 = b332 } -> (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) a331 a332 && (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) b331 b332) in
+  let expected = { r with a193 = next_r.a193 } in
+  Idx_mut.unsafe_set r ((.a193) : (t193, _) idx_mut) next_r.a193;
   mark_test_run 963;
   let test = eq r expected in
   if not test then failwithf "test 963 failed";
   mark_test_run 964;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a187.#a38) : (t187, _) idx_mut)) next_r.a187.#a38 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a193) : (t193, _) idx_mut)) next_r.a193 in
   if not test then failwithf "test 964 failed";
-  (* .a187.#b38 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a187 = #{ r.a187 with b38 = next_r.a187.#b38 } } in
-  Idx_mut.unsafe_set r ((.a187.#b38) : (t187, _) idx_mut) next_r.a187.#b38;
+  (* Paths of depth 2 *)
+  let next_r = { a193 = #{ a33 = #200l; b33 = #201l }; b193 = #202l } in
+  (* .a193.#a33 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with a193 = #{ r.a193 with a33 = next_r.a193.#a33 } } in
+  Idx_mut.unsafe_set r ((.a193.#a33) : (t193, _) idx_mut) next_r.a193.#a33;
   mark_test_run 965;
   let test = eq r expected in
   if not test then failwithf "test 965 failed";
   mark_test_run 966;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a187.#b38) : (t187, _) idx_mut)) next_r.a187.#b38 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a193.#a33) : (t193, _) idx_mut)) next_r.a193.#a33 in
   if not test then failwithf "test 966 failed";
-  (*****************************************)
-  (*   t188 = { #{ float; float }; int }   *)
-  (*****************************************)
-  let eq = (fun { a188 = a1881; b188 = b1881 } { a188 = a1882; b188 = b1882 } -> (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) a1881 a1882 && (fun a b -> Int.equal a b) b1881 b1882) in
-  let r = { a188 = #{ a38 = 0.; b38 = 1. }; b188 = 2 } in
-  (* Paths of depth 1 *)
-  let next_r = { a188 = #{ a38 = 100.; b38 = 101. }; b188 = 102 } in
-  (* .a188 *)
-  let sub_eq = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) in
-  let expected = { r with a188 = next_r.a188 } in
-  Idx_mut.unsafe_set r ((.a188) : (t188, _) idx_mut) next_r.a188;
+  (* .a193.#b33 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with a193 = #{ r.a193 with b33 = next_r.a193.#b33 } } in
+  Idx_mut.unsafe_set r ((.a193.#b33) : (t193, _) idx_mut) next_r.a193.#b33;
   mark_test_run 967;
   let test = eq r expected in
   if not test then failwithf "test 967 failed";
   mark_test_run 968;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a188) : (t188, _) idx_mut)) next_r.a188 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a193.#b33) : (t193, _) idx_mut)) next_r.a193.#b33 in
   if not test then failwithf "test 968 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a188 = #{ a38 = 200.; b38 = 201. }; b188 = 202 } in
-  (* .a188.#a38 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a188 = #{ r.a188 with a38 = next_r.a188.#a38 } } in
-  Idx_mut.unsafe_set r ((.a188.#a38) : (t188, _) idx_mut) next_r.a188.#a38;
+  let r = { a193 = #{ a33 = #0l; b33 = #1l }; b193 = #2l } in
+  (* Paths of depth 1 *)
+  let next_r = { a193 = #{ a33 = #100l; b33 = #101l }; b193 = #102l } in
+  (* .b193 *)
+  let sub_eq = (fun a b -> Int32_u.(equal (add #0l a) (add #0l b))) in
+  let expected = { r with b193 = next_r.b193 } in
+  Idx_mut.unsafe_set r ((.b193) : (t193, _) idx_mut) next_r.b193;
   mark_test_run 969;
   let test = eq r expected in
   if not test then failwithf "test 969 failed";
   mark_test_run 970;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a188.#a38) : (t188, _) idx_mut)) next_r.a188.#a38 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b193) : (t193, _) idx_mut)) next_r.b193 in
   if not test then failwithf "test 970 failed";
-  (* .a188.#b38 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a188 = #{ r.a188 with b38 = next_r.a188.#b38 } } in
-  Idx_mut.unsafe_set r ((.a188.#b38) : (t188, _) idx_mut) next_r.a188.#b38;
+  (*****************************)
+  (*   t194 = { #{ float } }   *)
+  (*****************************)
+  let eq = (fun { a194 = a1941 } { a194 = a1942 } -> (fun #{ a35 = a351 } #{ a35 = a352 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a351 a352) a1941 a1942) in
+  let r = { a194 = #{ a35 = 0. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a194 = #{ a35 = 100. } } in
+  (* .a194 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a194 = next_r.a194 } in
+  Idx_mut.unsafe_set r ((.a194) : (t194, _) idx_mut) (Float_u.of_float next_r.a194.#a35);
   mark_test_run 971;
   let test = eq r expected in
   if not test then failwithf "test 971 failed";
   mark_test_run 972;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a188.#b38) : (t188, _) idx_mut)) next_r.a188.#b38 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a194) : (t194, _) idx_mut)) (Float_u.of_float next_r.a194.#a35) in
   if not test then failwithf "test 972 failed";
-  let r = { a188 = #{ a38 = 0.; b38 = 1. }; b188 = 2 } in
-  (* Paths of depth 1 *)
-  let next_r = { a188 = #{ a38 = 100.; b38 = 101. }; b188 = 102 } in
-  (* .b188 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b188 = next_r.b188 } in
-  Idx_mut.unsafe_set r ((.b188) : (t188, _) idx_mut) next_r.b188;
+  (* Paths of depth 2 *)
+  let next_r = { a194 = #{ a35 = 200. } } in
+  (* .a194.#a35 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a194 = #{ r.a194 with a35 = next_r.a194.#a35 } } in
+  Idx_mut.unsafe_set r ((.a194.#a35) : (t194, _) idx_mut) (Float_u.of_float next_r.a194.#a35);
   mark_test_run 973;
   let test = eq r expected in
   if not test then failwithf "test 973 failed";
   mark_test_run 974;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b188) : (t188, _) idx_mut)) next_r.b188 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a194.#a35) : (t194, _) idx_mut)) (Float_u.of_float next_r.a194.#a35) in
   if not test then failwithf "test 974 failed";
-  (*******************************************)
-  (*   t189 = { #{ float; float }; float }   *)
-  (*******************************************)
-  let eq = (fun { a189 = a1891; b189 = b1891 } { a189 = a1892; b189 = b1892 } -> (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) a1891 a1892 && (fun a b -> Float.equal (globalize a) (globalize b)) b1891 b1892) in
-  let r = { a189 = #{ a38 = 0.; b38 = 1. }; b189 = 2. } in
+  (**********************************)
+  (*   t195 = { #{ float }; int }   *)
+  (**********************************)
+  let eq = (fun { a195 = a1951; b195 = b1951 } { a195 = a1952; b195 = b1952 } -> (fun #{ a35 = a351 } #{ a35 = a352 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a351 a352) a1951 a1952 && (fun a b -> Int.equal a b) b1951 b1952) in
+  let r = { a195 = #{ a35 = 0. }; b195 = 1 } in
   (* Paths of depth 1 *)
-  let next_r = { a189 = #{ a38 = 100.; b38 = 101. }; b189 = 102. } in
-  (* .a189 *)
-  let sub_eq = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) in
-  let expected = { r with a189 = next_r.a189 } in
-  Idx_mut.unsafe_set r ((.a189) : (t189, _) idx_mut) next_r.a189;
+  let next_r = { a195 = #{ a35 = 100. }; b195 = 101 } in
+  (* .a195 *)
+  let sub_eq = (fun #{ a35 = a351 } #{ a35 = a352 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a351 a352) in
+  let expected = { r with a195 = next_r.a195 } in
+  Idx_mut.unsafe_set r ((.a195) : (t195, _) idx_mut) next_r.a195;
   mark_test_run 975;
   let test = eq r expected in
   if not test then failwithf "test 975 failed";
   mark_test_run 976;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a189) : (t189, _) idx_mut)) next_r.a189 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a195) : (t195, _) idx_mut)) next_r.a195 in
   if not test then failwithf "test 976 failed";
   (* Paths of depth 2 *)
-  let next_r = { a189 = #{ a38 = 200.; b38 = 201. }; b189 = 202. } in
-  (* .a189.#a38 *)
+  let next_r = { a195 = #{ a35 = 200. }; b195 = 201 } in
+  (* .a195.#a35 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a189 = #{ r.a189 with a38 = next_r.a189.#a38 } } in
-  Idx_mut.unsafe_set r ((.a189.#a38) : (t189, _) idx_mut) next_r.a189.#a38;
+  let expected = { r with a195 = #{ r.a195 with a35 = next_r.a195.#a35 } } in
+  Idx_mut.unsafe_set r ((.a195.#a35) : (t195, _) idx_mut) next_r.a195.#a35;
   mark_test_run 977;
   let test = eq r expected in
   if not test then failwithf "test 977 failed";
   mark_test_run 978;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a189.#a38) : (t189, _) idx_mut)) next_r.a189.#a38 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a195.#a35) : (t195, _) idx_mut)) next_r.a195.#a35 in
   if not test then failwithf "test 978 failed";
-  (* .a189.#b38 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a189 = #{ r.a189 with b38 = next_r.a189.#b38 } } in
-  Idx_mut.unsafe_set r ((.a189.#b38) : (t189, _) idx_mut) next_r.a189.#b38;
+  let r = { a195 = #{ a35 = 0. }; b195 = 1 } in
+  (* Paths of depth 1 *)
+  let next_r = { a195 = #{ a35 = 100. }; b195 = 101 } in
+  (* .b195 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b195 = next_r.b195 } in
+  Idx_mut.unsafe_set r ((.b195) : (t195, _) idx_mut) next_r.b195;
   mark_test_run 979;
   let test = eq r expected in
   if not test then failwithf "test 979 failed";
   mark_test_run 980;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a189.#b38) : (t189, _) idx_mut)) next_r.a189.#b38 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b195) : (t195, _) idx_mut)) next_r.b195 in
   if not test then failwithf "test 980 failed";
-  let r = { a189 = #{ a38 = 0.; b38 = 1. }; b189 = 2. } in
+  (************************************)
+  (*   t196 = { #{ float }; float }   *)
+  (************************************)
+  let eq = (fun { a196 = a1961; b196 = b1961 } { a196 = a1962; b196 = b1962 } -> (fun #{ a35 = a351 } #{ a35 = a352 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a351 a352) a1961 a1962 && (fun a b -> Float.equal (globalize a) (globalize b)) b1961 b1962) in
+  let r = { a196 = #{ a35 = 0. }; b196 = 1. } in
   (* Paths of depth 1 *)
-  let next_r = { a189 = #{ a38 = 100.; b38 = 101. }; b189 = 102. } in
-  (* .b189 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b189 = next_r.b189 } in
-  Idx_mut.unsafe_set r ((.b189) : (t189, _) idx_mut) next_r.b189;
+  let next_r = { a196 = #{ a35 = 100. }; b196 = 101. } in
+  (* .a196 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a196 = next_r.a196 } in
+  Idx_mut.unsafe_set r ((.a196) : (t196, _) idx_mut) (Float_u.of_float next_r.a196.#a35);
   mark_test_run 981;
   let test = eq r expected in
   if not test then failwithf "test 981 failed";
   mark_test_run 982;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b189) : (t189, _) idx_mut)) next_r.b189 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a196) : (t196, _) idx_mut)) (Float_u.of_float next_r.a196.#a35) in
   if not test then failwithf "test 982 failed";
-  (********************************************)
-  (*   t190 = { #{ float; float }; float# }   *)
-  (********************************************)
-  let eq = (fun { a190 = a1901; b190 = b1901 } { a190 = a1902; b190 = b1902 } -> (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) a1901 a1902 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1901 b1902) in
-  let r = { a190 = #{ a38 = 0.; b38 = 1. }; b190 = #2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a190 = #{ a38 = 100.; b38 = 101. }; b190 = #102. } in
-  (* .a190 *)
-  let sub_eq = (fun #{ a38 = a381; b38 = b381 } #{ a38 = a382; b38 = b382 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a381 a382 && (fun a b -> Float.equal (globalize a) (globalize b)) b381 b382) in
-  let expected = { r with a190 = next_r.a190 } in
-  Idx_mut.unsafe_set r ((.a190) : (t190, _) idx_mut) next_r.a190;
+  (* Paths of depth 2 *)
+  let next_r = { a196 = #{ a35 = 200. }; b196 = 201. } in
+  (* .a196.#a35 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a196 = #{ r.a196 with a35 = next_r.a196.#a35 } } in
+  Idx_mut.unsafe_set r ((.a196.#a35) : (t196, _) idx_mut) (Float_u.of_float next_r.a196.#a35);
   mark_test_run 983;
   let test = eq r expected in
   if not test then failwithf "test 983 failed";
   mark_test_run 984;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a190) : (t190, _) idx_mut)) next_r.a190 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a196.#a35) : (t196, _) idx_mut)) (Float_u.of_float next_r.a196.#a35) in
   if not test then failwithf "test 984 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a190 = #{ a38 = 200.; b38 = 201. }; b190 = #202. } in
-  (* .a190.#a38 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a190 = #{ r.a190 with a38 = next_r.a190.#a38 } } in
-  Idx_mut.unsafe_set r ((.a190.#a38) : (t190, _) idx_mut) next_r.a190.#a38;
+  let r = { a196 = #{ a35 = 0. }; b196 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a196 = #{ a35 = 100. }; b196 = 101. } in
+  (* .b196 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b196 = next_r.b196 } in
+  Idx_mut.unsafe_set r ((.b196) : (t196, _) idx_mut) (Float_u.of_float next_r.b196);
   mark_test_run 985;
   let test = eq r expected in
   if not test then failwithf "test 985 failed";
   mark_test_run 986;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a190.#a38) : (t190, _) idx_mut)) next_r.a190.#a38 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b196) : (t196, _) idx_mut)) (Float_u.of_float next_r.b196) in
   if not test then failwithf "test 986 failed";
-  (* .a190.#b38 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a190 = #{ r.a190 with b38 = next_r.a190.#b38 } } in
-  Idx_mut.unsafe_set r ((.a190.#b38) : (t190, _) idx_mut) next_r.a190.#b38;
+  (*************************************)
+  (*   t197 = { #{ float }; float# }   *)
+  (*************************************)
+  let eq = (fun { a197 = a1971; b197 = b1971 } { a197 = a1972; b197 = b1972 } -> (fun #{ a35 = a351 } #{ a35 = a352 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a351 a352) a1971 a1972 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1971 b1972) in
+  let r = { a197 = #{ a35 = 0. }; b197 = #1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a197 = #{ a35 = 100. }; b197 = #101. } in
+  (* .a197 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a197 = next_r.a197 } in
+  Idx_mut.unsafe_set r ((.a197) : (t197, _) idx_mut) (Float_u.of_float next_r.a197.#a35);
   mark_test_run 987;
   let test = eq r expected in
   if not test then failwithf "test 987 failed";
   mark_test_run 988;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a190.#b38) : (t190, _) idx_mut)) next_r.a190.#b38 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a197) : (t197, _) idx_mut)) (Float_u.of_float next_r.a197.#a35) in
   if not test then failwithf "test 988 failed";
-  let r = { a190 = #{ a38 = 0.; b38 = 1. }; b190 = #2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a190 = #{ a38 = 100.; b38 = 101. }; b190 = #102. } in
-  (* .b190 *)
+  (* Paths of depth 2 *)
+  let next_r = { a197 = #{ a35 = 200. }; b197 = #201. } in
+  (* .a197.#a35 *)
+  (* ff *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b190 = next_r.b190 } in
-  Idx_mut.unsafe_set r ((.b190) : (t190, _) idx_mut) next_r.b190;
+  let expected = { r with a197 = #{ r.a197 with a35 = next_r.a197.#a35 } } in
+  Idx_mut.unsafe_set r ((.a197.#a35) : (t197, _) idx_mut) (Float_u.of_float next_r.a197.#a35);
   mark_test_run 989;
   let test = eq r expected in
   if not test then failwithf "test 989 failed";
   mark_test_run 990;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b190) : (t190, _) idx_mut)) next_r.b190 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a197.#a35) : (t197, _) idx_mut)) (Float_u.of_float next_r.a197.#a35) in
   if not test then failwithf "test 990 failed";
-  (*************************************)
-  (*   t191 = { #{ float; float# } }   *)
-  (*************************************)
-  let eq = (fun { a191 = a1911 } { a191 = a1912 } -> (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) a1911 a1912) in
-  let r = { a191 = #{ a105 = 0.; b105 = #1. } } in
+  let r = { a197 = #{ a35 = 0. }; b197 = #1. } in
   (* Paths of depth 1 *)
-  let next_r = { a191 = #{ a105 = 100.; b105 = #101. } } in
-  (* .a191 *)
-  let sub_eq = (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) in
-  let expected = { r with a191 = next_r.a191 } in
-  Idx_mut.unsafe_set r ((.a191) : (t191, _) idx_mut) next_r.a191;
+  let next_r = { a197 = #{ a35 = 100. }; b197 = #101. } in
+  (* .b197 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b197 = next_r.b197 } in
+  Idx_mut.unsafe_set r ((.b197) : (t197, _) idx_mut) next_r.b197;
   mark_test_run 991;
   let test = eq r expected in
   if not test then failwithf "test 991 failed";
   mark_test_run 992;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a191) : (t191, _) idx_mut)) next_r.a191 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b197) : (t197, _) idx_mut)) next_r.b197 in
   if not test then failwithf "test 992 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a191 = #{ a105 = 200.; b105 = #201. } } in
-  (* .a191.#a105 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a191 = #{ r.a191 with a105 = next_r.a191.#a105 } } in
-  Idx_mut.unsafe_set r ((.a191.#a105) : (t191, _) idx_mut) next_r.a191.#a105;
+  (**********************************)
+  (*   t198 = { #{ float; int } }   *)
+  (**********************************)
+  let eq = (fun { a198 = a1981 } { a198 = a1982 } -> (fun #{ a37 = a371; b37 = b371 } #{ a37 = a372; b37 = b372 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a371 a372 && (fun a b -> Int.equal a b) b371 b372) a1981 a1982) in
+  let r = { a198 = #{ a37 = 0.; b37 = 1 } } in
+  (* Paths of depth 1 *)
+  let next_r = { a198 = #{ a37 = 100.; b37 = 101 } } in
+  (* .a198 *)
+  let sub_eq = (fun #{ a37 = a371; b37 = b371 } #{ a37 = a372; b37 = b372 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a371 a372 && (fun a b -> Int.equal a b) b371 b372) in
+  let expected = { r with a198 = next_r.a198 } in
+  Idx_mut.unsafe_set r ((.a198) : (t198, _) idx_mut) next_r.a198;
   mark_test_run 993;
   let test = eq r expected in
   if not test then failwithf "test 993 failed";
   mark_test_run 994;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a191.#a105) : (t191, _) idx_mut)) next_r.a191.#a105 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a198) : (t198, _) idx_mut)) next_r.a198 in
   if not test then failwithf "test 994 failed";
-  (* .a191.#b105 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a191 = #{ r.a191 with b105 = next_r.a191.#b105 } } in
-  Idx_mut.unsafe_set r ((.a191.#b105) : (t191, _) idx_mut) next_r.a191.#b105;
+  (* Paths of depth 2 *)
+  let next_r = { a198 = #{ a37 = 200.; b37 = 201 } } in
+  (* .a198.#a37 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a198 = #{ r.a198 with a37 = next_r.a198.#a37 } } in
+  Idx_mut.unsafe_set r ((.a198.#a37) : (t198, _) idx_mut) next_r.a198.#a37;
   mark_test_run 995;
   let test = eq r expected in
   if not test then failwithf "test 995 failed";
   mark_test_run 996;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a191.#b105) : (t191, _) idx_mut)) next_r.a191.#b105 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a198.#a37) : (t198, _) idx_mut)) next_r.a198.#a37 in
   if not test then failwithf "test 996 failed";
-  (********************************************)
-  (*   t192 = { #{ float; float# }; float }   *)
-  (********************************************)
-  let eq = (fun { a192 = a1921; b192 = b1921 } { a192 = a1922; b192 = b1922 } -> (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) a1921 a1922 && (fun a b -> Float.equal (globalize a) (globalize b)) b1921 b1922) in
-  let r = { a192 = #{ a105 = 0.; b105 = #1. }; b192 = 2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a192 = #{ a105 = 100.; b105 = #101. }; b192 = 102. } in
-  (* .a192 *)
-  let sub_eq = (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) in
-  let expected = { r with a192 = next_r.a192 } in
-  Idx_mut.unsafe_set r ((.a192) : (t192, _) idx_mut) next_r.a192;
+  (* .a198.#b37 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a198 = #{ r.a198 with b37 = next_r.a198.#b37 } } in
+  Idx_mut.unsafe_set r ((.a198.#b37) : (t198, _) idx_mut) next_r.a198.#b37;
   mark_test_run 997;
   let test = eq r expected in
   if not test then failwithf "test 997 failed";
   mark_test_run 998;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a192) : (t192, _) idx_mut)) next_r.a192 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a198.#b37) : (t198, _) idx_mut)) next_r.a198.#b37 in
   if not test then failwithf "test 998 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a192 = #{ a105 = 200.; b105 = #201. }; b192 = 202. } in
-  (* .a192.#a105 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a192 = #{ r.a192 with a105 = next_r.a192.#a105 } } in
-  Idx_mut.unsafe_set r ((.a192.#a105) : (t192, _) idx_mut) next_r.a192.#a105;
+  (***************************************)
+  (*   t199 = { #{ float; int }; int }   *)
+  (***************************************)
+  let eq = (fun { a199 = a1991; b199 = b1991 } { a199 = a1992; b199 = b1992 } -> (fun #{ a37 = a371; b37 = b371 } #{ a37 = a372; b37 = b372 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a371 a372 && (fun a b -> Int.equal a b) b371 b372) a1991 a1992 && (fun a b -> Int.equal a b) b1991 b1992) in
+  let r = { a199 = #{ a37 = 0.; b37 = 1 }; b199 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a199 = #{ a37 = 100.; b37 = 101 }; b199 = 102 } in
+  (* .a199 *)
+  let sub_eq = (fun #{ a37 = a371; b37 = b371 } #{ a37 = a372; b37 = b372 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a371 a372 && (fun a b -> Int.equal a b) b371 b372) in
+  let expected = { r with a199 = next_r.a199 } in
+  Idx_mut.unsafe_set r ((.a199) : (t199, _) idx_mut) next_r.a199;
   mark_test_run 999;
   let test = eq r expected in
   if not test then failwithf "test 999 failed";
   mark_test_run 1000;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a192.#a105) : (t192, _) idx_mut)) next_r.a192.#a105 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a199) : (t199, _) idx_mut)) next_r.a199 in
   if not test then failwithf "test 1000 failed";
-  (* .a192.#b105 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a192 = #{ r.a192 with b105 = next_r.a192.#b105 } } in
-  Idx_mut.unsafe_set r ((.a192.#b105) : (t192, _) idx_mut) next_r.a192.#b105;
+  (* Paths of depth 2 *)
+  let next_r = { a199 = #{ a37 = 200.; b37 = 201 }; b199 = 202 } in
+  (* .a199.#a37 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a199 = #{ r.a199 with a37 = next_r.a199.#a37 } } in
+  Idx_mut.unsafe_set r ((.a199.#a37) : (t199, _) idx_mut) next_r.a199.#a37;
   mark_test_run 1001;
   let test = eq r expected in
   if not test then failwithf "test 1001 failed";
   mark_test_run 1002;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a192.#b105) : (t192, _) idx_mut)) next_r.a192.#b105 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a199.#a37) : (t199, _) idx_mut)) next_r.a199.#a37 in
   if not test then failwithf "test 1002 failed";
-  let r = { a192 = #{ a105 = 0.; b105 = #1. }; b192 = 2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a192 = #{ a105 = 100.; b105 = #101. }; b192 = 102. } in
-  (* .b192 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b192 = next_r.b192 } in
-  Idx_mut.unsafe_set r ((.b192) : (t192, _) idx_mut) next_r.b192;
+  (* .a199.#b37 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a199 = #{ r.a199 with b37 = next_r.a199.#b37 } } in
+  Idx_mut.unsafe_set r ((.a199.#b37) : (t199, _) idx_mut) next_r.a199.#b37;
   mark_test_run 1003;
   let test = eq r expected in
   if not test then failwithf "test 1003 failed";
   mark_test_run 1004;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b192) : (t192, _) idx_mut)) next_r.b192 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a199.#b37) : (t199, _) idx_mut)) next_r.a199.#b37 in
   if not test then failwithf "test 1004 failed";
-  (*********************************************)
-  (*   t193 = { #{ float; float# }; float# }   *)
-  (*********************************************)
-  let eq = (fun { a193 = a1931; b193 = b1931 } { a193 = a1932; b193 = b1932 } -> (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) a1931 a1932 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1931 b1932) in
-  let r = { a193 = #{ a105 = 0.; b105 = #1. }; b193 = #2. } in
+  let r = { a199 = #{ a37 = 0.; b37 = 1 }; b199 = 2 } in
   (* Paths of depth 1 *)
-  let next_r = { a193 = #{ a105 = 100.; b105 = #101. }; b193 = #102. } in
-  (* .a193 *)
-  let sub_eq = (fun #{ a105 = a1051; b105 = b1051 } #{ a105 = a1052; b105 = b1052 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1051 a1052 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1051 b1052) in
-  let expected = { r with a193 = next_r.a193 } in
-  Idx_mut.unsafe_set r ((.a193) : (t193, _) idx_mut) next_r.a193;
+  let next_r = { a199 = #{ a37 = 100.; b37 = 101 }; b199 = 102 } in
+  (* .b199 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b199 = next_r.b199 } in
+  Idx_mut.unsafe_set r ((.b199) : (t199, _) idx_mut) next_r.b199;
   mark_test_run 1005;
   let test = eq r expected in
   if not test then failwithf "test 1005 failed";
   mark_test_run 1006;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a193) : (t193, _) idx_mut)) next_r.a193 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b199) : (t199, _) idx_mut)) next_r.b199 in
   if not test then failwithf "test 1006 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a193 = #{ a105 = 200.; b105 = #201. }; b193 = #202. } in
-  (* .a193.#a105 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a193 = #{ r.a193 with a105 = next_r.a193.#a105 } } in
-  Idx_mut.unsafe_set r ((.a193.#a105) : (t193, _) idx_mut) next_r.a193.#a105;
+  (*****************************************)
+  (*   t200 = { #{ float; int }; float }   *)
+  (*****************************************)
+  let eq = (fun { a200 = a2001; b200 = b2001 } { a200 = a2002; b200 = b2002 } -> (fun #{ a37 = a371; b37 = b371 } #{ a37 = a372; b37 = b372 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a371 a372 && (fun a b -> Int.equal a b) b371 b372) a2001 a2002 && (fun a b -> Float.equal (globalize a) (globalize b)) b2001 b2002) in
+  let r = { a200 = #{ a37 = 0.; b37 = 1 }; b200 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a200 = #{ a37 = 100.; b37 = 101 }; b200 = 102. } in
+  (* .a200 *)
+  let sub_eq = (fun #{ a37 = a371; b37 = b371 } #{ a37 = a372; b37 = b372 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a371 a372 && (fun a b -> Int.equal a b) b371 b372) in
+  let expected = { r with a200 = next_r.a200 } in
+  Idx_mut.unsafe_set r ((.a200) : (t200, _) idx_mut) next_r.a200;
   mark_test_run 1007;
   let test = eq r expected in
   if not test then failwithf "test 1007 failed";
   mark_test_run 1008;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a193.#a105) : (t193, _) idx_mut)) next_r.a193.#a105 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a200) : (t200, _) idx_mut)) next_r.a200 in
   if not test then failwithf "test 1008 failed";
-  (* .a193.#b105 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a193 = #{ r.a193 with b105 = next_r.a193.#b105 } } in
-  Idx_mut.unsafe_set r ((.a193.#b105) : (t193, _) idx_mut) next_r.a193.#b105;
+  (* Paths of depth 2 *)
+  let next_r = { a200 = #{ a37 = 200.; b37 = 201 }; b200 = 202. } in
+  (* .a200.#a37 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a200 = #{ r.a200 with a37 = next_r.a200.#a37 } } in
+  Idx_mut.unsafe_set r ((.a200.#a37) : (t200, _) idx_mut) next_r.a200.#a37;
   mark_test_run 1009;
   let test = eq r expected in
   if not test then failwithf "test 1009 failed";
   mark_test_run 1010;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a193.#b105) : (t193, _) idx_mut)) next_r.a193.#b105 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a200.#a37) : (t200, _) idx_mut)) next_r.a200.#a37 in
   if not test then failwithf "test 1010 failed";
-  let r = { a193 = #{ a105 = 0.; b105 = #1. }; b193 = #2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a193 = #{ a105 = 100.; b105 = #101. }; b193 = #102. } in
-  (* .b193 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b193 = next_r.b193 } in
-  Idx_mut.unsafe_set r ((.b193) : (t193, _) idx_mut) next_r.b193;
+  (* .a200.#b37 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a200 = #{ r.a200 with b37 = next_r.a200.#b37 } } in
+  Idx_mut.unsafe_set r ((.a200.#b37) : (t200, _) idx_mut) next_r.a200.#b37;
   mark_test_run 1011;
   let test = eq r expected in
   if not test then failwithf "test 1011 failed";
   mark_test_run 1012;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b193) : (t193, _) idx_mut)) next_r.b193 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a200.#b37) : (t200, _) idx_mut)) next_r.a200.#b37 in
   if not test then failwithf "test 1012 failed";
-  (******************************)
-  (*   t194 = { #{ float# } }   *)
-  (******************************)
-  let eq = (fun { a194 = a1941 } { a194 = a1942 } -> (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) a1941 a1942) in
-  let r = { a194 = #{ a107 = #0. } } in
+  let r = { a200 = #{ a37 = 0.; b37 = 1 }; b200 = 2. } in
   (* Paths of depth 1 *)
-  let next_r = { a194 = #{ a107 = #100. } } in
-  (* .a194 *)
-  let sub_eq = (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) in
-  let expected = { r with a194 = next_r.a194 } in
-  Idx_mut.unsafe_set r ((.a194) : (t194, _) idx_mut) next_r.a194;
+  let next_r = { a200 = #{ a37 = 100.; b37 = 101 }; b200 = 102. } in
+  (* .b200 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b200 = next_r.b200 } in
+  Idx_mut.unsafe_set r ((.b200) : (t200, _) idx_mut) next_r.b200;
   mark_test_run 1013;
   let test = eq r expected in
   if not test then failwithf "test 1013 failed";
   mark_test_run 1014;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a194) : (t194, _) idx_mut)) next_r.a194 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b200) : (t200, _) idx_mut)) next_r.b200 in
   if not test then failwithf "test 1014 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a194 = #{ a107 = #200. } } in
-  (* .a194.#a107 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a194 = #{ r.a194 with a107 = next_r.a194.#a107 } } in
-  Idx_mut.unsafe_set r ((.a194.#a107) : (t194, _) idx_mut) next_r.a194.#a107;
+  (************************************)
+  (*   t201 = { #{ float; float } }   *)
+  (************************************)
+  let eq = (fun { a201 = a2011 } { a201 = a2012 } -> (fun #{ a39 = a391; b39 = b391 } #{ a39 = a392; b39 = b392 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Float.equal (globalize a) (globalize b)) b391 b392) a2011 a2012) in
+  let r = { a201 = #{ a39 = 0.; b39 = 1. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a201 = #{ a39 = 100.; b39 = 101. } } in
+  (* .a201 *)
+  let sub_eq = (fun #{ a39 = a391; b39 = b391 } #{ a39 = a392; b39 = b392 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Float.equal (globalize a) (globalize b)) b391 b392) in
+  let expected = { r with a201 = next_r.a201 } in
+  Idx_mut.unsafe_set r ((.a201) : (t201, _) idx_mut) next_r.a201;
   mark_test_run 1015;
   let test = eq r expected in
   if not test then failwithf "test 1015 failed";
   mark_test_run 1016;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a194.#a107) : (t194, _) idx_mut)) next_r.a194.#a107 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a201) : (t201, _) idx_mut)) next_r.a201 in
   if not test then failwithf "test 1016 failed";
-  (*************************************)
-  (*   t195 = { #{ float# }; float }   *)
-  (*************************************)
-  let eq = (fun { a195 = a1951; b195 = b1951 } { a195 = a1952; b195 = b1952 } -> (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) a1951 a1952 && (fun a b -> Float.equal (globalize a) (globalize b)) b1951 b1952) in
-  let r = { a195 = #{ a107 = #0. }; b195 = 1. } in
-  (* Paths of depth 1 *)
-  let next_r = { a195 = #{ a107 = #100. }; b195 = 101. } in
-  (* .a195 *)
-  let sub_eq = (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) in
-  let expected = { r with a195 = next_r.a195 } in
-  Idx_mut.unsafe_set r ((.a195) : (t195, _) idx_mut) next_r.a195;
+  (* Paths of depth 2 *)
+  let next_r = { a201 = #{ a39 = 200.; b39 = 201. } } in
+  (* .a201.#a39 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a201 = #{ r.a201 with a39 = next_r.a201.#a39 } } in
+  Idx_mut.unsafe_set r ((.a201.#a39) : (t201, _) idx_mut) next_r.a201.#a39;
   mark_test_run 1017;
   let test = eq r expected in
   if not test then failwithf "test 1017 failed";
   mark_test_run 1018;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a195) : (t195, _) idx_mut)) next_r.a195 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a201.#a39) : (t201, _) idx_mut)) next_r.a201.#a39 in
   if not test then failwithf "test 1018 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a195 = #{ a107 = #200. }; b195 = 201. } in
-  (* .a195.#a107 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a195 = #{ r.a195 with a107 = next_r.a195.#a107 } } in
-  Idx_mut.unsafe_set r ((.a195.#a107) : (t195, _) idx_mut) next_r.a195.#a107;
+  (* .a201.#b39 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a201 = #{ r.a201 with b39 = next_r.a201.#b39 } } in
+  Idx_mut.unsafe_set r ((.a201.#b39) : (t201, _) idx_mut) next_r.a201.#b39;
   mark_test_run 1019;
   let test = eq r expected in
   if not test then failwithf "test 1019 failed";
   mark_test_run 1020;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a195.#a107) : (t195, _) idx_mut)) next_r.a195.#a107 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a201.#b39) : (t201, _) idx_mut)) next_r.a201.#b39 in
   if not test then failwithf "test 1020 failed";
-  let r = { a195 = #{ a107 = #0. }; b195 = 1. } in
+  (*****************************************)
+  (*   t202 = { #{ float; float }; int }   *)
+  (*****************************************)
+  let eq = (fun { a202 = a2021; b202 = b2021 } { a202 = a2022; b202 = b2022 } -> (fun #{ a39 = a391; b39 = b391 } #{ a39 = a392; b39 = b392 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Float.equal (globalize a) (globalize b)) b391 b392) a2021 a2022 && (fun a b -> Int.equal a b) b2021 b2022) in
+  let r = { a202 = #{ a39 = 0.; b39 = 1. }; b202 = 2 } in
   (* Paths of depth 1 *)
-  let next_r = { a195 = #{ a107 = #100. }; b195 = 101. } in
-  (* .b195 *)
-  (* ff *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b195 = next_r.b195 } in
-  Idx_mut.unsafe_set r ((.b195) : (t195, _) idx_mut) (Float_u.of_float next_r.b195);
+  let next_r = { a202 = #{ a39 = 100.; b39 = 101. }; b202 = 102 } in
+  (* .a202 *)
+  let sub_eq = (fun #{ a39 = a391; b39 = b391 } #{ a39 = a392; b39 = b392 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Float.equal (globalize a) (globalize b)) b391 b392) in
+  let expected = { r with a202 = next_r.a202 } in
+  Idx_mut.unsafe_set r ((.a202) : (t202, _) idx_mut) next_r.a202;
   mark_test_run 1021;
   let test = eq r expected in
   if not test then failwithf "test 1021 failed";
   mark_test_run 1022;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b195) : (t195, _) idx_mut)) (Float_u.of_float next_r.b195) in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a202) : (t202, _) idx_mut)) next_r.a202 in
   if not test then failwithf "test 1022 failed";
-  (**************************************)
-  (*   t196 = { #{ float# }; float# }   *)
-  (**************************************)
-  let eq = (fun { a196 = a1961; b196 = b1961 } { a196 = a1962; b196 = b1962 } -> (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) a1961 a1962 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1961 b1962) in
-  let r = { a196 = #{ a107 = #0. }; b196 = #1. } in
-  (* Paths of depth 1 *)
-  let next_r = { a196 = #{ a107 = #100. }; b196 = #101. } in
-  (* .a196 *)
-  let sub_eq = (fun #{ a107 = a1071 } #{ a107 = a1072 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1071 a1072) in
-  let expected = { r with a196 = next_r.a196 } in
-  Idx_mut.unsafe_set r ((.a196) : (t196, _) idx_mut) next_r.a196;
+  (* Paths of depth 2 *)
+  let next_r = { a202 = #{ a39 = 200.; b39 = 201. }; b202 = 202 } in
+  (* .a202.#a39 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a202 = #{ r.a202 with a39 = next_r.a202.#a39 } } in
+  Idx_mut.unsafe_set r ((.a202.#a39) : (t202, _) idx_mut) next_r.a202.#a39;
   mark_test_run 1023;
   let test = eq r expected in
   if not test then failwithf "test 1023 failed";
   mark_test_run 1024;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a196) : (t196, _) idx_mut)) next_r.a196 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a202.#a39) : (t202, _) idx_mut)) next_r.a202.#a39 in
   if not test then failwithf "test 1024 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a196 = #{ a107 = #200. }; b196 = #201. } in
-  (* .a196.#a107 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a196 = #{ r.a196 with a107 = next_r.a196.#a107 } } in
-  Idx_mut.unsafe_set r ((.a196.#a107) : (t196, _) idx_mut) next_r.a196.#a107;
+  (* .a202.#b39 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a202 = #{ r.a202 with b39 = next_r.a202.#b39 } } in
+  Idx_mut.unsafe_set r ((.a202.#b39) : (t202, _) idx_mut) next_r.a202.#b39;
   mark_test_run 1025;
   let test = eq r expected in
   if not test then failwithf "test 1025 failed";
   mark_test_run 1026;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a196.#a107) : (t196, _) idx_mut)) next_r.a196.#a107 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a202.#b39) : (t202, _) idx_mut)) next_r.a202.#b39 in
   if not test then failwithf "test 1026 failed";
-  let r = { a196 = #{ a107 = #0. }; b196 = #1. } in
+  let r = { a202 = #{ a39 = 0.; b39 = 1. }; b202 = 2 } in
   (* Paths of depth 1 *)
-  let next_r = { a196 = #{ a107 = #100. }; b196 = #101. } in
-  (* .b196 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b196 = next_r.b196 } in
-  Idx_mut.unsafe_set r ((.b196) : (t196, _) idx_mut) next_r.b196;
+  let next_r = { a202 = #{ a39 = 100.; b39 = 101. }; b202 = 102 } in
+  (* .b202 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b202 = next_r.b202 } in
+  Idx_mut.unsafe_set r ((.b202) : (t202, _) idx_mut) next_r.b202;
   mark_test_run 1027;
   let test = eq r expected in
   if not test then failwithf "test 1027 failed";
   mark_test_run 1028;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b196) : (t196, _) idx_mut)) next_r.b196 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b202) : (t202, _) idx_mut)) next_r.b202 in
   if not test then failwithf "test 1028 failed";
-  (*************************************)
-  (*   t197 = { #{ float#; float } }   *)
-  (*************************************)
-  let eq = (fun { a197 = a1971 } { a197 = a1972 } -> (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) a1971 a1972) in
-  let r = { a197 = #{ a109 = #0.; b109 = 1. } } in
+  (*******************************************)
+  (*   t203 = { #{ float; float }; float }   *)
+  (*******************************************)
+  let eq = (fun { a203 = a2031; b203 = b2031 } { a203 = a2032; b203 = b2032 } -> (fun #{ a39 = a391; b39 = b391 } #{ a39 = a392; b39 = b392 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Float.equal (globalize a) (globalize b)) b391 b392) a2031 a2032 && (fun a b -> Float.equal (globalize a) (globalize b)) b2031 b2032) in
+  let r = { a203 = #{ a39 = 0.; b39 = 1. }; b203 = 2. } in
   (* Paths of depth 1 *)
-  let next_r = { a197 = #{ a109 = #100.; b109 = 101. } } in
-  (* .a197 *)
-  let sub_eq = (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) in
-  let expected = { r with a197 = next_r.a197 } in
-  Idx_mut.unsafe_set r ((.a197) : (t197, _) idx_mut) next_r.a197;
+  let next_r = { a203 = #{ a39 = 100.; b39 = 101. }; b203 = 102. } in
+  (* .a203 *)
+  let sub_eq = (fun #{ a39 = a391; b39 = b391 } #{ a39 = a392; b39 = b392 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Float.equal (globalize a) (globalize b)) b391 b392) in
+  let expected = { r with a203 = next_r.a203 } in
+  Idx_mut.unsafe_set r ((.a203) : (t203, _) idx_mut) next_r.a203;
   mark_test_run 1029;
   let test = eq r expected in
   if not test then failwithf "test 1029 failed";
   mark_test_run 1030;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a197) : (t197, _) idx_mut)) next_r.a197 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a203) : (t203, _) idx_mut)) next_r.a203 in
   if not test then failwithf "test 1030 failed";
   (* Paths of depth 2 *)
-  let next_r = { a197 = #{ a109 = #200.; b109 = 201. } } in
-  (* .a197.#a109 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a197 = #{ r.a197 with a109 = next_r.a197.#a109 } } in
-  Idx_mut.unsafe_set r ((.a197.#a109) : (t197, _) idx_mut) next_r.a197.#a109;
+  let next_r = { a203 = #{ a39 = 200.; b39 = 201. }; b203 = 202. } in
+  (* .a203.#a39 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a203 = #{ r.a203 with a39 = next_r.a203.#a39 } } in
+  Idx_mut.unsafe_set r ((.a203.#a39) : (t203, _) idx_mut) next_r.a203.#a39;
   mark_test_run 1031;
   let test = eq r expected in
   if not test then failwithf "test 1031 failed";
   mark_test_run 1032;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a197.#a109) : (t197, _) idx_mut)) next_r.a197.#a109 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a203.#a39) : (t203, _) idx_mut)) next_r.a203.#a39 in
   if not test then failwithf "test 1032 failed";
-  (* .a197.#b109 *)
+  (* .a203.#b39 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a197 = #{ r.a197 with b109 = next_r.a197.#b109 } } in
-  Idx_mut.unsafe_set r ((.a197.#b109) : (t197, _) idx_mut) next_r.a197.#b109;
+  let expected = { r with a203 = #{ r.a203 with b39 = next_r.a203.#b39 } } in
+  Idx_mut.unsafe_set r ((.a203.#b39) : (t203, _) idx_mut) next_r.a203.#b39;
   mark_test_run 1033;
   let test = eq r expected in
   if not test then failwithf "test 1033 failed";
   mark_test_run 1034;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a197.#b109) : (t197, _) idx_mut)) next_r.a197.#b109 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a203.#b39) : (t203, _) idx_mut)) next_r.a203.#b39 in
   if not test then failwithf "test 1034 failed";
-  (********************************************)
-  (*   t198 = { #{ float#; float }; float }   *)
-  (********************************************)
-  let eq = (fun { a198 = a1981; b198 = b1981 } { a198 = a1982; b198 = b1982 } -> (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) a1981 a1982 && (fun a b -> Float.equal (globalize a) (globalize b)) b1981 b1982) in
-  let r = { a198 = #{ a109 = #0.; b109 = 1. }; b198 = 2. } in
+  let r = { a203 = #{ a39 = 0.; b39 = 1. }; b203 = 2. } in
   (* Paths of depth 1 *)
-  let next_r = { a198 = #{ a109 = #100.; b109 = 101. }; b198 = 102. } in
-  (* .a198 *)
-  let sub_eq = (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) in
-  let expected = { r with a198 = next_r.a198 } in
-  Idx_mut.unsafe_set r ((.a198) : (t198, _) idx_mut) next_r.a198;
+  let next_r = { a203 = #{ a39 = 100.; b39 = 101. }; b203 = 102. } in
+  (* .b203 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b203 = next_r.b203 } in
+  Idx_mut.unsafe_set r ((.b203) : (t203, _) idx_mut) next_r.b203;
   mark_test_run 1035;
   let test = eq r expected in
   if not test then failwithf "test 1035 failed";
   mark_test_run 1036;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a198) : (t198, _) idx_mut)) next_r.a198 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b203) : (t203, _) idx_mut)) next_r.b203 in
   if not test then failwithf "test 1036 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a198 = #{ a109 = #200.; b109 = 201. }; b198 = 202. } in
-  (* .a198.#a109 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a198 = #{ r.a198 with a109 = next_r.a198.#a109 } } in
-  Idx_mut.unsafe_set r ((.a198.#a109) : (t198, _) idx_mut) next_r.a198.#a109;
+  (********************************************)
+  (*   t204 = { #{ float; float }; float# }   *)
+  (********************************************)
+  let eq = (fun { a204 = a2041; b204 = b2041 } { a204 = a2042; b204 = b2042 } -> (fun #{ a39 = a391; b39 = b391 } #{ a39 = a392; b39 = b392 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Float.equal (globalize a) (globalize b)) b391 b392) a2041 a2042 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b2041 b2042) in
+  let r = { a204 = #{ a39 = 0.; b39 = 1. }; b204 = #2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a204 = #{ a39 = 100.; b39 = 101. }; b204 = #102. } in
+  (* .a204 *)
+  let sub_eq = (fun #{ a39 = a391; b39 = b391 } #{ a39 = a392; b39 = b392 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a391 a392 && (fun a b -> Float.equal (globalize a) (globalize b)) b391 b392) in
+  let expected = { r with a204 = next_r.a204 } in
+  Idx_mut.unsafe_set r ((.a204) : (t204, _) idx_mut) next_r.a204;
   mark_test_run 1037;
   let test = eq r expected in
   if not test then failwithf "test 1037 failed";
   mark_test_run 1038;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a198.#a109) : (t198, _) idx_mut)) next_r.a198.#a109 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a204) : (t204, _) idx_mut)) next_r.a204 in
   if not test then failwithf "test 1038 failed";
-  (* .a198.#b109 *)
+  (* Paths of depth 2 *)
+  let next_r = { a204 = #{ a39 = 200.; b39 = 201. }; b204 = #202. } in
+  (* .a204.#a39 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a198 = #{ r.a198 with b109 = next_r.a198.#b109 } } in
-  Idx_mut.unsafe_set r ((.a198.#b109) : (t198, _) idx_mut) next_r.a198.#b109;
+  let expected = { r with a204 = #{ r.a204 with a39 = next_r.a204.#a39 } } in
+  Idx_mut.unsafe_set r ((.a204.#a39) : (t204, _) idx_mut) next_r.a204.#a39;
   mark_test_run 1039;
   let test = eq r expected in
   if not test then failwithf "test 1039 failed";
   mark_test_run 1040;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a198.#b109) : (t198, _) idx_mut)) next_r.a198.#b109 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a204.#a39) : (t204, _) idx_mut)) next_r.a204.#a39 in
   if not test then failwithf "test 1040 failed";
-  let r = { a198 = #{ a109 = #0.; b109 = 1. }; b198 = 2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a198 = #{ a109 = #100.; b109 = 101. }; b198 = 102. } in
-  (* .b198 *)
+  (* .a204.#b39 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b198 = next_r.b198 } in
-  Idx_mut.unsafe_set r ((.b198) : (t198, _) idx_mut) next_r.b198;
+  let expected = { r with a204 = #{ r.a204 with b39 = next_r.a204.#b39 } } in
+  Idx_mut.unsafe_set r ((.a204.#b39) : (t204, _) idx_mut) next_r.a204.#b39;
   mark_test_run 1041;
   let test = eq r expected in
   if not test then failwithf "test 1041 failed";
   mark_test_run 1042;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b198) : (t198, _) idx_mut)) next_r.b198 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a204.#b39) : (t204, _) idx_mut)) next_r.a204.#b39 in
   if not test then failwithf "test 1042 failed";
-  (*********************************************)
-  (*   t199 = { #{ float#; float }; float# }   *)
-  (*********************************************)
-  let eq = (fun { a199 = a1991; b199 = b1991 } { a199 = a1992; b199 = b1992 } -> (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) a1991 a1992 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1991 b1992) in
-  let r = { a199 = #{ a109 = #0.; b109 = 1. }; b199 = #2. } in
+  let r = { a204 = #{ a39 = 0.; b39 = 1. }; b204 = #2. } in
   (* Paths of depth 1 *)
-  let next_r = { a199 = #{ a109 = #100.; b109 = 101. }; b199 = #102. } in
-  (* .a199 *)
-  let sub_eq = (fun #{ a109 = a1091; b109 = b1091 } #{ a109 = a1092; b109 = b1092 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1091 a1092 && (fun a b -> Float.equal (globalize a) (globalize b)) b1091 b1092) in
-  let expected = { r with a199 = next_r.a199 } in
-  Idx_mut.unsafe_set r ((.a199) : (t199, _) idx_mut) next_r.a199;
+  let next_r = { a204 = #{ a39 = 100.; b39 = 101. }; b204 = #102. } in
+  (* .b204 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b204 = next_r.b204 } in
+  Idx_mut.unsafe_set r ((.b204) : (t204, _) idx_mut) next_r.b204;
   mark_test_run 1043;
   let test = eq r expected in
   if not test then failwithf "test 1043 failed";
   mark_test_run 1044;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a199) : (t199, _) idx_mut)) next_r.a199 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b204) : (t204, _) idx_mut)) next_r.b204 in
   if not test then failwithf "test 1044 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a199 = #{ a109 = #200.; b109 = 201. }; b199 = #202. } in
-  (* .a199.#a109 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a199 = #{ r.a199 with a109 = next_r.a199.#a109 } } in
-  Idx_mut.unsafe_set r ((.a199.#a109) : (t199, _) idx_mut) next_r.a199.#a109;
+  (*************************************)
+  (*   t205 = { #{ float; float# } }   *)
+  (*************************************)
+  let eq = (fun { a205 = a2051 } { a205 = a2052 } -> (fun #{ a119 = a1191; b119 = b1191 } #{ a119 = a1192; b119 = b1192 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1191 a1192 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1191 b1192) a2051 a2052) in
+  let r = { a205 = #{ a119 = 0.; b119 = #1. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a205 = #{ a119 = 100.; b119 = #101. } } in
+  (* .a205 *)
+  let sub_eq = (fun #{ a119 = a1191; b119 = b1191 } #{ a119 = a1192; b119 = b1192 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1191 a1192 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1191 b1192) in
+  let expected = { r with a205 = next_r.a205 } in
+  Idx_mut.unsafe_set r ((.a205) : (t205, _) idx_mut) next_r.a205;
   mark_test_run 1045;
   let test = eq r expected in
   if not test then failwithf "test 1045 failed";
   mark_test_run 1046;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a199.#a109) : (t199, _) idx_mut)) next_r.a199.#a109 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a205) : (t205, _) idx_mut)) next_r.a205 in
   if not test then failwithf "test 1046 failed";
-  (* .a199.#b109 *)
+  (* Paths of depth 2 *)
+  let next_r = { a205 = #{ a119 = 200.; b119 = #201. } } in
+  (* .a205.#a119 *)
   let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with a199 = #{ r.a199 with b109 = next_r.a199.#b109 } } in
-  Idx_mut.unsafe_set r ((.a199.#b109) : (t199, _) idx_mut) next_r.a199.#b109;
+  let expected = { r with a205 = #{ r.a205 with a119 = next_r.a205.#a119 } } in
+  Idx_mut.unsafe_set r ((.a205.#a119) : (t205, _) idx_mut) next_r.a205.#a119;
   mark_test_run 1047;
   let test = eq r expected in
   if not test then failwithf "test 1047 failed";
   mark_test_run 1048;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a199.#b109) : (t199, _) idx_mut)) next_r.a199.#b109 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a205.#a119) : (t205, _) idx_mut)) next_r.a205.#a119 in
   if not test then failwithf "test 1048 failed";
-  let r = { a199 = #{ a109 = #0.; b109 = 1. }; b199 = #2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a199 = #{ a109 = #100.; b109 = 101. }; b199 = #102. } in
-  (* .b199 *)
+  (* .a205.#b119 *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b199 = next_r.b199 } in
-  Idx_mut.unsafe_set r ((.b199) : (t199, _) idx_mut) next_r.b199;
+  let expected = { r with a205 = #{ r.a205 with b119 = next_r.a205.#b119 } } in
+  Idx_mut.unsafe_set r ((.a205.#b119) : (t205, _) idx_mut) next_r.a205.#b119;
   mark_test_run 1049;
   let test = eq r expected in
   if not test then failwithf "test 1049 failed";
   mark_test_run 1050;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b199) : (t199, _) idx_mut)) next_r.b199 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a205.#b119) : (t205, _) idx_mut)) next_r.a205.#b119 in
   if not test then failwithf "test 1050 failed";
-  (**************************************)
-  (*   t200 = { #{ float#; float# } }   *)
-  (**************************************)
-  let eq = (fun { a200 = a2001 } { a200 = a2002 } -> (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) a2001 a2002) in
-  let r = { a200 = #{ a111 = #0.; b111 = #1. } } in
+  (********************************************)
+  (*   t206 = { #{ float; float# }; float }   *)
+  (********************************************)
+  let eq = (fun { a206 = a2061; b206 = b2061 } { a206 = a2062; b206 = b2062 } -> (fun #{ a119 = a1191; b119 = b1191 } #{ a119 = a1192; b119 = b1192 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1191 a1192 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1191 b1192) a2061 a2062 && (fun a b -> Float.equal (globalize a) (globalize b)) b2061 b2062) in
+  let r = { a206 = #{ a119 = 0.; b119 = #1. }; b206 = 2. } in
   (* Paths of depth 1 *)
-  let next_r = { a200 = #{ a111 = #100.; b111 = #101. } } in
-  (* .a200 *)
-  let sub_eq = (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) in
-  let expected = { r with a200 = next_r.a200 } in
-  Idx_mut.unsafe_set r ((.a200) : (t200, _) idx_mut) next_r.a200;
+  let next_r = { a206 = #{ a119 = 100.; b119 = #101. }; b206 = 102. } in
+  (* .a206 *)
+  let sub_eq = (fun #{ a119 = a1191; b119 = b1191 } #{ a119 = a1192; b119 = b1192 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1191 a1192 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1191 b1192) in
+  let expected = { r with a206 = next_r.a206 } in
+  Idx_mut.unsafe_set r ((.a206) : (t206, _) idx_mut) next_r.a206;
   mark_test_run 1051;
   let test = eq r expected in
   if not test then failwithf "test 1051 failed";
   mark_test_run 1052;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a200) : (t200, _) idx_mut)) next_r.a200 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a206) : (t206, _) idx_mut)) next_r.a206 in
   if not test then failwithf "test 1052 failed";
   (* Paths of depth 2 *)
-  let next_r = { a200 = #{ a111 = #200.; b111 = #201. } } in
-  (* .a200.#a111 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a200 = #{ r.a200 with a111 = next_r.a200.#a111 } } in
-  Idx_mut.unsafe_set r ((.a200.#a111) : (t200, _) idx_mut) next_r.a200.#a111;
+  let next_r = { a206 = #{ a119 = 200.; b119 = #201. }; b206 = 202. } in
+  (* .a206.#a119 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a206 = #{ r.a206 with a119 = next_r.a206.#a119 } } in
+  Idx_mut.unsafe_set r ((.a206.#a119) : (t206, _) idx_mut) next_r.a206.#a119;
   mark_test_run 1053;
   let test = eq r expected in
   if not test then failwithf "test 1053 failed";
   mark_test_run 1054;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a200.#a111) : (t200, _) idx_mut)) next_r.a200.#a111 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a206.#a119) : (t206, _) idx_mut)) next_r.a206.#a119 in
   if not test then failwithf "test 1054 failed";
-  (* .a200.#b111 *)
+  (* .a206.#b119 *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a200 = #{ r.a200 with b111 = next_r.a200.#b111 } } in
-  Idx_mut.unsafe_set r ((.a200.#b111) : (t200, _) idx_mut) next_r.a200.#b111;
+  let expected = { r with a206 = #{ r.a206 with b119 = next_r.a206.#b119 } } in
+  Idx_mut.unsafe_set r ((.a206.#b119) : (t206, _) idx_mut) next_r.a206.#b119;
   mark_test_run 1055;
   let test = eq r expected in
   if not test then failwithf "test 1055 failed";
   mark_test_run 1056;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a200.#b111) : (t200, _) idx_mut)) next_r.a200.#b111 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a206.#b119) : (t206, _) idx_mut)) next_r.a206.#b119 in
   if not test then failwithf "test 1056 failed";
-  (*********************************************)
-  (*   t201 = { #{ float#; float# }; float }   *)
-  (*********************************************)
-  let eq = (fun { a201 = a2011; b201 = b2011 } { a201 = a2012; b201 = b2012 } -> (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) a2011 a2012 && (fun a b -> Float.equal (globalize a) (globalize b)) b2011 b2012) in
-  let r = { a201 = #{ a111 = #0.; b111 = #1. }; b201 = 2. } in
+  let r = { a206 = #{ a119 = 0.; b119 = #1. }; b206 = 2. } in
   (* Paths of depth 1 *)
-  let next_r = { a201 = #{ a111 = #100.; b111 = #101. }; b201 = 102. } in
-  (* .a201 *)
-  let sub_eq = (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) in
-  let expected = { r with a201 = next_r.a201 } in
-  Idx_mut.unsafe_set r ((.a201) : (t201, _) idx_mut) next_r.a201;
+  let next_r = { a206 = #{ a119 = 100.; b119 = #101. }; b206 = 102. } in
+  (* .b206 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b206 = next_r.b206 } in
+  Idx_mut.unsafe_set r ((.b206) : (t206, _) idx_mut) next_r.b206;
   mark_test_run 1057;
   let test = eq r expected in
   if not test then failwithf "test 1057 failed";
   mark_test_run 1058;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a201) : (t201, _) idx_mut)) next_r.a201 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b206) : (t206, _) idx_mut)) next_r.b206 in
   if not test then failwithf "test 1058 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a201 = #{ a111 = #200.; b111 = #201. }; b201 = 202. } in
-  (* .a201.#a111 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a201 = #{ r.a201 with a111 = next_r.a201.#a111 } } in
-  Idx_mut.unsafe_set r ((.a201.#a111) : (t201, _) idx_mut) next_r.a201.#a111;
+  (*********************************************)
+  (*   t207 = { #{ float; float# }; float# }   *)
+  (*********************************************)
+  let eq = (fun { a207 = a2071; b207 = b2071 } { a207 = a2072; b207 = b2072 } -> (fun #{ a119 = a1191; b119 = b1191 } #{ a119 = a1192; b119 = b1192 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1191 a1192 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1191 b1192) a2071 a2072 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b2071 b2072) in
+  let r = { a207 = #{ a119 = 0.; b119 = #1. }; b207 = #2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a207 = #{ a119 = 100.; b119 = #101. }; b207 = #102. } in
+  (* .a207 *)
+  let sub_eq = (fun #{ a119 = a1191; b119 = b1191 } #{ a119 = a1192; b119 = b1192 } -> (fun a b -> Float.equal (globalize a) (globalize b)) a1191 a1192 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1191 b1192) in
+  let expected = { r with a207 = next_r.a207 } in
+  Idx_mut.unsafe_set r ((.a207) : (t207, _) idx_mut) next_r.a207;
   mark_test_run 1059;
   let test = eq r expected in
   if not test then failwithf "test 1059 failed";
   mark_test_run 1060;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a201.#a111) : (t201, _) idx_mut)) next_r.a201.#a111 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a207) : (t207, _) idx_mut)) next_r.a207 in
   if not test then failwithf "test 1060 failed";
-  (* .a201.#b111 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a201 = #{ r.a201 with b111 = next_r.a201.#b111 } } in
-  Idx_mut.unsafe_set r ((.a201.#b111) : (t201, _) idx_mut) next_r.a201.#b111;
+  (* Paths of depth 2 *)
+  let next_r = { a207 = #{ a119 = 200.; b119 = #201. }; b207 = #202. } in
+  (* .a207.#a119 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a207 = #{ r.a207 with a119 = next_r.a207.#a119 } } in
+  Idx_mut.unsafe_set r ((.a207.#a119) : (t207, _) idx_mut) next_r.a207.#a119;
   mark_test_run 1061;
   let test = eq r expected in
   if not test then failwithf "test 1061 failed";
   mark_test_run 1062;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a201.#b111) : (t201, _) idx_mut)) next_r.a201.#b111 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a207.#a119) : (t207, _) idx_mut)) next_r.a207.#a119 in
   if not test then failwithf "test 1062 failed";
-  let r = { a201 = #{ a111 = #0.; b111 = #1. }; b201 = 2. } in
-  (* Paths of depth 1 *)
-  let next_r = { a201 = #{ a111 = #100.; b111 = #101. }; b201 = 102. } in
-  (* .b201 *)
-  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
-  let expected = { r with b201 = next_r.b201 } in
-  Idx_mut.unsafe_set r ((.b201) : (t201, _) idx_mut) next_r.b201;
+  (* .a207.#b119 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a207 = #{ r.a207 with b119 = next_r.a207.#b119 } } in
+  Idx_mut.unsafe_set r ((.a207.#b119) : (t207, _) idx_mut) next_r.a207.#b119;
   mark_test_run 1063;
   let test = eq r expected in
   if not test then failwithf "test 1063 failed";
   mark_test_run 1064;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b201) : (t201, _) idx_mut)) next_r.b201 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a207.#b119) : (t207, _) idx_mut)) next_r.a207.#b119 in
   if not test then failwithf "test 1064 failed";
-  (**********************************************)
-  (*   t202 = { #{ float#; float# }; float# }   *)
-  (**********************************************)
-  let eq = (fun { a202 = a2021; b202 = b2021 } { a202 = a2022; b202 = b2022 } -> (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) a2021 a2022 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b2021 b2022) in
-  let r = { a202 = #{ a111 = #0.; b111 = #1. }; b202 = #2. } in
+  let r = { a207 = #{ a119 = 0.; b119 = #1. }; b207 = #2. } in
   (* Paths of depth 1 *)
-  let next_r = { a202 = #{ a111 = #100.; b111 = #101. }; b202 = #102. } in
-  (* .a202 *)
-  let sub_eq = (fun #{ a111 = a1111; b111 = b1111 } #{ a111 = a1112; b111 = b1112 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1111 a1112 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1111 b1112) in
-  let expected = { r with a202 = next_r.a202 } in
-  Idx_mut.unsafe_set r ((.a202) : (t202, _) idx_mut) next_r.a202;
+  let next_r = { a207 = #{ a119 = 100.; b119 = #101. }; b207 = #102. } in
+  (* .b207 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b207 = next_r.b207 } in
+  Idx_mut.unsafe_set r ((.b207) : (t207, _) idx_mut) next_r.b207;
   mark_test_run 1065;
   let test = eq r expected in
   if not test then failwithf "test 1065 failed";
   mark_test_run 1066;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a202) : (t202, _) idx_mut)) next_r.a202 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b207) : (t207, _) idx_mut)) next_r.b207 in
   if not test then failwithf "test 1066 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a202 = #{ a111 = #200.; b111 = #201. }; b202 = #202. } in
-  (* .a202.#a111 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a202 = #{ r.a202 with a111 = next_r.a202.#a111 } } in
-  Idx_mut.unsafe_set r ((.a202.#a111) : (t202, _) idx_mut) next_r.a202.#a111;
+  (******************************)
+  (*   t208 = { #{ float# } }   *)
+  (******************************)
+  let eq = (fun { a208 = a2081 } { a208 = a2082 } -> (fun #{ a121 = a1211 } #{ a121 = a1212 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1211 a1212) a2081 a2082) in
+  let r = { a208 = #{ a121 = #0. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a208 = #{ a121 = #100. } } in
+  (* .a208 *)
+  let sub_eq = (fun #{ a121 = a1211 } #{ a121 = a1212 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1211 a1212) in
+  let expected = { r with a208 = next_r.a208 } in
+  Idx_mut.unsafe_set r ((.a208) : (t208, _) idx_mut) next_r.a208;
   mark_test_run 1067;
   let test = eq r expected in
   if not test then failwithf "test 1067 failed";
   mark_test_run 1068;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a202.#a111) : (t202, _) idx_mut)) next_r.a202.#a111 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a208) : (t208, _) idx_mut)) next_r.a208 in
   if not test then failwithf "test 1068 failed";
-  (* .a202.#b111 *)
+  (* Paths of depth 2 *)
+  let next_r = { a208 = #{ a121 = #200. } } in
+  (* .a208.#a121 *)
   let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with a202 = #{ r.a202 with b111 = next_r.a202.#b111 } } in
-  Idx_mut.unsafe_set r ((.a202.#b111) : (t202, _) idx_mut) next_r.a202.#b111;
+  let expected = { r with a208 = #{ r.a208 with a121 = next_r.a208.#a121 } } in
+  Idx_mut.unsafe_set r ((.a208.#a121) : (t208, _) idx_mut) next_r.a208.#a121;
   mark_test_run 1069;
   let test = eq r expected in
   if not test then failwithf "test 1069 failed";
   mark_test_run 1070;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a202.#b111) : (t202, _) idx_mut)) next_r.a202.#b111 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a208.#a121) : (t208, _) idx_mut)) next_r.a208.#a121 in
   if not test then failwithf "test 1070 failed";
-  let r = { a202 = #{ a111 = #0.; b111 = #1. }; b202 = #2. } in
+  (*************************************)
+  (*   t209 = { #{ float# }; float }   *)
+  (*************************************)
+  let eq = (fun { a209 = a2091; b209 = b2091 } { a209 = a2092; b209 = b2092 } -> (fun #{ a121 = a1211 } #{ a121 = a1212 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1211 a1212) a2091 a2092 && (fun a b -> Float.equal (globalize a) (globalize b)) b2091 b2092) in
+  let r = { a209 = #{ a121 = #0. }; b209 = 1. } in
   (* Paths of depth 1 *)
-  let next_r = { a202 = #{ a111 = #100.; b111 = #101. }; b202 = #102. } in
-  (* .b202 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b202 = next_r.b202 } in
-  Idx_mut.unsafe_set r ((.b202) : (t202, _) idx_mut) next_r.b202;
+  let next_r = { a209 = #{ a121 = #100. }; b209 = 101. } in
+  (* .a209 *)
+  let sub_eq = (fun #{ a121 = a1211 } #{ a121 = a1212 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1211 a1212) in
+  let expected = { r with a209 = next_r.a209 } in
+  Idx_mut.unsafe_set r ((.a209) : (t209, _) idx_mut) next_r.a209;
   mark_test_run 1071;
   let test = eq r expected in
   if not test then failwithf "test 1071 failed";
   mark_test_run 1072;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b202) : (t202, _) idx_mut)) next_r.b202 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a209) : (t209, _) idx_mut)) next_r.a209 in
   if not test then failwithf "test 1072 failed";
-  (*************************************************************)
-  (*   t205 = { #{ float32#; int64# }; #{ string; int64# } }   *)
-  (*************************************************************)
-  let eq = (fun { a205 = a2051; b205 = b2051 } { a205 = a2052; b205 = b2052 } -> (fun #{ a203 = a2031; b203 = b2031 } #{ a203 = a2032; b203 = b2032 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a2031 a2032 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b2031 b2032) a2051 a2052 && (fun #{ a204 = a2041; b204 = b2041 } #{ a204 = a2042; b204 = b2042 } -> (fun a b -> String.equal (globalize a) (globalize b)) a2041 a2042 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b2041 b2042) b2051 b2052) in
-  let r = { a205 = #{ a203 = #0.s; b203 = #1L }; b205 = #{ a204 = "2"; b204 = #3L } } in
-  (* Paths of depth 1 *)
-  let next_r = { a205 = #{ a203 = #100.s; b203 = #101L }; b205 = #{ a204 = "102"; b204 = #103L } } in
-  (* .a205 *)
-  let sub_eq = (fun #{ a203 = a2031; b203 = b2031 } #{ a203 = a2032; b203 = b2032 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a2031 a2032 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b2031 b2032) in
-  let expected = { r with a205 = next_r.a205 } in
-  Idx_mut.unsafe_set r ((.a205) : (t205, _) idx_mut) next_r.a205;
+  (* Paths of depth 2 *)
+  let next_r = { a209 = #{ a121 = #200. }; b209 = 201. } in
+  (* .a209.#a121 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a209 = #{ r.a209 with a121 = next_r.a209.#a121 } } in
+  Idx_mut.unsafe_set r ((.a209.#a121) : (t209, _) idx_mut) next_r.a209.#a121;
   mark_test_run 1073;
   let test = eq r expected in
   if not test then failwithf "test 1073 failed";
   mark_test_run 1074;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a205) : (t205, _) idx_mut)) next_r.a205 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a209.#a121) : (t209, _) idx_mut)) next_r.a209.#a121 in
   if not test then failwithf "test 1074 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a205 = #{ a203 = #200.s; b203 = #201L }; b205 = #{ a204 = "202"; b204 = #203L } } in
-  (* .a205.#a203 *)
-  let sub_eq = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) in
-  let expected = { r with a205 = #{ r.a205 with a203 = next_r.a205.#a203 } } in
-  Idx_mut.unsafe_set r ((.a205.#a203) : (t205, _) idx_mut) next_r.a205.#a203;
+  let r = { a209 = #{ a121 = #0. }; b209 = 1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a209 = #{ a121 = #100. }; b209 = 101. } in
+  (* .b209 *)
+  (* ff *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b209 = next_r.b209 } in
+  Idx_mut.unsafe_set r ((.b209) : (t209, _) idx_mut) (Float_u.of_float next_r.b209);
   mark_test_run 1075;
   let test = eq r expected in
   if not test then failwithf "test 1075 failed";
   mark_test_run 1076;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a205.#a203) : (t205, _) idx_mut)) next_r.a205.#a203 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b209) : (t209, _) idx_mut)) (Float_u.of_float next_r.b209) in
   if not test then failwithf "test 1076 failed";
-  (* .a205.#b203 *)
-  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
-  let expected = { r with a205 = #{ r.a205 with b203 = next_r.a205.#b203 } } in
-  Idx_mut.unsafe_set r ((.a205.#b203) : (t205, _) idx_mut) next_r.a205.#b203;
+  (**************************************)
+  (*   t210 = { #{ float# }; float# }   *)
+  (**************************************)
+  let eq = (fun { a210 = a2101; b210 = b2101 } { a210 = a2102; b210 = b2102 } -> (fun #{ a121 = a1211 } #{ a121 = a1212 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1211 a1212) a2101 a2102 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b2101 b2102) in
+  let r = { a210 = #{ a121 = #0. }; b210 = #1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a210 = #{ a121 = #100. }; b210 = #101. } in
+  (* .a210 *)
+  let sub_eq = (fun #{ a121 = a1211 } #{ a121 = a1212 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1211 a1212) in
+  let expected = { r with a210 = next_r.a210 } in
+  Idx_mut.unsafe_set r ((.a210) : (t210, _) idx_mut) next_r.a210;
   mark_test_run 1077;
   let test = eq r expected in
   if not test then failwithf "test 1077 failed";
   mark_test_run 1078;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a205.#b203) : (t205, _) idx_mut)) next_r.a205.#b203 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a210) : (t210, _) idx_mut)) next_r.a210 in
   if not test then failwithf "test 1078 failed";
-  let r = { a205 = #{ a203 = #0.s; b203 = #1L }; b205 = #{ a204 = "2"; b204 = #3L } } in
-  (* Paths of depth 1 *)
-  let next_r = { a205 = #{ a203 = #100.s; b203 = #101L }; b205 = #{ a204 = "102"; b204 = #103L } } in
-  (* .b205 *)
-  let sub_eq = (fun #{ a204 = a2041; b204 = b2041 } #{ a204 = a2042; b204 = b2042 } -> (fun a b -> String.equal (globalize a) (globalize b)) a2041 a2042 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b2041 b2042) in
-  let expected = { r with b205 = next_r.b205 } in
-  Idx_mut.unsafe_set r ((.b205) : (t205, _) idx_mut) next_r.b205;
+  (* Paths of depth 2 *)
+  let next_r = { a210 = #{ a121 = #200. }; b210 = #201. } in
+  (* .a210.#a121 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a210 = #{ r.a210 with a121 = next_r.a210.#a121 } } in
+  Idx_mut.unsafe_set r ((.a210.#a121) : (t210, _) idx_mut) next_r.a210.#a121;
   mark_test_run 1079;
   let test = eq r expected in
   if not test then failwithf "test 1079 failed";
   mark_test_run 1080;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b205) : (t205, _) idx_mut)) next_r.b205 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a210.#a121) : (t210, _) idx_mut)) next_r.a210.#a121 in
   if not test then failwithf "test 1080 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a205 = #{ a203 = #200.s; b203 = #201L }; b205 = #{ a204 = "202"; b204 = #203L } } in
-  (* .b205.#a204 *)
-  let sub_eq = (fun a b -> String.equal (globalize a) (globalize b)) in
-  let expected = { r with b205 = #{ r.b205 with a204 = next_r.b205.#a204 } } in
-  Idx_mut.unsafe_set r ((.b205.#a204) : (t205, _) idx_mut) next_r.b205.#a204;
+  let r = { a210 = #{ a121 = #0. }; b210 = #1. } in
+  (* Paths of depth 1 *)
+  let next_r = { a210 = #{ a121 = #100. }; b210 = #101. } in
+  (* .b210 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b210 = next_r.b210 } in
+  Idx_mut.unsafe_set r ((.b210) : (t210, _) idx_mut) next_r.b210;
   mark_test_run 1081;
   let test = eq r expected in
   if not test then failwithf "test 1081 failed";
   mark_test_run 1082;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b205.#a204) : (t205, _) idx_mut)) next_r.b205.#a204 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b210) : (t210, _) idx_mut)) next_r.b210 in
   if not test then failwithf "test 1082 failed";
-  (* .b205.#b204 *)
-  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
-  let expected = { r with b205 = #{ r.b205 with b204 = next_r.b205.#b204 } } in
-  Idx_mut.unsafe_set r ((.b205.#b204) : (t205, _) idx_mut) next_r.b205.#b204;
+  (*************************************)
+  (*   t211 = { #{ float#; float } }   *)
+  (*************************************)
+  let eq = (fun { a211 = a2111 } { a211 = a2112 } -> (fun #{ a123 = a1231; b123 = b1231 } #{ a123 = a1232; b123 = b1232 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1231 a1232 && (fun a b -> Float.equal (globalize a) (globalize b)) b1231 b1232) a2111 a2112) in
+  let r = { a211 = #{ a123 = #0.; b123 = 1. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a211 = #{ a123 = #100.; b123 = 101. } } in
+  (* .a211 *)
+  let sub_eq = (fun #{ a123 = a1231; b123 = b1231 } #{ a123 = a1232; b123 = b1232 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1231 a1232 && (fun a b -> Float.equal (globalize a) (globalize b)) b1231 b1232) in
+  let expected = { r with a211 = next_r.a211 } in
+  Idx_mut.unsafe_set r ((.a211) : (t211, _) idx_mut) next_r.a211;
   mark_test_run 1083;
   let test = eq r expected in
   if not test then failwithf "test 1083 failed";
   mark_test_run 1084;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b205.#b204) : (t205, _) idx_mut)) next_r.b205.#b204 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a211) : (t211, _) idx_mut)) next_r.a211 in
   if not test then failwithf "test 1084 failed";
-  (********************************)
-  (*   t206 = { #{ int64x2# } }   *)
-  (********************************)
-  let eq = (fun { a206 = a2061 } { a206 = a2062 } -> (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) a2061 a2062) in
-  let r = { a206 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } } in
-  (* Paths of depth 1 *)
-  let next_r = { a206 = #{ a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) } } in
-  (* .a206 *)
-  let sub_eq = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) in
-  let expected = { r with a206 = next_r.a206 } in
-  Idx_mut.unsafe_set r ((.a206) : (t206, _) idx_mut) next_r.a206;
+  (* Paths of depth 2 *)
+  let next_r = { a211 = #{ a123 = #200.; b123 = 201. } } in
+  (* .a211.#a123 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a211 = #{ r.a211 with a123 = next_r.a211.#a123 } } in
+  Idx_mut.unsafe_set r ((.a211.#a123) : (t211, _) idx_mut) next_r.a211.#a123;
   mark_test_run 1085;
   let test = eq r expected in
   if not test then failwithf "test 1085 failed";
   mark_test_run 1086;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a206) : (t206, _) idx_mut)) next_r.a206 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a211.#a123) : (t211, _) idx_mut)) next_r.a211.#a123 in
   if not test then failwithf "test 1086 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a206 = #{ a40 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)) } } in
-  (* .a206.#a40 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a206 = #{ r.a206 with a40 = next_r.a206.#a40 } } in
-  Idx_mut.unsafe_set r ((.a206.#a40) : (t206, _) idx_mut) next_r.a206.#a40;
+  (* .a211.#b123 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a211 = #{ r.a211 with b123 = next_r.a211.#b123 } } in
+  Idx_mut.unsafe_set r ((.a211.#b123) : (t211, _) idx_mut) next_r.a211.#b123;
   mark_test_run 1087;
   let test = eq r expected in
   if not test then failwithf "test 1087 failed";
   mark_test_run 1088;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a206.#a40) : (t206, _) idx_mut)) next_r.a206.#a40 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a211.#b123) : (t211, _) idx_mut)) next_r.a211.#b123 in
   if not test then failwithf "test 1088 failed";
-  (*************************************)
-  (*   t207 = { #{ int64x2# }; int }   *)
-  (*************************************)
-  let eq = (fun { a207 = a2071; b207 = b2071 } { a207 = a2072; b207 = b2072 } -> (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) a2071 a2072 && (fun a b -> Int.equal a b) b2071 b2072) in
-  let r = { a207 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b207 = 2 } in
+  (********************************************)
+  (*   t212 = { #{ float#; float }; float }   *)
+  (********************************************)
+  let eq = (fun { a212 = a2121; b212 = b2121 } { a212 = a2122; b212 = b2122 } -> (fun #{ a123 = a1231; b123 = b1231 } #{ a123 = a1232; b123 = b1232 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1231 a1232 && (fun a b -> Float.equal (globalize a) (globalize b)) b1231 b1232) a2121 a2122 && (fun a b -> Float.equal (globalize a) (globalize b)) b2121 b2122) in
+  let r = { a212 = #{ a123 = #0.; b123 = 1. }; b212 = 2. } in
   (* Paths of depth 1 *)
-  let next_r = { a207 = #{ a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) }; b207 = 102 } in
-  (* .a207 *)
-  let sub_eq = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) in
-  let expected = { r with a207 = next_r.a207 } in
-  Idx_mut.unsafe_set r ((.a207) : (t207, _) idx_mut) next_r.a207;
+  let next_r = { a212 = #{ a123 = #100.; b123 = 101. }; b212 = 102. } in
+  (* .a212 *)
+  let sub_eq = (fun #{ a123 = a1231; b123 = b1231 } #{ a123 = a1232; b123 = b1232 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1231 a1232 && (fun a b -> Float.equal (globalize a) (globalize b)) b1231 b1232) in
+  let expected = { r with a212 = next_r.a212 } in
+  Idx_mut.unsafe_set r ((.a212) : (t212, _) idx_mut) next_r.a212;
   mark_test_run 1089;
   let test = eq r expected in
   if not test then failwithf "test 1089 failed";
   mark_test_run 1090;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a207) : (t207, _) idx_mut)) next_r.a207 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a212) : (t212, _) idx_mut)) next_r.a212 in
   if not test then failwithf "test 1090 failed";
   (* Paths of depth 2 *)
-  let next_r = { a207 = #{ a40 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)) }; b207 = 202 } in
-  (* .a207.#a40 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a207 = #{ r.a207 with a40 = next_r.a207.#a40 } } in
-  Idx_mut.unsafe_set r ((.a207.#a40) : (t207, _) idx_mut) next_r.a207.#a40;
+  let next_r = { a212 = #{ a123 = #200.; b123 = 201. }; b212 = 202. } in
+  (* .a212.#a123 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a212 = #{ r.a212 with a123 = next_r.a212.#a123 } } in
+  Idx_mut.unsafe_set r ((.a212.#a123) : (t212, _) idx_mut) next_r.a212.#a123;
   mark_test_run 1091;
   let test = eq r expected in
   if not test then failwithf "test 1091 failed";
   mark_test_run 1092;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a207.#a40) : (t207, _) idx_mut)) next_r.a207.#a40 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a212.#a123) : (t212, _) idx_mut)) next_r.a212.#a123 in
   if not test then failwithf "test 1092 failed";
-  let r = { a207 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b207 = 2 } in
-  (* Paths of depth 1 *)
-  let next_r = { a207 = #{ a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) }; b207 = 102 } in
-  (* .b207 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b207 = next_r.b207 } in
-  Idx_mut.unsafe_set r ((.b207) : (t207, _) idx_mut) next_r.b207;
+  (* .a212.#b123 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a212 = #{ r.a212 with b123 = next_r.a212.#b123 } } in
+  Idx_mut.unsafe_set r ((.a212.#b123) : (t212, _) idx_mut) next_r.a212.#b123;
   mark_test_run 1093;
   let test = eq r expected in
   if not test then failwithf "test 1093 failed";
   mark_test_run 1094;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b207) : (t207, _) idx_mut)) next_r.b207 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a212.#b123) : (t212, _) idx_mut)) next_r.a212.#b123 in
   if not test then failwithf "test 1094 failed";
-  (******************************************)
-  (*   t208 = { #{ int64x2# }; int64x2# }   *)
-  (******************************************)
-  let eq = (fun { a208 = a2081; b208 = b2081 } { a208 = a2082; b208 = b2082 } -> (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) a2081 a2082 && int64x2_u_equal b2081 b2082) in
-  let r = { a208 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b208 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  let r = { a212 = #{ a123 = #0.; b123 = 1. }; b212 = 2. } in
   (* Paths of depth 1 *)
-  let next_r = { a208 = #{ a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) }; b208 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
-  (* .a208 *)
-  let sub_eq = (fun #{ a40 = a401 } #{ a40 = a402 } -> int64x2_u_equal a401 a402) in
-  let expected = { r with a208 = next_r.a208 } in
-  Idx_mut.unsafe_set r ((.a208) : (t208, _) idx_mut) next_r.a208;
+  let next_r = { a212 = #{ a123 = #100.; b123 = 101. }; b212 = 102. } in
+  (* .b212 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b212 = next_r.b212 } in
+  Idx_mut.unsafe_set r ((.b212) : (t212, _) idx_mut) next_r.b212;
   mark_test_run 1095;
   let test = eq r expected in
   if not test then failwithf "test 1095 failed";
   mark_test_run 1096;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a208) : (t208, _) idx_mut)) next_r.a208 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b212) : (t212, _) idx_mut)) next_r.b212 in
   if not test then failwithf "test 1096 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a208 = #{ a40 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)) }; b208 = (interleave_low_64 (int64x2_of_int64 202L) (int64x2_of_int64 203L)) } in
-  (* .a208.#a40 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a208 = #{ r.a208 with a40 = next_r.a208.#a40 } } in
-  Idx_mut.unsafe_set r ((.a208.#a40) : (t208, _) idx_mut) next_r.a208.#a40;
+  (*********************************************)
+  (*   t213 = { #{ float#; float }; float# }   *)
+  (*********************************************)
+  let eq = (fun { a213 = a2131; b213 = b2131 } { a213 = a2132; b213 = b2132 } -> (fun #{ a123 = a1231; b123 = b1231 } #{ a123 = a1232; b123 = b1232 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1231 a1232 && (fun a b -> Float.equal (globalize a) (globalize b)) b1231 b1232) a2131 a2132 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b2131 b2132) in
+  let r = { a213 = #{ a123 = #0.; b123 = 1. }; b213 = #2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a213 = #{ a123 = #100.; b123 = 101. }; b213 = #102. } in
+  (* .a213 *)
+  let sub_eq = (fun #{ a123 = a1231; b123 = b1231 } #{ a123 = a1232; b123 = b1232 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1231 a1232 && (fun a b -> Float.equal (globalize a) (globalize b)) b1231 b1232) in
+  let expected = { r with a213 = next_r.a213 } in
+  Idx_mut.unsafe_set r ((.a213) : (t213, _) idx_mut) next_r.a213;
   mark_test_run 1097;
   let test = eq r expected in
   if not test then failwithf "test 1097 failed";
   mark_test_run 1098;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a208.#a40) : (t208, _) idx_mut)) next_r.a208.#a40 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a213) : (t213, _) idx_mut)) next_r.a213 in
   if not test then failwithf "test 1098 failed";
-  let r = { a208 = #{ a40 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b208 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
-  (* Paths of depth 1 *)
-  let next_r = { a208 = #{ a40 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) }; b208 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
-  (* .b208 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with b208 = next_r.b208 } in
-  Idx_mut.unsafe_set r ((.b208) : (t208, _) idx_mut) next_r.b208;
+  (* Paths of depth 2 *)
+  let next_r = { a213 = #{ a123 = #200.; b123 = 201. }; b213 = #202. } in
+  (* .a213.#a123 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a213 = #{ r.a213 with a123 = next_r.a213.#a123 } } in
+  Idx_mut.unsafe_set r ((.a213.#a123) : (t213, _) idx_mut) next_r.a213.#a123;
   mark_test_run 1099;
   let test = eq r expected in
   if not test then failwithf "test 1099 failed";
   mark_test_run 1100;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b208) : (t208, _) idx_mut)) next_r.b208 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a213.#a123) : (t213, _) idx_mut)) next_r.a213.#a123 in
   if not test then failwithf "test 1100 failed";
-  (*************************************)
-  (*   t209 = { #{ int64x2#; int } }   *)
-  (*************************************)
-  let eq = (fun { a209 = a2091 } { a209 = a2092 } -> (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) a2091 a2092) in
-  let r = { a209 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 } } in
-  (* Paths of depth 1 *)
-  let next_r = { a209 = #{ a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b42 = 102 } } in
-  (* .a209 *)
-  let sub_eq = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) in
-  let expected = { r with a209 = next_r.a209 } in
-  Idx_mut.unsafe_set r ((.a209) : (t209, _) idx_mut) next_r.a209;
+  (* .a213.#b123 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with a213 = #{ r.a213 with b123 = next_r.a213.#b123 } } in
+  Idx_mut.unsafe_set r ((.a213.#b123) : (t213, _) idx_mut) next_r.a213.#b123;
   mark_test_run 1101;
   let test = eq r expected in
   if not test then failwithf "test 1101 failed";
   mark_test_run 1102;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a209) : (t209, _) idx_mut)) next_r.a209 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a213.#b123) : (t213, _) idx_mut)) next_r.a213.#b123 in
   if not test then failwithf "test 1102 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a209 = #{ a42 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b42 = 202 } } in
-  (* .a209.#a42 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a209 = #{ r.a209 with a42 = next_r.a209.#a42 } } in
-  Idx_mut.unsafe_set r ((.a209.#a42) : (t209, _) idx_mut) next_r.a209.#a42;
+  let r = { a213 = #{ a123 = #0.; b123 = 1. }; b213 = #2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a213 = #{ a123 = #100.; b123 = 101. }; b213 = #102. } in
+  (* .b213 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b213 = next_r.b213 } in
+  Idx_mut.unsafe_set r ((.b213) : (t213, _) idx_mut) next_r.b213;
   mark_test_run 1103;
   let test = eq r expected in
   if not test then failwithf "test 1103 failed";
   mark_test_run 1104;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a209.#a42) : (t209, _) idx_mut)) next_r.a209.#a42 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b213) : (t213, _) idx_mut)) next_r.b213 in
   if not test then failwithf "test 1104 failed";
-  (* .a209.#b42 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a209 = #{ r.a209 with b42 = next_r.a209.#b42 } } in
-  Idx_mut.unsafe_set r ((.a209.#b42) : (t209, _) idx_mut) next_r.a209.#b42;
+  (**************************************)
+  (*   t214 = { #{ float#; float# } }   *)
+  (**************************************)
+  let eq = (fun { a214 = a2141 } { a214 = a2142 } -> (fun #{ a125 = a1251; b125 = b1251 } #{ a125 = a1252; b125 = b1252 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1251 a1252 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1251 b1252) a2141 a2142) in
+  let r = { a214 = #{ a125 = #0.; b125 = #1. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a214 = #{ a125 = #100.; b125 = #101. } } in
+  (* .a214 *)
+  let sub_eq = (fun #{ a125 = a1251; b125 = b1251 } #{ a125 = a1252; b125 = b1252 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1251 a1252 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1251 b1252) in
+  let expected = { r with a214 = next_r.a214 } in
+  Idx_mut.unsafe_set r ((.a214) : (t214, _) idx_mut) next_r.a214;
   mark_test_run 1105;
   let test = eq r expected in
   if not test then failwithf "test 1105 failed";
   mark_test_run 1106;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a209.#b42) : (t209, _) idx_mut)) next_r.a209.#b42 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a214) : (t214, _) idx_mut)) next_r.a214 in
   if not test then failwithf "test 1106 failed";
-  (******************************************)
-  (*   t210 = { #{ int64x2#; int }; int }   *)
-  (******************************************)
-  let eq = (fun { a210 = a2101; b210 = b2101 } { a210 = a2102; b210 = b2102 } -> (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) a2101 a2102 && (fun a b -> Int.equal a b) b2101 b2102) in
-  let r = { a210 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 }; b210 = 3 } in
-  (* Paths of depth 1 *)
-  let next_r = { a210 = #{ a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b42 = 102 }; b210 = 103 } in
-  (* .a210 *)
-  let sub_eq = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) in
-  let expected = { r with a210 = next_r.a210 } in
-  Idx_mut.unsafe_set r ((.a210) : (t210, _) idx_mut) next_r.a210;
+  (* Paths of depth 2 *)
+  let next_r = { a214 = #{ a125 = #200.; b125 = #201. } } in
+  (* .a214.#a125 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a214 = #{ r.a214 with a125 = next_r.a214.#a125 } } in
+  Idx_mut.unsafe_set r ((.a214.#a125) : (t214, _) idx_mut) next_r.a214.#a125;
   mark_test_run 1107;
   let test = eq r expected in
   if not test then failwithf "test 1107 failed";
   mark_test_run 1108;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a210) : (t210, _) idx_mut)) next_r.a210 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a214.#a125) : (t214, _) idx_mut)) next_r.a214.#a125 in
   if not test then failwithf "test 1108 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a210 = #{ a42 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b42 = 202 }; b210 = 203 } in
-  (* .a210.#a42 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a210 = #{ r.a210 with a42 = next_r.a210.#a42 } } in
-  Idx_mut.unsafe_set r ((.a210.#a42) : (t210, _) idx_mut) next_r.a210.#a42;
+  (* .a214.#b125 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a214 = #{ r.a214 with b125 = next_r.a214.#b125 } } in
+  Idx_mut.unsafe_set r ((.a214.#b125) : (t214, _) idx_mut) next_r.a214.#b125;
   mark_test_run 1109;
   let test = eq r expected in
   if not test then failwithf "test 1109 failed";
   mark_test_run 1110;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a210.#a42) : (t210, _) idx_mut)) next_r.a210.#a42 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a214.#b125) : (t214, _) idx_mut)) next_r.a214.#b125 in
   if not test then failwithf "test 1110 failed";
-  (* .a210.#b42 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a210 = #{ r.a210 with b42 = next_r.a210.#b42 } } in
-  Idx_mut.unsafe_set r ((.a210.#b42) : (t210, _) idx_mut) next_r.a210.#b42;
+  (*********************************************)
+  (*   t215 = { #{ float#; float# }; float }   *)
+  (*********************************************)
+  let eq = (fun { a215 = a2151; b215 = b2151 } { a215 = a2152; b215 = b2152 } -> (fun #{ a125 = a1251; b125 = b1251 } #{ a125 = a1252; b125 = b1252 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1251 a1252 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1251 b1252) a2151 a2152 && (fun a b -> Float.equal (globalize a) (globalize b)) b2151 b2152) in
+  let r = { a215 = #{ a125 = #0.; b125 = #1. }; b215 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a215 = #{ a125 = #100.; b125 = #101. }; b215 = 102. } in
+  (* .a215 *)
+  let sub_eq = (fun #{ a125 = a1251; b125 = b1251 } #{ a125 = a1252; b125 = b1252 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1251 a1252 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1251 b1252) in
+  let expected = { r with a215 = next_r.a215 } in
+  Idx_mut.unsafe_set r ((.a215) : (t215, _) idx_mut) next_r.a215;
   mark_test_run 1111;
   let test = eq r expected in
   if not test then failwithf "test 1111 failed";
   mark_test_run 1112;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a210.#b42) : (t210, _) idx_mut)) next_r.a210.#b42 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a215) : (t215, _) idx_mut)) next_r.a215 in
   if not test then failwithf "test 1112 failed";
-  let r = { a210 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 }; b210 = 3 } in
-  (* Paths of depth 1 *)
-  let next_r = { a210 = #{ a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b42 = 102 }; b210 = 103 } in
-  (* .b210 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b210 = next_r.b210 } in
-  Idx_mut.unsafe_set r ((.b210) : (t210, _) idx_mut) next_r.b210;
+  (* Paths of depth 2 *)
+  let next_r = { a215 = #{ a125 = #200.; b125 = #201. }; b215 = 202. } in
+  (* .a215.#a125 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a215 = #{ r.a215 with a125 = next_r.a215.#a125 } } in
+  Idx_mut.unsafe_set r ((.a215.#a125) : (t215, _) idx_mut) next_r.a215.#a125;
   mark_test_run 1113;
   let test = eq r expected in
   if not test then failwithf "test 1113 failed";
   mark_test_run 1114;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b210) : (t210, _) idx_mut)) next_r.b210 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a215.#a125) : (t215, _) idx_mut)) next_r.a215.#a125 in
   if not test then failwithf "test 1114 failed";
-  (***********************************************)
-  (*   t211 = { #{ int64x2#; int }; int64x2# }   *)
-  (***********************************************)
-  let eq = (fun { a211 = a2111; b211 = b2111 } { a211 = a2112; b211 = b2112 } -> (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) a2111 a2112 && int64x2_u_equal b2111 b2112) in
-  let r = { a211 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 }; b211 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
-  (* Paths of depth 1 *)
-  let next_r = { a211 = #{ a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b42 = 102 }; b211 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
-  (* .a211 *)
-  let sub_eq = (fun #{ a42 = a421; b42 = b421 } #{ a42 = a422; b42 = b422 } -> int64x2_u_equal a421 a422 && (fun a b -> Int.equal a b) b421 b422) in
-  let expected = { r with a211 = next_r.a211 } in
-  Idx_mut.unsafe_set r ((.a211) : (t211, _) idx_mut) next_r.a211;
+  (* .a215.#b125 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a215 = #{ r.a215 with b125 = next_r.a215.#b125 } } in
+  Idx_mut.unsafe_set r ((.a215.#b125) : (t215, _) idx_mut) next_r.a215.#b125;
   mark_test_run 1115;
   let test = eq r expected in
   if not test then failwithf "test 1115 failed";
   mark_test_run 1116;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a211) : (t211, _) idx_mut)) next_r.a211 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a215.#b125) : (t215, _) idx_mut)) next_r.a215.#b125 in
   if not test then failwithf "test 1116 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a211 = #{ a42 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b42 = 202 }; b211 = (interleave_low_64 (int64x2_of_int64 203L) (int64x2_of_int64 204L)) } in
-  (* .a211.#a42 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a211 = #{ r.a211 with a42 = next_r.a211.#a42 } } in
-  Idx_mut.unsafe_set r ((.a211.#a42) : (t211, _) idx_mut) next_r.a211.#a42;
+  let r = { a215 = #{ a125 = #0.; b125 = #1. }; b215 = 2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a215 = #{ a125 = #100.; b125 = #101. }; b215 = 102. } in
+  (* .b215 *)
+  let sub_eq = (fun a b -> Float.equal (globalize a) (globalize b)) in
+  let expected = { r with b215 = next_r.b215 } in
+  Idx_mut.unsafe_set r ((.b215) : (t215, _) idx_mut) next_r.b215;
   mark_test_run 1117;
   let test = eq r expected in
   if not test then failwithf "test 1117 failed";
   mark_test_run 1118;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a211.#a42) : (t211, _) idx_mut)) next_r.a211.#a42 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b215) : (t215, _) idx_mut)) next_r.b215 in
   if not test then failwithf "test 1118 failed";
-  (* .a211.#b42 *)
-  let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with a211 = #{ r.a211 with b42 = next_r.a211.#b42 } } in
-  Idx_mut.unsafe_set r ((.a211.#b42) : (t211, _) idx_mut) next_r.a211.#b42;
+  (**********************************************)
+  (*   t216 = { #{ float#; float# }; float# }   *)
+  (**********************************************)
+  let eq = (fun { a216 = a2161; b216 = b2161 } { a216 = a2162; b216 = b2162 } -> (fun #{ a125 = a1251; b125 = b1251 } #{ a125 = a1252; b125 = b1252 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1251 a1252 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1251 b1252) a2161 a2162 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b2161 b2162) in
+  let r = { a216 = #{ a125 = #0.; b125 = #1. }; b216 = #2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a216 = #{ a125 = #100.; b125 = #101. }; b216 = #102. } in
+  (* .a216 *)
+  let sub_eq = (fun #{ a125 = a1251; b125 = b1251 } #{ a125 = a1252; b125 = b1252 } -> (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) a1251 a1252 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b1251 b1252) in
+  let expected = { r with a216 = next_r.a216 } in
+  Idx_mut.unsafe_set r ((.a216) : (t216, _) idx_mut) next_r.a216;
   mark_test_run 1119;
   let test = eq r expected in
   if not test then failwithf "test 1119 failed";
   mark_test_run 1120;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a211.#b42) : (t211, _) idx_mut)) next_r.a211.#b42 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a216) : (t216, _) idx_mut)) next_r.a216 in
   if not test then failwithf "test 1120 failed";
-  let r = { a211 = #{ a42 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b42 = 2 }; b211 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
-  (* Paths of depth 1 *)
-  let next_r = { a211 = #{ a42 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b42 = 102 }; b211 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
-  (* .b211 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with b211 = next_r.b211 } in
-  Idx_mut.unsafe_set r ((.b211) : (t211, _) idx_mut) next_r.b211;
+  (* Paths of depth 2 *)
+  let next_r = { a216 = #{ a125 = #200.; b125 = #201. }; b216 = #202. } in
+  (* .a216.#a125 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a216 = #{ r.a216 with a125 = next_r.a216.#a125 } } in
+  Idx_mut.unsafe_set r ((.a216.#a125) : (t216, _) idx_mut) next_r.a216.#a125;
   mark_test_run 1121;
   let test = eq r expected in
   if not test then failwithf "test 1121 failed";
   mark_test_run 1122;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b211) : (t211, _) idx_mut)) next_r.b211 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a216.#a125) : (t216, _) idx_mut)) next_r.a216.#a125 in
   if not test then failwithf "test 1122 failed";
-  (************************************************************)
-  (*   t214 = { #{ int64x2#; string }; #{ int64; float# } }   *)
-  (************************************************************)
-  let eq = (fun { a214 = a2141; b214 = b2141 } { a214 = a2142; b214 = b2142 } -> (fun #{ a212 = a2121; b212 = b2121 } #{ a212 = a2122; b212 = b2122 } -> int64x2_u_equal a2121 a2122 && (fun a b -> String.equal (globalize a) (globalize b)) b2121 b2122) a2141 a2142 && (fun #{ a213 = a2131; b213 = b2131 } #{ a213 = a2132; b213 = b2132 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a2131 a2132 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b2131 b2132) b2141 b2142) in
-  let r = { a214 = #{ a212 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b212 = "2" }; b214 = #{ a213 = 3L; b213 = #4. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a214 = #{ a212 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b212 = "102" }; b214 = #{ a213 = 103L; b213 = #104. } } in
-  (* .a214 *)
-  let sub_eq = (fun #{ a212 = a2121; b212 = b2121 } #{ a212 = a2122; b212 = b2122 } -> int64x2_u_equal a2121 a2122 && (fun a b -> String.equal (globalize a) (globalize b)) b2121 b2122) in
-  let expected = { r with a214 = next_r.a214 } in
-  Idx_mut.unsafe_set r ((.a214) : (t214, _) idx_mut) next_r.a214;
+  (* .a216.#b125 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with a216 = #{ r.a216 with b125 = next_r.a216.#b125 } } in
+  Idx_mut.unsafe_set r ((.a216.#b125) : (t216, _) idx_mut) next_r.a216.#b125;
   mark_test_run 1123;
   let test = eq r expected in
   if not test then failwithf "test 1123 failed";
   mark_test_run 1124;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a214) : (t214, _) idx_mut)) next_r.a214 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a216.#b125) : (t216, _) idx_mut)) next_r.a216.#b125 in
   if not test then failwithf "test 1124 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a214 = #{ a212 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b212 = "202" }; b214 = #{ a213 = 203L; b213 = #204. } } in
-  (* .a214.#a212 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a214 = #{ r.a214 with a212 = next_r.a214.#a212 } } in
-  Idx_mut.unsafe_set r ((.a214.#a212) : (t214, _) idx_mut) next_r.a214.#a212;
+  let r = { a216 = #{ a125 = #0.; b125 = #1. }; b216 = #2. } in
+  (* Paths of depth 1 *)
+  let next_r = { a216 = #{ a125 = #100.; b125 = #101. }; b216 = #102. } in
+  (* .b216 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b216 = next_r.b216 } in
+  Idx_mut.unsafe_set r ((.b216) : (t216, _) idx_mut) next_r.b216;
   mark_test_run 1125;
   let test = eq r expected in
   if not test then failwithf "test 1125 failed";
   mark_test_run 1126;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a214.#a212) : (t214, _) idx_mut)) next_r.a214.#a212 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b216) : (t216, _) idx_mut)) next_r.b216 in
   if not test then failwithf "test 1126 failed";
-  (* .a214.#b212 *)
-  let sub_eq = (fun a b -> String.equal (globalize a) (globalize b)) in
-  let expected = { r with a214 = #{ r.a214 with b212 = next_r.a214.#b212 } } in
-  Idx_mut.unsafe_set r ((.a214.#b212) : (t214, _) idx_mut) next_r.a214.#b212;
+  (*************************************************************)
+  (*   t219 = { #{ float32#; int64# }; #{ string; int64# } }   *)
+  (*************************************************************)
+  let eq = (fun { a219 = a2191; b219 = b2191 } { a219 = a2192; b219 = b2192 } -> (fun #{ a217 = a2171; b217 = b2171 } #{ a217 = a2172; b217 = b2172 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a2171 a2172 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b2171 b2172) a2191 a2192 && (fun #{ a218 = a2181; b218 = b2181 } #{ a218 = a2182; b218 = b2182 } -> (fun a b -> String.equal (globalize a) (globalize b)) a2181 a2182 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b2181 b2182) b2191 b2192) in
+  let r = { a219 = #{ a217 = #0.s; b217 = #1L }; b219 = #{ a218 = "2"; b218 = #3L } } in
+  (* Paths of depth 1 *)
+  let next_r = { a219 = #{ a217 = #100.s; b217 = #101L }; b219 = #{ a218 = "102"; b218 = #103L } } in
+  (* .a219 *)
+  let sub_eq = (fun #{ a217 = a2171; b217 = b2171 } #{ a217 = a2172; b217 = b2172 } -> (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) a2171 a2172 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b2171 b2172) in
+  let expected = { r with a219 = next_r.a219 } in
+  Idx_mut.unsafe_set r ((.a219) : (t219, _) idx_mut) next_r.a219;
   mark_test_run 1127;
   let test = eq r expected in
   if not test then failwithf "test 1127 failed";
   mark_test_run 1128;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a214.#b212) : (t214, _) idx_mut)) next_r.a214.#b212 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a219) : (t219, _) idx_mut)) next_r.a219 in
   if not test then failwithf "test 1128 failed";
-  let r = { a214 = #{ a212 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b212 = "2" }; b214 = #{ a213 = 3L; b213 = #4. } } in
-  (* Paths of depth 1 *)
-  let next_r = { a214 = #{ a212 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b212 = "102" }; b214 = #{ a213 = 103L; b213 = #104. } } in
-  (* .b214 *)
-  let sub_eq = (fun #{ a213 = a2131; b213 = b2131 } #{ a213 = a2132; b213 = b2132 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a2131 a2132 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b2131 b2132) in
-  let expected = { r with b214 = next_r.b214 } in
-  Idx_mut.unsafe_set r ((.b214) : (t214, _) idx_mut) next_r.b214;
+  (* Paths of depth 2 *)
+  let next_r = { a219 = #{ a217 = #200.s; b217 = #201L }; b219 = #{ a218 = "202"; b218 = #203L } } in
+  (* .a219.#a217 *)
+  let sub_eq = (fun a b -> Float32_u.(equal (add #0.s a) (add #0.s b))) in
+  let expected = { r with a219 = #{ r.a219 with a217 = next_r.a219.#a217 } } in
+  Idx_mut.unsafe_set r ((.a219.#a217) : (t219, _) idx_mut) next_r.a219.#a217;
   mark_test_run 1129;
   let test = eq r expected in
   if not test then failwithf "test 1129 failed";
   mark_test_run 1130;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b214) : (t214, _) idx_mut)) next_r.b214 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a219.#a217) : (t219, _) idx_mut)) next_r.a219.#a217 in
   if not test then failwithf "test 1130 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a214 = #{ a212 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b212 = "202" }; b214 = #{ a213 = 203L; b213 = #204. } } in
-  (* .b214.#a213 *)
-  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
-  let expected = { r with b214 = #{ r.b214 with a213 = next_r.b214.#a213 } } in
-  Idx_mut.unsafe_set r ((.b214.#a213) : (t214, _) idx_mut) next_r.b214.#a213;
+  (* .a219.#b217 *)
+  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
+  let expected = { r with a219 = #{ r.a219 with b217 = next_r.a219.#b217 } } in
+  Idx_mut.unsafe_set r ((.a219.#b217) : (t219, _) idx_mut) next_r.a219.#b217;
   mark_test_run 1131;
   let test = eq r expected in
   if not test then failwithf "test 1131 failed";
   mark_test_run 1132;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b214.#a213) : (t214, _) idx_mut)) next_r.b214.#a213 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a219.#b217) : (t219, _) idx_mut)) next_r.a219.#b217 in
   if not test then failwithf "test 1132 failed";
-  (* .b214.#b213 *)
-  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
-  let expected = { r with b214 = #{ r.b214 with b213 = next_r.b214.#b213 } } in
-  Idx_mut.unsafe_set r ((.b214.#b213) : (t214, _) idx_mut) next_r.b214.#b213;
+  let r = { a219 = #{ a217 = #0.s; b217 = #1L }; b219 = #{ a218 = "2"; b218 = #3L } } in
+  (* Paths of depth 1 *)
+  let next_r = { a219 = #{ a217 = #100.s; b217 = #101L }; b219 = #{ a218 = "102"; b218 = #103L } } in
+  (* .b219 *)
+  let sub_eq = (fun #{ a218 = a2181; b218 = b2181 } #{ a218 = a2182; b218 = b2182 } -> (fun a b -> String.equal (globalize a) (globalize b)) a2181 a2182 && (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) b2181 b2182) in
+  let expected = { r with b219 = next_r.b219 } in
+  Idx_mut.unsafe_set r ((.b219) : (t219, _) idx_mut) next_r.b219;
   mark_test_run 1133;
   let test = eq r expected in
   if not test then failwithf "test 1133 failed";
   mark_test_run 1134;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b214.#b213) : (t214, _) idx_mut)) next_r.b214.#b213 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b219) : (t219, _) idx_mut)) next_r.b219 in
   if not test then failwithf "test 1134 failed";
-  (******************************************)
-  (*   t215 = { #{ int64x2#; int64x2# } }   *)
-  (******************************************)
-  let eq = (fun { a215 = a2151 } { a215 = a2152 } -> (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) a2151 a2152) in
-  let r = { a215 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
-  (* Paths of depth 1 *)
-  let next_r = { a215 = #{ a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } } in
-  (* .a215 *)
-  let sub_eq = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) in
-  let expected = { r with a215 = next_r.a215 } in
-  Idx_mut.unsafe_set r ((.a215) : (t215, _) idx_mut) next_r.a215;
+  (* Paths of depth 2 *)
+  let next_r = { a219 = #{ a217 = #200.s; b217 = #201L }; b219 = #{ a218 = "202"; b218 = #203L } } in
+  (* .b219.#a218 *)
+  let sub_eq = (fun a b -> String.equal (globalize a) (globalize b)) in
+  let expected = { r with b219 = #{ r.b219 with a218 = next_r.b219.#a218 } } in
+  Idx_mut.unsafe_set r ((.b219.#a218) : (t219, _) idx_mut) next_r.b219.#a218;
   mark_test_run 1135;
   let test = eq r expected in
   if not test then failwithf "test 1135 failed";
   mark_test_run 1136;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a215) : (t215, _) idx_mut)) next_r.a215 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b219.#a218) : (t219, _) idx_mut)) next_r.b219.#a218 in
   if not test then failwithf "test 1136 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a215 = #{ a44 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b44 = (interleave_low_64 (int64x2_of_int64 202L) (int64x2_of_int64 203L)) } } in
-  (* .a215.#a44 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a215 = #{ r.a215 with a44 = next_r.a215.#a44 } } in
-  Idx_mut.unsafe_set r ((.a215.#a44) : (t215, _) idx_mut) next_r.a215.#a44;
+  (* .b219.#b218 *)
+  let sub_eq = (fun a b -> Int64_u.(equal (add #0L a) (add #0L b))) in
+  let expected = { r with b219 = #{ r.b219 with b218 = next_r.b219.#b218 } } in
+  Idx_mut.unsafe_set r ((.b219.#b218) : (t219, _) idx_mut) next_r.b219.#b218;
   mark_test_run 1137;
   let test = eq r expected in
   if not test then failwithf "test 1137 failed";
   mark_test_run 1138;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a215.#a44) : (t215, _) idx_mut)) next_r.a215.#a44 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b219.#b218) : (t219, _) idx_mut)) next_r.b219.#b218 in
   if not test then failwithf "test 1138 failed";
-  (* .a215.#b44 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a215 = #{ r.a215 with b44 = next_r.a215.#b44 } } in
-  Idx_mut.unsafe_set r ((.a215.#b44) : (t215, _) idx_mut) next_r.a215.#b44;
+  (********************************)
+  (*   t220 = { #{ int64x2# } }   *)
+  (********************************)
+  let eq = (fun { a220 = a2201 } { a220 = a2202 } -> (fun #{ a41 = a411 } #{ a41 = a412 } -> int64x2_u_equal a411 a412) a2201 a2202) in
+  let r = { a220 = #{ a41 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) } } in
+  (* Paths of depth 1 *)
+  let next_r = { a220 = #{ a41 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) } } in
+  (* .a220 *)
+  let sub_eq = (fun #{ a41 = a411 } #{ a41 = a412 } -> int64x2_u_equal a411 a412) in
+  let expected = { r with a220 = next_r.a220 } in
+  Idx_mut.unsafe_set r ((.a220) : (t220, _) idx_mut) next_r.a220;
   mark_test_run 1139;
   let test = eq r expected in
   if not test then failwithf "test 1139 failed";
   mark_test_run 1140;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a215.#b44) : (t215, _) idx_mut)) next_r.a215.#b44 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a220) : (t220, _) idx_mut)) next_r.a220 in
   if not test then failwithf "test 1140 failed";
-  (***********************************************)
-  (*   t216 = { #{ int64x2#; int64x2# }; int }   *)
-  (***********************************************)
-  let eq = (fun { a216 = a2161; b216 = b2161 } { a216 = a2162; b216 = b2162 } -> (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) a2161 a2162 && (fun a b -> Int.equal a b) b2161 b2162) in
-  let r = { a216 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b216 = 4 } in
-  (* Paths of depth 1 *)
-  let next_r = { a216 = #{ a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) }; b216 = 104 } in
-  (* .a216 *)
-  let sub_eq = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) in
-  let expected = { r with a216 = next_r.a216 } in
-  Idx_mut.unsafe_set r ((.a216) : (t216, _) idx_mut) next_r.a216;
+  (* Paths of depth 2 *)
+  let next_r = { a220 = #{ a41 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)) } } in
+  (* .a220.#a41 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a220 = #{ r.a220 with a41 = next_r.a220.#a41 } } in
+  Idx_mut.unsafe_set r ((.a220.#a41) : (t220, _) idx_mut) next_r.a220.#a41;
   mark_test_run 1141;
   let test = eq r expected in
   if not test then failwithf "test 1141 failed";
   mark_test_run 1142;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a216) : (t216, _) idx_mut)) next_r.a216 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a220.#a41) : (t220, _) idx_mut)) next_r.a220.#a41 in
   if not test then failwithf "test 1142 failed";
-  (* Paths of depth 2 *)
-  let next_r = { a216 = #{ a44 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b44 = (interleave_low_64 (int64x2_of_int64 202L) (int64x2_of_int64 203L)) }; b216 = 204 } in
-  (* .a216.#a44 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with a216 = #{ r.a216 with a44 = next_r.a216.#a44 } } in
-  Idx_mut.unsafe_set r ((.a216.#a44) : (t216, _) idx_mut) next_r.a216.#a44;
+  (*************************************)
+  (*   t221 = { #{ int64x2# }; int }   *)
+  (*************************************)
+  let eq = (fun { a221 = a2211; b221 = b2211 } { a221 = a2212; b221 = b2212 } -> (fun #{ a41 = a411 } #{ a41 = a412 } -> int64x2_u_equal a411 a412) a2211 a2212 && (fun a b -> Int.equal a b) b2211 b2212) in
+  let r = { a221 = #{ a41 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b221 = 2 } in
+  (* Paths of depth 1 *)
+  let next_r = { a221 = #{ a41 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) }; b221 = 102 } in
+  (* .a221 *)
+  let sub_eq = (fun #{ a41 = a411 } #{ a41 = a412 } -> int64x2_u_equal a411 a412) in
+  let expected = { r with a221 = next_r.a221 } in
+  Idx_mut.unsafe_set r ((.a221) : (t221, _) idx_mut) next_r.a221;
   mark_test_run 1143;
   let test = eq r expected in
   if not test then failwithf "test 1143 failed";
   mark_test_run 1144;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a216.#a44) : (t216, _) idx_mut)) next_r.a216.#a44 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a221) : (t221, _) idx_mut)) next_r.a221 in
   if not test then failwithf "test 1144 failed";
-  (* .a216.#b44 *)
+  (* Paths of depth 2 *)
+  let next_r = { a221 = #{ a41 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)) }; b221 = 202 } in
+  (* .a221.#a41 *)
   let sub_eq = int64x2_u_equal in
-  let expected = { r with a216 = #{ r.a216 with b44 = next_r.a216.#b44 } } in
-  Idx_mut.unsafe_set r ((.a216.#b44) : (t216, _) idx_mut) next_r.a216.#b44;
+  let expected = { r with a221 = #{ r.a221 with a41 = next_r.a221.#a41 } } in
+  Idx_mut.unsafe_set r ((.a221.#a41) : (t221, _) idx_mut) next_r.a221.#a41;
   mark_test_run 1145;
   let test = eq r expected in
   if not test then failwithf "test 1145 failed";
   mark_test_run 1146;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a216.#b44) : (t216, _) idx_mut)) next_r.a216.#b44 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a221.#a41) : (t221, _) idx_mut)) next_r.a221.#a41 in
   if not test then failwithf "test 1146 failed";
-  let r = { a216 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b216 = 4 } in
+  let r = { a221 = #{ a41 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b221 = 2 } in
   (* Paths of depth 1 *)
-  let next_r = { a216 = #{ a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) }; b216 = 104 } in
-  (* .b216 *)
+  let next_r = { a221 = #{ a41 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) }; b221 = 102 } in
+  (* .b221 *)
   let sub_eq = (fun a b -> Int.equal a b) in
-  let expected = { r with b216 = next_r.b216 } in
-  Idx_mut.unsafe_set r ((.b216) : (t216, _) idx_mut) next_r.b216;
+  let expected = { r with b221 = next_r.b221 } in
+  Idx_mut.unsafe_set r ((.b221) : (t221, _) idx_mut) next_r.b221;
   mark_test_run 1147;
   let test = eq r expected in
   if not test then failwithf "test 1147 failed";
   mark_test_run 1148;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b216) : (t216, _) idx_mut)) next_r.b216 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b221) : (t221, _) idx_mut)) next_r.b221 in
   if not test then failwithf "test 1148 failed";
-  (****************************************************)
-  (*   t217 = { #{ int64x2#; int64x2# }; int64x2# }   *)
-  (****************************************************)
-  let eq = (fun { a217 = a2171; b217 = b2171 } { a217 = a2172; b217 = b2172 } -> (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) a2171 a2172 && int64x2_u_equal b2171 b2172) in
-  let r = { a217 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b217 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
+  (******************************************)
+  (*   t222 = { #{ int64x2# }; int64x2# }   *)
+  (******************************************)
+  let eq = (fun { a222 = a2221; b222 = b2221 } { a222 = a2222; b222 = b2222 } -> (fun #{ a41 = a411 } #{ a41 = a412 } -> int64x2_u_equal a411 a412) a2221 a2222 && int64x2_u_equal b2221 b2222) in
+  let r = { a222 = #{ a41 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b222 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
   (* Paths of depth 1 *)
-  let next_r = { a217 = #{ a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) }; b217 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } in
-  (* .a217 *)
-  let sub_eq = (fun #{ a44 = a441; b44 = b441 } #{ a44 = a442; b44 = b442 } -> int64x2_u_equal a441 a442 && int64x2_u_equal b441 b442) in
-  let expected = { r with a217 = next_r.a217 } in
-  Idx_mut.unsafe_set r ((.a217) : (t217, _) idx_mut) next_r.a217;
+  let next_r = { a222 = #{ a41 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) }; b222 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
+  (* .a222 *)
+  let sub_eq = (fun #{ a41 = a411 } #{ a41 = a412 } -> int64x2_u_equal a411 a412) in
+  let expected = { r with a222 = next_r.a222 } in
+  Idx_mut.unsafe_set r ((.a222) : (t222, _) idx_mut) next_r.a222;
   mark_test_run 1149;
   let test = eq r expected in
   if not test then failwithf "test 1149 failed";
   mark_test_run 1150;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a217) : (t217, _) idx_mut)) next_r.a217 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a222) : (t222, _) idx_mut)) next_r.a222 in
   if not test then failwithf "test 1150 failed";
   (* Paths of depth 2 *)
-  let next_r = { a217 = #{ a44 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b44 = (interleave_low_64 (int64x2_of_int64 202L) (int64x2_of_int64 203L)) }; b217 = (interleave_low_64 (int64x2_of_int64 204L) (int64x2_of_int64 205L)) } in
-  (* .a217.#a44 *)
+  let next_r = { a222 = #{ a41 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)) }; b222 = (interleave_low_64 (int64x2_of_int64 202L) (int64x2_of_int64 203L)) } in
+  (* .a222.#a41 *)
   let sub_eq = int64x2_u_equal in
-  let expected = { r with a217 = #{ r.a217 with a44 = next_r.a217.#a44 } } in
-  Idx_mut.unsafe_set r ((.a217.#a44) : (t217, _) idx_mut) next_r.a217.#a44;
+  let expected = { r with a222 = #{ r.a222 with a41 = next_r.a222.#a41 } } in
+  Idx_mut.unsafe_set r ((.a222.#a41) : (t222, _) idx_mut) next_r.a222.#a41;
   mark_test_run 1151;
   let test = eq r expected in
   if not test then failwithf "test 1151 failed";
   mark_test_run 1152;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a217.#a44) : (t217, _) idx_mut)) next_r.a217.#a44 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a222.#a41) : (t222, _) idx_mut)) next_r.a222.#a41 in
   if not test then failwithf "test 1152 failed";
-  (* .a217.#b44 *)
+  let r = { a222 = #{ a41 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)) }; b222 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } in
+  (* Paths of depth 1 *)
+  let next_r = { a222 = #{ a41 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)) }; b222 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } in
+  (* .b222 *)
   let sub_eq = int64x2_u_equal in
-  let expected = { r with a217 = #{ r.a217 with b44 = next_r.a217.#b44 } } in
-  Idx_mut.unsafe_set r ((.a217.#b44) : (t217, _) idx_mut) next_r.a217.#b44;
+  let expected = { r with b222 = next_r.b222 } in
+  Idx_mut.unsafe_set r ((.b222) : (t222, _) idx_mut) next_r.b222;
   mark_test_run 1153;
   let test = eq r expected in
   if not test then failwithf "test 1153 failed";
   mark_test_run 1154;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.a217.#b44) : (t217, _) idx_mut)) next_r.a217.#b44 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b222) : (t222, _) idx_mut)) next_r.b222 in
   if not test then failwithf "test 1154 failed";
-  let r = { a217 = #{ a44 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b44 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b217 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
+  (*************************************)
+  (*   t223 = { #{ int64x2#; int } }   *)
+  (*************************************)
+  let eq = (fun { a223 = a2231 } { a223 = a2232 } -> (fun #{ a43 = a431; b43 = b431 } #{ a43 = a432; b43 = b432 } -> int64x2_u_equal a431 a432 && (fun a b -> Int.equal a b) b431 b432) a2231 a2232) in
+  let r = { a223 = #{ a43 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b43 = 2 } } in
   (* Paths of depth 1 *)
-  let next_r = { a217 = #{ a44 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b44 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) }; b217 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } in
-  (* .b217 *)
-  let sub_eq = int64x2_u_equal in
-  let expected = { r with b217 = next_r.b217 } in
-  Idx_mut.unsafe_set r ((.b217) : (t217, _) idx_mut) next_r.b217;
+  let next_r = { a223 = #{ a43 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b43 = 102 } } in
+  (* .a223 *)
+  let sub_eq = (fun #{ a43 = a431; b43 = b431 } #{ a43 = a432; b43 = b432 } -> int64x2_u_equal a431 a432 && (fun a b -> Int.equal a b) b431 b432) in
+  let expected = { r with a223 = next_r.a223 } in
+  Idx_mut.unsafe_set r ((.a223) : (t223, _) idx_mut) next_r.a223;
   mark_test_run 1155;
   let test = eq r expected in
   if not test then failwithf "test 1155 failed";
   mark_test_run 1156;
-  let test = sub_eq (Idx_mut.unsafe_get r ((.b217) : (t217, _) idx_mut)) next_r.b217 in
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a223) : (t223, _) idx_mut)) next_r.a223 in
   if not test then failwithf "test 1156 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a223 = #{ a43 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b43 = 202 } } in
+  (* .a223.#a43 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a223 = #{ r.a223 with a43 = next_r.a223.#a43 } } in
+  Idx_mut.unsafe_set r ((.a223.#a43) : (t223, _) idx_mut) next_r.a223.#a43;
+  mark_test_run 1157;
+  let test = eq r expected in
+  if not test then failwithf "test 1157 failed";
+  mark_test_run 1158;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a223.#a43) : (t223, _) idx_mut)) next_r.a223.#a43 in
+  if not test then failwithf "test 1158 failed";
+  (* .a223.#b43 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a223 = #{ r.a223 with b43 = next_r.a223.#b43 } } in
+  Idx_mut.unsafe_set r ((.a223.#b43) : (t223, _) idx_mut) next_r.a223.#b43;
+  mark_test_run 1159;
+  let test = eq r expected in
+  if not test then failwithf "test 1159 failed";
+  mark_test_run 1160;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a223.#b43) : (t223, _) idx_mut)) next_r.a223.#b43 in
+  if not test then failwithf "test 1160 failed";
+  (******************************************)
+  (*   t224 = { #{ int64x2#; int }; int }   *)
+  (******************************************)
+  let eq = (fun { a224 = a2241; b224 = b2241 } { a224 = a2242; b224 = b2242 } -> (fun #{ a43 = a431; b43 = b431 } #{ a43 = a432; b43 = b432 } -> int64x2_u_equal a431 a432 && (fun a b -> Int.equal a b) b431 b432) a2241 a2242 && (fun a b -> Int.equal a b) b2241 b2242) in
+  let r = { a224 = #{ a43 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b43 = 2 }; b224 = 3 } in
+  (* Paths of depth 1 *)
+  let next_r = { a224 = #{ a43 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b43 = 102 }; b224 = 103 } in
+  (* .a224 *)
+  let sub_eq = (fun #{ a43 = a431; b43 = b431 } #{ a43 = a432; b43 = b432 } -> int64x2_u_equal a431 a432 && (fun a b -> Int.equal a b) b431 b432) in
+  let expected = { r with a224 = next_r.a224 } in
+  Idx_mut.unsafe_set r ((.a224) : (t224, _) idx_mut) next_r.a224;
+  mark_test_run 1161;
+  let test = eq r expected in
+  if not test then failwithf "test 1161 failed";
+  mark_test_run 1162;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a224) : (t224, _) idx_mut)) next_r.a224 in
+  if not test then failwithf "test 1162 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a224 = #{ a43 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b43 = 202 }; b224 = 203 } in
+  (* .a224.#a43 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a224 = #{ r.a224 with a43 = next_r.a224.#a43 } } in
+  Idx_mut.unsafe_set r ((.a224.#a43) : (t224, _) idx_mut) next_r.a224.#a43;
+  mark_test_run 1163;
+  let test = eq r expected in
+  if not test then failwithf "test 1163 failed";
+  mark_test_run 1164;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a224.#a43) : (t224, _) idx_mut)) next_r.a224.#a43 in
+  if not test then failwithf "test 1164 failed";
+  (* .a224.#b43 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a224 = #{ r.a224 with b43 = next_r.a224.#b43 } } in
+  Idx_mut.unsafe_set r ((.a224.#b43) : (t224, _) idx_mut) next_r.a224.#b43;
+  mark_test_run 1165;
+  let test = eq r expected in
+  if not test then failwithf "test 1165 failed";
+  mark_test_run 1166;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a224.#b43) : (t224, _) idx_mut)) next_r.a224.#b43 in
+  if not test then failwithf "test 1166 failed";
+  let r = { a224 = #{ a43 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b43 = 2 }; b224 = 3 } in
+  (* Paths of depth 1 *)
+  let next_r = { a224 = #{ a43 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b43 = 102 }; b224 = 103 } in
+  (* .b224 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b224 = next_r.b224 } in
+  Idx_mut.unsafe_set r ((.b224) : (t224, _) idx_mut) next_r.b224;
+  mark_test_run 1167;
+  let test = eq r expected in
+  if not test then failwithf "test 1167 failed";
+  mark_test_run 1168;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b224) : (t224, _) idx_mut)) next_r.b224 in
+  if not test then failwithf "test 1168 failed";
+  (***********************************************)
+  (*   t225 = { #{ int64x2#; int }; int64x2# }   *)
+  (***********************************************)
+  let eq = (fun { a225 = a2251; b225 = b2251 } { a225 = a2252; b225 = b2252 } -> (fun #{ a43 = a431; b43 = b431 } #{ a43 = a432; b43 = b432 } -> int64x2_u_equal a431 a432 && (fun a b -> Int.equal a b) b431 b432) a2251 a2252 && int64x2_u_equal b2251 b2252) in
+  let r = { a225 = #{ a43 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b43 = 2 }; b225 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  (* Paths of depth 1 *)
+  let next_r = { a225 = #{ a43 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b43 = 102 }; b225 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
+  (* .a225 *)
+  let sub_eq = (fun #{ a43 = a431; b43 = b431 } #{ a43 = a432; b43 = b432 } -> int64x2_u_equal a431 a432 && (fun a b -> Int.equal a b) b431 b432) in
+  let expected = { r with a225 = next_r.a225 } in
+  Idx_mut.unsafe_set r ((.a225) : (t225, _) idx_mut) next_r.a225;
+  mark_test_run 1169;
+  let test = eq r expected in
+  if not test then failwithf "test 1169 failed";
+  mark_test_run 1170;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a225) : (t225, _) idx_mut)) next_r.a225 in
+  if not test then failwithf "test 1170 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a225 = #{ a43 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b43 = 202 }; b225 = (interleave_low_64 (int64x2_of_int64 203L) (int64x2_of_int64 204L)) } in
+  (* .a225.#a43 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a225 = #{ r.a225 with a43 = next_r.a225.#a43 } } in
+  Idx_mut.unsafe_set r ((.a225.#a43) : (t225, _) idx_mut) next_r.a225.#a43;
+  mark_test_run 1171;
+  let test = eq r expected in
+  if not test then failwithf "test 1171 failed";
+  mark_test_run 1172;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a225.#a43) : (t225, _) idx_mut)) next_r.a225.#a43 in
+  if not test then failwithf "test 1172 failed";
+  (* .a225.#b43 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with a225 = #{ r.a225 with b43 = next_r.a225.#b43 } } in
+  Idx_mut.unsafe_set r ((.a225.#b43) : (t225, _) idx_mut) next_r.a225.#b43;
+  mark_test_run 1173;
+  let test = eq r expected in
+  if not test then failwithf "test 1173 failed";
+  mark_test_run 1174;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a225.#b43) : (t225, _) idx_mut)) next_r.a225.#b43 in
+  if not test then failwithf "test 1174 failed";
+  let r = { a225 = #{ a43 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b43 = 2 }; b225 = (interleave_low_64 (int64x2_of_int64 3L) (int64x2_of_int64 4L)) } in
+  (* Paths of depth 1 *)
+  let next_r = { a225 = #{ a43 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b43 = 102 }; b225 = (interleave_low_64 (int64x2_of_int64 103L) (int64x2_of_int64 104L)) } in
+  (* .b225 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with b225 = next_r.b225 } in
+  Idx_mut.unsafe_set r ((.b225) : (t225, _) idx_mut) next_r.b225;
+  mark_test_run 1175;
+  let test = eq r expected in
+  if not test then failwithf "test 1175 failed";
+  mark_test_run 1176;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b225) : (t225, _) idx_mut)) next_r.b225 in
+  if not test then failwithf "test 1176 failed";
+  (************************************************************)
+  (*   t228 = { #{ int64x2#; string }; #{ int64; float# } }   *)
+  (************************************************************)
+  let eq = (fun { a228 = a2281; b228 = b2281 } { a228 = a2282; b228 = b2282 } -> (fun #{ a226 = a2261; b226 = b2261 } #{ a226 = a2262; b226 = b2262 } -> int64x2_u_equal a2261 a2262 && (fun a b -> String.equal (globalize a) (globalize b)) b2261 b2262) a2281 a2282 && (fun #{ a227 = a2271; b227 = b2271 } #{ a227 = a2272; b227 = b2272 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a2271 a2272 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b2271 b2272) b2281 b2282) in
+  let r = { a228 = #{ a226 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b226 = "2" }; b228 = #{ a227 = 3L; b227 = #4. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a228 = #{ a226 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b226 = "102" }; b228 = #{ a227 = 103L; b227 = #104. } } in
+  (* .a228 *)
+  let sub_eq = (fun #{ a226 = a2261; b226 = b2261 } #{ a226 = a2262; b226 = b2262 } -> int64x2_u_equal a2261 a2262 && (fun a b -> String.equal (globalize a) (globalize b)) b2261 b2262) in
+  let expected = { r with a228 = next_r.a228 } in
+  Idx_mut.unsafe_set r ((.a228) : (t228, _) idx_mut) next_r.a228;
+  mark_test_run 1177;
+  let test = eq r expected in
+  if not test then failwithf "test 1177 failed";
+  mark_test_run 1178;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a228) : (t228, _) idx_mut)) next_r.a228 in
+  if not test then failwithf "test 1178 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a228 = #{ a226 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b226 = "202" }; b228 = #{ a227 = 203L; b227 = #204. } } in
+  (* .a228.#a226 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a228 = #{ r.a228 with a226 = next_r.a228.#a226 } } in
+  Idx_mut.unsafe_set r ((.a228.#a226) : (t228, _) idx_mut) next_r.a228.#a226;
+  mark_test_run 1179;
+  let test = eq r expected in
+  if not test then failwithf "test 1179 failed";
+  mark_test_run 1180;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a228.#a226) : (t228, _) idx_mut)) next_r.a228.#a226 in
+  if not test then failwithf "test 1180 failed";
+  (* .a228.#b226 *)
+  let sub_eq = (fun a b -> String.equal (globalize a) (globalize b)) in
+  let expected = { r with a228 = #{ r.a228 with b226 = next_r.a228.#b226 } } in
+  Idx_mut.unsafe_set r ((.a228.#b226) : (t228, _) idx_mut) next_r.a228.#b226;
+  mark_test_run 1181;
+  let test = eq r expected in
+  if not test then failwithf "test 1181 failed";
+  mark_test_run 1182;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a228.#b226) : (t228, _) idx_mut)) next_r.a228.#b226 in
+  if not test then failwithf "test 1182 failed";
+  let r = { a228 = #{ a226 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b226 = "2" }; b228 = #{ a227 = 3L; b227 = #4. } } in
+  (* Paths of depth 1 *)
+  let next_r = { a228 = #{ a226 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b226 = "102" }; b228 = #{ a227 = 103L; b227 = #104. } } in
+  (* .b228 *)
+  let sub_eq = (fun #{ a227 = a2271; b227 = b2271 } #{ a227 = a2272; b227 = b2272 } -> (fun a b -> Int64.equal (globalize a) (globalize b)) a2271 a2272 && (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) b2271 b2272) in
+  let expected = { r with b228 = next_r.b228 } in
+  Idx_mut.unsafe_set r ((.b228) : (t228, _) idx_mut) next_r.b228;
+  mark_test_run 1183;
+  let test = eq r expected in
+  if not test then failwithf "test 1183 failed";
+  mark_test_run 1184;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b228) : (t228, _) idx_mut)) next_r.b228 in
+  if not test then failwithf "test 1184 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a228 = #{ a226 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b226 = "202" }; b228 = #{ a227 = 203L; b227 = #204. } } in
+  (* .b228.#a227 *)
+  let sub_eq = (fun a b -> Int64.equal (globalize a) (globalize b)) in
+  let expected = { r with b228 = #{ r.b228 with a227 = next_r.b228.#a227 } } in
+  Idx_mut.unsafe_set r ((.b228.#a227) : (t228, _) idx_mut) next_r.b228.#a227;
+  mark_test_run 1185;
+  let test = eq r expected in
+  if not test then failwithf "test 1185 failed";
+  mark_test_run 1186;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b228.#a227) : (t228, _) idx_mut)) next_r.b228.#a227 in
+  if not test then failwithf "test 1186 failed";
+  (* .b228.#b227 *)
+  let sub_eq = (fun a b -> Float_u.(equal (add #0. a) (add #0. b))) in
+  let expected = { r with b228 = #{ r.b228 with b227 = next_r.b228.#b227 } } in
+  Idx_mut.unsafe_set r ((.b228.#b227) : (t228, _) idx_mut) next_r.b228.#b227;
+  mark_test_run 1187;
+  let test = eq r expected in
+  if not test then failwithf "test 1187 failed";
+  mark_test_run 1188;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b228.#b227) : (t228, _) idx_mut)) next_r.b228.#b227 in
+  if not test then failwithf "test 1188 failed";
+  (******************************************)
+  (*   t229 = { #{ int64x2#; int64x2# } }   *)
+  (******************************************)
+  let eq = (fun { a229 = a2291 } { a229 = a2292 } -> (fun #{ a45 = a451; b45 = b451 } #{ a45 = a452; b45 = b452 } -> int64x2_u_equal a451 a452 && int64x2_u_equal b451 b452) a2291 a2292) in
+  let r = { a229 = #{ a45 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b45 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) } } in
+  (* Paths of depth 1 *)
+  let next_r = { a229 = #{ a45 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b45 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) } } in
+  (* .a229 *)
+  let sub_eq = (fun #{ a45 = a451; b45 = b451 } #{ a45 = a452; b45 = b452 } -> int64x2_u_equal a451 a452 && int64x2_u_equal b451 b452) in
+  let expected = { r with a229 = next_r.a229 } in
+  Idx_mut.unsafe_set r ((.a229) : (t229, _) idx_mut) next_r.a229;
+  mark_test_run 1189;
+  let test = eq r expected in
+  if not test then failwithf "test 1189 failed";
+  mark_test_run 1190;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a229) : (t229, _) idx_mut)) next_r.a229 in
+  if not test then failwithf "test 1190 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a229 = #{ a45 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b45 = (interleave_low_64 (int64x2_of_int64 202L) (int64x2_of_int64 203L)) } } in
+  (* .a229.#a45 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a229 = #{ r.a229 with a45 = next_r.a229.#a45 } } in
+  Idx_mut.unsafe_set r ((.a229.#a45) : (t229, _) idx_mut) next_r.a229.#a45;
+  mark_test_run 1191;
+  let test = eq r expected in
+  if not test then failwithf "test 1191 failed";
+  mark_test_run 1192;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a229.#a45) : (t229, _) idx_mut)) next_r.a229.#a45 in
+  if not test then failwithf "test 1192 failed";
+  (* .a229.#b45 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a229 = #{ r.a229 with b45 = next_r.a229.#b45 } } in
+  Idx_mut.unsafe_set r ((.a229.#b45) : (t229, _) idx_mut) next_r.a229.#b45;
+  mark_test_run 1193;
+  let test = eq r expected in
+  if not test then failwithf "test 1193 failed";
+  mark_test_run 1194;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a229.#b45) : (t229, _) idx_mut)) next_r.a229.#b45 in
+  if not test then failwithf "test 1194 failed";
+  (***********************************************)
+  (*   t230 = { #{ int64x2#; int64x2# }; int }   *)
+  (***********************************************)
+  let eq = (fun { a230 = a2301; b230 = b2301 } { a230 = a2302; b230 = b2302 } -> (fun #{ a45 = a451; b45 = b451 } #{ a45 = a452; b45 = b452 } -> int64x2_u_equal a451 a452 && int64x2_u_equal b451 b452) a2301 a2302 && (fun a b -> Int.equal a b) b2301 b2302) in
+  let r = { a230 = #{ a45 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b45 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b230 = 4 } in
+  (* Paths of depth 1 *)
+  let next_r = { a230 = #{ a45 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b45 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) }; b230 = 104 } in
+  (* .a230 *)
+  let sub_eq = (fun #{ a45 = a451; b45 = b451 } #{ a45 = a452; b45 = b452 } -> int64x2_u_equal a451 a452 && int64x2_u_equal b451 b452) in
+  let expected = { r with a230 = next_r.a230 } in
+  Idx_mut.unsafe_set r ((.a230) : (t230, _) idx_mut) next_r.a230;
+  mark_test_run 1195;
+  let test = eq r expected in
+  if not test then failwithf "test 1195 failed";
+  mark_test_run 1196;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a230) : (t230, _) idx_mut)) next_r.a230 in
+  if not test then failwithf "test 1196 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a230 = #{ a45 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b45 = (interleave_low_64 (int64x2_of_int64 202L) (int64x2_of_int64 203L)) }; b230 = 204 } in
+  (* .a230.#a45 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a230 = #{ r.a230 with a45 = next_r.a230.#a45 } } in
+  Idx_mut.unsafe_set r ((.a230.#a45) : (t230, _) idx_mut) next_r.a230.#a45;
+  mark_test_run 1197;
+  let test = eq r expected in
+  if not test then failwithf "test 1197 failed";
+  mark_test_run 1198;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a230.#a45) : (t230, _) idx_mut)) next_r.a230.#a45 in
+  if not test then failwithf "test 1198 failed";
+  (* .a230.#b45 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a230 = #{ r.a230 with b45 = next_r.a230.#b45 } } in
+  Idx_mut.unsafe_set r ((.a230.#b45) : (t230, _) idx_mut) next_r.a230.#b45;
+  mark_test_run 1199;
+  let test = eq r expected in
+  if not test then failwithf "test 1199 failed";
+  mark_test_run 1200;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a230.#b45) : (t230, _) idx_mut)) next_r.a230.#b45 in
+  if not test then failwithf "test 1200 failed";
+  let r = { a230 = #{ a45 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b45 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b230 = 4 } in
+  (* Paths of depth 1 *)
+  let next_r = { a230 = #{ a45 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b45 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) }; b230 = 104 } in
+  (* .b230 *)
+  let sub_eq = (fun a b -> Int.equal a b) in
+  let expected = { r with b230 = next_r.b230 } in
+  Idx_mut.unsafe_set r ((.b230) : (t230, _) idx_mut) next_r.b230;
+  mark_test_run 1201;
+  let test = eq r expected in
+  if not test then failwithf "test 1201 failed";
+  mark_test_run 1202;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b230) : (t230, _) idx_mut)) next_r.b230 in
+  if not test then failwithf "test 1202 failed";
+  (****************************************************)
+  (*   t231 = { #{ int64x2#; int64x2# }; int64x2# }   *)
+  (****************************************************)
+  let eq = (fun { a231 = a2311; b231 = b2311 } { a231 = a2312; b231 = b2312 } -> (fun #{ a45 = a451; b45 = b451 } #{ a45 = a452; b45 = b452 } -> int64x2_u_equal a451 a452 && int64x2_u_equal b451 b452) a2311 a2312 && int64x2_u_equal b2311 b2312) in
+  let r = { a231 = #{ a45 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b45 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b231 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
+  (* Paths of depth 1 *)
+  let next_r = { a231 = #{ a45 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b45 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) }; b231 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } in
+  (* .a231 *)
+  let sub_eq = (fun #{ a45 = a451; b45 = b451 } #{ a45 = a452; b45 = b452 } -> int64x2_u_equal a451 a452 && int64x2_u_equal b451 b452) in
+  let expected = { r with a231 = next_r.a231 } in
+  Idx_mut.unsafe_set r ((.a231) : (t231, _) idx_mut) next_r.a231;
+  mark_test_run 1203;
+  let test = eq r expected in
+  if not test then failwithf "test 1203 failed";
+  mark_test_run 1204;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a231) : (t231, _) idx_mut)) next_r.a231 in
+  if not test then failwithf "test 1204 failed";
+  (* Paths of depth 2 *)
+  let next_r = { a231 = #{ a45 = (interleave_low_64 (int64x2_of_int64 200L) (int64x2_of_int64 201L)); b45 = (interleave_low_64 (int64x2_of_int64 202L) (int64x2_of_int64 203L)) }; b231 = (interleave_low_64 (int64x2_of_int64 204L) (int64x2_of_int64 205L)) } in
+  (* .a231.#a45 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a231 = #{ r.a231 with a45 = next_r.a231.#a45 } } in
+  Idx_mut.unsafe_set r ((.a231.#a45) : (t231, _) idx_mut) next_r.a231.#a45;
+  mark_test_run 1205;
+  let test = eq r expected in
+  if not test then failwithf "test 1205 failed";
+  mark_test_run 1206;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a231.#a45) : (t231, _) idx_mut)) next_r.a231.#a45 in
+  if not test then failwithf "test 1206 failed";
+  (* .a231.#b45 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with a231 = #{ r.a231 with b45 = next_r.a231.#b45 } } in
+  Idx_mut.unsafe_set r ((.a231.#b45) : (t231, _) idx_mut) next_r.a231.#b45;
+  mark_test_run 1207;
+  let test = eq r expected in
+  if not test then failwithf "test 1207 failed";
+  mark_test_run 1208;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.a231.#b45) : (t231, _) idx_mut)) next_r.a231.#b45 in
+  if not test then failwithf "test 1208 failed";
+  let r = { a231 = #{ a45 = (interleave_low_64 (int64x2_of_int64 0L) (int64x2_of_int64 1L)); b45 = (interleave_low_64 (int64x2_of_int64 2L) (int64x2_of_int64 3L)) }; b231 = (interleave_low_64 (int64x2_of_int64 4L) (int64x2_of_int64 5L)) } in
+  (* Paths of depth 1 *)
+  let next_r = { a231 = #{ a45 = (interleave_low_64 (int64x2_of_int64 100L) (int64x2_of_int64 101L)); b45 = (interleave_low_64 (int64x2_of_int64 102L) (int64x2_of_int64 103L)) }; b231 = (interleave_low_64 (int64x2_of_int64 104L) (int64x2_of_int64 105L)) } in
+  (* .b231 *)
+  let sub_eq = int64x2_u_equal in
+  let expected = { r with b231 = next_r.b231 } in
+  Idx_mut.unsafe_set r ((.b231) : (t231, _) idx_mut) next_r.b231;
+  mark_test_run 1209;
+  let test = eq r expected in
+  if not test then failwithf "test 1209 failed";
+  mark_test_run 1210;
+  let test = sub_eq (Idx_mut.unsafe_get r ((.b231) : (t231, _) idx_mut)) next_r.b231 in
+  if not test then failwithf "test 1210 failed";
   ()
 ;;
 
-for i = 1 to 1156 do
+for i = 1 to 1210 do
   if not (Int_set.mem i !tests_run) then failwithf "test %d not run" i
 done;;
 let () = Printf.printf "All tests passed.%!\n";;
