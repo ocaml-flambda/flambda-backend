@@ -4,8 +4,11 @@ on:
     branches:
       - main
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 jobs:
   build:
+    if: ${{ ! contains( github.event.pull_request.labels.*.name, 'skip 80ch') }}
+
     runs-on: ${{ matrix.os }}
 
     strategy:

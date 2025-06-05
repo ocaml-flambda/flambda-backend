@@ -723,58 +723,26 @@ let map_shallow f = function
     | Cvar _ ) as c ->
     c
 
-let compare_machtype_component (left : machtype_component)
-    (right : machtype_component) =
-  match left, right with
-  | Val, Val
-  | Addr, Addr
-  | Int, Int
-  | Float, Float
-  | Vec128, Vec128
-  | Vec256, Vec256
-  | Vec512, Vec512
-  | Float32, Float32
-  | Valx2, Valx2 ->
-    0
-  | Val, (Addr | Int | Float | Vec128 | Vec256 | Vec512 | Float32 | Valx2) -> -1
-  | (Addr | Int | Float | Vec128 | Vec256 | Vec512 | Float32 | Valx2), Val -> 1
-  | Addr, (Int | Float | Vec128 | Vec256 | Vec512 | Float32 | Valx2) -> -1
-  | (Int | Float | Vec128 | Vec256 | Vec512 | Float32 | Valx2), Addr -> 1
-  | Int, (Float | Vec128 | Vec256 | Vec512 | Float32 | Valx2) -> -1
-  | (Float | Vec128 | Vec256 | Vec512 | Float32 | Valx2), Int -> 1
-  | Float, (Vec128 | Vec256 | Vec512 | Float32 | Valx2) -> -1
-  | (Vec128 | Vec256 | Vec512 | Float32 | Valx2), Float -> 1
-  | Vec128, (Vec256 | Vec512 | Float32 | Valx2) -> -1
-  | (Vec256 | Vec512 | Float32 | Valx2), Vec128 -> 1
-  | Vec256, (Vec512 | Float32 | Valx2) -> -1
-  | (Vec512 | Float32 | Valx2), Vec256 -> 1
-  | Vec512, (Float32 | Valx2) -> -1
-  | (Float32 | Valx2), Vec512 -> 1
-  | Float32, Valx2 -> -1
-  | Valx2, Float32 -> 1
+let rank_machtype_component : machtype_component -> int = function
+  | Val -> 0
+  | Addr -> 1
+  | Int -> 2
+  | Float -> 3
+  | Vec128 -> 4
+  | Vec256 -> 5
+  | Vec512 -> 6
+  | Float32 -> 7
+  | Valx2 -> 8
 
-let equal_machtype_component (left : machtype_component)
-    (right : machtype_component) =
-  match left, right with
-  | Val, Val -> true
-  | Addr, Addr -> true
-  | Int, Int -> true
-  | Float, Float -> true
-  | Vec128, Vec128 -> true
-  | Vec256, Vec256 -> true
-  | Vec512, Vec512 -> true
-  | Float32, Float32 -> true
-  | Valx2, Valx2 -> true
-  | Valx2, (Val | Addr | Int | Float | Vec128 | Vec256 | Vec512 | Float32)
-  | Val, (Addr | Int | Float | Vec128 | Vec256 | Vec512 | Float32 | Valx2)
-  | Addr, (Val | Int | Float | Vec128 | Vec256 | Vec512 | Float32 | Valx2)
-  | Int, (Val | Addr | Float | Vec128 | Vec256 | Vec512 | Float32 | Valx2)
-  | Float, (Val | Addr | Int | Vec128 | Vec256 | Vec512 | Float32 | Valx2)
-  | Vec128, (Val | Addr | Int | Float | Vec256 | Vec512 | Float32 | Valx2)
-  | Vec256, (Val | Addr | Int | Float | Vec128 | Vec512 | Float32 | Valx2)
-  | Vec512, (Val | Addr | Int | Float | Vec128 | Vec256 | Float32 | Valx2)
-  | Float32, (Val | Addr | Int | Float | Vec128 | Vec256 | Vec512 | Valx2) ->
-    false
+let compare_machtype_component
+    ((Val | Addr | Int | Float | Vec128 | Vec256 | Vec512 | Float32 | Valx2) as left :
+      machtype_component) (right : machtype_component) =
+  rank_machtype_component left - rank_machtype_component right
+
+let equal_machtype_component
+    ((Val | Addr | Int | Float | Vec128 | Vec256 | Vec512 | Float32 | Valx2) as left :
+      machtype_component) (right : machtype_component) =
+  rank_machtype_component left = rank_machtype_component right
 
 let equal_exttype left right =
   match left, right with

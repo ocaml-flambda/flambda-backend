@@ -118,18 +118,6 @@ module type Common = sig
 
   val of_const : Const.t -> ('l * 'r) t
 
-  (** [imply c] is the right adjoint of [meet c]. That is,
-     [x <= imply c y] iff [meet c x <= y]. *)
-  val imply : Const.t -> ('l * 'r) t -> (disallowed * 'r) t
-
-  (** [subtract c] is the left adjoint of [join c]. That is,
-     [subtract c x <= y] iff [x <= join c y]. *)
-  val subtract : Const.t -> ('l * 'r) t -> ('l * disallowed) t
-
-  val join_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
-
-  val meet_const : Const.t -> ('l * 'r) t -> ('l * 'r) t
-
   val zap_to_ceil : ('l * allowed) t -> Const.t
 
   val zap_to_floor : (allowed * 'r) t -> Const.t
@@ -418,6 +406,8 @@ module type S = sig
         with type Const.t = Areality.Const.t comonadic_with
          and type 'a axis := (Areality.Const.t comonadic_with, 'a) Axis.t
 
+    module Axis' := Axis
+
     module Axis : sig
       (** Represents a mode axis in this product whose constant is ['a], and whose
       allowance is ['d1] given the product's allowance ['d0]. *)
@@ -527,6 +517,10 @@ module type S = sig
     val proj :
       ('a, 'l0 * 'r0, 'l1 * 'r1) Axis.t -> ('l0 * 'r0) t -> ('a, 'l1 * 'r1) mode
 
+    val meet_const : Comonadic.Const.t -> ('l * 'r) t -> ('l * 'r) t
+
+    val join_const : Monadic.Const.t -> ('l * 'r) t -> ('l * 'r) t
+
     (** [max_with ax elt] returns [max] but with the axis [ax] set to [elt]. *)
     val max_with :
       ('a, 'l0 * 'r0, 'l1 * 'r1) Axis.t ->
@@ -540,10 +534,10 @@ module type S = sig
       ('l0 * disallowed) t
 
     val meet_with :
-      ('a, 'l0 * 'r0, 'l1 * 'r1) Axis.t -> 'a -> ('l0 * 'r0) t -> ('l0 * 'r0) t
+      (Comonadic.Const.t, 'a) Axis'.t -> 'a -> ('l0 * 'r0) t -> ('l0 * 'r0) t
 
     val join_with :
-      ('a, 'l0 * 'r0, 'l1 * 'r1) Axis.t -> 'a -> ('l0 * 'r0) t -> ('l0 * 'r0) t
+      (Monadic.Const.t, 'a) Axis'.t -> 'a -> ('l0 * 'r0) t -> ('l0 * 'r0) t
 
     val zap_to_legacy : lr -> Const.t
 
@@ -689,7 +683,12 @@ module type S = sig
       (** The undefined modality. *)
       val undefined : t
 
-      (** Apply a modality on a left mode. *)
+      (* CR zqian: note that currently, [apply] and [sub] and [zap] are NOT
+         coherent for comonadic axes. That is, we do NOT have
+         [apply t m = Const.apply (zap t) m]. This is probably fine. *)
+
+      (** Apply a modality on a left mode. The calller should ensure that [apply
+      t m] is only called for [m >= md_mode] for inferred modalities. *)
       val apply : t -> (allowed * 'r) Value.t -> Value.l
 
       (** [sub t0 t1] checks that [t0 <= t1].
@@ -756,6 +755,8 @@ module type S = sig
     programs mode-check. The adjustment is called mode crossing. *)
     type t
 
+    (* CR zqian: Complete the lattice structure of mode crossing. *)
+
     (* CR zqian: jkind modal bounds should just be our [t]. In particular, jkind
        should infer the modal bounds of a type in the form of [Value] instead of
        [Alloc]. For example, a type could have [regional] modality, in which case
@@ -801,12 +802,6 @@ module type S = sig
 
     (** The mode crossing that crosses everything. *)
     val bot : t
-
-    (** The mode crossing that's weaker than both inputs *)
-    val join : t -> t -> t
-
-    (** The mode crossing that's stronger than both inputs *)
-    val meet : t -> t -> t
 
     (** Print the mode crossing by axis. Omit axes that do not cross. *)
     val print : Format.formatter -> t -> unit

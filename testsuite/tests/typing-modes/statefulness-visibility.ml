@@ -112,7 +112,7 @@ let foo (x @ immutable contended) a = x.a
 Line 1, characters 38-39:
 1 | let foo (x @ immutable contended) a = x.a
                                           ^
-Error: This value is "contended" but expected to be "shared".
+Error: This value is "contended" but expected to be "shared" or "uncontended".
   Hint: In order to read from its mutable fields,
   this record needs to be at least shared.
 |}]
@@ -124,7 +124,7 @@ let foo (x @ immutable) = x.contents
 Line 1, characters 26-27:
 1 | let foo (x @ immutable) = x.contents
                               ^
-Error: This value is "contended" but expected to be "shared".
+Error: This value is "contended" but expected to be "shared" or "uncontended".
   Hint: In order to read from its mutable fields,
   this record needs to be at least shared.
 |}]
@@ -159,7 +159,7 @@ let foo (x @ read contended) = x.contents
 Line 1, characters 31-32:
 1 | let foo (x @ read contended) = x.contents
                                    ^
-Error: This value is "contended" but expected to be "shared".
+Error: This value is "contended" but expected to be "shared" or "uncontended".
   Hint: In order to read from its mutable fields,
   this record needs to be at least shared.
 |}]
@@ -179,7 +179,7 @@ let foo (x @ read_write contended) = x.contents
 Line 1, characters 37-38:
 1 | let foo (x @ read_write contended) = x.contents
                                          ^
-Error: This value is "contended" but expected to be "shared".
+Error: This value is "contended" but expected to be "shared" or "uncontended".
   Hint: In order to read from its mutable fields,
   this record needs to be at least shared.
 |}]
@@ -586,7 +586,7 @@ let override : 'a @ contended -> ('a @ immutable shared -> 'b) -> 'b = fun x f -
 Line 1, characters 84-85:
 1 | let override : 'a @ contended -> ('a @ immutable shared -> 'b) -> 'b = fun x f -> f x
                                                                                         ^
-Error: This value is "contended" but expected to be "shared".
+Error: This value is "contended" but expected to be "shared" or "uncontended".
 |}]
 
 (* [read] => [shared]. *)
@@ -601,7 +601,7 @@ let default : 'a @ contended -> ('a @ read -> 'b) -> 'b = fun x f -> f x
 Line 1, characters 71-72:
 1 | let default : 'a @ contended -> ('a @ read -> 'b) -> 'b = fun x f -> f x
                                                                            ^
-Error: This value is "contended" but expected to be "shared".
+Error: This value is "contended" but expected to be "shared" or "uncontended".
 |}]
 
 let override : 'a @ contended -> ('a @ read uncontended -> 'b) -> 'b = fun x f -> f x
@@ -633,7 +633,7 @@ let fails : 'a @ contended -> ('a @ read_write shared -> 'b) -> 'b = fun x f -> 
 Line 1, characters 82-83:
 1 | let fails : 'a @ contended -> ('a @ read_write shared -> 'b) -> 'b = fun x f -> f x
                                                                                       ^
-Error: This value is "contended" but expected to be "shared".
+Error: This value is "contended" but expected to be "shared" or "uncontended".
 |}]
 
 let fails : 'a @ contended -> ('a @ read_write -> 'b) -> 'b = fun x f -> f x

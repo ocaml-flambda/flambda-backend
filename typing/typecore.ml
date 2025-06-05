@@ -477,7 +477,7 @@ let check_tail_call_local_returning loc env ap_mode {region_mode; _} =
 
 let meet_regional mode =
   let mode = Value.disallow_left mode in
-  Value.meet_with (Comonadic Areality) Regionality.Const.Regional mode
+  Value.meet_with Areality Regionality.Const.Regional mode
 
 let mode_default mode =
   { position = RNontail;
@@ -533,10 +533,15 @@ let mode_with_position mode position =
 let mode_max_with_position position =
   { mode_max with position }
 
+(** Take the expected mode of [exclave_ exp], return the expected mode of [exp].
+    [expected_mode] must be higher than [regional]. *)
 let mode_exclave expected_mode =
   let mode =
-    Value.join_with (Comonadic Areality)
-      Regionality.Const.Local (as_single_mode expected_mode)
+     as_single_mode expected_mode
+     (* if we expect an exclave to be [regional], then inside the exclave the
+        body should be [local] *)
+     |> value_to_alloc_r2l
+     |> alloc_as_value
   in
   { (mode_default mode)
     with strictly_local = true
@@ -554,18 +559,24 @@ let mode_lazy expected_mode =
   let expected_mode =
     mode_coerce (
       Value.max_with (Comonadic Areality) Regionality.global
-      |> Value.meet_with (Comonadic Yielding) Yielding.Const.Unyielding)
+      |> Value.meet_with Yielding Yielding.Const.Unyielding)
       expected_mode
   in
+  let mode_crossing =
+    Crossing.of_bounds {
+      comonadic = {
+        Alloc.Comonadic.Const.max with
+        (* The thunk is evaluated only once, so we only require it to be [once],
+          even if the [lazy] is [many]. *)
+        linearity = Many;
+        (* The thunk is evaluated only when the [lazy] is [uncontended], so we
+          only require it to be [nonportable], even if the [lazy] is [portable].
+          *)
+        portability = Portable };
+      monadic = Alloc.Monadic.Const.min }
+  in
   let closure_mode =
-    expected_mode
-    |> as_single_mode
-    (* The thunk is evaluated only once, so we only require it to be [once],
-       even if the [lazy] is [many]. *)
-    |> Value.join_with (Comonadic Linearity) Linearity.Const.Once
-    (* The thunk is evaluated only when the [lazy] is [uncontended], so we only require it
-       to be [nonportable], even if the [lazy] is [portable]. *)
-    |> Value.join_with (Comonadic Portability) Portability.Const.Nonportable
+    expected_mode |> as_single_mode |> Crossing.apply_right mode_crossing
   in
   {expected_mode with locality_context = Some Lazy }, closure_mode
 
@@ -663,8 +674,9 @@ let tuple_pat_mode mode tuple_modes =
 
 let global_pat_mode {mode; _}=
   let mode =
-    Value.meet_with (Comonadic Areality) Regionality.Const.Global mode
-    |> Value.meet_with (Comonadic Yielding) Yielding.Const.Unyielding
+    mode
+    |> Value.meet_with Areality Regionality.Const.Global
+    |> Value.meet_with Yielding Yielding.Const.Unyielding
   in
   simple_pat_mode mode
 
@@ -1014,10 +1026,10 @@ let check_construct_mutability ~loc ~env mutability ty ?modalities block_mode =
 (** The [expected_mode] of the record when projecting a mutable field. *)
 let mode_project_mutable =
   let mode =
-    Contention.Const.Shared
-    |> Contention.of_const
-    |> Value.max_with (Monadic Contention)
-    |> Value.meet_with (Monadic Visibility) Visibility.Const.Read
+    { Value.Const.max with
+      visibility = Visibility.Const.Read;
+      contention = Contention.Const.Shared }
+    |> Value.of_const
   in
   { (mode_default mode) with
     contention_context = Some Read_mutable;
@@ -1026,10 +1038,10 @@ let mode_project_mutable =
 (** The [expected_mode] of the record when mutating a mutable field. *)
 let mode_mutate_mutable =
   let mode =
-    Contention.Const.Uncontended
-    |> Contention.of_const
-    |> Value.max_with (Monadic Contention)
-    |> Value.meet_with (Monadic Visibility) Visibility.Const.Read_write
+    { Value.Const.max with
+      visibility = Read_write;
+      contention = Uncontended }
+    |> Value.of_const
   in
   { (mode_default mode) with
     contention_context = Some Write_mutable;
@@ -1711,19 +1723,20 @@ let solve_Ppat_construct ~refine tps penv loc constr no_existentials
     unify_pat_types_return_equated_pairs ~refine loc penv ty_res expected_ty
   in
 
-  let ty_args, equated_types, existential_ctyp =
+  let ty_args_ty, ty_args_gf, equated_types, existential_ctyp =
     with_local_level_iter ~post: generalize_structure begin fun () ->
       let expected_ty = instance expected_ty in
-      let ty_args, ty_args_ty, ty_res, equated_types, existential_ctyp =
+      let ty_args_ty, ty_args_gf, ty_res, equated_types, existential_ctyp =
         match existential_styp with
           None ->
             let ty_args, ty_res, _ =
               instance_constructor (Make_existentials_abstract penv) constr
             in
-            let ty_args_ty =
-              List.map (fun ca -> ca.Types.ca_type) ty_args
+            let ty_args_ty, ty_args_gf =
+              List.split
+                (List.map (fun ca -> ca.Types.ca_type, ca.Types.ca_modalities) ty_args)
             in
-            ty_args, ty_args_ty, ty_res, unify_res ty_res expected_ty, None
+            ty_args_ty, ty_args_gf, ty_res, unify_res ty_res expected_ty, None
         | Some (name_list, sty) ->
             let existential_treatment =
               if name_list = [] then
@@ -1737,20 +1750,19 @@ let solve_Ppat_construct ~refine tps penv loc constr no_existentials
               instance_constructor existential_treatment constr
             in
             let equated_types = unify_res ty_res expected_ty in
-            let ty_args_ty = List.map (fun ca -> ca.Types.ca_type) ty_args in
+            let ty_args_ty, ty_args_gf =
+              List.split
+                (List.map (fun ca -> ca.Types.ca_type, ca.Types.ca_modalities) ty_args)
+            in
             let ty_args_ty, existential_ctyp =
               solve_constructor_annotation tps penv name_list sty ty_args_ty
                 ty_ex
             in
-            let ty_args =
-              List.map2 (fun arg ca_type -> {arg with Types.ca_type}) ty_args
-                ty_args_ty
-            in
-            ty_args, ty_args_ty, ty_res, equated_types, existential_ctyp
+            ty_args_ty, ty_args_gf, ty_res, equated_types, existential_ctyp
       in
       if constr.cstr_existentials <> [] then
         lower_variables_only !!penv penv.Pattern_env.equations_scope ty_res;
-      ((ty_args, equated_types, existential_ctyp),
+      ((ty_args_ty, ty_args_gf, equated_types, existential_ctyp),
        expected_ty :: ty_res :: ty_args_ty)
     end
   in
@@ -1776,7 +1788,7 @@ let solve_Ppat_construct ~refine tps penv loc constr no_existentials
         equated_types
     with Warn_only_once -> ()
   end;
-  (ty_args, existential_ctyp)
+  (ty_args_ty, ty_args_gf, existential_ctyp)
 
 let solve_Ppat_record_field ~refine loc penv label label_lid record_ty
       record_form =
@@ -2447,11 +2459,11 @@ let check_recordpat_labels loc lbl_pat_list closed record_form =
 (* Constructors *)
 
 module Constructor = NameChoice (struct
-  type t = constructor_description * Env.locks
+  type t = constructor_description
   type usage = Env.constructor_usage
   let kind = Datatype_kind.Variant
-  let get_name (cstr, _) = cstr.cstr_name
-  let get_type (cstr, _) = cstr.cstr_res
+  let get_name cstr = cstr.cstr_name
+  let get_type cstr = cstr.cstr_res
   let lookup_all_from_type loc usage path env =
     match Env.lookup_all_constructors_from_type ~loc usage path env with
     | _ :: _ as x -> x
@@ -2465,9 +2477,7 @@ module Constructor = NameChoice (struct
             let filter lbl =
               compare_type_path env
                 path (get_constr_type_path @@ get_type lbl) in
-            let add_valid x acc =
-              let x = (x, Env.locks_empty) in
-              if filter x then (x, ignore)::acc else acc in
+            let add_valid x acc = if filter x then (x,ignore)::acc else acc in
             Env.fold_constructors add_valid None env []
         | _ -> []
   let in_env _ = true
@@ -2905,7 +2915,7 @@ and type_pat_aux
             let error = Wrong_expected_kind(srt, Pattern, expected_ty) in
             raise (Error (loc, !!penv, error))
       in
-      let constr, locks =
+      let constr =
         let candidates =
           Env.lookup_all_constructors Env.Pattern ~loc:lid.loc lid.txt !!penv in
         wrap_disambiguate "This variant pattern is expected to have"
@@ -2913,7 +2923,6 @@ and type_pat_aux
           (Constructor.disambiguate Env.Pattern lid !!penv expected_type)
           candidates
       in
-      let held_locks = (locks, lid.txt, lid.loc) in
       begin match no_existentials, constr.cstr_existentials with
       | None, _ | _, [] -> ()
       | Some r, (_ :: _) ->
@@ -2963,12 +2972,10 @@ and type_pat_aux
         raise(Error(loc, !!penv, Constructor_arity_mismatch(lid.txt,
                                      constr.cstr_arity, List.length sargs)));
 
-      let (args, existential_ctyp) =
+      let (ty_args_ty, ty_args_gf, existential_ctyp) =
         solve_Ppat_construct ~refine:false tps penv loc constr no_existentials
           existential_styp expected_ty
       in
-      Ctype.check_constructor_crossing !!penv constr.cstr_tag ~res:expected_ty
-        args held_locks;
 
       let rec check_non_escaping p =
         match p.ppat_desc with
@@ -2989,13 +2996,11 @@ and type_pat_aux
 
       let args =
         List.map2
-          (fun p (arg : Types.constructor_argument) ->
-             let alloc_mode =
-              Modality.Value.Const.apply arg.ca_modalities alloc_mode.mode
-             in
+          (fun p (ty, gf) ->
+             let alloc_mode = Modality.Value.Const.apply gf alloc_mode.mode in
              let alloc_mode = simple_pat_mode alloc_mode in
-             type_pat ~alloc_mode tps Value p arg.ca_type)
-          sargs args
+             type_pat ~alloc_mode tps Value p ty)
+          sargs (List.combine ty_args_ty ty_args_gf)
       in
       rvp { pat_desc=Tpat_construct(lid, constr, args, existential_ctyp);
             pat_loc = loc; pat_extra=[];
@@ -3550,12 +3555,12 @@ let rec check_counter_example_pat
   | Tpat_construct(cstr_lid, constr, targs, _) ->
       if constr.cstr_generalized && must_backtrack_on_gadt then
         raise Need_backtrack;
-      let (ty_args, existential_ctyp) =
+      let (ty_args, _, existential_ctyp) =
         solve_Ppat_construct ~refine type_pat_state penv loc constr None None
           expected_ty
       in
       map_fold_cont
-        (fun (p,t) -> check_rec p t.Types.ca_type)
+        (fun (p,t) -> check_rec p t)
         (List.combine targs ty_args)
         (fun args ->
           mkp k (Tpat_construct(cstr_lid, constr, args, existential_ctyp)))
@@ -6795,11 +6800,9 @@ and type_expect_
                    Pstr_eval ({ pexp_desc = Pexp_construct (lid, None); _ }, _)
                } ] ->
           let path =
-            let cd, held_locks =
+            let cd =
               Env.lookup_constructor Env.Positive ~loc:lid.loc lid.txt env
             in
-            (* no argument and thus crossing portability *)
-            ignore held_locks;
             match cd.cstr_tag with
             | Extension path -> path
             | _ -> raise (Error (lid.loc, env, Not_an_extension_constructor))
@@ -6862,11 +6865,7 @@ and type_expect_
            exp_attributes = sexp.pexp_attributes;
            exp_env = env }
   | Pexp_stack e ->
-      let expected_mode' =
-        mode_morph (Value.join_with (Comonadic Areality) Regionality.Const.Local)
-          expected_mode
-      in
-      let exp = type_expect env expected_mode' e ty_expected_explained in
+      let exp = type_expect env expected_mode e ty_expected_explained in
       let unsupported category =
         raise (Error (exp.exp_loc, env, Unsupported_stack_allocation category))
       in
@@ -6927,9 +6926,11 @@ and type_expect_
         (* The overwritten cell has to be unique
            and should have the areality expected here: *)
         Value.newvar_below
-          (Value.meet_with (Monadic Uniqueness) Uniqueness.Const.Unique
-             (Value.max_with (Comonadic Areality)
-                (Value.proj (Comonadic Areality) expected_mode.mode)))
+          (Value.meet [
+            Value.max_with (Monadic Uniqueness)
+              Uniqueness.(of_const Const.Unique);
+            Value.max_with (Comonadic Areality)
+              (Value.proj (Comonadic Areality) expected_mode.mode)])
       in
       let cell_type =
         (* CR uniqueness: this could be the jkind of exp2 *)
@@ -6941,14 +6942,18 @@ and type_expect_
            We enforce that here, by asking the allocation to be global.
            This makes the block alloc_heap, but we ignore that information anyway. *)
         (* CR uniqueness: this shouldn't mention yielding *)
-        { Value.Const.max with
+        { Value.Comonadic.Const.max with
           areality = Regionality.Const.Global
         ; yielding = Yielding.Const.Unyielding }
       in
       let exp2 =
         let exp2_mode =
           mode_coerce
-            (Value.(meet_const new_fields_mode max |> disallow_left))
+            Value.({
+              comonadic = new_fields_mode;
+              monadic = Monadic.Const.max}
+              |> Const.merge
+              |> of_const)
             expected_mode
         in
         (* When typing holes, we will enforce: fields_mode <= expected_mode.
@@ -8509,12 +8514,11 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
   let constrs =
     Env.lookup_all_constructors ~loc:lid.loc Env.Positive lid.txt env
   in
-  let constr, locks =
+  let constr =
     wrap_disambiguate "This variant expression is expected to have"
       ty_expected_explained
       (Constructor.disambiguate Env.Positive lid env expected_type) constrs
   in
-  let held_locks = (locks, lid.txt, lid.loc) in
   let sargs =
     match sarg with
     | None -> []
@@ -8564,8 +8568,6 @@ and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
         List.iter (fun {Types.ca_type=ty; _} -> generalize_structure ty) ty_args)
   in
   let ty_args, ty_res, texp = unify_as_construct ty_expected in
-  Ctype.check_constructor_crossing env constr.cstr_tag ~res:ty_res ty_args
-    held_locks;
   let ty_args0, ty_res =
     match instance_list (ty_res :: (List.map (fun ca -> ca.Types.ca_type) ty_args)) with
       t :: tl -> tl, t
@@ -11018,9 +11020,22 @@ let report_error ~loc env =
         | Error (Comonadic Areality, _) ->
             Format.dprintf "This value escapes its region."
         | Error (ax, {left; right}) ->
+            let pp_expectation ppf () =
+              let open Contention.Const in
+              match ax, right with
+              | Monadic Contention, Shared ->
+                  (* Could generalize this to other error cases where we expect
+                     something besides bottom, but currently (besides areality,
+                     already covered above) there are no other such cases. *)
+                  Format.fprintf ppf "%a or %a"
+                    (Style.as_inline_code Contention.Const.print) Shared
+                    (Style.as_inline_code Contention.Const.print) Uncontended
+              | _, _ ->
+                  Style.as_inline_code (Value.Const.print_axis ax) ppf right
+            in
             Format.dprintf "This value is %a but expected to be %a."
               (Style.as_inline_code (Value.Const.print_axis ax)) left
-              (Style.as_inline_code (Value.Const.print_axis ax)) right
+              pp_expectation ()
         end
   | Curried_application_complete (lbl, Error (ax, {left; _}), loc_kind) ->
       let sub =

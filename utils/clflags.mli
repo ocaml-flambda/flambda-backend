@@ -51,14 +51,6 @@ val set_int_arg :
 val set_float_arg :
     int option -> Float_arg_helper.parsed ref -> float -> float option -> unit
 
-module Libloc : sig
-  type t = {
-    path: string;
-    libs: string list;
-    hidden_libs: string list
-  }
-end
-
 type profile_column = [ `Time | `Alloc | `Top_heap | `Abs_top_heap | `Counters ]
 type profile_granularity_level = File_level | Function_level | Block_level
 type flambda_invariant_checks = No_checks | Light_checks | Heavy_checks
@@ -70,8 +62,9 @@ val cmi_file : string option ref
 val compile_only : bool ref
 val output_name : string option ref
 val include_dirs : string list ref
-val libloc : Libloc.t list ref
 val hidden_include_dirs : string list ref
+val include_paths_files : string list ref
+val hidden_include_paths_files : string list ref
 val no_std_include : bool ref
 val no_cwd : bool ref
 val print_types : bool ref

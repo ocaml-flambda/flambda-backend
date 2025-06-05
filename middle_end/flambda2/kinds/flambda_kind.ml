@@ -92,23 +92,6 @@ let region = Region
 
 let rec_info = Rec_info
 
-let to_lambda (t : t) : Lambda.layout =
-  match t with
-  | Value -> Lambda.layout_any_value
-  | Naked_number Naked_immediate ->
-    Misc.fatal_error "Can't convert kind [Naked_immediate] to lambda layout"
-  | Naked_number Naked_float -> Punboxed_float Unboxed_float64
-  | Naked_number Naked_float32 -> Punboxed_float Unboxed_float32
-  | Naked_number Naked_int32 -> Punboxed_int Unboxed_int32
-  | Naked_number Naked_int64 -> Punboxed_int Unboxed_int64
-  | Naked_number Naked_nativeint -> Punboxed_int Unboxed_nativeint
-  | Naked_number Naked_vec128 -> Punboxed_vector Unboxed_vec128
-  | Naked_number Naked_vec256 -> Punboxed_vector Unboxed_vec256
-  | Naked_number Naked_vec512 -> Punboxed_vector Unboxed_vec512
-  | Region -> Misc.fatal_error "Can't convert kind [Region] to lambda layout"
-  | Rec_info ->
-    Misc.fatal_error "Can't convert kind [Rec_info] to lambda layout"
-
 include Container_types.Make (struct
   type nonrec t = t
 

@@ -19,6 +19,7 @@ module Int = struct
   include Numbers.Int
   module Tree = Patricia_tree.Make (Numbers.Int)
   module Map = Tree.Map
+  module Set = Tree.Set
 end
 
 type (_, _, _) is_trie =
@@ -110,43 +111,13 @@ let rec union :
       t1 t2
 
 module Iterator = struct
-  type _ t =
-    | Iterator :
-        { mutable iterator : 'v Int.Map.iterator;
-          map : 'v Int.Map.t ref;
-          handler : 'v ref
-        }
-        -> int t
+  include Leapfrog.Map (Int)
 
   include Heterogenous_list.Make (struct
     type nonrec 'a t = 'a t
   end)
 
-  let equal_key (type a) (Iterator _ : a t) : a -> a -> bool = Int.equal
-
-  let compare_key (type a) (Iterator _ : a t) : a -> a -> int = Int.compare
-
-  let current (type a) (Iterator i : a t) : a option =
-    match Int.Map.current i.iterator with
-    | Some (key, _) -> Some key
-    | None -> None
-
-  let advance (type a) (Iterator i : a t) : unit =
-    i.iterator <- Int.Map.advance i.iterator
-
-  let seek (type a) (Iterator i : a t) (k : a) : unit =
-    i.iterator <- Int.Map.seek i.iterator k
-
-  let init (type a) (Iterator i : a t) : unit =
-    i.iterator <- Int.Map.iterator !(i.map)
-
-  let accept (type a) (Iterator i : a t) : unit =
-    match Int.Map.current i.iterator with
-    | None -> invalid_arg "accept: iterator is exhausted"
-    | Some (_, value) -> i.handler := value
-
-  let create_iterator cell handler =
-    Iterator { iterator = Int.Map.iterator Int.Map.empty; map = cell; handler }
+  let create_iterator = create
 
   let rec create : type m k v. (m, k, v) is_trie -> m ref -> v ref -> k hlist =
    fun is_trie this_ref value_handler ->

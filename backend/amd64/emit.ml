@@ -2210,6 +2210,7 @@ let fundecl fundecl =
   D.define_joint_label_and_symbol ~section:Text fundecl_sym;
   emit_debug_info fundecl.fun_dbg;
   D.cfi_startproc ();
+  D.comment ("LLVM-MCA-BEGIN " ^ !function_name);
   if Config.runtime5
      && (not Config.no_stack_checks)
      && String.equal !Clflags.runtime_variant "d"
@@ -2226,6 +2227,7 @@ let fundecl fundecl =
   (match fun_end_label with
   | Some l -> D.define_label (label_to_asm_label ~section:Text l)
   | None -> ());
+  D.comment ("LLVM-MCA-END " ^ !function_name);
   D.cfi_endproc ();
   emit_function_type_and_size fundecl_sym
 

@@ -511,10 +511,9 @@ void caml_init_os_params(void)
 }
 
 #ifndef __CYGWIN__
-#ifndef WITH_ADDRESS_SANITIZER
 void caml_plat_mem_name_map(void *mem, size_t length, const char *name)
 {
-#ifdef __linux__
+#if defined(__linux__) && !defined(WITH_ADDRESS_SANITIZER)
   if (name) {
     /* On Linux, use PR_SET_VMA_ANON_NAME to name a mapping */
     char buf[80];
@@ -530,9 +529,14 @@ void caml_plat_mem_name_map(void *mem, size_t length, const char *name)
        for debugging, and may fail if e.g. this prctl is not supported
        on this kernel version. */
   }
+#else
+  (void)mem;
+  (void)length;
+  (void)name;
 #endif
 }
 
+#ifndef WITH_ADDRESS_SANITIZER
 static void* mmap_named(void* addr, size_t length, int prot, int flags,
                         int fd, off_t offset, const char* name)
 {

@@ -206,7 +206,7 @@ let cross_shared2 (x : cross_shared @ contended) : _ @ shared = x
 Line 1, characters 64-65:
 1 | let cross_shared2 (x : cross_shared @ contended) : _ @ shared = x
                                                                     ^
-Error: This value is "contended" but expected to be "shared".
+Error: This value is "contended" but expected to be "shared" or "uncontended".
 |}]
 
 let cross_uncontended1 (x : cross_uncontended @ shared) : _ @ uncontended = x
@@ -222,7 +222,7 @@ let cross_uncontended2 (x : cross_uncontended @ contended) : _ @ shared = x
 Line 1, characters 74-75:
 1 | let cross_uncontended2 (x : cross_uncontended @ contended) : _ @ shared = x
                                                                               ^
-Error: This value is "contended" but expected to be "shared".
+Error: This value is "contended" but expected to be "shared" or "uncontended".
 |}]
 
 (* Check that all modalities cross modes *)

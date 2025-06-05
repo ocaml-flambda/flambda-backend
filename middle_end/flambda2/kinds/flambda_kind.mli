@@ -78,8 +78,6 @@ val is_value : t -> bool
 
 val is_naked_float : t -> bool
 
-val to_lambda : t -> Lambda.layout
-
 include Container_types.S with type t := t
 
 type flat_suffix_element = private

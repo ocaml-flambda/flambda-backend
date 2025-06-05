@@ -4,6 +4,7 @@
  not-bsd;
  no-tsan; (* tsan detects data races and fails *)
  runtime5;
+ multidomain;
  {
    not-windows;
    bytecode;

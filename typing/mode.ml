@@ -25,14 +25,20 @@ type nonrec disallowed = disallowed
 
 type nonrec equate_step = equate_step
 
-module type BiHeyting = sig
-  (** Extend the [Lattice] interface with operations of bi-Heyting algebras *)
+module type Heyting = sig
+  (** Extend the [Lattice] interface with operations of Heyting algebras *)
 
   include Lattice
 
   (** [imply c] is the right adjoint of [meet c]; That is, for any [a] and [b],
       [meet c a <= b] iff [a <= imply c b] *)
   val imply : t -> t -> t
+end
+
+module type CoHeyting = sig
+  (** Extend the [Lattice] interface with operations of co-Heyting algebras *)
+
+  include Lattice
 
   (** [subtract _ c] is the left adjoint of [join c]. That is, for any [a] and [b],
       [subtract a c <= b] iff [a <= join c b] *)
@@ -42,34 +48,45 @@ end
 (* Even though our lattices are all bi-heyting algebras, that knowledge is
    internal to this module. Externally they are seen as normal lattices. *)
 module Lattices = struct
-  (* A lattice is total order, if for any [a] [b], [a <= b] or [b <= a].
-     A total lattice has a bi-heyting structure given as follows. *)
-  module Total (L : Lattice) : BiHeyting with type t := L.t = struct
-    include L
+  module Total = struct
+    (** A lattice is total order, if for any [a] [b], [a <= b] or [b <= a]. *)
 
-    (* Prove the [subtract] below is the left adjoint of [join].
-       - If [subtract a c <= b], by the definition of [subtract] below,
-         that could mean one of two things:
-         - Took the branch [a <= c], and [min <= b]. In this case, we have [a <= c <= join c b].
-         - Took the other branch, and [a <= b]. In this case, we have [a <= b <= join c b].
+    module CoHeyting (L : Lattice) : CoHeyting with type t := L.t = struct
+      (** A total lattice has a co-heyting structure. *)
 
-       - In the other direction: Given [a <= join c b], compare [c] and [b]:
-         - if [c <= b], then [a <= join c b = b], and:
-           - either [a <= c], then [subtract a c = min <= b]
-           - or the other branch, then [subtract a c = a <= b]
-         - if [b <= c], then [a <= join c b = c], then [subtract a c = min <= b]
-    *)
-    let subtract a c = if le a c then min else a
+      include L
 
-    (* The proof for [imply] is dual and omitted. *)
-    let imply c b = if le c b then max else b
+      (* Prove the [subtract] below is the left adjoint of [join].
+         - If [subtract a c <= b], by the definition of [subtract] below,
+           that could mean one of two things:
+           - Took the branch [a <= c], and [min <= b]. In this case, we have [a <= c <= join c b].
+           - Took the other branch, and [a <= b]. In this case, we have [a <= b <= join c b].
+
+         - In the other direction: Given [a <= join c b], compare [c] and [b]:
+           - if [c <= b], then [a <= join c b = b], and:
+             - either [a <= c], then [subtract a c = min <= b]
+             - or the other branch, then [subtract a c = a <= b]
+           - if [b <= c], then [a <= join c b = c], then [subtract a c = min <= b]
+      *)
+      let subtract a c = if le a c then min else a
+    end
+    [@@inline]
+
+    module Heyting (L : Lattice) : Heyting with type t := L.t = struct
+      (** A total lattice has a heyting structure. *)
+
+      include L
+
+      (* The proof for [imply] is dual and omitted. *)
+      let imply c b = if le c b then max else b
+    end
+    [@@inline]
   end
-  [@@inline]
 
   (* Make the type of [Locality] and [Regionality] below distinguishable,
      so that we can be sure [Comonadic_with] is applied correctly. *)
   module type Areality = sig
-    include BiHeyting
+    include Heyting
 
     val _is_areality : unit
   end
@@ -79,7 +96,7 @@ module Lattices = struct
       | Global
       | Local
 
-    include Total (struct
+    include Total.Heyting (struct
       type nonrec t = t
 
       let min = Global
@@ -120,7 +137,7 @@ module Lattices = struct
       | Regional
       | Local
 
-    include Total (struct
+    include Total.Heyting (struct
       type nonrec t = t
 
       let min = Global
@@ -171,7 +188,7 @@ module Lattices = struct
       | Unique
       | Aliased
 
-    include Total (struct
+    include Total.CoHeyting (struct
       type nonrec t = t
 
       let min = Unique
@@ -212,7 +229,7 @@ module Lattices = struct
       | Many
       | Once
 
-    include Total (struct
+    include Total.Heyting (struct
       type nonrec t = t
 
       let min = Many
@@ -247,7 +264,7 @@ module Lattices = struct
       | Portable
       | Nonportable
 
-    include Total (struct
+    include Total.Heyting (struct
       type nonrec t = t
 
       let min = Portable
@@ -289,7 +306,7 @@ module Lattices = struct
       | Shared
       | Uncontended
 
-    include Total (struct
+    include Total.CoHeyting (struct
       type nonrec t = t
 
       let min = Uncontended
@@ -338,7 +355,7 @@ module Lattices = struct
       | Yielding
       | Unyielding
 
-    include Total (struct
+    include Total.Heyting (struct
       type nonrec t = t
 
       let min = Unyielding
@@ -380,7 +397,7 @@ module Lattices = struct
       | Observing
       | Stateful
 
-    include Total (struct
+    include Total.Heyting (struct
       type nonrec t = t
 
       let min = Stateless
@@ -430,7 +447,7 @@ module Lattices = struct
       | Read
       | Read_write
 
-    include Total (struct
+    include Total.CoHeyting (struct
       type nonrec t = t
 
       let min = Read_write
@@ -545,12 +562,6 @@ module Lattices = struct
       let uniqueness = Uniqueness.meet m1.uniqueness m2.uniqueness in
       let contention = Contention.meet m1.contention m2.contention in
       let visibility = Visibility.meet m1.visibility m2.visibility in
-      { uniqueness; contention; visibility }
-
-    let imply m1 m2 =
-      let uniqueness = Uniqueness.imply m1.uniqueness m2.uniqueness in
-      let contention = Contention.imply m1.contention m2.contention in
-      let visibility = Visibility.imply m1.visibility m2.visibility in
       { uniqueness; contention; visibility }
 
     let subtract m1 m2 =
@@ -669,16 +680,6 @@ module Lattices = struct
       let statefulness = Statefulness.imply m1.statefulness m2.statefulness in
       { areality; linearity; portability; yielding; statefulness }
 
-    let subtract m1 m2 =
-      let areality = Areality.subtract m1.areality m2.areality in
-      let linearity = Linearity.subtract m1.linearity m2.linearity in
-      let portability = Portability.subtract m1.portability m2.portability in
-      let yielding = Yielding.subtract m1.yielding m2.yielding in
-      let statefulness =
-        Statefulness.subtract m1.statefulness m2.statefulness
-      in
-      { areality; linearity; portability; yielding; statefulness }
-
     let print ppf m =
       Format.fprintf ppf "%a,%a,%a,%a,%a" Areality.print m.areality
         Linearity.print m.linearity Portability.print m.portability
@@ -686,7 +687,7 @@ module Lattices = struct
   end
   [@@inline]
 
-  module Opposite (L : BiHeyting) : BiHeyting with type t = L.t = struct
+  module Opposite (L : CoHeyting) : Heyting with type t = L.t = struct
     type t = L.t
 
     let min = L.max
@@ -706,8 +707,6 @@ module Lattices = struct
     let print = L.print
 
     let imply a b = L.subtract b a
-
-    let subtract a b = L.imply b a
   end
   [@@inline]
 
@@ -856,22 +855,6 @@ module Lattices = struct
     | Comonadic_with_regionality -> Comonadic_with_regionality.imply a b
     | Monadic_op -> Monadic_op.imply a b
 
-  let subtract : type a. a obj -> a -> a -> a =
-   fun obj a b ->
-    match obj with
-    | Locality -> Locality.subtract a b
-    | Regionality -> Regionality.subtract a b
-    | Uniqueness_op -> Uniqueness_op.subtract a b
-    | Contention_op -> Contention_op.subtract a b
-    | Visibility_op -> Visibility_op.subtract a b
-    | Linearity -> Linearity.subtract a b
-    | Portability -> Portability.subtract a b
-    | Yielding -> Yielding.subtract a b
-    | Statefulness -> Statefulness.subtract a b
-    | Comonadic_with_locality -> Comonadic_with_locality.subtract a b
-    | Comonadic_with_regionality -> Comonadic_with_regionality.subtract a b
-    | Monadic_op -> Monadic_op.subtract a b
-
   (* not hotpath, Ok to curry *)
   let print : type a. a obj -> _ -> a -> unit = function
     | Locality -> Locality.print
@@ -999,10 +982,6 @@ module Lattices_mono = struct
         (** Meet the input with the parameter *)
     | Imply : 'a -> ('a, 'a, disallowed * 'r) morph
         (** The right adjoint of [Meet_with] *)
-    | Join_with : 'a -> ('a, 'a, 'l * 'r) morph
-        (** Join the input with the parameter *)
-    | Subtract : 'a -> ('a, 'a, 'l * disallowed) morph
-        (** The left adjoint of [Join_with] *)
     | Proj : 't obj * ('t, 'r_) Axis.t -> ('t, 'r_, 'l * 'r) morph
         (** Project from a product to an axis *)
     | Max_with : ('t, 'r_) Axis.t -> ('r_, 't, disallowed * 'r) morph
@@ -1051,8 +1030,6 @@ module Lattices_mono = struct
       | Proj (src, ax) -> Proj (src, ax)
       | Min_with ax -> Min_with ax
       | Meet_with c -> Meet_with c
-      | Join_with c -> Join_with c
-      | Subtract c -> Subtract c
       | Compose (f, g) ->
         let f = allow_left f in
         let g = allow_left g in
@@ -1073,7 +1050,6 @@ module Lattices_mono = struct
       | Id -> Id
       | Proj (src, ax) -> Proj (src, ax)
       | Max_with ax -> Max_with ax
-      | Join_with c -> Join_with c
       | Meet_with c -> Meet_with c
       | Imply c -> Imply c
       | Compose (f, g) ->
@@ -1097,8 +1073,6 @@ module Lattices_mono = struct
       | Proj (src, ax) -> Proj (src, ax)
       | Min_with ax -> Min_with ax
       | Max_with ax -> Max_with ax
-      | Join_with c -> Join_with c
-      | Subtract c -> Subtract c
       | Meet_with c -> Meet_with c
       | Imply c -> Imply c
       | Compose (f, g) ->
@@ -1124,8 +1098,6 @@ module Lattices_mono = struct
       | Proj (src, ax) -> Proj (src, ax)
       | Min_with ax -> Min_with ax
       | Max_with ax -> Max_with ax
-      | Join_with c -> Join_with c
-      | Subtract c -> Subtract c
       | Meet_with c -> Meet_with c
       | Imply c -> Imply c
       | Compose (f, g) ->
@@ -1182,10 +1154,8 @@ module Lattices_mono = struct
     | Proj (src, _) -> src
     | Max_with ax -> proj_obj ax dst
     | Min_with ax -> proj_obj ax dst
-    | Join_with _ -> dst
     | Meet_with _ -> dst
     | Imply _ -> dst
-    | Subtract _ -> dst
     | Compose (f, g) ->
       let mid = src dst f in
       src mid g
@@ -1231,9 +1201,7 @@ module Lattices_mono = struct
            not requird to be complete: i.e., it's allowed to return [None] when
            it should return [Some]. It would cause duplication but not error. *)
         if c0 = c1 then Some Refl else None
-      | Join_with c0, Join_with c1 -> if c0 = c1 then Some Refl else None
       | Imply c0, Imply c1 -> if c0 = c1 then Some Refl else None
-      | Subtract c0, Subtract c1 -> if c0 = c1 then Some Refl else None
       | Monadic_to_comonadic_min, Monadic_to_comonadic_min -> Some Refl
       | Comonadic_to_monadic a0, Comonadic_to_monadic a1 -> (
         match eq_obj a0 a1 with None -> None | Some Refl -> Some Refl)
@@ -1250,12 +1218,11 @@ module Lattices_mono = struct
           match equal g0 g1 with None -> None | Some Refl -> Some Refl))
       | Map_comonadic f, Map_comonadic g -> (
         match equal f g with Some Refl -> Some Refl | None -> None)
-      | ( ( Id | Proj _ | Max_with _ | Min_with _ | Meet_with _ | Join_with _
+      | ( ( Id | Proj _ | Max_with _ | Min_with _ | Meet_with _
           | Monadic_to_comonadic_min | Comonadic_to_monadic _
           | Monadic_to_comonadic_max | Local_to_regional
           | Locality_as_regionality | Global_to_regional | Regional_to_local
-          | Regional_to_global | Compose _ | Map_comonadic _ | Imply _
-          | Subtract _ ),
+          | Regional_to_global | Compose _ | Map_comonadic _ | Imply _ ),
           _ ) ->
         None
   end)
@@ -1266,10 +1233,8 @@ module Lattices_mono = struct
       type a b l r. b obj -> Format.formatter -> (a, b, l * r) morph -> unit =
    fun dst ppf -> function
     | Id -> Format.fprintf ppf "id"
-    | Join_with c -> Format.fprintf ppf "join(%a)" (print dst) c
     | Meet_with c -> Format.fprintf ppf "meet(%a)" (print dst) c
     | Imply c -> Format.fprintf ppf "imply(%a)" (print dst) c
-    | Subtract c -> Format.fprintf ppf "subtract_%a" (print dst) c
     | Proj (_, ax) -> Format.fprintf ppf "proj_%a" Axis.print ax
     | Max_with ax -> Format.fprintf ppf "max_with_%a" Axis.print ax
     | Min_with ax -> Format.fprintf ppf "min_with_%a" Axis.print ax
@@ -1392,9 +1357,7 @@ module Lattices_mono = struct
     | Max_with ax -> max_with dst ax a
     | Min_with ax -> min_with dst ax a
     | Meet_with c -> meet dst c a
-    | Join_with c -> join dst c a
     | Imply c -> imply dst c a
-    | Subtract c -> subtract dst a c
     | Monadic_to_comonadic_min -> monadic_to_comonadic_min dst a
     | Comonadic_to_monadic src -> comonadic_to_monadic src a
     | Monadic_to_comonadic_max -> monadic_to_comonadic_max dst a
@@ -1418,34 +1381,20 @@ module Lattices_mono = struct
       (a, c, l * r) morph option =
    fun dst m0 m1 ->
     let is_max c = le dst (max dst) c in
-    let is_min c = le dst c (min dst) in
     let is_mid_max c =
       let mid = src dst m0 in
       le mid (max mid) c
-    in
-    let is_mid_min c =
-      let mid = src dst m0 in
-      le mid c (min mid)
     in
     match m0, m1 with
     | Id, m -> Some m
     | m, Id -> Some m
     | Meet_with c0, Meet_with c1 -> Some (Meet_with (meet dst c0 c1))
-    | Join_with c0, Join_with c1 -> Some (Join_with (join dst c0 c1))
     | Imply c0, Imply c1 -> Some (Imply (meet dst c0 c1))
-    | Subtract c0, Subtract c1 -> Some (Subtract (join dst c0 c1))
-    | Imply c0, Join_with c1 when le dst c0 c1 -> Some (Join_with (max dst))
     | Imply c0, Meet_with c1 when le dst c0 c1 -> Some (Imply c0)
-    | Subtract c0, Meet_with c1 when le dst c1 c0 -> Some (Meet_with (min dst))
-    | Subtract c0, Join_with c1 when le dst c1 c0 -> Some (Subtract c0)
     | Meet_with c0, m1 when is_max c0 -> Some m1
-    | Join_with c0, m1 when is_min c0 -> Some m1
     | Imply c0, m1 when is_max c0 -> Some m1
-    | Subtract c0, m1 when is_min c0 -> Some m1
     | m1, Meet_with c0 when is_mid_max c0 -> Some m1
-    | m1, Join_with c0 when is_mid_min c0 -> Some m1
     | m1, Imply c0 when is_mid_max c0 -> Some m1
-    | m1, Subtract c0 when is_mid_min c0 -> Some m1
     | Compose (f0, f1), g -> (
       let mid = src dst f0 in
       match maybe_compose mid f1 g with
@@ -1458,8 +1407,6 @@ module Lattices_mono = struct
       | None -> None)
     | Proj (mid, ax), Meet_with c ->
       Some (compose dst (Meet_with (Axis.proj ax c)) (Proj (mid, ax)))
-    | Proj (mid, ax), Join_with c ->
-      Some (compose dst (Join_with (Axis.proj ax c)) (Proj (mid, ax)))
     | Proj (_, ax0), Max_with ax1 -> (
       match Axis.eq ax0 ax1 with None -> None | Some Refl -> Some Id)
     | Proj (_, ax0), Min_with ax1 -> (
@@ -1479,41 +1426,21 @@ module Lattices_mono = struct
       let dst0 = proj_obj Areality dst in
       Some (Map_comonadic (compose dst0 f g))
     | Regional_to_local, Local_to_regional -> Some Id
-    | Regional_to_local, Global_to_regional -> Some (Join_with Locality.Local)
+    | Regional_to_local, Global_to_regional -> Some (Imply Locality.Global)
     | Regional_to_local, Locality_as_regionality -> Some Id
     | Regional_to_local, Meet_with c ->
       Some (compose dst (Meet_with (regional_to_local c)) Regional_to_local)
-    | Regional_to_local, Join_with c ->
-      Some (compose dst (Join_with (regional_to_local c)) Regional_to_local)
-    | Regional_to_global, Join_with c ->
-      Some (compose dst (Join_with (regional_to_global c)) Regional_to_global)
     | Regional_to_global, Meet_with c ->
       Some (compose dst (Meet_with (regional_to_global c)) Regional_to_global)
     | Local_to_regional, Meet_with c ->
       Some (compose dst (Meet_with (local_to_regional c)) Local_to_regional)
-    | Local_to_regional, Join_with c ->
-      Some (compose dst (Join_with (local_to_regional c)) Local_to_regional)
     | Global_to_regional, Meet_with c ->
       Some (compose dst (Meet_with (global_to_regional c)) Global_to_regional)
-    | Global_to_regional, Join_with c ->
-      Some (compose dst (Join_with (global_to_regional c)) Global_to_regional)
     | Locality_as_regionality, Meet_with c ->
       Some
         (compose dst
            (Meet_with (locality_as_regionality c))
            Locality_as_regionality)
-    | Locality_as_regionality, Join_with c ->
-      Some
-        (compose dst
-           (Join_with (locality_as_regionality c))
-           Locality_as_regionality)
-    | Map_comonadic f, Join_with c ->
-      let dst0 = proj_obj Areality dst in
-      let areality = Axis.proj Areality c in
-      Some
-        (compose dst
-           (Join_with (set_areality (min dst0) c))
-           (Map_comonadic (compose dst0 f (Join_with areality))))
     | Map_comonadic f, Meet_with c ->
       let dst0 = proj_obj Areality dst in
       let areality = Axis.proj Areality c in
@@ -1528,13 +1455,6 @@ module Lattices_mono = struct
         (compose dst
            (Imply (set_areality (max dst0) c))
            (Map_comonadic (compose dst0 f (Imply areality))))
-    | Map_comonadic f, Subtract c ->
-      let dst0 = proj_obj Areality dst in
-      let areality = Axis.proj Areality c in
-      Some
-        (compose dst
-           (Subtract (set_areality (min dst0) c))
-           (Map_comonadic (compose dst0 f (Subtract areality))))
     | Regional_to_global, Locality_as_regionality -> Some Id
     | Regional_to_global, Local_to_regional -> Some (Meet_with Locality.Global)
     | Local_to_regional, Regional_to_local -> None
@@ -1548,12 +1468,8 @@ module Lattices_mono = struct
     | Max_with _, _ -> None
     | _, Meet_with _ -> None
     | Meet_with _, _ -> None
-    | _, Join_with _ -> None
-    | Join_with _, _ -> None
     | _, Imply _ -> None
     | Imply _, _ -> None
-    | _, Subtract _ -> None
-    | Subtract _, _ -> None
     | _, Proj _ -> None
     | Map_comonadic _, _ -> None
     | Monadic_to_comonadic_min, _ -> None
@@ -1592,7 +1508,6 @@ module Lattices_mono = struct
       let f' = left_adjoint dst f in
       let g' = left_adjoint mid g in
       Compose (g', f')
-    | Join_with c -> Subtract c
     | Meet_with _c ->
       (* The downward closure of [Meet_with c]'s image is all [x <= c].
          For those, [x <= meet c y] is equivalent to [x <= y]. *)
@@ -1623,11 +1538,6 @@ module Lattices_mono = struct
       let g' = right_adjoint mid g in
       Compose (g', f')
     | Meet_with c -> Imply c
-    | Subtract c -> Join_with c
-    | Join_with _c ->
-      (* The upward closure of [Join_with c]'s image is all [x >= c].
-         For those, [join c y <= x] is equivalent to [y <= x]. *)
-      Id
     | Comonadic_to_monadic _ -> Monadic_to_comonadic_max
     | Monadic_to_comonadic_min -> Comonadic_to_monadic dst
     | Local_to_regional -> Regional_to_local
@@ -1775,11 +1685,7 @@ module Comonadic_gen (Obj : Obj) = struct
 
   let meet_const c m = Solver.apply obj (Meet_with c) m
 
-  let join_const c m = Solver.apply obj (Join_with c) m
-
   let imply c m = Solver.apply obj (Imply c) (Solver.disallow_left m)
-
-  let subtract c m = Solver.apply obj (Subtract c) (Solver.disallow_right m)
 
   module Guts = struct
     let get_floor m = Solver.get_floor obj m
@@ -1855,11 +1761,7 @@ module Monadic_gen (Obj : Obj) = struct
 
   let of_const : type l r. const -> (l * r) t = fun a -> Solver.of_const obj a
 
-  let meet_const c m = Solver.apply Obj.obj (Join_with c) m
-
   let join_const c m = Solver.apply Obj.obj (Meet_with c) m
-
-  let imply c m = Solver.apply obj (Subtract c) (Solver.disallow_right m)
 
   let subtract c m = Solver.apply obj (Imply c) (Solver.disallow_left m)
 
@@ -2087,8 +1989,8 @@ module type Areality = sig
   val zap_to_legacy : (Const.t, allowed * 'r) Solver.mode -> Const.t
 end
 
-module BiHeyting_Product (L : BiHeyting) = struct
-  include L
+module Lattice_Product (L : Lattice) = struct
+  open L
 
   type 'a axis = (t, 'a) Axis.t
 
@@ -2119,7 +2021,8 @@ module Comonadic_with (Areality : Areality) = struct
   let proj_obj ax = C.proj_obj ax Obj.obj
 
   module Const = struct
-    include BiHeyting_Product (C.Comonadic_with (Areality.Const))
+    include C.Comonadic_with (Areality.Const)
+    include Lattice_Product (C.Comonadic_with (Areality.Const))
 
     let print_axis ax ppf a =
       let obj = proj_obj ax in
@@ -2146,8 +2049,6 @@ module Comonadic_with (Areality : Areality) = struct
 
   let max_with ax m =
     Solver.apply Obj.obj (Max_with ax) (Solver.disallow_left m)
-
-  let join_with ax c m = join_const (Const.min_with ax c) m
 
   let meet_with ax c m = meet_const (Const.max_with ax c) m
 
@@ -2244,7 +2145,8 @@ module Monadic = struct
   let proj_obj ax = C.proj_obj ax Obj.obj
 
   module Const = struct
-    include BiHeyting_Product (C.Monadic)
+    include C.Monadic
+    include Lattice_Product (C.Monadic)
 
     let print_axis ax ppf a =
       let obj = proj_obj ax in
@@ -2275,8 +2177,6 @@ module Monadic = struct
     Solver.apply Obj.obj (Max_with ax) (Solver.disallow_left m)
 
   let join_with ax c m = join_const (Const.min_with ax c) m
-
-  let meet_with ax c m = meet_const (Const.max_with ax c) m
 
   let zap_to_legacy m : Const.t =
     let uniqueness = proj Uniqueness m |> Uniqueness.zap_to_legacy in
@@ -2785,37 +2685,13 @@ module Value_with (Areality : Areality) = struct
     | Monadic ax -> min_with_monadic ax m
     | Comonadic ax -> min_with_comonadic ax m
 
-  let join_with_monadic ax c { monadic; comonadic } =
+  let join_with ax c { monadic; comonadic } =
     let monadic = Monadic.join_with ax c monadic in
     { monadic; comonadic }
 
-  let join_with_comonadic ax c { monadic; comonadic } =
-    let comonadic = Comonadic.join_with ax c comonadic in
-    { comonadic; monadic }
-
-  let join_with :
-      type a l0 l1 r0 r1.
-      (a, l0 * r0, l1 * r1) Axis.t -> a -> (l0 * r0) t -> (l0 * r0) t =
-   fun ax c m ->
-    match ax with
-    | Monadic ax -> join_with_monadic ax c m
-    | Comonadic ax -> join_with_comonadic ax c m
-
-  let meet_with_monadic ax c { monadic; comonadic } =
-    let monadic = Monadic.meet_with ax c monadic in
-    { monadic; comonadic }
-
-  let meet_with_comonadic ax c { monadic; comonadic } =
+  let meet_with ax c { monadic; comonadic } =
     let comonadic = Comonadic.meet_with ax c comonadic in
     { comonadic; monadic }
-
-  let meet_with :
-      type a l0 r0 l1 r1.
-      (a, l0 * r0, l1 * r1) Axis.t -> a -> (l0 * r0) t -> (l0 * r0) t =
-   fun ax c m ->
-    match ax with
-    | Monadic ax -> meet_with_monadic ax c m
-    | Comonadic ax -> meet_with_comonadic ax c m
 
   let join l =
     let como, mo =
@@ -2846,27 +2722,11 @@ module Value_with (Areality : Areality) = struct
     S.apply Comonadic.Obj.obj Monadic_to_comonadic_min (Monadic.disallow_left m)
 
   let meet_const c { comonadic; monadic } =
-    let c = split c in
-    let comonadic = Comonadic.meet_const c.comonadic comonadic in
-    let monadic = Monadic.meet_const c.monadic monadic in
+    let comonadic = Comonadic.meet_const c comonadic in
     { monadic; comonadic }
 
   let join_const c { comonadic; monadic } =
-    let c = split c in
-    let comonadic = Comonadic.join_const c.comonadic comonadic in
-    let monadic = Monadic.join_const c.monadic monadic in
-    { monadic; comonadic }
-
-  let imply c { comonadic; monadic } =
-    let c = split c in
-    let comonadic = Comonadic.imply c.comonadic comonadic in
-    let monadic = Monadic.imply c.monadic monadic in
-    { monadic; comonadic }
-
-  let subtract c { comonadic; monadic } =
-    let c = split c in
-    let comonadic = Comonadic.subtract c.comonadic comonadic in
-    let monadic = Monadic.subtract c.monadic monadic in
+    let monadic = Monadic.join_const c monadic in
     { monadic; comonadic }
 
   let zap_to_ceil { comonadic; monadic } =
@@ -3020,6 +2880,62 @@ module Modality = struct
     | Atom (ax, Meet_with c) ->
       Format.fprintf ppf "meet_with(%a)" (C.print (Value.proj_obj ax)) c
 
+  (* Inferred modalities
+
+      Similar to constant modalities, an inferred modality maps the mode of a
+      record/structure to the mode of a value therein. An inferred modality [f]
+      is inferred from the structure/record mode [mm] and the value mode [m]. It
+      will only be applied on some [x >= mm]: That is, it will only be applied
+      on the original module.
+
+      It should satisfy the following conditions:
+
+      Zapping: [f] should be of the form [join_c] for monadic axes, or [meet_c]
+      for comonadic axes.
+
+      Soundness: You should not get a value from a record/structure at a mode
+      strictly stronger than how it was put in. That is, for any [x >= mm], [f x
+      >= m].
+
+      Completeness: Ideally we also want [f mm <= m].
+
+      Monadic axes
+
+      Soundness condition says [join_c x >= m] for any [x >= mm]. Equivalently,
+      [join_c mm >= m]. By adjunction, [c >= subtract_mm m]. We take the lower
+      bound [c := subtract_mm m]. Note that this is equivalent to taking [c := m
+      >= subtract_mm m]. Proof:
+
+      - [join_m x >= join_(subtract_mm m) x] is trivial since [m >= subtract_mm
+        m].
+      - [join_m x <= join_(subtract_mm m) x], or equivalently [m <=
+      join_(subtract_mm m) x], or equivalently [subtract_x m <= subtract_mm m],
+      which is trivial since [x >= mm].
+
+      Taking [c := subtract_mm m] is better for zapping since it's lower and
+      thus closer to identity modality. Taking [c := m] is easier for [apply]
+      and [sub].
+
+      Comonadic axes
+
+      Soundness condition says [meet_c x >= m] for any [x >= mm]. Equivalently,
+      [meet_c mm >= m]. By def. of [meet], we have both [c >= m] and [mm >= m].
+      The latter is guaranteed by the user of [infer]. We guarantee the former
+      by taking [c := imply_mm m >= m]. One might worry that this is too relaxed
+      and will be "less complete" than taking [c := m]; however, note that
+      [imply_mm m <= imply_mm m] and thus by adjunction [meet_(imply_mm m) mm <=
+      m], which means the chosen [c] is complete.
+
+      Taking [c := m] is easier for [apply] and [sub]. Taking [c := imply_mm m]
+      is better for zapping since it's higher and thus closer to identity
+      modality. However, note that we DON'T have [meet_m x = meet_(imply_mm m)
+      x], which means [apply/sub] and [zap] might behave in a confusing (albeit
+      sound) manner.
+
+      CR zqian: once we support binary mode solver, [c := imply_mm m] will be
+      used uniformly by [apply] [sub] and [zap].
+  *)
+
   module Monadic = struct
     module Mode = Value.Monadic
 
@@ -3066,20 +2982,9 @@ module Modality = struct
         | Join_const c -> Format.fprintf ppf "join_const(%a)" Mode.Const.print c
     end
 
-    (* Similar to constant modalities, an inferred modality maps the mode of a
-       record/structure to the mode of a value therein. An inferred modality [f] is
-       inferred from the structure/record mode [mm] and the value mode [m].
-
-       Soundness: You should not get a value from a record/structure at a mode strictly
-       stronger than how it was put in. That is, [f mm >= m].
-
-       Completeness: You should be able to get a value from a record/structure at a mode
-       not strictly weaker than how it was put in. That is, [f mm <= m]. *)
-
     type t =
       | Const of Const.t
-      | Diff of Mode.lr * Mode.lr
-          (** inferred modality. See [apply] for its behavior. *)
+      | Diff of Mode.lr * Mode.lr  (** See "Inferred modalities" comments *)
       | Undefined
 
     let sub_log left right ~log : (unit, error) Result.t =
@@ -3212,17 +3117,19 @@ module Modality = struct
     type t =
       | Const of Const.t
       | Undefined
-      | Exactly of Mode.lr * Mode.lr
-          (** inferred modality. See [apply] for its behavior. *)
+      | Exactly of Mode.lr * Mode.lr  (** See "Inferred modalities" comments *)
 
     let sub_log left right ~log : (unit, error) Result.t =
       match left, right with
       | Const c0, Const c1 -> Const.sub c0 c1
       | Exactly (_mm, m), Const (Meet_const c) -> (
-        (* Check for all x >= mm, m <= meet x c. Equivalent to check [m <= meet
-           mm c]. By definition of meet, equivalent to check [m <= mm] and [m <=
-           c]. The former is the precondition of [Exactly]. So we only check the
-           latter. *)
+        (* Check for all [x >= mm], [meet_(imply_mm m) x <= meet_c x], or
+           equivalently [meet_(imply_mm m) x <= c], or equivalently [meet_(imply_mm
+           m) max <= c], or equivalently [imply_mm m <= c]. We can't check this
+           without binary mode solver.
+
+           So instead we check [meet_m x <= meet_c x] (See "Inferred modalities"
+           comments), which amounts to [m <= c]. *)
         match Mode.submode_log m (Mode.of_const c) ~log with
         | Ok () -> Ok ()
         | Error (Error (ax, { left; _ })) ->
@@ -3251,7 +3158,12 @@ module Modality = struct
       | Const c -> Const.apply c x |> Mode.disallow_right
       | Undefined ->
         Misc.fatal_error "modality Undefined should not be applied."
-      | Exactly (_mm, m) -> Mode.disallow_right m
+      | Exactly (_mm, m) ->
+        (* Ideally want to return [meet_(imply_mm m) x], which we can't do
+           without binary mode solver, so instead we return [meet_m x] (See
+           "Inferred modalities" comments), which because of [x >= mm >= m] is
+           equal to [m]. *)
+        Mode.disallow_right m
 
     let print ppf = function
       | Const c -> Const.print ppf c
@@ -3493,14 +3405,6 @@ module Crossing = struct
     let top : t = Join_const Mode.Const.min
 
     let bot : t = Join_const Mode.Const.max
-
-    let join (t0 : t) (t1 : t) : t =
-      match t0, t1 with
-      | Join_const c0, Join_const c1 -> Join_const (Mode.Const.meet c0 c1)
-
-    let meet (t0 : t) (t1 : t) : t =
-      match t0, t1 with
-      | Join_const c0, Join_const c1 -> Join_const (Mode.Const.join c0 c1)
   end
 
   module Comonadic = struct
@@ -3530,14 +3434,6 @@ module Crossing = struct
     let top : t = Meet_const Mode.Const.max
 
     let bot : t = Meet_const Mode.Const.min
-
-    let join (t0 : t) (t1 : t) : t =
-      match t0, t1 with
-      | Meet_const c0, Meet_const c1 -> Meet_const (Mode.Const.join c0 c1)
-
-    let meet (t0 : t) (t1 : t) : t =
-      match t0, t1 with
-      | Meet_const c0, Meet_const c1 -> Meet_const (Mode.Const.meet c0 c1)
   end
 
   type t = (Monadic.t, Comonadic.t) monadic_comonadic
@@ -3597,16 +3493,6 @@ module Crossing = struct
   let top = { monadic = Monadic.top; comonadic = Comonadic.top }
 
   let bot = { monadic = Monadic.bot; comonadic = Comonadic.bot }
-
-  let join t0 t1 =
-    { monadic = Monadic.join t0.monadic t1.monadic;
-      comonadic = Comonadic.join t0.comonadic t1.comonadic
-    }
-
-  let meet t0 t1 =
-    { monadic = Monadic.meet t0.monadic t1.monadic;
-      comonadic = Comonadic.meet t0.comonadic t1.comonadic
-    }
 
   let print ppf t =
     let print_atom ppf = function

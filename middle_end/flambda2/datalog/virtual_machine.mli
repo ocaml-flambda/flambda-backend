@@ -22,7 +22,11 @@ type outcome =
       (** Skip the currently selected binding, advancing to the next binding at
           the same level. *)
 
-module Make (Iterator : Leapfrog.Iterator) : sig
+module Make (Iterator : sig
+  include Leapfrog.Iterator
+
+  include Heterogenous_list.S with type 'a t := 'a t
+end) : sig
   (** Implementation of a virtual machine for iterating over a nested sequence
       of iterators.
 

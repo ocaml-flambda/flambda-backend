@@ -66,7 +66,7 @@ uintnat caml_init_main_stack_wsz = 0;   /* -Xmain_stack_size= */
 uintnat caml_init_thread_stack_wsz = 0; /* -Xthread_stack_size= */
 uintnat caml_init_fiber_stack_wsz = 0;  /* -Xfiber_stack_size= */
 
-uintnat caml_nohugepage_stacks = 0;
+uintnat caml_nohugepage_stacks = 1;
 
 uintnat caml_get_init_stack_wsize (int context)
 {
