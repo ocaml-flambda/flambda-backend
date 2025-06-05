@@ -919,11 +919,13 @@ let check_pers_struct ~allow_hidden penv f ~loc name =
         | Imported_module_has_unset_parameter { imported; parameter } ->
             Format.asprintf "%a requires argument for %a"
               (Style.as_inline_code Global_module.Name.print) imported
-              (Style.as_inline_code Global_module.Parameter_name.print) parameter
+              (Style.as_inline_code Global_module.Parameter_name.print)
+              parameter
         | Imported_module_has_no_such_parameter { imported; parameter; _ } ->
             Format.asprintf "%a has no parameter %a"
               (Style.as_inline_code CU.Name.print) imported
-              (Style.as_inline_code Global_module.Parameter_name.print) parameter
+              (Style.as_inline_code Global_module.Parameter_name.print)
+              parameter
         | Not_compiled_as_argument { value; _ } ->
             Format.asprintf "%a is not compiled as an argument"
               (Style.as_inline_code Global_module.Name.print) value

@@ -735,12 +735,14 @@ let rank_machtype_component : machtype_component -> int = function
   | Valx2 -> 8
 
 let compare_machtype_component
-    ((Val | Addr | Int | Float | Vec128 | Vec256 | Vec512 | Float32 | Valx2) as left :
+    ((Val | Addr | Int | Float | Vec128 | Vec256 | Vec512 | Float32 | Valx2) as
+     left :
       machtype_component) (right : machtype_component) =
   rank_machtype_component left - rank_machtype_component right
 
 let equal_machtype_component
-    ((Val | Addr | Int | Float | Vec128 | Vec256 | Vec512 | Float32 | Valx2) as left :
+    ((Val | Addr | Int | Float | Vec128 | Vec256 | Vec512 | Float32 | Valx2) as
+     left :
       machtype_component) (right : machtype_component) =
   rank_machtype_component left = rank_machtype_component right
 
