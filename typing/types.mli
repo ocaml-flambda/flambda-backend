@@ -32,6 +32,9 @@ type mutability =
   | Mutable of Mode.Alloc.Comonadic.Const.t
   (** The upper bound of the new field value upon mutation. *)
 
+(** [mutability] for mutable variables ... CR jrayman *)
+val mutability_for_mutvar : Mode.Alloc.Comonadic.Const.t
+
 (** Returns [true] is the [mutable_flag] is mutable. Should be called if not
     interested in the payload of [Mutable]. *)
 val is_mutable : mutability -> bool
@@ -649,7 +652,7 @@ module Vars  : Map.S with type key = string
 
 type value_kind =
     Val_reg                             (* Regular value *)
-  | Val_mut of Mode.Value.r * Jkind_types.Sort.t
+  | Val_mut of Jkind_types.Sort.t
   (** Mutable value, declared as [let mutable(m0) x = ..]. The mode returned
       here is [m0] adjusted for regions, suitable to be used as the expected
       mode of the new content.
@@ -657,6 +660,8 @@ type value_kind =
       Currently, the syntax is not supported and [m0] is fixed to be [local,
       legacy]. After adjusting for regions, the mode here could be [global,
       legacy].
+
+      CR jrayman: update comment
   *)
   | Val_prim of Primitive.description   (* Primitive *)
   | Val_ivar of mutable_flag * string   (* Instance variable (mutable ?) *)

@@ -22,6 +22,11 @@ type mutability =
   | Immutable
   | Mutable of Mode.Alloc.Comonadic.Const.t
 
+let mutability_for_mutvar =
+  { Mode.Alloc.Comonadic.Const.legacy with
+    areality = Mode.Locality.Const.max;
+    yielding = Mode.Yielding.Const.max }
+
 let is_mutable = function
   | Immutable -> false
   | Mutable _ -> true
@@ -474,7 +479,8 @@ module Vars = Misc.Stdlib.String.Map
 
 type value_kind =
     Val_reg                             (* Regular value *)
-  | Val_mut of Mode.Value.r * Jkind_types.Sort.t
+  | Val_mut of Jkind_types.Sort.t
+                                        (* Mutable value *)
   | Val_prim of Primitive.description   (* Primitive *)
   | Val_ivar of mutable_flag * string   (* Instance variable (mutable ?) *)
   | Val_self of
