@@ -444,6 +444,8 @@ let simple simple =
 let static_consts _ = 0
 
 let apply apply =
+  List.length (Apply_expr.args apply)
+  +
   match Apply_expr.call_kind apply with
   | Function { function_call = Direct _; _ } -> direct_call_size
   (* CR mshinwell: Check / fix these numbers *)
@@ -473,7 +475,61 @@ let apply_cont apply_cont =
 
 let invalid = 0
 
-let switch switch = 0 + (5 * Switch_expr.num_arms switch)
+(* Note about switch sizes:
+
+   - the Switch.Make functor used in the backend is able to share common arms,
+   and significantly reduce the size. For now, we cannot correctly estimate how
+   much this can optimize switch compilation.
+
+   - if the switch is an affine computation, it is optimized in cmm_helpers into
+   a much simpler code whose size does not depend on the number of cases.
+
+   This will overestimate the size for switch triggering those kind of
+   optimisation.*)
+(* CR gbury: Consider instantiating the Switch.Make functor to get a correct
+   estimation of the number of instructions needed to compile a switch
+   (including branch sharing, etc...). *)
+let switch switch =
+  if Switch_expr.num_arms switch = 2
+  then 2 (* cmp + jump *)
+  else
+    let size =
+      Targetint_31_63.Map.fold
+        (fun _ arm size ->
+          let arm_size = 1 (* cmp *) + apply_cont arm (* jump *) in
+          (* in a switch an argument usually needs a mov *)
+          let movs = List.length (Apply_cont_expr.args arm) in
+          size + arm_size + movs)
+        (Switch_expr.arms switch) 0
+    in
+    let all_branches_return_a_value =
+      let arms = Switch_expr.arms switch in
+      let _, arm = Targetint_31_63.Map.choose arms in
+      let some_continuation = Apply_cont_expr.continuation arm in
+      Targetint_31_63.Map.for_all
+        (fun _ arm ->
+          match Apply_cont_expr.trap_action arm with
+          | Some _ -> false
+          | None -> (
+            (* All branches need to return to the same continuation for the
+               switch to load transformation to happen *)
+            Continuation.equal
+              (Apply_cont_expr.continuation arm)
+              some_continuation
+            &&
+            match Apply_cont_expr.args arm with
+            | [ret] -> Simple.is_const ret
+            | _ -> false))
+        arms
+    in
+    if all_branches_return_a_value
+    then
+      (* the backend will either generate a load into a const table, or the
+         application of an affine function on the scrutinee. *)
+      3 + (1 * Switch_expr.num_arms switch)
+      (* scrutinee shift + addressing into const table + load + one quad per
+         branch OR shift/multiplication + addition *)
+    else size
 
 let [@ocamlformat "disable"] print ppf t = Format.fprintf ppf "%d" t
 
