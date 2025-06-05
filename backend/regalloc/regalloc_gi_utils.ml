@@ -265,7 +265,7 @@ module Interval = struct
   let add_ranges : t -> from:t -> unit =
    fun t ~from ->
     t.begin_ <- Int.min t.begin_ from.begin_;
-    t.end_ <- Int.min t.end_ from.end_;
+    t.end_ <- Int.max t.end_ from.end_;
     t.ranges <- Range.merge t.ranges from.ranges
 end
 
