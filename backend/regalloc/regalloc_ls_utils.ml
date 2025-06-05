@@ -151,19 +151,9 @@ module Interval = struct
     && Int.equal left.end_ right.end_
     && DLL.equal Range.equal left.ranges right.ranges
 
-  let compare_asc_begin left right =
-    match Int.compare left.begin_ right.begin_ with
-    | 0 ->
-      (* note: not necessary, used to enforce a unique order *)
-      Reg.compare left.reg right.reg
-    | c -> c
+  let compare_asc_begin left right = left.begin_ - right.begin_
 
-  let compare_desc_end left right =
-    match Int.compare right.end_ left.end_ with
-    | 0 ->
-      (* note: not necessary, used to enforce a unique order *)
-      Reg.compare right.reg left.reg
-    | c -> c
+  let compare_desc_end left right = right.end_ - left.end_
 
   let copy t =
     { reg = t.reg;
