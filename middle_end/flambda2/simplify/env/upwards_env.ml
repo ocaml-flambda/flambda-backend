@@ -86,6 +86,9 @@ let add_non_inlinable_continuation t cont ~params ~handler =
 let add_invalid_continuation t cont arity =
   add_continuation0 t cont (Invalid { arity })
 
+let continuation_arity t cont =
+  find_continuation t cont |> Continuation_in_env.arity
+
 let add_continuation_shortcut t cont ~params ~shortcut_to ~args =
   if Continuation.Map.mem shortcut_to t.continuation_shortcuts
   then
@@ -101,10 +104,25 @@ let add_continuation_shortcut t cont ~params ~shortcut_to ~args =
       Continuation.print cont Continuation.print shortcut_to Continuation.print
       (Continuation_shortcut.continuation existing_shortcut)
   | exception Not_found ->
+    let shortcut = Continuation_shortcut.create ~params shortcut_to args in
+    (* For now we keep the pre-existing check for aliases, but ideally we should
+       check that the arities match after applying the substitution. However it
+       seems like we should have a more general mechanism for checking arities
+       when applying continuations that's independent of shortcuts. *)
+    (match Continuation_shortcut.to_alias shortcut with
+    | Some alias_for ->
+      let arity = Bound_parameters.arity params in
+      let alias_for_arity = continuation_arity t alias_for in
+      if not (Flambda_arity.equal_ignoring_subkinds arity alias_for_arity)
+      then
+        Misc.fatal_errorf
+          "%a (arity %a) cannot be an alias for %a (arity %a) since the two \
+           continuations differ in arity"
+          Continuation.print cont Flambda_arity.print arity Continuation.print
+          alias_for Flambda_arity.print alias_for_arity
+    | None -> ());
     let continuation_shortcuts =
-      Continuation.Map.add cont
-        (Continuation_shortcut.create ~params shortcut_to args)
-        t.continuation_shortcuts
+      Continuation.Map.add cont shortcut t.continuation_shortcuts
     in
     { t with continuation_shortcuts }
 
