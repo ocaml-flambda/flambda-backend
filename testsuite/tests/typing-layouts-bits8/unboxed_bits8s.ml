@@ -266,7 +266,7 @@ let test3 () =
       3 * (1 + 2 + 3 + 5 + 8) = 57
       6 * (1 + 2 + 3 + 5 + 8) = 114
       9 * (1 + 2 + 3 + 5 + 8) = 171
-      12 * (1 + 2 + 3 + 5 + 8) = 228
+      12 * (1 + 2 + 3 + 5 + 8) = -28 (mod 255, interpreted as signed)
   *)
   let steps = Array.init 10 (fun _ -> (Stdlib_beta.Int8.of_int 0)) in
   let x1 = (Stdlib_beta.Int8_u.of_int 1) in
@@ -282,7 +282,7 @@ let test3 () =
   let x8 = (-2, 22) in
 
   let f3_manyargs = f3_manyargs (4,8) x1 x2 x3 x4 x5 x6 x7 x8 x9 steps in
-  print_int8u "Test 3, 228: " (f3_manyargs ());
+  print_int8u "Test 3, -28: " (f3_manyargs ());
   Array.iteri (Printf.printf "  Test 3, step %d: %d\n") (Array.map Int8.to_int steps)
 
 let _ = test3 ()
@@ -390,10 +390,10 @@ let test6 () =
   print_int8u "Test 6, 3"
     (o#f6_m1 (Stdlib_beta.Int8_u.of_int 30) (Stdlib_beta.Int8_u.of_int 20) (Stdlib_beta.Int8_u.of_int 3));
 
-  (* 4 * 8 = 8 *)
+  (* 4 * 8 = 32 *)
   let o = (Sys.opaque_identity f6_2) (4,7) in
   let result = o#f6_m2 8 (Stdlib_beta.Int8_u.of_int 4) (fun x -> x * (Stdlib_beta.Int8_u.of_int 2)) in
-  print_int8u "Test 6, 8" result;
+  print_int8u "Test 6, 32" result;
 
   (* (1 + 2 + 3 + (-2) + (-12) + 4) * (2 + (-1) + 10) = -44 *)
   let o = (Sys.opaque_identity f6_3) (1,2) 3 in

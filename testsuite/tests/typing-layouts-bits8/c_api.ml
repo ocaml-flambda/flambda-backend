@@ -51,12 +51,12 @@ let () =
   print_int8 "int8# -> int8, ~255" f
 
 let () =
-  let f = lognot_BUtoU (Stdlib_beta.Int8.of_int 1024) in
-  print_int8u "(int8[@unboxed]) -> int8#, ~1024" f
+  let f = lognot_BUtoU (Stdlib_beta.Int8.of_int 28) in
+  print_int8u "(int8[@unboxed]) -> int8#, ~28" f
 
 let () =
-  let f = lognot_UtoBU ((Stdlib_beta.Int8_u.of_int (-1726))) in
-  print_int8 "int8# -> (int8[@unboxed]), ~(-1726)" f
+  let f = lognot_UtoBU ((Stdlib_beta.Int8_u.of_int (-26))) in
+  print_int8 "int8# -> (int8[@unboxed]), ~(-26)" f
 
 (* If there are more than 5 args, you get an array in bytecode *)
 external sum_7 :

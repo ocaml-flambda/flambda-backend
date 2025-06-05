@@ -257,7 +257,7 @@ and compute_extra_args_for_one_decision_and_use_aux ~(pass : U.pass) rewrite_id
     compute_extra_arg_for_number Naked_float Unboxers.Float.unboxer epa
       rewrite_id ~typing_env_at_use arg_being_unboxed
   | Unbox (Number ((Naked_int8 | Naked_int16), _epa)) ->
-    U.Do_not_unbox U.Not_enough_information_at_use
+    U.Do_not_unbox U.Not_beneficial
   | Unbox (Number (Naked_int32, epa)) ->
     compute_extra_arg_for_number Naked_int32 Unboxers.Int32.unboxer epa
       rewrite_id ~typing_env_at_use arg_being_unboxed

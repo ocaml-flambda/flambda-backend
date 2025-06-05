@@ -389,10 +389,10 @@ let test6 () =
   print_int16u "Test 6, 3"
     (o#f6_m1 (Stdlib_beta.Int16_u.of_int 30) (Stdlib_beta.Int16_u.of_int 20) (Stdlib_beta.Int16_u.of_int 3));
 
-  (* 4 * 8 = 16 *)
+  (* 4 * 8 = 32 *)
   let o = (Sys.opaque_identity f6_2) (4,7) in
   let result = o#f6_m2 8 (Stdlib_beta.Int16_u.of_int 4) (fun x -> x * (Stdlib_beta.Int16_u.of_int 2)) in
-  print_int16u "Test 6, 16" result;
+  print_int16u "Test 6, 32" result;
 
   (* (1 + 2 + 3 + (-2) + (-12) + 4) * (2 + (-1) + 10) = -44 *)
   let o = (Sys.opaque_identity f6_3) (1,2) 3 in
