@@ -47,23 +47,22 @@ module WorkList = struct
     | Colored
     | Select_stack
 
-  let equal left right =
-    match left, right with
-    | Unknown_list, Unknown_list
-    | Precolored, Precolored
-    | Initial, Initial
-    | Simplify, Simplify
-    | Freeze, Freeze
-    | Spill, Spill
-    | Spilled, Spilled
-    | Coalesced, Coalesced
-    | Colored, Colored
-    | Select_stack, Select_stack ->
-      true
-    | ( ( Unknown_list | Precolored | Initial | Simplify | Freeze | Spill
-        | Spilled | Coalesced | Colored | Select_stack ),
-        _ ) ->
-      false
+  let rank = function
+    | Unknown_list -> 0
+    | Precolored -> 1
+    | Initial -> 2
+    | Simplify -> 3
+    | Freeze -> 4
+    | Spill -> 5
+    | Spilled -> 6
+    | Coalesced -> 7
+    | Colored -> 8
+    | Select_stack -> 9
+
+  let equal
+      (( Unknown_list | Precolored | Initial | Simplify | Freeze | Spill
+       | Spilled | Coalesced | Colored | Select_stack ) as left) right =
+    rank left = rank right
 
   let to_string = function
     | Unknown_list -> "unknown_list"
