@@ -69,15 +69,18 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
   type elem = OT.t
 
   type node =
-    { data : elem;
-      prev : pillar;
-      next : pillar
-    }
+    | Empty
+    | Node of
+        { data : elem;
+          prev : pillar;
+          next : pillar
+        }
 
-  and pillar = node option array
+  and pillar = node array
 
-  (* CR-soon xclerc for xclerc: consider avoiding the `option` like we do in
-     `Doubly_linked_list`. *)
+  let[@inline] is_node : node -> bool =
+   fun node -> match node with Empty -> false | Node _ -> true
+
   type t =
     { max_skip_level : int;
       skip_factor : float;
@@ -85,60 +88,79 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
     }
 
   type cell =
-    { node : node;
+    { node : node; (* invariant: this node is not empty *)
       t : t
     }
 
-  let value : cell -> 'a = fun cell -> cell.node.data
+  let value : cell -> 'a =
+   fun cell ->
+    match cell.node with
+    | Empty -> assert false (* invariant: this node is not empty *)
+    | Node { data; prev = _; next = _ } -> data
 
   let next : cell -> cell option =
    fun cell ->
-    match Array.unsafe_get cell.node.next 0 with
-    | None -> None
-    | Some node -> Some { cell with node }
+    match cell.node with
+    | Empty -> assert false (* invariant: this node is not empty *)
+    | Node { data = _; prev = _; next } -> (
+      match Array.unsafe_get next 0 with
+      | Empty -> None
+      | Node _ as node -> Some { cell with node })
 
-  let cut : cell -> unit =
-   fun cell ->
-    match Array.unsafe_get cell.node.prev 0 with
-    | None ->
-      for level = 0 to pred (Array.length cell.t.head) do
-        Array.unsafe_set cell.t.head level None
-      done
-    | Some node ->
-      let curr_node : node ref = ref node in
-      let curr_pillar : pillar ref = ref node.next in
-      for level = 0 to cell.t.max_skip_level do
-        while level >= Array.length !curr_pillar do
-          match Array.unsafe_get !curr_node.prev 0 with
-          | None -> curr_pillar := cell.t.head
-          | Some prev_node ->
-            curr_node := prev_node;
-            curr_pillar := prev_node.next
-        done;
-        Array.unsafe_set !curr_pillar level None
+  let cut_node : t -> node -> unit =
+   fun t node ->
+    match node with
+    | Empty -> assert false (* invariant: this node is not empty *)
+    | Node { data = _; prev = node_prev; next = _ } -> (
+      match Array.unsafe_get node_prev 0 with
+      | Empty ->
+        for level = 0 to pred (Array.length t.head) do
+          Array.unsafe_set t.head level Empty
+        done
+      | Node { data = _; prev = node_prev; next = node_next } as node ->
+        let curr_node : node ref = ref node in
+        let curr_node_prev : pillar ref = ref node_prev in
+        let curr_pillar : pillar ref = ref node_next in
+        for level = 0 to t.max_skip_level do
+          while level >= Array.length !curr_pillar do
+            match Array.unsafe_get !curr_node_prev 0 with
+            | Empty -> curr_pillar := t.head
+            | Node { data = _; prev = prev_node_prev; next = prev_node_next } as
+              prev_node ->
+              curr_node := prev_node;
+              curr_node_prev := prev_node_prev;
+              curr_pillar := prev_node_next
+          done;
+          Array.unsafe_set !curr_pillar level Empty
+        done)
+
+  let cut : cell -> unit = fun cell -> cut_node cell.t cell.node
+
+  let delete_node : t -> node -> unit =
+   fun t node ->
+    match node with
+    | Empty -> assert false (* invariant: this node is not empty *)
+    | Node { data = _; prev = node_prev; next = node_next } ->
+      for level = 0 to pred (Array.length node_prev) do
+        match Array.unsafe_get node_prev level with
+        | Empty ->
+          Array.unsafe_set t.head level (Array.unsafe_get node_next level)
+        | Node { data = _; prev = _; next = prev_next } ->
+          Array.unsafe_set prev_next level (Array.unsafe_get node_next level)
+      done;
+      let level = ref 0 in
+      while
+        !level < Array.length node_next
+        && is_node (Array.unsafe_get node_next !level)
+      do
+        match Array.unsafe_get node_next !level with
+        | Empty -> assert false
+        | Node { data = _; prev = next_prev; next = _ } ->
+          Array.unsafe_set next_prev !level (Array.unsafe_get node_prev !level);
+          incr level
       done
 
-  let delete_curr : cell -> unit =
-   fun cell ->
-    let node = cell.node in
-    for level = 0 to pred (Array.length node.prev) do
-      match Array.unsafe_get node.prev level with
-      | None ->
-        Array.unsafe_set cell.t.head level (Array.unsafe_get node.next level)
-      | Some prev ->
-        Array.unsafe_set prev.next level (Array.unsafe_get node.next level)
-    done;
-    let level = ref 0 in
-    while
-      !level < Array.length node.next
-      && Option.is_some (Array.unsafe_get node.next !level)
-    do
-      match Array.unsafe_get node.next !level with
-      | None -> assert false
-      | Some next ->
-        Array.unsafe_set next.prev !level (Array.unsafe_get node.prev !level);
-        incr level
-    done
+  let delete_curr : cell -> unit = fun cell -> delete_node cell.t cell.node
 
   let random_level : t -> int =
    fun t ->
@@ -158,89 +180,91 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
     assert (skip_factor >= 0. && skip_factor <= 1.);
     Lazy.force init_random;
     let max_skip_level = 3 in
-    let head = Array.make (succ max_skip_level) None in
-    { max_skip_level; skip_factor; head : node option array }
+    let head = Array.make (succ max_skip_level) Empty in
+    { max_skip_level; skip_factor; head }
 
   let length : t -> int =
-    let rec aux (node : node option) acc =
+    let rec aux (node : node) acc =
       match node with
-      | None -> acc
-      | Some node -> aux (Array.unsafe_get node.next 0) (succ acc)
+      | Empty -> acc
+      | Node { data = _; prev = _; next } ->
+        aux (Array.unsafe_get next 0) (succ acc)
     in
     fun t -> aux (Array.unsafe_get t.head 0) 0
 
   let clear : t -> unit =
    fun t ->
     for level = 0 to pred (Array.length t.head) do
-      Array.unsafe_set t.head level None
+      Array.unsafe_set t.head level Empty
     done
 
   let[@inline] hd_cell : t -> cell option =
    fun t ->
     match Array.unsafe_get t.head 0 with
-    | None -> None
-    | Some node -> Some { node; t }
+    | Empty -> None
+    | Node _ as node -> Some { node; t }
 
-  let[@inline] should_advance (i : int) (node : node option array)
-      (value : elem) : bool =
+  let[@inline] should_advance (i : int) (node : node array) (value : elem) :
+      bool =
     match Array.unsafe_get node i with
-    | None -> false
-    | Some (node : node) -> OT.compare node.data value < 0
+    | Empty -> false
+    | Node { data; prev = _; next = _ } -> OT.compare data value < 0
 
   let insert : t -> elem -> unit =
    fun t elem ->
-    let prev_nodes : node option array =
+    let prev_nodes : node array =
       (* previous node for each level *)
-      Array.make (succ t.max_skip_level) None
+      Array.make (succ t.max_skip_level) Empty
     in
     let update : pillar array =
       (* pillar to update for each level *)
       Array.make (succ t.max_skip_level) t.head
     in
     let curr : pillar ref = ref t.head in
-    let prev : node option ref = ref None in
+    let prev : node ref = ref Empty in
     for i = t.max_skip_level downto 0 do
       while should_advance i !curr elem do
         match Array.unsafe_get !curr i with
-        | None -> assert false
-        | Some node as res ->
+        | Empty -> assert false
+        | Node { data = _; prev = _; next } as res ->
           prev := res;
-          curr := node.next
+          curr := next
       done;
       Array.unsafe_set update i !curr;
       Array.unsafe_set prev_nodes i !prev
     done;
     let level = random_level t in
-    let prev : node option array = Array.make (succ level) None in
-    let next : node option array = Array.make (succ level) None in
+    let prev : node array = Array.make (succ level) Empty in
+    let next : node array = Array.make (succ level) Empty in
     for i = 0 to level do
       Array.unsafe_set prev i (Array.unsafe_get prev_nodes i);
       Array.unsafe_set next i (Array.unsafe_get (Array.unsafe_get update i) i)
     done;
-    let node = { data = elem; prev; next } in
+    let node = Node { data = elem; prev; next } in
     for i = 0 to level do
       (match Array.unsafe_get (Array.unsafe_get update i) i with
-      | None -> ()
-      | Some n -> Array.unsafe_set n.prev i (Some node));
-      Array.unsafe_set (Array.unsafe_get update i) i (Some node)
+      | Empty -> ()
+      | Node { data = _; prev; next = _ } -> Array.unsafe_set prev i node);
+      Array.unsafe_set (Array.unsafe_get update i) i node
     done;
     ()
 
   let iter : t -> f:(elem -> unit) -> unit =
-    let rec aux (node : node option) f =
+    let rec aux (node : node) f =
       match node with
-      | None -> ()
-      | Some node ->
-        f node.data;
-        aux (Array.unsafe_get node.next 0) f
+      | Empty -> ()
+      | Node { data; prev = _; next } ->
+        f data;
+        aux (Array.unsafe_get next 0) f
     in
     fun t ~f -> aux (Array.unsafe_get t.head 0) f
 
   let fold_left : t -> f:('a -> elem -> 'a) -> init:'a -> 'a =
-    let rec aux (node : node option) f acc =
+    let rec aux (node : node) f acc =
       match node with
-      | None -> acc
-      | Some node -> aux (Array.unsafe_get node.next 0) f (f acc node.data)
+      | Empty -> acc
+      | Node { data; prev = _; next } ->
+        aux (Array.unsafe_get next 0) f (f acc data)
     in
     fun t ~f ~init -> aux (Array.unsafe_get t.head 0) f init
 
@@ -255,35 +279,36 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
     res
 
   let exists : t -> f:(elem -> bool) -> bool =
-    let rec aux (node : node option) f =
+    let rec aux (node : node) f =
       match node with
-      | None -> false
-      | Some node -> f node.data || aux (Array.unsafe_get node.next 0) f
+      | Empty -> false
+      | Node { data; prev = _; next } ->
+        f data || aux (Array.unsafe_get next 0) f
     in
     fun t ~f -> aux (Array.unsafe_get t.head 0) f
 
   let to_list : t -> elem list =
    fun t ->
     (* CR xclerc for xclerc: avoid the `List.rev`. *)
-    let res = ref [] in
-    let curr = ref (Array.unsafe_get t.head 0) in
-    while !curr <> None do
-      res := (Option.get !curr).data :: !res;
-      curr := Array.unsafe_get (Option.get !curr).next 0
-    done;
-    List.rev !res
+    let rec aux (node : node) acc =
+      match node with
+      | Empty -> List.rev acc
+      | Node { data; prev = _; next } ->
+        aux (Array.unsafe_get next 0) (data :: acc)
+    in
+    aux (Array.unsafe_get t.head 0) []
 
   (* CR-soon xclerc: the printing function below are for debugging and should
      probably be deleted. *)
   let rec print_aux :
-      node option -> (elem -> string) -> level:int -> acc_length:int -> unit =
+      node -> (elem -> string) -> level:int -> acc_length:int -> unit =
    fun node f ~level ~acc_length ->
     match node with
-    | None -> Printf.printf "/// length=%d\n%!" acc_length
-    | Some node ->
-      Printf.printf "%s " (f node.data);
+    | Empty -> Printf.printf "/// length=%d\n%!" acc_length
+    | Node { data; prev = _; next } ->
+      Printf.printf "%s " (f data);
       print_aux
-        (Array.unsafe_get node.next level)
+        (Array.unsafe_get next level)
         f ~level ~acc_length:(succ acc_length)
 
   let print_for_debug : t -> f:(elem -> string) -> unit =
@@ -311,8 +336,8 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
     else
       let some_part =
         match Array.unsafe_get pillar level with
-        | None -> false
-        | Some _ ->
+        | Empty -> false
+        | Node _ ->
           if not some_part
           then
             Misc.fatal_errorf
@@ -323,121 +348,96 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
       in
       invariant_pillar_some_at_bottom name pillar (succ level) some_part
 
-  let rec invariant_nodes : node option -> unit =
+  let rec invariant_nodes : node -> unit =
    fun node ->
     match node with
-    | None -> ()
-    | Some node ->
-      invariant_pillar_height "prev" (Array.length node.prev - 1) node.prev;
-      invariant_pillar_height "next" (Array.length node.next - 1) node.next;
-      invariant_pillar_some_at_bottom "prev" node.prev 0 true;
-      invariant_pillar_some_at_bottom "next" node.next 0 true;
-      invariant_nodes node.next.(0)
+    | Empty -> ()
+    | Node { data = _; prev; next } ->
+      invariant_pillar_height "prev" (Array.length prev - 1) prev;
+      invariant_pillar_height "next" (Array.length next - 1) next;
+      invariant_pillar_some_at_bottom "prev" prev 0 true;
+      invariant_pillar_some_at_bottom "next" next 0 true;
+      invariant_nodes next.(0)
 
-  let rec invariant_level :
-      prev:node option -> node:node option -> level:int -> unit =
+  let rec invariant_level : prev:node -> node:node -> level:int -> unit =
    fun ~prev ~node ~level ->
     match node with
-    | None -> ()
-    | Some node as new_prev ->
+    | Empty -> ()
+    | Node { data = node_data; prev = node_prev; next = node_next } as new_prev
+      ->
       let is_consistent_links, is_consistent_order =
-        match node.prev.(level), prev with
-        | Some _, None | None, Some _ -> false, true
-        | None, None -> true, true
-        | Some prev_from_link, Some prev_as_passed ->
+        match node_prev.(level), prev with
+        | Node _, Empty | Empty, Node _ -> false, true
+        | Empty, Empty -> true, true
+        | ( (Node _ as prev_from_link),
+            (Node { data = prev_as_passed_data; prev = _; next = _ } as
+            prev_as_passed) ) ->
           ( prev_from_link == prev_as_passed,
-            OT.compare prev_as_passed.data node.data <= 0 )
+            OT.compare prev_as_passed_data node_data <= 0 )
       in
       if not (is_consistent_links && is_consistent_order)
       then
         Misc.fatal_errorf
           "Skip_list: inconsistent list at level %d (links=%B, order=%B)" level
           is_consistent_links is_consistent_order;
-      invariant_level ~prev:new_prev ~node:node.next.(level) ~level
+      invariant_level ~prev:new_prev ~node:node_next.(level) ~level
 
   let invariant : t -> unit =
    fun t ->
     invariant_nodes t.head.(0);
     for level = 0 to pred (Array.length t.head) do
-      invariant_level ~prev:None ~node:(Array.unsafe_get t.head level) ~level
+      invariant_level ~prev:Empty ~node:(Array.unsafe_get t.head level) ~level
     done
 
   module Cursor = struct
     type nonrec t =
       { t : t;
-        mutable node : node
+        mutable node : node (* invariant: this node is not empty *)
       }
 
-    let[@inline] value : t -> elem = fun cursor -> cursor.node.data
+    let[@inline] value : t -> elem =
+     fun cursor ->
+      match cursor.node with
+      | Empty -> assert false (* invariant: this node is not empty *)
+      | Node { data; prev = _; next = _ } -> data
 
     let[@inline] next : t -> bool =
      fun cursor ->
-      match Array.unsafe_get cursor.node.next 0 with
-      | None -> false
-      | Some node ->
-        cursor.node <- node;
-        true
+      match cursor.node with
+      | Empty -> assert false (* invariant: this node is not empty *)
+      | Node { data = _; prev = _; next } -> (
+        match Array.unsafe_get next 0 with
+        | Empty -> false
+        | Node _ as node ->
+          cursor.node <- node;
+          true)
 
     let delete_and_next : t -> bool =
-     (* CR-soon xclerc for xclerc: factor out with the version above. *)
      fun cursor ->
-      let next_node =
-        match Array.unsafe_get cursor.node.next 0 with
-        | None -> None
-        | Some node -> Some node
-      in
-      let node = cursor.node in
-      for level = 0 to pred (Array.length node.prev) do
-        match Array.unsafe_get node.prev level with
-        | None ->
-          Array.unsafe_set cursor.t.head level
-            (Array.unsafe_get node.next level)
-        | Some prev ->
-          Array.unsafe_set prev.next level (Array.unsafe_get node.next level)
-      done;
-      let level = ref 0 in
-      while
-        !level < Array.length node.next
-        && Option.is_some (Array.unsafe_get node.next !level)
-      do
-        match Array.unsafe_get node.next !level with
-        | None -> assert false
-        | Some next ->
-          Array.unsafe_set next.prev !level (Array.unsafe_get node.prev !level);
-          incr level
-      done;
-      match next_node with
-      | None -> false
-      | Some next_node ->
-        cursor.node <- next_node;
-        true
+      match cursor.node with
+      | Empty -> assert false (* invariant: this node is not empty *)
+      | Node { data = _; prev = _; next } as node -> (
+        (* CR-soon xclerc for xclerc: it might be clearer to update the cursor
+           first and then perform the deletion. *)
+        let next_node =
+          match Array.unsafe_get next 0 with
+          | Empty -> None
+          | Node _ as node -> Some node
+        in
+        delete_node cursor.t node;
+        match next_node with
+        | None -> false
+        | Some node ->
+          cursor.node <- node;
+          true)
 
-    let cut : t -> unit =
-     fun cursor ->
-      match Array.unsafe_get cursor.node.prev 0 with
-      | None ->
-        for level = 0 to pred (Array.length cursor.t.head) do
-          Array.unsafe_set cursor.t.head level None
-        done
-      | Some node ->
-        let curr_node : node ref = ref node in
-        let curr_pillar : pillar ref = ref node.next in
-        for level = 0 to cursor.t.max_skip_level do
-          while level >= Array.length !curr_pillar do
-            match Array.unsafe_get !curr_node.prev 0 with
-            | None -> curr_pillar := cursor.t.head
-            | Some prev_node ->
-              curr_node := prev_node;
-              curr_pillar := prev_node.next
-          done;
-          Array.unsafe_set !curr_pillar level None
-        done
+    let cut : t -> unit = fun cursor -> cut_node cursor.t cursor.node
   end
 
   let create_cursor_hd : t -> Cursor.t option =
    fun t ->
     match Array.unsafe_get t.head 0 with
-    | None -> None
-    | Some node -> Some { node; t }
+    | Empty -> None
+    | Node _ as node -> Some { node; t }
 end
 [@@inline]
