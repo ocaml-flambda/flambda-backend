@@ -599,6 +599,8 @@ binop_app:
       | Naked_int64s -> Naked_int64s
       | Naked_nativeints -> Naked_nativeints
       | Naked_vec128s -> Naked_vec128s
+      | Naked_vec256s -> Naked_vec256s
+      | Naked_vec512s -> Naked_vec512s
       | Unboxed_product _ ->
         Misc.fatal_error "Unboxed product array ops not supported"
     in
@@ -634,6 +636,8 @@ ternop_app:
         | Naked_int64s -> Naked_int64s
         | Naked_nativeints -> Naked_nativeints
         | Naked_vec128s -> Naked_vec128s
+        | Naked_vec256s -> Naked_vec256s
+        | Naked_vec512s -> Naked_vec512s
         | Unboxed_product _ ->
           Misc.fatal_error "Unboxed product array ops not supported"
       in

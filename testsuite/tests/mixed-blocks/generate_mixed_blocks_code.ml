@@ -80,13 +80,14 @@ type flat_element =
   | Bits64
   | Word
   | Vec128
+  | Vec256
 
 let allowed_in_flat_float_block = function
   | Float64 | Float -> true
-  | Float32 | Bits32 | Bits64 | Word | Vec128 -> false
+  | Float32 | Bits32 | Bits64 | Word | Vec128 | Vec256 -> false
 
 let flat_element_is_unboxed = function
-  | Float64 | Float32 | Bits32 | Bits64 | Word | Vec128 -> true
+  | Float64 | Float32 | Bits32 | Bits64 | Word | Vec128 | Vec256 -> true
   | Float -> false
 
 let flat_element_is = ((=) : flat_element -> flat_element -> bool)
@@ -94,7 +95,7 @@ let flat_element_is_not = ((<>) : flat_element -> flat_element -> bool)
 
 let all_flat_elements_bytecode = [ Float64; Float32; Float; Bits32; Bits64; Word ]
 
-let all_of_flat_element ~bytecode = if bytecode then all_flat_elements_bytecode else Vec128 :: all_flat_elements_bytecode
+let all_of_flat_element ~bytecode = if bytecode then all_flat_elements_bytecode else Vec256 :: Vec128 :: all_flat_elements_bytecode
 
 type value_element =
   | Str
@@ -227,6 +228,7 @@ type field_or_arg_type =
   | Bits64
   | Word
   | Vec128
+  | Vec256
 
 let type_to_creation_function = function
   | Imm -> "create_int ()"
@@ -238,6 +240,7 @@ let type_to_creation_function = function
   | Word -> "create_nativeint_u ()"
   | Str -> "create_string ()"
   | Vec128 -> "create_int64x2 ()"
+  | Vec256 -> "create_int64x4 ()"
 
 let type_to_string = function
   | Imm -> "int"
@@ -249,6 +252,7 @@ let type_to_string = function
   | Word -> "nativeint#"
   | Str -> "string"
   | Vec128 -> "int64x2#"
+  | Vec256 -> "int64x4#"
 
 let type_to_field_integrity_check type_ ~access1 ~access2 ~message =
   let checker, transformation =
@@ -262,6 +266,7 @@ let type_to_field_integrity_check type_ ~access1 ~access2 ~message =
     | Bits64 -> "check_int64", Some "Stdlib_upstream_compatible.Int64_u.to_int64"
     | Word -> "check_int", Some "Stdlib_upstream_compatible.Nativeint_u.to_int"
     | Vec128 -> "check_int64x2", Some "box_int64x2"
+    | Vec256 -> "check_int64x4", Some "box_int64x4"
   in
   let transform access =
     match transformation with
@@ -288,6 +293,7 @@ let flat_element_to_type : flat_element -> field_or_arg_type = function
   | Bits32 -> Bits32
   | Word -> Word
   | Vec128 -> Vec128
+  | Vec256 -> Vec256
 
 module Mixed_record = struct
   type field =
@@ -304,7 +310,7 @@ module Mixed_record = struct
   let is_all_floats t =
     List.for_all t.fields ~f:(fun field ->
         match field.type_ with
-        | Imm | Str | Float32 | Bits32 | Bits64 | Word | Vec128 -> false
+        | Imm | Str | Float32 | Bits32 | Bits64 | Word | Vec128 | Vec256 -> false
         | Float | Float64 -> true)
 
   let of_block index { prefix; suffix } =
@@ -343,6 +349,7 @@ module Mixed_record = struct
             | Float64 -> "float_u"
             | Float32 -> "float32_u"
             | Vec128 -> "int64x2_u"
+            | Vec256 -> "int64x4_u"
           in
           let field =
             { type_ = flat_element_to_type elem;
@@ -629,8 +636,9 @@ let main n ~bytecode =
     line {| bytecode;|};
   ) else (
     line {| modules = "stubs.c";|};
-    line {| flags = "-extension simd_beta";|};
+    line {| ocamlopt_flags = "-extension simd_beta -cc '${cc} -mavx' -ccopt '${cflags}'";|};
     line {| flambda2;|};
+    line {| arch_amd64;|};
     line {| native;|};
   );
   line {|*)|};
@@ -649,6 +657,8 @@ let main n ~bytecode =
   if not bytecode then (
     line {|external box_int64x2 : int64x2# -> int64x2 = "%%box_vec128"|};
     line {|external unbox_int64x2 : int64x2 -> int64x2# = "%%unbox_vec128"|};
+    line {|external box_int64x4 : int64x4# -> int64x4 = "%%box_vec256"|};
+    line {|external unbox_int64x4 : int64x4 -> int64x4# = "%%unbox_vec256"|};
     line {|external interleave_low_64 : int64x2# -> int64x2# -> int64x2# = "" "caml_simd_vec128_interleave_low_64" [@@unboxed] [@@builtin]|};
     line {|external interleave_high_64 : int64x2# -> int64x2# -> int64x2# = "" "caml_simd_vec128_interleave_high_64" [@@unboxed] [@@builtin]|};
     line {|external int64x2_of_int64 : int64 -> int64x2# = "" "caml_int64x2_low_of_int64" [@@unboxed] [@@builtin]|};
@@ -669,7 +679,35 @@ let main n ~bytecode =
       let a = unbox_int64x2 a in
       let l = int64_of_int64x2 a in
       let h = int64_of_int64x2 (interleave_high_64 a a) in
-      Int64.to_string h ^ ":" ^ Int64.to_string l|}
+      Int64.to_string h ^ ":" ^ Int64.to_string l|};
+    line {|
+external int64x4_of_int64s : int64 -> int64 -> int64 -> int64 -> int64x4
+  = "" "vec256_of_int64s"
+  [@@noalloc] [@@unboxed]
+external int64x4_first_int64 : int64x4 -> int64 = "" "vec256_first_int64"
+  [@@noalloc] [@@unboxed]
+external int64x4_second_int64 : int64x4 -> int64 = "" "vec256_second_int64"
+  [@@noalloc] [@@unboxed]
+external int64x4_third_int64 : int64x4 -> int64 = "" "vec256_third_int64"
+  [@@noalloc] [@@unboxed]
+external int64x4_fourth_int64 : int64x4 -> int64 = "" "vec256_fourth_int64"
+  [@@noalloc] [@@unboxed]
+let create_int64x4 () =
+      let a = Random.int64 0x7FFF_FFFF_FFFF_FFFFL in
+      let b = Random.int64 0x7FFF_FFFF_FFFF_FFFFL in
+      let c = Random.int64 0x7FFF_FFFF_FFFF_FFFFL in
+      let d = Random.int64 0x7FFF_FFFF_FFFF_FFFFL in
+      int64x4_of_int64s a b c d |> unbox_int64x4
+let int64x4_equal a b =
+      Int64.equal (int64x4_first_int64 a) (int64x4_first_int64 b) &&
+      Int64.equal (int64x4_second_int64 a) (int64x4_second_int64 b) &&
+      Int64.equal (int64x4_third_int64 a) (int64x4_third_int64 b) &&
+      Int64.equal (int64x4_fourth_int64 a) (int64x4_fourth_int64 b)
+let int64x4_to_string a =
+      Int64.to_string (int64x4_first_int64 a) ^ ":" ^
+      Int64.to_string (int64x4_second_int64 a) ^ ":" ^
+      Int64.to_string (int64x4_third_int64 a) ^ ":" ^
+      Int64.to_string (int64x4_fourth_int64 a)|};
   );
   line
     {|let check_gen ~equal ~to_string ~message y1 y2 =
@@ -696,6 +734,9 @@ let main n ~bytecode =
     line
    {|let check_int64x2 =
   check_gen ~equal:int64x2_equal ~to_string:int64x2_to_string|};
+  line
+   {|let check_int64x4 =
+  check_gen ~equal:int64x4_equal ~to_string:int64x4_to_string|};
   );
   line "";
   line "(* Helper functions for testing polymorphic copying. *)";
@@ -825,6 +866,7 @@ let check_reachable_words expected actual message =
             match field.type_ with
             | Imm -> ""
             | Vec128 -> assert (not bytecode); " + 1"
+            | Vec256 -> assert (not bytecode); " + 3"
             | Float64 ->
                 (* In bytecode, these fields aren't boxed and thus contribute
                     two words to the reachable words (the header and the

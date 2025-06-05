@@ -14,70 +14,77 @@ external run_callback_stack_args :
   (int -> int -> int -> int -> int -> int -> int -> int -> unit) ->
   unit = "" "vec128_run_callback_stack_args"
 
-external low_of : float32 -> float32x4
-  = "caml_vec128_unreachable" "caml_float32x4_low_of_float32"
-  [@@noalloc] [@@unboxed] [@@builtin]
+external int64x4_of_int64s : int64 -> int64 -> int64 -> int64 -> int64x4
+  = "" "vec256_of_int64s"
+  [@@noalloc] [@@unboxed]
 
-external low_to : float32x4 -> float32
-  = "caml_vec128_unreachable" "caml_float32x4_low_to_float32"
-  [@@noalloc] [@@unboxed] [@@builtin]
+external int64x4_first_int64 : int64x4 -> int64 = "" "vec256_first_int64"
+  [@@noalloc] [@@unboxed]
 
-external add : float32x4 -> float32x4 -> float32x4
-  = "caml_vec128_unreachable" "caml_sse_float32x4_add"
-  [@@noalloc] [@@unboxed] [@@builtin]
+external int64x4_second_int64 : int64x4 -> int64 = "" "vec256_second_int64"
+  [@@noalloc] [@@unboxed]
 
-let callback0 () =
-  let x0 = low_of 0.0s in
-  let x1 = low_of 1.0s in
-  let x2 = low_of 2.0s in
-  let x3 = low_of 3.0s in
-  let x4 = low_of 4.0s in
-  let x5 = low_of 5.0s in
-  let x6 = low_of 6.0s in
-  let x7 = low_of 7.0s in
-  let x8 = low_of 8.0s in
-  let x9 = low_of 9.0s in
-  let x10 = low_of 10.0s in
-  let x11 = low_of 11.0s in
-  let x12 = low_of 12.0s in
-  let x13 = low_of 13.0s in
-  let x14 = low_of 14.0s in
-  let x15 = low_of 15.0s in
-  let x16 = low_of 16.0s in
-  let sum =
-    add x16
-      (add
-         (add (add (add x0 x1) (add x2 x3)) (add (add x4 x5) (add x6 x7)))
-         (add (add (add x8 x9) (add x10 x11)) (add (add x12 x13) (add x14 x15))))
+external int64x4_third_int64 : int64x4 -> int64 = "" "vec256_third_int64"
+  [@@noalloc] [@@unboxed]
+
+external int64x4_fourth_int64 : int64x4 -> int64 = "" "vec256_fourth_int64"
+  [@@noalloc] [@@unboxed]
+
+external lots_of_vectors :
+  int64x4 ->
+  int64x4 ->
+  int64x4 ->
+  int64x4 ->
+  int64x4 ->
+  int64x4 ->
+  int64x4 ->
+  int64x4 ->
+  int64x4 ->
+  int64x4 ->
+  int64x4 ->
+  int64x4 ->
+  int64x4 ->
+  int64x4 ->
+  int64x4 ->
+  int64x4 ->
+  int64x4 = "" "lots_of_vectors256"
+  [@@noalloc] [@@unboxed]
+
+let eq l r = if l <> r then Printf.printf "%Ld <> %Ld\n" l r
+
+let[@inline never] check v a b c d =
+  let v1, v2, v3, v4 =
+    ( int64x4_first_int64 v,
+      int64x4_second_int64 v,
+      int64x4_third_int64 v,
+      int64x4_fourth_int64 v )
   in
-  assert (low_to sum = 136.s)
+  eq v1 a;
+  eq v2 b;
+  eq v3 c;
+  eq v4 d
 
 let callback () =
-  let x0 = low_of 0.0s in
-  let x1 = low_of 1.0s in
-  let x2 = low_of 2.0s in
-  let x3 = low_of 3.0s in
-  let x4 = low_of 4.0s in
-  let x5 = low_of 5.0s in
-  let x6 = low_of 6.0s in
-  let x7 = low_of 7.0s in
-  let x8 = low_of 8.0s in
-  let x9 = low_of 9.0s in
-  let x10 = low_of 10.0s in
-  let x11 = low_of 11.0s in
-  let x12 = low_of 12.0s in
-  let x13 = low_of 13.0s in
-  let x14 = low_of 14.0s in
-  let x15 = low_of 15.0s in
-  let x16 = low_of 16.0s in
-  callback0 ();
+  let v0 = int64x4_of_int64s 1L 2L 3L 4L in
+  let v1 = int64x4_of_int64s 5L 6L 7L 8L in
+  let v2 = int64x4_of_int64s 9L 10L 11L 12L in
+  let v3 = int64x4_of_int64s 13L 14L 15L 16L in
+  let v4 = int64x4_of_int64s 17L 18L 19L 20L in
+  let v5 = int64x4_of_int64s 21L 22L 23L 24L in
+  let v6 = int64x4_of_int64s 25L 26L 27L 28L in
+  let v7 = int64x4_of_int64s 29L 30L 31L 32L in
+  let v8 = int64x4_of_int64s 33L 34L 35L 36L in
+  let v9 = int64x4_of_int64s 37L 38L 39L 40L in
+  let v10 = int64x4_of_int64s 41L 42L 43L 44L in
+  let v11 = int64x4_of_int64s 45L 46L 47L 48L in
+  let v12 = int64x4_of_int64s 49L 50L 51L 52L in
+  let v13 = int64x4_of_int64s 53L 54L 55L 56L in
+  let v14 = int64x4_of_int64s 57L 58L 59L 60L in
+  let v15 = int64x4_of_int64s 61L 62L 63L 64L in
   let sum =
-    add x16
-      (add
-         (add (add (add x0 x1) (add x2 x3)) (add (add x4 x5) (add x6 x7)))
-         (add (add (add x8 x9) (add x10 x11)) (add (add x12 x13) (add x14 x15))))
+    lots_of_vectors v0 v1 v2 v3 v4 v5 v6 v7 v8 v9 v10 v11 v12 v13 v14 v15
   in
-  assert (low_to sum = 136.s)
+  check sum 496L 512L 528L 544L
 
 let callback_n i0 i1 i2 i3 i4 i5 i6 i7 =
   assert (

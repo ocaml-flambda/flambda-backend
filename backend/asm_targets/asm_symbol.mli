@@ -42,17 +42,39 @@ val to_raw_string : t -> string
 module Predef : sig
   val caml_call_gc : t
 
+  val caml_call_gc_avx : t
+
+  val caml_call_gc_avx512 : t
+
   val caml_c_call : t
 
   val caml_allocN : t
 
+  val caml_allocN_avx : t
+
+  val caml_allocN_avx512 : t
+
   val caml_alloc1 : t
+
+  val caml_alloc1_avx : t
+
+  val caml_alloc1_avx512 : t
 
   val caml_alloc2 : t
 
+  val caml_alloc2_avx : t
+
+  val caml_alloc2_avx512 : t
+
   val caml_alloc3 : t
 
+  val caml_alloc3_avx : t
+
+  val caml_alloc3_avx512 : t
+
   val caml_ml_array_bound_error : t
+
+  val caml_ml_array_align_error : t
 
   val caml_raise_exn : t
 

@@ -26,8 +26,24 @@ type ustructured_constant =
   | Const_int64 of int64
   | Const_nativeint of nativeint
   | Const_vec128 of
-      { high : int64;
-        low : int64
+      { word0 : int64; (* Least significant *)
+        word1 : int64
+      }
+  | Const_vec256 of
+      { word0 : int64; (* Least significant *)
+        word1 : int64;
+        word2 : int64;
+        word3 : int64
+      }
+  | Const_vec512 of
+      { word0 : int64; (* Least significant *)
+        word1 : int64;
+        word2 : int64;
+        word3 : int64;
+        word4 : int64;
+        word5 : int64;
+        word6 : int64;
+        word7 : int64
       }
   | Const_block of int * uconstant list
   | Const_float_array of float list

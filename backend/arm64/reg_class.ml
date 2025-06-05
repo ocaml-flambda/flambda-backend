@@ -72,15 +72,14 @@ module T = struct
     | Float -> float_reg_name.(r - first_available_register Float128)
     | Float32 -> float32_reg_name.(r - first_available_register Float128)
     | Vec128 | Valx2 -> vec128_reg_name.(r - first_available_register Float128)
+    | Vec256 | Vec512 -> Misc.fatal_error "arm64: got 256/512 bit vector"
 
   let of_machtype typ =
     match (typ : Cmm.machtype_component) with
     | Val | Int | Addr -> Int64
     | Float | Float32 -> Float128
-    | Vec128 -> Float128
-    | Valx2 -> Float128
-
-  let gc_regs_offset _ = Misc.fatal_error "arm64: gc_reg_offset unreachable"
+    | Vec128 | Valx2 -> Float128
+    | Vec256 | Vec512 -> Misc.fatal_error "arm64: got 256/512 bit vector"
 
   let equal : t -> t -> bool =
    fun left right ->

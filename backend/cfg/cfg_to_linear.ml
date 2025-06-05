@@ -162,7 +162,14 @@ let linearize_terminator cfg_with_layout (func : string) start
         ],
         Some destination )
     | Call_no_return
-        { func_symbol; alloc; ty_args; ty_res; stack_ofs; effects = _ } ->
+        { func_symbol;
+          alloc;
+          ty_args;
+          ty_res;
+          stack_ofs;
+          stack_align;
+          effects = _
+        } ->
       single
         (L.Lcall_op
            (Lextcall
@@ -171,7 +178,8 @@ let linearize_terminator cfg_with_layout (func : string) start
                 ty_args;
                 ty_res;
                 returns = false;
-                stack_ofs
+                stack_ofs;
+                stack_align
               }))
     | Call { op; label_after } ->
       let op : Linear.call_operation =
@@ -184,14 +192,22 @@ let linearize_terminator cfg_with_layout (func : string) start
       let op : Linear.call_operation =
         match op with
         | External
-            { func_symbol; alloc; ty_args; ty_res; stack_ofs; effects = _ } ->
+            { func_symbol;
+              alloc;
+              ty_args;
+              ty_res;
+              stack_ofs;
+              stack_align;
+              effects = _
+            } ->
           Lextcall
             { func = func_symbol;
               alloc;
               ty_args;
               ty_res;
               returns = true;
-              stack_ofs
+              stack_ofs;
+              stack_align
             }
         | Probe { name; handler_code_sym; enabled_at_init } ->
           Lprobe { name; handler_code_sym; enabled_at_init }

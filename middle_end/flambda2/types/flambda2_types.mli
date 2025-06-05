@@ -378,6 +378,12 @@ val this_boxed_nativeint : Targetint_32_64.t -> Alloc_mode.For_types.t -> t
 val this_boxed_vec128 :
   Vector_types.Vec128.Bit_pattern.t -> Alloc_mode.For_types.t -> t
 
+val this_boxed_vec256 :
+  Vector_types.Vec256.Bit_pattern.t -> Alloc_mode.For_types.t -> t
+
+val this_boxed_vec512 :
+  Vector_types.Vec512.Bit_pattern.t -> Alloc_mode.For_types.t -> t
+
 val these_tagged_immediates : Targetint_31_63.Set.t -> t
 
 val these_boxed_float32s :
@@ -411,6 +417,10 @@ val this_naked_nativeint : Targetint_32_64.t -> t
 
 val this_naked_vec128 : Vector_types.Vec128.Bit_pattern.t -> t
 
+val this_naked_vec256 : Vector_types.Vec256.Bit_pattern.t -> t
+
+val this_naked_vec512 : Vector_types.Vec512.Bit_pattern.t -> t
+
 val this_rec_info : Rec_info_expr.t -> t
 
 val these_naked_immediates : Targetint_31_63.Set.t -> t
@@ -440,6 +450,12 @@ val boxed_nativeint_alias_to :
 val boxed_vec128_alias_to :
   naked_vec128:Variable.t -> Alloc_mode.For_types.t -> t
 
+val boxed_vec256_alias_to :
+  naked_vec256:Variable.t -> Alloc_mode.For_types.t -> t
+
+val boxed_vec512_alias_to :
+  naked_vec512:Variable.t -> Alloc_mode.For_types.t -> t
+
 val box_float32 : t -> Alloc_mode.For_types.t -> t
 
 val box_float : t -> Alloc_mode.For_types.t -> t
@@ -451,6 +467,10 @@ val box_int64 : t -> Alloc_mode.For_types.t -> t
 val box_nativeint : t -> Alloc_mode.For_types.t -> t
 
 val box_vec128 : t -> Alloc_mode.For_types.t -> t
+
+val box_vec256 : t -> Alloc_mode.For_types.t -> t
+
+val box_vec512 : t -> Alloc_mode.For_types.t -> t
 
 val tagged_immediate_alias_to : naked_immediate:Variable.t -> t
 
@@ -632,6 +652,10 @@ val prove_is_a_boxed_nativeint : Typing_env.t -> t -> unit proof_of_property
 
 val prove_is_a_boxed_vec128 : Typing_env.t -> t -> unit proof_of_property
 
+val prove_is_a_boxed_vec256 : Typing_env.t -> t -> unit proof_of_property
+
+val prove_is_a_boxed_vec512 : Typing_env.t -> t -> unit proof_of_property
+
 val prove_is_or_is_not_a_boxed_float :
   Typing_env.t -> t -> bool proof_of_property
 
@@ -732,6 +756,12 @@ val meet_boxed_nativeint_containing_simple :
 val meet_boxed_vec128_containing_simple :
   Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
 
+val meet_boxed_vec256_containing_simple :
+  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
+
+val meet_boxed_vec512_containing_simple :
+  Typing_env.t -> min_name_mode:Name_mode.t -> t -> Simple.t meet_shortcut
+
 val meet_block_field_simple :
   Typing_env.t ->
   min_name_mode:Name_mode.t ->
@@ -774,6 +804,8 @@ type to_lift = private
   | Boxed_int64 of Numeric_types.Int64.t
   | Boxed_nativeint of Targetint_32_64.t
   | Boxed_vec128 of Vector_types.Vec128.Bit_pattern.t
+  | Boxed_vec256 of Vector_types.Vec256.Bit_pattern.t
+  | Boxed_vec512 of Vector_types.Vec512.Bit_pattern.t
   | Immutable_float32_array of
       { fields : Numeric_types.Float32_by_bit_pattern.t list }
   | Immutable_float_array of
@@ -783,6 +815,10 @@ type to_lift = private
   | Immutable_nativeint_array of { fields : Targetint_32_64.t list }
   | Immutable_vec128_array of
       { fields : Vector_types.Vec128.Bit_pattern.t list }
+  | Immutable_vec256_array of
+      { fields : Vector_types.Vec256.Bit_pattern.t list }
+  | Immutable_vec512_array of
+      { fields : Vector_types.Vec512.Bit_pattern.t list }
   | Immutable_value_array of { fields : Simple.t list }
   | Empty_array of Empty_array_kind.t
 

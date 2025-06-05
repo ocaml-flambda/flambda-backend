@@ -896,6 +896,10 @@ let lookup_primitive loc ~poly_mode ~poly_sort pos p =
     | "%box_float32" -> Primitive(Pbox_float (Boxed_float32, mode), 1)
     | "%unbox_vec128" -> Primitive(Punbox_vector Boxed_vec128, 1)
     | "%box_vec128" -> Primitive(Pbox_vector (Boxed_vec128, mode), 1)
+    | "%unbox_vec256" -> Primitive(Punbox_vector Boxed_vec256, 1)
+    | "%box_vec256" -> Primitive(Pbox_vector (Boxed_vec256, mode), 1)
+    | "%unbox_vec512" -> Primitive(Punbox_vector Boxed_vec512, 1)
+    | "%box_vec512" -> Primitive(Pbox_vector (Boxed_vec512, mode), 1)
     | "%get_header" -> Primitive (Pget_header mode, 1)
     | "%atomic_load" ->
         Primitive ((Patomic_load {immediate_or_pointer=Pointer}), 1)

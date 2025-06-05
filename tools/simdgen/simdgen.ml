@@ -112,6 +112,7 @@ let rec parse_args mnemonic acc encs args imm res =
       | "m32" -> Some (Temp [| M32 |])
       | "m64" -> Some (Temp [| M64 |])
       | "m128" -> Some (Temp [| M128 |])
+      | "m256" -> Some (Temp [| M256 |])
       | "mm" | "mm0" | "mm1" | "mm2" | "mm3" -> Some (Temp [| MM |])
       | "mm0/m8" | "mm1/m8" | "mm2/m8" | "mm3/m8" -> Some (Temp [| MM; M8 |])
       | "mm0/m16" | "mm1/m16" | "mm2/m16" | "mm3/m16" ->
@@ -134,10 +135,10 @@ let rec parse_args mnemonic acc encs args imm res =
         Some (Temp [| XMM; M128 |])
       (* Load/store operations are not handled *)
       | "mem" | "vm32x" | "vm64x" | "vm32y" | "vm64y" -> raise Unsupported
-      (* CR-soon mslater: AVX / AVX2 *)
-      | "ymm" | "ymm0" | "ymm1" | "ymm2" | "ymm3" | "ymm4" | "ymm0/m256"
-      | "ymm1/m256" | "ymm2/m256" | "ymm3/m256" | "m256" ->
-        raise Unsupported
+      | "ymm" | "ymm0" | "ymm1" | "ymm2" | "ymm3" | "ymm4" ->
+        Some (Temp [| YMM |])
+      | "ymm0/m256" | "ymm1/m256" | "ymm2/m256" | "ymm3/m256" ->
+        Some (Temp [| YMM; M256 |])
       | arg -> fail mnemonic arg
     in
     let enc, rw = first_word enc in
@@ -271,13 +272,15 @@ let mangle_loc (loc : loc) =
     | R32 | M32 -> Some 32
     | R64 | M64 -> Some 64
     | M128 -> Some 128
-    | MM | XMM -> None
+    | M256 -> Some 256
+    | MM | XMM | YMM -> None
   in
   let short : temp -> string = function
     | R8 | R16 | R32 | R64 -> "r"
-    | M8 | M16 | M32 | M64 | M128 -> "m"
+    | M8 | M16 | M32 | M64 | M128 | M256 -> "m"
     | MM -> "M"
     | XMM -> "X"
+    | YMM -> "Y"
   in
   match loc with
   | Pin RAX -> "rax"
@@ -320,8 +323,10 @@ let print_one instr =
     | M32 -> "M32"
     | M64 -> "M64"
     | M128 -> "M128"
+    | M256 -> "M256"
     | MM -> "MM"
     | XMM -> "XMM"
+    | YMM -> "YMM"
   in
   let print_loc : loc -> string = function
     | Pin RAX -> "Pin RAX"
@@ -426,9 +431,9 @@ let print_all () =
   Hashtbl.iter (fun instr () -> print_one instr) all_instructions
 
 let relevant_ext = function
-  (* CR-soon mslater: AVX / AVX2 *)
+  (* CR-soon mslater: AVX512 *)
   | "SSE" | "SSE2" | "SSE3" | "SSSE3" | "SSE4_1" | "SSE4_2" | "PCLMULQDQ"
-  | "BMI2" ->
+  | "BMI2" | "AVX" | "AVX2" ->
     true
   | _ -> false
 

@@ -37,6 +37,8 @@ module Singleton_mixed_block_element = struct
     | Bits32
     | Bits64
     | Vec128
+    | Vec256
+    | Vec512
     | Word
 
   let print print_locality ppf t =
@@ -50,6 +52,8 @@ module Singleton_mixed_block_element = struct
     | Bits32 -> Format.fprintf ppf "Bits32"
     | Bits64 -> Format.fprintf ppf "Bits64"
     | Vec128 -> Format.fprintf ppf "Vec128"
+    | Vec256 -> Format.fprintf ppf "Vec256"
+    | Vec512 -> Format.fprintf ppf "Vec512"
     | Word -> Format.fprintf ppf "Word"
 end
 
@@ -163,6 +167,8 @@ let singleton_or_product_of_mixed_block_element
   | Bits32 -> Singleton Bits32
   | Bits64 -> Singleton Bits64
   | Vec128 -> Singleton Vec128
+  | Vec256 -> Singleton Vec256
+  | Vec512 -> Singleton Vec512
   | Word -> Singleton Word
   | Product sub_elements -> Product sub_elements
 
@@ -223,7 +229,8 @@ let of_mixed_block_elements ~print_locality
     let is_value =
       match elem with
       | Value _ -> true
-      | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word ->
+      | Float_boxed _ | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Vec256
+      | Vec512 | Word ->
         false
     in
     if is_value

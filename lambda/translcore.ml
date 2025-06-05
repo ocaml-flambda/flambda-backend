@@ -58,7 +58,8 @@ let layout_exp sort e = layout e.exp_env e.exp_loc sort e.exp_type
 let layout_pat sort p = layout p.pat_env p.pat_loc sort p.pat_type
 
 let check_record_field_sort loc : Jkind.Sort.Const.t -> _ = function
-  | Base (Value | Float64 | Float32 | Bits32 | Bits64 | Vec128 | Word)
+  | Base (Value | Float64 | Float32 | Bits32 | Bits64 |
+          Vec128 | Vec256 | Vec512 | Word)
   | Product _ -> ()
   | Base Void -> raise (Error (loc, Illegal_void_record_field))
 
