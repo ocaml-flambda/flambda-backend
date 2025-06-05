@@ -65,7 +65,7 @@ type pattern_variable =
     pv_id: Ident.t;
     pv_uid: Uid.t;
     pv_mode: Mode.Value.l;
-    pv_mutable: mutability;
+    pv_mutable: mutable_flag;
     pv_type: type_expr;
     pv_loc: Location.t;
     pv_as_var: bool;
@@ -123,12 +123,12 @@ type module_patterns_restriction =
   | Modules_ignored
 
 val type_binding:
-        Env.t -> mutability -> rec_flag ->
+        Env.t -> mutable_flag -> rec_flag ->
           ?force_toplevel:bool ->
           Parsetree.value_binding list ->
           Typedtree.value_binding list * Env.t
 val type_let:
-        existential_restriction -> Env.t -> mutability -> rec_flag ->
+        existential_restriction -> Env.t -> mutable_flag -> rec_flag ->
           Parsetree.value_binding list ->
           Typedtree.value_binding list * Env.t
 val type_expression:

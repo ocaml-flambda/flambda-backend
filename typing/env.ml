@@ -830,6 +830,18 @@ let mode_default mode = {
   context = None
 }
 
+(* CR jrayman: maybe not the best place to put these *)
+let modalities_for_mutvar =
+  Typemode.transl_modalities ~maturity:Stable
+    ~for_mutable_variable:true (Mutable mutability_for_mutvar) []
+
+let m0_for_mutvar =
+  Mode.Alloc.Const.merge
+    {comonadic = mutability_for_mutvar;
+     monadic = Mode.Alloc.Monadic.Const.min}
+  |> Mode.Const.alloc_as_value |> Mode.Value.of_const
+  |> Mode.Modality.Value.Const.apply modalities_for_mutvar
+
 let env_labels (type rep) (record_form : rep record_form) env
     : rep gen_label_description TycompTbl.t  =
   match record_form with
@@ -3335,15 +3347,11 @@ let walk_locks_for_mutable_mode ~errors ~loc ~env  mode locks =
 let lookup_ident_value ~errors ~use ~loc name env =
   match IdTbl.find_name_and_locks wrap_value ~mark:use name env.values with
   | Ok (path, locks, Val_bound vda) ->
-      let vda =
-        match vda with
-        | {vda_description={val_kind=Val_mut (m0, sort); _}; _} ->
-            let m0 = walk_locks_for_mutable_mode ~errors ~loc ~env m0 locks in
-            let val_kind = Val_mut (m0, sort) in
-            let vda_description = {vda.vda_description with val_kind} in
-            {vda with vda_description}
-        | _ -> vda
-      in
+      begin match vda with
+      | {vda_description={val_kind=Val_mut _; _}; _} ->
+          walk_locks_for_mutable_mode ~errors ~loc ~env m0_for_mutvar locks
+          |> ignore
+      | _ -> () end;
       use_value ~use ~loc path vda;
       path, locks, vda
   | Ok (_, _, Val_unbound reason) ->
@@ -4091,12 +4099,12 @@ let lookup_settable_variable ?(use=true) ~loc name env =
           use_value ~use ~loc path vda;
           Instance_variable
             (path, mut, cl_num, Subst.Lazy.force_type_expr desc.val_type)
-      | Val_mut(m0, sort), Pident id ->
+      | Val_mut sort, Pident id ->
           let val_type = Subst.Lazy.force_type_expr desc.val_type in
           let mode =
             walk_locks_for_mutable_mode
               ~errors:true ~loc ~env
-              m0 locks
+              m0_for_mutvar locks
           in
           use_value ~use ~loc path vda;
           Mutable_variable (id, mode, val_type, sort)
