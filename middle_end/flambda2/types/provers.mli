@@ -98,8 +98,6 @@ type boxed_or_tagged_number = private
 val prove_is_a_boxed_or_tagged_number :
   Typing_env.t -> Type_grammar.t -> boxed_or_tagged_number proof_of_property
 
-val prove_nothing : Typing_env.t -> Type_grammar.t -> _ proof_of_property
-
 val prove_is_a_tagged_immediate :
   Typing_env.t -> Type_grammar.t -> unit proof_of_property
 

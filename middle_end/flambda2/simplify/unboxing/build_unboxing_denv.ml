@@ -189,10 +189,10 @@ let rec denv_of_decision denv ~param_var (decision : U.decision) : DE.t =
     in
     denv_of_number_decision K.naked_float shape param_var naked_float denv
   | Unbox (Number (Naked_int8, { param = naked_int8; args = _ })) ->
-    let shape = T.tagged_int8_alias_to ~naked_int8 in
+    let shape = T.any_naked_int8 in
     denv_of_number_decision K.naked_int8 shape param_var naked_int8 denv
   | Unbox (Number (Naked_int16, { param = naked_int16; args = _ })) ->
-    let shape = T.tagged_int16_alias_to ~naked_int16 in
+    let shape = T.any_naked_int16 in
     denv_of_number_decision K.naked_int16 shape param_var naked_int16 denv
   | Unbox (Number (Naked_int32, { param = naked_int32; args = _ })) ->
     let shape =

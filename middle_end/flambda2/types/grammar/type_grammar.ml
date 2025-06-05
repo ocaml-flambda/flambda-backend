@@ -3468,14 +3468,30 @@ let box_float (t : t) alloc_mode : t =
 
 let tag_int8 (t : t) : t =
   match t with
-  | Naked_int8 _ ->
-    non_null_value
-      (Variant
-         { is_unique = false;
-           immediates = Unknown;
-           blocks = Known Row_like_for_blocks.bottom;
-           extensions = No_extensions
-         })
+  | Naked_int8 head -> (
+    match TD.descr head with
+    | Bottom -> Value TD.bottom
+    | Unknown | Ok (Equals _) ->
+      non_null_value
+        (Variant
+           { is_unique = false;
+             immediates = Unknown;
+             blocks = Known Row_like_for_blocks.bottom;
+             extensions = No_extensions
+           })
+    | Ok (No_alias ints) ->
+      let ints =
+        Int8.Set.fold
+          (fun x acc -> Targetint_31_63.Set.add (Targetint_31_63.of_int8 x) acc)
+          ints Targetint_31_63.Set.empty
+      in
+      non_null_value
+        (Variant
+           { is_unique = false;
+             immediates = Known (these_naked_immediates ints);
+             blocks = Known Row_like_for_blocks.bottom;
+             extensions = No_extensions
+           }))
   | Value _ | Naked_immediate _ | Naked_float32 _ | Naked_float _
   | Naked_int16 _ | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _
   | Naked_vec128 _ | Rec_info _ | Region _ ->
@@ -3483,14 +3499,31 @@ let tag_int8 (t : t) : t =
 
 let tag_int16 (t : t) : t =
   match t with
-  | Naked_int16 _ ->
-    non_null_value
-      (Variant
-         { is_unique = false;
-           immediates = Unknown;
-           blocks = Known Row_like_for_blocks.bottom;
-           extensions = No_extensions
-         })
+  | Naked_int16 head -> (
+    match TD.descr head with
+    | Bottom -> Value TD.bottom
+    | Unknown | Ok (Equals _) ->
+      non_null_value
+        (Variant
+           { is_unique = false;
+             immediates = Unknown;
+             blocks = Known Row_like_for_blocks.bottom;
+             extensions = No_extensions
+           })
+    | Ok (No_alias ints) ->
+      let ints =
+        Int16.Set.fold
+          (fun x acc ->
+            Targetint_31_63.Set.add (Targetint_31_63.of_int16 x) acc)
+          ints Targetint_31_63.Set.empty
+      in
+      non_null_value
+        (Variant
+           { is_unique = false;
+             immediates = Known (these_naked_immediates ints);
+             blocks = Known Row_like_for_blocks.bottom;
+             extensions = No_extensions
+           }))
   | Value _ | Naked_immediate _ | Naked_float32 _ | Naked_float _ | Naked_int8 _
   | Naked_int32 _ | Naked_int64 _ | Naked_nativeint _ | Naked_vec128 _
   | Rec_info _ | Region _ ->
@@ -3569,12 +3602,6 @@ let boxed_float32_alias_to ~naked_float32 =
 
 let boxed_float_alias_to ~naked_float =
   box_float (Naked_float (TD.create_equals (Simple.var naked_float)))
-
-let tagged_int8_alias_to ~naked_int8 =
-  tag_int8 (Naked_int8 (TD.create_equals (Simple.var naked_int8)))
-
-let tagged_int16_alias_to ~naked_int16 =
-  tag_int16 (Naked_int16 (TD.create_equals (Simple.var naked_int16)))
 
 let boxed_int32_alias_to ~naked_int32 =
   box_int32 (Naked_int32 (TD.create_equals (Simple.var naked_int32)))

@@ -306,10 +306,6 @@ val boxed_float32_alias_to :
 
 val boxed_float_alias_to : naked_float:Variable.t -> Alloc_mode.For_types.t -> t
 
-val tagged_int8_alias_to : naked_int8:Variable.t -> t
-
-val tagged_int16_alias_to : naked_int16:Variable.t -> t
-
 val boxed_int32_alias_to : naked_int32:Variable.t -> Alloc_mode.For_types.t -> t
 
 val boxed_int64_alias_to : naked_int64:Variable.t -> Alloc_mode.For_types.t -> t
