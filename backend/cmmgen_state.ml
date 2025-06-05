@@ -97,10 +97,10 @@ let rank_structured_constant = function
   | Const_block _ -> 4
   | Const_float_array _ -> 5
   | Const_string _ -> 6
-  | Const_vec128 _ -> 8
-  | Const_vec256 _ -> 9
-  | Const_vec512 _ -> 10
-  | Const_float32 _ -> 11
+  | Const_vec128 _ -> 7
+  | Const_vec256 _ -> 8
+  | Const_vec512 _ -> 9
+  | Const_float32 _ -> 10
 
 let compare_structured_constants c1 c2 =
   match c1, c2 with
