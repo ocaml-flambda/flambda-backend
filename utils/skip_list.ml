@@ -81,6 +81,46 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
   let[@inline] is_node : node -> bool =
    fun node -> match node with Empty -> false | Node _ -> true
 
+  let[@inline] make_node_array n (v : node) : node array =
+    match n with
+    | 0 -> [||]
+    | 1 -> [| v |]
+    | 2 -> [| v; v |]
+    | 3 -> [| v; v; v |]
+    | 4 -> [| v; v; v; v |]
+    | 5 -> [| v; v; v; v; v |]
+    | 6 -> [| v; v; v; v; v; v |]
+    | 7 -> [| v; v; v; v; v; v; v |]
+    | 8 -> [| v; v; v; v; v; v; v; v |]
+    | 9 -> [| v; v; v; v; v; v; v; v; v |]
+    | 10 -> [| v; v; v; v; v; v; v; v; v; v |]
+    | 11 -> [| v; v; v; v; v; v; v; v; v; v; v |]
+    | 12 -> [| v; v; v; v; v; v; v; v; v; v; v; v |]
+    | 13 -> [| v; v; v; v; v; v; v; v; v; v; v; v; v |]
+    | 14 -> [| v; v; v; v; v; v; v; v; v; v; v; v; v; v |]
+    | 15 -> [| v; v; v; v; v; v; v; v; v; v; v; v; v; v; v |]
+    | _ -> assert false
+
+  let[@inline] make_pillar_array n (v : pillar) : pillar array =
+    match n with
+    | 0 -> [||]
+    | 1 -> [| v |]
+    | 2 -> [| v; v |]
+    | 3 -> [| v; v; v |]
+    | 4 -> [| v; v; v; v |]
+    | 5 -> [| v; v; v; v; v |]
+    | 6 -> [| v; v; v; v; v; v |]
+    | 7 -> [| v; v; v; v; v; v; v |]
+    | 8 -> [| v; v; v; v; v; v; v; v |]
+    | 9 -> [| v; v; v; v; v; v; v; v; v |]
+    | 10 -> [| v; v; v; v; v; v; v; v; v; v |]
+    | 11 -> [| v; v; v; v; v; v; v; v; v; v; v |]
+    | 12 -> [| v; v; v; v; v; v; v; v; v; v; v; v |]
+    | 13 -> [| v; v; v; v; v; v; v; v; v; v; v; v; v |]
+    | 14 -> [| v; v; v; v; v; v; v; v; v; v; v; v; v; v |]
+    | 15 -> [| v; v; v; v; v; v; v; v; v; v; v; v; v; v; v |]
+    | _ -> assert false
+
   type t =
     { max_skip_level : int;
       skip_factor : float;
@@ -180,7 +220,7 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
     assert (skip_factor >= 0. && skip_factor <= 1.);
     Lazy.force init_random;
     let max_skip_level = 3 in
-    let head = Array.make (succ max_skip_level) Empty in
+    let head = make_node_array (succ max_skip_level) Empty in
     { max_skip_level; skip_factor; head }
 
   let length : t -> int =
@@ -214,11 +254,11 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
    fun t elem ->
     let prev_nodes : node array =
       (* previous node for each level *)
-      Array.make (succ t.max_skip_level) Empty
+      make_node_array (succ t.max_skip_level) Empty
     in
     let update : pillar array =
       (* pillar to update for each level *)
-      Array.make (succ t.max_skip_level) t.head
+      make_pillar_array (succ t.max_skip_level) t.head
     in
     let curr : pillar ref = ref t.head in
     let prev : node ref = ref Empty in
@@ -234,8 +274,8 @@ module Make (OT : OrderedType) : T with type elem = OT.t = struct
       Array.unsafe_set prev_nodes i !prev
     done;
     let level = random_level t in
-    let prev : node array = Array.make (succ level) Empty in
-    let next : node array = Array.make (succ level) Empty in
+    let prev : node array = make_node_array (succ level) Empty in
+    let next : node array = make_node_array (succ level) Empty in
     for i = 0 to level do
       Array.unsafe_set prev i (Array.unsafe_get prev_nodes i);
       Array.unsafe_set next i (Array.unsafe_get (Array.unsafe_get update i) i)
