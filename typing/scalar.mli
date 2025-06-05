@@ -12,7 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** This module defines the scalar types intrinsic to the OCaml compiler, and the
+(** This module defines:
+    The scalar types intrinsic to the OCaml compiler, and all of the
     primitive operations defined on them.
 
     A [Scalar.t] represents a particular OCaml type that represents a scalar value. It
@@ -20,9 +21,10 @@
     the scalar value, which represents the location in which that boxed values are
     allocated.
 
-    The important consideration is for a [Scalar.t] to represent all of the primitives
-    that we want to expose. The submodules are organized to make it easy for use different
-    subsets of scalars in different places. Some examples:
+    The important consideration is for a [Scalar.t] to represent all of the argument and
+    return types of all the primitives that we want to support. The submodules are
+    organized to make it easy for use different subsets of scalars in different places.
+    Some examples:
 
     - Primitive arguments don't depend on the locality of their arguments, but the results
     do.
@@ -30,52 +32,19 @@
     takes any scalar type.
     - The bytecode compiler wants to easily map unboxed/untagged values to their [value]
     equivalents
-    - The middle-end wants to easily cast between any integraal values using only certain
+    - The middle-end wants to easily cast between any integral values using only certain
     primitives.
 *)
 
 type any_locality_mode = Any_locality_mode
 
-module Integer_comparison : sig
-  type t =
-    | Ceq
-    | Cne
-    | Clt
-    | Cgt
-    | Cle
-    | Cge
-
-  val to_string : t -> string
-
-  val swap : t -> t
-
-  val negate : t -> t
-end
-
-module Float_comparison : sig
-  type t =
-    | CFeq
-    | CFneq
-    | CFlt
-    | CFnlt
-    | CFgt
-    | CFngt
-    | CFle
-    | CFnle
-    | CFge
-    | CFnge
-
-  val to_string : t -> string
-
-  val swap : t -> t
-
-  val negate : t -> t
-end
-
 module Maybe_naked : sig
   type ('a, 'b) t =
     | Value of 'a
     | Naked of 'b
+        (** "Naked" means either untagged or unboxed, depending whether the type fits in
+            31 bits or not. e.g., [Naked Int8] is untagged, but [Naked (Int32
+            Any_locality_mode)] would be unboxed *)
 end
 
 module type S := sig
@@ -87,7 +56,7 @@ module type S := sig
 
   val map : 'a t -> f:('a -> 'b) -> 'b t
 
-  val ignore_locality : 'a t -> any_locality_mode t
+  val ignore_locality : _ t -> any_locality_mode t
 
   val width : _ t -> any_locality_mode width
 
@@ -96,7 +65,10 @@ module type S := sig
   val sort : any_locality_mode t -> Jkind_types.Sort.Const.t
 end
 
-module type Integral_width_constants := sig
+(* The following module types define convenient shorthand values for users of scalar.ml,
+   so that they don't have to use the large variant constructors. *)
+
+module type Integral_width_shorthands := sig
   type 'a t
 
   val int8 : _ t
@@ -112,10 +84,10 @@ module type Integral_width_constants := sig
   val nativeint : any_locality_mode t
 end
 
-module type Integral_constants := sig
+module type Integral_shorthands := sig
   type 'a t
 
-  include Integral_width_constants with type 'a t := 'a t
+  include Integral_width_shorthands with type 'a t := 'a t
 
   val naked_int8 : _ t
 
@@ -130,7 +102,7 @@ module type Integral_constants := sig
   val naked_nativeint : any_locality_mode t
 end
 
-module type Float_width_constants := sig
+module type Float_width_shorthands := sig
   type 'a t
 
   val float32 : any_locality_mode t
@@ -138,10 +110,10 @@ module type Float_width_constants := sig
   val float : any_locality_mode t
 end
 
-module type Float_constants := sig
+module type Float_shorthands := sig
   type 'a t
 
-  include Float_width_constants with type 'a t := 'a t
+  include Float_width_shorthands with type 'a t := 'a t
 
   val naked_float32 : any_locality_mode t
 
@@ -184,12 +156,12 @@ module Integral : sig
 
     val map : 'a t -> f:('a -> 'b) -> 'b t
 
-    include Integral_width_constants with type 'a t := 'a t
+    include Integral_width_shorthands with type 'a t := 'a t
   end
 
   include S with type 'a width := 'a Width.t
 
-  include Integral_constants with type 'a t := 'a t
+  include Integral_shorthands with type 'a t := 'a t
 end
 
 module Floating : sig
@@ -202,12 +174,12 @@ module Floating : sig
 
     val to_string : any_locality_mode t -> string
 
-    include Float_width_constants with type 'a t := 'a t
+    include Float_width_shorthands with type 'a t := 'a t
   end
 
   include S with type 'a width := 'a Width.t
 
-  include Float_constants with type 'a t := 'a t
+  include Float_shorthands with type 'a t := 'a t
 end
 
 module Width : sig
@@ -221,20 +193,56 @@ module Width : sig
 
   val ignore_locality : _ t -> any_locality_mode t
 
-  include Integral_width_constants with type 'a t := 'a t
+  include Integral_width_shorthands with type 'a t := 'a t
 
-  include Float_width_constants with type 'a t := 'a t
+  include Float_width_shorthands with type 'a t := 'a t
 end
 
 include S with type 'a width := 'a Width.t
 
-include Integral_constants with type 'a t := 'a t
+include Integral_shorthands with type 'a t := 'a t
 
-include Float_constants with type 'a t := 'a t
+include Float_shorthands with type 'a t := 'a t
 
 val integral : 'a Integral.t -> 'a t
 
 val floating : 'a Floating.t -> 'a t
+
+module Integer_comparison : sig
+  type t =
+    | Ceq
+    | Cne
+    | Clt
+    | Cgt
+    | Cle
+    | Cge
+
+  val to_string : t -> string
+
+  val swap : t -> t
+
+  val negate : t -> t
+end
+
+module Float_comparison : sig
+  type t =
+    | CFeq
+    | CFneq
+    | CFlt
+    | CFnlt
+    | CFgt
+    | CFngt
+    | CFle
+    | CFnle
+    | CFge
+    | CFnge
+
+  val to_string : t -> string
+
+  val swap : t -> t
+
+  val negate : t -> t
+end
 
 module Intrinsic : sig
   type 'mode info =

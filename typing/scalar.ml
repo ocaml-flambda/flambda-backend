@@ -14,94 +14,6 @@
 
 type any_locality_mode = Any_locality_mode
 
-module Integer_comparison = struct
-  type t =
-    | Ceq
-    | Cne
-    | Clt
-    | Cgt
-    | Cle
-    | Cge
-
-  let all = [Ceq; Cne; Clt; Cgt; Cle; Cge]
-
-  let to_string = function
-    | Ceq -> "equal"
-    | Cne -> "notequal"
-    | Cgt -> "greaterthan"
-    | Cge -> "greaterequal"
-    | Clt -> "lessthan"
-    | Cle -> "lessequal"
-
-  let negate = function
-    | Ceq -> Cne
-    | Cne -> Ceq
-    | Clt -> Cge
-    | Cle -> Cgt
-    | Cgt -> Cle
-    | Cge -> Clt
-
-  let swap = function
-    | Ceq -> Ceq
-    | Cne -> Cne
-    | Clt -> Cgt
-    | Cle -> Cge
-    | Cgt -> Clt
-    | Cge -> Cle
-end
-
-module Float_comparison = struct
-  type t =
-    | CFeq
-    | CFneq
-    | CFlt
-    | CFnlt
-    | CFgt
-    | CFngt
-    | CFle
-    | CFnle
-    | CFge
-    | CFnge
-
-  let all = [CFeq; CFneq; CFlt; CFnlt; CFgt; CFngt; CFle; CFnle; CFge; CFnge]
-
-  let to_string = function
-    | CFeq -> "ordered_and_equal"
-    | CFgt -> "ordered_and_greaterthan"
-    | CFge -> "ordered_and_greaterequal"
-    | CFlt -> "ordered_and_lessthan"
-    | CFle -> "ordered_and_lessequal"
-    | CFneq -> "unordered_or_notequal"
-    | CFngt -> "unordered_or_lessequal"
-    | CFnge -> "unordered_or_lessthan"
-    | CFnlt -> "unordered_or_greaterequal"
-    | CFnle -> "unordered_or_greaterthan"
-
-  let negate = function
-    | CFeq -> CFneq
-    | CFneq -> CFeq
-    | CFlt -> CFnlt
-    | CFnlt -> CFlt
-    | CFgt -> CFngt
-    | CFngt -> CFgt
-    | CFle -> CFnle
-    | CFnle -> CFle
-    | CFge -> CFnge
-    | CFnge -> CFge
-
-  let swap = function
-    | CFeq -> CFeq
-    | CFneq -> CFneq
-    | CFlt -> CFgt
-    | CFnlt -> CFngt
-    | CFle -> CFge
-    | CFnle -> CFnge
-    | CFgt -> CFlt
-    | CFngt -> CFnlt
-    | CFge -> CFle
-    | CFnge -> CFnle
-end
-
 let ignore_locality _ = Any_locality_mode
 
 module Maybe_naked = struct
@@ -393,6 +305,94 @@ let naked_float32 : _ t = Naked Width.float32
 let naked_float : _ t = Naked Width.float
 
 type 'a scalar = 'a t
+
+module Integer_comparison = struct
+  type t =
+    | Ceq
+    | Cne
+    | Clt
+    | Cgt
+    | Cle
+    | Cge
+
+  let all = [Ceq; Cne; Clt; Cgt; Cle; Cge]
+
+  let to_string = function
+    | Ceq -> "equal"
+    | Cne -> "notequal"
+    | Cgt -> "greaterthan"
+    | Cge -> "greaterequal"
+    | Clt -> "lessthan"
+    | Cle -> "lessequal"
+
+  let negate = function
+    | Ceq -> Cne
+    | Cne -> Ceq
+    | Clt -> Cge
+    | Cle -> Cgt
+    | Cgt -> Cle
+    | Cge -> Clt
+
+  let swap = function
+    | Ceq -> Ceq
+    | Cne -> Cne
+    | Clt -> Cgt
+    | Cle -> Cge
+    | Cgt -> Clt
+    | Cge -> Cle
+end
+
+module Float_comparison = struct
+  type t =
+    | CFeq
+    | CFneq
+    | CFlt
+    | CFnlt
+    | CFgt
+    | CFngt
+    | CFle
+    | CFnle
+    | CFge
+    | CFnge
+
+  let all = [CFeq; CFneq; CFlt; CFnlt; CFgt; CFngt; CFle; CFnle; CFge; CFnge]
+
+  let to_string = function
+    | CFeq -> "ordered_and_equal"
+    | CFgt -> "ordered_and_greaterthan"
+    | CFge -> "ordered_and_greaterequal"
+    | CFlt -> "ordered_and_lessthan"
+    | CFle -> "ordered_and_lessequal"
+    | CFneq -> "unordered_or_notequal"
+    | CFngt -> "unordered_or_lessequal"
+    | CFnge -> "unordered_or_lessthan"
+    | CFnlt -> "unordered_or_greaterequal"
+    | CFnle -> "unordered_or_greaterthan"
+
+  let negate = function
+    | CFeq -> CFneq
+    | CFneq -> CFeq
+    | CFlt -> CFnlt
+    | CFnlt -> CFlt
+    | CFgt -> CFngt
+    | CFngt -> CFgt
+    | CFle -> CFnle
+    | CFnle -> CFle
+    | CFge -> CFnge
+    | CFnge -> CFge
+
+  let swap = function
+    | CFeq -> CFeq
+    | CFneq -> CFneq
+    | CFlt -> CFgt
+    | CFnlt -> CFngt
+    | CFle -> CFge
+    | CFnle -> CFnge
+    | CFgt -> CFlt
+    | CFngt -> CFnlt
+    | CFge -> CFle
+    | CFnge -> CFnle
+end
 
 module Intrinsic = struct
   type 'mode info =
