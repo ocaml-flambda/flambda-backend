@@ -15,7 +15,9 @@
 
 #define CAML_INTERNALS
 
+#ifndef CAML_NAME_SPACE
 #define CAML_NAME_SPACE
+#endif
 #include "caml/compatibility.h"
 #undef CAML_NAME_SPACE
 
@@ -42,7 +44,7 @@
 #include "caml/memprof.h"
 
 #define CAMLextern_libthreads
-#include "threads.h"
+#include "../../otherlibs/systhreads4/threads.h"
 
 #ifndef NATIVE_CODE
 /* Initial size of bytecode stack when a thread is created (4 Ko) */
@@ -532,42 +534,12 @@ static void caml_thread_reinitialize(void)
   }
 }
 
-/* Installation of hooks for OCaml 5 stdlib compatibility.
-   See runtime4/domain.{c,h}.
-   Another approach would have been to use weak symbols, to override
-   dummy implementations in domain.c, but unfortunately that doesn't work
-   with the bytecode interpreter.
- */
-
-value caml_mutex_new(value unit);
-value caml_mutex_lock(value wrapper);
-value caml_mutex_unlock(value wrapper);
-value caml_mutex_try_lock(value wrapper);
-value caml_condition_new(value unit);
-value caml_condition_wait(value wcond, value wmut);
-value caml_condition_signal(value wrapper);
-value caml_condition_broadcast(value wrapper);
-
-static void install_ocaml_5_compatibility_hooks(void)
-{
-  caml_hook_mutex_new = &caml_mutex_new;
-  caml_hook_mutex_lock = &caml_mutex_lock;
-  caml_hook_mutex_try_lock = &caml_mutex_try_lock;
-  caml_hook_mutex_unlock = &caml_mutex_unlock;
-  caml_hook_condition_new = &caml_condition_new;
-  caml_hook_condition_wait = &caml_condition_wait;
-  caml_hook_condition_signal = &caml_condition_signal;
-  caml_hook_condition_broadcast = &caml_condition_broadcast;
-}
-
 /* Initialize the thread machinery */
 
 CAMLprim value caml_thread_initialize(value unit)   /* ML */
 {
   /* Protect against repeated initialization (PR#3532) */
   if (curr_thread != NULL) return Val_unit;
-  /* OCaml 5 compatibility */
-  install_ocaml_5_compatibility_hooks();
   /* OS-specific initialization */
   st_initialize();
   /* Initialize and acquire the master lock */
@@ -974,7 +946,7 @@ static struct custom_operations caml_mutex_ops = {
   custom_fixed_length_default
 };
 
-CAMLprim value caml_mutex_new(value unit)        /* ML */
+CAMLprim value caml_ml_mutex_new(value unit)        /* ML */
 {
   st_mutex mut = NULL;          /* suppress warning */
   value wrapper;
@@ -985,7 +957,7 @@ CAMLprim value caml_mutex_new(value unit)        /* ML */
   return wrapper;
 }
 
-CAMLprim value caml_mutex_lock(value wrapper)     /* ML */
+CAMLprim value caml_ml_mutex_lock(value wrapper)     /* ML */
 {
   st_mutex mut = Mutex_val(wrapper);
   st_retcode retcode;
@@ -1002,7 +974,7 @@ CAMLprim value caml_mutex_lock(value wrapper)     /* ML */
   return Val_unit;
 }
 
-CAMLprim value caml_mutex_unlock(value wrapper)           /* ML */
+CAMLprim value caml_ml_mutex_unlock(value wrapper)           /* ML */
 {
   st_mutex mut = Mutex_val(wrapper);
   st_retcode retcode;
@@ -1012,7 +984,7 @@ CAMLprim value caml_mutex_unlock(value wrapper)           /* ML */
   return Val_unit;
 }
 
-CAMLprim value caml_mutex_try_lock(value wrapper)           /* ML */
+CAMLprim value caml_ml_mutex_try_lock(value wrapper)           /* ML */
 {
   st_mutex mut = Mutex_val(wrapper);
   st_retcode retcode;
@@ -1054,7 +1026,7 @@ static struct custom_operations caml_condition_ops = {
   custom_fixed_length_default
 };
 
-CAMLprim value caml_condition_new(value unit)        /* ML */
+CAMLprim value caml_ml_condition_new(value unit)        /* ML */
 {
   st_condvar cond = NULL;       /* suppress warning */
   value wrapper;
@@ -1065,7 +1037,7 @@ CAMLprim value caml_condition_new(value unit)        /* ML */
   return wrapper;
 }
 
-CAMLprim value caml_condition_wait(value wcond, value wmut)           /* ML */
+CAMLprim value caml_ml_condition_wait(value wcond, value wmut)         /* ML */
 {
   st_condvar cond = Condition_val(wcond);
   st_mutex mut = Mutex_val(wmut);
@@ -1080,14 +1052,14 @@ CAMLprim value caml_condition_wait(value wcond, value wmut)           /* ML */
   return Val_unit;
 }
 
-CAMLprim value caml_condition_signal(value wrapper)           /* ML */
+CAMLprim value caml_ml_condition_signal(value wrapper)           /* ML */
 {
   st_check_error(st_condvar_signal(Condition_val(wrapper)),
                  "Condition.signal");
   return Val_unit;
 }
 
-CAMLprim value caml_condition_broadcast(value wrapper)           /* ML */
+CAMLprim value caml_ml_condition_broadcast(value wrapper)           /* ML */
 {
   st_check_error(st_condvar_broadcast(Condition_val(wrapper)),
                  "Condition.broadcast");

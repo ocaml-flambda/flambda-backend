@@ -1,4 +1,4 @@
-(copy_files# ../*.{c,h,ml,mli})
+(copy_files# ../*.{ml,mli})
 
 (library
  (name threadsnat)
@@ -10,13 +10,4 @@
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
  (libraries unix)
- (library_flags -linkall)
- (c_library_flags -lpthread)
- (foreign_stubs
-  (language c)
-  (names st_stubs)
-  (flags
-   ((-DNATIVE_CODE)
-    (:include %{project_root}/oc_cflags.sexp)
-    (:include %{project_root}/sharedlib_cflags.sexp)
-    (:include %{project_root}/oc_cppflags.sexp)))))
+ (library_flags -linkall))
