@@ -144,29 +144,11 @@ as it becomes ready.
 Similar to modes, a modality expression is a space-delimited list of
 modalities.  As of this writing, every modality is also the name of a mode,
 though it is conceivable we will have modalities other than modes in the future.
+The [semantics of modalities](../modalities) are documented separately.
 
 ```
 modalities ::= modes
 ```
-
-<!-- CR reisenberg: This should be moved to a page about the semantics
-of modalities, instead of here in the syntax page. But we don't have
-such a page now, so it's here for the time being. Include the semantics
-of the modalities on mutable fields when writing that page. -->
-
-Modalities are used to describe the relationship between a container and an
-element in that container; for example, if you have a record field `x` with
-a `portable` modality, then `r.x` is `portable` even if `r` is `nonportable`.
-We say that the `portable` modality applied to the `nonportable` record mode
-produces the `portable` mode of the field. 
-
-Modalities work differently on future axes vs. past axes. On a future axis, the
-modality imposes an upper bound on the mode (thus always lowering that
-mode). Thus applying the `portable` modality to a `nonportable` records yields a
-`portable` field, because `portable < nonportable`. On a past axis, the modality
-imposes a lower bound (thus always raising that mode). Accordingly, a
-`contended` modality applied to an `uncontended` record yields a `contended`
-field, because `uncontended < contended`.
 
 Any axis left out of a modality expression is assumed to be the identity
 modality. (When a modality is the identity, then the mode of a field is the same
