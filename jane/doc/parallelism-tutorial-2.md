@@ -283,7 +283,7 @@ We will do so via `Par_array.init`, where each index corresponds to one pixel.
 
 Since we want to share the input image across multiple parallel tasks, we'll need to provide it in a capsule.
 For simplicity, we also make use of `Capsule.access`, which lets us _unwrap_ the encapsulated image before passing it to `blur_at`.
-This pattern is explained in more detail in the [capsule documentation](./capsules.md).
+This pattern is explained in more detail in the [capsules page](./capsules.md).
 
 ```ocaml
 let filter ~scheduler ~mutex image =
