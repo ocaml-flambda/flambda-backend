@@ -13,12 +13,6 @@
 /*                                                                        */
 /**************************************************************************/
 
-/* CR ocaml 5 domains: This file is the 4.x version together with
-   adjustments to the names of exported functions ("unix_" -> "caml_unix").
-   (mshinwell/xclerc).
-   For multi-domain support we'll need to revisit this.
-*/
-
 #define CAML_INTERNALS
 
 #include <errno.h>
@@ -31,16 +25,12 @@
 #include <caml/signals.h>
 #include "caml/unixsupport.h"
 
-#ifndef NSIG
-#define NSIG 64
-#endif
-
 #ifdef POSIX_SIGNALS
 
 static void decode_sigset(value vset, sigset_t * set)
 {
   sigemptyset(set);
-  while (vset != Val_int(0)) {
+  while (vset != Val_emptylist) {
     int sig = caml_convert_signal_number(Int_val(Field(vset, 0)));
     sigaddset(set, sig);
     vset = Field(vset, 1);
@@ -49,19 +39,18 @@ static void decode_sigset(value vset, sigset_t * set)
 
 static value encode_sigset(sigset_t * set)
 {
-  value res = Val_int(0);
-  int i;
-
-  Begin_root(res)
-    for (i = 1; i < NSIG; i++)
-      if (sigismember(set, i) > 0) {
-        value newcons = caml_alloc_small(2, 0);
-        Field(newcons, 0) = Val_int(caml_rev_convert_signal_number(i));
-        Field(newcons, 1) = res;
-        res = newcons;
-      }
-  End_roots();
-  return res;
+  CAMLparam0();
+  CAMLlocal1(res);
+  res = Val_emptylist;
+  for (int i = 1; i < NSIG; i++) {
+    if (sigismember(set, i) > 0) {
+      value newcons = caml_alloc_small(2, 0);
+      Field(newcons, 0) = Val_int(caml_rev_convert_signal_number(i));
+      Field(newcons, 1) = res;
+      res = newcons;
+    }
+  }
+  CAMLreturn(res);
 }
 
 static int sigprocmask_cmd[3] = { SIG_SETMASK, SIG_BLOCK, SIG_UNBLOCK };
@@ -90,11 +79,24 @@ CAMLprim value caml_unix_sigprocmask(value vaction, value vset)
 CAMLprim value caml_unix_sigpending(value unit)
 {
   sigset_t pending;
-  int i;
+  uintnat curr;
   if (sigpending(&pending) == -1) caml_uerror("sigpending", Nothing);
-  for (i = 1; i < NSIG; i++)
+#ifdef CAML_RUNTIME_5
+  /* Add signals which are "pending" in the runtime */
+  for (int i = 0; i < NSIG_WORDS; i++) {
+    curr = atomic_load(&caml_pending_signals[i]);
+    if (curr == 0) continue;
+    for (int j = 0; j < BITS_PER_WORD; j++) {
+      if (curr & ((uintnat)1 << j)) {
+        sigaddset(&pending, i * BITS_PER_WORD + j + 1);
+      }
+    }
+  }
+#else
+  for (int i = 0; i < NSIG; i++)
     if(caml_pending_signals[i])
       sigaddset(&pending, i);
+#endif
   return encode_sigset(&pending);
 }
 
