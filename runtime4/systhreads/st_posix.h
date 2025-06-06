@@ -115,7 +115,7 @@ Caml_inline void st_thread_set_id(intnat id)
 
 /* If we're using glibc, use a custom condition variable implementation to
    avoid this bug: https://sourceware.org/bugzilla/show_bug.cgi?id=25847
-   
+
    For now we only have this on linux because it directly uses the linux futex
    syscalls. */
 #if defined(__linux__) && defined(__GNU_LIBRARY__) && defined(__GLIBC__) && defined(__GLIBC_MINOR__)
@@ -522,7 +522,7 @@ static value st_encode_sigset(sigset_t * set)
 
 static int sigmask_cmd[3] = { SIG_SETMASK, SIG_BLOCK, SIG_UNBLOCK };
 
-value caml_thread_sigmask(value cmd, value sigs) /* ML */
+CAMLprim value caml_thread_sigmask(value cmd, value sigs) /* ML */
 {
   int how;
   sigset_t set, oldset;
@@ -539,7 +539,7 @@ value caml_thread_sigmask(value cmd, value sigs) /* ML */
   return st_encode_sigset(&oldset);
 }
 
-value caml_wait_signal(value sigs) /* ML */
+CAMLprim value caml_wait_signal(value sigs) /* ML */
 {
   sigset_t set;
   int retcode, signo;
