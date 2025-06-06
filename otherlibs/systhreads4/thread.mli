@@ -24,7 +24,7 @@ type t : value mod contended portable
 (** {1 Thread creation and termination} *)
 
 module Portable : sig
-  val create : ('a -> 'b) @ portable -> 'a -> t
+  val create : ('a -> 'b) @ once portable -> 'a -> t
   (** [Thread.Portable.create funct arg] creates a new thread of control,
      in which the function application [funct arg]
      is executed concurrently with the other threads of the program.
