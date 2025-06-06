@@ -4,139 +4,139 @@
 
 [%quote 42];;
 [%%expect {|
-- : int code = << 42 >>
+- : int expr = << 42 >>
 |}];;
 
 [%quote 3.14s];;
 [%%expect {|
-- : float32 code = << 3.14s >>
+- : float32 expr = << 3.14s >>
 |}];;
 
 [%quote 3.14];;
 [%%expect {|
-- : float code = << 3.14 >>
+- : float expr = << 3.14 >>
 |}];;
 
 [%quote "foo"];;
 [%%expect {|
-- : string code = << "foo" >>
+- : string expr = << "foo" >>
 |}];;
 
 [%quote {foo|bar|foo}];;
 [%%expect {|
-- : string code = << {foo|bar|foo} >>
+- : string expr = << {foo|bar|foo} >>
 |}];;
 
 [%quote true];;
 [%%expect {|
-- : bool code = << true >>
+- : bool expr = << true >>
 |}];;
 
 [%quote false];;
 [%%expect {|
-- : bool code = << false >>
+- : bool expr = << false >>
 |}];;
 
 [%quote ()];;
 [%%expect {|
-- : unit code = << () >>
+- : unit expr = << () >>
 |}];;
 
 [%quote (1, 2)];;
 [%%expect {|
-- : (int * int) code = << (1, 2) >>
+- : (int * int) expr = << (1, 2) >>
 |}];;
 
 [%quote (1, 2, 3)];;
 [%%expect {|
-- : (int * int * int) code = << (1, 2, 3) >>
+- : (int * int * int) expr = << (1, 2, 3) >>
 |}];;
 
 [%quote (~lab:"val", ~lab2:77, 30)];;
 [%%expect {|
-- : (lab:string * lab2:int * int) code = << (~lab:"val", ~lab2:77, 30) >>
+- : (lab:string * lab2:int * int) expr = << (~lab:"val", ~lab2:77, 30) >>
 |}];;
 
 [%quote []];;
 [%%expect {|
-- : 'a list code = << [] >>
+- : 'a list expr = << [] >>
 |}];;
 
 [%quote [1; 2; 3]];;
 [%%expect {|
-- : int list code = << (::) (1, ((::) (2, ((::) (3, []))))) >>
+- : int list expr = << (::) (1, ((::) (2, ((::) (3, []))))) >>
 |}];;
 
 [%quote [||]];;
 [%%expect {|
-- : '_weak1 array code = << [||] >>
+- : '_weak1 array expr = << [||] >>
 |}];;
 
 [%quote [| 1; 2; 3 |]];;
 [%%expect {|
-- : int array code = << [|1; 2; 3|] >>
+- : int array expr = << [|1; 2; 3|] >>
 |}];;
 
 [%quote None];;
 [%%expect {|
-- : 'a option code = << None >>
+- : 'a option expr = << None >>
 |}];;
 
 [%quote Some 111];;
 [%%expect {|
-- : int option code = << Some 111 >>
+- : int option expr = << Some 111 >>
 |}];;
 
 [%quote `A 42];;
 [%%expect {|
-- : [> `A of int ] code = << `A 42 >>
+- : [> `A of int ] expr = << `A 42 >>
 |}];;
 
 [%quote if true then `A 10 else `B ("foo", 42)];;
 [%%expect {|
-- : [> `A of int | `B of string * int ] code =
+- : [> `A of int | `B of string * int ] expr =
 << if true then `A 10 else `B ("foo", 42) >>
 |}];;
 
 [%quote function | `A x -> x | `B (_, foo) -> foo];;
 [%%expect {|
 - : (([< `A of '_weak3 | `B of '_weak4 * '_weak3 ] as '_weak2) -> '_weak3)
-    code
+    expr
 = << function | `A x -> x | `B (_, foo) -> foo >>
 |}];;
 
 [%quote function | `A x -> x | `B (_, foo) -> foo | _ -> 42];;
 [%%expect {|
-- : (([> `A of int | `B of '_weak6 * int ] as '_weak5) -> int) code =
+- : (([> `A of int | `B of '_weak6 * int ] as '_weak5) -> int) expr =
 << function | `A x -> x | `B (_, foo) -> foo | _ -> 42 >>
 |}];;
 
 [%quote List.map];;
 [%%expect {|
-- : (('_weak7 -> '_weak8) -> '_weak7 list -> '_weak8 list) code =
+- : (('_weak7 -> '_weak8) -> '_weak7 list -> '_weak8 list) expr =
 << Stdlib.List.map >>
 |}];;
 
 [%quote fun x -> 42];;
 [%%expect {|
-- : ('_weak9 -> int) code = << fun x -> 42 >>
+- : ('_weak9 -> int) expr = << fun x -> 42 >>
 |}];;
 
 [%quote fun _ -> 42];;
 [%%expect {|
-- : ('_weak10 -> int) code = << fun _ -> 42 >>
+- : ('_weak10 -> int) expr = << fun _ -> 42 >>
 |}];;
 
 [%quote fun x y -> x];;
 [%%expect {|
-- : ('_weak11 -> '_weak12 -> '_weak11) code = << fun x y -> x >>
+- : ('_weak11 -> '_weak12 -> '_weak11) expr = << fun x y -> x >>
 |}];;
 
 [%quote fun f x y -> f ~a:y ~b:x];;
 [%%expect {|
 - : ((a:'_weak13 -> b:'_weak14 -> '_weak15) ->
      '_weak14 -> '_weak13 -> '_weak15)
-    code
+    expr
 = << fun f x y -> f ~a:y ~b:x >>
 |}];;
 
@@ -144,136 +144,136 @@
 [%%expect {|
 - : ((?a:'_weak16 -> ?b:'_weak17 -> '_weak18) ->
      '_weak17 option -> '_weak16 option -> '_weak18)
-    code
+    expr
 = << fun f x y -> f ?a:y ?b:x >>
 |}];;
 
 [%quote fun (x, y) -> x + y];;
 [%%expect {|
-- : (int * int -> int) code = << fun (x, y) -> x + y >>
+- : (int * int -> int) expr = << fun (x, y) -> x + y >>
 |}];;
 
 [%quote function | _ -> 12];;
 [%%expect {|
-- : ('_weak19 -> int) code = << function | _ -> 12 >>
+- : ('_weak19 -> int) expr = << function | _ -> 12 >>
 |}];;
 
 [%quote function | x -> x];;
 [%%expect {|
-- : ('_weak20 -> '_weak20) code = << function | x -> x >>
+- : ('_weak20 -> '_weak20) expr = << function | x -> x >>
 |}];;
 
 [%quote function | 42 -> true | _ -> false];;
 [%%expect {|
-- : (int -> bool) code = << function | 42 -> true | _ -> false >>
+- : (int -> bool) expr = << function | 42 -> true | _ -> false >>
 |}];;
 
 [%quote function | "foo" -> true | _ -> false];;
 [%%expect {|
-- : (string -> bool) code = << function | "foo" -> true | _ -> false >>
+- : (string -> bool) expr = << function | "foo" -> true | _ -> false >>
 |}];;
 
 [%quote function | (x, y) as z -> (x, y, z)];;
 [%%expect {|
-- : ('_weak21 * '_weak22 -> '_weak21 * '_weak22 * ('_weak21 * '_weak22)) code
+- : ('_weak21 * '_weak22 -> '_weak21 * '_weak22 * ('_weak21 * '_weak22)) expr
 = << function | (x, y) as z -> (x, y, z) >>
 |}];;
 
 [%quote function | (x, y) -> x + y];;
 [%%expect {|
-- : (int * int -> int) code = << function | (x, y) -> x + y >>
+- : (int * int -> int) expr = << function | (x, y) -> x + y >>
 |}];;
 
 [%quote function | (x, y, z) -> x + y - z];;
 [%%expect {|
-- : (int * int * int -> int) code = << function | (x, y, z) -> (x + y) - z >>
+- : (int * int * int -> int) expr = << function | (x, y, z) -> (x + y) - z >>
 |}];;
 
 [%quote function | `A -> true | `B -> false];;
 [%%expect {|
-- : (([< `A | `B ] as '_weak23) -> bool) code =
+- : (([< `A | `B ] as '_weak23) -> bool) expr =
 << function | `A -> true | `B -> false >>
 |}];;
 
 [%quote function | `Foo x -> x | `Bar (y, z) -> y + z | `Baz -> 0];;
 [%%expect {|
-- : (([< `Bar of int * int | `Baz | `Foo of int ] as '_weak24) -> int) code =
+- : (([< `Bar of int * int | `Baz | `Foo of int ] as '_weak24) -> int) expr =
 << function | `Foo x -> x | `Bar (y, z) -> y + z | `Baz -> 0 >>
 |}];;
 
 [%quote function | lazy x as l -> Lazy.force l];;
 [%%expect {|
-- : ('_weak25 Lazy.t -> '_weak25) code =
+- : ('_weak25 Lazy.t -> '_weak25) expr =
 << function | lazy (x) as l -> Stdlib.Lazy.force l >>
 |}];;
 
 [%quote fun f x d -> match f x with | res -> res | exception e -> d];;
 [%%expect {|
-- : (('_weak26 -> '_weak27) -> '_weak26 -> '_weak27 -> '_weak27) code =
+- : (('_weak26 -> '_weak27) -> '_weak26 -> '_weak27 -> '_weak27) expr =
 << fun f x d -> match f x with | res -> res | (exception e) -> d >>
 |}];;
 
 [%quote function | Some x -> x | None -> 0];;
 [%%expect {|
-- : (int option -> int) code = << function | Some (x) -> x | None -> 0 >>
+- : (int option -> int) expr = << function | Some (x) -> x | None -> 0 >>
 |}];;
 
 [%quote function | [] -> false | x::xs -> true];;
 [%%expect {|
-- : ('_weak28 list -> bool) code =
+- : ('_weak28 list -> bool) expr =
 << function | [] -> false | (::) (x, xs) -> true >>
 |}];;
 
 [%quote fun x d -> match x with | Some y -> y | None -> d];;
 [%%expect {|
-- : ('_weak29 option -> '_weak29 -> '_weak29) code =
+- : ('_weak29 option -> '_weak29 -> '_weak29) expr =
 << fun x d -> match x with | Some (y) -> y | None -> d >>
 |}];;
 
 [%quote fun l -> List.map (fun x -> 2 * x) l];;
 [%%expect {|
-- : (int list -> int list) code =
+- : (int list -> int list) expr =
 << fun l -> Stdlib.List.map (fun x -> 2 * x) l >>
 |}];;
 
 [%quote fun (type a) (f : a -> a) (x : a) -> f (f x)];;
 [%%expect {|
-- : (('_a -> '_a) -> '_a -> '_a) code =
+- : (('_a -> '_a) -> '_a -> '_a) expr =
 << fun (type a) (f : a -> a) (x : a) -> f (f x) >>
 |}];;
 
 [%quote fun x (type a) (f : a -> a * a) (g : int -> a) -> f (g x)];;
 [%%expect {|
-- : (int -> ('_a -> '_a * '_a) -> (int -> '_a) -> '_a * '_a) code =
+- : (int -> ('_a -> '_a * '_a) -> (int -> '_a) -> '_a * '_a) expr =
 << fun x (type a) (f : a -> (a) * (a)) (g : int -> a) -> f (g x) >>
 |}];;
 
 [%quote fun (f : 'a. 'a -> 'a) -> f f];;
 [%%expect {|
-- : (('a. 'a -> 'a) -> '_weak30 -> '_weak30) code =
+- : (('a. 'a -> 'a) -> '_weak30 -> '_weak30) expr =
 << fun (f : 'a . a -> a) -> f f >>
 |}];;
 
 [%quote fun x -> fun x -> fun x -> 42];;
 [%%expect {|
-- : ('_weak31 -> '_weak32 -> '_weak33 -> int) code =
+- : ('_weak31 -> '_weak32 -> '_weak33 -> int) expr =
 << fun x -> fun x__1 -> fun x__2 -> 42 >>
 |}];;
 
 [%quote fun x -> fun x -> fun x__1 -> 42];;
 [%%expect {|
-- : ('_weak34 -> '_weak35 -> '_weak36 -> int) code =
+- : ('_weak34 -> '_weak35 -> '_weak36 -> int) expr =
 << fun x -> fun x__1 -> fun x__2 -> 42 >>
 |}];;
 
 [%quote let z = 10 in z];;
 [%%expect {|
-- : int code = << let z = 10 in z >>
+- : int expr = << let z = 10 in z >>
 |}];;
 
 [%quote let (x, y) = (42, 100) in x + y];;
 [%%expect {|
-- : int code = << let (x, y) = (42, 100) in x + y >>
+- : int expr = << let (x, y) = (42, 100) in x + y >>
 |}];;
 
 [%quote let Some x = Some "foo" in x];;
@@ -285,7 +285,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 None
 
-- : string code = << match Some "foo" with | Some (x) -> x >>
+- : string expr = << match Some "foo" with | Some (x) -> x >>
 |}];;
 
 [%quote let x::xs = [1; 2; 3] in x];;
@@ -297,7 +297,7 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 []
 
-- : int code =
+- : int expr =
 << match (::) (1, ((::) (2, ((::) (3, []))))) with | (::) (x, xs) -> x >>
 |}];;
 
@@ -310,23 +310,23 @@ Warning 8 [partial-match]: this pattern-matching is not exhaustive.
 Here is an example of a case that is not matched:
 []
 
-- : int list code =
+- : int list expr =
 << match (::) (1, ((::) (2, ((::) (3, []))))) with | (::) (x, xs) -> xs >>
 |}];;
 
 [%quote let foo x = (x, x) in foo 42];;
 [%%expect {|
-- : (int * int) code = << let foo = (fun x -> (x, x)) in foo 42 >>
+- : (int * int) expr = << let foo = (fun x -> (x, x)) in foo 42 >>
 |}];;
 
 [%quote let foo = 50 and bar = 15 in foo + bar];;
 [%%expect {|
-- : int code = << let foo = 50 and bar = 15 in foo + bar >>
+- : int expr = << let foo = 50 and bar = 15 in foo + bar >>
 |}];;
 
 [%quote let x = 42 in let x = x in x];;
 [%%expect {|
-- : int code = << let x = 42 in let x__1 = x in x__1 >>
+- : int expr = << let x = 42 in let x__1 = x in x__1 >>
 |}];;
 
 [%quote
@@ -334,7 +334,7 @@ Here is an example of a case that is not matched:
   let+ a = 42 in a
 ];;
 [%%expect {|
-- : int code = << let (let+) = (fun x f -> f x) in let+ a = 42 in a >>
+- : int expr = << let (let+) = (fun x f -> f x) in let+ a = 42 in a >>
 |}];;
 
 [%quote
@@ -343,7 +343,7 @@ Here is an example of a case that is not matched:
   in a * 2
 ];;
 [%%expect {|
-- : int option code =
+- : int option expr =
 <<
   let (let+) = (fun x f -> Stdlib.Option.map f x) in
     let+ a = Some 42 in a * 2
@@ -357,7 +357,7 @@ Here is an example of a case that is not matched:
   in a + b
 ];;
 [%%expect {|
-- : int list code =
+- : int list expr =
 <<
   let (let*) = (fun x f -> Stdlib.List.map f x)
   and (and*) = Stdlib.List.combine in
@@ -367,20 +367,20 @@ Here is an example of a case that is not matched:
 
 [%quote fun (f: int -> int) (x: int) -> f x]
 [%%expect {|
-- : ((int -> int) -> int -> int) code =
+- : ((int -> int) -> int -> int) expr =
 << fun (f : int -> int) (x : int) -> f x >>
 |}];;
 
 [%quote let module M = Set.Make(Int) in M.singleton 100 |> M.elements];;
 [%%expect {|
-- : Int.t list code =
+- : Int.t list expr =
 << let module M = Stdlib.Set.Make(Stdlib.Int) in M.elements (M.singleton 100)
 >>
 |}];;
 
 [%quote ref 42];;
 [%%expect {|
-- : int ref code = << Stdlib.ref 42 >>
+- : int ref expr = << Stdlib.ref 42 >>
 |}];;
 
 [%quote
@@ -391,7 +391,7 @@ Here is an example of a case that is not matched:
   !x
 ];;
 [%%expect {|
-- : int code =
+- : int expr =
 << let x = (Stdlib.ref 0) in for i = 0 to 10 do (x := ((! x) + i)) done; ! x
 >>
 |}];;
@@ -404,7 +404,7 @@ Here is an example of a case that is not matched:
   !x
 ];;
 [%%expect {|
-- : int code =
+- : int expr =
 <<
   let x = (Stdlib.ref 0) in for i = 10 downto 0 do (x := ((! x) + i)) done;
     ! x
@@ -413,7 +413,7 @@ Here is an example of a case that is not matched:
 
 [%quote while true do () done];;
 [%%expect {|
-- : 'a code = << while true do  () done >>
+- : 'a expr = << while true do  () done >>
 |}];;
 
 [%quote
@@ -425,7 +425,7 @@ Here is an example of a case that is not matched:
   !f
 ];;
 [%%expect {|
-- : int code =
+- : int expr =
 <<
   let f = (Stdlib.ref 1) and i = (Stdlib.ref 5) in
     while (! i) > 0 do  (f := ((! i) * (! f)); i := ((! i) - 1)) done;
@@ -435,47 +435,47 @@ Here is an example of a case that is not matched:
 
 [%quote assert true];;
 [%%expect {|
-- : unit code = << assert true >>
+- : unit expr = << assert true >>
 |}];;
 
 [%quote assert false];;
 [%%expect {|
-- : 'a code = << assert false >>
+- : 'a expr = << assert false >>
 |}];;
 
 [%quote lazy 42];;
 [%%expect {|
-- : int lazy_t code = << lazy 42 >>
+- : int lazy_t expr = << lazy 42 >>
 |}];;
 
 [%quote fun () -> #25n];;
 [%%expect {|
-- : (unit -> nativeint#) code = << fun () -> #25n >>
+- : (unit -> nativeint#) expr = << fun () -> #25n >>
 |}];;
 
 [%quote fun () -> #25l];;
 [%%expect {|
-- : (unit -> int32#) code = << fun () -> #25l >>
+- : (unit -> int32#) expr = << fun () -> #25l >>
 |}];;
 
 [%quote fun () -> #25L];;
 [%%expect {|
-- : (unit -> int64#) code = << fun () -> #25L >>
+- : (unit -> int64#) expr = << fun () -> #25L >>
 |}];;
 
 [%quote fun () -> #6.0];;
 [%%expect {|
-- : (unit -> float#) code = << fun () -> #6.0 >>
+- : (unit -> float#) expr = << fun () -> #6.0 >>
 |}];;
 
 [%quote fun () -> #6.0s];;
 [%%expect {|
-- : (unit -> float32#) code = << fun () -> #6.0s >>
+- : (unit -> float32#) expr = << fun () -> #6.0s >>
 |}];;
 
 [%quote fun () -> #(1, 2, 3)];;
 [%%expect {|
-- : (unit -> #(int * int * int)) code = << fun () -> #(1, 2, 3) >>
+- : (unit -> #(int * int * int)) expr = << fun () -> #(1, 2, 3) >>
 |}];;
 
 type rcd = {x: int; y: string};;
@@ -485,7 +485,7 @@ type rcd = { x : int; y : string; }
 
 [%quote {x = 42; y = "foo"}];;
 [%%expect {|
-- : rcd code = << { x = 42; y = "foo"; } >>
+- : rcd expr = << { x = 42; y = "foo"; } >>
 |}];;
 
 type rcd_u = #{xu: int; yu: string};;
@@ -495,110 +495,110 @@ type rcd_u = #{ xu : int; yu : string; }
 
 [%quote fun () -> #{xu = 42; yu = "foo"}];;
 [%%expect {|
-- : (unit -> rcd_u) code = << fun () -> { xu = 42; yu = "foo"; } >>
+- : (unit -> rcd_u) expr = << fun () -> { xu = 42; yu = "foo"; } >>
 |}];;
 
 [%quote fun r -> r.x];;
 [%%expect {|
-- : (rcd -> int) code = << fun r -> r.x >>
+- : (rcd -> int) expr = << fun r -> r.x >>
 |}];;
 
 [%quote fun {x; y} -> x];;
 [%%expect {|
-- : (rcd -> int) code = << fun {x=x; y=y; } -> x >>
+- : (rcd -> int) expr = << fun {x=x; y=y; } -> x >>
 |}];;
 
 [%quote raise (Match_failure ("foo", 42, 100))];;
 [%%expect {|
-- : 'a code = << Stdlib.raise (Match_failure ("foo", 42, 100)) >>
+- : 'a expr = << Stdlib.raise (Match_failure ("foo", 42, 100)) >>
 |}];;
 
 [%quote raise Out_of_memory];;
 [%%expect {|
-- : 'a code = << Stdlib.raise Out_of_memory >>
+- : 'a expr = << Stdlib.raise Out_of_memory >>
 |}];;
 
 [%quote raise (Invalid_argument "arg")];;
 [%%expect {|
-- : 'a code = << Stdlib.raise (Invalid_argument "arg") >>
+- : 'a expr = << Stdlib.raise (Invalid_argument "arg") >>
 |}];;
 
 [%quote raise (Failure "fail")];;
 [%%expect {|
-- : 'a code = << Stdlib.raise (Failure "fail") >>
+- : 'a expr = << Stdlib.raise (Failure "fail") >>
 |}];;
 
 [%quote raise Not_found];;
 [%%expect {|
-- : 'a code = << Stdlib.raise Not_found >>
+- : 'a expr = << Stdlib.raise Not_found >>
 |}];;
 
 [%quote raise (Sys_error "err")];;
 [%%expect {|
-- : 'a code = << Stdlib.raise (Sys_error "err") >>
+- : 'a expr = << Stdlib.raise (Sys_error "err") >>
 |}];;
 
 [%quote raise End_of_file];;
 [%%expect {|
-- : 'a code = << Stdlib.raise End_of_file >>
+- : 'a expr = << Stdlib.raise End_of_file >>
 |}];;
 
 [%quote raise Division_by_zero];;
 [%%expect {|
-- : 'a code = << Stdlib.raise Division_by_zero >>
+- : 'a expr = << Stdlib.raise Division_by_zero >>
 |}];;
 
 [%quote raise Stack_overflow];;
 [%%expect {|
-- : 'a code = << Stdlib.raise Stack_overflow >>
+- : 'a expr = << Stdlib.raise Stack_overflow >>
 |}];;
 
 [%quote raise Sys_blocked_io];;
 [%%expect {|
-- : 'a code = << Stdlib.raise Sys_blocked_io >>
+- : 'a expr = << Stdlib.raise Sys_blocked_io >>
 |}];;
 
 [%quote raise (Assert_failure ("assert", 42, 100))];;
 [%%expect {|
-- : 'a code = << Stdlib.raise (Assert_failure ("assert", 42, 100)) >>
+- : 'a expr = << Stdlib.raise (Assert_failure ("assert", 42, 100)) >>
 |}];;
 
 [%quote raise (Undefined_recursive_module ("M", 42, 100))];;
 [%%expect {|
-- : 'a code = << Stdlib.raise (Undefined_recursive_module ("M", 42, 100)) >>
+- : 'a expr = << Stdlib.raise (Undefined_recursive_module ("M", 42, 100)) >>
 |}];;
 
 [%quote let exception E in ()];;
 [%%expect {|
-- : unit code = << let exception E in () >>
+- : unit expr = << let exception E in () >>
 |}];;
 
 [%quote let exception E in raise E];;
 [%%expect {|
-- : 'a code = << let exception E in Stdlib.raise E >>
+- : 'a expr = << let exception E in Stdlib.raise E >>
 |}];;
 
 [%quote let module M = Option in M.map];;
 [%%expect {|
-- : (('_weak37 -> '_weak38) -> '_weak37 option -> '_weak38 option) code =
+- : (('_weak37 -> '_weak38) -> '_weak37 option -> '_weak38 option) expr =
 << let module M = Stdlib.Option in M.map >>
 |}];;
 
 [%quote let module M = Option in function | M.None -> false | M.Some x -> x];;
 [%%expect {|
-- : (bool option -> bool) code =
+- : (bool option -> bool) expr =
 << let module M = Stdlib.Option in function | None -> false | Some (x) -> x
 >>
 |}];;
 
 [%quote fun () -> exclave_ Some 42];;
 [%%expect {|
-- : (unit -> local_ int option) code = << fun () -> exclave_ Some 42 >>
+- : (unit -> local_ int option) expr = << fun () -> exclave_ Some 42 >>
 |}];;
 
 [%quote fun () -> exclave_ stack_ (Some 42)];;
 [%%expect {|
-- : (unit -> local_ int option) code = << fun () -> exclave_ stack_ (Some 42)
+- : (unit -> local_ int option) expr = << fun () -> exclave_ stack_ (Some 42)
 >>
 |}];;
 
@@ -616,24 +616,24 @@ module type S =
 
 [%quote fun (module _ : S) x -> 42];;
 [%%expect {|
-- : ((module S) -> '_weak39 -> int) code = << fun (module _ : S) x -> 42 >>
+- : ((module S) -> '_weak39 -> int) expr = << fun (module _ : S) x -> 42 >>
 |}];;
 
 [%quote fun (module M : S) x -> M.c (M.b M.a x)];;
 [%%expect {|
-- : ((module S) -> int -> int) code =
+- : ((module S) -> int -> int) expr =
 << fun (module M : S) x -> M.c (M.b M.a x) >>
 |}];;
 
 [%quote fun (module M : S with type t = string) x -> M.c (M.b M.a x)];;
 [%%expect {|
-- : ((module S with type t = string) -> int -> int) code =
+- : ((module S with type t = string) -> int -> int) expr =
 << fun (module M : S with type t = string) x -> M.c (M.b M.a x) >>
 |}];;
 
 [%quote fun (module M : S with type t = string and type t2 = int) x -> M.c (M.b M.a x)];;
 [%%expect {|
-- : ((module S with type t = string and type t2 = int) -> int -> int) code =
+- : ((module S with type t = string and type t2 = int) -> int -> int) expr =
 <<
   fun (module M : S with type t = string and type t2 = int) x ->
     M.c (M.b M.a x)
@@ -663,7 +663,7 @@ Uncaught exception: Misc.Fatal_error
 
 let x = [%quote 123] in [%quote !#(x)];;
 [%%expect {|
-- : int code = << 123 >>
+- : int expr = << 123 >>
 |}];;
 
 [%quote let o = object method f = 1 end in o#f];;
@@ -675,104 +675,104 @@ Uncaught exception: Misc.Fatal_error
 
 [%quote fun x -> !#[%quote x]];;
 [%%expect {|
-- : ('_weak40 -> '_weak40) code = << fun x -> x >>
+- : ('_weak40 -> '_weak40) expr = << fun x -> x >>
 |}];;
 
 [%quote !#[%quote 42]];;
 [%%expect {|
-- : int code = << 42 >>
+- : int expr = << 42 >>
 |}];;
 
 [%quote !#[%quote "foo"]];;
 [%%expect {|
-- : string code = << "foo" >>
+- : string expr = << "foo" >>
 |}];;
 
 [%quote fun x -> !#((fun y -> [%quote !#y + !#y]) [%quote x])];;
 [%%expect {|
-- : (int -> int) code = << fun x -> x + x >>
+- : (int -> int) expr = << fun x -> x + x >>
 |}];;
 
 [%quote !#((fun y -> [%quote !#y + !#y]) [%quote 2])];;
 [%%expect {|
-- : int code = << 2 + 2 >>
+- : int expr = << 2 + 2 >>
 |}];;
 
 [%quote [%quote !#[%quote 123]]];;
 [%%expect {|
-- : int code code = << << $ << 123 >> >> >>
+- : int expr expr = << << $ << 123 >> >> >>
 |}];;
 
 let x = [%quote "foo"] and y = [%quote "bar"] in [%quote !#x ^ !#y];;
 [%%expect {|
-- : string code = << "foo" ^ "bar" >>
+- : string expr = << "foo" ^ "bar" >>
 |}];;
 
 [%quote fun x -> [%quote [%quote !#(!#x)]]];;
 [%%expect {|
-- : ('_weak41 code code -> '_weak41 code code) code =
+- : ('_weak41 expr expr -> '_weak41 expr expr) expr =
 << fun x -> << << $ ($ x) >> >> >>
 |}];;
 
 [%quote 42 [@inline]];;
 [%%expect {|
-- : int code = << 42 [@inline] >>
+- : int expr = << 42 [@inline] >>
 |}];;
 
 [%quote 42 [@inlined]];;
 [%%expect {|
-- : int code = << 42 [@inlined] >>
+- : int expr = << 42 [@inlined] >>
 |}];;
 
 [%quote 42 [@specialise]];;
 [%%expect {|
-- : int code = << 42 [@specialise] >>
+- : int expr = << 42 [@specialise] >>
 |}];;
 
 
 [%quote 42 [@specialised]];;
 [%%expect {|
-- : int code = << 42 [@specialised] >>
+- : int expr = << 42 [@specialised] >>
 |}];;
 
 
 [%quote 42 [@unrolled]];;
 [%%expect {|
-- : int code = << 42 [@unrolled] >>
+- : int expr = << 42 [@unrolled] >>
 |}];;
 
 
 [%quote 42 [@nontail]];;
 [%%expect {|
-- : int code = << 42 [@nontail] >>
+- : int expr = << 42 [@nontail] >>
 |}];;
 
 
 [%quote 42 [@tail]];;
 [%%expect {|
-- : int code = << 42 [@tail] >>
+- : int expr = << 42 [@tail] >>
 |}];;
 
 
 [%quote 42 [@poll]];;
 [%%expect {|
-- : int code = << 42 [@poll] >>
+- : int expr = << 42 [@poll] >>
 |}];;
 
 
 [%quote 42 [@loop]];;
 [%%expect {|
-- : int code = << 42 [@loop] >>
+- : int expr = << 42 [@loop] >>
 |}];;
 
 
 [%quote 42 [@tail_mod_cons]];;
 [%%expect {|
-- : int code = << 42 [@tail_mod_cons] >>
+- : int expr = << 42 [@tail_mod_cons] >>
 |}];;
 
 
 [%quote 42 [@quotation]];;
 [%%expect {|
-- : int code = << 42 [@quotation] >>
+- : int expr = << 42 [@quotation] >>
 |}];;

@@ -50,7 +50,7 @@ and ident_string = ident_create "string"
 and ident_extension_constructor = ident_create "extension_constructor"
 and ident_floatarray = ident_create "floatarray"
 and ident_lexing_position = ident_create "lexing_position"
-and ident_code = ident_create "code"
+and ident_code = ident_create "expr"
 
 and ident_unboxed_float = ident_create "float#"
 and ident_unboxed_float32 = ident_create "float32#"
