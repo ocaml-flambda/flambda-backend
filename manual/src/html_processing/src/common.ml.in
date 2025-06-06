@@ -57,8 +57,6 @@ let favicon = "favicon.ico"
 
 let flat_option f o = Option.bind o f
 
-let (<<) f g x = f (g x)
-
 let string_of_opt = Option.value ~default:""
 
 let starts_with substring s =

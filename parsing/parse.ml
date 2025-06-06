@@ -178,6 +178,10 @@ let prepare_error err =
   | Malformed_instance_identifier loc ->
       Location.errorf ~loc
         "Syntax error: Unexpected in module instance"
+  | Quotation_reserved (loc, symb) ->
+      Location.errorf ~loc
+        "Syntax error: `%s` is reserved for use in runtime metaprogramming."
+        symb
 
 let () =
   Location.register_error_of_exn
