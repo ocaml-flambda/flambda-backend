@@ -6,7 +6,7 @@ In this tutorial, we'll see how [_capsules_](https://github.com/janestreet/porta
 
 ## Capsules
 
-_This tutorial uses the "expert" capsule API, which is explained in more detail [here](./capsules.md).
+_This tutorial uses the ["expert" capsule API](https://github.com/janestreet/basement/blob/master/src/capsule.mli), which is explained in more detail [here](./capsules.md).
 For a brief overview, read on._
 
 Wrapping mutable state in an `Atomic.t` can be a reasonable approach, but parallel programs often require other concurrency primitives, such as locks.

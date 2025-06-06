@@ -1,9 +1,9 @@
 # Capsules
 
-A _capsule_ is a collection of mutable state accessible via a particular API that prohibits data races.
+_This page introduces the ["expert" capsule API](https://github.com/janestreet/basement/blob/master/src/capsule.mli).
+A more ergonomic, work-in-progress API is available in [`Portable.Capsule`](https://github.com/janestreet/portable/blob/master/kernel/src/capsule_intf.ml)._
 
-_This page introduces the "expert" capsule API, which may be found in `Portable.Capsule.Expert`.
-A more ergonomic but slightly less expressive API will be available in `Portable.Capsule`._
+A _capsule_ is a collection of mutable state accessible via a particular API that prohibits data races.
 
 ## Data
 
