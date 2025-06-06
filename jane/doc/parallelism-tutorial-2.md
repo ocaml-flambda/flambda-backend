@@ -1,47 +1,33 @@
 # Parallelism Tutorial II
 
-<!-- CR-soon mslater: link to atomic/capsule APIs -->
-
 The [first parallelism tutorial](./parallelism-tutorial.md) introduced the contention and portability mode axes, showcasing their use in fork/join parallelism and parallel sequences.
-However, it only covered one way to share mutable data between `portable` functions: atomics.
-In this tutorial, we'll see how _parallel arrays_ and _capsules_ can be used parallelize programs that operate on more complex mutable data.
-
-Wrapping mutable state in an `Atomic.t` can be a reasonable approach, but parallel programs often require other concurrency primitives, such as locks.
-This is the purpose of the Capsule API, which lets us associate an unsynchronized data structure with a particular lock.
+However, it only covered one way to share mutable data between `portable` functions: [atomics](https://github.com/janestreet/portable/blob/master/kernel/src/atomic.mli).
+In this tutorial, we'll see how [_capsules_](https://github.com/janestreet/portable/blob/master/kernel/src/capsule_intf.ml) and [_parallel arrays_](https://github.com/janestreet/parallel/blob/with-extensions/arrays/parallel_arrays_intf.ml) can be used parallelize programs that operate on more complex mutable data.
 
 ## Capsules
 
-This tutorial uses the "expert" capsule API, which is explained in more detail [here](./capsules.md).
-For a brief introduction, read on.
+_This tutorial uses the "expert" capsule API, which is explained in more detail [here](./capsules.md).
+For a brief overview, read on._
+
+Wrapping mutable state in an `Atomic.t` can be a reasonable approach, but parallel programs often require other concurrency primitives, such as locks.
+This is the purpose of the capsule API, which lets us associate a collection of mutable state with a particular lock.
 
 ### Branding
 
-The capsule API introduces several types that have a particular type parameter `'k`.
+The capsule API introduces several types that have a special type parameter `'k`.
 This parameter is called the *capsule brand*, and it uniquely identifies a capsule at compile time.
-Here, we will make use of the following types:
+Concretely, we'll use the following types:
 
 - `('a, 'k) Capsule.Data.t`
 - `'k Capsule.Key.t`
 - `'k Capsule.Mutex.t`
 
-All values that share the brand `'k` are associated with capsule `'k`.
-For example, we will be able to use a `'k Capsule.Key.t` to access data branded with the same `'k`.
+All values that share a particular brand `'k` are associated with capsule `'k`.
+For example, we will be able to use a `'k Capsule.Mutex.t` to access data branded with the same `'k`.
 
-### Keys
+### Data
 
-Each capsule is also associated with a _key_&mdash;for example, the key for capsule `'k` has type `'k Capsule.Key.t`.
-When we create a capsule, we receive the key:
-
-```ocaml
-let (P key) = Capsule.create () in (* ... *)
-```
-
-Note that `Capsule.create` returns a "packed" key: its brand is [existential](https://dev.realworldocaml.org/gadts.html), so unpacking the result produces a fresh `'k` distinct from all other capsule brands.
-
-Keys are protected by [_uniqueness_](./extensions/_06-uniqueness/intro.md), which is another modal axis that tracks whether there exist multiple references to a value.
-Given a `unique` key (as opposed to `aliased`), we know the current thread holds the only reference to the key, so may manipulate the contents of the associated capsule.
-
-To represent data that lives in a capsule, we create a `('a, 'k) Capsule.Data.t`.
+To represent mutable state that lives in a capsule, we create a `('a, 'k) Capsule.Data.t`.
 This type can be thought of as a pointer to a value of type `'a` that is protected by capsule `'k`.
 
 ```ocaml
@@ -51,6 +37,20 @@ let capsule_ref = Capsule.Data.create (fun () -> ref 0) in (* ... *)
 Even though the capsule may contain mutable state, encapsulated data crosses portability and contention.
 That means we can freely share this pointer between `portable` functions without it becoming `contended`.
 To prevent races, the rest of the capsule API limits when we can dereference encapsulated data.
+
+### Keys
+
+Capsules can be associated with _keys_&mdash;for example, the key for capsule `'k` has type `'k Capsule.Key.t`.
+When we create a capsule, we receive its key:
+
+```ocaml
+let (P key) = Capsule.create () in (* ... *)
+```
+
+Note that `Capsule.create` returns a "packed" key: its brand is [existential](https://dev.realworldocaml.org/gadts.html), so unpacking the result produces a fresh `'k` distinct from all other capsule brands.
+
+Keys are protected by [_uniqueness_](./extensions/_06-uniqueness/intro.md), which is another modal axis that tracks whether there exist multiple references to a value.
+Given a `unique` key (as opposed to `aliased`), we know the current thread holds the only reference to the key, so may manipulate the contents of the associated capsule.
 
 Given a unique key, we can request the _password_ for its capsule, which lets us access the data therein.
 For example, we can use `Capsule.Data.iter` to increment our reference:
