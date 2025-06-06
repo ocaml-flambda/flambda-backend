@@ -810,6 +810,10 @@ type raw_ident_module_type_t = MtDot of raw_ident_module_t * string
 
 type raw_ident_field_t = FDot of raw_ident_module_t * string
 
+let suffix_string_of_ident_value = function
+  | VDot (_, s) -> s
+  | VVar (v, _) -> Var.Value.name v
+
 let special_symbols =
   [ '!';
     '?';
@@ -1201,9 +1205,22 @@ module Ast = struct
     | Tail_mod_cons
     | Quotation
 
+  let attribute_as_string = function
+    | Inline -> "inline"
+    | Inlined -> "inlined"
+    | Specialise -> "specialise"
+    | Specialised -> "specialised"
+    | Unrolled -> "unrolled"
+    | Nontail -> "nontail"
+    | Tail -> "tail"
+    | Poll -> "poll"
+    | Loop -> "loop"
+    | Tail_mod_cons -> "tail_mod_cons"
+    | Quotation -> "quotation"
+
   type expression =
     { desc : expression_desc;
-      _attributes : expression_attribute list
+      attributes : expression_attribute list
     }
 
   and expression_desc =
@@ -1288,18 +1305,51 @@ module Ast = struct
     | When of comprehension * expression
     | ForComp of comprehension * comprehension_clause
 
+  (* quotation printing logic *)
+
+  let pp = Format.fprintf
+
+  let prefix_symbols = ['!'; '?'; '~']
+
+  let infix_symbols =
+    ['='; '<'; '>'; '@'; '^'; '|'; '&'; '+'; '-'; '*'; '/'; '$'; '%'; '#']
+
+  (* type fixity = Infix| Prefix  *)
+  let special_infix_strings =
+    ["asr"; "land"; "lor"; "lsl"; "lsr"; "lxor"; "mod"; "or"; ":="; "!="; "::"]
+
+  let without_parens = function
+    | s when (s.[0], s.[String.length s - 1]) = ('(', ')') ->
+      String.sub s 1 (String.length s - 2)
+    | s -> s
+
+  let fixity_of_string = function
+    | "" -> `Normal
+    | s when List.mem s special_infix_strings -> `Infix s
+    | s when List.mem s.[0] infix_symbols -> `Infix s
+    | s when List.mem s.[0] prefix_symbols -> `Prefix s
+    | s when s.[0] = '.' -> `Mixfix s
+    | _ -> `Normal
+
+  let view_fixity_of_exp = function
+    (* FIXME: properly check that it is safe to treat the operator as infix within
+       the quotation context *)
+    | { desc = Ident l; attributes = [] } ->
+      fixity_of_string (suffix_string_of_ident_value l)
+    | _ -> `Normal
+
   let print_tuple_like delim open_sym close_sym printer fmt entries =
-    Format.fprintf fmt "%s@[" open_sym;
+    pp fmt "%s@[" open_sym;
     (match entries with
     | [] -> ()
     | e :: es ->
       printer fmt e;
-      List.iter (fun e -> Format.fprintf fmt "%s@ %a" delim printer e) es);
-    Format.fprintf fmt "@]%s" close_sym
+      List.iter (fun e -> pp fmt "%s@ %a" delim printer e) es);
+    pp fmt "@]%s" close_sym
 
   let print_label_tup printer fmt (lab, entry) =
     match lab with
-    | LabelledTup s -> Format.fprintf fmt "~%s:%a" s printer entry
+    | LabelledTup s -> pp fmt "~%s:%a" s printer entry
     | NolabelTup -> printer fmt entry
 
   let print_array printer fmt entries =
@@ -1309,103 +1359,90 @@ module Ast = struct
     print_tuple_like "," "(" ")" (print_label_tup printer) fmt entries
 
   let print_obj_closed fmt closed_flag =
-    Format.fprintf fmt "%s"
-      (match closed_flag with OOpen -> ".." | OClosed -> "")
+    pp fmt "%s" (match closed_flag with OOpen -> ".." | OClosed -> "")
 
   let rec print_vb env fmt ({ pat; expr } : value_binding) =
-    Format.fprintf fmt "%a@ =@ @[%a@]" (print_pat env) pat
-      (print_exp_with_parens env)
-      expr
+    pp fmt "%a@ =@ @[%a@]" (print_pat env) pat (print_exp_with_parens env) expr
 
   and print_const fmt = function
-    | Int n -> Format.fprintf fmt "%d" n
-    | Char c -> Format.fprintf fmt "%c" c
+    | Int n -> pp fmt "%d" n
+    | Char c -> pp fmt "%c" c
     | String (s, id_opt) -> (
       match id_opt with
-      | None -> Format.fprintf fmt "\"%s\"" s
-      | Some id -> Format.fprintf fmt "{%s|@[%s@]|%s}" id s id)
-    | Float s -> Format.fprintf fmt "%s" s
-    | Float32 s -> Format.fprintf fmt "%ss" s
-    | Int32 n -> Format.fprintf fmt "%ld" n
-    | Int64 n -> Format.fprintf fmt "%Ld" n
-    | Nativeint n -> Format.fprintf fmt "%nd" n
-    | UnboxedFloat s -> Format.fprintf fmt "#%s" s
-    | UnboxedFloat32 s -> Format.fprintf fmt "#%ss" s
-    | UnboxedInt32 n -> Format.fprintf fmt "#%ldl" n
-    | UnboxedInt64 n -> Format.fprintf fmt "#%LdL" n
-    | UnboxedNativeint n -> Format.fprintf fmt "#%ndn" n
+      | None -> pp fmt "\"%s\"" s
+      | Some id -> pp fmt "{%s|@[%s@]|%s}" id s id)
+    | Float s -> pp fmt "%s" s
+    | Float32 s -> pp fmt "%ss" s
+    | Int32 n -> pp fmt "%ld" n
+    | Int64 n -> pp fmt "%Ld" n
+    | Nativeint n -> pp fmt "%nd" n
+    | UnboxedFloat s -> pp fmt "#%s" s
+    | UnboxedFloat32 s -> pp fmt "#%ss" s
+    | UnboxedInt32 n -> pp fmt "#%ldl" n
+    | UnboxedInt64 n -> pp fmt "#%LdL" n
+    | UnboxedNativeint n -> pp fmt "#%ndn" n
 
   and print_constr env fmt = function
-    | CBasic s -> Format.fprintf fmt "%s" s
+    | CBasic s -> pp fmt "%s" s
     | CIdent id -> print_raw_ident_constructor env fmt id
 
   and print_module_type env fmt = function
-    | MTBasic s -> Format.fprintf fmt "%s" s
+    | MTBasic s -> pp fmt "%s" s
     | MTIdent id -> print_raw_ident_module_type env fmt id
 
   and print_field env fmt = function
-    | FBasic s -> Format.fprintf fmt "%s" s
+    | FBasic s -> pp fmt "%s" s
     | FIdent id -> print_raw_ident_field env fmt id
 
   and print_pat env fmt = function
-    | PatAny -> Format.fprintf fmt "_"
+    | PatAny -> pp fmt "_"
     | PatVar v -> Var.Value.print env fmt v
     | PatAlias (pat, v) ->
-      Format.fprintf fmt "%a@ as@ %a" (print_pat env) pat (Var.Value.print env)
-        v
+      pp fmt "%a@ as@ %a" (print_pat env) pat (Var.Value.print env) v
     | PatConstant c -> print_const fmt c
     | PatTuple ts -> print_tuple (print_pat env) fmt ts
-    | PatUnboxedTuple ts ->
-      Format.fprintf fmt "#%a" (print_tuple (print_pat env)) ts
+    | PatUnboxedTuple ts -> pp fmt "#%a" (print_tuple (print_pat env)) ts
     | PatConstruct (ident, pat_opt) -> (
       match pat_opt with
       | None -> print_constr env fmt ident
-      | Some pat ->
-        Format.fprintf fmt "%a@ %a" (print_constr env) ident (print_pat env) pat
+      | Some pat -> pp fmt "%a@ %a" (print_constr env) ident (print_pat env) pat
       )
     | PatVariant (variant, pat_opt) -> (
       match pat_opt with
       | None -> Variant.print fmt variant
-      | Some pat ->
-        Format.fprintf fmt "%a@ %a" Variant.print variant (print_pat env) pat)
+      | Some pat -> pp fmt "%a@ %a" Variant.print variant (print_pat env) pat)
     | PatRecord (entries, rec_flag) ->
-      Format.fprintf fmt "{@[";
+      pp fmt "{@[";
       List.iter
         (fun (field, pat) ->
-          Format.fprintf fmt "%a=%a;@ " (print_field env) field (print_pat env)
-            pat)
+          pp fmt "%a=%a;@ " (print_field env) field (print_pat env) pat)
         entries;
-      if rec_flag = OpenRec then Format.fprintf fmt "_";
-      Format.fprintf fmt "@]}"
+      if rec_flag = OpenRec then pp fmt "_";
+      pp fmt "@]}"
     | PatUnboxedRecord (entries, rec_flag) ->
-      Format.fprintf fmt "#{@[";
+      pp fmt "#{@[";
       List.iter
         (fun (field, pat) ->
-          Format.fprintf fmt "@[%a@ =@ %a;@]@ " (print_field env) field
-            (print_pat env) pat)
+          pp fmt "@[%a@ =@ %a;@]@ " (print_field env) field (print_pat env) pat)
         entries;
-      if rec_flag = OpenRec then Format.fprintf fmt "_";
-      Format.fprintf fmt "@]}"
+      if rec_flag = OpenRec then pp fmt "_";
+      pp fmt "@]}"
     | PatArray pats -> print_array (print_pat env) fmt pats
     | PatOr (pat1, pat2) ->
-      Format.fprintf fmt "%a@ |@ %a" (print_pat env) pat1 (print_pat env) pat2
+      pp fmt "%a@ |@ %a" (print_pat env) pat1 (print_pat env) pat2
     | PatConstraint (pat, ty) ->
-      Format.fprintf fmt "(%a@ :@ %a)" (print_pat env) pat (print_core_type env)
-        ty
-    | PatLazy pat -> Format.fprintf fmt "lazy@ (%a)" (print_pat env) pat
-    | PatAnyModule -> Format.fprintf fmt "module _"
-    | PatUnpack v -> Format.fprintf fmt "module@ %a" (Var.Module.print env) v
-    | PatException pat ->
-      Format.fprintf fmt "(exception@ %a)" (print_pat env) pat
+      pp fmt "(%a@ :@ %a)" (print_pat env) pat (print_core_type env) ty
+    | PatLazy pat -> pp fmt "lazy@ (%a)" (print_pat env) pat
+    | PatAnyModule -> pp fmt "module _"
+    | PatUnpack v -> pp fmt "module@ %a" (Var.Module.print env) v
+    | PatException pat -> pp fmt "(exception@ %a)" (print_pat env) pat
 
   and print_type_constraint env fmt = function
-    | Constraint ty ->
-      Format.fprintf fmt "%@ :@ @[%a@]" (print_core_type env) ty
-    | Coerce (None, ty) ->
-      Format.fprintf fmt "%@ :>@ @[%a@]" (print_core_type env) ty
+    | Constraint ty -> pp fmt "%@ :@ @[%a@]" (print_core_type env) ty
+    | Coerce (None, ty) -> pp fmt "%@ :>@ @[%a@]" (print_core_type env) ty
     | Coerce (Some ty_constr, ty) ->
-      Format.fprintf fmt "%@ :@ @[%a@]@ :>@ @[%a@]" (print_core_type env)
-        ty_constr (print_core_type env) ty
+      pp fmt "%@ :@ @[%a@]@ :>@ @[%a@]" (print_core_type env) ty_constr
+        (print_core_type env) ty
 
   and print_exp_with_parens env fmt exp =
     match exp.desc with
@@ -1415,220 +1452,225 @@ module Ast = struct
     | Record (_, None)
     | Field _ | Array _ | Send _ | Unreachable | Src_pos | Unboxed_tuple _
     | Unboxed_record_product (_, None)
-    | List_comprehension _ | Array_comprehension _ | Quote _ | Antiquote _ ->
+    | List_comprehension _ | Array_comprehension _ | Quote _ ->
       (print_exp env) fmt exp
-    | _ -> Format.fprintf fmt "(@[%a@])" (print_exp env) exp
+    | _ -> pp fmt "(@[%a@])" (print_exp env) exp
 
   and print_case env fmt { lhs; guard; rhs } =
-    Format.fprintf fmt " | %a" (print_pat env) lhs;
+    pp fmt " | %a" (print_pat env) lhs;
     (match guard with
     | None -> ()
-    | Some guard ->
-      Format.fprintf fmt "@ with@ %a" (print_exp_with_parens env) guard);
-    Format.fprintf fmt "@ ->@ ";
-    match rhs with
-    | None -> Format.fprintf fmt "."
-    | Some rhs -> print_exp env fmt rhs
+    | Some guard -> pp fmt "@ with@ %a" (print_exp_with_parens env) guard);
+    pp fmt "@ ->@ ";
+    match rhs with None -> pp fmt "." | Some rhs -> print_exp env fmt rhs
 
   and print_row_field env with_or fmt rf =
-    if with_or then Format.fprintf fmt "@ |@ ";
+    if with_or then pp fmt "@ |@ ";
     match rf with
     | Vinherit ty -> print_core_type env fmt ty
     | Vtag (_, false, []) ->
       () (* fatal_error "Invalid polymorphic variant type" *)
-    | Vtag (variant, true, []) -> Format.fprintf fmt "%a" Variant.print variant
+    | Vtag (variant, true, []) -> pp fmt "%a" Variant.print variant
     | Vtag (variant, true, tys) ->
-      Format.fprintf fmt "%a@ of" Variant.print variant;
+      pp fmt "%a@ of" Variant.print variant;
       List.iter
-        (fun ty ->
-          Format.fprintf fmt "@ &@ %a" (print_core_type_with_arrow env) ty)
+        (fun ty -> pp fmt "@ &@ %a" (print_core_type_with_arrow env) ty)
         tys
     | Vtag (variant, false, ty :: tys) ->
-      Format.fprintf fmt "%a@ of@ %a" Variant.print variant
+      pp fmt "%a@ of@ %a" Variant.print variant
         (print_core_type_with_arrow env)
         ty;
       List.iter
-        (fun ty ->
-          Format.fprintf fmt "@ &@ %a" (print_core_type_with_arrow env) ty)
+        (fun ty -> pp fmt "@ &@ %a" (print_core_type_with_arrow env) ty)
         tys
 
   and print_fragment fmt = function
     | Name s -> Name.print fmt s
-    | Dot (frag, s) ->
-      Format.fprintf fmt "%a.%a" print_fragment frag Name.print s
+    | Dot (frag, s) -> pp fmt "%a.%a" print_fragment frag Name.print s
 
   and print_core_type_with_arrow env fmt ty =
     match ty with
-    | TypeArrow _ -> Format.fprintf fmt "(@[%a@])" (print_core_type env) ty
+    | TypeArrow _ -> pp fmt "(@[%a@])" (print_core_type env) ty
     | _ -> print_core_type env fmt ty
 
   and print_core_type_with_parens env fmt ty =
     match ty with
     | TypeArrow _ | TypeTuple _ | TypeConstr _ | TypeAlias _ | TypePoly _ ->
-      Format.fprintf fmt "(@[%a@])" (print_core_type env) ty
+      pp fmt "(@[%a@])" (print_core_type env) ty
     | _ -> print_core_type env fmt ty
 
   and print_object_field env fmt = function
-    | Oinherit ty ->
-      Format.fprintf fmt "<inherit %a TODO>" (print_core_type env) ty
+    | Oinherit ty -> pp fmt "<inherit %a TODO>" (print_core_type env) ty
     | Otag (name, ty) ->
-      Format.fprintf fmt "%a@ :@ %a" Name.print name (print_core_type env) ty
+      pp fmt "%a@ :@ %a" Name.print name (print_core_type env) ty
 
   and print_module_exp env fmt = function
     | ModuleIdent ident -> print_raw_ident_module env fmt ident
     | ModuleApply (module_1, module_2) ->
-      Format.fprintf fmt "%a(@[%a@])" (print_module_exp env) module_1
-        (print_module_exp env) module_2
-    | ModuleApply_unit module_ ->
-      Format.fprintf fmt "%a()" (print_module_exp env) module_
+      pp fmt "%a(@[%a@])" (print_module_exp env) module_1 (print_module_exp env)
+        module_2
+    | ModuleApply_unit module_ -> pp fmt "%a()" (print_module_exp env) module_
 
   and print_core_type env fmt = function
-    | TypeAny -> Format.fprintf fmt "_"
+    | TypeAny -> pp fmt "_"
     | TypeVar v -> Var.Type_var.print env fmt v
     | TypeArrow (arg_label, ty1, ty2) ->
-      Format.fprintf fmt "%a%a@ ->@ %a" print_arg_lab arg_label
+      pp fmt "%a%a@ ->@ %a" print_arg_lab arg_label
         (print_core_type_with_arrow env)
         ty1 (print_core_type env) ty2
     | TypeTuple ((tl, ty) :: ts) ->
       (match tl with
-      | LabelledTup l ->
-        Format.fprintf fmt "%s:%a" l (print_core_type_with_parens env) ty
+      | LabelledTup l -> pp fmt "%s:%a" l (print_core_type_with_parens env) ty
       | NolabelTup -> print_core_type_with_parens env fmt ty);
       List.iter
         (fun (tl, ty) ->
-          Format.fprintf fmt " * ";
+          pp fmt " * ";
           match tl with
           | LabelledTup l ->
-            Format.fprintf fmt "%s:%a" l (print_core_type_with_parens env) ty
+            pp fmt "%s:%a" l (print_core_type_with_parens env) ty
           | NolabelTup -> print_core_type_with_parens env fmt ty)
         ts
     | TypeTuple [] -> () (* fatal_error "Invalid tuple type" *)
     | TypeUnboxedTuple ((tl, ty) :: ts) ->
       (match tl with
-      | LabelledTup l ->
-        Format.fprintf fmt "%s:%a" l (print_core_type_with_parens env) ty
+      | LabelledTup l -> pp fmt "%s:%a" l (print_core_type_with_parens env) ty
       | NolabelTup -> print_core_type_with_parens env fmt ty);
       List.iter
         (fun (tl, ty) ->
-          Format.fprintf fmt " * ";
+          pp fmt " * ";
           match tl with
           | LabelledTup l ->
-            Format.fprintf fmt "%s:%a" l (print_core_type_with_parens env) ty
+            pp fmt "%s:%a" l (print_core_type_with_parens env) ty
           | NolabelTup -> print_core_type_with_parens env fmt ty)
         ts (* possibly incorrect way of displaying unboxed tuples *)
     | TypeUnboxedTuple [] -> () (* fatal_error "Invalid unboxed tuple type" *)
     | TypeConstr (ident, []) -> print_raw_ident_type env fmt ident
     | TypeConstr (ident, [ty]) ->
-      Format.fprintf fmt "%a@ %a"
+      pp fmt "%a@ %a"
         (print_core_type_with_parens env)
         ty (print_raw_ident_type env) ident
     | TypeConstr (ident, ty :: tys) ->
       print_tuple_like "(" ")" "," (print_core_type env) fmt (ty :: tys);
-      Format.fprintf fmt "@ %a" (print_raw_ident_type env) ident
+      pp fmt "@ %a" (print_raw_ident_type env) ident
     | TypeObject ([], closed_flag) ->
-      Format.fprintf fmt "< %a >" print_obj_closed closed_flag
+      pp fmt "< %a >" print_obj_closed closed_flag
     | TypeObject (f :: fs, closed_flag) ->
-      Format.fprintf fmt "<@ @[";
+      pp fmt "<@ @[";
       print_tuple_like "" "" "," (print_object_field env) fmt (f :: fs);
       print_obj_closed fmt closed_flag;
-      Format.fprintf fmt "@]@ >"
+      pp fmt "@]@ >"
     | TypeClass (name, []) -> Name.print fmt name
     | TypeClass (name, [ty]) ->
-      Format.fprintf fmt "[%a]@ %a" (print_core_type env) ty Name.print name
+      pp fmt "[%a]@ %a" (print_core_type env) ty Name.print name
     | TypeClass (name, ty :: tys) ->
       print_tuple_like "[" "]" "," (print_core_type env) fmt (ty :: tys);
-      Format.fprintf fmt "@ %a" Name.print name
+      pp fmt "@ %a" Name.print name
     | TypeAlias (ty, tv) ->
-      Format.fprintf fmt "%a@ as@ %a" (print_core_type env) ty Name.print tv
+      pp fmt "%a@ as@ %a" (print_core_type env) ty Name.print tv
     | TypeVariant ([], _) -> () (* fatal_error "Invalid variant type" *)
     | TypeVariant (rf :: row_fields, variant_form) ->
       (match variant_form with
-      | VFixed -> Format.fprintf fmt "[ "
-      | VOpen -> Format.fprintf fmt "[> "
-      | VClosed _ -> Format.fprintf fmt "[< ");
+      | VFixed -> pp fmt "[ "
+      | VOpen -> pp fmt "[> "
+      | VClosed _ -> pp fmt "[< ");
       print_row_field env false fmt rf;
       List.iter (print_row_field env true fmt) row_fields;
-      Format.fprintf fmt " ]"
+      pp fmt " ]"
     | TypePoly ([], _) -> () (* fatal_error "Invalid poly-type" *)
     | TypePoly (tv :: tvs, ty) ->
-      let print_tv fmt name = Format.fprintf fmt "'%s" name in
+      let print_tv fmt name = pp fmt "'%s" name in
       print_tuple_like "" "" " " print_tv fmt (tv :: tvs);
-      Format.fprintf fmt ".@ %a" (print_core_type env) ty
+      pp fmt ".@ %a" (print_core_type env) ty
     | TypePackage (ident, []) -> print_module_type env fmt ident
     | TypePackage (ident, (fragment, core_type) :: wcs) ->
-      Format.fprintf fmt "@[%a@ with@ type@ %a@ =@ %a" (print_module_type env)
-        ident print_fragment fragment (print_core_type env) core_type;
+      pp fmt "@[%a@ with@ type@ %a@ =@ %a" (print_module_type env) ident
+        print_fragment fragment (print_core_type env) core_type;
       List.iter
         (fun (fragment, core_type) ->
-          Format.fprintf fmt "@ and@ type@ %a@ =@ %a" print_fragment fragment
+          pp fmt "@ and@ type@ %a@ =@ %a" print_fragment fragment
             (print_core_type env) core_type)
         wcs;
-      Format.fprintf fmt "@]"
-    | TypeCallPos -> Format.fprintf fmt "call_pos"
+      pp fmt "@]"
+    | TypeCallPos -> pp fmt "call_pos"
 
   and print_arg_lab fmt = function
-    | Nolabel -> Format.fprintf fmt ""
-    | Labelled s -> Format.fprintf fmt "~%s:" s
-    | Optional s -> Format.fprintf fmt "?%s:" s
+    | Nolabel -> pp fmt ""
+    | Labelled s -> pp fmt "~%s:" s
+    | Optional s -> pp fmt "?%s:" s
 
-  (* TODO: incorrect !! -- add logic for (let+) *)
   and print_param env fmt = function
     | Pparam_val (arg_lab, None, pat) ->
-      Format.fprintf fmt "@ %a%a" print_arg_lab arg_lab (print_pat env) pat
+      pp fmt "@ %a%a" print_arg_lab arg_lab (print_pat env) pat
     | Pparam_val (arg_lab, Some exp, pat) ->
-      Format.fprintf fmt "@ %a%a=(@[%a@])" print_arg_lab arg_lab (print_pat env)
-        pat (print_exp env) exp
-    | Pparam_newtype ty ->
-      Format.fprintf fmt "@ (type %a)" (Var.Type_var.print env) ty
+      pp fmt "@ %a%a=(@[%a@])" print_arg_lab arg_lab (print_pat env) pat
+        (print_exp env) exp
+    | Pparam_newtype ty -> pp fmt "@ (type@ %a)" (Var.Type_var.print env) ty
 
   and print_record env fmt (fields, exp_opt) =
-    Format.fprintf fmt "{@ @[";
+    pp fmt "@[<2>{@ ";
     (match exp_opt with
     | None -> ()
-    | Some exp -> Format.fprintf fmt "%a@ with@ " (print_exp env) exp);
+    | Some exp -> pp fmt "%a@ with@ " (print_exp env) exp);
     List.iter
       (fun (field, exp) ->
-        Format.fprintf fmt "%a = %a; " (print_field env) field (print_exp env)
-          exp)
+        pp fmt "%a@ =@ %a;@ " (print_field env) field (print_exp env) exp)
       fields;
-    Format.fprintf fmt "@]}"
+    pp fmt "@]}"
+
+  and print_attribute fmt attr = pp fmt "@ [%@%s]" (attribute_as_string attr)
+
+  and print_apply env fmt exp args =
+    pp fmt "@[<2>%a" (print_exp env) exp;
+    List.iter
+      (fun (arg_lab, exp) ->
+        pp fmt "@ %a@[%a@]" print_arg_lab arg_lab
+          (print_exp_with_parens env)
+          exp)
+      args;
+    pp fmt "@]"
 
   and print_exp env fmt exp =
-    match exp.desc with
+    (match exp.desc with
     | Ident id -> print_raw_ident_value env fmt id
     | Constant c -> print_const fmt c
-    | Apply (exp, args) ->
-      Format.fprintf fmt "%a@[<hov>" (print_exp env) exp;
-      List.iter
-        (fun (arg_lab, exp) ->
-          Format.fprintf fmt "@ %a@[%a@]" print_arg_lab arg_lab
+    | Apply (exp, args) -> (
+      match view_fixity_of_exp exp with
+      | `Infix s -> (
+        match args with
+        | [(Nolabel, arg1); (Nolabel, arg2)] ->
+          pp fmt "@[<2>%a@;%s@;%a@]"
             (print_exp_with_parens env)
-            exp)
-        args;
-      Format.fprintf fmt "@]"
+            arg1 s
+            (print_exp_with_parens env)
+            arg2
+        | _ -> print_apply env fmt exp args)
+      | `Prefix s -> (
+        match args with
+        | [(Nolabel, arg)] ->
+          pp fmt "@[<2>%s@;%a@]" s (print_exp_with_parens env) arg
+        | _ -> print_apply env fmt exp args)
+      | _ -> print_apply env fmt exp args)
     | Fun { params; constraint_; body } -> (
       match body with
       | Pfunction_body exp ->
-        Format.fprintf fmt "fun";
+        pp fmt "@[<2>fun";
         List.iter (print_param env fmt) params;
         Option.iter (print_type_constraint env fmt) constraint_;
-        Format.fprintf fmt "@ ->@ @[%a@]" (print_exp env) exp
+        pp fmt "@ ->@ %a@]" (print_exp env) exp
       | Pfunction_cases cases ->
-        Format.fprintf fmt "function@[";
+        pp fmt "function@[";
         List.iter (print_case env fmt) cases;
         Option.iter (print_type_constraint env fmt) constraint_;
-        Format.fprintf fmt "@]")
+        pp fmt "@]")
     | Let (_, [], _) ->
       failwith "Cannot create empty let-expressions. This should not happen."
     | Let (rec_flag, vb :: vbs, body) ->
       let prefix =
         match rec_flag with Nonrecursive -> "let" | Recursive -> "let@ rec"
       in
-      Format.fprintf fmt "@[@[%s@ @[%a@]@]@ " prefix (print_vb env) vb;
-      List.iter
-        (fun vb -> Format.fprintf fmt "@[and@ %a@]@ " (print_vb env) vb)
-        vbs;
-      Format.fprintf fmt "@]in@ @[%a@]" (print_exp env) body
+      pp fmt "@[<2>@[@[<2>%s@ %a@]@ " prefix (print_vb env) vb;
+      List.iter (fun vb -> pp fmt "@[<2>and@ %a@]@ " (print_vb env) vb) vbs;
+      pp fmt "in@]@;%a@]" (print_exp env) body
     | Let_op ([], _, _) ->
       failwith "Cannot create empty let-expressions. This should not happen."
     | Let_op (binders, defs, case) -> (
@@ -1645,119 +1687,102 @@ module Ast = struct
       in
       iter3
         (fun binder (_, pat_bind) def ->
-          Format.fprintf fmt "@[%a@ %a@ =@ @[%a@]@]@ "
-            (print_raw_ident_value env)
-            binder (print_pat env) pat_bind (print_exp env) def)
+          pp fmt "@[<2>@[%s@ %a@ =@ @[%a@]@ "
+            (without_parens (suffix_string_of_ident_value binder))
+            (print_pat env) pat_bind (print_exp env) def)
         binders bind_lefts defs;
       match case.rhs with
-      | Some exp -> Format.fprintf fmt "@[in@ @[%a@]@]" (print_exp env) exp
-      | None -> Format.fprintf fmt ".")
-    | Exclave exp -> Format.fprintf fmt "exclave_@ %a" (print_exp env) exp
+      | Some exp -> pp fmt "in@]@;%a@]" (print_exp env) exp
+      | None -> pp fmt ".")
+    | Exclave exp -> pp fmt "exclave_@ %a" (print_exp env) exp
     | Construct (ident, exp_opt) -> (
       match exp_opt with
       | None -> print_constr env fmt ident
       | Some exp ->
-        Format.fprintf fmt "%a@ %a" (print_constr env) ident
-          (print_exp_with_parens env)
-          exp)
+        pp fmt "%a@ %a" (print_constr env) ident (print_exp_with_parens env) exp
+      )
     | Variant (s, exp_opt) -> (
       match exp_opt with
-      | None -> Format.fprintf fmt "`%s" s
-      | Some exp ->
-        Format.fprintf fmt "`%s@ %a" s (print_exp_with_parens env) exp)
+      | None -> pp fmt "`%s" s
+      | Some exp -> pp fmt "`%s@ %a" s (print_exp_with_parens env) exp)
     | Record (fields, exp_opt) -> print_record env fmt (fields, exp_opt)
     | Field (exp, field) ->
-      Format.fprintf fmt "%a.%a"
-        (print_exp_with_parens env)
-        exp (print_field env) field
+      pp fmt "%a.%a" (print_exp_with_parens env) exp (print_field env) field
     | Array entries -> print_array (print_exp_with_parens env) fmt entries
     | Tuple entries -> print_tuple (print_exp_with_parens env) fmt entries
     | Ifthenelse (cond, then_, else_) -> (
-      Format.fprintf fmt "if@ %a@ then@ @;@[%a@]"
+      pp fmt "@[if@ %a@ @[<2>then@ %a@]"
         (print_exp_with_parens env)
         cond (print_exp env) then_;
       match else_ with
-      | Some else_ ->
-        Format.fprintf fmt "@ @;else@ @;@[%a@]" (print_exp env) else_
-      | None -> ())
+      | Some else_ -> pp fmt "@ @[<2>else@ %a@]" (print_exp env) else_
+      | None -> pp fmt "@]")
     | Sequence (exp1, exp2) ->
-      Format.fprintf fmt "%a;@ @,%a" (print_exp env) exp1 (print_exp env) exp2
+      pp fmt "%a;@ @,%a" (print_exp env) exp1 (print_exp env) exp2
     | While (cond, body) ->
-      Format.fprintf fmt "while@ %a@ do@ @,@[<2>%a@]@ @,done" (print_exp env)
-        cond
+      pp fmt "@[<2>while@ %a@ do@; @[%a@]@]@;done" (print_exp env) cond
         (print_exp_with_parens env)
         body
     | For (it, start, stop, dir, body) ->
       let dir = match dir with Upto -> "to" | Downto -> "downto" in
-      Format.fprintf fmt "for@ %a@ =@ %a@ %s@ %a@ do@ @,@[<2>%a@]@ @,done"
-        (print_pat env) it (print_exp env) start dir (print_exp env) stop
+      pp fmt "for@ %a@ =@ %a@ %s@ %a@ do@ @,@[<2>%a@]@ @,done" (print_pat env)
+        it (print_exp env) start dir (print_exp env) stop
         (print_exp_with_parens env)
         body
     | Send (exp, meth) ->
-      Format.fprintf fmt "%a#@[%a@]"
-        (print_exp_with_parens env)
-        exp Method.print meth
+      pp fmt "%a#@[%a@]" (print_exp_with_parens env) exp Method.print meth
     | ConstraintExp (exp, ty) ->
-      Format.fprintf fmt "%a@ :@ %a" (print_exp env) exp (print_core_type env)
-        ty
+      pp fmt "%a@ :@ %a" (print_exp env) exp (print_core_type env) ty
     | CoerceExp (exp, opt_ty, ty) -> (
       match opt_ty with
-      | None ->
-        Format.fprintf fmt "%a@ :>@ %a" (print_exp env) exp
-          (print_core_type env) ty
+      | None -> pp fmt "%a@ :>@ %a" (print_exp env) exp (print_core_type env) ty
       | Some ty_constr ->
-        Format.fprintf fmt "%a@ :@ %a@ :>@ %a" (print_exp env) exp
-          (print_core_type env) ty_constr (print_core_type env) ty)
+        pp fmt "%a@ :@ %a@ :>@ %a" (print_exp env) exp (print_core_type env)
+          ty_constr (print_core_type env) ty)
     | Match (exp, cases) ->
-      Format.fprintf fmt "match@ @[%a@]@ with@[" (print_exp env) exp;
+      pp fmt "@[<2>match@ @[%a@]@ with" (print_exp env) exp;
       List.iter (print_case env fmt) cases;
-      Format.fprintf fmt "@]"
-    | Try (try_, with_) -> (
-      Format.fprintf fmt "try@ @[%a@]" (print_exp env) try_;
-      match with_ with
-      | [] -> ()
-      | with_ ->
-        Format.fprintf fmt "@ with@ @[";
-        List.iter
-          (fun case -> Format.fprintf fmt "%a" (print_case env) case)
-          with_;
-        Format.fprintf fmt "@]")
+      pp fmt "@]"
+    | Try (try_, with_) ->
+      (pp fmt "@[<2>try@ %a" (print_exp env) try_;
+       match with_ with
+       | [] -> ()
+       | with_ ->
+         pp fmt "@ @[<2>with@ ";
+         List.iter (fun case -> pp fmt "%a" (print_case env) case) with_;
+         pp fmt "@]");
+      pp fmt "@]"
     | Setfield (obj, field, exp) ->
-      Format.fprintf fmt "%a#%a <- %a"
+      pp fmt "%a#%a <- %a"
         (print_exp_with_parens env)
         obj (print_field env) field (print_exp env) exp
     | Letmodule (None, module_exp, exp) ->
-      Format.fprintf fmt "let@ module@ _@ =@ @[%a@]@ in@ @[%a@]"
-        (print_module_exp env) module_exp (print_exp env) exp
+      pp fmt "@[<2>let@ module@ _@ =@ @[%a@]@ in@ %a@]" (print_module_exp env)
+        module_exp (print_exp env) exp
     | Letmodule (Some modvar, module_exp, exp) ->
-      Format.fprintf fmt "let@ module@ %a@ =@ @[%a@]@ in@ @[%a@]"
-        (Var.Module.print env) modvar (print_module_exp env) module_exp
-        (print_exp env) exp
-    | Assert exp -> Format.fprintf fmt "assert@ @[%a@]" (print_exp env) exp
-    | Lazy exp -> Format.fprintf fmt "lazy@ @[%a@]" (print_exp env) exp
+      pp fmt "@[<2>let@ module@ %a@ =@ @[%a@]@ in@ %a@]" (Var.Module.print env)
+        modvar (print_module_exp env) module_exp (print_exp env) exp
+    | Assert exp -> pp fmt "@[<2>assert@ %a@]" (print_exp env) exp
+    | Lazy exp -> pp fmt "@[<2>lazy@ %a@]" (print_exp env) exp
     | Pack module_exp ->
-      Format.fprintf fmt "(module@ @[%a@])" (print_module_exp env) module_exp
-    | New ident ->
-      Format.fprintf fmt "new@ @[%a@]" (print_raw_ident_value env) ident
-    | Stack exp ->
-      Format.fprintf fmt "stack_@ @[%a@]" (print_exp_with_parens env) exp
+      pp fmt "(@[<2>module@ %a@])" (print_module_exp env) module_exp
+    | New ident -> pp fmt "@[<2>new@ %a@]" (print_raw_ident_value env) ident
+    | Stack exp -> pp fmt "@[<2>stack_@ %a@]" (print_exp_with_parens env) exp
     | Let_exception (name, exp) ->
-      Format.fprintf fmt "let@ exception@ %s@ in@ @[%a@]" name (print_exp env)
-        exp
-    | Extension_constructor name -> Format.fprintf fmt "(* extension %s *)" name
+      pp fmt "@[<2>let@ exception@ %s@ in@ %a@]" name (print_exp env) exp
+    | Extension_constructor name -> pp fmt "(* extension %s *)" name
     | Unboxed_tuple ts ->
-      Format.fprintf fmt "#";
+      pp fmt "#";
       print_tuple (print_exp env) fmt ts
     | Unboxed_record_product (ts, exp_opt) -> print_record env fmt (ts, exp_opt)
     | Unboxed_field (exp, rec_field) ->
-      Format.fprintf fmt "#%a.%a" (print_exp env) exp (print_field env)
-        rec_field
-    | Quote exp -> Format.fprintf fmt "[%%quote@ @[%a@]]" (print_exp env) exp
-    | Antiquote exp ->
-      Format.fprintf fmt "!#@[%a@]" (print_exp_with_parens env) exp
+      pp fmt "#%a.%a" (print_exp env) exp (print_field env) rec_field
+    | Quote exp -> pp fmt "@[<2><<@ %a@ @]>>" (print_exp env) exp
+    | Antiquote exp -> pp fmt "@[<2>$@ %a@]" (print_exp_with_parens env) exp
     | List_comprehension _ | Array_comprehension _ ->
-      Format.fprintf fmt "(* comprehension *)"
-    | Unreachable | Src_pos -> Format.fprintf fmt "."
+      pp fmt "(* comprehension *)"
+    | Unreachable | Src_pos -> pp fmt ".");
+    List.iter (print_attribute fmt) exp.attributes
 end
 
 module Label = struct
@@ -2387,7 +2412,7 @@ module Code = struct
 
   let print fmt c =
     let ast_exp = With_free_vars.value ~free:(fun _ _ -> ()) c in
-    Format.fprintf fmt "[%%quote@ @[%a@]]"
+    Format.fprintf fmt "@[<2><<@ %a@]@ >>"
       (Ast.print_exp (new_env ()))
       ast_exp.exp
 end
@@ -2654,7 +2679,7 @@ module Exp = struct
 
   let ( let+ ) x f = With_free_vars.map f x
 
-  let mk exp_desc _attributes =
+  let mk exp_desc attributes =
     let+ desc = exp_desc in
-    ({ desc; _attributes } : Ast.expression)
+    ({ desc; attributes } : Ast.expression)
 end

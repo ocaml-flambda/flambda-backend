@@ -651,17 +651,17 @@ let mk_exp_noattr loc desc = apply loc Exp.mk [desc; nil]
 let quote_attributes e =
   let quoted_attr (attr : Typedtree.attribute) =
     match attr.attr_name.txt with
-    | "Inline" -> use Exp_attribute.inline
-    | "Inlined" -> use Exp_attribute.inlined
-    | "Specialise" -> use Exp_attribute.specialise
-    | "Specialised" -> use Exp_attribute.specialised
-    | "Unrolled" -> use Exp_attribute.unrolled
-    | "Nontail" -> use Exp_attribute.nontail
-    | "Tail" -> use Exp_attribute.tail
-    | "Poll" -> use Exp_attribute.poll
-    | "Loop" -> use Exp_attribute.loop
-    | "Tail_mod_cons" -> use Exp_attribute.tail_mod_cons
-    | "Quotation" -> use Exp_attribute.quotation
+    | "inline" -> use Exp_attribute.inline
+    | "inlined" -> use Exp_attribute.inlined
+    | "specialise" -> use Exp_attribute.specialise
+    | "specialised" -> use Exp_attribute.specialised
+    | "unrolled" -> use Exp_attribute.unrolled
+    | "nontail" -> use Exp_attribute.nontail
+    | "tail" -> use Exp_attribute.tail
+    | "poll" -> use Exp_attribute.poll
+    | "loop" -> use Exp_attribute.loop
+    | "tail_mod_cons" -> use Exp_attribute.tail_mod_cons
+    | "quotation" -> use Exp_attribute.quotation
     | _ -> fatal_error "Unknown attribute"
   in
   mk_list (List.map quoted_attr e.exp_attributes)
