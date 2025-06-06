@@ -11,10 +11,24 @@ This is the purpose of the Capsule API, which lets us associate an unsynchronize
 
 ## Capsules
 
-The following examples make use of the "expert" capsule API, which is explained in more detail [here](./capsules.md).
+This tutorial uses the "expert" capsule API, which is explained in more detail [here](./capsules.md).
 For a brief introduction, read on.
 
-Capsules are collections of (mutable) data identified by a type `'k`.
+### Branding
+
+The capsule API introduces several types that have a particular type parameter `'k`.
+This parameter is called the *capsule brand*, and it uniquely identifies a capsule at compile time.
+Here, we will make use of the following types:
+
+- `('a, 'k) Capsule.Data.t`
+- `'k Capsule.Key.t`
+- `'k Capsule.Mutex.t`
+
+All values that share the brand `'k` are associated with capsule `'k`.
+For example, we will be able to use a `'k Capsule.Key.t` to access data branded with the same `'k`.
+
+### Keys
+
 Each capsule is also associated with a _key_&mdash;for example, the key for capsule `'k` has type `'k Capsule.Key.t`.
 When we create a capsule, we receive the key:
 
@@ -22,7 +36,7 @@ When we create a capsule, we receive the key:
 let (P key) = Capsule.create () in (* ... *)
 ```
 
-Note that `Capsule.create` returns a "packed" key: its `'k` parameter is  [existential](https://dev.realworldocaml.org/gadts.html), so unpacking the result produces a fresh `'k` distinct from all other capsules.
+Note that `Capsule.create` returns a "packed" key: its brand is [existential](https://dev.realworldocaml.org/gadts.html), so unpacking the result produces a fresh `'k` distinct from all other capsule brands.
 
 Keys are protected by [_uniqueness_](./extensions/_06-uniqueness/intro.md), which is another modal axis that tracks whether there exist multiple references to a value.
 Given a `unique` key (as opposed to `aliased`), we know the current thread holds the only reference to the key, so may manipulate the contents of the associated capsule.
@@ -31,7 +45,6 @@ To represent data that lives in a capsule, we create a `('a, 'k) Capsule.Data.t`
 This type can be thought of as a pointer to a value of type `'a` that is protected by capsule `'k`.
 
 ```ocaml
-let (P key) = Capsule.create () in
 let capsule_ref = Capsule.Data.create (fun () -> ref 0) in (* ... *)
 ```
 
@@ -51,7 +64,9 @@ Capsule.Key.with_password key ~f:(fun password ->
   ))
 ```
 
-However, if `unique` keys were the only way to get a password, we still couldn't let multiple domains trade off access to a capsule.
+### Locks
+
+If `unique` keys were the only way to get a password, we still couldn't let multiple domains trade off access to a capsule.
 This is the purpose of locks, the most common of which is the _mutex_.
 To create a mutex for a capsule, we consume its key, which cannot be used again:
 
@@ -60,7 +75,7 @@ let (P key) = Capsule.create () in
 let mutex = Capsule.Mutex.create key in (* ... *)
 ```
 
-Mutexes also cross portability and contention, so may be freely shared across `portable` functions and used at `uncontended`.
+Mutexes also cross portability and contention, so may be freely shared across `portable` functions and assumed to be `uncontended`.
 Now, to get a password, we can lock the mutex, indicating that our domain has exclusive access to the capsule.
 In this way, a mutex is like a _dynamically unique_ key&mdash;the mutex itself may be `aliased`, but only one domain can have the lock.
 
@@ -74,11 +89,11 @@ Capsule.Mutex.with_lock mutex ~f:(fun password ->
   ))
 ```
 
-With locks, we have the tools required to safely share mutable data structures between parallel tasks.
+With mutexes, we have the tools required to safely share mutable data structures between parallel tasks.
 
 ## Sorting
 
-Now that we can share state between tasks, we can speed up a broader class of algorithms.
+Now that we can share mutable state between tasks, we can speed up a broader class of algorithms.
 For example, let's explore how we might parallelize sorting a mutable array.
 
 We'll make use of two more pieces of the `Parallel` library: _parallel arrays_ and _slices_.
@@ -89,9 +104,9 @@ module Slice = Parallel.Arrays.Array.Slice
 ```
 
 A parallel array is just like an array, but with a couple restrictions that make it safe to operate upon in parallel.
-In this example, we'll assume the array elements cross portability and contention (and for simplicity, are `int`s).
+In this example, we'll use `int` as the element type&mdash;it crosses portability and contention, simplifying the example.
 
-A slice is a `local` view of a parallel array.
+A slice is a `local` view of (part of) a parallel array.
 Intuitively, a slice _borrows_ a segment of the array, only allowing access a contiguous subset of its indices.
 Using slices, we can implement a standard sequential quicksort:
 
@@ -129,7 +144,7 @@ let rec quicksort slice =
 ;;
 ```
 
-The sequential implementation has reasonable performance&mdash;it sorts 10,000 random integers in 2.3 milliseconds in our benchmark setup.
+The sequential implementation has decent performance&mdash;it sorts 10,000 random integers in 2.3 milliseconds in our [benchmark](https://github.com/janestreet/parallel/blob/with-extensions/example/sort.ml).
 However, there's a clear opportunity for parallelism: recursively sorting `left` and `right` are independent tasks, so they could be run in parallel.
 We can try adding a fork/join, but it won't quite work:
 
@@ -190,7 +205,7 @@ let quicksort ~scheduler ~mutex array =
 ```
 
 There's one last problem: capturing an existing array in `schedule` causes it to become `contended`.
-To fix this, we will instead provide an encapsulated array.
+Instead, we will operate on an encapsulated array, which assures that our caller is not mutating it in parallel.
 
 ```ocaml
 let quicksort ~scheduler ~mutex array =
@@ -251,8 +266,9 @@ let blur_at image ~x ~y =
   let width = Image.width image in
   let height = Image.height image in
   let acc = ref 0. in
-  for i = -4 to 4 do
-    for j = -4 to 4 do
+  let radius = 4 in
+  for i = -radius to radius do
+    for j = -radius to radius do
       let x = Int.clamp_exn (x + i) ~min:0 ~max:(width - 1) in
       let y = Int.clamp_exn (y + j) ~min:0 ~max:(height - 1) in
       acc := !acc +. Image.get image ~x ~y
@@ -298,7 +314,7 @@ Domains | Time (ms)
 8       | 977
 
 ...we'll find that it gets slower with more domains!
-That's because we've only allowed one domain at a time to access the input image, destroying any opportunity for parallelism.
+That's because our mutex only allows one domain at a time to access the input image, destroying any opportunity for parallelism.
 
 Fortunately, we know that all domains only _read_ the input image, so it should be safe for them to do so simultaneously.
 However, we can't just allow `Image.get` to read from a `contended` image&mdash;in general, one other domain could be writing to it.
@@ -349,7 +365,10 @@ Domains | Time (ms)
 4       | 81
 8       | 51
 
-<!-- CR-soon mslater: update with rwlocks -->
+## Further Reading
 
-If we needed to preserve the mutability of the input image, we could instead protect its capsule with a reader-writer lock.
-However, this would still incur some overhead readers, and reader-writer locks are not yet compatible with the parallel library.
+Capsules, keys, and mutexes let us manipulate mutable state across parallel tasks.
+However, some data access patterns still can't be expressed with these abstractions alone.
+
+For example, if we needed to preserve the mutability of our input image, we could instead protect its capsule with a reader-writer lock.
+The [capsules page](capsules.md) discusses several further interfaces.

@@ -15,6 +15,8 @@ let capsule_ref = Capsule.Data.create (fun () -> ref 0)
 ```
 
 The encapsulated reference has type `(int ref, 'k) Capsule.Data.t`, which we may interpret as a pointer to an `int ref` that lives in capsule `'k`.
+The type parameter `'k` is known as a *capsule brand*, and uniquely identifies a capsule at compile time.
+
 However, if you paste the above line into `utop`, you'll get a slightly different type:
 
 ```ocaml
@@ -23,7 +25,7 @@ $ let capsule_ref = Capsule.Data.create (fun () -> ref 0);;
 > val capsule_ref : (int ref, '_weak1) Capsule.Data.t = <abstr>
 ```
 
-Here, the second type parameter is _weakly polymorphic_.
+Here, the brand is _weakly polymorphic_.
 Later on, the compiler will infer that this parameter is a particular capsule `'k`&mdash;it just doesn't know which one yet.
 
 In particular, we fill in `'_weak1` with an [existential type](https://dev.realworldocaml.org/gadts.html) that identifies various pieces of capsule `'k`.
@@ -106,7 +108,7 @@ let increment_current () =
 ```
 
 We don't know whether the current capsule is the same as any preexisting capsule&mdash;in fact, we can think of every `portable` function as executing in a fresh capsule.
-Therefore, `Capsule.current` returns a _packed_ access, and unpacking the result generates a fresh `'k` that's distinct from all other capsules.
+Therefore, `Capsule.current` returns a _packed_ access, and unpacking the result generates a fresh `'k` that's distinct from the brand of all other capsules.
 
 However, that means we can never access data from capsules other than the current one.
 
