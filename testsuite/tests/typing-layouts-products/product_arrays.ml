@@ -130,6 +130,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -174,6 +176,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -228,6 +232,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -259,6 +265,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -315,6 +323,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -357,6 +367,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -411,6 +423,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -456,6 +470,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -514,6 +530,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -556,6 +574,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -611,6 +631,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -656,6 +678,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -714,6 +738,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -757,6 +783,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -815,6 +843,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -861,6 +891,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -919,6 +951,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -962,6 +996,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1019,6 +1055,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1065,6 +1103,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1123,6 +1163,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1166,6 +1208,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1224,6 +1268,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1270,6 +1316,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1328,6 +1376,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1371,6 +1421,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1429,6 +1481,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1475,6 +1529,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1534,6 +1590,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1580,6 +1638,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1638,6 +1698,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1686,6 +1748,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1745,6 +1809,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1791,6 +1857,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1849,6 +1917,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1897,6 +1967,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1955,6 +2027,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -2003,6 +2077,8 @@ Error: An unboxed product array element must be formed from all
        #(string * float#), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -2181,6 +2257,8 @@ Error: An unboxed product array element must be formed from all
        #(float# * a * bool option), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 let f_illegal_empty_literal (type a : value mod external_)
@@ -2195,6 +2273,8 @@ Error: An unboxed product array element must be formed from all
        #(float# * 'a * bool option), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (*************************************************)
@@ -2236,6 +2316,8 @@ Error: An unboxed product array element must be formed from all
        #(float# * bool option * int), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 let f_illegal_empty_literal : #(float# * bool option * int) array -> int =
@@ -2252,6 +2334,8 @@ Error: An unboxed product array element must be formed from all
        #(float# * bool option * int), which is an unboxed product that cannot be ignored
        (as it is not [external]) and contains a type with the non-scannable
        layout float64.
+       Hint: if the array contents should not be scanned, annotating
+       contained abstract types as [mod external] may resolve this error.
 |}]
 
 (***************************************************)

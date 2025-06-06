@@ -1139,7 +1139,9 @@ let report_error ppf = function
          operation is peformed for an array whose element type is@ \
          %a, which is an unboxed product that cannot be ignored@ \
          (as it is not [external]) and contains a type with the non-scannable@ \
-         layout %a."
+         layout %a.@ \
+         @[Hint: if the array contents should not be scanned, annotating@ \
+         contained abstract types as [mod external] may resolve this error.@]"
         Printtyp.type_expr elt_ty
         Jkind.Sort.Const.format const
   | Product_iarrays_unsupported ->
