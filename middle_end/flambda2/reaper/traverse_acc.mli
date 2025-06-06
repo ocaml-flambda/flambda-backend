@@ -65,6 +65,8 @@ val alias_kind : Name.t -> Simple.t -> t -> unit
 
 val kinds : t -> Flambda_kind.t Name.Map.t
 
+val simple_to_name : t -> denv:Env.t -> Simple.t -> Name.t
+
 val alias_dep : denv:Env.t -> Variable.t -> Simple.t -> t -> unit
 
 val root : Variable.t -> t -> unit
