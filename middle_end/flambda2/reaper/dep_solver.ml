@@ -699,20 +699,17 @@ let datalog_schedule =
       cofield_sources_rel base_source relation from ]
     ==> alias_rel from to_
   in
-  (* use
-
-     CR ncouran: There is an asymmetry here between source and use, but it could
-     (and should) be resolved by adding any_source to the input graph. *)
+  (* use *)
   (*
    any_usage_from_use (1 & 2)
    * use To From
    * /\ (usages To Var \/ any_usage To)
    * => any_usage From
    *)
-
   (*
-   any_source_use
-   * use To From
+   any_source_use (1 & 2)
+   * rev_use From To
+   * /\ (sources From Var \/ any_source From)
    * => any_source To
    *)
   let any_usage_from_use_1 =
