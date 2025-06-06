@@ -170,7 +170,6 @@ val map
 
 For example, `Capsule.Data.map` runs the function `f` with `'k` as the current capsule, providing access to the encapsulated `'a` and returning an encapsulated `'b`.
 Passwords can also provide more flexibility than accesses, since they may be captured by `local portable` functions.
-We'll see an example of when this can be useful later on.
 
 However, we still haven't explained how to get a password!
 That brings us to the third mechanism: _keys_.
