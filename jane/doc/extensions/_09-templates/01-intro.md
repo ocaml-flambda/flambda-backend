@@ -44,10 +44,12 @@ let id : 'a. 'a @ global -> 'a @ global = fun x -> x
 
 The implementation of these two functions is obviously identical, so it would be nice if
 we could just write it once, but get two copies of the function with different modes.
-Conveniently, we've written a preprocessor to do exactly that: `ppx_template`. Much like
-templates in C++, this allows us to define the function once, polymorphic over some mode
-variable, while the compiler will instantiate the template for each value of the variable.
-Thus our two identity functions can be written as:
+Conveniently, we've written a 
+[preprocessor](https://dune.readthedocs.io/en/stable/reference/preprocessing-spec.html#using-ppx-rewriters) 
+to do exactly that: `ppx_template`. Much like templates in C++, this allows us to define 
+the function once, polymorphic over some mode variable, while the compiler will 
+instantiate the template for each value of the variable. Thus our two identity functions 
+can be written as:
 
 ```ocaml
 let%template[@mode m = (global, local)] id : 'a. 'a @ m -> 'a @ m = fun x -> x
