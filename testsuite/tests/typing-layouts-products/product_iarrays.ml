@@ -40,8 +40,9 @@ Line 1, characters 40-54:
 1 | let make_bad (x : #(string * float#)) = make_vect 42 x
                                             ^^^^^^^^^^^^^^
 Error: Unboxed product array elements must be external or contain all gc
-       scannable types. The product type this function is applied at is
-       not external but contains an element of sort float64.
+       scannable types. But this array operation is peformed for an array
+       whose element type is #(string * float#), which is an unboxed
+       product that is not external and contains the non-scannable sort float64.
 |}]
 
 (* array length *)
@@ -72,8 +73,9 @@ Line 1, characters 49-54:
 1 | let length_bad (x : #(string * float#) iarray) = len x
                                                      ^^^^^
 Error: Unboxed product array elements must be external or contain all gc
-       scannable types. The product type this function is applied at is
-       not external but contains an element of sort float64.
+       scannable types. But this array operation is peformed for an array
+       whose element type is #(string * float#), which is an unboxed
+       product that is not external and contains the non-scannable sort float64.
 |}]
 
 (* safe get *)
@@ -104,8 +106,9 @@ Line 1, characters 46-54:
 1 | let get_bad (x : #(string * float#) iarray) = get x 42
                                                   ^^^^^^^^
 Error: Unboxed product array elements must be external or contain all gc
-       scannable types. The product type this function is applied at is
-       not external but contains an element of sort float64.
+       scannable types. But this array operation is peformed for an array
+       whose element type is #(string * float#), which is an unboxed
+       product that is not external and contains the non-scannable sort float64.
 |}]
 
 (* unsafe get *)
@@ -136,8 +139,9 @@ Line 1, characters 46-54:
 1 | let get_bad (x : #(string * float#) iarray) = get x 42
                                                   ^^^^^^^^
 Error: Unboxed product array elements must be external or contain all gc
-       scannable types. The product type this function is applied at is
-       not external but contains an element of sort float64.
+       scannable types. But this array operation is peformed for an array
+       whose element type is #(string * float#), which is an unboxed
+       product that is not external and contains the non-scannable sort float64.
 |}]
 
 (* safe get indexed by int64# *)
@@ -168,8 +172,9 @@ Line 1, characters 46-56:
 1 | let get_bad (x : #(string * float#) iarray) = get x #42L
                                                   ^^^^^^^^^^
 Error: Unboxed product array elements must be external or contain all gc
-       scannable types. The product type this function is applied at is
-       not external but contains an element of sort float64.
+       scannable types. But this array operation is peformed for an array
+       whose element type is #(string * float#), which is an unboxed
+       product that is not external and contains the non-scannable sort float64.
 |}]
 
 (* unsafe get indexed by int64# *)
@@ -200,8 +205,9 @@ Line 1, characters 46-56:
 1 | let get_bad (x : #(string * float#) iarray) = get x #42L
                                                   ^^^^^^^^^^
 Error: Unboxed product array elements must be external or contain all gc
-       scannable types. The product type this function is applied at is
-       not external but contains an element of sort float64.
+       scannable types. But this array operation is peformed for an array
+       whose element type is #(string * float#), which is an unboxed
+       product that is not external and contains the non-scannable sort float64.
 |}]
 
 (* safe get indexed by int32# *)
@@ -232,8 +238,9 @@ Line 1, characters 46-56:
 1 | let get_bad (x : #(string * float#) iarray) = get x #42l
                                                   ^^^^^^^^^^
 Error: Unboxed product array elements must be external or contain all gc
-       scannable types. The product type this function is applied at is
-       not external but contains an element of sort float64.
+       scannable types. But this array operation is peformed for an array
+       whose element type is #(string * float#), which is an unboxed
+       product that is not external and contains the non-scannable sort float64.
 |}]
 
 (* unsafe get indexed by int32# *)
@@ -264,8 +271,9 @@ Line 1, characters 46-56:
 1 | let get_bad (x : #(string * float#) iarray) = get x #42l
                                                   ^^^^^^^^^^
 Error: Unboxed product array elements must be external or contain all gc
-       scannable types. The product type this function is applied at is
-       not external but contains an element of sort float64.
+       scannable types. But this array operation is peformed for an array
+       whose element type is #(string * float#), which is an unboxed
+       product that is not external and contains the non-scannable sort float64.
 |}]
 
 (* safe get indexed by nativeint# *)
@@ -297,8 +305,9 @@ Line 1, characters 46-56:
 1 | let get_bad (x : #(string * float#) iarray) = get x #42n
                                                   ^^^^^^^^^^
 Error: Unboxed product array elements must be external or contain all gc
-       scannable types. The product type this function is applied at is
-       not external but contains an element of sort float64.
+       scannable types. But this array operation is peformed for an array
+       whose element type is #(string * float#), which is an unboxed
+       product that is not external and contains the non-scannable sort float64.
 |}]
 
 (* unsafe get indexed by nativeint# *)
@@ -330,8 +339,9 @@ Line 1, characters 46-56:
 1 | let get_bad (x : #(string * float#) iarray) = get x #42n
                                                   ^^^^^^^^^^
 Error: Unboxed product array elements must be external or contain all gc
-       scannable types. The product type this function is applied at is
-       not external but contains an element of sort float64.
+       scannable types. But this array operation is peformed for an array
+       whose element type is #(string * float#), which is an unboxed
+       product that is not external and contains the non-scannable sort float64.
 |}]
 
 (* expression literals *)
@@ -378,8 +388,9 @@ Line 2, characters 47-63:
 2 |       (x : float#) (y : a) (z : bool option) = [: #(x, y, z) :]
                                                    ^^^^^^^^^^^^^^^^
 Error: Unboxed product array elements must be external or contain all gc
-       scannable types. The product type this function is applied at is
-       not external but contains an element of sort float64.
+       scannable types. But this array operation is peformed for an array
+       whose element type is #(float# * a * bool option), which is an unboxed
+       product that is not external and contains the non-scannable sort float64.
 |}]
 
 let f_illegal_empty_literal (type a : value mod external_)
@@ -389,8 +400,9 @@ Lines 1-2, characters 28-46:
 1 | ............................(type a : value mod external_)
 2 |   : #(float# * a * bool option) iarray = [: :]
 Error: Unboxed product array elements must be external or contain all gc
-       scannable types. The product type this function is applied at is
-       not external but contains an element of sort float64.
+       scannable types. But this array operation is peformed for an array
+       whose element type is #(float# * 'a * bool option), which is an unboxed
+       product that is not external and contains the non-scannable sort float64.
 |}]
 
 (* pattern literals *)
@@ -427,8 +439,9 @@ Line 3, characters 4-18:
 3 |   | [: #(a,b,c) :] -> 1
         ^^^^^^^^^^^^^^
 Error: Unboxed product array elements must be external or contain all gc
-       scannable types. The product type this function is applied at is
-       not external but contains an element of sort float64.
+       scannable types. But this array operation is peformed for an array
+       whose element type is #(float# * bool option * int), which is an unboxed
+       product that is not external and contains the non-scannable sort float64.
 |}]
 
 let f_illegal_empty_literal : #(float# * bool option * int) iarray -> int =
@@ -440,6 +453,7 @@ Line 3, characters 4-9:
 3 |   | [: :] -> 0
         ^^^^^
 Error: Unboxed product array elements must be external or contain all gc
-       scannable types. The product type this function is applied at is
-       not external but contains an element of sort float64.
+       scannable types. But this array operation is peformed for an array
+       whose element type is #(float# * bool option * int), which is an unboxed
+       product that is not external and contains the non-scannable sort float64.
 |}]
