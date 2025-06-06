@@ -118,8 +118,6 @@ endif
 
 OC_CPPFLAGS += -DCAMLDLLIMPORT=
 
-#OC_NATIVE_CPPFLAGS += -Isysthreads
-
 # merge5: runtime4 requires -DCAML_NAME_SPACE and doesn't compile cleanly with two
 # new warnings added to the build in ocaml5
 OC_CPPFLAGS += -DCAML_NAME_SPACE

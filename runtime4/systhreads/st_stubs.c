@@ -15,7 +15,9 @@
 
 #define CAML_INTERNALS
 
-// CAML_NAME_SPACE is already defined at this point
+#ifndef CAML_NAME_SPACE
+#define CAML_NAME_SPACE
+#endif
 #include "caml/compatibility.h"
 #undef CAML_NAME_SPACE
 
