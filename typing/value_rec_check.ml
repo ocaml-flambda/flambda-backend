@@ -1075,7 +1075,8 @@ and comprehension_clauses clauses =
             (fun { comp_cb_iterator; comp_cb_attributes = _ } ->
                match comp_cb_iterator with
                | Texp_comp_range { ident = _; start; stop; direction = _ } ->
-                   [expression start <<| Dereference; expression stop <<| Dereference]
+                   [expression start <<| Dereference;
+                    expression stop <<| Dereference]
                | Texp_comp_in { pattern = _; sequence } ->
                    [expression sequence <<| Dereference])
             bindings
