@@ -242,7 +242,9 @@ module Interval = struct
   type t =
     { mutable begin_ : int option;
       mutable end_ : int option;
-      (* The `begin_` and `end_` fields should always either both be `None`, or they should both be `Some`. *)
+      (* The `begin_` and `end_` fields should always either both be `None`, or
+         they should both be `Some`. `Option.is_none begin_` <=> `List.is_empty
+         ranges`. *)
       mutable ranges : Range.t list
     }
 
