@@ -1088,7 +1088,7 @@ val readlink : string -> string
 
 val select :
   read:file_descr list -> write:file_descr list -> except:file_descr list ->
-    timeout:float -> file_descr list * file_descr list * file_descr list
+    timeout:float @ local -> file_descr list * file_descr list * file_descr list
 (** Wait until some input/output operations become possible on
    some channels. The three list arguments are, respectively, a set
    of descriptors to check for reading (first argument), for writing
@@ -1230,13 +1230,13 @@ val time : unit -> float
 val gettimeofday : unit -> float
 (** Same as {!time}, but with resolution better than 1 second. *)
 
-val gmtime : float -> tm
+val gmtime : float @ local -> tm
 (** Convert a time in seconds, as returned by {!time}, into a date and
    a time. Assumes UTC (Coordinated Universal Time), also known as GMT.
    To perform the inverse conversion, set the TZ environment variable
    to "UTC", use {!mktime}, and then restore the original value of TZ. *)
 
-val localtime : float -> tm
+val localtime : float @ local -> tm
 (** Convert a time in seconds, as returned by {!time}, into a date and
    a time. Assumes the local time zone.
    The function performing the inverse conversion is {!mktime}. *)
@@ -1259,7 +1259,7 @@ val alarm : int -> int
 val sleep : int -> unit
 (** Stop execution for the given number of seconds. *)
 
-val sleepf : float -> unit
+val sleepf : float @ local -> unit
 (** Stop execution for the given number of seconds.  Like [sleep],
     but fractions of seconds are supported.
 
@@ -1271,7 +1271,7 @@ val times : unit -> process_times
    On Windows: partially implemented, will not report timings
    for child processes. *)
 
-val utimes : string -> access:float -> modif:float -> unit
+val utimes : string -> access:float @ local -> modif:float @ local -> unit
 (** Set the last access time (second arg) and last modification time
    (third arg) for a file. Times are expressed in seconds from
    00:00:00 GMT, Jan. 1, 1970.  If both times are [0.0], the access
@@ -1642,7 +1642,7 @@ val getsockopt_optint : file_descr -> socket_optint_option -> int option
     an [int option]. *)
 
 val setsockopt_optint :
-      file_descr -> socket_optint_option -> int option -> unit
+      file_descr -> socket_optint_option -> int option @ local -> unit
 (** Same as {!setsockopt} for a socket option whose value is
     an [int option]. *)
 
@@ -1650,7 +1650,7 @@ val getsockopt_float : file_descr -> socket_float_option -> float
 (** Same as {!getsockopt} for a socket option whose value is a
     floating-point number. *)
 
-val setsockopt_float : file_descr -> socket_float_option -> float -> unit
+val setsockopt_float : file_descr -> socket_float_option -> float @ local -> unit
 (** Same as {!setsockopt} for a socket option whose value is a
     floating-point number. *)
 
