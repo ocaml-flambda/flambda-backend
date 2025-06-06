@@ -1225,6 +1225,16 @@ let peek_or_poke_layout_from_type ~prim_name error_loc env ty
     | Pbottom ->
       raise (Error (error_loc, Wrong_layout_for_peek_or_poke prim_name))
 
+let should_specialize_primitive p =
+  match p.prim_name with
+  | "%obj_size" | "%obj_field" | "%obj_set_field" ->
+    (* The obj primitives re-use the array primitives (see [lookup_primitive]),
+       but we shouldn't specialize their array kinds.
+       CR layouts v4: we should just make separate object primitives. *)
+    false
+  | _ ->
+    true
+
 (* Specialize a primitive from available type information. *)
 (* CR layouts v7: This function had a loc argument added just to support the void
    check error message.  Take it out when we remove that. *)
@@ -1787,9 +1797,12 @@ let transl_primitive loc p env ty ~poly_mode ~poly_sort path =
   in
   let has_constant_constructor = false in
   let prim =
-    match specialize_primitive env loc ty ~has_constant_constructor prim with
-    | None -> prim
-    | Some prim -> prim
+    if should_specialize_primitive p then
+      match specialize_primitive env loc ty ~has_constant_constructor prim with
+      | None -> prim
+      | Some prim -> prim
+    else
+      prim
   in
   let to_locality = to_locality ~poly:poly_mode in
   let error_loc = to_location loc in
@@ -2016,9 +2029,12 @@ let transl_primitive_application loc p env ty ~poly_mode ~stack ~poly_sort
     | _ -> false
   in
   let prim =
-    match specialize_primitive env loc ty ~has_constant_constructor prim with
-    | None -> prim
-    | Some prim -> prim
+    if should_specialize_primitive p then
+      match specialize_primitive env loc ty ~has_constant_constructor prim with
+      | None -> prim
+      | Some prim -> prim
+    else
+      prim
   in
   let lam = lambda_of_prim p.prim_name prim loc args (Some arg_exps) in
   let lam =
