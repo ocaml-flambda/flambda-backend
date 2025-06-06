@@ -49,45 +49,29 @@ val f2_2 : ('a : float32). 'a t_float32_id -> 'a t_float32_id = <fun>
 val f2_3 : float32# -> float32# = <fun>
 |}];;
 
-(*****************************************)
-(* Test 3: No module-level bindings yet. *)
+(**********************************)
+(* Test 3: Module-level bindings. *)
 
 let x3_1 : t_float32 = assert false;;
 [%%expect{|
-Line 1, characters 4-8:
-1 | let x3_1 : t_float32 = assert false;;
-        ^^^^
-Error: Types of top-level module bindings must have layout "value", but
-       the type of "x3_1" has layout "float32".
+Exception: Assert_failure ("", 1, 23).
 |}];;
 
 let x3_2 : 'a t_float32_id = assert false;;
 [%%expect{|
-Line 1, characters 4-8:
-1 | let x3_2 : 'a t_float32_id = assert false;;
-        ^^^^
-Error: Types of top-level module bindings must have layout "value", but
-       the type of "x3_2" has layout "float32".
+Exception: Assert_failure ("", 1, 29).
 |}];;
 
 let x3_3 : float32# = assert false;;
 [%%expect{|
-Line 1, characters 4-8:
-1 | let x3_3 : float32# = assert false;;
-        ^^^^
-Error: Types of top-level module bindings must have layout "value", but
-       the type of "x3_3" has layout "float32".
+Exception: Assert_failure ("", 1, 22).
 |}];;
 
 module M3_4 = struct
   let x : t_float32 = assert false
 end
 [%%expect{|
-Line 2, characters 6-7:
-2 |   let x : t_float32 = assert false
-          ^
-Error: Types of top-level module bindings must have layout "value", but
-       the type of "x" has layout "float32".
+Exception: Assert_failure ("", 2, 22).
 |}];;
 
 module M3_5 = struct
@@ -96,11 +80,7 @@ module M3_5 = struct
   let y = f (assert false)
 end
 [%%expect{|
-Line 4, characters 6-7:
-4 |   let y = f (assert false)
-          ^
-Error: Types of top-level module bindings must have layout "value", but
-       the type of "y" has layout "float32".
+Exception: Assert_failure ("", 4, 12).
 |}];;
 
 (*************************************)
@@ -280,44 +260,24 @@ type ufref = { mutable contents : float32# };;
 type ufref = { mutable contents : float32#; }
 |}];;
 
-(****************************************************)
-(* Test 6: Can't be put at top level of signatures. *)
+(**************************************************)
+(* Test 6: Can be put at top level of signatures. *)
 module type S6_1 = sig val x : t_float32 end
 
 let f6 (m : (module S6_1)) = let module M6 = (val m) in M6.x;;
 [%%expect{|
-Line 1, characters 31-40:
-1 | module type S6_1 = sig val x : t_float32 end
-                                   ^^^^^^^^^
-Error: This type signature for "x" is not a value type.
-       The layout of type t_float32 is float32
-         because of the definition of t_float32 at line 1, characters 0-24.
-       But the layout of type t_float32 must be a sublayout of value
-         because it's the type of something stored in a module structure.
+module type S6_1 = sig val x : t_float32 end
+val f6 : (module S6_1) -> t_float32 = <fun>
 |}];;
 
 module type S6_2 = sig val x : 'a t_float32_id end
 [%%expect{|
-Line 1, characters 31-46:
-1 | module type S6_2 = sig val x : 'a t_float32_id end
-                                   ^^^^^^^^^^^^^^^
-Error: This type signature for "x" is not a value type.
-       The layout of type 'a t_float32_id is float32
-         because of the definition of t_float32_id at line 2, characters 0-37.
-       But the layout of type 'a t_float32_id must be a sublayout of value
-         because it's the type of something stored in a module structure.
+module type S6_2 = sig val x : ('a : float32). 'a t_float32_id end
 |}];;
 
 module type S6_3 = sig val x : float32# end
 [%%expect{|
-Line 1, characters 31-39:
-1 | module type S6_3 = sig val x : float32# end
-                                   ^^^^^^^^
-Error: This type signature for "x" is not a value type.
-       The layout of type float32# is float32
-         because it is the unboxed version of the primitive type float32.
-       But the layout of type float32# must be a sublayout of value
-         because it's the type of something stored in a module structure.
+module type S6_3 = sig val x : float32# end
 |}];;
 
 

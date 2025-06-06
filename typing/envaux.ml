@@ -72,9 +72,11 @@ let rec env_from_summary ~allow_missing_modules sum subst =
           let env = env_from_summary ~allow_missing_modules s subst in
           let path' = Subst.module_path subst path in
           if allow_missing_modules then
-            (try Env.open_signature_by_path path' env with
+            (try Env.open_signature_by_path path' [None] env with
+            (* CR mixed-modules:                  ^^^^^^ This is incorrect *)
             | Not_found -> env)
-          else Env.open_signature_by_path path' env
+          else Env.open_signature_by_path path' [None] env
+          (* CR mixed-modules:                  ^^^^^^ This is incorrect *)
       | Env_functor_arg(Env_module(s, id, pres, desc), id')
             when Ident.same id id' ->
           let desc =

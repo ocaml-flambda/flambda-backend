@@ -3713,7 +3713,10 @@ let transl_value_decl env loc ~sig_modalities valdecl =
         | Assume _ ->
           raise (Error(valdecl.pval_loc, Zero_alloc_attr_unsupported zero_alloc))
       in
-      { val_type = ty; val_kind = Val_reg; Types.val_loc = loc;
+      { val_type = ty;
+        val_kind = Val_reg Jkind.(Layout.of_const (Layout.Const.of_sort_const
+          Sort.Const.for_module_field));
+        Types.val_loc = loc;
         val_attributes = valdecl.pval_attributes; val_modalities = modalities;
         val_zero_alloc = zero_alloc;
         val_uid = Uid.mk ~current_unit:(Env.get_unit_name ());

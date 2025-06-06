@@ -473,7 +473,7 @@ module Vars = Misc.Stdlib.String.Map
 (* Value descriptions *)
 
 type value_kind =
-    Val_reg                             (* Regular value *)
+    Val_reg of Jkind_types.Sort.t Jkind_types.Layout.t     (* Regular value *)
   | Val_prim of Primitive.description   (* Primitive *)
   | Val_ivar of mutable_flag * string   (* Instance variable (mutable ?) *)
   | Val_self of
@@ -1122,13 +1122,24 @@ let lbl_pos_void = -1
 
 let rec bound_value_identifiers = function
     [] -> []
-  | Sig_value(id, {val_kind = Val_reg}, _) :: rem ->
+  | Sig_value(id, {val_kind = Val_reg _}, _) :: rem ->
       id :: bound_value_identifiers rem
   | Sig_typext(id, _, _, _) :: rem -> id :: bound_value_identifiers rem
   | Sig_module(id, Mp_present, _, _, _) :: rem ->
       id :: bound_value_identifiers rem
   | Sig_class(id, _, _, _) :: rem -> id :: bound_value_identifiers rem
   | _ :: rem -> bound_value_identifiers rem
+
+let rec bound_value_identifiers_and_layouts ~layout_value = function
+    [] -> []
+  | Sig_value(id, {val_kind = Val_reg layout}, _) :: rem ->
+      (id, layout) :: bound_value_identifiers_and_layouts ~layout_value rem
+  | Sig_typext(id, _, _, _) :: rem
+  | Sig_module(id, Mp_present, _, _, _) :: rem
+  | Sig_class(id, _, _, _) :: rem ->
+      (id, layout_value) ::
+        bound_value_identifiers_and_layouts ~layout_value rem
+  | _ :: rem -> bound_value_identifiers_and_layouts ~layout_value rem
 
 let signature_item_id = function
   | Sig_value (id, _, _)

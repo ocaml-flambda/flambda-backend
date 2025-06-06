@@ -1381,7 +1381,7 @@ let rec transl_address loc = function
       if Ident.is_predef id
       then Lprim (Pgetpredef id, [], loc)
       else Lvar id
-  | Env.Adot(addr, pos) ->
+  | Env.Adot(addr, bsorts, pos) ->
       Lprim(Pfield(pos, Pointer, Reads_agree),
                    [transl_address loc addr], loc)
 
@@ -1431,6 +1431,21 @@ let rec transl_mixed_product_shape ~get_value_kind shape =
       let get_value_kind _ = generic_value in
       Product (transl_mixed_product_shape ~get_value_kind shapes)
   ) shape
+
+let transl_mixed_block_element :
+  Types.mixed_block_element -> unit mixed_block_element
+ = function
+  | Value -> Value generic_value
+  | Float_boxed -> Float_boxed ()
+  | Float64 -> Float64
+  | Float32 -> Float32
+  | Bits32 -> Bits32
+  | Bits64 -> Bits64
+  | Vec128 -> Vec128
+  | Word -> Word
+  | Product shapes ->
+    let get_value_kind _ = generic_value in
+    Product (transl_mixed_product_shape ~get_value_kind shapes)
 
 let rec transl_mixed_product_shape_for_read ~get_value_kind ~get_mode shape =
   Array.mapi (fun i (elt : Types.mixed_block_element) ->

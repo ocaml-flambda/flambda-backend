@@ -107,9 +107,13 @@ module type Sort = sig
 
     val for_module : t
 
+    val for_module_field : t
+
     val for_predef_value : t (* Predefined value types, e.g. int and string *)
 
     val for_tuple : t
+
+    val for_loop_index : t
   end
 
   module Var : sig

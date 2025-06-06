@@ -69,6 +69,7 @@ type pattern_variable =
     pv_loc: Location.t;
     pv_as_var: bool;
     pv_attributes: Typedtree.attributes;
+    pv_layout: Jkind.Sort.t Jkind.Layout.t;
   }
 
 val mk_expected:

@@ -303,7 +303,7 @@ let load_lambda ppf ~compilation_unit ~required_globals lam size =
 let pr_item =
   Printtyp.print_items
     (fun env -> function
-       | Sig_value(id, {val_kind = Val_reg; val_type; _}, _) ->
+       | Sig_value(id, {val_kind = Val_reg _; val_type; _}, _) ->
           Some (outval_of_value env (toplevel_value id) val_type)
       | _ -> None
     )
@@ -342,7 +342,8 @@ let name_expression ~loc ~attrs sort exp =
   let id = Ident.create_local name in
   let vd =
     { val_type = exp.exp_type;
-      val_kind = Val_reg;
+      val_kind = Val_reg Jkind.(Layout.of_const (Layout.Const.of_sort_const
+        Sort.Const.for_module_field));
       val_loc = loc;
       val_attributes = attrs;
       val_zero_alloc = Zero_alloc.default;

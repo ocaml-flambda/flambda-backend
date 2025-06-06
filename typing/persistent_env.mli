@@ -92,7 +92,7 @@ val fold : 'a t -> (Global_module.Name.t -> 'a -> 'b -> 'b) -> 'b -> 'b
 type address =
   | Aunit of Compilation_unit.t
   | Alocal of Ident.t
-  | Adot of address * int
+  | Adot of address * Jkind.Sort.t array * int
 
 type 'a sig_reader =
   Subst.Lazy.signature
