@@ -43,7 +43,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* array length *)
@@ -77,7 +78,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* safe get *)
@@ -111,7 +113,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* unsafe get *)
@@ -145,7 +148,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* safe get indexed by int64# *)
@@ -179,7 +183,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* unsafe get indexed by int64# *)
@@ -213,7 +218,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* safe get indexed by int32# *)
@@ -247,7 +253,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* unsafe get indexed by int32# *)
@@ -281,7 +288,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* safe get indexed by nativeint# *)
@@ -316,7 +324,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* unsafe get indexed by nativeint# *)
@@ -351,7 +360,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* expression literals *)
@@ -401,7 +411,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(float# * a * bool option), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 let f_illegal_empty_literal (type a : value mod external_)
@@ -414,7 +425,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(float# * 'a * bool option), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* pattern literals *)
@@ -454,7 +466,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(float# * bool option * int), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 let f_illegal_empty_literal : #(float# * bool option * int) iarray -> int =
@@ -469,5 +482,6 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(float# * bool option * int), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]

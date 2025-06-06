@@ -1138,7 +1138,8 @@ let report_error ppf = function
          gc-ignorable types or all gc-scannable types. But this array@ \
          operation is peformed for an array whose element type is@ \
          %a, which is an unboxed product that cannot be ignored@ \
-         (as it is not [external]) but contains the non-scannable sort %a."
+         (as it is not [external]) and contains a type with the non-scannable@ \
+         layout %a."
         Printtyp.type_expr elt_ty
         Jkind.Sort.Const.format const
   | Product_iarrays_unsupported ->

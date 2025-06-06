@@ -128,7 +128,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -171,7 +172,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -224,7 +226,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -254,7 +257,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -309,7 +313,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -350,7 +355,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -403,7 +409,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -447,7 +454,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -504,7 +512,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -545,7 +554,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -599,7 +609,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -643,7 +654,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -700,7 +712,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -742,7 +755,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -799,7 +813,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -844,7 +859,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -901,7 +917,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -943,7 +960,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -999,7 +1017,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1044,7 +1063,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1101,7 +1121,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1143,7 +1164,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1200,7 +1222,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1245,7 +1268,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1302,7 +1326,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1344,7 +1369,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1401,7 +1427,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1446,7 +1473,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1504,7 +1532,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1549,7 +1578,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1606,7 +1636,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1653,7 +1684,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1711,7 +1743,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1756,7 +1789,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1813,7 +1847,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1860,7 +1895,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1917,7 +1953,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1964,7 +2001,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(string * float#), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -2141,7 +2179,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(float# * a * bool option), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 let f_illegal_empty_literal (type a : value mod external_)
@@ -2154,7 +2193,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(float# * 'a * bool option), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (*************************************************)
@@ -2194,7 +2234,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(float# * bool option * int), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 let f_illegal_empty_literal : #(float# * bool option * int) array -> int =
@@ -2209,7 +2250,8 @@ Error: An unboxed product array element must be formed from all
        gc-ignorable types or all gc-scannable types. But this array
        operation is peformed for an array whose element type is
        #(float# * bool option * int), which is an unboxed product that cannot be ignored
-       (as it is not [external]) but contains the non-scannable sort float64.
+       (as it is not [external]) and contains a type with the non-scannable
+       layout float64.
 |}]
 
 (***************************************************)
