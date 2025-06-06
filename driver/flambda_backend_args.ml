@@ -129,6 +129,20 @@ let mk_basic_block_sections f =
     "-basic-block-sections", Arg.Unit err, " (option not available)"
 ;;
 
+let mk_module_entry_functions_section f =
+  if Config.function_sections then
+    "-module-entry-functions-section",  Arg.Unit f,
+    " Emit all module entry functions into a separate section if the target \
+      supports it. Requires -ocamlcfg."
+  else
+    let err () =
+      raise (Arg.Bad "OCaml has been configured without support for \
+                      -function-sections which is required for \
+                      -module-entry-functions-section")
+    in
+    "-module-entry-functions-section", Arg.Unit err, " (option not available)"
+;;
+
 let mk_dasm_comments f =
   "-dasm-comments", Arg.Unit f, " Add comments in .s files (e.g. for DWARF)"
 
@@ -758,6 +772,7 @@ module type Flambda_backend_options = sig
 
   val reorder_blocks_random : int -> unit
   val basic_block_sections : unit -> unit
+  val module_entry_functions_section : unit -> unit
 
   val dasm_comments : unit -> unit
   val dno_asm_comments : unit -> unit
@@ -895,6 +910,7 @@ struct
 
     mk_reorder_blocks_random F.reorder_blocks_random;
     mk_basic_block_sections F.basic_block_sections;
+    mk_module_entry_functions_section F.module_entry_functions_section;
 
     mk_dasm_comments F.dasm_comments;
     mk_dno_asm_comments F.dno_asm_comments;
@@ -1069,6 +1085,8 @@ module Flambda_backend_options_impl = struct
     Flambda_backend_flags.reorder_blocks_random := Some seed
   let basic_block_sections () =
     set' Flambda_backend_flags.basic_block_sections ()
+  let module_entry_functions_section () =
+    set' Flambda_backend_flags.module_entry_functions_section ()
 
   let dasm_comments =
     set' Flambda_backend_flags.dasm_comments
@@ -1417,6 +1435,8 @@ module Extra_params = struct
     | "reorder-blocks-random" ->
        set_int_option' Flambda_backend_flags.reorder_blocks_random
     | "basic-block-sections" -> set' Flambda_backend_flags.basic_block_sections
+    | "module-entry-functions-section" ->
+      set' Flambda_backend_flags.module_entry_functions_section
     | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
     | "zero-alloc-check" ->
       (match Zero_alloc_annotations.Check.of_string v with

@@ -232,7 +232,35 @@ let load_symbol_addr (s : Cmm.symbol) arg =
    supported on the target system. *)
 
 let emit_named_text_section ?(suffix = "") func_name =
-  if !Clflags.function_sections || !Flambda_backend_flags.basic_block_sections
+  (* CR-someday ksvetlitski: In the future we should consider extending this to
+     also place other known-cold functions in a separate section (specifically
+     [.text.unlikely.caml]). This would necessitate adding a new constructor to
+     [Cfg.codegen_option], and at that point we could add a constructor for
+     module-entry-functions too so that we don't have to inspect [func_name]
+     like we do now. *)
+  if !Flambda_backend_flags.module_entry_functions_section
+     && String.ends_with func_name ~suffix:"__entry"
+  then (
+    match[@ocaml.warning "-4"] system with
+    | S_macosx
+    (* Names of section segments in macosx are restricted to 16 characters, but
+       function names are often longer, especially anonymous functions. *)
+    | S_win64 | S_mingw64
+    | S_cygwin
+      (* Win systems provide named text sections, but configure on these systems
+         does not support function sections. *) ->
+      assert false
+    | _ ->
+      D.switch_to_section_raw ~names:[".text.startup.caml"] ~flags:(Some "ax")
+        ~args:["@progbits"] ~is_delayed:false;
+      (* Warning: We set the internal section ref to Text here, because it
+         currently does not supported named text sections. In the rest of this
+         file, we pretend the section is called Text rather than the function
+         specific text section. *)
+      (* CR sspies: Add proper support for named text sections. *)
+      D.unsafe_set_internal_section_ref Text)
+  else if !Clflags.function_sections
+          || !Flambda_backend_flags.basic_block_sections
   then (
     match[@ocaml.warning "-4"] system with
     | S_macosx

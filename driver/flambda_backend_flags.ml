@@ -38,6 +38,8 @@ let cfg_eliminate_dead_trap_handlers = ref false  (* -cfg-eliminate-dead-trap-ha
 
 let reorder_blocks_random = ref None    (* -reorder-blocks-random seed *)
 let basic_block_sections = ref false    (* -basic-block-sections *)
+(* -module-entry-functions-section *)
+let module_entry_functions_section = ref false
 
 let dasm_comments = ref false (* -dasm-comments *)
 
