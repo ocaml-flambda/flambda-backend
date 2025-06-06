@@ -287,6 +287,9 @@ let unclosed opening_name opening_loc closing_name closing_loc =
   raise(Syntaxerr.Error(Syntaxerr.Unclosed(make_loc opening_loc, opening_name,
                                            make_loc closing_loc, closing_name)))
 
+let quotation_reserved name loc =
+  raise(Syntaxerr.Error(Syntaxerr.Quotation_reserved(make_loc loc, name)))
+
 (* Normal mutable arrays and immutable arrays are parsed identically, just with
    different delimiters.  The parsing is done by the [array_exprs] rule, and the
    [Generic_array] module provides (1) a type representing the possible results,
@@ -952,6 +955,7 @@ let maybe_pmod_constraint mode expr =
 %token COMMA                  ","
 %token CONSTRAINT             "constraint"
 %token DO                     "do"
+%token DOLLAR                 "$"
 %token DONE                   "done"
 %token DOT                    "."
 %token DOTDOT                 ".."
@@ -973,6 +977,7 @@ let maybe_pmod_constraint mode expr =
 %token FUNCTOR                "functor"
 %token GLOBAL                 "global_"
 %token GREATER                ">"
+%token GREATERGREATER         ">>"
 %token GREATERRBRACE          ">}"
 %token GREATERRBRACKET        ">]"
 %token HASHLPAREN             "#("
@@ -1008,6 +1013,8 @@ let maybe_pmod_constraint mode expr =
 %token LBRACKETPERCENT        "[%"
 %token LBRACKETPERCENTPERCENT "[%%"
 %token LESS                   "<"
+%token LESSLESS               "<<"
+%token LESSLESSCOLON          "<<:"
 %token LESSMINUS              "<-"
 %token LET                    "let"
 %token <string> LIDENT        "lident" (* just an example *)
@@ -1125,7 +1132,7 @@ The precedences must be listed from low to high.
 %nonassoc below_AMPERSAND
 %right    AMPERSAND AMPERAMPER          /* expr (e && e && e) */
 %nonassoc below_EQUAL
-%left     INFIXOP0 EQUAL LESS GREATER   /* expr (e OP e OP e) */
+%left     INFIXOP0 EQUAL LESS GREATER GREATERGREATER  /* expr (e OP e OP e) */
 %right    ATAT AT INFIXOP1              /* expr (e OP e OP e) */
 %nonassoc below_LBRACKETAT
 %nonassoc LBRACKETAT
@@ -1145,7 +1152,7 @@ The precedences must be listed from low to high.
 /* Finally, the first tokens of simple_expr are above everything else. */
 %nonassoc BACKQUOTE BANG BEGIN CHAR FALSE FLOAT HASH_FLOAT INT HASH_INT OBJECT
           LBRACE LBRACELESS LBRACKET LBRACKETBAR LBRACKETCOLON LIDENT LPAREN
-          NEW PREFIXOP STRING TRUE UIDENT
+          NEW PREFIXOP STRING TRUE UIDENT LESSLESS LESSLESSCOLON DOLLAR
           LBRACKETPERCENT QUOTED_STRING_EXPR HASHLBRACE HASHLPAREN
 
 
@@ -3107,6 +3114,12 @@ comprehension_clause:
           mkexp_attrs ~loc:($startpos($3), $endpos)
             (Pexp_constraint (ghexp ~loc:$sloc (Pexp_pack $6), Some $8, [])) $5 in
         Pexp_open(od, modexp) }
+  | LESSLESS error
+      { quotation_reserved "<<" $loc($1) }
+  | LESSLESSCOLON error
+      { quotation_reserved "<<:" $loc($1) }
+  | DOLLAR error
+      { quotation_reserved "$" $loc($1) }
   | mod_longident DOT
     LPAREN MODULE ext_attributes module_expr COLON error
       { unclosed "(" $loc($3) ")" $loc($8) }
@@ -4901,33 +4914,34 @@ operator:
   | infix_operator                              { $1 }
 ;
 %inline infixop3:
-  | op = INFIXOP3 { op }
-  | MOD           { "mod" }
+  | op = INFIXOP3  { op }
+  | MOD            { "mod" }
 ;
 %inline infix_operator:
-  | op = INFIXOP0 { op }
+  | op = INFIXOP0  { op }
   /* Still support the two symbols as infix operators */
-  | AT             {"@"}
+  | AT              {"@"}
   | ATAT           {"@@"}
-  | op = INFIXOP1 { op }
-  | op = INFIXOP2 { op }
-  | op = infixop3 { op }
-  | op = INFIXOP4 { op }
-  | PLUS           {"+"}
-  | PLUSDOT       {"+."}
-  | PLUSEQ        {"+="}
-  | MINUS          {"-"}
-  | MINUSDOT      {"-."}
-  | STAR           {"*"}
-  | PERCENT        {"%"}
-  | EQUAL          {"="}
-  | LESS           {"<"}
-  | GREATER        {">"}
-  | OR            {"or"}
-  | BARBAR        {"||"}
-  | AMPERSAND      {"&"}
-  | AMPERAMPER    {"&&"}
-  | COLONEQUAL    {":="}
+  | op = INFIXOP1  { op }
+  | op = INFIXOP2  { op }
+  | op = infixop3  { op }
+  | op = INFIXOP4  { op }
+  | PLUS            {"+"}
+  | PLUSDOT        {"+."}
+  | PLUSEQ         {"+="}
+  | MINUS           {"-"}
+  | MINUSDOT       {"-."}
+  | STAR            {"*"}
+  | PERCENT         {"%"}
+  | EQUAL           {"="}
+  | LESS            {"<"}
+  | GREATER         {">"}
+  | GREATERGREATER {">>"}
+  | OR             {"or"}
+  | BARBAR         {"||"}
+  | AMPERSAND       {"&"}
+  | AMPERAMPER     {"&&"}
+  | COLONEQUAL     {":="}
 ;
 index_mod:
 | { "" }
