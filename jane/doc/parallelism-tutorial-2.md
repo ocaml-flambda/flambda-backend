@@ -104,7 +104,7 @@ module Slice = Parallel.Arrays.Array.Slice
 ```
 
 A parallel array is just like an array, but with a couple restrictions that make it safe to operate upon in parallel.
-In this example, we'll use `int` as the element type&mdash;it crosses portability and contention, simplifying the example.
+Here, we'll use `int` as the element type&mdash;it crosses portability and contention, simplifying the example.
 
 A slice is a `local` view of (part of) a parallel array.
 Intuitively, a slice _borrows_ a segment of the array, only allowing access a contiguous subset of its indices.
