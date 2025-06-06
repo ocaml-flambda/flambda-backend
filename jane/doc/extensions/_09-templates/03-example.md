@@ -4,7 +4,9 @@ collectionName: Templates
 title: Example
 ---
 
-# Layout-polymorphic floats
+# A Worked Example
+
+## Layout-polymorphic floats
 
 Let's say we wanted to write a layout-polymorphic version of `Float`, that is, one which
 calls functions from `Float` for `float`s with kind `value`, and functions from `Float_u`
@@ -12,7 +14,7 @@ for `float#`s with kind `float64`. There are a few different ways to go about th
 different approaches might make sense depending on the use case, so we try to be flexible
 enough to support them.
 
-## Whole module
+### Whole module
 
 Perhaps the simplest way to do this is to simply bind the two modules to mangled names
 blessed by the PPX:
@@ -48,7 +50,7 @@ end =
 
 The name `k` here is arbitrary; it just seemed nice and generic for an example.
 
-## Each binding
+### Each binding
 
 Now, this is cool, but in practice it might actually be more convenient to have
 kind-polymorphic bindings for each type and function in the module, rather than for the
@@ -93,7 +95,7 @@ let iround_up_exn = iround_up_exn
 let iround_down_exn = iround_down_exn]
 ```
 
-## Advanced example
+### Advanced example
 
 A common pattern is to define some module type `S` and then a number of functions with
 a signature along the lines of `(module S with type t = 'a) -> 'a -> _`. For example, one
