@@ -89,11 +89,7 @@ module Range : sig
 end
 
 module Interval : sig
-  type t =
-    { mutable begin_ : int;
-      mutable end_ : int;
-      mutable ranges : Range.t list
-    }
+  type t
 
   val make_empty : unit -> t
 

@@ -193,6 +193,7 @@ module Range = struct
 
   let rec overlap : t list -> t list -> bool =
    fun left right ->
+    (* CR-soon xclerc for xclerc: use the same version as linscan (cursors). *)
     match left, right with
     | left_hd :: left_tl, right_hd :: right_tl ->
       if left_hd.end_ >= right_hd.begin_ && right_hd.end_ >= left_hd.begin_
@@ -236,34 +237,58 @@ module Range = struct
 end
 
 module Interval = struct
+  (* CR-soon xclerc for xclerc: use a doubly-linked list for `ranges`, and do
+     not store bounds. *)
   type t =
-    { mutable begin_ : int;
-      mutable end_ : int;
+    { mutable begin_ : int option;
+      mutable end_ : int option;
+      (* The `begin_` and `end_` fields should always either both be `None`, or
+         they should both be `Some`. `Option.is_none begin_` <=> `List.is_empty
+         ranges`. *)
       mutable ranges : Range.t list
     }
 
   let make_empty () =
     (* CR xclerc for xclerc: avoid the non-sensical bounds. *)
-    { begin_ = max_int; end_ = max_int; ranges = [] }
+    { begin_ = None; end_ = None; ranges = [] }
 
   let length t =
     List.fold_left t.ranges ~init:0 ~f:(fun acc range ->
         acc + Range.length range)
 
+  let print_bound ppf print_bound =
+    match print_bound with
+    | None -> Format.fprintf ppf "-"
+    | Some bound -> Format.fprintf ppf "%d" bound
+
   let print ppf t =
-    Format.fprintf ppf "[%d,%d]:" t.begin_ t.end_;
+    Format.fprintf ppf "[%a,%a]:" print_bound t.begin_ print_bound t.end_;
     List.iter t.ranges ~f:(fun r -> Format.fprintf ppf " %a" Range.print r)
 
+  let is_before_or_alone : int option -> int option -> bool =
+   fun left right ->
+    match left, right with
+    | None, None | None, Some _ | Some _, None -> true
+    | Some left, Some right -> left < right
+
   let overlap : t -> t -> bool =
-   (* CR xclerc for xclerc: short-cut to avoid iterating over the lists using
-      the Interval.{begin_in_,end_} fields *)
-   fun left right -> Range.overlap left.ranges right.ranges
+   fun left right ->
+    if is_before_or_alone left.end_ right.begin_
+       || is_before_or_alone right.end_ left.begin_
+    then false
+    else Range.overlap left.ranges right.ranges
+
+  let[@inline] lift_opt op left right =
+    match left, right with
+    | None, None -> None
+    | None, (Some _ as value) | (Some _ as value), None -> value
+    | Some left, Some right -> Some (op left right)
 
   (* CR xclerc for xclerc: assumes no overlap *)
   let add_ranges : t -> from:t -> unit =
    fun t ~from ->
-    t.begin_ <- Int.min t.begin_ from.begin_;
-    t.end_ <- Int.min t.end_ from.end_;
+    t.begin_ <- lift_opt Int.min t.begin_ from.begin_;
+    t.end_ <- lift_opt Int.max t.end_ from.end_;
     t.ranges <- Range.merge t.ranges from.ranges
 end
 
@@ -281,10 +306,10 @@ let build_intervals : Cfg_with_infos.t -> Interval.t Reg.Tbl.t =
     match Reg.Tbl.find_opt past_ranges reg with
     | None ->
       Reg.Tbl.replace past_ranges reg
-        { Interval.begin_; end_; ranges = [range] }
+        { Interval.begin_ = Some begin_; end_ = Some end_; ranges = [range] }
     | Some (interval : Interval.t) ->
       interval.ranges <- range :: interval.ranges;
-      interval.end_ <- end_
+      interval.end_ <- Some end_
   in
   let update_range (reg : Reg.t) ~(begin_ : int) ~(end_ : int) : unit =
     match Reg.Tbl.find_opt current_ranges reg with
