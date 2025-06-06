@@ -831,7 +831,7 @@ let rec class_field_first_pass self_loc cl_num sign self_scope acc cf =
                    Ctype.unify val_env (Ctype.newmono ty') ty;
                    Typecore.type_approx val_env sbody ty'
                | Tpoly (ty1, tl) ->
-                   let _, ty1' = Ctype.instance_poly ~fixed:false tl ty1 in
+                   let ty1' = Ctype.instance_poly tl ty1 in
                    Typecore.type_approx val_env sbody ty1'
                | _ -> assert false
              with Ctype.Unify err ->
