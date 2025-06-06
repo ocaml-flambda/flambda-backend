@@ -1135,10 +1135,10 @@ let report_error ppf = function
   | Mixed_product_array (const, elt_ty) ->
       fprintf ppf
         "An unboxed product array element must be formed from all@ \
-         gc-ignorable types or all gc-scannable types. But this array@ \
-         operation is peformed for an array whose element type is@ \
-         %a, which is an unboxed product that cannot be ignored@ \
-         (as it is not [external]) and contains a type with the non-scannable@ \
+         external types (which are ignored by the gc) or all gc-scannable \
+         types.@ But this array operation is peformed for an array whose@ \
+         element type is %a, which is an unboxed product@ \
+         that is not external and contains a type with the non-scannable@ \
          layout %a.@ \
          @[Hint: if the array contents should not be scanned, annotating@ \
          contained abstract types as [mod external] may resolve this error.@]"
