@@ -1025,6 +1025,10 @@ let binary_primitive env dbg f x y =
     in
     C.store ~dbg memory_chunk Assignment ~addr:x ~new_value:y
     |> C.return_unit dbg
+  | Read_offset (kind, mut) ->
+    let addr = C.add_int x y dbg in
+    let memory_chunk = C.memory_chunk_of_kind kind in
+    C.load ~dbg memory_chunk mut ~addr
 
 let ternary_primitive _env dbg f x y z =
   match (f : P.ternary_primitive) with
@@ -1034,6 +1038,20 @@ let ternary_primitive _env dbg f x y z =
     bytes_or_bigstring_set ~dbg kind width ~bytes:x ~index:y ~new_value:z
   | Bigarray_set (_dimensions, kind, _layout) ->
     bigarray_store ~dbg kind ~bigarray:x ~index:y ~new_value:z
+  | Write_offset (kind, mode) ->
+    let addr = C.add_int x y dbg in
+    let memory_chunk = C.memory_chunk_of_kind kind in
+    let store =
+      if KS.must_be_gc_scannable kind
+      then
+        match mode with
+        | Heap -> C.caml_modify ~dbg addr z
+        | Local ->
+          (* divide by 8 to convert offset from bytes to field number *)
+          C.caml_modify_local ~dbg x (C.lsr_int y (Cconst_int (3, dbg)) dbg) z
+      else C.store ~dbg memory_chunk Assignment ~addr ~new_value:z
+    in
+    C.return_unit dbg store
   | Atomic_compare_and_set block_access_kind ->
     C.atomic_compare_and_set ~dbg
       (imm_or_ptr block_access_kind)

@@ -54,6 +54,8 @@ type error =
   | Void_sort of Types.type_expr
   | Unboxed_vector_in_array_comprehension
   | Unboxed_product_in_array_comprehension
+  | Block_index_gap_overflow_possible
+  | Element_would_be_reordered_in_record
 
 exception Error of Location.t * error
 

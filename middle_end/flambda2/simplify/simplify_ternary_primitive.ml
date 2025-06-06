@@ -121,9 +121,8 @@ let simplify_atomic_compare_exchange
   (* This primitive can have its arguments specialised as for compare-and-set
      (see above). However we can also propagate information about its result
      type. Since this relates to all possible values that the atomic can hold,
-     we have to use the information provided by the frontend.
-
-     Recall that the compare-exchange returns the old value. *)
+     we have to use the information provided by the frontend. Recall that the
+     compare-exchange returns the old value. *)
   let args_kind =
     simplify_atomic_compare_and_set_or_exchange_args args_kind dacc
       ~comparison_value_ty ~new_value_ty
@@ -145,6 +144,12 @@ let simplify_atomic_compare_exchange
   let dacc = DA.add_variable dacc result_var result_var_ty in
   SPR.create new_term ~try_reify:false dacc
 
+let simplify_write_offset ~original_prim dacc ~original_term _dbg ~arg1:_
+    ~arg1_ty:_ ~arg2:_ ~arg2_ty:_ ~arg3:_ ~arg3_ty:_ ~result_var =
+  SPR.create_unknown dacc ~result_var
+    (P.result_kind' original_prim)
+    ~original_term
+
 let simplify_ternary_primitive dacc original_prim (prim : P.ternary_primitive)
     ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~arg3 ~arg3_ty dbg ~result_var =
   let original_term = Named.create_prim original_prim dbg in
@@ -159,6 +164,7 @@ let simplify_ternary_primitive dacc original_prim (prim : P.ternary_primitive)
       simplify_atomic_compare_and_set access_kind ~original_prim
     | Atomic_compare_exchange { atomic_kind; args_kind } ->
       simplify_atomic_compare_exchange ~atomic_kind ~args_kind ~original_prim
+    | Write_offset _ -> simplify_write_offset ~original_prim
   in
   simplifier dacc ~original_term dbg ~arg1 ~arg1_ty ~arg2 ~arg2_ty ~arg3
     ~arg3_ty ~result_var
