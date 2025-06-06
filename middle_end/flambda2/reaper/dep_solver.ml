@@ -184,6 +184,8 @@ let cofield_usages_rel = rel3 "cofield_usages" Cols.[n; cf; n]
 
 let rev_alias_rel = rel2 "rev_alias" Cols.[n; n]
 
+let rev_use_rel = rel2 "rev_use" Cols.[n; n]
+
 let rev_constructor_rel = rel3 "rev_constructor" Cols.[n; f; n]
 
 let rev_accessor_rel = rel3 "rev_accessor" Cols.[n; f; n]
@@ -246,6 +248,10 @@ let datalog_schedule =
   let rev_alias =
     let$ [to_; from] = ["to_"; "from"] in
     [alias_rel to_ from] ==> rev_alias_rel from to_
+  in
+  let rev_use =
+    let$ [to_; from] = ["to_"; "from"] in
+    [use_rel to_ from] ==> rev_use_rel from to_
   in
   let rev_accessor =
     let$ [to_; relation; base] = ["to_"; "relation"; "base"] in
@@ -717,9 +723,13 @@ let datalog_schedule =
     let$ [to_; from] = ["to_"; "from"] in
     [any_usage_pred to_; use_rel to_ from] ==> any_usage_pred from
   in
-  let any_source_use =
-    let$ [to_; _from] = ["to_"; "_from"] in
-    [use_rel to_ _from] ==> any_source_pred to_
+  let any_source_use_1 =
+    let$ [from; to_; _var] = ["from"; "to_"; "_var"] in
+    [sources_rel from _var; rev_use_rel from to_] ==> any_source_pred to_
+  in
+  let any_source_use_2 =
+    let$ [from; to_] = ["from"; "to_"] in
+    [any_source_pred from; rev_use_rel from to_] ==> any_source_pred to_
   in
   Datalog.Schedule.(
     fixpoint
@@ -728,7 +738,9 @@ let datalog_schedule =
             rev_constructor;
             rev_coaccessor;
             rev_coconstructor;
-            any_source_use;
+            rev_use;
+            any_source_use_1;
+            any_source_use_2;
             alias_from_usage_propagate;
             any_usage_from_alias_any_usage;
             any_source_from_alias_any_source;

@@ -91,14 +91,14 @@ let bound_parameter_kind (bp : Bound_parameter.t) t =
   let name = Name.var (Bound_parameter.var bp) in
   t.kinds <- Name.Map.add name kind t.kinds
 
-let simple_to_name ~all_constants simple =
+let simple_to_name t ~all_constants simple =
   Simple.pattern_match' simple
     ~const:(fun _ -> all_constants)
     ~var:(fun v ~coercion:_ -> Name.var v)
     ~symbol:(fun s ~coercion:_ ->
-      if Compilation_unit.is_current (Symbol.compilation_unit s)
-      then Name.symbol s
-      else all_constants)
+      if not (Compilation_unit.is_current (Symbol.compilation_unit s))
+      then Graph.add_any_source t.deps (Code_id_or_name.symbol s);
+      Name.symbol s)
 
 let alias_kind name simple t =
   let kind =
@@ -132,12 +132,12 @@ let alias_dep ~(denv : Env.t) pat dep t =
   Graph.add_alias t.deps ~to_:(Code_id_or_name.var pat)
     ~from:
       (Code_id_or_name.name
-         (simple_to_name ~all_constants:denv.all_constants dep))
+         (simple_to_name t ~all_constants:denv.all_constants dep))
 
 let root v t = Graph.add_use t.deps (Code_id_or_name.var v)
 
 let used ~(denv : Env.t) dep t =
-  let name = simple_to_name ~all_constants:denv.all_constants dep in
+  let name = simple_to_name t ~all_constants:denv.all_constants dep in
   match denv.current_code_id with
   | None -> Graph.add_use t.deps (Code_id_or_name.name name)
   | Some code_id ->
@@ -371,13 +371,13 @@ let deps t ~get_code_metadata ~le_monde_exterieur ~all_constants =
       in
       List.iter2
         (fun param arg ->
-          add_cond_dep param (simple_to_name ~all_constants arg))
+          add_cond_dep param (simple_to_name t ~all_constants arg))
         code_dep.params apply_args;
       (match apply_closure with
       | None -> add_cond_dep code_dep.my_closure le_monde_exterieur
       | Some apply_closure ->
         add_cond_dep code_dep.my_closure
-          (simple_to_name ~all_constants apply_closure));
+          (simple_to_name t ~all_constants apply_closure));
       (match params_of_apply_return_cont with
       | None -> ()
       | Some apply_return ->
@@ -388,3 +388,6 @@ let deps t ~get_code_metadata ~le_monde_exterieur ~all_constants =
     t.apply_deps;
   record_set_of_closure_deps ~get_code_metadata ~le_monde_exterieur t;
   t.deps
+
+let simple_to_name t ~denv s =
+  simple_to_name t ~all_constants:denv.Env.all_constants s

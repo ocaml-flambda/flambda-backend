@@ -94,7 +94,6 @@ let is_code_id_used (env : env) code_id =
 
 let is_symbol_used (env : env) symbol =
   is_used env (Code_id_or_name.symbol symbol)
-  || not (Compilation_unit.is_current (Symbol.compilation_unit symbol))
 
 let raw_is_var_used uses var kind =
   match (kind : K.t) with
@@ -624,11 +623,7 @@ let rewrite_apply_cont_expr env ac =
        (fun arg ->
          Simple.pattern_match arg
            ~name:(fun name ~coercion:_ ->
-             (not (DS.has_source env.uses (Code_id_or_name.name name)))
-             && Name.pattern_match name
-                  ~symbol:(fun s_ ->
-                    Compilation_unit.is_current (Symbol.compilation_unit s_))
-                  ~var:(fun _ -> true))
+             not (DS.has_source env.uses (Code_id_or_name.name name)))
            ~const:(fun _ -> false))
        args
   then None
@@ -789,6 +784,9 @@ let decide_whether_apply_needs_calling_convention_change env apply =
                ~var:(fun _ ~coercion:_ -> true)
                ~const:(fun _ -> true)
                ~symbol:(fun s ~coercion:_ ->
+                 (* Sets of closures from other compilation units do not show
+                    their code_id in the graph, so we do not want to demote
+                    those calls to [Indirect_known_arity]. *)
                  Compilation_unit.is_current (Symbol.compilation_unit s))
                c ->
         let call_kind =
@@ -860,13 +858,9 @@ let rebuild_apply env apply =
         match Apply.callee apply with
         | None -> None
         | Some callee ->
-          Simple.pattern_match' callee
+          Simple.pattern_match callee
             ~const:(fun _ -> None)
-            ~symbol:(fun symbol ~coercion:_ ->
-              if Compilation_unit.is_current (Symbol.compilation_unit symbol)
-              then Some (Code_id_or_name.symbol symbol)
-              else None)
-            ~var:(fun var ~coercion:_ -> Some (Code_id_or_name.var var)))
+            ~name:(fun name ~coercion:_ -> Some (Code_id_or_name.name name)))
       | Function { function_call = Indirect_unknown_arity; _ }
       | C_call _ | Method _ | Effect _ ->
         None
