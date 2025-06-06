@@ -324,7 +324,7 @@ The shared mode indicates that _all_ references to a value are either `shared` o
 Let's make `get` allow a shared image:
 
 ```ocaml
-val get : t @ shared -> int -> int -> float
+val get : t @ shared -> x:int -> y:int -> float
 ```
 
 Now, how do we obtain a shared reference to the input image?
