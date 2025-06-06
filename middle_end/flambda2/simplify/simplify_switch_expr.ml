@@ -682,8 +682,8 @@ let simplify_switch0 dacc switch ~down_to_up =
       (rebuild_switch ~original:switch ~arms ~condition_dbg ~scrutinee
          ~scrutinee_ty ~dacc_before_switch)
 
-let simplify_switch ~simplify_let ~simplify_function_body dacc switch
-    ~down_to_up =
+let simplify_switch ~simplify_let_with_bound_pattern ~simplify_function_body
+    dacc switch ~down_to_up =
   let tagged_scrutinee = Variable.create "tagged_scrutinee" in
   let tagging_prim =
     Named.create_prim
@@ -698,13 +698,14 @@ let simplify_switch ~simplify_let ~simplify_function_body dacc switch
       ~body:(Expr.create_switch switch)
       ~free_names_of_body:Unknown
   in
-  let dacc =
-    DA.map_flow_acc dacc
-      ~f:
-        (Flow.Acc.add_used_in_current_handler
-           (NO.singleton_variable tagged_scrutinee NM.normal))
-  in
-  simplify_let
-    ~simplify_expr:(fun dacc _body ~down_to_up ->
+  simplify_let_with_bound_pattern
+    ~simplify_expr_with_bound_pattern:
+      (fun dacc (bound_pattern, _body) ~down_to_up ->
+      let dacc =
+        DA.map_flow_acc dacc
+          ~f:
+            (Flow.Acc.add_used_in_current_handler
+               (Bound_pattern.free_names bound_pattern))
+      in
       simplify_switch0 dacc switch ~down_to_up)
     ~simplify_function_body dacc let_expr ~down_to_up
