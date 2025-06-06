@@ -780,7 +780,7 @@ let rec expression : Typedtree.expression -> term_judg =
             | Kept _ -> empty
             | Overridden (_, e) -> expression e
           in
-          env << field_mode label.lbl_num
+          env << field_mode label.lbl_pos
         in
         join [
           array field es;
