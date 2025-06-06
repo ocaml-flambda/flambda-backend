@@ -106,7 +106,7 @@ let increment_current () =
 ;;
 ```
 
-However, don't know whether the current capsule has the same brand as any preexisting capsule.
+However, we don't know whether the current capsule has the same brand as any preexisting capsule.
 `Capsule.current` returns a _packed_ access, and unpacking the result creates a fresh `'k` that's distinct from the brand of all other capsules.
 That means we can never access data from capsules other than the current capsule.
 
