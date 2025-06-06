@@ -53,7 +53,7 @@ There are three mechanisms for doing so, each of which builds on the former.
 ## Accesses
 
 The first mechanism is _access_.
-A value of type `'k Capsule.Access.t` indicates that we are currently executing within the capsule `'k`.
+A value of type `'k Capsule.Access.t` indicates that `'k` is the _current capsule_.
 When `'k` is the current capsule, we know that no other domains can access `'k`, so it is safe to dereference pointers into `'k`.
 
 ```ocaml
@@ -95,8 +95,8 @@ let increment_initial () =
 ;;
 ```
 
-Although `portable` functions don't execute in the initial capsule, they always execute in _some_ capsule.
-Hence, we can always ask for access to the current capsule:
+More generally, all functions execute in _some_ capsule, though not necessarily the initial one.
+We can always ask for access to the current capsule, which gives it a name:
 
 ```ocaml
 let increment_current () =
@@ -106,10 +106,9 @@ let increment_current () =
 ;;
 ```
 
-But we don't know whether the current capsule has the same brand as any preexisting capsule.
-Therefore, `Capsule.current` returns a _packed_ access, and unpacking the result generates a fresh `'k` that's distinct from the brand of all other capsules.
-
-Unfortunately, that means we can never access data from capsules other than the current one.
+However, don't know whether the current capsule has the same brand as any preexisting capsule.
+`Capsule.current` returns a _packed_ access, and unpacking the result generates a fresh `'k` that's distinct from the brand of all other capsules.
+That means we can never access data from capsules other than the current.
 
 ```ocaml
 let increment_other (other_ref : (int ref, 'k) Capsule.Data.t) =
@@ -126,7 +125,7 @@ Providing access to a particular capsule is the purpose of the second mechanism:
 
 ## Passwords
 
-A value of type `'k Capsule.Password.t` represents permission to make `'k` the current capsule.
+A value of type `'k Capsule.Password.t` represents permission to access `'k` by making it the current capsule.
 Given a password, we can request an access:
 
 ```ocaml
@@ -157,7 +156,7 @@ let parallel_increment parallel ~(password : 'k Capsule.Password.t @ local) =
 ;;
 ```
 
-Semantically, the primary use of passwords is requesting access, since that's what lets you unwrap capsule data.
+The primary use of passwords is requesting access, since that's what lets you unwrap capsule data.
 However, `Capsule.Data` also provides a variety of convenience functions for operating on capsule data _in situ_.
 These functions require passwords, since they do not assume that the current capsule is the correct one.
 
@@ -169,7 +168,7 @@ val map
   -> ('b, 'k) Capsule.Data.t
 ```
 
-For example, `Capsule.Data.map` runs the function `f` in the capsule `'k`, providing access to the encapsulated `'a` and returning an encapsulated `'b`.
+For example, `Capsule.Data.map` runs the function `f` with `'k` as the current capsule, providing access to the encapsulated `'a` and returning an encapsulated `'b`.
 Passwords can also provide more flexibility than accesses, since they may be captured by `local portable` functions.
 We'll see an example of when this can be useful later on.
 
