@@ -8,11 +8,11 @@ title: Intro
 
 ## Polymorphism and its Limitations
 
-Stack allocation, unboxed types, and soon multicore are exciting new(ish) features of this
-language we love, and each in some way depend on the _mode_ and/or _kind_ systems the
-OxCaml team has developed. However, there is still much work to be done, and while these
-systems will eventually be comparable in their expressivity to the type system, they are
-at present notably constrained in their capacity for polymorphism.
+OxCaml comes with _mode_ and _kind_ systems which enable many of its key features, 
+including stack allocation, unboxed types, and data-race-free parallelism. However, there 
+is still work to be done, and while these systems will eventually be comparable in their
+expressivity to the type system, they are at present notably constrained in their capacity
+for polymorphism.
 
 For example, consider the identity function:
 
@@ -23,9 +23,9 @@ let id : 'a. 'a -> 'a = fun x -> x
 In upstream OCaml, this is about as polymorphic as you can get! I can call `id x` on any
 value `x`, regardless of its type, and get the same value back out.
 
-But in `OxCaml`, things are more complex. If my value is stack-allocated, then it will be
-at mode `local`, so my identity function had better not do anything funny like stick it in
-a global `ref`, and it should return the same stack-allocated value at mode `local`, so we
+But in OxCaml, things are more complex. If my value is stack-allocated, then it will be at 
+mode `local`, so my identity function had better not do anything funny like stick it in a 
+global `ref`, and it should return the same stack-allocated value at mode `local`, so we
 actually need a different signature for that:
 
 ```ocaml
