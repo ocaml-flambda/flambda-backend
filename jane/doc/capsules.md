@@ -64,7 +64,7 @@ let increment ~(access : 'k Capsule.Access.t) capsule_ref =
 ```
 
 Accesses **do not** cross contention, and `unwrap` requires an `uncontended` access.
-Hence, accesses cannot be freely shared between `portable` functions&mdash;intuitively, a `portable` function runs in a different capsule, so it must not be allowed to examine data in `'k`.
+Hence, accesses cannot be freely shared between `portable` functions&mdash;semantically, calling a `portable` function changes the current capsule, so we can no longer examine data in `'k`.
 This property prohibits data races, as we can see with fork/join:
 
 ```ocaml
@@ -86,7 +86,7 @@ let (initial : Capsule.initial Capsule.Access.t) = Capsule.initial
 ```
 
 Accesses don't cross contention, so only `nonportable` functions can capture an `uncontended` reference to `initial`.
-Since top-level `nonportable` functions always execute on the initial domain, they may manipulate data in the initial capsule.
+Then, since top-level `nonportable` functions always execute on the initial domain, they may manipulate data in the initial capsule.
 
 ```ocaml
 let increment_initial () =
@@ -95,8 +95,8 @@ let increment_initial () =
 ;;
 ```
 
-Similarly, though `portable` functions might not execute in the initial capsule, they always execute in _some_ capsule.
-During a `portable` function, we can ask for access to the _current capsule_:
+Although `portable` functions don't execute in the initial capsule, they always execute in _some_ capsule.
+Hence, we can always ask for access to the current capsule:
 
 ```ocaml
 let increment_current () =
@@ -106,10 +106,10 @@ let increment_current () =
 ;;
 ```
 
-We don't know whether the current capsule is the same as any preexisting capsule&mdash;in fact, we can think of every `portable` function as executing in a fresh capsule.
+But we don't know whether the current capsule has the same brand as any preexisting capsule.
 Therefore, `Capsule.current` returns a _packed_ access, and unpacking the result generates a fresh `'k` that's distinct from the brand of all other capsules.
 
-However, that means we can never access data from capsules other than the current one.
+Unfortunately, that means we can never access data from capsules other than the current one.
 
 ```ocaml
 let increment_other (other_ref : (int ref, 'k) Capsule.Data.t) =
@@ -126,7 +126,7 @@ Providing access to a particular capsule is the purpose of the second mechanism:
 
 ## Passwords
 
-A value of type `'k Capsule.Password.t` represents permission to enter the capsule `'k`.
+A value of type `'k Capsule.Password.t` represents permission to make `'k` the current capsule.
 Given a password, we can request an access:
 
 ```ocaml
