@@ -1381,7 +1381,7 @@ let rec transl_address loc = function
       if Ident.is_predef id
       then Lprim (Pgetpredef id, [], loc)
       else Lvar id
-  | Env.Adot(addr, pos) ->
+  | Env.Adot(addr, bsorts, pos) ->
       Lprim(Pfield(pos, Pointer, Reads_agree),
                    [transl_address loc addr], loc)
 

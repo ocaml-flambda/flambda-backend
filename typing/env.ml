@@ -179,7 +179,7 @@ let map_summary f = function
 type address = Persistent_env.address =
   | Aunit of Compilation_unit.t
   | Alocal of Ident.t
-  | Adot of address * int
+  | Adot of address * Jkind.Sort.t array * int
 
 module TycompTbl =
   struct
@@ -700,7 +700,10 @@ and functor_components = {
 }
 
 and address_unforced =
-  | Projection of { parent : address_lazy; pos : int; }
+  | Projection of
+    { parent : address_lazy; bsorts: Jkind.Sort.t list; pos : int }
+    (* [bsorts] is a [list] here because it is constructed with iterative
+       appending *)
   | ModAlias of { env : t; path : Path.t; }
 
 and address_lazy = (address_unforced, address) Lazy_backtrack.t
@@ -1007,7 +1010,7 @@ let normalize_vda_mode vda =
 let rec print_address ppf = function
   | Aunit cu -> Format.fprintf ppf "%s" (Compilation_unit.full_path_as_string cu)
   | Alocal id -> Format.fprintf ppf "%s" (Ident.name id)
-  | Adot(a, pos) -> Format.fprintf ppf "%a.[%i]" print_address a pos
+  | Adot(a, _, pos) -> Format.fprintf ppf "%a.[%i]" print_address a pos
 
 type address_head =
   | AHunit of Compilation_unit.t
@@ -1016,7 +1019,7 @@ type address_head =
 let rec address_head = function
   | Aunit cu -> AHunit cu
   | Alocal id -> AHlocal id
-  | Adot (a, _) -> address_head a
+  | Adot (a, _, _) -> address_head a
 
 (* The name of the compilation unit currently compiled. *)
 module Current_unit_name : sig
@@ -1568,7 +1571,8 @@ and find_ident_module_address id env =
   get_address (find_ident_module id env).mda_address
 
 and force_address = function
-  | Projection { parent; pos } -> Adot(get_address parent, pos)
+  | Projection { parent; bsorts; pos } ->
+    Adot(get_address parent, Array.of_list bsorts, pos)
   | ModAlias { env; path } -> find_module_address path env
 
 and get_address a =
@@ -2107,9 +2111,11 @@ let rec components_of_module_maker
       in
       let env = ref cm_env in
       let pos = ref 0 in
-      let next_address () =
+      let bsorts = ref [] in
+      let next_address sort =
+        bsorts := sort :: !bsorts;
         let addr : address_unforced =
-          Projection { parent = cm_addr; pos = !pos }
+          Projection { parent = cm_addr; bsorts = !bsorts; pos = !pos }
         in
         incr pos;
         Lazy_backtrack.create addr
@@ -2195,7 +2201,7 @@ let rec components_of_module_maker
               Datarepr.extension_descr ~current_unit:(get_unit_name ()) path
                 ext'
             in
-            let addr = next_address () in
+            let addr = next_address Jkind.Sort.value in
             let cda_shape =
               Shape.proj cm_shape (Shape.Item.extension_constructor id)
             in
@@ -2218,7 +2224,7 @@ let rec components_of_module_maker
                       Lazy_backtrack.create (ModAlias {env = !env; path})
                   | _ -> assert false
                 end
-              | Mp_present -> next_address ()
+              | Mp_present -> next_address Jkind.Sort.value
             in
             let alerts =
               Builtin_attributes.alerts_of_attrs md.md_attributes
@@ -2259,7 +2265,7 @@ let rec components_of_module_maker
             env := store_modtype ~update_summary:false id decl shape !env
         | Sig_class(id, decl, _, _) ->
             let decl' = Subst.class_declaration sub decl in
-            let addr = next_address () in
+            let addr = next_address Jkind.Sort.value in
             let shape = Shape.proj cm_shape (Shape.Item.class_ id) in
             let clda =
               { clda_declaration = decl';

@@ -50,7 +50,7 @@ type summary =
 type address = Persistent_env.address =
   | Aunit of Compilation_unit.t
   | Alocal of Ident.t
-  | Adot of address * int
+  | Adot of address * Jkind.Sort.t array * int
 
 type t
 
