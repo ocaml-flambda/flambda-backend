@@ -124,10 +124,11 @@ let f_bad (x : #(string * float#)) = make_vect 42 x
 Line 1, characters 37-51:
 1 | let f_bad (x : #(string * float#)) = make_vect 42 x
                                          ^^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -166,10 +167,11 @@ external make_bad : int -> #(string * float#) -> #(string * float#) array
 Line 3, characters 21-29:
 3 | let make_bad_app x = make_bad x
                          ^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -218,10 +220,11 @@ let f_bad (x : #(string * float#) array) = len x
 Line 1, characters 43-48:
 1 | let f_bad (x : #(string * float#) array) = len x
                                                ^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -247,10 +250,11 @@ external len_bad : #(string * float#) array -> int = "%array_length"
 Line 2, characters 20-29:
 2 | let len_bad_app x = len_bad x
                         ^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -301,10 +305,11 @@ let f_bad (x : #(string * float#) array) = get x 42
 Line 1, characters 43-51:
 1 | let f_bad (x : #(string * float#) array) = get x 42
                                                ^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -341,10 +346,11 @@ external get_bad : #(string * float#) array -> int -> #(string * float#)
 Line 3, characters 22-33:
 3 | let get_bad_app a i = get_bad a i
                           ^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -393,10 +399,11 @@ let f_bad (x : #(string * float#) array) = set x 42 #("1", #2.0)
 Line 1, characters 43-64:
 1 | let f_bad (x : #(string * float#) array) = set x 42 #("1", #2.0)
                                                ^^^^^^^^^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -436,10 +443,11 @@ external set_bad :
 Line 4, characters 24-37:
 4 | let set_bad_app a i x = set_bad a i x
                             ^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -492,10 +500,11 @@ let f_bad (x : #(string * float#) array) = get x 42
 Line 1, characters 43-51:
 1 | let f_bad (x : #(string * float#) array) = get x 42
                                                ^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -532,10 +541,11 @@ external get_bad : #(string * float#) array -> int -> #(string * float#)
 Line 3, characters 22-33:
 3 | let get_bad_app a i = get_bad a i
                           ^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -585,10 +595,11 @@ let f_bad (x : #(string * float#) array) = set x 42 #("1", #2.0)
 Line 1, characters 43-64:
 1 | let f_bad (x : #(string * float#) array) = set x 42 #("1", #2.0)
                                                ^^^^^^^^^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -628,10 +639,11 @@ external set_bad :
 Line 4, characters 24-37:
 4 | let set_bad_app a i x = set_bad a i x
                             ^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -684,10 +696,11 @@ let f_bad (x : #(string * float#) array) = get x #42L
 Line 1, characters 43-53:
 1 | let f_bad (x : #(string * float#) array) = get x #42L
                                                ^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -725,10 +738,11 @@ external get_bad : #(string * float#) array -> int64# -> #(string * float#)
 Line 3, characters 22-33:
 3 | let get_bad_app a i = get_bad a i
                           ^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -781,10 +795,11 @@ let f_bad (x : #(string * float#) array) = set x #42L #("1", #2.0)
 Line 1, characters 43-66:
 1 | let f_bad (x : #(string * float#) array) = set x #42L #("1", #2.0)
                                                ^^^^^^^^^^^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -825,10 +840,11 @@ external set_bad :
 Line 4, characters 24-37:
 4 | let set_bad_app a i x = set_bad a i x
                             ^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -881,10 +897,11 @@ let f_bad (x : #(string * float#) array) = get x #42L
 Line 1, characters 43-53:
 1 | let f_bad (x : #(string * float#) array) = get x #42L
                                                ^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -922,10 +939,11 @@ external get_bad : #(string * float#) array -> int64# -> #(string * float#)
 Line 3, characters 22-33:
 3 | let get_bad_app a i = get_bad a i
                           ^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -977,10 +995,11 @@ let f_bad (x : #(string * float#) array) = set x #42L #("1", #2.0)
 Line 1, characters 43-66:
 1 | let f_bad (x : #(string * float#) array) = set x #42L #("1", #2.0)
                                                ^^^^^^^^^^^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1021,10 +1040,11 @@ external set_bad :
 Line 4, characters 24-37:
 4 | let set_bad_app a i x = set_bad a i x
                             ^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1077,10 +1097,11 @@ let f_bad (x : #(string * float#) array) = get x #42l
 Line 1, characters 43-53:
 1 | let f_bad (x : #(string * float#) array) = get x #42l
                                                ^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1118,10 +1139,11 @@ external get_bad : #(string * float#) array -> int32# -> #(string * float#)
 Line 3, characters 22-33:
 3 | let get_bad_app a i = get_bad a i
                           ^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1174,10 +1196,11 @@ let f_bad (x : #(string * float#) array) = set x #42l #("1", #2.0)
 Line 1, characters 43-66:
 1 | let f_bad (x : #(string * float#) array) = set x #42l #("1", #2.0)
                                                ^^^^^^^^^^^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1218,10 +1241,11 @@ external set_bad :
 Line 4, characters 24-37:
 4 | let set_bad_app a i x = set_bad a i x
                             ^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1274,10 +1298,11 @@ let f_bad (x : #(string * float#) array) = get x #42l
 Line 1, characters 43-53:
 1 | let f_bad (x : #(string * float#) array) = get x #42l
                                                ^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1315,10 +1340,11 @@ external get_bad : #(string * float#) array -> int32# -> #(string * float#)
 Line 3, characters 22-33:
 3 | let get_bad_app a i = get_bad a i
                           ^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1371,10 +1397,11 @@ let f_bad (x : #(string * float#) array) = set x #42l #("1", #2.0)
 Line 1, characters 43-66:
 1 | let f_bad (x : #(string * float#) array) = set x #42l #("1", #2.0)
                                                ^^^^^^^^^^^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1415,10 +1442,11 @@ external set_bad :
 Line 4, characters 24-37:
 4 | let set_bad_app a i x = set_bad a i x
                             ^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1472,10 +1500,11 @@ let f_bad (x : #(string * float#) array) = get x #42n
 Line 1, characters 43-53:
 1 | let f_bad (x : #(string * float#) array) = get x #42n
                                                ^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1516,10 +1545,11 @@ external get_bad :
 Line 4, characters 22-33:
 4 | let get_bad_app a i = get_bad a i
                           ^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1572,10 +1602,11 @@ let f_bad (x : #(string * float#) array) = set x #42n #("1", #2.0)
 Line 1, characters 43-66:
 1 | let f_bad (x : #(string * float#) array) = set x #42n #("1", #2.0)
                                                ^^^^^^^^^^^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1618,10 +1649,11 @@ external set_bad :
 Line 4, characters 24-37:
 4 | let set_bad_app a i x = set_bad a i x
                             ^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1675,10 +1707,11 @@ let f_bad (x : #(string * float#) array) = get x #42n
 Line 1, characters 43-53:
 1 | let f_bad (x : #(string * float#) array) = get x #42n
                                                ^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1719,10 +1752,11 @@ external get_bad :
 Line 4, characters 22-33:
 4 | let get_bad_app a i = get_bad a i
                           ^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1775,10 +1809,11 @@ let f_bad (x : #(string * float#) array) = set x #42n #("1", #2.0)
 Line 1, characters 43-66:
 1 | let f_bad (x : #(string * float#) array) = set x #42n #("1", #2.0)
                                                ^^^^^^^^^^^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1821,10 +1856,11 @@ external set_bad :
 Line 4, characters 24-37:
 4 | let set_bad_app a i x = set_bad a i x
                             ^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -1877,10 +1913,11 @@ let f_bad (x : #(string * float#) array) = blit x 0 x 2 3
 Line 1, characters 43-57:
 1 | let f_bad (x : #(string * float#) array) = blit x 0 x 2 3
                                                ^^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* And similarly if we specialize it at declaration time. *)
@@ -1923,10 +1960,11 @@ external blit_bad :
 Line 5, characters 35-59:
 5 | let blit_bad_app a1 i1 a2 i2 len = blit_bad a1 i1 a2 i2 len
                                        ^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(string * float#), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(string * float#), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (* Unboxed vectors are also rejected. *)
@@ -2099,10 +2137,11 @@ let f_illegal_literal (type a : value mod external_)
 Line 2, characters 47-63:
 2 |       (x : float#) (y : a) (z : bool option) = [| #(x, y, z) |]
                                                    ^^^^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(float# * a * bool option), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(float# * a * bool option), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 let f_illegal_empty_literal (type a : value mod external_)
@@ -2111,10 +2150,11 @@ let f_illegal_empty_literal (type a : value mod external_)
 Lines 1-2, characters 28-45:
 1 | ............................(type a : value mod external_)
 2 |   : #(float# * a * bool option) array = [| |]
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(float# * 'a * bool option), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(float# * 'a * bool option), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (*************************************************)
@@ -2150,10 +2190,11 @@ let f_illegal_literal : #(float# * bool option * int) array -> int =
 Line 3, characters 4-18:
 3 |   | [| #(a,b,c) |] -> 1
         ^^^^^^^^^^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(float# * bool option * int), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(float# * bool option * int), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 let f_illegal_empty_literal : #(float# * bool option * int) array -> int =
@@ -2164,10 +2205,11 @@ let f_illegal_empty_literal : #(float# * bool option * int) array -> int =
 Line 3, characters 4-9:
 3 |   | [| |] -> 0
         ^^^^^
-Error: Unboxed product array elements must be external or contain all gc
-       scannable types. But this array operation is peformed for an array
-       whose element type is #(float# * bool option * int), which is an unboxed
-       product that is not external and contains the non-scannable sort float64.
+Error: An unboxed product array element must be formed from all
+       gc-ignorable types or all gc-scannable types. But this array
+       operation is peformed for an array whose element type is
+       #(float# * bool option * int), which is an unboxed product that cannot be ignored
+       (as it is not [external]) but contains the non-scannable sort float64.
 |}]
 
 (***************************************************)

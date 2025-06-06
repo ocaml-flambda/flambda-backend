@@ -1134,10 +1134,11 @@ let report_error ppf = function
          products."
   | Mixed_product_array (const, elt_ty) ->
       fprintf ppf
-        "Unboxed product array elements must be external or contain all gc@ \
-         scannable types. But this array operation is peformed for an array@ \
-         whose element type is %a, which is an unboxed@ product \
-         that is not external and contains the non-scannable sort %a."
+        "An unboxed product array element must be formed from all@ \
+         gc-ignorable types or all gc-scannable types. But this array@ \
+         operation is peformed for an array whose element type is@ \
+         %a, which is an unboxed product that cannot be ignored@ \
+         (as it is not [external]) but contains the non-scannable sort %a."
         Printtyp.type_expr elt_ty
         Jkind.Sort.Const.format const
   | Product_iarrays_unsupported ->
