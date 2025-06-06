@@ -7,20 +7,48 @@ module DLL = Flambda_backend_utils.Doubly_linked_list
 
 type t =
   { interval_dll : Interval.t DLL.t;
+    interval_sl : Interval.AscBeginList.t;
     active : ClassIntervals.t Reg_class.Tbl.t;
     stack_slots : Regalloc_stack_slots.t
   }
 
+let print_intervals ppf (t : t) : unit =
+  Format.fprintf ppf "interval_dll(%d):\n" (DLL.length t.interval_dll);
+  DLL.iter t.interval_dll ~f:(fun i ->
+      Format.fprintf ppf " %a\n" Interval.print i);
+  Format.fprintf ppf "interval_sl(%d):\n"
+    (Interval.AscBeginList.length t.interval_sl);
+  Interval.AscBeginList.iter t.interval_sl ~f:(fun i ->
+      Format.fprintf ppf " %a\n" Interval.print i);
+  Format.fprintf ppf "\n%!"
+
+let check_consistency t msg : unit =
+  Reg_class.Tbl.iter t.active ~f:(fun reg_class ci ->
+      ClassIntervals.check_consistency ci
+        (Printf.sprintf "%s (reg_glass=%s)" msg (Reg_class.to_string reg_class)));
+  let consistent = equal_dll_asc_sl t.interval_dll t.interval_sl in
+  if not consistent
+  then (
+    print_intervals Format.err_formatter t;
+    Misc.fatal_errorf "Regalloc_ls_state.check_consistency")
+
 let for_fatal t =
   ( DLL.map t.interval_dll ~f:Interval.copy,
+    Interval.AscBeginList.map t.interval_sl ~f:Interval.copy,
     Reg_class.Tbl.map t.active ~f:ClassIntervals.copy )
 
 let[@inline] make ~stack_slots =
   let interval_dll = DLL.make_empty () in
+  (* CR xclerc for xclerc: review the parameters. *)
+  let interval_sl =
+    Interval.AscBeginList.make_empty ~max_skip_level:7 ~skip_factor:0.5 ()
+  in
   let active =
     Reg_class.Tbl.init ~f:(fun _reg_class -> ClassIntervals.make ())
   in
-  { interval_dll; active; stack_slots }
+  let res = { interval_dll; interval_sl; active; stack_slots } in
+  check_consistency res "State.make/end";
+  res
 
 (* CR-someday xclerc: consider using Dynarray *)
 type class_interval_array =
@@ -53,21 +81,8 @@ let add_class_interval_array ci x =
 let extract_class_interval_array ci : Interval.t array =
   Array.sub ci.elements ~pos:0 ~len:ci.length
 
-let compare_asc_begin (left : Interval.t) (right : Interval.t) =
-  match Int.compare left.begin_ right.begin_ with
-  | 0 ->
-    (* note: not necessary, used to enforce a unique order *)
-    Reg.compare left.reg right.reg
-  | c -> c
-
-let compare_desc_end (left : Interval.t) (right : Interval.t) =
-  match Int.compare right.end_ left.end_ with
-  | 0 ->
-    (* note: not necessary, used to enforce a unique order *)
-    Reg.compare right.reg left.reg
-  | c -> c
-
 let[@inline] update_intervals state map =
+  check_consistency state "State.update_intervals/begin";
   let active : ClassIntervals.t Reg_class.Tbl.t = state.active in
   Reg_class.Tbl.iter active ~f:(fun _regclass intervals ->
       ClassIntervals.clear intervals);
@@ -75,29 +90,40 @@ let[@inline] update_intervals state map =
     Reg_class.Tbl.init ~f:(fun _ -> make_class_interval_array ())
   in
   let class_intervals = make_class_interval_array () in
+  Interval.AscBeginList.clear state.interval_sl;
   Reg.Tbl.iter
     (fun reg interval ->
       match reg.loc with
       | Reg _ ->
         let reg_class = Reg_class.of_machtype reg.typ in
-        add_class_interval_array (Reg_class.Tbl.find active' reg_class) interval
-      | Stack _ | Unknown -> add_class_interval_array class_intervals interval)
+        add_class_interval_array (Reg_class.Tbl.find active' reg_class) interval;
+        Interval.DescEndList.insert
+          (Reg_class.Tbl.find state.active reg_class).fixed_sl interval
+      | Stack _ | Unknown ->
+        add_class_interval_array class_intervals interval;
+        Interval.AscBeginList.insert state.interval_sl interval)
     map;
   let class_intervals = extract_class_interval_array class_intervals in
-  Array.sort ~cmp:compare_asc_begin class_intervals;
+  Array.sort ~cmp:Interval.compare_asc_begin class_intervals;
   DLL.clear state.interval_dll;
   DLL.add_array state.interval_dll class_intervals;
   if debug then log_interval_dll ~kind:"regular" state.interval_dll;
   Reg_class.Tbl.iter active'
     ~f:(fun reg_class (intervals : class_interval_array) ->
       let extracted = extract_class_interval_array intervals in
-      Array.sort extracted ~cmp:compare_desc_end;
+      Array.sort extracted ~cmp:Interval.compare_desc_end;
       DLL.clear (Reg_class.Tbl.find active reg_class).fixed_dll;
-      DLL.add_array (Reg_class.Tbl.find active reg_class).fixed_dll extracted)
+      DLL.add_array (Reg_class.Tbl.find active reg_class).fixed_dll extracted);
+  if debug then log_interval_asc_sl ~kind:"regular" state.interval_sl;
+  check_consistency state "State.update_intervals/end"
 
-let[@inline] iter_intervals state ~f = DLL.iter state.interval_dll ~f
+let[@inline] iter_intervals state ~f =
+  (* will change to: Interval.AscBeginList.iter state.interval_sl ~f *)
+  DLL.iter state.interval_dll ~f
 
 let[@inline] fold_intervals state ~f ~init =
+  (* will change to: Interval.AscBeginList.fold_left state.interval_sl ~f
+     ~init *)
   DLL.fold_left state.interval_dll ~f ~init
 
 let[@inline] release_expired_intervals state ~pos =
