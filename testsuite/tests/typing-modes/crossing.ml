@@ -111,7 +111,7 @@ type cross_once
 type cross_portable : value mod portable
 type cross_nonportable
 type cross_unyielding : value mod unyielding
-type cross_yielding
+type cross_yielding : value mod yielding
 type cross_aliased : value mod aliased
 type cross_unique
 type cross_contended : value mod contended

@@ -2,18 +2,18 @@
  expect;
 *)
 
-(* CR dkalinichenko: allow [yielding] at toplevel? *)
-let my_effect : (unit -> unit) @ yielding = print_endline "Hello, world!"
+(* CR dkalinichenko: allow [switching] at toplevel? *)
+let my_effect : (unit -> unit) @ switching = print_endline "Hello, world!"
 [%%expect{|
-Line 1, characters 4-73:
-1 | let my_effect : (unit -> unit) @ yielding = print_endline "Hello, world!"
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value is "yielding" but expected to be "unyielding".
+Line 1, characters 4-74:
+1 | let my_effect : (unit -> unit) @ switching = print_endline "Hello, world!"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This value is "switching" but expected to be "unyielding".
 |}]
 
 let storage = ref ""
 
-let with_effect : ((string -> unit) @ local yielding -> 'a) -> 'a =
+let with_effect : ((string -> unit) @ local switching -> 'a) -> 'a =
   fun f -> f ((:=) storage)
 
 [%%expect{|
@@ -29,14 +29,14 @@ let _ = !storage
 - : string = "Hello, world!"
 |}]
 
-let run_yielding : (string -> unit) @ local yielding -> unit = fun f -> f "my string"
+let run_switching : (string -> unit) @ local switching -> unit = fun f -> f "my string"
 
-let () = with_effect (fun k -> run_yielding k)
+let () = with_effect (fun k -> run_switching k)
 
 let _ = !storage
 
 [%%expect{|
-val run_yielding : local_ (string -> unit) -> unit = <fun>
+val run_switching : local_ (string -> unit) -> unit = <fun>
 - : string = "my string"
 |}]
 
@@ -49,7 +49,7 @@ val run_unyielding : (string -> unit) @ local unyielding -> unit = <fun>
 Line 3, characters 46-47:
 3 | let () = with_effect (fun k -> run_unyielding k)
                                                   ^
-Error: This value is "yielding" but expected to be "unyielding".
+Error: This value is "switching" but expected to be "unyielding".
 |}]
 
 let run_default : (string -> unit) @ local -> unit = fun f -> f "some string"
@@ -60,7 +60,7 @@ let () = with_effect (fun k -> run_default k)
 val run_default : local_ (string -> unit) -> unit = <fun>
 |}]
 
-(* A closure over a [yielding] value must be [yielding]. *)
+(* A closure over a [switching] value must be [switching]. *)
 
 let () = with_effect (fun k ->
   let closure @ local unyielding = fun () -> k () in
@@ -76,21 +76,21 @@ Error: The value "k" is yielding, so cannot be used inside a function that may n
 
 type 'a t1 = Mk1 of 'a @@ global
 
-type 'a t2 = Mk2 of 'a @@ global yielding
+type 'a t2 = Mk2 of 'a @@ global switching
 
 type 'a t3 = Mk3 of 'a @@ unyielding
 
-type 'a t4 = Mk4 of 'a @@ yielding
+type 'a t4 = Mk4 of 'a @@ switching
 
-let with_global_effect : ((string -> unit) @ yielding -> 'a) -> 'a =
+let with_global_effect : ((string -> unit) @ switching -> 'a) -> 'a =
   fun f -> f ((:=) storage)
 
 [%%expect{|
 type 'a t1 = Mk1 of global_ 'a
-type 'a t2 = Mk2 of 'a @@ global yielding
+type 'a t2 = Mk2 of 'a @@ global switching
 type 'a t3 = Mk3 of 'a @@ unyielding
 type 'a t4 = Mk4 of 'a
-val with_global_effect : ((string -> unit) @ yielding -> 'a) -> 'a = <fun>
+val with_global_effect : ((string -> unit) @ switching -> 'a) -> 'a = <fun>
 |}]
 
 (* [global] modality implies [unyielding]. *)
@@ -100,7 +100,7 @@ let _ = with_global_effect (fun k -> let _ = Mk1 k in ())
 Line 1, characters 49-50:
 1 | let _ = with_global_effect (fun k -> let _ = Mk1 k in ())
                                                      ^
-Error: This value is "yielding" but expected to be "unyielding".
+Error: This value is "switching" but expected to be "unyielding".
 |}]
 
 (* [global yielding] works: *)
@@ -110,14 +110,14 @@ let _ = with_global_effect (fun k -> let _ = Mk2 k in ())
 - : unit = ()
 |}]
 
-(* [unyielding] and [yielding] modalities: *)
+(* [unyielding] and [switching] modalities: *)
 let _ = with_global_effect (fun k -> let _ = Mk3 k in ())
 
 [%%expect{|
 Line 1, characters 49-50:
 1 | let _ = with_global_effect (fun k -> let _ = Mk3 k in ())
                                                      ^
-Error: This value is "yielding" but expected to be "unyielding".
+Error: This value is "switching" but expected to be "unyielding".
 |}]
 
 let _ = with_global_effect (fun k -> let _ = Mk4 k in ())
@@ -126,18 +126,18 @@ let _ = with_global_effect (fun k -> let _ = Mk4 k in ())
 - : unit = ()
 |}]
 
-(* Externals and [yielding]: *)
+(* Externals and modes: *)
 
-external ok_yielding : 'a @ local -> unit = "%ignore"
+external ok_local : 'a @ local -> unit = "%ignore"
 
-let _ = ok_yielding 4
+let _ = ok_local 4
 
-let _ = ok_yielding (stack_ (Some "local string"))
+let _ = ok_local (stack_ (Some "local string"))
 
-let _ = with_global_effect (fun k -> ok_yielding k)
+let _ = with_global_effect (fun k -> ok_local k)
 
 [%%expect{|
-external ok_yielding : local_ 'a -> unit = "%ignore"
+external ok_local : local_ 'a -> unit = "%ignore"
 - : unit = ()
 - : unit = ()
 - : unit = ()
@@ -158,7 +158,7 @@ external requires_unyielding : 'a @ local unyielding -> unit = "%ignore"
 Line 7, characters 57-58:
 7 | let _ = with_global_effect (fun k -> requires_unyielding k)
                                                              ^
-Error: This value is "yielding" but expected to be "unyielding".
+Error: This value is "switching" but expected to be "unyielding".
 |}]
 
 external returns_unyielding : 'a -> 'a @ local unyielding = "%identity"
@@ -170,20 +170,20 @@ external returns_unyielding : 'a -> 'a @ local unyielding = "%identity"
 - : unit = ()
 |}]
 
-(* [@local_opt] and [yielding]: *)
+(* [@local_opt] and modes: *)
 
 external id : ('a[@local_opt]) -> ('a[@local_opt]) = "%identity"
 
 let f1 x = id x
 let f2 (x @ local) = exclave_ id x
-let f3 (x @ yielding) = id x
+let f3 (x @ switching) = id x
 let f4 (x @ local unyielding) = exclave_ id x
 
 [%%expect{|
 external id : ('a [@local_opt]) -> ('a [@local_opt]) = "%identity"
 val f1 : 'a -> 'a = <fun>
 val f2 : local_ 'a -> local_ 'a = <fun>
-val f3 : 'a @ yielding -> 'a @ yielding = <fun>
+val f3 : 'a @ switching -> 'a @ switching = <fun>
 val f4 : 'a @ local unyielding -> local_ 'a = <fun>
 |}]
 
@@ -203,15 +203,15 @@ let f2 (x @ local) = exclave_ requires_unyielding x
 Line 1, characters 50-51:
 1 | let f2 (x @ local) = exclave_ requires_unyielding x
                                                       ^
-Error: This value is "yielding" but expected to be "unyielding".
+Error: This value is "switching" but expected to be "unyielding".
 |}]
 
-let f3 (x @ yielding) = requires_unyielding x
+let f3 (x @ switching) = requires_unyielding x
 [%%expect{|
-Line 1, characters 44-45:
-1 | let f3 (x @ yielding) = requires_unyielding x
-                                                ^
-Error: This value is "yielding" but expected to be "unyielding".
+Line 1, characters 45-46:
+1 | let f3 (x @ switching) = requires_unyielding x
+                                                 ^
+Error: This value is "switching" but expected to be "unyielding".
 |}]
 
 let f4 (x @ local unyielding) = exclave_ requires_unyielding x
@@ -275,4 +275,51 @@ type _z4 = w2 u2
 
 [%%expect{|
 type _z4 = w2 u2
+|}]
+
+(* Tests for mode ordering: Unyielding < Yielding < Switching *)
+
+let check_submode_1 : 'a @ switching -> ('a @ unyielding -> 'b) -> 'b = fun x f -> f x
+
+[%%expect{|
+Line 1, characters 85-86:
+1 | let check_submode_1 : 'a @ switching -> ('a @ unyielding -> 'b) -> 'b = fun x f -> f x
+                                                                                         ^
+Error: This value is "switching" but expected to be "unyielding".
+|}]
+
+let check_submode_2 : 'a @ switching -> ('a @ yielding -> 'b) -> 'b = fun x f -> f x
+
+[%%expect{|
+Line 1, characters 83-84:
+1 | let check_submode_2 : 'a @ switching -> ('a @ yielding -> 'b) -> 'b = fun x f -> f x
+                                                                                       ^
+Error: This value is "switching" but expected to be "yielding".
+|}]
+
+let check_submode_3 : 'a @ yielding -> ('a @ unyielding -> 'b) -> 'b = fun x f -> f x
+
+[%%expect{|
+Line 1, characters 84-85:
+1 | let check_submode_3 : 'a @ yielding -> ('a @ unyielding -> 'b) -> 'b = fun x f -> f x
+                                                                                        ^
+Error: This value is "yielding" but expected to be "unyielding".
+|}]
+
+let check_submode_4 : 'a @ unyielding -> ('a @ yielding -> 'b) -> 'b = fun x f -> f x
+
+[%%expect{|
+val check_submode_4 : 'a -> ('a @ yielding -> 'b) -> 'b = <fun>
+|}]
+
+let check_submode_5 : 'a @ unyielding -> ('a @ unyielding -> 'b) -> 'b = fun x f -> f x
+
+[%%expect{|
+val check_submode_5 : 'a -> ('a -> 'b) -> 'b = <fun>
+|}]
+
+let check_submode_6 : 'a @ unyielding -> ('a @ switching -> 'b) -> 'b = fun x f -> f x
+
+[%%expect{|
+val check_submode_6 : 'a -> ('a @ switching -> 'b) -> 'b = <fun>
 |}]
