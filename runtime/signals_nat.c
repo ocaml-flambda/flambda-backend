@@ -96,43 +96,65 @@ void caml_garbage_collection(void)
 #error "stack checks cannot be disabled if POSIX signals are not available"
 #endif
 
+typedef void (*sigaction_t)(int sig, siginfo_t *info, void *context);
+
 #define DECLARE_SIGNAL_HANDLER(name) \
   static void name(int sig, siginfo_t * info, ucontext_t * context)
 
 #define SET_SIGACT(sigact,name)                                       \
-  sigact.sa_sigaction = (void (*)(int,siginfo_t *,void *)) (name);    \
+  sigact.sa_sigaction = (sigaction_t) (name);    \
   sigact.sa_flags = SA_SIGINFO
 
 CAMLextern void caml_raise_stack_overflow_nat(void);
 
+static sigaction_t prior_segv_handler = NULL;
+
 DECLARE_SIGNAL_HANDLER(segv_handler)
 {
   struct sigaction act;
-  struct stack_info *block = Caml_state->current_stack;
-  char* fault_addr = info->si_addr;
-  char* protected_low = Protected_stack_page(block);
-  char* protected_high = protected_low + caml_plat_pagesize;
-  if ((fault_addr >= protected_low) && (fault_addr < protected_high)) {
+  if (Caml_state) {
+    struct stack_info *block = Caml_state->current_stack;
+    char* fault_addr = info->si_addr;
+    char* protected_low = Protected_stack_page(block);
+    char* protected_high = protected_low + caml_plat_pagesize;
+    if ((fault_addr >= protected_low) && (fault_addr < protected_high)) {
+      /* Faulting in the current guard page; presume stack overflow. Raise the
+         exception. */
 #ifdef SYS_macosx
-    context->uc_mcontext->__ss.__rip = (unsigned long long) &caml_raise_stack_overflow_nat;
+      context->uc_mcontext->__ss.__rip = (unsigned long long) &caml_raise_stack_overflow_nat;
 #else
-    context->uc_mcontext.gregs[REG_RIP]= (greg_t) &caml_raise_stack_overflow_nat;
+      context->uc_mcontext.gregs[REG_RIP]= (greg_t) &caml_raise_stack_overflow_nat;
 #endif
-  } else {
+      return; /* to caml_raise_stack_overflow_nat */
+    }
+  }
+
+  /* Not a stack-overflow on our current Caml stack */
+  if (prior_segv_handler) {
+    /* Somebody else installed a SEGV handler before us. We make
+     * "reasonable best efforts" to invoke it, as maybe it's a SEGV
+     * they know about and can fix. We can't apply whatever sa_flags
+     * they had, but we can call their handler. */
+    prior_segv_handler(sig, info, context);
+  } else { /* default SEGV behaviour */
     act.sa_handler = SIG_DFL;
     act.sa_flags = 0;
     sigemptyset(&act.sa_mask);
     sigaction(SIGSEGV, &act, NULL);
   }
+  /* returning from SEGV handler restarts the failing instruction */
 }
 
 void caml_init_nat_signals(void)
 {
-  struct sigaction act;
+  struct sigaction act, oldact;
   SET_SIGACT(act, segv_handler);
   act.sa_flags |= SA_ONSTACK | SA_NODEFER;
   sigemptyset(&act.sa_mask);
-  sigaction(SIGSEGV, &act, NULL);
+  sigaction(SIGSEGV, &act, &oldact);
+  if (oldact.sa_sigaction != (sigaction_t)SIG_DFL) {
+    prior_segv_handler = oldact.sa_sigaction;
+  }
 }
 
 #else
