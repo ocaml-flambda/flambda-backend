@@ -32,7 +32,7 @@ type error =
   | Unsupported_sort of Jkind.Sort.Const.t
   | Unsupported_product_in_lazy of Jkind.Sort.Const.t
   | Unsupported_vector_in_product_array
-  | Mixed_product_array of Jkind.Sort.Const.t
+  | Mixed_product_array of Jkind.Sort.Const.t * type_expr
   | Product_iarrays_unsupported
 
 exception Error of Location.t * error
@@ -199,20 +199,22 @@ let classify ~classify_product env loc ty sort : _ classification =
     raise (Error (loc, Unsupported_sort c))
   | Product c -> Product (classify_product ty c)
 
-let rec scannable_product_array_kind loc sorts =
-  List.map (sort_to_scannable_product_element_kind loc) sorts
+let rec scannable_product_array_kind elt_ty_for_error loc sorts =
+  List.map (sort_to_scannable_product_element_kind elt_ty_for_error loc) sorts
 
-and sort_to_scannable_product_element_kind loc (s : Jkind.Sort.Const.t) =
+and sort_to_scannable_product_element_kind elt_ty_for_error loc
+      (s : Jkind.Sort.Const.t) =
   (* Unfortunate: this never returns `Pint_scannable`.  Doing so would require
      this to traverse the type, rather than just the kind, or to add product
      kinds. *)
   match s with
   | Base Value -> Paddr_scannable
   | Base (Float64 | Float32 | Bits32 | Bits64 | Word | Vec128) as c ->
-    raise (Error (loc, Mixed_product_array c))
+    raise (Error (loc, Mixed_product_array (c, elt_ty_for_error)))
   | Base Void as c ->
     raise (Error (loc, Unsupported_sort c))
-  | Product sorts -> Pproduct_scannable (scannable_product_array_kind loc sorts)
+  | Product sorts ->
+    Pproduct_scannable (scannable_product_array_kind elt_ty_for_error loc sorts)
 
 let rec ignorable_product_array_kind loc sorts =
   List.map (sort_to_ignorable_product_element_kind loc) sorts
@@ -237,11 +239,13 @@ let array_kind_of_elt ~elt_sort env loc ty =
       Jkind.Sort.default_for_transl_and_get
         (type_legacy_sort ~why:Array_element env loc ty)
   in
+  let elt_ty_for_error = ty in (* report the un-scraped ty in errors *)
   let classify_product ty sorts =
     if is_always_gc_ignorable env ty then
       Pgcignorableproductarray (ignorable_product_array_kind loc sorts)
     else
-      Pgcscannableproductarray (scannable_product_array_kind loc sorts)
+      Pgcscannableproductarray
+        (scannable_product_array_kind elt_ty_for_error loc sorts)
   in
   (* CR dkalinichenko: many checks in [classify] are redundant
      with separability. *)
@@ -1128,11 +1132,17 @@ let report_error ppf = function
       fprintf ppf
         "Unboxed vector types are not yet supported in arrays of unboxed@ \
          products."
-  | Mixed_product_array const ->
+  | Mixed_product_array (const, elt_ty) ->
       fprintf ppf
-        "Unboxed product array elements must be external or contain all gc@ \
-         scannable types. The product type this function is applied at is@ \
-         not external but contains an element of sort %a."
+        "An unboxed product array element must be formed from all@ \
+         external types (which are ignored by the gc) or all gc-scannable \
+         types.@ But this array operation is peformed for an array whose@ \
+         element type is %a, which is an unboxed product@ \
+         that is not external and contains a type with the non-scannable@ \
+         layout %a.@ \
+         @[Hint: if the array contents should not be scanned, annotating@ \
+         contained abstract types as [mod external] may resolve this error.@]"
+        Printtyp.type_expr elt_ty
         Jkind.Sort.Const.format const
   | Product_iarrays_unsupported ->
       fprintf ppf
