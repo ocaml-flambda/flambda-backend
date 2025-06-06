@@ -486,6 +486,8 @@ FUNCTION(caml_call_realloc_stack)
         ldp     x29, x30, [sp], 16
         ret
 1:  /* Restore the gc_regs bucket popped by SAVE_ALL_REGS */
+        ldr     TMP, Caml_state(gc_regs)
+        sub     TMP, TMP, #16
         ldr     TMP2, Caml_state(gc_regs_buckets)
         str     TMP2, [TMP, 0]  /* next ptr */
         str     TMP, Caml_state(gc_regs_buckets)
