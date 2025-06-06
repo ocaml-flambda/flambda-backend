@@ -640,33 +640,34 @@ let f (): int32# M_any.t r = id (assert false : int32# M_any.t r) *)
 (********************************************)
 (* Some primitives require layout_poly to work *)
 
-type ('a : any) t
-external id : ('a : any). 'a t -> int = "%array_length"
+type ('a : any_non_null) t = 'a array
+external id : ('a : any_non_null). 'a t -> int = "%array_length"
 let id' x = id x
 
 [%%expect{|
-type ('a : any) t
-Line 2, characters 14-37:
-2 | external id : ('a : any). 'a t -> int = "%array_length"
-                  ^^^^^^^^^^^^^^^^^^^^^^^
+type ('a : any_non_null) t = 'a array
+Line 2, characters 14-46:
+2 | external id : ('a : any_non_null). 'a t -> int = "%array_length"
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: The primitive "%array_length" doesn't work well with type variables of
        layout any. Consider using "[@layout_poly]".
 |}]
 
-external[@layout_poly] id : ('a : any). 'a t -> int = "%array_length"
+external[@layout_poly] id : ('a : any_non_null). 'a t -> int = "%array_length"
 let id' x = id x
 
 [%%expect{|
-external id : ('a : any). 'a t -> int = "%array_length" [@@layout_poly]
+external id : ('a : any_non_null). 'a t -> int = "%array_length"
+  [@@layout_poly]
 val id' : 'a t -> int = <fun>
 |}]
 
-external id : ('a : any). 'a t -> int = "%identity"
+external id : ('a : any_non_null). 'a t -> int = "%identity"
 let id' x = id x
 
 [%%expect{|
-external id : ('a : any). 'a t -> int = "%identity"
-val id' : ('a : any). 'a t -> int = <fun>
+external id : ('a : any_non_null). 'a t -> int = "%identity"
+val id' : 'a t -> int = <fun>
 |}]
 
 

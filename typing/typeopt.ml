@@ -34,6 +34,9 @@ type error =
   | Unsupported_vector_in_product_array
   | Mixed_product_array of Jkind.Sort.Const.t * type_expr
   | Product_iarrays_unsupported
+  | Opaque_array_non_value of
+      { array_type: type_expr;
+        elt_kinding_failure: (type_expr * Jkind.Violation.t) option }
 
 exception Error of Location.t * error
 
@@ -264,7 +267,7 @@ let array_kind_of_elt ~elt_sort env loc ty =
   | Unboxed_vector v -> Punboxedvectorarray v
   | Product c -> c
 
-let array_type_kind ~elt_sort env loc ty =
+let array_type_kind ~elt_sort ~elt_ty env loc ty =
   match scrape_poly env ty with
   | Tconstr(p, [elt_ty], _) when Path.same p Predef.path_array ->
       array_kind_of_elt ~elt_sort env loc elt_ty
@@ -281,8 +284,33 @@ let array_type_kind ~elt_sort env loc ty =
   | Tconstr(p, [], _) when Path.same p Predef.path_floatarray ->
       Pfloatarray
   | _ ->
-      (* This can happen with e.g. Obj.field *)
-      Pgenarray
+    begin match elt_ty with
+    | Some elt_ty ->
+      let rhs = Jkind.Builtin.value ~why:Array_type_kind in
+      begin match Ctype.constrain_type_jkind env elt_ty rhs with
+      | Ok _ -> Pgenarray
+      | Error e ->
+        (* CR layouts v4: rather than constraining [elt_ty]'s jkind to be value,
+           we could instead use its jkind to determine a non-value array kind.
+
+           We are choosing to error in this case for now because it is safer,
+           and because it could be potentially confusing that there is a second
+           source of information used to determine array type kinds (in addition
+           to the type kind of the array parameter). See PR #4098.
+        *)
+        raise (Error(loc,
+          Opaque_array_non_value {
+            array_type = ty;
+            elt_kinding_failure = Some (elt_ty, e);
+          }))
+      end
+    | None ->
+      raise (Error(loc,
+        Opaque_array_non_value {
+          array_type = ty;
+          elt_kinding_failure = None;
+        }))
+    end
 
 let array_type_mut env ty =
   match scrape_poly env ty with
@@ -291,12 +319,12 @@ let array_type_mut env ty =
 
 let array_kind exp elt_sort =
   array_type_kind
-    ~elt_sort:(Some elt_sort)
+    ~elt_sort:(Some elt_sort) ~elt_ty:None
     exp.exp_env exp.exp_loc exp.exp_type
 
 let array_pattern_kind pat elt_sort =
   array_type_kind
-    ~elt_sort:(Some elt_sort)
+    ~elt_sort:(Some elt_sort) ~elt_ty:None
     pat.pat_env pat.pat_loc pat.pat_type
 
 let bigarray_decode_type env ty tbl dfl =
@@ -531,12 +559,13 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
     num_nodes_visited, non_nullable (Pboxedvectorval Boxed_vec128)
   | Tconstr(p, _, _) when Path.same p Predef.path_float64x2 ->
     num_nodes_visited, non_nullable (Pboxedvectorval Boxed_vec128)
-  | Tconstr(p, _, _)
+  | Tconstr(p, [arg], _)
     when (Path.same p Predef.path_array
           || Path.same p Predef.path_floatarray) ->
     (* CR layouts: [~elt_sort:None] here is bad for performance. To
        fix it, we need a place to store the sort on a [Tconstr]. *)
-    num_nodes_visited, non_nullable (Parrayval (array_type_kind ~elt_sort:None env loc ty))
+    let ak = array_type_kind ~elt_ty:(Some arg) ~elt_sort:None env loc ty in
+    num_nodes_visited, non_nullable (Parrayval ak)
   | Tconstr(p, _, _) -> begin
       (* CR layouts v2.8: The uses of [decl.type_jkind] here are suspect:
          with with-kinds, [decl.type_jkind] will mention variables bound
@@ -1147,6 +1176,23 @@ let report_error ppf = function
   | Product_iarrays_unsupported ->
       fprintf ppf
         "Immutable arrays of unboxed products are not yet supported."
+  | Opaque_array_non_value { array_type; elt_kinding_failure }  ->
+      begin match elt_kinding_failure with
+      | Some (ty, err) ->
+        fprintf ppf
+        "This array operation cannot tell whether %a is an array type,@ \
+         possibly because it is abstract. In this case, the element type@ \
+         %a must be a value:@ @\n@[%a@]"
+          Printtyp.type_expr array_type
+          Printtyp.type_expr ty
+          (Jkind.Violation.report_with_offender
+            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
+      | None ->
+        fprintf ppf
+          "This array operation expects an array type, but %a does not appear@ \
+           to be one.@ (Hint: it is abstract?)"
+          Printtyp.type_expr array_type;
+      end
 
 let () =
   Location.register_error_of_exn
