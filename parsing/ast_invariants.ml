@@ -27,6 +27,8 @@ let short_closed_tuple_pat loc =
   err loc "Closed tuple patterns must have at least 2 components."
 let no_args loc = err loc "Function application with no argument."
 let empty_let loc = err loc "Let with no bindings."
+let mutable_rec_let loc = err loc "Mutable let binding cannot be recursive."
+let multiple_mutable_let loc = err loc "Mutable let must have only one binding."
 let empty_type loc = err loc "Type declarations cannot be empty."
 let complex_id loc = err loc "Functor application not allowed here."
 let module_type_substitution_missing_rhs loc =
@@ -118,7 +120,11 @@ let iterator =
     | Pexp_tuple ([] | [_]) -> invalid_tuple loc
     | Pexp_record ([], _) -> empty_record loc
     | Pexp_apply (_, []) -> no_args loc
-    | Pexp_let (_, [], _) -> empty_let loc
+    | Pexp_let (_, _, [], _) -> empty_let loc
+    | Pexp_let (Mutable, Recursive, _, _) -> mutable_rec_let loc
+    | Pexp_let (Mutable, _, l, _) when List.length l > 1 ->
+        multiple_mutable_let loc
+      (* CR jrayman: test previous two invariants *)
     | Pexp_ident id
     | Pexp_construct (id, _)
     | Pexp_field (_, id)

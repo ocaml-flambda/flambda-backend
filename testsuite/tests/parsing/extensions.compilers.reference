@@ -5,7 +5,7 @@
       structure_item (extensions.ml[9,153+7]..[9,153+21])
         Pstr_eval
         expression (extensions.ml[9,153+7]..[9,153+21])
-          Pexp_let Nonrec
+          Pexp_let Immutable Nonrec
           [
             <def>
               pattern (extensions.ml[9,153+11]..[9,153+12])

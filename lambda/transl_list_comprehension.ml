@@ -206,7 +206,8 @@ let iterator ~transl_exp ~scopes = function
       add_bindings =
         (* CR layouts: to change when we allow non-values in sequences *)
         Matching.for_let ~scopes ~arg_sort:Jkind.Sort.Const.for_list_element
-          ~return_layout:layout_any_value pattern.pat_loc (Lvar element) pattern
+          ~return_layout:layout_any_value pattern.pat_loc (Lvar element)
+          Immutable pattern
     }
 
 (** Translates a list comprehension binding

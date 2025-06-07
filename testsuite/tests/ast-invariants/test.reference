@@ -1,0 +1,9 @@
+File "/home/zqian/local/repos/let-mutable/_runtest/testsuite/tests/typing-local/let_mutable.ml", lines 200-206, characters 2-15:
+200 | ..let mutable x = []
+201 |   and z = 3
+202 |   in
+203 |   x <- z :: x;
+204 |   match x with
+205 |   | [] -> 0
+206 |   | z :: _ -> z
+Error: broken invariant in parsetree: Mutable let must have only one binding.

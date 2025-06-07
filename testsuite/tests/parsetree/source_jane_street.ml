@@ -1481,3 +1481,17 @@ let f g here = g ~(here : [%call_pos])
 [%%expect{|
 val f : (here:[%call_pos] -> 'a) -> lexing_position -> 'a = <fun>
 |}]
+
+(***************)
+(* let mutable *)
+
+let triangle_10 = let mutable x = 0 in
+  for i = 1 to 10 do
+    x <- x + i
+  done;
+  x
+;;
+
+[%%expect{|
+val triangle_10 : int = 55
+|}]
