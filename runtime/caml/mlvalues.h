@@ -69,8 +69,13 @@ typedef opcode_t * code_t;
 
 #include "domain_state.h"
 
-/* The null pointer value. */
+/* Or_null constructors. */
+
 #define Val_null ((value) 0)
+#define Val_this(v) (v)
+#define This_val(v) (v)
+#define Is_null(v) ((v) == Val_null)
+#define Is_this(v) ((v) != Val_null)
 
 /* Longs vs blocks. */
 
