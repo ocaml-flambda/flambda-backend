@@ -43,9 +43,9 @@
       [cmt_format.cmt_uid_to_decl] table of the corresponding compilation unit.
 
   See:
-  - {{: https://icfp22.sigplan.org/details/mlfamilyworkshop-2022-papers/10/Module-Shapes-for-Modern-Tooling }
+  - {{:https://icfp22.sigplan.org/details/mlfamilyworkshop-2022-papers/10/Module-Shapes-for-Modern-Tooling}
     the design document}
-  - {{: https://www.lix.polytechnique.fr/Labo/Gabriel.Scherer/research/shapes/2022-ml-workshop-shapes-talk.pdf }
+  - {{:https://www.lix.polytechnique.fr/Labo/Gabriel.Scherer/research/shapes/2022-ml-workshop-shapes-talk.pdf}
     a talk about the reduction strategy
 *)
 
@@ -57,7 +57,10 @@
 module Uid : sig
   type t = private
     | Compilation_unit of string
-    | Item of { comp_unit: string; id: int }
+    | Item of {
+        comp_unit: string;
+        id: int;
+        from: Unit_info.intf_or_impl }
     | Internal
     | Predef of string
     | Unboxed_version of t
