@@ -730,7 +730,7 @@ static void extern_rec(value v)
   sp = extern_stack;
 
   while(1) {
-  if (v == Val_null) {
+  if (Is_null(v)) {
     extern_null();
   } else if (Is_long(v)) {
     extern_int(Long_val(v));
@@ -1230,7 +1230,7 @@ intnat reachable_words_once(value root, intnat identifier, value sizes_by_root_i
   CAMLassert(identifier >= 0);
 
   while (1) {
-    if (Is_long(v) || v == Val_null) {
+    if (Is_long(v) || Is_null(v)) {
       /* Tagged integers or nulls contribute 0 to the size, nothing to do */
     } else if (! Is_in_heap_or_young(v)) {
       /* Out-of-heap blocks contribute 0 to the size, nothing to do */

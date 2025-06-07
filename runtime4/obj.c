@@ -32,7 +32,7 @@
 
 static int obj_tag (value arg)
 {
-  if (arg == Val_null) {
+  if (Is_null(arg)) {
     return 1010;   /* null_tag */
   } else if (Is_long (arg)) {
     return 1000;   /* int_tag */
@@ -383,5 +383,5 @@ CAMLprim value caml_succ_scannable_prefix_len (value v) {
 
 CAMLprim value caml_is_null(value v)
 {
-  return v == Val_null ? Val_true : Val_false;
+  return Is_null(v) ? Val_true : Val_false;
 }
