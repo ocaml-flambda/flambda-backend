@@ -27,10 +27,10 @@ type error =
   | Small_number_sort_without_extension of Jkind.Sort.t * type_expr option
   | Simd_sort_without_extension of Jkind.Sort.t * type_expr option
   | Not_a_sort of type_expr * Jkind.Violation.t
-  | Unsupported_sort of Jkind.Sort.Const.t
   | Unsupported_product_in_lazy of Jkind.Sort.Const.t
   | Unsupported_vector_in_product_array
   | Mixed_product_array of Jkind.Sort.Const.t
+  | Unsupported_void_in_array
   | Product_iarrays_unsupported
 
 exception Error of Location.t * error
@@ -131,6 +131,7 @@ let type_legacy_sort ~why env loc ty =
 type 'a classification =
   | Int   (* any immediate type *)
   | Float
+  | Void
   | Unboxed_float of unboxed_float
   | Unboxed_int of unboxed_integer
   | Unboxed_vector of unboxed_vector
@@ -142,7 +143,7 @@ type 'a classification =
 (* Classify a ty into a [classification]. Looks through synonyms, using
    [scrape_ty].  Returning [Any] is safe, though may skip some optimizations.
    See comment on [classification] above to understand [classify_product]. *)
-let classify ~classify_product env loc ty sort : _ classification =
+let classify ~classify_product env ty sort : _ classification =
   let ty = scrape_ty env ty in
   match (sort : Jkind.Sort.Const.t) with
   | Base Value -> begin
@@ -193,8 +194,7 @@ let classify ~classify_product env loc ty sort : _ classification =
   | Base Bits64 -> Unboxed_int Unboxed_int64
   | Base Vec128 -> Unboxed_vector Unboxed_vec128
   | Base Word -> Unboxed_int Unboxed_nativeint
-  | Base Void as c ->
-    raise (Error (loc, Unsupported_sort c))
+  | Base Void -> Void
   | Product c -> Product (classify_product ty c)
 
 let rec scannable_product_array_kind loc sorts =
@@ -208,8 +208,8 @@ and sort_to_scannable_product_element_kind loc (s : Jkind.Sort.Const.t) =
   | Base Value -> Paddr_scannable
   | Base (Float64 | Float32 | Bits32 | Bits64 | Word | Vec128) as c ->
     raise (Error (loc, Mixed_product_array c))
-  | Base Void as c ->
-    raise (Error (loc, Unsupported_sort c))
+  | Base Void ->
+    raise (Error (loc, Unsupported_void_in_array))
   | Product sorts -> Pproduct_scannable (scannable_product_array_kind loc sorts)
 
 let rec ignorable_product_array_kind loc sorts =
@@ -224,7 +224,7 @@ and sort_to_ignorable_product_element_kind loc (s : Jkind.Sort.Const.t) =
   | Base Bits64 -> Punboxedint_ignorable Unboxed_int64
   | Base Word -> Punboxedint_ignorable Unboxed_nativeint
   | Base Vec128 -> raise (Error (loc, Unsupported_vector_in_product_array))
-  | Base Void as c -> raise (Error (loc, Unsupported_sort c))
+  | Base Void -> raise (Error (loc, Unsupported_void_in_array))
   | Product sorts -> Pproduct_ignorable (ignorable_product_array_kind loc sorts)
 
 let array_kind_of_elt ~elt_sort env loc ty =
@@ -243,7 +243,7 @@ let array_kind_of_elt ~elt_sort env loc ty =
   in
   (* CR dkalinichenko: many checks in [classify] are redundant
      with separability. *)
-  match classify ~classify_product env loc ty elt_sort with
+  match classify ~classify_product env ty elt_sort with
   | Any ->
     if Config.flat_float_array
       && not (Language_extension.is_at_least Separability ()
@@ -257,6 +257,8 @@ let array_kind_of_elt ~elt_sort env loc ty =
   | Unboxed_int i -> Punboxedintarray i
   | Unboxed_vector v -> Punboxedvectorarray v
   | Product c -> c
+  | Void ->
+    raise (Error (loc, Unsupported_void_in_array))
 
 let array_type_kind ~elt_sort env loc ty =
   match scrape_poly env ty with
@@ -995,13 +997,13 @@ let lazy_val_requires_forward env loc ty =
     let kind = Jkind.Sort.Const.Product sorts in
     raise (Error (loc, Unsupported_product_in_lazy kind))
   in
-  match classify ~classify_product env loc ty sort with
+  match classify ~classify_product env ty sort with
   | Any | Lazy -> true
   (* CR layouts: Fix this when supporting lazy unboxed values.
      Blocks with forward_tag can get scanned by the gc thus can't
      store unboxed values. Not boxing is also incorrect since the lazy
      type has layout [value] which is different from these unboxed layouts. *)
-  | Unboxed_float _ | Unboxed_int _ | Unboxed_vector _ ->
+  | Unboxed_float _ | Unboxed_int _ | Unboxed_vector _ | Void ->
     Misc.fatal_error "Unboxed value encountered inside lazy expression"
   | Float -> Config.flat_float_array
   | Addr | Int -> false
@@ -1132,9 +1134,6 @@ let report_error ppf = function
       fprintf ppf "A representable layout is required here.@ %a"
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err
-  | Unsupported_sort const ->
-      fprintf ppf "Layout %a is not supported yet."
-        Jkind.Sort.Const.format const
   | Unsupported_product_in_lazy const ->
       fprintf ppf
         "Product layout %a detected in [lazy] in [Typeopt.Layout]@ \
@@ -1144,6 +1143,9 @@ let report_error ppf = function
       fprintf ppf
         "Unboxed vector types are not yet supported in arrays of unboxed@ \
          products."
+  | Unsupported_void_in_array ->
+      fprintf ppf
+        "Types whose layout contains [void] are yet supported in arrays."
   | Mixed_product_array const ->
       fprintf ppf
         "Unboxed product array elements must be external or contain all gc@ \
