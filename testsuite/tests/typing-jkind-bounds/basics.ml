@@ -265,11 +265,10 @@ type b : void mod local unique once uncontended nonportable internal = a
 type c : void mod local unique once uncontended nonportable internal
 type d : void = c
 [%%expect{|
-Line 1, characters 9-13:
-1 | type a : void
-             ^^^^
-Error: Layout void is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+type a : void
+type b = a
+type c : void
+type d = c
 |}]
 
 type a : immediate

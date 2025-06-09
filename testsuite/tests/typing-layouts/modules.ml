@@ -23,11 +23,7 @@ type t_any : any
 
 type t_void  : void;;
 [%%expect{|
-Line 1, characters 15-19:
-1 | type t_void  : void;;
-                   ^^^^
-Error: Layout void is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+type t_void : void
 |}];;
 
 (*********************************************************)
@@ -40,11 +36,7 @@ module type S1 = sig
   type s
 end;;
 [%%expect {|
-Line 2, characters 13-17:
-2 |   type ('a : void) t
-                 ^^^^
-Error: Layout void is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+module type S1 = sig type ('a : void) t type s end
 |}];;
 
 module type S1f = sig
@@ -195,11 +187,8 @@ end = struct
   type t : void
 end;;
 [%%expect {|
-Line 8, characters 11-15:
-8 |   type t : void
-               ^^^^
-Error: Layout void is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+module rec Foo3 : sig val create : Bar3.t -> unit end
+and Bar3 : sig type t : void end
 |}];;
 
 module rec Foo3f : sig
@@ -449,11 +438,7 @@ module type S6_1 = sig
   type t : void
 end
 [%%expect{|
-Line 2, characters 11-15:
-2 |   type t : void
-               ^^^^
-Error: Layout void is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+module type S6_1 = sig type t : void end
 |}]
 
 module type S6_1f = sig

@@ -8,9 +8,5 @@
 type t : void & value
 
 [%%expect{|
-Line 1, characters 9-21:
-1 | type t : void & value
-             ^^^^^^^^^^^^
-Error: Layout void & value is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+type t : void & value
 |}]
