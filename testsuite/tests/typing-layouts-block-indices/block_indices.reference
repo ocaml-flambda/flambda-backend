@@ -1,0 +1,114 @@
+Boxed record
+1.000000
+2.000000
+
+Float record
+1.000000
+2.000000
+
+Mixed block record
+1.000000
+2.000000
+
+Mixed block record (float32# field)
+1.000000
+2.000000
+
+Nested mixed block record
+1.000000
+2.000000
+
+Mixed float record (float field)
+1.000000
+2.000000
+
+Mixed float record (float# field)
+1.000000
+2.000000
+
+Nested ufloat record
+1.000000
+2.000000
+
+Mixed block record (int32# field)
+1
+2
+
+Mixed block record (int64# field)
+1
+2
+
+Mixed block record (nativeint# field)
+1
+2
+
+Nested product update and deepen mixed product to mixed product
+{ 1 { a 2 } b }
+{ 10 { aa 20 } bb }
+{ 10 { aaa 200 } bb }
+
+Deepen mixed product to values
+initial: { { f = 1.000000; g = 11.000000 }; { i = 1; j = 11 } } foo
+will incr: 1 11
+{ { f = 1.000000; g = 11.000000 }; { i = 2; j = 22 } } foo
+
+Deepen mixed product to flats (continues above)
+will incr: 1.000000 11.000000
+{ { f = 2.000000; g = 22.000000 }; { i = 2; j = 22 } } foo
+
+Deepen values to values (continues above)
+will incr: 22
+{ { f = 2.000000; g = 22.000000 }; { i = 2; j = 33 } } foo
+
+Deepen flats to flats (continues above)
+will incr: 22.000000
+{ { f = 2.000000; g = 33.000000 }; { i = 2; j = 33 } } foo
+
+Reading from a float32# array
+0.000000
+1.000000
+2.000000
+3.000000
+4.000000
+5.000000
+6.000000
+7.000000
+8.000000
+9.000000
+
+Writing to a float32# array
+10.000000
+11.000000
+12.000000
+13.000000
+14.000000
+15.000000
+16.000000
+17.000000
+18.000000
+19.000000
+
+Reads of all index types from string array
+3
+3
+3
+3
+
+Reads of all index types from int product array
+3 3 33 33
+3 3 33 33
+3 3 33 33
+3 3 33 33
+
+Reads of all index types from a float# product array
+3.000000 3.000000 33.000000 33.000000
+3.000000 3.000000 33.000000 33.000000
+3.000000 3.000000 33.000000 33.000000
+3.000000 3.000000 33.000000 33.000000
+
+Reads of all index types from a float# product array
+3.000000 3.000000 33.000000 33.000000
+3.000000 3.000000 33.000000 33.000000
+3.000000 3.000000 33.000000 33.000000
+3.000000 3.000000 33.000000 33.000000
+
