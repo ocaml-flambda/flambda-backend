@@ -1438,7 +1438,7 @@ intnat reachable_words_once(struct caml_extern_state *s,
             add_to_field(sizes_by_root_id, identifier, sz_with_header);
           }
         }
-        if (tag < No_scan_tag) {
+        if (Scannable_tag(tag)) {
           /* i is the position of the first field to traverse recursively,
              and j is the position of the last such field.
            */
