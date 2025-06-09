@@ -977,7 +977,6 @@ let maybe_pmod_constraint mode expr =
 %token FUNCTOR                "functor"
 %token GLOBAL                 "global_"
 %token GREATER                ">"
-%token GREATERGREATER         ">>"
 %token GREATERRBRACE          ">}"
 %token GREATERRBRACKET        ">]"
 %token HASHLPAREN             "#("
@@ -1013,8 +1012,8 @@ let maybe_pmod_constraint mode expr =
 %token LBRACKETPERCENT        "[%"
 %token LBRACKETPERCENTPERCENT "[%%"
 %token LESS                   "<"
-%token LESSLESS               "<<"
-%token LESSLESSCOLON          "<<:"
+%token LESSLBRACKET           "<["
+%token LESSLBRACKETCOLON      "<[:"
 %token LESSMINUS              "<-"
 %token LET                    "let"
 %token <string> LIDENT        "lident" (* just an example *)
@@ -1132,7 +1131,7 @@ The precedences must be listed from low to high.
 %nonassoc below_AMPERSAND
 %right    AMPERSAND AMPERAMPER          /* expr (e && e && e) */
 %nonassoc below_EQUAL
-%left     INFIXOP0 EQUAL LESS GREATER GREATERGREATER  /* expr (e OP e OP e) */
+%left     INFIXOP0 EQUAL LESS GREATER   /* expr (e OP e OP e) */
 %right    ATAT AT INFIXOP1              /* expr (e OP e OP e) */
 %nonassoc below_LBRACKETAT
 %nonassoc LBRACKETAT
@@ -1152,7 +1151,7 @@ The precedences must be listed from low to high.
 /* Finally, the first tokens of simple_expr are above everything else. */
 %nonassoc BACKQUOTE BANG BEGIN CHAR FALSE FLOAT HASH_FLOAT INT HASH_INT OBJECT
           LBRACE LBRACELESS LBRACKET LBRACKETBAR LBRACKETCOLON LIDENT LPAREN
-          NEW PREFIXOP STRING TRUE UIDENT LESSLESS LESSLESSCOLON DOLLAR
+          NEW PREFIXOP STRING TRUE UIDENT LESSLBRACKET LESSLBRACKETCOLON DOLLAR
           LBRACKETPERCENT QUOTED_STRING_EXPR HASHLBRACE HASHLPAREN
 
 
@@ -3114,9 +3113,9 @@ comprehension_clause:
           mkexp_attrs ~loc:($startpos($3), $endpos)
             (Pexp_constraint (ghexp ~loc:$sloc (Pexp_pack $6), Some $8, [])) $5 in
         Pexp_open(od, modexp) }
-  | LESSLESS error
+  | LESSLBRACKET error
       { quotation_reserved "<<" $loc($1) }
-  | LESSLESSCOLON error
+  | LESSLBRACKETCOLON error
       { quotation_reserved "<<:" $loc($1) }
   | DOLLAR error
       { quotation_reserved "$" $loc($1) }
@@ -4936,7 +4935,6 @@ operator:
   | EQUAL           {"="}
   | LESS            {"<"}
   | GREATER         {">"}
-  | GREATERGREATER {">>"}
   | OR             {"or"}
   | BARBAR         {"||"}
   | AMPERSAND       {"&"}

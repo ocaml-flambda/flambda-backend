@@ -761,8 +761,8 @@ rule token = parse
   | ";"  { SEMI }
   | ";;" { SEMISEMI }
   | "<"  { LESS }
-  | "<<" { LESSLESS }
-  | "<<:" { LESSLESSCOLON }
+  | "<[" { LESSLBRACKET }
+  | "<[:" { LESSLBRACKETCOLON }
   | "<-" { LESSMINUS }
   | "="  { EQUAL }
   | "["  { LBRACKET }
@@ -778,7 +778,6 @@ rule token = parse
   | "|]" { BARRBRACKET }
   | ":]" { COLONRBRACKET }
   | ">"  { GREATER }
-  | ">>" { GREATERGREATER }
   | ">]" { GREATERRBRACKET }
   | "}"  { RBRACE }
   | ">}" { GREATERRBRACE }
@@ -799,12 +798,8 @@ rule token = parse
             { PREFIXOP op }
   | ['~' '?'] symbolchar_or_hash + as op
             { PREFIXOP op }
-  | ['=' '|' '&' '>'] symbolchar * as op
+  | ['=' '|' '&' '>' '<'] symbolchar * as op
             { INFIXOP0 op }
-  | ['<'] symbolchar_not_less symbolchar * as op
-    { INFIXOP0 op }
-  | "<<" opchar + as op
-    { INFIXOP0 op }
   | '$' symbolchar + as op
             { INFIXOP0 op }
   | "@" { AT }
