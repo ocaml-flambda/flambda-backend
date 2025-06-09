@@ -240,13 +240,14 @@ let simplify_array_length _array_kind dacc ~original_term ~arg:_
      Need to be careful in the float case because of the float array
      optimisation (see lambda_to_flambda_primitives.ml and flambda2.ml). *)
   let result = Simple.var (Bound_var.var result_var) in
+  let result_kind = K.naked_immediate in
   Simplify_common.simplify_projection dacc ~original_term
     ~deconstructing:array_ty
     ~shape:
       (T.array_of_length ~element_kind:Unknown
-         ~length:(T.alias_type_of K.value result)
+         ~length:(T.alias_type_of result_kind result)
          (Alloc_mode.For_types.unknown ()))
-    ~result_var ~result_kind:K.value
+    ~result_var ~result_kind
 
 (* CR-someday mshinwell: Consider whether "string length" should be treated like
    a projection (cf. "array length"). *)
@@ -670,7 +671,7 @@ let simplify_duplicate_array ~kind:_ ~(source_mutability : Mutability.t)
       SPR.create original_term ~try_reify:false dacc
     | Known_result (element_kind, fields, alloc_mode) ->
       let length =
-        T.this_tagged_immediate (Array.length fields |> Targetint_31_63.of_int)
+        T.this_naked_immediate (Array.length fields |> Targetint_31_63.of_int)
       in
       let ty = T.mutable_array ~element_kind ~length alloc_mode in
       let dacc = DA.add_variable dacc result_var ty in
