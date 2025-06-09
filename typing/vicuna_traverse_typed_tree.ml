@@ -14,7 +14,7 @@
 (**************************************************************************)
 
 open! Types
-open! Value_shapes
+open! Vicuna_value_shapes
 open! Typedtree
 
 (* Helper utility for debugging. *)

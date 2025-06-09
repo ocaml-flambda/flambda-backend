@@ -197,6 +197,8 @@
   datarepr
   global_module
   cmi_format
+  vicuna_traverse_typed_tree
+  vicuna_value_shapes
   persistent_env
   env
   errortrace
