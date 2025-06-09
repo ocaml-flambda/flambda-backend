@@ -139,7 +139,7 @@ let increment ~(password : 'k Capsule.Password.t @ local) capsule_ref =
 
 Passwords **do** cross contention, so they can be freely shared between `portable` functions.
 Naively, that would introduce races, but passwords are also always [`local`](https://oxcaml.org/documentation/stack-allocation/intro/).
-That means we still can't transfer a password across domains: fork/join requires global functions, which cannot capture a `local` password.
+That means we still can't transfer a password across domains: fork/join requires `global` functions, which cannot capture a `local` password.
 
 <!-- CR-soon mslater: this is actually enforced by the yielding axis; at some
      point we will allow local fork/join and this will be wrong. -->
