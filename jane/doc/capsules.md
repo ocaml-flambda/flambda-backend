@@ -198,7 +198,7 @@ let increment_fresh () =
 Like passwords, keys cross contention.
 However, keys need not be `local`&mdash;to prohibit races, keys rely on _uniqueness_.
 
-Uniqueness is a mode axis that describes whether there exist multiple references to a value.
+Uniqueness is a modal axis that describes whether there exist multiple references to a value.
 When a value has the `unique` mode, we know it is the only reference to its contents.
 The default uniqueness mode is `aliased`, which means other references may exist.
 
