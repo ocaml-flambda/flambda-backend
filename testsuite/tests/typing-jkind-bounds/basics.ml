@@ -269,7 +269,7 @@ Line 1, characters 9-13:
 1 | type a : void
              ^^^^
 Error: Layout void is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension layouts_beta to use this feature.
 |}]
 
 type a : immediate

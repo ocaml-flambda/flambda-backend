@@ -25,11 +25,7 @@ type t_any : any
 type t_void : void;;
 
 [%%expect{|
-Line 1, characters 14-18:
-1 | type t_void : void;;
-                  ^^^^
-Error: Layout void is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+type t_void : void
 |}]
 
 type t_any_non_null : any_non_null;;

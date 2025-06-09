@@ -24,11 +24,7 @@ type t_any : any
 
 type t_void  : void;;
 [%%expect{|
-Line 1, characters 15-19:
-1 | type t_void  : void;;
-                   ^^^^
-Error: Layout void is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+type t_void : void
 |}];;
 
 type t_any_non_null : any_non_null;;
@@ -604,11 +600,7 @@ and ('a : any) t4
 
 type ('a : void) void4 = Void4  of 'a;;
 [%%expect{|
-Line 1, characters 11-15:
-1 | type ('a : void) void4 = Void4  of 'a;;
-               ^^^^
-Error: Layout void is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+type ('a : void) void4 = Void4 of 'a
 |}];;
 
 type ('a : any) any4 = Any4 of 'a
@@ -974,11 +966,14 @@ module M11_1 = struct
     t.v # baz11
 end;;
 [%%expect{|
-Line 2, characters 13-17:
-2 |   type ('a : void) t = { x : int; v : 'a }
-                 ^^^^
-Error: Layout void is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+Line 5, characters 4-7:
+5 |     t.v # baz11
+        ^^^
+Error: Object types must have layout value.
+       The layout of the type of this expression is void
+         because of the definition of t at line 2, characters 2-42.
+       But the layout of the type of this expression must overlap with value
+         because it's the type of an object.
 |}]
 
 module M11_1f = struct
@@ -1404,11 +1399,7 @@ type ('a : float64, 'b) foo15 = 'a t15 -> 'a t15 constraint 'b = 'a
 
 type 'a t_void_16 : void;;
 [%%expect{|
-Line 1, characters 20-24:
-1 | type 'a t_void_16 : void;;
-                        ^^^^
-Error: Layout void is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+type 'a t_void_16 : void
 |}];;
 
 (**************************************************************************)

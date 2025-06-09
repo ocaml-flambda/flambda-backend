@@ -211,15 +211,9 @@ module F2 (X : sig val f : void_record -> unit end) = struct
   let g z = X.f { vr_void = z; vr_int = 42 }
 end;;
 [%%expect{|
-Line 2, characters 16-44:
-2 |   let g z = X.f { vr_void = z; vr_int = 42 }
-                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of t_void is void
-         because of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value
-         because it has to be value for the V1 safety check.
+module F2 :
+  functor (X : sig val f : void_record -> unit end) ->
+    sig val g : t_void -> unit end
 |}];;
 
 (**************************************)
@@ -380,15 +374,7 @@ let id5 : 'a void5 -> 'a void5 = function
 
 [%%expect{|
 type ('a : void) void5 = Void5 of 'a
-Lines 3-4, characters 33-22:
-3 | .................................function
-4 |   | Void5 x -> Void5 x
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of 'a is void
-         because of the definition of void5 at line 1, characters 0-37.
-       But the layout of 'a must be a sublayout of value
-         because it has to be value for the V1 safety check.
+val id5 : ('a : void). 'a void5 -> 'a void5 = <fun>
 |}];;
 
 (* disallowed attempts to use f5 and Void5 on non-voids *)
@@ -422,15 +408,7 @@ let g (x : 'a void5) =
   match x with
   | Void5 x -> x;;
 [%%expect{|
-Line 2, characters 8-9:
-2 |   match x with
-            ^
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of 'a is void
-         because of the definition of void5 at line 1, characters 0-37.
-       But the layout of 'a must be a sublayout of value
-         because it has to be value for the V1 safety check.
+val g : ('a : void). 'a void5 -> 'a = <fun>
 |}]
 
 (****************************************)
@@ -851,15 +829,11 @@ module M11_3 = struct
   let foo o (A x) = o # usevoid x
 end;;
 [%%expect{|
-Line 4, characters 12-17:
-4 |   let foo o (A x) = o # usevoid x
-                ^^^^^
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of 'a is void
-         because of the definition of t at line 2, characters 2-30.
-       But the layout of 'a must be a sublayout of value
-         because it has to be value for the V1 safety check.
+module M11_3 :
+  sig
+    type ('a : void) t = A of 'a
+    val foo : ('a : void) 'b. < usevoid : 'a -> 'b; .. > -> 'a t -> 'b
+  end
 |}];;
 
 module M11_4 = struct
@@ -1178,7 +1152,7 @@ let x13 (VV v) = [| v |];;
 Line 1, characters 17-24:
 1 | let x13 (VV v) = [| v |];;
                      ^^^^^^^
-Error: Layout void is not supported yet.
+Error: Types whose layout contains [void] are yet supported in arrays.
 |}];;
 
 let x13 v =
@@ -1186,16 +1160,10 @@ let x13 v =
   | [| v |] -> VV v
   | _ -> assert false
 [%%expect{|
-Lines 2-4, characters 2-21:
-2 | ..match v with
-3 |   | [| v |] -> VV v
-4 |   | _ -> assert false
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of t_void is void
-         because of the definition of t_void at line 6, characters 0-19.
-       But the layout of t_void must be a sublayout of value
-         because it has to be value for the V1 safety check.
+Line 2, characters 8-9:
+2 |   match v with
+            ^
+Error: Types whose layout contains [void] are yet supported in arrays.
 |}];;
 
 (****************************************************************************)
@@ -1321,15 +1289,7 @@ let f () =
 [%%expect{|
 type t_void : void
 type ('a : void) r = { x : int; y : 'a; }
-Lines 6-7, characters 2-20:
-6 | ..let rec g { x = x ; y = y } : _ r = g { x; y } in
-7 |   g (failwith "foo")..
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of 'a is void
-         because of the definition of r at line 3, characters 0-40.
-       But the layout of 'a must be a sublayout of value
-         because it has to be value for the V1 safety check.
+val f : ('a : void). unit -> 'a r = <fun>
 |}];;
 
 (********************************************************************)

@@ -1,10 +1,14 @@
 type 'a t0 = 'a list
 type ('a : immediate) t0 = 'a list
-Line 2, characters 11-15:
+Line 2, characters 22-24:
 2 | type ('a : void) t0 = 'a list;;
-               ^^^^
-Error: Layout void is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+                          ^^
+Error: This type "('a : void)" should be an instance of type
+         "('b : value_or_null)"
+       The layout of 'a is void
+         because of the annotation on 'a in the declaration of the type t0.
+       But the layout of 'a must overlap with value
+         because the type argument of list has layout value_or_null.
 Line 2, characters 11-15:
 2 | type ('a : valu) t0 = 'a list;;
                ^^^^
