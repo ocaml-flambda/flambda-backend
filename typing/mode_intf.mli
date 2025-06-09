@@ -293,6 +293,7 @@ module type S = sig
   module Yielding : sig
     module Const : sig
       type t =
+        | Switching
         | Yielding
         | Unyielding
 
@@ -303,6 +304,8 @@ module type S = sig
       Common_axis
         with module Const := Const
          and type 'd t = (Const.t, 'd pos) mode
+
+    val switching : lr
 
     val yielding : lr
 
