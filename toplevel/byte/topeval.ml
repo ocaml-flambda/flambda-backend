@@ -108,7 +108,7 @@ let load_lambda ppf lam =
 let pr_item =
   Printtyp.print_items
     (fun env -> function
-      | Sig_value(id, {val_kind = Val_reg; val_type}, _) ->
+      | Sig_value(id, {val_kind = Val_reg _; val_type}, _) ->
           Some (outval_of_value env (getvalue (Translmod.toplevel_name id))
                   val_type)
       | _ -> None

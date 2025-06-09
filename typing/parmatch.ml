@@ -2556,7 +2556,7 @@ let all_rhs_idents exp =
   let open Tast_iterator in
   let expr_iter iter exp =
     match exp.exp_desc with
-    | Texp_ident (path, _lid, _descr, _kind, _mode) ->
+    | Texp_ident (path, _bsorts, _lid, _descr, _kind, _mode) ->
       List.iter (fun id -> ids := Ident.Set.add id !ids) (Path.heads path)
     (* Use default iterator methods for rest of match.*)
     | _ -> Tast_iterator.default_iterator.expr iter exp

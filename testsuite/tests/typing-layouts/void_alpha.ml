@@ -320,16 +320,16 @@ Error: Unbound constructor "MD"
  * - : unit = ()
  * |}];; *)
 
-(******************************************)
-(* Test 3: top-level void bindings banned *)
+(*******************************************)
+(* Test 3: top-level void bindings allowed *)
 
 let x : t_void = assert false;;
 [%%expect {|
 Line 1, characters 4-5:
 1 | let x : t_void = assert false;;
         ^
-Error: Types of top-level module bindings must have layout "value", but
-       the type of "x" has layout "void".
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       t_void. Please report this error to the Jane Street compilers team.
 |}];;
 
 module M3_1 = struct
@@ -339,8 +339,8 @@ end;;
 Line 2, characters 6-7:
 2 |   let x : t_void = assert false;;
           ^
-Error: Types of top-level module bindings must have layout "value", but
-       the type of "x" has layout "void".
+Error: Non-value layout void detected in [Typeopt.layout] as sort for type
+       t_void. Please report this error to the Jane Street compilers team.
 |}];;
 
 module M3_2 = struct

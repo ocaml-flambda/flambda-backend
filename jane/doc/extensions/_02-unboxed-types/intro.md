@@ -156,7 +156,6 @@ Each numeric type has its own library for working with it: `float_u`,
   functions, and have limited support in records (details below).
 
 * Unboxed numbers may *not* appear...
-   * ... top-level in a module (e.g. you cannot have `val pi : float#`)
    * ... in a tuple (e.g. you cannot have `int32# * int32#`)
    * ... as a field of a constructor (e.g. you cannot have `| K of int64#` or `| K of {
      x : nativeint# }`)
