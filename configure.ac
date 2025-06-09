@@ -2840,13 +2840,14 @@ AS_IF([test x"$enable_poll_insertion" = "xyes"],
    poll_insertion=true],
   [poll_insertion=false])
 
+# Multidomain is permitted without stack checks, you'll just get large
+# non-resizeable fiber stacks.
 AS_IF([test x"$enable_multidomain" = "xyes"],
   [AS_IF([test x"$enable_runtime5" = "xyes" &&
-          test x"$enable_stack_checks" = "xyes" &&
           test x"$enable_poll_insertion" = "xyes"],
     [AC_DEFINE([MULTIDOMAIN]), enable_multidomain=true],
     [AC_MSG_ERROR([Creating multiple domains is only supported on runtime5 with \
-stack checks and poll insertion enabled.])])], [])
+poll insertion enabled.])])], [])
 
 oc_cflags="$common_cflags $internal_cflags"
 oc_cppflags="$common_cppflags $internal_cppflags"
