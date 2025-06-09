@@ -2,8 +2,6 @@
  flags = "-extension layouts_beta";
  expect;
 *)
-(* CR layouts v5: when we add the ability to make actual void types, eliminate
-   the uses of Obj.magic from this file *)
 
 (* CR layouts v5: eliminate various restructions about how void is used from
    this file. *)
@@ -11,9 +9,15 @@
 type t_void : void
 
 type void_rec = { v : t_void } [@@unboxed];;
+
+external t_void : unit -> t_void = "%unbox_unit"
+
+let void_rec () = { v = t_void () }
 [%%expect{|
 type t_void : void
 type void_rec = { v : t_void; } [@@unboxed]
+external t_void : unit -> t_void = "%unbox_unit"
+val void_rec : unit -> void_rec = <fun>
 |}]
 
 (**************************************************)
@@ -40,11 +44,15 @@ let id1 {a1; a2; x; v; z; b1; b2} =
    b2 = (cons_r 1; {v = ((cons_r 2; b2).v)});
   }
 
-type bar = { x' : int; z' : int }
-
-let b : bar = { x' = 3; z' = 42 }
-
-let b' : baz = Obj.magic b
+let b' : baz = {
+  a1 = void_rec ();
+  a2 = void_rec ();
+  x = 3;
+  v = void_rec ();
+  z = 42;
+  b1 = void_rec ();
+  b2 = void_rec ();
+}
 
 let b' = id1 b'
 
@@ -62,21 +70,14 @@ type baz = {
 }
 val r : '_weak1 list ref = {contents = []}
 val cons_r : '_weak1 -> unit = <fun>
-Lines 14-21, characters 2-3:
-14 | ..{a1 = (cons_r 11; {v = ((cons_r 12; a1).v)});
-15 |    a2 = (cons_r 9; {v = ((cons_r 10; a2).v)});
-16 |    x = (cons_r 8; x);
-17 |    v = (cons_r 6; {v = ((cons_r 7; v).v)});
-18 |    z = (cons_r 5; z);
-19 |    b1 = (cons_r 3; {v = ((cons_r 4; b1).v)});
-20 |    b2 = (cons_r 1; {v = ((cons_r 2; b2).v)});
-21 |   }
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of void_rec is void
-         because of the definition of void_rec at line 3, characters 0-42.
-       But the layout of void_rec must be a sublayout of value
-         because it has to be value for the V1 safety check.
+val id1 : baz -> baz = <fun>
+val b' : baz =
+  {a1 = <void>; a2 = <void>; x = 3; v = <void>; z = 42; b1 = <void>;
+   b2 = <void>}
+val b' : baz =
+  {a1 = <void>; a2 = <void>; x = 3; v = <void>; z = 42; b1 = <void>;
+   b2 = <void>}
+- : unit = ()
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -124,21 +125,11 @@ let b' = id1' b'
 
 let _ = assert (List.for_all2 (=) !r [12;11;10;9;8;7;6;5;4;3;2;1]);;
 [%%expect{|
-Lines 4-11, characters 2-3:
- 4 | ..{a2 = (cons_r 9; {v = ((cons_r 10; a2).v)});
- 5 |    b2 = (cons_r 1; {v = ((cons_r 2; b2).v)});
- 6 |    x = (cons_r 8; x);
- 7 |    a1 = (cons_r 11; {v = ((cons_r 12; a1).v)});
- 8 |    z = (cons_r 5; z);
- 9 |    b1 = (cons_r 3; {v = ((cons_r 4; b1).v)});
-10 |    v = (cons_r 6; {v = ((cons_r 7; v).v)});
-11 |   }
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of void_rec is void
-         because of the definition of void_rec at line 3, characters 0-42.
-       But the layout of void_rec must be a sublayout of value
-         because it has to be value for the V1 safety check.
+val id1' : baz -> baz = <fun>
+val b' : baz =
+  {a1 = <void>; a2 = <void>; x = 3; v = <void>; z = 42; b1 = <void>;
+   b2 = <void>}
+- : unit = ()
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -189,14 +180,7 @@ let id1 = function
        b1 = (cons_r 2; {v = ((cons_r 3; b1).v)});
        b2 = (cons_r 1; b2)}
 
-type for_magic =
-  | MA of int * int
-  | MB
-  | MC
-  | MD of { x' : int;
-            z' : int }
-
-let magic_A : void_variant = Obj.magic (MA (3,42))
+let magic_A = A (t_void (), void_rec (), 3, void_rec (), 42, void_rec (), t_void ())
 let magic_A = id1 magic_A
 
 let _ = assert (List.for_all2 (=) !r [10;9;8;7;6;5;4;3;2;1]);;
@@ -211,23 +195,10 @@ type void_variant =
     }
 val r : '_weak2 list ref = {contents = []}
 val cons_r : '_weak2 -> unit = <fun>
-Lines 17-35, characters 10-27:
-17 | ..........function
-18 |   | A (a1, a2, x, v, z, b1, b2) ->
-19 |      A ((cons_r 10; a1),
-20 |         (cons_r 8; {v = ((cons_r 9; a2).v)}),
-21 |         (cons_r 7; x),
-...
-32 |        v = (cons_r 5; {v = ((cons_r 6; v).v)});
-33 |        z = (cons_r 4; z);
-34 |        b1 = (cons_r 2; {v = ((cons_r 3; b1).v)});
-35 |        b2 = (cons_r 1; b2)}
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of t_void is void
-         because of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value
-         because it has to be value for the V1 safety check.
+val id1 : void_variant -> void_variant = <fun>
+val magic_A : void_variant = A (<void>, <void>, 0, <void>, 0, <void>, <void>)
+val magic_A : void_variant = A (<void>, <void>, 0, <void>, 0, <void>, <void>)
+- : unit = ()
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -252,15 +223,14 @@ Error: Non-value detected in [value_kind].
  * |}] *)
 
 let _ = r := []
-let magic_B : void_variant = Obj.magic MB
+let magic_B = B (t_void ())
 let magic_B = id1 magic_B
 let _ = assert (List.for_all2 (=) !r [2;1]);;
 [%%expect{|
 - : unit = ()
-Line 2, characters 39-41:
-2 | let magic_B : void_variant = Obj.magic MB
-                                           ^^
-Error: Unbound constructor "MB"
+val magic_B : void_variant = B <void>
+val magic_B : void_variant = B <void>
+- : unit = ()
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -273,15 +243,14 @@ Error: Unbound constructor "MB"
  * |}];; *)
 
 let _ = r := []
-let magic_C : void_variant = Obj.magic MC
+let magic_C : void_variant = C (void_rec (), t_void ())
 let magic_C = id1 magic_C
 let _ = assert (List.for_all2 (=) !r [3;2;1]);;
 [%%expect{|
 - : unit = ()
-Line 2, characters 39-41:
-2 | let magic_C : void_variant = Obj.magic MC
-                                           ^^
-Error: Unbound constructor "MC"
+val magic_C : void_variant = C (<void>, <void>)
+val magic_C : void_variant = C (<void>, <void>)
+- : unit = ()
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -294,15 +263,29 @@ Error: Unbound constructor "MC"
  * |}];; *)
 
 let _ = r := []
-let magic_D : void_variant = Obj.magic (MD {x' = 3; z' = 42})
+
+let magic_D = D {
+  a1 = t_void ();
+  a2 = void_rec ();
+  x = 3;
+  v = void_rec ();
+  z = 42;
+  b1 = void_rec ();
+  b2 = t_void ();
+}
 let magic_D = id1 magic_D
 let _ = assert (List.for_all2 (=) !r [10;9;8;7;6;5;4;3;2;1]);;
 [%%expect{|
 - : unit = ()
-Line 2, characters 40-42:
-2 | let magic_D : void_variant = Obj.magic (MD {x' = 3; z' = 42})
-                                            ^^
-Error: Unbound constructor "MD"
+val magic_D : void_variant =
+  D
+   {a1 = <void>; a2 = <void>; x = 3; v = <void>; z = 42; b1 = <void>;
+    b2 = <void>}
+val magic_D : void_variant =
+  D
+   {a1 = <void>; a2 = <void>; x = 3; v = <void>; z = 42; b1 = <void>;
+    b2 = <void>}
+- : unit = ()
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -350,10 +333,11 @@ module M3_2 = struct
     | _ -> assert false
 end;;
 [%%expect {|
-Line 3, characters 10-17:
-3 |     match magic_B with
-              ^^^^^^^
-Error: Unbound value "magic_B"
+Line 2, characters 6-7:
+2 |   let x =
+          ^
+Error: Types of top-level module bindings must have layout "value", but
+       the type of "x" has layout "void".
 |}];;
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -372,10 +356,11 @@ module M3_3 = struct
   let {z; v} = b'
 end;;
 [%%expect {|
-Line 2, characters 12-14:
-2 |   let {x} = b'
-                ^^
-Error: Unbound value "b'"
+Line 4, characters 10-11:
+4 |   let {z; v} = b'
+              ^
+Error: Types of top-level module bindings must have layout "value", but
+       the type of "v" has layout "void".
 |}];;
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -398,10 +383,8 @@ module M3_4 = struct
 end;;
 let _ = assert (List.for_all2 (=) !r [2;1]);;
 [%%expect{|
-Line 5, characters 20-27:
-5 |     match cons_r 1; magic_B with
-                        ^^^^^^^
-Error: Unbound value "magic_B"
+module M3_4 : sig end
+- : unit = ()
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -416,8 +399,7 @@ Error: Unbound value "magic_B"
 let () = r := []
 
 type void_holder = V of t_void
-type vh_formagic = VM
-let vh : void_holder = Obj.magic VM
+let vh : void_holder = V (t_void ())
 
 let [@warning "-10"] f4 (V v) =
   v;
@@ -432,16 +414,10 @@ let _ = f4 vh
 let _ = assert (List.for_all2 (=) !r [6;5;4;3;2;1]);;
 [%%expect{|
 type void_holder = V of t_void
-type vh_formagic = VM
-Line 5, characters 4-6:
-5 | let vh : void_holder = Obj.magic VM
-        ^^
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of t_void is void
-         because of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value
-         because it has to be value for the V1 safety check.
+val vh : void_holder = V <void>
+val f4 : void_holder -> unit = <fun>
+- : unit = ()
+- : unit = ()
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -473,21 +449,11 @@ let _ = local_void_bindings_1 vh
 
 let _ = assert (List.for_all2 (=) !r [8;7;6;5;4;3;2;1]);;
 [%%expect{|
-Lines 4-11, characters 2-24:
- 4 | ..let V v = cons_r 1; vh in
- 5 |   {a1 = {v = (cons_r 8; v)};
- 6 |    a2 = {v = (cons_r 7; v)};
- 7 |    x = (cons_r 6; 12);
- 8 |    v = (cons_r 5; {v});
- 9 |    z = (cons_r 4; 13);
-10 |    b1 = {v = (cons_r 3; v)};
-11 |    b2 = (cons_r 2; {v})}
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of void_rec is void
-         because of the definition of void_rec at line 3, characters 0-42.
-       But the layout of void_rec must be a sublayout of value
-         because it has to be value for the V1 safety check.
+val local_void_bindings_1 : void_holder -> baz = <fun>
+- : baz =
+{a1 = <void>; a2 = <void>; x = 12; v = <void>; z = 13; b1 = <void>;
+ b2 = <void>}
+- : unit = ()
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -508,15 +474,12 @@ let (x, _, vh2, z, _) = local_void_bindings_2 b'
 
 let _ = assert (x = 3 && z = 42)
 [%%expect{|
-Lines 2-3, characters 2-32:
-2 | ..let {z; a1; b1; x; b2} = b in
-3 |   (x, V b2.v, V b1.v, z, V a1.v)
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of t_void is void
-         because of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value
-         because it has to be value for the V1 safety check.
+val local_void_bindings_2 :
+  baz -> int * void_holder * void_holder * int * void_holder = <fun>
+val x : int = 3
+val vh2 : void_holder = V <void>
+val z : int = 42
+- : unit = ()
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -567,11 +530,10 @@ let () =
 
 let _ = assert (List.for_all2 (=) !r [9;8;7;6;5;4;3;2;1]);;
 [%%expect{|
-Line 16, characters 10-13:
-16 |     match vh2 with
-               ^^^
-Error: Unbound value "vh2"
-Hint: Did you mean "vh1"?
+val local_void_bindings_3 : void_holder -> int -> int -> baz = <fun>
+val x : int = 45
+val z : int = 87
+- : unit = ()
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -593,7 +555,11 @@ exception Ex4 of t_void;;
 exception Ex1 of int
 exception Ex2 of string
 exception Ex3 of bool
-exception Ex4 of t_void
+Line 4, characters 0-23:
+4 | exception Ex4 of t_void;;
+    ^^^^^^^^^^^^^^^^^^^^^^^
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}];;
 
 let [@warning "-10"] exnmatch1 (V v) =
@@ -612,11 +578,8 @@ let [@warning "-10"] exnmatch1 (V v) =
 
 let _ = assert ((exnmatch1 vh) = 1);;
 [%%expect{|
-Line 7, characters 4-7:
-7 |   | {v} -> 0
-        ^^^
-Error: Void layout detected in translation:
-       Please report this error to the Jane Street compilers team.
+val exnmatch1 : void_holder -> int = <fun>
+- : unit = ()
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -642,11 +605,8 @@ let [@warning "-10"] exnmatch2 (V v) =
 
 let _ = assert ((exnmatch2 vh) = 3);;
 [%%expect{|
-Line 7, characters 4-7:
-7 |   | {v} -> 0
-        ^^^
-Error: Void layout detected in translation:
-       Please report this error to the Jane Street compilers team.
+val exnmatch2 : void_holder -> int = <fun>
+- : unit = ()
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -671,11 +631,8 @@ let [@warning "-10"] exnmatch3 (V v) =
 
 let _ = assert ((exnmatch3 vh) = 5);;
 [%%expect{|
-Line 6, characters 4-7:
-6 |   | {v} -> 0
-        ^^^
-Error: Void layout detected in translation:
-       Please report this error to the Jane Street compilers team.
+val exnmatch3 : void_holder -> int = <fun>
+- : unit = ()
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -700,11 +657,8 @@ let [@warning "-10"] exnmatch4 (V v) =
 
 let _ = assert ((exnmatch4 vh) = 0);;
 [%%expect{|
-Line 6, characters 4-7:
-6 |   | {v} -> 0
-        ^^^
-Error: Void layout detected in translation:
-       Please report this error to the Jane Street compilers team.
+val exnmatch4 : void_holder -> int = <fun>
+- : unit = ()
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -729,10 +683,12 @@ let _ = exnmatch5 vh
 let l = !r
 let _ = assert (List.for_all2 (=) l [3;2;1]);;
 [%%expect{|
-Line 5, characters 11-13:
-5 |     (match vh with
-               ^^
-Error: Unbound value "vh"
+Line 6, characters 21-24:
+6 |      | V v -> raise (Ex4 (cons_r 2; v)));
+                         ^^^
+Error: This variant expression is expected to have type "exn"
+       There is no constructor "Ex4" within type "exn"
+Hint: Did you mean "Ex1", "Ex2" or "Ex3"?
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -770,23 +726,9 @@ let _ = assert (List.for_all2 (=) !r [7;6;5;4;3;2;1]);;
 [%%expect{|
 type unboxed_inlined_void_rec = UIVR of { uivr_v : t_void; } [@@unboxed]
 type uivr_holder = { uivrh_x : int; uivrh_v : unboxed_inlined_void_rec; }
-Lines 9-18, characters 2-29:
- 9 | ..let uivrh =
-10 |     cons_r 1;
-11 |     match cons_r 2; vh with
-12 |     | V v -> begin
-13 |         cons_r 3;
-14 |         { uivrh_x = (cons_r 6; 7);
-15 |           uivrh_v = (cons_r 4; UIVR { uivr_v = (cons_r 5; v) }) }
-16 |       end
-17 |   in
-18 |   cons_r uivrh.uivrh_x; uivrh
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of unboxed_inlined_void_rec is void
-         because of the definition of unboxed_inlined_void_rec at lines 3-4, characters 0-43.
-       But the layout of unboxed_inlined_void_rec must be a sublayout of value
-         because it has to be value for the V1 safety check.
+val make_uivr_holder : void_holder -> uivr_holder = <fun>
+- : uivr_holder = {uivrh_x = 7; uivrh_v = <void>}
+- : unit = ()
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -823,19 +765,8 @@ let () = assert (List.for_all2 (=) !r [4;3;2;1]);;
 [%%expect{|
 exception Test8 of int * void_holder
 type test8_rec = { t8_x : int; t8_v : t_void; }
-Lines 6-11, characters 2-7:
- 6 | ..match cons_r 1; f () with
- 7 |   | ({t8_x = x; t8_v = v} | exception (Test8 (x, V v))) ->
- 8 |     begin
- 9 |       cons_r 3;
-10 |       x, V (cons_r 4; v)
-11 |     end
-Error: Non-value detected in [value_kind].
-       Please report this error to the Jane Street compilers team.
-       The layout of t_void is void
-         because of the definition of t_void at line 1, characters 0-18.
-       But the layout of t_void must be a sublayout of value
-         because it has to be value for the V1 safety check.
+val test8 : (unit -> test8_rec) -> int * void_holder = <fun>
+val x : int = 42
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
@@ -854,10 +785,7 @@ let (x, _) = test8 (fun () -> cons_r 2; raise (Test8 (3,vh)))
 let () = assert (x = 3)
 let () = assert (List.for_all2 (=) !r [4;3;2;1]);;
 [%%expect{|
-Line 3, characters 13-18:
-3 | let (x, _) = test8 (fun () -> cons_r 2; raise (Test8 (3,vh)))
-                 ^^^^^
-Error: Unbound value "test8"
+val x : int = 3
 |}]
 (* CR layouts v5: This was the expected behavior before removing the handling of
    void for lambda, and we expected it to be the expected behavior again after
