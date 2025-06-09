@@ -1777,7 +1777,7 @@ module Ast = struct
     | Unboxed_record_product (ts, exp_opt) -> print_record env fmt (ts, exp_opt)
     | Unboxed_field (exp, rec_field) ->
       pp fmt "#%a.%a" (print_exp env) exp (print_field env) rec_field
-    | Quote exp -> pp fmt "@[<2><<@ %a@ @]>>" (print_exp env) exp
+    | Quote exp -> pp fmt "@[<2><[@ %a@ @]]>" (print_exp env) exp
     | Antiquote exp -> pp fmt "@[<2>$@ %a@]" (print_exp_with_parens env) exp
     | List_comprehension _ | Array_comprehension _ ->
       pp fmt "(* comprehension *)"
@@ -2412,7 +2412,7 @@ module Code = struct
 
   let print fmt c =
     let ast_exp = With_free_vars.value ~free:(fun _ _ -> ()) c in
-    Format.fprintf fmt "@[<2><<@ %a@]@ >>"
+    Format.fprintf fmt "@[<2><[@ %a@]@ ]>"
       (Ast.print_exp (new_env ()))
       ast_exp.exp
 end
