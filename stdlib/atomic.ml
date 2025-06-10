@@ -26,7 +26,11 @@ external make_contended
   @@ portable
   = "caml_atomic_make_contended"
 
-external get : ('a : value_or_null). 'a t @ local -> 'a @@ portable = "%atomic_load"
+external get
+  : ('a : value_or_null).
+  'a t @ local -> 'a
+  @@ portable
+  = "%atomic_load"
 
 external set
   : ('a : value_or_null).
@@ -59,11 +63,40 @@ external fetch_and_add
   @@ portable
   = "%atomic_fetch_add"
 
-external add : int t @ contended local -> int -> unit @@ portable = "%atomic_add"
-external sub : int t @ contended local -> int -> unit @@ portable = "%atomic_sub"
-external logand : int t @ contended local -> int -> unit @@ portable = "%atomic_land"
-external logor : int t @ contended local -> int -> unit @@ portable = "%atomic_lor"
-external logxor : int t @ contended local -> int -> unit @@ portable = "%atomic_lxor"
+external add
+  :  int t @ contended local
+  -> int
+  -> unit
+  @@ portable
+  = "%atomic_add"
+
+external sub
+  :  int t @ contended local
+  -> int
+  -> unit
+  @@ portable
+  = "%atomic_sub"
+
+external logand
+  :  int t @ contended local
+  -> int
+  -> unit
+  @@ portable
+  = "%atomic_land"
+
+external logor
+  :  int t @ contended local
+  -> int
+  -> unit
+  @@ portable
+  = "%atomic_lor"
+
+external logxor
+  :  int t @ contended local
+  -> int
+  -> unit
+  @@ portable
+  = "%atomic_lxor"
 
 let incr r = add r 1
 let decr r = sub r 1
