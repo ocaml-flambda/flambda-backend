@@ -35,7 +35,7 @@ val transl_type_extension:
     Typedtree.type_extension * Env.t * Shape.t list
 
 val transl_value_decl:
-    Env.t -> sig_modalities:Mode.Modality.Value.Const.t -> Location.t ->
+    Env.t -> modalities:Mode.Modality.Value.t -> Location.t ->
     Parsetree.value_description -> Typedtree.value_description * Env.t
 
 (* If the [fixed_row_path] optional argument is provided,

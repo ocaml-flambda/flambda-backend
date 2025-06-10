@@ -1823,8 +1823,15 @@ and transl_signature env {psg_items; psg_modalities; psg_loc} =
     let loc = item.psig_loc in
     match item.psig_desc with
     | Psig_value sdesc ->
+        let modalities =
+          match sdesc.pval_modalities with
+          | [] -> sig_modalities
+          | l -> Typemode.transl_modalities ~maturity:Stable Immutable
+              sdesc.pval_attributes l
+        in
+        let modalities = Mode.Modality.Value.of_const modalities in
         let (tdesc, newenv) =
-          Typedecl.transl_value_decl env ~sig_modalities item.psig_loc sdesc
+          Typedecl.transl_value_decl env ~modalities item.psig_loc sdesc
         in
         Signature_names.check_value names tdesc.val_loc tdesc.val_id;
         mksig (Tsig_value tdesc) env loc,
@@ -3240,7 +3247,21 @@ and type_structure ?(toplevel = None) funct_body anchor env sstr =
         shape_map,
         newenv
     | Pstr_primitive sdesc ->
-        let (desc, newenv) = Typedecl.transl_value_decl env ~sig_modalities:Mode.Modality.Value.Const.id loc sdesc in
+        (* primitive in structure still carries modalities, which doesn't make
+        sense. We convert them to modes. *)
+        (* CR zqian: remove this hack *)
+        let modality_to_mode {txt = Modality m; loc} = {txt = Mode m; loc} in
+        let modes = List.map modality_to_mode sdesc.pval_modalities in
+        let mode =
+          modes
+          |> Typemode.transl_alloc_mode
+          |> Alloc.of_const
+          |> alloc_as_value
+        in
+        let modalities = maybe_infer_modalities ~loc ~env ~md_mode ~mode in
+        let (desc, newenv) =
+          Typedecl.transl_value_decl env ~modalities loc sdesc
+        in
         Signature_names.check_value names desc.val_loc desc.val_id;
         Tstr_primitive desc,
         [Sig_value(desc.val_id, desc.val_val, Exported)],

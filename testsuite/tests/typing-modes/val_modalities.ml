@@ -357,10 +357,9 @@ Line 6, characters 12-15:
 Error: The value "M.x" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
-(* Modalities on primitives are supported. They are simpler than real values,
-   because primitives have the same parsetree in [sig] and [struct]. In
-   particular, both contain [val_modalities] already, so we just do a simple
-   sub-modality check. *)
+(* Modalities on primitives are supported, but are interpreted differently in
+   [sig] vs. [str]. In [sig], they are modalities. In [str], they are treated as
+   modes and generates inferred modalities. *)
 module M : sig
   external length : string -> int @@ portable = "%string_length"
 end = struct
@@ -377,14 +376,16 @@ Error: Signature mismatch:
        Modules do not match:
          sig
            val x : 'a -> 'a @@ many unyielding
-           external length : string -> int = "%string_length"
+           external length : string -> int @@ many unyielding
+             = "%string_length"
          end @ nonportable
        is not included in
          sig
            external length : string -> int @@ portable = "%string_length"
          end @ nonportable
        Values do not match:
-         external length : string -> int = "%string_length" @ nonportable
+         external length : string -> int @@ many unyielding
+           = "%string_length" @ nonportable
        is not included in
          external length : string -> int @@ portable = "%string_length" @ nonportable
        The first is "nonportable" but the second is "portable".

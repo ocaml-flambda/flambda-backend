@@ -3643,15 +3643,8 @@ let check_for_hidden_arrow env loc ty =
   | Assert_default -> ()
 
 (* Translate a value declaration *)
-let transl_value_decl env loc ~sig_modalities valdecl =
+let transl_value_decl env loc ~modalities valdecl =
   let cty = Typetexp.transl_type_scheme env valdecl.pval_type in
-  let modalities =
-    match valdecl.pval_modalities with
-    | [] -> sig_modalities
-    | l -> Typemode.transl_modalities ~maturity:Stable Immutable
-        valdecl.pval_attributes l
-  in
-  let modalities = Mode.Modality.Value.of_const modalities in
   (* CR layouts v5: relax this to check for representability. *)
   begin match Ctype.constrain_type_jkind env cty.ctyp_type
                 (Jkind.Builtin.value_or_null ~why:Structure_element) with
@@ -3771,9 +3764,9 @@ let transl_value_decl env loc ~sig_modalities valdecl =
   in
   desc, newenv
 
-let transl_value_decl env ~sig_modalities loc valdecl =
+let transl_value_decl env ~modalities loc valdecl =
   Builtin_attributes.warning_scope valdecl.pval_attributes
-    (fun () -> transl_value_decl env ~sig_modalities loc valdecl)
+    (fun () -> transl_value_decl env ~modalities loc valdecl)
 
 (* Translate a "with" constraint -- much simplified version of
    transl_type_decl. For a constraint [Sig with t = sdecl],

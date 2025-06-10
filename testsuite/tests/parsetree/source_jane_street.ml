@@ -544,7 +544,7 @@ module type S =
 external x4 : string -> string @@ portable many = "%identity"
 
 [%%expect{|
-external x4 : string -> string @@ many portable = "%identity"
+external x4 : string -> string @@ portable = "%identity"
 |}]
 
 type t =
