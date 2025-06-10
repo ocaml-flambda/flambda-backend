@@ -9,7 +9,7 @@ let foo1 y =
   for i = 1 to 10 do
     x <- x + i
   done;
-  x
+  (x : int)
 
 let () = assert (Int.equal (foo1 0) 55)
 let () = assert (Int.equal (foo1 42) 97)
@@ -18,15 +18,43 @@ let () = assert (Int.equal (foo1 42) 97)
 val foo1 : int -> int = <fun>
 |}]
 
-(* Test 1.2: basic usage with a nested record *)
+(* Test 1.2: basic usage with a nested record returning string *)
 type t_1_2 = { str_1_2 : string ref }
 let x_1_2 =
   let mutable x = { str_1_2 = ref "Hi" } in
   x <- { str_1_2 = ref "Bye" };
-  x
+  (x.str_1_2.contents : string)
 [%%expect{|
 type t_1_2 = { str_1_2 : string ref; }
-val x_1_2 : t_1_2 = {str_1_2 = {contents = "Bye"}}
+val x_1_2 : string = "Bye"
+|}]
+
+(* Test 1.3: returning an immutable record *)
+type t_1_3 = { str_1_3 : string }
+let x_1_3 =
+  let mutable x = { str_1_3 = "Hi" } in
+  x <- { str_1_3 = "Bye" };
+  (x : t_1_3)
+[%%expect{|
+type t_1_3 = { str_1_3 : string; }
+Line 5, characters 3-4:
+5 |   (x : t_1_3)
+       ^
+Error: This value escapes its region.
+|}]
+
+(* Test 1.4: returning a mutable nested record *)
+type t_1_4 = { str_1_4 : string ref }
+let x_1_4 =
+  let mutable x = { str_1_4 = ref "Hi" } in
+  x <- { str_1_4 = ref "Bye" };
+  (x : t_1_4)
+[%%expect{|
+type t_1_4 = { str_1_4 : string ref; }
+Line 5, characters 3-4:
+5 |   (x : t_1_4)
+       ^
+Error: This value escapes its region.
 |}]
 
 
@@ -202,10 +230,11 @@ let foo5_4 y = (* Assign of local works in _local_ while cond region *)
   done; x
 
 [%%expect{|
-val foo5_1 : 'a -> 'a = <fun>
-val foo5_2 : int -> int = <fun>
-val foo5_3 : int -> int = <fun>
-val foo5_4 : int -> int = <fun>
+Line 7, characters 17-18:
+7 |   | (x :: xs) -> x
+                     ^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
 |}]
 
 (* Test 6: let mutable ... and ... is illegal *)
@@ -273,7 +302,7 @@ let f_11 () =
   let mutable x = 10 in
   let y = x in
   x <- x + 10;
-  (y,x)
+  ((y : int), (x : int))
 
 let () = assert (f_11 () = (10,20))
 [%%expect{|
@@ -304,10 +333,10 @@ let x_13_1 =
 ;;
 [%%expect{|
 val reset_ref : int ref @ unique -> unit = <fun>
-Line 5, characters 7-8:
-5 |   x <- y;
-           ^
-Error: This value is "aliased" but expected to be "unique".
+Line 6, characters 12-13:
+6 |   reset_ref x;
+                ^
+Error: This value escapes its region.
 |}]
 
 (* Test 13.2: Unique mutable variable *)
@@ -317,7 +346,10 @@ let x_13_2 =
   !x
 ;;
 [%%expect{|
-val x_13_2 : int = 0
+Line 3, characters 12-13:
+3 |   reset_ref x;
+                ^
+Error: This value escapes its region.
 |}]
 
 (* Test 13.3: Can't put a global in a local record *)
@@ -329,8 +361,10 @@ let y_13_3 =
   !x
 [%%expect{|
 val x_13_3 : int ref = {contents = 0}
-
-Error: This value is "global" bet expected to be "local".
+Line 3, characters 14-37:
+3 |   let mutable x @ local = ref (ref 0) in
+                  ^^^^^^^^^^^^^^^^^^^^^^^
+Error: This value escapes its region.
 |}]
 
 (* Test 14: mutable functions *)

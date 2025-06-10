@@ -34,14 +34,14 @@ let triangle_f64 n =
 let () = Printf.printf "%.2f\n" (triangle_f64 10 |> Float_u.to_float)
 
 
-let triangle_f32 n =
-  let mutable sum = #0.0s in
-  for i = 1 to n do
-    sum <- Float32_u.add sum (Float32_u.of_int i)
-  done;
-  sum
+(* let triangle_f32 n = *)
+(*   let mutable sum = #0.0s in *)
+(*   for i = 1 to n do *)
+(*     sum <- Float32_u.add sum (Float32_u.of_int i) *)
+(*   done; *)
+(*   sum *)
 
-let () = Printf.printf "%.2f\n" (triangle_f32 10 |> Float32_u.to_float)
+(* let () = Printf.printf "%.2f\n" (triangle_f32 10 |> Float32_u.to_float) *)
 
 
 let triangle_i64 n =

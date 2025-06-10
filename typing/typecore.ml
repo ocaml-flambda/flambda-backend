@@ -1010,12 +1010,15 @@ let mutable_mode m0 =
 (** Takes the mutability, the type and the modalities of a field, and expected
     mode of the record (adjusted for allocation), check that the construction
     would be allowed. This applies to mutable arrays similarly. *)
-let check_construct_mutability ~loc ~env mutability ty ?modalities block_mode =
+let check_construct_mutability ~loc ~env mutability ?ty ?modalities block_mode =
   match mutability with
   | Immutable -> ()
   | Mutable m0 ->
       let m0 = mutable_mode m0 in
-      let m0 = cross_left env ty ?modalities m0 in
+      let m0 = match ty with
+      | Some ty -> cross_left env ty ?modalities m0
+      | None -> m0
+      in
       submode ~loc ~env m0 block_mode
 
 (** The [expected_mode] of the record when projecting a mutable field. *)
@@ -5392,7 +5395,7 @@ let vb_pat_constraint
   in
   vb.pvb_attributes, spat
 
-let pat_modes ~force_toplevel ~mutable_flag rec_mode_var (attrs, spat) =
+let pat_modes ~force_toplevel rec_mode_var (attrs, spat) =
   let pat_mode, exp_mode =
     if force_toplevel
     then simple_pat_mode Value.legacy, mode_legacy
@@ -5410,13 +5413,7 @@ let pat_modes ~force_toplevel ~mutable_flag rec_mode_var (attrs, spat) =
     | Some mode ->
         simple_pat_mode mode, mode_default mode
   in
-  match (mutable_flag : mutable_flag) with
-  | Mutable
-  | Immutable -> attrs, pat_mode, exp_mode, spat
-  (* check_construct_mutability for exp_mode *)
-  (* [apply modalities] to [exp_mode] to get expected mode of content of cell *)
-  (* modalities to apply: Typemode.mutable_implied_modalities, only monadic *)
-  (* How do I get a ty here? *)
+  attrs, pat_mode, exp_mode, spat
 
 let add_zero_alloc_attribute expr attributes =
   let open Builtin_attributes in
@@ -5601,7 +5598,7 @@ and type_expect_
           None, expected_mode
       in
       let type_label_exp overwrite ((_, label, _) as x) =
-        check_construct_mutability ~loc ~env label.lbl_mut label.lbl_arg
+        check_construct_mutability ~loc ~env label.lbl_mut ~ty:label.lbl_arg
           ~modalities:label.lbl_modalities record_mode;
         let argument_mode = mode_modality label.lbl_modalities record_mode in
         type_label_exp ~overwrite true env argument_mode loc ty_record x record_form
@@ -5650,7 +5647,7 @@ and type_expect_
               check_project_mutability ~loc:extended_expr_loc ~env lbl.lbl_mut mode;
               let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
               check_construct_mutability ~loc:record_loc ~env lbl.lbl_mut
-                lbl.lbl_arg ~modalities:lbl.lbl_modalities record_mode;
+                ~ty:lbl.lbl_arg ~modalities:lbl.lbl_modalities record_mode;
               let argument_mode =
                 mode_modality lbl.lbl_modalities record_mode
               in
@@ -9229,7 +9226,21 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
   let spatl = List.map vb_pat_constraint spat_sexp_list in
   let spatl =
     List.map
-      (pat_modes ~force_toplevel ~mutable_flag rec_mode_var) spatl
+      (fun spat ->
+       let attrs, pat_mode, exp_mode, spat =
+         pat_modes ~force_toplevel rec_mode_var spat
+       in
+         match (mutable_flag : mutable_flag) with
+         | Mutable ->
+           let mutability = Mutable Types.mutable_mode_for_mutvar in
+           check_construct_mutability ~loc:spat.ppat_loc ~env
+              mutability exp_mode;
+           let modalities =
+             Typemode.transl_modalities ~maturity:Stable mutability [] in
+           let exp_mode = mode_modality modalities exp_mode in
+           attrs, pat_mode, exp_mode, spat
+         | Immutable -> attrs, pat_mode, exp_mode, spat
+      ) spatl
   in
   let attrs_list = List.map (fun (attrs, _, _, _) -> attrs) spatl in
   let is_recursive = (rec_flag = Recursive) in
@@ -9645,7 +9656,7 @@ and type_generic_array
   let to_unify = type_ ty in
   with_explanation explanation (fun () ->
     unify_exp_types loc env to_unify (generic_instance ty_expected));
-  check_construct_mutability ~loc ~env mutability ty array_mode;
+  check_construct_mutability ~loc ~env mutability ~ty array_mode;
   let argument_mode = expect_mode_cross env ty argument_mode in
   let argl =
     List.map

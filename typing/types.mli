@@ -33,7 +33,7 @@ type mutability =
   (** The upper bound of the new field value upon mutation. *)
 
 (** [mutability] for mutable variables ... CR jrayman *)
-val mutability_for_mutvar : Mode.Alloc.Comonadic.Const.t
+val mutable_mode_for_mutvar : Mode.Alloc.Comonadic.Const.t
 
 (** Returns [true] is the [mutable_flag] is mutable. Should be called if not
     interested in the payload of [Mutable]. *)

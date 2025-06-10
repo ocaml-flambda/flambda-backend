@@ -833,11 +833,11 @@ let mode_default mode = {
 (* CR jrayman: maybe not the best place to put these *)
 let modalities_for_mutvar =
   Typemode.transl_modalities ~maturity:Stable
-    ~for_mutable_variable:true (Mutable mutability_for_mutvar) []
+    ~for_mutable_variable:true (Mutable mutable_mode_for_mutvar) []
 
 let m0_for_mutvar =
   Mode.Alloc.Const.merge
-    {comonadic = mutability_for_mutvar;
+    {comonadic = mutable_mode_for_mutvar;
      monadic = Mode.Alloc.Monadic.Const.min}
   |> Mode.Const.alloc_as_value |> Mode.Value.of_const
   |> Mode.Modality.Value.Const.apply modalities_for_mutvar

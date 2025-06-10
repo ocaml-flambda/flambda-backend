@@ -22,7 +22,7 @@ type mutability =
   | Immutable
   | Mutable of Mode.Alloc.Comonadic.Const.t
 
-let mutability_for_mutvar =
+let mutable_mode_for_mutvar =
   { Mode.Alloc.Comonadic.Const.legacy with
     areality = Mode.Locality.Const.max;
     yielding = Mode.Yielding.Const.max }
