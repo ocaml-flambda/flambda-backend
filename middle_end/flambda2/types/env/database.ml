@@ -26,7 +26,7 @@ let extract_value res left =
 module Row_like = struct
   module Make (Branch : Container_types.S) = struct
     type 'a t =
-      { known : 'a Branch.Map.t;
+      { known : 'a Or_bottom.t Branch.Map.t;
         other : 'a Or_bottom.t
       }
 
@@ -41,28 +41,28 @@ module Row_like = struct
     let print pp ppf { known; other } =
       Format.fprintf ppf
         "@[<hov 1>(@[<hov 1>(known@ %a)@]@ @[<hov 1>(other@ %a)@]@]"
-        (print_known pp) known (Or_bottom.print pp) other
+        (print_known (Or_bottom.print pp))
+        known (Or_bottom.print pp) other
 
     let is_bottom { other; known } =
       match other with Bottom -> Branch.Map.is_empty known | Ok _ -> false
 
-    let merge f { known = known1; other = other1 }
-        { known = known2; other = other2 } =
+    let merge (f : _ Or_bottom.t -> _ Or_bottom.t -> _ Or_bottom.t)
+        { known = known1; other = other1 } { known = known2; other = other2 } =
+      let other = f other1 other2 in
       let known =
         Branch.Map.merge
-          (fun _ case1 case2 ->
-            let case1 : _ Or_bottom.t =
-              match case1 with None -> other1 | Some case1 -> Ok case1
-            in
-            let case2 : _ Or_bottom.t =
-              match case2 with None -> other2 | Some case2 -> Ok case2
-            in
-            match (f case1 case2 : _ Or_bottom.t) with
-            | Bottom -> None
-            | Ok case -> Some case)
+          (fun _ case1_ob case2_ob : _ Or_bottom.t option ->
+            let case1 = Option.value ~default:other1 case1_ob in
+            let case2 = Option.value ~default:other2 case2_ob in
+            match f case1 case2, other with
+            (* Cheap opportunities to compress the representation *)
+            | Bottom, Bottom -> None
+            | Ok case, Ok other_case when case == other_case -> None
+            (* Regular case *)
+            | ((Ok _ | Bottom) as case), _ -> Some case)
           known1 known2
       in
-      let other = f other1 other2 in
       { known; other }
 
     let left_meet ~meet t1 t2 : _ Or_bottom.t =
@@ -90,9 +90,12 @@ module Row_like = struct
       then Ok Left_input
       else Ok (New_result t)
 
+    let for_all f { other; known } =
+      f other && Branch.Map.for_all (fun _ case -> f case) known
+
     let find const { other; known } : _ Or_bottom.t =
       match Branch.Map.find_opt const known with
-      | Some arm -> Ok arm
+      | Some arm -> arm
       | None -> other
   end
 
@@ -155,14 +158,12 @@ let print_switch ppf switch =
 let empty_switch =
   Row_like.For_const.create ~default:Extension_set.empty RWC.Map.empty
 
-let is_empty_switch ({ other; known } : switch) =
-  match other with
-  | Bottom -> false
-  | Ok extension_ids ->
-    Extension_set.is_empty extension_ids
-    && RWC.Map.for_all
-         (fun _ extension_ids -> Extension_set.is_empty extension_ids)
-         known
+let is_empty_switch switch =
+  Row_like.For_const.for_all
+    (function
+      | Bottom -> false
+      | Ok extension_ids -> Extension_set.is_empty extension_ids)
+    switch
 
 let left_meet_switch switch1 (switch2 : Extension_id.Set.t Row_like.For_const.t)
     =
@@ -912,13 +913,14 @@ let add_switch_on_property property arg ?default ~arms t ~aliases =
 let switch_on_scrutinee t ~scrutinee =
   Simple.pattern_match scrutinee
     ~const:(fun const ->
-      RWC.Map.singleton const Extension_id.Set.empty, Or_bottom.Bottom)
+      ( RWC.Map.singleton const (Or_bottom.Ok Extension_id.Set.empty),
+        Or_bottom.Bottom ))
     ~name:(fun name ~coercion ->
       assert (Coercion.is_id coercion);
       let properties_of_name = get name t in
       match properties_of_name.switch with
       | { other; known } ->
-        ( (known :> Extension_id.Set.t RWC.Map.t),
+        ( (known :> Extension_id.Set.t Or_bottom.t RWC.Map.t),
           (other :> Extension_id.Set.t Or_bottom.t) ))
 
 (** {2 Differential interface} *)

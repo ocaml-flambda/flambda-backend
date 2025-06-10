@@ -1209,8 +1209,8 @@ let add_variant_extension t arg ~when_block ~when_immediate ~meet_type:_ =
     Database.add_switch_on_property Database.Function.is_int arg
       ~arms:
         (Reg_width_const.Map.of_list
-           [ Reg_width_const.untagged_const_false, when_block;
-             Reg_width_const.untagged_const_true, when_immediate ])
+           [ Reg_width_const.untagged_const_false, Or_bottom.Ok when_block;
+             Reg_width_const.untagged_const_true, Or_bottom.Ok when_immediate ])
       database ~aliases
   with
   | Bottom -> make_bottom t

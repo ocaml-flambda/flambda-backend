@@ -180,7 +180,7 @@ val active_extensions : t -> Extension_id.Set.t
 val add_switch_on_canonical :
   Simple.t ->
   ?default:Extension_id.Set.t ->
-  arms:Extension_id.Set.t Reg_width_const.Map.t ->
+  arms:Extension_id.Set.t Or_bottom.t Reg_width_const.Map.t ->
   t ->
   t Or_bottom.t
 
@@ -188,7 +188,7 @@ val add_switch_on_property :
   Function.t ->
   Simple.t ->
   ?default:Extension_id.Set.t ->
-  arms:Extension_id.Set.t Reg_width_const.Map.t ->
+  arms:Extension_id.Set.t Or_bottom.t Reg_width_const.Map.t ->
   t ->
   aliases:Aliases.t ->
   t Or_bottom.t
@@ -206,7 +206,8 @@ val add_switch_on_property :
 val switch_on_scrutinee :
   t ->
   scrutinee:Simple.t ->
-  Extension_id.Set.t Reg_width_const.Map.t * Extension_id.Set.t Or_bottom.t
+  Extension_id.Set.t Or_bottom.t Reg_width_const.Map.t
+  * Extension_id.Set.t Or_bottom.t
 
 (** {2 Extensions} *)
 
