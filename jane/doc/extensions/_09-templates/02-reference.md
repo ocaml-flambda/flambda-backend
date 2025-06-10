@@ -239,9 +239,10 @@ let my_flip (f : t -> t -> t) = (flip [@mode portable] [@kind bits32]) f
 
 Notice that the mono-attributes are not required to be within a `%template` node.
 
-The `[@@alloc ...]` poly-attributes have some additional supported syntax, and there are a couple
-other attributes that interact with particular axes (`[@exclave_if_local ...]` and
-`[@exclave_if_stack ...]`). More details on these can be found in sections below.
+The `[@@alloc ...]` poly-attributes have some additional supported syntax, and there are a few
+other attributes that interact with particular axes (`[@exclave_if_local ...]`,
+`[@exclave_if_stack ...]`, `[@zero_alloc_if_local ...]`, and `[@zero_alloc_if_stack ...]`).
+More details on these can be found in sections below.
 
 ### Attribute payloads
 
@@ -403,6 +404,11 @@ compiler, we only permit `[@exclave_if_local]` to appear on two classes of expre
 The former of these cases will eventually be supported by using unboxed values,
 and the latter will eventually be supported by "exclaves-on-arrows".
 
+Additionally, the `[@@zero_alloc_if_local m args...]` can be attached to any places the
+`[@zero_alloc]` attribute can be attached. If `m = local`, then the attribute is replaced
+with `[@zero_alloc args...]`, and otherwise it is removed. This feature is morally deprecated
+in favor of `[@zero_alloc_if_stack]` (see [Alloc polymorphism](#alloc-polymorphism)).
+
 ### Modality polymorphism
 
 The `[@@modality ...]` and related attributes can be used to template over modalities.
@@ -502,6 +508,11 @@ module type T = sig
 end
 ]
 ```
+
+As with mode-polymorphism, the `[@@zero_alloc_if_stack a args...]` attribute conditionally
+attaches a `[@@zero_alloc args...]` attribute to a syntax node when `a = stack`. This is the
+preferred attribute over `[@@zero_alloc_if_local]` as conditionally being zero-alloc is
+a property of allocation behavior, not of modes.
 
 ## The [%template.portable] extension {#template-portable}
 
