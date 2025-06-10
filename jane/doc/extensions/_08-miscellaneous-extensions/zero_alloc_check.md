@@ -477,17 +477,16 @@ error message will show all functions that failed the check in the same compilat
 
 The following settings are mostly for testing and debugging of the analysis.
 
-- `-zero-alloc-check` compiler flag and `[@@@zero_alloc check*]` attributes
 The check can be controlled by the compiler flag `-zero-alloc-check` with the following
 arguments:
 
 * `default` : check attributes without `opt` payload (default)
 * `check all` : covers both `opt` and default payloads and is intended to be used for
-      optimized builds `CHECK_ZERO_ALLOC_OPT` environment variable above.
-* `none` : disable the check.
-* `opt` : only check attributes with `opt` payload and is intended for debugging.
+      optimized builds
+* `none` : disable the check
+* `opt` : only check attributes with `opt` payload and is intended for debugging
 
-The flag can be passed to a `dune` build as usual either for the either project or on a
+The flag can be passed to `dune` build as usual for the entire project or on a
 per-library basis. For example, to disable regular and `opt` checks:
 `(ocamlopt_flags (:standard -zero-alloc-check none)`
 
@@ -506,9 +505,11 @@ This disables computation of function summaries (unlike
 `-zero-alloc-check none` that disables checking of annotations). With
 `-disable-zero-alloc-checker` flag, the checker will conservatively
 assume that all functions may allocate, so if there are any
-annotations , compilation will fail unless `-zero-alloc-check none` is
-also passed.  Alternatively, `-disable-precise-zero-alloc-checker`
-flag disables computation of summaries only for recursive functions
+annotations, compilation will fail unless `-zero-alloc-check none` is
+also passed.
+
+Compilation flag `-disable-precise-zero-alloc-checker`
+disables computation of summaries only for recursive functions
 and functions whose definition appears in the generated code before
 the definitions of all their dependencies.  This is an escape hatch
 for situations of unexpectedly high overhead of the analysis on
@@ -520,7 +521,7 @@ control of precision.
 
 ## Annotation `[@@@zero_alloc all]` and `[@zero_alloc ignore]`
 
-Some files consists mostly of non-allocating code. To reduce the annotation burden, we
+Some files consist mostly of non-allocating code. To reduce the annotation burden, we
 provide a top-level annotation `[@@@zero_alloc all]`. It requires that all function in the
 compilation unit are not allocating.  It is equivalent to adding `[@zero_alloc]`
 annotation to all functions in the file.
