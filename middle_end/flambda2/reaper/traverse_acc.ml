@@ -156,7 +156,7 @@ let get_continuation_info t = t.continuation_info
 let add_apply apply t = t.apply_deps <- apply :: t.apply_deps
 
 let add_set_of_closures_dep let_bound_name_of_the_closure closure_code_id
-    only_full_applications t =
+    ~only_full_applications t =
   t.set_of_closures_dep
     <- { let_bound_name_of_the_closure;
          closure_code_id;

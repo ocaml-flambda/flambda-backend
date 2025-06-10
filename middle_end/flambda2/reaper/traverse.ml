@@ -99,7 +99,7 @@ let record_set_of_closures_deps names_and_function_slots set_of_closures acc :
       match code_id with
       | Deleted _ -> ()
       | Code_id { code_id; only_full_applications } ->
-        Acc.add_set_of_closures_dep name code_id only_full_applications acc)
+        Acc.add_set_of_closures_dep name code_id ~only_full_applications acc)
     names_and_function_slots;
   Function_slot.Lmap.iter
     (fun _function_slot function_slot_name ->
