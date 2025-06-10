@@ -282,7 +282,8 @@ let exactly_this_closure function_slot ~all_function_slots_in_set:function_types
 let static_closure_with_this_code ~this_function_slot ~closure_symbol ~code_id =
   let function_types =
     let function_type =
-      TG.Function_type.create code_id ~rec_info:(unknown K.rec_info)
+      TG.Function_type.create code_id
+        ~rec_info:(TG.this_rec_info Rec_info_expr.initial)
     in
     Function_slot.Map.singleton this_function_slot
       (Or_unknown_or_bottom.Ok function_type)
