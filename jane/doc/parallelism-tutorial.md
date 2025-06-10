@@ -210,11 +210,8 @@ we're looking at an ideal, yet realistic, situation:
 These assumptions allow us to use _fork/join parallelism_, a system that
 provides parallelism without the application having to do anything with locks or
 other parallel machinery. You write your algorithm and we work out the
-scheduling, synchronising, blocking, etc. <!-- Avoiding data races in such a
-program isn't hard in principle, since we're avoiding in-place mutation, but we
-still need to _convince the OxCaml compiler_ that there are no data races, so
-getting to know fork/join will give you a foundation for how data-race freedom
-works.--> Of course, OxCaml is ever watchful and will still insist on being
+scheduling, synchronising, blocking, etc.
+Of course, OxCaml is ever watchful and will still insist on being
 convinced there are no data races, so we'll still have to go over the
 fundamentals of data-race freedom. Further materials will build on this by
 covering more primitive operations that exercise more of the system.
