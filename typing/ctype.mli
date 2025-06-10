@@ -776,3 +776,10 @@ val cross_left_alloc :
   Types.type_expr ->
   Mode.Alloc.l ->
   Mode.Alloc.l
+
+(** Currently [exn] crosses portability and contention. To make that safe,
+usages of constructors are constrained according to the mode crossing of
+constructor arguments. *)
+val check_constructor_crossing : Env.t ->
+  tag -> res:type_expr -> constructor_argument list ->
+  Env.held_locks -> unit

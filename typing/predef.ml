@@ -409,7 +409,7 @@ let build_initial_env add_type add_extension empty_env =
        ~jkind:Jkind.Const.Builtin.immediate
   |> add_type ident_char ~jkind:Jkind.Const.Builtin.immediate
   |> add_type_with_jkind ident_exn ~kind:Type_open
-    ~jkind:(Jkind.for_non_float ~why:(Primitive ident_exn))
+       ~jkind:(Jkind.for_exn ident_exn)
   |> add_type ident_extension_constructor ~jkind:Jkind.Const.Builtin.immutable_data
   |> add_type_with_jkind ident_float ~jkind:(Jkind.for_float ident_float)
       ~unboxed_jkind:Jkind.Const.Builtin.kind_of_unboxed_float

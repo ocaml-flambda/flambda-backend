@@ -46,3 +46,37 @@ can construct the lazy value at `many` even if the thunk is `once` (e.g., closin
 let r = { x = 0 } in
 let l @ many = lazy (overwrite_ r with { x = 42 })
 ```
+
+# Exception
+Currently the exception type `exn` crosses portability and contention. To make
+that safe, exception constructors are assigned a portability. Such a constructor
+is portable iff all of its arguments cross portability and contention. A
+portable function cannot close over a nonportable constructor, whether for
+constructing or matching exceptions.
+
+In the following example, `Foo` is nonportable because its argument doesn't
+cross contention; similarly, `Bar` is nonportable because its argument doesn't
+cross portability. As a result, neither of `foo` and `bar` can be marked as
+portable.
+```ocaml
+exception Foo of int ref
+exception Bar of unit -> unit
+
+let (foo @ portable) () =
+    try () with
+    Foo _ -> ()
+
+let (bar @ portable) () =
+    try () with
+    Bar _ -> ()
+```
+
+In the following example, `Baz` is nonportable, but `foo` doesn't close over
+`Baz` and can be portable.
+```ocaml
+let (foo @ portable) () =
+    let module M = struct
+        exception Baz of int ref * (unit -> unit)
+    end in
+    raise (M.Baz (ref 42, fun () -> ()))
+```
