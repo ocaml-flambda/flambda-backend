@@ -39,7 +39,8 @@ let add_subst x a s = Subst.add x a s
 let lookup_subst x s = Subst.find_opt x s
 
 (* Truncating update, if one list is longer than the other, it throws it away.
-   The update assumes the keys are not overlapping (since it adds from left to right). *)
+   The update assumes the keys are not overlapping (since it adds from left to
+   right). *)
 let rec batch_add_subst args vals subst =
   match args, vals with
   | a :: args', v :: vals' -> batch_add_subst args' vals' (add_subst a v subst)
@@ -86,8 +87,8 @@ type classification =
   | Addr (* anything except a float or a lazy *)
   | Any
 
-(* Classify a ty into a [classification]. Looks through synonyms, using [scrape_ty].
-   Returning [Any] is safe, though may skip some optimizations. *)
+(* Classify a ty into a [classification]. Looks through synonyms, using
+   [scrape_ty]. Returning [Any] is safe, though may skip some optimizations. *)
 let classify env ty : classification =
   (* NOTE: this call is redundant, but also does not hurt.
      It is inherited from the original definition. *)
@@ -397,8 +398,8 @@ let extract_external_declaration outp (v : value_description) =
     (match tail with
     | [] -> ()
     | tail ->
-      (* The compiler currently accepts and silently ignores this case but the checker
-         should reject it. *)
+      (* The compiler currently accepts and silently ignores this case but the
+         checker should reject it. *)
       Misc.fatal_errorf "Unexpected names at %s:%d, found %a"
         v.val_loc.loc_start.pos_fname v.val_loc.loc_start.pos_lnum
         (Format.pp_print_list ~pp_sep:Format.pp_print_space
