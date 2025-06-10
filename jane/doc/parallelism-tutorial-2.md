@@ -107,7 +107,7 @@ A parallel array is just like an array, but with a couple restrictions that make
 Here, we'll use `int` as the element type&mdash;it crosses portability and contention, simplifying the example.
 
 A slice is a `local` view of (part of) a parallel array.
-Intuitively, a slice _borrows_ a segment of the array, only allowing access a contiguous subset of its indices.
+Intuitively, a slice _borrows_ a segment of the array, only allowing access to a contiguous subset of its indices.
 Using slices, we can implement a standard sequential quicksort:
 
 ```ocaml
@@ -241,7 +241,7 @@ For example, let's attempt to parallelize blurring an image.
 We'll start by defining a simple (greyscale) image type:
 
 ```ocaml
-type t : value mod portable
+type t : mutable_data
 
 val load : string -> t
 val of_array : float array -> width:int -> height:int -> t
@@ -255,7 +255,7 @@ val set : t -> x:int -> y:int -> float -> unit
 
 An image is really just an array plus a width and height, but this interface has a couple notable features:
 
-- `value mod portable` indicates that images cross portability. This is safe since an image does not contain functions.
+- `mutable_data` indicates that images cross portability (among other axes). This is safe since an image does not contain functions.
 - `width` and `height` allow a `contended` image. This is safe since the width and height are immutable properties of the image.
 
 To create a blurred copy of an image, we want each pixel in the result to contain the average of a 9x9 box of pixels in the input, centered at this pixel.
@@ -274,7 +274,7 @@ let blur_at image ~x ~y =
       acc := !acc +. Image.get image ~x ~y
     done
   done;
-  !acc /. 81.
+  !acc /. Float.of_int ((2 * radius + 1) * (2 * radius + 1))
 ;;
 ```
 
@@ -317,7 +317,7 @@ Domains | Time (ms)
 That's because our mutex only allows one domain at a time to access the input image, destroying any opportunity for parallelism.
 
 Fortunately, we know that all domains only _read_ the input image, so it should be safe for them to do so simultaneously.
-However, we can't just allow `Image.get` to read from a `contended` image&mdash;in general, one other domain could be writing to it.
+However, we can't just allow `Image.get` to read from a `contended` image&mdash;in general, up to one other domain could be writing to it.
 
 Hence, we need a third mode on the contention axis: `shared`, which falls in between `contended` and `uncontended`.
 The shared mode indicates that _all_ references to a value are either `shared` or `contended`, so we may read its mutable contents in parallel.

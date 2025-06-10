@@ -4,6 +4,7 @@ _This page introduces the ["expert" capsule API](https://github.com/janestreet/b
 A more ergonomic, work-in-progress API is available in [`Portable.Capsule`](https://github.com/janestreet/portable/blob/master/kernel/src/capsule_intf.ml)._
 
 A _capsule_ is a collection of mutable state accessible via a particular API that prohibits data races.
+Capsules may be associated with _locks_, which allow their mutable state to be shared across domains.
 
 ## Data
 
