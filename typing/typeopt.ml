@@ -904,7 +904,7 @@ let[@inline always] rec layout_of_const_sort_generic ~value_kind ~error
   | Base Vec128 when Language_extension.(is_at_least Layouts Stable) &&
                      Language_extension.(is_at_least SIMD Stable) ->
     Lambda.Punboxed_vector Unboxed_vec128
-  | Base Void when Language_extension.(is_at_least Layouts Beta) ->
+  | Base Void when Language_extension.(is_at_least Layouts Stable) ->
     Lambda.Punboxed_product []
   | Product consts when Language_extension.(is_at_least Layouts Stable) ->
     (* CR layouts v7.1: assess whether it is important for performance to support

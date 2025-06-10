@@ -2,4 +2,4 @@ File "void.ml", line 27, characters 12-16:
 27 | type void : void
                  ^^^^
 Error: The appropriate layouts extension is not enabled.
-       You must enable -extension layouts_alpha to use this feature.
+       You must enable -extension layouts to use this feature.
