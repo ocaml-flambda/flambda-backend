@@ -177,11 +177,14 @@ let code loopify(never) size(97) newer_version_of(foo_0)
                | 1 -> k3)
               where k4 =
                 let ifnot_result = %array_set arr.(i) <- apply_result in
-                cont k (0)
+                cont k2
               where k3 =
                 let prim_1 = %unbox_float apply_result in
                 let ifso_result = %array_set float arr.(i) = prim_1 in
-                cont k (0)))
+                cont k2
+              where k2 =
+                let if_then_else_result = 0 in
+                cont k (if_then_else_result)))
 in
 let $camlTests3__foo_2 = closure foo_0_1 @foo in
 let code loopify(never) size(33) newer_version_of(f_1)

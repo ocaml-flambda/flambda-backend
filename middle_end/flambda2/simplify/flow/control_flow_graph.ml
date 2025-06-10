@@ -22,6 +22,14 @@ type t =
     children : Continuation.Set.t Continuation.Map.t
   }
 
+type exn_param_alias =
+  | Not_aliased
+  | Aliased_to_a_symbol
+  | Aliased of
+      { alias_var : Variable.t;
+        exception_param : Variable.t
+      }
+
 let create ~dummy_toplevel_cont { T.Acc.map; _ } =
   let parents =
     Continuation.Map.filter_map
@@ -89,10 +97,8 @@ let compute_available_variables ~(source_info : T.Acc.t) t =
         match Continuation.Map.find k source_info.extra with
         | exception Not_found -> Variable.Set.empty
         | epa ->
-          let extra_params =
-            Continuation_extra_params_and_args.extra_params epa
-          in
-          Bound_parameters.var_set extra_params
+          Bound_parameters.var_set
+            (Continuation_extra_params_and_args.extra_params epa)
       in
       let acc =
         Variable.Set.union
@@ -109,7 +115,7 @@ let compute_added_extra_args added_extra_args t =
         available ))
     Variable.Set.empty
 
-let fixpoint t ~init ~f =
+let fixpoint t ~init ~eq ~f =
   let components = G.connected_components_sorted_from_roots_to_leaf t.callers in
   let res =
     Array.fold_left
@@ -156,7 +162,7 @@ let fixpoint t ~init ~f =
                 let caller_new_set =
                   f ~caller ~caller_set ~callee ~callee_set
                 in
-                if not (Variable.Set.equal caller_set caller_new_set)
+                if not (eq caller_set caller_new_set)
                 then (
                   cur := Continuation.Map.add caller caller_new_set !cur;
                   if Continuation.Set.mem caller !q_s
@@ -171,7 +177,8 @@ let fixpoint t ~init ~f =
   res
 
 let extra_args_for_aliases_overapproximation ~required_names
-    ~(source_info : T.Acc.t) ~unboxed_blocks doms t =
+    ~(source_info : T.Acc.t) ~unboxed_blocks (doms : Dominator_graph.alias_map)
+    t =
   let available_variables = compute_available_variables ~source_info t in
   let remove_vars_in_scope_of k var_set =
     let elt : T.Continuation_info.t = Continuation.Map.find k source_info.map in
@@ -198,10 +205,17 @@ let extra_args_for_aliases_overapproximation ~required_names
                     param
                 else acc
               | dom ->
-                if Variable.equal param dom
-                   || Variable.Set.mem dom unboxed_blocks
-                then acc
-                else Variable.Set.add dom acc)
+                (* Parameters whose dominator/canonical alias is a symbol or a
+                   constant do not require extra args to access the value of
+                   that dominator. *)
+                Simple.pattern_match' dom
+                  ~var:(fun dom_var ~coercion:_ ->
+                    if Variable.equal param dom_var
+                       || Simple.Set.mem dom unboxed_blocks
+                    then acc
+                    else Variable.Set.add dom_var acc)
+                  ~symbol:(fun _ ~coercion:_ -> acc)
+                  ~const:(fun _ -> acc))
             Variable.Set.empty
             (Bound_parameters.vars elt.T.Continuation_info.params)
         in
@@ -210,7 +224,7 @@ let extra_args_for_aliases_overapproximation ~required_names
       source_info.map
   in
   let added_extra_args =
-    fixpoint t ~init
+    fixpoint t ~init ~eq:Variable.Set.equal
       ~f:(fun
            ~caller
            ~caller_set:caller_aliases_needed
@@ -243,30 +257,37 @@ let minimize_extra_args_for_one_continuation ~(source_info : T.Acc.t)
      every alias to the exception parameter *)
   let extra_args_for_aliases, exception_handler_first_param_aliased =
     match exception_handler_first_param with
-    | None -> extra_args_for_aliases, None
+    | None -> extra_args_for_aliases, Not_aliased
     | Some exception_param -> (
       match Variable.Map.find exception_param doms with
-      | exception Not_found -> extra_args_for_aliases, None
+      | exception Not_found -> extra_args_for_aliases, Not_aliased
       | alias ->
-        if Variable.equal exception_param alias
-        then extra_args_for_aliases, None
-        else
-          ( Variable.Set.remove alias extra_args_for_aliases,
-            Some (alias, exception_param) ))
+        Simple.pattern_match' alias
+          ~var:(fun alias_var ~coercion:_ ->
+            if Variable.equal exception_param alias_var
+            then extra_args_for_aliases, Not_aliased
+            else
+              ( Variable.Set.remove alias_var extra_args_for_aliases,
+                Aliased { alias_var; exception_param } ))
+          ~const:(fun _ ->
+            Misc.fatal_errorf
+              "[Data Flow] Exception param aliased to a constant")
+          ~symbol:(fun _ ~coercion:_ ->
+            extra_args_for_aliases, Aliased_to_a_symbol))
   in
   let lets_to_introduce =
     match exception_handler_first_param_aliased with
-    | None -> Variable.Map.empty
-    | Some (alias, exception_param) ->
-      Variable.Map.singleton alias exception_param
+    | Not_aliased | Aliased_to_a_symbol -> Variable.Map.empty
+    | Aliased { alias_var = alias; exception_param } ->
+      Variable.Map.singleton alias (Simple.var exception_param)
   in
   let removed_aliased_params_and_extra_params, lets_to_introduce =
     List.fold_left
       (fun (removed, lets_to_introduce) param ->
-        let default alias =
+        let default (alias : Simple.t) =
           let removed = Variable.Set.add param removed in
           let lets_to_introduce =
-            if Variable.Set.mem alias unboxed_blocks
+            if Simple.Set.mem alias unboxed_blocks
             then lets_to_introduce
             else Variable.Map.add param alias lets_to_introduce
           in
@@ -275,19 +296,23 @@ let minimize_extra_args_for_one_continuation ~(source_info : T.Acc.t)
         match Variable.Map.find param doms with
         | exception Not_found -> removed, lets_to_introduce
         | alias -> (
-          if Variable.equal param alias
+          if Simple.equal (Simple.var param) alias
           then removed, lets_to_introduce
           else
             match exception_handler_first_param_aliased with
-            | None -> default alias
-            | Some (aliased_to, exception_param) ->
+            | Not_aliased -> default alias
+            | Aliased_to_a_symbol ->
+              (* We cannot remove the exn param, so even if it is aliased to a
+                 symbol, we cannot make use of that information. *)
+              removed, lets_to_introduce
+            | Aliased { alias_var = aliased_to; exception_param } ->
               let is_first_exception_param =
                 Variable.equal exception_param param
               in
               if is_first_exception_param
               then removed, lets_to_introduce
-              else if Variable.equal alias aliased_to
-              then default exception_param
+              else if Simple.equal alias (Simple.var aliased_to)
+              then default (Simple.var exception_param)
               else default alias))
       (Variable.Set.empty, lets_to_introduce)
       (Bound_parameters.vars elt.params)
@@ -318,7 +343,7 @@ let minimize_extra_args_for_aliases ~source_info ~unboxed_blocks doms
     added_extra_args
 
 let compute_continuation_extra_args_for_aliases ~speculative ~required_names
-    ~source_info ~unboxed_blocks doms t :
+    ~source_info ~unboxed_blocks (doms : Simple.t Variable.Map.t) t :
     T.Continuation_param_aliases.t Continuation.Map.t =
   let added_extra_args =
     extra_args_for_aliases_overapproximation ~required_names ~source_info
@@ -329,8 +354,8 @@ let compute_continuation_extra_args_for_aliases ~speculative ~required_names
   in
   (* When doing speculative inlining, the flow analysis only has access to the
      inlined body of the function being (speculatively) inlined. Thus, it is
-     possible for a canonical alias to be defined outside the inliend body (a
-     typical occurrence would be a String length compute before the call of the
+     possible for a canonical alias to be defined outside the inlined body (a
+     typical occurrence would be a String length computed before the call of the
      inlined funciton, but shared with the uses inside the funciton by the cse).
 
      Note that while this is true for aliases, we do not need a similar
