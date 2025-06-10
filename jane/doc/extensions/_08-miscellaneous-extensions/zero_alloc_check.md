@@ -619,5 +619,5 @@ optimization, but unfortunately, the error message is not helpful.
   and thus any calls to such functions are conservatively considered
   as allocating.
 - Syntactic limitation of `[@zero_alloc ..]` attribute: can only appear on functions, not
-  values.  ([example](zero_alloc_check_details.md#syntactic-limitation))
-- Poll points are considered non-allocating.
+  values.
+- Safepoints are considered non-allocating.
