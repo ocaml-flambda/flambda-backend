@@ -234,7 +234,8 @@ module Runtime_5 = struct
     type key_initializer : value mod contended portable =
         KI: 'a key * ('a -> (Access.t -> 'a) @ portable) @@ portable -> key_initializer
 
-    type key_initializer_list : value mod contended portable = key_initializer list
+    type key_initializer_list : value mod contended portable =
+      key_initializer list
 
     let parent_keys = Atomic.make ([] : key_initializer_list)
 
