@@ -187,6 +187,7 @@ let static_row row =
 
 let tvariant_not_immediate row =
   (* if all labels are devoid of arguments, not a pointer *)
+  (* CR rtjoa:  *)
   (* CR layouts v5: Polymorphic variants with all void args can probably
      be immediate, but we don't allow them to have void args right now. *)
   not (row_closed row)
