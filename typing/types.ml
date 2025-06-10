@@ -479,8 +479,7 @@ module Vars = Misc.Stdlib.String.Map
 
 type value_kind =
     Val_reg                             (* Regular value *)
-  | Val_mut of Jkind_types.Sort.t
-                                        (* Mutable value *)
+  | Val_mut of Jkind_types.Sort.t       (* Mutable value *)
   | Val_prim of Primitive.description   (* Primitive *)
   | Val_ivar of mutable_flag * string   (* Instance variable (mutable ?) *)
   | Val_self of

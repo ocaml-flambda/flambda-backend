@@ -9230,16 +9230,16 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
        let attrs, pat_mode, exp_mode, spat =
          pat_modes ~force_toplevel rec_mode_var spat
        in
-         match (mutable_flag : mutable_flag) with
-         | Mutable ->
-           let mutability = Mutable Types.mutable_mode_for_mutvar in
-           check_construct_mutability ~loc:spat.ppat_loc ~env
-              mutability exp_mode;
-           let modalities =
-             Typemode.transl_modalities ~maturity:Stable mutability [] in
-           let exp_mode = mode_modality modalities exp_mode in
-           attrs, pat_mode, exp_mode, spat
-         | Immutable -> attrs, pat_mode, exp_mode, spat
+       match (mutable_flag : mutable_flag) with
+       | Mutable ->
+         let mutability = Mutable Types.mutable_mode_for_mutvar in
+         check_construct_mutability ~loc:spat.ppat_loc ~env
+           mutability exp_mode;
+         let modalities =
+           Typemode.transl_modalities ~maturity:Stable mutability [] in
+         let exp_mode = mode_modality modalities exp_mode in
+         attrs, pat_mode, exp_mode, spat
+       | Immutable -> attrs, pat_mode, exp_mode, spat
       ) spatl
   in
   let attrs_list = List.map (fun (attrs, _, _, _) -> attrs) spatl in

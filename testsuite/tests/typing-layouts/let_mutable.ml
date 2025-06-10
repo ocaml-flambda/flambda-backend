@@ -33,6 +33,7 @@ let triangle_f64 n =
 
 let () = Printf.printf "%.2f\n" (triangle_f64 10 |> Float_u.to_float)
 
+(* CR jrayman: [Float32_u] is wrong. What is it supposed to be? *)
 
 (* let triangle_f32 n = *)
 (*   let mutable sum = #0.0s in *)

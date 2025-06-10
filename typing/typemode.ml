@@ -561,7 +561,7 @@ let sort_dedup_modalities ~warn l =
   in
   l |> List.stable_sort compare |> dedup ~on_dup |> List.map fst
 
-let transl_modalities ~maturity ?(for_mutable_variable=false) mut modalities =
+let transl_modalities ~maturity ?(for_mutable_variable = false) mut modalities =
   let mut_modalities = mutable_implied_modalities mut ~for_mutable_variable in
   let modalities = List.map (transl_modality ~maturity) modalities in
   (* axes listed in the order of implication. *)

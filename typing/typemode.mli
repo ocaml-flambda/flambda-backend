@@ -14,7 +14,6 @@ val transl_alloc_mode : Parsetree.modes -> Mode.Alloc.Const.t
 val transl_modalities :
   maturity:Language_extension.maturity ->
   ?for_mutable_variable:bool ->
-    (* CR jrayman: come up with a better parameter *)
   Types.mutability ->
   Parsetree.modalities ->
   Mode.Modality.Value.Const.t
