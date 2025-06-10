@@ -198,12 +198,19 @@ let filter_and_choose_alias required_names alias_set =
   in
   Alias_set.find_best available_alias_set
 
-let find_cse_simple dacc required_names prim =
+let find_cse_simple ?(required = true) dacc required_names prim =
   match P.Eligible_for_cse.create prim with
   | None -> None (* Constant *)
   | Some with_fixed_value -> (
     match DE.find_cse (DA.denv dacc) with_fixed_value with
-    | None -> None
+    | None ->
+      if required
+      then
+        Misc.fatal_errorf
+          "Expected@ primitive@ not@ found@ in@ CSE@ environment@ while@ \
+           simplifying switch:@ %a"
+          P.print prim
+      else None
     | Some simple ->
       filter_and_choose_alias required_names
         (find_all_aliases (DA.typing_env dacc) simple))
@@ -507,6 +514,7 @@ let rebuild_switch ~original ~arms ~condition_dbg ~scrutinee ~scrutinee_ty
             with
             | None -> normal_case uacc
             | Some tagged_scrutinee ->
+              (* CR bclement: look it up in CSE environment *)
               let do_tagging =
                 Named.create_prim
                   (P.Unary (Boolean_not, tagged_scrutinee))
