@@ -272,7 +272,7 @@ Line 4, characters 19-23:
                        ^^^^
 Error: Modules do not match: sig end @ local is not included in
        Empty @ global
-     First is "local" but second is "global".
+     This escapes region.
 |}]
 
 let _ =
@@ -295,5 +295,5 @@ Error: This application of the functor "F" is ill-typed.
             N : sig end @ local
           is not included in
             Empty @ global
-          First is "local" but second is "global".
+          This escapes region.
 |}]

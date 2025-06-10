@@ -653,7 +653,7 @@ Line 3, characters 10-11:
 3 |   (module M : S)
               ^
 Error: Signature mismatch:
-       Got "regional" but expected "global".
+       This escapes region.
 |}]
 
 (* Don't escape through a lazy value *)
