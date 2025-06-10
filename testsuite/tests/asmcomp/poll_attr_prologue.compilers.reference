@@ -1,8 +1,0 @@
-File "poll_attr_prologue.ml", lines 14-17, characters 36-38:
-14 | ....................................x l =
-15 |   match l with
-16 |   | [] -> 0
-17 |   | _ :: tl -> (d[@tailcall]) (x+1) tl
-Error: Function with poll-error attribute contains polling points:
-	function call at File "poll_attr_prologue.ml", line 17, characters 15-38
-
