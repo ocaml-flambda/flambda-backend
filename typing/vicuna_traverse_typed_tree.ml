@@ -17,6 +17,24 @@ open! Types
 open! Vicuna_value_shapes
 open! Typedtree
 
+
+(* There are various features in the type system that Vicuna does not support,
+   including, for example, mixed records. When the externals extraction was
+   outside of the compiler, failing whenever such a feature was encountered was
+   perfectly fine. Inside the compiler however, when we produce .cms files,
+   unsupported features of Vicuna should not stop the .cms generation. Instead,
+   they will simply lead to the resulting external declaration not showing up in
+   the extracted list of external declarations. *)
+type unsupported_feature =
+  | MixedRecords
+  | UnboxedProductRecords
+  | ExtensibleVariants
+  | WithNullVariants
+
+exception VicunaUnsupported of unsupported_feature
+
+
+
 (* Helper utility for debugging. *)
 let _pp_type fmt ty =
   match get_desc ty with
@@ -123,6 +141,7 @@ let classify env ty : classification =
           Any)
     | Tarrow _ | Ttuple _ | Tpackage _ | Tobject _ | Tnil | Tvariant _ -> Addr
     | Tlink _ | Tsubst _ | Tpoly _ | Tfield _ | Tunboxed_tuple _ | Tof_kind _ ->
+      (* None of these should occur in the arguments to an external function. *)
       assert false
 
 type can_be_float_array =
@@ -206,9 +225,7 @@ let rec value_kind env (subst : value_shape Subst.t) ~visited ~depth ty :
           value_kind env subst ~visited ~depth ld_type
         | Type_record_unboxed_product
             (([] | _ :: _ :: _), Record_unboxed_product, _) ->
-          Misc.fatal_error
-            "Traverse_typed_tree.value_kind: non-unary unboxed record can't \
-             have kind value"
+          raise (VicunaUnsupported UnboxedProductRecords)
         | Type_abstract _ -> Value
         | Type_open ->
           (* open types are variants so should always
@@ -238,22 +255,24 @@ let rec value_kind env (subst : value_shape Subst.t) ~visited ~depth ty :
     else
       match lookup_subst (get_id ty) subst with None -> Value | Some sh -> sh)
   | Tpoly _ -> assert false (* handled by [scrape_ty] currently *)
-  | Tfield _ | Tnil | Tlink _ | Tsubst _ | Tof_kind _ -> assert false
-  (* NOTE: we should never encounter those in an external declaration *)
-  | Tunboxed_tuple _ -> assert false (* not of layout value *)
+  | Tfield _ | Tnil | Tlink _ | Tsubst _ | Tof_kind _ | Tunboxed_tuple _ ->
+    (* NOTE: we should never encounter those in an external declaration *)
+    assert false
   | Tpackage _ -> Block None
 
 and value_kind_variant env subst ~visited ~depth
     (cstrs : Types.constructor_declaration list) rep =
   match rep with
-  | Variant_extensible -> assert false
-  | Variant_with_null -> assert false
+  | Variant_extensible -> raise (VicunaUnsupported ExtensibleVariants)
+  | Variant_with_null -> raise (VicunaUnsupported WithNullVariants)
   | Variant_unboxed -> (
     match cstrs with
     | [{ cd_args = Cstr_tuple [{ ca_type = ty; _ }]; _ }]
     | [{ cd_args = Cstr_record [{ ld_type = ty; _ }]; _ }] ->
       value_kind env subst ~visited ~depth ty
-    | _ -> assert false)
+    | _ ->
+      (* Unboxed records should have only one field. *)
+      assert false)
   | Variant_boxed _layouts ->
     let depth = depth + 1 in
     let for_one_constructor (constructor : Types.constructor_declaration) ~depth
@@ -308,10 +327,11 @@ and value_kind_record env subst ~visited ~depth
     (labels : Types.label_declaration list) rep =
   match rep with
   | Record_mixed _ ->
+    raise (VicunaUnsupported MixedRecords)
     (* TODO: To support these, we'll need to stop calling
-       [value_kind] on all fields.
-    *)
-    failwith "No support for mixed records"
+       [value_kind] on all fields. *)
+  | Record_inlined (Null, _, _) ->
+    raise (VicunaUnsupported WithNullVariants)
   | Record_unboxed | Record_inlined (_, _, Variant_unboxed) -> (
     match labels with
     | [{ ld_type; _ }] -> value_kind env subst ~visited ~depth ld_type
@@ -398,8 +418,8 @@ let extract_external_declaration outp (v : value_description) =
     (match tail with
     | [] -> ()
     | tail ->
-      (* The compiler currently accepts and silently ignores this case but the
-         checker should reject it. *)
+      (* The compiler should reject providing additional names in external
+         declarations. *)
       Misc.fatal_errorf "Unexpected names at %s:%d, found %a"
         v.val_loc.loc_start.pos_fname v.val_loc.loc_start.pos_lnum
         (Format.pp_print_list ~pp_sep:Format.pp_print_space
@@ -421,7 +441,9 @@ let extract_from_typed_tree tt =
   let iter_structure_item (it : iterator) (si : structure_item) =
     match si.str_desc with
     | Tstr_primitive prim ->
-      extract_external_declaration outp prim;
+      (try
+        extract_external_declaration outp prim;
+      with VicunaUnsupported _ -> ());
       it.value_description it prim
     | _ -> default_iterator.structure_item it si
   in
