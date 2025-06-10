@@ -668,6 +668,15 @@ let equal_machtype_component
       machtype_component) (right : machtype_component) =
   rank_machtype_component left = rank_machtype_component right
 
+let hash_machtype_component : machtype_component -> int = function
+  | Val -> 0
+  | Addr -> 1
+  | Int -> 2
+  | Float -> 3
+  | Vec128 -> 4
+  | Float32 -> 5
+  | Valx2 -> 6
+
 let equal_exttype left right =
   match left, right with
   | XInt, XInt -> true
