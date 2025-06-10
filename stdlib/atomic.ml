@@ -42,19 +42,19 @@ let incr r = add r 1
 let decr r = sub r 1
 
 module Contended = struct
-  external get : ('a : value_or_null mod contended).
-    'a t @ contended local -> 'a @@ portable =
+  external get : ('a : value_or_null).
+    'a t @ contended local -> 'a @ contended @@ portable =
     "%atomic_load"
-  external set : ('a : value_or_null mod portable).
-    'a t @ contended local -> 'a -> unit @@ portable =
+  external set : ('a : value_or_null mod contended).
+    'a t @ contended local -> 'a @ portable -> unit @@ portable =
     "%atomic_set"
-  external exchange : ('a : value_or_null mod contended portable).
-    'a t @ contended local -> 'a -> 'a @@ portable =
+  external exchange : ('a : value_or_null mod contended).
+    'a t @ contended local -> 'a @ portable -> 'a @@ portable =
     "%atomic_exchange"
-  external compare_and_set : ('a : value_or_null mod portable).
-    'a t @ contended local -> 'a -> 'a -> bool @@ portable =
+  external compare_and_set : ('a : value_or_null mod contended).
+    'a t @ contended local -> 'a -> 'a @ portable -> bool @@ portable =
     "%atomic_cas"
-  external compare_exchange : ('a : value_or_null mod contended portable).
-    'a t @ contended local -> 'a -> 'a -> 'a @@ portable =
+  external compare_exchange : ('a : value_or_null mod contended).
+    'a t @ contended local -> 'a -> 'a @ portable -> 'a @ contended @@ portable =
     "%atomic_compare_exchange"
 end

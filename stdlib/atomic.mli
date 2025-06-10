@@ -102,28 +102,30 @@ val decr : int t @ contended local -> unit
     via modes. *)
 module Contended : sig
   (** Like {!get}, but can be called on an atomic that came from another domain. *)
-  val get : ('a : value_or_null mod contended).
-    'a t @ contended local -> 'a
+  external get : ('a : value_or_null).
+    'a t @ contended local -> 'a @ contended @@ portable =
+    "%atomic_load"
 
   (** Like {!set}, but can be called on an atomic that came from another domain. *)
   external set
-    : ('a : value_or_null mod portable).
-    'a t @ contended local -> 'a -> unit ="%atomic_set"
+    : ('a : value_or_null mod contended).
+    'a t @ contended local -> 'a @ portable -> unit = "%atomic_set"
 
   (** Like {!exchange}, but can be called on an atomic that came from another domain. *)
   external exchange :
-    ('a : value_or_null mod contended portable).
-    'a t @ contended local -> 'a -> 'a = "%atomic_exchange"
+    ('a : value_or_null mod contended).
+    'a t @ contended local -> 'a @ portable -> 'a = "%atomic_exchange"
 
   (** Like {!compare_and_set}, but can be called on an atomic that came from another domain. *)
   external compare_and_set
-    : ('a : value_or_null mod portable).
-    'a t @ contended local -> 'a -> 'a -> bool = "%atomic_cas"
+    : ('a : value_or_null mod contended).
+    'a t @ contended local -> 'a -> 'a @ portable -> bool = "%atomic_cas"
 
   (** Like {!compare_exchange}, but can be called on an atomic that came from another domain. *)
   external compare_exchange
-    : ('a : value_or_null mod contended portable).
-    'a t @ contended local -> 'a -> 'a -> 'a = "%atomic_compare_exchange"
+    : ('a : value_or_null mod contended).
+        'a t @ contended local -> 'a -> 'a @ portable -> 'a @ contended =
+    "%atomic_compare_exchange"
 end
 
 (** {1:examples Examples}
