@@ -574,7 +574,7 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
                 fun_types,
               outer_dacc ),
             old_code_id )
-        | Code_id { code_id = old_code_id; only_known_arity } ->
+        | Code_id { code_id = old_code_id; only_full_applications } ->
           let code_id, outer_dacc, code_ids_to_never_delete_this_set =
             simplify_function context ~outer_dacc function_slot old_code_id
               ~closure_bound_names_inside_function:closure_bound_names_inside
@@ -595,7 +595,7 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
               result_code_ids_to_never_delete_this_set
           in
           ( (code_ids_to_never_delete_this_set, fun_types, outer_dacc),
-            (Code_id { code_id; only_known_arity }
+            (Code_id { code_id; only_full_applications }
               : Function_declarations.code_id_in_function_declaration) ))
       (Code_id.Set.empty, Function_slot.Map.empty, outer_dacc)
       all_function_decls_in_set
