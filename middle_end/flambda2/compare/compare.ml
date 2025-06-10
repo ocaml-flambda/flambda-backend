@@ -725,8 +725,11 @@ let function_decls env
   | ( Deleted { function_slot_size = size1; dbg = _ },
       Deleted { function_slot_size = size2; dbg = _ } ) ->
     if Int.equal size1 size2 then Equivalent else Different { approximant = () }
-  | ( Code_id { code_id = code_id1; only_full_applications = only_full_applications1 },
-      Code_id { code_id = code_id2; only_full_applications = only_full_applications2 } ) ->
+  | ( Code_id
+        { code_id = code_id1; only_full_applications = only_full_applications1 },
+      Code_id
+        { code_id = code_id2; only_full_applications = only_full_applications2 }
+    ) ->
     if code_ids env code_id1 code_id2 |> Comparison.is_equivalent
        && Bool.equal only_full_applications1 only_full_applications2
     then Equivalent

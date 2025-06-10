@@ -105,11 +105,18 @@ let compare { funs = funs1; _ } { funs = funs2; _ } =
         if c <> 0 then c else Debuginfo.compare dbg1 dbg2
       | Deleted _, Code_id _ -> -1
       | Code_id _, Deleted _ -> 1
-      | ( Code_id { code_id = code_id1; only_full_applications = only_full_applications1 },
-          Code_id { code_id = code_id2; only_full_applications = only_full_applications2 } )
-        ->
+      | ( Code_id
+            { code_id = code_id1;
+              only_full_applications = only_full_applications1
+            },
+          Code_id
+            { code_id = code_id2;
+              only_full_applications = only_full_applications2
+            } ) ->
         let c = Code_id.compare code_id1 code_id2 in
-        if c <> 0 then c else Bool.compare only_full_applications1 only_full_applications2)
+        if c <> 0
+        then c
+        else Bool.compare only_full_applications1 only_full_applications2)
     funs1 funs2
 
 let filter t ~f =
