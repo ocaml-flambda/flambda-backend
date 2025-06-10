@@ -27,7 +27,9 @@ let () =
         Some msg
     | _ -> None
   in
-  Printexc.Safe.register_printer printer
+  (* need magic because jkind doesn't know [t] crosses portability and
+    contention  *)
+  Printexc.Safe.register_printer (Obj.magic_portable printer)
 
 (* Register the exceptions so that the runtime can access it *)
 type _ t += Should_not_see_this__ : unit t

@@ -755,8 +755,6 @@ module type S = sig
     programs mode-check. The adjustment is called mode crossing. *)
     type t
 
-    (* CR zqian: Complete the lattice structure of mode crossing. *)
-
     (* CR zqian: jkind modal bounds should just be our [t]. In particular, jkind
        should infer the modal bounds of a type in the form of [Value] instead of
        [Alloc]. For example, a type could have [regional] modality, in which case
@@ -802,6 +800,12 @@ module type S = sig
 
     (** The mode crossing that crosses everything. *)
     val bot : t
+
+    (** The mode crossing that's weaker than both inputs *)
+    val join : t -> t -> t
+
+    (** The mode crossing that's stronger than both inputs *)
+    val meet : t -> t -> t
 
     (** Print the mode crossing by axis. Omit axes that do not cross. *)
     val print : Format.formatter -> t -> unit

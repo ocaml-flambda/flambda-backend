@@ -3405,6 +3405,14 @@ module Crossing = struct
     let top : t = Join_const Mode.Const.min
 
     let bot : t = Join_const Mode.Const.max
+
+    let join (t0 : t) (t1 : t) : t =
+      match t0, t1 with
+      | Join_const c0, Join_const c1 -> Join_const (Mode.Const.meet c0 c1)
+
+    let meet (t0 : t) (t1 : t) : t =
+      match t0, t1 with
+      | Join_const c0, Join_const c1 -> Join_const (Mode.Const.join c0 c1)
   end
 
   module Comonadic = struct
@@ -3434,6 +3442,14 @@ module Crossing = struct
     let top : t = Meet_const Mode.Const.max
 
     let bot : t = Meet_const Mode.Const.min
+
+    let join (t0 : t) (t1 : t) : t =
+      match t0, t1 with
+      | Meet_const c0, Meet_const c1 -> Meet_const (Mode.Const.join c0 c1)
+
+    let meet (t0 : t) (t1 : t) : t =
+      match t0, t1 with
+      | Meet_const c0, Meet_const c1 -> Meet_const (Mode.Const.meet c0 c1)
   end
 
   type t = (Monadic.t, Comonadic.t) monadic_comonadic
@@ -3493,6 +3509,16 @@ module Crossing = struct
   let top = { monadic = Monadic.top; comonadic = Comonadic.top }
 
   let bot = { monadic = Monadic.bot; comonadic = Comonadic.bot }
+
+  let join t0 t1 =
+    { monadic = Monadic.join t0.monadic t1.monadic;
+      comonadic = Comonadic.join t0.comonadic t1.comonadic
+    }
+
+  let meet t0 t1 =
+    { monadic = Monadic.meet t0.monadic t1.monadic;
+      comonadic = Comonadic.meet t0.comonadic t1.comonadic
+    }
 
   let print ppf t =
     let print_atom ppf = function

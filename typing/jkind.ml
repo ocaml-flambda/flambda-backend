@@ -2678,6 +2678,21 @@ let for_float ident =
     ~annotation:None ~why:(Primitive ident)
   |> mark_best
 
+let for_exn ident =
+  let mod_bounds =
+    (* the mode crossing is safe by [Ctype.check_constructor_crossing] *)
+    Mod_bounds.create ~locality:Locality.Const.max
+      ~linearity:Linearity.Const.max ~portability:Portability.Const.min
+      ~yielding:Yielding.Const.max ~uniqueness:Uniqueness.Const_op.max
+      ~contention:Contention.Const_op.min ~statefulness:Statefulness.Const.max
+      ~visibility:Visibility.Const_op.max ~externality:Externality.max
+      ~nullability:Nullability.Non_null ~separability:Separability.Non_float
+  in
+  fresh_jkind
+    { layout = Sort (Base Value); mod_bounds; with_bounds = No_with_bounds }
+    ~annotation:None ~why:(Primitive ident)
+  |> mark_best
+
 (******************************)
 (* elimination and defaulting *)
 
