@@ -44,21 +44,6 @@ type error =
 
 exception Error of Location.t * error
 
-(* CR layouts v7: This is used as part of the "void safety check" in the case of
-   [Tstr_eval], where we want to allow any sort (see comment on that case of
-   typemod).  Remove when we remove the safety check.
-
-   We still default to value before checking for void, to allow for sort
-   variables arising in situations like a module that is just:
-
-     exit 1;;
-
-   When this sanity check is removed, consider whether it must be replaced with
-   some defaulting. *)
-let sort_must_not_be_void loc ty sort =
-  if Jkind.Sort.Const.(equal void sort) then
-    raise (Error (loc, Non_value_jkind (ty, sort)))
-
 let cons_opt x_opt xs =
   match x_opt with
   | None -> xs
@@ -707,7 +692,6 @@ and transl_structure ~scopes loc fields cc rootpath final_env = function
             transl_structure ~scopes loc fields cc rootpath final_env rem
           in
           let sort = Jkind.Sort.default_for_transl_and_get sort in
-          sort_must_not_be_void expr.exp_loc expr.exp_type sort;
           Lsequence(transl_exp ~scopes sort expr, body), size
       | Tstr_value(rec_flag, pat_expr_list) ->
           (* Translate bindings first *)
@@ -1254,7 +1238,6 @@ let transl_store_structure ~scopes glob map prims aliases str =
         match item.str_desc with
         | Tstr_eval (expr, sort, _attrs) ->
             let sort = Jkind.Sort.default_for_transl_and_get sort in
-            sort_must_not_be_void expr.exp_loc expr.exp_type sort;
             Lsequence(Lambda.subst no_env_update subst
                         (transl_exp ~scopes sort expr),
                       transl_store ~scopes rootpath subst cont rem)
@@ -1706,7 +1689,6 @@ let transl_store_structure_gen
       | [ { str_desc = Tstr_eval (expr, sort, _attrs) } ] when topl ->
         assert (size = 0);
         let sort = Jkind.Sort.default_for_transl_and_get sort in
-        sort_must_not_be_void expr.exp_loc expr.exp_type sort;
         Lambda.subst (fun _ _ env -> env) !transl_store_subst
           (transl_exp ~scopes sort expr)
       | str ->
@@ -1835,7 +1817,6 @@ let transl_toplevel_item ~scopes item =
        unit. *)
     Tstr_eval (expr, sort, _) ->
       let sort = Jkind.Sort.default_for_transl_and_get sort in
-      sort_must_not_be_void expr.exp_loc expr.exp_type sort;
       transl_exp ~scopes sort expr
   | Tstr_value(Nonrecursive,
                [{vb_pat = {pat_desc=Tpat_any}; vb_expr = expr;
