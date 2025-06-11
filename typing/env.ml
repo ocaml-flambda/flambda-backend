@@ -3334,13 +3334,16 @@ let walk_locks_for_mutable_mode ~errors ~loc ~env  mode locks =
           be [local]. *)
           mode
       | Escape_lock (Letop | Probe | Class | Module as ctx) ->
-          may_lookup_error errors loc env (Mutable_value_used_in_closure (`Escape ctx))
+          may_lookup_error errors loc env
+            (Mutable_value_used_in_closure (`Escape ctx))
       | Share_lock (Letop | Probe | Class | Module as ctx) ->
-          may_lookup_error errors loc env (Mutable_value_used_in_closure (`Shared ctx))
+          may_lookup_error errors loc env
+            (Mutable_value_used_in_closure (`Shared ctx))
       | Share_lock (For_loop | While_loop | Comprehension) ->
           mode
       | Closure_lock _ ->
-          may_lookup_error errors loc env (Mutable_value_used_in_closure `Closure)
+          may_lookup_error errors loc env
+            (Mutable_value_used_in_closure `Closure)
       | Unboxed_lock -> mode
     ) mode locks
 
