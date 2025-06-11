@@ -10,9 +10,9 @@ type binop =
 type cmm_pattern =
   | Any of Cmm.expression pattern_var
   | Const_int_fixed of int
-  | Const_int_var of int pattern_var
+  | Const_int of int pattern_var
   | Const_natint_fixed of Nativeint.t
-  | Const_natint_var of Nativeint.t pattern_var
+  | Const_natint of Nativeint.t pattern_var
   | Binop of binop * cmm_pattern * cmm_pattern
   | When of cmm_pattern * (Env.t -> bool)
 

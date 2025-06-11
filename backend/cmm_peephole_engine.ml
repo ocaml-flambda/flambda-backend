@@ -84,9 +84,9 @@ type binop =
 type cmm_pattern =
   | Any of Cmm.expression pattern_var
   | Const_int_fixed of int
-  | Const_int_var of int pattern_var
+  | Const_int of int pattern_var
   | Const_natint_fixed of Nativeint.t
-  | Const_natint_var of Nativeint.t pattern_var
+  | Const_natint of Nativeint.t pattern_var
   | Binop of binop * cmm_pattern * cmm_pattern
   | When of cmm_pattern * (Env.t -> bool)
 
@@ -110,11 +110,11 @@ let match_clauses_in_order clauses expr =
     | Any v, expr -> Some (Env.add env v expr)
     | Const_int_fixed n1, Cconst_int (n2, _) ->
         if Int.equal n1 n2 then Some env else None
-    | Const_int_var v, Cconst_int (n, _) ->
+    | Const_int v, Cconst_int (n, _) ->
         Some (Env.add env v n)
     | Const_natint_fixed n1, Cconst_natint (n2, _) ->
         if Nativeint.equal n1 n2 then Some env else None
-    | Const_natint_var v, Cconst_natint (n, _) ->
+    | Const_natint v, Cconst_natint (n, _) ->
         Some (Env.add env v n)
     | Binop (binop, pat1, pat2), Cop (cop, [expr1; expr2], _) ->
         if matches_binop binop cop then
