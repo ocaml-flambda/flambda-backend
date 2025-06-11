@@ -383,6 +383,31 @@ let rec add_const c n dbg =
           add_const c (n - x) dbg
         | _ -> Cop (Caddi, [c; Cconst_int (n, dbg)], dbg))
 
+let rec add_const' arg const dbg =
+  let res = Cop (Caddi, [prefer_add arg; Cconst_int (const, dbg)], dbg) in
+  let n = P.create_var Int "n" in
+  let x = P.create_var Int "x" in
+  P.run res [
+    Binop (Add, Any c, Const_int_fixed 0) => (fun e -> e#.c);
+    When (Binop (Add, Const_int x, Const_int n),
+          (fun e -> Misc.no_overflow_add e#.n e#.x))
+    => (fun e -> Cconst_int (e#.x + e#.n, dbg));
+    When (Binop (Add, Binop (Add, Const_int x, Any c), Const_int n),
+          (fun e -> Misc.no_overflow_add e#.n e#.x))
+    => (fun e -> add_no_overflow e#.n e#.x e#.c dbg);
+    When (Binop (Add, Binop (Add, Any c, Const_int x), Const_int n),
+          (fun e -> Misc.no_overflow_add e#.n e#.x))
+    => (fun e -> add_no_overflow e#.n e#.x e#.c dbg);
+    When (Binop (Add, Binop (Sub, Const_int x, Any c), Const_int n),
+          (fun e -> Misc.no_overflow_add e#.n e#.x))
+    => (fun e -> Cop (Csubi, [Cconst_int (e#.n + e#.x, dbg); e#.c], dbg));
+    When (Binop (Add, Binop (Sub, Any c, Const_int x), Const_int n),
+          (fun e -> Misc.no_overflow_sub e#.n e#.x))
+    => (fun e -> add_const' e#.c (e#.n - e#.x) dbg);
+  ]
+
+let add_const = if false then add_const else add_const'
+
 let incr_int c dbg = add_const c 1 dbg
 
 let decr_int c dbg = add_const c (-1) dbg
