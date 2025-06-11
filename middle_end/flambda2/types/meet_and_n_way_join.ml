@@ -1370,6 +1370,14 @@ and meet_row_like :
       (case2 :
         ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option) :
       ('lattice, 'shape, 'maps_to) TG.Row_like_case.t Or_unknown.t option =
+    (* CR bclement: When we return [None] below but either of the inputs were
+       not [None], we fall back to the [other] case. This can cause loss of
+       precision if the [other] case is not [Bottom], as we forget that the
+       current case is impossible.
+
+       Fixing this would require storing [Or_unknown_or_bottom.t] in the
+       row_like_for_block case, so leave it as is for now -- this should be
+       fairly rare. *)
     match case1, case2 with
     | None, None -> None
     | Some case1, None -> (
