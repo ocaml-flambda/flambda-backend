@@ -444,6 +444,21 @@ let rec sub_int c1 c2 dbg =
         add_const (sub_int c1 c2 dbg) n1 dbg
       | _, _ -> Cop (Csubi, [c1; c2], dbg))
 
+let rec sub_int' arg1 arg2 dbg =
+  let res = Cop (Csubi, [prefer_add arg1; prefer_add arg2], dbg) in
+  P.run res [
+    When (Binop (Sub, Any c1, Const_int n2),
+          (fun e -> e#.n2 <> min_int))
+    => (fun e -> add_const e#.c1 (-e#.n2) dbg);
+    When (Binop (Sub, Any c1, Binop (Add, Any c2, Const_int n2)),
+          (fun e -> e#.n2 <> min_int))
+    => (fun e -> add_const (sub_int' e#.c1 e#.c2 dbg) (-e#.n2) dbg);
+    Binop (Sub, Binop (Add, Any c1, Const_int n1), Any c2)
+    => (fun e -> add_const (sub_int' e#.c1 e#.c2 dbg) e#.n1 dbg)
+  ]
+
+let sub_int = if false then sub_int else sub_int'
+
 let add_int_addr c1 c2 dbg = Cop (Cadda, [c1; c2], dbg)
 
 let add_int_ptr ~ptr_out_of_heap c1 c2 dbg =
