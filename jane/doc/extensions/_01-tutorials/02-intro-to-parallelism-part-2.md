@@ -1,4 +1,9 @@
-# Parallelism Tutorial II
+---
+layout: documentation-page
+collectionName: Tutorials
+title: Introduction to parallelism, Part 2
+---
+# Parallelism Tutorial: Part 2
 
 The [first parallelism tutorial](./parallelism-tutorial.md) introduced the contention and portability mode axes, showcasing their use in fork/join parallelism and parallel sequences.
 However, it only covered one way to share mutable data between `portable` functions: [atomics](https://github.com/janestreet/portable/blob/master/kernel/src/atomic.mli).

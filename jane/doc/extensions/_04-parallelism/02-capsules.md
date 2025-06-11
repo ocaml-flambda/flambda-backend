@@ -1,3 +1,9 @@
+---
+layout: documentation-page
+collectionName: Parallelism
+title: Capsules
+---
+
 # Capsules
 
 _This page introduces the ["expert" capsule API](https://github.com/janestreet/basement/blob/master/src/capsule.mli).

@@ -1,10 +1,10 @@
 ---
 layout: documentation-page
-collectionName: Miscellaneous extensions
-title: SIMD
+collectionName: SIMD
+title: Intro
 ---
 
-# SIMD
+# Using SIMD processor extensions in OxCaml
 
 The OxCaml compiler provides built-in 128-bit SIMD vector types, as well as
 intrinsics for amd64 SIMD instructions up to and including SSE4.2.
