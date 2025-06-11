@@ -400,10 +400,12 @@ let rec add_int c1 c2 dbg =
 let rec add_int' arg1 arg2 dbg =
   let res = Cop (Caddi, [arg1; arg2], dbg) in
   P.run res [
-    Add (Const_int_var i, Var c), (fun e -> add_const e#.c e#.i dbg);
-    Add (Var c, Const_int_var i), (fun e -> add_const e#.c e#.i dbg);
-    Add (Add (Var c1, Const_int_var i1), Var c2), (fun e -> add_const (add_int' e#.c1 e#.c2 dbg) e#.i1 dbg);
-    Add (Var c1, Add (Var c2, Const_int_var i2)), (fun e -> add_const (add_int' e#.c1 e#.c2 dbg) e#.i2 dbg);
+    Binop (Add, Const_int_var i, Any c) => (fun e -> add_const e#.c e#.i dbg);
+    Binop (Add, Any c, Const_int_var i) => (fun e -> add_const e#.c e#.i dbg);
+    Binop (Add, Binop (Add, Any c1, Const_int_var i1), Any c2)
+    => (fun e -> add_const (add_int' e#.c1 e#.c2 dbg) e#.i1 dbg);
+    Binop (Add, Any c1, Binop (Add, Any c2, Const_int_var i2))
+    => (fun e -> add_const (add_int' e#.c1 e#.c2 dbg) e#.i2 dbg);
   ]
 
 let add_int = if false then add_int else add_int'

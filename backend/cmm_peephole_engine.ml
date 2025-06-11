@@ -78,64 +78,53 @@ end = struct
       expr env.phantom_lets_rev
 end
 
+type binop =
+  | Add
+
 type cmm_pattern =
-  | Any
-  | Var of Cmm.expression pattern_var
+  | Any of Cmm.expression pattern_var
   | Const_int_fixed of int
   | Const_int_var of int pattern_var
   | Const_natint_fixed of Nativeint.t
   | Const_natint_var of Nativeint.t pattern_var
-  | Add of cmm_pattern * cmm_pattern
+  | Binop of binop * cmm_pattern * cmm_pattern
   | When of cmm_pattern * (Env.t -> bool)
 
 type 'a clause =
   cmm_pattern * (Env.t -> 'a)
 
+let matches_binop (binop : binop) (cop : Cmm.operation) =
+  match binop, cop with
+  | Add, Caddi -> true
+  | _, _ -> false
+
 let match_clauses_in_order clauses expr =
+  let (let*) = Option.bind in
   let rec match_one_pattern env pat (expr : Cmm.expression) =
     match expr with
     | Cphantom_let (phantom_var, defining_expr, expr) ->
         let env = Env.register_phantom_let env ~phantom_var ~defining_expr in
         match_one_pattern env pat expr
     | _ -> begin
-    match pat with
-    | Any -> Some env
-    | Var v -> Some (Env.add env v expr)
-    | Const_int_fixed n1 -> begin
-        match expr with
-        | Cconst_int (n2, _) -> if Int.equal n1 n2 then Some env else None
-        | _ -> None
-      end
-    | Const_int_var v -> begin
-        match expr with
-        | Cconst_int (n, _) -> Some (Env.add env v n)
-        | _ -> None
-      end
-    | Const_natint_fixed n1 -> begin
-        match expr with
-        | Cconst_natint (n2, _) -> if Nativeint.equal n1 n2 then Some env else None
-        | _ -> None
-      end
-    | Const_natint_var v -> begin
-        match expr with
-        | Cconst_natint (n, _) -> Some (Env.add env v n)
-        | _ -> None
-      end
-    | Add (pat1, pat2) ->begin
-        match expr with
-        | Cop (Caddi, [expr1; expr2], _) -> begin
-          match match_one_pattern env pat1 expr1 with
-          | Some env ->
-            match_one_pattern env pat2 expr2
-          | None -> None
-        end
-        | _ -> None
-      end
-    | When (pat, guard) -> begin
-        match match_one_pattern env pat expr with
-        | Some env -> if guard env then Some env else None
-        | None -> None
-      end
+    match pat, expr with
+    | Any v, expr -> Some (Env.add env v expr)
+    | Const_int_fixed n1, Cconst_int (n2, _) ->
+        if Int.equal n1 n2 then Some env else None
+    | Const_int_var v, Cconst_int (n, _) ->
+        Some (Env.add env v n)
+    | Const_natint_fixed n1, Cconst_natint (n2, _) ->
+        if Nativeint.equal n1 n2 then Some env else None
+    | Const_natint_var v, Cconst_natint (n, _) ->
+        Some (Env.add env v n)
+    | Binop (binop, pat1, pat2), Cop (cop, [expr1; expr2], _) ->
+        if matches_binop binop cop then
+          let* env = match_one_pattern env pat1 expr1 in
+          match_one_pattern env pat2 expr2
+        else None
+    | When (pat, guard), expr ->
+        let* env = match_one_pattern env pat expr in
+        if guard env then Some env else None
+    | _, _ -> None
   end
   in
   let rec find_matching_clause expr = function
@@ -152,6 +141,7 @@ let run expr clauses =
   match_clauses_in_order clauses expr
 
 module Syntax = struct
+  let (=>) lhs rhs = lhs, rhs
   let (#.) = Env.find_exn
 end
 

@@ -4,22 +4,24 @@ module Env : sig
   type t
 end
 
+type binop =
+  | Add
+
 type cmm_pattern =
-  | Any
-  | Var of Cmm.expression pattern_var
+  | Any of Cmm.expression pattern_var
   | Const_int_fixed of int
   | Const_int_var of int pattern_var
   | Const_natint_fixed of Nativeint.t
   | Const_natint_var of Nativeint.t pattern_var
-  | Add of cmm_pattern * cmm_pattern
+  | Binop of binop * cmm_pattern * cmm_pattern
   | When of cmm_pattern * (Env.t -> bool)
 
-type 'a clause =
-  cmm_pattern * (Env.t -> 'a)
+type 'a clause
 
 val run : Cmm.expression -> Cmm.expression clause list -> Cmm.expression
 
 module Syntax : sig
+  val (=>) : cmm_pattern -> (Env.t -> 'a) -> 'a clause
   val (#.) : Env.t -> 'a pattern_var -> 'a
 end
 
