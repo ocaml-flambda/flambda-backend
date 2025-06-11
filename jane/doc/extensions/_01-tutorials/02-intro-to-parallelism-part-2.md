@@ -3,6 +3,28 @@ layout: documentation-page
 collectionName: Tutorials
 title: Introduction to parallelism, Part 2
 ---
+
+<style>
+.table {
+    width: fit-content;
+    margin-bottom: 20px;
+    border: 1px solid black;
+    border-collapse: collapse;
+    td, th {
+      font-size: 0.95em;
+      border: 1px solid black;
+      padding-left: 6px;
+      padding-right: 6px;
+      padding-top: 5px;
+      padding-bottom: 3px;
+    }
+    th {
+      text-align: center;
+      border-bottom: 2px solid black;
+    }
+}
+</style>
+
 # Parallelism Tutorial: Part 2
 
 The [first parallelism tutorial](../01-intro-to-parallelism-part-1) introduced the
@@ -49,7 +71,7 @@ Capsule.Data.t`.  This type can be thought of as a pointer to a value of type
 `'a` that is protected by capsule `'k`.
 
 ```ocaml
-let capsule_ref = Capsule.Data.create (fun () -> ref 0) in (* ... *)
+let capsule_ref = Capsule.Data.create (fun () -> ref 0)
 ```
 
 Even though the capsule may contain mutable state, encapsulated data crosses
@@ -169,8 +191,9 @@ let rec quicksort slice =
   if Slice.length slice > 1
   then (
     let pivot = partition slice in
+    let length = Slice.length slice in
     let left = Slice.sub slice ~i:0 ~j:pivot in
-    let right = Slice.sub slice ~i:pivot ~j:(Slice.length slice) in
+    let right = Slice.sub slice ~i:pivot ~j:length in
     quicksort left;
     quicksort right [@nontail])
 ;;
@@ -188,14 +211,16 @@ let rec quicksort parallel slice =
   if Slice.length slice > 1
   then (
     let pivot = partition slice in
+    let length = Slice.length slice in
     let left = Slice.sub slice ~i:0 ~j:pivot in
-    let right = Slice.sub slice ~i:pivot ~j:(Slice.length slice) in
+    let right = Slice.sub slice ~i:pivot ~j:length in
     let (), () =
       Parallel.fork_join2
         parallel
         (fun parallel -> quicksort parallel left)
-(*                                          ^^^^                                   *)
-(* The value left is local, so cannot be used inside a function that might escape. *)
+(*                                          ^^^^        *)
+(* The value left is local, so cannot be used inside a  *)
+(* function that might escape.                          *)
         (fun parallel -> quicksort parallel right)
     in
     ())
@@ -236,10 +261,10 @@ from a scheduler.  For example, using `Parallel_scheduler_work_stealing`:
 let quicksort ~scheduler ~mutex array =
     let monitor = Parallel.Monitor.create_root () in
     Parallel_scheduler_work_stealing.schedule scheduler ~monitor ~f:(fun parallel ->
-      let array = Par_array.of_array array in
-(*                                   ^^^^^                 *)
+        let array = Par_array.of_array array in
+(*                                     ^^^^^               *)
 (* This value is contended but expected to be uncontended. *)
-      quicksort parallel (Slice.slice array) [@nontail])
+        quicksort parallel (Slice.slice array) [@nontail])
   ;;
 ```
 
@@ -251,12 +276,12 @@ assures that our caller is not mutating it in parallel.
 let quicksort ~scheduler ~mutex array =
   let monitor = Parallel.Monitor.create_root () in
   Parallel_scheduler_work_stealing.schedule scheduler ~monitor ~f:(fun parallel ->
-    Capsule.Mutex.with_lock mutex ~f:(fun password ->
-      Capsule.Data.iter array ~password ~f:(fun array ->
-        let array = Par_array.of_array array in
-        quicksort parallel (Slice.slice array) [@nontail])
+      Capsule.Mutex.with_lock mutex ~f:(fun password ->
+        Capsule.Data.iter array ~password ~f:(fun array ->
+          let array = Par_array.of_array array in
+          quicksort parallel (Slice.slice array) [@nontail])
+        [@nontail])
       [@nontail])
-    [@nontail])
 ;;
 ```
 
@@ -270,6 +295,7 @@ Sequential | 2.36
 2          | 1.70
 4          | 1.09
 8          | 0.78
+{: .table }
 
 Our code runs faster given more domains, but quicksort only admits a limited
 amount of parallelism&mdash;eventually, the cost of sequentially partitioning
@@ -317,8 +343,12 @@ let blur_at image ~x ~y =
   let radius = 4 in
   for i = -radius to radius do
     for j = -radius to radius do
-      let x = Int.clamp_exn (x + i) ~min:0 ~max:(width - 1) in
-      let y = Int.clamp_exn (y + j) ~min:0 ~max:(height - 1) in
+      let x =
+        Int.clamp_exn (x + i) ~min:0 ~max:(width - 1)
+      in
+      let y =
+        Int.clamp_exn (y + j) ~min:0 ~max:(height - 1)
+      in
       acc := !acc +. Image.get image ~x ~y
     done
   done;
@@ -349,7 +379,8 @@ let filter ~scheduler ~mutex image =
         let y = i / width in
         Capsule.Mutex.with_lock mutex ~f:(fun password ->
           Capsule.access ~password ~f:(fun access ->
-            blur_at (Capsule.Data.unwrap image ~access) ~x ~y)))
+            let image = Capsule.Data.unwrap image ~access in
+            blur_at image ~x ~y)))
     in
     Image.of_array (Par_array.to_array data) ~width ~height)
 ;;
@@ -363,6 +394,7 @@ Domains | Time (ms)
 2       | 705
 4       | 812
 8       | 977
+{: .table }
 
 ...we'll find that it gets slower with more domains!  That's because our mutex
 only allows one domain at a time to access the input image, destroying any
@@ -395,20 +427,24 @@ Instead of protecting the input image with a mutex, we can instead use an
 input, but that's perfectly fine here.
 
 ```ocaml
-
 let filter ~scheduler ~key image =
   let monitor = Parallel.Monitor.create_root () in
   Parallel_scheduler_work_stealing.schedule scheduler ~monitor ~f:(fun parallel ->
     let width = Image.width (Capsule.Data.project image) in
     let height = Image.height (Capsule.Data.project image) in
+    let pixels = width * height in
     let data =
-      Parallel_array.init parallel (width * height) ~f:(fun i ->
+      Parallel_array.init parallel pixels ~f:(fun i ->
         let x = i % width in
         let y = i / width in
         Capsule.Key.access_shared key ~f:(fun access ->
-          blur_at (Capsule.Data.unwrap_shared image ~access) ~x ~y))
+          let image =
+            Capsule.Data.unwrap_shared image ~access
+          in
+          blur_at image ~x ~y))
     in
-    Image.of_array (Parallel_array.to_array data) ~width ~height)
+    Parallel_array.to_array data
+    |> Image.of_array ~width ~height)
 ;;
 ```
 
@@ -424,6 +460,7 @@ Domains | Time (ms)
 2       | 150
 4       | 81
 8       | 51
+{: .table }
 
 ## Further Reading
 
