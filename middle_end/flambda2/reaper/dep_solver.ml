@@ -1761,6 +1761,7 @@ let cannot_change_calling_convention_of_called_closure_query2 =
         cannot_change_calling_convention codeid ])
 
 let cannot_change_calling_convention uses v =
+  not (Compilation_unit.is_current (Code_id.get_compilation_unit v)) ||
   exists_with_parameters cannot_change_calling_convention_query
     [Code_id_or_name.code_id v]
     uses.db

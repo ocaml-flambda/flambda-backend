@@ -453,7 +453,7 @@ let rewrite_set_of_closures env res ~(bound : Name.t list)
           | Code_id { code_id; only_full_applications } ->
             if code_is_used bound_name
             then
-              let changed_calling_convention = false &&
+              let changed_calling_convention =
                 not (DS.cannot_change_calling_convention env.uses code_id)
               in
               Code_id
