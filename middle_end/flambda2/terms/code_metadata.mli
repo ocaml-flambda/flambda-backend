@@ -131,6 +131,8 @@ val with_params_arity : [`Complex] Flambda_arity.t -> t -> t
 
 val with_param_modes : Alloc_mode.For_types.t list -> t -> t
 
+val with_is_tupled : bool -> t -> t
+
 val print : Format.formatter -> t -> unit
 
 (** [free_names] does not return occurrences of value slots inside the

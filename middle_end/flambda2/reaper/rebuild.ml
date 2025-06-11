@@ -453,7 +453,7 @@ let rewrite_set_of_closures env res ~(bound : Name.t list)
           | Code_id { code_id; only_full_applications } ->
             if code_is_used bound_name
             then
-              let changed_calling_convention =
+              let changed_calling_convention = false &&
                 not (DS.cannot_change_calling_convention env.uses code_id)
               in
               Code_id
@@ -1692,8 +1692,8 @@ and rebuild_function_params_and_body (env : env) res code_metadata
       Code_id.Map.find code_id env.function_params_to_keep
     in
     let result_arity = Flambda_arity.unarize_t (get_arity return_decisions) in
-    let code_metadata =
-      Code_metadata.with_result_arity result_arity code_metadata
+    let code_metadata = Code_metadata.with_is_tupled false (
+      Code_metadata.with_result_arity result_arity code_metadata)
     in
     let params_decision =
       List.map2
