@@ -11,12 +11,9 @@ module Default_variables : sig
   val c : Cmm.expression pattern_var
   val c1 : Cmm.expression pattern_var
   val c2 : Cmm.expression pattern_var
-  val i : int pattern_var
-  val i1 : int pattern_var
-  val i2 : int pattern_var
-  val n : Nativeint.t pattern_var
-  val n1 : Nativeint.t pattern_var
-  val n2 : Nativeint.t pattern_var
+  val n : int pattern_var
+  val n1 : int pattern_var
+  val n2 : int pattern_var
 end
 
 module Env : sig

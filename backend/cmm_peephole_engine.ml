@@ -151,10 +151,7 @@ module Default_variables = struct
   let c = create_var Expr "c"
   let c1 = create_var Expr "c1"
   let c2 = create_var Expr "c2"
-  let i = create_var Int "i"
-  let i1 = create_var Int "i1"
-  let i2 = create_var Int "i2"
-  let n = create_var Natint "n"
-  let n1 = create_var Natint "n1"
-  let n2 = create_var Natint "n2"
+  let n = create_var Int "n"
+  let n1 = create_var Int "n1"
+  let n2 = create_var Int "n2"
 end
