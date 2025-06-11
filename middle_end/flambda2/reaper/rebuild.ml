@@ -452,7 +452,15 @@ let rewrite_set_of_closures env res ~(bound : Name.t list)
           | Deleted _ -> code_id
           | Code_id { code_id; only_full_applications } ->
             if code_is_used bound_name
-            then Code_id { code_id; only_full_applications }
+            then
+              let changed_calling_convention =
+                not (DS.cannot_change_calling_convention env.uses code_id)
+              in
+              Code_id
+                { code_id;
+                  only_full_applications =
+                    only_full_applications || changed_calling_convention
+                }
             else
               let code_metadata = env.get_code_metadata code_id in
               Deleted
@@ -1747,9 +1755,8 @@ and rebuild_function_params_and_body (env : env) res code_metadata
       Flambda_arity.create (List.map components_for params)
     in
     let code_metadata =
-      Code_metadata.with_never_called_indirectly true
-        (Code_metadata.with_params_arity params_arity
-           (Code_metadata.with_param_modes modes code_metadata))
+      Code_metadata.with_params_arity params_arity
+        (Code_metadata.with_param_modes modes code_metadata)
     in
     let body, res = rebuild_body () in
     (* Format.eprintf "REBUILD %a FREE %a@." Code_id.print code_id

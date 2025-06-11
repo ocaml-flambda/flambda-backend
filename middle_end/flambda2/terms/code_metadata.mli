@@ -70,8 +70,6 @@ module type Code_metadata_accessors_result_type = sig
 
   val is_my_closure_used : 'a t -> bool
 
-  val never_called_indirectly : 'a t -> bool
-
   val inlining_decision : 'a t -> Function_decl_inlining_decision_type.t
 
   val absolute_history : 'a t -> Inlining_history.Absolute.t
@@ -109,7 +107,6 @@ type 'a create_type =
   dbg:Debuginfo.t ->
   is_tupled:bool ->
   is_my_closure_used:bool ->
-  never_called_indirectly:bool ->
   inlining_decision:Function_decl_inlining_decision_type.t ->
   absolute_history:Inlining_history.Absolute.t ->
   relative_history:Inlining_history.Relative.t ->
@@ -128,15 +125,11 @@ val with_cost_metrics : Cost_metrics.t -> t -> t
 
 val with_is_my_closure_used : bool -> t -> t
 
+val with_result_arity : [`Unarized] Flambda_arity.t -> t -> t
+
 val with_params_arity : [`Complex] Flambda_arity.t -> t -> t
 
 val with_param_modes : Alloc_mode.For_types.t list -> t -> t
-
-val with_result_arity : [`Unarized] Flambda_arity.t -> t -> t
-
-val with_is_tupled : bool -> t -> t
-
-val with_never_called_indirectly : bool -> t -> t
 
 val print : Format.formatter -> t -> unit
 

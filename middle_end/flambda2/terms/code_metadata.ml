@@ -38,7 +38,6 @@ type t =
     dbg : Debuginfo.t;
     is_tupled : bool;
     is_my_closure_used : bool;
-    never_called_indirectly : bool;
     inlining_decision : Function_decl_inlining_decision_type.t;
     absolute_history : Inlining_history.Absolute.t;
     relative_history : Inlining_history.Relative.t;
@@ -96,8 +95,6 @@ module Code_metadata_accessors (X : Metadata_view_type) = struct
 
   let is_my_closure_used t = (metadata t).is_my_closure_used
 
-  let never_called_indirectly t = (metadata t).never_called_indirectly
-
   let inlining_decision t = (metadata t).inlining_decision
 
   let absolute_history t = (metadata t).absolute_history
@@ -152,7 +149,6 @@ type 'a create_type =
   dbg:Debuginfo.t ->
   is_tupled:bool ->
   is_my_closure_used:bool ->
-  never_called_indirectly:bool ->
   inlining_decision:Function_decl_inlining_decision_type.t ->
   absolute_history:Inlining_history.Absolute.t ->
   relative_history:Inlining_history.Relative.t ->
@@ -163,8 +159,8 @@ let createk k code_id ~newer_version_of ~params_arity ~param_modes
     ~first_complex_local_param ~result_arity ~result_types ~result_mode ~stub
     ~(inline : Inline_attribute.t) ~zero_alloc_attribute ~poll_attribute
     ~is_a_functor ~is_opaque ~recursive ~cost_metrics ~inlining_arguments ~dbg
-    ~is_tupled ~is_my_closure_used ~never_called_indirectly ~inlining_decision
-    ~absolute_history ~relative_history ~loopify =
+    ~is_tupled ~is_my_closure_used ~inlining_decision ~absolute_history
+    ~relative_history ~loopify =
   (match stub, inline with
   | true, (Available_inline | Never_inline | Default_inline)
   | ( false,
@@ -173,10 +169,8 @@ let createk k code_id ~newer_version_of ~params_arity ~param_modes
     ()
   | true, (Always_inline | Unroll _) ->
     Misc.fatal_error "Stubs may not be annotated as [Always_inline] or [Unroll]");
-  if Flambda_arity.num_params params_arity > 1
-     (* XXX fixme *)
-     && (first_complex_local_param < 0
-        || first_complex_local_param > Flambda_arity.num_params params_arity)
+  if first_complex_local_param < 0
+     || first_complex_local_param > Flambda_arity.num_params params_arity
   then
     Misc.fatal_errorf
       "Illegal first_complex_local_param=%d for params arity: %a"
@@ -211,7 +205,6 @@ let createk k code_id ~newer_version_of ~params_arity ~param_modes
       dbg;
       is_tupled;
       is_my_closure_used;
-      never_called_indirectly;
       inlining_decision;
       absolute_history;
       relative_history;
@@ -228,16 +221,11 @@ let with_cost_metrics cost_metrics t = { t with cost_metrics }
 
 let with_is_my_closure_used is_my_closure_used t = { t with is_my_closure_used }
 
+let with_result_arity result_arity t = { t with result_arity }
+
 let with_params_arity params_arity t = { t with params_arity }
 
 let with_param_modes param_modes t = { t with param_modes }
-
-let with_result_arity result_arity t = { t with result_arity }
-
-let with_is_tupled is_tupled t = { t with is_tupled }
-
-let with_never_called_indirectly never_called_indirectly t =
-  { t with never_called_indirectly }
 
 module Option = struct
   include Option
@@ -263,8 +251,8 @@ let [@ocamlformat "disable"] print ppf
          first_complex_local_param; result_arity;
          result_types; result_mode;
          recursive; cost_metrics; inlining_arguments;
-         dbg; is_tupled; is_my_closure_used; never_called_indirectly;
-         inlining_decision; absolute_history; relative_history; loopify } =
+         dbg; is_tupled; is_my_closure_used; inlining_decision;
+         absolute_history; relative_history; loopify } =
   let module C = Flambda_colours in
   Format.fprintf ppf "@[<hov 1>(\
       @[<hov 1>%t(newer_version_of@ %a)%t@]@ \
@@ -286,7 +274,6 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>%t(dbg@ %a)%t@]@ \
       @[<hov 1>%t(is_tupled@ %b)%t@]@ \
       @[<hov 1>(is_my_closure_used@ %b)@]@ \
-      @[<hov 1>%t(never_called_indirectly@ %b)%t@]@ \
       %a\
       @[<hov 1>(inlining_decision@ %a)@]@ \
       @[<hov 1>(loopify@ %a)@]\
@@ -369,9 +356,6 @@ let [@ocamlformat "disable"] print ppf
     is_tupled
     Flambda_colours.pop
     is_my_closure_used
-    (if not never_called_indirectly then C.elide else C.none)
-    never_called_indirectly
-    C.pop
     print_inlining_paths (relative_history, absolute_history)
     Function_decl_inlining_decision_type.print inlining_decision
     Loopify_attribute.print loopify
@@ -397,7 +381,6 @@ let free_names
       dbg = _;
       is_tupled = _;
       is_my_closure_used = _;
-      never_called_indirectly = _;
       inlining_decision = _;
       absolute_history = _;
       relative_history = _;
@@ -440,7 +423,6 @@ let apply_renaming
        dbg = _;
        is_tupled = _;
        is_my_closure_used = _;
-       never_called_indirectly = _;
        inlining_decision = _;
        absolute_history = _;
        relative_history = _;
@@ -494,7 +476,6 @@ let ids_for_export
       dbg = _;
       is_tupled = _;
       is_my_closure_used = _;
-      never_called_indirectly = _;
       inlining_decision = _;
       absolute_history = _;
       relative_history = _;
@@ -534,7 +515,6 @@ let approx_equal
       dbg = dbg1;
       is_tupled = is_tupled1;
       is_my_closure_used = is_my_closure_used1;
-      never_called_indirectly = never_called_indirectly1;
       inlining_decision = inlining_decision1;
       absolute_history = absolute_history1;
       relative_history = relative_history1;
@@ -560,7 +540,6 @@ let approx_equal
       dbg = dbg2;
       is_tupled = is_tupled2;
       is_my_closure_used = is_my_closure_used2;
-      never_called_indirectly = never_called_indirectly2;
       inlining_decision = inlining_decision2;
       absolute_history = absolute_history2;
       relative_history = relative_history2;
@@ -585,7 +564,6 @@ let approx_equal
   && Int.equal (Debuginfo.compare dbg1 dbg2) 0
   && Bool.equal is_tupled1 is_tupled2
   && Bool.equal is_my_closure_used1 is_my_closure_used2
-  && Bool.equal never_called_indirectly1 never_called_indirectly2
   && Function_decl_inlining_decision_type.equal inlining_decision1
        inlining_decision2
   && Inlining_history.Absolute.compare absolute_history1 absolute_history2 = 0
