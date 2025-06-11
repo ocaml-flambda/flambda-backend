@@ -448,6 +448,7 @@
   cmm_helpers
   cmm_builtins
   cmm_invariants
+  cmm_peephole_engine
   cmm
   cmmgen_state
   CSE

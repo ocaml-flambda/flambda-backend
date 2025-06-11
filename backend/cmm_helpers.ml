@@ -19,6 +19,9 @@
    Int_replace_polymorphic_compare *)
 module V = Backend_var
 module VP = Backend_var.With_provenance
+module P = Cmm_peephole_engine
+open P.Syntax
+open P.Default_variables
 open Cmm
 open Arch
 
@@ -393,6 +396,17 @@ let rec add_int c1 c2 dbg =
       | c1, Cop (Caddi, [c2; Cconst_int (n2, _)], _) ->
         add_const (add_int c1 c2 dbg) n2 dbg
       | _, _ -> Cop (Caddi, [c1; c2], dbg))
+
+let rec add_int' arg1 arg2 dbg =
+  let res = Cop (Caddi, [arg1; arg2], dbg) in
+  P.run res [
+    Add (Const_int_var i, Var c), (fun e -> add_const e#.c e#.i dbg);
+    Add (Var c, Const_int_var i), (fun e -> add_const e#.c e#.i dbg);
+    Add (Add (Var c1, Const_int_var i1), Var c2), (fun e -> add_const (add_int' e#.c1 e#.c2 dbg) e#.i1 dbg);
+    Add (Var c1, Add (Var c2, Const_int_var i2)), (fun e -> add_const (add_int' e#.c1 e#.c2 dbg) e#.i2 dbg);
+  ]
+
+let add_int = if false then add_int else add_int'
 
 let rec sub_int c1 c2 dbg =
   map_tail2 c1 c2 ~f:(fun c1 c2 ->
