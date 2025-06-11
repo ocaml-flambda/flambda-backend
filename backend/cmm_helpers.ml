@@ -423,7 +423,7 @@ let rec add_int c1 c2 dbg =
       | _, _ -> Cop (Caddi, [c1; c2], dbg))
 
 let rec add_int' arg1 arg2 dbg =
-  let res = Cop (Caddi, [arg1; arg2], dbg) in
+  let res = Cop (Caddi, [prefer_add arg1; prefer_add arg2], dbg) in
   P.run res [
     Binop (Add, Const_int i, Any c) => (fun e -> add_const e#.c e#.i dbg);
     Binop (Add, Any c, Const_int i) => (fun e -> add_const e#.c e#.i dbg);
