@@ -8,7 +8,7 @@ title: Intro
 
 This page introduces comprehensions and gives a high-level, user-oriented
 overview.
-For more technical details, see [the detailed documentation](../details).
+For more technical details, see [the detailed documentation](../02-details).
 
 # List and array comprehensions
 
@@ -152,4 +152,4 @@ per surrounding iteration before any of them begin to iterate.
 
 This should be enough to use comprehensions on a day-to-day basis; if you have
 more questions, or are curious about how things work on the inside, see
-the [details page](../details).
+the [details page](../02-details).

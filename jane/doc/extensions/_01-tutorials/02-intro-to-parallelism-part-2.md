@@ -5,7 +5,7 @@ title: Introduction to parallelism, Part 2
 ---
 # Parallelism Tutorial: Part 2
 
-The [first parallelism tutorial](../parallelism-tutorial.md) introduced the
+The [first parallelism tutorial](../01-intro-to-parallelism-part-1) introduced the
 contention and portability mode axes, showcasing their use in fork/join
 parallelism and parallel sequences.  However, it only covered one way to share
 mutable data between `portable` functions:
@@ -20,8 +20,8 @@ can be used parallelize programs that operate on more complex mutable data.
 
 _This tutorial uses the ["expert" capsule
 API](https://github.com/janestreet/basement/blob/master/src/capsule.mli), which
-is explained in more detail [here](./capsules.md).  For a brief overview, read
-on._
+is explained in more detail [here](../../parallelism/02-capsules).  For a brief
+overview, read on._
 
 Wrapping mutable state in an `Atomic.t` can be a reasonable approach, but
 parallel programs often require other concurrency primitives, such as locks.
@@ -70,7 +70,7 @@ Note that `Capsule.create` returns a "packed" key: its brand is
 [existential](https://dev.realworldocaml.org/gadts.html), so unpacking the
 result produces a fresh `'k` distinct from all other capsule brands.
 
-Keys are protected by [_uniqueness_](./extensions/_06-uniqueness/intro.md),
+Keys are protected by [_uniqueness_](../../uniqueness/intro),
 which is another modal axis that tracks whether there exist multiple references
 to a value.  Given a `unique` key (as opposed to `aliased`), we know the current
 thread holds the only reference to the key, so may manipulate the contents of
@@ -334,7 +334,7 @@ Since we want to share the input image across multiple parallel tasks, we'll
 need to provide it in a capsule.  For simplicity, we also make use of
 `Capsule.access`, which lets us _unwrap_ the encapsulated image before passing
 it to `blur_at`.  This pattern is explained in more detail in the [capsules
-page](./capsules.md).
+page](../../parallelism/02-capsules).
 
 ```ocaml
 let filter ~scheduler ~mutex image =
@@ -433,4 +433,4 @@ abstractions alone.
 
 For example, if we needed to preserve the mutability of our input image, we
 could instead protect its capsule with a reader-writer lock.  The [capsules
-page](capsules.md) discusses several further interfaces.
+page](../../parallelism/02-capsules) discusses several further interfaces.
