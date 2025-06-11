@@ -80,6 +80,7 @@ end
 
 type binop =
   | Add
+  | Sub
 
 type cmm_pattern =
   | Any of Cmm.expression pattern_var
@@ -96,6 +97,7 @@ type 'a clause =
 let matches_binop (binop : binop) (cop : Cmm.operation) =
   match binop, cop with
   | Add, Caddi -> true
+  | Sub, Csubi -> true
   | _, _ -> false
 
 let match_clauses_in_order clauses expr =

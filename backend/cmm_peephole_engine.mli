@@ -6,6 +6,7 @@ end
 
 type binop =
   | Add
+  | Sub
 
 type cmm_pattern =
   | Any of Cmm.expression pattern_var
