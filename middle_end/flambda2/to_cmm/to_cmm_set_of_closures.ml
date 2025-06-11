@@ -232,7 +232,7 @@ end = struct
           List.rev_append (P.define_symbol (R.symbol res function_symbol)) acc
       in
       match code_id with
-      | Code_id code_id -> (
+      | Code_id { code_id; only_full_applications } -> (
         let code_symbol =
           R.symbol_of_code_id res ~currently_in_inlined_body:false code_id
         in
@@ -274,12 +274,16 @@ end = struct
                store code ID %a which is classified as \
                Full_and_partial_application (so the expected size is 3)"
               Function_slot.print function_slot size Code_id.print code_id;
+          let curry_code_pointer =
+            if only_full_applications
+            then P.term_of_symbol ~dbg C.fail_if_called_indirectly_sym
+            else
+              P.term_of_symbol ~dbg
+                (C.curry_function_sym kind params_ty result_ty)
+          in
           let acc =
             P.term_of_symbol ~dbg code_symbol
-            :: P.int ~dbg closure_info
-            :: P.term_of_symbol ~dbg
-                 (C.curry_function_sym kind params_ty result_ty)
-            :: acc
+            :: P.int ~dbg closure_info :: curry_code_pointer :: acc
           in
           ( acc,
             rev_append_chunks ~for_static_sets
@@ -561,7 +565,7 @@ let debuginfo_for_set_of_closures env set =
          ->
            match code_id with
            | Deleted { dbg; _ } -> dbg
-           | Code_id code_id ->
+           | Code_id { code_id; only_full_applications = _ } ->
              Code_metadata.dbg (Env.get_code_metadata env code_id))
     |> List.sort Debuginfo.compare
   in

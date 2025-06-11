@@ -682,7 +682,7 @@ let simplify_direct_partial_application ~simplify_expr dacc apply
         let function_decls =
           Function_declarations.create
             (Function_slot.Lmap.singleton wrapper_function_slot
-               (Code_id code_id
+               (Code_id { code_id; only_full_applications = false }
                  : Function_declarations.code_id_in_function_declaration))
         in
         let value_slots =

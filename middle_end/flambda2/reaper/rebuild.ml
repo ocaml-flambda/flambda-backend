@@ -97,9 +97,9 @@ let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
                 FD.code_id_in_function_declaration ->
              match code_id with
              | Deleted _ -> code_id
-             | Code_id code_id ->
+             | Code_id { code_id; only_full_applications } ->
                if is_code_id_used env code_id
-               then Code_id code_id
+               then Code_id { code_id; only_full_applications }
                else
                  let code_metadata = env.get_code_metadata code_id in
                  Deleted
@@ -207,9 +207,9 @@ let rewrite_set_of_closures bound (env : env) value_slots alloc_mode
         let code_id =
           match code_id with
           | Deleted _ -> code_id
-          | Code_id code_id ->
+          | Code_id { code_id; only_full_applications } ->
             if code_is_used bound_var
-            then Code_id code_id
+            then Code_id { code_id; only_full_applications }
             else
               let code_metadata = env.get_code_metadata code_id in
               Deleted

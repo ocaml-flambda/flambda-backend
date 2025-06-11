@@ -559,7 +559,7 @@ let set_of_closures env fun_decls value_slots alloc =
     |> Function_slot.Lmap.of_list
     |> Function_slot.Lmap.map
          (fun code_id : Function_declarations.code_id_in_function_declaration ->
-           Code_id code_id)
+           Code_id { code_id; only_full_applications = false })
     |> Function_declarations.create
   in
   let value_slots = Option.value value_slots ~default:[] in

@@ -706,7 +706,9 @@ let set_of_closures env sc =
       |> Function_declarations.funs_in_order
       |> Function_slot.Lmap.map (function
            | Function_declarations.Deleted _ -> Misc.fatal_error "todo"
-           | Function_declarations.Code_id code_id -> code_id)
+           | Function_declarations.Code_id
+               { code_id; only_full_applications = _ } ->
+             code_id)
       |> Function_slot.Lmap.bindings)
   in
   let elts = value_slots env (Set_of_closures.value_slots sc) in
