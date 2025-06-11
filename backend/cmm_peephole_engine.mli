@@ -1,4 +1,23 @@
+type _ pattern_kind =
+| Expr : Cmm.expression pattern_kind
+| Int : int pattern_kind
+| Natint : Nativeint.t pattern_kind
+
 type 'a pattern_var
+
+val create_var : 'a pattern_kind -> string -> 'a pattern_var
+
+module Default_variables : sig
+  val c : Cmm.expression pattern_var
+  val c1 : Cmm.expression pattern_var
+  val c2 : Cmm.expression pattern_var
+  val i : int pattern_var
+  val i1 : int pattern_var
+  val i2 : int pattern_var
+  val n : Nativeint.t pattern_var
+  val n1 : Nativeint.t pattern_var
+  val n2 : Nativeint.t pattern_var
+end
 
 module Env : sig
   type t
@@ -24,16 +43,4 @@ val run : Cmm.expression -> Cmm.expression clause list -> Cmm.expression
 module Syntax : sig
   val (=>) : cmm_pattern -> (Env.t -> 'a) -> 'a clause
   val (#.) : Env.t -> 'a pattern_var -> 'a
-end
-
-module Default_variables : sig
-  val c : Cmm.expression pattern_var
-  val c1 : Cmm.expression pattern_var
-  val c2 : Cmm.expression pattern_var
-  val i : int pattern_var
-  val i1 : int pattern_var
-  val i2 : int pattern_var
-  val n : Nativeint.t pattern_var
-  val n1 : Nativeint.t pattern_var
-  val n2 : Nativeint.t pattern_var
 end
