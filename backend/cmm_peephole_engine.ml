@@ -27,16 +27,29 @@ module Env : sig
   val empty : t
   val add : t -> 'a pattern_var -> 'a -> t
   val find_exn : t -> 'a pattern_var -> 'a
+  val register_phantom_let :
+    t ->
+    phantom_var: Backend_var.With_provenance.t ->
+    defining_expr: Cmm.phantom_defining_expr option ->
+    t
+  val place_phantom_lets :
+    t ->
+    Cmm.expression ->
+    Cmm.expression
 end = struct
   type t = {
     exprs : Cmm.expression IM.t;
     ints : int IM.t;
     natints : Nativeint.t IM.t;
+    phantom_lets_rev :
+      (Backend_var.With_provenance.t
+       * Cmm.phantom_defining_expr option) list;
   }
   let empty = {
     exprs = IM.empty;
     ints = IM.empty;
     natints = IM.empty;
+    phantom_lets_rev = []
   }
   let add (type a) env (var : a pattern_var) (expr : a) =
     match var.kind with
@@ -57,6 +70,12 @@ end = struct
     | Expr -> IM.find var.id env.exprs
     | Int -> IM.find var.id env.ints
     | Natint -> IM.find var.id env.natints
+  let register_phantom_let env ~phantom_var ~defining_expr =
+    { env with phantom_lets_rev = (phantom_var, defining_expr) :: env.phantom_lets_rev }
+  let place_phantom_lets env expr =
+    List.fold_left (fun expr (phantom_var, defining_expr) ->
+        Cmm.Cphantom_let (phantom_var, defining_expr, expr))
+      expr env.phantom_lets_rev
 end
 
 type cmm_pattern =
@@ -74,6 +93,11 @@ type 'a clause =
 
 let match_clauses_in_order clauses expr =
   let rec match_one_pattern env pat (expr : Cmm.expression) =
+    match expr with
+    | Cphantom_let (phantom_var, defining_expr, expr) ->
+        let env = Env.register_phantom_let env ~phantom_var ~defining_expr in
+        match_one_pattern env pat expr
+    | _ -> begin
     match pat with
     | Any -> Some env
     | Var v -> Some (Env.add env v expr)
@@ -112,12 +136,13 @@ let match_clauses_in_order clauses expr =
         | Some env -> if guard env then Some env else None
         | None -> None
       end
+  end
   in
   let rec find_matching_clause expr = function
     | [] -> expr
     | (pat, f) :: clauses -> begin
         match match_one_pattern Env.empty pat expr with
-        | Some env -> f env
+        | Some env -> Env.place_phantom_lets env (f env)
         | None -> find_matching_clause expr clauses
       end
   in
