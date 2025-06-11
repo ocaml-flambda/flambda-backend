@@ -1477,6 +1477,8 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
       (Flambda_arity.create
          [Flambda_arity.Component_for_creation.from_lambda return])
   in
+  (* CR ncourant: now that the following two statements are in this order, I
+     believe we can remove [removed_params]. *)
   let new_env =
     Ident.Map.fold
       (fun unboxed_product (before_unarization, fields) new_env ->
