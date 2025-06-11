@@ -63,7 +63,9 @@ let kind fn =
 (* some test directories contain files that intentionally violate the
    expectations of ast-invariants *)
 let is_ok_dir dir =
-  not (String.ends_with ~suffix:"tests/jane-modular-syntax" dir)
+  (* CR jrayman: this first directory doesn't seem to exist? *)
+  not (String.ends_with ~suffix:"tests/jane-modular-syntax" dir) &&
+  not (String.ends_with ~suffix:"tests/parse-errors" dir)
 
 let rec walk dir =
   if is_ok_dir dir then

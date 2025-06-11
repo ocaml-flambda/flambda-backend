@@ -40,4 +40,20 @@ Line 2, characters 13-38:
 2 | let f (_ : [%alias_with_too_many_nones]) = ();;
                  ^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: broken invariant in parsetree: Alias types must have a name or a jkind.
+Line 2, characters 10-25:
+2 | let _ = [%mutable_let_rec];;
+              ^^^^^^^^^^^^^^^
+Error: broken invariant in parsetree: Mutable let binding cannot be recursive.
+Line 1, characters 10-30:
+1 | let _ = [%multiple_mutable_let];;
+              ^^^^^^^^^^^^^^^^^^^^
+Error: broken invariant in parsetree: Mutable let must have only one binding.
+Line 1, characters 10-32:
+1 | let _ = [%mutable_let_ppat_tuple];;
+              ^^^^^^^^^^^^^^^^^^^^^^
+Error: broken invariant in parsetree: Mutable let must have a variable on the left hand side.
+Line 1, characters 10-30:
+1 | let _ = [%mutable_let_ppat_any];;
+              ^^^^^^^^^^^^^^^^^^^^
+Error: broken invariant in parsetree: Mutable let must have a variable on the left hand side.
 

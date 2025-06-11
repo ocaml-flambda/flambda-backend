@@ -29,6 +29,8 @@ let no_args loc = err loc "Function application with no argument."
 let empty_let loc = err loc "Let with no bindings."
 let mutable_rec_let loc = err loc "Mutable let binding cannot be recursive."
 let multiple_mutable_let loc = err loc "Mutable let must have only one binding."
+let mutable_let_bad_pat loc =
+  err loc "Mutable let must have a variable on the left hand side."
 let empty_type loc = err loc "Type declarations cannot be empty."
 let complex_id loc = err loc "Functor application not allowed here."
 let module_type_substitution_missing_rhs loc =
@@ -53,6 +55,12 @@ let check_empty_constraint ~loc ty mode =
   match ty, mode with
   | None, [] -> empty_constraint loc
   | _ -> ()
+
+(* Is this pattern a single variable, possibly with a type annotation? *)
+let pat_is_var = function
+| Ppat_var _
+| Ppat_constraint ({ ppat_desc = Ppat_var _; _}, _, _) -> true
+| _ -> false
 
 let iterator =
   let super = Ast_iterator.default_iterator in
@@ -123,8 +131,9 @@ let iterator =
     | Pexp_let (_, _, [], _) -> empty_let loc
     | Pexp_let (Mutable, Recursive, _, _) -> mutable_rec_let loc
     | Pexp_let (Mutable, _, l, _) when List.length l > 1 ->
-        multiple_mutable_let loc
-      (* CR jrayman: test previous two invariants *)
+      multiple_mutable_let loc
+    | Pexp_let (Mutable, _, [{ pvb_pat = {ppat_desc; _}; _}], _)
+      when not (pat_is_var ppat_desc) -> mutable_let_bad_pat loc
     | Pexp_ident id
     | Pexp_construct (id, _)
     | Pexp_field (_, id)

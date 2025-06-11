@@ -6,6 +6,29 @@ let empty_record loc = H.Exp.record ~loc [] None
 let empty_apply loc f =
   H.Exp.apply ~loc f []
 
+let foo_exp = H.Exp.constant (Pconst_char 'a') (* irrelevant what this
+                                                   expression actually is *)
+let var ~loc name = H.Pat.var { txt = name; loc }
+
+let mutable_let_rec loc =
+  H.Exp.let_ ~loc Asttypes.Mutable Asttypes.Recursive
+    [H.Vb.mk (var ~loc "x") foo_exp] foo_exp
+
+let multiple_mutable_let loc =
+  H.Exp.let_ ~loc Asttypes.Mutable Asttypes.Nonrecursive
+    [H.Vb.mk (var ~loc "x") foo_exp; H.Vb.mk (var ~loc "y") foo_exp] foo_exp
+
+let mutable_let_ppat_tuple loc =
+  H.Exp.let_ ~loc Asttypes.Mutable Asttypes.Nonrecursive
+    [H.Vb.mk
+      (H.Pat.tuple [None, var ~loc "x"; None, var ~loc "y"] Closed) foo_exp]
+    foo_exp
+
+let mutable_let_ppat_any loc =
+  H.Exp.let_ ~loc Asttypes.Mutable Asttypes.Nonrecursive
+    [H.Vb.mk (H.Pat.any ()) foo_exp] foo_exp
+
+
 let missing_rhs loc =
   let name = Location.mkloc "T" loc in
   let mtd = H.Mtd.mk ~loc name in
@@ -49,6 +72,12 @@ let expr mapper e =
   | Pexp_extension({txt="record";loc},_) -> empty_record loc
   | Pexp_extension({txt="no_args";loc},PStr[{pstr_desc= Pstr_eval (e,_);_}])
     -> empty_apply loc e
+  | Pexp_extension ({txt="mutable_let_rec";loc},_) -> mutable_let_rec loc
+  | Pexp_extension ({txt="multiple_mutable_let";loc},_) -> multiple_mutable_let loc
+  | Pexp_extension ({txt="mutable_let_ppat_tuple";loc},_) ->
+    mutable_let_ppat_tuple loc
+  | Pexp_extension ({txt="mutable_let_ppat_any";loc},_) ->
+    mutable_let_ppat_any loc
   | _ -> super.M.expr mapper e
 
 let typ mapper t =
