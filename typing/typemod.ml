@@ -1145,6 +1145,7 @@ let rec approx_modtype env smty =
           | Pwith_modsubst (_, lid') ->
               ignore (Env.lookup_module_path ~use:false ~load:false
                         ~loc:lid'.loc lid'.txt env))
+        (* need to rename *)
         constraints;
       body
   | Pmty_typeof smod ->
