@@ -189,7 +189,7 @@ The abbreviations defined in the language are as follows:
 Declaring that a kind crosses some axes implies that it also crosses others;
 that is, there are *implications* between the kind axes.
 
-CR reisenberg: Document implications, which I am not fully familiar with.
+<!-- CR reisenberg: Document implications, which I am not fully familiar with. -->
 
 ## Kind annotations in type declarations
 

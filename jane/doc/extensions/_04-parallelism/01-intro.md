@@ -16,4 +16,6 @@ Based on that, the OCaml Language team developed a collection of compiler featur
 - Integration to existing concurrency frameworks such as [Async].
 - ..and more.
 
-*This is a stub. Documentation will come soon.*
+This is a stub, with more complete documentation to follow. For now, please see
+our parallelism tutorials, beginning with [part
+1](../../tutorials/01-intro-to-parallelism-part-1).
