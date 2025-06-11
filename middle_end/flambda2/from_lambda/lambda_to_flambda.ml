@@ -1432,17 +1432,6 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
       ~return_continuation:body_cont ~exn_continuation:body_exn_cont
       ~my_region:my_region_stack_elt
   in
-  let new_env, free_idents_of_body =
-    Ident.Set.fold
-      (fun id (new_env, free_idents_of_body) ->
-        match Env.get_unboxed_product_fields env id with
-        | None -> new_env, Ident.Set.add id free_idents_of_body
-        | Some (before_unarization, fields) ->
-          ( Env.register_unboxed_product new_env ~unboxed_product:id
-              ~before_unarization ~fields,
-            Ident.Set.union free_idents_of_body (Ident.Set.of_list fields) ))
-      free_idents_of_body (new_env, Ident.Set.empty)
-  in
   let exn_continuation : IR.exn_continuation =
     { exn_handler = body_exn_cont; extra_args = [] }
   in
@@ -1458,9 +1447,8 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
              kinds ) : Function_decl.param list ->
         (* CR sspies: dropping [debug_uid]; address in subsequent PR. *)
         match kinds with
-        | [] -> []
         | [kind] -> [{ name; kind; mode; attributes }]
-        | _ :: _ ->
+        | [] | _ :: _ ->
           let fields =
             List.mapi
               (fun n kind ->
@@ -1489,16 +1477,29 @@ and cps_function env ~fid ~(recursive : Recursive.t) ?precomputed_free_idents
       (Flambda_arity.create
          [Flambda_arity.Component_for_creation.from_lambda return])
   in
+  (* CR ncourant: now that the following two statements are in this order, I
+     believe we can remove [removed_params]. *)
+  let new_env =
+    Ident.Map.fold
+      (fun unboxed_product (before_unarization, fields) new_env ->
+        Env.register_unboxed_product_with_kinds new_env ~unboxed_product
+          ~before_unarization ~fields)
+      unboxed_products new_env
+  in
+  let new_env, free_idents_of_body =
+    Ident.Set.fold
+      (fun id (new_env, free_idents_of_body) ->
+        match Env.get_unboxed_product_fields env id with
+        | None -> new_env, Ident.Set.add id free_idents_of_body
+        | Some (before_unarization, fields) ->
+          ( Env.register_unboxed_product new_env ~unboxed_product:id
+              ~before_unarization ~fields,
+            Ident.Set.union free_idents_of_body (Ident.Set.of_list fields) ))
+      free_idents_of_body (new_env, Ident.Set.empty)
+  in
   let body acc ccenv =
     let ccenv = CCenv.set_path_to_root ccenv loc in
     let ccenv = CCenv.set_not_at_toplevel ccenv in
-    let new_env =
-      Ident.Map.fold
-        (fun unboxed_product (before_unarization, fields) new_env ->
-          Env.register_unboxed_product_with_kinds new_env ~unboxed_product
-            ~before_unarization ~fields)
-        unboxed_products new_env
-    in
     cps_tail acc new_env ccenv body body_cont body_exn_cont
   in
   Function_decl.create ~let_rec_ident:(Some fid) ~function_slot ~kind ~params
