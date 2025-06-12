@@ -193,6 +193,8 @@ module Typing_env : sig
 
   val add_get_tag_relation : t -> Name.t -> scrutinee:Simple.t -> t
 
+  val add_conditional_get_tag_relation : t -> Name.t -> scrutinee:Name.t -> t
+
   val mem : ?min_name_mode:Name_mode.t -> t -> Name.t -> bool
 
   val mem_simple : ?min_name_mode:Name_mode.t -> t -> Simple.t -> bool

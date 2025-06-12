@@ -135,6 +135,7 @@ module Flambda2 = struct
     let join_depth = 5
     let join_algorithm = Binary
     let function_result_types = Never
+    let types_database = false
     let enable_reaper = false
     let unicode = true
     let kind_checks = false
@@ -149,6 +150,7 @@ module Flambda2 = struct
     join_depth : int;
     join_algorithm : join_algorithm;
     function_result_types : function_result_types;
+    types_database : bool;
     enable_reaper : bool;
     unicode : bool;
     kind_checks : bool;
@@ -163,6 +165,7 @@ module Flambda2 = struct
     join_depth = Default.join_depth;
     join_algorithm = Default.join_algorithm;
     function_result_types = Default.function_result_types;
+    types_database = Default.types_database;
     enable_reaper = Default.enable_reaper;
     unicode = Default.unicode;
     kind_checks = Default.kind_checks;
@@ -199,6 +202,7 @@ module Flambda2 = struct
   let unicode = ref Default
   let kind_checks = ref Default
   let function_result_types = ref Default
+  let types_database = ref Default
   let enable_reaper = ref Default
 
   module Dump = struct

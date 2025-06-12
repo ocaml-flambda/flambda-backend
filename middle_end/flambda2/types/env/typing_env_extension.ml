@@ -18,33 +18,42 @@ module TG = Type_grammar
 
 type t = TG.Env_extension.t
 
-let fold ~equation ({ equations } : t) acc =
-  Name.Map.fold equation equations acc
+let fold ~equation ~relation ({ equations; database } : t) acc =
+  let acc = Name.Map.fold equation equations acc in
+  Database.Extension.fold relation database acc
 
-let invariant ({ equations } : t) =
+let invariant ({ equations; database = _ } : t) =
   if Flambda_features.check_invariants ()
   then Name.Map.iter More_type_creators.check_equation equations
 
 let empty = TG.Env_extension.empty
 
-let is_empty ({ equations } : t) = Name.Map.is_empty equations
+let is_empty ({ equations; database } : t) =
+  Name.Map.is_empty equations && Database.Extension.is_empty database
 
 let from_map equations =
-  let t = TG.Env_extension.create ~equations in
+  let t =
+    TG.Env_extension.create ~equations ~database:Database.Extension.empty
+  in
   invariant t;
   t
 
-let to_map ({ equations } : t) = equations
+let to_map ({ equations; database } : t) =
+  assert (Database.Extension.is_empty database);
+  equations
 
-let has_equation name ({ equations } : t) = Name.Map.mem name equations
+let has_equation name ({ equations; database = _ } : t) =
+  Name.Map.mem name equations
 
 let one_equation name ty =
   More_type_creators.check_equation name ty;
-  TG.Env_extension.create ~equations:(Name.Map.singleton name ty)
+  TG.Env_extension.create
+    ~equations:(Name.Map.singleton name ty)
+    ~database:Database.Extension.empty
 
-let add_or_replace_equation ({ equations } : t) name ty =
+let add_or_replace_equation ({ equations; database } : t) name ty =
   More_type_creators.check_equation name ty;
-  if Flambda_features.check_invariants () && Name.Map.mem name equations
+  if Flambda_features.check_light_invariants () && Name.Map.mem name equations
   then
     Format.eprintf
       "Warning: Overriding equation for name %a@\n\
@@ -52,16 +61,22 @@ let add_or_replace_equation ({ equations } : t) name ty =
        New equation is@ @[%a@]@." Name.print name TG.print
       (Name.Map.find name equations)
       TG.print ty;
-  TG.Env_extension.create ~equations:(Name.Map.add name ty equations)
+  TG.Env_extension.create ~equations:(Name.Map.add name ty equations) ~database
 
-let replace_equation ({ equations } : t) name ty =
+let add_or_replace_relation ({ equations; database } : t) fn ~arg ~result =
+  let database = Database.Extension.add_property database fn ~arg ~result in
+  TG.Env_extension.create ~equations ~database
+
+let replace_equation ({ equations; database } : t) name ty =
   TG.Env_extension.create
     ~equations:(Name.Map.add (* replace *) name ty equations)
+    ~database
 
-let disjoint_union ({ equations = equations1 } : t)
-    ({ equations = equations2 } : t) =
+let disjoint_union ({ equations = equations1; database = database1 } : t)
+    ({ equations = equations2; database = database2 } : t) =
   TG.Env_extension.create
     ~equations:(Name.Map.disjoint_union equations1 equations2)
+    ~database:(Database.Extension.disjoint_union database1 database2)
 
 let ids_for_export = TG.Env_extension.ids_for_export
 
@@ -82,7 +97,7 @@ module With_extra_variables = struct
       "@[<hov 1>(@[<hov 1>(variables@ @[<hov 1>%a@])@]@ @[<hov 1>%a@])@ @]"
       (Variable.Map.print Flambda_kind.print)
       existential_vars TG.Env_extension.print
-      (TG.Env_extension.create ~equations)
+      (TG.Env_extension.create ~equations ~database:Database.Extension.empty)
 
   let fold ~variable ~equation t acc =
     let acc = Variable.Map.fold variable t.existential_vars acc in

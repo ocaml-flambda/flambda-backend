@@ -12,6 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+module Shared_name_map = Container_types.Shared_map (Name)
+
 type coercion_to_canonical = Coercion.t
 
 let compose_map_values_exn map ~then_:coercion =
@@ -352,7 +354,10 @@ type t =
     (* For [elt |-> aliases] in [aliases_of_canonical_names], then [aliases]
        never includes [elt]. *)
     (* CR mshinwell: check this always holds *)
-    aliases_of_consts : Aliases_of_canonical_element.t Reg_width_const.Map.t
+    aliases_of_consts : Aliases_of_canonical_element.t Reg_width_const.Map.t;
+    demoted_elements : (Simple.t * coercion_to_canonical) Shared_name_map.t
+        (* Records demotions as they happen. The [demoted_elements] map is not
+           normalized. *)
   }
 
 (* Canonical elements can be seen as a collection of star graphs:
@@ -383,7 +388,7 @@ type t =
 
 let [@ocamlformat "disable"] print ppf
     { canonical_elements; aliases_of_canonical_names;
-      aliases_of_consts }=
+      aliases_of_consts; demoted_elements = _ }=
   let print_element_and_coercion ppf (elt, coercion) =
     Format.fprintf ppf "@[<hov 1>(\
                         %a@ \
@@ -533,11 +538,16 @@ let empty =
        aliases_to_canonical_elements. *)
     canonical_elements = Name.Map.empty;
     aliases_of_canonical_names = Name.Map.empty;
-    aliases_of_consts = Reg_width_const.Map.empty
+    aliases_of_consts = Reg_width_const.Map.empty;
+    demoted_elements = Shared_name_map.empty
   }
 
 let is_empty
-    { canonical_elements; aliases_of_canonical_names; aliases_of_consts } =
+    { canonical_elements;
+      aliases_of_canonical_names;
+      aliases_of_consts;
+      demoted_elements = _
+    } =
   Name.Map.is_empty canonical_elements
   && Name.Map.is_empty aliases_of_canonical_names
   && Reg_width_const.Map.is_empty aliases_of_consts
@@ -710,8 +720,17 @@ let add_alias_between_canonical_elements ~binding_time_resolver
             Reg_width_const.Map.add (* replace *) const aliases
               t.aliases_of_consts ))
     in
+    let demoted_elements =
+      Shared_name_map.add name_to_be_demoted
+        (canonical_element, coercion_to_canonical)
+        t.demoted_elements
+    in
     let res =
-      { canonical_elements; aliases_of_canonical_names; aliases_of_consts }
+      { canonical_elements;
+        aliases_of_canonical_names;
+        aliases_of_consts;
+        demoted_elements
+      }
     in
     invariant ~binding_time_resolver ~binding_times_and_modes res;
     res
@@ -994,8 +1013,11 @@ let get_aliases t element =
       ~coercion_from_canonical_to_element ~alias_names_with_coercions_to_element
 
 let apply_renaming
-    { canonical_elements; aliases_of_canonical_names; aliases_of_consts }
-    renaming =
+    { canonical_elements;
+      aliases_of_canonical_names;
+      aliases_of_consts;
+      demoted_elements
+    } renaming =
   let rename_name = Renaming.apply_name renaming in
   let rename_simple = Renaming.apply_simple renaming in
   let canonical_elements =
@@ -1022,7 +1044,19 @@ let apply_renaming
           (Aliases_of_canonical_element.apply_renaming aliases renaming))
       aliases_of_consts Reg_width_const.Map.empty
   in
-  { canonical_elements; aliases_of_canonical_names; aliases_of_consts }
+  let demoted_elements =
+    Shared_name_map.fold
+      (fun elt (canonical, coercion) acc ->
+        Shared_name_map.add (rename_name elt)
+          (rename_simple canonical, Coercion.apply_renaming coercion renaming)
+          acc)
+      demoted_elements Shared_name_map.empty
+  in
+  { canonical_elements;
+    aliases_of_canonical_names;
+    aliases_of_consts;
+    demoted_elements
+  }
 
 let get_canonical_ignoring_name_mode t name =
   let elt = Simple.name name in
@@ -1070,3 +1104,8 @@ let add_alias_set ~binding_time_resolver ~binding_times_and_modes t name aliases
       names acc
   in
   t
+
+let diff ~later ~earlier =
+  Shared_name_map.diff
+    (fun _ _ _ -> None)
+    later.demoted_elements earlier.demoted_elements

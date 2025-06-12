@@ -139,6 +139,22 @@ module Set_specs = struct
 
   let union_with_self s = Set.equal (Set.union s s) s
 
+  let union_sharing_vs_union s1 s2 =
+    Set.equal (Set.union_sharing s1 s2) (Set.union s1 s2)
+
+  let union_sharing_with_subset s1 s2 =
+    Set.union_sharing s1 (Set.inter s1 s2) == s1
+
+  let union_sharing_with_self s = Set.union_sharing s s == s
+
+  let union_shared_vs_union_sharing s1 s2 =
+    Set.equal (Set.union_shared s1 s2) (Set.union s1 s2)
+
+  let union_shared_with_subset s1 s2 =
+    Set.union_sharing s1 (Set.inter s1 s2) == s1
+
+  let union_shared_with_self s = Set.union_shared s s == s
+
   let inter_valid s1 s2 = Set.valid (Set.inter s1 s2)
 
   let inter s1 s2 =
@@ -156,6 +172,17 @@ module Set_specs = struct
     Set.equal (Set.diff s1 s2) (Set.filter (fun e -> not (Set.mem e s2)) s1)
 
   let diff_with_self s = Set.is_empty (Set.diff s s)
+
+  let diff_sharing_vs_diff s1 s2 =
+    Set.equal (Set.diff_sharing s1 s2) (Set.diff s1 s2)
+
+  let diff_sharing_of_disjoint s1 s2 =
+    Set.diff_sharing s1 (Set.diff s2 s1) == s1
+
+  let diff_shared_vs_diff s1 s2 =
+    Set.equal (Set.diff_shared s1 s2) (Set.diff s1 s2)
+
+  let diff_shared_of_disjoint s1 s2 = Set.diff_shared s1 (Set.diff s2 s1) == s1
 
   let compare_vs_equal s1 s2 = Set.compare s1 s2 = 0 <=> Set.equal s1 s2
 
@@ -602,6 +629,28 @@ module Map_specs (V : Value) = struct
 
   let diff_domains_self m = Map.is_empty (Map.diff_domains m m)
 
+  let diff_valid f m1 m2 = Map.valid (Map.diff f m1 m2)
+
+  let diff_vs_diff_domains m1 m2 =
+    Map.equal V.equal (Map.diff_domains m1 m2)
+      (Map.diff (fun _ _ _ -> None) m1 m2)
+
+  let diff_sharing_vs_diff f m1 m2 =
+    Map.equal V.equal (Map.diff f m1 m2) (Map.diff_sharing f m1 m2)
+
+  let diff_sharing_fst m1 m2 =
+    Map.diff_sharing (fun _key v1 _v2 -> Some v1) m1 m2 == m1
+
+  let diff_shared_vs_diff f m1 m2 =
+    let f k v1 v2 = if v1 == v2 then None else f k v1 v2 in
+    Map.equal V.equal (Map.diff f m1 m2) (Map.diff_shared f m1 m2)
+
+  let diff_shared_phys_eq f m = Map.is_empty (Map.diff_shared f m m)
+
+  let diff_shared_disjoint f m1 m2 =
+    let m2 = Map.diff_domains m2 m1 in
+    Map.diff_shared f m1 m2 == m1
+
   let inter_valid f m1 m2 = Map.valid (Map.inter f m1 m2)
 
   let inter_then_find_opt f m1 m2 =
@@ -980,6 +1029,12 @@ let () =
     c "union is superset of arguments" union_subset [set; set];
     c "union has no extra elements" union_mem [set; set];
     c "union with self" union_with_self [set];
+    c "union_sharing vs. union" union_sharing_vs_union [set; set];
+    c "union_sharing with subset" union_sharing_with_subset [set; set];
+    c "union_sharing with self" union_sharing_with_self [set];
+    c "union_shared vs. union" union_shared_vs_union_sharing [set; set];
+    c "union_shared with subset" union_shared_with_subset [set; set];
+    c "union_shared with self" union_shared_with_self [set];
     c "inter is valid" inter_valid [set; set];
     c "inter" inter [set; set];
     c "inter with self" inter_with_self [set];
@@ -987,6 +1042,10 @@ let () =
     c "diff is valid" diff_valid [set; set];
     c "diff" diff [set; set];
     c "diff with self" diff_with_self [set];
+    c "diff_sharing vs. diff" diff_sharing_vs_diff [set; set];
+    c "diff_sharing of disjoint" diff_sharing_of_disjoint [set; set];
+    c "diff_shared vs. diff" diff_shared_vs_diff [set; set];
+    c "diff_shared of disjoint" diff_shared_of_disjoint [set; set];
     c "compare vs. equal" compare_vs_equal [set; set];
     c "compare is reflexive" compare_refl [set];
     c "compare is antisymmetric" compare_antisym [set; set];
@@ -1050,6 +1109,7 @@ let () =
     in
     let merging_function = Arbitrary.fn3 (Arbitrary.option value) in
     let union_function = Arbitrary.fn3 (Arbitrary.option value) in
+    let diff_function = Arbitrary.fn3 (Arbitrary.option value) in
     let inter_function = Arbitrary.fn3 value in
     let c ?n ?seed name f arbitrary_impls =
       Runner.check runner ~name:("Map: " ^ name) ?n ?seed ~arbitrary_impls ~f
@@ -1126,6 +1186,13 @@ let () =
     c "diff_domains valid" diff_domains_valid [map; map];
     c "diff_domains" diff_domains [map_and_binding; map];
     c "diff_domains of self" diff_domains_self [map];
+    c "diff valid" diff_valid [diff_function; map; map];
+    c "diff vs. diff_domains" diff_vs_diff_domains [map; map];
+    c "diff_sharing vs. diff" diff_sharing_vs_diff [diff_function; map; map];
+    c "diff_sharing of fst" diff_sharing_fst [map; map];
+    c "diff_shared vs. diff" diff_shared_vs_diff [diff_function; map; map];
+    c "diff_shared of phys. eq" diff_shared_phys_eq [diff_function; map];
+    c "diff_shared of disjoint" diff_shared_disjoint [diff_function; map; map];
     c "inter is valid" inter_valid [inter_function; map; map];
     c "inter then find_opt" inter_then_find_opt [inter_function; map; map];
     c "inter vs. filter" inter_vs_filter [inter_function; map; map];

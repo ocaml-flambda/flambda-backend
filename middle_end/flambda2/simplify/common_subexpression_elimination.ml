@@ -273,19 +273,26 @@ let join_one_cse_equation ~cse_at_each_use prim bound_to_map
           ~invalids:Apply_cont_rewrite_id.Set.empty
       in
       let env_extension =
-        (* For the primitives Is_int and Get_tag, they're strongly linked to
-           their argument: additional information on the cse parameter should
-           translate into additional information on the argument. This can be
-           done by giving them the appropriate type. The same could be done for
-           a lot of the other non-arithmetic primitives, but in the other cases
-           the join of the types will usually give us the relevant equation
-           anyway. *)
-        match[@ocaml.warning "-fragile-match"] EP.to_primitive prim with
-        | Unary (Is_int { variant_only = true }, scrutinee) ->
-          TEE.add_is_int_relation env_extension (Name.var var) ~scrutinee
-        | Unary (Get_tag, block) ->
-          TEE.add_get_tag_relation env_extension (Name.var var) ~scrutinee:block
-        | _ -> env_extension
+        if Flambda_features.types_database ()
+        then env_extension
+        else
+          (* For the primitives Is_int and Get_tag, they're strongly linked to
+             their argument: additional information on the cse parameter should
+             translate into additional information on the argument. This can be
+             done by giving them the appropriate type. The same could be done
+             for a lot of the other non-arithmetic primitives, but in the other
+             cases the join of the types will usually give us the relevant
+             equation anyway.
+
+             If we are using the types database, we don't need to do this, as we
+             are already tracking the relations there. *)
+          match[@ocaml.warning "-fragile-match"] EP.to_primitive prim with
+          | Unary (Is_int { variant_only = true }, scrutinee) ->
+            TEE.add_is_int_relation env_extension (Name.var var) ~scrutinee
+          | Unary (Get_tag, block) ->
+            TEE.add_get_tag_relation env_extension (Name.var var)
+              ~scrutinee:block
+          | _ -> env_extension
       in
       let allowed =
         Name_occurrences.add_name allowed (Name.var var) NM.normal

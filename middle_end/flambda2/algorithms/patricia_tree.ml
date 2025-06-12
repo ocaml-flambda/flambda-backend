@@ -244,6 +244,10 @@ module Tree_operations (Tree : Tree) : sig
 
   val union : (key -> 'a -> 'a -> 'a option) -> 'a t -> 'a t -> 'a t
 
+  val union_sharing : (key -> 'a -> 'a -> 'a option) -> 'a t -> 'a t -> 'a t
+
+  val union_shared : (key -> 'a -> 'a -> 'a option) -> 'a t -> 'a t -> 'a t
+
   val subset : 'a t -> 'a t -> bool
 
   val find : key -> 'a t -> 'a
@@ -252,7 +256,13 @@ module Tree_operations (Tree : Tree) : sig
 
   val inter_domain_is_non_empty : 'a t -> 'b t -> bool
 
-  val diff : 'a t -> 'b t -> 'a t
+  val diff_domains : 'a t -> 'b t -> 'a t
+
+  val diff : (key -> 'a -> 'b -> 'a option) -> 'a t -> 'b t -> 'a t
+
+  val diff_sharing : (key -> 'a -> 'b -> 'a option) -> 'a t -> 'b t -> 'a t
+
+  val diff_shared : (key -> 'a -> 'a -> 'a option) -> 'a t -> 'a t -> 'a t
 
   val cardinal : _ t -> int
 
@@ -449,48 +459,161 @@ end = struct
         else branch prefix bit t0 (remove i t1)
       else t
 
-  (* CR pchambart: union x x is expensive, while it could be O(1). This would
-     require that we demand f x x = x *)
-  (* CR-someday lmaurer: Generalize [merge] so that we can implement this in
-     terms of it. Rather than one callback, it should take three, along the
-     lines of Haskell's implementation; this would let us preserve sharing (see
-     Haskell's [Data.IntMap] for details). *)
-  let rec union f t0 t1 =
-    let iv = is_value_of t0 in
+  let[@inline always] universal_merge ?shortcut ?check0 ?check1 ~only_left
+      ~only_right iv combine t0 t1 =
+    let shortcut =
+      match shortcut with Some shortcut -> shortcut | None -> fun _ _ -> None
+    in
+    let check0 =
+      match check0 with Some check0 -> check0 | None -> fun _ _ _ _ _ -> None
+    in
+    let check1 =
+      match check1 with Some check1 -> check1 | None -> fun _ _ _ _ _ -> None
+    in
+    let branch0 t0 t00 t01 prefix bit t0' t1' =
+      match check0 t0 t00 t01 t0' t1' with
+      | None -> branch prefix bit t0' t1'
+      | Some t' -> t'
+    in
+    let branch1 t1 t10 t11 prefix bit t0' t1' =
+      match check1 t1 t10 t11 t0' t1' with
+      | None -> branch prefix bit t0' t1'
+      | Some t' -> t'
+    in
+    let branch01 t0 t00 t01 t1 t10 t11 prefix bit t0' t1' =
+      match check0 t0 t00 t01 t0' t1' with
+      | Some t' -> t'
+      | None -> branch1 t1 t10 t11 prefix bit t0' t1'
+    in
+    let rec merge t0 t1 =
+      match shortcut t0 t1 with
+      | Some t' -> t'
+      | None -> (
+        match descr t0, descr t1 with
+        (* Empty cases *)
+        | Empty, Empty -> empty iv
+        | Empty, _ -> only_right t1
+        | _, Empty -> only_left t0
+        (* Leaf cases *)
+        | Leaf (i, _), Leaf (j, _) when i = j -> combine t0 t1
+        | Leaf (i, _), Leaf (j, _) -> (
+          let t0' = only_left t0 in
+          let t1' = only_right t1 in
+          match descr t0', descr t1' with
+          | Empty, _ -> t1'
+          | _, Empty -> t0'
+          | (Leaf _ | Branch _), (Leaf _ | Branch _) -> join i t0' j t1')
+        (* Leaf/Branch cases *)
+        | Leaf (i, _), Branch (prefix, bit, t10, t11) ->
+          if match_prefix i prefix bit
+          then
+            if zero_bit i bit
+            then branch1 t1 t10 t11 prefix bit (merge t0 t10) (only_right t11)
+            else branch1 t1 t10 t11 prefix bit (only_right t10) (merge t0 t11)
+          else join i (only_left t0) prefix (only_right t1)
+        | Branch (prefix, bit, t00, t01), Leaf (i, _) ->
+          if match_prefix i prefix bit
+          then
+            if zero_bit i bit
+            then branch0 t0 t00 t01 prefix bit (merge t00 t1) (only_left t01)
+            else branch0 t0 t00 t01 prefix bit (only_left t00) (merge t01 t1)
+          else join i (only_right t1) prefix (only_left t0)
+        (* Branch/Branch case *)
+        | Branch (prefix0, bit0, t00, t01), Branch (prefix1, bit1, t10, t11) ->
+          if equal_prefix prefix0 bit0 prefix1 bit1
+          then
+            branch01 t0 t00 t01 t1 t10 t11 prefix0 bit0 (merge t00 t10)
+              (merge t01 t11)
+          else if includes_prefix prefix0 bit0 prefix1 bit1
+          then
+            if zero_bit prefix1 bit0
+            then branch0 t0 t00 t01 prefix0 bit0 (merge t00 t1) (only_left t01)
+            else branch0 t0 t00 t01 prefix0 bit0 (only_left t00) (merge t01 t1)
+          else if includes_prefix prefix1 bit1 prefix0 bit0
+          then
+            if zero_bit prefix0 bit1
+            then branch1 t1 t10 t11 prefix1 bit1 (merge t0 t10) (only_right t11)
+            else branch1 t1 t10 t11 prefix1 bit1 (only_right t10) (merge t0 t11)
+          else join prefix0 (only_left t0) prefix1 (only_right t1))
+    in
+    merge t0 t1
+
+  let phys_eq_check t t0 t1 t0' t1' =
+    if t0 == t0' && t1 == t1' then Some t else None
+
+  let combine_union iv f t0 t1 =
     match descr t0, descr t1 with
-    | Empty, _ -> t1
-    | _, Empty -> t0
-    | Leaf (i, d0), Leaf (j, d1) when i = j -> (
-      match f i d0 d1 with None -> empty iv | Some datum -> leaf iv i datum)
-    | Leaf (i, _), Leaf (j, _) -> join i t0 j t1
-    | Leaf (i, d), Branch (prefix, bit, t10, t11) ->
-      if match_prefix i prefix bit
-      then
-        if zero_bit i bit
-        then branch prefix bit (union f t0 t10) t11
-        else branch prefix bit t10 (union f t0 t11)
-      else join i (leaf iv i d) prefix t1
-    | Branch (prefix, bit, t00, t01), Leaf (i, d) ->
-      if match_prefix i prefix bit
-      then
-        if zero_bit i bit
-        then branch prefix bit (union f t00 t1) t01
-        else branch prefix bit t00 (union f t01 t1)
-      else join i (leaf iv i d) prefix t0
-    | Branch (prefix0, bit0, t00, t01), Branch (prefix1, bit1, t10, t11) ->
-      if equal_prefix prefix0 bit0 prefix1 bit1
-      then branch prefix0 bit0 (union f t00 t10) (union f t01 t11)
-      else if includes_prefix prefix0 bit0 prefix1 bit1
-      then
-        if zero_bit prefix1 bit0
-        then branch prefix0 bit0 (union f t00 t1) t01
-        else branch prefix0 bit0 t00 (union f t01 t1)
-      else if includes_prefix prefix1 bit1 prefix0 bit0
-      then
-        if zero_bit prefix0 bit1
-        then branch prefix1 bit1 (union f t0 t10) t11
-        else branch prefix1 bit1 t10 (union f t0 t11)
-      else join prefix0 t0 prefix1 t1
+    | Leaf (i, d0), Leaf (_, d1) -> (
+      match f i d0 d1 with Some d -> leaf iv i d | None -> empty iv)
+    | (Empty | Leaf _ | Branch _), (Empty | Leaf _ | Branch _) ->
+      (* Invariant: [combine] functions only called with leafs of the same
+         key. *)
+      assert false
+
+  let union f t0 t1 =
+    let iv = is_value_of t0 in
+    universal_merge
+      ~only_left:(fun t0 -> t0)
+      ~only_right:(fun t1 -> t1)
+      iv (combine_union iv f) t0 t1
+
+  let combine_union_sharing iv f t0 t1 =
+    match descr t0, descr t1 with
+    | Leaf (i, d0), Leaf (_, d1) -> (
+      match f i d0 d1 with
+      | Some d -> if d == d0 then t0 else leaf iv i d
+      | None -> empty iv)
+    | (Empty | Leaf _ | Branch _), (Empty | Leaf _ | Branch _) ->
+      (* Invariant: [combine] functions only called with leafs of the same
+         key. *)
+      assert false
+
+  let union_sharing f t0 t1 =
+    let iv = is_value_of t0 in
+    universal_merge ~check0:phys_eq_check
+      ~only_left:(fun t0 -> t0)
+      ~only_right:(fun t1 -> t1)
+      iv
+      (combine_union_sharing iv f)
+      t0 t1
+
+  let union_shared f t0 t1 =
+    let iv = is_value_of t0 in
+    universal_merge
+      ~shortcut:(fun t0 t1 -> if t0 == t1 then Some t0 else None)
+      ~check0:phys_eq_check
+      ~only_left:(fun t0 -> t0)
+      ~only_right:(fun t1 -> t1)
+      iv
+      (combine_union_sharing iv f)
+      t0 t1
+
+  let diff f t0 t1 =
+    let iv = is_value_of t0 in
+    universal_merge
+      ~only_left:(fun t0 -> t0)
+      ~only_right:(fun _ -> empty iv)
+      iv (combine_union iv f) t0 t1
+
+  let diff_sharing f t0 t1 =
+    let iv = is_value_of t0 in
+    universal_merge ~check0:phys_eq_check
+      ~only_left:(fun t0 -> t0)
+      ~only_right:(fun _ -> empty iv)
+      iv
+      (combine_union_sharing iv f)
+      t0 t1
+
+  let diff_shared f t0 t1 =
+    let iv = is_value_of t0 in
+    universal_merge
+      ~shortcut:(fun t0 t1 -> if t0 == t1 then Some (empty iv) else None)
+      ~check0:phys_eq_check
+      ~only_left:(fun t0 -> t0)
+      ~only_right:(fun _ -> empty iv)
+      iv
+      (combine_union_sharing iv f)
+      t0 t1
 
   (* CR mshinwell: rename to subset_domain and inter_domain? *)
 
@@ -563,7 +686,7 @@ end = struct
         else inter_domain_is_non_empty t0 t11
       else false
 
-  let rec diff t0 t1 =
+  let rec diff_domains t0 t1 =
     let iv = is_value_of t0 in
     match descr t0, descr t1 with
     | Empty, _ -> empty iv
@@ -572,14 +695,17 @@ end = struct
     | _, Leaf (i, _) -> remove i t0
     | Branch (prefix0, bit0, t00, t01), Branch (prefix1, bit1, t10, t11) ->
       if equal_prefix prefix0 bit0 prefix1 bit1
-      then branch prefix0 bit0 (diff t00 t10) (diff t01 t11)
+      then branch prefix0 bit0 (diff_domains t00 t10) (diff_domains t01 t11)
       else if includes_prefix prefix0 bit0 prefix1 bit1
       then
         if zero_bit prefix1 bit0
-        then branch prefix0 bit0 (diff t00 t1) t01
-        else branch prefix0 bit0 t00 (diff t01 t1)
+        then branch prefix0 bit0 (diff_domains t00 t1) t01
+        else branch prefix0 bit0 t00 (diff_domains t01 t1)
       else if includes_prefix prefix1 bit1 prefix0 bit0
-      then if zero_bit prefix0 bit1 then diff t0 t10 else diff t0 t11
+      then
+        if zero_bit prefix0 bit1
+        then diff_domains t0 t10
+        else diff_domains t0 t11
       else t0
 
   let rec cardinal t =
@@ -1098,6 +1224,16 @@ module Set = struct
 
   let union t0 t1 = Ops.union (fun _ () () -> Some ()) t0 t1
 
+  let union_shared t0 t1 = Ops.union_shared (fun _ () () -> Some ()) t0 t1
+
+  let union_sharing t0 t1 = Ops.union_sharing (fun _ () () -> Some ()) t0 t1
+
+  let diff = Ops.diff_domains
+
+  let diff_sharing t0 t1 = Ops.diff_sharing (fun _ () () -> None) t0 t1
+
+  let diff_shared t0 t1 = Ops.diff_shared (fun _ () () -> None) t0 t1
+
   let disjoint t0 t1 = not (Ops.inter_domain_is_non_empty t0 t1)
 
   let inter t0 t1 = Ops.inter Unit (fun _ () () -> ()) t0 t1
@@ -1170,8 +1306,6 @@ module Map = struct
 
   (* CR-someday lmaurer: See comment on [keys] *)
   let of_set f set = Set.fold (fun e map -> add e (f e) map) set empty
-
-  let diff_domains = diff
 end
 
 type set = Set.t

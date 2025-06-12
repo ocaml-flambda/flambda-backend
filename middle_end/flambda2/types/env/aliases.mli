@@ -142,6 +142,14 @@ val add_alias_set :
   Alias_set.t ->
   t
 
+(** [diff ~later ~earlier] returns a map recording the changes in canonical
+    element (ignoring name mode) between [earlier] and [later], which must be
+    derived from [earlier].
+
+    An entry [name -> (simple, coercion_to_simple)] in this maps indicates that
+    [coercion_to_simple(name)] was demoted to [simple]. *)
+val diff : later:t -> earlier:t -> (Simple.t * Coercion.t) Name.Map.t
+
 (** [get_aliases] always returns the supplied element in the result set. *)
 val get_aliases : t -> Simple.t -> Alias_set.t
 

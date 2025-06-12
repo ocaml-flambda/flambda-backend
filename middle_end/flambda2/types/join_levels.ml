@@ -103,8 +103,10 @@ let cut_and_n_way_join definition_typing_env ts_and_use_ids ~params ~cut_after
        then
          List.iteri
            (fun i (t, _, _) ->
-             let level = TE.cut t ~cut_after in
-             Format.eprintf "@[<v 1>-- Level %d --@ %a@]@ " i TEL.print level)
+             let level, db_level = TE.cut_with_database t ~cut_after in
+             Format.eprintf "@[<v 1>-- Level %d --@ %a@]@ " i TEL.print level;
+             Format.eprintf "@[<v 1>-- Database %d --@ %a@]@ " i
+               Database.Level.print db_level)
            ts_and_use_ids;
        Format.eprintf "@[<v 1>-- Old join --@ %a@]@ " TEL.print old_joined_level;
        Format.eprintf "@[<v 1>-- New join --@ %a@]@ " TEL.print new_joined_level;

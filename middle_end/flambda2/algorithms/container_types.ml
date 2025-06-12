@@ -86,6 +86,95 @@ module Make_map (T : Thing) (Set : Set_plus_stdlib with type elt = T.t) = struct
         | Some datum1, Some datum2 -> Some (f key datum1 datum2))
       t1 t2
 
+  let union_sharing f t1 t2 =
+    let changed = ref false in
+    let t =
+      union
+        (fun key datum1 datum2 ->
+          match f key datum1 datum2 with
+          | None ->
+            changed := true;
+            None
+          | Some datum ->
+            if not (datum == datum1) then changed := true;
+            Some datum)
+        t1 t2
+    in
+    if !changed then t else t1
+
+  let union_shared f t1 t2 =
+    let changed = ref false in
+    let t =
+      union
+        (fun key datum1 datum2 ->
+          if datum1 == datum2
+          then Some datum1
+          else
+            match f key datum1 datum2 with
+            | None ->
+              changed := true;
+              None
+            | Some datum ->
+              if not (datum == datum1) then changed := true;
+              Some datum)
+        t1 t2
+    in
+    if !changed then t else t1
+
+  let diff f t1 t2 =
+    merge
+      (fun key datum1_opt datum2_opt ->
+        match datum1_opt, datum2_opt with
+        | None, None | None, Some _ -> None
+        | Some datum1, None -> Some datum1
+        | Some datum1, Some datum2 -> f key datum1 datum2)
+      t1 t2
+
+  let diff_sharing f t1 t2 =
+    let changed = ref false in
+    let t =
+      merge
+        (fun key datum1_opt datum2_opt ->
+          match datum1_opt, datum2_opt with
+          | None, None | None, Some _ -> None
+          | Some datum1, None -> Some datum1
+          | Some datum1, Some datum2 -> (
+            match f key datum1 datum2 with
+            | None ->
+              changed := true;
+              None
+            | Some datum ->
+              if not (datum == datum1) then changed := true;
+              Some datum))
+        t1 t2
+    in
+    if not !changed then t1 else t
+
+  let diff_shared f t1 t2 =
+    let changed = ref false in
+    let t =
+      merge
+        (fun key datum1_opt datum2_opt ->
+          match datum1_opt, datum2_opt with
+          | None, None | None, Some _ -> None
+          | Some datum1, None -> Some datum1
+          | Some datum1, Some datum2 -> (
+            if datum1 == datum2
+            then (
+              changed := true;
+              None)
+            else
+              match f key datum1 datum2 with
+              | None ->
+                changed := true;
+                None
+              | Some datum ->
+                if not (datum == datum1) then changed := true;
+                Some datum))
+        t1 t2
+    in
+    if not !changed then t1 else t
+
   exception Found_common_element
 
   let inter_domain_is_non_empty t1 t2 =
@@ -175,6 +264,14 @@ struct
   let rec union_list ts =
     match ts with [] -> empty | t :: ts -> union t (union_list ts)
 
+  let union_sharing = union
+
+  let union_shared s1 s2 = if s1 == s2 then s1 else union s1 s2
+
+  let diff_sharing = diff
+
+  let diff_shared s1 s2 = if s1 == s2 then empty else diff_sharing s1 s2
+
   exception More_than_one_element
 
   let get_singleton t =
@@ -211,4 +308,88 @@ module Make_pair (T1 : S) (T2 : S) = struct
       (fun t1 result ->
         T2.Set.fold (fun t2 result -> Set.add (t1, t2) result) t2_set result)
       t1_set Set.empty
+end
+
+module Shared_set (T : S) = struct
+  type t = T.Set.t
+
+  type elt = T.t
+
+  let create t = t
+
+  let print = T.Set.print
+
+  let empty = T.Set.empty
+
+  let is_empty = T.Set.is_empty
+
+  let singleton = T.Set.singleton
+
+  let add k t =
+    (* Note: [Set.add] is not guaranteed to preserve sharing in depth. *)
+    T.Set.union_sharing t (T.Set.singleton k)
+
+  let remove k t =
+    (* Note: [Set.remove] is not guaranteed to preserve sharing in depth. *)
+    T.Set.diff_sharing t (T.Set.singleton k)
+
+  let mem = T.Set.mem
+
+  let diff = T.Set.diff_shared
+
+  let diff_set = T.Set.diff_sharing
+
+  let union = T.Set.union_shared
+
+  let union_set = T.Set.union_sharing
+
+  let fold = T.Set.fold
+
+  let iter = T.Set.iter
+
+  let map_unshare = T.Set.map
+end
+
+module Shared_map (T : S) = struct
+  type 'a t = 'a T.Map.t
+
+  type key = T.t
+
+  let create m = m
+
+  let print = T.Map.print
+
+  let empty = T.Map.empty
+
+  let is_empty = T.Map.is_empty
+
+  let singleton = T.Map.singleton
+
+  let add k v t =
+    (* Note: [M.add] is not guaranteed to preserve sharing in depth. *)
+    T.Map.union_sharing (fun _k _v0 v1 -> Some v1) t (T.Map.singleton k v)
+
+  let remove k t =
+    (* Note: [M.remove] is not guaranteed to preserve sharing in depth. *)
+    T.Map.diff_sharing (fun _k _v0 () -> None) t (T.Map.singleton k ())
+
+  let find_opt = T.Map.find_opt
+
+  let diff = T.Map.diff_shared
+
+  let diff_map = T.Map.diff_sharing
+
+  let union = T.Map.union_shared
+
+  let union_map = T.Map.union_sharing
+
+  let fold = T.Map.fold
+
+  let iter = T.Map.iter
+
+  let map = T.Map.map_sharing
+
+  let map_unshare = T.Map.map
+
+  let map_keys_unshare = T.Map.map_keys
 end
