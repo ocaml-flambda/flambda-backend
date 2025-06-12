@@ -92,7 +92,7 @@ let fmt_mutable_mode_flag f (x : Types.mutability) =
   match x with
   | Immutable -> fprintf f "Immutable"
   | Mutable m ->
-    fprintf f "Mutable(%a)" Mode.Alloc.Comonadic.Const.print m
+    fprintf f "Mutable(%a)" (Mode.Value.Comonadic.print ()) m
 
 let fmt_virtual_flag f x =
   match x with

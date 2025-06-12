@@ -830,18 +830,6 @@ let mode_default mode = {
   context = None
 }
 
-(* CR jrayman: maybe not the best place to put these *)
-let modalities_for_mutvar =
-  Typemode.transl_modalities ~maturity:Stable
-    ~for_mutable_variable:true (Mutable mutable_mode_for_mutvar) []
-
-let m0_for_mutvar =
-  Mode.Alloc.Const.merge
-    {comonadic = mutable_mode_for_mutvar;
-     monadic = Mode.Alloc.Monadic.Const.min}
-  |> Mode.Const.alloc_as_value |> Mode.Value.of_const
-  |> Mode.Modality.Value.Const.apply modalities_for_mutvar
-
 let env_labels (type rep) (record_form : rep record_form) env
     : rep gen_label_description TycompTbl.t  =
   match record_form with
@@ -3314,25 +3302,23 @@ let walk_locks ~errors ~loc ~env ~item ~lid mode ty locks =
     ) vmode locks
 
 (** Take the parameter of [mutable(m0)] at declaration site,  *)
-let walk_locks_for_mutable_mode ~errors ~loc ~env  mode locks =
+let walk_locks_for_mutable_mode ~errors ~loc ~env  locks mode =
   List.fold_left
     (fun (mode : Mode.Value.r) lock ->
       match lock with
       | Region_lock ->
-          (* If [m0] is [global], then inside the region we require new values
-            to be [global]. If [m0] is [local], morally inside the region we can
-            require new values to be [regional]. However, GC doesn't support
-            backward pointers inside a single stack frame. So we just require
-            new values to be [global].
-            *)
+          (* CR zqian: once we have finer regionality, remove this branch *)
+          (* First map [regional] to [global], then cap [local] to [regional] *)
+          let mode = mode |> Mode.value_to_alloc_r2g |> Mode.alloc_as_value in
           Mode.Value.meet
             [mode;
-             Mode.Value.max_with (Comonadic Areality) (Mode.Regionality.global)]
+             Mode.Value.max_with (Comonadic Areality) (Mode.Regionality.regional)]
       | Exclave_lock ->
           (* If [m0] is [global], then inside the exclave we require new values
-          to be [global]. If [m0] is [local], then we require the new values to
-          be [local]. *)
-          mode
+          to be [global]. If [m0] is [regional], then we require the new values to
+          be [local]. If [m0] is [local], that would trigger type error
+          elsewhere, so what we return here doesn't matter. *)
+          mode |> Mode.value_to_alloc_r2l |> Mode.alloc_as_value
       | Escape_lock (Letop | Probe | Class | Module as ctx) ->
           may_lookup_error errors loc env
             (Mutable_value_used_in_closure (`Escape ctx))
@@ -3351,8 +3337,10 @@ let lookup_ident_value ~errors ~use ~loc name env =
   match IdTbl.find_name_and_locks wrap_value ~mark:use name env.values with
   | Ok (path, locks, Val_bound vda) ->
       begin match vda with
-      | {vda_description={val_kind=Val_mut _; _}; _} ->
-          walk_locks_for_mutable_mode ~errors ~loc ~env m0_for_mutvar locks
+      | {vda_description={val_kind=Val_mut (m0, _); _}; _} ->
+          m0
+          |> mutable_mode |> Mode.Value.disallow_left
+          |> walk_locks_for_mutable_mode ~errors ~loc ~env locks
           |> ignore
       | _ -> () end;
       use_value ~use ~loc path vda;
@@ -4102,12 +4090,14 @@ let lookup_settable_variable ?(use=true) ~loc name env =
           use_value ~use ~loc path vda;
           Instance_variable
             (path, mut, cl_num, Subst.Lazy.force_type_expr desc.val_type)
-      | Val_mut sort, Pident id ->
+      | Val_mut (m0, sort), Pident id ->
           let val_type = Subst.Lazy.force_type_expr desc.val_type in
           let mode =
-            walk_locks_for_mutable_mode
-              ~errors:true ~loc ~env
-              m0_for_mutvar locks
+            m0
+            |> mutable_mode |> Mode.Value.disallow_left
+            |> walk_locks_for_mutable_mode ~errors:true ~loc ~env locks
+            |> Mode.Modality.Value.Const.apply
+                (Typemode.let_mutable_modalities m0)
           in
           use_value ~use ~loc path vda;
           Mutable_variable (id, mode, val_type, sort)

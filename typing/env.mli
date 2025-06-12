@@ -280,8 +280,6 @@ type actual_mode = {
   (** Explains why [mode] is high. *)
 }
 
-val modalities_for_mutvar : Mode.Modality.Value.Const.t
-
 (** Takes the [mode] and [ty] of a value at definition site, walks through the list of
     locks and constrains [mode] and [ty]. Return the access mode of the value allowed by
     the locks. [ty] is optional as the function works on modules and classes as well, for

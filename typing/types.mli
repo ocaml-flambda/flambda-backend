@@ -29,16 +29,15 @@ open Asttypes
 (** Describes a mutable field/element. *)
 type mutability =
   | Immutable
-  | Mutable of Mode.Alloc.Comonadic.Const.t
-  (** The upper bound of the new field value upon mutation. *)
-
-(** [Mutable mutable_mode_for_mutvar] for mutable variables.
-    Currently [legacy, local]. *)
-val mutable_mode_for_mutvar : Mode.Alloc.Comonadic.Const.t
+  | Mutable of Mode.Value.Comonadic.lr
+  (** Mode of new field value in mutation. *)
 
 (** Returns [true] is the [mutable_flag] is mutable. Should be called if not
     interested in the payload of [Mutable]. *)
 val is_mutable : mutability -> bool
+
+(** Given the parameter [m0] on mutable, return the mode of future writes. *)
+val mutable_mode : ('l * 'r) Mode.Value.Comonadic.t -> ('l * 'r) Mode.Value.t
 
 (** Type expressions for the core language.
 
@@ -653,7 +652,7 @@ module Vars  : Map.S with type key = string
 
 type value_kind =
     Val_reg                             (* Regular value *)
-  | Val_mut of Jkind_types.Sort.t       (* Mutable variable *)
+  | Val_mut of Mode.Value.Comonadic.lr * Jkind_types.Sort.t (* Mutable variable *)
   | Val_prim of Primitive.description   (* Primitive *)
   | Val_ivar of mutable_flag * string   (* Instance variable (mutable ?) *)
   | Val_self of class_signature * self_meths * Ident.t Vars.t * string

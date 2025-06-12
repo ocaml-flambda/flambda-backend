@@ -274,11 +274,9 @@ let mutable_ (mut : Types.mutability) : mutable_flag =
   match mut with
   | Immutable -> Immutable
   | Mutable m ->
-      let open Mode.Alloc.Comonadic.Const in
-      if Misc.Le_result.equal ~le m legacy then
-        Mutable
-      else
-        Misc.fatal_errorf "unexpected mutable(%a)" print m
+      let open Mode.Value.Comonadic in
+      equate_exn m legacy;
+      Mutable
 
 let label_declaration sub ld =
   let loc = sub.location sub ld.ld_loc in

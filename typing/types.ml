@@ -20,16 +20,16 @@ open Asttypes
 
 type mutability =
   | Immutable
-  | Mutable of Mode.Alloc.Comonadic.Const.t
-
-let mutable_mode_for_mutvar =
-  { Mode.Alloc.Comonadic.Const.legacy with
-    areality = Mode.Locality.Const.max;
-    yielding = Mode.Yielding.Const.max }
+  | Mutable of Mode.Value.Comonadic.lr
 
 let is_mutable = function
   | Immutable -> false
   | Mutable _ -> true
+
+let mutable_mode m0 : _ Mode.Value.t =
+  { comonadic = m0
+  ; monadic = Mode.Value.Monadic.(min |> allow_left |> allow_right)
+  }
 
 (* Type expressions for the core language *)
 
@@ -479,7 +479,7 @@ module Vars = Misc.Stdlib.String.Map
 
 type value_kind =
     Val_reg                             (* Regular value *)
-  | Val_mut of Jkind_types.Sort.t       (* Mutable value *)
+  | Val_mut of Mode.Value.Comonadic.lr * Jkind_types.Sort.t       (* Mutable value *)
   | Val_prim of Primitive.description   (* Primitive *)
   | Val_ivar of mutable_flag * string   (* Instance variable (mutable ?) *)
   | Val_self of

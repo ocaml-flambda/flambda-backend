@@ -1840,11 +1840,10 @@ let tree_of_label l =
     match l.ld_mutable with
     | Mutable m ->
         let mut =
-          let open Alloc.Comonadic.Const in
-          if Misc.Le_result.equal ~le m legacy then
-            Om_mutable None
-          else
-            Om_mutable (Some "<non-legacy>")
+          let open Value.Comonadic in
+          match equate m legacy with
+          | Ok () -> Om_mutable None
+          | Error _ -> Om_mutable (Some "<non-legacy>")
         in
         mut
     | Immutable -> Om_immutable

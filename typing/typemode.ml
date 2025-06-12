@@ -561,8 +561,8 @@ let sort_dedup_modalities ~warn l =
   in
   l |> List.stable_sort compare |> dedup ~on_dup |> List.map fst
 
-let transl_modalities ~maturity ?(for_mutable_variable = false) mut modalities =
-  let mut_modalities = mutable_implied_modalities mut ~for_mutable_variable in
+let transl_modalities ~maturity mut modalities =
+  let mut_modalities = mutable_implied_modalities mut ~for_mutable_variable:false in
   let modalities = List.map (transl_modality ~maturity) modalities in
   (* axes listed in the order of implication. *)
   let modalities = sort_dedup_modalities ~warn:true modalities in
@@ -577,6 +577,9 @@ let transl_modalities ~maturity ?(for_mutable_variable = false) mut modalities =
         (fun m (Atom (ax, a)) -> Value.Const.set ax a m)
         m (implied_modalities t))
     mut_modalities modalities
+
+let let_mutable_modalities m0 =
+  mutable_implied_modalities (Mutable m0) ~for_mutable_variable:true
 
 let untransl_modalities mut t =
   t
