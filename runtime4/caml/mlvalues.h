@@ -306,7 +306,7 @@ Caml_inline mlsize_t Scannable_wosize_reserved_byte(reserved_t res,
 #define Bhsize_wosize(sz) (Bsize_wsize (Whsize_wosize (sz)))
 #define Bhsize_bosize(sz) ((sz) + sizeof (header_t))
 
-/* flambda-backend: We rename the size macros to [Allocated_...] so that we're
+/* oxcaml: We rename the size macros to [Allocated_...] so that we're
    forced to think about whether C code needs to updated for mixed blocks, which
    have separate notions of scannable size and total size of an object, even for
    scannable tags. We call an object's size (including possibly non-scannable

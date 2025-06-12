@@ -101,7 +101,7 @@ static void init_startup_params(void)
   params.use_hugetlb_pages = 0;
 
 #ifdef DEBUG
-  // Silenced in flambda-backend to make it easier to run tests that
+  // Silenced in oxcaml to make it easier to run tests that
   // check program output.
   // atomic_store_relaxed(&caml_verb_gc, CAML_GC_MSG_VERBOSE | CAML_GC_MSG_MINOR);
 #endif

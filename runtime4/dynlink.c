@@ -224,7 +224,7 @@ void caml_free_shared_libs(void)
 /* The following is verbatim from runtime5, except for caml_alloc_2 and
    the O_BINARY definition, and the "r5"-commented parts. */
 
-/* flambda-backend runtime4 will never support Windows */
+/* oxcaml runtime4 will never support Windows */
 #define O_BINARY 0
 
 static value caml_alloc_2 (tag_t tag, value a, value b)
