@@ -1761,10 +1761,10 @@ let cannot_change_calling_convention_of_called_closure_query2 =
         cannot_change_calling_convention codeid ])
 
 let cannot_change_calling_convention uses v =
-  not (Compilation_unit.is_current (Code_id.get_compilation_unit v)) ||
-  exists_with_parameters cannot_change_calling_convention_query
-    [Code_id_or_name.code_id v]
-    uses.db
+  (not (Compilation_unit.is_current (Code_id.get_compilation_unit v)))
+  || exists_with_parameters cannot_change_calling_convention_query
+       [Code_id_or_name.code_id v]
+       uses.db
 
 let code_id_actually_called_query =
   let open Syntax in

@@ -1692,8 +1692,9 @@ and rebuild_function_params_and_body (env : env) res code_metadata
       Code_id.Map.find code_id env.function_params_to_keep
     in
     let result_arity = Flambda_arity.unarize_t (get_arity return_decisions) in
-    let code_metadata = Code_metadata.with_is_tupled false (
-      Code_metadata.with_result_arity result_arity code_metadata)
+    let code_metadata =
+      Code_metadata.with_is_tupled false
+        (Code_metadata.with_result_arity result_arity code_metadata)
     in
     let params_decision =
       List.map2
