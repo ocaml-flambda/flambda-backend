@@ -18,7 +18,7 @@
 # Require Autoconf 2.71 for repeatability in CI
 AC_PREREQ([2.71])
 AC_INIT([The Flambda backend for OCaml],
-        5.2.0+jst,
+        5.2.0+ox,
         [mshinwell@janestreet.com],
         [flambda_backend],
         [http://github.com/ocaml-flambda/flambda_backend])
