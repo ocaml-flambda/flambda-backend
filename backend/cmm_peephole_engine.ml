@@ -105,7 +105,7 @@ let matches_binop (binop : binop) (cop : Cmm.operation) =
   | Or, Cor -> true
   | _, _ -> false
 
-let match_clauses_in_order clauses expr =
+let match_clauses_in_order ~default ~matches clauses expr =
   let (let*) = Option.bind in
   let rec match_one_pattern env pat (expr : Cmm.expression) =
     match expr with
@@ -138,17 +138,24 @@ let match_clauses_in_order clauses expr =
   end
   in
   let rec find_matching_clause expr = function
-    | [] -> expr
+    | [] -> default expr
     | (pat, f) :: clauses -> begin
         match match_one_pattern Env.empty pat expr with
-        | Some env -> Env.place_phantom_lets env (f env)
+        | Some env -> matches env (f env)
         | None -> find_matching_clause expr clauses
       end
   in
   find_matching_clause expr clauses
 
 let run expr clauses =
-  match_clauses_in_order clauses expr
+  match_clauses_in_order
+    ~default:Fun.id ~matches:Env.place_phantom_lets
+    clauses expr
+
+let run_default ~default expr clauses =
+  match_clauses_in_order
+    ~default ~matches:(fun _env x -> x)
+    clauses expr
 
 module Syntax = struct
   let (=>) lhs rhs = lhs, rhs

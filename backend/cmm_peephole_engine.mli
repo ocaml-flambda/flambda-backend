@@ -40,6 +40,8 @@ type 'a clause
 
 val run : Cmm.expression -> Cmm.expression clause list -> Cmm.expression
 
+val run_default : default:(Cmm.expression -> 'a) -> Cmm.expression -> 'a clause list -> 'a
+
 module Syntax : sig
   val (=>) : cmm_pattern -> (Env.t -> 'a) -> 'a clause
   val (#.) : Env.t -> 'a pattern_var -> 'a
