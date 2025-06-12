@@ -48,6 +48,7 @@ let safe_string = true
 let default_safe_string = true
 let naked_pointers = false
 let flambda_backend = true
+let oxcaml = true
 let parameterised_modules = true
 
 let interface_suffix = ref ".mli"
@@ -139,6 +140,7 @@ let configuration_variables () =
   p "cms_magic_number" cms_magic_number;
   p "linear_magic_number" linear_magic_number;
 
+  (* "flambda_backend" is still printed for compatibility *)
   p_bool "flambda_backend" flambda_backend;
   p_bool "probes" probes;
   p_bool "stack_allocation" stack_allocation;

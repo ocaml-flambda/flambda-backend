@@ -24,7 +24,7 @@
 open Config
 open Cmx_format
 
-module File_sections = Flambda_backend_utils.File_sections
+module File_sections = Oxcaml_utils.File_sections
 
 module CU = Compilation_unit
 

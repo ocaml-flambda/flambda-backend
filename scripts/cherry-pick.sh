@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# To be run from the root of the Flambda backend repo.
-# Cherry pick a commit from upstream repo and apply it to flambda-backend repo.
+# To be run from the root of the OxCaml repo.
+# Cherry pick a commit from upstream repo and apply it to oxcaml repo.
 #
 # Intended for experimental middle- and backend-related changes made on the upstream repo
 # to be applied to the corresponding new directories:
@@ -13,7 +13,7 @@
 # To apply the changes into ocaml/asmcomp and ocaml/middle-end as well, invoke
 # this script with "-everywhere" command line flag.
 #
-# To apply the changes from flambda-backend's "ocaml/asmcomp" subdirectory
+# To apply the changes from oxcaml's "ocaml/asmcomp" subdirectory
 # to "backend" subdirectory, invoke this script with "-across" command line flag.
 #
 # To backport a change from upstream to ocaml/ directory only, simply invoke

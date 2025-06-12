@@ -102,12 +102,12 @@ value caml_startup_common(char_os **argv, int pooling)
   value res;
 
   caml_init_os_params();
-  
+
   /* Determine options */
   caml_parse_ocamlrunparam();
 
 #ifdef DEBUG
-  // Silenced in flambda-backend to make it easier to run tests that
+  // Silenced in oxcaml to make it easier to run tests that
   // check program output.
   // CAML_GC_MESSAGE (ANY, "### OCaml runtime: debug mode ###\n");
 #endif

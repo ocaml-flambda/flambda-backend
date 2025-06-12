@@ -13,7 +13,9 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-(** Flambda-backend specific command line flags *)
+
+(** OxCaml specific command line flags *)
+
 val use_ocamlcfg : bool ref
 val dump_cfg : bool ref
 val cfg_invariants : bool ref

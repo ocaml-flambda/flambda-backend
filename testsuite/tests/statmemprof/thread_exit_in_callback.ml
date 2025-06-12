@@ -1,5 +1,5 @@
 (* TEST
- reason = "Thread.exit from a Memprof callback is a fatal error under flambda-backend";
+ reason = "Thread.exit from a Memprof callback is a fatal error under oxcaml";
  skip;
  include systhreads;
  hassysthreads;

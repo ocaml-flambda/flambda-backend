@@ -27,7 +27,7 @@
 
 open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 module CL = Cfg_with_layout
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 
 let add cl =
   (* Fabricate debug info when missing, because it is required to emit discriminators.

@@ -1,5 +1,5 @@
 #
-# Build rules common to ocaml-jst and flambda-backend
+# Build rules common to ocaml-ox and oxcaml
 #
 
 ws_boot   = --root=. --workspace=duneconf/boot.ws
@@ -97,9 +97,9 @@ compiler: runtime-stdlib
           ASPP="$(ASPP)" ASPPFLAGS="$(ASPPFLAGS)" \
           $(dune) build $(ws_main) \
           --only-package=ocaml @install \
-          flambda-backend/testsuite/tools/expect.exe \
-          flambda-backend/testsuite/tools/codegen_main.exe \
-          flambda-backend/testsuite/tools/asmgen_$(ARCH).o \
+          oxcaml/testsuite/tools/expect.exe \
+          oxcaml/testsuite/tools/codegen_main.exe \
+          oxcaml/testsuite/tools/asmgen_$(ARCH).o \
           testsuite/lib/lib.cm{,x}a \
           testsuite/lib/testing.cm{,x}a \
           $(ocamldir)/tools/dumpobj.bc
@@ -137,7 +137,7 @@ dune_config_targets = \
   duneconf/runtime_stdlib.ws \
   duneconf/main.ws \
   $(ocamldir)/duneconf/dirs-to-ignore.inc \
-  $(ocamldir)/duneconf/jst-extra.inc \
+  $(ocamldir)/duneconf/ox-extra.inc \
   dune-project \
   $(ocamldir)/dune.runtime_selection \
   $(ocamldir)/otherlibs/dune
@@ -243,13 +243,13 @@ install_for_test: _install
 	rsync --link-dest=../../$(ocamldir)/testsuite/ -a $(ocamldir)/testsuite/ _runtest/testsuite/
 	 # replace backend-specific testsuite/tools with their new versions
 	rm -f _runtest/testsuite/tools/*
-	cp -a flambda-backend/testsuite/tools/* _runtest/testsuite/tools/
-	cp $(main_build)/flambda-backend/testsuite/tools/expect.exe _runtest/testsuite/tools/expect
+	cp -a oxcaml/testsuite/tools/* _runtest/testsuite/tools/
+	cp $(main_build)/oxcaml/testsuite/tools/expect.exe _runtest/testsuite/tools/expect
 	chmod 755 _runtest/testsuite/tools/expect
-	cp $(main_build)/flambda-backend/testsuite/tools/codegen_main.exe \
+	cp $(main_build)/oxcaml/testsuite/tools/codegen_main.exe \
           _runtest/testsuite/tools/codegen
 	chmod 755 _runtest/testsuite/tools/codegen
-	cp $(main_build)/flambda-backend/testsuite/tools/asmgen_*.o \
+	cp $(main_build)/oxcaml/testsuite/tools/asmgen_*.o \
           _runtest/testsuite/tools/
 	cp $(main_build)/testsuite/lib/lib.{a,cmxa,cma} \
           _runtest/testsuite/lib/
@@ -265,16 +265,16 @@ install_for_test: _install
           _runtest/testsuite/lib/
 	 # replace backend-specific testsuite/tests/asmcomp with their new versions
 	rm _runtest/testsuite/tests/asmcomp/*
-	cp -a flambda-backend/testsuite/tests/asmcomp/* _runtest/testsuite/tests/asmcomp/
+	cp -a oxcaml/testsuite/tests/asmcomp/* _runtest/testsuite/tests/asmcomp/
 	 # replace backend-specific testsuite/tests/asmgen with their new versions
 	rm _runtest/testsuite/tests/asmgen/*
-	cp -a flambda-backend/testsuite/tests/asmgen/* _runtest/testsuite/tests/asmgen/
+	cp -a oxcaml/testsuite/tests/asmgen/* _runtest/testsuite/tests/asmgen/
 	 # replace backend-specific testsuite/tests/unboxed-primitive-args with their new versions
 	rm _runtest/testsuite/tests/unboxed-primitive-args/*
-	cp -a flambda-backend/testsuite/tests/unboxed-primitive-args/* _runtest/testsuite/tests/unboxed-primitive-args/
+	cp -a oxcaml/testsuite/tests/unboxed-primitive-args/* _runtest/testsuite/tests/unboxed-primitive-args/
 	 # add extension library tests that are not supported by the upstream compiler
 	rm _runtest/testsuite/tests/lib-extensions/*
-	cp -a flambda-backend/testsuite/tests/lib-extensions/* _runtest/testsuite/tests/lib-extensions
+	cp -a oxcaml/testsuite/tests/lib-extensions/* _runtest/testsuite/tests/lib-extensions
 
 	cp $(ocamldir)/Makefile.* _runtest/
 
@@ -354,7 +354,7 @@ install_for_test: _install
 test: install_for_test
 	if [ "$(middle_end)" = "flambda2" ]; then \
 	  for dir in `cd testsuite; ls -1 -d tests/*`; do \
-	    if ! grep -q "^  $$dir " flambda-backend/testsuite/flambda2-test-list; then \
+	    if ! grep -q "^  $$dir " oxcaml/testsuite/flambda2-test-list; then \
 	      echo "  $$dir"; \
 	    fi; \
 	  done > _runtest/flambda2-test-list; \

@@ -16,8 +16,7 @@
 (* Emission of Intel x86_64 assembly code *)
 
 (* Correctness: carefully consider any use of [Config], [Clflags],
-   [Flambda_backend_flags] and shared variables. For details, see
-   [asmgen.mli]. *)
+   [Oxcaml_flags] and shared variables. For details, see [asmgen.mli]. *)
 
 [@@@ocaml.warning "+a-40-41-42"]
 
@@ -238,7 +237,7 @@ let emit_named_text_section ?(suffix = "") func_name =
      [Cfg.codegen_option], and at that point we could add a constructor for
      module-entry-functions too so that we don't have to inspect [func_name]
      like we do now. *)
-  if !Flambda_backend_flags.module_entry_functions_section
+  if !Oxcaml_flags.module_entry_functions_section
      && String.ends_with func_name ~suffix:"__entry"
   then (
     match[@ocaml.warning "-4"] system with
@@ -259,8 +258,7 @@ let emit_named_text_section ?(suffix = "") func_name =
          specific text section. *)
       (* CR sspies: Add proper support for named text sections. *)
       D.unsafe_set_internal_section_ref Text)
-  else if !Clflags.function_sections
-          || !Flambda_backend_flags.basic_block_sections
+  else if !Clflags.function_sections || !Oxcaml_flags.basic_block_sections
   then (
     match[@ocaml.warning "-4"] system with
     | S_macosx
@@ -299,7 +297,7 @@ let emit_function_or_basic_block_section_name () =
   emit_named_text_section !function_name ~suffix
 
 let emit_Llabel fallthrough lbl section_name =
-  (if !Flambda_backend_flags.basic_block_sections
+  (if !Oxcaml_flags.basic_block_sections
   then
     match section_name with
     | Some name ->
@@ -790,7 +788,7 @@ let emit_vec128_constant ({ high; low } : Cmm.vec128_bits) lbl =
 
 let global_maybe_protected (sym : S.t) =
   D.global sym;
-  if !Flambda_backend_flags.symbol_visibility_protected
+  if !Oxcaml_flags.symbol_visibility_protected
   then
     (* CR sspies: This match should probably moved into asm directives. Check
        what Arm does. *)
@@ -1067,7 +1065,7 @@ end = struct
   let[@inline always] is_stack_16_byte_aligned () =
     (* Yes, sadly this does result in materially better assembly than
        [(!stack_offset mod 16) = 0]
-       https://github.com/ocaml-flambda/flambda-backend/issues/2187 *)
+       https://github.com/oxcaml/oxcaml/issues/2187 *)
     !stack_offset land 15 = 0
 
   let asan_report_function memory_chunk_size memory_access : X86_ast.arg =
@@ -2015,7 +2013,7 @@ let emit_function_type_and_size fun_sym =
   (* Note: Symbol types and sizes are only needed on some platforms/systems.
      These functions check internally whether they are needed. *)
   D.type_symbol ~ty:Function fun_sym;
-  if not !Flambda_backend_flags.basic_block_sections then D.size fun_sym
+  if not !Oxcaml_flags.basic_block_sections then D.size fun_sym
 
 (* Emission of a function declaration *)
 
@@ -2148,14 +2146,13 @@ let reset_all () =
 
 let begin_assembly unix =
   reset_all ();
-  if !Flambda_backend_flags.internal_assembler
-     && !Emitaux.binary_backend_available
+  if !Oxcaml_flags.internal_assembler && !Emitaux.binary_backend_available
   then X86_proc.register_internal_assembler (Internal_assembler.assemble unix);
   (* We initialize the new assembly directives. *)
   Asm_targets.Asm_label.initialize ~new_label:(fun () ->
       Cmm.new_label () |> Label.to_int);
   D.initialize ~big_endian:Arch.big_endian
-    ~emit_assembly_comments:!Flambda_backend_flags.dasm_comments
+    ~emit_assembly_comments:!Oxcaml_flags.dasm_comments
       (* As a first step, we emit by calling the corresponding x86 emit
          directives. *) ~emit:(fun d -> directive (Directive d));
   let code_begin = Cmm_helpers.make_symbol "code_begin" in
@@ -2643,8 +2640,8 @@ let end_assembly () =
            !Emitaux.output_channel)
     else None
   in
-  if not !Flambda_backend_flags.internal_assembler
+  if not !Oxcaml_flags.internal_assembler
   then Emitaux.Dwarf_helpers.emit_dwarf ();
   X86_proc.generate_code asm;
   (* The internal assembler does not work if reset_all is called here *)
-  if not !Flambda_backend_flags.internal_assembler then reset_all ()
+  if not !Oxcaml_flags.internal_assembler then reset_all ()

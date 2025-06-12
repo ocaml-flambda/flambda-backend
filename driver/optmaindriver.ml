@@ -17,8 +17,8 @@ open Clflags
 
 let usage = "Usage: ocamlopt <options> <files>\nOptions are:"
 
-module Options = Flambda_backend_args.Make_optcomp_options
-        (Flambda_backend_args.Default.Optmain)
+module Options = Oxcaml_args.Make_optcomp_options
+        (Oxcaml_args.Default.Optmain)
 
 let main unix argv ppf ~flambda2 =
   native_code := true;
@@ -51,17 +51,17 @@ let main unix argv ppf ~flambda2 =
   match
     Compenv.warnings_for_discarded_params := true;
     Compenv.set_extra_params
-      (Some Flambda_backend_args.Extra_params.read_param);
+      (Some Oxcaml_args.Extra_params.read_param);
     Compenv.readenv ppf Before_args;
     Clflags.add_arguments __LOC__ (Arch.command_line_options @ Options.list);
     Clflags.add_arguments __LOC__
       ["-depend", Arg.Unit Makedepend.main_from_option,
        "<options> Compute dependencies \
         (use 'ocamlopt -depend -help' for details)"];
-    Clflags.Opt_flag_handler.set Flambda_backend_flags.opt_flag_handler;
+    Clflags.Opt_flag_handler.set Oxcaml_flags.opt_flag_handler;
     Compenv.parse_arguments (ref argv) Compenv.anonymous "ocamlopt";
     Compmisc.read_clflags_from_env ();
-    if !Flambda_backend_flags.gc_timings then Gc_timings.start_collection ();
+    if !Oxcaml_flags.gc_timings then Gc_timings.start_collection ();
     if !Clflags.plugin then
       Compenv.fatal "-plugin is only supported up to OCaml 4.08.0";
     begin try
@@ -176,7 +176,7 @@ let main unix argv ppf ~flambda2 =
       ppf_file !Clflags.profile_columns ~timings_precision:!Clflags.timings_precision
     in
     let output_profile_standard ppf =
-      if !Flambda_backend_flags.gc_timings then begin
+      if !Oxcaml_flags.gc_timings then begin
         let minor = Gc_timings.gc_minor_ns () in
         let major = Gc_timings.gc_major_ns () in
         let stats = Gc.quick_stat () in
@@ -208,6 +208,6 @@ let main unix argv ppf ~flambda2 =
     in
     if !Clflags.dump_into_csv then
       Compmisc.with_ppf_file ~file_prefix:"profile" ~file_extension:".csv" output_profile_csv
-    else if !Flambda_backend_flags.gc_timings || !Clflags.profile_columns <> [] then
+    else if !Oxcaml_flags.gc_timings || !Clflags.profile_columns <> [] then
       Compmisc.with_ppf_dump ~stdout:() ~file_prefix:"profile" output_profile_standard;
     0

@@ -5,9 +5,9 @@
    native;
 *)
 
-(* From https://github.com/ocaml-flambda/flambda-backend/pull/2698
+(* From https://github.com/oxcaml/oxcaml/pull/2698
    although submitted as part of
-   https://github.com/ocaml-flambda/flambda-backend/pull/2763
+   https://github.com/oxcaml/oxcaml/pull/2763
 *)
 
 module Float32_u = Stdlib_stable.Float32_u

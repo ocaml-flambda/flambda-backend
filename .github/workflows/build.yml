@@ -197,10 +197,10 @@ jobs:
       run_testsuite: "true"
 
     steps:
-    - name: Checkout the Flambda backend repo
+    - name: Checkout the OxCaml repo
       uses: actions/checkout@master
       with:
-        path: 'flambda_backend'
+        path: 'oxcaml'
 
     - name: Install AFL (for Linux workers)
       if: matrix.os == 'ubuntu-latest'
@@ -241,7 +241,7 @@ jobs:
       if: steps.cache.outputs.cache-hit != 'true'
       working-directory: ocaml-414
       run: |
-        patch -p1 < $GITHUB_WORKSPACE/flambda_backend/arm64-issue-debug-upstream.patch
+        patch -p1 < $GITHUB_WORKSPACE/oxcaml/arm64-issue-debug-upstream.patch
         ./configure --prefix=$GITHUB_WORKSPACE/ocaml-414/_install
         make -j $J world.opt
         make install
@@ -291,15 +291,15 @@ jobs:
       run: HOMEBREW_NO_INSTALL_CLEANUP=TRUE brew install parallel
 
     - name: Disable any testcases
-      working-directory: flambda_backend
+      working-directory: oxcaml
       run: |
         disable_testcases="${{matrix.disable_testcases}}"
         if [ -n "$disable_testcases" ]; then
           rm -fv $disable_testcases
         fi
 
-    - name: Configure Flambda backend
-      working-directory: flambda_backend
+    - name: Configure OxCaml
+      working-directory: oxcaml
       run: |
         if [[ -n "${{matrix.cc}}" ]]; then
           export CC="${{matrix.cc}}"
@@ -327,8 +327,8 @@ jobs:
         codesign -s - -f --entitlements /tmp/core.entitlements $GITHUB_WORKSPACE/ocaml-414/_install/bin/ocamlc.opt
         codesign -s - -f --entitlements /tmp/core.entitlements $GITHUB_WORKSPACE/ocaml-414/_install/bin/ocamlopt.opt
 
-    - name: Build, install and test Flambda backend
-      working-directory: flambda_backend
+    - name: Build, install and test OxCaml
+      working-directory: oxcaml
       run: |
         if [ "$run_testsuite" = true ]; then target=ci; else target=compiler; fi
         export PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH
@@ -342,7 +342,7 @@ jobs:
         USE_RUNTIME: ${{ matrix.use_runtime }}
 
     - name: Check other architectures
-      working-directory: flambda_backend
+      working-directory: oxcaml
       if: matrix.check_arch == true
       run: |
         PATH=$GITHUB_WORKSPACE/ocaml-414/_install/bin:$PATH make check_all_arches
@@ -369,13 +369,13 @@ jobs:
 #       if: ${{ failure() }}
 #       with:
 #         name: _build-${{ github.sha }}-${{ github.run_id }}-${{ matrix.name }}
-#         path: ${{ github.workspace }}/flambda_backend/_build
+#         path: ${{ github.workspace }}/oxcaml/_build
 #
 #     - uses: actions/upload-artifact@v4
 #       if: ${{ failure() }}
 #       with:
 #         name: _runtest-${{ github.sha }}-${{ github.run_id }}-${{ matrix.name }}
-#         path: ${{ github.workspace }}/flambda_backend/_runtest
+#         path: ${{ github.workspace }}/oxcaml/_runtest
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}

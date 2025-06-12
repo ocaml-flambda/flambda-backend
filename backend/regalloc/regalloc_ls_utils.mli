@@ -1,7 +1,7 @@
 [@@@ocaml.warning "+a-30-40-41-42"]
 
 open Regalloc_utils
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 
 val log : ?no_eol:unit -> ('a, Format.formatter, unit) format -> 'a
 

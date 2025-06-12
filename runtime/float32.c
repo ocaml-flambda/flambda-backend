@@ -435,7 +435,7 @@ CAMLprim value caml_modf_float32(value f)
 }
 
 /* The functions on bytes, strings, and bigstrings (ba_uint8) are only used
-   in bytecode builds. Otherwise, the flambda-backend compiler translates
+   in bytecode builds. Otherwise, the OxCaml compiler translates
    the corresponding primitives directly to load/store instructions. */
 
 CAMLprim value caml_string_getf32(value str, value index)

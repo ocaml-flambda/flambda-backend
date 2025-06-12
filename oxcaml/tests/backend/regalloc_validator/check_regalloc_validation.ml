@@ -1,5 +1,5 @@
 open Cfg_intf.S
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 
 module Instruction = struct
   type 'a t =
@@ -373,7 +373,7 @@ let check name f ~exp_std ~exp_err =
               let desc =
                 try
                   Misc.protect_refs
-                    [R (Flambda_backend_flags.regalloc_validate, true)]
+                    [R (Oxcaml_flags.regalloc_validate, true)]
                     (fun () -> Regalloc_validate.Description.create before)
                 with Misc.Fatal_error ->
                   Format.printf

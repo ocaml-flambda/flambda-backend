@@ -6,7 +6,7 @@ open! Int_replace_polymorphic_compare
    use vector operations if possible *)
 (* CR gyorsh: how does the info from [reg_map] flow between blocks? *)
 
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 
 module State : sig
   type t
@@ -59,7 +59,7 @@ end = struct
   let extra_debug = true
 
   let dump_if c t =
-    if c && !Flambda_backend_flags.dump_vectorize
+    if c && !Oxcaml_flags.dump_vectorize
     then Format.fprintf t.ppf_dump
     else Format.ifprintf t.ppf_dump
 
@@ -3127,7 +3127,7 @@ let count block computation =
     |> Profile.Counters.set "tried_to_vectorize_blocks" 1
     |> Profile.Counters.set "block_size" (Block.size block)
   in
-  if Block.size block > !Flambda_backend_flags.vectorize_max_block_size
+  if Block.size block > !Oxcaml_flags.vectorize_max_block_size
   then counter |> Profile.Counters.set "block_too_big" 1
   else
     match computation with
@@ -3143,13 +3143,13 @@ let maybe_vectorize block =
   let instruction_count = Block.size block in
   let label = Block.start block in
   State.dump state "\nBlock %a:\n" Label.print label;
-  if instruction_count > !Flambda_backend_flags.vectorize_max_block_size
+  if instruction_count > !Oxcaml_flags.vectorize_max_block_size
   then (
     State.dump state
       "Skipping block %a with %d instructions (> %d = \
        max_block_size_to_vectorize).\n"
       Label.print label instruction_count
-      !Flambda_backend_flags.vectorize_max_block_size;
+      !Oxcaml_flags.vectorize_max_block_size;
     None)
   else
     let deps = lazy (Dependencies.from_block block) in

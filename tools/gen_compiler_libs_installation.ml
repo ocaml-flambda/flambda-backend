@@ -8,8 +8,8 @@ let () =
     let tgt_prefix_opt =
       match prefix, extension with
       | "boot_ocamlopt", ".mli"
-      | "flambda_backend_main", ".mli"
-      | "flambda_backend_main_native", ".mli"
+      | "oxcaml_main", ".mli"
+      | "oxcaml_main_native", ".mli"
       | "internal_assembler", ".mli"
       | "mach_checks", ".mli"
       | "relocation_table", ".mli"

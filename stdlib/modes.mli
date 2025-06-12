@@ -12,11 +12,9 @@
 (*                                                                        *)
 (**************************************************************************)
 
-(** Modes are an experimental compiler feature, supported in the compiler branch found at:
-    https://github.com/ocaml-flambda/ocaml-jst
-
-    This module provides types that wrap a value in a different mode from its context. In
-    the standard OCaml compiler, these types are all no-op wrappers. *)
+(** This module provides types that wrap a value in a different mode from its
+    context. In the standard OCaml compiler, these types are all no-op
+    wrappers. *)
 
 module Global : sig
   type 'a t = { global : 'a @@ global } [@@unboxed]

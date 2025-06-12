@@ -360,7 +360,7 @@ let compute_static_size lam =
     | Ppoke _ ->
         dynamic_size lam
 
-    (* Primitives specific to flambda-backend *)
+    (* Primitives specific to oxcaml *)
     | Pmakefloatblock (_, _) ->
         let size = List.length args in
         Block (Float_record size)

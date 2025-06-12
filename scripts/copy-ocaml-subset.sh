@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# To be run from the root of the Flambda backend repo
+# To be run from the root of the OxCaml repo
 
 set -eu -o pipefail
 

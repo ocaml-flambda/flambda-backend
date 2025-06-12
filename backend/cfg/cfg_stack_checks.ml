@@ -1,5 +1,5 @@
 (******************************************************************************
- *                             flambda-backend                                *
+ *                                  OxCaml                                    *
  *                  Xavier Clerc and Mark Shinwell, Jane Street               *
  * -------------------------------------------------------------------------- *
  *                               MIT License                                  *
@@ -29,7 +29,7 @@
 [@@@ocaml.warning "+a-40-41-42"]
 
 open! Int_replace_polymorphic_compare
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 
 let is_nontail_call : Cfg.terminator -> bool =
  fun term_desc ->
@@ -209,7 +209,7 @@ let cfg (cfg_with_layout : Cfg_with_layout.t) =
       if not (Label.Set.is_empty blocks_needing_stack_checks)
       then
         if Label.Tbl.length cfg.blocks
-           < !Flambda_backend_flags.cfg_stack_checks_threshold
+           < !Oxcaml_flags.cfg_stack_checks_threshold
         then
           insert_stack_checks cfg ~max_frame_size ~blocks_needing_stack_checks
         else insert_instruction cfg cfg.entry_label ~max_frame_size);

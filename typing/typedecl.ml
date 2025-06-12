@@ -1018,7 +1018,7 @@ let transl_declaration env sdecl (id, uid) =
          This allows [estimate_type_jkind] to give an estimate that's
          just barely good enough, such that [constain_type_jkind] can always
          decompose the product of [any]s and recurse on the labels.
-         See https://github.com/ocaml-flambda/flambda-backend/pull/3399. *)
+         See https://github.com/oxcaml/oxcaml/pull/3399. *)
       match kind with
       | Type_record_unboxed_product _ ->
         begin match Jkind.get_layout jkind with
@@ -2405,7 +2405,7 @@ let check_well_founded_decl  ~abs_env env loc path decl to_check =
    e.g. [type 'a t = #{ a : 'a } and x = int t t], either by using layouts
    variables or the algorithm from "Unboxed data constructors - or, how cpp
    decides a halting problem."
-   See https://github.com/ocaml-flambda/flambda-backend/pull/3407.
+   See https://github.com/oxcaml/oxcaml/pull/3407.
 *)
 type step_result =
   | Contained of type_expr list

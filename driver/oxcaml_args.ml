@@ -45,7 +45,8 @@ let mk_regalloc f =
 let mk_regalloc_linscan_threshold f =
   "-regalloc-linscan-threshold",
   Arg.Int f,
-  (Printf.sprintf " Use linscan on functions with more temporaries than the threshold (default is %d)"Flambda_backend_flags.default_regalloc_linscan_threshold)
+  (Printf.sprintf " Use linscan on functions with more temporaries than the threshold (default is %d)"
+    Oxcaml_flags.default_regalloc_linscan_threshold)
 
 let mk_regalloc_param f =
   "-regalloc-param", Arg.String f, " Pass a parameter to the register allocator"
@@ -65,7 +66,7 @@ let mk_no_vectorize f =
 let mk_vectorize_max_block_size f =
   "-vectorize-max-block-size", Arg.Int f,
   Printf.sprintf "<n>  Only CFG block with at most n IR instructions will be vectorized \
-                  (default %d)" Flambda_backend_flags.default_vectorize_max_block_size
+                  (default %d)" Oxcaml_flags.default_vectorize_max_block_size
 
 let mk_dvectorize f =
   "-dvectorize", Arg.Unit f, " (undocumented)"
@@ -153,7 +154,7 @@ let mk_heap_reduction_threshold f =
   "-heap-reduction-threshold",
   Arg.Int f,
   Printf.sprintf " Threshold (in major words, defaulting to %d) to trigger a heap reduction before code emission"
-    Flambda_backend_flags.default_heap_reduction_threshold
+    Oxcaml_flags.default_heap_reduction_threshold
 ;;
 
 let mk_zero_alloc_check f =
@@ -187,7 +188,7 @@ let mk_zero_alloc_checker_details_cutoff f =
   Printf.sprintf " Do not show more than this number of error locations \
                   in each function that fails the check \
                   (default %d, negative to show all)"
-    (match Flambda_backend_flags.default_zero_alloc_checker_details_cutoff with
+    (match Oxcaml_flags.default_zero_alloc_checker_details_cutoff with
      | Keep_all -> (-1)
      | No_details -> 0
      | At_most n -> n)
@@ -197,14 +198,14 @@ let mk_zero_alloc_checker_join f =
   Printf.sprintf " How many abstract paths before losing precision \
                   (default %d, negative to fail instead of widening, \
                   0 to keep all)"
-    (match Flambda_backend_flags.default_zero_alloc_checker_join with
+    (match Oxcaml_flags.default_zero_alloc_checker_join with
      | Keep_all -> 0
      | Widen n -> n
      | Error n -> -n)
 
 let mk_function_layout f =
-  let layouts = Flambda_backend_flags.Function_layout.(List.map to_string all) in
-  let default = Flambda_backend_flags.Function_layout.(to_string default) in
+  let layouts = Oxcaml_flags.Function_layout.(List.map to_string all) in
+  let default = Oxcaml_flags.Function_layout.(to_string default) in
   "-function-layout", Arg.Symbol (layouts, f),
   (Printf.sprintf " Order of functions in the generated assembly (default: %s)"
      default)
@@ -245,7 +246,7 @@ let mk_internal_assembler f =
 let mk_gc_timings f =
   "-dgc-timings", Arg.Unit f, "Output information about time spent in the GC"
 
-module Flambda2 = Flambda_backend_flags.Flambda2
+module Flambda2 = Oxcaml_flags.Flambda2
 
 let mk_flambda2_result_types_functors_only f =
   "-flambda2-result-types-functors-only", Arg.Unit f,
@@ -509,7 +510,7 @@ let mk_flambda2_inline_max_depth f =
   Printf.sprintf "<int>|<round>=<int>[,...]\n\
       \     Maximum depth of search for inlining opportunities inside\n\
       \     inlined functions (default %d) (Flambda 2 only)"
-    Flambda_backend_flags.Flambda2.Inlining.Default.default_arguments.max_depth
+    Oxcaml_flags.Flambda2.Inlining.Default.default_arguments.max_depth
 ;;
 
 let mk_flambda2_inline_max_rec_depth f =
@@ -517,7 +518,7 @@ let mk_flambda2_inline_max_rec_depth f =
   Printf.sprintf "<int>|<round>=<int>[,...]\n\
       \     Maximum depth of search for inlining opportunities inside\n\
       \     inlined recursive functions (default %d) (Flambda 2 only)"
-    Flambda_backend_flags.Flambda2.Inlining.Default.default_arguments.
+    Oxcaml_flags.Flambda2.Inlining.Default.default_arguments.
       max_rec_depth
 ;;
 
@@ -532,7 +533,7 @@ let mk_flambda2_inline_cost arg descr ~default f =
 ;;
 
 module Flambda2_inlining_default =
-  Flambda_backend_flags.Flambda2.Inlining.Default
+  Oxcaml_flags.Flambda2.Inlining.Default
 
 let mk_flambda2_inline_call_cost =
   mk_flambda2_inline_cost "call" "a call"
@@ -722,13 +723,13 @@ let mk_cached_generic_functions_path f =
 let set_long_frames_threshold n =
   if n < 0 then
     raise (Arg.Bad "Long frames threshold must be non-negative.");
-  if n > Flambda_backend_flags.max_long_frames_threshold then
+  if n > Oxcaml_flags.max_long_frames_threshold then
     raise
       (Arg.Bad
          (Printf.sprintf "Long frames threshold too big: 0x%x, \
                           must be less or equal to 0x%x" n
-            Flambda_backend_flags.max_long_frames_threshold));
-  Flambda_backend_flags.long_frames_threshold := n
+            Oxcaml_flags.max_long_frames_threshold));
+  Oxcaml_flags.long_frames_threshold := n
 
 let mk_symbol_visibility_protected f =
   "-symbol-visibility-protected", Arg.Unit f,
@@ -740,7 +741,7 @@ let mk_no_symbol_visibility_protected f =
   " Emit global symbols with visibility STV_DEFAULT"
 ;;
 
-module type Flambda_backend_options = sig
+module type Oxcaml_options = sig
   val ocamlcfg : unit -> unit
   val no_ocamlcfg : unit -> unit
   val dump_inlining_paths : unit -> unit
@@ -876,7 +877,7 @@ module type Flambda_backend_options = sig
   val cached_generic_functions_path : string -> unit
 end
 
-module Make_flambda_backend_options (F : Flambda_backend_options) =
+module Make_oxcaml_options (F : Oxcaml_options) =
 struct
   let list2 = [
     mk_dump_inlining_paths F.dump_inlining_paths;
@@ -1046,63 +1047,63 @@ struct
   ]
 end
 
-module Flambda_backend_options_impl = struct
-  let set r () = r := Flambda_backend_flags.Set true
-  let clear r () = r := Flambda_backend_flags.Set false
+module Oxcaml_options_impl = struct
+  let set r () = r := Oxcaml_flags.Set true
+  let clear r () = r := Oxcaml_flags.Set false
 
   let set' r () = r := true
   let clear' r () = r := false
 
-  let ocamlcfg = set' Flambda_backend_flags.use_ocamlcfg
-  let no_ocamlcfg = clear' Flambda_backend_flags.use_ocamlcfg
-  let dcfg = set' Flambda_backend_flags.dump_cfg
-  let dcfg_invariants = set' Flambda_backend_flags.cfg_invariants
-  let regalloc x = Flambda_backend_flags.regalloc := x
-  let regalloc_linscan_threshold x = Flambda_backend_flags.regalloc_linscan_threshold := x
-  let regalloc_param x = Flambda_backend_flags.regalloc_params := x :: !Flambda_backend_flags.regalloc_params
-  let regalloc_validate = set' Flambda_backend_flags.regalloc_validate
-  let no_regalloc_validate = clear' Flambda_backend_flags.regalloc_validate
+  let ocamlcfg = set' Oxcaml_flags.use_ocamlcfg
+  let no_ocamlcfg = clear' Oxcaml_flags.use_ocamlcfg
+  let dcfg = set' Oxcaml_flags.dump_cfg
+  let dcfg_invariants = set' Oxcaml_flags.cfg_invariants
+  let regalloc x = Oxcaml_flags.regalloc := x
+  let regalloc_linscan_threshold x = Oxcaml_flags.regalloc_linscan_threshold := x
+  let regalloc_param x = Oxcaml_flags.regalloc_params := x :: !Oxcaml_flags.regalloc_params
+  let regalloc_validate = set' Oxcaml_flags.regalloc_validate
+  let no_regalloc_validate = clear' Oxcaml_flags.regalloc_validate
 
-  let vectorize = set' Flambda_backend_flags.vectorize
-  let no_vectorize = clear' Flambda_backend_flags.vectorize
+  let vectorize = set' Oxcaml_flags.vectorize
+  let no_vectorize = clear' Oxcaml_flags.vectorize
   let vectorize_max_block_size n =
-    Flambda_backend_flags.vectorize_max_block_size := n
-  let dvectorize = set' Flambda_backend_flags.dump_vectorize
+    Oxcaml_flags.vectorize_max_block_size := n
+  let dvectorize = set' Oxcaml_flags.dump_vectorize
 
-  let cfg_peephole_optimize = set' Flambda_backend_flags.cfg_peephole_optimize
-  let no_cfg_peephole_optimize = clear' Flambda_backend_flags.cfg_peephole_optimize
+  let cfg_peephole_optimize = set' Oxcaml_flags.cfg_peephole_optimize
+  let no_cfg_peephole_optimize = clear' Oxcaml_flags.cfg_peephole_optimize
 
-  let cfg_stack_checks = set' Flambda_backend_flags.cfg_stack_checks
-  let no_cfg_stack_checks = clear' Flambda_backend_flags.cfg_stack_checks
-  let cfg_stack_checks_threshold n = Flambda_backend_flags.cfg_stack_checks_threshold := n
+  let cfg_stack_checks = set' Oxcaml_flags.cfg_stack_checks
+  let no_cfg_stack_checks = clear' Oxcaml_flags.cfg_stack_checks
+  let cfg_stack_checks_threshold n = Oxcaml_flags.cfg_stack_checks_threshold := n
 
   let cfg_eliminate_dead_trap_handlers =
-    set' Flambda_backend_flags.cfg_eliminate_dead_trap_handlers
+    set' Oxcaml_flags.cfg_eliminate_dead_trap_handlers
   let no_cfg_eliminate_dead_trap_handlers =
-    clear' Flambda_backend_flags.cfg_eliminate_dead_trap_handlers
+    clear' Oxcaml_flags.cfg_eliminate_dead_trap_handlers
 
   let reorder_blocks_random seed =
-    Flambda_backend_flags.reorder_blocks_random := Some seed
+    Oxcaml_flags.reorder_blocks_random := Some seed
   let basic_block_sections () =
-    set' Flambda_backend_flags.basic_block_sections ()
+    set' Oxcaml_flags.basic_block_sections ()
   let module_entry_functions_section () =
-    set' Flambda_backend_flags.module_entry_functions_section ()
+    set' Oxcaml_flags.module_entry_functions_section ()
 
   let dasm_comments =
-    set' Flambda_backend_flags.dasm_comments
+    set' Oxcaml_flags.dasm_comments
 
   let dno_asm_comments =
-    clear' Flambda_backend_flags.dasm_comments
+    clear' Oxcaml_flags.dasm_comments
 
-  let dump_inlining_paths = set' Flambda_backend_flags.dump_inlining_paths
+  let dump_inlining_paths = set' Oxcaml_flags.dump_inlining_paths
 
-  let davail = set' Flambda_backend_flags.davail
-  let dranges = set' Flambda_backend_flags.dranges
+  let davail = set' Oxcaml_flags.davail
+  let dranges = set' Oxcaml_flags.dranges
 
   let ddebug_invariants = set' Dwarf_flags.ddebug_invariants
 
   let heap_reduction_threshold x =
-    Flambda_backend_flags.heap_reduction_threshold := x
+    Oxcaml_flags.heap_reduction_threshold := x
 
   let zero_alloc_check s =
     match Zero_alloc_annotations.Check.of_string s with
@@ -1116,70 +1117,70 @@ module Flambda_backend_options_impl = struct
     | Some a ->
       Clflags.zero_alloc_assert := a
 
-  let dzero_alloc = set' Flambda_backend_flags.dump_zero_alloc
-  let disable_zero_alloc_checker = set' Flambda_backend_flags.disable_zero_alloc_checker
-  let disable_precise_zero_alloc_checker = set' Flambda_backend_flags.disable_precise_zero_alloc_checker
+  let dzero_alloc = set' Oxcaml_flags.dump_zero_alloc
+  let disable_zero_alloc_checker = set' Oxcaml_flags.disable_zero_alloc_checker
+  let disable_precise_zero_alloc_checker = set' Oxcaml_flags.disable_precise_zero_alloc_checker
   let zero_alloc_checker_details_cutoff n =
-    let c : Flambda_backend_flags.zero_alloc_checker_details_cutoff =
+    let c : Oxcaml_flags.zero_alloc_checker_details_cutoff =
       if n < 0 then Keep_all
       else if n = 0 then No_details
       else At_most n
     in
-    Flambda_backend_flags.zero_alloc_checker_details_cutoff := c
+    Oxcaml_flags.zero_alloc_checker_details_cutoff := c
 
   let zero_alloc_checker_join n =
-    let c : Flambda_backend_flags.zero_alloc_checker_join =
+    let c : Oxcaml_flags.zero_alloc_checker_join =
       if n < 0 then Error (-n)
       else if n = 0 then Keep_all
       else Widen n
     in
-    Flambda_backend_flags.zero_alloc_checker_join := c
+    Oxcaml_flags.zero_alloc_checker_join := c
 
   let function_layout s =
-    match Flambda_backend_flags.Function_layout.of_string s with
+    match Oxcaml_flags.Function_layout.of_string s with
     | None -> () (* this should not occur as we use Arg.Symbol *)
     | Some layout ->
-      Flambda_backend_flags.function_layout := layout
+      Oxcaml_flags.function_layout := layout
 
-  let disable_poll_insertion = set' Flambda_backend_flags.disable_poll_insertion
-  let enable_poll_insertion = clear' Flambda_backend_flags.disable_poll_insertion
+  let disable_poll_insertion = set' Oxcaml_flags.disable_poll_insertion
+  let enable_poll_insertion = clear' Oxcaml_flags.disable_poll_insertion
 
-  let symbol_visibility_protected = set' Flambda_backend_flags.symbol_visibility_protected
-  let no_symbol_visibility_protected = clear' Flambda_backend_flags.symbol_visibility_protected
+  let symbol_visibility_protected = set' Oxcaml_flags.symbol_visibility_protected
+  let no_symbol_visibility_protected = clear' Oxcaml_flags.symbol_visibility_protected
 
-  let long_frames =  set' Flambda_backend_flags.allow_long_frames
-  let no_long_frames = clear' Flambda_backend_flags.allow_long_frames
+  let long_frames =  set' Oxcaml_flags.allow_long_frames
+  let no_long_frames = clear' Oxcaml_flags.allow_long_frames
   let long_frames_threshold n = set_long_frames_threshold n
 
   let caml_apply_inline_fast_path =
-    set' Flambda_backend_flags.caml_apply_inline_fast_path
+    set' Oxcaml_flags.caml_apply_inline_fast_path
 
-  let internal_assembler = set' Flambda_backend_flags.internal_assembler
+  let internal_assembler = set' Oxcaml_flags.internal_assembler
 
-  let gc_timings = set' Flambda_backend_flags.gc_timings
+  let gc_timings = set' Oxcaml_flags.gc_timings
 
   let no_mach_ir () = ()
 
-  let flambda2_debug = set' Flambda_backend_flags.Flambda2.debug
-  let no_flambda2_debug = clear' Flambda_backend_flags.Flambda2.debug
+  let flambda2_debug = set' Oxcaml_flags.Flambda2.debug
+  let no_flambda2_debug = clear' Oxcaml_flags.Flambda2.debug
   let flambda2_join_points = set Flambda2.join_points
   let no_flambda2_join_points = clear Flambda2.join_points
   let flambda2_result_types_functors_only () =
-    Flambda2.function_result_types := Flambda_backend_flags.Set Flambda_backend_flags.Functors_only
+    Flambda2.function_result_types := Oxcaml_flags.Set Oxcaml_flags.Functors_only
   let flambda2_result_types_all_functions () =
-    Flambda2.function_result_types := Flambda_backend_flags.Set Flambda_backend_flags.All_functions
+    Flambda2.function_result_types := Oxcaml_flags.Set Oxcaml_flags.All_functions
   let no_flambda2_result_types () =
-    Flambda2.function_result_types := Flambda_backend_flags.Set Flambda_backend_flags.Never
+    Flambda2.function_result_types := Oxcaml_flags.Set Oxcaml_flags.Never
   let flambda2_basic_meet () = ()
   let flambda2_advanced_meet () = ()
   let flambda2_join_algorithm algorithm =
     match algorithm with
     | "binary" ->
-      Flambda2.join_algorithm := Flambda_backend_flags.Set Flambda_backend_flags.Binary
+      Flambda2.join_algorithm := Oxcaml_flags.Set Oxcaml_flags.Binary
     | "n-way" ->
-      Flambda2.join_algorithm := Flambda_backend_flags.Set Flambda_backend_flags.N_way
+      Flambda2.join_algorithm := Oxcaml_flags.Set Oxcaml_flags.N_way
     | "checked" ->
-      Flambda2.join_algorithm := Flambda_backend_flags.Set Flambda_backend_flags.Checked
+      Flambda2.join_algorithm := Oxcaml_flags.Set Oxcaml_flags.Checked
     | _ -> () (* This should not occur as we use Arg.Symbol *)
   let flambda2_unbox_along_intra_function_control_flow =
     set Flambda2.unbox_along_intra_function_control_flow
@@ -1189,8 +1190,8 @@ module Flambda_backend_options_impl = struct
     set Flambda2.backend_cse_at_toplevel
   let no_flambda2_backend_cse_at_toplevel =
     clear Flambda2.backend_cse_at_toplevel
-  let flambda2_cse_depth n = Flambda2.cse_depth := Flambda_backend_flags.Set n
-  let flambda2_join_depth n = Flambda2.join_depth := Flambda_backend_flags.Set n
+  let flambda2_cse_depth n = Flambda2.cse_depth := Oxcaml_flags.Set n
+  let flambda2_join_depth n = Flambda2.join_depth := Oxcaml_flags.Set n
   let flambda2_reaper = set Flambda2.enable_reaper
   let no_flambda2_reaper = clear Flambda2.enable_reaper
   let flambda2_expert_fallback_inlining_heuristic =
@@ -1206,28 +1207,28 @@ module Flambda_backend_options_impl = struct
   let no_flambda2_expert_phantom_lets =
     clear Flambda2.Expert.phantom_lets
   let flambda2_expert_max_block_size_for_projections size =
-    Flambda2.Expert.max_block_size_for_projections := Flambda_backend_flags.Set (Some size)
+    Flambda2.Expert.max_block_size_for_projections := Oxcaml_flags.Set (Some size)
   let flambda2_expert_max_unboxing_depth depth =
-    Flambda2.Expert.max_unboxing_depth := Flambda_backend_flags.Set depth
+    Flambda2.Expert.max_unboxing_depth := Oxcaml_flags.Set depth
   let flambda2_expert_can_inline_recursive_functions () =
-    Flambda2.Expert.can_inline_recursive_functions := Flambda_backend_flags.Set true
+    Flambda2.Expert.can_inline_recursive_functions := Oxcaml_flags.Set true
   let no_flambda2_expert_can_inline_recursive_functions () =
-    Flambda2.Expert.can_inline_recursive_functions := Flambda_backend_flags.Set false
+    Flambda2.Expert.can_inline_recursive_functions := Oxcaml_flags.Set false
   let flambda2_expert_max_function_simplify_run runs =
-    Flambda2.Expert.max_function_simplify_run := Flambda_backend_flags.Set runs
+    Flambda2.Expert.max_function_simplify_run := Oxcaml_flags.Set runs
   let flambda2_expert_shorten_symbol_names () =
-    Flambda2.Expert.shorten_symbol_names := Flambda_backend_flags.Set true
+    Flambda2.Expert.shorten_symbol_names := Oxcaml_flags.Set true
   let no_flambda2_expert_shorten_symbol_names () =
-    Flambda2.Expert.shorten_symbol_names := Flambda_backend_flags.Set false
+    Flambda2.Expert.shorten_symbol_names := Oxcaml_flags.Set false
   let flambda2_expert_cont_lifting_budget budget =
     (* continuation lifting requires the advanced meet algorithm *)
     if budget <> 0 then flambda2_advanced_meet ();
-    Flambda2.Expert.cont_lifting_budget := Flambda_backend_flags.Set budget
+    Flambda2.Expert.cont_lifting_budget := Oxcaml_flags.Set budget
   let flambda2_expert_cont_spec_budget budget =
     (* continuation lifting and specialization requires the advanced meet
        algorithm *)
     if budget <> 0 then flambda2_advanced_meet ();
-    Flambda2.Expert.cont_spec_budget := Flambda_backend_flags.Set budget
+    Flambda2.Expert.cont_spec_budget := Oxcaml_flags.Set budget
   let flambda2_debug_concrete_types_only_on_canonicals =
     set' Flambda2.Debug.concrete_types_only_on_canonicals
   let no_flambda2_debug_concrete_types_only_on_canonicals =
@@ -1317,8 +1318,8 @@ module Flambda_backend_options_impl = struct
   let dflow = set' Flambda2.Dump.flow
   let dsimplify = set' Flambda2.Dump.simplify
   let dreaper = set' Flambda2.Dump.reaper
-  let use_cached_generic_functions = set' Flambda_backend_flags.use_cached_generic_functions
-  let cached_generic_functions_path file = Flambda_backend_flags.cached_generic_functions_path := file
+  let use_cached_generic_functions = set' Oxcaml_flags.use_cached_generic_functions
+  let cached_generic_functions_path file = Oxcaml_flags.cached_generic_functions_path := file
 end
 
 module type Debugging_options = sig
@@ -1372,12 +1373,12 @@ module Extra_params = struct
   let read_param ppf _position name v =
     let set option =
       let b = Compenv.check_bool ppf name v in
-      option := Flambda_backend_flags.Set b;
+      option := Oxcaml_flags.Set b;
       true
     in
     let _clear option =
       let b = Compenv.check_bool ppf name v in
-      option := Flambda_backend_flags.Set (not b);
+      option := Oxcaml_flags.Set (not b);
       false
     in
     let set_string option =
@@ -1390,7 +1391,7 @@ module Extra_params = struct
     in
     let set_int option =
       begin match Compenv.check_int ppf name v with
-      | Some i -> option := Flambda_backend_flags.Set i
+      | Some i -> option := Oxcaml_flags.Set i
       | None -> ()
       end;
       true
@@ -1412,32 +1413,32 @@ module Extra_params = struct
       true
     in
     match name with
-    | "internal-assembler" -> set' Flambda_backend_flags.internal_assembler
-    | "dgc-timings" -> set' Flambda_backend_flags.gc_timings
-    | "no-mach-ir" -> Flambda_backend_options_impl.no_mach_ir (); true
-    | "ocamlcfg" -> set' Flambda_backend_flags.use_ocamlcfg
-    | "cfg-invariants" -> set' Flambda_backend_flags.cfg_invariants
-    | "regalloc" -> set_string Flambda_backend_flags.regalloc
-    | "regalloc-linscan-threshold" -> set_int' Flambda_backend_flags.regalloc_linscan_threshold
-    | "regalloc-param" -> add_string Flambda_backend_flags.regalloc_params
-    | "regalloc-validate" -> set' Flambda_backend_flags.regalloc_validate
-    | "vectorize" -> set' Flambda_backend_flags.vectorize
-    | "dump-vectorize" -> set' Flambda_backend_flags.dump_vectorize
-    | "vectorize-max-block-size" -> set_int' Flambda_backend_flags.vectorize_max_block_size
-    | "cfg-peephole-optimize" -> set' Flambda_backend_flags.cfg_peephole_optimize
-    | "cfg-stack-checks" -> set' Flambda_backend_flags.cfg_stack_checks
+    | "internal-assembler" -> set' Oxcaml_flags.internal_assembler
+    | "dgc-timings" -> set' Oxcaml_flags.gc_timings
+    | "no-mach-ir" -> Oxcaml_options_impl.no_mach_ir (); true
+    | "ocamlcfg" -> set' Oxcaml_flags.use_ocamlcfg
+    | "cfg-invariants" -> set' Oxcaml_flags.cfg_invariants
+    | "regalloc" -> set_string Oxcaml_flags.regalloc
+    | "regalloc-linscan-threshold" -> set_int' Oxcaml_flags.regalloc_linscan_threshold
+    | "regalloc-param" -> add_string Oxcaml_flags.regalloc_params
+    | "regalloc-validate" -> set' Oxcaml_flags.regalloc_validate
+    | "vectorize" -> set' Oxcaml_flags.vectorize
+    | "dump-vectorize" -> set' Oxcaml_flags.dump_vectorize
+    | "vectorize-max-block-size" -> set_int' Oxcaml_flags.vectorize_max_block_size
+    | "cfg-peephole-optimize" -> set' Oxcaml_flags.cfg_peephole_optimize
+    | "cfg-stack-checks" -> set' Oxcaml_flags.cfg_stack_checks
     | "cfg-eliminate-dead-trap-handlers" ->
-        set' Flambda_backend_flags.cfg_eliminate_dead_trap_handlers
-    | "dump-inlining-paths" -> set' Flambda_backend_flags.dump_inlining_paths
-    | "davail" -> set' Flambda_backend_flags.davail
-    | "dranges" -> set' Flambda_backend_flags.dranges
+        set' Oxcaml_flags.cfg_eliminate_dead_trap_handlers
+    | "dump-inlining-paths" -> set' Oxcaml_flags.dump_inlining_paths
+    | "davail" -> set' Oxcaml_flags.davail
+    | "dranges" -> set' Oxcaml_flags.dranges
     | "ddebug-invariants" -> set' Dwarf_flags.ddebug_invariants
     | "reorder-blocks-random" ->
-       set_int_option' Flambda_backend_flags.reorder_blocks_random
-    | "basic-block-sections" -> set' Flambda_backend_flags.basic_block_sections
+       set_int_option' Oxcaml_flags.reorder_blocks_random
+    | "basic-block-sections" -> set' Oxcaml_flags.basic_block_sections
     | "module-entry-functions-section" ->
-      set' Flambda_backend_flags.module_entry_functions_section
-    | "heap-reduction-threshold" -> set_int' Flambda_backend_flags.heap_reduction_threshold
+      set' Oxcaml_flags.module_entry_functions_section
+    | "heap-reduction-threshold" -> set_int' Oxcaml_flags.heap_reduction_threshold
     | "zero-alloc-check" ->
       (match Zero_alloc_annotations.Check.of_string v with
        | Some a -> Clflags.zero_alloc_check := a; true
@@ -1452,33 +1453,33 @@ module Extra_params = struct
          raise
            (Arg.Bad
               (Printf.sprintf "Unexpected value %s for %s" v name)))
-    | "dump-zero-alloc" -> set' Flambda_backend_flags.dump_zero_alloc
-    | "disable-zero-alloc-checker" -> set' Flambda_backend_flags.disable_zero_alloc_checker
-    | "disable-precise-zero-alloc-checker" -> set' Flambda_backend_flags.disable_precise_zero_alloc_checker
+    | "dump-zero-alloc" -> set' Oxcaml_flags.dump_zero_alloc
+    | "disable-zero-alloc-checker" -> set' Oxcaml_flags.disable_zero_alloc_checker
+    | "disable-precise-zero-alloc-checker" -> set' Oxcaml_flags.disable_precise_zero_alloc_checker
     | "zero-alloc-checker-details-cutoff" ->
       begin match Compenv.check_int ppf name v with
       | Some i ->
-        Flambda_backend_options_impl.zero_alloc_checker_details_cutoff i
+        Oxcaml_options_impl.zero_alloc_checker_details_cutoff i
       | None -> ()
       end;
       true
     | "zero-alloc-checker-join" ->
       begin match Compenv.check_int ppf name v with
       | Some i ->
-        Flambda_backend_options_impl.zero_alloc_checker_join i
+        Oxcaml_options_impl.zero_alloc_checker_join i
       | None -> ()
       end;
       true
     | "function-layout" ->
-      (match Flambda_backend_flags.Function_layout.of_string v with
-       | Some layout -> Flambda_backend_flags.function_layout := layout; true
+      (match Oxcaml_flags.Function_layout.of_string v with
+       | Some layout -> Oxcaml_flags.function_layout := layout; true
        | None ->
          raise
            (Arg.Bad
               (Printf.sprintf "Unexpected value %s for %s" v name)))
-    | "poll-insertion" -> set' Flambda_backend_flags.disable_poll_insertion
-    | "symbol-visibility-protected" -> set' Flambda_backend_flags.disable_poll_insertion
-    | "long-frames" -> set' Flambda_backend_flags.allow_long_frames
+    | "poll-insertion" -> set' Oxcaml_flags.disable_poll_insertion
+    | "symbol-visibility-protected" -> set' Oxcaml_flags.disable_poll_insertion
+    | "long-frames" -> set' Oxcaml_flags.allow_long_frames
     | "debug-long-frames-threshold" ->
       begin match Compenv.check_int ppf name v with
       | Some n -> set_long_frames_threshold n; true
@@ -1486,32 +1487,32 @@ module Extra_params = struct
         raise
           (Arg.Bad
              (Printf.sprintf "Expected integer between 0 and %d"
-                Flambda_backend_flags.max_long_frames_threshold))
+                Oxcaml_flags.max_long_frames_threshold))
       end
     | "caml-apply-inline-fast-path" ->
-      set' Flambda_backend_flags.caml_apply_inline_fast_path
-    | "dasm-comments" -> set' Flambda_backend_flags.dasm_comments
+      set' Oxcaml_flags.caml_apply_inline_fast_path
+    | "dasm-comments" -> set' Oxcaml_flags.dasm_comments
     | "gupstream-dwarf" -> set' Debugging.restrict_to_upstream_dwarf
     | "gdwarf-may-alter-codegen" -> set' Debugging.gdwarf_may_alter_codegen
     | "gstartup" -> set' Debugging.dwarf_for_startup_file
     | "gdwarf-max-function-complexity" ->
       set_int' Debugging.dwarf_max_function_complexity
-    | "flambda2-debug" -> set' Flambda_backend_flags.Flambda2.debug
+    | "flambda2-debug" -> set' Oxcaml_flags.Flambda2.debug
     | "flambda2-join-points" -> set Flambda2.join_points
     | "flambda2-result-types" ->
       (match String.lowercase_ascii v with
       | "never" ->
-        Flambda2.function_result_types := Flambda_backend_flags.(Set Never)
+        Flambda2.function_result_types := Oxcaml_flags.(Set Never)
       | "functors-only" ->
-        Flambda2.function_result_types := Flambda_backend_flags.(Set Functors_only)
+        Flambda2.function_result_types := Oxcaml_flags.(Set Functors_only)
       | "all-functions" ->
-        Flambda2.function_result_types := Flambda_backend_flags.(Set All_functions)
+        Flambda2.function_result_types := Oxcaml_flags.(Set All_functions)
       | _ ->
         Misc.fatal_error "Syntax: flambda2-result-types=\
           never|functors-only|all-functions");
       true
     | "flambda2-result-types-all-functions" ->
-      Flambda2.function_result_types := Flambda_backend_flags.(Set All_functions);
+      Flambda2.function_result_types := Oxcaml_flags.(Set All_functions);
       true
     | "flambda2-meet-algorithm" ->
       (match String.lowercase_ascii v with
@@ -1522,7 +1523,7 @@ module Extra_params = struct
     | "flambda2-join-algorithm" ->
       (match String.lowercase_ascii v with
       | "binary" | "n-way" | "checked" as v ->
-        Flambda_backend_options_impl.flambda2_join_algorithm v
+        Oxcaml_options_impl.flambda2_join_algorithm v
       | _ ->
         Misc.fatal_error "Syntax: flambda2-join-algorithm=binary|n-way|checked");
       true
@@ -1547,14 +1548,14 @@ module Extra_params = struct
     | "flambda2-expert-cont-lifting-budget" ->
       begin match Compenv.check_int ppf name v with
       | Some i ->
-         Flambda2.Expert.cont_lifting_budget := Flambda_backend_flags.Set i
+         Flambda2.Expert.cont_lifting_budget := Oxcaml_flags.Set i
       | None -> ()
       end;
       true
     | "flambda2-expert-cont-spec-budget" ->
       begin match Compenv.check_int ppf name v with
       | Some i ->
-         Flambda2.Expert.cont_spec_budget := Flambda_backend_flags.Set i
+         Flambda2.Expert.cont_spec_budget := Oxcaml_flags.Set i
       | None -> ()
       end;
       true
@@ -1613,9 +1614,9 @@ module Extra_params = struct
     | "flambda2-debug-keep-invalid-handlers" ->
        set' Flambda2.Debug.keep_invalid_handlers
     | "use-cached-generic-functions" ->
-      set' Flambda_backend_flags.use_cached_generic_functions
+      set' Oxcaml_flags.use_cached_generic_functions
     | "cached-generic-functions-path" ->
-      Flambda_backend_flags.cached_generic_functions_path := v; true
+      Oxcaml_flags.cached_generic_functions_path := v; true
     | "reaper" ->
       set Flambda2.enable_reaper
     | _ -> false
@@ -1623,24 +1624,24 @@ end
 
 module type Optcomp_options = sig
   include Main_args.Optcomp_options
-  include Flambda_backend_options
+  include Oxcaml_options
   include Debugging_options
 end
 
 module type Opttop_options = sig
   include Main_args.Opttop_options
-  include Flambda_backend_options
+  include Oxcaml_options
   include Debugging_options
 end
 
 module Make_optcomp_options (F : Optcomp_options) =
 struct
   include Make_debugging_options(F)  (* provides [list3]  *)
-  include Make_flambda_backend_options(F)  (* provides [list2]  *)
+  include Make_oxcaml_options(F)  (* provides [list2]  *)
   include Main_args.Make_optcomp_options(F)  (* provides [list] *)
   (* Overwrite [list] with the combination of the above options.
      If the same string input can be recognized by two options,
-     the flambda-backend implementation will take precedence,
+     the oxcaml implementation will take precedence,
      but this should be avoided. To override an option from Main_args,
      redefine it in the implementation of this functor's argument. *)
   let list = list3 @ list2 @ list
@@ -1648,7 +1649,7 @@ end
 
 module Make_opttop_options (F : Opttop_options) = struct
   include Make_debugging_options(F)
-  include Make_flambda_backend_options(F)
+  include Make_oxcaml_options(F)
   include Main_args.Make_opttop_options(F)
   let list = list3 @ list2 @ list
 end
@@ -1656,12 +1657,12 @@ end
 module Default = struct
   module Optmain = struct
     include Main_args.Default.Optmain
-    include Flambda_backend_options_impl
+    include Oxcaml_options_impl
     include Debugging_options_impl
   end
   module Opttopmain = struct
     include Main_args.Default.Opttopmain
-    include Flambda_backend_options_impl
+    include Oxcaml_options_impl
     include Debugging_options_impl
   end
 end

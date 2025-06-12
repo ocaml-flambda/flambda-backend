@@ -28,7 +28,7 @@
 open! Int_replace_polymorphic_compare
 module C = Cfg
 module CL = Cfg_with_layout
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 
 module Eliminate_dead_code : sig
   val run : Cfg_with_layout.t -> Label.Set.t
@@ -75,7 +75,7 @@ end = struct
    fun cfg_with_layout ->
     let cfg = Cfg_with_layout.cfg cfg_with_layout in
     let handlers_are_entry_points =
-      not !Flambda_backend_flags.cfg_eliminate_dead_trap_handlers
+      not !Oxcaml_flags.cfg_eliminate_dead_trap_handlers
     in
     match Dataflow.run cfg ~init:Reachable ~handlers_are_entry_points () with
     | Result.Error _ ->

@@ -305,7 +305,7 @@ module Tbl = struct
 
   let add ~imports (t : t) (Cmx_format.{ curry_fun; apply_fun; send_fun } as f)
       =
-    if !Flambda_backend_flags.use_cached_generic_functions
+    if !Oxcaml_flags.use_cached_generic_functions
     then
       let imports =
         List.fold_left
