@@ -213,15 +213,19 @@ other parallel machinery. You write your algorithm and we work out the
 scheduling, synchronising, blocking, etc.
 Of course, OxCaml is ever watchful and will insist on being convinced there are
 no data races, so you'll still have to understand the
-fundamentals of data-race freedom. The next tutorial **(XX link)** will build on
+fundamentals of data-race freedom. The [next tutorial] will build on
 the basics by
 covering more primitive operations that exercise more of the system.
 
+[next tutorial]: ../02-intro-to-parallelism-part-2
+
 ## A trivial example
 
-OxCaml's `parallel` library provides fork/join parallelism with the `fork_join*`
-functions **(XX link to .mli)**. For example, a very expensive way to add four
+OxCaml's [`parallel` library] provides fork/join parallelism with the `fork_join*`
+functions. For example, a very expensive way to add four
 integers (we promise the other examples are more substantial) would be this:
+
+[`parallel` library]: https://github.com/janestreet/parallel
 
 <a id="code-add4"></a>
 ```ocaml
@@ -241,21 +245,21 @@ of parallelism. It is also passed to the tasks so that they can spawn sub-tasks.
 To run `add4`, we need to get our hands on a *scheduler,* a component that takes
 in all the tasks that we want to run, decides how to dole them out into domains,
 and tracks who is waiting for what to be computed. Each scheduler is provided by
-a library. For this tutorial, we'll use `parallel_scheduler_work_stealing`,
+a library. For this tutorial, we'll use `parallel.scheduler.work_stealing`,
 which implements the popular [work-stealing] strategy.
 
 [work-stealing]: https://en.wikipedia.org/wiki/Work_stealing
 
 Here's some test code to get you started. The details of `run_one_test` aren't
 important for this tutorial, so feel free to copy-and-paste and forget, though
-a real program will want to be more thoughtful (see the `parallel` library
-for details **(XX link to .mli)**).
+a real program will want to be more thoughtful (see the [`parallel` library]
+for details).
 
 ```ocaml
 let test_add4 par = add4 par 1 10 100 1000
 
 let run_one_test ~(f : Parallel.t -> 'a) : 'a =
-  let module Scheduler = Parallel_scheduler_work_stealing in
+  let module Scheduler = Parallel.Scheduler.Work_stealing in
   let scheduler = Scheduler.create () in
   let monitor = Parallel.Monitor.create_root () in
   let result = Scheduler.schedule scheduler ~monitor ~f in
@@ -276,15 +280,16 @@ This uses a work-stealing scheduler, but you can also use the `parallel`
 library's own `Parallel.Scheduler.Sequential`, which simply runs everything on
 the primary domain. This is handy for testing or debugging when you want to
 eliminate nondeterminism. To do so, simply replace
-`Parallel_scheduler_work_stealing` with `Parallel.Scheduler.Sequential` in
+`Parallel.Scheduler.Work_stealing` with `Parallel.Scheduler.Sequential` in
 `run_one_test`.
 
 ## Averaging over binary trees
 
 Now for something more substantial. Suppose we're working with binary trees, and
 we want to take an average over all the values in the tree. Here's a basic
-implementation (note that we've made use of the new labeled tuples **(XX: link)**
-feature):
+implementation (note that we've made use of the new [labeled tuples] feature):
+
+[labeled tuples]: ../../_11-miscellaneous-extensions/labeled-tuples
 
 <a id="code-average"></a>
 ```ocaml
@@ -531,8 +536,10 @@ Firstly, `portable` and `contended` are _modes_. Like a type, a mode describes
 something about a name in an OCaml program. But whereas a type describes the
 *value* associated with a name, a mode instead describes the value's
 *circumstances.* This could be where it is in memory, who has access to it, or
-what can be done with it. If you've seen `@ local` **(XX link to doc)**, you've
+what can be done with it. If you've worked with [stack allocation], you've
 already encountered the `local` mode.
+
+[stack allocation]: ../../_02-stack-allocation/intro
 
 The `portable` mode is the one you'll see most often, but it will be easier to
 understand once we've covered `contended` and `uncontended`, so we begin there.
@@ -1008,8 +1015,9 @@ The three most important kinds for data-race freedom are `immutable_data`,
 `mutable_data`, and `value`. Some kinds constrain what types they describe, and
 in return, any type with such a kind gets to _cross_ certain modes, in essence
 ignoring those modes. In summary (this table isn't nearly exhaustive—see the
-documentation on kinds **(XX link)** for many more modes and what kinds cross
-them):
+[documentation on kinds] for many more modes and what kinds cross them):
+
+[documentation on kinds]: ../_06-kinds/intro
 
 | Kind | Requirements | Crosses |
 | ---- | ------------ | ------- |
@@ -1120,15 +1128,15 @@ end
 As you can see, there's a bit of syntactic overhead, but in return we get to
 access `mood` even if a `Thing.t` is `contended`, and in fact we can mark `t` as
 `immutable_data` so that it ignores `contended` and `uncontended` altogether
-(that is, it [crosses contention]). Do go over the documentation for the
-`Atomic` module **(XX link to documentation)**, as it has many useful
-operations,
+(that is, it [crosses contention]). Do go over the documentation in the
+[`Atomic` module], as it has many useful operations,
 from `compare_exchange` to atomic logical bitwise XOR. Also, note that we're
 using Core's `Atomic` here rather than the `Atomic` from OxCaml's standard
 library, which hews closer to the upstream OCaml standard library and doesn't
 support mode crossing.
 
 [crosses contention]: #mode-crossing
+[`Atomic` module]: https://github.com/janestreet/portable/blob/master/kernel/src/atomic.mli
 
 An `Atomic.t` can be handy outside of a record as well, in cases where you would
 otherwise use a `ref` to hold mutable state. For example, rather than return
@@ -1180,8 +1188,9 @@ atomic as well, suppose we wanted to take the average of all the nodes whose
 unpredictable number of those changes. The only way to stop _that_ is to use
 something more sophisticated like a lock over the whole tree, which grants a
 function `uncontended` access while the lock is held (which is safe because of
-course only one domain can hold the lock). That's what the capsule API is for,
-but it's beyond the scope of this tutorial.
+course only one domain can hold the lock). See the [capsule API] for details.
+
+[capsule API]: ../_04-parallelism/02-capsules
 
 The good news is that data-race freedom guarantees that even buggy programs can
 be reasoned about intuitively. See [Why are data races bad?].
@@ -1229,10 +1238,11 @@ let add_many_par par arr =
   |> Option.value ~default:0
 ```
 
-We first need to convert from `iarray` to `Parallel.Sequence.t` **(XX link to
-documentation)**, a general
+We first need to convert from `iarray` to [`Parallel.Sequence.t`], a general
 sequence type supporting a rich selection of parallel operations. Among them is
 a parallel `reduce`, which operates much like an unordered `fold`.
+
+[`Parallel.Sequence.t`]: https://github.com/janestreet/parallel/blob/with-extensions/sequence/parallel_sequence_intf.ml
 
 Just like `Parallel.fork_join2`, we can use parallel sequences in a nested
 manner. Suppose that rather than a binary tree we have an n-ary tree:
