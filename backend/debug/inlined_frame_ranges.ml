@@ -26,6 +26,7 @@
  * DEALINGS IN THE SOFTWARE.                                                  *
  ******************************************************************************)
 
+open! Int_replace_polymorphic_compare
 module L = Linear
 
 (* CR mshinwell/xclerc/poechsel:

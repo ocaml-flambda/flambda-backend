@@ -1,1 +1,11 @@
-2 4
+add_pairs_immutable_record { d0 = 88 ; d1 = 110 }
+add_fours_immutable_record { d0 = 34 ; d1 = 97; d2 = 88 ; d3 = 146 }
+add_int_tuples (52, 102)
+add_t2_to_t4 { d0 = 88 ; d1 = 110; d2 = 88 ; d3 = 110 }
+add_t2_to_t4_reordered { d0 = 88 ; d1 = 110; d2 = 110 ; d3 = 88 }
+copy_t2_to_t4_immutable_record { d0 = 8 ; d1 = 96; d2 = 8 ; d3 = 96 }
+same_value_in_both_fields_immutable_record { d0 = 104 ; d1 = 104 }
+copy_pairs_mutable_record { f0 = 42 ; f1 = 27 }
+copy_pairs_mutable_record_return { f0 = 42 ; f1 = 27 }
+copy_fours_mutable_record { f0 = 1 ; f1 = 2; f2 = 3 ; f3 = -4 }
+add_fours_mutable_record { f0 = 43 ; f1 = 29; f2 = 426 ; f3 = 235 }

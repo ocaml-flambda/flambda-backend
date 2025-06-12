@@ -1,5 +1,4 @@
 (* TEST
- flags = "-extension-universe alpha";
  ocamlc_byte_exit_status = "0";
  setup-ocamlc.byte-build-env;
  ocamlc.byte;

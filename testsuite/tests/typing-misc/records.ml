@@ -134,9 +134,9 @@ Error: Unbound record field "Complex.z"
 (* PR#6608 *)
 { true with contents = 0 };;
 [%%expect{|
-Line 1, characters 2-6:
+Line 1, characters 0-26:
 1 | { true with contents = 0 };;
-      ^^^^
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "bool" which is not a record type.
 |}];;
 

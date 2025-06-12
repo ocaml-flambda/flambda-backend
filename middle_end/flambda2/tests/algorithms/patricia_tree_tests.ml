@@ -281,15 +281,13 @@ module Set_specs = struct
 
   let of_list_then_elements l =
     List.equal Int.equal
-      (l |> Set.of_list |> Set.elements |> List.sort Int.compare)
+      (l |> Set.of_list |> Set.elements)
       (l |> List.sort_uniq Int.compare)
 
   let elements_then_of_list s = Set.equal s (s |> Set.elements |> Set.of_list)
 
   let to_seq s =
-    List.equal Int.equal
-      (s |> Set.to_seq |> List.of_seq |> List.sort Int.compare)
-      (s |> Set.elements |> List.sort Int.compare)
+    List.equal Int.equal (s |> Set.to_seq |> List.of_seq) (s |> Set.elements)
 
   let union_list l =
     Set.equal (Set.union_list l) (List.fold_left Set.union Set.empty l)
@@ -316,9 +314,6 @@ module Map_specs (V : Value) = struct
   let valid m = Map.valid m
 
   let equal_bindings (k1, v1) (k2, v2) = Int.equal k1 k2 && V.equal v1 v2
-
-  let compare_bindings (k1, v1) (k2, v2) =
-    match Int.compare k1 k2 with 0 -> V.compare v1 v2 | c -> c
 
   let find_opt_vs_find k m =
     Map.find_opt k m =? option_of_not_found (Map.find k) m
@@ -528,7 +523,7 @@ module Map_specs (V : Value) = struct
 
   let to_seq_vs_bindings m =
     List.equal equal_bindings
-      (m |> Map.to_seq |> List.of_seq |> List.sort compare_bindings)
+      (m |> Map.to_seq |> List.of_seq)
       (m |> Map.bindings)
 
   let of_list_valid l = Map.valid (Map.of_list l)
@@ -536,7 +531,7 @@ module Map_specs (V : Value) = struct
   module Equality_on_bindings = struct
     let sort_by_key l = List.sort (fun (k1, _) (k2, _) -> Int.compare k1 k2) l
 
-    let sort_and_group_by_key l =
+    let group_by_key l =
       let rec groups l =
         match l with
         | [] -> []
@@ -552,11 +547,11 @@ module Map_specs (V : Value) = struct
           let g, l = group l in
           (k, v :: g) :: groups l
       in
-      groups (sort_by_key l)
+      groups l
 
     let same_bindings_up_to_duplicate_keys l1 l2 =
-      let l1 = l1 |> sort_and_group_by_key in
-      let l2 = l2 |> sort_and_group_by_key in
+      let l1 = l1 |> group_by_key in
+      let l2 = l2 |> group_by_key in
       let rec check l1 l2 =
         match l1, l2 with
         | [], [] -> true
@@ -572,7 +567,9 @@ module Map_specs (V : Value) = struct
   open Equality_on_bindings
 
   let of_list_then_bindings l =
-    same_bindings_up_to_duplicate_keys (l |> Map.of_list |> Map.bindings) l
+    same_bindings_up_to_duplicate_keys
+      (l |> Map.of_list |> Map.bindings)
+      (sort_by_key l)
 
   let bindings_then_of_list m =
     Map.equal V.equal (m |> Map.bindings |> Map.of_list) m
@@ -584,7 +581,7 @@ module Map_specs (V : Value) = struct
   let map_keys f m =
     same_bindings_up_to_duplicate_keys
       (Map.map_keys f m |> Map.bindings)
-      (List.map (fun (k, v) -> f k, v) (m |> Map.bindings))
+      (sort_by_key (List.map (fun (k, v) -> f k, v) (m |> Map.bindings)))
 
   let keys_vs_of_list m =
     Set.equal (Map.keys m) (m |> Map.bindings |> List.map fst |> Set.of_list)
@@ -760,7 +757,8 @@ module Types = struct
   let generate_key =
     Generator.choose
       [ 1, Generator.one_of [0; 1; 2; 3; -1; Int.min_int; Int.max_int];
-        2, Generator.log_int ]
+        1, Generator.log_int;
+        1, Generator.map Generator.log_int ~f:( ~- ) ]
 
   let drop_leading_digits key : key Seq.t =
     let rec next mask : key Seq.node =

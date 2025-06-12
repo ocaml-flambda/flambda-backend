@@ -257,8 +257,8 @@ let check_opaque_local loc attr =
 
 
 let lfunction_with_attr ~attr
-  { kind; params; return; body; attr=_; loc; mode; ret_mode; region } =
-  lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region
+  { kind; params; return; body; attr=_; loc; mode; ret_mode } =
+  lfunction ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode
 
 let add_inline_attribute expr loc attributes =
   match expr with

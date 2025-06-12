@@ -287,9 +287,14 @@ char *caml_alloc_for_heap (asize_t request)
 #else
     uintnat size = Round_mmap_size (sizeof (heap_chunk_head) + request);
     void *block;
+#ifdef WITH_ADDRESS_SANITIZER
+    block = aligned_alloc (Heap_page_size, size);
+    if (block == NULL) return NULL;
+#else
     block = mmap (NULL, size, PROT_READ | PROT_WRITE,
                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB, -1, 0);
     if (block == MAP_FAILED) return NULL;
+#endif
     mem = (char *) block + sizeof (heap_chunk_head);
     Chunk_size (mem) = size - sizeof (heap_chunk_head);
     Chunk_block (mem) = block;
@@ -320,7 +325,11 @@ void caml_free_for_heap (char *mem)
 {
   if (caml_use_huge_pages){
 #ifdef HAS_HUGE_PAGES
+#ifdef WITH_ADDRESS_SANITIZER
+    free (Chunk_block (mem));
+#else
     munmap (Chunk_block (mem), Chunk_size (mem) + sizeof (heap_chunk_head));
+#endif
 #else
     CAMLassert (0);
 #endif
@@ -587,19 +596,14 @@ CAMLexport value caml_alloc_shr_no_track_noexc (mlsize_t wosize, tag_t tag)
    free it.  In both cases, you pass as argument the size (in bytes)
    of the block being allocated or freed.
 */
-CAMLexport void caml_alloc_dependent_memory (mlsize_t nbytes)
+CAMLexport void caml_alloc_dependent_memory (value v, mlsize_t nbytes)
 {
-  caml_dependent_size += nbytes / sizeof (value);
-  caml_dependent_allocated += nbytes / sizeof (value);
+  /* No-op for now */
 }
 
-CAMLexport void caml_free_dependent_memory (mlsize_t nbytes)
+CAMLexport void caml_free_dependent_memory (value v, mlsize_t nbytes)
 {
-  if (caml_dependent_size < nbytes / sizeof (value)){
-    caml_dependent_size = 0;
-  }else{
-    caml_dependent_size -= nbytes / sizeof (value);
-  }
+  /* No-op for now */
 }
 
 /* Use this function to tell the major GC to speed up when you use
@@ -798,7 +802,8 @@ void caml_local_realloc(void)
   CAMLassert(Caml_state->local_limit <= Caml_state->local_sp);
 }
 
-CAMLexport value caml_alloc_local(mlsize_t wosize, tag_t tag)
+CAMLexport value caml_alloc_local_reserved(mlsize_t wosize, tag_t tag,
+  reserved_t reserved)
 {
 #if defined(NATIVE_CODE) && defined(STACK_ALLOCATION)
   intnat sp = Caml_state->local_sp;
@@ -808,19 +813,24 @@ CAMLexport value caml_alloc_local(mlsize_t wosize, tag_t tag)
   if (sp < Caml_state->local_limit)
     caml_local_realloc();
   hp = (header_t*)((char*)Caml_state->local_top + sp);
-  *hp = Make_header(wosize, tag, Local_unmarked);
+  *hp = Make_header_with_profinfo(wosize, tag, Local_unmarked, reserved);
   return Val_hp(hp);
 #else
   if (wosize <= Max_young_wosize) {
-    return caml_alloc_small(wosize, tag);
+    return caml_alloc_small_with_reserved(wosize, tag, reserved);
   } else {
     /* The return value is initialised directly using Field.
        This is invalid if it may create major -> minor pointers.
        So, perform a minor GC to prevent this. (See caml_make_vect) */
     caml_minor_collection();
-    return caml_alloc_shr(wosize, tag);
+    return caml_alloc_shr_reserved(wosize, tag, reserved);
   }
 #endif
+}
+
+CAMLexport value caml_alloc_local(mlsize_t wosize, tag_t tag)
+{
+  return caml_alloc_local_reserved(wosize, tag, 0);
 }
 
 CAMLprim value caml_local_stack_offset(value blk)
@@ -1155,4 +1165,47 @@ CAMLexport wchar_t* caml_stat_wcsconcat(int n, ...)
   return result;
 }
 
+#endif
+
+#ifdef WITH_ADDRESS_SANITIZER
+/* Provides reasonable default settings for AddressSanitizer.
+   Ideally we'd make this a weak symbol so that user programs
+   could easily override it at compile time, but unfortunately that
+   doesn't work because the AddressSanitizer runtime library itself
+   already provides a weak symbol with this name, so there'd be no
+   guarantee which would get used if this symbol was also weak.
+
+   Users can still customize the behavior of AddressSanitizer via the
+   [ASAN_OPTIONS] environment variable at runtime.
+   */
+const char *
+#ifdef __clang___
+__attribute__((used, retain))
+#else
+__attribute__((used))
+#endif
+__asan_default_options(void) {
+  return "detect_leaks=false,"
+         "halt_on_error=false,"
+         "detect_stack_use_after_return=false";
+}
+
+#define CREATE_ASAN_REPORT_WRAPPER(memory_access, size) \
+void __asan_report_ ## memory_access ## size ## _noabort(const void* addr); \
+CAMLexport void __attribute__((preserve_all)) caml_asan_report_ ## memory_access ## size ## _noabort(const void* addr) { \
+  return __asan_report_ ## memory_access ## size ## _noabort(addr); \
+}
+
+CREATE_ASAN_REPORT_WRAPPER(load, 1)
+CREATE_ASAN_REPORT_WRAPPER(load, 2)
+CREATE_ASAN_REPORT_WRAPPER(load, 4)
+CREATE_ASAN_REPORT_WRAPPER(load, 8)
+CREATE_ASAN_REPORT_WRAPPER(load, 16)
+CREATE_ASAN_REPORT_WRAPPER(store, 1)
+CREATE_ASAN_REPORT_WRAPPER(store, 2)
+CREATE_ASAN_REPORT_WRAPPER(store, 4)
+CREATE_ASAN_REPORT_WRAPPER(store, 8)
+CREATE_ASAN_REPORT_WRAPPER(store, 16)
+
+#undef CREATE_ASAN_REPORT_WRAPPER
 #endif

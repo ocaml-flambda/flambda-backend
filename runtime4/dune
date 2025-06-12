@@ -52,7 +52,9 @@
   domain.c
   float32.c
   simd.c
-  blake2.c)
+  blake2.c
+  systhreads/st_stubs.c
+  systhreads/st_posix.h)
  (action
   (with-stdout-to
    %{targets}
@@ -88,7 +90,10 @@
   primitives
   signals_osdep.h
   (glob_files *.S)
-  (glob_files *.c))
+  (glob_files *.c)
+  (glob_files systhreads/*.h)
+  (glob_files systhreads/*.c)
+  ../otherlibs/systhreads4/threads.h)
  (action
   (no-infer
    (progn

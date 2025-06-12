@@ -74,6 +74,7 @@ module Typ = struct
   let package ?loc ?attrs a b = mk ?loc ?attrs (Ptyp_package (a, b))
   let extension ?loc ?attrs a = mk ?loc ?attrs (Ptyp_extension a)
   let open_ ?loc ?attrs mod_ident t = mk ?loc ?attrs (Ptyp_open (mod_ident, t))
+  let of_kind ?loc ?attrs a = mk ?loc ?attrs (Ptyp_of_kind a)
 
   let force_poly t =
     match t.ptyp_desc with
@@ -132,6 +133,8 @@ module Typ = struct
             Ptyp_package(longident,List.map (fun (n,typ) -> (n,loop typ) ) lst)
         | Ptyp_open (mod_ident, core_type) ->
             Ptyp_open (mod_ident, loop core_type)
+        | Ptyp_of_kind jkind ->
+            Ptyp_of_kind (loop_jkind jkind)
         | Ptyp_extension (s, arg) ->
             Ptyp_extension (s, arg)
       in
@@ -142,7 +145,7 @@ module Typ = struct
         | Default as x -> x
         | Abbreviation _ as x -> x
         | Mod (jkind, modes) -> Mod (loop_jkind jkind, modes)
-        | With (jkind, typ) -> With (loop_jkind jkind, loop typ)
+        | With (jkind, typ, modalities) -> With (loop_jkind jkind, loop typ, modalities)
         | Kind_of typ -> Kind_of (loop typ)
         | Product jkinds -> Product (List.map loop_jkind jkinds)
       in
@@ -186,6 +189,8 @@ module Pat = struct
   let construct ?loc ?attrs a b = mk ?loc ?attrs (Ppat_construct (a, b))
   let variant ?loc ?attrs a b = mk ?loc ?attrs (Ppat_variant (a, b))
   let record ?loc ?attrs a b = mk ?loc ?attrs (Ppat_record (a, b))
+  let record_unboxed_product ?loc ?attrs a b =
+    mk ?loc ?attrs (Ppat_record_unboxed_product (a, b))
   let array ?loc ?attrs a b = mk ?loc ?attrs (Ppat_array (a, b))
   let or_ ?loc ?attrs a b = mk ?loc ?attrs (Ppat_or (a, b))
   let constraint_ ?loc ?attrs a b c = mk ?loc ?attrs (Ppat_constraint (a, b, c))
@@ -217,7 +222,10 @@ module Exp = struct
   let construct ?loc ?attrs a b = mk ?loc ?attrs (Pexp_construct (a, b))
   let variant ?loc ?attrs a b = mk ?loc ?attrs (Pexp_variant (a, b))
   let record ?loc ?attrs a b = mk ?loc ?attrs (Pexp_record (a, b))
+  let record_unboxed_product ?loc ?attrs a b =
+    mk ?loc ?attrs (Pexp_record_unboxed_product (a, b))
   let field ?loc ?attrs a b = mk ?loc ?attrs (Pexp_field (a, b))
+  let unboxed_field ?loc ?attrs a b = mk ?loc ?attrs (Pexp_unboxed_field (a, b))
   let setfield ?loc ?attrs a b c = mk ?loc ?attrs (Pexp_setfield (a, b, c))
   let array ?loc ?attrs a b = mk ?loc ?attrs (Pexp_array (a, b))
   let ifthenelse ?loc ?attrs a b c = mk ?loc ?attrs (Pexp_ifthenelse (a, b, c))
@@ -245,6 +253,8 @@ module Exp = struct
   let unreachable ?loc ?attrs () = mk ?loc ?attrs Pexp_unreachable
   let stack ?loc ?attrs e = mk ?loc ?attrs (Pexp_stack e)
   let comprehension ?loc ?attrs e = mk ?loc ?attrs (Pexp_comprehension e)
+  let overwrite ?loc ?attrs a b = mk ?loc ?attrs (Pexp_overwrite (a, b))
+  let hole ?loc ?attrs () = mk ?loc ?attrs Pexp_hole
 
   let case lhs ?guard rhs =
     {

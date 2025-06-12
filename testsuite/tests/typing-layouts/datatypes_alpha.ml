@@ -325,7 +325,7 @@ Line 8, characters 32-36:
                                     ^^^^
 Error: This expression has type "float" but an expression was expected of type
          "('a : immediate)"
-       The kind of float is immutable_data
+       The kind of float is value mod many unyielding stateless immutable
          because it is the primitive type float.
        But the kind of float must be a subkind of immediate
          because of the definition of s6 at line 2, characters 0-35.
@@ -429,7 +429,7 @@ Error: Layout mismatch in final type declaration consistency check.
        declarations. It is also not clever enough to produce a good error
        message, so we'll say this instead:
          The layout of float# is float64
-           because it is the primitive type float#.
+           because it is the unboxed version of the primitive type float.
          But the layout of float# must be a sublayout of void
            because of the annotation on the universal variable 'b.
        A good next step is to add a layout annotation on a parameter to
@@ -443,5 +443,10 @@ Error: Layout mismatch in final type declaration consistency check.
 
 (*****************************************************)
 (* Test 10: Constraints and parameter kind inference *)
+
+(* Doesn't need layouts_alpha. *)
+
+(*************************************************)
+(* Test 11: Projecting from an @@unboxed record. *)
 
 (* Doesn't need layouts_alpha. *)

@@ -12,6 +12,8 @@
   * Fabrice LE FESSANT (INRIA/OCamlPro)
 *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 open X86_ast
 module String = Misc.Stdlib.String
 
@@ -23,7 +25,7 @@ type symbol_binding = Sy_local | Sy_global | Sy_weak
 
 type symbol = {
   sy_name : string;
-  mutable sy_type : string option;
+  mutable sy_type : Asm_targets.Asm_directives.symbol_type option;
   mutable sy_size : int option;
   mutable sy_binding : symbol_binding;
   mutable sy_protected : bool;

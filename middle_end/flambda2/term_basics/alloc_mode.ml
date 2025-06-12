@@ -102,8 +102,12 @@ module For_applications = struct
     else
       match mode with
       | Alloc_heap -> Heap
-      | Alloc_local ->
-        Local { region = current_region; ghost_region = current_ghost_region }
+      | Alloc_local -> (
+        match current_region, current_ghost_region with
+        | Some current_region, Some current_ghost_region ->
+          Local { region = current_region; ghost_region = current_ghost_region }
+        | None, _ | _, None ->
+          Misc.fatal_error "Local application without a region")
 
   let free_names t =
     match t with
@@ -167,7 +171,10 @@ module For_allocations = struct
     else
       match mode with
       | Alloc_heap -> Heap
-      | Alloc_local -> Local { region = current_region }
+      | Alloc_local -> (
+        match current_region with
+        | Some region -> Local { region }
+        | None -> Misc.fatal_error "Local allocation without a region")
 
   let free_names t =
     match t with

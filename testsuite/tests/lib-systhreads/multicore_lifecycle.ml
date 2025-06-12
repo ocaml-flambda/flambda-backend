@@ -1,8 +1,9 @@
 (* TEST
- flags += "-alert -unsafe_parallelism";
+ flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
  include systhreads;
  hassysthreads;
  runtime5;
+ multidomain;
  {
    bytecode;
  }{

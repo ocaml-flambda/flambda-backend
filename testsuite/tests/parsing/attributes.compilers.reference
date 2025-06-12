@@ -90,6 +90,8 @@
         ptype_private = Public
         ptype_manifest =
           None
+        ptype_jkind_annotation =
+          None
     ]
   structure_item (attributes.ml[21,302+0]..[21,302+8])
     Pstr_attribute "foo"
@@ -131,6 +133,8 @@
                     ]
                 ptype_private = Public
                 ptype_manifest =
+                  None
+                ptype_jkind_annotation =
                   None
             ]
           structure_item (attributes.ml[31,399+2]..[31,399+10])
@@ -198,6 +202,8 @@
                         core_type (attributes.ml[39,498+58]..[39,498+61])
                           Ptyp_constr "M.t" (attributes.ml[39,498+58]..[39,498+61])
                           []
+                    ptype_jkind_annotation =
+                      None
               ]
               attribute "foo"
                 []
@@ -225,6 +231,8 @@
                   Ptype_abstract
                 ptype_private = Public
                 ptype_manifest =
+                  None
+                ptype_jkind_annotation =
                   None
             ]
         ]
@@ -267,6 +275,8 @@
                     core_type (attributes.ml[53,681+34]..[53,681+37])
                       Ptyp_constr "int" (attributes.ml[53,681+34]..[53,681+37])
                       []
+                ptype_jkind_annotation =
+                  None
           ]
   structure_item (attributes.ml[55,728+0]..[55,728+31])
     Pstr_value Nonrec

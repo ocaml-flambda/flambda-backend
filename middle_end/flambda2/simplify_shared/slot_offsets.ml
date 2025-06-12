@@ -728,7 +728,7 @@ end = struct
       let size =
         match code_id with
         | Deleted { function_slot_size; _ } -> function_slot_size
-        | Code_id code_id ->
+        | Code_id { code_id; only_full_applications = _ } ->
           let code_metadata = get_code_metadata code_id in
           Code_metadata.function_slot_size code_metadata
       in
@@ -880,7 +880,7 @@ end = struct
       (fun value_slot _ ->
         let kind = Value_slot.kind value_slot in
         let size, is_unboxed =
-          match Flambda_kind.With_subkind.kind kind with
+          match kind with
           | Region | Rec_info ->
             Misc.fatal_errorf "Value slot %a has Region or Rec_info kind"
               Value_slot.print value_slot
@@ -891,12 +891,7 @@ end = struct
           (* flambda2 only supports 64-bit targets for now, so naked numbers can
              only be of size 1 *)
           | Naked_number Naked_vec128 -> 2, true
-          | Value -> (
-            match[@ocaml.warning "-4"]
-              Flambda_kind.With_subkind.non_null_value_subkind kind
-            with
-            | Tagged_immediate -> 1, true
-            | _ -> 1, false)
+          | Value -> 1, Value_slot.is_always_immediate value_slot
         in
         if is_unboxed
         then

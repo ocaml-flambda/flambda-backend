@@ -1,4 +1,6 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
+
+open! Int_replace_polymorphic_compare
 
 (** The implementation below is based on the following article:
     A Simple, Fast Dominance Algorithm

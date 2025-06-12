@@ -33,3 +33,4 @@ let custom_tag = 255
 let int_tag = 1000
 let out_of_heap_tag = 1001
 let unaligned_tag = 1002
+let null_tag = 1010

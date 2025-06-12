@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 target_dir=$PWD
 cd "$(dirname "$0")"

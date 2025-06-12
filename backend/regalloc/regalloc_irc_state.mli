@@ -1,16 +1,11 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 open Regalloc_utils
 open Regalloc_irc_utils
 
 type t
 
-val make :
-  initial:Reg.t list ->
-  stack_slots:Regalloc_stack_slots.t ->
-  next_instruction_id:Instruction.id ->
-  unit ->
-  t
+val make : initial:Reg.t list -> stack_slots:Regalloc_stack_slots.t -> unit -> t
 
 val add_initial_one : t -> Reg.t -> unit
 
@@ -21,6 +16,18 @@ val reset :
   new_inst_temporaries:Reg.t list ->
   new_block_temporaries:Reg.t list ->
   unit
+
+val work_list : t -> Reg.t -> WorkList.t
+
+val work_list_opt : t -> Reg.t -> WorkList.t option
+
+val color : t -> Reg.t -> Color.t option
+
+val set_color : t -> Reg.t -> Color.t option -> unit
+
+val degree : t -> Reg.t -> int
+
+val set_degree : t -> Reg.t -> int -> unit
 
 val is_precolored : t -> Reg.t -> bool
 
@@ -100,8 +107,6 @@ val mem_adj_set : t -> Reg.t -> Reg.t -> bool
 
 val adj_list : t -> Reg.t -> Reg.t list
 
-val interferes_with_adj : t -> Reg.t -> Reg.t -> bool
-
 val adj_set : t -> RegisterStamp.PairSet.t
 
 val add_edge : t -> Reg.t -> Reg.t -> unit
@@ -132,8 +137,6 @@ val add_alias : t -> Reg.t -> Reg.t -> unit
 
 val stack_slots : t -> Regalloc_stack_slots.t
 
-val get_and_incr_instruction_id : t -> Instruction.id
-
 val add_inst_temporaries_list : t -> Reg.t list -> unit
 
 val add_block_temporaries_list : t -> Reg.t list -> unit
@@ -143,5 +146,7 @@ val mem_inst_temporaries : t -> Reg.t -> bool
 val mem_all_introduced_temporaries : t -> Reg.t -> bool
 
 val diff_all_introduced_temporaries : t -> Reg.Set.t -> Reg.Set.t
+
+val update_register_locations : t -> unit
 
 val invariant : t -> unit

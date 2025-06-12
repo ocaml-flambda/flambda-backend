@@ -209,9 +209,21 @@ typedef uint64_t uintnat;
 /* Number of words used in the control structure at the start of a stack
    (see fiber.h) */
 #ifdef ARCH_SIXTYFOUR
-#define Stack_ctx_words (6 + 1)
+#define Stack_ctx_words (10 + 1)
 #else
-#define Stack_ctx_words (6 + 2)
+#define Stack_ctx_words (10 + 2)
+#endif
+
+/* Whether to use guard pages for fiber stacks */
+#if !defined(USE_MMAP_MAP_STACK) && defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+#define STACK_GUARD_PAGES
+#endif
+
+/* Whether to offset Stack_high to preserve alignment. */
+#if defined(TARGET_amd64) && !defined(WITH_FRAME_POINTERS)
+#define Stack_padding_word 1
+#else
+#define Stack_padding_word 0
 #endif
 
 /* Default maximum size of the stack (words). */
@@ -232,15 +244,20 @@ typedef uint64_t uintnat;
 /* Default size of the minor zone. (words)  */
 #define Minor_heap_def 1048576
 
-/* Minimum size increment when growing the heap (words).
-   Must be a multiple of [Page_size / sizeof (value)]. */
-#define Heap_chunk_min (15 * Page_size)
-
+/* Default size increment when growing the heap.
+   If this is <= 1000, it's a percentage of the current heap size.
+   If it is > 1000, it's a number of words. */
+#define Heap_chunk_def 15
 
 /* Default speed setting for the major GC.  The heap will grow until
    the dead objects and the free list represent this percentage of the
    total size of live objects. */
-#define Percent_free_def 160
+#define Percent_free_def 80
+
+/* Default setting for the compacter: 500%
+   (i.e. trigger the compacter when 5/6 of the heap is free or garbage).
+ */
+#define Max_percent_free_def 500
 
 /* Default setting for the major GC slice smoothing window: 1
    (i.e. no smoothing)
@@ -256,12 +273,12 @@ typedef uint64_t uintnat;
 
 /* Default setting for the ratio of custom garbage to minor heap size.
    Documented in gc.mli */
-#define Custom_minor_ratio_def 100
+#define Custom_minor_ratio_def 400
 
 /* Default setting for maximum size of custom objects counted as garbage
    in the minor heap.
    Documented in gc.mli */
-#define Custom_minor_max_bsz_def 70000
+#define Custom_minor_max_bsz_def 10
 
 /* Minimum amount of work to do in a major GC slice. */
 #define Major_slice_work_min 512

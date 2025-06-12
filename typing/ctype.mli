@@ -213,20 +213,27 @@ val instance_class:
         type_expr list -> class_type -> type_expr list * class_type
 
 val instance_poly:
-        ?keep_names:bool -> fixed:bool ->
-        type_expr list -> type_expr -> type_expr list * type_expr
+        ?keep_names:bool ->
+        type_expr list -> type_expr -> type_expr
         (* Take an instance of a type scheme containing free univars *)
+val instance_poly_fixed:
+        ?keep_names:bool ->
+        type_expr list -> type_expr -> type_expr list * type_expr
+        (* Take an instance of a type scheme containing free univars for
+           checking that an expression matches this scheme. *)
+
 val polyfy: Env.t -> type_expr -> type_expr list -> type_expr * bool
 val instance_label:
         fixed:bool ->
-        label_description -> type_expr list * type_expr * type_expr
+        _ gen_label_description -> type_expr list * type_expr * type_expr
         (* Same, for a label *)
 val prim_mode :
         (Mode.allowed * 'r) Mode.Locality.t option -> (Primitive.mode * Primitive.native_repr)
         -> (Mode.allowed * 'r) Mode.Locality.t
 val instance_prim:
         Primitive.description -> type_expr ->
-        type_expr * Mode.Locality.lr option * Jkind.Sort.t option
+        type_expr * Mode.Locality.lr option
+        * Mode.Yielding.lr option * Jkind.Sort.t option
 
 (** Given (a @ m1 -> b -> c) @ m0, where [m0] and [m1] are modes expressed by
     user-syntax, [curry_mode m0 m1] gives the mode we implicitly interpret b->c
@@ -534,6 +541,8 @@ val free_variables: ?env:Env.t -> type_expr -> type_expr list
            returns both normal variables and row variables*)
 val free_non_row_variables_of_list: type_expr list -> type_expr list
         (* gets only non-row variables *)
+val free_variable_set_of_list: Env.t -> type_expr list -> Btype.TypeSet.t
+        (* post-condition: all elements in the set are Tvars *)
 
 val exists_free_variable : (type_expr -> jkind_lr -> bool) -> type_expr -> bool
         (* Check if there exists a free variable that satisfies the
@@ -569,22 +578,34 @@ val package_subtype :
 (* Raises [Incompatible] *)
 val mcomp : Env.t -> type_expr -> type_expr -> unit
 
+(* represents a type that has been extracted from wrappers that
+   do not change its runtime representation, such as [@@unboxed]
+   types and [Tpoly]s *)
+type unwrapped_type_expr =
+  { ty : type_expr
+  ; is_open : bool  (* are there any unbound variables in this type? *)
+  ; modality : Mode.Modality.Value.Const.t }
+
 val get_unboxed_type_representation :
-  Env.t -> type_expr -> (type_expr, type_expr) result
+  Env.t ->
+  type_expr ->
+  (unwrapped_type_expr, unwrapped_type_expr) result
     (* [get_unboxed_type_representation] attempts to fully expand the input
        type_expr, descending through [@@unboxed] types.  May fail in the case of
        circular types or very deeply nested unboxed types, in which case it
        returns the most expanded version it was able to compute. *)
 
-val get_unboxed_type_approximation : Env.t -> type_expr -> type_expr
+val get_unboxed_type_approximation :
+  Env.t -> type_expr -> unwrapped_type_expr
     (* [get_unboxed_type_approximation] does the same thing as
        [get_unboxed_type_representation], but doesn't indicate whether the type
        was fully expanded or not. *)
 
-(* Given the row from a variant type, determine if it is immediate.  Currently
-   just checks that all constructors have no arguments, doesn't consider
-   void. *)
-val tvariant_not_immediate : row_desc -> bool
+val contained_without_boxing : Env.t -> type_expr -> type_expr list
+    (* Return all types that are directly contained without boxing
+       (or "without indirection" or "flatly"); in the case of [@@unboxed]
+       existentials, these types might have free variables*)
+
 
 (* Cheap upper bound on jkind.  Will not expand unboxed types - call
    [type_jkind] if that's needed. *)
@@ -597,6 +618,11 @@ val type_jkind : Env.t -> type_expr -> jkind_l
 (* Get the jkind of a type, dropping any changes to types caused by
    expansion. *)
 val type_jkind_purely : Env.t -> type_expr -> jkind_l
+
+(* Like [type_jkind_purely], but returns [None] if the type is not
+   principally known. Useful to instantiate [jkind_of_type] in various
+   functions exported by [Jkind]. *)
+val type_jkind_purely_if_principal : Env.t -> type_expr -> jkind_l option
 
 (* Find a type's sort (if fixed is false: constraining it to be an
    arbitrary sort variable, if needed) *)
@@ -624,6 +650,10 @@ val check_decl_jkind :
 val constrain_decl_jkind :
   Env.t -> type_declaration -> jkind_l -> (unit, Jkind.Violation.t) result
 
+(* Compare two types for equality, with no renaming. This is useful for
+   the [type_equal] function that must be passed to certain jkind functions. *)
+val type_equal: Env.t -> type_expr -> type_expr -> bool
+
 val check_type_jkind :
   Env.t -> type_expr -> ('l * allowed) jkind -> (unit, Jkind.Violation.t) result
 val constrain_type_jkind :
@@ -632,7 +662,20 @@ val constrain_type_jkind :
 (* Check whether a type's externality's upper bound is less than some target.
    Potentially cheaper than just calling [type_jkind], because this can stop
    expansion once it succeeds. *)
-val check_type_externality : Env.t -> type_expr -> Jkind.Externality.t -> bool
+val check_type_externality :
+  Env.t -> type_expr -> Jkind_axis.Externality.t -> bool
+
+(* Check whether a type's nullability is less than some target.
+   Uses get_nullability which is potentially cheaper than calling type_jkind
+   if all with-bounds are irrelevant. *)
+val check_type_nullability :
+  Env.t -> type_expr -> Jkind_axis.Nullability.t -> bool
+
+(* Check whether a type's separability is less than some target.
+   Potentially cheaper than just calling [type_jkind], because this can stop
+   expansion once it succeeds. *)
+val check_type_separability :
+  Env.t -> type_expr -> Jkind_axis.Separability.t -> bool
 
 (* This function should get called after a type is generalized.
 
@@ -678,7 +721,7 @@ val check_type_externality : Env.t -> type_expr -> Jkind.Externality.t -> bool
 
    *)
 val check_and_update_generalized_ty_jkind :
-  ?name:Ident.t -> loc:Location.t -> type_expr -> unit
+  ?name:Ident.t -> loc:Location.t -> Env.t -> type_expr -> unit
 
 (* False if running in principal mode and the type is not principal.
    True otherwise. *)
@@ -688,3 +731,55 @@ val is_principal : type_expr -> bool
 type global_state
 val global_state : global_state
 val print_global_state : Format.formatter -> global_state -> unit
+
+(** Get the crossing of a jkind  *)
+val crossing_of_jkind : Env.t -> 'd Types.jkind -> Mode.Crossing.t
+
+(** Get the crossing of a type wrapped in modalities. Non-principal types get
+    trivial crossing. *)
+val crossing_of_ty :
+  Env.t ->
+  ?modalities:Mode.Modality.Value.Const.t ->
+  Types.type_expr ->
+  Mode.Crossing.t
+
+(** Cross a right mode according to a type wrapped in modalities. Non-principal
+    types don't cross. *)
+val cross_right :
+  Env.t ->
+  ?modalities:Mode.Modality.Value.Const.t ->
+  Types.type_expr ->
+  Mode.Value.r ->
+  Mode.Value.r
+
+(** Cross a left mode according to a type wrapped in modalities. Non-principal
+    types don't cross. *)
+val cross_left :
+  Env.t ->
+  ?modalities:Mode.Modality.Value.Const.t ->
+  Types.type_expr ->
+  Mode.Value.l ->
+  Mode.Value.l
+
+(** Similar to [cross_right] but for [Mode.Alloc]  *)
+val cross_right_alloc :
+  Env.t ->
+  ?modalities:Mode.Modality.Value.Const.t ->
+  Types.type_expr ->
+  Mode.Alloc.r ->
+  Mode.Alloc.r
+
+(** Similar to [cross_left] but for [Mode.Alloc]  *)
+val cross_left_alloc :
+  Env.t ->
+  ?modalities:Mode.Modality.Value.Const.t ->
+  Types.type_expr ->
+  Mode.Alloc.l ->
+  Mode.Alloc.l
+
+(** Currently [exn] crosses portability and contention. To make that safe,
+usages of constructors are constrained according to the mode crossing of
+constructor arguments. *)
+val check_constructor_crossing : Env.t ->
+  tag -> res:type_expr -> constructor_argument list ->
+  Env.held_locks -> unit

@@ -13,6 +13,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 (** Output channels.
 
     This module provides functions for working with output channels.

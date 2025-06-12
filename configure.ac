@@ -189,7 +189,7 @@ AS_IF([test x"$enable_runtime5" = xyes],
       [runtime_suffix=4])
 
 AC_ARG_ENABLE([stack_checks],
-  [AS_HELP_STRING([--enable-stack_checks],
+  [AS_HELP_STRING([--enable-stack-checks],
     [Enable stack checks])])
 
 ## Output variables
@@ -340,6 +340,7 @@ AC_SUBST([profinfo_width])
 AC_SUBST([custom_ops_struct_size])
 AC_SUBST([no_partial_inlining_cflags])
 AC_SUBST([frame_pointers])
+AC_SUBST([address_sanitizer])
 AC_SUBST([cpp_mangling])
 AC_SUBST([flambda])
 AC_SUBST([flambda2])
@@ -357,11 +358,10 @@ AC_SUBST([mkexe_ldflags_exp])
 AC_SUBST([PACKLD])
 AC_SUBST([build_libraries_manpages])
 AC_SUBST([compute_deps])
-AC_SUBST([naked_pointers])
-AC_SUBST([naked_pointers_checker])
 AC_SUBST([intel_jcc_bug_cflags])
 AC_SUBST([stack_allocation])
 AC_SUBST([poll_insertion])
+AC_SUBST([enable_multidomain])
 AC_SUBST([dune])
 AC_SUBST([ocaml_bindir])
 AC_SUBST([ocaml_libdir])
@@ -581,13 +581,18 @@ AC_ARG_ENABLE([frame-pointers],
   [AS_HELP_STRING([--enable-frame-pointers],
     [use frame pointers in runtime and generated code])])
 
+AC_ARG_ENABLE([address-sanitizer],
+  [AS_HELP_STRING([--enable-address-sanitizer],
+    [use Address Sanitizer and alter codegen to expose native OCaml operations to ASAN (also enables frame pointers)])])
+
 AC_ARG_ENABLE([cpp-mangling],
   [AS_HELP_STRING([--enable-cpp-mangling],
     [use cpp mangling for exported symbols])])
 
-AC_ARG_ENABLE([naked-pointers],
-  [AS_HELP_STRING([--disable-naked-pointers],
-    [do not allow naked pointers])])
+AC_ARG_ENABLE([naked-pointers], [],
+  [AS_IF([test "x$enableval" != 'xno'],
+    [AC_MSG_ERROR([Naked pointers were prohibited in OCaml 5.0.])])],
+  [])
 
 AC_ARG_ENABLE([naked-pointers-checker], [],
   [AS_IF([test "x$enableval" != 'xno'],
@@ -696,6 +701,10 @@ AC_ARG_ENABLE([stack-allocation],
 AC_ARG_ENABLE([poll-insertion],
   [AS_HELP_STRING([--enable-poll-insertion],
     [enable insertion of poll points])])
+
+AC_ARG_ENABLE([multidomain],
+  [AS_HELP_STRING([--enable-multidomain],
+    [allow the creation of multiple domains])])
 
 AC_ARG_WITH([flexdll],
   [AS_HELP_STRING([--with-flexdll],
@@ -2553,8 +2562,7 @@ AS_CASE([$host],
     # global CFLAGS and LIBS variables. This means that all the subsequent
     # tests can rely on the assumption that pthread is enabled.
     CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
-    LIBS="$LIBS $PTHREAD_LIBS"
-    AC_CHECK_FUNC([sigwait], [AC_DEFINE([HAS_SIGWAIT])])],
+    LIBS="$LIBS $PTHREAD_LIBS"],
     [AC_MSG_ERROR(m4_normalize([POSIX threads are required but not supported on
       this platform]))])])
 
@@ -2621,10 +2629,10 @@ AS_IF([$native_compiler],
 
 ## Frame pointers
 
-AS_IF([test x"$enable_frame_pointers" = "xyes"],
+AS_IF([test x"$enable_frame_pointers" = "xyes" -o x"$enable_address_sanitizer" = "xyes"],
   [AS_CASE(["$host,$ocaml_cc_vendor"],
     [x86_64-*-linux*,gcc-*|x86_64-*-linux*,clang-*],
-      [common_cflags="$common_cflags -g  -fno-omit-frame-pointer"
+      [common_cflags="$common_cflags -g -fno-omit-frame-pointer"
       frame_pointers=true
       AC_DEFINE([WITH_FRAME_POINTERS])
       AC_MSG_NOTICE([using frame pointers])],
@@ -2633,36 +2641,28 @@ AS_IF([test x"$enable_frame_pointers" = "xyes"],
   [AC_MSG_NOTICE([not using frame pointers])
   frame_pointers=false])
 
+## Address Sanitizer
+
+AS_IF([test x"$enable_address_sanitizer" = "xyes"],
+  [AS_CASE(["$host,$ocaml_cc_vendor"],
+    [x86_64-*-linux*,gcc-*|x86_64-*-linux*,clang-*],
+      [common_cflags="$common_cflags -fsanitize=address -fsanitize-recover=address"
+       oc_ldflags="$oc_ldflags -fsanitize=address -fsanitize-recover=address"
+       address_sanitizer=true
+      AC_DEFINE([WITH_ADDRESS_SANITIZER])
+      AC_MSG_NOTICE([using Address Sanitizer])],
+    [AC_MSG_ERROR([Address Sanitizer is not supported on this platform])]
+  )],
+  [AC_MSG_NOTICE([not using Address Sanitizer])
+  address_sanitizer=false])
+
+
 ## CPP mangling
 
 AS_IF([test x"$enable_cpp_mangling" = "xyes"],
   [cpp_mangling=true
     AC_DEFINE([WITH_CPP_MANGLING])],
   [cpp_mangling=false])
-
-## No naked pointers
-
-AS_IF([test x"$enable_naked_pointers" = "xno" ],
-  [naked_pointers=false
-   AC_DEFINE([NO_NAKED_POINTERS])],
-  [naked_pointers=true])
-
-AS_IF([test x"$enable_naked_pointers_checker" = "xyes" ],
-  [AS_IF([test x"$enable_naked_pointers" = "xno" ],
-         [AC_MSG_ERROR(m4_normalize([
-               --enable-naked-pointers-checker and --disable-naked-pointers
-               are incompatible]))])
-   AS_CASE(["$arch","$system"],
-    [amd64,linux|amd64,macosx \
-    |amd64,openbsd|amd64,win64 \
-    |amd64,freebsd|amd64,solaris \
-    |arm64,linux|arm64,macosx],
-      [naked_pointers_checker=true
-      AC_DEFINE([NAKED_POINTERS_CHECKER])],
-    [*],
-      [AC_MSG_ERROR([naked pointers checker not supported on this platform])]
-  )],
-  [naked_pointers_checker=false])
 
 ## Check for mmap support for huge pages and contiguous heap
 OCAML_MMAP_SUPPORTS_HUGE_PAGES
@@ -2839,6 +2839,15 @@ AS_IF([test x"$enable_poll_insertion" = "xyes"],
   [AC_DEFINE([POLL_INSERTION])
    poll_insertion=true],
   [poll_insertion=false])
+
+# Multidomain is permitted without stack checks, you'll just get large
+# non-resizeable fiber stacks.
+AS_IF([test x"$enable_multidomain" = "xyes"],
+  [AS_IF([test x"$enable_runtime5" = "xyes" &&
+          test x"$enable_poll_insertion" = "xyes"],
+    [AC_DEFINE([MULTIDOMAIN]), enable_multidomain=true],
+    [AC_MSG_ERROR([Creating multiple domains is only supported on runtime5 with \
+poll insertion enabled.])])], [])
 
 oc_cflags="$common_cflags $internal_cflags"
 oc_cppflags="$common_cppflags $internal_cppflags"

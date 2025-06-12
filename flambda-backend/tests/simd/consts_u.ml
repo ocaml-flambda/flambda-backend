@@ -9,12 +9,12 @@ CR-someday mslater: with layout polymorphism, the tests could be functorized.
 
 [@@@ocaml.warning "-unused-module"]
 
-type int8x16 = int8x16#
-type int16x8 = int16x8#
-type int32x4 = int32x4#
-type int64x2 = int64x2#
-type float32x4 = float32x4#
-type float64x2 = float64x2#
+type nonrec int8x16 = int8x16#
+type nonrec int16x8 = int16x8#
+type nonrec int32x4 = int32x4#
+type nonrec int64x2 = int64x2#
+type nonrec float32x4 = float32x4#
+type nonrec float64x2 = float64x2#
 
 let eq lv hv l h =
     if l <> lv then Printf.printf "%016Lx <> %016Lx\n" lv l;

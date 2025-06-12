@@ -8,6 +8,7 @@ type _ t =
   | Comprehensions : unit t
   | Mode : maturity t
   | Unique : maturity t
+  | Overwriting : unit t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t
   | Immutable_arrays : unit t
@@ -17,12 +18,14 @@ type _ t =
   | Labeled_tuples : unit t
   | Small_numbers : maturity t
   | Instances : unit t
+  | Separability : unit t
 
 (* When you update this, update [pair_of_string] below too. *)
 let to_string : type a. a t -> string = function
   | Comprehensions -> "comprehensions"
   | Mode -> "mode"
   | Unique -> "unique"
+  | Overwriting -> "overwriting"
   | Include_functor -> "include_functor"
   | Polymorphic_parameters -> "polymorphic_parameters"
   | Immutable_arrays -> "immutable_arrays"
@@ -32,3 +35,4 @@ let to_string : type a. a t -> string = function
   | Labeled_tuples -> "labeled_tuples"
   | Small_numbers -> "small_numbers"
   | Instances -> "instances"
+  | Separability -> "separability"

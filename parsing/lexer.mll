@@ -80,6 +80,7 @@ let keyword_table =
     "once_", ONCE;
     "open", OPEN;
     "or", OR;
+    "overwrite_", OVERWRITE;
 (*  "parser", PARSER; *)
     "private", PRIVATE;
     "rec", REC;
@@ -740,11 +741,13 @@ rule token = parse
   | "("  { LPAREN }
   | ")"  { RPAREN }
   | "#(" { HASHLPAREN }
+  | "#{" { HASHLBRACE }
   | "*"  { STAR }
   | ","  { COMMA }
   | "->" { MINUSGREATER }
   | "."  { DOT }
   | ".." { DOTDOT }
+  | ".#" { DOTHASH }
   | "." (dotsymbolchar symbolchar* as op) { DOTOP op }
   | ":"  { COLON }
   | "::" { COLONCOLON }

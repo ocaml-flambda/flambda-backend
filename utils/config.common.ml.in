@@ -46,7 +46,9 @@ and cfg_magic_number = {magic|@CFG_MAGIC_NUMBER@|magic}
 
 let safe_string = true
 let default_safe_string = true
+let naked_pointers = false
 let flambda_backend = true
+let parameterised_modules = true
 
 let interface_suffix = ref ".mli"
 
@@ -98,6 +100,7 @@ let configuration_variables () =
   p "asm" asm;
   p_bool "asm_cfi_supported" asm_cfi_supported;
   p_bool "with_frame_pointers" with_frame_pointers;
+  p_bool "with_address_sanitizer" with_address_sanitizer;
   p_bool "with_cpp_mangling" with_cpp_mangling;
   p "ext_exe" ext_exe;
   p "ext_obj" ext_obj;
@@ -121,6 +124,7 @@ let configuration_variables () =
   p_bool "supports_shared_libraries" supports_shared_libraries;
   p_bool "native_dynlink" native_dynlink;
   p_bool "naked_pointers" naked_pointers;
+  p_bool "parameterised_modules" parameterised_modules;
 
   p "exec_magic_number" exec_magic_number;
   p "cmi_magic_number" cmi_magic_number;
@@ -140,6 +144,9 @@ let configuration_variables () =
   p_bool "stack_allocation" stack_allocation;
 
   p_bool "no_stack_checks" no_stack_checks;
+  p_bool "multidomain" multidomain;
+  p_bool "poll_insertion" poll_insertion;
+  p_bool "ox" flambda_backend;
 ]
 
 let print_config_value oc = function

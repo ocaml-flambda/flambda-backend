@@ -175,19 +175,6 @@ else
 	done
 endif
 
-# The preprocessor for asm generators
-
-cvt_emit := cvt_emit$(EXE)
-
-$(eval $(call PROGRAM_SYNONYM,cvt_emit))
-
-$(cvt_emit): cvt_emit.cmo
-	$(CAMLC) $(LINKFLAGS) -o $@ $^
-
-clean::
-	rm -f cvt_emit.ml cvt_emit cvt_emit.exe
-
-beforedepend:: cvt_emit.ml
 
 # Reading cmt files
 

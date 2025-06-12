@@ -62,6 +62,54 @@ module type Sort = sig
     module Debug_printers : sig
       val t : Format.formatter -> t -> unit
     end
+
+    (* CR layouts: These are sorts for the types of ocaml expressions that are
+       currently required to be values, but for which we expect to relax that
+       restriction in versions 2 and beyond.  Naming them makes it easy to find
+       where in the translation to lambda they are assume to be value. *)
+    (* CR layouts: add similarly named jkinds and use those names everywhere (not
+       just the translation to lambda) rather than writing specific jkinds and
+       sorts in the code. *)
+    val for_class_arg : t
+
+    val for_instance_var : t
+
+    val for_lazy_body : t
+
+    val for_tuple_element : t
+
+    val for_variant_arg : t
+
+    val for_boxed_record : t
+
+    val for_block_element : t
+
+    val for_array_get_result : t
+
+    val for_array_comprehension_element : t
+
+    val for_list_element : t
+
+    (** These are sorts for the types of ocaml expressions that we expect will
+        always be "value".  These names are used in the translation to lambda to
+        make the code clearer. *)
+    val for_function : t
+
+    val for_probe_body : t
+
+    val for_poly_variant : t
+
+    val for_object : t
+
+    val for_initializer : t
+
+    val for_method : t
+
+    val for_module : t
+
+    val for_predef_value : t (* Predefined value types, e.g. int and string *)
+
+    val for_tuple : t
   end
 
   module Var : sig
@@ -119,6 +167,13 @@ module type Sort = sig
       it is set to [value] first. *)
   val default_to_value_and_get : t -> Const.t
 
+  (* CR layouts v12: Default this to void. *)
+
+  (** [default_for_transl_and_get] extracts the sort as a `const`.  If it's a variable,
+      it is set to [value] first. After we have support for [void], this will default to
+      [void] instead. *)
+  val default_for_transl_and_get : t -> Const.t
+
   (** To record changes to sorts, for use with `Types.{snapshot, backtrack}` *)
   type change
 
@@ -131,54 +186,6 @@ module type Sort = sig
 
     val var : Format.formatter -> var -> unit
   end
-
-  (* CR layouts: These are sorts for the types of ocaml expressions that are
-     currently required to be values, but for which we expect to relax that
-     restriction in versions 2 and beyond.  Naming them makes it easy to find
-     where in the translation to lambda they are assume to be value. *)
-  (* CR layouts: add similarly named jkinds and use those names everywhere (not
-     just the translation to lambda) rather than writing specific jkinds and
-     sorts in the code. *)
-  val for_class_arg : t
-
-  val for_instance_var : t
-
-  val for_lazy_body : t
-
-  val for_tuple_element : t
-
-  val for_variant_arg : t
-
-  val for_record : t
-
-  val for_block_element : t
-
-  val for_array_get_result : t
-
-  val for_array_comprehension_element : t
-
-  val for_list_element : t
-
-  (** These are sorts for the types of ocaml expressions that we expect will
-      always be "value".  These names are used in the translation to lambda to
-      make the code clearer. *)
-  val for_function : t
-
-  val for_probe_body : t
-
-  val for_poly_variant : t
-
-  val for_object : t
-
-  val for_initializer : t
-
-  val for_method : t
-
-  val for_module : t
-
-  val for_predef_value : t (* Predefined value types, e.g. int and string *)
-
-  val for_tuple : t
 end
 
 module History = struct
@@ -189,6 +196,7 @@ module History = struct
     | Label_declaration of Ident.t
     | Record_projection
     | Record_assignment
+    | Record_functional_update
     | Let_binding
     | Function_argument
     | Function_result
@@ -199,6 +207,7 @@ module History = struct
     | Optional_arg_default
     | Layout_poly_in_external
     | Unboxed_tuple_element
+    | Peek_or_poke
 
   (* For sort variables that are in the "legacy" position
      on the jkind lattice, defaulting exactly to [value]. *)
@@ -222,9 +231,11 @@ module History = struct
     | Constructor_type_parameter :
         Path.t * string
         -> (allowed * allowed) annotation_context
+    | Existential_unpack : string -> (allowed * allowed) annotation_context
     | Univar : string -> (allowed * allowed) annotation_context
     | Type_variable : string -> (allowed * allowed) annotation_context
     | Type_wildcard : Location.t -> (allowed * allowed) annotation_context
+    | Type_of_kind : Location.t -> (allowed * allowed) annotation_context
     | With_error_message :
         string * 'd annotation_context
         -> 'd annotation_context
@@ -237,9 +248,6 @@ module History = struct
 
   (* CR layouts v3: move some [value_creation_reason]s
      related to objects here. *)
-  (* CR layouts v3: add a copy of [Type_argument] once we support
-     enough subjkinding for interfaces to accept [value_or_null]
-     in [list] or [option]. *)
   type value_or_null_creation_reason =
     | Primitive of Ident.t
     | Tuple_element
@@ -250,6 +258,11 @@ module History = struct
     | Probe
     | Captured_in_object
     | Let_rec_variable of Ident.t
+    | Type_argument of
+        { parent_path : Path.t;
+          position : int;
+          arity : int
+        }
 
   type value_creation_reason =
     | Class_let_binding
@@ -278,6 +291,8 @@ module History = struct
     | Default_type_jkind
     | Existential_type_variable
     | Array_comprehension_element
+    | List_comprehension_iterator_element
+    | Array_comprehension_iterator_element
     | Lazy_expression
     | Class_type_argument
     | Class_term_argument
@@ -290,6 +305,8 @@ module History = struct
     | Enumeration
     | Primitive of Ident.t
     | Immediate_polymorphic_variant
+
+  type immediate_or_null_creation_reason = Primitive of Ident.t
 
   (* CR layouts v5: make new void_creation_reasons *)
   type void_creation_reason = |
@@ -307,7 +324,9 @@ module History = struct
     | Unification_var
     | Array_type_argument
 
-  type product_creation_reason = Unboxed_tuple
+  type product_creation_reason =
+    | Unboxed_tuple
+    | Unboxed_record
 
   type creation_reason =
     | Annotated : ('l * 'r) annotation_context * Location.t -> creation_reason
@@ -315,12 +334,14 @@ module History = struct
     | Value_or_null_creation of value_or_null_creation_reason
     | Value_creation of value_creation_reason
     | Immediate_creation of immediate_creation_reason
+    | Immediate_or_null_creation of immediate_or_null_creation_reason
     | Void_creation of void_creation_reason
     | Any_creation of any_creation_reason
     | Product_creation of product_creation_reason
     | Concrete_creation of concrete_creation_reason
     | Concrete_legacy_creation of concrete_legacy_creation_reason
     | Primitive of Ident.t
+    | Unboxed_primitive of Ident.t
     | Imported
     | Imported_type_argument of
         { parent_path : Path.t;

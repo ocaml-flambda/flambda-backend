@@ -167,7 +167,7 @@ wchar_t * caml_search_in_path(struct ext_table * path, const wchar_t * name)
          /* not sure what empty path components mean under Windows */
     fullname = caml_stat_wcsconcat(3, dir, L"\\", name);
     u8 = caml_stat_strdup_of_utf16(fullname);
-    caml_gc_message(0x100, "Searching %s\n", u8);
+    CAML_GC_MESSAGE(STARTUP, "Searching %s\n", u8);
     caml_stat_free(u8);
     if (_wstati64(fullname, &st) == 0 && S_ISREG(st.st_mode))
       return fullname;
@@ -175,7 +175,7 @@ wchar_t * caml_search_in_path(struct ext_table * path, const wchar_t * name)
   }
  not_found:
   u8 = caml_stat_strdup_of_utf16(name);
-  caml_gc_message(0x100, "%s not found in search path\n", u8);
+  CAML_GC_MESSAGE(STARTUP, "%s not found in search path\n", u8);
   caml_stat_free(u8);
   return caml_stat_wcsdup(name);
 }
@@ -199,7 +199,7 @@ CAMLexport wchar_t * caml_search_exe_in_path(const wchar_t * name)
                          &filepart);
     if (retcode == 0) {
       u8 = caml_stat_strdup_of_utf16(name);
-      caml_gc_message(0x100, "%s not found in search path\n", u8);
+      CAML_GC_MESSAGE(STARTUP, "%s not found in search path\n", u8);
       caml_stat_free(u8);
       caml_stat_free(fullname);
       return caml_stat_strdup_os(name);
@@ -942,15 +942,25 @@ CAMLexport wchar_t* caml_stat_strdup_to_utf16(const char *s)
   return ws;
 }
 
-CAMLexport caml_stat_string caml_stat_strdup_of_utf16(const wchar_t *s)
+CAMLexport caml_stat_string caml_stat_strdup_noexc_of_utf16(const wchar_t *s)
 {
   caml_stat_string out;
   int retcode;
 
-  retcode = win_wide_char_to_multi_byte(s, -1, NULL, 0);
-  out = caml_stat_alloc(retcode);
-  win_wide_char_to_multi_byte(s, -1, out, retcode);
+  retcode = caml_win32_wide_char_to_multi_byte(s, -1, NULL, 0);
+  out = caml_stat_alloc_noexc(retcode);
+  if (out != NULL) {
+    caml_win32_wide_char_to_multi_byte(s, -1, out, retcode);
+  }
 
+  return out;
+}
+
+CAMLexport caml_stat_string caml_stat_strdup_of_utf16(const wchar_t *s)
+{
+  caml_stat_string out = caml_stat_strdup_noexc_of_utf16(s);
+  if (out == NULL)
+    caml_raise_out_of_memory();
   return out;
 }
 

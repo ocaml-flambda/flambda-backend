@@ -19,6 +19,7 @@
    and native code. */
 
 #include <stdio.h>
+#include <string.h>
 #include "caml/backtrace.h"
 #include "caml/memory.h"
 #include "caml/callback.h"
@@ -100,25 +101,48 @@ static void scanmult (char_os *opt, uintnat *var)
   }
 }
 
-void caml_parse_ocamlrunparam(void)
+/* for compatibility with runtime 5 */
+
+static void parse_gc_tweak(char_os** opt_p)
 {
-  char_os *opt = caml_secure_getenv (T("OCAMLRUNPARAM"));
+  char_os *opt = *opt_p;
+  char_os *name = opt;
+  while (*opt != '\0') {
+    if (*opt == '=') {
+      if (opt - name == sizeof("help") -1 &&
+          memcmp(name, "help", opt - name) == 0) { /* TODO: strncmp_os */
+        fprintf(stderr, "No GC tweaks available in runtime4/\n");
+      } else {
+        fprintf(stderr, "Ignored unknown GC tweak '%.*s': "
+                "no GC tweaks available in runtime4.\n",
+                (int)(opt - name), name);
+      }
+      break;
+    } else {
+      opt++;
+    }
+  }
+  *opt_p = opt;
+}
+
+static void parse_ocamlrunparam(char_os* opt)
+{
   uintnat p;
-
-  if (opt == NULL) opt = caml_secure_getenv (T("CAMLRUNPARAM"));
-
   if (opt != NULL){
     while (*opt != '\0'){
       switch (*opt++){
+      /* keep in sync with runtime4 and with caml_runtime_parameters() */
       case 'a': scanmult (opt, &caml_init_policy); break;
       case 'b': scanmult (opt, &p); caml_record_backtraces(p); break;
       case 'c': scanmult (opt, &p); caml_cleanup_on_exit = (p != 0); break;
+      case 'd': break; /* max domains in runtime 5 */
+      case 'e': break; /* runtime events size in runtime 5 */
       case 'h': scanmult (opt, &caml_init_heap_wsz); break;
       case 'H': scanmult (opt, &caml_use_huge_pages); break;
       case 'i': scanmult (opt, &caml_init_heap_chunk_sz); break;
       case 'l': scanmult (opt, &caml_init_max_stack_wsz); break;
-      case 'M': scanmult (opt, &caml_init_custom_major_ratio); break;
       case 'm': scanmult (opt, &caml_init_custom_minor_ratio); break;
+      case 'M': scanmult (opt, &caml_init_custom_major_ratio); break;
       case 'n': scanmult (opt, &caml_init_custom_minor_max_bsz); break;
       case 'o': scanmult (opt, &caml_init_percent_free); break;
       case 'O': scanmult (opt, &caml_init_max_percent_free); break;
@@ -127,8 +151,10 @@ void caml_parse_ocamlrunparam(void)
       case 's': scanmult (opt, &caml_init_minor_heap_wsz); break;
       case 't': scanmult (opt, &caml_trace_level); break;
       case 'v': scanmult (opt, &caml_verb_gc); break;
+      case 'V': break; /* verify heap in runtime 5 */
       case 'w': scanmult (opt, &caml_init_major_window); break;
       case 'W': scanmult (opt, &caml_runtime_warnings); break;
+      case 'X': parse_gc_tweak(&opt); break; /* gc tweaks in runtime 5 */
       case ',': continue;
       }
       while (*opt != '\0'){
@@ -136,6 +162,26 @@ void caml_parse_ocamlrunparam(void)
       }
     }
   }
+}
+
+#ifdef NATIVE_CODE
+// Any default parameters added to an ocaml executable by passing -ocamlrunparam
+// to the compiler.
+// See asmcomp/asmlink.ml
+extern char caml_ocamlrunparam[];
+#endif
+
+void caml_parse_ocamlrunparam(void)
+{
+  char_os *opt = caml_secure_getenv (T("OCAMLRUNPARAM"));
+
+  if (opt == NULL) opt = caml_secure_getenv (T("CAMLRUNPARAM"));
+
+#ifdef NATIVE_CODE
+  parse_ocamlrunparam(caml_ocamlrunparam);
+#endif
+
+  parse_ocamlrunparam(opt);
 }
 
 

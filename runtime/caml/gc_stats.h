@@ -41,6 +41,7 @@ struct heap_stats {
   intnat large_words;
   intnat large_max_words;
   intnat large_blocks;
+  intnat dependent_bytes;
 };
 
 /* Note: accumulating stats then removing them is not a no-op, as
@@ -56,7 +57,11 @@ struct alloc_stats {
   uint64_t minor_words;
   uint64_t promoted_words;
   uint64_t major_words;
+  uint64_t minor_dependent_bytes;
+  uint64_t promoted_dependent_bytes;
+  uint64_t major_dependent_bytes;
   uint64_t forced_major_collections;
+  uint64_t major_work_done;
 };
 void caml_accum_alloc_stats(
   struct alloc_stats* acc,
@@ -82,6 +87,8 @@ void caml_collect_gc_stats_sample_stw(caml_domain_state *domain);
    The result is an approximation, it uses the live stats of the
    current domain but the sampled stats of other domains. */
 void caml_compute_gc_stats(struct gc_stats* buf);
+
+void caml_init_gc_stats (uintnat max_domains);
 
 #endif /* CAML_INTERNALS */
 

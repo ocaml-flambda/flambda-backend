@@ -430,7 +430,7 @@ let reg_show_prim name to_sig doc =
 let () =
   reg_show_prim "show_val"
     (fun env loc id lid ->
-       let _path, desc, _ = Env.lookup_value ~loc lid env in
+       let _path, desc, _, _= Env.lookup_value ~loc lid env in
        [ Sig_value (id, desc, Exported) ]
     )
     "Print the signature of the corresponding value."
@@ -482,14 +482,14 @@ let is_exception_constructor env type_expr =
 
 let is_extension_constructor = function
   | Extension _ -> true
-  | Ordinary _ -> false
+  | Ordinary _ | Null -> false
 
 let () =
   (* This show_prim function will only show constructor types
    * that are not also exception types. *)
   reg_show_prim "show_constructor"
     (fun env loc id lid ->
-       let desc = Env.lookup_constructor ~loc Env.Positive lid env in
+       let desc, _ = Env.lookup_constructor ~loc Env.Positive lid env in
        if is_exception_constructor env desc.cstr_res then
          raise Not_found;
        let path = Btype.cstr_type_path desc in
@@ -525,7 +525,7 @@ let () =
 let () =
   reg_show_prim "show_exception"
     (fun env loc id lid ->
-       let desc = Env.lookup_constructor ~loc Env.Positive lid env in
+       let desc, _ = Env.lookup_constructor ~loc Env.Positive lid env in
        if not (is_exception_constructor env desc.cstr_res) then
          raise Not_found;
        let ret_type =

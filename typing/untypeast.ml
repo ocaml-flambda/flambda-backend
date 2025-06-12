@@ -247,11 +247,13 @@ let type_kind sub tk = match tk with
       Ptype_variant (List.map (sub.constructor_declaration sub) list)
   | Ttype_record list ->
       Ptype_record (List.map (sub.label_declaration sub) list)
+  | Ttype_record_unboxed_product list ->
+      Ptype_record_unboxed_product (List.map (sub.label_declaration sub) list)
   | Ttype_open -> Ptype_open
 
 let constructor_argument sub {ca_loc; ca_type; ca_modalities} =
   let loc = sub.location sub ca_loc in
-  let pca_modalities = Typemode.untransl_modalities Immutable [] ca_modalities in
+  let pca_modalities = Typemode.untransl_modalities Immutable ca_modalities in
   { pca_loc = loc; pca_type = sub.typ sub ca_type; pca_modalities }
 
 let constructor_arguments sub = function
@@ -272,19 +274,18 @@ let mutable_ (mut : Types.mutability) : mutable_flag =
   match mut with
   | Immutable -> Immutable
   | Mutable m ->
-      if Mode.Alloc.Comonadic.Const.eq m Mode.Alloc.Comonadic.Const.legacy then
+      let open Mode.Alloc.Comonadic.Const in
+      if Misc.Le_result.equal ~le m legacy then
         Mutable
       else
-        Misc.fatal_errorf "unexpected mutable(%a)"
-          Mode.Alloc.Comonadic.Const.print m
+        Misc.fatal_errorf "unexpected mutable(%a)" print m
 
 let label_declaration sub ld =
   let loc = sub.location sub ld.ld_loc in
   let attrs = sub.attributes sub ld.ld_attributes in
   let mut = mutable_ ld.ld_mutable in
   let modalities =
-    Typemode.untransl_modalities ld.ld_mutable ld.ld_attributes
-      ld.ld_modalities
+    Typemode.untransl_modalities ld.ld_mutable ld.ld_modalities
   in
   Type.field ~loc ~attrs ~mut ~modalities
     (map_loc sub ld.ld_name)
@@ -349,11 +350,11 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
        The compiler transforms (x:t) into (_ as x : t).
        This avoids transforming a warning 27 into a 26.
      *)
-    | Tpat_alias ({pat_desc = Tpat_any; pat_loc}, _id, name, _uid, _mode)
+    | Tpat_alias ({pat_desc = Tpat_any; pat_loc}, _id, name, _uid, _mode, _ty)
          when pat_loc = pat.pat_loc ->
        Ppat_var name
 
-    | Tpat_alias (pat, _id, name, _uid, _mode) ->
+    | Tpat_alias (pat, _id, name, _uid, _mode, _ty) ->
         Ppat_alias (sub.pat sub pat, name)
     | Tpat_constant cst -> Ppat_constant (constant cst)
     | Tpat_tuple list ->
@@ -370,7 +371,7 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
             None -> None
           | Some (vl, ty) ->
               let vl =
-                List.map (fun x -> {x with txt = Ident.name x.txt}) vl
+                List.map (fun (x, jk) -> {x with txt = Ident.name x.txt}, jk) vl
               in
               Some (vl, sub.typ sub ty)
         in
@@ -392,6 +393,9 @@ let pattern : type k . _ -> k T.general_pattern -> _ = fun sub pat ->
     | Tpat_record (list, closed) ->
         Ppat_record (List.map (fun (lid, _, pat) ->
             map_loc sub lid, sub.pat sub pat) list, closed)
+    | Tpat_record_unboxed_product (list, closed) ->
+        Ppat_record_unboxed_product (List.map (fun (lid, _, pat) ->
+            map_loc sub lid, sub.pat sub pat) list, closed)
     | Tpat_array (am, _, list) ->
         Ppat_array (mutable_ am, List.map (sub.pat sub) list)
     | Tpat_lazy p -> Ppat_lazy (sub.pat sub p)
@@ -411,15 +415,14 @@ let exp_extra sub (extra, loc, attrs) sexp =
         Pexp_coerce (sexp,
                      Option.map (sub.typ sub) cty1,
                      sub.typ sub cty2)
-    | Texp_constraint (cty, modes) ->
-      Pexp_constraint
-        (sexp,
-         Option.map (sub.typ sub) cty,
-         Typemode.untransl_mode_annots ~loc modes)
+    | Texp_constraint (cty) ->
+        Pexp_constraint (sexp, Some (sub.typ sub cty), [])
     | Texp_poly cto -> Pexp_poly (sexp, Option.map (sub.typ sub) cto)
     | Texp_newtype (_, label_loc, jkind, _) ->
         Pexp_newtype (label_loc, jkind, sexp)
     | Texp_stack -> Pexp_stack sexp
+    | Texp_mode modes ->
+        Pexp_constraint (sexp, None, Typemode.untransl_mode_annots modes)
   in
   Exp.mk ~loc ~attrs desc
 
@@ -433,9 +436,16 @@ let case : type k . mapper -> k case -> _ = fun sub {c_lhs; c_guard; c_rhs} ->
 let value_binding sub vb =
   let loc = sub.location sub vb.vb_loc in
   let attrs = sub.attributes sub vb.vb_attributes in
-  Vb.mk ~loc ~attrs
-    (sub.pat sub vb.vb_pat)
-    (sub.expr sub vb.vb_expr)
+  let pat = sub.pat sub vb.vb_pat in
+  let pat, value_constraint, modes =
+    match pat.ppat_desc with
+    | Ppat_constraint (pat, Some ({ ptyp_desc = Ptyp_poly _; _ } as cty),
+                       modes) ->
+      let constr = Pvc_constraint {locally_abstract_univars = []; typ = cty } in
+      pat, Some constr, modes
+    | _ -> pat, None, []
+  in
+  Vb.mk ~loc ~attrs ?value_constraint ~modes pat (sub.expr sub vb.vb_expr)
 
 let comprehension sub comp =
   let iterator = function
@@ -492,30 +502,27 @@ let expression sub exp =
           | Tfunction_body body ->
               (* Unlike function cases, the [exp_extra] is placed on the body
                  itself. *)
-              Pfunction_body (sub.expr sub body), None
+              Pfunction_body (sub.expr sub body),
+              { mode_annotations = []; ret_type_constraint = None; ret_mode_annotations = []}
           | Tfunction_cases
               { fc_cases = cases; fc_loc = loc; fc_exp_extra = exp_extra;
                 fc_attributes = attributes; _ }
             ->
               let cases = List.map (sub.case sub) cases in
-              let constraint_ =
+              let ret_type_constraint =
                 match exp_extra with
                 | Some (Texp_coerce (ty1, ty2)) ->
                     Some
-                      (Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2), [])
-                | Some (Texp_constraint (Some ty, modes)) ->
-                  Some (
-                    Pconstraint (sub.typ sub ty),
-                    Typemode.untransl_mode_annots ~loc modes
-                  )
-                | Some (Texp_poly _ | Texp_newtype _) | Some (Texp_constraint (None, _))
+                      (Pcoerce (Option.map (sub.typ sub) ty1, sub.typ sub ty2))
+                | Some (Texp_constraint ty) ->
+                  Some (Pconstraint (sub.typ sub ty))
+                | Some (Texp_mode _) (* CR zqian: [Texp_mode] should be possible here *)
+                | Some (Texp_poly _ | Texp_newtype _)
                 | Some Texp_stack
                 | None -> None
               in
               let constraint_ =
-                Option.map
-                  (fun (type_constraint, mode_annotations) -> { mode_annotations; type_constraint })
-                  constraint_
+                { ret_type_constraint; mode_annotations=[]; ret_mode_annotations = [] }
               in
               Pfunction_cases (cases, loc, attributes), constraint_
         in
@@ -579,10 +586,21 @@ let expression sub exp =
             | _, Overridden (lid, exp) -> (lid, sub.expr sub exp) :: l)
             [] fields
         in
-        Pexp_record (list, Option.map (fun (exp, _) -> sub.expr sub exp)
+        Pexp_record (list, Option.map (fun (exp, _, _) -> sub.expr sub exp)
                              extended_expression)
-    | Texp_field (exp, lid, _label, _, _) ->
+    | Texp_record_unboxed_product { fields; extended_expression; _ } ->
+        let list = Array.fold_left (fun l -> function
+            | _, Kept _ -> l
+            | _, Overridden (lid, exp) -> (lid, sub.expr sub exp) :: l)
+            [] fields
+        in
+        Pexp_record_unboxed_product
+          (list,
+           Option.map (fun (exp, _) -> sub.expr sub exp) extended_expression)
+    | Texp_field (exp, _sort, lid, _label, _, _) ->
         Pexp_field (sub.expr sub exp, map_loc sub lid)
+    | Texp_unboxed_field (exp, _, lid, _label, _) ->
+        Pexp_unboxed_field (sub.expr sub exp, map_loc sub lid)
     | Texp_setfield (exp1, _, lid, _label, exp2) ->
         Pexp_setfield (sub.expr sub exp1, map_loc sub lid,
           sub.expr sub exp2)
@@ -696,6 +714,9 @@ let expression sub exp =
         pexp_attributes = [];
       }, [Nolabel, sub.expr sub exp])
     | Texp_src_pos -> Pexp_extension ({ txt = "src_pos"; loc }, PStr [])
+    | Texp_overwrite (exp1, exp2) ->
+        Pexp_overwrite(sub.expr sub exp1, sub.expr sub exp2)
+    | Texp_hole _ -> Pexp_hole
   in
   List.fold_right (exp_extra sub) exp.exp_extra
     (Exp.mk ~loc ~attrs desc)
@@ -721,7 +742,7 @@ let module_type_declaration sub mtd =
 
 let signature sub {sig_items; sig_modalities; sig_sloc} =
   let psg_items = List.map (sub.signature_item sub) sig_items in
-  let psg_modalities = Typemode.untransl_modalities Immutable [] sig_modalities in
+  let psg_modalities = Typemode.untransl_modalities Immutable sig_modalities in
   let psg_loc = sub.location sub sig_sloc in
   {psg_items; psg_modalities; psg_loc}
 
@@ -752,7 +773,7 @@ let signature_item sub item =
     | Tsig_open od ->
         Psig_open (sub.open_description sub od)
     | Tsig_include (incl, moda) ->
-        let pmoda = Typemode.untransl_modalities Immutable [] moda in
+        let pmoda = Typemode.untransl_modalities Immutable moda in
         Psig_include (sub.include_description sub incl, pmoda)
     | Tsig_class list ->
         Psig_class (List.map (sub.class_description sub) list)
@@ -984,6 +1005,7 @@ let core_type sub ct =
         Ptyp_poly (bound_vars, sub.typ sub ct)
     | Ttyp_package pack -> Ptyp_package (sub.package_type sub pack)
     | Ttyp_open (_path, mod_ident, t) -> Ptyp_open (mod_ident, sub.typ sub t)
+    | Ttyp_of_kind jkind -> Ptyp_of_kind jkind
     | Ttyp_call_pos ->
         Ptyp_extension call_pos_extension
   in
@@ -991,7 +1013,7 @@ let core_type sub ct =
 
 let class_structure sub cs =
   let rec remove_self = function
-    | { pat_desc = Tpat_alias (p, id, _s, _uid, _mode) }
+    | { pat_desc = Tpat_alias (p, id, _s, _uid, _mode, _ty) }
       when string_is_prefix "selfpat-" (Ident.name id) ->
         remove_self p
     | p -> p
@@ -1021,7 +1043,7 @@ let object_field sub {of_loc; of_desc; of_attributes;} =
   Of.mk ~loc ~attrs desc
 
 and is_self_pat = function
-  | { pat_desc = Tpat_alias(_pat, id, _, _uid, _mode) } ->
+  | { pat_desc = Tpat_alias(_pat, id, _, _uid, _mode, _ty) } ->
       string_is_prefix "self-" (Ident.name id)
   | _ -> false
 

@@ -75,7 +75,7 @@ let code size(2)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
-  let Pnegint = %int_arith ~- x in
+  let Pnegint = 0 - x in
   cont k (Pnegint)
 in
 let code size(2)
@@ -164,9 +164,8 @@ let code loopify(never) size(14) newer_version_of(is_c_1)
         : imm tagged =
   let prim = %get_tag param in
   let eq = %int_comp imm prim = 2i in
-  switch eq
-    | 0 -> k (0)
-    | 1 -> k (1)
+  let tagged_scrutinee = %Tag_imm eq in
+  cont k (tagged_scrutinee)
 in
 let $camlTests15__is_c_8 = closure is_c_1_1 @is_c in
 let code loopify(never) size(5) newer_version_of(set_to_x_2)
@@ -202,7 +201,7 @@ let code loopify(never) size(2) newer_version_of(negate_5)
         my_closure my_region my_ghost_region my_depth
         -> k * k1
         : imm tagged =
-  let Pnegint = %int_arith ~- x in
+  let Pnegint = 0 - x in
   cont k (Pnegint)
 in
 let $camlTests15__negate_12 = closure negate_5_1 @negate in

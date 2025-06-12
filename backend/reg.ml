@@ -13,66 +13,32 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Int_replace_polymorphic_compare
 open Cmm
 
-type irc_work_list =
-  | Unknown_list
-  | Precolored
-  | Initial
-  | Simplify
-  | Freeze
-  | Spill
-  | Spilled
-  | Coalesced
-  | Colored
-  | Select_stack
-
-let string_of_irc_work_list = function
-  | Unknown_list -> "unknown_list"
-  | Precolored -> "precolored"
-  | Initial -> "initial"
-  | Simplify -> "simplify"
-  | Freeze -> "freeze"
-  | Spill -> "spill"
-  | Spilled -> "spilled"
-  | Coalesced -> "coalesced"
-  | Colored -> "colored"
-  | Select_stack -> "select_stack"
 
 module V = Backend_var
 
-module Raw_name = struct
+module Name = struct
   type t =
     | Anon
-    | R
     | Var of V.t
 
-  let create_from_var var = Var var
+  let to_string = function
+    | Anon -> "anon"
+    | Var var -> V.name var
 
-  let to_string t =
-    match t with
-    | Anon -> None
-    | R -> Some "R"
-    | Var var ->
-      let name = V.name var in
-      if String.length name <= 0 then None else Some name
+  let with_prefix ~prefix = function
+    | Anon -> Anon
+    | Var var -> Var (V.create_local (prefix ^ "-" ^ V.name var))
 end
 
 type t =
-  { mutable raw_name: Raw_name.t;
+  { name: Name.t;
     stamp: int;
     typ: Cmm.machtype_component;
-    mutable loc: location;
-    mutable irc_work_list: irc_work_list;
-    mutable irc_color : int option;
-    mutable irc_alias : t option;
-    mutable spill: bool;
-    mutable part: int option;
-    mutable interf: t list;
-    mutable prefer: (t * int) list;
-    mutable degree: int;
-    mutable spill_cost: int;
-    mutable visited: int }
+    preassigned: bool;
+    mutable loc: location; }
 
 and location =
     Unknown
@@ -88,170 +54,113 @@ and stack_location =
 type reg = t
 
 let dummy =
-  { raw_name = Raw_name.Anon; stamp = 0; typ = Int; loc = Unknown;
-    irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
-    spill = false; interf = []; prefer = []; degree = 0; spill_cost = 0;
-    visited = 0; part = None;
-  }
+  { name = Name.Anon; stamp = 0; typ = Int; preassigned = false; loc = Unknown; }
 
 let currstamp = ref 0
-let reg_list = ref([] : t list)
-let hw_reg_list = ref ([] : t list)
+let all_relocatable_regs = ref ([] : t list)
 
-let visit_generation = ref 1
+module For_testing = struct
+  let get_stamp () = !currstamp
+  let set_state ~stamp ~relocatable_regs =
+    currstamp := stamp;
+    all_relocatable_regs := relocatable_regs  
+end
 
-(* Any visited value not equal to !visit_generation counts as "unvisited" *)
-let unvisited = 0
-
-let mark_visited r =
-  r.visited <- !visit_generation
-
-let is_visited r =
-  r.visited = !visit_generation
-
-let clear_visited_marks () =
-  incr visit_generation
-
-
-let create ty =
-  let r = { raw_name = Raw_name.Anon; stamp = !currstamp; typ = ty;
-            loc = Unknown;
-            irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
-            spill = false; interf = []; prefer = []; degree = 0;
-            spill_cost = 0; visited = unvisited; part = None; } in
-  reg_list := r :: !reg_list;
+let create_gen ~name ~typ ~loc =
+  let preassigned =
+    match loc with
+    | Reg _ | Stack _ -> true
+    | Unknown -> false
+  in
+  let r = { name; stamp = !currstamp; typ; preassigned; loc } in
+  if not preassigned then all_relocatable_regs := r :: !all_relocatable_regs;
   incr currstamp;
   r
 
-let createv tyv =
-  let n = Array.length tyv in
+let create typ = create_gen ~name:Name.Anon ~typ ~loc:Unknown
+
+let create_with_typ r = create_gen ~name:Name.Anon ~typ:r.typ ~loc:Unknown
+
+let create_with_typ_and_name ?prefix_if_var r =
+  let name =
+    match prefix_if_var with
+    | Some prefix -> Name.with_prefix r.name ~prefix
+    | None -> r.name
+  in
+  create_gen ~name ~typ:r.typ ~loc:Unknown
+
+let create_at_location typ loc = create_gen ~name:Name.Anon ~typ ~loc
+
+let createv_gen ~name ~typs =
+  let n = Array.length typs in
   let rv = Array.make n dummy in
-  for i = 0 to n-1 do rv.(i) <- create tyv.(i) done;
+  for i = 0 to n-1 do rv.(i) <- create_gen ~name ~typ:typs.(i) ~loc:Unknown done;
   rv
 
-let createv_like rv =
-  let n = Array.length rv in
-  let rv' = Array.make n dummy in
-  for i = 0 to n-1 do rv'.(i) <- create rv.(i).typ done;
-  rv'
+let createv typs = createv_gen ~name:Name.Anon ~typs
 
-let clone r =
-  let nr = create r.typ in
-  nr.raw_name <- r.raw_name;
-  nr
+let createv_with_id ~id typs = createv_gen ~name:(Name.Var id) ~typs
 
-let at_location ty loc =
-  let r = { raw_name = Raw_name.R; stamp = !currstamp; typ = ty; loc;
-            irc_work_list = Unknown_list; irc_color = None; irc_alias = None;
-            spill = false; interf = []; prefer = []; degree = 0;
-            spill_cost = 0; visited = unvisited; part = None; } in
-  hw_reg_list := r :: !hw_reg_list;
-  incr currstamp;
-  r
+let createv_with_typs rs = createv_gen ~name:Name.Anon ~typs:(Array.map (fun r -> r.typ) rs)
+
+let createv_with_typs_and_id ~id rs = createv_gen ~name:(Name.Var id) ~typs:(Array.map (fun r -> r.typ) rs)
 
 let typv rv =
   Array.map (fun r -> r.typ) rv
 
-let anonymous t =
-  match Raw_name.to_string t.raw_name with
-  | None -> true
-  | Some _raw_name -> false
-
-let is_preassigned t =
-  match t.raw_name with
-  | R -> true
-  | Anon | Var _ -> false
+let is_preassigned t = t.preassigned
 
 let is_unknown t =
   match t.loc with
   | Unknown -> true
   | Reg _ | Stack (Local _ | Incoming _ | Outgoing _ | Domainstate _) -> false
 
-let name t =
-  match Raw_name.to_string t.raw_name with
-  | None -> ""
-  | Some raw_name ->
-    let with_spilled =
-      if t.spill then
-        "spilled-" ^ raw_name
-      else
-        raw_name
-    in
-    match t.part with
-    | None -> with_spilled
-    | Some part -> with_spilled ^ "#" ^ Int.to_string part
-
 let first_virtual_reg_stamp = ref (-1)
 
 let is_stack t =
   match t.loc with
   | Stack _ -> true
-  | _ -> false
+  | Reg _ | Unknown -> false
 
 let is_reg t =
   match t.loc with
   | Reg _ -> true
-  | _ -> false
+  | Stack _ | Unknown -> false
 
-let size_of_contents_in_bytes t =
-  match t.typ with
-  | Vec128 -> Arch.size_vec128
-  | Float -> Arch.size_float
-  | Float32 ->
-    assert (Arch.size_float = 8);
-    Arch.size_float / 2
-  | Addr ->
-    assert (Arch.size_addr = Arch.size_int);
-    Arch.size_addr
-  | Int | Val -> Arch.size_int
-
-let reset() =
-  (* When reset() is called for the first time, the current stamp reflects
-     all hard pseudo-registers that have been allocated by Proc, so
-     remember it and use it as the base stamp for allocating
-     soft pseudo-registers *)
+let clear_relocatable_regs () =
+  (* When clear_relocatable_regs is called for the first time, the current
+     stamp reflects all hardware pseudo-registers that have been allocated by Proc,
+     so remember it and use it as the base stamp for allocating temp pseudo-registers *)
   if !first_virtual_reg_stamp = -1 then begin
     first_virtual_reg_stamp := !currstamp;
-    assert (!reg_list = []) (* Only hard regs created before now *)
+    (* Only hard regs created before now *)
+    assert (Misc.Stdlib.List.is_empty !all_relocatable_regs)
   end;
   currstamp := !first_virtual_reg_stamp;
-  reg_list := [];
-  visit_generation := 1;
-  !hw_reg_list |> List.iter (fun r ->
-    r.visited <- unvisited)
+  all_relocatable_regs := []
 
-let all_registers() = !reg_list
-let num_registers() = !currstamp
+let reinit_relocatable_regs () = List.iter (fun r -> r.loc <- Unknown) !all_relocatable_regs
 
-let reinit_reg r =
-  r.loc <- Unknown;
-  r.irc_work_list <- Unknown_list;
-  r.irc_color <- None;
-  r.irc_alias <- None;
-  r.interf <- [];
-  r.prefer <- [];
-  r.degree <- 0;
-  (* Preserve the very high spill costs introduced by the reloading pass *)
-  if r.spill_cost >= 100000
-  then r.spill_cost <- 100000
-  else r.spill_cost <- 0
+let all_relocatable_regs () = !all_relocatable_regs
 
-let reinit() =
-  List.iter reinit_reg !reg_list
+let compare r1 r2 =
+  let c = Int.compare r1.stamp r2.stamp in
+  if c <> 0 then c
+  else Cmm.compare_machtype_component r1.typ r2.typ
 
-module RegOrder =
-  struct
-    type t = reg
-    let compare r1 r2 = r1.stamp - r2.stamp
-  end
+let same r1 r2 =
+  r1.stamp = r2.stamp && Cmm.equal_machtype_component r1.typ r2.typ
 
-module Set = Set.Make(RegOrder)
-module Map = Map.Make(RegOrder)
-module Tbl = Hashtbl.Make (struct
-    type t = reg
-    let equal r1 r2 = r1.stamp = r2.stamp
-    let hash r = r.stamp
-  end)
+module RegOrder = struct
+  type t = reg
+  let equal = same
+  let compare = compare
+  let hash r = r.stamp
+end
+
+module Set = Set.Make (RegOrder)
+module Map = Map.Make (RegOrder)
+module Tbl = Hashtbl.Make (RegOrder)
 
 let add_set_array s v =
   match Array.length v with
@@ -330,31 +239,17 @@ let equal_location left right =
   | Stack _, (Unknown | Reg _) ->
     false
 
-let same_phys_reg left right =
-  match left.loc, right.loc with
-  | Reg l, Reg r -> Int.equal l r
-  | (Reg _ | Unknown | Stack _), _ -> false
-
 let same_loc left right =
-  (* CR-soon azewierzejew: This should also compare [reg_class] for [Stack
-     (Local _)]. That's complicated because [reg_class] is definied in [Proc]
-     which relies on [Reg]. *)
   equal_location left.loc right.loc
+  &&
+  match left.loc with
+  | Unknown -> true
+  | Reg _ ->
+    Reg_class.equal (Reg_class.of_machtype left.typ) (Reg_class.of_machtype right.typ)
+  | Stack _ ->
+    Stack_class.equal (Stack_class.of_machtype left.typ) (Stack_class.of_machtype right.typ)
 
-let same left right =
-  Int.equal left.stamp right.stamp
-
-let compare left right =
-  Int.compare left.stamp right.stamp
-
-(* Two registers have compatible types if we allow moves between them.
-   Note that we never allow moves between different register classes, so this
-   condition must be at least as strict as [class left = class right]. *)
-let types_are_compatible left right =
-  match left.typ, right.typ with
-  | (Int | Val | Addr), (Int | Val | Addr)
-  | Float, Float
-  | Float32, Float32
-  | Vec128, Vec128 ->
-    true
-  | (Int | Val | Addr | Float | Float32 | Vec128), _ -> false
+let same_loc_fatal_on_unknown ~fatal_message left right =
+  match left.loc with
+  | Unknown -> Misc.fatal_error fatal_message
+  | Reg _ | Stack _ -> same_loc left right

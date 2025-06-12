@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 open! Stdlib
 
 (** Pseudo-random number generators (PRNG).
@@ -180,7 +182,7 @@ val nativebits : unit -> Nativeint.t
 *)
 
 module State : sig
-  type t
+  type t : mutable_data
   (** The type of PRNG states. *)
 
   val make : int array -> t

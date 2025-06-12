@@ -22,7 +22,7 @@ Line 1, characters 26-27:
 1 | let foo (r @ contended) = r.a <- 42
                               ^
 Error: This value is "contended" but expected to be "uncontended".
-  Hint: In order to write into the mutable fields,
+  Hint: In order to write into its mutable fields,
   this record needs to be uncontended.
 |}]
 
@@ -31,8 +31,8 @@ let foo (r @ contended) = r.a
 Line 1, characters 26-27:
 1 | let foo (r @ contended) = r.a
                               ^
-Error: This value is "contended" but expected to be "shared".
-  Hint: In order to read from the mutable fields,
+Error: This value is "contended" but expected to be "shared" or "uncontended".
+  Hint: In order to read from its mutable fields,
   this record needs to be at least shared.
 |}]
 
@@ -46,8 +46,8 @@ let foo (r @ contended) = {r with b = best_bytes ()}
 Line 1, characters 27-28:
 1 | let foo (r @ contended) = {r with b = best_bytes ()}
                                ^
-Error: This value is "contended" but expected to be "shared".
-  Hint: In order to read from the mutable fields,
+Error: This value is "contended" but expected to be "shared" or "uncontended".
+  Hint: In order to read from its mutable fields,
   this record needs to be at least shared.
 |}]
 
@@ -58,7 +58,7 @@ Line 1, characters 23-24:
 1 | let foo (r @ shared) = r.a <- 42
                            ^
 Error: This value is "shared" but expected to be "uncontended".
-  Hint: In order to write into the mutable fields,
+  Hint: In order to write into its mutable fields,
   this record needs to be uncontended.
 |}]
 
@@ -162,14 +162,8 @@ let foo () =
     let bar () = let _ = r.b in () in
     let _ @ portable = bar in
     ()
-(* CR zqian: currently mutable(legacy) means all records constructed are nonportable,
-   and the above bar is closing over an nonportable record. Once we allow mutable()
-   syntax, we can test this. *)
 [%%expect{|
-Line 2, characters 23-61:
-2 |     let r @ portable = {a = best_bytes (); b = best_bytes ()} in
-                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value is "nonportable" but expected to be "portable".
+val foo : unit -> unit = <fun>
 |}]
 
 
@@ -196,8 +190,8 @@ let foo (r @ contended) =
 Line 3, characters 6-16:
 3 |     | [| x; y |] -> ()
           ^^^^^^^^^^
-Error: This value is "contended" but expected to be "shared".
-  Hint: In order to read from the mutable fields,
+Error: This value is "contended" but expected to be "shared" or "uncontended".
+  Hint: In order to read from its mutable fields,
   this record needs to be at least shared.
 |}]
 (* CR modes: Error message should mention array, not record. *)
@@ -284,7 +278,7 @@ val foo : unit -> unit = <fun>
 
 (* Closing over nonportable forces nonportable. *)
 let foo () =
-    let r @ nonportable = best_bytes () in
+    let r @ nonportable = fun x -> x in
     let bar () = let _ = r in () in
     let _ @ portable = bar in
     ()
@@ -327,25 +321,25 @@ Error: This function when partially applied returns a value which is "nonportabl
 (* CR modes: These three tests are in principle fine to allow (they don't cause a data
    race), since a is never used *)
 
-let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportable contended = fun a b -> best_bytes ()
+let foo : ('a @ contended portable -> (string -> string) @ portable) @ nonportable contended = fun a b -> best_bytes ()
 (* CR layouts v2.8: arrows should cross contention. *)
 [%%expect{|
-Line 1, characters 4-118:
-1 | let foo : 'a @ contended portable -> (string -> string) @ portable @@ nonportable contended = fun a b -> best_bytes ()
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 4-119:
+1 | let foo : ('a @ contended portable -> (string -> string) @ portable) @ nonportable contended = fun a b -> best_bytes ()
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value is "contended" but expected to be "uncontended".
 |}]
 
-let foo : 'a @ contended portable -> (string -> string) @ portable @@ uncontended portable = fun a b -> best_bytes ()
+let foo : ('a @ contended portable -> (string -> string) @ portable) @ uncontended portable = fun a b -> best_bytes ()
 [%%expect{|
-Line 1, characters 104-114:
-1 | let foo : 'a @ contended portable -> (string -> string) @ portable @@ uncontended portable = fun a b -> best_bytes ()
-                                                                                                            ^^^^^^^^^^
+Line 1, characters 105-115:
+1 | let foo : ('a @ contended portable -> (string -> string) @ portable) @ uncontended portable = fun a b -> best_bytes ()
+                                                                                                             ^^^^^^^^^^
 Error: The value "best_bytes" is nonportable, so cannot be used inside a function that is portable.
 |}]
 
 (* immediates crosses portability and contention *)
-let foo (x : int @@ nonportable) (y : int @@ contended) =
+let foo (x : int @ nonportable) (y : int @ contended) =
     let _ @ portable = x in
     let _ @ uncontended = y in
     let _ @ shared = y in
@@ -354,7 +348,7 @@ let foo (x : int @@ nonportable) (y : int @@ contended) =
 val foo : int -> int @ contended -> unit = <fun>
 |}]
 
-let foo (x : int @@ shared) =
+let foo (x : int @ shared) =
     let _ @ uncontended = x in
     ()
 [%%expect{|
@@ -364,13 +358,16 @@ val foo : int @ shared -> unit = <fun>
 (* TESTING immutable array *)
 module Iarray = Stdlib_stable.Iarray
 
-let foo (r @ contended) = Iarray.get r 42
-(* CR zqian: The following should pass; the modal kind system should mode cross
-iarray depending on the type of its element. *)
+let foo (r : int iarray @ contended) = Iarray.get r 42
 [%%expect{|
 module Iarray = Stdlib_stable.Iarray
-Line 3, characters 37-38:
-3 | let foo (r @ contended) = Iarray.get r 42
+val foo : int iarray @ contended -> int = <fun>
+|}]
+
+let foo (r @ contended) = Iarray.get r 42
+[%%expect{|
+Line 1, characters 37-38:
+1 | let foo (r @ contended) = Iarray.get r 42
                                          ^
 Error: This value is "contended" but expected to be "uncontended".
 |}]

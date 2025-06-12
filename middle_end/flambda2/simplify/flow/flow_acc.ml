@@ -429,10 +429,29 @@ let add_extra_args_to_call ~extra_args rewrite_id original_args =
     in
     Some args
 
-let extend_args_with_extra_args (t : T.Acc.t) =
+let normalize_acc ~specialization_map (t : T.Acc.t) =
   let map =
     Continuation.Map.map
       (fun (elt : T.Continuation_info.t) ->
+        (* Note: [cont=elt.continuation] *)
+        (* Rewrite continuations calls to the specialized ones *)
+        let apply_cont_args =
+          Continuation.Map.fold
+            (fun cont rewrite_ids acc ->
+              match Continuation.Map.find cont specialization_map with
+              | exception Not_found -> Continuation.Map.add cont rewrite_ids acc
+              | specialized_ids ->
+                Apply_cont_rewrite_id.Map.fold
+                  (fun id args acc ->
+                    match Apply_cont_rewrite_id.Map.find id specialized_ids with
+                    | exception Not_found ->
+                      Continuation_callsite_map.add cont id args acc
+                    | specialized ->
+                      Continuation_callsite_map.add specialized id args acc)
+                  rewrite_ids acc)
+            elt.apply_cont_args Continuation.Map.empty
+        in
+        (* Add extra args to the continuation call sites *)
         let apply_cont_args =
           Continuation.Map.filter_map
             (fun cont rewrite_ids ->
@@ -450,14 +469,14 @@ let extend_args_with_extra_args (t : T.Acc.t) =
                  flow analysis find a dominator for parameters of [cont] that we
                  do not have access to. Since we then only look at which
                  continuation can call which to know which arguments to add,
-                 this causes the ‌adding of the extra parameters to assume we
+                 this causes the adding of the extra parameters to assume we
                  need access to that dominator since it looks like we can call
                  [cont], but since neither we nor any of our callers have access
                  to it, trying to add the dominator crashes the compiler. *)
               if Apply_cont_rewrite_id.Map.is_empty rewrite_ids
               then None
               else Some rewrite_ids)
-            elt.apply_cont_args
+            apply_cont_args
         in
         { elt with apply_cont_args })
       t.map

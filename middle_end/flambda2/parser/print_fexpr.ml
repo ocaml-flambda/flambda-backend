@@ -41,7 +41,8 @@ let pp_option ~space f ppf = function
   | None -> ()
   | Some a -> pp_spaced ~space ppf "%a" f a
 
-let recursive ~space ppf = function
+let recursive ~space ppf r =
+  match (r : is_recursive) with
   | Nonrecursive -> ()
   | Recursive -> pp_spaced ~space ppf "rec"
 
@@ -383,15 +384,6 @@ let static_data ppf : static_data -> unit = function
 let static_data_binding ppf { symbol = s; defining_expr = sp } =
   Format.fprintf ppf "%a =@ %a" symbol s static_data sp
 
-let nullop ppf (o : nullop) =
-  Format.pp_print_string ppf
-  @@
-  match o with
-  | Begin_region { ghost } ->
-    if ghost then "%begin_ghost_region" else "%begin_region"
-  | Begin_try_region { ghost } ->
-    if ghost then "%begin_ghost_try_region" else "%begin_try_region"
-
 let binary_int_arith_op ppf (o : binary_int_arith_op) =
   Format.pp_print_string ppf
   @@
@@ -566,8 +558,7 @@ let binop ppf binop a b =
       a simple b
 
 let unary_int_arith_op ppf (o : unary_int_arith_op) =
-  Format.pp_print_string ppf
-  @@ match o with Neg -> "~-" | Swap_byte_endianness -> "bswap"
+  Format.pp_print_string ppf @@ match o with Swap_byte_endianness -> "bswap"
 
 let unop ppf u =
   let str s = Format.pp_print_string ppf s in
@@ -642,23 +633,41 @@ let ternop ppf t a1 a2 a3 =
       simple a1 simple a2 simple a3
 
 let prim ppf = function
-  | Nullary n -> nullop ppf n
   | Unary (u, a) -> Format.fprintf ppf "%a %a" unop u simple a
   | Binary (b, a1, a2) -> binop ppf b a1 a2
   | Ternary (t, a1, a2, a3) -> ternop ppf t a1 a2 a3
-  | Variadic (Make_block (tag, mut, alloc), elts) ->
-    Format.fprintf ppf "@[<2>%%Block %a%i%a%a@]" (mutability ~space:After) mut
-      tag
-      (alloc_mode_for_allocations_opt ~space:Before)
-      alloc
-      (simple_args ~space:Before ~omit_if_empty:false)
-      elts
+  | Variadic (v, elts) ->
+    let varop ppf (o : varop) =
+      match o with
+      | Make_block (tag, mut, alloc) ->
+        Format.fprintf ppf "%%Block %a%i%a" (mutability ~space:After) mut tag
+          (alloc_mode_for_allocations_opt ~space:Before)
+          alloc
+      | Begin_region { ghost } ->
+        Format.pp_print_string ppf
+        @@ if ghost then "%begin_ghost_region" else "%begin_region"
+      | Begin_try_region { ghost } ->
+        Format.pp_print_string ppf
+        @@ if ghost then "%begin_ghost_try_region" else "%begin_try_region"
+    in
+    let print_elts =
+      match v with
+      | Make_block _ -> simple_args ~space:Before ~omit_if_empty:false
+      | Begin_region _ | Begin_try_region _ -> fun _ _ -> ()
+    in
+    Format.fprintf ppf "@[<2>%a%a@]" varop v print_elts elts
 
 let parameter ppf { param; kind = k } = kinded_variable ppf (param, k)
 
 let kinded_parameters ~space ppf = function
   | [] -> ()
   | args -> pp_spaced ~space ppf "(@[<hv>%a@])" (pp_comma_list parameter) args
+
+let cont_recursive ~space ppf recu =
+  match (recu : is_cont_recursive) with
+  | Nonrecursive -> ()
+  | Recursive l ->
+    pp_spaced ~space ppf "rec%a" (kinded_parameters ~space:Neither) l
 
 let raise_kind ppf rt =
   Format.pp_print_string ppf
@@ -812,8 +821,9 @@ let rec expr scope ppf = function
     parens ~if_scope_is:Continuation_body scope ppf (fun _scope ppf ->
         Format.fprintf ppf
           "@[<v 2>%a@ @[<v>@[<v 2>@[where%a @]@[<hv 2>%a%a%a@] =@ %a@]%a@]@]"
-          (expr Where_body) body (recursive ~space:Before) recu continuation_id
-          name
+          (expr Where_body) body
+          (cont_recursive ~space:Before)
+          recu continuation_id name
           (pp_option continuation_sort ~space:Before)
           sort
           (kinded_parameters ~space:Before)

@@ -183,6 +183,10 @@ val asm_cfi_supported: bool
 val with_frame_pointers : bool
 (** Whether assembler should maintain frame pointers *)
 
+val with_address_sanitizer : bool
+(** Whether code generation should expose native OCaml operations to
+    AddressSanitizer. *)
+
 val with_cpp_mangling : bool
 (** Whether symbol names should be following the cpp mangling convention *)
 
@@ -296,8 +300,15 @@ val runtime5 : bool
 val no_stack_checks : bool
 (** [true] if stack checks are disabled; used only if [runtime5] is [true]. *)
 
+val multidomain : bool
+(** Whether creating multiple domains is allowed.
+    Requires stack checks and poll insertion. *)
+
 val tsan : bool
 (** Whether ThreadSanitizer instrumentation is enabled *)
+
+val parameterised_modules : bool
+(** Whether parameterised modules are supported *)
 
 (** Access to configuration values *)
 val print_config : out_channel -> unit

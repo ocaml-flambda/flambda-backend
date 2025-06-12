@@ -25,6 +25,26 @@ type classification_for_printing =
   | Destructive
   | Neither
 
+module Lazy_block_tag = struct
+  type t = Lambda.lazy_block_tag =
+    | Lazy_tag
+    | Forward_tag
+
+  let print ppf t =
+    match t with
+    | Lazy_tag -> Format.fprintf ppf "Lazy_block"
+    | Forward_tag -> Format.fprintf ppf "Forward_block"
+
+  let compare t1 t2 =
+    match t1, t2 with
+    | Lazy_tag, Lazy_tag | Forward_tag, Forward_tag -> 0
+    | Lazy_tag, Forward_tag -> -1
+    | Forward_tag, Lazy_tag -> 1
+
+  let to_tag t =
+    match t with Lazy_tag -> Tag.lazy_tag | Forward_tag -> Tag.forward_tag
+end
+
 module Block_kind = struct
   type t =
     | Values of Tag.Scannable.t * K.With_subkind.t list
@@ -57,7 +77,7 @@ module Block_kind = struct
          @[<hov 1>(shape@ @[<hov 1>(%a)@])@])@]"
        Tag.Scannable.print tag
        (Format.pp_print_list ~pp_sep:Format.pp_print_space
-      K.print) (Array.to_list (K.Mixed_block_shape.field_kinds shape))
+          K.print) (Array.to_list (K.Mixed_block_shape.field_kinds shape))
 
   let compare t1 t2 =
     match t1, t2 with
@@ -858,15 +878,11 @@ type num_dimensions = int
 
 let print_num_dimensions ppf d = Format.fprintf ppf "%d" d
 
-type unary_int_arith_op =
-  | Neg
-  | Swap_byte_endianness
+type unary_int_arith_op = Swap_byte_endianness
 
 let print_unary_int_arith_op ppf o =
   let fprintf = Format.fprintf in
-  match o with
-  | Neg -> fprintf ppf "~-"
-  | Swap_byte_endianness -> fprintf ppf "bswap"
+  match o with Swap_byte_endianness -> fprintf ppf "bswap"
 
 type unary_float_arith_op =
   | Abs
@@ -883,6 +899,7 @@ let print_unary_float_arith_op ppf width op =
 type arg_kinds =
   | Variadic_mixed of K.Mixed_block_shape.t
   | Variadic_all_of_kind of K.t
+  | Variadic_zero_or_one of K.t
   | Variadic_unboxed_product of Flambda_kind.t list
 
 type result_kind =
@@ -893,15 +910,13 @@ type nullary_primitive =
   | Invalid of K.t
   | Optimised_out of K.t
   | Probe_is_enabled of { name : string }
-  | Begin_region of { ghost : bool }
-  | Begin_try_region of { ghost : bool }
   | Enter_inlined_apply of { dbg : Inlined_debuginfo.t }
   | Dls_get
   | Poll
 
 let nullary_primitive_eligible_for_cse = function
-  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-  | Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll ->
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
+  | Dls_get | Poll ->
     false
 
 let compare_nullary_primitive p1 p2 =
@@ -910,49 +925,31 @@ let compare_nullary_primitive p1 p2 =
   | Optimised_out k1, Optimised_out k2 -> K.compare k1 k2
   | Probe_is_enabled { name = name1 }, Probe_is_enabled { name = name2 } ->
     String.compare name1 name2
-  | Begin_region { ghost = ghost1 }, Begin_region { ghost = ghost2 } ->
-    Bool.compare ghost1 ghost2
-  | Begin_try_region { ghost = ghost1 }, Begin_try_region { ghost = ghost2 } ->
-    Bool.compare ghost1 ghost2
   | Enter_inlined_apply { dbg = dbg1 }, Enter_inlined_apply { dbg = dbg2 } ->
     Inlined_debuginfo.compare dbg1 dbg2
   | Dls_get, Dls_get -> 0
   | Poll, Poll -> 0
   | ( Invalid _,
-      ( Optimised_out _ | Probe_is_enabled _ | Begin_region _
-      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll ) ) ->
-    -1
-  | ( Optimised_out _,
-      ( Probe_is_enabled _ | Begin_region _ | Begin_try_region _
-      | Enter_inlined_apply _ | Dls_get | Poll ) ) ->
-    -1
-  | Optimised_out _, Invalid _ -> 1
-  | ( Probe_is_enabled _,
-      ( Begin_region _ | Begin_try_region _ | Enter_inlined_apply _ | Dls_get
+      ( Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _ | Dls_get
       | Poll ) ) ->
     -1
-  | Probe_is_enabled _, (Invalid _ | Optimised_out _) -> 1
-  | Begin_region _, (Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll)
-    ->
+  | ( Optimised_out _,
+      (Probe_is_enabled _ | Enter_inlined_apply _ | Dls_get | Poll) ) ->
     -1
-  | Begin_region _, (Invalid _ | Optimised_out _ | Probe_is_enabled _) -> 1
-  | Begin_try_region _, (Enter_inlined_apply _ | Dls_get | Poll) -> -1
-  | ( Begin_try_region _,
-      (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _) ) ->
-    1
-  | ( Enter_inlined_apply _,
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-      | Begin_try_region _ ) ) ->
+  | Optimised_out _, Invalid _ -> 1
+  | Probe_is_enabled _, (Enter_inlined_apply _ | Dls_get | Poll) -> -1
+  | Probe_is_enabled _, (Invalid _ | Optimised_out _) -> 1
+  | Enter_inlined_apply _, (Invalid _ | Optimised_out _ | Probe_is_enabled _) ->
     1
   | Enter_inlined_apply _, (Dls_get | Poll) -> -1
   | ( Dls_get,
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-      | Begin_try_region _ | Enter_inlined_apply _ ) ) ->
+      (Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _)
+    ) ->
     1
   | Dls_get, Poll -> -1
   | ( Poll,
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get ) ) ->
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
+      | Dls_get ) ) ->
     1
 
 let equal_nullary_primitive p1 p2 = compare_nullary_primitive p1 p2 = 0
@@ -967,10 +964,6 @@ let print_nullary_primitive ppf p =
       Flambda_colours.pop
   | Probe_is_enabled { name } ->
     Format.fprintf ppf "@[<hov 1>(Probe_is_enabled@ %s)@]" name
-  | Begin_region { ghost } ->
-    Format.fprintf ppf "Begin_region%s" (if ghost then "_ghost" else "")
-  | Begin_try_region { ghost } ->
-    Format.fprintf ppf "Begin_try_region%s" (if ghost then "_ghost" else "")
   | Enter_inlined_apply { dbg } ->
     Format.fprintf ppf "@[<hov 1>(Enter_inlined_apply@ %a)@]"
       Inlined_debuginfo.print dbg
@@ -982,8 +975,6 @@ let result_kind_of_nullary_primitive p : result_kind =
   | Invalid k -> Singleton k
   | Optimised_out k -> Singleton k
   | Probe_is_enabled _ -> Singleton K.naked_immediate
-  | Begin_region _ -> Singleton K.region
-  | Begin_try_region _ -> Singleton K.region
   | Enter_inlined_apply _ -> Unit
   | Dls_get -> Singleton K.value
   | Poll -> Unit
@@ -991,10 +982,6 @@ let result_kind_of_nullary_primitive p : result_kind =
 let coeffects_of_mode : Alloc_mode.For_allocations.t -> Coeffects.t = function
   | Local _ -> Coeffects.Has_coeffects
   | Heap -> Coeffects.No_coeffects
-
-let effects_and_coeffects_of_begin_region : Effects_and_coeffects.t =
-  (* Ensure these don't get moved, but allow them to be deleted. *)
-  Only_generative_effects Mutable, Has_coeffects, Strict
 
 let effects_and_coeffects_of_nullary_primitive p : Effects_and_coeffects.t =
   match p with
@@ -1004,7 +991,6 @@ let effects_and_coeffects_of_nullary_primitive p : Effects_and_coeffects.t =
     (* This doesn't really have effects, but we want to make sure it never gets
        moved around. *)
     Arbitrary_effects, Has_coeffects, Strict
-  | Begin_region _ | Begin_try_region _ -> effects_and_coeffects_of_begin_region
   | Enter_inlined_apply _ ->
     (* This doesn't really have effects, but without effects, these primitives
        get deleted during lambda_to_flambda. *)
@@ -1014,8 +1000,8 @@ let effects_and_coeffects_of_nullary_primitive p : Effects_and_coeffects.t =
 
 let nullary_classify_for_printing p =
   match p with
-  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-  | Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll ->
+  | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
+  | Dls_get | Poll ->
     Neither
 
 module Reinterpret_64_bit_word = struct
@@ -1089,6 +1075,8 @@ type unary_primitive =
   | Obj_dup
   | Get_header
   | Atomic_load of Block_access_field_kind.t
+  | Peek of Flambda_kind.Standard_int_or_float.t
+  | Make_lazy of Lazy_block_tag.t
 
 (* Here and below, operations that are genuine projections shouldn't be eligible
    for CSE, since we deal with projections through types. *)
@@ -1120,7 +1108,9 @@ let unary_primitive_eligible_for_cse p ~arg =
     Simple.is_var arg
   | Project_function_slot _ | Project_value_slot _ -> false
   | Is_boxed_float | Is_flat_float_array -> true
-  | End_region _ | End_try_region _ | Obj_dup | Atomic_load _ -> false
+  | End_region _ | End_try_region _ | Obj_dup | Atomic_load _ | Peek _
+  | Make_lazy _ ->
+    false
 
 let compare_unary_primitive p1 p2 =
   let unary_primitive_numbering p =
@@ -1154,6 +1144,8 @@ let compare_unary_primitive p1 p2 =
     | Get_header -> 26
     | Atomic_load _ -> 27
     | Is_null -> 28
+    | Peek _ -> 29
+    | Make_lazy _ -> 30
   in
   match p1, p2 with
   | ( Block_load { kind = kind1; mut = mut1; field = field1 },
@@ -1238,6 +1230,10 @@ let compare_unary_primitive p1 p2 =
     Bool.compare ghost1 ghost2
   | End_try_region { ghost = ghost1 }, End_try_region { ghost = ghost2 } ->
     Bool.compare ghost1 ghost2
+  | Peek kind1, Peek kind2 ->
+    Flambda_kind.Standard_int_or_float.compare kind1 kind2
+  | Make_lazy lazy_tag1, Make_lazy lazy_tag2 ->
+    Lazy_block_tag.compare lazy_tag1 lazy_tag2
   | ( ( Block_load _ | Duplicate_array _ | Duplicate_block _ | Is_int _
       | Is_null | Get_tag | String_length _ | Int_as_pointer _
       | Opaque_identity _ | Int_arith _ | Num_conv _ | Boolean_not
@@ -1245,7 +1241,7 @@ let compare_unary_primitive p1 p2 =
       | Bigarray_length _ | Unbox_number _ | Box_number _ | Untag_immediate
       | Tag_immediate | Project_function_slot _ | Project_value_slot _
       | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
-      | Obj_dup | Get_header | Atomic_load _ ),
+      | Obj_dup | Get_header | Atomic_load _ | Peek _ | Make_lazy _ ),
       _ ) ->
     Stdlib.compare (unary_primitive_numbering p1) (unary_primitive_numbering p2)
 
@@ -1312,6 +1308,11 @@ let print_unary_primitive ppf p =
   | Atomic_load block_access_field_kind ->
     Format.fprintf ppf "@[(Atomic_load@ %a)@]" Block_access_field_kind.print
       block_access_field_kind
+  | Peek kind ->
+    fprintf ppf "@[(Peek@ %a)@]"
+      Flambda_kind.Standard_int_or_float.print_lowercase kind
+  | Make_lazy lazy_tag ->
+    fprintf ppf "@[<hov 1>(Make_lazy@ %a)@]" Lazy_block_tag.print lazy_tag
 
 let arg_kind_of_unary_primitive p =
   match p with
@@ -1346,6 +1347,8 @@ let arg_kind_of_unary_primitive p =
   | Obj_dup -> K.value
   | Get_header -> K.value
   | Atomic_load _ -> K.value
+  | Peek _ -> K.naked_nativeint
+  | Make_lazy _ -> K.value
 
 let result_kind_of_unary_primitive p : result_kind =
   match p with
@@ -1376,13 +1379,15 @@ let result_kind_of_unary_primitive p : result_kind =
   | Untag_immediate -> Singleton K.naked_immediate
   | Box_number _ | Tag_immediate | Project_function_slot _ -> Singleton K.value
   | Project_value_slot { value_slot; _ } ->
-    Singleton (K.With_subkind.kind (Value_slot.kind value_slot))
+    Singleton (Value_slot.kind value_slot)
   | Is_boxed_float | Is_flat_float_array -> Singleton K.naked_immediate
   | End_region _ -> Singleton K.value
   | End_try_region _ -> Singleton K.value
   | Obj_dup -> Singleton K.value
   | Get_header -> Singleton K.naked_nativeint
   | Atomic_load _ -> Singleton K.value
+  | Peek kind -> Singleton (K.Standard_int_or_float.to_kind kind)
+  | Make_lazy _ -> Singleton K.value
 
 let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   match p with
@@ -1415,7 +1420,7 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
   | Int_as_pointer alloc_mode ->
     No_effects, coeffects_of_mode alloc_mode, Strict
   | Opaque_identity _ -> Arbitrary_effects, Has_coeffects, Strict
-  | Int_arith (_, (Neg | Swap_byte_endianness))
+  | Int_arith (_, Swap_byte_endianness)
   | Num_conv _ | Boolean_not | Reinterpret_64_bit_word _ ->
     No_effects, No_coeffects, Strict
   | Float_arith (_width, (Abs | Neg)) ->
@@ -1471,7 +1476,10 @@ let effects_and_coeffects_of_unary_primitive p : Effects_and_coeffects.t =
       Has_coeffects,
       Strict )
   | Get_header -> No_effects, No_coeffects, Strict
-  | Atomic_load _ -> Arbitrary_effects, Has_coeffects, Strict
+  | Atomic_load _ | Peek _ ->
+    (* For the moment, prevent [Peek] from being moved. *)
+    Arbitrary_effects, Has_coeffects, Strict
+  | Make_lazy _ -> Only_generative_effects Mutable, No_coeffects, Strict
 
 let unary_classify_for_printing p =
   match p with
@@ -1489,6 +1497,8 @@ let unary_classify_for_printing p =
   | Is_boxed_float | Is_flat_float_array -> Neither
   | End_region _ | End_try_region _ -> Neither
   | Get_header -> Neither
+  | Peek _ -> Neither
+  | Make_lazy _ -> Constructive
 
 let free_names_unary_primitive p =
   match p with
@@ -1510,7 +1520,9 @@ let free_names_unary_primitive p =
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
   | Obj_dup | Get_header
-  | Atomic_load (_ : Block_access_field_kind.t) ->
+  | Atomic_load (_ : Block_access_field_kind.t)
+  | Peek (_ : Flambda_kind.Standard_int_or_float.t)
+  | Make_lazy _ ->
     Name_occurrences.empty
 
 let apply_renaming_unary_primitive p renaming =
@@ -1531,7 +1543,9 @@ let apply_renaming_unary_primitive p renaming =
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header
-  | Atomic_load (_ : Block_access_field_kind.t) ->
+  | Atomic_load (_ : Block_access_field_kind.t)
+  | Peek (_ : Flambda_kind.Standard_int_or_float.t)
+  | Make_lazy _ ->
     p
 
 let ids_for_export_unary_primitive p =
@@ -1544,7 +1558,9 @@ let ids_for_export_unary_primitive p =
   | Bigarray_length _ | Unbox_number _ | Untag_immediate | Tag_immediate
   | Is_boxed_float | Is_flat_float_array | End_region _ | End_try_region _
   | Project_function_slot _ | Project_value_slot _ | Obj_dup | Get_header
-  | Atomic_load (_ : Block_access_field_kind.t) ->
+  | Atomic_load (_ : Block_access_field_kind.t)
+  | Peek (_ : Flambda_kind.Standard_int_or_float.t)
+  | Make_lazy _ ->
     Ids_for_export.empty
 
 type binary_int_arith_op =
@@ -1599,6 +1615,24 @@ let print_binary_float_arith_op ppf width op =
   | Float32, Mul -> fprintf ppf "Float32.*."
   | Float32, Div -> fprintf ppf "Float32./."
 
+type binary_int_atomic_op =
+  | Fetch_add
+  | Add
+  | Sub
+  | And
+  | Or
+  | Xor
+
+let print_binary_int_atomic_op ppf op =
+  let fprintf = Format.fprintf in
+  match op with
+  | Fetch_add -> fprintf ppf "xadd"
+  | Add -> fprintf ppf "+"
+  | Sub -> fprintf ppf "-"
+  | And -> fprintf ppf "and"
+  | Or -> fprintf ppf "or"
+  | Xor -> fprintf ppf "xor"
+
 type binary_primitive =
   | Block_set of
       { kind : Block_access_kind.t;
@@ -1616,8 +1650,10 @@ type binary_primitive =
   | Float_arith of float_bitwidth * binary_float_arith_op
   | Float_comp of float_bitwidth * unit comparison_behaviour
   | Bigarray_get_alignment of int
-  | Atomic_exchange
-  | Atomic_fetch_and_add
+  | Atomic_set of Block_access_field_kind.t
+  | Atomic_exchange of Block_access_field_kind.t
+  | Atomic_int_arith of binary_int_atomic_op
+  | Poke of Flambda_kind.Standard_int_or_float.t
 
 let binary_primitive_eligible_for_cse p =
   match p with
@@ -1635,7 +1671,7 @@ let binary_primitive_eligible_for_cse p =
        floating-point arithmetic operations. See also the comment in
        effects_and_coeffects of unary primitives. *)
     Flambda_features.float_const_prop ()
-  | Atomic_exchange | Atomic_fetch_and_add -> false
+  | Atomic_set _ | Atomic_exchange _ | Atomic_int_arith _ | Poke _ -> false
 
 let compare_binary_primitive p1 p2 =
   let binary_primitive_numbering p =
@@ -1651,8 +1687,10 @@ let compare_binary_primitive p1 p2 =
     | Float_arith _ -> 8
     | Float_comp _ -> 9
     | Bigarray_get_alignment _ -> 10
-    | Atomic_exchange -> 11
-    | Atomic_fetch_and_add -> 12
+    | Atomic_set _ -> 11
+    | Atomic_exchange _ -> 12
+    | Atomic_int_arith _ -> 13
+    | Poke _ -> 14
   in
   match p1, p2 with
   | ( Block_set { kind = kind1; init = init1; field = field1 },
@@ -1701,10 +1739,20 @@ let compare_binary_primitive p1 p2 =
     if c <> 0 then c else Stdlib.compare comp1 comp2
   | Bigarray_get_alignment align1, Bigarray_get_alignment align2 ->
     Int.compare align1 align2
+  | ( Atomic_exchange block_access_field_kind1,
+      Atomic_exchange block_access_field_kind2 ) ->
+    Block_access_field_kind.compare block_access_field_kind1
+      block_access_field_kind2
+  | Atomic_set block_access_field_kind1, Atomic_set block_access_field_kind2 ->
+    Block_access_field_kind.compare block_access_field_kind1
+      block_access_field_kind2
+  | Atomic_int_arith op1, Atomic_int_arith op2 -> Stdlib.compare op1 op2
+  | Poke kind1, Poke kind2 ->
+    Flambda_kind.Standard_int_or_float.compare kind1 kind2
   | ( ( Block_set _ | Array_load _ | String_or_bigstring_load _
       | Bigarray_load _ | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _
       | Float_arith _ | Float_comp _ | Bigarray_get_alignment _
-      | Atomic_exchange | Atomic_fetch_and_add ),
+      | Atomic_exchange _ | Atomic_set _ | Atomic_int_arith _ | Poke _ ),
       _ ) ->
     Stdlib.compare
       (binary_primitive_numbering p1)
@@ -1740,8 +1788,17 @@ let print_binary_primitive ppf p =
     fprintf ppf "."
   | Bigarray_get_alignment align ->
     fprintf ppf "@[(Bigarray_get_alignment[%d])@]" align
-  | Atomic_exchange -> fprintf ppf "Atomic_exchange"
-  | Atomic_fetch_and_add -> fprintf ppf "Atomic_fetch_and_add"
+  | Atomic_exchange block_access_field_kind ->
+    Format.fprintf ppf "@[(Atomic_exchange@ %a)@]" Block_access_field_kind.print
+      block_access_field_kind
+  | Atomic_set block_access_field_kind ->
+    Format.fprintf ppf "@[(Atomic_set@ %a)@]" Block_access_field_kind.print
+      block_access_field_kind
+  | Atomic_int_arith op ->
+    Format.fprintf ppf "@[(Atomic_int_arith %a)@]" print_binary_int_atomic_op op
+  | Poke kind ->
+    fprintf ppf "@[(Poke@ %a)@]"
+      Flambda_kind.Standard_int_or_float.print_lowercase kind
 
 let args_kind_of_binary_primitive p =
   match p with
@@ -1766,7 +1823,8 @@ let args_kind_of_binary_primitive p =
   | Float_arith (Float32, _) | Float_comp (Float32, _) ->
     K.naked_float32, K.naked_float32
   | Bigarray_get_alignment _ -> bigstring_kind, K.naked_immediate
-  | Atomic_exchange | Atomic_fetch_and_add -> K.value, K.value
+  | Atomic_set _ | Atomic_exchange _ | Atomic_int_arith _ -> K.value, K.value
+  | Poke kind -> K.naked_nativeint, K.Standard_int_or_float.to_kind kind
 
 let result_kind_of_binary_primitive p : result_kind =
   match p with
@@ -1788,7 +1846,10 @@ let result_kind_of_binary_primitive p : result_kind =
   | Float_arith (Float32, _) -> Singleton K.naked_float32
   | Phys_equal _ | Int_comp _ | Float_comp _ -> Singleton K.naked_immediate
   | Bigarray_get_alignment _ -> Singleton K.naked_immediate
-  | Atomic_exchange | Atomic_fetch_and_add -> Singleton K.value
+  | Atomic_exchange _ | Atomic_int_arith Fetch_add -> Singleton K.value
+  | Atomic_set _ -> Unit
+  | Atomic_int_arith (Add | Sub | And | Or | Xor) -> Unit
+  | Poke _ -> Unit
 
 let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
   match p with
@@ -1816,51 +1877,60 @@ let effects_and_coeffects_of_binary_primitive p : Effects_and_coeffects.t =
     then No_effects, No_coeffects, Strict
     else No_effects, Has_coeffects, Strict
   | Bigarray_get_alignment _ -> No_effects, No_coeffects, Strict
-  | Atomic_exchange | Atomic_fetch_and_add ->
+  | Atomic_set _ | Atomic_exchange _ | Atomic_int_arith _ ->
     Arbitrary_effects, Has_coeffects, Strict
+  | Poke _ -> Arbitrary_effects, No_coeffects, Strict
 
 let binary_classify_for_printing p =
   match p with
   | Array_load _ -> Destructive
   | Block_set _ | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _
   | Float_arith _ | Float_comp _ | Bigarray_load _ | String_or_bigstring_load _
-  | Bigarray_get_alignment _ | Atomic_exchange | Atomic_fetch_and_add ->
+  | Bigarray_get_alignment _ | Atomic_set _ | Atomic_exchange _
+  | Atomic_int_arith _ | Poke _ ->
     Neither
 
 let free_names_binary_primitive p =
   match p with
   | Block_set _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
-  | Float_comp _ | Bigarray_get_alignment _ | Atomic_exchange
-  | Atomic_fetch_and_add ->
+  | Float_comp _ | Bigarray_get_alignment _ | Atomic_exchange _ | Atomic_set _
+  | Atomic_int_arith _
+  | Poke (_ : Flambda_kind.Standard_int_or_float.t) ->
     Name_occurrences.empty
 
 let apply_renaming_binary_primitive p _renaming =
   match p with
   | Block_set _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
-  | Float_comp _ | Bigarray_get_alignment _ | Atomic_exchange
-  | Atomic_fetch_and_add ->
+  | Float_comp _ | Bigarray_get_alignment _ | Atomic_exchange _ | Atomic_set _
+  | Atomic_int_arith _
+  | Poke (_ : Flambda_kind.Standard_int_or_float.t) ->
     p
 
 let ids_for_export_binary_primitive p =
   match p with
   | Block_set _ | Array_load _ | String_or_bigstring_load _ | Bigarray_load _
   | Phys_equal _ | Int_arith _ | Int_shift _ | Int_comp _ | Float_arith _
-  | Float_comp _ | Bigarray_get_alignment _ | Atomic_exchange
-  | Atomic_fetch_and_add ->
+  | Float_comp _ | Bigarray_get_alignment _ | Atomic_exchange _ | Atomic_set _
+  | Atomic_int_arith _
+  | Poke (_ : Flambda_kind.Standard_int_or_float.t) ->
     Ids_for_export.empty
 
 type ternary_primitive =
   | Array_set of Array_kind.t * Array_set_kind.t
   | Bytes_or_bigstring_set of bytes_like_value * string_accessor_width
   | Bigarray_set of num_dimensions * Bigarray_kind.t * Bigarray_layout.t
-  | Atomic_compare_and_set
+  | Atomic_compare_and_set of Block_access_field_kind.t
+  | Atomic_compare_exchange of
+      { atomic_kind : Block_access_field_kind.t;
+        args_kind : Block_access_field_kind.t
+      }
 
 let ternary_primitive_eligible_for_cse p =
   match p with
   | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
-  | Atomic_compare_and_set ->
+  | Atomic_compare_and_set _ | Atomic_compare_exchange _ ->
     false
 
 let compare_ternary_primitive p1 p2 =
@@ -1869,7 +1939,8 @@ let compare_ternary_primitive p1 p2 =
     | Array_set _ -> 0
     | Bytes_or_bigstring_set _ -> 1
     | Bigarray_set _ -> 2
-    | Atomic_compare_and_set -> 3
+    | Atomic_compare_and_set _ -> 3
+    | Atomic_compare_exchange _ -> 4
   in
   match p1, p2 with
   | Array_set (kind1, set_kind1), Array_set (kind2, set_kind2) ->
@@ -1887,8 +1958,18 @@ let compare_ternary_primitive p1 p2 =
     else
       let c = Stdlib.compare kind1 kind2 in
       if c <> 0 then c else Stdlib.compare layout1 layout2
+  | ( Atomic_compare_and_set block_access_field_kind1,
+      Atomic_compare_and_set block_access_field_kind2 ) ->
+    Block_access_field_kind.compare block_access_field_kind1
+      block_access_field_kind2
+  | ( Atomic_compare_exchange
+        { atomic_kind = atomic_kind1; args_kind = args_kind1 },
+      Atomic_compare_exchange
+        { atomic_kind = atomic_kind2; args_kind = args_kind2 } ) ->
+    let c = Block_access_field_kind.compare atomic_kind1 atomic_kind2 in
+    if c <> 0 then c else Block_access_field_kind.compare args_kind1 args_kind2
   | ( ( Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
-      | Atomic_compare_and_set ),
+      | Atomic_compare_and_set _ | Atomic_compare_exchange _ ),
       _ ) ->
     Stdlib.compare
       (ternary_primitive_numbering p1)
@@ -1909,7 +1990,14 @@ let print_ternary_primitive ppf p =
     fprintf ppf
       "@[(Bigarray_set (num_dimensions@ %d)@ (kind@ %a)@ (layout@ %a))@]"
       num_dimensions Bigarray_kind.print kind Bigarray_layout.print layout
-  | Atomic_compare_and_set -> fprintf ppf "Atomic_compare_and_set"
+  | Atomic_compare_and_set block_access_field_kind ->
+    Format.fprintf ppf "@[(Atomic_compare_and_set@ %a)@]"
+      Block_access_field_kind.print block_access_field_kind
+  | Atomic_compare_exchange { atomic_kind; args_kind } ->
+    Format.fprintf ppf
+      "@[(Atomic_compare_exchange@ (atomic_kind@ %a)@ (args_kind@ %a))@]"
+      Block_access_field_kind.print atomic_kind Block_access_field_kind.print
+      args_kind
 
 let args_kind_of_ternary_primitive p =
   match p with
@@ -1939,12 +2027,13 @@ let args_kind_of_ternary_primitive p =
     bigstring_kind, bytes_or_bigstring_index_kind, K.naked_vec128
   | Bigarray_set (_, kind, _) ->
     bigarray_kind, bigarray_index_kind, Bigarray_kind.element_kind kind
-  | Atomic_compare_and_set -> K.value, K.value, K.value
+  | Atomic_compare_and_set _ | Atomic_compare_exchange _ ->
+    K.value, K.value, K.value
 
 let result_kind_of_ternary_primitive p : result_kind =
   match p with
   | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _ -> Unit
-  | Atomic_compare_and_set -> Singleton K.value
+  | Atomic_compare_and_set _ | Atomic_compare_exchange _ -> Singleton K.value
 
 let effects_and_coeffects_of_ternary_primitive p :
     Effects.t * Coeffects.t * Placement.t =
@@ -1952,38 +2041,42 @@ let effects_and_coeffects_of_ternary_primitive p :
   | Array_set _ -> writing_to_an_array
   | Bytes_or_bigstring_set _ -> writing_to_bytes_or_bigstring
   | Bigarray_set (_, kind, _) -> writing_to_a_bigarray kind
-  | Atomic_compare_and_set -> Arbitrary_effects, Has_coeffects, Strict
+  | Atomic_compare_and_set _ | Atomic_compare_exchange _ ->
+    Arbitrary_effects, Has_coeffects, Strict
 
 let ternary_classify_for_printing p =
   match p with
   | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
-  | Atomic_compare_and_set ->
+  | Atomic_compare_and_set _ | Atomic_compare_exchange _ ->
     Neither
 
 let free_names_ternary_primitive p =
   match p with
   | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
-  | Atomic_compare_and_set ->
+  | Atomic_compare_and_set _ | Atomic_compare_exchange _ ->
     Name_occurrences.empty
 
 let apply_renaming_ternary_primitive p _ =
   match p with
   | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
-  | Atomic_compare_and_set ->
+  | Atomic_compare_and_set _ | Atomic_compare_exchange _ ->
     p
 
 let ids_for_export_ternary_primitive p =
   match p with
   | Array_set _ | Bytes_or_bigstring_set _ | Bigarray_set _
-  | Atomic_compare_and_set ->
+  | Atomic_compare_and_set _ | Atomic_compare_exchange _ ->
     Ids_for_export.empty
 
 type variadic_primitive =
+  | Begin_region of { ghost : bool }
+  | Begin_try_region of { ghost : bool }
   | Make_block of Block_kind.t * Mutability.t * Alloc_mode.For_allocations.t
   | Make_array of Array_kind.t * Mutability.t * Alloc_mode.For_allocations.t
 
 let variadic_primitive_eligible_for_cse p ~args =
   match p with
+  | Begin_region _ | Begin_try_region _ -> false
   | Make_block (_, _, Local _) | Make_array (_, _, Local _) -> false
   | Make_block (_, Mutable, _) | Make_array (_, Mutable, _) -> false
   | Make_block (_, Immutable_unique, _) | Make_array (_, Immutable_unique, _) ->
@@ -1995,6 +2088,10 @@ let variadic_primitive_eligible_for_cse p ~args =
 
 let compare_variadic_primitive p1 p2 =
   match p1, p2 with
+  | Begin_region { ghost = ghost1 }, Begin_region { ghost = ghost2 } ->
+    Bool.compare ghost1 ghost2
+  | Begin_try_region { ghost = ghost1 }, Begin_try_region { ghost = ghost2 } ->
+    Bool.compare ghost1 ghost2
   | Make_block (kind1, mut1, alloc_mode1), Make_block (kind2, mut2, alloc_mode2)
     ->
     let c = Block_kind.compare kind1 kind2 in
@@ -2015,14 +2112,22 @@ let compare_variadic_primitive p1 p2 =
       if c <> 0
       then c
       else Alloc_mode.For_allocations.compare alloc_mode1 alloc_mode2
-  | Make_block _, _ -> -1
-  | _, Make_block _ -> 1
+  | Begin_region _, (Begin_try_region _ | Make_block _ | Make_array _) -> -1
+  | Begin_try_region _, (Make_block _ | Make_array _) -> -1
+  | Begin_try_region _, Begin_region _ -> 1
+  | Make_block _, Make_array _ -> -1
+  | Make_block _, (Begin_region _ | Begin_try_region _) -> 1
+  | Make_array _, (Begin_region _ | Begin_try_region _ | Make_block _) -> 1
 
 let equal_variadic_primitive p1 p2 = compare_variadic_primitive p1 p2 = 0
 
 let print_variadic_primitive ppf p =
   let fprintf = Format.fprintf in
   match p with
+  | Begin_region { ghost } ->
+    Format.fprintf ppf "Begin_region%s" (if ghost then "_ghost" else "")
+  | Begin_try_region { ghost } ->
+    Format.fprintf ppf "Begin_try_region%s" (if ghost then "_ghost" else "")
   | Make_block (kind, mut, alloc_mode) ->
     fprintf ppf "@[<hov 1>(Make_block@ %a@ %a@ %a)@]" Block_kind.print kind
       Mutability.print mut Alloc_mode.For_allocations.print alloc_mode
@@ -2032,6 +2137,7 @@ let print_variadic_primitive ppf p =
 
 let args_kind_of_variadic_primitive p : arg_kinds =
   match p with
+  | Begin_region _ | Begin_try_region _ -> Variadic_zero_or_one K.region
   | Make_block (Values _, _, _) -> Variadic_all_of_kind K.value
   | Make_block (Naked_floats, _, _) -> Variadic_all_of_kind K.naked_float
   | Make_block (Mixed (_tag, shape), _, _) -> Variadic_mixed shape
@@ -2039,10 +2145,17 @@ let args_kind_of_variadic_primitive p : arg_kinds =
     Variadic_unboxed_product (Array_kind.element_kinds_for_primitive kind)
 
 let result_kind_of_variadic_primitive p : result_kind =
-  match p with Make_block _ | Make_array _ -> Singleton K.value
+  match p with
+  | Begin_region _ | Begin_try_region _ -> Singleton K.region
+  | Make_block _ | Make_array _ -> Singleton K.value
+
+let effects_and_coeffects_of_begin_region : Effects_and_coeffects.t =
+  (* Ensure these don't get moved, but allow them to be deleted. *)
+  Only_generative_effects Mutable, Has_coeffects, Strict
 
 let effects_and_coeffects_of_variadic_primitive p =
   match p with
+  | Begin_region _ | Begin_try_region _ -> effects_and_coeffects_of_begin_region
   | Make_block (_, mut, alloc_mode) | Make_array (_, mut, alloc_mode) ->
     let coeffects : Coeffects.t =
       match alloc_mode with
@@ -2052,10 +2165,13 @@ let effects_and_coeffects_of_variadic_primitive p =
     Effects.Only_generative_effects mut, coeffects, Placement.Strict
 
 let variadic_classify_for_printing p =
-  match p with Make_block _ | Make_array _ -> Constructive
+  match p with
+  | Begin_region _ | Begin_try_region _ -> Neither
+  | Make_block _ | Make_array _ -> Constructive
 
 let free_names_variadic_primitive p =
   match p with
+  | Begin_region _ | Begin_try_region _ -> Name_occurrences.empty
   | Make_block (_kind, _mut, alloc_mode) ->
     Alloc_mode.For_allocations.free_names alloc_mode
   | Make_array (_kind, _mut, alloc_mode) ->
@@ -2063,6 +2179,7 @@ let free_names_variadic_primitive p =
 
 let apply_renaming_variadic_primitive p renaming =
   match p with
+  | Begin_region _ | Begin_try_region _ -> p
   | Make_block (kind, mut, alloc_mode) ->
     let alloc_mode' =
       Alloc_mode.For_allocations.apply_renaming alloc_mode renaming
@@ -2076,6 +2193,7 @@ let apply_renaming_variadic_primitive p renaming =
 
 let ids_for_export_variadic_primitive p =
   match p with
+  | Begin_region _ | Begin_try_region _ -> Ids_for_export.empty
   | Make_block (_kind, _mut, alloc_mode) ->
     Alloc_mode.For_allocations.ids_for_export alloc_mode
   | Make_array (_kind, _mut, alloc_mode) ->
@@ -2193,8 +2311,8 @@ let equal t1 t2 = compare t1 t2 = 0
 let free_names t =
   match t with
   | Nullary
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll ) ->
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
+      | Dls_get | Poll ) ->
     Name_occurrences.empty
   | Unary (prim, x0) ->
     Name_occurrences.union
@@ -2220,8 +2338,8 @@ let apply_renaming t renaming =
   let apply simple = Simple.apply_renaming simple renaming in
   match t with
   | Nullary
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll ) ->
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
+      | Dls_get | Poll ) ->
     t
   | Unary (prim, x0) ->
     let prim' = apply_renaming_unary_primitive prim renaming in
@@ -2250,8 +2368,8 @@ let apply_renaming t renaming =
 let ids_for_export t =
   match t with
   | Nullary
-      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Begin_region _
-      | Begin_try_region _ | Enter_inlined_apply _ | Dls_get | Poll ) ->
+      ( Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
+      | Dls_get | Poll ) ->
     Ids_for_export.empty
   | Unary (prim, x0) ->
     Ids_for_export.union
@@ -2426,6 +2544,7 @@ end = struct
              subkinds here by erasing them. *)
           let prim =
             match prim with
+            | Begin_region _ | Begin_try_region _ -> assert false
             | Make_block (Values (tag, kinds), mutability, alloc_mode) ->
               let kinds = List.map K.With_subkind.erase_subkind kinds in
               Make_block (Values (tag, kinds), mutability, alloc_mode)
@@ -2567,7 +2686,7 @@ end
 
 let is_begin_or_end_region t =
   match t with
-  | Nullary (Begin_region _ | Begin_try_region _)
+  | Variadic ((Begin_region _ | Begin_try_region _), _)
   | Unary ((End_region _ | End_try_region _), _) ->
     true
   | _ -> false

@@ -1,7 +1,5 @@
 (* TEST
  flambda2;
- arch_amd64;
- flags = "-extension layouts_beta";
  native;
 *)
 

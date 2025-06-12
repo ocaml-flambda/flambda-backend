@@ -7,8 +7,8 @@
 
 module type S0 = sig
   (* An alias for the type of arrays. *)
-  type element_t: any
-  type ('a : any) array_t
+  type element_t: any_non_null
+  type ('a : any_non_null) array_t
   (* Reason why we need [element_arg] is not to be able to define
      modules that implement [S0]. We can do that without it.
 
@@ -145,7 +145,7 @@ end
 module Make (M : S0)
   : (S
       with type element_t = M.element_t
-      and type ('a : any) array_t = 'a M.array_t) = struct
+      and type ('a : any_non_null) array_t = 'a M.array_t) = struct
 
   include M
 

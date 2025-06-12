@@ -16,26 +16,30 @@
 let use_ocamlcfg = ref true             (* -[no-]ocamlcfg *)
 let dump_cfg = ref false                (* -dcfg *)
 let cfg_invariants = ref false          (* -dcfg-invariants *)
-let cfg_equivalence_check = ref false   (* -dcfg-equivalence-check *)
 let regalloc = ref ""                   (* -regalloc *)
+let default_regalloc_linscan_threshold = 100_000
+let regalloc_linscan_threshold = ref max_int (* -regalloc-linscan-threshold *)
 let regalloc_params = ref ([] : string list)  (* -regalloc-param *)
 let regalloc_validate = ref true        (* -[no-]regalloc-validate *)
 
 let vectorize = ref false                (* -[no-]vectorize *)
 let dump_vectorize = ref false          (* -dvectorize *)
 
-let cfg_selection = ref false           (* -[no-]cfg-selection *)
+let default_vectorize_max_block_size = 100
+let vectorize_max_block_size =
+  ref default_vectorize_max_block_size (* -vectorize-max-block-size *)
 
 let cfg_peephole_optimize = ref true    (* -[no-]cfg-peephole-optimize *)
-
-let cfg_cse_optimize = ref false        (* -[no-]cfg-cse-optimize *)
-let cfg_zero_alloc_checker = ref false  (* -[no-]cfg-zero-alloc-checker *)
 
 let cfg_stack_checks = ref true         (* -[no-]cfg-stack-check *)
 let cfg_stack_checks_threshold = ref 16384 (* -cfg-stack-threshold *)
 
+let cfg_eliminate_dead_trap_handlers = ref false  (* -cfg-eliminate-dead-trap-handlers *)
+
 let reorder_blocks_random = ref None    (* -reorder-blocks-random seed *)
 let basic_block_sections = ref false    (* -basic-block-sections *)
+(* -module-entry-functions-section *)
+let module_entry_functions_section = ref false
 
 let dasm_comments = ref false (* -dasm-comments *)
 
@@ -96,7 +100,7 @@ let long_frames_threshold = ref max_long_frames_threshold (* -debug-long-frames-
 let caml_apply_inline_fast_path = ref false  (* -caml-apply-inline-fast-path *)
 
 type function_result_types = Never | Functors_only | All_functions
-type meet_algorithm = Basic | Advanced
+type join_algorithm = Binary | N_way | Checked
 type opt_level = Oclassic | O2 | O3
 type 'a or_default = Set of 'a | Default
 
@@ -129,10 +133,11 @@ module Flambda2 = struct
     let backend_cse_at_toplevel = false
     let cse_depth = 2
     let join_depth = 5
+    let join_algorithm = Binary
     let function_result_types = Never
-    let meet_algorithm = Basic
     let enable_reaper = false
     let unicode = true
+    let kind_checks = false
   end
 
   type flags = {
@@ -142,10 +147,11 @@ module Flambda2 = struct
     backend_cse_at_toplevel : bool;
     cse_depth : int;
     join_depth : int;
+    join_algorithm : join_algorithm;
     function_result_types : function_result_types;
-    meet_algorithm : meet_algorithm;
     enable_reaper : bool;
     unicode : bool;
+    kind_checks : bool;
   }
 
   let default = {
@@ -155,10 +161,11 @@ module Flambda2 = struct
     backend_cse_at_toplevel = Default.backend_cse_at_toplevel;
     cse_depth = Default.cse_depth;
     join_depth = Default.join_depth;
+    join_algorithm = Default.join_algorithm;
     function_result_types = Default.function_result_types;
-    meet_algorithm = Default.meet_algorithm;
     enable_reaper = Default.enable_reaper;
     unicode = Default.unicode;
+    kind_checks = Default.kind_checks;
   }
 
   let oclassic = {
@@ -188,9 +195,10 @@ module Flambda2 = struct
   let backend_cse_at_toplevel = ref Default
   let cse_depth = ref Default
   let join_depth = ref Default
+  let join_algorithm = ref Default
   let unicode = ref Default
+  let kind_checks = ref Default
   let function_result_types = ref Default
-  let meet_algorithm = ref Default
   let enable_reaper = ref Default
 
   module Dump = struct
@@ -216,7 +224,8 @@ module Flambda2 = struct
       let can_inline_recursive_functions = false
       let max_function_simplify_run = 2
       let shorten_symbol_names = false
-      let cont_lifting_budget = 0
+      let cont_lifting_budget = 0 (* possible future value: 200 *)
+      let cont_spec_budget = 0 (* possible future value: 20 *)
     end
 
     type flags = {
@@ -229,6 +238,7 @@ module Flambda2 = struct
       max_function_simplify_run : int;
       shorten_symbol_names : bool;
       cont_lifting_budget : int;
+      cont_spec_budget : int;
     }
 
     let default = {
@@ -241,6 +251,7 @@ module Flambda2 = struct
       max_function_simplify_run = Default.max_function_simplify_run;
       shorten_symbol_names = Default.shorten_symbol_names;
       cont_lifting_budget = Default.cont_lifting_budget;
+      cont_spec_budget = Default.cont_spec_budget;
     }
 
     let oclassic = {
@@ -268,6 +279,7 @@ module Flambda2 = struct
     let max_function_simplify_run = ref Default
     let shorten_symbol_names = ref Default
     let cont_lifting_budget = ref Default
+    let cont_spec_budget = ref Default
   end
 
   module Debug = struct

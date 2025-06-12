@@ -1,5 +1,6 @@
 [@@@ocaml.warning "+a-29-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 module DLL = Flambda_backend_utils.Doubly_linked_list
 module R = Peephole_rules
 

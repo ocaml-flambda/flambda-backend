@@ -19,6 +19,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 open Asm_targets
 module Int8 = Numbers.Int8
 module Int16 = Numbers.Int16
@@ -26,6 +27,7 @@ module Uint8 = Numbers.Uint8
 module Uint16 = Numbers.Uint16
 module Uint32 = Numbers.Uint32
 module Uint64 = Numbers.Uint64
+module A = Asm_directives
 
 type value =
   | Flag_true
@@ -326,8 +328,7 @@ let size { value; comment = _ } =
   | Distance_between_labels_64_bit_with_offsets _ ->
     Dwarf_int.eight ()
 
-let emit ~asm_directives { value; comment } =
-  let module A = (val asm_directives : Asm_directives.S) in
+let emit ~asm_directives:_ { value; comment } =
   let width_for_ref_addr_or_sec_offset = !Dwarf_flags.gdwarf_format in
   match value with
   | Flag_true -> (

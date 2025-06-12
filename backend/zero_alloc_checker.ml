@@ -23,7 +23,9 @@
  * SOFTWARE.                                                                      *
  *                                                                                *
  **********************************************************************************)
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
+
+open! Int_replace_polymorphic_compare
 
 let debug = false
 
@@ -33,7 +35,7 @@ module Witness = struct
   type kind =
     | Alloc of
         { bytes : int;
-          dbginfo : Debuginfo.alloc_dbginfo
+          dbginfo : Cmm.alloc_dbginfo
         }
     | Indirect_call
     | Indirect_tailcall
@@ -1402,6 +1404,8 @@ module Annotation : sig
 
   val get_loc : t -> Location.t
 
+  val get_custom_error_msg : t -> string option
+
   val find : Cmm.codegen_option list -> string -> Debuginfo.t -> t option
 
   val of_cfg : Cfg.codegen_option list -> string -> Debuginfo.t -> t option
@@ -1443,14 +1447,23 @@ end = struct
       assume : bool;
       never_returns_normally : bool;
       never_raises : bool;
-      loc : Location.t
+      loc : Location.t;
           (** Source location of the annotation, used for error messages. *)
+      custom_error_msg : string option
     }
 
   let get_loc t = t.loc
 
+  let get_custom_error_msg t = t.custom_error_msg
+
   let expected_value
-      { strict; never_returns_normally; never_raises; assume = _; loc = _ } =
+      { strict;
+        never_returns_normally;
+        never_raises;
+        assume = _;
+        loc = _;
+        custom_error_msg = _
+      } =
     Value.of_annotation ~strict ~never_returns_normally ~never_raises
 
   let valid t v =
@@ -1472,13 +1485,14 @@ end = struct
       List.filter_map
         (fun (c : Cmm.codegen_option) ->
           match c with
-          | Check_zero_alloc { strict; loc } ->
+          | Check_zero_alloc { strict; loc; custom_error_msg } ->
             Some
               { strict;
                 assume = false;
                 never_returns_normally = false;
                 never_raises = false;
-                loc
+                loc;
+                custom_error_msg
               }
           | Assume_zero_alloc
               { strict; never_returns_normally; never_raises; loc } ->
@@ -1487,7 +1501,8 @@ end = struct
                 assume = true;
                 never_returns_normally;
                 never_raises;
-                loc
+                loc;
+                custom_error_msg = None
               }
           | Reduce_code_size | No_CSE | Use_linscan_regalloc -> None)
         codegen_options
@@ -1504,13 +1519,14 @@ end = struct
       List.filter_map
         (fun (c : Cfg.codegen_option) ->
           match c with
-          | Check_zero_alloc { strict; loc } ->
+          | Check_zero_alloc { strict; loc; custom_error_msg } ->
             Some
               { strict;
                 assume = false;
                 never_returns_normally = false;
                 never_raises = false;
-                loc
+                loc;
+                custom_error_msg
               }
           | Assume_zero_alloc
               { strict; never_returns_normally; never_raises; loc } ->
@@ -1519,7 +1535,8 @@ end = struct
                 assume = true;
                 never_returns_normally;
                 never_raises;
-                loc
+                loc;
+                custom_error_msg = None
               }
           | Reduce_code_size | No_CSE -> None)
         codegen_options
@@ -1599,9 +1616,12 @@ end = struct
         |> String.concat ","
       in
       Format.fprintf ppf
-        "Annotation check for zero_alloc%s failed on function %s (%s)"
+        "Annotation check for zero_alloc%s failed on function %s (%s).%s"
         (if Annotation.is_strict t.a then " strict" else "")
         scoped_name t.fun_name
+        (match Annotation.get_custom_error_msg t.a with
+        | None -> ""
+        | Some msg -> "\n" ^ msg)
     in
     Location.error_of_printer ~loc print_annotated_fun ()
 
@@ -1612,9 +1632,40 @@ end = struct
       if Debuginfo.Dbg.length (Debuginfo.get_dbg dbg) > 1
       then Format.fprintf ppf " (%a)" Debuginfo.print_compact dbg
     in
+    let pp_alloc_block_kind ppf k =
+      let pp s = Format.fprintf ppf " for %s" s in
+      match (k : Cmm.alloc_block_kind) with
+      | Alloc_block_kind_other -> ()
+      | Alloc_block_kind_closure -> pp "closure"
+      | Alloc_block_kind_float -> pp "float"
+      | Alloc_block_kind_float32 -> pp "float32"
+      | Alloc_block_kind_vec128 -> pp "vec128"
+      | Alloc_block_kind_boxed_int bi ->
+        pp
+          (match bi with
+          | Boxed_nativeint -> "boxed_nativeint"
+          | Boxed_int32 -> "boxed_int32"
+          | Boxed_int64 -> "boxed_int64")
+      | Alloc_block_kind_float_array -> pp "unboxed_float64_array"
+      | Alloc_block_kind_float32_u_array -> pp "unboxed_float32_array"
+      | Alloc_block_kind_int32_u_array -> pp "unboxed_int32_array"
+      | Alloc_block_kind_int64_u_array -> pp "unboxed_int64_array"
+      | Alloc_block_kind_vec128_u_array -> pp "unboxed_vec128_array"
+    in
+    let pp_alloc_dbginfo_item (item : Cmm.alloc_dbginfo_item) =
+      let pp_alloc ppf =
+        Format.fprintf ppf "allocate %d words%a%a" item.alloc_words
+          pp_alloc_block_kind item.alloc_block_kind pp_inlined_dbg
+          item.alloc_dbg
+      in
+      let aloc = Debuginfo.to_location item.alloc_dbg in
+      Location.mkloc pp_alloc aloc
+    in
     let print_comballoc dbg =
       match dbg with
-      | [] | [_] -> "", []
+      | [] -> "", []
+      | [item] ->
+        Format.asprintf "%a" pp_alloc_block_kind item.Cmm.alloc_block_kind, []
       | alloc_dbginfo ->
         (* If one Ialloc is a result of combining multiple allocations, print
            details of each location. Currently, this cannot happen because
@@ -1624,17 +1675,7 @@ end = struct
           Printf.sprintf " combining %d allocations below"
             (List.length alloc_dbginfo)
         in
-        let details =
-          List.map
-            (fun (item : Debuginfo.alloc_dbginfo_item) ->
-              let pp_alloc ppf =
-                Format.fprintf ppf "allocate %d words%a" item.alloc_words
-                  pp_inlined_dbg item.alloc_dbg
-              in
-              let aloc = Debuginfo.to_location item.alloc_dbg in
-              Location.mkloc pp_alloc aloc)
-            alloc_dbginfo
-        in
+        let details = List.map pp_alloc_dbginfo_item alloc_dbginfo in
         msg, details
     in
     let print_witness (w : Witness.t) ~component =
@@ -1959,14 +2000,6 @@ end
 *)
 module Analysis : sig
   (** Check one function. *)
-  val fundecl :
-    Mach.fundecl ->
-    future_funcnames:String.Set.t ->
-    Unit_info.t ->
-    Unresolved_dependencies.t ->
-    Format.formatter ->
-    unit
-
   val cfg :
     Cfg.t ->
     future_funcnames:String.Set.t ->
@@ -2178,148 +2211,20 @@ end = struct
     let desc = "Arch.specific_operation" in
     report t next ~msg:"transform_specific next" ~desc dbg;
     report t exn ~msg:"transform_specific exn" ~desc dbg;
-    let can_raise = Arch.operation_can_raise s in
     let effect =
       let w = create_witnesses t Arch_specific dbg in
-      match Metadata.assume_value dbg ~can_raise w with
+      match Metadata.assume_value dbg ~can_raise:false w with
       | Some v -> v
       | None ->
         (* Conservatively assume that operation can return normally. *)
         let nor = if Arch.operation_allocates s then V.top w else V.safe in
-        let exn = if Arch.operation_can_raise s then nor else V.bot in
+        (* Specific operations cannot raise *)
+        let exn = V.bot in
         (* Assume that the operation does not diverge. *)
         let div = V.bot in
         { Value.nor; exn; div }
     in
     transform t ~next ~exn ~effect desc dbg
-
-  let transform_operation t (op : Mach.operation) ~next ~exn dbg =
-    match op with
-    | Imove | Ispill | Ireload | Iconst_int _ | Iconst_float _
-    | Iconst_float32 _ | Iconst_symbol _ | Iconst_vec128 _ | Iload _
-    | Ifloatop _
-    | Ireinterpret_cast
-        ( Float32_of_float | Float_of_float32 | Float_of_int64 | Int64_of_float
-        | Float32_of_int32 | Int32_of_float32 | V128_of_v128 )
-    | Istatic_cast
-        ( Float_of_int _ | Int_of_float _ | Float_of_float32 | Float32_of_float
-        | Scalar_of_v128 _ | V128_of_scalar _ )
-    | Iintop_imm
-        ( ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor
-          | Ilsl | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ ),
-          _ )
-    | Iintop
-        ( Iadd | Isub | Imul | Imulh _ | Idiv | Imod | Iand | Ior | Ixor | Ilsl
-        | Ilsr | Iasr | Ipopcnt | Iclz _ | Ictz _ | Icomp _ )
-    | Icsel _ ->
-      assert (Mach.operation_is_pure op);
-      assert (not (Mach.operation_can_raise op));
-      next
-    | Iname_for_debugger _ | Ireinterpret_cast (Int_of_value | Value_of_int) ->
-      assert (not (Mach.operation_can_raise op));
-      next
-    | Istackoffset _ | Iprobe_is_enabled _ | Iopaque | Ibeginregion | Iendregion
-    | Iintop_atomic _ ->
-      assert (not (Mach.operation_can_raise op));
-      next
-    | Istore _ ->
-      assert (not (Mach.operation_can_raise op));
-      next
-    | Ipoll _
-    (* Ignore poll points even though they may trigger an allocations, because
-       otherwise all loops would be considered allocating when poll insertion is
-       enabled. [@poll error] should be used instead. *)
-    | Ialloc { mode = Local; _ } ->
-      assert (not (Mach.operation_can_raise op));
-      next
-    | Ialloc { mode = Heap; bytes; dbginfo } ->
-      assert (not (Mach.operation_can_raise op));
-      let w = create_witnesses t (Alloc { bytes; dbginfo }) dbg in
-      let effect =
-        match Metadata.assume_value dbg ~can_raise:false w with
-        | Some effect -> effect
-        | None -> Value.{ nor = V.top w; exn = V.bot; div = V.bot }
-      in
-      transform t ~effect ~next ~exn "heap allocation" dbg
-    | Iprobe { name; handler_code_sym; enabled_at_init = __ } ->
-      let desc = Printf.sprintf "probe %s handler %s" name handler_code_sym in
-      let w = create_witnesses t (Probe { name; handler_code_sym }) dbg in
-      transform_call t ~next ~exn handler_code_sym w ~desc dbg
-    | Icall_ind ->
-      let w = create_witnesses t Indirect_call dbg in
-      transform_top t ~next ~exn w "indirect call" dbg
-    | Itailcall_ind ->
-      (* Sound to ignore [next] and [exn] because the call never returns. *)
-      let w = create_witnesses t Indirect_tailcall dbg in
-      transform_top t ~next:Value.normal_return ~exn:Value.exn_escape w
-        "indirect tailcall" dbg
-    | Icall_imm { func = { sym_name = func; _ } } ->
-      let w = create_witnesses t (Direct_call { callee = func }) dbg in
-      transform_call t ~next ~exn func w ~desc:("direct call to " ^ func) dbg
-    | Itailcall_imm { func = { sym_name = func; _ } } ->
-      (* Sound to ignore [next] and [exn] because the call never returns. *)
-      let w = create_witnesses t (Direct_tailcall { callee = func }) dbg in
-      transform_call t ~next:Value.normal_return ~exn:Value.exn_escape func w
-        ~desc:("direct tailcall to " ^ func)
-        dbg
-    | Iextcall { alloc = false; returns = true; _ } ->
-      (* Sound to ignore [exn] because external call marked as noalloc does not
-         raise. *)
-      next
-    | Iextcall { alloc = false; returns = false; _ } ->
-      (* Sound to ignore [next] and [exn] because the call never returns or
-         raises. *)
-      Value.bot
-    | Iextcall { func; alloc = true; _ } ->
-      let w = create_witnesses t (Extcall { callee = func }) dbg in
-      transform_top t ~next ~exn w ("external call to " ^ func) dbg
-    | Ispecific s -> transform_specific t s ~next ~exn dbg
-    | Idls_get -> next
-
-  module D = Dataflow.Backward ((Value : Dataflow.DOMAIN))
-
-  let check_instr t body =
-    let transfer (i : Mach.instruction) ~next ~exn =
-      match i.desc with
-      | Ireturn _ -> Value.normal_return
-      | Iop op -> transform_operation t op ~next ~exn i.dbg
-      | Iraise Raise_notrace ->
-        (* [raise_notrace] is typically used for control flow, not for
-           indicating an error. Therefore, we do not ignore any allocation on
-           paths to it. The following conservatively assumes that normal and exn
-           Returns are reachable. *)
-        Value.join exn Value.safe
-      | Iraise (Raise_reraise | Raise_regular) -> exn
-      | Iend -> next
-      | Iexit _ ->
-        report t next ~msg:"transform" ~desc:"iexit" i.dbg;
-        next
-      | Iifthenelse _ ->
-        report t next ~msg:"transform" ~desc:"ifthenelse" i.dbg;
-        next
-      | Iswitch _ ->
-        report t next ~msg:"transform" ~desc:"switch" i.dbg;
-        next
-      | Icatch (_rc, _ts, _, _body) ->
-        report t next ~msg:"transform" ~desc:"catch" i.dbg;
-        next
-      | Itrywith (_body, _, (_trap_stack, _handler)) ->
-        report t next ~msg:"transform" ~desc:"try-with" i.dbg;
-        next
-    in
-    (* By default, backward analysis does not check the property on paths that
-       diverge (non-terminating loops that do not reach normal or exceptional
-       return). All loops must go through an (Iexit label) instruction or a
-       recursive function call. If (Iexit label) is not backward reachable from
-       the function's Normal or Exceptional Return, either the loop diverges or
-       the Iexit instruction is not reachable from function entry.
-
-       To check divergent loops, the initial value of "div" component of all
-       Iexit labels of recurisve Icatch handlers is set to "Safe" instead of
-       "Bot". *)
-    D.analyze ~exnescape:Value.exn_escape ~init_rc_lbl:Value.diverges ~transfer
-      body
-    |> fst
 
   module Env : sig
     type t
@@ -2546,13 +2451,6 @@ end = struct
     in
     Profile.record_call ~accumulate:true ("check " ^ analysis_name) check
 
-  let fundecl (fd : Mach.fundecl) ~future_funcnames unit_info unresolved_deps
-      ppf =
-    let a = Annotation.find fd.fun_codegen_options fd.fun_name fd.fun_dbg in
-    let check_body t = check_instr t fd.fun_body in
-    check_fun fd.fun_name fd.fun_dbg a check_body ~future_funcnames unit_info
-      unresolved_deps ppf
-
   module Check_cfg_backward = struct
     module Value = struct
       include Value
@@ -2620,7 +2518,7 @@ end = struct
           =
         match i.desc with
         | Op op -> Ok (operation t ~next op i.dbg)
-        | Pushtrap _ | Poptrap ->
+        | Pushtrap _ | Poptrap _ ->
           (* treated as no-op here, flow and handling of exceptions is
              incorporated into the blocks and edges of the CFG *)
           Ok next
@@ -2685,8 +2583,6 @@ end = struct
           let w = create_witnesses t (Direct_call { callee = func }) dbg in
           transform_call t ~next ~exn func w ~desc:("direct call to " ^ func)
             dbg
-        | Specific_can_raise { op = s; _ } ->
-          transform_specific t s ~next ~exn dbg
 
       let terminator next ~exn (i : Cfg.terminator Cfg.instruction) t =
         Ok (terminator next ~exn i t)
@@ -2710,7 +2606,7 @@ end = struct
       | Ok map ->
         let entry_block = Cfg.get_block_exn fd fd.entry_label in
         let res =
-          Cfg_dataflow.Instr.Tbl.find map (Cfg.first_instruction_id entry_block)
+          InstructionId.Tbl.find map (Cfg.first_instruction_id entry_block)
         in
         report t res ~msg:"Check_cfg_backward result" ~desc:"fundecl" fd.fun_dbg;
         res
@@ -2732,59 +2628,6 @@ let unit_info = Unit_info.create ()
 
 let unresolved_deps = Unresolved_dependencies.create ()
 
-(* [Selectgen] sets [return] field of [Iextcall] to prevent dead code
-   elimination on functions that zero_alloc checker needs to see (details in
-   PR#2112). Here we can clear [returns] field to allow subsequent passes to
-   eliminate dead code. *)
-let update_caml_flambda_invalid (fd : Mach.fundecl) =
-  let rec fixup (i : Mach.instruction) : Mach.instruction =
-    match i.desc with
-    | Iop (Iextcall ({ func; _ } as ext)) ->
-      if String.equal func Cmm.caml_flambda2_invalid
-      then
-        let desc = Mach.Iop (Iextcall { ext with returns = false }) in
-        { i with desc; next = Mach.end_instr () }
-      else { i with next = fixup i.next }
-    | Iop
-        ( Imove | Ispill | Ireload | Iconst_int _ | Iconst_float32 _
-        | Iconst_float _ | Iconst_symbol _ | Iconst_vec128 _ | Icall_ind
-        | Icall_imm _ | Istackoffset _ | Iload _ | Istore _ | Ialloc _
-        | Iintop _ | Iintop_imm _ | Iintop_atomic _ | Ifloatop _ | Icsel _
-        | Ireinterpret_cast _ | Istatic_cast _ | Ispecific _
-        | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
-        | Ibeginregion | Iendregion | Ipoll _ | Idls_get ) ->
-      { i with next = fixup i.next }
-    | Iend | Ireturn _
-    | Iop Itailcall_ind
-    | Iop (Itailcall_imm _)
-    | Iraise _ | Iexit _ ->
-      i
-    | Iifthenelse (tst, ifso, ifnot) ->
-      let next = fixup i.next in
-      { i with desc = Iifthenelse (tst, fixup ifso, fixup ifnot); next }
-    | Iswitch (index, cases) ->
-      let next = fixup i.next in
-      { i with desc = Iswitch (index, Array.map fixup cases); next }
-    | Icatch (rec_flag, ts, handlers, body) ->
-      let next = fixup i.next in
-      let handlers =
-        List.map
-          (fun (n, ts, handler, is_cold) -> n, ts, fixup handler, is_cold)
-          handlers
-      in
-      { i with desc = Icatch (rec_flag, ts, handlers, fixup body); next }
-    | Itrywith (body, kind, (ts, handler)) ->
-      let next = fixup i.next in
-      { i with desc = Itrywith (fixup body, kind, (ts, fixup handler)); next }
-  in
-  (* This condition matches the one in [Selectgen] to avoid copying [fd]
-     unnecessarily. *)
-  let enabled =
-    Annotation.is_check_enabled
-      (Annotation.find fd.fun_codegen_options fd.fun_name fd.fun_dbg)
-  in
-  if enabled then { fd with fun_body = fixup fd.Mach.fun_body } else fd
-
 let update_caml_flambda_invalid_cfg cfg_with_layout =
   let cfg = Cfg_with_layout.cfg cfg_with_layout in
   (* This condition matches the one in [Selectgen] to avoid copying [fd]
@@ -2793,8 +2636,9 @@ let update_caml_flambda_invalid_cfg cfg_with_layout =
     Annotation.is_check_enabled
       (Annotation.of_cfg cfg.fun_codegen_options cfg.fun_name cfg.fun_dbg)
   in
-  if enabled
-  then (
+  if not enabled
+  then cfg_with_layout
+  else
     let modified = ref false in
     Cfg.iter_blocks cfg ~f:(fun label block ->
         match block.terminator.desc with
@@ -2819,27 +2663,17 @@ let update_caml_flambda_invalid_cfg cfg_with_layout =
         | Prim { op = Probe _; _ }
         | Never | Always _ | Parity_test _ | Truth_test _ | Float_test _
         | Int_test _ | Switch _ | Return | Raise _ | Tailcall_self _
-        | Tailcall_func _ | Call_no_return _ | Call _ | Specific_can_raise _ ->
+        | Tailcall_func _ | Call_no_return _ | Call _ ->
           ());
-    if !modified
-    then
-      Profile.record ~accumulate:true "cleanup"
-        (fun () ->
-          Eliminate_fallthrough_blocks.run cfg_with_layout;
-          Merge_straightline_blocks.run cfg_with_layout;
-          Simplify_terminator.run cfg;
-          Eliminate_dead_code.run_dead_block cfg_with_layout)
-        ())
-
-let fundecl ppf_dump ~future_funcnames fd =
-  Analysis.fundecl fd ~future_funcnames unit_info unresolved_deps ppf_dump;
-  update_caml_flambda_invalid fd
+    if not !modified
+    then cfg_with_layout
+    else
+      Profile.record ~accumulate:true "cleanup" Cfg_simplify.run cfg_with_layout
 
 let cfg ppf_dump ~future_funcnames cl =
   let cfg = Cfg_with_layout.cfg cl in
   Analysis.cfg cfg ~future_funcnames unit_info unresolved_deps ppf_dump;
-  update_caml_flambda_invalid_cfg cl;
-  cl
+  update_caml_flambda_invalid_cfg cl
 
 let reset_unit_info () =
   Unit_info.reset unit_info;

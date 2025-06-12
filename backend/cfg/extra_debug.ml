@@ -23,8 +23,9 @@
  * SOFTWARE.                                                                      *
  *                                                                                *
  **********************************************************************************)
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 module CL = Cfg_with_layout
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
@@ -51,7 +52,8 @@ let add cl =
       then prev
       else i.dbg
     in
-    i.fdo <- Fdo_info.create ~discriminator:i.id ~dbg;
+    i.fdo
+      <- Fdo_info.create ~discriminator:(InstructionId.to_int_unsafe i.id) ~dbg;
     dbg
   in
   let cfg = CL.cfg cl in

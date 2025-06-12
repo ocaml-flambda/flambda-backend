@@ -777,8 +777,9 @@ void caml_memprof_track_custom(value block, mlsize_t bytes)
   CAMLassert(Is_young(block) || Is_in_heap(block));
   if (lambda == 0 || local->suspended) return;
 
-  maybe_track_block(block, rand_binom(Wsize_bsize(bytes)),
-                    Wsize_bsize(bytes), SRC_CUSTOM);
+  uintnat wsize = Wsize_bsize(bytes + sizeof(value) - 1);
+  maybe_track_block(block, rand_binom(wsize),
+                    wsize, SRC_CUSTOM);
 }
 
 /* Shifts the next sample in the minor heap by [n] words. Essentially,

@@ -65,6 +65,9 @@ struct caml_exception_context {
   struct longjmp_buffer* jmp;
   struct caml__roots_block* local_roots;
   volatile value* exn_bucket;
+  // We use the stack ID rather than a pointer to the stack structure since
+  // the latter can change upon stack reallocation.
+  int64_t stack_id;
 };
 
 /* Global variables moved to Caml_state in 4.10 */

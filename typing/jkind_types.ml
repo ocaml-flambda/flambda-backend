@@ -115,6 +115,44 @@ module Sort = struct
         in
         pp_element ~nested:false ppf c
     end
+
+    let for_function = value
+
+    let for_predef_value = value
+
+    let for_block_element = value
+
+    let for_probe_body = value
+
+    let for_poly_variant = value
+
+    let for_boxed_record = value
+
+    let for_object = value
+
+    let for_lazy_body = value
+
+    let for_tuple_element = value
+
+    let for_variant_arg = value
+
+    let for_instance_var = value
+
+    let for_class_arg = value
+
+    let for_method = value
+
+    let for_initializer = value
+
+    let for_module = value
+
+    let for_tuple = value
+
+    let for_array_get_result = value
+
+    let for_array_comprehension_element = value
+
+    let for_list_element = value
   end
 
   module Var = struct
@@ -327,6 +365,9 @@ module Sort = struct
         (* path compression *)
         result)
 
+  (* CR layouts v12: Default to void instead. *)
+  let default_for_transl_and_get s = default_to_value_and_get s
+
   (***********************)
   (* equality *)
 
@@ -447,6 +488,10 @@ module Sort = struct
       false
     | Product _ -> false
 
+  let decompose_into_product t n =
+    let ts = List.init n (fun _ -> new_var ()) in
+    if equate t (Product ts) then Some ts else None
+
   (*** pretty printing ***)
 
   let format ppf t =
@@ -461,44 +506,6 @@ module Sort = struct
     pp_element ~nested:false ppf t
 
   include Static.T
-
-  let for_function = value
-
-  let for_predef_value = value
-
-  let for_block_element = value
-
-  let for_probe_body = value
-
-  let for_poly_variant = value
-
-  let for_record = value
-
-  let for_object = value
-
-  let for_lazy_body = value
-
-  let for_tuple_element = value
-
-  let for_variant_arg = value
-
-  let for_instance_var = value
-
-  let for_class_arg = value
-
-  let for_method = value
-
-  let for_initializer = value
-
-  let for_module = value
-
-  let for_tuple = value
-
-  let for_array_get_result = value
-
-  let for_array_comprehension_element = value
-
-  let for_list_element = value
 end
 
 module Layout = struct
@@ -513,111 +520,4 @@ module Layout = struct
       | Base of Sort.base
       | Product of t list
   end
-end
-
-module Modes = Jkind_axis.Of_lattice (Mode.Alloc.Const)
-
-module Layout_and_axes = struct
-  open Jkind_axis
-
-  type ('layout, +'d) t =
-    { layout : 'layout;
-      modes_upper_bounds : Mode.Alloc.Const.t;
-      externality_upper_bound : Externality.t;
-      nullability_upper_bound : Nullability.t
-    }
-    constraint 'd = 'l * 'r
-
-  let map f t = { t with layout = f t.layout }
-
-  let map_option f t =
-    match f t.layout with None -> None | Some layout -> Some { t with layout }
-
-  let equal eq_layout
-      { layout = lay1;
-        modes_upper_bounds = modes1;
-        externality_upper_bound = ext1;
-        nullability_upper_bound = null1
-      }
-      { layout = lay2;
-        modes_upper_bounds = modes2;
-        externality_upper_bound = ext2;
-        nullability_upper_bound = null2
-      } =
-    eq_layout lay1 lay2 && Modes.equal modes1 modes2
-    && Externality.equal ext1 ext2
-    && Nullability.equal null1 null2
-
-  let equal_after_all_inference_is_done x y z = equal x y z
-
-  (* Once we have more interesting mode stuff, this won't be trivial. *)
-  let try_allow_l ({ layout = _; _ } as t) = Some t
-
-  (* Once we have more interesting mode stuff, this won't be trivial. *)
-  let try_allow_r ({ layout = _; _ } as t) = Some t
-
-  let sub sub_layout
-      { layout = lay1;
-        modes_upper_bounds = modes1;
-        externality_upper_bound = ext1;
-        nullability_upper_bound = null1
-      }
-      { layout = lay2;
-        modes_upper_bounds = modes2;
-        externality_upper_bound = ext2;
-        nullability_upper_bound = null2
-      } =
-    Misc.Le_result.combine_list
-      [ sub_layout lay1 lay2;
-        Modes.less_or_equal modes1 modes2;
-        Externality.less_or_equal ext1 ext2;
-        Nullability.less_or_equal null1 null2 ]
-    [@@inline]
-
-  let format format_layout ppf
-      { layout;
-        modes_upper_bounds;
-        externality_upper_bound;
-        nullability_upper_bound
-      } =
-    Format.fprintf ppf
-      "{ layout = %a;@ modes_upper_bounds = %a;@ externality_upper_bound = \
-       %a;@ nullability_upper_bound = %a }"
-      format_layout layout Mode.Alloc.Const.print modes_upper_bounds
-      Externality.print externality_upper_bound Nullability.print
-      nullability_upper_bound
-end
-
-module Jkind_desc = struct
-  type ('type_expr, 'd) t = (Sort.t Layout.t, 'd) Layout_and_axes.t
-
-  type 'type_expr packed = Pack : ('type_expr, 'd) t -> 'type_expr packed
-  [@@unboxed]
-end
-
-(* A history of conditions placed on a jkind.
-
-   INVARIANT: at most one sort variable appears in this history.
-   This is a natural consequence of producing this history by comparing
-   jkinds.
-*)
-type 'type_expr history =
-  | Interact of
-      { reason : Jkind_intf.History.interact_reason;
-        jkind1 : 'type_expr Jkind_desc.packed;
-        history1 : 'type_expr history;
-        jkind2 : 'type_expr Jkind_desc.packed;
-        history2 : 'type_expr history
-      }
-  | Creation of Jkind_intf.History.creation_reason
-
-type ('type_expr, 'd) t =
-  { jkind : ('type_expr, 'd) Jkind_desc.t;
-    annotation : Parsetree.jkind_annotation option;
-    history : 'type_expr history;
-    has_warned : bool
-  }
-
-module Const = struct
-  type ('type_expr, +'d) t = (Layout.Const.t, 'd) Layout_and_axes.t
 end

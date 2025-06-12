@@ -1,0 +1,93 @@
+[
+  structure_item (parsing_ambiguous_product.ml[12,327+0]..[12,327+49])
+    Pstr_type Rec
+    [
+      type_declaration "t1" (parsing_ambiguous_product.ml[12,327+5]..[12,327+7]) (parsing_ambiguous_product.ml[12,327+0]..[12,327+49])
+        ptype_params =
+          []
+        ptype_cstrs =
+          []
+        ptype_kind =
+          Ptype_abstract
+        ptype_private = Public
+        ptype_manifest =
+          None
+        ptype_jkind_annotation =
+          Some
+            jkind (parsing_ambiguous_product.ml[12,327+10]..[12,327+49])
+            Product
+            [
+              jkind (parsing_ambiguous_product.ml[12,327+10]..[12,327+28])
+              Mod
+                jkind (parsing_ambiguous_product.ml[12,327+11]..[12,327+16])
+                Abbreviation "value"
+                mode "global" (parsing_ambiguous_product.ml[12,327+21]..[12,327+27])
+              jkind (parsing_ambiguous_product.ml[12,327+31]..[12,327+49])
+              Mod
+                jkind (parsing_ambiguous_product.ml[12,327+32]..[12,327+37])
+                Abbreviation "value"
+                mode "global" (parsing_ambiguous_product.ml[12,327+42]..[12,327+48])
+            ]
+    ]
+  structure_item (parsing_ambiguous_product.ml[14,380+0]..[14,380+45])
+    Pstr_type Rec
+    [
+      type_declaration "t2" (parsing_ambiguous_product.ml[14,380+5]..[14,380+7]) (parsing_ambiguous_product.ml[14,380+0]..[14,380+45])
+        ptype_params =
+          []
+        ptype_cstrs =
+          []
+        ptype_kind =
+          Ptype_abstract
+        ptype_private = Public
+        ptype_manifest =
+          None
+        ptype_jkind_annotation =
+          Some
+            jkind (parsing_ambiguous_product.ml[14,380+10]..[14,380+45])
+            Mod
+              jkind (parsing_ambiguous_product.ml[14,380+10]..[14,380+34])
+              Product
+              [
+                jkind (parsing_ambiguous_product.ml[14,380+10]..[14,380+26])
+                Mod
+                  jkind (parsing_ambiguous_product.ml[14,380+10]..[14,380+15])
+                  Abbreviation "value"
+                  mode "global" (parsing_ambiguous_product.ml[14,380+20]..[14,380+26])
+                jkind (parsing_ambiguous_product.ml[14,380+29]..[14,380+34])
+                Abbreviation "value"
+              ]
+              mode "global" (parsing_ambiguous_product.ml[14,380+39]..[14,380+45])
+    ]
+  structure_item (parsing_ambiguous_product.ml[16,429+0]..[16,429+47])
+    Pstr_type Rec
+    [
+      type_declaration "t3" (parsing_ambiguous_product.ml[16,429+5]..[16,429+7]) (parsing_ambiguous_product.ml[16,429+0]..[16,429+47])
+        ptype_params =
+          []
+        ptype_cstrs =
+          []
+        ptype_kind =
+          Ptype_abstract
+        ptype_private = Public
+        ptype_manifest =
+          None
+        ptype_jkind_annotation =
+          Some
+            jkind (parsing_ambiguous_product.ml[16,429+10]..[16,429+47])
+            Mod
+              jkind (parsing_ambiguous_product.ml[16,429+10]..[16,429+36])
+              Product
+              [
+                jkind (parsing_ambiguous_product.ml[16,429+11]..[16,429+27])
+                Mod
+                  jkind (parsing_ambiguous_product.ml[16,429+11]..[16,429+16])
+                  Abbreviation "value"
+                  mode "global" (parsing_ambiguous_product.ml[16,429+21]..[16,429+27])
+                jkind (parsing_ambiguous_product.ml[16,429+30]..[16,429+35])
+                Abbreviation "value"
+              ]
+              mode "global" (parsing_ambiguous_product.ml[16,429+41]..[16,429+47])
+    ]
+]
+

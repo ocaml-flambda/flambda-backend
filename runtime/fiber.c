@@ -20,6 +20,7 @@
 
 #include "caml/config.h"
 #include <string.h>
+#include <stdio.h>
 #ifdef HAS_UNISTD
 #include <unistd.h>
 #endif
@@ -44,6 +45,11 @@
 #if defined(USE_MMAP_MAP_STACK) || !defined(STACK_CHECKS_ENABLED)
 #include <sys/mman.h>
 #endif
+#ifdef __linux__
+/* for gettid */
+#include <sys/types.h>
+#include <sys/syscall.h>
+#endif
 
 #ifdef DEBUG
 #define fiber_debug_log(...) caml_gc_log(__VA_ARGS__)
@@ -55,24 +61,51 @@ static_assert(sizeof(struct stack_info) == Stack_ctx_words * sizeof(value), "");
 
 static _Atomic int64_t fiber_id = 0;
 
-uintnat caml_get_init_stack_wsize (int thread_stack_wsz)
-{
-#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
-  uintnat init_stack_wsize =
-    thread_stack_wsz < 0
-    ? caml_params->init_main_stack_wsz
-    : caml_params->init_thread_stack_wsz > 0
-    ? caml_params->init_thread_stack_wsz : thread_stack_wsz;
-#else
-  (void) thread_stack_wsz;
-  uintnat init_stack_wsize = Wsize_bsize(Stack_init_bsize);
-#endif
-  uintnat stack_wsize;
+/* Parameters settable with OCAMLRUNPARAM */
+uintnat caml_init_main_stack_wsz = 0;   /* -Xmain_stack_size= */
+uintnat caml_init_thread_stack_wsz = 0; /* -Xthread_stack_size= */
+uintnat caml_init_fiber_stack_wsz = 0;  /* -Xfiber_stack_size= */
 
+uintnat caml_nohugepage_stacks = 1;
+
+uintnat caml_get_init_stack_wsize (int context)
+{
+  uintnat init_stack_wsize = 0;
+
+#ifdef STACK_GUARD_PAGES
+  switch(context) {
+  case STACK_SIZE_MAIN:   init_stack_wsize = caml_init_main_stack_wsz; break;
+  case STACK_SIZE_THREAD: init_stack_wsize = caml_init_thread_stack_wsz; break;
+  case STACK_SIZE_FIBER:  init_stack_wsize = caml_init_fiber_stack_wsz; break;
+  default: caml_fatal_error("caml_get_init_stack_wsize: invalid context");
+  }
+#else
+  switch(context) {
+  case STACK_SIZE_MAIN:
+  case STACK_SIZE_THREAD: init_stack_wsize = Wsize_bsize(Stack_init_bsize); break;
+  case STACK_SIZE_FIBER:  init_stack_wsize = Wsize_bsize(Stack_threshold * 2); break;
+  default: caml_fatal_error("caml_get_init_stack_wsize: invalid context");
+  }
+#endif
+
+  uintnat stack_wsize = 0;
   if (init_stack_wsize < caml_max_stack_wsize)
     stack_wsize = init_stack_wsize;
   else
     stack_wsize = caml_max_stack_wsize;
+
+  /* If we are requesting a large stack (more than a hugepage), then
+     we'd like the total allocation size to be a multiple of the huge
+     page size. However, the stack guard pages, headers, etc. have
+     some overhead, so we want the requested stack size to be a bit
+     less than a multiple of the hugepage size */
+  if (caml_plat_hugepagesize > 0
+      && stack_wsize > Wsize_bsize(caml_plat_hugepagesize)) {
+    /* round down to multiple of hugepage size */
+    stack_wsize &= ~(Wsize_bsize(caml_plat_hugepagesize) - 1);
+    /* 3 pages is enough to cover the overhead */
+    stack_wsize -= 3 * Wsize_bsize(caml_plat_pagesize);
+  }
 
   return stack_wsize;
 }
@@ -85,9 +118,10 @@ void caml_change_max_stack_size (uintnat new_max_wsize)
 
   if (new_max_wsize < wsize) new_max_wsize = wsize;
   if (new_max_wsize != caml_max_stack_wsize){
-    caml_gc_log ("Changing stack limit to %"
-                 ARCH_INTNAT_PRINTF_FORMAT "uk bytes",
-                     new_max_wsize * sizeof (value) / 1024);
+    CAML_GC_MESSAGE(STACKS,
+                    "Changing stack limit to %"
+                    ARCH_INTNAT_PRINTF_FORMAT "uk bytes\n",
+                    Bsize_wsize(new_max_wsize) / 1024);
   }
   caml_max_stack_wsize = new_max_wsize;
 }
@@ -110,17 +144,28 @@ struct stack_info** caml_alloc_stack_cache (void)
   return stack_cache;
 }
 
-#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
-// See [alloc_for_stack], below.
-static const size_t stack_extra_size_for_mmap = 2 * 1024 * 1024;
-#endif
-
-Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
+/* Round up to a power of 2 */
+static uintnat round_up_p2(uintnat x, uintnat p2)
 {
+  CAMLassert (Is_power_of_2(p2));
+  return (x + p2 - 1) & ~(p2 - 1);
+}
+
+/* Allocate a stack with at least the specified number of words.
+   The [handler] field of the result is initialised (so Stack_high(...)) is
+   well-defined), but other fields are uninitialised */
+Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize, int64_t id)
+{
+  /* Ensure 16-byte alignment of the [struct stack_handler*]. */
+  const int stack_alignment = 16;
+
+  /* Ensure we have room to offset Stack_high. */
+  wosize += Stack_padding_word;
+
 #ifdef USE_MMAP_MAP_STACK
   size_t len = sizeof(struct stack_info) +
                sizeof(value) * wosize +
-               8 /* for alignment to 16-bytes, needed for arm64 */ +
+               8 + /* For 16-byte aligning handler */
                sizeof(struct stack_handler);
   struct stack_info* si;
   si = mmap(NULL, len, PROT_WRITE | PROT_READ,
@@ -129,9 +174,14 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
     return NULL;
 
   si->size = len;
+
+  si->handler =
+    (struct stack_handler*)
+    round_up_p2((uintnat)si + sizeof(struct stack_info)
+      + sizeof(value) * wosize, stack_alignment);
+
   return si;
-#else
-#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+#elif defined(STACK_GUARD_PAGES)
   /* (We use the following strategy only in native code, because bytecode
    * has its own way of dealing with stack checks.)
    *
@@ -142,76 +192,88 @@ Caml_inline struct stack_info* alloc_for_stack (mlsize_t wosize)
    * the invalid address is in the range we protect, and will raise a stack
    * overflow exception accordingly.
    */
-  size_t bsize = Bsize_wsize(wosize);
+  size_t page_size = caml_plat_pagesize;
+  size_t len = Bsize_wsize(wosize);
+  uintnat trailer_size = round_up_p2(sizeof(struct stack_handler),
+    stack_alignment);
+  len += trailer_size;
 
-  // If we were using this for arm64, another 8 bytes is needed below
-  // (at a lower address than) the struct stack_handler, to obtain the
-  // correct alignment.
-  bsize += sizeof(struct stack_handler) + 8;
-
-  int page_size = getpagesize();
-  int num_pages = (bsize + page_size - 1) / page_size;
-
+  // We need two more pages for stack_info and guard
   CAMLassert(sizeof(struct stack_info) <= page_size);
-  // We need one extra page for the guard, and another for the [stack_info].
-  size_t len = (num_pages + 2) * page_size;
-
-  // We add 2Mb to the total size we are going to mmap to ensure that, no
-  // matter what the alignment of the mmapped region is with respect to a
-  // 2Mb huge page boundary, the guard page will never be coalesced by the
-  // transparent huge pages infrastructure into the same 2Mb huge page as the
-  // next (normal) page below the guard.  This should ensure that the
-  // mprotect of the guard page (which splits huge pages or renders them
-  // ineligible for later coalescing) does not disturb existing huge page
-  // assignments.
-  // We could take the size of the [struct stack_info] away from [extra_size]
-  // (see diagram below), but this seems like unnecessary complexity.
+  len += 2 * page_size;
+  len = caml_mem_round_up_mapping_size(len);
 
   // Stack layout (higher addresses are at the top):
   //
   // --------------------
   // struct stack_handler
-  // 8 bytes on arm64
-  // --------------------
+  // -------------------- <- [stack->handler], 16-aligned
+  // pad word (amd64-no-fp)
+  // -------------------- <- Stack_high
   // the stack itself
   // -------------------- <- page-aligned
   // guard page
   // -------------------- <- page-aligned
   // padding to one page
   // struct stack_info
-  // -------------------- <- [block], page-aligned
-  // 2Mb (= extra_size)
-  // -------------------- <- [stack], returned from [mmap], page-aligned
-  char* stack;
-  stack = caml_mem_map(len + stack_extra_size_for_mmap, 0);
-  if (stack == MAP_FAILED) {
+  // -------------------- <- [stack], page/hugepage-aligned (by caml_mem_map)
+  struct stack_info* stack;
+  /* These mappings should never use HugeTLB pages, due to the guard page */
+  stack = caml_mem_map(len, CAML_MAP_NO_HUGETLB, NULL);
+  if (stack == NULL) {
     return NULL;
   }
+#ifdef __linux__
+  /* On Linux, (optionally) disable *any* hugepage usage for stacks.
+     (Huge pages are not as beneficial for stacks, because you use the same few
+     kb over and over again, but can have a significant RAM cost) */
+  if (caml_nohugepage_stacks) madvise(stack, len, MADV_NOHUGEPAGE);
+#endif
   // mmap is always expected to return a page-aligned value.
   CAMLassert((uintnat)stack % page_size == 0);
 
-  struct stack_info* block =
-    (struct stack_info*) (stack + stack_extra_size_for_mmap);
-
-  if (mprotect(Protected_stack_page(block, page_size), page_size, PROT_NONE)) {
-    caml_mem_unmap(stack, len + stack_extra_size_for_mmap);
+  if (mprotect(Protected_stack_page(stack), page_size, PROT_NONE)) {
+    caml_mem_unmap(stack, len);
     return NULL;
   }
 
-  // Assert that the guard page does not impinge on the actual stack area.
-  CAMLassert((char*) block + len - (sizeof(struct stack_handler) + 8 + bsize)
-    >= Protected_stack_page(block, page_size) + page_size);
+#ifdef __linux__
+  /* On Linux, give names to the various mappings */
+  caml_mem_name_map(stack, page_size,
+                    "stack info (original fiber id %ld, tid %ld)",
+                    id, (long)syscall(SYS_gettid));
 
-  block->size = len;
-  return block;
+  caml_mem_name_map(Protected_stack_page(stack), page_size,
+                    "guard page for stack (original fiber id %ld, tid %ld)",
+                    id, (long)syscall(SYS_gettid));
+
+  caml_mem_name_map(Stack_base(stack), len - 2*page_size,
+                    "stack (original fiber id %ld, tid %ld)",
+                    id, (long)syscall(SYS_gettid));
+#endif
+
+  // Assert that the guard page does not impinge on the actual stack area.
+  CAMLassert((char*) stack + len - (trailer_size + Bsize_wsize(wosize))
+    >= Protected_stack_page(stack) + page_size);
+
+  stack->size = len;
+  stack->handler = (struct stack_handler*)((char*)stack + len - trailer_size);
+  CAMLassert(((uintnat) stack->handler) % stack_alignment == 0);
+
+  return stack;
 #else
-  size_t len = sizeof(struct stack_info) +
+  size_t len = sizeof(struct stack_info)+
                sizeof(value) * wosize +
-               8 /* for alignment to 16-bytes, needed for arm64 */ +
+               8 + /* For 16-byte aligning handler */
                sizeof(struct stack_handler);
-  return caml_stat_alloc_noexc(len);
-#endif /* NATIVE_CODE */
-#endif /* USE_MMAP_MAP_STACK */
+  struct stack_info* stack = caml_stat_alloc_noexc(len);
+  if (stack == NULL) return NULL;
+  stack->handler =
+    (struct stack_handler*)
+    round_up_p2((uintnat)stack + sizeof(struct stack_info) +
+      sizeof(value) * wosize, stack_alignment);
+  return stack;
+#endif /* USE_MMAP_MAP_STACK, STACK_GUARD_PAGES */
 }
 
 /* Returns the index into the [Caml_state->stack_cache] array if this size is
@@ -238,7 +300,6 @@ alloc_size_class_stack_noexc(mlsize_t wosize, int cache_bucket, value hval,
                              value hexn, value heff, int64_t id)
 {
   struct stack_info* stack;
-  struct stack_handler* hand;
   struct stack_info **cache = Caml_state->stack_cache;
 
   static_assert(sizeof(struct stack_info) % sizeof(value) == 0, "");
@@ -252,30 +313,28 @@ alloc_size_class_stack_noexc(mlsize_t wosize, int cache_bucket, value hval,
     cache[cache_bucket] =
       (struct stack_info*)stack->exception_ptr;
     CAMLassert(stack->cache_bucket == stack_cache_bucket(wosize));
-    hand = stack->handler;
   } else {
     /* couldn't get a cached stack, so have to create one */
-    stack = alloc_for_stack(wosize);
+    stack = alloc_for_stack(wosize, id);
     if (stack == NULL) {
       return NULL;
     }
 
     stack->cache_bucket = cache_bucket;
-
-    /* Ensure 16-byte alignment because some architectures require it */
-    hand = (struct stack_handler*)
-     (((uintnat)stack + sizeof(struct stack_info) + sizeof(value) * wosize + 15)
-      & ~((uintnat)15));
-    stack->handler = hand;
   }
 
+  struct stack_handler* hand = stack->handler;
   hand->handle_value = hval;
   hand->handle_exn = hexn;
   hand->handle_effect = heff;
   hand->parent = NULL;
-  stack->sp = (value*)hand;
+  stack->sp = Stack_high(stack);
   stack->exception_ptr = NULL;
   stack->id = id;
+  stack->local_arenas = NULL;
+  stack->local_sp = 0;
+  stack->local_top = NULL;
+  stack->local_limit = 0;
 #ifdef DEBUG
   stack->magic = 42;
 #endif
@@ -394,7 +453,7 @@ static int visit(scanning_action f, void* fdata,
 }
 
 static void scan_local_allocations(scanning_action f, void* fdata,
-                                   caml_local_arenas* loc)
+                                   caml_local_arenas* loc, uintnat local_sp)
 {
   int arena_ix;
   intnat sp;
@@ -404,7 +463,7 @@ static void scan_local_allocations(scanning_action f, void* fdata,
 
   if (loc == NULL) return;
   CAMLassert(loc->count > 0);
-  sp = loc->saved_sp;
+  sp = local_sp;
   arena_ix = loc->count - 1;
   arena = loc->arenas[arena_ix];
 #ifdef DEBUG
@@ -552,15 +611,18 @@ next_chunk:
 
 void caml_scan_stack(
   scanning_action f, scanning_action_flags fflags, void* fdata,
-  struct stack_info* stack, value* gc_regs,
-  struct caml_local_arenas* locals)
+  struct stack_info* stack, value* gc_regs)
 {
   while (stack != NULL) {
+    caml_local_arenas* locals = caml_refresh_locals(stack);
+
     scan_stack_frames(f, fflags, fdata, stack, gc_regs, locals);
 
     f(fdata, Stack_handle_value(stack), &Stack_handle_value(stack));
     f(fdata, Stack_handle_exception(stack), &Stack_handle_exception(stack));
     f(fdata, Stack_handle_effect(stack), &Stack_handle_effect(stack));
+
+    scan_local_allocations(f, fdata, locals, stack->local_sp);
 
     stack = Stack_parent(stack);
   }
@@ -573,12 +635,14 @@ void caml_maybe_expand_stack (void)
     (value*)stk->sp - Stack_base(stk);
   uintnat stack_needed =
     Stack_threshold / sizeof(value)
-    + 10 /* for words pushed by caml_start_program */;
-  /* XXX does this "8" need updating?  Provisionally changed to 10 */
+    /* for words pushed by caml_start_program */
+    + 8 + Stack_padding_word;
 
-  if (stack_available < stack_needed)
-    if (!caml_try_realloc_stack (stack_needed))
+  if (stack_available < stack_needed) {
+    if (!caml_try_realloc_stack (stack_needed)) {
       caml_raise_stack_overflow();
+    }
+  }
 
   if (Caml_state->gc_regs_buckets == NULL) {
     /* Ensure there is at least one gc_regs bucket available before
@@ -640,8 +704,7 @@ CAMLprim value caml_ensure_stack_capacity(value required_space)
 
 void caml_scan_stack(
   scanning_action f, scanning_action_flags fflags, void* fdata,
-  struct stack_info* stack, value* v_gc_regs,
-  struct caml_local_arenas* unused)
+  struct stack_info* stack, value* v_gc_regs)
 {
   value *low, *high, *sp;
 
@@ -674,12 +737,14 @@ CAMLexport void caml_do_local_roots (
   scanning_action f, scanning_action_flags fflags, void* fdata,
   struct caml__roots_block *local_roots,
   struct stack_info *current_stack,
-  value * v_gc_regs,
-  struct caml_local_arenas* locals)
+  value * v_gc_regs)
 {
   struct caml__roots_block *lr;
   int i, j;
   value* sp;
+#ifdef NATIVE_CODE
+  caml_local_arenas* locals = caml_refresh_locals(current_stack);
+#endif
 
   for (lr = local_roots; lr != NULL; lr = lr->next) {
     for (i = 0; i < lr->ntables; i++){
@@ -695,11 +760,9 @@ CAMLexport void caml_do_local_roots (
       }
     }
   }
-  caml_scan_stack(f, fflags, fdata, current_stack, v_gc_regs, locals);
-#ifdef NATIVE_CODE
-  scan_local_allocations(f, fdata, locals);
-#else
-  CAMLassert(locals == NULL);
+  caml_scan_stack(f, fflags, fdata, current_stack, v_gc_regs);
+#ifndef NATIVE_CODE
+  CAMLassert(current_stack->local_arenas == NULL);
 #endif
 }
 
@@ -749,70 +812,13 @@ void caml_rewrite_exception_stack(struct stack_info *old_stack,
     CAMLassert(async_exn_ptr == NULL);
   }
 }
-
-#ifdef WITH_FRAME_POINTERS
-#if defined(STACK_CHECKS_ENABLED)
-/* Update absolute base pointers for new stack */
-static void rewrite_frame_pointers(struct stack_info *old_stack,
-    struct stack_info *new_stack)
-{
-  struct frame_walker {
-    struct frame_walker *base_addr;
-    uintnat return_addr;
-  } *frame, *next;
-  ptrdiff_t delta;
-  void *top, **p;
-
-  delta = (char*)Stack_high(new_stack) - (char*)Stack_high(old_stack);
-
-  /* Walk the frame-pointers linked list */
-  for (frame = __builtin_frame_address(0); frame; frame = next) {
-
-    top = (char*)&frame->return_addr
-      + 1 * sizeof(value) /* return address */
-      + 2 * sizeof(value) /* trap frame */
-      + 2 * sizeof(value); /* DWARF pointer & gc_regs */
-
-    /* Detect top of the fiber and bail out */
-    /* It also avoid to dereference invalid base pointer at main */
-    if (top == Stack_high(old_stack))
-      break;
-
-    /* Save the base address since it may be adjusted */
-    next = frame->base_addr;
-
-    if (!(Stack_base(old_stack) <= (value*)frame->base_addr
-        && (value*)frame->base_addr < Stack_high(old_stack))) {
-      /* No need to adjust base pointers that don't point into the reallocated
-       * fiber */
-      continue;
-    }
-
-    if (Stack_base(old_stack) <= (value*)&frame->base_addr
-        && (value*)&frame->base_addr < Stack_high(old_stack)) {
-      /* The base pointer itself is located inside the reallocated fiber
-       * and needs to be adjusted on the new fiber */
-      p = (void**)((char*)Stack_high(new_stack) - (char*)Stack_high(old_stack)
-          + (char*)&frame->base_addr);
-      CAMLassert(*p == frame->base_addr);
-      *p += delta;
-    }
-    else {
-      /* Base pointers on other stacks are adjusted in place */
-      frame->base_addr = (struct frame_walker*)((char*)frame->base_addr
-          + delta);
-    }
-  }
-}
-#endif
-#endif
 #endif
 
 int caml_try_realloc_stack(asize_t required_space)
 {
-#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
+#if defined(USE_MMAP_MAP_STACK) || defined(STACK_GUARD_PAGES)
   (void) required_space;
-  abort();
+  return 0;
 #else
   struct stack_info *old_stack, *new_stack;
   asize_t wsize;
@@ -829,13 +835,15 @@ int caml_try_realloc_stack(asize_t required_space)
   } while (wsize < stack_used + required_space);
 
   if (wsize > 4096 / sizeof(value)) {
-    caml_gc_log ("Growing stack to %"
-                 ARCH_INTNAT_PRINTF_FORMAT "uk bytes",
-                 (uintnat) wsize * sizeof(value) / 1024);
+    CAML_GC_MESSAGE(STACKS,
+                    "Growing stack to %"
+                    ARCH_INTNAT_PRINTF_FORMAT "uk bytes\n",
+                    Bsize_wsize(wsize) / 1024);
   } else {
-    caml_gc_log ("Growing stack to %"
-                 ARCH_INTNAT_PRINTF_FORMAT "u bytes",
-                 (uintnat) wsize * sizeof(value));
+    CAML_GC_MESSAGE(STACKS,
+                    "Growing stack to %"
+                    ARCH_INTNAT_PRINTF_FORMAT "u bytes\n",
+                    Bsize_wsize(wsize) * sizeof(value));
   }
 
   new_stack = caml_alloc_stack_noexc(wsize,
@@ -850,6 +858,18 @@ int caml_try_realloc_stack(asize_t required_space)
          stack_used * sizeof(value));
   new_stack->sp = Stack_high(new_stack) - stack_used;
   Stack_parent(new_stack) = Stack_parent(old_stack);
+
+  new_stack->local_arenas = caml_refresh_locals(old_stack);
+  new_stack->local_sp = old_stack->local_sp;
+  new_stack->local_top = old_stack->local_top;
+  new_stack->local_limit = old_stack->local_limit;
+
+  // Detach locals stack from old_stack so it will not be freed
+  old_stack->local_arenas = NULL;
+  old_stack->local_sp = 0;
+  old_stack->local_top = NULL;
+  old_stack->local_limit = 0;
+
 #ifdef NATIVE_CODE
   /* There's no need to do another pass rewriting from
      Caml_state->async_exn_handler because every asynchronous exception trap
@@ -858,9 +878,6 @@ int caml_try_realloc_stack(asize_t required_space)
   caml_rewrite_exception_stack(old_stack, (value**)&Caml_state->exn_handler,
                                (value**) &Caml_state->async_exn_handler,
                                new_stack);
-#ifdef WITH_FRAME_POINTERS
-  rewrite_frame_pointers(old_stack, new_stack);
-#endif
 #endif
 
   /* Update stack pointers in Caml_state->c_stack. It is possible to have
@@ -870,9 +887,29 @@ int caml_try_realloc_stack(asize_t required_space)
     struct c_stack_link* link;
     for (link = Caml_state->c_stack; link; link = link->prev) {
       if (link->stack == old_stack) {
+        ptrdiff_t delta =
+          (char*)Stack_high(new_stack) - (char*)Stack_high(old_stack);
+#ifdef WITH_FRAME_POINTERS
+        struct stack_frame {
+          struct stack_frame* prev;
+          void* retaddr;
+        };
+
+        /* Frame pointer is pushed just below the c_stack_link.
+           This is somewhat tricky to guarantee when there are stack
+           arguments to C calls: see caml_c_call_copy_stack_args */
+        struct stack_frame* fp = ((struct stack_frame*)link) - 1;
+        CAMLassert(fp->prev == link->sp);
+
+        /* Rewrite OCaml frame pointers above this C frame */
+        while (Stack_base(old_stack) <= (value*)fp->prev &&
+               (value*)fp->prev < Stack_high(old_stack)) {
+          fp->prev = (struct stack_frame*)((char*)fp->prev + delta);
+          fp = fp->prev;
+        }
+#endif
         link->stack = new_stack;
-        link->sp = (void*)((char*)Stack_high(new_stack) -
-                           ((char*)Stack_high(old_stack) - (char*)link->sp));
+        link->sp = (char*)link->sp + delta;
       }
       if (link->async_exn_handler >= (char*) Stack_base(old_stack)
           && link->async_exn_handler < (char*) Stack_high(old_stack)) {
@@ -913,20 +950,14 @@ void caml_free_stack (struct stack_info* stack)
   CAMLassert(stack->magic == 42);
   CAMLassert(cache != NULL);
 
-#ifndef USE_MMAP_MAP_STACK
-#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
-  int page_size = getpagesize();
-  mprotect((void *) Protected_stack_page(stack, page_size),
-           page_size,
-           PROT_READ | PROT_WRITE);
-#endif
-#endif
+  // Don't need to update local_sp since this is no longer the current stack.
+  caml_free_local_arenas(stack->local_arenas);
 
   if (stack->cache_bucket != -1) {
     stack->exception_ptr =
       (void*)(cache[stack->cache_bucket]);
     cache[stack->cache_bucket] = stack;
-#ifdef DEBUG
+#if defined(DEBUG) && defined(STACK_CHECKS_ENABLED)
     memset(Stack_base(stack), 0x42,
            (Stack_high(stack)-Stack_base(stack))*sizeof(value));
 #endif
@@ -936,14 +967,10 @@ void caml_free_stack (struct stack_info* stack)
 #endif
 #ifdef USE_MMAP_MAP_STACK
     munmap(stack, stack->size);
-#else
-#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
-    // See [alloc_for_stack].
-    char* mmap_base = ((char *) stack) - stack_extra_size_for_mmap;
-    caml_mem_unmap(mmap_base, stack->size + stack_extra_size_for_mmap);
+#elif defined(STACK_GUARD_PAGES)
+    caml_mem_unmap(stack, stack->size);
 #else
     caml_stat_free(stack);
-#endif
 #endif
   }
 }

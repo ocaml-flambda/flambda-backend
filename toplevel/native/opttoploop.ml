@@ -119,7 +119,7 @@ let close_phrase lam =
              [Lprim (Pgetglobal glb, [], Loc_unknown)],
              Loc_unknown)
     in
-    Llet(Strict, Lambda.layout_module_field, id, glob, l)
+    Llet(Strict, Lambda.layout_module_field, id, Lambda.debug_uid_none, glob, l)
   ) (free_variables lam) lam
 
 let toplevel_value id =
@@ -393,14 +393,20 @@ let execute_phrase print_outcome ppf phr =
         Compilation_unit.create Compilation_unit.Prefix.empty
           (!phrase_name |> Compilation_unit.Name.of_string)
       in
-      Compilenv.reset compilation_unit;
+      let unit_info =
+        Unit_info.make_dummy ~input_name:!phrase_name compilation_unit
+      in
+      Compilenv.reset unit_info;
       Typecore.reset_delayed_checks ();
       let (str, sg, names, _shape, newenv) =
         Typemod.type_toplevel_phrase oldenv oldsig sstr
       in
       if !Clflags.dump_typedtree then Printtyped.implementation ppf str;
       let sg' = Typemod.Signature_names.simplify newenv names sg in
-      let coercion = Includemod.signatures oldenv ~mark:Mark_positive sg sg' in
+      let coercion =
+        Includemod.signatures oldenv ~mark:Mark_positive
+          ~modes:(Legacy None) sg sg'
+      in
       Typecore.force_delayed_checks ();
       let str, sg', rewritten =
         match str.str_items with

@@ -226,7 +226,7 @@ to be abbreviations or abstract in modules, as described in
 [abstract layouts](abstract.md).
 
 Beyond the layouts introduced here, the ["adding null"](null.md) companion
-proposal includes layouts `non_null_value` and `non_null_immediate`, and the
+proposal includes layouts `value_or_null` and `any_non_null`, and the
 "Mutation" section below describes a layout former `*w`.
 
 ## Layout inference

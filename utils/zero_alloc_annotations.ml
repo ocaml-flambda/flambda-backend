@@ -25,32 +25,71 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        *
  * DEALINGS IN THE SOFTWARE.                                                  *
  ******************************************************************************)
-type t = Check_default | Check_all | Check_opt_only | No_check
+module Check = struct
+  type t =
+    | Check_default
+    | Check_all
+    | Check_opt_only
+    | No_check
 
-let all = [ Check_default; Check_all; Check_opt_only; No_check ]
+  let all = [Check_default; Check_all; Check_opt_only; No_check]
 
-let to_string = function
-  | Check_default -> "default"
-  | Check_all -> "all"
-  | Check_opt_only -> "opt"
-  | No_check -> "none"
+  let to_string = function
+    | Check_default -> "default"
+    | Check_all -> "all"
+    | Check_opt_only -> "opt"
+    | No_check -> "none"
 
-let equal t1 t2 =
-  match t1, t2 with
-  | Check_default, Check_default -> true
-  | Check_all, Check_all -> true
-  | No_check, No_check -> true
-  | Check_opt_only, Check_opt_only -> true
-  | (Check_default | Check_all | Check_opt_only | No_check), _ -> false
+  let equal t1 t2 =
+    match t1, t2 with
+    | Check_default, Check_default -> true
+    | Check_all, Check_all -> true
+    | No_check, No_check -> true
+    | Check_opt_only, Check_opt_only -> true
+    | (Check_default | Check_all | Check_opt_only | No_check), _ -> false
 
-let of_string v =
-  let f t =
-    if String.equal (to_string t) v then Some t else None
-  in
-  List.find_map f all
+  let of_string v =
+    let f t = if String.equal (to_string t) v then Some t else None in
+    List.find_map f all
 
-let doc =
-  "\n\    The argument specifies which annotations to check: \n\
-    \      \"opt\" means attributes with \"opt\" payload and is intended for debugging;\n\
+  let doc =
+    "\n\
+    \    The argument specifies which annotations to check: \n\
+    \      \"opt\" means attributes with \"opt\" payload and is intended for \
+     debugging;\n\
     \      \"default\" means attributes without \"opt\" payload; \n\
-    \      \"all\" covers both \"opt\" and \"default\" and is intended for optimized builds."
+    \      \"all\" covers both \"opt\" and \"default\" and is intended for \
+     optimized builds."
+end
+
+module Assert = struct
+  type t =
+    | Assert_default
+    | Assert_all
+    | Assert_all_opt
+
+  let all = [Assert_default; Assert_all; Assert_all_opt]
+
+  let to_string = function
+    | Assert_default -> "default"
+    | Assert_all -> "all"
+    | Assert_all_opt -> "all_opt"
+
+  let equal t1 t2 =
+    match t1, t2 with
+    | Assert_default, Assert_default -> true
+    | Assert_all, Assert_all -> true
+    | Assert_all_opt, Assert_all_opt -> true
+    | (Assert_default | Assert_all | Assert_all_opt), _ -> false
+
+  let of_string v =
+    let f t = if String.equal (to_string t) v then Some t else None in
+    List.find_map f all
+
+  let doc =
+    "\n\
+    \    The argument specifies which annotations to use: \n\
+    \      \"all\" is equivalent to adding [@@@zero_alloc all]\n\
+    \      \"all_opt\" is equivalent to adding [@@@zero_alloc all_opt]\n\
+    \      \"default\" does not add any attributes."
+end

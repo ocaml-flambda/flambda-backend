@@ -202,6 +202,7 @@ and core_type_desc =
          *)
   | Ptyp_package of package_type  (** [(module S)]. *)
   | Ptyp_open of Longident.t loc * core_type (** [M.(T)] *)
+  | Ptyp_of_kind of jkind_annotation (** [(type : k)] *)
   | Ptyp_extension of extension  (** [[%id]]. *)
 
 and arg_label = Asttypes.arg_label =
@@ -290,13 +291,17 @@ and pattern_desc =
           - If Closed, [n >= 2]
           - If Open, [n >= 1]
         *)
-  | Ppat_construct of Longident.t loc * (string loc list * pattern) option
+  | Ppat_construct of
+      Longident.t loc
+      * ((string loc * jkind_annotation option) list * pattern) option
       (** [Ppat_construct(C, args)] represents:
             - [C]               when [args] is [None],
             - [C P]             when [args] is [Some ([], P)]
             - [C (P1, ..., Pn)] when [args] is
                                            [Some ([], Ppat_tuple [P1; ...; Pn])]
-            - [C (type a b) P]  when [args] is [Some ([a; b], P)]
+            - [C (type a b) P]  when [args] is [Some ([a, None; b, None], P)]
+            - [C (type (a : k) b) P]
+                                when [args] is [Some ([a, Some k; b, None], P)]
          *)
   | Ppat_variant of label * pattern option
       (** [Ppat_variant(`A, pat)] represents:
@@ -308,6 +313,15 @@ and pattern_desc =
             - [{ l1=P1; ...; ln=Pn }]
                  when [flag] is {{!Asttypes.closed_flag.Closed}[Closed]}
             - [{ l1=P1; ...; ln=Pn; _}]
+                 when [flag] is {{!Asttypes.closed_flag.Open}[Open]}
+
+           Invariant: [n > 0]
+         *)
+  | Ppat_record_unboxed_product of (Longident.t loc * pattern) list * closed_flag
+      (** [Ppat_record_unboxed_product([(l1, P1) ; ... ; (ln, Pn)], flag)] represents:
+            - [#{ l1=P1; ...; ln=Pn }]
+                 when [flag] is {{!Asttypes.closed_flag.Closed}[Closed]}
+            - [#{ l1=P1; ...; ln=Pn; _}]
                  when [flag] is {{!Asttypes.closed_flag.Open}[Open]}
 
            Invariant: [n > 0]
@@ -359,7 +373,7 @@ and expression_desc =
                when [flag] is {{!Asttypes.rec_flag.Recursive}[Recursive]}.
          *)
   | Pexp_function of
-      function_param list * function_constraint option * function_body
+      function_param list * function_constraint * function_body
   (** [Pexp_function ([P1; ...; Pn], C, body)] represents any construct
       involving [fun] or [function], including:
       - [fun P1 ... Pn -> E]
@@ -423,7 +437,15 @@ and expression_desc =
 
            Invariant: [n > 0]
          *)
+  | Pexp_record_unboxed_product of (Longident.t loc * expression) list * expression option
+      (** [Pexp_record_unboxed_product([(l1,P1) ; ... ; (ln,Pn)], exp0)] represents
+            - [#{ l1=P1; ...; ln=Pn }]         when [exp0] is [None]
+            - [#{ E0 with l1=P1; ...; ln=Pn }] when [exp0] is [Some E0]
+
+           Invariant: [n > 0]
+         *)
   | Pexp_field of expression * Longident.t loc  (** [E.l] *)
+  | Pexp_unboxed_field of expression * Longident.t loc  (** [E.#l] *)
   | Pexp_setfield of expression * Longident.t loc * expression
       (** [E1.l <- E2] *)
   | Pexp_array of mutable_flag * expression list
@@ -490,6 +512,8 @@ and expression_desc =
           - [BODY] is an expression.
           - [CLAUSES] is a series of [comprehension_clause].
     *)
+  | Pexp_overwrite of expression * expression (** overwrite_ exp with exp *)
+  | Pexp_hole (** _ *)
 
 and case =
     {
@@ -576,11 +600,23 @@ and type_constraint =
 
 and function_constraint =
   { mode_annotations : modes;
-    (** The mode annotation placed on a function let-binding when the function
-            has a type constraint on the body, e.g.
-            [let local_ f x : int -> int = ...].
+    (** The mode annotation placed on a function let-binding, e.g.
+       [let local_ f x : int -> int = ...].
+       The [local_] syntax is parsed into two nodes: the field here, and [pvb_modes].
+       This field only affects the interpretation of [ret_type_constraint], while the
+       latter is translated in [typecore] to [Pexp_constraint] to contrain the mode of the
+       function.
+       (* CR zqian: This field is not failthful representation of the user syntax, and
+       complicates [pprintast]. It should be removed and their functionality should be
+       moved to [pvb_modes]. *)
     *)
-    type_constraint : type_constraint;
+    ret_mode_annotations : modes;
+    (** The mode annotation placed on a function's body, e.g.
+       [let f x : int -> int @@ local = ...].
+       This field constrains the mode of function's body.
+    *)
+    ret_type_constraint : type_constraint option;
+    (** The type constraint placed on a function's body. *)
   }
 (** See the comment on {{!expression_desc.Pexp_function}[Pexp_function]}. *)
 
@@ -685,6 +721,7 @@ and type_kind =
   | Ptype_abstract
   | Ptype_variant of constructor_declaration list
   | Ptype_record of label_declaration list  (** Invariant: non-empty list *)
+  | Ptype_record_unboxed_product of label_declaration list  (** Invariant: non-empty list *)
   | Ptype_open
 
 and label_declaration =
@@ -1264,8 +1301,10 @@ and module_binding =
 and jkind_annotation_desc =
   | Default
   | Abbreviation of string
+  (* CR layouts v2.8: [mod] can have only layouts on the left, not
+     full kind annotations. We may want to narrow this type some. *)
   | Mod of jkind_annotation * modes
-  | With of jkind_annotation * core_type
+  | With of jkind_annotation * core_type * modalities
   | Kind_of of core_type
   | Product of jkind_annotation list
 

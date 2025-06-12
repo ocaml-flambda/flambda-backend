@@ -1,3 +1,3 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-grep "*** Vectorization" $1 --line-regexp --max-count=1
+grep "\*\*\*\* Vectorize selected computation:" $1

@@ -116,6 +116,10 @@ module Stdlib : sig
   module List : sig
     type 'a t = 'a list
 
+    val is_empty : 'a list -> bool
+    (** [is_empty l] is true if and only if [l] has no elements. It is equivalent to
+        [compare_length_with l 0 = 0].  *)
+
     val compare : ('a -> 'a -> int) -> 'a t -> 'a t -> int
     (** The lexicographic order supported by the provided order.
         There is no constraint on the relative lengths of the lists. *)
@@ -162,6 +166,15 @@ module Stdlib : sig
     val fold_lefti : (int -> 'a -> 'b -> 'a) -> 'a -> 'b list -> 'a
     (** [fold_lefti f init l] is like [fold_left] but also takes as parameter
         the zero-based index of the element *)
+
+    val fold_left_map2
+      : ('acc -> 'a -> 'b -> 'acc * 'r)
+      -> 'acc
+      -> 'a list
+      -> 'b list
+      -> 'acc * 'r list
+    (** [fold_left_map2] is a combination of [fold_left2] and [map2] that threads an
+        accumulator through calls to [f]. *)
 
     val chunks_of : int -> 'a t -> 'a t t
     (** [chunks_of n t] returns a list of nonempty lists whose
@@ -211,6 +224,20 @@ module Stdlib : sig
         that appear only in the left list, [right_only] on those elements
         that appear only in the right list, and [both] on those elements that
         appear in both. *)
+
+    val merge_fold
+      : cmp:('a -> 'b -> int)
+      -> left_only:('acc -> 'a -> 'acc)
+      -> right_only:('acc -> 'b -> 'acc)
+      -> both:('acc -> 'a -> 'b -> 'acc)
+      -> init:'acc
+      -> 'a t
+      -> 'b t
+      -> 'acc
+      (** Folds over two sorted lists, calling [left_only] on those elements
+          that appear only in the left list, [right_only] on those elements
+          that appear only in the right list, and [both] on those elements that
+          appear in both. *)
   end
 
 (** {2 Extensions to the Option module} *)
@@ -259,6 +286,9 @@ module Stdlib : sig
         [f e == e] then [map_sharing f a == a] *)
 
     val of_list_map : ('a -> 'b) -> 'a list -> 'b array
+
+    val concat_arrays : 'a array array -> 'a array
+    (** Concatenate an array of arrays into a single array. *)
   end
 
 (** {2 Extensions to the String module} *)
@@ -303,21 +333,6 @@ module Stdlib : sig
   external compare : 'a -> 'a -> int = "%compare"
 
   module Monad : sig
-    module type Basic = sig
-      type 'a t
-
-      val bind : 'a t -> ('a -> 'b t) -> 'b t
-      val return : 'a -> 'a t
-
-      (** The following identities ought to hold (for some value of =):
-
-          - [return x >>= f = f x]
-          - [t >>= fun x -> return x = t]
-          - [(t >>= f) >>= g = t >>= fun x -> (f x >>= g)]
-
-          Note: [>>=] is the infix notation for [bind]) *)
-    end
-
     module type Basic2 = sig
       (** Multi parameter monad. The second parameter gets unified across all
           the computation.  This is used to encode monads working on a multi
@@ -328,50 +343,68 @@ module Stdlib : sig
       val bind : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
 
       val return : 'a -> ('a, _) t
+
+      (** The following identities ought to hold (for some value of =):
+
+          - [return x >>= f = f x]
+          - [t >>= fun x -> return x = t]
+          - [(t >>= f) >>= g = t >>= fun x -> (f x >>= g)]
+
+          Note: [>>=] is the infix notation for [bind]) *)
     end
 
-    module type S = sig
+    module type Basic = sig
       type 'a t
-
-      val bind : 'a t -> ('a -> 'b t) -> 'b t
-
-      (** [>>=] is a synonym for [bind] *)
-      val (>>=) : 'a t -> ('a -> 'b t) -> 'b t
-
-      (** [return v] returns the (trivial) computation that returns v. *)
-      val return : 'a -> 'a t
-
-      val map : ('a -> 'b) -> 'a t -> 'b t
-
-      (** [join t] is [t >>= (fun t' -> t')]. *)
-      val join : 'a t t -> 'a t
-
-      (** [ignore_m t] is [map (fun _ -> ()) t]. *)
-      val ignore_m : 'a t -> unit t
-
-      val all : 'a t list -> 'a list t
-
-      (** Like [all], but ensures that every monadic value in the list produces
-          a unit value, all of which are discarded rather than being collected
-          into a list. *)
-      val all_unit : unit t list -> unit t
+      include Basic2 with type ('a, _) t := 'a t
     end
 
     module type S2 = sig
       type ('a, 'e) t
 
       val bind : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
+
+      (** [>>=] is a synonym for [bind] *)
+      val (>>=) : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
+
+      (** [return v] returns the (trivial) computation that returns v. *)
       val return : 'a -> ('a, _) t
+
       val map : ('a -> 'b) -> ('a, 'e) t -> ('b, 'e) t
+
+      (** [join t] is [t >>= (fun t' -> t')]. *)
       val join : (('a, 'e) t, 'e) t -> ('a, 'e) t
+
+      val both : ('a, 'e) t -> ('b, 'e) t -> ('a * 'b, 'e) t
+
+      (** [ignore_m t] is [map (fun _ -> ()) t]. *)
       val ignore_m : (_, 'e) t -> (unit, 'e) t
+
       val all : ('a, 'e) t list -> ('a list, 'e) t
+
+      (** Like [all], but ensures that every monadic value in the list produces
+          a unit value, all of which are discarded rather than being collected
+          into a list. *)
       val all_unit : (unit, 'e) t list -> (unit, 'e) t
+
+      (** As described at https://ocaml.org/manual/latest/bindingops.html *)
+      module Syntax : sig
+        val (let+) : ('a, 'e) t -> ('a -> 'b) -> ('b, 'e) t
+        val (and+) : ('a, 'e) t -> ('b, 'e) t -> ('a * 'b, 'e) t
+        val (let*) : ('a, 'e) t -> ('a -> ('b, 'e) t) -> ('b, 'e) t
+        val (and*) : ('a, 'e) t -> ('b, 'e) t -> ('a * 'b, 'e) t
+      end
     end
+
+    module type S = sig
+      type 'a t
+      include S2 with type ('a, _) t := 'a t
+    end
+
 
     module Make (X : Basic) : S with type 'a t = 'a X.t
     module Make2 (X : Basic2) : S2 with type ('a, 'e) t = ('a, 'e) X.t
 
+    module Identity : S with type 'a t = 'a
     module Option : S with type 'a t = 'a option
     module Result : S2 with type ('a, 'e) t = ('a, 'e) result
   end
@@ -461,6 +494,15 @@ val chop_extensions: string -> string
 val log2: int -> int
        (** [log2 n] returns [s] such that [n = 1 lsl s]
            if [n] is a power of 2*)
+
+val log2_nativeint: nativeint -> int
+(** [log2_nativeint n] computes [floor (log2 n)] when [ n > 0 ].
+    If [n] is also a power of 2, the result [s] satisfies
+    [n = Nativeint.shift_left 1n s]
+*)
+
+val power : base:int -> int -> int
+(** [power ~base x] computes [base**x]. *)
 
 val align: int -> int -> int
        (** [align n a] rounds [n] upwards to a multiple of [a]
@@ -1035,6 +1077,10 @@ module Le_result : sig
 
   val is_le : t -> bool
   val is_equal : t -> bool
+
+  (* adaptors for structures that can only compare less-or-equal *)
+  val less_or_equal : le:('a -> 'a -> bool) -> 'a -> 'a -> t
+  val equal : le:('a -> 'a -> bool) -> 'a -> 'a -> bool
 end
 
 (** Propositional equality *)
@@ -1068,3 +1114,21 @@ type filepath = string
 type alerts = string Stdlib.String.Map.t
 
 val remove_double_underscores : string -> string
+
+(** Non-empty lists *)
+module Nonempty_list : sig
+  type nonrec 'a t = ( :: ) of 'a * 'a list
+
+  val to_list : 'a t -> 'a list
+  val of_list_opt : 'a list -> 'a t option
+  val map : ('a -> 'b) -> 'a t -> 'b t
+
+  val pp_print :
+    ?pp_sep:(Format.formatter -> unit -> unit) ->
+    (Format.formatter -> 'a -> unit) ->
+    Format.formatter ->
+    'a t ->
+    unit
+
+  val (@) : 'a t -> 'a t -> 'a t
+end

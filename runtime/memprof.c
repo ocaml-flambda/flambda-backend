@@ -2200,8 +2200,12 @@ CAMLexport void caml_memprof_delete_thread(memprof_thread_t thread)
 CAMLexport void caml_memprof_enter_thread(memprof_thread_t thread)
 {
   CAMLassert(thread);
-  thread->domain->current = thread;
-  update_suspended(thread->domain, thread->suspended);
+  memprof_domain_t domain = thread->domain;
+  bool old_suspended = domain->current && domain->current->suspended;
+  domain->current = thread;
+  if (old_suspended != thread->suspended) {
+    update_suspended(thread->domain, thread->suspended);
+  }
 }
 
 /**** Interface to OCaml ****/

@@ -69,7 +69,7 @@ let this_is_ocamlc () = this_is_ocamlc := true
 let force_runtime4_symbols () = force_runtime4_symbols := true
 
 let pack_separator = separator
-let instance_separator = "___"
+let instance_separator = "____"
 let instance_separator_depth_char = '_'
 let member_separator = separator
 

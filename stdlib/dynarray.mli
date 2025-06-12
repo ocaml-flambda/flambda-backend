@@ -15,6 +15,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 (** Dynamic arrays.
 
     The {!Array} module provide arrays of fixed length. {!Dynarray}
@@ -62,7 +64,7 @@
 
 (** {1:dynarrays Dynamic arrays} *)
 
-type !'a t
+type !'a t : mutable_data with 'a
 (** A dynamic array containing values of type ['a].
 
     A dynamic array [a] provides constant-time [get] and [set]

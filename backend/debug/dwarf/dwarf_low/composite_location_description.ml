@@ -14,6 +14,8 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
+
 type t = Pieces of (Simple_location_description.t * Targetint.t) list
 
 let pieces_of_simple_location_descriptions slds = Pieces slds

@@ -27,6 +27,10 @@
 #include "caml/callback.h"
 #include "caml/fail.h"
 
+/* This mutex must be locked with [caml_plat_lock_blocking] from the
+   mutator, because caml_{register,remove}_{generational_}roots can be
+   called in places where the domain lock is not safe to be
+   released. */
 static caml_plat_mutex roots_mutex = CAML_PLAT_MUTEX_INITIALIZER;
 
 /* Greater than zero when the current thread is scanning the roots */

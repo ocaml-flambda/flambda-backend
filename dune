@@ -43,6 +43,10 @@
 
 (copy_files# backend/*.ml{,i})
 
+(copy_files# "backend/%{env:ARCH=amd64}/*.ml{,i}")
+
+(copy_files# tools/simdgen/*.ml{,i})
+
 (copy_files# backend/cfg/*.ml{,i})
 
 (copy_files# backend/debug/*.ml{,i})
@@ -122,6 +126,7 @@
   mode_intf)
  (modules
   ;; UTILS
+  arrayset
   config
   build_path_prefix_map
   misc
@@ -132,6 +137,7 @@
   debug
   profile
   profile_counters_functions
+  priority_queue
   terminfo
   ccomp
   warnings
@@ -244,6 +250,7 @@
   debuginfo
   lambda
   matching
+  mixed_block_shape
   printlambda
   runtimedef
   runtimetags
@@ -295,6 +302,9 @@
  (libraries ocamlcommon)
  (modules
   ;; bytecomp/
+  blambda
+  printblambda
+  blambda_of_lambda
   bytegen
   byteinstantiator
   bytelibrarian
@@ -432,77 +442,64 @@
   branch_relaxation
   branch_relaxation_intf
   cfg_selectgen
+  cfg_selectgen_target_intf
   cfg_selection
-  cfgize
-  cfgize_utils
+  cfg_invariants
   cmm_helpers
   cmm_builtins
   cmm_invariants
   cmm
   cmmgen_state
-  coloring
-  comballoc
   CSE
-  CSE_utils
-  CSEgen
-  dataflow
-  deadcode
   emit
   emitaux
   fdo_info
   generic_fns
-  interf
-  interval
+  instructionId
   linear
   internal_assembler
-  linscan
-  liveness
-  mach
   operation
   peephole_optimize
   peephole_rules
   peephole_utils
-  polling
-  polling_utils
   printcmm
   printlinear
-  printmach
   printoperation
   printreg
   proc
   simd
   simd_selection
-  simd_reload
   simd_proc
-  simple_operation
+  amd64_simd_defs
+  amd64_simd_instrs
   stack_check
   sub_cfg
   reg
-  reload
-  reloadgen
+  reg_class
+  reg_class_utils
   relocation_entry
   relocation_table
   section_table
   select_utils
-  selectgen
-  selection
-  selection_utils
-  spill
-  split
+  stack_class
+  stack_class_utils
   string_table
   symbol_entry
   symbol_table
   x86_ast
+  x86_ast_utils
   x86_binary_emitter
   x86_dsl
   x86_gas
   x86_masm
   x86_proc
+  arm64_ast
   zero_alloc_checker
   zero_alloc_info
   ;; backend/cfg
   cfg
   cfg_available_regs
+  cfg_edge
   cfg_intf
   cfg_to_linear
   cfg_with_layout
@@ -515,18 +512,17 @@
   cfg_loop_infos
   cfg_to_linear_desc
   cfg_cse
+  cfg_cse_target_intf
   cfg_stack_checks
   cfg_polling
-  eliminate_dead_code
-  disconnect_block
-  eliminate_dead_blocks
-  eliminate_fallthrough_blocks
-  merge_straightline_blocks
+  cfg_simplify
   extra_debug
   label
   linear_utils
   simplify_terminator
   vectorize
+  vectorize_utils
+  vectorize_specific
   ;; backend/regalloc
   regalloc_gi
   regalloc_gi_state
@@ -544,6 +540,7 @@
   regalloc_split_utils
   regalloc_stack_operands
   regalloc_stack_slots
+  regalloc_substitution
   regalloc_utils
   regalloc_validate
   ;; file_formats/
@@ -551,7 +548,6 @@
   cfg_format
   ;; backend/debug/
   available_ranges_vars
-  available_regs
   compute_ranges
   compute_ranges_intf
   inlined_frame_ranges
@@ -691,6 +687,7 @@
    %{dep:middle_end/flambda2/import/flambda2_import.a}
    %{dep:middle_end/flambda2/ui/flambda2_ui.a}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.a}
+   %{dep:middle_end/flambda2/datalog/flambda2_datalog.a}
    %{dep:middle_end/flambda2/numbers/floats/flambda2_floats.a}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.a}
    %{dep:middle_end/flambda2/kinds/flambda2_kinds.a}
@@ -729,6 +726,7 @@
    %{dep:middle_end/flambda2/import/flambda2_import.cma}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cma}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cma}
+   %{dep:middle_end/flambda2/datalog/flambda2_datalog.cma}
    %{dep:middle_end/flambda2/numbers/floats/flambda2_floats.cma}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cma}
    %{dep:middle_end/flambda2/kinds/flambda2_kinds.cma}
@@ -767,6 +765,7 @@
    %{dep:middle_end/flambda2/import/flambda2_import.cmxa}
    %{dep:middle_end/flambda2/ui/flambda2_ui.cmxa}
    %{dep:middle_end/flambda2/algorithms/flambda2_algorithms.cmxa}
+   %{dep:middle_end/flambda2/datalog/flambda2_datalog.cmxa}
    %{dep:middle_end/flambda2/numbers/floats/flambda2_floats.cmxa}
    %{dep:middle_end/flambda2/numbers/flambda2_numbers.cmxa}
    %{dep:middle_end/flambda2/kinds/flambda2_kinds.cmxa}
@@ -818,6 +817,12 @@
   (middle_end/flambda2/numbers/floats/libflambda2_floats_stubs.a
    as
    compiler-libs/libflambda2_floats_stubs_native.a)
+  (middle_end/flambda2/algorithms/libflambda2_algorithms_stubs.a
+   as
+   compiler-libs/libflambda2_algorithms_stubs.a)
+  (middle_end/flambda2/algorithms/libflambda2_algorithms_stubs.a
+   as
+   compiler-libs/libflambda2_algorithms_stubs_native.a)
   ; for special_dune compat
   (ocamloptcomp_with_flambda2.cma as compiler-libs/ocamloptcomp.cma)
   (ocamloptcomp_with_flambda2.cmxa as compiler-libs/ocamloptcomp.cmxa)
@@ -839,9 +844,9 @@
   (glob_files .ocamloptcomp.objs/byte/*.{cmi,cmo,cmt,cmti})
   (glob_files .ocamloptcomp.objs/native/*.cmx)
   (glob_files
-   backend/asm_targets/.asm_targets.objs/byte/asm_targets.{cmi,cmo,cmt})
+   backend/asm_targets/.asm_targets.objs/byte/*.{cmi,cmo,cmt,cmti})
   (glob_files_rec
-   backend/asm_targets/.asm_targets.objs/native/asm_targets.cmx)
+   backend/asm_targets/.asm_targets.objs/native/*.cmx)
   (glob_files middle_end/flambda2/.flambda2objs/byte/flambda2.{cmi,cmt})
   (glob_files
    middle_end/flambda2/to_cmm/.flambda2_to_cmm.objs/byte/flambda2_to_cmm{,__To_cmm}.{cmi,cmt})

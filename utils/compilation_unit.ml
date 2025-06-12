@@ -23,7 +23,7 @@ module String = Misc.Stdlib.String
 type error =
   | Invalid_character of char * string
   | Bad_compilation_unit_name of string
-  | Child_of_instance of { child_name : string }
+  | Child_of_instance of { parent_name : string }
   | Packed_instance of { name : string }
   | Already_an_instance of { name : string }
 
@@ -44,9 +44,11 @@ module Name : sig
 
   val of_head_of_global_name : Global_module.Name.t -> t
 
-  val of_global_name_no_args_exn : Global_module.Name.t -> t
+  val of_parameter_name : Global_module.Parameter_name.t -> t
 
   val to_global_name : t -> Global_module.Name.t
+
+  val to_parameter_name : t -> Global_module.Parameter_name.t
 
   val check_as_path_component : t -> unit
 end = struct
@@ -80,19 +82,12 @@ end = struct
 
   let of_head_of_global_name (name : Global_module.Name.t) = of_string name.head
 
-  let of_global_name_no_args_exn (name : Global_module.Name.t) =
-    match name.args with
-    | [] -> of_head_of_global_name name
-    | _ ->
-      (* This is a wart. We should have a separate type
-         [Global_module.Parameter_name.t] that is known not to have arguments,
-         and then we can convert without runtime checks here. Note that we can't
-         actually be specific in this message about why the thing isn't supposed
-         to have arguments. *)
-      Misc.fatal_errorf "Arguments not allowed in name:@ %a"
-        Global_module.Name.print name
+  let of_parameter_name (name : Global_module.Parameter_name.t) =
+    of_string (Global_module.Parameter_name.to_string name)
 
   let to_global_name t = Global_module.Name.create_no_args t
+
+  let to_parameter_name t = Global_module.Parameter_name.of_string t
 
   (* This is so called (and separate from [of_string]) because we only want to
      check a name if it has a prefix. In particular, this allows single-module
@@ -190,7 +185,7 @@ module T0 : sig
     }
 
   and argument =
-    { param : t;
+    { param : Name.t;
       value : t
     }
 
@@ -227,7 +222,7 @@ end = struct
     }
 
   and argument =
-    { param : t;
+    { param : Name.t;
       value : t
     }
 
@@ -261,7 +256,7 @@ end = struct
   let convert_arguments l =
     ListLabels.map
       ~f:(fun ({ param; value } : Global_module.Name.argument) ->
-        { param = of_global_name param; value = of_global_name value })
+        { param = Name.of_parameter_name param; value = of_global_name value })
       l
 
   let descr t =
@@ -341,10 +336,10 @@ end = struct
 
   and compare_instance_arg { param = param1; value = value1 }
       { param = param2; value = value2 } =
-    let c = compare param1 param2 in
+    let c = Name.compare param1 param2 in
     if c <> 0 then c else compare value1 value2
 
-  let compare_argument_by_name arg1 arg2 = compare arg1.param arg2.param
+  let compare_argument_by_name arg1 arg2 = Name.compare arg1.param arg2.param
 
   let to_global_name_exn t =
     if is_plain_name t
@@ -403,7 +398,7 @@ end = struct
       let arguments =
         ListLabels.map
           ~f:(fun { param; value } : Global_module.Name.argument ->
-            { param = to_global_name_exn param;
+            { param = Name.to_parameter_name param;
               value = to_global_name_exn value
             })
           arguments
@@ -416,15 +411,18 @@ include T0
 
 let create prefix name = create_full prefix name []
 
-let create_child parent name_ =
+let to_prefix parent =
+  (* CR lmaurer: This is an obvious (and alarmingly longstanding) bug. Should be
+     checking the instance arguments, not the prefix. The result is that packed
+     packs are (I presume) currently broken. *)
   if not (Prefix.is_empty (for_pack_prefix parent))
   then
     (* CR-someday lmaurer: Same as for [create_full] *)
-    raise (Error (Child_of_instance { child_name = name_ |> Name.to_string }));
-  let prefix =
-    (for_pack_prefix parent |> Prefix.to_list) @ [name parent] |> Prefix.of_list
-  in
-  create prefix name_
+    raise
+      (Error (Child_of_instance { parent_name = name parent |> Name.to_string }));
+  (for_pack_prefix parent |> Prefix.to_list) @ [name parent] |> Prefix.of_list
+
+let create_child parent name_ = create (to_prefix parent) name_
 
 let of_string str =
   let for_pack_prefix, name =
@@ -476,7 +474,7 @@ include Identifiable.Make (struct
     ListLabels.iter ~f:(print_arg fmt) arguments
 
   and print_arg fmt { param; value } =
-    Format.fprintf fmt "[%a:%a]" print param print value
+    Format.fprintf fmt "[%a:%a]" Name.print param print value
 
   let output = Misc.output_of_print print
 
@@ -487,7 +485,7 @@ include Identifiable.Make (struct
         Prefix.hash for_pack_prefix,
         ListLabels.map ~f:hash_arg arguments )
 
-  and hash_arg { param; value } = Hashtbl.hash (hash param, hash value)
+  and hash_arg { param; value } = Hashtbl.hash (Name.hash param, hash value)
 end)
 
 let is_instance t =
@@ -522,9 +520,8 @@ let full_path t = Prefix.to_list (for_pack_prefix t) @ [name t]
 let flatten t =
   let rec flatten_arg { param; value } ~depth =
     assert (not (is_packed value));
-    let param_name = name param in
     let { name; arguments; _ } = descr value in
-    (depth, param_name, name)
+    (depth, param, name)
     :: ListLabels.concat_map ~f:(flatten_arg ~depth:(depth + 1)) arguments
   in
   let { for_pack_prefix; name; arguments } = descr t in
@@ -637,17 +634,20 @@ let print_debug ppf t =
       "@[<hov 1>(@[<hov 1>(for_pack_prefix@ %a)@]@;@[<hov 1>(name@ %a)@]"
       Prefix.print for_pack_prefix Name.print name
 
-let current = ref None
+let fwd_get_current : (unit -> t option) ref = ref (fun () -> assert false)
 
-let set_current t_opt = current := t_opt
+let get_current () = !fwd_get_current ()
 
-let get_current () = !current
-
-let get_current_or_dummy () = Option.value !current ~default:dummy
+let get_current_or_dummy () = Option.value (get_current ()) ~default:dummy
 
 let get_current_exn () =
-  match !current with
+  match get_current () with
   | Some t -> t
   | None -> Misc.fatal_error "No compilation unit set"
 
-let is_current t = match !current with None -> false | Some t' -> equal t t'
+let is_current t =
+  match get_current () with None -> false | Some t' -> equal t t'
+
+module Private = struct
+  let fwd_get_current = fwd_get_current
+end

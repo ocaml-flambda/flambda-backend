@@ -46,8 +46,9 @@ DOMAIN_STATE(void*, exn_handler)
 DOMAIN_STATE(char*, async_exn_handler)
 /* Async exception pointer that points into the current stack */
 
-/* Local allocations */
-DOMAIN_STATE(struct caml_local_arenas*, local_arenas)
+/* Local allocations
+   These are kept directly in here to avoid a second indirection on the
+   fast path of a local allocation inline in OCaml code. */
 DOMAIN_STATE(intnat, local_sp)
 DOMAIN_STATE(void*, local_top)
 DOMAIN_STATE(intnat, local_limit)
@@ -89,6 +90,13 @@ DOMAIN_STATE(uintnat, allocated_words)
 DOMAIN_STATE(uintnat, allocated_words_direct)
 /* Number of words allocated directly to the major heap since the latest
    slice. (subset of allocated_words) */
+
+DOMAIN_STATE(uintnat, allocated_dependent_bytes)
+/* Number of external bytes whose pointers were promoted or allocated in
+   the major heap since latest slice. */
+
+DOMAIN_STATE(uintnat, minor_words_at_last_slice)
+/* Number of minor heap words allocated before the latest slice */
 
 DOMAIN_STATE(uintnat, swept_words)
 
@@ -138,11 +146,8 @@ DOMAIN_STATE(int, unique_id)
 DOMAIN_STATE(value, dls_root)
 /* Domain-local state */
 
-DOMAIN_STATE(double, extra_heap_resources)
-DOMAIN_STATE(double, extra_heap_resources_minor)
-
-DOMAIN_STATE(uintnat, dependent_size)
-DOMAIN_STATE(uintnat, dependent_allocated)
+/* How much external memory is currenty held by the minor heap. */
+DOMAIN_STATE(uintnat, minor_dependent_bsz)
 
 /* How much work needs to be done (by all domains) before we stop this slice. */
 DOMAIN_STATE(intnat, slice_target)
@@ -151,7 +156,9 @@ DOMAIN_STATE(intnat, slice_target)
 DOMAIN_STATE(intnat, slice_budget)
 
 /* Accounting for sweeping work done while allocating. */
-DOMAIN_STATE(intnat, major_work_done_between_slices)
+DOMAIN_STATE(uintnat, sweep_work_done_between_slices)
+/* Accounting for marking work done in the write barrier. */
+DOMAIN_STATE(uintnat, mark_work_done_between_slices)
 
 DOMAIN_STATE(struct caml_extern_state*, extern_state)
 DOMAIN_STATE(struct caml_intern_state*, intern_state)
@@ -161,11 +168,18 @@ DOMAIN_STATE(struct caml_intern_state*, intern_state)
 /* These stats represent only the current domain's respective values. */
 /* Use the Gc module to get aggregated total program stats. */
 /*****************************************************************************/
+
 DOMAIN_STATE(uintnat, stat_minor_words)
 DOMAIN_STATE(uintnat, stat_promoted_words)
 DOMAIN_STATE(uintnat, stat_major_words)
+DOMAIN_STATE(uintnat, stat_minor_dependent_bytes)
+DOMAIN_STATE(uintnat, stat_promoted_dependent_bytes)
+DOMAIN_STATE(uintnat, stat_major_dependent_bytes)
 DOMAIN_STATE(intnat, stat_forced_major_collections)
+DOMAIN_STATE(uintnat, stat_major_work_done)
 DOMAIN_STATE(uintnat, stat_blocks_marked)
+
+/*****************************************************************************/
 
 DOMAIN_STATE(int, inside_stw_handler)
 /* whether or not a domain is inside of a stop-the-world handler

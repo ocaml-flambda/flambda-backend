@@ -1,0 +1,4 @@
+File "bad_use_util_wrongly.ml", line 1:
+Error: The module "Util" is not accessible because it takes "P"
+       as a parameter and the current unit does not.
+Hint: Pass "-parameter P" to add "P" as a parameter of the current unit.

@@ -68,7 +68,7 @@ val diff: t -> t -> Ident.t list
 val same_type_declarations: t -> t -> bool
 
 type type_descr_kind =
-  (label_description, constructor_description) type_kind
+  (label_description, unboxed_label_description, constructor_description) type_kind
 
   (* alias for compatibility *)
 type type_descriptions = type_descr_kind
@@ -103,7 +103,7 @@ val find_class: Path.t -> t -> class_declaration
 val find_cltype: Path.t -> t -> class_type_declaration
 
 val find_ident_constructor: Ident.t -> t -> constructor_description
-val find_ident_label: Ident.t -> t -> label_description
+val find_ident_label: 'rcd record_form -> Ident.t -> t -> 'rcd gen_label_description
 
 val find_type_expansion:
     Path.t -> t -> type_expr list * type_expr * int
@@ -142,6 +142,10 @@ val normalize_value_path: Location.t option -> t -> Path.t -> Path.t
 
 val normalize_modtype_path: t -> Path.t -> Path.t
 (* Normalize a module type path *)
+
+val normalize_instance_names_in_module_path: Path.t -> Path.t
+(* Normalize the instance names appearing in a module path by removing
+   excess arguments arising from transparent aliases *)
 
 val reset_required_globals: unit -> unit
 val get_required_globals: unit -> Compilation_unit.t list
@@ -204,11 +208,23 @@ type shared_context =
   | Module
   | Probe
 
+type locks
+
+type held_locks = locks * Longident.t * Location.t
+(** Sometimes we get the locks for something, but either want to walk them later, or
+walk them for something else. The [Longident.t] and [Location.t] are only for error
+messages, and point to the variable for which we actually want to walk the locks. *)
+
+val locks_empty : locks
+
+val locks_is_empty : locks -> bool
+
 (** Items whose accesses are affected by locks *)
 type lock_item =
   | Value
   | Module
   | Class
+  | Constructor
 
 type structure_components_reason =
   | Project
@@ -218,7 +234,7 @@ type lookup_error =
   | Unbound_value of Longident.t * unbound_value_hint
   | Unbound_type of Longident.t
   | Unbound_constructor of Longident.t
-  | Unbound_label of Longident.t
+  | Unbound_label of Longident.t * record_form_packed * label_usage
   | Unbound_module of Longident.t
   | Unbound_class of Longident.t
   | Unbound_modtype of Longident.t
@@ -240,6 +256,7 @@ type lookup_error =
   | Value_used_in_closure of lock_item * Longident.t * Mode.Value.Comonadic.error * closure_context
   | Local_value_used_in_exclave of lock_item * Longident.t
   | Non_value_used_in_object of Longident.t * type_expr * Jkind.Violation.t
+  | No_unboxed_version of Longident.t * type_declaration
   | Error_from_persistent_env of Persistent_env.error
 
 val lookup_error: Location.t -> t -> lookup_error -> 'a
@@ -262,15 +279,22 @@ type actual_mode = {
   (** Explains why [mode] is high. *)
 }
 
+(** Takes the [mode] and [ty] of a value at definition site, walks through the list of
+    locks and constrains [mode] and [ty]. Return the access mode of the value allowed by
+    the locks. [ty] is optional as the function works on modules and classes as well, for
+    which [ty] should be [None]. *)
+val walk_locks : env:t -> item:lock_item -> Mode.Value.l -> type_expr option ->
+  held_locks -> actual_mode
+
 val lookup_value:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
-  Path.t * value_description * actual_mode
+  Path.t * value_description * Mode.Value.l * locks
 val lookup_type:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * type_declaration
 val lookup_module:
-  ?use:bool -> ?lock:bool -> loc:Location.t -> Longident.t -> t ->
-  Path.t * module_declaration * Mode.Value.l
+  ?use:bool -> loc:Location.t -> Longident.t -> t ->
+  Path.t * module_declaration * locks
 val lookup_modtype:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * modtype_declaration
@@ -281,36 +305,38 @@ val lookup_cltype:
   ?use:bool -> loc:Location.t -> Longident.t -> t ->
   Path.t * class_type_declaration
 
+(* When locks are returned instead of walked for modules, the mode remains as
+  defined (always legacy), and thus not returned. *)
 val lookup_module_path:
-  ?use:bool -> ?lock:bool -> loc:Location.t -> load:bool -> Longident.t -> t ->
-    Path.t * Mode.Value.l
+  ?use:bool -> loc:Location.t -> load:bool -> Longident.t -> t ->
+    Path.t * locks
 val lookup_modtype_path:
   ?use:bool -> loc:Location.t -> Longident.t -> t -> Path.t
 val lookup_module_instance_path:
-  ?use:bool -> ?lock:bool -> loc:Location.t -> load:bool ->
-  Global_module.Name.t -> t -> Path.t * Mode.Value.l
+  ?use:bool -> loc:Location.t -> load:bool -> Global_module.Name.t -> t ->
+    Path.t * locks
 
 val lookup_constructor:
   ?use:bool -> loc:Location.t -> constructor_usage -> Longident.t -> t ->
-  constructor_description
+  constructor_description * locks
 val lookup_all_constructors:
   ?use:bool -> loc:Location.t -> constructor_usage -> Longident.t -> t ->
-  ((constructor_description * (unit -> unit)) list,
+  (((constructor_description * locks) * (unit -> unit)) list,
    Location.t * t * lookup_error) result
 val lookup_all_constructors_from_type:
   ?use:bool -> loc:Location.t -> constructor_usage -> Path.t -> t ->
-  (constructor_description * (unit -> unit)) list
+  ((constructor_description * locks) * (unit -> unit)) list
 
 val lookup_label:
-  ?use:bool -> loc:Location.t -> label_usage -> Longident.t -> t ->
-  label_description
+  ?use:bool -> record_form:'rcd record_form -> loc:Location.t -> label_usage -> Longident.t -> t ->
+  'rcd gen_label_description
 val lookup_all_labels:
-  ?use:bool -> loc:Location.t -> label_usage -> Longident.t -> t ->
-  ((label_description * (unit -> unit)) list,
+  ?use:bool -> record_form:'rcd record_form -> loc:Location.t -> label_usage -> Longident.t -> t ->
+  (('rcd gen_label_description * (unit -> unit)) list,
    Location.t * t * lookup_error) result
 val lookup_all_labels_from_type:
-  ?use:bool -> loc:Location.t -> label_usage -> Path.t -> t ->
-  (label_description * (unit -> unit)) list
+  ?use:bool -> record_form:'rcd record_form -> loc:Location.t -> label_usage -> Path.t -> t ->
+  ('rcd gen_label_description * (unit -> unit)) list
 
 val lookup_instance_variable:
   ?use:bool -> loc:Location.t -> string -> t ->
@@ -332,7 +358,7 @@ val find_cltype_by_name:
 val find_constructor_by_name:
   Longident.t -> t -> constructor_description
 val find_label_by_name:
-  Longident.t -> t -> label_description
+  'rep record_form -> Longident.t -> t -> 'rep gen_label_description
 
 (** The [find_*_index] functions computes a "namespaced" De Bruijn index
     of an identifier in a given environment. In other words, it returns how many
@@ -386,7 +412,7 @@ val add_module: ?arg:bool -> ?shape:Shape.t ->
 val add_module_lazy: update_summary:bool ->
   Ident.t -> module_presence -> Subst.Lazy.module_type -> t -> t
 val add_module_declaration: ?arg:bool -> ?shape:Shape.t -> check:bool ->
-  Ident.t -> module_presence -> module_declaration -> t -> t
+  Ident.t -> module_presence -> module_declaration -> ?locks:locks -> t -> t
 val add_module_declaration_lazy: ?arg:bool -> update_summary:bool ->
   Ident.t -> module_presence -> Subst.Lazy.module_declaration -> t -> t
 val add_modtype: Ident.t -> modtype_declaration -> t -> t
@@ -450,7 +476,7 @@ val enter_module:
   module_type -> t -> Ident.t * t
 val enter_module_declaration:
   scope:int -> ?arg:bool -> ?shape:Shape.t -> string -> module_presence ->
-  module_declaration -> t -> Ident.t * t
+  module_declaration -> ?locks:locks -> t -> Ident.t * t
 val enter_modtype:
   scope:int -> string -> modtype_declaration -> t -> Ident.t * t
 val enter_class: scope:int -> string -> class_declaration -> t -> Ident.t * t
@@ -493,12 +519,12 @@ val reset_cache: preserve_persistent_env:bool -> unit
 val reset_cache_toplevel: unit -> unit
 
 (* Remember the name of the current compilation unit. *)
-val set_unit_name: Compilation_unit.t option -> unit
-val get_unit_name: unit -> Compilation_unit.t option
+val set_unit_name: Unit_info.t option -> unit
+val get_unit_name: unit -> Unit_info.t option
 
 (* Read, save a signature to/from a file. *)
 val read_signature:
-  Global_module.Name.t -> Unit_info.Artifact.t -> add_binding:bool
+  Global_module.Name.t -> Unit_info.Artifact.t
   -> signature
         (* Arguments: module name, file name, [add_binding] flag.
            Results: signature. If [add_binding] is true, creates an entry for
@@ -514,7 +540,7 @@ val save_signature_with_imports:
            file name, imported units with their CRCs. *)
 
 (* Register a module as a parameter to this unit. *)
-val register_parameter: Global_module.Name.t -> unit
+val register_parameter: Global_module.Parameter_name.t -> unit
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: Compilation_unit.Name.t -> Digest.t
@@ -529,9 +555,12 @@ val import_crcs: source:string -> Import_info.t array -> unit
    [Persistent_env.runtime_parameter_bindings] for details) *)
 val runtime_parameter_bindings: unit -> (Global_module.t * Ident.t) list
 
+(* Return whether an ident appears in [runtime_parameter_bindings] *)
+val is_bound_to_runtime_parameter: Ident.t -> bool
+
 (* Return the list of parameters specified for the current unit, in
    alphabetical order *)
-val parameters: unit -> Global_module.Name.t list
+val parameters: unit -> Global_module.Parameter_name.t list
 
 (* [is_imported_opaque md] returns true if [md] is an opaque imported module *)
 val is_imported_opaque: Compilation_unit.Name.t -> bool
@@ -545,7 +574,8 @@ val is_parameter_unit: Global_module.Name.t -> bool
 
 (* [implemented_parameter md] is the argument given to -as-argument-for when
    [md] was compiled *)
-val implemented_parameter: Global_module.Name.t -> Global_module.Name.t option
+val implemented_parameter:
+  Global_module.Name.t -> Global_module.Parameter_name.t option
 
 (* [is_imported_parameter md] is true if [md] has been imported and is a
    parameter to this module *)
@@ -569,7 +599,7 @@ type error =
   | Missing_module of Location.t * Path.t * Path.t
   | Illegal_value_name of Location.t * string
   | Lookup_error of Location.t * t * lookup_error
-  | Incomplete_instantiation of { unset_param : Global_module.Name.t; }
+  | Incomplete_instantiation of { unset_param : Global_module.Parameter_name.t; }
 
 exception Error of error
 
@@ -592,8 +622,8 @@ val set_type_used_callback:
 val check_functor_application:
   (errors:bool -> loc:Location.t ->
    lid_whole_app:Longident.t ->
-   f0_path:Path.t -> args:(Path.t * Types.module_type * Mode.Value.l) list ->
-   arg_path:Path.t -> arg_mty:Types.module_type -> arg_mode:Mode.Value.l ->
+   f0_path:Path.t -> args:(Path.t * Types.module_type) list ->
+   arg_path:Path.t -> arg_mty:Types.module_type ->
    param_mty:Types.module_type ->
    t -> unit) ref
 (* Forward declaration to break mutual recursion with Typemod. *)
@@ -629,7 +659,7 @@ val fold_constructors:
   (constructor_description -> 'a -> 'a) ->
   Longident.t option -> t -> 'a -> 'a
 val fold_labels:
-  (label_description -> 'a -> 'a) ->
+  'rcd record_form -> ('rcd gen_label_description -> 'a -> 'a) ->
   Longident.t option -> t -> 'a -> 'a
 
 (** Persistent structures are only traversed if they are already loaded. *)

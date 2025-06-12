@@ -23,6 +23,8 @@
 (* CR mshinwell: fix properly using -enable-dev PR's changes *)
 [@@@ocaml.warning "-27-32"]
 
+open! Int_replace_polymorphic_compare
+
 open X86_binary_emitter
 module String = Misc.Stdlib.String
 

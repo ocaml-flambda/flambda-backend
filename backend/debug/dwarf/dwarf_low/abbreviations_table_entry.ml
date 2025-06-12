@@ -14,6 +14,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 module AS = Dwarf_attributes.Attribute_specification.Sealed
 module Uint64 = Numbers.Uint64
 

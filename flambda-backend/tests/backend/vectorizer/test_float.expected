@@ -1,0 +1,7 @@
+add_mutable_record { d0 = 88.000000 ; d1 = 110.000000 }
+copy_mutable_record { d0 = 88.000000 ; d1 = 110.000000 }
+add_mutable_record_fresh { d0 = 88.000000 ; d1 = 110.000000 }
+copy_mutable_record_fresh { d0 = 88.000000 ; d1 = 110.000000 }
+add_mutable_record_t4 { d0 = 88.000000 ; d1 = 110.000000; d2 = 88.000000 ; d3 = 110.000000 }
+copy_mutable_record_t4 { d0 = 8.000000 ; d1 = 96.000000; d2 = 80.000000 ; d3 = 14.000000 }
+dup_mutable_record_t4 { d0 = 8.000000 ; d1 = 96.000000; d2 = 8.000000 ; d3 = 96.000000 }

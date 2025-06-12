@@ -1,0 +1,5 @@
+File "atat_unboxed_gadts.ml", line 48, characters 11-24:
+48 | type ('a : value & value) t =
+                ^^^^^^^^^^^^^
+Error: The appropriate layouts extension is not enabled.
+       You must enable -extension layouts to use this feature.

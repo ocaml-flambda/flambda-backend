@@ -31,6 +31,7 @@ val simplify_lambda: lambda -> lambda
 
 val split_default_wrapper
    : id:Ident.t
+  -> debug_uid: debug_uid
   -> kind:function_kind
   -> params:Lambda.lparam list
   -> return:Lambda.layout
@@ -39,5 +40,4 @@ val split_default_wrapper
   -> loc:Lambda.scoped_location
   -> mode:Lambda.locality_mode
   -> ret_mode:Lambda.locality_mode
-  -> region:bool
   -> rec_binding list

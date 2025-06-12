@@ -1,11 +1,12 @@
 (* TEST
-flags += "-alert -unsafe_parallelism";
+flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
 hassysthreads;
 include systhreads;
 not-windows;
 poll-insertion;
 no-tsan;
 runtime5;
+multidomain;
 {
   bytecode;
 }{

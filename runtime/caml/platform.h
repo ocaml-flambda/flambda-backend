@@ -101,6 +101,12 @@ typedef pthread_cond_t custom_condvar;
    The domain lock must be held in order to call
    [caml_plat_lock_non_blocking].
 
+   It is possible to combine calls to [caml_plat_lock_non_blocking] on
+   a mutex from the mutator holding the domain lock with calls to
+   [caml_plat_lock_blocking] on another mutator that has released
+   their domain lock, but not with calls to [caml_plat_lock_blocking]
+   from a STW section or a custom block finaliser.
+
    These functions never raise exceptions; errors are fatal. Thus, for
    usages where bugs are susceptible to be introduced by users, the
    functions from caml/sync.h should be used instead.
@@ -434,10 +440,16 @@ uintnat caml_mem_round_up_mapping_size(uintnat size);
    caml_plat_pagesize. The size given to caml_mem_unmap and caml_mem_decommit
    must match the size given to caml_mem_map/caml_mem_commit for mem.
 */
-void* caml_mem_map(uintnat size, int reserve_only);
-void* caml_mem_commit(void* mem, uintnat size);
-void caml_mem_decommit(void* mem, uintnat size);
+enum { CAML_MAP_RESERVE_ONLY = 1 << 0, CAML_MAP_NO_HUGETLB = 1 << 1 };
+void* caml_mem_map(uintnat size, uintnat flags, const char* name);
+void* caml_mem_commit(void* mem, uintnat size, const char* name);
+void caml_mem_decommit(void* mem, uintnat size, const char* name);
 void caml_mem_unmap(void* mem, uintnat size);
+void caml_mem_name_map(void* mem, size_t length, const char* format, ...)
+#ifdef __GNUC__
+  __attribute__ ((format (printf, 3, 4)))
+#endif
+;
 
 
 CAMLnoret void caml_plat_fatal_error(const char * action, int err);

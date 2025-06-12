@@ -32,7 +32,7 @@ type env =
     should_keep_param : Continuation.t -> Variable.t -> bool
   }
 
-let is_used (env : env) cn = Hashtbl.mem env.uses cn
+let is_used (env : env) cn = Dep_solver.has_use env.uses cn
 
 let is_code_id_used (env : env) code_id =
   is_used env (Code_id_or_name.code_id code_id)
@@ -97,9 +97,9 @@ let rewrite_static_const kinds (env : env) (sc : Static_const.t) =
                 FD.code_id_in_function_declaration ->
              match code_id with
              | Deleted _ -> code_id
-             | Code_id code_id ->
+             | Code_id { code_id; only_full_applications } ->
                if is_code_id_used env code_id
-               then Code_id code_id
+               then Code_id { code_id; only_full_applications }
                else
                  let code_metadata = env.get_code_metadata code_id in
                  Deleted
@@ -185,21 +185,15 @@ let rewrite_set_of_closures bound (env : env) value_slots alloc_mode
   let slot_is_used slot =
     List.exists
       (fun bv ->
-        match
-          Hashtbl.find_opt env.uses (Code_id_or_name.var (Bound_var.var bv))
-        with
-        | None | Some Bottom -> false
-        | Some Top -> true
-        | Some (Fields f) -> Global_flow_graph.Field.Map.mem slot f)
+        Dep_solver.field_used env.uses
+          (Code_id_or_name.var (Bound_var.var bv))
+          slot)
       bound
   in
   let code_is_used bv =
-    match
-      Hashtbl.find_opt env.uses (Code_id_or_name.var (Bound_var.var bv))
-    with
-    | None | Some Bottom -> false
-    | Some Top -> true
-    | Some (Fields f) -> Global_flow_graph.Field.Map.mem Code_of_closure f
+    Dep_solver.field_used env.uses
+      (Code_id_or_name.var (Bound_var.var bv))
+      Code_of_closure
   in
   let value_slots =
     Value_slot.Map.filter
@@ -213,9 +207,9 @@ let rewrite_set_of_closures bound (env : env) value_slots alloc_mode
         let code_id =
           match code_id with
           | Deleted _ -> code_id
-          | Code_id code_id ->
+          | Code_id { code_id; only_full_applications } ->
             if code_is_used bound_var
-            then Code_id code_id
+            then Code_id { code_id; only_full_applications }
             else
               let code_metadata = env.get_code_metadata code_id in
               Deleted
@@ -518,7 +512,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (env : env)
            (Bound_parameters.to_list params))
     in
     let handlers =
-      Continuation.Map.mapi
+      Continuation.Lmap.mapi
         (fun cont handler ->
           let { bound_parameters; expr; is_exn_handler; is_cold } = handler in
           let bound_parameters = filter_params cont bound_parameters in
@@ -528,9 +522,7 @@ and rebuild_holed (kinds : Flambda_kind.t Name.Map.t) (env : env)
         handlers
     in
     let invariant_params =
-      filter_params
-        (fst (Continuation.Map.min_binding handlers))
-        invariant_params
+      filter_params (fst (Continuation.Lmap.choose handlers)) invariant_params
     in
     let let_cont_expr =
       RE.create_recursive_let_cont ~invariant_params handlers ~body:hole
@@ -556,7 +548,9 @@ let rebuild
     in
     keep_all_parameters
     ||
-    let is_var_used = Hashtbl.mem solved_dep (Code_id_or_name.var param) in
+    let is_var_used =
+      Dep_solver.has_use solved_dep (Code_id_or_name.var param)
+    in
     is_var_used
     ||
     let info = Continuation.Map.find cont continuation_info in

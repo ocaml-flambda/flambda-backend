@@ -24,7 +24,7 @@ let with_info = Compile_common.with_info ~native:true ~tool_name
 
 let interface ~source_file ~output_prefix =
   with_info ~source_file ~output_prefix ~dump_ext:"cmi"
-    ~compilation_unit:Inferred_from_output_prefix
+    ~compilation_unit:Inferred_from_output_prefix ~kind:Intf
   @@ fun info ->
   Compile_common.interface
   ~hook_parse_tree:(Compiler_hooks.execute Compiler_hooks.Parse_tree_intf)
@@ -52,22 +52,24 @@ let compile_from_raw_lambda i raw_lambda ~unix ~pipeline ~as_arg_for =
       |> print_if i.ppf_dump Clflags.dump_lambda Printlambda.program
       |> Compiler_hooks.execute_and_pipe Compiler_hooks.Lambda
       |> (fun (program : Lambda.program) ->
-           if Clflags.(should_stop_after Compiler_pass.Lambda) then () else
-           Asmgen.compile_implementation
-             unix
-             ~pipeline
-             ~sourcefile:(Some (Unit_info.source_file i.target))
-             ~prefixname:(Unit_info.prefix i.target)
-             ~ppf_dump:i.ppf_dump
-             program);
-           let arg_descr =
-             make_arg_descr ~param:as_arg_for
-               ~arg_block_idx:program.arg_block_idx
-           in
-           Compilenv.save_unit_info
-             (Unit_info.Artifact.filename (Unit_info.cmx i.target))
-             ~main_module_block_format:program.main_module_block_format
-             ~arg_descr)
+           if Clflags.(should_stop_after Compiler_pass.Lambda) then ()
+           else begin
+             Asmgen.compile_implementation
+               unix
+               ~pipeline
+               ~sourcefile:(Some (Unit_info.source_file i.target))
+               ~prefixname:(Unit_info.prefix i.target)
+               ~ppf_dump:i.ppf_dump
+               program;
+             let arg_descr =
+               make_arg_descr ~param:as_arg_for
+                 ~arg_block_idx:program.arg_block_idx
+             in
+             Compilenv.save_unit_info
+               (Unit_info.Artifact.filename (Unit_info.cmx i.target))
+               ~main_module_block_format:program.main_module_block_format
+               ~arg_descr
+           end))
 
 let compile_from_typed i typed ~transl_style ~unix ~pipeline ~as_arg_for =
   typed
@@ -84,7 +86,7 @@ type flambda2 =
 
 (* Emit assembly directly from Linear IR *)
 let emit unix i =
-  Compilenv.reset i.module_name;
+  Compilenv.reset i.target;
   Asmgen.compile_implementation_linear unix
     (Unit_info.prefix i.target)
     ~progname:(Unit_info.source_file i.target)
@@ -116,6 +118,7 @@ let implementation_aux unix ~(flambda2 : flambda2) ~start_from
     Direct_to_cmm (flambda2 ~keep_symbol_tables)
   in
   with_info ~source_file ~output_prefix ~dump_ext:"cmx" ~compilation_unit
+    ~kind:Impl
   @@ fun info ->
   if !Flambda_backend_flags.internal_assembler then
       Emitaux.binary_backend_available := true;
@@ -123,7 +126,7 @@ let implementation_aux unix ~(flambda2 : flambda2) ~start_from
   | Parsing ->
     let backend info ({ structure; coercion; argument_interface; _ }
                       : Typedtree.implementation) =
-      Compilenv.reset info.module_name;
+      Compilenv.reset info.target;
       let argument_coercion =
         match argument_interface with
         | Some { ai_coercion_from_primary; ai_signature = _ } ->
@@ -133,10 +136,7 @@ let implementation_aux unix ~(flambda2 : flambda2) ~start_from
       let typed = structure, coercion, argument_coercion in
       let as_arg_for =
         !Clflags.as_argument_for
-        |> Option.map (fun param ->
-          (* Currently, parameters don't have parameters, so we assume the argument
-             list is empty *)
-          Global_module.Name.create_no_args param)
+        |> Option.map Global_module.Parameter_name.of_string
       in
       if not (Config.flambda || Config.flambda2) then Clflags.set_oclassic ();
       compile_from_typed info typed ~unix ~transl_style ~pipeline ~as_arg_for
@@ -148,7 +148,7 @@ let implementation_aux unix ~(flambda2 : flambda2) ~start_from
       info ~backend
   | Emit -> emit unix info ~ppf_dump:info.ppf_dump
   | Instantiation { runtime_args; main_module_block_size; arg_descr } ->
-    Compilenv.reset info.module_name;
+    Compilenv.reset info.target;
     begin
       match !Clflags.as_argument_for with
       | Some _ ->

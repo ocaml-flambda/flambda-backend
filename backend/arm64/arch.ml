@@ -14,16 +14,33 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-
+[@@@ocaml.warning "+a-40-41-42"]
 (* Specific operations for the ARM processor, 64-bit mode *)
+
+open! Int_replace_polymorphic_compare
 
 open Format
 
-let macosx = (Config.system = "macosx")
+let macosx = String.equal Config.system "macosx"
+
+let is_asan_enabled = ref false
+
+(* CR gyorsh: refactor to use [Arch.Extension] like amd64 *)
+let feat_cssc = ref false
 
 (* Machine-specific command-line options *)
 
-let command_line_options = []
+let command_line_options = [
+  "-fno-asan",
+    Arg.Clear is_asan_enabled,
+    " Disable AddressSanitizer. This is only meaningful if the compiler was \
+     built with AddressSanitizer support enabled."
+  ;
+
+  "-fcssc",
+    Arg.Set feat_cssc,
+    " Enable the Common Short Sequence Compression (CSSC) instructions."
+]
 
 (* Addressing modes *)
 
@@ -43,9 +60,10 @@ type cmm_label = Label.t
 
 type bswap_bitwidth = Sixteen | Thirtytwo | Sixtyfour
 
+(* Specific operations, including [Simd], must not raise. *)
 type specific_operation =
-  | Ifar_poll of { return_label: cmm_label option }
-  | Ifar_alloc of { bytes : int; dbginfo : Debuginfo.alloc_dbginfo }
+  | Ifar_poll
+  | Ifar_alloc of { bytes : int; dbginfo : Cmm.alloc_dbginfo }
   | Ishiftarith of arith_operation * int
   | Imuladd       (* multiply and add *)
   | Imulsub       (* multiply and subtract *)
@@ -58,6 +76,7 @@ type specific_operation =
   | Ibswap of { bitwidth: bswap_bitwidth; } (* endianness conversion *)
   | Imove32       (* 32-bit integer move *)
   | Isignext of int (* sign extension *)
+  | Isimd of Simd.operation
 
 and arith_operation =
     Ishiftadd
@@ -73,7 +92,7 @@ let size_float = 8
 
 let size_vec128 = 16
 
-let allow_unaligned_access = false
+let allow_unaligned_access = true
 
 (* Behavior of division *)
 
@@ -84,9 +103,11 @@ let division_crashes_on_overflow = false
 let identity_addressing = Iindexed 0
 
 let offset_addressing addr delta =
+  (* Resulting offset might not be representable, but that is the
+     responsibility of the caller. *)
   match addr with
-  | Iindexed n -> Iindexed(n + delta)
-  | Ibased(s, n) -> Ibased(s, n + delta)
+  | Iindexed i -> Iindexed (i + delta)
+  | Ibased (sym, i) -> Ibased (sym, i + delta)
 
 let num_args_addressing = function
   | Iindexed _ -> 1
@@ -111,9 +132,9 @@ let int_of_bswap_bitwidth = function
 
 let print_specific_operation printreg op ppf arg =
   match op with
-  | Ifar_poll _ ->
+  | Ifar_poll ->
     fprintf ppf "(far) poll"
-  | Ifar_alloc { bytes; } ->
+  | Ifar_alloc { bytes; dbginfo = _ } ->
     fprintf ppf "(far) alloc %i" bytes
   | Ishiftarith(op, shift) ->
       let op_name = function
@@ -172,6 +193,8 @@ let print_specific_operation printreg op ppf arg =
   | Isignext n ->
       fprintf ppf "signext%d %a"
         n printreg arg.(0)
+  | Isimd op ->
+    Simd.print_operation printreg op ppf arg
 
 let equal_addressing_mode left right =
   match left, right with
@@ -209,9 +232,13 @@ let equal_specific_operation left right =
     Int.equal (int_of_bswap_bitwidth left) (int_of_bswap_bitwidth right)
   | Imove32, Imove32 -> true
   | Isignext left, Isignext right -> Int.equal left right
-  | (Ifar_alloc _  | Ifar_poll _  | Ishiftarith _
+  | Isimd left, Isimd right -> Simd.equal_operation left right
+  | (Ifar_alloc _  | Ifar_poll  | Ishiftarith _
     | Imuladd | Imulsub | Inegmulf | Imuladdf | Inegmuladdf | Imulsubf
-    | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _), _ -> false
+    | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _ | Isimd _), _ -> false
+
+let isomorphic_specific_operation op1 op2 =
+  equal_specific_operation op1 op2
 
 (* Recognition of logical immediate arguments *)
 
@@ -247,7 +274,7 @@ let rec run_automata nbits state input =
   if nbits <= 0
   then acc
   else run_automata (nbits - 1)
-                    (if Nativeint.logand input 1n = 0n then next0 else next1)
+                    (if Nativeint.equal (Nativeint.logand input 1n) 0n then next0 else next1)
                     (Nativeint.shift_right_logical input 1)
 
 (* The following function determines a length [e]
@@ -261,7 +288,7 @@ let logical_imm_length x =
     let mask = Nativeint.(sub (shift_left 1n n) 1n) in
     let low_n_bits = Nativeint.(logand x mask) in
     let next_n_bits = Nativeint.(logand (shift_right_logical x n) mask) in
-    low_n_bits = next_n_bits in
+    Nativeint.equal low_n_bits next_n_bits in
   (* If [test n] fails, we know that the length [e] is
      at least [2n].  Hence we test with decreasing values of [n]:
      32, 16, 8, 4, 2. *)
@@ -279,12 +306,12 @@ let logical_imm_length x =
 *)
 
 let is_logical_immediate x =
-  x <> 0n && x <> -1n && run_automata (logical_imm_length x) 0 x
+  not (Nativeint.equal x 0n) && not (Nativeint.equal x (-1n)) && run_automata (logical_imm_length x) 0 x
 
 (* Specific operations that are pure *)
 
 let operation_is_pure : specific_operation -> bool = function
-  | Ifar_alloc _ | Ifar_poll _ -> false
+  | Ifar_alloc _ | Ifar_poll -> false
   | Ishiftarith _ -> true
   | Imuladd -> true
   | Imulsub -> true
@@ -297,28 +324,13 @@ let operation_is_pure : specific_operation -> bool = function
   | Ibswap _ -> true
   | Imove32 -> true
   | Isignext _ -> true
+  | Isimd op -> Simd.operation_is_pure op
 
 (* Specific operations that can raise *)
 
-let operation_can_raise = function
-  | Ifar_alloc _
-  | Ifar_poll _ -> true
-  | Imuladd
-  | Imulsub
-  | Inegmulf
-  | Imuladdf
-  | Inegmuladdf
-  | Imulsubf
-  | Inegmulsubf
-  | Isqrtf
-  | Imove32
-  | Ishiftarith (_, _)
-  | Isignext _
-  | Ibswap _ -> false
-
 let operation_allocates = function
   | Ifar_alloc _ -> true
-  | Ifar_poll _
+  | Ifar_poll
   | Imuladd
   | Imulsub
   | Inegmulf
@@ -330,35 +342,17 @@ let operation_allocates = function
   | Imove32
   | Ishiftarith (_, _)
   | Isignext _
-  | Ibswap _ -> false
+  | Ibswap _
+  | Isimd _ -> false
 
 (* See `amd64/arch.ml`. *)
-
-let compare_addressing_mode_without_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
+let equal_addressing_mode_without_displ (addressing_mode_1: addressing_mode)
+      (addressing_mode_2 : addressing_mode) =
   match addressing_mode_1, addressing_mode_2 with
-  | Iindexed _, Iindexed _ -> 0
-  | Iindexed _ , _ -> -1
-  | _, Iindexed _ -> 1
-  | Ibased (var1, _), Ibased (var2, _) -> String.compare var1 var2
+  | Iindexed _, Iindexed _ -> true
+  | Ibased (var1, _), Ibased (var2, _) -> String.equal var1 var2
+  | (Iindexed _ | Ibased _), _ -> false
 
-let compare_addressing_mode_displ (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) =
-  match addressing_mode_1, addressing_mode_2 with
-  | Iindexed n1, Iindexed n2 -> Some (Int.compare n1 n2)
-  | Ibased (var1, n1), Ibased (var2, n2) ->
-    if String.compare var1 var2 = 0 then Some (Int.compare n1 n2) else None
-  | Iindexed _ , _ -> None
-  | Ibased _ , _ -> None
-
-let addressing_offset_in_bytes (addressing_mode_1: addressing_mode) (addressing_mode_2 : addressing_mode) = None
-
-let can_cross_loads_or_stores (specific_operation : specific_operation) =
-  match specific_operation with
-  | Ifar_poll _ | Ifar_alloc _ | Ishiftarith _ | Imuladd | Imulsub | Inegmulf | Imuladdf
-  | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _ ->
-    true
-
-let may_break_alloc_freshness (specific_operation : specific_operation) =
-  match specific_operation with
-  | Ifar_poll _ | Ifar_alloc _ | Ishiftarith _ | Imuladd | Imulsub | Inegmulf | Imuladdf
-  | Inegmuladdf | Imulsubf | Inegmulsubf | Isqrtf | Ibswap _ | Imove32 | Isignext _ ->
-    false
+let addressing_offset_in_bytes (_addressing_mode_1: addressing_mode)
+      (_addressing_mode_2 : addressing_mode) ~arg_offset_in_bytes:_ _ _ =
+  None

@@ -470,7 +470,8 @@ static void extern_failwith(struct caml_extern_state* s, char *msg)
 
 static void extern_stack_overflow(struct caml_extern_state* s)
 {
-  caml_gc_message (0x04, "Stack overflow in marshaling value\n");
+  CAML_GC_MESSAGE(DEBUG,
+                  "Stack overflow in marshaling value\n");
   free_extern_output(s);
   caml_raise_out_of_memory();
 }
@@ -599,6 +600,11 @@ Caml_inline void extern_unboxed_int(struct caml_extern_state* s, intnat n)
       "output_value: cannot marshal unboxed values on 32 bit");
 
   writecode64(s, CODE_UNBOXED_INT64, n);
+}
+
+Caml_inline void extern_null(struct caml_extern_state* s)
+{
+  writecode8(s, CODE_NULL, 0);
 }
 
 /* Marshaling references to previously-marshaled blocks */
@@ -807,7 +813,9 @@ static void extern_rec(struct caml_extern_state* s, value v)
   sp = s->extern_stack;
 
   while(1) {
-  if (Is_long(v)) {
+  if (v == Val_null) {
+    extern_null(s);
+  } else if (Is_long(v)) {
     extern_int(s, Long_val(v));
   }
   else {
@@ -1321,10 +1329,14 @@ enum reachable_words_node_state {
    * root that we reached it from */
 };
 
-/* CR ocaml 5 domains (mshinwell): think about what to do here */
-/* Not multicore-safe (the [volatile] just lets us use this with the [Field] macro) */
-static void add_to_long_value(volatile value *v, intnat x) {
-  *v = Val_long(Long_val(*v) + x);
+/* This is multicore-safe, for the non-local reason that we only apply
+ * it to an array which this thread just allocated in
+ * caml_obj_uniquely_reachable_words. */
+
+Caml_inline
+void add_to_field(value sizes, uintnat index, intnat x) {
+  volatile value *p = &Field(sizes, index);
+  *p = Val_long(Long_val(*p) + x);
 }
 
 /* Performs traversal through the OCaml object reachability graph to deterime
@@ -1371,7 +1383,7 @@ intnat reachable_words_once(struct caml_extern_state *s,
    * out-of-heap blocks, so we end up counting out-of-heap blocks too. */
   while (1) {
     if (Is_long(v)) {
-      /* Tagged integers contribute 0 to the size, nothing to do */
+      /* Tagged integers or nulls contribute 0 to the size, nothing to do */
     } else {
       header_t hd = Hd_val(v);
       tag_t tag = Tag_hd(hd);
@@ -1419,11 +1431,11 @@ intnat reachable_words_once(struct caml_extern_state *s,
             /* mark is identifier of some other root that we counted this node
              * as contributing to. Since it is evidently not uniquely reachable, we
              * undo this contribution */
-            add_to_long_value(&Field(sizes_by_root_id, mark), -sz_with_header);
+            add_to_field(sizes_by_root_id, mark, -sz_with_header);
             *shared_size += sz_with_header;
           } else {
             CAMLassert(new_mark == identifier || (v == root && new_mark == RootProcessed));
-            add_to_long_value(&Field(sizes_by_root_id, identifier), sz_with_header);
+            add_to_field(sizes_by_root_id, identifier, sz_with_header);
           }
         }
         if (tag < No_scan_tag) {

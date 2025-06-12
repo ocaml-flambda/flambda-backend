@@ -50,17 +50,20 @@ type simplify_function_body =
 
 let simplify_projection dacc ~original_term ~deconstructing ~shape ~result_var
     ~result_kind =
-  let env = DA.typing_env dacc in
-  match T.meet_shape env deconstructing ~shape ~result_var ~result_kind with
+  let denv = DA.denv dacc in
+  let denv = DE.define_variable denv result_var result_kind in
+  let env = DE.typing_env denv in
+  match T.meet_shape env deconstructing ~shape with
   | Bottom ->
-    let dacc = DA.add_variable dacc result_var (T.bottom result_kind) in
-    Simplify_primitive_result.create_invalid dacc
-  | Ok env_extension ->
-    let dacc =
-      DA.map_denv dacc ~f:(fun denv ->
-          DE.define_variable_and_extend_typing_environment denv result_var
-            result_kind env_extension)
+    let denv =
+      DE.add_equation_on_variable denv (Bound_var.var result_var)
+        (T.bottom result_kind)
     in
+    let dacc = DA.with_denv dacc denv in
+    Simplify_primitive_result.create_invalid dacc
+  | Ok env ->
+    let denv = DE.with_typing_env denv env in
+    let dacc = DA.with_denv dacc denv in
     Simplify_primitive_result.create original_term ~try_reify:true dacc
 
 let update_exn_continuation_extra_args uacc ~exn_cont_use_id apply =
@@ -238,13 +241,30 @@ let split_direct_over_application apply
         ~free_names_of_body:(Known perform_over_application_free_names)
   in
   let after_full_application = Continuation.create () in
+  let full_apply_result_arity =
+    Code_metadata.result_arity callee's_code_metadata
+  in
   let after_full_application_handler =
-    let func_param = BP.create func_var K.With_subkind.any_value in
-    Continuation_handler.create
-      (Bound_parameters.create [func_param])
-      ~handler:perform_over_application
-      ~free_names_of_handler:(Known perform_over_application_free_names)
-      ~is_exn_handler:false ~is_cold:false
+    if not (Flambda_arity.is_one_param_of_kind_value full_apply_result_arity)
+    then
+      let params =
+        Bound_parameters.create
+          (List.map
+             (fun kind ->
+               Bound_parameter.create (Variable.create "over_app_result") kind)
+             (Flambda_arity.unarized_components full_apply_result_arity))
+      in
+      Continuation_handler.create params
+        ~handler:(Expr.create_invalid (Over_application_never_returns apply))
+        ~free_names_of_handler:(Known Name_occurrences.empty)
+        ~is_exn_handler:false ~is_cold:true
+    else
+      let func_param = BP.create func_var K.With_subkind.any_value in
+      Continuation_handler.create
+        (Bound_parameters.create [func_param])
+        ~handler:perform_over_application
+        ~free_names_of_handler:(Known perform_over_application_free_names)
+        ~is_exn_handler:false ~is_cold:false
   in
   let full_apply =
     Apply.create ~callee:(Apply.callee apply)
@@ -274,14 +294,14 @@ let split_direct_over_application apply
     Let.create
       (Bound_pattern.singleton (Bound_var.create region Name_mode.normal))
       (Named.create_prim
-         (Nullary (Begin_region { ghost = false }))
+         (Variadic (Begin_region { ghost = false }, []))
          (Apply.dbg apply))
       ~body:
         (Let.create
            (Bound_pattern.singleton
               (Bound_var.create ghost_region Name_mode.normal))
            (Named.create_prim
-              (Nullary (Begin_region { ghost = false }))
+              (Variadic (Begin_region { ghost = false }, []))
               (Apply.dbg apply))
            ~body:both_applications
            ~free_names_of_body:(Known free_names_of_body)

@@ -400,44 +400,63 @@ uintnat caml_mem_round_up_mapping_size(uintnat size)
 
 #define Is_page_aligned(size) ((size & (caml_plat_pagesize - 1)) == 0)
 
-void* caml_mem_map(uintnat size, int reserve_only)
+void* caml_mem_map(uintnat size, uintnat flags, const char* name)
 {
-  void* mem = caml_plat_mem_map(size, reserve_only);
+  void* mem = caml_plat_mem_map(size, flags, name);
 
   if (mem == 0) {
-    caml_gc_message(0x1000, "mmap %" ARCH_INTNAT_PRINTF_FORMAT "d bytes failed",
-                            size);
+    CAML_GC_MESSAGE(ADDRSPACE,
+                    "mmap %" ARCH_INTNAT_PRINTF_FORMAT "d bytes (%s) failed",
+                    size, name);
     return 0;
   }
 
-  caml_gc_message(0x1000, "mmap %" ARCH_INTNAT_PRINTF_FORMAT "d"
-                          " bytes at %p for heaps\n", size, mem);
+  CAML_GC_MESSAGE(ADDRSPACE,
+                  "mmap %" ARCH_INTNAT_PRINTF_FORMAT "d"
+                  " bytes at %p for %s\n", size, mem, name);
 
   return mem;
 }
 
-void* caml_mem_commit(void* mem, uintnat size)
+void* caml_mem_commit(void* mem, uintnat size, const char* name)
 {
   CAMLassert(Is_page_aligned(size));
-  caml_gc_message(0x1000, "commit %" ARCH_INTNAT_PRINTF_FORMAT "d"
-                          " bytes at %p for heaps\n", size, mem);
-  return caml_plat_mem_commit(mem, size);
+  CAML_GC_MESSAGE(ADDRSPACE,
+                  "commit %" ARCH_INTNAT_PRINTF_FORMAT "d"
+                  " bytes at %p for %s\n", size, mem, name);
+  return caml_plat_mem_commit(mem, size, name);
 }
 
-void caml_mem_decommit(void* mem, uintnat size)
+void caml_mem_decommit(void* mem, uintnat size, const char* name)
 {
   if (size) {
-    caml_gc_message(0x1000, "decommit %" ARCH_INTNAT_PRINTF_FORMAT "d"
-                            " bytes at %p for heaps\n", size, mem);
-    caml_plat_mem_decommit(mem, size);
+    CAML_GC_MESSAGE(ADDRSPACE,
+                    "decommit %" ARCH_INTNAT_PRINTF_FORMAT "d"
+                    " bytes at %p for %s\n", size, mem, name);
+    caml_plat_mem_decommit(mem, size, name);
   }
 }
 
 void caml_mem_unmap(void* mem, uintnat size)
 {
-  caml_gc_message(0x1000, "munmap %" ARCH_INTNAT_PRINTF_FORMAT "d"
-                          " bytes at %p for heaps\n", size, mem);
+  CAML_GC_MESSAGE(ADDRSPACE,
+                  "munmap %" ARCH_INTNAT_PRINTF_FORMAT "d"
+                  " bytes at %p\n", size, mem);
   caml_plat_mem_unmap(mem, size);
+}
+
+void caml_mem_name_map(void* mem, size_t length, const char* format, ...)
+{
+  va_list args;
+  char mapping_name[64];
+  va_start(args, format);
+  int n = vsnprintf(mapping_name, sizeof(mapping_name), format, args);
+  va_end(args);
+  CAMLassert(n > 0);
+  CAMLassert(n < sizeof(mapping_name));
+  /* if we successfully made a string, give it to the OS. */
+  if ((n > 0) && (n < sizeof(mapping_name)))
+    caml_plat_mem_name_map(mem, length, mapping_name);
 }
 
 #define Min_sleep_ns       10000 // 10 us

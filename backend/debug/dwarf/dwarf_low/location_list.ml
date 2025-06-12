@@ -14,4 +14,5 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 include Location_or_range_list.Make (Location_list_entry)

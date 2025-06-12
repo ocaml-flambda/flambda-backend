@@ -15,4 +15,4 @@
 
 (** Emit assembly instructions for MASM (Intel syntax). *)
 
-val generate_asm: out_channel -> X86_ast.asm_line list -> unit
+val generate_asm : out_channel -> X86_ast.asm_line list -> unit

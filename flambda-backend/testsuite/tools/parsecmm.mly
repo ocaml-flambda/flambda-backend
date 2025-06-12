@@ -28,13 +28,6 @@ let rec make_letdef def body =
       unbind_ident id;
       Clet(id, def, make_letdef rem body)
 
-let rec make_letmutdef def body =
-  match def with
-    [] -> body
-  | (id, ty, def) :: rem ->
-      unbind_ident id;
-      Clet_mut(id, ty, def, make_letmutdef rem body)
-
 let make_switch n selector caselist =
   let index = Array.make n 0 in
   let casev = Array.of_list caselist in
@@ -45,7 +38,7 @@ let make_switch n selector caselist =
     List.iter (fun pos -> index.(pos) <- i) posl;
     actv.(i) <- (e, dbg)
   done;
-  Cswitch(selector, index, actv, dbg, Any)
+  Cswitch(selector, index, actv, dbg)
 
 let access_array base numelt size =
   match numelt with
@@ -220,8 +213,6 @@ expr:
   | IDENT       { Cvar(find_ident $1) }
   | LBRACKET RBRACKET { Ctuple [] }
   | LPAREN LET letdef sequence RPAREN { make_letdef $3 $4 }
-  | LPAREN LETMUT letmutdef sequence RPAREN { make_letmutdef $3 $4 }
-  | LPAREN ASSIGN IDENT expr RPAREN { Cassign(find_ident $3, $4) }
   | LPAREN APPLY location expr exprlist machtype RPAREN
                 { Cop(Capply ($6, Lambda.Rc_normal),
                       $4 :: List.rev $5, debuginfo ?loc:$3 ()) }
@@ -233,15 +224,16 @@ expr:
                               coeffects=Has_coeffects;
                               ty_args=[];},
                      List.rev $4, debuginfo ())}
-  | LPAREN ALLOC exprlist RPAREN { Cop(Calloc Cmm.Alloc_mode.Heap, List.rev $3, debuginfo ()) }
+  | LPAREN ALLOC exprlist RPAREN { Cop(Calloc (Cmm.Alloc_mode.Heap,
+                                               Cmm.Alloc_block_kind_other),
+                                       List.rev $3, debuginfo ()) }
   | LPAREN SUBF expr RPAREN { Cop(Cnegf Float64, [$3], debuginfo ()) }
   | LPAREN SUBF expr expr RPAREN { Cop(Csubf Float64, [$3; $4], debuginfo ()) }
   | LPAREN unaryop expr RPAREN { Cop($2, [$3], debuginfo ()) }
   | LPAREN binaryop expr expr RPAREN { Cop($2, [$3; $4], debuginfo ()) }
   | LPAREN SEQ sequence RPAREN { $3 }
   | LPAREN IF expr expr expr RPAREN
-      { Cifthenelse($3, debuginfo (), $4, debuginfo (), $5, debuginfo (),
-                    Any) }
+      { Cifthenelse($3, debuginfo (), $4, debuginfo (), $5, debuginfo ()) }
   | LPAREN SWITCH INTCONST expr caselist RPAREN { make_switch $3 $4 $5 }
   | LPAREN WHILE expr sequence RPAREN
       {
@@ -252,18 +244,18 @@ expr:
             Cconst_int (x, _) when x <> 0 -> $4
           | _ -> Cifthenelse($3, debuginfo (), $4, debuginfo (),
                              (Cexit(Cmm.Lbl lbl0,[],[])),
-                             debuginfo (), Any) in
-        Ccatch(Nonrecursive, [lbl0, [], Ctuple [], debuginfo (), false],
+                             debuginfo ()) in
+        Ccatch(Normal, [lbl0, [], Ctuple [], debuginfo (), false],
           Ccatch(Recursive,
             [lbl1, [], Csequence(body, Cexit(Cmm.Lbl lbl1, [], [])), debuginfo (), false],
-            Cexit(Cmm.Lbl lbl1, [], []), Any), Any) }
+            Cexit(Cmm.Lbl lbl1, [], []))) }
   | LPAREN EXIT traps IDENT exprlist RPAREN
     { Cexit(Cmm.Lbl (find_label $4), List.rev $5, $3) }
   | LPAREN CATCH sequence WITH catch_handlers RPAREN
     { let handlers = $5 in
       List.iter (fun (_, l, _, _, _) ->
         List.iter (fun (x, _) -> unbind_ident x) l) handlers;
-      Ccatch(Recursive, handlers, $3, Any) }
+      Ccatch(Recursive, handlers, $3) }
   | EXIT        { Cexit(Cmm.Lbl 0,[],[]) }
   | LPAREN TRY machtype sequence WITH bind_ident sequence RPAREN
       { let after_push_k = Lambda.next_raise_count () in
@@ -272,24 +264,22 @@ expr:
         let result = Backend_var.create_local "result" in
         let result' = Backend_var.With_provenance.create result in
         unbind_ident $6;
-        Ctrywith (
-          Ccatch (Nonrecursive,
+        ctrywith (
+          Ccatch (Normal,
             [after_push_k, [],
-             Ccatch (Nonrecursive,
+             Ccatch (Normal,
                [after_pop_k, [result', $3],
                 Cvar result, debuginfo (), false],
                Cexit (Cmm.Lbl after_pop_k,
                  [$4], (* original try body *)
-                 [Pop exn_k]),
-               Any),
+                 [Pop exn_k])),
              debuginfo (), false],
-            Cexit (Cmm.Lbl after_push_k, [], [Push exn_k]),
-            Any),
+            Cexit (Cmm.Lbl after_push_k, [], [Push exn_k])),
           exn_k,
           $6, (* exception parameter *)
+          [],
           $7, (* exception handler *)
-          debuginfo (),
-          Any) }
+          debuginfo ()) }
   | LPAREN VAL expr expr RPAREN
       { let open Asttypes in
         Cop(Cload {memory_chunk=Word_val;

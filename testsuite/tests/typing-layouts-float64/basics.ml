@@ -112,7 +112,7 @@ Line 1, characters 27-28:
 1 | let f4_1 (x : t_float64) = x, false;;
                                ^
 Error: This expression has type "t_float64"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
@@ -125,7 +125,7 @@ Line 1, characters 33-34:
 1 | let f4_2 (x : 'a t_float64_id) = x, false;;
                                      ^
 Error: This expression has type "'a t_float64_id" = "('a : float64)"
-       but an expression was expected of type "('b : value)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_float64_id is float64
          because of the definition of t_float64_id at line 2, characters 0-37.
        But the layout of 'a t_float64_id must be a sublayout of value
@@ -138,9 +138,9 @@ Line 1, characters 24-25:
 1 | let f4_3 (x : float#) = x, false;;
                             ^
 Error: This expression has type "float#" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of float# is float64
-         because it is the primitive type float#.
+         because it is the unboxed version of the primitive type float.
        But the layout of float# must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -164,7 +164,7 @@ Line 1, characters 18-24:
                       ^^^^^^
 Error: Tuple element types must have layout value.
        The layout of "float#" is float64
-         because it is the primitive type float#.
+         because it is the unboxed version of the primitive type float.
        But the layout of "float#" must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -206,14 +206,9 @@ type t5_1 = { x : t_float64 };;
 type t5_1 = { x : t_float64; }
 |}];;
 
-(* CR layouts 2.5: allow this *)
 type t5_3 = { x : t_float64 } [@@unboxed];;
 [%%expect{|
-Line 1, characters 14-27:
-1 | type t5_3 = { x : t_float64 } [@@unboxed];;
-                  ^^^^^^^^^^^^^
-Error: Type "t_float64" has layout "float64".
-       Unboxed records may not yet contain types of this layout.
+type t5_3 = { x : t_float64; } [@@unboxed]
 |}];;
 
 (* all-float64 constructor args are also allowed, as are some constructors that
@@ -232,20 +227,12 @@ type t5_5 = A of int * t_float64
 
 type t5_6 = A of t_float64 [@@unboxed];;
 [%%expect{|
-Line 1, characters 12-26:
-1 | type t5_6 = A of t_float64 [@@unboxed];;
-                ^^^^^^^^^^^^^^
-Error: Type "t_float64" has layout "float64".
-       Unboxed variants may not yet contain types of this layout.
+type t5_6 = A of t_float64 [@@unboxed]
 |}];;
 
 type t5_6_1 = A of { x : t_float64 } [@@unboxed];;
 [%%expect{|
-Line 1, characters 21-34:
-1 | type t5_6_1 = A of { x : t_float64 } [@@unboxed];;
-                         ^^^^^^^^^^^^^
-Error: Type "t_float64" has layout "float64".
-       Unboxed inlined records may not yet contain types of this layout.
+type t5_6_1 = A of { x : t_float64; } [@@unboxed]
 |}];;
 
 type ('a : float64) t5_7 = A of int
@@ -333,7 +320,7 @@ Line 1, characters 31-37:
                                    ^^^^^^
 Error: This type signature for "x" is not a value type.
        The layout of type float# is float64
-         because it is the primitive type float#.
+         because it is the unboxed version of the primitive type float.
        But the layout of type float# must be a sublayout of value
          because it's the type of something stored in a module structure.
 |}];;
@@ -347,7 +334,7 @@ Line 1, characters 30-31:
 1 | let f7_1 (x : t_float64) = `A x;;
                                   ^
 Error: This expression has type "t_float64"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
@@ -360,7 +347,7 @@ Line 1, characters 36-37:
 1 | let f7_2 (x : 'a t_float64_id) = `A x;;
                                         ^
 Error: This expression has type "'a t_float64_id" = "('a : float64)"
-       but an expression was expected of type "('b : value)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_float64_id is float64
          because of the definition of t_float64_id at line 2, characters 0-37.
        But the layout of 'a t_float64_id must be a sublayout of value
@@ -373,9 +360,9 @@ Line 1, characters 27-28:
 1 | let f7_3 (x : float#) = `A x;;
                                ^
 Error: This expression has type "float#" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of float# is float64
-         because it is the primitive type float#.
+         because it is the unboxed version of the primitive type float.
        But the layout of float# must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}];;
@@ -425,7 +412,7 @@ Line 1, characters 20-39:
 1 | let x8_1 = id_value (make_t_float64 ());;
                         ^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "t_float64"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
@@ -438,7 +425,7 @@ Line 1, characters 20-42:
 1 | let x8_2 = id_value (make_t_float64_id ());;
                         ^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "'a t_float64_id" = "('a : float64)"
-       but an expression was expected of type "('b : value)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_float64_id is float64
          because of the definition of t_float64_id at line 2, characters 0-37.
        But the layout of 'a t_float64_id must be a sublayout of value
@@ -451,9 +438,9 @@ Line 1, characters 20-36:
 1 | let x8_3 = id_value (make_floatu ());;
                         ^^^^^^^^^^^^^^^^
 Error: This expression has type "float#" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of float# is float64
-         because it is the primitive type float#.
+         because it is the unboxed version of the primitive type float.
        But the layout of float# must be a sublayout of value
          because of the definition of id_value at line 5, characters 13-18.
 |}];;
@@ -578,7 +565,8 @@ type t11_1 = ..
 Line 3, characters 14-28:
 3 | type t11_1 += A of t_float64;;
                   ^^^^^^^^^^^^^^
-Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 type t11_1 += B of float#;;
@@ -586,7 +574,8 @@ type t11_1 += B of float#;;
 Line 1, characters 14-25:
 1 | type t11_1 += B of float#;;
                   ^^^^^^^^^^^
-Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 type ('a : float64) t11_2 = ..
@@ -601,7 +590,8 @@ type 'a t11_2 += A of int
 Line 5, characters 17-24:
 5 | type 'a t11_2 += B of 'a;;
                      ^^^^^^^
-Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 (* Some extensible variants aren't supported, though. *)
@@ -612,8 +602,8 @@ type t11_1 += C of t_float64 * string;;
 Line 1, characters 14-37:
 1 | type t11_1 += C of t_float64 * string;;
                   ^^^^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument, "
-       t_float64", but found boxed argument, "string".
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 (***************************************)
@@ -690,7 +680,7 @@ Line 1, characters 26-43:
                               ^^^^^^^^^^^^^^^^^
 Error: The method "x" has type "float#" but is expected to have type "('a : value)"
        The layout of float# is float64
-         because it is the primitive type float#.
+         because it is the unboxed version of the primitive type float.
        But the layout of float# must be a sublayout of value
          because it's the type of an object field.
 |}];;
@@ -702,7 +692,7 @@ Line 1, characters 26-40:
                               ^^^^^^^^^^^^^^
 Error: Variables bound in a class must have layout value.
        The layout of x is float64
-         because it is the primitive type float#.
+         because it is the unboxed version of the primitive type float.
        But the layout of x must be a sublayout of value
          because it's the type of an instance variable.
 |}];;
@@ -752,7 +742,7 @@ end;;
 Line 3, characters 17-19:
 3 |     let _ = f1_1 m1 in
                      ^^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "t_float64"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
@@ -789,7 +779,7 @@ Line 1, characters 28-29:
 1 | let f13_1 (x : t_float64) = x = x;;
                                 ^
 Error: This expression has type "t_float64"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value.
@@ -801,7 +791,7 @@ Line 1, characters 36-37:
 1 | let f13_2 (x : t_float64) = compare x x;;
                                         ^
 Error: This expression has type "t_float64"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value.
@@ -813,7 +803,7 @@ Line 1, characters 45-46:
 1 | let f13_3 (x : t_float64) = Marshal.to_bytes x;;
                                                  ^
 Error: This expression has type "t_float64"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 1, characters 0-24.
        But the layout of t_float64 must be a sublayout of value.

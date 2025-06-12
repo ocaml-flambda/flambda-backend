@@ -24,7 +24,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-extern value caml_ephe_none;
+extern value caml_ephe_none, caml_ephe_locked;
 
 #ifdef CAML_INTERNALS
 
@@ -62,8 +62,6 @@ struct caml_ephe_info {
     A weak pointer is an ephemeron with the data at caml_ephe_none
     If fields are added, don't forget to update weak.ml, [additional_values],
     and obj.ml, [Ephemeron.additional_values].
-
-
  */
 
 #define CAML_EPHE_LINK_OFFSET 0
@@ -73,6 +71,17 @@ struct caml_ephe_info {
 
 #define Ephe_link(e) (*(Op_val(e) + CAML_EPHE_LINK_OFFSET))
 #define Ephe_data(e) (*(Op_val(e) + CAML_EPHE_DATA_OFFSET))
+
+value caml_ephe_await_key(value ephe, uintnat i);
+
+Caml_inline value ephe_key(value ephe, uintnat i)
+{
+  value v = atomic_load_acquire(Op_atomic_val(ephe) + i);
+  if (v == caml_ephe_locked)
+    return caml_ephe_await_key(ephe, i);
+  else
+    return v;
+}
 
 struct caml_ephe_info* caml_alloc_ephe_info (void);
 void caml_ephe_clean(value e);

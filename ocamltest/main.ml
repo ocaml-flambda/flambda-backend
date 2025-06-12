@@ -107,12 +107,14 @@ let join_summaries sa sb =
   | No_failure, (No_failure | All_skipped)
   | All_skipped, No_failure -> No_failure
 
-let rec run_test_tree log common_prefix behavior env summ ast =
+let rec run_test_tree log common_prefix behavior env summ ast
+      ~must_do_something =
   match ast with
   | Ast (Environment_statement s :: stmts, subs) ->
     begin match interpret_environment_statement env s with
     | env ->
       run_test_tree log common_prefix behavior env summ (Ast (stmts, subs))
+        ~must_do_something
     | exception e ->
       let line = s.loc.Location.loc_start.Lexing.pos_lnum in
       Printf.printf "%s line %d %!" common_prefix line;
@@ -133,27 +135,49 @@ let rec run_test_tree log common_prefix behavior env summ ast =
     in
     if not skip_all then
       Printf.printf "%s %s (%s) %!" common_prefix locstr name.node;
+    let test = lookup_test name in
+    let must_do_something =
+      must_do_something && not (Tests.does_something test)
+    in
     let (msg, children_behavior, newenv, result) =
       match behavior with
       | Skip_all -> ("", Skip_all, env, Result.skip)
       | Run ->
         begin try
           let testenv = List.fold_left apply_modifiers env mods in
-          let test = lookup_test name in
           let (result, newenv) = Tests.run log testenv test in
           let msg = Result.string_of_result result in
           let sub_behavior = if Result.is_pass result then Run else Skip_all in
           (msg, sub_behavior, newenv, result)
-        with e -> (report_error name.loc e, Skip_all, env, Result.fail)
+        with e ->
+          (report_error name.loc e, Skip_all, env, Result.fail)
         end
     in
     if not skip_all then Printf.printf "%s\n%!" msg;
     let newsumm = join_result summ result in
     let newast = Ast (stmts, subs) in
     run_test_tree log common_prefix children_behavior newenv newsumm newast
+      ~must_do_something
+  | Ast ([], []) ->
+    if not must_do_something then summ
+    else (
+      match summ with
+      | No_failure ->
+        Printf.printf "%s: does the test tree do something? => failed\n%!"
+          common_prefix;
+        Some_failure
+      | All_skipped | Some_failure -> summ
+    )
   | Ast ([], subs) ->
+    (* CR mshinwell/xclerc: maybe sequences of actions that "do something" and
+       then have further actions that do not "do something" should be
+       flagged *)
     List.fold_left join_summaries summ
-      (List.map (run_test_tree log common_prefix behavior env All_skipped) subs)
+      (List.map (run_test_tree log common_prefix behavior env All_skipped
+        ~must_do_something) subs)
+
+let run_test_tree log common_prefix behavior env summ ast =
+  run_test_tree log common_prefix behavior env summ ast ~must_do_something:true
 
 let get_test_source_directory test_dirname =
   if (Filename.is_relative test_dirname) then

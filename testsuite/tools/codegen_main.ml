@@ -25,7 +25,8 @@ let compile_file filename =
     Compilation_unit.create Compilation_unit.Prefix.empty
       ("test" |> Compilation_unit.Name.of_string)
   in
-  Compilenv.reset compilation_unit;
+  let unit_info = Unit_info.make_dummy ~input_name:"test" compilation_unit in
+  Compilenv.reset unit_info;
   Clflags.cmm_invariants := true;
   Emit.begin_assembly();
   let ic = open_in filename in
@@ -66,15 +67,12 @@ let main() =
      "-g", Arg.Set Clflags.debug, "";
      "-dcmm", Arg.Set dump_cmm, "";
      "-dcse", Arg.Set dump_cse, "";
-     "-dsel", Arg.Set dump_selection, "";
-     "-dlive", Arg.Unit(fun () -> dump_live := true ), "";
      "-dspill", Arg.Set dump_spill, "";
      "-dsplit", Arg.Set dump_split, "";
      "-dinterf", Arg.Set dump_interf, "";
      "-dprefer", Arg.Set dump_prefer, "";
      "-dalloc", Arg.Set dump_regalloc, "";
      "-dreload", Arg.Set dump_reload, "";
-     "-dscheduling", Arg.Set dump_scheduling, "";
      "-dlinear", Arg.Set dump_linear, "";
      "-dtimings", Arg.Unit (fun () -> profile_columns := [ `Time ]), "";
      "-dcounters", Arg.Unit (fun () -> profile_columns := [ `Counters ]), "";

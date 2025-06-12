@@ -38,7 +38,7 @@ type ('a, 'b, 'c, 'd, 'e, 'f) format6 =
 (* The run-time library for scanners. *)
 
 (* Scanning buffers. *)
-module type SCANNING = sig
+module type SCANNING = sig @@ portable
 
   type in_channel
 
@@ -46,7 +46,7 @@ module type SCANNING = sig
 
   type file_name = string
 
-  val stdin : in_channel
+  val stdin : in_channel @@ nonportable
   (* The scanning buffer reading from [Stdlib.stdin]. *)
 
   val next_char : scanbuf -> char
@@ -123,10 +123,10 @@ module type SCANNING = sig
   (* [Scanning.name_of_input ib] returns the name of the character
      source for input buffer [ib]. *)
 
-  val open_in : file_name -> in_channel
-  val open_in_bin : file_name -> in_channel
-  val from_file : file_name -> in_channel
-  val from_file_bin : file_name -> in_channel
+  val open_in : file_name -> in_channel @@ nonportable
+  val open_in_bin : file_name -> in_channel @@ nonportable
+  val from_file : file_name -> in_channel @@ nonportable
+  val from_file_bin : file_name -> in_channel @@ nonportable
   val from_string : string -> in_channel
   val from_function : (unit -> char) -> in_channel
   val from_channel : Stdlib.in_channel -> in_channel
@@ -279,7 +279,7 @@ module Scanning : SCANNING = struct
     create From_string next
 
 
-  let from_function = create From_function
+  let from_function next = create From_function next
 
   (* Scanning from an input channel. *)
 
@@ -322,7 +322,7 @@ module Scanning : SCANNING = struct
   *)
 
   (* Perform bufferized input to improve efficiency. *)
-  let file_buffer_size = ref 1024
+  let file_buffer_size = 1024
 
   (* The scanner closes the input channel at end of input. *)
   let scan_close_at_end ic = Stdlib.close_in ic; raise End_of_file
@@ -332,7 +332,7 @@ module Scanning : SCANNING = struct
   let scan_raise_at_end _ic = raise End_of_file
 
   let from_ic scan_close_ic iname ic =
-    let len = !file_buffer_size in
+    let len = file_buffer_size in
     let buf = Bytes.create len in
     let i = ref 0 in
     let lim = ref 0 in
@@ -349,8 +349,8 @@ module Scanning : SCANNING = struct
     create iname next
 
 
-  let from_ic_close_at_end = from_ic scan_close_at_end
-  let from_ic_raise_at_end = from_ic scan_raise_at_end
+  let from_ic_close_at_end iname ic = from_ic scan_close_at_end iname ic
+  let from_ic_raise_at_end iname ic = from_ic scan_raise_at_end iname ic
 
   (* The scanning buffer reading from [Stdlib.stdin].
      One could try to define [stdin] as a scanning buffer reading a character
@@ -552,13 +552,13 @@ let token_float ib = float_of_string (Scanning.token ib)
    since those modules are not available to [Scanf].
    However, we can bind and use the corresponding primitives that are
    available in the runtime. *)
-external nativeint_of_string : string -> nativeint
+external nativeint_of_string : string -> nativeint @@ portable
   = "caml_nativeint_of_string"
 
-external int32_of_string : string -> int32
+external int32_of_string : string -> int32 @@ portable
   = "caml_int32_of_string"
 
-external int64_of_string : string -> int64
+external int64_of_string : string -> int64 @@ portable
   = "caml_int64_of_string"
 
 
@@ -639,24 +639,24 @@ let is_binary_digit = function
   | _ -> false
 
 
-let scan_binary_int = scan_digit_plus "binary" is_binary_digit
+let scan_binary_int width ib = scan_digit_plus "binary" is_binary_digit width ib
 
 let is_octal_digit = function
   | '0' .. '7' -> true
   | _ -> false
 
 
-let scan_octal_int = scan_digit_plus "octal" is_octal_digit
+let scan_octal_int width ib = scan_digit_plus "octal" is_octal_digit width ib
 
 let is_hexa_digit = function
   | '0' .. '9' | 'a' .. 'f' | 'A' .. 'F' -> true
   | _ -> false
 
 
-let scan_hexadecimal_int = scan_digit_plus "hexadecimal" is_hexa_digit
+let scan_hexadecimal_int width ib = scan_digit_plus "hexadecimal" is_hexa_digit width ib
 
 (* Scan a decimal integer. *)
-let scan_unsigned_decimal_int = scan_decimal_digit_plus
+let scan_unsigned_decimal_int width ib = scan_decimal_digit_plus width ib
 
 let scan_sign width ib =
   let c = Scanning.checked_peek_char ib in

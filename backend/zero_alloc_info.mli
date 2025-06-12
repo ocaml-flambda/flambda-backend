@@ -1,6 +1,8 @@
 (** Function summaries computed by zero_alloc analysis
     and encoded as integers for storing in .cmx files. *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 type value = int
 
 type t

@@ -1,6 +1,4 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
-
-open Regalloc_utils
+[@@@ocaml.warning "+a-30-40-41-42"]
 
 (** Splits the live ranges of registers by introducing new registers
     at destruction points. Destructions points are locations where
@@ -15,4 +13,4 @@ open Regalloc_utils
     The algorithm is an adaptation of the one rewriting a CFG to put it in
     SSA form: we simply consider that new names are introduced at destruction
     points. *)
-val split_live_ranges : Cfg_with_infos.t -> cfg_infos -> Regalloc_stack_slots.t
+val split_live_ranges : Cfg_with_infos.t -> Regalloc_stack_slots.t

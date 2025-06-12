@@ -35,6 +35,7 @@
     - ocaml.tailcall
     - ocaml.tail_mod_cons
     - ocaml.unboxed
+    - ocaml.unsafe_allow_any_mode_crossing
     - ocaml.untagged
     - ocaml.unrolled
     - ocaml.warnerror
@@ -198,6 +199,8 @@ val explicit_arity: Parsetree.attributes -> bool
 val has_unboxed: Parsetree.attributes -> bool
 val has_boxed: Parsetree.attributes -> bool
 
+val has_unsafe_allow_any_mode_crossing : Parsetree.attributes -> bool
+
 val parse_standard_interface_attributes : Parsetree.attribute -> unit
 val parse_standard_implementation_attributes : Parsetree.attribute -> unit
 
@@ -209,7 +212,6 @@ val parse_standard_implementation_attributes : Parsetree.attribute -> unit
 val curry_attr_name : string
 val curry_attr : Location.t -> Parsetree.attribute
 
-val has_no_mutable_implied_modalities: Parsetree.attributes -> bool
 val has_local_opt: Parsetree.attributes -> bool
 val has_layout_poly: Parsetree.attributes -> bool
 val has_curry: Parsetree.attributes -> bool
@@ -280,6 +282,7 @@ type zero_alloc_check =
     opt: bool;
     arity: int;
     loc: Location.t;
+    custom_error_msg : string option;
   }
 
 type zero_alloc_assume =
@@ -306,7 +309,7 @@ val is_zero_alloc_check_enabled : opt:bool -> bool
    "arity n" field is allowed, and whether we track this attribute for
    warning 199. *)
 val get_zero_alloc_attribute :
-  in_signature:bool -> default_arity:int -> Parsetree.attributes ->
+  in_signature:bool -> on_application:bool-> default_arity:int -> Parsetree.attributes ->
   zero_alloc_attribute
 
 (* This returns the [zero_alloc_assume] if the input is an assume.  Otherwise,

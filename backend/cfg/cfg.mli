@@ -23,7 +23,7 @@
  * SOFTWARE.                                                                      *
  *                                                                                *
  **********************************************************************************)
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 val verbose : bool ref
 
@@ -54,16 +54,12 @@ type basic_block =
     mutable is_trap_handler : bool;
         (** Is this block a trap handler (i.e. is it an exn successor of another
             block) or not? *)
-    mutable dead : bool;
-        (** This block must be unreachable from function entry. This field is
-            set during cfg construction (if trap stacks are unresolved) and used
-            during dead block elimination for checking. *)
     mutable cold : bool
         (* CR-someday gyorsh: The current implementation allows multiple
            pushtraps in each block means that different trap stacks are
            associated with the block at different points. At most one
-           instruction in each block can raise, and always the last one. After
-           we split the blocks based on Pushtrap/Poptrap, each block will have a
+           instruction in each block can raise, and always the last one. If we
+           split the blocks based on Pushtrap/Poptrap, each block will have a
            unique trap stack associated with it. [exns] will not be needed, as
            the exn-successor will be uniquely determined by can_raise + top of
            trap stack. *)
@@ -81,10 +77,14 @@ type codegen_option =
       }
   | Check_zero_alloc of
       { strict : bool;
-        loc : Location.t
+        loc : Location.t;
+        custom_error_msg : string option
       }
 
 val of_cmm_codegen_option : Cmm.codegen_option list -> codegen_option list
+
+(* CR-someday xclerc: we should probably make `t` abstract and make each and
+   every modifiction through accessors; that would help enforce invariants. *)
 
 (** Control Flow Graph of a function. *)
 type t =
@@ -101,9 +101,10 @@ type t =
         (** This label must be the first in all layouts of this cfg. *)
     fun_contains_calls : bool;
         (** Precomputed during selection and poll insertion. *)
-    fun_num_stack_slots : int array;
+    fun_num_stack_slots : int Stack_class.Tbl.t;
         (** Precomputed at register allocation time *)
-    fun_poll : Lambda.poll_attribute (* Whether to insert polling points. *)
+    fun_poll : Lambda.poll_attribute; (* Whether to insert polling points. *)
+    next_instruction_id : InstructionId.sequence (* Next instruction id. *)
   }
 
 val create :
@@ -112,8 +113,9 @@ val create :
   fun_codegen_options:codegen_option list ->
   fun_dbg:Debuginfo.t ->
   fun_contains_calls:bool ->
-  fun_num_stack_slots:int array ->
+  fun_num_stack_slots:int Stack_class.Tbl.t ->
   fun_poll:Lambda.poll_attribute ->
+  next_instruction_id:InstructionId.sequence ->
   t
 
 val fun_name : t -> string
@@ -134,7 +136,7 @@ val replace_successor_labels :
     vice versa. *)
 val can_raise_interproc : basic_block -> bool
 
-val first_instruction_id : basic_block -> int
+val first_instruction_id : basic_block -> InstructionId.t
 
 val first_instruction_stack_offset : basic_block -> int
 
@@ -142,13 +144,13 @@ val mem_block : t -> Label.t -> bool
 
 val add_block_exn : t -> basic_block -> unit
 
-val remove_block_exn : t -> Label.t -> unit
-
 val remove_blocks : t -> Label.Set.t -> unit
 
 val get_block : t -> Label.t -> basic_block option
 
 val get_block_exn : t -> Label.t -> basic_block
+
+val iter_blocks_dfs : t -> f:(Label.t -> basic_block -> unit) -> unit
 
 val iter_blocks : t -> f:(Label.t -> basic_block -> unit) -> unit
 
@@ -200,7 +202,15 @@ val is_pure_basic : basic -> bool
 
 val is_noop_move : basic instruction -> bool
 
+val is_alloc : basic instruction -> bool
+
+val is_poll : basic instruction -> bool
+
+val is_end_region : basic -> bool
+
 val set_stack_offset : 'a instruction -> int -> unit
+
+val set_live : 'a instruction -> Reg.Set.t -> unit
 
 val string_of_irc_work_list : irc_work_list -> string
 
@@ -216,7 +226,7 @@ val make_instruction :
   ?fdo:Fdo_info.t ->
   ?live:Reg.Set.t ->
   stack_offset:int ->
-  id:int ->
+  id:InstructionId.t ->
   ?irc_work_list:irc_work_list ->
   ?ls_order:int ->
   ?available_before:Reg_availability_set.t option ->
@@ -224,16 +234,11 @@ val make_instruction :
   unit ->
   'a instruction
 
-(* CR mshinwell: consolidate with [make_instruction] and tidy up ID interface *)
-val make_instr :
-  'a -> Reg.t array -> Reg.t array -> Debuginfo.t -> 'a instruction
-
-(** These IDs are also used by [make_instr] *)
-val next_instr_id : unit -> int
-
-val reset_next_instr_id : unit -> unit
-
 val make_empty_block : ?label:Label.t -> terminator instruction -> basic_block
 
 (** "Contains calls" in the traditional sense as used in upstream [Selectgen]. *)
 val basic_block_contains_calls : basic_block -> bool
+
+val equal_irc_work_list : irc_work_list -> irc_work_list -> bool
+
+val invalid_stack_offset : int

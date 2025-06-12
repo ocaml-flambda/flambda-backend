@@ -34,17 +34,13 @@ Error: Layout void is more experimental than allowed by the enabled layouts exte
 type t_any_non_null : any_non_null;;
 
 [%%expect{|
-type t_any_non_null : any
+type t_any_non_null : any_non_null
 |}]
 
 type t_value_or_null : value_or_null;;
 
 [%%expect{|
-Line 1, characters 23-36:
-1 | type t_value_or_null : value_or_null;;
-                           ^^^^^^^^^^^^^
-Error: Layout value_or_null is more experimental than allowed by the enabled layouts extension.
-       You must enable -extension layouts_alpha to use this feature.
+type t_value_or_null : value_or_null
 |}]
 
 (******************************************************************)
@@ -686,7 +682,17 @@ Line 3, characters 12-21:
 3 | type t7' = (int * int) t7;;
                 ^^^^^^^^^
 Error: This type "int * int" should be an instance of type "('a : immediate)"
-       The kind of int * int is value
+       The kind of int * int is immutable_data
+         because it's a tuple type.
+       But the kind of int * int must be a subkind of immediate
+         because of the definition of t7 at line 1, characters 0-37.
+|}, Principal{|
+type ('a : immediate) t7 = Foo7 of 'a
+Line 3, characters 12-21:
+3 | type t7' = (int * int) t7;;
+                ^^^^^^^^^
+Error: This type "int * int" should be an instance of type "('a : immediate)"
+       The kind of int * int is immutable_data with int
          because it's a tuple type.
        But the kind of int * int must be a subkind of immediate
          because of the definition of t7 at line 1, characters 0-37.
@@ -722,7 +728,7 @@ end;;
 Line 5, characters 16-17:
 5 |     | `Bar v -> v
                     ^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type
          "Stdlib_upstream_compatible.Float_u.t" = "float#"
        The layout of Stdlib_upstream_compatible.Float_u.t is float64.
@@ -819,10 +825,10 @@ end;;
 Line 6, characters 21-22:
 6 |     | (a, _) -> f_id a
                          ^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "float#"
        The layout of float# is float64
-         because it is the primitive type float#.
+         because it is the unboxed version of the primitive type float.
        But the layout of float# must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -1255,11 +1261,11 @@ type t13f = t_float64 option;;
 Line 1, characters 12-21:
 1 | type t13f = t_float64 option;;
                 ^^^^^^^^^
-Error: This type "t_float64" should be an instance of type "('a : value)"
+Error: This type "t_float64" should be an instance of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
-         because the type argument of option has layout value.
+         because the type argument of option has layout value_or_null.
 |}];;
 
 let x13f (v : t_float64) = Some v;;
@@ -1268,11 +1274,11 @@ Line 1, characters 32-33:
 1 | let x13f (v : t_float64) = Some v;;
                                     ^
 Error: This expression has type "t_float64"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
-         because the type argument of option has layout value.
+         because the type argument of option has layout value_or_null.
 |}];;
 
 let x13f v =
@@ -1283,12 +1289,12 @@ let x13f v =
 Line 3, characters 19-20:
 3 |   | Some v -> f_id v
                        ^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "t_float64"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
-         because the type argument of option has layout value.
+         because the type argument of option has layout value_or_null.
 |}];;
 
 (* list *)
@@ -1297,11 +1303,11 @@ type t13f = t_float64 list;;
 Line 1, characters 12-21:
 1 | type t13f = t_float64 list;;
                 ^^^^^^^^^
-Error: This type "t_float64" should be an instance of type "('a : value)"
+Error: This type "t_float64" should be an instance of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 let x13 (v : t_float64) = [v];;
@@ -1310,11 +1316,11 @@ Line 1, characters 27-28:
 1 | let x13 (v : t_float64) = [v];;
                                ^
 Error: This expression has type "t_float64"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 let x13 v =
@@ -1325,12 +1331,12 @@ let x13 v =
 Line 3, characters 16-17:
 3 |   | [v] -> f_id v
                     ^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "t_float64"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 (* array *)
@@ -1374,7 +1380,7 @@ Error:
        The layout of foo14 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of foo14 must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 (****************************************************)
@@ -1560,11 +1566,11 @@ Line 2, characters 15-16:
 2 |   let g ?(x2 = x) () = () in
                    ^
 Error: This expression has type "t_float64"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
-         because the type argument of option has layout value.
+         because the type argument of option has layout value_or_null.
 |}]
 
 (*********************************************************)
@@ -1703,7 +1709,8 @@ Line 4, characters 9-22:
 4 |     let* x : t_float64 = assert false
              ^^^^^^^^^^^^^
 Error: This pattern matches values of type "t_float64"
-       but a pattern was expected which matches values of type "('a : value)"
+       but a pattern was expected which matches values of type
+         "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
@@ -1792,7 +1799,7 @@ Line 1, characters 14-40:
 1 | let f _ = `Mk (assert false : t_float64)
                   ^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "t_float64"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float64 is float64
          because of the definition of t_float64 at line 4, characters 0-24.
        But the layout of t_float64 must be a sublayout of value
@@ -1879,7 +1886,7 @@ Line 2, characters 19-31:
 2 | let f35 : 'a t35 = fun () -> ()
                        ^^^^^^^^^^^^
 Error:
-       The kind of 'a -> 'b is value mod unique uncontended
+       The kind of 'a -> 'b is value mod aliased immutable non_float
          because it's a function type.
        But the kind of 'a -> 'b must be a subkind of immediate
          because of the definition of t35 at line 1, characters 0-30.
@@ -2851,9 +2858,9 @@ Line 2, characters 14-18:
 2 |   let rec x = #3.4 in
                   ^^^^
 Error: This expression has type "float#" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of float# is float64
-         because it is the primitive type float#.
+         because it is the unboxed version of the primitive type float.
        But the layout of float# must be a sublayout of value
          because it's the type of the recursive variable x.
 |}]
@@ -2869,7 +2876,7 @@ Line 1, characters 28-29:
                                 ^
 Error: This expression is used as a function, but its type "'a"
        has kind "bits64", which cannot be the kind of a function.
-       (Functions always have kind "value mod unique uncontended".)
+       (Functions always have kind "value mod aliased immutable non_float".)
 |}]
 
 let f (x : ('a : value mod portable)) = x ()
@@ -2880,7 +2887,7 @@ Line 1, characters 40-41:
                                             ^
 Error: This expression is used as a function, but its type "'a"
        has kind "value mod portable", which cannot be the kind of a function.
-       (Functions always have kind "value mod unique uncontended".)
+       (Functions always have kind "value mod aliased immutable non_float".)
 |}]
 
 let f (x : ('a : value)) = x ()

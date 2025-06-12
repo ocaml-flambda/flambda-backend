@@ -13,7 +13,11 @@
 (*                                                                        *)
 (**************************************************************************)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 open Cmm
+
+val arch_bits : int
 
 type arity =
   { function_kind : Lambda.function_kind;
@@ -65,9 +69,6 @@ val alloc_infix_header : int -> Debuginfo.t -> expression
 (** Make an integer constant from the given integer (tags the integer) *)
 val int_const : Debuginfo.t -> int -> expression
 
-(** Simplify the given expression knowing its last bit will be irrelevant *)
-val ignore_low_bit_int : expression -> expression
-
 (** Arithmetical operations on integers *)
 val add_int : expression -> expression -> Debuginfo.t -> expression
 
@@ -83,17 +84,16 @@ val lsr_int : expression -> expression -> Debuginfo.t -> expression
 
 val asr_int : expression -> expression -> Debuginfo.t -> expression
 
-val div_int :
-  expression -> expression -> Lambda.is_safe -> Debuginfo.t -> expression
-
-val mod_int :
-  expression -> expression -> Lambda.is_safe -> Debuginfo.t -> expression
-
 val and_int : expression -> expression -> Debuginfo.t -> expression
 
 val or_int : expression -> expression -> Debuginfo.t -> expression
 
 val xor_int : expression -> expression -> Debuginfo.t -> expression
+
+(** Similar to [add_int] but produces a result with machtype [Addr] iff
+  [ptr_out_of_heap] is [false]. *)
+val add_int_ptr :
+  ptr_out_of_heap:bool -> expression -> expression -> Debuginfo.t -> expression
 
 (** Integer tagging. [tag_int x = (x lsl 1) + 1] *)
 val tag_int : expression -> Debuginfo.t -> expression
@@ -101,20 +101,19 @@ val tag_int : expression -> Debuginfo.t -> expression
 (** Integer untagging. [untag_int x = (x asr 1)] *)
 val untag_int : expression -> Debuginfo.t -> expression
 
-(** Specific division operations for boxed integers *)
-val safe_div_bi :
-  Lambda.is_safe ->
+(** signed division of two register-width integers *)
+val div_int :
+  ?dividend_cannot_be_min_int:bool ->
   expression ->
   expression ->
-  Primitive.boxed_integer ->
   Debuginfo.t ->
   expression
 
-val safe_mod_bi :
-  Lambda.is_safe ->
+(** signed remainder of two register-width integers *)
+val mod_int :
+  ?dividend_cannot_be_min_int:bool ->
   expression ->
   expression ->
-  Primitive.boxed_integer ->
   Debuginfo.t ->
   expression
 
@@ -371,6 +370,8 @@ val machtype_identifier : machtype -> string
 val curry_function_sym :
   Lambda.function_kind -> machtype list -> machtype -> Cmm.symbol
 
+val fail_if_called_indirectly_sym : Cmm.symbol
+
 (** Bigarrays *)
 
 (** Returns the size (in number of bytes) of a single element contained in a
@@ -381,28 +382,21 @@ val bigarray_elt_size_in_bytes : Lambda.bigarray_kind -> int
     bigarray. *)
 val bigarray_word_kind : Lambda.bigarray_kind -> memory_chunk
 
-(** Operations on 32-bit integers *)
+(** Operations on n-bit integers *)
 
-(** [low_32 _ x] is a value which agrees with x on at least the low 32 bits *)
-val low_32 : Debuginfo.t -> expression -> expression
+(** Simplify the given expression knowing the low bit of the argument will be irrelevant
+*)
+val ignore_low_bit_int : expression -> expression
 
-(** Sign extend from 32 bits to the word size *)
-val sign_extend_32 : Debuginfo.t -> expression -> expression
+(** Simplify the given expression knowing that bits other than the low [bits] bits will be
+    irrelevant *)
+val low_bits : bits:int -> dbg:Debuginfo.t -> expression -> expression
 
-(** Zero extend from 32 bits to the word size *)
-val zero_extend_32 : Debuginfo.t -> expression -> expression
+(** sign-extend a given integer expression from [bits] bits to an entire register *)
+val sign_extend : bits:int -> dbg:Debuginfo.t -> expression -> expression
 
-(** Operations on 63-bit integers. These may only be used for compilation to
-    64-bit targets. *)
-
-(** [low_63 _ x] is a value which agrees with x on at least the low 63 bits *)
-val low_63 : Debuginfo.t -> expression -> expression
-
-(** Sign extend from 63 bits to the word size *)
-val sign_extend_63 : Debuginfo.t -> expression -> expression
-
-(** Zero extend from 63 bits to the word size *)
-val zero_extend_63 : Debuginfo.t -> expression -> expression
+(** zero-extend a given integer expression from [bits] bits to an entire register *)
+val zero_extend : bits:int -> dbg:Debuginfo.t -> expression -> expression
 
 (** Box a given integer, without sharing of constants *)
 val box_int_gen :
@@ -418,37 +412,73 @@ val unbox_int :
 
 (** Used to prepare 32-bit integers on 64-bit platforms for a lsr operation *)
 val make_unsigned_int :
-  Primitive.boxed_integer -> expression -> Debuginfo.t -> expression
+  Primitive.unboxed_integer -> expression -> Debuginfo.t -> expression
 
-val unaligned_load_16 : expression -> expression -> Debuginfo.t -> expression
+val unaligned_load_16 :
+  ptr_out_of_heap:bool -> expression -> expression -> Debuginfo.t -> expression
 
 val unaligned_set_16 :
-  expression -> expression -> expression -> Debuginfo.t -> expression
+  ptr_out_of_heap:bool ->
+  expression ->
+  expression ->
+  expression ->
+  Debuginfo.t ->
+  expression
 
-val unaligned_load_32 : expression -> expression -> Debuginfo.t -> expression
+val unaligned_load_32 :
+  ptr_out_of_heap:bool -> expression -> expression -> Debuginfo.t -> expression
 
 val unaligned_set_32 :
-  expression -> expression -> expression -> Debuginfo.t -> expression
+  ptr_out_of_heap:bool ->
+  expression ->
+  expression ->
+  expression ->
+  Debuginfo.t ->
+  expression
 
-val unaligned_load_f32 : expression -> expression -> Debuginfo.t -> expression
+val unaligned_load_f32 :
+  ptr_out_of_heap:bool -> expression -> expression -> Debuginfo.t -> expression
 
 val unaligned_set_f32 :
-  expression -> expression -> expression -> Debuginfo.t -> expression
+  ptr_out_of_heap:bool ->
+  expression ->
+  expression ->
+  expression ->
+  Debuginfo.t ->
+  expression
 
-val unaligned_load_64 : expression -> expression -> Debuginfo.t -> expression
+val unaligned_load_64 :
+  ptr_out_of_heap:bool -> expression -> expression -> Debuginfo.t -> expression
 
 val unaligned_set_64 :
-  expression -> expression -> expression -> Debuginfo.t -> expression
+  ptr_out_of_heap:bool ->
+  expression ->
+  expression ->
+  expression ->
+  Debuginfo.t ->
+  expression
 
-val unaligned_load_128 : expression -> expression -> Debuginfo.t -> expression
+val unaligned_load_128 :
+  ptr_out_of_heap:bool -> expression -> expression -> Debuginfo.t -> expression
 
 val unaligned_set_128 :
-  expression -> expression -> expression -> Debuginfo.t -> expression
+  ptr_out_of_heap:bool ->
+  expression ->
+  expression ->
+  expression ->
+  Debuginfo.t ->
+  expression
 
-val aligned_load_128 : expression -> expression -> Debuginfo.t -> expression
+val aligned_load_128 :
+  ptr_out_of_heap:bool -> expression -> expression -> Debuginfo.t -> expression
 
 val aligned_set_128 :
-  expression -> expression -> expression -> Debuginfo.t -> expression
+  ptr_out_of_heap:bool ->
+  expression ->
+  expression ->
+  expression ->
+  Debuginfo.t ->
+  expression
 
 (** Primitives *)
 
@@ -458,7 +488,8 @@ type unary_primitive = expression -> Debuginfo.t -> expression
 val int_as_pointer : unary_primitive
 
 (** Raise primitive *)
-val raise_prim : Lambda.raise_kind -> unary_primitive
+val raise_prim :
+  Lambda.raise_kind -> extra_args:expression list -> unary_primitive
 
 (** Unary negation of an OCaml integer *)
 val negint : unary_primitive
@@ -467,7 +498,7 @@ val negint : unary_primitive
 val addr_array_length : unary_primitive
 
 (** Byte swap primitive Operates on Cmm integers (unboxed values) *)
-val bbswap : Primitive.boxed_integer -> unary_primitive
+val bbswap : Primitive.unboxed_integer -> unary_primitive
 
 (** 16-bit byte swap primitive Operates on Cmm integers (untagged integers) *)
 val bswap16 : unary_primitive
@@ -488,21 +519,15 @@ val sub_int_caml : binary_primitive
 
 val mul_int_caml : binary_primitive
 
-val div_int_caml : Lambda.is_safe -> binary_primitive
+val div_int_caml : binary_primitive
 
-val mod_int_caml : Lambda.is_safe -> binary_primitive
+val mod_int_caml : binary_primitive
 
 val and_int_caml : binary_primitive
 
 val or_int_caml : binary_primitive
 
 val xor_int_caml : binary_primitive
-
-val lsl_int_caml : binary_primitive
-
-val lsr_int_caml : binary_primitive
-
-val asr_int_caml : binary_primitive
 
 type ternary_primitive =
   expression -> expression -> expression -> Debuginfo.t -> expression
@@ -516,12 +541,7 @@ val setfield_computed :
 
 (** [transl_switch_clambda loc kind arg index cases] *)
 val transl_switch_clambda :
-  Debuginfo.t ->
-  Cmm.kind_for_unboxing ->
-  expression ->
-  int array ->
-  expression array ->
-  expression
+  Debuginfo.t -> expression -> int array -> expression array -> expression
 
 (** Method call : [send kind met obj args dbg]
 
@@ -650,17 +670,6 @@ val letin :
   body:expression ->
   expression
 
-(** [letin_mut v ty e body] binds a mutable variable [v] of machtype [ty] to [e]
-    in [body]. (For immutable variables, use [Cmm_helpers.letin].) *)
-val letin_mut :
-  Backend_var.With_provenance.t ->
-  machtype ->
-  expression ->
-  expression ->
-  expression
-
-val assign : Backend_var.t -> expression -> expression
-
 (** Create a sequence of expressions. Will erase void expressions as needed. *)
 val sequence : expression -> expression -> expression
 
@@ -680,6 +689,7 @@ val trywith :
   dbg:Debuginfo.t ->
   body:expression ->
   exn_var:Backend_var.With_provenance.t ->
+  extra_args:(Backend_var.With_provenance.t * machtype) list ->
   handler_cont:trywith_shared_label ->
   handler:expression ->
   unit ->
@@ -719,13 +729,17 @@ val create_ccatch :
   body:Cmm.expression ->
   Cmm.expression
 
+(** Shift operations.
+    Inputs: a tagged caml integer and an untagged machine integer.
+    Outputs: a tagged caml integer.
+    Takes as first argument a tagged caml integer, and as
+    second argument an untagged machine intger which is the amount to shift the
+    first argument by. *)
+
 val lsl_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
 val lsr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
-(** Shift operations. take as first argument a tagged caml integer, and as
-    second argument an untagged machine intger which is the amount to shift the
-    first argument by. *)
 val asr_int_caml_raw : dbg:Debuginfo.t -> expression -> expression -> expression
 
 (** Reinterpret cast functions *)
@@ -981,6 +995,9 @@ val machtype_of_layout_changing_tagged_int_to_val : Lambda.layout -> machtype
 
 val make_tuple : expression list -> expression
 
+val tuple_field :
+  expression -> component_tys:machtype array -> int -> Debuginfo.t -> expression
+
 (* Generated functions *)
 val curry_function :
   Lambda.function_kind * Cmm.machtype list * Cmm.machtype -> Cmm.phrase list
@@ -991,18 +1008,44 @@ val send_function :
 val apply_function :
   Cmm.machtype list * Cmm.machtype * Cmx_format.alloc_mode -> Cmm.phrase
 
+val fail_if_called_indirectly_function : unit -> Cmm.phrase list
+
 (* Atomics *)
 
 val atomic_load :
   dbg:Debuginfo.t -> Lambda.immediate_or_pointer -> expression -> expression
 
-val atomic_exchange : dbg:Debuginfo.t -> expression -> expression -> expression
+val atomic_exchange :
+  dbg:Debuginfo.t ->
+  Lambda.immediate_or_pointer ->
+  expression ->
+  new_value:expression ->
+  expression
 
 val atomic_fetch_and_add :
   dbg:Debuginfo.t -> expression -> expression -> expression
 
+val atomic_add : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val atomic_sub : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val atomic_land : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val atomic_lor : dbg:Debuginfo.t -> expression -> expression -> expression
+
+val atomic_lxor : dbg:Debuginfo.t -> expression -> expression -> expression
+
 val atomic_compare_and_set :
   dbg:Debuginfo.t ->
+  Lambda.immediate_or_pointer ->
+  expression ->
+  old_value:expression ->
+  new_value:expression ->
+  expression
+
+val atomic_compare_exchange :
+  dbg:Debuginfo.t ->
+  Lambda.immediate_or_pointer ->
   expression ->
   old_value:expression ->
   new_value:expression ->
@@ -1187,58 +1230,182 @@ val unboxed_int64_or_nativeint_array_set :
   Debuginfo.t ->
   expression
 
-(** {2 Getters and setters for unboxed int and float32 fields of mixed
-    blocks} *)
+(** {2 Getters and setters for unboxed fields of mixed blocks}
 
-(** The argument structure for getters is parallel to [get_field_computed]. *)
+    The first argument is the heap block to modify a field of.
+    The [index_in_words] should be an untagged integer.
 
-val get_field_unboxed_int32 :
+    In contrast to [setfield] and [setfield_computed], [immediate_or_pointer] is not
+    needed as the layout is known from the [memory_chunk] argument, and
+    [initialization_or_assignment] is not needed as unboxed ints can always be assigned
+    without caml_modify (etc.). *)
+
+val get_field_unboxed :
+  dbg:Debuginfo.t ->
+  memory_chunk ->
   Asttypes.mutable_flag ->
-  block:expression ->
-  index:expression ->
-  Debuginfo.t ->
-  expression
-
-val get_field_unboxed_float32 :
-  Asttypes.mutable_flag ->
-  block:expression ->
-  index:expression ->
-  Debuginfo.t ->
-  expression
-
-val get_field_unboxed_vec128 :
-  Asttypes.mutable_flag ->
-  block:expression ->
+  expression ->
   index_in_words:expression ->
-  Debuginfo.t ->
   expression
 
-val get_field_unboxed_int64_or_nativeint :
-  Asttypes.mutable_flag ->
-  block:expression ->
-  index:expression ->
-  Debuginfo.t ->
-  expression
-
-(** The argument structure for setters is parallel to [setfield_computed].
-   [immediate_or_pointer] is not needed as the layout is implied from the name,
-   and [initialization_or_assignment] is not needed as unboxed ints can always be
-   assigned without caml_modify (etc.).
- *)
-
-val setfield_unboxed_int32 : ternary_primitive
-
-val setfield_unboxed_float32 : ternary_primitive
-
-val setfield_unboxed_vec128 :
+val set_field_unboxed :
+  dbg:Debuginfo.t ->
+  memory_chunk ->
   expression ->
   index_in_words:expression ->
   expression ->
-  Debuginfo.t ->
   expression
-
-val setfield_unboxed_int64_or_nativeint : ternary_primitive
 
 val dls_get : dbg:Debuginfo.t -> expression
 
 val poll : dbg:Debuginfo.t -> expression
+
+(** This module defines the various kinds of scalars usable in Cmm. It also provides ways
+    to generate expressions to cast between them. *)
+module Scalar_type : sig
+  (** A static_cast from a larger integral type to a smaller one logically truncates the
+      upper bits. Note that values are stored in registers sign- or zero- extended
+      according to their signdness, so the result may be sign-extended.
+
+      A static_cast from a smaller integral type to an equal or larger sized-integral type
+      sign- or zero-extends the input value according to the sign of the result.
+
+      A static_cast from an integral type to a float is pretty self-explanatory.
+
+      A static_cast from a float to an integral type always rounds toward zero. If the
+      resulting integral does not fit in the destination type, the result is unspecified
+      (although it's generally zero).
+
+      Casting floats to/from unsigned register-width integers is not implemented and will
+      raise in the compiler. *)
+  type 'a static_cast :=
+    dbg:Debuginfo.t -> src:'a -> dst:'a -> expression -> expression
+
+  (** Conjugate f by [static_cast ~src:outer ~dst:inner].
+
+      Shorthand for:
+      - [static_cast] the argument from [outer] to [inner]
+      - apply [f]
+      - [static_cast] back from [inner] to [outer] *)
+  type 'a conjugate :=
+    outer:'a ->
+    inner:'a ->
+    dbg:Debuginfo.t ->
+    f:(expression -> expression) ->
+    expression ->
+    expression
+
+  (** An IEEE 754 floating-point number *)
+  module Float_width : sig
+    type t = Cmm.float_width =
+      | Float64
+      | Float32
+
+    val static_cast : t static_cast
+  end
+
+  module Signedness : sig
+    type t =
+      | Signed
+      | Unsigned
+
+    val equal : t -> t -> bool
+
+    val print : Format.formatter -> t -> unit
+  end
+
+  module type Integral_ops := sig
+    type t
+
+    val print : Format.formatter -> t -> unit
+
+    val equal : t -> t -> bool
+
+    val signedness : t -> Signedness.t
+
+    val with_signedness : t -> signedness:Signedness.t -> t
+
+    val signed : t -> t
+
+    val unsigned : t -> t
+
+    (** This function relates to the set of possible values that each type can represent.
+        Even if it returns [true], it does not necessarily mean that casting from [src] to
+        [dst] is a no-op. *)
+    val can_cast_without_losing_information : src:t -> dst:t -> bool
+
+    val static_cast : t static_cast
+
+    val conjugate : t conjugate
+  end
+
+  (** An integer stored the lower [bits] bits of a register-width twos-complement integer,
+      and sign- or zero-extended as needed, according to [signedness]. *)
+  module Integer : sig
+    type t [@@immediate]
+
+    val nativeint : t
+
+    val create_exn : bit_width:int -> signedness:Signedness.t -> t
+
+    val bit_width : t -> int
+
+    include Integral_ops with type t := t
+  end
+
+  (** An {!Integer.t} but with the additional stipulation that its lowest bit is always
+      set to 1 and is not considered in mathematical operations on the numbers. *)
+  module Tagged_integer : sig
+    type t [@@immediate]
+
+    val immediate : t
+
+    val create_exn :
+      bit_width_including_tag_bit:int -> signedness:Signedness.t -> t
+
+    val bit_width_excluding_tag_bit : t -> int
+
+    val bit_width_including_tag_bit : t -> int
+
+    val untagged : t -> Integer.t
+
+    include Integral_ops with type t := t
+  end
+
+  module Integral : sig
+    type t =
+      | Untagged of Integer.t
+      | Tagged of Tagged_integer.t
+
+    val nativeint : t
+
+    (** Gets the integer resulting from untagging the integeral iff it is tagged.
+
+        E.g., you can use [static_cast ~src ~dst:(Untagged (untagged src))] to untag a
+        value of type [src], And in the cas where [src] is already untagged, this becomes
+        the identity function *)
+    val untagged_or_identity : t -> Integer.t
+
+    include Integral_ops with type t := t
+  end
+
+  type t =
+    | Integral of Integral.t
+    | Float of Float_width.t
+
+  val static_cast : t static_cast
+
+  val conjugate : t conjugate
+
+  module Untagged : sig
+    type numeric = t
+
+    type t =
+      | Untagged of Integer.t
+      | Float of float_width
+
+    val to_numeric : t -> numeric
+
+    val static_cast : t static_cast
+  end
+end

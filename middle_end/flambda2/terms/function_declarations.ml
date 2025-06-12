@@ -19,7 +19,10 @@ type code_id_in_function_declaration =
       { function_slot_size : int;
         dbg : Debuginfo.t
       }
-  | Code_id of Code_id.t
+  | Code_id of
+      { code_id : Code_id.t;
+        only_full_applications : bool
+      }
 
 type t =
   { funs : code_id_in_function_declaration Function_slot.Map.t;
@@ -43,10 +46,13 @@ let funs_in_order t = t.in_order
 let find ({ funs; _ } : t) function_slot =
   Function_slot.Map.find function_slot funs
 
-let [@ocamlformat "disable"] print ppf { in_order; _ } =
+let print ppf { in_order; _ } =
   Format.fprintf ppf "@[<hov 1>(%a)@]"
-    (Function_slot.Lmap.print
-       (fun ppf -> function Deleted _ -> Format.fprintf ppf "[deleted]" | Code_id code_id -> Format.fprintf ppf "%a" Code_id.print code_id))
+    (Function_slot.Lmap.print (fun ppf -> function
+       | Deleted _ -> Format.fprintf ppf "[deleted]"
+       | Code_id { code_id; only_full_applications } ->
+         Format.fprintf ppf "%a%s" Code_id.print code_id
+           (if only_full_applications then "[only_full_applications]" else "")))
     in_order
 
 let free_names { funs; _ } =
@@ -58,7 +64,7 @@ let free_names { funs; _ } =
       in
       match code_id with
       | Deleted _ -> syms
-      | Code_id code_id ->
+      | Code_id { code_id; only_full_applications = _ } ->
         Name_occurrences.add_code_id syms code_id Name_mode.normal)
     funs Name_occurrences.empty
 
@@ -71,9 +77,11 @@ let apply_renaming ({ in_order; _ } as t) renaming =
       (fun t ->
         match t with
         | Deleted _ -> t
-        | Code_id code_id ->
+        | Code_id { code_id; only_full_applications } ->
           let code_id' = Renaming.apply_code_id renaming code_id in
-          if code_id == code_id' then t else Code_id code_id')
+          if code_id == code_id'
+          then t
+          else Code_id { code_id = code_id'; only_full_applications })
       in_order
   in
   if in_order == in_order' then t else create in_order'
@@ -83,7 +91,8 @@ let ids_for_export { funs; _ } =
     (fun _function_slot code_id ids ->
       match code_id with
       | Deleted _ -> ids
-      | Code_id code_id -> Ids_for_export.add_code_id ids code_id)
+      | Code_id { code_id; only_full_applications = _ } ->
+        Ids_for_export.add_code_id ids code_id)
     funs Ids_for_export.empty
 
 let compare { funs = funs1; _ } { funs = funs2; _ } =
@@ -96,7 +105,18 @@ let compare { funs = funs1; _ } { funs = funs2; _ } =
         if c <> 0 then c else Debuginfo.compare dbg1 dbg2
       | Deleted _, Code_id _ -> -1
       | Code_id _, Deleted _ -> 1
-      | Code_id code_id1, Code_id code_id2 -> Code_id.compare code_id1 code_id2)
+      | ( Code_id
+            { code_id = code_id1;
+              only_full_applications = only_full_applications1
+            },
+          Code_id
+            { code_id = code_id2;
+              only_full_applications = only_full_applications2
+            } ) ->
+        let c = Code_id.compare code_id1 code_id2 in
+        if c <> 0
+        then c
+        else Bool.compare only_full_applications1 only_full_applications2)
     funs1 funs2
 
 let filter t ~f =

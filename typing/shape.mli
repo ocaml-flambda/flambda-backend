@@ -60,13 +60,16 @@ module Uid : sig
     | Item of { comp_unit: string; id: int }
     | Internal
     | Predef of string
+    | Unboxed_version of t
 
   val reinit : unit -> unit
 
-  val mk : current_unit:Compilation_unit.t option -> t
+  val mk : current_unit:Unit_info.t option -> t
   val of_compilation_unit_id : Compilation_unit.t -> t
+  val of_compilation_unit_name : Compilation_unit.Name.t -> t
   val of_predef_id : Ident.t -> t
   val internal_not_actually_unique : t
+  val unboxed_version : t -> t
 
   val for_actual_declaration : t -> bool
 
@@ -79,6 +82,7 @@ module Sig_component_kind : sig
     | Type
     | Constructor
     | Label
+    | Unboxed_label
     | Module
     | Module_type
     | Extension_constructor
@@ -106,6 +110,7 @@ module Item : sig
   val type_ : Ident.t -> t
   val constr : Ident.t -> t
   val label : Ident.t -> t
+  val unboxed_label : Ident.t -> t
   val module_ : Ident.t -> t
   val module_type : Ident.t -> t
   val extension_constructor : Ident.t -> t
@@ -182,6 +187,9 @@ module Map : sig
 
   val add_label : t -> Ident.t -> Uid.t -> t
   val add_label_proj : t -> Ident.t -> shape -> t
+
+  val add_unboxed_label : t -> Ident.t -> Uid.t -> t
+  val add_unboxed_label_proj : t -> Ident.t -> shape -> t
 
   val add_module : t -> Ident.t -> shape -> t
   val add_module_proj : t -> Ident.t -> shape -> t

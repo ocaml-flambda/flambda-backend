@@ -16,14 +16,16 @@
 
 (* Fix up conditional branches that exceed hardware-allowed ranges. *)
 
+[@@@ocaml.warning "+a-40-41-42"]
+
 module Make (T : Branch_relaxation_intf.S) : sig
-  val relax
-     : Linear.instruction
+  val relax :
+    Linear.instruction
     (* [max_offset_of_out_of_line_code] specifies the furthest distance,
-       measured from the first address immediately after the last instruction
-       of the function, that may be branched to from within the function in
-       order to execute "out of line" code blocks such as call GC and
-       bounds check points. *)
-    -> max_out_of_line_code_offset:T.distance
-    -> unit
+       measured from the first address immediately after the last instruction of
+       the function, that may be branched to from within the function in order
+       to execute "out of line" code blocks such as call GC and bounds check
+       points. *) ->
+    max_out_of_line_code_offset:T.distance ->
+    unit
 end

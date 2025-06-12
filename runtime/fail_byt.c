@@ -57,14 +57,32 @@ CAMLexport void caml_raise_async(value v)
   caml_channel_cleanup_on_raise();
   CAMLassert(!Is_exception_result(v));
 
-  if (Stack_parent(Caml_state->current_stack) != NULL) {
-    caml_fatal_error("Effects not supported in conjunction with async exns");
-  }
-
   if (Caml_state->external_raise_async == NULL) {
     caml_terminate_signals();
     caml_fatal_uncaught_exception(v);
   }
+
+  /* Free stacks until we get back to the stack on which the async exn
+     handler lives.  (Note that we cannot cross a C stack chunk, since
+     installation of such a chunk via the callback mechanism always involves
+     the installation of an async exn handler.) */
+  while (Caml_state->current_stack->id
+         != Caml_state->external_raise_async->stack_id) {
+    struct stack_info* current_stack = Caml_state->current_stack;
+
+    Caml_state->current_stack = Stack_parent(current_stack);
+    caml_free_stack(current_stack);
+
+    if (!Caml_state->current_stack) {
+      caml_fatal_error("Cannot find stack during caml_raise_async (bytecode)");
+    }
+  }
+
+  /* Restore all local allocations state for the new stack */
+  Caml_state->local_sp = Caml_state->current_stack->local_sp;
+  Caml_state->local_top = Caml_state->current_stack->local_top;
+  Caml_state->local_limit = Caml_state->current_stack->local_limit;
+
   *Caml_state->external_raise_async->exn_bucket = v;
 
   Caml_state->local_roots = Caml_state->external_raise_async->local_roots;

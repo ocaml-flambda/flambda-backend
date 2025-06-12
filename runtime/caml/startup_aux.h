@@ -41,20 +41,22 @@ struct caml_params {
   uintnat print_config;
 
   uintnat init_percent_free;
+  uintnat init_max_percent_free;
   uintnat init_minor_heap_wsz;
+  uintnat init_major_heap_increment;
   uintnat init_custom_major_ratio;
   uintnat init_custom_minor_ratio;
   uintnat init_custom_minor_max_bsz;
   uintnat init_custom_work_clamp;
 
-  uintnat init_main_stack_wsz;
-  uintnat init_thread_stack_wsz;
   uintnat init_max_stack_wsz;
 
   uintnat backtrace_enabled;
   uintnat runtime_warnings;
   uintnat cleanup_on_exit;
   uintnat event_trace;
+  uintnat max_domains;
+  uintnat use_hugetlb_pages;
 };
 
 extern const struct caml_params* const caml_params;

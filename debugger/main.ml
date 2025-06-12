@@ -199,7 +199,7 @@ let report report_error error =
     Config.version report_error error
 
 let main () =
-  Callback.register "Debugger.function_placeholder" function_placeholder;
+  Callback.Safe.register "Debugger.function_placeholder" function_placeholder;
   try
     socket_name :=
       (match Sys.os_type with

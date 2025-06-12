@@ -26,11 +26,12 @@ type result = private
   }
 
 val compute_handler_env :
+  ?replay:Replay_history.t * bool ->
   ?cut_after:Scope.t ->
   One_continuation_use.t list ->
   is_recursive:bool ->
   env_at_fork:Downwards_env.t ->
-  consts_lifted_during_body:Lifted_constant_state.t ->
+  consts_lifted_after_fork:Lifted_constant_state.t ->
   params:Bound_parameters.t ->
-  lifted_cont_extra_params_and_args:Continuation_extra_params_and_args.t ->
+  previous_extra_params_and_args:Continuation_extra_params_and_args.t ->
   result

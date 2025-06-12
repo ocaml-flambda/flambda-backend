@@ -1,4 +1,5 @@
 (* TEST
+    flags+="-extension mode";
    expect;
 *)
 
@@ -28,20 +29,6 @@ module M : sig type 'a t = int val x : 'a -> unit end
 module F : functor (X : S) -> sig type t = int val x : 'a -> unit end
 |}]
 
-(* Closing over modules affects closure's modes *)
-let u =
-    let foo () =
-        let _ = (module M : S) in
-        ()
-    in
-    portable_use foo
-[%%expect{|
-Line 6, characters 17-20:
-6 |     portable_use foo
-                     ^^^
-Error: This value is "nonportable" but expected to be "portable".
-|}]
-
 let u =
     let foo () =
         let module X = struct
@@ -59,21 +46,6 @@ Line 10, characters 17-20:
 Error: This value is "nonportable" but expected to be "portable".
 |}]
 
-(* File-level modules are looked up differently and need to be tested
-separately. *)
-let u =
-    let foo () =
-        let _ = (module List : SL) in
-        ()
-    in
-    portable_use foo
-[%%expect{|
-Line 6, characters 17-20:
-6 |     portable_use foo
-                     ^^^
-Error: This value is "nonportable" but expected to be "portable".
-|}]
-
 let u =
     let foo () =
         let m = (module struct let x _ = () end : S) in
@@ -86,10 +58,10 @@ val u : unit = ()
 |}]
 
 (* first class modules are produced at legacy *)
-let x = ((module M : SL) : _ @@ portable)
+let x = ((module M : SL) : _ @ portable)
 [%%expect{|
 Line 1, characters 9-24:
-1 | let x = ((module M : SL) : _ @@ portable)
+1 | let x = ((module M : SL) : _ @ portable)
              ^^^^^^^^^^^^^^^
 Error: This value is "nonportable" but expected to be "portable".
 |}]
@@ -111,7 +83,7 @@ let foo () =
         let _ : F(M).t = 42 in
         ()
     in
-    let _ = (bar : _ @@ portable) in
+    let _ = (bar : _ @ portable) in
     ()
 [%%expect{|
 val foo : unit -> unit = <fun>
@@ -125,7 +97,7 @@ let foo () =
         in
         ()
     in
-    let _ = (bar : _ @@ portable) in
+    let _ = (bar : _ @ portable) in
     ()
 [%%expect{|
 val foo : unit -> unit = <fun>
@@ -140,7 +112,7 @@ let foo () =
         in
         ()
     in
-    let _ = (bar : _ @@ portable) in
+    let _ = (bar : _ @ portable) in
     ()
 [%%expect{|
 val foo : unit -> unit = <fun>
@@ -158,7 +130,7 @@ let foo () =
         in
         ()
     in
-    let _ = (bar : _ @@ portable) in
+    let _ = (bar : _ @ portable) in
     ()
 [%%expect{|
 val foo : unit -> unit = <fun>
@@ -173,10 +145,89 @@ let foo () =
         in
         ()
     in
-    let _ = (bar : _ @@ portable) in
+    let _ = (bar : _ @ portable) in
     ()
 [%%expect{|
 val foo : unit -> unit = <fun>
 |}]
 
 (* Pmty_alias is not testable *)
+
+(* module alias *)
+module type S = sig
+    val foo : 'a -> 'a
+    val baz : 'a -> 'a @@ portable
+end
+
+module M : S = struct
+    let foo = fun x -> x
+    let baz = fun x -> x
+end
+[%%expect{|
+module type S = sig val foo : 'a -> 'a val baz : 'a -> 'a @@ portable end
+module M : S
+|}]
+
+let (bar @ portable) () =
+    let module N = M in
+    M.baz ();
+    N.baz ()
+[%%expect{|
+val bar : unit -> unit = <fun>
+|}]
+
+let (bar @ portable) () =
+    let module N = M in
+    N.foo ()
+[%%expect{|
+Line 3, characters 4-9:
+3 |     N.foo ()
+        ^^^^^
+Error: The value "N.foo" is nonportable, so cannot be used inside a function that is portable.
+|}]
+
+let (bar @ portable) () =
+    let module N = M in
+    M.foo ()
+[%%expect{|
+Line 3, characters 4-9:
+3 |     M.foo ()
+        ^^^^^
+Error: The value "M.foo" is nonportable, so cannot be used inside a function that is portable.
+|}]
+
+(* chained aliases. Creating alias of alias is fine. *)
+let (bar @ portable) () =
+    let module N = M in
+    let module N' = N in
+    M.baz ();
+    N.baz ();
+    N'.baz ()
+[%%expect{|
+val bar : unit -> unit = <fun>
+|}]
+
+(* locks are accumulated and not lost *)
+let (bar @ portable) () =
+    let module N = M in
+    let module N' = N in
+    N'.foo ()
+[%%expect{|
+Line 4, characters 4-10:
+4 |     N'.foo ()
+        ^^^^^^
+Error: The value "N'.foo" is nonportable, so cannot be used inside a function that is portable.
+|}]
+
+(* module aliases in structures still walk locks. *)
+let (bar @ portable) () =
+    let module N = struct
+        module L = M
+    end in
+    N.L.foo ()
+[%%expect{|
+Line 3, characters 19-20:
+3 |         module L = M
+                       ^
+Error: "M" is a module, and modules are always nonportable, so cannot be used inside a function that is portable.
+|}]

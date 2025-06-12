@@ -2,7 +2,6 @@
  modules = "stubs.c";
  reference = "${test_source_directory}/c_api.reference";
  flambda2;
- arch_amd64;
  {
    flags = "-extension small_numbers";
    native;

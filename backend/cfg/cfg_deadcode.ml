@@ -1,13 +1,16 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open! Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
 let live_before :
     type a. a Cfg.instruction -> Cfg_with_infos.liveness -> Reg.Set.t =
  fun instr liveness ->
-  match Cfg_dataflow.Instr.Tbl.find_opt liveness instr.id with
-  | None -> fatal "no liveness information for instruction %d" instr.id
+  match InstructionId.Tbl.find_opt liveness instr.id with
+  | None ->
+    fatal "no liveness information for instruction %a" InstructionId.format
+      instr.id
   | Some { Cfg_liveness.before; across = _ } -> before
 
 let remove_deadcode (body : Cfg.basic_instruction_list) changed liveness
@@ -19,7 +22,7 @@ let remove_deadcode (body : Cfg.basic_instruction_list) changed liveness
         match instr.desc with
         | Op _ as op ->
           Cfg.is_pure_basic op && Reg.disjoint_set_array !used_after instr.res
-        | Reloadretaddr | Pushtrap _ | Poptrap | Prologue | Stack_check _ ->
+        | Reloadretaddr | Pushtrap _ | Poptrap _ | Prologue | Stack_check _ ->
           false
       in
       used_after := before;

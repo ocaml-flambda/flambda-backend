@@ -34,31 +34,24 @@ type error =
   | Not_compiled_as_parameter of Global_module.Name.t
   | Imported_module_has_unset_parameter of
       { imported : Global_module.Name.t;
-        parameter : Global_module.Name.t;
+        parameter : Global_module.Parameter_name.t;
       }
   | Imported_module_has_no_such_parameter of
       { imported : Compilation_unit.Name.t;
-        valid_parameters : Global_module.Name.t list;
-        parameter : Global_module.Name.t;
+        valid_parameters : Global_module.Parameter_name.t list;
+        parameter : Global_module.Parameter_name.t;
         value : Global_module.Name.t;
       }
   | Not_compiled_as_argument of
-      { param : Global_module.Name.t;
+      { param : Global_module.Parameter_name.t;
         value : Global_module.Name.t;
         filename : filepath;
       }
   | Argument_type_mismatch of
       { value : Global_module.Name.t;
         filename : filepath;
-        expected : Global_module.Name.t;
-        actual : Global_module.Name.t;
-      }
-  | Inconsistent_global_name_resolution of
-      { name : Global_module.Name.t;
-        old_global : Global_module.t;
-        new_global : Global_module.t;
-        first_mentioned_by : Global_module.Name.t;
-        now_mentioned_by : Global_module.Name.t;
+        expected : Global_module.Parameter_name.t;
+        actual : Global_module.Parameter_name.t;
       }
   | Unbound_module_as_argument_value of
       { instance : Global_module.Name.t; value : Global_module.Name.t; }
@@ -110,15 +103,10 @@ type 'a sig_reader =
   -> flags:Cmi_format.pers_flags list
   -> 'a
 
-(* If [add_binding] is false, reads the signature from the .cmi but does not
-   bind the module name in the environment. *)
-(* CR-someday lmaurer: [add_binding] is apparently always false, including in the
-   [-instantiate] branch. We should remove this parameter. *)
-val read : 'a t -> 'a sig_reader
-  -> Global_module.Name.t -> Unit_info.Artifact.t -> add_binding:bool
+val read : 'a t -> Global_module.Name.t -> Unit_info.Artifact.t
   -> Subst.Lazy.signature
 val find : allow_hidden:bool -> 'a t -> 'a sig_reader
-  -> Global_module.Name.t -> 'a
+  -> Global_module.Name.t -> allow_excess_args:bool -> 'a
 
 val find_in_cache : 'a t -> Global_module.Name.t -> 'a option
 
@@ -128,7 +116,7 @@ val check : allow_hidden:bool -> 'a t -> 'a sig_reader
 (* Lets it be known that the given module is a parameter to this module and thus is
    expected to have been compiled as such. Raises an exception if the module has already
    been imported as a non-parameter. *)
-val register_parameter : 'a t -> Global_module.Name.t -> unit
+val register_parameter : 'a t -> Global_module.Parameter_name.t -> unit
 
 (* [is_parameter_import penv md] checks if [md] is a parameter. Raises a fatal
    error if the module has not been imported. *)
@@ -150,12 +138,17 @@ val register_import_as_opaque : 'a t -> Compilation_unit.Name.t -> unit
 (* [implemented_parameter penv md] returns the argument to [-as-argument-for]
    that [md] was compiled with. *)
 val implemented_parameter : 'a t
-  -> Global_module.Name.t -> Global_module.Name.t option
+  -> Global_module.Name.t -> Global_module.Parameter_name.t option
 
 val global_of_global_name : 'a t
   -> check:bool
   -> Global_module.Name.t
+  -> allow_excess_args:bool
   -> Global_module.t
+
+(* [normalize_global_name penv g] returns [g] with any excess arguments removed,
+   loading any .cmi files necessary to do so. *)
+val normalize_global_name : 'a t -> Global_module.Name.t -> Global_module.Name.t
 
 val make_cmi : 'a t
   -> Compilation_unit.Name.t
@@ -190,6 +183,10 @@ val imports : 'a t -> Import_info.Intf.t list
    world. In fact we aim to inline away all passing of runtime parameters. *)
 val runtime_parameter_bindings : 'a t -> (Global_module.t * Ident.t) list
 
+(* Return whether the given identifier is a local that appears in
+   [runtime_parameter_bindings]. *)
+val is_bound_to_runtime_parameter : 'a t -> Ident.t -> bool
+
 (* Find whether a module has been imported as a parameter. This means that it
    is a registered parameter import (see [register_parameter_import]) _and_ it has
    been actually imported (i.e., it has occurred at least once). *)
@@ -199,7 +196,7 @@ val is_imported_parameter : 'a t -> Global_module.Name.t -> bool
    All of these will have been specified by [-parameter] but not all of them are
    necessarily imported - any that don't appear in the source are still considered
    parameters of the module but will not appear in [imports]. *)
-val parameters : 'a t -> Global_module.Name.t list
+val parameters : 'a t -> Global_module.Parameter_name.t list
 
 (* Return the CRC of the interface of the given compilation unit *)
 val crc_of_unit: 'a t -> Compilation_unit.Name.t -> Digest.t

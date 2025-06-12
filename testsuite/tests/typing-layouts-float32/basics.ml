@@ -112,7 +112,7 @@ Line 1, characters 27-28:
 1 | let f4_1 (x : t_float32) = x, false;;
                                ^
 Error: This expression has type "t_float32"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float32 is float32
          because of the definition of t_float32 at line 1, characters 0-24.
        But the layout of t_float32 must be a sublayout of value
@@ -125,7 +125,7 @@ Line 1, characters 33-34:
 1 | let f4_2 (x : 'a t_float32_id) = x, false;;
                                      ^
 Error: This expression has type "'a t_float32_id" = "('a : float32)"
-       but an expression was expected of type "('b : value)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_float32_id is float32
          because of the definition of t_float32_id at line 2, characters 0-37.
        But the layout of 'a t_float32_id must be a sublayout of value
@@ -138,9 +138,9 @@ Line 1, characters 26-27:
 1 | let f4_3 (x : float32#) = x, false;;
                               ^
 Error: This expression has type "float32#"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of float32# is float32
-         because it is the primitive type float32#.
+         because it is the unboxed version of the primitive type float32.
        But the layout of float32# must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -164,7 +164,7 @@ Line 1, characters 18-26:
                       ^^^^^^^^
 Error: Tuple element types must have layout value.
        The layout of "float32#" is float32
-         because it is the primitive type float32#.
+         because it is the unboxed version of the primitive type float32.
        But the layout of "float32#" must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -205,14 +205,9 @@ type t5_1 = { x : t_float32 };;
 type t5_1 = { x : t_float32; }
 |}];;
 
-(* CR layouts 2.5: allow this *)
 type t5_3 = { x : t_float32 } [@@unboxed];;
 [%%expect{|
-Line 1, characters 14-27:
-1 | type t5_3 = { x : t_float32 } [@@unboxed];;
-                  ^^^^^^^^^^^^^
-Error: Type "t_float32" has layout "float32".
-       Unboxed records may not yet contain types of this layout.
+type t5_3 = { x : t_float32; } [@@unboxed]
 |}];;
 
 type t5_4 = A of t_float32;;
@@ -227,20 +222,12 @@ type t5_5 = A of int * t_float32
 
 type t5_6 = A of t_float32 [@@unboxed];;
 [%%expect{|
-Line 1, characters 12-26:
-1 | type t5_6 = A of t_float32 [@@unboxed];;
-                ^^^^^^^^^^^^^^
-Error: Type "t_float32" has layout "float32".
-       Unboxed variants may not yet contain types of this layout.
+type t5_6 = A of t_float32 [@@unboxed]
 |}];;
 
 type t5_6_1 = A of { x : t_float32 } [@@unboxed];;
 [%%expect{|
-Line 1, characters 21-34:
-1 | type t5_6_1 = A of { x : t_float32 } [@@unboxed];;
-                         ^^^^^^^^^^^^^
-Error: Type "t_float32" has layout "float32".
-       Unboxed inlined records may not yet contain types of this layout.
+type t5_6_1 = A of { x : t_float32; } [@@unboxed]
 |}];;
 
 type ('a : float32) t5_7 = A of int
@@ -328,7 +315,7 @@ Line 1, characters 31-39:
                                    ^^^^^^^^
 Error: This type signature for "x" is not a value type.
        The layout of type float32# is float32
-         because it is the primitive type float32#.
+         because it is the unboxed version of the primitive type float32.
        But the layout of type float32# must be a sublayout of value
          because it's the type of something stored in a module structure.
 |}];;
@@ -342,7 +329,7 @@ Line 1, characters 30-31:
 1 | let f7_1 (x : t_float32) = `A x;;
                                   ^
 Error: This expression has type "t_float32"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float32 is float32
          because of the definition of t_float32 at line 1, characters 0-24.
        But the layout of t_float32 must be a sublayout of value
@@ -355,7 +342,7 @@ Line 1, characters 36-37:
 1 | let f7_2 (x : 'a t_float32_id) = `A x;;
                                         ^
 Error: This expression has type "'a t_float32_id" = "('a : float32)"
-       but an expression was expected of type "('b : value)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_float32_id is float32
          because of the definition of t_float32_id at line 2, characters 0-37.
        But the layout of 'a t_float32_id must be a sublayout of value
@@ -368,9 +355,9 @@ Line 1, characters 29-30:
 1 | let f7_3 (x : float32#) = `A x;;
                                  ^
 Error: This expression has type "float32#"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of float32# is float32
-         because it is the primitive type float32#.
+         because it is the unboxed version of the primitive type float32.
        But the layout of float32# must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}];;
@@ -420,7 +407,7 @@ Line 1, characters 20-39:
 1 | let x8_1 = id_value (make_t_float32 ());;
                         ^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "t_float32"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float32 is float32
          because of the definition of t_float32 at line 1, characters 0-24.
        But the layout of t_float32 must be a sublayout of value
@@ -433,7 +420,7 @@ Line 1, characters 20-42:
 1 | let x8_2 = id_value (make_t_float32_id ());;
                         ^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "'a t_float32_id" = "('a : float32)"
-       but an expression was expected of type "('b : value)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_float32_id is float32
          because of the definition of t_float32_id at line 2, characters 0-37.
        But the layout of 'a t_float32_id must be a sublayout of value
@@ -446,9 +433,9 @@ Line 1, characters 20-36:
 1 | let x8_3 = id_value (make_floatu ());;
                         ^^^^^^^^^^^^^^^^
 Error: This expression has type "float32#"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of float32# is float32
-         because it is the primitive type float32#.
+         because it is the unboxed version of the primitive type float32.
        But the layout of float32# must be a sublayout of value
          because of the definition of id_value at line 5, characters 13-18.
 |}];;
@@ -571,7 +558,8 @@ type t11_1 = ..
 Line 3, characters 14-28:
 3 | type t11_1 += A of t_float32;;
                   ^^^^^^^^^^^^^^
-Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 type t11_1 += B of float32#;;
@@ -579,7 +567,8 @@ type t11_1 += B of float32#;;
 Line 1, characters 14-27:
 1 | type t11_1 += B of float32#;;
                   ^^^^^^^^^^^^^
-Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 type ('a : float32) t11_2 = ..
@@ -594,7 +583,8 @@ type 'a t11_2 += A of int
 Line 5, characters 17-24:
 5 | type 'a t11_2 += B of 'a;;
                      ^^^^^^^
-Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 type t11_1 += C of t_float32 * string;;
@@ -603,8 +593,8 @@ type t11_1 += C of t_float32 * string;;
 Line 1, characters 14-37:
 1 | type t11_1 += C of t_float32 * string;;
                   ^^^^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument, "
-       t_float32", but found boxed argument, "string".
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 (***************************************)
@@ -682,7 +672,7 @@ Line 1, characters 26-45:
 Error: The method "x" has type "float32#" but is expected to have type
          "('a : value)"
        The layout of float32# is float32
-         because it is the primitive type float32#.
+         because it is the unboxed version of the primitive type float32.
        But the layout of float32# must be a sublayout of value
          because it's the type of an object field.
 |}];;
@@ -694,7 +684,7 @@ Line 1, characters 26-42:
                               ^^^^^^^^^^^^^^^^
 Error: Variables bound in a class must have layout value.
        The layout of x is float32
-         because it is the primitive type float32#.
+         because it is the unboxed version of the primitive type float32.
        But the layout of x must be a sublayout of value
          because it's the type of an instance variable.
 |}];;
@@ -744,7 +734,7 @@ end;;
 Line 3, characters 17-19:
 3 |     let _ = f1_1 m1 in
                      ^^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "t_float32"
        The layout of t_float32 is float32
          because of the definition of t_float32 at line 1, characters 0-24.
@@ -781,7 +771,7 @@ Line 1, characters 28-29:
 1 | let f13_1 (x : t_float32) = x = x;;
                                 ^
 Error: This expression has type "t_float32"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float32 is float32
          because of the definition of t_float32 at line 1, characters 0-24.
        But the layout of t_float32 must be a sublayout of value.
@@ -793,7 +783,7 @@ Line 1, characters 36-37:
 1 | let f13_2 (x : t_float32) = compare x x;;
                                         ^
 Error: This expression has type "t_float32"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float32 is float32
          because of the definition of t_float32 at line 1, characters 0-24.
        But the layout of t_float32 must be a sublayout of value.
@@ -805,7 +795,7 @@ Line 1, characters 45-46:
 1 | let f13_3 (x : t_float32) = Marshal.to_bytes x;;
                                                  ^
 Error: This expression has type "t_float32"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_float32 is float32
          because of the definition of t_float32 at line 1, characters 0-24.
        But the layout of t_float32 must be a sublayout of value.

@@ -6,7 +6,7 @@ module Instruction = struct
     { mutable desc : 'a;
       mutable arg : Reg.t array;
       mutable res : Reg.t array;
-      mutable id : int
+      mutable id : InstructionId.t
     }
 
   let make ~remove_locs ({ desc; arg; res; id } : 'a t) : 'a instruction =
@@ -32,7 +32,7 @@ module Instruction = struct
       stack_offset = 0;
       ls_order = -1;
       available_before = None;
-      available_across = None;
+      available_across = None
     }
 end
 
@@ -76,7 +76,6 @@ module Block = struct
       exn;
       can_raise;
       is_trap_handler = false;
-      dead = false;
       cold = false
     }
 end
@@ -91,11 +90,11 @@ module Cfg_desc = struct
   let make ~remove_regalloc ~remove_locs
       ({ fun_args; blocks; fun_contains_calls } : t) : Cfg_with_layout.t =
     let cfg =
-      Cfg.create ~fun_name:"foo" ~fun_args:(Array.copy fun_args) ~fun_dbg:Debuginfo.none
-        ~fun_codegen_options:[]
-         ~fun_contains_calls
-        ~fun_num_stack_slots:(Array.make Proc.num_stack_slot_classes 0)
+      Cfg.create ~fun_name:"foo" ~fun_args:(Array.copy fun_args)
+        ~fun_dbg:Debuginfo.none ~fun_codegen_options:[] ~fun_contains_calls
+        ~fun_num_stack_slots:(Stack_class.Tbl.make 0)
         ~fun_poll:Lambda.Default_poll
+        ~next_instruction_id:(InstructionId.make_sequence ())
     in
     List.iter
       (fun (block : Block.t) ->
@@ -115,20 +114,17 @@ module Cfg_desc = struct
                suc.predecessors <- Label.Set.add block.start suc.predecessors;
                suc.is_trap_handler <- true))
       cfg.blocks;
-    let cfg_layout =
-      Cfg_with_layout.create ~layout:(DLL.make_empty ())
-        ~preserve_orig_labels:true ~new_labels:Label.Set.empty cfg
-    in
+    let cfg_layout = Cfg_with_layout.create ~layout:(DLL.make_empty ()) cfg in
     (if not remove_locs
     then
       (* If we leave in the locations we want to have the actual stack slot
          count. *)
       let update_stack_slots i =
         let update_slot (r : Reg.t) =
-          match r.loc, Proc.stack_slot_class r.typ with
+          match r.loc, Stack_class.of_machtype r.typ with
           | Stack (Local idx), stack_class ->
-            cfg.fun_num_stack_slots.(stack_class)
-              <- max cfg.fun_num_stack_slots.(stack_class) (idx + 1)
+            Stack_class.Tbl.update cfg.fun_num_stack_slots stack_class
+              ~f:(fun curr -> max curr (idx + 1))
           | _ -> ()
         in
         Array.iter update_slot i.arg;
@@ -183,7 +179,6 @@ let entry_label =
            is_trap_handler = false;
            predecessors = Label.Set.empty;
            stack_offset = 0;
-           dead = false;
            cold = false;
            terminator =
              { desc = Return;
@@ -199,8 +194,7 @@ let entry_label =
          };
        let cfg =
          cfg
-         |> Cfg_with_layout.create ~layout:[] ~preserve_orig_labels:true
-              ~new_labels:Label.Set.empty
+         |> Cfg_with_layout.create ~layout:[]
        in
        assert (made_cfg = cfg);
        ()
@@ -209,8 +203,7 @@ let entry_label =
 
 exception Break_test
 
-let label_add lbl k =
-  Label.of_int_unsafe ((Label.to_int lbl) + k)
+let label_add lbl k = Label.of_int_unsafe (Label.to_int lbl + k)
 
 let move_param_label = label_add entry_label 1
 
@@ -232,12 +225,13 @@ let _addr = Array.init 8 (fun _ -> Reg.create Addr)
 
 let float = Array.init 8 (fun _ -> Reg.create Float)
 
-let base_templ () : Cfg_desc.t * (unit -> int) =
+let base_templ () : Cfg_desc.t * (unit -> InstructionId.t) =
   let make_id =
-    let last_id = ref 2 in
-    fun () ->
-      last_id := !last_id + 1;
-      !last_id
+    let seq = InstructionId.make_sequence () in
+    let _zero : InstructionId.t = InstructionId.get_and_incr seq in
+    let _one : InstructionId.t = InstructionId.get_and_incr seq in
+    let _two : InstructionId.t = InstructionId.get_and_incr seq in
+    fun () -> InstructionId.get_and_incr seq
   in
   let make_locs regs f =
     let locs = f (Array.map (fun (r : Reg.t) -> r.typ) regs) in
@@ -253,7 +247,7 @@ let base_templ () : Cfg_desc.t * (unit -> int) =
      [fun f x y a -> let y = f x y a in let x = x + y in x] *)
   let int_arg1 = int.(0) in
   let int_arg2 = int.(1) in
-  let stack_loc = Reg.at_location int_arg1.typ (Stack (Local 0)) in
+  let stack_loc = Reg.create_at_location int_arg1.typ (Stack (Local 0)) in
   let args, arg_locs =
     make_locs [| val_.(0); int_arg1; int_arg2; float.(0) |] Proc.loc_parameters
   in
@@ -329,7 +323,7 @@ let base_templ () : Cfg_desc.t * (unit -> int) =
           { start = add_label;
             body =
               [ { Instruction.id = make_id ();
-                  desc = Op (Intop Simple_operation.Iadd);
+                  desc = Op (Intop Operation.Iadd);
                   arg = [| int_arg1; int_arg2 |];
                   res = [| int_arg1 |]
                 } ];
@@ -532,7 +526,7 @@ let () =
     ~exp_std:"fatal exception raised when creating description"
     ~exp_err:
       ">> Fatal error: Register in function arguments that isn't preassigned: \
-       I/0"
+       anon:I/0"
 
 let () =
   check "Function argument count changed"
@@ -558,11 +552,10 @@ let () =
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
       (Printf.sprintf
-        ">> Fatal error: In function arguments: changed preassigned register's \
-         location from %s to %s"
-         (Proc.register_name Cmm.Int 0)
-         (Proc.register_name Cmm.Int 1))
-
+         ">> Fatal error: In function arguments: changed preassigned \
+          register's location from %s to %s"
+         (Reg_class.register_name Cmm.Int 0)
+         (Reg_class.register_name Cmm.Int 1))
 
 let () =
   check "Location can't be unknown after allocation"
@@ -572,8 +565,13 @@ let () =
       cfg, cfg)
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
-      ">> Fatal error: instruction 20 has a register (V/69) with an unknown \
-       location"
+      (if String.equal Config.architecture "amd64"
+      then
+        ">> Fatal error: instruction 20 has a register (anon:V/37) with an \
+         unknown location"
+      else
+        ">> Fatal error: instruction 20 has a register (anon:V/68) with an \
+         unknown location")
 
 let () =
   check "Precoloring can't change"
@@ -586,10 +584,10 @@ let () =
     ~exp_std:"fatal exception raised when validating description"
     ~exp_err:
       (Printf.sprintf
-        ">> Fatal error: In instruction's no 17 results: changed preassigned \
-         register's location from %s to %s"
-         (Proc.register_name Cmm.Int 2)
-         (Proc.register_name Cmm.Int 1))
+         ">> Fatal error: In instruction's no 17 results: changed preassigned \
+          register's location from %s to %s"
+         (Reg_class.register_name Cmm.Int 2)
+         (Reg_class.register_name Cmm.Int 1))
 
 let () =
   check "Duplicate instruction found when validating description"
@@ -617,27 +615,24 @@ let () =
     ~exp_err:
       ">> Fatal error: Register allocation changed existing instruction no. 23 \
        into a register allocation specific instruction"
-
-
-(* CR xclerc for xclerc: same as above (polymorphic commpare on values
-   with cycles).
-   let () =
-  check "Regalloc added non-regalloc specific instr"
-    (fun () ->
-      let templ, make_id = base_templ () in
-      let cfg1 = Cfg_desc.make_pre templ in
-      let block = templ.&(add_label) in
-      let r = (List.hd block.body).res in
-      block.body
-        <- { desc = Op Move; id = make_id (); arg = r; res = r } :: block.body;
-      let cfg2 = Cfg_desc.make_post templ in
-      cfg1, cfg2)
-    ~exp_std:"fatal exception raised when validating description"
-    ~exp_err:
-      ">> Fatal error: Register allocation added non-regalloc specific \
-       instruction no. 26"
-*)
-
+  (* CR xclerc for xclerc: same as above (polymorphic commpare on values
+      with cycles).
+      let () =
+     check "Regalloc added non-regalloc specific instr"
+       (fun () ->
+         let templ, make_id = base_templ () in
+         let cfg1 = Cfg_desc.make_pre templ in
+         let block = templ.&(add_label) in
+         let r = (List.hd block.body).res in
+         block.body
+           <- { desc = Op Move; id = make_id (); arg = r; res = r } :: block.body;
+         let cfg2 = Cfg_desc.make_post templ in
+         cfg1, cfg2)
+       ~exp_std:"fatal exception raised when validating description"
+       ~exp_err:
+         ">> Fatal error: Register allocation added non-regalloc specific \
+          instruction no. 26"
+  *)
   (* CR xclerc for xclerc: same as above (polymorphic commpare on values
      with cycles).
      let () =
@@ -828,10 +823,11 @@ let () =
 
 let make_loop ~loop_loc_first n =
   let make_id =
-    let last_id = ref 2 in
-    fun () ->
-      last_id := !last_id + 1;
-      !last_id
+    let seq = InstructionId.make_sequence () in
+    let _zero : InstructionId.t = InstructionId.get_and_incr seq in
+    let _one : InstructionId.t = InstructionId.get_and_incr seq in
+    let _two : InstructionId.t = InstructionId.get_and_incr seq in
+    fun () -> InstructionId.get_and_incr seq
   in
   let make_locs regs f =
     let locs = f (Array.map (fun (r : Reg.t) -> r.typ) regs) in
@@ -849,7 +845,7 @@ let make_loop ~loop_loc_first n =
   in
   let stack_loc =
     let locs =
-      Array.init (n + 1) (fun i -> Reg.at_location Int (Stack (Local i)))
+      Array.init (n + 1) (fun i -> Reg.create_at_location Int (Stack (Local i)))
     in
     fun i -> locs.(i)
   in
@@ -1039,31 +1035,31 @@ let test_loop ~loop_loc_first n =
     (fun () -> make_loop ~loop_loc_first n)
     ~exp_std:
       (Printf.sprintf
-        "Validation failed: Bad equations at entry point, reason: Unsatisfiable \
-         equations when removing result equations.\n\
-         Existing equation has to agree on 0 or 2 sides (cannot be exactly 1) \
-         with the removed equation.\n\
-         Existing equation R[%s]=%s.\n\
-         Removed equation: R[%s]=%s.\n\
-         Equations: R[%s]=%s R[%s]=%s R[%s]=%s\n\
-         Function argument descriptions: R[%s], R[%s], R[%s]\n\
-         Function argument locations: %s, %s, %s"
-         (Proc.register_name Cmm.Int 2)
-         (Proc.register_name Cmm.Int 1)
-         (Proc.register_name Cmm.Int 1)
-         (Proc.register_name Cmm.Int 1)
-         (Proc.register_name Cmm.Int 0)
-         (Proc.register_name Cmm.Int 0)
-         (Proc.register_name Cmm.Int 2)
-         (Proc.register_name Cmm.Int 1)
-         (Proc.register_name Cmm.Int 2)
-         (Proc.register_name Cmm.Int 2)
-         (Proc.register_name Cmm.Int 0)
-         (Proc.register_name Cmm.Int 1)
-         (Proc.register_name Cmm.Int 2)
-         (Proc.register_name Cmm.Int 0)
-         (Proc.register_name Cmm.Int 1)
-         (Proc.register_name Cmm.Int 2))
+         "Validation failed: Bad equations at entry point, reason: \
+          Unsatisfiable equations when removing result equations.\n\
+          Existing equation has to agree on 0 or 2 sides (cannot be exactly 1) \
+          with the removed equation.\n\
+          Existing equation R[%s]=%s.\n\
+          Removed equation: R[%s]=%s.\n\
+          Equations: R[%s]=%s R[%s]=%s R[%s]=%s\n\
+          Function argument descriptions: R[%s], R[%s], R[%s]\n\
+          Function argument locations: %s, %s, %s"
+         (Reg_class.register_name Cmm.Int 2)
+         (Reg_class.register_name Cmm.Int 1)
+         (Reg_class.register_name Cmm.Int 1)
+         (Reg_class.register_name Cmm.Int 1)
+         (Reg_class.register_name Cmm.Int 0)
+         (Reg_class.register_name Cmm.Int 0)
+         (Reg_class.register_name Cmm.Int 2)
+         (Reg_class.register_name Cmm.Int 1)
+         (Reg_class.register_name Cmm.Int 2)
+         (Reg_class.register_name Cmm.Int 2)
+         (Reg_class.register_name Cmm.Int 0)
+         (Reg_class.register_name Cmm.Int 1)
+         (Reg_class.register_name Cmm.Int 2)
+         (Reg_class.register_name Cmm.Int 0)
+         (Reg_class.register_name Cmm.Int 1)
+         (Reg_class.register_name Cmm.Int 2))
     ~exp_err:"";
   let end_time = Sys.time () in
   Format.printf "  Time of loop test: %fs\n" (end_time -. start_time);

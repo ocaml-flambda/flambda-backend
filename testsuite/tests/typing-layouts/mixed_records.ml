@@ -39,11 +39,7 @@ type t =
   }
 
 [%%expect{|
-Line 3, characters 4-14:
-3 |     b : float;
-        ^^^^^^^^^^
-Error: Expected all flat fields after non-value field, "a",
-       but found boxed field, "b".
+type t = { a : float#; b : float; c : int; }
 |}];;
 
 (* [float] appearing as a non-flat field in the value prefix. *)
@@ -66,25 +62,17 @@ type t =
   }
 
 [%%expect{|
-Line 4, characters 4-14:
-4 |     c : float;
-        ^^^^^^^^^^
-Error: Expected all flat fields after non-value field, "b",
-       but found boxed field, "c".
+type t = { a : float; b : float#; c : float; d : int; }
 |}];;
 
-(* String can't appear in the flat suffix *)
+(* Reordered mixed block: the compiler moves the string to before the flat suffix *)
 type t =
   { a : float#;
     b : string;
   }
 
 [%%expect{|
-Line 3, characters 4-15:
-3 |     b : string;
-        ^^^^^^^^^^^
-Error: Expected all flat fields after non-value field, "a",
-       but found boxed field, "b".
+type t = { a : float#; b : string; }
 |}];;
 
 (* [f3] can be flat because all other fields are float/float#,
@@ -100,7 +88,8 @@ type t =
 type t = { f1 : float#; f2 : float#; f3 : float; }
 |}];;
 
-(* The string [f3] can't appear in the flat suffix. *)
+(* The string [f3] can't appear in the flat suffix, thus it will be moved
+   by the middle end into the value prefix. *)
 type t =
   { f1 : float#;
     f2 : float#;
@@ -108,11 +97,7 @@ type t =
   }
 
 [%%expect{|
-Line 4, characters 4-16:
-4 |     f3 : string;
-        ^^^^^^^^^^^^
-Error: Expected all flat fields after non-value field, "f1",
-       but found boxed field, "f3".
+type t = { f1 : float#; f2 : float#; f3 : string; }
 |}];;
 
 (* The int [c] can appear in the flat suffix. *)

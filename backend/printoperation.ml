@@ -1,5 +1,6 @@
-[@@@ocaml.warning "+a-4-9-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 open Format
 
 let operation ?(print_reg = Printreg.reg) (op : Operation.t) arg ppf res =
@@ -36,46 +37,59 @@ let operation ?(print_reg = Printreg.reg) (op : Operation.t) arg ppf res =
       (Array.sub arg 1 (Array.length arg - 1))
       reg arg.(0)
       (if is_assign then "(assign)" else "(init)")
-  | Alloc { bytes = n; mode = Cmm.Alloc_mode.Heap } -> fprintf ppf "alloc %i" n
-  | Alloc { bytes = n; mode = Cmm.Alloc_mode.Local } ->
+  | Alloc { bytes = n; mode = Cmm.Alloc_mode.Heap; dbginfo = _ } ->
+    fprintf ppf "alloc %i" n
+  | Alloc { bytes = n; mode = Cmm.Alloc_mode.Local; dbginfo = _ } ->
     fprintf ppf "alloc_local %i" n
   | Intop op ->
-    if Simple_operation.is_unary_integer_operation op
+    if Operation.is_unary_integer_operation op
     then (
       assert (Array.length arg = 1);
-      fprintf ppf "%s%a"
-        (Simple_operation.string_of_integer_operation op)
-        reg arg.(0))
+      fprintf ppf "%s%a" (Operation.string_of_integer_operation op) reg arg.(0))
     else (
       assert (Array.length arg = 2);
       fprintf ppf "%a%s%a" reg arg.(0)
-        (Simple_operation.string_of_integer_operation op)
+        (Operation.string_of_integer_operation op)
         reg arg.(1))
   | Intop_imm (op, n) ->
     fprintf ppf "%a%s%i" reg arg.(0)
-      (Simple_operation.string_of_integer_operation op)
+      (Operation.string_of_integer_operation op)
       n
-  | Intop_atomic { op = Compare_and_swap; size; addr } ->
-    fprintf ppf "lock cas %s[%a] ?%a %a"
+  | Intop_atomic { op = Compare_set; size; addr } ->
+    fprintf ppf "lock compare_set %s[%a] ?%a %a"
       (Printcmm.atomic_bitwidth size)
       (Arch.print_addressing reg addr)
       (Array.sub arg 2 (Array.length arg - 2))
       reg arg.(0) reg arg.(1)
-  | Intop_atomic { op = Fetch_and_add; size; addr } ->
-    fprintf ppf "lock %s[%a] += %a"
+  | Intop_atomic
+      { op = (Fetch_and_add | Add | Sub | Land | Lor | Lxor) as op; size; addr }
+    ->
+    fprintf ppf "lock %s[%a] %s %a"
+      (Printcmm.atomic_bitwidth size)
+      (Arch.print_addressing reg addr)
+      (Array.sub arg 1 (Array.length arg - 1))
+      (Printcmm.atomic_op op) reg arg.(0)
+  | Intop_atomic { op = Compare_exchange; size; addr } ->
+    fprintf ppf "lock compare_exchange %s[%a] ?%a %a"
+      (Printcmm.atomic_bitwidth size)
+      (Arch.print_addressing reg addr)
+      (Array.sub arg 2 (Array.length arg - 2))
+      reg arg.(0) reg arg.(1)
+  | Intop_atomic { op = Exchange; size; addr } ->
+    fprintf ppf "lock exchange %s[%a] %a"
       (Printcmm.atomic_bitwidth size)
       (Arch.print_addressing reg addr)
       (Array.sub arg 1 (Array.length arg - 1))
       reg arg.(0)
   | Floatop (_, ((Icompf _ | Iaddf | Isubf | Imulf | Idivf) as op)) ->
-    fprintf ppf "%a %a %a" reg arg.(0) Simple_operation.format_float_operation
-      op reg arg.(1)
+    fprintf ppf "%a %a %a" reg arg.(0) Operation.format_float_operation op reg
+      arg.(1)
   | Floatop (_, ((Inegf | Iabsf) as op)) ->
-    fprintf ppf "%a %a" Simple_operation.format_float_operation op reg arg.(0)
+    fprintf ppf "%a %a" Operation.format_float_operation op reg arg.(0)
   | Csel tst ->
     let len = Array.length arg in
     fprintf ppf "csel %a ? %a : %a"
-      (Simple_operation.format_test ~print_reg:Printreg.reg tst)
+      (Operation.format_test ~print_reg:Printreg.reg tst)
       arg reg
       arg.(len - 2)
       reg
@@ -85,7 +99,8 @@ let operation ?(print_reg = Printreg.reg) (op : Operation.t) arg ppf res =
   | Static_cast cast ->
     fprintf ppf "%s %a" (Printcmm.static_cast cast) reg arg.(0)
   | Opaque -> fprintf ppf "opaque %a" reg arg.(0)
-  | Name_for_debugger { ident; which_parameter; regs = r } ->
+  | Name_for_debugger
+      { ident; which_parameter; regs = r; provenance = _; is_assignment = _ } ->
     fprintf ppf "%a holds the value of %a%s" regs r Backend_var.print ident
       (match which_parameter with
       | None -> ""

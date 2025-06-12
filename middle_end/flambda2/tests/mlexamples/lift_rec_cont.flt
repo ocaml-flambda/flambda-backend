@@ -1,0 +1,70 @@
+let code f_0 deleted in
+let code loopify(never) size(50) newer_version_of(f_0)
+      f_0_1 (g : val, x : [ 0 | 0 of val ])
+        my_closure _region _ghost_region my_depth
+        -> k * k1
+        : imm tagged =
+  (let prim = %is_int x in
+   switch prim
+     | 0 -> k3
+     | 1 -> k2 (0)
+     where k3 =
+       let Pfield = %block_load (0) x in
+       let Paddint = Pfield + 1 in
+       cont k2 (Paddint))
+    where k2 (y : imm tagged) =
+      let prim = %int_comp 0 <= y in
+      (switch prim
+         | 0 -> k5 (0)
+         | 1 -> k5 (1)
+         where rec k5 (i : imm tagged) =
+           (apply g (i) -> k4 * k1
+              where k4 (param) =
+                cont k3
+              where k3 =
+                let prim_1 = %int_comp i <= y in
+                (switch prim_1
+                   | 0 -> k (0)
+                   | 1 -> k3
+                   where k3 =
+                     let Paddint = i + 1 in
+                     cont k5 (Paddint))))
+in
+let $camlFoo__f_1 = closure f_0_1 @f in
+let $camlFoo = Block 0 ($camlFoo__f_1) in
+cont done ($camlFoo)
+===>
+let code f_0 deleted in
+let code loopify(never) size(50) newer_version_of(f_0)
+      f_0_1 (g : val, x : [ 0 | 0 of val ])
+        my_closure _region _ghost_region my_depth
+        -> k * k1
+        : imm tagged =
+  (let prim = %is_int x in
+   switch prim
+     | 0 -> k3
+     | 1 -> k2 (0)
+     where k3 =
+       let Pfield = %block_load (0) x in
+       let Paddint = Pfield + 1 in
+       cont k2 (Paddint))
+    where k2 (y : imm tagged) =
+      let prim = %int_comp 0 <= y in
+      ((let tagged_scrutinee = %Tag_imm prim in
+        cont k5 (tagged_scrutinee))
+         where rec k5 (i : imm tagged) =
+           (apply g (i) -> k1_1 * k1
+              where k1_1 (param) =
+                cont k4
+              where k4 =
+                let prim_1 = %int_comp i <= y in
+                (switch prim_1
+                   | 0 -> k (0)
+                   | 1 -> k3
+                   where k3 =
+                     let Paddint = i + 1 in
+                     cont k5 (Paddint))))
+in
+let $camlFoo__f_1 = closure f_0_1 @f in
+let $camlFoo = Block 0 ($camlFoo__f_1) in
+cont done ($camlFoo)

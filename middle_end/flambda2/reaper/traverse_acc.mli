@@ -60,11 +60,6 @@ val alias_kind : Name.t -> Simple.t -> t -> unit
 
 val kinds : t -> Flambda_kind.t Name.Map.t
 
-val record_dep : denv:Env.t -> Code_id_or_name.t -> Graph.Dep.t -> t -> unit
-
-val record_deps :
-  denv:Env.t -> Code_id_or_name.t -> Graph.Dep.Set.t -> t -> unit
-
 val alias_dep : denv:Env.t -> Variable.t -> Simple.t -> t -> unit
 
 val root : Variable.t -> t -> unit
@@ -85,12 +80,15 @@ val get_continuation_info : t -> continuation_info Continuation.Map.t
 
 val add_apply : apply_dep -> t -> unit
 
-val add_set_of_closures_dep : Name.t -> Code_id.t -> t -> unit
+val add_set_of_closures_dep :
+  Name.t -> Code_id.t -> only_full_applications:bool -> t -> unit
 
 val add_code : Code_id.t -> code_dep -> t -> unit
 
 val find_code : t -> Code_id.t -> code_dep
 
 val code_deps : t -> code_dep Code_id.Map.t
+
+val graph : t -> Graph.graph
 
 val deps : t -> Graph.graph

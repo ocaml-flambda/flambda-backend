@@ -524,10 +524,8 @@ let init_or_assign env (ia : Flambda_primitive.Init_or_assign.t) :
   | Initialization -> Initialization
   | Assignment alloc -> Assignment (alloc_mode_for_assignments env alloc)
 
-let nullop _env (op : Flambda_primitive.nullary_primitive) : Fexpr.nullop =
+let nullop _env (op : Flambda_primitive.nullary_primitive) : _ =
   match op with
-  | Begin_region { ghost } -> Begin_region { ghost }
-  | Begin_try_region { ghost } -> Begin_try_region { ghost }
   | Invalid _ | Optimised_out _ | Probe_is_enabled _ | Enter_inlined_apply _
   | Dls_get | Poll ->
     Misc.fatal_errorf "TODO: Nullary primitive: %a" Flambda_primitive.print
@@ -584,7 +582,7 @@ let unop env (op : Flambda_primitive.unary_primitive) : Fexpr.unop =
   | Boolean_not -> Boolean_not
   | Int_as_pointer _ | Duplicate_block _ | Duplicate_array _ | Bigarray_length _
   | Float_arith _ | Reinterpret_64_bit_word _ | Is_boxed_float | Obj_dup
-  | Get_header | Atomic_load _ ->
+  | Get_header | Atomic_load _ | Peek _ | Make_lazy _ ->
     Misc.fatal_errorf "TODO: Unary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Unary op)
@@ -609,7 +607,8 @@ let binop env (op : Flambda_primitive.binary_primitive) : Fexpr.binop =
   | Float_comp (w, c) -> Infix (Float_comp (w, c))
   | String_or_bigstring_load (slv, saw) -> String_or_bigstring_load (slv, saw)
   | Bigarray_get_alignment align -> Bigarray_get_alignment align
-  | Bigarray_load _ | Atomic_exchange | Atomic_fetch_and_add ->
+  | Bigarray_load _ | Atomic_exchange _ | Atomic_set _ | Atomic_int_arith _
+  | Poke _ ->
     Misc.fatal_errorf "TODO: Binary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Binary op)
@@ -645,13 +644,15 @@ let ternop env (op : Flambda_primitive.ternary_primitive) : Fexpr.ternop =
     let ask = fexpr_of_array_set_kind env ask in
     Array_set (ak, ask)
   | Bytes_or_bigstring_set (blv, saw) -> Bytes_or_bigstring_set (blv, saw)
-  | Bigarray_set _ | Atomic_compare_and_set ->
+  | Bigarray_set _ | Atomic_compare_and_set _ | Atomic_compare_exchange _ ->
     Misc.fatal_errorf "TODO: Ternary primitive: %a"
       Flambda_primitive.Without_args.print
       (Flambda_primitive.Without_args.Ternary op)
 
 let varop env (op : Flambda_primitive.variadic_primitive) : Fexpr.varop =
   match op with
+  | Begin_region { ghost } -> Begin_region { ghost }
+  | Begin_try_region { ghost } -> Begin_try_region { ghost }
   | Make_block (Values (tag, _), mutability, alloc) ->
     let tag = tag |> Tag.Scannable.to_int in
     let alloc = alloc_mode_for_allocations env alloc in
@@ -663,7 +664,7 @@ let varop env (op : Flambda_primitive.variadic_primitive) : Fexpr.varop =
 
 let prim env (p : Flambda_primitive.t) : Fexpr.prim =
   match p with
-  | Nullary op -> Nullary (nullop env op)
+  | Nullary op -> nullop env op
   | Unary (op, arg) -> Unary (unop env op, simple env arg)
   | Binary (op, arg1, arg2) ->
     Binary (binop env op, simple env arg1, simple env arg2)
@@ -675,10 +676,7 @@ let value_slots env map =
   List.map
     (fun (var, value) ->
       let kind = Value_slot.kind var in
-      if not
-           (Flambda_kind.equal
-              (Flambda_kind.With_subkind.kind kind)
-              Flambda_kind.value)
+      if not (Flambda_kind.equal kind Flambda_kind.value)
       then
         Misc.fatal_errorf "Value slot %a not of kind Value" Simple.print value;
       let var = Env.translate_value_slot env var in
@@ -708,7 +706,9 @@ let set_of_closures env sc =
       |> Function_declarations.funs_in_order
       |> Function_slot.Lmap.map (function
            | Function_declarations.Deleted _ -> Misc.fatal_error "todo"
-           | Function_declarations.Code_id code_id -> code_id)
+           | Function_declarations.Code_id
+               { code_id; only_full_applications = _ } ->
+             code_id)
       |> Function_slot.Lmap.bindings)
   in
   let elts = value_slots env (Set_of_closures.value_slots sc) in
@@ -918,8 +918,16 @@ and static_let_expr env bound_static defining_expr body : Fexpr.expr =
                 (Bound_parameters.to_list params)
             in
             let closure_var, env = Env.bind_var env my_closure in
-            let region_var, env = Env.bind_var env my_region in
-            let ghost_region_var, env = Env.bind_var env my_ghost_region in
+            let region_var, env =
+              match my_region with
+              | None -> nowhere "_region", env
+              | Some my_region -> Env.bind_var env my_region
+            in
+            let ghost_region_var, env =
+              match my_ghost_region with
+              | None -> nowhere "_ghost_region", env
+              | Some my_ghost_region -> Env.bind_var env my_ghost_region
+            in
             let depth_var, env = Env.bind_var env my_depth in
             let body = expr env body in
             (* CR-someday lmaurer: Omit exn_cont, closure_var if not used *)
@@ -1003,10 +1011,13 @@ and let_cont_expr env (lc : Flambda.Let_cont_expr.t) =
         Fexpr.Let_cont { recursive = Nonrecursive; bindings = [binding]; body })
   | Recursive handlers ->
     Flambda.Recursive_let_cont_handlers.pattern_match handlers
-      ~f:(fun ~invariant_params:_ ~body handlers ->
-        (* TODO support them *)
+      ~f:(fun ~invariant_params ~body handlers ->
+        let params, env =
+          map_accum_left kinded_parameter env
+            (Bound_parameters.to_list invariant_params)
+        in
         let env =
-          Continuation.Set.fold
+          List.fold_right
             (fun c env ->
               let _, env = Env.bind_named_continuation env c in
               env)
@@ -1024,10 +1035,10 @@ and let_cont_expr env (lc : Flambda.Let_cont_expr.t) =
               in
               cont_handler env c sort handler)
             (handlers |> Flambda.Continuation_handlers.to_map
-           |> Continuation.Map.bindings)
+           |> Continuation.Lmap.bindings)
         in
         let body = expr env body in
-        Fexpr.Let_cont { recursive = Recursive; bindings; body })
+        Fexpr.Let_cont { recursive = Recursive params; bindings; body })
 
 and cont_handler env cont_id (sort : Continuation.Sort.t) h =
   let is_exn_handler = Flambda.Continuation_handler.is_exn_handler h in
@@ -1227,7 +1238,7 @@ module Iter = struct
 
   and let_cont_rec f_c f_s conts body =
     let map = Continuation_handlers.to_map conts in
-    Continuation.Map.iter (continuation_handler f_c f_s) map;
+    Continuation.Lmap.iter (continuation_handler f_c f_s) map;
     expr f_c f_s body
 
   and continuation_handler f_c f_s _ h =

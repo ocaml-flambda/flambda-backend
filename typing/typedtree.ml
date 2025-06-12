@@ -92,9 +92,25 @@ module Unique_barrier = struct
          not traversing the uniqueness analysis. This ensures that the
          unique barriers will stay sound for future extensions. *)
       Uniqueness.Const.legacy
+
+  let print ppf t =
+    let open Format in
+    let print = function
+      | Enabled u -> fprintf ppf "Enabled(%a)" (Mode.Uniqueness.print ()) u
+      | Resolved uc ->
+        fprintf ppf "Resolved(%a)" Mode.Uniqueness.Const.print uc
+      | Not_computed -> fprintf ppf "Not_computed"
+    in
+    print !t
 end
 
 type unique_use = Mode.Uniqueness.r * Mode.Linearity.l
+
+let print_unique_use ppf (u,l) =
+  let open Format in
+  fprintf ppf "@[(%a,@ %a)@]"
+    (Mode.Uniqueness.print ()) u
+    (Mode.Linearity.print ()) l
 
 type alloc_mode = {
   mode : Mode.Alloc.r;
@@ -133,15 +149,18 @@ and 'k pattern_desc =
   | Tpat_any : value pattern_desc
   | Tpat_var : Ident.t * string loc * Uid.t * Mode.Value.l -> value pattern_desc
   | Tpat_alias :
-      value general_pattern * Ident.t * string loc * Uid.t * Mode.Value.l -> value pattern_desc
+      value general_pattern * Ident.t * string loc * Uid.t * Mode.Value.l
+      * Types.type_expr -> value pattern_desc
   | Tpat_constant : constant -> value pattern_desc
   | Tpat_tuple : (string option * value general_pattern) list -> value pattern_desc
   | Tpat_unboxed_tuple :
       (string option * value general_pattern * Jkind.sort) list ->
       value pattern_desc
   | Tpat_construct :
-      Longident.t loc * constructor_description * value general_pattern list
-      * (Ident.t loc list * core_type) option ->
+      Longident.t loc * Types.constructor_description *
+        value general_pattern list *
+        ((Ident.t loc * Parsetree.jkind_annotation option) list * core_type)
+          option ->
       value pattern_desc
   | Tpat_variant :
       label * value general_pattern option * row_desc ref ->
@@ -149,6 +168,10 @@ and 'k pattern_desc =
   | Tpat_record :
       (Longident.t loc * label_description * value general_pattern) list *
         closed_flag ->
+      value pattern_desc
+  | Tpat_record_unboxed_product :
+      (Longident.t loc * unboxed_label_description * value general_pattern) list
+      * closed_flag ->
       value pattern_desc
   | Tpat_array :
       mutability * Jkind.sort * value general_pattern list -> value pattern_desc
@@ -173,12 +196,13 @@ and expression =
    }
 
 and exp_extra =
-  | Texp_constraint of core_type option * Mode.Alloc.Const.Option.t
+  | Texp_constraint of core_type
   | Texp_coerce of core_type option * core_type
   | Texp_poly of core_type option
   | Texp_newtype of Ident.t * string loc *
                     Parsetree.jkind_annotation option * Uid.t
   | Texp_stack
+  | Texp_mode of Mode.Alloc.Const.Option.t
 
 and arg_label = Types.arg_label =
   | Nolabel
@@ -212,12 +236,21 @@ and expression_desc =
   | Texp_record of {
       fields : ( Types.label_description * record_label_definition ) array;
       representation : Types.record_representation;
-      extended_expression : (expression * Unique_barrier.t) option;
+      extended_expression : (expression * Jkind.sort * Unique_barrier.t) option;
       alloc_mode : alloc_mode option
     }
+  | Texp_record_unboxed_product of {
+      fields :
+        ( Types.unboxed_label_description * record_label_definition ) array;
+      representation : Types.record_unboxed_product_representation;
+      extended_expression : (expression * Jkind.sort) option;
+    }
   | Texp_field of
-      expression * Longident.t loc * label_description * texp_field_boxing *
-        Unique_barrier.t
+      expression * Jkind.sort * Longident.t loc * label_description *
+        texp_field_boxing * Unique_barrier.t
+  | Texp_unboxed_field of
+      expression * Jkind.sort * Longident.t loc * unboxed_label_description *
+        unique_use
   | Texp_setfield of
       expression * Mode.Locality.l * Longident.t loc * label_description * expression
   | Texp_array of mutability * Jkind.Sort.t * expression list * alloc_mode
@@ -232,6 +265,7 @@ and expression_desc =
     }
   | Texp_for of {
       for_id  : Ident.t;
+      for_debug_uid: Shape.Uid.t;
       for_pat : Parsetree.pattern;
       for_from : expression;
       for_to   : expression;
@@ -257,6 +291,7 @@ and expression_desc =
       let_ : binding_op;
       ands : binding_op list;
       param : Ident.t;
+      param_debug_uid : Shape.Uid.t;
       param_sort : Jkind.sort;
       body : value case;
       body_sort : Jkind.sort;
@@ -269,6 +304,8 @@ and expression_desc =
   | Texp_probe_is_enabled of { name:string }
   | Texp_exclave of expression
   | Texp_src_pos
+  | Texp_overwrite of expression * expression
+  | Texp_hole of unique_use
 
 and ident_kind =
   | Id_value
@@ -298,6 +335,7 @@ and comprehension_clause_binding =
 and comprehension_iterator =
   | Texp_comp_range of
       { ident     : Ident.t
+      ; ident_debug_uid : Shape.Uid.t
       ; pattern   : Parsetree.pattern
       ; start     : expression
       ; stop      : expression
@@ -321,6 +359,7 @@ and function_param =
   {
     fp_arg_label: arg_label;
     fp_param: Ident.t;
+    fp_param_debug_uid : Shape.Uid.t;
     fp_partial: partial;
     fp_kind: function_param_kind;
     fp_sort: Jkind.sort;
@@ -347,6 +386,7 @@ and function_cases =
     fc_ret_type : Types.type_expr;
     fc_partial: partial;
     fc_param: Ident.t;
+    fc_param_debug_uid: Shape.Uid.t;
     fc_loc: Location.t;
     fc_exp_extra: exp_extra option;
     fc_attributes: attributes;
@@ -680,6 +720,7 @@ and core_type_desc =
   | Ttyp_poly of (string * Parsetree.jkind_annotation option) list * core_type
   | Ttyp_package of package_type
   | Ttyp_open of Path.t * Longident.t loc * core_type
+  | Ttyp_of_kind of Parsetree.jkind_annotation
   | Ttyp_call_pos
 
 and package_type = {
@@ -737,6 +778,7 @@ and type_kind =
     Ttype_abstract
   | Ttype_variant of constructor_declaration list
   | Ttype_record of label_declaration list
+  | Ttype_record_unboxed_product of label_declaration list
   | Ttype_open
 
 and label_declaration =
@@ -919,6 +961,7 @@ let rec classify_pattern_desc : type k . k pattern_desc -> k pattern_category =
   | Tpat_construct _ -> Value
   | Tpat_variant _ -> Value
   | Tpat_record _ -> Value
+  | Tpat_record_unboxed_product _ -> Value
   | Tpat_array _ -> Value
   | Tpat_lazy _ -> Value
   | Tpat_any -> Value
@@ -944,12 +987,14 @@ type pattern_action =
 let shallow_iter_pattern_desc
   : type k . pattern_action -> k pattern_desc -> unit
   = fun f -> function
-  | Tpat_alias(p, _, _, _, _) -> f.f p
+  | Tpat_alias(p, _, _, _, _, _) -> f.f p
   | Tpat_tuple patl -> List.iter (fun (_, p) -> f.f p) patl
   | Tpat_unboxed_tuple patl -> List.iter (fun (_, p, _) -> f.f p) patl
   | Tpat_construct(_, _, patl, _) -> List.iter f.f patl
   | Tpat_variant(_, pat, _) -> Option.iter f.f pat
   | Tpat_record (lbl_pat_list, _) ->
+      List.iter (fun (_, _, pat) -> f.f pat) lbl_pat_list
+  | Tpat_record_unboxed_product (lbl_pat_list, _) ->
       List.iter (fun (_, _, pat) -> f.f pat) lbl_pat_list
   | Tpat_array (_, _, patl) -> List.iter f.f patl
   | Tpat_lazy p -> f.f p
@@ -965,8 +1010,8 @@ type pattern_transformation =
 let shallow_map_pattern_desc
   : type k . pattern_transformation -> k pattern_desc -> k pattern_desc
   = fun f d -> match d with
-  | Tpat_alias (p1, id, s, uid, m) ->
-      Tpat_alias (f.f p1, id, s, uid, m)
+  | Tpat_alias (p1, id, s, uid, m, ty) ->
+      Tpat_alias (f.f p1, id, s, uid, m, ty)
   | Tpat_tuple pats ->
       Tpat_tuple (List.map (fun (label, pat) -> label, f.f pat) pats)
   | Tpat_unboxed_tuple pats ->
@@ -974,6 +1019,9 @@ let shallow_map_pattern_desc
         (List.map (fun (label, pat, sort) -> label, f.f pat, sort) pats)
   | Tpat_record (lpats, closed) ->
       Tpat_record (List.map (fun (lid, l,p) -> lid, l, f.f p) lpats, closed)
+  | Tpat_record_unboxed_product (lpats, closed) ->
+      Tpat_record_unboxed_product
+        (List.map (fun (lid, l,p) -> lid, l, f.f p) lpats, closed)
   | Tpat_construct (lid, c, pats, ty) ->
       Tpat_construct (lid, c, List.map f.f pats, ty)
   | Tpat_array (am, arg_sort, pats) ->
@@ -1032,9 +1080,9 @@ let rec iter_bound_idents
   match pat.pat_desc with
   | Tpat_var (id, s, uid, _mode) ->
      f (id,s,pat.pat_type, uid)
-  | Tpat_alias(p, id, s, uid, _mode) ->
+  | Tpat_alias(p, id, s, uid, _mode, ty) ->
       iter_bound_idents f p;
-      f (id,s,pat.pat_type, uid)
+      f (id, s, ty, uid)
   | Tpat_or(p1, _, _) ->
       (* Invariant : both arguments bind the same variables *)
       iter_bound_idents f p1
@@ -1043,26 +1091,39 @@ let rec iter_bound_idents
        { f = fun p -> iter_bound_idents f p }
        d
 
-type full_bound_ident_action =
-  Ident.t -> string loc -> type_expr -> Uid.t -> Mode.Value.l -> Jkind.sort -> unit
+type 'sort full_bound_ident_action =
+  Ident.t -> string loc -> type_expr -> Uid.t -> Mode.Value.l -> 'sort -> unit
+
+let for_transl f =
+  f ~of_sort:Jkind.Sort.default_for_transl_and_get ~of_const_sort:Fun.id
+
+let for_typing f =
+  f ~of_sort:Fun.id ~of_const_sort:Jkind.Sort.of_const
 
 (* The intent is that the sort should be the sort of the type of the pattern.
    It's used to avoid computing jkinds from types.  `f` then gets passed
    the sorts of the variables.
 
    This is occasionally used in places where we don't actually know
-   about the sort of the pattern but `f` doesn't care about the sorts. *)
-let iter_pattern_full ~both_sides_of_or f sort pat =
+   about the sort of the pattern but `f` doesn't care about the sorts.
+
+   Because this should work both over [Jkind.Sort.t] and [Jkind.Sort.Const.t],
+   this takes conversion functions [of_sort : Jkind.Sort.t -> 'sort] and
+   [of_const_sort : Jkind.Sort.Const.t -> 'sort]. The need for these is somewhat
+   unfortunate, but it's worth it to allow [Jkind.Sort.Const.t] to be used
+   throughout the transl process. *)
+let iter_pattern_full ~of_sort ~of_const_sort ~both_sides_of_or f sort pat =
+  let value = of_const_sort Jkind.Sort.Const.value in
   let rec loop :
-    type k . full_bound_ident_action -> Jkind.sort -> k general_pattern -> _ =
+    type k . 'sort full_bound_ident_action -> 'sort -> k general_pattern -> _ =
     fun f sort pat ->
       match pat.pat_desc with
       (* Cases where we push the sort inwards: *)
       | Tpat_var (id, s, uid, mode) ->
           f id s pat.pat_type uid mode sort
-      | Tpat_alias(p, id, s, uid, mode) ->
+      | Tpat_alias(p, id, s, uid, mode, ty) ->
           loop f sort p;
-          f id s pat.pat_type uid mode sort
+          f id s ty uid mode sort
       | Tpat_or (p1, p2, _) ->
         if both_sides_of_or then (loop f sort p1; loop f sort p2)
         else loop f sort p1
@@ -1072,53 +1133,61 @@ let iter_pattern_full ~both_sides_of_or f sort pat =
           let sorts =
             match cstr.cstr_repr with
             | Variant_unboxed -> [ sort ]
+            (* CR layouts v3.5: this hardcodes ['a or_null]. Fix when we allow
+               users to write their own null constructors. *)
+            | Variant_with_null when cstr.cstr_constant -> []
+            (* CR layouts v3.3: allow all sorts. *)
+            | Variant_with_null -> [ value ]
             | Variant_boxed _ | Variant_extensible ->
-              (List.map (fun { ca_jkind } -> Jkind.sort_of_jkind ca_jkind )
+              (List.map (fun { ca_sort } -> of_const_sort ca_sort )
                  cstr.cstr_args)
           in
           List.iter2 (loop f) sorts patl
       | Tpat_record (lbl_pat_list, _) ->
           List.iter (fun (_, lbl, pat) ->
-            (loop f) (Jkind.sort_of_jkind lbl.lbl_jkind) pat)
+            (loop f) (of_const_sort lbl.lbl_sort) pat)
+            lbl_pat_list
+      | Tpat_record_unboxed_product (lbl_pat_list, _) ->
+          List.iter (fun (_, lbl, pat) ->
+            (loop f) (of_const_sort lbl.lbl_sort) pat)
             lbl_pat_list
       (* Cases where the inner things must be value: *)
-      | Tpat_variant (_, pat, _) -> Option.iter (loop f Jkind.Sort.value) pat
+      | Tpat_variant (_, pat, _) -> Option.iter (loop f value) pat
       | Tpat_tuple patl ->
-        List.iter (fun (_, pat) -> loop f Jkind.Sort.value pat) patl
+        List.iter (fun (_, pat) -> loop f value pat) patl
         (* CR layouts v5: tuple case to change when we allow non-values in
            tuples *)
       | Tpat_unboxed_tuple patl ->
-        List.iter (fun (_, pat, sort) -> loop f sort pat) patl
-      | Tpat_array (_, arg_sort, patl) -> List.iter (loop f arg_sort) patl
-      | Tpat_lazy p | Tpat_exception p -> loop f Jkind.Sort.value p
+        List.iter (fun (_, pat, sort) -> loop f (of_sort sort) pat) patl
+      | Tpat_array (_, arg_sort, patl) ->
+        List.iter (loop f (of_sort arg_sort)) patl
+      | Tpat_lazy p | Tpat_exception p -> loop f value p
       (* Cases without variables: *)
       | Tpat_any | Tpat_constant _ -> ()
   in
   loop f sort pat
 
-let rev_pat_bound_idents_full sort pat =
+let rev_pat_bound_idents_full ~of_sort ~of_const_sort sort pat =
   let idents_full = ref [] in
   let add id sloc typ uid _ sort =
     idents_full := (id, sloc, typ, uid, sort) :: !idents_full
   in
-  iter_pattern_full ~both_sides_of_or:false add sort pat;
+  iter_pattern_full
+    ~both_sides_of_or:false ~of_sort ~of_const_sort
+    add sort pat;
   !idents_full
 
 let rev_only_idents idents_full =
   List.rev_map (fun (id,_,_,_,_) -> id) idents_full
 
-let rev_only_idents_and_types idents_full =
-  List.rev_map (fun (id,_,ty,_,_) -> (id,ty)) idents_full
-
 let pat_bound_idents_full sort pat =
-  List.rev (rev_pat_bound_idents_full sort pat)
+  List.rev (for_transl rev_pat_bound_idents_full sort pat)
 
 (* In these two, we don't know the sort, but the sort information isn't used so
    it's fine to lie. *)
-let pat_bound_idents_with_types pat =
-  rev_only_idents_and_types (rev_pat_bound_idents_full Jkind.Sort.value pat)
 let pat_bound_idents pat =
-  rev_only_idents (rev_pat_bound_idents_full Jkind.Sort.value pat)
+  rev_only_idents
+    (for_typing rev_pat_bound_idents_full Jkind.Sort.value pat)
 
 let rev_let_bound_idents_full bindings =
   let idents_full = ref [] in
@@ -1133,7 +1202,9 @@ let let_bound_idents_with_modes_sorts_and_checks bindings =
   in
   let checks =
     List.fold_left (fun checks vb ->
-      iter_pattern_full ~both_sides_of_or:true f vb.vb_sort vb.vb_pat;
+      for_typing iter_pattern_full
+        ~both_sides_of_or:true
+        f vb.vb_sort vb.vb_pat;
        match vb.vb_pat.pat_desc, vb.vb_expr.exp_desc with
        | Tpat_var (id, _, _, _), Texp_function fn ->
          let zero_alloc =
@@ -1145,14 +1216,21 @@ let let_bound_idents_with_modes_sorts_and_checks bindings =
                 function - if it remains [Default_zero_alloc], translcore adds
                 the check. *)
              let arity = function_arity fn.params fn.body in
-             if !Clflags.zero_alloc_check_assert_all && arity > 0 then
-               Zero_alloc.create_const
-                 (Check { strict = false;
-                          arity;
-                          loc = Location.none;
-                          opt = false })
-             else
+             if arity <= 0 then
                fn.zero_alloc
+             else
+               let create_const ~opt =
+                 Zero_alloc.create_const
+                   (Check { strict = false;
+                            arity;
+                            custom_error_msg = None;
+                            loc = Location.none;
+                            opt })
+               in
+               (match !Clflags.zero_alloc_assert with
+                | Assert_default -> fn.zero_alloc
+                | Assert_all -> create_const ~opt:false
+                | Assert_all_opt -> create_const ~opt:true)
            | Ignore_assert_all | Check _ | Assume _ -> fn.zero_alloc
          in
          Ident.Map.add id zero_alloc checks
@@ -1183,10 +1261,11 @@ let rec alpha_pat
       {p with pat_desc =
        try Tpat_var (alpha_var env id, s, uid, mode) with
        | Not_found -> Tpat_any}
-  | Tpat_alias (p1, id, s, uid, mode) ->
+  | Tpat_alias (p1, id, s, uid, mode, ty) ->
       let new_p =  alpha_pat env p1 in
       begin try
-        {p with pat_desc = Tpat_alias (new_p, alpha_var env id, s, uid, mode)}
+        {p with pat_desc =
+           Tpat_alias (new_p, alpha_var env id, s, uid, mode, ty)}
       with
       | Not_found -> new_p
       end
@@ -1241,7 +1320,7 @@ let rec exp_is_nominal exp =
   | Texp_variant (_, None)
   | Texp_construct (_, _, [], _) ->
       true
-  | Texp_field (parent, _, _, _, _) | Texp_send (parent, _, _) ->
+  | Texp_field (parent, _, _, _, _, _) | Texp_send (parent, _, _) ->
       exp_is_nominal parent
   | _ -> false
 

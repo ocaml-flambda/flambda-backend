@@ -66,8 +66,8 @@ module Function_params_and_body : sig
     body:rebuilt_expr ->
     free_names_of_body:Name_occurrences.t ->
     my_closure:Variable.t ->
-    my_region:Variable.t ->
-    my_ghost_region:Variable.t ->
+    my_region:Variable.t option ->
+    my_ghost_region:Variable.t option ->
     my_depth:Variable.t ->
     t
 
@@ -133,7 +133,7 @@ val create_non_recursive_let_cont_without_free_names :
 val create_recursive_let_cont :
   Are_rebuilding_terms.t ->
   invariant_params:Bound_parameters.t ->
-  Continuation_handler.t Continuation.Map.t ->
+  Continuation_handler.t Continuation.Lmap.t ->
   body:t ->
   t
 

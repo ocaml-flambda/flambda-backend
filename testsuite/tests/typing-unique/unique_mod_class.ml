@@ -162,3 +162,15 @@ let foo (local_ x : string ref) =
 [%%expect{|
 val foo : local_ string ref -> (unit -> < m : string >) = <fun>
 |}]
+
+let () =
+    let module M =
+        struct
+        let () =
+          let x = "hello" in
+          let _ = unique_id x in
+          ()
+        end
+    in ()
+[%%expect{|
+|}]

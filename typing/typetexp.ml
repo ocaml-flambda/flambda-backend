@@ -661,17 +661,28 @@ let transl_label (label : Parsetree.arg_label)
   | Optional l, _ -> Optional l
   | Nolabel, _ -> Nolabel
 
+(* Parallel to [transl_label_from_expr]. *)
 let transl_label_from_pat (label : Parsetree.arg_label)
     (pat : Parsetree.pattern) =
-  let label, inner_pat = match pat with
-  | {ppat_desc = Ppat_constraint (inner_pat, ty, _); _} ->
-      (* If the argument is a constraint, translate the label using the
-          type information. Otherwise, it can't be a Position argument, so
-          we don't care about the argument type *)
-      transl_label label ty, inner_pat
+  match pat with
+  (* We should only strip off the constraint node if the label translates
+     to Position, as this means the type annotation is [%call_pos] and
+     nothing more. *)
+  | {ppat_desc = Ppat_constraint (inner_pat, ty, []); _} ->
+      let label = transl_label label ty in
+      let pat = if Btype.is_position label then inner_pat else pat in
+      label, pat
   | _ -> transl_label label None, pat
-  in
-  label, if Btype.is_position label then inner_pat else pat
+
+(* Parallel to [transl_label_from_pat]. *)
+let transl_label_from_expr (label : Parsetree.arg_label)
+    (expr : Parsetree.expression) =
+  match expr with
+  | {pexp_desc = Pexp_constraint (inner_expr, ty, []); _} ->
+      let label = transl_label label ty in
+      let expr = if Btype.is_position label then inner_expr else expr in
+      label, expr
+  | _ -> transl_label label None, expr
 
 let enrich_with_attributes attrs annotation_context =
   match Builtin_attributes.error_message_attr attrs with
@@ -1055,6 +1066,10 @@ and transl_type_aux env ~row_context ~aliased ~policy mode styp =
       in
       let cty = transl_type new_env ~policy ~row_context mode t in
       ctyp (Ttyp_open (path, mod_ident, cty)) cty.ctyp_type
+  | Ptyp_of_kind jkind ->
+    let tjkind = jkind_of_annotation (Type_of_kind loc) styp.ptyp_attributes jkind in
+    let ty = newty (Tof_kind tjkind) in
+    ctyp (Ttyp_of_kind jkind) ty
   | Ptyp_extension ext ->
       raise (Error_forward (Builtin_attributes.error_of_extension ext))
 
@@ -1421,7 +1436,8 @@ module Style = Misc.Style
 let pp_tag ppf t = Format.fprintf ppf "`%s" t
 
 
-let report_error env ppf = function
+let report_error env ppf =
+  function
   | Unbound_type_variable (name, in_scope_names) ->
     fprintf ppf "The type variable %a is unbound in this type declaration.@ %a"
       Style.inline_code name
@@ -1523,7 +1539,8 @@ let report_error env ppf = function
               match desc.layout with
               | Sort (Var _) -> fprintf ppf "a representable kind"
               | Sort (Base _) | Any | Product _ ->
-                fprintf ppf "kind %a" Jkind.format inferred_jkind)))
+                fprintf ppf "kind %a" Jkind.format
+                  inferred_jkind)))
         inferred_jkind
   | Multiple_constraints_on_type s ->
       fprintf ppf "Multiple constraints for type %a"

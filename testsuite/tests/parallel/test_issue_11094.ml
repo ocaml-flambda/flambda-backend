@@ -1,7 +1,7 @@
 (* TEST
- reason = "CR ocaml 5 effects: re-enable this test";
- skip;
  runtime5;
+ multidomain;
+ set OCAMLRUNPARAM = "Xmain_stack_size=1000";
  {
    bytecode;
  }{
@@ -11,6 +11,9 @@
 
 open Effect
 open Effect.Deep
+
+[@@@ocaml.alert "-unsafe_multidomain"]
+[@@@ocaml.alert "-unsafe_parallelism"]
 
 let num_domains = 2
 

@@ -54,7 +54,10 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
   in
   let never_delete =
     match Code.zero_alloc_attribute code with
-    | Default_zero_alloc -> !Clflags.zero_alloc_check_assert_all
+    | Default_zero_alloc ->
+      (* The effect of [Clflags.zero_alloc_assert] has been compiled into
+         [Check] earlier. *)
+      false
     | Assume _ -> false
     | Check _ -> true
   in
@@ -78,8 +81,8 @@ let prepare_code ~denv acc (code_id : Code_id.t) (code : Code.t) =
     Acc.used_code_id code_id acc);
   Acc.add_code code_id code_dep acc
 
-let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
-    acc : unit =
+let record_set_of_closures_deps names_and_function_slots set_of_closures acc :
+    unit =
   (* Here and later in [traverse_call_kind], some dependencies are not
      immediately registered, because the code, which is dominator-scoped, has
      not yet been seen due to the traversal order. *)
@@ -95,38 +98,29 @@ let record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
       in
       match code_id with
       | Deleted _ -> ()
-      | Code_id code_id -> Acc.add_set_of_closures_dep name code_id acc)
+      | Code_id { code_id; only_full_applications } ->
+        Acc.add_set_of_closures_dep name code_id ~only_full_applications acc)
     names_and_function_slots;
-  let deps =
-    Value_slot.Map.fold
-      (fun value_slot simple set ->
-        Simple.pattern_match
-          ~const:(fun _ -> set)
-          ~name:(fun name ~coercion:_ ->
-            Graph.Dep.Set.add
-              (Constructor
-                 { relation = Value_slot value_slot;
-                   target = Code_id_or_name.name name
-                 })
-              set)
-          simple)
-      (Set_of_closures.value_slots set_of_closures)
-      Graph.Dep.Set.empty
-  in
-  let deps =
-    Function_slot.Lmap.fold
-      (fun function_slot name set ->
-        Graph.Dep.Set.add
-          (Constructor
-             { relation = Function_slot function_slot;
-               target = Code_id_or_name.name name
-             })
-          set)
-      names_and_function_slots deps
-  in
   Function_slot.Lmap.iter
-    (fun _function_slot name ->
-      Acc.record_deps ~denv (Code_id_or_name.name name) deps acc)
+    (fun _function_slot function_slot_name ->
+      Value_slot.Map.iter
+        (fun value_slot simple ->
+          Simple.pattern_match
+            ~const:(fun _ -> ())
+            ~name:(fun name ~coercion:_ ->
+              Graph.add_constructor_dep (Acc.graph acc)
+                ~base:(Code_id_or_name.name function_slot_name)
+                (Value_slot value_slot)
+                ~from:(Code_id_or_name.name name))
+            simple)
+        (Set_of_closures.value_slots set_of_closures);
+      Function_slot.Lmap.iter
+        (fun function_slot name ->
+          Graph.add_constructor_dep (Acc.graph acc)
+            ~base:(Code_id_or_name.name function_slot_name)
+            (Function_slot function_slot)
+            ~from:(Code_id_or_name.name name))
+        names_and_function_slots)
     names_and_function_slots
 
 let rec traverse (denv : denv) (acc : acc) (expr : Expr.t) : rev_expr =
@@ -144,23 +138,24 @@ and traverse_let denv acc let_expr : rev_expr =
         bound_pattern, body)
   in
   let defining_expr = Let.defining_expr let_expr in
-  let default_bp acc dep =
+  let default_bp addf =
     let bound_to = Bound_pattern.free_names bound_pattern in
     Name_occurrences.fold_names bound_to
-      ~f:(fun () bound_to ->
-        Acc.record_dep ~denv (Code_id_or_name.name bound_to) dep acc)
+      ~f:(fun () bound_to -> addf (Code_id_or_name.name bound_to))
       ~init:()
   in
   let default acc =
     Name_occurrences.fold_names
       ~f:(fun () free_name ->
-        default_bp acc (Use { target = Code_id_or_name.name free_name }))
+        default_bp (fun to_ ->
+            Graph.add_use_dep (Acc.graph acc) ~to_
+              ~from:(Code_id_or_name.name free_name)))
       ~init:()
       (Named.free_names defining_expr)
   in
   (match defining_expr with
   | Set_of_closures set_of_closures ->
-    traverse_set_of_closures denv acc ~bound_pattern set_of_closures
+    traverse_set_of_closures acc ~bound_pattern set_of_closures
   | Static_consts group -> traverse_static_consts denv acc ~bound_pattern group
   | Prim (prim, _dbg) ->
     traverse_prim denv acc ~bound_pattern prim ~default ~default_bp
@@ -169,7 +164,8 @@ and traverse_let denv acc let_expr : rev_expr =
       (Name.var (Bound_var.var (Bound_pattern.must_be_singleton bound_pattern)))
       s acc;
     Simple.pattern_match s
-      ~name:(fun name ~coercion:_ -> default_bp acc (Alias { target = name }))
+      ~name:(fun name ~coercion:_ ->
+        default_bp (fun to_ -> Graph.add_alias (Acc.graph acc) ~to_ ~from:name))
       ~const:(fun _ -> default acc)
   | Rec_info _ -> default acc);
   let named : rev_named =
@@ -216,7 +212,7 @@ and traverse_let denv acc let_expr : rev_expr =
     acc body
 
 and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
-    ~(default_bp : acc -> Graph.Dep.t -> unit) =
+    ~(default_bp : (Code_id_or_name.t -> unit) -> unit) =
   let () =
     let kind = Flambda_primitive.result_kind' prim in
     let name =
@@ -230,9 +226,9 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
       (fun i field ->
         Simple.pattern_match field
           ~name:(fun name ~coercion:_ ->
-            default_bp acc
-              (Constructor
-                 { relation = Block i; target = Code_id_or_name.name name }))
+            default_bp (fun base ->
+                Graph.add_constructor_dep (Acc.graph acc) ~base (Block i)
+                  ~from:(Code_id_or_name.name name)))
           ~const:(fun _ -> ()))
       fields
   | Unary (Project_function_slot { move_from = _; move_to }, block) ->
@@ -241,16 +237,18 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
         ~name:(fun name ~coercion:_ -> name)
         ~const:(fun _ -> assert false)
     in
-    default_bp acc
-      (Accessor { relation = Function_slot move_to; target = block })
+    default_bp (fun to_ ->
+        Graph.add_accessor_dep (Acc.graph acc) ~to_ (Function_slot move_to)
+          ~base:block)
   | Unary (Project_value_slot { project_from = _; value_slot }, block) ->
     let block =
       Simple.pattern_match block
         ~name:(fun name ~coercion:_ -> name)
         ~const:(fun _ -> assert false)
     in
-    default_bp acc
-      (Accessor { relation = Value_slot value_slot; target = block })
+    default_bp (fun to_ ->
+        Graph.add_accessor_dep (Acc.graph acc) ~to_ (Value_slot value_slot)
+          ~base:block)
   | Unary (Block_load { kind = _; mut = _; field }, block) ->
     (* Loads from mutable blocks are also tracked here. This is ok because
        stores automatically escape the block. CR ncourant: think about whether
@@ -269,18 +267,21 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
          *)
         default acc)
       ~name:(fun block ~coercion:_ ->
-        default_bp acc
-          (Accessor
-             { relation = Block (Targetint_31_63.to_int field); target = block }))
+        default_bp (fun to_ ->
+            Graph.add_accessor_dep (Acc.graph acc) ~to_
+              (Block (Targetint_31_63.to_int field))
+              ~base:block))
   | Unary (Is_int _, arg) ->
     Simple.pattern_match arg
       ~name:(fun name ~coercion:_ ->
-        default_bp acc (Accessor { relation = Is_int; target = name }))
+        default_bp (fun to_ ->
+            Graph.add_accessor_dep (Acc.graph acc) ~to_ Is_int ~base:name))
       ~const:(fun _ -> ())
   | Unary (Get_tag, arg) ->
     Simple.pattern_match arg
       ~name:(fun name ~coercion:_ ->
-        default_bp acc (Accessor { relation = Get_tag; target = name }))
+        default_bp (fun to_ ->
+            Graph.add_accessor_dep (Acc.graph acc) ~to_ Get_tag ~base:name))
       ~const:(fun _ -> ())
   | prim ->
     let () =
@@ -294,7 +295,7 @@ and traverse_prim denv acc ~bound_pattern (prim : Flambda_primitive.t) ~default
     in
     default acc
 
-and traverse_set_of_closures denv acc ~(bound_pattern : Bound_pattern.t)
+and traverse_set_of_closures acc ~(bound_pattern : Bound_pattern.t)
     set_of_closures =
   let names_and_function_slots =
     let bound_vars =
@@ -313,7 +314,7 @@ and traverse_set_of_closures denv acc ~(bound_pattern : Bound_pattern.t)
          (Function_slot.Lmap.keys funs)
          bound_vars)
   in
-  record_set_of_closures_deps ~denv names_and_function_slots set_of_closures acc
+  record_set_of_closures_deps names_and_function_slots set_of_closures acc
 
 and traverse_static_consts denv acc ~(bound_pattern : Bound_pattern.t) group =
   let bound_static =
@@ -333,8 +334,7 @@ and traverse_static_consts denv acc ~(bound_pattern : Bound_pattern.t) group =
       let names_and_function_slots =
         Function_slot.Lmap.map Name.symbol closure_symbols
       in
-      record_set_of_closures_deps ~denv names_and_function_slots set_of_closures
-        acc)
+      record_set_of_closures_deps names_and_function_slots set_of_closures acc)
     ~block_like:(fun () symbol static_const ->
       let name = Name.symbol symbol in
       match[@ocaml.warning "-4"] static_const with
@@ -344,13 +344,10 @@ and traverse_static_consts denv acc ~(bound_pattern : Bound_pattern.t) group =
             Simple.pattern_match
               (Simple.With_debuginfo.simple field)
               ~name:(fun field_name ~coercion:_ ->
-                Acc.record_dep ~denv
-                  (Code_id_or_name.name name)
-                  (Constructor
-                     { relation = Block i;
-                       target = Code_id_or_name.name field_name
-                     })
-                  acc)
+                Graph.add_constructor_dep (Acc.graph acc)
+                  ~base:(Code_id_or_name.name name)
+                  (Block i)
+                  ~from:(Code_id_or_name.name field_name))
               ~const:(fun _ -> ()))
           fields
       | Set_of_closures _ -> assert false
@@ -394,7 +391,7 @@ and traverse_let_cont_non_recursive denv acc cont ~body handler =
 and traverse_let_cont_recursive denv acc ~invariant_params ~body handlers =
   let invariant_params_vars = Bound_parameters.vars invariant_params in
   let handlers =
-    Continuation.Map.map
+    Continuation.Lmap.map
       (fun cont_handler ->
         Continuation_handler.pattern_match cont_handler
           ~f:(fun bound_parameters ~handler ->
@@ -402,7 +399,7 @@ and traverse_let_cont_recursive denv acc ~invariant_params ~body handlers =
       (Continuation_handlers.to_map handlers)
   in
   let conts =
-    Continuation.Map.fold
+    Continuation.Lmap.fold
       (fun cont (_, bp, _) conts ->
         let params = invariant_params_vars @ Bound_parameters.vars bp in
         Acc.continuation_info acc cont { params; is_exn_handler = false };
@@ -413,13 +410,13 @@ and traverse_let_cont_recursive denv acc ~invariant_params ~body handlers =
   Bound_parameters.iter
     (fun bp -> Acc.bound_parameter_kind bp acc)
     invariant_params;
-  Continuation.Map.iter
+  Continuation.Lmap.iter
     (fun _ (_, bp, _) ->
       Bound_parameters.iter (fun bp -> Acc.bound_parameter_kind bp acc) bp)
     handlers;
   let handlers =
-    Continuation.Map.fold
-      (fun cont (cont_handler, bound_parameters, handler) handlers ->
+    Continuation.Lmap.map
+      (fun (cont_handler, bound_parameters, handler) ->
         let is_exn_handler = Continuation_handler.is_exn_handler cont_handler in
         let is_cold = Continuation_handler.is_cold cont_handler in
         let expr =
@@ -428,8 +425,8 @@ and traverse_let_cont_recursive denv acc ~invariant_params ~body handlers =
             acc handler
         in
         let handler = { bound_parameters; expr; is_exn_handler; is_cold } in
-        Continuation.Map.add cont handler handlers)
-      handlers Continuation.Map.empty
+        handler)
+      handlers
   in
   let denv =
     { parent = Let_cont_rec { invariant_params; handlers; parent = denv.parent };
@@ -547,31 +544,23 @@ and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
     | Indirect_unknown_arity ->
       for i = 1 to Flambda_arity.num_params arity - 1 do
         let v = Variable.create (Printf.sprintf "partial_apply_%i" i) in
-        Acc.record_dep ~denv (Code_id_or_name.var v)
-          (Accessor
-             { relation = Apply (Indirect_code_pointer, Normal 0);
-               target = !partial_apply
-             })
-          acc;
-        Acc.record_dep ~denv
-          (Code_id_or_name.var exn_arg)
-          (Accessor
-             { relation = Apply (Indirect_code_pointer, Exn);
-               target = !partial_apply
-             })
-          acc;
-        Acc.record_dep ~denv
-          (Code_id_or_name.var calls_are_not_pure)
-          (Accessor { relation = Code_of_closure; target = !partial_apply })
-          acc;
+        Graph.add_accessor_dep (Acc.graph acc) ~to_:(Code_id_or_name.var v)
+          (Apply (Indirect_code_pointer, Normal 0))
+          ~base:!partial_apply;
+        Graph.add_accessor_dep (Acc.graph acc)
+          ~to_:(Code_id_or_name.var exn_arg)
+          (Apply (Indirect_code_pointer, Exn))
+          ~base:!partial_apply;
+        Graph.add_accessor_dep (Acc.graph acc)
+          ~to_:(Code_id_or_name.var calls_are_not_pure)
+          Code_of_closure ~base:!partial_apply;
         partial_apply := Name.var v
       done
     | Indirect_known_arity -> ()
     | Direct _ -> assert false);
-    Acc.record_dep ~denv
-      (Code_id_or_name.var calls_are_not_pure)
-      (Accessor { relation = Code_of_closure; target = !partial_apply })
-      acc;
+    Graph.add_accessor_dep (Acc.graph acc)
+      ~to_:(Code_id_or_name.var calls_are_not_pure)
+      Code_of_closure ~base:!partial_apply;
     let closure_entry_point : Global_flow_graph.Field.closure_entry_point =
       match function_call with
       | Indirect_unknown_arity -> Indirect_code_pointer
@@ -583,21 +572,15 @@ and traverse_call_kind denv acc apply ~exn_arg ~return_args ~default_acc =
     | Some return_args ->
       List.iteri
         (fun i return_arg ->
-          Acc.record_dep ~denv
-            (Code_id_or_name.var return_arg)
-            (Accessor
-               { relation = Apply (closure_entry_point, Normal i);
-                 target = !partial_apply
-               })
-            acc)
+          Graph.add_accessor_dep (Acc.graph acc)
+            ~to_:(Code_id_or_name.var return_arg)
+            (Apply (closure_entry_point, Normal i))
+            ~base:!partial_apply)
         return_args);
-    Acc.record_dep ~denv
-      (Code_id_or_name.var exn_arg)
-      (Accessor
-         { relation = Apply (closure_entry_point, Exn);
-           target = !partial_apply
-         })
-      acc
+    Graph.add_accessor_dep (Acc.graph acc)
+      ~to_:(Code_id_or_name.var exn_arg)
+      (Apply (closure_entry_point, Exn))
+      ~base:!partial_apply
   | Method _ | C_call _ | Effect _ -> default_acc acc
 
 and traverse_apply_cont denv acc apply_cont : rev_expr =
@@ -664,8 +647,12 @@ and traverse_function_params_and_body acc code_id code ~return_continuation
   then List.iter (fun v -> Acc.used ~denv (Simple.var v) acc) (exn :: return);
   Bound_parameters.iter (fun bp -> Acc.bound_parameter_kind bp acc) params;
   Acc.kind (Name.var my_closure) Flambda_kind.value acc;
-  Acc.kind (Name.var my_region) Flambda_kind.region acc;
-  Acc.kind (Name.var my_ghost_region) Flambda_kind.region acc;
+  Option.iter
+    (fun region -> Acc.kind (Name.var region) Flambda_kind.region acc)
+    my_region;
+  Option.iter
+    (fun region -> Acc.kind (Name.var region) Flambda_kind.region acc)
+    my_ghost_region;
   Acc.kind (Name.var my_depth) Flambda_kind.rec_info acc;
   if is_opaque
   then
@@ -673,19 +660,17 @@ and traverse_function_params_and_body acc code_id code ~return_continuation
   else
     List.iter2
       (fun param arg ->
-        Acc.record_dep ~denv
-          (Code_id_or_name.var (Bound_parameter.var param))
-          (Alias { target = Name.var arg })
-          acc)
+        Graph.add_alias (Acc.graph acc)
+          ~to_:(Code_id_or_name.var (Bound_parameter.var param))
+          ~from:(Name.var arg))
       (Bound_parameters.to_list params)
       code_dep.params;
   if is_opaque
   then Acc.used ~denv (Simple.var code_dep.my_closure) acc
   else
-    Acc.record_dep ~denv
-      (Code_id_or_name.var my_closure)
-      (Alias { target = Name.var code_dep.my_closure })
-      acc;
+    Graph.add_alias (Acc.graph acc)
+      ~to_:(Code_id_or_name.var my_closure)
+      ~from:(Name.var code_dep.my_closure);
   let body = traverse denv acc body in
   let params_and_body =
     { return_continuation;

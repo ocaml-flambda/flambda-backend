@@ -55,6 +55,14 @@ and extra_ty =
       it has the path
         [Pextra_ty (Pident `Error`, Pext_ty)].
   *)
+  | Punboxed_ty
+  (** [Pextra_ty (p, Punboxed_ty)] is the type of the unboxed version of [p].
+
+      Example: [float#], or [t#] given [type t = { i : int ; s : string }].
+  *)
+
+val unboxed_version : t -> t
+val is_unboxed_version : t -> bool
 
 val same: t -> t -> bool
 val compare: t -> t -> int

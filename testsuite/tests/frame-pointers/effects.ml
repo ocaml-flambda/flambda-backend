@@ -1,15 +1,9 @@
 (* TEST
- {
-   runtime4;
-   skip;
- }{
-   reason = "CR ocaml 5 effects: re-enable this test";
-   skip;
+   runtime5;
    frame_pointers;
    readonly_files = "fp_backtrace.c";
    all_modules = "${readonly_files} effects.ml";
    native;
- }
 *)
 
 open Printf

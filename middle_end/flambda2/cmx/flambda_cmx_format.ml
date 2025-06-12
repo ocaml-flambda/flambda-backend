@@ -213,14 +213,17 @@ let merge t1_opt t2_opt =
 let print0 ~sections ~print_typing_env ~print_code ~print_offsets ppf t =
   Format.fprintf ppf "@[<hov>Original unit:@ %a@]@;" Compilation_unit.print
     t.original_compilation_unit;
-  Compilation_unit.set_current (Some t.original_compilation_unit);
+  let unit_info =
+    Unit_info.make_dummy ~input_name:"<none>" t.original_compilation_unit
+  in
+  Env.set_unit_name (Some unit_info);
   let typing_env, code = import_typing_env_and_code0 ~sections t in
   if print_typing_env
   then
     Format.fprintf ppf "@[<hov>Typing env:@ %a@]@;"
       Flambda2_types.Typing_env.Serializable.print typing_env;
   if print_code
-  then Format.fprintf ppf "@[<hov>Code:@ %a@]@;" Exported_code.print code;
+  then Format.fprintf ppf "@[<hov>Code:@ %a@]@;" Exported_code.print_view code;
   if print_offsets
   then
     Format.fprintf ppf "@[<hov>Offsets:@ %a@]@;" Exported_offsets.print

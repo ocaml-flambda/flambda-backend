@@ -32,9 +32,7 @@
     mapping for each continuation. Then, for a given call site, for each new
     parameter, we can lookup the original variable that introduced it, and then
     look into the stack of parent continuations to see which one first defines
-    a new (lifting) param that maps back to the same original variable. To avoid
-    confusing the original variables and the renamed parameters, we instead use
-    unique ids (which are in fact integers). *)
+    a new (lifting) param that maps back to the same original variable. *)
 
 (** This type represents all of the new params for one lifted continuation.
     These added parameters are internally indexed by a unique identifier: when an individual
@@ -55,7 +53,7 @@ val is_empty : t -> bool
 val length : t -> int
 
 (** Add a new parameter *)
-val new_param : t -> Bound_parameter.t -> t
+val new_param : t -> replay_history:Replay_history.t -> Bound_parameter.t -> t
 
 (** Rename all new parameters, and returns the corresponding renaming. *)
 val rename : t -> t * Renaming.t

@@ -15,8 +15,9 @@
 
 (* Pretty-printing of registers *)
 
-[@@@ocaml.warning "+a-4-9-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open Format
 open! Reg
 
@@ -24,25 +25,25 @@ let loc ?(wrap_out = fun ppf f -> f ppf) ~unknown ppf loc typ =
   match loc with
   | Unknown -> unknown ppf
   | Reg r ->
-    wrap_out ppf (fun ppf -> fprintf ppf "%s" (Proc.register_name typ r))
+    wrap_out ppf (fun ppf -> fprintf ppf "%s" (Reg_class.register_name typ r))
   | Stack (Local s) ->
     wrap_out ppf (fun ppf ->
-        fprintf ppf "s[%s:%i]"
-          (Proc.stack_class_tag (Proc.stack_slot_class typ))
-          s)
+        fprintf ppf "s[%s:%i]" (Stack_class.tag (Stack_class.of_machtype typ)) s)
   | Stack (Incoming s) -> wrap_out ppf (fun ppf -> fprintf ppf "par[%i]" s)
   | Stack (Outgoing s) -> wrap_out ppf (fun ppf -> fprintf ppf "arg[%i]" s)
   | Stack (Domainstate s) -> wrap_out ppf (fun ppf -> fprintf ppf "ds[%i]" s)
 
 let reg ppf r =
-  if not (anonymous r) then fprintf ppf "%s:" (name r);
-  fprintf ppf "%s"
+  fprintf ppf "%s%s:%s"
+    (if r.preassigned then "pin:" else "")
+    (Reg.Name.to_string r.name)
     (match (r.typ : Cmm.machtype_component) with
     | Val -> "V"
     | Addr -> "A"
     | Int -> "I"
     | Float -> "F"
     | Vec128 -> "X"
+    | Valx2 -> "VV"
     | Float32 -> "S");
   fprintf ppf "/%i" r.stamp;
   loc
@@ -62,6 +63,8 @@ let regs' ?(print_reg = reg) ppf v =
     done
 
 let regs ppf v = regs' ppf v
+
+let reglist ppf l = Format.pp_print_list ~pp_sep:pp_print_space reg ppf l
 
 let regset ppf s =
   let first = ref true in
@@ -87,7 +90,7 @@ let regsetaddr' ?(print_reg = reg) ppf s =
       match r.typ with
       | Val -> fprintf ppf "*"
       | Addr -> fprintf ppf "!"
-      | _ -> ())
+      | Int | Float | Vec128 | Float32 | Valx2 -> ())
     s
 
 let regsetaddr ppf s = regsetaddr' ppf s

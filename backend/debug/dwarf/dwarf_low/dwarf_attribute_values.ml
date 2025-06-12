@@ -14,7 +14,9 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 open Asm_targets
+module A = Asm_directives
 
 module Value = struct
   type internal_t =
@@ -163,7 +165,6 @@ module Attribute_value = struct
         loc_desc_size
 
   let emit ~asm_directives ((spec, value) : t) =
-    let module A = (val asm_directives : Asm_directives.S) in
     match value with
     | Dwarf_value value ->
       let value =

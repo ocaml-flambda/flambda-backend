@@ -19,7 +19,7 @@ end = struct
 end
 
 module Hidden_float_u : sig
-  type t : float64
+  type t : float64 mod global many aliased
   val hide : float# -> t
 end = struct
   type t = float#
@@ -28,7 +28,7 @@ end
 
 (* CR layouts v2.8: Change this to be layout bits64, not kind bits64 *)
 module Hidden_int64_u : sig
-  type t : bits64
+  type t : bits64 mod global many aliased
   val hide : int64# -> t
 end = struct
   type t = int64#
@@ -38,8 +38,10 @@ end
 [%%expect{|
 module Hidden_string : sig type t val hide : string -> t end
 module Hidden_int : sig type t : immediate val hide : int -> t end
-module Hidden_float_u : sig type t : float64 val hide : float# -> t end
-module Hidden_int64_u : sig type t : bits64 val hide : int64# -> t end
+module Hidden_float_u :
+  sig type t : float64 mod global aliased many val hide : float# -> t end
+module Hidden_int64_u :
+  sig type t : bits64 mod global aliased many val hide : int64# -> t end
 |}]
 
 module Immediate : sig
@@ -279,22 +281,14 @@ val int_duplicate : int = 5
 
 let string_list_duplicate = let once_ x : string list = ["hi";"bye"] in Fun.id x
 
-(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-Line 1, characters 79-80:
-1 | let string_list_duplicate = let once_ x : string list = ["hi";"bye"] in Fun.id x
-                                                                                   ^
-Error: This value is "once" but expected to be "many".
+val string_list_duplicate : string list = ["hi"; "bye"]
 |}]
 
 let int_list_duplicate = let once_ x : int list = [4;5] in Fun.id x
 
-(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-Line 1, characters 66-67:
-1 | let int_list_duplicate = let once_ x : int list = [4;5] in Fun.id x
-                                                                      ^
-Error: This value is "once" but expected to be "many".
+val int_list_duplicate : int list = [4; 5]
 |}]
 
 let hidden_string_duplicate =
@@ -331,12 +325,8 @@ let hidden_int_list_duplicate =
     [Hidden_int.hide 2; Hidden_int.hide 3]
   in Fun.id x
 
-(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-Line 4, characters 12-13:
-4 |   in Fun.id x
-                ^
-Error: This value is "once" but expected to be "many".
+val hidden_int_list_duplicate : Hidden_int.t list = [<abstr>; <abstr>]
 |}]
 
 let float_duplicate = let once_ x : float = 3.14 in Fun.id x
@@ -374,23 +364,15 @@ val hidden_int64_u_duplicate : unit -> Hidden_int64_u.t = <fun>
 let float_u_record_duplicate =
   let once_ x : float_u_record = { x = #3.14; y = #2.718 } in Fun.id x
 
-(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-Line 2, characters 69-70:
-2 |   let once_ x : float_u_record = { x = #3.14; y = #2.718 } in Fun.id x
-                                                                         ^
-Error: This value is "once" but expected to be "many".
+val float_u_record_duplicate : float_u_record = {x = <abstr>; y = <abstr>}
 |}]
 
 let float_u_record_list_duplicate =
   let once_ x : float_u_record list = [] in Fun.id x
 
-(* CR layouts v2.8: this should succeed *)
 [%%expect{|
-Line 2, characters 51-52:
-2 |   let once_ x : float_u_record list = [] in Fun.id x
-                                                       ^
-Error: This value is "once" but expected to be "many".
+val float_u_record_list_duplicate : float_u_record list = []
 |}]
 
 let function_duplicate = let once_ x : int -> int = fun y -> y in Fun.id x
@@ -546,8 +528,6 @@ argument kind is known to cross mode. *)
 let float_u_unshare () = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
 
 [%%expect{|
-val float_u_unshare : unit -> float# = <fun>
-|}, Principal{|
 Line 1, characters 84-85:
 1 | let float_u_unshare () = let x : float# = #3.14 in Float_u.ignore x; Float_u.unique x
                                                                                         ^
@@ -562,8 +542,6 @@ let int64_u_unshare () = let x : int64# = #314L in Int64_u.ignore x; Int64_u.uni
 
 (* CR layouts v2.8: this should succeed in principal mode, too *)
 [%%expect{|
-val int64_u_unshare : unit -> int64# = <fun>
-|}, Principal{|
 Line 1, characters 84-85:
 1 | let int64_u_unshare () = let x : int64# = #314L in Int64_u.ignore x; Int64_u.unique x
                                                                                         ^
@@ -590,8 +568,6 @@ let hidden_float_u_unshare () =
   Float_u.ignore x; Float_u.unique x
 
 [%%expect{|
-val hidden_float_u_unshare : unit -> Hidden_float_u.t = <fun>
-|}, Principal{|
 Line 3, characters 35-36:
 3 |   Float_u.ignore x; Float_u.unique x
                                        ^
@@ -608,8 +584,6 @@ let hidden_int64_u_unshare () =
 
 (* CR layouts v2.8: This should fail when we use layout bits64 with hidden_int64 *)
 [%%expect{|
-val hidden_int64_u_unshare : unit -> Hidden_int64_u.t = <fun>
-|}, Principal{|
 Line 3, characters 35-36:
 3 |   Int64_u.ignore x; Int64_u.unique x
                                        ^
@@ -707,7 +681,7 @@ let ref_immutable_data_right x =
 Line 2, characters 30-53:
 2 |   take_strong_immutable_data (weaken_immutable_data x : float ref);
                                   ^^^^^^^^^^^^^^^^^^^^^^^
-Error: This value is "once" but expected to be "many".
+Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 let ref_immutable_data_left x =
@@ -717,7 +691,7 @@ let ref_immutable_data_left x =
 Line 3, characters 29-30:
 3 |   take_strong_immutable_data x
                                  ^
-Error: This value is "once" but expected to be "many".
+Error: This value is "contended" but expected to be "uncontended".
 |}]
 
 let float_immutable_data_right x =
@@ -854,4 +828,116 @@ let arrow_left () =
   f
 [%%expect{|
 val arrow_left : unit -> unit -> unit = <fun>
+|}]
+
+(*******************)
+(* shared modality *)
+
+type t = { x : int ref @@ shared }
+
+[%%expect{|
+type t = { x : int ref @@ shared; }
+|}]
+
+type t : value mod contended = { x : int ref @@ shared }
+
+[%%expect{|
+Line 1, characters 0-56:
+1 | type t : value mod contended = { x : int ref @@ shared }
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: The kind of type "t" is mutable_data
+         because it's a boxed record type.
+       But the kind of type "t" must be a subkind of value mod contended
+         because of the annotation on the declaration of the type t.
+|}]
+
+type ('a : value mod contended) require_contended
+
+[%%expect{|
+type ('a : value mod contended) require_contended
+|}]
+
+type t2 = t require_contended
+
+[%%expect{|
+Line 1, characters 10-11:
+1 | type t2 = t require_contended
+              ^
+Error: This type "t" should be an instance of type "('a : value mod contended)"
+       The kind of t is mutable_data
+         because of the definition of t at line 1, characters 0-34.
+       But the kind of t must be a subkind of value mod contended
+         because of the definition of require_contended at line 1, characters 0-49.
+|}]
+
+type 'a t = { x : 'a @@ shared }
+
+[%%expect{|
+type 'a t = { x : 'a @@ shared; }
+|}]
+
+type t2 = int t require_contended
+
+[%%expect{|
+type t2 = int t require_contended
+|}, Principal{|
+Line 1, characters 10-15:
+1 | type t2 = int t require_contended
+              ^^^^^
+Error: This type "int t" should be an instance of type
+         "('a : value mod contended)"
+       The kind of int t is immutable_data with int
+         because of the definition of t at line 1, characters 0-32.
+       But the kind of int t must be a subkind of value mod contended
+         because of the definition of require_contended at line 1, characters 0-49.
+|}]
+(* CR layouts v2.8: fix principal mode *)
+
+type t2 = int ref t require_contended
+
+[%%expect{|
+Line 1, characters 10-19:
+1 | type t2 = int ref t require_contended
+              ^^^^^^^^^
+Error: This type "int ref t" should be an instance of type
+         "('a : value mod contended)"
+       The kind of int ref t is mutable_data
+         because of the definition of t at line 1, characters 0-32.
+       But the kind of int ref t must be a subkind of value mod contended
+         because of the definition of require_contended at line 1, characters 0-49.
+|}, Principal{|
+Line 1, characters 10-19:
+1 | type t2 = int ref t require_contended
+              ^^^^^^^^^
+Error: This type "int ref t" should be an instance of type
+         "('a : value mod contended)"
+       The kind of int ref t is immutable_data with int ref
+         because of the definition of t at line 1, characters 0-32.
+       But the kind of int ref t must be a subkind of value mod contended
+         because of the definition of require_contended at line 1, characters 0-49.
+|}]
+
+type t2 = int t ref require_contended
+
+[%%expect{|
+Line 1, characters 10-19:
+1 | type t2 = int t ref require_contended
+              ^^^^^^^^^
+Error: This type "int t ref" should be an instance of type
+         "('a : value mod contended)"
+       The kind of int t ref is mutable_data.
+       But the kind of int t ref must be a subkind of value mod contended
+         because of the definition of require_contended at line 1, characters 0-49.
+|}, Principal{|
+Line 1, characters 10-19:
+1 | type t2 = int t ref require_contended
+              ^^^^^^^^^
+Error: This type "int t ref" should be an instance of type
+         "('a : value mod contended)"
+       The kind of int t ref is mutable_data with int t @@ unyielding many.
+       But the kind of int t ref must be a subkind of value mod contended
+         because of the definition of require_contended at line 1, characters 0-49.
+
+       The first mode-crosses less than the second along:
+         contention: mod uncontended ≰ mod contended
 |}]

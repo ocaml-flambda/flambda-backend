@@ -1,0 +1,3 @@
+**** Vectorize selected computation: 2 groups, 4 scalar instructions, 2 vector instructions, cost = -2 (Test_int64_vectorized.copy_mutable_record_fresh)
+**** Vectorize selected computation: 4 groups, 8 scalar instructions, 4 vector instructions, cost = -4 (Test_int64_vectorized.copy_mutable_record_t4)
+**** Vectorize selected computation: 4 groups, 8 scalar instructions, 4 vector instructions, cost = -4 (Test_int64_vectorized.dup_mutable_record_t4)

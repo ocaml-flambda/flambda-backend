@@ -17,7 +17,7 @@ let te (local_ x) =
     use_portable foo;
     ()
 [%%expect{|
-val te : local_ 'a @ portable -> unit = <fun>
+val te : 'a @ local portable -> unit = <fun>
 |}]
 
 (* for mixed definitions, they will still share the same mode, but the locality

@@ -79,6 +79,7 @@ let system = {@QS@|@system@|@QS@}
 let asm = {@QS@|@AS@|@QS@}
 let asm_cfi_supported = @asm_cfi_supported@
 let with_frame_pointers = @frame_pointers@
+let with_address_sanitizer = @address_sanitizer@
 let with_cpp_mangling = @cpp_mangling@
 let custom_ops_struct_size = @custom_ops_struct_size@
 
@@ -97,12 +98,13 @@ let flexdll_dirs = [@flexdll_dir@]
 
 let ar_supports_response_files = @ar_supports_response_files@
 
-let naked_pointers = "@naked_pointers@" = "true"
 let runtime5 = "@enable_runtime5@" = "yes"
 
 let reserved_header_bits =
   if runtime5 then @reserved_header_bits@ else @profinfo_width@
 
 let no_stack_checks = "@enable_stack_checks@" <> "yes"
+
+let multidomain = "@enable_multidomain@" = "yes"
 
 let tsan = @tsan@

@@ -51,14 +51,6 @@ val set_int_arg :
 val set_float_arg :
     int option -> Float_arg_helper.parsed ref -> float -> float option -> unit
 
-module Libloc : sig
-  type t = {
-    path: string;
-    libs: string list;
-    hidden_libs: string list
-  }
-end
-
 type profile_column = [ `Time | `Alloc | `Top_heap | `Abs_top_heap | `Counters ]
 type profile_granularity_level = File_level | Function_level | Block_level
 type flambda_invariant_checks = No_checks | Light_checks | Heavy_checks
@@ -70,8 +62,9 @@ val cmi_file : string option ref
 val compile_only : bool ref
 val output_name : string option ref
 val include_dirs : string list ref
-val libloc : Libloc.t list ref
 val hidden_include_dirs : string list ref
+val include_paths_files : string list ref
+val hidden_include_paths_files : string list ref
 val no_std_include : bool ref
 val no_cwd : bool ref
 val print_types : bool ref
@@ -140,6 +133,7 @@ val dump_typedtree : bool ref
 val dump_shape : bool ref
 val dump_rawlambda : bool ref
 val dump_lambda : bool ref
+val dump_blambda : bool ref
 val dump_letreclambda : bool ref
 val dump_rawclambda : bool ref
 val dump_clambda : bool ref
@@ -151,21 +145,10 @@ val keep_camlprimc_file : bool ref
 val keep_asm_file : bool ref
 val optimize_for_speed : bool ref
 val dump_cmm : bool ref
-val dump_selection : bool ref
 val dump_cse : bool ref
-val dump_live : bool ref
-val dump_spill : bool ref
-val dump_split : bool ref
-val dump_interf : bool ref
-val dump_prefer : bool ref
-val dump_regalloc : bool ref
-val dump_reload : bool ref
-val dump_scheduling : bool ref
 val dump_linear : bool ref
-val dump_interval : bool ref
 val debug_ocaml : bool ref
 val keep_startup_file : bool ref
-val dump_combine : bool ref
 val native_code : bool ref
 val default_inline_threshold : float
 val inline_threshold : Float_arg_helper.parsed ref
@@ -198,6 +181,7 @@ val shared : bool ref
 val dlcode : bool ref
 val pic_code : bool ref
 val runtime_variant : string ref
+val ocamlrunparam : string ref
 val with_runtime : bool ref
 val force_slash : bool ref
 val keep_docs : bool ref
@@ -226,7 +210,6 @@ val afl_instrument : bool ref
 val afl_inst_ratio : int ref
 val function_sections : bool ref
 val probes : bool ref
-val allow_illegal_crossing : bool ref
 
 val all_passes : string list ref
 val dumped_pass : string -> bool
@@ -281,12 +264,14 @@ end
 
 module Compiler_pass : sig
   type t = Parsing | Typing | Lambda | Middle_end
-         | Scheduling | Emit | Simplify_cfg | Selection
+         | Linearization | Emit | Simplify_cfg | Selection
+         | Register_allocation
   val of_string : string -> t option
   val to_string : t -> string
   val is_compilation_pass : t -> bool
   val available_pass_names : filter:(t -> bool) -> native:bool -> string list
   val can_save_ir_after : t -> bool
+  val can_save_ir_before : t -> bool
   val compare : t -> t -> int
   val to_output_filename: t -> prefix:string -> string
   val of_input_filename: string -> t option
@@ -294,7 +279,9 @@ end
 val stop_after : Compiler_pass.t option ref
 val should_stop_after : Compiler_pass.t -> bool
 val set_save_ir_after : Compiler_pass.t -> bool -> unit
+val set_save_ir_before : Compiler_pass.t -> bool -> unit
 val should_save_ir_after : Compiler_pass.t -> bool
+val should_save_ir_before : Compiler_pass.t -> bool
 
 val is_flambda2 : unit -> bool
 
@@ -316,8 +303,9 @@ val print_arguments : string -> unit
 val reset_arguments : unit -> unit
 
 (* [zero_alloc_check] specifies which zero_alloc attributes to check. *)
-val zero_alloc_check : Zero_alloc_annotations.t ref
-val zero_alloc_check_assert_all : bool ref
+val zero_alloc_check : Zero_alloc_annotations.Check.t ref
+(* [zero_alloc_assert] specifies which zero_alloc attributes to add. *)
+val zero_alloc_assert : Zero_alloc_annotations.Assert.t ref
 
 val no_auto_include_otherlibs : bool ref
 

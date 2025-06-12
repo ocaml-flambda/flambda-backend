@@ -33,11 +33,12 @@ type t = nativeint# list;;
 Line 1, characters 9-19:
 1 | type t = nativeint# list;;
              ^^^^^^^^^^
-Error: This type "nativeint#" should be an instance of type "('a : value)"
+Error: This type "nativeint#" should be an instance of type
+         "('a : value_or_null)"
        The layout of nativeint# is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of nativeint# must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 let f (_ : nativeint# list) = ();;
@@ -45,11 +46,12 @@ let f (_ : nativeint# list) = ();;
 Line 1, characters 11-21:
 1 | let f (_ : nativeint# list) = ();;
                ^^^^^^^^^^
-Error: This type "nativeint#" should be an instance of type "('a : value)"
+Error: This type "nativeint#" should be an instance of type
+         "('a : value_or_null)"
        The layout of nativeint# is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of nativeint# must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 type t = C of nativeint# list;;
@@ -57,11 +59,12 @@ type t = C of nativeint# list;;
 Line 1, characters 14-24:
 1 | type t = C of nativeint# list;;
                   ^^^^^^^^^^
-Error: This type "nativeint#" should be an instance of type "('a : value)"
+Error: This type "nativeint#" should be an instance of type
+         "('a : value_or_null)"
        The layout of nativeint# is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of nativeint# must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 type t = C : nativeint# list -> t;;
@@ -69,11 +72,12 @@ type t = C : nativeint# list -> t;;
 Line 1, characters 13-23:
 1 | type t = C : nativeint# list -> t;;
                  ^^^^^^^^^^
-Error: This type "nativeint#" should be an instance of type "('a : value)"
+Error: This type "nativeint#" should be an instance of type
+         "('a : value_or_null)"
        The layout of nativeint# is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of nativeint# must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 (* Syntax: nativeint#c
@@ -93,7 +97,7 @@ Line 1, characters 9-19:
              ^^^^^^^^^^
 Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of nativeint# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -105,7 +109,7 @@ Line 1, characters 11-21:
                ^^^^^^^^^^
 Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of nativeint# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -117,7 +121,7 @@ Line 1, characters 14-24:
                   ^^^^^^^^^^
 Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of nativeint# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -129,7 +133,7 @@ Line 1, characters 13-23:
                  ^^^^^^^^^^
 Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of nativeint# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -144,7 +148,7 @@ Line 1, characters 9-19:
              ^^^^^^^^^^
 Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of nativeint# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -156,7 +160,7 @@ Line 1, characters 11-21:
                ^^^^^^^^^^
 Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of nativeint# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -168,7 +172,7 @@ Line 1, characters 14-24:
                   ^^^^^^^^^^
 Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of nativeint# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;
@@ -180,7 +184,7 @@ Line 1, characters 13-23:
                  ^^^^^^^^^^
 Error: This type "nativeint#" should be an instance of type "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of nativeint# must be a sublayout of value
          because it's a type argument to a class constructor.
 |}];;

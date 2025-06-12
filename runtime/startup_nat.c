@@ -101,13 +101,15 @@ value caml_startup_common(char_os **argv, int pooling)
   char_os * exe_name, * proc_self_exe;
   value res;
 
+  caml_init_os_params();
+  
   /* Determine options */
   caml_parse_ocamlrunparam();
 
 #ifdef DEBUG
   // Silenced in flambda-backend to make it easier to run tests that
   // check program output.
-  // caml_gc_message (-1, "### OCaml runtime: debug mode ###\n");
+  // CAML_GC_MESSAGE (ANY, "### OCaml runtime: debug mode ###\n");
 #endif
   if (caml_params->cleanup_on_exit)
     pooling = 1;
@@ -120,7 +122,6 @@ value caml_startup_common(char_os **argv, int pooling)
   caml_install_invalid_parameter_handler();
 #endif
   caml_init_custom_operations();
-  caml_init_os_params();
   caml_init_gc ();
 
   /* runtime_events's init can cause a stop-the-world pause, so it must be done

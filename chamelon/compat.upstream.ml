@@ -175,7 +175,7 @@ let mkTpat_var ?id:(() = ()) (ident, name) = Tpat_var (ident, name)
 
 type tpat_alias_identifier = unit
 
-let mkTpat_alias ?id:(() = ()) (p, ident, name) = Tpat_alias (p, ident, name)
+let mkTpat_alias ~id:() (p, ident, name) = Tpat_alias (p, ident, name)
 
 type tpat_array_identifier = unit
 

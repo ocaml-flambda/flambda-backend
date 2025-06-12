@@ -310,49 +310,62 @@ CAMLprim value caml_ldexp_float32_bytecode(value f, value i)
   return caml_copy_float32(caml_ldexp_float32(Float32_val(f), Int_val(i)));
 }
 
-float caml_sse_float32_min(float x, float y) {
+float caml_simd_float32_min(float x, float y) {
   return x < y ? x : y;
 }
 
-CAMLprim value caml_sse_float32_min_bytecode(value x, value y) {
+CAMLprim value caml_simd_float32_min_bytecode(value x, value y) {
   return Float32_val(x) < Float32_val(y) ? x : y;
 }
 
-float caml_sse_float32_max(float x, float y) {
+float caml_simd_float32_max(float x, float y) {
   return x > y ? x : y;
 }
 
-CAMLprim value caml_sse_float32_max_bytecode(value x, value y) {
+CAMLprim value caml_simd_float32_max_bytecode(value x, value y) {
   return Float32_val(x) > Float32_val(y) ? x : y;
 }
 
-int64_t caml_sse_cast_float32_int64(float f)
+int64_t caml_simd_cast_float32_int64(float f)
 {
   return llrintf(f);
 }
 
-CAMLprim value caml_sse_cast_float32_int64_bytecode(value f)
+CAMLprim value caml_simd_cast_float32_int64_bytecode(value f)
 {
-  return caml_copy_int64(caml_sse_cast_float32_int64(Float32_val(f)));
+  return caml_copy_int64(caml_simd_cast_float32_int64(Float32_val(f)));
 }
 
-#define ROUND_NEG_INF 0x9
-#define ROUND_POS_INF 0xA
-#define ROUND_ZERO 0xB
-#define ROUND_CURRENT 0xC
-
-float caml_sse41_float32_round(int mode, float f) {
-  switch(mode) {
-  case ROUND_NEG_INF: return floorf(f);
-  case ROUND_POS_INF: return ceilf(f);
-  case ROUND_ZERO:    return truncf(f);
-  case ROUND_CURRENT: return rintf(f);
-  default: caml_fatal_error("Unknown rounding mode.");
-  }
+float caml_simd_float32_round_current(float f) {
+  return rintf(f);
 }
 
-CAMLprim value caml_sse41_float32_round_bytecode(value mode, value f) {
-  return caml_copy_float32(caml_sse41_float32_round(Int_val(mode), Float32_val(f)));
+CAMLprim value caml_simd_float32_round_current_bytecode(value f) {
+  return caml_copy_float32(caml_simd_float32_round_current(Float32_val(f)));
+}
+
+float caml_simd_float32_round_neg_inf(float f) {
+  return floorf(f);
+}
+
+CAMLprim value caml_simd_float32_round_neg_inf_bytecode(value f) {
+  return caml_copy_float32(caml_simd_float32_round_neg_inf(Float32_val(f)));
+}
+
+float caml_simd_float32_round_pos_inf(float f) {
+  return ceilf(f);
+}
+
+CAMLprim value caml_simd_float32_round_pos_inf_bytecode(value f) {
+  return caml_copy_float32(caml_simd_float32_round_pos_inf(Float32_val(f)));
+}
+
+float caml_simd_float32_round_towards_zero(float f) {
+  return truncf(f);
+}
+
+CAMLprim value caml_simd_float32_round_towards_zero_bytecode(value f) {
+  return caml_copy_float32(caml_simd_float32_round_towards_zero(Float32_val(f)));
 }
 
 enum { FP_normal, FP_subnormal, FP_zero, FP_infinite, FP_nan };
@@ -852,7 +865,7 @@ CAMLexport struct custom_operations caml_unboxed_float32_array_ops[2] = {
     custom_fixed_length_default },
 };
 
-CAMLprim value caml_make_unboxed_float32_vect(value len)
+static value caml_make_unboxed_float32_vect0(value len, int local)
 {
   /* This is only used on 64-bit targets. */
 
@@ -862,8 +875,23 @@ CAMLprim value caml_make_unboxed_float32_vect(value len)
   /* [num_fields] does not include the custom operations field. */
   mlsize_t num_fields = num_elements / 2 + num_elements % 2;
 
-  return caml_alloc_custom(&caml_unboxed_float32_array_ops[num_elements % 2],
-                           num_fields * sizeof(value), 0, 0);
+  struct custom_operations* ops =
+    &caml_unboxed_float32_array_ops[num_elements % 2];
+
+  if (local)
+    return caml_alloc_custom_local(ops, num_fields * sizeof(value), 0, 0);
+  else
+    return caml_alloc_custom(ops, num_fields * sizeof(value), 0, 0);
+}
+
+CAMLprim value caml_make_unboxed_float32_vect(value len)
+{
+  return caml_make_unboxed_float32_vect0(len, 0);
+}
+
+CAMLprim value caml_make_local_unboxed_float32_vect(value len)
+{
+  return caml_make_unboxed_float32_vect0(len, 1);
 }
 
 CAMLprim value caml_make_unboxed_float32_vect_bytecode(value len)
@@ -879,4 +907,9 @@ CAMLprim value caml_unboxed_float32_vect_blit(value a1, value ofs1, value a2,
           (float *)((uintnat *)a1 + 1) + Long_val(ofs1),
           Long_val(n) * sizeof(float));
   return Val_unit;
+}
+
+CAMLprim value caml_is_boot_compiler(value v) {
+  (void)v;
+  return Val_false;
 }

@@ -1,7 +1,5 @@
 (* TEST
-   flags = "-extension layouts_beta";
    flambda2;
-   arch_amd64;
    include stdlib_stable;
    include stdlib_upstream_compatible;
    {
@@ -10,10 +8,6 @@
    bytecode;
    }
 *)
-
-(* CR layouts: this test only runs on AMD64 because ARM64
-   does not support float32#. Split off the non-float32#
-   parts into a separate test that runs everywhere. *)
 
 (*****************************************)
 (* Prelude: Functions on unboxed numbers *)

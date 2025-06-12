@@ -47,6 +47,8 @@ module Simple : sig
     | `Variant of label * pattern option * row_desc ref
     | `Record of
         (Longident.t loc * label_description * pattern) list * closed_flag
+    | `Record_unboxed_product of
+        (Longident.t loc * unboxed_label_description * pattern) list * closed_flag
     | `Array of mutability * Jkind.sort * pattern list
     | `Lazy of pattern
   ]
@@ -67,7 +69,8 @@ module General : sig
   type view = [
     | Half_simple.view
     | `Var of Ident.t * string loc * Uid.t * Mode.Value.l
-    | `Alias of pattern * Ident.t * string loc * Uid.t * Mode.Value.l
+    | `Alias of pattern * Ident.t * string loc * Uid.t
+                * Mode.Value.l * Types.type_expr
   ]
   type pattern = view pattern_data
 
@@ -85,6 +88,7 @@ module Head : sig
     | Tuple of string option list
     | Unboxed_tuple of (string option * Jkind.sort) list
     | Record of label_description list
+    | Record_unboxed_product of unboxed_label_description list
     | Variant of
         { tag: label; has_arg: bool;
           cstr_row: row_desc ref;

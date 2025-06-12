@@ -172,11 +172,11 @@ Line 1, characters 21-22:
 1 | let f (x: t_void) = [x]
                          ^
 Error: This expression has type "t_void" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 (* Tuple *)

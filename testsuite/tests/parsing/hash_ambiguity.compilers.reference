@@ -43,6 +43,8 @@
                     Ptyp_constr "int" (hash_ambiguity.ml[9,169+12]..[9,169+15])
                     []
                 ]
+        ptype_jkind_annotation =
+          None
     ]
   structure_item (hash_ambiguity.ml[15,425+0]..[15,425+26])
     Pstr_type Rec
@@ -74,6 +76,8 @@
             ]
         ptype_private = Public
         ptype_manifest =
+          None
+        ptype_jkind_annotation =
           None
     ]
   structure_item (hash_ambiguity.ml[17,453+0]..[17,453+32])
@@ -110,6 +114,8 @@
             ]
         ptype_private = Public
         ptype_manifest =
+          None
+        ptype_jkind_annotation =
           None
     ]
 ]

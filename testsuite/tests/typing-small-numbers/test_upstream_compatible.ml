@@ -11,7 +11,7 @@ Line 1, characters 9-16:
 1 | type t = float32;;
              ^^^^^^^
 Error: Unbound type constructor "float32"
-Hint: Did you mean "float" or "float#"?
+Hint: Did you mean "float"?
 |}];;
 
 let _ = 1.0s;;
@@ -112,8 +112,8 @@ type t = float32#;;
 Line 1, characters 9-17:
 1 | type t = float32#;;
              ^^^^^^^^
-Error: Unbound type constructor "float32#"
-Hint: Did you mean "float#"?
+Error: Unbound type constructor "float32"
+Hint: Did you mean "float"?
 |}];;
 
 let () = ignore #1.0s;;
@@ -205,4 +205,22 @@ Line 2, characters 8-13:
 2 |   match #0.0s with
             ^^^^^
 Error: Found 32-bit float literal #0.0s, but float32 is not enabled. You must enable -extension small_numbers to use this feature.
+|}];;
+
+type t = int8;;
+[%%expect{|
+Line 1, characters 9-13:
+1 | type t = int8;;
+             ^^^^
+Error: Unbound type constructor "int8"
+Hint: Did you mean "int"?
+|}];;
+
+type t = int16;;
+[%%expect{|
+Line 1, characters 9-14:
+1 | type t = int16;;
+             ^^^^^
+Error: Unbound type constructor "int16"
+Hint: Did you mean "int", "int32" or "int64"?
 |}];;

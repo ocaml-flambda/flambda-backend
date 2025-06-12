@@ -23,7 +23,11 @@ module TypeMap = Btype.TypeMap
 type surface_variance = bool * bool * bool
 
 type variance_variable_context =
-  | Type_declaration of Ident.t * type_declaration
+  | Type_declaration of {
+      id: Ident.t;
+      decl: type_declaration;
+      unboxed_version : bool
+    }
   | Gadt_constructor of constructor_declaration
   | Extension_constructor of Ident.t * extension_constructor
 
@@ -100,7 +104,7 @@ let compute_variance env visited vari ty =
         compute_same (row_more row)
     | Tpoly (ty, _) ->
         compute_same ty
-    | Tvar _ | Tnil | Tlink _ | Tunivar _ -> ()
+    | Tvar _ | Tnil | Tlink _ | Tunivar _ | Tof_kind _ -> ()
     | Tpackage (_, fl) ->
         let v = Variance.(compose vari full) in
         List.iter (fun (_, ty) -> compute_variance_rec v ty) fl
@@ -309,7 +313,10 @@ let compute_variance_gadt_constructor env ~check rloc decl tl =
 
 let compute_variance_decl env ~check decl (required, _ as rloc) =
   let check =
-    Option.map (fun id -> Type_declaration (id, decl)) check
+    Option.map
+      (fun (id, unboxed_version) ->
+         Type_declaration {id; decl; unboxed_version})
+      check
   in
   let abstract = Btype.type_kind_is_abstract decl in
   if (abstract || decl.type_kind = Type_open) && decl.type_manifest = None then
@@ -326,7 +333,7 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
       match decl.type_kind with
         Type_abstract _ | Type_open ->
           compute_variance_type env ~check rloc decl mn
-      | Type_variant (tll,_rep) ->
+      | Type_variant (tll,_rep, _umc) ->
           if List.for_all (fun c -> c.Types.cd_res = None) tll then
             compute_variance_type env ~check rloc decl
               (mn @ List.flatten (List.map (fun c -> for_constr c.Types.cd_args)
@@ -351,7 +358,11 @@ let compute_variance_decl env ~check decl (required, _ as rloc) =
                 List.fold_left (List.map2 Variance.union) vari rem
             | _ -> assert false
           end
-      | Type_record (ftl, _) ->
+      | Type_record (ftl, _, _) ->
+          compute_variance_type env ~check rloc decl
+            (mn @ List.map (fun {Types.ld_mutable; ld_type} ->
+                 (Types.is_mutable ld_mutable, ld_type)) ftl)
+      | Type_record_unboxed_product (ftl, _, _) ->
           compute_variance_type env ~check rloc decl
             (mn @ List.map (fun {Types.ld_mutable; ld_type} ->
                  (Types.is_mutable ld_mutable, ld_type)) ftl)
@@ -372,8 +383,8 @@ let check_variance_extension env decl ext rloc =
 let compute_decl env ~check decl req =
   compute_variance_decl env ~check decl (req, decl.type_loc)
 
-let check_decl env id decl req =
-  ignore (compute_variance_decl env ~check:(Some id) decl (req, decl.type_loc))
+let check_decl env check decl req =
+  ignore (compute_variance_decl env ~check decl (req, decl.type_loc))
 
 type prop = Variance.t list
 type req = surface_variance list
@@ -389,8 +400,14 @@ let property : (prop, req) Typedecl_properties.property =
     compute_decl env ~check:None decl req in
   let update_decl decl variance =
     { decl with type_variance = variance } in
-  let check env id decl req =
-    if is_hash id then () else check_decl env id decl req in
+  let check env id decl (req, req') =
+    if is_hash id then () else begin
+      check_decl env (Some (id, false)) decl req;
+      Option.iter (fun d ->
+          check_decl env (Some (id, true)) d (Option.get req'))
+        decl.type_unboxed_version
+    end
+  in
   {
     eq;
     merge;
@@ -412,11 +429,12 @@ let transl_variance (v, i) =
 let variance_of_params ptype_params =
   List.map transl_variance (List.map snd ptype_params)
 
-let variance_of_sdecl sdecl =
-  variance_of_params sdecl.Parsetree.ptype_params
-
 let update_decls env sdecls decls =
-  let required = List.map variance_of_sdecl sdecls in
+  let required = List.map2 (fun sdecl (_, decl) ->
+    let variance = variance_of_params sdecl.Parsetree.ptype_params in
+    variance, Option.map (fun _ -> variance) decl.type_unboxed_version)
+    sdecls decls
+  in
   Typedecl_properties.compute_property property env decls required
 
 let update_class_decls env cldecls =
@@ -424,7 +442,7 @@ let update_class_decls env cldecls =
     List.fold_right
       (fun (obj_id, obj_abbr, _clty, _cltydef, ci) (decls, req) ->
         (obj_id, obj_abbr) :: decls,
-        variance_of_params ci.Typedtree.ci_params :: req)
+        (variance_of_params ci.Typedtree.ci_params, None) :: req)
       cldecls ([],[])
   in
   let decls =

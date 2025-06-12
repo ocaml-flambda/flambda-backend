@@ -128,7 +128,17 @@ let mk_save_ir_after ~native f =
                              ~native)
   in
   "-save-ir-after", Arg.Symbol (pass_names, f),
-  " Save intermediate representation after the given compilation pass\
+  " Save intermediate representation after the given compilation pass \
+    (may be specified more than once)."
+
+let mk_save_ir_before ~native f =
+  let pass_names =
+    Clflags.Compiler_pass.(available_pass_names
+                             ~filter:can_save_ir_before
+                             ~native)
+  in
+  "-save-ir-before", Arg.Symbol (pass_names, f),
+  " Save intermediate representation before the given compilation pass \
     (may be specified more than once)."
 
 let mk_dtypes f =
@@ -165,19 +175,17 @@ let mk_H f =
   "<dir>  Add <dir> to the list of \"hidden\" include directories\n\
  \     (Like -I, but the program can not directly reference these dependencies)"
 
-let mk_libloc f =
-  "-libloc", Arg.String f, "<dir>:<libs>:<hidden_libs>  Add .libloc directory configuration.\n\
-  \    .libloc directory is alternative (to -I and -H flags) way of telling\n\
-  \    compiler where to find files. Each `.libloc` directory should have a\n\
-  \    structure of `.libloc/<lib>/cmi-cmx`, where `<lib>` is a library name\n\
-  \    and `cmi-cmx` is a file where each line is of format `<filename> <path>`\n\
-  \    telling compiler that <filename> for library <lib> is accessible\n\
-  \    at <path>. If <path> is relative, then it is relative to a parent directory\n\
-  \    of a `.libloc` directory.\n\
-  \    <libs> and <hidden_libs> are comma-separated lists of libraries, to let\n\
-  \    compiler know which libraries should be accessible via this `.libloc`\n\
-  \    directory. Difference between <libs> and <hidden_libs> is the same as\n\
-  \    the difference between -I and -H flags"
+let mk_I_paths f =
+  "-I-paths", Arg.String f, "<file>  Read list of paths that compiler can\n\
+  \    reference from a given file. This option is alternative to -I flag,\n\
+  \    but specifies available files directly instead of adding the whole\n\
+  \    directory to the search path. Each line of files passed to -I-paths\n\
+  \    should be in format '<filename> <path>', which tells compiler that\n\
+  \    <filename> can be found at <path> relative to file given to -I-paths."
+
+let mk_H_paths f =
+  "-H-paths", Arg.String f, "<file>  Same as -I-paths, but adds given paths\n\
+  \    to the list of \"hidden\" files (see -H for more details)"
 
 let mk_impl f =
   "-impl", Arg.String f, "<file>  Compile <file> as a .ml file"
@@ -480,6 +488,11 @@ let mk_runtime_variant f =
   "-runtime-variant", Arg.String f,
   "<str>  Use the <str> variant of the run-time system"
 
+let mk_ocamlrunparam f =
+  "-ocamlrunparam", Arg.String f,
+  "<settings>  Use the given OCAMLRUNPARAM settings as the default (ignored \
+    except when linking an executable)"
+
 let mk_with_runtime f =
   "-with-runtime", Arg.Unit f,
   "Include the runtime system in the generated program (default)"
@@ -754,10 +767,6 @@ in
   \    allows a set of extensions, and every successive universe includes \n\
   \    the previous one."
 
-let mk_allow_illegal_crossing f =
-  "-allow-illegal-crossing", Arg.Unit f,
-  "Type declarations will not be checked along the portability or contention axes"
-
 let mk_dump_dir f =
   "-dump-dir", Arg.String f,
   "redirects any file(s) that would be outputted as a result of other flags\n\
@@ -795,6 +804,10 @@ let mk_dsource f =
 
 let mk_dlambda f =
   "-dlambda", Arg.Unit f, " (undocumented)"
+
+let mk_dblambda f =
+  "-dblambda", Arg.Unit f,
+  " Dump Blambda terms before bytecode generation"
 
 let mk_dletreclambda f =
   "-dletreclambda", Arg.Unit f,
@@ -848,44 +861,11 @@ let mk_dcmm_invariants f =
 let mk_dcmm f =
   "-dcmm", Arg.Unit f, " (undocumented)"
 
-let mk_dsel f =
-  "-dsel", Arg.Unit f, " (undocumented)"
-
-let mk_dcombine f =
-  "-dcombine", Arg.Unit f, " (undocumented)"
-
 let mk_dcse f =
   "-dcse", Arg.Unit f, " (undocumented)"
 
-let mk_dlive f =
-  "-dlive", Arg.Unit f, " (undocumented)"
-
-let mk_dspill f =
-  "-dspill", Arg.Unit f, " (undocumented)"
-
-let mk_dsplit f =
-  "-dsplit", Arg.Unit f, " (undocumented)"
-
-let mk_dinterf f =
-  "-dinterf", Arg.Unit f, " (undocumented)"
-
-let mk_dprefer f =
-  "-dprefer", Arg.Unit f, " (undocumented)"
-
-let mk_dalloc f =
-  "-dalloc", Arg.Unit f, " (undocumented)"
-
-let mk_dreload f =
-  "-dreload", Arg.Unit f, " (undocumented)"
-
-let mk_dscheduling f =
-  "-dscheduling", Arg.Unit f, " (undocumented)"
-
 let mk_dlinear f =
   "-dlinear", Arg.Unit f, " (undocumented)"
-
-let mk_dinterval f =
-  "-dinterval", Arg.Unit f, " (undocumented)"
 
 let mk_dstartup f =
   "-dstartup", Arg.Unit f, " (undocumented)"
@@ -943,7 +923,8 @@ module type Common_options = sig
   val _alert : string -> unit
   val _I : string -> unit
   val _H : string -> unit
-  val _libloc : string -> unit
+  val _I_paths : string -> unit
+  val _H_paths : string -> unit
   val _labels : unit -> unit
   val _alias_deps : unit -> unit
   val _no_alias_deps : unit -> unit
@@ -955,7 +936,6 @@ module type Common_options = sig
   val _extension : string -> unit
   val _no_extension : string -> unit
   val _extension_universe : string -> unit
-  val _allow_illegal_crossing : unit -> unit
   val _noassert : unit -> unit
   val _nolabels : unit -> unit
   val _nostdlib : unit -> unit
@@ -1004,6 +984,7 @@ module type Core_options = sig
   val _dshape : unit -> unit
   val _drawlambda : unit -> unit
   val _dlambda : unit -> unit
+  val _dblambda : unit -> unit
   val _dletreclambda : unit -> unit
 
 end
@@ -1050,6 +1031,7 @@ module type Compiler_options = sig
   val _no_principal : unit -> unit
   val _rectypes : unit -> unit
   val _runtime_variant : string -> unit
+  val _ocamlrunparam : string -> unit
   val _with_runtime : unit -> unit
   val _without_runtime : unit -> unit
   val _short_paths : unit -> unit
@@ -1155,19 +1137,8 @@ module type Optcommon_options = sig
   val _dclambda : unit -> unit
   val _dcmm_invariants : unit -> unit
   val _dcmm : unit -> unit
-  val _dsel : unit -> unit
-  val _dcombine : unit -> unit
   val _dcse : unit -> unit
-  val _dlive : unit -> unit
-  val _dspill : unit -> unit
-  val _dsplit : unit -> unit
-  val _dinterf : unit -> unit
-  val _dprefer : unit -> unit
-  val _dalloc : unit -> unit
-  val _dreload : unit -> unit
-  val _dscheduling :  unit -> unit
   val _dlinear :  unit -> unit
-  val _dinterval : unit -> unit
   val _dstartup :  unit -> unit
 end;;
 
@@ -1184,6 +1155,7 @@ module type Optcomp_options = sig
   val _afl_inst_ratio : int -> unit
   val _function_sections : unit -> unit
   val _save_ir_after : string -> unit
+  val _save_ir_before : string -> unit
   val _probes : unit -> unit
   val _no_probes : unit -> unit
 end;;
@@ -1243,7 +1215,6 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
-    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_for_pack_byt F._for_pack;
     mk_g_byt F._g;
     mk_no_g F._no_g;
@@ -1251,7 +1222,8 @@ struct
     mk_i F._i;
     mk_I F._I;
     mk_H F._H;
-    mk_libloc F._libloc;
+    mk_I_paths F._I_paths;
+    mk_H_paths F._H_paths;
     mk_impl F._impl;
     mk_instantiate_byt F._instantiate;
     mk_intf F._intf;
@@ -1336,6 +1308,7 @@ struct
     mk_dshape F._dshape;
     mk_drawlambda F._drawlambda;
     mk_dlambda F._dlambda;
+    mk_dblambda F._dblambda;
     mk_dletreclambda F._dletreclambda;
     mk_dinstr F._dinstr;
     mk_dcamlprimc F._dcamlprimc;
@@ -1362,7 +1335,8 @@ struct
     mk_alert F._alert;
     mk_I F._I;
     mk_H F._H;
-    mk_libloc F._libloc;
+    mk_I_paths F._I_paths;
+    mk_H_paths F._H_paths;
     mk_init F._init;
     mk_labels F._labels;
     mk_alias_deps F._alias_deps;
@@ -1375,7 +1349,6 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
-    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
     mk_nolabels F._nolabels;
@@ -1426,6 +1399,7 @@ struct
     mk_dshape F._dshape;
     mk_drawlambda F._drawlambda;
     mk_dlambda F._dlambda;
+    mk_dblambda F._dblambda;
     mk_dletreclambda F._dletreclambda;
     mk_dinstr F._dinstr;
     mk_debug_ocaml F._debug_ocaml;
@@ -1470,19 +1444,20 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
-    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_for_pack_opt F._for_pack;
     mk_g_opt F._g;
     mk_no_g F._no_g;
     mk_function_sections F._function_sections;
     mk_stop_after ~native:true F._stop_after;
     mk_save_ir_after ~native:true F._save_ir_after;
+    mk_save_ir_before ~native:true F._save_ir_before;
     mk_probes F._probes;
     mk_no_probes F._no_probes;
     mk_i F._i;
     mk_I F._I;
     mk_H F._H;
-    mk_libloc F._libloc;
+    mk_I_paths F._I_paths;
+    mk_H_paths F._H_paths;
     mk_impl F._impl;
     mk_inline F._inline;
     mk_inline_toplevel F._inline_toplevel;
@@ -1542,6 +1517,7 @@ struct
     mk_remove_unused_arguments F._remove_unused_arguments;
     mk_rounds F._rounds;
     mk_runtime_variant F._runtime_variant;
+    mk_ocamlrunparam F._ocamlrunparam;
     mk_with_runtime F._with_runtime;
     mk_without_runtime F._without_runtime;
     mk_S F._S;
@@ -1584,6 +1560,7 @@ struct
     mk_dshape F._dshape;
     mk_drawlambda F._drawlambda;
     mk_dlambda F._dlambda;
+    mk_dblambda F._dblambda;
     mk_dletreclambda F._dletreclambda;
     mk_drawclambda F._drawclambda;
     mk_dclambda F._dclambda;
@@ -1597,19 +1574,8 @@ struct
     mk_dflambda_verbose F._dflambda_verbose;
 
     mk_dcmm F._dcmm;
-    mk_dsel F._dsel;
-    mk_dcombine F._dcombine;
     mk_dcse F._dcse;
-    mk_dlive F._dlive;
-    mk_dspill F._dspill;
-    mk_dsplit F._dsplit;
-    mk_dinterf F._dinterf;
-    mk_dprefer F._dprefer;
-    mk_dalloc F._dalloc;
-    mk_dreload F._dreload;
-    mk_dscheduling F._dscheduling;
     mk_dlinear F._dlinear;
-    mk_dinterval F._dinterval;
     mk_dstartup F._dstartup;
     mk_dtimings F._dtimings;
     mk_dtimings_precision F._dtimings_precision;
@@ -1635,7 +1601,8 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_compact F._compact;
     mk_I F._I;
     mk_H F._H;
-    mk_libloc F._libloc;
+    mk_I_paths F._I_paths;
+    mk_H_paths F._H_paths;
     mk_init F._init;
     mk_inline F._inline;
     mk_inline_toplevel F._inline_toplevel;
@@ -1662,7 +1629,6 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
-    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_no_float_const_prop F._no_float_const_prop;
     mk_noassert F._noassert;
     mk_noinit F._noinit;
@@ -1719,6 +1685,7 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_dshape F._dshape;
     mk_drawlambda F._drawlambda;
     mk_dlambda F._dlambda;
+    mk_dblambda F._dblambda;
     mk_dletreclambda F._dletreclambda;
     mk_drawclambda F._drawclambda;
     mk_dclambda F._dclambda;
@@ -1726,19 +1693,8 @@ module Make_opttop_options (F : Opttop_options) = struct
     mk_drawflambda F._drawflambda;
     mk_dflambda F._dflambda;
     mk_dcmm F._dcmm;
-    mk_dsel F._dsel;
-    mk_dcombine F._dcombine;
     mk_dcse F._dcse;
-    mk_dlive F._dlive;
-    mk_dspill F._dspill;
-    mk_dsplit F._dsplit;
-    mk_dinterf F._dinterf;
-    mk_dprefer F._dprefer;
-    mk_dalloc F._dalloc;
-    mk_dreload F._dreload;
-    mk_dscheduling F._dscheduling;
     mk_dlinear F._dlinear;
-    mk_dinterval F._dinterval;
     mk_dstartup F._dstartup;
     mk_dump_pass F._dump_pass;
     mk_debug_ocaml F._debug_ocaml;
@@ -1755,7 +1711,8 @@ struct
     mk_alert F._alert;
     mk_I F._I;
     mk_H F._H;
-    mk_libloc F._libloc;
+    mk_I_paths F._I_paths;
+    mk_H_paths F._H_paths;
     mk_impl F._impl;
     mk_intf F._intf;
     mk_intf_suffix F._intf_suffix;
@@ -1771,7 +1728,6 @@ struct
     mk_extension F._extension;
     mk_no_extension F._no_extension;
     mk_extension_universe F._extension_universe;
-    mk_allow_illegal_crossing F._allow_illegal_crossing;
     mk_noassert F._noassert;
     mk_nolabels F._nolabels;
     mk_nostdlib F._nostdlib;
@@ -1883,7 +1839,6 @@ module Default = struct
     let _no_extension s = Language_extension.(disable_of_string_exn s)
     let _extension_universe s =
       Language_extension.(set_universe_and_enable_all_of_string_exn s)
-    let _allow_illegal_crossing = set Clflags.allow_illegal_crossing
     let _noassert = set noassert
     let _nolabels = set classic
     let _nostdlib = set no_std_include
@@ -1910,20 +1865,12 @@ module Default = struct
     include Common
     let _I dir = include_dirs := dir :: (!include_dirs)
     let _H dir = hidden_include_dirs := dir :: (!hidden_include_dirs)
-    let _libloc s =
-      match String.split_on_char ':' s with
-      | [ path; libs; hidden_libs ] ->
-        let split libs =
-          match libs |> String.split_on_char ',' with
-          | [ "" ] -> []
-          | libs -> libs
-        in
-        let libs = split libs in
-        let hidden_libs = split hidden_libs in
-        libloc := { Libloc.path; libs; hidden_libs } :: !libloc
-      | _ -> Compenv.fatal "Incorrect -libloc format, expected: <path>:<lib1>,<lib2>,...:<hidden_lib1>,<hidden_lib2>,..."
+    let _I_paths file = include_paths_files := file :: !include_paths_files
+    let _H_paths file =
+      hidden_include_paths_files := file :: !hidden_include_paths_files
     let _color = Misc.set_or_ignore color_reader.parse color
     let _dlambda = set dump_lambda
+    let _dblambda = set dump_blambda
     let _dletreclambda = set dump_letreclambda
     let _dparsetree = set dump_parsetree
     let _drawlambda = set dump_rawlambda
@@ -1949,11 +1896,10 @@ module Default = struct
     let _clambda_checks () = clambda_checks := true
     let _classic_inlining () = set_oclassic ()
     let _compact = clear optimize_for_speed
-    let _dalloc = set dump_regalloc
     let _dclambda = set dump_clambda
     let _dcmm = set dump_cmm
+    let _dcse = set dump_cse
     let _dcmm_invariants = set cmm_invariants
-    let _dcombine = set dump_combine
     let _dcse = set dump_cse
     let _dflambda = set dump_flambda
     let _dflambda_heavy_invariants () =
@@ -1965,18 +1911,9 @@ module Default = struct
       flambda_invariant_checks := No_checks
     let _dflambda_verbose () =
       set dump_flambda (); set dump_flambda_verbose ()
-    let _dinterval = set dump_interval
-    let _dinterf = set dump_interf
     let _dlinear = set dump_linear
-    let _dlive () = dump_live := true
-    let _dprefer = set dump_prefer
     let _drawclambda = set dump_rawclambda
     let _drawflambda = set dump_rawflambda
-    let _dreload = set dump_reload
-    let _dscheduling = set dump_scheduling
-    let _dsel = set dump_selection
-    let _dspill = set dump_spill
-    let _dsplit = set dump_split
     let _dstartup = set keep_startup_file
     let _dump_pass pass = set_dumped_pass pass true
     let _inline spec =
@@ -2091,6 +2028,7 @@ module Default = struct
     let _plugin _p = plugin := true
     let _pp s = preprocessor := (Some s)
     let _runtime_variant s = runtime_variant := s
+    let _ocamlrunparam s = ocamlrunparam := s
     let _stop_after pass =
       let module P = Compiler_pass in
         match P.of_string pass with
@@ -2107,6 +2045,14 @@ module Default = struct
         | None -> () (* this should not occur as we use Arg.Symbol *)
         | Some pass ->
           set_save_ir_after pass true
+
+    let _save_ir_before pass =
+      let module P = Compiler_pass in
+        match P.of_string pass with
+        | None -> () (* this should not occur as we use Arg.Symbol *)
+        | Some pass ->
+          set_save_ir_before pass true
+
     let _thread = set use_threads
     let _verbose = set verbose
     let _version () = Compenv.print_version_string ()
@@ -2189,7 +2135,8 @@ module Default = struct
          Odoc_global.hidden_include_dirs :=
            (s :: (!Odoc_global.hidden_include_dirs))
       *) ()
-    let _libloc(_:string) = ()
+    let _I_paths(_:string) = ()
+    let _H_paths(_:string) = ()
     let _impl (_:string) =
       (* placeholder:
          Odoc_global.files := ((!Odoc_global.files) @ [Odoc_global.Impl_file s])

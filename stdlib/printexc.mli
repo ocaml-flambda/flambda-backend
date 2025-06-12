@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 open! Stdlib
 
 (** Facilities for printing exceptions and inspecting current call stack. *)
@@ -39,7 +41,7 @@ val print: ('a -> 'b) -> 'a -> 'b
    The typical use is to catch and report exceptions that
    escape a function application. *)
 
-val catch: ('a -> 'b) -> 'a -> 'b
+val catch: ('a -> 'b) -> 'a -> 'b @@ nonportable
 [@@ocaml.deprecated "This function is no longer needed."]
 (** [Printexc.catch fn x] is similar to {!Printexc.print}, but
    aborts the program with exit code 2 after printing the
@@ -86,7 +88,8 @@ val backtrace_status: unit -> bool
     @since 3.11
 *)
 
-val register_printer: (exn -> string option) -> unit
+val register_printer: (exn -> string option) -> unit @@ nonportable
+[@@alert unsafe_multidomain "Use [Printexc.Safe.register_printer]."]
 (** [Printexc.register_printer fn] registers [fn] as an exception
     printer.  The printer should return [None] or raise an exception
     if it does not know how to convert the passed exception, and [Some
@@ -113,7 +116,7 @@ val use_printers: exn -> string option
 
 (** {1 Raw backtraces} *)
 
-type raw_backtrace
+type raw_backtrace : mutable_data
 (** The type [raw_backtrace] stores a backtrace in a low-level format,
     which can be converted to usable form using [raw_backtrace_entries]
     and [backtrace_slots_of_raw_entry] below.
@@ -175,7 +178,8 @@ val raw_backtrace_to_string: raw_backtrace -> string
     @since 4.01
 *)
 
-external raise_with_backtrace: exn -> raw_backtrace -> 'a
+external raise_with_backtrace: ('a : value_or_null)
+  . exn -> raw_backtrace -> 'a @ portable unique
   = "%raise_with_backtrace"
 (** Reraise the exception using the given raw_backtrace for the
     origin of the exception
@@ -203,7 +207,8 @@ val default_uncaught_exception_handler: exn -> raw_backtrace -> unit
     @since 4.11
 *)
 
-val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) -> unit
+val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) -> unit @@ nonportable
+[@@alert unsafe_multidomain "Use [Printexc.Safe.set_uncaught_exception_handler]."]
 (** [Printexc.set_uncaught_exception_handler fn] registers [fn] as the handler
     for uncaught exceptions. The default handler is
     {!Printexc.default_uncaught_exception_handler}.
@@ -228,7 +233,7 @@ val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) -> unit
     and extract information from them in a programmer-friendly format.
 *)
 
-type backtrace_slot
+type backtrace_slot : immutable_data
 (** The abstract type [backtrace_slot] represents a single slot of
     a backtrace.
 
@@ -337,7 +342,7 @@ end
 
 (** {1 Raw backtrace slots} *)
 
-type raw_backtrace_slot
+type raw_backtrace_slot : immutable_data
 (** This type is used to iterate over the slots of a [raw_backtrace].
     For most purposes, [backtrace_slots_of_raw_entry] is easier to use.
 
@@ -414,6 +419,23 @@ val exn_slot_name: exn -> string
 
     @since 4.02
 *)
+
+(** Submodule containing non-backwards-compatible functions which enforce thread safety
+    via modes. *)
+module Safe : sig
+  val register_printer: (exn -> string option) @ portable -> unit
+  (** Like {!register_printer}, but is safe to use in the presence of multiple domains.
+
+      The provided closure must be [portable] as exception printers may be called from
+      any domain, not just the one that it's registered on. *)
+
+  val set_uncaught_exception_handler: (exn -> raw_backtrace -> unit) @ portable -> unit
+  (** Like {!set_uncaught_exception_handler}, but is safe to use in the presence of
+      multiple domains.
+
+      The provided closure must be [portable] as exception handlers may be called from
+      any domain, not just the one that it's registered on. *)
+end
 
 (**/**)
 

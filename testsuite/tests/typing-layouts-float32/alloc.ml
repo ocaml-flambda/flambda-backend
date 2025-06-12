@@ -1,6 +1,5 @@
 (* TEST
  flambda2;
- arch_amd64;
  {
    include stdlib_stable;
    native;

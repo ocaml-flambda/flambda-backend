@@ -232,9 +232,9 @@ Error: This expression has type "'a -> Record.t" which is not a record type.
 let () =
   ignore { (Record.get ()) with a = 5 };;
 [%%expect{|
-Line 2, characters 11-26:
+Line 2, characters 9-39:
 2 |   ignore { (Record.get ()) with a = 5 };;
-               ^^^^^^^^^^^^^^^
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "'a -> Record.t" which is not a record type.
 |}]
 

@@ -906,12 +906,16 @@ module Code_id_or_name = struct
     include T0
   end
 
-  module Tree = Patricia_tree.Make (struct
+  module Column = Datalog.Column.Make (struct
+    let name = "code_id_or_name"
+
     let print = print
   end)
 
-  module Set = Tree.Set
-  module Map = Tree.Map
+  module Set = Column.Set
+  module Map = Column.Map
+
+  let datalog_column_id = Column.datalog_column_id
 end
 
 let initialise () =

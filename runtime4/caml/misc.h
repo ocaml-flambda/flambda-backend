@@ -461,7 +461,7 @@ int caml_runtime_warnings_active(void);
   00 -> free words in minor heap
   01 -> fields of free list blocks in major heap
   03 -> heap chunks deallocated by heap shrinking
-  04 -> fields deallocated by [caml_obj_truncate]
+  04 -> fields deallocated by [caml_obj_truncate], which is no longer available
   05 -> unused child pointers in large free blocks
   10 -> uninitialised fields of minor objects
   11 -> uninitialised fields of major objects

@@ -109,6 +109,15 @@ module Invalid : sig
     | Apply_cont_of_unreachable_continuation of Continuation.t
     | Defining_expr_of_let of Bound_pattern.t * named
     | Closure_type_was_invalid of Apply_expr.t
+    | Direct_application_parameter_kind_mismatch of
+        { params_arity : [`Complex] Flambda_arity.t;
+          args_arity : [`Complex] Flambda_arity.t;
+          apply : Apply_expr.t
+        }
+    | Application_argument_kind_mismatch of
+        [`Unarized] Flambda_arity.t * Apply_expr.t
+    | Application_result_kind_mismatch of
+        [`Unarized] Flambda_arity.t * Apply_expr.t
     | Partial_application_mode_mismatch of Apply_expr.t
     | Partial_application_mode_mismatch_in_lambda of Debuginfo.t
     | Calling_local_returning_closure_with_normal_apply of Apply_expr.t
@@ -336,10 +345,10 @@ module Continuation_handlers : sig
   type t
 
   (** Obtain the mapping from continuation to handler. *)
-  val to_map : t -> Continuation_handler.t Continuation.Map.t
+  val to_map : t -> Continuation_handler.t Continuation.Lmap.t
 
   (** The domain of [to_map t]. *)
-  val domain : t -> Continuation.Set.t
+  val domain : t -> Continuation.t list
 
   (** Whether any of the continuations are exception handlers. *)
   val contains_exn_handler : t -> bool
@@ -398,7 +407,7 @@ module Let_cont_expr : sig
   (** Create a definition of a set of possibly-recursive continuations. *)
   val create_recursive :
     invariant_params:Bound_parameters.t ->
-    Continuation_handler.t Continuation.Map.t ->
+    Continuation_handler.t Continuation.Lmap.t ->
     body:expr ->
     expr
 end
@@ -484,8 +493,8 @@ module Function_params_and_body : sig
     body:expr ->
     free_names_of_body:Name_occurrences.t Or_unknown.t ->
     my_closure:Variable.t ->
-    my_region:Variable.t ->
-    my_ghost_region:Variable.t ->
+    my_region:Variable.t option ->
+    my_ghost_region:Variable.t option ->
     my_depth:Variable.t ->
     t
 
@@ -507,8 +516,8 @@ module Function_params_and_body : sig
       body:expr ->
       my_closure:Variable.t ->
       is_my_closure_used:bool Or_unknown.t ->
-      my_region:Variable.t ->
-      my_ghost_region:Variable.t ->
+      my_region:Variable.t option ->
+      my_ghost_region:Variable.t option ->
       my_depth:Variable.t ->
       free_names_of_body:Name_occurrences.t Or_unknown.t ->
       'a) ->
@@ -533,8 +542,8 @@ module Function_params_and_body : sig
       body1:expr ->
       body2:expr ->
       my_closure:Variable.t ->
-      my_region:Variable.t ->
-      my_ghost_region:Variable.t ->
+      my_region:Variable.t option ->
+      my_ghost_region:Variable.t option ->
       my_depth:Variable.t ->
       'a) ->
     'a

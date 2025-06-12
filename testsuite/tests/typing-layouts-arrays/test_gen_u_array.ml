@@ -246,7 +246,6 @@ module Test (A : S) : sig end = struct
   test_length 256;
   test_length 1000;
   test_length 1001;
-  test_length 123456;
 
   (* [init] *)
   let a = A.init 1000 I.of_int in
@@ -603,24 +602,24 @@ module Test (A : S) : sig end = struct
   assert (A.exists f a);
 
   (* [mem] *)
-  let a = A.init 7777 I.of_int in
+  let a = A.init 777 I.of_int in
   assert (A.mem (I.of_int 0) a);
-  assert (A.mem (I.of_int 7776) a);
+  assert (A.mem (I.of_int 776) a);
   assert (not (A.mem ((I.of_int (-1))) a));
-  assert (not (A.mem (I.of_int 7777) a));
+  assert (not (A.mem (I.of_int 777) a));
   let check v =
-    A.set a 1000 v;
+    A.set a 100 v;
     assert (A.mem v a);
   in
   List.iter check [I.max_val; I.min_val; (I.of_int (-1)); (I.of_int 0)];
 
-  let a = A.init 7778 I.of_int in
+  let a = A.init 778 I.of_int in
   assert (A.mem (I.of_int 0) a);
-  assert (A.mem (I.of_int 7777) a);
+  assert (A.mem (I.of_int 777) a);
   assert (not (A.mem ((I.of_int (-1))) a));
-  assert (not (A.mem (I.of_int 7778) a));
+  assert (not (A.mem (I.of_int 778) a));
   let check v =
-    A.set a 1001 v;
+    A.set a 101 v;
     assert (A.mem v a);
   in
   List.iter check [I.max_val; I.min_val; (I.of_int (-1)); (I.of_int 0)];
@@ -733,9 +732,9 @@ module Test (A : S) : sig end = struct
     check_sort s I.compare a; (* already sorted *)
     check_sort s (fun x y -> I.compare y x) a; (* reverse-sorted *)
 
-    let a = A.init 50000 rand_val in
+    let a = A.init 500 rand_val in
     check_sort s I.compare a;
-    let a = A.init 50001 rand_val in
+    let a = A.init 501 rand_val in
     check_sort s I.compare a;
     let a = A.make 1000 (I.of_int 1) in
     check_sort s I.compare a;

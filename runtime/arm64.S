@@ -77,6 +77,7 @@
 
 #define DW_CFA_def_cfa_expression 0x0f
 #define DW_REG_x21                21
+#define DW_REG_x29                29
 #define DW_REG_sp                 31
 #define DW_OP_breg                0x70
 #define DW_OP_deref               0x06
@@ -197,6 +198,9 @@ G(name):
 #define Stack_exception(reg)    [reg, #8]
 #define Stack_handler(reg)      [reg, #16]
 #define Stack_handler_from_cont(reg) [reg, #15]
+#define Stack_local_sp(reg)     [reg, #64]
+#define Stack_local_top(reg)    [reg, #72]
+#define Stack_local_limit(reg)  [reg, #80]
 
 /* struct c_stack_link */
 #define Cstack_stack(reg)       [reg]
@@ -212,12 +216,20 @@ G(name):
 #define Handler_parent(reg)     [reg, #24]
 #define Handler_parent_offset   24
 
-/* Switch from OCaml to C stack. */
+/* Switch from OCaml to C stack.
+
+   If a C function is called which might call back into OCaml,
+   then nothing may be pushed to the C stack between SWITCH_OCAML_TO_C
+   and the next call on the C stack. (This is to ensure frame pointers
+   are correctly maintained if the stack is reallocated) */
 .macro SWITCH_OCAML_TO_C
     /* Fill in Caml_state->current_stack->sp */
         ldr     TMP, Caml_state(current_stack)
         mov     TMP2, sp
         str     TMP2, Stack_sp(TMP)
+    /* No need to update Stack_local_sp: if the runtime
+       needs this value, it will copy it out of
+       Caml_state first (see caml_refresh_locals). */
     /* Fill in Caml_state->c_stack */
         ldr     TMP2, Caml_state(c_stack)
         str     TMP, Cstack_stack(TMP2)
@@ -268,18 +280,18 @@ G(name):
         str     x25, [TMP, 192]
     /* Save caller-save floating-point registers
        (callee-saves are preserved by C functions) */
-        stp     d0, d1, [TMP, 208]
-        stp     d2, d3, [TMP, 224]
-        stp     d4, d5, [TMP, 240]
-        stp     d6, d7, [TMP, 256]
-        stp     d16, d17, [TMP, 272]
-        stp     d18, d19, [TMP, 288]
-        stp     d20, d21, [TMP, 304]
-        stp     d22, d23, [TMP, 320]
-        stp     d24, d25, [TMP, 336]
-        stp     d26, d27, [TMP, 352]
-        stp     d28, d29, [TMP, 368]
-        stp     d30, d31, [TMP, 384]
+        stp     q0, q1, [TMP, 208]
+        stp     q2, q3, [TMP, 240]
+        stp     q4, q5, [TMP, 272]
+        stp     q6, q7, [TMP, 304]
+        stp     q16, q17, [TMP, 336]
+        stp     q18, q19, [TMP, 368]
+        stp     q20, q21, [TMP, 400]
+        stp     q22, q23, [TMP, 432]
+        stp     q24, q25, [TMP, 464]
+        stp     q26, q27, [TMP, 496]
+        stp     q28, q29, [TMP, 528]
+        stp     q30, q31, [TMP, 560]
         add     TMP, TMP, #16
         str     TMP, Caml_state(gc_regs)
 .endm
@@ -303,18 +315,18 @@ G(name):
         ldp     x21, x22, [TMP, 160]
         ldp     x23, x24, [TMP, 176]
         ldr     x25, [TMP, 192]
-        ldp     d0, d1, [TMP, 208]
-        ldp     d2, d3, [TMP, 224]
-        ldp     d4, d5, [TMP, 240]
-        ldp     d6, d7, [TMP, 256]
-        ldp     d16, d17, [TMP, 272]
-        ldp     d18, d19, [TMP, 288]
-        ldp     d20, d21, [TMP, 304]
-        ldp     d22, d23, [TMP, 320]
-        ldp     d24, d25, [TMP, 336]
-        ldp     d26, d27, [TMP, 352]
-        ldp     d28, d29, [TMP, 368]
-        ldp     d30, d31, [TMP, 384]
+        ldp     q0, q1, [TMP, 208]
+        ldp     q2, q3, [TMP, 240]
+        ldp     q4, q5, [TMP, 272]
+        ldp     q6, q7, [TMP, 304]
+        ldp     q16, q17, [TMP, 336]
+        ldp     q18, q19, [TMP, 368]
+        ldp     q20, q21, [TMP, 400]
+        ldp     q22, q23, [TMP, 432]
+        ldp     q24, q25, [TMP, 464]
+        ldp     q26, q27, [TMP, 496]
+        ldp     q28, q29, [TMP, 528]
+        ldp     q30, q31, [TMP, 560]
     /* Put gc_regs struct back in bucket linked list */
         ldr     TMP2, Caml_state(gc_regs_buckets)
         str     TMP2, [TMP, 0]  /* next ptr */
@@ -380,18 +392,18 @@ G(name):
         stp     x12, x13, [TMP, 112]
         stp     x14, x15, [TMP, 128]
     /* Save caller-save floating-point registers */
-        stp     d0, d1, [TMP, 208]
-        stp     d2, d3, [TMP, 224]
-        stp     d4, d5, [TMP, 240]
-        stp     d6, d7, [TMP, 256]
-        stp     d16, d17, [TMP, 272]
-        stp     d18, d19, [TMP, 288]
-        stp     d20, d21, [TMP, 304]
-        stp     d22, d23, [TMP, 320]
-        stp     d24, d25, [TMP, 336]
-        stp     d26, d27, [TMP, 352]
-        stp     d28, d29, [TMP, 368]
-        stp     d30, d31, [TMP, 384]
+        stp     q0, q1, [TMP, 208]
+        stp     q2, q3, [TMP, 240]
+        stp     q4, q5, [TMP, 272]
+        stp     q6, q7, [TMP, 304]
+        stp     q16, q17, [TMP, 336]
+        stp     q18, q19, [TMP, 368]
+        stp     q20, q21, [TMP, 400]
+        stp     q22, q23, [TMP, 432]
+        stp     q24, q25, [TMP, 464]
+        stp     q26, q27, [TMP, 496]
+        stp     q28, q29, [TMP, 528]
+        stp     q30, q31, [TMP, 560]
         add     TMP, TMP, #16
         str     TMP, Caml_state(gc_regs)
 .endm
@@ -411,18 +423,18 @@ G(name):
         ldp     x10, x11, [TMP, 96]
         ldp     x12, x13, [TMP, 112]
         ldp     x14, x15, [TMP, 128]
-        ldp     d0, d1, [TMP, 208]
-        ldp     d2, d3, [TMP, 224]
-        ldp     d4, d5, [TMP, 240]
-        ldp     d6, d7, [TMP, 256]
-        ldp     d16, d17, [TMP, 272]
-        ldp     d18, d19, [TMP, 288]
-        ldp     d20, d21, [TMP, 304]
-        ldp     d22, d23, [TMP, 320]
-        ldp     d24, d25, [TMP, 336]
-        ldp     d26, d27, [TMP, 352]
-        ldp     d28, d29, [TMP, 368]
-        ldp     d30, d31, [TMP, 384]
+        ldp     q0, q1, [TMP, 208]
+        ldp     q2, q3, [TMP, 240]
+        ldp     q4, q5, [TMP, 272]
+        ldp     q6, q7, [TMP, 304]
+        ldp     q16, q17, [TMP, 336]
+        ldp     q18, q19, [TMP, 368]
+        ldp     q20, q21, [TMP, 400]
+        ldp     q22, q23, [TMP, 432]
+        ldp     q24, q25, [TMP, 464]
+        ldp     q26, q27, [TMP, 496]
+        ldp     q28, q29, [TMP, 528]
+        ldp     q30, q31, [TMP, 560]
     /* Put gc_regs struct back in bucket linked list */
         ldr     TMP2, Caml_state(gc_regs_buckets)
         str     TMP2, [TMP, 0]  /* next ptr */
@@ -568,7 +580,7 @@ L(caml_call_local_realloc):
         ldp     x29, x30, [sp], 16
         ret
         CFI_ENDPROC
-        END_FUNCTION(caml_call_gc)
+END_FUNCTION(caml_call_local_realloc)
 
 /* Call a C function from OCaml */
 /* Function to call is in ADDITIONAL_ARG */
@@ -608,15 +620,15 @@ FUNCTION(caml_c_call)
 #if defined(WITH_THREAD_SANITIZER)
     /* Save return value registers. Since the called function could be
        anything, it may have returned its result (if any) either in x0
-       or d0:d1. */
+       or q0:q1. */
         stp     x0, x1, [sp, -16]!
         CFI_ADJUST(16)
-        stp     d0, d1, [sp, -16]!
-        CFI_ADJUST(16)
+        stp     q0, q1, [sp, -32]!
+        CFI_ADJUST(32)
         TSAN_EXIT_FUNCTION
     /* Restore return value registers */
-        ldp     d0, d1, [sp], 16
-        CFI_ADJUST(-16)
+        ldp     q0, q1, [sp], 32
+        CFI_ADJUST(-32)
         ldp     x0, x1, [sp], 16
         CFI_ADJUST(-16)
 #endif
@@ -644,20 +656,8 @@ FUNCTION(caml_c_call_stack_args)
     /* Make the exception handler alloc ptr available to the C code */
         str     ALLOC_PTR, Caml_state(young_ptr)
         str     TRAP_PTR, Caml_state(exn_handler)
-    /* Store sp to restore after call */
-        mov     x19, sp
-    /* Copy arguments from OCaml to C stack
-       NB: STACK_ARG_{BEGIN,END} are 16-byte aligned */
-1:      sub     STACK_ARG_END, STACK_ARG_END, 16
-        cmp     STACK_ARG_END, STACK_ARG_BEGIN
-        b.lo    2f
-        ldp     TMP, TMP2, [STACK_ARG_END]
-        stp     TMP, TMP2, [sp, -16]!; CFI_ADJUST(16)
-        b       1b
-2:  /* Call the function */
-        blr     ADDITIONAL_ARG
-    /* Restore stack */
-        mov     sp, x19
+    /* Copy the arguments and call */
+        bl      G(caml_c_call_copy_stack_args)
     /* Reload new allocation pointer & exn handler */
         ldr     ALLOC_PTR, Caml_state(young_ptr)
         ldr     TRAP_PTR, Caml_state(exn_handler)
@@ -668,6 +668,39 @@ FUNCTION(caml_c_call_stack_args)
         RET_FROM_C_CALL
         CFI_ENDPROC
 END_FUNCTION(caml_c_call_stack_args)
+
+/* To correctly maintain frame pointers during stack reallocation,
+   the runtime assumes that the caml_c_call stub does not push
+   anything to the stack before the first frame pointer on the C stack.
+   To guarantee this when stack arguments are used, the actual pushing
+   of arguments is done by this separate function */
+FUNCTION(caml_c_call_copy_stack_args)
+        CFI_STARTPROC
+        CFI_OFFSET(29, -16)
+        CFI_OFFSET(30, -8)
+        stp     x29, x30, [sp, -16]!
+        CFI_ADJUST(16)
+        add     x29, sp, #0
+        CFI_DEF_CFA_REGISTER(DW_REG_x29)
+    /* Copy arguments from OCaml to C stack
+       NB: STACK_ARG_{BEGIN,END} are 16-byte aligned */
+1:      sub     STACK_ARG_END, STACK_ARG_END, 16
+        cmp     STACK_ARG_END, STACK_ARG_BEGIN
+        b.lo    2f
+        ldp     TMP, TMP2, [STACK_ARG_END]
+        stp     TMP, TMP2, [sp, -16]!
+        b       1b
+2:  /* Call the function */
+        blr     ADDITIONAL_ARG
+    /* Restore stack */
+        mov     sp, x29
+        CFI_DEF_CFA_REGISTER(DW_REG_sp)
+        ldp     x29, x30, [sp], 16
+        CFI_ADJUST(-16)
+        ret
+        CFI_ENDPROC
+END_FUNCTION(caml_c_call_copy_stack_args)
+
 
 /* Start the OCaml program */
 
@@ -699,8 +732,8 @@ FUNCTION(caml_start_program)
 
 L(jump_to_caml):
     /* Set up stack frame and save callee-save registers */
-        stp     x29, x30, [sp, -160]!
-        CFI_ADJUST(160)
+        stp     x29, x30, [sp, -224]!
+        CFI_ADJUST(224)
         CFI_OFFSET(29, 0)
         CFI_OFFSET(30, 8)
         add     x29, sp, #0
@@ -709,14 +742,16 @@ L(jump_to_caml):
         stp     x23, x24, [sp, 48]
         stp     x25, x26, [sp, 64]
         stp     x27, x28, [sp, 80]
-        stp     d8, d9, [sp, 96]
-        stp     d10, d11, [sp, 112]
-        stp     d12, d13, [sp, 128]
-        stp     d14, d15, [sp, 144]
+        stp     q8, q9, [sp, 96]
+        stp     q10, q11, [sp, 128]
+        stp     q12, q13, [sp, 160]
+        stp     q14, q15, [sp, 192]
     /* Load domain state pointer from argument */
         mov     DOMAIN_STATE_PTR, TMP
     /* Reload allocation pointer */
         ldr     ALLOC_PTR, Caml_state(young_ptr)
+    /* No need to update Stack_local_sp: if the runtime needs this value, it
+       will copy it out of Caml_state first (see caml_refresh_locals). */
     /* Build (16-byte aligned) struct c_stack_link on the C stack */
         ldr     x8, Caml_state(c_stack)
         ldr     x9, Caml_state(async_exn_handler)
@@ -806,12 +841,12 @@ L(return_result):
         ldp     x23, x24, [sp, 48]
         ldp     x25, x26, [sp, 64]
         ldp     x27, x28, [sp, 80]
-        ldp     d8, d9, [sp, 96]
-        ldp     d10, d11, [sp, 112]
-        ldp     d12, d13, [sp, 128]
-        ldp     d14, d15, [sp, 144]
-        ldp     x29, x30, [sp], 160
-        CFI_ADJUST(-160)
+        ldp     q8, q9, [sp, 96]
+        ldp     q10, q11, [sp, 128]
+        ldp     q12, q13, [sp, 160]
+        ldp     q14, q15, [sp, 192]
+        ldp     x29, x30, [sp], 224
+        CFI_ADJUST(-224)
     /* Return to C caller */
         ret
         CFI_ENDPROC
@@ -1023,12 +1058,24 @@ END_FUNCTION(caml_callback3_asm)
         mov     TMP, sp
         str     TMP, Stack_sp(\old_stack)
         str     TRAP_PTR, Stack_exception(\old_stack)
+    /* Save any local allocations state from Caml_state
+       which the OCaml code might have changed. */
+        ldr     TMP, Caml_state(local_sp)
+        str     TMP, Stack_local_sp(\old_stack)
     /* switch stacks */
         str     \new_stack, Caml_state(current_stack)
         ldr     TMP, Stack_sp(\new_stack)
         mov     sp, TMP
     /* restore exn_handler for new stack */
         ldr     TRAP_PTR, Stack_exception(\new_stack)
+    /* Restore all local allocations state, since this
+       is now a different stack */
+        ldr     TMP, Stack_local_sp(\new_stack)
+        str     TMP, Caml_state(local_sp)
+        ldr     TMP, Stack_local_top(\new_stack)
+        str     TMP, Caml_state(local_top)
+        ldr     TMP, Stack_local_limit(\new_stack)
+        str     TMP, Caml_state(local_limit)
     /* Restore frame pointer and return address for new_stack */
         ldp     x29, x30, [sp], 16
         CFI_ADJUST(-16)
@@ -1214,11 +1261,21 @@ FUNCTION(caml_runstack)
         mov     TMP, sp
         str     TMP, Stack_sp(x8)
         str     TRAP_PTR, Stack_exception(x8)
+    /* save local allocations state that the OCaml code might have modified */
+        ldr     TMP, Caml_state(local_sp)
+        str     TMP, Stack_local_sp(x8)
     /* Load new stack pointer and set parent */
         ldr     TMP, Stack_handler(x0)
         str     x8, Handler_parent(TMP)
         str     x0, Caml_state(current_stack)
         ldr     x9, Stack_sp(x0) /* x9 := sp of new stack */
+    /* Load all local allocations state for the new stack */
+        ldr     TMP, Stack_local_sp(x0)
+        str     TMP, Caml_state(local_sp)
+        ldr     TMP, Stack_local_top(x0)
+        str     TMP, Caml_state(local_top)
+        ldr     TMP, Stack_local_limit(x0)
+        str     TMP, Caml_state(local_limit)
     /* Create an exception handler on the target stack
        after 16byte DWARF & gc_regs block (which is unused here) */
         sub     x9, x9, 32
@@ -1250,11 +1307,21 @@ L(frame_runstack):
 1:
         mov     x20, x0     /* save return across C call */
         ldr     x0, Caml_state(current_stack) /* arg to caml_free_stack */
+    /* The old (currently the current) stack is about to be freed, so
+       there is nothing to do in terms of local allocations state. */
     /* restore parent stack and exn_handler into Caml_state */
         ldr     TMP, Handler_parent(x8)
         str     TMP, Caml_state(current_stack)
         ldr     TRAP_PTR, Stack_exception(TMP)
         str     TRAP_PTR, Caml_state(exn_handler)
+    /* Restore all local allocations state for the new stack.
+       The new stack is in TMP. */
+        ldr     TMP2, Stack_local_sp(TMP)
+        str     TMP2, Caml_state(local_sp)
+        ldr     TMP2, Stack_local_top(TMP)
+        str     TMP2, Caml_state(local_top)
+        ldr     TMP2, Stack_local_limit(TMP)
+        str     TMP2, Caml_state(local_limit)
     /* free old stack by switching directly to c_stack;
        is a no-alloc call */
         ldr     x21, Stack_sp(TMP) /* saved across C call */

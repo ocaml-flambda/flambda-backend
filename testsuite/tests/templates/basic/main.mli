@@ -1,5 +1,3 @@
-open Import
-
 val append3_semi
    : Semigroup.t option
   -> Semigroup.t option

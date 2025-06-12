@@ -257,7 +257,8 @@ let subst_func_decl env
     Function_declarations.code_id_in_function_declaration =
   match code_id with
   | Deleted _ -> code_id
-  | Code_id code_id -> Code_id (subst_code_id env code_id)
+  | Code_id { code_id; only_full_applications } ->
+    Code_id { code_id = subst_code_id env code_id; only_full_applications }
 
 let subst_func_decls env decls =
   Function_declarations.funs_in_order decls
@@ -419,7 +420,7 @@ and subst_let_cont env (let_cont_expr : Let_cont_expr.t) =
       ~f:(fun ~invariant_params ~body handlers ->
         let body = subst_expr env body in
         let handlers =
-          Continuation.Map.map_sharing (subst_cont_handler env)
+          Continuation.Lmap.map_sharing (subst_cont_handler env)
             (handlers |> Continuation_handlers.to_map)
         in
         Let_cont_expr.create_recursive handlers ~invariant_params ~body)
@@ -724,8 +725,13 @@ let function_decls env
   | ( Deleted { function_slot_size = size1; dbg = _ },
       Deleted { function_slot_size = size2; dbg = _ } ) ->
     if Int.equal size1 size2 then Equivalent else Different { approximant = () }
-  | Code_id code_id1, Code_id code_id2 ->
+  | ( Code_id
+        { code_id = code_id1; only_full_applications = only_full_applications1 },
+      Code_id
+        { code_id = code_id2; only_full_applications = only_full_applications2 }
+    ) ->
     if code_ids env code_id1 code_id2 |> Comparison.is_equivalent
+       && Bool.equal only_full_applications1 only_full_applications2
     then Equivalent
     else Different { approximant = () }
   | Deleted _, Code_id _ | Code_id _, Deleted _ ->
@@ -775,7 +781,7 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
   let ok = ref true in
   let () =
     let compare (kind1, value1, _var1) (kind2, value2, _var2) =
-      let c = Flambda_kind.With_subkind.compare kind1 kind2 in
+      let c = Flambda_kind.compare kind1 kind2 in
       if c = 0 then Simple.compare value1 value2 else c
     in
     iter2_merged (value_slots_by_value set1) (value_slots_by_value set2)
@@ -800,7 +806,7 @@ let sets_of_closures env set1 set2 : Set_of_closures.t Comparison.t =
            ->
              match code_id with
              | Deleted _ -> Right function_slot
-             | Code_id code_id0 ->
+             | Code_id { code_id = code_id0; _ } ->
                Left (subst_code_id env code_id0, (function_slot, code_id)))
     in
     ( Code_id.Map.of_list function_slot_map,
@@ -1283,7 +1289,7 @@ and let_cont_exprs env (let_cont1 : Let_cont.t) (let_cont2 : Let_cont.t) :
                  ~free_names_of_body:Unknown))
   | Recursive handlers1, Recursive handlers2 ->
     let compare_handler_maps env map1 map2 :
-        Continuation_handler.t Continuation.Map.t Comparison.t =
+        Continuation_handler.t Continuation.Lmap.t Comparison.t =
       lists
         ~f:(fun env (cont, handler1) (_cont, handler2) ->
           cont_handlers env handler1 handler2
@@ -1292,15 +1298,15 @@ and let_cont_exprs env (let_cont1 : Let_cont.t) (let_cont2 : Let_cont.t) :
           |> Comparison.map ~f:(fun handler1' -> cont, handler1'))
         ~subst:(fun env (cont, handler) -> cont, subst_cont_handler env handler)
         ~subst_snd:false env
-        (map1 |> Continuation.Map.bindings)
-        (map2 |> Continuation.Map.bindings)
-      |> Comparison.map ~f:Continuation.Map.of_list
+        (map1 |> Continuation.Lmap.bindings)
+        (map2 |> Continuation.Lmap.bindings)
+      |> Comparison.map ~f:Continuation.Lmap.of_list
     in
     Recursive_let_cont_handlers.pattern_match_pair handlers1 handlers2
       ~f:(fun ~invariant_params ~body1 ~body2 cont_handlers1 cont_handlers2 ->
         pairs ~f1:exprs ~f2:compare_handler_maps
           ~subst2:(fun env map ->
-            Continuation.Map.map_sharing (subst_cont_handler env) map)
+            Continuation.Lmap.map_sharing (subst_cont_handler env) map)
           env
           (body1, cont_handlers1 |> Continuation_handlers.to_map)
           (body2, cont_handlers2 |> Continuation_handlers.to_map)

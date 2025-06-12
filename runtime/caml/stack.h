@@ -72,14 +72,14 @@
 #define First_frame(sp) ((sp) + 8)
 #endif
 #define Saved_gc_regs(sp) (*(value **)((sp) + 24))
-#define Stack_header_size 32
+#define Stack_header_size (32 + Stack_padding_word * 8)
 #endif
 
 #ifdef TARGET_arm64
 /* Size of the gc_regs structure, in words.
    See arm64.S and arm64/proc.ml for the indices */
-/* CR-someday mshinwell: update for SIMD */
-#define Wosize_gc_regs (2 + 24 /* int regs */ + 24 /* float regs */)
+/* The "*2" is for SIMD */
+#define Wosize_gc_regs (2 + 24 /* int regs */ + 24*2 /* float regs */)
 #define Saved_return_address(sp) *((intnat *)((sp) - 8))
 #define First_frame(sp) ((sp) + 16)
 #define Saved_gc_regs(sp) (*(value **)((sp) + 24))

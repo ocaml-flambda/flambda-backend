@@ -21,6 +21,7 @@ type 'a t = 'a Language_extension_kernel.t =
   | Comprehensions : unit t
   | Mode : maturity t
   | Unique : maturity t
+  | Overwriting : unit t
   | Include_functor : unit t
   | Polymorphic_parameters : unit t
   | Immutable_arrays : unit t
@@ -30,6 +31,7 @@ type 'a t = 'a Language_extension_kernel.t =
   | Labeled_tuples : unit t
   | Small_numbers : maturity t
   | Instances : unit t
+  | Separability : unit t
 
 (** Require that an extension is enabled for at least the provided level, or
     else throw an exception at the provided location saying otherwise. *)

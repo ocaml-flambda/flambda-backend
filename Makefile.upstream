@@ -1377,7 +1377,7 @@ SAK_CFLAGS ?= $(OC_CFLAGS) $(CFLAGS) $(OC_CPPFLAGS) $(CPPFLAGS)
 SAK_LINK ?= $(MKEXE_VIA_CC)
 
 $(SAK): $(RUNTIME_DIR)/sak.$(O)
-	$(V_MKEXE)$(call SAK_LINK,$@,$^)
+	$(V_MKEXE)$(call SAK_LINK,$@,$^ $(if $(filter true,$(WITH_ADDRESS_SANITIZER)),-fsanitize=address -fsanitize-recover=address))
 
 $(RUNTIME_DIR)/sak.$(O): $(RUNTIME_DIR)/sak.c $(RUNTIME_DIR)/caml/misc.h $(RUNTIME_DIR)/caml/config.h
 	$(V_CC)$(SAK_CC) -c $(SAK_CFLAGS) $(OUTPUTOBJ)$@ $<

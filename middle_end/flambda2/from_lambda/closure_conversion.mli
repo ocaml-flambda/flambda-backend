@@ -36,7 +36,7 @@ val close_let_rec :
   Env.t ->
   function_declarations:Function_decl.t list ->
   body:(Acc.t -> Env.t -> Expr_with_acc.t) ->
-  current_region:Ident.t ->
+  current_region:Ident.t option ->
   Expr_with_acc.t
 
 val close_let_cont :

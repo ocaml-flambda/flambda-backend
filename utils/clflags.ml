@@ -44,14 +44,6 @@ and dllibs = ref ([] : string list)     (* .so and -dllib -lxxx *)
 
 let cmi_file = ref None
 
-module Libloc = struct
-  type t = {
-    path: string;
-    libs: string list;
-    hidden_libs: string list
-  }
-end
-
 type profile_column = [ `Time | `Alloc | `Top_heap | `Abs_top_heap | `Counters ]
 type profile_granularity_level = File_level | Function_level | Block_level
 type flambda_invariant_checks = No_checks | Light_checks | Heavy_checks
@@ -59,8 +51,9 @@ type flambda_invariant_checks = No_checks | Light_checks | Heavy_checks
 let compile_only = ref false            (* -c *)
 and output_name = ref (None : string option) (* -o *)
 and include_dirs = ref ([] : string list)  (* -I *)
-and libloc = ref ([] : Libloc.t list) (* -libloc *)
 and hidden_include_dirs = ref ([] : string list) (* -H *)
+and include_paths_files = ref ([] : string list) (* -I-paths *)
+and hidden_include_paths_files = ref ([] : string list) (* -H-paths *)
 and no_std_include = ref false          (* -nostdlib *)
 and no_cwd = ref false                  (* -nocwd *)
 and print_types = ref false             (* -i *)
@@ -129,6 +122,7 @@ and dump_typedtree = ref false          (* -dtypedtree *)
 and dump_shape = ref false              (* -dshape *)
 and dump_rawlambda = ref false          (* -drawlambda *)
 and dump_lambda = ref false             (* -dlambda *)
+and dump_blambda = ref false             (* -dblambda *)
 and dump_letreclambda = ref false       (* -dletreclambda *)
 and dump_rawclambda = ref false         (* -drawclambda *)
 and dump_clambda = ref false            (* -dclambda *)
@@ -144,20 +138,9 @@ let optimize_for_speed = ref true       (* -compact *)
 and opaque = ref false                  (* -opaque *)
 
 and dump_cmm = ref false                (* -dcmm *)
-let dump_selection = ref false          (* -dsel *)
 let dump_cse = ref false                (* -dcse *)
-let dump_live = ref false               (* -dlive *)
-let dump_spill = ref false              (* -dspill *)
-let dump_split = ref false              (* -dsplit *)
-let dump_interf = ref false             (* -dinterf *)
-let dump_prefer = ref false             (* -dprefer *)
-let dump_regalloc = ref false           (* -dalloc *)
-let dump_reload = ref false             (* -dreload *)
-let dump_scheduling = ref false         (* -dscheduling *)
 let dump_linear = ref false             (* -dlinear *)
-let dump_interval = ref false           (* -dinterval *)
 let keep_startup_file = ref false       (* -dstartup *)
-let dump_combine = ref false            (* -dcombine *)
 let debug_ocaml = ref false             (* -debug-ocaml *)
 let default_timings_precision  = 3
 let timings_precision = ref default_timings_precision (* -dtimings-precision *)
@@ -208,6 +191,7 @@ let pic_code = ref (match Config.architecture with (* -fPIC *)
                      | _       -> false)
 
 let runtime_variant = ref ""
+let ocamlrunparam = ref ""
 
 let with_runtime = ref true         (* -with-runtime *)
 
@@ -222,7 +206,6 @@ let afl_inst_ratio = ref 100           (* -afl-inst-ratio *)
 
 let function_sections = ref false      (* -function-sections *)
 let probes = ref Config.probes         (* -probes *)
-let allow_illegal_crossing = ref false (* -allow_illegal_crossing *)
 let simplify_rounds = ref None        (* -rounds *)
 let default_simplify_rounds = ref 1        (* -rounds *)
 let rounds () =
@@ -468,7 +451,7 @@ let error_style_reader = {
 
 let unboxed_types = ref false
 
-(* This is used by the -save-ir-after option. *)
+(* This is used by the -save-ir-after and -save-ir-before options. *)
 module Compiler_ir = struct
   type t = Linear | Cfg
 
@@ -557,27 +540,30 @@ module Compiler_pass = struct
      - the manual manual/src/cmds/unified-options.etex
   *)
   type t = Parsing | Typing | Lambda | Middle_end
-         | Scheduling | Emit | Simplify_cfg | Selection
+         | Linearization | Emit | Simplify_cfg | Selection
+         | Register_allocation
 
   let to_string = function
     | Parsing -> "parsing"
     | Typing -> "typing"
     | Lambda -> "lambda"
     | Middle_end -> "middle_end"
-    | Scheduling -> "scheduling"
+    | Linearization -> "linearization"
     | Emit -> "emit"
     | Simplify_cfg -> "simplify_cfg"
     | Selection -> "selection"
+    | Register_allocation -> "register_allocation"
 
   let of_string = function
     | "parsing" -> Some Parsing
     | "typing" -> Some Typing
     | "lambda" -> Some Lambda
     | "middle_end" -> Some Middle_end
-    | "scheduling" -> Some Scheduling
+    | "linearization" -> Some Linearization
     | "emit" -> Some Emit
     | "simplify_cfg" -> Some Simplify_cfg
     | "selection" -> Some Selection
+    | "register_allocation" -> Some Register_allocation
     | _ -> None
 
   let rank = function
@@ -586,8 +572,9 @@ module Compiler_pass = struct
     | Lambda -> 2
     | Middle_end -> 3
     | Selection -> 20
+    | Register_allocation -> 30
     | Simplify_cfg -> 49
-    | Scheduling -> 50
+    | Linearization -> 50
     | Emit -> 60
 
   let passes = [
@@ -595,25 +582,33 @@ module Compiler_pass = struct
     Typing;
     Lambda;
     Middle_end;
-    Scheduling;
+    Linearization;
     Emit;
     Simplify_cfg;
     Selection;
+    Register_allocation;
   ]
   let is_compilation_pass _ = true
   let is_native_only = function
     | Middle_end -> true
-    | Scheduling -> true
+    | Linearization -> true
     | Emit -> true
     | Simplify_cfg -> true
     | Selection -> true
+    | Register_allocation -> true
     | Parsing | Typing | Lambda -> false
 
   let enabled is_native t = not (is_native_only t) || is_native
   let can_save_ir_after = function
-    | Scheduling -> true
+    | Linearization -> true
     | Simplify_cfg -> true
     | Selection -> true
+    | Register_allocation -> false
+    | Parsing | Typing | Lambda | Middle_end | Emit -> false
+
+    let can_save_ir_before = function
+    | Register_allocation -> true
+    | Linearization | Simplify_cfg | Selection
     | Parsing | Typing | Lambda | Middle_end | Emit -> false
 
   let available_pass_names ~filter ~native =
@@ -627,9 +622,10 @@ module Compiler_pass = struct
 
   let to_output_filename t ~prefix =
     match t with
-    | Scheduling -> prefix ^ Compiler_ir.(extension Linear)
+    | Linearization -> prefix ^ Compiler_ir.(extension Linear)
     | Simplify_cfg -> prefix ^ Compiler_ir.(extension Cfg)
     | Selection -> prefix ^ Compiler_ir.(extension Cfg) ^ "-sel"
+    | Register_allocation ->  prefix ^ Compiler_ir.(extension Cfg) ^ "-regalloc"
     | Emit | Parsing | Typing | Lambda | Middle_end -> Misc.fatal_error "Not supported"
 
   let of_input_filename name =
@@ -649,19 +645,29 @@ let should_stop_after pass =
     | Some stop -> Compiler_pass.rank stop <= Compiler_pass.rank pass
 
 let save_ir_after = ref []
+let save_ir_before = ref []
 
 let should_save_ir_after pass =
   List.mem pass !save_ir_after
 
-let set_save_ir_after pass enabled =
-  let other_passes = List.filter ((<>) pass) !save_ir_after in
+let should_save_ir_before pass =
+  List.mem pass !save_ir_before
+
+let set_save_ir ref pass enabled =
+  let other_passes = List.filter ((<>) pass) !ref in
   let new_passes =
     if enabled then
       pass :: other_passes
     else
       other_passes
   in
-  save_ir_after := new_passes
+  ref := new_passes
+
+let set_save_ir_after pass enabled =
+  set_save_ir save_ir_after pass enabled
+
+let set_save_ir_before pass enabled =
+  set_save_ir save_ir_before pass enabled
 
 module String = Misc.Stdlib.String
 
@@ -693,8 +699,8 @@ let create_usage_msg program =
 let print_arguments program =
   Arg.usage !arg_spec (create_usage_msg program)
 
-let zero_alloc_check = ref Zero_alloc_annotations.Check_default    (* -zero-alloc-check *)
-let zero_alloc_check_assert_all = ref false (* -zero-alloc-check-assert-all *)
+let zero_alloc_check = ref Zero_alloc_annotations.Check.Check_default  (* -zero-alloc-check *)
+let zero_alloc_assert = ref Zero_alloc_annotations.Assert.Assert_default (* -zero-alloc-assert all *)
 
 let no_auto_include_otherlibs = ref false      (* -no-auto-include-otherlibs *)
 

@@ -14,6 +14,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open Asm_targets
 module Int8 = Numbers.Int8
 module Int16 = Numbers.Int16
@@ -739,7 +740,7 @@ module Size = Make (struct
 end)
 
 module Emit = Make (struct
-  type param = (module Asm_directives.S)
+  type param = Asm_directives_dwarf.t
 
   type result = unit
 

@@ -409,10 +409,12 @@ extern double caml_log1p(double);
 #define clock_os caml_win32_clock
 
 #define caml_stat_strdup_os caml_stat_wcsdup
+#define caml_stat_strdup_noexc_os caml_stat_wcsdup_noexc
 #define caml_stat_strconcat_os caml_stat_wcsconcat
 
 #define caml_stat_strdup_to_os caml_stat_strdup_to_utf16
 #define caml_stat_strdup_of_os caml_stat_strdup_of_utf16
+#define caml_stat_strdup_noexc_of_os caml_stat_strdup_noexc_of_utf16
 #define caml_copy_string_of_os caml_copy_string_of_utf16
 
 #else /* _WIN32 */
@@ -449,10 +451,12 @@ extern double caml_log1p(double);
 #define clock_os clock
 
 #define caml_stat_strdup_os caml_stat_strdup
+#define caml_stat_strdup_noexc_os caml_stat_strdup_noexc
 #define caml_stat_strconcat_os caml_stat_strconcat
 
 #define caml_stat_strdup_to_os caml_stat_strdup
 #define caml_stat_strdup_of_os caml_stat_strdup
+#define caml_stat_strdup_noexc_of_os caml_stat_strdup_noexc
 #define caml_copy_string_of_os caml_copy_string
 
 #endif /* _WIN32 */
@@ -499,19 +503,80 @@ CAMLextern int caml_read_directory(char_os * dirname,
 
 #ifdef CAML_INTERNALS
 
-/* GC flags and messages */
+/* runtime message flags. Settable with v= in OCAMLRUNPARAM */
 
 extern atomic_uintnat caml_verb_gc;
 
-void caml_gc_log (char *, ...)
-#ifdef __GNUC__
-  __attribute__ ((format (printf, 1, 2)))
+/* Bits which may be set in caml_verb_gc. Keep in sync with the OCaml
+ * manual, the ocamlrun.1 man page, and gc.mli */
+
+/* Main events of each major GC cycle */
+#define CAML_GC_MSG_MAJOR           0x00001
+/* Minor collection events */
+#define CAML_GC_MSG_MINOR           0x00002
+/* Per-slice events */
+#define CAML_GC_MSG_SLICE           0x00004
+/* Heap compaction */
+#define CAML_GC_MSG_COMPACT         0x00008
+/* GC policy computations */
+#define CAML_GC_MSG_POLICY          0x00010
+/* Address space reservation changes */
+#define CAML_GC_MSG_ADDRSPACE       0x00020
+/* Major domain events (such as creation and termination) */
+#define CAML_GC_MSG_DOMAIN          0x00040
+/* Stop-the-world events */
+#define CAML_GC_MSG_STW             0x00080
+/* Minor heap events (such as creation and resizing) */
+#define CAML_GC_MSG_MINOR_HEAP      0x00100
+/* Major heap events (such as creation and teardown) */
+#define CAML_GC_MSG_MAJOR_HEAP      0x00200
+/* Resizing of GC tables */
+#define CAML_GC_MSG_TABLES          0x00400
+/* Allocation and resizing of stacks */
+#define CAML_GC_MSG_STACKS          0x00800
+/* Output GC statistics at program exit */
+#define CAML_GC_MSG_STATS           0x01000
+/* Change of GC parameters */
+#define CAML_GC_MSG_PARAMS          0x02000
+/* Calling of finalization functions */
+#define CAML_GC_MSG_FINALIZE        0x04000
+/* Bytecode executable and shared library search at start-up */
+#define CAML_GC_MSG_STARTUP         0x08000
+/* GC debugging messages */
+#define CAML_GC_MSG_DEBUG           0x10000
+/* Changes to the major GC mark stack */
+#define CAML_GC_MSG_MARK_STACK      0x20000
+/* Do not include timestamp and domain ID in log messages */
+#define CAML_GC_MSG_NO_TIMESTAMP    0x10000000
+
+/* Default set of messages when runtime invoked with -v */
+
+#define CAML_GC_MSG_VERBOSE (CAML_GC_MSG_MAJOR           | \
+                             CAML_GC_MSG_DOMAIN          | \
+                             CAML_GC_MSG_COMPACT)
+
+/* Use to control messages which should be output at any non-zero verbosity */
+
+#define CAML_GC_MSG_ANY (-1)
+
+/* output message if caml_verb_gc includes any bits in `category`. */
+
+void caml_gc_message (int category, const char *, ...)
+#if __has_attribute(format) || defined(__GNUC__)
+  __attribute__ ((format (printf, 2, 3)))
 #endif
 ;
 
-void caml_gc_message (int, char *, ...)
-#ifdef __GNUC__
-  __attribute__ ((format (printf, 2, 3)))
+/* Short-hand for calls to `caml_gc_message` */
+
+#define CAML_GC_MESSAGE(category, ...) \
+    caml_gc_message(CAML_GC_MSG_ ## category, __VA_ARGS__)
+
+/* Output message if CAML_GC_MSG_DEBUG is set */
+
+void caml_gc_log (const char *, ...)
+#if __has_attribute(format) || defined(__GNUC__)
+  __attribute__ ((format (printf, 1, 2)))
 #endif
 ;
 
@@ -534,7 +599,7 @@ int caml_runtime_warnings_active(void);
   00 -> free words in minor heap
   01 -> fields of free list blocks in major heap
   03 -> heap chunks deallocated by heap shrinking
-  04 -> fields deallocated by caml_obj_truncate: obsolete
+  04 -> fields deallocated by caml_obj_truncate, which is no longer available
   05 -> unused child pointers in large free blocks
   10 -> uninitialised fields of minor objects
   11 -> uninitialised fields of major objects

@@ -64,7 +64,7 @@ end
 
 (* BLAKE2 hashing, parameterized by hash size *)
 
-module BLAKE2 (X: sig val hash_length : int end) : S = struct
+module BLAKE2 (X: sig val hash_length : int end) : sig @@ portable include S end = struct
 
   type t = string
 
@@ -78,10 +78,10 @@ module BLAKE2 (X: sig val hash_length : int end) : S = struct
 
   type state
 
-  external create_gen: int -> string -> state = "caml_blake2_create"
-  external update: state -> string -> int -> int -> unit = "caml_blake2_update"
-  external final: state -> int -> t = "caml_blake2_final"
-  external unsafe_string: int -> string -> string -> int -> int -> t
+  external create_gen: int -> string -> state @@ portable = "caml_blake2_create"
+  external update: state -> string -> int -> int -> unit @@ portable = "caml_blake2_update"
+  external final: state -> int -> t @@ portable = "caml_blake2_final"
+  external unsafe_string: int -> string -> string -> int -> int -> t @@ portable
                         = "caml_blake2_string"
 
   let create () = create_gen hash_length ""
@@ -157,8 +157,8 @@ module MD5 = struct
   let compare = String.compare
   let equal = String.equal
 
-  external unsafe_string: string -> int -> int -> t = "caml_md5_string"
-  external channel: in_channel -> int -> t = "caml_md5_chan"
+  external unsafe_string: string -> int -> int -> t @@ portable = "caml_md5_string"
+  external channel: in_channel -> int -> t @@ portable = "caml_md5_chan"
 
   let string str =
     unsafe_string str 0 (String.length str)

@@ -37,6 +37,10 @@
 #include "caml/memprof.h"
 #include "caml/finalise.h"
 #include "caml/printexc.h"
+#ifdef __linux__
+#include <sys/auxv.h>
+#include <linux/auxvec.h>
+#endif
 
 /* The set of pending signals (received but not yet processed).
    It is represented as a bit vector.
@@ -48,14 +52,45 @@ CAMLexport atomic_uintnat caml_pending_signals[NSIG_WORDS];
 
 static caml_plat_mutex signal_install_mutex = CAML_PLAT_MUTEX_INITIALIZER;
 
+/* Check whether there is an unblocked pending signal.
+   This is relatively expensive, so only call it once we're sure there's
+   at least one pending signal. */
+#ifdef POSIX_SIGNALS
+static bool check_pending_unblocked_signals(void)
+{
+  sigset_t set;
+  pthread_sigmask(/* dummy */ SIG_BLOCK, NULL, &set);
+  for (int i = 0; i < NSIG_WORDS; i++) {
+    uintnat curr = atomic_load_relaxed(&caml_pending_signals[i]);
+    if (curr == 0) continue;
+    /* Scan curr for bits set */
+    for (int j = 0; j < BITS_PER_WORD; j++) {
+      uintnat mask = (uintnat)1 << j;
+      int signo = i * BITS_PER_WORD + j + 1;
+      if ((curr & mask) != 0 && !sigismember(&set, signo))
+        return true;
+    }
+  }
+  return false;
+}
+#endif
+
 CAMLexport int caml_check_pending_signals(void)
 {
   int i;
+  bool pending = false;
   for (i = 0; i < NSIG_WORDS; i++) {
     if (atomic_load_relaxed(&caml_pending_signals[i]))
-      return 1;
+      pending = true;
   }
-  return 0;
+#ifdef POSIX_SIGNALS
+  if (pending) {
+    /* Do a more expensive check to see whether these signals are
+       actually pending handling or are currently blocked */
+    pending = check_pending_unblocked_signals();
+  }
+#endif
+  return (int)pending;
 }
 
 /* Execute all pending signals */
@@ -163,33 +198,31 @@ CAMLexport void (*caml_leave_blocking_section_hook)(void) =
 
 static int check_pending_actions(caml_domain_state * dom_st);
 
-CAMLexport void caml_enter_blocking_section(void)
-{
-  caml_domain_state * domain = Caml_state;
-  while (1){
-    if (Caml_state->in_minor_collection)
-      caml_fatal_error("caml_enter_blocking_section from inside minor GC");
-    /* Process all pending signals now */
-    if (check_pending_actions(domain)) {
-      /* First reset young_limit, and set action_pending in case there
-         are further async callbacks pending beyond OCaml signal
-         handlers. */
-      caml_handle_gc_interrupt();
-      caml_raise_async_if_exception(caml_process_pending_signals_exn(), "");
-    }
-    caml_enter_blocking_section_hook ();
-    /* Check again if a signal arrived in the meanwhile. If none,
-       done; otherwise, try again. Since we do not hold the domain
-       lock, we cannot read [young_ptr] and we cannot call
-       [Caml_check_gc_interrupt]. */
-    if (atomic_load_relaxed(&domain->young_limit) != UINTNAT_MAX) break;
-    caml_leave_blocking_section_hook ();
-  }
-}
-
 CAMLexport void caml_enter_blocking_section_no_pending(void)
 {
   caml_enter_blocking_section_hook ();
+}
+
+CAMLexport void caml_enter_blocking_section(void)
+{
+  if (Caml_state->in_minor_collection)
+    caml_fatal_error("caml_enter_blocking_section from inside minor GC");
+
+  /* Execute pending signal handlers until there are no more remaining.
+     We check [action_pending] as it's faster than the signals check. */
+  while (Caml_check_gc_interrupt(Caml_state)
+    || (Caml_state->action_pending && caml_check_pending_signals())) {
+    /* First reset young_limit, and set action_pending in case there
+       are further async callbacks pending beyond OCaml signal
+       handlers. */
+    caml_handle_gc_interrupt();
+    caml_raise_async_if_exception(caml_process_pending_signals_exn(), "");
+  }
+
+  /* Drop the systhreads lock */
+  caml_enter_blocking_section_no_pending ();
+  /* Any pending actions that happen at this point onwards can be handled by
+     another thread, or by this thread upon leaving the blocking section. */
 }
 
 CAMLexport void caml_leave_blocking_section(void)
@@ -555,12 +588,39 @@ CAMLexport int caml_rev_convert_signal_number(int signo)
   return signo;
 }
 
-void * caml_init_signal_stack(void)
+#ifdef __linux__
+static size_t max_size_t(size_t a, size_t b)
+{
+  return (a > b) ? a : b;
+}
+#endif
+
+void * caml_init_signal_stack(size_t* signal_stack_size)
 {
 #ifdef POSIX_SIGNALS
   stack_t stk;
   stk.ss_flags = 0;
+
+#ifdef __linux__
+  /* On some systems, e.g. when AMX has been enabled on certain glibc versions,
+     the dynamic value of MINSIGSTKSZ might be larger than SIGSTKSZ and/or any
+     compile-time MINSIGSTKSZ.  As such we compute our own SIGSTKSZ.  The
+     "4 * " scaling factor matches current glibc behaviour.
+
+     If the values the system has provided look sensible, however, we
+     trust SIGSTKSZ. */
+  size_t at_minsigstksz = getauxval(AT_MINSIGSTKSZ);
+
+  if (at_minsigstksz <= MINSIGSTKSZ && MINSIGSTKSZ <= SIGSTKSZ)
+    stk.ss_size = SIGSTKSZ;
+  else
+    stk.ss_size = max_size_t(
+      SIGSTKSZ, 4 * max_size_t(MINSIGSTKSZ, at_minsigstksz));
+#else
+  /* Preserve existing runtime5 behaviour for now. */
   stk.ss_size = SIGSTKSZ;
+#endif
+
   /* The memory used for the alternate signal stack must not free'd before
      calling sigaltstack with SS_DISABLE. malloc/mmap is therefore used rather
      than caml_stat_alloc_noexc so that if a shutdown path erroneously fails
@@ -573,7 +633,7 @@ void * caml_init_signal_stack(void)
   if (stk.ss_sp == MAP_FAILED)
     return NULL;
   if (sigaltstack(&stk, NULL) < 0) {
-    munmap(stk.ss_sp, SIGSTKSZ);
+    munmap(stk.ss_sp, stk.ss_size);
     return NULL;
   }
 #else
@@ -585,19 +645,21 @@ void * caml_init_signal_stack(void)
     return NULL;
   }
 #endif /* USE_MMAP_MAP_STACK */
+  *signal_stack_size = stk.ss_size;
   return stk.ss_sp;
 #else
+  *signal_stack_size = 0;
   return NULL;
 #endif /* POSIX_SIGNALS */
 }
 
-void caml_free_signal_stack(void * signal_stack)
+void caml_free_signal_stack(void * signal_stack, size_t signal_stack_size)
 {
 #ifdef POSIX_SIGNALS
   stack_t stk, disable;
   disable.ss_flags = SS_DISABLE;
   disable.ss_sp = NULL;  /* not required but avoids a valgrind false alarm */
-  disable.ss_size = SIGSTKSZ; /* macOS wants a valid size here */
+  disable.ss_size = signal_stack_size; /* macOS wants a valid size here */
   if (sigaltstack(&disable, &stk) < 0) {
     caml_fatal_error("Failed to reset signal stack (err %d)", errno);
   }
@@ -609,7 +671,7 @@ void caml_free_signal_stack(void * signal_stack)
   /* Memory was allocated with malloc/mmap directly (see
      caml_init_signal_stack) */
 #ifdef USE_MMAP_MAP_STACK
-  munmap(signal_stack, SIGSTKSZ);
+  munmap(signal_stack, signal_stack_size);
 #else
   free(signal_stack);
 #endif /* USE_MMAP_MAP_STACK */
@@ -619,15 +681,18 @@ void caml_free_signal_stack(void * signal_stack)
 #ifdef POSIX_SIGNALS
 /* This is the alternate signal stack block for domain 0 */
 static void * caml_signal_stack_0 = NULL;
+static size_t caml_signal_stack_0_size = 0;
 #endif
 
 void caml_init_signals(void)
 {
   /* Set up alternate signal stack for domain 0 */
 #ifdef POSIX_SIGNALS
-  caml_signal_stack_0 = caml_init_signal_stack();
+  errno = 0;
+  caml_signal_stack_0 = caml_init_signal_stack(&caml_signal_stack_0_size);
   if (caml_signal_stack_0 == NULL) {
-    caml_fatal_error("Failed to allocate signal stack for domain 0");
+    caml_fatal_error("Failed to allocate signal stack for domain 0 (errno %d)",
+      errno);
   }
 
   /* gprof installs a signal handler for SIGPROF.
@@ -650,7 +715,7 @@ void caml_init_signals(void)
 void caml_terminate_signals(void)
 {
 #ifdef POSIX_SIGNALS
-  caml_free_signal_stack(caml_signal_stack_0);
+  caml_free_signal_stack(caml_signal_stack_0, caml_signal_stack_0_size);
   caml_signal_stack_0 = NULL;
 #endif
 }
@@ -703,7 +768,7 @@ static int caml_set_signal_action(int signo, int action)
 CAMLprim value caml_install_signal_handler(value signal_number, value action)
 {
   CAMLparam2 (signal_number, action);
-  CAMLlocal2 (res, tmp_signal_handlers);
+  CAMLlocal1 (res);
   int sig, act, oldact;
 
   sig = caml_convert_signal_number(Int_val(signal_number));
@@ -720,6 +785,8 @@ CAMLprim value caml_install_signal_handler(value signal_number, value action)
     act = 2;
     break;
   }
+  caml_plat_lock_non_blocking(&signal_install_mutex);
+  /* Note: no safepoint for calling signals in this critical section */
   oldact = caml_set_signal_action(sig, act);
   switch (oldact) {
   case 0:                       /* was Signal_default */
@@ -733,24 +800,19 @@ CAMLprim value caml_install_signal_handler(value signal_number, value action)
     Field(res, 0) = Field(caml_signal_handlers, sig);
     break;
   default:                      /* error in caml_set_signal_action */
-    caml_sys_error(NO_ARG);
+    goto err;
   }
   if (Is_block(action)) {
-    /* Speculatively allocate this so we don't hold the lock for
-       a GC */
     if (caml_signal_handlers == 0) {
-      tmp_signal_handlers = caml_alloc(NSIG, 0);
-    }
-    caml_plat_lock_blocking(&signal_install_mutex);
-    if (caml_signal_handlers == 0) {
-      /* caml_alloc cannot raise asynchronous exceptions from signals
-         so this is safe */
-      caml_signal_handlers = tmp_signal_handlers;
+      caml_signal_handlers = caml_alloc(NSIG, 0);
       caml_register_global_root(&caml_signal_handlers);
     }
     caml_modify(&Field(caml_signal_handlers, sig), Field(action, 0));
-    caml_plat_unlock(&signal_install_mutex);
   }
+  caml_plat_unlock(&signal_install_mutex);
   (void) caml_raise_async_if_exception(caml_process_pending_signals_exn(), "");
   CAMLreturn (res);
+ err:
+  caml_plat_unlock(&signal_install_mutex);
+  caml_sys_error(NO_ARG);
 }

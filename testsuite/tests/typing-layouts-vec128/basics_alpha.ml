@@ -137,7 +137,7 @@ Line 1, characters 26-27:
 Error: This expression has type "int64x2#"
        but an expression was expected of type "('a : value_or_null)"
        The layout of int64x2# is vec128
-         because it is the primitive type int64x2#.
+         because it is the unboxed version of the primitive type int64x2.
        But the layout of int64x2# must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -161,7 +161,7 @@ Line 1, characters 18-26:
                       ^^^^^^^^
 Error: Tuple element types must have layout value.
        The layout of "int64x2#" is vec128
-         because it is the primitive type int64x2#.
+         because it is the unboxed version of the primitive type int64x2.
        But the layout of "int64x2#" must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -209,14 +209,9 @@ type t5_2' = { y : string; x : t_vec128 };;
 type t5_2' = { y : string; x : t_vec128; }
 |}];;
 
-(* CR layouts 2.5: allow this *)
 type t5_3 = { x : t_vec128 } [@@unboxed];;
 [%%expect{|
-Line 1, characters 14-26:
-1 | type t5_3 = { x : t_vec128 } [@@unboxed];;
-                  ^^^^^^^^^^^^
-Error: Type "t_vec128" has layout "vec128".
-       Unboxed records may not yet contain types of this layout.
+type t5_3 = { x : t_vec128; } [@@unboxed]
 |}];;
 
 type t5_4 = A of t_vec128;;
@@ -236,34 +231,23 @@ type ('a : vec128) t5_7 = A of int
 type ('a : vec128) t5_8 = A of 'a
 |}]
 
-(* not allowed: value in flat suffix *)
-type 'a t_disallowed = A of t_vec128 * 'a
+(* No mixed block restriction: the compiler reorders the block for you, moving
+   the unboxed type to the flat suffix. *)
+type 'a t_reordered = A of t_vec128 * 'a
 
 [%%expect{|
-Line 1, characters 23-41:
-1 | type 'a t_disallowed = A of t_vec128 * 'a
-                           ^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument, "
-       t_vec128", but found boxed argument, "'a".
+type 'a t_reordered = A of t_vec128 * 'a
 |}]
 
 
 type t5_6 = A of t_vec128 [@@unboxed];;
 [%%expect{|
-Line 1, characters 12-25:
-1 | type t5_6 = A of t_vec128 [@@unboxed];;
-                ^^^^^^^^^^^^^
-Error: Type "t_vec128" has layout "vec128".
-       Unboxed variants may not yet contain types of this layout.
+type t5_6 = A of t_vec128 [@@unboxed]
 |}];;
 
 type t5_6_1 = A of { x : t_vec128 } [@@unboxed];;
 [%%expect{|
-Line 1, characters 21-33:
-1 | type t5_6_1 = A of { x : t_vec128 } [@@unboxed];;
-                         ^^^^^^^^^^^^
-Error: Type "t_vec128" has layout "vec128".
-       Unboxed inlined records may not yet contain types of this layout.
+type t5_6_1 = A of { x : t_vec128; } [@@unboxed]
 |}];;
 
 (****************************************************)
@@ -301,7 +285,7 @@ Line 1, characters 31-39:
                                    ^^^^^^^^
 Error: This type signature for "x" is not a value type.
        The layout of type int64x2# is vec128
-         because it is the primitive type int64x2#.
+         because it is the unboxed version of the primitive type int64x2.
        But the layout of type int64x2# must be a sublayout of value
          because it's the type of something stored in a module structure.
 |}];;
@@ -343,7 +327,7 @@ Line 1, characters 29-30:
 Error: This expression has type "int64x2#"
        but an expression was expected of type "('a : value_or_null)"
        The layout of int64x2# is vec128
-         because it is the primitive type int64x2#.
+         because it is the unboxed version of the primitive type int64x2.
        But the layout of int64x2# must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}];;
@@ -384,7 +368,7 @@ let id_value x = x;;
 val make_t_vec128 : unit -> t_vec128 = <fun>
 val make_t_vec128_id : ('a : vec128). unit -> 'a t_vec128_id = <fun>
 val make_int64u : unit -> int64x2# = <fun>
-val id_value : ('a : value_or_null). 'a -> 'a = <fun>
+val id_value : 'a -> 'a = <fun>
 |}];;
 
 let x8_1 = id_value (make_t_vec128 ());;
@@ -421,7 +405,7 @@ Line 1, characters 20-36:
 Error: This expression has type "int64x2#"
        but an expression was expected of type "('a : value_or_null)"
        The layout of int64x2# is vec128
-         because it is the primitive type int64x2#.
+         because it is the unboxed version of the primitive type int64x2.
        But the layout of int64x2# must be a sublayout of value
          because of the definition of id_value at line 5, characters 13-18.
 |}];;
@@ -519,7 +503,8 @@ type t11_1 = ..
 Line 3, characters 14-27:
 3 | type t11_1 += A of t_vec128;;
                   ^^^^^^^^^^^^^
-Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 type t11_1 += B of int64x2#;;
@@ -527,7 +512,8 @@ type t11_1 += B of int64x2#;;
 Line 1, characters 14-27:
 1 | type t11_1 += B of int64x2#;;
                   ^^^^^^^^^^^^^
-Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 type ('a : vec128) t11_2 = ..
@@ -542,18 +528,19 @@ type 'a t11_2 += A of int
 Line 5, characters 17-24:
 5 | type 'a t11_2 += B of 'a;;
                      ^^^^^^^
-Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
-(* not allowed: value in flat suffix *)
+(* not allowed: extensible variant with unboxed field *)
 type 'a t11_2 += C : 'a * 'b -> 'a t11_2
 
 [%%expect{|
 Line 1, characters 17-40:
 1 | type 'a t11_2 += C : 'a * 'b -> 'a t11_2
                      ^^^^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument, "'a",
-       but found boxed argument, "'b".
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 (***************************************)
@@ -631,7 +618,7 @@ Line 1, characters 26-45:
 Error: The method "x" has type "int64x2#" but is expected to have type
          "('a : value)"
        The layout of int64x2# is vec128
-         because it is the primitive type int64x2#.
+         because it is the unboxed version of the primitive type int64x2.
        But the layout of int64x2# must be a sublayout of value
          because it's the type of an object field.
 |}];;
@@ -643,7 +630,7 @@ Line 1, characters 26-42:
                               ^^^^^^^^^^^^^^^^
 Error: Variables bound in a class must have layout value.
        The layout of x is vec128
-         because it is the primitive type int64x2#.
+         because it is the unboxed version of the primitive type int64x2.
        But the layout of x must be a sublayout of value
          because it's the type of an instance variable.
 |}];;
@@ -730,7 +717,7 @@ Line 1, characters 27-28:
 1 | let f13_1 (x : t_vec128) = x = x;;
                                ^
 Error: This expression has type "t_vec128"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_vec128 is vec128
          because of the definition of t_vec128 at line 1, characters 0-22.
        But the layout of t_vec128 must be a sublayout of value.
@@ -742,7 +729,7 @@ Line 1, characters 35-36:
 1 | let f13_2 (x : t_vec128) = compare x x;;
                                        ^
 Error: This expression has type "t_vec128"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_vec128 is vec128
          because of the definition of t_vec128 at line 1, characters 0-22.
        But the layout of t_vec128 must be a sublayout of value.
@@ -754,7 +741,7 @@ Line 1, characters 44-45:
 1 | let f13_3 (x : t_vec128) = Marshal.to_bytes x;;
                                                 ^
 Error: This expression has type "t_vec128"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of t_vec128 is vec128
          because of the definition of t_vec128 at line 1, characters 0-22.
        But the layout of t_vec128 must be a sublayout of value.

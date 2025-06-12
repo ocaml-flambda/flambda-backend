@@ -81,7 +81,7 @@ enum caml_ba_subarray {
 struct caml_ba_proxy {
   atomic_uintnat refcount;      /* Reference count */
   void * data;                  /* Pointer to base of actual data */
-  uintnat size;                 /* Size of data in bytes (if mapped file) */
+  uintnat size;                 /* Size of data in bytes */
 };
 
 struct caml_ba_array {

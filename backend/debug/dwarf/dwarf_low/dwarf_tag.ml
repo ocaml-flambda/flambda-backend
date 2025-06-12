@@ -14,6 +14,7 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 module Int16 = Numbers.Int16
 module Uint64 = Numbers.Uint64
 
@@ -252,8 +253,11 @@ let encode t =
     | Dwarf_4 GNU_call_site -> 0x4109
     | Dwarf_4 GNU_call_site_parameter -> 0x410a
     | User code ->
-      assert (code >= dw_tag_lo_user && code <= dw_tag_hi_user);
-      Int16.to_int code
+      let code = Int16.to_int code in
+      assert (
+        code >= Int16.to_int dw_tag_lo_user
+        && code <= Int16.to_int dw_tag_hi_user);
+      code
   in
   Dwarf_value.uleb128 ~comment:(tag_name t) (Uint64.of_nonnegative_int_exn code)
 

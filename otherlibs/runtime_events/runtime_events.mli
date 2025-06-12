@@ -87,6 +87,34 @@ Live blocks of a Domain's major heap pools.
 (**
 Live blocks of a Domain's major heap large allocations.
 @since 5.1 *)
+| EV_C_REQUEST_MINOR_REALLOC_DEPENDENT_TABLE
+(**
+   Reallocation of the table of dependent memory from minor heap
+@since 5.4 *)
+| EV_C_MAJOR_SLICE_ALLOC_WORDS
+(**
+Words of heap allocation by this domain since the last major slice
+@since 5.4 *)
+| EV_C_MAJOR_SLICE_ALLOC_DEPENDENT_WORDS
+(**
+Words of off-heap allocation by this domain since the last major slice
+@since 5.4 *)
+| EV_C_MAJOR_SLICE_NEW_WORK
+(**
+New GC work incurred by this domain since the last major slice
+@since 5.4 *)
+| EV_C_MAJOR_SLICE_TOTAL_WORK
+(**
+Total pending GC work (for all domains) at start of slice
+@since 5.4 *)
+| EV_C_MAJOR_SLICE_BUDGET
+(**
+Work budget for this domain in the current slice
+@since 5.4 *)
+| EV_C_MAJOR_SLICE_WORK_DONE
+(**
+Total work done by this domain in a slice
+@since 5.4 *)
 
 (** The type for span events emitted by the runtime. *)
 type runtime_phase =
@@ -138,6 +166,8 @@ type runtime_phase =
 | EV_COMPACT_EVACUATE
 | EV_COMPACT_FORWARD
 | EV_COMPACT_RELEASE
+| EV_MINOR_EPHE_CLEAN
+| EV_MINOR_DEPENDENT
 
 (** Lifecycle events for the ring itself. *)
 type lifecycle =
@@ -268,6 +298,10 @@ val start : unit -> unit
   Events can be consumed by creating a cursor with [create_cursor] and providing
   a set of callbacks to be called for each type of event.
 *)
+
+val path : unit -> string option
+(** If runtime events are being collected, [path ()] returns [Some p] where [p]
+  is a path to the runtime events file. Otherwise, it returns None. *)
 
 val pause : unit -> unit
 (** [pause ()] will pause the collection of events in the runtime.

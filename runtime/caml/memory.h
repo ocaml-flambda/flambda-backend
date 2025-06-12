@@ -37,11 +37,12 @@ CAMLextern value caml_alloc_shr (mlsize_t wosize, tag_t);
 CAMLextern value caml_alloc_shr_noexc(mlsize_t wosize, tag_t);
 CAMLextern value caml_alloc_shr_reserved (mlsize_t, tag_t, reserved_t);
 CAMLextern value caml_alloc_local(mlsize_t, tag_t);
+CAMLextern value caml_alloc_local_reserved(mlsize_t, tag_t, reserved_t);
 
 CAMLextern void caml_adjust_gc_speed (mlsize_t, mlsize_t);
 CAMLextern void caml_adjust_minor_gc_speed (mlsize_t, mlsize_t);
-CAMLextern void caml_alloc_dependent_memory (mlsize_t bsz);
-CAMLextern void caml_free_dependent_memory (mlsize_t bsz);
+CAMLextern void caml_alloc_dependent_memory (value v, mlsize_t bsz);
+CAMLextern void caml_free_dependent_memory (value v, mlsize_t bsz);
 CAMLextern void caml_modify (volatile value *, value);
 CAMLextern void caml_modify_local (value obj, intnat i, value val);
 CAMLextern void caml_initialize (volatile value *, value);
@@ -148,17 +149,23 @@ typedef char* caml_stat_string;
    the request fails, and so requires the runtime lock to be held.
 */
 CAMLextern caml_stat_string caml_stat_strdup(const char *s);
-#ifdef _WIN32
-CAMLextern wchar_t* caml_stat_wcsdup(const wchar_t *s);
-#endif
 
 /* [caml_stat_strdup_noexc] is a variant of [caml_stat_strdup] that returns NULL
    in case the request fails, and doesn't require the runtime lock.
 */
 CAMLextern caml_stat_string caml_stat_strdup_noexc(const char *s);
 
-/* [caml_stat_strconcat(nargs, strings)] concatenates NULL-terminated [strings]
-   (an array of [char*] of size [nargs]) into a new string, dropping all NULLs,
+#ifdef _WIN32
+/* On Windows, [caml_stat_wcsdup] and [caml_stat_wcsdup_noexc] are the
+ * obvious equivalents of [caml_stat_strdup] and
+ * [caml_stat_strdup_noexc] for wide characters.
+ */
+CAMLextern wchar_t* caml_stat_wcsdup(const wchar_t *s);
+CAMLextern wchar_t* caml_stat_wcsdup_noexc(const wchar_t *s);
+#endif
+
+/* [caml_stat_strconcat(nargs, strings)] concatenates null-terminated [strings]
+   (an array of [char*] of size [nargs]) into a new string, dropping all NULs,
    except for the very last one. It throws an OCaml exception in case the
    request fails, and so requires the runtime lock to be held.
 */
@@ -224,8 +231,18 @@ enum caml_alloc_small_flags {
 #define Alloc_small(result, wosize, tag, GC) \
   Alloc_small_with_reserved(result, wosize, tag, GC, (uintnat)0)
 
-CAMLextern caml_local_arenas* caml_get_local_arenas(caml_domain_state*);
-CAMLextern void caml_set_local_arenas(caml_domain_state*, caml_local_arenas* s);
+// Retrieve the local arenas for the given stack.
+// If the stack is the current stack, the copy of [local_sp] at the
+// root of [Caml_state] is saved in the current [stack_info]
+// structure, as it may have been updated by OCaml code.
+CAMLextern caml_local_arenas* caml_refresh_locals(struct stack_info*);
+
+// Update the local arenas in [Caml_state].
+CAMLextern void caml_use_local_arenas(caml_local_arenas* s, uintnat local_sp);
+
+// Free local arenas, if any exist. Does nothing if s is NULL.
+// Should only be called when a fiber is being destroyed.
+CAMLextern void caml_free_local_arenas(caml_local_arenas* s);
 
 #endif /* CAML_INTERNALS */
 

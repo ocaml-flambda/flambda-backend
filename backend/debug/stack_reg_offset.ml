@@ -12,6 +12,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+open! Int_replace_polymorphic_compare
+
 type t =
   | Bytes_relative_to_cfa of int
   | Bytes_relative_to_domainstate_pointer of int

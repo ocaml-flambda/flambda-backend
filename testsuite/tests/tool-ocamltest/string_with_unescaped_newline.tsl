@@ -1,0 +1,5 @@
+(* CHILDTEST
+
+ set my_var = "This string
+   has an unescaped newline.";
+ *)

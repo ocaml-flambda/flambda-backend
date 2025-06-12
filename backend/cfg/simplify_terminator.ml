@@ -23,8 +23,9 @@
  * SOFTWARE.                                                                      *
  *                                                                                *
  **********************************************************************************)
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 module C = Cfg
 module Dll = Flambda_backend_utils.Doubly_linked_list
 
@@ -86,11 +87,14 @@ let evaluate_terminator ~(reg : Reg.t) ~(const : nativeint)
   match term.desc with
   | Parity_test { ifso; ifnot } ->
     if same_reg ~arg_idx:0
-    then if Nativeint.logand const 1n = 0n then Some ifso else Some ifnot
+    then
+      if Nativeint.equal (Nativeint.logand const 1n) 0n
+      then Some ifso
+      else Some ifnot
     else None
   | Truth_test { ifso; ifnot } ->
     if same_reg ~arg_idx:0
-    then if const <> 0n then Some ifso else Some ifnot
+    then if not (Nativeint.equal const 0n) then Some ifso else Some ifnot
     else None
   | Int_test { lt; eq; gt; is_signed; imm } -> (
     match imm with
@@ -107,7 +111,8 @@ let evaluate_terminator ~(reg : Reg.t) ~(const : nativeint)
         if result < 0 then Some lt else if result > 0 then Some gt else Some eq
       else None)
   | Switch labels ->
-    if same_reg ~arg_idx:0 && const <= Nativeint.of_int Int.max_int
+    if same_reg ~arg_idx:0
+       && Nativeint.compare const (Nativeint.of_int Int.max_int) <= 0
     then
       let idx = Nativeint.to_int const in
       if idx >= 0 && idx < Array.length labels
@@ -116,16 +121,31 @@ let evaluate_terminator ~(reg : Reg.t) ~(const : nativeint)
     else None
   | Never -> assert false
   | Always _ | Float_test _ | Return | Raise _ | Tailcall_self _
-  | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ | Specific_can_raise _
-    ->
+  | Tailcall_func _ | Call_no_return _ | Call _ | Prim _ ->
     None
 
 let is_last_instruction_const_int (body : C.basic C.instruction Dll.t) :
     (nativeint * Reg.t) option =
-  match[@ocaml.warning "-4"] Dll.last body with
+  match Dll.last body with
   | None -> None
   | Some { desc = Op (Const_int const); res = [| reg |]; _ } -> Some (const, reg)
-  | Some _ -> None
+  | Some
+      { desc =
+          ( Reloadretaddr | Prologue | Pushtrap _ | Poptrap _ | Stack_check _
+          | Op
+              ( Const_int _ | Move | Spill | Reload | Opaque | Begin_region
+              | End_region | Dls_get | Poll | Const_float _ | Const_float32 _
+              | Const_symbol _ | Const_vec128 _ | Stackoffset _ | Load _
+              | Store (_, _, _)
+              | Intop _
+              | Intop_imm (_, _)
+              | Intop_atomic _
+              | Floatop (_, _)
+              | Csel _ | Reinterpret_cast _ | Static_cast _ | Probe_is_enabled _
+              | Specific _ | Name_for_debugger _ | Alloc _ ) );
+        _
+      } ->
+    None
 
 let block_const_int (block : C.basic_block) : bool =
   match is_last_instruction_const_int block.body with
@@ -190,7 +210,7 @@ let block (cfg : C.t) (block : C.basic_block) : bool =
       simplify_switch block labels;
       false)
   | Raise _ | Return | Tailcall_self _ | Tailcall_func _ | Call_no_return _
-  | Call _ | Prim _ | Specific_can_raise _ ->
+  | Call _ | Prim _ ->
     false
 
 let run cfg =

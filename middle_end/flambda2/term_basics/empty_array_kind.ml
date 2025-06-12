@@ -54,11 +54,11 @@ let of_element_kind t =
 let of_lambda array_kind =
   match (array_kind : Lambda.array_kind) with
   | Pgenarray | Paddrarray | Pintarray | Pfloatarray
-  | Punboxedfloatarray Pfloat64 ->
+  | Punboxedfloatarray Unboxed_float64 ->
     Values_or_immediates_or_naked_floats
-  | Punboxedfloatarray Pfloat32 -> Naked_float32s
-  | Punboxedintarray Pint32 -> Naked_int32s
-  | Punboxedintarray Pint64 -> Naked_int64s
-  | Punboxedintarray Pnativeint -> Naked_nativeints
-  | Punboxedvectorarray Pvec128 -> Naked_vec128s
+  | Punboxedfloatarray Unboxed_float32 -> Naked_float32s
+  | Punboxedintarray Unboxed_int32 -> Naked_int32s
+  | Punboxedintarray Unboxed_int64 -> Naked_int64s
+  | Punboxedintarray Unboxed_nativeint -> Naked_nativeints
+  | Punboxedvectorarray Unboxed_vec128 -> Naked_vec128s
   | Pgcscannableproductarray _ | Pgcignorableproductarray _ -> Unboxed_products

@@ -39,6 +39,11 @@ minimizer: runtime-stdlib
 	cp chamelon/dune.jst chamelon/dune
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_main) @chamelon/all
 
+.PHONY: hacking-externals
+hacking-externals: _build/_bootinstall
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) $(coverage_dune_flags) -w "extract_externals/extract_externals.exe"
+
+
 .PHONY: hacking-runtest
 hacking-runtest: _build/_bootinstall
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) $(coverage_dune_flags) -w $(boot_targets) @runtest
@@ -87,7 +92,7 @@ promote:
 
 .PHONY: fmt
 fmt:
-	ocamlformat -i $$(find . \( -name "*.ml" -or -name "*.mli" \))
+	find . \( -name "*.ml" -or -name "*.mli" \) | xargs -P $$(nproc 2>/dev/null || echo 1) -n 20 ocamlformat -i
 
 .PHONY: check-fmt
 check-fmt:

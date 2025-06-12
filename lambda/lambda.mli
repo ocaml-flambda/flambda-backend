@@ -74,6 +74,10 @@ type field_read_semantics =
   | Reads_agree
   | Reads_vary
 
+type has_initializer =
+  | With_initializer
+  | Uninitialized
+
 (* Tail calls can close their enclosing region early *)
 type region_close =
   | Rc_normal         (* do not close region, may TCO if in tail position *)
@@ -100,6 +104,10 @@ type region_close =
     tail call because the outer region needs to end there.)
 *)
 
+type lazy_block_tag =
+  | Lazy_tag
+  | Forward_tag
+
 (* CR layouts v5: When we add more blocks of non-scannable values, consider
    whether some of the primitives specific to ufloat records
    ([Pmakeufloatblock], [Pufloatfield], and [Psetufloatfield]) can/should be
@@ -117,26 +125,30 @@ type primitive =
   | Pmakefloatblock of mutable_flag * locality_mode
   | Pmakeufloatblock of mutable_flag * locality_mode
   | Pmakemixedblock of int * mutable_flag * mixed_block_shape * locality_mode
+  | Pmakelazyblock of lazy_block_tag
   | Pfield of int * immediate_or_pointer * field_read_semantics
   | Pfield_computed of field_read_semantics
   | Psetfield of int * immediate_or_pointer * initialization_or_assignment
   | Psetfield_computed of immediate_or_pointer * initialization_or_assignment
   | Pfloatfield of int * field_read_semantics * locality_mode
   | Pufloatfield of int * field_read_semantics
-  | Pmixedfield of
-      int * mixed_block_read * mixed_block_shape * field_read_semantics
-  (* [Pmixedfield] is an access to either the flat suffix or value prefix of a
-     mixed record.
-  *)
+  | Pmixedfield of int list * mixed_block_shape_with_locality_mode
+      * field_read_semantics
+    (** The index to [Pmixedfield] corresponds to an element of the shape, not
+        necessarily the index of the field at runtime, as reordering may take
+        place on entry to Flambda 2. *)
   | Psetfloatfield of int * initialization_or_assignment
   | Psetufloatfield of int * initialization_or_assignment
-  | Psetmixedfield of
-      int * mixed_block_write * mixed_block_shape * initialization_or_assignment
+  | Psetmixedfield of int list * mixed_block_shape
+      * initialization_or_assignment
+    (** The same comment about the index as for [Pmixedfield] applies to
+        [Psetmixedfield]. *)
   | Pduprecord of Types.record_representation * int
   (* Unboxed products *)
   | Pmake_unboxed_product of layout list
   | Punboxed_product_field of int * (layout list)
       (* the [layout list] is the layout of the whole product *)
+  | Parray_element_size_in_bytes of array_kind
   (* Context switches *)
   | Prunstack
   | Pperform
@@ -172,21 +184,27 @@ type primitive =
   | Pmulfloat of boxed_float * locality_mode
   | Pdivfloat of boxed_float * locality_mode
   | Pfloatcomp of boxed_float * float_comparison
-  | Punboxed_float_comp of boxed_float * float_comparison
+  | Punboxed_float_comp of unboxed_float * float_comparison
   (* String operations *)
   | Pstringlength | Pstringrefu  | Pstringrefs
   | Pbyteslength | Pbytesrefu | Pbytessetu | Pbytesrefs | Pbytessets
   (* Array operations *)
   | Pmakearray of array_kind * mutable_flag * locality_mode
-  | Pmakearray_dynamic of array_kind * locality_mode
+  | Pmakearray_dynamic of array_kind * locality_mode * has_initializer
+  (** For [Pmakearray_dynamic], if the array kind specifies an unboxed
+      product, the float array optimization will never apply. *)
   | Pduparray of array_kind * mutable_flag
   (** For [Pduparray], the argument must be an immutable array.
       The arguments of [Pduparray] give the kind and mutability of the
       array being *produced* by the duplication. *)
-  | Parrayblit of array_set_kind
+  | Parrayblit of {
+      src_mutability : mutable_flag;
+      dst_array_set_kind : array_set_kind;
+    }
   (** For [Parrayblit], we record the [array_set_kind] of the destination
       array. We check that the source array has the same shape, but do not
-      need to know anything about its locality. *)
+      need to know anything about its locality. We do however request the
+      mutability of the source array. *)
   | Parraylength of array_kind
   | Parrayrefu of array_ref_kind * array_index_kind * mutable_flag
   | Parraysetu of array_set_kind * array_index_kind
@@ -298,9 +316,16 @@ type primitive =
   | Pint_as_pointer of locality_mode
   (* Atomic operations *)
   | Patomic_load of {immediate_or_pointer : immediate_or_pointer}
-  | Patomic_exchange
-  | Patomic_cas
+  | Patomic_set of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_exchange of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_compare_exchange of {immediate_or_pointer : immediate_or_pointer}
+  | Patomic_compare_set of {immediate_or_pointer : immediate_or_pointer}
   | Patomic_fetch_add
+  | Patomic_add
+  | Patomic_sub
+  | Patomic_land
+  | Patomic_lor
+  | Patomic_lxor
   (* Inhibition of optimisation *)
   | Popaque of layout
   (* Statically-defined probes *)
@@ -331,6 +356,8 @@ type primitive =
   | Parray_of_iarray (* Unsafely reinterpret an immutable array as a mutable
                         one; O(1) *)
   | Pget_header of locality_mode
+  | Ppeek of peek_or_poke
+  | Ppoke of peek_or_poke
   (* Get the header of a block. This primitive is invalid if provided with an
      immediate value.
      Note: The GC color bits in the header are not reliable except for checking
@@ -347,8 +374,8 @@ type primitive =
 and extern_repr =
   | Same_as_ocaml_repr of Jkind.Sort.Const.t
   | Unboxed_float of boxed_float
-  | Unboxed_vector of Primitive.boxed_vector
-  | Unboxed_integer of Primitive.boxed_integer
+  | Unboxed_vector of boxed_vector
+  | Unboxed_integer of boxed_integer
   | Untagged_int
 
 and external_call_description = extern_repr Primitive.description_gen
@@ -446,63 +473,66 @@ and value_kind_non_null =
 and layout =
   | Ptop
   | Pvalue of value_kind
-  | Punboxed_float of boxed_float
-  | Punboxed_int of boxed_integer
-  | Punboxed_vector of boxed_vector
+  | Punboxed_float of unboxed_float
+  | Punboxed_int of unboxed_integer
+  | Punboxed_vector of unboxed_vector
   | Punboxed_product of layout list
   | Pbottom
 
 and block_shape =
   value_kind list option
 
-and flat_element = Types.flat_element =
-  | Imm
-  | Float_boxed
+and 'a mixed_block_element =
+  | Value of value_kind
+  | Float_boxed of 'a
   | Float64
   | Float32
   | Bits32
   | Bits64
   | Vec128
   | Word
+  | Product of 'a mixed_block_element array
 
-and flat_element_read = private
-  | Flat_read of flat_element (* invariant: not [Float] *)
-  | Flat_read_float_boxed of locality_mode
-and mixed_block_read =
-  | Mread_value_prefix of immediate_or_pointer
-  | Mread_flat_suffix of flat_element_read
-and mixed_block_write =
-  | Mwrite_value_prefix of immediate_or_pointer
-  | Mwrite_flat_suffix of flat_element
+and mixed_block_shape = unit mixed_block_element array
 
-and mixed_block_shape =
-  { value_prefix_len : int;
-    (* We use an array just so we can index into the middle. *)
-    flat_suffix : flat_element array;
-  }
+and mixed_block_shape_with_locality_mode
+  = locality_mode mixed_block_element array
 
 and constructor_shape =
   | Constructor_uniform of value_kind list
-  | Constructor_mixed of
-      { value_prefix : value_kind list;
-        flat_suffix : flat_element list;
-      }
+  | Constructor_mixed of mixed_block_shape
+
+and unboxed_float = Primitive.unboxed_float =
+  | Unboxed_float64
+  | Unboxed_float32
+
+and unboxed_integer = Primitive.unboxed_integer =
+  | Unboxed_int64
+  | Unboxed_nativeint
+  | Unboxed_int32
+
+and unboxed_vector = Primitive.unboxed_vector =
+  | Unboxed_vec128
 
 and boxed_float = Primitive.boxed_float =
-  | Pfloat64
-  | Pfloat32
+  | Boxed_float64
+  | Boxed_float32
 
 and boxed_integer = Primitive.boxed_integer =
-    Pnativeint | Pint32 | Pint64
+  | Boxed_int64
+  | Boxed_nativeint
+  | Boxed_int32
 
 and boxed_vector = Primitive.boxed_vector =
-  | Pvec128
+  | Boxed_vec128
 
-and unboxed_float = boxed_float
-
-and unboxed_integer = boxed_integer
-
-and unboxed_vector = boxed_vector
+and peek_or_poke =
+  | Ppp_tagged_immediate
+  | Ppp_unboxed_float32
+  | Ppp_unboxed_float
+  | Ppp_unboxed_int32
+  | Ppp_unboxed_int64
+  | Ppp_unboxed_nativeint
 
 and bigarray_kind =
     Pbigarray_unknown
@@ -530,14 +560,6 @@ val equal_value_kind : value_kind -> value_kind -> bool
 val equal_layout : layout -> layout -> bool
 
 val compatible_layout : layout -> layout -> bool
-
-val equal_boxed_float : boxed_float -> boxed_float -> bool
-
-val equal_boxed_integer : boxed_integer -> boxed_integer -> bool
-
-val equal_boxed_vector : boxed_vector -> boxed_vector -> bool
-
-val compare_boxed_vector : boxed_vector -> boxed_vector -> int
 
 val print_boxed_vector : Format.formatter -> boxed_vector -> unit
 
@@ -621,6 +643,7 @@ type zero_alloc_attribute =
                   exceptional returns or divering loops are ignored).
                   This definition may not be applicable to new properties. *)
                loc: Location.t;
+               custom_error_msg: string option;
              }
   | Assume of { strict: bool;
                 never_returns_normally: bool;
@@ -634,9 +657,33 @@ type loop_attribute =
   | Default_loop (* no [@loop] attribute *)
 
 type curried_function_kind = { nlocal: int } [@@unboxed]
-(* [nlocal] determines how many arguments may be partially applied
-    before the resulting closure must be locally allocated.
-    See [lfunction] for details *)
+(** A well-formed function parameter list is of the form
+     [G @ L @ [ Final_arg ]],
+    where the values of G and L are of the form [More_args { partial_mode }],
+    where [partial_mode] has locality Global in G and locality Local in L.
+
+    [nlocal] is defined as follows:
+      - if {v |L| > 0 v}, then {v nlocal = |L| + 1 v}.
+      - if {v |L| = 0 v},
+        * if the function returns at mode local, the final arg has mode local,
+          or the function itself is allocated locally, then {v nlocal = 1 v}.
+        * otherwise, {v nlocal = 0 v}.
+*)
+
+(* CR-someday: Now that some functions' arity won't be changed downstream of
+   lambda (see [may_fuse_arity = false]), we could change [nlocal] to be
+   more expressive. I suggest the variant:
+
+   {[
+     type partial_application_is_local_when =
+       | Applied_up_to_nth_argument_from_end of int
+       | Never
+   ]}
+
+   I believe this will allow us to get rid of the complicated logic for
+   |L| = 0, and help clarify how clients use this type. I plan on doing
+   this in a follow-on PR.
+*)
 
 type function_kind = Curried of curried_function_kind | Tupled
 
@@ -646,7 +693,8 @@ type let_kind = Strict | Alias | StrictOpt
       (If e is a simple expression, e.g. a variable or constant,
        we may still substitute e'[x/e].)
     Alias: e is pure, we can substitute e'[x/e] if x has 0 or 1 occurrences
-      in e'
+      in e', and these occurrences are definitely in the same region as
+      the binding (not inside a lambda nor an exclave)
     StrictOpt: e does not have side-effects, but depend on the store;
       we can discard e if x does not appear in e'
  *)
@@ -690,8 +738,24 @@ type parameter_attribute = {
   unbox_param: bool;
 }
 
+type debug_uid = Shape.Uid.t
+(** The [debug_uid] values track typed-tree level identifiers that are then
+    passed down to the lower level IRs and eventually emitted into dwarf output.
+    WARNING: Unlike the name sugggests, these identifiers are not always unique.
+    Instead, in many cases, we use [debug_uid_none] below, and multiple
+    variables at the level of Lambda or below can use the same [debug_uid]. *)
+(* CR sspies: This comment is currently not accurate, since we do not yet
+  emit these ids into dwarf code. *)
+
+val debug_uid_none : debug_uid
+(** [debug_uid_none] should be used for those identifiers that are not
+    user visible (i.e., that are created internally in the compiler and do not
+    mean anything to users writing OCaml code).   *)
+
+
 type lparam = {
   name : Ident.t;
+  debug_uid : debug_uid;
   layout : layout;
   attributes : parameter_attribute;
   mode : locality_mode
@@ -709,8 +773,8 @@ type lambda =
   | Lconst of structured_constant
   | Lapply of lambda_apply
   | Lfunction of lfunction
-  | Llet of let_kind * layout * Ident.t * lambda * lambda
-  | Lmutlet of layout * Ident.t * lambda * lambda
+  | Llet of let_kind * layout * Ident.t * debug_uid * lambda * lambda
+  | Lmutlet of layout * Ident.t * debug_uid * lambda * lambda
   | Lletrec of rec_binding list * lambda
   | Lprim of primitive * lambda list * scoped_location
   | Lswitch of lambda * lambda_switch * scoped_location * layout
@@ -732,9 +796,9 @@ type lambda =
      it means that we consider the top region at the point of the [Lstaticcatch] to not be
      considered open inside the handler. *)
   | Lstaticcatch of
-      lambda * (static_label * (Ident.t * layout) list) * lambda
+      lambda * (static_label * (Ident.t * debug_uid * layout) list) * lambda
       * pop_region * layout
-  | Ltrywith of lambda * Ident.t * lambda * layout
+  | Ltrywith of lambda * Ident.t * debug_uid * lambda * layout
 (* Lifthenelse (e, t, f, layout) evaluates t if e evaluates to 0, and evaluates f if
    e evaluates to any other value; layout must be the layout of [t] and [f] *)
   | Lifthenelse of lambda * lambda * lambda * layout
@@ -753,6 +817,7 @@ type lambda =
 
 and rec_binding = {
   id : Ident.t;
+  debug_uid : debug_uid;
   def : lfunction;
   (* Generic recursive bindings have been removed from Lambda in 5.2.
      [Value_rec_compiler.compile_letrec] deals with transforming generic
@@ -768,8 +833,8 @@ and lfunction = private
     loc : scoped_location;
     mode : locality_mode;     (* locality of the closure itself *)
     ret_mode: locality_mode;
-    region : bool;         (* false if this function may locally
-                              allocate in the caller's region *)
+    (** alloc mode of the returned value. Also indicates if the function might
+        allocate in the caller's region. *)
   }
 
 and lambda_while =
@@ -779,6 +844,7 @@ and lambda_while =
 
 and lambda_for =
   { for_id : Ident.t;
+    for_debug_uid : debug_uid;
     for_loc : scoped_location;
     for_from : lambda;
     for_to : lambda;
@@ -892,7 +958,8 @@ type program =
    parameterised, this information (in particular [arg_block_idx]) describes
    instances rather than the base CU gs. *)
 type arg_descr =
-  { arg_param: Global_module.Name.t;    (* The parameter implemented (the [P] in
+  { arg_param: Global_module.Parameter_name.t;
+                                        (* The parameter implemented (the [P] in
                                            [-as-argument-for P]) *)
     arg_block_idx: int; }               (* The index within the main module
                                            block of the _argument block_. If
@@ -913,6 +980,8 @@ val const_unit: structured_constant
 val const_int : int -> structured_constant
 val lambda_unit: lambda
 
+val of_bool : bool -> lambda
+
 val layout_unit : layout
 val layout_int : layout
 val layout_array : array_kind -> layout
@@ -927,8 +996,8 @@ val layout_functor : layout
 val layout_module_field : layout
 val layout_string : layout
 val layout_boxed_float : boxed_float -> layout
-val layout_unboxed_float : boxed_float -> layout
-val layout_boxedint : boxed_integer -> layout
+val layout_unboxed_float : unboxed_float -> layout
+val layout_boxed_int : boxed_integer -> layout
 val layout_boxed_vector : boxed_vector -> layout
 (* A layout that is Pgenval because it is the field of a tuple *)
 val layout_tuple_element : layout
@@ -971,7 +1040,6 @@ val lfunction :
   loc:scoped_location ->
   mode:locality_mode ->
   ret_mode:locality_mode ->
-  region:bool ->
   lambda
 
 val lfunction' :
@@ -983,7 +1051,6 @@ val lfunction' :
   loc:scoped_location ->
   mode:locality_mode ->
   ret_mode:locality_mode ->
-  region:bool ->
   lfunction
 
 
@@ -1017,18 +1084,14 @@ val transl_class_path: scoped_location -> Env.t -> Path.t -> lambda
 
 val transl_address : scoped_location -> Persistent_env.address -> lambda
 
-val transl_mixed_product_shape: Types.mixed_product_shape -> mixed_block_shape
+val transl_mixed_product_shape :
+  get_value_kind:(int -> value_kind)
+  -> Types.mixed_product_shape -> mixed_block_shape
 
-type mixed_block_element =
-  | Value_prefix
-  | Flat_suffix of flat_element
-
-(** Raises if the int is out of bounds. *)
-val get_mixed_block_element : mixed_block_shape -> int -> mixed_block_element
-
-(** Raises if [flat_element] is [Float_boxed]. *)
-val flat_read_non_float : flat_element -> flat_element_read
-val flat_read_float_boxed : locality_mode -> flat_element_read
+val transl_mixed_product_shape_for_read :
+  get_value_kind:(int -> value_kind) -> get_mode:(int -> locality_mode)
+  -> Types.mixed_product_shape
+  -> mixed_block_shape_with_locality_mode
 
 val make_sequence: ('a -> lambda) -> 'a list -> lambda
 
@@ -1070,7 +1133,7 @@ val shallow_map  :
   (** Rewrite each immediate sub-term with the function. *)
 
 val bind_with_layout:
-  let_kind -> (Ident.t * layout) -> lambda -> lambda -> lambda
+  let_kind -> (Ident.t * debug_uid * layout) -> lambda -> lambda -> lambda
 
 val negate_integer_comparison : integer_comparison -> integer_comparison
 val swap_integer_comparison : integer_comparison -> integer_comparison
@@ -1157,6 +1220,11 @@ val array_ref_kind : locality_mode -> array_kind -> array_ref_kind
 (** The mode will be discarded if unnecessary for the given [array_kind] *)
 val array_set_kind : modify_mode -> array_kind -> array_set_kind
 
+(** Any mode information in the given [array_set_kind] is ignored.  Any mode
+    in the return value always comes from the [locality_mode] parameter. *)
+val array_ref_kind_of_array_set_kind
+  : array_set_kind -> locality_mode -> array_ref_kind
+
 (* Returns true if the given lambda can allocate on the local stack *)
 val may_allocate_in_region : lambda -> bool
 
@@ -1172,3 +1240,7 @@ val try_to_find_location : lambda -> scoped_location
 val try_to_find_debuginfo : lambda -> Debuginfo.t
 
 val primitive_can_raise : primitive -> bool
+
+val count_initializers_array_kind : array_kind -> int
+val ignorable_product_element_kind_involves_int :
+  ignorable_product_element_kind -> bool

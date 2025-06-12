@@ -44,7 +44,14 @@ let _ = baz ()
 
 (* TEST
  flags = "-g";
+ (* Turn off optimizations so inlining is consistent *)
+ set OCAMLPARAM = "_,";
  ocamlrunparam += ",b=1";
  exit_status = "2";
- skip;
+ runtime5;
+ {
+  reference="${test_source_directory}/backtrace_effects.byte.reference";
+  bytecode;
+ }
+ { native; }
 *)

@@ -1,0 +1,1 @@
+**** Vectorize selected computation: 4 groups, 8 scalar instructions, 7 vector instructions, cost = -1 (Test_arrays_vectorized.add_arrays_unrolled_manually)

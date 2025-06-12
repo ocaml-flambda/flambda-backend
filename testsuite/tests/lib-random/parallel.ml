@@ -1,7 +1,8 @@
 (* TEST
- flags += "-alert -unsafe_parallelism";
+ flags += "-alert -unsafe_parallelism -alert -unsafe_multidomain";
  include unix;
  runtime5;
+ multidomain;
  libunix;
  {
    bytecode;

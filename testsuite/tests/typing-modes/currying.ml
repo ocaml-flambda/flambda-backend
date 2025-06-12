@@ -390,7 +390,7 @@ Error: This application is complete, but surplus arguments were provided afterwa
 |}]
 
 let _ =
-  let f : _ -> (_ -> _) @@ once = fun _ -> fun x -> x in
+  let f : (_ -> (_ -> _)) @ once = fun _ -> fun x -> x in
   f "hello" "world"
 [%%expect{|
 Line 3, characters 2-11:
@@ -402,7 +402,7 @@ Error: This application is complete, but surplus arguments were provided afterwa
 |}]
 
 let _ =
-  let f : _ -> (_ -> _) @@ unique = fun _ -> fun x -> x in
+  let f : (_ -> (_ -> _)) @ unique = fun _ -> fun x -> x in
   f "hello" "world"
 [%%expect{|
 - : string = "world"
@@ -425,14 +425,14 @@ let _ =
 |}]
 
 let _ =
-  let f : _ -> (_ -> _) @@ nonportable = fun _ -> fun x -> x in
+  let f : (_ -> (_ -> _)) @ nonportable = fun _ -> fun x -> x in
   f "hello" "world"
 [%%expect{|
 - : string = "world"
 |}]
 
 let _ =
-  let f : _ -> (_ -> _) @@ uncontended = fun _ -> fun x -> x in
+  let f : (_ -> (_ -> _)) @ uncontended = fun _ -> fun x -> x in
   f "hello" "world"
 [%%expect{|
 - : string = "world"
@@ -442,13 +442,13 @@ let _ =
    the inferred type of [g] doesn't contain extra parenthesis, as they would
    if pushed to legacy; this is prevented by [check_curried_application_complete]. *)
 let f g x =
-  g (x: _ @@ once) x [@nontail]
+  g (x: _ @ once) x [@nontail]
 [%%expect{|
 val f : ('a @ once -> 'a -> 'b) -> 'a -> 'b = <fun>
 |}]
 
 let f g x y =
-  g (x: _ @@ unique) y [@nontail]
+  g (x: _ @ unique) y [@nontail]
 [%%expect{|
 val f : ('a -> 'b -> 'c) -> 'a @ unique -> 'b -> 'c = <fun>
 |}]
@@ -469,13 +469,13 @@ val f : ('a -> 'a -> 'b) @ once -> 'a -> 'b = <fun>
 
 (* portability and contention is not affected due to the choice of legacy modes. *)
 let f g x =
-  g (x: _ @@ nonportable) x [@nontail]
+  g (x: _ @ nonportable) x [@nontail]
 [%%expect{|
 val f : ('a -> 'a -> 'b) -> 'a -> 'b = <fun>
 |}]
 
 let f g x y =
-  g (x: _ @@ uncontended) y [@nontail]
+  g (x: _ @ uncontended) y [@nontail]
 [%%expect{|
 val f : ('a -> 'b -> 'c) -> 'a -> 'b -> 'c = <fun>
 |}]

@@ -74,6 +74,7 @@ type native_repr_kind = Unboxed | Untagged
 type jkind_sort_loc =
   | Cstr_tuple of { unboxed : bool }
   | Record of { unboxed : bool }
+  | Record_unboxed_product
   | Inlined_record of { unboxed : bool }
   | Mixed_product
   | External
@@ -99,14 +100,6 @@ type mixed_product_violation =
         max_value_prefix_len : int;
         mixed_product_kind : Mixed_product_kind.t;
       }
-  | Flat_field_expected of
-      { boxed_lbl : Ident.t;
-        non_value_lbl : Ident.t;
-      }
-  | Flat_constructor_arg_expected of
-      { boxed_arg : type_expr;
-        non_value_arg : type_expr;
-      }
   | Insufficient_level of
       { required_layouts_level : Language_extension.maturity;
         mixed_product_kind : Mixed_product_kind.t;
@@ -121,8 +114,10 @@ type error =
   | Duplicate_constructor of string
   | Too_many_constructors
   | Duplicate_label of string
+  | Unboxed_mutable_label
   | Recursive_abbrev of string * Env.t * reaching_type_path
   | Cycle_in_def of string * Env.t * reaching_type_path
+  | Unboxed_recursion of string * Env.t * reaching_type_path
   | Definition_mismatch of type_expr * Env.t * Includecore.type_mismatch option
   | Constraint_failed of Env.t * Errortrace.unification_error
   | Inconsistent_constraint of Env.t * Errortrace.unification_error
@@ -179,6 +174,9 @@ type error =
       ; expected: Path.t
       }
   | Non_abstract_reexport of Path.t
+  | Unsafe_mode_crossing_on_invalid_type_kind
+  | Illegal_baggage of jkind_l
+  | No_unboxed_version of Path.t
 
 exception Error of Location.t * error
 

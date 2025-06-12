@@ -108,6 +108,8 @@
                       core_type (extensions.ml[13,251+41]..[13,251+42])
                         Ptyp_constr "t" (extensions.ml[13,251+41]..[13,251+42])
                         []
+                  ptype_jkind_annotation =
+                    None
               ]
           ]
         expression (extensions.ml[13,251+47]..[13,251+74])
@@ -272,6 +274,8 @@
                           core_type (extensions.ml[23,534+35]..[23,534+36])
                             Ptyp_constr "t" (extensions.ml[23,534+35]..[23,534+36])
                             []
+                      ptype_jkind_annotation =
+                        None
                 ]
           ]
         core_type (extensions.ml[24,573+4]..[24,573+32])
@@ -311,6 +315,8 @@
                       core_type (extensions.ml[25,606+20]..[25,606+21])
                         Ptyp_constr "t" (extensions.ml[25,606+20]..[25,606+21])
                         []
+                  ptype_jkind_annotation =
+                    None
               ]
           ]
     ]

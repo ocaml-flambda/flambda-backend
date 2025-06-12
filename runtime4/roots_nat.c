@@ -651,8 +651,7 @@ void caml_do_local_roots_nat(scanning_action maj, scanning_action min,
   value * regs;
   frame_descr * d;
   uintnat h;
-  int i, j, n, ofs;
-  unsigned short * p;
+  int i, j;
   value * root;
   struct caml__roots_block *lr;
 
@@ -678,17 +677,21 @@ void caml_do_local_roots_nat(scanning_action maj, scanning_action min,
           for (p = dl->live_ofs, n = dl->num_live; n > 0; n--, p++) {
             uint32_t ofs = *p;
             if (ofs & 1) {
-              root = regs + (ofs >> 1);
+              /* Negative offset to scan xmm registers in amd64. */
+              root = regs + (((int32_t)ofs) >> 1);
             } else {
               root = (value *)(sp + ofs);
             }
             visit(maj, min, root);
           }
         } else {
+          unsigned short * p;
+          unsigned short n;
           for (p = d->live_ofs, n = d->num_live; n > 0; n--, p++) {
-            ofs = *p;
+            unsigned short ofs = *p;
             if (ofs & 1) {
-              root = regs + (ofs >> 1);
+              /* Negative offset to scan xmm registers in amd64. */
+              root = regs + (((signed short)ofs) >> 1);
             } else {
               root = (value *)(sp + ofs);
             }

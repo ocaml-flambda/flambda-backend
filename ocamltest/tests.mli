@@ -24,8 +24,6 @@ type t = {
 
 val null : t
 
-val does_nothing : t
-
 val compare : t -> t -> int
 
 val register : t -> unit
@@ -41,3 +39,5 @@ val run : out_channel -> Environments.t -> t -> Result.t * Environments.t
 val test_of_action : Actions.t -> t
 
 module TestSet : Set.S with type elt = t
+
+val does_something : t -> bool

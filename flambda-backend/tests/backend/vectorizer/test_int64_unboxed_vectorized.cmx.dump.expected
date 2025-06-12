@@ -1,0 +1,3 @@
+**** Vectorize selected computation: 5 groups, 10 scalar instructions, 5 vector instructions, cost = -5 (Test_int64_unboxed_vectorized.add_mutable_record)
+**** Vectorize selected computation: 2 groups, 4 scalar instructions, 2 vector instructions, cost = -2 (Test_int64_unboxed_vectorized.copy_mutable_record)
+**** Vectorize selected computation: 10 groups, 20 scalar instructions, 10 vector instructions, cost = -10 (Test_int64_unboxed_vectorized.add_fours_mutable_record)

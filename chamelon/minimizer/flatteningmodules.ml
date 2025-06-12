@@ -102,6 +102,12 @@ let rec replace_in_pat : type k. _ -> k general_pattern -> k general_pattern =
                 (fun (e1, e2, pat) -> (e1, e2, replace_in_pat mod_name pat))
                 r,
               a1 )
+      | O (Tpat_record_unboxed_product (r, a1)) ->
+          Tpat_record_unboxed_product
+            ( List.map
+                (fun (e1, e2, pat) -> (e1, e2, replace_in_pat mod_name pat))
+                r,
+              a1 )
       | O (Tpat_or (p1, p2, a1)) ->
           Tpat_or (replace_in_pat mod_name p1, replace_in_pat mod_name p2, a1)
       | O (Tpat_lazy pat) -> Tpat_lazy (replace_in_pat mod_name pat)

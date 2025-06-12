@@ -114,7 +114,7 @@ let compute_closure_types_inside_functions ~denv ~all_sets_of_closures
                    Function_declarations.code_id_in_function_declaration) ->
               match old_code_id with
               | Deleted _ -> Or_unknown_or_bottom.Unknown
-              | Code_id old_code_id ->
+              | Code_id { code_id = old_code_id; only_full_applications = _ } ->
                 let code_or_metadata = DE.find_code_exn denv old_code_id in
                 let new_code_id =
                   (* The types of the functions involved should reference the
@@ -217,7 +217,7 @@ let compute_old_to_new_code_ids_all_sets denv ~all_sets_of_closures =
              old_to_new_code_ids ->
           match old_code_id with
           | Deleted _ -> old_to_new_code_ids
-          | Code_id old_code_id ->
+          | Code_id { code_id = old_code_id; only_full_applications = _ } ->
             let code =
               try DE.find_code_exn denv old_code_id
               with Not_found ->

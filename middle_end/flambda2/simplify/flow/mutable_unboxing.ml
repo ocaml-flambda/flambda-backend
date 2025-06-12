@@ -690,9 +690,9 @@ let did_unbox_a_mutable_block result =
     result.blocks_to_unbox
 
 let make_result result =
-  let additionnal_epa = add_to_extra_params_and_args result in
+  let additional_epa = add_to_extra_params_and_args result in
   let let_rewrites = result.rewrites in
   let did_unbox_a_mutable_block = did_unbox_a_mutable_block result in
   ( T.Mutable_unboxing_result.
-      { did_unbox_a_mutable_block; additionnal_epa; let_rewrites },
+      { did_unbox_a_mutable_block; additional_epa; let_rewrites },
     Variable.Map.keys result.blocks_to_unbox )

@@ -1,4 +1,4 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 (* CR-soon xclerc for xclerc: try and unify Forward_transfer/Backward_transfer,
    and Forward_S/Backward_S. *)
@@ -83,8 +83,6 @@ module type Backward_transfer = sig
   val exception_ : domain -> context -> (domain, error) result
 end
 
-module Instr : Identifiable.S with type t = int
-
 module Dataflow_result : sig
   type ('a, 'e) t =
     | Ok of 'a
@@ -101,8 +99,8 @@ module type Backward_S = sig
 
   type _ map =
     | Block : domain Label.Tbl.t map
-    | Instr : domain Instr.Tbl.t map
-    | Both : (domain Instr.Tbl.t * domain Label.Tbl.t) map
+    | Instr : domain InstructionId.Tbl.t map
+    | Both : (domain InstructionId.Tbl.t * domain Label.Tbl.t) map
 
   val run :
     Cfg.t ->

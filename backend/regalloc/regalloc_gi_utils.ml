@@ -1,26 +1,21 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare
 open! Regalloc_utils
 module DLL = Flambda_backend_utils.Doubly_linked_list
 
-let gi_debug = true
-
 let gi_rng = Random.State.make [| 4; 6; 2 |]
 
-let bool_of_param param_name =
-  bool_of_param ~guard:(gi_debug, "gi_debug") param_name
+let log_function = lazy (make_log_function ~label:"gi")
 
-let gi_verbose : bool Lazy.t = bool_of_param "GI_VERBOSE"
+let indent () = (Lazy.force log_function).indent ()
 
-let gi_invariants : bool Lazy.t = bool_of_param "GI_INVARIANTS"
+let dedent () = (Lazy.force log_function).dedent ()
 
-let log_function =
-  lazy (make_log_function ~verbose:(Lazy.force gi_verbose) ~label:"gi")
+let reset_indentation () = (Lazy.force log_function).reset_indentation ()
 
-let log :
-    type a.
-    indent:int -> ?no_eol:unit -> (a, Format.formatter, unit) format -> a =
- fun ~indent ?no_eol fmt -> (Lazy.force log_function).log ~indent ?no_eol fmt
+let log : type a. ?no_eol:unit -> (a, Format.formatter, unit) format -> a =
+ fun ?no_eol fmt -> (Lazy.force log_function).log ?no_eol fmt
 
 let instr_prefix (instr : Cfg.basic Cfg.instruction) =
   Printf.sprintf "#%04d" instr.ls_order
@@ -29,19 +24,18 @@ let term_prefix (term : Cfg.terminator Cfg.instruction) =
   Printf.sprintf "#%04d" term.ls_order
 
 let log_body_and_terminator :
-    indent:int ->
     Cfg.basic_instruction_list ->
     Cfg.terminator Cfg.instruction ->
     liveness ->
     unit =
- fun ~indent body terminator liveness ->
+ fun body terminator liveness ->
   make_log_body_and_terminator (Lazy.force log_function) ~instr_prefix
-    ~term_prefix ~indent body terminator liveness
+    ~term_prefix body terminator liveness
 
-let log_cfg_with_infos : indent:int -> Cfg_with_infos.t -> unit =
- fun ~indent cfg_with_infos ->
+let log_cfg_with_infos : Cfg_with_infos.t -> unit =
+ fun cfg_with_infos ->
   make_log_cfg_with_infos (Lazy.force log_function) ~instr_prefix ~term_prefix
-    ~indent cfg_with_infos
+    cfg_with_infos
 
 (* CR xclerc for xclerc: add more heuristics *)
 module Priority_heuristics = struct
@@ -157,186 +151,6 @@ module Spilling_heuristics = struct
             (available_heuristics ())))
 end
 
-(* CR xclerc for xclerc: reuse `{Map,Set}.OrderedType`? *)
-module type Order = sig
-  type t
-
-  val compare : t -> t -> int
-
-  val to_string : t -> string
-end
-
-module type Priority_queue = sig
-  type priority
-
-  type 'a t
-
-  type 'a element =
-    { priority : priority;
-      data : 'a
-    }
-
-  val make : initial_capacity:int -> 'a t
-
-  val is_empty : 'a t -> bool
-
-  val size : 'a t -> int
-
-  val add : 'a t -> priority:priority -> data:'a -> unit
-
-  val get : 'a t -> 'a element
-
-  val remove : 'a t -> unit
-
-  val get_and_remove : 'a t -> 'a element
-
-  val iter : 'a t -> f:('a element -> unit) -> unit
-end
-
-(* CR xclerc for xclerc: some issues we might want to address with the
-   implementation below: - it uses `Obj.magic`; - `elements` can only grow. *)
-module Make_max_priority_queue (Priority : Order) :
-  Priority_queue with type priority = Priority.t = struct
-  type priority = Priority.t
-
-  type 'a element =
-    { priority : priority;
-      data : 'a
-    }
-
-  let dummy = { priority = Obj.magic 0; data = Obj.magic 0 }
-
-  let element_compare : 'a element -> 'a element -> int =
-   fun left right ->
-    assert (left != dummy);
-    assert (right != dummy);
-    Priority.compare left.priority right.priority
-
-  type 'a t =
-    { mutable size : int;
-      mutable elements : 'a element array
-    }
-
-  let make : initial_capacity:int -> 'a t =
-   fun ~initial_capacity ->
-    let size = 0 in
-    let elements = Array.make initial_capacity dummy in
-    { size; elements }
-
-  let is_empty : 'a t -> bool = fun queue -> queue.size = 0
-
-  let size : 'a t -> int = fun queue -> queue.size
-
-  let resize : 'a t -> unit =
-   fun queue ->
-    let current_capacity = Array.length queue.elements in
-    let new_capacity =
-      if current_capacity <= 2048
-      then 2 * current_capacity
-      else current_capacity + 2048
-    in
-    let new_elements = Array.make new_capacity dummy in
-    Array.blit ~src:queue.elements ~src_pos:0 ~dst:new_elements ~dst_pos:0
-      ~len:queue.size;
-    queue.elements <- new_elements
-
-  let parent : int -> int = fun i -> (i - 1) / 2
-
-  let left_child : int -> int = fun i -> (2 * i) + 1
-
-  let right_child : int -> int = fun i -> (2 * i) + 2
-
-  let swap : 'a element array -> int -> int -> unit =
-   fun arr i j ->
-    assert (arr.(i) != dummy);
-    assert (arr.(j) != dummy);
-    let tmp = arr.(i) in
-    arr.(i) <- arr.(j);
-    arr.(j) <- tmp
-
-  let upify : 'a element array -> start:int -> unit =
-   fun arr ~start ->
-    let i = ref start in
-    while !i > 0 && element_compare arr.(!i) arr.(parent !i) > 0 do
-      swap arr !i (parent !i);
-      i := parent !i
-    done
-
-  let rec downify : 'a element array -> idx:int -> len:int -> unit =
-   fun arr ~idx ~len ->
-    let left = left_child idx in
-    let right = right_child idx in
-    let largest = ref idx in
-    if left < len && element_compare arr.(left) arr.(!largest) > 0
-    then largest := left;
-    if right < len && element_compare arr.(right) arr.(!largest) > 0
-    then largest := right;
-    if !largest <> idx
-    then (
-      swap arr idx !largest;
-      downify arr ~idx:!largest ~len)
-
-  let rec add : 'a t -> priority:priority -> data:'a -> unit =
-   fun queue ~priority ~data ->
-    if Array.length queue.elements = queue.size
-    then (
-      resize queue;
-      add queue ~priority ~data)
-    else
-      let elem = { priority; data } in
-      let old_size = queue.size in
-      Array.unsafe_set queue.elements old_size elem;
-      queue.size <- succ old_size;
-      upify queue.elements ~start:old_size
-
-  let get : 'a t -> 'a element =
-   fun queue ->
-    match queue.size with
-    | 0 -> fatal "trying to get an element from an empty priority queue"
-    | _ ->
-      let res = Array.unsafe_get queue.elements 0 in
-      assert (res != dummy);
-      res
-
-  let remove : 'a t -> unit =
-   fun queue ->
-    match queue.size with
-    | 0 -> fatal "trying to remove an element from an empty priority queue"
-    | _ ->
-      let old_size = queue.size in
-      let index = pred old_size in
-      swap queue.elements 0 index;
-      queue.elements.(index) <- dummy;
-      queue.size <- pred old_size;
-      downify queue.elements ~idx:0 ~len:queue.size
-
-  let get_and_remove : 'a t -> 'a element =
-   fun queue ->
-    match queue.size with
-    | 0 ->
-      fatal "trying to get and remove an element from an empty priority queue"
-    | _ ->
-      let res = Array.unsafe_get queue.elements 0 in
-      assert (res != dummy);
-      remove queue;
-      res
-
-  let iter : 'a t -> f:('a element -> unit) -> unit =
-   fun queue ~f ->
-    for i = 0 to pred queue.size do
-      let elem = Array.unsafe_get queue.elements i in
-      assert (elem != dummy);
-      f elem
-    done
-end
-
-let iter_cfg_layout : Cfg_with_layout.t -> f:(Cfg.basic_block -> unit) -> unit =
- fun cfg_with_layout ~f ->
-  let cfg = Cfg_with_layout.cfg cfg_with_layout in
-  DLL.iter (Cfg_with_layout.layout cfg_with_layout) ~f:(fun label ->
-      let block = Cfg.get_block_exn cfg label in
-      f block)
-
 let iter_instructions_layout :
     Cfg_with_layout.t ->
     instruction:(trap_handler:bool -> Cfg.basic Cfg.instruction -> unit) ->
@@ -347,15 +161,18 @@ let iter_instructions_layout :
     let trap_handler_id =
       if block.is_trap_handler
       then Regalloc_utils.first_instruction_id block
-      else min_int
+      else InstructionId.none
     in
     DLL.iter block.body ~f:(fun instr ->
-        instruction ~trap_handler:(Int.equal instr.Cfg.id trap_handler_id) instr);
+        instruction
+          ~trap_handler:(InstructionId.equal instr.Cfg.id trap_handler_id)
+          instr);
     terminator
-      ~trap_handler:(Int.equal block.terminator.Cfg.id trap_handler_id)
+      ~trap_handler:
+        (InstructionId.equal block.terminator.Cfg.id trap_handler_id)
       block.terminator
   in
-  iter_cfg_layout cfg_with_layout ~f
+  Cfg_with_layout.iter_blocks cfg_with_layout ~f
 
 (* CR xclerc for xclerc: the code below is largely copied from the linscan
    allocator, because it is likely tweaks will be needed to implement the "full"
@@ -376,6 +193,7 @@ module Range = struct
 
   let rec overlap : t list -> t list -> bool =
    fun left right ->
+    (* CR-soon xclerc for xclerc: use the same version as linscan (cursors). *)
     match left, right with
     | left_hd :: left_tl, right_hd :: right_tl ->
       if left_hd.end_ >= right_hd.begin_ && right_hd.end_ >= left_hd.begin_
@@ -419,40 +237,67 @@ module Range = struct
 end
 
 module Interval = struct
+  (* CR-soon xclerc for xclerc: use a doubly-linked list for `ranges`, and do
+     not store bounds. *)
   type t =
-    { mutable begin_ : int;
-      mutable end_ : int;
+    { mutable begin_ : int option;
+      mutable end_ : int option;
+      (* The `begin_` and `end_` fields should always either both be `None`, or
+         they should both be `Some`. `Option.is_none begin_` <=> `List.is_empty
+         ranges`. *)
       mutable ranges : Range.t list
     }
 
   let make_empty () =
     (* CR xclerc for xclerc: avoid the non-sensical bounds. *)
-    { begin_ = max_int; end_ = max_int; ranges = [] }
+    { begin_ = None; end_ = None; ranges = [] }
 
   let length t =
     List.fold_left t.ranges ~init:0 ~f:(fun acc range ->
         acc + Range.length range)
 
+  let print_bound ppf print_bound =
+    match print_bound with
+    | None -> Format.fprintf ppf "-"
+    | Some bound -> Format.fprintf ppf "%d" bound
+
   let print ppf t =
-    Format.fprintf ppf "[%d,%d]:" t.begin_ t.end_;
+    Format.fprintf ppf "[%a,%a]:" print_bound t.begin_ print_bound t.end_;
     List.iter t.ranges ~f:(fun r -> Format.fprintf ppf " %a" Range.print r)
 
+  let is_before_or_alone : int option -> int option -> bool =
+   fun left right ->
+    match left, right with
+    | None, None | None, Some _ | Some _, None -> true
+    | Some left, Some right -> left < right
+
   let overlap : t -> t -> bool =
-   (* CR xclerc for xclerc: short-cut to avoid iterating over the lists using
-      the Interval.{begin_in_,end_} fields *)
-   fun left right -> Range.overlap left.ranges right.ranges
+   fun left right ->
+    if is_before_or_alone left.end_ right.begin_
+       || is_before_or_alone right.end_ left.begin_
+    then false
+    else Range.overlap left.ranges right.ranges
+
+  let[@inline] lift_opt op left right =
+    match left, right with
+    | None, None -> None
+    | None, (Some _ as value) | (Some _ as value), None -> value
+    | Some left, Some right -> Some (op left right)
 
   (* CR xclerc for xclerc: assumes no overlap *)
   let add_ranges : t -> from:t -> unit =
    fun t ~from ->
-    t.begin_ <- Int.min t.begin_ from.begin_;
-    t.end_ <- Int.min t.end_ from.end_;
+    t.begin_ <- lift_opt Int.min t.begin_ from.begin_;
+    t.end_ <- lift_opt Int.max t.end_ from.end_;
     t.ranges <- Range.merge t.ranges from.ranges
 end
 
 let build_intervals : Cfg_with_infos.t -> Interval.t Reg.Tbl.t =
  fun cfg_with_infos ->
-  if gi_debug then log ~indent:1 "build_intervals";
+  if debug
+  then (
+    log "build_intervals";
+    indent ());
   let cfg_with_layout = Cfg_with_infos.cfg_with_layout cfg_with_infos in
   let liveness = Cfg_with_infos.liveness cfg_with_infos in
   let past_ranges : Interval.t Reg.Tbl.t = Reg.Tbl.create 123 in
@@ -461,10 +306,10 @@ let build_intervals : Cfg_with_infos.t -> Interval.t Reg.Tbl.t =
     match Reg.Tbl.find_opt past_ranges reg with
     | None ->
       Reg.Tbl.replace past_ranges reg
-        { Interval.begin_; end_; ranges = [range] }
+        { Interval.begin_ = Some begin_; end_ = Some end_; ranges = [range] }
     | Some (interval : Interval.t) ->
       interval.ranges <- range :: interval.ranges;
-      interval.end_ <- end_
+      interval.end_ <- Some end_
   in
   let update_range (reg : Reg.t) ~(begin_ : int) ~(end_ : int) : unit =
     match Reg.Tbl.find_opt current_ranges reg with
@@ -493,7 +338,7 @@ let build_intervals : Cfg_with_infos.t -> Interval.t Reg.Tbl.t =
     instr.ls_order <- on;
     Array.iter instr.arg ~f:(fun reg -> update_range reg ~begin_:on ~end_:on);
     Array.iter instr.res ~f:(fun reg -> update_range reg ~begin_:off ~end_:off);
-    let live = Cfg_dataflow.Instr.Tbl.find liveness instr.id in
+    let live = InstructionId.Tbl.find liveness instr.id in
     Reg.Set.iter (fun reg -> update_range reg ~begin_:on ~end_:off) live.across;
     Array.iter destroyed ~f:(fun reg -> update_range reg ~begin_:off ~end_:off)
   in
@@ -516,34 +361,35 @@ let build_intervals : Cfg_with_infos.t -> Interval.t Reg.Tbl.t =
     (fun _reg (interval : Interval.t) ->
       interval.ranges <- List.rev interval.ranges)
     past_ranges;
-  if gi_debug && Lazy.force gi_verbose
+  if debug && Lazy.force verbose
   then
-    iter_cfg_layout cfg_with_layout ~f:(fun block ->
-        log ~indent:2 "(block %a)" Label.format block.start;
-        log_body_and_terminator ~indent:2 block.body block.terminator liveness);
+    Cfg_with_layout.iter_blocks cfg_with_layout ~f:(fun block ->
+        log "(block %a)" Label.format block.start;
+        log_body_and_terminator block.body block.terminator liveness);
+  if debug then dedent ();
   past_ranges
 
 module Hardware_register = struct
   type location =
-    { reg_class : int;
+    { reg_class : Reg_class.t;
       reg_index_in_class : int
     }
 
   let make_location ~reg_class ~reg_index_in_class =
-    if reg_class < 0 || reg_class >= Proc.num_register_classes
-    then fatal "invalid register class: %d" reg_class;
     if reg_index_in_class < 0
-       || reg_index_in_class >= Proc.num_available_registers.(reg_class)
+       || reg_index_in_class >= Reg_class.num_available_registers reg_class
     then
-      fatal "invalid register index: %d (class=%d)" reg_index_in_class reg_class;
+      fatal "invalid register index: %d (class=%a)" reg_index_in_class
+        Reg_class.print reg_class;
     { reg_class; reg_index_in_class }
 
   let print_location ppf { reg_class; reg_index_in_class } =
-    Format.fprintf ppf "{ cls=%d; idx=%d }" reg_class reg_index_in_class
+    Format.fprintf ppf "{ cls=%a; idx=%d }" Reg_class.print reg_class
+      reg_index_in_class
 
   let reg_location_of_location { reg_class; reg_index_in_class } =
     let reg_index =
-      Proc.first_available_register.(reg_class) + reg_index_in_class
+      Reg_class.first_available_register reg_class + reg_index_in_class
     in
     Reg.Reg reg_index
 
@@ -578,14 +424,13 @@ type available =
   | Split_or_spill
 
 module Hardware_registers = struct
-  type t = Hardware_register.t array array
-  (* first array index is register class, second array index is register
-     index *)
+  type t = Hardware_register.t array Reg_class.Tbl.t
+  (* array index is register index in class *)
 
   let make () =
-    Array.init Proc.num_register_classes ~f:(fun reg_class ->
+    Reg_class.Tbl.init ~f:(fun reg_class ->
         let num_available_registers =
-          Proc.num_available_registers.(reg_class)
+          Reg_class.num_available_registers reg_class
         in
         Array.init num_available_registers ~f:(fun reg_index_in_class ->
             let location =
@@ -596,39 +441,45 @@ module Hardware_registers = struct
               assigned = []
             }))
 
-  let of_reg (t : t) (reg : Reg.t) : Hardware_register.t =
+  let of_reg (t : t) (reg : Reg.t) : Hardware_register.t option =
     match reg.loc with
     | Reg reg_index ->
-      let reg_class : int = Proc.register_class reg in
+      let reg_class : Reg_class.t = Reg_class.of_machtype reg.typ in
       let reg_index_in_class : int =
-        reg_index - Proc.first_available_register.(reg_class)
+        reg_index - Reg_class.first_available_register reg_class
       in
-      t.(reg_class).(reg_index_in_class)
+      let hw_regs = Reg_class.Tbl.find t reg_class in
+      if reg_index_in_class < Array.length hw_regs
+      then Some hw_regs.(reg_index_in_class)
+      else None
     | Unknown -> fatal "`Unknown` location (expected `Reg _`)"
     | Stack _ -> fatal "`Stack _` location (expected `Reg _`)"
 
   let find_in_class (t : t) ~(of_reg : Reg.t) ~(f : Hardware_register.t -> bool)
       =
-    Array.find_opt t.(Proc.register_class of_reg) ~f
+    let reg_class = Reg_class.of_machtype of_reg.typ in
+    Array.find_opt (Reg_class.Tbl.find t reg_class) ~f
 
   let fold_class :
       type a.
       t -> of_reg:Reg.t -> f:(a -> Hardware_register.t -> a) -> init:a -> a =
    fun t ~of_reg ~f ~init ->
-    Array.fold_left t.(Proc.register_class of_reg) ~f ~init
+    let reg_class = Reg_class.of_machtype of_reg.typ in
+    Array.fold_left (Reg_class.Tbl.find t reg_class) ~f ~init
 
-  let actual_cost (reg : Reg.t) : int =
+  let actual_cost (costs : SpillCosts.t) (reg : Reg.t) : int =
     (* CR xclerc for xclerc: it could make sense to give a lower cost to reg
        already spilled (e.g. by the split preprocessing) since they already have
        a stack slot *)
-    reg.Reg.spill_cost
+    SpillCosts.for_reg costs reg
 
   let overlap (hardware_reg : Hardware_register.t) (interval : Interval.t) :
       bool =
-    if gi_debug
-    then
-      log ~indent:4 "considering %a" Hardware_register.print_location
+    if debug
+    then (
+      log "considering %a" Hardware_register.print_location
         hardware_reg.location;
+      indent ());
     let overlap_hard : bool = Interval.overlap interval hardware_reg.interval in
     let overlap_assigned =
       List.exists hardware_reg.assigned
@@ -637,10 +488,11 @@ module Hardware_registers = struct
            -> Interval.overlap itv interval)
     in
     let overlap = overlap_hard || overlap_assigned in
-    if gi_debug
-    then
-      log ~indent:5 "overlap=%B (hard=%B, assigned=%B)" overlap overlap_hard
+    if debug
+    then (
+      log "overlap=%B (hard=%B, assigned=%B)" overlap overlap_hard
         overlap_assigned;
+      dedent ());
     overlap
 
   let find_first (t : t) (reg : Reg.t) (interval : Interval.t) :
@@ -663,18 +515,20 @@ module Hardware_registers = struct
             else acc)
     |> Option.map fst
 
-  let find_evictable (t : t) (reg : Reg.t) (interval : Interval.t) : available =
+  let find_evictable (t : t) (costs : SpillCosts.t) (reg : Reg.t)
+      (interval : Interval.t) : available =
     let eviction =
       fold_class t ~of_reg:reg ~init:None ~f:(fun acc hardware_reg ->
-          if gi_debug
+          if debug
           then
-            log ~indent:4 "considering %a (length=%d)"
-              Hardware_register.print_location hardware_reg.location
+            log "considering %a (length=%d)" Hardware_register.print_location
+              hardware_reg.location
               (List.length hardware_reg.assigned);
           let overlap_hard = Interval.overlap interval hardware_reg.interval in
           if overlap_hard
           then acc
-          else
+          else (
+            if debug then indent ();
             let overlaping : Hardware_register.assigned list =
               List.filter hardware_reg.assigned
                 ~f:(fun
@@ -684,10 +538,10 @@ module Hardware_registers = struct
                      }
                    ->
                   let overlap = Interval.overlap interval itv in
-                  if gi_debug
+                  if debug
                   then
-                    log ~indent:5 "%a is assigned / overlap=%B" Printreg.reg
-                      pseudo_reg overlap;
+                    log "%a is assigned / overlap=%B" Printreg.reg pseudo_reg
+                      overlap;
                   overlap)
             in
             (match overlaping with
@@ -699,60 +553,57 @@ module Hardware_registers = struct
                      (acc_cost, acc_evictable)
                      { Hardware_register.pseudo_reg; interval = _; evictable }
                    ->
-                  acc_cost + actual_cost pseudo_reg, acc_evictable && evictable)
+                  ( acc_cost + actual_cost costs pseudo_reg,
+                    acc_evictable && evictable ))
             in
+            if debug then dedent ();
             if not evictable
             then acc
             else
               let evict_cost =
                 match acc with None -> max_int | Some (_, _, c) -> c
               in
-              if cost < evict_cost && cost < actual_cost reg
+              if cost < evict_cost && cost < actual_cost costs reg
               then (
-                if gi_debug
+                if debug
                 then
                   List.iter overlaping ~f:(fun assigned ->
-                      log ~indent:5 "evicting %a"
-                        Hardware_register.print_assigned assigned);
+                      log "evicting %a" Hardware_register.print_assigned
+                        assigned);
                 Some (hardware_reg, overlaping, cost))
-              else acc)
+              else acc))
     in
     match eviction with
     | Some (hardware_reg, evicted_regs, _) ->
       For_eviction { hardware_reg; evicted_regs }
     | None -> Split_or_spill
 
-  let find_available : t -> Reg.t -> Interval.t -> available =
-   fun t reg interval ->
+  let find_available : t -> SpillCosts.t -> Reg.t -> Interval.t -> available =
+   fun t costs reg interval ->
     let with_no_overlap =
       let heuristic =
         match Lazy.force Selection_heuristics.value with
         | Selection_heuristics.Random_for_testing ->
           Selection_heuristics.random ()
-        | heuristic -> heuristic
+        | (First_available | Best_fit | Worst_fit) as heuristic -> heuristic
       in
       match heuristic with
       | Selection_heuristics.Random_for_testing -> assert false
       | Selection_heuristics.First_available ->
-        if gi_debug
-        then
-          log ~indent:3
-            "trying to find an available register with 'first-available'";
+        if debug
+        then log "trying to find an available register with 'first-available'";
         find_first t reg interval
       | Selection_heuristics.Best_fit ->
-        if gi_debug
-        then
-          log ~indent:3 "trying to find an available register with 'best-fit'";
+        if debug then log "trying to find an available register with 'best-fit'";
         find_using_length t reg interval ~better:( > )
       | Selection_heuristics.Worst_fit ->
-        if gi_debug
-        then
-          log ~indent:3 "trying to find an available register with 'worst-fit'";
+        if debug
+        then log "trying to find an available register with 'worst-fit'";
         find_using_length t reg interval ~better:( < )
     in
     match with_no_overlap with
     | Some hardware_reg -> For_assignment { hardware_reg }
     | None ->
-      if gi_debug then log ~indent:3 "trying to find an evictable register";
-      find_evictable t reg interval
+      if debug then log "trying to find an evictable register";
+      find_evictable t costs reg interval
 end

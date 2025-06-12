@@ -34,7 +34,10 @@
 #include "caml/prims.h"
 #include "caml/signals.h"
 #include "caml/gc_ctrl.h"
+#include "caml/fiber.h"
+#include "caml/platform.h"
 
+#include <pthread.h>
 #include <sys/resource.h>
 
 #ifdef _WIN32
@@ -46,42 +49,61 @@ extern void caml_win32_unregister_overflow_detection (void);
 static struct caml_params params;
 const struct caml_params* const caml_params = &params;
 
+static size_t get_pthreads_stack_size_in_bytes(void)
+{
+  pthread_attr_t attr;
+  size_t res =
+    // default value, retrieved from a recent system (May 2024)
+    8 * 1024 * 1024;
+  if (pthread_attr_init(&attr) == 0) {
+    pthread_attr_getstacksize(&attr, &res);
+    pthread_attr_destroy(&attr);
+  }
+  return res;
+}
+
 static void init_startup_params(void)
 {
 #ifndef NATIVE_CODE
   char_os * cds_file;
 #endif
 
-  uintnat init_main_stack_wsz;
+  // Initial stack sizes only apply in native code with stack checks disabled.
+
   struct rlimit rlimit;
   if (getrlimit(RLIMIT_STACK, &rlimit)) {
     // default value, retrieved from a recent system (May 2024)
-    init_main_stack_wsz = Wsize_bsize(8192 * 1024);
+    caml_init_main_stack_wsz = Wsize_bsize(8192 * 1024);
   } else {
     if (rlimit.rlim_cur == RLIM_INFINITY) {
-      init_main_stack_wsz = Max_stack_def;
+      caml_init_main_stack_wsz = Max_stack_def;
     } else {
-      init_main_stack_wsz = Wsize_bsize(rlimit.rlim_cur);
+      caml_init_main_stack_wsz = Wsize_bsize(rlimit.rlim_cur);
     }
   }
-  if (init_main_stack_wsz > Max_stack_def) {
-    init_main_stack_wsz = Max_stack_def;
+  if (caml_init_main_stack_wsz > Max_stack_def) {
+    caml_init_main_stack_wsz = Max_stack_def;
   }
 
+  caml_init_thread_stack_wsz = Wsize_bsize(get_pthreads_stack_size_in_bytes());
+  caml_init_fiber_stack_wsz = caml_init_thread_stack_wsz;
+
   params.init_percent_free = Percent_free_def;
+  params.init_max_percent_free = Max_percent_free_def;
   params.init_minor_heap_wsz = Minor_heap_def;
   params.init_custom_major_ratio = Custom_major_ratio_def;
   params.init_custom_minor_ratio = Custom_minor_ratio_def;
   params.init_custom_minor_max_bsz = Custom_minor_max_bsz_def;
-  params.init_main_stack_wsz = init_main_stack_wsz;
-  params.init_thread_stack_wsz = 0;
+  params.init_major_heap_increment = Heap_chunk_def;
   params.init_max_stack_wsz = Max_stack_def;
+  params.max_domains = Max_domains_def;
   params.runtime_events_log_wsize = Default_runtime_events_log_wsize;
+  params.use_hugetlb_pages = 0;
 
 #ifdef DEBUG
   // Silenced in flambda-backend to make it easier to run tests that
   // check program output.
-  // atomic_store_relaxed(&caml_verb_gc, 0x3F);
+  // atomic_store_relaxed(&caml_verb_gc, CAML_GC_MSG_VERBOSE | CAML_GC_MSG_MINOR);
 #endif
 #ifndef NATIVE_CODE
   cds_file = caml_secure_getenv(T("CAML_DEBUG_FILE"));
@@ -111,6 +133,89 @@ static void scanmult (char_os *opt, uintnat *var)
   }
 }
 
+static void parse_gc_tweak(char_os** opt_p)
+{
+  char_os *opt = *opt_p;
+  char_os *name = opt;
+  while (*opt != '\0') {
+    if (*opt == '=') {
+      if (opt - name == sizeof("help") -1 &&
+          memcmp(name, "help", opt - name) == 0) { /* TODO: strncmp_os */
+        fprintf(stderr, "Known GC tweaks:\n");
+        caml_print_gc_tweaks();
+      } else {
+        uintnat* p = caml_lookup_gc_tweak(name, opt - name);
+        if (p == NULL) {
+          fprintf(stderr, "Ignored unknown GC tweak '%.*s'. "
+                  "Use 'Xhelp=1' to list known tweaks\n",
+                  (int)(opt - name), name);
+        } else {
+          scanmult(opt, p);
+        }
+      }
+      break;
+    } else {
+      opt++;
+    }
+  }
+  *opt_p = opt;
+}
+
+
+static void parse_ocamlrunparam(char_os* opt)
+{
+  if (opt != NULL){
+    while (*opt != '\0'){
+      switch (*opt++){
+      /* keep in sync with runtime4 and with caml_runtime_parameters() */
+      case 'a': break; /* Allocation policy in runtime 4 */
+      case 'b': scanmult (opt, &params.backtrace_enabled); break;
+      case 'c': scanmult (opt, &params.cleanup_on_exit); break;
+      case 'd': scanmult (opt, &params.max_domains); break;
+      case 'e': scanmult (opt, &params.runtime_events_log_wsize); break;
+      case 'h': break; /* init heap size in runtime 4 */
+      case 'H': scanmult (opt, &params.use_hugetlb_pages); break;
+      case 'i': scanmult (opt, &params.init_major_heap_increment); break;
+      case 'l': scanmult (opt, &params.init_max_stack_wsz); break;
+      case 'm': scanmult (opt, &params.init_custom_minor_ratio); break;
+      case 'M': scanmult (opt, &params.init_custom_major_ratio); break;
+      case 'n': scanmult (opt, &params.init_custom_minor_max_bsz); break;
+      case 'o': scanmult (opt, &params.init_percent_free); break;
+      case 'O': scanmult (opt, &params.init_max_percent_free); break;
+      case 'p': scanmult (opt, &params.parser_trace); break;
+      case 'R': break; /*  see stdlib/hashtbl.mli */
+      case 's': scanmult (opt, &params.init_minor_heap_wsz); break;
+      case 't': scanmult (opt, &params.trace_level); break;
+      case 'v': scanmult (opt, (uintnat *)&caml_verb_gc); break;
+      case 'V': scanmult (opt, &params.verify_heap); break;
+      case 'w': break; /* major window in runtime 4 */
+      case 'W': scanmult (opt, &caml_runtime_warnings); break;
+      case 'X': parse_gc_tweak(&opt); break;
+      case ',': continue;
+      }
+      while (*opt != '\0'){
+        if (*opt++ == ',') break;
+      }
+    }
+  }
+
+  /* Validate */
+  if (params.max_domains < 1) {
+    caml_fatal_error("OCAMLRUNPARAM: max_domains(d) must be at least 1");
+  }
+  if (params.max_domains > Max_domains_max) {
+    caml_fatal_error("OCAMLRUNPARAM: max_domains(d) is too large. "
+                     "The maximum value is %d.", Max_domains_max);
+  }
+}
+
+#ifdef NATIVE_CODE
+// Any default parameters added to an ocaml executable by passing -ocamlrunparam
+// to the compiler.
+// See asmcomp/asmlink.ml
+extern char caml_ocamlrunparam[];
+#endif
+
 void caml_parse_ocamlrunparam(void)
 {
   init_startup_params();
@@ -119,60 +224,12 @@ void caml_parse_ocamlrunparam(void)
   char_os *opt = caml_secure_getenv (T("OCAMLRUNPARAM"));
   if (opt == NULL) opt = caml_secure_getenv (T("CAMLRUNPARAM"));
 
-  if (opt != NULL){
-    while (*opt != '\0'){
-      switch (*opt++){
-      case 'b': scanmult (opt, &params.backtrace_enabled); break;
-      case 'c': scanmult (opt, &params.cleanup_on_exit); break;
-      case 'e': scanmult (opt, &params.runtime_events_log_wsize); break;
-      case 'i': scanmult (opt, &params.init_main_stack_wsz); break;
-      case 'j': scanmult (opt, &params.init_thread_stack_wsz); break;
-      case 'l': scanmult (opt, &params.init_max_stack_wsz); break;
-      case 'M': scanmult (opt, &params.init_custom_major_ratio); break;
-      case 'm': scanmult (opt, &params.init_custom_minor_ratio); break;
-      case 'n': scanmult (opt, &params.init_custom_minor_max_bsz); break;
-      case 'o': scanmult (opt, &params.init_percent_free); break;
-      case 'p': scanmult (opt, &params.parser_trace); break;
-      case 'R': break; /*  see stdlib/hashtbl.mli */
-      case 's': scanmult (opt, &params.init_minor_heap_wsz); break;
-      case 't': scanmult (opt, &params.trace_level); break;
-      case 'v': scanmult (opt, (uintnat *)&caml_verb_gc); break;
-      case 'V': scanmult (opt, &params.verify_heap); break;
-      case 'W': scanmult (opt, &caml_runtime_warnings); break;
-      case 'X': {
-        char_os *name = opt;
-        while (*opt != '\0') {
-          if (*opt == '=') {
-            if (opt - name == strlen("help") &&
-                memcmp(name, "help", opt - name) == 0) {
-              fprintf(stderr, "Known GC tweaks:\n");
-              caml_print_gc_tweaks();
-            } else {
-              uintnat* p = caml_lookup_gc_tweak(name, opt - name);
-              if (p == NULL) {
-                fprintf(stderr, "Ignored unknown GC tweak '%.*s'. "
-                        "Use 'Xhelp=1' to list known tweaks\n",
-                        (int)(opt - name), name);
-              } else {
-                scanmult(opt, p);
-              }
-            }
-            break;
-          } else {
-            opt++;
-          }
-        }
-        break;
-      }
-      case ',': continue;
-      }
-      while (*opt != '\0'){
-        if (*opt++ == ',') break;
-      }
-    }
-  }
-}
+#ifdef NATIVE_CODE
+  parse_ocamlrunparam(caml_ocamlrunparam);
+#endif
 
+  parse_ocamlrunparam(opt);
+}
 
 /* The number of outstanding calls to caml_startup */
 static int startup_count = 0;

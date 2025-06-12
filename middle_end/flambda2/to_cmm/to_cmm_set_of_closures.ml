@@ -149,11 +149,12 @@ end = struct
     | Value_slot { value_slot; is_scanned; size } ->
       let simple = Value_slot.Map.find value_slot value_slots in
       let kind = Value_slot.kind value_slot in
-      if (not
-            (Flambda_kind.equal
-               (Flambda_kind.With_subkind.kind kind)
-               Flambda_kind.value))
-         && is_scanned
+      let kind_with_subkind =
+        if Value_slot.is_always_immediate value_slot
+        then KS.tagged_immediate
+        else KS.anything kind
+      in
+      if (not (Flambda_kind.equal kind Flambda_kind.value)) && is_scanned
       then
         Misc.fatal_errorf
           "Value slot %a not of kind Value (%a) but is visible by GC"
@@ -162,7 +163,7 @@ end = struct
       let env, res, fields, chunk_acc, updates =
         match contents with
         | `Expr field ->
-          let chunk = C.memory_chunk_of_kind kind in
+          let chunk = C.memory_chunk_of_kind kind_with_subkind in
           let chunk_acc =
             rev_append_chunks ~for_static_sets [chunk] chunk_acc
           in
@@ -179,11 +180,9 @@ end = struct
               } ->
             let update_kind =
               let module UK = C.Update_kind in
-              match KS.kind kind with
+              match kind with
               | Value ->
-                if KS.Non_null_value_subkind.equal
-                     (KS.non_null_value_subkind kind)
-                     Tagged_immediate
+                if Value_slot.is_always_immediate value_slot
                 then UK.tagged_immediates
                 else UK.pointers
               | Naked_number Naked_immediate
@@ -198,7 +197,7 @@ end = struct
               | Naked_number Naked_float32 -> UK.naked_float32_fields
               | Region | Rec_info ->
                 Misc.fatal_errorf "Unexpected value slot kind for %a: %a"
-                  Value_slot.print value_slot KS.print kind
+                  Value_slot.print value_slot Flambda_kind.print kind
             in
             let env, res, updates =
               C.make_update env res dbg update_kind
@@ -233,7 +232,7 @@ end = struct
           List.rev_append (P.define_symbol (R.symbol res function_symbol)) acc
       in
       match code_id with
-      | Code_id code_id -> (
+      | Code_id { code_id; only_full_applications } -> (
         let code_symbol =
           R.symbol_of_code_id res ~currently_in_inlined_body:false code_id
         in
@@ -275,12 +274,16 @@ end = struct
                store code ID %a which is classified as \
                Full_and_partial_application (so the expected size is 3)"
               Function_slot.print function_slot size Code_id.print code_id;
+          let curry_code_pointer =
+            if only_full_applications
+            then P.term_of_symbol ~dbg C.fail_if_called_indirectly_sym
+            else
+              P.term_of_symbol ~dbg
+                (C.curry_function_sym kind params_ty result_ty)
+          in
           let acc =
             P.term_of_symbol ~dbg code_symbol
-            :: P.int ~dbg closure_info
-            :: P.term_of_symbol ~dbg
-                 (C.curry_function_sym kind params_ty result_ty)
-            :: acc
+            :: P.int ~dbg closure_info :: curry_code_pointer :: acc
           in
           ( acc,
             rev_append_chunks ~for_static_sets
@@ -425,7 +428,8 @@ let transl_check_attrib : Zero_alloc_attribute.t -> Cmm.codegen_option list =
   | Default_zero_alloc -> []
   | Assume { strict; never_returns_normally; never_raises; loc } ->
     [Assume_zero_alloc { strict; never_returns_normally; never_raises; loc }]
-  | Check { strict; loc } -> [Check_zero_alloc { strict; loc }]
+  | Check { strict; loc; custom_error_msg } ->
+    [Check_zero_alloc { strict; loc; custom_error_msg }]
 
 (* Translation of the bodies of functions. *)
 
@@ -458,23 +462,34 @@ let params_and_body0 env res code_id ~result_arity ~fun_dbg
     Env.enter_function_body env ~return_continuation ~return_continuation_arity
       ~exn_continuation
   in
-  (* [my_region] can be referenced in [Begin_try_region] primitives so must be
-     in the environment; however it should never end up in actual generated
-     code, so we don't need any binder for it (this is why we can ignore
+  (* [my_region] can be referenced in [Begin_region] primitives so must be in
+     the environment; however it should never end up in actual generated code,
+     so we don't need any binder for it (this is why we can ignore
      [_bound_var]). If it does end up in generated code, Selection will complain
      and refuse to compile the code. *)
-  let env, my_region_var = Env.create_bound_parameter env my_region in
+  let env, my_region_var =
+    match my_region with
+    | None -> env, None
+    | Some my_region ->
+      let env, region = Env.create_bound_parameter env my_region in
+      env, Some region
+  in
   (* Similarly for [my_ghost_region]. *)
   let env, my_ghost_region_var =
-    Env.create_bound_parameter env my_ghost_region
+    match my_ghost_region with
+    | None -> env, None
+    | Some my_ghost_region ->
+      let env, region = Env.create_bound_parameter env my_ghost_region in
+      env, Some region
   in
   (* Translate the arg list and body *)
   let env, fun_params = C.function_bound_parameters env params in
   let fun_body, fun_body_free_vars, res = translate_expr env res body in
   let fun_free_vars =
     C.remove_vars_with_machtype
-      (C.remove_var_with_provenance
-         (C.remove_var_with_provenance fun_body_free_vars my_ghost_region_var)
+      (C.remove_var_opt_with_provenance
+         (C.remove_var_opt_with_provenance fun_body_free_vars
+            my_ghost_region_var)
          my_region_var)
       fun_params
   in
@@ -550,7 +565,7 @@ let debuginfo_for_set_of_closures env set =
          ->
            match code_id with
            | Deleted { dbg; _ } -> dbg
-           | Code_id code_id ->
+           | Code_id { code_id; only_full_applications = _ } ->
              Code_metadata.dbg (Env.get_code_metadata env code_id))
     |> List.sort Debuginfo.compare
   in

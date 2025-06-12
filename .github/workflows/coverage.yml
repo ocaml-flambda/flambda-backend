@@ -89,8 +89,8 @@ jobs:
 #         BUILD_OCAMLPARAM: ${{ matrix.ocamlparam }}
 #
 #     - name: Publish coverage report
-#       uses: actions/upload-artifact@v3
+#       uses: actions/upload-artifact@v4
 #       with:
-#         name: coverage
+#         name: coverage-${{ github.sha }}
 #         path: flambda_backend/_coverage/**
 #

@@ -121,7 +121,7 @@ val mkTpat_var :
   ?id:tpat_var_identifier -> Ident.t * string Location.loc -> value pattern_desc
 
 val mkTpat_alias :
-  ?id:tpat_alias_identifier ->
+  id:tpat_alias_identifier ->
   value general_pattern * Ident.t * string Location.loc ->
   value pattern_desc
 

@@ -26,7 +26,6 @@ open Mode
 open Typedtree
 open Btype
 open Ctype
-open Uniqueness_analysis
 
 type comprehension_type =
   | List_comprehension
@@ -57,14 +56,16 @@ type type_expected = {
 }
 
 module Datatype_kind = struct
-  type t = Record | Variant
+  type t = Record | Record_unboxed_product | Variant
 
   let type_name = function
     | Record -> "record"
+    | Record_unboxed_product -> "unboxed record"
     | Variant -> "variant"
 
   let label_name = function
     | Record -> "field"
+    | Record_unboxed_product -> "unboxed record field"
     | Variant -> "constructor"
 end
 
@@ -82,9 +83,16 @@ type wrong_kind_context =
 type wrong_kind_sort =
   | Constructor
   | Record
+  | Record_unboxed_product
   | Boolean
   | List
   | Unit
+
+let record_form_to_wrong_kind_sort
+  : type rep. rep record_form -> wrong_kind_sort =
+  function
+  | Legacy -> Record
+  | Unboxed_product -> Record_unboxed_product
 
 type contains_gadt =
   | Contains_gadt
@@ -116,6 +124,10 @@ type contention_context =
   | Write_mutable
   | Force_lazy
 
+type visibility_context =
+  | Read_mutable
+  | Write_mutable
+
 type unsupported_stack_allocation =
   | Lazy
   | Module
@@ -136,7 +148,8 @@ type error =
   | Partial_tuple_pattern_bad_type
   | Extra_tuple_label of string option * type_expr
   | Missing_tuple_label of string option * type_expr
-  | Label_mismatch of Longident.t * Errortrace.unification_error
+  | Label_mismatch of
+      record_form_packed * Longident.t * Errortrace.unification_error
   | Pattern_type_clash :
       Errortrace.unification_error * Parsetree.pattern_desc option -> error
   | Or_pattern_type_clash of Ident.t * Errortrace.unification_error
@@ -172,7 +185,7 @@ type error =
     }
   | Apply_wrong_label of arg_label * type_expr * bool
   | Label_multiply_defined of string
-  | Label_missing of Ident.t list
+  | Label_missing of record_form_packed * Ident.t list
   | Label_not_mutable of Longident.t
   | Wrong_name of string * type_expected * wrong_name
   | Name_type_mismatch of
@@ -238,11 +251,15 @@ type error =
   | Unbound_existential of Ident.t list * type_expr
   | Missing_type_constraint
   | Wrong_expected_kind of wrong_kind_sort * wrong_kind_context * type_expr
-  | Expr_not_a_record_type of type_expr
+  | Wrong_expected_record_boxing of
+      wrong_kind_context * record_form_packed * type_expr
+  | Expr_not_a_record_type of record_form_packed * type_expr
+  | Expr_record_type_has_wrong_boxing of record_form_packed * type_expr
   | Submode_failed of
       Value.error * submode_reason *
       Env.locality_context option *
       contention_context option *
+      visibility_context option *
       Env.shared_context option
   | Curried_application_complete of
       arg_label * Mode.Alloc.error * [`Prefix|`Single_arg|`Entire_apply]
@@ -257,12 +274,16 @@ type error =
   | Exclave_returns_not_local
   | Unboxed_int_literals_not_supported
   | Function_type_not_rep of type_expr * Jkind.Violation.t
+  | Record_projection_not_rep of type_expr * Jkind.Violation.t
+  | Record_not_rep of type_expr * Jkind.Violation.t
   | Invalid_label_for_src_pos of arg_label
   | Nonoptional_call_pos_label of string
   | Cannot_stack_allocate of Env.locality_context option
   | Unsupported_stack_allocation of unsupported_stack_allocation
   | Not_allocation
   | Impossible_function_jkind of type_expr * jkind_lr
+  | Overwrite_of_invalid_term
+  | Unexpected_hole
 
 exception Error of Location.t * Env.t * error
 exception Error_forward of Location.error
@@ -284,7 +305,8 @@ let error_of_filter_arrow_failure ~explanation ~first ty_fun
 
 let type_module =
   ref ((fun _env _md -> assert false) :
-       Env.t -> Parsetree.module_expr -> Typedtree.module_expr * Shape.t)
+       Env.t -> Parsetree.module_expr -> Typedtree.module_expr * Shape.t *
+        Env.locks)
 
 (* Forward declaration, to be filled in by Typemod.type_open *)
 
@@ -374,6 +396,9 @@ type expected_mode =
     contention_context : contention_context option;
     (** Explains why contention axis of [mode] is low. *)
 
+    visibility_context : visibility_context option;
+    (** Explains why visibility axis of [mode] is low. *)
+
     mode : Value.r;
     (** The upper bound, hence r (right) *)
 
@@ -452,12 +477,13 @@ let check_tail_call_local_returning loc env ap_mode {region_mode; _} =
 
 let meet_regional mode =
   let mode = Value.disallow_left mode in
-  Value.meet_with (Comonadic Areality) Regionality.Const.Regional mode
+  Value.meet_with Areality Regionality.Const.Regional mode
 
 let mode_default mode =
   { position = RNontail;
     locality_context = None;
     contention_context = None;
+    visibility_context = None;
     mode = Value.disallow_left mode;
     strictly_local = false;
     tuple_modes = None }
@@ -507,10 +533,15 @@ let mode_with_position mode position =
 let mode_max_with_position position =
   { mode_max with position }
 
+(** Take the expected mode of [exclave_ exp], return the expected mode of [exp].
+    [expected_mode] must be higher than [regional]. *)
 let mode_exclave expected_mode =
   let mode =
-    Value.join_with (Comonadic Areality)
-      Regionality.Const.Local (as_single_mode expected_mode)
+     as_single_mode expected_mode
+     (* if we expect an exclave to be [regional], then inside the exclave the
+        body should be [local] *)
+     |> value_to_alloc_r2l
+     |> alloc_as_value
   in
   { (mode_default mode)
     with strictly_local = true
@@ -526,15 +557,26 @@ let mode_coerce mode expected_mode =
 
 let mode_lazy expected_mode =
   let expected_mode =
-    mode_coerce (Value.max_with (Comonadic Areality) Regionality.global)
+    mode_coerce (
+      Value.max_with (Comonadic Areality) Regionality.global
+      |> Value.meet_with Yielding Yielding.Const.Unyielding)
       expected_mode
   in
+  let mode_crossing =
+    Crossing.of_bounds {
+      comonadic = {
+        Alloc.Comonadic.Const.max with
+        (* The thunk is evaluated only once, so we only require it to be [once],
+          even if the [lazy] is [many]. *)
+        linearity = Many;
+        (* The thunk is evaluated only when the [lazy] is [uncontended], so we
+          only require it to be [nonportable], even if the [lazy] is [portable].
+          *)
+        portability = Portable };
+      monadic = Alloc.Monadic.Const.min }
+  in
   let closure_mode =
-    expected_mode
-    |> as_single_mode
-    (* The thunk is evaluated only once, so we only require it to be [once],
-       even if the [lazy] is [many]. *)
-    |> Value.join_with (Comonadic Linearity) Linearity.Const.Once
+    expected_mode |> as_single_mode |> Crossing.apply_right mode_crossing
   in
   {expected_mode with locality_context = Some Lazy }, closure_mode
 
@@ -598,9 +640,10 @@ let submode ~loc ~env ?(reason = Other) ?shared_context mode expected_mode =
   | Error failure_reason ->
       let locality_context = expected_mode.locality_context in
       let contention_context = expected_mode.contention_context in
+      let visibility_context = expected_mode.visibility_context in
       let error =
         Submode_failed(failure_reason, reason, locality_context,
-          contention_context, shared_context)
+          contention_context, visibility_context, shared_context)
       in
       raise (Error(loc, env, error))
 
@@ -631,7 +674,9 @@ let tuple_pat_mode mode tuple_modes =
 
 let global_pat_mode {mode; _}=
   let mode =
-    Value.meet_with (Comonadic Areality) Regionality.Const.Global mode
+    mode
+    |> Value.meet_with Areality Regionality.Const.Global
+    |> Value.meet_with Yielding Yielding.Const.Unyielding
   in
   simple_pat_mode mode
 
@@ -675,6 +720,49 @@ let optimise_allocations () =
       |> ignore)
     !allocations;
   reset_allocations ()
+
+(** We keep this state which is passed as an optional argument throughout
+    the typechecker. It goes through the following life-cycle:
+    - It starts as No_overwrite
+    - Once we find an Texp_overwrite, we create an Overwriting()
+    - If we find a constructor with inlined record, we specialize
+        the Overwriting to the type/mode of the inlined record
+    - Once we find an allocation, we pass an Assigning() to the fields
+    - If the fields are a Texp_hole, we use the stored type/mode.
+    - We reset the state to No_overwrite *)
+type overwrite =
+  | No_overwrite
+  | Overwriting of
+      Location.t *      (* location of expression being overwritten *)
+      Types.type_expr * (* type of expression *)
+      Value.l           (* mode of kept fields *)
+  | Assigning of
+      Types.type_expr * (* type of expression *)
+      Value.l           (* mode of kept fields *)
+
+(** A version of [overwrite] for passing to [type_label_exp], which requires
+    the type of the *record* and the mode of the *label*. *)
+type label_overwrite =
+  | No_overwrite_label
+  | Overwrite_label of
+      Types.type_expr * (* the type of the record *)
+      Value.l           (* the mode of the label expression, already accounting
+                           for modalities *)
+
+let assign_children ~no n f = function
+  | No_overwrite
+  | Assigning _ (* this is actually a type error, but it's caught elsewhere *)
+    -> List.init n (fun _ -> no)
+  | Overwriting(loc, typ, mode) -> f loc typ mode
+
+let assign_label_children = assign_children ~no:No_overwrite_label
+
+let assign_children = assign_children ~no:No_overwrite
+
+let rec can_be_overwritten = function
+  | Pexp_constraint (e, _, _) -> can_be_overwritten e.pexp_desc
+  | (Pexp_tuple _ | Pexp_construct _ | Pexp_record _) -> true
+  | _ -> false
 
 (* Typing of constants *)
 
@@ -815,20 +903,28 @@ let src_pos loc attrs env =
   ; exp_env = env
   }
 
-type record_extraction_result =
-  | Record_type of Path.t * Path.t * Types.label_declaration list * record_representation
+type 'rep record_extraction_result =
+  | Record_type of Path.t * Path.t * Types.label_declaration list * 'rep
+  | Record_type_of_other_form
   | Not_a_record_type
   | Maybe_a_record_type
 
 let extract_concrete_typedecl_protected env ty =
   extract_concrete_typedecl env (protect_expansion env ty)
 
-let extract_concrete_record env ty =
-  match extract_concrete_typedecl_protected env ty with
-  | Typedecl(p0, p, {type_kind=Type_record (fields, repres)}) ->
+let extract_concrete_record (type rep) (record_form : rep record_form) env ty
+    : (rep record_extraction_result) =
+  match record_form, extract_concrete_typedecl_protected env ty with
+  | Legacy, Typedecl(p0, p, {type_kind=Type_record (fields, repres, _)}) ->
     Record_type (p0, p, fields, repres)
-  | Has_no_typedecl | Typedecl(_, _, _) -> Not_a_record_type
-  | May_have_typedecl -> Maybe_a_record_type
+  | Unboxed_product,
+    Typedecl(p0, p, {type_kind=Type_record_unboxed_product (fields, repres, _)}) ->
+    Record_type (p0, p, fields, repres)
+  | Legacy, Typedecl(_, _, {type_kind=Type_record_unboxed_product _})
+  | Unboxed_product, Typedecl(_, _, {type_kind=Type_record _}) ->
+    Record_type_of_other_form
+  | _, Has_no_typedecl | _, Typedecl(_, _, _) -> Not_a_record_type
+  | _, May_have_typedecl -> Maybe_a_record_type
 
 type variant_extraction_result =
   | Variant_type of Path.t * Path.t * Types.constructor_declaration list
@@ -837,17 +933,18 @@ type variant_extraction_result =
 
 let extract_concrete_variant env ty =
   match extract_concrete_typedecl_protected env ty with
-  | Typedecl(p0, p, {type_kind=Type_variant (cstrs, _)}) ->
+  | Typedecl(p0, p, {type_kind=Type_variant (cstrs, _, _)}) ->
     Variant_type (p0, p, cstrs)
   | Typedecl(p0, p, {type_kind=Type_open}) ->
     Variant_type (p0, p, [])
   | Has_no_typedecl | Typedecl(_, _, _) -> Not_a_variant_type
   | May_have_typedecl -> Maybe_a_variant_type
 
-let extract_label_names env ty =
-  match extract_concrete_record env ty with
+let extract_label_names record_form env ty =
+  match extract_concrete_record record_form env ty with
   | Record_type (_, _,fields, _) -> List.map (fun l -> l.Types.ld_id) fields
-  | Not_a_record_type | Maybe_a_record_type -> assert false
+  | Record_type_of_other_form | Not_a_record_type | Maybe_a_record_type ->
+    assert false
 
 let has_poly_constraint spat =
   match spat.ppat_desc with
@@ -858,22 +955,9 @@ let has_poly_constraint spat =
     end
   | _ -> false
 
-(** Mode cross a left mode *)
-(* This is very similar to Ctype.mode_cross_left_alloc. Any bugs here are likely
-   bugs there, too. *)
-let mode_cross_left_value env ty mode =
-  let mode =
-    if not (is_principal ty) then mode else
-    let jkind = type_jkind_purely env ty in
-    let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-    let upper_bounds = Const.alloc_as_value upper_bounds in
-    Value.meet_const upper_bounds mode
-  in
-  mode |> Value.disallow_right
-
 let actual_mode_cross_left env ty (actual_mode : Env.actual_mode)
   : Env.actual_mode =
-  let mode = mode_cross_left_value env ty actual_mode.mode in
+  let mode = cross_left env ty actual_mode.mode in
   {actual_mode with mode}
 
 (** Mode cross a mode whose monadic fragment is a right mode, and whose comonadic
@@ -881,29 +965,22 @@ let actual_mode_cross_left env ty (actual_mode : Env.actual_mode)
 let alloc_mode_cross_to_max_min env ty { monadic; comonadic } =
   let monadic = Alloc.Monadic.disallow_left monadic in
   let comonadic = Alloc.Comonadic.disallow_right comonadic in
-  if not (is_principal ty) then { monadic; comonadic } else
-  let jkind = type_jkind_purely env ty in
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let upper_bounds = Alloc.Const.split upper_bounds in
-  let comonadic = Alloc.Comonadic.meet_const upper_bounds.comonadic comonadic in
-  let monadic = Alloc.Monadic.imply upper_bounds.monadic monadic in
-  { monadic; comonadic }
+  let crossing = crossing_of_ty env ty in
+  Crossing.apply_left_right_alloc crossing { monadic; comonadic }
 
 (** Mode cross a right mode *)
 (* This is very similar to Ctype.mode_cross_right. Any bugs here are likely bugs
    there, too. *)
-let expect_mode_cross_jkind jkind (expected_mode : expected_mode) =
-  let upper_bounds = Jkind.get_modal_upper_bounds jkind in
-  let upper_bounds = Const.alloc_as_value upper_bounds in
-  mode_morph (Value.imply upper_bounds) expected_mode
+let expect_mode_cross_jkind env jkind (expected_mode : expected_mode) =
+  let crossing = crossing_of_jkind env jkind in
+  mode_morph (Crossing.apply_right crossing) expected_mode
 
 let expect_mode_cross env ty (expected_mode : expected_mode) =
-  if not (is_principal ty) then expected_mode else
-  let jkind = type_jkind_purely env ty in
-  expect_mode_cross_jkind jkind expected_mode
+  let crossing = crossing_of_ty env ty in
+  mode_morph (Crossing.apply_right crossing) expected_mode
 
 (** The expected mode for objects *)
-let mode_object = expect_mode_cross_jkind Jkind.for_object mode_legacy
+let mode_object = expect_mode_cross_jkind Env.empty Jkind.for_object mode_legacy
 
 let mode_annots_from_pat pat =
   let modes =
@@ -935,34 +1012,40 @@ let mutable_mode m0 =
   in
   m0 |> Const.alloc_as_value |> Value.of_const
 
-(** Takes the mutability on a field, and expected mode of the record (adjusted
-    for allocation), check that the construction would be allowed. *)
-let check_construct_mutability ~loc ~env mutability argument_mode =
+(** Takes the mutability, the type and the modalities of a field, and expected
+    mode of the record (adjusted for allocation), check that the construction
+    would be allowed. This applies to mutable arrays similarly. *)
+let check_construct_mutability ~loc ~env mutability ty ?modalities block_mode =
   match mutability with
   | Immutable -> ()
   | Mutable m0 ->
       let m0 = mutable_mode m0 in
-      submode ~loc ~env m0 argument_mode
+      let m0 = cross_left env ty ?modalities m0 in
+      submode ~loc ~env m0 block_mode
 
 (** The [expected_mode] of the record when projecting a mutable field. *)
 let mode_project_mutable =
   let mode =
-    Contention.Const.Shared
-    |> Contention.of_const
-    |> Value.max_with (Monadic Contention)
+    { Value.Const.max with
+      visibility = Visibility.Const.Read;
+      contention = Contention.Const.Shared }
+    |> Value.of_const
   in
   { (mode_default mode) with
-    contention_context = Some Read_mutable }
+    contention_context = Some Read_mutable;
+    visibility_context = Some Read_mutable }
 
 (** The [expected_mode] of the record when mutating a mutable field. *)
 let mode_mutate_mutable =
   let mode =
-    Contention.Const.Uncontended
-    |> Contention.of_const
-    |> Value.max_with (Monadic Contention)
+    { Value.Const.max with
+      visibility = Read_write;
+      contention = Uncontended }
+    |> Value.of_const
   in
   { (mode_default mode) with
-    contention_context = Some Write_mutable }
+    contention_context = Some Write_mutable;
+    visibility_context = Some Write_mutable }
 
 (** The [expected_mode] of the lazy expression when forcing it. *)
 let mode_force_lazy =
@@ -1205,7 +1288,7 @@ let add_module_variables env module_variables =
          Here, on the other hand, we're calling [type_module] outside the
          raised level, so there's no extra step to take.
       *)
-      let modl, md_shape =
+      let modl, md_shape, locks =
         !type_module env
           Ast_helper.(
             Mod.unpack ~loc:mv_loc
@@ -1223,7 +1306,9 @@ let add_module_variables env module_variables =
           md_loc = mv_name.loc;
           md_uid = mv_uid; }
       in
-      Env.add_module_declaration ~shape:md_shape ~check:true mv_id pres md env
+      Env.add_module_declaration ~shape:md_shape ~check:true mv_id pres md
+        (* the [locks] is always empty, but typecore doesn't need to know *)
+        ~locks env
     end
   ) env module_variables_as_list
 
@@ -1342,8 +1427,37 @@ and build_as_type_and_mode_extra env p ~mode : _ -> _ * _ = function
 
 and build_as_type_aux (env : Env.t) p ~mode =
   let build_as_type env p = fst (build_as_type_and_mode env p ~mode) in
+  let build_record_as_type lpl =
+    let lbl = snd3 (List.hd lpl) in
+    if lbl.lbl_private = Private then p.pat_type, mode else
+    (* The jkind here is filled in via unification with [ty_res] in
+        [unify_pat]. *)
+    (* XXX layouts v2: This should be a sort variable and could be now (but
+        think about when it gets defaulted.)
+
+        RAE: why? It looks fine as-is. *)
+    let ty = newvar (Jkind.Builtin.any ~why:Dummy_jkind) in
+    let ppl = List.map (fun (_, l, p) -> l.lbl_num, p) lpl in
+    let do_label lbl =
+      let _, ty_arg, ty_res = instance_label ~fixed:false lbl in
+      unify_pat env {p with pat_type = ty} ty_res;
+      let refinable =
+        lbl.lbl_mut = Immutable && List.mem_assoc lbl.lbl_num ppl &&
+        match get_desc lbl.lbl_arg with Tpoly _ -> false | _ -> true in
+      if refinable then begin
+        let arg = List.assoc lbl.lbl_num ppl in
+        unify_pat env
+          {arg with pat_type = build_as_type env arg} ty_arg
+      end else begin
+        let _, ty_arg', ty_res' = instance_label ~fixed:false lbl in
+        unify_pat_types p.pat_loc env ty_arg ty_arg';
+        unify_pat env p ty_res'
+      end in
+    Array.iter do_label lbl.lbl_all;
+    ty, mode
+  in
   match p.pat_desc with
-    Tpat_alias(p1,_, _, _, _) -> build_as_type_and_mode env p1 ~mode
+    Tpat_alias(p1,_, _, _, _, _) -> build_as_type_and_mode env p1 ~mode
   | Tpat_tuple pl ->
       let labeled_tyl =
         List.map (fun (label, p) -> label, build_as_type env p) pl in
@@ -1359,7 +1473,7 @@ and build_as_type_aux (env : Env.t) p ~mode =
         else Value.newvar ()
       in
       let keep =
-        priv || cstr.cstr_existentials <> [] ||
+        priv ||
         vto <> None (* be lazy and keep the type for node constraints *) in
       let ty =
         if keep then p.pat_type else
@@ -1387,34 +1501,8 @@ and build_as_type_aux (env : Env.t) p ~mode =
                          ~name:None ~fixed:None ~closed:false))
       in
       ty, mode
-  | Tpat_record (lpl,_) ->
-      let lbl = snd3 (List.hd lpl) in
-      if lbl.lbl_private = Private then p.pat_type, mode else
-      (* The jkind here is filled in via unification with [ty_res] in
-         [unify_pat]. *)
-      (* XXX layouts v2: This should be a sort variable and could be now (but
-         think about when it gets defaulted.)
-
-         RAE: why? It looks fine as-is. *)
-      let ty = newvar (Jkind.Builtin.any ~why:Dummy_jkind) in
-      let ppl = List.map (fun (_, l, p) -> l.lbl_num, p) lpl in
-      let do_label lbl =
-        let _, ty_arg, ty_res = instance_label ~fixed:false lbl in
-        unify_pat env {p with pat_type = ty} ty_res;
-        let refinable =
-          lbl.lbl_mut = Immutable && List.mem_assoc lbl.lbl_num ppl &&
-          match get_desc lbl.lbl_arg with Tpoly _ -> false | _ -> true in
-        if refinable then begin
-          let arg = List.assoc lbl.lbl_num ppl in
-          unify_pat env
-            {arg with pat_type = build_as_type env arg} ty_arg
-        end else begin
-          let _, ty_arg', ty_res' = instance_label ~fixed:false lbl in
-          unify_pat_types p.pat_loc env ty_arg ty_arg';
-          unify_pat env p ty_res'
-        end in
-      Array.iter do_label lbl.lbl_all;
-      ty, mode
+  | Tpat_record (lpl,_) -> build_record_as_type lpl
+  | Tpat_record_unboxed_product (lpl,_) -> build_record_as_type lpl
   | Tpat_or(p1, p2, row) ->
       begin match row with
         None ->
@@ -1566,19 +1654,20 @@ let solve_Ppat_unboxed_tuple ~refine ~alloc_mode loc env args expected_ty =
 let solve_constructor_annotation
     tps (penv : Pattern_env.t) name_list sty ty_args ty_ex =
   let expansion_scope = penv.equations_scope in
-  let ids =
+  let existentials =
     List.map
-      (fun name ->
-         (* CR layouts v1.5: I expect this needs to change when we allow jkind
-            annotations on explicitly quantified vars in gadt constructors.
-            See: https://github.com/ocaml/ocaml/pull/9584/ *)
-        let decl = new_local_type ~loc:name.loc
-                     Definition
-                     (Jkind.Builtin.value ~why:Existential_type_variable) in
+      (fun (name, jkind_annot_opt) ->
+        let jkind =
+          Jkind.of_annotation_option_default
+            ~context:(Existential_unpack name.txt)
+            ~default:(Jkind.Builtin.value ~why:Existential_type_variable)
+            jkind_annot_opt
+        in
+        let decl = new_local_type ~loc:name.loc Definition jkind in
         let (id, new_env) =
           Env.enter_type ~scope:expansion_scope name.txt decl !!penv in
         Pattern_env.set_env penv new_env;
-        {name with txt = id})
+        {name with txt = id}, jkind_annot_opt)
       name_list
   in
   let cty, ty, force =
@@ -1601,8 +1690,8 @@ let solve_constructor_annotation
           Ttuple tyl -> (List.map snd tyl)
         | _ -> assert false
   in
-  if ids <> [] then ignore begin
-    let ids = List.map (fun x -> x.txt) ids in
+  if existentials <> [] then ignore begin
+    let ids = List.map (fun (x, _) -> x.txt) existentials in
     let rem =
       List.fold_left
         (fun rem tv ->
@@ -1618,7 +1707,7 @@ let solve_constructor_annotation
       raise (Error (cty.ctyp_loc, !!penv,
                     Unbound_existential (ids, ty)))
   end;
-  ty_args, Some (ids, cty)
+  ty_args, Some (existentials, cty)
 
 let solve_Ppat_construct ~refine tps penv loc constr no_existentials
         existential_styp expected_ty =
@@ -1634,20 +1723,19 @@ let solve_Ppat_construct ~refine tps penv loc constr no_existentials
     unify_pat_types_return_equated_pairs ~refine loc penv ty_res expected_ty
   in
 
-  let ty_args_ty, ty_args_gf, equated_types, existential_ctyp =
+  let ty_args, equated_types, existential_ctyp =
     with_local_level_iter ~post: generalize_structure begin fun () ->
       let expected_ty = instance expected_ty in
-      let ty_args_ty, ty_args_gf, ty_res, equated_types, existential_ctyp =
+      let ty_args, ty_args_ty, ty_res, equated_types, existential_ctyp =
         match existential_styp with
           None ->
             let ty_args, ty_res, _ =
               instance_constructor (Make_existentials_abstract penv) constr
             in
-            let ty_args_ty, ty_args_gf =
-              List.split
-                (List.map (fun ca -> ca.Types.ca_type, ca.Types.ca_modalities) ty_args)
+            let ty_args_ty =
+              List.map (fun ca -> ca.Types.ca_type) ty_args
             in
-            ty_args_ty, ty_args_gf, ty_res, unify_res ty_res expected_ty, None
+            ty_args, ty_args_ty, ty_res, unify_res ty_res expected_ty, None
         | Some (name_list, sty) ->
             let existential_treatment =
               if name_list = [] then
@@ -1661,19 +1749,20 @@ let solve_Ppat_construct ~refine tps penv loc constr no_existentials
               instance_constructor existential_treatment constr
             in
             let equated_types = unify_res ty_res expected_ty in
-            let ty_args_ty, ty_args_gf =
-              List.split
-                (List.map (fun ca -> ca.Types.ca_type, ca.Types.ca_modalities) ty_args)
-            in
+            let ty_args_ty = List.map (fun ca -> ca.Types.ca_type) ty_args in
             let ty_args_ty, existential_ctyp =
               solve_constructor_annotation tps penv name_list sty ty_args_ty
                 ty_ex
             in
-            ty_args_ty, ty_args_gf, ty_res, equated_types, existential_ctyp
+            let ty_args =
+              List.map2 (fun arg ca_type -> {arg with Types.ca_type}) ty_args
+                ty_args_ty
+            in
+            ty_args, ty_args_ty, ty_res, equated_types, existential_ctyp
       in
       if constr.cstr_existentials <> [] then
         lower_variables_only !!penv penv.Pattern_env.equations_scope ty_res;
-      ((ty_args_ty, ty_args_gf, equated_types, existential_ctyp),
+      ((ty_args, equated_types, existential_ctyp),
        expected_ty :: ty_res :: ty_args_ty)
     end
   in
@@ -1699,16 +1788,17 @@ let solve_Ppat_construct ~refine tps penv loc constr no_existentials
         equated_types
     with Warn_only_once -> ()
   end;
-  (ty_args_ty, ty_args_gf, existential_ctyp)
+  (ty_args, existential_ctyp)
 
-let solve_Ppat_record_field ~refine loc penv label label_lid record_ty =
+let solve_Ppat_record_field ~refine loc penv label label_lid record_ty
+      record_form =
   with_local_level_iter ~post:generalize_structure begin fun () ->
     let (_, ty_arg, ty_res) = instance_label ~fixed:false label in
     begin try
       unify_pat_types_refine ~refine loc penv ty_res (instance record_ty)
     with Error(_loc, _env, Pattern_type_clash(err, _)) ->
       raise(Error(label_lid.loc, !!penv,
-                  Label_mismatch(label_lid.txt, err)))
+                  Label_mismatch(P record_form, label_lid.txt, err)))
     end;
     (ty_arg, [ty_res; ty_arg])
   end
@@ -1742,7 +1832,7 @@ let solve_Ppat_constraint tps loc env mode sty expected_ty =
   let expected_ty' =
     match get_desc expected_ty' with
     | Tpoly (expected_ty', tl) ->
-        snd (instance_poly ~keep_names:true ~fixed:false tl expected_ty')
+        instance_poly ~keep_names:true tl expected_ty'
     | _ -> expected_ty'
   in
   (cty, ty, expected_ty')
@@ -2016,12 +2106,12 @@ end) = struct
 
   (* we selected a name out of the lexical scope *)
   let warn_out_of_scope warn lid env tpath =
-    if Warnings.is_active (Name_out_of_scope ("",[],false)) then begin
+    if Warnings.is_active (Name_out_of_scope ("", Name "")) then begin
       let path_s =
         Printtyp.wrap_printing_env ~error:true env
           (fun () -> Printtyp.string_of_path tpath) in
       warn lid.loc
-        (Warnings.Name_out_of_scope (path_s, [Longident.last lid.txt], false))
+        (Warnings.Name_out_of_scope (path_s, Name (Longident.last lid.txt)))
     end
 
   (* warn if the selected name is not the last introduced in scope
@@ -2159,13 +2249,35 @@ module Label = NameChoice (struct
   let get_name lbl = lbl.lbl_name
   let get_type lbl = lbl.lbl_res
   let lookup_all_from_type loc usage path env =
-    Env.lookup_all_labels_from_type ~loc usage path env
+    Env.lookup_all_labels_from_type ~record_form:Legacy ~loc usage path env
   let in_env lbl =
     match lbl.lbl_repres with
     | Record_boxed _ | Record_float | Record_ufloat | Record_unboxed
     | Record_mixed _ -> true
     | Record_inlined _ -> false
 end)
+
+module Unboxed_label = NameChoice (struct
+  type t = unboxed_label_description
+  type usage = Env.label_usage
+  let kind = Datatype_kind.Record_unboxed_product
+  let get_name lbl = lbl.lbl_name
+  let get_type lbl = lbl.lbl_res
+  let lookup_all_from_type loc usage path env =
+    Env.lookup_all_labels_from_type ~record_form:Unboxed_product ~loc usage path
+      env
+  let in_env (lbl : t) =
+    match lbl.lbl_repres with
+    | Record_unboxed_product -> true
+end)
+
+let label_get_type_path
+    (type rep)
+    (record_form : rep record_form)
+    (d : rep gen_label_description) =
+  match record_form with
+  | Legacy -> Label.get_type_path d
+  | Unboxed_product -> Unboxed_label.get_type_path d
 
 (* In record-construction expressions and patterns, we have many labels
    at once; find a candidate type in the intersection of the candidates
@@ -2192,8 +2304,25 @@ let disambiguate_label_by_ids closed ids labels  : (_, _) result =
   | labels ->
   Ok labels
 
+type 'rep candidates = ('rep gen_label_description * (unit -> unit)) list
+let label_disambiguate
+    (type rep)
+    ?warn
+    ?(filter
+      : (rep candidates -> (rep candidates, rep candidates) result) option)
+    (record_form : rep record_form) usage lid env expected_type
+    (scope : (rep candidates, _) result)
+  : rep gen_label_description =
+  match record_form with
+  | Legacy ->
+    Label.disambiguate ?warn ?filter usage lid env expected_type scope
+  | Unboxed_product ->
+    Unboxed_label.disambiguate ?warn ?filter usage lid env expected_type scope
+
 (* Only issue warnings once per record constructor/pattern *)
-let disambiguate_sort_lid_a_list loc closed env usage expected_type lid_a_list =
+let disambiguate_sort_lid_a_list
+      (type rep) (record_form : rep record_form) loc closed env usage
+      expected_type lid_a_list =
   let ids = List.map (fun (lid, _) -> Longident.last lid.txt) lid_a_list in
   let w_pr = ref false and w_amb = ref []
   and w_scope = ref [] and w_scope_ty = ref "" in
@@ -2202,15 +2331,17 @@ let disambiguate_sort_lid_a_list loc closed env usage expected_type lid_a_list =
     match msg with
     | Not_principal _ -> w_pr := true
     | Ambiguous_name([s], l, _, ex) -> w_amb := (s, l, ex) :: !w_amb
-    | Name_out_of_scope(ty, [s], _) ->
+    | Name_out_of_scope(ty, Name s) ->
         w_scope := s :: !w_scope; w_scope_ty := ty
     | _ -> Location.prerr_warning loc msg
   in
   let process_label lid =
-    let scope = Env.lookup_all_labels ~loc:lid.loc usage lid.txt env in
-    let filter : Label.nonempty_candidate_filter =
-      disambiguate_label_by_ids closed ids in
-    Label.disambiguate ~warn ~filter usage lid env expected_type scope in
+    let scope =
+      Env.lookup_all_labels ~record_form  ~loc:lid.loc usage lid.txt env in
+    let filter = disambiguate_label_by_ids closed ids in
+    label_disambiguate ~warn ~filter record_form usage lid env expected_type
+      scope
+  in
   let lbl_a_list =
     (* If one label is qualified [{ foo = ...; M.bar = ... }],
        we will disambiguate all labels using one of the qualifying modules,
@@ -2260,12 +2391,15 @@ let disambiguate_sort_lid_a_list loc closed env usage expected_type lid_a_list =
   in
   if !w_pr then
     Location.prerr_warning loc
-      (Warnings.Not_principal "this type-based record disambiguation")
+      (Warnings.Not_principal
+         ("this type-based " ^ (record_form_to_string record_form)
+          ^ " disambiguation"))
   else begin
     match List.rev !w_amb with
       (_,types,ex)::_ as amb ->
         let paths =
-          List.map (fun (_,lbl,_) -> Label.get_type_path lbl) lbl_a_list in
+          List.map (fun (_,lbl,_) -> label_get_type_path record_form lbl)
+            lbl_a_list in
         let path = List.hd paths in
         let fst3 (x,_,_) = x in
         if List.for_all (compare_type_path env path) (List.tl paths) then
@@ -2278,9 +2412,11 @@ let disambiguate_sort_lid_a_list loc closed env usage expected_type lid_a_list =
             amb
     | _ -> ()
   end;
-  if !w_scope <> [] then
+  (if !w_scope <> [] then
+    let record_form = record_form_to_string record_form in
+    let warning = Warnings.Fields { record_form; fields = List.rev !w_scope} in
     Location.prerr_warning loc
-      (Warnings.Name_out_of_scope (!w_scope_ty, List.rev !w_scope, true));
+      (Warnings.Name_out_of_scope (!w_scope_ty, warning)));
   (* Invariant: records are sorted in the typed tree *)
   List.sort
     (fun (_,lbl1,_) (_,lbl2,_) -> compare lbl1.lbl_num lbl2.lbl_num)
@@ -2293,7 +2429,7 @@ let map_fold_cont f xs k =
 (* Checks over the labels mentioned in a record pattern:
    no duplicate definitions (error); properly closed (warning) *)
 
-let check_recordpat_labels loc lbl_pat_list closed =
+let check_recordpat_labels loc lbl_pat_list closed record_form =
   match lbl_pat_list with
   | [] -> ()                            (* should not happen *)
   | (_, label1, _) :: _ ->
@@ -2305,26 +2441,29 @@ let check_recordpat_labels loc lbl_pat_list closed =
         else defined.(label.lbl_num) <- true in
       List.iter check_defined lbl_pat_list;
       if closed = Closed
-      && Warnings.is_active (Warnings.Missing_record_field_pattern "")
+      && Warnings.is_active
+           (Warnings.Missing_record_field_pattern { form = ""; unbound = "" })
       then begin
         let undefined = ref [] in
         for i = 0 to Array.length all - 1 do
           if not defined.(i) then undefined := all.(i).lbl_name :: !undefined
         done;
         if !undefined <> [] then begin
-          let u = String.concat ", " (List.rev !undefined) in
-          Location.prerr_warning loc (Warnings.Missing_record_field_pattern u)
+          let unbound = String.concat ", " (List.rev !undefined) in
+          let form = record_form_to_string record_form in
+          Location.prerr_warning loc
+            (Warnings.Missing_record_field_pattern { form; unbound })
         end
       end
 
 (* Constructors *)
 
 module Constructor = NameChoice (struct
-  type t = constructor_description
+  type t = constructor_description * Env.locks
   type usage = Env.constructor_usage
   let kind = Datatype_kind.Variant
-  let get_name cstr = cstr.cstr_name
-  let get_type cstr = cstr.cstr_res
+  let get_name (cstr, _) = cstr.cstr_name
+  let get_type (cstr, _) = cstr.cstr_res
   let lookup_all_from_type loc usage path env =
     match Env.lookup_all_constructors_from_type ~loc usage path env with
     | _ :: _ as x -> x
@@ -2338,7 +2477,9 @@ module Constructor = NameChoice (struct
             let filter lbl =
               compare_type_path env
                 path (get_constr_type_path @@ get_type lbl) in
-            let add_valid x acc = if filter x then (x,ignore)::acc else acc in
+            let add_valid x acc =
+              let x = (x, Env.locks_empty) in
+              if filter x then (x, ignore)::acc else acc in
             Env.fold_constructors add_valid None env []
         | _ -> []
   let in_env _ = true
@@ -2404,7 +2545,8 @@ let rec has_literal_pattern p =
   | Ppat_array (_, ps) ->
      List.exists has_literal_pattern ps
   | Ppat_unboxed_tuple (ps, _) -> has_literal_pattern_labeled_tuple ps
-  | Ppat_record (ps, _) ->
+  | Ppat_record (ps, _)
+  | Ppat_record_unboxed_product (ps, _) ->
      List.exists (fun (_,p) -> has_literal_pattern p) ps
   | Ppat_or (p, q) ->
      has_literal_pattern p || has_literal_pattern q
@@ -2519,7 +2661,7 @@ and type_pat_aux
       solve_Ppat_array ~refine:false loc penv mutability expected_ty
     in
     let modalities =
-      Typemode.transl_modalities ~maturity:Stable mutability [] []
+      Typemode.transl_modalities ~maturity:Stable mutability []
     in
     check_project_mutability ~loc ~env:!!penv mutability alloc_mode.mode;
     let alloc_mode = Modality.Value.Const.apply modalities alloc_mode.mode in
@@ -2611,6 +2753,64 @@ and type_pat_aux
       pat_env = !!penv;
       pat_unique_barrier = Unique_barrier.not_computed () }
   in
+  let type_record_pat (type rep) (record_form : rep record_form) lid_sp_list
+        closed =
+      assert (lid_sp_list <> []);
+      let expected_type, record_ty =
+        match extract_concrete_record record_form !!penv expected_ty with
+        | Record_type(p0, p, _, _) ->
+            let ty = generic_instance expected_ty in
+            Some (p0, p, is_principal expected_ty), ty
+        | Record_type_of_other_form ->
+          let error =
+            Wrong_expected_record_boxing(Pattern, P record_form, expected_ty) in
+          raise (Error (loc, !!penv, error))
+        | Maybe_a_record_type ->
+          None, newvar (Jkind.of_new_sort ~why:Record_projection)
+        | Not_a_record_type ->
+          let wks = record_form_to_wrong_kind_sort record_form in
+          let error = Wrong_expected_kind(wks, Pattern, expected_ty) in
+          raise (Error (loc, !!penv, error))
+      in
+      let type_label_pat (label_lid, label, sarg) =
+        let ty_arg =
+          solve_Ppat_record_field ~refine:false loc penv label label_lid
+            record_ty record_form in
+        check_project_mutability ~loc ~env:!!penv label.lbl_mut alloc_mode.mode;
+        let mode =
+          Modality.Value.Const.apply label.lbl_modalities alloc_mode.mode
+        in
+        let alloc_mode = simple_pat_mode mode in
+        (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
+      in
+      let make_record_pat
+            (lbl_pat_list : (_ * rep gen_label_description * _) list) =
+        check_recordpat_labels loc lbl_pat_list closed record_form;
+        let pat_desc = match record_form with
+          | Legacy -> Tpat_record (lbl_pat_list, closed)
+          | Unboxed_product ->
+            Tpat_record_unboxed_product (lbl_pat_list, closed)
+        in
+        {
+          pat_desc; pat_loc = loc; pat_extra=[];
+          pat_type = instance record_ty;
+          pat_attributes = sp.ppat_attributes;
+          pat_env = !!penv;
+          pat_unique_barrier = Unique_barrier.not_computed ();
+        }
+      in
+      let lbl_a_list =
+        wrap_disambiguate
+          ("This " ^ (record_form_to_string record_form) ^
+           " pattern is expected to have")
+          (mk_expected expected_ty)
+          (disambiguate_sort_lid_a_list record_form loc false !!penv
+             Env.Projection expected_type)
+          lid_sp_list
+      in
+      let lbl_a_list = List.map type_label_pat lbl_a_list in
+      rvp @@ solve_expected (make_record_pat lbl_a_list)
+  in
   match sp.ppat_desc with
     Ppat_any ->
       rvp {
@@ -2623,7 +2823,7 @@ and type_pat_aux
   | Ppat_var name ->
       let ty = instance expected_ty in
       let alloc_mode =
-        mode_cross_left_value !!penv expected_ty alloc_mode.mode
+        cross_left !!penv expected_ty alloc_mode.mode
       in
       let id, uid =
         enter_variable tps loc name alloc_mode ty sp.ppat_attributes
@@ -2666,12 +2866,12 @@ and type_pat_aux
   | Ppat_alias(sq, name) ->
       let q = type_pat tps Value sq expected_ty in
       let ty_var, mode = solve_Ppat_alias ~mode:alloc_mode.mode !!penv q in
-      let mode = mode_cross_left_value !!penv expected_ty mode in
+      let mode = cross_left !!penv expected_ty mode in
       let id, uid =
         enter_variable ~is_as_variable:true tps name.loc name mode ty_var
           sp.ppat_attributes
       in
-      rvp { pat_desc = Tpat_alias(q, id, name, uid, mode);
+      rvp { pat_desc = Tpat_alias(q, id, name, uid, mode, ty_var);
             pat_loc = loc; pat_extra=[];
             pat_type = q.pat_type;
             pat_attributes = sp.ppat_attributes;
@@ -2717,7 +2917,7 @@ and type_pat_aux
             let error = Wrong_expected_kind(srt, Pattern, expected_ty) in
             raise (Error (loc, !!penv, error))
       in
-      let constr =
+      let constr, locks =
         let candidates =
           Env.lookup_all_constructors Env.Pattern ~loc:lid.loc lid.txt !!penv in
         wrap_disambiguate "This variant pattern is expected to have"
@@ -2725,6 +2925,7 @@ and type_pat_aux
           (Constructor.disambiguate Env.Pattern lid !!penv expected_type)
           candidates
       in
+      let held_locks = (locks, lid.txt, lid.loc) in
       begin match no_existentials, constr.cstr_existentials with
       | None, _ | _, [] -> ()
       | Some r, (_ :: _) ->
@@ -2774,10 +2975,12 @@ and type_pat_aux
         raise(Error(loc, !!penv, Constructor_arity_mismatch(lid.txt,
                                      constr.cstr_arity, List.length sargs)));
 
-      let (ty_args_ty, ty_args_gf, existential_ctyp) =
+      let (args, existential_ctyp) =
         solve_Ppat_construct ~refine:false tps penv loc constr no_existentials
           existential_styp expected_ty
       in
+      Ctype.check_constructor_crossing !!penv constr.cstr_tag ~res:expected_ty
+        args held_locks;
 
       let rec check_non_escaping p =
         match p.ppat_desc with
@@ -2798,11 +3001,13 @@ and type_pat_aux
 
       let args =
         List.map2
-          (fun p (ty, gf) ->
-             let alloc_mode = Modality.Value.Const.apply gf alloc_mode.mode in
+          (fun p (arg : Types.constructor_argument) ->
+             let alloc_mode =
+              Modality.Value.Const.apply arg.ca_modalities alloc_mode.mode
+             in
              let alloc_mode = simple_pat_mode alloc_mode in
-             type_pat ~alloc_mode tps Value p ty)
-          sargs (List.combine ty_args_ty ty_args_gf)
+             type_pat ~alloc_mode tps Value p arg.ca_type)
+          sargs args
       in
       rvp { pat_desc=Tpat_construct(lid, constr, args, existential_ctyp);
             pat_loc = loc; pat_extra=[];
@@ -2829,49 +3034,10 @@ and type_pat_aux
         pat_env = !!penv;
         pat_unique_barrier = Unique_barrier.not_computed () }
   | Ppat_record(lid_sp_list, closed) ->
-      assert (lid_sp_list <> []);
-      let expected_type, record_ty =
-        match extract_concrete_record !!penv expected_ty with
-        | Record_type(p0, p, _, _) ->
-            let ty = generic_instance expected_ty in
-            Some (p0, p, is_principal expected_ty), ty
-        | Maybe_a_record_type ->
-          None, newvar (Jkind.Builtin.value ~why:Boxed_record)
-        | Not_a_record_type ->
-          let error = Wrong_expected_kind(Record, Pattern, expected_ty) in
-          raise (Error (loc, !!penv, error))
-      in
-      let type_label_pat (label_lid, label, sarg) =
-        let ty_arg =
-          solve_Ppat_record_field ~refine:false loc penv label label_lid
-            record_ty in
-        check_project_mutability ~loc ~env:!!penv label.lbl_mut alloc_mode.mode;
-        let mode =
-          Modality.Value.Const.apply label.lbl_modalities alloc_mode.mode
-        in
-        let alloc_mode = simple_pat_mode mode in
-        (label_lid, label, type_pat tps Value ~alloc_mode sarg ty_arg)
-      in
-      let make_record_pat lbl_pat_list =
-        check_recordpat_labels loc lbl_pat_list closed;
-        {
-          pat_desc = Tpat_record (lbl_pat_list, closed);
-          pat_loc = loc; pat_extra=[];
-          pat_type = instance record_ty;
-          pat_attributes = sp.ppat_attributes;
-          pat_env = !!penv;
-          pat_unique_barrier = Unique_barrier.not_computed ();
-        }
-      in
-      let lbl_a_list =
-        wrap_disambiguate "This record pattern is expected to have"
-          (mk_expected expected_ty)
-          (disambiguate_sort_lid_a_list loc false !!penv Env.Projection
-             expected_type)
-          lid_sp_list
-      in
-      let lbl_a_list = List.map type_label_pat lbl_a_list in
-      rvp @@ solve_expected (make_record_pat lbl_a_list)
+      type_record_pat Legacy lid_sp_list closed
+  | Ppat_record_unboxed_product(lid_sp_list, closed) ->
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Stable;
+      type_record_pat Unboxed_product lid_sp_list closed
   | Ppat_array (mut, spl) ->
       let mut =
         match mut with
@@ -3130,8 +3296,8 @@ let rec pat_tuple_arity spat =
   | Ppat_any | Ppat_exception _ | Ppat_var _ -> Maybe_local_tuple
   | Ppat_constant _
   | Ppat_interval _ | Ppat_construct _ | Ppat_variant _
-  | Ppat_record _ | Ppat_array _ | Ppat_type _ | Ppat_lazy _
-  | Ppat_unpack _ | Ppat_extension _ -> Not_local_tuple
+  | Ppat_record _ | Ppat_record_unboxed_product _ | Ppat_array _ | Ppat_type _
+  | Ppat_lazy _ | Ppat_unpack _ | Ppat_extension _ -> Not_local_tuple
   | Ppat_or(sp1, sp2) ->
       combine_pat_tuple_arity (pat_tuple_arity sp1) (pat_tuple_arity sp2)
   | Ppat_constraint(p, _, _) | Ppat_open(_, p) | Ppat_alias(p, _) -> pat_tuple_arity p
@@ -3323,6 +3489,24 @@ let rec check_counter_example_pat
     | Backtrack_or -> false
     | Refine_or {inside_nonsplit_or} -> inside_nonsplit_or
   in
+  let type_label_pats (type rep)
+        (fields : (_ * rep gen_label_description * _) list) closed
+        (record_form : rep record_form) =
+    let record_ty = generic_instance expected_ty in
+    let type_label_pat (label_lid, label, targ) k =
+      let ty_arg =
+        solve_Ppat_record_field ~refine loc penv label label_lid record_ty
+          record_form in
+      check_rec targ ty_arg (fun arg -> k (label_lid, label, arg))
+    in
+    match record_form with
+    | Legacy ->
+      map_fold_cont type_label_pat fields
+        (fun fields -> mkp k (Tpat_record (fields, closed)))
+    | Unboxed_product ->
+      map_fold_cont type_label_pat fields
+        (fun fields -> mkp k (Tpat_record_unboxed_product (fields, closed)))
+  in
   match tp.pat_desc with
     Tpat_any | Tpat_var _ ->
       let k' () = mkp k tp.pat_desc in
@@ -3341,7 +3525,7 @@ let rec check_counter_example_pat
           in
           check_rec ~info:(decrease 5) tp expected_ty k
       end
-  | Tpat_alias (p, _, _, _, _) -> check_rec ~info p expected_ty k
+  | Tpat_alias (p, _, _, _, _, _) -> check_rec ~info p expected_ty k
   | Tpat_constant cst ->
       let cst = constant_or_raise !!penv loc (Untypeast.constant cst) in
       k @@ solve_expected (mp (Tpat_constant cst) ~pat_type:(type_constant cst))
@@ -3378,12 +3562,12 @@ let rec check_counter_example_pat
   | Tpat_construct(cstr_lid, constr, targs, _) ->
       if constr.cstr_generalized && must_backtrack_on_gadt then
         raise Need_backtrack;
-      let (ty_args, _, existential_ctyp) =
+      let (ty_args, existential_ctyp) =
         solve_Ppat_construct ~refine type_pat_state penv loc constr None None
           expected_ty
       in
       map_fold_cont
-        (fun (p,t) -> check_rec p t)
+        (fun (p,t) -> check_rec p t.Types.ca_type)
         (List.combine targs ty_args)
         (fun args ->
           mkp k (Tpat_construct(cstr_lid, constr, args, existential_ctyp)))
@@ -3399,15 +3583,9 @@ let rec check_counter_example_pat
           Some p, [ty] -> check_rec p ty (fun p -> k (Some p))
         | _            -> k None
       end
-  | Tpat_record(fields, closed) ->
-      let record_ty = generic_instance expected_ty in
-      let type_label_pat (label_lid, label, targ) k =
-        let ty_arg =
-          solve_Ppat_record_field ~refine loc penv label label_lid record_ty in
-        check_rec targ ty_arg (fun arg -> k (label_lid, label, arg))
-      in
-      map_fold_cont type_label_pat fields
-        (fun fields -> mkp k (Tpat_record (fields, closed)))
+  | Tpat_record(fields, closed) -> type_label_pats fields closed Legacy
+  | Tpat_record_unboxed_product(fields, closed) ->
+      type_label_pats fields closed Unboxed_product
   | Tpat_array (mut, original_arg_sort, tpl) ->
       let ty_elt, arg_sort = solve_Ppat_array ~refine loc penv mut expected_ty in
       assert (Jkind.Sort.equate original_arg_sort arg_sort);
@@ -3565,6 +3743,7 @@ let list_labels env ty =
 
 (* Collecting arguments for function applications *)
 
+(* See also Note [Type-checking applications] *)
 type untyped_apply_arg =
   | Known_arg of
       { sarg : Parsetree.expression;
@@ -3680,6 +3859,71 @@ let check_curried_application_complete ~env ~app_loc args =
   in
   loop false args
 
+(* Note [Type-checking applications]
+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+   This Note explains how we type-check a function application. It focuses on
+   the common case. Additions to this Note explaining the various special
+   cases (and why levels are bumped where they are) are welcome.
+
+   1. We type-check the function. This is done right in [type_expect_] in
+   the [Pexp_apply] case. (Everything hereafter is done in [type_application].)
+
+   2. We analyze the type of the function, building up a list of [Arg] and
+   [Omitted] nodes describing the arguments in that type. This is done in
+   [collect_apply_args]. The ordering in this list is based on the type of the
+   function, *not* the order of arguments as written in the source code. (The
+   actual arguments passed in the source code are reordered by a quadratic
+   algorithm, calling [extract_label] for each arrow evident in the function's
+   type. But this algorithm is fast in the common case.) An [Arg] denotes an
+   argument that will actually be passed to the function. It is one of these
+   cases:
+
+     * [Known_arg]: This is an argument whose type is dictated by the (known)
+     type of the function being applied.
+
+     * [Unknown_arg]: This is an argument whose type is unknown, either because
+     the type of the function is unknown (because the function is itself
+     lambda-bound) or because the function is over-applied.
+
+     * [Eliminated_optional_arg]: This is an optional argument (either a normal
+     optional argument with [?] or one labeled with [%call_pos]) that will be
+     supplied, even though the user did not actually write the argument in.
+
+   An [Omitted] argument denotes one left off by partial application. However,
+   [collect_apply_args] stops when it runs out of source arguments at the
+   application site, so any omitted arguments after all the supplied arguments
+   are left off the list returned from [collect_apply_args].
+
+   3. Type-check all of the [Arg] arguments, by mapping [type_apply_arg] over
+   the list of arguments. This handles all three varieties of [Arg] argument;
+   we no longer track the distinction between the three cases.
+
+   [Omitted] arguments are left untouched.
+
+   4. Type-check all of the [Omitted] arguments, in [type_omitted_parameters].
+   There are two critical steps of type-checking an omitted argument:
+
+     * Adjust the final type of the application to be a function taking the type
+     of the omitted argument as a parameter.
+
+     * Ensure that the constructed arrow (and allocation of the closure) has the
+     correct mode: if any of the closed-over arguments is local or once, say,
+     then the final result must also be local or once.
+
+   This is done (working right-to-left over the list produced by
+   [collect_apply_args]) by collecting up passed [Arg]s until an [Omitted] is
+   encountered, and then doing a submode check on each collected [Arg] against
+   the expected mode of the final closure. In addition, we use the [close_over]
+   and [partial_apply] functions from [Mode.Alloc] to make sure that the modes
+   of the constructed arrows themselves are correct. This algorithm is
+   quadratic, looking at each previously seen [Arg] for every [Omitted]. (It
+   seems to be easy to make this not quadratic, though.)
+*)
+
+(* This function processes any arguments remaining after traversing the type of
+   the function; these would be over-saturated arguments or arguments to a
+   function whose type is not known. *)
 let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar =
   let labels_match ~param ~arg =
     param = arg
@@ -3774,6 +4018,7 @@ let collect_unknown_apply_args env funct ty_fun mode_fun rev_args sargs ret_tvar
   in
   loop ty_fun mode_fun rev_args sargs
 
+(* See Note [Type-checking applications] for an overview *)
 let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret_tvar =
   let warned = ref false in
   let rec loop ty_fun ty_fun0 mode_fun rev_args sargs =
@@ -3884,6 +4129,7 @@ let collect_apply_args env funct ignore_labels ty_fun ty_fun0 mode_fun sargs ret
   in
   loop ty_fun ty_fun0 mode_fun [] sargs
 
+(* See Note [Type-checking applications] for an overview *)
 let type_omitted_parameters expected_mode env loc ty_ret mode_ret args =
   let ty_ret, mode_ret, _, _, args =
     List.fold_left
@@ -3984,8 +4230,18 @@ let rec is_nonexpansive exp =
                lbl.lbl_mut = Immutable && is_nonexpansive exp
            | Kept _ -> true)
         fields
+      && is_nonexpansive_opt (Option.map Misc.fst3 extended_expression)
+  | Texp_record_unboxed_product { fields; extended_expression } ->
+      Array.for_all
+        (fun (lbl, definition) ->
+           match definition with
+           | Overridden (_, exp) ->
+               lbl.lbl_mut = Immutable && is_nonexpansive exp
+           | Kept _ -> true)
+        fields
       && is_nonexpansive_opt (Option.map fst extended_expression)
-  | Texp_field(exp, _, _, _, _) -> is_nonexpansive exp
+  | Texp_field(exp, _, _, _, _, _) -> is_nonexpansive exp
+  | Texp_unboxed_field(exp, _, _, _, _) -> is_nonexpansive exp
   | Texp_ifthenelse(_cond, ifso, ifnot) ->
       is_nonexpansive ifso && is_nonexpansive_opt ifnot
   | Texp_sequence (_e1, _jkind, e2) -> is_nonexpansive e2  (* PR#4354 *)
@@ -4021,12 +4277,9 @@ let rec is_nonexpansive exp =
   | Texp_assert (exp, _) ->
       is_nonexpansive exp
   | Texp_apply (
-      { exp_desc = Texp_ident (_, _, {val_kind =
-             Val_prim {Primitive.prim_name =
-                         ("%raise" | "%reraise" | "%raise_notrace")}},
-             Id_prim _, _) },
-      [Nolabel, Arg (e, _)], _, _, _) ->
-     is_nonexpansive e
+      { exp_desc = Texp_ident (_, _, {val_kind = Val_prim prim}, Id_prim _, _) },
+      args, _, _, _) ->
+     is_nonexpansive_prim prim args
   | Texp_array (_, _, _ :: _, _)
   | Texp_apply _
   | Texp_try _
@@ -4044,6 +4297,23 @@ let rec is_nonexpansive exp =
   | Texp_extension_constructor _ ->
     false
   | Texp_exclave e -> is_nonexpansive e
+  (* The underlying mutation of exp1 can not be observed since we have the only reference
+     to it. In fact, a completely valid model for Texp_overwrite would be to ignore exp1
+     and just allocate a new cell for exp2: *)
+  | Texp_overwrite (exp1, exp2) ->
+      is_nonexpansive exp1 && is_nonexpansive exp2
+  (* Texp_hole can always be replaced by a field read from the old allocation,
+     which is non-expansive: *)
+  | Texp_hole _ -> true
+
+and is_nonexpansive_prim (prim : Primitive.description) args =
+  match prim.prim_name, args with
+  | ("%raise" | "%reraise" | "%raise_notrace"), [Nolabel, Arg (e, _)] ->
+    is_nonexpansive e
+  | ("%identity" | "%obj_magic"), [Nolabel, Arg (e, _)]
+    when not (Language_extension.erasable_extensions_only ()) ->
+    is_nonexpansive e
+  | _ -> false
 
 and is_nonexpansive_mod mexp =
   match mexp.mod_desc with
@@ -4059,8 +4329,12 @@ and is_nonexpansive_mod mexp =
           | Tstr_value (_, pat_exp_list) ->
               List.for_all (fun vb -> is_nonexpansive vb.vb_expr) pat_exp_list
           | Tstr_module {mb_expr=m;_}
-          | Tstr_open {open_expr=m;_}
-          | Tstr_include {incl_mod=m;_} -> is_nonexpansive_mod m
+          | Tstr_open {open_expr=m;_} -> is_nonexpansive_mod m
+          | Tstr_include {incl_mod=m;incl_kind=k;_} ->
+            begin match k with
+            | Tincl_structure -> is_nonexpansive_mod m
+            | Tincl_functor _ | Tincl_gen_functor _ -> false
+            end
           | Tstr_recmodule id_mod_list ->
               List.for_all (fun {mb_expr=m;_} -> is_nonexpansive_mod m)
                 id_mod_list
@@ -4210,10 +4484,10 @@ let type_approx_constraint ~loc env constraint_ ty_expected =
       ty_expected
 
 let type_approx_constraint_opt ~loc env constraint_ ty_expected =
-  match constraint_ with
+  let { ret_type_constraint; _} = constraint_ in
+  match ret_type_constraint with
   | None -> ty_expected
-  | Some { type_constraint; mode_annotations = _ } ->
-      type_approx_constraint ~loc env type_constraint ty_expected
+  | Some ty -> type_approx_constraint ~loc env ty ty_expected
 
 let type_approx_fun_one_param
     env loc label spato ty_expected ~first ~in_function
@@ -4342,9 +4616,9 @@ let check_univars env kind exp ty_expected vars =
       match get_desc pty with
         Tpoly (body, tl) ->
           (* Enforce scoping for type_let:
-             since body is not generic,  instance_poly only makes
+             since body is not generic,  instance_poly_fixed only makes
              copies of nodes that have a Tunivar as descendant *)
-          let univars, ty' = instance_poly ~fixed:true tl body in
+          let univars, ty' = instance_poly_fixed tl body in
           let vars, exp_ty = instance_parameterized_type vars exp.exp_type in
           List.iter2 (fun uvar var ->
             (* This checks that the term doesn't require more specific jkinds
@@ -4465,6 +4739,8 @@ let check_partial_application ~statement exp =
             | Texp_ident _ | Texp_constant _ | Texp_tuple _
             | Texp_unboxed_tuple _
             | Texp_construct _ | Texp_variant _ | Texp_record _
+            | Texp_record_unboxed_product _ | Texp_unboxed_field _
+            | Texp_overwrite _ | Texp_hole _
             | Texp_field _ | Texp_setfield _ | Texp_array _
             | Texp_list_comprehension _ | Texp_array_comprehension _
             | Texp_while _ | Texp_for _ | Texp_instvar _
@@ -4566,7 +4842,8 @@ let shallow_iter_ppat f p =
   | Ppat_exception p | Ppat_alias (p,_)
   | Ppat_open (_,p)
   | Ppat_constraint (p,_,_) | Ppat_lazy p -> f p
-  | Ppat_record (args, _flag) -> List.iter (fun (_,p) -> f p) args
+  | Ppat_record (args, _flag) | Ppat_record_unboxed_product (args, _flag) ->
+    List.iter (fun (_,p) -> f p) args
 
 let exists_ppat f p =
   let exception Found in
@@ -4677,11 +4954,12 @@ let proper_exp_loc exp =
 (* To find reasonable names for let-bound and lambda-bound idents *)
 
 let rec name_pattern default = function
-    [] -> Ident.create_local default
+    [] -> Ident.create_local default,
+          Shape.Uid.internal_not_actually_unique
   | p :: rem ->
     match p.pat_desc with
-      Tpat_var (id, _, _, _) -> id
-    | Tpat_alias(_, id, _, _, _) -> id
+      Tpat_var (id, _, uid, _) -> id, uid
+    | Tpat_alias(_, id, _, uid, _, _) -> id, uid
     | _ -> name_pattern default rem
 
 let name_cases default lst =
@@ -4783,13 +5061,13 @@ let unique_use ~loc ~env mode_l mode_r  =
     | Ok () -> ()
     | Error e ->
         let e : Mode.Value.error = Error (Monadic Uniqueness, e) in
-        raise (Error(loc, env, Submode_failed(e, Other, None, None, None)))
+        raise (Error(loc, env, Submode_failed(e, Other, None, None, None, None)))
     );
     (match Linearity.submode linearity Linearity.many with
     | Ok () -> ()
     | Error e ->
         let e : Mode.Value.error = Error (Comonadic Linearity, e) in
-        raise (Error (loc, env, Submode_failed(e, Other, None, None, None)))
+        raise (Error (loc, env, Submode_failed(e, Other, None, None, None, None)))
     );
     (Uniqueness.disallow_left Uniqueness.aliased,
      Linearity.disallow_right Linearity.many)
@@ -4862,7 +5140,7 @@ type split_function_ty =
 *)
 let split_function_ty
     env (expected_mode : expected_mode) ty_expected loc ~arg_label ~has_poly
-    ~mode_annots ~in_function ~is_first_val_param ~is_final_val_param
+    ~mode_annots ~ret_mode_annots ~in_function ~is_first_val_param ~is_final_val_param
   =
   let alloc_mode =
       (* Unlike most allocations which can be the highest mode allowed by
@@ -4899,6 +5177,7 @@ let split_function_ty
           generalize_structure ty_ret)
   in
   apply_mode_annots ~loc:loc_fun ~env mode_annots arg_mode;
+  apply_mode_annots ~loc:loc_fun ~env ret_mode_annots ret_mode;
   if not has_poly && not (tpoly_is_mono ty_arg) && !Clflags.principal
       && get_level ty_arg < Btype.generic_level then begin
     let snap = Btype.snapshot () in
@@ -4943,7 +5222,7 @@ let split_function_ty
       if vars = [] then ty
       else begin
         with_level ~level:generic_level
-          (fun () -> snd (instance_poly ~keep_names:true ~fixed:false vars ty))
+          (fun () -> instance_poly ~keep_names:true vars ty)
       end
     end
   in
@@ -5105,6 +5384,7 @@ let add_zero_alloc_attribute expr attributes =
     let default_arity = function_arity fn.params fn.body in
     let za =
       get_zero_alloc_attribute ~in_signature:false ~default_arity attributes
+        ~on_application:false
     in
     begin match za with
     | Default_zero_alloc -> expr
@@ -5123,9 +5403,9 @@ let add_zero_alloc_attribute expr attributes =
     end
   | _ -> expr
 
-let rec type_exp ?recarg env expected_mode sexp =
+let rec type_exp ?recarg ?(overwrite=No_overwrite) env expected_mode sexp =
   (* We now delegate everything to type_expect *)
-  type_expect ?recarg env expected_mode sexp
+  type_expect ?recarg ~overwrite env expected_mode sexp
     (mk_expected (newvar (Jkind.Builtin.any ~why:Dummy_jkind)))
 
 (* Typing of an expression with an expected type.
@@ -5135,13 +5415,13 @@ let rec type_exp ?recarg env expected_mode sexp =
    at [generic_level] (but its variables no higher than [!current_level]).
  *)
 
-and type_expect ?recarg env
+and type_expect ?recarg ?(overwrite=No_overwrite) env
       (expected_mode : expected_mode) sexp ty_expected_explained =
   let previous_saved_types = Cmt_format.get_saved_types () in
   let exp =
     Builtin_attributes.warning_scope sexp.pexp_attributes
       (fun () ->
-         type_expect_ ?recarg env expected_mode sexp ty_expected_explained
+         type_expect_ ?recarg ~overwrite env expected_mode sexp ty_expected_explained
       )
   in
   Cmt_format.set_saved_types
@@ -5149,7 +5429,7 @@ and type_expect ?recarg env
   exp
 
 and type_expect_
-    ?(recarg=Rejected)
+    ?(recarg=Rejected) ?(overwrite=No_overwrite)
     env (expected_mode : expected_mode) sexp ty_expected_explained =
   let { ty = ty_expected; explanation } = ty_expected_explained in
   let loc = sexp.pexp_loc in
@@ -5161,6 +5441,260 @@ and type_expect_
     with_explanation (fun () ->
       unify_exp ~sdesc_for_hint:desc env (re exp) (instance ty_expected));
     exp
+  in
+  let type_expect_record (type rep) ~overwrite (record_form : rep record_form)
+        (lid_sexp_list: (Longident.t loc * Parsetree.expression) list)
+        (opt_sexp : Parsetree.expression option) =
+      assert (lid_sexp_list <> []);
+      let opt_exp =
+        match opt_sexp with
+        | None -> None
+        | Some sexp ->
+            let exp, mode =
+              with_local_level_if_principal begin fun () ->
+                let mode = Value.newvar () in
+                let exp = type_exp ~recarg env (mode_default mode) sexp in
+                exp, mode
+              end ~post:(fun (exp, _) -> generalize_structure_exp exp)
+            in
+            Some (exp, mode)
+      in
+      let ty_record, expected_type =
+        let extract_record loc ty other_form_error not_a_record_error =
+          match extract_concrete_record record_form env ty with
+          | Record_type (p0, p, _, _) -> Some (p0, p, is_principal ty)
+          | Record_type_of_other_form ->
+            raise (Error (loc, env, other_form_error))
+          | Maybe_a_record_type -> None
+          | Not_a_record_type ->
+            raise (Error (loc, env, not_a_record_error))
+        in
+        let expected_opath =
+          let wks = record_form_to_wrong_kind_sort record_form in
+          extract_record loc ty_expected
+            (Wrong_expected_record_boxing
+              (Expression explanation, P record_form, ty_expected))
+            (Wrong_expected_kind(wks, Expression explanation, ty_expected))
+        in
+        let opt_exp_opath =
+          match opt_exp with
+          | None ->
+            begin match overwrite with
+            | Overwriting (loc, ty, _) ->
+                extract_record loc ty
+                  (Expr_record_type_has_wrong_boxing (P record_form, ty))
+                  (Expr_not_a_record_type (P record_form, ty))
+            | (No_overwrite | Assigning _) -> None
+            end
+          | Some (exp, _) ->
+              extract_record loc exp.exp_type
+                (Expr_record_type_has_wrong_boxing (P record_form, exp.exp_type))
+                (Expr_not_a_record_type (P record_form, exp.exp_type))
+        in
+        match expected_opath, opt_exp_opath with
+        | None, None ->
+          newvar (Jkind.of_new_sort ~why:Record_projection), None
+        | Some _, None -> ty_expected, expected_opath
+        | Some(_, _, true), Some _ -> ty_expected, expected_opath
+        | (None | Some (_, _, false)), Some (_, p', _) ->
+            let decl = Env.find_type p' env in
+            let ty =
+              with_local_level ~post:generalize_structure
+                (fun () -> newconstr p' (instance_list decl.type_params))
+            in
+            ty, opt_exp_opath
+      in
+      let closed = (opt_sexp = None && overwrite = No_overwrite) in
+      let lbl_a_list =
+        wrap_disambiguate
+          ("This " ^ (record_form_to_string record_form)
+            ^ " expression is expected to have")
+          (mk_expected ty_record)
+          (disambiguate_sort_lid_a_list record_form loc closed env Env.Construct
+             expected_type)
+          lid_sexp_list
+      in
+      let repres_might_allocate (type rep) (record_form : rep record_form)
+            (rep : rep) =
+        match record_form with
+        | Legacy -> begin match rep with
+          | Record_unboxed
+          | Record_inlined (_, _, (Variant_unboxed | Variant_with_null))
+            -> false
+          | Record_boxed _ | Record_float | Record_ufloat | Record_mixed _
+          | Record_inlined (_, _, (Variant_boxed _ | Variant_extensible))
+            -> true
+        end
+        | Unboxed_product -> begin match rep with
+          | Record_unboxed_product -> false
+        end
+      in
+      let is_boxed =
+        List.exists
+          (fun (_, {lbl_repres; _}, _) ->
+            repres_might_allocate record_form lbl_repres)
+          lbl_a_list
+      in
+      begin match overwrite with
+      | (No_overwrite | Assigning _) -> ()
+      | Overwriting _ ->
+          if not is_boxed then
+            raise (Error (loc, env, Overwrite_of_invalid_term));
+      end;
+      let alloc_mode, record_mode =
+        if is_boxed then
+          let alloc_mode, record_mode = register_allocation expected_mode in
+          Some alloc_mode, record_mode
+        else
+          None, expected_mode
+      in
+      let type_label_exp overwrite ((_, label, _) as x) =
+        check_construct_mutability ~loc ~env label.lbl_mut label.lbl_arg
+          ~modalities:label.lbl_modalities record_mode;
+        let argument_mode = mode_modality label.lbl_modalities record_mode in
+        type_label_exp ~overwrite true env argument_mode loc ty_record x record_form
+      in
+      let overwrites =
+        assign_label_children (List.length lbl_a_list)
+          (fun _loc ty mode -> (* only change mode here, see type_label_exp *)
+             List.map (fun (_, label, _) ->
+               let mode = Modality.Value.Const.apply label.lbl_modalities mode in
+               Overwrite_label(ty, mode))
+               lbl_a_list)
+          overwrite
+      in
+      let lbl_exp_list = List.map2 type_label_exp overwrites lbl_a_list in
+      with_explanation (fun () ->
+        unify_exp_types loc env (instance ty_record) (instance ty_expected));
+      (* note: check_duplicates would better be implemented in
+         disambiguate_sort_lid_a_list directly *)
+      let rec check_duplicates = function
+        | (_, lbl1, _) :: (_, lbl2, _) :: _ when lbl1.lbl_num = lbl2.lbl_num ->
+          raise(Error(loc, env, Label_multiply_defined lbl1.lbl_name))
+        | _ :: rem ->
+            check_duplicates rem
+        | [] -> ()
+      in
+      check_duplicates lbl_exp_list;
+      let opt_exp, label_definitions =
+        let (_lid, lbl, _lbl_exp) = List.hd lbl_exp_list in
+        let matching_label lbl =
+          List.find
+            (fun (_, lbl',_) -> lbl'.lbl_num = lbl.lbl_num)
+            lbl_exp_list
+        in
+        let unify_kept record_loc extended_expr_loc ty_exp mode lbl =
+          let _, ty_arg1, ty_res1 = instance_label ~fixed:false lbl in
+          unify_exp_types extended_expr_loc env ty_exp ty_res1;
+          match matching_label lbl with
+          | lid, _lbl, lbl_exp ->
+              (* do not connect result types for overridden labels *)
+              Overridden (lid, lbl_exp)
+          | exception Not_found -> begin
+              let _, ty_arg2, ty_res2 = instance_label ~fixed:false lbl in
+              unify_exp_types record_loc env ty_arg1 ty_arg2;
+              with_explanation (fun () ->
+                unify_exp_types record_loc env (instance ty_expected) ty_res2);
+              check_project_mutability ~loc:extended_expr_loc ~env lbl.lbl_mut mode;
+              let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
+              check_construct_mutability ~loc:record_loc ~env lbl.lbl_mut
+                lbl.lbl_arg ~modalities:lbl.lbl_modalities record_mode;
+              let argument_mode =
+                mode_modality lbl.lbl_modalities record_mode
+              in
+              submode ~loc:extended_expr_loc ~env mode argument_mode;
+              Kept (ty_arg1, lbl.lbl_mut,
+                    unique_use ~loc:record_loc ~env mode
+                      (as_single_mode argument_mode))
+            end
+        in
+        match opt_exp, overwrite with
+        | None, (No_overwrite | Assigning _) ->
+            let label_definitions =
+              Array.map (fun lbl ->
+                  match matching_label lbl with
+                  | (lid, _lbl, lbl_exp) ->
+                      Overridden (lid, lbl_exp)
+                  | exception Not_found ->
+                      let present_indices =
+                        List.map (fun (_, lbl, _) -> lbl.lbl_num) lbl_exp_list
+                      in
+                      let label_names =
+                        extract_label_names record_form env ty_expected in
+                      let rec missing_labels n = function
+                          [] -> []
+                        | lbl :: rem ->
+                            if List.mem n present_indices
+                            then missing_labels (n + 1) rem
+                            else lbl :: missing_labels (n + 1) rem
+                      in
+                      let missing = missing_labels 0 label_names in
+                      raise
+                        (Error(loc, env,
+                               Label_missing (P record_form, missing))))
+                lbl.lbl_all
+            in
+            None, label_definitions
+        | None, Overwriting(exp_loc, exp_type, mode) ->
+            let ty_exp = instance exp_type in
+            let label_definitions =
+              Array.map (unify_kept loc exp_loc ty_exp mode) lbl.lbl_all
+            in
+            None, label_definitions
+        | Some (exp, mode), _ ->
+            let ty_exp = instance exp.exp_type in
+            let label_definitions =
+              Array.map (unify_kept loc exp.exp_loc ty_exp mode) lbl.lbl_all
+            in
+            let ubr = Unique_barrier.not_computed () in
+            let sort =
+              match
+                Ctype.type_sort ~why:Record_functional_update ~fixed:false
+                  env exp.exp_type
+              with
+              | Ok sort -> sort
+              | Error err ->
+                raise (Error (loc, env, Record_not_rep(ty_expected, err)))
+            in
+            Some ({exp with exp_type = ty_exp}, sort, ubr), label_definitions
+      in
+      let num_fields =
+        match lbl_exp_list with [] -> assert false
+        | (_, lbl,_)::_ -> Array.length lbl.lbl_all in
+      (if opt_sexp <> None && List.length lid_sexp_list = num_fields then
+         Location.prerr_warning loc
+           (Warnings.Useless_record_with (record_form_to_string record_form)));
+      let label_descriptions, representation =
+        let (_, { lbl_all; lbl_repres }, _) = List.hd lbl_exp_list in
+        lbl_all, lbl_repres
+      in
+      let fields =
+        Array.map2 (fun descr def -> descr, def)
+          label_descriptions label_definitions
+      in
+      let exp_desc =
+        match record_form with
+        | Legacy ->
+          Texp_record {
+            fields; representation;
+            extended_expression = opt_exp;
+            alloc_mode;
+          }
+        | Unboxed_product ->
+          let opt_exp = match opt_exp with
+            | None -> None
+            | Some (exp, sort, _) -> Some (exp, sort)
+          in
+          Texp_record_unboxed_product {
+            fields; representation;
+            extended_expression = opt_exp;
+          }
+      in
+      re {
+        exp_desc; exp_loc = loc; exp_extra = [];
+        exp_type = instance ty_expected;
+        exp_attributes = sexp.pexp_attributes;
+        exp_env = env }
   in
   match desc with
   | Pexp_ident lid ->
@@ -5364,6 +5898,7 @@ and type_expect_
           }
       end
   | Pexp_apply(sfunct, sargs) ->
+      (* See Note [Type-checking applications] *)
       assert (sargs <> []);
       let pm = position_and_mode env expected_mode sexp in
       let funct_mode, funct_expected_mode =
@@ -5443,6 +5978,7 @@ and type_expect_
       in
       let zero_alloc =
         Builtin_attributes.get_zero_alloc_attribute ~in_signature:false
+          ~on_application:true
           ~default_arity:(List.length args) sfunct.pexp_attributes
         |> Builtin_attributes.zero_alloc_attribute_only_assume_allowed
       in
@@ -5506,13 +6042,13 @@ and type_expect_
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_tuple sexpl ->
-      type_tuple ~loc ~env ~expected_mode ~ty_expected ~explanation
+      type_tuple ~overwrite ~loc ~env ~expected_mode ~ty_expected ~explanation
         ~attributes:sexp.pexp_attributes sexpl
   | Pexp_unboxed_tuple sexpl ->
       type_unboxed_tuple ~loc ~env ~expected_mode ~ty_expected ~explanation
         ~attributes:sexp.pexp_attributes sexpl
   | Pexp_construct(lid, sarg) ->
-      type_construct env expected_mode loc lid
+      type_construct ~overwrite env expected_mode loc lid
         sarg ty_expected_explained sexp.pexp_attributes
   | Pexp_variant(l, sarg) ->
       (* Keep sharing *)
@@ -5529,7 +6065,9 @@ and type_expect_
           with
             Rpresent (Some ty), Rpresent (Some ty0) ->
               let alloc_mode, argument_mode = register_allocation expected_mode in
-              let arg = type_argument env argument_mode sarg ty ty0 in
+              let arg =
+                type_argument ~overwrite:No_overwrite env argument_mode sarg ty ty0
+              in
               re { exp_desc = Texp_variant(l, Some (arg, alloc_mode));
                    exp_loc = loc; exp_extra = [];
                    exp_type = ty_expected0;
@@ -5568,179 +6106,13 @@ and type_expect_
           exp_env = env }
       end
   | Pexp_record(lid_sexp_list, opt_sexp) ->
-      assert (lid_sexp_list <> []);
-      let opt_exp =
-        match opt_sexp with
-          None -> None
-        | Some sexp ->
-            let exp, mode =
-              with_local_level_if_principal begin fun () ->
-                let mode = Value.newvar () in
-                let exp = type_exp ~recarg env (mode_default mode) sexp in
-                exp, mode
-              end ~post:(fun (exp, _) -> generalize_structure_exp exp)
-            in
-            Some (exp, mode)
-      in
-      let ty_record, expected_type =
-        let expected_opath =
-          match extract_concrete_record env ty_expected with
-          | Record_type (p0, p, _, _) -> Some (p0, p, is_principal ty_expected)
-          | Maybe_a_record_type -> None
-          | Not_a_record_type ->
-            let error =
-              Wrong_expected_kind(Record, Expression explanation, ty_expected)
-            in
-            raise (Error (loc, env, error))
-        in
-        let opt_exp_opath =
-          match opt_exp with
-          | None -> None
-          | Some (exp, _) ->
-            match extract_concrete_record env exp.exp_type with
-            | Record_type (p0, p, _, _) -> Some (p0, p, is_principal exp.exp_type)
-            | Maybe_a_record_type -> None
-            | Not_a_record_type ->
-              let error = Expr_not_a_record_type exp.exp_type in
-              raise (Error (exp.exp_loc, env, error))
-        in
-        match expected_opath, opt_exp_opath with
-        | None, None ->
-          newvar (Jkind.of_new_sort ~why:Record_projection), None
-        | Some _, None -> ty_expected, expected_opath
-        | Some(_, _, true), Some _ -> ty_expected, expected_opath
-        | (None | Some (_, _, false)), Some (_, p', _) ->
-            let decl = Env.find_type p' env in
-            let ty =
-              with_local_level ~post:generalize_structure
-                (fun () -> newconstr p' (instance_list decl.type_params))
-            in
-            ty, opt_exp_opath
-      in
-      let closed = (opt_sexp = None) in
-      let lbl_a_list =
-        wrap_disambiguate "This record expression is expected to have"
-          (mk_expected ty_record)
-          (disambiguate_sort_lid_a_list loc closed env Env.Construct expected_type)
-          lid_sexp_list
-      in
-      let alloc_mode, argument_mode =
-        if List.exists
-            (fun (_, {lbl_repres; _}, _) ->
-              match lbl_repres with
-              | Record_unboxed | Record_inlined (_, _, Variant_unboxed) -> false
-              | _ -> true)
-            lbl_a_list then
-          let alloc_mode, argument_mode = register_allocation expected_mode in
-          Some alloc_mode, argument_mode
-        else
-          None, expected_mode
-      in
-      let type_label_exp ((_, label, _) as x) =
-        check_construct_mutability ~loc ~env label.lbl_mut argument_mode;
-        let argument_mode = mode_modality label.lbl_modalities argument_mode in
-        type_label_exp true env argument_mode loc ty_record x
-      in
-      let lbl_exp_list = List.map type_label_exp lbl_a_list in
-      with_explanation (fun () ->
-        unify_exp_types loc env (instance ty_record) (instance ty_expected));
-      (* note: check_duplicates would better be implemented in
-         disambiguate_sort_lid_a_list directly *)
-      let rec check_duplicates = function
-        | (_, lbl1, _) :: (_, lbl2, _) :: _ when lbl1.lbl_num = lbl2.lbl_num ->
-          raise(Error(loc, env, Label_multiply_defined lbl1.lbl_name))
-        | _ :: rem ->
-            check_duplicates rem
-        | [] -> ()
-      in
-      check_duplicates lbl_exp_list;
-      let opt_exp, label_definitions =
-        let (_lid, lbl, _lbl_exp) = List.hd lbl_exp_list in
-        let matching_label lbl =
-          List.find
-            (fun (_, lbl',_) -> lbl'.lbl_num = lbl.lbl_num)
-            lbl_exp_list
-        in
-        match opt_exp with
-          None ->
-            let label_definitions =
-              Array.map (fun lbl ->
-                  match matching_label lbl with
-                  | (lid, _lbl, lbl_exp) ->
-                      Overridden (lid, lbl_exp)
-                  | exception Not_found ->
-                      let present_indices =
-                        List.map (fun (_, lbl, _) -> lbl.lbl_num) lbl_exp_list
-                      in
-                      let label_names = extract_label_names env ty_expected in
-                      let rec missing_labels n = function
-                          [] -> []
-                        | lbl :: rem ->
-                            if List.mem n present_indices
-                            then missing_labels (n + 1) rem
-                            else lbl :: missing_labels (n + 1) rem
-                      in
-                      let missing = missing_labels 0 label_names in
-                      raise(Error(loc, env, Label_missing missing)))
-                lbl.lbl_all
-            in
-            None, label_definitions
-        | Some (exp, mode) ->
-            let ty_exp = instance exp.exp_type in
-            let unify_kept lbl =
-              let _, ty_arg1, ty_res1 = instance_label ~fixed:false lbl in
-              unify_exp_types exp.exp_loc env ty_exp ty_res1;
-              match matching_label lbl with
-              | lid, _lbl, lbl_exp ->
-                  (* do not connect result types for overridden labels *)
-                  Overridden (lid, lbl_exp)
-              | exception Not_found -> begin
-                  let _, ty_arg2, ty_res2 = instance_label ~fixed:false lbl in
-                  unify_exp_types loc env ty_arg1 ty_arg2;
-                  with_explanation (fun () ->
-                    unify_exp_types loc env (instance ty_expected) ty_res2);
-                  check_project_mutability ~loc:exp.exp_loc ~env lbl.lbl_mut mode;
-                  let mode = Modality.Value.Const.apply lbl.lbl_modalities mode in
-                  check_construct_mutability ~loc ~env lbl.lbl_mut argument_mode;
-                  let argument_mode =
-                    mode_modality lbl.lbl_modalities argument_mode
-                  in
-                  submode ~loc ~env mode argument_mode;
-                  Kept (ty_arg1, lbl.lbl_mut,
-                        unique_use ~loc ~env mode
-                          (as_single_mode argument_mode))
-                end
-            in
-            let label_definitions = Array.map unify_kept lbl.lbl_all in
-            let ubr = Unique_barrier.not_computed () in
-            Some ({exp with exp_type = ty_exp}, ubr), label_definitions
-      in
-      let num_fields =
-        match lbl_exp_list with [] -> assert false
-        | (_, lbl,_)::_ -> Array.length lbl.lbl_all in
-      if opt_sexp <> None && List.length lid_sexp_list = num_fields then
-        Location.prerr_warning loc Warnings.Useless_record_with;
-      let label_descriptions, representation =
-        let (_, { lbl_all; lbl_repres }, _) = List.hd lbl_exp_list in
-        lbl_all, lbl_repres
-      in
-      let fields =
-        Array.map2 (fun descr def -> descr, def)
-          label_descriptions label_definitions
-      in
-      re {
-        exp_desc = Texp_record {
-            fields; representation;
-            extended_expression = opt_exp;
-            alloc_mode;
-          };
-        exp_loc = loc; exp_extra = [];
-        exp_type = instance ty_expected;
-        exp_attributes = sexp.pexp_attributes;
-        exp_env = env }
+      type_expect_record ~overwrite Legacy lid_sexp_list opt_sexp
+  | Pexp_record_unboxed_product(lid_sexp_list, opt_sexp) ->
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Stable;
+      type_expect_record ~overwrite Unboxed_product lid_sexp_list opt_sexp
   | Pexp_field(srecord, lid) ->
-      let (record, rmode, label, _) =
-        type_label_access env srecord Env.Projection lid
+      let (record, record_sort, rmode, label, _) =
+        type_label_access Legacy env srecord Env.Projection lid
       in
       let ty_arg =
         with_local_level_if_principal begin fun () ->
@@ -5759,37 +6131,68 @@ and type_expect_
           match label.lbl_repres with
           | Record_float -> true
           | Record_mixed mixed -> begin
-              match Types.get_mixed_product_element mixed label.lbl_num with
-              | Flat_suffix Float_boxed -> true
-              | Flat_suffix (Float64 | Float32 | Imm | Bits32 | Bits64 | Vec128 | Word) -> false
-              | Value_prefix -> false
+              match mixed.(label.lbl_num) with
+              | Float_boxed -> true
+              | Float64 | Float32 | Value | Bits32 | Bits64 | Vec128 | Word
+              | Product _ ->
+                false
             end
           | _ -> false
         in
         match is_float_boxing with
         | true ->
           let alloc_mode, argument_mode = register_allocation expected_mode in
-          let mode = mode_cross_left_value env Predef.type_unboxed_float mode in
+          let mode = cross_left env Predef.type_unboxed_float mode in
           submode ~loc ~env mode argument_mode;
           let uu =
             unique_use ~loc ~env mode (as_single_mode argument_mode)
           in
           Boxing (alloc_mode, uu)
         | false ->
-          let mode = mode_cross_left_value env ty_arg mode in
+          let mode = cross_left env ty_arg mode in
           submode ~loc ~env mode expected_mode;
           let uu = unique_use ~loc ~env mode (as_single_mode expected_mode) in
           Non_boxing uu
       in
       rue {
-        exp_desc = Texp_field(record, lid, label, boxing, Unique_barrier.not_computed ());
+        exp_desc =
+          Texp_field(record, record_sort, lid, label, boxing,
+                     Unique_barrier.not_computed ());
+        exp_loc = loc; exp_extra = [];
+        exp_type = ty_arg;
+        exp_attributes = sexp.pexp_attributes;
+        exp_env = env }
+  | Pexp_unboxed_field(srecord, lid) ->
+      Language_extension.assert_enabled ~loc Layouts Language_extension.Stable;
+      let (record, record_sort, rmode, label, _) =
+        type_label_access Unboxed_product env srecord Env.Projection lid
+      in
+      let ty_arg =
+        with_local_level_if_principal begin fun () ->
+          (* [ty_arg] is the type of field, [ty_res] is the type of record, they
+           could share type variables, which are now instantiated *)
+          let (_, ty_arg, ty_res) = instance_label ~fixed:false label in
+          (* we now link the two record types *)
+          unify_exp env record ty_res;
+          ty_arg
+        end ~post:generalize_structure
+      in
+      if Types.is_mutable label.lbl_mut then
+        fatal_error
+          "Typecore.type_expect_: unboxed record labels are never mutable";
+      let mode = Modality.Value.Const.apply label.lbl_modalities rmode in
+      let mode = cross_left env ty_arg mode in
+      submode ~loc ~env mode expected_mode;
+      let uu = unique_use ~loc ~env mode (as_single_mode expected_mode) in
+      rue {
+        exp_desc = Texp_unboxed_field(record, record_sort, lid, label, uu);
         exp_loc = loc; exp_extra = [];
         exp_type = ty_arg;
         exp_attributes = sexp.pexp_attributes;
         exp_env = env }
   | Pexp_setfield(srecord, lid, snewval) ->
-      let (record, rmode, label, expected_type) =
-        type_label_access env srecord Env.Mutation lid in
+      let (record, _, rmode, label, expected_type) =
+        type_label_access Legacy env srecord Env.Mutation lid in
       let ty_record =
         if expected_type = None
         then newvar (Jkind.of_new_sort ~why:Record_assignment)
@@ -5801,7 +6204,8 @@ and type_expect_
           submode ~loc:record.exp_loc ~env rmode mode_mutate_mutable;
           let mode = mutable_mode m0 |> mode_default in
           let mode = mode_modality label.lbl_modalities mode in
-          type_label_exp false env mode loc ty_record (lid, label, snewval)
+          type_label_exp ~overwrite:No_overwrite_label false env mode loc ty_record
+            (lid, label, snewval) Legacy
         | Immutable ->
           raise(Error(loc, env, Label_not_mutable lid.txt))
       in
@@ -5911,8 +6315,7 @@ and type_expect_
           (mk_expected ~explanation:For_loop_stop_index Predef.type_int)
       in
       let env = Env.add_share_lock For_loop env in
-      (* When we'll want to add Uid to for loops, we can take it from here. *)
-      let (for_id, _for_uid), new_env =
+      let (for_id, for_uid), new_env =
         type_for_loop_index ~loc ~env ~param
       in
       let new_env = Env.add_region_lock new_env in
@@ -5921,8 +6324,9 @@ and type_expect_
         type_statement ~explanation:For_loop_body ~position new_env sbody
       in
       rue {
-        exp_desc = Texp_for {for_id; for_pat = param; for_from; for_to;
-                             for_dir = dir; for_body; for_body_sort };
+        exp_desc = Texp_for {for_id; for_debug_uid = for_uid; for_pat = param;
+                             for_from; for_to; for_dir = dir; for_body;
+                             for_body_sort };
         exp_loc = loc; exp_extra = [];
         exp_type = instance Predef.type_unit;
         exp_attributes = sexp.pexp_attributes;
@@ -5946,7 +6350,7 @@ and type_expect_
         Builtin_attributes.error_message_attr sexp.pexp_attributes in
       let explanation = Option.map (fun msg -> Error_message_attr msg)
                           error_message_attr_opt in
-      let arg = type_argument ?explanation env expected_mode sarg ty (instance ty) in
+      let arg = type_argument ~overwrite ?explanation env expected_mode sarg ty (instance ty) in
       rue {
         exp_desc = arg.exp_desc;
         exp_loc = arg.exp_loc;
@@ -5954,7 +6358,8 @@ and type_expect_
         exp_attributes = arg.exp_attributes;
         exp_env = env;
         exp_extra =
-          (Texp_constraint (Some extra_cty, modes),
+          (Texp_mode modes, loc, []) ::
+          (Texp_constraint extra_cty,
            loc,
            sexp.pexp_attributes) :: arg.exp_extra;
       }
@@ -5992,7 +6397,7 @@ and type_expect_
             if !Clflags.principal && get_level typ <> generic_level then
               Location.prerr_warning loc
                 (Warnings.Not_principal "this use of a polymorphic method");
-            snd (instance_poly ~fixed:false tl ty)
+            instance_poly tl ty
         | Tvar _ ->
             let ty' = newvar (Jkind.Builtin.value ~why:Object_field) in
             unify env (instance typ) (newty(Tpoly(ty',[])));
@@ -6097,7 +6502,7 @@ and type_expect_
         with_local_level begin fun () ->
           let modl, pres, id, new_env =
             Typetexp.TyVarEnv.with_local_scope begin fun () ->
-              let modl, md_shape = !type_module env smodl in
+              let modl, md_shape, locks = !type_module env smodl in
               Mtype.lower_nongen lv modl.mod_type;
               let pres =
                 match modl.mod_type with
@@ -6118,7 +6523,7 @@ and type_expect_
                 | Some name ->
                     let id, env =
                       Env.enter_module_declaration
-                        ~scope ~shape:md_shape name pres md env
+                        ~scope ~shape:md_shape name pres md ~locks env
                     in
                     Some id, env
               in
@@ -6236,7 +6641,7 @@ and type_expect_
               with_local_level begin fun () ->
                 let vars, ty'' =
                   with_local_level_if_principal
-                    (fun () -> instance_poly ~fixed:true tl ty')
+                    (fun () -> instance_poly_fixed tl ty')
                     ~post:(fun (_,ty'') -> generalize_structure ty'')
                 in
                 let exp = type_expect env expected_mode sbody (mk_expected ty'') in
@@ -6371,7 +6776,7 @@ and type_expect_
         | [case] -> case
         | _ -> assert false
       in
-      let param = name_cases "param" cases in
+      let param, param_debug_uid = name_cases "param" cases in
       let let_ =
         { bop_op_name = slet.pbop_op;
           bop_op_path = op_path;
@@ -6383,7 +6788,8 @@ and type_expect_
           bop_loc = slet.pbop_loc; }
       in
       let desc =
-        Texp_letop{let_; ands; param; param_sort; body; body_sort; partial}
+        Texp_letop{let_; ands; param; param_debug_uid; param_sort; body;
+                   body_sort; partial}
       in
       rue { exp_desc = desc;
             exp_loc = sexp.pexp_loc;
@@ -6400,9 +6806,11 @@ and type_expect_
                    Pstr_eval ({ pexp_desc = Pexp_construct (lid, None); _ }, _)
                } ] ->
           let path =
-            let cd =
+            let cd, held_locks =
               Env.lookup_constructor Env.Positive ~loc:lid.loc lid.txt env
             in
+            (* no argument and thus crossing portability *)
+            ignore held_locks;
             match cd.cstr_tag with
             | Extension path -> path
             | _ -> raise (Error (lid.loc, env, Not_an_extension_constructor))
@@ -6465,11 +6873,7 @@ and type_expect_
            exp_attributes = sexp.pexp_attributes;
            exp_env = env }
   | Pexp_stack e ->
-      let expected_mode' =
-        mode_morph (Value.join_with (Comonadic Areality) Regionality.Const.Local)
-          expected_mode
-      in
-      let exp = type_expect env expected_mode' e ty_expected_explained in
+      let exp = type_expect env expected_mode e ty_expected_explained in
       let unsupported category =
         raise (Error (exp.exp_loc, env, Unsupported_stack_allocation category))
       in
@@ -6479,12 +6883,18 @@ and type_expect_
       | Texp_variant (_, Some (_, alloc_mode))
       | Texp_record {alloc_mode = Some alloc_mode; _}
       | Texp_array (_, _, _, alloc_mode)
-      | Texp_field (_, _, _, Boxing (alloc_mode, _), _) ->
-        begin match Locality.submode Locality.local
-          (Alloc.proj (Comonadic Areality) alloc_mode.mode) with
-        | Ok () -> ()
-        | Error _ -> raise (Error (e.pexp_loc, env,
-            Cannot_stack_allocate alloc_mode.locality_context))
+      | Texp_field (_, _, _, _, Boxing (alloc_mode, _), _) ->
+        begin
+          submode ~loc ~env
+            (Value.min_with (Comonadic Areality) Regionality.local)
+            expected_mode;
+          match
+            Locality.submode Locality.local
+              (Alloc.proj (Comonadic Areality) alloc_mode.mode)
+          with
+          | Ok () -> ()
+          | Error _ -> raise (Error (e.pexp_loc, env,
+              Cannot_stack_allocate alloc_mode.locality_context))
         end
       | Texp_list_comprehension _ -> unsupported List_comprehension
       | Texp_array_comprehension _ -> unsupported Array_comprehension
@@ -6493,11 +6903,18 @@ and type_expect_
       | Texp_lazy _ -> unsupported Lazy
       | Texp_object _ -> unsupported Object
       | Texp_pack _ -> unsupported Module
+      | Texp_apply({ exp_desc = Texp_ident(_, _, {val_kind = Val_prim _}, _, _)},
+          _, _, _, _)
+          (* [stack_ (prim foo)] will be checked by [transl_primitive_application]. *)
+          (* CR zqian: Move/Copy [Lambda.primitive_may_allocate] to [typing], then we can
+          check primitive allocation here, and also improve the logic in [type_ident]. *)
+          ->
+          submode ~loc ~env
+            (Value.min_with (Comonadic Areality) Regionality.local)
+            expected_mode;
       | _ ->
         raise (Error (exp.exp_loc, env, Not_allocation))
       end;
-      submode ~loc ~env (Value.min_with (Comonadic Areality) Regionality.local)
-        expected_mode;
       let exp_extra = (Texp_stack, loc, []) :: exp.exp_extra in
       {exp with exp_extra}
   | Pexp_comprehension comp ->
@@ -6508,6 +6925,80 @@ and type_expect_
         ~ty_expected
         ~attributes:sexp.pexp_attributes
         comp
+  | Pexp_overwrite (exp1, exp2) ->
+      if not (Language_extension.is_enabled Overwriting) then
+        raise (Typetexp.Error (loc, env, Unsupported_extension Overwriting));
+      if not (can_be_overwritten exp2.pexp_desc) then
+        raise (Error (exp2.pexp_loc, env, Overwrite_of_invalid_term));
+      let cell_mode, _ =
+        (* The overwritten cell has to be unique
+           and should have the areality expected here: *)
+        Value.newvar_below
+          (Value.meet [
+            Value.max_with (Monadic Uniqueness)
+              Uniqueness.(of_const Const.Unique);
+            Value.max_with (Comonadic Areality)
+              (Value.proj (Comonadic Areality) expected_mode.mode)])
+      in
+      let cell_type =
+        (* CR uniqueness: this could be the jkind of exp2 *)
+        mk_expected (newvar (Jkind.for_non_float ~why:Boxed_record))
+      in
+      let exp1 = type_expect ~recarg env (mode_default cell_mode) exp1 cell_type in
+      let new_fields_mode =
+        (* The newly-written fields have to be global to avoid heap-to-stack pointers.
+           We enforce that here, by asking the allocation to be global.
+           This makes the block alloc_heap, but we ignore that information anyway. *)
+        (* CR uniqueness: this shouldn't mention yielding *)
+        { Value.Comonadic.Const.max with
+          areality = Regionality.Const.Global
+        ; yielding = Yielding.Const.Unyielding }
+      in
+      let exp2 =
+        let exp2_mode =
+          mode_coerce
+            Value.({
+              comonadic = new_fields_mode;
+              monadic = Monadic.Const.max}
+              |> Const.merge
+              |> of_const)
+            expected_mode
+        in
+        (* When typing holes, we will enforce: fields_mode <= expected_mode.
+           But since we set the expected_mode to be global above, this would make
+           all holes global and thus prevent us from keeping any old values as holes
+           if the cell is local! However, it is sound for kept fields to be local,
+           since they don't involve a write and can't create heap-to-stack pointers.
+           And we have also checked above that for regionality cell_mode <= expected_mode.
+           Therefore, we can safely ignore regionality when checking the mode of holes. *)
+        let fields_mode =
+          Value.meet_const new_fields_mode cell_mode
+            |> Value.disallow_right
+        in
+        let overwrite =
+          Overwriting (exp1.exp_loc, exp1.exp_type, fields_mode)
+        in
+        type_expect ~recarg ~overwrite env exp2_mode exp2 ty_expected_explained
+      in
+      re { exp_desc = Texp_overwrite(exp1, exp2);
+            exp_loc = loc; exp_extra = [];
+            exp_type = exp2.exp_type;
+            exp_attributes = sexp.pexp_attributes;
+            exp_env = env }
+  | Pexp_hole ->
+      begin match overwrite with
+      | Assigning(typ, fields_mode) ->
+        assert (Language_extension.is_enabled Overwriting);
+        with_explanation (fun () -> unify_exp_types loc env typ (instance ty_expected));
+        submode ~loc ~env fields_mode expected_mode;
+        let use = unique_use ~loc ~env fields_mode expected_mode.mode in
+        { exp_desc = Texp_hole use;
+          exp_loc = loc; exp_extra = [];
+          exp_type = ty_expected_explained.ty;
+          exp_attributes = sexp.pexp_attributes;
+          exp_env = env }
+      | _ -> raise (Error (loc, env, Unexpected_hole));
+      end
 
 and expression_constraint pexp =
   { type_without_constraint = (fun env expected_mode ->
@@ -6515,7 +7006,7 @@ and expression_constraint pexp =
         expr, expr.exp_type);
     type_with_constraint =
       (fun env expected_mode ty ->
-         type_argument env expected_mode pexp ty (instance ty));
+         type_argument ~overwrite:No_overwrite env expected_mode pexp ty (instance ty));
     is_self =
       (fun expr ->
          match expr.exp_desc with
@@ -6628,12 +7119,11 @@ and type_constraint env sty type_mode =
     @param loc_arg the location of the thing being constrained
 *)
 and type_constraint_expect
-  : type a. a constraint_arg -> _ -> _ -> _ -> loc_arg:_ -> _ -> _ -> a * _ * _
+  : type a. a constraint_arg -> _ -> _ -> _ -> loc_arg:_ -> _ -> _ -> _ -> a * _ * _
   =
-  fun constraint_arg env expected_mode loc ~loc_arg constraint_ ty_expected ->
+  fun constraint_arg env expected_mode loc ~loc_arg type_mode constraint_ ty_expected ->
   let ret, ty, exp_extra =
-    let { type_constraint = constraint_; mode_annotations } = constraint_ in
-    let type_mode = Typemode.transl_alloc_mode mode_annotations in
+    let type_mode = Alloc.Const.Option.value ~default:Alloc.Const.legacy type_mode in
     match constraint_ with
     | Pcoerce (ty_constrain, ty_coerce) ->
         type_coerce constraint_arg env expected_mode loc ty_constrain ty_coerce
@@ -6642,16 +7132,57 @@ and type_constraint_expect
         let ty, extra_cty = type_constraint env ty_constrain type_mode in
         constraint_arg.type_with_constraint env expected_mode ty,
         ty,
-        Texp_constraint (Some extra_cty, Mode.Alloc.Const.Option.none)
+        Texp_constraint extra_cty
   in
   unify_exp_types loc env ty (instance ty_expected);
   ret, ty, exp_extra
 
 and type_ident env ?(recarg=Rejected) lid =
-  let path, desc, actual_mode = Env.lookup_value ~loc:lid.loc lid.txt env in
-  (* Mode crossing here is needed only because of the strange behaviour of
-  [type_let] - it checks the LHS before RHS. Had it checks the RHS before LHS,
-  identifiers would be mode crossed when being added to the environment. *)
+  let path, desc, mode, locks = Env.lookup_value ~loc:lid.loc lid.txt env in
+  (* We cross modes when typing [Ppat_ident], before adding new variables into
+  the environment. Therefore, one might think all values in the environment are
+  already mode-crossed. That is not true for several reasons:
+  - [type_let] checks the LHS and adds bound variables to the environment
+  without the type information from the RHS.
+  - The identifer is [M.x], whose signature might not reflect mode crossing.
+
+  Therefore, we need to cross modes upon look-up. Ideally that should be done in
+  [Env], but that is difficult due to cyclic dependency between jkind and env. *)
+  let mode = cross_left env desc.val_type mode in
+  (* There can be locks between the definition and a use of a value. For
+  example, if a function closes over a value, there will be Closure_lock between
+  the value's definition and the value's use in the function. Walking the locks
+  will constrain the function and the value's modes accordingly.
+
+  Note that the value could be from a module, and we have choices to make:
+  - We can walk the locks using the module's mode. That means the closures are
+  closing over the module.
+  - We can walk the locks using the value's mode. That means the closures are
+  closing over the value.
+
+  We pick the second for better ergonomics. It could be dangerous as it doesn't
+  reflect the real runtime behaviour. With the current set-up, it is sound:
+
+  - Locality: Modules are always global (the strongest mode), so it's fine.
+  - Linearity: Modules are always many (the strongest mode), so it's fine.
+  - Portability: Closing over a nonportable module only to extract a portable
+  value is fine.
+  - Yielding: Modules are always unyielding (the strongest mode), so it's fine.
+  - All monadic axes: values are in a module via some join_with_m modality.
+  Meanwhile, walking locks causes the mode to go through several join_with_m
+  where [m] is the mode of a closure lock. Since join is commutative and
+  associative, the order of which we apply those join does not matter.
+  *)
+  (* CR modes: codify the above per-axis argument. *)
+  let actual_mode =
+    Env.walk_locks ~env ~item:Value mode (Some desc.val_type)
+      (locks, lid.txt, lid.loc)
+  in
+  (* We need to cross again, because the monadic fragment might have been
+  weakened by the locks. Ideally, the first crossing only deals with comonadic,
+  and the second only deals with monadic. *)
+  (* CR layouts: allow to cross comonadic fragment and monadic fragment
+     separately. *)
   let actual_mode = actual_mode_cross_left env desc.val_type actual_mode in
   let is_recarg =
     match get_desc desc.val_type with
@@ -6670,7 +7201,7 @@ and type_ident env ?(recarg=Rejected) lid =
   let val_type, kind =
     match desc.val_kind with
     | Val_prim prim ->
-       let ty, mode, sort = instance_prim prim desc.val_type in
+       let ty, mode, _, sort = instance_prim prim desc.val_type in
        let ty = instance ty in
        begin match prim.prim_native_repr_res, mode with
        (* if the locality of returned value of the primitive is poly
@@ -6782,6 +7313,16 @@ and type_function
                 | Pparam_newtype _ -> true)
               rest
       in
+      let ret_mode_annots =
+        match rest with
+        | [] ->
+          (* if this is the last parameter before the equal sign, then [ret_mode_annotation]
+            applies to the RHS of the equal sign. This is before [split_function_ty] which
+            enters new region. *)
+          let annots = Typemode.transl_mode_annots body_constraint.ret_mode_annotations in
+          annots
+        | _ :: _ -> Alloc.Const.Option.none
+      in
       let env,
           { filtered_arrow = { ty_arg; arg_mode; ty_ret; ret_mode };
             arg_sort; ret_sort;
@@ -6790,7 +7331,7 @@ and type_function
           } =
         split_function_ty env expected_mode ty_expected loc
           ~is_first_val_param:first ~is_final_val_param
-          ~arg_label:typed_arg_label ~in_function ~has_poly ~mode_annots
+          ~arg_label:typed_arg_label ~in_function ~has_poly ~mode_annots ~ret_mode_annots
       in
       (* [ty_arg_internal] is the type of the parameter viewed internally
          to the function. This is different than [ty_arg_mono] exactly for
@@ -6923,14 +7464,17 @@ and type_function
       else if is_position typed_arg_label && not_nolabel_function ty_ret then
         Location.prerr_warning pat.pat_loc
           Warnings.Unerasable_position_argument;
-      let fp_kind, fp_param =
+      let fp_kind, fp_param, fp_param_debug_uid =
         match default_arg with
         | None ->
-            let param = name_pattern "param" [ pat ] in
-            Tparam_pat pat, param
+            let param, param_uid = name_pattern "param" [ pat ] in
+            Tparam_pat pat, param, param_uid
         | Some (default_arg, arg_label, default_arg_sort) ->
             let param = Ident.create_local ("*opt*" ^ arg_label) in
-            Tparam_optional_default (pat, default_arg, default_arg_sort), param
+            let param_uid = Shape.Uid.internal_not_actually_unique in
+            Tparam_optional_default (pat, default_arg, default_arg_sort),
+            param,
+            param_uid
       in
       let param =
         { has_poly;
@@ -6938,6 +7482,7 @@ and type_function
             { fp_kind;
               fp_arg_label = typed_arg_label;
               fp_param;
+              fp_param_debug_uid;
               fp_partial = partial;
               fp_newtypes = newtypes;
               fp_sort = arg_sort;
@@ -6958,21 +7503,38 @@ and type_function
       }
   | [] ->
     let exp_type, body, fun_alloc_mode, ret_info =
+      let { ret_type_constraint; mode_annotations; ret_mode_annotations } =
+        body_constraint
+      in
+      let mode = Typemode.transl_mode_annots mode_annotations in
+      let ret_mode = Typemode.transl_mode_annots ret_mode_annotations in
+      let type_mode =
+        match ret_mode_annotations with
+        | _ :: _ ->
+            (* if return mode annotation is present, we use that to interpret the return
+               type annotation (currying mode behavior) *)
+            ret_mode
+        | [] ->
+            (* otherwise, we do not constrain the body mode, and we use the mode of the whole
+            function to interpret the return type *)
+            (* CR zqian: We should infer from [mode], instead of using directly. *)
+            mode
+      in
       match body with
       | Pfunction_body body ->
           let body =
-            match body_constraint with
+            match ret_type_constraint with
             | None -> type_expect env expected_mode body (mk_expected ty_expected)
             | Some constraint_ ->
-                let body_loc = body.pexp_loc in
-                let body, exp_type, exp_extra =
-                  type_constraint_expect (expression_constraint body)
-                    env expected_mode body_loc ~loc_arg:body_loc constraint_ ty_expected
-                in
-                { body with
-                    exp_extra = (exp_extra, body_loc, []) :: body.exp_extra;
-                    exp_type;
-                }
+            let body_loc = body.pexp_loc in
+            let body, exp_type, exp_extra =
+              type_constraint_expect (expression_constraint body)
+                env expected_mode body_loc ~loc_arg:body_loc type_mode constraint_ ty_expected
+            in
+            { body with
+                exp_extra = (exp_extra, body_loc, []) :: body.exp_extra;
+                exp_type;
+            }
           in
           body.exp_type, Tfunction_body body, None, None
       | Pfunction_cases (cases, _, attributes) ->
@@ -6982,7 +7544,7 @@ and type_function
               ~first
           in
           let (cases, exp_type, fun_alloc_mode, ret_info), exp_extra =
-            match body_constraint with
+            match ret_type_constraint with
             | None -> type_cases_expect env expected_mode ty_expected, None
             | Some constraint_ ->
               (* The typing of function case coercions/constraints is
@@ -7014,7 +7576,7 @@ and type_function
               in
               let (body, fun_alloc_mode, ret_info), exp_type, exp_extra =
                 type_constraint_expect function_cases_constraint_arg
-                  env expected_mode loc constraint_ ty_expected ~loc_arg:loc
+                  env expected_mode loc type_mode constraint_ ty_expected ~loc_arg:loc
               in
               (body, exp_type, fun_alloc_mode, ret_info), Some exp_extra
           in
@@ -7034,27 +7596,37 @@ and type_function
        ret_info; fun_alloc_mode;
      }
 
-and type_label_access env srecord usage lid =
+and type_label_access
+  : 'rep . 'rep record_form -> _ -> _ -> _ -> _ ->
+    _ * _ * _ * 'rep gen_label_description * _
+  = fun record_form env srecord usage lid ->
   let mode = Value.newvar () in
+  let record_jkind, record_sort = Jkind.of_new_sort_var ~why:Record_projection in
   let record =
     with_local_level_if_principal ~post:generalize_structure_exp
-      (fun () -> type_exp ~recarg:Allowed env (mode_default mode) srecord)
+      (fun () ->
+         type_expect ~recarg:Allowed env (mode_default mode) srecord
+           (mk_expected (newvar record_jkind)))
   in
   let ty_exp = record.exp_type in
   let expected_type =
-    match extract_concrete_record env ty_exp with
+    match extract_concrete_record record_form env ty_exp with
     | Record_type(p0, p, _, _) ->
         Some(p0, p, is_principal ty_exp)
     | Maybe_a_record_type -> None
+    | Record_type_of_other_form ->
+        let error = Expr_record_type_has_wrong_boxing (P record_form, ty_exp) in
+        raise (Error (record.exp_loc, env, error))
     | Not_a_record_type ->
-        let error = Expr_not_a_record_type ty_exp in
+        let error = Expr_not_a_record_type (P record_form, ty_exp) in
         raise (Error (record.exp_loc, env, error))
   in
-  let labels = Env.lookup_all_labels ~loc:lid.loc usage lid.txt env in
+  let labels =
+    Env.lookup_all_labels ~record_form ~loc:lid.loc usage lid.txt env in
   let label =
     wrap_disambiguate "This expression has" (mk_expected ty_exp)
-      (Label.disambiguate usage lid env expected_type) labels in
-  (record, mode, label, expected_type)
+      (label_disambiguate record_form usage lid env expected_type) labels in
+  (record, record_sort, Mode.Value.disallow_right mode, label, expected_type)
 
 (* Typing format strings for printing or reading.
    These formats are used by functions in modules Printf, Format, and Scanf.
@@ -7307,7 +7879,7 @@ and type_option_some env expected_mode sarg ty ty0 =
   let ty' = extract_option_type env ty in
   let ty0' = extract_option_type env ty0 in
   let alloc_mode, argument_mode = register_allocation expected_mode in
-  let arg = type_argument env argument_mode sarg ty' ty0' in
+  let arg = type_argument ~overwrite:No_overwrite env argument_mode sarg ty' ty0' in
   let lid = Longident.Lident "Some" in
   let csome = Env.find_ident_constructor Predef.ident_some env in
   mkexp (Texp_construct(mknoloc lid , csome, [arg], Some alloc_mode))
@@ -7315,8 +7887,12 @@ and type_option_some env expected_mode sarg ty ty0 =
 
 (* [expected_mode] is the expected mode of the field. It's already adjusted for
    allocation, mutation and modalities. *)
-and type_label_exp create env (arg_mode : expected_mode) loc ty_expected
-          (lid, label, sarg) =
+and type_label_exp
+  : type rep.
+    overwrite:_ -> _ -> _ -> _ -> _ -> _ ->
+    _ * rep gen_label_description * _ -> rep record_form ->
+    _ * rep gen_label_description * _
+  = fun ~overwrite create env arg_mode loc ty_expected (lid, label, sarg) record_form ->
   (* Here also ty_expected may be at generic_level *)
   let separate = !Clflags.principal || Env.has_local_constraints env in
   (* #4682: we try two type-checking approaches for [arg] using backtracking:
@@ -7326,7 +7902,7 @@ and type_label_exp create env (arg_mode : expected_mode) loc ty_expected
   let (vars, ty_arg, snap, arg) =
     (* try the first approach *)
     with_local_level begin fun () ->
-      let (vars, ty_arg) =
+      let unify_as_label ty_expected =
         with_local_level_iter_if separate begin fun () ->
           let (vars, ty_arg, ty_res) =
             with_local_level_iter_if separate ~post:generalize_structure
@@ -7339,7 +7915,8 @@ and type_label_exp create env (arg_mode : expected_mode) loc ty_expected
           begin try
             unify env (instance ty_res) (instance ty_expected)
           with Unify err ->
-            raise (Error(lid.loc, env, Label_mismatch(lid.txt, err)))
+            raise
+              (Error(lid.loc, env, Label_mismatch(P record_form, lid.txt, err)))
           end;
           (* Instantiate so that we can generalize internal nodes *)
           let ty_arg = instance ty_arg in
@@ -7347,13 +7924,22 @@ and type_label_exp create env (arg_mode : expected_mode) loc ty_expected
         end
         ~post:generalize_structure
       in
+      let (vars, ty_arg) = unify_as_label ty_expected in
       if label.lbl_private = Private then
         if create then
           raise (Error(loc, env, Private_type ty_expected))
         else
           raise (Error(lid.loc, env, Private_label(lid.txt, ty_expected)));
       let snap = if vars = [] then None else Some (Btype.snapshot ()) in
-      let arg = type_argument env arg_mode sarg ty_arg (instance ty_arg) in
+      let overwrite =
+        match overwrite with
+        | No_overwrite_label -> No_overwrite
+        | Overwrite_label(ty, mode) ->
+           (* mode is correct already, like [arg_mode] *)
+           let (_, ty_arg) = unify_as_label ty in
+           Assigning(ty_arg, mode)
+      in
+      let arg = type_argument ~overwrite env arg_mode sarg ty_arg (instance ty_arg) in
       (vars, ty_arg, snap, arg)
     end
     (* Note: there is no generalization logic here as could be expected,
@@ -7373,7 +7959,9 @@ and type_label_exp create env (arg_mode : expected_mode) loc ty_expected
     with first_try_exn when maybe_expansive arg -> try
       (* backtrack and try the second approach *)
       Option.iter Btype.backtrack snap;
-      let arg = with_local_level (fun () -> type_exp env arg_mode sarg)
+      let arg =
+        with_local_level
+          (fun () -> type_exp ~overwrite:No_overwrite env arg_mode sarg)
           ~post:(fun arg -> lower_contravariant env arg.exp_type)
       in
       let arg =
@@ -7392,7 +7980,7 @@ and type_label_exp create env (arg_mode : expected_mode) loc ty_expected
   in
   (lid, label, arg)
 
-and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
+and type_argument ?explanation ?recarg ~overwrite env (mode : expected_mode) sarg
       ty_expected' ty_expected =
   (* ty_expected' may be generic *)
   let no_labels ty =
@@ -7463,7 +8051,7 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
               |> mode_morph (fun _mode -> exp_mode)
               |> expect_mode_cross env ty_expected'
             in
-            type_exp env expected_mode sarg)
+            type_exp ~overwrite env expected_mode sarg)
       in
       let rec make_args args ty_fun =
         match get_desc (expand_head env ty_fun) with
@@ -7562,16 +8150,17 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
         let e = {texp with exp_type = ty_res; exp_desc = Texp_exclave e} in
         let cases = [ case eta_pat e ] in
         let cases_loc = { texp.exp_loc with loc_ghost = true } in
-        let param = name_cases "param" cases in
+        let param, param_uid = name_cases "param" cases in
         { texp with exp_type = ty_fun; exp_desc =
           Texp_function
             { params = [];
               body =
                 Tfunction_cases
                   { fc_cases = cases; fc_partial = Total; fc_param = param;
-                    fc_env = env; fc_ret_type = ty_res;
-                    fc_loc = cases_loc; fc_exp_extra = None;
-                    fc_attributes = []; fc_arg_mode = Alloc.disallow_right marg;
+                    fc_param_debug_uid = param_uid; fc_env = env;
+                    fc_ret_type = ty_res; fc_loc = cases_loc;
+                    fc_exp_extra = None; fc_attributes = [];
+                    fc_arg_mode = Alloc.disallow_right marg;
                     fc_arg_sort = arg_sort;
                   };
               ret_mode = Alloc.disallow_right mret;
@@ -7588,10 +8177,16 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
           (Warnings.Non_principal_labels "eliminated omittable argument");
       (* let-expand to have side effects *)
       let let_pat, let_var = var_pair ~mode:exp_mode "arg" texp.exp_type in
+      let let_pat_sort =
+        (* The sort of the let-bound variable, which here is always a function
+           (observe it is passed to [func], which builds an application of
+           it). *)
+        Jkind.Sort.value
+      in
       re { texp with exp_type = ty_fun;
              exp_desc =
                Texp_let (Nonrecursive,
-                         [{vb_pat=let_pat; vb_expr=texp; vb_sort=arg_sort;
+                         [{vb_pat=let_pat; vb_expr=texp; vb_sort=let_pat_sort;
                            vb_attributes=[]; vb_loc=Location.none;
                            vb_rec_kind = Dynamic;
                           }],
@@ -7600,11 +8195,12 @@ and type_argument ?explanation ?recarg env (mode : expected_mode) sarg
       end
   | None ->
       let mode = expect_mode_cross env ty_expected' mode in
-      let texp = type_expect ?recarg env mode sarg
+      let texp = type_expect ?recarg ~overwrite env mode sarg
         (mk_expected ?explanation ty_expected') in
       unify_exp env texp ty_expected;
       texp
 
+(* See Note [Type-checking applications] for an overview *)
 and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (lbl, arg) =
   match arg with
   | Arg (Unknown_arg { sarg; ty_arg_mono; mode_arg; sort_arg }) ->
@@ -7613,10 +8209,14 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
       let arg =
         type_expect env expected_mode sarg (mk_expected ty_arg_mono)
       in
-      if is_optional lbl then
-        (* CR layouts v5: relax value requirement *)
-        unify_exp env arg
-          (type_option(newvar Predef.option_argument_jkind));
+      (match lbl with
+       | Labelled _ | Nolabel -> ()
+       | Optional _ ->
+           (* CR layouts v5: relax value requirement *)
+           unify_exp env arg
+             (type_option(newvar Predef.option_argument_jkind))
+       | Position _ ->
+           unify_exp env arg (instance Predef.type_lexing_position));
       (lbl, Arg (arg, mode_arg, sort_arg))
   | Arg (Known_arg { sarg; ty_arg; ty_arg0;
                      mode_arg; wrapped_in_some; sort_arg }) ->
@@ -7629,7 +8229,7 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
           if wrapped_in_some then begin
             type_option_some env expected_mode sarg ty_arg' ty_arg0'
           end else begin
-            type_argument env expected_mode sarg ty_arg' ty_arg0'
+            type_argument ~overwrite:No_overwrite env expected_mode sarg ty_arg' ty_arg0'
           end
         end else begin
           if !Clflags.principal
@@ -7654,14 +8254,14 @@ and type_apply_arg env ~app_loc ~funct ~index ~position_and_mode ~partial_app (l
             with_local_level begin fun () ->
               let vars, ty_arg' =
                 with_local_level_if separate begin fun () ->
-                  instance_poly ~fixed:false vars ty_arg'
+                  instance_poly_fixed vars ty_arg'
                 end ~post:(fun (_, ty_arg') -> generalize_structure ty_arg')
               in
               let (ty_arg0', vars0) = tpoly_get_poly ty_arg0 in
-              let vars0, ty_arg0' = instance_poly ~fixed:false vars0 ty_arg0' in
+              let vars0, ty_arg0' = instance_poly_fixed vars0 ty_arg0' in
               List.iter2 (fun ty ty' -> unify_var env ty ty') vars vars0;
               let arg =
-                type_argument env expected_mode sarg ty_arg' ty_arg0'
+                type_argument ~overwrite:No_overwrite env expected_mode sarg ty_arg' ty_arg0'
               in
               arg, ty_arg, vars
             end
@@ -7700,15 +8300,16 @@ and type_application env app_loc expected_mode position_and_mode
           filter_arrow_mono env (instance funct.exp_type) Nolabel
         ) ~post:(fun {ty_ret; _} -> generalize_structure ty_ret)
       in
+      let ret_mode = Alloc.disallow_right ret_mode in
       let type_sort ~why ty =
         match Ctype.type_sort ~why ~fixed:false env ty with
         | Ok sort -> sort
         | Error err -> raise (Error (app_loc, env, Function_type_not_rep (ty, err)))
       in
       let arg_sort = type_sort ~why:Function_argument ty_arg in
-      let ap_mode = Locality.disallow_right (Alloc.proj (Comonadic Areality) ret_mode) in
+      let ap_mode = Alloc.proj (Comonadic Areality) ret_mode in
       let mode_res =
-        mode_cross_left_value env ty_ret (alloc_as_value ret_mode)
+        cross_left env ty_ret (alloc_as_value ret_mode)
       in
       submode ~loc:app_loc ~env ~reason:Other
         mode_res expected_mode;
@@ -7720,6 +8321,7 @@ and type_application env app_loc expected_mode position_and_mode
       check_partial_application ~statement:false exp;
       ([Nolabel, Arg (exp, arg_sort)], ty_ret, ap_mode, position_and_mode)
   | _ ->
+    (* See Note [Type-checking applications] for an overview *)
       let ty = funct.exp_type in
       let ignore_labels =
         !Clflags.classic ||
@@ -7741,11 +8343,7 @@ and type_application env app_loc expected_mode position_and_mode
       let ty_ret, mode_ret, args, position_and_mode =
         with_local_level_if_principal begin fun () ->
           let sargs = List.map
-            (* Application will never contain Position labels, so no need to pass
-               argument type here. When checking against the function type,
-               Labelled arguments will be matched up to Position parameters
-               based on label names *)
-            (fun (label, e) -> Typetexp.transl_label label None, e) sargs
+            (fun (label, e) -> Typetexp.transl_label_from_expr label e) sargs
           in
           let ty_ret, mode_ret, untyped_args =
             collect_apply_args env funct ignore_labels ty (instance ty)
@@ -7769,9 +8367,10 @@ and type_application env app_loc expected_mode position_and_mode
           ty_ret, mode_ret, args, position_and_mode
         end ~post:(fun (ty_ret, _, _, _) -> generalize_structure ty_ret)
       in
-      let ap_mode = Locality.disallow_right (Alloc.proj (Comonadic Areality) mode_ret) in
+      let mode_ret = Alloc.disallow_right mode_ret in
+      let ap_mode = Alloc.proj (Comonadic Areality) mode_ret in
       let mode_ret =
-        mode_cross_left_value env ty_ret (alloc_as_value mode_ret)
+        cross_left env ty_ret (alloc_as_value mode_ret)
       in
       submode ~loc:app_loc ~env ~reason:(Application ty_ret)
         mode_ret expected_mode;
@@ -7779,7 +8378,7 @@ and type_application env app_loc expected_mode position_and_mode
       check_tail_call_local_returning app_loc env ap_mode position_and_mode;
       args, ty_ret, ap_mode, position_and_mode
 
-and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
+and type_tuple ~overwrite ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
     ~explanation ~attributes sexpl =
   (* CR layouts v5: consider sharing code with [type_unboxed_tuple] below when
      we allow non-values in boxed tuples. *)
@@ -7791,14 +8390,18 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
       locality_context = expected_mode.locality_context }
   in
   (* CR layouts v5: non-values in tuples *)
-  let labeled_subtypes =
-    List.map (fun (label, _) -> label,
-                                newgenvar (Jkind.Builtin.value_or_null ~why:Tuple_element))
-    sexpl
+  let unify_as_tuple ty_expected =
+    let labeled_subtypes =
+      List.map (fun (label, _) -> label,
+                                  newgenvar (Jkind.Builtin.value_or_null ~why:Tuple_element))
+      sexpl
+    in
+    let to_unify = newgenty (Ttuple labeled_subtypes) in
+    with_explanation explanation (fun () ->
+      unify_exp_types loc env to_unify (generic_instance ty_expected));
+    labeled_subtypes
   in
-  let to_unify = newgenty (Ttuple labeled_subtypes) in
-  with_explanation explanation (fun () ->
-    unify_exp_types loc env to_unify (generic_instance ty_expected));
+  let labeled_subtypes = unify_as_tuple ty_expected in
   let argument_modes =
     match expected_mode.tuple_modes with
     (* CR zqian: improve the modes of opened labeled tuple pattern. *)
@@ -7817,16 +8420,24 @@ and type_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
         List.init arity (fun _ -> argument_mode)
   in
   let types_and_modes = List.combine labeled_subtypes argument_modes in
+  let overwrites =
+    assign_children arity (fun _loc typ mode ->
+      let labeled_subtypes = unify_as_tuple typ in
+      List.map
+        (fun (_, typ) -> Assigning(typ, mode))
+        labeled_subtypes)
+    overwrite
+  in
   let expl =
-    List.map2
-      (fun (label, body) ((_, ty), argument_mode) ->
+    Misc.Stdlib.List.map3
+      (fun (label, body) ((_, ty), argument_mode) overwrite ->
         Option.iter (fun _ ->
              Language_extension.assert_enabled ~loc Labeled_tuples ())
           label;
         let argument_mode = mode_default argument_mode in
         let argument_mode = expect_mode_cross env ty argument_mode in
-          (label, type_expect env argument_mode body (mk_expected ty)))
-      sexpl types_and_modes
+          (label, type_expect ~overwrite env argument_mode body (mk_expected ty)))
+      sexpl types_and_modes overwrites
   in
   re {
     exp_desc = Texp_tuple (expl, alloc_mode);
@@ -7894,7 +8505,7 @@ and type_unboxed_tuple ~loc ~env ~(expected_mode : expected_mode) ~ty_expected
     exp_attributes = attributes;
     exp_env = env }
 
-and type_construct env (expected_mode : expected_mode) loc lid sarg
+and type_construct ~overwrite env (expected_mode : expected_mode) loc lid sarg
       ty_expected_explained attrs =
   let { ty = ty_expected; explanation } = ty_expected_explained in
   let expected_type =
@@ -7911,11 +8522,12 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
   let constrs =
     Env.lookup_all_constructors ~loc:lid.loc Env.Positive lid.txt env
   in
-  let constr =
+  let constr, locks =
     wrap_disambiguate "This variant expression is expected to have"
       ty_expected_explained
       (Constructor.disambiguate Env.Positive lid env expected_type) constrs
   in
+  let held_locks = (locks, lid.txt, lid.loc) in
   let sargs =
     match sarg with
     | None -> []
@@ -7935,7 +8547,7 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
     raise(Error(loc, env, Constructor_arity_mismatch
                             (lid.txt, constr.cstr_arity, List.length sargs)));
   let separate = !Clflags.principal || Env.has_local_constraints env in
-  let ty_args, ty_res, texp =
+  let unify_as_construct ty_expected =
     with_local_level_if separate begin fun () ->
       let ty_args, ty_res, texp =
         with_local_level_if separate begin fun () ->
@@ -7964,6 +8576,9 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
         generalize_structure ty_res;
         List.iter (fun {Types.ca_type=ty; _} -> generalize_structure ty) ty_args)
   in
+  let ty_args, ty_res, texp = unify_as_construct ty_expected in
+  Ctype.check_constructor_crossing env constr.cstr_tag ~res:ty_res ty_args
+    held_locks;
   let ty_args0, ty_res =
     match instance_list (ty_res :: (List.map (fun ca -> ca.Types.ca_type) ty_args)) with
       t :: tl -> tl, t
@@ -7978,7 +8593,9 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
       begin match sargs with
       | [{pexp_desc =
             Pexp_ident _ |
-            Pexp_record (_, (Some {pexp_desc = Pexp_ident _}| None))}] ->
+            Pexp_record (_, (Some {pexp_desc = Pexp_ident _}| None)) |
+            Pexp_overwrite (_, {pexp_desc =
+              Pexp_record (_, (Some {pexp_desc = Pexp_ident _}| None))})}] ->
         Required
       | _ ->
         raise (Error(loc, env, Inlined_record_expected))
@@ -7986,18 +8603,36 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
   in
   let (argument_mode, alloc_mode) =
     match constr.cstr_repr with
-    | Variant_unboxed -> expected_mode, None
+    | Variant_unboxed | Variant_with_null -> expected_mode, None
     | Variant_boxed _ when constr.cstr_constant -> expected_mode, None
     | Variant_boxed _ | Variant_extensible ->
        let alloc_mode, argument_mode = register_allocation expected_mode in
        argument_mode, Some alloc_mode
   in
+  begin match overwrite, constr.cstr_repr with
+  | Overwriting(_, _, _), Variant_unboxed ->
+    raise (Error (loc, env, Overwrite_of_invalid_term));
+  | _, _ -> ()
+  end;
+  let overwrites =
+    assign_children constr.cstr_arity
+      (fun loc ty mode ->
+         let ty_args, _, _ = unify_as_construct ty in
+         List.map (fun ty_arg ->
+           let mode = Modality.Value.Const.apply ty_arg.Types.ca_modalities mode in
+           match recarg with
+           | Required -> Overwriting(loc, ty_arg.Types.ca_type, mode)
+           | Allowed | Rejected -> Assigning(ty_arg.Types.ca_type, mode)
+           )
+         ty_args)
+      overwrite
+  in
   let args =
-    List.map2
-      (fun e ({Types.ca_type=ty; ca_modalities=gf; _},t0) ->
+    Misc.Stdlib.List.map3
+      (fun e ({Types.ca_type=ty; ca_modalities=gf; _},t0) overwrite ->
          let argument_mode = mode_modality gf argument_mode in
-         type_argument ~recarg env argument_mode e ty t0)
-      sargs (List.combine ty_args ty_args0)
+         type_argument ~recarg ~overwrite env argument_mode e ty t0)
+      sargs (List.combine ty_args ty_args0) overwrites
   in
   if constr.cstr_private = Private then
     begin match constr.cstr_repr with
@@ -8005,6 +8640,8 @@ and type_construct env (expected_mode : expected_mode) loc lid sarg
         raise(Error(loc, env, Private_constructor (constr, ty_res)))
     | Variant_boxed _ | Variant_unboxed ->
         raise (Error(loc, env, Private_type ty_res));
+    | Variant_with_null -> assert false
+      (* [Variant_with_null] can't be made private due to [or_null_reexport]. *)
     end;
   (* NOTE: shouldn't we call "re" on this final expression? -- AF *)
   { texp with
@@ -8451,6 +9088,7 @@ and type_function_cases_expect
         } =
       split_function_ty env expected_mode ty_expected loc ~arg_label:Nolabel
         ~in_function ~has_poly:false ~mode_annots:Mode.Alloc.Const.Option.none
+        ~ret_mode_annots:Mode.Alloc.Const.Option.none
         ~is_first_val_param:first ~is_final_val_param:true
     in
     let cases, partial =
@@ -8464,11 +9102,12 @@ and type_function_cases_expect
            (Tarrow ((Nolabel, arg_mode, ret_mode), ty_arg, ty_ret, commu_ok)))
     in
     unify_exp_types loc env ty_fun (instance ty_expected);
-    let param = name_cases "param" cases in
+    let param , param_uid = name_cases "param" cases in
     let cases =
       { fc_cases = cases;
         fc_partial = partial;
         fc_param = param;
+        fc_param_debug_uid = param_uid;
         fc_loc = loc;
         fc_exp_extra = None;
         fc_env = env;
@@ -8541,7 +9180,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
                   match get_desc pat.pat_type with
                   | Tpoly (ty, tl) ->
                       {pat with pat_type =
-                       snd (instance_poly ~keep_names:true ~fixed:false tl ty)}
+                         instance_poly ~keep_names:true tl ty}
                   | _ -> pat
                 in
                 let bound_expr = vb_exp_constraint binding in
@@ -8618,7 +9257,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
                 let vars, ty' =
                   with_local_level_if_principal
                     ~post:(fun (_,ty') -> generalize_structure ty')
-                    (fun () -> instance_poly ~keep_names:true ~fixed:true tl ty)
+                    (fun () -> instance_poly_fixed ~keep_names:true tl ty)
                 in
                 let exp =
                   Builtin_attributes.warning_scope pvb_attributes (fun () ->
@@ -8656,7 +9295,7 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
       List.iter
         (fun pv ->
           Ctype.check_and_update_generalized_ty_jkind
-            ~name:pv.pv_id ~loc:pv.pv_loc pv.pv_type)
+            ~name:pv.pv_id ~loc:pv.pv_loc env pv.pv_type)
         pvs;
       List.iter2
         (fun (_, _, expected_ty) (exp, vars) ->
@@ -8682,10 +9321,10 @@ and type_let ?check ?check_strict ?(force_toplevel = false)
         let pat_name =
           match p.pat_desc with
             Tpat_var (id, _, _, _) -> Some id
-          | Tpat_alias(_, id, _, _, _) -> Some id
+          | Tpat_alias(_, id, _, _, _, _) -> Some id
           | _ -> None in
         Ctype.check_and_update_generalized_ty_jkind
-          ?name:pat_name ~loc:exp.exp_loc exp.exp_type
+          ?name:pat_name ~loc:exp.exp_loc env exp.exp_type
       in
       List.iter2 update_exp_jkind mode_pat_typ_list exp_list;
     end
@@ -8912,21 +9551,19 @@ and type_generic_array
       ~attributes
       sargl
   =
-  let alloc_mode, argument_mode = register_allocation expected_mode in
+  let alloc_mode, array_mode = register_allocation expected_mode in
   let type_ =
     if Types.is_mutable mutability then Predef.type_array
     else Predef.type_iarray
   in
-  let modalities =
-    Typemode.transl_modalities ~maturity:Stable mutability [] []
-  in
-  check_construct_mutability ~loc ~env mutability argument_mode;
-  let argument_mode = mode_modality modalities argument_mode in
+  let modalities = Typemode.transl_modalities ~maturity:Stable mutability [] in
+  let argument_mode = mode_modality modalities array_mode in
   let jkind, elt_sort = Jkind.of_new_legacy_sort_var ~why:Array_element in
   let ty = newgenvar jkind in
   let to_unify = type_ ty in
   with_explanation explanation (fun () ->
     unify_exp_types loc env to_unify (generic_instance ty_expected));
+  check_construct_mutability ~loc ~env mutability ty array_mode;
   let argument_mode = expect_mode_cross env ty argument_mode in
   let argl =
     List.map
@@ -9049,6 +9686,7 @@ and type_n_ary_function
     end;
     let zero_alloc =
       Builtin_attributes.get_zero_alloc_attribute ~in_signature:false
+        ~on_application:false
         ~default_arity:syntactic_arity attributes
     in
     let zero_alloc =
@@ -9185,7 +9823,8 @@ and type_comprehension_expr ~loc ~env ~ty_expected ~attributes cexpr =
         container_type,
         (fun tcomp ->
           Texp_array_comprehension
-            (mut, Jkind.Sort.for_array_comprehension_element, tcomp)),
+            (mut, Jkind.Sort.of_const
+                    Jkind.Sort.Const.for_array_comprehension_element, tcomp)),
         comp,
         (* CR layouts v4: When this changes from [value], you will also have to
            update the use of [transl_exp] in transl_array_comprehension.ml. See
@@ -9293,16 +9932,24 @@ and type_comprehension_iterator
       let stop  = tbound ~explanation:Comprehension_for_stop  stop  in
       (* When we'll want to add Uid to comprehension bindings,
          we can take it from here. *)
-      let (ident, _uid) =
+      let (ident, uid) =
         type_comprehension_for_range_iterator_index
           tps
           ~loc
           ~env
           ~param:pattern
       in
-      Texp_comp_range { ident; pattern; start; stop; direction }
+      Texp_comp_range { ident; ident_debug_uid = uid; pattern; start; stop;
+                        direction }
   | Pcomp_in seq ->
-      let item_ty = newvar (Jkind.Builtin.any ~why:Dummy_jkind) in
+      let value_reason =
+        match (comprehension_type : comprehension_type) with
+        | Array_comprehension _ ->
+          Jkind.History.Array_comprehension_iterator_element
+        | List_comprehension ->
+          Jkind.History.List_comprehension_iterator_element
+      in
+      let item_ty = newvar (Jkind.Builtin.value ~why:value_reason) in
       let seq_ty = container_type item_ty in
       let sequence =
         (* To understand why we can currently only iterate over [mode_global]
@@ -9425,12 +10072,12 @@ and type_send env loc explanation e met =
 let maybe_check_uniqueness_exp exp =
   if Language_extension.is_at_least Unique
        Language_extension.maturity_of_unique_for_drf then
-    check_uniqueness_exp exp
+    Uniqueness_analysis.check_uniqueness_exp exp
 
 let maybe_check_uniqueness_value_bindings vbl =
   if Language_extension.is_at_least Unique
        Language_extension.maturity_of_unique_for_drf then
-    check_uniqueness_value_bindings vbl
+    Uniqueness_analysis.check_uniqueness_value_bindings vbl
 
 (* Typing of toplevel bindings *)
 
@@ -9469,7 +10116,7 @@ let type_expression env jkind sexp =
       Pexp_ident lid ->
         let loc = sexp.pexp_loc in
         (* Special case for keeping type variables when looking-up a variable *)
-        let (_path, desc, _actual_mode) =
+        let (_path, desc, _, _) =
           Env.lookup_value ~use:false ~loc lid.txt env
         in
         {exp with exp_type = desc.val_type}
@@ -9710,19 +10357,31 @@ let escaping_hint (failure_reason : Value.error) submode_reason
 
 
 let contention_hint _fail_reason _submode_reason context =
-  match context with
+  match (context : contention_context option) with
   | Some Read_mutable ->
       [Location.msg
-        "@[Hint: In order to read from the mutable fields,@ \
+        "@[Hint: In order to read from its mutable fields,@ \
         this record needs to be at least shared.@]"]
   | Some Write_mutable ->
       [Location.msg
-        "@[Hint: In order to write into the mutable fields,@ \
+        "@[Hint: In order to write into its mutable fields,@ \
         this record needs to be uncontended.@]"]
   | Some Force_lazy ->
       [Location.msg
         "@[Hint: In order to force the lazy expression,@ \
         the lazy needs to be uncontended.@]"]
+  | None -> []
+
+let visibility_hint _fail_reason _submode_reason context =
+  match (context : visibility_context option) with
+  | Some Read_mutable ->
+      [Location.msg
+        "@[Hint: In order to read from its mutable fields,@ \
+        this record needs to have read visibility.@]"]
+  | Some Write_mutable ->
+      [Location.msg
+        "@[Hint: In order to write into its mutable fields,@ \
+        this record needs to have read_write visibility.@]"]
   | None -> []
 
 let report_type_expected_explanation_opt expl ppf =
@@ -9774,7 +10433,8 @@ let report_too_many_arg_error ~funct ~func_ty ~previous_arg_loc
      @ It is applied to too many arguments@]"
     report_this_function funct Printtyp.type_expr func_ty
 
-let report_error ~loc env = function
+let report_error ~loc env =
+  function
   | Constructor_arity_mismatch(lid, expected, provided) ->
       Location.errorf ~loc
        "@[The constructor %a@ expects %i argument(s),@ \
@@ -9808,11 +10468,12 @@ let report_error ~loc env = function
         (Style.as_inline_code Printtyp.type_expr) typ
         (tuple_component ~print_article:true) lbl
         hint ()
-  | Label_mismatch(lid, err) ->
+  | Label_mismatch(P record_form, lid, err) ->
       report_unification_error ~loc env err
         (function ppf ->
-           fprintf ppf "The record field %a@ belongs to the type"
-                   (Style.as_inline_code longident) lid)
+           fprintf ppf "The %s field %a@ belongs to the type"
+             (record_form_to_string record_form)
+             (Style.as_inline_code longident) lid)
         (function ppf ->
            fprintf ppf "but is mixed here with fields of type")
   | Pattern_type_clash (err, pat) ->
@@ -9935,11 +10596,11 @@ let report_error ~loc env = function
   | Label_multiply_defined s ->
       Location.errorf ~loc "The record field label %s is defined several times"
         s
-  | Label_missing labels ->
+  | Label_missing (P record_form, labels) ->
       let print_label ppf lbl = Style.inline_code ppf (Ident.name lbl) in
       let print_labels ppf = List.iter (fprintf ppf "@ %a" print_label) in
-      Location.errorf ~loc "@[<hov>Some record fields are undefined:%a@]"
-        print_labels labels
+      Location.errorf ~loc "@[<hov>Some %s fields are undefined:%a@]"
+        (record_form_to_string record_form) print_labels labels
   | Label_not_mutable lid ->
       Location.errorf ~loc "The record field %a is not mutable"
         (Style.as_inline_code longident) lid
@@ -10000,8 +10661,8 @@ let report_error ~loc env = function
   | Non_value_let_rec (err, ty) ->
     Location.error_of_printer ~loc (fun ppf () ->
       fprintf ppf "Variables bound in a \"let rec\" must have layout value.@ %a"
-        (Jkind.Violation.report_with_offender
-           ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) err)
+        (fun v -> Jkind.Violation.report_with_offender
+           ~offender:(fun ppf -> Printtyp.type_expr ppf ty) v) err)
       ()
   | Undefined_method (ty, me, valid_methods) ->
       Location.error_of_printer ~loc (fun ppf () ->
@@ -10304,19 +10965,48 @@ let report_error ~loc env = function
         | List -> "list literal"
         | Unit -> "unit literal"
         | Record -> "record"
+        | Record_unboxed_product -> "unboxed record"
       in
       Location.errorf ~loc
         "This %s should not be a %s,@ \
          the expected type is@ %a%t"
         ctx sort (Style.as_inline_code Printtyp.type_expr) ty
         (report_type_expected_explanation_opt explanation)
-  | Expr_not_a_record_type ty ->
+  | Wrong_expected_record_boxing(ctx, P record_form, ty) ->
+      let ctx, explanation =
+        match ctx with
+        | Expression explanation -> "expression", explanation
+        | Pattern -> "pattern", None
+      in
+      let expected, actual =
+        match record_form with
+        | Legacy -> "unboxed", "boxed"
+        | Unboxed_product -> "boxed", "unboxed"
+      in
+      Location.errorf ~loc
+        "This %s record %s should be %s instead,@ \
+         the expected type is@ %a%t"
+        actual ctx expected (Style.as_inline_code Printtyp.type_expr) ty
+        (report_type_expected_explanation_opt explanation)
+  | Expr_not_a_record_type (P record_form, ty) ->
       Location.errorf ~loc
         "This expression has type %a@ \
-         which is not a record type."
+         which is not a %s type."
         (Style.as_inline_code Printtyp.type_expr) ty
+        (record_form_to_string record_form)
+  | Expr_record_type_has_wrong_boxing (P record_form, ty) ->
+      let expected, actual =
+        match record_form with
+        | Legacy -> "a boxed", "an unboxed"
+        | Unboxed_product -> "an unboxed", "a boxed"
+      in
+      Location.errorf ~loc
+        "This expression has type %a,@ \
+         which is %s record rather than %s one."
+        (Style.as_inline_code Printtyp.type_expr) ty
+        actual expected
   | Submode_failed(fail_reason, submode_reason, locality_context,
-      contention_context, shared_context)
+      contention_context, visibility_context, shared_context)
      ->
       let sub =
         match fail_reason with
@@ -10330,16 +11020,33 @@ let report_error ~loc env = function
           escaping_hint fail_reason submode_reason locality_context
         | Error (Monadic Contention, _ ) ->
           contention_hint fail_reason submode_reason contention_context
+        | Error (Monadic Visibility, _) ->
+          visibility_hint fail_reason submode_reason visibility_context
         | Error (Comonadic Portability, _ ) -> []
+        | Error (Comonadic Yielding, _) -> []
+        | Error (Comonadic Statefulness, _) -> []
       in
       Location.errorf ~loc ~sub "@[%t@]" begin
         match fail_reason with
         | Error (Comonadic Areality, _) ->
             Format.dprintf "This value escapes its region."
         | Error (ax, {left; right}) ->
+            let pp_expectation ppf () =
+              let open Contention.Const in
+              match ax, right with
+              | Monadic Contention, Shared ->
+                  (* Could generalize this to other error cases where we expect
+                     something besides bottom, but currently (besides areality,
+                     already covered above) there are no other such cases. *)
+                  Format.fprintf ppf "%a or %a"
+                    (Style.as_inline_code Contention.Const.print) Shared
+                    (Style.as_inline_code Contention.Const.print) Uncontended
+              | _, _ ->
+                  Style.as_inline_code (Value.Const.print_axis ax) ppf right
+            in
             Format.dprintf "This value is %a but expected to be %a."
               (Style.as_inline_code (Value.Const.print_axis ax)) left
-              (Style.as_inline_code (Value.Const.print_axis ax)) right
+              pp_expectation ()
         end
   | Curried_application_complete (lbl, Error (ax, {left; _}), loc_kind) ->
       let sub =
@@ -10424,6 +11131,16 @@ let report_error ~loc env = function
         "@[Function arguments and returns must be representable.@]@ %a"
         (Jkind.Violation.report_with_offender
            ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+  | Record_projection_not_rep (ty,violation) ->
+      Location.errorf ~loc
+        "@[Records being projected from must be representable.@]@ %a"
+        (Jkind.Violation.report_with_offender
+           ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
+  | Record_not_rep (ty,violation) ->
+      Location.errorf ~loc
+        "@[Record expressions must be representable.@]@ %a"
+        (Jkind.Violation.report_with_offender
+           ~offender:(fun ppf -> Printtyp.type_expr ppf ty)) violation
   | Invalid_label_for_src_pos arg_label ->
       Location.errorf ~loc
         "A position argument must not be %s."
@@ -10453,6 +11170,12 @@ let report_error ~loc env = function
         (Style.as_inline_code Printtyp.type_expr) ty
         (Style.as_inline_code Jkind.format) jkind
         (Style.as_inline_code Jkind.format) Jkind.for_arrow
+  | Overwrite_of_invalid_term ->
+      Location.errorf ~loc
+        "Overwriting is only supported on tuples, constructors and boxed records."
+  | Unexpected_hole ->
+      Location.errorf ~loc
+        "wildcard \"_\" not expected."
 
 let report_error ~loc env err =
   Printtyp.wrap_printing_env_error env
@@ -10489,7 +11212,7 @@ let type_exp env e =
   maybe_check_uniqueness_exp exp; exp
 
 let type_argument env e t1 t2 =
-  let exp = type_argument env mode_legacy e t1 t2 in
+  let exp = type_argument ~overwrite:No_overwrite env mode_legacy e t1 t2 in
   maybe_check_uniqueness_exp exp; exp
 
 let type_option_some env e t1 t2 =

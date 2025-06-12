@@ -16,9 +16,11 @@
 #define CAML_INTERNALS
 
 #include "caml/gc_stats.h"
+#include "caml/memory.h"
 #include "caml/minor_gc.h"
 #include "caml/platform.h"
 #include "caml/shared_heap.h"
+#include "caml/startup_aux.h"
 
 Caml_inline intnat intnat_max(intnat a, intnat b) {
   return (a > b ? a : b);
@@ -36,6 +38,7 @@ void caml_accum_heap_stats(struct heap_stats* acc, const struct heap_stats* h)
   acc->large_max_words = intnat_max(acc->large_max_words, acc->large_words);
   acc->large_max_words = intnat_max(acc->large_max_words, h->large_max_words);
   acc->large_blocks += h->large_blocks;
+  acc->dependent_bytes += h->dependent_bytes;
 }
 
 void caml_remove_heap_stats(struct heap_stats* acc, const struct heap_stats* h)
@@ -46,6 +49,7 @@ void caml_remove_heap_stats(struct heap_stats* acc, const struct heap_stats* h)
   acc->pool_frag_words -= h->pool_frag_words;
   acc->large_words -= h->large_words;
   acc->large_blocks -= h->large_blocks;
+  acc->dependent_bytes -= h->dependent_bytes;
 }
 
 void caml_accum_alloc_stats(
@@ -55,7 +59,11 @@ void caml_accum_alloc_stats(
   acc->minor_words += s->minor_words;
   acc->promoted_words += s->promoted_words;
   acc->major_words += s->major_words;
+  acc->minor_dependent_bytes += s->minor_dependent_bytes;
+  acc->promoted_dependent_bytes += s->promoted_dependent_bytes;
+  acc->major_dependent_bytes += s->major_dependent_bytes;
   acc->forced_major_collections += s->forced_major_collections;
+  acc->major_work_done += s->major_work_done;
 }
 
 void caml_collect_alloc_stats_sample(
@@ -65,7 +73,11 @@ void caml_collect_alloc_stats_sample(
   sample->minor_words = local->stat_minor_words;
   sample->promoted_words = local->stat_promoted_words;
   sample->major_words = local->stat_major_words;
+  sample->minor_dependent_bytes = local->stat_minor_dependent_bytes;
+  sample->promoted_dependent_bytes = local->stat_promoted_dependent_bytes;
+  sample->major_dependent_bytes = local->stat_major_dependent_bytes;
   sample->forced_major_collections = local->stat_forced_major_collections;
+  sample->major_work_done = local->stat_major_work_done;
 }
 
 void caml_reset_domain_alloc_stats(caml_domain_state *local)
@@ -73,16 +85,21 @@ void caml_reset_domain_alloc_stats(caml_domain_state *local)
   local->stat_minor_words = 0;
   local->stat_promoted_words = 0;
   local->stat_major_words = 0;
+  local->stat_minor_dependent_bytes = 0;
+  local->stat_promoted_dependent_bytes = 0;
+  local->stat_major_dependent_bytes = 0;
   local->stat_forced_major_collections = 0;
+  local->stat_major_work_done = 0;
 }
-
 
 /* We handle orphaning allocation stats here,
    whereas orphaning of heap stats is done in shared_heap.c */
 static caml_plat_mutex orphan_lock = CAML_PLAT_MUTEX_INITIALIZER;
 static struct alloc_stats orphaned_alloc_stats = {0,};
 
-void caml_accum_orphan_alloc_stats(struct alloc_stats *acc) {
+void caml_accum_orphan_alloc_stats(struct alloc_stats *acc)
+{
+  /* This is called from the collector as well as from the mutator. */
   caml_plat_lock_blocking(&orphan_lock);
   caml_accum_alloc_stats(acc, &orphaned_alloc_stats);
   caml_plat_unlock(&orphan_lock);
@@ -96,18 +113,26 @@ void caml_orphan_alloc_stats(caml_domain_state *domain) {
   caml_reset_domain_alloc_stats(domain);
 
   /* push them into the orphan stats */
+  /* This is called from the collector as well as from the mutator. */
   caml_plat_lock_blocking(&orphan_lock);
   caml_accum_alloc_stats(&orphaned_alloc_stats, &alloc_stats);
   caml_plat_unlock(&orphan_lock);
 }
-
 
 /* The "sampled stats" of a domain are a recent copy of its
    domain-local stats, accessed without synchronization and only
    updated ("sampled") during stop-the-world events -- each minor
    collection, major cycle (which potentially includes compaction),
    all of these events could happen during domain termination. */
-static struct gc_stats sampled_gc_stats[Max_domains];
+static struct gc_stats* sampled_gc_stats;
+
+void caml_init_gc_stats (uintnat max_domains)
+{
+  sampled_gc_stats =
+    caml_stat_calloc_noexc(max_domains, sizeof(struct gc_stats));
+  if (sampled_gc_stats == NULL)
+    caml_fatal_error("Failed to allocate sampled_gc_stats");
+}
 
 /* Update the sampled stats for the given domain during a STW section. */
 void caml_collect_gc_stats_sample_stw(caml_domain_state* domain)
@@ -154,7 +179,7 @@ void caml_compute_gc_stats(struct gc_stats* buf)
   pool_max = buf->heap_stats.pool_max_words;
   large_max = buf->heap_stats.large_max_words;
 
-  for (i=0; i<Max_domains; i++) {
+  for (i=0; i<caml_params->max_domains; i++) {
     /* For allocation stats, we use the live stats of the current domain
        and the sampled stats of other domains.
 

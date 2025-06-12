@@ -294,20 +294,27 @@ val boxed_nativeint_alias_to :
 val boxed_vec128_alias_to :
   naked_vec128:Variable.t -> Alloc_mode.For_types.t -> t
 
+(** This function checks the kind of its argument. *)
 val box_float32 : t -> Alloc_mode.For_types.t -> t
 
+(** This function checks the kind of its argument. *)
 val box_float : t -> Alloc_mode.For_types.t -> t
 
+(** This function checks the kind of its argument. *)
 val box_int32 : t -> Alloc_mode.For_types.t -> t
 
+(** This function checks the kind of its argument. *)
 val box_int64 : t -> Alloc_mode.For_types.t -> t
 
+(** This function checks the kind of its argument. *)
 val box_nativeint : t -> Alloc_mode.For_types.t -> t
 
+(** This function checks the kind of its argument. *)
 val box_vec128 : t -> Alloc_mode.For_types.t -> t
 
 val tagged_immediate_alias_to : naked_immediate:Variable.t -> t
 
+(** This function checks the kind of its argument. *)
 val tag_immediate : t -> t
 
 val is_int_for_scrutinee : scrutinee:Simple.t -> t
@@ -809,4 +816,4 @@ module Head_of_kind_naked_vec128 :
     with type n = Vector_types.Vec128.Bit_pattern.t
     with type n_set = Vector_types.Vec128.Bit_pattern.Set.t
 
-val recover_some_aliases : t -> t
+val must_be_singleton : t -> Reg_width_const.t option

@@ -70,6 +70,7 @@ let input = Stdlib.input
 
 external unsafe_input_bigarray :
   t -> _ Bigarray.Array1.t -> int -> int -> int
+  @@ portable
   = "caml_ml_input_bigarray"
 
 let input_bigarray ic buf ofs len =
@@ -204,6 +205,6 @@ let rec fold_lines f accu ic =
 
 let set_binary_mode = Stdlib.set_binary_mode_in
 
-external is_binary_mode : in_channel -> bool = "caml_ml_is_binary_mode"
+external is_binary_mode : in_channel -> bool @@ portable = "caml_ml_is_binary_mode"
 
-external isatty : t -> bool = "caml_sys_isatty"
+external isatty : t -> bool @@ portable = "caml_sys_isatty"

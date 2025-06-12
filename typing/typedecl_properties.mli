@@ -31,7 +31,7 @@ type ('prop, 'req) property = {
   compute : Env.t -> decl -> 'req -> 'prop;
   update_decl : decl -> 'prop -> decl;
 
-  check : Env.t -> Ident.t -> decl -> 'req -> unit;
+  check : Env.t -> Ident.t -> decl -> 'req * 'req option -> unit;
 }
 (** ['prop] represents the type of property values
     ({!Types.Variance.t}, just 'bool' for immediacy, etc).
@@ -47,9 +47,13 @@ type ('prop, 'req) property = {
 (** [compute_property prop env decls req] performs a fixpoint computation
     to determine the final values of a property on a set of mutually-recursive
     type declarations. The [req] argument must be a list of the same size as
-    [decls], providing the user requirement for each declaration. *)
+    [decls], providing the user requirement for each declaration.
+
+    For each corresponding ['req * 'req option] and declaration, if the
+    declaration has an unboxed version, the ['req option] is [Some] and contains
+    the user requirement for the unboxed version. *)
 val compute_property : ('prop, 'req) property -> Env.t ->
-  (Ident.t * decl) list -> 'req list -> (Ident.t * decl) list
+  (Ident.t * decl) list -> ('req * 'req option) list -> (Ident.t * decl) list
 
 val compute_property_noreq : ('prop, unit) property -> Env.t ->
   (Ident.t * decl) list -> (Ident.t * decl) list

@@ -6,6 +6,7 @@ type check = Builtin_attributes.zero_alloc_check =
     opt: bool;
     arity: int;
     loc: Location.t;
+    custom_error_msg : string option;
   }
 
 type assume = Builtin_attributes.zero_alloc_assume =
@@ -22,7 +23,7 @@ type const = Builtin_attributes.zero_alloc_attribute =
   | Check of check
   | Assume of assume
 
-type desc = { strict : bool; opt : bool }
+type desc = { strict : bool; opt : bool; custom_error_msg : string option; }
 
 type var =
   { loc : Location.t;
@@ -44,14 +45,20 @@ let debug_printer ppf t =
     | Check _ -> "Check"
     | Assume _ -> "Assume"
   in
+  let pp_custom ppf c =
+    match c with
+    | None -> Format.fprintf ppf "None"
+    | Some msg -> Format.fprintf ppf "%S" msg
+  in
   match t with
   | Const c -> Format.fprintf ppf "Const %s" (head c)
   | Var v ->
     let print_desc ppf desc =
       match desc with
       | None -> Format.fprintf ppf "None"
-      | Some desc ->
-        Format.fprintf ppf "{ strict = %b; opt = %b }" desc.strict desc.opt
+      | Some { strict; opt; custom_error_msg; } ->
+        Format.fprintf ppf "{ strict = %b; opt = %b; custom_error_message = %a}" strict opt
+          pp_custom custom_error_msg
     in
     Format.fprintf ppf "Var { arity = %d; desc = %a }" v.arity print_desc v.desc
 
@@ -62,8 +69,10 @@ let log_change = ref (fun _ -> ())
 let set_change_log f = log_change := f
 
 let create_const x = Const x
-let create_var loc arity = Var { loc; arity; desc = None }
+let create_var loc arity =
+  Var { loc; arity; desc = None }
 let default = Const Default_zero_alloc
+let ignore_assert_all = Const Ignore_assert_all
 
 let get (t : t) =
   match t with
@@ -71,8 +80,8 @@ let get (t : t) =
   | Var { loc; arity; desc } ->
     match desc with
     | None -> Default_zero_alloc
-    | Some { strict; opt } ->
-      Check { loc; arity; strict; opt }
+    | Some { strict; opt; custom_error_msg; } ->
+      Check { loc; arity; strict; opt; custom_error_msg }
 
 type error =
   | Less_general of { missing_entirely : bool }
@@ -110,10 +119,9 @@ let sub_const_const_exn za1 za2 =
        error. It's essential for the soundness of the way we (will, in the next
        PR) use zero_alloc in signatures that the apparent arity of the type in
        the signature matches the syntactic arity of the function.
-     - [ignore] can not appear in zero_alloc attributes in signatures, and is
-       erased from structure items when computing their signature, so we don't
-       need to consider it here.
-     *)
+     - [ignore] is erased from structure items when computing their signature.
+       On signatures, [ignore] is interpreted as "top" for the inclusion check.
+       This interpretation is the same as erasing [ignore]. *)
   let open Builtin_attributes in
   (* abstract domain check *)
   let abstract_value za =
@@ -168,16 +176,28 @@ let sub_var_const_exn v c =
   | { arity = arity1; _ }, Check { arity = arity2; _ }
     when arity1 <> arity2 ->
     raise (Error (Arity_mismatch (arity1, arity2)))
-  | { desc = None; _ }, Check { strict; opt; _ } ->
+  | { desc = None; _ }, Check { strict; opt; custom_error_msg;  } ->
     !log_change (None, v);
-    v.desc <- Some { strict; opt }
-  | { desc = (Some { strict = strict1; opt = opt1 } as desc); _ },
-    Check { strict = strict2; opt = opt2 } ->
+    v.desc <- Some { strict; opt; custom_error_msg }
+  | { desc = (Some { strict = strict1; opt = opt1; custom_error_msg = msg1; } as desc); _ },
+    Check { strict = strict2; opt = opt2; custom_error_msg = msg2 } ->
     let strict = strict1 || strict2 in
     let opt = opt1 && opt2 in
-    if strict <> strict1 || opt <> opt1 then begin
+    let custom_error_msg, msg_changed =
+      match msg1, msg2 with
+      | None, None -> msg1, false;
+      | None, Some _ -> msg2, true;
+      | Some _, None -> msg1, false;
+      | Some m1, Some m2 ->
+        let b = String.equal m1 m2 in
+        let msg =
+          if b then msg1 else Some (String.concat "\n" [m1; m2])
+        in
+        msg, not b
+    in
+    if strict <> strict1 || opt <> opt1 || msg_changed then begin
       !log_change (desc, v);
-      v.desc <- Some { strict; opt }
+      v.desc <- Some { strict; opt; custom_error_msg; }
     end
 
 let sub_exn za1 za2 =
@@ -197,9 +217,9 @@ let sub_exn za1 za2 =
     *)
     if not (za1 == za2) then
       Misc.fatal_error "zero_alloc: variable constraint"
-  | _, Const (Ignore_assert_all | Assume _) ->
+  | _, Const (Assume _) ->
     Misc.fatal_error "zero_alloc: invalid constraint"
-  | _, (Const Default_zero_alloc) -> ()
+  | _, (Const (Default_zero_alloc | Ignore_assert_all)) -> ()
   | Var v, Const c -> sub_var_const_exn v c
   | Const c1, Const c2 -> sub_const_const_exn c1 c2
 

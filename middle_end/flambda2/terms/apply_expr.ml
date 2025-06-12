@@ -189,7 +189,9 @@ let invariant
          [Symbol]:@ %a"
         print t);
     match Flambda_arity.unarized_components return_arity with
-    | [] | [_] -> ()
+    | [] | [_] | [_; _] ->
+      (* CR xclerc: we currently support only pairs as unboxed return values. *)
+      ()
     | _ :: _ :: _ ->
       Misc.fatal_errorf "Illegal return arity for C call:@ %a"
         Flambda_arity.print return_arity)

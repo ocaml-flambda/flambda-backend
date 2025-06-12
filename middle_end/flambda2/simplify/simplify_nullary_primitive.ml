@@ -35,11 +35,6 @@ let simplify_nullary_primitive dacc original_prim (prim : P.nullary_primitive)
     let ty = T.any_naked_bool in
     let dacc = DA.add_variable dacc result_var ty in
     Simplify_primitive_result.create named ~try_reify:false dacc
-  | Begin_region { ghost = _ } | Begin_try_region { ghost = _ } ->
-    let named = Named.create_prim original_prim dbg in
-    let ty = T.any_region in
-    let dacc = DA.add_variable dacc result_var ty in
-    Simplify_primitive_result.create named ~try_reify:false dacc
   | Enter_inlined_apply { dbg } ->
     let dacc =
       DA.map_denv dacc ~f:(fun denv ->

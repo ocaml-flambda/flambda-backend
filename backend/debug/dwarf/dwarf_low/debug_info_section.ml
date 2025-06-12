@@ -14,8 +14,10 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open Asm_targets
 module DIE = Debugging_information_entry
+module A = Asm_directives
 
 type t =
   { dies : DIE.t list;
@@ -70,7 +72,6 @@ let size t =
   Dwarf_int.add (Initial_length.size initial_length) size_without_first_word
 
 let emit ~asm_directives t =
-  let module A = (val asm_directives : Asm_directives.S) in
   let size_without_first_word = size_without_first_word t in
   let initial_length = Initial_length.create size_without_first_word in
   A.define_label t.compilation_unit_header_label;

@@ -3,11 +3,11 @@
 *)
 
 (* Let bindings *)
-let local_ foo : string @@ unique = "hello"
+let local_ foo : string @ unique = "hello"
 [%%expect{|
-Line 1, characters 4-43:
-1 | let local_ foo : string @@ unique = "hello"
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 4-42:
+1 | let local_ foo : string @ unique = "hello"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
@@ -19,15 +19,15 @@ Line 1, characters 4-33:
 Error: This value escapes its region.
 |}]
 
-let local_ foo : 'a. 'a -> 'a @@ unique = fun x -> x
+let local_ foo : 'a. ('a -> 'a) @ unique = fun x -> x
 [%%expect{|
-Line 1, characters 4-52:
-1 | let local_ foo : 'a. 'a -> 'a @@ unique = fun x -> x
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 4-53:
+1 | let local_ foo : 'a. ('a -> 'a) @ unique = fun x -> x
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
-let foo : type a. a -> a @@ unique = fun x -> x
+let foo : type a. (a -> a) @ unique = fun x -> x
 [%%expect{|
 val foo : 'a -> 'a = <fun>
 |}]
@@ -40,11 +40,11 @@ Line 1, characters 4-44:
 Error: This value escapes its region.
 |}]
 
-let (x, y) : _ @@ local unique = "hello", "world"
+let (x, y) : _ @ local unique = "hello", "world"
 [%%expect{|
-Line 1, characters 4-49:
-1 | let (x, y) : _ @@ local unique = "hello", "world"
-        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 4-48:
+1 | let (x, y) : _ @ local unique = "hello", "world"
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
@@ -66,16 +66,105 @@ Line 2, characters 18-23:
 Error: The locality axis has already been specified.
 |}]
 
-(* CR zqian: this should be supported *)
-(* let foo a b @ local = "hello"
-let foo a b : _ @@ local = "hello" *)
+let foo a b @ local = local_ "hello"
+[%%expect{|
+Line 1, characters 22-36:
+1 | let foo a b @ local = local_ "hello"
+                          ^^^^^^^^^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+
+let foo = fun a b @ local -> local_ "hello"
+[%%expect{|
+Line 1, characters 29-43:
+1 | let foo = fun a b @ local -> local_ "hello"
+                                 ^^^^^^^^^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+
+let foo a b @ local = exclave_ "hello"
+[%%expect{|
+val foo : 'a -> 'b -> local_ string = <fun>
+|}]
+
+let foo = fun a b @ local -> exclave_ "hello"
+[%%expect{|
+val foo : 'a -> 'b -> local_ string = <fun>
+|}]
+
+
+let foo a b @ local = local_ 42
+[%%expect{|
+Line 1, characters 22-31:
+1 | let foo a b @ local = local_ 42
+                          ^^^^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+
+let foo = fun a b @ local -> local_ 42
+[%%expect{|
+Line 1, characters 29-38:
+1 | let foo = fun a b @ local -> local_ 42
+                                 ^^^^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+
+let foo a b : int @ local = local_ 42
+[%%expect{|
+val foo : 'a -> 'b -> local_ int = <fun>
+|}]
+
+let foo = fun a b @ local -> exclave_ 42
+[%%expect{|
+val foo : 'a -> 'b -> local_ int = <fun>
+|}]
+
+let foo a b @ local = local_ 42
+[%%expect{|
+Line 1, characters 22-31:
+1 | let foo a b @ local = local_ 42
+                          ^^^^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+
+let foo = fun a b @ local -> local_ 42
+[%%expect{|
+Line 1, characters 29-38:
+1 | let foo = fun a b @ local -> local_ 42
+                                 ^^^^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+
+
+(* the return mode annotation is used to interpret the return type annotation, giving the
+    expected currying behavior *)
+let foo a : (string -> string -> unit) @ local = fun b c -> ()
+[%%expect{|
+val foo : 'a -> local_ (string -> string -> unit) = <fun>
+|}]
+
+(* the return mode annotation overrides the whole-function mode annotation, even when they
+    describe different axes. *)
+(* CR zqian: this should probably be improved somehow. *)
+let bar () = exclave_
+  let (foo @ local) a : (string -> string -> unit) @ nonportable = fun b c -> () in
+  foo
+[%%expect{|
+val bar : unit -> local_ ('a -> (string -> string -> unit)) = <fun>
+|}]
 
 (* Expressions *)
-let foo = ("hello" : _ @@ local)
+let foo = ("hello" : _ @ local)
 [%%expect{|
-Line 1, characters 10-32:
-1 | let foo = ("hello" : _ @@ local)
-              ^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 10-31:
+1 | let foo = ("hello" : _ @ local)
+              ^^^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
@@ -162,20 +251,19 @@ Error: Found a aliased value where a unique value was expected
 (* arrow types *)
 type r = local_ string @ unique once -> unique_ string @ local once
 [%%expect{|
-type r = local_ string @ once unique -> local_ string @ once unique
+type r = string @ local unique once -> string @ local unique once
 |}]
 
 type r = local_ string * y:string @ unique once -> local_ string * w:string @ once
 [%%expect{|
 type r =
-    local_ string * y:string @ once unique -> local_ string * w:string @ once
+    string * y:string @ local unique once -> string * w:string @ local once
 |}]
 
 type r = x:local_ string * y:string @ unique once -> local_ string * w:string @ once
 [%%expect{|
 type r =
-    x:local_ string * y:string @ once unique -> local_
-    string * w:string @ once
+    x:string * y:string @ local unique once -> string * w:string @ local once
 |}]
 
 
@@ -198,22 +286,22 @@ Error: The locality axis has already been specified.
 (* Mixing legacy and new modes *)
 type r = local_ unique_ once_ string -> string
 [%%expect{|
-type r = local_ string @ once unique -> string
+type r = string @ local unique once -> string
 |}]
 
 type r = local_ unique_ once_ string @ portable contended -> string
 [%%expect{|
-type r = local_ string @ once unique portable contended -> string
+type r = string @ local unique once portable contended -> string
 |}]
 
 type r = string @ local unique once portable contended -> string
 [%%expect{|
-type r = local_ string @ once unique portable contended -> string
+type r = string @ local unique once portable contended -> string
 |}]
 
 type r = string @ local unique once nonportable uncontended -> string
 [%%expect{|
-type r = local_ string @ once unique -> string
+type r = string @ local unique once -> string
 |}]
 
 
@@ -233,8 +321,12 @@ Error: Unrecognized modality foo.
 |}]
 
 type t = Foo of global_ string @@ global
-(* CR reduced-modality: this should warn. *)
 [%%expect{|
+Line 1, characters 16-23:
+1 | type t = Foo of global_ string @@ global
+                    ^^^^^^^
+Warning 213: This locality is overriden by global later.
+
 type t = Foo of global_ string
 |}]
 
@@ -258,8 +350,12 @@ Error: Unrecognized modality foo.
 type r = {
   global_ x : string @@ global
 }
-(* CR reduced-modality: this should warn. *)
 [%%expect{|
+Line 2, characters 2-9:
+2 |   global_ x : string @@ global
+      ^^^^^^^
+Warning 213: This locality is overriden by global later.
+
 type r = { global_ x : string; }
 |}]
 
@@ -268,27 +364,31 @@ type r = {
   global_ x : string @@ aliased
 }
 [%%expect{|
-type r = { global_ x : string @@ aliased; }
+type r = { x : string @@ global aliased; }
 |}]
 
 type r = {
   x : string @@ aliased global many
 }
 [%%expect{|
-type r = { global_ x : string @@ many aliased; }
+type r = { x : string @@ global many aliased; }
 |}]
 
 type r = {
   x : string @@ aliased global many aliased
 }
-(* CR reduced-modality: this should warn. *)
 [%%expect{|
-type r = { global_ x : string @@ many aliased; }
+Line 2, characters 16-23:
+2 |   x : string @@ aliased global many aliased
+                    ^^^^^^^
+Warning 213: This uniqueness is overriden by aliased later.
+
+type r = { x : string @@ global many aliased; }
 |}]
 
 type r = Foo of string @@ global aliased many
 [%%expect{|
-type r = Foo of global_ string @@ many aliased
+type r = Foo of string @@ global many aliased
 |}]
 
 (* mutable implies global aliased many. No warnings are given since we imagine
@@ -305,37 +405,37 @@ type r = { mutable x : string; }
 
 let foo ?(local_ x @ unique once = 42) () = ()
 [%%expect{|
-val foo : ?x:local_ int @ once unique -> unit -> unit = <fun>
+val foo : ?x:int @ local unique once -> unit -> unit = <fun>
 |}]
 
-let foo ?(local_ x : _ @@ unique once = 42) () = ()
+let foo ?(local_ x : _ @ unique once = 42) () = ()
 [%%expect{|
-val foo : ?x:local_ int @ once unique -> unit -> unit = <fun>
+val foo : ?x:int @ local unique once -> unit -> unit = <fun>
 |}]
 
-let foo ?(local_ x : 'a. 'a -> 'a @@ unique once) = ()
+let foo ?(local_ x : 'a. ('a -> 'a) @ unique once) = ()
 [%%expect{|
-Line 1, characters 10-48:
-1 | let foo ?(local_ x : 'a. 'a -> 'a @@ unique once) = ()
-              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 10-49:
+1 | let foo ?(local_ x : 'a. ('a -> 'a) @ unique once) = ()
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Optional parameters cannot be polymorphic
 |}]
 
 let foo ?x:(local_ (x,y) @ unique once = (42, 42)) () = ()
 [%%expect{|
-val foo : ?x:local_ int * int @ once unique -> unit -> unit = <fun>
+val foo : ?x:int * int @ local unique once -> unit -> unit = <fun>
 |}]
 
-let foo ?x:(local_ (x,y) : _ @@ unique once = (42, 42)) () = ()
+let foo ?x:(local_ (x,y) : _ @ unique once = (42, 42)) () = ()
 [%%expect{|
-val foo : ?x:local_ int * int @ once unique -> unit -> unit = <fun>
+val foo : ?x:int * int @ local unique once -> unit -> unit = <fun>
 |}]
 
-let foo ?x:(local_ (x,y) : 'a.'a->'a @@ unique once) () = ()
+let foo ?x:(local_ (x,y) : 'a.('a->'a) @ unique once) () = ()
 [%%expect{|
-Line 1, characters 12-51:
-1 | let foo ?x:(local_ (x,y) : 'a.'a->'a @@ unique once) () = ()
-                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 12-52:
+1 | let foo ?x:(local_ (x,y) : 'a.('a->'a) @ unique once) () = ()
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Error: Optional parameters cannot be polymorphic
 |}]
 
@@ -366,23 +466,11 @@ let foo () =
 val foo : unit -> unit = <fun>
 |}]
 
-(* modalities on normal values requires [-extension mode_alpha] *)
-module type S = sig
-  val x : string -> string @ local @@ foo bar
-end
-[%%expect{|
-Line 2, characters 38-41:
-2 |   val x : string -> string @ local @@ foo bar
-                                          ^^^
-Error: The extension "mode" is disabled and cannot be used
-|}]
-
-
 (*
  * Modification of return modes in argument position
  *)
 
-let use_local (f : _ -> _ -> _ @@ local) x y =
+let use_local (f : (_ -> _ -> _) @ local) x y =
   f x y
 let result = use_local (^) "hello" " world"
 [%%expect{|

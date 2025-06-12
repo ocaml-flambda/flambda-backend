@@ -26,7 +26,6 @@ type t =
     result_arity : [`Unarized] Flambda_arity.t;
     result_types : Result_types.t Or_unknown_or_bottom.t;
     result_mode : Lambda.locality_mode;
-    contains_no_escaping_local_allocs : bool;
     stub : bool;
     inline : Inline_attribute.t;
     zero_alloc_attribute : Zero_alloc_attribute.t;
@@ -98,9 +97,6 @@ module Code_metadata_accessors (X : Metadata_view_type) = struct
 
   let inlining_decision t = (metadata t).inlining_decision
 
-  let contains_no_escaping_local_allocs t =
-    (metadata t).contains_no_escaping_local_allocs
-
   let absolute_history t = (metadata t).absolute_history
 
   let relative_history t = (metadata t).relative_history
@@ -141,7 +137,6 @@ type 'a create_type =
   result_arity:[`Unarized] Flambda_arity.t ->
   result_types:Result_types.t Or_unknown_or_bottom.t ->
   result_mode:Lambda.locality_mode ->
-  contains_no_escaping_local_allocs:bool ->
   stub:bool ->
   inline:Inline_attribute.t ->
   zero_alloc_attribute:Zero_alloc_attribute.t ->
@@ -161,11 +156,11 @@ type 'a create_type =
   'a
 
 let createk k code_id ~newer_version_of ~params_arity ~param_modes
-    ~first_complex_local_param ~result_arity ~result_types ~result_mode
-    ~contains_no_escaping_local_allocs ~stub ~(inline : Inline_attribute.t)
-    ~zero_alloc_attribute ~poll_attribute ~is_a_functor ~is_opaque ~recursive
-    ~cost_metrics ~inlining_arguments ~dbg ~is_tupled ~is_my_closure_used
-    ~inlining_decision ~absolute_history ~relative_history ~loopify =
+    ~first_complex_local_param ~result_arity ~result_types ~result_mode ~stub
+    ~(inline : Inline_attribute.t) ~zero_alloc_attribute ~poll_attribute
+    ~is_a_functor ~is_opaque ~recursive ~cost_metrics ~inlining_arguments ~dbg
+    ~is_tupled ~is_my_closure_used ~inlining_decision ~absolute_history
+    ~relative_history ~loopify =
   (match stub, inline with
   | true, (Available_inline | Never_inline | Default_inline)
   | ( false,
@@ -198,7 +193,6 @@ let createk k code_id ~newer_version_of ~params_arity ~param_modes
       result_arity;
       result_types;
       result_mode;
-      contains_no_escaping_local_allocs;
       stub;
       inline;
       zero_alloc_attribute;
@@ -249,7 +243,7 @@ let [@ocamlformat "disable"] print ppf
        { code_id = _; newer_version_of; stub; inline; zero_alloc_attribute; poll_attribute;
          is_a_functor; is_opaque; params_arity; param_modes;
          first_complex_local_param; result_arity;
-         result_types; result_mode; contains_no_escaping_local_allocs;
+         result_types; result_mode;
          recursive; cost_metrics; inlining_arguments;
          dbg; is_tupled; is_my_closure_used; inlining_decision;
          absolute_history; relative_history; loopify } =
@@ -268,7 +262,6 @@ let [@ocamlformat "disable"] print ppf
       @[<hov 1>%t(result_arity@ %t%a%t)%t@]@ \
       @[<hov 1>(result_types@ @[<hov 1>(%a)@])@]@ \
       @[<hov 1>(result_mode@ %s)@]@ \
-      @[<hov 1>(contains_no_escaping_local_allocs@ %b)@]@ \
       @[<hov 1>%t(recursive@ %a)%t@]@ \
       @[<hov 1>(cost_metrics@ %a)@]@ \
       @[<hov 1>(inlining_arguments@ %a)@]@ \
@@ -341,7 +334,6 @@ let [@ocamlformat "disable"] print ppf
     Flambda_colours.pop
     (Or_unknown_or_bottom.print Result_types.print) result_types
     (match result_mode with Alloc_heap -> "Heap" | Alloc_local -> "Local")
-    contains_no_escaping_local_allocs
     (match recursive with
     | Non_recursive -> Flambda_colours.elide
     | Recursive -> Flambda_colours.none)
@@ -371,7 +363,6 @@ let free_names
       result_arity = _;
       result_types;
       result_mode = _;
-      contains_no_escaping_local_allocs = _;
       stub = _;
       inline = _;
       zero_alloc_attribute = _;
@@ -414,7 +405,6 @@ let apply_renaming
        result_arity = _;
        result_types;
        result_mode = _;
-       contains_no_escaping_local_allocs = _;
        stub = _;
        inline = _;
        zero_alloc_attribute = _;
@@ -468,7 +458,6 @@ let ids_for_export
       result_arity = _;
       result_types;
       result_mode = _;
-      contains_no_escaping_local_allocs = _;
       stub = _;
       inline = _;
       zero_alloc_attribute = _;
@@ -508,7 +497,6 @@ let approx_equal
       result_arity = result_arity1;
       result_types = _;
       result_mode = result_mode1;
-      contains_no_escaping_local_allocs = contains_no_escaping_local_allocs1;
       stub = stub1;
       inline = inline1;
       zero_alloc_attribute = zero_alloc_attribute1;
@@ -534,7 +522,6 @@ let approx_equal
       result_arity = result_arity2;
       result_types = _;
       result_mode = result_mode2;
-      contains_no_escaping_local_allocs = contains_no_escaping_local_allocs2;
       stub = stub2;
       inline = inline2;
       zero_alloc_attribute = zero_alloc_attribute2;
@@ -559,8 +546,6 @@ let approx_equal
   && Int.equal first_complex_local_param1 first_complex_local_param2
   && Flambda_arity.equal_ignoring_subkinds result_arity1 result_arity2
   && Lambda.eq_locality_mode result_mode1 result_mode2
-  && Bool.equal contains_no_escaping_local_allocs1
-       contains_no_escaping_local_allocs2
   && Bool.equal stub1 stub2
   && Inline_attribute.equal inline1 inline2
   && Zero_alloc_attribute.equal zero_alloc_attribute1 zero_alloc_attribute2

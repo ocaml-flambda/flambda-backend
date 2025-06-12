@@ -49,9 +49,8 @@ module Style = Misc.Style
 
    In this case, there is no way to know the jkind without the annotation.
 
-   (* CR layouts v2.8: remove this case *)
-   (C1.2) The type has illegal mode crossings. In this case, the jkind is overridden by
-   the user rather than being inferred from the definition.
+   (C1.2) The type has unsafe mode crossings. In this case, the jkind is overridden by the
+   user rather than being inferred from the definition.
 
    Case (C2). The jkind on a type parameter to a type, like
    [type ('a : <<this one>>) t = ...].
@@ -139,6 +138,7 @@ let human_unique n id = Printf.sprintf "%s/%d" (Ident.name id) n
     | Type
     | Constructor
     | Label
+    | Unboxed_label
     | Module
     | Module_type
     | Extension_constructor
@@ -155,9 +155,10 @@ module Namespace = struct
     | Class -> 3
     | Class_type -> 4
     | Extension_constructor | Value | Constructor | Label -> 5
+    | Unboxed_label -> 6
      (* we do not handle those component *)
 
-  let size = 1 + id Value
+  let size = 1 + id Unboxed_label
 
 
   let pp ppf x =
@@ -174,7 +175,8 @@ module Namespace = struct
     | Some Module_type -> to_lookup Env.find_modtype_by_name
     | Some Class -> to_lookup Env.find_class_by_name
     | Some Class_type -> to_lookup Env.find_cltype_by_name
-    | None | Some(Value|Extension_constructor|Constructor|Label) ->
+    | None
+    | Some(Value|Extension_constructor|Constructor|Label|Unboxed_label) ->
          fun _ -> raise Not_found
 
   let location namespace id =
@@ -186,7 +188,8 @@ module Namespace = struct
         | Some Module_type -> (in_printing_env @@ Env.find_modtype path).mtd_loc
         | Some Class -> (in_printing_env @@ Env.find_class path).cty_loc
         | Some Class_type -> (in_printing_env @@ Env.find_cltype path).clty_loc
-        | Some (Extension_constructor|Value|Constructor|Label) | None ->
+        | Some (Extension_constructor|Value|Constructor|Label|Unboxed_label)
+        | None ->
             Location.none
       ) with Not_found -> None
 
@@ -448,7 +451,8 @@ let instance_name global =
     String.concat "" (head :: List.map string_of_arg args)
   and string_of_arg arg =
     let ({ param; value } : Global_module.Name.argument) = arg in
-    sprintf "(%s)(%s)" (string_of_global param) (string_of_global value)
+    sprintf "(%s)(%s)"
+      (Global_module.Parameter_name.to_string param) (string_of_global value)
   in
   let printed_name =
     string_of_global global ^ " [@jane.non_erasable.instances]"
@@ -564,6 +568,8 @@ let rec tree_of_path namespace = function
           Oide_dot (tree_of_path (Some Type) p, s)
       | Pext_ty ->
           tree_of_path None p
+      | Punboxed_ty ->
+          Oide_hash (tree_of_path namespace p)
     end
 
 let tree_of_path namespace = function
@@ -656,9 +662,26 @@ and raw_lid_type_list tl =
   raw_list (fun ppf (lid, typ) ->
              fprintf ppf "(@,%a,@,%a)" longident lid raw_type typ)
     tl
+and raw_row_desc ppf row =
+  let Row {fields; more; name; fixed; closed} = row_repr row in
+  fprintf ppf
+    "@[<hov1>{@[%s@,%a;@]@ @[%s@,%a;@]@ %s%B;@ %s%a;@ @[<1>%s%t@]}@]"
+    "row_fields="
+    (raw_list (fun ppf (l, f) ->
+       fprintf ppf "@[%s,@ %a@]" l raw_field f))
+    fields
+    "row_more=" raw_type more
+    "row_closed=" closed
+    "row_fixed=" raw_row_fixed fixed
+    "row_name="
+    (fun ppf ->
+       match name with None -> fprintf ppf "None"
+                     | Some(p,tl) ->
+                       fprintf ppf "Some(@,%a,@,%a)" path p raw_type_list tl)
 and raw_type_desc ppf = function
     Tvar { name; jkind } ->
-      fprintf ppf "Tvar (@,%a,@,%a)" print_name name Jkind.format jkind
+      fprintf ppf "Tvar (@,%a,@,%a)"
+        print_name name Jkind.format jkind
   | Tarrow((l,arg,ret),t1,t2,c) ->
       fprintf ppf "@[<hov1>Tarrow((\"%s\",%a,%a),@,%a,@,%a,@,%s)@]"
         (string_of_label l)
@@ -690,36 +713,26 @@ and raw_type_desc ppf = function
   | Tsubst (t, Some t') ->
       fprintf ppf "@[<1>Tsubst@,(%a,@ Some%a)@]" raw_type t raw_type t'
   | Tunivar { name; jkind } ->
-      fprintf ppf "Tunivar (@,%a,@,%a)" print_name name Jkind.format jkind
+      fprintf ppf "Tunivar (@,%a,@,%a)"
+        print_name name Jkind.format jkind
   | Tpoly (t, tl) ->
       fprintf ppf "@[<hov1>Tpoly(@,%a,@,%a)@]"
         raw_type t
         raw_type_list tl
   | Tvariant row ->
-      let Row {fields; more; name; fixed; closed} = row_repr row in
-      fprintf ppf
-        "@[<hov1>{@[%s@,%a;@]@ @[%s@,%a;@]@ %s%B;@ %s%a;@ @[<1>%s%t@]}@]"
-        "row_fields="
-        (raw_list (fun ppf (l, f) ->
-          fprintf ppf "@[%s,@ %a@]" l raw_field f))
-        fields
-        "row_more=" raw_type more
-        "row_closed=" closed
-        "row_fixed=" raw_row_fixed fixed
-        "row_name="
-        (fun ppf ->
-          match name with None -> fprintf ppf "None"
-          | Some(p,tl) ->
-              fprintf ppf "Some(@,%a,@,%a)" path p raw_type_list tl)
+    raw_row_desc ppf row
   | Tpackage (p, fl) ->
       fprintf ppf "@[<hov1>Tpackage(@,%a,@,%a)@]" path p
         raw_lid_type_list fl
+  | Tof_kind jkind ->
+    fprintf ppf "(type@ :@ %a)" Jkind.format jkind
 and raw_row_fixed ppf = function
 | None -> fprintf ppf "None"
 | Some Types.Fixed_private -> fprintf ppf "Some Fixed_private"
 | Some Types.Rigid -> fprintf ppf "Some Rigid"
 | Some Types.Univar t -> fprintf ppf "Some(Univar(%a))" raw_type t
 | Some Types.Reified p -> fprintf ppf "Some(Reified(%a))" path p
+| Some Types.Fixed_existential -> fprintf ppf "Some Fixed_existential"
 
 and raw_field ppf rf =
   match_row_field
@@ -891,6 +904,11 @@ let rec lid_of_path = function
   | Path.Papply (p1, p2) ->
       Longident.Lapply (lid_of_path p1, lid_of_path p2)
   | Path.Pextra_ty (p, Pext_ty) -> lid_of_path p
+  | Path.Pextra_ty (p, Punboxed_ty) ->
+    match p with
+    | Pident id -> Longident.Lident (Ident.name id ^ "#")
+    | Pdot (p, s) -> Longident.Ldot (lid_of_path p, s ^ "#")
+    | Papply _ | Pextra_ty _ -> assert false
 
 let is_unambiguous path env =
   let l = Env.find_shadowed_types path env in
@@ -1365,7 +1383,11 @@ let rec out_jkind_of_desc (desc : 'd Jkind.Desc.t) =
 let out_jkind_option_of_jkind jkind =
   let desc = Jkind.get jkind in
   let elide =
-    Jkind.is_value_for_printing jkind (* C2.1 *)
+    (* CR layouts: We ignore nullability here to avoid needlessly printing
+       ['a : value_or_null] when it's not relevant (most cases).
+       Unfortunately, this makes error messages really confusing, because
+       we don't consider jkind annotations. *)
+    Jkind.is_value_for_printing ~ignore_null:true jkind (* C2.1 *)
     || (match desc.layout with
         | Sort (Var _) -> not !Clflags.verbose_types (* X1 *)
         | _ -> false)
@@ -1385,39 +1407,73 @@ let outcome_label : Types.arg_label -> Outcometree.arg_label = function
   | Optional l -> Optional l
   | Position l -> Position l
 
+let rec all_or_none f = function
+  | [] -> Some []
+  | x :: xs ->
+    Option.bind (f x) (fun y ->
+      Option.bind (all_or_none f xs) (fun ys ->
+        Some (y :: ys)
+        )
+      )
+
 let tree_of_modality_new (t: Parsetree.modality loc) =
-  let Modality s = t.txt in s
+  let Modality s = t.txt in Ogf_new s
 
-let tree_of_modality (t: Parsetree.modality loc) =
+let tree_of_modality_old (t: Parsetree.modality loc) =
   match t.txt with
-  | Modality "global" -> Ogf_legacy Ogf_global
-  | _ -> Ogf_new (tree_of_modality_new t)
+  | Modality "global" -> Some (Ogf_legacy Ogf_global)
+  | _ -> None
 
-let tree_of_modalities mut attrs t =
-  let t = Typemode.untransl_modalities mut attrs t in
-  List.map tree_of_modality t
+let tree_of_modalities mut t =
+  let t = Typemode.untransl_modalities mut t in
+  match all_or_none tree_of_modality_old t with
+  | Some l -> l
+  | None -> List.map tree_of_modality_new t
 
-let tree_of_modalities_new mut attrs t =
-  let l = Typemode.untransl_modalities mut attrs t in
-  List.map tree_of_modality_new l
+let tree_of_modalities_new mut t =
+  let l = Typemode.untransl_modalities mut t in
+  List.map (fun ({txt = Parsetree.Modality s; _}) -> s) l
 
 (** [tree_of_mode m l] finds the outcome node in [l] that corresponds to [m].
 Raise if not found. *)
-let tree_of_mode (mode : 'm option) (l : ('m * out_mode) list) : out_mode option =
-  Option.map (fun x -> List.assoc x l) mode
+let tree_of_mode_old (t : Parsetree.mode loc) =
+  match t.txt with
+  | Mode "local" -> Some (Omd_legacy Omd_local)
+  | _ -> None
 
-let tree_of_modes modes =
+let tree_of_mode_new (t: Parsetree.mode loc) =
+  let Mode s = t.txt in Omd_new s
+
+let tree_of_modes (modes : Mode.Alloc.Const.t) =
   let diff = Mode.Alloc.Const.diff modes Mode.Alloc.Const.legacy in
-  (* The mapping passed to [tree_of_mode] must cover all non-legacy modes *)
-  let l = [
-    tree_of_mode diff.areality [Mode.Locality.Const.Local, Omd_legacy Omd_local];
-    tree_of_mode diff.linearity [Mode.Linearity.Const.Once, Omd_new "once"];
-    tree_of_mode diff.uniqueness [Mode.Uniqueness.Const.Unique, Omd_new "unique"];
-    tree_of_mode diff.portability [Mode.Portability.Const.Portable, Omd_new "portable"];
-    tree_of_mode diff.contention [Mode.Contention.Const.Contended, Omd_new "contended";
-                                  Mode.Contention.Const.Shared, Omd_new "shared"]]
+
+  (* [yielding] has implied defaults depending on [areality]: *)
+  let yielding =
+    match modes.areality, modes.yielding with
+    | Local, Yielding | Global, Unyielding -> None
+    | _, _ -> Some modes.yielding
   in
-  List.filter_map Fun.id l
+
+  (* [contention] has implied defaults based on [visibility]: *)
+  let contention =
+    match modes.visibility, modes.contention with
+    | Immutable, Contended | Read, Shared | Read_write, Uncontended -> None
+    | _, _ -> Some modes.contention
+  in
+
+  (* [portability] has implied defaults based on [statefulness]: *)
+  let portability =
+    match modes.statefulness, modes.portability with
+    | Stateless, Portable | (Observing | Stateful), Nonportable -> None
+    | _, _ -> Some modes.portability
+  in
+
+  let diff = {diff with yielding; contention; portability} in
+  (* The mapping passed to [tree_of_mode] must cover all non-legacy modes *)
+  let l = Typemode.untransl_mode_annots diff in
+  match all_or_none tree_of_mode_old l with
+  | Some l -> l
+  | None -> List.map tree_of_mode_new l
 
 (* [alloc_mode] is the mode that our printing has expressed on [ty]. For the
   example [A -> local_ (B -> C)], we will call [tree_of_typexp] on (B -> C) with
@@ -1548,6 +1604,8 @@ let rec tree_of_typexp mode alloc_mode ty =
               tree_of_typexp mode Alloc.Const.legacy ty
             )) fl in
         Otyp_module (tree_of_path (Some Module_type) p, fl)
+    | Tof_kind jkind ->
+      Otyp_of_kind (out_jkind_of_desc (Jkind.get jkind))
   in
   if List.memq px !delayed then delayed := List.filter ((!=) px) !delayed;
   alias_nongen_row mode px ty;
@@ -1592,7 +1650,7 @@ and tree_of_labeled_typlist mode tyl =
 
 and tree_of_typ_gf {ca_type=ty; ca_modalities=gf; _} =
   (tree_of_typexp Type Alloc.Const.legacy ty,
-   tree_of_modalities Immutable [] gf)
+   tree_of_modalities Immutable gf)
 
 (** We are on the RHS of an arrow type, where [ty] is the return type, and [m]
     is the return mode. This function decides the printed modes on [ty].
@@ -1670,12 +1728,13 @@ let tree_of_typexp mode ty = tree_of_typexp mode Alloc.Const.legacy ty
 let typexp mode ppf ty =
   !Oprint.out_type ppf (tree_of_typexp mode ty)
 
+(* Only used for printing a single modality in error message *)
 let modality ?(id = fun _ppf -> ()) ppf modality =
   if Mode.Modality.is_id modality then id ppf
   else
     modality
     |> Typemode.untransl_modality
-    |> tree_of_modality
+    |> tree_of_modality_new
     |> !Oprint.out_modality ppf
 
 let prepared_type_expr ppf ty = typexp Type ppf ty
@@ -1685,8 +1744,6 @@ let type_expr ppf ty =
      we mark eventual loops ourself to avoid any misuse and stack overflow *)
   prepare_for_printing [ty];
   prepared_type_expr ppf ty
-
-let () = Env.print_type_expr := type_expr
 
 (* "Half-prepared" type expression: [ty] should have had its names reserved, but
    should not have had its loops marked. *)
@@ -1714,6 +1771,15 @@ let type_path ppf p =
 let tree_of_type_scheme ty =
   prepare_for_printing [ty];
   tree_of_typexp Type_scheme ty
+
+let () =
+  Env.print_type_expr := type_expr;
+  Jkind.set_outcometree_of_type (fun ty ->
+    prepare_for_printing [ty];
+    tree_of_typexp Type ty);
+  Jkind.set_outcometree_of_modalities_new tree_of_modalities_new;
+  Jkind.set_print_type_expr type_expr;
+  Jkind.set_raw_type_expr raw_type_expr
 
 (* Print one type declaration *)
 
@@ -1774,7 +1840,8 @@ let tree_of_label l =
     match l.ld_mutable with
     | Mutable m ->
         let mut =
-          if Alloc.Comonadic.Const.eq m Alloc.Comonadic.Const.legacy then
+          let open Alloc.Comonadic.Const in
+          if Misc.Le_result.equal ~le m legacy then
             Om_mutable None
           else
             Om_mutable (Some "<non-legacy>")
@@ -1782,9 +1849,7 @@ let tree_of_label l =
         mut
     | Immutable -> Om_immutable
   in
-  let ld_modalities =
-    tree_of_modalities l.ld_mutable l.ld_attributes l.ld_modalities
-  in
+  let ld_modalities = tree_of_modalities l.ld_mutable l.ld_modalities in
   (Ident.name l.ld_id, mut, tree_of_typexp Type l.ld_type, ld_modalities)
 
 let tree_of_constructor_arguments = function
@@ -1860,13 +1925,15 @@ let prepare_decl id decl =
   in
   begin match decl.type_kind with
   | Type_abstract _ -> ()
-  | Type_variant (cstrs, _rep) ->
+  | Type_variant (cstrs, _rep,_umc) ->
       List.iter
         (fun c ->
            prepare_type_constructor_arguments c.cd_args;
            Option.iter prepare_type c.cd_res)
         cstrs
-  | Type_record(l, _rep) ->
+  | Type_record(l, _rep,_umc) ->
+      List.iter (fun l -> prepare_type l.ld_type) l
+  | Type_record_unboxed_product(l, _rep,_umc) ->
       List.iter (fun l -> prepare_type l.ld_type) l
   | Type_open -> ()
   end;
@@ -1887,7 +1954,9 @@ let tree_of_type_decl id decl =
           decl.type_manifest = None || decl.type_private = Private
       | Type_record _ ->
           decl.type_private = Private
-      | Type_variant (tll, _rep) ->
+      | Type_record_unboxed_product _ ->
+          decl.type_private = Private
+      | Type_variant (tll, _rep,_umc) ->
           decl.type_private = Private ||
           List.exists (fun cd -> cd.cd_res <> None) tll
       | Type_open ->
@@ -1926,44 +1995,69 @@ let tree_of_type_decl id decl =
   in
   let (name, args) = type_defined decl in
   let constraints = tree_of_constraints params in
-  let ty, priv, unboxed =
+  let ty, priv, unboxed, or_null_reexport, unsafe_mode_crossing =
     match decl.type_kind with
     | Type_abstract _ ->
         begin match ty_manifest with
-        | None -> (Otyp_abstract, Public, false)
+        | None -> (Otyp_abstract, Public, false, false, false)
         | Some ty ->
-            tree_of_typexp Type ty, decl.type_private, false
+            tree_of_typexp Type ty, decl.type_private, false, false, false
         end
-    | Type_variant (cstrs, rep) ->
+    | Type_variant (cstrs, rep, umc) ->
         let unboxed =
           match rep with
           | Variant_unboxed -> true
-          | Variant_boxed _ | Variant_extensible -> false
+          | Variant_boxed _ | Variant_extensible | Variant_with_null -> false
+        in
+        (* CR layouts v3.5: remove when [Variant_with_null] is merged into
+           [Variant_unboxed]. *)
+        let or_null_reexport =
+          match rep with
+          | Variant_with_null -> true
+          | Variant_boxed _ | Variant_unboxed | Variant_extensible -> false
         in
         tree_of_manifest (Otyp_sum (List.map tree_of_constructor_in_decl cstrs)),
         decl.type_private,
-        unboxed
-    | Type_record(lbls, rep) ->
+        unboxed,
+        or_null_reexport,
+        (Option.is_some umc)
+    | Type_record(lbls, rep, umc) ->
         tree_of_manifest (Otyp_record (List.map tree_of_label lbls)),
         decl.type_private,
-        (match rep with Record_unboxed -> true | _ -> false)
+        (match rep with Record_unboxed -> true | _ -> false),
+        false,
+        (Option.is_some umc)
+    | Type_record_unboxed_product(lbls, Record_unboxed_product, umc) ->
+        tree_of_manifest
+          (Otyp_record_unboxed_product (List.map tree_of_label lbls)),
+        decl.type_private,
+        false,
+        false,
+        (Option.is_some umc)
     | Type_open ->
         tree_of_manifest Otyp_open,
         decl.type_private,
+        false,
+        false,
         false
   in
   (* The algorithm for setting [lay] here is described as Case (C1) in
      Note [When to print jkind annotations] *)
-  let is_value = Jkind.is_value_for_printing decl.type_jkind in
+  let is_value = Jkind.is_value_for_printing ~ignore_null:false decl.type_jkind in
   let otype_jkind =
-    match ty, is_value, decl.type_has_illegal_crossings with
+    match ty, is_value, unsafe_mode_crossing with
     | (Otyp_abstract, false, _) | (_, _, true) ->
         (* The two cases of (C1) from the Note correspond to Otyp_abstract.
            Anything but the default must be user-written, so we print the
            user-written annotation. *)
-        (* type_has_illegal_crossings corresponds to C1.2 *)
+        (* unsafe_mode_crossing corresponds to C1.2 *)
         Some (out_jkind_of_desc (Jkind.get decl.type_jkind))
     | _ -> None (* other cases have no jkind annotation *)
+  in
+  let attrs =
+    if unsafe_mode_crossing
+    then [{ oattr_name = "unsafe_allow_any_mode_crossing" }]
+    else []
   in
     { otype_name = name;
       otype_params = args;
@@ -1971,7 +2065,9 @@ let tree_of_type_decl id decl =
       otype_private = priv;
       otype_jkind;
       otype_unboxed = unboxed;
-      otype_cstrs = constraints }
+      otype_or_null_reexport = or_null_reexport;
+      otype_cstrs = constraints;
+      otype_attributes = attrs }
 
 let add_type_decl_to_preparation id decl =
    ignore @@ prepare_decl id decl
@@ -2135,7 +2231,7 @@ let tree_of_value_description id decl =
   (* Important: process the fvs *after* the type; tree_of_type_scheme
      resets the naming context *)
   let snap = Btype.snapshot () in
-  let moda = Mode.Modality.Value.zap_to_floor decl.val_modalities in
+  let moda = Mode.Modality.Value.zap_to_id decl.val_modalities in
   let qtvs = extract_qtvs [decl.val_type] in
   let apparent_arity =
     let rec count n typ =
@@ -2148,7 +2244,7 @@ let tree_of_value_description id decl =
   let attrs =
     match Zero_alloc.get decl.val_zero_alloc with
     | Default_zero_alloc | Ignore_assert_all -> []
-    | Check { strict; opt; arity; _ } ->
+    | Check { strict; opt; arity; custom_error_msg; loc = _; } ->
       [{ oattr_name =
            String.concat ""
              ["zero_alloc";
@@ -2156,6 +2252,9 @@ let tree_of_value_description id decl =
               if opt then " opt" else "";
               if arity = apparent_arity then "" else
                 Printf.sprintf " arity %d" arity;
+              match custom_error_msg with
+              | None -> ""
+              | Some msg -> Printf.sprintf " custom_error_message %S" msg
              ] }]
     | Assume { strict; never_returns_normally; arity; _ } ->
       [{ oattr_name =
@@ -2171,8 +2270,7 @@ let tree_of_value_description id decl =
   let vd =
     { oval_name = id;
       oval_type = Otyp_poly(qtvs, ty);
-      oval_modalities =
-        tree_of_modalities_new Immutable decl.val_attributes moda;
+      oval_modalities = tree_of_modalities_new Immutable moda;
       oval_prims = [];
       oval_attributes = attrs
     }
@@ -2411,7 +2509,7 @@ let dummy =
     type_attributes = [];
     type_unboxed_default = false;
     type_uid = Uid.internal_not_actually_unique;
-    type_has_illegal_crossings = false;
+    type_unboxed_version = None;
   }
 
 (** we hide items being defined from short-path to avoid shortening
@@ -2946,6 +3044,7 @@ let explain_fixed_row pos expl = match expl with
            print_path p ppf))
       p
   | Rigid -> ignore
+  | Fixed_existential -> ignore
 
 let explain_variant (type variety) : variety Errortrace.variant -> _ = function
   (* Common *)
@@ -2969,7 +3068,7 @@ let explain_variant (type variety) : variety Errortrace.variant -> _ = function
         dprintf "@,@[%t,@ %a@]" (explain_fixed_row pos e)
           explain_fixed_row_case k
       )
-  | Errortrace.Fixed_row (_,_, Rigid) ->
+  | Errortrace.Fixed_row (_,_, (Rigid | Fixed_existential)) ->
       (* this case never happens *)
       None
   (* Equality & Moregen *)
@@ -3091,14 +3190,22 @@ let explanation (type variety) intro prev env
       Some (dprintf "@ @[<hov>%a@]"
               (Jkind.Violation.report_with_offender_sort
                  ~offender:(fun ppf -> type_expr ppf t)) e)
-  | Errortrace.Unequal_var_jkinds (t1,l1,t2,l2) ->
-      let fmt_history t l ppf =
+  | Errortrace.Unequal_var_jkinds (t1,k1,t2,k2) ->
+      let fmt_history t k ppf =
         Jkind.(format_history ~intro:(
-          dprintf "The layout of %a is %a" prepared_type_expr t format l) ppf l)
+          dprintf "The layout of %a is %a" prepared_type_expr t format k) ppf k)
       in
       Some (dprintf "@ because the layouts of their variables are different.\
                      @ @[<v>%t@;%t@]"
-              (fmt_history t1 l1) (fmt_history t2 l2))
+              (fmt_history t1 k1) (fmt_history t2 k2))
+  | Errortrace.Unequal_tof_kind_jkinds (k1, k2) ->
+      let fmt_history which k ppf =
+        Jkind.(format_history ~intro:(
+          dprintf "The kind of %s is %a" which format k) ppf k)
+      in
+      Some (dprintf "@ because their kinds are different.\
+                     @ @[<v>%t@;%t@]"
+              (fmt_history "the first" k1) (fmt_history "the second" k2))
 
 let mismatch intro env trace =
   Errortrace.explain trace (fun ~prev h -> explanation intro prev env h)
@@ -3162,7 +3269,8 @@ let error trace_format mode subst env tr txt1 ppf txt2 ty_expect_explanation =
       tr
   in
   let jkind_error = match Misc.last tr with
-    | Some (Bad_jkind _ | Bad_jkind_sort _ | Unequal_var_jkinds _) ->
+    | Some (Bad_jkind _ | Bad_jkind_sort _ | Unequal_var_jkinds _
+           | Unequal_tof_kind_jkinds _) ->
         true
     | Some (Diff _ | Escape _ | Variant _ | Obj _ | Incompatible_fields _
            | Rec_occur _)

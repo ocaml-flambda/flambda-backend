@@ -13,6 +13,9 @@
  (ocamlopt_flags
   (:standard -linscan -Oclassic)))
 
+
+;; CR-soon gyorsh: to enable on macos, replace "readelf -sW" in the filter below
+
 (rule
  (enabled_if
   (and

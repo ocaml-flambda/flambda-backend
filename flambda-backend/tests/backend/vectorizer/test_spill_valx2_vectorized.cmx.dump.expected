@@ -1,0 +1,1 @@
+**** Vectorize selected computation: 216 groups, 432 scalar instructions, 216 vector instructions, cost = -216 (Test_spill_valx2_vectorized.foo)

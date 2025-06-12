@@ -24,18 +24,9 @@
    -safe-string
    -strict-formats
    -extension-universe
-   alpha
-   ;; Capsule API can't be defined legally.
-   -allow-illegal-crossing))
+   alpha))
  (ocamlopt_flags
   (:include %{project_root}/ocamlopt_flags.sexp))
- (foreign_stubs
-  (language c)
-  (names rwlock)
-  (flags
-   ((:include %{project_root}/oc_cflags.sexp)
-    (:include %{project_root}/sharedlib_cflags.sexp)
-    (:include %{project_root}/oc_cppflags.sexp))))
  (library_flags
   (:standard -linkall)))
 
@@ -50,7 +41,6 @@
 
 (install
  (files
-  (dllstdlib_alpha_stubs.so as stublibs/dllstdlib_alpha_stubs.so)
   (META as stdlib_alpha/META))
  (section lib)
  (package ocaml))

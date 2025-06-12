@@ -13,6 +13,7 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
+[@@@ocaml.warning "+a-40-41-42"]
 
 module type S = sig
   (* The distance between two instructions, in arbitrary units (typically
@@ -61,10 +62,10 @@ module type S = sig
      the size of out-of-line code (cf. branch_relaxation.mli). *)
   val relax_allocation
      : num_bytes:int
-    -> dbginfo:Debuginfo.alloc_dbginfo
+    -> dbginfo:Cmm.alloc_dbginfo
     -> Linear.instruction_desc
 
   val relax_poll
-     : return_label:Cmm.label option
+     : unit
     -> Linear.instruction_desc
 end

@@ -19,7 +19,7 @@ end = struct
 end
 
 module Hidden_float_u : sig
-  type t : float64
+  type t : float64 mod global many aliased
   val hide : float# -> t
 end = struct
   type t = float#
@@ -37,14 +37,17 @@ end
 [%%expect{|
 module Hidden_string : sig type t val hide : string -> t end
 module Hidden_int : sig type t : immediate val hide : int -> t end
-module Hidden_float_u : sig type t : float64 val hide : float# -> t end
+module Hidden_float_u :
+  sig type t : float64 mod global aliased many val hide : float# -> t end
 module Hidden_function :
   sig type (-'a, +'b) t val hide : ('a -> 'b) -> ('a, 'b) t end
 |}]
 
 module Float_u : sig
   type ('a : float64, 'b : float64) pair
-  val mk_pair : ('a : float64) ('b : float64). 'a -> 'b -> ('a, 'b) pair
+  val mk_pair :
+    ('a : float64 mod global) ('b : float64 mod global).
+    'a -> 'b -> ('a, 'b) pair
 end = struct
   type ('a : float64, 'b : float64) pair = { fst : 'a; snd : 'b }
   let mk_pair fst snd = { fst; snd }
@@ -54,7 +57,9 @@ end
 module Float_u :
   sig
     type ('a : float64, 'b : float64) pair
-    val mk_pair : ('a : float64) ('b : float64). 'a -> 'b -> ('a, 'b) pair
+    val mk_pair :
+      ('a : float64 mod global) ('b : float64 mod global).
+        'a -> 'b -> ('a, 'b) pair
   end
 |}]
 
@@ -221,10 +226,7 @@ Error: This value is "once" but expected to be "many".
 let int_list_duplicate : once_ _ -> int list = fun x -> x
 
 [%%expect{|
-Line 1, characters 56-57:
-1 | let int_list_duplicate : once_ _ -> int list = fun x -> x
-                                                            ^
-Error: This value is "once" but expected to be "many".
+val int_list_duplicate : int list @ once -> int list = <fun>
 |}]
 
 let hidden_string_duplicate : once_ _ -> Hidden_string.t =
@@ -267,10 +269,8 @@ let float_u_record_duplicate : once_ _ -> float_u_record =
   fun x -> x
 
 [%%expect{|
-Line 2, characters 11-12:
-2 |   fun x -> x
-               ^
-Error: This value is "once" but expected to be "many".
+val float_u_record_duplicate : float_u_record @ once -> float_u_record =
+  <fun>
 |}]
 
 let float_u_record_list_duplicate :
@@ -278,10 +278,8 @@ let float_u_record_list_duplicate :
   fun x -> x
 
 [%%expect{|
-Line 3, characters 11-12:
-3 |   fun x -> x
-               ^
-Error: This value is "once" but expected to be "many".
+val float_u_record_list_duplicate :
+  float_u_record list @ once -> float_u_record list = <fun>
 |}]
 
 let function_duplicate : once_ _ -> (int -> int) = fun x -> x

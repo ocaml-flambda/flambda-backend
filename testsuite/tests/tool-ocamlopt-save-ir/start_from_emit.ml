@@ -1,7 +1,7 @@
 (* TEST
  native-compiler;
  setup-ocamlopt.byte-build-env;
- flags = "-save-ir-after scheduling -stop-after scheduling";
+ flags = "-save-ir-after linearization -stop-after linearization";
  ocamlopt_byte_exit_status = "0";
  ocamlopt.byte;
  script = "touch empty.ml";
@@ -13,7 +13,7 @@
  check-ocamlopt.byte-output;
  script = "sh ${test_source_directory}/start_from_emit.sh";
  script;
- flags = "-S start_from_emit.cmir-linear -save-ir-after scheduling";
+ flags = "-S start_from_emit.cmir-linear -save-ir-after linearization";
  module = "empty.ml";
  ocamlopt_byte_exit_status = "0";
  ocamlopt.byte;

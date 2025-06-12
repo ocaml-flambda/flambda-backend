@@ -24,6 +24,7 @@
 #include "misc.h"
 #include "mlvalues.h"
 #include "roots.h"
+#include "platform.h"
 
 struct stack_info;
 
@@ -59,13 +60,27 @@ struct stack_info {
   size_t size; /* only used when USE_MMAP_MAP_STACK is defined */
   uintnat magic;
   int64_t id;
+
+  /* Local allocations.
+     Note: [local_arenas] should always be read via [caml_refresh_locals]. */
+  struct caml_local_arenas* local_arenas;
+  intnat local_sp;
+  void* local_top;
+  intnat local_limit;
 };
 
+#ifdef STACK_GUARD_PAGES
+// The OCaml stack starts after the stack_info and guard pages
+#define Stack_base(stk) ((value*)(((char*) (stk)) + 2 * caml_plat_pagesize))
+// We can assume that mmap returns page-aligned addresses.
+#define Protected_stack_page(block) (((char*) (block)) + caml_plat_pagesize)
+#else 
 #define Stack_base(stk) ((value*)(stk + 1))
+#endif
+
 #define Stack_threshold_ptr(stk) \
   (Stack_base(stk) + Stack_threshold / sizeof(value))
-#define Stack_high(stk) (value*)stk->handler
-
+#define Stack_high(stk) ((value*)stk->handler - Stack_padding_word)
 #define Stack_handle_value(stk) (stk)->handler->handle_value
 #define Stack_handle_exception(stk) (stk)->handler->handle_exn
 #define Stack_handle_effect(stk) (stk)->handler->handle_effect
@@ -75,10 +90,12 @@ struct stack_info {
  *
  * +------------------------+
  * |  struct stack_handler  |
+ * +------------------------+ <--- 16-aligned
+ * | pad word (amd64-no-fp) |
  * +------------------------+ <--- Stack_high
  * |    caml_runstack /     |
  * |   caml_start_program   |
- * +------------------------+
+ * +------------------------+ <--- 16-aligned
  * |                        |
  * .      OCaml frames      . <--- sp
  * |                        |
@@ -87,6 +104,14 @@ struct stack_info {
  * .        Red Zone        .
  * |                        |
  * +------------------------+ <--- Stack_base
+ * [ if guard pages:
+ * .                        .
+ * |    caml_plat_pagesize  |      mprotect()ed
+ * .                        .
+ * +------------------------+ <--- Protected_stack_page
+ * .      (padding)         .
+ * .                        .
+ * ]
  * |   struct stack_info    |
  * +------------------------+ <--- Caml_state->current_stack
  */
@@ -252,15 +277,25 @@ CAMLextern struct stack_info* caml_alloc_main_stack (uintnat init_wsize);
 
 void caml_scan_stack(
   scanning_action f, scanning_action_flags fflags, void* fdata,
-  struct stack_info* stack, value* v_gc_regs,
-  struct caml_local_arenas* locals);
+  struct stack_info* stack, value* v_gc_regs);
 
 struct stack_info* caml_alloc_stack_noexc(mlsize_t wosize, value hval,
                                           value hexn, value heff, int64_t id);
 /* try to grow the stack until at least required_size words are available.
    returns nonzero on success */
 CAMLextern int caml_try_realloc_stack (asize_t required_wsize);
-CAMLextern uintnat caml_get_init_stack_wsize(int thread_stack_wsz);
+
+/* Parameters settable with OCAMLRUNPARAM */
+extern uintnat caml_init_main_stack_wsz;   /* -Xmain_stack_size= */
+extern uintnat caml_init_thread_stack_wsz; /* -Xthread_stack_size= */
+extern uintnat caml_init_fiber_stack_wsz;  /* -Xfiber_stack_size= */
+
+#define STACK_SIZE_MAIN   0
+#define STACK_SIZE_THREAD 1
+#define STACK_SIZE_FIBER  2
+
+CAMLextern uintnat caml_get_init_stack_wsize(int context);
+
 void caml_change_max_stack_size (uintnat new_max_wsize);
 void caml_maybe_expand_stack(void);
 CAMLextern void caml_free_stack(struct stack_info* stk);
@@ -290,12 +325,6 @@ CAMLnoret CAMLextern void caml_raise_continuation_already_resumed (void);
 CAMLnoret CAMLextern void caml_raise_unhandled_effect (value effect);
 
 value caml_make_unhandled_effect_exn (value effect);
-
-#if defined(NATIVE_CODE) && !defined(STACK_CHECKS_ENABLED)
-// We can assume that mmap returns page-aligned addresses.
-#define Protected_stack_page(block, page_size) \
-  (((char*) (block)) + (page_size))
-#endif
 
 #endif /* CAML_INTERNALS */
 

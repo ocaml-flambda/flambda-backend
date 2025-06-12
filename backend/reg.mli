@@ -15,41 +15,29 @@
 
 (* Pseudo-registers *)
 
-(* CR xclerc for xclerc: double check all constructors are actually used. *)
-type irc_work_list =
-  | Unknown_list
-  | Precolored
-  | Initial
-  | Simplify
-  | Freeze
-  | Spill
-  | Spilled
-  | Coalesced
-  | Colored
-  | Select_stack
-val string_of_irc_work_list : irc_work_list -> string
-
-module Raw_name : sig
+module Name : sig
   type t
-  val create_from_var : Backend_var.t -> t
-  val to_string : t -> string option
+
+  val to_string : t -> string
 end
 
+(* Every temp and physical register has a unique stamp, but physical registers
+   aliased at different types share stamps.
+
+   Comparisons and containers for [t] consider both [t.stamp] and [t.typ], so
+   this overlap is not visible to the rest of the compiler unless it directly
+   manipulates stamps.
+
+   The IRC allocator builds an interference graph based on stamps, which makes sure
+   that it remembers adjacency between machine registers aliased at multiple types.
+*)
+
 type t =
-  { mutable raw_name: Raw_name.t;         (* Name *)
-    stamp: int;                           (* Unique stamp *)
-    typ: Cmm.machtype_component;          (* Type of contents *)
-    mutable loc: location;                (* Actual location *)
-    mutable irc_work_list: irc_work_list; (* Current work list (IRC only) *)
-    mutable irc_color : int option;       (* Current color (IRC only) *)
-    mutable irc_alias : t option;         (* Current alias (IRC only) *)
-    mutable spill: bool;                  (* "true" to force stack allocation  *)
-    mutable part: int option;             (* Zero-based index of part of value *)
-    mutable interf: t list;               (* Other regs live simultaneously *)
-    mutable prefer: (t * int) list;       (* Preferences for other regs *)
-    mutable degree: int;                  (* Number of other regs live sim. *)
-    mutable spill_cost: int;              (* Estimate of spilling cost *)
-    mutable visited: int }                (* For graph walks *)
+  { name: Name.t;                (* Name *)
+    stamp: int;                  (* Unique stamp *)
+    typ: Cmm.machtype_component; (* Type of contents *)
+    preassigned: bool;           (* Pinned to a hardware register or stack slot *)
+    mutable loc: location; }     (* Actual location, immutable if preassigned *)
 
 and location =
     Unknown
@@ -84,25 +72,27 @@ and stack_location =
    stack locations.  Neither GC nor thread context switches can occur
    between these two times. *)
 
-val dummy: t
-val create: Cmm.machtype_component -> t
-val createv: Cmm.machtype -> t array
-val createv_like: t array -> t array
-val clone: t -> t
-val at_location: Cmm.machtype_component -> location -> t
-val typv: t array -> Cmm.machtype
-val anonymous : t -> bool
-val is_preassigned : t -> bool
-val is_unknown : t -> bool
+val equal_location : location -> location -> bool
 
-(* Name for printing *)
-val name : t -> string
+val dummy: t
+
+val create: Cmm.machtype_component -> t
+val create_with_typ: t -> t
+val create_with_typ_and_name: ?prefix_if_var:string -> t -> t
+val create_at_location: Cmm.machtype_component -> location -> t
+
+val createv: Cmm.machtype -> t array
+val createv_with_id: id:Ident.t -> Cmm.machtype -> t array
+val createv_with_typs: t array -> t array
+val createv_with_typs_and_id: id:Ident.t -> t array -> t array
+
+val typv: t array -> Cmm.machtype
 
 (* Check [t]'s location *)
 val is_reg : t -> bool
 val is_stack :  t -> bool
-
-val size_of_contents_in_bytes : t -> int
+val is_unknown : t -> bool
+val is_preassigned : t -> bool
 
 module Set: Set.S with type elt = t
 module Map: Map.S with type key = t
@@ -115,17 +105,16 @@ val disjoint_set_array: Set.t -> t array -> bool
 val set_of_array: t array -> Set.t
 val set_has_collisions : Set.t -> bool
 
-val reset: unit -> unit
-val all_registers: unit -> t list
-val num_registers: unit -> int
-val reinit: unit -> unit
+val all_relocatable_regs: unit -> t list
+val clear_relocatable_regs: unit -> unit
+val reinit_relocatable_regs: unit -> unit
 
-val mark_visited : t -> unit
-val is_visited : t -> bool
-val clear_visited_marks : unit -> unit
-
-val types_are_compatible : t -> t -> bool
-val same_phys_reg : t -> t -> bool
-val same_loc : t -> t -> bool
 val same : t -> t -> bool
 val compare : t -> t -> int
+val same_loc : t -> t -> bool
+val same_loc_fatal_on_unknown : fatal_message:string -> t -> t -> bool
+
+module For_testing : sig
+  val get_stamp : unit -> int
+  val set_state : stamp:int -> relocatable_regs:t list -> unit
+end

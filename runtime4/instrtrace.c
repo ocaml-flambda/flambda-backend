@@ -188,6 +188,8 @@ caml_trace_value_file (value v, code_t prog, asize_t proglen, FILE * f)
            && (code_t) v >= prog
            && (code_t) v < (code_t) ((char *) prog + proglen))
     fprintf (f, "=code@%ld", (long) ((code_t) v - prog));
+  else if (v == Val_null)
+    fprintf (f, "=null");
   else if (Is_long (v))
     fprintf (f, "=long%" ARCH_INTNAT_PRINTF_FORMAT "d", Long_val (v));
   else if ((void*)v >= (void*)Caml_state->stack_low

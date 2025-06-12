@@ -21,9 +21,15 @@ define dune_boot_context
   (name default)
   (profile dev)
   (env (_
-    (flags (:standard -warn-error +A))
+    (flags (:standard -warn-error +A -alert -unsafe_multidomain))
     (env-vars ("OCAMLPARAM" ""))))))
 endef
+
+ifneq ($(origin BUILD_OCAMLPARAM), undefined)
+ENV_VARS := (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))
+else
+ENV_VARS :=
+endif
 
 define dune_runtime_stdlib_context
 (lang dune 2.8)
@@ -34,8 +40,8 @@ define dune_runtime_stdlib_context
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
     (OCAMLLIB ("$(CURDIR)/_build/_bootinstall/lib/ocaml")))
   (env (_
-    (flags (:standard -warn-error +A))
-    (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
+    (flags (:standard -warn-error +A -alert -unsafe_multidomain))
+    $(ENV_VARS)))))
 endef
 
 define dune_main_context
@@ -47,8 +53,10 @@ define dune_main_context
     (PATH ("$(CURDIR)/_build/_bootinstall/bin" :standard))
     (OCAMLLIB ("$(CURDIR)/_build/runtime_stdlib_install/lib/ocaml_runtime_stdlib")))
   (env (_
-    (flags (:standard -warn-error +A))
-    (env-vars ("OCAMLPARAM" "$(BUILD_OCAMLPARAM)"))))))
+    (flags (:standard -warn-error +A -alert -unsafe_multidomain))
+    ; We never want to build the compiler itself with AddressSanitizer enabled.
+    (ocamlopt_flags (:standard -fno-asan))
+    $(ENV_VARS)))))
 endef
 
 
@@ -61,7 +69,8 @@ boot_targets = \
   $(boot_ocamlmklib) \
   $(boot_ocamldep) \
   $(boot_ocamlobjinfo) \
-  ocamltest/ocamltest.native
+  ocamltest/ocamltest.native \
+  tools/regalloc/regalloc.exe
 
 boot-compiler: _build/_bootinstall
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build $(ws_boot) $(coverage_dune_flags) $(boot_targets)
@@ -78,6 +87,11 @@ runtime-stdlib: boot-compiler
 # Dune does not believe the compiler can make .cmxs unless the following file exists.
 	@touch _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/dynlink.cmxa
 
+# This target is a polling version of "make runtime-stdlib"
+.PHONY: runtime-stdlib-hacking
+runtime-stdlib-hacking: boot-compiler
+	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) build -w $(ws_runstd) --only-package=ocaml_runtime_stdlib @install
+
 compiler: runtime-stdlib
 	RUNTIME_DIR=$(RUNTIME_DIR) SYSTEM=$(SYSTEM) MODEL=$(MODEL) \
           ASPP="$(ASPP)" ASPPFLAGS="$(ASPPFLAGS)" \
@@ -90,6 +104,10 @@ compiler: runtime-stdlib
           testsuite/lib/testing.cm{,x}a \
           $(ocamldir)/tools/dumpobj.bc
 
+# CR dkalinichenko: [runtest] is built using the main profile,
+# which uses the boot compiler. Use the final compiler for [runtest],
+# and implement [runtest-upstream-boot] for testing when the final compiler
+# itself is miscompiled.
 runtest: compiler
 	RUNTIME_DIR=$(RUNTIME_DIR) $(dune) runtest $(ws_main)
 
@@ -221,7 +239,8 @@ install_for_test: _install
 	rm -rf _runtest
 	mkdir _runtest
 	ln -s ../_install _runtest/_install
-	$(cpl) -a $(ocamldir)/testsuite _runtest/testsuite
+	# Use rsync to ensure hardlinks are created on both Linux and macOS
+	rsync --link-dest=../../$(ocamldir)/testsuite/ -a $(ocamldir)/testsuite/ _runtest/testsuite/
 	 # replace backend-specific testsuite/tools with their new versions
 	rm -f _runtest/testsuite/tools/*
 	cp -a flambda-backend/testsuite/tools/* _runtest/testsuite/tools/
@@ -283,7 +302,6 @@ install_for_test: _install
 	 for universe in upstream_compatible stable beta alpha ; do \
 		mkdir -p otherlibs/{stdlib_,}$${universe}; \
 		$(cpl) stdlib/stdlib_$${universe}/* otherlibs/stdlib_$${universe}; \
-		$(cpl) stdlib/$${universe}/* otherlibs/$${universe}; \
 	 done; \
      if [[ x"$(RUNTIME_DIR)" = x"runtime" ]]; then \
 	     $(cpl) stdlib/runtime_events/{lib,}runtime_events* otherlibs/runtime_events; \
@@ -431,3 +449,30 @@ debug-printers: runtime-stdlib # required for $(ws_main) to work
 	@echo
 	@echo To load into ocamldebug, use:
 	@echo source \"$$(realpath _build/main/$(ocamldir)/tools/debug_printers)\"
+
+# boot-_install installs the bootstrapped compiler into _install. It is mostly
+# just copied from the install phrase.
+# This allows tools/compare.sh to function as expected, which is useful because
+# it allows us to easily run the bootstrapped compiler, especially with
+# tools/compare.sh
+.PHONY: boot-_install
+boot-_install: runtime-stdlib
+	rm -rf _install
+	mkdir -p _install/{bin,lib/ocaml}
+	$(cpl) _build/runtime_stdlib_install/bin/* _install/bin/
+	$(cpl) _build/_bootinstall/bin/* _install/bin/
+	$(cpl) -R _build/runtime_stdlib_install/lib/ocaml_runtime_stdlib/* \
+    _install/lib/ocaml/
+	rm -f _install/lib/ocaml/{META,dune-package,Makefile.config,dynlink.cmxa}
+	$(cpl) -R _build/_bootinstall/lib/ocaml/* _install/lib/ocaml/
+	rm -f _install/lib/ocaml/{META,dune-package}
+	rm -f _install/lib/ocaml/compiler-libs/*.cmo
+	mkdir _install/lib/stublibs
+	find _build/default -name "dll*.so" \
+       -print0 | xargs -0 -I '{}' cp -f '{}' _install/lib/stublibs
+	mkdir -p _install/lib/ocaml/compiler-libs
+	cp _build/default/parser.cmly _install/lib/ocaml/compiler-libs/
+	find _build/default/ \( -name "flambda2*.cmi" \
+          -or -name "flambda2*.cmti" -or -name "flambda2*.cmt" \) \
+          -print0 | xargs -0 -I '{}' cp -f '{}' _install/lib/ocaml/compiler-libs
+

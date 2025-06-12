@@ -24,7 +24,7 @@ open Debuginfo.Scoped_location
 val pure_module : module_expr -> let_kind
 
 (* Used for translating Alloc_heap values in classes and modules. *)
-val transl_exp: scopes:scopes -> Jkind.sort -> expression -> lambda
+val transl_exp: scopes:scopes -> Jkind.Sort.Const.t -> expression -> lambda
 val transl_apply: scopes:scopes
                   -> ?tailcall:tailcall_attribute
                   -> ?inlined:inlined_attribute
@@ -42,12 +42,13 @@ val transl_extension_constructor: scopes:scopes ->
   Env.t -> Longident.t option ->
   extension_constructor -> lambda
 
-val transl_scoped_exp : scopes:scopes -> Jkind.sort -> expression -> lambda
+val transl_scoped_exp : scopes:scopes -> Jkind.Sort.Const.t -> expression -> lambda
 
 type error =
     Free_super_var
   | Unreachable_reached
   | Bad_probe_layout of Ident.t
+  | Unknown_probe_layout of Ident.t
   | Illegal_void_record_field
   | Illegal_product_record_field of Jkind.Sort.Const.t
   | Void_sort of Types.type_expr

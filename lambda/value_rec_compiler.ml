@@ -49,10 +49,7 @@ open Lambda
 type block_size =
   | Regular_block of int
   | Float_record of int
-  (* CR vlaviron: I think we should compute sizes from the shape,
-     not from the arguments.
-     The previous dissect-letrec code used arguments though, copying that for now. *)
-  | Mixed_record of int * Lambda.mixed_block_shape
+  | Mixed_record of Lambda.mixed_block_shape
 
 type size =
   | Unreachable
@@ -130,12 +127,12 @@ let compute_static_size lam =
     | Lconst _ -> Constant
     | Lapply _ -> dynamic_size lam
     | Lfunction lfun -> Function lfun
-    | Llet (_, _, id, def, body) ->
+    | Llet (_, _, id, _, def, body) ->
       let env =
         Ident.Map.add id (Lazy_backtrack.create { lambda = def; env }) env
       in
       compute_expression_size env body
-    | Lmutlet(_, _, _, body) ->
+    | Lmutlet(_, _, _, _, body) ->
       compute_expression_size env body
     | Lletrec (bindings, body) ->
       let env =
@@ -162,7 +159,7 @@ let compute_static_size lam =
       compute_and_join_sizes_switch env [cases; fail_case]
     | Lstaticraise _ -> Unreachable
     | Lstaticcatch (body, _, handler, _, _)
-    | Ltrywith (body, _, handler, _) ->
+    | Ltrywith (body, _, _, handler, _) ->
       compute_and_join_sizes env [body; handler]
     | Lifthenelse (_cond, ifso, ifnot, _) ->
       compute_and_join_sizes env [ifso; ifnot]
@@ -219,7 +216,12 @@ let compute_static_size lam =
     | Pbigstring_set_32 _
     | Pbigstring_set_f32 _
     | Pbigstring_set_64 _
-    | Ppoll ->
+    | Ppoll
+    | Patomic_add
+    | Patomic_sub
+    | Patomic_land
+    | Patomic_lor
+    | Patomic_lxor ->
         (* Unit-returning primitives. Most of these are only generated from
            external declarations and not special-cased by [Value_rec_check],
            but it doesn't hurt to be consistent. *)
@@ -236,18 +238,21 @@ let compute_static_size lam =
         | Record_inlined (_, Constructor_mixed shape,
                           (Variant_boxed _ | Variant_extensible))
         | Record_mixed shape ->
-            Block (Mixed_record (size, Lambda.transl_mixed_product_shape shape))
-        | Record_unboxed | Record_ufloat | Record_inlined (_, _, Variant_unboxed) ->
+            Block (Mixed_record (Lambda.transl_mixed_product_shape
+              ~get_value_kind:(fun _i -> Lambda.generic_value)
+              shape))
+        | Record_unboxed | Record_ufloat
+        | Record_inlined (_, _, (Variant_unboxed | Variant_with_null)) ->
             Misc.fatal_error "size_of_primitive"
         end
-    | Pmakeblock _ ->
+    | Pmakeblock _ | Pmakelazyblock _ ->
         (* The block shape is unfortunately an option, so we rely on the
            number of arguments instead.
            Note that flat float arrays/records use Pmakearray, so we don't need
            to check the tag here. *)
         Block (Regular_block (List.length args))
     | Pmakemixedblock (_, _, shape, _) ->
-        Block (Mixed_record (List.length args, shape))
+        Block (Mixed_record (shape))
     | Pmakearray (kind, _, _) ->
         let size = List.length args in
         begin match kind with
@@ -344,11 +349,15 @@ let compute_static_size lam =
     | Pbbswap _
     | Pint_as_pointer _
     | Patomic_load _
-    | Patomic_exchange
-    | Patomic_cas
+    | Patomic_set _
+    | Patomic_exchange _
+    | Patomic_compare_exchange _
+    | Patomic_compare_set _
     | Patomic_fetch_add
     | Popaque _
-    | Pdls_get ->
+    | Pdls_get
+    | Ppeek _
+    | Ppoke _ ->
         dynamic_size lam
 
     (* Primitives specific to flambda-backend *)
@@ -366,7 +375,8 @@ let compute_static_size lam =
     | Punboxed_float32_array_set_128 _
     | Punboxed_int32_array_set_128 _
     | Punboxed_int64_array_set_128 _
-    | Punboxed_nativeint_array_set_128 _ ->
+    | Punboxed_nativeint_array_set_128 _
+    | Parray_element_size_in_bytes _ ->
         Constant
 
     | Pmakeufloatblock (_, _)
@@ -410,8 +420,8 @@ let compute_static_size lam =
   compute_expression_size Ident.Map.empty lam
 
 let lfunction_with_body { kind; params; return; body = _; attr; loc;
-                          mode; ret_mode; region } body =
-  lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode ~region
+                          mode; ret_mode } body =
+  lfunction' ~kind ~params ~return ~body ~attr ~loc ~mode ~ret_mode
 
 (** {1. Function Lifting} *)
 
@@ -529,7 +539,6 @@ let rec split_static_function lfun block_var local_idents lam :
         ~loc:no_loc
         ~mode:lfun.mode
         ~ret_mode:lfun.ret_mode
-        ~region:lfun.region
     in
     let lifted = { lfun = wrapper; free_vars_block_size = 1 } in
     Reachable (lifted,
@@ -564,16 +573,16 @@ let rec split_static_function lfun block_var local_idents lam :
              no_loc)
     in
     Reachable (lifted, block)
-  | Llet (lkind, vkind, var, def, body) ->
+  | Llet (lkind, vkind, var, debug_uid, def, body) ->
     let+ body =
       split_static_function lfun block_var (Ident.Set.add var local_idents) body
     in
-    Llet (lkind, vkind, var, def, body)
-  | Lmutlet (vkind, var, def, body) ->
+    Llet (lkind, vkind, var, debug_uid, def, body)
+  | Lmutlet (vkind, var, debug_uid, def, body) ->
     let+ body =
       split_static_function lfun block_var (Ident.Set.add var local_idents) body
     in
-    Lmutlet (vkind, var, def, body)
+    Lmutlet (vkind, var, debug_uid, def, body)
   | Lletrec (bindings, body) ->
     let local_idents =
       List.fold_left (fun ids { id } -> Ident.Set.add id ids)
@@ -628,7 +637,7 @@ let rec split_static_function lfun block_var local_idents lam :
     let body_res = split_static_function lfun block_var local_idents body in
     let handler_res =
       let local_idents =
-        List.fold_left (fun vars (var, _) -> Ident.Set.add var vars)
+        List.fold_left (fun vars (var, _, _) -> Ident.Set.add var vars)
           local_idents params
       in
       split_static_function lfun block_var local_idents handler
@@ -644,7 +653,7 @@ let rec split_static_function lfun block_var local_idents lam :
         Printlambda.lfunction lfun
         Printlambda.lambda lam
     end
-  | Ltrywith (body, exn_var, handler, layout) ->
+  | Ltrywith (body, exn_var, debug_uid, handler, layout) ->
     let body_res = split_static_function lfun block_var local_idents body in
     let handler_res =
       split_static_function lfun block_var
@@ -653,9 +662,9 @@ let rec split_static_function lfun block_var local_idents lam :
     begin match body_res, handler_res with
     | Unreachable, Unreachable -> Unreachable
     | Reachable (lfun, body), Unreachable ->
-      Reachable (lfun, Ltrywith (body, exn_var, handler, layout))
+      Reachable (lfun, Ltrywith (body, exn_var, debug_uid, handler, layout))
     | Unreachable, Reachable (lfun, handler) ->
-      Reachable (lfun, Ltrywith (body, exn_var, handler, layout))
+      Reachable (lfun, Ltrywith (body, exn_var, debug_uid, handler, layout))
     | Reachable _, Reachable _ ->
       Misc.fatal_errorf "letrec: multiple functions:@ lfun=%a@ lam=%a"
         Printlambda.lfunction lfun
@@ -811,9 +820,9 @@ and rebuild_arms :
  *)
 
 type rec_bindings =
-  { static : (Ident.t * block_size * Lambda.lambda) list;
-    functions : (Ident.t * Lambda.lfunction) list;
-    dynamic : (Ident.t * Lambda.lambda) list;
+  { static : (Ident.t * Lambda.debug_uid * block_size * Lambda.lambda) list;
+    functions : (Ident.t * Lambda.debug_uid * Lambda.lfunction) list;
+    dynamic : (Ident.t * Lambda.debug_uid * Lambda.lambda) list;
   }
 
 let empty_bindings =
@@ -842,21 +851,22 @@ let update_prim =
 let compile_letrec input_bindings body =
   if !Clflags.dump_letreclambda then (
     Format.eprintf "Value_rec_compiler input bindings:\n";
-    List.iter (fun (id, _, def) ->
+    List.iter (fun (id, _, _, def) ->
         Format.eprintf "  %a = %a\n%!" Ident.print id Printlambda.lambda def)
       input_bindings;
     Format.eprintf "Value_rec_compiler body:@ %a\n%!" Printlambda.lambda body
   );
   let subst_for_constants =
-    List.fold_left (fun subst (id, _, _) ->
+    List.fold_left (fun subst (id, _, _, _) ->
         Ident.Map.add id Lambda.dummy_constant subst)
       Ident.Map.empty input_bindings
   in
   let all_bindings_rev =
-    List.fold_left (fun rev_bindings (id, rkind, def) ->
+    List.fold_left (fun rev_bindings (id, duid, rkind, def) ->
         match (rkind : Value_rec_types.recursive_binding_kind) with
         | Dynamic ->
-          { rev_bindings with dynamic = (id, def) :: rev_bindings.dynamic }
+          { rev_bindings
+            with dynamic = (id, duid, def) :: rev_bindings.dynamic }
         | Static ->
           let size = compute_static_size def in
           begin match size with
@@ -868,18 +878,20 @@ let compile_letrec input_bindings body =
             let def =
               Lambda.subst (fun _ _ env -> env) subst_for_constants def
             in
-            { rev_bindings with dynamic = (id, def) :: rev_bindings.dynamic }
+            { rev_bindings
+              with dynamic = (id, duid, def) :: rev_bindings.dynamic }
           | Block size ->
             { rev_bindings with
-              static = (id, size, def) :: rev_bindings.static }
+              static = (id, duid, size, def) :: rev_bindings.static }
           | Function lfun ->
             begin match def with
             | Lfunction lfun ->
               { rev_bindings with
-                functions = (id, lfun) :: rev_bindings.functions
+                functions = (id, duid, lfun) :: rev_bindings.functions
               }
             | _ ->
               let ctx_id = Ident.create_local "letrec_function_context" in
+              let ctx_id_duid = Lambda.debug_uid_none in
               begin match
                 split_static_function lfun ctx_id Ident.Set.empty def
               with
@@ -888,10 +900,11 @@ let compile_letrec input_bindings body =
                   "letrec: no function for binding:@ def=%a@ lfun=%a"
                   Printlambda.lambda def Printlambda.lfunction lfun
               | Reachable ({ lfun; free_vars_block_size }, lam) ->
-                let functions = (id, lfun) :: rev_bindings.functions in
+                let functions = (id, duid, lfun) :: rev_bindings.functions in
                 let static =
-                  (ctx_id, Regular_block free_vars_block_size, lam) ::
-                  rev_bindings.static
+                  (ctx_id, ctx_id_duid,
+                    Regular_block free_vars_block_size, lam)
+                  :: rev_bindings.static
                 in
                 { rev_bindings with functions; static }
               end
@@ -900,7 +913,7 @@ let compile_letrec input_bindings body =
       empty_bindings input_bindings
   in
   let body_with_patches =
-    List.fold_left (fun body (id, _size, lam) ->
+    List.fold_left (fun body (id, _, _size, lam) ->
         let update =
           Lprim (Pccall update_prim, [Lvar id; lam], no_loc)
         in
@@ -912,32 +925,40 @@ let compile_letrec input_bindings body =
     | [] -> body_with_patches
     | bindings_rev ->
       let function_bindings =
-        List.rev_map (fun (id, lfun) ->
-            { id; def = lfun })
+        List.rev_map (fun (id, debug_uid, lfun) ->
+            { id; debug_uid; def = lfun })
           bindings_rev
       in
       Lletrec (function_bindings, body_with_patches)
   in
   let body_with_dynamic_values =
-    List.fold_left (fun body (id, lam) ->
-        Llet(Strict, Lambda.layout_letrec, id, lam, body))
+    List.fold_left (fun body (id, duid, lam) ->
+        Llet(Strict, Lambda.layout_letrec, id, duid, lam, body))
       body_with_functions all_bindings_rev.dynamic
   in
   let body_with_pre_allocations =
-    List.fold_left (fun body (id, size, _lam) ->
+    List.fold_left (fun body (id, duid, size, _lam) ->
         let alloc_prim, const_args =
           match size with
           | Regular_block size -> alloc_prim, [size]
           | Float_record size -> alloc_float_record_prim, [size]
-          | Mixed_record (size, shape) ->
-              alloc_mixed_record_prim, [size; shape.value_prefix_len]
+          | Mixed_record shape ->
+              let shape =
+                Mixed_block_shape.of_mixed_block_elements
+                  ~print_locality:(fun ppf () -> Format.fprintf ppf "()")
+                  shape
+              in
+              let value_prefix_len = Mixed_block_shape.value_prefix_len shape in
+              let flat_suffix_len = Mixed_block_shape.flat_suffix_len shape in
+              let size = value_prefix_len + flat_suffix_len in
+              alloc_mixed_record_prim, [size; value_prefix_len]
         in
         let alloc =
           Lprim (Pccall alloc_prim,
                  List.map (fun n -> Lconst (Lambda.const_int n)) const_args,
                  no_loc)
         in
-        Llet(Strict, Lambda.layout_letrec, id, alloc, body))
+        Llet(Strict, Lambda.layout_letrec, id, duid, alloc, body))
       body_with_dynamic_values all_bindings_rev.static
   in
   body_with_pre_allocations

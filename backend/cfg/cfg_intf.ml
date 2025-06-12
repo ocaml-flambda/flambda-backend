@@ -27,7 +27,9 @@
 (** Control flow graph structure types that are shared between the internal
     (mutable) and external (immutable) views of [Cfg]. *)
 
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
+
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 
 module S = struct
   type func_call_operation =
@@ -37,6 +39,8 @@ module S = struct
   type external_call_operation =
     { func_symbol : string;
       alloc : bool;
+      (* CR mshinwell: rename [alloc] -> [needs_caml_c_call] *)
+      effects : Cmm.effects;
       ty_res : Cmm.machtype;
       ty_args : Cmm.exttype list;
       stack_ofs : int
@@ -90,13 +94,13 @@ module S = struct
 
   type 'a instruction =
     { desc : 'a;
+      id : InstructionId.t;
       mutable arg : Reg.t array;
       mutable res : Reg.t array;
       mutable dbg : Debuginfo.t;
       mutable fdo : Fdo_info.t;
       mutable live : Reg.Set.t;
       mutable stack_offset : int;
-      id : int;
       mutable irc_work_list : irc_work_list;
       mutable ls_order : int;
       mutable available_before : Reg_availability_set.t option;
@@ -112,7 +116,7 @@ module S = struct
             special hidden register. It can use standard registers for that
             purpose. They are defined in [Proc.destroyed_at_reloadretaddr]. *)
     | Pushtrap of { lbl_handler : Label.t }
-    | Poptrap
+    | Poptrap of { lbl_handler : Label.t }
     | Prologue
     | Stack_check of { max_frame_size_bytes : int }
 
@@ -146,10 +150,15 @@ module S = struct
     | Tailcall_self of { destination : Label.t }
     | Tailcall_func of func_call_operation
     | Call_no_return of external_call_operation
-      (* CR mshinwell: [Call_no_return] should have "external" in the name *)
+    (* CR mshinwell: [Call_no_return] should have "external" in the name *)
+    (* CR mshinwell: [Invalid] from flambda2 should have its own terminator, to
+       avoid the hack in [can_raise_terminator] *)
     | Call of func_call_operation with_label_after
     | Prim of prim_call_operation with_label_after
-    | Specific_can_raise of Arch.specific_operation with_label_after
+
+  type basic_or_terminator =
+    | Basic of basic
+    | Terminator of terminator
 end
 
 (* CR-someday gyorsh: Switch can be translated to Branch. *)

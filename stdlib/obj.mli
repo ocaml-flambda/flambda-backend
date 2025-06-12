@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 open! Stdlib
 
 (** Operations on internal representations of values.
@@ -28,10 +30,15 @@ type raw_data = nativeint  (* @since 4.12 *)
 external repr : 'a -> t = "%obj_magic"
 external obj : t -> 'a = "%obj_magic"
 external magic : 'a -> 'b = "%obj_magic"
-val is_block : t -> bool
-external is_int : t -> bool = "%obj_is_int"
-external tag : t -> int = "caml_obj_tag" [@@noalloc]
-val size : t -> int
+external magic_portable : ('a[@local_opt]) -> ('a[@local_opt]) @ portable = "%identity"
+external magic_uncontended : ('a[@local_opt]) @ contended -> ('a[@local_opt]) = "%identity"
+external magic_unique : ('a[@local_opt]) -> ('a[@local_opt]) @ unique = "%identity"
+external magic_many : ('a[@local_opt]) @ once -> ('a[@local_opt]) = "%identity"
+external magic_at_unique : ('a[@local_opt]) @ unique -> ('b[@local_opt]) @ unique = "%identity"
+val is_block : t @ contended -> bool
+external is_int : t @ contended -> bool = "%obj_is_int"
+external tag : t @ contended -> int = "caml_obj_tag" [@@noalloc]
+val size : t @ contended -> int
 val reachable_words : t -> int
   (**
      Computes the total size (in words, including the headers) of all
@@ -112,7 +119,7 @@ val unaligned_tag : int   (* should never happen @since 3.11 *)
 module Extension_constructor :
 sig
   type t = extension_constructor
-  val of_val : 'a -> t
+  val of_val : 'a @ contended -> t
   val name : t -> string
   val id : t -> int
 end

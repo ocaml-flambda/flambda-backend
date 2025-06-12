@@ -278,6 +278,8 @@ let make_boxed_const_int (i, m) : static_data =
 %type <Fexpr.symbol_binding> symbol_binding
 %type <Fexpr.unary_int_arith_op> unary_int_arith_op
 %type <Fexpr.unop> unop
+%type <Fexpr.is_recursive> recursive
+%type <Fexpr.is_cont_recursive> cont_recursive
 %%
 
 (* CR-someday lmaurer: Modularize and generally clean up *)
@@ -384,16 +386,8 @@ recursive:
   | KWD_REC { Recursive }
 ;
 
-nullop:
-  | PRIM_BEGIN_REGION { Begin_region { ghost = false } }
-  | PRIM_BEGIN_GHOST_REGION { Begin_region { ghost = true } }
-  | PRIM_BEGIN_TRY_REGION { Begin_try_region { ghost = false } }
-  | PRIM_BEGIN_GHOST_TRY_REGION { Begin_try_region { ghost = true } }
-;
-
 unary_int_arith_op:
   | KWD_BSWAP { Swap_byte_endianness }
-  | TILDEMINUS { Neg }
 
 unop:
   | PRIM_ARRAY_LENGTH; kind = array_kind_for_length { Array_length kind }
@@ -650,7 +644,15 @@ ternop_app:
     { Ternary (Bytes_or_bigstring_set (blv, saw), block, ix, v) }
 ;
 
+begin_region:
+  | PRIM_BEGIN_REGION { Begin_region { ghost = false } }
+  | PRIM_BEGIN_GHOST_REGION { Begin_region { ghost = true } }
+  | PRIM_BEGIN_TRY_REGION { Begin_try_region { ghost = false } }
+  | PRIM_BEGIN_GHOST_TRY_REGION { Begin_try_region { ghost = true } }
+;
+
 block:
+  | r = begin_region { Variadic (r, []) }
   | PRIM_BLOCK; m = mutability; t = tag; alloc = alloc_mode_for_allocations_opt;
     LPAREN; elts = separated_list(COMMA, simple); RPAREN
     { Variadic (Make_block (t, m, alloc), elts) }
@@ -658,7 +660,6 @@ block:
 
 named:
   | s = simple { Simple s }
-  | n = nullop { Prim (Nullary n) }
   | u = unop a = simple { Prim (Unary (u, a)) }
   | b = binop_app { Prim b }
   | t = ternop_app { Prim t }
@@ -771,7 +772,7 @@ inner_expr:
 ;
 
 where_expr:
-  | body = inner_expr; KWD_WHERE; recursive = recursive;
+  | body = inner_expr; KWD_WHERE; recursive = cont_recursive;
     bindings = separated_list(KWD_ANDWHERE, continuation_binding)
     { Let_cont { recursive; body; bindings } }
 ;
@@ -939,6 +940,12 @@ raise_kind:
   | KWD_REGULAR { Regular }
   | KWD_RERAISE { Reraise }
   | KWD_NOTRACE { No_trace }
+
+cont_recursive:
+  | { Nonrecursive }
+  | KWD_REC params = kinded_args
+    { (Recursive params : Fexpr.is_cont_recursive) }
+;
 
 continuation_sort:
   | { None }

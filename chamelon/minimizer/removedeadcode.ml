@@ -85,6 +85,8 @@ let rec var_from_pat pat_desc acc =
         (List.map (fun (_, pat, _) -> pat) fields)
   | O (Tpat_record (r, _)) ->
       List.fold_left (fun l (_, _, pat) -> var_from_pat pat.pat_desc l) acc r
+  | O (Tpat_record_unboxed_product (r, _)) ->
+      List.fold_left (fun l (_, _, pat) -> var_from_pat pat.pat_desc l) acc r
   | O (Tpat_or (p1, p2, _)) ->
       var_from_pat p1.pat_desc (var_from_pat p2.pat_desc acc)
   | O (Tpat_lazy pat) -> var_from_pat pat.pat_desc acc
@@ -144,6 +146,17 @@ let rec rem_in_pat str pat should_remove =
         pat with
         pat_desc =
           Tpat_record
+            ( List.map
+                (fun (e1, e2, pat) ->
+                  (e1, e2, rem_in_pat str pat should_remove))
+                r,
+              a1 );
+      }
+  | O (Tpat_record_unboxed_product (r, a1)) ->
+      {
+        pat with
+        pat_desc =
+          Tpat_record_unboxed_product
             ( List.map
                 (fun (e1, e2, pat) ->
                   (e1, e2, rem_in_pat str pat should_remove))

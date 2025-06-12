@@ -504,7 +504,7 @@ let env_of_event =
   function
     None    -> Env.empty
   | Some ev ->
-      Envaux.env_from_summary ev.ev_ev.ev_typenv ev.ev_ev.ev_typsubst
+      Envaux.env_from_summary ~allow_missing_modules:false ev.ev_ev.ev_typenv ev.ev_ev.ev_typsubst
 
 let print_command depth ppf lexbuf =
   let exprs = expression_list_eol Lexer.lexeme lexbuf in

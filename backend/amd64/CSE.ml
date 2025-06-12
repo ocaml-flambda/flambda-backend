@@ -1,4 +1,3 @@
-# 2 "backend/amd64/CSE.ml"
 (**************************************************************************)
 (*                                                                        *)
 (*                                 OCaml                                  *)
@@ -13,81 +12,41 @@
 (*   special exception on linking described in the file LICENSE.          *)
 (*                                                                        *)
 (**************************************************************************)
-[@@@ocaml.warning "+4"]
+[@@@ocaml.warning "+a-40-41-42"]
+
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 
 (* CSE for the AMD64 *)
 
 open Arch
-open Mach
-open CSE_utils
 
-class cse = object
+let of_simd_class (cl : Simd.operation_class) : Cfg_cse_target_intf.op_class =
+  match cl with
+  | Pure -> Op_pure
+  | Load { is_mutable = true } -> Op_load Mutable
+  | Load { is_mutable = false } -> Op_load Immutable
 
-inherit CSEgen.cse_generic as super
-
-method! class_of_operation op =
+let class_of_operation (op : Operation.t)
+    : Cfg_cse_target_intf.class_of_operation_result =
   match op with
-  | Ispecific spec ->
+  | Specific spec ->
     begin match spec with
-    | Ilea _ | Isextend32 | Izextend32 -> Op_pure
-    | Istore_int(_, _, is_asg) -> Op_store is_asg
-    | Ioffset_loc(_, _) -> Op_store true
-    | Ifloatarithmem _ -> Op_load Mutable
-    | Ibswap _ -> super#class_of_operation op
+    | Ilea _ | Isextend32 | Izextend32 -> Class Op_pure
+    | Istore_int(_, _, is_asg) -> Class (Op_store is_asg)
+    | Ioffset_loc(_, _) -> Class (Op_store true)
+    | Ifloatarithmem _ -> Class (Op_load Mutable)
+    | Ibswap _ -> Use_default
     | Irdtsc | Irdpmc
-    | Ilfence | Isfence | Imfence -> Op_other
+    | Ilfence | Isfence | Imfence -> Class Op_other
+    | Ipackf32 -> Class Op_pure
     | Isimd op ->
-      begin match Simd.class_of_operation op with
-      | Pure -> Op_pure
-      end
+      Class (of_simd_class (Simd.class_of_operation op))
+    | Isimd_mem (op,_addr) ->
+      Class (of_simd_class (Simd.Mem.class_of_operation op))
     | Ipause
     | Icldemote _
-    | Iprefetch _ -> Op_other
+    | Iprefetch _ -> Class Op_other
     end
-  | Imove | Ispill | Ireload
-  | Ifloatop _
-  | Icsel _
-  | Ireinterpret_cast _ | Istatic_cast _
-  | Iconst_int _ | Iconst_float32 _ | Iconst_float _
-  | Iconst_symbol _ | Iconst_vec128 _
-  | Icall_ind | Icall_imm _ | Itailcall_ind | Itailcall_imm _ | Iextcall _
-  | Istackoffset _ | Iload _ | Istore _ | Ialloc _
-  | Iintop _ | Iintop_imm _ | Iintop_atomic _
-  | Iname_for_debugger _ | Iprobe _ | Iprobe_is_enabled _ | Iopaque
-  | Ibeginregion | Iendregion | Ipoll _ | Idls_get
-    -> super#class_of_operation op
-
-end
-
-let fundecl f =
-  (new cse)#fundecl f
-
-
-class cfg_cse = object
-
-  inherit Cfg_cse.cse_generic as super
-
-  method! class_of_operation
-  : Operation.t -> op_class
-  = fun op ->
-  match op with
-    | Specific spec ->
-    begin match spec with
-    | Ilea _ | Isextend32 | Izextend32 -> Op_pure
-    | Istore_int(_, _, is_asg) -> Op_store is_asg
-    | Ioffset_loc(_, _) -> Op_store true
-    | Ifloatarithmem _ -> Op_load Mutable
-    | Ibswap _ -> super#class_of_operation op
-    | Irdtsc | Irdpmc
-    | Ilfence | Isfence | Imfence -> Op_other
-    | Isimd op ->
-      begin match Simd.class_of_operation op with
-      | Pure -> Op_pure
-      end
-    | Ipause
-    | Icldemote _
-    | Iprefetch _ -> Op_other
-      end
   | Move | Spill | Reload
   | Floatop _
   | Csel _
@@ -98,9 +57,8 @@ class cfg_cse = object
   | Intop _ | Intop_imm _ | Intop_atomic _
   | Name_for_debugger _ | Probe_is_enabled _ | Opaque
   | Begin_region | End_region | Poll | Dls_get
-    -> super#class_of_operation op
+    -> Use_default
 
-end
-
-let cfg_with_layout cfg_with_layout =
-  (new cfg_cse)#cfg_with_layout cfg_with_layout
+let is_cheap_operation _op
+    : Cfg_cse_target_intf.is_cheap_operation_result =
+  Use_default

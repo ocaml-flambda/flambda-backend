@@ -59,7 +59,7 @@
  (action
    (progn
      (run %{dep:gen_primitives.sh} primitives %{deps})
-     (with-stdout-to prims.c (run %{dep:gen_primsc.sh} primitives %{deps})))))
+     (with-stdout-to prims.c (run bash %{dep:gen_primsc.sh} primitives %{deps})))))
 
 (rule
  (targets libasmrun.a libasmrund.a libasmruni.a libasmrun_pic.a

@@ -48,28 +48,26 @@ type type_structure =
   | Unboxed of argument_to_unbox
 
 let structure : type_definition -> type_structure = fun def ->
-  match def.type_kind with
-  | Type_open -> Open
-  | Type_abstract _ ->
+  match (def.type_kind, find_unboxed_type def) with
+  | Type_open, _ -> Open
+  | Type_abstract _, _ ->
       begin match def.type_manifest with
       | None -> Abstract
       | Some type_expr -> Synonym type_expr
       end
-  | Type_record _ | Type_variant _ ->
-      begin match find_unboxed_type def with
-      | None -> Algebraic
-      | Some ty ->
-        let params =
-          match def.type_kind with
-          | Type_variant ([{cd_res = Some ret_type}], _) ->
-             begin match get_desc ret_type with
-             | Tconstr (_, tyl, _) -> tyl
-             | _ -> assert false
-             end
-          | _ -> def.type_params
-        in
-        Unboxed { argument_type = ty; result_type_parameter_instances = params }
-      end
+  | (Type_record _ | Type_variant _), None -> Algebraic
+  | Type_record_unboxed_product _, None -> Algebraic
+  | (Type_record _ | Type_record_unboxed_product _ | Type_variant _), Some (ty, _) ->
+      let params =
+        match def.type_kind with
+        | Type_variant ([{cd_res = Some ret_type}], _, _) ->
+            begin match get_desc ret_type with
+            | Tconstr (_, tyl, _) -> tyl
+            | _ -> assert false
+            end
+        | _ -> def.type_params
+      in
+      Unboxed { argument_type = ty; result_type_parameter_instances = params }
 
 type error =
   | Non_separable_evar of string option
@@ -151,6 +149,7 @@ let rec immediate_subtypes : type_expr -> type_expr list = fun ty ->
       immediate_subtypes_object_row [] ty
   | Tlink _ | Tsubst _ -> assert false (* impossible due to Ctype.repr *)
   | Tvar _ | Tunivar _ -> []
+  | Tof_kind _ -> []
   | Tpoly (pty, _) -> [pty]
   | Tconstr (_path, tys, _) -> tys
 
@@ -409,7 +408,8 @@ let check_type
     | (Tvariant(_)        , Sep    )
     | (Tobject(_,_)       , Sep    )
     | ((Tnil | Tfield _)  , Sep    )
-    | (Tpackage(_,_)      , Sep    ) -> empty
+    | (Tpackage(_,_)      , Sep    )
+    | (Tof_kind(_)        , Sep    ) -> empty
     (* "Deeply separable" case for these same constructors. *)
     | (Tarrow _           , Deepsep)
     | (Ttuple _           , Deepsep)
@@ -445,6 +445,7 @@ let check_type
     | (Tpoly(pty,_)       , m      ) ->
         check_type hyps pty m
     | (Tunivar(_)         , _      ) -> empty
+    | (Tof_kind(_)         , _      ) -> empty
     (* Type constructor case. *)
     | (Tconstr(path,tys,_), m      ) ->
         let msig = (Env.find_type path env).type_separability in
@@ -484,8 +485,9 @@ let msig_of_external_type env decl =
     Result.is_error (Ctype.check_decl_jkind env decl
                         (Jkind.Builtin.value_or_null ~why:Separability_check))
   in
+  let jkind_of_type = Ctype.type_jkind_purely_if_principal env in
   let is_external =
-    match Jkind.get_externality_upper_bound decl.type_jkind with
+    match Jkind.get_externality_upper_bound ~jkind_of_type decl.type_jkind with
     | Internal -> false
     | External | External64 -> true
   in
@@ -674,7 +676,7 @@ let property : (prop, unit) Typedecl_properties.property =
   let default decl = best_msig decl in
   let compute env decl () = compute_decl env decl in
   let update_decl decl type_separability = { decl with type_separability } in
-  let check _env _id _decl () = () in (* FIXME run final check? *)
+  let check _env _id _decl _req = () in (* FIXME run final check? *)
   { eq; merge; default; compute; update_decl; check; }
 
 (* Definition using the fixpoint infrastructure. *)

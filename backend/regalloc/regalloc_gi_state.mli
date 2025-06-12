@@ -1,15 +1,10 @@
-[@@@ocaml.warning "+a-4-30-40-41-42"]
+[@@@ocaml.warning "+a-30-40-41-42"]
 
-open! Regalloc_utils
 open! Regalloc_gi_utils
 
 type t
 
-val make :
-  initial_temporaries:int ->
-  stack_slots:Regalloc_stack_slots.t ->
-  next_instruction_id:Instruction.id ->
-  t
+val make : initial_temporaries:int -> stack_slots:Regalloc_stack_slots.t -> t
 
 val add_assignment : t -> Reg.t -> to_:Hardware_register.location -> unit
 
@@ -30,5 +25,3 @@ val initial_temporary_count : t -> int
 val introduced_temporary_count : t -> int
 
 val stack_slots : t -> Regalloc_stack_slots.t
-
-val get_and_incr_instruction_id : t -> Instruction.id

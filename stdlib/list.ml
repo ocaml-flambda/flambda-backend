@@ -19,7 +19,7 @@ open! Stdlib
 [@@@ocaml.flambda_o3]
 
 (* An alias for the type of lists. *)
-type 'a t = 'a list = [] | (::) of 'a * 'a list
+type ('a : value_or_null) t = 'a list = [] | (::) of 'a * 'a list
 
 (* List operations *)
 

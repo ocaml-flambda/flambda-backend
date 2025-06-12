@@ -121,7 +121,7 @@ and continuation_handler =
 and continuation_handlers_t0 =
   (Bound_parameters.t, continuation_handlers) Name_abstraction.t
 
-and continuation_handlers = continuation_handler Continuation.Map.t
+and continuation_handlers = continuation_handler Continuation.Lmap.t
 
 and function_params_and_body_base =
   { expr : expr;
@@ -284,12 +284,13 @@ and apply_renaming_continuation_handlers t renaming =
     t renaming ~apply_renaming_to_term:apply_renaming_continuations_handlers_t0
 
 and apply_renaming_continuations_handlers_t0 t renaming =
-  Continuation.Map.fold
-    (fun k handler result ->
-      let k = Renaming.apply_continuation renaming k in
-      let handler = apply_renaming_continuation_handler handler renaming in
-      Continuation.Map.add k handler result)
-    t Continuation.Map.empty
+  Continuation.Lmap.of_list
+  @@ List.map
+       (fun (k, handler) ->
+         let k = Renaming.apply_continuation renaming k in
+         let handler = apply_renaming_continuation_handler handler renaming in
+         k, handler)
+       (Continuation.Lmap.bindings t)
 
 and apply_renaming_function_params_and_body_base { expr; free_names } renaming =
   let expr = apply_renaming expr renaming in
@@ -350,7 +351,7 @@ and ids_for_export_continuation_handlers t =
     t ~ids_for_export_of_term:ids_for_export_continuation_handlers_t0
 
 and ids_for_export_continuation_handlers_t0 t =
-  Continuation.Map.fold
+  Continuation.Lmap.fold
     (fun k handler ids ->
       Ids_for_export.union ids
         (Ids_for_export.add_continuation
@@ -539,8 +540,10 @@ and print ppf (t : expr) =
   | Apply_cont apply_cont -> Apply_cont.print ppf apply_cont
   | Switch switch -> Switch.print ppf switch
   | Invalid { message } ->
-    fprintf ppf "@[(%tinvalid%t@ @[<hov 1>%s@])@]"
-      Flambda_colours.invalid_keyword Flambda_colours.pop message
+    fprintf ppf "@[<hov 1>(%tinvalid%t@ @[<v>%a@])@]"
+      Flambda_colours.invalid_keyword Flambda_colours.pop
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space Format.pp_print_string)
+      (String.split_on_char '\n' message)
 
 and print_continuation_handler (recursive : Recursive.t) invariant_params ppf k
     ({ cont_handler_abst = _; is_exn_handler; is_cold } as t) occurrences ~first
@@ -589,11 +592,14 @@ and print_function_params_and_body ppf t =
        \u{27c5}%t%a%t\u{27c6}@ %a %a %t%a%t %t.%t@]@ %a))@]"
       Flambda_colours.lambda Flambda_colours.pop Continuation.print
       return_continuation Continuation.print exn_continuation
-      Flambda_colours.parameter Variable.print my_region Flambda_colours.pop
-      Flambda_colours.parameter Variable.print my_ghost_region
-      Flambda_colours.pop Bound_parameters.print params Bound_parameter.print
-      my_closure Flambda_colours.depth_variable Variable.print my_depth
-      Flambda_colours.pop Flambda_colours.elide Flambda_colours.pop print body
+      Flambda_colours.parameter
+      (Format.pp_print_option Variable.print)
+      my_region Flambda_colours.pop Flambda_colours.parameter
+      (Format.pp_print_option Variable.print)
+      my_ghost_region Flambda_colours.pop Bound_parameters.print params
+      Bound_parameter.print my_closure Flambda_colours.depth_variable
+      Variable.print my_depth Flambda_colours.pop Flambda_colours.elide
+      Flambda_colours.pop print body
   in
   let module BFF = Bound_for_function in
   Name_abstraction.pattern_match_for_printing
@@ -648,7 +654,7 @@ and print_let_cont_expr ppf t =
                 invariant_params,
                 handler,
                 Or_unknown.Unknown ))
-            (Continuation.Map.bindings handlers)
+            (Continuation.Lmap.bindings handlers)
         in
         new_let_conts @ let_conts, body
       in
@@ -969,10 +975,10 @@ module Continuation_handlers = struct
 
   let to_map t = t
 
-  let domain t = Continuation.Map.keys t
+  let domain t = Continuation.Lmap.keys t
 
   let contains_exn_handler t =
-    Continuation.Map.exists
+    Continuation.Lmap.exists
       (fun _cont handler -> Continuation_handler.is_exn_handler handler)
       t
 end
@@ -1194,7 +1200,7 @@ end
 
 module Recursive_let_cont_handlers = struct
   module T0 = struct
-    type t = continuation_handler Continuation.Map.t
+    type t = continuation_handler Continuation.Lmap.t
 
     let apply_renaming = apply_renaming_continuations_handlers_t0
 
@@ -1219,7 +1225,7 @@ module Recursive_let_cont_handlers = struct
   let create ~body ~invariant_params handlers =
     let bound = Continuation_handlers.domain handlers in
     let handlers0 = T1.create ~body (A0.create invariant_params handlers) in
-    let conts = Bound_continuations.create (Continuation.Set.elements bound) in
+    let conts = Bound_continuations.create bound in
     A1.create conts handlers0
 
   let pattern_match t ~f =
@@ -1453,6 +1459,15 @@ module Invalid = struct
     | Apply_cont_of_unreachable_continuation of Continuation.t
     | Defining_expr_of_let of Bound_pattern.t * Named.t
     | Closure_type_was_invalid of Apply_expr.t
+    | Direct_application_parameter_kind_mismatch of
+        { params_arity : [`Complex] Flambda_arity.t;
+          args_arity : [`Complex] Flambda_arity.t;
+          apply : Apply_expr.t
+        }
+    | Application_argument_kind_mismatch of
+        [`Unarized] Flambda_arity.t * Apply_expr.t
+    | Application_result_kind_mismatch of
+        [`Unarized] Flambda_arity.t * Apply_expr.t
     | Partial_application_mode_mismatch of Apply_expr.t
     | Partial_application_mode_mismatch_in_lambda of Debuginfo.t
     | Calling_local_returning_closure_with_normal_apply of Apply_expr.t
@@ -1480,6 +1495,23 @@ module Invalid = struct
       Format.asprintf
         "@[<hov 1>(Closure_type_was_invalid@ @[<hov 1>(apply_expr@ %a)@])@]"
         Apply_expr.print apply_expr
+    | Direct_application_parameter_kind_mismatch
+        { params_arity; args_arity; apply } ->
+      Format.asprintf
+        "@[<hov 1>(Direct_application_parameter_kind_mismatch@ @[<hov \
+         1>(params_arity %a)@ (args_arity@ %a)@ (apply_expr@ %a)@])@]"
+        Flambda_arity.print params_arity Flambda_arity.print args_arity
+        Apply_expr.print apply
+    | Application_argument_kind_mismatch (args_arity, apply_expr) ->
+      Format.asprintf
+        "@[<hov 1>(Application_argument_kind_mismatch@ @[<hov 1>(args_arity@ \
+         %a)@ (apply_expr@ %a)@])@]"
+        Flambda_arity.print args_arity Apply_expr.print apply_expr
+    | Application_result_kind_mismatch (result_arity, apply_expr) ->
+      Format.asprintf
+        "@[<hov 1>(Application_result_kind_mismatch@ @[<hov 1>(result_arity@ \
+         %a)@ (apply_expr@ %a)@])@]"
+        Flambda_arity.print result_arity Apply_expr.print apply_expr
     | Partial_application_mode_mismatch apply_expr ->
       Format.asprintf
         "@[<hov 1>(Partial_application_mode_mismatch@ @[<hov 1>(apply_expr@ \

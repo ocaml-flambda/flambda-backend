@@ -34,14 +34,6 @@ type _ pass =
   | Flambda2 : Flambda2_terms.Flambda_unit.t pass
   | Reaped_flambda2 : Flambda2_terms.Flambda_unit.t pass
 
-  | Mach_polling : Mach.fundecl pass
-  | Mach_combine : Mach.fundecl pass
-  | Mach_cse : Mach.fundecl pass
-  | Mach_spill : Mach.fundecl pass
-  | Mach_live : Mach.fundecl pass
-  | Mach_reload : Mach.fundecl pass
-  | Mach_sel : Mach.fundecl pass
-  | Mach_split : Mach.fundecl pass
   | Linear : Linear.fundecl pass
   | Cfg_combine : Cfg_with_layout.t pass
   | Cfg_cse : Cfg_with_layout.t pass

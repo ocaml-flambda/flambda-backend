@@ -118,7 +118,9 @@ typedef enum {
     EV_COMPACT,
     EV_COMPACT_EVACUATE,
     EV_COMPACT_FORWARD,
-    EV_COMPACT_RELEASE
+    EV_COMPACT_RELEASE,
+    EV_MINOR_EPHE_CLEAN,
+    EV_MINOR_DEPENDENT,
 } ev_runtime_phase;
 
 typedef enum {
@@ -129,7 +131,7 @@ typedef enum {
     EV_C_MINOR_PROMOTED,
     EV_C_MINOR_ALLOCATED,
     EV_C_REQUEST_MAJOR_ALLOC_SHR,
-    EV_C_REQUEST_MAJOR_ADJUST_GC_SPEED,
+    EV_C_REQUEST_MAJOR_ADJUST_GC_SPEED, /* unused */
     EV_C_REQUEST_MINOR_REALLOC_REF_TABLE,
     EV_C_REQUEST_MINOR_REALLOC_EPHE_REF_TABLE,
     EV_C_REQUEST_MINOR_REALLOC_CUSTOM_TABLE,
@@ -139,6 +141,13 @@ typedef enum {
     EV_C_MAJOR_HEAP_POOL_FRAG_WORDS,
     EV_C_MAJOR_HEAP_POOL_LIVE_BLOCKS,
     EV_C_MAJOR_HEAP_LARGE_BLOCKS,
+    EV_C_REQUEST_MINOR_REALLOC_DEPENDENT_TABLE,
+    EV_C_MAJOR_SLICE_ALLOC_WORDS,
+    EV_C_MAJOR_SLICE_ALLOC_DEPENDENT_WORDS,
+    EV_C_MAJOR_SLICE_NEW_WORK,
+    EV_C_MAJOR_SLICE_TOTAL_WORK,
+    EV_C_MAJOR_SLICE_BUDGET,
+    EV_C_MAJOR_SLICE_WORK_DONE,
 } ev_runtime_counter;
 
 typedef enum {
@@ -280,8 +289,10 @@ void caml_runtime_events_destroy(void);
    in a forked child */
 CAMLextern void caml_runtime_events_post_fork(void);
 
-/* Returns the location of the runtime_events for the current process if started
-   or NULL otherwise */
+/* Return the path of the ring buffers file of this process, or NULL
+   if runtime events are not enabled. This is used in the consumer to
+   read the ring buffers of the current process. Always returns a
+   freshly-allocated string. */
 CAMLextern char_os* caml_runtime_events_current_location(void);
 
 /* Functions for putting runtime data on to the runtime_events. These are all

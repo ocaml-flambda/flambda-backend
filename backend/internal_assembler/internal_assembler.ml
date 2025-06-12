@@ -23,6 +23,8 @@
 (* CR mshinwell: fix properly using -enable-dev PR's changes *)
 [@@@ocaml.warning "-27-32"]
 
+open! Int_replace_polymorphic_compare
+
 module String = Misc.Stdlib.String
 module Section_name = X86_proc.Section_name
 module StringMap = X86_binary_emitter.StringMap
@@ -165,7 +167,9 @@ let assemble_one_section ~name instructions =
   let align =
     List.fold_left
       (fun acc i ->
-        match i with X86_ast.Align (data, n) when n > acc -> n | _ -> acc)
+        match i with
+        | X86_ast.Directive (Align { bytes=n; _ }) when n > acc -> n
+        | _ -> acc)
       0 instructions
   in
   align,

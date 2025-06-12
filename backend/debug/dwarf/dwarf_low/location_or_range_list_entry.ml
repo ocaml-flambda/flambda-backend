@@ -14,8 +14,10 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
 open Asm_targets
 module Int8 = Numbers.Int8
+module A = Asm_directives
 
 type 'payload entry =
   | End_of_list
@@ -140,7 +142,6 @@ struct
   let size t = Dwarf_int.succ (size0 t)
 
   let emit ~asm_directives t =
-    let module A = (val asm_directives : Asm_directives.S) in
     (* DWARF-5 spec page 44 lines 14--15. *)
     A.comment "List entry:";
     let comment =

@@ -1,5 +1,6 @@
 (* TEST
 flags += "-extension comprehensions";
+stack-allocation;
 expect;
 *)
 
@@ -8,21 +9,62 @@ let ignore_local : 'a @ local -> unit = fun _ -> ()
 val ignore_local : local_ 'a -> unit = <fun>
 |}]
 
-let f = ref (stack_ (fun x -> x))
+let f = ref (stack_ fun x -> x)
 [%%expect{|
-Line 1, characters 12-33:
-1 | let f = ref (stack_ (fun x -> x))
-                ^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 12-31:
+1 | let f = ref (stack_ fun x -> x)
+                ^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
 |}]
 
-let f = ref (stack_ ((fun x -> x) : _ @@ global ))
+let f = ref (stack_ (42, 42))
 [%%expect{|
-Line 1, characters 20-49:
-1 | let f = ref (stack_ ((fun x -> x) : _ @@ global ))
-                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Line 1, characters 12-29:
+1 | let f = ref (stack_ (42, 42))
+                ^^^^^^^^^^^^^^^^^
+Error: This value escapes its region.
+|}]
+
+let f () =
+  let g = stack_ ((42, 42) : _ @ global ) in
+  ()
+[%%expect{|
+Line 2, characters 17-41:
+2 |   let g = stack_ ((42, 42) : _ @ global ) in
+                     ^^^^^^^^^^^^^^^^^^^^^^^^
 Error: This allocation cannot be on the stack.
 |}]
+
+let f () =
+  let g = ref (stack_ ((42, 42) : _ @ global )) in
+  ()
+[%%expect{|
+Line 2, characters 14-47:
+2 |   let g = ref (stack_ ((42, 42) : _ @ global )) in
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This value escapes its region.
+|}]
+
+let f () =
+  let g = stack_ (fun x y -> x : 'a -> 'a -> 'a) in
+  ()
+[%%expect{|
+Line 2, characters 17-48:
+2 |   let g = stack_ (fun x y -> x : 'a -> 'a -> 'a) in
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This allocation cannot be on the stack.
+|}]
+
+let f () =
+  let g = ref (stack_ (fun x y -> x : 'a -> 'a -> 'a)) in
+  ()
+[%%expect{|
+Line 2, characters 14-54:
+2 |   let g = ref (stack_ (fun x y -> x : 'a -> 'a -> 'a)) in
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Error: This value escapes its region.
+|}]
+
 
 let f = ref (stack_ (2, 3))
 [%%expect{|
@@ -164,7 +206,7 @@ val f : unit -> local_ int * int = <fun>
 |}]
 
 let f () =
-    let g = stack_ (fun x -> x) in
+    let g = stack_ fun x -> x in
     g 42
 [%%expect{|
 Line 3, characters 4-5:
@@ -176,11 +218,11 @@ Error: This value escapes its region.
 |}]
 
 let f () =
-    (stack_ (fun x -> x)) 42
+    (stack_ fun x -> x) 42
 [%%expect{|
-Line 2, characters 4-25:
-2 |     (stack_ (fun x -> x)) 42
-        ^^^^^^^^^^^^^^^^^^^^^
+Line 2, characters 4-23:
+2 |     (stack_ fun x -> x) 42
+        ^^^^^^^^^^^^^^^^^^^
 Error: This value escapes its region.
   Hint: This function cannot be local,
   because it is the function in a tail call.
@@ -298,4 +340,79 @@ Line 3, characters 2-5:
       ^^^
 Error: This value escapes its region.
   Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+
+(* Testing primitives *)
+external fst : ('a * 'b[@local_opt]) -> ('a[@local_opt]) = "%field0_immut"
+external ref : 'a -> ('a ref[@local_opt]) = "%makemutable"
+external ref_heap : 'a -> 'a ref = "%makemutable"
+external ref_stack : 'a -> 'a ref @ local = "%makemutable"
+external id : 'a -> 'a = "%identity"
+external c_func : 'a -> 'a = "foo"
+[%%expect{|
+external fst : ('a * 'b [@local_opt]) -> ('a [@local_opt]) = "%field0_immut"
+external ref : 'a -> ('a ref [@local_opt]) = "%makemutable"
+external ref_heap : 'a -> 'a ref = "%makemutable"
+external ref_stack : 'a -> local_ 'a ref = "%makemutable"
+external id : 'a -> 'a = "%identity"
+external c_func : 'a -> 'a = "foo"
+|}]
+
+let foo () =
+  let _ = stack_ (fst (42, 24)) in
+  ()
+[%%expect{|
+Line 2, characters 17-31:
+2 |   let _ = stack_ (fst (42, 24)) in
+                     ^^^^^^^^^^^^^^
+Error: This cannot be marked as stack_,
+       because this primitive does not allocate.
+|}]
+
+let foo () =
+  let _ = stack_ (c_func 52) in
+  ()
+[%%expect{|
+Line 2, characters 17-28:
+2 |   let _ = stack_ (c_func 52) in
+                     ^^^^^^^^^^^
+Error: This cannot be marked as stack_, because it is either not a primitive,
+       or the primitive does not allocate.
+|}]
+
+let foo () =
+  let _ = stack_ (ref_heap 52) in
+  ()
+[%%expect{|
+Line 2, characters 17-30:
+2 |   let _ = stack_ (ref_heap 52) in
+                     ^^^^^^^^^^^^^
+Error: This primitive always allocates on heap
+       (maybe it should be declared with "[@local_opt]" or "local_"?)
+|}]
+
+let foo () =
+  let _ = stack_ (ref_stack 52) in
+  ()
+[%%expect{|
+val foo : unit -> unit = <fun>
+|}]
+
+let foo () =
+  let _ = stack_ (ref 52) in
+  ()
+[%%expect{|
+val foo : unit -> unit = <fun>
+|}]
+
+(* %identity, while appearing to be a primitive, doesn't translate to lambda primitive. *)
+let foo () =
+  let _ = stack_ (id 42) in
+  ()
+[%%expect{|
+Line 2, characters 17-24:
+2 |   let _ = stack_ (id 42) in
+                     ^^^^^^^
+Error: This cannot be marked as stack_, because it is either not a primitive,
+       or the primitive does not allocate.
 |}]

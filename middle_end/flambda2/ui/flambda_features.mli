@@ -36,13 +36,22 @@ val cse_depth : unit -> int
 
 val join_depth : unit -> int
 
+val use_n_way_join : unit -> bool
+
+type join_algorithm = Flambda_backend_flags.join_algorithm =
+  | Binary
+  | N_way
+  | Checked
+
+val join_algorithm : unit -> join_algorithm
+
 val enable_reaper : unit -> bool
+
+val kind_checks : unit -> bool
 
 val flat_float_array : unit -> bool
 
 val function_result_types : is_a_functor:bool -> bool
-
-val use_better_meet : unit -> bool
 
 val debug : unit -> bool
 
@@ -147,6 +156,8 @@ module Expert : sig
   val shorten_symbol_names : unit -> bool
 
   val cont_lifting_budget : unit -> int
+
+  val cont_spec_budget : unit -> int
 end
 
 val stack_allocation_enabled : unit -> bool

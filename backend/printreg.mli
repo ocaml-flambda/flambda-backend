@@ -15,7 +15,7 @@
 
 (* Pretty-printing of registers *)
 
-[@@@ocaml.warning "+a-4-9-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 val loc :
   ?wrap_out:(Format.formatter -> (Format.formatter -> unit) -> unit) ->
@@ -36,6 +36,8 @@ val regs' :
 val regs : Format.formatter -> Reg.t array -> unit
 
 val regset : Format.formatter -> Reg.Set.t -> unit
+
+val reglist : Format.formatter -> Reg.t list -> unit
 
 val regsetaddr' :
   ?print_reg:(Format.formatter -> Reg.t -> unit) ->

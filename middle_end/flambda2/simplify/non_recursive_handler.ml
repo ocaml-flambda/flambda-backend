@@ -34,3 +34,21 @@ let print ppf { cont; params; lifted_params; handler; is_exn_handler; is_cold }
     Continuation.print cont Bound_parameters.print params
     Lifted_cont_params.print lifted_params is_exn_handler is_cold
     Flambda.Expr.print handler
+
+let with_handler handler t = { t with handler }
+
+let rename_params t =
+  let params = Bound_parameters.rename t.params in
+  let params_renaming =
+    Bound_parameters.renaming t.params ~guaranteed_fresh:params
+  in
+  let lifted_params, lifted_params_renaming =
+    Lifted_cont_params.rename t.lifted_params
+  in
+  (* The order of composition of renamings should not matter, since we expect
+     the params and lifted params to be distinct. *)
+  let renaming =
+    Renaming.compose ~first:params_renaming ~second:lifted_params_renaming
+  in
+  let handler = Flambda.Expr.apply_renaming t.handler renaming in
+  { t with params; lifted_params; handler }

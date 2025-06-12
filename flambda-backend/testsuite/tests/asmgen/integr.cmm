@@ -1,7 +1,7 @@
 (* TEST
  readonly_files = "main.c";
  arguments = "-DINT_FLOAT -DFUN=test main.c";
- reason = "This test is currently broken";
+ reason = "This test is currently broken (and needs rewriting not to use Cassign)";
  skip;
  asmgen;
 *)

@@ -289,7 +289,6 @@ let static_const0 env res ~updates (bound_static : Bound_static.Pattern.t)
           List.map
             (fun (flat_suffix_elt : Flambda_kind.flat_suffix_element) ->
               match flat_suffix_elt with
-              | Tagged_immediate -> UK.tagged_immediates
               | Naked_float -> UK.naked_floats
               | Naked_float32 -> UK.naked_float32_fields
               | Naked_int32 -> UK.naked_int32_fields

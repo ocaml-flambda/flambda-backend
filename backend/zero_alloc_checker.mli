@@ -23,7 +23,7 @@
  * SOFTWARE.                                                                      *
  *                                                                                *
  **********************************************************************************)
-[@@@ocaml.warning "+a-30-40-41-42"]
+[@@@ocaml.warning "+a-40-41-42"]
 
 (** Check that functions do not allocate on the heap (local allocations are ignored). *)
 
@@ -34,14 +34,6 @@ val reset_unit_info : unit -> unit
 
 (** Records the result in [Compilenv] to be saved to [cmx]. *)
 val record_unit_info : Format.formatter -> unit
-
-(** Analyzes the function, performs all checks that are enabled, and accumulates
-    the results. *)
-val fundecl :
-  Format.formatter ->
-  future_funcnames:Misc.Stdlib.String.Set.t ->
-  Mach.fundecl ->
-  Mach.fundecl
 
 val cfg :
   Format.formatter ->
@@ -55,7 +47,7 @@ module Witness : sig
   type kind =
     | Alloc of
         { bytes : int;
-          dbginfo : Debuginfo.alloc_dbginfo
+          dbginfo : Cmm.alloc_dbginfo
         }
     | Indirect_call
     | Indirect_tailcall

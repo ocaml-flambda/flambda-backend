@@ -490,7 +490,17 @@ Line 3, characters 12-21:
 3 | type t7' = (int * int) t7;;
                 ^^^^^^^^^
 Error: This type "int * int" should be an instance of type "('a : immediate)"
-       The kind of int * int is value
+       The kind of int * int is immutable_data
+         because it's a tuple type.
+       But the kind of int * int must be a subkind of immediate
+         because of the definition of t7 at line 1, characters 0-37.
+|}, Principal{|
+type ('a : immediate) t7 = Foo7 of 'a
+Line 3, characters 12-21:
+3 | type t7' = (int * int) t7;;
+                ^^^^^^^^^
+Error: This type "int * int" should be an instance of type "('a : immediate)"
+       The kind of int * int is immutable_data with int
          because it's a tuple type.
        But the kind of int * int must be a subkind of immediate
          because of the definition of t7 at line 1, characters 0-37.
@@ -636,15 +646,16 @@ module M9_4 = struct
     | ({vur_void = _},i) -> i
 end;;
 [%%expect {|
-Line 4, characters 8-16:
+Line 4, characters 7-21:
 4 |     | ({vur_void = _},i) -> i
-            ^^^^^^^^
-Error: The record field "vur_void" belongs to the type "void_unboxed_record"
-       but is mixed here with fields of type "('a : value)"
+           ^^^^^^^^^^^^^^
+Error: This pattern matches values of type "void_unboxed_record"
+       but a pattern was expected which matches values of type
+         "('a : value_or_null)"
        The layout of void_unboxed_record is void
          because of the definition of void_unboxed_record at line 12, characters 0-60.
        But the layout of void_unboxed_record must be a sublayout of value
-         because it's a boxed record type.
+         because it's the type of a tuple element.
 |}];;
 
 module M9_5 = struct
@@ -1068,11 +1079,11 @@ type t13 = t_void option;;
 Line 1, characters 11-17:
 1 | type t13 = t_void option;;
                ^^^^^^
-Error: This type "t_void" should be an instance of type "('a : value)"
+Error: This type "t_void" should be an instance of type "('a : value_or_null)"
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value
-         because the type argument of option has layout value.
+         because the type argument of option has layout value_or_null.
 |}];;
 
 let x13 (VV v) = Some v;;
@@ -1081,11 +1092,11 @@ Line 1, characters 22-23:
 1 | let x13 (VV v) = Some v;;
                           ^
 Error: This expression has type "t_void" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value
-         because the type argument of option has layout value.
+         because the type argument of option has layout value_or_null.
 |}];;
 
 let x13 v =
@@ -1096,12 +1107,12 @@ let x13 v =
 Line 3, characters 17-18:
 3 |   | Some v -> VV v
                      ^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "t_void"
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value
-         because the type argument of option has layout value.
+         because the type argument of option has layout value_or_null.
 |}];;
 
 (* list *)
@@ -1111,11 +1122,11 @@ type t13 = t_void list;;
 Line 1, characters 11-17:
 1 | type t13 = t_void list;;
                ^^^^^^
-Error: This type "t_void" should be an instance of type "('a : value)"
+Error: This type "t_void" should be an instance of type "('a : value_or_null)"
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 let x13 (VV v) = [v];;
@@ -1124,11 +1135,11 @@ Line 1, characters 18-19:
 1 | let x13 (VV v) = [v];;
                       ^
 Error: This expression has type "t_void" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 let x13 v =
@@ -1139,12 +1150,12 @@ let x13 v =
 Line 3, characters 14-15:
 3 |   | [v] -> VV v
                   ^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "t_void"
        The layout of t_void is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of t_void must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 (* array *)
@@ -1198,7 +1209,7 @@ Error:
        The layout of foo14 is void
          because of the definition of t_void at line 6, characters 0-19.
        But the layout of foo14 must be a sublayout of value
-         because the type argument of list has layout value.
+         because the type argument of list has layout value_or_null.
 |}];;
 
 (****************************************************)
@@ -1388,11 +1399,11 @@ Line 2, characters 15-16:
 2 |   let g ?(x2 = x) () = () in
                    ^
 Error: This expression has type "t_void" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_void is void
          because of the definition of t_void at line 1, characters 0-18.
        But the layout of t_void must be a sublayout of value
-         because the type argument of option has layout value.
+         because the type argument of option has layout value_or_null.
 |}]
 
 (*********************************************************)
@@ -1450,7 +1461,7 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) : ('a : value_or_null). t_float64 -> 'a -> unit = <fun>
+val ( let* ) : t_float64 -> 'a -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1476,8 +1487,7 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) :
-  ('a : value_or_null) ('b : any). 'a -> (t_float64 -> 'b) -> unit = <fun>
+val ( let* ) : 'a ('b : any). 'a -> (t_float64 -> 'b) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1503,8 +1513,7 @@ let q () =
   assert false
 
 [%%expect{|
-val ( let* ) :
-  ('a : value_or_null) ('b : any). 'a -> ('b -> t_float64) -> unit = <fun>
+val ( let* ) : 'a ('b : any). 'a -> ('b -> t_float64) -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1530,8 +1539,7 @@ let q () =
   ()
 
 [%%expect{|
-val ( let* ) :
-  ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> t_float64 = <fun>
+val ( let* ) : 'a -> 'b -> t_float64 = <fun>
 val q : unit -> t_float64 = <fun>
 |}]
 
@@ -1561,9 +1569,8 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit =
-  <fun>
-val ( and* ) : ('a : value_or_null). 'a -> t_float64 -> unit = <fun>
+val ( let* ) : 'a -> 'b -> unit = <fun>
+val ( and* ) : 'a -> t_float64 -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1593,9 +1600,8 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit =
-  <fun>
-val ( and* ) : ('a : value_or_null). t_float64 -> 'a -> unit = <fun>
+val ( let* ) : 'a -> 'b -> unit = <fun>
+val ( and* ) : t_float64 -> 'a -> unit = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1625,9 +1631,8 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : ('a : float64) ('b : value_or_null). 'a -> 'b -> unit = <fun>
-val ( and* ) :
-  ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> t_float64 = <fun>
+val ( let* ) : ('a : float64) 'b. 'a -> 'b -> unit = <fun>
+val ( and* ) : 'a -> 'b -> t_float64 = <fun>
 val q : unit -> unit = <fun>
 |}]
 
@@ -1664,12 +1669,8 @@ let q () =
     ()
 
 [%%expect{|
-val ( let* ) : ('a : value_or_null) ('b : value_or_null). 'a -> 'b -> unit =
-  <fun>
-val ( and* ) :
-  ('a : value_or_null) ('b : value_or_null) ('c : value_or_null).
-    'a -> 'b -> 'c =
-  <fun>
+val ( let* ) : 'a -> 'b -> unit = <fun>
+val ( and* ) : 'a -> 'b -> 'c = <fun>
 Line 4, characters 9-22:
 4 |     let* x : t_float64 = assert false
              ^^^^^^^^^^^^^
@@ -1811,7 +1812,7 @@ Line 2, characters 19-31:
 2 | let f35 : 'a t35 = fun () -> ()
                        ^^^^^^^^^^^^
 Error:
-       The kind of 'a -> 'b is value mod unique uncontended
+       The kind of 'a -> 'b is value mod aliased immutable non_float
          because it's a function type.
        But the kind of 'a -> 'b must be a subkind of immediate
          because of the definition of t35 at line 1, characters 0-30.

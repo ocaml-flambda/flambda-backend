@@ -16,6 +16,8 @@
 
 [@@@ocaml.warning "+a-4-30-40-41-42"]
 
+open! Int_replace_polymorphic_compare [@@ocaml.warning "-66"]
+
 (* Even on a 32-bit platform, a DWARF section may be larger than the maximum
    representable positive signed 32-bit integer... *)
 type t = Dwarf_int.t

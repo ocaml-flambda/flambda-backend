@@ -72,12 +72,9 @@ val is_value : t -> bool
 
 val is_naked_float : t -> bool
 
-val to_lambda : t -> Lambda.layout
-
 include Container_types.S with type t := t
 
 type flat_suffix_element = private
-  | Tagged_immediate
   | Naked_float
   | Naked_float32
   | Naked_int32
@@ -85,10 +82,12 @@ type flat_suffix_element = private
   | Naked_nativeint
   | Naked_vec128
 
+module Mixed_block_lambda_shape = Mixed_block_shape
+
 module Mixed_block_shape : sig
   type t
 
-  val from_lambda : Lambda.mixed_block_shape -> t
+  val from_mixed_block_shape : _ Mixed_block_lambda_shape.t -> t
 
   val field_kinds : t -> kind array
 
@@ -146,26 +145,6 @@ module Standard_int : sig
     | Naked_int32
     | Naked_int64
     | Naked_nativeint
-
-  val to_kind : t -> kind
-
-  val print_lowercase : Format.formatter -> t -> unit
-
-  include Container_types.S with type t := t
-end
-
-module Standard_int_or_float : sig
-  (** The same as [Standard_int], but also permitting naked floats. *)
-  type t =
-    | Tagged_immediate
-    | Naked_immediate
-    | Naked_float32
-    | Naked_float
-    | Naked_int32
-    | Naked_int64
-    | Naked_nativeint
-
-  val of_standard_int : Standard_int.t -> t
 
   val to_kind : t -> kind
 
@@ -335,11 +314,34 @@ module Flat_suffix_element : sig
 
   val kind : t -> kind
 
-  val from_lambda : Lambda.flat_element -> t
+  val from_singleton_mixed_block_element :
+    _ Mixed_block_lambda_shape.Singleton_mixed_block_element.t -> t
 
   val print : Format.formatter -> t -> unit
 
   val compare : t -> t -> int
 
   val to_kind_with_subkind : t -> With_subkind.t
+end
+
+module Standard_int_or_float : sig
+  (** The same as [Standard_int], but also permitting naked floats. *)
+  type t =
+    | Tagged_immediate
+    | Naked_immediate
+    | Naked_float32
+    | Naked_float
+    | Naked_int32
+    | Naked_int64
+    | Naked_nativeint
+
+  val of_standard_int : Standard_int.t -> t
+
+  val to_kind : t -> kind
+
+  val to_kind_with_subkind : t -> With_subkind.t
+
+  val print_lowercase : Format.formatter -> t -> unit
+
+  include Container_types.S with type t := t
 end

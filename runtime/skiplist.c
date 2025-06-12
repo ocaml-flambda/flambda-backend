@@ -150,8 +150,10 @@ int caml_skiplist_insert(struct skiplist * sk,
       update[i] = &sk->forward[i];
     sk->level = new_level;
   }
-  f = caml_stat_alloc(SIZEOF_SKIPCELL +
-                      (new_level + 1) * sizeof(struct skipcell *));
+  f = caml_stat_alloc_noexc(SIZEOF_SKIPCELL +
+                            (new_level + 1) * sizeof(struct skipcell *));
+  if (f == NULL)
+    caml_fatal_error("caml_skiplist_insert: out of memory");
   f->key = key;
   f->data = data;
   for (i = 0; i <= new_level; i++) {

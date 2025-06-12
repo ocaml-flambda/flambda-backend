@@ -1202,6 +1202,184 @@ Line 3, characters 12-15:
 Error: This value escapes its region.
 |}]
 
+(* Implicit records version of the same test *)
+
+let foo (local_ x) = x.#imm
+[%%expect{|
+val foo : local_ 'a imm# -> local_ 'a = <fun>
+|}]
+let foo y =
+  let x = local_ #{ imm = y } in
+  x.#imm
+[%%expect{|
+Line 3, characters 2-8:
+3 |   x.#imm
+      ^^^^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+let foo (local_ x) = x.#mut
+[%%expect{|
+val foo : local_ 'a mut# -> 'a = <fun>
+|}]
+let foo y =
+  let x = local_ #{ mut = y } in
+  x.#mut
+[%%expect{|
+val foo : 'a -> 'a = <fun>
+|}]
+let foo (local_ x) = x.#gbl
+[%%expect{|
+val foo : local_ 'a gbl# -> 'a = <fun>
+|}]
+let foo y =
+  let x = local_ #{ gbl = y } in
+  x.#gbl
+[%%expect{|
+val foo : 'a -> 'a = <fun>
+|}]
+
+let foo (local_ #{ imm }) = imm
+[%%expect{|
+val foo : local_ 'a imm# -> local_ 'a = <fun>
+|}]
+let foo y =
+  let #{ imm } = local_ #{ imm = y } in
+  imm
+[%%expect{|
+Line 3, characters 2-5:
+3 |   imm
+      ^^^
+Error: This value escapes its region.
+  Hint: Cannot return a local value without an "exclave_" annotation.
+|}]
+let foo (local_ #{ mut }) = mut
+[%%expect{|
+val foo : local_ 'a mut# -> 'a = <fun>
+|}]
+let foo y =
+  let #{ mut } = local_ #{ mut = y } in
+  mut
+[%%expect{|
+val foo : 'a -> 'a = <fun>
+|}, Principal{|
+val foo : '_weak1 -> '_weak1 = <fun>
+|}]
+let foo (local_ #{ gbl }) = gbl
+[%%expect{|
+val foo : local_ 'a gbl# -> 'a = <fun>
+|}]
+let foo y =
+  let #{ gbl } = local_ #{ gbl = y } in
+  gbl
+[%%expect{|
+val foo : 'a -> 'a = <fun>
+|}, Principal{|
+val foo : '_weak2 -> '_weak2 = <fun>
+|}]
+
+let foo (local_ imm) =
+  let _ = #{ imm } in
+  ()
+[%%expect{|
+val foo : local_ 'a -> unit = <fun>
+|}]
+let foo () =
+  let imm = local_ ref 5 in
+  let _ = #{ imm } in
+  ()
+[%%expect{|
+val foo : unit -> unit = <fun>
+|}]
+let foo (local_ mut) =
+  let _ = #{ mut } in
+  ()
+[%%expect{|
+Line 2, characters 13-16:
+2 |   let _ = #{ mut } in
+                 ^^^
+Error: This value escapes its region.
+|}]
+let foo () =
+  let mut = local_ ref 5 in
+  let _ = #{ mut } in
+  ()
+[%%expect{|
+Line 3, characters 13-16:
+3 |   let _ = #{ mut } in
+                 ^^^
+Error: This value escapes its region.
+|}]
+let foo (local_ gbl) =
+  let _ = #{ gbl } in
+  ()
+[%%expect{|
+Line 2, characters 13-16:
+2 |   let _ = #{ gbl } in
+                 ^^^
+Error: This value escapes its region.
+|}]
+let foo () =
+  let gbl = local_ ref 5 in
+  let _ = #{ gbl } in
+  ()
+[%%expect{|
+Line 3, characters 13-16:
+3 |   let _ = #{ gbl } in
+                 ^^^
+Error: This value escapes its region.
+|}]
+
+(* Unboxed records version of the same test *)
+
+type 'a gbl = #{ global_ gbl : 'a }
+[%%expect{|
+type 'a gbl = #{ global_ gbl : 'a; }
+|}]
+
+let foo (local_ x) = x.#gbl
+[%%expect{|
+val foo : local_ 'a gbl -> 'a = <fun>
+|}]
+let foo y =
+  let x = local_ #{ gbl = y } in
+  x.#gbl
+[%%expect{|
+val foo : 'a -> 'a = <fun>
+|}]
+let foo (local_ #{ gbl }) = gbl
+[%%expect{|
+val foo : local_ 'a gbl -> 'a = <fun>
+|}]
+let foo y =
+  let #{ gbl } = local_ #{ gbl = y } in
+  gbl
+(* CR layouts v2.8: Fix principal case, or convince ourselves that it's expected *)
+[%%expect{|
+val foo : 'a -> 'a = <fun>
+|}, Principal{|
+val foo : '_weak3 -> '_weak3 = <fun>
+|}]
+let foo (local_ gbl) =
+  let _ = #{ gbl } in
+  ()
+[%%expect{|
+Line 2, characters 13-16:
+2 |   let _ = #{ gbl } in
+                 ^^^
+Error: This value escapes its region.
+|}]
+let foo () =
+  let gbl = local_ ref 5 in
+  let _ = #{ gbl } in
+  ()
+[%%expect{|
+Line 3, characters 13-16:
+3 |   let _ = #{ gbl } in
+                 ^^^
+Error: This value escapes its region.
+|}]
+
 (* Global fields are preserved in module inclusion *)
 module M : sig
   type t = { global_ foo : string }
@@ -1226,7 +1404,7 @@ Error: Signature mismatch:
          "foo : string;"
        is not the same as:
          "global_ foo : string;"
-       The second is global_ and the first is not.
+       The second is global and the first is not.
 |}]
 
 module M : sig
@@ -1252,7 +1430,61 @@ Error: Signature mismatch:
          "global_ foo : string;"
        is not the same as:
          "foo : string;"
-       The first is global_ and the second is not.
+       The first is global and the second is not.
+|}]
+
+(* Unboxed records version of the same test *)
+
+module M : sig
+  type t = #{ global_ foo : string }
+end = struct
+  type t = #{ foo : string }
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = #{ foo : string }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = #{ foo : string; } end
+       is not included in
+         sig type t = #{ global_ foo : string; } end
+       Type declarations do not match:
+         type t = #{ foo : string; }
+       is not included in
+         type t = #{ global_ foo : string; }
+       Fields do not match:
+         "foo : string;"
+       is not the same as:
+         "global_ foo : string;"
+       The second is global and the first is not.
+|}]
+
+module M : sig
+  type t = #{ foo : string }
+end = struct
+  type t = #{ global_ foo : string }
+end
+[%%expect{|
+Lines 3-5, characters 6-3:
+3 | ......struct
+4 |   type t = #{ global_ foo : string }
+5 | end
+Error: Signature mismatch:
+       Modules do not match:
+         sig type t = #{ global_ foo : string; } end
+       is not included in
+         sig type t = #{ foo : string; } end
+       Type declarations do not match:
+         type t = #{ global_ foo : string; }
+       is not included in
+         type t = #{ foo : string; }
+       Fields do not match:
+         "global_ foo : string;"
+       is not the same as:
+         "foo : string;"
+       The first is global and the second is not.
 |}]
 
 (* Special handling of tuples in matches and let bindings *)
@@ -2078,7 +2310,7 @@ Error: Signature mismatch:
        is not the same as:
          "Bar of int * global_ string"
        Modality mismatch at argument position 2:
-       The second is global_ and the first is not.
+       The second is global and the first is not.
 |}]
 
 
@@ -2106,7 +2338,7 @@ Error: Signature mismatch:
        is not the same as:
          "Bar of int * string"
        Modality mismatch at argument position 2:
-       The first is global_ and the second is not.
+       The first is global and the second is not.
 |}]
 
 (* global_ binds closer than star *)

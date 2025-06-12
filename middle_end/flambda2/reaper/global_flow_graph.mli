@@ -37,6 +37,10 @@ module Field : sig
   val print : Format.formatter -> t -> unit
 
   module Map : Container_types.Map with type key = t
+
+  val encode : t -> int
+
+  val decode : int -> t
 end
 
 module Dep : sig
@@ -76,22 +80,60 @@ module Dep : sig
   module Set : Container_types.Set with type elt = t
 end
 
-type graph =
-  { name_to_dep : (Code_id_or_name.t, Dep.Set.t) Hashtbl.t;
-    used : (Code_id_or_name.t, unit) Hashtbl.t
-  }
+module FieldC : Datalog.Column.S with type t = int
+
+type graph
+
+val name_to_dep : graph -> (Code_id_or_name.t, Dep.Set.t) Hashtbl.t
+
+val used : graph -> (Code_id_or_name.t, unit) Hashtbl.t
+
+val to_datalog : graph -> Datalog.database
+
+type 'a rel0 = [> `Atom of Datalog.atom] as 'a
+
+type ('a, 'b) rel1 = 'a Datalog.Term.t -> 'b rel0
+
+type ('a, 'b, 'c) rel2 = 'a Datalog.Term.t -> ('b, 'c) rel1
+
+type ('a, 'b, 'c, 'd) rel3 = 'a Datalog.Term.t -> ('b, 'c, 'd) rel2
+
+val alias_rel : (Code_id_or_name.t, Code_id_or_name.t, _) rel2
+
+val use_rel : (Code_id_or_name.t, Code_id_or_name.t, _) rel2
+
+val accessor_rel : (Code_id_or_name.t, int, Code_id_or_name.t, _) rel3
+
+val constructor_rel : (Code_id_or_name.t, int, Code_id_or_name.t, _) rel3
+
+val propagate_rel :
+  (Code_id_or_name.t, Code_id_or_name.t, Code_id_or_name.t, _) rel3
+
+val used_pred : (Code_id_or_name.t, _) rel1
+
+val used_fields_top_rel : (Code_id_or_name.t, int, _) rel2
+
+val used_fields_rel : (Code_id_or_name.t, int, Code_id_or_name.t, _) rel3
 
 val pp_used_graph : Format.formatter -> graph -> unit
 
 val create : unit -> graph
 
-val inserts : ('a, Dep.Set.t) Hashtbl.t -> 'a -> Dep.Set.t -> unit
-
 val add_opaque_let_dependency :
-  graph -> Bound_pattern.t -> Name_occurrences.t -> unit
+  graph -> to_:Bound_pattern.t -> from:Name_occurrences.t -> unit
 
-val add_dep : graph -> Code_id_or_name.t -> Dep.t -> unit
+val add_alias : graph -> to_:Code_id_or_name.t -> from:Name.t -> unit
 
-val add_deps : graph -> Code_id_or_name.t -> Dep.Set.t -> unit
+val add_use_dep :
+  graph -> to_:Code_id_or_name.t -> from:Code_id_or_name.t -> unit
 
 val add_use : graph -> Code_id_or_name.t -> unit
+
+val add_propagate_dep :
+  graph -> if_used:Code_id.t -> to_:Name.t -> from:Name.t -> unit
+
+val add_constructor_dep :
+  graph -> base:Code_id_or_name.t -> Field.t -> from:Code_id_or_name.t -> unit
+
+val add_accessor_dep :
+  graph -> to_:Code_id_or_name.t -> Field.t -> base:Name.t -> unit

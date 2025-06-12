@@ -74,6 +74,139 @@ let warn_if_unused_inlined_attribute apply ~dbg_with_inlined =
       (Debuginfo.to_location dbg_with_inlined)
       (Warnings.Inlining_impossible reason)
 
+let fail_if_probe apply =
+  match Apply.probe apply with
+  | None -> ()
+  | Some _ ->
+    Misc.fatal_errorf
+      "[Apply] terms with a [probe] (i.e. that call a tracing probe) must \
+       always be direct applications of an OCaml function:@ %a"
+      Apply.print apply
+
+let translate_external_call env res ~free_vars apply ~callee_simple ~args
+    ~return_arity ~return_ty dbg ~needs_caml_c_call ~is_c_builtin ~effects
+    ~coeffects =
+  fail_if_probe apply;
+  let callee =
+    match callee_simple with
+    | None ->
+      Misc.fatal_errorf
+        "Application expression did not provide callee for C call:@ %a"
+        Apply.print apply
+    | Some callee_simple -> (
+      match Simple.must_be_symbol callee_simple with
+      | Some (sym, _) -> (To_cmm_result.symbol res sym).sym_name
+      | None ->
+        Misc.fatal_errorf "Expected a function symbol instead of:@ %a"
+          Simple.print callee_simple)
+  in
+  let returns = Apply.returns apply in
+  let return_ty = C.Extended_machtype.to_machtype return_ty in
+  let component_tys =
+    (* Two notes:
+
+       1. void has been erased in return arities by this point
+
+       2. All of the [machtype_component]s are singleton arrays. *)
+    Array.map (fun machtype -> [| machtype |]) return_ty
+  in
+  (* Returned small integer values need to be sign-extended because it's not
+     clear whether C code that returns a small integer returns one that is sign
+     extended or not. There is no need to wrap other return arities. *)
+  let maybe_sign_extend kind dbg cmm =
+    match Flambda_kind.With_subkind.kind kind with
+    | Naked_number Naked_int32 -> C.sign_extend ~bits:32 ~dbg cmm
+    | Naked_number
+        ( Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint
+        | Naked_vec128 | Naked_float32 )
+    | Value | Rec_info | Region ->
+      cmm
+  in
+  let ty_args =
+    List.map C.exttype_of_kind
+      (Flambda_arity.unarize (Apply.args_arity apply)
+      |> List.map K.With_subkind.kind)
+  in
+  let effects = To_cmm_effects.transl_c_call_effects effects in
+  let coeffects = To_cmm_effects.transl_c_call_coeffects coeffects in
+  let extcall =
+    C.extcall ~dbg ~alloc:needs_caml_c_call ~is_c_builtin ~effects ~coeffects
+      ~returns ~ty_args callee return_ty args
+  in
+  let wrap return_values =
+    let kinds = Flambda_arity.unarized_components return_arity in
+    (* As per the comment above, [return_arity] does not mention void
+       components. (Unlike parameter arities; see the phantom type parameters on
+       the arity fields in [Apply_expr.t], for example.) *)
+    assert (List.compare_length_with kinds (Array.length component_tys) = 0);
+    match kinds with
+    | [] ->
+      (* CR mshinwell: this statement would seem to be wrong if we permit void
+         returns from extcalls *)
+      (* Extcalls of arity 0 are allowed (these never return). *)
+      return_values
+    | [kind] -> maybe_sign_extend kind dbg return_values
+    | [_; _] as kinds ->
+      (* CR xclerc: we currently support only pairs as unboxed return values. *)
+      (* CR mshinwell: we also currently only support 64 bit integer and float
+         values, since on (at least) x86-64 the calling convention differs for
+         smaller widths. *)
+      List.iter
+        (fun kind ->
+          match Flambda_kind.With_subkind.kind kind with
+          | Naked_number
+              (Naked_immediate | Naked_int64 | Naked_nativeint | Naked_float) ->
+            ()
+          | Naked_number (Naked_int32 | Naked_vec128 | Naked_float32)
+          | Value | Region | Rec_info ->
+            Misc.fatal_errorf
+              "Cannot compile unboxed product return from external C call with \
+               a component of kind %a"
+              Flambda_kind.With_subkind.print kind)
+        kinds;
+      (* CR mshinwell: Digest page 35 of this doc:
+
+         https://github.com/ARM-software/abi-aa/releases/download/2024Q3/aapcs64.pdf
+
+         and figure out what happens for mixed int/float struct returns (it
+         looks like the floats may be returned in int regs)
+
+         jvanburen: that seems to be what clang does:
+         https://godbolt.org/z/snzEoME9h *)
+      (match Target_system.architecture () with
+      | X86_64 -> ()
+      | AArch64 ->
+        let kinds = Flambda_kind.With_subkind.Set.of_list kinds in
+        if Flambda_kind.With_subkind.Set.cardinal kinds <> 1
+        then
+          Misc.fatal_errorf
+            "Cannot compile unboxed product return from external C call on \
+             arm64 unless the components of the product are of the same kind:@ \
+             %a"
+            Apply.print apply
+      | IA32 | ARM | POWER | Z | Riscv ->
+        Misc.fatal_error "Only x86-64 and arm64 are supported");
+      let get_unarized_return_value exp n =
+        C.tuple_field exp ~component_tys n dbg
+      in
+      C.make_tuple
+        (List.mapi
+           (fun i kind ->
+             maybe_sign_extend kind dbg
+               (get_unarized_return_value return_values i))
+           kinds)
+    | _ ->
+      Misc.fatal_errorf
+        "C functions are currently limited to a single return value or a pair \
+         of return values"
+  in
+  let extcall_ident = Ident.create_local "extcall" in
+  let extcall_var = Backend_var.With_provenance.create extcall_ident in
+  let cmm =
+    C.letin extcall_var ~defining_expr:extcall ~body:(wrap (Cvar extcall_ident))
+  in
+  cmm, free_vars, env, res, Ece.all
+
 let translate_apply0 ~dbg_with_inlined:dbg env res apply =
   let callee_simple = Apply.callee apply in
   let args = Apply.args apply in
@@ -97,15 +230,6 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
   in
   let args, args_free_vars, env, res, _ = C.simple_list ~dbg env res args in
   let free_vars = Backend_var.Set.union callee_free_vars args_free_vars in
-  let fail_if_probe apply =
-    match Apply.probe apply with
-    | None -> ()
-    | Some _ ->
-      Misc.fatal_errorf
-        "[Apply] terms with a [probe] (i.e. that call a tracing probe) must \
-         always be direct applications of an OCaml function:@ %a"
-        Apply.print apply
-  in
   let pos =
     match Apply.position apply with
     | Normal ->
@@ -223,57 +347,9 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
         Ece.all )
   | C_call
       { needs_caml_c_call; is_c_builtin; effects; coeffects; alloc_mode = _ } ->
-    fail_if_probe apply;
-    let callee =
-      match callee_simple with
-      | None ->
-        Misc.fatal_errorf
-          "Application expression did not provide callee for C call:@ %a"
-          Apply.print apply
-      | Some callee_simple -> (
-        match Simple.must_be_symbol callee_simple with
-        | Some (sym, _) -> (To_cmm_result.symbol res sym).sym_name
-        | None ->
-          Misc.fatal_errorf "Expected a function symbol instead of:@ %a"
-            Simple.print callee_simple)
-    in
-    let returns = Apply.returns apply in
-    let wrap =
-      match Flambda_arity.unarized_components return_arity with
-      (* Returned int32 values need to be sign_extended because it's not clear
-         whether C code that returns an int32 returns one that is sign extended
-         or not. There is no need to wrap other return arities. Note that
-         extcalls of arity 0 are allowed (these never return). *)
-      | [] -> fun _dbg cmm -> cmm
-      | [kind] -> (
-        match Flambda_kind.With_subkind.kind kind with
-        | Naked_number Naked_int32 -> C.sign_extend_32
-        | Naked_number
-            ( Naked_float | Naked_immediate | Naked_int64 | Naked_nativeint
-            | Naked_vec128 | Naked_float32 )
-        | Value | Rec_info | Region ->
-          fun _dbg cmm -> cmm)
-      | _ ->
-        (* CR gbury: update when unboxed tuples are used *)
-        Misc.fatal_errorf
-          "C functions are currently limited to a single return value"
-    in
-    let ty_args =
-      List.map C.exttype_of_kind
-        (Flambda_arity.unarize (Apply.args_arity apply)
-        |> List.map K.With_subkind.kind)
-    in
-    let effects = To_cmm_effects.transl_c_call_effects effects in
-    let coeffects = To_cmm_effects.transl_c_call_coeffects coeffects in
-    ( wrap dbg
-        (C.extcall ~dbg ~alloc:needs_caml_c_call ~is_c_builtin ~effects
-           ~coeffects ~returns ~ty_args callee
-           (C.Extended_machtype.to_machtype return_ty)
-           args),
-      free_vars,
-      env,
-      res,
-      Ece.all )
+    translate_external_call env res ~free_vars apply ~callee_simple ~args
+      ~return_arity ~return_ty dbg ~needs_caml_c_call ~is_c_builtin ~effects
+      ~coeffects
   | Method { kind; obj; alloc_mode } ->
     fail_if_probe apply;
     let callee =
@@ -352,11 +428,6 @@ let translate_apply0 ~dbg_with_inlined:dbg env res apply =
       in
       C.resume ~dbg ~stack ~f ~arg ~last_fiber, free_vars, env, res, Ece.all)
 
-(* Function calls that have an exn continuation with extra arguments must be
-   wrapped with assignments for the mutable variables used to pass the extra
-   arguments. *)
-(* CR mshinwell: Add first-class support in Cmm for the concept of an exception
-   handler with extra arguments. *)
 let translate_apply env res apply =
   let dbg = Env.add_inlined_debuginfo env (Apply.dbg apply) in
   warn_if_unused_inlined_attribute apply ~dbg_with_inlined:dbg;
@@ -364,37 +435,73 @@ let translate_apply env res apply =
     translate_apply0 ~dbg_with_inlined:dbg env res apply
   in
   let k_exn = Apply.exn_continuation apply in
-  let mut_vars =
-    Exn_continuation.exn_handler k_exn |> Env.get_exn_extra_args env
-  in
   let extra_args = Exn_continuation.extra_args k_exn in
-  if List.compare_lengths extra_args mut_vars = 0
-  then
-    (* Note wrt evaluation order: this is correct for the same reason as
-       `To_cmm_shared.simple_list`, namely the first simple translated (and
-       potentially inlined/substituted) is evaluted last. *)
-    let aux (call, env, res, free_vars) (arg, _k) v =
-      let To_cmm_env.
-            { env;
-              res;
-              expr = { cmm = arg; free_vars = arg_free_vars; effs = _ }
-            } =
-        C.simple ~dbg env res arg
-      in
-      let free_vars = Backend_var.Set.union free_vars arg_free_vars in
-      C.sequence (C.assign v arg) call, env, res, free_vars
-    in
-    let call, env, res, free_vars =
-      List.fold_left2 aux (call, env, res, free_vars) extra_args mut_vars
-    in
-    call, free_vars, env, res, effs
+  if Misc.Stdlib.List.is_empty extra_args
+  then call, free_vars, env, res, effs
   else
-    Misc.fatal_errorf
-      "Length of [extra_args] in exception continuation %a@ does not match \
-       those in the environment (%a)@ for application expression:@ %a"
-      Exn_continuation.print k_exn
-      (Format.pp_print_list ~pp_sep:Format.pp_print_space Ident.print)
-      mut_vars Apply.print apply
+    (* If there are extra args, create a wrapper continuation, as we do when
+       inlining a function into a context where the exception continuation takes
+       extra args. *)
+    let env, res, free_vars, effs, extra_args_rev =
+      (* Obtain the Cmm expressions for the extra args *)
+      List.fold_left
+        (fun (env, res, free_vars, effs, extra_args_rev)
+             (extra_arg_simple, _kind) ->
+          let { To_cmm_env.env;
+                res;
+                expr = { cmm = extra_arg; free_vars = free_vars'; effs = effs' }
+              } =
+            C.simple ~dbg env res extra_arg_simple
+          in
+          ( env,
+            res,
+            Backend_var.Set.union free_vars free_vars',
+            Ece.join effs effs',
+            extra_arg :: extra_args_rev ))
+        (env, res, free_vars, effs, [])
+        extra_args
+    in
+    let extra_args = List.rev extra_args_rev in
+    let exn_var = Backend_var.create_local "*exn*" in
+    let result_var = Backend_var.create_local "*res*" in
+    let result_type =
+      Apply.return_arity apply |> C.extended_machtype_of_return_arity
+      |> C.Extended_machtype.to_machtype
+    in
+    let pop_handler_params =
+      [Backend_var.With_provenance.create result_var, result_type]
+    in
+    let handler_cont = Lambda.next_raise_count () in
+    let push_cont = Lambda.next_raise_count () in
+    let pop_cont = Lambda.next_raise_count () in
+    let call_and_pop = C.cexit pop_cont [call] [Pop handler_cont] in
+    let body =
+      C.create_ccatch ~rec_flag:false
+        ~body:(C.cexit push_cont [] [Push handler_cont])
+        ~handlers:[C.handler ~dbg push_cont [] call_and_pop false (* is_cold *)]
+    in
+    let body =
+      C.create_ccatch ~rec_flag:false ~body
+        ~handlers:
+          [ C.handler ~dbg pop_cont pop_handler_params (Cvar result_var)
+              false (* is_cold *) ]
+    in
+    let handler =
+      (* This exception handler has no extra args, but reraises to the one which
+         does. The exception arising from the function application is in
+         [exn_var]. *)
+      C.raise_prim Raise_reraise (Cvar exn_var) ~extra_args dbg
+    in
+    let cmm =
+      (* Catch any exceptions from the function application and send them to our
+         handler *)
+      C.trywith
+        ~exn_var:(Backend_var.With_provenance.create exn_var)
+        ~extra_args:[] ~dbg:(Apply.dbg apply) ~body ~handler_cont ~handler ()
+    in
+    cmm, free_vars, env, res, effs
+
+(* Helpers for the translation of [Switch] expressions. *)
 
 (* Helpers for translating [Apply_cont] expressions *)
 
@@ -424,14 +531,8 @@ let translate_raise ~dbg_with_inlined:dbg env res apply exn_handler args =
       C.simple_list ~dbg env res extra
     in
     let free_vars = Backend_var.Set.union exn_free_vars extra_free_vars in
-    let mut_vars = Env.get_exn_extra_args env exn_handler in
     let wrap, _, res = Env.flush_delayed_lets ~mode:Branching_point env res in
-    let cmm =
-      List.fold_left2
-        (fun expr arg v -> C.sequence (C.assign v arg) expr)
-        (C.raise_prim raise_kind exn dbg)
-        extra mut_vars
-    in
+    let cmm = C.raise_prim raise_kind exn ~extra_args:extra dbg in
     let cmm, free_vars = wrap cmm free_vars in
     cmm, free_vars, res
   | [] ->
@@ -715,12 +816,7 @@ and let_cont_not_inlined env res k handler body =
   cmm, free_vars, res
 
 (* Exception continuations are translated using delayed Ctrywith blocks. The
-   exception handler parts of these blocks are identified by the [catch_id]s.
-
-   Additionally, exception continuations can have extra args, which are passed
-   through the try-with using mutable Cmm variables. Thus the exception handler
-   must first read the contents of those extra args (eagerly, in order to
-   minmize the lifetime of the mutable variables). *)
+   exception handler parts of these blocks are identified by the [catch_id]s. *)
 and let_cont_exn_handler env res k body vars handler free_vars_of_handler
     ~catch_id arity =
   let exn_var, extra_params =
@@ -732,17 +828,15 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
         "Exception continuation %a should have at least one argument"
         Continuation.print k
   in
-  let env_body, mut_vars = Env.add_exn_handler env k arity in
-  let handler =
-    (* Wrap the exn handler with reads of the mutable variables *)
-    List.fold_left2
-      (fun handler (mut_var, _) (extra_param, _) ->
-        (* We introduce these mutable cmm variables at very precise points, and
-           without going through the delayed let-bindings of the [env], so we do
-           not consider them when computing the [free_vars]. *)
-        C.letin extra_param ~defining_expr:(C.var mut_var) ~body:handler)
-      handler mut_vars extra_params
+  let extra_params =
+    List.filter_map
+      (fun (var, (param_type : _ Env.param_type)) ->
+        match param_type with
+        | Param machtype -> Some (var, machtype)
+        | Skip_param -> None)
+      extra_params
   in
+  let env_body = Env.add_exn_handler env k arity in
   let body, free_vars_of_body, res = expr env_body res body in
   let free_vars =
     Backend_var.Set.union free_vars_of_body
@@ -752,34 +846,10 @@ and let_cont_exn_handler env res k body vars handler free_vars_of_handler
   (* CR gbury: once we get proper debuginfo here, remember to apply
      Env.add_inlined_debuginfo to it *)
   let dbg = Debuginfo.none in
-  let trywith =
-    C.trywith ~dbg ~body ~exn_var ~handler_cont:catch_id ~handler ()
-  in
-  (* Define and initialize the mutable Cmm variables for extra args *)
-  let cmm =
-    List.fold_left
-      (fun cmm (mut_var, kind) ->
-        (* CR mshinwell: Fix [provenance] *)
-        let mut_var =
-          Backend_var.With_provenance.create ?provenance:None mut_var
-        in
-        let dummy_value =
-          match K.With_subkind.kind kind with
-          | Value -> C.int ~dbg 1
-          | Naked_number Naked_float -> C.float ~dbg 0.
-          | Naked_number Naked_float32 -> C.float32 ~dbg 0.
-          | Naked_number
-              (Naked_immediate | Naked_int32 | Naked_int64 | Naked_nativeint) ->
-            C.int ~dbg 0
-          | Naked_number Naked_vec128 -> C.vec128 ~dbg { high = 0L; low = 0L }
-          | Region | Rec_info ->
-            Misc.fatal_errorf "No dummy value available for kind %a"
-              K.With_subkind.print kind
-        in
-        C.letin_mut mut_var (C.machtype_of_kind kind) dummy_value cmm)
-      trywith mut_vars
-  in
-  cmm, free_vars, res
+  ( C.trywith ~dbg ~body ~exn_var ~extra_args:extra_params
+      ~handler_cont:catch_id ~handler (),
+    free_vars,
+    res )
 
 and let_cont_rec env res invariant_params conts body =
   (* Flush the env now to avoid inlining something inside of a recursive
@@ -792,7 +862,7 @@ and let_cont_rec env res invariant_params conts body =
   (* Compute the environment for Ccatch ids *)
   let conts_to_handlers = Continuation_handlers.to_map conts in
   let env =
-    Continuation.Map.fold
+    Continuation.Lmap.fold
       (fun k handler acc ->
         let continuation_arg_tys =
           Continuation_handler.pattern_match' handler
@@ -810,7 +880,7 @@ and let_cont_rec env res invariant_params conts body =
   in
   (* Translate each continuation handler *)
   let conts_to_handlers, res =
-    Continuation.Map.fold
+    Continuation.Lmap.fold
       (fun k handler (conts_to_handlers, res) ->
         let vars, _arity, handler, free_vars_of_handler, res =
           continuation_handler env res handler
@@ -1148,6 +1218,6 @@ and switch env res switch =
         (0, res, scrutinee_free_vars)
     in
     (* CR-someday poechsel: Put a more precise value kind here *)
-    let expr = C.transl_switch_clambda dbg Any scrutinee index cases in
+    let expr = C.transl_switch_clambda dbg scrutinee index cases in
     let cmm, free_vars = wrap expr free_vars in
     cmm, free_vars, res

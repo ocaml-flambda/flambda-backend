@@ -114,7 +114,7 @@ Line 1, characters 24-25:
 1 | let f4_1 (x : t_word) = x, false;;
                             ^
 Error: This expression has type "t_word" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.
        But the layout of t_word must be a sublayout of value
@@ -127,7 +127,7 @@ Line 1, characters 30-31:
 1 | let f4_2 (x : 'a t_word_id) = x, false;;
                                   ^
 Error: This expression has type "'a t_word_id" = "('a : word)"
-       but an expression was expected of type "('b : value)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_word_id is word
          because of the definition of t_word_id at line 2, characters 0-31.
        But the layout of 'a t_word_id must be a sublayout of value
@@ -140,9 +140,9 @@ Line 1, characters 28-29:
 1 | let f4_3 (x : nativeint#) = x, false;;
                                 ^
 Error: This expression has type "nativeint#"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of nativeint# is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of nativeint# must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -166,7 +166,7 @@ Line 1, characters 18-28:
                       ^^^^^^^^^^
 Error: Tuple element types must have layout value.
        The layout of "nativeint#" is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of "nativeint#" must be a sublayout of value
          because it's the type of a tuple element.
 |}];;
@@ -214,14 +214,9 @@ type t5_2' = { y : string; x : t_word };;
 type t5_2' = { y : string; x : t_word; }
 |}];;
 
-(* CR layouts 2.5: allow this *)
 type t5_3 = { x : t_word } [@@unboxed];;
 [%%expect{|
-Line 1, characters 14-24:
-1 | type t5_3 = { x : t_word } [@@unboxed];;
-                  ^^^^^^^^^^
-Error: Type "t_word" has layout "word".
-       Unboxed records may not yet contain types of this layout.
+type t5_3 = { x : t_word; } [@@unboxed]
 |}];;
 
 type t5_4 = A of t_word;;
@@ -241,33 +236,22 @@ type ('a : word) t5_7 = A of int
 type ('a : word) t5_8 = A of 'a
 |}]
 
-(* not allowed: value in flat suffix *)
-type 'a t_disallowed = A of t_word * 'a
+(* No mixed block restriction: the compiler reorders the block for you, moving
+   the unboxed type to the flat suffix. *)
+type 'a t_reordered = A of t_word * 'a
 
 [%%expect{|
-Line 1, characters 23-39:
-1 | type 'a t_disallowed = A of t_word * 'a
-                           ^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument, "
-       t_word", but found boxed argument, "'a".
+type 'a t_reordered = A of t_word * 'a
 |}]
 
 type t5_6 = A of t_word [@@unboxed];;
 [%%expect{|
-Line 1, characters 12-23:
-1 | type t5_6 = A of t_word [@@unboxed];;
-                ^^^^^^^^^^^
-Error: Type "t_word" has layout "word".
-       Unboxed variants may not yet contain types of this layout.
+type t5_6 = A of t_word [@@unboxed]
 |}];;
 
 type t5_6_1 = A of { x : t_word } [@@unboxed];;
 [%%expect{|
-Line 1, characters 21-31:
-1 | type t5_6_1 = A of { x : t_word } [@@unboxed];;
-                         ^^^^^^^^^^
-Error: Type "t_word" has layout "word".
-       Unboxed inlined records may not yet contain types of this layout.
+type t5_6_1 = A of { x : t_word; } [@@unboxed]
 |}];;
 
 (****************************************************)
@@ -305,7 +289,7 @@ Line 1, characters 31-41:
                                    ^^^^^^^^^^
 Error: This type signature for "x" is not a value type.
        The layout of type nativeint# is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of type nativeint# must be a sublayout of value
          because it's the type of something stored in a module structure.
 |}];;
@@ -319,7 +303,7 @@ Line 1, characters 27-28:
 1 | let f7_1 (x : t_word) = `A x;;
                                ^
 Error: This expression has type "t_word" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.
        But the layout of t_word must be a sublayout of value
@@ -332,7 +316,7 @@ Line 1, characters 33-34:
 1 | let f7_2 (x : 'a t_word_id) = `A x;;
                                      ^
 Error: This expression has type "'a t_word_id" = "('a : word)"
-       but an expression was expected of type "('b : value)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_word_id is word
          because of the definition of t_word_id at line 2, characters 0-31.
        But the layout of 'a t_word_id must be a sublayout of value
@@ -345,9 +329,9 @@ Line 1, characters 31-32:
 1 | let f7_3 (x : nativeint#) = `A x;;
                                    ^
 Error: This expression has type "nativeint#"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of nativeint# is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of nativeint# must be a sublayout of value
          because it's the type of the field of a polymorphic variant.
 |}];;
@@ -397,7 +381,7 @@ Line 1, characters 20-36:
 1 | let x8_1 = id_value (make_t_word ());;
                         ^^^^^^^^^^^^^^^^
 Error: This expression has type "t_word" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.
        But the layout of t_word must be a sublayout of value
@@ -410,7 +394,7 @@ Line 1, characters 20-39:
 1 | let x8_2 = id_value (make_t_word_id ());;
                         ^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "'a t_word_id" = "('a : word)"
-       but an expression was expected of type "('b : value)"
+       but an expression was expected of type "('b : value_or_null)"
        The layout of 'a t_word_id is word
          because of the definition of t_word_id at line 2, characters 0-31.
        But the layout of 'a t_word_id must be a sublayout of value
@@ -423,9 +407,9 @@ Line 1, characters 20-40:
 1 | let x8_3 = id_value (make_nativeintu ());;
                         ^^^^^^^^^^^^^^^^^^^^
 Error: This expression has type "nativeint#"
-       but an expression was expected of type "('a : value)"
+       but an expression was expected of type "('a : value_or_null)"
        The layout of nativeint# is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of nativeint# must be a sublayout of value
          because of the definition of id_value at line 5, characters 13-18.
 |}];;
@@ -522,7 +506,8 @@ type t11_1 = ..
 Line 3, characters 14-25:
 3 | type t11_1 += A of t_word;;
                   ^^^^^^^^^^^
-Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 type t11_1 += B of nativeint#;;
@@ -530,7 +515,8 @@ type t11_1 += B of nativeint#;;
 Line 1, characters 14-29:
 1 | type t11_1 += B of nativeint#;;
                   ^^^^^^^^^^^^^^^
-Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 type ('a : word) t11_2 = ..
@@ -545,18 +531,19 @@ type 'a t11_2 += A of int
 Line 5, characters 17-24:
 5 | type 'a t11_2 += B of 'a;;
                      ^^^^^^^
-Error: Extensible types can't have fields of unboxed type. Consider wrapping the unboxed fields in a record.
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
-(* not allowed: value in flat suffix *)
+(* not allowed: extensible variant with unboxed field *)
 type 'a t11_2 += C : 'a * 'b -> 'a t11_2
 
 [%%expect{|
 Line 1, characters 17-40:
 1 | type 'a t11_2 += C : 'a * 'b -> 'a t11_2
                      ^^^^^^^^^^^^^^^^^^^^^^^
-Error: Expected all flat constructor arguments after non-value argument, "'a",
-       but found boxed argument, "'b".
+Error: Extensible types can't have fields of unboxed type.
+       Consider wrapping the unboxed fields in a record.
 |}]
 
 (***************************************)
@@ -633,7 +620,7 @@ Line 1, characters 26-47:
 Error: The method "x" has type "nativeint#" but is expected to have type
          "('a : value)"
        The layout of nativeint# is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of nativeint# must be a sublayout of value
          because it's the type of an object field.
 |}];;
@@ -645,7 +632,7 @@ Line 1, characters 26-44:
                               ^^^^^^^^^^^^^^^^^^
 Error: Variables bound in a class must have layout value.
        The layout of x is word
-         because it is the primitive type nativeint#.
+         because it is the unboxed version of the primitive type nativeint.
        But the layout of x must be a sublayout of value
          because it's the type of an instance variable.
 |}];;
@@ -695,7 +682,7 @@ end;;
 Line 3, characters 17-19:
 3 |     let _ = f1_1 m1 in
                      ^^
-Error: This expression has type "('a : value)"
+Error: This expression has type "('a : value_or_null)"
        but an expression was expected of type "t_word"
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.
@@ -732,7 +719,7 @@ Line 1, characters 25-26:
 1 | let f13_1 (x : t_word) = x = x;;
                              ^
 Error: This expression has type "t_word" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.
        But the layout of t_word must be a sublayout of value.
@@ -744,7 +731,7 @@ Line 1, characters 33-34:
 1 | let f13_2 (x : t_word) = compare x x;;
                                      ^
 Error: This expression has type "t_word" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.
        But the layout of t_word must be a sublayout of value.
@@ -756,7 +743,7 @@ Line 1, characters 42-43:
 1 | let f13_3 (x : t_word) = Marshal.to_bytes x;;
                                               ^
 Error: This expression has type "t_word" but an expression was expected of type
-         "('a : value)"
+         "('a : value_or_null)"
        The layout of t_word is word
          because of the definition of t_word at line 1, characters 0-18.
        But the layout of t_word must be a sublayout of value.

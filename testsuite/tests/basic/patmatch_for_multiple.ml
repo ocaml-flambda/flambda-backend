@@ -26,15 +26,15 @@ match (3, 2, 1) with
 | _ -> false
 ;;
 [%%expect{|
-(let (*match*/277 =[int] 3 *match*/278 =[int] 2 *match*/279 =[int] 1)
+(let (*match*/283 =[int] 3 *match*/284 =[int] 2 *match*/285 =[int] 1)
   (catch
     (catch
-      (catch (if (!= *match*/278 3) (exit 3) (exit 1)) with (3)
-        (if (!= *match*/277 1) (exit 2) (exit 1)))
+      (catch (if (!= *match*/284 3) (exit 3) (exit 1)) with (3)
+        (if (!= *match*/283 1) (exit 2) (exit 1)))
      with (2) 0)
    with (1) 1))
-(let (*match*/277 =[int] 3 *match*/278 =[int] 2 *match*/279 =[int] 1)
-  (catch (if (!= *match*/278 3) (if (!= *match*/277 1) 0 (exit 1)) (exit 1))
+(let (*match*/283 =[int] 3 *match*/284 =[int] 2 *match*/285 =[int] 1)
+  (catch (if (!= *match*/284 3) (if (!= *match*/283 1) 0 (exit 1)) (exit 1))
    with (1) 1))
 - : bool = false
 |}];;
@@ -47,32 +47,32 @@ match (3, 2, 1) with
 | _ -> false
 ;;
 [%%expect{|
-(let (*match*/282 =[int] 3 *match*/283 =[int] 2 *match*/284 =[int] 1)
+(let (*match*/288 =[int] 3 *match*/289 =[int] 2 *match*/290 =[int] 1)
   (catch
     (catch
       (catch
-        (if (!= *match*/283 3) (exit 6)
+        (if (!= *match*/289 3) (exit 6)
           (let
-            (x/286 =a[(consts ()) (non_consts ([0: [int], [int], [int]]))]
-               (makeblock 0 *match*/282 *match*/283 *match*/284))
-            (exit 4 x/286)))
+            (x/292 =a[(consts ()) (non_consts ([0: [int], [int], [int]]))]
+               (makeblock 0 *match*/288 *match*/289 *match*/290))
+            (exit 4 x/292)))
        with (6)
-        (if (!= *match*/282 1) (exit 5)
+        (if (!= *match*/288 1) (exit 5)
           (let
-            (x/285 =a[(consts ()) (non_consts ([0: [int], [int], [int]]))]
-               (makeblock 0 *match*/282 *match*/283 *match*/284))
-            (exit 4 x/285))))
+            (x/291 =a[(consts ()) (non_consts ([0: [int], [int], [int]]))]
+               (makeblock 0 *match*/288 *match*/289 *match*/290))
+            (exit 4 x/291))))
      with (5) 0)
-   with (4 x/280[(consts ()) (non_consts ([0: [int], [int], [int]]))])
-    (seq (ignore x/280) 1)))
-(let (*match*/282 =[int] 3 *match*/283 =[int] 2 *match*/284 =[int] 1)
+   with (4 x/286[(consts ()) (non_consts ([0: [int], [int], [int]]))])
+    (seq (ignore x/286) 1)))
+(let (*match*/288 =[int] 3 *match*/289 =[int] 2 *match*/290 =[int] 1)
   (catch
-    (if (!= *match*/283 3)
-      (if (!= *match*/282 1) 0
-        (exit 4 (makeblock 0 *match*/282 *match*/283 *match*/284)))
-      (exit 4 (makeblock 0 *match*/282 *match*/283 *match*/284)))
-   with (4 x/280[(consts ()) (non_consts ([0: [int], [int], [int]]))])
-    (seq (ignore x/280) 1)))
+    (if (!= *match*/289 3)
+      (if (!= *match*/288 1) 0
+        (exit 4 (makeblock 0 *match*/288 *match*/289 *match*/290)))
+      (exit 4 (makeblock 0 *match*/288 *match*/289 *match*/290)))
+   with (4 x/286[(consts ()) (non_consts ([0: [int], [int], [int]]))])
+    (seq (ignore x/286) 1)))
 - : bool = false
 |}];;
 
@@ -82,8 +82,8 @@ let _ = fun a b ->
   | ((true, _) as _g)
   | ((false, _) as _g) -> ()
 [%%expect{|
-(function {nlocal = 0} a/287[int] b/288 : int 0)
-(function {nlocal = 0} a/287[int] b/288 : int 0)
+(function {nlocal = 0} a/293[int] b/294 : int 0)
+(function {nlocal = 0} a/293[int] b/294 : int 0)
 - : bool -> 'a -> unit = <fun>
 |}];;
 
@@ -102,15 +102,15 @@ let _ = fun a b -> match a, b with
 | (false, _) as p -> p
 (* outside, trivial *)
 [%%expect {|
-(function {nlocal = 0} a/291[int] b/292
+(function {nlocal = 0} a/297[int] b/298
   [(consts ()) (non_consts ([0: [int], *]))](let
-                                              (p/293 =a[(consts ())
+                                              (p/299 =a[(consts ())
                                                         (non_consts (
                                                         [0: [int], *]))]
-                                                 (makeblock 0 a/291 b/292))
-                                              p/293))
-(function {nlocal = 0} a/291[int] b/292
-  [(consts ()) (non_consts ([0: [int], *]))](makeblock 0 a/291 b/292))
+                                                 (makeblock 0 a/297 b/298))
+                                              p/299))
+(function {nlocal = 0} a/297[int] b/298
+  [(consts ()) (non_consts ([0: [int], *]))](makeblock 0 a/297 b/298))
 - : bool -> 'a -> bool * 'a = <fun>
 |}]
 
@@ -119,15 +119,15 @@ let _ = fun a b -> match a, b with
 | ((false, _) as p) -> p
 (* inside, trivial *)
 [%%expect{|
-(function {nlocal = 0} a/295[int] b/296
+(function {nlocal = 0} a/301[int] b/302
   [(consts ()) (non_consts ([0: [int], *]))](let
-                                              (p/297 =a[(consts ())
+                                              (p/303 =a[(consts ())
                                                         (non_consts (
                                                         [0: [int], *]))]
-                                                 (makeblock 0 a/295 b/296))
-                                              p/297))
-(function {nlocal = 0} a/295[int] b/296
-  [(consts ()) (non_consts ([0: [int], *]))](makeblock 0 a/295 b/296))
+                                                 (makeblock 0 a/301 b/302))
+                                              p/303))
+(function {nlocal = 0} a/301[int] b/302
+  [(consts ()) (non_consts ([0: [int], *]))](makeblock 0 a/301 b/302))
 - : bool -> 'a -> bool * 'a = <fun>
 |}];;
 
@@ -135,28 +135,6 @@ let _ = fun a b -> match a, b with
 | (true as x, _) as p -> x, p
 | (false as x, _) as p -> x, p
 (* outside, simple *)
-[%%expect {|
-(function {nlocal = 0} a/301[int] b/302
-  [(consts ())
-   (non_consts ([0: [int], [(consts ()) (non_consts ([0: [int], *]))]]))]
-  (let
-    (x/303 =a[int] a/301
-     p/304 =a[(consts ()) (non_consts ([0: [int], *]))]
-       (makeblock 0 a/301 b/302))
-    (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], *]))]) x/303
-      p/304)))
-(function {nlocal = 0} a/301[int] b/302
-  [(consts ())
-   (non_consts ([0: [int], [(consts ()) (non_consts ([0: [int], *]))]]))]
-  (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], *]))]) a/301
-    (makeblock 0 a/301 b/302)))
-- : bool -> 'a -> bool * (bool * 'a) = <fun>
-|}]
-
-let _ = fun a b -> match a, b with
-| ((true as x, _) as p)
-| ((false as x, _) as p) -> x, p
-(* inside, simple *)
 [%%expect {|
 (function {nlocal = 0} a/307[int] b/308
   [(consts ())
@@ -176,34 +154,56 @@ let _ = fun a b -> match a, b with
 |}]
 
 let _ = fun a b -> match a, b with
+| ((true as x, _) as p)
+| ((false as x, _) as p) -> x, p
+(* inside, simple *)
+[%%expect {|
+(function {nlocal = 0} a/313[int] b/314
+  [(consts ())
+   (non_consts ([0: [int], [(consts ()) (non_consts ([0: [int], *]))]]))]
+  (let
+    (x/315 =a[int] a/313
+     p/316 =a[(consts ()) (non_consts ([0: [int], *]))]
+       (makeblock 0 a/313 b/314))
+    (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], *]))]) x/315
+      p/316)))
+(function {nlocal = 0} a/313[int] b/314
+  [(consts ())
+   (non_consts ([0: [int], [(consts ()) (non_consts ([0: [int], *]))]]))]
+  (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], *]))]) a/313
+    (makeblock 0 a/313 b/314)))
+- : bool -> 'a -> bool * (bool * 'a) = <fun>
+|}]
+
+let _ = fun a b -> match a, b with
 | (true as x, _) as p -> x, p
 | (false, x) as p -> x, p
 (* outside, complex *)
 [%%expect{|
-(function {nlocal = 0} a/317[int] b/318[int]
+(function {nlocal = 0} a/323[int] b/324[int]
   [(consts ())
    (non_consts ([0: [int], [(consts ()) (non_consts ([0: [int], [int]]))]]))]
-  (if a/317
+  (if a/323
     (let
-      (x/319 =a[int] a/317
-       p/320 =a[(consts ()) (non_consts ([0: [int], [int]]))]
-         (makeblock 0 a/317 b/318))
-      (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) x/319
-        p/320))
+      (x/325 =a[int] a/323
+       p/326 =a[(consts ()) (non_consts ([0: [int], [int]]))]
+         (makeblock 0 a/323 b/324))
+      (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) x/325
+        p/326))
     (let
-      (x/321 =a[(consts ()) (non_consts ([0: ]))] b/318
-       p/322 =a[(consts ()) (non_consts ([0: [int], [int]]))]
-         (makeblock 0 a/317 b/318))
-      (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) x/321
-        p/322))))
-(function {nlocal = 0} a/317[int] b/318[int]
+      (x/327 =a[(consts ()) (non_consts ([0: ]))] b/324
+       p/328 =a[(consts ()) (non_consts ([0: [int], [int]]))]
+         (makeblock 0 a/323 b/324))
+      (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) x/327
+        p/328))))
+(function {nlocal = 0} a/323[int] b/324[int]
   [(consts ())
    (non_consts ([0: [int], [(consts ()) (non_consts ([0: [int], [int]]))]]))]
-  (if a/317
-    (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) a/317
-      (makeblock 0 a/317 b/318))
-    (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) b/318
-      (makeblock 0 a/317 b/318))))
+  (if a/323
+    (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) a/323
+      (makeblock 0 a/323 b/324))
+    (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) b/324
+      (makeblock 0 a/323 b/324))))
 - : bool -> bool -> bool * (bool * bool) = <fun>
 |}]
 
@@ -213,33 +213,33 @@ let _ = fun a b -> match a, b with
   -> x, p
 (* inside, complex *)
 [%%expect{|
-(function {nlocal = 0} a/323[int] b/324[int]
+(function {nlocal = 0} a/329[int] b/330[int]
   [(consts ())
    (non_consts ([0: [int], [(consts ()) (non_consts ([0: [int], [int]]))]]))]
   (catch
-    (if a/323
+    (if a/329
       (let
-        (x/331 =a[int] a/323
-         p/332 =a[(consts ()) (non_consts ([0: [int], [int]]))]
-           (makeblock 0 a/323 b/324))
-        (exit 10 x/331 p/332))
+        (x/337 =a[int] a/329
+         p/338 =a[(consts ()) (non_consts ([0: [int], [int]]))]
+           (makeblock 0 a/329 b/330))
+        (exit 10 x/337 p/338))
       (let
-        (x/329 =a[(consts ()) (non_consts ([0: ]))] b/324
-         p/330 =a[(consts ()) (non_consts ([0: [int], [int]]))]
-           (makeblock 0 a/323 b/324))
-        (exit 10 x/329 p/330)))
-   with (10 x/325[int] p/326[(consts ()) (non_consts ([0: [int], [int]]))])
-    (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) x/325
-      p/326)))
-(function {nlocal = 0} a/323[int] b/324[int]
+        (x/335 =a[(consts ()) (non_consts ([0: ]))] b/330
+         p/336 =a[(consts ()) (non_consts ([0: [int], [int]]))]
+           (makeblock 0 a/329 b/330))
+        (exit 10 x/335 p/336)))
+   with (10 x/331[int] p/332[(consts ()) (non_consts ([0: [int], [int]]))])
+    (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) x/331
+      p/332)))
+(function {nlocal = 0} a/329[int] b/330[int]
   [(consts ())
    (non_consts ([0: [int], [(consts ()) (non_consts ([0: [int], [int]]))]]))]
   (catch
-    (if a/323 (exit 10 a/323 (makeblock 0 a/323 b/324))
-      (exit 10 b/324 (makeblock 0 a/323 b/324)))
-   with (10 x/325[int] p/326[(consts ()) (non_consts ([0: [int], [int]]))])
-    (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) x/325
-      p/326)))
+    (if a/329 (exit 10 a/329 (makeblock 0 a/329 b/330))
+      (exit 10 b/330 (makeblock 0 a/329 b/330)))
+   with (10 x/331[int] p/332[(consts ()) (non_consts ([0: [int], [int]]))])
+    (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) x/331
+      p/332)))
 - : bool -> bool -> bool * (bool * bool) = <fun>
 |}]
 
@@ -252,30 +252,30 @@ let _ = fun a b -> match a, b with
 | (false as x, _) as p -> x, p
 (* outside, onecase *)
 [%%expect {|
-(function {nlocal = 0} a/333[int] b/334[int]
+(function {nlocal = 0} a/339[int] b/340[int]
   [(consts ())
    (non_consts ([0: [int], [(consts ()) (non_consts ([0: [int], [int]]))]]))]
-  (if a/333
+  (if a/339
     (let
-      (x/335 =a[int] a/333
-       _p/336 =a[(consts ()) (non_consts ([0: [int], [int]]))]
-         (makeblock 0 a/333 b/334))
-      (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) x/335
+      (x/341 =a[int] a/339
+       _p/342 =a[(consts ()) (non_consts ([0: [int], [int]]))]
+         (makeblock 0 a/339 b/340))
+      (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) x/341
         [0: 1 1]))
     (let
-      (x/337 =a[int] a/333
-       p/338 =a[(consts ()) (non_consts ([0: [int], [int]]))]
-         (makeblock 0 a/333 b/334))
-      (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) x/337
-        p/338))))
-(function {nlocal = 0} a/333[int] b/334[int]
+      (x/343 =a[int] a/339
+       p/344 =a[(consts ()) (non_consts ([0: [int], [int]]))]
+         (makeblock 0 a/339 b/340))
+      (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) x/343
+        p/344))))
+(function {nlocal = 0} a/339[int] b/340[int]
   [(consts ())
    (non_consts ([0: [int], [(consts ()) (non_consts ([0: [int], [int]]))]]))]
-  (if a/333
-    (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) a/333
+  (if a/339
+    (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) a/339
       [0: 1 1])
-    (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) a/333
-      (makeblock 0 a/333 b/334))))
+    (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], [int]]))]) a/339
+      (makeblock 0 a/339 b/340))))
 - : bool -> bool -> bool * (bool * bool) = <fun>
 |}]
 
@@ -284,20 +284,20 @@ let _ = fun a b -> match a, b with
 | ((false as x, _) as p) -> x, p
 (* inside, onecase *)
 [%%expect{|
-(function {nlocal = 0} a/339[int] b/340
+(function {nlocal = 0} a/345[int] b/346
   [(consts ())
    (non_consts ([0: [int], [(consts ()) (non_consts ([0: [int], *]))]]))]
   (let
-    (x/341 =a[int] a/339
-     p/342 =a[(consts ()) (non_consts ([0: [int], *]))]
-       (makeblock 0 a/339 b/340))
-    (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], *]))]) x/341
-      p/342)))
-(function {nlocal = 0} a/339[int] b/340
+    (x/347 =a[int] a/345
+     p/348 =a[(consts ()) (non_consts ([0: [int], *]))]
+       (makeblock 0 a/345 b/346))
+    (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], *]))]) x/347
+      p/348)))
+(function {nlocal = 0} a/345[int] b/346
   [(consts ())
    (non_consts ([0: [int], [(consts ()) (non_consts ([0: [int], *]))]]))]
-  (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], *]))]) a/339
-    (makeblock 0 a/339 b/340)))
+  (makeblock 0 (int,[(consts ()) (non_consts ([0: [int], *]))]) a/345
+    (makeblock 0 a/345 b/346)))
 - : bool -> 'a -> bool * (bool * 'a) = <fun>
 |}]
 
@@ -314,23 +314,23 @@ let _ =fun a b -> match a, b with
 | (_, _) as p -> p
 (* outside, tuplist *)
 [%%expect {|
-(function {nlocal = 0} a/352[int]
-  b/353[(consts (0))
+(function {nlocal = 0} a/358[int]
+  b/359[(consts (0))
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))]]))]
   [(consts ())
    (non_consts ([0: [int], [(consts (0)) (non_consts ([0: *]))]]))](catch
-                                                                    (if a/352
-                                                                    (if b/353
+                                                                    (if a/358
+                                                                    (if b/359
                                                                     (let
-                                                                    (p/354 =a
+                                                                    (p/360 =a
                                                                     (field_imm 0
-                                                                    b/353))
-                                                                    p/354)
+                                                                    b/359))
+                                                                    p/360)
                                                                     (exit 12))
                                                                     (exit 12))
                                                                     with (12)
                                                                     (let
-                                                                    (p/355 =a
+                                                                    (p/361 =a
                                                                     [(consts ())
                                                                     (non_consts (
                                                                     [0:
@@ -339,24 +339,24 @@ let _ =fun a b -> match a, b with
                                                                     (non_consts (
                                                                     [0: *]))]]))]
                                                                     (makeblock 0
-                                                                    a/352
-                                                                    b/353))
-                                                                    p/355)))
-(function {nlocal = 0} a/352[int]
-  b/353[(consts (0))
+                                                                    a/358
+                                                                    b/359))
+                                                                    p/361)))
+(function {nlocal = 0} a/358[int]
+  b/359[(consts (0))
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))]]))]
   [(consts ())
    (non_consts ([0: [int], [(consts (0)) (non_consts ([0: *]))]]))](catch
-                                                                    (if a/352
-                                                                    (if b/353
+                                                                    (if a/358
+                                                                    (if b/359
                                                                     (field_imm 0
-                                                                    b/353)
+                                                                    b/359)
                                                                     (exit 12))
                                                                     (exit 12))
                                                                     with (12)
                                                                     (makeblock 0
-                                                                    a/352
-                                                                    b/353)))
+                                                                    a/358
+                                                                    b/359)))
 - : bool -> bool tuplist -> bool * bool tuplist = <fun>
 |}]
 
@@ -365,25 +365,25 @@ let _ = fun a b -> match a, b with
 | ((_, _) as p) -> p
 (* inside, tuplist *)
 [%%expect{|
-(function {nlocal = 0} a/356[int]
-  b/357[(consts (0))
+(function {nlocal = 0} a/362[int]
+  b/363[(consts (0))
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))]]))]
   [(consts ())
    (non_consts ([0: [int], [(consts (0)) (non_consts ([0: *]))]]))](catch
                                                                     (catch
-                                                                    (if a/356
-                                                                    (if b/357
+                                                                    (if a/362
+                                                                    (if b/363
                                                                     (let
-                                                                    (p/361 =a
+                                                                    (p/367 =a
                                                                     (field_imm 0
-                                                                    b/357))
+                                                                    b/363))
                                                                     (exit 13
-                                                                    p/361))
+                                                                    p/367))
                                                                     (exit 14))
                                                                     (exit 14))
                                                                     with (14)
                                                                     (let
-                                                                    (p/360 =a
+                                                                    (p/366 =a
                                                                     [(consts ())
                                                                     (non_consts (
                                                                     [0:
@@ -392,11 +392,11 @@ let _ = fun a b -> match a, b with
                                                                     (non_consts (
                                                                     [0: *]))]]))]
                                                                     (makeblock 0
-                                                                    a/356
-                                                                    b/357))
+                                                                    a/362
+                                                                    b/363))
                                                                     (exit 13
-                                                                    p/360)))
-                                                                    with (13 p/358
+                                                                    p/366)))
+                                                                    with (13 p/364
                                                                     [(consts ())
                                                                     (non_consts (
                                                                     [0:
@@ -404,26 +404,26 @@ let _ = fun a b -> match a, b with
                                                                     [(consts (0))
                                                                     (non_consts (
                                                                     [0: *]))]]))])
-                                                                    p/358))
-(function {nlocal = 0} a/356[int]
-  b/357[(consts (0))
+                                                                    p/364))
+(function {nlocal = 0} a/362[int]
+  b/363[(consts (0))
         (non_consts ([0: [(consts ()) (non_consts ([0: *, *]))]]))]
   [(consts ())
    (non_consts ([0: [int], [(consts (0)) (non_consts ([0: *]))]]))](catch
                                                                     (catch
-                                                                    (if a/356
-                                                                    (if b/357
+                                                                    (if a/362
+                                                                    (if b/363
                                                                     (exit 13
                                                                     (field_imm 0
-                                                                    b/357))
+                                                                    b/363))
                                                                     (exit 14))
                                                                     (exit 14))
                                                                     with (14)
                                                                     (exit 13
                                                                     (makeblock 0
-                                                                    a/356
-                                                                    b/357)))
-                                                                    with (13 p/358
+                                                                    a/362
+                                                                    b/363)))
+                                                                    with (13 p/364
                                                                     [(consts ())
                                                                     (non_consts (
                                                                     [0:
@@ -431,6 +431,6 @@ let _ = fun a b -> match a, b with
                                                                     [(consts (0))
                                                                     (non_consts (
                                                                     [0: *]))]]))])
-                                                                    p/358))
+                                                                    p/364))
 - : bool -> bool tuplist -> bool * bool tuplist = <fun>
 |}]

@@ -72,6 +72,8 @@ value caml_thread_sigmask(value cmd, value sigs)
   retcode = pthread_sigmask(how, &set, &oldset);
   caml_leave_blocking_section();
   sync_check_error(retcode, "Thread.sigmask");
+  /* A signal that was previously being blocked may now be pending */
+  caml_set_action_pending(Caml_state);
   /* Run any handlers for just-unmasked pending signals */
   caml_process_pending_actions();
   return st_encode_sigset(&oldset);
@@ -79,7 +81,6 @@ value caml_thread_sigmask(value cmd, value sigs)
 
 value caml_wait_signal(value sigs)
 {
-#ifdef HAS_SIGWAIT
   sigset_t set;
   int retcode, signo;
 
@@ -89,8 +90,4 @@ value caml_wait_signal(value sigs)
   caml_leave_blocking_section();
   sync_check_error(retcode, "Thread.wait_signal");
   return Val_int(caml_rev_convert_signal_number(signo));
-#else
-  caml_invalid_argument("Thread.wait_signal not implemented");
-  return Val_int(0);            /* not reached */
-#endif
 }

@@ -14,6 +14,8 @@
 (*                                                                        *)
 (**************************************************************************)
 
+@@ portable
+
 (** The OCaml Standard library.
 
     This module is automatically opened at the beginning of each
@@ -30,18 +32,19 @@
 
 (** {1 Exceptions} *)
 
-external raise : exn -> 'a = "%reraise"
+external raise : ('a : value_or_null). exn -> 'a @ portable unique = "%reraise"
 (** Raise the given exception value *)
 
-external raise_notrace : exn -> 'a = "%raise_notrace"
+external raise_notrace : ('a : value_or_null). exn -> 'a @ portable unique
+  = "%raise_notrace"
 (** A faster version [raise] which does not record the backtrace.
     @since 4.02
 *)
 
-val invalid_arg : string -> 'a
+val invalid_arg : ('a : value_or_null) . string -> 'a @ portable unique
 (** Raise exception [Invalid_argument] with the given string. *)
 
-val failwith : string -> 'a
+val failwith : ('a : value_or_null) . string -> 'a @ portable unique
 (** Raise exception [Failure] with the given string. *)
 
 exception Exit
@@ -122,7 +125,7 @@ exception Undefined_recursive_module of (string * int * int)
 
 (** {1 Comparisons} *)
 
-external ( = ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%equal"
+external ( = ) : ('a : value_or_null) . ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%equal"
 (** [e1 = e2] tests for structural equality of [e1] and [e2].
    Mutable structures (e.g. references and arrays) are equal
    if and only if their current contents are structurally equal,
@@ -131,27 +134,27 @@ external ( = ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%equal"
    Equality between cyclic data structures may not terminate.
    Left-associative operator, see {!Ocaml_operators} for more information. *)
 
-external ( <> ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%notequal"
+external ( <> ) : ('a : value_or_null) . ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%notequal"
 (** Negation of {!Stdlib.( = )}.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( < ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%lessthan"
+external ( < ) : ('a : value_or_null) . ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%lessthan"
 (** See {!Stdlib.( >= )}.
     Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( > ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%greaterthan"
+external ( > ) : ('a : value_or_null) . ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%greaterthan"
 (** See {!Stdlib.( >= )}.
     Left-associative operator,  see {!Ocaml_operators} for more information.
 *)
 
-external ( <= ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%lessequal"
+external ( <= ) : ('a : value_or_null) . ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%lessequal"
 (** See {!Stdlib.( >= )}.
     Left-associative operator,  see {!Ocaml_operators} for more information.
 *)
 
-external ( >= ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%greaterequal"
+external ( >= ) : ('a : value_or_null) . ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%greaterequal"
 (** Structural ordering functions. These functions coincide with
    the usual orderings over integers, characters, strings, byte sequences
    and floating-point numbers, and extend them to a
@@ -163,7 +166,7 @@ external ( >= ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%greaterequal"
    Left-associative operator, see {!Ocaml_operators} for more information.
 *)
 
-external compare : ('a[@local_opt]) -> ('a[@local_opt]) -> int = "%compare"
+external compare : ('a : value_or_null) . ('a[@local_opt]) -> ('a[@local_opt]) -> int = "%compare"
 (** [compare x y] returns [0] if [x] is equal to [y],
    a negative integer if [x] is less than [y], and a positive integer
    if [x] is greater than [y].  The ordering implemented by [compare]
@@ -182,17 +185,17 @@ external compare : ('a[@local_opt]) -> ('a[@local_opt]) -> int = "%compare"
    required by the {!Set.Make} and {!Map.Make} functors, as well as
    the {!List.sort} and {!Array.sort} functions. *)
 
-val min : 'a -> 'a -> 'a
+val min : ('a : value_or_null) . 'a -> 'a -> 'a
 (** Return the smaller of the two arguments.
     The result is unspecified if one of the arguments contains
     the float value [nan]. *)
 
-val max : 'a -> 'a -> 'a
+val max : ('a : value_or_null) . 'a -> 'a -> 'a
 (** Return the greater of the two arguments.
     The result is unspecified if one of the arguments contains
     the float value [nan]. *)
 
-external ( == ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%eq"
+external ( == ) : ('a : value_or_null) . ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%eq"
 (** [e1 == e2] tests for physical equality of [e1] and [e2].
    On mutable types such as references, arrays, byte sequences, records with
    mutable fields and objects with mutable instance variables,
@@ -204,7 +207,7 @@ external ( == ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%eq"
    Left-associative operator,  see {!Ocaml_operators} for more information.
 *)
 
-external ( != ) : ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%noteq"
+external ( != ) : ('a : value_or_null) . ('a[@local_opt]) -> ('a[@local_opt]) -> bool = "%noteq"
 (** Negation of {!Stdlib.( == )}.
     Left-associative operator,  see {!Ocaml_operators} for more information.
 *)
@@ -271,7 +274,7 @@ external __FUNCTION__ : string = "%loc_FUNCTION"
 
     @since 4.12 *)
 
-external __LOC_OF__ : 'a -> string * 'a = "%loc_LOC"
+external __LOC_OF__ : ('a : value_or_null) . 'a -> string * 'a = "%loc_LOC"
 (** [__LOC_OF__ expr] returns a pair [(loc, expr)] where [loc] is the
     location of [expr] in the file currently being parsed by the
     compiler, with the standard error format of OCaml: "File %S, line
@@ -279,14 +282,14 @@ external __LOC_OF__ : 'a -> string * 'a = "%loc_LOC"
     @since 4.02
 *)
 
-external __LINE_OF__ : 'a -> int * 'a = "%loc_LINE"
+external __LINE_OF__ : ('a : value_or_null) . 'a -> int * 'a = "%loc_LINE"
 (** [__LINE_OF__ expr] returns a pair [(line, expr)], where [line] is the
     line number at which the expression [expr] appears in the file
     currently being parsed by the compiler.
     @since 4.02
  *)
 
-external __POS_OF__ : 'a -> (string * int * int * int) * 'a = "%loc_POS"
+external __POS_OF__ : ('a : value_or_null) . 'a -> (string * int * int * int) * 'a = "%loc_POS"
 (** [__POS_OF__ expr] returns a pair [(loc,expr)], where [loc] is a
     tuple [(file,lnum,cnum,enum)] corresponding to the location at
     which the expression [expr] appears in the file currently being
@@ -298,14 +301,16 @@ external __POS_OF__ : 'a -> (string * int * int * int) * 'a = "%loc_POS"
 
 (** {1 Composition operators} *)
 
-external ( |> ) : 'a -> ('a -> 'b) -> 'b = "%revapply"
+external ( |> ) : ('a : value_or_null) ('b : value_or_null)
+  . 'a -> ('a -> 'b) -> 'b = "%revapply"
 (** Reverse-application operator: [x |> f |> g] is exactly equivalent
  to [g (f (x))].
  Left-associative operator, see {!Ocaml_operators} for more information.
  @since 4.01
 *)
 
-external ( @@ ) : ('a -> 'b) -> 'a -> 'b = "%apply"
+external ( @@ ) : ('a : value_or_null) ('b : value_or_null)
+  . ('a -> 'b) -> 'a -> 'b = "%apply"
 (** Application operator: [g @@ f @@ x] is exactly equivalent to
  [g (f (x))].
  Right-associative operator, see {!Ocaml_operators} for more information.
@@ -715,7 +720,7 @@ val char_of_int : int -> char
 
 (** {1 Unit operations} *)
 
-external ignore : 'a -> unit = "%ignore"
+external ignore : ('a : value_or_null) . 'a -> unit = "%ignore"
 (** Discard the value of its argument and return [()].
    For instance, [ignore(f x)] discards the result of
    the side-effecting function [f].  It is equivalent to
@@ -723,6 +728,11 @@ external ignore : 'a -> unit = "%ignore"
    compiler warning; writing [ignore(f x)] instead
    avoids the warning. *)
 
+external ignore_contended : ('a : value_or_null) . 'a @ contended local once -> unit
+  = "%ignore"
+(** Like {!ignore}, but takes a [contended local once] value. This is technically strictly
+    stronger than [ignore], but changing [ignore] in place causes backwards compatibility
+    issues due to type inference. *)
 
 (** {1 String conversion functions} *)
 
@@ -818,7 +828,7 @@ external snd : ('a * 'b[@local_opt]) -> ('b[@local_opt]) = "%field1_immut"
    More list operations are provided in module {!List}.
 *)
 
-val ( @ ) : 'a list -> 'a list -> 'a list
+val ( @ ) : ('a : value_or_null) . 'a list -> 'a list -> 'a list
 (** [l0 @ l1] appends [l1] to [l0]. Same function as {!List.append}.
   Right-associative operator, see {!Ocaml_operators} for more information.
   @since 5.1 this function is tail-recursive.
@@ -828,10 +838,10 @@ val ( @ ) : 'a list -> 'a list -> 'a list
     Note: all input/output functions can raise [Sys_error] when the system
     calls they invoke fail. *)
 
-type in_channel
+type in_channel : value mod portable contended
 (** The type of input channel. *)
 
-type out_channel
+type out_channel : value mod portable contended
 (** The type of output channel. *)
 
 val stdin : in_channel
@@ -1022,7 +1032,7 @@ val output_binary_int : out_channel -> int -> unit
    {!Stdlib.input_binary_int} function. The format is compatible across
    all machines for a given version of OCaml. *)
 
-val output_value : out_channel -> 'a -> unit
+val output_value :  ('a : value_or_null) . out_channel -> 'a -> unit
 (** Write the representation of a structured value of any type
    to a channel. Circularities and sharing inside the value
    are detected and preserved. The object can be read back,
@@ -1147,7 +1157,7 @@ val input_binary_int : in_channel -> int
    @raise End_of_file if the end of file was reached while reading the
    integer. *)
 
-val input_value : in_channel -> 'a
+val input_value : ('a : value_or_null) . in_channel -> 'a
 (** Read the representation of a structured value, as produced
    by {!Stdlib.output_value}, and return the corresponding value.
    This function is identical to {!Marshal.from_channel};
@@ -1216,20 +1226,20 @@ module LargeFile :
 
 (** {1 References} *)
 
-type 'a ref = { mutable contents : 'a }
+type ('a : value_or_null) ref = { mutable contents : 'a }
 (** The type of references (mutable indirection cells) containing
    a value of type ['a]. *)
 
-external ref : 'a -> ('a ref[@local_opt]) = "%makemutable"
+external ref : ('a : value_or_null) . 'a -> ('a ref[@local_opt]) = "%makemutable"
 (** Return a fresh reference containing the given value. *)
 
-external ( ! ) : ('a ref[@local_opt]) -> 'a = "%field0"
+external ( ! ) : ('a : value_or_null) . ('a ref[@local_opt]) -> 'a = "%field0"
 (** [!r] returns the current contents of reference [r].
    Equivalent to [fun r -> r.contents].
    Unary operator, see {!Ocaml_operators} for more information.
 *)
 
-external ( := ) : ('a ref[@local_opt]) -> 'a -> unit = "%setfield0"
+external ( := ) : ('a : value_or_null) . ('a ref[@local_opt]) -> 'a -> unit = "%setfield0"
 (** [r := a] stores the value of [a] in reference [r].
    Equivalent to [fun r v -> r.contents <- v].
    Right-associative operator, see {!Ocaml_operators} for more information.
@@ -1246,7 +1256,7 @@ external decr : (int ref[@local_opt]) -> unit = "%decr"
 (** {1 Result type} *)
 
 (** @since 4.03 *)
-type ('a,'b) result = Ok of 'a | Error of 'b
+type ('a : value_or_null, 'b : value_or_null) result = Ok of 'a | Error of 'b
 
 (** {1 Operations on format strings} *)
 
@@ -1352,7 +1362,7 @@ val ( ^^ ) :
 
 (** {1 Program termination} *)
 
-val exit : int -> 'a
+val exit : int -> 'a @@ nonportable
 (** Terminate the process, returning the given status code to the operating
     system: usually 0 to indicate no errors, and a small positive integer to
     indicate failure. All open output channels are flushed with [flush_all].
@@ -1363,7 +1373,7 @@ val exit : int -> 'a
     An implicit [exit 2] is performed if the program terminates early because
     of an uncaught exception. *)
 
-val at_exit : (unit -> unit) -> unit
+val at_exit : (unit -> unit) -> unit @@ nonportable
 (** Register the given function to be called at program termination
    time. The functions registered with [at_exit] will be called when
    the program does any of the following:
@@ -1374,17 +1384,28 @@ val at_exit : (unit -> unit) -> unit
    The functions are called in 'last in, first out' order: the
    function most recently added with [at_exit] is called first. *)
 
+(** Submodule containing non-backwards-compatible functions which enforce thread safety
+    via modes. *)
+module Safe : sig
+  val at_exit : (unit -> unit) @ portable -> unit
+  (** Like {!at_exit}, but can be called from any domain.
+
+      The provided closure must be [portable] as it might be called from another domain.
+      In particular, the primary domain may call {!exit}, thus calling the provided
+      closure even if it came from a secondary domain. *)
+end
+
 (**/**)
 
 (* The following is for system use only. Do not call directly. *)
 
-val valid_float_lexem : string -> string
+val valid_float_lexem : string -> string @@ nonportable
 
-val unsafe_really_input : in_channel -> bytes -> int -> int -> unit
+val unsafe_really_input : in_channel -> bytes -> int -> int -> unit @@ nonportable
 
-val do_at_exit : unit -> unit
+val do_at_exit : unit -> unit @@ nonportable
 
-val do_domain_local_at_exit : (unit -> unit) ref
+val do_domain_local_at_exit : (unit -> unit) ref @@ nonportable
 
 (**/**)
 
@@ -1411,14 +1432,11 @@ module Domain         = Domain
     "The Domain interface may change in incompatible ways in the future."
 ]
 module Dynarray       = Dynarray
-(* CR ocaml 5 effects:
-BACKPORT
 module Effect         = Effect
 [@@alert "-unstable"]
 [@@alert unstable
     "The Effect interface may change in incompatible ways in the future."
 ]
-*)
 module Either         = Either
 module Ephemeron      = Ephemeron
 module Filename       = Filename
@@ -1437,6 +1455,7 @@ module List           = List
 module ListLabels     = ListLabels
 module Map            = Map
 module Marshal        = Marshal
+module Modes          = Modes
 module MoreLabels     = MoreLabels
 module Mutex          = Mutex
 module Nativeint      = Nativeint

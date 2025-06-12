@@ -30,6 +30,7 @@ type out_ident =
   | Oide_apply of out_ident * out_ident
   | Oide_dot of out_ident * string
   | Oide_ident of out_name
+  | Oide_hash of out_ident
 
 type out_string =
   | Ostr_string
@@ -52,6 +53,7 @@ type out_value =
   | Oval_list of out_value list
   | Oval_printer of (Format.formatter -> unit)
   | Oval_record of (out_ident * out_value) list
+  | Oval_record_unboxed_product of (out_ident * out_value) list
   | Oval_string of string * int * out_string (* string, size-to-print, kind *)
   | Oval_stuff of string
   | Oval_tuple of (string option * out_value) list
@@ -103,8 +105,9 @@ type out_ret_mode =
 type out_jkind_const =
   | Ojkind_const_default
   | Ojkind_const_abbreviation of string
-  | Ojkind_const_mod of out_jkind_const * string list
-  | Ojkind_const_with of out_jkind_const * out_type
+  (** The base of [Ojkind_const_mod] is optional to enable printing individual axes *)
+  | Ojkind_const_mod of out_jkind_const option * string list
+  | Ojkind_const_with of out_jkind_const * out_type * out_modality_new list
   | Ojkind_const_kind_of of out_type
   | Ojkind_const_product of out_jkind_const list
 
@@ -135,6 +138,10 @@ and out_type =
   | Otyp_manifest of out_type * out_type
   | Otyp_object of { fields: (string * out_type) list; open_row:bool}
   | Otyp_record of (string * out_mutability * out_type * out_modality list) list
+  | Otyp_record_unboxed_product of
+      (string * out_mutability * out_type * out_modality list) list
+  (* INVARIANT: [out_mutability] is included for uniformity with [Otyp_record],
+     but it is always [Omm_immutable] *)
   | Otyp_stuff of string
   | Otyp_sum of out_constructor list
   | Otyp_tuple of (string option * out_type) list
@@ -147,6 +154,7 @@ and out_type =
   | Otyp_jkind_annot of out_type * out_jkind
       (* Currently only introduced with very explicit code in [Printtyp] and not
          synthesized directly from the [Typedtree] *)
+  | Otyp_of_kind of out_jkind
 
 and out_constructor = {
   ocstr_name: string;
@@ -199,7 +207,9 @@ and out_type_decl =
     otype_jkind: out_jkind option;
 
     otype_unboxed: bool;
-    otype_cstrs: (out_type * out_type) list }
+    otype_or_null_reexport: bool;
+    otype_cstrs: (out_type * out_type) list;
+    otype_attributes: out_attribute list }
 and out_extension_constructor =
   { oext_name: string;
     oext_type_name: string;

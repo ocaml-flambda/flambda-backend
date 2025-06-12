@@ -34,7 +34,8 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
   let dacc = C.dacc_inside_functions context in
   let alloc_modes = Code_metadata.param_modes code_metadata in
   let denv =
-    DE.add_parameters_with_unknown_types ~alloc_modes (DA.denv dacc) params
+    DE.add_parameters_with_unknown_types ~extra:false ~alloc_modes
+      (DA.denv dacc) params
     |> DE.set_inlining_arguments inlining_arguments
     |> DE.set_inlining_history_tracker
          (Inlining_history.Tracker.inside_function absolute_history)
@@ -65,12 +66,18 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
           (T.alias_type_of K.value (Simple.name name)))
   in
   let denv =
-    let my_region = Bound_var.create my_region Name_mode.normal in
-    DE.add_variable denv my_region (T.unknown K.region)
+    match my_region with
+    | None -> denv
+    | Some my_region ->
+      let my_region = Bound_var.create my_region Name_mode.normal in
+      DE.add_variable denv my_region (T.unknown K.region)
   in
   let denv =
-    let my_ghost_region = Bound_var.create my_ghost_region Name_mode.normal in
-    DE.add_variable denv my_ghost_region (T.unknown K.region)
+    match my_ghost_region with
+    | None -> denv
+    | Some my_ghost_region ->
+      let my_ghost_region = Bound_var.create my_ghost_region Name_mode.normal in
+      DE.add_variable denv my_ghost_region (T.unknown K.region)
   in
   let denv =
     let my_depth = Bound_var.create my_depth Name_mode.normal in
@@ -102,6 +109,7 @@ let dacc_inside_function context ~outer_dacc ~params ~my_closure ~my_region
   |> DA.with_shareable_constants ~shareable_constants
   |> DA.with_slot_offsets ~slot_offsets
   |> DA.reset_continuation_lifting_budget
+  |> DA.reset_continuation_specialization_budget
 
 let extract_accumulators_from_function outer_dacc ~dacc_after_body
     ~uacc_after_upwards_traversal =
@@ -177,18 +185,25 @@ let simplify_function_body context ~outer_dacc function_slot_opt
     Misc.fatal_errorf "Did not expect lifted constants in [dacc]:@ %a" DA.print
       dacc;
   assert (not (DE.at_unit_toplevel (DA.denv dacc)));
+  let region_params =
+    let region_param region =
+      match region with
+      | None -> []
+      | Some region ->
+        [Bound_parameter.create region Flambda_kind.With_subkind.region]
+    in
+    region_param my_region @ region_param my_ghost_region
+  in
   match
     C.simplify_function_body context dacc body ~return_continuation
       ~exn_continuation ~return_arity:(Code.result_arity code)
       ~implicit_params:
         (Bound_parameters.create
-           [ Bound_parameter.create my_closure
-               Flambda_kind.With_subkind.any_value;
-             Bound_parameter.create my_region Flambda_kind.With_subkind.region;
-             Bound_parameter.create my_ghost_region
-               Flambda_kind.With_subkind.region;
-             Bound_parameter.create my_depth Flambda_kind.With_subkind.rec_info
-           ])
+           ([ Bound_parameter.create my_closure
+                Flambda_kind.With_subkind.any_value;
+              Bound_parameter.create my_depth Flambda_kind.With_subkind.rec_info
+            ]
+           @ region_params))
       ~loopify_state ~params
   with
   | body, uacc ->
@@ -213,27 +228,13 @@ let simplify_function_body context ~outer_dacc function_slot_opt
       then Recursive
       else Non_recursive
     in
-    if NO.mem_var free_names_of_body my_region
-       && Lambda.is_heap_mode (Code.result_mode code)
-    then
-      Misc.fatal_errorf
-        "Unexpected free my_region in code with heap result mode:\n%a"
-        (RE.print (UA.are_rebuilding_terms uacc))
-        body;
-    if NO.mem_var free_names_of_body my_ghost_region
-       && Lambda.is_heap_mode (Code.result_mode code)
-    then
-      Misc.fatal_errorf
-        "Unexpected free my_ghost_region in code with heap result mode:\n%a"
-        (RE.print (UA.are_rebuilding_terms uacc))
-        body;
     let free_names_of_code =
       free_names_of_body
       |> NO.remove_continuation ~continuation:return_continuation
       |> NO.remove_continuation ~continuation:exn_continuation
       |> NO.remove_var ~var:my_closure
-      |> NO.remove_var ~var:my_region
-      |> NO.remove_var ~var:my_ghost_region
+      |> NO.remove_var_opt ~var:my_region
+      |> NO.remove_var_opt ~var:my_ghost_region
       |> NO.remove_var ~var:my_depth
       |> NO.diff ~without:(Bound_parameters.free_names params)
       |> NO.diff ~without:previously_free_depth_variables
@@ -247,8 +248,11 @@ let simplify_function_body context ~outer_dacc function_slot_opt
          %a@ \n\
          Simplified version:@ fun %a %a %a %a %a ->@ \n\
         \  %a" NO.print free_names_of_code Code_id.print code_id
-        Bound_parameters.print params Variable.print my_closure Variable.print
-        my_region Variable.print my_ghost_region Variable.print my_depth
+        Bound_parameters.print params Variable.print my_closure
+        (Format.pp_print_option Variable.print)
+        my_region
+        (Format.pp_print_option Variable.print)
+        my_ghost_region Variable.print my_depth
         (RE.print (UA.are_rebuilding_terms uacc))
         body;
     { params;
@@ -298,8 +302,8 @@ let compute_result_types ~is_a_functor ~is_opaque ~return_cont_uses
         ~cut_after:(Scope.prev (DE.get_continuation_scope env_at_fork))
         (Continuation_uses.get_uses uses)
         ~is_recursive:false ~params:return_cont_params ~env_at_fork
-        ~consts_lifted_during_body:lifted_consts_this_function
-        ~lifted_cont_extra_params_and_args:EPA.empty
+        ~consts_lifted_after_fork:lifted_consts_this_function
+        ~previous_extra_params_and_args:EPA.empty
     in
     let bound_params_and_results =
       Bound_parameters.append params return_cont_params
@@ -465,8 +469,6 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
       ~param_modes:(Code.param_modes code)
       ~first_complex_local_param:(Code.first_complex_local_param code)
       ~result_arity ~result_types ~result_mode:(Code.result_mode code)
-      ~contains_no_escaping_local_allocs:
-        (Code.contains_no_escaping_local_allocs code)
       ~stub:(Code.stub code) ~inline:(Code.inline code)
       ~zero_alloc_attribute:(Code.zero_alloc_attribute code)
       ~poll_attribute:(Code.poll_attribute code) ~is_a_functor ~is_opaque
@@ -478,10 +480,10 @@ let simplify_function0 context ~outer_dacc function_slot_opt code_id code
     let are_rebuilding = DA.are_rebuilding_terms dacc_after_body in
     match new_code with
     | None ->
-      assert (not (Are_rebuilding_terms.are_rebuilding are_rebuilding));
+      assert (Are_rebuilding_terms.do_not_rebuild_terms are_rebuilding);
       Not_rebuilding
     | Some new_code ->
-      assert (Are_rebuilding_terms.are_rebuilding are_rebuilding);
+      assert (Are_rebuilding_terms.do_rebuild_terms are_rebuilding);
       Rebuilding new_code
   in
   { code_id; code = Some (code, code_const); outer_dacc; should_resimplify }
@@ -573,7 +575,7 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
                 fun_types,
               outer_dacc ),
             old_code_id )
-        | Code_id old_code_id ->
+        | Code_id { code_id = old_code_id; only_full_applications } ->
           let code_id, outer_dacc, code_ids_to_never_delete_this_set =
             simplify_function context ~outer_dacc function_slot old_code_id
               ~closure_bound_names_inside_function:closure_bound_names_inside
@@ -594,7 +596,7 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
               result_code_ids_to_never_delete_this_set
           in
           ( (code_ids_to_never_delete_this_set, fun_types, outer_dacc),
-            (Code_id code_id
+            (Code_id { code_id; only_full_applications }
               : Function_declarations.code_id_in_function_declaration) ))
       (Code_id.Set.empty, Function_slot.Map.empty, outer_dacc)
       all_function_decls_in_set
@@ -606,7 +608,7 @@ let simplify_set_of_closures0 outer_dacc context set_of_closures
            code_ids ->
         match code_id with
         | Deleted _ -> code_ids
-        | Code_id code_id -> Code_id.Set.add code_id code_ids)
+        | Code_id { code_id; _ } -> Code_id.Set.add code_id code_ids)
       all_function_decls_in_set Code_id.Set.empty
   in
   let dacc =
@@ -681,7 +683,7 @@ let simplify_and_lift_set_of_closures dacc ~closure_bound_vars_inverse
   let value_slot_types =
     Value_slot.Map.mapi
       (fun value_slot in_slot ->
-        let kind = K.With_subkind.kind (Value_slot.kind value_slot) in
+        let kind = Value_slot.kind value_slot in
         Simple.pattern_match in_slot
           ~const:(fun _ -> T.alias_type_of kind in_slot)
           ~name:(fun name ~coercion ->
@@ -796,6 +798,12 @@ let simplify_non_lifted_set_of_closures0 dacc bound_vars ~closure_bound_vars
     Simplified_named.create_with_known_free_names ~find_code_characteristics
       (Named.create_set_of_closures set_of_closures)
       ~free_names:(Named.free_names named)
+  in
+  let dacc =
+    DA.map_denv dacc
+      ~f:
+        (DE.map_specialization_cost
+           ~f:(Specialization_cost.add_set_of_closures set_of_closures))
   in
   Simplify_named_result.create dacc
     [ { Expr_builder.let_bound = bound_vars;

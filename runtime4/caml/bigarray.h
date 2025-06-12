@@ -78,9 +78,8 @@ enum caml_ba_managed {
 };
 
 enum caml_ba_subarray {
-  CAML_BA_SUBARRAY = 0         /* Data is shared with another bigarray
-                                  (Has no effect on runtime4, but present
-                                   for compatibility with runtime5) */
+  CAML_BA_SUBARRAY = 0x800     /* Data is shared with another bigarray
+                                  (runtime4: only affects Gc.Memprof events) */
 };
 
 struct caml_ba_proxy {

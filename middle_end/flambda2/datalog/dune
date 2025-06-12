@@ -1,0 +1,13 @@
+(include_subdirs unqualified)
+
+(library
+ (name flambda2_datalog)
+ (wrapped true)
+ (instrumentation (backend bisect_ppx))
+ (ocamlopt_flags
+  (:standard -O3 -open Int_replace_polymorphic_compare))
+ (flags
+  (:standard
+   -open
+   Flambda2_algorithms))
+ (libraries ocamlcommon flambda2_algorithms))
