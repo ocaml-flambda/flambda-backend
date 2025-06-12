@@ -147,7 +147,7 @@ gives it a name:
 ```ocaml
 let increment_current () =
   let (P access) = Capsule.current () in
-  let current_ref = Data.create (fun () -> ref 0) in
+  let current_ref = Capsule.Data.create (fun () -> ref 0) in
   increment current_ref ~access
 ;;
 ```
