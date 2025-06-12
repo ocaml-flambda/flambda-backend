@@ -235,13 +235,6 @@ and sort_to_ignorable_product_element_kind loc (s : Jkind.Sort.Const.t) =
   | Product sorts -> Pproduct_ignorable (ignorable_product_array_kind loc sorts)
 
 let array_kind_of_elt ~elt_sort env loc ty =
-  let elt_sort =
-    match elt_sort with
-    | Some s -> s
-    | None ->
-      Jkind.Sort.default_for_transl_and_get
-        (type_legacy_sort ~why:Array_element env loc ty)
-  in
   let elt_ty_for_error = ty in (* report the un-scraped ty in errors *)
   let classify_product ty sorts =
     if is_always_gc_ignorable env ty then
@@ -267,7 +260,49 @@ let array_kind_of_elt ~elt_sort env loc ty =
   | Unboxed_vector v -> Punboxedvectorarray v
   | Product c -> c
 
-let array_type_kind ~elt_sort ~elt_ty env loc ty =
+
+let array_type_kind0 env loc ty =
+  match scrape_poly env ty with
+  | Tconstr(p, [elt_ty], _) when Path.same p Predef.path_array ->
+      let elt_sort =
+        Jkind.Sort.default_for_transl_and_get
+          (type_legacy_sort ~why:Array_element env loc elt_ty)
+      in
+      array_kind_of_elt ~elt_sort env loc elt_ty
+  | Tconstr(p, [elt_ty], _) when Path.same p Predef.path_iarray ->
+      let elt_sort =
+        Jkind.Sort.default_for_transl_and_get
+          (type_legacy_sort ~why:Array_element env loc elt_ty)
+      in
+      let kind = array_kind_of_elt ~elt_sort env loc elt_ty in
+      (* CR layouts v7.1: allow iarrays of products. *)
+      begin match kind with
+      | Pgcscannableproductarray _ | Pgcignorableproductarray _ ->
+        raise (Error (loc, Product_iarrays_unsupported))
+      | Pgenarray | Paddrarray | Pintarray | Pfloatarray | Punboxedfloatarray _
+      | Punboxedintarray _ | Punboxedvectorarray _  ->
+        kind
+      end
+  | Tconstr(p, [], _) when Path.same p Predef.path_floatarray ->
+      Pfloatarray
+  | _ ->
+      (* This can happen with e.g. Obj.field *)
+      Pgenarray
+
+let array_type_kind ~elt_ty env loc ty =
+  let elt_sort =
+    Jkind.Sort.default_for_transl_and_get
+      (type_legacy_sort ~why:Array_element env loc elt_ty)
+  in
+  let array_kind = array_kind_of_elt ~elt_sort env loc elt_ty in
+  match array_kind, scrape_poly env ty with
+  | (Pgcscannableproductarray _ | Pgcignorableproductarray _),
+    Tconstr(p, _, _) when Path.same p Predef.path_iarray ->
+    raise (Error (loc, Product_iarrays_unsupported))
+  | _ -> array_kind
+
+
+let array_type_kind_of_sort ~elt_sort env loc ty =
   match scrape_poly env ty with
   | Tconstr(p, [elt_ty], _) when Path.same p Predef.path_array ->
       array_kind_of_elt ~elt_sort env loc elt_ty
@@ -284,33 +319,11 @@ let array_type_kind ~elt_sort ~elt_ty env loc ty =
   | Tconstr(p, [], _) when Path.same p Predef.path_floatarray ->
       Pfloatarray
   | _ ->
-    begin match elt_ty with
-    | Some elt_ty ->
-      let rhs = Jkind.Builtin.value ~why:Array_type_kind in
-      begin match Ctype.constrain_type_jkind env elt_ty rhs with
-      | Ok _ -> Pgenarray
-      | Error e ->
-        (* CR layouts v4: rather than constraining [elt_ty]'s jkind to be value,
-           we could instead use its jkind to determine a non-value array kind.
-
-           We are choosing to error in this case for now because it is safer,
-           and because it could be potentially confusing that there is a second
-           source of information used to determine array type kinds (in addition
-           to the type kind of the array parameter). See PR #4098.
-        *)
-        raise (Error(loc,
-          Opaque_array_non_value {
-            array_type = ty;
-            elt_kinding_failure = Some (elt_ty, e);
-          }))
-      end
-    | None ->
       raise (Error(loc,
         Opaque_array_non_value {
           array_type = ty;
           elt_kinding_failure = None;
         }))
-    end
 
 let array_type_mut env ty =
   match scrape_poly env ty with
@@ -318,14 +331,10 @@ let array_type_mut env ty =
   | _ -> Mutable
 
 let array_kind exp elt_sort =
-  array_type_kind
-    ~elt_sort:(Some elt_sort) ~elt_ty:None
-    exp.exp_env exp.exp_loc exp.exp_type
+  array_type_kind_of_sort ~elt_sort exp.exp_env exp.exp_loc exp.exp_type
 
 let array_pattern_kind pat elt_sort =
-  array_type_kind
-    ~elt_sort:(Some elt_sort) ~elt_ty:None
-    pat.pat_env pat.pat_loc pat.pat_type
+  array_type_kind_of_sort ~elt_sort pat.pat_env pat.pat_loc pat.pat_type
 
 let bigarray_decode_type env ty tbl dfl =
   match scrape env ty with
@@ -564,7 +573,8 @@ let rec value_kind env ~loc ~visited ~depth ~num_nodes_visited ty
           || Path.same p Predef.path_floatarray) ->
     (* CR layouts: [~elt_sort:None] here is bad for performance. To
        fix it, we need a place to store the sort on a [Tconstr]. *)
-    let ak = array_type_kind ~elt_ty:(Some arg) ~elt_sort:None env loc ty in
+    (* CR rtjoa: updateu CR *)
+    let ak = array_type_kind ~elt_ty:arg env loc ty in
     num_nodes_visited, non_nullable (Parrayval ak)
   | Tconstr(p, _, _) -> begin
       (* CR layouts v2.8: The uses of [decl.type_jkind] here are suspect:
