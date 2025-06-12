@@ -24,21 +24,25 @@ let int_repr = Int_repr
 type vm_action =
   | Unless :
       ('t, 'k, 'v) Trie.is_trie
-      * 't ref
-      * 'k Option_ref.hlist
+      * 't Leapfrog.receiver
+      * 'k Option_receiver.hlist
       * string
       * string list
       -> vm_action
   | Unless_eq :
-      'k option ref * 'k option ref * string * string * 'k value_repr
+      'k option Leapfrog.receiver
+      * 'k option Leapfrog.receiver
+      * string
+      * string
+      * 'k value_repr
       -> vm_action
   | Filter :
-      ('k Constant.hlist -> bool) * 'k Option_ref.hlist * string list
+      ('k Constant.hlist -> bool) * 'k Option_receiver.hlist * string list
       -> vm_action
 
 type action =
   | Bind_iterator :
-      'a option ref with_name * 'a Trie.Iterator.t with_name
+      'a option Leapfrog.receiver with_name * 'a Trie.Iterator.t with_name
       -> action
   | VM_action : vm_action -> action
 
@@ -54,7 +58,8 @@ let unless_eq repr cell1 cell2 =
 
 let filter f args = VM_action (Filter (f, args.values, args.names))
 
-type binder = Bind_table : ('t, 'k, 'v) Table.Id.t * 't ref -> binder
+type binder =
+  | Bind_table : ('t, 'k, 'v) Table.Id.t * 't Leapfrog.sender -> binder
 
 type actions = { mutable rev_actions : action list }
 
@@ -107,7 +112,9 @@ module Level = struct
       order : Order.t;
       actions : actions;
       mutable iterators : 'a Trie.Iterator.t with_name list;
-      mutable output : 'a option ref with_name option
+      mutable output :
+        ('a option Leapfrog.sender * 'a option Leapfrog.receiver) with_name
+        option
     }
 
   let print ppf { name; order; _ } =
@@ -119,10 +126,11 @@ module Level = struct
   let use_output level =
     match level.output with
     | None ->
-      let output = { value = ref None; name = level.name } in
+      let channel = Leapfrog.channel None in
+      let output = { value = channel; name = level.name } in
       level.output <- Some output;
-      output
-    | Some output -> output
+      { output with value = snd output.value }
+    | Some output -> { output with value = snd output.value }
 
   let actions { actions; _ } = actions
 
@@ -191,9 +199,11 @@ let add_iterator context id =
   iterators
 
 let add_naive_binder context id =
-  let handler = ref (Trie.empty (Table.Id.is_trie id)) in
-  add_binder context.naive_binders (Bind_table (id, handler));
-  handler
+  let send_trie, recv_trie =
+    Leapfrog.channel (Trie.empty (Table.Id.is_trie id))
+  in
+  add_binder context.naive_binders (Bind_table (id, send_trie));
+  recv_trie
 
 let initial_actions { actions; _ } = actions
 
@@ -254,8 +264,10 @@ let rec open_rev_vars :
         (* If we do not need the output (we usually do), write it to a dummy
            [ref] for simplicity. *)
         match var.output with
-        | Some output -> output
-        | None -> { value = ref None; name = "_" }
+        | Some output -> { output with value = fst output.value }
+        | None ->
+          let send, _recv = Leapfrog.channel None in
+          { value = send; name = "_" }
       in
       let iterators = List.map (fun it -> it.value) var.iterators in
       let iterator_names = List.map (fun it -> it.name) var.iterators in
@@ -284,7 +296,7 @@ type call =
   | Call :
       { func : 'a Constant.hlist -> unit;
         name : string;
-        args : 'a Option_ref.hlist with_names
+        args : 'a Option_receiver.hlist with_names
       }
       -> call
 
@@ -320,7 +332,7 @@ let create ?(calls = []) ?output context =
 
 let bind_table (Bind_table (id, handler)) database =
   let table = Table.Map.get id database in
-  handler := table;
+  Leapfrog.send handler table;
   not (Trie.is_empty (Table.Id.is_trie id) table)
 
 let bind_table_list binders database =
@@ -332,7 +344,7 @@ let bind_cursor cursor ?(callback = ignore) db =
   cursor.callback := callback
 
 let unbind_table (Bind_table (id, handler)) =
-  handler := Trie.empty (Table.Id.is_trie id)
+  Leapfrog.send handler (Trie.empty (Table.Id.is_trie id))
 
 let unbind_table_list binders = List.iter unbind_table binders
 
@@ -348,15 +360,19 @@ let with_bound_cursor ?callback cursor db f =
 let evaluate = function
   | Unless (is_trie, cell, args, _cell_name, _args_names) ->
     if Option.is_some
-         (Trie.find_opt is_trie (Option_ref.get args) cell.contents)
+         (Trie.find_opt is_trie
+            (Option_receiver.recv args)
+            (Leapfrog.recv cell))
     then Virtual_machine.Skip
     else Virtual_machine.Accept
   | Unless_eq (cell1, cell2, _cell1_name, _cell2_name, Int_repr) ->
-    if Int.equal (Option.get !cell1) (Option.get !cell2)
+    if Int.equal
+         (Option.get (Leapfrog.recv cell1))
+         (Option.get (Leapfrog.recv cell2))
     then Virtual_machine.Skip
     else Virtual_machine.Accept
   | Filter (f, args, _args_names) ->
-    if f (Option_ref.get args)
+    if f (Option_receiver.recv args)
     then Virtual_machine.Accept
     else Virtual_machine.Skip
 
@@ -387,7 +403,7 @@ let[@inline] seminaive_run cursor ~previous ~diff ~current =
 
 module With_parameters = struct
   type nonrec ('p, 'v) t =
-    { parameters : 'p Option_ref.hlist;
+    { parameters : 'p Option_sender.hlist;
       cursor : 'v t
     }
 
@@ -399,14 +415,14 @@ module With_parameters = struct
     { cursor = create ?calls ?output context; parameters }
 
   let naive_fold { parameters; cursor } ps db f acc =
-    Option_ref.set parameters ps;
+    Option_sender.send parameters ps;
     naive_fold cursor db f acc
 
   let naive_iter { parameters; cursor } ps db f =
-    Option_ref.set parameters ps;
+    Option_sender.send parameters ps;
     naive_iter cursor db f
 
   let seminaive_run { parameters; cursor } ps ~previous ~diff ~current =
-    Option_ref.set parameters ps;
+    Option_sender.send parameters ps;
     seminaive_run ~previous ~diff ~current cursor
 end
