@@ -28,7 +28,8 @@ type cms_infos = {
   cms_uid_to_attributes : Parsetree.attributes Shape.Uid.Tbl.t;
   cms_impl_shape : Shape.t option; (* None for mli *)
   cms_ident_occurrences :
-    (Longident.t Location.loc * Shape_reduce.result) array
+    (Longident.t Location.loc * Shape_reduce.result) array;
+  cms_externals: Vicuna_value_shapes.extfun array
 }
 
 type error =

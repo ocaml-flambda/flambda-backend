@@ -26,8 +26,6 @@
  * DEALINGS IN THE SOFTWARE.                                                  *
  ******************************************************************************)
 
-open! Value_shapes
-
 (* Argument Parsing *)
 let easily_readable = ref false
 
@@ -77,8 +75,8 @@ let parse_arguments () =
 
 let pp_ext_funs ~readable fmt extfuns =
   if readable
-  then Value_shapes.print_extfuns_readable fmt extfuns
-  else Value_shapes.print_extfuns fmt extfuns
+  then Vicuna_value_shapes.print_extfuns_readable fmt extfuns
+  else Vicuna_value_shapes.print_extfuns fmt extfuns
 
 let output_shapes ~output_file ~readable externals =
   match output_file with
@@ -102,31 +100,57 @@ let extract_shapes_from_cmt ~verbose file =
     then Format.eprintf "Exception raised while reading .cmt file %s\n" file;
     []
   | { cmt_annots = Implementation tt; _ } ->
-    Traverse_typed_tree.extract_from_typed_tree tt
+    Vicuna_traverse_typed_tree.extract_from_typed_tree tt
   | _ -> assert false
 
-let extract_shapes_from_cmts ~includes ~verbose files =
-  Clflags.include_dirs := includes @ !Clflags.include_dirs;
+let extract_shapes_from_cms ~verbose file =
+  match Cms_format.read file with
+  | exception Sys_error s ->
+    if verbose
+    then Format.eprintf "Exception raised while reading .cms file: %s\n" s;
+    []
+  | exception _ ->
+    if verbose
+    then Format.eprintf "Exception raised while reading .cms file %s\n" file;
+    []
+  | { cms_externals; _ } -> Array.to_list cms_externals
+
+type externals_source_file =
+  | CMT of string
+  | CMS of string
+
+let extract_shapes_from_file ~verbose file =
+  match file with
+  | CMS file -> extract_shapes_from_cms ~verbose file
+  | CMT file -> extract_shapes_from_cmt ~verbose file
+
+let extract_shapes_from_files ~verbose files =
+  Clflags.include_dirs := !include_dirs @ !Clflags.include_dirs;
   Clflags.open_modules := !open_modules @ !Clflags.open_modules;
   Clflags.hidden_include_dirs
     := !hidden_include_dirs @ !Clflags.hidden_include_dirs;
   Compmisc.init_path ();
-  List.iter
-    (fun file ->
-      if not (String.ends_with file ~suffix:".cmt")
-      then Misc.fatal_errorf "File %s is not a .cmt file; aborting\n" file)
-    files;
-  List.concat_map (extract_shapes_from_cmt ~verbose) files
+  let files =
+    List.map
+      (fun file ->
+        match file with
+        | _ when String.ends_with file ~suffix:".cms" -> CMS file
+        | _ when String.ends_with file ~suffix:".cmt" -> CMT file
+        | _ ->
+          Misc.fatal_errorf
+            "File %s is neither a .cms nor a .cmt file; aborting\n" file)
+      files
+  in
+  List.concat_map (extract_shapes_from_file ~verbose) files
 
 let externals_version = "v0.1"
 
-let extract_and_output_from_cmts ~readable ~includes ~output_file ~verbose files
-    =
-  let externals = extract_shapes_from_cmts ~includes ~verbose files in
+let extract_and_output_from_cmts ~readable ~output_file ~verbose files =
+  let externals = extract_shapes_from_files ~verbose files in
   output_shapes ~output_file ~readable
     { version = externals_version; extfuns = externals }
 
 let _ =
   parse_arguments ();
   extract_and_output_from_cmts ~readable:!easily_readable
-    ~includes:!include_dirs ~output_file:!output_file ~verbose:!verbose !files
+    ~output_file:!output_file ~verbose:!verbose !files

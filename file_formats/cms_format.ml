@@ -32,7 +32,8 @@ type cms_infos = {
   cms_uid_to_attributes : Parsetree.attributes Shape.Uid.Tbl.t;
   cms_impl_shape : Shape.t option; (* None for mli *)
   cms_ident_occurrences :
-    (Longident.t Location.loc * Shape_reduce.result) array
+    (Longident.t Location.loc * Shape_reduce.result) array;
+  cms_externals: Vicuna_value_shapes.extfun array
 }
 
 type error =
@@ -94,6 +95,14 @@ let uid_tables_of_binary_annots binary_annots =
     );
   cms_uid_to_loc, cms_uid_to_attributes
 
+
+let externals_of_binary_annots binary_annots =
+  match binary_annots with
+  | Cmt_format.Implementation str ->
+    Vicuna_traverse_typed_tree.extract_from_typed_tree str |> Array.of_list
+  | _ -> [| |]
+
+
 let save_cms target modname binary_annots initial_env shape =
   if (!Clflags.binary_annotations_cms && not !Clflags.print_types) then begin
     Misc.output_to_file_via_temporary
@@ -114,6 +123,7 @@ let save_cms target modname binary_annots initial_env shape =
         let cms_uid_to_loc, cms_uid_to_attributes =
           uid_tables_of_binary_annots binary_annots
         in
+        let cms_externals = externals_of_binary_annots binary_annots in
         let cms =
           {
             cms_modname = modname;
@@ -125,7 +135,8 @@ let save_cms target modname binary_annots initial_env shape =
             cms_uid_to_loc;
             cms_uid_to_attributes;
             cms_impl_shape = shape;
-            cms_ident_occurrences
+            cms_ident_occurrences;
+            cms_externals
           }
         in
         output_cms oc cms)
