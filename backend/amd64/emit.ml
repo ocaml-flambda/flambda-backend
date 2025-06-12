@@ -1067,7 +1067,7 @@ end = struct
   let[@inline always] is_stack_16_byte_aligned () =
     (* Yes, sadly this does result in materially better assembly than
        [(!stack_offset mod 16) = 0]
-       https://github.com/ocaml-flambda/flambda-backend/issues/2187 *)
+       https://github.com/oxcaml/oxcaml/issues/2187 *)
     !stack_offset land 15 = 0
 
   let asan_report_function memory_chunk_size memory_access : X86_ast.arg =

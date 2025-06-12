@@ -45,7 +45,7 @@
 
    This incompatibility arises from the batch-mmap patch at:
 
-       https://github.com/ocaml-flambda/flambda-backend/pull/2248
+       https://github.com/oxcaml/oxcaml/pull/2248
 
    which does large memory allocations to acquire new pools. However, the
    compactor releases pools one at a time. Until the compactor is updated

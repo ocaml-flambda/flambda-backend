@@ -41,7 +41,7 @@ The CI checks that all Flambda 2 code (in `middle_end/flambda2/`) and
 Cfg code (in `backend/cfg/`) is
 formatted correctly as per the provided `.ocamlformat` file.  To prepare
 your environment for the correct version of `ocamlformat` you can follow
-the OPAM commands [in the CI check](https://github.com/ocaml-flambda/flambda-backend/blob/main/.github/workflows/ocamlformat.yml).  (Note that the OPAM compiler will not
+the OPAM commands [in the CI check](https://github.com/oxcaml/oxcaml/blob/main/.github/workflows/ocamlformat.yml).  (Note that the OPAM compiler will not
 be used for the Flambda backend build itself.)  All of the code can be
 formatted using `make fmt` and the check can be run using `make check-fmt`.
 
