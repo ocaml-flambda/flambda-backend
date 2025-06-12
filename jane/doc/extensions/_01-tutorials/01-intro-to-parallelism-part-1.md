@@ -281,7 +281,7 @@ for details).
 let test_add4 par = add4 par 1 10 100 1000
 
 let run_one_test ~(f : Parallel.t -> 'a) : 'a =
-  let module Scheduler = Parallel.Scheduler.Work_stealing in
+  let module Scheduler = Parallel_scheduler_work_stealing in
   let scheduler = Scheduler.create () in
   let monitor = Parallel.Monitor.create_root () in
   let result = Scheduler.schedule scheduler ~monitor ~f in
@@ -302,7 +302,7 @@ This uses a work-stealing scheduler, but you can also use the `parallel`
 library's own `Parallel.Scheduler.Sequential`, which simply runs everything on
 the primary domain. This is handy for testing or debugging when you want to
 eliminate nondeterminism. To do so, simply replace
-`Parallel.Scheduler.Work_stealing` with `Parallel.Scheduler.Sequential` in
+`Parallel_scheduler_work_stealing` with `Parallel.Scheduler.Sequential` in
 `run_one_test`.
 
 ## Averaging over binary trees
