@@ -22,12 +22,14 @@ blessed by the PPX:
 ```ocaml
 open! Core
 
-(* Just rebinding the names to work with the PPX. [%template] here is just shorthand for
-   [struct ... end], with the PPX enabled. Another totally acceptable way to write this is
-   [open%template struct ... end]. *)
+(* Just rebinding the names to work with the PPX.
+   [%template] here is just shorthand for [struct ... end],
+   with the PPX enabled. Another totally acceptable way to
+   write this is [open%template struct ... end]. *)
 open
   [%template
-  module [@kind value] Float = Float (* alternatively, [@@kind value] *)
+  (* alternatively, ... = Float [@@kind value] *)
+  module [@kind value] Float = Float
   module [@kind float64] Float = Float_u]
 ```
 
@@ -78,9 +80,11 @@ val iround_down_exn : (float[@kind k]) -> int]
 And now for the implementation, in terms of our modules defined above:
 
 ```ocaml
-(* Unfortunately, this is not valid syntax: [type t = (M[@kind k]).t [@@kind k = k]]
+(* Unfortunately, this is not valid syntax:
+   [type t = (M[@kind k]).t [@@kind k = k]]
 
-   Some ideas for working around this are below - kind of like the module equivalent of
+   Some ideas for working around this are below - kind of
+   like the module equivalent of
    [let open M [@kind k] in ...]. *)
 [%%template
 [@@@kind.default k = (value, float64)]
@@ -131,10 +135,22 @@ end
 
 type ('a : any) module1 = (module S1 with type t = 'a)
 
-let round_up1 (type a : any) ((module M) : a module1) = M.round_up
-let round_down1 (type a : any) ((module M) : a module1) = M.round_down
-let iround_up1_exn (type a : any) ((module M) : a module1) = M.iround_up_exn
-let iround_down1_exn (type a : any) ((module M) : a module1) = M.iround_down_exn
+let round_up1 (type a : any) ((module M) : a module1) =
+  M.round_up
+;;
+
+let round_down1 (type a : any) ((module M) : a module1) =
+  M.round_down
+;;
+
+let iround_up1_exn (type a : any) ((module M) : a module1) =
+  M.iround_up_exn
+;;
+
+let iround_down1_exn (type a : any) ((module M) : a module1)
+  =
+  M.iround_down_exn
+;;
 ```
 
 However, with ppx_template, it's easy to directly generate multiple copies of the bindings
@@ -160,7 +176,8 @@ we're at it:
 [%%template:
 [@@@kind.default k = (value, float64)]
 
-type module0 = ((module S0 with type t = (float[@kind k]))[@kind k])
+type module0 =
+  ((module S0 with type t = (float[@kind k]))[@kind k])
 
 val module0 : (module0[@kind k])
 val round_up0 : (float[@kind k]) -> (float[@kind k])
@@ -181,7 +198,8 @@ module type S0 = sig
   include S1 with type t := t
 end
 
-module M : S0 [@kind k] with type t = (float[@kind k]) = struct
+module M : S0 [@kind k] with type t = (float[@kind k]) =
+struct
   type t = (float[@kind k])
 
   let round_up = (Float.round_up [@kind k])
@@ -195,11 +213,14 @@ We can even then define the layout-polymorphic functions in `S0` in terms of tho
 `S1` to support both styles without much code duplication:
 
 ```ocaml
-type module0 = ((module S0 with type t = (float[@kind k]))[@kind k])
+type module0 =
+  ((module S0 with type t = (float[@kind k]))[@kind k])
 
 let module0 : (module0[@kind k]) = (module M [@kind k])
 let round_up0 x = round_up1 (module0 [@kind k]) x
 let round_down0 x = round_down1 (module0 [@kind k]) x
 let iround_up0_exn x = iround_up1_exn (module0 [@kind k]) x
-let iround_down0_exn x = iround_down1_exn (module0 [@kind k]) x]
+let iround_down0_exn x =
+  iround_down1_exn (module0 [@kind k]) x
+;;]
 ```
