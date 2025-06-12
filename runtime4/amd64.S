@@ -314,151 +314,45 @@ G(caml_system__code_begin):
 
 /* Allocation */
 
-#define SAVE_XMM_REGS                               \
-        subq    $(16*16), %rsp; CFI_ADJUST (16*16); \
-        movupd  %xmm0, 0*16(%rsp);                  \
-        movupd  %xmm1, 1*16(%rsp);                  \
-        movupd  %xmm2, 2*16(%rsp);                  \
-        movupd  %xmm3, 3*16(%rsp);                  \
-        movupd  %xmm4, 4*16(%rsp);                  \
-        movupd  %xmm5, 5*16(%rsp);                  \
-        movupd  %xmm6, 6*16(%rsp);                  \
-        movupd  %xmm7, 7*16(%rsp);                  \
-        movupd  %xmm8, 8*16(%rsp);                  \
-        movupd  %xmm9, 9*16(%rsp);                  \
-        movupd  %xmm10, 10*16(%rsp);                \
-        movupd  %xmm11, 11*16(%rsp);                \
-        movupd  %xmm12, 12*16(%rsp);                \
-        movupd  %xmm13, 13*16(%rsp);                \
-        movupd  %xmm14, 14*16(%rsp);                \
-        movupd  %xmm15, 15*16(%rsp);
+#define DO_0_15(X) \
+X(0) X(1) X(2) X(3) X(4) X(5) X(6) X(7) X(8) X(9) X(10) X(11) X(12) X(13) X(14) X(15)
 
-#define RESTORE_XMM_REGS                            \
-        movupd  0*16(%rsp), %xmm0;                  \
-        movupd  1*16(%rsp), %xmm1;                  \
-        movupd  2*16(%rsp), %xmm2;                  \
-        movupd  3*16(%rsp), %xmm3;                  \
-        movupd  4*16(%rsp), %xmm4;                  \
-        movupd  5*16(%rsp), %xmm5;                  \
-        movupd  6*16(%rsp), %xmm6;                  \
-        movupd  7*16(%rsp), %xmm7;                  \
-        movupd  8*16(%rsp), %xmm8;                  \
-        movupd  9*16(%rsp), %xmm9;                  \
-        movupd  10*16(%rsp), %xmm10;                \
-        movupd  11*16(%rsp), %xmm11;                \
-        movupd  12*16(%rsp), %xmm12;                \
-        movupd  13*16(%rsp), %xmm13;                \
-        movupd  14*16(%rsp), %xmm14;                \
-        movupd  15*16(%rsp), %xmm15;                \
-        addq    $(16*16), %rsp; CFI_ADJUST(-16*16);
+#define DO_0_31(X) \
+DO_0_15(X) \
+X(16) X(17) X(18) X(19) X(20) X(21) X(22) X(23) X(24) X(25) X(26) X(27) X(27) X(29) X(30) X(31)
 
-#define SAVE_YMM_REGS                               \
-        subq    $(16*32), %rsp; CFI_ADJUST (16*32); \
-        vmovupd  %ymm0, 0*32(%rsp);                 \
-        vmovupd  %ymm1, 1*32(%rsp);                 \
-        vmovupd  %ymm2, 2*32(%rsp);                 \
-        vmovupd  %ymm3, 3*32(%rsp);                 \
-        vmovupd  %ymm4, 4*32(%rsp);                 \
-        vmovupd  %ymm5, 5*32(%rsp);                 \
-        vmovupd  %ymm6, 6*32(%rsp);                 \
-        vmovupd  %ymm7, 7*32(%rsp);                 \
-        vmovupd  %ymm8, 8*32(%rsp);                 \
-        vmovupd  %ymm9, 9*32(%rsp);                 \
-        vmovupd  %ymm10, 10*32(%rsp);               \
-        vmovupd  %ymm11, 11*32(%rsp);               \
-        vmovupd  %ymm12, 12*32(%rsp);               \
-        vmovupd  %ymm13, 13*32(%rsp);               \
-        vmovupd  %ymm14, 14*32(%rsp);               \
-        vmovupd  %ymm15, 15*32(%rsp);
+#define SAVE_XMM(i) movupd %xmm##i, (i*16)(%rsp);
+#define SAVE_XMM_REGS                            \
+        subq $(16*16), %rsp; CFI_ADJUST (16*16); \
+        DO_0_15(SAVE_XMM)
 
-#define RESTORE_YMM_REGS                            \
-        vmovupd  0*32(%rsp), %ymm0;                 \
-        vmovupd  1*32(%rsp), %ymm1;                 \
-        vmovupd  2*32(%rsp), %ymm2;                 \
-        vmovupd  3*32(%rsp), %ymm3;                 \
-        vmovupd  4*32(%rsp), %ymm4;                 \
-        vmovupd  5*32(%rsp), %ymm5;                 \
-        vmovupd  6*32(%rsp), %ymm6;                 \
-        vmovupd  7*32(%rsp), %ymm7;                 \
-        vmovupd  8*32(%rsp), %ymm8;                 \
-        vmovupd  9*32(%rsp), %ymm9;                 \
-        vmovupd  10*32(%rsp), %ymm10;               \
-        vmovupd  11*32(%rsp), %ymm11;               \
-        vmovupd  12*32(%rsp), %ymm12;               \
-        vmovupd  13*32(%rsp), %ymm13;               \
-        vmovupd  14*32(%rsp), %ymm14;               \
-        vmovupd  15*32(%rsp), %ymm15;               \
-        addq    $(16*32), %rsp; CFI_ADJUST(-16*32);
+#define RESTORE_XMM(i) movupd  i*16(%rsp), %xmm##i;
+#define RESTORE_XMM_REGS                         \
+        DO_0_15(RESTORE_XMM)                     \
+        addq $(16*16), %rsp; CFI_ADJUST(-16*16);
 
-#define SAVE_ZMM_REGS                                \
-        subq     $(32*64), %rsp; CFI_ADJUST (32*64); \
-        vmovupd  %zmm0, 0*64(%rsp);                  \
-        vmovupd  %zmm1, 1*64(%rsp);                  \
-        vmovupd  %zmm2, 2*64(%rsp);                  \
-        vmovupd  %zmm3, 3*64(%rsp);                  \
-        vmovupd  %zmm4, 4*64(%rsp);                  \
-        vmovupd  %zmm5, 5*64(%rsp);                  \
-        vmovupd  %zmm6, 6*64(%rsp);                  \
-        vmovupd  %zmm7, 7*64(%rsp);                  \
-        vmovupd  %zmm8, 8*64(%rsp);                  \
-        vmovupd  %zmm9, 9*64(%rsp);                  \
-        vmovupd  %zmm10, 10*64(%rsp);                \
-        vmovupd  %zmm11, 11*64(%rsp);                \
-        vmovupd  %zmm12, 12*64(%rsp);                \
-        vmovupd  %zmm13, 13*64(%rsp);                \
-        vmovupd  %zmm14, 14*64(%rsp);                \
-        vmovupd  %zmm15, 15*64(%rsp);                \
-        vmovupd  %zmm16, 16*64(%rsp);                \
-        vmovupd  %zmm17, 17*64(%rsp);                \
-        vmovupd  %zmm18, 18*64(%rsp);                \
-        vmovupd  %zmm19, 19*64(%rsp);                \
-        vmovupd  %zmm20, 20*64(%rsp);                \
-        vmovupd  %zmm21, 21*64(%rsp);                \
-        vmovupd  %zmm22, 22*64(%rsp);                \
-        vmovupd  %zmm23, 23*64(%rsp);                \
-        vmovupd  %zmm24, 24*64(%rsp);                \
-        vmovupd  %zmm25, 25*64(%rsp);                \
-        vmovupd  %zmm26, 26*64(%rsp);                \
-        vmovupd  %zmm27, 27*64(%rsp);                \
-        vmovupd  %zmm28, 28*64(%rsp);                \
-        vmovupd  %zmm29, 29*64(%rsp);                \
-        vmovupd  %zmm30, 30*64(%rsp);                \
-        vmovupd  %zmm31, 31*64(%rsp);
+#define SAVE_YMM(i) vmovupd %ymm##i, (i*32)(%rsp);
+#define SAVE_YMM_REGS                            \
+        subq $(16*32), %rsp; CFI_ADJUST (16*32); \
+        DO_0_15(SAVE_YMM)
 
-#define RESTORE_ZMM_REGS                             \
-        vmovupd  0*64(%rsp), %zmm0;                  \
-        vmovupd  1*64(%rsp), %zmm1;                  \
-        vmovupd  2*64(%rsp), %zmm2;                  \
-        vmovupd  3*64(%rsp), %zmm3;                  \
-        vmovupd  4*64(%rsp), %zmm4;                  \
-        vmovupd  5*64(%rsp), %zmm5;                  \
-        vmovupd  6*64(%rsp), %zmm6;                  \
-        vmovupd  7*64(%rsp), %zmm7;                  \
-        vmovupd  8*64(%rsp), %zmm8;                  \
-        vmovupd  9*64(%rsp), %zmm9;                  \
-        vmovupd  10*64(%rsp), %zmm10;                \
-        vmovupd  11*64(%rsp), %zmm11;                \
-        vmovupd  12*64(%rsp), %zmm12;                \
-        vmovupd  13*64(%rsp), %zmm13;                \
-        vmovupd  14*64(%rsp), %zmm14;                \
-        vmovupd  15*64(%rsp), %zmm15;                \
-        vmovupd  16*64(%rsp), %zmm16;                \
-        vmovupd  17*64(%rsp), %zmm17;                \
-        vmovupd  18*64(%rsp), %zmm18;                \
-        vmovupd  19*64(%rsp), %zmm19;                \
-        vmovupd  20*64(%rsp), %zmm20;                \
-        vmovupd  21*64(%rsp), %zmm21;                \
-        vmovupd  22*64(%rsp), %zmm22;                \
-        vmovupd  23*64(%rsp), %zmm23;                \
-        vmovupd  24*64(%rsp), %zmm24;                \
-        vmovupd  25*64(%rsp), %zmm25;                \
-        vmovupd  26*64(%rsp), %zmm26;                \
-        vmovupd  27*64(%rsp), %zmm27;                \
-        vmovupd  28*64(%rsp), %zmm28;                \
-        vmovupd  29*64(%rsp), %zmm29;                \
-        vmovupd  30*64(%rsp), %zmm30;                \
-        vmovupd  31*64(%rsp), %zmm31;                \
-        addq    $(32*64), %rsp; CFI_ADJUST(-32*64);
+#define RESTORE_YMM(i) vmovupd i*32(%rsp), %ymm##i;
+#define RESTORE_YMM_REGS                         \
+        DO_0_15(RESTORE_YMM)                     \
+        addq $(16*32), %rsp; CFI_ADJUST(-16*32);
+
+#define SAVE_ZMM(i) vmovupd %zmm##i, (i*64)(%rsp);
+#define SAVE_ZMM_REGS                            \
+        subq $(32*64), %rsp; CFI_ADJUST (32*64); \
+        DO_0_31(SAVE_ZMM)
+
+#define RESTORE_ZMM(i) vmovupd i*64(%rsp), %zmm##i;
+#define RESTORE_ZMM_REGS                         \
+        DO_0_31(RESTORE_ZMM)                     \
+        addq $(32*64), %rsp; CFI_ADJUST(-32*64);
+
+#define SAVE_SIMD_REGS(simd)    SAVE_ ## simd ## _REGS
+#define RESTORE_SIMD_REGS(simd) RESTORE_ ## simd ## _REGS
 
 #ifdef WITH_FRAME_POINTERS
 #define SAVE_FP         ENTER_FUNCTION;
@@ -467,10 +361,11 @@ G(caml_system__code_begin):
 #define SAVE_FP         pushq %rbp; CFI_ADJUST(8);
 #define RESTORE_FP      popq  %rbp; CFI_ADJUST(-8);
 #endif
-#define PASTE(...) __VA_ARGS__
 
-#define Make_call_gc(name, SAVE_SIMD_REGS, RESTORE_SIMD_REGS) \
-        LBL(caml_call_gc##name): \
+#define Make_call_gc(suffix, simd) \
+    FUNCTION(G(caml_call_gc##suffix)); \
+    CFI_STARTPROC; \
+LBL(caml_call_gc##suffix): \
         /* Record lowest stack address and return address. */ \
         movq    (%rsp), %r11; \
         movq    %r11, Caml_state(last_return_address); \
@@ -499,7 +394,7 @@ G(caml_system__code_begin):
         /* Save young_ptr */ \
         movq    %r15, Caml_state(young_ptr); \
         /* Save floating-point registers */ \
-        PASTE SAVE_SIMD_REGS; \
+        SAVE_SIMD_REGS(simd); \
         /* Call the garbage collector */ \
         PREPARE_FOR_C_CALL; \
         call    GCALL(caml_garbage_collection); \
@@ -507,7 +402,7 @@ G(caml_system__code_begin):
         /* Restore young_ptr */ \
         movq    Caml_state(young_ptr), %r15; \
         /* Restore all regs used by the code generator */ \
-        PASTE RESTORE_SIMD_REGS; \
+        RESTORE_SIMD_REGS(simd); \
         popq    %rax; CFI_ADJUST(-8); \
         popq    %rbx; CFI_ADJUST(-8); \
         popq    %rdi; CFI_ADJUST(-8); \
@@ -522,111 +417,43 @@ G(caml_system__code_begin):
         popq    %r11; CFI_ADJUST(-8); \
         RESTORE_FP; \
         /* Return to caller */ \
-        ret;
+        ret; \
+    CFI_ENDPROC; \
+    ENDFUNCTION(G(caml_call_gc ## suffix))
 
-FUNCTION(G(caml_call_gc))
-CFI_STARTPROC
-Make_call_gc(, (SAVE_XMM_REGS), (RESTORE_XMM_REGS))
-CFI_ENDPROC
-ENDFUNCTION(G(caml_call_gc))
+Make_call_gc(, XMM)
+Make_call_gc(_avx, YMM)
+Make_call_gc(_avx512, ZMM)
 
-FUNCTION(G(caml_call_gc_avx))
-CFI_STARTPROC
-Make_call_gc(_avx, (SAVE_YMM_REGS), (RESTORE_YMM_REGS))
-CFI_ENDPROC
-ENDFUNCTION(G(caml_call_gc_avx))
+#define r15_sub_words(n) subq $8+8*n, %r15
+#define r15_sub_1 r15_sub_words(1)
+#define r15_sub_2 r15_sub_words(2)
+#define r15_sub_3 r15_sub_words(3)
+#define r15_sub_N /* do nothing */
 
-FUNCTION(G(caml_call_gc_avx512))
-CFI_STARTPROC
-Make_call_gc(_avx512, (SAVE_ZMM_REGS), (RESTORE_ZMM_REGS))
-CFI_ENDPROC
-ENDFUNCTION(G(caml_call_gc_avx512))
-
-#define Make_alloc(bytes, simd) \
-        subq    $bytes, %r15; \
+#define Make_alloc_fun(base_name, words, simd) \
+FUNCTION(G(base_name ## simd)) \
+CFI_STARTPROC; \
+        r15_sub_ ## words; \
         cmpq    Caml_state(young_limit), %r15; \
-        jb      LBL(caml_call_gc##simd); \
-        ret
+        jb      LBL(caml_call_gc ## simd); \
+        ret; \
+CFI_ENDPROC; \
+ENDFUNCTION(G(base_name ## simd));
 
-FUNCTION(G(caml_alloc1))
-CFI_STARTPROC
-Make_alloc(16,)
-CFI_ENDPROC
-ENDFUNCTION(G(caml_alloc1))
+#define Make_alloc_funs(words) \
+Make_alloc_fun(caml_alloc ## words, words,) \
+Make_alloc_fun(caml_alloc ## words, words, _avx) \
+Make_alloc_fun(caml_alloc ## words, words, _avx512)
 
-FUNCTION(G(caml_alloc1_avx))
-CFI_STARTPROC
-Make_alloc(16,_avx)
-CFI_ENDPROC
-ENDFUNCTION(G(caml_alloc1_avx))
+Make_alloc_funs(1) /* caml_alloc1* */
+Make_alloc_funs(2) /* caml_alloc2* */
+Make_alloc_funs(3) /* caml_alloc3* */
+Make_alloc_funs(N) /* caml_allocN* */
 
-FUNCTION(G(caml_alloc1_avx512))
-CFI_STARTPROC
-Make_alloc(16,_avx512)
-CFI_ENDPROC
-ENDFUNCTION(G(caml_alloc1_avx512))
-
-FUNCTION(G(caml_alloc2))
-CFI_STARTPROC
-Make_alloc(24,)
-CFI_ENDPROC
-ENDFUNCTION(G(caml_alloc2))
-
-FUNCTION(G(caml_alloc2_avx))
-CFI_STARTPROC
-Make_alloc(24,_avx)
-CFI_ENDPROC
-ENDFUNCTION(G(caml_alloc2_avx))
-
-FUNCTION(G(caml_alloc2_avx512))
-CFI_STARTPROC
-Make_alloc(24,_avx512)
-CFI_ENDPROC
-ENDFUNCTION(G(caml_alloc2_avx512))
-
-FUNCTION(G(caml_alloc3))
-CFI_STARTPROC
-Make_alloc(32,)
-CFI_ENDPROC
-ENDFUNCTION(G(caml_alloc3))
-
-FUNCTION(G(caml_alloc3_avx))
-CFI_STARTPROC
-Make_alloc(32,_avx)
-CFI_ENDPROC
-ENDFUNCTION(G(caml_alloc3_avx))
-
-FUNCTION(G(caml_alloc3_avx512))
-CFI_STARTPROC
-Make_alloc(32,_avx512)
-CFI_ENDPROC
-ENDFUNCTION(G(caml_alloc3_avx512))
-
-FUNCTION(G(caml_allocN))
-CFI_STARTPROC
-        cmpq    Caml_state(young_limit), %r15
-        jb      LBL(caml_call_gc)
-        ret
-CFI_ENDPROC
-ENDFUNCTION(G(caml_allocN))
-
-FUNCTION(G(caml_allocN_avx))
-CFI_STARTPROC
-        cmpq    Caml_state(young_limit), %r15
-        jb      LBL(caml_call_gc_avx)
-        ret
-CFI_ENDPROC
-ENDFUNCTION(G(caml_allocN_avx))
-
-FUNCTION(G(caml_allocN_avx512))
-CFI_STARTPROC
-        cmpq    Caml_state(young_limit), %r15
-        jb      LBL(caml_call_gc_avx512)
-        ret
-CFI_ENDPROC
-ENDFUNCTION(G(caml_allocN_avx512))
-
-#define Make_call_local_realloc(SAVE_SIMD_REGS, RESTORE_SIMD_REGS) \
+#define Make_call_local_realloc(suffix, simd) \
+    FUNCTION(G(caml_call_local_realloc ## suffix)); \
+    CFI_STARTPROC; \
         /* Touch the stack to trigger a recoverable segfault \
            if insufficient space remains */ \
         subq    $(STACK_PROBE_SIZE), %rsp; CFI_ADJUST(STACK_PROBE_SIZE); \
@@ -650,7 +477,7 @@ ENDFUNCTION(G(caml_allocN_avx512))
         /* Save young_ptr */ \
         movq    %r15, Caml_state(young_ptr); \
         /* Save floating-point registers */ \
-        PASTE SAVE_SIMD_REGS; \
+        SAVE_SIMD_REGS(simd); \
         /* Call the garbage collector */ \
         PREPARE_FOR_C_CALL; \
         call    GCALL(caml_local_realloc); \
@@ -658,7 +485,7 @@ ENDFUNCTION(G(caml_allocN_avx512))
         /* Restore young_ptr */ \
         movq    Caml_state(young_ptr), %r15; \
         /* Restore all regs used by the code generator */ \
-        PASTE RESTORE_SIMD_REGS; \
+        RESTORE_SIMD_REGS(simd); \
         popq    %rax; CFI_ADJUST(-8); \
         popq    %rbx; CFI_ADJUST(-8); \
         popq    %rdi; CFI_ADJUST(-8); \
@@ -673,25 +500,13 @@ ENDFUNCTION(G(caml_allocN_avx512))
         popq    %r11; CFI_ADJUST(-8); \
         RESTORE_FP; \
         /* Return to caller */ \
-        ret;
+        ret; \
+   CFI_ENDPROC; \
+   ENDFUNCTION(G(caml_call_local_realloc ## suffix))
 
-FUNCTION(G(caml_call_local_realloc))
-CFI_STARTPROC
-Make_call_local_realloc((SAVE_XMM_REGS), (RESTORE_XMM_REGS))
-CFI_ENDPROC
-ENDFUNCTION(G(caml_call_local_realloc))
-
-FUNCTION(G(caml_call_local_realloc_avx))
-CFI_STARTPROC
-Make_call_local_realloc((SAVE_YMM_REGS), (RESTORE_YMM_REGS))
-CFI_ENDPROC
-ENDFUNCTION(G(caml_call_local_realloc_avx))
-
-FUNCTION(G(caml_call_local_realloc_avx512))
-CFI_STARTPROC
-Make_call_local_realloc((SAVE_ZMM_REGS), (RESTORE_ZMM_REGS))
-CFI_ENDPROC
-ENDFUNCTION(G(caml_call_local_realloc_avx512))
+Make_call_local_realloc(, XMM)
+Make_call_local_realloc(_avx, YMM)
+Make_call_local_realloc(_avx512, ZMM)
 
 /* Call a C function from OCaml */
 
@@ -717,7 +532,13 @@ LBL(caml_c_call):
 CFI_ENDPROC
 ENDFUNCTION(G(caml_c_call))
 
-#define Make_c_call_copy_stack_args(name, ...) \
+#define copy_stack_correct_rsp          /* nothing */
+#define copy_stack_correct_rsp_avx      andq $-32, %rsp
+#define copy_stack_correct_rsp_avx512   andq $-64, %rsp
+
+#define Make_c_call_copy_stack_args(suffix) \
+    FUNCTION(G(caml_c_call_copy_stack_args ## suffix)); \
+    CFI_STARTPROC; \
     /* Set up a frame pointer even without WITH_FRAME_POINTERS, \
        which we use to pop an unknown number of arguments later */ \
         pushq   %rbp; CFI_ADJUST(8); \
@@ -725,36 +546,32 @@ ENDFUNCTION(G(caml_c_call))
         .cfi_def_cfa_register 6; \
     /* Copy arguments to aligned stack */ \
         cmpq   %r13, %r12; \
-        je      LBL(name##_1); \
-        __VA_ARGS__; \
-LBL(name##_0): \
+        je      LBL(caml_c_call_copy_stack_args ## suffix ## _1); \
+        copy_stack_correct_rsp ## suffix; \
+LBL(caml_c_call_copy_stack_args ## suffix ## _0): \
         subq    $8, %r12; \
         cmpq    %r13, %r12; \
-        jb      LBL(name##_1); \
+        jb      LBL(caml_c_call_copy_stack_args ## suffix ## _1); \
         push    (%r12); \
-        jmp     LBL(name##_0); \
-LBL(name##_1): \
+        jmp     LBL(caml_c_call_copy_stack_args ## suffix ## _0); \
+LBL(caml_c_call_copy_stack_args ## suffix ## _1): \
     /* Call the function (address in %rax) */ \
         call    *%rax; \
     /* Pop arguments back off the stack */ \
         movq    %rbp, %rsp; \
         .cfi_def_cfa_register 7; \
         popq    %rbp; CFI_ADJUST(-8); \
-        ret
+        ret; \
+    CFI_ENDPROC; \
+    ENDFUNCTION(G(caml_c_call_copy_stack_args ## suffix))
 
-FUNCTION(G(caml_c_call_copy_stack_args_avx))
-CFI_STARTPROC
-Make_c_call_copy_stack_args(caml_c_call_copy_stack_args_avx, andq $-32, %rsp)
-CFI_ENDPROC
-ENDFUNCTION(G(caml_c_call_copy_stack_args_avx))
+Make_c_call_copy_stack_args()
+Make_c_call_copy_stack_args(_avx)
+Make_c_call_copy_stack_args(_avx512)
 
-FUNCTION(G(caml_c_call_copy_stack_args_avx512))
-CFI_STARTPROC
-Make_c_call_copy_stack_args(caml_c_call_copy_stack_args_avx512, andq $-64, %rsp)
-CFI_ENDPROC
-ENDFUNCTION(G(caml_c_call_copy_stack_args_avx512))
-
-#define Make_c_call_stack_args(alignment) \
+#define Make_c_call_stack_args(suffix) \
+    FUNCTION(G(caml_c_call_stack_args ## suffix)); \
+    CFI_STARTPROC; \
     /* Arguments: \
         C arguments         : %rdi, %rsi, %rdx, %rcx, %r8, and %r9 \
         C function          : %rax \
@@ -772,23 +589,17 @@ ENDFUNCTION(G(caml_c_call_copy_stack_args_avx512))
     /* Make the alloc ptr available to the C code */ \
         movq    %r15, Caml_state(young_ptr); \
     /* Copy the arguments and call */ \
-        call   (GCALL(caml_c_call_copy_stack_args##alignment)); \
+        call   (GCALL(caml_c_call_copy_stack_args ## suffix)); \
     /* Prepare for return to OCaml */ \
         movq    Caml_state(young_ptr), %r15; \
     /* Return to OCaml caller */ \
-        ret
+        ret; \
+    CFI_ENDPROC; \
+    ENDFUNCTION(G(caml_c_call_stack_args ## suffix))
 
-FUNCTION(G(caml_c_call_stack_args_avx))
-CFI_STARTPROC
+Make_c_call_stack_args()
 Make_c_call_stack_args(_avx)
-CFI_ENDPROC
-ENDFUNCTION(G(caml_c_call_stack_args_avx))
-
-FUNCTION(G(caml_c_call_stack_args_avx512))
-CFI_STARTPROC
 Make_c_call_stack_args(_avx512)
-CFI_ENDPROC
-ENDFUNCTION(G(caml_c_call_stack_args_avx512))
 
 /* Start the OCaml program */
 

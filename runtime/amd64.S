@@ -506,22 +506,22 @@ X(16) X(17) X(18) X(19) X(20) X(21) X(22) X(23) X(24) X(25) X(26) X(27) X(27) X(
 
 #define SIMD_REGS_OFFSET (13*8) /* gc_regs_bucket starts with 13 int64 regs */
 
-#define SAVE_XMM(i) movupd %xmm##i,  (i*16 + SIMD_REGS_OFFSET)(%r15);
+#define SAVE_XMM(i) movupd %xmm##i, (i*16 + SIMD_REGS_OFFSET)(%r15);
 #define SAVE_XMM_REGS DO_0_15(SAVE_XMM)
 
 #define RESTORE_XMM(i) movupd (i*16 + SIMD_REGS_OFFSET)(%r15), %xmm##i;
 #define RESTORE_XMM_REGS DO_0_15(RESTORE_XMM)
 
-#define SAVE_YMM(i) vmovupd %ymm##i,  (i*32 + SIMD_REGS_OFFSET)(%r15);
+#define SAVE_YMM(i) vmovupd %ymm##i, (i*32 + SIMD_REGS_OFFSET)(%r15);
 #define SAVE_YMM_REGS DO_0_15(SAVE_YMM)
 
 #define RESTORE_YMM(i) vmovupd (i*32 + SIMD_REGS_OFFSET)(%r15), %ymm##i;
 #define RESTORE_YMM_REGS DO_0_15(RESTORE_YMM)
 
-#define SAVE_ZMM(i) vmovupd  %zmm##i, (i*64 + SIMD_REGS_OFFSET)(%r15);
+#define SAVE_ZMM(i) vmovupd %zmm##i, (i*64 + SIMD_REGS_OFFSET)(%r15);
 #define SAVE_ZMM_REGS DO_0_31(SAVE_ZMM)
 
-#define RESTORE_ZMM(i) vmovupd  (i*64 + SIMD_REGS_OFFSET)(%r15), %zmm##i;
+#define RESTORE_ZMM(i) vmovupd (i*64 + SIMD_REGS_OFFSET)(%r15), %zmm##i;
 #define RESTORE_ZMM_REGS DO_0_31(RESTORE_ZMM)
 
 /* Save all of the registers that may be in use to a free gc_regs bucket.
@@ -709,11 +709,11 @@ CFI_STARTPROC
 CFI_ENDPROC
 ENDFUNCTION(G(caml_raise_stack_overflow_nat))
 
-#define r15_sub_words(n) subq    $8+8*n, %r15
-#define r15_sub_1 r15_sub_words(1)
-#define r15_sub_2 r15_sub_words(2)
-#define r15_sub_3 r15_sub_words(3)
-#define r15_sub_N /* do nothing */
+#define r15_sub_words(n) subq $8+8*n, %r15
+#define r15_sub_1        r15_sub_words(1)
+#define r15_sub_2        r15_sub_words(2)
+#define r15_sub_3        r15_sub_words(3)
+#define r15_sub_N        /* do nothing */
 
 #define Make_alloc_fun(base_name, words, simd) \
 FUNCTION(G(base_name ## simd))                 \
@@ -831,9 +831,9 @@ ENDFUNCTION(G(caml_c_call))
 #define SHADOW_STORE
 #endif
 
-#define copy_stack_correct_rsp /* nothing */
-#define copy_stack_correct_rsp_avx  andq $-32, %rsp
-#define copy_stack_correct_rsp_avx512  andq $-64, %rsp
+#define copy_stack_correct_rsp        /* nothing */
+#define copy_stack_correct_rsp_avx    andq $-32, %rsp
+#define copy_stack_correct_rsp_avx512 andq $-64, %rsp
 
 /* To correctly maintain frame pointers during stack reallocation,
    the runtime assumes that the caml_c_call stub does not push
