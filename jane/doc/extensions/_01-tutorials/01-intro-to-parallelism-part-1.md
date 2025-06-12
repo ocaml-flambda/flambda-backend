@@ -211,9 +211,10 @@ These assumptions allow us to use _fork/join parallelism_, a system that
 provides parallelism without the application having to do anything with locks or
 other parallel machinery. You write your algorithm and we work out the
 scheduling, synchronising, blocking, etc.
-Of course, OxCaml is ever watchful and will still insist on being
-convinced there are no data races, so we'll still have to go over the
-fundamentals of data-race freedom. Further materials will build on this by
+Of course, OxCaml is ever watchful and will insist on being convinced there are
+no data races, so you'll still have to understand the
+fundamentals of data-race freedom. The next tutorial **(XX link)** will build on
+the basics by
 covering more primitive operations that exercise more of the system.
 
 ## A trivial example
@@ -382,7 +383,7 @@ let test_tree =
     , Leaf (Thing.create ~price:4.0 ~mood:Sad) )
 ```
 
-## The compiler smells a data race
+## The compiler gets worried about data races
 
 So far, so good. But something annoying happens if we introduce an abstraction
 barrier. Let's move `Thing` into its own file. `thing.mli` is very simple:
