@@ -354,7 +354,7 @@ type bytecode_sections =
 
 (* Initialize the linker for toplevel use *)
 
-(* In flambda-backend, [get_bytecode_sections] is passed in, because it is
+(* In oxcaml, [get_bytecode_sections] is passed in, because it is
    absent from the 4.x runtime as used by the current system compiler. *)
 let init_toplevel ~get_bytecode_sections =
   let sect = get_bytecode_sections () in

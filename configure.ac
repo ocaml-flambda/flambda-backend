@@ -17,11 +17,11 @@
 
 # Require Autoconf 2.71 for repeatability in CI
 AC_PREREQ([2.71])
-AC_INIT([The Flambda backend for OCaml],
-        5.2.0+jst,
-        [mshinwell@janestreet.com],
-        [flambda_backend],
-        [http://github.com/ocaml-flambda/flambda_backend])
+AC_INIT([OxCaml],
+        5.2.0+ox,
+        [opensource@janestreet.com],
+        [oxcaml],
+        [http://github.com/oxcaml/oxcaml])
 
 
 ## Command-line arguments passed to configure
@@ -31,7 +31,7 @@ CONFIGURE_ARGS="$*"
 
 DUNE_MAX_VERSION=[3.15]
 
-AC_MSG_NOTICE([Configuring Flambda backend version AC_PACKAGE_VERSION])
+AC_MSG_NOTICE([Configuring OxCaml version AC_PACKAGE_VERSION])
 
 m4_include([build-aux/ax_compare_version.m4])
 
@@ -61,11 +61,10 @@ AC_MSG_NOTICE([Using dune executable: $dune])
 
 AC_ARG_ENABLE([middle-end],
   [AS_HELP_STRING([--enable-middle-end],
-    [Select which middle end to use: flambda2 (default) or upstream-closure])],
+    [Deprecated: must provide 'flambda2'])],
   [AS_CASE([$enable_middle_end],
-    [upstream-closure], [middle_end=closure],
     [flambda2], [middle_end=flambda2],
-    [*], [AC_MSG_ERROR([Invalid middle end: must be flambda2 or upstream-closure])])],
+    [*], [AC_MSG_ERROR([Invalid middle end: must be 'flambda2'])])],
   [middle_end=flambda2])
 
 AC_ARG_ENABLE([runtime5],

@@ -2,8 +2,6 @@
 
 .github/CODEOWNERS      @mshinwell @lpw25
 
-flambda_backend.opam    @mshinwell @lthls
-
 build_ocaml_compiler.sexp       @poechsel
 
 external/memtrace/              @stedolan

@@ -13,7 +13,7 @@
 (*                                                                        *)
 (**************************************************************************)
 
-module File_sections = Flambda_backend_utils.File_sections
+module File_sections = Oxcaml_utils.File_sections
 
 type code_status =
   | Loaded of Code.t

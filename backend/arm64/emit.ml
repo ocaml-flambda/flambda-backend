@@ -18,8 +18,7 @@
 (* Emission of ARM assembly code, 64-bit mode *)
 
 (* Correctness: carefully consider any use of [Config], [Clflags],
-   [Flambda_backend_flags] and shared variables. For details, see
-   [asmgen.mli]. *)
+   [Oxcaml_flags] and shared variables. For details, see [asmgen.mli]. *)
 
 (* CR-soon mshinwell/mslater: needs updating for locals + effects *)
 
@@ -2164,7 +2163,7 @@ let begin_assembly _unix =
       Cmm.new_label () |> Label.to_int);
   let asm_line_buffer = Buffer.create 200 in
   D.initialize ~big_endian:Arch.big_endian
-    ~emit_assembly_comments:!Flambda_backend_flags.dasm_comments ~emit:(fun d ->
+    ~emit_assembly_comments:!Oxcaml_flags.dasm_comments ~emit:(fun d ->
       Buffer.clear asm_line_buffer;
       D.Directive.print asm_line_buffer d;
       Buffer.add_string asm_line_buffer "\n";
@@ -2248,6 +2247,6 @@ let end_assembly () =
     };
   D.type_symbol ~ty:Object frametable_sym;
   D.size frametable_sym;
-  if not !Flambda_backend_flags.internal_assembler
+  if not !Oxcaml_flags.internal_assembler
   then Emitaux.Dwarf_helpers.emit_dwarf ();
   D.mark_stack_non_executable ()

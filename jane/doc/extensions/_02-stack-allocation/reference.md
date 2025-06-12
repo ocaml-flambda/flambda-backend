@@ -244,7 +244,7 @@ let f2 x = f1 ~foo:(Some x) (* [Some x] is stack allocated *)
 ```
 
 <!-- See Note [Inference affects allocation in mli-less files] in [testsuite/tests/typing-local/alloc_arg_with_mli.ml]
-     in the flambda-backend Git repo. The ensuing paragraph is related to that
+     in the oxcaml Git repo. The ensuing paragraph is related to that
      note; we can remove this comment when the note is resolved.
 -->
 However, a missing mli *does* affect inference within the ml file. As a conservative

@@ -327,7 +327,7 @@ let rec is_tailcall = function
   | _ -> false
 
 (* CR dkalinichenko: this error happens because we run tests
-   under [flambda_backend/tests] with the boot compiler instead of the
+   under [oxcaml/tests] with the boot compiler instead of the
    final compiler. Run them using the final compiler.*)
 (* We cannot use the [float32] or [or_null] types in the compiler. *)
 external is_boot_compiler : unit -> bool = "caml_is_boot_compiler"

@@ -3,7 +3,7 @@
 open! Int_replace_polymorphic_compare
 module Array = ArrayLabels
 module List = ListLabels
-module DLL = Flambda_backend_utils.Doubly_linked_list
+module DLL = Oxcaml_utils.Doubly_linked_list
 module Substitution = Regalloc_substitution
 
 let fatal_callback = ref (fun () -> ())
@@ -15,7 +15,7 @@ let fatal fmt =
   Misc.fatal_errorf fmt
 
 let find_param_value param_name =
-  !Flambda_backend_flags.regalloc_params
+  !Oxcaml_flags.regalloc_params
   |> List.rev
   |> List.find_map ~f:(fun param ->
          match String.split_on_char ':' param with

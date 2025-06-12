@@ -1,9 +1,9 @@
-# Hacking on the Flambda backend
+# Hacking on OxCaml
 
 This page is intended to keep track of useful information for people who
-want to modify the Flambda backend.  Jump to:
+want to modify OxCaml.  Jump to:
 
-- [Hacking on the Flambda backend](#hacking-on-the-flambda-backend)
+- [Hacking on OxCaml](#hacking-on-oxcaml)
   - [Branches, pull requests, etc.](#branches-pull-requests-etc)
   - [Code formatting](#code-formatting)
   - [Rebuilding during dev work](#rebuilding-during-dev-work)
@@ -41,8 +41,8 @@ The CI checks that all Flambda 2 code (in `middle_end/flambda2/`) and
 Cfg code (in `backend/cfg/`) is
 formatted correctly as per the provided `.ocamlformat` file.  To prepare
 your environment for the correct version of `ocamlformat` you can follow
-the OPAM commands [in the CI check](https://github.com/ocaml-flambda/flambda-backend/blob/main/.github/workflows/ocamlformat.yml).  (Note that the OPAM compiler will not
-be used for the Flambda backend build itself.)  All of the code can be
+the OPAM commands [in the CI check](https://github.com/oxcaml/oxcaml/blob/main/.github/workflows/ocamlformat.yml).  (Note that the OPAM compiler will not
+be used for the OxCaml build itself.)  All of the code can be
 formatted using `make fmt` and the check can be run using `make check-fmt`.
 
 Note in particular that a recent (>= 1.10.0) version of the `re` library is
@@ -99,7 +99,7 @@ We should be able to use `tools/bump-magic-numbers` going forward.
 ## Running tests
 
 Prior to `make install` you can do:
-- `make runtest` to run the Flambda backend tests (which use dune);
+- `make runtest` to run the OxCaml tests (which use dune);
 - `make runtest-upstream` to run the upstream testsuite. The upstream
 testsuite runs much faster if you install GNU parallel. This is likely
 already present on Linux machines. On macOS, install Homebrew, then `brew
@@ -110,7 +110,7 @@ There is also a `make ci` target which does a full build and test run.
 Some of our tests are expect tests run using a custom tool called `flexpect`.
 Corrected outputs can be promoted using `make promote`.
 
-See `HACKING.jst.adoc` for documentation on additional test-related
+See `HACKING.ox.adoc` for documentation on additional test-related
 targets.  Here are some examples of commands you can run:
 
 ```
@@ -139,7 +139,7 @@ root).
 
 ## Running tests with coverage analysis
 
-Coverage analysis is available for the Flambda backend tests (that is, just the
+Coverage analysis is available for the OxCaml tests (that is, just the
 ones run by `make runtest`), which are intended to provide good coverage on
 their own. We use `bisect_ppx` to perform the analysis. Since binaries
 instrumented with `bisect_ppx` have coverage enabled unconditionally, coverage
@@ -294,35 +294,35 @@ where `<DUNE>` is the path to the dune provided to `configure`.
 
 ## Bootstrapping
 
-Bootstrapping is not required in flambda-backend.  The system compiler is used
+Bootstrapping is not required in oxcaml.  The system compiler is used
 for the first stage.
 
 ## Testing the compiler built locally with OPAM (new method)
 
 This is still under development, but should work!
 ```shell
-opam repo add flambda-backend git+https://github.com/chambart/opam-repository-js.git#with-extensions
-opam switch create 5.2.0+flambda2 --repos flambda-backend,default
+opam repo add oxcaml git+https://github.com/chambart/opam-repository-js.git#with-extensions
+opam switch create 5.2.0+flambda2 --repos oxcaml,default
 eval $(opam env --switch=5.2.0+flambda2)
 ```
 
 ## Testing the compiler built locally with OPAM (old method)
 
-It is possible to create a OPAM switch with the Flambda backend compiler.
+It is possible to create a OPAM switch with the OxCaml compiler.
 
 The first step is to choose where to put the switch. One possibility is to use a
 local switch at the root of the tree, in which case the prefix will be
-`${flambda-backend-root-dir}/_opam`, but it's also possible to use a local switch elsewhere or
-a global switch. For a global switch named `flambda-backend`, the prefix will be
-`$(opam var root)/flambda-backend`.
+`${oxcaml-root-dir}/_opam`, but it's also possible to use a local switch elsewhere or
+a global switch. For a global switch named `oxcaml`, the prefix will be
+`$(opam var root)/oxcaml`.
 
-The Flambda backend must then be configured with this switch as prefix:
+OxCaml must then be configured with this switch as prefix:
 
 ```shell
 ./configure --prefix=${opam_switch_prefix} ...
 ```
 
-Note that if the Flambda backend tree is already configured, it should be cleaned
+Note that if the OxCaml tree is already configured, it should be cleaned
 thoroughly (e.g. `git clean -dfX`) before reconfiguring with a different prefix.
 
 Then build the compiler with the command `make _install` (this is the default
@@ -341,7 +341,7 @@ had created a switch from a previous attempt, you will need to remove it first):
 # For a local switch:
 opam switch create . --empty --repositories=flambda2=git+https://github.com/ocaml-flambda/flambda2-opam.git,default
 # For a global switch:
-opam switch create flambda-backend --empty --repositories=flambda2=git+https://github.com/ocaml-flambda/flambda2-opam.git,default
+opam switch create oxcaml --empty --repositories=flambda2=git+https://github.com/ocaml-flambda/flambda2-opam.git,default
 ```
 
 Then we can install the compiler. The recommended way is to use the `opam-custom-install`
@@ -352,9 +352,9 @@ available whatever the current active switch is.
 Once the plugin is installed, we can use it to install the compiler:
 
 ```shell
-opam custom-install ocaml-variants.4.14.0+flambda2 -- make -C ${flambda-backend-root-dir} install_for_opam
+opam custom-install ocaml-variants.4.14.0+flambda2 -- make -C ${oxcaml-root-dir} install_for_opam
 ```
-The `-C ${flambda-backend-dir}` part can be omitted if we're still in the build directory.
+The `-C ${oxcaml-dir}` part can be omitted if we're still in the build directory.
 
 Note that due to issues with some versions of the custom-install plugin,
 it is recommended to run the command `opam reinstall --forget-pending` after
@@ -375,7 +375,7 @@ In this case, it is possible to use the more fragile `opam install --fake` comma
 
 ```shell
 opam install --fake ocaml-variants.4.14.0+flambda2
-make -C ${flambda-backend-root-dir} install_for_opam
+make -C ${oxcaml-root-dir} install_for_opam
 ```
 
 The main drawback of this approach is that there isn't any way to cleanup an
@@ -385,7 +385,7 @@ bugs might appear.
 
 ## How to add a new intrinsic to the compiler
 
-The Flambda backend has a means of replacing calls to external functions
+OxCaml has a means of replacing calls to external functions
 with inline instruction sequences.  This can be used to implement
 "intrinsic" operations that typically correspond to very few (often one)
 machine instruction.  The external functions, typically written in C,
@@ -440,21 +440,21 @@ library, and then the compiler.
 
 ## How to add a new command line option
 
-1) Add a ref to `flambda_backend_flags.ml{i}`
-2) Add the flag's constructor `mk_<flag>` in `flambda_backend_args.ml`
-3) Add the callback for the new flag to `Flambda_backend_options` module type
-   in `flambda_backend_args.ml{i}`
-4) List the flag in the body of `Make_flambda_backend_options` functor
-5) Implement the flag in `Flambda_backend_options_impl`
-   by setting the corresponding ref in Flambda_backend_flags
+1) Add a ref to `oxcaml_flags.ml{i}`
+2) Add the flag's constructor `mk_<flag>` in `oxcaml_args.ml`
+3) Add the callback for the new flag to `Oxcaml_options` module type
+   in `oxcaml_args.ml{i}`
+4) List the flag in the body of `Make_oxcaml_options` functor
+5) Implement the flag in `Oxcaml_options_impl`
+   by setting the corresponding ref in Oxcaml_flags
 6) Add the flag to `Extra_params` if it can be set via `OCAMLPARAM`
 
 ## Installation tree comparison script
 
 A target `make compare` exists to run a comparison script that finds differences
-between the upstream and Flambda backend install trees.  This script currently
+between the upstream and OxCaml install trees.  This script currently
 only runs on Linux, although it shouldn't be hard to port to macOS, especially
 if using GNU binutils.  It is recommended to install the Jane Street `patdiff` executable
 before running `make compare`.  The comparison script has not been maintained since the
-early releases of the Flambda backend; it was written as part of the acceptance process
-    for the initial release.
+early releases of OxCaml; it was written as part of the acceptance process
+for the initial release.

@@ -49,7 +49,7 @@ let instr' ?(print_reg = Printreg.reg) ppf i =
   let regsetaddr = Printreg.regsetaddr' ~print_reg in
   let test = Operation.format_test ~print_reg in
   let operation = Printoperation.operation ~print_reg in
-  (if !Flambda_backend_flags.davail
+  (if !Oxcaml_flags.davail
   then
     let module RAS = Reg_availability_set in
     let ras_is_nonempty (set : RAS.t) =

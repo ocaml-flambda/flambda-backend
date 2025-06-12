@@ -200,7 +200,7 @@ module Module_type_nested = struct
 end
 (* CR zqian: Need to add mode crossing at binding to remove the principality
 issue. See
-https://github.com/ocaml-flambda/flambda-backend/pull/3922#discussion_r2059000469
+https://github.com/oxcaml/oxcaml/pull/3922#discussion_r2059000469
 *)
 [%%expect{|
 Lines 8-13, characters 35-7:

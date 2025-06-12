@@ -477,7 +477,7 @@ let dump_obj_by_kind filename ic obj_kind =
        seek_in ic (first_section_offset + uir.uir_sections_length);
        let crc = Digest.input ic in
        (* This consumes ic *)
-       let sections = Flambda_backend_utils.File_sections.create
+       let sections = Oxcaml_utils.File_sections.create
              uir.uir_section_toc filename ic ~first_section_offset in
        print_cmx_infos (uir, sections, crc)
     | Cmxa ->

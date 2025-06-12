@@ -61,7 +61,7 @@ let main() =
      "-S", Arg.Set write_asm_file,
        " Output file to filename.s (default is stdout)";
      "-g", Arg.Set Clflags.debug, "";
-     "-dcfg", Arg.Set Flambda_backend_flags.dump_cfg, "";
+     "-dcfg", Arg.Set Oxcaml_flags.dump_cfg, "";
      "-dcmm", Arg.Set dump_cmm, "";
      "-dcse", Arg.Set dump_cse, "";
      "-dlinear", Arg.Set dump_linear, "";

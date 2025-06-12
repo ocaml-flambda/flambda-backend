@@ -175,7 +175,7 @@ let to_cmm r =
   (* Make sure we do not forget any current data *)
   let r = archive_data r in
   let sorted_functions =
-    match !Flambda_backend_flags.function_layout with
+    match !Oxcaml_flags.function_layout with
     | Topological -> List.rev r.functions
     | Source ->
       (* Sort functions according to debuginfo, to get a stable ordering *)

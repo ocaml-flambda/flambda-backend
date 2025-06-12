@@ -1512,7 +1512,7 @@ and find_type_unboxed_version path env seen =
 (* CR layouts v7.2: this should be reworked to expand abbrevations, e.g.
    in [type 'a id = 'a and f = float id], [f] can have an unboxed type.
    Parts of the logic looking at type kinds also belong in Ctype.
-   See https://github.com/ocaml-flambda/flambda-backend/pull/3526#discussion_r1957157050
+   See https://github.com/oxcaml/oxcaml/pull/3526#discussion_r1957157050
 *)
 and find_type_unboxed_version_data path env seen =
   let tda_declaration = find_type_unboxed_version path env seen in

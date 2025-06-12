@@ -1,7 +1,7 @@
 (* Example reduced from code in the `msat` package.
 
    when compiled with '-g', used to produce a bug with unbound variables (see
-   flambda-backend/PR#176) *)
+   oxcaml/PR#176) *)
 
 module type Foo = sig end
 

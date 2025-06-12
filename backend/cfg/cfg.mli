@@ -32,7 +32,7 @@ include module type of struct
 end
 
 type basic_instruction_list =
-  basic instruction Flambda_backend_utils.Doubly_linked_list.t
+  basic instruction Oxcaml_utils.Doubly_linked_list.t
 
 type basic_block =
   { mutable start : Label.t;
