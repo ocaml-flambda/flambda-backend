@@ -1168,21 +1168,46 @@ let rec approx_modtype env smty =
       Mty_strengthen (mty, path, Aliasability.aliasable aliasable)
 
 and approx_with ~loc env sg constr =
+  (* We must remove the destructively substituted item so it doesn't falsely
+     shadow items in the signature with the same name. In the case of module
+     substitution, we also actually perform the substitution, to avoid a
+     dangling module alias.
+
+     Because the approximated signature resulting from this function is only
+     used to resolve names in other modules in the recursive groups, we need not
+     replace dangling references to types or module types:
+     - The only way to depend on the contents of the module type in a sibling
+       module signature would be to use an illegal recursive module reference.
+     - Types can only be referenced on the RHS of a type declaration, but
+       approximated modules treat all types as abstract, so there is nothing to
+       replace.
+
+     See [testsuite/tests/typing-recmod/regression_destructive_subst.ml] for
+     examples.
+
+     CR-someday: it would be much more robust to parameterize [transl_*]
+     functions by whether or not we are approximating, so they share the same
+     logic, as it is a common source of bugs for these functions to miss some
+     behavior. *)
   let open struct
     type namespace = Type | Module | Module_type
   end in
+  let replaced_path = ref None in
   let rec remove_from_sg namespace path env sg =
     List.filter_map (remove_from_sig_item namespace path env sg) sg
   and remove_from_sig_item namespace path env sg_for_env item =
     match path, namespace, item with
     | [s], Type, Sig_type (id, _, _, _)
         when Ident.name id = s ->
+      replaced_path := Some (Pident id);
       None
     | [s], Module, Sig_module (id, _, _, _, _)
         when Ident.name id = s ->
+      replaced_path := Some (Pident id);
       None
     | [s], Module_type, Sig_modtype (id, _, _)
         when Ident.name id = s ->
+      replaced_path := Some (Pident id);
       None
     | s :: path, namespace,
       Sig_module (id, presence, md, rs, priv)
@@ -1193,20 +1218,24 @@ and approx_with ~loc env sg constr =
         { md with
           md_type = Mty_signature (remove_from_sg namespace path env sg) }
       in
+      replaced_path :=
+        Option.map (fun path -> path_concat id path) !replaced_path;
       Some (Sig_module (id, presence, md, rs, priv))
     | _ ->
       Some item
   in
-  (* Removing destructively-substituted items approximates [transl_with],
-     as all approximated types are treated as abstract. *)
   match constr with
-  | Pwith_typesubst (lid, _) ->
-    remove_from_sg Type (Longident.flatten lid.txt) env sg
-  | Pwith_modsubst (lid, _) ->
-    remove_from_sg Module (Longident.flatten lid.txt) env sg
-  | Pwith_modtypesubst (lid, _) ->
-    remove_from_sg Module_type (Longident.flatten lid.txt) env sg
-  | _ ->
+  | Pwith_typesubst (l, _) ->
+    remove_from_sg Type (Longident.flatten l.txt) env sg
+  | Pwith_modsubst (l, l') ->
+    let sg = remove_from_sg Module (Longident.flatten l.txt) env sg in
+    Option.fold !replaced_path ~none:sg ~some:(fun path ->
+      let path', _, _ = Env.lookup_module ~loc l'.txt env in
+      let sub = Subst.add_module_path path path' Subst.identity in
+      Subst.signature Make_local sub sg)
+  | Pwith_modtypesubst (l, _) ->
+    remove_from_sg Module_type (Longident.flatten l.txt) env sg
+  | Pwith_type _ | Pwith_module _ | Pwith_modtype _ ->
     sg
 
 and approx_module_declaration env pmd =
